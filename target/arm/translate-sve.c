@@ -273,6 +273,16 @@ static bool gen_gvec_fn_zzi(DisasContext *s, GVecGen2iFn *gvec_fn,
     return true;
 }
 
+static bool gen_gvec_fn_arg_zzi(DisasContext *s, GVecGen2iFn *gvec_fn,
+                                arg_rri_esz *a)
+{
+    if (a->esz < 0) {
+        /* Invalid tsz encoding -- see tszimm_esz. */
+        return false;
+    }
+    return gen_gvec_fn_zzi(s, gvec_fn, a->esz, a->rd, a->rn, a->imm);
+}
+
 /* Invoke a vector expander on three Zregs.  */
 static bool gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
                             int esz, int rd, int rn, int rm)
@@ -3503,12 +3513,7 @@ static bool trans_ADD_zzi(DisasContext *s, arg_rri_esz *a)
     if (a->esz == 0 && extract32(s->insn, 13, 1)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        tcg_gen_gvec_addi(a->esz, vec_full_reg_offset(s, a->rd),
-                          vec_full_reg_offset(s, a->rn), a->imm, vsz, vsz);
-    }
-    return true;
+    return gen_gvec_fn_arg_zzi(s, tcg_gen_gvec_addi, a);
 }
 
 static bool trans_SUB_zzi(DisasContext *s, arg_rri_esz *a)
@@ -6825,10 +6830,10 @@ TRANS_FEAT(ADCLT, aa64_sve2, do_adcl, a, true)
 
 static bool do_sve2_fn2i(DisasContext *s, arg_rri_esz *a, GVecGen2iFn *fn)
 {
-    if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
+    if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return gen_gvec_fn_zzi(s, fn, a->esz, a->rd, a->rn, a->imm);
+    return gen_gvec_fn_arg_zzi(s, fn, a);
 }
 
 static bool trans_SSRA(DisasContext *s, arg_rri_esz *a)
