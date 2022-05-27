@@ -6828,43 +6828,12 @@ static bool do_adcl(DisasContext *s, arg_rrrr_esz *a, bool sel)
 TRANS_FEAT(ADCLB, aa64_sve2, do_adcl, a, false)
 TRANS_FEAT(ADCLT, aa64_sve2, do_adcl, a, true)
 
-static bool do_sve2_fn2i(DisasContext *s, arg_rri_esz *a, GVecGen2iFn *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_fn_arg_zzi(s, fn, a);
-}
-
-static bool trans_SSRA(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_ssra);
-}
-
-static bool trans_USRA(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_usra);
-}
-
-static bool trans_SRSRA(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_srsra);
-}
-
-static bool trans_URSRA(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_ursra);
-}
-
-static bool trans_SRI(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_sri);
-}
-
-static bool trans_SLI(DisasContext *s, arg_rri_esz *a)
-{
-    return do_sve2_fn2i(s, a, gen_gvec_sli);
-}
+TRANS_FEAT(SSRA, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_ssra, a)
+TRANS_FEAT(USRA, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_usra, a)
+TRANS_FEAT(SRSRA, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_srsra, a)
+TRANS_FEAT(URSRA, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_ursra, a)
+TRANS_FEAT(SRI, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_sri, a)
+TRANS_FEAT(SLI, aa64_sve2, gen_gvec_fn_arg_zzi, gen_gvec_sli, a)
 
 TRANS_FEAT(SABA, aa64_sve2, gen_gvec_fn_arg_zzz, gen_gvec_saba, a)
 TRANS_FEAT(UABA, aa64_sve2, gen_gvec_fn_arg_zzz, gen_gvec_uaba, a)
