@@ -926,41 +926,29 @@ static bool do_shift_zpzi(DisasContext *s, arg_rpri_esz *a, bool asr,
     return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
 }
 
-static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_asr_zpzi_b, gen_helper_sve_asr_zpzi_h,
-        gen_helper_sve_asr_zpzi_s, gen_helper_sve_asr_zpzi_d,
-    };
-    return do_shift_zpzi(s, a, true, fns);
-}
+static gen_helper_gvec_3 * const asr_zpzi_fns[4] = {
+    gen_helper_sve_asr_zpzi_b, gen_helper_sve_asr_zpzi_h,
+    gen_helper_sve_asr_zpzi_s, gen_helper_sve_asr_zpzi_d,
+};
+TRANS_FEAT(ASR_zpzi, aa64_sve, do_shift_zpzi, a, true, asr_zpzi_fns)
 
-static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_lsr_zpzi_b, gen_helper_sve_lsr_zpzi_h,
-        gen_helper_sve_lsr_zpzi_s, gen_helper_sve_lsr_zpzi_d,
-    };
-    return do_shift_zpzi(s, a, false, fns);
-}
+static gen_helper_gvec_3 * const lsr_zpzi_fns[4] = {
+    gen_helper_sve_lsr_zpzi_b, gen_helper_sve_lsr_zpzi_h,
+    gen_helper_sve_lsr_zpzi_s, gen_helper_sve_lsr_zpzi_d,
+};
+TRANS_FEAT(LSR_zpzi, aa64_sve, do_shift_zpzi, a, false, lsr_zpzi_fns)
 
-static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_lsl_zpzi_b, gen_helper_sve_lsl_zpzi_h,
-        gen_helper_sve_lsl_zpzi_s, gen_helper_sve_lsl_zpzi_d,
-    };
-    return do_shift_zpzi(s, a, false, fns);
-}
+static gen_helper_gvec_3 * const lsl_zpzi_fns[4] = {
+    gen_helper_sve_lsl_zpzi_b, gen_helper_sve_lsl_zpzi_h,
+    gen_helper_sve_lsl_zpzi_s, gen_helper_sve_lsl_zpzi_d,
+};
+TRANS_FEAT(LSL_zpzi, aa64_sve, do_shift_zpzi, a, false, lsl_zpzi_fns)
 
-static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve_asrd_b, gen_helper_sve_asrd_h,
-        gen_helper_sve_asrd_s, gen_helper_sve_asrd_d,
-    };
-    return do_shift_zpzi(s, a, false, fns);
-}
+static gen_helper_gvec_3 * const asrd_fns[4] = {
+    gen_helper_sve_asrd_b, gen_helper_sve_asrd_h,
+    gen_helper_sve_asrd_s, gen_helper_sve_asrd_d,
+};
+TRANS_FEAT(ASRD, aa64_sve, do_shift_zpzi, a, false, asrd_fns)
 
 static gen_helper_gvec_3 * const sqshl_zpzi_fns[4] = {
     gen_helper_sve2_sqshl_zpzi_b, gen_helper_sve2_sqshl_zpzi_h,
