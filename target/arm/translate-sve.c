@@ -4027,8 +4027,6 @@ static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
         NULL,
     };
 
-    tcg_debug_assert(a->rd == a->ra);
-
     return gen_gvec_fpst_zzzz(s, fns[a->esz], a->rd, a->rn, a->rm, a->ra,
                               a->index * 4 + a->rot,
                               a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
