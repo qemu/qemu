@@ -65,6 +65,7 @@ static const TypeInfo virtio_gpu_pci_base_info = {
     .abstract = true
 };
 module_obj(TYPE_VIRTIO_GPU_PCI_BASE);
+module_kconfig(VIRTIO_PCI);
 
 #define TYPE_VIRTIO_GPU_PCI "virtio-gpu-pci"
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;

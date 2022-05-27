@@ -135,6 +135,16 @@ void module_allow_arch(const char *arch);
  */
 #define module_opts(name) modinfo(opts, name)
 
+/**
+ * module_kconfig
+ *
+ * @name: Kconfig requirement necessary to load the module
+ *
+ * This module requires a core module that should be implemented and
+ * enabled in Kconfig.
+ */
+#define module_kconfig(name) modinfo(kconfig, name)
+
 /*
  * module info database
  *

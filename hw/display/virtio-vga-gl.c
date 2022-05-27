@@ -37,6 +37,7 @@ static VirtioPCIDeviceTypeInfo virtio_vga_gl_info = {
     .instance_init = virtio_vga_gl_inst_initfn,
 };
 module_obj(TYPE_VIRTIO_VGA_GL);
+module_kconfig(VIRTIO_VGA);
 
 static void virtio_vga_register_types(void)
 {
