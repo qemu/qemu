@@ -114,8 +114,7 @@ powerpc-test-cross-container:
 
 ppc64el-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-ppc64el-cross
 
