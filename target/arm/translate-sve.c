@@ -900,20 +900,39 @@ static bool do_movz_zpz(DisasContext *s, int rd, int rn, int pg,
     return gen_gvec_ool_zzp(s, fns[esz], rd, rn, pg, invert);
 }
 
+static bool do_shift_zpzi(DisasContext *s, arg_rpri_esz *a, bool asr,
+                          gen_helper_gvec_3 * const fns[4])
+{
+    int max;
+
+    if (a->esz < 0) {
+        /* Invalid tsz encoding -- see tszimm_esz. */
+        return false;
+    }
+
+    /*
+     * Shift by element size is architecturally valid.
+     * For arithmetic right-shift, it's the same as by one less.
+     * For logical shifts and ASRD, it is a zeroing operation.
+     */
+    max = 8 << a->esz;
+    if (a->imm >= max) {
+        if (asr) {
+            a->imm = max - 1;
+        } else {
+            return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
+        }
+    }
+    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
+}
+
 static bool trans_ASR_zpzi(DisasContext *s, arg_rpri_esz *a)
 {
     static gen_helper_gvec_3 * const fns[4] = {
         gen_helper_sve_asr_zpzi_b, gen_helper_sve_asr_zpzi_h,
         gen_helper_sve_asr_zpzi_s, gen_helper_sve_asr_zpzi_d,
     };
-    if (a->esz < 0) {
-        /* Invalid tsz encoding -- see tszimm_esz. */
-        return false;
-    }
-    /* Shift by element size is architecturally valid.  For
-       arithmetic right-shift, it's the same as by one less. */
-    a->imm = MIN(a->imm, (8 << a->esz) - 1);
-    return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
+    return do_shift_zpzi(s, a, true, fns);
 }
 
 static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
@@ -922,16 +941,7 @@ static bool trans_LSR_zpzi(DisasContext *s, arg_rpri_esz *a)
         gen_helper_sve_lsr_zpzi_b, gen_helper_sve_lsr_zpzi_h,
         gen_helper_sve_lsr_zpzi_s, gen_helper_sve_lsr_zpzi_d,
     };
-    if (a->esz < 0) {
-        return false;
-    }
-    /* Shift by element size is architecturally valid.
-       For logical shifts, it is a zeroing operation.  */
-    if (a->imm >= (8 << a->esz)) {
-        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
-    } else {
-        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-    }
+    return do_shift_zpzi(s, a, false, fns);
 }
 
 static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a)
@@ -940,16 +950,7 @@ static bool trans_LSL_zpzi(DisasContext *s, arg_rpri_esz *a)
         gen_helper_sve_lsl_zpzi_b, gen_helper_sve_lsl_zpzi_h,
         gen_helper_sve_lsl_zpzi_s, gen_helper_sve_lsl_zpzi_d,
     };
-    if (a->esz < 0) {
-        return false;
-    }
-    /* Shift by element size is architecturally valid.
-       For logical shifts, it is a zeroing operation.  */
-    if (a->imm >= (8 << a->esz)) {
-        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
-    } else {
-        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-    }
+    return do_shift_zpzi(s, a, false, fns);
 }
 
 static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
@@ -958,16 +959,7 @@ static bool trans_ASRD(DisasContext *s, arg_rpri_esz *a)
         gen_helper_sve_asrd_b, gen_helper_sve_asrd_h,
         gen_helper_sve_asrd_s, gen_helper_sve_asrd_d,
     };
-    if (a->esz < 0) {
-        return false;
-    }
-    /* Shift by element size is architecturally valid.  For arithmetic
-       right shift for division, it is a zeroing operation.  */
-    if (a->imm >= (8 << a->esz)) {
-        return do_movz_zpz(s, a->rd, a->rd, a->pg, a->esz, true);
-    } else {
-        return gen_gvec_ool_arg_zpzi(s, fns[a->esz], a);
-    }
+    return do_shift_zpzi(s, a, false, fns);
 }
 
 static gen_helper_gvec_3 * const sqshl_zpzi_fns[4] = {
