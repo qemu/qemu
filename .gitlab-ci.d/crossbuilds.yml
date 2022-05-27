@@ -62,6 +62,8 @@ cross-i386-user:
 cross-i386-tci:
   extends: .cross_accel_build_job
   timeout: 60m
+  needs:
+    job: i386-fedora-cross-container
   variables:
     IMAGE: fedora-i386-cross
     ACCEL: tcg-interpreter
