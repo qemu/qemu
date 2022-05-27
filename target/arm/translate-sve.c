@@ -376,25 +376,10 @@ const uint64_t pred_esz_masks[4] = {
  *** SVE Logical - Unpredicated Group
  */
 
-static bool trans_AND_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_and, a);
-}
-
-static bool trans_ORR_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_or, a);
-}
-
-static bool trans_EOR_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_xor, a);
-}
-
-static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_andc, a);
-}
+TRANS_FEAT(AND_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_and, a)
+TRANS_FEAT(ORR_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_or, a)
+TRANS_FEAT(EOR_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_xor, a)
+TRANS_FEAT(BIC_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_andc, a)
 
 static void gen_xar8_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, int64_t sh)
 {
@@ -706,35 +691,12 @@ static bool trans_NBSL(DisasContext *s, arg_rrrr_esz *a)
  *** SVE Integer Arithmetic - Unpredicated Group
  */
 
-static bool trans_ADD_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_add, a);
-}
-
-static bool trans_SUB_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_sub, a);
-}
-
-static bool trans_SQADD_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_ssadd, a);
-}
-
-static bool trans_SQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_sssub, a);
-}
-
-static bool trans_UQADD_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_usadd, a);
-}
-
-static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_ussub, a);
-}
+TRANS_FEAT(ADD_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_add, a)
+TRANS_FEAT(SUB_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_sub, a)
+TRANS_FEAT(SQADD_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_ssadd, a)
+TRANS_FEAT(SQSUB_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_sssub, a)
+TRANS_FEAT(UQADD_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_usadd, a)
+TRANS_FEAT(UQSUB_zzz, aa64_sve, gen_gvec_fn_arg_zzz, tcg_gen_gvec_ussub, a)
 
 /*
  *** SVE Integer Arithmetic - Binary Predicated Group
@@ -6420,13 +6382,7 @@ static bool trans_MOVPRFX_z(DisasContext *s, arg_rpr_esz *a)
  * SVE2 Integer Multiply - Unpredicated
  */
 
-static bool trans_MUL_zzz(DisasContext *s, arg_rrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_mul, a);
-}
+TRANS_FEAT(MUL_zzz, aa64_sve2, gen_gvec_fn_arg_zzz, tcg_gen_gvec_mul, a)
 
 static gen_helper_gvec_3 * const smulh_zzz_fns[4] = {
     gen_helper_gvec_smulh_b, gen_helper_gvec_smulh_h,
