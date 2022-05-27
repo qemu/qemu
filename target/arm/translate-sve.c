@@ -491,14 +491,6 @@ static bool trans_XAR(DisasContext *s, arg_rrri_esz *a)
     return true;
 }
 
-static bool do_sve2_zzzz_fn(DisasContext *s, arg_rrrr_esz *a, GVecGen4Fn *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_fn_arg_zzzz(s, fn, a);
-}
-
 static void gen_eor3_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 {
     tcg_gen_xor_i64(d, n, m);
@@ -525,10 +517,7 @@ static void gen_eor3(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
-static bool trans_EOR3(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_eor3);
-}
+TRANS_FEAT(EOR3, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_eor3, a)
 
 static void gen_bcax_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 {
@@ -556,10 +545,7 @@ static void gen_bcax(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
-static bool trans_BCAX(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_bcax);
-}
+TRANS_FEAT(BCAX, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_bcax, a)
 
 static void gen_bsl(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
                     uint32_t a, uint32_t oprsz, uint32_t maxsz)
@@ -568,10 +554,7 @@ static void gen_bsl(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_bitsel(vece, d, a, n, m, oprsz, maxsz);
 }
 
-static bool trans_BSL(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_bsl);
-}
+TRANS_FEAT(BSL, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_bsl, a)
 
 static void gen_bsl1n_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 {
@@ -606,10 +589,7 @@ static void gen_bsl1n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
-static bool trans_BSL1N(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_bsl1n);
-}
+TRANS_FEAT(BSL1N, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_bsl1n, a)
 
 static void gen_bsl2n_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 {
@@ -653,10 +633,7 @@ static void gen_bsl2n(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
-static bool trans_BSL2N(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_bsl2n);
-}
+TRANS_FEAT(BSL2N, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_bsl2n, a)
 
 static void gen_nbsl_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
 {
@@ -685,10 +662,7 @@ static void gen_nbsl(unsigned vece, uint32_t d, uint32_t n, uint32_t m,
     tcg_gen_gvec_4(d, n, m, a, oprsz, maxsz, &op);
 }
 
-static bool trans_NBSL(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_sve2_zzzz_fn(s, a, gen_nbsl);
-}
+TRANS_FEAT(NBSL, aa64_sve2, gen_gvec_fn_arg_zzzz, gen_nbsl, a)
 
 /*
  *** SVE Integer Arithmetic - Unpredicated Group
