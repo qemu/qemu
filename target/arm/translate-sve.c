@@ -3966,29 +3966,13 @@ DO_FPCMP(FACGT, facgt)
 
 #undef DO_FPCMP
 
-static bool trans_FCADD(DisasContext *s, arg_FCADD *a)
-{
-    static gen_helper_gvec_4_ptr * const fns[3] = {
-        gen_helper_sve_fcadd_h,
-        gen_helper_sve_fcadd_s,
-        gen_helper_sve_fcadd_d
-    };
-
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_4_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           pred_full_reg_offset(s, a->pg),
-                           status, vsz, vsz, a->rot, fns[a->esz - 1]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
+static gen_helper_gvec_4_ptr * const fcadd_fns[] = {
+    NULL,                   gen_helper_sve_fcadd_h,
+    gen_helper_sve_fcadd_s, gen_helper_sve_fcadd_d,
+};
+TRANS_FEAT(FCADD, aa64_sve, gen_gvec_fpst_zzzp, fcadd_fns[a->esz],
+           a->rd, a->rn, a->rm, a->pg, a->rot,
+           a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 static bool do_fmla(DisasContext *s, arg_rprrr_esz *a,
                     gen_helper_gvec_5_ptr *fn)
