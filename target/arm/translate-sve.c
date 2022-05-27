@@ -258,6 +258,21 @@ static bool gen_gvec_ool_arg_zpzz(DisasContext *s, gen_helper_gvec_4 *fn,
     return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, data);
 }
 
+/* Invoke a vector expander on two Zregs and an immediate.  */
+static bool gen_gvec_fn_zzi(DisasContext *s, GVecGen2iFn *gvec_fn,
+                            int esz, int rd, int rn, uint64_t imm)
+{
+    if (gvec_fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        gvec_fn(esz, vec_full_reg_offset(s, rd),
+                vec_full_reg_offset(s, rn), imm, vsz, vsz);
+    }
+    return true;
+}
+
 /* Invoke a vector expander on three Zregs.  */
 static bool gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
                             int esz, int rd, int rn, int rm)
@@ -2028,12 +2043,7 @@ static bool do_zz_dbm(DisasContext *s, arg_rr_dbm *a, GVecGen2iFn *gvec_fn)
                                 extract32(a->dbm, 6, 6))) {
         return false;
     }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        gvec_fn(MO_64, vec_full_reg_offset(s, a->rd),
-                vec_full_reg_offset(s, a->rn), imm, vsz, vsz);
-    }
-    return true;
+    return gen_gvec_fn_zzi(s, gvec_fn, MO_64, a->rd, a->rn, imm);
 }
 
 static bool trans_AND_zzi(DisasContext *s, arg_rr_dbm *a)
@@ -6835,13 +6845,7 @@ static bool do_sve2_fn2i(DisasContext *s, arg_rri_esz *a, GVecGen2iFn *fn)
     if (a->esz < 0 || !dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        unsigned rd_ofs = vec_full_reg_offset(s, a->rd);
-        unsigned rn_ofs = vec_full_reg_offset(s, a->rn);
-        fn(a->esz, rd_ofs, rn_ofs, a->imm, vsz, vsz);
-    }
-    return true;
+    return gen_gvec_fn_zzi(s, fn, a->esz, a->rd, a->rn, a->imm);
 }
 
 static bool trans_SSRA(DisasContext *s, arg_rri_esz *a)
