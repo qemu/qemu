@@ -7161,33 +7161,15 @@ TRANS_FEAT(FMLSLT_zzzw, aa64_sve2, do_FMLAL_zzzw, a, true, true)
 
 static bool do_FMLAL_zzxw(DisasContext *s, arg_rrxr_esz *a, bool sub, bool sel)
 {
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
     return gen_gvec_ptr_zzzz(s, gen_helper_sve2_fmlal_zzxw_s,
                              a->rd, a->rn, a->rm, a->ra,
                              (a->index << 2) | (sel << 1) | sub, cpu_env);
 }
 
-static bool trans_FMLALB_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_FMLAL_zzxw(s, a, false, false);
-}
-
-static bool trans_FMLALT_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_FMLAL_zzxw(s, a, false, true);
-}
-
-static bool trans_FMLSLB_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_FMLAL_zzxw(s, a, true, false);
-}
-
-static bool trans_FMLSLT_zzxw(DisasContext *s, arg_rrxr_esz *a)
-{
-    return do_FMLAL_zzxw(s, a, true, true);
-}
+TRANS_FEAT(FMLALB_zzxw, aa64_sve2, do_FMLAL_zzxw, a, false, false)
+TRANS_FEAT(FMLALT_zzxw, aa64_sve2, do_FMLAL_zzxw, a, false, true)
+TRANS_FEAT(FMLSLB_zzxw, aa64_sve2, do_FMLAL_zzxw, a, true, false)
+TRANS_FEAT(FMLSLT_zzxw, aa64_sve2, do_FMLAL_zzxw, a, true, true)
 
 TRANS_FEAT(SMMLA, aa64_sve_i8mm, gen_gvec_ool_arg_zzzz,
            gen_helper_gvec_smmla_b, a, 0)
