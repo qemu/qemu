@@ -3970,14 +3970,11 @@ static bool do_fp_cmp(DisasContext *s, arg_rprr_esz *a,
 }
 
 #define DO_FPCMP(NAME, name) \
-static bool trans_##NAME##_ppzz(DisasContext *s, arg_rprr_esz *a)     \
-{                                                                     \
-    static gen_helper_gvec_4_ptr * const fns[4] = {                   \
+    static gen_helper_gvec_4_ptr * const name##_fns[4] = {            \
         NULL, gen_helper_sve_##name##_h,                              \
         gen_helper_sve_##name##_s, gen_helper_sve_##name##_d          \
     };                                                                \
-    return do_fp_cmp(s, a, fns[a->esz]);                              \
-}
+    TRANS_FEAT(NAME##_ppzz, aa64_sve, do_fp_cmp, a, name##_fns[a->esz])
 
 DO_FPCMP(FCMGE, fcmge)
 DO_FPCMP(FCMGT, fcmgt)
