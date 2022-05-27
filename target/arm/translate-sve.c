@@ -2786,14 +2786,12 @@ static bool do_ppzi_flags(DisasContext *s, arg_rpri_esz *a,
 }
 
 #define DO_PPZI(NAME, name) \
-static bool trans_##NAME##_ppzi(DisasContext *s, arg_rpri_esz *a)         \
-{                                                                         \
-    static gen_helper_gvec_flags_3 * const fns[4] = {                     \
+    static gen_helper_gvec_flags_3 * const name##_ppzi_fns[4] = {         \
         gen_helper_sve_##name##_ppzi_b, gen_helper_sve_##name##_ppzi_h,   \
         gen_helper_sve_##name##_ppzi_s, gen_helper_sve_##name##_ppzi_d,   \
     };                                                                    \
-    return do_ppzi_flags(s, a, fns[a->esz]);                              \
-}
+    TRANS_FEAT(NAME##_ppzi, aa64_sve, do_ppzi_flags, a,                   \
+               name##_ppzi_fns[a->esz])
 
 DO_PPZI(CMPEQ, cmpeq)
 DO_PPZI(CMPNE, cmpne)
