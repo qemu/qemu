@@ -274,6 +274,12 @@ static bool gen_gvec_fn_zzz(DisasContext *s, GVecGen3Fn *gvec_fn,
     return true;
 }
 
+static bool gen_gvec_fn_arg_zzz(DisasContext *s, GVecGen3Fn *fn,
+                                arg_rrr_esz *a)
+{
+    return gen_gvec_fn_zzz(s, fn, a->esz, a->rd, a->rn, a->rm);
+}
+
 /* Invoke a vector expander on four Zregs.  */
 static void gen_gvec_fn_zzzz(DisasContext *s, GVecGen4Fn *gvec_fn,
                              int esz, int rd, int rn, int rm, int ra)
@@ -370,29 +376,24 @@ const uint64_t pred_esz_masks[4] = {
  *** SVE Logical - Unpredicated Group
  */
 
-static bool do_zzz_fn(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *gvec_fn)
-{
-    return gen_gvec_fn_zzz(s, gvec_fn, a->esz, a->rd, a->rn, a->rm);
-}
-
 static bool trans_AND_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_and);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_and, a);
 }
 
 static bool trans_ORR_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_or);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_or, a);
 }
 
 static bool trans_EOR_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_xor);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_xor, a);
 }
 
 static bool trans_BIC_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_andc);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_andc, a);
 }
 
 static void gen_xar8_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, int64_t sh)
@@ -707,32 +708,32 @@ static bool trans_NBSL(DisasContext *s, arg_rrrr_esz *a)
 
 static bool trans_ADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_add);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_add, a);
 }
 
 static bool trans_SUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_sub);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_sub, a);
 }
 
 static bool trans_SQADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_ssadd);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_ssadd, a);
 }
 
 static bool trans_SQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_sssub);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_sssub, a);
 }
 
 static bool trans_UQADD_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_usadd);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_usadd, a);
 }
 
 static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
 {
-    return do_zzz_fn(s, a, tcg_gen_gvec_ussub);
+    return gen_gvec_fn_arg_zzz(s, tcg_gen_gvec_ussub, a);
 }
 
 /*
