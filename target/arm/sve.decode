@@ -1598,10 +1598,9 @@ SQRDCMLAH_zzzz  01000100 esz:2 0 rm:5 0011 rot:2 rn:5 rd:5  ra=%reg_movprfx
 USDOT_zzzz      01000100 .. 0 ..... 011 110 ..... .....  @rda_rn_rm
 
 ### SVE2 floating point matrix multiply accumulate
-{
-  BFMMLA        01100100 01 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
-  FMMLA         01100100 .. 1 ..... 111 001 ..... .....  @rda_rn_rm
-}
+BFMMLA          01100100 01 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
+FMMLA_s         01100100 10 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
+FMMLA_d         01100100 11 1 ..... 111 001 ..... .....  @rda_rn_rm_e0
 
 ### SVE2 Memory Gather Load Group
 

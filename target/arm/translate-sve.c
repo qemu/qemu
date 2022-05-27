@@ -7318,29 +7318,10 @@ DO_SVE2_ZPZZ_FP(FMINP, fminp)
  * SVE Integer Multiply-Add (unpredicated)
  */
 
-static bool trans_FMMLA(DisasContext *s, arg_rrrr_esz *a)
-{
-    gen_helper_gvec_4_ptr *fn;
-
-    switch (a->esz) {
-    case MO_32:
-        if (!dc_isar_feature(aa64_sve_f32mm, s)) {
-            return false;
-        }
-        fn = gen_helper_fmmla_s;
-        break;
-    case MO_64:
-        if (!dc_isar_feature(aa64_sve_f64mm, s)) {
-            return false;
-        }
-        fn = gen_helper_fmmla_d;
-        break;
-    default:
-        return false;
-    }
-
-    return gen_gvec_fpst_zzzz(s, fn, a->rd, a->rn, a->rm, a->ra, 0, FPST_FPCR);
-}
+TRANS_FEAT(FMMLA_s, aa64_sve_f32mm, gen_gvec_fpst_zzzz, gen_helper_fmmla_s,
+           a->rd, a->rn, a->rm, a->ra, 0, FPST_FPCR)
+TRANS_FEAT(FMMLA_d, aa64_sve_f64mm, gen_gvec_fpst_zzzz, gen_helper_fmmla_d,
+           a->rd, a->rn, a->rm, a->ra, 0, FPST_FPCR)
 
 static gen_helper_gvec_4 * const sqdmlal_zzzw_fns[] = {
     NULL,                           gen_helper_sve2_sqdmlal_zzzw_h,
