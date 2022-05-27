@@ -6897,23 +6897,8 @@ static bool trans_SLI(DisasContext *s, arg_rri_esz *a)
     return do_sve2_fn2i(s, a, gen_gvec_sli);
 }
 
-static bool do_sve2_fn_zzz(DisasContext *s, arg_rrr_esz *a, GVecGen3Fn *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_fn_arg_zzz(s, fn, a);
-}
-
-static bool trans_SABA(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_sve2_fn_zzz(s, a, gen_gvec_saba);
-}
-
-static bool trans_UABA(DisasContext *s, arg_rrr_esz *a)
-{
-    return do_sve2_fn_zzz(s, a, gen_gvec_uaba);
-}
+TRANS_FEAT(SABA, aa64_sve2, gen_gvec_fn_arg_zzz, gen_gvec_saba, a)
+TRANS_FEAT(UABA, aa64_sve2, gen_gvec_fn_arg_zzz, gen_gvec_uaba, a)
 
 static bool do_sve2_narrow_extract(DisasContext *s, arg_rri_esz *a,
                                    const GVecGen2 ops[3])
