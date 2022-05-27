@@ -3330,14 +3330,11 @@ static bool do_zzi_ool(DisasContext *s, arg_rri_esz *a, gen_helper_gvec_2i *fn)
 }
 
 #define DO_ZZI(NAME, name) \
-static bool trans_##NAME##_zzi(DisasContext *s, arg_rri_esz *a)         \
-{                                                                       \
-    static gen_helper_gvec_2i * const fns[4] = {                        \
+    static gen_helper_gvec_2i * const name##i_fns[4] = {                \
         gen_helper_sve_##name##i_b, gen_helper_sve_##name##i_h,         \
         gen_helper_sve_##name##i_s, gen_helper_sve_##name##i_d,         \
     };                                                                  \
-    return do_zzi_ool(s, a, fns[a->esz]);                               \
-}
+    TRANS_FEAT(NAME##_zzi, aa64_sve, do_zzi_ool, a, name##i_fns[a->esz])
 
 DO_ZZI(SMAX, smax)
 DO_ZZI(UMAX, umax)
