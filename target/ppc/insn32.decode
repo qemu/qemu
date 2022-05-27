@@ -17,6 +17,9 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
 
+&A              frt fra frb frc rc:bool
+@A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                 &D
 
@@ -151,6 +154,9 @@
 &X_vrt_frbp     vrt frbp
 @X_vrt_frbp     ...... vrt:5 ..... ....0 .......... .           &X_vrt_frbp frbp=%x_frbp
 
+&X_a            ra
+@X_a            ...... ra:3 .. ..... ..... .......... .         &X_a
+
 %xx_xt          0:1 21:5
 %xx_xb          1:1 11:5
 %xx_xa          2:1 16:5
@@ -158,14 +164,23 @@
 &XX2            xt xb
 @XX2            ...... ..... ..... ..... ......... ..           &XX2 xt=%xx_xt xb=%xx_xb
 
-&XX2_uim2       xt xb uim:uint8_t
-@XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim2 xt=%xx_xt xb=%xx_xb
+&XX2_uim        xt xb uim:uint8_t
+@XX2_uim2       ...... ..... ... uim:2 ..... ......... ..       &XX2_uim xt=%xx_xt xb=%xx_xb
+
+@XX2_uim4       ...... ..... . uim:4 ..... ......... ..         &XX2_uim xt=%xx_xt xb=%xx_xb
 
 &XX2_bf_xb      bf xb
 @XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
 
 &XX3            xt xa xb
 @XX3            ...... ..... ..... ..... ........ ...           &XX3 xt=%xx_xt xa=%xx_xa xb=%xx_xb
+
+# 32 bit GER instructions have all mask bits considered 1
+&MMIRR_XX3      xa xb xt pmsk xmsk ymsk
+%xx_at          23:3
+%xx_xa_pair     2:1 17:4 !function=times_2
+@XX3_at         ...... ... .. ..... ..... ........ ...          &MMIRR_XX3 xt=%xx_at xb=%xx_xb \
+                                                                pmsk=255 xmsk=15 ymsk=15
 
 &XX3_dm         xt xa xb dm
 @XX3_dm         ...... ..... ..... ..... . dm:2 ..... ...       &XX3_dm xt=%xx_xt xa=%xx_xa xb=%xx_xb
@@ -307,6 +322,10 @@ STFD            110110 ..... ...... ...............     @D
 STFDU           110111 ..... ...... ...............     @D
 STFDX           011111 ..... ...... .... 1011010111 -   @X
 STFDUX          011111 ..... ...... .... 1011110111 -   @X
+
+### Floating-Point Select Instruction
+
+FSEL            111111 ..... ..... ..... ..... 10111 .  @A
 
 ### Move To/From System Register Instructions
 
@@ -590,6 +609,13 @@ VMULLD          000100 ..... ..... ..... 00111001001    @VX
 
 ## Vector Multiply-Sum Instructions
 
+VMSUMUBM        000100 ..... ..... ..... ..... 100100   @VA
+VMSUMMBM        000100 ..... ..... ..... ..... 100101   @VA
+VMSUMSHM        000100 ..... ..... ..... ..... 101000   @VA
+VMSUMSHS        000100 ..... ..... ..... ..... 101001   @VA
+VMSUMUHM        000100 ..... ..... ..... ..... 100110   @VA
+VMSUMUHS        000100 ..... ..... ..... ..... 100111   @VA
+
 VMSUMCUD        000100 ..... ..... ..... ..... 010111   @VA
 VMSUMUDM        000100 ..... ..... ..... ..... 100011   @VA
 
@@ -659,6 +685,9 @@ XXSPLTW         111100 ..... ---.. ..... 010100100 . .  @XX2_uim2
 
 ## VSX Permute Instructions
 
+XXEXTRACTUW     111100 ..... - .... ..... 010100101 ..  @XX2_uim4
+XXINSERTW       111100 ..... - .... ..... 010110101 ..  @XX2_uim4
+
 XXPERM          111100 ..... ..... ..... 00011010 ...   @XX3
 XXPERMR         111100 ..... ..... ..... 00111010 ...   @XX3
 XXPERMDI        111100 ..... ..... ..... 0 .. 01010 ... @XX3_dm
@@ -701,6 +730,11 @@ XSCVUQQP        111111 ..... 00011 ..... 1101000100 -   @X_tb
 XSCVSQQP        111111 ..... 01011 ..... 1101000100 -   @X_tb
 XVCVBF16SPN     111100 ..... 10000 ..... 111011011 ..   @XX2
 XVCVSPBF16      111100 ..... 10001 ..... 111011011 ..   @XX2
+XSCVSPDPN       111100 ..... ----- ..... 101001011 ..   @XX2
+
+## VSX Binary Floating-Point Math Support Instructions
+
+XVXSIGSP        111100 ..... 01001 ..... 111011011 ..   @XX2
 
 ## VSX Vector Test Least-Significant Bit by Byte Instruction
 
@@ -710,3 +744,45 @@ XVTLSBB         111100 ... -- 00010 ..... 111011011 . - @XX2_bf_xb
 &XL_s           s:uint8_t
 @XL_s           ......-------------- s:1 .......... -   &XL_s
 RFEBB           010011-------------- .   0010010010 -   @XL_s
+
+## Accumulator Instructions
+
+XXMFACC         011111 ... -- 00000 ----- 0010110001 -   @X_a
+XXMTACC         011111 ... -- 00001 ----- 0010110001 -   @X_a
+XXSETACCZ       011111 ... -- 00011 ----- 0010110001 -   @X_a
+
+## VSX GER instruction
+
+XVI4GER8        111011 ... -- ..... ..... 00100011 ..-  @XX3_at xa=%xx_xa
+XVI4GER8PP      111011 ... -- ..... ..... 00100010 ..-  @XX3_at xa=%xx_xa
+XVI8GER4        111011 ... -- ..... ..... 00000011 ..-  @XX3_at xa=%xx_xa
+XVI8GER4PP      111011 ... -- ..... ..... 00000010 ..-  @XX3_at xa=%xx_xa
+XVI16GER2       111011 ... -- ..... ..... 01001011 ..-  @XX3_at xa=%xx_xa
+XVI16GER2PP     111011 ... -- ..... ..... 01101011 ..-  @XX3_at xa=%xx_xa
+XVI8GER4SPP     111011 ... -- ..... ..... 01100011 ..-  @XX3_at xa=%xx_xa
+XVI16GER2S      111011 ... -- ..... ..... 00101011 ..-  @XX3_at xa=%xx_xa
+XVI16GER2SPP    111011 ... -- ..... ..... 00101010 ..-  @XX3_at xa=%xx_xa
+
+XVBF16GER2      111011 ... -- ..... ..... 00110011 ..-  @XX3_at xa=%xx_xa
+XVBF16GER2PP    111011 ... -- ..... ..... 00110010 ..-  @XX3_at xa=%xx_xa
+XVBF16GER2PN    111011 ... -- ..... ..... 10110010 ..-  @XX3_at xa=%xx_xa
+XVBF16GER2NP    111011 ... -- ..... ..... 01110010 ..-  @XX3_at xa=%xx_xa
+XVBF16GER2NN    111011 ... -- ..... ..... 11110010 ..-  @XX3_at xa=%xx_xa
+
+XVF16GER2       111011 ... -- ..... ..... 00010011 ..-  @XX3_at xa=%xx_xa
+XVF16GER2PP     111011 ... -- ..... ..... 00010010 ..-  @XX3_at xa=%xx_xa
+XVF16GER2PN     111011 ... -- ..... ..... 10010010 ..-  @XX3_at xa=%xx_xa
+XVF16GER2NP     111011 ... -- ..... ..... 01010010 ..-  @XX3_at xa=%xx_xa
+XVF16GER2NN     111011 ... -- ..... ..... 11010010 ..-  @XX3_at xa=%xx_xa
+
+XVF32GER        111011 ... -- ..... ..... 00011011 ..-  @XX3_at xa=%xx_xa
+XVF32GERPP      111011 ... -- ..... ..... 00011010 ..-  @XX3_at xa=%xx_xa
+XVF32GERPN      111011 ... -- ..... ..... 10011010 ..-  @XX3_at xa=%xx_xa
+XVF32GERNP      111011 ... -- ..... ..... 01011010 ..-  @XX3_at xa=%xx_xa
+XVF32GERNN      111011 ... -- ..... ..... 11011010 ..-  @XX3_at xa=%xx_xa
+
+XVF64GER        111011 ... -- .... 0 ..... 00111011 ..-  @XX3_at xa=%xx_xa_pair
+XVF64GERPP      111011 ... -- .... 0 ..... 00111010 ..-  @XX3_at xa=%xx_xa_pair
+XVF64GERPN      111011 ... -- .... 0 ..... 10111010 ..-  @XX3_at xa=%xx_xa_pair
+XVF64GERNP      111011 ... -- .... 0 ..... 01111010 ..-  @XX3_at xa=%xx_xa_pair
+XVF64GERNN      111011 ... -- .... 0 ..... 11111010 ..-  @XX3_at xa=%xx_xa_pair

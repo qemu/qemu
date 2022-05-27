@@ -2553,20 +2553,17 @@ static void gen_vmladduhm(DisasContext *ctx)
     tcg_temp_free_ptr(rd);
 }
 
-static bool trans_VPERM(DisasContext *ctx, arg_VA *a)
+static bool do_va_helper(DisasContext *ctx, arg_VA *a,
+    void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
 {
     TCGv_ptr vrt, vra, vrb, vrc;
-
-    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
     REQUIRE_VECTOR(ctx);
 
     vrt = gen_avr_ptr(a->vrt);
     vra = gen_avr_ptr(a->vra);
     vrb = gen_avr_ptr(a->vrb);
     vrc = gen_avr_ptr(a->rc);
-
-    gen_helper_VPERM(vrt, vra, vrb, vrc);
-
+    gen_helper(vrt, vra, vrb, vrc);
     tcg_temp_free_ptr(vrt);
     tcg_temp_free_ptr(vra);
     tcg_temp_free_ptr(vrb);
@@ -2575,27 +2572,8 @@ static bool trans_VPERM(DisasContext *ctx, arg_VA *a)
     return true;
 }
 
-static bool trans_VPERMR(DisasContext *ctx, arg_VA *a)
-{
-    TCGv_ptr vrt, vra, vrb, vrc;
-
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
-    REQUIRE_VECTOR(ctx);
-
-    vrt = gen_avr_ptr(a->vrt);
-    vra = gen_avr_ptr(a->vra);
-    vrb = gen_avr_ptr(a->vrb);
-    vrc = gen_avr_ptr(a->rc);
-
-    gen_helper_VPERMR(vrt, vra, vrb, vrc);
-
-    tcg_temp_free_ptr(vrt);
-    tcg_temp_free_ptr(vra);
-    tcg_temp_free_ptr(vrb);
-    tcg_temp_free_ptr(vrc);
-
-    return true;
-}
+TRANS_FLAGS(ALTIVEC, VPERM, do_va_helper, gen_helper_VPERM)
+TRANS_FLAGS2(ISA300, VPERMR, do_va_helper, gen_helper_VPERMR)
 
 static bool trans_VSEL(DisasContext *ctx, arg_VA *a)
 {
@@ -2609,9 +2587,33 @@ static bool trans_VSEL(DisasContext *ctx, arg_VA *a)
     return true;
 }
 
-GEN_VAFORM_PAIRED(vmsumubm, vmsummbm, 18)
-GEN_VAFORM_PAIRED(vmsumuhm, vmsumuhs, 19)
-GEN_VAFORM_PAIRED(vmsumshm, vmsumshs, 20)
+TRANS_FLAGS(ALTIVEC, VMSUMUBM, do_va_helper, gen_helper_VMSUMUBM)
+TRANS_FLAGS(ALTIVEC, VMSUMMBM, do_va_helper, gen_helper_VMSUMMBM)
+TRANS_FLAGS(ALTIVEC, VMSUMSHM, do_va_helper, gen_helper_VMSUMSHM)
+TRANS_FLAGS(ALTIVEC, VMSUMUHM, do_va_helper, gen_helper_VMSUMUHM)
+
+static bool do_va_env_helper(DisasContext *ctx, arg_VA *a,
+    void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
+{
+    TCGv_ptr vrt, vra, vrb, vrc;
+    REQUIRE_VECTOR(ctx);
+
+    vrt = gen_avr_ptr(a->vrt);
+    vra = gen_avr_ptr(a->vra);
+    vrb = gen_avr_ptr(a->vrb);
+    vrc = gen_avr_ptr(a->rc);
+    gen_helper(cpu_env, vrt, vra, vrb, vrc);
+    tcg_temp_free_ptr(vrt);
+    tcg_temp_free_ptr(vra);
+    tcg_temp_free_ptr(vrb);
+    tcg_temp_free_ptr(vrc);
+
+    return true;
+}
+
+TRANS_FLAGS(ALTIVEC, VMSUMUHS, do_va_env_helper, gen_helper_VMSUMUHS)
+TRANS_FLAGS(ALTIVEC, VMSUMSHS, do_va_env_helper, gen_helper_VMSUMSHS)
+
 GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
 
 GEN_VXFORM_NOA(vclzb, 1, 28)

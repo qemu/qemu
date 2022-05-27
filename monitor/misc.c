@@ -84,6 +84,9 @@
 #include "hw/s390x/storage-attributes.h"
 #endif
 
+/* Make devices configuration available for use in hmp-commands*.hx templates */
+#include CONFIG_DEVICES
+
 /* file descriptors passed via SCM_RIGHTS */
 typedef struct mon_fd_t mon_fd_t;
 struct mon_fd_t {

@@ -1832,13 +1832,14 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
 
 static void tcg_out_mb(TCGContext *s, TCGArg a0)
 {
-    uint32_t insn = HWSYNC;
-    a0 &= TCG_MO_ALL;
-    if (a0 == TCG_MO_LD_LD) {
+    uint32_t insn;
+
+    if (a0 & TCG_MO_ST_LD) {
+        insn = HWSYNC;
+    } else {
         insn = LWSYNC;
-    } else if (a0 == TCG_MO_ST_ST) {
-        insn = EIEIO;
     }
+
     tcg_out32(s, insn);
 }
 
@@ -4008,3 +4009,4 @@ void tcg_register_jit(const void *buf, size_t buf_size)
 #undef VMULOUB
 #undef VMULOUH
 #undef VMULOUW
+#undef VMSUMUHM
