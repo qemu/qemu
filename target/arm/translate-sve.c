@@ -281,14 +281,20 @@ static bool gen_gvec_fn_arg_zzz(DisasContext *s, GVecGen3Fn *fn,
 }
 
 /* Invoke a vector expander on four Zregs.  */
-static void gen_gvec_fn_zzzz(DisasContext *s, GVecGen4Fn *gvec_fn,
-                             int esz, int rd, int rn, int rm, int ra)
+static bool gen_gvec_fn_arg_zzzz(DisasContext *s, GVecGen4Fn *gvec_fn,
+                                 arg_rrrr_esz *a)
 {
-    unsigned vsz = vec_full_reg_size(s);
-    gvec_fn(esz, vec_full_reg_offset(s, rd),
-            vec_full_reg_offset(s, rn),
-            vec_full_reg_offset(s, rm),
-            vec_full_reg_offset(s, ra), vsz, vsz);
+    if (gvec_fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        gvec_fn(a->esz, vec_full_reg_offset(s, a->rd),
+                vec_full_reg_offset(s, a->rn),
+                vec_full_reg_offset(s, a->rm),
+                vec_full_reg_offset(s, a->ra), vsz, vsz);
+    }
+    return true;
 }
 
 /* Invoke a vector move on two Zregs.  */
@@ -490,10 +496,7 @@ static bool do_sve2_zzzz_fn(DisasContext *s, arg_rrrr_esz *a, GVecGen4Fn *fn)
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    if (sve_access_check(s)) {
-        gen_gvec_fn_zzzz(s, fn, a->esz, a->rd, a->rn, a->rm, a->ra);
-    }
-    return true;
+    return gen_gvec_fn_arg_zzzz(s, fn, a);
 }
 
 static void gen_eor3_i64(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m, TCGv_i64 k)
