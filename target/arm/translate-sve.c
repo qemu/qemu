@@ -222,6 +222,13 @@ static bool gen_gvec_ool_zzp(DisasContext *s, gen_helper_gvec_3 *fn,
     return true;
 }
 
+static bool gen_gvec_ool_arg_zpz(DisasContext *s, gen_helper_gvec_3 *fn,
+                                 arg_rpr_esz *a, int data)
+{
+    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, data);
+}
+
+
 /* Invoke an out-of-line helper on 3 Zregs and a predicate. */
 static void gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
                               int rd, int rn, int rm, int pg, int data)
@@ -805,11 +812,6 @@ static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
  *** SVE Integer Arithmetic - Unary Predicated Group
  */
 
-static bool do_zpz_ool(DisasContext *s, arg_rpr_esz *a, gen_helper_gvec_3 *fn)
-{
-    return gen_gvec_ool_zzp(s, fn, a->rd, a->rn, a->pg, 0);
-}
-
 #define DO_ZPZ(NAME, name) \
 static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)           \
 {                                                                   \
@@ -817,7 +819,7 @@ static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)           \
         gen_helper_sve_##name##_b, gen_helper_sve_##name##_h,       \
         gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,       \
     };                                                              \
-    return do_zpz_ool(s, a, fns[a->esz]);                           \
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);              \
 }
 
 DO_ZPZ(CLS, cls)
@@ -836,7 +838,7 @@ static bool trans_FABS(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_fabs_s,
         gen_helper_sve_fabs_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_FNEG(DisasContext *s, arg_rpr_esz *a)
@@ -847,7 +849,7 @@ static bool trans_FNEG(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_fneg_s,
         gen_helper_sve_fneg_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_SXTB(DisasContext *s, arg_rpr_esz *a)
@@ -858,7 +860,7 @@ static bool trans_SXTB(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_sxtb_s,
         gen_helper_sve_sxtb_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_UXTB(DisasContext *s, arg_rpr_esz *a)
@@ -869,7 +871,7 @@ static bool trans_UXTB(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_uxtb_s,
         gen_helper_sve_uxtb_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_SXTH(DisasContext *s, arg_rpr_esz *a)
@@ -879,7 +881,7 @@ static bool trans_SXTH(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_sxth_s,
         gen_helper_sve_sxth_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_UXTH(DisasContext *s, arg_rpr_esz *a)
@@ -889,17 +891,19 @@ static bool trans_UXTH(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_uxth_s,
         gen_helper_sve_uxth_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_SXTW(DisasContext *s, arg_rpr_esz *a)
 {
-    return do_zpz_ool(s, a, a->esz == 3 ? gen_helper_sve_sxtw_d : NULL);
+    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_sxtw_d
+                                : NULL, a, 0);
 }
 
 static bool trans_UXTW(DisasContext *s, arg_rpr_esz *a)
 {
-    return do_zpz_ool(s, a, a->esz == 3 ? gen_helper_sve_uxtw_d : NULL);
+    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_uxtw_d
+                                : NULL, a, 0);
 }
 
 #undef DO_ZPZ
@@ -2659,7 +2663,7 @@ static bool trans_COMPACT(DisasContext *s, arg_rpr_esz *a)
     static gen_helper_gvec_3 * const fns[4] = {
         NULL, NULL, gen_helper_sve_compact_s, gen_helper_sve_compact_d
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 /* Call the helper that computes the ARM LastActiveElement pseudocode
@@ -3008,7 +3012,7 @@ static bool trans_REVB(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_revb_s,
         gen_helper_sve_revb_d,
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_REVH(DisasContext *s, arg_rpr_esz *a)
@@ -3019,12 +3023,13 @@ static bool trans_REVH(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_revh_s,
         gen_helper_sve_revh_d,
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_REVW(DisasContext *s, arg_rpr_esz *a)
 {
-    return do_zpz_ool(s, a, a->esz == 3 ? gen_helper_sve_revw_d : NULL);
+    return gen_gvec_ool_arg_zpz(s, a->esz == 3 ? gen_helper_sve_revw_d
+                                : NULL, a, 0);
 }
 
 static bool trans_RBIT(DisasContext *s, arg_rpr_esz *a)
@@ -3035,7 +3040,7 @@ static bool trans_RBIT(DisasContext *s, arg_rpr_esz *a)
         gen_helper_sve_rbit_s,
         gen_helper_sve_rbit_d,
     };
-    return do_zpz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_SPLICE(DisasContext *s, arg_rprr_esz *a)
@@ -6624,7 +6629,7 @@ static bool do_sve2_zpz_ool(DisasContext *s, arg_rpr_esz *a,
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpz_ool(s, a, fn);
+    return gen_gvec_ool_arg_zpz(s, fn, a, 0);
 }
 
 static bool trans_URECPE(DisasContext *s, arg_rpr_esz *a)
