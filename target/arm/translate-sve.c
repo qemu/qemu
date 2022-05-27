@@ -3841,29 +3841,24 @@ DO_FP3(FRSQRTS, rsqrts)
  *** SVE Floating Point Arithmetic - Predicated Group
  */
 
-#define DO_FP3(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)          \
-{                                                                   \
-    static gen_helper_gvec_4_ptr * const fns[4] = {                 \
-        NULL, gen_helper_sve_##name##_h,                            \
-        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d        \
-    };                                                              \
-    return gen_gvec_fpst_arg_zpzz(s, fns[a->esz], a);               \
-}
+#define DO_ZPZZ_FP(NAME, FEAT, name) \
+    static gen_helper_gvec_4_ptr * const name##_zpzz_fns[4] = { \
+        NULL,                  gen_helper_##name##_h,           \
+        gen_helper_##name##_s, gen_helper_##name##_d            \
+    };                                                          \
+    TRANS_FEAT(NAME, FEAT, gen_gvec_fpst_arg_zpzz, name##_zpzz_fns[a->esz], a)
 
-DO_FP3(FADD_zpzz, fadd)
-DO_FP3(FSUB_zpzz, fsub)
-DO_FP3(FMUL_zpzz, fmul)
-DO_FP3(FMIN_zpzz, fmin)
-DO_FP3(FMAX_zpzz, fmax)
-DO_FP3(FMINNM_zpzz, fminnum)
-DO_FP3(FMAXNM_zpzz, fmaxnum)
-DO_FP3(FABD, fabd)
-DO_FP3(FSCALE, fscalbn)
-DO_FP3(FDIV, fdiv)
-DO_FP3(FMULX, fmulx)
-
-#undef DO_FP3
+DO_ZPZZ_FP(FADD_zpzz, aa64_sve, sve_fadd)
+DO_ZPZZ_FP(FSUB_zpzz, aa64_sve, sve_fsub)
+DO_ZPZZ_FP(FMUL_zpzz, aa64_sve, sve_fmul)
+DO_ZPZZ_FP(FMIN_zpzz, aa64_sve, sve_fmin)
+DO_ZPZZ_FP(FMAX_zpzz, aa64_sve, sve_fmax)
+DO_ZPZZ_FP(FMINNM_zpzz, aa64_sve, sve_fminnum)
+DO_ZPZZ_FP(FMAXNM_zpzz, aa64_sve, sve_fmaxnum)
+DO_ZPZZ_FP(FABD, aa64_sve, sve_fabd)
+DO_ZPZZ_FP(FSCALE, aa64_sve, sve_fscalbn)
+DO_ZPZZ_FP(FDIV, aa64_sve, sve_fdiv)
+DO_ZPZZ_FP(FMULX, aa64_sve, sve_fmulx)
 
 typedef void gen_helper_sve_fp2scalar(TCGv_ptr, TCGv_ptr, TCGv_ptr,
                                       TCGv_i64, TCGv_ptr, TCGv_i32);
@@ -7125,30 +7120,11 @@ TRANS_FEAT(HISTCNT, aa64_sve2, gen_gvec_ool_arg_zpzz,
 TRANS_FEAT(HISTSEG, aa64_sve2, gen_gvec_ool_arg_zzz,
            a->esz == 0 ? gen_helper_sve2_histseg : NULL, a, 0)
 
-static bool do_sve2_zpzz_fp(DisasContext *s, arg_rprr_esz *a,
-                            gen_helper_gvec_4_ptr *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_fpst_arg_zpzz(s, fn, a);
-}
-
-#define DO_SVE2_ZPZZ_FP(NAME, name)                                         \
-static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)                  \
-{                                                                           \
-    static gen_helper_gvec_4_ptr * const fns[4] = {                         \
-        NULL,                            gen_helper_sve2_##name##_zpzz_h,   \
-        gen_helper_sve2_##name##_zpzz_s, gen_helper_sve2_##name##_zpzz_d    \
-    };                                                                      \
-    return do_sve2_zpzz_fp(s, a, fns[a->esz]);                              \
-}
-
-DO_SVE2_ZPZZ_FP(FADDP, faddp)
-DO_SVE2_ZPZZ_FP(FMAXNMP, fmaxnmp)
-DO_SVE2_ZPZZ_FP(FMINNMP, fminnmp)
-DO_SVE2_ZPZZ_FP(FMAXP, fmaxp)
-DO_SVE2_ZPZZ_FP(FMINP, fminp)
+DO_ZPZZ_FP(FADDP, aa64_sve2, sve2_faddp_zpzz)
+DO_ZPZZ_FP(FMAXNMP, aa64_sve2, sve2_fmaxnmp_zpzz)
+DO_ZPZZ_FP(FMINNMP, aa64_sve2, sve2_fminnmp_zpzz)
+DO_ZPZZ_FP(FMAXP, aa64_sve2, sve2_fmaxp_zpzz)
+DO_ZPZZ_FP(FMINP, aa64_sve2, sve2_fminp_zpzz)
 
 /*
  * SVE Integer Multiply-Add (unpredicated)
