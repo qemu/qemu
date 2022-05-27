@@ -1054,20 +1054,9 @@ static bool do_shift_imm(DisasContext *s, arg_rri_esz *a, bool asr,
     return true;
 }
 
-static bool trans_ASR_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_shift_imm(s, a, true, tcg_gen_gvec_sari);
-}
-
-static bool trans_LSR_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_shift_imm(s, a, false, tcg_gen_gvec_shri);
-}
-
-static bool trans_LSL_zzi(DisasContext *s, arg_rri_esz *a)
-{
-    return do_shift_imm(s, a, false, tcg_gen_gvec_shli);
-}
+TRANS_FEAT(ASR_zzi, aa64_sve, do_shift_imm, a, true, tcg_gen_gvec_sari)
+TRANS_FEAT(LSR_zzi, aa64_sve, do_shift_imm, a, false, tcg_gen_gvec_shri)
+TRANS_FEAT(LSL_zzi, aa64_sve, do_shift_imm, a, false, tcg_gen_gvec_shli)
 
 #define DO_ZZW(NAME, name) \
     static gen_helper_gvec_3 * const name##_zzw_fns[4] = {                \
