@@ -370,13 +370,16 @@ static void do_dupi_z(DisasContext *s, int rd, uint64_t word)
 }
 
 /* Invoke a vector expander on three Pregs.  */
-static void gen_gvec_fn_ppp(DisasContext *s, GVecGen3Fn *gvec_fn,
+static bool gen_gvec_fn_ppp(DisasContext *s, GVecGen3Fn *gvec_fn,
                             int rd, int rn, int rm)
 {
-    unsigned psz = pred_gvec_reg_size(s);
-    gvec_fn(MO_64, pred_full_reg_offset(s, rd),
-            pred_full_reg_offset(s, rn),
-            pred_full_reg_offset(s, rm), psz, psz);
+    if (sve_access_check(s)) {
+        unsigned psz = pred_gvec_reg_size(s);
+        gvec_fn(MO_64, pred_full_reg_offset(s, rd),
+                pred_full_reg_offset(s, rn),
+                pred_full_reg_offset(s, rm), psz, psz);
+    }
+    return true;
 }
 
 /* Invoke a vector move on two Pregs.  */
@@ -1317,19 +1320,13 @@ static bool trans_AND_pppp(DisasContext *s, arg_rprr_s *a)
     };
 
     if (!a->s) {
-        if (!sve_access_check(s)) {
-            return true;
-        }
         if (a->rn == a->rm) {
             if (a->pg == a->rn) {
-                do_mov_p(s, a->rd, a->rn);
-            } else {
-                gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->pg);
+                return do_mov_p(s, a->rd, a->rn);
             }
-            return true;
+            return gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->pg);
         } else if (a->pg == a->rn || a->pg == a->rm) {
-            gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->rm);
-            return true;
+            return gen_gvec_fn_ppp(s, tcg_gen_gvec_and, a->rd, a->rn, a->rm);
         }
     }
     return do_pppp_flags(s, a, &op);
@@ -1358,10 +1355,7 @@ static bool trans_BIC_pppp(DisasContext *s, arg_rprr_s *a)
     };
 
     if (!a->s && a->pg == a->rn) {
-        if (sve_access_check(s)) {
-            gen_gvec_fn_ppp(s, tcg_gen_gvec_andc, a->rd, a->rn, a->rm);
-        }
-        return true;
+        return gen_gvec_fn_ppp(s, tcg_gen_gvec_andc, a->rd, a->rn, a->rm);
     }
     return do_pppp_flags(s, a, &op);
 }
