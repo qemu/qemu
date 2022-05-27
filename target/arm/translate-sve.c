@@ -252,6 +252,12 @@ static bool gen_gvec_ool_zzzp(DisasContext *s, gen_helper_gvec_4 *fn,
     return true;
 }
 
+static bool gen_gvec_ool_arg_zpzz(DisasContext *s, gen_helper_gvec_4 *fn,
+                                  arg_rprr_esz *a, int data)
+{
+    return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, data);
+}
+
 /* Invoke a vector expander on two Zregs.  */
 static void gen_gvec_fn_zz(DisasContext *s, GVecGen2Fn *gvec_fn,
                            int esz, int rd, int rn)
@@ -737,11 +743,6 @@ static bool trans_UQSUB_zzz(DisasContext *s, arg_rrr_esz *a)
  *** SVE Integer Arithmetic - Binary Predicated Group
  */
 
-static bool do_zpzz_ool(DisasContext *s, arg_rprr_esz *a, gen_helper_gvec_4 *fn)
-{
-    return gen_gvec_ool_zzzp(s, fn, a->rd, a->rn, a->rm, a->pg, 0);
-}
-
 /* Select active elememnts from Zn and inactive elements from Zm,
  * storing the result in Zd.
  */
@@ -761,7 +762,7 @@ static bool trans_##NAME##_zpzz(DisasContext *s, arg_rprr_esz *a)         \
         gen_helper_sve_##name##_zpzz_b, gen_helper_sve_##name##_zpzz_h,   \
         gen_helper_sve_##name##_zpzz_s, gen_helper_sve_##name##_zpzz_d,   \
     };                                                                    \
-    return do_zpzz_ool(s, a, fns[a->esz]);                                \
+    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);                   \
 }
 
 DO_ZPZZ(AND, and)
@@ -792,7 +793,7 @@ static bool trans_SDIV_zpzz(DisasContext *s, arg_rprr_esz *a)
     static gen_helper_gvec_4 * const fns[4] = {
         NULL, NULL, gen_helper_sve_sdiv_zpzz_s, gen_helper_sve_sdiv_zpzz_d
     };
-    return do_zpzz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a)
@@ -800,7 +801,7 @@ static bool trans_UDIV_zpzz(DisasContext *s, arg_rprr_esz *a)
     static gen_helper_gvec_4 * const fns[4] = {
         NULL, NULL, gen_helper_sve_udiv_zpzz_s, gen_helper_sve_udiv_zpzz_d
     };
-    return do_zpzz_ool(s, a, fns[a->esz]);
+    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);
 }
 
 static bool trans_SEL_zpzz(DisasContext *s, arg_rprr_esz *a)
@@ -1076,7 +1077,7 @@ static bool trans_##NAME##_zpzw(DisasContext *s, arg_rprr_esz *a)         \
     if (a->esz < 0 || a->esz >= 3) {                                      \
         return false;                                                     \
     }                                                                     \
-    return do_zpzz_ool(s, a, fns[a->esz]);                                \
+    return gen_gvec_ool_arg_zpzz(s, fns[a->esz], a, 0);                   \
 }
 
 DO_ZPZW(ASR, asr)
@@ -6489,7 +6490,7 @@ static bool do_sve2_zpzz_ool(DisasContext *s, arg_rprr_esz *a,
     if (!dc_isar_feature(aa64_sve2, s)) {
         return false;
     }
-    return do_zpzz_ool(s, a, fn);
+    return gen_gvec_ool_arg_zpzz(s, fn, a, 0);
 }
 
 static bool trans_SADALP_zpzz(DisasContext *s, arg_rprr_esz *a)
