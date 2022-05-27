@@ -2879,40 +2879,23 @@ static bool do_brk2(DisasContext *s, arg_rpr_s *a,
     return true;
 }
 
-static bool trans_BRKPA(DisasContext *s, arg_rprr_s *a)
-{
-    return do_brk3(s, a, gen_helper_sve_brkpa, gen_helper_sve_brkpas);
-}
+TRANS_FEAT(BRKPA, aa64_sve, do_brk3, a,
+           gen_helper_sve_brkpa, gen_helper_sve_brkpas)
+TRANS_FEAT(BRKPB, aa64_sve, do_brk3, a,
+           gen_helper_sve_brkpb, gen_helper_sve_brkpbs)
 
-static bool trans_BRKPB(DisasContext *s, arg_rprr_s *a)
-{
-    return do_brk3(s, a, gen_helper_sve_brkpb, gen_helper_sve_brkpbs);
-}
+TRANS_FEAT(BRKA_m, aa64_sve, do_brk2, a,
+           gen_helper_sve_brka_m, gen_helper_sve_brkas_m)
+TRANS_FEAT(BRKB_m, aa64_sve, do_brk2, a,
+           gen_helper_sve_brkb_m, gen_helper_sve_brkbs_m)
 
-static bool trans_BRKA_m(DisasContext *s, arg_rpr_s *a)
-{
-    return do_brk2(s, a, gen_helper_sve_brka_m, gen_helper_sve_brkas_m);
-}
+TRANS_FEAT(BRKA_z, aa64_sve, do_brk2, a,
+           gen_helper_sve_brka_z, gen_helper_sve_brkas_z)
+TRANS_FEAT(BRKB_z, aa64_sve, do_brk2, a,
+           gen_helper_sve_brkb_z, gen_helper_sve_brkbs_z)
 
-static bool trans_BRKB_m(DisasContext *s, arg_rpr_s *a)
-{
-    return do_brk2(s, a, gen_helper_sve_brkb_m, gen_helper_sve_brkbs_m);
-}
-
-static bool trans_BRKA_z(DisasContext *s, arg_rpr_s *a)
-{
-    return do_brk2(s, a, gen_helper_sve_brka_z, gen_helper_sve_brkas_z);
-}
-
-static bool trans_BRKB_z(DisasContext *s, arg_rpr_s *a)
-{
-    return do_brk2(s, a, gen_helper_sve_brkb_z, gen_helper_sve_brkbs_z);
-}
-
-static bool trans_BRKN(DisasContext *s, arg_rpr_s *a)
-{
-    return do_brk2(s, a, gen_helper_sve_brkn, gen_helper_sve_brkns);
-}
+TRANS_FEAT(BRKN, aa64_sve, do_brk2, a,
+           gen_helper_sve_brkn, gen_helper_sve_brkns)
 
 /*
  *** SVE Predicate Count Group
