@@ -3924,22 +3924,20 @@ static bool do_fp_imm(DisasContext *s, arg_rpri_esz *a, uint64_t imm,
     return true;
 }
 
-#define DO_FP_IMM(NAME, name, const0, const1) \
-static bool trans_##NAME##_zpzi(DisasContext *s, arg_rpri_esz *a)         \
-{                                                                         \
-    static gen_helper_sve_fp2scalar * const fns[4] = {                    \
-        NULL, gen_helper_sve_##name##_h,                                  \
-        gen_helper_sve_##name##_s,                                        \
-        gen_helper_sve_##name##_d                                         \
-    };                                                                    \
-    static uint64_t const val[4][2] = {                                   \
-        { -1, -1 },                                                       \
-        { float16_##const0, float16_##const1 },                           \
-        { float32_##const0, float32_##const1 },                           \
-        { float64_##const0, float64_##const1 },                           \
-    };                                                                    \
-    return do_fp_imm(s, a, val[a->esz][a->imm], fns[a->esz]);             \
-}
+#define DO_FP_IMM(NAME, name, const0, const1)                           \
+    static gen_helper_sve_fp2scalar * const name##_fns[4] = {           \
+        NULL, gen_helper_sve_##name##_h,                                \
+        gen_helper_sve_##name##_s,                                      \
+        gen_helper_sve_##name##_d                                       \
+    };                                                                  \
+    static uint64_t const name##_const[4][2] = {                        \
+        { -1, -1 },                                                     \
+        { float16_##const0, float16_##const1 },                         \
+        { float32_##const0, float32_##const1 },                         \
+        { float64_##const0, float64_##const1 },                         \
+    };                                                                  \
+    TRANS_FEAT(NAME##_zpzi, aa64_sve, do_fp_imm, a,                     \
+               name##_const[a->esz][a->imm], name##_fns[a->esz])
 
 DO_FP_IMM(FADD, fadds, half, one)
 DO_FP_IMM(FSUB, fsubs, half, one)
