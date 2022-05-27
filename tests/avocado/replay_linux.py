@@ -32,9 +32,16 @@ class ReplayLinux(LinuxTest):
     bus = 'ide'
 
     def setUp(self):
-        super(ReplayLinux, self).setUp()
+        # LinuxTest does many replay-incompatible things, but includes
+        # useful methods. Do not setup LinuxTest here and just
+        # call some functions.
+        super(LinuxTest, self).setUp()
+        self._set_distro()
         self.boot_path = self.download_boot()
-        self.cloudinit_path = self.prepare_cloudinit()
+        self.phone_server = cloudinit.PhoneHomeServer(('0.0.0.0', 0),
+                                                      self.name)
+        ssh_pubkey, self.ssh_key = self.set_up_existing_ssh_keys()
+        self.cloudinit_path = self.prepare_cloudinit(ssh_pubkey)
 
     def vm_add_disk(self, vm, path, id, device):
         bus_string = ''
@@ -50,7 +57,9 @@ class ReplayLinux(LinuxTest):
         vm = self.get_vm()
         vm.add_args('-smp', '1')
         vm.add_args('-m', '1024')
-        vm.add_args('-object', 'filter-replay,id=replay,netdev=hub0port0')
+        vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
+                    '-device', 'virtio-net,netdev=vnet')
+        vm.add_args('-object', 'filter-replay,id=replay,netdev=vnet')
         if args:
             vm.add_args(*args)
         self.vm_add_disk(vm, self.boot_path, 0, self.hdd)
@@ -75,8 +84,8 @@ class ReplayLinux(LinuxTest):
                                     stop_check=(lambda : not vm.is_running()))
         console_drainer.start()
         if record:
-            cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port),
-                                          self.name)
+            while not self.phone_server.instance_phoned_back:
+                self.phone_server.handle_request()
             vm.shutdown()
             logger.info('finished the recording with log size %s bytes'
                 % os.path.getsize(replay_path))
