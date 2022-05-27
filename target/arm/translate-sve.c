@@ -6554,48 +6554,23 @@ static bool trans_UADALP_zpzz(DisasContext *s, arg_rprr_esz *a)
  * SVE2 integer unary operations (predicated)
  */
 
-static bool do_sve2_zpz_ool(DisasContext *s, arg_rpr_esz *a,
-                            gen_helper_gvec_3 *fn)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zpz(s, fn, a, 0);
-}
+TRANS_FEAT(URECPE, aa64_sve2, gen_gvec_ool_arg_zpz,
+           a->esz == 2 ? gen_helper_sve2_urecpe_s : NULL, a, 0)
 
-static bool trans_URECPE(DisasContext *s, arg_rpr_esz *a)
-{
-    if (a->esz != 2) {
-        return false;
-    }
-    return do_sve2_zpz_ool(s, a, gen_helper_sve2_urecpe_s);
-}
+TRANS_FEAT(URSQRTE, aa64_sve2, gen_gvec_ool_arg_zpz,
+           a->esz == 2 ? gen_helper_sve2_ursqrte_s : NULL, a, 0)
 
-static bool trans_URSQRTE(DisasContext *s, arg_rpr_esz *a)
-{
-    if (a->esz != 2) {
-        return false;
-    }
-    return do_sve2_zpz_ool(s, a, gen_helper_sve2_ursqrte_s);
-}
+static gen_helper_gvec_3 * const sqabs_fns[4] = {
+    gen_helper_sve2_sqabs_b, gen_helper_sve2_sqabs_h,
+    gen_helper_sve2_sqabs_s, gen_helper_sve2_sqabs_d,
+};
+TRANS_FEAT(SQABS, aa64_sve2, gen_gvec_ool_arg_zpz, sqabs_fns[a->esz], a, 0)
 
-static bool trans_SQABS(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqabs_b, gen_helper_sve2_sqabs_h,
-        gen_helper_sve2_sqabs_s, gen_helper_sve2_sqabs_d,
-    };
-    return do_sve2_zpz_ool(s, a, fns[a->esz]);
-}
-
-static bool trans_SQNEG(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_3 * const fns[4] = {
-        gen_helper_sve2_sqneg_b, gen_helper_sve2_sqneg_h,
-        gen_helper_sve2_sqneg_s, gen_helper_sve2_sqneg_d,
-    };
-    return do_sve2_zpz_ool(s, a, fns[a->esz]);
-}
+static gen_helper_gvec_3 * const sqneg_fns[4] = {
+    gen_helper_sve2_sqneg_b, gen_helper_sve2_sqneg_h,
+    gen_helper_sve2_sqneg_s, gen_helper_sve2_sqneg_d,
+};
+TRANS_FEAT(SQNEG, aa64_sve2, gen_gvec_ool_arg_zpz, sqneg_fns[a->esz], a, 0)
 
 #define DO_SVE2_ZPZZ(NAME, name) \
 static bool trans_##NAME(DisasContext *s, arg_rprr_esz *a)                \
