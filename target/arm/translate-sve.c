@@ -1381,6 +1381,11 @@ static bool trans_EOR_pppp(DisasContext *s, arg_rprr_s *a)
         .fno = gen_helper_sve_eor_pppp,
         .prefer_i64 = TCG_TARGET_REG_BITS == 64,
     };
+
+    /* Alias NOT (predicate) is EOR Pd.B, Pg/Z, Pn.B, Pg.B */
+    if (!a->s && a->pg == a->rm) {
+        return gen_gvec_fn_ppp(s, tcg_gen_gvec_andc, a->rd, a->pg, a->rn);
+    }
     return do_pppp_flags(s, a, &op);
 }
 
