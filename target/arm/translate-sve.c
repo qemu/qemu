@@ -2417,19 +2417,12 @@ static gen_helper_gvec_3 * const sve_tbl_fns[4] = {
 };
 TRANS_FEAT(TBL, aa64_sve, gen_gvec_ool_arg_zzz, sve_tbl_fns[a->esz], a, 0)
 
-static bool trans_TBL_sve2(DisasContext *s, arg_rrr_esz *a)
-{
-    static gen_helper_gvec_4 * const fns[4] = {
-        gen_helper_sve2_tbl_b, gen_helper_sve2_tbl_h,
-        gen_helper_sve2_tbl_s, gen_helper_sve2_tbl_d
-    };
-
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzz(s, fns[a->esz], a->rd, a->rn,
-                             (a->rn + 1) % 32, a->rm, 0);
-}
+static gen_helper_gvec_4 * const sve2_tbl_fns[4] = {
+    gen_helper_sve2_tbl_b, gen_helper_sve2_tbl_h,
+    gen_helper_sve2_tbl_s, gen_helper_sve2_tbl_d
+};
+TRANS_FEAT(TBL_sve2, aa64_sve2, gen_gvec_ool_zzzz, sve2_tbl_fns[a->esz],
+           a->rd, a->rn, (a->rn + 1) % 32, a->rm, 0)
 
 static gen_helper_gvec_3 * const tbx_fns[4] = {
     gen_helper_sve2_tbx_b, gen_helper_sve2_tbx_h,
@@ -3810,15 +3803,12 @@ DO_ZZI(UMIN, umin)
 
 #undef DO_ZZI
 
-static bool trans_DOT_zzzz(DisasContext *s, arg_DOT_zzzz *a)
-{
-    static gen_helper_gvec_4 * const fns[2][2] = {
-        { gen_helper_gvec_sdot_b, gen_helper_gvec_sdot_h },
-        { gen_helper_gvec_udot_b, gen_helper_gvec_udot_h }
-    };
-    return gen_gvec_ool_zzzz(s, fns[a->u][a->sz],
-                             a->rd, a->rn, a->rm, a->ra, 0);
-}
+static gen_helper_gvec_4 * const dot_fns[2][2] = {
+    { gen_helper_gvec_sdot_b, gen_helper_gvec_sdot_h },
+    { gen_helper_gvec_udot_b, gen_helper_gvec_udot_h }
+};
+TRANS_FEAT(DOT_zzzz, aa64_sve, gen_gvec_ool_zzzz,
+           dot_fns[a->u][a->sz], a->rd, a->rn, a->rm, a->ra, 0)
 
 /*
  * SVE Multiply - Indexed
@@ -8196,46 +8186,25 @@ static bool trans_UMLSLT_zzzw(DisasContext *s, arg_rrrr_esz *a)
     return do_umlsl_zzzw(s, a, true);
 }
 
-static bool trans_CMLA_zzzz(DisasContext *s, arg_CMLA_zzzz *a)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        gen_helper_sve2_cmla_zzzz_b, gen_helper_sve2_cmla_zzzz_h,
-        gen_helper_sve2_cmla_zzzz_s, gen_helper_sve2_cmla_zzzz_d,
-    };
+static gen_helper_gvec_4 * const cmla_fns[] = {
+    gen_helper_sve2_cmla_zzzz_b, gen_helper_sve2_cmla_zzzz_h,
+    gen_helper_sve2_cmla_zzzz_s, gen_helper_sve2_cmla_zzzz_d,
+};
+TRANS_FEAT(CMLA_zzzz, aa64_sve2, gen_gvec_ool_zzzz,
+           cmla_fns[a->esz], a->rd, a->rn, a->rm, a->ra, a->rot)
 
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzz(s, fns[a->esz], a->rd, a->rn,
-                             a->rm, a->ra, a->rot);
-}
+static gen_helper_gvec_4 * const cdot_fns[] = {
+    NULL, NULL, gen_helper_sve2_cdot_zzzz_s, gen_helper_sve2_cdot_zzzz_d
+};
+TRANS_FEAT(CDOT_zzzz, aa64_sve2, gen_gvec_ool_zzzz,
+           cdot_fns[a->esz], a->rd, a->rn, a->rm, a->ra, a->rot)
 
-static bool trans_CDOT_zzzz(DisasContext *s, arg_CMLA_zzzz *a)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        NULL, NULL, gen_helper_sve2_cdot_zzzz_s, gen_helper_sve2_cdot_zzzz_d
-    };
-
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzz(s, fns[a->esz], a->rd, a->rn,
-                             a->rm, a->ra, a->rot);
-}
-
-static bool trans_SQRDCMLAH_zzzz(DisasContext *s, arg_SQRDCMLAH_zzzz *a)
-{
-    static gen_helper_gvec_4 * const fns[] = {
-        gen_helper_sve2_sqrdcmlah_zzzz_b, gen_helper_sve2_sqrdcmlah_zzzz_h,
-        gen_helper_sve2_sqrdcmlah_zzzz_s, gen_helper_sve2_sqrdcmlah_zzzz_d,
-    };
-
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzz(s, fns[a->esz], a->rd, a->rn,
-                             a->rm, a->ra, a->rot);
-}
+static gen_helper_gvec_4 * const sqrdcmlah_fns[] = {
+    gen_helper_sve2_sqrdcmlah_zzzz_b, gen_helper_sve2_sqrdcmlah_zzzz_h,
+    gen_helper_sve2_sqrdcmlah_zzzz_s, gen_helper_sve2_sqrdcmlah_zzzz_d,
+};
+TRANS_FEAT(SQRDCMLAH_zzzz, aa64_sve2, gen_gvec_ool_zzzz,
+           sqrdcmlah_fns[a->esz], a->rd, a->rn, a->rm, a->ra, a->rot)
 
 static bool trans_USDOT_zzzz(DisasContext *s, arg_USDOT_zzzz *a)
 {
