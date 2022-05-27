@@ -3609,21 +3609,19 @@ static bool do_reduce(DisasContext *s, arg_rpr_esz *a,
 }
 
 #define DO_VPZ(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)                \
-{                                                                        \
-    static gen_helper_fp_reduce * const fns[4] = {                       \
-        NULL, gen_helper_sve_##name##_h,                                 \
-        gen_helper_sve_##name##_s,                                       \
-        gen_helper_sve_##name##_d,                                       \
+    static gen_helper_fp_reduce * const name##_fns[4] = {                \
+        NULL,                      gen_helper_sve_##name##_h,            \
+        gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,            \
     };                                                                   \
-    return do_reduce(s, a, fns[a->esz]);                                 \
-}
+    TRANS_FEAT(NAME, aa64_sve, do_reduce, a, name##_fns[a->esz])
 
 DO_VPZ(FADDV, faddv)
 DO_VPZ(FMINNMV, fminnmv)
 DO_VPZ(FMAXNMV, fmaxnmv)
 DO_VPZ(FMINV, fminv)
 DO_VPZ(FMAXV, fmaxv)
+
+#undef DO_VPZ
 
 /*
  *** SVE Floating Point Unary Operations - Unpredicated Group
