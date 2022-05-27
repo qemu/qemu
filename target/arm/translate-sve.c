@@ -8302,37 +8302,15 @@ static bool trans_FMLSLT_zzxw(DisasContext *s, arg_rrxr_esz *a)
     return do_FMLAL_zzxw(s, a, true, true);
 }
 
-static bool do_i8mm_zzzz_ool(DisasContext *s, arg_rrrr_esz *a,
-                             gen_helper_gvec_4 *fn, int data)
-{
-    if (!dc_isar_feature(aa64_sve_i8mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzzz(s, fn, a, data);
-}
+TRANS_FEAT(SMMLA, aa64_sve_i8mm, gen_gvec_ool_arg_zzzz,
+           gen_helper_gvec_smmla_b, a, 0)
+TRANS_FEAT(USMMLA, aa64_sve_i8mm, gen_gvec_ool_arg_zzzz,
+           gen_helper_gvec_usmmla_b, a, 0)
+TRANS_FEAT(UMMLA, aa64_sve_i8mm, gen_gvec_ool_arg_zzzz,
+           gen_helper_gvec_ummla_b, a, 0)
 
-static bool trans_SMMLA(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_i8mm_zzzz_ool(s, a, gen_helper_gvec_smmla_b, 0);
-}
-
-static bool trans_USMMLA(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_i8mm_zzzz_ool(s, a, gen_helper_gvec_usmmla_b, 0);
-}
-
-static bool trans_UMMLA(DisasContext *s, arg_rrrr_esz *a)
-{
-    return do_i8mm_zzzz_ool(s, a, gen_helper_gvec_ummla_b, 0);
-}
-
-static bool trans_BFDOT_zzzz(DisasContext *s, arg_rrrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzzz(s, gen_helper_gvec_bfdot, a, 0);
-}
+TRANS_FEAT(BFDOT_zzzz, aa64_sve_bf16, gen_gvec_ool_arg_zzzz,
+           gen_helper_gvec_bfdot, a, 0)
 
 static bool trans_BFDOT_zzxz(DisasContext *s, arg_rrxr_esz *a)
 {
@@ -8343,13 +8321,8 @@ static bool trans_BFDOT_zzxz(DisasContext *s, arg_rrxr_esz *a)
                              a->rd, a->rn, a->rm, a->ra, a->index);
 }
 
-static bool trans_BFMMLA(DisasContext *s, arg_rrrr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzzz(s, gen_helper_gvec_bfmmla, a, 0);
-}
+TRANS_FEAT(BFMMLA, aa64_sve_bf16, gen_gvec_ool_arg_zzzz,
+           gen_helper_gvec_bfmmla, a, 0)
 
 static bool do_BFMLAL_zzzw(DisasContext *s, arg_rrrr_esz *a, bool sel)
 {
