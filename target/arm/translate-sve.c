@@ -3715,28 +3715,13 @@ DO_PPZ(FCMNE_ppz0, fcmne0)
  *** SVE floating-point trig multiply-add coefficient
  */
 
-static bool trans_FTMAD(DisasContext *s, arg_FTMAD *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[3] = {
-        gen_helper_sve_ftmad_h,
-        gen_helper_sve_ftmad_s,
-        gen_helper_sve_ftmad_d,
-    };
-
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           status, vsz, vsz, a->imm, fns[a->esz - 1]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
+static gen_helper_gvec_3_ptr * const ftmad_fns[4] = {
+    NULL,                   gen_helper_sve_ftmad_h,
+    gen_helper_sve_ftmad_s, gen_helper_sve_ftmad_d,
+};
+TRANS_FEAT(FTMAD, aa64_sve, gen_gvec_fpst_zzz,
+           ftmad_fns[a->esz], a->rd, a->rn, a->rm, a->imm,
+           a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 /*
  *** SVE Floating Point Accumulating Reduction Group
