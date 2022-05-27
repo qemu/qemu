@@ -3557,25 +3557,13 @@ TRANS_FEAT(FMLS_zzxz, aa64_sve, do_FMLA_zzxz, a, true)
  *** SVE Floating Point Multiply Indexed Group
  */
 
-static bool trans_FMUL_zzx(DisasContext *s, arg_FMUL_zzx *a)
-{
-    static gen_helper_gvec_3_ptr * const fns[3] = {
-        gen_helper_gvec_fmul_idx_h,
-        gen_helper_gvec_fmul_idx_s,
-        gen_helper_gvec_fmul_idx_d,
-    };
-
-    if (sve_access_check(s)) {
-        unsigned vsz = vec_full_reg_size(s);
-        TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-        tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
-                           vec_full_reg_offset(s, a->rn),
-                           vec_full_reg_offset(s, a->rm),
-                           status, vsz, vsz, a->index, fns[a->esz - 1]);
-        tcg_temp_free_ptr(status);
-    }
-    return true;
-}
+static gen_helper_gvec_3_ptr * const fmul_idx_fns[4] = {
+    NULL,                       gen_helper_gvec_fmul_idx_h,
+    gen_helper_gvec_fmul_idx_s, gen_helper_gvec_fmul_idx_d,
+};
+TRANS_FEAT(FMUL_zzx, aa64_sve, gen_gvec_fpst_zzz,
+           fmul_idx_fns[a->esz], a->rd, a->rn, a->rm, a->index,
+           a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR)
 
 /*
  *** SVE Floating Point Fast Reduction Group
