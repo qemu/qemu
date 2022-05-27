@@ -1375,16 +1375,12 @@ static bool trans_ADR_u32(DisasContext *s, arg_rrri *a)
  *** SVE Integer Misc - Unpredicated Group
  */
 
-static bool trans_FEXPA(DisasContext *s, arg_rr_esz *a)
-{
-    static gen_helper_gvec_2 * const fns[4] = {
-        NULL,
-        gen_helper_sve_fexpa_h,
-        gen_helper_sve_fexpa_s,
-        gen_helper_sve_fexpa_d,
-    };
-    return gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
-}
+static gen_helper_gvec_2 * const fexpa_fns[4] = {
+    NULL,                   gen_helper_sve_fexpa_h,
+    gen_helper_sve_fexpa_s, gen_helper_sve_fexpa_d,
+};
+TRANS_FEAT(FEXPA, aa64_sve, gen_gvec_ool_zz,
+           fexpa_fns[a->esz], a->rd, a->rn, 0)
 
 static bool trans_FTSSEL(DisasContext *s, arg_rrr_esz *a)
 {
@@ -2418,14 +2414,11 @@ static bool trans_INSR_r(DisasContext *s, arg_rrr_esz *a)
     return true;
 }
 
-static bool trans_REV_v(DisasContext *s, arg_rr_esz *a)
-{
-    static gen_helper_gvec_2 * const fns[4] = {
-        gen_helper_sve_rev_b, gen_helper_sve_rev_h,
-        gen_helper_sve_rev_s, gen_helper_sve_rev_d
-    };
-    return gen_gvec_ool_zz(s, fns[a->esz], a->rd, a->rn, 0);
-}
+static gen_helper_gvec_2 * const rev_fns[4] = {
+    gen_helper_sve_rev_b, gen_helper_sve_rev_h,
+    gen_helper_sve_rev_s, gen_helper_sve_rev_d
+};
+TRANS_FEAT(REV_v, aa64_sve, gen_gvec_ool_zz, rev_fns[a->esz], a->rd, a->rn, 0)
 
 static bool trans_TBL(DisasContext *s, arg_rrr_esz *a)
 {
@@ -8376,14 +8369,8 @@ static bool trans_USDOT_zzzz(DisasContext *s, arg_USDOT_zzzz *a)
     return true;
 }
 
-static bool trans_AESMC(DisasContext *s, arg_AESMC *a)
-{
-    if (!dc_isar_feature(aa64_sve2_aes, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zz(s, gen_helper_crypto_aesmc,
-                           a->rd, a->rd, a->decrypt);
-}
+TRANS_FEAT(AESMC, aa64_sve2_aes, gen_gvec_ool_zz,
+           gen_helper_crypto_aesmc, a->rd, a->rd, a->decrypt)
 
 static bool do_aese(DisasContext *s, arg_rrr_esz *a, bool decrypt)
 {
