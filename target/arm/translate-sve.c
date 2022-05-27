@@ -1616,22 +1616,13 @@ static bool do_predset(DisasContext *s, int esz, int rd, int pat, bool setflag)
     return true;
 }
 
-static bool trans_PTRUE(DisasContext *s, arg_PTRUE *a)
-{
-    return do_predset(s, a->esz, a->rd, a->pat, a->s);
-}
+TRANS_FEAT(PTRUE, aa64_sve, do_predset, a->esz, a->rd, a->pat, a->s)
 
-static bool trans_SETFFR(DisasContext *s, arg_SETFFR *a)
-{
-    /* Note pat == 31 is #all, to set all elements.  */
-    return do_predset(s, 0, FFR_PRED_NUM, 31, false);
-}
+/* Note pat == 31 is #all, to set all elements.  */
+TRANS_FEAT(SETFFR, aa64_sve, do_predset, 0, FFR_PRED_NUM, 31, false)
 
-static bool trans_PFALSE(DisasContext *s, arg_PFALSE *a)
-{
-    /* Note pat == 32 is #unimp, to set no elements.  */
-    return do_predset(s, 0, a->rd, 32, false);
-}
+/* Note pat == 32 is #unimp, to set no elements.  */
+TRANS_FEAT(PFALSE, aa64_sve, do_predset, 0, a->rd, 32, false)
 
 static bool trans_RDFFR_p(DisasContext *s, arg_RDFFR_p *a)
 {
