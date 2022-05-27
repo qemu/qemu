@@ -858,14 +858,11 @@ static bool do_vpz_ool(DisasContext *s, arg_rpr_esz *a,
 }
 
 #define DO_VPZ(NAME, name) \
-static bool trans_##NAME(DisasContext *s, arg_rpr_esz *a)                \
-{                                                                        \
-    static gen_helper_gvec_reduc * const fns[4] = {                      \
+    static gen_helper_gvec_reduc * const name##_fns[4] = {               \
         gen_helper_sve_##name##_b, gen_helper_sve_##name##_h,            \
         gen_helper_sve_##name##_s, gen_helper_sve_##name##_d,            \
     };                                                                   \
-    return do_vpz_ool(s, a, fns[a->esz]);                                \
-}
+    TRANS_FEAT(NAME, aa64_sve, do_vpz_ool, a, name##_fns[a->esz])
 
 DO_VPZ(ORV, orv)
 DO_VPZ(ANDV, andv)
@@ -877,14 +874,11 @@ DO_VPZ(UMAXV, umaxv)
 DO_VPZ(SMINV, sminv)
 DO_VPZ(UMINV, uminv)
 
-static bool trans_SADDV(DisasContext *s, arg_rpr_esz *a)
-{
-    static gen_helper_gvec_reduc * const fns[4] = {
-        gen_helper_sve_saddv_b, gen_helper_sve_saddv_h,
-        gen_helper_sve_saddv_s, NULL
-    };
-    return do_vpz_ool(s, a, fns[a->esz]);
-}
+static gen_helper_gvec_reduc * const saddv_fns[4] = {
+    gen_helper_sve_saddv_b, gen_helper_sve_saddv_h,
+    gen_helper_sve_saddv_s, NULL
+};
+TRANS_FEAT(SADDV, aa64_sve, do_vpz_ool, a, saddv_fns[a->esz])
 
 #undef DO_VPZ
 
