@@ -2081,18 +2081,8 @@ static bool do_EXT(DisasContext *s, int rd, int rn, int rm, int imm)
     return true;
 }
 
-static bool trans_EXT(DisasContext *s, arg_EXT *a)
-{
-    return do_EXT(s, a->rd, a->rn, a->rm, a->imm);
-}
-
-static bool trans_EXT_sve2(DisasContext *s, arg_rri *a)
-{
-    if (!dc_isar_feature(aa64_sve2, s)) {
-        return false;
-    }
-    return do_EXT(s, a->rd, a->rn, (a->rn + 1) % 32, a->imm);
-}
+TRANS_FEAT(EXT, aa64_sve, do_EXT, a->rd, a->rn, a->rm, a->imm)
+TRANS_FEAT(EXT_sve2, aa64_sve2, do_EXT, a->rd, a->rn, (a->rn + 1) % 32, a->imm)
 
 /*
  *** SVE Permute - Unpredicated Group
