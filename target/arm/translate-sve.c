@@ -3826,32 +3826,19 @@ TRANS_FEAT(DOT_zzzz, aa64_sve, gen_gvec_ool_zzzz,
  * SVE Multiply - Indexed
  */
 
-#define DO_RRXR(NAME, FUNC) \
-    static bool NAME(DisasContext *s, arg_rrxr_esz *a)  \
-    { return gen_gvec_ool_arg_zzxz(s, FUNC, a); }
+TRANS_FEAT(SDOT_zzxw_s, aa64_sve, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_sdot_idx_b, a)
+TRANS_FEAT(SDOT_zzxw_d, aa64_sve, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_sdot_idx_h, a)
+TRANS_FEAT(UDOT_zzxw_s, aa64_sve, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_udot_idx_b, a)
+TRANS_FEAT(UDOT_zzxw_d, aa64_sve, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_udot_idx_h, a)
 
-DO_RRXR(trans_SDOT_zzxw_s, gen_helper_gvec_sdot_idx_b)
-DO_RRXR(trans_SDOT_zzxw_d, gen_helper_gvec_sdot_idx_h)
-DO_RRXR(trans_UDOT_zzxw_s, gen_helper_gvec_udot_idx_b)
-DO_RRXR(trans_UDOT_zzxw_d, gen_helper_gvec_udot_idx_h)
-
-static bool trans_SUDOT_zzxw_s(DisasContext *s, arg_rrxr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_i8mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzxz(s, gen_helper_gvec_sudot_idx_b, a);
-}
-
-static bool trans_USDOT_zzxw_s(DisasContext *s, arg_rrxr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_i8mm, s)) {
-        return false;
-    }
-    return gen_gvec_ool_arg_zzxz(s, gen_helper_gvec_usdot_idx_b, a);
-}
-
-#undef DO_RRXR
+TRANS_FEAT(SUDOT_zzxw_s, aa64_sve_i8mm, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_sudot_idx_b, a)
+TRANS_FEAT(USDOT_zzxw_s, aa64_sve_i8mm, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_usdot_idx_b, a)
 
 static bool do_sve2_zzz_data(DisasContext *s, int rd, int rn, int rm, int data,
                              gen_helper_gvec_3 *fn)
@@ -8311,15 +8298,8 @@ TRANS_FEAT(UMMLA, aa64_sve_i8mm, gen_gvec_ool_arg_zzzz,
 
 TRANS_FEAT(BFDOT_zzzz, aa64_sve_bf16, gen_gvec_ool_arg_zzzz,
            gen_helper_gvec_bfdot, a, 0)
-
-static bool trans_BFDOT_zzxz(DisasContext *s, arg_rrxr_esz *a)
-{
-    if (!dc_isar_feature(aa64_sve_bf16, s)) {
-        return false;
-    }
-    return gen_gvec_ool_zzzz(s, gen_helper_gvec_bfdot_idx,
-                             a->rd, a->rn, a->rm, a->ra, a->index);
-}
+TRANS_FEAT(BFDOT_zzxz, aa64_sve_bf16, gen_gvec_ool_arg_zzxz,
+           gen_helper_gvec_bfdot_idx, a)
 
 TRANS_FEAT(BFMMLA, aa64_sve_bf16, gen_gvec_ool_arg_zzzz,
            gen_helper_gvec_bfmmla, a, 0)
