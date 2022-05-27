@@ -152,6 +152,32 @@ static bool gen_gvec_ool_zz(DisasContext *s, gen_helper_gvec_2 *fn,
     return true;
 }
 
+static bool gen_gvec_fpst_zz(DisasContext *s, gen_helper_gvec_2_ptr *fn,
+                             int rd, int rn, int data,
+                             ARMFPStatusFlavour flavour)
+{
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        unsigned vsz = vec_full_reg_size(s);
+        TCGv_ptr status = fpstatus_ptr(flavour);
+
+        tcg_gen_gvec_2_ptr(vec_full_reg_offset(s, rd),
+                           vec_full_reg_offset(s, rn),
+                           status, vsz, vsz, data, fn);
+        tcg_temp_free_ptr(status);
+    }
+    return true;
+}
+
+static bool gen_gvec_fpst_arg_zz(DisasContext *s, gen_helper_gvec_2_ptr *fn,
+                                 arg_rr_esz *a, int data)
+{
+    return gen_gvec_fpst_zz(s, fn, a->rd, a->rn, data,
+                            a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
+}
+
 /* Invoke an out-of-line helper on 3 Zregs. */
 static bool gen_gvec_ool_zzz(DisasContext *s, gen_helper_gvec_3 *fn,
                              int rd, int rn, int rm, int data)
@@ -3627,48 +3653,17 @@ DO_VPZ(FMAXV, fmaxv)
  *** SVE Floating Point Unary Operations - Unpredicated Group
  */
 
-static void do_zz_fp(DisasContext *s, arg_rr_esz *a, gen_helper_gvec_2_ptr *fn)
-{
-    unsigned vsz = vec_full_reg_size(s);
-    TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
+static gen_helper_gvec_2_ptr * const frecpe_fns[] = {
+    NULL,                     gen_helper_gvec_frecpe_h,
+    gen_helper_gvec_frecpe_s, gen_helper_gvec_frecpe_d,
+};
+TRANS_FEAT(FRECPE, aa64_sve, gen_gvec_fpst_arg_zz, frecpe_fns[a->esz], a, 0)
 
-    tcg_gen_gvec_2_ptr(vec_full_reg_offset(s, a->rd),
-                       vec_full_reg_offset(s, a->rn),
-                       status, vsz, vsz, 0, fn);
-    tcg_temp_free_ptr(status);
-}
-
-static bool trans_FRECPE(DisasContext *s, arg_rr_esz *a)
-{
-    static gen_helper_gvec_2_ptr * const fns[3] = {
-        gen_helper_gvec_frecpe_h,
-        gen_helper_gvec_frecpe_s,
-        gen_helper_gvec_frecpe_d,
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        do_zz_fp(s, a, fns[a->esz - 1]);
-    }
-    return true;
-}
-
-static bool trans_FRSQRTE(DisasContext *s, arg_rr_esz *a)
-{
-    static gen_helper_gvec_2_ptr * const fns[3] = {
-        gen_helper_gvec_frsqrte_h,
-        gen_helper_gvec_frsqrte_s,
-        gen_helper_gvec_frsqrte_d,
-    };
-    if (a->esz == 0) {
-        return false;
-    }
-    if (sve_access_check(s)) {
-        do_zz_fp(s, a, fns[a->esz - 1]);
-    }
-    return true;
-}
+static gen_helper_gvec_2_ptr * const frsqrte_fns[] = {
+    NULL,                      gen_helper_gvec_frsqrte_h,
+    gen_helper_gvec_frsqrte_s, gen_helper_gvec_frsqrte_d,
+};
+TRANS_FEAT(FRSQRTE, aa64_sve, gen_gvec_fpst_arg_zz, frsqrte_fns[a->esz], a, 0)
 
 /*
  *** SVE Floating Point Compare with Zero Group
