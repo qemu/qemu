@@ -3911,33 +3911,34 @@ static void do_fp_scalar(DisasContext *s, int zd, int zn, int pg, bool is_fp16,
     tcg_temp_free_ptr(t_zd);
 }
 
-static void do_fp_imm(DisasContext *s, arg_rpri_esz *a, uint64_t imm,
+static bool do_fp_imm(DisasContext *s, arg_rpri_esz *a, uint64_t imm,
                       gen_helper_sve_fp2scalar *fn)
 {
-    do_fp_scalar(s, a->rd, a->rn, a->pg, a->esz == MO_16,
-                 tcg_constant_i64(imm), fn);
+    if (fn == NULL) {
+        return false;
+    }
+    if (sve_access_check(s)) {
+        do_fp_scalar(s, a->rd, a->rn, a->pg, a->esz == MO_16,
+                     tcg_constant_i64(imm), fn);
+    }
+    return true;
 }
 
 #define DO_FP_IMM(NAME, name, const0, const1) \
 static bool trans_##NAME##_zpzi(DisasContext *s, arg_rpri_esz *a)         \
 {                                                                         \
-    static gen_helper_sve_fp2scalar * const fns[3] = {                    \
-        gen_helper_sve_##name##_h,                                        \
+    static gen_helper_sve_fp2scalar * const fns[4] = {                    \
+        NULL, gen_helper_sve_##name##_h,                                  \
         gen_helper_sve_##name##_s,                                        \
         gen_helper_sve_##name##_d                                         \
     };                                                                    \
-    static uint64_t const val[3][2] = {                                   \
+    static uint64_t const val[4][2] = {                                   \
+        { -1, -1 },                                                       \
         { float16_##const0, float16_##const1 },                           \
         { float32_##const0, float32_##const1 },                           \
         { float64_##const0, float64_##const1 },                           \
     };                                                                    \
-    if (a->esz == 0) {                                                    \
-        return false;                                                     \
-    }                                                                     \
-    if (sve_access_check(s)) {                                            \
-        do_fp_imm(s, a, val[a->esz - 1][a->imm], fns[a->esz - 1]);        \
-    }                                                                     \
-    return true;                                                          \
+    return do_fp_imm(s, a, val[a->esz][a->imm], fns[a->esz]);             \
 }
 
 DO_FP_IMM(FADD, fadds, half, one)
