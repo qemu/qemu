@@ -497,9 +497,9 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_properties(s);
 }
 
-PIIX4PMState *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                            qemu_irq sci_irq, qemu_irq smi_irq,
-                            bool smm_enabled)
+PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                              qemu_irq sci_irq, qemu_irq smi_irq,
+                              bool smm_enabled)
 {
     PCIDevice *pci_dev;
     DeviceState *dev;

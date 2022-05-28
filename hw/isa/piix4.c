@@ -311,9 +311,9 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
 
     pci_create_simple(pci_bus, devfn + 2, "piix4-usb-uhci");
     if (smbus) {
-        pms = piix4_pm_init(pci_bus, devfn + 3, 0x1100,
-                            qdev_get_gpio_in_named(dev, "isa", 9),
-                            NULL, 0);
+        pms = piix4_pm_initfn(pci_bus, devfn + 3, 0x1100,
+                              qdev_get_gpio_in_named(dev, "isa", 9),
+                              NULL, 0);
         *smbus = I2C_BUS(qdev_get_child_bus(DEVICE(pms), "i2c"));
     }
 
