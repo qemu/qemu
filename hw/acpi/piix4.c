@@ -497,9 +497,15 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_properties(s);
 }
 
+static void piix4_pm_init(Object *obj)
+{
+    PIIX4PMState *s = PIIX4_PM(obj);
+
+    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+}
+
 PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                              qemu_irq sci_irq, qemu_irq smi_irq,
-                              bool smm_enabled)
+                              qemu_irq smi_irq, bool smm_enabled)
 {
     PCIDevice *pci_dev;
     DeviceState *dev;
@@ -511,7 +517,6 @@ PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
     qdev_prop_set_bit(dev, "smm-enabled", smm_enabled);
 
     s = PIIX4_PM(dev);
-    s->irq = sci_irq;
     s->smi_irq = smi_irq;
 
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
@@ -663,6 +668,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
 static const TypeInfo piix4_pm_info = {
     .name          = TYPE_PIIX4_PM,
     .parent        = TYPE_PCI_DEVICE,
+    .instance_init  = piix4_pm_init,
     .instance_size = sizeof(PIIX4PMState),
     .class_init    = piix4_pm_class_init,
     .interfaces = (InterfaceInfo[]) {
