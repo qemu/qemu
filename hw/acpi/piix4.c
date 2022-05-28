@@ -525,6 +525,10 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     s->machine_ready.notify = piix4_pm_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 
+    if (xen_enabled()) {
+        s->use_acpi_hotplug_bridge = false;
+    }
+
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
                                    pci_get_bus(dev), s);
     qbus_set_hotplug_handler(BUS(pci_get_bus(dev)), OBJECT(s));
@@ -551,9 +555,6 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     s->irq = sci_irq;
     s->smi_irq = smi_irq;
     s->smm_enabled = smm_enabled;
-    if (xen_enabled()) {
-        s->use_acpi_hotplug_bridge = false;
-    }
 
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
 
