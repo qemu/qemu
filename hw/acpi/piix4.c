@@ -74,7 +74,7 @@ struct PIIX4PMState {
 
     qemu_irq irq;
     qemu_irq smi_irq;
-    int smm_enabled;
+    bool smm_enabled;
     bool smm_compat;
     Notifier machine_ready;
     Notifier powerdown_notifier;
@@ -538,7 +538,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int smm_enabled, DeviceState **piix4_pm)
+                      bool smm_enabled, DeviceState **piix4_pm)
 {
     PCIDevice *pci_dev;
     DeviceState *dev;
