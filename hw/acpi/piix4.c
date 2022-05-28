@@ -497,9 +497,9 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_properties(s);
 }
 
-I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                      qemu_irq sci_irq, qemu_irq smi_irq,
-                      bool smm_enabled, DeviceState **piix4_pm)
+PIIX4PMState *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
+                            qemu_irq sci_irq, qemu_irq smi_irq,
+                            bool smm_enabled)
 {
     PCIDevice *pci_dev;
     DeviceState *dev;
@@ -509,9 +509,6 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     dev = DEVICE(pci_dev);
     qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
     qdev_prop_set_bit(dev, "smm-enabled", smm_enabled);
-    if (piix4_pm) {
-        *piix4_pm = dev;
-    }
 
     s = PIIX4_PM(dev);
     s->irq = sci_irq;
@@ -519,7 +516,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
 
-    return s->smb.smbus;
+    return s;
 }
 
 static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
