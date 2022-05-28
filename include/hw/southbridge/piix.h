@@ -15,8 +15,6 @@
 #include "hw/pci/pci.h"
 #include "qom/object.h"
 
-#define TYPE_PIIX4_PM "PIIX4_PM"
-
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
                       bool smm_enabled, DeviceState **piix4_pm);

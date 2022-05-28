@@ -28,6 +28,8 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/pcihp.h"
+#include "hw/acpi/piix4.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/xen.h"
@@ -55,47 +57,6 @@ struct pci_status {
     uint32_t up; /* deprecated, maintained for migration compatibility */
     uint32_t down;
 };
-
-struct PIIX4PMState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    MemoryRegion io;
-    uint32_t io_base;
-
-    MemoryRegion io_gpe;
-    ACPIREGS ar;
-
-    APMState apm;
-
-    PMSMBus smb;
-    uint32_t smb_io_base;
-
-    qemu_irq irq;
-    qemu_irq smi_irq;
-    bool smm_enabled;
-    bool smm_compat;
-    Notifier machine_ready;
-    Notifier powerdown_notifier;
-
-    AcpiPciHpState acpi_pci_hotplug;
-    bool use_acpi_hotplug_bridge;
-    bool use_acpi_root_pci_hotplug;
-    bool not_migrate_acpi_index;
-
-    uint8_t disable_s3;
-    uint8_t disable_s4;
-    uint8_t s4_val;
-
-    bool cpu_hotplug_legacy;
-    AcpiCpuHotplug gpe_cpu;
-    CPUHotplugState cpuhp_state;
-
-    MemHotplugState acpi_memory_hotplug;
-};
-
-OBJECT_DECLARE_SIMPLE_TYPE(PIIX4PMState, PIIX4_PM)
 
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s);
