@@ -547,6 +547,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     pci_dev = pci_new(devfn, TYPE_PIIX4_PM);
     dev = DEVICE(pci_dev);
     qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
+    qdev_prop_set_bit(dev, "smm-enabled", smm_enabled);
     if (piix4_pm) {
         *piix4_pm = dev;
     }
@@ -554,7 +555,6 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     s = PIIX4_PM(dev);
     s->irq = sci_irq;
     s->smi_irq = smi_irq;
-    s->smm_enabled = smm_enabled;
 
     pci_realize_and_unref(pci_dev, bus, &error_fatal);
 
@@ -664,6 +664,7 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
                      acpi_memory_hotplug.is_enabled, true),
     DEFINE_PROP_BOOL("smm-compat", PIIX4PMState, smm_compat, false),
+    DEFINE_PROP_BOOL("smm-enabled", PIIX4PMState, smm_enabled, false),
     DEFINE_PROP_BOOL("x-not-migrate-acpi-index", PIIX4PMState,
                       not_migrate_acpi_index, false),
     DEFINE_PROP_END_OF_LIST(),
