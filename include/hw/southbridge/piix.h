@@ -14,10 +14,6 @@
 
 #include "hw/pci/pci.h"
 #include "qom/object.h"
-#include "hw/acpi/piix4.h"
-
-PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                              bool smm_enabled);
 
 /* PIRQRC[A:D]: PIRQx Route Control Registers */
 #define PIIX_PIRQCA 0x60

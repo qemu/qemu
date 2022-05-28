@@ -505,25 +505,6 @@ static void piix4_pm_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(obj), &s->smi_irq, "smi-irq", 1);
 }
 
-PIIX4PMState *piix4_pm_initfn(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                              bool smm_enabled)
-{
-    PCIDevice *pci_dev;
-    DeviceState *dev;
-    PIIX4PMState *s;
-
-    pci_dev = pci_new(devfn, TYPE_PIIX4_PM);
-    dev = DEVICE(pci_dev);
-    qdev_prop_set_uint32(dev, "smb_io_base", smb_io_base);
-    qdev_prop_set_bit(dev, "smm-enabled", smm_enabled);
-
-    s = PIIX4_PM(dev);
-
-    pci_realize_and_unref(pci_dev, bus, &error_fatal);
-
-    return s;
-}
-
 static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
     PIIX4PMState *s = opaque;
