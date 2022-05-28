@@ -1,4 +1,5 @@
 /* HPPA cores and system support chips.  */
+/* Be aware: QEMU and seabios-hppa repositories share this file as-is. */
 
 #ifndef HW_HPPA_HPPA_HARDWARE_H
 #define HW_HPPA_HPPA_HARDWARE_H
@@ -30,13 +31,18 @@
 #define PCI_HPA         DINO_HPA        /* PCI bus */
 #define IDE_HPA         0xf9000000      /* Boot disc controller */
 
+/* offsets to DINO HPA: */
+#define DINO_PCI_ADDR           0x064
+#define DINO_CONFIG_DATA        0x068
+#define DINO_IO_DATA            0x06c
+
 #define PORT_PCI_CMD    (PCI_HPA + DINO_PCI_ADDR)
 #define PORT_PCI_DATA   (PCI_HPA + DINO_CONFIG_DATA)
 
 #define FW_CFG_IO_BASE  0xfffa0000
 
-#define PORT_SERIAL1    (DINO_UART_HPA + 0x800)
-#define PORT_SERIAL2    (LASI_UART_HPA + 0x800)
+#define PORT_SERIAL1    (LASI_UART_HPA + 0x800)
+#define PORT_SERIAL2    (DINO_UART_HPA + 0x800)
 
 #define HPPA_MAX_CPUS   16      /* max. number of SMP CPUs */
 #define CPU_CLOCK_MHZ   250     /* emulate a 250 MHz CPU */
