@@ -32,7 +32,7 @@
 
 #define MAX_IDE_BUS 2
 
-#define MIN_SEABIOS_HPPA_VERSION 1 /* require at least this fw version */
+#define MIN_SEABIOS_HPPA_VERSION 6 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)
 
@@ -236,20 +236,14 @@ static void machine_hppa_init(MachineState *machine)
     /* Realtime clock, used by firmware for PDC_TOD call. */
     mc146818_rtc_init(isa_bus, 2000, NULL);
 
-    /* Serial code setup.  */
-    if (serial_hd(0)) {
-        uint32_t addr = DINO_UART_HPA + 0x800;
-        serial_mm_init(addr_space, addr, 0,
-                       qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT),
-                       115200, serial_hd(0), DEVICE_BIG_ENDIAN);
-    }
+    /* Serial ports: Lasi and Dino use a 7.272727 MHz clock. */
+    serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
+        qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 7272727 / 16,
+        serial_hd(0), DEVICE_BIG_ENDIAN);
 
-    if (serial_hd(1)) {
-        /* Serial port */
-        serial_mm_init(addr_space, LASI_UART_HPA + 0x800, 0,
-                qdev_get_gpio_in(lasi_dev, LASI_IRQ_UART_HPA), 8000000 / 16,
-                serial_hd(1), DEVICE_BIG_ENDIAN);
-    }
+    serial_mm_init(addr_space, DINO_UART_HPA + 0x800, 0,
+        qdev_get_gpio_in(dino_dev, DINO_IRQ_RS232INT), 7272727 / 16,
+        serial_hd(1), DEVICE_BIG_ENDIAN);
 
     /* Parallel port */
     parallel_mm_init(addr_space, LASI_LPT_HPA + 0x800, 0,
