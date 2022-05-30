@@ -3285,6 +3285,9 @@ foreach m : block_mods + softmmu_mods
                 install: true,
                 install_dir: qemu_moddir)
 endforeach
+if emulator_modules.length() > 0
+  alias_target('modules', emulator_modules)
+endif
 
 softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
