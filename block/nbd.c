@@ -77,7 +77,7 @@ typedef struct BDRVNBDState {
     QemuMutex requests_lock;
     NBDClientState state;
     CoQueue free_sema;
-    int in_flight;
+    unsigned in_flight;
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     QEMUTimer *reconnect_delay_timer;
 
