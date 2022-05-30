@@ -17,6 +17,7 @@
 #include "sysemu/hvf_int.h"
 #include "sysemu/hw_accel.h"
 #include "hvf_arm.h"
+#include "cpregs.h"
 
 #include <mach/mach_time.h>
 

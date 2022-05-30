@@ -114,7 +114,9 @@ enum {
 };
 
 enum {
+    SD_STAR_FIFO_EMPTY      = (1 << 2),
     SD_STAR_CARD_PRESENT    = (1 << 8),
+    SD_STAR_FIFO_LEVEL_1    = (1 << 17),
 };
 
 enum {
@@ -467,6 +469,11 @@ static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
         break;
     case REG_SD_STAR:      /* Status */
         res = s->status;
+        if (sdbus_data_ready(&s->sdbus)) {
+            res |= SD_STAR_FIFO_LEVEL_1;
+        } else {
+            res |= SD_STAR_FIFO_EMPTY;
+        }
         break;
     case REG_SD_FWLR:      /* FIFO Water Level */
         res = s->fifo_wlevel;
