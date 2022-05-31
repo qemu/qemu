@@ -391,7 +391,7 @@ static bool riscv_cpu_has_work(CPUState *cs)
      * Definition of the WFI instruction requires it to ignore the privilege
      * mode and delegation registers, but respect individual enables
      */
-    return (env->mip & env->mie) != 0;
+    return riscv_cpu_all_pending(env) != 0;
 #else
     return true;
 #endif
