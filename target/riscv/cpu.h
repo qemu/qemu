@@ -411,6 +411,7 @@ struct RISCVCPUConfig {
     bool ext_zhinxmin;
     bool ext_zve32f;
     bool ext_zve64f;
+    bool ext_zmmul;
 
     uint32_t mvendorid;
     uint64_t marchid;
