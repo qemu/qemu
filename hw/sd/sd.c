@@ -1397,11 +1397,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             if (!address_in_range(sd, "READ_SINGLE_BLOCK", addr, sd->blk_len)) {
                 return sd_r1;
             }
-
-            sd->state = sd_sendingdata_state;
-            sd->data_start = addr;
-            sd->data_offset = 0;
-            return sd_r1;
+            sd_blk_read(sd, addr, sd->blk_len);
+            return sd_cmd_to_sendingdata(sd, req, addr, NULL, sd->blk_len);
 
         default:
             break;
@@ -2137,6 +2134,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 6:  /* CMD6:   SWITCH_FUNCTION */
     case 9:  /* CMD9:   SEND_CSD */
     case 10: /* CMD10:  SEND_CID */
+    case 17: /* CMD17:  READ_SINGLE_BLOCK */
         sd_generic_read_byte(sd, &ret);
         break;
 
@@ -2144,16 +2142,6 @@ uint8_t sd_read_byte(SDState *sd)
         ret = sd->sd_status[sd->data_offset ++];
 
         if (sd->data_offset >= sizeof(sd->sd_status))
-            sd->state = sd_transfer_state;
-        break;
-
-    case 17:  /* CMD17:  READ_SINGLE_BLOCK */
-        if (sd->data_offset == 0) {
-            sd_blk_read(sd, sd->data_start, io_len);
-        }
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= io_len)
             sd->state = sd_transfer_state;
         break;
 
