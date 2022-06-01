@@ -1693,10 +1693,9 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     case 13:  /* ACMD13: SD_STATUS */
         switch (sd->state) {
         case sd_transfer_state:
-            sd->state = sd_sendingdata_state;
-            sd->data_start = 0;
-            sd->data_offset = 0;
-            return sd_r1;
+            return sd_cmd_to_sendingdata(sd, req, 0,
+                                         sd->sd_status,
+                                         sizeof(sd->sd_status));
 
         default:
             break;
@@ -2127,17 +2126,11 @@ uint8_t sd_read_byte(SDState *sd)
     case 6:  /* CMD6:   SWITCH_FUNCTION */
     case 9:  /* CMD9:   SEND_CSD */
     case 10: /* CMD10:  SEND_CID */
+    case 13: /* ACMD13: SD_STATUS */
     case 17: /* CMD17:  READ_SINGLE_BLOCK */
     case 19: /* CMD19:  SEND_TUNING_BLOCK (SD) */
     case 30: /* CMD30:  SEND_WRITE_PROT */
         sd_generic_read_byte(sd, &ret);
-        break;
-
-    case 13:  /* ACMD13: SD_STATUS */
-        ret = sd->sd_status[sd->data_offset ++];
-
-        if (sd->data_offset >= sizeof(sd->sd_status))
-            sd->state = sd_transfer_state;
         break;
 
     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
