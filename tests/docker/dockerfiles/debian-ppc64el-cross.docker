@@ -1,28 +1,164 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker ppc64el cross-compiler target
+#  $ lcitool dockerfile --layers all --cross ppc64le debian-11 qemu
 #
-# This docker target builds on the debian Stretch base image.
-#
-FROM qemu/debian10
+# https://gitlab.com/libvirt/libvirt-ci
 
-# Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture ppc64el && \
-    apt update && \
-    apt install -yy crossbuild-essential-ppc64el
+FROM docker.io/library/debian:11-slim
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a ppc64el --arch-only qemu
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture ppc64el && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-powerpc64le-linux-gnu \
+            gcc-powerpc64le-linux-gnu \
+            libaio-dev:ppc64el \
+            libasan5:ppc64el \
+            libasound2-dev:ppc64el \
+            libattr1-dev:ppc64el \
+            libbpf-dev:ppc64el \
+            libbrlapi-dev:ppc64el \
+            libbz2-dev:ppc64el \
+            libc6-dev:ppc64el \
+            libcacard-dev:ppc64el \
+            libcap-ng-dev:ppc64el \
+            libcapstone-dev:ppc64el \
+            libcurl4-gnutls-dev:ppc64el \
+            libdaxctl-dev:ppc64el \
+            libdrm-dev:ppc64el \
+            libepoxy-dev:ppc64el \
+            libfdt-dev:ppc64el \
+            libffi-dev:ppc64el \
+            libfuse3-dev:ppc64el \
+            libgbm-dev:ppc64el \
+            libgcrypt20-dev:ppc64el \
+            libglib2.0-dev:ppc64el \
+            libglusterfs-dev:ppc64el \
+            libgnutls28-dev:ppc64el \
+            libgtk-3-dev:ppc64el \
+            libibumad-dev:ppc64el \
+            libibverbs-dev:ppc64el \
+            libiscsi-dev:ppc64el \
+            libjemalloc-dev:ppc64el \
+            libjpeg62-turbo-dev:ppc64el \
+            liblttng-ust-dev:ppc64el \
+            liblzo2-dev:ppc64el \
+            libncursesw5-dev:ppc64el \
+            libnfs-dev:ppc64el \
+            libnuma-dev:ppc64el \
+            libpam0g-dev:ppc64el \
+            libpixman-1-dev:ppc64el \
+            libpng-dev:ppc64el \
+            libpulse-dev:ppc64el \
+            librbd-dev:ppc64el \
+            librdmacm-dev:ppc64el \
+            libsasl2-dev:ppc64el \
+            libsdl2-dev:ppc64el \
+            libsdl2-image-dev:ppc64el \
+            libseccomp-dev:ppc64el \
+            libselinux1-dev:ppc64el \
+            libslirp-dev:ppc64el \
+            libsnappy-dev:ppc64el \
+            libspice-server-dev:ppc64el \
+            libssh-gcrypt-dev:ppc64el \
+            libsystemd-dev:ppc64el \
+            libtasn1-6-dev:ppc64el \
+            libubsan1:ppc64el \
+            libudev-dev:ppc64el \
+            liburing-dev:ppc64el \
+            libusb-1.0-0-dev:ppc64el \
+            libusbredirhost-dev:ppc64el \
+            libvdeplug-dev:ppc64el \
+            libvirglrenderer-dev:ppc64el \
+            libvte-2.91-dev:ppc64el \
+            libzstd-dev:ppc64el \
+            nettle-dev:ppc64el \
+            systemtap-sdt-dev:ppc64el \
+            xfslibs-dev:ppc64el \
+            zlib1g-dev:ppc64el && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/powerpc64le-linux-gnu-gcc'\n\
+ar = '/usr/bin/powerpc64le-linux-gnu-gcc-ar'\n\
+strip = '/usr/bin/powerpc64le-linux-gnu-strip'\n\
+pkgconfig = '/usr/bin/powerpc64le-linux-gnu-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 'ppc64'\n\
+cpu = 'powerpc64le'\n\
+endian = 'little'" > /usr/local/share/meson/cross/powerpc64le-linux-gnu && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/powerpc64le-linux-gnu-gcc
+
+ENV ABI "powerpc64le-linux-gnu"
+ENV MESON_OPTS "--cross-file=powerpc64le-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=powerpc64le-linux-gnu-
 ENV DEF_TARGET_LIST ppc64-softmmu,ppc64-linux-user
-
-# Install extra libraries to increase code coverage
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        libbz2-dev:ppc64el \
-        liblzo2-dev:ppc64el \
-        librdmacm-dev:ppc64el \
-        libsnappy-dev:ppc64el

@@ -11,6 +11,7 @@
 # special care, because we can't just override it at the GitLab CI job
 # definition level or we risk breaking it completely.
 .cirrus_build_job:
+  extends: .base_job_template
   stage: build
   image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
   needs: []
@@ -40,11 +41,8 @@
       <.gitlab-ci.d/cirrus/build.yml >.gitlab-ci.d/cirrus/$NAME.yml
     - cat .gitlab-ci.d/cirrus/$NAME.yml
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
-  rules:
-    # Allow on 'staging' branch and 'stable-X.Y-staging' branches only
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH !~ /staging/'
-      when: never
-    - if: "$CIRRUS_GITHUB_REPO && $CIRRUS_API_TOKEN"
+  variables:
+    QEMU_JOB_CIRRUS: 1
 
 x64-freebsd-12-build:
   extends: .cirrus_build_job
@@ -90,11 +88,11 @@ x64-macos-11-base-build:
 
 # The following jobs run VM-based tests via KVM on a Linux-based Cirrus-CI job
 .cirrus_kvm_job:
+  extends: .base_job_template
   stage: build
   image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
   needs: []
   timeout: 80m
-  allow_failure: true
   script:
     - sed -e "s|[@]CI_REPOSITORY_URL@|$CI_REPOSITORY_URL|g"
           -e "s|[@]CI_COMMIT_REF_NAME@|$CI_COMMIT_REF_NAME|g"
@@ -105,8 +103,10 @@ x64-macos-11-base-build:
       <.gitlab-ci.d/cirrus/kvm-build.yml >.gitlab-ci.d/cirrus/$NAME.yml
     - cat .gitlab-ci.d/cirrus/$NAME.yml
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
-  rules:
-    - when: manual
+  variables:
+    QEMU_JOB_CIRRUS: 1
+    QEMU_JOB_OPTIONAL: 1
+
 
 x86-netbsd:
   extends: .cirrus_kvm_job

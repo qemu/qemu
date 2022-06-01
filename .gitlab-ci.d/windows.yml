@@ -1,4 +1,5 @@
 .shared_msys2_builder:
+  extends: .base_job_template
   tags:
   - shared-windows
   - windows

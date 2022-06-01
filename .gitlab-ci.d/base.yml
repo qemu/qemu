@@ -1,0 +1,72 @@
+
+# The order of rules defined here is critically important.
+# They are evaluated in order and first match wins.
+#
+# Thus we group them into a number of stages, ordered from
+# most restrictive to least restrictive
+#
+.base_job_template:
+  rules:
+    #############################################################
+    # Stage 1: exclude scenarios where we definitely don't
+    # want jobs to run
+    #############################################################
+
+    # Cirrus jobs can't run unless the creds / target repo are set
+    - if: '$QEMU_JOB_CIRRUS && ($CIRRUS_GITHUB_REPO == "" || $CIRRUS_API_TOKEN == "")'
+      when: never
+
+    # Publishing jobs should only run on the default branch in upstream
+    - if: '$QEMU_JOB_PUBLISH == "1" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+      when: never
+
+    # Non-publishing jobs should only run on staging branches in upstream
+    - if: '$QEMU_JOB_PUBLISH != "1" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH !~ /staging/'
+      when: never
+
+    # Jobs only intended for forks should always be skipped on upstream
+    - if: '$QEMU_JOB_ONLY_FORKS == "1" && $CI_PROJECT_NAMESPACE == "qemu-project"'
+      when: never
+
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+    # Avocado jobs don't run in forks unless $QEMU_CI_AVOCADO_TESTING is set
+    - if: '$QEMU_JOB_AVOCADO && $QEMU_CI_AVOCADO_TESTING != "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+
+    #############################################################
+    # Stage 2: fine tune execution of jobs in specific scenarios
+    # where the catch all logic is inapprorpaite
+    #############################################################
+
+    # Optional jobs should not be run unless manually triggered
+    - if: '$QEMU_JOB_OPTIONAL'
+      when: manual
+      allow_failure: true
+
+    # Skipped jobs should not be run unless manually triggered
+    - if: '$QEMU_JOB_SKIPPED'
+      when: manual
+      allow_failure: true
+
+    # Avocado jobs can be manually start in forks if $QEMU_CI_AVOCADO_TESTING is unset
+    - if: '$QEMU_JOB_AVOCADO && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: manual
+      allow_failure: true
+
+
+    #############################################################
+    # Stage 3: catch all logic applying to any job not matching
+    # an earlier criteria
+    #############################################################
+
+    # Forks pipeline jobs don't start automatically unless
+    # QEMU_CI=2 is set
+    - if: '$QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: manual
+
+    # Jobs can run if any jobs they depend on were successfull
+    - when: on_success

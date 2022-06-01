@@ -1,5 +1,5 @@
 
-SLOF_DIR := $(SRC_PATH)/roms/SLOF
+SLOF_DIR := $(SRC_PATH)/../../roms/SLOF
 
 NETOBJS := start.o sclp.o cio.o virtio.o virtio-net.o jump2ipl.o netmain.o
 

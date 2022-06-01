@@ -27,30 +27,26 @@ arm64-debian-cross-container:
 
 armel-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-armel-cross
 
 armhf-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-armhf-cross
 
 # We never want to build hexagon in the CI system and by default we
 # always want to refer to the master registry where it lives.
 hexagon-cross-container:
+  extends: .base_job_template
   image: docker:stable
   stage: containers
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
-      when: never
-    - when: always
   variables:
     NAME: debian-hexagon-cross
     GIT_DEPTH: 1
+    QEMU_JOB_ONLY_FORKS: 1
   services:
     - docker:dind
   before_script:
@@ -90,8 +86,7 @@ mips64-debian-cross-container:
 
 mips64el-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-mips64el-cross
 
@@ -104,8 +99,7 @@ mips-debian-cross-container:
 
 mipsel-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-mipsel-cross
 
@@ -118,14 +112,13 @@ powerpc-test-cross-container:
 
 ppc64el-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
+  stage: containers
   variables:
     NAME: debian-ppc64el-cross
 
 riscv64-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   # as we are currently based on 'sid/unstable' we may break so...
   allow_failure: true
   variables:
@@ -135,6 +128,7 @@ riscv64-debian-cross-container:
 riscv64-debian-test-cross-container:
   extends: .container_job_template
   stage: containers-layer2
+  needs: ['amd64-debian11-container']
   variables:
     NAME: debian-riscv64-test-cross
 
