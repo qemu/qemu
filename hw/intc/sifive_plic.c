@@ -431,7 +431,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t context_stride, uint32_t aperture_size)
 {
     DeviceState *dev = qdev_new(TYPE_SIFIVE_PLIC);
-    int i, j = 0;
+    int i;
     SiFivePLICState *plic;
 
     assert(enable_stride == (enable_stride & -enable_stride));
@@ -451,18 +451,17 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
     plic = SIFIVE_PLIC(dev);
-    for (i = 0; i < num_harts; i++) {
-        CPUState *cpu = qemu_get_cpu(hartid_base + i);
 
-        if (plic->addr_config[j].mode == PLICMode_M) {
-            j++;
-            qdev_connect_gpio_out(dev, num_harts + i,
+    for (i = 0; i < plic->num_addrs; i++) {
+        int cpu_num = plic->addr_config[i].hartid;
+        CPUState *cpu = qemu_get_cpu(hartid_base + cpu_num);
+
+        if (plic->addr_config[i].mode == PLICMode_M) {
+            qdev_connect_gpio_out(dev, num_harts + cpu_num,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
         }
-
-        if (plic->addr_config[j].mode == PLICMode_S) {
-            j++;
-            qdev_connect_gpio_out(dev, i,
+        if (plic->addr_config[i].mode == PLICMode_S) {
+            qdev_connect_gpio_out(dev, cpu_num,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
         }
     }
