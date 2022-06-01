@@ -1775,10 +1775,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     case 51:  /* ACMD51: SEND_SCR */
         switch (sd->state) {
         case sd_transfer_state:
-            sd->state = sd_sendingdata_state;
-            sd->data_start = 0;
-            sd->data_offset = 0;
-            return sd_r1;
+            return sd_cmd_to_sendingdata(sd, req, 0, sd->scr, sizeof(sd->scr));
 
         default:
             break;
@@ -2129,6 +2126,7 @@ uint8_t sd_read_byte(SDState *sd)
     case 19: /* CMD19:  SEND_TUNING_BLOCK (SD) */
     case 22: /* ACMD22: SEND_NUM_WR_BLOCKS */
     case 30: /* CMD30:  SEND_WRITE_PROT */
+    case 51: /* ACMD51: SEND_SCR */
         sd_generic_read_byte(sd, &ret);
         break;
 
@@ -2154,13 +2152,6 @@ uint8_t sd_read_byte(SDState *sd)
                 }
             }
         }
-        break;
-
-    case 51:  /* ACMD51: SEND_SCR */
-        ret = sd->scr[sd->data_offset ++];
-
-        if (sd->data_offset >= sizeof(sd->scr))
-            sd->state = sd_transfer_state;
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
