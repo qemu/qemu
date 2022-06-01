@@ -1096,7 +1096,6 @@ static sd_rsp_type_t sd_cmd_unimplemented(SDState *sd, SDRequest req)
 }
 
 /* Configure fields for following sd_generic_write_byte() calls */
-__attribute__((unused))
 static sd_rsp_type_t sd_cmd_to_receivingdata(SDState *sd, SDRequest req,
                                              uint64_t start, size_t size)
 {
@@ -1462,10 +1461,6 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
                 return sd_r1;
             }
 
-            sd->state = sd_receivingdata_state;
-            sd->data_start = addr;
-            sd->data_offset = 0;
-
             if (sd->size <= SDSC_MAX_CAPACITY) {
                 if (sd_wp_addr(sd, sd->data_start)) {
                     sd->card_status |= WP_VIOLATION;
@@ -1475,7 +1470,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
                 sd->card_status |= WP_VIOLATION;
             }
             sd->blk_written = 0;
-            return sd_r1;
+            return sd_cmd_to_receivingdata(sd, req, addr, sd->blk_len);
 
         default:
             break;
@@ -1989,7 +1984,6 @@ send_response:
 }
 
 /* Return true if buffer is consumed. Configured by sd_cmd_to_receivingdata() */
-__attribute__((unused))
 static bool sd_generic_write_byte(SDState *sd, uint8_t value)
 {
     sd->data[sd->data_offset] = value;
@@ -2035,8 +2029,7 @@ void sd_write_byte(SDState *sd, uint8_t value)
                             sd->current_cmd, sd->data_offset, value);
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
-        sd->data[sd->data_offset ++] = value;
-        if (sd->data_offset >= sd->blk_len) {
+        if (sd_generic_write_byte(sd, value)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             sd_blk_write(sd, sd->data_start, sd->data_offset);
