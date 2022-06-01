@@ -1304,11 +1304,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             if (!sd_is_spi(sd)) {
                 break;
             }
-            sd->state = sd_sendingdata_state;
-            memcpy(sd->data, sd->csd, 16);
-            sd->data_start = sd_req_get_address(sd, req);
-            sd->data_offset = 0;
-            return sd_r1;
+            return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+                                         sd->csd, 16);
 
         default:
             break;
@@ -1328,11 +1325,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             if (!sd_is_spi(sd)) {
                 break;
             }
-            sd->state = sd_sendingdata_state;
-            memcpy(sd->data, sd->cid, 16);
-            sd->data_start = sd_req_get_address(sd, req);
-            sd->data_offset = 0;
-            return sd_r1;
+            return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+                                         sd->cid, 16);
 
         default:
             break;
@@ -2123,15 +2117,9 @@ uint8_t sd_read_byte(SDState *sd)
                            sd->current_cmd, sd->data_offset, io_len);
     switch (sd->current_cmd) {
     case 6:  /* CMD6:   SWITCH_FUNCTION */
-        sd_generic_read_byte(sd, &ret);
-        break;
-
     case 9:  /* CMD9:   SEND_CSD */
-    case 10:  /* CMD10:  SEND_CID */
-        ret = sd->data[sd->data_offset ++];
-
-        if (sd->data_offset >= 16)
-            sd->state = sd_transfer_state;
+    case 10: /* CMD10:  SEND_CID */
+        sd_generic_read_byte(sd, &ret);
         break;
 
     case 13:  /* ACMD13: SD_STATUS */
