@@ -789,7 +789,7 @@ static int64_t ger_rank8(uint32_t a, uint32_t b, uint32_t mask)
     int64_t psum = 0;
     for (int i = 0; i < 8; i++, mask >>= 1) {
         if (mask & 1) {
-            psum += sextract32(a, 4 * i, 4) * sextract32(b, 4 * i, 4);
+            psum += (int64_t)sextract32(a, 4 * i, 4) * sextract32(b, 4 * i, 4);
         }
     }
     return psum;
@@ -811,7 +811,8 @@ static int64_t ger_rank2(uint32_t a, uint32_t b, uint32_t mask)
     int64_t psum = 0;
     for (int i = 0; i < 2; i++, mask >>= 1) {
         if (mask & 1) {
-            psum += sextract32(a, 16 * i, 16) * sextract32(b, 16 * i, 16);
+            psum += (int64_t)sextract32(a, 16 * i, 16) *
+                             sextract32(b, 16 * i, 16);
         }
     }
     return psum;
