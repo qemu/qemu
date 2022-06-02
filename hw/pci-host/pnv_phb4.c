@@ -1692,11 +1692,11 @@ static void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno,
 }
 
 static Property pnv_phb4_properties[] = {
-        DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
-        DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
-        DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
-                         PnvPhb4PecState *),
-        DEFINE_PROP_END_OF_LIST(),
+    DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
+    DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
+    DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
+                     PnvPhb4PecState *),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb4_class_init(ObjectClass *klass, void *data)
