@@ -49,6 +49,7 @@ struct PIIX4State {
     RTCState rtc;
     PCIIDEState ide;
     UHCIState uhci;
+    PIIX4PMState pm;
     /* Reset Control Register */
     MemoryRegion rcr_mem;
     uint8_t rcr;
@@ -261,6 +262,13 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
+    /* ACPI controller */
+    qdev_prop_set_int32(DEVICE(&s->pm), "addr", dev->devfn + 3);
+    if (!qdev_realize(DEVICE(&s->pm), BUS(pci_bus), errp)) {
+        return;
+    }
+    qdev_connect_gpio_out(DEVICE(&s->pm), 0, s->isa[9]);
+
     pci_bus_irqs(pci_bus, piix4_set_irq, pci_slot_get_pirq, s, PIIX_NUM_PIRQS);
 }
 
@@ -271,6 +279,10 @@ static void piix4_init(Object *obj)
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
     object_initialize_child(obj, "ide", &s->ide, "piix4-ide");
     object_initialize_child(obj, "uhci", &s->uhci, "piix4-usb-uhci");
+
+    object_initialize_child(obj, "pm", &s->pm, TYPE_PIIX4_PM);
+    qdev_prop_set_uint32(DEVICE(&s->pm), "smb_io_base", 0x1100);
+    qdev_prop_set_bit(DEVICE(&s->pm), "smm-enabled", 0);
 }
 
 static void piix4_class_init(ObjectClass *klass, void *data)
@@ -312,7 +324,7 @@ static void piix4_register_types(void)
 
 type_init(piix4_register_types)
 
-DeviceState *piix4_create(PCIBus *pci_bus, I2CBus **smbus)
+DeviceState *piix4_create(PCIBus *pci_bus)
 {
     PCIDevice *pci;
     DeviceState *dev;
@@ -321,16 +333,6 @@ DeviceState *piix4_create(PCIBus *pci_bus, I2CBus **smbus)
     pci = pci_create_simple_multifunction(pci_bus, devfn,  true,
                                           TYPE_PIIX4_PCI_DEVICE);
     dev = DEVICE(pci);
-
-    if (smbus) {
-        pci = pci_new(devfn + 3, TYPE_PIIX4_PM);
-        qdev_prop_set_uint32(DEVICE(pci), "smb_io_base", 0x1100);
-        qdev_prop_set_bit(DEVICE(pci), "smm-enabled", 0);
-        pci_realize_and_unref(pci, pci_bus, &error_fatal);
-        qdev_connect_gpio_out(DEVICE(pci), 0,
-                              qdev_get_gpio_in_named(dev, "isa", 9));
-        *smbus = I2C_BUS(qdev_get_child_bus(DEVICE(pci), "i2c"));
-    }
 
     return dev;
 }
