@@ -1,9 +1,4 @@
-libvixl_ss = ss.source_set()
-subdir('libvixl')
-
 common_ss.add(when: 'CONFIG_ALPHA_DIS', if_true: files('alpha.c'))
-common_ss.add(when: 'CONFIG_ARM_A64_DIS', if_true: files('arm-a64.cc'))
-common_ss.add_all(when: 'CONFIG_ARM_A64_DIS', if_true: libvixl_ss)
 common_ss.add(when: 'CONFIG_CRIS_DIS', if_true: files('cris.c'))
 common_ss.add(when: 'CONFIG_HEXAGON_DIS', if_true: files('hexagon.c'))
 common_ss.add(when: 'CONFIG_HPPA_DIS', if_true: files('hppa.c'))

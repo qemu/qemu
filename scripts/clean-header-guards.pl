@@ -32,8 +32,8 @@ use warnings;
 use Getopt::Std;
 
 # Stuff we don't want to clean because we import it into our tree:
-my $exclude = qr,^(disas/libvixl/|include/standard-headers/
-    |linux-headers/|pc-bios/|tests/tcg/|tests/multiboot/),x;
+my $exclude = qr,^(include/standard-headers/|linux-headers/
+    |pc-bios/|tests/tcg/|tests/multiboot/),x;
 # Stuff that is expected to fail the preprocessing test:
 my $exclude_cpp = qr,^include/libdecnumber/decNumberLocal.h,;
 

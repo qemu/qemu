@@ -165,8 +165,6 @@ F: tests/qtest/arm-cpu-features.c
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
 F: include/hw/cpu/a*mpcore.h
-F: disas/arm-a64.cc
-F: disas/libvixl/
 F: docs/system/target-arm.rst
 F: docs/system/arm/cpu-features.rst
 
@@ -3313,8 +3311,6 @@ M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
 L: qemu-arm@nongnu.org
 F: tcg/aarch64/
-F: disas/arm-a64.cc
-F: disas/libvixl/
 
 ARM TCG target
 M: Richard Henderson <richard.henderson@linaro.org>

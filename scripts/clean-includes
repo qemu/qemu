@@ -51,7 +51,7 @@ GIT=no
 DUPHEAD=no
 
 # Extended regular expression defining files to ignore when using --all
-XDIRREGEX='^(tests/tcg|tests/multiboot|pc-bios|disas/libvixl)'
+XDIRREGEX='^(tests/tcg|tests/multiboot|pc-bios)'
 
 while true
 do

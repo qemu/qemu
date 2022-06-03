@@ -87,9 +87,6 @@ io
 ipmi
   ~ (/qemu)?((/include)?/hw/ipmi/.*)
 
-libvixl
-  ~ (/qemu)?(/disas/libvixl/.*)
-
 migration
   ~ (/qemu)?((/include)?/migration/.*)
 
