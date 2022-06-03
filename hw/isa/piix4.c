@@ -224,7 +224,7 @@ static void piix4_init(Object *obj)
 {
     PIIX4State *s = PIIX4_PCI_DEVICE(obj);
 
-    object_initialize(&s->rtc, sizeof(s->rtc), TYPE_MC146818_RTC);
+    object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
 }
 
 static void piix4_class_init(ObjectClass *klass, void *data)
