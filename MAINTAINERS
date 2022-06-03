@@ -488,7 +488,6 @@ Guest CPU Cores (HAXM)
 ---------------------
 X86 HAXM CPUs
 M: Wenchao Wang <wenchao.wang@intel.com>
-M: Colin Xu <colin.xu@intel.com>
 L: haxm-team@intel.com
 W: https://github.com/intel/haxm/issues
 S: Maintained
@@ -2018,8 +2017,7 @@ M: Halil Pasic <pasic@linux.ibm.com>
 M: Eric Farman <farman@linux.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw*.[hc]
-F: hw/s390x/vhost-vsock-ccw.c
-F: hw/s390x/vhost-user-fs-ccw.c
+F: hw/s390x/vhost-*-ccw.c
 T: git https://gitlab.com/cohuck/qemu.git s390-next
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
@@ -3103,7 +3101,7 @@ F: include/qemu/yank.h
 F: qapi/yank.json
 
 COLO Framework
-M: zhanghailiang <zhang.zhanghailiang@huawei.com>
+M: Hailiang Zhang <zhanghailiang@xfusion.com>
 S: Maintained
 F: migration/colo*
 F: include/migration/colo.h

@@ -268,6 +268,9 @@ static void mft_qom_set(QTestState *qts, int index, const char *name,
             path, name, value);
     /* The qom set message returns successfully. */
     g_assert_true(qdict_haskey(response, "return"));
+
+    qobject_unref(response);
+    g_free(path);
 }
 
 static uint32_t get_pll(uint32_t con)

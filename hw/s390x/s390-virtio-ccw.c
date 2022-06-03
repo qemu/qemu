@@ -768,7 +768,7 @@ bool css_migration_enabled(void)
     {                                                                         \
         MachineClass *mc = MACHINE_CLASS(oc);                                 \
         ccw_machine_##suffix##_class_options(mc);                             \
-        mc->desc = "VirtIO-ccw based S390 machine v" verstr;                  \
+        mc->desc = "Virtual s390x machine (version " verstr ")";              \
         if (latest) {                                                         \
             mc->alias = "s390-ccw-virtio";                                    \
             mc->is_default = true;                                            \

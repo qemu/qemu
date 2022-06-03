@@ -1296,6 +1296,29 @@
   } }
 
 ##
+# @HotKeyMod:
+#
+# Set of modifier keys that need to be held for shortcut key actions.
+#
+# Since: 7.1
+##
+{ 'enum'  : 'HotKeyMod',
+  'data'  : [ 'lctrl-lalt', 'lshift-lctrl-lalt', 'rctrl' ] }
+
+##
+# @DisplaySDL:
+#
+# SDL2 display options.
+#
+# @grab-mod:  Modifier keys that should be pressed together with the
+#             "G" key to release the mouse grab.
+#
+# Since: 7.1
+##
+{ 'struct'  : 'DisplaySDL',
+  'data'    : { '*grab-mod'   : 'HotKeyMod' } }
+
+##
 # @DisplayType:
 #
 # Display (user interface) type.
@@ -1374,7 +1397,8 @@
       'curses': { 'type': 'DisplayCurses', 'if': 'CONFIG_CURSES' },
       'egl-headless': { 'type': 'DisplayEGLHeadless',
                         'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } },
-      'dbus': { 'type': 'DisplayDBus', 'if': 'CONFIG_DBUS_DISPLAY' }
+      'dbus': { 'type': 'DisplayDBus', 'if': 'CONFIG_DBUS_DISPLAY' },
+      'sdl': { 'type': 'DisplaySDL', 'if': 'CONFIG_SDL' }
   }
 }
 
