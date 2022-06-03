@@ -417,7 +417,7 @@ static void piix3_register_types(void)
 
 type_init(piix3_register_types)
 
-PIIX3State *piix3_create(PCIBus *pci_bus, ISABus **isa_bus)
+PIIX3State *piix3_create(PCIBus *pci_bus)
 {
     PIIX3State *piix3;
     PCIDevice *pci_dev;
@@ -426,7 +426,6 @@ PIIX3State *piix3_create(PCIBus *pci_bus, ISABus **isa_bus)
 
     pci_dev = pci_create_simple_multifunction(pci_bus, -1, true, type);
     piix3 = PIIX3_PCI_DEVICE(pci_dev);
-    *isa_bus = ISA_BUS(qdev_get_child_bus(DEVICE(piix3), "isa.0"));
 
     return piix3;
 }
