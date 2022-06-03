@@ -27,6 +27,13 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
         return -1;
     }
 
+    if (!subsys->serial) {
+        subsys->serial = g_strdup(n->params.serial);
+    } else if (strcmp(subsys->serial, n->params.serial)) {
+        error_setg(errp, "invalid controller serial");
+        return -1;
+    }
+
     subsys->ctrls[cntlid] = n;
 
     for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
