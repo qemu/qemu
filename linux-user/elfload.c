@@ -130,19 +130,6 @@ typedef abi_int         target_pid_t;
 
 #ifdef TARGET_I386
 
-#define ELF_PLATFORM get_elf_platform()
-
-static const char *get_elf_platform(void)
-{
-    static char elf_platform[] = "i386";
-    int family = object_property_get_int(OBJECT(thread_cpu), "family", NULL);
-    if (family > 6)
-        family = 6;
-    if (family >= 3)
-        elf_platform[1] = '0' + family;
-    return elf_platform;
-}
-
 #define ELF_HWCAP get_elf_hwcap()
 
 static uint32_t get_elf_hwcap(void)
@@ -157,6 +144,8 @@ static uint32_t get_elf_hwcap(void)
 
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
+
+#define ELF_PLATFORM   "x86_64"
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -220,6 +209,21 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
  */
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_386
+
+#define ELF_PLATFORM get_elf_platform()
+
+static const char *get_elf_platform(void)
+{
+    static char elf_platform[] = "i386";
+    int family = object_property_get_int(OBJECT(thread_cpu), "family", NULL);
+    if (family > 6) {
+        family = 6;
+    }
+    if (family >= 3) {
+        elf_platform[1] = '0' + family;
+    }
+    return elf_platform;
+}
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
