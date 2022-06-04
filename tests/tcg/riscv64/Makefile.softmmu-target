@@ -1,0 +1,21 @@
+#
+# RISC-V system tests
+#
+
+TEST_SRC = $(SRC_PATH)/tests/tcg/riscv64
+VPATH += $(TEST_SRC)
+
+LINK_SCRIPT = $(TEST_SRC)/semihost.ld
+LDFLAGS = -T $(LINK_SCRIPT)
+CFLAGS += -g -Og
+
+%.o: %.S
+	$(CC) $(CFLAGS) $< -c -o $@
+%: %.o $(LINK_SCRIPT)
+	$(LD) $(LDFLAGS) $< -o $@
+
+QEMU_OPTS += -M virt -display none -semihosting -device loader,file=
+
+EXTRA_RUNS += run-issue1060
+run-issue1060: issue1060
+	$(call run-test, $<, $(QEMU) $(QEMU_OPTS)$<)

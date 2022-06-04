@@ -240,6 +240,8 @@ static void generate_exception_mtval(DisasContext *ctx, int excp)
 
 static void gen_exception_illegal(DisasContext *ctx)
 {
+    tcg_gen_st_i32(tcg_constant_i32(ctx->opcode), cpu_env,
+                   offsetof(CPURISCVState, bins));
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
