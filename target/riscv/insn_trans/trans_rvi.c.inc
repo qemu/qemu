@@ -818,6 +818,8 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
 
 static bool do_csr_post(DisasContext *ctx)
 {
+    /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
+    decode_save_opc(ctx);
     /* We may have changed important cpu state -- exit to main loop. */
     gen_set_pc_imm(ctx, ctx->pc_succ_insn);
     tcg_gen_exit_tb(NULL, 0);
