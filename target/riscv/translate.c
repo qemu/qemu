@@ -230,14 +230,6 @@ static void generate_exception(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static void generate_exception_mtval(DisasContext *ctx, int excp)
-{
-    gen_set_pc_imm(ctx, ctx->base.pc_next);
-    tcg_gen_st_tl(cpu_pc, cpu_env, offsetof(CPURISCVState, badaddr));
-    gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
-    ctx->base.is_jmp = DISAS_NORETURN;
-}
-
 static void gen_exception_illegal(DisasContext *ctx)
 {
     tcg_gen_st_i32(tcg_constant_i32(ctx->opcode), cpu_env,
@@ -247,7 +239,8 @@ static void gen_exception_illegal(DisasContext *ctx)
 
 static void gen_exception_inst_addr_mis(DisasContext *ctx)
 {
-    generate_exception_mtval(ctx, RISCV_EXCP_INST_ADDR_MIS);
+    tcg_gen_st_tl(cpu_pc, cpu_env, offsetof(CPURISCVState, badaddr));
+    generate_exception(ctx, RISCV_EXCP_INST_ADDR_MIS);
 }
 
 static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
