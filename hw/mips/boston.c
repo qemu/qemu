@@ -787,7 +787,8 @@ static void boston_mach_init(MachineState *machine)
 
         if (kernel_size > 0) {
             int dt_size;
-            g_autofree const void *dtb_file_data, *dtb_load_data;
+            g_autofree const void *dtb_file_data = NULL;
+            g_autofree const void *dtb_load_data = NULL;
             hwaddr dtb_paddr = QEMU_ALIGN_UP(kernel_high, 64 * KiB);
             hwaddr dtb_vaddr = cpu_mips_phys_to_kseg0(NULL, dtb_paddr);
 
