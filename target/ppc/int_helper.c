@@ -2176,38 +2176,6 @@ VGENERIC_DO(popcntd, u64)
 
 #undef VGENERIC_DO
 
-#ifndef CONFIG_INT128
-
-static inline void avr_qw_not(ppc_avr_t *t, ppc_avr_t a)
-{
-    t->u64[0] = ~a.u64[0];
-    t->u64[1] = ~a.u64[1];
-}
-
-static int avr_qw_cmpu(ppc_avr_t a, ppc_avr_t b)
-{
-    if (a.VsrD(0) < b.VsrD(0)) {
-        return -1;
-    } else if (a.VsrD(0) > b.VsrD(0)) {
-        return 1;
-    } else if (a.VsrD(1) < b.VsrD(1)) {
-        return -1;
-    } else if (a.VsrD(1) > b.VsrD(1)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-static void avr_qw_add(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
-{
-    t->VsrD(1) = a.VsrD(1) + b.VsrD(1);
-    t->VsrD(0) = a.VsrD(0) + b.VsrD(0) +
-                     (~a.VsrD(1) < b.VsrD(1));
-}
-
-#endif
-
 void helper_VADDUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     r->s128 = int128_add(a->s128, b->s128);
@@ -2250,22 +2218,13 @@ void helper_VSUBEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
                          int128_make64(int128_getlo(c->s128) & 1));
 }
 
-void helper_vsubcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VSUBCUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-#ifdef CONFIG_INT128
-    r->u128 = (~a->u128 < ~b->u128) ||
-                 (a->u128 + ~b->u128 == (__uint128_t)-1);
-#else
-    int carry = (avr_qw_cmpu(*a, *b) > 0);
-    if (!carry) {
-        ppc_avr_t tmp;
-        avr_qw_not(&tmp, *b);
-        avr_qw_add(&tmp, *a, tmp);
-        carry = ((tmp.VsrSD(0) == -1ull) && (tmp.VsrSD(1) == -1ull));
-    }
+    Int128 tmp = int128_not(b->s128);
+
+    r->VsrD(1) = int128_ult(int128_not(a->s128), tmp) ||
+                 int128_eq(int128_add(a->s128, tmp), int128_makes64(-1));
     r->VsrD(0) = 0;
-    r->VsrD(1) = carry;
-#endif
 }
 
 void helper_VSUBECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
