@@ -92,3 +92,11 @@ DEF_HELPER_2(frint_s, i64, env, i64)
 DEF_HELPER_2(frint_d, i64, env, i64)
 
 DEF_HELPER_FLAGS_2(set_rounding_mode, TCG_CALL_NO_RWG, void, env, i32)
+
+/* CSRs helper */
+DEF_HELPER_1(csrrd_pgd, i64, env)
+DEF_HELPER_1(csrrd_tval, i64, env)
+DEF_HELPER_2(csrwr_estat, i64, env, tl)
+DEF_HELPER_2(csrwr_asid, i64, env, tl)
+DEF_HELPER_2(csrwr_tcfg, i64, env, tl)
+DEF_HELPER_2(csrwr_ticlr, i64, env, tl)

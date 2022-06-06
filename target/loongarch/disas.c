@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
 #include "qemu/bitops.h"
+#include "cpu-csr.h"
 
 typedef struct {
     disassemble_info *info;
@@ -23,6 +24,90 @@ static inline int plus_1(DisasContext *ctx, int x)
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+#define CSR_NAME(REG) \
+    [LOONGARCH_CSR_##REG] = (#REG)
+
+static const char * const csr_names[] = {
+    CSR_NAME(CRMD),
+    CSR_NAME(PRMD),
+    CSR_NAME(EUEN),
+    CSR_NAME(MISC),
+    CSR_NAME(ECFG),
+    CSR_NAME(ESTAT),
+    CSR_NAME(ERA),
+    CSR_NAME(BADV),
+    CSR_NAME(BADI),
+    CSR_NAME(EENTRY),
+    CSR_NAME(TLBIDX),
+    CSR_NAME(TLBEHI),
+    CSR_NAME(TLBELO0),
+    CSR_NAME(TLBELO1),
+    CSR_NAME(ASID),
+    CSR_NAME(PGDL),
+    CSR_NAME(PGDH),
+    CSR_NAME(PGD),
+    CSR_NAME(PWCL),
+    CSR_NAME(PWCH),
+    CSR_NAME(STLBPS),
+    CSR_NAME(RVACFG),
+    CSR_NAME(CPUID),
+    CSR_NAME(PRCFG1),
+    CSR_NAME(PRCFG2),
+    CSR_NAME(PRCFG3),
+    CSR_NAME(SAVE(0)),
+    CSR_NAME(SAVE(1)),
+    CSR_NAME(SAVE(2)),
+    CSR_NAME(SAVE(3)),
+    CSR_NAME(SAVE(4)),
+    CSR_NAME(SAVE(5)),
+    CSR_NAME(SAVE(6)),
+    CSR_NAME(SAVE(7)),
+    CSR_NAME(SAVE(8)),
+    CSR_NAME(SAVE(9)),
+    CSR_NAME(SAVE(10)),
+    CSR_NAME(SAVE(11)),
+    CSR_NAME(SAVE(12)),
+    CSR_NAME(SAVE(13)),
+    CSR_NAME(SAVE(14)),
+    CSR_NAME(SAVE(15)),
+    CSR_NAME(TID),
+    CSR_NAME(TCFG),
+    CSR_NAME(TVAL),
+    CSR_NAME(CNTC),
+    CSR_NAME(TICLR),
+    CSR_NAME(LLBCTL),
+    CSR_NAME(IMPCTL1),
+    CSR_NAME(IMPCTL2),
+    CSR_NAME(TLBRENTRY),
+    CSR_NAME(TLBRBADV),
+    CSR_NAME(TLBRERA),
+    CSR_NAME(TLBRSAVE),
+    CSR_NAME(TLBRELO0),
+    CSR_NAME(TLBRELO1),
+    CSR_NAME(TLBREHI),
+    CSR_NAME(TLBRPRMD),
+    CSR_NAME(MERRCTL),
+    CSR_NAME(MERRINFO1),
+    CSR_NAME(MERRINFO2),
+    CSR_NAME(MERRENTRY),
+    CSR_NAME(MERRERA),
+    CSR_NAME(MERRSAVE),
+    CSR_NAME(CTAG),
+    CSR_NAME(DMW(0)),
+    CSR_NAME(DMW(1)),
+    CSR_NAME(DMW(2)),
+    CSR_NAME(DMW(3)),
+    CSR_NAME(DBG),
+    CSR_NAME(DERA),
+    CSR_NAME(DSAVE),
+};
+
+static const char *get_csr_name(unsigned num)
+{
+    return ((num < ARRAY_SIZE(csr_names)) && (csr_names[num] != NULL)) ?
+           csr_names[num] : "Undefined CSR";
 }
 
 #define output(C, INSN, FMT, ...)                                   \
@@ -203,6 +288,19 @@ static void output_rr_offs(DisasContext *ctx, arg_rr_offs *a,
 {
     output(ctx, mnemonic, "r%d, r%d, %d # 0x%" PRIx64, a->rj,
            a->rd, a->offs, ctx->pc + a->offs);
+}
+
+static void output_r_csr(DisasContext *ctx, arg_r_csr *a,
+                         const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, %d # %s", a->rd, a->csr, get_csr_name(a->csr));
+}
+
+static void output_rr_csr(DisasContext *ctx, arg_rr_csr *a,
+                          const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, r%d, %d # %s",
+           a->rd, a->rj, a->csr, get_csr_name(a->csr));
 }
 
 #define INSN(insn, type)                                    \
@@ -514,6 +612,9 @@ INSN(blt,          rr_offs)
 INSN(bge,          rr_offs)
 INSN(bltu,         rr_offs)
 INSN(bgeu,         rr_offs)
+INSN(csrrd,        r_csr)
+INSN(csrwr,        r_csr)
+INSN(csrxchg,      rr_csr)
 
 #define output_fcmp(C, PREFIX, SUFFIX)                                         \
 {                                                                              \
