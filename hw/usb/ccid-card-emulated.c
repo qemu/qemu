@@ -613,6 +613,7 @@ static const TypeInfo emulated_card_info = {
     .class_init    = emulated_class_initfn,
 };
 module_obj(TYPE_EMULATED_CCID);
+module_kconfig(USB);
 
 static void ccid_card_emulated_register_types(void)
 {

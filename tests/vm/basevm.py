@@ -18,9 +18,6 @@ import socket
 import logging
 import time
 import datetime
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.machine import QEMUMachine
-from qemu.utils import get_info_usernet_hostfwd_port, kvm_available
 import subprocess
 import hashlib
 import argparse
@@ -30,6 +27,9 @@ import shutil
 import multiprocessing
 import traceback
 import shlex
+
+from qemu.machine import QEMUMachine
+from qemu.utils import get_info_usernet_hostfwd_port, kvm_available
 
 SSH_KEY_FILE = os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")

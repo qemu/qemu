@@ -260,6 +260,7 @@ static const TypeInfo virtio_gpu_base_info = {
     .abstract = true
 };
 module_obj(TYPE_VIRTIO_GPU_BASE);
+module_kconfig(VIRTIO_GPU);
 
 static void
 virtio_register_types(void)

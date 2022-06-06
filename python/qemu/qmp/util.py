@@ -40,7 +40,9 @@ async def flush(writer: asyncio.StreamWriter) -> None:
     drain. The flow control limits are restored after the call is
     completed.
     """
-    transport = cast(asyncio.WriteTransport, writer.transport)
+    transport = cast(  # type: ignore[redundant-cast]
+        asyncio.WriteTransport, writer.transport
+    )
 
     # https://github.com/python/typeshed/issues/5779
     low, high = transport.get_write_buffer_limits()  # type: ignore

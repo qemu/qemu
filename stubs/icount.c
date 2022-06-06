@@ -43,3 +43,7 @@ void icount_account_warp_timer(void)
 {
     abort();
 }
+
+void icount_notify_exit(void)
+{
+}

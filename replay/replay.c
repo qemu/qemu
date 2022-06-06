@@ -22,7 +22,7 @@
 
 /* Current version of the replay mechanism.
    Increase it when file format changes. */
-#define REPLAY_VERSION              0xe0200a
+#define REPLAY_VERSION              0xe0200c
 /* Size of replay log header */
 #define HEADER_SIZE                 (sizeof(uint32_t) + sizeof(uint64_t))
 
@@ -171,24 +171,7 @@ void replay_shutdown_request(ShutdownCause cause)
 
 bool replay_checkpoint(ReplayCheckpoint checkpoint)
 {
-    bool res = false;
-    static bool in_checkpoint;
     assert(EVENT_CHECKPOINT + checkpoint <= EVENT_CHECKPOINT_LAST);
-
-    if (!replay_file) {
-        return true;
-    }
-
-    if (in_checkpoint) {
-        /*
-           Recursion occurs when HW event modifies timers.
-           Prevent performing icount warp in this case and
-           wait for another invocation of the checkpoint.
-        */
-        g_assert(replay_mode == REPLAY_MODE_PLAY);
-        return false;
-    }
-    in_checkpoint = true;
 
     replay_save_instructions();
 
@@ -196,39 +179,41 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
         g_assert(replay_mutex_locked());
         if (replay_next_event_is(EVENT_CHECKPOINT + checkpoint)) {
             replay_finish_event();
-        } else if (replay_state.data_kind != EVENT_ASYNC) {
-            res = false;
-            goto out;
+        } else {
+            return false;
         }
-        replay_read_events(checkpoint);
-        /* replay_read_events may leave some unread events.
-           Return false if not all of the events associated with
-           checkpoint were processed */
-        res = replay_state.data_kind != EVENT_ASYNC;
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
         replay_put_event(EVENT_CHECKPOINT + checkpoint);
-        /* This checkpoint belongs to several threads.
-           Processing events from different threads is
-           non-deterministic */
-        if (checkpoint != CHECKPOINT_CLOCK_WARP_START
-            /* FIXME: this is temporary fix, other checkpoints
-                      may also be invoked from the different threads someday.
-                      Asynchronous event processing should be refactored
-                      to create additional replay event kind which is
-                      nailed to the one of the threads and which processes
-                      the event queue. */
-            && checkpoint != CHECKPOINT_CLOCK_VIRTUAL) {
-            replay_save_events(checkpoint);
-        }
-        res = true;
     }
-out:
-    in_checkpoint = false;
-    return res;
+    return true;
 }
 
-bool replay_has_checkpoint(void)
+void replay_async_events(void)
+{
+    static bool processing = false;
+    /*
+     * If we are already processing the events, recursion may occur
+     * in case of incorrect implementation when HW event modifies timers.
+     * Timer modification may invoke the icount warp, event processing,
+     * and cause the recursion.
+     */
+    g_assert(!processing);
+    processing = true;
+
+    replay_save_instructions();
+
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        g_assert(replay_mutex_locked());
+        replay_read_events();
+    } else if (replay_mode == REPLAY_MODE_RECORD) {
+        g_assert(replay_mutex_locked());
+        replay_save_events();
+    }
+    processing = false;
+}
+
+bool replay_has_event(void)
 {
     bool res = false;
     if (replay_mode == REPLAY_MODE_PLAY) {
@@ -236,6 +221,8 @@ bool replay_has_checkpoint(void)
         replay_account_executed_instructions();
         res = EVENT_CHECKPOINT <= replay_state.data_kind
               && replay_state.data_kind <= EVENT_CHECKPOINT_LAST;
+        res = res || (EVENT_ASYNC <= replay_state.data_kind
+                     && replay_state.data_kind <= EVENT_ASYNC_LAST);
     }
     return res;
 }
@@ -387,9 +374,8 @@ void replay_finish(void)
     g_free(replay_snapshot);
     replay_snapshot = NULL;
 
-    replay_mode = REPLAY_MODE_NONE;
-
     replay_finish_events();
+    replay_mode = REPLAY_MODE_NONE;
 }
 
 void replay_add_blocker(Error *reason)

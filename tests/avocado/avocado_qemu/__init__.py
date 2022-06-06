@@ -21,6 +21,11 @@ import avocado
 from avocado.utils import cloudinit, datadrainer, process, ssh, vmimage
 from avocado.utils.path import find_command
 
+from qemu.machine import QEMUMachine
+from qemu.utils import (get_info_usernet_hostfwd_port, kvm_available,
+                        tcg_available)
+
+
 #: The QEMU build root directory.  It may also be the source directory
 #: if building from the source dir, but it's safer to use BUILD_DIR for
 #: that purpose.  Be aware that if this code is moved outside of a source
@@ -34,12 +39,6 @@ if os.path.islink(os.path.dirname(os.path.dirname(__file__))):
     SOURCE_DIR = os.path.dirname(os.path.dirname(os.readlink(lnk)))
 else:
     SOURCE_DIR = BUILD_DIR
-
-sys.path.append(os.path.join(SOURCE_DIR, 'python'))
-
-from qemu.machine import QEMUMachine
-from qemu.utils import (get_info_usernet_hostfwd_port, kvm_available,
-                        tcg_available)
 
 
 def has_cmd(name, args=None):

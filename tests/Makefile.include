@@ -3,28 +3,28 @@
 .PHONY: check-help
 check-help:
 	@echo "Regression testing targets:"
-	@echo " $(MAKE) check                Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
-	@echo " $(MAKE) bench                Run speed tests"
+	@echo " $(MAKE) check                  Run block, qapi-schema, unit, softfloat, qtest and decodetree tests"
+	@echo " $(MAKE) bench                  Run speed tests"
 	@echo
 	@echo "Individual test suites:"
-	@echo " $(MAKE) check-qtest-TARGET   Run qtest tests for given target"
-	@echo " $(MAKE) check-qtest          Run qtest tests"
-	@echo " $(MAKE) check-unit           Run qobject tests"
-	@echo " $(MAKE) check-qapi-schema    Run QAPI schema tests"
-	@echo " $(MAKE) check-block          Run block tests"
+	@echo " $(MAKE) check-qtest-TARGET     Run qtest tests for given target"
+	@echo " $(MAKE) check-qtest            Run qtest tests"
+	@echo " $(MAKE) check-unit             Run qobject tests"
+	@echo " $(MAKE) check-qapi-schema      Run QAPI schema tests"
+	@echo " $(MAKE) check-block            Run block tests"
 ifneq ($(filter $(all-check-targets), check-softfloat),)
-	@echo " $(MAKE) check-tcg            Run TCG tests"
-	@echo " $(MAKE) check-softfloat      Run FPU emulation tests"
+	@echo " $(MAKE) check-tcg              Run TCG tests"
+	@echo " $(MAKE) check-softfloat        Run FPU emulation tests"
 endif
-	@echo " $(MAKE) check-avocado        Run avocado (integration) tests for currently configured targets"
+	@echo " $(MAKE) check-avocado          Run avocado (integration) tests for currently configured targets"
 	@echo
-	@echo " $(MAKE) check-report.tap     Generates an aggregated TAP test report"
-	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
-	@echo " $(MAKE) check-clean          Clean the tests and related data"
+	@echo " $(MAKE) check-report.junit.xml Generates an aggregated XML test report"
+	@echo " $(MAKE) check-venv             Creates a Python venv for tests"
+	@echo " $(MAKE) check-clean            Clean the tests and related data"
 	@echo
 	@echo "The following are useful for CI builds"
-	@echo " $(MAKE) check-build          Build most test binaries"
-	@echo " $(MAKE) get-vm-images        Downloads all images used by avocado tests, according to configured targets (~350 MB each, 1.5 GB max)"
+	@echo " $(MAKE) check-build            Build most test binaries"
+	@echo " $(MAKE) get-vm-images          Downloads all images used by avocado tests, according to configured targets (~350 MB each, 1.5 GB max)"
 	@echo
 	@echo
 	@echo "The variable SPEED can be set to control the gtester speed setting."
@@ -89,6 +89,7 @@ TARGETS=$(patsubst libqemu-%.fa, %, $(filter libqemu-%.fa, $(ninja-targets)))
 TESTS_VENV_DIR=$(BUILD_DIR)/tests/venv
 TESTS_VENV_REQ=$(SRC_PATH)/tests/requirements.txt
 TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
+TESTS_PYTHON=$(TESTS_VENV_DIR)/bin/python3
 ifndef AVOCADO_TESTS
 	AVOCADO_TESTS=tests/avocado
 endif
@@ -103,13 +104,14 @@ else
 	AVOCADO_CMDLINE_TAGS=$(addprefix -t , $(AVOCADO_TAGS))
 endif
 
+quiet-venv-pip = $(quiet-@)$(call quiet-command-run, \
+    $(TESTS_PYTHON) -m pip -q --disable-pip-version-check $1, \
+    "VENVPIP","$1")
+
 $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
-	$(call quiet-command, \
-            $(PYTHON) -m venv $@, \
-            VENV, $@)
-	$(call quiet-command, \
-            $(TESTS_VENV_DIR)/bin/python -m pip -q install -r $(TESTS_VENV_REQ), \
-            PIP, $(TESTS_VENV_REQ))
+	$(call quiet-command, $(PYTHON) -m venv $@, VENV, $@)
+	$(call quiet-venv-pip,install -e "$(SRC_PATH)/python/")
+	$(call quiet-venv-pip,install -r $(TESTS_VENV_REQ))
 	$(call quiet-command, touch $@)
 
 $(TESTS_RESULTS_DIR):
@@ -126,7 +128,7 @@ FEDORA_31_DOWNLOAD=$(filter $(FEDORA_31_ARCHES),$(FEDORA_31_ARCHES_CANDIDATES))
 # download one specific Fedora 31 image
 get-vm-image-fedora-31-%: check-venv
 	$(call quiet-command, \
-             $(TESTS_VENV_DIR)/bin/python -m avocado vmimage get \
+             $(TESTS_PYTHON) -m avocado vmimage get \
              --distro=fedora --distro-version=31 --arch=$*, \
 	"AVOCADO", "Downloading avocado tests VM image for $*")
 
@@ -135,7 +137,7 @@ get-vm-images: check-venv $(patsubst %,get-vm-image-fedora-31-%, $(FEDORA_31_DOW
 
 check-avocado: check-venv $(TESTS_RESULTS_DIR) get-vm-images
 	$(call quiet-command, \
-            $(TESTS_VENV_DIR)/bin/python -m avocado \
+            $(TESTS_PYTHON) -m avocado \
             --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
             $(if $(AVOCADO_TAGS),, --filter-by-tags-include-empty \
 			--filter-by-tags-include-empty-key) \

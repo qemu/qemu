@@ -84,8 +84,7 @@ void icount_handle_deadline(void)
      * Don't interrupt cpu thread, when these events are waiting
      * (i.e., there is no checkpoint)
      */
-    if (deadline == 0
-        && (replay_mode != REPLAY_MODE_PLAY || replay_has_checkpoint())) {
+    if (deadline == 0) {
         icount_notify_aio_contexts();
     }
 }
@@ -109,7 +108,7 @@ void icount_prepare_for_run(CPUState *cpu)
 
     replay_mutex_lock();
 
-    if (cpu->icount_budget == 0 && replay_has_checkpoint()) {
+    if (cpu->icount_budget == 0) {
         icount_notify_aio_contexts();
     }
 }

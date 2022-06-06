@@ -33,10 +33,18 @@ import re
 import random
 import argparse
 from itertools import chain
+from pathlib import Path
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from qemu.machine import QEMUMachine
-from qemu.qmp import ConnectError
+try:
+    from qemu.machine import QEMUMachine
+    from qemu.qmp import ConnectError
+except ModuleNotFoundError as exc:
+    path = Path(__file__).resolve()
+    print(f"Module '{exc.name}' not found.")
+    print("  Try 'make check-venv' from your build directory,")
+    print("  and then one way to run this script is like so:")
+    print(f'  > $builddir/tests/venv/bin/python3 "{path}"')
+    sys.exit(1)
 
 logger = logging.getLogger('device-crash-test')
 dbg = logger.debug

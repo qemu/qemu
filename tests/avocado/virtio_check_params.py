@@ -22,7 +22,6 @@ import os
 import re
 import logging
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 from avocado_qemu import QemuSystemTest
 from avocado import skip

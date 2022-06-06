@@ -69,6 +69,7 @@ static const TypeInfo virtio_ccw_gpu = {
     .class_init    = virtio_ccw_gpu_class_init,
 };
 module_obj(TYPE_VIRTIO_GPU_CCW);
+module_kconfig(VIRTIO_CCW);
 
 static void virtio_ccw_gpu_register(void)
 {
