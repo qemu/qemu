@@ -495,6 +495,8 @@ static void loongarch_cpu_init(Object *obj)
 
     cpu_set_cpustate_pointers(cpu);
     qdev_init_gpio_in(DEVICE(cpu), loongarch_cpu_set_irq, N_IRQS);
+    timer_init_ns(&cpu->timer, QEMU_CLOCK_VIRTUAL,
+                  &loongarch_constant_timer_cb, cpu);
 }
 
 static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
