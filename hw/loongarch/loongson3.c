@@ -9,6 +9,7 @@
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
+#include "hw/char/serial.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
@@ -16,13 +17,87 @@
 #include "sysemu/rtc.h"
 #include "hw/loongarch/virt.h"
 #include "exec/address-spaces.h"
+#include "hw/irq.h"
+#include "net/net.h"
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/intc/loongarch_extioi.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "hw/intc/loongarch_pch_msi.h"
 #include "hw/pci-host/ls7a.h"
+#include "hw/pci-host/gpex.h"
+#include "hw/misc/unimp.h"
 
 #include "target/loongarch/cpu.h"
+
+static void loongarch_devices_init(DeviceState *pch_pic)
+{
+    DeviceState *gpex_dev;
+    SysBusDevice *d;
+    PCIBus *pci_bus;
+    MemoryRegion *ecam_alias, *ecam_reg, *pio_alias, *pio_reg;
+    MemoryRegion *mmio_alias, *mmio_reg;
+    int i;
+
+    gpex_dev = qdev_new(TYPE_GPEX_HOST);
+    d = SYS_BUS_DEVICE(gpex_dev);
+    sysbus_realize_and_unref(d, &error_fatal);
+    pci_bus = PCI_HOST_BRIDGE(gpex_dev)->bus;
+
+    /* Map only part size_ecam bytes of ECAM space */
+    ecam_alias = g_new0(MemoryRegion, 1);
+    ecam_reg = sysbus_mmio_get_region(d, 0);
+    memory_region_init_alias(ecam_alias, OBJECT(gpex_dev), "pcie-ecam",
+                             ecam_reg, 0, LS_PCIECFG_SIZE);
+    memory_region_add_subregion(get_system_memory(), LS_PCIECFG_BASE,
+                                ecam_alias);
+
+    /* Map PCI mem space */
+    mmio_alias = g_new0(MemoryRegion, 1);
+    mmio_reg = sysbus_mmio_get_region(d, 1);
+    memory_region_init_alias(mmio_alias, OBJECT(gpex_dev), "pcie-mmio",
+                             mmio_reg, LS7A_PCI_MEM_BASE, LS7A_PCI_MEM_SIZE);
+    memory_region_add_subregion(get_system_memory(), LS7A_PCI_MEM_BASE,
+                                mmio_alias);
+
+    /* Map PCI IO port space. */
+    pio_alias = g_new0(MemoryRegion, 1);
+    pio_reg = sysbus_mmio_get_region(d, 2);
+    memory_region_init_alias(pio_alias, OBJECT(gpex_dev), "pcie-io", pio_reg,
+                             LS7A_PCI_IO_OFFSET, LS7A_PCI_IO_SIZE);
+    memory_region_add_subregion(get_system_memory(), LS7A_PCI_IO_BASE,
+                                pio_alias);
+
+    for (i = 0; i < GPEX_NUM_IRQS; i++) {
+        sysbus_connect_irq(d, i,
+                           qdev_get_gpio_in(pch_pic, 16 + i));
+        gpex_set_irq_num(GPEX_HOST(gpex_dev), i, 16 + i);
+    }
+
+    serial_mm_init(get_system_memory(), LS7A_UART_BASE, 0,
+                   qdev_get_gpio_in(pch_pic,
+                                    LS7A_UART_IRQ - PCH_PIC_IRQ_OFFSET),
+                   115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
+
+    /* Network init */
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+
+        if (!nd->model) {
+            nd->model = g_strdup("virtio");
+        }
+
+        pci_nic_init_nofail(nd, pci_bus, nd->model, NULL);
+    }
+
+    /* VGA setup */
+    pci_vga_init(pci_bus);
+
+    /*
+     * There are some invalid guest memory access.
+     * Create some unimplemented devices to emulate this.
+     */
+    create_unimplemented_device("pci-dma-cfg", 0x1001041c, 0x4);
+}
 
 static void loongarch_irq_init(LoongArchMachineState *lams)
 {
@@ -118,6 +193,8 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
         qdev_connect_gpio_out(DEVICE(d), i,
                               qdev_get_gpio_in(extioi, i + PCH_MSI_IRQ_START));
     }
+
+    loongarch_devices_init(pch_pic);
 }
 
 static void loongarch_init(MachineState *machine)
