@@ -196,6 +196,7 @@ static void loongarch_cpu_reset(DeviceState *dev)
     env->fcsr0_mask = FCSR0_M1 | FCSR0_M2 | FCSR0_M3;
     env->fcsr0 = 0x0;
 
+    restore_fp_status(env);
     cs->exception_index = -1;
 }
 

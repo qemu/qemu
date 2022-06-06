@@ -15,6 +15,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
+#include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
 
@@ -34,6 +35,15 @@ static inline int plus_1(DisasContext *ctx, int x)
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+/*
+ * LoongArch the upper 32 bits are undefined ("can be any value").
+ * QEMU chooses to nanbox, because it is most likely to show guest bugs early.
+ */
+static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
+{
+    tcg_gen_ori_i64(out, in, MAKE_64BIT_MASK(32, 32));
 }
 
 void generate_exception(DisasContext *ctx, int excp)
@@ -156,6 +166,7 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
 #include "insn_trans/trans_memory.c.inc"
 #include "insn_trans/trans_atomic.c.inc"
 #include "insn_trans/trans_extra.c.inc"
+#include "insn_trans/trans_farith.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {

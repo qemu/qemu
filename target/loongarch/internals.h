@@ -18,4 +18,6 @@ void G_NORETURN do_raise_exception(CPULoongArchState *env,
 
 const char *loongarch_exception_name(int32_t exception);
 
+void restore_fp_status(CPULoongArchState *env);
+
 #endif
