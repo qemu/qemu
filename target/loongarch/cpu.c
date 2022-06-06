@@ -336,6 +336,7 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = loongarch_cpu_class_by_name;
     cc->dump_state = loongarch_cpu_dump_state;
     cc->set_pc = loongarch_cpu_set_pc;
+    dc->vmsd = &vmstate_loongarch_cpu;
     cc->disas_set_info = loongarch_cpu_disas_set_info;
 #ifdef CONFIG_TCG
     cc->tcg_ops = &loongarch_tcg_ops;
