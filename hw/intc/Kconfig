@@ -87,3 +87,6 @@ config M68K_IRQC
 
 config NIOS2_VIC
     bool
+
+config LOONGARCH_IPI
+    bool

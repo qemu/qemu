@@ -11,6 +11,7 @@
 #include "target/loongarch/cpu.h"
 #include "hw/boards.h"
 #include "qemu/queue.h"
+#include "hw/intc/loongarch_ipi.h"
 
 #define LOONGARCH_MAX_VCPUS     4
 
@@ -21,6 +22,7 @@ struct LoongArchMachineState {
     /*< private >*/
     MachineState parent_obj;
 
+    IPICore ipi_core[MAX_IPI_CORE_NUM];
     MemoryRegion lowmem;
     MemoryRegion highmem;
     MemoryRegion isa_io;

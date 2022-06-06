@@ -2,3 +2,4 @@ config LOONGARCH_VIRT
     bool
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
+    select LOONGARCH_IPI
