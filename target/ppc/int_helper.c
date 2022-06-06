@@ -2224,13 +2224,9 @@ static int avr_qw_addc(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
 
 #endif
 
-void helper_vadduqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VADDUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + b->u128;
-#else
-    avr_qw_add(r, *a, *b);
-#endif
+    r->s128 = int128_add(a->s128, b->s128);
 }
 
 void helper_vaddeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
