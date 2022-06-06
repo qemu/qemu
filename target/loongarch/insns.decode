@@ -27,6 +27,15 @@
 &fff          fd fj fk
 &ffff         fd fj fk fa
 &cff_fcond    cd fj fk fcond
+&fffc         fd fj fk ca
+&fr           fd rj
+&rf           rd fj
+&fcsrd_r      fcsrd rj
+&r_fcsrs      rd fcsrs
+&cf           cd fj
+&fc           fd cj
+&cr           cd rj
+&rc           rd cj
 
 #
 # Formats
@@ -52,6 +61,15 @@
 @fff               .... ........ ..... fk:5 fj:5 fd:5    &fff
 @ffff               .... ........ fa:5 fk:5 fj:5 fd:5    &ffff
 @cff_fcond    .... ........ fcond:5 fk:5 fj:5 .. cd:3    &cff_fcond
+@fffc            .... ........ .. ca:3 fk:5 fj:5 fd:5    &fffc
+@fr               .... ........ ..... ..... rj:5 fd:5    &fr
+@rf               .... ........ ..... ..... fj:5 rd:5    &rf
+@fcsrd_r       .... ........ ..... ..... rj:5 fcsrd:5    &fcsrd_r
+@r_fcsrs       .... ........ ..... ..... fcsrs:5 rd:5    &r_fcsrs
+@cf            .... ........ ..... ..... fj:5 .. cd:3    &cf
+@fc            .... ........ ..... ..... .. cj:3 fd:5    &fc
+@cr            .... ........ ..... ..... rj:5 .. cd:3    &cr
+@rc            .... ........ ..... ..... .. cj:3 rd:5    &rc
 
 #
 # Fixed point arithmetic operation instruction
@@ -348,3 +366,22 @@ ffint_d_w       0000 00010001 11010 01000 ..... .....    @ff
 ffint_d_l       0000 00010001 11010 01010 ..... .....    @ff
 frint_s         0000 00010001 11100 10001 ..... .....    @ff
 frint_d         0000 00010001 11100 10010 ..... .....    @ff
+
+#
+# Floating point move instruction
+#
+fmov_s          0000 00010001 01001 00101 ..... .....    @ff
+fmov_d          0000 00010001 01001 00110 ..... .....    @ff
+fsel            0000 11010000 00 ... ..... ..... .....   @fffc
+movgr2fr_w      0000 00010001 01001 01001 ..... .....    @fr
+movgr2fr_d      0000 00010001 01001 01010 ..... .....    @fr
+movgr2frh_w     0000 00010001 01001 01011 ..... .....    @fr
+movfr2gr_s      0000 00010001 01001 01101 ..... .....    @rf
+movfr2gr_d      0000 00010001 01001 01110 ..... .....    @rf
+movfrh2gr_s     0000 00010001 01001 01111 ..... .....    @rf
+movgr2fcsr      0000 00010001 01001 10000 ..... .....    @fcsrd_r
+movfcsr2gr      0000 00010001 01001 10010 ..... .....    @r_fcsrs
+movfr2cf        0000 00010001 01001 10100 ..... 00 ...   @cf
+movcf2fr        0000 00010001 01001 10101 00 ... .....   @fc
+movgr2cf        0000 00010001 01001 10110 ..... 00 ...   @cr
+movcf2gr        0000 00010001 01001 10111 00 ... .....   @rc
