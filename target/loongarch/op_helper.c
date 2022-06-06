@@ -84,6 +84,19 @@ target_ulong helper_cpucfg(CPULoongArchState *env, target_ulong rj)
     return rj > 21 ? 0 : env->cpucfg[rj];
 }
 
+uint64_t helper_rdtime_d(CPULoongArchState *env)
+{
+    uint64_t plv;
+    LoongArchCPU *cpu = env_archcpu(env);
+
+    plv = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+    if (extract64(env->CSR_MISC, R_CSR_MISC_DRDTL_SHIFT + plv, 1)) {
+        do_raise_exception(env, EXCCODE_IPE, GETPC());
+    }
+
+    return cpu_loongarch_get_constant_timer_counter(cpu);
+}
+
 void helper_ertn(CPULoongArchState *env)
 {
     uint64_t csr_pplv, csr_pie;
