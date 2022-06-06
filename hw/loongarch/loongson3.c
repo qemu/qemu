@@ -31,6 +31,48 @@
 
 #include "target/loongarch/cpu.h"
 
+#define PM_BASE 0x10080000
+#define PM_SIZE 0x100
+#define PM_CTRL 0x10
+
+/*
+ * This is a placeholder for missing ACPI,
+ * and will eventually be replaced.
+ */
+static uint64_t loongarch_virt_pm_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
+static void loongarch_virt_pm_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
+{
+    if (addr != PM_CTRL) {
+        return;
+    }
+
+    switch (val) {
+    case 0x00:
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+        return;
+    case 0xff:
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+        return;
+    default:
+        return;
+    }
+}
+
+static const MemoryRegionOps loongarch_virt_pm_ops = {
+    .read  = loongarch_virt_pm_read,
+    .write = loongarch_virt_pm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1
+    }
+};
+
 static struct _loaderparams {
     uint64_t ram_size;
     const char *kernel_filename;
@@ -67,7 +109,7 @@ static void loongarch_devices_init(DeviceState *pch_pic)
     SysBusDevice *d;
     PCIBus *pci_bus;
     MemoryRegion *ecam_alias, *ecam_reg, *pio_alias, *pio_reg;
-    MemoryRegion *mmio_alias, *mmio_reg;
+    MemoryRegion *mmio_alias, *mmio_reg, *pm_mem;
     int i;
 
     gpex_dev = qdev_new(TYPE_GPEX_HOST);
@@ -132,6 +174,11 @@ static void loongarch_devices_init(DeviceState *pch_pic)
     sysbus_create_simple("ls7a_rtc", LS7A_RTC_REG_BASE,
                          qdev_get_gpio_in(pch_pic,
                          LS7A_RTC_IRQ - PCH_PIC_IRQ_OFFSET));
+
+    pm_mem = g_new(MemoryRegion, 1);
+    memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
+                          NULL, "loongarch_virt_pm", PM_SIZE);
+    memory_region_add_subregion(get_system_memory(), PM_BASE, pm_mem);
 }
 
 static void loongarch_irq_init(LoongArchMachineState *lams)
