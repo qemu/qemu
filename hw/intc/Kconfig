@@ -90,3 +90,7 @@ config NIOS2_VIC
 
 config LOONGARCH_IPI
     bool
+
+config LOONGARCH_PCH_PIC
+    bool
+    select UNIMP

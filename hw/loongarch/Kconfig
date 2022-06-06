@@ -3,3 +3,4 @@ config LOONGARCH_VIRT
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
     select LOONGARCH_IPI
+    select LOONGARCH_PCH_PIC
