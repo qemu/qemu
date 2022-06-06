@@ -426,6 +426,10 @@ DSCLIQ          111111 ..... ..... ...... 001000010 .   @Z22_tap_sh_rc
 DSCRI           111011 ..... ..... ...... 001100010 .   @Z22_ta_sh_rc
 DSCRIQ          111111 ..... ..... ...... 001100010 .   @Z22_tap_sh_rc
 
+## Vector Exclusive-OR-based Instructions
+
+VPMSUMD         000100 ..... ..... ..... 10011001000    @VX
+
 ## Vector Integer Instructions
 
 VCMPEQUB        000100 ..... ..... ..... . 0000000110   @VC

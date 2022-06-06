@@ -1484,51 +1484,23 @@ PMSUM(vpmsumb, u8, u16, uint16_t)
 PMSUM(vpmsumh, u16, u32, uint32_t)
 PMSUM(vpmsumw, u32, u64, uint64_t)
 
-void helper_vpmsumd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VPMSUMD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-
-#ifdef CONFIG_INT128
     int i, j;
-    __uint128_t prod[2];
+    Int128 tmp, prod[2] = {int128_zero(), int128_zero()};
 
-    VECTOR_FOR_INORDER_I(i, u64) {
-        prod[i] = 0;
-        for (j = 0; j < 64; j++) {
-            if (a->u64[i] & (1ull << j)) {
-                prod[i] ^= (((__uint128_t)b->u64[i]) << j);
+    for (j = 0; j < 64; j++) {
+        for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+            if (a->VsrD(i) & (1ull << j)) {
+                tmp = int128_make64(b->VsrD(i));
+                tmp = int128_lshift(tmp, j);
+                prod[i] = int128_xor(prod[i], tmp);
             }
         }
     }
 
-    r->u128 = prod[0] ^ prod[1];
-
-#else
-    int i, j;
-    ppc_avr_t prod[2];
-
-    VECTOR_FOR_INORDER_I(i, u64) {
-        prod[i].VsrD(1) = prod[i].VsrD(0) = 0;
-        for (j = 0; j < 64; j++) {
-            if (a->u64[i] & (1ull << j)) {
-                ppc_avr_t bshift;
-                if (j == 0) {
-                    bshift.VsrD(0) = 0;
-                    bshift.VsrD(1) = b->u64[i];
-                } else {
-                    bshift.VsrD(0) = b->u64[i] >> (64 - j);
-                    bshift.VsrD(1) = b->u64[i] << j;
-                }
-                prod[i].VsrD(1) ^= bshift.VsrD(1);
-                prod[i].VsrD(0) ^= bshift.VsrD(0);
-            }
-        }
-    }
-
-    r->VsrD(1) = prod[0].VsrD(1) ^ prod[1].VsrD(1);
-    r->VsrD(0) = prod[0].VsrD(0) ^ prod[1].VsrD(0);
-#endif
+    r->s128 = int128_xor(prod[0], prod[1]);
 }
-
 
 #if HOST_BIG_ENDIAN
 #define PKBIG 1

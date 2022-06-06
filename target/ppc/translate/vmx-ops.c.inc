@@ -237,7 +237,6 @@ GEN_VXFORM_207(vgbbd, 6, 20),
 GEN_VXFORM_207(vpmsumb, 4, 16),
 GEN_VXFORM_207(vpmsumh, 4, 17),
 GEN_VXFORM_207(vpmsumw, 4, 18),
-GEN_VXFORM_207(vpmsumd, 4, 19),
 
 GEN_VXFORM_207(vsbox, 4, 23),
 

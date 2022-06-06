@@ -2717,7 +2717,6 @@ GEN_VXFORM_TRANS(vgbbd, 6, 20);
 GEN_VXFORM(vpmsumb, 4, 16)
 GEN_VXFORM(vpmsumh, 4, 17)
 GEN_VXFORM(vpmsumw, 4, 18)
-GEN_VXFORM(vpmsumd, 4, 19)
 
 #define GEN_BCD(op)                                 \
 static void gen_##op(DisasContext *ctx)             \
@@ -3100,6 +3099,8 @@ static bool do_vx_helper(DisasContext *ctx, arg_VX *a,
 
     return true;
 }
+
+TRANS_FLAGS2(ALTIVEC_207, VPMSUMD, do_vx_helper, gen_helper_VPMSUMD)
 
 static bool do_vx_vmuleo(DisasContext *ctx, arg_VX *a, bool even,
                          void (*gen_mul)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
