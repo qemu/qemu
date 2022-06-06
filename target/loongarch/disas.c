@@ -314,6 +314,17 @@ static void output_i_rr(DisasContext *ctx, arg_i_rr *a, const char *mnemonic)
     output(ctx, mnemonic, "%d, r%d, r%d", a->imm, a->rj, a->rk);
 }
 
+static void output_cop_r_i(DisasContext *ctx, arg_cop_r_i *a,
+                           const char *mnemonic)
+{
+    output(ctx, mnemonic, "%d, r%d, %d", a->cop, a->rj, a->imm);
+}
+
+static void output_j_i(DisasContext *ctx, arg_j_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, %d", a->rj, a->imm);
+}
+
 #define INSN(insn, type)                                    \
 static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
 {                                                           \
@@ -641,6 +652,12 @@ INSN(tlbfill,      empty)
 INSN(tlbclr,       empty)
 INSN(tlbflush,     empty)
 INSN(invtlb,       i_rr)
+INSN(cacop,        cop_r_i)
+INSN(lddir,        rr_i)
+INSN(ldpte,        j_i)
+INSN(ertn,         empty)
+INSN(idle,         i)
+INSN(dbcl,         i)
 
 #define output_fcmp(C, PREFIX, SUFFIX)                                         \
 {                                                                              \

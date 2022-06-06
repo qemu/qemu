@@ -16,6 +16,11 @@
 #define TARGET_PHYS_MASK MAKE_64BIT_MASK(0, TARGET_PHYS_ADDR_SPACE_BITS)
 #define TARGET_VIRT_MASK MAKE_64BIT_MASK(0, TARGET_VIRT_ADDR_SPACE_BITS)
 
+/* Global bit used for lddir/ldpte */
+#define LOONGARCH_PAGE_HUGE_SHIFT   6
+/* Global bit for huge page */
+#define LOONGARCH_HGLOBAL_SHIFT     12
+
 void loongarch_translate_init(void);
 
 void loongarch_cpu_dump_state(CPUState *cpu, FILE *f, int flags);

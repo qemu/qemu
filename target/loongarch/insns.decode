@@ -49,6 +49,8 @@
 &rr_csr       rd rj csr
 &empty
 &i_rr         imm rj rk
+&cop_r_i      cop rj imm
+&j_i          rj imm
 
 #
 # Formats
@@ -60,6 +62,7 @@
 @r_i20                          .... ... imm:s20 rd:5    &r_i
 @rr_ui5           .... ........ ..... imm:5 rj:5 rd:5    &rr_i
 @rr_ui6            .... ........ .... imm:6 rj:5 rd:5    &rr_i
+@rr_ui8              .. ........ .... imm:8 rj:5 rd:5    &rr_i
 @rr_i12                 .... ...... imm:s12 rj:5 rd:5    &rr_i
 @rr_ui12                 .... ...... imm:12 rj:5 rd:5    &rr_i
 @rr_i14s2         .... ....  .............. rj:5 rd:5    &rr_i imm=%i14s2
@@ -93,6 +96,8 @@
 @rr_csr                    .... .... csr:14 rj:5 rd:5    &rr_csr
 @empty          .... ........ ..... ..... ..... .....    &empty
 @i_rr             ...... ...... ..... rk:5 rj:5 imm:5    &i_rr
+@cop_r_i              .... ......  imm:s12 rj:5 cop:5    &cop_r_i
+@j_i               .... ........ .. imm:8 rj:5 .....    &j_i
 
 #
 # Fixed point arithmetic operation instruction
@@ -470,3 +475,9 @@ tlbfill          0000 01100100 10000 01101 00000 00000    @empty
 tlbclr           0000 01100100 10000 01000 00000 00000    @empty
 tlbflush         0000 01100100 10000 01001 00000 00000    @empty
 invtlb           0000 01100100 10011 ..... ..... .....    @i_rr
+cacop            0000 011000 ............ ..... .....     @cop_r_i
+lddir            0000 01100100 00 ........ ..... .....    @rr_ui8
+ldpte            0000 01100100 01 ........ ..... 00000    @j_i
+ertn             0000 01100100 10000 01110 00000 00000    @empty
+idle             0000 01100100 10001 ...............      @i15
+dbcl             0000 00000010 10101 ...............      @i15
