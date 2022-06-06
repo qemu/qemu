@@ -2176,12 +2176,6 @@ VGENERIC_DO(popcntd, u64)
 
 #undef VGENERIC_DO
 
-#if HOST_BIG_ENDIAN
-#define QW_ONE { .u64 = { 0, 1 } }
-#else
-#define QW_ONE { .u64 = { 1, 0 } }
-#endif
-
 #ifndef CONFIG_INT128
 
 static inline void avr_qw_not(ppc_avr_t *t, ppc_avr_t a)
@@ -2245,18 +2239,9 @@ void helper_VADDECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     r->VsrD(1) = carry_out;
 }
 
-void helper_vsubuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VSUBUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 - b->u128;
-#else
-    ppc_avr_t tmp;
-    ppc_avr_t one = QW_ONE;
-
-    avr_qw_not(&tmp, *b);
-    avr_qw_add(&tmp, *a, tmp);
-    avr_qw_add(r, tmp, one);
-#endif
+    r->s128 = int128_sub(a->s128, b->s128);
 }
 
 void helper_vsubeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
