@@ -2244,20 +2244,10 @@ void helper_VSUBUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     r->s128 = int128_sub(a->s128, b->s128);
 }
 
-void helper_vsubeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_VSUBEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + ~b->u128 + (c->u128 & 1);
-#else
-    ppc_avr_t tmp, sum;
-
-    avr_qw_not(&tmp, *b);
-    avr_qw_add(&sum, *a, tmp);
-
-    tmp.VsrD(0) = 0;
-    tmp.VsrD(1) = c->VsrD(1) & 1;
-    avr_qw_add(r, sum, tmp);
-#endif
+    r->s128 = int128_add(int128_add(a->s128, int128_not(b->s128)),
+                         int128_make64(int128_getlo(c->s128) & 1));
 }
 
 void helper_vsubcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
@@ -2278,25 +2268,15 @@ void helper_vsubcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #endif
 }
 
-void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_VSUBECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-#ifdef CONFIG_INT128
-    r->u128 =
-        (~a->u128 < ~b->u128) ||
-        ((c->u128 & 1) && (a->u128 + ~b->u128 == (__uint128_t)-1));
-#else
-    int carry_in = c->VsrD(1) & 1;
-    int carry_out = (avr_qw_cmpu(*a, *b) > 0);
-    if (!carry_out && carry_in) {
-        ppc_avr_t tmp;
-        avr_qw_not(&tmp, *b);
-        avr_qw_add(&tmp, *a, tmp);
-        carry_out = ((tmp.VsrD(0) == -1ull) && (tmp.VsrD(1) == -1ull));
-    }
+    Int128 tmp = int128_not(b->s128);
+    bool carry_out = int128_ult(int128_not(a->s128), tmp),
+         carry_in = int128_getlo(c->s128) & 1;
 
+    r->VsrD(1) = carry_out || (carry_in && int128_eq(int128_add(a->s128, tmp),
+                                                     int128_makes64(-1)));
     r->VsrD(0) = 0;
-    r->VsrD(1) = carry_out;
-#endif
 }
 
 #define BCD_PLUS_PREF_1 0xC
