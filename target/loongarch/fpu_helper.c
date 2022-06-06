@@ -461,3 +461,396 @@ uint64_t helper_fcmp_s_d(CPULoongArchState *env, uint64_t fj,
     FloatRelation cmp = float64_compare(fj, fk, &env->fp_status);
     return fcmp_common(env, cmp, flags);
 }
+
+/* floating point conversion */
+uint64_t helper_fcvt_s_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = nanbox_s(float64_to_float32(fj, &env->fp_status));
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_fcvt_d_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = float32_to_float64((uint32_t)fj, &env->fp_status);
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ffint_s_w(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = nanbox_s(int32_to_float32((int32_t)fj, &env->fp_status));
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ffint_s_l(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = nanbox_s(int64_to_float32(fj, &env->fp_status));
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ffint_d_w(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = int32_to_float64((int32_t)fj, &env->fp_status);
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ffint_d_l(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = int64_to_float64(fj, &env->fp_status);
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_frint_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = (uint64_t)(float32_round_to_int((uint32_t)fj, &env->fp_status));
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_frint_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = float64_round_to_int(fj, &env->fp_status);
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrm_l_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    fd = float64_to_int64(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrm_l_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    fd = float32_to_int64((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrm_w_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrm_w_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_down, &env->fp_status);
+    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrp_l_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    fd = float64_to_int64(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrp_l_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    fd = float32_to_int64((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrp_w_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrp_w_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_up, &env->fp_status);
+    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrz_l_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    fd = float64_to_int64_round_to_zero(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrz_l_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    fd = float32_to_int64_round_to_zero((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrz_w_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    fd = (uint64_t)float64_to_int32_round_to_zero(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrz_w_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint32_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    fd = float32_to_int32_round_to_zero((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return (uint64_t)fd;
+}
+
+uint64_t helper_ftintrne_l_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    fd = float64_to_int64(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrne_l_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    fd = float32_to_int64((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrne_w_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftintrne_w_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint32_t fd;
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status);
+
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+    fd = float32_to_int32((uint32_t)fj, &env->fp_status);
+    set_float_rounding_mode(old_mode, &env->fp_status);
+
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return (uint64_t)fd;
+}
+
+uint64_t helper_ftint_l_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = float64_to_int64(fj, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftint_l_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = float32_to_int64((uint32_t)fj, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status) &
+        (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT64_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftint_w_s(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = (uint64_t)float32_to_int32((uint32_t)fj, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
+
+uint64_t helper_ftint_w_d(CPULoongArchState *env, uint64_t fj)
+{
+    uint64_t fd;
+
+    fd = (uint64_t)float64_to_int32(fj, &env->fp_status);
+    if (get_float_exception_flags(&env->fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
+        fd = FLOAT_TO_INT32_OVERFLOW;
+    }
+    update_fcsr0(env, GETPC());
+    return fd;
+}
