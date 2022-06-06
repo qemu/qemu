@@ -172,7 +172,7 @@ static bool gen_stptr(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 
     if (a->imm) {
         temp = tcg_temp_new();
-        tcg_gen_addi_tl(temp, addr, a->im);
+        tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
