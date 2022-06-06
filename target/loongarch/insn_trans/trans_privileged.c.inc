@@ -262,3 +262,38 @@ static bool trans_csrxchg(DisasContext *ctx, arg_csrxchg *a)
     tcg_temp_free(oldv);
     return true;
 }
+
+static bool gen_iocsrrd(DisasContext *ctx, arg_rr *a,
+                        void (*func)(TCGv, TCGv_ptr, TCGv))
+{
+    TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
+    TCGv src1 = gpr_src(ctx, a->rj, EXT_NONE);
+
+    if (check_plv(ctx)) {
+        return false;
+    }
+    func(dest, cpu_env, src1);
+    return true;
+}
+
+static bool gen_iocsrwr(DisasContext *ctx, arg_rr *a,
+                        void (*func)(TCGv_ptr, TCGv, TCGv))
+{
+    TCGv val = gpr_src(ctx, a->rd, EXT_NONE);
+    TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
+
+    if (check_plv(ctx)) {
+        return false;
+    }
+    func(cpu_env, addr, val);
+    return true;
+}
+
+TRANS(iocsrrd_b, gen_iocsrrd, gen_helper_iocsrrd_b)
+TRANS(iocsrrd_h, gen_iocsrrd, gen_helper_iocsrrd_h)
+TRANS(iocsrrd_w, gen_iocsrrd, gen_helper_iocsrrd_w)
+TRANS(iocsrrd_d, gen_iocsrrd, gen_helper_iocsrrd_d)
+TRANS(iocsrwr_b, gen_iocsrwr, gen_helper_iocsrwr_b)
+TRANS(iocsrwr_h, gen_iocsrwr, gen_helper_iocsrwr_h)
+TRANS(iocsrwr_w, gen_iocsrwr, gen_helper_iocsrwr_w)
+TRANS(iocsrwr_d, gen_iocsrwr, gen_helper_iocsrwr_d)
