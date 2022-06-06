@@ -26,6 +26,7 @@
 &ff           fd fj
 &fff          fd fj fk
 &ffff         fd fj fk fa
+&cff_fcond    cd fj fk fcond
 
 #
 # Formats
@@ -50,6 +51,7 @@
 @ff               .... ........ ..... ..... fj:5 fd:5    &ff
 @fff               .... ........ ..... fk:5 fj:5 fd:5    &fff
 @ffff               .... ........ fa:5 fk:5 fj:5 fd:5    &ffff
+@cff_fcond    .... ........ fcond:5 fk:5 fj:5 .. cd:3    &cff_fcond
 
 #
 # Fixed point arithmetic operation instruction
@@ -308,3 +310,9 @@ fcopysign_s     0000 00010001 00101 ..... ..... .....    @fff
 fcopysign_d     0000 00010001 00110 ..... ..... .....    @fff
 fclass_s        0000 00010001 01000 01101 ..... .....    @ff
 fclass_d        0000 00010001 01000 01110 ..... .....    @ff
+
+#
+# Floating point compare instruction
+#
+fcmp_cond_s     0000 11000001 ..... ..... ..... 00 ...   @cff_fcond
+fcmp_cond_d     0000 11000010 ..... ..... ..... 00 ...   @cff_fcond

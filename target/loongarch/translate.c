@@ -167,6 +167,7 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
 #include "insn_trans/trans_atomic.c.inc"
 #include "insn_trans/trans_extra.c.inc"
 #include "insn_trans/trans_farith.c.inc"
+#include "insn_trans/trans_fcmp.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
