@@ -10,6 +10,9 @@
 #
 %i14s2     10:s14       !function=shl_2
 %sa2p1     15:2         !function=plus_1
+%offs21    0:s5 10:16   !function=shl_2
+%offs16    10:s16       !function=shl_2
+%offs26    0:s10 10:16  !function=shl_2
 
 #
 # Argument sets
@@ -38,6 +41,10 @@
 &rc           rd cj
 &frr          fd rj rk
 &fr_i         fd rj imm
+&r_offs       rj offs
+&c_offs       cj offs
+&offs         offs
+&rr_offs      rj rd offs
 
 #
 # Formats
@@ -74,6 +81,10 @@
 @rc            .... ........ ..... ..... .. cj:3 rd:5    &rc
 @frr               .... ........ ..... rk:5 rj:5 fd:5    &frr
 @fr_i12                 .... ...... imm:s12 rj:5 fd:5    &fr_i
+@r_offs21         .... .. ................ rj:5 .....    &r_offs      offs=%offs21
+@c_offs21      .... .. ................ .. cj:3 .....    &c_offs      offs=%offs21
+@offs26            .... .. ..........................    &offs        offs=%offs26
+@rr_offs16         .... .. ................ rj:5 rd:5    &rr_offs     offs=%offs16
 
 #
 # Fixed point arithmetic operation instruction
@@ -409,3 +420,20 @@ fstgt_s         0011 10000111 01100 ..... ..... .....    @frr
 fstgt_d         0011 10000111 01101 ..... ..... .....    @frr
 fstle_s         0011 10000111 01110 ..... ..... .....    @frr
 fstle_d         0011 10000111 01111 ..... ..... .....    @frr
+
+#
+# Branch instructions
+#
+beqz            0100 00 ................ ..... .....     @r_offs21
+bnez            0100 01 ................ ..... .....     @r_offs21
+bceqz           0100 10 ................ 00 ... .....    @c_offs21
+bcnez           0100 10 ................ 01 ... .....    @c_offs21
+jirl            0100 11 ................ ..... .....     @rr_offs16
+b               0101 00 ..........................       @offs26
+bl              0101 01 ..........................       @offs26
+beq             0101 10 ................ ..... .....     @rr_offs16
+bne             0101 11 ................ ..... .....     @rr_offs16
+blt             0110 00 ................ ..... .....     @rr_offs16
+bge             0110 01 ................ ..... .....     @rr_offs16
+bltu            0110 10 ................ ..... .....     @rr_offs16
+bgeu            0110 11 ................ ..... .....     @rr_offs16
