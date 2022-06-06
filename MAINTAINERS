@@ -1129,6 +1129,10 @@ M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
 M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: docs/system/loongarch/loongson3.rst
+F: configs/targets/loongarch64-softmmu.mak
+F: configs/devices/loongarch64-softmmu/default.mak
+F: hw/loongarch/
+F: include/hw/loongarch/virt.h
 
 M68K Machines
 -------------
