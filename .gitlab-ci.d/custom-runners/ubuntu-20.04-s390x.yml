@@ -31,6 +31,7 @@ ubuntu-20.04-s390x-all:
  - s390x
  variables:
     DFLTCC: 0
+ timeout: 75m
  rules:
  - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH =~ /^staging/'
  - if: "$S390X_RUNNER_AVAILABLE"
