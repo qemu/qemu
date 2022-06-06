@@ -184,6 +184,26 @@ FIELD(CSR_CRMD, WE, 9, 1)
 extern const char * const regnames[32];
 extern const char * const fregnames[32];
 
+#define LOONGARCH_STLB         2048 /* 2048 STLB */
+#define LOONGARCH_MTLB         64   /* 64 MTLB */
+#define LOONGARCH_TLB_MAX      (LOONGARCH_STLB + LOONGARCH_MTLB)
+
+/*
+ * define the ASID PS E VPPN field of TLB
+ */
+FIELD(TLB_MISC, E, 0, 1)
+FIELD(TLB_MISC, ASID, 1, 10)
+FIELD(TLB_MISC, VPPN, 13, 35)
+FIELD(TLB_MISC, PS, 48, 6)
+
+struct LoongArchTLB {
+    uint64_t tlb_misc;
+    /* Fields corresponding to CSR_TLBELO0/1 */
+    uint64_t tlb_entry0;
+    uint64_t tlb_entry1;
+};
+typedef struct LoongArchTLB LoongArchTLB;
+
 typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
@@ -256,6 +276,8 @@ typedef struct CPUArchState {
     uint64_t CSR_DBG;
     uint64_t CSR_DERA;
     uint64_t CSR_DSAVE;
+
+    LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
 } CPULoongArchState;
 
 /**
@@ -293,6 +315,35 @@ struct LoongArchCPUClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
 };
+
+/*
+ * LoongArch CPUs has 4 privilege levels.
+ * 0 for kernel mode, 3 for user mode.
+ * Define an extra index for DA(direct addressing) mode.
+ */
+#define MMU_KERNEL_IDX   0
+#define MMU_USER_IDX     3
+#define MMU_DA_IDX       4
+
+static inline int cpu_mmu_index(CPULoongArchState *env, bool ifetch)
+{
+    uint8_t pg = FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PG);
+
+    if (!pg) {
+        return MMU_DA_IDX;
+    }
+    return FIELD_EX64(env->CSR_CRMD, CSR_CRMD, PLV);
+}
+
+static inline void cpu_get_tb_cpu_state(CPULoongArchState *env,
+                                        target_ulong *pc,
+                                        target_ulong *cs_base,
+                                        uint32_t *flags)
+{
+    *pc = env->pc;
+    *cs_base = 0;
+    *flags = cpu_mmu_index(env, false);
+}
 
 void loongarch_cpu_list(void);
 
