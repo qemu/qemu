@@ -2225,18 +2225,10 @@ void helper_VADDEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
                          int128_make64(int128_getlo(c->s128) & 1));
 }
 
-void helper_vaddcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VADDCUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-#ifdef CONFIG_INT128
-    r->u128 = (~a->u128 < b->u128);
-#else
-    ppc_avr_t not_a;
-
-    avr_qw_not(&not_a, *a);
-
+    r->VsrD(1) = int128_ult(int128_not(a->s128), b->s128);
     r->VsrD(0) = 0;
-    r->VsrD(1) = (avr_qw_cmpu(not_a, *b) < 0);
-#endif
 }
 
 void helper_VADDECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
