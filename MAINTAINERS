@@ -1137,6 +1137,7 @@ F: include/hw/intc/loongarch_*.h
 F: hw/intc/loongarch_*.c
 F: include/hw/pci-host/ls7a.h
 F: hw/rtc/ls7a_rtc.c
+F: gdb-xml/loongarch*.xml
 
 M68K Machines
 -------------
