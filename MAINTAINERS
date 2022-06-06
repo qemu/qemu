@@ -212,6 +212,13 @@ S: Maintained
 F: target/hppa/
 F: disas/hppa.c
 
+LoongArch TCG CPUs
+M: Song Gao <gaosong@loongson.cn>
+M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
+S: Maintained
+F: target/loongarch/
+F: tests/tcg/loongarch64/
+
 M68K TCG CPUs
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
@@ -1115,6 +1122,23 @@ F: include/hw/misc/lasi.h
 F: include/hw/net/lasi_82596.h
 F: include/hw/pci-host/dino.h
 F: pc-bios/hppa-firmware.img
+
+LoongArch Machines
+------------------
+Virt
+M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
+M: Song Gao <gaosong@loongson.cn>
+S: Maintained
+F: docs/system/loongarch/loongson3.rst
+F: configs/targets/loongarch64-softmmu.mak
+F: configs/devices/loongarch64-softmmu/default.mak
+F: hw/loongarch/
+F: include/hw/loongarch/virt.h
+F: include/hw/intc/loongarch_*.h
+F: hw/intc/loongarch_*.c
+F: include/hw/pci-host/ls7a.h
+F: hw/rtc/ls7a_rtc.c
+F: gdb-xml/loongarch*.xml
 
 M68K Machines
 -------------

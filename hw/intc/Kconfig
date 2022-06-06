@@ -87,3 +87,18 @@ config M68K_IRQC
 
 config NIOS2_VIC
     bool
+
+config LOONGARCH_IPI
+    bool
+
+config LOONGARCH_PCH_PIC
+    bool
+    select UNIMP
+
+config LOONGARCH_PCH_MSI
+    select MSI_NONBROKEN
+    bool
+    select UNIMP
+
+config LOONGARCH_EXTIOI
+    bool
