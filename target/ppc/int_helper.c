@@ -2212,16 +2212,6 @@ static void avr_qw_add(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
                      (~a.VsrD(1) < b.VsrD(1));
 }
 
-static int avr_qw_addc(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
-{
-    ppc_avr_t not_a;
-    t->VsrD(1) = a.VsrD(1) + b.VsrD(1);
-    t->VsrD(0) = a.VsrD(0) + b.VsrD(0) +
-                     (~a.VsrD(1) < b.VsrD(1));
-    avr_qw_not(&not_a, a);
-    return avr_qw_cmpu(not_a, b) < 0;
-}
-
 #endif
 
 void helper_VADDUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
@@ -2229,23 +2219,10 @@ void helper_VADDUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     r->s128 = int128_add(a->s128, b->s128);
 }
 
-void helper_vaddeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_VADDEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + b->u128 + (c->u128 & 1);
-#else
-
-    if (c->VsrD(1) & 1) {
-        ppc_avr_t tmp;
-
-        tmp.VsrD(0) = 0;
-        tmp.VsrD(1) = c->VsrD(1) & 1;
-        avr_qw_add(&tmp, *a, tmp);
-        avr_qw_add(r, tmp, *b);
-    } else {
-        avr_qw_add(r, *a, *b);
-    }
-#endif
+    r->s128 = int128_add(int128_add(a->s128, b->s128),
+                         int128_make64(int128_getlo(c->s128) & 1));
 }
 
 void helper_vaddcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
@@ -2262,30 +2239,18 @@ void helper_vaddcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #endif
 }
 
-void helper_vaddecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_VADDECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-#ifdef CONFIG_INT128
-    int carry_out = (~a->u128 < b->u128);
-    if (!carry_out && (c->u128 & 1)) {
-        carry_out = ((a->u128 + b->u128 + 1) == 0) &&
-                    ((a->u128 != 0) || (b->u128 != 0));
-    }
-    r->u128 = carry_out;
-#else
-
-    int carry_in = c->VsrD(1) & 1;
-    int carry_out = 0;
-    ppc_avr_t tmp;
-
-    carry_out = avr_qw_addc(&tmp, *a, *b);
+    bool carry_out = int128_ult(int128_not(a->s128), b->s128),
+         carry_in = int128_getlo(c->s128) & 1;
 
     if (!carry_out && carry_in) {
-        ppc_avr_t one = QW_ONE;
-        carry_out = avr_qw_addc(&tmp, tmp, one);
+        carry_out = (int128_nz(a->s128) || int128_nz(b->s128)) &&
+                    int128_eq(int128_add(a->s128, b->s128), int128_makes64(-1));
     }
+
     r->VsrD(0) = 0;
     r->VsrD(1) = carry_out;
-#endif
 }
 
 void helper_vsubuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
