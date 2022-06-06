@@ -97,6 +97,9 @@ static void loongarch_devices_init(DeviceState *pch_pic)
      * Create some unimplemented devices to emulate this.
      */
     create_unimplemented_device("pci-dma-cfg", 0x1001041c, 0x4);
+    sysbus_create_simple("ls7a_rtc", LS7A_RTC_REG_BASE,
+                         qdev_get_gpio_in(pch_pic,
+                         LS7A_RTC_IRQ - PCH_PIC_IRQ_OFFSET));
 }
 
 static void loongarch_irq_init(LoongArchMachineState *lams)

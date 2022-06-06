@@ -1136,6 +1136,7 @@ F: include/hw/loongarch/virt.h
 F: include/hw/intc/loongarch_*.h
 F: hw/intc/loongarch_*.c
 F: include/hw/pci-host/ls7a.h
+F: hw/rtc/ls7a_rtc.c
 
 M68K Machines
 -------------
