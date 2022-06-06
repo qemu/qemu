@@ -1969,6 +1969,9 @@ void HELPER(NAME)(void *vd, void *vs1, CPURISCVState *env,           \
                   uint32_t desc)                                     \
 {                                                                    \
     uint32_t vl = env->vl;                                           \
+    uint32_t esz = sizeof(ETYPE);                                    \
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);     \
+    uint32_t vta = vext_vta(desc);                                   \
     uint32_t i;                                                      \
                                                                      \
     for (i = env->vstart; i < vl; i++) {                             \
@@ -1976,6 +1979,8 @@ void HELPER(NAME)(void *vd, void *vs1, CPURISCVState *env,           \
         *((ETYPE *)vd + H(i)) = s1;                                  \
     }                                                                \
     env->vstart = 0;                                                 \
+    /* set tail elements to 1s */                                    \
+    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMV_VV(vmv_v_v_b, int8_t,  H1)
@@ -1988,12 +1993,17 @@ void HELPER(NAME)(void *vd, uint64_t s1, CPURISCVState *env,         \
                   uint32_t desc)                                     \
 {                                                                    \
     uint32_t vl = env->vl;                                           \
+    uint32_t esz = sizeof(ETYPE);                                    \
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);     \
+    uint32_t vta = vext_vta(desc);                                   \
     uint32_t i;                                                      \
                                                                      \
     for (i = env->vstart; i < vl; i++) {                             \
         *((ETYPE *)vd + H(i)) = (ETYPE)s1;                           \
     }                                                                \
     env->vstart = 0;                                                 \
+    /* set tail elements to 1s */                                    \
+    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMV_VX(vmv_v_x_b, int8_t,  H1)
@@ -2006,6 +2016,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,          \
                   CPURISCVState *env, uint32_t desc)                 \
 {                                                                    \
     uint32_t vl = env->vl;                                           \
+    uint32_t esz = sizeof(ETYPE);                                    \
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);     \
+    uint32_t vta = vext_vta(desc);                                   \
     uint32_t i;                                                      \
                                                                      \
     for (i = env->vstart; i < vl; i++) {                             \
@@ -2013,6 +2026,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,          \
         *((ETYPE *)vd + H(i)) = *(vt + H(i));                        \
     }                                                                \
     env->vstart = 0;                                                 \
+    /* set tail elements to 1s */                                    \
+    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMERGE_VV(vmerge_vvm_b, int8_t,  H1)
@@ -2025,6 +2040,9 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,               \
                   void *vs2, CPURISCVState *env, uint32_t desc)      \
 {                                                                    \
     uint32_t vl = env->vl;                                           \
+    uint32_t esz = sizeof(ETYPE);                                    \
+    uint32_t total_elems = vext_get_total_elems(env, desc, esz);     \
+    uint32_t vta = vext_vta(desc);                                   \
     uint32_t i;                                                      \
                                                                      \
     for (i = env->vstart; i < vl; i++) {                             \
@@ -2034,6 +2052,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,               \
         *((ETYPE *)vd + H(i)) = d;                                   \
     }                                                                \
     env->vstart = 0;                                                 \
+    /* set tail elements to 1s */                                    \
+    vext_set_elems_1s(vd, vta, vl * esz, total_elems * esz);         \
 }
 
 GEN_VEXT_VMERGE_VX(vmerge_vxm_b, int8_t,  H1)
