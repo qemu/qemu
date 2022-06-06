@@ -3669,7 +3669,7 @@ static bool trans_vrgather_vx(DisasContext *s, arg_rmrr *a)
         return false;
     }
 
-    if (a->vm && s->vl_eq_vlmax) {
+    if (a->vm && s->vl_eq_vlmax && !(s->vta && s->lmul < 0)) {
         int scale = s->lmul - (s->sew + 3);
         int vlmax = s->cfg_ptr->vlen >> -scale;
         TCGv_i64 dest = tcg_temp_new_i64();
@@ -3701,7 +3701,7 @@ static bool trans_vrgather_vi(DisasContext *s, arg_rmrr *a)
         return false;
     }
 
-    if (a->vm && s->vl_eq_vlmax) {
+    if (a->vm && s->vl_eq_vlmax && !(s->vta && s->lmul < 0)) {
         int scale = s->lmul - (s->sew + 3);
         int vlmax = s->cfg_ptr->vlen >> -scale;
         if (a->rs1 >= vlmax) {
@@ -3753,6 +3753,7 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
         tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
 
         data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+        data = FIELD_DP32(data, VDATA, VTA, s->vta);
         tcg_gen_gvec_4_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                            vreg_ofs(s, a->rs1), vreg_ofs(s, a->rs2),
                            cpu_env, s->cfg_ptr->vlen / 8,
@@ -3853,6 +3854,8 @@ static bool int_ext_op(DisasContext *s, arg_rmr *a, uint8_t seq)
     }
 
     data = FIELD_DP32(data, VDATA, VM, a->vm);
+    data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+    data = FIELD_DP32(data, VDATA, VTA, s->vta);
 
     tcg_gen_gvec_3_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
                        vreg_ofs(s, a->rs2), cpu_env,
