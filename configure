@@ -2058,8 +2058,12 @@ probe_target_compiler() {
   compute_target_variable $1 target_ranlib ranlib
   compute_target_variable $1 target_strip strip
   case "$1:$cpu" in
+    aarch64_be:aarch64 | \
+    armeb:arm | \
     i386:x86_64 | \
+    mips*:mips64 | \
     ppc*:ppc64 | \
+    sparc:sparc64 | \
     "$cpu:$cpu")
       : ${target_cc:=$cc}
       : ${target_ccas:=$ccas}
