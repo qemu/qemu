@@ -308,6 +308,8 @@ typedef struct CPUArchState {
     AddressSpace address_space_iocsr;
     MemoryRegion system_iocsr;
     MemoryRegion iocsr_mem;
+    bool load_elf;
+    uint64_t elf_address;
 } CPULoongArchState;
 
 /**
