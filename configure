@@ -2722,13 +2722,12 @@ preserve_env CC
 preserve_env CFLAGS
 preserve_env CXX
 preserve_env CXXFLAGS
-preserve_env INSTALL
 preserve_env LD
 preserve_env LDFLAGS
 preserve_env LD_LIBRARY_PATH
-preserve_env LIBTOOL
 preserve_env MAKE
 preserve_env NM
+preserve_env OBJCFLAGS
 preserve_env OBJCOPY
 preserve_env PATH
 preserve_env PKG_CONFIG
