@@ -41,11 +41,6 @@ void get_phys_addr_pmsav7_default(CPUARMState *env,
                                   int32_t address, int *prot);
 bool pmsav7_use_background_region(ARMCPU *cpu, ARMMMUIdx mmu_idx, bool is_user);
 
-bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
-                          MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                          hwaddr *phys_ptr, MemTxAttrs *txattrs,
-                          int *prot, target_ulong *page_size,
-                          ARMMMUFaultInfo *fi);
 bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
                         MMUAccessType access_type, ARMMMUIdx mmu_idx,
                         bool s1_is_el0,
