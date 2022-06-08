@@ -27,8 +27,6 @@ simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
 
 ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
                                    ARMMMUIdx mmu_idx);
-bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
-                        int inputsize, int stride, int outputsize);
 
 #endif /* !CONFIG_USER_ONLY */
 #endif /* TARGET_ARM_PTW_H */
