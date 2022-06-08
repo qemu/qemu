@@ -10517,12 +10517,10 @@ static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
     }
 }
 
-#endif /* !CONFIG_USER_ONLY */
-
 /* Convert a possible stage1+2 MMU index into the appropriate
  * stage 1 MMU index
  */
-static inline ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx)
+ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx)
 {
     switch (mmu_idx) {
     case ARMMMUIdx_SE10_0:
@@ -10541,6 +10539,7 @@ static inline ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx)
         return mmu_idx;
     }
 }
+#endif /* !CONFIG_USER_ONLY */
 
 /* Return true if the translation regime is using LPAE format page tables */
 static inline bool regime_using_lpae_format(CPUARMState *env,
