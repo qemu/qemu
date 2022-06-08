@@ -58,6 +58,7 @@ arm_softmmu_ss.add(files(
   'machine.c',
   'monitor.c',
   'psci.c',
+  'ptw.c',
 ))
 
 subdir('hvf')
