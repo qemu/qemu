@@ -1625,6 +1625,17 @@ static void test_acpi_q35_slic(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_applesmc(void)
+{
+    test_data data = {
+        .machine = MACHINE_Q35,
+        .variant = ".applesmc",
+    };
+
+    test_acpi_one("-device isa-applesmc", &data);
+    free_test_data(&data);
+}
+
 static void test_oem_fields(test_data *data)
 {
     int i;
@@ -1783,6 +1794,7 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_tcg_acpi_hmat);
         qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_acpi_erst);
         qtest_add_func("acpi/q35/acpierst", test_acpi_q35_acpi_erst);
+        qtest_add_func("acpi/q35/applesmc", test_acpi_q35_applesmc);
         qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
         qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
         qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
