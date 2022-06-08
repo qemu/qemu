@@ -249,7 +249,7 @@ void build_ghes_error_table(GArray *hardware_errors, BIOSLinker *linker)
     for (i = 0; i < ACPI_GHES_ERROR_SOURCE_COUNT; i++) {
         /*
          * Initialize the value of read_ack_register to 1, so GHES can be
-         * writeable after (re)boot.
+         * writable after (re)boot.
          * ACPI 6.2: 18.3.2.8 Generic Hardware Error Source version 2
          * (GHESv2 - Type 10)
          */

@@ -1411,8 +1411,8 @@ static void pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
     }
 
-    env->cp15.c9_pmcr &= ~PMCR_WRITEABLE_MASK;
-    env->cp15.c9_pmcr |= (value & PMCR_WRITEABLE_MASK);
+    env->cp15.c9_pmcr &= ~PMCR_WRITABLE_MASK;
+    env->cp15.c9_pmcr |= (value & PMCR_WRITABLE_MASK);
 
     pmu_op_finish(env);
 }

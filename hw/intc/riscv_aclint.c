@@ -463,7 +463,7 @@ static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
     /* Claim software interrupt bits */
     for (i = 0; i < swi->num_harts; i++) {
         RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(swi->hartid_base + i));
-        /* We don't claim mip.SSIP because it is writeable by software */
+        /* We don't claim mip.SSIP because it is writable by software */
         if (riscv_cpu_claim_interrupts(cpu, swi->sswi ? 0 : MIP_MSIP) < 0) {
             error_report("MSIP already claimed");
             exit(1);

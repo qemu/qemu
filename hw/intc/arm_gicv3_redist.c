@@ -257,7 +257,7 @@ static void gicr_write_vpendbaser(GICv3CPUState *cs, uint64_t newval)
 
     /*
      * The DIRTY bit is read-only and for us is always zero;
-     * other fields are writeable.
+     * other fields are writable.
      */
     newval &= R_GICR_VPENDBASER_INNERCACHE_MASK |
         R_GICR_VPENDBASER_SHAREABILITY_MASK |
@@ -491,7 +491,7 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
         /* RAZ/WI for our implementation */
         return MEMTX_OK;
     case GICR_WAKER:
-        /* Only the ProcessorSleep bit is writeable. When the guest sets
+        /* Only the ProcessorSleep bit is writable. When the guest sets
          * it it requests that we transition the channel between the
          * redistributor and the cpu interface to quiescent, and that
          * we set the ChildrenAsleep bit once the inteface has reached the

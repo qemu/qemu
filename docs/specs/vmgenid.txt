@@ -153,7 +153,7 @@ change the contents of the memory at runtime, specifically when starting a
 backed-up or snapshotted image.  In order to do this, QEMU must know the
 address that has been allocated.
 
-The mechanism chosen for this memory sharing is writeable fw_cfg blobs.
+The mechanism chosen for this memory sharing is writable fw_cfg blobs.
 These are data object that are visible to both QEMU and guests, and are
 addressable as sequential files.
 
@@ -164,7 +164,7 @@ Two fw_cfg blobs are used in this case:
 /etc/vmgenid_guid - contains the actual VM Generation ID GUID
                   - read-only to the guest
 /etc/vmgenid_addr - contains the address of the downloaded vmgenid blob
-                  - writeable by the guest
+                  - writable by the guest
 
 
 QEMU sends the following commands to the guest at startup:

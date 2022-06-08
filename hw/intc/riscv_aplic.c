@@ -646,7 +646,7 @@ static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
     }
 
     if (addr == APLIC_DOMAINCFG) {
-        /* Only IE bit writeable at the moment */
+        /* Only IE bit writable at the moment */
         value &= APLIC_DOMAINCFG_IE;
         aplic->domaincfg = value;
     } else if ((APLIC_SOURCECFG_BASE <= addr) &&

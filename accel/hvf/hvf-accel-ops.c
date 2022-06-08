@@ -120,12 +120,12 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
 {
     hvf_slot *mem;
     MemoryRegion *area = section->mr;
-    bool writeable = !area->readonly && !area->rom_device;
+    bool writable = !area->readonly && !area->rom_device;
     hv_memory_flags_t flags;
     uint64_t page_size = qemu_real_host_page_size();
 
     if (!memory_region_is_ram(area)) {
-        if (writeable) {
+        if (writable) {
             return;
         } else if (!memory_region_is_romd(area)) {
             /*
