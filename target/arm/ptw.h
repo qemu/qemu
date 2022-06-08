@@ -33,14 +33,14 @@ simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
     return simple_ap_to_rw_prot_is_user(ap, regime_is_user(env, mmu_idx));
 }
 
+bool m_is_ppb_region(CPUARMState *env, uint32_t address);
+bool m_is_system_region(CPUARMState *env, uint32_t address);
+
 void get_phys_addr_pmsav7_default(CPUARMState *env,
                                   ARMMMUIdx mmu_idx,
                                   int32_t address, int *prot);
-bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
-                          MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                          hwaddr *phys_ptr, int *prot,
-                          target_ulong *page_size,
-                          ARMMMUFaultInfo *fi);
+bool pmsav7_use_background_region(ARMCPU *cpu, ARMMMUIdx mmu_idx, bool is_user);
+
 bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
                           MMUAccessType access_type, ARMMMUIdx mmu_idx,
                           hwaddr *phys_ptr, MemTxAttrs *txattrs,
