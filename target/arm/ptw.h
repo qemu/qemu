@@ -36,9 +36,6 @@ simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
 bool m_is_ppb_region(CPUARMState *env, uint32_t address);
 bool m_is_system_region(CPUARMState *env, uint32_t address);
 
-void get_phys_addr_pmsav7_default(CPUARMState *env,
-                                  ARMMMUIdx mmu_idx,
-                                  int32_t address, int *prot);
 bool pmsav7_use_background_region(ARMCPU *cpu, ARMMMUIdx mmu_idx, bool is_user);
 
 bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
