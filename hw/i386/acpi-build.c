@@ -2615,8 +2615,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
                           x86ms->oem_id, x86ms->oem_table_id);
     }
     if (machine->cxl_devices_state->is_enabled) {
-        cxl_build_cedt(machine, table_offsets, tables_blob, tables->linker,
-                       x86ms->oem_id, x86ms->oem_table_id);
+        cxl_build_cedt(table_offsets, tables_blob, tables->linker,
+                       x86ms->oem_id, x86ms->oem_table_id, machine->cxl_devices_state);
     }
 
     acpi_add_table(table_offsets, tables_blob);

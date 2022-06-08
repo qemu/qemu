@@ -65,9 +65,8 @@ static void cedt_build_chbs(GArray *table_data, PXBDev *cxl)
  * Interleave ways encoding in CXL 2.0 ECN: 3, 6, 12 and 16-way memory
  * interleaving.
  */
-static void cedt_build_cfmws(GArray *table_data, MachineState *ms)
+static void cedt_build_cfmws(GArray *table_data, CXLState *cxls)
 {
-    CXLState *cxls = ms->cxl_devices_state;
     GList *it;
 
     for (it = cxls->fixed_windows; it; it = it->next) {
@@ -129,9 +128,9 @@ static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
     return 0;
 }
 
-void cxl_build_cedt(MachineState *ms, GArray *table_offsets, GArray *table_data,
+void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
                     BIOSLinker *linker, const char *oem_id,
-                    const char *oem_table_id)
+                    const char *oem_table_id, CXLState *cxl_state)
 {
     Aml *cedt;
     AcpiTable table = { .sig = "CEDT", .rev = 1, .oem_id = oem_id,
@@ -144,7 +143,7 @@ void cxl_build_cedt(MachineState *ms, GArray *table_offsets, GArray *table_data,
     /* reserve space for CEDT header */
 
     object_child_foreach_recursive(object_get_root(), cxl_foreach_pxb_hb, cedt);
-    cedt_build_cfmws(cedt->buf, ms);
+    cedt_build_cfmws(cedt->buf, cxl_state);
 
     /* copy AML table into ACPI tables blob and patch header there */
     g_array_append_vals(table_data, cedt->buf->data, cedt->buf->len);
