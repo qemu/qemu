@@ -191,19 +191,9 @@ ISADevice *isa_vga_init(ISABus *bus)
 void isa_build_aml(ISABus *bus, Aml *scope)
 {
     BusChild *kid;
-    ISADevice *dev;
-    ISADeviceClass *dc;
 
     QTAILQ_FOREACH(kid, &bus->parent_obj.children, sibling) {
-        dev = ISA_DEVICE(kid->child);
-        dc = ISA_DEVICE_GET_CLASS(dev);
-        bool has_build_dev_aml = !!object_dynamic_cast(OBJECT(dev),
-                                                       TYPE_ACPI_DEV_AML_IF);
-        if (dc->build_aml) {
-            dc->build_aml(dev, scope);
-        } else if (has_build_dev_aml) {
-            call_dev_aml_func(DEVICE(dev), scope);
-        }
+        call_dev_aml_func(DEVICE(kid->child), scope);
     }
 }
 

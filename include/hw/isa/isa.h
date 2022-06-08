@@ -64,7 +64,6 @@ struct IsaDmaClass {
 
 struct ISADeviceClass {
     DeviceClass parent_class;
-    void (*build_aml)(ISADevice *dev, Aml *scope);
 };
 
 struct ISABus {
