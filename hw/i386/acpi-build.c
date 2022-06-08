@@ -873,7 +873,7 @@ static void build_isa_devices_aml(Aml *table)
     assert(obj && !ambiguous);
 
     scope = aml_scope("_SB.PCI0.ISA");
-    build_acpi_ipmi_devices(scope, BUS(obj), "\\_SB.PCI0.ISA");
+    build_acpi_ipmi_devices(scope, BUS(obj));
     isa_build_aml(ISA_BUS(obj), scope);
 
     aml_append(table, scope);
@@ -1406,7 +1406,7 @@ static void build_smb0(Aml *table, I2CBus *smbus, int devnr, int func)
     Aml *dev = aml_device("SMB0");
 
     aml_append(dev, aml_name_decl("_ADR", aml_int(devnr << 16 | func)));
-    build_acpi_ipmi_devices(dev, BUS(smbus), "\\_SB.PCI0.SMB0");
+    build_acpi_ipmi_devices(dev, BUS(smbus));
     aml_append(scope, dev);
     aml_append(table, scope);
 }

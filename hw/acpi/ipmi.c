@@ -13,7 +13,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ipmi.h"
 
-static Aml *aml_ipmi_crs(IPMIFwInfo *info, const char *resource)
+static Aml *aml_ipmi_crs(IPMIFwInfo *info)
 {
     Aml *crs = aml_resource_template();
 
@@ -49,7 +49,7 @@ static Aml *aml_ipmi_crs(IPMIFwInfo *info, const char *resource)
         break;
     case IPMI_MEMSPACE_SMBUS:
         aml_append(crs, aml_i2c_serial_bus_device(info->base_address,
-                                                  resource));
+                                                  "^"));
         break;
     default:
         abort();
@@ -62,7 +62,7 @@ static Aml *aml_ipmi_crs(IPMIFwInfo *info, const char *resource)
     return crs;
 }
 
-static Aml *aml_ipmi_device(IPMIFwInfo *info, const char *resource)
+static Aml *aml_ipmi_device(IPMIFwInfo *info)
 {
     Aml *dev;
     uint16_t version = ((info->ipmi_spec_major_revision << 8)
@@ -75,14 +75,14 @@ static Aml *aml_ipmi_device(IPMIFwInfo *info, const char *resource)
     aml_append(dev, aml_name_decl("_STR", aml_string("ipmi_%s",
                                                      info->interface_name)));
     aml_append(dev, aml_name_decl("_UID", aml_int(info->uuid)));
-    aml_append(dev, aml_name_decl("_CRS", aml_ipmi_crs(info, resource)));
+    aml_append(dev, aml_name_decl("_CRS", aml_ipmi_crs(info)));
     aml_append(dev, aml_name_decl("_IFT", aml_int(info->interface_type)));
     aml_append(dev, aml_name_decl("_SRV", aml_int(version)));
 
     return dev;
 }
 
-void build_acpi_ipmi_devices(Aml *scope, BusState *bus, const char *resource)
+void build_acpi_ipmi_devices(Aml *scope, BusState *bus)
 {
 
     BusChild *kid;
@@ -102,6 +102,6 @@ void build_acpi_ipmi_devices(Aml *scope, BusState *bus, const char *resource)
         iic = IPMI_INTERFACE_GET_CLASS(obj);
         memset(&info, 0, sizeof(info));
         iic->get_fwinfo(ii, &info);
-        aml_append(scope, aml_ipmi_device(&info, resource));
+        aml_append(scope, aml_ipmi_device(&info));
     }
 }

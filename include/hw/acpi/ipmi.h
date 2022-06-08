@@ -16,6 +16,6 @@
  * bus matches the given bus.  The resource is the ACPI resource that
  * contains the IPMI device, this is required for the I2C CRS.
  */
-void build_acpi_ipmi_devices(Aml *table, BusState *bus, const char *resource);
+void build_acpi_ipmi_devices(Aml *table, BusState *bus);
 
 #endif /* HW_ACPI_IPMI_H */
