@@ -15,6 +15,7 @@
 #define CXL_HOST_H
 
 void cxl_machine_init(Object *obj, CXLState *state);
+void cxl_fmws_link_targets(CXLState *stat, Error **errp);
 
 extern const MemoryRegionOps cfmws_ops;
 
