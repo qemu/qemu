@@ -360,7 +360,6 @@ struct MachineState {
     CPUArchIdList *possible_cpus;
     CpuTopology smp;
     struct NVDIMMState *nvdimms_state;
-    struct CXLState *cxl_devices_state;
     struct NumaState *numa_state;
     CXLFixedMemoryWindowOptionsList *cfmws_list;
 };
