@@ -227,11 +227,11 @@ uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
     /*
      * We should put fdt as far as possible to avoid kernel/initrd overwriting
      * its content. But it should be addressable by 32 bit system as well.
-     * Thus, put it at an 16MB aligned address that less than fdt size from the
+     * Thus, put it at an 2MB aligned address that less than fdt size from the
      * end of dram or 3GB whichever is lesser.
      */
     temp = (dram_base < 3072 * MiB) ? MIN(dram_end, 3072 * MiB) : dram_end;
-    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 16 * MiB);
+    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
 
     ret = fdt_pack(fdt);
     /* Should only fail if we've built a corrupted tree */
