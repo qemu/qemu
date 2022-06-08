@@ -29,9 +29,6 @@ ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
                                    ARMMMUIdx mmu_idx);
 bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
                         int inputsize, int stride, int outputsize);
-int get_S2prot(CPUARMState *env, int s2ap, int xn, bool s1_is_el0);
-int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
-               int ap, int ns, int xn, int pxn);
 
 #endif /* !CONFIG_USER_ONLY */
 #endif /* TARGET_ARM_PTW_H */
