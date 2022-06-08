@@ -2128,8 +2128,16 @@ static bool trans_vmv_v_x(DisasContext *s, arg_vmv_v_x *a)
         s1 = get_gpr(s, a->rs1, EXT_SIGN);
 
         if (s->vl_eq_vlmax && !(s->vta && s->lmul < 0)) {
-            tcg_gen_gvec_dup_tl(s->sew, vreg_ofs(s, a->rd),
-                                MAXSZ(s), MAXSZ(s), s1);
+            if (get_xl(s) == MXL_RV32 && s->sew == MO_64) {
+                TCGv_i64 s1_i64 = tcg_temp_new_i64();
+                tcg_gen_ext_tl_i64(s1_i64, s1);
+                tcg_gen_gvec_dup_i64(s->sew, vreg_ofs(s, a->rd),
+                                     MAXSZ(s), MAXSZ(s), s1_i64);
+                tcg_temp_free_i64(s1_i64);
+            } else {
+                tcg_gen_gvec_dup_tl(s->sew, vreg_ofs(s, a->rd),
+                                    MAXSZ(s), MAXSZ(s), s1);
+            }
         } else {
             TCGv_i32 desc;
             TCGv_i64 s1_i64 = tcg_temp_new_i64();
