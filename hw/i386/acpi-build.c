@@ -1813,15 +1813,14 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
 #ifdef CONFIG_TPM
             if (TPM_IS_TIS_ISA(tpm)) {
+                dev = aml_device("ISA.TPM");
                 if (misc->tpm_version == TPM_VERSION_2_0) {
-                    dev = aml_device("TPM");
                     aml_append(dev, aml_name_decl("_HID",
                                                   aml_string("MSFT0101")));
                     aml_append(dev,
                                aml_name_decl("_STR",
                                              aml_string("TPM 2.0 Device")));
                 } else {
-                    dev = aml_device("ISA.TPM");
                     aml_append(dev, aml_name_decl("_HID",
                                                   aml_eisaid("PNP0C31")));
                 }
