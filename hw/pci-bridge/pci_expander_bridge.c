@@ -17,6 +17,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/cxl/cxl.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
@@ -186,25 +187,38 @@ static const TypeInfo pxb_host_info = {
 
 static void pxb_cxl_realize(DeviceState *dev, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     CXLHost *cxl = PXB_CXL_HOST(dev);
     CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
     struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
-    hwaddr offset;
 
     cxl_component_register_block_init(OBJECT(dev), cxl_cstate,
                                       TYPE_PXB_CXL_HOST);
     sysbus_init_mmio(sbd, mr);
+}
 
-    offset = memory_region_size(mr) * ms->cxl_devices_state->next_mr_idx;
-    if (offset > memory_region_size(&ms->cxl_devices_state->host_mr)) {
+/*
+ * Host bridge realization has no means of knowning state associated
+ * with a particular machine. As such, it is nececssary to delay
+ * final setup of the host bridge register space until later in the
+ * machine bring up.
+ */
+void pxb_cxl_hook_up_registers(CXLState *cxl_state, PCIBus *bus, Error **errp)
+{
+    PXBDev *pxb =  PXB_CXL_DEV(pci_bridge_get_device(bus));
+    CXLHost *cxl = pxb->cxl.cxl_host_bridge;
+    CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
+    struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    hwaddr offset;
+
+    offset = memory_region_size(mr) * cxl_state->next_mr_idx;
+    if (offset > memory_region_size(&cxl_state->host_mr)) {
         error_setg(errp, "Insufficient space for pxb cxl host register space");
         return;
     }
 
-    memory_region_add_subregion(&ms->cxl_devices_state->host_mr, offset, mr);
-    ms->cxl_devices_state->next_mr_idx++;
+    memory_region_add_subregion(&cxl_state->host_mr, offset, mr);
+    cxl_state->next_mr_idx++;
 }
 
 static void pxb_cxl_host_class_init(ObjectClass *class, void *data)
@@ -461,15 +475,9 @@ static const TypeInfo pxb_pcie_dev_info = {
 
 static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
-
     /* A CXL PXB's parent bus is still PCIe */
     if (!pci_bus_is_express(pci_get_bus(dev))) {
         error_setg(errp, "pxb-cxl devices cannot reside on a PCI bus");
-        return;
-    }
-    if (!ms->cxl_devices_state || !ms->cxl_devices_state->is_enabled) {
-        error_setg(errp, "Machine does not have cxl=on");
         return;
     }
 

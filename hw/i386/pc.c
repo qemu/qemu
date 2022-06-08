@@ -37,6 +37,7 @@
 #include "hw/ide.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/timer/hpet.h"
 #include "hw/firmware/smbios.h"
@@ -735,6 +736,8 @@ void pc_machine_done(Notifier *notifier, void *data)
     MachineState *ms = MACHINE(pcms);
 
     if (ms->cxl_devices_state) {
+        cxl_hook_up_pxb_registers(pcms->bus, ms->cxl_devices_state,
+                                  &error_fatal);
         cxl_fmws_link_targets(ms->cxl_devices_state, &error_fatal);
     }
 

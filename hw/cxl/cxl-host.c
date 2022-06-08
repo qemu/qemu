@@ -20,6 +20,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci-bridge/pci_expander_bridge.h"
 
 static void cxl_fixed_memory_window_config(CXLState *cxl_state,
                                            CXLFixedMemoryWindowOptions *object,
@@ -279,4 +280,23 @@ void cxl_machine_init(Object *obj, CXLState *state)
                         NULL, state);
     object_property_set_description(obj, "cxl-fmw",
                                     "CXL Fixed Memory Windows (array)");
+}
+
+void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
+{
+    /* Walk the pci busses looking for pxb busses to hook up */
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+            if (pci_bus_is_cxl(bus)) {
+                if (!state->is_enabled) {
+                    error_setg(errp, "CXL host bridges present, but cxl=off");
+                    return;
+                }
+                pxb_cxl_hook_up_registers(state, bus, errp);
+            }
+        }
+    }
 }
