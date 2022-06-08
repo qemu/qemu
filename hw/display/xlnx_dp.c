@@ -1219,19 +1219,22 @@ static void xlnx_dp_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     XlnxDPState *s = XLNX_DP(obj);
 
-    memory_region_init(&s->container, obj, TYPE_XLNX_DP, 0xC050);
+    memory_region_init(&s->container, obj, TYPE_XLNX_DP, DP_CONTAINER_SIZE);
 
     memory_region_init_io(&s->core_iomem, obj, &dp_ops, s, TYPE_XLNX_DP
-                          ".core", 0x3AF);
-    memory_region_add_subregion(&s->container, 0x0000, &s->core_iomem);
+                          ".core", sizeof(s->core_registers));
+    memory_region_add_subregion(&s->container, DP_CORE_REG_OFFSET,
+                                &s->core_iomem);
 
     memory_region_init_io(&s->vblend_iomem, obj, &vblend_ops, s, TYPE_XLNX_DP
-                          ".v_blend", 0x1DF);
-    memory_region_add_subregion(&s->container, 0xA000, &s->vblend_iomem);
+                          ".v_blend", sizeof(s->vblend_registers));
+    memory_region_add_subregion(&s->container, DP_VBLEND_REG_OFFSET,
+                                &s->vblend_iomem);
 
     memory_region_init_io(&s->avbufm_iomem, obj, &avbufm_ops, s, TYPE_XLNX_DP
-                          ".av_buffer_manager", 0x238);
-    memory_region_add_subregion(&s->container, 0xB000, &s->avbufm_iomem);
+                          ".av_buffer_manager", sizeof(s->avbufm_registers));
+    memory_region_add_subregion(&s->container, DP_AVBUF_REG_OFFSET,
+                                &s->avbufm_iomem);
 
     memory_region_init_io(&s->audio_iomem, obj, &audio_ops, s, TYPE_XLNX_DP
                           ".audio", sizeof(s->audio_registers));
