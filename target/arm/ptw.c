@@ -2491,3 +2491,27 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                                     phys_ptr, prot, page_size, fi);
     }
 }
+
+hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
+                                         MemTxAttrs *attrs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    hwaddr phys_addr;
+    target_ulong page_size;
+    int prot;
+    bool ret;
+    ARMMMUFaultInfo fi = {};
+    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
+    ARMCacheAttrs cacheattrs = {};
+
+    *attrs = (MemTxAttrs) {};
+
+    ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &phys_addr,
+                        attrs, &prot, &page_size, &fi, &cacheattrs);
+
+    if (ret) {
+        return -1;
+    }
+    return phys_addr;
+}
