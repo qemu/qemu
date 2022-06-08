@@ -40,7 +40,6 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/isa/isa.h"
 #include "hw/input/i8042.h"
-#include "hw/block/fdc.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"

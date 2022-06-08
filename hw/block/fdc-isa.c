@@ -32,7 +32,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "hw/acpi/aml-build.h"
+#include "hw/acpi/acpi_aml_interface.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
@@ -214,9 +214,9 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0)
     return val;
 }
 
-static void fdc_isa_build_aml(ISADevice *isadev, Aml *scope)
+static void build_fdc_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    FDCtrlISABus *isa = ISA_FDC(isadev);
+    FDCtrlISABus *isa = ISA_FDC(adev);
     Aml *dev;
     Aml *crs;
     int i;
@@ -241,7 +241,7 @@ static void fdc_isa_build_aml(ISADevice *isadev, Aml *scope)
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     for (i = 0; i < MIN(MAX_FD, ACPI_FDE_MAX_FD); i++) {
-        FloppyDriveType type = isa_fdc_get_drive_type(isadev, i);
+        FloppyDriveType type = isa_fdc_get_drive_type(ISA_DEVICE(adev), i);
 
         if (type < FLOPPY_DRIVE_TYPE_NONE) {
             fde_buf[i] = cpu_to_le32(1);  /* drive present */
@@ -283,14 +283,14 @@ static Property isa_fdc_properties[] = {
 static void isabus_fdc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *isa = ISA_DEVICE_CLASS(klass);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     dc->desc = "virtual floppy controller";
     dc->realize = isabus_fdc_realize;
     dc->fw_name = "fdc";
     dc->reset = fdctrl_external_reset_isa;
     dc->vmsd = &vmstate_isa_fdc;
-    isa->build_aml = fdc_isa_build_aml;
+    adevc->build_dev_aml = build_fdc_aml;
     device_class_set_props(dc, isa_fdc_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -313,6 +313,10 @@ static const TypeInfo isa_fdc_info = {
     .instance_size = sizeof(FDCtrlISABus),
     .class_init    = isabus_fdc_class_init,
     .instance_init = isabus_fdc_instance_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_DEV_AML_IF },
+        { },
+    },
 };
 
 static void isa_fdc_register_types(void)
