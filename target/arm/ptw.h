@@ -11,16 +11,21 @@
 
 #ifndef CONFIG_USER_ONLY
 
+uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure,
+                     ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi);
+uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
+                     ARMMMUIdx mmu_idx, ARMMMUFaultInfo *fi);
+
 bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx);
 bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx);
 ARMCacheAttrs combine_cacheattrs(CPUARMState *env,
                                  ARMCacheAttrs s1, ARMCacheAttrs s2);
 
-bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
-                      MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                      hwaddr *phys_ptr, int *prot,
-                      target_ulong *page_size,
-                      ARMMMUFaultInfo *fi);
+bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
+                              uint32_t *table, uint32_t address);
+int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
+                  int ap, int domain_prot);
+
 bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
                           MMUAccessType access_type, ARMMMUIdx mmu_idx,
                           hwaddr *phys_ptr, int *prot,

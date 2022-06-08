@@ -13,6 +13,129 @@
 #include "ptw.h"
 
 
+static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
+                             MMUAccessType access_type, ARMMMUIdx mmu_idx,
+                             hwaddr *phys_ptr, int *prot,
+                             target_ulong *page_size,
+                             ARMMMUFaultInfo *fi)
+{
+    CPUState *cs = env_cpu(env);
+    int level = 1;
+    uint32_t table;
+    uint32_t desc;
+    int type;
+    int ap;
+    int domain = 0;
+    int domain_prot;
+    hwaddr phys_addr;
+    uint32_t dacr;
+
+    /* Pagetable walk.  */
+    /* Lookup l1 descriptor.  */
+    if (!get_level1_table_address(env, mmu_idx, &table, address)) {
+        /* Section translation fault if page walk is disabled by PD0 or PD1 */
+        fi->type = ARMFault_Translation;
+        goto do_fault;
+    }
+    desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx),
+                       mmu_idx, fi);
+    if (fi->type != ARMFault_None) {
+        goto do_fault;
+    }
+    type = (desc & 3);
+    domain = (desc >> 5) & 0x0f;
+    if (regime_el(env, mmu_idx) == 1) {
+        dacr = env->cp15.dacr_ns;
+    } else {
+        dacr = env->cp15.dacr_s;
+    }
+    domain_prot = (dacr >> (domain * 2)) & 3;
+    if (type == 0) {
+        /* Section translation fault.  */
+        fi->type = ARMFault_Translation;
+        goto do_fault;
+    }
+    if (type != 2) {
+        level = 2;
+    }
+    if (domain_prot == 0 || domain_prot == 2) {
+        fi->type = ARMFault_Domain;
+        goto do_fault;
+    }
+    if (type == 2) {
+        /* 1Mb section.  */
+        phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
+        ap = (desc >> 10) & 3;
+        *page_size = 1024 * 1024;
+    } else {
+        /* Lookup l2 entry.  */
+        if (type == 1) {
+            /* Coarse pagetable.  */
+            table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
+        } else {
+            /* Fine pagetable.  */
+            table = (desc & 0xfffff000) | ((address >> 8) & 0xffc);
+        }
+        desc = arm_ldl_ptw(cs, table, regime_is_secure(env, mmu_idx),
+                           mmu_idx, fi);
+        if (fi->type != ARMFault_None) {
+            goto do_fault;
+        }
+        switch (desc & 3) {
+        case 0: /* Page translation fault.  */
+            fi->type = ARMFault_Translation;
+            goto do_fault;
+        case 1: /* 64k page.  */
+            phys_addr = (desc & 0xffff0000) | (address & 0xffff);
+            ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
+            *page_size = 0x10000;
+            break;
+        case 2: /* 4k page.  */
+            phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+            ap = (desc >> (4 + ((address >> 9) & 6))) & 3;
+            *page_size = 0x1000;
+            break;
+        case 3: /* 1k page, or ARMv6/XScale "extended small (4k) page" */
+            if (type == 1) {
+                /* ARMv6/XScale extended small page format */
+                if (arm_feature(env, ARM_FEATURE_XSCALE)
+                    || arm_feature(env, ARM_FEATURE_V6)) {
+                    phys_addr = (desc & 0xfffff000) | (address & 0xfff);
+                    *page_size = 0x1000;
+                } else {
+                    /*
+                     * UNPREDICTABLE in ARMv5; we choose to take a
+                     * page translation fault.
+                     */
+                    fi->type = ARMFault_Translation;
+                    goto do_fault;
+                }
+            } else {
+                phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
+                *page_size = 0x400;
+            }
+            ap = (desc >> 4) & 3;
+            break;
+        default:
+            /* Never happens, but compiler isn't smart enough to tell.  */
+            g_assert_not_reached();
+        }
+    }
+    *prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+    *prot |= *prot ? PAGE_EXEC : 0;
+    if (!(*prot & (1 << access_type))) {
+        /* Access permission fault.  */
+        fi->type = ARMFault_Permission;
+        goto do_fault;
+    }
+    *phys_ptr = phys_addr;
+    return false;
+do_fault:
+    fi->domain = domain;
+    fi->level = level;
+    return true;
+}
+
 /**
  * get_phys_addr - get the physical address for this virtual address
  *
