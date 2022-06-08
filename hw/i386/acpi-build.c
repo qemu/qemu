@@ -31,7 +31,6 @@
 #include "hw/cxl/cxl.h"
 #include "hw/core/cpu.h"
 #include "target/i386/cpu.h"
-#include "hw/misc/pvpanic.h"
 #include "hw/timer/hpet.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
@@ -120,7 +119,6 @@ typedef struct AcpiMiscInfo {
 #endif
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
-    uint16_t pvpanic_port;
 } AcpiMiscInfo;
 
 typedef struct AcpiBuildPciBusHotplugState {
@@ -305,7 +303,6 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
 #ifdef CONFIG_TPM
     info->tpm_version = tpm_get_version(tpm_find());
 #endif
-    info->pvpanic_port = pvpanic_port();
 }
 
 /*
@@ -1795,40 +1792,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     {
         scope = aml_scope("\\_SB.PCI0");
         fw_cfg_add_acpi_dsdt(scope, x86ms->fw_cfg);
-        aml_append(dsdt, scope);
-    }
-
-    if (misc->pvpanic_port) {
-        scope = aml_scope("\\_SB.PCI0.ISA");
-
-        dev = aml_device("PEVT");
-        aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0001")));
-
-        crs = aml_resource_template();
-        aml_append(crs,
-            aml_io(AML_DECODE16, misc->pvpanic_port, misc->pvpanic_port, 1, 1)
-        );
-        aml_append(dev, aml_name_decl("_CRS", crs));
-
-        aml_append(dev, aml_operation_region("PEOR", AML_SYSTEM_IO,
-                                              aml_int(misc->pvpanic_port), 1));
-        field = aml_field("PEOR", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
-        aml_append(field, aml_named_field("PEPT", 8));
-        aml_append(dev, field);
-
-        /* device present, functioning, decoding, shown in UI */
-        aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
-
-        method = aml_method("RDPT", 0, AML_NOTSERIALIZED);
-        aml_append(method, aml_store(aml_name("PEPT"), aml_local(0)));
-        aml_append(method, aml_return(aml_local(0)));
-        aml_append(dev, method);
-
-        method = aml_method("WRPT", 1, AML_NOTSERIALIZED);
-        aml_append(method, aml_store(aml_arg(0), aml_name("PEPT")));
-        aml_append(dev, method);
-
-        aml_append(scope, dev);
         aml_append(dsdt, scope);
     }
 

@@ -33,13 +33,4 @@ struct PVPanicState {
 
 void pvpanic_setup_io(PVPanicState *s, DeviceState *dev, unsigned size);
 
-static inline uint16_t pvpanic_port(void)
-{
-    Object *o = object_resolve_path_type("", TYPE_PVPANIC_ISA_DEVICE, NULL);
-    if (!o) {
-        return 0;
-    }
-    return object_property_get_uint(o, PVPANIC_IOPORT_PROP, NULL);
-}
-
 #endif

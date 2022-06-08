@@ -22,6 +22,7 @@
 #include "qom/object.h"
 #include "hw/isa/isa.h"
 #include "standard-headers/linux/pvpanic.h"
+#include "hw/acpi/acpi_aml_interface.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PVPanicISAState, PVPANIC_ISA_DEVICE)
 
@@ -63,6 +64,41 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(d, &ps->mr, s->ioport);
 }
 
+static void build_pvpanic_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
+{
+    Aml *crs, *field, *method;
+    PVPanicISAState *s = PVPANIC_ISA_DEVICE(adev);
+    Aml *dev = aml_device("PEVT");
+
+    aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0001")));
+
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_io(AML_DECODE16, s->ioport, s->ioport, 1, 1)
+    );
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    aml_append(dev, aml_operation_region("PEOR", AML_SYSTEM_IO,
+                                          aml_int(s->ioport), 1));
+    field = aml_field("PEOR", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PEPT", 8));
+    aml_append(dev, field);
+
+    /* device present, functioning, decoding, shown in UI */
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
+
+    method = aml_method("RDPT", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("PEPT"), aml_local(0)));
+    aml_append(method, aml_return(aml_local(0)));
+    aml_append(dev, method);
+
+    method = aml_method("WRPT", 1, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_arg(0), aml_name("PEPT")));
+    aml_append(dev, method);
+
+    aml_append(scope, dev);
+}
+
 static Property pvpanic_isa_properties[] = {
     DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicISAState, ioport, 0x505),
     DEFINE_PROP_UINT8("events", PVPanicISAState, pvpanic.events,
@@ -73,10 +109,12 @@ static Property pvpanic_isa_properties[] = {
 static void pvpanic_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     dc->realize = pvpanic_isa_realizefn;
     device_class_set_props(dc, pvpanic_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    adevc->build_dev_aml = build_pvpanic_isa_aml;
 }
 
 static const TypeInfo pvpanic_isa_info = {
@@ -85,6 +123,10 @@ static const TypeInfo pvpanic_isa_info = {
     .instance_size = sizeof(PVPanicISAState),
     .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_DEV_AML_IF },
+        { },
+    },
 };
 
 static void pvpanic_register_types(void)
