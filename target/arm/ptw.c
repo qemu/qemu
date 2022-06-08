@@ -15,6 +15,29 @@
 #include "ptw.h"
 
 
+static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                     uint32_t *table, uint32_t address)
+{
+    /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
+    TCR *tcr = regime_tcr(env, mmu_idx);
+
+    if (address & tcr->mask) {
+        if (tcr->raw_tcr & TTBCR_PD1) {
+            /* Translation table walk disabled for TTBR1 */
+            return false;
+        }
+        *table = regime_ttbr(env, mmu_idx, 1) & 0xffffc000;
+    } else {
+        if (tcr->raw_tcr & TTBCR_PD0) {
+            /* Translation table walk disabled for TTBR0 */
+            return false;
+        }
+        *table = regime_ttbr(env, mmu_idx, 0) & tcr->base_mask;
+    }
+    *table |= (address >> 18) & 0x3ffc;
+    return true;
+}
+
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, int *prot,
