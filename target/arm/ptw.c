@@ -211,6 +211,87 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
     return true;
 }
 
+/*
+ * Translate section/page access permissions to page R/W protection flags
+ * @env:         CPUARMState
+ * @mmu_idx:     MMU index indicating required translation regime
+ * @ap:          The 3-bit access permissions (AP[2:0])
+ * @domain_prot: The 2-bit domain access permissions
+ */
+static int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
+                         int ap, int domain_prot)
+{
+    bool is_user = regime_is_user(env, mmu_idx);
+
+    if (domain_prot == 3) {
+        return PAGE_READ | PAGE_WRITE;
+    }
+
+    switch (ap) {
+    case 0:
+        if (arm_feature(env, ARM_FEATURE_V7)) {
+            return 0;
+        }
+        switch (regime_sctlr(env, mmu_idx) & (SCTLR_S | SCTLR_R)) {
+        case SCTLR_S:
+            return is_user ? 0 : PAGE_READ;
+        case SCTLR_R:
+            return PAGE_READ;
+        default:
+            return 0;
+        }
+    case 1:
+        return is_user ? 0 : PAGE_READ | PAGE_WRITE;
+    case 2:
+        if (is_user) {
+            return PAGE_READ;
+        } else {
+            return PAGE_READ | PAGE_WRITE;
+        }
+    case 3:
+        return PAGE_READ | PAGE_WRITE;
+    case 4: /* Reserved.  */
+        return 0;
+    case 5:
+        return is_user ? 0 : PAGE_READ;
+    case 6:
+        return PAGE_READ;
+    case 7:
+        if (!arm_feature(env, ARM_FEATURE_V6K)) {
+            return 0;
+        }
+        return PAGE_READ;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/*
+ * Translate section/page access permissions to page R/W protection flags.
+ * @ap:      The 2-bit simple AP (AP[2:1])
+ * @is_user: TRUE if accessing from PL0
+ */
+static int simple_ap_to_rw_prot_is_user(int ap, bool is_user)
+{
+    switch (ap) {
+    case 0:
+        return is_user ? 0 : PAGE_READ | PAGE_WRITE;
+    case 1:
+        return PAGE_READ | PAGE_WRITE;
+    case 2:
+        return is_user ? 0 : PAGE_READ;
+    case 3:
+        return PAGE_READ;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static int simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
+{
+    return simple_ap_to_rw_prot_is_user(ap, regime_is_user(env, mmu_idx));
+}
+
 static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                              MMUAccessType access_type, ARMMMUIdx mmu_idx,
                              hwaddr *phys_ptr, int *prot,
