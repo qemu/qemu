@@ -6170,9 +6170,7 @@ static const ARMCPRegInfo minimal_ras_reginfo[] = {
 int sve_exception_el(CPUARMState *env, int el)
 {
 #ifndef CONFIG_USER_ONLY
-    uint64_t hcr_el2 = arm_hcr_el2_eff(env);
-
-    if (el <= 1 && (hcr_el2 & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
+    if (el <= 1 && !el_is_in_host(env, el)) {
         switch (FIELD_EX64(env->cp15.cpacr_el1, CPACR_EL1, ZEN)) {
         case 1:
             if (el != 0) {
@@ -6189,6 +6187,7 @@ int sve_exception_el(CPUARMState *env, int el)
      * CPTR_EL2 changes format with HCR_EL2.E2H (regardless of TGE).
      */
     if (el <= 2) {
+        uint64_t hcr_el2 = arm_hcr_el2_eff(env);
         if (hcr_el2 & HCR_E2H) {
             switch (FIELD_EX64(env->cp15.cptr_el[2], CPTR_EL2, ZEN)) {
             case 1:
