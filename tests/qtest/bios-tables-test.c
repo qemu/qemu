@@ -1582,8 +1582,8 @@ static void test_acpi_q35_cxl(void)
                              " -device cxl-type3,bus=rp3,memdev=cxl-mem3,lsa=lsa3"
                              " -device cxl-rp,port=1,bus=cxl.2,id=rp4,chassis=0,slot=6"
                              " -device cxl-type3,bus=rp4,memdev=cxl-mem4,lsa=lsa4"
-                             " -cxl-fixed-memory-window targets.0=cxl.1,size=4G,interleave-granularity=8k"
-                             " -cxl-fixed-memory-window targets.0=cxl.1,targets.1=cxl.2,size=4G,interleave-granularity=8k",
+                             " -M cxl-fmw.0.targets.0=cxl.1,cxl-fmw.0.size=4G,cxl-fmw.0.interleave-granularity=8k,"
+                             "cxl-fmw.1.targets.0=cxl.1,cxl-fmw.1.targets.1=cxl.2,cxl-fmw.1.size=4G,cxl-fmw.1.interleave-granularity=8k",
                              tmp_path, tmp_path, tmp_path, tmp_path,
                              tmp_path, tmp_path, tmp_path, tmp_path);
     test_acpi_one(params, &data);

@@ -15,14 +15,15 @@
 
 #include "qapi/qapi-visit-machine.h"
 #include "hw/cxl/cxl.h"
+#include "hw/cxl/cxl_host.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
 
-void cxl_fixed_memory_window_config(MachineState *ms,
-                                    CXLFixedMemoryWindowOptions *object,
-                                    Error **errp)
+static void cxl_fixed_memory_window_config(CXLState *cxl_state,
+                                           CXLFixedMemoryWindowOptions *object,
+                                           Error **errp)
 {
     CXLFixedWindow *fw = g_malloc0(sizeof(*fw));
     strList *target;
@@ -62,8 +63,7 @@ void cxl_fixed_memory_window_config(MachineState *ms,
         fw->enc_int_gran = 0;
     }
 
-    ms->cxl_devices_state->fixed_windows =
-        g_list_append(ms->cxl_devices_state->fixed_windows, fw);
+    cxl_state->fixed_windows = g_list_append(cxl_state->fixed_windows, fw);
 
     return;
 }
@@ -220,3 +220,65 @@ const MemoryRegionOps cfmws_ops = {
         .unaligned = true,
     },
 };
+
+static void machine_get_cxl(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    CXLState *cxl_state = opaque;
+    bool value = cxl_state->is_enabled;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void machine_set_cxl(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    CXLState *cxl_state = opaque;
+    bool value;
+
+    if (!visit_type_bool(v, name, &value, errp)) {
+        return;
+    }
+    cxl_state->is_enabled = value;
+}
+
+static void machine_get_cfmw(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    CXLFixedMemoryWindowOptionsList **list = opaque;
+
+    visit_type_CXLFixedMemoryWindowOptionsList(v, name, list, errp);
+}
+
+static void machine_set_cfmw(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    CXLState *state = opaque;
+    CXLFixedMemoryWindowOptionsList *cfmw_list = NULL;
+    CXLFixedMemoryWindowOptionsList *it;
+
+    visit_type_CXLFixedMemoryWindowOptionsList(v, name, &cfmw_list, errp);
+    if (!cfmw_list) {
+        return;
+    }
+
+    for (it = cfmw_list; it; it = it->next) {
+        cxl_fixed_memory_window_config(state, it->value, errp);
+    }
+    state->cfmw_list = cfmw_list;
+}
+
+void cxl_machine_init(Object *obj, CXLState *state)
+{
+    object_property_add(obj, "cxl", "bool", machine_get_cxl,
+                        machine_set_cxl, NULL, state);
+    object_property_set_description(obj, "cxl",
+                                    "Set on/off to enable/disable "
+                                    "CXL instantiation");
+
+    object_property_add(obj, "cxl-fmw", "CXLFixedMemoryWindow",
+                        machine_get_cfmw, machine_set_cfmw,
+                        NULL, state);
+    object_property_set_description(obj, "cxl-fmw",
+                                    "CXL Fixed Memory Windows (array)");
+}

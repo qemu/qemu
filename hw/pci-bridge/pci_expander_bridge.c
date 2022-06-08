@@ -468,7 +468,7 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
         error_setg(errp, "pxb-cxl devices cannot reside on a PCI bus");
         return;
     }
-    if (!ms->cxl_devices_state->is_enabled) {
+    if (!ms->cxl_devices_state || !ms->cxl_devices_state->is_enabled) {
         error_setg(errp, "Machine does not have cxl=on");
         return;
     }

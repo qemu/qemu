@@ -12,6 +12,7 @@
 
 
 #include "qapi/qapi-types-machine.h"
+#include "qapi/qapi-visit-machine.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "cxl_pci.h"
@@ -40,6 +41,7 @@ typedef struct CXLState {
     MemoryRegion host_mr;
     unsigned int next_mr_idx;
     GList *fixed_windows;
+    CXLFixedMemoryWindowOptionsList *cfmw_list;
 } CXLState;
 
 struct CXLHost {
@@ -51,11 +53,6 @@ struct CXLHost {
 #define TYPE_PXB_CXL_HOST "pxb-cxl-host"
 OBJECT_DECLARE_SIMPLE_TYPE(CXLHost, PXB_CXL_HOST)
 
-void cxl_fixed_memory_window_config(MachineState *ms,
-                                    CXLFixedMemoryWindowOptions *object,
-                                    Error **errp);
 void cxl_fixed_memory_window_link_targets(Error **errp);
-
-extern const MemoryRegionOps cfmws_ops;
 
 #endif
