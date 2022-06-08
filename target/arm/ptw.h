@@ -12,7 +12,6 @@
 #ifndef CONFIG_USER_ONLY
 
 bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx);
-uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx, int ttbrn);
 
 #endif /* !CONFIG_USER_ONLY */
 #endif /* TARGET_ARM_PTW_H */
