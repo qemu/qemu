@@ -35,14 +35,20 @@
 #include "hw/dma/xlnx_dpdma.h"
 #include "audio/audio.h"
 #include "qom/object.h"
+#include "hw/ptimer.h"
 
 #define AUD_CHBUF_MAX_DEPTH                 (32 * KiB)
 #define MAX_QEMU_BUFFER_SIZE                (4 * KiB)
 
-#define DP_CORE_REG_ARRAY_SIZE              (0x3AF >> 2)
+#define DP_CORE_REG_OFFSET                  (0x0000)
+#define DP_CORE_REG_ARRAY_SIZE              (0x3B0 >> 2)
+#define DP_AVBUF_REG_OFFSET                 (0xB000)
 #define DP_AVBUF_REG_ARRAY_SIZE             (0x238 >> 2)
-#define DP_VBLEND_REG_ARRAY_SIZE            (0x1DF >> 2)
+#define DP_VBLEND_REG_OFFSET                (0xA000)
+#define DP_VBLEND_REG_ARRAY_SIZE            (0x1E0 >> 2)
+#define DP_AUDIO_REG_OFFSET                 (0xC000)
 #define DP_AUDIO_REG_ARRAY_SIZE             (0x50 >> 2)
+#define DP_CONTAINER_SIZE                   (0xC050)
 
 struct PixmanPlane {
     pixman_format_code_t format;
@@ -102,6 +108,8 @@ struct XlnxDPState {
      */
     DPCDState *dpcd;
     I2CDDCState *edid;
+
+    ptimer_state *vblank;
 };
 
 #define TYPE_XLNX_DP "xlnx.v-dp"

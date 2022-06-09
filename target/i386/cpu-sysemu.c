@@ -103,7 +103,7 @@ static void x86_cpu_to_dict(X86CPU *cpu, QDict *props)
 
 /* Convert CPU model data from X86CPU object to a property dictionary
  * that can recreate exactly the same CPU model, including every
- * writeable QOM property.
+ * writable QOM property.
  */
 static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
 {

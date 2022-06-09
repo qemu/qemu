@@ -2047,7 +2047,7 @@ static void icc_ctlr_el3_write(CPUARMState *env, const ARMCPRegInfo *ri,
         cs->icc_ctlr_el1[GICV3_S] |= ICC_CTLR_EL1_CBPR;
     }
 
-    /* The only bit stored in icc_ctlr_el3 which is writeable is EOIMODE_EL3: */
+    /* The only bit stored in icc_ctlr_el3 which is writable is EOIMODE_EL3: */
     mask = ICC_CTLR_EL3_EOIMODE_EL3;
 
     cs->icc_ctlr_el3 &= ~mask;

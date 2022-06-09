@@ -284,7 +284,7 @@ void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb,
         g_assert(!s390_is_pv());
         /*
          * As operand exceptions have a lower priority than access exceptions,
-         * we check whether the memory area is writeable (injecting the
+         * we check whether the memory area is writable (injecting the
          * access execption if it is not) first.
          */
         if (!s390_cpu_virt_mem_check_write(cpu, addr, ar, sizeof(schib))) {

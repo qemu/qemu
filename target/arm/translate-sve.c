@@ -111,7 +111,7 @@ static inline int pred_full_reg_offset(DisasContext *s, int regno)
 /* Return the byte size of the whole predicate register, VL / 64.  */
 static inline int pred_full_reg_size(DisasContext *s)
 {
-    return s->sve_len >> 3;
+    return s->vl >> 3;
 }
 
 /* Round up the size of a register to a size allowed by

@@ -1346,13 +1346,13 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     KVMSlot *mem;
     int err;
     MemoryRegion *mr = section->mr;
-    bool writeable = !mr->readonly && !mr->rom_device;
+    bool writable = !mr->readonly && !mr->rom_device;
     hwaddr start_addr, size, slot_size, mr_offset;
     ram_addr_t ram_start_offset;
     void *ram;
 
     if (!memory_region_is_ram(mr)) {
-        if (writeable || !kvm_readonly_mem_allowed) {
+        if (writable || !kvm_readonly_mem_allowed) {
             return;
         } else if (!mr->romd_mode) {
             /* If the memory device is not in romd_mode, then we actually want

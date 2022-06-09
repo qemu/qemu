@@ -611,7 +611,7 @@ static bool gicd_writel(GICv3State *s, hwaddr offset,
         if (value & mask & GICD_CTLR_DS) {
             /* We just set DS, so the ARE_NS and EnG1S bits are now RES0.
              * Note that this is a one-way transition because if DS is set
-             * then it's not writeable, so it can only go back to 0 with a
+             * then it's not writable, so it can only go back to 0 with a
              * hardware reset.
              */
             s->gicd_ctlr &= ~(GICD_CTLR_EN_GRP1S | GICD_CTLR_ARE_NS);

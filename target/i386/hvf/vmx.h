@@ -80,7 +80,7 @@ static inline uint64_t cap2ctrl(uint64_t cap, uint64_t ctrl)
 
 #define AR_TYPE_ACCESSES_MASK 1
 #define AR_TYPE_READABLE_MASK (1 << 1)
-#define AR_TYPE_WRITEABLE_MASK (1 << 2)
+#define AR_TYPE_WRITABLE_MASK (1 << 2)
 #define AR_TYPE_CODE_MASK (1 << 3)
 #define AR_TYPE_MASK 0x0f
 #define AR_TYPE_BUSY_64_TSS 11

@@ -495,7 +495,7 @@ class QEMUMachine:
         """
         # If we keep the console socket open, we may deadlock waiting
         # for QEMU to exit, while QEMU is waiting for the socket to
-        # become writeable.
+        # become writable.
         if self._console_socket is not None:
             self._console_socket.close()
             self._console_socket = None

@@ -633,7 +633,7 @@ struct mfi_ctrl_props {
                               * metadata and user data
                               * 1=5%, 2=10%, 3=15% and so on
                               */
-    uint8_t viewSpace;       /* snapshot writeable VIEWs
+    uint8_t viewSpace;       /* snapshot writable VIEWs
                               * capacity as a % of source LD
                               * capacity. 0=READ only
                               * 1=5%, 2=10%, 3=15% and so on

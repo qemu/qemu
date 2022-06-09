@@ -456,7 +456,7 @@ static int shpc_cap_add_config(PCIDevice *d, Error **errp)
     pci_set_byte(config + SHPC_CAP_CxP, 0);
     pci_set_long(config + SHPC_CAP_DWORD_DATA, 0);
     d->shpc->cap = config_offset;
-    /* Make dword select and data writeable. */
+    /* Make dword select and data writable. */
     pci_set_byte(d->wmask + config_offset + SHPC_CAP_DWORD_SELECT, 0xff);
     pci_set_long(d->wmask + config_offset + SHPC_CAP_DWORD_DATA, 0xffffffff);
     return 0;

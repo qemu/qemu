@@ -118,7 +118,7 @@ int arm_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             /*
              * Don't allow writing to XPSR.Exception as it can cause
              * a transition into or out of handler mode (it's not
-             * writeable via the MSR insn so this is a reasonable
+             * writable via the MSR insn so this is a reasonable
              * restriction). Other fields are safe to update.
              */
             xpsr_write(env, tmp, ~XPSR_EXCP);

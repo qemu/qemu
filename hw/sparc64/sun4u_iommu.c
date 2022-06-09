@@ -165,7 +165,7 @@ static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
     }
 
     if (tte & IOMMU_TTE_DATA_W) {
-        /* Writeable */
+        /* Writable */
         ret.perm = IOMMU_RW;
     } else {
         ret.perm = IOMMU_RO;

@@ -189,17 +189,6 @@ void arm_translate_init(void);
 void arm_cpu_synchronize_from_tb(CPUState *cs, const TranslationBlock *tb);
 #endif /* CONFIG_TCG */
 
-/**
- * aarch64_sve_zcr_get_valid_len:
- * @cpu: cpu context
- * @start_len: maximum len to consider
- *
- * Return the maximum supported sve vector length <= @start_len.
- * Note that both @start_len and the return value are in units
- * of ZCR_ELx.LEN, so the vector bit length is (x + 1) * 128.
- */
-uint32_t aarch64_sve_zcr_get_valid_len(ARMCPU *cpu, uint32_t start_len);
-
 enum arm_fprounding {
     FPROUNDING_TIEEVEN,
     FPROUNDING_POSINF,
@@ -613,8 +602,13 @@ ARMMMUIdx arm_v7m_mmu_idx_for_secstate_and_priv(CPUARMState *env,
 /* Return the MMU index for a v7M CPU in the specified security state */
 ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate);
 
-/* Return true if the stage 1 translation regime is using LPAE format page
- * tables */
+/* Return true if the translation regime is using LPAE format page tables */
+bool regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx);
+
+/*
+ * Return true if the stage 1 translation regime is using LPAE
+ * format page tables
+ */
 bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx);
 
 /* Raise a data fault alignment exception for the specified virtual address */
@@ -775,6 +769,12 @@ static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
     default:
         g_assert_not_reached();
     }
+}
+
+/* Return the SCTLR value which controls this address translation regime */
+static inline uint64_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return env->cp15.sctlr_el[regime_el(env, mmu_idx)];
 }
 
 /* Return the TCR controlling this translation regime */
@@ -979,11 +979,16 @@ ARMMMUIdx arm_mmu_idx(CPUARMState *env);
  * Return the ARMMMUIdx for the stage1 traversal for the current regime.
  */
 #ifdef CONFIG_USER_ONLY
+static inline ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx)
+{
+    return ARMMMUIdx_Stage1_E0;
+}
 static inline ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env)
 {
     return ARMMMUIdx_Stage1_E0;
 }
 #else
+ARMMMUIdx stage_1_mmu_idx(ARMMMUIdx mmu_idx);
 ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env);
 #endif
 
@@ -1089,6 +1094,9 @@ typedef struct ARMVAParameters {
 
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data);
+
+int aa64_va_parameter_tbi(uint64_t tcr, ARMMMUIdx mmu_idx);
+int aa64_va_parameter_tbid(uint64_t tcr, ARMMMUIdx mmu_idx);
 
 static inline int exception_target_el(CPUARMState *env)
 {
@@ -1280,10 +1288,10 @@ enum MVEECIState {
 #define PMCRP   0x2
 #define PMCRE   0x1
 /*
- * Mask of PMCR bits writeable by guest (not including WO bits like C, P,
+ * Mask of PMCR bits writable by guest (not including WO bits like C, P,
  * which can be written as 1 to trigger behaviour but which stay RAZ).
  */
-#define PMCR_WRITEABLE_MASK (PMCRLC | PMCRDP | PMCRX | PMCRD | PMCRE)
+#define PMCR_WRITABLE_MASK (PMCRLC | PMCRDP | PMCRX | PMCRD | PMCRE)
 
 #define PMXEVTYPER_P          0x80000000
 #define PMXEVTYPER_U          0x40000000
@@ -1328,6 +1336,13 @@ static inline void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu) { }
 void define_cortex_a72_a57_a53_cp_reginfo(ARMCPU *cpu);
 #endif
 
+bool el_is_in_host(CPUARMState *env, int el);
+
 void aa32_max_features(ARMCPU *cpu);
+
+/* Powers of 2 for sve_vq_map et al. */
+#define SVE_VQ_POW2_MAP                                 \
+    ((1 << (1 - 1)) | (1 << (2 - 1)) |                  \
+     (1 << (4 - 1)) | (1 << (8 - 1)) | (1 << (16 - 1)))
 
 #endif

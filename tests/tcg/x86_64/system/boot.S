@@ -56,7 +56,7 @@
 	*
 	* - `ebx`: contains the physical memory address where the loader has placed
 	*          the boot start info structure.
-	* - `cr0`: bit 0 (PE) must be set. All the other writeable bits are cleared.
+	* - `cr0`: bit 0 (PE) must be set. All the other writable bits are cleared.
 	* - `cr4`: all bits are cleared.
 	* - `cs `: must be a 32-bit read/execute code segment with a base of ‘0’
 	*          and a limit of ‘0xFFFFFFFF’. The selector value is unspecified.

@@ -60,10 +60,10 @@
 #define SERDES_SIZE         0x20000
 
 #define DP_ADDR             0xfd4a0000
-#define DP_IRQ              113
+#define DP_IRQ              0x77
 
 #define DPDMA_ADDR          0xfd4c0000
-#define DPDMA_IRQ           116
+#define DPDMA_IRQ           0x7a
 
 #define APU_ADDR            0xfd5c0000
 #define APU_IRQ             153

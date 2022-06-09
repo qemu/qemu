@@ -222,7 +222,7 @@ Virtio device config space
 :size: a 32-bit configuration space access size in bytes
 
 :flags: a 32-bit value:
-  - 0: Vhost front-end messages used for writeable fields
+  - 0: Vhost front-end messages used for writable fields
   - 1: Vhost front-end messages used for live migration
 
 :payload: Size bytes array holding the contents of the virtio
