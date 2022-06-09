@@ -188,12 +188,12 @@ static struct QCryptoBlockTestData {
 };
 
 
-static ssize_t test_block_read_func(QCryptoBlock *block,
-                                    size_t offset,
-                                    uint8_t *buf,
-                                    size_t buflen,
-                                    void *opaque,
-                                    Error **errp)
+static int test_block_read_func(QCryptoBlock *block,
+                                size_t offset,
+                                uint8_t *buf,
+                                size_t buflen,
+                                void *opaque,
+                                Error **errp)
 {
     Buffer *header = opaque;
 
@@ -201,14 +201,14 @@ static ssize_t test_block_read_func(QCryptoBlock *block,
 
     memcpy(buf, header->buffer + offset, buflen);
 
-    return buflen;
+    return 0;
 }
 
 
-static ssize_t test_block_init_func(QCryptoBlock *block,
-                                    size_t headerlen,
-                                    void *opaque,
-                                    Error **errp)
+static int test_block_init_func(QCryptoBlock *block,
+                                size_t headerlen,
+                                void *opaque,
+                                Error **errp)
 {
     Buffer *header = opaque;
 
@@ -216,16 +216,16 @@ static ssize_t test_block_init_func(QCryptoBlock *block,
 
     buffer_reserve(header, headerlen);
 
-    return headerlen;
+    return 0;
 }
 
 
-static ssize_t test_block_write_func(QCryptoBlock *block,
-                                     size_t offset,
-                                     const uint8_t *buf,
-                                     size_t buflen,
-                                     void *opaque,
-                                     Error **errp)
+static int test_block_write_func(QCryptoBlock *block,
+                                 size_t offset,
+                                 const uint8_t *buf,
+                                 size_t buflen,
+                                 void *opaque,
+                                 Error **errp)
 {
     Buffer *header = opaque;
 
@@ -234,7 +234,7 @@ static ssize_t test_block_write_func(QCryptoBlock *block,
     memcpy(header->buffer + offset, buf, buflen);
     header->offset = offset + buflen;
 
-    return buflen;
+    return 0;
 }
 
 
