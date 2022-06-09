@@ -296,7 +296,11 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
             }
         case OPTION_DAEMONIZE:
             if (os_set_daemonize(true) < 0) {
-                error_report("--daemonize not supported in this build");
+                /*
+                 * --daemonize is parsed before monitor_init_globals_core(), so
+                 * error_report() does not work yet
+                 */
+                fprintf(stderr, "--daemonize not supported in this build\n");
                 exit(EXIT_FAILURE);
             }
             break;
