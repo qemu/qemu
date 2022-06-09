@@ -1526,9 +1526,7 @@ static Notifier qemu_unlink_pidfile_notifier;
 
 static void qemu_unlink_pidfile(Notifier *n, void *data)
 {
-    if (pid_file) {
-        unlink(pid_file);
-    }
+    unlink(pid_file);
 }
 
 static const QEMUOption *lookup_opt(int argc, char **argv,
@@ -2431,13 +2429,15 @@ static void qemu_maybe_daemonize(const char *pid_file)
     os_daemonize();
     rcu_disable_atfork();
 
-    if (pid_file && !qemu_write_pidfile(pid_file, &err)) {
-        error_reportf_err(err, "cannot create PID file: ");
-        exit(1);
-    }
+    if (pid_file) {
+        if (!qemu_write_pidfile(pid_file, &err)) {
+            error_reportf_err(err, "cannot create PID file: ");
+            exit(1);
+        }
 
-    qemu_unlink_pidfile_notifier.notify = qemu_unlink_pidfile;
-    qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier);
+        qemu_unlink_pidfile_notifier.notify = qemu_unlink_pidfile;
+        qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier);
+    }
 }
 
 static void qemu_init_displays(void)
