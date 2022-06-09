@@ -1522,11 +1522,18 @@ machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
 }
 
 static const char *pid_file;
-static Notifier qemu_unlink_pidfile_notifier;
+struct UnlinkPidfileNotifier {
+    Notifier notifier;
+    char *pid_file_realpath;
+};
+static struct UnlinkPidfileNotifier qemu_unlink_pidfile_notifier;
 
 static void qemu_unlink_pidfile(Notifier *n, void *data)
 {
-    unlink(pid_file);
+    struct UnlinkPidfileNotifier *upn;
+
+    upn = DO_UPCAST(struct UnlinkPidfileNotifier, notifier, n);
+    unlink(upn->pid_file_realpath);
 }
 
 static const QEMUOption *lookup_opt(int argc, char **argv,
@@ -2430,13 +2437,28 @@ static void qemu_maybe_daemonize(const char *pid_file)
     rcu_disable_atfork();
 
     if (pid_file) {
+        char *pid_file_realpath = NULL;
+
         if (!qemu_write_pidfile(pid_file, &err)) {
             error_reportf_err(err, "cannot create PID file: ");
             exit(1);
         }
 
-        qemu_unlink_pidfile_notifier.notify = qemu_unlink_pidfile;
-        qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier);
+        pid_file_realpath = g_malloc0(PATH_MAX);
+        if (!realpath(pid_file, pid_file_realpath)) {
+            error_report("cannot resolve PID file path: %s: %s",
+                         pid_file, strerror(errno));
+            unlink(pid_file);
+            exit(1);
+        }
+
+        qemu_unlink_pidfile_notifier = (struct UnlinkPidfileNotifier) {
+            .notifier = {
+                .notify = qemu_unlink_pidfile,
+            },
+            .pid_file_realpath = pid_file_realpath,
+        };
+        qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier.notifier);
     }
 }
 
