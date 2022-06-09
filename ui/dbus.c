@@ -268,6 +268,7 @@ dbus_display_add_client_ready(GObject *source_object,
     }
 
     g_dbus_object_manager_server_set_connection(dbus_display->server, conn);
+    g_dbus_connection_start_message_processing(conn);
 }
 
 
@@ -300,7 +301,8 @@ dbus_display_add_client(int csock, Error **errp)
 
     g_dbus_connection_new(G_IO_STREAM(conn),
                           guid,
-                          G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
+                          G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER |
+                          G_DBUS_CONNECTION_FLAGS_DELAY_MESSAGE_PROCESSING,
                           NULL,
                           dbus_display->add_client_cancellable,
                           dbus_display_add_client_ready,
