@@ -88,11 +88,11 @@ static void test_sync_op_pread(BdrvChild *c)
     int ret;
 
     /* Success */
-    ret = bdrv_pread(c, 0, buf, sizeof(buf));
+    ret = bdrv_pread(c, 0, buf, sizeof(buf), 0);
     g_assert_cmpint(ret, ==, 512);
 
     /* Early error: Negative offset */
-    ret = bdrv_pread(c, -2, buf, sizeof(buf));
+    ret = bdrv_pread(c, -2, buf, sizeof(buf), 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 
@@ -102,11 +102,11 @@ static void test_sync_op_pwrite(BdrvChild *c)
     int ret;
 
     /* Success */
-    ret = bdrv_pwrite(c, 0, buf, sizeof(buf));
+    ret = bdrv_pwrite(c, 0, buf, sizeof(buf), 0);
     g_assert_cmpint(ret, ==, 512);
 
     /* Early error: Negative offset */
-    ret = bdrv_pwrite(c, -2, buf, sizeof(buf));
+    ret = bdrv_pwrite(c, -2, buf, sizeof(buf), 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 

@@ -128,7 +128,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
+    ret = bdrv_pread(bs->file, 0, &header, sizeof(header), 0);
     if (ret < 0) {
         goto fail;
     }
@@ -261,7 +261,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
-               s->l1_size * sizeof(uint64_t));
+                     s->l1_size * sizeof(uint64_t), 0);
     if (ret < 0) {
         goto fail;
     }
@@ -292,7 +292,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
-                   bs->auto_backing_file, len);
+                         bs->auto_backing_file, len, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -383,7 +383,7 @@ static int get_cluster_offset(BlockDriverState *bs,
         BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
         ret = bdrv_pwrite_sync(bs->file,
                                s->l1_table_offset + l1_index * sizeof(tmp),
-                               &tmp, sizeof(tmp));
+                               &tmp, sizeof(tmp), 0);
         if (ret < 0) {
             return ret;
         }
@@ -415,13 +415,13 @@ static int get_cluster_offset(BlockDriverState *bs,
     if (new_l2_table) {
         memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
         ret = bdrv_pwrite_sync(bs->file, l2_offset, l2_table,
-                               s->l2_size * sizeof(uint64_t));
+                               s->l2_size * sizeof(uint64_t), 0);
         if (ret < 0) {
             return ret;
         }
     } else {
         ret = bdrv_pread(bs->file, l2_offset, l2_table,
-                         s->l2_size * sizeof(uint64_t));
+                         s->l2_size * sizeof(uint64_t), 0);
         if (ret < 0) {
             return ret;
         }
@@ -454,7 +454,7 @@ static int get_cluster_offset(BlockDriverState *bs,
             /* write the cluster content */
             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
             ret = bdrv_pwrite(bs->file, cluster_offset, s->cluster_cache,
-                              s->cluster_size);
+                              s->cluster_size, 0);
             if (ret < 0) {
                 return ret;
             }
@@ -492,10 +492,9 @@ static int get_cluster_offset(BlockDriverState *bs,
                                 return -EIO;
                             }
                             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-                            ret = bdrv_pwrite(bs->file,
-                                              cluster_offset + i,
+                            ret = bdrv_pwrite(bs->file, cluster_offset + i,
                                               s->cluster_data,
-                                              BDRV_SECTOR_SIZE);
+                                              BDRV_SECTOR_SIZE, 0);
                             if (ret < 0) {
                                 return ret;
                             }
@@ -516,7 +515,7 @@ static int get_cluster_offset(BlockDriverState *bs,
             BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
         }
         ret = bdrv_pwrite_sync(bs->file, l2_offset + l2_index * sizeof(tmp),
-                               &tmp, sizeof(tmp));
+                               &tmp, sizeof(tmp), 0);
         if (ret < 0) {
             return ret;
         }
@@ -597,7 +596,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         csize = cluster_offset >> (63 - s->cluster_bits);
         csize &= (s->cluster_size - 1);
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_pread(bs->file, coffset, s->cluster_data, csize);
+        ret = bdrv_pread(bs->file, coffset, s->cluster_data, csize, 0);
         if (ret != csize)
             return -1;
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
@@ -1030,8 +1029,8 @@ static int qcow_make_empty(BlockDriverState *bs)
     int ret;
 
     memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table,
-            l1_length) < 0)
+    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table, l1_length,
+                         0) < 0)
         return -1;
     ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length, false,
                         PREALLOC_MODE_OFF, 0, NULL);

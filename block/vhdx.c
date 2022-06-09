@@ -326,7 +326,7 @@ static int vhdx_write_header(BdrvChild *file, VHDXHeader *hdr,
     buffer = qemu_blockalign(bs_file, VHDX_HEADER_SIZE);
     if (read) {
         /* if true, we can't assume the extra reserved bytes are 0 */
-        ret = bdrv_pread(file, offset, buffer, VHDX_HEADER_SIZE);
+        ret = bdrv_pread(file, offset, buffer, VHDX_HEADER_SIZE, 0);
         if (ret < 0) {
             goto exit;
         }
@@ -340,7 +340,7 @@ static int vhdx_write_header(BdrvChild *file, VHDXHeader *hdr,
     vhdx_header_le_export(hdr, header_le);
     vhdx_update_checksum(buffer, VHDX_HEADER_SIZE,
                          offsetof(VHDXHeader, checksum));
-    ret = bdrv_pwrite_sync(file, offset, header_le, sizeof(VHDXHeader));
+    ret = bdrv_pwrite_sync(file, offset, header_le, sizeof(VHDXHeader), 0);
 
 exit:
     qemu_vfree(buffer);
@@ -440,8 +440,8 @@ static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
     /* We have to read the whole VHDX_HEADER_SIZE instead of
      * sizeof(VHDXHeader), because the checksum is over the whole
      * region */
-    ret = bdrv_pread(bs->file, VHDX_HEADER1_OFFSET, buffer,
-                     VHDX_HEADER_SIZE);
+    ret = bdrv_pread(bs->file, VHDX_HEADER1_OFFSET, buffer, VHDX_HEADER_SIZE,
+                     0);
     if (ret < 0) {
         goto fail;
     }
@@ -457,8 +457,8 @@ static void vhdx_parse_header(BlockDriverState *bs, BDRVVHDXState *s,
         }
     }
 
-    ret = bdrv_pread(bs->file, VHDX_HEADER2_OFFSET, buffer,
-                     VHDX_HEADER_SIZE);
+    ret = bdrv_pread(bs->file, VHDX_HEADER2_OFFSET, buffer, VHDX_HEADER_SIZE,
+                     0);
     if (ret < 0) {
         goto fail;
     }
@@ -532,7 +532,7 @@ static int vhdx_open_region_tables(BlockDriverState *bs, BDRVVHDXState *s)
     buffer = qemu_blockalign(bs, VHDX_HEADER_BLOCK_SIZE);
 
     ret = bdrv_pread(bs->file, VHDX_REGION_TABLE_OFFSET, buffer,
-                     VHDX_HEADER_BLOCK_SIZE);
+                     VHDX_HEADER_BLOCK_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -645,7 +645,7 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
     buffer = qemu_blockalign(bs, VHDX_METADATA_TABLE_MAX_SIZE);
 
     ret = bdrv_pread(bs->file, s->metadata_rt.file_offset, buffer,
-                     VHDX_METADATA_TABLE_MAX_SIZE);
+                     VHDX_METADATA_TABLE_MAX_SIZE, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -751,7 +751,8 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
                      s->metadata_entries.file_parameters_entry.offset
                                          + s->metadata_rt.file_offset,
                      &s->params,
-                     sizeof(s->params));
+                     sizeof(s->params),
+                     0);
 
     if (ret < 0) {
         goto exit;
@@ -786,7 +787,8 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
                      s->metadata_entries.virtual_disk_size_entry.offset
                                            + s->metadata_rt.file_offset,
                      &s->virtual_disk_size,
-                     sizeof(uint64_t));
+                     sizeof(uint64_t),
+                     0);
     if (ret < 0) {
         goto exit;
     }
@@ -794,7 +796,8 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
                      s->metadata_entries.logical_sector_size_entry.offset
                                              + s->metadata_rt.file_offset,
                      &s->logical_sector_size,
-                     sizeof(uint32_t));
+                     sizeof(uint32_t),
+                     0);
     if (ret < 0) {
         goto exit;
     }
@@ -802,7 +805,8 @@ static int vhdx_parse_metadata(BlockDriverState *bs, BDRVVHDXState *s)
                      s->metadata_entries.phys_sector_size_entry.offset
                                           + s->metadata_rt.file_offset,
                      &s->physical_sector_size,
-                     sizeof(uint32_t));
+                     sizeof(uint32_t),
+                     0);
     if (ret < 0) {
         goto exit;
     }
@@ -1010,7 +1014,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
     QLIST_INIT(&s->regions);
 
     /* validate the file signature */
-    ret = bdrv_pread(bs->file, 0, &signature, sizeof(uint64_t));
+    ret = bdrv_pread(bs->file, 0, &signature, sizeof(uint64_t), 0);
     if (ret < 0) {
         goto fail;
     }
@@ -1069,7 +1073,7 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, s->bat_offset, s->bat, s->bat_rt.length);
+    ret = bdrv_pread(bs->file, s->bat_offset, s->bat, s->bat_rt.length, 0);
     if (ret < 0) {
         goto fail;
     }

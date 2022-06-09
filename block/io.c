@@ -1097,7 +1097,8 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 }
 
 /* See bdrv_pwrite() for the return codes */
-int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes)
+int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes,
+               BdrvRequestFlags flags)
 {
     int ret;
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
@@ -1107,7 +1108,7 @@ int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes)
         return -EINVAL;
     }
 
-    ret = bdrv_preadv(child, offset, bytes, &qiov,  0);
+    ret = bdrv_preadv(child, offset, bytes, &qiov, flags);
 
     return ret < 0 ? ret : bytes;
 }
@@ -1119,7 +1120,7 @@ int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes)
   -EACCES      Trying to write a read-only device
 */
 int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf,
-                int64_t bytes)
+                int64_t bytes, BdrvRequestFlags flags)
 {
     int ret;
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
@@ -1129,7 +1130,7 @@ int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf,
         return -EINVAL;
     }
 
-    ret = bdrv_pwritev(child, offset, bytes, &qiov, 0);
+    ret = bdrv_pwritev(child, offset, bytes, &qiov, flags);
 
     return ret < 0 ? ret : bytes;
 }
@@ -1141,12 +1142,12 @@ int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf,
  * Returns 0 on success, -errno in error cases.
  */
 int bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
-                     const void *buf, int64_t count)
+                     const void *buf, int64_t count, BdrvRequestFlags flags)
 {
     int ret;
     IO_CODE();
 
-    ret = bdrv_pwrite(child, offset, buf, count);
+    ret = bdrv_pwrite(child, offset, buf, count, flags);
     if (ret < 0) {
         return ret;
     }

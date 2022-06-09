@@ -119,7 +119,7 @@ int qcow2_refcount_init(BlockDriverState *bs)
         }
         BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_pread(bs->file, s->refcount_table_offset,
-                         s->refcount_table, refcount_table_size2);
+                         s->refcount_table, refcount_table_size2, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -439,7 +439,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_HOOKUP);
         ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset +
                                refcount_table_index * REFTABLE_ENTRY_SIZE,
-            &data64, sizeof(data64));
+            &data64, sizeof(data64), 0);
         if (ret < 0) {
             goto fail;
         }
@@ -685,7 +685,7 @@ int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t start_offset,
 
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE);
     ret = bdrv_pwrite_sync(bs->file, table_offset, new_table,
-        table_size * REFTABLE_ENTRY_SIZE);
+                           table_size * REFTABLE_ENTRY_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -703,8 +703,8 @@ int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t start_offset,
     data.d32 = cpu_to_be32(table_clusters);
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE);
     ret = bdrv_pwrite_sync(bs->file,
-                           offsetof(QCowHeader, refcount_table_offset),
-                           &data, sizeof(data));
+                           offsetof(QCowHeader, refcount_table_offset), &data,
+                           sizeof(data), 0);
     if (ret < 0) {
         goto fail;
     }
@@ -1274,7 +1274,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         }
         l1_allocated = true;
 
-        ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size2);
+        ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size2, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -1435,8 +1435,8 @@ fail:
             cpu_to_be64s(&l1_table[i]);
         }
 
-        ret = bdrv_pwrite_sync(bs->file, l1_table_offset,
-                               l1_table, l1_size2);
+        ret = bdrv_pwrite_sync(bs->file, l1_table_offset, l1_table, l1_size2,
+                               0);
 
         for (i = 0; i < l1_size; i++) {
             be64_to_cpus(&l1_table[i]);
@@ -1634,7 +1634,7 @@ static int fix_l2_entry_by_zero(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     ret = bdrv_pwrite_sync(bs->file, l2e_offset, &l2_table[idx],
-                           l2_entry_size(s));
+                           l2_entry_size(s), 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: Failed to overwrite L2 "
                 "table entry: %s\n", strerror(-ret));
@@ -1672,7 +1672,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     bool metadata_overlap;
 
     /* Read L2 table from disk */
-    ret = bdrv_pread(bs->file, l2_offset, l2_table, l2_size_bytes);
+    ret = bdrv_pread(bs->file, l2_offset, l2_table, l2_size_bytes, 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: I/O error in check_refcounts_l2\n");
         res->check_errors++;
@@ -1888,7 +1888,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
     }
 
     /* Read L1 table entries from disk */
-    ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size_bytes);
+    ret = bdrv_pread(bs->file, l1_table_offset, l1_table, l1_size_bytes, 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
         res->check_errors++;
@@ -2005,7 +2005,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
         }
 
         ret = bdrv_pread(bs->file, l2_offset, l2_table,
-                         s->l2_size * l2_entry_size(s));
+                         s->l2_size * l2_entry_size(s), 0);
         if (ret < 0) {
             fprintf(stderr, "ERROR: Could not read L2 table: %s\n",
                     strerror(-ret));
@@ -2058,8 +2058,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
                 goto fail;
             }
 
-            ret = bdrv_pwrite(bs->file, l2_offset, l2_table,
-                              s->cluster_size);
+            ret = bdrv_pwrite(bs->file, l2_offset, l2_table, s->cluster_size,
+                              0);
             if (ret < 0) {
                 fprintf(stderr, "ERROR: Could not write L2 table: %s\n",
                         strerror(-ret));
@@ -2578,7 +2578,7 @@ static int rebuild_refcounts_write_refblocks(
                                     refblock_index * s->cluster_size);
 
         ret = bdrv_pwrite(bs->file, refblock_offset, on_disk_refblock,
-                          s->cluster_size);
+                          s->cluster_size, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "ERROR writing refblock");
             return ret;
@@ -2734,7 +2734,7 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
 
     assert(reftable_length < INT_MAX);
     ret = bdrv_pwrite(bs->file, reftable_offset, on_disk_reftable,
-                      reftable_length);
+                      reftable_length, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "ERROR writing reftable");
         goto fail;
@@ -2747,7 +2747,7 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
     ret = bdrv_pwrite_sync(bs->file,
                            offsetof(QCowHeader, refcount_table_offset),
                            &reftable_offset_and_clusters,
-                           sizeof(reftable_offset_and_clusters));
+                           sizeof(reftable_offset_and_clusters), 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "ERROR setting reftable");
         goto fail;
@@ -3009,7 +3009,7 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
                 return -ENOMEM;
             }
 
-            ret = bdrv_pread(bs->file, l1_ofs, l1, l1_sz2);
+            ret = bdrv_pread(bs->file, l1_ofs, l1, l1_sz2, 0);
             if (ret < 0) {
                 g_free(l1);
                 return ret;
@@ -3180,7 +3180,7 @@ static int flush_refblock(BlockDriverState *bs, uint64_t **reftable,
             return ret;
         }
 
-        ret = bdrv_pwrite(bs->file, offset, refblock, s->cluster_size);
+        ret = bdrv_pwrite(bs->file, offset, refblock, s->cluster_size, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to write refblock");
             return ret;
@@ -3453,7 +3453,7 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
     }
 
     ret = bdrv_pwrite(bs->file, new_reftable_offset, new_reftable,
-                      new_reftable_size * REFTABLE_ENTRY_SIZE);
+                      new_reftable_size * REFTABLE_ENTRY_SIZE, 0);
 
     for (i = 0; i < new_reftable_size; i++) {
         be64_to_cpus(&new_reftable[i]);
@@ -3657,7 +3657,7 @@ int qcow2_shrink_reftable(BlockDriverState *bs)
     }
 
     ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset, reftable_tmp,
-                           s->refcount_table_size * REFTABLE_ENTRY_SIZE);
+                           s->refcount_table_size * REFTABLE_ENTRY_SIZE, 0);
     /*
      * If the write in the reftable failed the image may contain a partially
      * overwritten reftable. In this case it would be better to clear the

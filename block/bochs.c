@@ -116,7 +116,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    ret = bdrv_pread(bs->file, 0, &bochs, sizeof(bochs));
+    ret = bdrv_pread(bs->file, 0, &bochs, sizeof(bochs), 0);
     if (ret < 0) {
         return ret;
     }
@@ -151,7 +151,7 @@ static int bochs_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     ret = bdrv_pread(bs->file, le32_to_cpu(bochs.header), s->catalog_bitmap,
-                     s->catalog_size * 4);
+                     s->catalog_size * 4, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -225,7 +225,7 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 
     /* read in bitmap for current extent */
     ret = bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8),
-                     &bitmap_entry, 1);
+                     &bitmap_entry, 1, 0);
     if (ret < 0) {
         return ret;
     }

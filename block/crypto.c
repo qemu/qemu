@@ -65,7 +65,7 @@ static ssize_t block_crypto_read_func(QCryptoBlock *block,
     BlockDriverState *bs = opaque;
     ssize_t ret;
 
-    ret = bdrv_pread(bs->file, offset, buf, buflen);
+    ret = bdrv_pread(bs->file, offset, buf, buflen, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
         return ret;
@@ -83,7 +83,7 @@ static ssize_t block_crypto_write_func(QCryptoBlock *block,
     BlockDriverState *bs = opaque;
     ssize_t ret;
 
-    ret = bdrv_pwrite(bs->file, offset, buf, buflen);
+    ret = bdrv_pwrite(bs->file, offset, buf, buflen, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write encryption header");
         return ret;

@@ -1489,7 +1489,7 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
                              " allocated\n", sector_num,
                              n >> BDRV_SECTOR_BITS));
                 if (bdrv_pread(s->qcow, sector_num * BDRV_SECTOR_SIZE,
-                               buf + i * 0x200, n) < 0) {
+                               buf + i * 0x200, n, 0) < 0) {
                     return -1;
                 }
                 i += (n >> BDRV_SECTOR_BITS) - 1;
@@ -1978,7 +1978,8 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
                             return -1;
                         }
                         res = bdrv_pwrite(s->qcow, offset * BDRV_SECTOR_SIZE,
-                                          s->cluster_buffer, BDRV_SECTOR_SIZE);
+                                          s->cluster_buffer, BDRV_SECTOR_SIZE,
+                                          0);
                         if (res < 0) {
                             return -2;
                         }
@@ -3063,7 +3064,7 @@ DLOG(checkpoint());
      */
 DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sectors));
     ret = bdrv_pwrite(s->qcow, sector_num * BDRV_SECTOR_SIZE, buf,
-                      nb_sectors * BDRV_SECTOR_SIZE);
+                      nb_sectors * BDRV_SECTOR_SIZE, 0);
     if (ret < 0) {
         fprintf(stderr, "Error writing to qcow backend\n");
         return ret;
