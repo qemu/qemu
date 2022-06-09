@@ -473,7 +473,6 @@ static int vmdk_parent_open(BlockDriverState *bs)
     if (ret < 0) {
         goto out;
     }
-    ret = 0;
 
     p_name = strstr(desc, "parentFileNameHint");
     if (p_name != NULL) {
@@ -905,7 +904,7 @@ static char *vmdk_read_desc(BdrvChild *file, uint64_t desc_offset, Error **errp)
         g_free(buf);
         return NULL;
     }
-    buf[ret] = 0;
+    buf[size] = 0;
 
     return buf;
 }
@@ -1630,7 +1629,7 @@ static int get_cluster_offset(BlockDriverState *bs,
                 l2_size_bytes,
                 l2_table,
                 0
-            ) != l2_size_bytes) {
+            ) < 0) {
         return VMDK_ERROR;
     }
 

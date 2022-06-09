@@ -222,7 +222,7 @@ static inline int cloop_read_block(BlockDriverState *bs, int block_num)
 
         ret = bdrv_pread(bs->file, s->offsets[block_num], bytes,
                          s->compressed_block, 0);
-        if (ret != bytes) {
+        if (ret < 0) {
             return -1;
         }
 

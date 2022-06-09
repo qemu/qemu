@@ -1100,7 +1100,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 int bdrv_pread(BdrvChild *child, int64_t offset, int64_t bytes, void *buf,
                BdrvRequestFlags flags)
 {
-    int ret;
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
     IO_CODE();
 
@@ -1108,9 +1107,7 @@ int bdrv_pread(BdrvChild *child, int64_t offset, int64_t bytes, void *buf,
         return -EINVAL;
     }
 
-    ret = bdrv_preadv(child, offset, bytes, &qiov, flags);
-
-    return ret < 0 ? ret : bytes;
+    return bdrv_preadv(child, offset, bytes, &qiov, flags);
 }
 
 /* Return no. of bytes on success or < 0 on error. Important errors are:
@@ -1122,7 +1119,6 @@ int bdrv_pread(BdrvChild *child, int64_t offset, int64_t bytes, void *buf,
 int bdrv_pwrite(BdrvChild *child, int64_t offset, int64_t bytes,
                 const void *buf, BdrvRequestFlags flags)
 {
-    int ret;
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
     IO_CODE();
 
@@ -1130,9 +1126,7 @@ int bdrv_pwrite(BdrvChild *child, int64_t offset, int64_t bytes,
         return -EINVAL;
     }
 
-    ret = bdrv_pwritev(child, offset, bytes, &qiov, flags);
-
-    return ret < 0 ? ret : bytes;
+    return bdrv_pwritev(child, offset, bytes, &qiov, flags);
 }
 
 /*

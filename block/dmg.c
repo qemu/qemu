@@ -390,7 +390,7 @@ static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
     buffer = g_malloc(info_length + 1);
     buffer[info_length] = '\0';
     ret = bdrv_pread(bs->file, info_begin, info_length, buffer, 0);
-    if (ret != info_length) {
+    if (ret < 0) {
         ret = -EINVAL;
         goto fail;
     }
@@ -611,7 +611,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
              * inflated. */
             ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
                              s->compressed_chunk, 0);
-            if (ret != s->lengths[chunk]) {
+            if (ret < 0) {
                 return -1;
             }
 
@@ -637,7 +637,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
              * inflated. */
             ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
                              s->compressed_chunk, 0);
-            if (ret != s->lengths[chunk]) {
+            if (ret < 0) {
                 return -1;
             }
 
@@ -658,7 +658,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
              * inflated. */
             ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
                              s->compressed_chunk, 0);
-            if (ret != s->lengths[chunk]) {
+            if (ret < 0) {
                 return -1;
             }
 
@@ -674,7 +674,7 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
         case UDRW: /* copy */
             ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
                              s->uncompressed_chunk, 0);
-            if (ret != s->lengths[chunk]) {
+            if (ret < 0) {
                 return -1;
             }
             break;

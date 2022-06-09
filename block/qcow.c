@@ -597,7 +597,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
         csize &= (s->cluster_size - 1);
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
         ret = bdrv_pread(bs->file, coffset, csize, s->cluster_data, 0);
-        if (ret != csize)
+        if (ret < 0)
             return -1;
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
                               s->cluster_data, csize) < 0) {
