@@ -252,7 +252,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, 0, &s->footer, sizeof(s->footer), 0);
+    ret = bdrv_pread(bs->file, 0, sizeof(s->footer), &s->footer, 0);
     if (ret < 0) {
         error_setg(errp, "Unable to read VHD header");
         goto fail;
@@ -272,8 +272,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
         }
 
         /* If a fixed disk, the footer is found only at the end of the file */
-        ret = bdrv_pread(bs->file, offset - sizeof(*footer), footer,
-                         sizeof(*footer), 0);
+        ret = bdrv_pread(bs->file, offset - sizeof(*footer), sizeof(*footer),
+                         footer, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -347,7 +347,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (disk_type == VHD_DYNAMIC) {
         ret = bdrv_pread(bs->file, be64_to_cpu(footer->data_offset),
-                         &dyndisk_header, sizeof(dyndisk_header), 0);
+                         sizeof(dyndisk_header), &dyndisk_header, 0);
         if (ret < 0) {
             error_setg(errp, "Error reading dynamic VHD header");
             goto fail;
@@ -401,8 +401,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
         s->bat_offset = be64_to_cpu(dyndisk_header.table_offset);
 
-        ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable,
-                         pagetable_size, 0);
+        ret = bdrv_pread(bs->file, s->bat_offset, pagetable_size,
+                         s->pagetable, 0);
         if (ret < 0) {
             error_setg(errp, "Error reading pagetable");
             goto fail;
@@ -516,7 +516,7 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
 
         s->last_bitmap_offset = bitmap_offset;
         memset(bitmap, 0xff, s->bitmap_size);
-        r = bdrv_pwrite_sync(bs->file, bitmap_offset, bitmap, s->bitmap_size,
+        r = bdrv_pwrite_sync(bs->file, bitmap_offset, s->bitmap_size, bitmap,
                              0);
         if (r < 0) {
             *err = r;
@@ -539,7 +539,7 @@ static int rewrite_footer(BlockDriverState *bs)
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite_sync(bs->file, offset, &s->footer, sizeof(s->footer), 0);
+    ret = bdrv_pwrite_sync(bs->file, offset, sizeof(s->footer), &s->footer, 0);
     if (ret < 0)
         return ret;
 
@@ -573,8 +573,8 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
 
     /* Initialize the block's bitmap */
     memset(bitmap, 0xff, s->bitmap_size);
-    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset, bitmap,
-                           s->bitmap_size, 0);
+    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset,
+                           s->bitmap_size, bitmap, 0);
     if (ret < 0) {
         return ret;
     }
@@ -588,7 +588,7 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
     /* Write BAT entry to disk */
     bat_offset = s->bat_offset + (4 * index);
     bat_value = cpu_to_be32(s->pagetable[index]);
-    ret = bdrv_pwrite_sync(bs->file, bat_offset, &bat_value, 4, 0);
+    ret = bdrv_pwrite_sync(bs->file, bat_offset, 4, &bat_value, 0);
     if (ret < 0)
         goto fail;
 

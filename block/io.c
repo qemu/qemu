@@ -1097,7 +1097,7 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 }
 
 /* See bdrv_pwrite() for the return codes */
-int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes,
+int bdrv_pread(BdrvChild *child, int64_t offset, int64_t bytes, void *buf,
                BdrvRequestFlags flags)
 {
     int ret;
@@ -1119,8 +1119,8 @@ int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int64_t bytes,
   -EINVAL      Invalid offset or number of bytes
   -EACCES      Trying to write a read-only device
 */
-int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf,
-                int64_t bytes, BdrvRequestFlags flags)
+int bdrv_pwrite(BdrvChild *child, int64_t offset, int64_t bytes,
+                const void *buf, BdrvRequestFlags flags)
 {
     int ret;
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
@@ -1141,13 +1141,13 @@ int bdrv_pwrite(BdrvChild *child, int64_t offset, const void *buf,
  *
  * Returns 0 on success, -errno in error cases.
  */
-int bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
-                     const void *buf, int64_t count, BdrvRequestFlags flags)
+int bdrv_pwrite_sync(BdrvChild *child, int64_t offset, int64_t bytes,
+                     const void *buf, BdrvRequestFlags flags)
 {
     int ret;
     IO_CODE();
 
-    ret = bdrv_pwrite(child, offset, buf, count, flags);
+    ret = bdrv_pwrite(child, offset, bytes, buf, flags);
     if (ret < 0) {
         return ret;
     }
