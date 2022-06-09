@@ -376,6 +376,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
             return;
         }
         if (value == 0) {
+            virtio_mmio_stop_ioeventfd(proxy);
             virtio_reset(vdev);
         } else {
             virtio_queue_set_addr(vdev, vdev->queue_sel,
