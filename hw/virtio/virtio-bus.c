@@ -104,6 +104,7 @@ void virtio_bus_reset(VirtioBusState *bus)
     VirtIODevice *vdev = virtio_bus_get_device(bus);
 
     DPRINTF("%s: reset device.\n", BUS(bus)->name);
+    virtio_bus_stop_ioeventfd(bus);
     if (vdev != NULL) {
         virtio_reset(vdev);
     }
