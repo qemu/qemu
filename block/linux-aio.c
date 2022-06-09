@@ -365,6 +365,12 @@ void laio_io_unplug(BlockDriverState *bs, LinuxAioState *s,
     assert(s->io_q.plugged);
     s->io_q.plugged--;
 
+    /*
+     * Why max batch checking is performed here:
+     * Another BDS may have queued requests with a higher dev_max_batch and
+     * therefore in_queue could now exceed our dev_max_batch. Re-check the max
+     * batch so we can honor our device's dev_max_batch.
+     */
     if (s->io_q.in_queue >= laio_max_batch(s, dev_max_batch) ||
         (!s->io_q.plugged &&
          !s->io_q.blocked && !QSIMPLEQ_EMPTY(&s->io_q.pending))) {
