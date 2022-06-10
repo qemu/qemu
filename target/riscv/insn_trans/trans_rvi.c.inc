@@ -32,17 +32,13 @@ static bool trans_c64_illegal(DisasContext *ctx, arg_empty *a)
 
 static bool trans_lui(DisasContext *ctx, arg_lui *a)
 {
-    if (a->rd != 0) {
-        gen_set_gpri(ctx, a->rd, a->imm);
-    }
+    gen_set_gpri(ctx, a->rd, a->imm);
     return true;
 }
 
 static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
-    if (a->rd != 0) {
-        gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
-    }
+    gen_set_gpri(ctx, a->rd, a->imm + ctx->base.pc_next);
     return true;
 }
 
