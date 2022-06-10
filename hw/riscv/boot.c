@@ -129,7 +129,8 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb)
 {
-    uint64_t firmware_entry, firmware_size, firmware_end;
+    uint64_t firmware_entry, firmware_end;
+    ssize_t firmware_size;
 
     if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
                          &firmware_entry, NULL, &firmware_end, NULL,
@@ -185,7 +186,7 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
 hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start)
 {
-    int size;
+    ssize_t size;
 
     /*
      * We want to put the initrd far enough into RAM that when the

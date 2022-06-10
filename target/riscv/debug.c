@@ -77,6 +77,7 @@ static inline target_ulong trigger_type(CPURISCVState *env,
         tdata1 = RV32_TYPE(type);
         break;
     case MXL_RV64:
+    case MXL_RV128:
         tdata1 = RV64_TYPE(type);
         break;
     default:
@@ -123,6 +124,7 @@ static target_ulong tdata1_validate(CPURISCVState *env, target_ulong val,
         tdata1 = RV32_TYPE(t);
         break;
     case MXL_RV64:
+    case MXL_RV128:
         type = extract64(val, 60, 4);
         dmode = extract64(val, 59, 1);
         tdata1 = RV64_TYPE(t);
