@@ -1816,8 +1816,7 @@ static void gen_sysreg_undef(DisasContext *s, bool isread,
     } else {
         syndrome = syn_uncategorized();
     }
-    gen_exception_insn_el(s, s->pc_curr, EXCP_UDEF, syndrome,
-                          default_exception_el(s));
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syndrome);
 }
 
 /* MRS - move from system register
@@ -2069,8 +2068,8 @@ static void disas_exc(DisasContext *s, uint32_t insn)
         switch (op2_ll) {
         case 1:                                                     /* SVC */
             gen_ss_advance(s);
-            gen_exception_insn_el(s, s->base.pc_next, EXCP_SWI,
-                                  syn_aa64_svc(imm16), default_exception_el(s));
+            gen_exception_insn(s, s->base.pc_next, EXCP_SWI,
+                               syn_aa64_svc(imm16));
             break;
         case 2:                                                     /* HVC */
             if (s->current_el == 0) {
@@ -14725,8 +14724,7 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
          * Illegal execution state. This has priority over BTI
          * exceptions, but comes after instruction abort exceptions.
          */
-        gen_exception_insn_el(s, s->pc_curr, EXCP_UDEF,
-                              syn_illegalstate(), default_exception_el(s));
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_illegalstate());
         return;
     }
 
@@ -14757,9 +14755,8 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
             if (s->btype != 0
                 && s->guarded_page
                 && !btype_destination_ok(insn, s->bt, s->btype)) {
-                gen_exception_insn_el(s, s->pc_curr, EXCP_UDEF,
-                                      syn_btitrap(s->btype),
-                                      default_exception_el(s));
+                gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                                   syn_btitrap(s->btype));
                 return;
             }
         } else {
