@@ -24,7 +24,7 @@
 #define NPCM7XX_REG_SIZE 0x100
 #define NPCM7XX_MMC_BA 0xF0842000
 #define NPCM7XX_BLK_SIZE 512
-#define NPCM7XX_TEST_IMAGE_SIZE (1 << 30)
+#define NPCM7XX_TEST_IMAGE_SIZE (1 << 20)
 
 char *sd_path;
 
