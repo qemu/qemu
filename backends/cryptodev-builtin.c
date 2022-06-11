@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_crypto.h"
 #include "crypto/cipher.h"
+#include "crypto/akcipher.h"
 #include "qom/object.h"
 
 
@@ -42,10 +43,11 @@ typedef struct CryptoDevBackendBuiltinSession {
     QCryptoCipher *cipher;
     uint8_t direction; /* encryption or decryption */
     uint8_t type; /* cipher? hash? aead? */
+    QCryptoAkCipher *akcipher;
     QTAILQ_ENTRY(CryptoDevBackendBuiltinSession) next;
 } CryptoDevBackendBuiltinSession;
 
-/* Max number of symmetric sessions */
+/* Max number of symmetric/asymmetric sessions */
 #define MAX_NUM_SESSIONS 256
 
 #define CRYPTODEV_BUITLIN_MAX_AUTH_KEY_LEN    512
@@ -80,15 +82,17 @@ static void cryptodev_builtin_init(
     backend->conf.crypto_services =
                          1u << VIRTIO_CRYPTO_SERVICE_CIPHER |
                          1u << VIRTIO_CRYPTO_SERVICE_HASH |
-                         1u << VIRTIO_CRYPTO_SERVICE_MAC;
+                         1u << VIRTIO_CRYPTO_SERVICE_MAC |
+                         1u << VIRTIO_CRYPTO_SERVICE_AKCIPHER;
     backend->conf.cipher_algo_l = 1u << VIRTIO_CRYPTO_CIPHER_AES_CBC;
     backend->conf.hash_algo = 1u << VIRTIO_CRYPTO_HASH_SHA1;
+    backend->conf.akcipher_algo = 1u << VIRTIO_CRYPTO_AKCIPHER_RSA;
     /*
      * Set the Maximum length of crypto request.
      * Why this value? Just avoid to overflow when
      * memory allocation for each crypto request.
      */
-    backend->conf.max_size = LONG_MAX - sizeof(CryptoDevBackendSymOpInfo);
+    backend->conf.max_size = LONG_MAX - sizeof(CryptoDevBackendOpInfo);
     backend->conf.max_cipher_key_len = CRYPTODEV_BUITLIN_MAX_CIPHER_KEY_LEN;
     backend->conf.max_auth_key_len = CRYPTODEV_BUITLIN_MAX_AUTH_KEY_LEN;
 
@@ -146,6 +150,55 @@ cryptodev_builtin_get_aes_algo(uint32_t key_len, int mode, Error **errp)
 err:
    error_setg(errp, "Unsupported key length :%u", key_len);
    return -1;
+}
+
+static int cryptodev_builtin_get_rsa_hash_algo(
+    int virtio_rsa_hash, Error **errp)
+{
+    switch (virtio_rsa_hash) {
+    case VIRTIO_CRYPTO_RSA_MD5:
+        return QCRYPTO_HASH_ALG_MD5;
+
+    case VIRTIO_CRYPTO_RSA_SHA1:
+        return QCRYPTO_HASH_ALG_SHA1;
+
+    case VIRTIO_CRYPTO_RSA_SHA256:
+        return QCRYPTO_HASH_ALG_SHA256;
+
+    case VIRTIO_CRYPTO_RSA_SHA512:
+        return QCRYPTO_HASH_ALG_SHA512;
+
+    default:
+        error_setg(errp, "Unsupported rsa hash algo: %d", virtio_rsa_hash);
+        return -1;
+    }
+}
+
+static int cryptodev_builtin_set_rsa_options(
+                    int virtio_padding_algo,
+                    int virtio_hash_algo,
+                    QCryptoAkCipherOptionsRSA *opt,
+                    Error **errp)
+{
+    if (virtio_padding_algo == VIRTIO_CRYPTO_RSA_PKCS1_PADDING) {
+        int hash_alg;
+
+        hash_alg = cryptodev_builtin_get_rsa_hash_algo(virtio_hash_algo, errp);
+        if (hash_alg < 0) {
+            return -1;
+        }
+        opt->hash_alg = hash_alg;
+        opt->padding_alg = QCRYPTO_RSA_PADDING_ALG_PKCS1;
+        return 0;
+    }
+
+    if (virtio_padding_algo == VIRTIO_CRYPTO_RSA_RAW_PADDING) {
+        opt->padding_alg = QCRYPTO_RSA_PADDING_ALG_RAW;
+        return 0;
+    }
+
+    error_setg(errp, "Unsupported rsa padding algo: %d", virtio_padding_algo);
+    return -1;
 }
 
 static int cryptodev_builtin_create_cipher_session(
@@ -240,26 +293,89 @@ static int cryptodev_builtin_create_cipher_session(
     return index;
 }
 
-static int64_t cryptodev_builtin_sym_create_session(
+static int cryptodev_builtin_create_akcipher_session(
+                    CryptoDevBackendBuiltin *builtin,
+                    CryptoDevBackendAsymSessionInfo *sess_info,
+                    Error **errp)
+{
+    CryptoDevBackendBuiltinSession *sess;
+    QCryptoAkCipher *akcipher;
+    int index;
+    QCryptoAkCipherKeyType type;
+    QCryptoAkCipherOptions opts;
+
+    switch (sess_info->algo) {
+    case VIRTIO_CRYPTO_AKCIPHER_RSA:
+        opts.alg = QCRYPTO_AKCIPHER_ALG_RSA;
+        if (cryptodev_builtin_set_rsa_options(sess_info->u.rsa.padding_algo,
+            sess_info->u.rsa.hash_algo, &opts.u.rsa, errp) != 0) {
+            return -1;
+        }
+        break;
+
+    /* TODO support DSA&ECDSA until qemu crypto framework support these */
+
+    default:
+        error_setg(errp, "Unsupported akcipher alg %u", sess_info->algo);
+        return -1;
+    }
+
+    switch (sess_info->keytype) {
+    case VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PUBLIC:
+        type = QCRYPTO_AKCIPHER_KEY_TYPE_PUBLIC;
+        break;
+
+    case VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PRIVATE:
+        type = QCRYPTO_AKCIPHER_KEY_TYPE_PRIVATE;
+        break;
+
+    default:
+        error_setg(errp, "Unsupported akcipher keytype %u", sess_info->keytype);
+        return -1;
+    }
+
+    index = cryptodev_builtin_get_unused_session_index(builtin);
+    if (index < 0) {
+        error_setg(errp, "Total number of sessions created exceeds %u",
+                   MAX_NUM_SESSIONS);
+        return -1;
+    }
+
+    akcipher = qcrypto_akcipher_new(&opts, type, sess_info->key,
+                                    sess_info->keylen, errp);
+    if (!akcipher) {
+        return -1;
+    }
+
+    sess = g_new0(CryptoDevBackendBuiltinSession, 1);
+    sess->akcipher = akcipher;
+
+    builtin->sessions[index] = sess;
+
+    return index;
+}
+
+static int64_t cryptodev_builtin_create_session(
            CryptoDevBackend *backend,
-           CryptoDevBackendSymSessionInfo *sess_info,
+           CryptoDevBackendSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
     CryptoDevBackendBuiltin *builtin =
                       CRYPTODEV_BACKEND_BUILTIN(backend);
-    int64_t session_id = -1;
-    int ret;
+    CryptoDevBackendSymSessionInfo *sym_sess_info;
+    CryptoDevBackendAsymSessionInfo *asym_sess_info;
 
     switch (sess_info->op_code) {
     case VIRTIO_CRYPTO_CIPHER_CREATE_SESSION:
-        ret = cryptodev_builtin_create_cipher_session(
-                           builtin, sess_info, errp);
-        if (ret < 0) {
-            return ret;
-        } else {
-            session_id = ret;
-        }
-        break;
+        sym_sess_info = &sess_info->u.sym_sess_info;
+        return cryptodev_builtin_create_cipher_session(
+                           builtin, sym_sess_info, errp);
+
+    case VIRTIO_CRYPTO_AKCIPHER_CREATE_SESSION:
+        asym_sess_info = &sess_info->u.asym_sess_info;
+        return cryptodev_builtin_create_akcipher_session(
+                           builtin, asym_sess_info, errp);
+
     case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
     case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
     default:
@@ -268,49 +384,43 @@ static int64_t cryptodev_builtin_sym_create_session(
         return -1;
     }
 
-    return session_id;
+    return -1;
 }
 
-static int cryptodev_builtin_sym_close_session(
+static int cryptodev_builtin_close_session(
            CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
 {
     CryptoDevBackendBuiltin *builtin =
                       CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltinSession *session;
 
     assert(session_id < MAX_NUM_SESSIONS && builtin->sessions[session_id]);
 
-    qcrypto_cipher_free(builtin->sessions[session_id]->cipher);
-    g_free(builtin->sessions[session_id]);
+    session = builtin->sessions[session_id];
+    if (session->cipher) {
+        qcrypto_cipher_free(session->cipher);
+    } else if (session->akcipher) {
+        qcrypto_akcipher_free(session->akcipher);
+    }
+
+    g_free(session);
     builtin->sessions[session_id] = NULL;
     return 0;
 }
 
 static int cryptodev_builtin_sym_operation(
-                 CryptoDevBackend *backend,
-                 CryptoDevBackendSymOpInfo *op_info,
-                 uint32_t queue_index, Error **errp)
+                 CryptoDevBackendBuiltinSession *sess,
+                 CryptoDevBackendSymOpInfo *op_info, Error **errp)
 {
-    CryptoDevBackendBuiltin *builtin =
-                      CRYPTODEV_BACKEND_BUILTIN(backend);
-    CryptoDevBackendBuiltinSession *sess;
     int ret;
-
-    if (op_info->session_id >= MAX_NUM_SESSIONS ||
-              builtin->sessions[op_info->session_id] == NULL) {
-        error_setg(errp, "Cannot find a valid session id: %" PRIu64 "",
-                   op_info->session_id);
-        return -VIRTIO_CRYPTO_INVSESS;
-    }
 
     if (op_info->op_type == VIRTIO_CRYPTO_SYM_OP_ALGORITHM_CHAINING) {
         error_setg(errp,
                "Algorithm chain is unsupported for cryptdoev-builtin");
         return -VIRTIO_CRYPTO_NOTSUPP;
     }
-
-    sess = builtin->sessions[op_info->session_id];
 
     if (op_info->iv_len > 0) {
         ret = qcrypto_cipher_setiv(sess->cipher, op_info->iv,
@@ -333,7 +443,97 @@ static int cryptodev_builtin_sym_operation(
             return -VIRTIO_CRYPTO_ERR;
         }
     }
+
     return VIRTIO_CRYPTO_OK;
+}
+
+static int cryptodev_builtin_asym_operation(
+                 CryptoDevBackendBuiltinSession *sess, uint32_t op_code,
+                 CryptoDevBackendAsymOpInfo *op_info, Error **errp)
+{
+    int ret;
+
+    switch (op_code) {
+    case VIRTIO_CRYPTO_AKCIPHER_ENCRYPT:
+        ret = qcrypto_akcipher_encrypt(sess->akcipher,
+                                       op_info->src, op_info->src_len,
+                                       op_info->dst, op_info->dst_len, errp);
+        break;
+
+    case VIRTIO_CRYPTO_AKCIPHER_DECRYPT:
+        ret = qcrypto_akcipher_decrypt(sess->akcipher,
+                                       op_info->src, op_info->src_len,
+                                       op_info->dst, op_info->dst_len, errp);
+        break;
+
+    case VIRTIO_CRYPTO_AKCIPHER_SIGN:
+        ret = qcrypto_akcipher_sign(sess->akcipher,
+                                    op_info->src, op_info->src_len,
+                                    op_info->dst, op_info->dst_len, errp);
+        break;
+
+    case VIRTIO_CRYPTO_AKCIPHER_VERIFY:
+        ret = qcrypto_akcipher_verify(sess->akcipher,
+                                      op_info->src, op_info->src_len,
+                                      op_info->dst, op_info->dst_len, errp);
+        break;
+
+    default:
+        return -VIRTIO_CRYPTO_ERR;
+    }
+
+    if (ret < 0) {
+        if (op_code == VIRTIO_CRYPTO_AKCIPHER_VERIFY) {
+            return -VIRTIO_CRYPTO_KEY_REJECTED;
+        }
+        return -VIRTIO_CRYPTO_ERR;
+    }
+
+    /* Buffer is too short, typically the driver should handle this case */
+    if (unlikely(ret > op_info->dst_len)) {
+        if (errp && !*errp) {
+            error_setg(errp, "dst buffer too short");
+        }
+
+        return -VIRTIO_CRYPTO_ERR;
+    }
+
+    op_info->dst_len = ret;
+
+    return VIRTIO_CRYPTO_OK;
+}
+
+static int cryptodev_builtin_operation(
+                 CryptoDevBackend *backend,
+                 CryptoDevBackendOpInfo *op_info,
+                 uint32_t queue_index, Error **errp)
+{
+    CryptoDevBackendBuiltin *builtin =
+                      CRYPTODEV_BACKEND_BUILTIN(backend);
+    CryptoDevBackendBuiltinSession *sess;
+    CryptoDevBackendSymOpInfo *sym_op_info;
+    CryptoDevBackendAsymOpInfo *asym_op_info;
+    enum CryptoDevBackendAlgType algtype = op_info->algtype;
+    int ret = -VIRTIO_CRYPTO_ERR;
+
+    if (op_info->session_id >= MAX_NUM_SESSIONS ||
+              builtin->sessions[op_info->session_id] == NULL) {
+        error_setg(errp, "Cannot find a valid session id: %" PRIu64 "",
+                   op_info->session_id);
+        return -VIRTIO_CRYPTO_INVSESS;
+    }
+
+    sess = builtin->sessions[op_info->session_id];
+    if (algtype == CRYPTODEV_BACKEND_ALG_SYM) {
+        sym_op_info = op_info->u.sym_op_info;
+        ret = cryptodev_builtin_sym_operation(sess, sym_op_info, errp);
+    } else if (algtype == CRYPTODEV_BACKEND_ALG_ASYM) {
+        asym_op_info = op_info->u.asym_op_info;
+        ret = cryptodev_builtin_asym_operation(sess, op_info->op_code,
+                                               asym_op_info, errp);
+    }
+
+    return ret;
 }
 
 static void cryptodev_builtin_cleanup(
@@ -348,7 +548,7 @@ static void cryptodev_builtin_cleanup(
 
     for (i = 0; i < MAX_NUM_SESSIONS; i++) {
         if (builtin->sessions[i] != NULL) {
-            cryptodev_builtin_sym_close_session(backend, i, 0, &error_abort);
+            cryptodev_builtin_close_session(backend, i, 0, &error_abort);
         }
     }
 
@@ -370,9 +570,9 @@ cryptodev_builtin_class_init(ObjectClass *oc, void *data)
 
     bc->init = cryptodev_builtin_init;
     bc->cleanup = cryptodev_builtin_cleanup;
-    bc->create_session = cryptodev_builtin_sym_create_session;
-    bc->close_session = cryptodev_builtin_sym_close_session;
-    bc->do_sym_op = cryptodev_builtin_sym_operation;
+    bc->create_session = cryptodev_builtin_create_session;
+    bc->close_session = cryptodev_builtin_close_session;
+    bc->do_op = cryptodev_builtin_operation;
 }
 
 static const TypeInfo cryptodev_builtin_info = {
