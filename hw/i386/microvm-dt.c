@@ -32,6 +32,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qapi/error.h"
 #include "sysemu/device_tree.h"
 #include "hw/char/serial.h"
 #include "hw/i386/fw_cfg.h"
@@ -187,8 +188,8 @@ static void dt_add_ioapic(MicrovmMachineState *mms, SysBusDevice *dev)
 static void dt_add_isa_serial(MicrovmMachineState *mms, ISADevice *dev)
 {
     const char compat[] = "ns16550";
-    uint32_t irq = object_property_get_int(OBJECT(dev), "irq", NULL);
-    hwaddr base = object_property_get_int(OBJECT(dev), "iobase", NULL);
+    uint32_t irq = object_property_get_int(OBJECT(dev), "irq", &error_fatal);
+    hwaddr base = object_property_get_int(OBJECT(dev), "iobase", &error_fatal);
     hwaddr size = 8;
     char *nodename;
 
@@ -208,8 +209,8 @@ static void dt_add_isa_serial(MicrovmMachineState *mms, ISADevice *dev)
 static void dt_add_isa_rtc(MicrovmMachineState *mms, ISADevice *dev)
 {
     const char compat[] = "motorola,mc146818";
-    uint32_t irq = RTC_ISA_IRQ;
-    hwaddr base = RTC_ISA_BASE;
+    uint32_t irq = object_property_get_uint(OBJECT(dev), "irq", &error_fatal);
+    hwaddr base = object_property_get_uint(OBJECT(dev), "iobase", &error_fatal);
     hwaddr size = 8;
     char *nodename;
 

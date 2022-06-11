@@ -68,8 +68,8 @@ struct dfe {
 static int df_extract_val(DisasContext *ctx, int x, const struct dfe *s)
 {
     for (unsigned i = 0; i < 4; i++) {
-        if (extract32(x, s->start, s->length) == s->mask) {
-            return extract32(x, 0, s->start);
+        if (extract32(x, s[i].start, s[i].length) == s[i].mask) {
+            return extract32(x, 0, s[i].start);
         }
     }
     return -1;
@@ -82,7 +82,7 @@ static int df_extract_val(DisasContext *ctx, int x, const struct dfe *s)
 static int df_extract_df(DisasContext *ctx, int x, const struct dfe *s)
 {
     for (unsigned i = 0; i < 4; i++) {
-        if (extract32(x, s->start, s->length) == s->mask) {
+        if (extract32(x, s[i].start, s[i].length) == s[i].mask) {
             return i;
         }
     }
@@ -399,7 +399,7 @@ TRANS(BSETI,    trans_msa_bit, gen_helper_msa_bseti_df);
 TRANS(BNEGI,    trans_msa_bit, gen_helper_msa_bnegi_df);
 TRANS(BINSLI,   trans_msa_bit, gen_helper_msa_binsli_df);
 TRANS(BINSRI,   trans_msa_bit, gen_helper_msa_binsri_df);
-TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_u_df);
+TRANS(SAT_S,    trans_msa_bit, gen_helper_msa_sat_s_df);
 TRANS(SAT_U,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS(SRARI,    trans_msa_bit, gen_helper_msa_srari_df);
 TRANS(SRLRI,    trans_msa_bit, gen_helper_msa_srlri_df);
@@ -599,12 +599,7 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
         return false;
     }
 
-    if (check_msa_enabled(ctx)) {
-        return true;
-    }
-
-    if (a->wd == 0) {
-        /* Treat as NOP. */
+    if (!check_msa_enabled(ctx)) {
         return true;
     }
 
@@ -624,6 +619,11 @@ static bool trans_msa_elm_fn(DisasContext *ctx, arg_msa_elm_df *a,
 
 static bool trans_COPY_U(DisasContext *ctx, arg_msa_elm_df *a)
 {
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
     static gen_helper_piii * const gen_msa_copy_u[4] = {
         gen_helper_msa_copy_u_b, gen_helper_msa_copy_u_h,
         NULL_IF_MIPS32(gen_helper_msa_copy_u_w), NULL
@@ -634,6 +634,11 @@ static bool trans_COPY_U(DisasContext *ctx, arg_msa_elm_df *a)
 
 static bool trans_COPY_S(DisasContext *ctx, arg_msa_elm_df *a)
 {
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
     static gen_helper_piii * const gen_msa_copy_s[4] = {
         gen_helper_msa_copy_s_b, gen_helper_msa_copy_s_h,
         gen_helper_msa_copy_s_w, NULL_IF_MIPS32(gen_helper_msa_copy_s_d)
@@ -747,8 +752,8 @@ static bool trans_msa_2rf(DisasContext *ctx, arg_msa_r *a,
 }
 
 TRANS(FCLASS,   trans_msa_2rf, gen_helper_msa_fclass_df);
-TRANS(FTRUNC_S, trans_msa_2rf, gen_helper_msa_fclass_df);
-TRANS(FTRUNC_U, trans_msa_2rf, gen_helper_msa_ftrunc_s_df);
+TRANS(FTRUNC_S, trans_msa_2rf, gen_helper_msa_ftrunc_s_df);
+TRANS(FTRUNC_U, trans_msa_2rf, gen_helper_msa_ftrunc_u_df);
 TRANS(FSQRT,    trans_msa_2rf, gen_helper_msa_fsqrt_df);
 TRANS(FRSQRT,   trans_msa_2rf, gen_helper_msa_frsqrt_df);
 TRANS(FRCP,     trans_msa_2rf, gen_helper_msa_frcp_df);
