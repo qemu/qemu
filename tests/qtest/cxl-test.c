@@ -10,12 +10,12 @@
 
 #define QEMU_PXB_CMD "-machine q35,cxl=on " \
                      "-device pxb-cxl,id=cxl.0,bus=pcie.0,bus_nr=52 "  \
-                     "-cxl-fixed-memory-window targets.0=cxl.0,size=4G "
+                     "-M cxl-fmw.0.targets.0=cxl.0,cxl-fmw.0.size=4G "
 
 #define QEMU_2PXB_CMD "-machine q35,cxl=on "                            \
                       "-device pxb-cxl,id=cxl.0,bus=pcie.0,bus_nr=52 "  \
                       "-device pxb-cxl,id=cxl.1,bus=pcie.0,bus_nr=53 " \
-                      "-cxl-fixed-memory-window targets.0=cxl.0,targets.1=cxl.1,size=4G "
+                      "-M cxl-fmw.0.targets.0=cxl.0,cxl-fmw.0.targets.1=cxl.1,cxl-fmw.0.size=4G "
 
 #define QEMU_RP "-device cxl-rp,id=rp0,bus=cxl.0,chassis=0,slot=0 "
 

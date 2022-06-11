@@ -524,6 +524,19 @@
       'targets': ['str'] }}
 
 ##
+# @CXLFMWProperties:
+#
+# List of CXL Fixed Memory Windows.
+#
+# @cxl-fmw: List of CXLFixedMemoryWindowOptions
+#
+# Since 7.1
+##
+{ 'struct' : 'CXLFMWProperties',
+  'data': { 'cxl-fmw': ['CXLFixedMemoryWindowOptions'] }
+}
+
+##
 # @X86CPURegister32:
 #
 # A X86 32-bit register

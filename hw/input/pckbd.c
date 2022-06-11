@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
-#include "hw/acpi/aml-build.h"
+#include "hw/acpi/acpi_aml_interface.h"
 #include "hw/input/ps2.h"
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
@@ -767,9 +767,9 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
     qemu_register_reset(kbd_reset, s);
 }
 
-static void i8042_build_aml(ISADevice *isadev, Aml *scope)
+static void i8042_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    ISAKBDState *isa_s = I8042(isadev);
+    ISAKBDState *isa_s = I8042(adev);
     Aml *kbd;
     Aml *mou;
     Aml *crs;
@@ -807,12 +807,12 @@ static Property i8042_properties[] = {
 static void i8042_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *isa = ISA_DEVICE_CLASS(klass);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     device_class_set_props(dc, i8042_properties);
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
-    isa->build_aml = i8042_build_aml;
+    adevc->build_dev_aml = i8042_build_aml;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
@@ -822,6 +822,10 @@ static const TypeInfo i8042_info = {
     .instance_size = sizeof(ISAKBDState),
     .instance_init = i8042_initfn,
     .class_init    = i8042_class_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_DEV_AML_IF },
+        { },
+    },
 };
 
 static void i8042_register_types(void)

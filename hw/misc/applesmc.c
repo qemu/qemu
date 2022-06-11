@@ -37,10 +37,14 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
+#include "hw/acpi/acpi_aml_interface.h"
 
 /* #define DEBUG_SMC */
 
 #define APPLESMC_DEFAULT_IOBASE        0x300
+#define TYPE_APPLE_SMC "isa-applesmc"
+#define APPLESMC_MAX_DATA_LENGTH       32
+#define APPLESMC_PROP_IO_BASE "iobase"
 
 enum {
     APPLESMC_DATA_PORT               = 0x00,
@@ -347,14 +351,35 @@ static Property applesmc_isa_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)
+{
+    Aml *crs;
+    AppleSMCState *s = APPLE_SMC(adev);
+    uint32_t iobase = s->iobase;
+    Aml *dev = aml_device("SMC");
+
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("APP0001")));
+    /* device present, functioning, decoding, not shown in UI */
+    aml_append(dev, aml_name_decl("_STA", aml_int(0xB)));
+    crs = aml_resource_template();
+    aml_append(crs,
+        aml_io(AML_DECODE16, iobase, iobase, 0x01, APPLESMC_MAX_DATA_LENGTH)
+    );
+    aml_append(crs, aml_irq_no_flags(6));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
+}
+
 static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     dc->realize = applesmc_isa_realize;
     dc->reset = qdev_applesmc_isa_reset;
     device_class_set_props(dc, applesmc_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    adevc->build_dev_aml = build_applesmc_aml;
 }
 
 static const TypeInfo applesmc_isa_info = {
@@ -362,6 +387,10 @@ static const TypeInfo applesmc_isa_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(AppleSMCState),
     .class_init    = qdev_applesmc_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_DEV_AML_IF },
+        { },
+    },
 };
 
 static void applesmc_register_types(void)

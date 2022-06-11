@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
+#include "hw/acpi/acpi_aml_interface.h"
 
 static ISABus *isabus;
 
@@ -190,15 +191,9 @@ ISADevice *isa_vga_init(ISABus *bus)
 void isa_build_aml(ISABus *bus, Aml *scope)
 {
     BusChild *kid;
-    ISADevice *dev;
-    ISADeviceClass *dc;
 
     QTAILQ_FOREACH(kid, &bus->parent_obj.children, sibling) {
-        dev = ISA_DEVICE(kid->child);
-        dc = ISA_DEVICE_GET_CLASS(dev);
-        if (dc->build_aml) {
-            dc->build_aml(dev, scope);
-        }
+        call_dev_aml_func(DEVICE(kid->child), scope);
     }
 }
 
