@@ -32,6 +32,24 @@ do {                                        \
 
 #define UNLOCK_PATH(p, arg)     unlock_user(p, arg, 0)
 
+#define LOCK_PATH2(p1, arg1, p2, arg2)      \
+do {                                        \
+    (p1) = lock_user_string(arg1);          \
+    if ((p1) == NULL) {                     \
+        return -TARGET_EFAULT;              \
+    }                                       \
+    (p2) = lock_user_string(arg2);          \
+    if ((p2) == NULL) {                     \
+        unlock_user(p1, arg1, 0);           \
+        return -TARGET_EFAULT;              \
+    }                                       \
+} while (0)
+
+#define UNLOCK_PATH2(p1, arg1, p2, arg2)    \
+do {                                        \
+    unlock_user(p2, arg2, 0);               \
+    unlock_user(p1, arg1, 0);               \
+} while (0)
 
 extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
         int copy);
@@ -328,6 +346,33 @@ static abi_long do_bsd_chdir(abi_long arg1)
 static abi_long do_bsd_fchdir(abi_long arg1)
 {
     return get_errno(fchdir(arg1));
+}
+
+/* rename(2) */
+static abi_long do_bsd_rename(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg2);
+    ret = get_errno(rename(p1, p2)); /* XXX path(p1), path(p2) */
+    UNLOCK_PATH2(p1, arg1, p2, arg2);
+
+    return ret;
+}
+
+/* renameat(2) */
+static abi_long do_bsd_renameat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg2, p2, arg4);
+    ret = get_errno(renameat(arg1, p1, arg3, p2));
+    UNLOCK_PATH2(p1, arg2, p2, arg4);
+
+    return ret;
 }
 
 #endif /* BSD_FILE_H */
