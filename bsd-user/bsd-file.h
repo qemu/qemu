@@ -456,4 +456,33 @@ static abi_long do_bsd_mkdirat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* rmdir(2) */
+static abi_long do_bsd_rmdir(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(rmdir(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* undocumented __getcwd(char *buf, size_t len)  system call */
+static abi_long do_bsd___getcwd(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    p = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    if (p == NULL) {
+        return -TARGET_EFAULT;
+    }
+    ret = safe_syscall(SYS___getcwd, p, arg2);
+    unlock_user(p, arg1, ret == 0 ? strlen(p) + 1 : 0);
+
+    return get_errno(ret);
+}
+
 #endif /* BSD_FILE_H */
