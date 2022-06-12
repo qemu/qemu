@@ -258,4 +258,57 @@ static abi_long do_bsd_closefrom(abi_long arg1)
     return get_errno(0);
 }
 
+/* revoke(2) */
+static abi_long do_bsd_revoke(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(revoke(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* access(2) */
+static abi_long do_bsd_access(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(access(path(p), arg2));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* eaccess(2) */
+static abi_long do_bsd_eaccess(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(eaccess(path(p), arg2));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* faccessat(2) */
+static abi_long do_bsd_faccessat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(faccessat(arg1, p, arg3, arg4)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
