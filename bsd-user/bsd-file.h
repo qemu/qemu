@@ -526,4 +526,27 @@ static abi_long do_bsd_ftruncate(void *cpu_env, abi_long arg1,
     return get_errno(ftruncate(arg1, target_arg64(arg2, arg3)));
 }
 
+/* acct(2) */
+static abi_long do_bsd_acct(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    if (arg1 == 0) {
+        ret = get_errno(acct(NULL));
+    } else {
+        LOCK_PATH(p, arg1);
+        ret = get_errno(acct(path(p)));
+        UNLOCK_PATH(p, arg1);
+    }
+    return ret;
+}
+
+/* sync(2) */
+static abi_long do_bsd_sync(void)
+{
+    sync();
+    return 0;
+}
+
 #endif /* BSD_FILE_H */
