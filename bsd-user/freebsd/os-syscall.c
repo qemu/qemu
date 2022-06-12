@@ -44,6 +44,10 @@
 #include "bsd-proc.h"
 
 /* I/O */
+safe_syscall3(int, open, const char *, path, int, flags, mode_t, mode);
+safe_syscall4(int, openat, int, fd, const char *, path, int, flags, mode_t,
+    mode);
+
 safe_syscall3(ssize_t, read, int, fd, void *, buf, size_t, nbytes);
 safe_syscall4(ssize_t, pread, int, fd, void *, buf, size_t, nbytes, off_t,
     offset);
@@ -255,6 +259,18 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     case TARGET_FREEBSD_NR_pwritev: /* pwritev(2) */
         ret = do_bsd_pwritev(cpu_env, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+
+    case TARGET_FREEBSD_NR_open: /* open(2) */
+        ret = do_bsd_open(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_openat: /* openat(2) */
+        ret = do_bsd_openat(arg1, arg2, arg3, arg4);
+        break;
+
+    case TARGET_FREEBSD_NR_close: /* close(2) */
+        ret = do_bsd_close(arg1);
         break;
 
     default:

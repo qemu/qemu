@@ -226,4 +226,8 @@ type safe_##name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, \
     return safe_syscall(SYS_##name, arg1, arg2, arg3, arg4, arg5, arg6); \
 }
 
+/* So far all target and host bitmasks are the same */
+#define target_to_host_bitmask(x, tbl) (x)
+#define host_to_target_bitmask(x, tbl) (x)
+
 #endif /* SYSCALL_DEFS_H */

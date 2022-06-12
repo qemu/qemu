@@ -22,10 +22,24 @@
 
 #include "qemu/path.h"
 
+#define LOCK_PATH(p, arg)                   \
+do {                                        \
+    (p) = lock_user_string(arg);            \
+    if ((p) == NULL) {                      \
+        return -TARGET_EFAULT;              \
+    }                                       \
+} while (0)
+
+#define UNLOCK_PATH(p, arg)     unlock_user(p, arg, 0)
+
+
 extern struct iovec *lock_iovec(int type, abi_ulong target_addr, int count,
         int copy);
 extern void unlock_iovec(struct iovec *vec, abi_ulong target_addr, int count,
         int copy);
+
+int safe_open(const char *path, int flags, mode_t mode);
+int safe_openat(int fd, const char *path, int flags, mode_t mode);
 
 ssize_t safe_read(int fd, void *buf, size_t nbytes);
 ssize_t safe_pread(int fd, void *buf, size_t nbytes, off_t offset);
@@ -188,6 +202,41 @@ static abi_long do_bsd_pwritev(void *cpu_env, abi_long arg1,
     }
 
     return ret;
+}
+
+/* open(2) */
+static abi_long do_bsd_open(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(safe_open(path(p), target_to_host_bitmask(arg2,
+                fcntl_flags_tbl), arg3));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* openat(2) */
+static abi_long do_bsd_openat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(safe_openat(arg1, path(p),
+                target_to_host_bitmask(arg3, fcntl_flags_tbl), arg4));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* close(2) */
+static inline abi_long do_bsd_close(abi_long arg1)
+{
+    return get_errno(close(arg1));
 }
 
 #endif /* BSD_FILE_H */
