@@ -311,4 +311,23 @@ static abi_long do_bsd_faccessat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* chdir(2) */
+static abi_long do_bsd_chdir(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chdir(p)); /* XXX  path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchdir(2) */
+static abi_long do_bsd_fchdir(abi_long arg1)
+{
+    return get_errno(fchdir(arg1));
+}
+
 #endif /* BSD_FILE_H */
