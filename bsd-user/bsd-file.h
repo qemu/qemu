@@ -485,4 +485,16 @@ static abi_long do_bsd___getcwd(abi_long arg1, abi_long arg2)
     return get_errno(ret);
 }
 
+/* dup(2) */
+static abi_long do_bsd_dup(abi_long arg1)
+{
+    return get_errno(dup(arg1));
+}
+
+/* dup2(2) */
+static abi_long do_bsd_dup2(abi_long arg1, abi_long arg2)
+{
+    return get_errno(dup2(arg1, arg2));
+}
+
 #endif /* BSD_FILE_H */
