@@ -429,4 +429,31 @@ static abi_long do_bsd_unlinkat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* mkdir(2) */
+static abi_long do_bsd_mkdir(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(mkdir(p, arg2)); /* XXX path(p) */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* mkdirat(2) */
+static abi_long do_bsd_mkdirat(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(mkdirat(arg1, p, arg3));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
