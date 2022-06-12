@@ -497,4 +497,33 @@ static abi_long do_bsd_dup2(abi_long arg1, abi_long arg2)
     return get_errno(dup2(arg1, arg2));
 }
 
+/* truncate(2) */
+static abi_long do_bsd_truncate(void *cpu_env, abi_long arg1,
+        abi_long arg2, abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    if (regpairs_aligned(cpu_env) != 0) {
+        arg2 = arg3;
+        arg3 = arg4;
+    }
+    ret = get_errno(truncate(p, target_arg64(arg2, arg3)));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* ftruncate(2) */
+static abi_long do_bsd_ftruncate(void *cpu_env, abi_long arg1,
+        abi_long arg2, abi_long arg3, abi_long arg4)
+{
+    if (regpairs_aligned(cpu_env) != 0) {
+        arg2 = arg3;
+        arg3 = arg4;
+    }
+    return get_errno(ftruncate(arg1, target_arg64(arg2, arg3)));
+}
+
 #endif /* BSD_FILE_H */
