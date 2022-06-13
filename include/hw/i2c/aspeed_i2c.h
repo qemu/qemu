@@ -33,6 +33,7 @@ OBJECT_DECLARE_TYPE(AspeedI2CState, AspeedI2CClass, ASPEED_I2C)
 
 #define ASPEED_I2C_NR_BUSSES 16
 #define ASPEED_I2C_MAX_POOL_SIZE 0x800
+#define ASPEED_I2C_OLD_NUM_REG 11
 
 struct AspeedI2CState;
 
@@ -49,15 +50,7 @@ struct AspeedI2CBus {
     uint8_t id;
     qemu_irq irq;
 
-    uint32_t ctrl;
-    uint32_t timing[2];
-    uint32_t intr_ctrl;
-    uint32_t intr_status;
-    uint32_t cmd;
-    uint32_t buf;
-    uint32_t pool_ctrl;
-    uint32_t dma_addr;
-    uint32_t dma_len;
+    uint32_t regs[ASPEED_I2C_OLD_NUM_REG];
 };
 
 struct AspeedI2CState {
