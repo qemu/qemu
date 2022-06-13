@@ -78,7 +78,7 @@ static bool virtio_iommu_device_bypassed(IOMMUDevice *sdev)
 
     sid = virtio_iommu_get_bdf(sdev);
 
-    qemu_mutex_lock(&s->mutex);
+    qemu_rec_mutex_lock(&s->mutex);
     /* need to check bypass before system reset */
     if (!s->endpoints) {
         bypassed = s->config.bypass;
@@ -93,7 +93,7 @@ static bool virtio_iommu_device_bypassed(IOMMUDevice *sdev)
     }
 
 unlock:
-    qemu_mutex_unlock(&s->mutex);
+    qemu_rec_mutex_unlock(&s->mutex);
     return bypassed;
 }
 
@@ -745,7 +745,7 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
             tail.status = VIRTIO_IOMMU_S_DEVERR;
             goto out;
         }
-        qemu_mutex_lock(&s->mutex);
+        qemu_rec_mutex_lock(&s->mutex);
         switch (head.type) {
         case VIRTIO_IOMMU_T_ATTACH:
             tail.status = virtio_iommu_handle_attach(s, iov, iov_cnt);
@@ -774,7 +774,7 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
         default:
             tail.status = VIRTIO_IOMMU_S_UNSUPP;
         }
-        qemu_mutex_unlock(&s->mutex);
+        qemu_rec_mutex_unlock(&s->mutex);
 
 out:
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
@@ -862,7 +862,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     sid = virtio_iommu_get_bdf(sdev);
 
     trace_virtio_iommu_translate(mr->parent_obj.name, sid, addr, flag);
-    qemu_mutex_lock(&s->mutex);
+    qemu_rec_mutex_lock(&s->mutex);
 
     ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
     if (!ep) {
@@ -946,7 +946,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     trace_virtio_iommu_translate_out(addr, entry.translated_addr, sid);
 
 unlock:
-    qemu_mutex_unlock(&s->mutex);
+    qemu_rec_mutex_unlock(&s->mutex);
     return entry;
 }
 
@@ -1035,7 +1035,7 @@ static void virtio_iommu_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
 
     sid = virtio_iommu_get_bdf(sdev);
 
-    qemu_mutex_lock(&s->mutex);
+    qemu_rec_mutex_lock(&s->mutex);
 
     if (!s->endpoints) {
         goto unlock;
@@ -1049,7 +1049,7 @@ static void virtio_iommu_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
     g_tree_foreach(ep->domain->mappings, virtio_iommu_remap, mr);
 
 unlock:
-    qemu_mutex_unlock(&s->mutex);
+    qemu_rec_mutex_unlock(&s->mutex);
 }
 
 static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
@@ -1167,7 +1167,7 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_PROBE);
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_BYPASS_CONFIG);
 
-    qemu_mutex_init(&s->mutex);
+    qemu_rec_mutex_init(&s->mutex);
 
     s->as_by_busptr = g_hash_table_new_full(NULL, NULL, NULL, g_free);
 
@@ -1194,6 +1194,8 @@ static void virtio_iommu_device_unrealize(DeviceState *dev)
     if (s->endpoints) {
         g_tree_destroy(s->endpoints);
     }
+
+    qemu_rec_mutex_destroy(&s->mutex);
 
     virtio_delete_queue(s->req_vq);
     virtio_delete_queue(s->event_vq);

@@ -58,7 +58,7 @@ struct VirtIOIOMMU {
     ReservedRegion *reserved_regions;
     uint32_t nb_reserved_regions;
     GTree *domains;
-    QemuMutex mutex;
+    QemuRecMutex mutex;
     GTree *endpoints;
     bool boot_bypass;
 };
