@@ -149,6 +149,8 @@ class AST2x00Machine(QemuSystemTest):
 
         self.vm.add_args('-device',
                          'tmp105,bus=aspeed.i2c.bus.3,address=0x4d,id=tmp-test');
+        self.vm.add_args('-device',
+                         'ds1338,bus=aspeed.i2c.bus.3,address=0x32');
         self.do_test_arm_aspeed_buidroot_start(image_path, '0xf00')
 
         exec_command_and_wait_for_pattern(self,
@@ -160,5 +162,11 @@ class AST2x00Machine(QemuSystemTest):
                         property='temperature', value=18000);
         exec_command_and_wait_for_pattern(self,
                              'cat /sys/class/hwmon/hwmon0/temp1_input', '18000')
+
+        exec_command_and_wait_for_pattern(self,
+             'echo ds1307 0x32 > /sys/class/i2c-dev/i2c-3/device/new_device',
+             'i2c i2c-3: new_device: Instantiated device ds1307 at 0x32');
+        year = time.strftime("%Y")
+        exec_command_and_wait_for_pattern(self, 'hwclock -f /dev/rtc1', year);
 
         self.do_test_arm_aspeed_buidroot_poweroff()
