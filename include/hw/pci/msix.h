@@ -36,6 +36,7 @@ void msix_clr_pending(PCIDevice *dev, int vector);
 int msix_vector_use(PCIDevice *dev, unsigned vector);
 void msix_vector_unuse(PCIDevice *dev, unsigned vector);
 void msix_unuse_all_vectors(PCIDevice *dev);
+void msix_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp);
 
 void msix_notify(PCIDevice *dev, unsigned vector);
 

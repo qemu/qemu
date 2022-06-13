@@ -31,7 +31,7 @@
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
 #define MSIX_MASKALL_MASK (PCI_MSIX_FLAGS_MASKALL >> 8)
 
-MSIMessage msix_get_message(PCIDevice *dev, unsigned vector)
+static MSIMessage msix_prepare_message(PCIDevice *dev, unsigned vector)
 {
     uint8_t *table_entry = dev->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
     MSIMessage msg;
@@ -39,6 +39,11 @@ MSIMessage msix_get_message(PCIDevice *dev, unsigned vector)
     msg.address = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
     msg.data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
     return msg;
+}
+
+MSIMessage msix_get_message(PCIDevice *dev, unsigned vector)
+{
+    return dev->msix_prepare_message(dev, vector);
 }
 
 /*
@@ -129,6 +134,31 @@ static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
         msix_clr_pending(dev, vector);
         msix_notify(dev, vector);
     }
+}
+
+void msix_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp)
+{
+    ERRP_GUARD();
+    unsigned offset;
+    bool was_masked;
+
+    if (vector > dev->msix_entries_nr) {
+        error_setg(errp, "msix: vector %d not allocated. max vector is %d",
+                   vector, dev->msix_entries_nr);
+        return;
+    }
+
+    offset = vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
+
+    was_masked = msix_is_masked(dev, vector);
+
+    if (mask) {
+        dev->msix_table[offset] |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
+    } else {
+        dev->msix_table[offset] &= ~PCI_MSIX_ENTRY_CTRL_MASKBIT;
+    }
+
+    msix_handle_mask_update(dev, vector, was_masked);
 }
 
 static bool msix_masked(PCIDevice *dev)
@@ -344,6 +374,8 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
                           "msix-pba", pba_size);
     memory_region_add_subregion(pba_bar, pba_offset, &dev->msix_pba_mmio);
 
+    dev->msix_prepare_message = msix_prepare_message;
+
     return 0;
 }
 
@@ -429,6 +461,7 @@ void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
     g_free(dev->msix_entry_used);
     dev->msix_entry_used = NULL;
     dev->cap_present &= ~QEMU_PCI_CAP_MSIX;
+    dev->msix_prepare_message = NULL;
 }
 
 void msix_uninit_exclusive_bar(PCIDevice *dev)

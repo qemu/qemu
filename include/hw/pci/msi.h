@@ -43,6 +43,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector);
 void msi_send_message(PCIDevice *dev, MSIMessage msg);
 void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len);
 unsigned int msi_nr_vectors_allocated(const PCIDevice *dev);
+void msi_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp);
 
 static inline bool msi_present(const PCIDevice *dev)
 {
