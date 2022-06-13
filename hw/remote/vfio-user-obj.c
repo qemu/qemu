@@ -676,6 +676,20 @@ void vfu_object_set_bus_irq(PCIBus *pci_bus)
                  max_bdf);
 }
 
+static int vfu_object_device_reset(vfu_ctx_t *vfu_ctx, vfu_reset_type_t type)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+
+    /* vfu_object_ctx_run() handles lost connection */
+    if (type == VFU_RESET_LOST_CONN) {
+        return 0;
+    }
+
+    qdev_reset_all(DEVICE(o->pci_dev));
+
+    return 0;
+}
+
 /*
  * TYPE_VFU_OBJECT depends on the availability of the 'socket' and 'device'
  * properties. It also depends on devices instantiated in QEMU. These
@@ -792,6 +806,12 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
     if (ret < 0) {
         error_setg(errp, "vfu: Failed to setup interrupts for %s",
                    o->device);
+        goto fail;
+    }
+
+    ret = vfu_setup_device_reset_cb(o->vfu_ctx, &vfu_object_device_reset);
+    if (ret < 0) {
+        error_setg(errp, "vfu: Failed to setup reset callback");
         goto fail;
     }
 
