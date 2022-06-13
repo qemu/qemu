@@ -109,11 +109,10 @@ int canokey_emu_transmit(
      * Note: this is a quirk for CanoKey CTAPHID
      * because it calls multiple emu_transmit in one device_loop
      * but w/o data_in it would stuck in device_loop
-     * This has no side effect for CCID as it is strictly
-     * OUT then IN transfer
-     * However it has side effect for Control transfer
+     * This has side effect for CCID since CCID can send ZLP
+     * This also has side effect for Control transfer
      */
-    if (ep_in != 0) {
+    if (ep_in == CANOKEY_EMU_EP_CTAPHID) {
         canokey_emu_data_in(ep_in);
     }
     return 0;
