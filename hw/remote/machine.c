@@ -22,6 +22,7 @@
 #include "hw/remote/iohub.h"
 #include "hw/remote/iommu.h"
 #include "hw/qdev-core.h"
+#include "hw/remote/iommu.h"
 
 static void remote_machine_init(MachineState *machine)
 {
@@ -50,6 +51,10 @@ static void remote_machine_init(MachineState *machine)
     qdev_realize(DEVICE(rem_host), sysbus_get_default(), &error_fatal);
 
     pci_host = PCI_HOST_BRIDGE(rem_host);
+
+    if (s->vfio_user) {
+        remote_iommu_setup(pci_host->bus);
+    }
 
     remote_iohub_init(&s->iohub);
 
