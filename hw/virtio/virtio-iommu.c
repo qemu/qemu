@@ -865,6 +865,10 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     qemu_rec_mutex_lock(&s->mutex);
 
     ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
+
+    if (bypass_allowed)
+        assert(ep && ep->domain && !ep->domain->bypass);
+
     if (!ep) {
         if (!bypass_allowed) {
             error_report_once("%s sid=%d is not known!!", __func__, sid);
