@@ -519,10 +519,6 @@ static void ast2500_evb_i2c_init(AspeedMachineState *bmc)
     /* The AST2500 EVB expects a LM75 but a TMP105 is compatible */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 7),
                      TYPE_TMP105, 0x4d);
-
-    /* The AST2500 EVB does not have an RTC. Let's pretend that one is
-     * plugged on the I2C bus header */
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 11), "ds1338", 0x32);
 }
 
 static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
