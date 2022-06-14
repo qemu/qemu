@@ -816,4 +816,36 @@ static abi_long do_bsd_fchownat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* chflags(2) */
+static abi_long do_bsd_chflags(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chflags(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* lchflags(2) */
+static abi_long do_bsd_lchflags(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchflags(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchflags(2) */
+static abi_long do_bsd_fchflags(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fchflags(arg1, arg2));
+}
+
 #endif /* BSD_FILE_H */
