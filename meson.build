@@ -209,9 +209,13 @@ if get_option('fuzzing')
   configure_file(output: 'instrumentation-filter',
                  input: 'scripts/oss-fuzz/instrumentation-filter-template',
                  copy: true)
-  add_global_arguments(
-      cc.get_supported_arguments('-fsanitize-coverage-allowlist=instrumentation-filter'),
-      native: false, language: ['c', 'cpp', 'objc'])
+
+  if cc.compiles('int main () { return 0; }',
+                  name: '-fsanitize-coverage-allowlist=/dev/null',
+                 args: ['-fsanitize-coverage-allowlist=/dev/null'] )
+    add_global_arguments('-fsanitize-coverage-allowlist=instrumentation-filter',
+                         native: false, language: ['c', 'cpp', 'objc'])
+  endif
 
   if get_option('fuzzing_engine') == ''
     # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
