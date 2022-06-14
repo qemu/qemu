@@ -675,4 +675,50 @@ static abi_long do_bsd_readlinkat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* chmod(2) */
+static abi_long do_bsd_chmod(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chmod(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchmod(2) */
+static abi_long do_bsd_fchmod(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fchmod(arg1, arg2));
+}
+
+/* lchmod(2) */
+static abi_long do_bsd_lchmod(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchmod(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchmodat(2) */
+static abi_long do_bsd_fchmodat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(fchmodat(arg1, p, arg3, arg4));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
