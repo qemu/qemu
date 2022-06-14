@@ -1894,16 +1894,18 @@ static void cocoa_clipboard_notify(Notifier *notifier, void *data)
 static void cocoa_clipboard_request(QemuClipboardInfo *info,
                                     QemuClipboardType type)
 {
+    NSAutoreleasePool *pool;
     NSData *text;
 
     switch (type) {
     case QEMU_CLIPBOARD_TYPE_TEXT:
+        pool = [[NSAutoreleasePool alloc] init];
         text = [[NSPasteboard generalPasteboard] dataForType:NSPasteboardTypeString];
         if (text) {
             qemu_clipboard_set_data(&cbpeer, info, type,
                                     [text length], [text bytes], true);
-            [text release];
         }
+        [pool release];
         break;
     default:
         break;
