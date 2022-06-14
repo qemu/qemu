@@ -76,7 +76,7 @@
  *   the SUBNQN field in the controller will report the NQN of the subsystem
  *   device. This also enables multi controller capability represented in
  *   Identify Controller data structure in CMIC (Controller Multi-path I/O and
- *   Namesapce Sharing Capabilities).
+ *   Namespace Sharing Capabilities).
  *
  * - `aerl`
  *   The Asynchronous Event Request Limit (AERL). Indicates the maximum number
