@@ -768,4 +768,52 @@ static abi_long do_bsd_mknodat(void *cpu_env, abi_long arg1,
     return ret;
 }
 
+/* chown(2) */
+static abi_long do_bsd_chown(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chown(p, arg2, arg3)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchown(2) */
+static abi_long do_bsd_fchown(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    return get_errno(fchown(arg1, arg2, arg3));
+}
+
+/* lchown(2) */
+static abi_long do_bsd_lchown(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchown(p, arg2, arg3)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchownat(2) */
+static abi_long do_bsd_fchownat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(fchownat(arg1, p, arg3, arg4, arg5)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
