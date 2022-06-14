@@ -601,4 +601,78 @@ static abi_long do_bsd_nmount(abi_long arg1, abi_long count,
     return ret;
 }
 
+/* symlink(2) */
+static abi_long do_bsd_symlink(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg2);
+    ret = get_errno(symlink(p1, p2)); /* XXX path(p1), path(p2) */
+    UNLOCK_PATH2(p1, arg1, p2, arg2);
+
+    return ret;
+}
+
+/* symlinkat(2) */
+static abi_long do_bsd_symlinkat(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg3);
+    ret = get_errno(symlinkat(p1, arg2, p2)); /* XXX path(p1), path(p2) */
+    UNLOCK_PATH2(p1, arg1, p2, arg3);
+
+    return ret;
+}
+
+/* readlink(2) */
+static abi_long do_bsd_readlink(CPUArchState *env, abi_long arg1,
+        abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH(p1, arg1);
+    p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    if (p2 == NULL) {
+        UNLOCK_PATH(p1, arg1);
+        return -TARGET_EFAULT;
+    }
+    if (strcmp(p1, "/proc/curproc/file") == 0) {
+        CPUState *cpu = env_cpu(env);
+        TaskState *ts = (TaskState *)cpu->opaque;
+        strncpy(p2, ts->bprm->fullpath, arg3);
+        ret = MIN((abi_long)strlen(ts->bprm->fullpath), arg3);
+    } else {
+        ret = get_errno(readlink(path(p1), p2, arg3));
+    }
+    unlock_user(p2, arg2, ret);
+    UNLOCK_PATH(p1, arg1);
+
+    return ret;
+}
+
+/* readlinkat(2) */
+static abi_long do_bsd_readlinkat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH(p1, arg2);
+    p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+    if (p2 == NULL) {
+        UNLOCK_PATH(p1, arg2);
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(readlinkat(arg1, p1, p2, arg4));
+    unlock_user(p2, arg3, ret);
+    UNLOCK_PATH(p1, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
