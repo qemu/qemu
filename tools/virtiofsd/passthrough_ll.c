@@ -2319,7 +2319,7 @@ static int do_lo_create(fuse_req_t req, struct lo_inode *parent_inode,
          * If security.selinux has not been remapped and selinux is enabled,
          * use fscreate to set context before file creation. If not, use
          * tmpfile method for regular files. Otherwise fallback to
-         * non-atomic method of file creation and xattr settting.
+         * non-atomic method of file creation and xattr setting.
          */
         if (!mapped_name && lo->use_fscreate) {
             err = do_create_secctx_fscreate(req, parent_inode, name, mode, fi,

@@ -323,7 +323,7 @@ static void pcie_aer_msg_root_port(PCIDevice *dev, const PCIEAERMsg *msg)
          */
     }
 
-    /* Errro Message Received: Root Error Status register */
+    /* Error Message Received: Root Error Status register */
     switch (msg->severity) {
     case PCI_ERR_ROOT_CMD_COR_EN:
         if (root_status & PCI_ERR_ROOT_COR_RCV) {
