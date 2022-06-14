@@ -549,4 +549,56 @@ static abi_long do_bsd_sync(void)
     return 0;
 }
 
+/* mount(2) */
+static abi_long do_bsd_mount(abi_long arg1, abi_long arg2, abi_long arg3,
+        abi_long arg4)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg2);
+    /*
+     * XXX arg4 should be locked, but it isn't clear how to do that since it may
+     * be not be a NULL-terminated string.
+     */
+    if (arg4 == 0) {
+        ret = get_errno(mount(p1, p2, arg3, NULL)); /* XXX path(p2)? */
+    } else {
+        ret = get_errno(mount(p1, p2, arg3, g2h_untagged(arg4))); /* XXX path(p2)? */
+    }
+    UNLOCK_PATH2(p1, arg1, p2, arg2);
+
+    return ret;
+}
+
+/* unmount(2) */
+static abi_long do_bsd_unmount(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(unmount(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* nmount(2) */
+static abi_long do_bsd_nmount(abi_long arg1, abi_long count,
+        abi_long flags)
+{
+    abi_long ret;
+    struct iovec *vec = lock_iovec(VERIFY_READ, arg1, count, 1);
+
+    if (vec != NULL) {
+        ret = get_errno(nmount(vec, count, flags));
+        unlock_iovec(vec, arg1, count, 0);
+    } else {
+        return -TARGET_EFAULT;
+    }
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
