@@ -187,13 +187,15 @@
 # @queue-size: the size of virtqueue. Defaults to 256.
 # @logical-block-size: Logical block size in bytes. Range [512, PAGE_SIZE]
 #                      and must be power of 2. Defaults to 512 bytes.
+# @serial: the serial number of virtio block device. Defaults to empty string.
 #
 # Since: 7.1
 ##
 { 'struct': 'BlockExportOptionsVduseBlk',
   'data': { '*num-queues': 'uint16',
             '*queue-size': 'uint16',
-            '*logical-block-size': 'size'} }
+            '*logical-block-size': 'size',
+            '*serial': 'str' } }
 
 ##
 # @NbdServerAddOptions:

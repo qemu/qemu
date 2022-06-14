@@ -126,6 +126,7 @@ static void help(void)
 "           [,writable=on|off][,num-queues=<num-queues>]\n"
 "           [,queue-size=<queue-size>]\n"
 "           [,logical-block-size=<logical-block-size>]\n"
+"           [,serial=<serial-number>]\n"
 "                         export the specified block node as a vduse-blk\n"
 "                         device using the id as the VDUSE device name\n"
 "\n"

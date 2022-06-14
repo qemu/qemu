@@ -23,7 +23,7 @@
 
 typedef struct {
     BlockBackend *blk;
-    const char *serial;
+    char *serial;
     uint32_t logical_block_size;
     bool writable;
 } VirtioBlkHandler;

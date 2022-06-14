@@ -235,7 +235,7 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     Error *local_err = NULL;
     struct virtio_blk_config config = { 0 };
     uint64_t features;
-    int i;
+    int i, ret;
 
     if (vblk_opts->has_num_queues) {
         num_queues = vblk_opts->num_queues;
@@ -265,7 +265,8 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     }
     vblk_exp->num_queues = num_queues;
     vblk_exp->handler.blk = exp->blk;
-    vblk_exp->handler.serial = exp->id;
+    vblk_exp->handler.serial = g_strdup(vblk_opts->has_serial ?
+                                        vblk_opts->serial : "");
     vblk_exp->handler.logical_block_size = logical_block_size;
     vblk_exp->handler.writable = opts->writable;
 
@@ -306,16 +307,16 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
                                      vblk_exp);
     if (!vblk_exp->dev) {
         error_setg(errp, "failed to create vduse device");
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto err_dev;
     }
 
     vblk_exp->recon_file = g_strdup_printf("%s/vduse-blk-%s",
                                            g_get_tmp_dir(), exp->id);
     if (vduse_set_reconnect_log_file(vblk_exp->dev, vblk_exp->recon_file)) {
         error_setg(errp, "failed to set reconnect log file");
-        vduse_dev_destroy(vblk_exp->dev);
-        g_free(vblk_exp->recon_file);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto err;
     }
 
     for (i = 0; i < num_queues; i++) {
@@ -331,6 +332,12 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
     blk_set_dev_ops(exp->blk, &vduse_block_ops, exp);
 
     return 0;
+err:
+    vduse_dev_destroy(vblk_exp->dev);
+    g_free(vblk_exp->recon_file);
+err_dev:
+    g_free(vblk_exp->handler.serial);
+    return ret;
 }
 
 static void vduse_blk_exp_delete(BlockExport *exp)
@@ -346,6 +353,7 @@ static void vduse_blk_exp_delete(BlockExport *exp)
         unlink(vblk_exp->recon_file);
     }
     g_free(vblk_exp->recon_file);
+    g_free(vblk_exp->handler.serial);
 }
 
 static void vduse_blk_exp_request_shutdown(BlockExport *exp)
