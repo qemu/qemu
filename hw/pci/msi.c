@@ -134,7 +134,7 @@ void msi_set_message(PCIDevice *dev, MSIMessage msg)
     pci_set_word(dev->config + msi_data_off(dev, msi64bit), msg.data);
 }
 
-MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector)
+static MSIMessage msi_prepare_message(PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
@@ -157,6 +157,11 @@ MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector)
     }
 
     return msg;
+}
+
+MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector)
+{
+    return dev->msi_prepare_message(dev, vector);
 }
 
 bool msi_enabled(const PCIDevice *dev)
@@ -241,6 +246,8 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
                      0xffffffff >> (PCI_MSI_VECTORS_MAX - nr_vectors));
     }
 
+    dev->msi_prepare_message = msi_prepare_message;
+
     return 0;
 }
 
@@ -256,6 +263,7 @@ void msi_uninit(struct PCIDevice *dev)
     cap_size = msi_cap_sizeof(flags);
     pci_del_capability(dev, PCI_CAP_ID_MSI, cap_size);
     dev->cap_present &= ~QEMU_PCI_CAP_MSI;
+    dev->msi_prepare_message = NULL;
 
     MSI_DEV_PRINTF(dev, "uninit\n");
 }
@@ -307,6 +315,39 @@ bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
     return mask & (1U << vector);
 }
 
+void msi_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp)
+{
+    ERRP_GUARD();
+    uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
+    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
+    uint32_t irq_state, vector_mask, pending;
+
+    if (vector > PCI_MSI_VECTORS_MAX) {
+        error_setg(errp, "msi: vector %d not allocated. max vector is %d",
+                   vector, PCI_MSI_VECTORS_MAX);
+        return;
+    }
+
+    vector_mask = (1U << vector);
+
+    irq_state = pci_get_long(dev->config + msi_mask_off(dev, msi64bit));
+
+    if (mask) {
+        irq_state |= vector_mask;
+    } else {
+        irq_state &= ~vector_mask;
+    }
+
+    pci_set_long(dev->config + msi_mask_off(dev, msi64bit), irq_state);
+
+    pending = pci_get_long(dev->config + msi_pending_off(dev, msi64bit));
+    if (!mask && (pending & vector_mask)) {
+        pending &= ~vector_mask;
+        pci_set_long(dev->config + msi_pending_off(dev, msi64bit), pending);
+        msi_notify(dev, vector);
+    }
+}
+
 void msi_notify(PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
@@ -334,11 +375,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
 
 void msi_send_message(PCIDevice *dev, MSIMessage msg)
 {
-    MemTxAttrs attrs = {};
-
-    attrs.requester_id = pci_requester_id(dev);
-    address_space_stl_le(&dev->bus_master_as, msg.address, msg.data,
-                         attrs, NULL);
+    dev->msi_trigger(dev, msg);
 }
 
 /* Normally called by pci_default_write_config(). */
