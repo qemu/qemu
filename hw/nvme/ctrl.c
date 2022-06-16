@@ -264,6 +264,7 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_VIRT_MNGMT]       = NVME_CMD_EFF_CSUPP,
+    [NVME_ADM_CMD_DBBUF_CONFIG]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_FORMAT_NVM]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
 };
 
@@ -1330,6 +1331,12 @@ static inline void nvme_blk_write(BlockBackend *blk, int64_t offset,
     }
 }
 
+static void nvme_update_cq_head(NvmeCQueue *cq)
+{
+    pci_dma_read(&cq->ctrl->parent_obj, cq->db_addr, &cq->head,
+            sizeof(cq->head));
+}
+
 static void nvme_post_cqes(void *opaque)
 {
     NvmeCQueue *cq = opaque;
@@ -1341,6 +1348,10 @@ static void nvme_post_cqes(void *opaque)
     QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
         NvmeSQueue *sq;
         hwaddr addr;
+
+        if (n->dbbuf_enabled) {
+            nvme_update_cq_head(cq);
+        }
 
         if (nvme_cq_full(cq)) {
             break;
@@ -4287,6 +4298,11 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
     }
     sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
 
+    if (n->dbbuf_enabled) {
+        sq->db_addr = n->dbbuf_dbs + (sqid << 3);
+        sq->ei_addr = n->dbbuf_eis + (sqid << 3);
+    }
+
     assert(n->cq[cqid]);
     cq = n->cq[cqid];
     QTAILQ_INSERT_TAIL(&(cq->sq_list), sq, entry);
@@ -4645,6 +4661,10 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
     cq->head = cq->tail = 0;
     QTAILQ_INIT(&cq->req_list);
     QTAILQ_INIT(&cq->sq_list);
+    if (n->dbbuf_enabled) {
+        cq->db_addr = n->dbbuf_dbs + (cqid << 3) + (1 << 2);
+        cq->ei_addr = n->dbbuf_eis + (cqid << 3) + (1 << 2);
+    }
     n->cq[cqid] = cq;
     cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
 }
@@ -5988,6 +6008,50 @@ static uint16_t nvme_virt_mngmt(NvmeCtrl *n, NvmeRequest *req)
     }
 }
 
+static uint16_t nvme_dbbuf_config(NvmeCtrl *n, const NvmeRequest *req)
+{
+    uint64_t dbs_addr = le64_to_cpu(req->cmd.dptr.prp1);
+    uint64_t eis_addr = le64_to_cpu(req->cmd.dptr.prp2);
+    int i;
+
+    /* Address should be page aligned */
+    if (dbs_addr & (n->page_size - 1) || eis_addr & (n->page_size - 1)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    /* Save shadow buffer base addr for use during queue creation */
+    n->dbbuf_dbs = dbs_addr;
+    n->dbbuf_eis = eis_addr;
+    n->dbbuf_enabled = true;
+
+    for (i = 0; i < n->params.max_ioqpairs + 1; i++) {
+        NvmeSQueue *sq = n->sq[i];
+        NvmeCQueue *cq = n->cq[i];
+
+        if (sq) {
+            /*
+             * CAP.DSTRD is 0, so offset of ith sq db_addr is (i<<3)
+             * nvme_process_db() uses this hard-coded way to calculate
+             * doorbell offsets. Be consistent with that here.
+             */
+            sq->db_addr = dbs_addr + (i << 3);
+            sq->ei_addr = eis_addr + (i << 3);
+            pci_dma_write(&n->parent_obj, sq->db_addr, &sq->tail,
+                    sizeof(sq->tail));
+        }
+
+        if (cq) {
+            /* CAP.DSTRD is 0, so offset of ith cq db_addr is (i<<3)+(1<<2) */
+            cq->db_addr = dbs_addr + (i << 3) + (1 << 2);
+            cq->ei_addr = eis_addr + (i << 3) + (1 << 2);
+            pci_dma_write(&n->parent_obj, cq->db_addr, &cq->head,
+                    sizeof(cq->head));
+        }
+    }
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     trace_pci_nvme_admin_cmd(nvme_cid(req), nvme_sqid(req), req->cmd.opcode,
@@ -6032,6 +6096,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_ns_attachment(n, req);
     case NVME_ADM_CMD_VIRT_MNGMT:
         return nvme_virt_mngmt(n, req);
+    case NVME_ADM_CMD_DBBUF_CONFIG:
+        return nvme_dbbuf_config(n, req);
     case NVME_ADM_CMD_FORMAT_NVM:
         return nvme_format(n, req);
     default:
@@ -6039,6 +6105,18 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
     }
 
     return NVME_INVALID_OPCODE | NVME_DNR;
+}
+
+static void nvme_update_sq_eventidx(const NvmeSQueue *sq)
+{
+    pci_dma_write(&sq->ctrl->parent_obj, sq->ei_addr, &sq->tail,
+                  sizeof(sq->tail));
+}
+
+static void nvme_update_sq_tail(NvmeSQueue *sq)
+{
+    pci_dma_read(&sq->ctrl->parent_obj, sq->db_addr, &sq->tail,
+                 sizeof(sq->tail));
 }
 
 static void nvme_process_sq(void *opaque)
@@ -6051,6 +6129,10 @@ static void nvme_process_sq(void *opaque)
     hwaddr addr;
     NvmeCmd cmd;
     NvmeRequest *req;
+
+    if (n->dbbuf_enabled) {
+        nvme_update_sq_tail(sq);
+    }
 
     while (!(nvme_sq_empty(sq) || QTAILQ_EMPTY(&sq->req_list))) {
         addr = sq->dma_addr + sq->head * n->sqe_size;
@@ -6074,6 +6156,11 @@ static void nvme_process_sq(void *opaque)
         if (status != NVME_NO_COMPLETE) {
             req->status = status;
             nvme_enqueue_req_completion(cq, req);
+        }
+
+        if (n->dbbuf_enabled) {
+            nvme_update_sq_eventidx(sq);
+            nvme_update_sq_tail(sq);
         }
     }
 }
@@ -6184,6 +6271,10 @@ static void nvme_ctrl_reset(NvmeCtrl *n, NvmeResetType rst)
     stl_le_p(&n->bar.intms, 0);
     stl_le_p(&n->bar.intmc, 0);
     stl_le_p(&n->bar.cc, 0);
+
+    n->dbbuf_dbs = 0;
+    n->dbbuf_eis = 0;
+    n->dbbuf_enabled = false;
 }
 
 static void nvme_ctrl_shutdown(NvmeCtrl *n)
@@ -6694,6 +6785,10 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
 
         start_sqs = nvme_cq_full(cq) ? 1 : 0;
         cq->head = new_head;
+        if (!qid && n->dbbuf_enabled) {
+            pci_dma_write(&n->parent_obj, cq->db_addr, &cq->head,
+                          sizeof(cq->head));
+        }
         if (start_sqs) {
             NvmeSQueue *sq;
             QTAILQ_FOREACH(sq, &cq->sq_list, entry) {
@@ -6751,6 +6846,23 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
         trace_pci_nvme_mmio_doorbell_sq(sq->sqid, new_tail);
 
         sq->tail = new_tail;
+        if (!qid && n->dbbuf_enabled) {
+            /*
+             * The spec states "the host shall also update the controller's
+             * corresponding doorbell property to match the value of that entry
+             * in the Shadow Doorbell buffer."
+             *
+             * Since this context is currently a VM trap, we can safely enforce
+             * the requirement from the device side in case the host is
+             * misbehaving.
+             *
+             * Note, we shouldn't have to do this, but various drivers
+             * including ones that run on Linux, are not updating Admin Queues,
+             * so we can't trust reading it for an appropriate sq tail.
+             */
+            pci_dma_write(&n->parent_obj, sq->db_addr, &sq->tail,
+                          sizeof(sq->tail));
+        }
         timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
@@ -7231,7 +7343,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->mdts = n->params.mdts;
     id->ver = cpu_to_le32(NVME_SPEC_VER);
-    id->oacs = cpu_to_le16(NVME_OACS_NS_MGMT | NVME_OACS_FORMAT);
+    id->oacs =
+        cpu_to_le16(NVME_OACS_NS_MGMT | NVME_OACS_FORMAT | NVME_OACS_DBBUF);
     id->cntrltype = 0x1;
 
     /*
