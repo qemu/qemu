@@ -174,14 +174,8 @@
 #define CSR_MIREG           0x351
 
 /* Machine-Level Interrupts (AIA) */
-#define CSR_MTOPI           0xfb0
-
-/* Machine-Level IMSIC Interface (AIA) */
-#define CSR_MSETEIPNUM      0x358
-#define CSR_MCLREIPNUM      0x359
-#define CSR_MSETEIENUM      0x35a
-#define CSR_MCLREIENUM      0x35b
 #define CSR_MTOPEI          0x35c
+#define CSR_MTOPI           0xfb0
 
 /* Virtual Interrupts for Supervisor Level (AIA) */
 #define CSR_MVIEN           0x308
@@ -221,14 +215,8 @@
 #define CSR_SIREG           0x151
 
 /* Supervisor-Level Interrupts (AIA) */
-#define CSR_STOPI           0xdb0
-
-/* Supervisor-Level IMSIC Interface (AIA) */
-#define CSR_SSETEIPNUM      0x158
-#define CSR_SCLREIPNUM      0x159
-#define CSR_SSETEIENUM      0x15a
-#define CSR_SCLREIENUM      0x15b
 #define CSR_STOPEI          0x15c
+#define CSR_STOPI           0xdb0
 
 /* Supervisor-Level High-Half CSRs (AIA) */
 #define CSR_SIEH            0x114
@@ -279,14 +267,8 @@
 #define CSR_VSIREG          0x251
 
 /* VS-Level Interrupts (H-extension with AIA) */
-#define CSR_VSTOPI          0xeb0
-
-/* VS-Level IMSIC Interface (H-extension with AIA) */
-#define CSR_VSSETEIPNUM     0x258
-#define CSR_VSCLREIPNUM     0x259
-#define CSR_VSSETEIENUM     0x25a
-#define CSR_VSCLREIENUM     0x25b
 #define CSR_VSTOPEI         0x25c
+#define CSR_VSTOPI          0xeb0
 
 /* Hypervisor and VS-Level High-Half CSRs (H-extension with AIA) */
 #define CSR_HIDELEGH        0x613
