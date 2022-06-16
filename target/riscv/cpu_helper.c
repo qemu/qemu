@@ -168,17 +168,17 @@ void riscv_cpu_update_mask(CPURISCVState *env)
  * 14 "
  * 15 "
  * 16 "
- * 18 Debug/trace interrupt
- * 20 (Reserved interrupt)
+ * 17 "
+ * 18 "
+ * 19 "
+ * 20 "
+ * 21 "
  * 22 "
- * 24 "
- * 26 "
- * 28 "
- * 30 (Reserved for standard reporting of bus or system errors)
+ * 23 "
  */
 
 static const int hviprio_index2irq[] = {
-    0, 1, 4, 5, 8, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 30 };
+    0, 1, 4, 5, 8, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 };
 static const int hviprio_index2rdzero[] = {
     1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -207,50 +207,60 @@ int riscv_cpu_hviprio_index2irq(int index, int *out_irq, int *out_rdzero)
  *  Default  |
  *  Priority | Major Interrupt Numbers
  * ----------------------------------------------------------------
- *  Highest  | 63 (3f), 62 (3e), 31 (1f), 30 (1e), 61 (3d), 60 (3c),
- *           | 59 (3b), 58 (3a), 29 (1d), 28 (1c), 57 (39), 56 (38),
- *           | 55 (37), 54 (36), 27 (1b), 26 (1a), 53 (35), 52 (34),
- *           | 51 (33), 50 (32), 25 (19), 24 (18), 49 (31), 48 (30)
+ *  Highest  | 47, 23, 46, 45, 22, 44,
+ *           | 43, 21, 42, 41, 20, 40
  *           |
  *           | 11 (0b),  3 (03),  7 (07)
  *           |  9 (09),  1 (01),  5 (05)
  *           | 12 (0c)
  *           | 10 (0a),  2 (02),  6 (06)
  *           |
- *           | 47 (2f), 46 (2e), 23 (17), 22 (16), 45 (2d), 44 (2c),
- *           | 43 (2b), 42 (2a), 21 (15), 20 (14), 41 (29), 40 (28),
- *           | 39 (27), 38 (26), 19 (13), 18 (12), 37 (25), 36 (24),
- *  Lowest   | 35 (23), 34 (22), 17 (11), 16 (10), 33 (21), 32 (20)
+ *           | 39, 19, 38, 37, 18, 36,
+ *  Lowest   | 35, 17, 34, 33, 16, 32
  * ----------------------------------------------------------------
  */
 static const uint8_t default_iprio[64] = {
- [63] = IPRIO_DEFAULT_UPPER,
- [62] = IPRIO_DEFAULT_UPPER + 1,
- [31] = IPRIO_DEFAULT_UPPER + 2,
- [30] = IPRIO_DEFAULT_UPPER + 3,
- [61] = IPRIO_DEFAULT_UPPER + 4,
- [60] = IPRIO_DEFAULT_UPPER + 5,
+ /* Custom interrupts 48 to 63 */
+ [63] = IPRIO_MMAXIPRIO,
+ [62] = IPRIO_MMAXIPRIO,
+ [61] = IPRIO_MMAXIPRIO,
+ [60] = IPRIO_MMAXIPRIO,
+ [59] = IPRIO_MMAXIPRIO,
+ [58] = IPRIO_MMAXIPRIO,
+ [57] = IPRIO_MMAXIPRIO,
+ [56] = IPRIO_MMAXIPRIO,
+ [55] = IPRIO_MMAXIPRIO,
+ [54] = IPRIO_MMAXIPRIO,
+ [53] = IPRIO_MMAXIPRIO,
+ [52] = IPRIO_MMAXIPRIO,
+ [51] = IPRIO_MMAXIPRIO,
+ [50] = IPRIO_MMAXIPRIO,
+ [49] = IPRIO_MMAXIPRIO,
+ [48] = IPRIO_MMAXIPRIO,
 
- [59] = IPRIO_DEFAULT_UPPER + 6,
- [58] = IPRIO_DEFAULT_UPPER + 7,
- [29] = IPRIO_DEFAULT_UPPER + 8,
- [28] = IPRIO_DEFAULT_UPPER + 9,
- [57] = IPRIO_DEFAULT_UPPER + 10,
- [56] = IPRIO_DEFAULT_UPPER + 11,
+ /* Custom interrupts 24 to 31 */
+ [31] = IPRIO_MMAXIPRIO,
+ [30] = IPRIO_MMAXIPRIO,
+ [29] = IPRIO_MMAXIPRIO,
+ [28] = IPRIO_MMAXIPRIO,
+ [27] = IPRIO_MMAXIPRIO,
+ [26] = IPRIO_MMAXIPRIO,
+ [25] = IPRIO_MMAXIPRIO,
+ [24] = IPRIO_MMAXIPRIO,
 
- [55] = IPRIO_DEFAULT_UPPER + 12,
- [54] = IPRIO_DEFAULT_UPPER + 13,
- [27] = IPRIO_DEFAULT_UPPER + 14,
- [26] = IPRIO_DEFAULT_UPPER + 15,
- [53] = IPRIO_DEFAULT_UPPER + 16,
- [52] = IPRIO_DEFAULT_UPPER + 17,
+ [47] = IPRIO_DEFAULT_UPPER,
+ [23] = IPRIO_DEFAULT_UPPER + 1,
+ [46] = IPRIO_DEFAULT_UPPER + 2,
+ [45] = IPRIO_DEFAULT_UPPER + 3,
+ [22] = IPRIO_DEFAULT_UPPER + 4,
+ [44] = IPRIO_DEFAULT_UPPER + 5,
 
- [51] = IPRIO_DEFAULT_UPPER + 18,
- [50] = IPRIO_DEFAULT_UPPER + 19,
- [25] = IPRIO_DEFAULT_UPPER + 20,
- [24] = IPRIO_DEFAULT_UPPER + 21,
- [49] = IPRIO_DEFAULT_UPPER + 22,
- [48] = IPRIO_DEFAULT_UPPER + 23,
+ [43] = IPRIO_DEFAULT_UPPER + 6,
+ [21] = IPRIO_DEFAULT_UPPER + 7,
+ [42] = IPRIO_DEFAULT_UPPER + 8,
+ [41] = IPRIO_DEFAULT_UPPER + 9,
+ [20] = IPRIO_DEFAULT_UPPER + 10,
+ [40] = IPRIO_DEFAULT_UPPER + 11,
 
  [11] = IPRIO_DEFAULT_M,
  [3]  = IPRIO_DEFAULT_M + 1,
@@ -266,33 +276,19 @@ static const uint8_t default_iprio[64] = {
  [2]  = IPRIO_DEFAULT_VS + 1,
  [6]  = IPRIO_DEFAULT_VS + 2,
 
- [47] = IPRIO_DEFAULT_LOWER,
- [46] = IPRIO_DEFAULT_LOWER + 1,
- [23] = IPRIO_DEFAULT_LOWER + 2,
- [22] = IPRIO_DEFAULT_LOWER + 3,
- [45] = IPRIO_DEFAULT_LOWER + 4,
- [44] = IPRIO_DEFAULT_LOWER + 5,
+ [39] = IPRIO_DEFAULT_LOWER,
+ [19] = IPRIO_DEFAULT_LOWER + 1,
+ [38] = IPRIO_DEFAULT_LOWER + 2,
+ [37] = IPRIO_DEFAULT_LOWER + 3,
+ [18] = IPRIO_DEFAULT_LOWER + 4,
+ [36] = IPRIO_DEFAULT_LOWER + 5,
 
- [43] = IPRIO_DEFAULT_LOWER + 6,
- [42] = IPRIO_DEFAULT_LOWER + 7,
- [21] = IPRIO_DEFAULT_LOWER + 8,
- [20] = IPRIO_DEFAULT_LOWER + 9,
- [41] = IPRIO_DEFAULT_LOWER + 10,
- [40] = IPRIO_DEFAULT_LOWER + 11,
-
- [39] = IPRIO_DEFAULT_LOWER + 12,
- [38] = IPRIO_DEFAULT_LOWER + 13,
- [19] = IPRIO_DEFAULT_LOWER + 14,
- [18] = IPRIO_DEFAULT_LOWER + 15,
- [37] = IPRIO_DEFAULT_LOWER + 16,
- [36] = IPRIO_DEFAULT_LOWER + 17,
-
- [35] = IPRIO_DEFAULT_LOWER + 18,
- [34] = IPRIO_DEFAULT_LOWER + 19,
- [17] = IPRIO_DEFAULT_LOWER + 20,
- [16] = IPRIO_DEFAULT_LOWER + 21,
- [33] = IPRIO_DEFAULT_LOWER + 22,
- [32] = IPRIO_DEFAULT_LOWER + 23,
+ [35] = IPRIO_DEFAULT_LOWER + 6,
+ [17] = IPRIO_DEFAULT_LOWER + 7,
+ [34] = IPRIO_DEFAULT_LOWER + 8,
+ [33] = IPRIO_DEFAULT_LOWER + 9,
+ [16] = IPRIO_DEFAULT_LOWER + 10,
+ [32] = IPRIO_DEFAULT_LOWER + 11,
 };
 
 uint8_t riscv_cpu_default_priority(int irq)

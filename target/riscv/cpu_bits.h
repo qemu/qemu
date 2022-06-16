@@ -774,7 +774,7 @@ typedef enum RISCVException {
 #define IPRIO_IRQ_BITS                     8
 #define IPRIO_MMAXIPRIO                    255
 #define IPRIO_DEFAULT_UPPER                4
-#define IPRIO_DEFAULT_MIDDLE               (IPRIO_DEFAULT_UPPER + 24)
+#define IPRIO_DEFAULT_MIDDLE               (IPRIO_DEFAULT_UPPER + 12)
 #define IPRIO_DEFAULT_M                    IPRIO_DEFAULT_MIDDLE
 #define IPRIO_DEFAULT_S                    (IPRIO_DEFAULT_M + 3)
 #define IPRIO_DEFAULT_SGEXT                (IPRIO_DEFAULT_S + 3)
