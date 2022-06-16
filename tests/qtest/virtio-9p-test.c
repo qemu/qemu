@@ -371,7 +371,14 @@ static P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
     return req;
 }
 
+/* type[1] version[4] path[8] */
 typedef char v9fs_qid[13];
+
+static inline bool is_same_qid(v9fs_qid a, v9fs_qid b)
+{
+    /* don't compare QID version for checking for file ID equalness */
+    return a[0] == b[0] && memcmp(&a[5], &b[5], 8) == 0;
+}
 
 /* size[4] Rattach tag[2] qid[13] */
 static void v9fs_rattach(P9Req *req, v9fs_qid *qid)
@@ -422,6 +429,79 @@ static void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
         *wqid = g_malloc(local_nwqid * 13);
         v9fs_memread(req, *wqid, local_nwqid * 13);
     }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tgetattr tag[2] fid[4] request_mask[8] */
+static P9Req *v9fs_tgetattr(QVirtio9P *v9p, uint32_t fid, uint64_t request_mask,
+                            uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p, 4 + 8, P9_TGETATTR, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, request_mask);
+    v9fs_req_send(req);
+    return req;
+}
+
+typedef struct v9fs_attr {
+    uint64_t valid;
+    v9fs_qid qid;
+    uint32_t mode;
+    uint32_t uid;
+    uint32_t gid;
+    uint64_t nlink;
+    uint64_t rdev;
+    uint64_t size;
+    uint64_t blksize;
+    uint64_t blocks;
+    uint64_t atime_sec;
+    uint64_t atime_nsec;
+    uint64_t mtime_sec;
+    uint64_t mtime_nsec;
+    uint64_t ctime_sec;
+    uint64_t ctime_nsec;
+    uint64_t btime_sec;
+    uint64_t btime_nsec;
+    uint64_t gen;
+    uint64_t data_version;
+} v9fs_attr;
+
+#define P9_GETATTR_BASIC    0x000007ffULL /* Mask for fields up to BLOCKS */
+
+/*
+ * size[4] Rgetattr tag[2] valid[8] qid[13] mode[4] uid[4] gid[4] nlink[8]
+ *                  rdev[8] size[8] blksize[8] blocks[8]
+ *                  atime_sec[8] atime_nsec[8] mtime_sec[8] mtime_nsec[8]
+ *                  ctime_sec[8] ctime_nsec[8] btime_sec[8] btime_nsec[8]
+ *                  gen[8] data_version[8]
+ */
+static void v9fs_rgetattr(P9Req *req, v9fs_attr *attr)
+{
+    v9fs_req_recv(req, P9_RGETATTR);
+
+    v9fs_uint64_read(req, &attr->valid);
+    v9fs_memread(req, &attr->qid, 13);
+    v9fs_uint32_read(req, &attr->mode);
+    v9fs_uint32_read(req, &attr->uid);
+    v9fs_uint32_read(req, &attr->gid);
+    v9fs_uint64_read(req, &attr->nlink);
+    v9fs_uint64_read(req, &attr->rdev);
+    v9fs_uint64_read(req, &attr->size);
+    v9fs_uint64_read(req, &attr->blksize);
+    v9fs_uint64_read(req, &attr->blocks);
+    v9fs_uint64_read(req, &attr->atime_sec);
+    v9fs_uint64_read(req, &attr->atime_nsec);
+    v9fs_uint64_read(req, &attr->mtime_sec);
+    v9fs_uint64_read(req, &attr->mtime_nsec);
+    v9fs_uint64_read(req, &attr->ctime_sec);
+    v9fs_uint64_read(req, &attr->ctime_nsec);
+    v9fs_uint64_read(req, &attr->btime_sec);
+    v9fs_uint64_read(req, &attr->btime_nsec);
+    v9fs_uint64_read(req, &attr->gen);
+    v9fs_uint64_read(req, &attr->data_version);
+
     v9fs_req_free(req);
 }
 
@@ -589,8 +669,12 @@ static void do_version(QVirtio9P *v9p)
     g_assert_cmpmem(server_version, server_len, version, strlen(version));
 }
 
-/* utility function: walk to requested dir and return fid for that dir */
-static uint32_t do_walk(QVirtio9P *v9p, const char *path)
+/*
+ * utility function: walk to requested dir and return fid for that dir and
+ * the QIDs of server response
+ */
+static uint32_t do_walk_rqids(QVirtio9P *v9p, const char *path, uint16_t *nwqid,
+                              v9fs_qid **wqid)
 {
     char **wnames;
     P9Req *req;
@@ -600,10 +684,35 @@ static uint32_t do_walk(QVirtio9P *v9p, const char *path)
 
     req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rwalk(req, NULL, NULL);
+    v9fs_rwalk(req, nwqid, wqid);
 
     split_free(&wnames);
     return fid;
+}
+
+/* utility function: walk to requested dir and return fid for that dir */
+static uint32_t do_walk(QVirtio9P *v9p, const char *path)
+{
+    return do_walk_rqids(v9p, path, NULL, NULL);
+}
+
+/* utility function: walk to requested dir and expect passed error response */
+static void do_walk_expect_error(QVirtio9P *v9p, const char *path, uint32_t err)
+{
+    char **wnames;
+    P9Req *req;
+    uint32_t _err;
+    const uint32_t fid = genfid();
+
+    int nwnames = split(path, "/", &wnames);
+
+    req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlerror(req, &_err);
+
+    g_assert_cmpint(_err, ==, err);
+
+    split_free(&wnames);
 }
 
 static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -612,14 +721,19 @@ static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
     do_version(obj);
 }
 
-static void do_attach(QVirtio9P *v9p)
+static void do_attach_rqid(QVirtio9P *v9p, v9fs_qid *qid)
 {
     P9Req *req;
 
     do_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rattach(req, NULL);
+    v9fs_rattach(req, qid);
+}
+
+static void do_attach(QVirtio9P *v9p)
+{
+    do_attach_rqid(v9p, NULL);
 }
 
 static void fs_attach(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -972,6 +1086,80 @@ static void fs_walk_no_slash(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert_cmpint(err, ==, ENOENT);
 
     g_free(wnames[0]);
+}
+
+static void fs_walk_nonexistent(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+
+    do_attach(v9p);
+    /*
+     * The 9p2000 protocol spec says: "If the first element cannot be walked
+     * for any reason, Rerror is returned."
+     */
+    do_walk_expect_error(v9p, "non-existent", ENOENT);
+}
+
+static void fs_walk_2nd_nonexistent(void *obj, void *data,
+                                    QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    v9fs_qid root_qid;
+    uint16_t nwqid;
+    uint32_t fid, err;
+    P9Req *req;
+    g_autofree v9fs_qid *wqid = NULL;
+    g_autofree char *path = g_strdup_printf(
+        QTEST_V9FS_SYNTH_WALK_FILE "/non-existent", 0
+    );
+
+    do_attach_rqid(v9p, &root_qid);
+    fid = do_walk_rqids(v9p, path, &nwqid, &wqid);
+    /*
+     * The 9p2000 protocol spec says: "nwqid is therefore either nwname or the
+     * index of the first elementwise walk that failed."
+     */
+    assert(nwqid == 1);
+
+    /* returned QID wqid[0] is file ID of 1st subdir */
+    g_assert(wqid && wqid[0] && !is_same_qid(root_qid, wqid[0]));
+
+    /* expect fid being unaffected by walk above */
+    req = v9fs_tgetattr(v9p, fid, P9_GETATTR_BASIC, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlerror(req, &err);
+
+    g_assert_cmpint(err, ==, ENOENT);
+}
+
+static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    v9fs_qid root_qid;
+    g_autofree v9fs_qid *wqid = NULL;
+    P9Req *req;
+    struct v9fs_attr attr;
+
+    do_version(v9p);
+    req = v9fs_tattach(v9p, 0, getuid(), 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rattach(req, &root_qid);
+
+    req = v9fs_twalk(v9p, 0, 1, 0, NULL, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rwalk(req, NULL, &wqid);
+
+    /* special case: no QID is returned if nwname=0 was sent */
+    g_assert(wqid == NULL);
+
+    req = v9fs_tgetattr(v9p, 1, P9_GETATTR_BASIC, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rgetattr(req, &attr);
+
+    g_assert(is_same_qid(root_qid, attr.qid));
 }
 
 static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -1407,8 +1595,13 @@ static void register_virtio_9p_test(void)
     qos_add_test("synth/walk/basic", "virtio-9p", fs_walk,  &opts);
     qos_add_test("synth/walk/no_slash", "virtio-9p", fs_walk_no_slash,
                   &opts);
+    qos_add_test("synth/walk/none", "virtio-9p", fs_walk_none, &opts);
     qos_add_test("synth/walk/dotdot_from_root", "virtio-9p",
                  fs_walk_dotdot,  &opts);
+    qos_add_test("synth/walk/non_existent", "virtio-9p", fs_walk_nonexistent,
+                  &opts);
+    qos_add_test("synth/walk/2nd_non_existent", "virtio-9p",
+                 fs_walk_2nd_nonexistent, &opts);
     qos_add_test("synth/lopen/basic", "virtio-9p", fs_lopen,  &opts);
     qos_add_test("synth/write/basic", "virtio-9p", fs_write,  &opts);
     qos_add_test("synth/flush/success", "virtio-9p", fs_flush_success,
