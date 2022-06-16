@@ -186,16 +186,14 @@ include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
 
-ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
-ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))
-# Only keep -O and -g cflags
-.PHONY: $(ROM_DIRS_RULES)
-$(ROM_DIRS_RULES):
+ROMS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROMS)))
+.PHONY: $(ROMS_RULES)
+$(ROMS_RULES):
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" $(notdir $@),)
 
 .PHONY: recurse-all recurse-clean
-recurse-all: $(addsuffix /all, $(ROM_DIRS))
-recurse-clean: $(addsuffix /clean, $(ROM_DIRS))
+recurse-all: $(addsuffix /all, $(ROMS))
+recurse-clean: $(addsuffix /clean, $(ROMS))
 
 ######################################################################
 

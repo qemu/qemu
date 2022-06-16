@@ -1945,7 +1945,6 @@ static void virtio_pci_reset(DeviceState *qdev)
     PCIDevice *dev = PCI_DEVICE(qdev);
     int i;
 
-    virtio_pci_stop_ioeventfd(proxy);
     virtio_bus_reset(bus);
     msix_unuse_all_vectors(&proxy->pci_dev);
 

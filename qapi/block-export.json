@@ -65,7 +65,8 @@
   'data': { 'addr': 'SocketAddressLegacy',
             '*tls-creds': 'str',
             '*tls-authz': 'str',
-            '*max-connections': 'uint32' } }
+            '*max-connections': 'uint32' },
+  'allow-preconfig': true }
 
 ##
 # @BlockExportOptionsNbdBase:
@@ -215,7 +216,8 @@
 # Since: 1.3
 ##
 { 'command': 'nbd-server-add',
-  'data': 'NbdServerAddOptions', 'boxed': true, 'features': ['deprecated'] }
+  'data': 'NbdServerAddOptions', 'boxed': true, 'features': ['deprecated'],
+  'allow-preconfig': true }
 
 ##
 # @BlockExportRemoveMode:
@@ -260,7 +262,8 @@
 ##
 { 'command': 'nbd-server-remove',
   'data': {'name': 'str', '*mode': 'BlockExportRemoveMode'},
-  'features': ['deprecated'] }
+  'features': ['deprecated'],
+  'allow-preconfig': true }
 
 ##
 # @nbd-server-stop:
@@ -270,7 +273,8 @@
 #
 # Since: 1.3
 ##
-{ 'command': 'nbd-server-stop' }
+{ 'command': 'nbd-server-stop',
+  'allow-preconfig': true }
 
 ##
 # @BlockExportType:
@@ -342,7 +346,8 @@
 # Since: 5.2
 ##
 { 'command': 'block-export-add',
-  'data': 'BlockExportOptions', 'boxed': true }
+  'data': 'BlockExportOptions', 'boxed': true,
+  'allow-preconfig': true }
 
 ##
 # @block-export-del:
@@ -362,7 +367,8 @@
 # Since: 5.2
 ##
 { 'command': 'block-export-del',
-  'data': { 'id': 'str', '*mode': 'BlockExportRemoveMode' } }
+  'data': { 'id': 'str', '*mode': 'BlockExportRemoveMode' },
+  'allow-preconfig': true }
 
 ##
 # @BLOCK_EXPORT_DELETED:
@@ -406,4 +412,5 @@
 #
 # Since: 5.2
 ##
-{ 'command': 'query-block-exports', 'returns': ['BlockExportInfo'] }
+{ 'command': 'query-block-exports', 'returns': ['BlockExportInfo'],
+  'allow-preconfig': true }

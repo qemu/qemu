@@ -1,8 +1,17 @@
 # Makefile for VM tests
 
-.PHONY: vm-build-all vm-clean-all
+# Hack to allow running in an unconfigured build tree
+ifeq ($(wildcard $(SRC_PATH)/config-host.mak),)
+VM_PYTHON = PYTHONPATH=$(SRC_PATH)/python /usr/bin/env python3
+VM_VENV =
+HOST_ARCH := $(shell uname -m)
+else
+VM_PYTHON = $(TESTS_PYTHON)
+VM_VENV = check-venv
+HOST_ARCH = $(ARCH)
+endif
 
-HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
+.PHONY: vm-build-all vm-clean-all
 
 EFI_AARCH64 = $(wildcard $(BUILD_DIR)/pc-bios/edk2-aarch64-code.fd)
 
@@ -85,10 +94,10 @@ vm-clean-all:
 $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 			$(SRC_PATH)/tests/vm/basevm.py \
 			$(SRC_PATH)/tests/vm/Makefile.include \
-			check-venv
+			$(VM_VENV)
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
-		$(TESTS_PYTHON) $< \
+		$(VM_PYTHON) $< \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(GENISOIMAGE),--genisoimage $(GENISOIMAGE)) \
 		$(if $(QEMU_LOCAL),--build-path $(BUILD_DIR)) \
@@ -100,11 +109,10 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 		--build-image $@, \
 		"  VM-IMAGE $*")
 
-
 # Build in VM $(IMAGE)
-vm-build-%: $(IMAGES_DIR)/%.img check-venv
+vm-build-%: $(IMAGES_DIR)/%.img $(VM_VENV)
 	$(call quiet-command, \
-		$(TESTS_PYTHON) $(SRC_PATH)/tests/vm/$* \
+		$(VM_PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \
@@ -128,9 +136,9 @@ vm-boot-serial-%: $(IMAGES_DIR)/%.img
 		-device virtio-net-pci,netdev=vnet \
 	|| true
 
-vm-boot-ssh-%: $(IMAGES_DIR)/%.img check-venv
+vm-boot-ssh-%: $(IMAGES_DIR)/%.img $(VM_VENV)
 	$(call quiet-command, \
-		$(TESTS_PYTHON) $(SRC_PATH)/tests/vm/$* \
+		$(VM_PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(J),--jobs $(J)) \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(QEMU_LOCAL),--build-path $(BUILD_DIR)) \

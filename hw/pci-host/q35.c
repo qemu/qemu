@@ -379,7 +379,8 @@ static void mch_update_smram(MCHPCIState *mch)
         memory_region_set_enabled(&mch->high_smram, false);
     }
 
-    if (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_T_EN) {
+    if ((pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_T_EN) &&
+        (pd->config[MCH_HOST_BRIDGE_SMRAM] & SMRAM_G_SMRAME)) {
         switch (pd->config[MCH_HOST_BRIDGE_ESMRAMC] &
                 MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK) {
         case MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_1MB:

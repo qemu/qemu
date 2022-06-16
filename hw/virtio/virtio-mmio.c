@@ -72,12 +72,12 @@ static void virtio_mmio_soft_reset(VirtIOMMIOProxy *proxy)
 {
     int i;
 
-    if (proxy->legacy) {
-        return;
-    }
+    virtio_bus_reset(&proxy->bus);
 
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        proxy->vqs[i].enabled = 0;
+    if (!proxy->legacy) {
+        for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+            proxy->vqs[i].enabled = 0;
+        }
     }
 }
 
@@ -376,7 +376,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
             return;
         }
         if (value == 0) {
-            virtio_reset(vdev);
+            virtio_mmio_soft_reset(proxy);
         } else {
             virtio_queue_set_addr(vdev, vdev->queue_sel,
                                   value << proxy->guest_page_shift);
@@ -432,7 +432,6 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
         }
 
         if (vdev->status == 0) {
-            virtio_reset(vdev);
             virtio_mmio_soft_reset(proxy);
         }
         break;
@@ -627,8 +626,8 @@ static void virtio_mmio_reset(DeviceState *d)
     VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
     int i;
 
-    virtio_mmio_stop_ioeventfd(proxy);
-    virtio_bus_reset(&proxy->bus);
+    virtio_mmio_soft_reset(proxy);
+
     proxy->host_features_sel = 0;
     proxy->guest_features_sel = 0;
     proxy->guest_page_shift = 0;
@@ -637,7 +636,6 @@ static void virtio_mmio_reset(DeviceState *d)
         proxy->guest_features[0] = proxy->guest_features[1] = 0;
 
         for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-            proxy->vqs[i].enabled = 0;
             proxy->vqs[i].num = 0;
             proxy->vqs[i].desc[0] = proxy->vqs[i].desc[1] = 0;
             proxy->vqs[i].avail[0] = proxy->vqs[i].avail[1] = 0;

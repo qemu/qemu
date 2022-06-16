@@ -209,9 +209,13 @@ if get_option('fuzzing')
   configure_file(output: 'instrumentation-filter',
                  input: 'scripts/oss-fuzz/instrumentation-filter-template',
                  copy: true)
-  add_global_arguments(
-      cc.get_supported_arguments('-fsanitize-coverage-allowlist=instrumentation-filter'),
-      native: false, language: ['c', 'cpp', 'objc'])
+
+  if cc.compiles('int main () { return 0; }',
+                  name: '-fsanitize-coverage-allowlist=/dev/null',
+                 args: ['-fsanitize-coverage-allowlist=/dev/null'] )
+    add_global_arguments('-fsanitize-coverage-allowlist=instrumentation-filter',
+                         native: false, language: ['c', 'cpp', 'objc'])
+  endif
 
   if get_option('fuzzing_engine') == ''
     # Add CFLAGS to tell clang to add fuzzer-related instrumentation to all the
@@ -3767,21 +3771,24 @@ endif
 summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'sparse':            sparse}
 summary_info += {'mingw32 support':   targetos == 'windows'}
+summary(summary_info, bool_yn: true, section: 'Compilation')
 
 # snarf the cross-compilation information for tests
+summary_info = {}
+have_cross = false
 foreach target: target_dirs
   tcg_mak = meson.current_build_dir() / 'tests/tcg' / 'config-' + target + '.mak'
   if fs.exists(tcg_mak)
     config_cross_tcg = keyval.load(tcg_mak)
-    target = config_cross_tcg['TARGET_NAME']
-    compiler = ''
     if 'CC' in config_cross_tcg
-      summary_info += {target + ' tests': config_cross_tcg['CC']}
+      summary_info += {config_cross_tcg['TARGET_NAME']: config_cross_tcg['CC']}
+      have_cross = true
     endif
-   endif
+  endif
 endforeach
-
-summary(summary_info, bool_yn: true, section: 'Compilation')
+if have_cross
+  summary(summary_info, bool_yn: true, section: 'Cross compilers')
+endif
 
 # Targets and accelerators
 summary_info = {}
