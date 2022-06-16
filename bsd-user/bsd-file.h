@@ -894,4 +894,36 @@ static abi_long do_bsd_mkfifoat(abi_long arg1, abi_long arg2,
     return ret;
 }
 
+/* pathconf(2) */
+static abi_long do_bsd_pathconf(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(pathconf(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* lpathconf(2) */
+static abi_long do_bsd_lpathconf(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lpathconf(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fpathconf(2) */
+static abi_long do_bsd_fpathconf(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fpathconf(arg1, arg2));
+}
+
 #endif /* BSD_FILE_H */
