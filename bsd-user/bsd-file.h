@@ -867,4 +867,31 @@ static abi_long do_bsd_flock(abi_long arg1, abi_long arg2)
     return get_errno(flock(arg1, arg2));
 }
 
+/* mkfifo(2) */
+static abi_long do_bsd_mkfifo(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(mkfifo(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* mkfifoat(2) */
+static abi_long do_bsd_mkfifoat(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(mkfifoat(arg1, p, arg3));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
