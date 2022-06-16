@@ -72,9 +72,9 @@ void cryptodev_backend_cleanup(
     }
 }
 
-int64_t cryptodev_backend_sym_create_session(
+int64_t cryptodev_backend_create_session(
            CryptoDevBackend *backend,
-           CryptoDevBackendSymSessionInfo *sess_info,
+           CryptoDevBackendSessionInfo *sess_info,
            uint32_t queue_index, Error **errp)
 {
     CryptoDevBackendClass *bc =
@@ -87,7 +87,7 @@ int64_t cryptodev_backend_sym_create_session(
     return -1;
 }
 
-int cryptodev_backend_sym_close_session(
+int cryptodev_backend_close_session(
            CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
@@ -102,16 +102,16 @@ int cryptodev_backend_sym_close_session(
     return -1;
 }
 
-static int cryptodev_backend_sym_operation(
+static int cryptodev_backend_operation(
                  CryptoDevBackend *backend,
-                 CryptoDevBackendSymOpInfo *op_info,
+                 CryptoDevBackendOpInfo *op_info,
                  uint32_t queue_index, Error **errp)
 {
     CryptoDevBackendClass *bc =
                       CRYPTODEV_BACKEND_GET_CLASS(backend);
 
-    if (bc->do_sym_op) {
-        return bc->do_sym_op(backend, op_info, queue_index, errp);
+    if (bc->do_op) {
+        return bc->do_op(backend, op_info, queue_index, errp);
     }
 
     return -VIRTIO_CRYPTO_ERR;
@@ -123,20 +123,18 @@ int cryptodev_backend_crypto_operation(
                  uint32_t queue_index, Error **errp)
 {
     VirtIOCryptoReq *req = opaque;
+    CryptoDevBackendOpInfo *op_info = &req->op_info;
+    enum CryptoDevBackendAlgType algtype = req->flags;
 
-    if (req->flags == CRYPTODEV_BACKEND_ALG_SYM) {
-        CryptoDevBackendSymOpInfo *op_info;
-        op_info = req->u.sym_op_info;
-
-        return cryptodev_backend_sym_operation(backend,
-                         op_info, queue_index, errp);
-    } else {
+    if ((algtype != CRYPTODEV_BACKEND_ALG_SYM)
+        && (algtype != CRYPTODEV_BACKEND_ALG_ASYM)) {
         error_setg(errp, "Unsupported cryptodev alg type: %" PRIu32 "",
-                   req->flags);
-       return -VIRTIO_CRYPTO_NOTSUPP;
+                   algtype);
+
+        return -VIRTIO_CRYPTO_NOTSUPP;
     }
 
-    return -VIRTIO_CRYPTO_ERR;
+    return cryptodev_backend_operation(backend, op_info, queue_index, errp);
 }
 
 static void

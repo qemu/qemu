@@ -259,7 +259,33 @@ static int64_t cryptodev_vhost_user_sym_create_session(
     return -1;
 }
 
-static int cryptodev_vhost_user_sym_close_session(
+static int64_t cryptodev_vhost_user_create_session(
+           CryptoDevBackend *backend,
+           CryptoDevBackendSessionInfo *sess_info,
+           uint32_t queue_index, Error **errp)
+{
+    uint32_t op_code = sess_info->op_code;
+    CryptoDevBackendSymSessionInfo *sym_sess_info;
+
+    switch (op_code) {
+    case VIRTIO_CRYPTO_CIPHER_CREATE_SESSION:
+    case VIRTIO_CRYPTO_HASH_CREATE_SESSION:
+    case VIRTIO_CRYPTO_MAC_CREATE_SESSION:
+    case VIRTIO_CRYPTO_AEAD_CREATE_SESSION:
+        sym_sess_info = &sess_info->u.sym_sess_info;
+        return cryptodev_vhost_user_sym_create_session(backend, sym_sess_info,
+                   queue_index, errp);
+    default:
+        error_setg(errp, "Unsupported opcode :%" PRIu32 "",
+                   sess_info->op_code);
+        return -1;
+
+    }
+
+    return -1;
+}
+
+static int cryptodev_vhost_user_close_session(
            CryptoDevBackend *backend,
            uint64_t session_id,
            uint32_t queue_index, Error **errp)
@@ -351,9 +377,9 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, void *data)
 
     bc->init = cryptodev_vhost_user_init;
     bc->cleanup = cryptodev_vhost_user_cleanup;
-    bc->create_session = cryptodev_vhost_user_sym_create_session;
-    bc->close_session = cryptodev_vhost_user_sym_close_session;
-    bc->do_sym_op = NULL;
+    bc->create_session = cryptodev_vhost_user_create_session;
+    bc->close_session = cryptodev_vhost_user_close_session;
+    bc->do_op = NULL;
 
     object_class_property_add_str(oc, "chardev",
                                   cryptodev_vhost_user_get_chardev,
