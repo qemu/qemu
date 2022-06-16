@@ -1335,6 +1335,7 @@ static void nvme_update_cq_head(NvmeCQueue *cq)
 {
     pci_dma_read(&cq->ctrl->parent_obj, cq->db_addr, &cq->head,
             sizeof(cq->head));
+    trace_pci_nvme_shadow_doorbell_cq(cq->cqid, cq->head);
 }
 
 static void nvme_post_cqes(void *opaque)
@@ -6049,6 +6050,8 @@ static uint16_t nvme_dbbuf_config(NvmeCtrl *n, const NvmeRequest *req)
         }
     }
 
+    trace_pci_nvme_dbbuf_config(dbs_addr, eis_addr);
+
     return NVME_SUCCESS;
 }
 
@@ -6111,12 +6114,14 @@ static void nvme_update_sq_eventidx(const NvmeSQueue *sq)
 {
     pci_dma_write(&sq->ctrl->parent_obj, sq->ei_addr, &sq->tail,
                   sizeof(sq->tail));
+    trace_pci_nvme_eventidx_sq(sq->sqid, sq->tail);
 }
 
 static void nvme_update_sq_tail(NvmeSQueue *sq)
 {
     pci_dma_read(&sq->ctrl->parent_obj, sq->db_addr, &sq->tail,
                  sizeof(sq->tail));
+    trace_pci_nvme_shadow_doorbell_sq(sq->sqid, sq->tail);
 }
 
 static void nvme_process_sq(void *opaque)
