@@ -926,4 +926,17 @@ static abi_long do_bsd_fpathconf(abi_long arg1, abi_long arg2)
     return get_errno(fpathconf(arg1, arg2));
 }
 
+/* undelete(2) */
+static abi_long do_bsd_undelete(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(undelete(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
 #endif /* BSD_FILE_H */
