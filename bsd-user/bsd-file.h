@@ -848,4 +848,23 @@ static abi_long do_bsd_fchflags(abi_long arg1, abi_long arg2)
     return get_errno(fchflags(arg1, arg2));
 }
 
+/* chroot(2) */
+static abi_long do_bsd_chroot(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chroot(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* flock(2) */
+static abi_long do_bsd_flock(abi_long arg1, abi_long arg2)
+{
+    return get_errno(flock(arg1, arg2));
+}
+
 #endif /* BSD_FILE_H */
