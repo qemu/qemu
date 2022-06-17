@@ -1840,7 +1840,6 @@ R: Ani Sinha <ani@anisinha.ca>
 S: Supported
 F: include/hw/acpi/*
 F: include/hw/firmware/smbios.h
-F: hw/mem/*
 F: hw/acpi/*
 F: hw/smbios/*
 F: hw/i386/acpi-build.[hc]
@@ -1851,6 +1850,7 @@ F: tests/qtest/acpi-utils.[hc]
 F: tests/data/acpi/
 F: docs/specs/acpi_cpu_hotplug.rst
 F: docs/specs/acpi_mem_hotplug.rst
+F: docs/specs/acpi_nvdimm.rst
 F: docs/specs/acpi_pci_hotplug.rst
 F: docs/specs/acpi_hw_reduced_hotplug.rst
 
@@ -2157,15 +2157,6 @@ F: hw/net/rocker/
 F: qapi/rocker.json
 F: tests/rocker/
 F: docs/specs/rocker.txt
-
-NVDIMM
-M: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
-S: Maintained
-F: hw/acpi/nvdimm.c
-F: hw/mem/nvdimm.c
-F: include/hw/mem/nvdimm.h
-F: docs/nvdimm.txt
-F: docs/specs/acpi_nvdimm.rst
 
 e1000x
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
@@ -2588,6 +2579,7 @@ M: Ben Widawsky <ben.widawsky@intel.com>
 M: Jonathan Cameron <jonathan.cameron@huawei.com>
 S: Supported
 F: hw/cxl/
+F: hw/mem/cxl_type3.c
 F: include/hw/cxl/
 
 Dirty Bitmaps
@@ -2703,6 +2695,19 @@ F: softmmu/memory_mapping.c
 F: softmmu/physmem.c
 F: include/exec/memory-internal.h
 F: scripts/coccinelle/memory-region-housekeeping.cocci
+
+Memory devices
+M: David Hildenbrand <david@redhat.com>
+M: Igor Mammedov <imammedo@redhat.com>
+R: Xiao Guangrong <xiaoguangrong.eric@gmail.com>
+S: Supported
+F: hw/mem/memory-device.c
+F: hw/mem/nvdimm.c
+F: hw/mem/pc-dimm.c
+F: include/hw/mem/memory-device.h
+F: include/hw/mem/nvdimm.h
+F: include/hw/mem/pc-dimm.h
+F: docs/nvdimm.txt
 
 SPICE
 M: Gerd Hoffmann <kraxel@redhat.com>
