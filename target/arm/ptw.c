@@ -36,15 +36,23 @@ static const uint8_t pamax_map[] = {
 /* The cpu-specific constant value of PAMax; also used by hw/arm/virt. */
 unsigned int arm_pamax(ARMCPU *cpu)
 {
-    unsigned int parange =
-        FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        unsigned int parange =
+            FIELD_EX64(cpu->isar.id_aa64mmfr0, ID_AA64MMFR0, PARANGE);
 
-    /*
-     * id_aa64mmfr0 is a read-only register so values outside of the
-     * supported mappings can be considered an implementation error.
-     */
-    assert(parange < ARRAY_SIZE(pamax_map));
-    return pamax_map[parange];
+        /*
+         * id_aa64mmfr0 is a read-only register so values outside of the
+         * supported mappings can be considered an implementation error.
+         */
+        assert(parange < ARRAY_SIZE(pamax_map));
+        return pamax_map[parange];
+    }
+    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
+        /* v7 with LPAE */
+        return 40;
+    }
+    /* Anything else */
+    return 32;
 }
 
 /*
