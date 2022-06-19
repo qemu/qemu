@@ -47,7 +47,13 @@ unsigned int arm_pamax(ARMCPU *cpu)
         assert(parange < ARRAY_SIZE(pamax_map));
         return pamax_map[parange];
     }
-    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE)) {
+
+    /*
+     * In machvirt_init, we call arm_pamax on a cpu that is not fully
+     * initialized, so we can't rely on the propagation done in realize.
+     */
+    if (arm_feature(&cpu->env, ARM_FEATURE_LPAE) ||
+        arm_feature(&cpu->env, ARM_FEATURE_V7VE)) {
         /* v7 with LPAE */
         return 40;
     }
