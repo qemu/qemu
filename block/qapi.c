@@ -848,7 +848,7 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
     visit_free(v);
 }
 
-void bdrv_image_info_dump(ImageInfo *info)
+void bdrv_node_info_dump(BlockNodeInfo *info)
 {
     char *size_buf, *dsize_buf;
     if (!info->has_actual_size) {
