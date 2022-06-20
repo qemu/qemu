@@ -898,7 +898,8 @@ static bool qobject_is_empty_dump(const QObject *obj)
  * prepending an optional prefix if the dump is not empty.
  */
 void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
-                                   const char *prefix)
+                                   const char *prefix,
+                                   int indentation)
 {
     QObject *obj, *data;
     Visitor *v = qobject_output_visitor_new(&obj);
@@ -908,48 +909,51 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
     data = qdict_get(qobject_to(QDict, obj), "data");
     if (!qobject_is_empty_dump(data)) {
         if (prefix) {
-            qemu_printf("%s", prefix);
+            qemu_printf("%*s%s", indentation * 4, "", prefix);
         }
-        dump_qobject(1, data);
+        dump_qobject(indentation + 1, data);
     }
     qobject_unref(obj);
     visit_free(v);
 }
 
-void bdrv_node_info_dump(BlockNodeInfo *info)
+void bdrv_node_info_dump(BlockNodeInfo *info, int indentation)
 {
     char *size_buf, *dsize_buf;
+    g_autofree char *ind_s = g_strdup_printf("%*s", indentation * 4, "");
+
     if (!info->has_actual_size) {
         dsize_buf = g_strdup("unavailable");
     } else {
         dsize_buf = size_to_str(info->actual_size);
     }
     size_buf = size_to_str(info->virtual_size);
-    qemu_printf("image: %s\n"
-                "file format: %s\n"
-                "virtual size: %s (%" PRId64 " bytes)\n"
-                "disk size: %s\n",
-                info->filename, info->format, size_buf,
-                info->virtual_size,
-                dsize_buf);
+    qemu_printf("%simage: %s\n"
+                "%sfile format: %s\n"
+                "%svirtual size: %s (%" PRId64 " bytes)\n"
+                "%sdisk size: %s\n",
+                ind_s, info->filename,
+                ind_s, info->format,
+                ind_s, size_buf, info->virtual_size,
+                ind_s, dsize_buf);
     g_free(size_buf);
     g_free(dsize_buf);
 
     if (info->has_encrypted && info->encrypted) {
-        qemu_printf("encrypted: yes\n");
+        qemu_printf("%sencrypted: yes\n", ind_s);
     }
 
     if (info->has_cluster_size) {
-        qemu_printf("cluster_size: %" PRId64 "\n",
-                    info->cluster_size);
+        qemu_printf("%scluster_size: %" PRId64 "\n",
+                    ind_s, info->cluster_size);
     }
 
     if (info->has_dirty_flag && info->dirty_flag) {
-        qemu_printf("cleanly shut down: no\n");
+        qemu_printf("%scleanly shut down: no\n", ind_s);
     }
 
     if (info->backing_filename) {
-        qemu_printf("backing file: %s", info->backing_filename);
+        qemu_printf("%sbacking file: %s", ind_s, info->backing_filename);
         if (!info->full_backing_filename) {
             qemu_printf(" (cannot determine actual path)");
         } else if (strcmp(info->backing_filename,
@@ -958,15 +962,16 @@ void bdrv_node_info_dump(BlockNodeInfo *info)
         }
         qemu_printf("\n");
         if (info->backing_filename_format) {
-            qemu_printf("backing file format: %s\n",
-                        info->backing_filename_format);
+            qemu_printf("%sbacking file format: %s\n",
+                        ind_s, info->backing_filename_format);
         }
     }
 
     if (info->has_snapshots) {
         SnapshotInfoList *elem;
 
-        qemu_printf("Snapshot list:\n");
+        qemu_printf("%sSnapshot list:\n", ind_s);
+        qemu_printf("%s", ind_s);
         bdrv_snapshot_dump(NULL);
         qemu_printf("\n");
 
@@ -986,6 +991,7 @@ void bdrv_node_info_dump(BlockNodeInfo *info)
 
             pstrcpy(sn.id_str, sizeof(sn.id_str), elem->value->id);
             pstrcpy(sn.name, sizeof(sn.name), elem->value->name);
+            qemu_printf("%s", ind_s);
             bdrv_snapshot_dump(&sn);
             qemu_printf("\n");
         }
@@ -993,6 +999,7 @@ void bdrv_node_info_dump(BlockNodeInfo *info)
 
     if (info->format_specific) {
         bdrv_image_info_specific_dump(info->format_specific,
-                                      "Format specific information:\n");
+                                      "Format specific information:\n",
+                                      indentation);
     }
 }
