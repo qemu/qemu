@@ -50,8 +50,9 @@ struct QEMUFile {
      */
     int64_t rate_limit_used;
 
-    int64_t pos; /* start of buffer when writing, end of buffer
-                    when reading */
+    /* The sum of bytes transferred on the wire */
+    int64_t total_transferred;
+
     int buf_index;
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
@@ -241,14 +242,14 @@ void qemu_fflush(QEMUFile *f)
     }
     if (f->iovcnt > 0) {
         expect = iov_size(f->iov, f->iovcnt);
-        ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt, f->pos,
-                                    &local_error);
+        ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt,
+                                    f->total_transferred, &local_error);
 
         qemu_iovec_release_ram(f);
     }
 
     if (ret >= 0) {
-        f->pos += ret;
+        f->total_transferred += ret;
     }
     /* We expect the QEMUFile write impl to send the full
      * data set we requested, so sanity check that.
@@ -357,11 +358,11 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
         return 0;
     }
 
-    len = f->ops->get_buffer(f->opaque, f->buf + pending, f->pos,
+    len = f->ops->get_buffer(f->opaque, f->buf + pending, f->total_transferred,
                              IO_BUF_SIZE - pending, &local_error);
     if (len > 0) {
         f->buf_size += len;
-        f->pos += len;
+        f->total_transferred += len;
     } else if (len == 0) {
         qemu_file_set_error_obj(f, -EIO, local_error);
     } else if (len != -EAGAIN) {
@@ -375,7 +376,7 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
 
 void qemu_update_position(QEMUFile *f, size_t size)
 {
-    f->pos += size;
+    f->total_transferred += size;
 }
 
 /** Closes the file
@@ -658,7 +659,7 @@ int qemu_get_byte(QEMUFile *f)
 
 int64_t qemu_ftell_fast(QEMUFile *f)
 {
-    int64_t ret = f->pos;
+    int64_t ret = f->total_transferred;
     int i;
 
     for (i = 0; i < f->iovcnt; i++) {
@@ -671,7 +672,7 @@ int64_t qemu_ftell_fast(QEMUFile *f)
 int64_t qemu_ftell(QEMUFile *f)
 {
     qemu_fflush(f);
-    return f->pos;
+    return f->total_transferred;
 }
 
 int qemu_file_rate_limit(QEMUFile *f)
