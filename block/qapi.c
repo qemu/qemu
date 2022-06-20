@@ -238,30 +238,18 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
 }
 
 /**
- * bdrv_query_image_info:
- * @bs: block device to examine
- * @p_info: location to store image information
- * @errp: location to store error information
- *
- * Store "flat" image information in @p_info.
- *
- * "Flat" means it does *not* query backing image information,
- * i.e. (*pinfo)->has_backing_image will be set to false and
- * (*pinfo)->backing_image to NULL even when the image does in fact have
- * a backing image.
- *
- * @p_info will be set only on success. On error, store error in @errp.
+ * Helper function for other query info functions.  Store information about @bs
+ * in @info, setting @errp on error.
  */
-void bdrv_query_image_info(BlockDriverState *bs,
-                           ImageInfo **p_info,
-                           Error **errp)
+static void bdrv_do_query_node_info(BlockDriverState *bs,
+                                    BlockNodeInfo *info,
+                                    Error **errp)
 {
     int64_t size;
     const char *backing_filename;
     BlockDriverInfo bdi;
     int ret;
     Error *err = NULL;
-    ImageInfo *info;
 
     aio_context_acquire(bdrv_get_aio_context(bs));
 
@@ -274,7 +262,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
 
     bdrv_refresh_filename(bs);
 
-    info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
     info->virtual_size    = size;
@@ -295,7 +282,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
     info->format_specific = bdrv_get_specific_info(bs, &err);
     if (err) {
         error_propagate(errp, err);
-        qapi_free_ImageInfo(info);
         goto out;
     }
     backing_filename = bs->backing_file;
@@ -331,14 +317,70 @@ void bdrv_query_image_info(BlockDriverState *bs,
         break;
     default:
         error_propagate(errp, err);
-        qapi_free_ImageInfo(info);
         goto out;
     }
 
-    *p_info = info;
-
 out:
     aio_context_release(bdrv_get_aio_context(bs));
+}
+
+/**
+ * bdrv_query_block_node_info:
+ * @bs: block node to examine
+ * @p_info: location to store node information
+ * @errp: location to store error information
+ *
+ * Store image information about @bs in @p_info.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_block_node_info(BlockDriverState *bs,
+                                BlockNodeInfo **p_info,
+                                Error **errp)
+{
+    BlockNodeInfo *info;
+    ERRP_GUARD();
+
+    info = g_new0(BlockNodeInfo, 1);
+    bdrv_do_query_node_info(bs, info, errp);
+    if (*errp) {
+        qapi_free_BlockNodeInfo(info);
+        return;
+    }
+
+    *p_info = info;
+}
+
+/**
+ * bdrv_query_image_info:
+ * @bs: block node to examine
+ * @p_info: location to store image information
+ * @errp: location to store error information
+ *
+ * Store "flat" image information in @p_info.
+ *
+ * "Flat" means it does *not* query backing image information,
+ * i.e. (*pinfo)->has_backing_image will be set to false and
+ * (*pinfo)->backing_image to NULL even when the image does in fact have
+ * a backing image.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           Error **errp)
+{
+    ImageInfo *info;
+    ERRP_GUARD();
+
+    info = g_new0(ImageInfo, 1);
+    bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), errp);
+    if (*errp) {
+        qapi_free_ImageInfo(info);
+        return;
+    }
+
+    *p_info = info;
 }
 
 /* @p_info will be set only on success. */

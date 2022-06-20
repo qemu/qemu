@@ -251,7 +251,7 @@
   } }
 
 ##
-# @ImageInfo:
+# @BlockNodeInfo:
 #
 # Information about a QEMU image file
 #
@@ -279,21 +279,33 @@
 #
 # @snapshots: list of VM snapshots
 #
-# @backing-image: info of the backing image (since 1.6)
-#
 # @format-specific: structure supplying additional format-specific
 #                   information (since 1.7)
 #
-# Since: 1.3
+# Since: 8.0
 ##
-{ 'struct': 'ImageInfo',
+{ 'struct': 'BlockNodeInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
-           '*backing-image': 'ImageInfo',
            '*format-specific': 'ImageInfoSpecific' } }
+
+##
+# @ImageInfo:
+#
+# Information about a QEMU image file, and potentially its backing image
+#
+# @backing-image: info of the backing image
+#
+# Since: 1.3
+##
+{ 'struct': 'ImageInfo',
+  'base': 'BlockNodeInfo',
+  'data': {
+      '*backing-image': 'ImageInfo'
+  } }
 
 ##
 # @ImageCheck:
