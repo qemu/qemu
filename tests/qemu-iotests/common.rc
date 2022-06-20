@@ -711,6 +711,7 @@ _img_info()
 
     discard=0
     regex_json_spec_start='^ *"format-specific": \{'
+    regex_json_child_start='^ *"children": \['
     $QEMU_IMG info $QEMU_IMG_EXTRA_ARGS "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$REMOTE_TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
@@ -721,20 +722,25 @@ _img_info()
             -e "/^disk size:/ D" \
             -e "/actual-size/ D" | \
         while IFS='' read -r line; do
-            if [[ $format_specific == 1 ]]; then
-                discard=0
-            elif [[ $line == "Format specific information:" ]]; then
-                discard=1
-            elif [[ $line =~ $regex_json_spec_start ]]; then
-                discard=2
-                regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+            if [[ $discard == 0 ]]; then
+                if [[ $format_specific == 0 && $line == "Format specific information:" ]]; then
+                    discard=1
+                elif [[ $line =~ "Child node '/" ]]; then
+                    discard=1
+                elif [[ $format_specific == 0 && $line =~ $regex_json_spec_start ]]; then
+                    discard=2
+                    regex_json_end="^${line%%[^ ]*}\\},? *$"
+                elif [[ $line =~ $regex_json_child_start ]]; then
+                    discard=2
+                    regex_json_end="^${line%%[^ ]*}\\],? *$"
+                fi
             fi
             if [[ $discard == 0 ]]; then
                 echo "$line"
             elif [[ $discard == 1 && ! $line ]]; then
                 echo
                 discard=0
-            elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+            elif [[ $discard == 2 && $line =~ $regex_json_end ]]; then
                 discard=0
             fi
         done
