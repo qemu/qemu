@@ -46,10 +46,6 @@ typedef ssize_t (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
  */
 typedef int (QEMUFileCloseFunc)(void *opaque, Error **errp);
 
-/* Called to return the OS file descriptor associated to the QEMUFile.
- */
-typedef int (QEMUFileGetFD)(void *opaque);
-
 /* Called to change the blocking mode of the file
  */
 typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled, Error **errp);
@@ -121,7 +117,6 @@ typedef struct QEMUFileHooks {
 QEMUFile *qemu_file_new_input(QIOChannel *ioc, const QEMUFileOps *ops);
 QEMUFile *qemu_file_new_output(QIOChannel *ioc, const QEMUFileOps *ops);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
-int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 
 /*
