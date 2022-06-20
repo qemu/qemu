@@ -917,10 +917,33 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
     visit_free(v);
 }
 
-void bdrv_node_info_dump(BlockNodeInfo *info, int indentation)
+/**
+ * Print the given @info object in human-readable form.  Every field is indented
+ * using the given @indentation (four spaces per indentation level).
+ *
+ * When using this to print a whole block graph, @protocol can be set to true to
+ * signify that the given information is associated with a protocol node, i.e.
+ * just data storage for an image, such that the data it presents is not really
+ * a full VM disk.  If so, several fields change name: For example, "virtual
+ * size" is printed as "file length".
+ * (Consider a qcow2 image, which is represented by a qcow2 node and a file
+ * node.  Printing a "virtual size" for the file node does not make sense,
+ * because without the qcow2 node, it is not really a guest disk, so it does not
+ * have a "virtual size".  Therefore, we call it "file length" instead.)
+ *
+ * @protocol is ignored when @indentation is 0, because we take that to mean
+ * that the associated node is the root node in the queried block graph, and
+ * thus is always to be interpreted as a standalone guest disk.
+ */
+void bdrv_node_info_dump(BlockNodeInfo *info, int indentation, bool protocol)
 {
     char *size_buf, *dsize_buf;
     g_autofree char *ind_s = g_strdup_printf("%*s", indentation * 4, "");
+
+    if (indentation == 0) {
+        /* Top level, consider this a normal image */
+        protocol = false;
+    }
 
     if (!info->has_actual_size) {
         dsize_buf = g_strdup("unavailable");
@@ -928,13 +951,15 @@ void bdrv_node_info_dump(BlockNodeInfo *info, int indentation)
         dsize_buf = size_to_str(info->actual_size);
     }
     size_buf = size_to_str(info->virtual_size);
-    qemu_printf("%simage: %s\n"
-                "%sfile format: %s\n"
-                "%svirtual size: %s (%" PRId64 " bytes)\n"
+    qemu_printf("%s%s: %s\n"
+                "%s%s: %s\n"
+                "%s%s: %s (%" PRId64 " bytes)\n"
                 "%sdisk size: %s\n",
-                ind_s, info->filename,
-                ind_s, info->format,
-                ind_s, size_buf, info->virtual_size,
+                ind_s, protocol ? "filename" : "image", info->filename,
+                ind_s, protocol ? "protocol type" : "file format",
+                info->format,
+                ind_s, protocol ? "file length" : "virtual size",
+                size_buf, info->virtual_size,
                 ind_s, dsize_buf);
     g_free(size_buf);
     g_free(dsize_buf);

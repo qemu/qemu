@@ -51,5 +51,5 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn);
 void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
                                    const char *prefix,
                                    int indentation);
-void bdrv_node_info_dump(BlockNodeInfo *info, int indentation);
+void bdrv_node_info_dump(BlockNodeInfo *info, int indentation, bool protocol);
 #endif

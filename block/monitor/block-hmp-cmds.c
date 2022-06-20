@@ -725,7 +725,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
         monitor_printf(mon, "\nImages:\n");
         image_info = inserted->image;
         while (1) {
-            bdrv_node_info_dump(qapi_ImageInfo_base(image_info), 0);
+            bdrv_node_info_dump(qapi_ImageInfo_base(image_info), 0, false);
             if (image_info->backing_image) {
                 image_info = image_info->backing_image;
             } else {

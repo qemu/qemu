@@ -2854,7 +2854,8 @@ static void dump_human_image_info(BlockGraphInfo *info, int indentation,
 {
     BlockChildInfoList *children_list;
 
-    bdrv_node_info_dump(qapi_BlockGraphInfo_base(info), indentation);
+    bdrv_node_info_dump(qapi_BlockGraphInfo_base(info), indentation,
+                        info->children == NULL);
 
     for (children_list = info->children; children_list;
          children_list = children_list->next)
