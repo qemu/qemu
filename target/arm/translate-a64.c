@@ -1188,6 +1188,22 @@ bool sve_access_check(DisasContext *s)
 }
 
 /*
+ * Check that SME access is enabled, raise an exception if not.
+ * Note that this function corresponds to CheckSMEAccess and is
+ * only used directly for cpregs.
+ */
+static bool sme_access_check(DisasContext *s)
+{
+    if (s->sme_excp_el) {
+        gen_exception_insn_el(s, s->pc_curr, EXCP_UDEF,
+                              syn_smetrap(SME_ET_AccessTrap, false),
+                              s->sme_excp_el);
+        return false;
+    }
+    return true;
+}
+
+/*
  * This utility function is for doing register extension with an
  * optional shift. You will likely want to pass a temporary for the
  * destination register. See DecodeRegExtend() in the ARM ARM.
@@ -1957,6 +1973,8 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     if ((ri->type & ARM_CP_FPU) && !fp_access_check(s)) {
         return;
     } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
+        return;
+    } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
         return;
     }
 
