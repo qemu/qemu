@@ -43,6 +43,9 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            bool flat,
                            bool skip_implicit_filters,
                            Error **errp);
+void bdrv_query_block_graph_info(BlockDriverState *bs,
+                                 BlockGraphInfo **p_info,
+                                 Error **errp);
 
 void bdrv_snapshot_dump(QEMUSnapshotInfo *sn);
 void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,

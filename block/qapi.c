@@ -403,6 +403,54 @@ fail:
     qapi_free_ImageInfo(info);
 }
 
+/**
+ * bdrv_query_block_graph_info:
+ * @bs: root node to start from
+ * @p_info: location to store image information
+ * @errp: location to store error information
+ *
+ * Store image information about the graph starting from @bs in @p_info.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_block_graph_info(BlockDriverState *bs,
+                                 BlockGraphInfo **p_info,
+                                 Error **errp)
+{
+    BlockGraphInfo *info;
+    BlockChildInfoList **children_list_tail;
+    BdrvChild *c;
+    ERRP_GUARD();
+
+    info = g_new0(BlockGraphInfo, 1);
+    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), errp);
+    if (*errp) {
+        goto fail;
+    }
+
+    children_list_tail = &info->children;
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        BlockChildInfo *c_info;
+
+        c_info = g_new0(BlockChildInfo, 1);
+        QAPI_LIST_APPEND(children_list_tail, c_info);
+
+        c_info->name = g_strdup(c->name);
+        bdrv_query_block_graph_info(c->bs, &c_info->info, errp);
+        if (*errp) {
+            goto fail;
+        }
+    }
+
+    *p_info = info;
+    return;
+
+fail:
+    assert(*errp != NULL);
+    qapi_free_BlockGraphInfo(info);
+}
+
 /* @p_info will be set only on success. */
 static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
                             Error **errp)

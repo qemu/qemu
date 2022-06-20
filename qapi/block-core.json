@@ -308,6 +308,41 @@
   } }
 
 ##
+# @BlockChildInfo:
+#
+# Information about all nodes in the block graph starting at some node,
+# annotated with information about that node in relation to its parent.
+#
+# @name: Child name of the root node in the BlockGraphInfo struct, in its role
+#        as the child of some undescribed parent node
+#
+# @info: Block graph information starting at this node
+#
+# Since: 8.0
+##
+{ 'struct': 'BlockChildInfo',
+  'data': {
+      'name': 'str',
+      'info': 'BlockGraphInfo'
+  } }
+
+##
+# @BlockGraphInfo:
+#
+# Information about all nodes in a block (sub)graph in the form of BlockNodeInfo
+# data.
+# The base BlockNodeInfo struct contains the information for the (sub)graph's
+# root node.
+#
+# @children: Array of links to this node's child nodes' information
+#
+# Since: 8.0
+##
+{ 'struct': 'BlockGraphInfo',
+  'base': 'BlockNodeInfo',
+  'data': { 'children': ['BlockChildInfo'] } }
+
+##
 # @ImageCheck:
 #
 # Information about a QEMU image file check
