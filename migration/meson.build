@@ -4,7 +4,6 @@ migration_files = files(
   'xbzrle.c',
   'vmstate-types.c',
   'vmstate.c',
-  'qemu-file-channel.c',
   'qemu-file.c',
   'yank_functions.c',
 )

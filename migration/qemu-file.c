@@ -35,7 +35,6 @@
 #define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 64)
 
 struct QEMUFile {
-    const QEMUFileOps *ops;
     const QEMUFileHooks *hooks;
     QIOChannel *ioc;
     bool is_writable;
@@ -107,16 +106,14 @@ bool qemu_file_mode_is_not_valid(const char *mode)
     return false;
 }
 
-static QEMUFile *qemu_file_new_impl(QIOChannel *ioc,
-                                    const QEMUFileOps *ops,
-                                    bool is_writable)
+static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
 {
     QEMUFile *f;
 
     f = g_new0(QEMUFile, 1);
 
+    object_ref(ioc);
     f->ioc = ioc;
-    f->ops = ops;
     f->is_writable = is_writable;
 
     return f;
@@ -128,20 +125,18 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc,
  */
 QEMUFile *qemu_file_get_return_path(QEMUFile *f)
 {
-    object_ref(f->ioc);
-    return qemu_file_new_impl(f->ioc, f->ops, !f->is_writable);
+    return qemu_file_new_impl(f->ioc, !f->is_writable);
 }
 
-QEMUFile *qemu_file_new_output(QIOChannel *ioc, const QEMUFileOps *ops)
+QEMUFile *qemu_file_new_output(QIOChannel *ioc)
 {
-    return qemu_file_new_impl(ioc, ops, true);
+    return qemu_file_new_impl(ioc, true);
 }
 
-QEMUFile *qemu_file_new_input(QIOChannel *ioc, const QEMUFileOps *ops)
+QEMUFile *qemu_file_new_input(QIOChannel *ioc)
 {
-    return qemu_file_new_impl(ioc, ops, false);
+    return qemu_file_new_impl(ioc, false);
 }
-
 
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks)
 {
@@ -237,6 +232,7 @@ static void qemu_iovec_release_ram(QEMUFile *f)
     }
     memset(f->may_free, 0, sizeof(f->may_free));
 }
+
 
 /**
  * Flushes QEMUFile buffer

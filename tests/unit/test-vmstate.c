@@ -28,7 +28,6 @@
 #include "migration/vmstate.h"
 #include "migration/qemu-file-types.h"
 #include "../migration/qemu-file.h"
-#include "../migration/qemu-file-channel.h"
 #include "../migration/savevm.h"
 #include "qemu/coroutine.h"
 #include "qemu/module.h"
@@ -52,9 +51,9 @@ static QEMUFile *open_test_file(bool write)
     }
     ioc = QIO_CHANNEL(qio_channel_file_new_fd(fd));
     if (write) {
-        f = qemu_fopen_channel_output(ioc);
+        f = qemu_file_new_output(ioc);
     } else {
-        f = qemu_fopen_channel_input(ioc);
+        f = qemu_file_new_input(ioc);
     }
     object_unref(OBJECT(ioc));
     return f;

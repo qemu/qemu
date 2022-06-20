@@ -30,7 +30,6 @@
 #include "migration/misc.h"
 #include "migration.h"
 #include "savevm.h"
-#include "qemu-file-channel.h"
 #include "qemu-file.h"
 #include "migration/vmstate.h"
 #include "block/block.h"
@@ -723,7 +722,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
 
     if (!mis->from_src_file) {
         /* The first connection (multifd may have multiple) */
-        QEMUFile *f = qemu_fopen_channel_input(ioc);
+        QEMUFile *f = qemu_file_new_input(ioc);
 
         if (!migration_incoming_setup(f, errp)) {
             return;
@@ -3076,7 +3075,7 @@ static int postcopy_start(MigrationState *ms)
      */
     bioc = qio_channel_buffer_new(4096);
     qio_channel_set_name(QIO_CHANNEL(bioc), "migration-postcopy-buffer");
-    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    fb = qemu_file_new_output(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 
     /*
@@ -3966,7 +3965,7 @@ static void *bg_migration_thread(void *opaque)
      */
     s->bioc = qio_channel_buffer_new(512 * 1024);
     qio_channel_set_name(QIO_CHANNEL(s->bioc), "vmstate-buffer");
-    fb = qemu_fopen_channel_output(QIO_CHANNEL(s->bioc));
+    fb = qemu_file_new_output(QIO_CHANNEL(s->bioc));
     object_unref(OBJECT(s->bioc));
 
     update_iteration_initial_status(s);

@@ -55,9 +55,6 @@ typedef size_t (QEMURamSaveFunc)(QEMUFile *f,
                                  size_t size,
                                  uint64_t *bytes_sent);
 
-typedef struct QEMUFileOps {
-} QEMUFileOps;
-
 typedef struct QEMUFileHooks {
     QEMURamHookFunc *before_ram_iterate;
     QEMURamHookFunc *after_ram_iterate;
@@ -65,8 +62,8 @@ typedef struct QEMUFileHooks {
     QEMURamSaveFunc *save_page;
 } QEMUFileHooks;
 
-QEMUFile *qemu_file_new_input(QIOChannel *ioc, const QEMUFileOps *ops);
-QEMUFile *qemu_file_new_output(QIOChannel *ioc, const QEMUFileOps *ops);
+QEMUFile *qemu_file_new_input(QIOChannel *ioc);
+QEMUFile *qemu_file_new_output(QIOChannel *ioc);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_fclose(QEMUFile *f);
 

@@ -14,7 +14,6 @@
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
-#include "qemu-file-channel.h"
 #include "migration.h"
 #include "qemu-file.h"
 #include "savevm.h"
@@ -559,7 +558,7 @@ static void colo_process_checkpoint(MigrationState *s)
         goto out;
     }
     bioc = qio_channel_buffer_new(COLO_BUFFER_BASE_SIZE);
-    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    fb = qemu_file_new_output(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 
     qemu_mutex_lock_iothread();
@@ -873,7 +872,7 @@ void *colo_process_incoming_thread(void *opaque)
     colo_incoming_start_dirty_log();
 
     bioc = qio_channel_buffer_new(COLO_BUFFER_BASE_SIZE);
-    fb = qemu_fopen_channel_input(QIO_CHANNEL(bioc));
+    fb = qemu_file_new_input(QIO_CHANNEL(bioc));
     object_unref(OBJECT(bioc));
 
     qemu_mutex_lock_iothread();

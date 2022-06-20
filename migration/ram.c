@@ -38,7 +38,6 @@
 #include "migration.h"
 #include "migration/register.h"
 #include "migration/misc.h"
-#include "migration/qemu-file-channel.h"
 #include "qemu-file.h"
 #include "postcopy-ram.h"
 #include "page_cache.h"
@@ -569,7 +568,7 @@ static int compress_threads_save_setup(void)
         /* comp_param[i].file is just used as a dummy buffer to save data,
          * set its ops to empty.
          */
-        comp_param[i].file = qemu_fopen_channel_output(
+        comp_param[i].file = qemu_file_new_output(
             QIO_CHANNEL(qio_channel_null_new()));
         comp_param[i].done = true;
         comp_param[i].quit = false;

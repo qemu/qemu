@@ -14,7 +14,7 @@
 #include "channel.h"
 #include "tls.h"
 #include "migration.h"
-#include "qemu-file-channel.h"
+#include "qemu-file.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "io/channel-tls.h"
@@ -85,7 +85,7 @@ void migration_channel_connect(MigrationState *s,
                 return;
             }
         } else {
-            QEMUFile *f = qemu_fopen_channel_output(ioc);
+            QEMUFile *f = qemu_file_new_output(ioc);
 
             migration_ioc_register_yank(ioc);
 
