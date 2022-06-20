@@ -40,6 +40,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            Error **errp);
 
 void bdrv_snapshot_dump(QEMUSnapshotInfo *sn);
-void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec);
+void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
+                                   const char *prefix);
 void bdrv_image_info_dump(ImageInfo *info);
 #endif

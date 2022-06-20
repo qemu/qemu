@@ -1788,8 +1788,8 @@ static int info_f(BlockBackend *blk, int argc, char **argv)
         return -EIO;
     }
     if (spec_info) {
-        printf("Format specific information:\n");
-        bdrv_image_info_specific_dump(spec_info);
+        bdrv_image_info_specific_dump(spec_info,
+                                      "Format specific information:\n");
         qapi_free_ImageInfoSpecific(spec_info);
     }
 

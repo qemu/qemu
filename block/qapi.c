@@ -760,7 +760,35 @@ static void dump_qdict(int indentation, QDict *dict)
     }
 }
 
-void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
+/*
+ * Return whether dumping the given QObject with dump_qobject() would
+ * yield an empty dump, i.e. not print anything.
+ */
+static bool qobject_is_empty_dump(const QObject *obj)
+{
+    switch (qobject_type(obj)) {
+    case QTYPE_QNUM:
+    case QTYPE_QSTRING:
+    case QTYPE_QBOOL:
+        return false;
+
+    case QTYPE_QDICT:
+        return qdict_size(qobject_to(QDict, obj)) == 0;
+
+    case QTYPE_QLIST:
+        return qlist_empty(qobject_to(QList, obj));
+
+    default:
+        abort();
+    }
+}
+
+/**
+ * Dumps the given ImageInfoSpecific object in a human-readable form,
+ * prepending an optional prefix if the dump is not empty.
+ */
+void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
+                                   const char *prefix)
 {
     QObject *obj, *data;
     Visitor *v = qobject_output_visitor_new(&obj);
@@ -768,7 +796,12 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
     visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
     visit_complete(v, &obj);
     data = qdict_get(qobject_to(QDict, obj), "data");
-    dump_qobject(1, data);
+    if (!qobject_is_empty_dump(data)) {
+        if (prefix) {
+            qemu_printf("%s", prefix);
+        }
+        dump_qobject(1, data);
+    }
     qobject_unref(obj);
     visit_free(v);
 }
@@ -849,7 +882,7 @@ void bdrv_image_info_dump(ImageInfo *info)
     }
 
     if (info->format_specific) {
-        qemu_printf("Format specific information:\n");
-        bdrv_image_info_specific_dump(info->format_specific);
+        bdrv_image_info_specific_dump(info->format_specific,
+                                      "Format specific information:\n");
     }
 }
