@@ -13,6 +13,7 @@ softmmu_ss.add(migration_files)
 softmmu_ss.add(files(
   'block-dirty-bitmap.c',
   'channel.c',
+  'channel-block.c',
   'colo-failover.c',
   'colo.c',
   'exec.c',
