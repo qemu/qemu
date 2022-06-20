@@ -40,6 +40,8 @@ void bdrv_query_block_node_info(BlockDriverState *bs,
                                 Error **errp);
 void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
+                           bool flat,
+                           bool skip_implicit_filters,
                            Error **errp);
 
 void bdrv_snapshot_dump(QEMUSnapshotInfo *sn);

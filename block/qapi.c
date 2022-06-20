@@ -48,8 +48,10 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         Error **errp)
 {
     ImageInfo **p_image_info;
+    ImageInfo *backing_info;
     BlockDriverState *bs0, *backing;
     BlockDeviceInfo *info;
+    ERRP_GUARD();
 
     if (!bs->drv) {
         error_setg(errp, "Block device %s is ejected", bs->node_name);
@@ -147,37 +149,21 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     bs0 = bs;
     p_image_info = &info->image;
     info->backing_file_depth = 0;
-    while (1) {
-        Error *local_err = NULL;
-        bdrv_query_image_info(bs0, p_image_info, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            qapi_free_BlockDeviceInfo(info);
-            return NULL;
-        }
 
-        /* stop gathering data for flat output */
-        if (flat) {
-            break;
-        }
+    /*
+     * Skip automatically inserted nodes that the user isn't aware of for
+     * query-block (blk != NULL), but not for query-named-block-nodes
+     */
+    bdrv_query_image_info(bs0, p_image_info, flat, blk != NULL, errp);
+    if (*errp) {
+        qapi_free_BlockDeviceInfo(info);
+        return NULL;
+    }
 
-        if (bs0->drv && bdrv_filter_or_cow_child(bs0)) {
-            /*
-             * Put any filtered child here (for backwards compatibility to when
-             * we put bs0->backing here, which might be any filtered child).
-             */
-            info->backing_file_depth++;
-            bs0 = bdrv_filter_or_cow_bs(bs0);
-            p_image_info = &((*p_image_info)->backing_image);
-        } else {
-            break;
-        }
-
-        /* Skip automatically inserted nodes that the user isn't aware of for
-         * query-block (blk != NULL), but not for query-named-block-nodes */
-        if (blk) {
-            bs0 = bdrv_skip_implicit_filters(bs0);
-        }
+    backing_info = info->image->backing_image;
+    while (backing_info) {
+        info->backing_file_depth++;
+        backing_info = backing_info->backing_image;
     }
 
     return info;
@@ -355,19 +341,28 @@ void bdrv_query_block_node_info(BlockDriverState *bs,
  * bdrv_query_image_info:
  * @bs: block node to examine
  * @p_info: location to store image information
+ * @flat: skip backing node information
+ * @skip_implicit_filters: skip implicit filters in the backing chain
  * @errp: location to store error information
  *
- * Store "flat" image information in @p_info.
+ * Store image information in @p_info, potentially recursively covering the
+ * backing chain.
  *
- * "Flat" means it does *not* query backing image information,
- * i.e. (*pinfo)->has_backing_image will be set to false and
- * (*pinfo)->backing_image to NULL even when the image does in fact have
- * a backing image.
+ * If @flat is true, do not query backing image information, i.e.
+ * (*p_info)->has_backing_image will be set to false and
+ * (*p_info)->backing_image to NULL even when the image does in fact have a
+ * backing image.
+ *
+ * If @skip_implicit_filters is true, implicit filter nodes in the backing chain
+ * will be skipped when querying backing image information.
+ * (@skip_implicit_filters is ignored when @flat is true.)
  *
  * @p_info will be set only on success. On error, store error in @errp.
  */
 void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
+                           bool flat,
+                           bool skip_implicit_filters,
                            Error **errp)
 {
     ImageInfo *info;
@@ -376,11 +371,36 @@ void bdrv_query_image_info(BlockDriverState *bs,
     info = g_new0(ImageInfo, 1);
     bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), errp);
     if (*errp) {
-        qapi_free_ImageInfo(info);
-        return;
+        goto fail;
+    }
+
+    if (!flat) {
+        BlockDriverState *backing;
+
+        /*
+         * Use any filtered child here (for backwards compatibility to when
+         * we always took bs->backing, which might be any filtered child).
+         */
+        backing = bdrv_filter_or_cow_bs(bs);
+        if (skip_implicit_filters) {
+            backing = bdrv_skip_implicit_filters(backing);
+        }
+
+        if (backing) {
+            bdrv_query_image_info(backing, &info->backing_image, false,
+                                  skip_implicit_filters, errp);
+            if (*errp) {
+                goto fail;
+            }
+        }
     }
 
     *p_info = info;
+    return;
+
+fail:
+    assert(*errp);
+    qapi_free_ImageInfo(info);
 }
 
 /* @p_info will be set only on success. */
