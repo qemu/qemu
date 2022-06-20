@@ -3182,6 +3182,7 @@ FIELD(TBFLAG_A64, MTE0_ACTIVE, 19, 1)
 FIELD(TBFLAG_A64, SMEEXC_EL, 20, 2)
 FIELD(TBFLAG_A64, PSTATE_SM, 22, 1)
 FIELD(TBFLAG_A64, PSTATE_ZA, 23, 1)
+FIELD(TBFLAG_A64, SVL, 24, 4)
 
 /*
  * Helpers for using the above.
@@ -3225,6 +3226,17 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
 static inline int sve_vq(CPUARMState *env)
 {
     return EX_TBFLAG_A64(env->hflags, VL) + 1;
+}
+
+/**
+ * sme_vq
+ * @env: the cpu context
+ *
+ * Return the SVL cached within env->hflags, in units of quadwords.
+ */
+static inline int sme_vq(CPUARMState *env)
+{
+    return EX_TBFLAG_A64(env->hflags, SVL) + 1;
 }
 
 static inline bool bswap_code(bool sctlr_b)
