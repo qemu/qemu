@@ -5831,9 +5831,9 @@
 ##
 # @DummyBlockCoreForceArrays:
 #
-# Not used by QMP; hack to let us use BlockNodeInfoList internally
+# Not used by QMP; hack to let us use BlockGraphInfoList internally
 #
 # Since: 8.0
 ##
 { 'struct': 'DummyBlockCoreForceArrays',
-  'data': { 'unused-block-node-info': ['BlockNodeInfo'] } }
+  'data': { 'unused-block-graph-info': ['BlockGraphInfo'] } }

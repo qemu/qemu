@@ -2817,13 +2817,13 @@ static void dump_snapshots(BlockDriverState *bs)
     g_free(sn_tab);
 }
 
-static void dump_json_block_node_info_list(BlockNodeInfoList *list)
+static void dump_json_block_graph_info_list(BlockGraphInfoList *list)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_BlockNodeInfoList(v, NULL, &list, &error_abort);
+    visit_type_BlockGraphInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2833,13 +2833,13 @@ static void dump_json_block_node_info_list(BlockNodeInfoList *list)
     g_string_free(str, true);
 }
 
-static void dump_json_block_node_info(BlockNodeInfo *info)
+static void dump_json_block_graph_info(BlockGraphInfo *info)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_BlockNodeInfo(v, NULL, &info, &error_abort);
+    visit_type_BlockGraphInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2849,9 +2849,29 @@ static void dump_json_block_node_info(BlockNodeInfo *info)
     g_string_free(str, true);
 }
 
-static void dump_human_image_info_list(BlockNodeInfoList *list)
+static void dump_human_image_info(BlockGraphInfo *info, int indentation,
+                                  const char *path)
 {
-    BlockNodeInfoList *elem;
+    BlockChildInfoList *children_list;
+
+    bdrv_node_info_dump(qapi_BlockGraphInfo_base(info), indentation);
+
+    for (children_list = info->children; children_list;
+         children_list = children_list->next)
+    {
+        BlockChildInfo *child = children_list->value;
+        g_autofree char *child_path = NULL;
+
+        printf("%*sChild node '%s%s':\n",
+               indentation * 4, "", path, child->name);
+        child_path = g_strdup_printf("%s%s/", path, child->name);
+        dump_human_image_info(child->info, indentation + 1, child_path);
+    }
+}
+
+static void dump_human_image_info_list(BlockGraphInfoList *list)
+{
+    BlockGraphInfoList *elem;
     bool delim = false;
 
     for (elem = list; elem; elem = elem->next) {
@@ -2860,7 +2880,7 @@ static void dump_human_image_info_list(BlockNodeInfoList *list)
         }
         delim = true;
 
-        bdrv_node_info_dump(elem->value, 0);
+        dump_human_image_info(elem->value, 0, "/");
     }
 }
 
@@ -2870,7 +2890,7 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 }
 
 /**
- * Open an image file chain and return an BlockNodeInfoList
+ * Open an image file chain and return an BlockGraphInfoList
  *
  * @filename: topmost image filename
  * @fmt: topmost image format (may be NULL to autodetect)
@@ -2881,13 +2901,13 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
  * opening an image file.  If there was an error a message will have been
  * printed to stderr.
  */
-static BlockNodeInfoList *collect_image_info_list(bool image_opts,
-                                                  const char *filename,
-                                                  const char *fmt,
-                                                  bool chain, bool force_share)
+static BlockGraphInfoList *collect_image_info_list(bool image_opts,
+                                                   const char *filename,
+                                                   const char *fmt,
+                                                   bool chain, bool force_share)
 {
-    BlockNodeInfoList *head = NULL;
-    BlockNodeInfoList **tail = &head;
+    BlockGraphInfoList *head = NULL;
+    BlockGraphInfoList **tail = &head;
     GHashTable *filenames;
     Error *err = NULL;
 
@@ -2896,7 +2916,7 @@ static BlockNodeInfoList *collect_image_info_list(bool image_opts,
     while (filename) {
         BlockBackend *blk;
         BlockDriverState *bs;
-        BlockNodeInfo *info;
+        BlockGraphInfo *info;
 
         if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
             error_report("Backing file '%s' creates an infinite loop.",
@@ -2913,7 +2933,14 @@ static BlockNodeInfoList *collect_image_info_list(bool image_opts,
         }
         bs = blk_bs(blk);
 
-        bdrv_query_block_node_info(bs, &info, &err);
+        /*
+         * Note that the returned BlockGraphInfo object will not have
+         * information about this image's backing node, because we have opened
+         * it with BDRV_O_NO_BACKING.  Printing this object will therefore not
+         * duplicate the backing chain information that we obtain by walking
+         * the chain manually here.
+         */
+        bdrv_query_block_graph_info(bs, &info, &err);
         if (err) {
             error_report_err(err);
             blk_unref(blk);
@@ -2946,7 +2973,7 @@ static BlockNodeInfoList *collect_image_info_list(bool image_opts,
     return head;
 
 err:
-    qapi_free_BlockNodeInfoList(head);
+    qapi_free_BlockGraphInfoList(head);
     g_hash_table_destroy(filenames);
     return NULL;
 }
@@ -2957,7 +2984,7 @@ static int img_info(int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
     const char *filename, *fmt, *output;
-    BlockNodeInfoList *list;
+    BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
 
@@ -3036,14 +3063,14 @@ static int img_info(int argc, char **argv)
         break;
     case OFORMAT_JSON:
         if (chain) {
-            dump_json_block_node_info_list(list);
+            dump_json_block_graph_info_list(list);
         } else {
-            dump_json_block_node_info(list->value);
+            dump_json_block_graph_info(list->value);
         }
         break;
     }
 
-    qapi_free_BlockNodeInfoList(list);
+    qapi_free_BlockGraphInfoList(list);
     return 0;
 }
 
