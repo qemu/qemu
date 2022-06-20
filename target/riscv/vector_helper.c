@@ -1298,10 +1298,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
     uint32_t esz = sizeof(TS1);                                           \
     uint32_t total_elems = vext_get_total_elems(env, desc, esz);          \
     uint32_t vta = vext_vta(desc);                                        \
+    uint32_t vma = vext_vma(desc);                                        \
     uint32_t i;                                                           \
                                                                           \
     for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
+            /* set masked-off elements to 1s */                           \
+            vext_set_elems_1s(vd, vma, i * esz, (i + 1) * esz);           \
             continue;                                                     \
         }                                                                 \
         TS1 s1 = *((TS1 *)vs1 + HS1(i));                                  \
@@ -1339,10 +1342,14 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
     uint32_t total_elems =                                  \
         vext_get_total_elems(env, desc, esz);               \
     uint32_t vta = vext_vta(desc);                          \
+    uint32_t vma = vext_vma(desc);                          \
     uint32_t i;                                             \
                                                             \
     for (i = env->vstart; i < vl; i++) {                    \
         if (!vm && !vext_elem_mask(v0, i)) {                \
+            /* set masked-off elements to 1s */             \
+            vext_set_elems_1s(vd, vma, i * esz,             \
+                              (i + 1) * esz);               \
             continue;                                       \
         }                                                   \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                    \
