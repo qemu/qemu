@@ -252,7 +252,7 @@ static abi_long do_bsd_openat(abi_long arg1, abi_long arg2,
 }
 
 /* close(2) */
-static inline abi_long do_bsd_close(abi_long arg1)
+static abi_long do_bsd_close(abi_long arg1)
 {
     return get_errno(close(arg1));
 }
