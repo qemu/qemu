@@ -112,31 +112,6 @@ static int channel_close(void *opaque, Error **errp)
 }
 
 
-static int channel_shutdown(void *opaque,
-                            bool rd,
-                            bool wr,
-                            Error **errp)
-{
-    QIOChannel *ioc = QIO_CHANNEL(opaque);
-
-    if (qio_channel_has_feature(ioc,
-                                QIO_CHANNEL_FEATURE_SHUTDOWN)) {
-        QIOChannelShutdown mode;
-        if (rd && wr) {
-            mode = QIO_CHANNEL_SHUTDOWN_BOTH;
-        } else if (rd) {
-            mode = QIO_CHANNEL_SHUTDOWN_READ;
-        } else {
-            mode = QIO_CHANNEL_SHUTDOWN_WRITE;
-        }
-        if (qio_channel_shutdown(ioc, mode, errp) < 0) {
-            return -EIO;
-        }
-    }
-    return 0;
-}
-
-
 static int channel_set_blocking(void *opaque,
                                 bool enabled,
                                 Error **errp)
@@ -166,7 +141,6 @@ static QEMUFile *channel_get_output_return_path(void *opaque)
 static const QEMUFileOps channel_input_ops = {
     .get_buffer = channel_get_buffer,
     .close = channel_close,
-    .shut_down = channel_shutdown,
     .set_blocking = channel_set_blocking,
     .get_return_path = channel_get_input_return_path,
 };
@@ -175,7 +149,6 @@ static const QEMUFileOps channel_input_ops = {
 static const QEMUFileOps channel_output_ops = {
     .writev_buffer = channel_writev_buffer,
     .close = channel_close,
-    .shut_down = channel_shutdown,
     .set_blocking = channel_set_blocking,
     .get_return_path = channel_get_output_return_path,
 };
