@@ -37,7 +37,7 @@
 struct QEMUFile {
     const QEMUFileOps *ops;
     const QEMUFileHooks *hooks;
-    void *opaque;
+    QIOChannel *ioc;
 
     /*
      * Maximum amount of data in bytes to transfer during one
@@ -65,8 +65,6 @@ struct QEMUFile {
     Error *last_error_obj;
     /* has the file has been shutdown */
     bool shutdown;
-    /* Whether opaque points to a QIOChannel */
-    bool has_ioc;
 };
 
 /*
@@ -81,7 +79,7 @@ int qemu_file_shutdown(QEMUFile *f)
     if (!f->ops->shut_down) {
         return -ENOSYS;
     }
-    ret = f->ops->shut_down(f->opaque, true, true, NULL);
+    ret = f->ops->shut_down(f->ioc, true, true, NULL);
 
     if (!f->last_error) {
         qemu_file_set_error(f, -EIO);
@@ -98,7 +96,7 @@ QEMUFile *qemu_file_get_return_path(QEMUFile *f)
     if (!f->ops->get_return_path) {
         return NULL;
     }
-    return f->ops->get_return_path(f->opaque);
+    return f->ops->get_return_path(f->ioc);
 }
 
 bool qemu_file_mode_is_not_valid(const char *mode)
@@ -113,15 +111,15 @@ bool qemu_file_mode_is_not_valid(const char *mode)
     return false;
 }
 
-QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops, bool has_ioc)
+QEMUFile *qemu_fopen_ops(QIOChannel *ioc, const QEMUFileOps *ops)
 {
     QEMUFile *f;
 
     f = g_new0(QEMUFile, 1);
 
-    f->opaque = opaque;
+    f->ioc = ioc;
     f->ops = ops;
-    f->has_ioc = has_ioc;
+
     return f;
 }
 
@@ -242,7 +240,7 @@ void qemu_fflush(QEMUFile *f)
     }
     if (f->iovcnt > 0) {
         expect = iov_size(f->iov, f->iovcnt);
-        ret = f->ops->writev_buffer(f->opaque, f->iov, f->iovcnt,
+        ret = f->ops->writev_buffer(f->ioc, f->iov, f->iovcnt,
                                     f->total_transferred, &local_error);
 
         qemu_iovec_release_ram(f);
@@ -358,7 +356,7 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
         return 0;
     }
 
-    len = f->ops->get_buffer(f->opaque, f->buf + pending, f->total_transferred,
+    len = f->ops->get_buffer(f->ioc, f->buf + pending, f->total_transferred,
                              IO_BUF_SIZE - pending, &local_error);
     if (len > 0) {
         f->buf_size += len;
@@ -394,7 +392,7 @@ int qemu_fclose(QEMUFile *f)
     ret = qemu_file_get_error(f);
 
     if (f->ops->close) {
-        int ret2 = f->ops->close(f->opaque, NULL);
+        int ret2 = f->ops->close(f->ioc, NULL);
         if (ret >= 0) {
             ret = ret2;
         }
@@ -861,18 +859,19 @@ void qemu_put_counted_string(QEMUFile *f, const char *str)
 void qemu_file_set_blocking(QEMUFile *f, bool block)
 {
     if (f->ops->set_blocking) {
-        f->ops->set_blocking(f->opaque, block, NULL);
+        f->ops->set_blocking(f->ioc, block, NULL);
     }
 }
 
 /*
- * Return the ioc object if it's a migration channel.  Note: it can return NULL
- * for callers passing in a non-migration qemufile.  E.g. see qemu_fopen_bdrv()
- * and its usage in e.g. load_snapshot().  So we need to check against NULL
- * before using it.  If without the check, migration_incoming_state_destroy()
- * could fail for load_snapshot().
+ * qemu_file_get_ioc:
+ *
+ * Get the ioc object for the file, without incrementing
+ * the reference count.
+ *
+ * Returns: the ioc object
  */
 QIOChannel *qemu_file_get_ioc(QEMUFile *file)
 {
-    return file->has_ioc ? QIO_CHANNEL(file->opaque) : NULL;
+    return file->ioc;
 }
