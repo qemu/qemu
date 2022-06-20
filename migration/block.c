@@ -756,8 +756,8 @@ static int block_save_setup(QEMUFile *f, void *opaque)
 static int block_save_iterate(QEMUFile *f, void *opaque)
 {
     int ret;
-    int64_t last_ftell = qemu_ftell(f);
-    int64_t delta_ftell;
+    int64_t last_bytes = qemu_file_total_transferred(f);
+    int64_t delta_bytes;
 
     trace_migration_block_save("iterate", block_mig_state.submitted,
                                block_mig_state.transferred);
@@ -809,10 +809,10 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     }
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
-    delta_ftell = qemu_ftell(f) - last_ftell;
-    if (delta_ftell > 0) {
+    delta_bytes = qemu_file_total_transferred(f) - last_bytes;
+    if (delta_bytes > 0) {
         return 1;
-    } else if (delta_ftell < 0) {
+    } else if (delta_bytes < 0) {
         return -1;
     } else {
         return 0;
