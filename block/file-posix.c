@@ -3092,6 +3092,34 @@ raw_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
+static ImageInfoSpecific *raw_get_specific_info(BlockDriverState *bs,
+                                                Error **errp)
+{
+    ImageInfoSpecificFile *file_info = g_new0(ImageInfoSpecificFile, 1);
+    ImageInfoSpecific *spec_info = g_new(ImageInfoSpecific, 1);
+
+    *spec_info = (ImageInfoSpecific){
+        .type = IMAGE_INFO_SPECIFIC_KIND_FILE,
+        .u.file.data = file_info,
+    };
+
+#ifdef FS_IOC_FSGETXATTR
+    {
+        BDRVRawState *s = bs->opaque;
+        struct fsxattr attr;
+        int ret;
+
+        ret = ioctl(s->fd, FS_IOC_FSGETXATTR, &attr);
+        if (!ret && attr.fsx_extsize != 0) {
+            file_info->has_extent_size_hint = true;
+            file_info->extent_size_hint = attr.fsx_extsize;
+        }
+    }
+#endif
+
+    return spec_info;
+}
+
 static BlockStatsSpecificFile get_blockstats_specific_file(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
@@ -3325,6 +3353,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
     .bdrv_co_get_info                   = raw_co_get_info,
+    .bdrv_get_specific_info             = raw_get_specific_info,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = raw_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,
@@ -3696,6 +3725,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
     .bdrv_co_get_info                   = raw_co_get_info,
+    .bdrv_get_specific_info             = raw_get_specific_info,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = hdev_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,

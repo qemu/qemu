@@ -140,15 +140,28 @@
   } }
 
 ##
+# @ImageInfoSpecificFile:
+#
+# @extent-size-hint: Extent size hint (if available)
+#
+# Since: 8.0
+##
+{ 'struct': 'ImageInfoSpecificFile',
+  'data': {
+      '*extent-size-hint': 'size'
+  } }
+
+##
 # @ImageInfoSpecificKind:
 #
 # @luks: Since 2.7
 # @rbd: Since 6.1
+# @file: Since 8.0
 #
 # Since: 1.7
 ##
 { 'enum': 'ImageInfoSpecificKind',
-  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd' ] }
+  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd', 'file' ] }
 
 ##
 # @ImageInfoSpecificQCow2Wrapper:
@@ -186,6 +199,14 @@
   'data': { 'data': 'ImageInfoSpecificRbd' } }
 
 ##
+# @ImageInfoSpecificFileWrapper:
+#
+# Since: 8.0
+##
+{ 'struct': 'ImageInfoSpecificFileWrapper',
+  'data': { 'data': 'ImageInfoSpecificFile' } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -199,7 +220,8 @@
       'qcow2': 'ImageInfoSpecificQCow2Wrapper',
       'vmdk': 'ImageInfoSpecificVmdkWrapper',
       'luks': 'ImageInfoSpecificLUKSWrapper',
-      'rbd': 'ImageInfoSpecificRbdWrapper'
+      'rbd': 'ImageInfoSpecificRbdWrapper',
+      'file': 'ImageInfoSpecificFileWrapper'
   } }
 
 ##
