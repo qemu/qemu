@@ -74,34 +74,6 @@ static ssize_t channel_writev_buffer(void *opaque,
 }
 
 
-static ssize_t channel_get_buffer(void *opaque,
-                                  uint8_t *buf,
-                                  int64_t pos,
-                                  size_t size,
-                                  Error **errp)
-{
-    QIOChannel *ioc = QIO_CHANNEL(opaque);
-    ssize_t ret;
-
-    do {
-        ret = qio_channel_read(ioc, (char *)buf, size, errp);
-        if (ret < 0) {
-            if (ret == QIO_CHANNEL_ERR_BLOCK) {
-                if (qemu_in_coroutine()) {
-                    qio_channel_yield(ioc, G_IO_IN);
-                } else {
-                    qio_channel_wait(ioc, G_IO_IN);
-                }
-            } else {
-                return -EIO;
-            }
-        }
-    } while (ret == QIO_CHANNEL_ERR_BLOCK);
-
-    return ret;
-}
-
-
 static QEMUFile *channel_get_input_return_path(void *opaque)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
@@ -117,7 +89,6 @@ static QEMUFile *channel_get_output_return_path(void *opaque)
 }
 
 static const QEMUFileOps channel_input_ops = {
-    .get_buffer = channel_get_buffer,
     .get_return_path = channel_get_input_return_path,
 };
 

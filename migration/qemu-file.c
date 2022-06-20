@@ -377,8 +377,22 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
         return 0;
     }
 
-    len = f->ops->get_buffer(f->ioc, f->buf + pending, f->total_transferred,
-                             IO_BUF_SIZE - pending, &local_error);
+    do {
+        len = qio_channel_read(f->ioc,
+                               (char *)f->buf + pending,
+                               IO_BUF_SIZE - pending,
+                               &local_error);
+        if (len == QIO_CHANNEL_ERR_BLOCK) {
+            if (qemu_in_coroutine()) {
+                qio_channel_yield(f->ioc, G_IO_IN);
+            } else {
+                qio_channel_wait(f->ioc, G_IO_IN);
+            }
+        } else if (len < 0) {
+            len = -EIO;
+        }
+    } while (len == QIO_CHANNEL_ERR_BLOCK);
+
     if (len > 0) {
         f->buf_size += len;
         f->total_transferred += len;
