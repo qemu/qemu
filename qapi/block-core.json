@@ -124,7 +124,33 @@
       'create-type': 'str',
       'cid': 'int',
       'parent-cid': 'int',
-      'extents': ['ImageInfo']
+      'extents': ['VmdkExtentInfo']
+  } }
+
+##
+# @VmdkExtentInfo:
+#
+# Information about a VMDK extent file
+#
+# @filename: Name of the extent file
+#
+# @format: Extent type (e.g. FLAT or SPARSE)
+#
+# @virtual-size: Number of bytes covered by this extent
+#
+# @cluster-size: Cluster size in bytes (for non-flat extents)
+#
+# @compressed: Whether this extent contains compressed data
+#
+# Since: 8.0
+##
+{ 'struct': 'VmdkExtentInfo',
+  'data': {
+      'filename': 'str',
+      'format': 'str',
+      'virtual-size': 'int',
+      '*cluster-size': 'int',
+      '*compressed': 'bool'
   } }
 
 ##
@@ -5754,3 +5780,13 @@
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
   'returns': 'SnapshotInfo',
   'allow-preconfig': true }
+
+##
+# @DummyBlockCoreForceArrays:
+#
+# Not used by QMP; hack to let us use ImageInfoList internally
+#
+# Since: 8.0
+##
+{ 'struct': 'DummyBlockCoreForceArrays',
+  'data': { 'unused-image-info': ['ImageInfo'] } }
