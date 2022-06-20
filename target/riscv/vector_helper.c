@@ -3051,10 +3051,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     uint32_t total_elems =                                \
         vext_get_total_elems(env, desc, ESZ);             \
     uint32_t vta = vext_vta(desc);                        \
+    uint32_t vma = vext_vma(desc);                        \
     uint32_t i;                                           \
                                                           \
     for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
+            /* set masked-off elements to 1s */           \
+            vext_set_elems_1s(vd, vma, i * ESZ,           \
+                              (i + 1) * ESZ);             \
             continue;                                     \
         }                                                 \
         do_##NAME(vd, vs1, vs2, i, env);                  \
@@ -3090,10 +3094,14 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
     uint32_t total_elems =                                \
         vext_get_total_elems(env, desc, ESZ);              \
     uint32_t vta = vext_vta(desc);                        \
+    uint32_t vma = vext_vma(desc);                        \
     uint32_t i;                                           \
                                                           \
     for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
+            /* set masked-off elements to 1s */           \
+            vext_set_elems_1s(vd, vma, i * ESZ,           \
+                              (i + 1) * ESZ);             \
             continue;                                     \
         }                                                 \
         do_##NAME(vd, s1, vs2, i, env);                   \
@@ -3665,6 +3673,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     uint32_t total_elems =                             \
         vext_get_total_elems(env, desc, ESZ);          \
     uint32_t vta = vext_vta(desc);                     \
+    uint32_t vma = vext_vma(desc);                     \
     uint32_t i;                                        \
                                                        \
     if (vl == 0) {                                     \
@@ -3672,6 +3681,9 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     }                                                  \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
+            /* set masked-off elements to 1s */        \
+            vext_set_elems_1s(vd, vma, i * ESZ,        \
+                              (i + 1) * ESZ);          \
             continue;                                  \
         }                                              \
         do_##NAME(vd, vs2, i, env);                    \
@@ -4182,12 +4194,17 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vl = env->vl;                                    \
     uint32_t total_elems = env_archcpu(env)->cfg.vlen;        \
     uint32_t vta_all_1s = vext_vta_all_1s(desc);              \
+    uint32_t vma = vext_vma(desc);                            \
     uint32_t i;                                               \
                                                               \
     for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                    \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         if (!vm && !vext_elem_mask(v0, i)) {                  \
+            /* set masked-off elements to 1s */               \
+            if (vma) {                                        \
+                vext_set_elem_mask(vd, i, 1);                 \
+            }                                                 \
             continue;                                         \
         }                                                     \
         vext_set_elem_mask(vd, i,                             \
@@ -4215,11 +4232,16 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
     uint32_t vl = env->vl;                                          \
     uint32_t total_elems = env_archcpu(env)->cfg.vlen;              \
     uint32_t vta_all_1s = vext_vta_all_1s(desc);                    \
+    uint32_t vma = vext_vma(desc);                                  \
     uint32_t i;                                                     \
                                                                     \
     for (i = env->vstart; i < vl; i++) {                            \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                          \
         if (!vm && !vext_elem_mask(v0, i)) {                        \
+            /* set masked-off elements to 1s */                     \
+            if (vma) {                                              \
+                vext_set_elem_mask(vd, i, 1);                       \
+            }                                                       \
             continue;                                               \
         }                                                           \
         vext_set_elem_mask(vd, i,                                   \
@@ -4342,10 +4364,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     uint32_t total_elems =                             \
         vext_get_total_elems(env, desc, ESZ);          \
     uint32_t vta = vext_vta(desc);                     \
+    uint32_t vma = vext_vma(desc);                     \
     uint32_t i;                                        \
                                                        \
     for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
+            /* set masked-off elements to 1s */        \
+            vext_set_elems_1s(vd, vma, i * ESZ,        \
+                              (i + 1) * ESZ);          \
             continue;                                  \
         }                                              \
         do_##NAME(vd, vs2, i);                         \
