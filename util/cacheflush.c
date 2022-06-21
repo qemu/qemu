@@ -70,7 +70,7 @@ static void sys_cache_info(int *isize, int *dsize)
     g_free(buf);
 }
 
-#elif defined(__APPLE__)
+#elif defined(CONFIG_DARWIN)
 # include <sys/sysctl.h>
 static void sys_cache_info(int *isize, int *dsize)
 {
@@ -117,20 +117,25 @@ static void sys_cache_info(int *isize, int *dsize)
  * Architecture (+ OS) specific cache detection mechanisms.
  */
 
-#if defined(__aarch64__)
-
+#if defined(__aarch64__) && !defined(CONFIG_DARWIN)
+/* Apple does not expose CTR_EL0, so we must use system interfaces. */
+static uint64_t save_ctr_el0;
 static void arch_cache_info(int *isize, int *dsize)
 {
-    if (*isize == 0 || *dsize == 0) {
-        uint64_t ctr;
+    uint64_t ctr;
 
-        /*
-         * The real cache geometry is in CCSIDR_EL1/CLIDR_EL1/CSSELR_EL1,
-         * but (at least under Linux) these are marked protected by the
-         * kernel.  However, CTR_EL0 contains the minimum linesize in the
-         * entire hierarchy, and is used by userspace cache flushing.
-         */
-        asm volatile("mrs\t%0, ctr_el0" : "=r"(ctr));
+    /*
+     * The real cache geometry is in CCSIDR_EL1/CLIDR_EL1/CSSELR_EL1,
+     * but (at least under Linux) these are marked protected by the
+     * kernel.  However, CTR_EL0 contains the minimum linesize in the
+     * entire hierarchy, and is used by userspace cache flushing.
+     *
+     * We will also use this value in flush_idcache_range.
+     */
+    asm volatile("mrs\t%0, ctr_el0" : "=r"(ctr));
+    save_ctr_el0 = ctr;
+
+    if (*isize == 0 || *dsize == 0) {
         if (*isize == 0) {
             *isize = 4 << (ctr & 0xf);
         }
@@ -229,17 +234,6 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 #else
 
 /*
- * TODO: unify this with cacheinfo.c.
- * We want to save the whole contents of CTR_EL0, so that we
- * have more than the linesize, but also IDC and DIC.
- */
-static uint64_t save_ctr_el0;
-static void __attribute__((constructor)) init_ctr_el0(void)
-{
-    asm volatile("mrs\t%0, ctr_el0" : "=r"(save_ctr_el0));
-}
-
-/*
  * This is a copy of gcc's __aarch64_sync_cache_range, modified
  * to fit this three-operand interface.
  */
@@ -248,8 +242,8 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
     const unsigned CTR_IDC = 1u << 28;
     const unsigned CTR_DIC = 1u << 29;
     const uint64_t ctr_el0 = save_ctr_el0;
-    const uintptr_t icache_lsize = 4 << extract64(ctr_el0, 0, 4);
-    const uintptr_t dcache_lsize = 4 << extract64(ctr_el0, 16, 4);
+    const uintptr_t icache_lsize = qemu_icache_linesize;
+    const uintptr_t dcache_lsize = qemu_dcache_linesize;
     uintptr_t p;
 
     /*
