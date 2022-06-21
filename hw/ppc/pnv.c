@@ -1189,8 +1189,15 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     }
 }
 
-/* Attach a root port device */
-void pnv_phb_attach_root_port(PCIHostState *pci, const char *name, int index)
+/*
+ * Attach a root port device.
+ *
+ * 'index' will be used both as a PCIE slot value and to calculate
+ * QOM id. 'chip_id' is going to be used as PCIE chassis for the
+ * root port.
+ */
+void pnv_phb_attach_root_port(PCIHostState *pci, const char *name,
+                              int index, int chip_id)
 {
     PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
     g_autofree char *default_id = g_strdup_printf("%s[%d]", name, index);
@@ -1198,6 +1205,10 @@ void pnv_phb_attach_root_port(PCIHostState *pci, const char *name, int index)
 
     object_property_add_child(OBJECT(pci->bus), dev_id ? dev_id : default_id,
                               OBJECT(root));
+
+    /* Set unique chassis/slot values for the root port */
+    qdev_prop_set_uint8(DEVICE(root), "chassis", chip_id);
+    qdev_prop_set_uint16(DEVICE(root), "slot", index);
 
     pci_realize_and_unref(root, pci->bus, &error_fatal);
 }

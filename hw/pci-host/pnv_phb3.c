@@ -1052,7 +1052,8 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
 
     pci_setup_iommu(pci->bus, pnv_phb3_dma_iommu, phb);
 
-    pnv_phb_attach_root_port(pci, TYPE_PNV_PHB3_ROOT_PORT, phb->phb_id);
+    pnv_phb_attach_root_port(pci, TYPE_PNV_PHB3_ROOT_PORT,
+                             phb->phb_id, phb->chip_id);
 }
 
 void pnv_phb3_update_regions(PnvPHB3 *phb)
@@ -1139,22 +1140,7 @@ static void pnv_phb3_root_port_realize(DeviceState *dev, Error **errp)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PCIDevice *pci = PCI_DEVICE(dev);
-    PCIBus *bus = pci_get_bus(pci);
-    PnvPHB3 *phb = NULL;
     Error *local_err = NULL;
-
-    phb = (PnvPHB3 *) object_dynamic_cast(OBJECT(bus->qbus.parent),
-                                          TYPE_PNV_PHB3);
-
-    if (!phb) {
-        error_setg(errp,
-"pnv_phb3_root_port devices must be connected to pnv-phb3 buses");
-        return;
-    }
-
-    /* Set unique chassis/slot values for the root port */
-    qdev_prop_set_uint8(&pci->qdev, "chassis", phb->chip_id);
-    qdev_prop_set_uint16(&pci->qdev, "slot", phb->phb_id);
 
     rpc->parent_realize(dev, &local_err);
     if (local_err) {
