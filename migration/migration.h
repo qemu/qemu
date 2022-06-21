@@ -412,8 +412,7 @@ struct MigrationState {
      * only need to do this flush after we have go through all the
      * dirty pages.  For historical reasons, we do that after each
      * section.  This is suboptimal (we flush too many times).
-     * Default value is false.  Setting this property has no effect
-     * until the patch that removes this comment.  (since 8.1)
+     * Default value is false. (since 8.1)
      */
     bool multifd_flush_after_each_section;
     /*
