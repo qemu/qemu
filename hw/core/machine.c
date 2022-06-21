@@ -39,7 +39,9 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-pci.h"
 
-GlobalProperty hw_compat_8_0[] = {};
+GlobalProperty hw_compat_8_0[] = {
+    { "migration", "multifd-flush-after-each-section", "on"},
+};
 const size_t hw_compat_8_0_len = G_N_ELEMENTS(hw_compat_8_0);
 
 GlobalProperty hw_compat_7_2[] = {
