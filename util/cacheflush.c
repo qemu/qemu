@@ -117,6 +117,10 @@ static void sys_cache_info(int *isize, int *dsize)
  * Architecture (+ OS) specific cache detection mechanisms.
  */
 
+#if defined(__powerpc__)
+static bool have_coherent_icache;
+#endif
+
 #if defined(__aarch64__) && !defined(CONFIG_DARWIN)
 /* Apple does not expose CTR_EL0, so we must use system interfaces. */
 static uint64_t save_ctr_el0;
@@ -156,6 +160,7 @@ static void arch_cache_info(int *isize, int *dsize)
     if (*dsize == 0) {
         *dsize = qemu_getauxval(AT_DCACHEBSIZE);
     }
+    have_coherent_icache = qemu_getauxval(AT_HWCAP) & PPC_FEATURE_ICACHE_SNOOP;
 }
 
 #else
@@ -298,8 +303,24 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     uintptr_t p, b, e;
-    size_t dsize = qemu_dcache_linesize;
-    size_t isize = qemu_icache_linesize;
+    size_t dsize, isize;
+
+    /*
+     * Some processors have coherent caches and support a simplified
+     * flushing procedure.  See
+     *   POWER9 UM, 4.6.2.2 Instruction Cache Block Invalidate (icbi) 
+     *   https://ibm.ent.box.com/s/tmklq90ze7aj8f4n32er1mu3sy9u8k3k
+     */
+    if (have_coherent_icache) {
+        asm volatile ("sync\n\t"
+                      "icbi 0,%0\n\t"
+                      "isync"
+                      : : "r"(rx) : "memory");
+        return;
+    }
+
+    dsize = qemu_dcache_linesize;
+    isize = qemu_icache_linesize;
 
     b = rw & ~(dsize - 1);
     e = (rw + len + dsize - 1) & ~(dsize - 1);
