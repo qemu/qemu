@@ -1574,6 +1574,12 @@ static const MemoryRegionOps pnv_xive2_ic_sync_ops = {
  * When the TM direct pages of the IC controller are accessed, the
  * target HW thread is deduced from the page offset.
  */
+static uint32_t pnv_xive2_ic_tm_get_pir(PnvXive2 *xive, hwaddr offset)
+{
+    /* On P10, the node ID shift in the PIR register is 8 bits */
+    return xive->chip->chip_id << 8 | offset >> xive->ic_shift;
+}
+
 static XiveTCTX *pnv_xive2_get_indirect_tctx(PnvXive2 *xive, uint32_t pir)
 {
     PnvChip *chip = xive->chip;
@@ -1596,10 +1602,12 @@ static uint64_t pnv_xive2_ic_tm_indirect_read(void *opaque, hwaddr offset,
                                               unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
-    uint32_t pir = offset >> xive->ic_shift;
-    XiveTCTX *tctx = pnv_xive2_get_indirect_tctx(xive, pir);
+    uint32_t pir;
+    XiveTCTX *tctx;
     uint64_t val = -1;
 
+    pir = pnv_xive2_ic_tm_get_pir(xive, offset);
+    tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
         val = xive_tctx_tm_read(NULL, tctx, offset, size);
     }
@@ -1611,9 +1619,11 @@ static void pnv_xive2_ic_tm_indirect_write(void *opaque, hwaddr offset,
                                            uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
-    uint32_t pir = offset >> xive->ic_shift;
-    XiveTCTX *tctx = pnv_xive2_get_indirect_tctx(xive, pir);
+    uint32_t pir;
+    XiveTCTX *tctx;
 
+    pir = pnv_xive2_ic_tm_get_pir(xive, offset);
+    tctx = pnv_xive2_get_indirect_tctx(xive, pir);
     if (tctx) {
         xive_tctx_tm_write(NULL, tctx, offset, val, size);
     }
