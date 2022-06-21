@@ -1990,28 +1990,22 @@ PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id)
     return NULL;
 }
 
-static int pnv_ics_resend_child(Object *child, void *opaque)
-{
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
-
-    if (phb3) {
-        ics_resend(&phb3->lsis);
-        ics_resend(ICS(&phb3->msis));
-    }
-    return 0;
-}
-
 static void pnv_ics_resend(XICSFabric *xi)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         ics_resend(&chip8->psi.ics);
-        object_child_foreach(OBJECT(chip), pnv_ics_resend_child, NULL);
+
+        for (j = 0; j < chip8->num_phbs; j++) {
+            PnvPHB3 *phb3 = &chip8->phbs[j];
+
+            ics_resend(&phb3->lsis);
+            ics_resend(ICS(&phb3->msis));
+        }
     }
 }
 
