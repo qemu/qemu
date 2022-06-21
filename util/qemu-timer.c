@@ -261,6 +261,9 @@ int64_t qemu_clock_deadline_ns_all(QEMUClockType type, int attr_mask)
     }
 
     QLIST_FOREACH(timer_list, &clock->timerlists, list) {
+        if (!qatomic_read(&timer_list->active_timers)) {
+            continue;
+        }
         qemu_mutex_lock(&timer_list->active_timers_lock);
         ts = timer_list->active_timers;
         /* Skip all external timers */

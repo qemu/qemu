@@ -371,6 +371,8 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define MULHWU XO31( 11)
 #define DIVW   XO31(491)
 #define DIVWU  XO31(459)
+#define MODSW  XO31(779)
+#define MODUW  XO31(267)
 #define CMP    XO31(  0)
 #define CMPL   XO31( 32)
 #define LHBRX  XO31(790)
@@ -403,6 +405,8 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define MULHDU XO31(  9)
 #define DIVD   XO31(489)
 #define DIVDU  XO31(457)
+#define MODSD  XO31(777)
+#define MODUD  XO31(265)
 
 #define LBZX   XO31( 87)
 #define LHZX   XO31(279)
@@ -2806,6 +2810,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out32(s, DIVWU | TAB(args[0], args[1], args[2]));
         break;
 
+    case INDEX_op_rem_i32:
+        tcg_out32(s, MODSW | TAB(args[0], args[1], args[2]));
+        break;
+
+    case INDEX_op_remu_i32:
+        tcg_out32(s, MODUW | TAB(args[0], args[1], args[2]));
+        break;
+
     case INDEX_op_shl_i32:
         if (const_args[2]) {
             /* Limit immediate shift count lest we create an illegal insn.  */
@@ -2946,6 +2958,12 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
     case INDEX_op_divu_i64:
         tcg_out32(s, DIVDU | TAB(args[0], args[1], args[2]));
+        break;
+    case INDEX_op_rem_i64:
+        tcg_out32(s, MODSD | TAB(args[0], args[1], args[2]));
+        break;
+    case INDEX_op_remu_i64:
+        tcg_out32(s, MODUD | TAB(args[0], args[1], args[2]));
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -3722,6 +3740,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 
     case INDEX_op_div_i32:
     case INDEX_op_divu_i32:
+    case INDEX_op_rem_i32:
+    case INDEX_op_remu_i32:
     case INDEX_op_nand_i32:
     case INDEX_op_nor_i32:
     case INDEX_op_muluh_i32:
@@ -3732,6 +3752,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_nor_i64:
     case INDEX_op_div_i64:
     case INDEX_op_divu_i64:
+    case INDEX_op_rem_i64:
+    case INDEX_op_remu_i64:
     case INDEX_op_mulsh_i64:
     case INDEX_op_muluh_i64:
         return C_O1_I2(r, r, r);
