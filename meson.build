@@ -212,7 +212,8 @@ if get_option('fuzzing')
 
   if cc.compiles('int main () { return 0; }',
                   name: '-fsanitize-coverage-allowlist=/dev/null',
-                 args: ['-fsanitize-coverage-allowlist=/dev/null'] )
+                 args: ['-fsanitize-coverage-allowlist=/dev/null',
+                        '-fsanitize-coverage=trace-pc'] )
     add_global_arguments('-fsanitize-coverage-allowlist=instrumentation-filter',
                          native: false, language: ['c', 'cpp', 'objc'])
   endif
