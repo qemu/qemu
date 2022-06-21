@@ -1585,7 +1585,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
 
     /* Add a single Root port if running with defaults */
-    pnv_phb_attach_root_port(pci, pecc->rp_model);
+    pnv_phb_attach_root_port(pci, pecc->rp_model, phb->phb_id);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {
