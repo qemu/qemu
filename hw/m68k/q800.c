@@ -695,6 +695,9 @@ static GlobalProperty hw_compat_q800[] = {
     { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on"},
     { "scsi-cd", "quirk_mode_page_vendor_specific_apple", "on"},
     { "scsi-cd", "quirk_mode_page_truncated", "on"},
+    { "scsi-cd", "vendor", "MATSHITA" },
+    { "scsi-cd", "product", "CD-ROM CR-8005" },
+    { "scsi-cd", "ver", "1.0k" },
 };
 static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
 
