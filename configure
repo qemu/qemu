@@ -1868,6 +1868,7 @@ fi
 : ${cross_cc_cflags_x86_64="-m64"}
 
 compute_target_variable() {
+  eval "$2="
   if eval test -n "\"\${cross_prefix_$1}\""; then
     if eval has "\"\${cross_prefix_$1}\$3\""; then
       eval "$2=\"\${cross_prefix_$1}\$3\""
@@ -1888,6 +1889,7 @@ compute_target_variable() {
 #
 probe_target_compiler() {
   # reset all output variables
+  got_cross_cc=no
   container_image=
   container_hosts=
   container_cross_cc=
@@ -1898,14 +1900,6 @@ probe_target_compiler() {
   container_cross_objcopy=
   container_cross_ranlib=
   container_cross_strip=
-  target_cc=
-  target_ar=
-  target_as=
-  target_ld=
-  target_nm=
-  target_objcopy=
-  target_ranlib=
-  target_strip=
 
   target_arch=${1%%-*}
   case $target_arch in
@@ -2053,22 +2047,8 @@ probe_target_compiler() {
     : ${container_cross_strip:=${container_cross_prefix}strip}
   done
 
-  eval "target_cflags=\${cross_cc_cflags_$target_arch}"
-  if eval test -n "\"\${cross_cc_$target_arch}\""; then
-    if eval has "\"\${cross_cc_$target_arch}\""; then
-      eval "target_cc=\"\${cross_cc_$target_arch}\""
-    fi
-  else
-    compute_target_variable $target_arch target_cc gcc
-  fi
-  target_ccas=$target_cc
-  compute_target_variable $target_arch target_ar ar
-  compute_target_variable $target_arch target_as as
-  compute_target_variable $target_arch target_ld ld
-  compute_target_variable $target_arch target_nm nm
-  compute_target_variable $target_arch target_objcopy objcopy
-  compute_target_variable $target_arch target_ranlib ranlib
-  compute_target_variable $target_arch target_strip strip
+  local t try
+  try=cross
   case "$target_arch:$cpu" in
     aarch64_be:aarch64 | \
     armeb:arm | \
@@ -2077,27 +2057,101 @@ probe_target_compiler() {
     ppc*:ppc64 | \
     sparc:sparc64 | \
     "$cpu:$cpu")
-      : ${target_cc:=$cc}
-      : ${target_ccas:=$ccas}
-      : ${target_as:=$as}
-      : ${target_ld:=$ld}
-      : ${target_ar:=$ar}
-      : ${target_as:=$as}
-      : ${target_ld:=$ld}
-      : ${target_nm:=$nm}
-      : ${target_objcopy:=$objcopy}
-      : ${target_ranlib:=$ranlib}
-      : ${target_strip:=$strip}
-      ;;
+      try='native cross' ;;
   esac
-  if test -n "$target_cc"; then
-    case $target_arch in
-      i386|x86_64)
-        if $target_cc --version | grep -qi "clang"; then
-          unset target_cc
+  eval "target_cflags=\${cross_cc_cflags_$target_arch}"
+  for t in $try; do
+    case $t in
+    native)
+      target_cc=$cc
+      target_ccas=$ccas
+      target_ar=$ar
+      target_as=$as
+      target_ld=$ld
+      target_nm=$nm
+      target_objcopy=$objcopy
+      target_ranlib=$ranlib
+      target_strip=$strip
+      ;;
+    cross)
+      target_cc=
+      if eval test -n "\"\${cross_cc_$target_arch}\""; then
+        if eval has "\"\${cross_cc_$target_arch}\""; then
+          eval "target_cc=\"\${cross_cc_$target_arch}\""
+        fi
+      else
+        compute_target_variable $target_arch target_cc gcc
+      fi
+      target_ccas=$target_cc
+      compute_target_variable $target_arch target_ar ar
+      compute_target_variable $target_arch target_as as
+      compute_target_variable $target_arch target_ld ld
+      compute_target_variable $target_arch target_nm nm
+      compute_target_variable $target_arch target_objcopy objcopy
+      compute_target_variable $target_arch target_ranlib ranlib
+      compute_target_variable $target_arch target_strip strip
+      ;;
+    esac
+
+    if test -n "$target_cc"; then
+      case $target_arch in
+        i386|x86_64)
+          if $target_cc --version | grep -qi "clang"; then
+            continue
+          fi
+          ;;
+      esac
+    elif test -n "$target_as" && test -n "$target_ld"; then
+      # Special handling for assembler only targets
+      case $target in
+        tricore-softmmu)
+          build_static=
+          got_cross_cc=yes
+          break
+          ;;
+        *)
+          continue
+          ;;
+      esac
+    else
+      continue
+    fi
+
+    write_c_skeleton
+    case $1 in
+      *-softmmu)
+        if do_compiler "$target_cc" $target_cflags -o $TMPO -c $TMPC &&
+          do_compiler "$target_cc" $target_cflags -r -nostdlib -o "${TMPDIR1}/${TMPB}2.o" "$TMPO" -lgcc; then
+          got_cross_cc=yes
+          break
+        fi
+        ;;
+      *)
+        if do_compiler "$target_cc" $target_cflags -o $TMPE $TMPC -static ; then
+          build_static=y
+          got_cross_cc=yes
+          break
+        fi
+        if do_compiler "$target_cc" $target_cflags -o $TMPE $TMPC ; then
+          build_static=
+          got_cross_cc=yes
+          break
         fi
         ;;
     esac
+  done
+  if test $got_cross_cc != yes; then
+    build_static=
+    target_cc=
+    target_ccas=
+    target_cflags=
+    target_ar=
+    target_as=
+    target_ld=
+    target_nm=
+    target_objcopy=
+    target_ranlib=
+    target_strip=
   fi
 }
 
@@ -2519,29 +2573,6 @@ for target in $target_list; do
   esac
 
   probe_target_compiler $target
-  got_cross_cc=no
-  unset build_static
-
-  if test -n "$target_cc"; then
-      write_c_skeleton
-      if ! do_compiler "$target_cc" $target_cflags \
-           -o $TMPE $TMPC -static ; then
-          # For host systems we might get away with building without -static
-          if do_compiler "$target_cc" $target_cflags \
-                         -o $TMPE $TMPC ; then
-              got_cross_cc=yes
-          fi
-      else
-          got_cross_cc=yes
-          build_static=y
-      fi
-  elif test -n "$target_as" && test -n "$target_ld"; then
-      # Special handling for assembler only tests
-      case $target in
-          tricore-softmmu) got_cross_cc=yes ;;
-      esac
-  fi
-
   if test $got_cross_cc = yes; then
       # Test for compiler features for optional tests. We only do this
       # for cross compilers because ensuring the docker containers based
