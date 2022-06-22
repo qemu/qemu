@@ -340,12 +340,12 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
 
         if ((data & HASH_HMAC_MASK)) {
             qemu_log_mask(LOG_UNIMP,
-                          "%s: HMAC engine command mode %"PRIx64" not implemented",
+                          "%s: HMAC engine command mode %"PRIx64" not implemented\n",
                           __func__, (data & HASH_HMAC_MASK) >> 8);
         }
         if (data & BIT(1)) {
             qemu_log_mask(LOG_UNIMP,
-                          "%s: Cascaded mode not implemented",
+                          "%s: Cascaded mode not implemented\n",
                           __func__);
         }
         algo = hash_algo_lookup(data);
