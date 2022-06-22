@@ -228,5 +228,6 @@ extern const SCSIReqOps scsi_generic_req_ops;
 
 /* scsi-disk.c */
 #define SCSI_DISK_QUIRK_MODE_PAGE_APPLE_VENDOR             0
+#define SCSI_DISK_QUIRK_MODE_SENSE_ROM_USE_DBD             1
 
 #endif

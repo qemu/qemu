@@ -1279,10 +1279,27 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
             dev_specific_param |= 0x80; /* Readonly.  */
         }
     } else {
-        /* MMC prescribes that CD/DVD drives have no block descriptors,
-         * and defines no device-specific parameter.  */
-        dev_specific_param = 0x00;
-        dbd = true;
+        if (s->quirks & (1 << SCSI_DISK_QUIRK_MODE_SENSE_ROM_USE_DBD)) {
+            /* Use DBD from the request... */
+            dev_specific_param = 0x00;
+
+            /*
+             * ... unless we receive a request for MODE_PAGE_APPLE_VENDOR
+             * which should never return a block descriptor even though DBD is
+             * not set, otherwise CDROM detection fails in MacOS
+             */
+            if (s->quirks & (1 << SCSI_DISK_QUIRK_MODE_PAGE_APPLE_VENDOR) &&
+                page == MODE_PAGE_APPLE_VENDOR) {
+                dbd = true;
+            }
+        } else {
+            /*
+             * MMC prescribes that CD/DVD drives have no block descriptors,
+             * and defines no device-specific parameter.
+             */
+            dev_specific_param = 0x00;
+            dbd = true;
+        }
     }
 
     if (r->req.cmd.buf[0] == MODE_SENSE) {
@@ -3102,6 +3119,8 @@ static Property scsi_cd_properties[] = {
                       5),
     DEFINE_PROP_BIT("quirk_mode_page_apple_vendor", SCSIDiskState, quirks,
                     SCSI_DISK_QUIRK_MODE_PAGE_APPLE_VENDOR, 0),
+    DEFINE_PROP_BIT("quirk_mode_sense_rom_use_dbd", SCSIDiskState, quirks,
+                    SCSI_DISK_QUIRK_MODE_SENSE_ROM_USE_DBD, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
