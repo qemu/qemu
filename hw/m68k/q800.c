@@ -688,6 +688,7 @@ static void q800_init(MachineState *machine)
 
 static GlobalProperty hw_compat_q800[] = {
     { "scsi-cd", "quirk_mode_page_apple_vendor", "on"},
+    { "scsi-cd", "quirk_mode_sense_rom_use_dbd", "on"},
 };
 static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
 
