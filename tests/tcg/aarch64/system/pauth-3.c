@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <stdint.h>
 #include <minilib.h>
 
 int main()
