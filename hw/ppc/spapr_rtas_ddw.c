@@ -215,6 +215,7 @@ static void rtas_ibm_remove_pe_dma_window(PowerPCCPU *cpu,
     SpaprPhbState *sphb;
     SpaprTceTable *tcet;
     uint32_t liobn;
+    bool def_win_removed;
 
     if ((nargs != 1) || (nret != 1)) {
         goto param_error_exit;
@@ -231,8 +232,22 @@ static void rtas_ibm_remove_pe_dma_window(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
+    def_win_removed = tcet->def_win;
     spapr_tce_table_disable(tcet);
     trace_spapr_iommu_ddw_remove(liobn);
+
+    /*
+     * PAPR+/LoPAPR says:
+     * The platform must restore the default DMA window for the PE on a call
+     * to the ibm,remove-pe-dma-window RTAS call when all of the following
+     * are true:
+     * a. The call removes the last DMA window remaining for the PE.
+     * b. The DMA window being removed is not the default window
+     */
+    if (spapr_phb_get_active_win_num(sphb) == 0 && !def_win_removed) {
+        spapr_phb_dma_reset(sphb);
+        trace_spapr_iommu_ddw_reset(sphb->buid, 0);
+    }
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     return;
