@@ -1616,6 +1616,12 @@ static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
         goto invalid_param;
     }
 
+    /* Allow changing the block size */
+    if (bd_len && p[6] != (s->qdev.blocksize >> 8)) {
+        s->qdev.blocksize = p[6] << 8;
+        trace_scsi_disk_mode_select_set_blocksize(s->qdev.blocksize);
+    }
+
     len -= bd_len;
     p += bd_len;
 
