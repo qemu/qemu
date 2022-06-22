@@ -686,6 +686,11 @@ static void q800_init(MachineState *machine)
     }
 }
 
+static GlobalProperty hw_compat_q800[] = {
+    { "scsi-cd", "quirk_mode_page_apple_vendor", "on"},
+};
+static const size_t hw_compat_q800_len = G_N_ELEMENTS(hw_compat_q800);
+
 static void q800_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -695,6 +700,7 @@ static void q800_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = 1;
     mc->block_default_type = IF_SCSI;
     mc->default_ram_id = "m68k_mac.ram";
+    compat_props_add(mc->compat_props, hw_compat_q800, hw_compat_q800_len);
 }
 
 static const TypeInfo q800_machine_typeinfo = {
