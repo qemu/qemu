@@ -322,9 +322,9 @@ void msi_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp)
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
     uint32_t irq_state, vector_mask, pending;
 
-    if (vector > PCI_MSI_VECTORS_MAX) {
+    if (vector >= PCI_MSI_VECTORS_MAX) {
         error_setg(errp, "msi: vector %d not allocated. max vector is %d",
-                   vector, PCI_MSI_VECTORS_MAX);
+                   vector, (PCI_MSI_VECTORS_MAX - 1));
         return;
     }
 
