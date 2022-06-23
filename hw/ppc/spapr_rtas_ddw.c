@@ -100,7 +100,7 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
     uint64_t buid;
     uint32_t avail, addr, pgmask = 0;
 
-    if ((nargs != 3) || (nret != 5)) {
+    if ((nargs != 3) || ((nret != 5) && (nret != 6))) {
         goto param_error_exit;
     }
 
@@ -118,9 +118,20 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, avail);
-    rtas_st(rets, 2, 0x80000000); /* The largest window we can possibly have */
-    rtas_st(rets, 3, pgmask);
-    rtas_st(rets, 4, 0); /* DMA migration mask, not supported */
+    if (nret == 6) {
+        /*
+         * Set the Max TCE number as 1<<(58-21) = 0x20.0000.0000
+         * 1<<59 is the huge window start and 21 is 2M page shift.
+         */
+        rtas_st(rets, 2, 0x00000020);
+        rtas_st(rets, 3, 0x00000000);
+        rtas_st(rets, 4, pgmask);
+        rtas_st(rets, 5, 0); /* DMA migration mask, not supported */
+    } else {
+        rtas_st(rets, 2, 0x80000000);
+        rtas_st(rets, 3, pgmask);
+        rtas_st(rets, 4, 0); /* DMA migration mask, not supported */
+    }
 
     trace_spapr_iommu_ddw_query(buid, addr, avail, 0x80000000, pgmask);
     return;

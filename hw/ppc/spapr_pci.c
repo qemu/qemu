@@ -2360,8 +2360,9 @@ int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
         cpu_to_be32(RTAS_IBM_REMOVE_PE_DMA_WINDOW)
     };
     uint32_t ddw_extensions[] = {
-        cpu_to_be32(1),
-        cpu_to_be32(RTAS_IBM_RESET_PE_DMA_WINDOW)
+        cpu_to_be32(2),
+        cpu_to_be32(RTAS_IBM_RESET_PE_DMA_WINDOW),
+        cpu_to_be32(1), /* 1: ibm,query-pe-dma-window 6 outputs, PAPR 2.8 */
     };
     SpaprTceTable *tcet;
     SpaprDrc *drc;
