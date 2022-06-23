@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 #
 # OSS-Fuzz build script. See:
 # https://google.github.io/oss-fuzz/getting-started/new-project-guide/#buildsh
@@ -105,7 +105,7 @@ do
     # to be configured. We have some generic-fuzz-{pc-q35, floppy, ...} targets
     # that are thin wrappers around this target that set the required
     # environment variables according to predefined configs.
-    if [ "$target" != "generic-fuzz" ]; then
+    if [[ $target == "generic-fuzz-"* ]]; then
         ln  $base_copy \
             "$DEST_DIR/qemu-fuzz-i386-target-$target"
     fi
