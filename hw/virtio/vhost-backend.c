@@ -146,6 +146,12 @@ static int vhost_kernel_set_vring_call(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_SET_VRING_CALL, file);
 }
 
+static int vhost_kernel_set_vring_err(struct vhost_dev *dev,
+                                      struct vhost_vring_file *file)
+{
+    return vhost_kernel_call(dev, VHOST_SET_VRING_ERR, file);
+}
+
 static int vhost_kernel_set_vring_busyloop_timeout(struct vhost_dev *dev,
                                                    struct vhost_vring_state *s)
 {
@@ -309,6 +315,7 @@ const VhostOps kernel_ops = {
         .vhost_get_vring_base = vhost_kernel_get_vring_base,
         .vhost_set_vring_kick = vhost_kernel_set_vring_kick,
         .vhost_set_vring_call = vhost_kernel_set_vring_call,
+        .vhost_set_vring_err = vhost_kernel_set_vring_err,
         .vhost_set_vring_busyloop_timeout =
                                 vhost_kernel_set_vring_busyloop_timeout,
         .vhost_set_features = vhost_kernel_set_features,
