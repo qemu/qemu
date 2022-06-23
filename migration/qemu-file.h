@@ -29,47 +29,12 @@
 #include "exec/cpu-common.h"
 #include "io/channel.h"
 
-/* Read a chunk of data from a file at the given position.  The pos argument
- * can be ignored if the file is only be used for streaming.  The number of
- * bytes actually read should be returned.
- */
-typedef ssize_t (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
-                                        int64_t pos, size_t size,
-                                        Error **errp);
-
-/* Close a file
- *
- * Return negative error number on error, 0 or positive value on success.
- *
- * The meaning of return value on success depends on the specific back-end being
- * used.
- */
-typedef int (QEMUFileCloseFunc)(void *opaque, Error **errp);
-
-/* Called to return the OS file descriptor associated to the QEMUFile.
- */
-typedef int (QEMUFileGetFD)(void *opaque);
-
-/* Called to change the blocking mode of the file
- */
-typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled, Error **errp);
-
-/*
- * This function writes an iovec to file. The handler must write all
- * of the data or return a negative errno value.
- */
-typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
-                                           int iovcnt, int64_t pos,
-                                           Error **errp);
-
 /*
  * This function provides hooks around different
  * stages of RAM migration.
- * 'opaque' is the backend specific data in QEMUFile
  * 'data' is call specific data associated with the 'flags' value
  */
-typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags,
-                              void *data);
+typedef int (QEMURamHookFunc)(QEMUFile *f, uint64_t flags, void *data);
 
 /*
  * Constants used by ram_control_* hooks
@@ -84,34 +49,11 @@ typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags,
  * This function allows override of where the RAM page
  * is saved (such as RDMA, for example.)
  */
-typedef size_t (QEMURamSaveFunc)(QEMUFile *f, void *opaque,
-                               ram_addr_t block_offset,
-                               ram_addr_t offset,
-                               size_t size,
-                               uint64_t *bytes_sent);
-
-/*
- * Return a QEMUFile for comms in the opposite direction
- */
-typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
-
-/*
- * Stop any read or write (depending on flags) on the underlying
- * transport on the QEMUFile.
- * Existing blocking reads/writes must be woken
- * Returns 0 on success, -err on error
- */
-typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr,
-                                   Error **errp);
-
-typedef struct QEMUFileOps {
-    QEMUFileGetBufferFunc *get_buffer;
-    QEMUFileCloseFunc *close;
-    QEMUFileSetBlocking *set_blocking;
-    QEMUFileWritevBufferFunc *writev_buffer;
-    QEMURetPathFunc *get_return_path;
-    QEMUFileShutdownFunc *shut_down;
-} QEMUFileOps;
+typedef size_t (QEMURamSaveFunc)(QEMUFile *f,
+                                 ram_addr_t block_offset,
+                                 ram_addr_t offset,
+                                 size_t size,
+                                 uint64_t *bytes_sent);
 
 typedef struct QEMUFileHooks {
     QEMURamHookFunc *before_ram_iterate;
@@ -120,12 +62,41 @@ typedef struct QEMUFileHooks {
     QEMURamSaveFunc *save_page;
 } QEMUFileHooks;
 
-QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops, bool has_ioc);
+QEMUFile *qemu_file_new_input(QIOChannel *ioc);
+QEMUFile *qemu_file_new_output(QIOChannel *ioc);
 void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
-int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
-int64_t qemu_ftell(QEMUFile *f);
-int64_t qemu_ftell_fast(QEMUFile *f);
+
+/*
+ * qemu_file_total_transferred:
+ *
+ * Report the total number of bytes transferred with
+ * this file.
+ *
+ * For writable files, any pending buffers will be
+ * flushed, so the reported value will be equal to
+ * the number of bytes transferred on the wire.
+ *
+ * For readable files, the reported value will be
+ * equal to the number of bytes transferred on the
+ * wire.
+ *
+ * Returns: the total bytes transferred
+ */
+int64_t qemu_file_total_transferred(QEMUFile *f);
+
+/*
+ * qemu_file_total_transferred_fast:
+ *
+ * As qemu_file_total_transferred except for writable
+ * files, where no flush is performed and the reported
+ * amount will include the size of any queued buffers,
+ * on top of the amount actually transferred.
+ *
+ * Returns: the total bytes transferred and queued
+ */
+int64_t qemu_file_total_transferred_fast(QEMUFile *f);
+
 /*
  * put_buffer without copying the buffer.
  * The buffer should be available till it is sent asynchronously.
@@ -150,9 +121,23 @@ int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
  */
 int qemu_peek_byte(QEMUFile *f, int offset);
 void qemu_file_skip(QEMUFile *f, int size);
-void qemu_update_position(QEMUFile *f, size_t size);
+/*
+ * qemu_file_credit_transfer:
+ *
+ * Report on a number of bytes that have been transferred
+ * out of band from the main file object I/O methods. This
+ * accounting information tracks the total migration traffic.
+ */
+void qemu_file_credit_transfer(QEMUFile *f, size_t size);
 void qemu_file_reset_rate_limit(QEMUFile *f);
-void qemu_file_update_transfer(QEMUFile *f, int64_t len);
+/*
+ * qemu_file_acct_rate_limit:
+ *
+ * Report on a number of bytes the have been transferred
+ * out of band from the main file object I/O methods, and
+ * need to be applied to the rate limiting calcuations
+ */
+void qemu_file_acct_rate_limit(QEMUFile *f, int64_t len);
 void qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
 int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error_obj(QEMUFile *f, Error **errp);
