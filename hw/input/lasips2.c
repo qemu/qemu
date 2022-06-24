@@ -255,9 +255,6 @@ LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq)
     s = LASIPS2(dev);
 
     s->irq = irq;
-    s->mouse.id = 1;
-    s->kbd.parent = s;
-    s->mouse.parent = s;
 
     vmstate_register(NULL, base, &vmstate_lasips2, s);
 
@@ -270,6 +267,11 @@ LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq)
 static void lasips2_init(Object *obj)
 {
     LASIPS2State *s = LASIPS2(obj);
+
+    s->kbd.id = 0;
+    s->mouse.id = 1;
+    s->kbd.parent = s;
+    s->mouse.parent = s;
 
     memory_region_init_io(&s->kbd.reg, obj, &lasips2_reg_ops, &s->kbd,
                           "lasips2-kbd", 0x100);
