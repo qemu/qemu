@@ -1358,7 +1358,7 @@ static void artist_create_buffer(ARTISTState *s, const char *name,
 {
     struct vram_buffer *buf = s->vram_buffer + idx;
 
-    memory_region_init_ram(&buf->mr, NULL, name, width * height,
+    memory_region_init_ram(&buf->mr, OBJECT(s), name, width * height,
                            &error_fatal);
     memory_region_add_subregion_overlap(&s->mem_as_root, *offset, &buf->mr, 0);
 
