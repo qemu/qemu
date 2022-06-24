@@ -39,49 +39,86 @@
 
 #include "trace.h"
 
-/*	Keyboard Controller Commands */
-#define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
-#define KBD_CCMD_WRITE_MODE	0x60	/* Write mode bits */
-#define KBD_CCMD_GET_VERSION	0xA1	/* Get controller version */
-#define KBD_CCMD_MOUSE_DISABLE	0xA7	/* Disable mouse interface */
-#define KBD_CCMD_MOUSE_ENABLE	0xA8	/* Enable mouse interface */
-#define KBD_CCMD_TEST_MOUSE	0xA9	/* Mouse interface test */
-#define KBD_CCMD_SELF_TEST	0xAA	/* Controller self test */
-#define KBD_CCMD_KBD_TEST	0xAB	/* Keyboard interface test */
-#define KBD_CCMD_KBD_DISABLE	0xAD	/* Keyboard interface disable */
-#define KBD_CCMD_KBD_ENABLE	0xAE	/* Keyboard interface enable */
-#define KBD_CCMD_READ_INPORT    0xC0    /* read input port */
-#define KBD_CCMD_READ_OUTPORT	0xD0    /* read output port */
-#define KBD_CCMD_WRITE_OUTPORT	0xD1    /* write output port */
-#define KBD_CCMD_WRITE_OBUF	0xD2
-#define KBD_CCMD_WRITE_AUX_OBUF	0xD3    /* Write to output buffer as if
-                                           initiated by the auxiliary device */
-#define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
-#define KBD_CCMD_DISABLE_A20    0xDD    /* HP vectra only ? */
-#define KBD_CCMD_ENABLE_A20     0xDF    /* HP vectra only ? */
-#define KBD_CCMD_PULSE_BITS_3_0 0xF0    /* Pulse bits 3-0 of the output port P2. */
-#define KBD_CCMD_RESET          0xFE    /* Pulse bit 0 of the output port P2 = CPU reset. */
-#define KBD_CCMD_NO_OP          0xFF    /* Pulse no bits of the output port P2. */
+/* Keyboard Controller Commands */
+
+/* Read mode bits */
+#define KBD_CCMD_READ_MODE         0x20
+/* Write mode bits */
+#define KBD_CCMD_WRITE_MODE        0x60
+/* Get controller version */
+#define KBD_CCMD_GET_VERSION       0xA1
+/* Disable mouse interface */
+#define KBD_CCMD_MOUSE_DISABLE     0xA7
+/* Enable mouse interface */
+#define KBD_CCMD_MOUSE_ENABLE      0xA8
+/* Mouse interface test */
+#define KBD_CCMD_TEST_MOUSE        0xA9
+/* Controller self test */
+#define KBD_CCMD_SELF_TEST         0xAA
+/* Keyboard interface test */
+#define KBD_CCMD_KBD_TEST          0xAB
+/* Keyboard interface disable */
+#define KBD_CCMD_KBD_DISABLE       0xAD
+/* Keyboard interface enable */
+#define KBD_CCMD_KBD_ENABLE        0xAE
+/* read input port */
+#define KBD_CCMD_READ_INPORT       0xC0
+/* read output port */
+#define KBD_CCMD_READ_OUTPORT      0xD0
+/* write output port */
+#define KBD_CCMD_WRITE_OUTPORT     0xD1
+#define KBD_CCMD_WRITE_OBUF        0xD2
+/* Write to output buffer as if initiated by the auxiliary device */
+#define KBD_CCMD_WRITE_AUX_OBUF    0xD3
+/* Write the following byte to the mouse */
+#define KBD_CCMD_WRITE_MOUSE       0xD4
+/* HP vectra only ? */
+#define KBD_CCMD_DISABLE_A20       0xDD
+/* HP vectra only ? */
+#define KBD_CCMD_ENABLE_A20        0xDF
+/* Pulse bits 3-0 of the output port P2. */
+#define KBD_CCMD_PULSE_BITS_3_0    0xF0
+/* Pulse bit 0 of the output port P2 = CPU reset. */
+#define KBD_CCMD_RESET             0xFE
+/* Pulse no bits of the output port P2. */
+#define KBD_CCMD_NO_OP             0xFF
 
 /* Status Register Bits */
-#define KBD_STAT_OBF 		0x01	/* Keyboard output buffer full */
-#define KBD_STAT_IBF 		0x02	/* Keyboard input buffer full */
-#define KBD_STAT_SELFTEST	0x04	/* Self test successful */
-#define KBD_STAT_CMD		0x08	/* Last write was a command write (0=data) */
-#define KBD_STAT_UNLOCKED	0x10	/* Zero if keyboard locked */
-#define KBD_STAT_MOUSE_OBF	0x20	/* Mouse output buffer full */
-#define KBD_STAT_GTO 		0x40	/* General receive/xmit timeout */
-#define KBD_STAT_PERR 		0x80	/* Parity error */
+
+/* Keyboard output buffer full */
+#define KBD_STAT_OBF           0x01
+/* Keyboard input buffer full */
+#define KBD_STAT_IBF           0x02
+/* Self test successful */
+#define KBD_STAT_SELFTEST      0x04
+/* Last write was a command write (0=data) */
+#define KBD_STAT_CMD           0x08
+/* Zero if keyboard locked */
+#define KBD_STAT_UNLOCKED      0x10
+/* Mouse output buffer full */
+#define KBD_STAT_MOUSE_OBF     0x20
+/* General receive/xmit timeout */
+#define KBD_STAT_GTO           0x40
+/* Parity error */
+#define KBD_STAT_PERR          0x80
 
 /* Controller Mode Register Bits */
-#define KBD_MODE_KBD_INT	0x01	/* Keyboard data generate IRQ1 */
-#define KBD_MODE_MOUSE_INT	0x02	/* Mouse data generate IRQ12 */
-#define KBD_MODE_SYS 		0x04	/* The system flag (?) */
-#define KBD_MODE_NO_KEYLOCK	0x08	/* The keylock doesn't affect the keyboard if set */
-#define KBD_MODE_DISABLE_KBD	0x10	/* Disable keyboard interface */
-#define KBD_MODE_DISABLE_MOUSE	0x20	/* Disable mouse interface */
-#define KBD_MODE_KCC 		0x40	/* Scan code conversion to PC format */
-#define KBD_MODE_RFU		0x80
+
+/* Keyboard data generate IRQ1 */
+#define KBD_MODE_KBD_INT       0x01
+/* Mouse data generate IRQ12 */
+#define KBD_MODE_MOUSE_INT     0x02
+/* The system flag (?) */
+#define KBD_MODE_SYS           0x04
+/* The keylock doesn't affect the keyboard if set */
+#define KBD_MODE_NO_KEYLOCK    0x08
+/* Disable keyboard interface */
+#define KBD_MODE_DISABLE_KBD   0x10
+/* Disable mouse interface */
+#define KBD_MODE_DISABLE_MOUSE 0x20
+/* Scan code conversion to PC format */
+#define KBD_MODE_KCC           0x40
+#define KBD_MODE_RFU           0x80
 
 /* Output Port Bits */
 #define KBD_OUT_RESET           0x01    /* 1=normal mode, 0=reset */
@@ -89,7 +126,8 @@
 #define KBD_OUT_OBF             0x10    /* Keyboard output buffer full */
 #define KBD_OUT_MOUSE_OBF       0x20    /* Mouse output buffer full */
 
-/* OSes typically write 0xdd/0xdf to turn the A20 line off and on.
+/*
+ * OSes typically write 0xdd/0xdf to turn the A20 line off and on.
  * We make the default value of the outport include these four bits,
  * so that the subsection is rarely necessary.
  */
@@ -133,8 +171,10 @@ typedef struct KBDState {
     hwaddr mask;
 } KBDState;
 
-/* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
-   incorrect, but it avoids having to simulate exact delays */
+/*
+ * XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
+ * incorrect, but it avoids having to simulate exact delays
+ */
 static void kbd_update_irq_lines(KBDState *s)
 {
     int irq_kbd_level, irq_mouse_level;
@@ -302,21 +342,23 @@ static void kbd_write_command(void *opaque, hwaddr addr,
 
     trace_pckbd_kbd_write_command(val);
 
-    /* Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
+    /*
+     * Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
      * low for approximately 6 micro seconds. Bits 3-0 of the KBD_CCMD_PULSE
      * command specify the output port bits to be pulsed.
      * 0: Bit should be pulsed. 1: Bit should not be modified.
      * The only useful version of this command is pulsing bit 0,
      * which does a CPU reset.
      */
-    if((val & KBD_CCMD_PULSE_BITS_3_0) == KBD_CCMD_PULSE_BITS_3_0) {
-        if(!(val & 1))
+    if ((val & KBD_CCMD_PULSE_BITS_3_0) == KBD_CCMD_PULSE_BITS_3_0) {
+        if (!(val & 1)) {
             val = KBD_CCMD_RESET;
-        else
+        } else {
             val = KBD_CCMD_NO_OP;
+        }
     }
 
-    switch(val) {
+    switch (val) {
     case KBD_CCMD_READ_MODE:
         kbd_queue(s, s->mode, 0);
         break;
@@ -409,7 +451,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
 
     trace_pckbd_kbd_write_data(val);
 
-    switch(s->write_cmd) {
+    switch (s->write_cmd) {
     case 0:
         ps2_write_keyboard(s->kbd, val);
         /* sending data to the keyboard reenables PS/2 communication */
@@ -607,7 +649,7 @@ static const VMStateDescription vmstate_kbd = {
         VMSTATE_UINT8(pending_tmp, KBDState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * []) {
         &vmstate_kbd_outport,
         &vmstate_kbd_extended_state,
         NULL
@@ -619,10 +661,11 @@ static uint64_t kbd_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     KBDState *s = opaque;
 
-    if (addr & s->mask)
+    if (addr & s->mask) {
         return kbd_read_status(s, 0, 1) & 0xff;
-    else
+    } else {
         return kbd_read_data(s, 0, 1) & 0xff;
+    }
 }
 
 static void kbd_mm_writefn(void *opaque, hwaddr addr,
@@ -630,10 +673,11 @@ static void kbd_mm_writefn(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    if (addr & s->mask)
+    if (addr & s->mask) {
         kbd_write_command(s, 0, value & 0xff, 1);
-    else
+    } else {
         kbd_write_data(s, 0, value & 0xff, 1);
+    }
 }
 
 
