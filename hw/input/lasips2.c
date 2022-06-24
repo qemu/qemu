@@ -245,8 +245,7 @@ static void lasips2_port_set_irq(void *opaque, int level)
     lasips2_update_irq(port->parent);
 }
 
-LASIPS2State *lasips2_initfn(MemoryRegion *address_space,
-                             hwaddr base, qemu_irq irq)
+LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq)
 {
     LASIPS2State *s;
     DeviceState *dev;
@@ -264,10 +263,6 @@ LASIPS2State *lasips2_initfn(MemoryRegion *address_space,
 
     s->kbd.dev = ps2_kbd_init(lasips2_port_set_irq, &s->kbd);
     s->mouse.dev = ps2_mouse_init(lasips2_port_set_irq, &s->mouse);
-
-    memory_region_add_subregion(address_space, base, &s->kbd.reg);
-
-    memory_region_add_subregion(address_space, base + 0x100, &s->mouse.reg);
 
     return s;
 }
