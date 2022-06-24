@@ -200,7 +200,6 @@ struct PnvPhb4PecClass {
     uint64_t version;
     const char *phb_type;
     const uint32_t *num_phbs;
-    const char *rp_model;
 };
 
 /*
