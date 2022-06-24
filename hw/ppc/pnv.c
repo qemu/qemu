@@ -1195,11 +1195,12 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
  * QOM id. 'chip_id' is going to be used as PCIE chassis for the
  * root port.
  */
-void pnv_phb_attach_root_port(PCIHostState *pci, const char *name,
-                              int index, int chip_id)
+void pnv_phb_attach_root_port(PCIHostState *pci, int index, int chip_id)
 {
-    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
-    g_autofree char *default_id = g_strdup_printf("%s[%d]", name, index);
+    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
+    g_autofree char *default_id = g_strdup_printf("%s[%d]",
+                                                  TYPE_PNV_PHB_ROOT_PORT,
+                                                  index);
     const char *dev_id = DEVICE(root)->id;
 
     object_property_add_child(OBJECT(pci->bus), dev_id ? dev_id : default_id,
