@@ -1213,6 +1213,11 @@ static QemuInputHandler ps2_keyboard_handler = {
     .event = ps2_keyboard_event,
 };
 
+static void ps2_kbd_realize(DeviceState *dev, Error **errp)
+{
+    qemu_input_handler_register(dev, &ps2_keyboard_handler);
+}
+
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
     DeviceState *dev;
@@ -1228,8 +1233,7 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
     ps2->update_irq = update_irq;
     ps2->update_arg = update_arg;
     vmstate_register(NULL, 0, &vmstate_ps2_keyboard, s);
-    qemu_input_handler_register((DeviceState *)s,
-                                &ps2_keyboard_handler);
+
     return s;
 }
 
@@ -1265,6 +1269,7 @@ static void ps2_kbd_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
 
+    dc->realize = ps2_kbd_realize;
     device_class_set_parent_reset(dc, ps2_kbd_reset, &ps2dc->parent_reset);
 }
 
