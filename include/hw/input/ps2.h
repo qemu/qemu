@@ -25,13 +25,69 @@
 #ifndef HW_PS2_H
 #define HW_PS2_H
 
+#include "hw/sysbus.h"
+
 #define PS2_MOUSE_BUTTON_LEFT   0x01
 #define PS2_MOUSE_BUTTON_RIGHT  0x02
 #define PS2_MOUSE_BUTTON_MIDDLE 0x04
 #define PS2_MOUSE_BUTTON_SIDE   0x08
 #define PS2_MOUSE_BUTTON_EXTRA  0x10
 
-typedef struct PS2State PS2State;
+/*
+ * PS/2 buffer size. Keep 256 bytes for compatibility with
+ * older QEMU versions.
+ */
+#define PS2_BUFFER_SIZE     256
+
+typedef struct {
+    uint8_t data[PS2_BUFFER_SIZE];
+    int rptr, wptr, cwptr, count;
+} PS2Queue;
+
+struct PS2State {
+    SysBusDevice parent_obj;
+
+    PS2Queue queue;
+    int32_t write_cmd;
+    void (*update_irq)(void *, int);
+    void *update_arg;
+};
+
+#define TYPE_PS2_DEVICE "ps2-device"
+OBJECT_DECLARE_SIMPLE_TYPE(PS2State, PS2_DEVICE)
+
+struct PS2KbdState {
+    PS2State parent_obj;
+
+    int scan_enabled;
+    int translate;
+    int scancode_set; /* 1=XT, 2=AT, 3=PS/2 */
+    int ledstate;
+    bool need_high_bit;
+    unsigned int modifiers; /* bitmask of MOD_* constants above */
+};
+
+#define TYPE_PS2_KBD_DEVICE "ps2-kbd"
+OBJECT_DECLARE_SIMPLE_TYPE(PS2KbdState, PS2_KBD_DEVICE)
+
+struct PS2MouseState {
+    PS2State parent_obj;
+
+    uint8_t mouse_status;
+    uint8_t mouse_resolution;
+    uint8_t mouse_sample_rate;
+    uint8_t mouse_wrap;
+    uint8_t mouse_type; /* 0 = PS2, 3 = IMPS/2, 4 = IMEX */
+    uint8_t mouse_detect_state;
+    int mouse_dx; /* current values, needed for 'poll' mode */
+    int mouse_dy;
+    int mouse_dz;
+    int mouse_dw;
+    uint8_t mouse_buttons;
+};
+
+#define TYPE_PS2_MOUSE_DEVICE "ps2-mouse"
+OBJECT_DECLARE_SIMPLE_TYPE(PS2MouseState, PS2_MOUSE_DEVICE)
 
 /* ps2.c */
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg);
