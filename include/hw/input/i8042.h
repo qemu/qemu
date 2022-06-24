@@ -9,6 +9,7 @@
 #define HW_INPUT_I8042_H
 
 #include "hw/isa/isa.h"
+#include "hw/sysbus.h"
 #include "qom/object.h"
 
 typedef struct KBDState {
@@ -47,6 +48,15 @@ struct ISAKBDState {
     MemoryRegion io[2];
     uint8_t kbd_irq;
     uint8_t mouse_irq;
+};
+
+#define TYPE_I8042_MMIO "i8042-mmio"
+OBJECT_DECLARE_SIMPLE_TYPE(MMIOKBDState, I8042_MMIO)
+
+struct MMIOKBDState {
+    SysBusDevice parent_obj;
+
+    KBDState kbd;
 };
 
 #define I8042_A20_LINE "a20"
