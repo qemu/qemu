@@ -77,8 +77,6 @@ struct PnvPHB4 {
     uint32_t chip_id;
     uint32_t phb_id;
 
-    uint64_t version;
-
     /* The owner PEC */
     PnvPhb4PecState *pec;
 
