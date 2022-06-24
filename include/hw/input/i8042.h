@@ -52,6 +52,17 @@ struct ISAKBDState {
     uint8_t mouse_irq;
 };
 
+/*
+ * QEMU interface:
+ * + sysbus MMIO region 0: MemoryRegion defining the command/status/data
+ *   registers (access determined by mask property and access type)
+ * + Named GPIO input "ps2-kbd-input-irq": set to 1 if the downstream PS2
+ *   keyboard device has asserted its irq
+ * + Named GPIO input "ps2-mouse-input-irq": set to 1 if the downstream PS2
+ *   mouse device has asserted its irq
+ * + Unnamed GPIO output 0-1: i8042 output irqs for keyboard (0) or mouse (1)
+ */
+
 #define TYPE_I8042_MMIO "i8042-mmio"
 OBJECT_DECLARE_SIMPLE_TYPE(MMIOKBDState, I8042_MMIO)
 
