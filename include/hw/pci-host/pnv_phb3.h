@@ -164,5 +164,6 @@ uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size);
 void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size);
 void pnv_phb3_update_regions(PnvPHB3 *phb);
 void pnv_phb3_remap_irqs(PnvPHB3 *phb);
+void pnv_phb3_bus_init(DeviceState *dev, PnvPHB3 *phb);
 
 #endif /* PCI_HOST_PNV_PHB3_H */
