@@ -24,9 +24,9 @@
 
     Download cross-tools.
 
-      wget https://github.com/loongson/build-tools/releases/latest/download/loongarch64-clfs-20211202-cross-tools.tar.xz
+      wget https://github.com/loongson/build-tools/releases/download/2022.05.29/loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz
 
-      tar -vxf loongarch64-clfs-20211202-cross-tools.tar.xz -C /opt
+      tar -vxf loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz -C /opt
 
     Config cross-tools env.
 
@@ -59,6 +59,41 @@
     or
 
     ./build/qemu-system-loongarch64 -machine virt -m 4G -cpu Loongson-3A5000 -smp 1 -kernel build/tests/tcg/loongarch64-softmmu/hello -monitor none -display none -chardev file,path=hello.out,id=output -serial chardev:output
+
+- Linux-user emulation
+
+  We already support Linux user emulation. We can use LoongArch cross-tools to build LoongArch executables on X86 machines,
+  and We can also use qemu-loongarch64 to run LoongArch executables.
+
+  1. Config cross-tools env.
+
+     see System emulation.
+
+  2. Test tests/tcg/multiarch.
+
+     ./configure  --static  --prefix=/usr  --disable-werror --target-list="loongarch64-linux-user" --enable-debug
+
+     cd build
+
+     make && make check-tcg
+
+  3. Run LoongArch system basic command with loongarch-clfs-system.
+
+     - Config clfs env.
+
+       wget https://github.com/loongson/build-tools/releases/download/2022.05.29/loongarch64-clfs-system-5.0.tar.bz2
+
+       tar -vxf loongarch64-clfs-system-5.0.tar.bz2 -C /opt/clfs
+
+       cp /opt/clfs/lib64/ld-linux-loongarch-lp64d.so.1  /lib64
+
+       export LD_LIBRARY_PATH="/opt/clfs/lib64"
+
+     - Run LoongArch system basic command.
+
+       ./qemu-loongarch64  /opt/clfs/usr/bin/bash
+       ./qemu-loongarch64  /opt/clfs/usr/bin/ls
+       ./qemu-loongarch64  /opt/clfs/usr/bin/pwd
 
 - Note.
   We can get the latest LoongArch documents or LoongArch tools at https://github.com/loongson/
