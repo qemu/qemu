@@ -177,6 +177,11 @@ static void ps2_raise_irq(PS2State *s)
     s->update_irq(s->update_arg, 1);
 }
 
+static void ps2_lower_irq(PS2State *s)
+{
+    s->update_irq(s->update_arg, 0);
+}
+
 void ps2_queue(PS2State *s, int b)
 {
     if (PS2_QUEUE_SIZE - s->queue.count < 1) {
@@ -554,7 +559,7 @@ uint32_t ps2_read_data(PS2State *s)
             q->cwptr = -1;
         }
         /* reading deasserts IRQ */
-        s->update_irq(s->update_arg, 0);
+        ps2_lower_irq(s);
         /* reassert IRQs if data left */
         if (q->count) {
             ps2_raise_irq(s);
@@ -1001,7 +1006,7 @@ static void ps2_reset(DeviceState *dev)
 
     s->write_cmd = -1;
     ps2_reset_queue(s);
-    s->update_irq(s->update_arg, 0);
+    ps2_lower_irq(s);
 }
 
 static void ps2_common_post_load(PS2State *s)
