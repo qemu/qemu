@@ -205,7 +205,6 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case REG_PS2_STATUS:
-
         ret = LASIPS2_STATUS_DATSHD | LASIPS2_STATUS_CLKSHD;
 
         if (port->control & LASIPS2_CONTROL_DIAG) {
@@ -238,9 +237,9 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
                       __func__, addr);
         break;
     }
+
     trace_lasips2_reg_read(size, port->id, addr,
                            lasips2_read_reg_name(addr), ret);
-
     return ret;
 }
 
@@ -257,6 +256,7 @@ static const MemoryRegionOps lasips2_reg_ops = {
 static void ps2dev_update_irq(void *opaque, int level)
 {
     LASIPS2Port *port = opaque;
+
     port->irq = level;
     lasips2_update_irq(port->parent);
 }
