@@ -1262,7 +1262,6 @@ void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
     trace_ps2_mouse_init(s);
     ps2->update_irq = update_irq;
     ps2->update_arg = update_arg;
-    vmstate_register(NULL, 0, &vmstate_ps2_mouse, s);
     return s;
 }
 
@@ -1291,6 +1290,7 @@ static void ps2_mouse_class_init(ObjectClass *klass, void *data)
     dc->realize = ps2_mouse_realize;
     device_class_set_parent_reset(dc, ps2_mouse_reset,
                                   &ps2dc->parent_reset);
+    dc->vmsd = &vmstate_ps2_mouse;
 }
 
 static const TypeInfo ps2_mouse_info = {
