@@ -131,7 +131,7 @@ class QEMUMachine:
                  drain_console: bool = False,
                  console_log: Optional[str] = None,
                  log_dir: Optional[str] = None,
-                 qmp_timer: Optional[float] = None):
+                 qmp_timer: Optional[float] = 30):
         '''
         Initialize a QEMUMachine
 
