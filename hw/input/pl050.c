@@ -7,6 +7,14 @@
  * This code is licensed under the GPL.
  */
 
+/*
+ * QEMU interface:
+ * + sysbus MMIO region 0: MemoryRegion defining the PL050 registers
+ * + Named GPIO input "ps2-input-irq": set to 1 if the downstream PS2 device
+ *   has asserted its irq
+ * + sysbus IRQ 0: PL050 output irq
+ */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
