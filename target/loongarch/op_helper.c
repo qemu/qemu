@@ -86,6 +86,9 @@ target_ulong helper_cpucfg(CPULoongArchState *env, target_ulong rj)
 
 uint64_t helper_rdtime_d(CPULoongArchState *env)
 {
+#ifdef CONFIG_USER_ONLY
+    return cpu_get_host_ticks();
+#else
     uint64_t plv;
     LoongArchCPU *cpu = env_archcpu(env);
 
@@ -95,8 +98,10 @@ uint64_t helper_rdtime_d(CPULoongArchState *env)
     }
 
     return cpu_loongarch_get_constant_timer_counter(cpu);
+#endif
 }
 
+#ifndef CONFIG_USER_ONLY
 void helper_ertn(CPULoongArchState *env)
 {
     uint64_t csr_pplv, csr_pie;
@@ -131,3 +136,4 @@ void helper_idle(CPULoongArchState *env)
     cs->halted = 1;
     do_raise_exception(env, EXCP_HLT, 0);
 }
+#endif
