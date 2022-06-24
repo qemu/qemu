@@ -12,6 +12,9 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#define I8042_KBD_IRQ      0
+#define I8042_MOUSE_IRQ    1
+
 typedef struct KBDState {
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
@@ -31,8 +34,7 @@ typedef struct KBDState {
     void *mouse;
     QEMUTimer *throttle_timer;
 
-    qemu_irq irq_kbd;
-    qemu_irq irq_mouse;
+    qemu_irq irqs[2];
     qemu_irq a20_out;
     hwaddr mask;
 } KBDState;

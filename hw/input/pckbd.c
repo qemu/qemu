@@ -170,8 +170,8 @@ static void kbd_update_irq_lines(KBDState *s)
             }
         }
     }
-    qemu_set_irq(s->irq_kbd, irq_kbd_level);
-    qemu_set_irq(s->irq_mouse, irq_mouse_level);
+    qemu_set_irq(s->irqs[I8042_KBD_IRQ], irq_kbd_level);
+    qemu_set_irq(s->irqs[I8042_MOUSE_IRQ], irq_mouse_level);
 }
 
 static void kbd_deassert_irq(KBDState *s)
@@ -726,8 +726,8 @@ MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     s = &I8042_MMIO(dev)->kbd;
 
-    s->irq_kbd = kbd_irq;
-    s->irq_mouse = mouse_irq;
+    s->irqs[I8042_KBD_IRQ] = kbd_irq;
+    s->irqs[I8042_MOUSE_IRQ] = mouse_irq;
 
     return I8042_MMIO(dev);
 }
@@ -813,8 +813,8 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->irq_kbd = isa_get_irq(isadev, isa_s->kbd_irq);
-    s->irq_mouse = isa_get_irq(isadev, isa_s->mouse_irq);
+    s->irqs[I8042_KBD_IRQ] = isa_get_irq(isadev, isa_s->kbd_irq);
+    s->irqs[I8042_MOUSE_IRQ] = isa_get_irq(isadev, isa_s->mouse_irq);
 
     isa_register_ioport(isadev, isa_s->io + 0, 0x60);
     isa_register_ioport(isadev, isa_s->io + 1, 0x64);
