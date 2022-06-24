@@ -1322,6 +1322,14 @@ static int iommu_post_load(void *opaque, int version_id)
     VirtIOIOMMU *s = opaque;
 
     g_tree_foreach(s->domains, reconstruct_endpoints, s);
+
+    /*
+     * Memory regions are dynamically turned on/off depending on
+     * 'config.bypass' and attached domain type if there is. After
+     * migration, we need to make sure the memory regions are
+     * still correct.
+     */
+    virtio_iommu_switch_address_space_all(s);
     return 0;
 }
 
