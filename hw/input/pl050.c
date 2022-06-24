@@ -172,9 +172,9 @@ static void pl050_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
     if (s->is_mouse) {
-        s->dev = ps2_mouse_init(NULL, NULL);
+        s->dev = ps2_mouse_init();
     } else {
-        s->dev = ps2_kbd_init(NULL, NULL);
+        s->dev = ps2_kbd_init();
     }
     qdev_connect_gpio_out(DEVICE(s->dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-input-irq", 0));

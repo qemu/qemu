@@ -175,20 +175,12 @@ void ps2_queue_noirq(PS2State *s, int b)
 
 static void ps2_raise_irq(PS2State *s)
 {
-    if (qemu_irq_is_connected(s->irq)) {
-        qemu_set_irq(s->irq, 1);
-    } else {
-        s->update_irq(s->update_arg, 1);
-    }
+    qemu_set_irq(s->irq, 1);
 }
 
 static void ps2_lower_irq(PS2State *s)
 {
-    if (qemu_irq_is_connected(s->irq)) {
-        qemu_set_irq(s->irq, 0);
-    } else {
-        s->update_irq(s->update_arg, 0);
-    }
+    qemu_set_irq(s->irq, 0);
 }
 
 void ps2_queue(PS2State *s, int b)
@@ -1232,21 +1224,16 @@ static void ps2_kbd_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_keyboard_handler);
 }
 
-void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
+void *ps2_kbd_init(void)
 {
     DeviceState *dev;
     PS2KbdState *s;
-    PS2State *ps2;
 
     dev = qdev_new(TYPE_PS2_KBD_DEVICE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     s = PS2_KBD_DEVICE(dev);
-    ps2 = PS2_DEVICE(s);
 
     trace_ps2_kbd_init(s);
-    ps2->update_irq = update_irq;
-    ps2->update_arg = update_arg;
-
     return s;
 }
 
@@ -1262,20 +1249,16 @@ static void ps2_mouse_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_mouse_handler);
 }
 
-void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
+void *ps2_mouse_init(void)
 {
     DeviceState *dev;
     PS2MouseState *s;
-    PS2State *ps2;
 
     dev = qdev_new(TYPE_PS2_MOUSE_DEVICE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     s = PS2_MOUSE_DEVICE(dev);
-    ps2 = PS2_DEVICE(s);
 
     trace_ps2_mouse_init(s);
-    ps2->update_irq = update_irq;
-    ps2->update_arg = update_arg;
     return s;
 }
 
