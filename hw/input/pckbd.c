@@ -682,6 +682,9 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
                           "i8042", s->size);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->region);
+
+    /* Note we can't use dc->vmsd without breaking migration compatibility */
+    vmstate_register(NULL, 0, &vmstate_kbd, ks);
 }
 
 static void i8042_mmio_init(Object *obj)
@@ -722,8 +725,6 @@ MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
-
-    vmstate_register(NULL, 0, &vmstate_kbd, s);
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
