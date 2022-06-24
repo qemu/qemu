@@ -88,7 +88,7 @@ Windows
 
 The project aims to support the two most recent versions of Windows that are
 still supported by the vendor. The minimum Windows API that is currently
-targeted is "Windows 7", so theoretically the QEMU binaries can still be run
+targeted is "Windows 8", so theoretically the QEMU binaries can still be run
 on older versions of Windows, too. However, such old versions of Windows are
 not tested anymore, so it is recommended to use one of the latest versions of
 Windows instead.

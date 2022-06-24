@@ -35,6 +35,11 @@
 #include <sys/sysctl.h>
 #endif
 
+#ifdef G_OS_WIN32
+#include <pathcch.h>
+#include <wchar.h>
+#endif
+
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -1074,31 +1079,52 @@ char *get_relocated_path(const char *dir)
 
     /* Fail if qemu_init_exec_dir was not called.  */
     assert(exec_dir[0]);
-    if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
-        return g_strdup(dir);
-    }
 
     result = g_string_new(exec_dir);
+    g_string_append(result, "/qemu-bundle");
+    if (access(result->str, R_OK) == 0) {
+#ifdef G_OS_WIN32
+        size_t size = mbsrtowcs(NULL, &dir, 0, &(mbstate_t){0}) + 1;
+        PWSTR wdir = g_new(WCHAR, size);
+        mbsrtowcs(wdir, &dir, size, &(mbstate_t){0});
 
-    /* Advance over common components.  */
-    len_dir = len_bindir = prefix_len;
-    do {
-        dir += len_dir;
-        bindir += len_bindir;
-        dir = next_component(dir, &len_dir);
-        bindir = next_component(bindir, &len_bindir);
-    } while (len_dir && len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
+        PCWSTR wdir_skipped_root;
+        PathCchSkipRoot(wdir, &wdir_skipped_root);
 
-    /* Ascend from bindir to the common prefix with dir.  */
-    while (len_bindir) {
-        bindir += len_bindir;
-        g_string_append(result, "/..");
-        bindir = next_component(bindir, &len_bindir);
+        size = wcsrtombs(NULL, &wdir_skipped_root, 0, &(mbstate_t){0});
+        char *cursor = result->str + result->len;
+        g_string_set_size(result, result->len + size);
+        wcsrtombs(cursor, &wdir_skipped_root, size + 1, &(mbstate_t){0});
+        g_free(wdir);
+#else
+        g_string_append(result, dir);
+#endif
+    } else if (!starts_with_prefix(dir) || !starts_with_prefix(bindir)) {
+        g_string_assign(result, dir);
+    } else {
+        g_string_assign(result, exec_dir);
+
+        /* Advance over common components.  */
+        len_dir = len_bindir = prefix_len;
+        do {
+            dir += len_dir;
+            bindir += len_bindir;
+            dir = next_component(dir, &len_dir);
+            bindir = next_component(bindir, &len_bindir);
+        } while (len_dir && len_dir == len_bindir && !memcmp(dir, bindir, len_dir));
+
+        /* Ascend from bindir to the common prefix with dir.  */
+        while (len_bindir) {
+            bindir += len_bindir;
+            g_string_append(result, "/..");
+            bindir = next_component(bindir, &len_bindir);
+        }
+
+        if (*dir) {
+            assert(G_IS_DIR_SEPARATOR(dir[-1]));
+            g_string_append(result, dir - 1);
+        }
     }
 
-    if (*dir) {
-        assert(G_IS_DIR_SEPARATOR(dir[-1]));
-        g_string_append(result, dir - 1);
-    }
     return g_string_free(result, false);
 }
