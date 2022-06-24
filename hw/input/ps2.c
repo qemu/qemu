@@ -557,7 +557,7 @@ uint32_t ps2_read_data(PS2State *s)
         s->update_irq(s->update_arg, 0);
         /* reassert IRQs if data left */
         if (q->count) {
-            s->update_irq(s->update_arg, 1);
+            ps2_raise_irq(s);
         }
     }
     return val;
