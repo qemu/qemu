@@ -1283,6 +1283,7 @@ static const TypeInfo ps2_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PS2State),
     .class_init    = ps2_class_init,
+    .class_size    = sizeof(PS2DeviceClass),
     .abstract      = true
 };
 
