@@ -77,6 +77,7 @@ Standard options:
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=unix,addr.path=<socket-path>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
   --export [type=]vhost-user-blk,id=<id>,node-name=<node-name>,addr.type=fd,addr.str=<fd>[,writable=on|off][,logical-block-size=<block-size>][,num-queues=<num-queues>]
   --export [type=]fuse,id=<id>,node-name=<node-name>,mountpoint=<file>[,growable=on|off][,writable=on|off][,allow-other=on|off|auto]
+  --export [type=]vduse-blk,id=<id>,node-name=<node-name>,name=<vduse-name>[,writable=on|off][,num-queues=<num-queues>][,queue-size=<queue-size>][,logical-block-size=<block-size>][,serial=<serial-number>]
 
   is a block export definition. ``node-name`` is the block node that should be
   exported. ``writable`` determines whether or not the export allows write
@@ -109,6 +110,27 @@ Standard options:
   user_allow_other option in the global fuse.conf configuration file.  Setting
   ``allow-other`` to auto (the default) will try enabling this option, and on
   error fall back to disabling it.
+
+  The ``vduse-blk`` export type takes a ``name`` (must be unique across the host)
+  to create the VDUSE device.
+  ``num-queues`` sets the number of virtqueues (the default is 1).
+  ``queue-size`` sets the virtqueue descriptor table size (the default is 256).
+
+  The instantiated VDUSE device must then be added to the vDPA bus using the
+  vdpa(8) command from the iproute2 project::
+
+  # vdpa dev add name <id> mgmtdev vduse
+
+  The device can be removed from the vDPA bus later as follows::
+
+  # vdpa dev del <id>
+
+  For more information about attaching vDPA devices to the host with
+  virtio_vdpa.ko or attaching them to guests with vhost_vdpa.ko, see
+  https://vdpa-dev.gitlab.io/.
+
+  For more information about VDUSE, see
+  https://docs.kernel.org/userspace-api/vduse.html.
 
 .. option:: --monitor MONITORDEF
 
