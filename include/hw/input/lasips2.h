@@ -4,6 +4,20 @@
  * Copyright (c) 2019 Sven Schnelle
  *
  */
+
+/*
+ * QEMU interface:
+ * + sysbus MMIO region 0: MemoryRegion defining the LASI PS2 keyboard
+ *   registers
+ * + sysbus MMIO region 1: MemoryRegion defining the LASI PS2 mouse
+ *   registers
+ * + sysbus IRQ 0: LASI PS2 output irq
+ * + Named GPIO input "ps2-kbd-input-irq": set to 1 if the downstream PS2
+ *   keyboard device has asserted its irq
+ * + Named GPIO input "ps2-mouse-input-irq": set to 1 if the downstream PS2
+ *   mouse device has asserted its irq
+ */
+
 #ifndef HW_INPUT_LASIPS2_H
 #define HW_INPUT_LASIPS2_H
 
