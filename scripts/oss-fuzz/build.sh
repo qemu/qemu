@@ -64,7 +64,7 @@ mkdir -p "$DEST_DIR/lib/"  # Copy the shared libraries here
 
 # Build once to get the list of dynamic lib paths, and copy them over
 ../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
-    --prefix="$DEST_DIR" --bindir="$DEST_DIR" --datadir="$DEST_DIR/data/" \
+    --prefix="/opt/qemu-oss-fuzz" \
     --extra-cflags="$EXTRA_CFLAGS" --target-list="i386-softmmu"
 
 if ! make "-j$(nproc)" qemu-fuzz-i386; then
@@ -81,14 +81,14 @@ if [ "$GITLAB_CI" != "true" ]; then
 
     # Build a second time to build the final binary with correct rpath
     ../configure --disable-werror --cc="$CC" --cxx="$CXX" --enable-fuzzing \
-        --prefix="$DEST_DIR" --bindir="$DEST_DIR" --datadir="$DEST_DIR/data/" \
+        --prefix="/opt/qemu-oss-fuzz" \
         --extra-cflags="$EXTRA_CFLAGS" --extra-ldflags="-Wl,-rpath,\$ORIGIN/lib" \
         --target-list="i386-softmmu"
     make "-j$(nproc)" qemu-fuzz-i386 V=1
 fi
 
-# Copy over the datadir
-cp  -r ../pc-bios/ "$DEST_DIR/pc-bios"
+# Prepare a preinstalled tree
+make install DESTDIR=$DEST_DIR/qemu-bundle
 
 targets=$(./qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}')
 base_copy="$DEST_DIR/qemu-fuzz-i386-target-$(echo "$targets" | head -n 1)"
