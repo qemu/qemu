@@ -58,6 +58,7 @@ struct MMIOKBDState {
 
     KBDState kbd;
     uint32_t size;
+    MemoryRegion region;
 };
 
 #define I8042_A20_LINE "a20"
