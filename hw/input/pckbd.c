@@ -684,6 +684,14 @@ static void i8042_mmio_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->region);
 }
 
+static void i8042_mmio_init(Object *obj)
+{
+    MMIOKBDState *s = I8042_MMIO(obj);
+    KBDState *ks = &s->kbd;
+
+    ks->extended_state = true;
+}
+
 static Property i8042_mmio_properties[] = {
     DEFINE_PROP_UINT64("mask", MMIOKBDState, kbd.mask, UINT64_MAX),
     DEFINE_PROP_UINT32("size", MMIOKBDState, size, -1),
@@ -716,8 +724,6 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
 
-    s->extended_state = true;
-
     vmstate_register(NULL, 0, &vmstate_kbd, s);
 
     region = &I8042_MMIO(dev)->region;
@@ -729,6 +735,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
 static const TypeInfo i8042_mmio_info = {
     .name          = TYPE_I8042_MMIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = i8042_mmio_init,
     .instance_size = sizeof(MMIOKBDState),
     .class_init    = i8042_mmio_class_init
 };
