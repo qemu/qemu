@@ -709,8 +709,7 @@ static void i8042_mmio_class_init(ObjectClass *klass, void *data)
 }
 
 MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                            MemoryRegion *region, ram_addr_t size,
-                            hwaddr mask)
+                            ram_addr_t size, hwaddr mask)
 {
     DeviceState *dev;
     KBDState *s;
@@ -725,8 +724,6 @@ MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     s->irq_mouse = mouse_irq;
 
     vmstate_register(NULL, 0, &vmstate_kbd, s);
-
-    region = &I8042_MMIO(dev)->region;
 
     s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
     s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
