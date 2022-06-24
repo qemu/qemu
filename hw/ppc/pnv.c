@@ -2129,6 +2129,7 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 
     static GlobalProperty phb_compat[] = {
         { TYPE_PNV_PHB, "version", "3" },
+        { TYPE_PNV_PHB_ROOT_PORT, "version", "3" },
     };
 
     mc->desc = "IBM PowerNV (Non-Virtualized) POWER8";

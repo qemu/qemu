@@ -108,12 +108,6 @@ struct PnvPBCQState {
  */
 #define TYPE_PNV_PHB3_ROOT_BUS "pnv-phb3-root"
 
-#define TYPE_PNV_PHB3_ROOT_PORT "pnv-phb3-root-port"
-
-typedef struct PnvPHB3RootPort {
-    PCIESlot parent_obj;
-} PnvPHB3RootPort;
-
 /*
  * PHB3 PCIe Host Bridge for PowerNV machines (POWER8)
  */
