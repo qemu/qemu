@@ -69,6 +69,8 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
 
     if (phb->version == 3) {
         pnv_phb3_bus_init(dev, PNV_PHB3(phb->backend));
+    } else {
+        pnv_phb4_bus_init(dev, PNV_PHB4(phb->backend));
     }
 
     pnv_phb_attach_root_port(pci, phb_rootport_typename,

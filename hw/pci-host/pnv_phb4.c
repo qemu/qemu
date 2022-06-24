@@ -1528,6 +1528,33 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
+void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
+{
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    char name[32];
+
+    /*
+     * PHB4 doesn't support IO space. However, qemu gets very upset if
+     * we don't have an IO region to anchor IO BARs onto so we just
+     * initialize one which we never hook up to anything
+     */
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
+
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
+                       PCI_MMIO_TOTAL_SIZE);
+
+    pci->bus = pci_register_root_bus(dev, dev->id ? dev->id : NULL,
+                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
+                                     &phb->pci_mmio, &phb->pci_io,
+                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
+    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
+    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+}
+
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(dev);
@@ -1546,27 +1573,7 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
                           name, 0x2000);
 
-    /*
-     * PHB4 doesn't support IO space. However, qemu gets very upset if
-     * we don't have an IO region to anchor IO BARs onto so we just
-     * initialize one which we never hook up to anything
-     */
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
-                       PCI_MMIO_TOTAL_SIZE);
-
-    pci->bus = pci_register_root_bus(dev, dev->id,
-                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
-                                     &phb->pci_mmio, &phb->pci_io,
-                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
-    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    pnv_phb4_bus_init(dev, phb);
 
     /* Add a single Root port if running with defaults */
     pnv_phb_attach_root_port(pci, pecc->rp_model,
