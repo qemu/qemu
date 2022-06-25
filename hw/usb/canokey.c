@@ -56,7 +56,6 @@ static const USBDesc desc_canokey = {
         .iSerialNumber     = STR_SERIALNUMBER,
     },
     .full = &desc_device_canokey,
-    .high = &desc_device_canokey,
     .str  = desc_strings,
 };
 
