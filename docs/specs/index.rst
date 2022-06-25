@@ -20,3 +20,4 @@ guest hardware that is specific to QEMU.
    acpi_nvdimm
    acpi_erst
    sev-guest-firmware
+   fw_cfg
