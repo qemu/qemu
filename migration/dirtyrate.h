@@ -13,6 +13,8 @@
 #ifndef QEMU_MIGRATION_DIRTYRATE_H
 #define QEMU_MIGRATION_DIRTYRATE_H
 
+#include "sysemu/dirtyrate.h"
+
 /*
  * Sample 512 pages per GB as default.
  */
@@ -64,11 +66,6 @@ typedef struct SampleVMStat {
     uint64_t total_sample_count; /* total sampled pages */
     uint64_t total_block_mem_MB; /* size of total sampled pages in MB */
 } SampleVMStat;
-
-typedef struct VcpuStat {
-    int nvcpu; /* number of vcpu */
-    DirtyRateVcpu *rates; /* array of dirty rate for each vcpu */
-} VcpuStat;
 
 /*
  * Store calculation statistics for each measure.
