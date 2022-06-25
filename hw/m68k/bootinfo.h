@@ -54,6 +54,6 @@
             stb_phys(as, base++, string[i]); \
         } \
         stb_phys(as, base++, 0); \
-        base = (parameters_base + 1) & ~1; \
+        base = (base + 1) & ~1; \
     } while (0)
 #endif
