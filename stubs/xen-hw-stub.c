@@ -19,10 +19,6 @@ void xen_piix3_set_irq(void *opaque, int irq_num, int level)
 {
 }
 
-void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
-{
-}
-
 int xen_set_pci_link_route(uint8_t link, uint8_t irq)
 {
     return -1;
