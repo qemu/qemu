@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
+#include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 #include "hw/input/lasips2.h"
 #include "exec/hwaddr.h"
@@ -31,25 +32,8 @@
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
+#include "qapi/error.h"
 
-
-struct LASIPS2State;
-typedef struct LASIPS2Port {
-    struct LASIPS2State *parent;
-    MemoryRegion reg;
-    void *dev;
-    uint8_t id;
-    uint8_t control;
-    uint8_t buf;
-    bool loopback_rbne;
-    bool irq;
-} LASIPS2Port;
-
-typedef struct LASIPS2State {
-    LASIPS2Port kbd;
-    LASIPS2Port mouse;
-    qemu_irq irq;
-} LASIPS2State;
 
 static const VMStateDescription vmstate_lasips2 = {
     .name = "lasips2",
@@ -205,7 +189,6 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case REG_PS2_STATUS:
-
         ret = LASIPS2_STATUS_DATSHD | LASIPS2_STATUS_CLKSHD;
 
         if (port->control & LASIPS2_CONTROL_DIAG) {
@@ -238,9 +221,9 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
                       __func__, addr);
         break;
     }
+
     trace_lasips2_reg_read(size, port->id, addr,
                            lasips2_read_reg_name(addr), ret);
-
     return ret;
 }
 
@@ -254,35 +237,103 @@ static const MemoryRegionOps lasips2_reg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void ps2dev_update_irq(void *opaque, int level)
+static void lasips2_set_kbd_irq(void *opaque, int n, int level)
 {
-    LASIPS2Port *port = opaque;
+    LASIPS2State *s = LASIPS2(opaque);
+    LASIPS2Port *port = &s->kbd;
+
     port->irq = level;
     lasips2_update_irq(port->parent);
 }
 
-void lasips2_init(MemoryRegion *address_space,
-                  hwaddr base, qemu_irq irq)
+static void lasips2_set_mouse_irq(void *opaque, int n, int level)
 {
-    LASIPS2State *s;
+    LASIPS2State *s = LASIPS2(opaque);
+    LASIPS2Port *port = &s->mouse;
 
-    s = g_new0(LASIPS2State, 1);
+    port->irq = level;
+    lasips2_update_irq(port->parent);
+}
 
-    s->irq = irq;
+LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_LASIPS2);
+    qdev_prop_set_uint64(dev, "base", base);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
+
+    return LASIPS2(dev);
+}
+
+static void lasips2_realize(DeviceState *dev, Error **errp)
+{
+    LASIPS2State *s = LASIPS2(dev);
+
+    vmstate_register(NULL, s->base, &vmstate_lasips2, s);
+
+    s->kbd.dev = ps2_kbd_init();
+    qdev_connect_gpio_out(DEVICE(s->kbd.dev), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
+                                                 0));
+    s->mouse.dev = ps2_mouse_init();
+    qdev_connect_gpio_out(DEVICE(s->mouse.dev), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
+                                                 0));
+}
+
+static void lasips2_init(Object *obj)
+{
+    LASIPS2State *s = LASIPS2(obj);
+
+    s->kbd.id = 0;
     s->mouse.id = 1;
     s->kbd.parent = s;
     s->mouse.parent = s;
 
-    vmstate_register(NULL, base, &vmstate_lasips2, s);
-
-    s->kbd.dev = ps2_kbd_init(ps2dev_update_irq, &s->kbd);
-    s->mouse.dev = ps2_mouse_init(ps2dev_update_irq, &s->mouse);
-
-    memory_region_init_io(&s->kbd.reg, NULL, &lasips2_reg_ops, &s->kbd,
+    memory_region_init_io(&s->kbd.reg, obj, &lasips2_reg_ops, &s->kbd,
                           "lasips2-kbd", 0x100);
-    memory_region_add_subregion(address_space, base, &s->kbd.reg);
-
-    memory_region_init_io(&s->mouse.reg, NULL, &lasips2_reg_ops, &s->mouse,
+    memory_region_init_io(&s->mouse.reg, obj, &lasips2_reg_ops, &s->mouse,
                           "lasips2-mouse", 0x100);
-    memory_region_add_subregion(address_space, base + 0x100, &s->mouse.reg);
+
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->kbd.reg);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mouse.reg);
+
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+
+    qdev_init_gpio_in_named(DEVICE(obj), lasips2_set_kbd_irq,
+                            "ps2-kbd-input-irq", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), lasips2_set_mouse_irq,
+                            "ps2-mouse-input-irq", 1);
 }
+
+static Property lasips2_properties[] = {
+    DEFINE_PROP_UINT64("base", LASIPS2State, base, UINT64_MAX),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void lasips2_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = lasips2_realize;
+    device_class_set_props(dc, lasips2_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
+
+static const TypeInfo lasips2_info = {
+    .name          = TYPE_LASIPS2,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = lasips2_init,
+    .instance_size = sizeof(LASIPS2State),
+    .class_init    = lasips2_class_init,
+};
+
+static void lasips2_register_types(void)
+{
+    type_register_static(&lasips2_info);
+}
+
+type_init(lasips2_register_types)

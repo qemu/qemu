@@ -24,61 +24,59 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/irq.h"
+#include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 #include "migration/vmstate.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "qapi/error.h"
 
 #include "trace.h"
 
 /* Keyboard Commands */
-#define KBD_CMD_SET_LEDS	0xED	/* Set keyboard leds */
-#define KBD_CMD_ECHO     	0xEE
-#define KBD_CMD_SCANCODE	0xF0	/* Get/set scancode set */
-#define KBD_CMD_GET_ID 	        0xF2	/* get keyboard ID */
-#define KBD_CMD_SET_RATE	0xF3	/* Set typematic rate */
-#define KBD_CMD_ENABLE		0xF4	/* Enable scanning */
-#define KBD_CMD_RESET_DISABLE	0xF5	/* reset and disable scanning */
-#define KBD_CMD_RESET_ENABLE   	0xF6    /* reset and enable scanning */
-#define KBD_CMD_RESET		0xFF	/* Reset */
+#define KBD_CMD_SET_LEDS        0xED    /* Set keyboard leds */
+#define KBD_CMD_ECHO            0xEE
+#define KBD_CMD_SCANCODE        0xF0    /* Get/set scancode set */
+#define KBD_CMD_GET_ID          0xF2    /* get keyboard ID */
+#define KBD_CMD_SET_RATE        0xF3    /* Set typematic rate */
+#define KBD_CMD_ENABLE          0xF4    /* Enable scanning */
+#define KBD_CMD_RESET_DISABLE   0xF5    /* reset and disable scanning */
+#define KBD_CMD_RESET_ENABLE    0xF6    /* reset and enable scanning */
+#define KBD_CMD_RESET           0xFF    /* Reset */
 #define KBD_CMD_SET_MAKE_BREAK  0xFC    /* Set Make and Break mode */
 #define KBD_CMD_SET_TYPEMATIC   0xFA    /* Set Typematic Make and Break mode */
 
 /* Keyboard Replies */
-#define KBD_REPLY_POR		0xAA	/* Power on reset */
-#define KBD_REPLY_ID		0xAB	/* Keyboard ID */
-#define KBD_REPLY_ACK		0xFA	/* Command ACK */
-#define KBD_REPLY_RESEND	0xFE	/* Command NACK, send the cmd again */
+#define KBD_REPLY_POR       0xAA    /* Power on reset */
+#define KBD_REPLY_ID        0xAB    /* Keyboard ID */
+#define KBD_REPLY_ACK       0xFA    /* Command ACK */
+#define KBD_REPLY_RESEND    0xFE    /* Command NACK, send the cmd again */
 
 /* Mouse Commands */
-#define AUX_SET_SCALE11		0xE6	/* Set 1:1 scaling */
-#define AUX_SET_SCALE21		0xE7	/* Set 2:1 scaling */
-#define AUX_SET_RES		0xE8	/* Set resolution */
-#define AUX_GET_SCALE		0xE9	/* Get scaling factor */
-#define AUX_SET_STREAM		0xEA	/* Set stream mode */
-#define AUX_POLL		0xEB	/* Poll */
-#define AUX_RESET_WRAP		0xEC	/* Reset wrap mode */
-#define AUX_SET_WRAP		0xEE	/* Set wrap mode */
-#define AUX_SET_REMOTE		0xF0	/* Set remote mode */
-#define AUX_GET_TYPE		0xF2	/* Get type */
-#define AUX_SET_SAMPLE		0xF3	/* Set sample rate */
-#define AUX_ENABLE_DEV		0xF4	/* Enable aux device */
-#define AUX_DISABLE_DEV		0xF5	/* Disable aux device */
-#define AUX_SET_DEFAULT		0xF6
-#define AUX_RESET		0xFF	/* Reset aux device */
-#define AUX_ACK			0xFA	/* Command byte ACK. */
+#define AUX_SET_SCALE11     0xE6    /* Set 1:1 scaling */
+#define AUX_SET_SCALE21     0xE7    /* Set 2:1 scaling */
+#define AUX_SET_RES         0xE8    /* Set resolution */
+#define AUX_GET_SCALE       0xE9    /* Get scaling factor */
+#define AUX_SET_STREAM      0xEA    /* Set stream mode */
+#define AUX_POLL            0xEB    /* Poll */
+#define AUX_RESET_WRAP      0xEC    /* Reset wrap mode */
+#define AUX_SET_WRAP        0xEE    /* Set wrap mode */
+#define AUX_SET_REMOTE      0xF0    /* Set remote mode */
+#define AUX_GET_TYPE        0xF2    /* Get type */
+#define AUX_SET_SAMPLE      0xF3    /* Set sample rate */
+#define AUX_ENABLE_DEV      0xF4    /* Enable aux device */
+#define AUX_DISABLE_DEV     0xF5    /* Disable aux device */
+#define AUX_SET_DEFAULT     0xF6
+#define AUX_RESET           0xFF    /* Reset aux device */
+#define AUX_ACK             0xFA    /* Command byte ACK. */
 
 #define MOUSE_STATUS_REMOTE     0x40
 #define MOUSE_STATUS_ENABLED    0x20
 #define MOUSE_STATUS_SCALE21    0x10
 
-/*
- * PS/2 buffer size. Keep 256 bytes for compatibility with
- * older QEMU versions.
- */
-#define PS2_BUFFER_SIZE     256
 #define PS2_QUEUE_SIZE      16  /* Queue size required by PS/2 protocol */
 #define PS2_QUEUE_HEADROOM  8   /* Queue size for keyboard command replies */
 
@@ -89,43 +87,6 @@
 #define MOD_CTRL_R  (1 << 3)
 #define MOD_SHIFT_R (1 << 4)
 #define MOD_ALT_R   (1 << 5)
-
-typedef struct {
-    uint8_t data[PS2_BUFFER_SIZE];
-    int rptr, wptr, cwptr, count;
-} PS2Queue;
-
-struct PS2State {
-    PS2Queue queue;
-    int32_t write_cmd;
-    void (*update_irq)(void *, int);
-    void *update_arg;
-};
-
-typedef struct {
-    PS2State common;
-    int scan_enabled;
-    int translate;
-    int scancode_set; /* 1=XT, 2=AT, 3=PS/2 */
-    int ledstate;
-    bool need_high_bit;
-    unsigned int modifiers; /* bitmask of MOD_* constants above */
-} PS2KbdState;
-
-typedef struct {
-    PS2State common;
-    uint8_t mouse_status;
-    uint8_t mouse_resolution;
-    uint8_t mouse_sample_rate;
-    uint8_t mouse_wrap;
-    uint8_t mouse_type; /* 0 = PS2, 3 = IMPS/2, 4 = IMEX */
-    uint8_t mouse_detect_state;
-    int mouse_dx; /* current values, needed for 'poll' mode */
-    int mouse_dy;
-    int mouse_dz;
-    int mouse_dw;
-    uint8_t mouse_buttons;
-} PS2MouseState;
 
 static uint8_t translate_table[256] = {
     0xff, 0x43, 0x41, 0x3f, 0x3d, 0x3b, 0x3c, 0x58,
@@ -212,9 +173,14 @@ void ps2_queue_noirq(PS2State *s, int b)
     q->count++;
 }
 
-void ps2_raise_irq(PS2State *s)
+static void ps2_raise_irq(PS2State *s)
 {
-    s->update_irq(s->update_arg, 1);
+    qemu_set_irq(s->irq, 1);
+}
+
+static void ps2_lower_irq(PS2State *s)
+{
+    qemu_set_irq(s->irq, 0);
 }
 
 void ps2_queue(PS2State *s, int b)
@@ -324,6 +290,7 @@ static void ps2_cqueue_reset(PS2State *s)
 static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
+    PS2State *ps = PS2_DEVICE(s);
 
     trace_ps2_put_keycode(opaque, keycode);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
@@ -332,13 +299,13 @@ static void ps2_put_keycode(void *opaque, int keycode)
         if (keycode == 0xf0) {
             s->need_high_bit = true;
         } else if (s->need_high_bit) {
-            ps2_queue(&s->common, translate_table[keycode] | 0x80);
+            ps2_queue(ps, translate_table[keycode] | 0x80);
             s->need_high_bit = false;
         } else {
-            ps2_queue(&s->common, translate_table[keycode]);
+            ps2_queue(ps, translate_table[keycode]);
         }
     } else {
-        ps2_queue(&s->common, keycode);
+        ps2_queue(ps, keycode);
     }
 }
 
@@ -436,8 +403,9 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                 }
             }
         } else {
-            if (qcode < qemu_input_map_qcode_to_atset1_len)
+            if (qcode < qemu_input_map_qcode_to_atset1_len) {
                 keycode = qemu_input_map_qcode_to_atset1[qcode];
+            }
             if (keycode) {
                 if (keycode & 0xff00) {
                     ps2_put_keycode(s, keycode >> 8);
@@ -530,8 +498,9 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
                 }
             }
         } else {
-            if (qcode < qemu_input_map_qcode_to_atset2_len)
+            if (qcode < qemu_input_map_qcode_to_atset2_len) {
                 keycode = qemu_input_map_qcode_to_atset2[qcode];
+            }
             if (keycode) {
                 if (keycode & 0xff00) {
                     ps2_put_keycode(s, keycode >> 8);
@@ -546,8 +515,9 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
             }
         }
     } else if (s->scancode_set == 3) {
-        if (qcode < qemu_input_map_qcode_to_atset3_len)
+        if (qcode < qemu_input_map_qcode_to_atset3_len) {
             keycode = qemu_input_map_qcode_to_atset3[qcode];
+        }
         if (keycode) {
             /* FIXME: break code should be configured on a key by key basis */
             if (!key->down) {
@@ -569,8 +539,10 @@ uint32_t ps2_read_data(PS2State *s)
     trace_ps2_read_data(s);
     q = &s->queue;
     if (q->count == 0) {
-        /* NOTE: if no data left, we return the last keyboard one
-           (needed for EMM386) */
+        /*
+         * NOTE: if no data left, we return the last keyboard one
+         * (needed for EMM386)
+         */
         /* XXX: need a timer to do things correctly */
         index = q->rptr - 1;
         if (index < 0) {
@@ -588,10 +560,10 @@ uint32_t ps2_read_data(PS2State *s)
             q->cwptr = -1;
         }
         /* reading deasserts IRQ */
-        s->update_irq(s->update_arg, 0);
+        ps2_lower_irq(s);
         /* reassert IRQs if data left */
         if (q->count) {
-            s->update_irq(s->update_arg, 1);
+            ps2_raise_irq(s);
         }
     }
     return val;
@@ -606,119 +578,123 @@ static void ps2_set_ledstate(PS2KbdState *s, int ledstate)
 
 static void ps2_reset_keyboard(PS2KbdState *s)
 {
+    PS2State *ps2 = PS2_DEVICE(s);
+
     trace_ps2_reset_keyboard(s);
     s->scan_enabled = 1;
     s->scancode_set = 2;
-    ps2_reset_queue(&s->common);
+    ps2_reset_queue(ps2);
     ps2_set_ledstate(s, 0);
 }
 
-void ps2_write_keyboard(void *opaque, int val)
+void ps2_write_keyboard(PS2KbdState *s, int val)
 {
-    PS2KbdState *s = (PS2KbdState *)opaque;
+    PS2State *ps2 = PS2_DEVICE(s);
 
-    trace_ps2_write_keyboard(opaque, val);
-    ps2_cqueue_reset(&s->common);
-    switch(s->common.write_cmd) {
+    trace_ps2_write_keyboard(s, val);
+    ps2_cqueue_reset(ps2);
+    switch (ps2->write_cmd) {
     default:
     case -1:
-        switch(val) {
+        switch (val) {
         case 0x00:
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         case 0x05:
-            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(ps2, KBD_REPLY_RESEND);
             break;
         case KBD_CMD_GET_ID:
             /* We emulate a MF2 AT keyboard here */
-            ps2_cqueue_3(&s->common, KBD_REPLY_ACK, KBD_REPLY_ID,
-                s->translate ? 0x41 : 0x83);
+            ps2_cqueue_3(ps2, KBD_REPLY_ACK, KBD_REPLY_ID,
+                         s->translate ? 0x41 : 0x83);
             break;
         case KBD_CMD_ECHO:
-            ps2_cqueue_1(&s->common, KBD_CMD_ECHO);
+            ps2_cqueue_1(ps2, KBD_CMD_ECHO);
             break;
         case KBD_CMD_ENABLE:
             s->scan_enabled = 1;
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         case KBD_CMD_SCANCODE:
         case KBD_CMD_SET_LEDS:
         case KBD_CMD_SET_RATE:
         case KBD_CMD_SET_MAKE_BREAK:
-            s->common.write_cmd = val;
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2->write_cmd = val;
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_DISABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 0;
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET_ENABLE:
             ps2_reset_keyboard(s);
             s->scan_enabled = 1;
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         case KBD_CMD_RESET:
             ps2_reset_keyboard(s);
-            ps2_cqueue_2(&s->common,
-                KBD_REPLY_ACK,
-                KBD_REPLY_POR);
+            ps2_cqueue_2(ps2,
+                         KBD_REPLY_ACK,
+                         KBD_REPLY_POR);
             break;
         case KBD_CMD_SET_TYPEMATIC:
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
             break;
         default:
-            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(ps2, KBD_REPLY_RESEND);
             break;
         }
         break;
     case KBD_CMD_SET_MAKE_BREAK:
-        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
-        s->common.write_cmd = -1;
+        ps2_cqueue_1(ps2, KBD_REPLY_ACK);
+        ps2->write_cmd = -1;
         break;
     case KBD_CMD_SCANCODE:
         if (val == 0) {
-            ps2_cqueue_2(&s->common, KBD_REPLY_ACK, s->translate ?
+            ps2_cqueue_2(ps2, KBD_REPLY_ACK, s->translate ?
                 translate_table[s->scancode_set] : s->scancode_set);
         } else if (val >= 1 && val <= 3) {
             s->scancode_set = val;
-            ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
+            ps2_cqueue_1(ps2, KBD_REPLY_ACK);
         } else {
-            ps2_cqueue_1(&s->common, KBD_REPLY_RESEND);
+            ps2_cqueue_1(ps2, KBD_REPLY_RESEND);
         }
-        s->common.write_cmd = -1;
+        ps2->write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
         ps2_set_ledstate(s, val);
-        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
-        s->common.write_cmd = -1;
+        ps2_cqueue_1(ps2, KBD_REPLY_ACK);
+        ps2->write_cmd = -1;
         break;
     case KBD_CMD_SET_RATE:
-        ps2_cqueue_1(&s->common, KBD_REPLY_ACK);
-        s->common.write_cmd = -1;
+        ps2_cqueue_1(ps2, KBD_REPLY_ACK);
+        ps2->write_cmd = -1;
         break;
     }
 }
 
-/* Set the scancode translation mode.
-   0 = raw scancodes.
-   1 = translated scancodes (used by qemu internally).  */
+/*
+ * Set the scancode translation mode.
+ * 0 = raw scancodes.
+ * 1 = translated scancodes (used by qemu internally).
+ */
 
-void ps2_keyboard_set_translation(void *opaque, int mode)
+void ps2_keyboard_set_translation(PS2KbdState *s, int mode)
 {
-    PS2KbdState *s = (PS2KbdState *)opaque;
-    trace_ps2_keyboard_set_translation(opaque, mode);
+    trace_ps2_keyboard_set_translation(s, mode);
     s->translate = mode;
 }
 
 static int ps2_mouse_send_packet(PS2MouseState *s)
 {
+    PS2State *ps2 = PS2_DEVICE(s);
     /* IMPS/2 and IMEX send 4 bytes, PS2 sends 3 bytes */
     const int needed = s->mouse_type ? 4 : 3;
     unsigned int b;
     int dx1, dy1, dz1, dw1;
 
-    if (PS2_QUEUE_SIZE - s->common.queue.count < needed) {
+    if (PS2_QUEUE_SIZE - ps2->queue.count < needed) {
         return 0;
     }
 
@@ -727,31 +703,34 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
     dz1 = s->mouse_dz;
     dw1 = s->mouse_dw;
     /* XXX: increase range to 8 bits ? */
-    if (dx1 > 127)
+    if (dx1 > 127) {
         dx1 = 127;
-    else if (dx1 < -127)
+    } else if (dx1 < -127) {
         dx1 = -127;
-    if (dy1 > 127)
+    }
+    if (dy1 > 127) {
         dy1 = 127;
-    else if (dy1 < -127)
+    } else if (dy1 < -127) {
         dy1 = -127;
+    }
     b = 0x08 | ((dx1 < 0) << 4) | ((dy1 < 0) << 5) | (s->mouse_buttons & 0x07);
-    ps2_queue_noirq(&s->common, b);
-    ps2_queue_noirq(&s->common, dx1 & 0xff);
-    ps2_queue_noirq(&s->common, dy1 & 0xff);
+    ps2_queue_noirq(ps2, b);
+    ps2_queue_noirq(ps2, dx1 & 0xff);
+    ps2_queue_noirq(ps2, dy1 & 0xff);
     /* extra byte for IMPS/2 or IMEX */
-    switch(s->mouse_type) {
+    switch (s->mouse_type) {
     default:
         /* Just ignore the wheels if not supported */
         s->mouse_dz = 0;
         s->mouse_dw = 0;
         break;
     case 3:
-        if (dz1 > 127)
+        if (dz1 > 127) {
             dz1 = 127;
-        else if (dz1 < -127)
-                dz1 = -127;
-        ps2_queue_noirq(&s->common, dz1 & 0xff);
+        } else if (dz1 < -127) {
+            dz1 = -127;
+        }
+        ps2_queue_noirq(ps2, dz1 & 0xff);
         s->mouse_dz -= dz1;
         s->mouse_dw = 0;
         break;
@@ -787,11 +766,11 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
             b = (dz1 & 0x0f) | ((s->mouse_buttons & 0x18) << 1);
             s->mouse_dz -= dz1;
         }
-        ps2_queue_noirq(&s->common, b);
+        ps2_queue_noirq(ps2, b);
         break;
     }
 
-    ps2_raise_irq(&s->common);
+    ps2_raise_irq(ps2);
 
     trace_ps2_mouse_send_packet(s, dx1, dy1, dz1, b);
     /* update deltas */
@@ -816,8 +795,9 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
     InputBtnEvent *btn;
 
     /* check if deltas are recorded when disabled */
-    if (!(s->mouse_status & MOUSE_STATUS_ENABLED))
+    if (!(s->mouse_status & MOUSE_STATUS_ENABLED)) {
         return;
+    }
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
@@ -868,8 +848,10 @@ static void ps2_mouse_sync(DeviceState *dev)
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
     }
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE)) {
-        /* if not remote, send event. Multiple events are sent if
-           too big deltas */
+        /*
+         * if not remote, send event. Multiple events are sent if
+         * too big deltas
+         */
         while (ps2_mouse_send_packet(s)) {
             if (s->mouse_dx == 0 && s->mouse_dy == 0
                     && s->mouse_dz == 0 && s->mouse_dw == 0) {
@@ -879,96 +861,95 @@ static void ps2_mouse_sync(DeviceState *dev)
     }
 }
 
-void ps2_mouse_fake_event(void *opaque)
+void ps2_mouse_fake_event(PS2MouseState *s)
 {
-    PS2MouseState *s = opaque;
-    trace_ps2_mouse_fake_event(opaque);
+    trace_ps2_mouse_fake_event(s);
     s->mouse_dx++;
-    ps2_mouse_sync(opaque);
+    ps2_mouse_sync(DEVICE(s));
 }
 
-void ps2_write_mouse(void *opaque, int val)
+void ps2_write_mouse(PS2MouseState *s, int val)
 {
-    PS2MouseState *s = (PS2MouseState *)opaque;
+    PS2State *ps2 = PS2_DEVICE(s);
 
-    trace_ps2_write_mouse(opaque, val);
-    switch(s->common.write_cmd) {
+    trace_ps2_write_mouse(s, val);
+    switch (ps2->write_cmd) {
     default:
     case -1:
         /* mouse command */
         if (s->mouse_wrap) {
             if (val == AUX_RESET_WRAP) {
                 s->mouse_wrap = 0;
-                ps2_queue(&s->common, AUX_ACK);
+                ps2_queue(ps2, AUX_ACK);
                 return;
             } else if (val != AUX_RESET) {
-                ps2_queue(&s->common, val);
+                ps2_queue(ps2, val);
                 return;
             }
         }
-        switch(val) {
+        switch (val) {
         case AUX_SET_SCALE11:
             s->mouse_status &= ~MOUSE_STATUS_SCALE21;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_SET_SCALE21:
             s->mouse_status |= MOUSE_STATUS_SCALE21;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_SET_STREAM:
             s->mouse_status &= ~MOUSE_STATUS_REMOTE;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_SET_WRAP:
             s->mouse_wrap = 1;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_SET_REMOTE:
             s->mouse_status |= MOUSE_STATUS_REMOTE;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_GET_TYPE:
-            ps2_queue_2(&s->common,
+            ps2_queue_2(ps2,
                 AUX_ACK,
                 s->mouse_type);
             break;
         case AUX_SET_RES:
         case AUX_SET_SAMPLE:
-            s->common.write_cmd = val;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2->write_cmd = val;
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_GET_SCALE:
-            ps2_queue_4(&s->common,
+            ps2_queue_4(ps2,
                 AUX_ACK,
                 s->mouse_status,
                 s->mouse_resolution,
                 s->mouse_sample_rate);
             break;
         case AUX_POLL:
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             ps2_mouse_send_packet(s);
             break;
         case AUX_ENABLE_DEV:
             s->mouse_status |= MOUSE_STATUS_ENABLED;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_DISABLE_DEV:
             s->mouse_status &= ~MOUSE_STATUS_ENABLED;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_SET_DEFAULT:
             s->mouse_sample_rate = 100;
             s->mouse_resolution = 2;
             s->mouse_status = 0;
-            ps2_queue(&s->common, AUX_ACK);
+            ps2_queue(ps2, AUX_ACK);
             break;
         case AUX_RESET:
             s->mouse_sample_rate = 100;
             s->mouse_resolution = 2;
             s->mouse_status = 0;
             s->mouse_type = 0;
-            ps2_reset_queue(&s->common);
-            ps2_queue_3(&s->common,
+            ps2_reset_queue(ps2);
+            ps2_queue_3(ps2,
                 AUX_ACK,
                 0xaa,
                 s->mouse_type);
@@ -980,47 +961,53 @@ void ps2_write_mouse(void *opaque, int val)
     case AUX_SET_SAMPLE:
         s->mouse_sample_rate = val;
         /* detect IMPS/2 or IMEX */
-        switch(s->mouse_detect_state) {
+        switch (s->mouse_detect_state) {
         default:
         case 0:
-            if (val == 200)
+            if (val == 200) {
                 s->mouse_detect_state = 1;
+            }
             break;
         case 1:
-            if (val == 100)
+            if (val == 100) {
                 s->mouse_detect_state = 2;
-            else if (val == 200)
+            } else if (val == 200) {
                 s->mouse_detect_state = 3;
-            else
+            } else {
                 s->mouse_detect_state = 0;
+            }
             break;
         case 2:
-            if (val == 80)
+            if (val == 80) {
                 s->mouse_type = 3; /* IMPS/2 */
+            }
             s->mouse_detect_state = 0;
             break;
         case 3:
-            if (val == 80)
+            if (val == 80) {
                 s->mouse_type = 4; /* IMEX */
+            }
             s->mouse_detect_state = 0;
             break;
         }
-        ps2_queue(&s->common, AUX_ACK);
-        s->common.write_cmd = -1;
+        ps2_queue(ps2, AUX_ACK);
+        ps2->write_cmd = -1;
         break;
     case AUX_SET_RES:
         s->mouse_resolution = val;
-        ps2_queue(&s->common, AUX_ACK);
-        s->common.write_cmd = -1;
+        ps2_queue(ps2, AUX_ACK);
+        ps2->write_cmd = -1;
         break;
     }
 }
 
-static void ps2_common_reset(PS2State *s)
+static void ps2_reset(DeviceState *dev)
 {
+    PS2State *s = PS2_DEVICE(dev);
+
     s->write_cmd = -1;
     ps2_reset_queue(s);
-    s->update_irq(s->update_arg, 0);
+    ps2_lower_irq(s);
 }
 
 static void ps2_common_post_load(PS2State *s)
@@ -1049,24 +1036,28 @@ static void ps2_common_post_load(PS2State *s)
     q->cwptr = ccount ? (q->rptr + ccount) & (PS2_BUFFER_SIZE - 1) : -1;
 }
 
-static void ps2_kbd_reset(void *opaque)
+static void ps2_kbd_reset(DeviceState *dev)
 {
-    PS2KbdState *s = (PS2KbdState *) opaque;
+    PS2DeviceClass *ps2dc = PS2_DEVICE_GET_CLASS(dev);
+    PS2KbdState *s = PS2_KBD_DEVICE(dev);
 
-    trace_ps2_kbd_reset(opaque);
-    ps2_common_reset(&s->common);
+    trace_ps2_kbd_reset(s);
+    ps2dc->parent_reset(dev);
+
     s->scan_enabled = 1;
     s->translate = 0;
     s->scancode_set = 2;
     s->modifiers = 0;
 }
 
-static void ps2_mouse_reset(void *opaque)
+static void ps2_mouse_reset(DeviceState *dev)
 {
-    PS2MouseState *s = (PS2MouseState *) opaque;
+    PS2DeviceClass *ps2dc = PS2_DEVICE_GET_CLASS(dev);
+    PS2MouseState *s = PS2_MOUSE_DEVICE(dev);
 
-    trace_ps2_mouse_reset(opaque);
-    ps2_common_reset(&s->common);
+    trace_ps2_mouse_reset(s);
+    ps2dc->parent_reset(dev);
+
     s->mouse_status = 0;
     s->mouse_resolution = 0;
     s->mouse_sample_rate = 0;
@@ -1141,26 +1132,28 @@ static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
 static bool ps2_keyboard_cqueue_needed(void *opaque)
 {
     PS2KbdState *s = opaque;
+    PS2State *ps2 = PS2_DEVICE(s);
 
-    return s->common.queue.cwptr != -1; /* the queue is mostly empty */
+    return ps2->queue.cwptr != -1; /* the queue is mostly empty */
 }
 
 static const VMStateDescription vmstate_ps2_keyboard_cqueue = {
     .name = "ps2kbd/command_reply_queue",
     .needed = ps2_keyboard_cqueue_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(common.queue.cwptr, PS2KbdState),
+        VMSTATE_INT32(parent_obj.queue.cwptr, PS2KbdState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static int ps2_kbd_post_load(void* opaque, int version_id)
+static int ps2_kbd_post_load(void *opaque, int version_id)
 {
-    PS2KbdState *s = (PS2KbdState*)opaque;
-    PS2State *ps2 = &s->common;
+    PS2KbdState *s = (PS2KbdState *)opaque;
+    PS2State *ps2 = PS2_DEVICE(s);
 
-    if (version_id == 2)
-        s->scancode_set=2;
+    if (version_id == 2) {
+        s->scancode_set = 2;
+    }
 
     ps2_common_post_load(ps2);
 
@@ -1173,13 +1166,14 @@ static const VMStateDescription vmstate_ps2_keyboard = {
     .minimum_version_id = 2,
     .post_load = ps2_kbd_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT(common, PS2KbdState, 0, vmstate_ps2_common, PS2State),
+        VMSTATE_STRUCT(parent_obj, PS2KbdState, 0, vmstate_ps2_common,
+                       PS2State),
         VMSTATE_INT32(scan_enabled, PS2KbdState),
         VMSTATE_INT32(translate, PS2KbdState),
-        VMSTATE_INT32_V(scancode_set, PS2KbdState,3),
+        VMSTATE_INT32_V(scancode_set, PS2KbdState, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * []) {
         &vmstate_ps2_keyboard_ledstate,
         &vmstate_ps2_keyboard_need_high_bit,
         &vmstate_ps2_keyboard_cqueue,
@@ -1190,7 +1184,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
 static int ps2_mouse_post_load(void *opaque, int version_id)
 {
     PS2MouseState *s = (PS2MouseState *)opaque;
-    PS2State *ps2 = &s->common;
+    PS2State *ps2 = PS2_DEVICE(s);
 
     ps2_common_post_load(ps2);
 
@@ -1203,7 +1197,8 @@ static const VMStateDescription vmstate_ps2_mouse = {
     .minimum_version_id = 2,
     .post_load = ps2_mouse_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT(common, PS2MouseState, 0, vmstate_ps2_common, PS2State),
+        VMSTATE_STRUCT(parent_obj, PS2MouseState, 0, vmstate_ps2_common,
+                       PS2State),
         VMSTATE_UINT8(mouse_status, PS2MouseState),
         VMSTATE_UINT8(mouse_resolution, PS2MouseState),
         VMSTATE_UINT8(mouse_sample_rate, PS2MouseState),
@@ -1224,18 +1219,21 @@ static QemuInputHandler ps2_keyboard_handler = {
     .event = ps2_keyboard_event,
 };
 
-void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
+static void ps2_kbd_realize(DeviceState *dev, Error **errp)
 {
-    PS2KbdState *s = g_new0(PS2KbdState, 1);
+    qemu_input_handler_register(dev, &ps2_keyboard_handler);
+}
+
+void *ps2_kbd_init(void)
+{
+    DeviceState *dev;
+    PS2KbdState *s;
+
+    dev = qdev_new(TYPE_PS2_KBD_DEVICE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s = PS2_KBD_DEVICE(dev);
 
     trace_ps2_kbd_init(s);
-    s->common.update_irq = update_irq;
-    s->common.update_arg = update_arg;
-    s->scancode_set = 2;
-    vmstate_register(NULL, 0, &vmstate_ps2_keyboard, s);
-    qemu_input_handler_register((DeviceState *)s,
-                                &ps2_keyboard_handler);
-    qemu_register_reset(ps2_kbd_reset, s);
     return s;
 }
 
@@ -1246,16 +1244,89 @@ static QemuInputHandler ps2_mouse_handler = {
     .sync  = ps2_mouse_sync,
 };
 
-void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
+static void ps2_mouse_realize(DeviceState *dev, Error **errp)
 {
-    PS2MouseState *s = g_new0(PS2MouseState, 1);
+    qemu_input_handler_register(dev, &ps2_mouse_handler);
+}
+
+void *ps2_mouse_init(void)
+{
+    DeviceState *dev;
+    PS2MouseState *s;
+
+    dev = qdev_new(TYPE_PS2_MOUSE_DEVICE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s = PS2_MOUSE_DEVICE(dev);
 
     trace_ps2_mouse_init(s);
-    s->common.update_irq = update_irq;
-    s->common.update_arg = update_arg;
-    vmstate_register(NULL, 0, &vmstate_ps2_mouse, s);
-    qemu_input_handler_register((DeviceState *)s,
-                                &ps2_mouse_handler);
-    qemu_register_reset(ps2_mouse_reset, s);
     return s;
 }
+
+static void ps2_kbd_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+
+    dc->realize = ps2_kbd_realize;
+    device_class_set_parent_reset(dc, ps2_kbd_reset, &ps2dc->parent_reset);
+    dc->vmsd = &vmstate_ps2_keyboard;
+}
+
+static const TypeInfo ps2_kbd_info = {
+    .name          = TYPE_PS2_KBD_DEVICE,
+    .parent        = TYPE_PS2_DEVICE,
+    .instance_size = sizeof(PS2KbdState),
+    .class_init    = ps2_kbd_class_init
+};
+
+static void ps2_mouse_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+
+    dc->realize = ps2_mouse_realize;
+    device_class_set_parent_reset(dc, ps2_mouse_reset,
+                                  &ps2dc->parent_reset);
+    dc->vmsd = &vmstate_ps2_mouse;
+}
+
+static const TypeInfo ps2_mouse_info = {
+    .name          = TYPE_PS2_MOUSE_DEVICE,
+    .parent        = TYPE_PS2_DEVICE,
+    .instance_size = sizeof(PS2MouseState),
+    .class_init    = ps2_mouse_class_init
+};
+
+static void ps2_init(Object *obj)
+{
+    PS2State *s = PS2_DEVICE(obj);
+
+    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+}
+
+static void ps2_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->reset = ps2_reset;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
+
+static const TypeInfo ps2_info = {
+    .name          = TYPE_PS2_DEVICE,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = ps2_init,
+    .instance_size = sizeof(PS2State),
+    .class_init    = ps2_class_init,
+    .class_size    = sizeof(PS2DeviceClass),
+    .abstract      = true
+};
+
+static void ps2_register_types(void)
+{
+    type_register_static(&ps2_info);
+    type_register_static(&ps2_kbd_info);
+    type_register_static(&ps2_mouse_info);
+}
+
+type_init(ps2_register_types)

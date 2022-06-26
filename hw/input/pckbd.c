@@ -39,49 +39,86 @@
 
 #include "trace.h"
 
-/*	Keyboard Controller Commands */
-#define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
-#define KBD_CCMD_WRITE_MODE	0x60	/* Write mode bits */
-#define KBD_CCMD_GET_VERSION	0xA1	/* Get controller version */
-#define KBD_CCMD_MOUSE_DISABLE	0xA7	/* Disable mouse interface */
-#define KBD_CCMD_MOUSE_ENABLE	0xA8	/* Enable mouse interface */
-#define KBD_CCMD_TEST_MOUSE	0xA9	/* Mouse interface test */
-#define KBD_CCMD_SELF_TEST	0xAA	/* Controller self test */
-#define KBD_CCMD_KBD_TEST	0xAB	/* Keyboard interface test */
-#define KBD_CCMD_KBD_DISABLE	0xAD	/* Keyboard interface disable */
-#define KBD_CCMD_KBD_ENABLE	0xAE	/* Keyboard interface enable */
-#define KBD_CCMD_READ_INPORT    0xC0    /* read input port */
-#define KBD_CCMD_READ_OUTPORT	0xD0    /* read output port */
-#define KBD_CCMD_WRITE_OUTPORT	0xD1    /* write output port */
-#define KBD_CCMD_WRITE_OBUF	0xD2
-#define KBD_CCMD_WRITE_AUX_OBUF	0xD3    /* Write to output buffer as if
-                                           initiated by the auxiliary device */
-#define KBD_CCMD_WRITE_MOUSE	0xD4	/* Write the following byte to the mouse */
-#define KBD_CCMD_DISABLE_A20    0xDD    /* HP vectra only ? */
-#define KBD_CCMD_ENABLE_A20     0xDF    /* HP vectra only ? */
-#define KBD_CCMD_PULSE_BITS_3_0 0xF0    /* Pulse bits 3-0 of the output port P2. */
-#define KBD_CCMD_RESET          0xFE    /* Pulse bit 0 of the output port P2 = CPU reset. */
-#define KBD_CCMD_NO_OP          0xFF    /* Pulse no bits of the output port P2. */
+/* Keyboard Controller Commands */
+
+/* Read mode bits */
+#define KBD_CCMD_READ_MODE         0x20
+/* Write mode bits */
+#define KBD_CCMD_WRITE_MODE        0x60
+/* Get controller version */
+#define KBD_CCMD_GET_VERSION       0xA1
+/* Disable mouse interface */
+#define KBD_CCMD_MOUSE_DISABLE     0xA7
+/* Enable mouse interface */
+#define KBD_CCMD_MOUSE_ENABLE      0xA8
+/* Mouse interface test */
+#define KBD_CCMD_TEST_MOUSE        0xA9
+/* Controller self test */
+#define KBD_CCMD_SELF_TEST         0xAA
+/* Keyboard interface test */
+#define KBD_CCMD_KBD_TEST          0xAB
+/* Keyboard interface disable */
+#define KBD_CCMD_KBD_DISABLE       0xAD
+/* Keyboard interface enable */
+#define KBD_CCMD_KBD_ENABLE        0xAE
+/* read input port */
+#define KBD_CCMD_READ_INPORT       0xC0
+/* read output port */
+#define KBD_CCMD_READ_OUTPORT      0xD0
+/* write output port */
+#define KBD_CCMD_WRITE_OUTPORT     0xD1
+#define KBD_CCMD_WRITE_OBUF        0xD2
+/* Write to output buffer as if initiated by the auxiliary device */
+#define KBD_CCMD_WRITE_AUX_OBUF    0xD3
+/* Write the following byte to the mouse */
+#define KBD_CCMD_WRITE_MOUSE       0xD4
+/* HP vectra only ? */
+#define KBD_CCMD_DISABLE_A20       0xDD
+/* HP vectra only ? */
+#define KBD_CCMD_ENABLE_A20        0xDF
+/* Pulse bits 3-0 of the output port P2. */
+#define KBD_CCMD_PULSE_BITS_3_0    0xF0
+/* Pulse bit 0 of the output port P2 = CPU reset. */
+#define KBD_CCMD_RESET             0xFE
+/* Pulse no bits of the output port P2. */
+#define KBD_CCMD_NO_OP             0xFF
 
 /* Status Register Bits */
-#define KBD_STAT_OBF 		0x01	/* Keyboard output buffer full */
-#define KBD_STAT_IBF 		0x02	/* Keyboard input buffer full */
-#define KBD_STAT_SELFTEST	0x04	/* Self test successful */
-#define KBD_STAT_CMD		0x08	/* Last write was a command write (0=data) */
-#define KBD_STAT_UNLOCKED	0x10	/* Zero if keyboard locked */
-#define KBD_STAT_MOUSE_OBF	0x20	/* Mouse output buffer full */
-#define KBD_STAT_GTO 		0x40	/* General receive/xmit timeout */
-#define KBD_STAT_PERR 		0x80	/* Parity error */
+
+/* Keyboard output buffer full */
+#define KBD_STAT_OBF           0x01
+/* Keyboard input buffer full */
+#define KBD_STAT_IBF           0x02
+/* Self test successful */
+#define KBD_STAT_SELFTEST      0x04
+/* Last write was a command write (0=data) */
+#define KBD_STAT_CMD           0x08
+/* Zero if keyboard locked */
+#define KBD_STAT_UNLOCKED      0x10
+/* Mouse output buffer full */
+#define KBD_STAT_MOUSE_OBF     0x20
+/* General receive/xmit timeout */
+#define KBD_STAT_GTO           0x40
+/* Parity error */
+#define KBD_STAT_PERR          0x80
 
 /* Controller Mode Register Bits */
-#define KBD_MODE_KBD_INT	0x01	/* Keyboard data generate IRQ1 */
-#define KBD_MODE_MOUSE_INT	0x02	/* Mouse data generate IRQ12 */
-#define KBD_MODE_SYS 		0x04	/* The system flag (?) */
-#define KBD_MODE_NO_KEYLOCK	0x08	/* The keylock doesn't affect the keyboard if set */
-#define KBD_MODE_DISABLE_KBD	0x10	/* Disable keyboard interface */
-#define KBD_MODE_DISABLE_MOUSE	0x20	/* Disable mouse interface */
-#define KBD_MODE_KCC 		0x40	/* Scan code conversion to PC format */
-#define KBD_MODE_RFU		0x80
+
+/* Keyboard data generate IRQ1 */
+#define KBD_MODE_KBD_INT       0x01
+/* Mouse data generate IRQ12 */
+#define KBD_MODE_MOUSE_INT     0x02
+/* The system flag (?) */
+#define KBD_MODE_SYS           0x04
+/* The keylock doesn't affect the keyboard if set */
+#define KBD_MODE_NO_KEYLOCK    0x08
+/* Disable keyboard interface */
+#define KBD_MODE_DISABLE_KBD   0x10
+/* Disable mouse interface */
+#define KBD_MODE_DISABLE_MOUSE 0x20
+/* Scan code conversion to PC format */
+#define KBD_MODE_KCC           0x40
+#define KBD_MODE_RFU           0x80
 
 /* Output Port Bits */
 #define KBD_OUT_RESET           0x01    /* 1=normal mode, 0=reset */
@@ -89,7 +126,8 @@
 #define KBD_OUT_OBF             0x10    /* Keyboard output buffer full */
 #define KBD_OUT_MOUSE_OBF       0x20    /* Mouse output buffer full */
 
-/* OSes typically write 0xdd/0xdf to turn the A20 line off and on.
+/*
+ * OSes typically write 0xdd/0xdf to turn the A20 line off and on.
  * We make the default value of the outport include these four bits,
  * so that the subsection is rarely necessary.
  */
@@ -108,33 +146,11 @@
 #define KBD_OBSRC_MOUSE         0x02
 #define KBD_OBSRC_CTRL          0x04
 
-typedef struct KBDState {
-    uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
-    uint8_t status;
-    uint8_t mode;
-    uint8_t outport;
-    uint32_t migration_flags;
-    uint32_t obsrc;
-    bool outport_present;
-    bool extended_state;
-    bool extended_state_loaded;
-    /* Bitmask of devices with data available.  */
-    uint8_t pending;
-    uint8_t obdata;
-    uint8_t cbdata;
-    uint8_t pending_tmp;
-    void *kbd;
-    void *mouse;
-    QEMUTimer *throttle_timer;
 
-    qemu_irq irq_kbd;
-    qemu_irq irq_mouse;
-    qemu_irq a20_out;
-    hwaddr mask;
-} KBDState;
-
-/* XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
-   incorrect, but it avoids having to simulate exact delays */
+/*
+ * XXX: not generating the irqs if KBD_MODE_DISABLE_KBD is set may be
+ * incorrect, but it avoids having to simulate exact delays
+ */
 static void kbd_update_irq_lines(KBDState *s)
 {
     int irq_kbd_level, irq_mouse_level;
@@ -154,8 +170,8 @@ static void kbd_update_irq_lines(KBDState *s)
             }
         }
     }
-    qemu_set_irq(s->irq_kbd, irq_kbd_level);
-    qemu_set_irq(s->irq_mouse, irq_mouse_level);
+    qemu_set_irq(s->irqs[I8042_KBD_IRQ], irq_kbd_level);
+    qemu_set_irq(s->irqs[I8042_MOUSE_IRQ], irq_mouse_level);
 }
 
 static void kbd_deassert_irq(KBDState *s)
@@ -302,21 +318,23 @@ static void kbd_write_command(void *opaque, hwaddr addr,
 
     trace_pckbd_kbd_write_command(val);
 
-    /* Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
+    /*
+     * Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
      * low for approximately 6 micro seconds. Bits 3-0 of the KBD_CCMD_PULSE
      * command specify the output port bits to be pulsed.
      * 0: Bit should be pulsed. 1: Bit should not be modified.
      * The only useful version of this command is pulsing bit 0,
      * which does a CPU reset.
      */
-    if((val & KBD_CCMD_PULSE_BITS_3_0) == KBD_CCMD_PULSE_BITS_3_0) {
-        if(!(val & 1))
+    if ((val & KBD_CCMD_PULSE_BITS_3_0) == KBD_CCMD_PULSE_BITS_3_0) {
+        if (!(val & 1)) {
             val = KBD_CCMD_RESET;
-        else
+        } else {
             val = KBD_CCMD_NO_OP;
+        }
     }
 
-    switch(val) {
+    switch (val) {
     case KBD_CCMD_READ_MODE:
         kbd_queue(s, s->mode, 0);
         break;
@@ -409,7 +427,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
 
     trace_pckbd_kbd_write_data(val);
 
-    switch(s->write_cmd) {
+    switch (s->write_cmd) {
     case 0:
         ps2_write_keyboard(s->kbd, val);
         /* sending data to the keyboard reenables PS/2 communication */
@@ -607,7 +625,7 @@ static const VMStateDescription vmstate_kbd = {
         VMSTATE_UINT8(pending_tmp, KBDState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (const VMStateDescription*[]) {
+    .subsections = (const VMStateDescription * []) {
         &vmstate_kbd_outport,
         &vmstate_kbd_extended_state,
         NULL
@@ -619,10 +637,11 @@ static uint64_t kbd_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     KBDState *s = opaque;
 
-    if (addr & s->mask)
+    if (addr & s->mask) {
         return kbd_read_status(s, 0, 1) & 0xff;
-    else
+    } else {
         return kbd_read_data(s, 0, 1) & 0xff;
+    }
 }
 
 static void kbd_mm_writefn(void *opaque, hwaddr addr,
@@ -630,10 +649,11 @@ static void kbd_mm_writefn(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    if (addr & s->mask)
+    if (addr & s->mask) {
         kbd_write_command(s, 0, value & 0xff, 1);
-    else
+    } else {
         kbd_write_data(s, 0, value & 0xff, 1);
+    }
 }
 
 
@@ -645,35 +665,105 @@ static const MemoryRegionOps i8042_mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                   MemoryRegion *region, ram_addr_t size,
-                   hwaddr mask)
+static void i8042_mmio_set_kbd_irq(void *opaque, int n, int level)
 {
-    KBDState *s = g_new0(KBDState, 1);
+    MMIOKBDState *s = I8042_MMIO(opaque);
+    KBDState *ks = &s->kbd;
 
-    s->irq_kbd = kbd_irq;
-    s->irq_mouse = mouse_irq;
-    s->mask = mask;
-
-    s->extended_state = true;
-
-    vmstate_register(NULL, 0, &vmstate_kbd, s);
-
-    memory_region_init_io(region, NULL, &i8042_mmio_ops, s, "i8042", size);
-
-    s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
-    s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
-    qemu_register_reset(kbd_reset, s);
+    kbd_update_kbd_irq(ks, level);
 }
 
-struct ISAKBDState {
-    ISADevice parent_obj;
+static void i8042_mmio_set_mouse_irq(void *opaque, int n, int level)
+{
+    MMIOKBDState *s = I8042_MMIO(opaque);
+    KBDState *ks = &s->kbd;
 
-    KBDState kbd;
-    bool kbd_throttle;
-    MemoryRegion io[2];
-    uint8_t kbd_irq;
-    uint8_t mouse_irq;
+    kbd_update_aux_irq(ks, level);
+}
+
+static void i8042_mmio_reset(DeviceState *dev)
+{
+    MMIOKBDState *s = I8042_MMIO(dev);
+    KBDState *ks = &s->kbd;
+
+    kbd_reset(ks);
+}
+
+static void i8042_mmio_realize(DeviceState *dev, Error **errp)
+{
+    MMIOKBDState *s = I8042_MMIO(dev);
+    KBDState *ks = &s->kbd;
+
+    memory_region_init_io(&s->region, OBJECT(dev), &i8042_mmio_ops, ks,
+                          "i8042", s->size);
+
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->region);
+
+    /* Note we can't use dc->vmsd without breaking migration compatibility */
+    vmstate_register(NULL, 0, &vmstate_kbd, ks);
+
+    ks->kbd = ps2_kbd_init();
+    qdev_connect_gpio_out(DEVICE(ks->kbd), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
+                                                 0));
+    ks->mouse = ps2_mouse_init();
+    qdev_connect_gpio_out(DEVICE(ks->mouse), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
+                                                 0));
+}
+
+static void i8042_mmio_init(Object *obj)
+{
+    MMIOKBDState *s = I8042_MMIO(obj);
+    KBDState *ks = &s->kbd;
+
+    ks->extended_state = true;
+
+    qdev_init_gpio_out(DEVICE(obj), ks->irqs, 2);
+    qdev_init_gpio_in_named(DEVICE(obj), i8042_mmio_set_kbd_irq,
+                            "ps2-kbd-input-irq", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), i8042_mmio_set_mouse_irq,
+                            "ps2-mouse-input-irq", 1);
+}
+
+static Property i8042_mmio_properties[] = {
+    DEFINE_PROP_UINT64("mask", MMIOKBDState, kbd.mask, UINT64_MAX),
+    DEFINE_PROP_UINT32("size", MMIOKBDState, size, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void i8042_mmio_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = i8042_mmio_realize;
+    dc->reset = i8042_mmio_reset;
+    device_class_set_props(dc, i8042_mmio_properties);
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
+
+MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
+                            ram_addr_t size, hwaddr mask)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_I8042_MMIO);
+    qdev_prop_set_uint64(dev, "mask", mask);
+    qdev_prop_set_uint32(dev, "size", size);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    qdev_connect_gpio_out(dev, I8042_KBD_IRQ, kbd_irq);
+    qdev_connect_gpio_out(dev, I8042_MOUSE_IRQ, mouse_irq);
+
+    return I8042_MMIO(dev);
+}
+
+static const TypeInfo i8042_mmio_info = {
+    .name          = TYPE_I8042_MMIO,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = i8042_mmio_init,
+    .instance_size = sizeof(MMIOKBDState),
+    .class_init    = i8042_mmio_class_init
 };
 
 void i8042_isa_mouse_fake_event(ISAKBDState *isa)
@@ -718,6 +808,31 @@ static const MemoryRegionOps i8042_cmd_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void i8042_set_kbd_irq(void *opaque, int n, int level)
+{
+    ISAKBDState *s = I8042(opaque);
+    KBDState *ks = &s->kbd;
+
+    kbd_update_kbd_irq(ks, level);
+}
+
+static void i8042_set_mouse_irq(void *opaque, int n, int level)
+{
+    ISAKBDState *s = I8042(opaque);
+    KBDState *ks = &s->kbd;
+
+    kbd_update_aux_irq(ks, level);
+}
+
+
+static void i8042_reset(DeviceState *dev)
+{
+    ISAKBDState *s = I8042(dev);
+    KBDState *ks = &s->kbd;
+
+    kbd_reset(ks);
+}
+
 static void i8042_initfn(Object *obj)
 {
     ISAKBDState *isa_s = I8042(obj);
@@ -729,6 +844,12 @@ static void i8042_initfn(Object *obj)
                           "i8042-cmd", 1);
 
     qdev_init_gpio_out_named(DEVICE(obj), &s->a20_out, I8042_A20_LINE, 1);
+
+    qdev_init_gpio_out(DEVICE(obj), s->irqs, 2);
+    qdev_init_gpio_in_named(DEVICE(obj), i8042_set_kbd_irq,
+                            "ps2-kbd-input-irq", 1);
+    qdev_init_gpio_in_named(DEVICE(obj), i8042_set_mouse_irq,
+                            "ps2-mouse-input-irq", 1);
 }
 
 static void i8042_realizefn(DeviceState *dev, Error **errp)
@@ -749,14 +870,20 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->irq_kbd = isa_get_irq(isadev, isa_s->kbd_irq);
-    s->irq_mouse = isa_get_irq(isadev, isa_s->mouse_irq);
+    isa_connect_gpio_out(isadev, I8042_KBD_IRQ, isa_s->kbd_irq);
+    isa_connect_gpio_out(isadev, I8042_MOUSE_IRQ, isa_s->mouse_irq);
 
     isa_register_ioport(isadev, isa_s->io + 0, 0x60);
     isa_register_ioport(isadev, isa_s->io + 1, 0x64);
 
-    s->kbd = ps2_kbd_init(kbd_update_kbd_irq, s);
-    s->mouse = ps2_mouse_init(kbd_update_aux_irq, s);
+    s->kbd = ps2_kbd_init();
+    qdev_connect_gpio_out(DEVICE(s->kbd), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
+                                                 0));
+    s->mouse = ps2_mouse_init();
+    qdev_connect_gpio_out(DEVICE(s->mouse), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
+                                                 0));
     if (isa_s->kbd_throttle && !isa_s->kbd.extended_state) {
         warn_report(TYPE_I8042 ": can't enable kbd-throttle without"
                     " extended-state, disabling kbd-throttle");
@@ -764,7 +891,6 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
         s->throttle_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
                                          kbd_throttle_timeout, s);
     }
-    qemu_register_reset(kbd_reset, s);
 }
 
 static void i8042_build_aml(AcpiDevAmlIf *adev, Aml *scope)
@@ -810,6 +936,7 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
     device_class_set_props(dc, i8042_properties);
+    dc->reset = i8042_reset;
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
     adevc->build_dev_aml = i8042_build_aml;
@@ -831,6 +958,7 @@ static const TypeInfo i8042_info = {
 static void i8042_register_types(void)
 {
     type_register_static(&i8042_info);
+    type_register_static(&i8042_mmio_info);
 }
 
 type_init(i8042_register_types)
