@@ -161,9 +161,14 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
         }
         v &= 0xf;
         if (((address + i) >= PIIX_PIRQCA) && ((address + i) <= PIIX_PIRQCD)) {
-            xen_set_pci_link_route(xen_domid, address + i - PIIX_PIRQCA, v);
+            xen_set_pci_link_route(address + i - PIIX_PIRQCA, v);
         }
     }
+}
+
+int xen_set_pci_link_route(uint8_t link, uint8_t irq)
+{
+    return xendevicemodel_set_pci_link_route(xen_dmod, xen_domid, link, irq);
 }
 
 int xen_is_pirq_msi(uint32_t msi_data)

@@ -316,12 +316,6 @@ static inline int xen_set_pci_intx_level(domid_t domid, uint16_t segment,
                                              device, intx, level);
 }
 
-static inline int xen_set_pci_link_route(domid_t domid, uint8_t link,
-                                         uint8_t irq)
-{
-    return xendevicemodel_set_pci_link_route(xen_dmod, domid, link, irq);
-}
-
 static inline int xen_inject_msi(domid_t domid, uint64_t msi_addr,
                                  uint32_t msi_data)
 {
