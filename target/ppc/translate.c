@@ -5386,12 +5386,12 @@ static void gen_slbmfev(DisasContext *ctx)
 static void gen_slbfee_(DisasContext *ctx)
 {
 #if defined(CONFIG_USER_ONLY)
-    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
+    gen_hvpriv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
 #else
     TCGLabel *l1, *l2;
 
     if (unlikely(ctx->pr)) {
-        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
     gen_helper_find_slb_vsid(cpu_gpr[rS(ctx->opcode)], cpu_env,
