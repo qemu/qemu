@@ -2010,15 +2010,7 @@ static void machvirt_init(MachineState *machine)
         cpuobj = object_new(possible_cpus->cpus[0].type);
         armcpu = ARM_CPU(cpuobj);
 
-        if (object_property_get_bool(cpuobj, "aarch64", NULL)) {
-            pa_bits = arm_pamax(armcpu);
-        } else if (arm_feature(&armcpu->env, ARM_FEATURE_LPAE)) {
-            /* v7 with LPAE */
-            pa_bits = 40;
-        } else {
-            /* Anything else */
-            pa_bits = 32;
-        }
+        pa_bits = arm_pamax(armcpu);
 
         object_unref(cpuobj);
 

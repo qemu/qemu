@@ -372,6 +372,31 @@ verbose command lines.  However, the recommended way to select vector
 lengths is to explicitly enable each desired length.  Therefore only
 example's (1), (4), and (6) exhibit recommended uses of the properties.
 
+SME CPU Property Examples
+-------------------------
+
+  1) Disable SME::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sme=off
+
+  2) Implicitly enable all vector lengths for the ``max`` CPU type::
+
+     $ qemu-system-aarch64 -M virt -cpu max
+
+  3) Only enable the 256-bit vector length::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sme256=on
+
+  3) Enable the 256-bit and 1024-bit vector lengths::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sme256=on,sme1024=on
+
+  4) Disable the 512-bit vector length.  This results in all the other
+     lengths supported by ``max`` defaulting to enabled
+     (128, 256, 1024 and 2048)::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve512=off
+
 SVE User-mode Default Vector Length Property
 --------------------------------------------
 
@@ -387,3 +412,34 @@ length supported by QEMU is 256.
 
 If this property is set to ``-1`` then the default vector length
 is set to the maximum possible length.
+
+SME CPU Properties
+==================
+
+The SME CPU properties are much like the SVE properties: ``sme`` is
+used to enable or disable the entire SME feature, and ``sme<N>`` is
+used to enable or disable specific vector lengths.  Finally,
+``sme_fa64`` is used to enable or disable ``FEAT_SME_FA64``, which
+allows execution of the "full a64" instruction set while Streaming
+SVE mode is enabled.
+
+SME is not supported by KVM at this time.
+
+At least one vector length must be enabled when ``sme`` is enabled,
+and all vector lengths must be powers of 2.  The maximum vector
+length supported by qemu is 2048 bits.  Otherwise, there are no
+additional constraints on the set of vector lengths supported by SME.
+
+SME User-mode Default Vector Length Property
+--------------------------------------------
+
+For qemu-aarch64, the cpu propery ``sme-default-vector-length=N`` is
+defined to mirror the Linux kernel parameter file
+``/proc/sys/abi/sme_default_vector_length``.  The default length, ``N``,
+is in units of bytes and must be between 16 and 8192.
+If not specified, the default vector length is 32.
+
+As with ``sve-default-vector-length``, if the default length is larger
+than the maximum vector length enabled, the actual vector length will
+be reduced.  If this property is set to ``-1`` then the default vector
+length is set to the maximum possible length.

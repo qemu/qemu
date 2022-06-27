@@ -68,6 +68,7 @@ typedef struct AccelClass {
 
 AccelClass *accel_find(const char *opt_name);
 AccelState *current_accel(void);
+const char *current_accel_name(void);
 
 void accel_init_interfaces(AccelClass *ac);
 
