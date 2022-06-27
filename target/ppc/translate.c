@@ -5907,22 +5907,6 @@ static void gen_mtdcrx(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-/* mfdcrux (PPC 460) : user-mode access to DCR */
-static void gen_mfdcrux(DisasContext *ctx)
-{
-    gen_helper_load_dcr(cpu_gpr[rD(ctx->opcode)], cpu_env,
-                        cpu_gpr[rA(ctx->opcode)]);
-    /* Note: Rc update flag set leads to undefined state of Rc0 */
-}
-
-/* mtdcrux (PPC 460) : user-mode access to DCR */
-static void gen_mtdcrux(DisasContext *ctx)
-{
-    gen_helper_store_dcr(cpu_env, cpu_gpr[rA(ctx->opcode)],
-                         cpu_gpr[rS(ctx->opcode)]);
-    /* Note: Rc update flag set leads to undefined state of Rc0 */
-}
-
 /* dccci */
 static void gen_dccci(DisasContext *ctx)
 {
@@ -6958,8 +6942,6 @@ GEN_HANDLER(mfdcr, 0x1F, 0x03, 0x0A, 0x00000001, PPC_DCR),
 GEN_HANDLER(mtdcr, 0x1F, 0x03, 0x0E, 0x00000001, PPC_DCR),
 GEN_HANDLER(mfdcrx, 0x1F, 0x03, 0x08, 0x00000000, PPC_DCRX),
 GEN_HANDLER(mtdcrx, 0x1F, 0x03, 0x0C, 0x00000000, PPC_DCRX),
-GEN_HANDLER(mfdcrux, 0x1F, 0x03, 0x09, 0x00000000, PPC_DCRUX),
-GEN_HANDLER(mtdcrux, 0x1F, 0x03, 0x0D, 0x00000000, PPC_DCRUX),
 GEN_HANDLER(dccci, 0x1F, 0x06, 0x0E, 0x03E00001, PPC_4xx_COMMON),
 GEN_HANDLER(dcread, 0x1F, 0x06, 0x0F, 0x00000001, PPC_4xx_COMMON),
 GEN_HANDLER2(icbt_40x, "icbt", 0x1F, 0x06, 0x08, 0x03E00001, PPC_40x_ICBT),

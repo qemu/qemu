@@ -2214,8 +2214,6 @@ enum {
     PPC_DCR            = 0x1000000000000000ULL,
     /* DCR extended accesse                                                  */
     PPC_DCRX           = 0x2000000000000000ULL,
-    /* user-mode DCR access, implemented in PowerPC 460                      */
-    PPC_DCRUX          = 0x4000000000000000ULL,
     /* popcntw and popcntd instructions                                      */
     PPC_POPCNTWD       = 0x8000000000000000ULL,
 
@@ -2239,8 +2237,8 @@ enum {
                         | PPC_405_MAC | PPC_440_SPEC | PPC_BOOKE \
                         | PPC_MFAPIDI | PPC_TLBIVA | PPC_TLBIVAX \
                         | PPC_4xx_COMMON | PPC_40x_ICBT | PPC_RFMCI \
-                        | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_DCRUX \
-                        | PPC_POPCNTWD | PPC_CILDST)
+                        | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_POPCNTWD \
+                        | PPC_CILDST)
 
     /* extended type values */
 
