@@ -907,9 +907,9 @@ void spr_write_excp_vector(DisasContext *ctx, int sprn, int gprn)
     } else if (sprn >= SPR_BOOKE_IVOR38 && sprn <= SPR_BOOKE_IVOR42) {
         sprn_offs = sprn - SPR_BOOKE_IVOR38 + 38;
     } else {
-        printf("Trying to write an unknown exception vector %d %03x\n",
-               sprn, sprn);
-        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
+        qemu_log_mask(LOG_GUEST_ERROR, "Trying to write an unknown exception"
+                      " vector 0x%03x\n", sprn);
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
 
