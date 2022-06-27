@@ -411,10 +411,8 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
         f->total_transferred += len;
     } else if (len == 0) {
         qemu_file_set_error_obj(f, -EIO, local_error);
-    } else if (len != -EAGAIN) {
-        qemu_file_set_error_obj(f, len, local_error);
     } else {
-        error_free(local_error);
+        qemu_file_set_error_obj(f, len, local_error);
     }
 
     return len;
