@@ -104,8 +104,8 @@ multipath I/O.
 .. code-block:: console
 
    -device nvme-subsys,id=nvme-subsys-0,nqn=subsys0
-   -device nvme,serial=a,subsys=nvme-subsys-0
-   -device nvme,serial=b,subsys=nvme-subsys-0
+   -device nvme,serial=deadbeef,subsys=nvme-subsys-0
+   -device nvme,serial=deadbeef,subsys=nvme-subsys-0
 
 This will create an NVM subsystem with two controllers. Having controllers
 linked to an ``nvme-subsys`` device allows additional ``nvme-ns`` parameters:
