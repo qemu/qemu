@@ -4789,11 +4789,11 @@ static inline void gen_op_mfspr(DisasContext *ctx)
          */
         if (sprn & 0x10) {
             if (ctx->pr) {
-                gen_priv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+                gen_priv_exception(ctx, POWERPC_EXCP_PRIV_REG);
             }
         } else {
             if (ctx->pr || sprn == 0 || sprn == 4 || sprn == 5 || sprn == 6) {
-                gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+                gen_hvpriv_exception(ctx, POWERPC_EXCP_PRIV_REG);
             }
         }
     }
@@ -4976,11 +4976,11 @@ static void gen_mtspr(DisasContext *ctx)
          */
         if (sprn & 0x10) {
             if (ctx->pr) {
-                gen_priv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+                gen_priv_exception(ctx, POWERPC_EXCP_PRIV_REG);
             }
         } else {
             if (ctx->pr || sprn == 0) {
-                gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+                gen_hvpriv_exception(ctx, POWERPC_EXCP_PRIV_REG);
             }
         }
     }
