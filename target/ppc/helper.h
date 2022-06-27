@@ -694,10 +694,10 @@ DEF_HELPER_2(book3s_msgclr, void, env, tl)
 DEF_HELPER_4(dlmzb, tl, env, tl, tl, i32)
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(rac, tl, env, tl)
-#endif
 
 DEF_HELPER_2(load_dcr, tl, env, tl)
 DEF_HELPER_3(store_dcr, void, env, tl, tl)
+#endif
 
 DEF_HELPER_2(load_dump_spr, void, env, i32)
 DEF_HELPER_2(store_dump_spr, void, env, i32)
