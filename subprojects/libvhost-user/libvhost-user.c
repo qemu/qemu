@@ -779,15 +779,9 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
 
         /* Send the message back to qemu with the addresses filled in. */
         vmsg->fd_num = 0;
-        if (!vu_send_reply(dev, dev->sock, vmsg)) {
-            vu_panic(dev, "failed to respond to add-mem-region for postcopy");
-            return false;
-        }
-
         DPRINT("Successfully added new region in postcopy\n");
         dev->nregions++;
-        return false;
-
+        return true;
     } else {
         for (i = 0; i < dev->max_queues; i++) {
             if (dev->vq[i].vring.desc) {
