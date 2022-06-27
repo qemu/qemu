@@ -22,7 +22,7 @@
 static bool spr_groupA_read_allowed(DisasContext *ctx)
 {
     if (!ctx->mmcr0_pmcc0 && ctx->mmcr0_pmcc1) {
-        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_PMU);
         return false;
     }
 
@@ -46,10 +46,10 @@ static bool spr_groupA_write_allowed(DisasContext *ctx)
 
     if (ctx->mmcr0_pmcc1) {
         /* PMCC = 0b01 */
-        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_PMU);
     } else {
         /* PMCC = 0b00 */
-        gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_PRIV_REG);
     }
 
     return false;
@@ -214,7 +214,7 @@ void spr_read_PMC56_ureg(DisasContext *ctx, int gprn, int sprn)
      * Interrupt.
      */
     if (ctx->mmcr0_pmcc0 && ctx->mmcr0_pmcc1) {
-        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_PMU);
         return;
     }
 
@@ -249,7 +249,7 @@ void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn)
      * Interrupt.
      */
     if (ctx->mmcr0_pmcc0 && ctx->mmcr0_pmcc1) {
-        gen_hvpriv_exception(ctx, POWERPC_EXCP_FU);
+        gen_exception_err(ctx, POWERPC_EXCP_FU, FSCR_IC_PMU);
         return;
     }
 
