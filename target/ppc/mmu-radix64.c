@@ -383,7 +383,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    uint64_t offset, size, prtbe_addr, prtbe0, base_addr, nls, index, pte;
+    uint64_t offset, size, prtb, prtbe_addr, prtbe0, base_addr, nls, index, pte;
     int fault_cause = 0, h_page_size, h_prot;
     hwaddr h_raddr, pte_addr;
     int ret;
@@ -393,9 +393,18 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
                   __func__, access_str(access_type),
                   eaddr, mmu_idx, pid);
 
+    prtb = (pate.dw1 & PATE1_R_PRTB);
+    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
+    if (prtb & (size - 1)) {
+        /* Process Table not properly aligned */
+        if (guest_visible) {
+            ppc_radix64_raise_si(cpu, access_type, eaddr, DSISR_R_BADCONFIG);
+        }
+        return 1;
+    }
+
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
-    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
     if (offset >= size) {
         /* offset exceeds size of the process table */
         if (guest_visible) {
@@ -403,7 +412,7 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu,
         }
         return 1;
     }
-    prtbe_addr = (pate.dw1 & PATE1_R_PRTB) + offset;
+    prtbe_addr = prtb + offset;
 
     if (vhyp_flat_addressing(cpu)) {
         prtbe0 = ldq_phys(cs->as, prtbe_addr);
@@ -568,7 +577,7 @@ static bool ppc_radix64_xlate_impl(PowerPCCPU *cpu, vaddr eaddr,
         return false;
     }
 
-    /* Get Process Table */
+    /* Get Partition Table */
     if (cpu->vhyp) {
         PPCVirtualHypervisorClass *vhc;
         vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);

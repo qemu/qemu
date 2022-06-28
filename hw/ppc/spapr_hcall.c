@@ -920,6 +920,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     target_ulong page_size = args[2];
     target_ulong table_size = args[3];
     target_ulong update_lpcr = 0;
+    target_ulong table_byte_size;
     uint64_t cproc;
 
     if (flags & ~FLAGS_MASK) { /* Check no reserved bits are set */
@@ -927,6 +928,14 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     }
     if (flags & FLAG_MODIFY) {
         if (flags & FLAG_REGISTER) {
+            /* Check process table alignment */
+            table_byte_size = 1ULL << (table_size + 12);
+            if (proc_tbl & (table_byte_size - 1)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: process table not properly aligned: proc_tbl 0x"
+                    TARGET_FMT_lx" proc_tbl_size 0x"TARGET_FMT_lx"\n",
+                    __func__, proc_tbl, table_byte_size);
+            }
             if (flags & FLAG_RADIX) { /* Register new RADIX process table */
                 if (proc_tbl & 0xfff || proc_tbl >> 60) {
                     return H_P2;
