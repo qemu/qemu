@@ -265,7 +265,7 @@ static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
                                   uint64_t *pte_addr, uint64_t *nls,
                                   int *psize, uint64_t *pte, int *fault_cause)
 {
-    uint64_t index, pde;
+    uint64_t index, mask, nlb, pde;
 
     /* Read page <directory/table> entry from guest address space */
     pde = ldq_phys(as, *pte_addr);
@@ -280,7 +280,17 @@ static int ppc_radix64_next_level(AddressSpace *as, vaddr eaddr,
         *nls = pde & R_PDE_NLS;
         index = eaddr >> (*psize - *nls);       /* Shift */
         index &= ((1UL << *nls) - 1);           /* Mask */
-        *pte_addr = (pde & R_PDE_NLB) + (index * sizeof(pde));
+        nlb = pde & R_PDE_NLB;
+        mask = MAKE_64BIT_MASK(0, *nls + 3);
+
+        if (nlb & mask) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "%s: misaligned page dir/table base: 0x"TARGET_FMT_lx
+                " page dir size: 0x"TARGET_FMT_lx"\n",
+                __func__, nlb, mask + 1);
+            nlb &= ~mask;
+        }
+        *pte_addr = nlb + index * sizeof(pde);
     }
     return 0;
 }
@@ -294,8 +304,18 @@ static int ppc_radix64_walk_tree(AddressSpace *as, vaddr eaddr,
     int level = 0;
 
     index = eaddr >> (*psize - nls);    /* Shift */
-    index &= ((1UL << nls) - 1);       /* Mask */
-    *pte_addr = base_addr + (index * sizeof(pde));
+    index &= ((1UL << nls) - 1);        /* Mask */
+    mask = MAKE_64BIT_MASK(0, nls + 3);
+
+    if (base_addr & mask) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: misaligned page dir base: 0x"TARGET_FMT_lx
+            " page dir size: 0x"TARGET_FMT_lx"\n",
+            __func__, base_addr, mask + 1);
+        base_addr &= ~mask;
+    }
+    *pte_addr = base_addr + index * sizeof(pde);
+
     do {
         int ret;
 
