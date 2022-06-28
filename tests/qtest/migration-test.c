@@ -1232,6 +1232,10 @@ static void test_precopy_common(MigrateCommon *args)
 
         migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
 
+        /* We do this first, as it has a timeout to stop us
+         * hanging forever if migration didn't converge */
+        wait_for_migration_complete(from);
+
         if (!got_stop) {
             qtest_qmp_eventwait(from, "STOP");
         }
@@ -1239,7 +1243,6 @@ static void test_precopy_common(MigrateCommon *args)
         qtest_qmp_eventwait(to, "RESUME");
 
         wait_for_serial("dest_serial");
-        wait_for_migration_complete(from);
     }
 
     if (args->finish_hook) {
