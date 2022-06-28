@@ -1053,6 +1053,10 @@ void mips_cpu_do_interrupt(CPUState *cs)
     }
     offset = 0x180;
     switch (cs->exception_index) {
+    case EXCP_SEMIHOST:
+        cs->exception_index = EXCP_NONE;
+        mips_semihosting(env);
+        return;
     case EXCP_DSS:
         env->CP0_Debug |= 1 << CP0DB_DSS;
         /*

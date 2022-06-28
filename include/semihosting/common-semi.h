@@ -34,6 +34,6 @@
 #ifndef COMMON_SEMI_H
 #define COMMON_SEMI_H
 
-target_ulong do_common_semihosting(CPUState *cs);
+void do_common_semihosting(CPUState *cs);
 
 #endif /* COMMON_SEMI_H */

@@ -12,46 +12,33 @@
 #include "cpu.h"
 
 /**
- * qemu_semihosting_console_outs:
- * @env: CPUArchState
- * @s: host address of null terminated guest string
+ * qemu_semihosting_console_read:
+ * @cs: CPUState
+ * @buf: host buffer
+ * @len: buffer size
  *
- * Send a null terminated guest string to the debug console. This may
- * be the remote gdb session if a softmmu guest is currently being
- * debugged.
+ * Receive at least one character from debug console.  As this call may
+ * block if no data is available we suspend the CPU and will re-execute the
+ * instruction when data is there. Therefore two conditions must be met:
  *
- * Returns: number of bytes written.
- */
-int qemu_semihosting_console_outs(CPUArchState *env, target_ulong s);
-
-/**
- * qemu_semihosting_console_outc:
- * @env: CPUArchState
- * @s: host address of null terminated guest string
- *
- * Send single character from guest memory to the debug console. This
- * may be the remote gdb session if a softmmu guest is currently being
- * debugged.
- *
- * Returns: nothing
- */
-void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
-
-/**
- * qemu_semihosting_console_inc:
- * @env: CPUArchState
- *
- * Receive single character from debug console. This may be the remote
- * gdb session if a softmmu guest is currently being debugged. As this
- * call may block if no data is available we suspend the CPU and will
- * re-execute the instruction when data is there. Therefore two
- * conditions must be met:
  *   - CPUState is synchronized before calling this function
  *   - pc is only updated once the character is successfully returned
  *
- * Returns: character read OR cpu_loop_exit!
+ * Returns: number of characters read, OR cpu_loop_exit!
  */
-target_ulong qemu_semihosting_console_inc(CPUArchState *env);
+int qemu_semihosting_console_read(CPUState *cs, void *buf, int len);
+
+/**
+ * qemu_semihosting_console_write:
+ * @buf: host buffer
+ * @len: buffer size
+ *
+ * Write len bytes from buf to the debug console.
+ *
+ * Returns: number of bytes written -- this should only ever be short
+ * on some sort of i/o error.
+ */
+int qemu_semihosting_console_write(void *buf, int len);
 
 /**
  * qemu_semihosting_log_out:
@@ -65,5 +52,21 @@ target_ulong qemu_semihosting_console_inc(CPUArchState *env);
  * Returns: number of bytes written
  */
 int qemu_semihosting_log_out(const char *s, int len);
+
+/*
+ * qemu_semihosting_console_block_until_ready:
+ * @cs: CPUState
+ *
+ * If no data is available we suspend the CPU and will re-execute the
+ * instruction when data is available.
+ */
+void qemu_semihosting_console_block_until_ready(CPUState *cs);
+
+/**
+ * qemu_semihosting_console_ready:
+ *
+ * Return true if characters are available for read; does not block.
+ */
+bool qemu_semihosting_console_ready(void);
 
 #endif /* SEMIHOST_CONSOLE_H */

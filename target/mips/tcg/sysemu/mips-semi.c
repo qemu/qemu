@@ -20,10 +20,10 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/log.h"
-#include "exec/helper-proto.h"
-#include "exec/softmmu-semi.h"
+#include "semihosting/softmmu-uaccess.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
+#include "internal.h"
 
 typedef enum UHIOp {
     UHI_exit = 1,
@@ -72,6 +72,46 @@ enum UHIOpenFlags {
     UHIOpen_CREAT  = 0x200,
     UHIOpen_TRUNC  = 0x400,
     UHIOpen_EXCL   = 0x800
+};
+
+enum UHIErrno {
+    UHI_EACCESS         = 13,
+    UHI_EAGAIN          = 11,
+    UHI_EBADF           = 9,
+    UHI_EBADMSG         = 77,
+    UHI_EBUSY           = 16,
+    UHI_ECONNRESET      = 104,
+    UHI_EEXIST          = 17,
+    UHI_EFBIG           = 27,
+    UHI_EINTR           = 4,
+    UHI_EINVAL          = 22,
+    UHI_EIO             = 5,
+    UHI_EISDIR          = 21,
+    UHI_ELOOP           = 92,
+    UHI_EMFILE          = 24,
+    UHI_EMLINK          = 31,
+    UHI_ENAMETOOLONG    = 91,
+    UHI_ENETDOWN        = 115,
+    UHI_ENETUNREACH     = 114,
+    UHI_ENFILE          = 23,
+    UHI_ENOBUFS         = 105,
+    UHI_ENOENT          = 2,
+    UHI_ENOMEM          = 12,
+    UHI_ENOSPC          = 28,
+    UHI_ENOSR           = 63,
+    UHI_ENOTCONN        = 128,
+    UHI_ENOTDIR         = 20,
+    UHI_ENXIO           = 6,
+    UHI_EOVERFLOW       = 139,
+    UHI_EPERM           = 1,
+    UHI_EPIPE           = 32,
+    UHI_ERANGE          = 34,
+    UHI_EROFS           = 30,
+    UHI_ESPIPE          = 29,
+    UHI_ETIMEDOUT       = 116,
+    UHI_ETXTBSY         = 26,
+    UHI_EWOULDBLOCK     = 11,
+    UHI_EXDEV           = 18,
 };
 
 static int errno_mips(int host_errno)
@@ -142,8 +182,8 @@ static int get_open_flags(target_ulong target_flags)
     return open_flags;
 }
 
-static int write_to_file(CPUMIPSState *env, target_ulong fd, target_ulong vaddr,
-                         target_ulong len, target_ulong offset)
+static int write_to_file(CPUMIPSState *env, target_ulong fd,
+                         target_ulong vaddr, target_ulong len)
 {
     int num_of_bytes;
     void *dst = lock_user(VERIFY_READ, vaddr, len, 1);
@@ -152,23 +192,14 @@ static int write_to_file(CPUMIPSState *env, target_ulong fd, target_ulong vaddr,
         return -1;
     }
 
-    if (offset) {
-#ifdef _WIN32
-        num_of_bytes = 0;
-#else
-        num_of_bytes = pwrite(fd, dst, len, offset);
-#endif
-    } else {
-        num_of_bytes = write(fd, dst, len);
-    }
+    num_of_bytes = write(fd, dst, len);
 
     unlock_user(dst, vaddr, 0);
     return num_of_bytes;
 }
 
 static int read_from_file(CPUMIPSState *env, target_ulong fd,
-                          target_ulong vaddr, target_ulong len,
-                          target_ulong offset)
+                          target_ulong vaddr, target_ulong len)
 {
     int num_of_bytes;
     void *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
@@ -177,15 +208,7 @@ static int read_from_file(CPUMIPSState *env, target_ulong fd,
         return -1;
     }
 
-    if (offset) {
-#ifdef _WIN32
-        num_of_bytes = 0;
-#else
-        num_of_bytes = pread(fd, dst, len, offset);
-#endif
-    } else {
-        num_of_bytes = read(fd, dst, len);
-    }
+    num_of_bytes = read(fd, dst, len);
 
     unlock_user(dst, vaddr, len);
     return num_of_bytes;
@@ -238,7 +261,7 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
         unlock_user(p, gpr, 0);                 \
     } while (0)
 
-void helper_do_semihosting(CPUMIPSState *env)
+void mips_semihosting(CPUMIPSState *env)
 {
     target_ulong *gpr = env->active_tc.gpr;
     const UHIOp op = gpr[25];
@@ -272,11 +295,11 @@ void helper_do_semihosting(CPUMIPSState *env)
         gpr[3] = errno_mips(errno);
         break;
     case UHI_read:
-        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], 0);
+        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6]);
         gpr[3] = errno_mips(errno);
         break;
     case UHI_write:
-        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], 0);
+        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6]);
         gpr[3] = errno_mips(errno);
         break;
     case UHI_lseek:
@@ -341,14 +364,6 @@ void helper_do_semihosting(CPUMIPSState *env)
         FREE_TARGET_STRING(p2, gpr[5]);
         FREE_TARGET_STRING(p, gpr[4]);
         abort();
-        break;
-    case UHI_pread:
-        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno_mips(errno);
-        break;
-    case UHI_pwrite:
-        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6], gpr[7]);
-        gpr[3] = errno_mips(errno);
         break;
 #ifndef _WIN32
     case UHI_link:

@@ -62,6 +62,8 @@ bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);
 
+void mips_semihosting(CPUMIPSState *env);
+
 #endif /* !CONFIG_USER_ONLY */
 
 #endif

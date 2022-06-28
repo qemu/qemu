@@ -27,95 +27,27 @@
 #include "qapi/error.h"
 #include "qemu/fifo8.h"
 
-int qemu_semihosting_log_out(const char *s, int len)
-{
-    Chardev *chardev = semihosting_get_chardev();
-    if (chardev) {
-        return qemu_chr_write_all(chardev, (uint8_t *) s, len);
-    } else {
-        return write(STDERR_FILENO, s, len);
-    }
-}
-
-/*
- * A re-implementation of lock_user_string that we can use locally
- * instead of relying on softmmu-semi. Hopefully we can deprecate that
- * in time. Copy string until we find a 0 or address error.
- */
-static GString *copy_user_string(CPUArchState *env, target_ulong addr)
-{
-    CPUState *cpu = env_cpu(env);
-    GString *s = g_string_sized_new(128);
-    uint8_t c;
-
-    do {
-        if (cpu_memory_rw_debug(cpu, addr++, &c, 1, 0) == 0) {
-            if (c) {
-                s = g_string_append_c(s, c);
-            }
-        } else {
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: passed inaccessible address " TARGET_FMT_lx,
-                          __func__, addr);
-            break;
-        }
-    } while (c!=0);
-
-    return s;
-}
-
-static void semihosting_cb(CPUState *cs, target_ulong ret, target_ulong err)
-{
-    if (ret == (target_ulong) -1) {
-        qemu_log("%s: gdb console output failed ("TARGET_FMT_ld")",
-                 __func__, err);
-    }
-}
-
-int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
-{
-    GString *s = copy_user_string(env, addr);
-    int out = s->len;
-
-    if (use_gdb_syscalls()) {
-        gdb_do_syscall(semihosting_cb, "write,2,%x,%x", addr, s->len);
-    } else {
-        out = qemu_semihosting_log_out(s->str, s->len);
-    }
-
-    g_string_free(s, true);
-    return out;
-}
-
-void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
-{
-    CPUState *cpu = env_cpu(env);
-    uint8_t c;
-
-    if (cpu_memory_rw_debug(cpu, addr, &c, 1, 0) == 0) {
-        if (use_gdb_syscalls()) {
-            gdb_do_syscall(semihosting_cb, "write,2,%x,%x", addr, 1);
-        } else {
-            qemu_semihosting_log_out((const char *) &c, 1);
-        }
-    } else {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: passed inaccessible address " TARGET_FMT_lx,
-                      __func__, addr);
-    }
-}
-
-#define FIFO_SIZE   1024
-
 /* Access to this structure is protected by the BQL */
 typedef struct SemihostingConsole {
     CharBackend         backend;
+    Chardev             *chr;
     GSList              *sleeping_cpus;
     bool                got;
     Fifo8               fifo;
 } SemihostingConsole;
 
 static SemihostingConsole console;
+
+int qemu_semihosting_log_out(const char *s, int len)
+{
+    if (console.chr) {
+        return qemu_chr_write_all(console.chr, (uint8_t *) s, len);
+    } else {
+        return write(STDERR_FILENO, s, len);
+    }
+}
+
+#define FIFO_SIZE   1024
 
 static int console_can_read(void *opaque)
 {
@@ -145,27 +77,58 @@ static void console_read(void *opaque, const uint8_t *buf, int size)
     c->sleeping_cpus = NULL;
 }
 
-target_ulong qemu_semihosting_console_inc(CPUArchState *env)
+bool qemu_semihosting_console_ready(void)
 {
-    uint8_t ch;
     SemihostingConsole *c = &console;
+
     g_assert(qemu_mutex_iothread_locked());
-    g_assert(current_cpu);
-    if (fifo8_is_empty(&c->fifo)) {
-        c->sleeping_cpus = g_slist_prepend(c->sleeping_cpus, current_cpu);
-        current_cpu->halted = 1;
-        current_cpu->exception_index = EXCP_HALTED;
-        cpu_loop_exit(current_cpu);
-        /* never returns */
-    }
-    ch = fifo8_pop(&c->fifo);
-    return (target_ulong) ch;
+    return !fifo8_is_empty(&c->fifo);
 }
 
-void qemu_semihosting_console_init(void)
+void qemu_semihosting_console_block_until_ready(CPUState *cs)
 {
-    Chardev *chr = semihosting_get_chardev();
+    SemihostingConsole *c = &console;
 
+    g_assert(qemu_mutex_iothread_locked());
+
+    /* Block if the fifo is completely empty. */
+    if (fifo8_is_empty(&c->fifo)) {
+        c->sleeping_cpus = g_slist_prepend(c->sleeping_cpus, cs);
+        cs->halted = 1;
+        cs->exception_index = EXCP_HALTED;
+        cpu_loop_exit(cs);
+        /* never returns */
+    }
+}
+
+int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
+{
+    SemihostingConsole *c = &console;
+    int ret = 0;
+
+    qemu_semihosting_console_block_until_ready(cs);
+
+    /* Read until buffer full or fifo exhausted. */
+    do {
+        *(char *)(buf + ret) = fifo8_pop(&c->fifo);
+        ret++;
+    } while (ret < len && !fifo8_is_empty(&c->fifo));
+
+    return ret;
+}
+
+int qemu_semihosting_console_write(void *buf, int len)
+{
+    if (console.chr) {
+        return qemu_chr_write_all(console.chr, (uint8_t *)buf, len);
+    } else {
+        return fwrite(buf, 1, len, stderr);
+    }
+}
+
+void qemu_semihosting_console_init(Chardev *chr)
+{
+    console.chr = chr;
     if  (chr) {
         fifo8_create(&console.fifo, FIFO_SIZE);
         qemu_chr_fe_init(&console.backend, chr, &error_abort);
@@ -175,4 +138,6 @@ void qemu_semihosting_console_init(void)
                                  NULL, NULL, &console,
                                  NULL, true);
     }
+
+    qemu_semihosting_guestfd_init();
 }
