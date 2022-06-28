@@ -46,9 +46,6 @@ unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
 
-/* A downtime where the test really should converge */
-#define CONVERGE_DOWNTIME (1000 * 30)
-
 #if defined(__linux__)
 #include <sys/syscall.h>
 #include <sys/vfs.h>
@@ -400,6 +397,20 @@ static void migrate_set_parameter_str(QTestState *who, const char *parameter,
     g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
     migrate_check_parameter_str(who, parameter, value);
+}
+
+static void migrate_ensure_non_converge(QTestState *who)
+{
+    /* Can't converge with 1ms downtime + 30 mbs bandwidth limit */
+    migrate_set_parameter_int(who, "max-bandwidth", 30 * 1000 * 1000);
+    migrate_set_parameter_int(who, "downtime-limit", 1);
+}
+
+static void migrate_ensure_converge(QTestState *who)
+{
+    /* Should converge with 30s downtime + 1 gbs bandwidth limit */
+    migrate_set_parameter_int(who, "max-bandwidth", 1 * 1000 * 1000 * 1000);
+    migrate_set_parameter_int(who, "downtime-limit", 30 * 1000);
 }
 
 static void migrate_pause(QTestState *who)
@@ -984,12 +995,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     migrate_set_capability(to, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-blocktime", true);
 
-    /* We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    migrate_set_parameter_int(from, "max-bandwidth", 30000000);
-    migrate_set_parameter_int(from, "downtime-limit", 1);
+    migrate_ensure_non_converge(from);
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -1188,15 +1194,7 @@ static void test_precopy_common(MigrateCommon *args)
         return;
     }
 
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge*/
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
+    migrate_ensure_non_converge(from);
 
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
@@ -1230,7 +1228,7 @@ static void test_precopy_common(MigrateCommon *args)
             wait_for_migration_pass(from);
         }
 
-        migrate_set_parameter_int(from, "downtime-limit", CONVERGE_DOWNTIME);
+        migrate_ensure_converge(from);
 
         /* We do this first, as it has a timeout to stop us
          * hanging forever if migration didn't converge */
@@ -1694,8 +1692,7 @@ static void test_migrate_auto_converge(void)
      * Set the initial parameters so that the migration could not converge
      * without throttling.
      */
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    migrate_set_parameter_int(from, "max-bandwidth", 100000000); /* ~100Mb/s */
+    migrate_ensure_non_converge(from);
 
     /* To check remaining size after precopy */
     migrate_set_capability(from, "pause-before-switchover", true);
@@ -2000,15 +1997,7 @@ static void test_multifd_tcp_cancel(void)
         return;
     }
 
-    /*
-     * We want to pick a speed slow enough that the test completes
-     * quickly, but that it doesn't complete precopy even on a slow
-     * machine, so also set the downtime.
-     */
-    /* 1 ms should make it not converge*/
-    migrate_set_parameter_int(from, "downtime-limit", 1);
-    /* 300MB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 30000000);
+    migrate_ensure_non_converge(from);
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
@@ -2054,10 +2043,7 @@ static void test_multifd_tcp_cancel(void)
 
     wait_for_migration_status(from, "cancelled", NULL);
 
-    /* 300ms it should converge */
-    migrate_set_parameter_int(from, "downtime-limit", 300);
-    /* 1GB/s */
-    migrate_set_parameter_int(from, "max-bandwidth", 1000000000);
+    migrate_ensure_converge(from);
 
     migrate_qmp(from, uri, "{}");
 
