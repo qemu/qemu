@@ -47,6 +47,10 @@
 #include "spr_common.h"
 #include "power8-pmu.h"
 
+#ifndef CONFIG_USER_ONLY
+#include "hw/boards.h"
+#endif
+
 /* #define PPC_DEBUG_SPR */
 /* #define USE_APPLE_GDB */
 
@@ -6964,6 +6968,21 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
             return OBJECT_CLASS(ppc_cpu_class_by_pvr(pvr));
         }
     }
+
+    /*
+     * All ppc CPUs represent hardware that exists in the real world, i.e.: we
+     * do not have a "max" CPU with all possible emulated features enabled.
+     * Return the default CPU type for the machine because that has greater
+     * chance of being useful as the "max" CPU.
+     */
+#if !defined(CONFIG_USER_ONLY)
+    if (strcmp(name, "max") == 0) {
+        MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+        if (mc) {
+            return object_class_by_name(mc->default_cpu_type);
+        }
+    }
+#endif
 
     cpu_model = g_ascii_strdown(name, -1);
     p = ppc_cpu_lookup_alias(cpu_model);
