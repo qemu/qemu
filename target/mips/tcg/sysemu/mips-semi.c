@@ -114,6 +114,13 @@ enum UHIErrno {
     UHI_EXDEV           = 18,
 };
 
+static void report_fault(CPUMIPSState *env)
+{
+    int op = env->active_tc.gpr[25];
+    error_report("Fault during UHI operation %d", op);
+    abort();
+}
+
 static int errno_mips(int host_errno)
 {
     /* Errno values taken from asm-mips/errno.h */
@@ -136,8 +143,7 @@ static int copy_stat_to_target(CPUMIPSState *env, const struct stat *src,
     hwaddr len = sizeof(struct UHIStat);
     UHIStat *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
     if (!dst) {
-        errno = EFAULT;
-        return -1;
+        report_fault(env);
     }
 
     dst->uhi_st_dev = tswap16(src->st_dev);
@@ -188,8 +194,7 @@ static int write_to_file(CPUMIPSState *env, target_ulong fd,
     int num_of_bytes;
     void *dst = lock_user(VERIFY_READ, vaddr, len, 1);
     if (!dst) {
-        errno = EFAULT;
-        return -1;
+        report_fault(env);
     }
 
     num_of_bytes = write(fd, dst, len);
@@ -204,8 +209,7 @@ static int read_from_file(CPUMIPSState *env, target_ulong fd,
     int num_of_bytes;
     void *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
     if (!dst) {
-        errno = EFAULT;
-        return -1;
+        report_fault(env);
     }
 
     num_of_bytes = read(fd, dst, len);
@@ -220,7 +224,7 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
     int strsize = strlen(semihosting_get_arg(arg_num)) + 1;
     char *dst = lock_user(VERIFY_WRITE, vaddr, strsize, 0);
     if (!dst) {
-        return -1;
+        report_fault(env);
     }
 
     strcpy(dst, semihosting_get_arg(arg_num));
@@ -233,9 +237,7 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
     do {                                        \
         p = lock_user_string(addr);             \
         if (!p) {                               \
-            gpr[2] = -1;                        \
-            gpr[3] = EFAULT;                    \
-            return;                             \
+            report_fault(env);                  \
         }                                       \
     } while (0)
 
@@ -243,16 +245,11 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
     do {                                                \
         p = lock_user_string(addr);                     \
         if (!p) {                                       \
-            gpr[2] = -1;                                \
-            gpr[3] = EFAULT;                            \
-            return;                                     \
+            report_fault(env);                          \
         }                                               \
         p2 = lock_user_string(addr2);                   \
         if (!p2) {                                      \
-            unlock_user(p, addr, 0);                    \
-            gpr[2] = -1;                                \
-            gpr[3] = EFAULT;                            \
-            return;                                     \
+            report_fault(env);                          \
         }                                               \
     } while (0)
 
@@ -375,7 +372,7 @@ void mips_semihosting(CPUMIPSState *env)
         break;
 #endif
     default:
-        fprintf(stderr, "Unknown UHI operation %d\n", op);
+        error_report("Unknown UHI operation %d", op);
         abort();
     }
     return;
