@@ -47,7 +47,7 @@ unsigned end_address;
 static bool uffd_feature_thread_id;
 
 /* A downtime where the test really should converge */
-#define CONVERGE_DOWNTIME 1000
+#define CONVERGE_DOWNTIME (1000 * 30)
 
 #if defined(__linux__)
 #include <sys/syscall.h>
