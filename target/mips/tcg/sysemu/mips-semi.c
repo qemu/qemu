@@ -198,19 +198,6 @@ static void uhi_fstat_cb(CPUState *cs, uint64_t ret, int err)
     uhi_cb(cs, ret, err);
 }
 
-#define GET_TARGET_STRING(p, addr)              \
-    do {                                        \
-        p = lock_user_string(addr);             \
-        if (!p) {                               \
-            report_fault(env);                  \
-        }                                       \
-    } while (0)
-
-#define FREE_TARGET_STRING(p, gpr)              \
-    do {                                        \
-        unlock_user(p, gpr, 0);                 \
-    } while (0)
-
 void mips_semihosting(CPUMIPSState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -225,9 +212,13 @@ void mips_semihosting(CPUMIPSState *env)
 
     case UHI_open:
         {
+            target_ulong fname = gpr[4];
             int ret = -1;
 
-            GET_TARGET_STRING(p, gpr[4]);
+            p = lock_user_string(fname);
+            if (!p) {
+                report_fault(env);
+            }
             if (!strcmp("/dev/stdin", p)) {
                 ret = 0;
             } else if (!strcmp("/dev/stdout", p)) {
@@ -235,7 +226,7 @@ void mips_semihosting(CPUMIPSState *env)
             } else if (!strcmp("/dev/stderr", p)) {
                 ret = 2;
             }
-            FREE_TARGET_STRING(p, gpr[4]);
+            unlock_user(p, fname, 0);
 
             /* FIXME: reusing a guest fd doesn't seem correct. */
             if (ret >= 0) {
@@ -243,7 +234,7 @@ void mips_semihosting(CPUMIPSState *env)
                 break;
             }
 
-            semihost_sys_open(cs, uhi_cb, gpr[4], 0, gpr[5], gpr[6]);
+            semihost_sys_open(cs, uhi_cb, fname, 0, gpr[5], gpr[6]);
         }
         break;
 
@@ -314,14 +305,14 @@ void mips_semihosting(CPUMIPSState *env)
 
             pct_d = strstr(p, "%d");
             if (!pct_d) {
-                FREE_TARGET_STRING(p, addr);
+                unlock_user(p, addr, 0);
                 semihost_sys_write(cs, uhi_cb, 2, addr, len);
                 break;
             }
 
             str = g_string_new_len(p, pct_d - p);
             g_string_append_printf(str, "%d%s", (int)gpr[5], pct_d + 2);
-            FREE_TARGET_STRING(p, addr);
+            unlock_user(p, addr, 0);
 
             /*
              * When we're using gdb, we need a guest address, so
