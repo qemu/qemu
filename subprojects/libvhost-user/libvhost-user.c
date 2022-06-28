@@ -779,15 +779,9 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
 
         /* Send the message back to qemu with the addresses filled in. */
         vmsg->fd_num = 0;
-        if (!vu_send_reply(dev, dev->sock, vmsg)) {
-            vu_panic(dev, "failed to respond to add-mem-region for postcopy");
-            return false;
-        }
-
         DPRINT("Successfully added new region in postcopy\n");
         dev->nregions++;
-        return false;
-
+        return true;
     } else {
         for (i = 0; i < dev->max_queues; i++) {
             if (dev->vq[i].vring.desc) {
@@ -1827,18 +1821,11 @@ vu_handle_vring_kick(VuDev *dev, VhostUserMsg *vmsg)
 
 static bool vu_handle_get_max_memslots(VuDev *dev, VhostUserMsg *vmsg)
 {
-    vmsg->flags = VHOST_USER_REPLY_MASK | VHOST_USER_VERSION;
-    vmsg->size  = sizeof(vmsg->payload.u64);
-    vmsg->payload.u64 = VHOST_USER_MAX_RAM_SLOTS;
-    vmsg->fd_num = 0;
-
-    if (!vu_message_write(dev, dev->sock, vmsg)) {
-        vu_panic(dev, "Failed to send max ram slots: %s\n", strerror(errno));
-    }
+    vmsg_set_reply_u64(vmsg, VHOST_USER_MAX_RAM_SLOTS);
 
     DPRINT("u64: 0x%016"PRIx64"\n", (uint64_t) VHOST_USER_MAX_RAM_SLOTS);
 
-    return false;
+    return true;
 }
 
 static bool
