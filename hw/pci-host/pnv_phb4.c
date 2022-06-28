@@ -31,22 +31,6 @@
     qemu_log_mask(LOG_GUEST_ERROR, "phb4_pec[%d:%d]: " fmt "\n",        \
                   (pec)->chip_id, (pec)->index, ## __VA_ARGS__)
 
-/*
- * QEMU version of the GETFIELD/SETFIELD macros
- *
- * These are common with the PnvXive model.
- */
-static inline uint64_t GETFIELD(uint64_t mask, uint64_t word)
-{
-    return (word & mask) >> ctz64(mask);
-}
-
-static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
-                                uint64_t value)
-{
-    return (word & ~mask) | ((value << ctz64(mask)) & mask);
-}
-
 static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(phb);

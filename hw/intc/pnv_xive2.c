@@ -76,26 +76,6 @@ static const XiveVstInfo vst_infos[] = {
                   (xive)->chip->chip_id, ## __VA_ARGS__);
 
 /*
- * QEMU version of the GETFIELD/SETFIELD macros
- *
- * TODO: It might be better to use the existing extract64() and
- * deposit64() but this means that all the register definitions will
- * change and become incompatible with the ones found in skiboot.
- *
- * Keep it as it is for now until we find a common ground.
- */
-static inline uint64_t GETFIELD(uint64_t mask, uint64_t word)
-{
-    return (word & mask) >> ctz64(mask);
-}
-
-static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
-                                uint64_t value)
-{
-    return (word & ~mask) | ((value << ctz64(mask)) & mask);
-}
-
-/*
  * TODO: Document block id override
  */
 static uint32_t pnv_xive2_block_id(PnvXive2 *xive)
