@@ -3944,7 +3944,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
                                                        write_mhpmcounter },
 
     [CSR_MCOUNTINHIBIT]  = { "mcountinhibit",  any, read_mcountinhibit,
-                                                    write_mcountinhibit },
+               write_mcountinhibit, .min_priv_ver = PRIV_VERSION_1_11_0  },
 
     [CSR_MHPMEVENT3]     = { "mhpmevent3",     any,    read_mhpmevent,
                                                        write_mhpmevent },
