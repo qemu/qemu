@@ -529,3 +529,10 @@ static bool trans_ADDG6S(DisasContext *ctx, arg_X *a)
 
     return true;
 }
+
+static bool trans_CBCDTD(DisasContext *ctx, arg_X_sa *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, BCDA_ISA206);
+    gen_helper_CBCDTD(cpu_gpr[a->ra], cpu_gpr[a->rs]);
+    return true;
+}
