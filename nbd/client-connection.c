@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "trace.h"
 
 #include "block/nbd.h"
 
@@ -210,6 +211,7 @@ static void *connect_thread_func(void *opaque)
             object_unref(OBJECT(conn->sioc));
             conn->sioc = NULL;
             if (conn->do_retry && !conn->detached) {
+                trace_nbd_connect_thread_sleep(timeout);
                 qemu_mutex_unlock(&conn->mutex);
 
                 sleep(timeout);
