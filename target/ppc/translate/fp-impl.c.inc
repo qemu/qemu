@@ -615,24 +615,6 @@ static void gen_mcrfs(DisasContext *ctx)
     tcg_temp_free_i64(tnew_fpscr);
 }
 
-/* mffs */
-static void gen_mffs(DisasContext *ctx)
-{
-    TCGv_i64 t0;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    gen_reset_fpstatus();
-    tcg_gen_extu_tl_i64(t0, cpu_fpscr);
-    set_fpr(rD(ctx->opcode), t0);
-    if (unlikely(Rc(ctx->opcode))) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-    tcg_temp_free_i64(t0);
-}
-
 static TCGv_i64 place_from_fpscr(int rt, uint64_t mask)
 {
     TCGv_i64 fpscr = tcg_temp_new_i64();
@@ -658,6 +640,23 @@ static void store_fpscr_masked(TCGv_i64 fpscr, uint64_t clear_mask,
     gen_helper_store_fpscr(cpu_env, fpscr_masked, st_mask);
 
     tcg_temp_free_i64(fpscr_masked);
+}
+
+static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
+{
+    TCGv_i64 fpscr;
+
+    REQUIRE_FPU(ctx);
+
+    gen_reset_fpstatus();
+    fpscr = place_from_fpscr(a->rt, UINT64_MAX);
+    if (a->rc) {
+        gen_set_cr1_from_fpscr(ctx);
+    }
+
+    tcg_temp_free_i64(fpscr);
+
+    return true;
 }
 
 static bool trans_MFFSCE(DisasContext *ctx, arg_X_t *a)
