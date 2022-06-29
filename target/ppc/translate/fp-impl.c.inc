@@ -696,6 +696,27 @@ static bool trans_MFFSCRN(DisasContext *ctx, arg_X_tb *a)
     return true;
 }
 
+static bool trans_MFFSCDRN(DisasContext *ctx, arg_X_tb *a)
+{
+    TCGv_i64 t1, fpscr;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_FPU(ctx);
+
+    t1 = tcg_temp_new_i64();
+    get_fpr(t1, a->rb);
+    tcg_gen_andi_i64(t1, t1, FP_DRN);
+
+    gen_reset_fpstatus();
+    fpscr = place_from_fpscr(a->rt, FP_DRN | FP_ENABLES | FP_NI | FP_RN);
+    store_fpscr_masked(fpscr, FP_DRN, t1, 0x0100);
+
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(fpscr);
+
+    return true;
+}
+
 static bool trans_MFFSCRNI(DisasContext *ctx, arg_X_imm2 *a)
 {
     TCGv_i64 t1, fpscr;
@@ -709,6 +730,26 @@ static bool trans_MFFSCRNI(DisasContext *ctx, arg_X_imm2 *a)
     gen_reset_fpstatus();
     fpscr = place_from_fpscr(a->rt, FP_DRN | FP_ENABLES | FP_NI | FP_RN);
     store_fpscr_masked(fpscr, FP_RN, t1, 0x0001);
+
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(fpscr);
+
+    return true;
+}
+
+static bool trans_MFFSCDRNI(DisasContext *ctx, arg_X_imm3 *a)
+{
+    TCGv_i64 t1, fpscr;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_FPU(ctx);
+
+    t1 = tcg_temp_new_i64();
+    tcg_gen_movi_i64(t1, (uint64_t)a->imm << FPSCR_DRN0);
+
+    gen_reset_fpstatus();
+    fpscr = place_from_fpscr(a->rt, FP_DRN | FP_ENABLES | FP_NI | FP_RN);
+    store_fpscr_masked(fpscr, FP_DRN, t1, 0x0100);
 
     tcg_temp_free_i64(t1);
     tcg_temp_free_i64(fpscr);
