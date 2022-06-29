@@ -124,6 +124,9 @@
 &X_bfl          bf l:bool ra rb
 @X_bfl          ...... bf:3 . l:1 ra:5 rb:5 .......... .        &X_bfl
 
+&X_imm2         rt imm
+@X_imm2         ...... rt:5 ..... ... imm:2 .......... .        &X_imm2
+
 %x_xt           0:1 21:5
 &X_imm5         xt imm:uint8_t vrb
 @X_imm5         ...... ..... imm:5 vrb:5 .......... .           &X_imm5 xt=%x_xt
@@ -333,6 +336,11 @@ SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
 SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+### Move To/From FPSCR
+
+MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
+MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
 
 ### Decimal Floating-Point Arithmetic Instructions
 
