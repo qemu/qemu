@@ -364,7 +364,7 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
      * when 'alt+print' was pressed. This flaw is now fixed and the
      * 'sysrq' key serves no further purpose. We normalize it to
      * 'print', so that downstream receivers of the event don't
-     * neeed to deal with this mistake
+     * need to deal with this mistake
      */
     if (evt->type == INPUT_EVENT_KIND_KEY &&
         evt->u.key.data->key->u.qcode.data == Q_KEY_CODE_SYSRQ) {

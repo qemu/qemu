@@ -298,7 +298,7 @@
 #
 # @udp: use the udp version of l2tpv3 encapsulation
 #
-# @cookie64: use 64 bit coookies
+# @cookie64: use 64 bit cookies
 #
 # @counter: have sequence counter
 #

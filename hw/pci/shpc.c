@@ -480,7 +480,8 @@ static const MemoryRegionOps shpc_mmio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         /* SHPC ECN requires dword accesses, but the original 1.0 spec doesn't.
-         * It's easier to suppport all sizes than worry about it. */
+         * It's easier to support all sizes than worry about it.
+         */
         .min_access_size = 1,
         .max_access_size = 4,
     },

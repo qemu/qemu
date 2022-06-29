@@ -138,7 +138,20 @@ static void piix3_write_config(PCIDevice *dev,
 static void piix3_write_config_xen(PCIDevice *dev,
                                    uint32_t address, uint32_t val, int len)
 {
-    xen_piix_pci_write_config_client(address, val, len);
+    int i;
+
+    /* Scan for updates to PCI link routes (0x60-0x63). */
+    for (i = 0; i < len; i++) {
+        uint8_t v = (val >> (8 * i)) & 0xff;
+        if (v & 0x80) {
+            v = 0;
+        }
+        v &= 0xf;
+        if (((address + i) >= PIIX_PIRQCA) && ((address + i) <= PIIX_PIRQCD)) {
+            xen_set_pci_link_route(address + i - PIIX_PIRQCA, v);
+        }
+    }
+
     piix3_write_config(dev, address, val, len);
 }
 

@@ -438,7 +438,7 @@ static void imx_eth_update(IMXFECState *s)
      *   assignment fail.
      *
      * To ensure that all versions of Linux work, generate ENET_INT_MAC
-     * interrrupts on both interrupt lines. This should be changed if and when
+     * interrupts on both interrupt lines. This should be changed if and when
      * qemu supports IOMUX.
      */
     if (s->regs[ENET_EIR] & s->regs[ENET_EIMR] &

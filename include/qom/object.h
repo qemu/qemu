@@ -16,7 +16,6 @@
 
 #include "qapi/qapi-builtin-types.h"
 #include "qemu/module.h"
-#include "qom/object.h"
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
