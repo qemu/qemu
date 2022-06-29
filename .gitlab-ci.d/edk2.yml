@@ -1,6 +1,29 @@
 # All jobs needing docker-edk2 must use the same rules it uses.
 .edk2_job_rules:
   rules:
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if any of the files affecting the build are touched
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      changes:
+        - .gitlab-ci.d/edk2.yml
+        - .gitlab-ci.d/edk2/Dockerfile
+        - roms/edk2/*
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the branch/tag starts with 'edk2'
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_REF_NAME =~ /^edk2/'
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if last commit msg contains 'EDK2' (case insensitive)
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_MESSAGE =~ /edk2/i'
+      when: manual
+
     # Run if any files affecting the build output are touched
     - changes:
         - .gitlab-ci.d/edk2.yml

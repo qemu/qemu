@@ -1,6 +1,29 @@
 # All jobs needing docker-opensbi must use the same rules it uses.
 .opensbi_job_rules:
   rules:
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if any files affecting the build output are touched
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      changes:
+        - .gitlab-ci.d/opensbi.yml
+        - .gitlab-ci.d/opensbi/Dockerfile
+        - roms/opensbi/*
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the branch/tag starts with 'opensbi'
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_REF_NAME =~ /^opensbi/'
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the last commit msg contains 'OpenSBI' (case insensitive)
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_MESSAGE =~ /opensbi/i'
+      when: manual
+
     # Run if any files affecting the build output are touched
     - changes:
         - .gitlab-ci.d/opensbi.yml
