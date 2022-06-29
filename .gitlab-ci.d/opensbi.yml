@@ -1,18 +1,19 @@
 # All jobs needing docker-opensbi must use the same rules it uses.
 .opensbi_job_rules:
-  rules: # Only run this job when ...
+  rules:
+    # Run if any files affecting the build output are touched
     - changes:
-        # this file is modified
         - .gitlab-ci.d/opensbi.yml
-        # or the Dockerfile is modified
         - .gitlab-ci.d/opensbi/Dockerfile
-      when: on_success
-    - changes: # or roms/opensbi/ is modified (submodule updated)
         - roms/opensbi/*
       when: on_success
-    - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
+
+    # Run if the branch/tag starts with 'opensbi'
+    - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/'
       when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
+
+    # Run if the last commit msg contains 'OpenSBI' (case insensitive)
+    - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i'
       when: on_success
 
 docker-opensbi:

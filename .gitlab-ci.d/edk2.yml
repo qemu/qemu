@@ -1,17 +1,19 @@
 # All jobs needing docker-edk2 must use the same rules it uses.
 .edk2_job_rules:
-  rules: # Only run this job when ...
+  rules:
+    # Run if any files affecting the build output are touched
     - changes:
-        # this file is modified
         - .gitlab-ci.d/edk2.yml
-        # or the Dockerfile is modified
         - .gitlab-ci.d/edk2/Dockerfile
-        # or roms/edk2/ is modified (submodule updated)
         - roms/edk2/*
       when: on_success
-    - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
+
+    # Run if the branch/tag starts with 'edk2'
+    - if: '$CI_COMMIT_REF_NAME =~ /^edk2/'
       when: on_success
-    - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
+
+    # Run if last commit msg contains 'EDK2' (case insensitive)
+    - if: '$CI_COMMIT_MESSAGE =~ /edk2/i'
       when: on_success
 
 docker-edk2:
