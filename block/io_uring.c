@@ -89,7 +89,7 @@ static void luring_resubmit_short_read(LuringState *s, LuringAIOCB *luringcb,
     trace_luring_resubmit_short_read(s, luringcb, nread);
 
     /* Update read position */
-    luringcb->total_read = nread;
+    luringcb->total_read += nread;
     remaining = luringcb->qiov->size - luringcb->total_read;
 
     /* Shorten qiov */
@@ -103,7 +103,7 @@ static void luring_resubmit_short_read(LuringState *s, LuringAIOCB *luringcb,
                       remaining);
 
     /* Update sqe */
-    luringcb->sqeq.off = nread;
+    luringcb->sqeq.off += nread;
     luringcb->sqeq.addr = (__u64)(uintptr_t)luringcb->resubmit_qiov.iov;
     luringcb->sqeq.len = luringcb->resubmit_qiov.niov;
 
