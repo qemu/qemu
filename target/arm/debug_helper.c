@@ -142,6 +142,9 @@ static bool aa32_generate_debug_exceptions(CPUARMState *env)
  */
 bool arm_generate_debug_exceptions(CPUARMState *env)
 {
+    if (env->cp15.oslsr_el1 & 1) {
+        return false;
+    }
     if (is_a64(env)) {
         return aa64_generate_debug_exceptions(env);
     } else {
