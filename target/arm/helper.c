@@ -307,7 +307,8 @@ static uint64_t arm_mdcr_el2_eff(CPUARMState *env)
     return arm_is_el2_enabled(env) ? env->cp15.mdcr_el2 : 0;
 }
 
-/* Check for traps to "powerdown debug" registers, which are controlled
+/*
+ * Check for traps to "powerdown debug" registers, which are controlled
  * by MDCR.TDOSA
  */
 static CPAccessResult access_tdosa(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -327,7 +328,8 @@ static CPAccessResult access_tdosa(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
-/* Check for traps to "debug ROM" registers, which are controlled
+/*
+ * Check for traps to "debug ROM" registers, which are controlled
  * by MDCR_EL2.TDRA for EL2 but by the more general MDCR_EL3.TDA for EL3.
  */
 static CPAccessResult access_tdra(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -347,7 +349,8 @@ static CPAccessResult access_tdra(CPUARMState *env, const ARMCPRegInfo *ri,
     return CP_ACCESS_OK;
 }
 
-/* Check for traps to general debug registers, which are controlled
+/*
+ * Check for traps to general debug registers, which are controlled
  * by MDCR_EL2.TDA for EL2 and MDCR_EL3.TDA for EL3.
  */
 static CPAccessResult access_tda(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -5982,7 +5985,8 @@ static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri,
 static void oslar_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    /* Writes to OSLAR_EL1 may update the OS lock status, which can be
+    /*
+     * Writes to OSLAR_EL1 may update the OS lock status, which can be
      * read via a bit in OSLSR_EL1.
      */
     int oslock;
@@ -5997,7 +6001,8 @@ static void oslar_write(CPUARMState *env, const ARMCPRegInfo *ri,
 }
 
 static const ARMCPRegInfo debug_cp_reginfo[] = {
-    /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
+    /*
+     * DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components. The AArch64 version of DBGDRAR is named MDRAR_EL1;
      * unlike DBGDRAR it is never accessible from EL0.
      * DBGDSAR is deprecated and must RAZ from v8 anyway, so it has no AArch64
@@ -6052,21 +6057,24 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
       .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 4,
       .access = PL1_RW, .accessfn = access_tdosa,
       .type = ARM_CP_NOP },
-    /* Dummy DBGVCR: Linux wants to clear this on startup, but we don't
+    /*
+     * Dummy DBGVCR: Linux wants to clear this on startup, but we don't
      * implement vector catch debug events yet.
      */
     { .name = "DBGVCR",
       .cp = 14, .opc1 = 0, .crn = 0, .crm = 7, .opc2 = 0,
       .access = PL1_RW, .accessfn = access_tda,
       .type = ARM_CP_NOP },
-    /* Dummy DBGVCR32_EL2 (which is only for a 64-bit hypervisor
+    /*
+     * Dummy DBGVCR32_EL2 (which is only for a 64-bit hypervisor
      * to save and restore a 32-bit guest's DBGVCR)
      */
     { .name = "DBGVCR32_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 2, .opc1 = 4, .crn = 0, .crm = 7, .opc2 = 0,
       .access = PL2_RW, .accessfn = access_tda,
       .type = ARM_CP_NOP | ARM_CP_EL3_NO_EL2_KEEP },
-    /* Dummy MDCCINT_EL1, since we don't implement the Debug Communications
+    /*
+     * Dummy MDCCINT_EL1, since we don't implement the Debug Communications
      * Channel but Linux may try to access this register. The 32-bit
      * alias is DBGDCCINT.
      */
@@ -6079,9 +6087,9 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
 static const ARMCPRegInfo debug_lpae_cp_reginfo[] = {
     /* 64 bit access versions of the (dummy) debug registers */
     { .name = "DBGDRAR", .cp = 14, .crm = 1, .opc1 = 0,
-      .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
+      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_64BIT, .resetvalue = 0 },
     { .name = "DBGDSAR", .cp = 14, .crm = 2, .opc1 = 0,
-      .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
+      .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_64BIT, .resetvalue = 0 },
 };
 
 /*
@@ -6496,13 +6504,15 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
         break;
     }
 
-    /* Attempts to use both MASK and BAS fields simultaneously are
+    /*
+     * Attempts to use both MASK and BAS fields simultaneously are
      * CONSTRAINED UNPREDICTABLE; we opt to ignore BAS in this case,
      * thus generating a watchpoint for every byte in the masked region.
      */
     mask = FIELD_EX64(wcr, DBGWCR, MASK);
     if (mask == 1 || mask == 2) {
-        /* Reserved values of MASK; we must act as if the mask value was
+        /*
+         * Reserved values of MASK; we must act as if the mask value was
          * some non-reserved value, or as if the watchpoint were disabled.
          * We choose the latter.
          */
@@ -6510,7 +6520,8 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
     } else if (mask) {
         /* Watchpoint covers an aligned area up to 2GB in size */
         len = 1ULL << mask;
-        /* If masked bits in WVR are not zero it's CONSTRAINED UNPREDICTABLE
+        /*
+         * If masked bits in WVR are not zero it's CONSTRAINED UNPREDICTABLE
          * whether the watchpoint fires when the unmasked bits match; we opt
          * to generate the exceptions.
          */
@@ -6521,7 +6532,8 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
         int basstart;
 
         if (extract64(wvr, 2, 1)) {
-            /* Deprecated case of an only 4-aligned address. BAS[7:4] are
+            /*
+             * Deprecated case of an only 4-aligned address. BAS[7:4] are
              * ignored, and BAS[3:0] define which bytes to watch.
              */
             bas &= 0xf;
@@ -6532,7 +6544,8 @@ void hw_watchpoint_update(ARMCPU *cpu, int n)
             return;
         }
 
-        /* The BAS bits are supposed to be programmed to indicate a contiguous
+        /*
+         * The BAS bits are supposed to be programmed to indicate a contiguous
          * range of bytes. Otherwise it is CONSTRAINED UNPREDICTABLE whether
          * we fire for each byte in the word/doubleword addressed by the WVR.
          * We choose to ignore any non-zero bits after the first range of 1s.
@@ -6551,7 +6564,8 @@ void hw_watchpoint_update_all(ARMCPU *cpu)
     int i;
     CPUARMState *env = &cpu->env;
 
-    /* Completely clear out existing QEMU watchpoints and our array, to
+    /*
+     * Completely clear out existing QEMU watchpoints and our array, to
      * avoid possible stale entries following migration load.
      */
     cpu_watchpoint_remove_all(CPU(cpu), BP_CPU);
@@ -6669,7 +6683,8 @@ void hw_breakpoint_update(ARMCPU *cpu, int n)
     case 11: /* linked context ID and VMID match (reserved if no EL2) */
     case 3: /* linked context ID match */
     default:
-        /* We must generate no events for Linked context matches (unless
+        /*
+         * We must generate no events for Linked context matches (unless
          * they are linked to by some other bp/wp, which is handled in
          * updates for the linking bp/wp). We choose to also generate no events
          * for reserved values.
@@ -6685,7 +6700,8 @@ void hw_breakpoint_update_all(ARMCPU *cpu)
     int i;
     CPUARMState *env = &cpu->env;
 
-    /* Completely clear out existing QEMU breakpoints and our array, to
+    /*
+     * Completely clear out existing QEMU breakpoints and our array, to
      * avoid possible stale entries following migration load.
      */
     cpu_breakpoint_remove_all(CPU(cpu), BP_CPU);
@@ -6712,7 +6728,8 @@ static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
-    /* BAS[3] is a read-only copy of BAS[2], and BAS[1] a read-only
+    /*
+     * BAS[3] is a read-only copy of BAS[2], and BAS[1] a read-only
      * copy of BAS[0].
      */
     value = deposit64(value, 6, 1, extract64(value, 5, 1));
@@ -6724,7 +6741,8 @@ static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static void define_debug_regs(ARMCPU *cpu)
 {
-    /* Define v7 and v8 architectural debug registers.
+    /*
+     * Define v7 and v8 architectural debug registers.
      * These are just dummy implementations for now.
      */
     int i;
