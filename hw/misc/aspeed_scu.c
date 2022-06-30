@@ -270,6 +270,7 @@ static uint64_t aspeed_scu_read(void *opaque, hwaddr offset, unsigned size)
         break;
     }
 
+    trace_aspeed_scu_read(offset, size, s->regs[reg]);
     return s->regs[reg];
 }
 
@@ -637,6 +638,7 @@ static uint64_t aspeed_ast2600_scu_read(void *opaque, hwaddr offset,
         break;
     }
 
+    trace_aspeed_scu_read(offset, size, s->regs[reg]);
     return s->regs[reg];
 }
 
