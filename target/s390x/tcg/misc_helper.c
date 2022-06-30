@@ -158,6 +158,13 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     if (prefix == old_prefix) {
         return;
     }
+    /*
+     * Since prefix got aligned to 8k and memory increments are a multiple of
+     * 8k checking the first page is sufficient
+     */
+    if (!mmu_absolute_addr_valid(prefix, true)) {
+        tcg_s390_program_interrupt(env, PGM_ADDRESSING, GETPC());
+    }
 
     env->psa = prefix;
     HELPER_LOG("prefix: %#x\n", prefix);
