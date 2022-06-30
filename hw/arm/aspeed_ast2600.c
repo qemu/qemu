@@ -246,6 +246,13 @@ static void aspeed_soc_ast2600_init(Object *obj)
     object_initialize_child(obj, "i3c", &s->i3c, TYPE_ASPEED_I3C);
 
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
+
+    object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "video", &s->video, TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "dpmcu", &s->dpmcu, TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "emmc-boot-controller",
+                            &s->emmc_boot_controller,
+                            TYPE_UNIMPLEMENTED_DEVICE);
 }
 
 /*
@@ -267,17 +274,18 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     qemu_irq irq;
 
     /* IO space */
-    create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_DEV_IOMEM],
-                                ASPEED_SOC_IOMEM_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem), "aspeed.io",
+                                  sc->memmap[ASPEED_DEV_IOMEM],
+                                  ASPEED_SOC_IOMEM_SIZE);
 
     /* Video engine stub */
-    create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_DEV_VIDEO],
-                                0x1000);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->video), "aspeed.video",
+                                  sc->memmap[ASPEED_DEV_VIDEO], 0x1000);
 
     /* eMMC Boot Controller stub */
-    create_unimplemented_device("aspeed.emmc-boot-controller",
-                                sc->memmap[ASPEED_DEV_EMMC_BC],
-                                0x1000);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->emmc_boot_controller),
+                                  "aspeed.emmc-boot-controller",
+                                  sc->memmap[ASPEED_DEV_EMMC_BC], 0x1000);
 
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
@@ -333,8 +341,9 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                                 sc->memmap[ASPEED_DEV_SRAM], &s->sram);
 
     /* DPMCU */
-    create_unimplemented_device("aspeed.dpmcu", sc->memmap[ASPEED_DEV_DPMCU],
-                                ASPEED_SOC_DPMCU_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->dpmcu), "aspeed.dpmcu",
+                                  sc->memmap[ASPEED_DEV_DPMCU],
+                                  ASPEED_SOC_DPMCU_SIZE);
 
     /* SCU */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->scu), errp)) {

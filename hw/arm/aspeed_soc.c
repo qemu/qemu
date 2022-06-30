@@ -223,6 +223,9 @@ static void aspeed_soc_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
     object_initialize_child(obj, "hace", &s->hace, typename);
+
+    object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "video", &s->video, TYPE_UNIMPLEMENTED_DEVICE);
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
@@ -233,12 +236,13 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
 
     /* IO space */
-    create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_DEV_IOMEM],
-                                ASPEED_SOC_IOMEM_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem), "aspeed.io",
+                                  sc->memmap[ASPEED_DEV_IOMEM],
+                                  ASPEED_SOC_IOMEM_SIZE);
 
     /* Video engine stub */
-    create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_DEV_VIDEO],
-                                0x1000);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->video), "aspeed.video",
+                                  sc->memmap[ASPEED_DEV_VIDEO], 0x1000);
 
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
@@ -618,4 +622,15 @@ void aspeed_mmio_map(AspeedSoCState *s, SysBusDevice *dev, int n, hwaddr addr)
 {
     memory_region_add_subregion(s->memory, addr,
                                 sysbus_mmio_get_region(dev, n));
+}
+
+void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
+                                   const char *name, hwaddr addr, uint64_t size)
+{
+    qdev_prop_set_string(DEVICE(dev), "name", name);
+    qdev_prop_set_uint64(DEVICE(dev), "size", size);
+    sysbus_realize(dev, &error_abort);
+
+    memory_region_add_subregion_overlap(s->memory, addr,
+                                        sysbus_mmio_get_region(dev, 0), -1000);
 }

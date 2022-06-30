@@ -142,6 +142,10 @@ static void aspeed_soc_ast1030_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
     object_initialize_child(obj, "gpio", &s->gpio, typename);
+
+    object_initialize_child(obj, "iomem", &s->iomem, TYPE_UNIMPLEMENTED_DEVICE);
+    object_initialize_child(obj, "sbc-unimplemented", &s->sbc_unimplemented,
+                            TYPE_UNIMPLEMENTED_DEVICE);
 }
 
 static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
@@ -158,12 +162,12 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     }
 
     /* General I/O memory space to catch all unimplemented device */
-    create_unimplemented_device("aspeed.sbc",
-                                sc->memmap[ASPEED_DEV_SBC],
-                                0x40000);
-    create_unimplemented_device("aspeed.io",
-                                sc->memmap[ASPEED_DEV_IOMEM],
-                                ASPEED_SOC_IOMEM_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem), "aspeed.io",
+                                  sc->memmap[ASPEED_DEV_IOMEM],
+                                  ASPEED_SOC_IOMEM_SIZE);
+    aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->sbc_unimplemented),
+                                  "aspeed.sbc", sc->memmap[ASPEED_DEV_SBC],
+                                  0x40000);
 
     /* AST1030 CPU Core */
     armv7m = DEVICE(&s->armv7m);
