@@ -47,6 +47,7 @@ static const hwaddr aspeed_soc_ast1030_memmap[] = {
     [ASPEED_DEV_UART13]    = 0x7E790700,
     [ASPEED_DEV_WDT]       = 0x7E785000,
     [ASPEED_DEV_LPC]       = 0x7E789000,
+    [ASPEED_DEV_PECI]      = 0x7E78B000,
     [ASPEED_DEV_I2C]       = 0x7E7B0000,
 };
 
@@ -75,6 +76,7 @@ static const int aspeed_soc_ast1030_irqmap[] = {
     [ASPEED_DEV_TIMER8]    = 23,
     [ASPEED_DEV_WDT]       = 24,
     [ASPEED_DEV_LPC]       = 35,
+    [ASPEED_DEV_PECI]      = 38,
     [ASPEED_DEV_FMC]       = 39,
     [ASPEED_DEV_PWM]       = 44,
     [ASPEED_DEV_ADC]       = 46,
@@ -132,6 +134,8 @@ static void aspeed_soc_ast1030_init(Object *obj)
     }
 
     object_initialize_child(obj, "lpc", &s->lpc, TYPE_ASPEED_LPC);
+
+    object_initialize_child(obj, "peci", &s->peci, TYPE_ASPEED_PECI);
 
     object_initialize_child(obj, "sbc", &s->sbc, TYPE_ASPEED_SBC);
 
@@ -208,6 +212,15 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
         /* The AST1030 I2C controller has one IRQ per bus. */
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c.busses[i]), 0, irq);
     }
+
+    /* PECI */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->peci), errp)) {
+        return;
+    }
+    aspeed_mmio_map(s, SYS_BUS_DEVICE(&s->peci), 0,
+                    sc->memmap[ASPEED_DEV_PECI]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->peci), 0,
+                       aspeed_soc_get_irq(s, ASPEED_DEV_PECI));
 
     /* LPC */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->lpc), errp)) {
