@@ -161,7 +161,8 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
            start condition.  */
 
         if (sc->event) {
-            trace_i2c_event("start", s->address);
+            trace_i2c_event(event == I2C_START_SEND ? "start" : "start_async",
+                            s->address);
             rv = sc->event(s, event);
             if (rv && !bus->broadcast) {
                 if (bus_scanned) {
@@ -210,6 +211,11 @@ int i2c_start_recv(I2CBus *bus, uint8_t address)
 int i2c_start_send(I2CBus *bus, uint8_t address)
 {
     return i2c_do_start_transfer(bus, address, I2C_START_SEND);
+}
+
+int i2c_start_send_async(I2CBus *bus, uint8_t address)
+{
+    return i2c_do_start_transfer(bus, address, I2C_START_SEND_ASYNC);
 }
 
 void i2c_end_transfer(I2CBus *bus)
@@ -261,6 +267,23 @@ int i2c_send(I2CBus *bus, uint8_t data)
     return ret ? -1 : 0;
 }
 
+int i2c_send_async(I2CBus *bus, uint8_t data)
+{
+    I2CNode *node = QLIST_FIRST(&bus->current_devs);
+    I2CSlave *slave = node->elt;
+    I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(slave);
+
+    if (!sc->send_async) {
+        return -1;
+    }
+
+    trace_i2c_send_async(slave->address, data);
+
+    sc->send_async(slave, data);
+
+    return 0;
+}
+
 uint8_t i2c_recv(I2CBus *bus)
 {
     uint8_t data = 0xff;
@@ -295,6 +318,17 @@ void i2c_nack(I2CBus *bus)
             sc->event(node->elt, I2C_NACK);
         }
     }
+}
+
+void i2c_ack(I2CBus *bus)
+{
+    if (!bus->bh) {
+        return;
+    }
+
+    trace_i2c_ack();
+
+    qemu_bh_schedule(bus->bh);
 }
 
 static int i2c_slave_post_load(void *opaque, int version_id)
