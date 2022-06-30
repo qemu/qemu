@@ -34,3 +34,7 @@ config LSM303DLHC_MAG
 config ISL_PMBUS_VR
     bool
     depends on PMBUS
+
+config MAX31785
+    bool
+    depends on PMBUS

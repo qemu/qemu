@@ -34,6 +34,8 @@
 #include "hw/usb/hcd-ehci.h"
 #include "qom/object.h"
 #include "hw/misc/aspeed_lpc.h"
+#include "hw/misc/unimp.h"
+#include "hw/misc/aspeed_peci.h"
 
 #define ASPEED_SPIS_NUM  2
 #define ASPEED_EHCIS_NUM 2
@@ -49,7 +51,9 @@ struct AspeedSoCState {
     ARMCPU cpu[ASPEED_CPUS_NUM];
     A15MPPrivState     a7mpcore;
     ARMv7MState        armv7m;
+    MemoryRegion *memory;
     MemoryRegion *dram_mr;
+    MemoryRegion dram_container;
     MemoryRegion sram;
     AspeedVICState vic;
     AspeedRtcState rtc;
@@ -64,6 +68,7 @@ struct AspeedSoCState {
     AspeedSMCState spi[ASPEED_SPIS_NUM];
     EHCISysBusState ehci[ASPEED_EHCIS_NUM];
     AspeedSBCState sbc;
+    UnimplementedDeviceState sbc_unimplemented;
     AspeedSDMCState sdmc;
     AspeedWDTState wdt[ASPEED_WDTS_NUM];
     FTGMAC100State ftgmac100[ASPEED_MACS_NUM];
@@ -73,8 +78,13 @@ struct AspeedSoCState {
     AspeedSDHCIState sdhci;
     AspeedSDHCIState emmc;
     AspeedLPCState lpc;
+    AspeedPECIState peci;
     uint32_t uart_default;
     Clock *sysclk;
+    UnimplementedDeviceState iomem;
+    UnimplementedDeviceState video;
+    UnimplementedDeviceState emmc_boot_controller;
+    UnimplementedDeviceState dpmcu;
 };
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
@@ -145,6 +155,7 @@ enum {
     ASPEED_DEV_LPC,
     ASPEED_DEV_IBT,
     ASPEED_DEV_I2C,
+    ASPEED_DEV_PECI,
     ASPEED_DEV_ETH1,
     ASPEED_DEV_ETH2,
     ASPEED_DEV_ETH3,
@@ -165,5 +176,10 @@ enum {
 
 qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
 void aspeed_soc_uart_init(AspeedSoCState *s);
+bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp);
+void aspeed_mmio_map(AspeedSoCState *s, SysBusDevice *dev, int n, hwaddr addr);
+void aspeed_mmio_map_unimplemented(AspeedSoCState *s, SysBusDevice *dev,
+                                   const char *name, hwaddr addr,
+                                   uint64_t size);
 
 #endif /* ASPEED_SOC_H */
