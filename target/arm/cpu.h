@@ -988,6 +988,8 @@ struct ArchCPU {
         uint32_t mvfr2;
         uint32_t id_dfr0;
         uint32_t dbgdidr;
+        uint32_t dbgdevid;
+        uint32_t dbgdevid1;
         uint64_t id_aa64isar0;
         uint64_t id_aa64isar1;
         uint64_t id_aa64pfr0;
@@ -3717,6 +3719,11 @@ static inline bool isar_feature_aa32_dit(const ARMISARegisters *id)
 static inline bool isar_feature_aa32_ssbs(const ARMISARegisters *id)
 {
     return FIELD_EX32(id->id_pfr2, ID_PFR2, SSBS) != 0;
+}
+
+static inline bool isar_feature_aa32_debugv7p1(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_dfr0, ID_DFR0, COPDBG) >= 5;
 }
 
 static inline bool isar_feature_aa32_debugv8p2(const ARMISARegisters *id)
