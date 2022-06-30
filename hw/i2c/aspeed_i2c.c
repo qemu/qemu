@@ -58,7 +58,7 @@ static inline void aspeed_i2c_bus_raise_interrupt(AspeedI2CBus *bus)
                ARRAY_FIELD_EX32(bus->regs, I2CD_INTR_STS, SLAVE_ADDR_RX_MATCH) ?
                                                "slave-match|" : "",
                SHARED_ARRAY_FIELD_EX32(bus->regs, reg_intr_sts, NORMAL_STOP) ?
-                                               "normal|" : "",
+                                               "stop|" : "",
                SHARED_ARRAY_FIELD_EX32(bus->regs, reg_intr_sts, ABNORMAL) ?
                                                "abnormal"  : "");
 
