@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/misc/unimp.h"
 #include "hw/arm/aspeed_soc.h"
@@ -191,8 +192,6 @@ static void aspeed_soc_init(Object *obj)
     object_initialize_child(obj, "sdmc", &s->sdmc, typename);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size");
-    object_property_add_alias(obj, "max-ram-size", OBJECT(&s->sdmc),
-                              "max-ram-size");
 
     for (i = 0; i < sc->wdts_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
@@ -367,6 +366,11 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0,
                         sc->memmap[ASPEED_DEV_WDT] + i * awc->offset);
+    }
+
+    /* RAM  */
+    if (!aspeed_soc_dram_init(s, errp)) {
+        return;
     }
 
     /* Net */
@@ -560,4 +564,45 @@ void aspeed_soc_uart_init(AspeedSoCState *s)
                        aspeed_soc_get_irq(s, uart), 38400,
                        serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }
+}
+
+/*
+ * SDMC should be realized first to get correct RAM size and max size
+ * values
+ */
+bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp)
+{
+    AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    ram_addr_t ram_size, max_ram_size;
+
+    ram_size = object_property_get_uint(OBJECT(&s->sdmc), "ram-size",
+                                        &error_abort);
+    max_ram_size = object_property_get_uint(OBJECT(&s->sdmc), "max-ram-size",
+                                            &error_abort);
+
+    memory_region_init(&s->dram_container, OBJECT(s), "ram-container",
+                       max_ram_size);
+    memory_region_add_subregion(&s->dram_container, 0, s->dram_mr);
+
+    /*
+     * Add a memory region beyond the RAM region to let firmwares scan
+     * the address space with load/store and guess how much RAM the
+     * SoC has.
+     */
+    if (ram_size < max_ram_size) {
+        DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+
+        qdev_prop_set_string(dev, "name", "ram-empty");
+        qdev_prop_set_uint64(dev, "size", max_ram_size  - ram_size);
+        if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), errp)) {
+            return false;
+        }
+
+        memory_region_add_subregion_overlap(&s->dram_container, ram_size,
+                      sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0), -1000);
+    }
+
+    memory_region_add_subregion(get_system_memory(),
+                      sc->memmap[ASPEED_DEV_SDRAM], &s->dram_container);
+    return true;
 }
