@@ -148,7 +148,6 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
 {
     AspeedSoCState *s = ASPEED_SOC(dev_soc);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
-    MemoryRegion *system_memory = get_system_memory();
     DeviceState *armv7m;
     Error *err = NULL;
     int i;
@@ -172,7 +171,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_string(armv7m, "cpu-type", sc->cpu_type);
     qdev_connect_clock_in(armv7m, "cpuclk", s->sysclk);
     object_property_set_link(OBJECT(&s->armv7m), "memory",
-                             OBJECT(system_memory), &error_abort);
+                             OBJECT(s->memory), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), &error_abort);
 
     /* Internal SRAM */
@@ -181,7 +180,7 @@ static void aspeed_soc_ast1030_realize(DeviceState *dev_soc, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    memory_region_add_subregion(system_memory,
+    memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_SRAM],
                                 &s->sram);
 

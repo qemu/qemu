@@ -329,6 +329,8 @@ static void aspeed_machine_init(MachineState *machine)
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), "hw-strap2", amc->hw_strap2,
                             &error_abort);
+    object_property_set_link(OBJECT(&bmc->soc), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
     object_property_set_link(OBJECT(&bmc->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
     if (machine->kernel_filename) {
@@ -1336,6 +1338,8 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "soc", &bmc->soc, amc->soc_name);
     qdev_connect_clock_in(DEVICE(&bmc->soc), "sysclk", sysclk);
 
+    object_property_set_link(OBJECT(&bmc->soc), "memory",
+                             OBJECT(get_system_memory()), &error_abort);
     qdev_prop_set_uint32(DEVICE(&bmc->soc), "uart-default",
                          amc->uart_default);
     qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);

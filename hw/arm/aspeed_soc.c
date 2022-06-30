@@ -243,7 +243,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     /* CPU */
     for (i = 0; i < sc->num_cpus; i++) {
         object_property_set_link(OBJECT(&s->cpu[i]), "memory",
-                                 OBJECT(get_system_memory()), &error_abort);
+                                 OBJECT(s->memory), &error_abort);
         if (!qdev_realize(DEVICE(&s->cpu[i]), NULL, errp)) {
             return;
         }
@@ -256,7 +256,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    memory_region_add_subregion(get_system_memory(),
+    memory_region_add_subregion(s->memory,
                                 sc->memmap[ASPEED_DEV_SRAM], &s->sram);
 
     /* SCU */
@@ -456,6 +456,8 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
 }
 static Property aspeed_soc_properties[] = {
+    DEFINE_PROP_LINK("memory", AspeedSoCState, memory, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
     DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("uart-default", AspeedSoCState, uart_default,
@@ -555,14 +557,14 @@ void aspeed_soc_uart_init(AspeedSoCState *s)
     int i, uart;
 
     /* Attach an 8250 to the IO space as our UART */
-    serial_mm_init(get_system_memory(), sc->memmap[s->uart_default], 2,
+    serial_mm_init(s->memory, sc->memmap[s->uart_default], 2,
                    aspeed_soc_get_irq(s, s->uart_default), 38400,
                    serial_hd(0), DEVICE_LITTLE_ENDIAN);
     for (i = 1, uart = ASPEED_DEV_UART1; i < sc->uarts_num; i++, uart++) {
         if (uart == s->uart_default) {
             uart++;
         }
-        serial_mm_init(get_system_memory(), sc->memmap[uart], 2,
+        serial_mm_init(s->memory, sc->memmap[uart], 2,
                        aspeed_soc_get_irq(s, uart), 38400,
                        serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }
@@ -604,7 +606,7 @@ bool aspeed_soc_dram_init(AspeedSoCState *s, Error **errp)
                       sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0), -1000);
     }
 
-    memory_region_add_subregion(get_system_memory(),
+    memory_region_add_subregion(s->memory,
                       sc->memmap[ASPEED_DEV_SDRAM], &s->dram_container);
     return true;
 }
