@@ -215,7 +215,7 @@ uint8_t cxl_interleave_granularity_enc(uint64_t gran, Error **errp);
 
 static inline hwaddr cxl_decode_ig(int ig)
 {
-    return 1 << (ig + 8);
+    return 1ULL << (ig + 8);
 }
 
 CXLComponentState *cxl_get_hb_cstate(PCIHostState *hb);
