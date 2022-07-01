@@ -81,7 +81,9 @@ target_ulong helper_csrwr_ticlr(CPULoongArchState *env, target_ulong val)
     int64_t old_v = 0;
 
     if (val & 0x1) {
+        qemu_mutex_lock_iothread();
         loongarch_cpu_set_irq(cpu, IRQ_TIMER, 0);
+        qemu_mutex_unlock_iothread();
     }
     return old_v;
 }
