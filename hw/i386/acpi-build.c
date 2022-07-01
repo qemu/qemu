@@ -444,15 +444,13 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 dev = aml_device("S%.02X", devfn);
                 aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
                 aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
+                aml_append(dev, aml_pci_device_dsm());
                 aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
                 method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
                 aml_append(method,
                     aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
                 );
                 aml_append(dev, method);
-
-                aml_append(dev, aml_pci_device_dsm());
-
                 aml_append(parent_scope, dev);
 
                 build_append_pcihp_notify_entry(notify_method, slot);
