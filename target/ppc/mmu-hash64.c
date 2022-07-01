@@ -309,7 +309,7 @@ static int ppc_find_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
     return 0;
 }
 
-void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
+void helper_SLBMTE(CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
     PowerPCCPU *cpu = env_archcpu(env);
 
