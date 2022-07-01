@@ -51,6 +51,20 @@ static bool trans_SLBIEG(DisasContext *ctx, arg_SLBIEG *a)
     return true;
 }
 
+static bool trans_SLBIA(DisasContext *ctx, arg_SLBIA *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_INSNS_FLAGS(ctx, SLBI);
+    REQUIRE_SV(ctx);
+
+#if !defined(CONFIG_USER_ONLY) && defined(TARGET_PPC64)
+    gen_helper_SLBIA(cpu_env, tcg_constant_i32(a->ih));
+#else
+    qemu_build_not_reached();
+#endif
+    return true;
+}
+
 static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
 {
 #if defined(CONFIG_USER_ONLY)
