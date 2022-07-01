@@ -431,11 +431,17 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 );
                 aml_append(dev, method);
                 method = aml_method("_DSM", 4, AML_SERIALIZED);
-                aml_append(method,
-                    aml_return(aml_call6("PDSM", aml_arg(0), aml_arg(1),
-                                         aml_arg(2), aml_arg(3),
-                                         aml_name("BSEL"), aml_name("_SUN")))
-                );
+                {
+                    Aml *params = aml_local(0);
+                    Aml *pkg = aml_package(2);
+                    aml_append(pkg, aml_name("BSEL"));
+                    aml_append(pkg, aml_name("_SUN"));
+                    aml_append(method, aml_store(pkg, params));
+                    aml_append(method,
+                        aml_return(aml_call5("PDSM", aml_arg(0), aml_arg(1),
+                                             aml_arg(2), aml_arg(3), params))
+                    );
+                }
                 aml_append(dev, method);
                 aml_append(parent_scope, dev);
 
@@ -480,10 +486,17 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
              */
             aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
             method = aml_method("_DSM", 4, AML_SERIALIZED);
-            aml_append(method, aml_return(
-                aml_call6("PDSM", aml_arg(0), aml_arg(1), aml_arg(2),
-                          aml_arg(3), aml_name("BSEL"), aml_name("ASUN"))
-            ));
+            {
+                Aml *params = aml_local(0);
+                Aml *pkg = aml_package(2);
+                aml_append(pkg, aml_name("BSEL"));
+                aml_append(pkg, aml_name("ASUN"));
+                aml_append(method, aml_store(pkg, params));
+                aml_append(method, aml_return(
+                    aml_call5("PDSM", aml_arg(0), aml_arg(1), aml_arg(2),
+                              aml_arg(3), params)
+                ));
+            }
             aml_append(dev, method);
         }
 
@@ -580,12 +593,13 @@ Aml *aml_pci_device_dsm(void)
     Aml *acpi_index = aml_local(2);
     Aml *zero = aml_int(0);
     Aml *one = aml_int(1);
-    Aml *bnum = aml_arg(4);
     Aml *func = aml_arg(2);
     Aml *rev = aml_arg(1);
-    Aml *sunum = aml_arg(5);
+    Aml *params = aml_arg(4);
+    Aml *bnum = aml_derefof(aml_index(params, aml_int(0)));
+    Aml *sunum = aml_derefof(aml_index(params, aml_int(1)));
 
-    method = aml_method("PDSM", 6, AML_SERIALIZED);
+    method = aml_method("PDSM", 5, AML_SERIALIZED);
 
     /* get supported functions */
     ifctx = aml_if(aml_equal(func, zero));
@@ -662,10 +676,10 @@ Aml *aml_pci_device_dsm(void)
         * update acpi-index to actual value
         */
        aml_append(ifctx, aml_store(acpi_index, aml_index(ret, zero)));
+       aml_append(ifctx, aml_return(ret));
     }
 
     aml_append(method, ifctx);
-    aml_append(method, aml_return(ret));
     return method;
 }
 
