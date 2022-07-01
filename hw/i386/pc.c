@@ -922,10 +922,8 @@ void pc_memory_init(PCMachineState *pcms,
         hwaddr cxl_size = MiB;
 
         if (pcmc->has_reserved_memory && machine->device_memory->base) {
-            cxl_base = machine->device_memory->base;
-            if (!pcmc->broken_reserved_end) {
-                cxl_base += memory_region_size(&machine->device_memory->mr);
-            }
+            cxl_base = machine->device_memory->base
+                + memory_region_size(&machine->device_memory->mr);
         } else if (pcms->sgx_epc.size != 0) {
             cxl_base = sgx_epc_above_4g_end(&pcms->sgx_epc);
         } else {
