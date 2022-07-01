@@ -877,6 +877,8 @@ SLBMFEE         011111 ..... ----- ..... 1110010011 -   @X_tb
 
 SLBFEE          011111 ..... ----- ..... 1111010011 1   @X_tb
 
+SLBSYNC         011111 ----- ----- ----- 0101010010 -
+
 ## TLB Management Instructions
 
 &X_tlbie        rb rs ric prs:bool r:bool

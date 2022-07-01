@@ -5388,20 +5388,6 @@ static void gen_tlbsync(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-#if defined(TARGET_PPC64)
-/* slbsync */
-static void gen_slbsync(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_SV(ctx);
-    gen_check_tlb_flush(ctx, true);
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
-#endif  /* defined(TARGET_PPC64) */
-
 /***                              External control                         ***/
 /* Optional: */
 
@@ -6787,9 +6773,6 @@ GEN_HANDLER(tlbia, 0x1F, 0x12, 0x0B, 0x03FFFC01, PPC_MEM_TLBIA),
  * different ISA versions
  */
 GEN_HANDLER(tlbsync, 0x1F, 0x16, 0x11, 0x03FFF801, PPC_MEM_TLBSYNC),
-#if defined(TARGET_PPC64)
-GEN_HANDLER_E(slbsync, 0x1F, 0x12, 0x0A, 0x03FFF801, PPC_NONE, PPC2_ISA300),
-#endif
 GEN_HANDLER(eciwx, 0x1F, 0x16, 0x0D, 0x00000001, PPC_EXTERN),
 GEN_HANDLER(ecowx, 0x1F, 0x16, 0x09, 0x00000001, PPC_EXTERN),
 GEN_HANDLER2(tlbld_6xx, "tlbld", 0x1F, 0x12, 0x1E, 0x03FF0001, PPC_6xx_TLB),
