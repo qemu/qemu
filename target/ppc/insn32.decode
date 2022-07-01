@@ -875,6 +875,8 @@ SLBMTE          011111 ..... ----- ..... 0110010010 -   @X_tb
 SLBMFEV         011111 ..... ----- ..... 1101010011 -   @X_tb
 SLBMFEE         011111 ..... ----- ..... 1110010011 -   @X_tb
 
+SLBFEE          011111 ..... ----- ..... 1111010011 1   @X_tb
+
 ## TLB Management Instructions
 
 &X_tlbie        rb rs ric prs:bool r:bool
