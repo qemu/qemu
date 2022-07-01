@@ -374,6 +374,25 @@ build_facs(GArray *table_data)
     g_array_append_vals(table_data, reserved, 40); /* Reserved */
 }
 
+Aml *aml_pci_device_dsm(void)
+{
+    Aml *method;
+
+    method = aml_method("_DSM", 4, AML_SERIALIZED);
+    {
+        Aml *params = aml_local(0);
+        Aml *pkg = aml_package(2);
+        aml_append(pkg, aml_name("BSEL"));
+        aml_append(pkg, aml_name("ASUN"));
+        aml_append(method, aml_store(pkg, params));
+        aml_append(method,
+            aml_return(aml_call5("PDSM", aml_arg(0), aml_arg(1),
+                                 aml_arg(2), aml_arg(3), params))
+        );
+    }
+    return method;
+}
+
 static void build_append_pcihp_notify_entry(Aml *method, int slot)
 {
     Aml *if_ctx;
@@ -423,26 +442,17 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                     break;
                 }
                 dev = aml_device("S%.02X", devfn);
-                aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
+                aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
                 aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
+                aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
                 method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
                 aml_append(method,
                     aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
                 );
                 aml_append(dev, method);
-                method = aml_method("_DSM", 4, AML_SERIALIZED);
-                {
-                    Aml *params = aml_local(0);
-                    Aml *pkg = aml_package(2);
-                    aml_append(pkg, aml_name("BSEL"));
-                    aml_append(pkg, aml_name("_SUN"));
-                    aml_append(method, aml_store(pkg, params));
-                    aml_append(method,
-                        aml_return(aml_call5("PDSM", aml_arg(0), aml_arg(1),
-                                             aml_arg(2), aml_arg(3), params))
-                    );
-                }
-                aml_append(dev, method);
+
+                aml_append(dev, aml_pci_device_dsm());
+
                 aml_append(parent_scope, dev);
 
                 build_append_pcihp_notify_entry(notify_method, slot);
@@ -485,19 +495,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
              * enumeration order in linux kernel, so use another variable for it
              */
             aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
-            method = aml_method("_DSM", 4, AML_SERIALIZED);
-            {
-                Aml *params = aml_local(0);
-                Aml *pkg = aml_package(2);
-                aml_append(pkg, aml_name("BSEL"));
-                aml_append(pkg, aml_name("ASUN"));
-                aml_append(method, aml_store(pkg, params));
-                aml_append(method, aml_return(
-                    aml_call5("PDSM", aml_arg(0), aml_arg(1), aml_arg(2),
-                              aml_arg(3), params)
-                ));
-            }
-            aml_append(dev, method);
+            aml_append(dev, aml_pci_device_dsm());
         }
 
         if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
@@ -585,7 +583,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_unref(bsel);
 }
 
-Aml *aml_pci_device_dsm(void)
+static Aml *aml_pci_pdsm(void)
 {
     Aml *method, *UUID, *ifctx, *ifctx1;
     Aml *ret = aml_local(0);
@@ -1368,7 +1366,7 @@ static void build_x86_acpi_pci_hotplug(Aml *table, uint64_t pcihp_addr)
     aml_append(method, aml_return(aml_local(0)));
     aml_append(scope, method);
 
-    aml_append(scope, aml_pci_device_dsm());
+    aml_append(scope, aml_pci_pdsm());
 
     aml_append(table, scope);
 }
