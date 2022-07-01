@@ -461,7 +461,6 @@ static void ls7a_rtc_realize(DeviceState *dev, Error **errp)
     d->save_toy_year = 0;
     d->save_rtc = 0;
 
-    create_unimplemented_device("mmio fallback 1", 0x10013ffc, 0x4);
 }
 
 static int ls7a_rtc_pre_save(void *opaque)
