@@ -863,6 +863,7 @@ VMODUQ          000100 ..... ..... ..... 11000001011    @VX
 ## SLB Management Instructions
 
 SLBIE           011111 ----- ----- ..... 0110110010 -   @X_rb
+SLBIEG          011111 ..... ----- ..... 0111010010 -   @X_tb
 
 ## TLB Management Instructions
 
