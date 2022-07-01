@@ -427,13 +427,41 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         int func = PCI_FUNC(devfn);
         /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
         int adr = slot << 16 | func;
-        bool hotplug_enabled_dev;
-        bool bridge_in_acpi;
-        bool cold_plugged_bridge;
+        bool hotpluggbale_slot = false;
+        bool bridge_in_acpi = false;
+        bool cold_plugged_bridge = false;
+        bool is_vga = false;
 
-        if (!pdev) {
+        if (pdev) {
+            pc = PCI_DEVICE_GET_CLASS(pdev);
+            dc = DEVICE_GET_CLASS(pdev);
+
+            if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
+                continue;
+            }
+
+            is_vga = pc->class_id == PCI_CLASS_DISPLAY_VGA;
+
             /*
-             * add hotplug slots for non present devices.
+             * Cold plugged bridges aren't themselves hot-pluggable.
+             * Hotplugged bridges *are* hot-pluggable.
+             */
+            cold_plugged_bridge = pc->is_bridge && !DEVICE(pdev)->hotplugged;
+            bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
+
+            hotpluggbale_slot = bsel && dc->hotpluggable &&
+                                !cold_plugged_bridge;
+
+            /*
+             * allow describing coldplugged bridges in ACPI even if they are not
+             * on function 0, as they are not unpluggable, for all other devices
+             * generate description only for function 0 per slot
+             */
+            if (func && !bridge_in_acpi) {
+                continue;
+            }
+        } else {
+            /*
              * hotplug is supported only for non-multifunction device
              * so generate device description only for function 0
              */
@@ -441,46 +469,11 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 if (pci_bus_is_express(bus) && slot > 0) {
                     break;
                 }
-                dev = aml_device("S%.02X", devfn);
-                aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
-                aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
-                aml_append(dev, aml_pci_device_dsm());
-                aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-                method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-                aml_append(method,
-                    aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
-                );
-                aml_append(dev, method);
-                aml_append(parent_scope, dev);
-
-                build_append_pcihp_notify_entry(notify_method, slot);
+                /* mark it as empty hotpluggable slot */
+                hotpluggbale_slot = true;
+            } else {
+                continue;
             }
-            continue;
-        }
-
-        pc = PCI_DEVICE_GET_CLASS(pdev);
-        dc = DEVICE_GET_CLASS(pdev);
-
-        /*
-         * Cold plugged bridges aren't themselves hot-pluggable.
-         * Hotplugged bridges *are* hot-pluggable.
-         */
-        cold_plugged_bridge = pc->is_bridge && !DEVICE(pdev)->hotplugged;
-        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
-
-        hotplug_enabled_dev = bsel && dc->hotpluggable && !cold_plugged_bridge;
-
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
-            continue;
-        }
-
-        /*
-         * allow describing coldplugged bridges in ACPI even if they are not
-         * on function 0, as they are not unpluggable, for all other devices
-         * generate description only for function 0 per slot
-         */
-        if (func && !bridge_in_acpi) {
-            continue;
         }
 
         /* start to compose PCI device descriptor */
@@ -496,7 +489,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             aml_append(dev, aml_pci_device_dsm());
         }
 
-        if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
+        if (is_vga) {
             /* add VGA specific AML methods */
             int s3d;
 
@@ -517,19 +510,10 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             method = aml_method("_S3D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(s3d)));
             aml_append(dev, method);
-        } else if (hotplug_enabled_dev) {
-            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-            /* add _EJ0 to make slot hotpluggable  */
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
-            );
-            aml_append(dev, method);
+        }
 
-            if (bsel) {
-                build_append_pcihp_notify_entry(notify_method, slot);
-            }
-        } else if (bridge_in_acpi) {
+        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
+        if (bridge_in_acpi) {
             /*
              * device is coldplugged bridge,
              * add child device descriptions into its scope
@@ -538,6 +522,19 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
             build_append_pci_bus_devices(dev, sec_bus, pcihp_bridge_en);
         }
+
+        if (hotpluggbale_slot) {
+            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
+            /* add _EJ0 to make slot hotpluggable  */
+            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+            aml_append(method,
+                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
+            );
+            aml_append(dev, method);
+
+            build_append_pcihp_notify_entry(notify_method, slot);
+        }
+
         /* device descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
     }
