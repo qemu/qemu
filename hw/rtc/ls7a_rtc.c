@@ -125,15 +125,15 @@ static inline void toy_val_to_time_year(uint64_t toy_year, struct tm *tm)
 }
 
 /* parse struct tm to toy value */
-static inline uint64_t toy_time_to_val_mon(struct tm tm)
+static inline uint64_t toy_time_to_val_mon(struct tm *tm)
 {
     uint64_t val = 0;
 
-    val = FIELD_DP32(val, TOY, MON, tm.tm_mon + 1);
-    val = FIELD_DP32(val, TOY, DAY, tm.tm_mday);
-    val = FIELD_DP32(val, TOY, HOUR, tm.tm_hour);
-    val = FIELD_DP32(val, TOY, MIN, tm.tm_min);
-    val = FIELD_DP32(val, TOY, SEC, tm.tm_sec);
+    val = FIELD_DP32(val, TOY, MON, tm->tm_mon + 1);
+    val = FIELD_DP32(val, TOY, DAY, tm->tm_mday);
+    val = FIELD_DP32(val, TOY, HOUR, tm->tm_hour);
+    val = FIELD_DP32(val, TOY, MIN, tm->tm_min);
+    val = FIELD_DP32(val, TOY, SEC, tm->tm_sec);
     return val;
 }
 
@@ -235,7 +235,7 @@ static uint64_t ls7a_rtc_read(void *opaque, hwaddr addr, unsigned size)
     case SYS_TOYREAD0:
         if (toy_enabled(s)) {
             qemu_get_timedate(&tm, s->offset_toy);
-            val = toy_time_to_val_mon(tm);
+            val = toy_time_to_val_mon(&tm);
         } else {
             /* return 0 when toy disabled */
             val = 0;
