@@ -425,7 +425,7 @@ static void toy_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (toy_enabled(s)) {
-        qemu_irq_pulse(s->irq);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -434,7 +434,7 @@ static void rtc_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (rtc_enabled(s)) {
-        qemu_irq_pulse(s->irq);
+        qemu_irq_raise(s->irq);
     }
 }
 
