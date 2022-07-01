@@ -343,7 +343,7 @@ target_ulong helper_find_slb_vsid(CPUPPCState *env, target_ulong rb)
     return rt;
 }
 
-target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
+target_ulong helper_SLBMFEV(CPUPPCState *env, target_ulong rb)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
