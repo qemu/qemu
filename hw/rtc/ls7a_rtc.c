@@ -156,7 +156,7 @@ static void toymatch_write(LS7ARtcState *s, uint64_t val, int num)
     /* it do not support write when toy disabled */
     if (toy_enabled(s)) {
         s->toymatch[num] = val;
-        /* caculate expire time */
+        /* calculate expire time */
         now = qemu_clock_get_ms(rtc_clock);
         toymatch_val_to_time(s, val, &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
@@ -171,7 +171,7 @@ static void rtcmatch_write(LS7ARtcState *s, uint64_t val, int num)
     /* it do not support write when toy disabled */
     if (rtc_enabled(s)) {
         s->rtcmatch[num] = val;
-        /* caculate expire time */
+        /* calculate expire time */
         expire_ns = ticks_to_ns(val) - ticks_to_ns(s->offset_rtc);
         timer_mod_ns(s->rtc_timer[num], expire_ns);
     }
@@ -181,7 +181,7 @@ static void ls7a_toy_stop(LS7ARtcState *s)
 {
     int i;
 
-    /* delete timers, and when re-enabled, recaculate expire time */
+    /* delete timers, and when re-enabled, recalculate expire time */
     for (i = 0; i < TIMER_NUMS; i++) {
         timer_del(s->toy_timer[i]);
     }
@@ -191,7 +191,7 @@ static void ls7a_rtc_stop(LS7ARtcState *s)
 {
     int i;
 
-    /* delete timers, and when re-enabled, recaculate expire time */
+    /* delete timers, and when re-enabled, recalculate expire time */
     for (i = 0; i < TIMER_NUMS; i++) {
         timer_del(s->rtc_timer[i]);
     }
@@ -205,7 +205,7 @@ static void ls7a_toy_start(LS7ARtcState *s)
 
     now = qemu_clock_get_ms(rtc_clock);
 
-    /* recaculate expire time and enable timer */
+    /* recalculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
         toymatch_val_to_time(s, s->toymatch[i], &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
@@ -218,7 +218,7 @@ static void ls7a_rtc_start(LS7ARtcState *s)
     int i;
     uint64_t expire_time;
 
-    /* recaculate expire time and enable timer */
+    /* recalculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
         expire_time = ticks_to_ns(s->rtcmatch[i]) - ticks_to_ns(s->offset_rtc);
         timer_mod_ns(s->rtc_timer[i], expire_time);
