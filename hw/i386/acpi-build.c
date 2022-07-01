@@ -442,8 +442,8 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                     break;
                 }
                 dev = aml_device("S%.02X", devfn);
-                aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
                 aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
+                aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
                 aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
                 method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
                 aml_append(method,
