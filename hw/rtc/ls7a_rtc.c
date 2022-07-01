@@ -463,6 +463,25 @@ static void ls7a_rtc_realize(DeviceState *dev, Error **errp)
 
 }
 
+/* delete timer and clear reg when reset */
+static void ls7a_rtc_reset(DeviceState *dev)
+{
+    int i;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    LS7ARtcState *d = LS7A_RTC(sbd);
+    for (i = 0; i < TIMER_NUMS; i++) {
+        if (toy_enabled(d)) {
+            timer_del(d->toy_timer[i]);
+        }
+        if (rtc_enabled(d)) {
+            timer_del(d->rtc_timer[i]);
+        }
+        d->toymatch[i] = 0;
+        d->rtcmatch[i] = 0;
+    }
+    d->cntrctl = 0;
+}
+
 static int ls7a_rtc_pre_save(void *opaque)
 {
     LS7ARtcState *s = LS7A_RTC(opaque);
@@ -511,6 +530,7 @@ static void ls7a_rtc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->vmsd = &vmstate_ls7a_rtc;
     dc->realize = ls7a_rtc_realize;
+    dc->reset = ls7a_rtc_reset;
     dc->desc = "ls7a rtc";
 }
 
