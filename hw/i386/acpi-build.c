@@ -1467,9 +1467,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
 
-        if (misc->has_hpet) {
-            build_hpet_aml(dsdt);
-        }
         build_piix4_isa_bridge(dsdt);
         if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
             build_x86_acpi_pci_hotplug(dsdt, pm->pcihp_io_base);
@@ -1515,9 +1512,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
         aml_append(dsdt, sb_scope);
 
-        if (misc->has_hpet) {
-            build_hpet_aml(dsdt);
-        }
         build_q35_isa_bridge(dsdt);
         if (pm->pcihp_bridge_en) {
             build_x86_acpi_pci_hotplug(dsdt, pm->pcihp_io_base);
@@ -1526,6 +1520,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         if (pcms->smbus) {
             build_smb0(dsdt, ICH9_SMB_DEV, ICH9_SMB_FUNC);
         }
+    }
+
+    if (misc->has_hpet) {
+        build_hpet_aml(dsdt);
     }
 
     if (vmbus_bridge) {
