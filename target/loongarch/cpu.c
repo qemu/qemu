@@ -223,6 +223,10 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, PLV, 0);
     env->CSR_CRMD = FIELD_DP64(env->CSR_CRMD, CSR_CRMD, IE, 0);
 
+    if (vec_size) {
+        vec_size = (1 << vec_size) * 4;
+    }
+
     if  (cs->exception_index == EXCCODE_INT) {
         /* Interrupt */
         uint32_t vector = 0;
