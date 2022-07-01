@@ -173,6 +173,33 @@ void helper_SLBIA(CPUPPCState *env, uint32_t ih)
     }
 }
 
+#if defined(TARGET_PPC64)
+void helper_SLBIAG(CPUPPCState *env, target_ulong rs, uint32_t l)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    int n;
+
+    /*
+     * slbiag must always flush all TLB (which is equivalent to ERAT in ppc
+     * architecture). Matching on SLB_ESID_V is not good enough, because slbmte
+     * can overwrite a valid SLB without flushing its lookaside information.
+     *
+     * It would be possible to keep the TLB in synch with the SLB by flushing
+     * when a valid entry is overwritten by slbmte, and therefore slbiag would
+     * not have to flush unless it evicts a valid SLB entry. However it is
+     * expected that slbmte is more common than slbiag, and slbiag is usually
+     * going to evict valid SLB entries, so that tradeoff is unlikely to be a
+     * good one.
+     */
+    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
+
+    for (n = 0; n < cpu->hash64_opts->slb_size; n++) {
+        ppc_slb_t *slb = &env->slb[n];
+        slb->esid &= ~SLB_ESID_V;
+    }
+}
+#endif
+
 static void __helper_slbie(CPUPPCState *env, target_ulong addr,
                            target_ulong global)
 {
