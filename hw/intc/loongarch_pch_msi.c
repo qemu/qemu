@@ -23,9 +23,14 @@ static uint64_t loongarch_msi_mem_read(void *opaque, hwaddr addr, unsigned size)
 static void loongarch_msi_mem_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(opaque);
-    int irq_num = val & 0xff;
+    LoongArchPCHMSI *s = (LoongArchPCHMSI *)opaque;
+    int irq_num;
 
+    /*
+     * vector number is irq number from upper extioi intc
+     * need subtract irq base to get msi vector offset
+     */
+    irq_num = (val & 0xff) - s->irq_base;
     trace_loongarch_msi_set_irq(irq_num);
     assert(irq_num < PCH_MSI_IRQ_NUM);
     qemu_set_irq(s->pch_msi_irq[irq_num], 1);
@@ -58,11 +63,24 @@ static void loongarch_pch_msi_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), pch_msi_irq_handler, PCH_MSI_IRQ_NUM);
 }
 
+static Property loongarch_msi_properties[] = {
+    DEFINE_PROP_UINT32("msi_irq_base", LoongArchPCHMSI, irq_base, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void loongarch_pch_msi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    device_class_set_props(dc, loongarch_msi_properties);
+}
+
 static const TypeInfo loongarch_pch_msi_info = {
     .name          = TYPE_LOONGARCH_PCH_MSI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LoongArchPCHMSI),
     .instance_init = loongarch_pch_msi_init,
+    .class_init    = loongarch_pch_msi_class_init,
 };
 
 static void loongarch_pch_msi_register_types(void)
