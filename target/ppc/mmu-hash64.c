@@ -197,7 +197,7 @@ static void __helper_slbie(CPUPPCState *env, target_ulong addr,
     }
 }
 
-void helper_slbie(CPUPPCState *env, target_ulong addr)
+void helper_SLBIE(CPUPPCState *env, target_ulong addr)
 {
     __helper_slbie(env, addr, false);
 }

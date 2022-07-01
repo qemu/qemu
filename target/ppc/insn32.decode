@@ -146,6 +146,9 @@
 &X_imm8         xt imm:uint8_t
 @X_imm8         ...... ..... .. imm:8 .......... .              &X_imm8 xt=%x_xt
 
+&X_rb           rb
+@X_rb           ...... ..... ..... rb:5 .......... .            &X_rb
+
 &X_uim5         xt uim:uint8_t
 @X_uim5         ...... ..... ..... uim:5 .......... .           &X_uim5 xt=%x_xt
 
@@ -856,6 +859,10 @@ VMODSD          000100 ..... ..... ..... 11111001011    @VX
 VMODUD          000100 ..... ..... ..... 11011001011    @VX
 VMODSQ          000100 ..... ..... ..... 11100001011    @VX
 VMODUQ          000100 ..... ..... ..... 11000001011    @VX
+
+## SLB Management Instructions
+
+SLBIE           011111 ----- ----- ..... 0110110010 -   @X_rb
 
 ## TLB Management Instructions
 
