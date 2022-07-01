@@ -148,8 +148,9 @@ static inline uint64_t toy_time_to_val_year(struct tm tm)
     return year;
 }
 
-static inline void toymatch_val_to_time(uint64_t val, struct tm *tm)
+static inline void toymatch_val_to_time(LS7ARtcState *s, uint64_t val, struct tm *tm)
 {
+    qemu_get_timedate(tm, s->offset_toy);
     tm->tm_sec = FIELD_EX32(val, TOY_MATCH, SEC);
     tm->tm_min = FIELD_EX32(val, TOY_MATCH, MIN);
     tm->tm_hour = FIELD_EX32(val, TOY_MATCH, HOUR);
@@ -158,17 +159,18 @@ static inline void toymatch_val_to_time(uint64_t val, struct tm *tm)
     tm->tm_year += (FIELD_EX32(val, TOY_MATCH, YEAR) - (tm->tm_year & 0x3f));
 }
 
-static void toymatch_write(LS7ARtcState *s, struct tm *tm, uint64_t val, int num)
+static void toymatch_write(LS7ARtcState *s, uint64_t val, int num)
 {
     int64_t now, expire_time;
+    struct tm tm = {};
 
     /* it do not support write when toy disabled */
     if (toy_enabled(s)) {
         s->toymatch[num] = val;
         /* caculate expire time */
         now = qemu_clock_get_ms(rtc_clock);
-        toymatch_val_to_time(val, tm);
-        expire_time = now + (qemu_timedate_diff(tm) - s->offset_toy) * 1000;
+        toymatch_val_to_time(s, val, &tm);
+        expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
         timer_mod(s->toy_timer[num], expire_time);
     }
 }
@@ -223,7 +225,7 @@ static void ls7a_toy_start(LS7ARtcState *s)
 {
     int i;
     uint64_t expire_time, now;
-    struct tm tm;
+    struct tm tm = {};
     /*
      * need to recaculate toy offset
      * and expire time when enable it.
@@ -236,7 +238,7 @@ static void ls7a_toy_start(LS7ARtcState *s)
 
     /* recaculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
-        toymatch_val_to_time(s->toymatch[i], &tm);
+        toymatch_val_to_time(s, s->toymatch[i], &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
         timer_mod(s->toy_timer[i], expire_time);
     }
@@ -352,13 +354,13 @@ static void ls7a_rtc_write(void *opaque, hwaddr addr,
         }
         break;
     case SYS_TOYMATCH0:
-        toymatch_write(s, &tm, val, 0);
+        toymatch_write(s, val, 0);
         break;
     case SYS_TOYMATCH1:
-        toymatch_write(s, &tm, val, 1);
+        toymatch_write(s, val, 1);
         break;
     case SYS_TOYMATCH2:
-        toymatch_write(s, &tm, val, 2);
+        toymatch_write(s, val, 2);
         break;
     case SYS_RTCCTRL:
         /* get old ctrl */
