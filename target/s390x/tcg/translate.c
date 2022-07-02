@@ -1126,10 +1126,6 @@ typedef struct {
 /* We have updated the PC and CC values.  */
 #define DISAS_PC_CC_UPDATED     DISAS_TARGET_2
 
-/* We are exiting the TB, but have neither emitted a goto_tb, nor
-   updated the PC for the next instruction to be executed.  */
-#define DISAS_PC_STALE          DISAS_TARGET_3
-
 /* We are exiting the TB to the main loop.  */
 #define DISAS_PC_STALE_NOCHAIN  DISAS_TARGET_4
 
@@ -3993,7 +3989,7 @@ static DisasJumpType op_sacf(DisasContext *s, DisasOps *o)
 {
     gen_helper_sacf(cpu_env, o->in2);
     /* Addressing mode has changed, so end the block.  */
-    return DISAS_PC_STALE;
+    return DISAS_TOO_MANY;
 }
 #endif
 
@@ -4029,7 +4025,7 @@ static DisasJumpType op_sam(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(tsam);
 
     /* Always exit the TB, since we (may have) changed execution mode.  */
-    return DISAS_PC_STALE;
+    return DISAS_TOO_MANY;
 }
 
 static DisasJumpType op_sar(DisasContext *s, DisasOps *o)
@@ -6562,13 +6558,13 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
     /* io should be the last instruction in tb when icount is enabled */
     if (unlikely(icount && ret == DISAS_NEXT)) {
-        ret = DISAS_PC_STALE;
+        ret = DISAS_TOO_MANY;
     }
 
 #ifndef CONFIG_USER_ONLY
     if (s->base.tb->flags & FLAG_MASK_PER) {
         /* An exception might be triggered, save PSW if not already done.  */
-        if (ret == DISAS_NEXT || ret == DISAS_PC_STALE) {
+        if (ret == DISAS_NEXT || ret == DISAS_TOO_MANY) {
             tcg_gen_movi_i64(psw_addr, s->pc_tmp);
         }
 
@@ -6634,7 +6630,6 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-    case DISAS_PC_STALE:
     case DISAS_PC_STALE_NOCHAIN:
         update_psw_addr(dc);
         /* FALLTHRU */
