@@ -120,14 +120,15 @@ def pick_default_qemu_bin(bin_prefix='qemu-system-', arch=None):
     # qemu binary path does not match arch for powerpc, handle it
     if 'ppc64le' in arch:
         arch = 'ppc64'
-    qemu_bin_relative_path = os.path.join(".", bin_prefix + arch)
-    if is_readable_executable_file(qemu_bin_relative_path):
-        return qemu_bin_relative_path
-
-    qemu_bin_from_bld_dir_path = os.path.join(BUILD_DIR,
-                                              qemu_bin_relative_path)
-    if is_readable_executable_file(qemu_bin_from_bld_dir_path):
-        return qemu_bin_from_bld_dir_path
+    qemu_bin_name = bin_prefix + arch
+    qemu_bin_paths = [
+        os.path.join(".", qemu_bin_name),
+        os.path.join(BUILD_DIR, qemu_bin_name),
+        os.path.join(BUILD_DIR, "build", qemu_bin_name),
+    ]
+    for path in qemu_bin_paths:
+        if is_readable_executable_file(path):
+            return path
     return None
 
 
