@@ -1123,9 +1123,6 @@ typedef struct {
    exiting the TB.  */
 #define DISAS_PC_UPDATED        DISAS_TARGET_0
 
-/* We have emitted one or more goto_tb.  No fixup required.  */
-#define DISAS_GOTO_TB           DISAS_TARGET_1
-
 /* We have updated the PC and CC values.  */
 #define DISAS_PC_CC_UPDATED     DISAS_TARGET_2
 
@@ -1189,7 +1186,7 @@ static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb(s->base.tb, 0);
-        return DISAS_GOTO_TB;
+        return DISAS_NORETURN;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
         per_branch(s, false);
@@ -1258,7 +1255,7 @@ static DisasJumpType help_branch(DisasContext *s, DisasCompare *c,
             tcg_gen_movi_i64(psw_addr, dest);
             tcg_gen_exit_tb(s->base.tb, 1);
 
-            ret = DISAS_GOTO_TB;
+            ret = DISAS_NORETURN;
         } else {
             /* Fallthru can use goto_tb, but taken branch cannot.  */
             /* Store taken branch destination before the brcond.  This
@@ -6634,7 +6631,6 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     switch (dc->base.is_jmp) {
-    case DISAS_GOTO_TB:
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
