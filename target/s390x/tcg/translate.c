@@ -149,6 +149,7 @@ struct DisasContext {
     uint64_t pc_tmp;
     uint32_t ilen;
     enum cc_op cc_op;
+    bool exit_to_mainloop;
 };
 
 /* Information carried about a condition to be evaluated.  */
@@ -1125,9 +1126,6 @@ typedef struct {
 
 /* We have updated the PC and CC values.  */
 #define DISAS_PC_CC_UPDATED     DISAS_TARGET_2
-
-/* We are exiting the TB to the main loop.  */
-#define DISAS_PC_STALE_NOCHAIN  DISAS_TARGET_4
 
 
 /* Instruction flags */
@@ -3022,7 +3020,8 @@ static DisasJumpType op_lctl(DisasContext *s, DisasOps *o)
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
-    return DISAS_PC_STALE_NOCHAIN;
+    s->exit_to_mainloop = true;
+    return DISAS_TOO_MANY;
 }
 
 static DisasJumpType op_lctlg(DisasContext *s, DisasOps *o)
@@ -3033,7 +3032,8 @@ static DisasJumpType op_lctlg(DisasContext *s, DisasOps *o)
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
-    return DISAS_PC_STALE_NOCHAIN;
+    s->exit_to_mainloop = true;
+    return DISAS_TOO_MANY;
 }
 
 static DisasJumpType op_lra(DisasContext *s, DisasOps *o)
@@ -4283,7 +4283,8 @@ static DisasJumpType op_ssm(DisasContext *s, DisasOps *o)
 {
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
-    return DISAS_PC_STALE_NOCHAIN;
+    s->exit_to_mainloop = true;
+    return DISAS_TOO_MANY;
 }
 
 static DisasJumpType op_stap(DisasContext *s, DisasOps *o)
@@ -4548,7 +4549,8 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
     }
 
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
-    return DISAS_PC_STALE_NOCHAIN;
+    s->exit_to_mainloop = true;
+    return DISAS_TOO_MANY;
 }
 
 static DisasJumpType op_stura(DisasContext *s, DisasOps *o)
@@ -6591,6 +6593,7 @@ static void s390x_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     dc->cc_op = CC_OP_DYNAMIC;
     dc->ex_value = dc->base.tb->cs_base;
+    dc->exit_to_mainloop = (dc->base.tb->flags & FLAG_MASK_PER);
 }
 
 static void s390x_tr_tb_start(DisasContextBase *db, CPUState *cs)
@@ -6630,7 +6633,6 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_NORETURN:
         break;
     case DISAS_TOO_MANY:
-    case DISAS_PC_STALE_NOCHAIN:
         update_psw_addr(dc);
         /* FALLTHRU */
     case DISAS_PC_UPDATED:
@@ -6640,8 +6642,7 @@ static void s390x_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
         /* FALLTHRU */
     case DISAS_PC_CC_UPDATED:
         /* Exit the TB, either by raising a debug exception or by return.  */
-        if ((dc->base.tb->flags & FLAG_MASK_PER) ||
-             dc->base.is_jmp == DISAS_PC_STALE_NOCHAIN) {
+        if (dc->exit_to_mainloop) {
             tcg_gen_exit_tb(NULL, 0);
         } else {
             tcg_gen_lookup_and_goto_ptr();
