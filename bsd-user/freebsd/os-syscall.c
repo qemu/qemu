@@ -32,7 +32,9 @@
 #include "qemu/cutils.h"
 #include "qemu/path.h"
 #include <sys/syscall.h>
+#include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <utime.h>
 
@@ -371,6 +373,122 @@ static abi_long freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     case TARGET_FREEBSD_NR_sync: /* sync(2) */
         ret = do_bsd_sync();
+        break;
+
+    case TARGET_FREEBSD_NR_mount: /* mount(2) */
+        ret = do_bsd_mount(arg1, arg2, arg3, arg4);
+        break;
+
+    case TARGET_FREEBSD_NR_unmount: /* unmount(2) */
+        ret = do_bsd_unmount(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_nmount: /* nmount(2) */
+        ret = do_bsd_nmount(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_symlink: /* symlink(2) */
+        ret = do_bsd_symlink(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_symlinkat: /* symlinkat(2) */
+        ret = do_bsd_symlinkat(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_readlink: /* readlink(2) */
+        ret = do_bsd_readlink(cpu_env, arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_readlinkat: /* readlinkat(2) */
+        ret = do_bsd_readlinkat(arg1, arg2, arg3, arg4);
+        break;
+
+    case TARGET_FREEBSD_NR_chmod: /* chmod(2) */
+        ret = do_bsd_chmod(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_fchmod: /* fchmod(2) */
+        ret = do_bsd_fchmod(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_lchmod: /* lchmod(2) */
+        ret = do_bsd_lchmod(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_fchmodat: /* fchmodat(2) */
+        ret = do_bsd_fchmodat(arg1, arg2, arg3, arg4);
+        break;
+
+    case TARGET_FREEBSD_NR_freebsd11_mknod: /* mknod(2) */
+        ret = do_bsd_freebsd11_mknod(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_freebsd11_mknodat: /* mknodat(2) */
+        ret = do_bsd_freebsd11_mknodat(arg1, arg2, arg3, arg4);
+        break;
+
+    case TARGET_FREEBSD_NR_mknodat: /* mknodat(2) */
+        ret = do_bsd_mknodat(cpu_env, arg1, arg2, arg3, arg4, arg5, arg6);
+        break;
+
+    case TARGET_FREEBSD_NR_chown: /* chown(2) */
+        ret = do_bsd_chown(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_fchown: /* fchown(2) */
+        ret = do_bsd_fchown(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_lchown: /* lchown(2) */
+        ret = do_bsd_lchown(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_fchownat: /* fchownat(2) */
+        ret = do_bsd_fchownat(arg1, arg2, arg3, arg4, arg5);
+        break;
+
+    case TARGET_FREEBSD_NR_chflags: /* chflags(2) */
+        ret = do_bsd_chflags(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_lchflags: /* lchflags(2) */
+        ret = do_bsd_lchflags(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_fchflags: /* fchflags(2) */
+        ret = do_bsd_fchflags(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_chroot: /* chroot(2) */
+        ret = do_bsd_chroot(arg1);
+        break;
+
+    case TARGET_FREEBSD_NR_flock: /* flock(2) */
+        ret = do_bsd_flock(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_mkfifo: /* mkfifo(2) */
+        ret = do_bsd_mkfifo(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_mkfifoat: /* mkfifoat(2) */
+        ret = do_bsd_mkfifoat(arg1, arg2, arg3);
+        break;
+
+    case TARGET_FREEBSD_NR_pathconf: /* pathconf(2) */
+        ret = do_bsd_pathconf(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_lpathconf: /* lpathconf(2) */
+        ret = do_bsd_lpathconf(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_fpathconf: /* fpathconf(2) */
+        ret = do_bsd_fpathconf(arg1, arg2);
+        break;
+
+    case TARGET_FREEBSD_NR_undelete: /* undelete(2) */
+        ret = do_bsd_undelete(arg1);
         break;
 
     default:

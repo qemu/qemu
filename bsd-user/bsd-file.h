@@ -252,7 +252,7 @@ static abi_long do_bsd_openat(abi_long arg1, abi_long arg2,
 }
 
 /* close(2) */
-static inline abi_long do_bsd_close(abi_long arg1)
+static abi_long do_bsd_close(abi_long arg1)
 {
     return get_errno(close(arg1));
 }
@@ -547,6 +547,396 @@ static abi_long do_bsd_sync(void)
 {
     sync();
     return 0;
+}
+
+/* mount(2) */
+static abi_long do_bsd_mount(abi_long arg1, abi_long arg2, abi_long arg3,
+        abi_long arg4)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg2);
+    /*
+     * XXX arg4 should be locked, but it isn't clear how to do that since it may
+     * be not be a NULL-terminated string.
+     */
+    if (arg4 == 0) {
+        ret = get_errno(mount(p1, p2, arg3, NULL)); /* XXX path(p2)? */
+    } else {
+        ret = get_errno(mount(p1, p2, arg3, g2h_untagged(arg4))); /* XXX path(p2)? */
+    }
+    UNLOCK_PATH2(p1, arg1, p2, arg2);
+
+    return ret;
+}
+
+/* unmount(2) */
+static abi_long do_bsd_unmount(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(unmount(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* nmount(2) */
+static abi_long do_bsd_nmount(abi_long arg1, abi_long count,
+        abi_long flags)
+{
+    abi_long ret;
+    struct iovec *vec = lock_iovec(VERIFY_READ, arg1, count, 1);
+
+    if (vec != NULL) {
+        ret = get_errno(nmount(vec, count, flags));
+        unlock_iovec(vec, arg1, count, 0);
+    } else {
+        return -TARGET_EFAULT;
+    }
+
+    return ret;
+}
+
+/* symlink(2) */
+static abi_long do_bsd_symlink(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg2);
+    ret = get_errno(symlink(p1, p2)); /* XXX path(p1), path(p2) */
+    UNLOCK_PATH2(p1, arg1, p2, arg2);
+
+    return ret;
+}
+
+/* symlinkat(2) */
+static abi_long do_bsd_symlinkat(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH2(p1, arg1, p2, arg3);
+    ret = get_errno(symlinkat(p1, arg2, p2)); /* XXX path(p1), path(p2) */
+    UNLOCK_PATH2(p1, arg1, p2, arg3);
+
+    return ret;
+}
+
+/* readlink(2) */
+static abi_long do_bsd_readlink(CPUArchState *env, abi_long arg1,
+        abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH(p1, arg1);
+    p2 = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+    if (p2 == NULL) {
+        UNLOCK_PATH(p1, arg1);
+        return -TARGET_EFAULT;
+    }
+    if (strcmp(p1, "/proc/curproc/file") == 0) {
+        CPUState *cpu = env_cpu(env);
+        TaskState *ts = (TaskState *)cpu->opaque;
+        strncpy(p2, ts->bprm->fullpath, arg3);
+        ret = MIN((abi_long)strlen(ts->bprm->fullpath), arg3);
+    } else {
+        ret = get_errno(readlink(path(p1), p2, arg3));
+    }
+    unlock_user(p2, arg2, ret);
+    UNLOCK_PATH(p1, arg1);
+
+    return ret;
+}
+
+/* readlinkat(2) */
+static abi_long do_bsd_readlinkat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p1, *p2;
+
+    LOCK_PATH(p1, arg2);
+    p2 = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+    if (p2 == NULL) {
+        UNLOCK_PATH(p1, arg2);
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(readlinkat(arg1, p1, p2, arg4));
+    unlock_user(p2, arg3, ret);
+    UNLOCK_PATH(p1, arg2);
+
+    return ret;
+}
+
+/* chmod(2) */
+static abi_long do_bsd_chmod(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chmod(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchmod(2) */
+static abi_long do_bsd_fchmod(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fchmod(arg1, arg2));
+}
+
+/* lchmod(2) */
+static abi_long do_bsd_lchmod(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchmod(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchmodat(2) */
+static abi_long do_bsd_fchmodat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(fchmodat(arg1, p, arg3, arg4));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* pre-ino64 mknod(2) */
+static abi_long do_bsd_freebsd11_mknod(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(syscall(SYS_freebsd11_mknod, p, arg2, arg3));
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* pre-ino64 mknodat(2) */
+static abi_long do_bsd_freebsd11_mknodat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(syscall(SYS_freebsd11_mknodat, arg1, p, arg3, arg4));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* post-ino64 mknodat(2) */
+static abi_long do_bsd_mknodat(void *cpu_env, abi_long arg1,
+        abi_long arg2, abi_long arg3, abi_long arg4, abi_long arg5,
+        abi_long arg6)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+       /* 32-bit arch's use two 32 registers for 64 bit return value */
+    if (regpairs_aligned(cpu_env) != 0) {
+        ret = get_errno(mknodat(arg1, p, arg3, target_arg64(arg5, arg6)));
+    } else {
+        ret = get_errno(mknodat(arg1, p, arg3, target_arg64(arg4, arg5)));
+    }
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* chown(2) */
+static abi_long do_bsd_chown(abi_long arg1, abi_long arg2, abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chown(p, arg2, arg3)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchown(2) */
+static abi_long do_bsd_fchown(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    return get_errno(fchown(arg1, arg2, arg3));
+}
+
+/* lchown(2) */
+static abi_long do_bsd_lchown(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchown(p, arg2, arg3)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchownat(2) */
+static abi_long do_bsd_fchownat(abi_long arg1, abi_long arg2,
+        abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(fchownat(arg1, p, arg3, arg4, arg5)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* chflags(2) */
+static abi_long do_bsd_chflags(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chflags(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* lchflags(2) */
+static abi_long do_bsd_lchflags(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lchflags(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fchflags(2) */
+static abi_long do_bsd_fchflags(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fchflags(arg1, arg2));
+}
+
+/* chroot(2) */
+static abi_long do_bsd_chroot(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(chroot(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* flock(2) */
+static abi_long do_bsd_flock(abi_long arg1, abi_long arg2)
+{
+    return get_errno(flock(arg1, arg2));
+}
+
+/* mkfifo(2) */
+static abi_long do_bsd_mkfifo(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(mkfifo(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* mkfifoat(2) */
+static abi_long do_bsd_mkfifoat(abi_long arg1, abi_long arg2,
+        abi_long arg3)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg2);
+    ret = get_errno(mkfifoat(arg1, p, arg3));
+    UNLOCK_PATH(p, arg2);
+
+    return ret;
+}
+
+/* pathconf(2) */
+static abi_long do_bsd_pathconf(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(pathconf(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* lpathconf(2) */
+static abi_long do_bsd_lpathconf(abi_long arg1, abi_long arg2)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(lpathconf(p, arg2)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
+}
+
+/* fpathconf(2) */
+static abi_long do_bsd_fpathconf(abi_long arg1, abi_long arg2)
+{
+    return get_errno(fpathconf(arg1, arg2));
+}
+
+/* undelete(2) */
+static abi_long do_bsd_undelete(abi_long arg1)
+{
+    abi_long ret;
+    void *p;
+
+    LOCK_PATH(p, arg1);
+    ret = get_errno(undelete(p)); /* XXX path(p)? */
+    UNLOCK_PATH(p, arg1);
+
+    return ret;
 }
 
 #endif /* BSD_FILE_H */
