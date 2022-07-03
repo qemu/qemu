@@ -167,6 +167,9 @@ void pmp_update_rule_addr(CPURISCVState *env, uint32_t pmp_index)
     case PMP_AMATCH_TOR:
         sa = prev_addr << 2; /* shift up from [xx:0] to [xx+2:2] */
         ea = (this_addr << 2) - 1u;
+        if (sa > ea) {
+            sa = ea = 0u;
+        }
         break;
 
     case PMP_AMATCH_NA4:
