@@ -182,7 +182,6 @@ enum guessed_disk_nature_type {
 typedef enum guessed_disk_nature_type VirtioGDN;
 
 VirtioGDN virtio_guessed_disk_nature(void);
-void virtio_assume_scsi(void);
 void virtio_assume_eckd(void);
 void virtio_assume_iso9660(void);
 
