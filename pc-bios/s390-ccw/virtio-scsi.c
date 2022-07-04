@@ -329,7 +329,7 @@ static void scsi_parse_capacity_report(void *data,
     }
 }
 
-int virtio_scsi_setup(VDev *vdev)
+static int virtio_scsi_setup(VDev *vdev)
 {
     int retry_test_unit_ready = 3;
     uint8_t data[256];
@@ -429,4 +429,21 @@ int virtio_scsi_setup(VDev *vdev)
                                (uint32_t *) &vdev->scsi_block_size);
 
     return 0;
+}
+
+int virtio_scsi_setup_device(SubChannelId schid)
+{
+    VDev *vdev = virtio_get_device();
+
+    vdev->schid = schid;
+    virtio_setup_ccw(vdev);
+
+    IPL_assert(vdev->config.scsi.sense_size == VIRTIO_SCSI_SENSE_SIZE,
+               "Config: sense size mismatch");
+    IPL_assert(vdev->config.scsi.cdb_size == VIRTIO_SCSI_CDB_SIZE,
+               "Config: CDB size mismatch");
+
+    sclp_print("Using virtio-scsi.\n");
+
+    return virtio_scsi_setup(vdev);
 }

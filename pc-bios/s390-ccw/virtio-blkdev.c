@@ -222,27 +222,11 @@ uint64_t virtio_get_blocks(void)
 int virtio_blk_setup_device(SubChannelId schid)
 {
     VDev *vdev = virtio_get_device();
-    int ret = 0;
 
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
 
-    switch (vdev->senseid.cu_model) {
-    case VIRTIO_ID_BLOCK:
-        sclp_print("Using virtio-blk.\n");
-        break;
-    case VIRTIO_ID_SCSI:
-        IPL_assert(vdev->config.scsi.sense_size == VIRTIO_SCSI_SENSE_SIZE,
-            "Config: sense size mismatch");
-        IPL_assert(vdev->config.scsi.cdb_size == VIRTIO_SCSI_CDB_SIZE,
-            "Config: CDB size mismatch");
+    sclp_print("Using virtio-blk.\n");
 
-        sclp_print("Using virtio-scsi.\n");
-        ret = virtio_scsi_setup(vdev);
-        break;
-    default:
-        panic("\n! No IPL device available !\n");
-    }
-
-    return ret;
+    return 0;
 }
