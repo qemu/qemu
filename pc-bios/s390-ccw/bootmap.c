@@ -780,18 +780,37 @@ static void ipl_iso_el_torito(void)
     }
 }
 
+/**
+ * Detect whether we're trying to boot from an .ISO image.
+ * These always have a signature string "CD001" at offset 0x8001.
+ */
+static bool has_iso_signature(void)
+{
+    int blksize = virtio_get_block_size();
+
+    if (!blksize || virtio_read(0x8000 / blksize, sec)) {
+        return false;
+    }
+
+    return !memcmp("CD001", &sec[1], 5);
+}
+
 /***********************************************************************
  * Bus specific IPL sequences
  */
 
 static void zipl_load_vblk(void)
 {
-    if (virtio_guessed_disk_nature()) {
-        virtio_assume_iso9660();
-    }
-    ipl_iso_el_torito();
+    int blksize = virtio_get_block_size();
 
-    if (virtio_guessed_disk_nature()) {
+    if (blksize == VIRTIO_ISO_BLOCK_SIZE || has_iso_signature()) {
+        if (blksize != VIRTIO_ISO_BLOCK_SIZE) {
+            virtio_assume_iso9660();
+        }
+        ipl_iso_el_torito();
+    }
+
+    if (blksize != VIRTIO_DASD_DEFAULT_BLOCK_SIZE) {
         sclp_print("Using guessed DASD geometry.\n");
         virtio_assume_eckd();
     }
