@@ -56,7 +56,6 @@ static const USBDesc desc_canokey = {
         .iSerialNumber     = STR_SERIALNUMBER,
     },
     .full = &desc_device_canokey,
-    .high = &desc_device_canokey,
     .str  = desc_strings,
 };
 
@@ -104,16 +103,22 @@ int canokey_emu_transmit(
     key->ep_in_size[ep_in] += size;
     key->ep_in_state[ep_in] = CANOKEY_EP_IN_READY;
     /*
+     * wake up controller if we NAKed IN token before
+     * Note: this is a quirk for CanoKey CTAPHID
+     */
+    if (ep_in == CANOKEY_EMU_EP_CTAPHID) {
+        usb_wakeup(usb_ep_get(&key->dev, USB_TOKEN_IN, ep_in), 0);
+    }
+    /*
      * ready for more data in device loop
      *
      * Note: this is a quirk for CanoKey CTAPHID
      * because it calls multiple emu_transmit in one device_loop
      * but w/o data_in it would stuck in device_loop
-     * This has no side effect for CCID as it is strictly
-     * OUT then IN transfer
-     * However it has side effect for Control transfer
+     * This has side effect for CCID since CCID can send ZLP
+     * This also has side effect for Control transfer
      */
-    if (ep_in != 0) {
+    if (ep_in == CANOKEY_EMU_EP_CTAPHID) {
         canokey_emu_data_in(ep_in);
     }
     return 0;
@@ -208,6 +213,22 @@ static void canokey_handle_data(USBDevice *dev, USBPacket *p)
             /* update ep_out_size to actual len */
             key->ep_out_size[ep_out] = out_len;
             canokey_emu_data_out(ep_out, NULL);
+        }
+        /*
+         * Note: this is a quirk for CanoKey CTAPHID
+         *
+         * There is one code path that uses this device loop
+         * INTR IN -> useful data_in and useless device_loop -> NAKed
+         * INTR OUT -> useful device loop -> transmit -> wakeup
+         *   (useful thanks to both data_in and data_out having been called)
+         * the next INTR IN -> actual data to guest
+         *
+         * if there is no such device loop, there would be no further
+         * INTR IN, no device loop, no transmit hence no usb_wakeup
+         * then qemu would hang
+         */
+        if (ep_in == CANOKEY_EMU_EP_CTAPHID) {
+            canokey_emu_device_loop(); /* may call transmit multiple times */
         }
         break;
     case USB_TOKEN_IN:
