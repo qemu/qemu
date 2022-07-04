@@ -281,7 +281,7 @@ static void probe_boot_device(void)
     sclp_print("Could not find a suitable boot device (none specified)\n");
 }
 
-int main(void)
+void main(void)
 {
     sclp_setup();
     css_setup();
@@ -294,5 +294,4 @@ int main(void)
     }
 
     panic("Failed to load OS from hard disk\n");
-    return 0; /* make compiler happy */
 }
