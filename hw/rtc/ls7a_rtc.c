@@ -72,9 +72,6 @@ struct LS7ARtcState {
      */
     int64_t offset_toy;
     int64_t offset_rtc;
-    uint64_t save_toy_mon;
-    uint64_t save_toy_year;
-    uint64_t save_rtc;
     int64_t data;
     int tidx;
     uint32_t toymatch[3];
@@ -128,28 +125,21 @@ static inline void toy_val_to_time_year(uint64_t toy_year, struct tm *tm)
 }
 
 /* parse struct tm to toy value */
-static inline uint64_t toy_time_to_val_mon(struct tm tm)
+static inline uint64_t toy_time_to_val_mon(struct tm *tm)
 {
     uint64_t val = 0;
 
-    val = FIELD_DP32(val, TOY, MON, tm.tm_mon + 1);
-    val = FIELD_DP32(val, TOY, DAY, tm.tm_mday);
-    val = FIELD_DP32(val, TOY, HOUR, tm.tm_hour);
-    val = FIELD_DP32(val, TOY, MIN, tm.tm_min);
-    val = FIELD_DP32(val, TOY, SEC, tm.tm_sec);
+    val = FIELD_DP32(val, TOY, MON, tm->tm_mon + 1);
+    val = FIELD_DP32(val, TOY, DAY, tm->tm_mday);
+    val = FIELD_DP32(val, TOY, HOUR, tm->tm_hour);
+    val = FIELD_DP32(val, TOY, MIN, tm->tm_min);
+    val = FIELD_DP32(val, TOY, SEC, tm->tm_sec);
     return val;
 }
 
-static inline uint64_t toy_time_to_val_year(struct tm tm)
+static inline void toymatch_val_to_time(LS7ARtcState *s, uint64_t val, struct tm *tm)
 {
-    uint64_t year;
-
-    year = tm.tm_year;
-    return year;
-}
-
-static inline void toymatch_val_to_time(uint64_t val, struct tm *tm)
-{
+    qemu_get_timedate(tm, s->offset_toy);
     tm->tm_sec = FIELD_EX32(val, TOY_MATCH, SEC);
     tm->tm_min = FIELD_EX32(val, TOY_MATCH, MIN);
     tm->tm_hour = FIELD_EX32(val, TOY_MATCH, HOUR);
@@ -158,17 +148,18 @@ static inline void toymatch_val_to_time(uint64_t val, struct tm *tm)
     tm->tm_year += (FIELD_EX32(val, TOY_MATCH, YEAR) - (tm->tm_year & 0x3f));
 }
 
-static void toymatch_write(LS7ARtcState *s, struct tm *tm, uint64_t val, int num)
+static void toymatch_write(LS7ARtcState *s, uint64_t val, int num)
 {
     int64_t now, expire_time;
+    struct tm tm = {};
 
     /* it do not support write when toy disabled */
     if (toy_enabled(s)) {
         s->toymatch[num] = val;
-        /* caculate expire time */
+        /* calculate expire time */
         now = qemu_clock_get_ms(rtc_clock);
-        toymatch_val_to_time(val, tm);
-        expire_time = now + (qemu_timedate_diff(tm) - s->offset_toy) * 1000;
+        toymatch_val_to_time(s, val, &tm);
+        expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
         timer_mod(s->toy_timer[num], expire_time);
     }
 }
@@ -180,7 +171,7 @@ static void rtcmatch_write(LS7ARtcState *s, uint64_t val, int num)
     /* it do not support write when toy disabled */
     if (rtc_enabled(s)) {
         s->rtcmatch[num] = val;
-        /* caculate expire time */
+        /* calculate expire time */
         expire_ns = ticks_to_ns(val) - ticks_to_ns(s->offset_rtc);
         timer_mod_ns(s->rtc_timer[num], expire_ns);
     }
@@ -189,16 +180,8 @@ static void rtcmatch_write(LS7ARtcState *s, uint64_t val, int num)
 static void ls7a_toy_stop(LS7ARtcState *s)
 {
     int i;
-    struct tm tm;
-    /*
-     * save time when disabled toy,
-     * because toy time not add counters.
-     */
-    qemu_get_timedate(&tm, s->offset_toy);
-    s->save_toy_mon = toy_time_to_val_mon(tm);
-    s->save_toy_year = toy_time_to_val_year(tm);
 
-    /* delete timers, and when re-enabled, recaculate expire time */
+    /* delete timers, and when re-enabled, recalculate expire time */
     for (i = 0; i < TIMER_NUMS; i++) {
         timer_del(s->toy_timer[i]);
     }
@@ -207,13 +190,8 @@ static void ls7a_toy_stop(LS7ARtcState *s)
 static void ls7a_rtc_stop(LS7ARtcState *s)
 {
     int i;
-    uint64_t time;
 
-    /* save rtc time */
-    time = ls7a_rtc_ticks() + s->offset_rtc;
-    s->save_rtc = time;
-
-    /* delete timers, and when re-enabled, recaculate expire time */
+    /* delete timers, and when re-enabled, recalculate expire time */
     for (i = 0; i < TIMER_NUMS; i++) {
         timer_del(s->rtc_timer[i]);
     }
@@ -223,20 +201,13 @@ static void ls7a_toy_start(LS7ARtcState *s)
 {
     int i;
     uint64_t expire_time, now;
-    struct tm tm;
-    /*
-     * need to recaculate toy offset
-     * and expire time when enable it.
-     */
-    toy_val_to_time_mon(s->save_toy_mon, &tm);
-    toy_val_to_time_year(s->save_toy_year, &tm);
+    struct tm tm = {};
 
-    s->offset_toy = qemu_timedate_diff(&tm);
     now = qemu_clock_get_ms(rtc_clock);
 
-    /* recaculate expire time and enable timer */
+    /* recalculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
-        toymatch_val_to_time(s->toymatch[i], &tm);
+        toymatch_val_to_time(s, s->toymatch[i], &tm);
         expire_time = now + (qemu_timedate_diff(&tm) - s->offset_toy) * 1000;
         timer_mod(s->toy_timer[i], expire_time);
     }
@@ -245,16 +216,9 @@ static void ls7a_toy_start(LS7ARtcState *s)
 static void ls7a_rtc_start(LS7ARtcState *s)
 {
     int i;
-    uint64_t expire_time, now;
+    uint64_t expire_time;
 
-    /*
-     * need to recaculate rtc offset
-     * and expire time when enable it.
-     */
-    now = ls7a_rtc_ticks();
-    s->offset_rtc = s->save_rtc - now;
-
-    /* recaculate expire time and enable timer */
+    /* recalculate expire time and enable timer */
     for (i = 0; i < TIMER_NUMS; i++) {
         expire_time = ticks_to_ns(s->rtcmatch[i]) - ticks_to_ns(s->offset_rtc);
         timer_mod_ns(s->rtc_timer[i], expire_time);
@@ -269,23 +233,21 @@ static uint64_t ls7a_rtc_read(void *opaque, hwaddr addr, unsigned size)
 
     switch (addr) {
     case SYS_TOYREAD0:
-        /* if toy disabled, read save toy time */
         if (toy_enabled(s)) {
             qemu_get_timedate(&tm, s->offset_toy);
-            val = toy_time_to_val_mon(tm);
+            val = toy_time_to_val_mon(&tm);
         } else {
-            /* read save mon val */
-            val = s->save_toy_mon;
+            /* return 0 when toy disabled */
+            val = 0;
         }
         break;
     case SYS_TOYREAD1:
-        /* if toy disabled, read save toy time */
         if (toy_enabled(s)) {
             qemu_get_timedate(&tm, s->offset_toy);
             val = tm.tm_year;
         } else {
-            /* read save year val */
-            val = s->save_toy_year;
+            /* return 0 when toy disabled */
+            val = 0;
         }
         break;
     case SYS_TOYMATCH0:
@@ -301,11 +263,11 @@ static uint64_t ls7a_rtc_read(void *opaque, hwaddr addr, unsigned size)
         val = s->cntrctl;
         break;
     case SYS_RTCREAD0:
-        /* if rtc disabled, read save rtc time */
         if (rtc_enabled(s)) {
             val = ls7a_rtc_ticks() + s->offset_rtc;
         } else {
-            val = s->save_rtc;
+            /* return 0 when rtc disabled */
+            val = 0;
         }
         break;
     case SYS_RTCMATCH0:
@@ -352,13 +314,13 @@ static void ls7a_rtc_write(void *opaque, hwaddr addr,
         }
         break;
     case SYS_TOYMATCH0:
-        toymatch_write(s, &tm, val, 0);
+        toymatch_write(s, val, 0);
         break;
     case SYS_TOYMATCH1:
-        toymatch_write(s, &tm, val, 1);
+        toymatch_write(s, val, 1);
         break;
     case SYS_TOYMATCH2:
-        toymatch_write(s, &tm, val, 2);
+        toymatch_write(s, val, 2);
         break;
     case SYS_RTCCTRL:
         /* get old ctrl */
@@ -423,7 +385,7 @@ static void toy_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (toy_enabled(s)) {
-        qemu_irq_pulse(s->irq);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -432,7 +394,7 @@ static void rtc_timer_cb(void *opaque)
     LS7ARtcState *s = opaque;
 
     if (rtc_enabled(s)) {
-        qemu_irq_pulse(s->irq);
+        qemu_irq_raise(s->irq);
     }
 }
 
@@ -455,11 +417,26 @@ static void ls7a_rtc_realize(DeviceState *dev, Error **errp)
     }
     d->offset_toy = 0;
     d->offset_rtc = 0;
-    d->save_toy_mon = 0;
-    d->save_toy_year = 0;
-    d->save_rtc = 0;
 
-    create_unimplemented_device("mmio fallback 1", 0x10013ffc, 0x4);
+}
+
+/* delete timer and clear reg when reset */
+static void ls7a_rtc_reset(DeviceState *dev)
+{
+    int i;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    LS7ARtcState *d = LS7A_RTC(sbd);
+    for (i = 0; i < TIMER_NUMS; i++) {
+        if (toy_enabled(d)) {
+            timer_del(d->toy_timer[i]);
+        }
+        if (rtc_enabled(d)) {
+            timer_del(d->rtc_timer[i]);
+        }
+        d->toymatch[i] = 0;
+        d->rtcmatch[i] = 0;
+    }
+    d->cntrctl = 0;
 }
 
 static int ls7a_rtc_pre_save(void *opaque)
@@ -495,9 +472,6 @@ static const VMStateDescription vmstate_ls7a_rtc = {
     .fields = (VMStateField[]) {
         VMSTATE_INT64(offset_toy, LS7ARtcState),
         VMSTATE_INT64(offset_rtc, LS7ARtcState),
-        VMSTATE_UINT64(save_toy_mon, LS7ARtcState),
-        VMSTATE_UINT64(save_toy_year, LS7ARtcState),
-        VMSTATE_UINT64(save_rtc, LS7ARtcState),
         VMSTATE_UINT32_ARRAY(toymatch, LS7ARtcState, TIMER_NUMS),
         VMSTATE_UINT32_ARRAY(rtcmatch, LS7ARtcState, TIMER_NUMS),
         VMSTATE_UINT32(cntrctl, LS7ARtcState),
@@ -510,6 +484,7 @@ static void ls7a_rtc_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->vmsd = &vmstate_ls7a_rtc;
     dc->realize = ls7a_rtc_realize;
+    dc->reset = ls7a_rtc_reset;
     dc->desc = "ls7a rtc";
 }
 

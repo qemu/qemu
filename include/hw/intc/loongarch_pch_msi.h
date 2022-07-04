@@ -17,4 +17,6 @@ struct LoongArchPCHMSI {
     SysBusDevice parent_obj;
     qemu_irq pch_msi_irq[PCH_MSI_IRQ_NUM];
     MemoryRegion msi_mmio;
+    /* irq base passed to upper extioi intc */
+    unsigned int irq_base;
 };
