@@ -166,46 +166,19 @@ void virtio_assume_eckd(void)
         virtio_eckd_sectors_for_block_size(vdev->config.blk.blk_size);
 }
 
-bool virtio_disk_is_scsi(void)
-{
-    VDev *vdev = virtio_get_device();
-
-    if (vdev->guessed_disk_nature == VIRTIO_GDN_SCSI) {
-        return true;
-    }
-    switch (vdev->senseid.cu_model) {
-    case VIRTIO_ID_BLOCK:
-        return (vdev->config.blk.geometry.heads == 255)
-            && (vdev->config.blk.geometry.sectors == 63)
-            && (virtio_get_block_size()  == VIRTIO_SCSI_BLOCK_SIZE);
-    case VIRTIO_ID_SCSI:
-        return true;
-    }
-    return false;
-}
-
-bool virtio_disk_is_eckd(void)
-{
-    VDev *vdev = virtio_get_device();
-    const int block_size = virtio_get_block_size();
-
-    if (vdev->guessed_disk_nature == VIRTIO_GDN_DASD) {
-        return true;
-    }
-    switch (vdev->senseid.cu_model) {
-    case VIRTIO_ID_BLOCK:
-        return (vdev->config.blk.geometry.heads == 15)
-            && (vdev->config.blk.geometry.sectors ==
-                virtio_eckd_sectors_for_block_size(block_size));
-    case VIRTIO_ID_SCSI:
-        return false;
-    }
-    return false;
-}
-
 bool virtio_ipl_disk_is_valid(void)
 {
-    return virtio_disk_is_scsi() || virtio_disk_is_eckd();
+    int blksize = virtio_get_block_size();
+    VDev *vdev = virtio_get_device();
+
+    if (vdev->guessed_disk_nature == VIRTIO_GDN_SCSI ||
+        vdev->guessed_disk_nature == VIRTIO_GDN_DASD) {
+        return true;
+    }
+
+    return (vdev->senseid.cu_model == VIRTIO_ID_BLOCK ||
+            vdev->senseid.cu_model == VIRTIO_ID_SCSI) &&
+           blksize >= 512 && blksize <= 4096;
 }
 
 int virtio_get_block_size(void)
