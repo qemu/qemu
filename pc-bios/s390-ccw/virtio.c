@@ -262,10 +262,6 @@ void virtio_setup_ccw(VDev *vdev)
     rc = run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status), false);
     IPL_assert(rc == 0, "Could not write DRIVER status to host");
 
-    IPL_assert(
-        run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size, false) == 0,
-       "Could not get block device configuration");
-
     /* Feature negotiation */
     for (i = 0; i < ARRAY_SIZE(vdev->guest_features); i++) {
         feats.features = 0;
@@ -277,6 +273,9 @@ void virtio_setup_ccw(VDev *vdev)
         rc = run_ccw(vdev, CCW_CMD_WRITE_FEAT, &feats, sizeof(feats), false);
         IPL_assert(rc == 0, "Could not set features bits");
     }
+
+    rc = run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size, false);
+    IPL_assert(rc == 0, "Could not get virtio device configuration");
 
     for (i = 0; i < vdev->nr_vqs; i++) {
         VqInfo info = {
