@@ -155,7 +155,7 @@ void virtio_assume_eckd(void)
     vdev->config.blk.physical_block_exp = 0;
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_BLOCK:
-        vdev->config.blk.blk_size = 4096;
+        vdev->config.blk.blk_size = VIRTIO_DASD_DEFAULT_BLOCK_SIZE;
         break;
     case VIRTIO_ID_SCSI:
         vdev->config.blk.blk_size = vdev->scsi_block_size;

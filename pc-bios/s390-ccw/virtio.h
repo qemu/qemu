@@ -198,6 +198,7 @@ extern int virtio_read_many(ulong sector, void *load_addr, int sec_num);
 #define VIRTIO_SECTOR_SIZE 512
 #define VIRTIO_ISO_BLOCK_SIZE 2048
 #define VIRTIO_SCSI_BLOCK_SIZE 512
+#define VIRTIO_DASD_DEFAULT_BLOCK_SIZE 4096
 
 static inline ulong virtio_sector_adjust(ulong sector)
 {
