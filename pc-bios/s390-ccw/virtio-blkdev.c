@@ -13,6 +13,9 @@
 #include "virtio.h"
 #include "virtio-scsi.h"
 
+#define VIRTIO_BLK_F_GEOMETRY   (1 << 4)
+#define VIRTIO_BLK_F_BLK_SIZE   (1 << 6)
+
 static int virtio_blk_read_many(VDev *vdev, ulong sector, void *load_addr,
                                 int sec_num)
 {
@@ -223,6 +226,7 @@ int virtio_blk_setup_device(SubChannelId schid)
 {
     VDev *vdev = virtio_get_device();
 
+    vdev->guest_features[0] = VIRTIO_BLK_F_GEOMETRY | VIRTIO_BLK_F_BLK_SIZE;
     vdev->schid = schid;
     virtio_setup_ccw(vdev);
 
