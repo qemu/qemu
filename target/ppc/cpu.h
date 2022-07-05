@@ -1184,7 +1184,6 @@ struct CPUArchState {
      * by recent Book3s compatible CPUs (POWER7 and newer).
      */
     uint32_t irq_input_state;
-    void **irq_inputs;
 
     target_ulong excp_vectors[POWERPC_EXCP_NB]; /* Exception vectors */
     target_ulong excp_prefix;

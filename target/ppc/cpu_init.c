@@ -6678,7 +6678,6 @@ static void init_ppc_proc(PowerPCCPU *cpu)
 #if !defined(CONFIG_USER_ONLY)
     int i;
 
-    env->irq_inputs = NULL;
     /* Set all exception vectors to an invalid address */
     for (i = 0; i < POWERPC_EXCP_NB; i++) {
         env->excp_vectors[i] = (target_ulong)(-1ULL);
@@ -6807,10 +6806,6 @@ static void init_ppc_proc(PowerPCCPU *cpu)
         }
         /* Pre-compute some useful values */
         env->tlb_per_way = env->nb_tlb / env->nb_ways;
-    }
-    if (env->irq_inputs == NULL) {
-        warn_report("no internal IRQ controller registered."
-                    " Attempt QEMU to crash very soon !");
     }
 #endif
     if (env->check_pow == NULL) {
