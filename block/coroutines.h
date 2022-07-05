@@ -110,6 +110,4 @@ nbd_do_establish_connection(BlockDriverState *bs, bool blocking, Error **errp);
 int generated_co_wrapper
 blk_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
 
-int generated_co_wrapper blk_do_flush(BlockBackend *blk);
-
 #endif /* BLOCK_COROUTINES_H */

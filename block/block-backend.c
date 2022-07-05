@@ -1752,17 +1752,6 @@ int coroutine_fn blk_co_flush(BlockBackend *blk)
     return ret;
 }
 
-int blk_flush(BlockBackend *blk)
-{
-    int ret;
-
-    blk_inc_in_flight(blk);
-    ret = blk_do_flush(blk);
-    blk_dec_in_flight(blk);
-
-    return ret;
-}
-
 void blk_drain(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
