@@ -891,14 +891,14 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
 
     /* write all the data */
     ret = blk_pwrite(qcow_blk, 0, &header, sizeof(header), 0);
-    if (ret != sizeof(header)) {
+    if (ret < 0) {
         goto exit;
     }
 
     if (qcow_opts->has_backing_file) {
         ret = blk_pwrite(qcow_blk, sizeof(header),
                          qcow_opts->backing_file, backing_filename_len, 0);
-        if (ret != backing_filename_len) {
+        if (ret < 0) {
             goto exit;
         }
     }
@@ -908,7 +908,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
          i++) {
         ret = blk_pwrite(qcow_blk, header_size + BDRV_SECTOR_SIZE * i,
                          tmp, BDRV_SECTOR_SIZE, 0);
-        if (ret != BDRV_SECTOR_SIZE) {
+        if (ret < 0) {
             g_free(tmp);
             goto exit;
         }

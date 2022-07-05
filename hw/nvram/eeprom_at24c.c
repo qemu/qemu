@@ -64,8 +64,8 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
     case I2C_START_RECV:
         DPRINTK("clear\n");
         if (ee->blk && ee->changed) {
-            int len = blk_pwrite(ee->blk, 0, ee->mem, ee->rsize, 0);
-            if (len != ee->rsize) {
+            int ret = blk_pwrite(ee->blk, 0, ee->mem, ee->rsize, 0);
+            if (ret < 0) {
                 ERR(TYPE_AT24C_EE
                         " : failed to write backing file\n");
             }
@@ -165,9 +165,9 @@ void at24c_eeprom_reset(DeviceState *state)
     memset(ee->mem, 0, ee->rsize);
 
     if (ee->blk) {
-        int len = blk_pread(ee->blk, 0, ee->mem, ee->rsize);
+        int ret = blk_pread(ee->blk, 0, ee->mem, ee->rsize);
 
-        if (len != ee->rsize) {
+        if (ret < 0) {
             ERR(TYPE_AT24C_EE
                     " : Failed initial sync with backing file\n");
         }

@@ -240,7 +240,7 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
                 return;
             }
 
-            if (blk_pread(s->blk, 0, s->fuse, filesize) != filesize) {
+            if (blk_pread(s->blk, 0, s->fuse, filesize) < 0) {
                 error_setg(errp, "failed to read the initial flash content");
                 return;
             }

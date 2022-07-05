@@ -117,7 +117,7 @@ static void test_sync_op_blk_pread(BlockBackend *blk)
 
     /* Success */
     ret = blk_pread(blk, 0, buf, sizeof(buf));
-    g_assert_cmpint(ret, ==, 512);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
     ret = blk_pread(blk, -2, buf, sizeof(buf));
@@ -131,7 +131,7 @@ static void test_sync_op_blk_pwrite(BlockBackend *blk)
 
     /* Success */
     ret = blk_pwrite(blk, 0, buf, sizeof(buf), 0);
-    g_assert_cmpint(ret, ==, 512);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
     ret = blk_pwrite(blk, -2, buf, sizeof(buf), 0);
