@@ -1563,29 +1563,6 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                         flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
 }
 
-int blk_pread(BlockBackend *blk, int64_t offset, int64_t bytes, void *buf,
-              BdrvRequestFlags flags)
-{
-    int ret;
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
-    IO_OR_GS_CODE();
-
-    blk_inc_in_flight(blk);
-    ret = blk_do_preadv(blk, offset, bytes, &qiov, flags);
-    blk_dec_in_flight(blk);
-
-    return ret;
-}
-
-int blk_pwrite(BlockBackend *blk, int64_t offset, int64_t bytes,
-               const void *buf, BdrvRequestFlags flags)
-{
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
-    IO_OR_GS_CODE();
-
-    return blk_pwritev_part(blk, offset, bytes, &qiov, 0, flags);
-}
-
 int64_t blk_getlength(BlockBackend *blk)
 {
     IO_CODE();
