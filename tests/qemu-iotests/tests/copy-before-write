@@ -192,6 +192,11 @@ read 1048576/1048576 bytes at offset 0
 
     def test_timeout_break_guest(self):
         log = self.do_cbw_timeout('break-guest-write')
+        # macOS and FreeBSD tend to represent ETIMEDOUT as
+        # "Operation timed out", when Linux prefer
+        # "Connection timed out"
+        log = log.replace('Operation timed out',
+                          'Connection timed out')
         self.assertEqual(log, """\
 wrote 524288/524288 bytes at offset 0
 512 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
