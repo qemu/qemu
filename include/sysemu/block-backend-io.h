@@ -120,6 +120,10 @@ int generated_co_wrapper blk_preadv(BlockBackend *blk, int64_t offset,
 int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
                                int64_t bytes, QEMUIOVector *qiov,
                                BdrvRequestFlags flags);
+int generated_co_wrapper blk_pwritev_part(BlockBackend *blk, int64_t offset,
+                                          int64_t bytes, QEMUIOVector *qiov,
+                                          size_t qiov_offset,
+                                          BdrvRequestFlags flags);
 int coroutine_fn blk_co_pwritev_part(BlockBackend *blk, int64_t offset,
                                      int64_t bytes,
                                      QEMUIOVector *qiov, size_t qiov_offset,
