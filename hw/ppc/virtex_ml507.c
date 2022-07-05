@@ -111,9 +111,9 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
     sysbus_realize_and_unref(uicsbd, &error_fatal);
 
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
-                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT]);
+                       qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT,
-                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT]);
+                       qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
 
     /* This board doesn't wire anything up to the inputs of the UIC. */
     return cpu;
@@ -213,7 +213,7 @@ static void virtex_init(MachineState *machine)
     CPUPPCState *env;
     hwaddr ram_base = 0;
     DriveInfo *dinfo;
-    qemu_irq irq[32], *cpu_irq;
+    qemu_irq irq[32], cpu_irq;
     int kernel_size;
     int i;
 
@@ -236,12 +236,12 @@ static void virtex_init(MachineState *machine)
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1);
 
-    cpu_irq = (qemu_irq *) &env->irq_inputs[PPC40x_INPUT_INT];
+    cpu_irq = qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT);
     dev = qdev_new("xlnx.xps-intc");
     qdev_prop_set_uint32(dev, "kind-of-intr", 0);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq[0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irq);
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }

@@ -422,10 +422,7 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
 
 void ppc40x_irq_init(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc40x_set_irq,
-                                                  cpu, PPC40x_INPUT_NB);
+    qdev_init_gpio_in(DEVICE(cpu), ppc40x_set_irq, PPC40x_INPUT_NB);
 }
 
 /* PowerPC E500 internal IRQ controller */

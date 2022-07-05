@@ -1470,9 +1470,9 @@ PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
     sysbus_realize_and_unref(uicsbd, &error_fatal);
 
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
-                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT]);
+                       qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT,
-                       ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT]);
+                       qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
 
     *uicdevp = uicdev;
 
