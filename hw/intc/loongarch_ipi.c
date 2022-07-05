@@ -50,35 +50,45 @@ static uint64_t loongarch_ipi_readl(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static int get_ipi_data(target_ulong val)
+static void send_ipi_data(CPULoongArchState *env, target_ulong val, target_ulong addr)
 {
-    int i, mask, data;
+    int i, mask = 0, data = 0;
 
-    data = val >> 32;
-    mask = (val >> 27) & 0xf;
-
-    for (i = 0; i < 4; i++) {
-        if ((mask >> i) & 1) {
-            data &= ~(0xff << (i * 8));
+    /*
+     * bit 27-30 is mask for byte writing,
+     * if the mask is 0, we need not to do anything.
+     */
+    if ((val >> 27) & 0xf) {
+        data = address_space_ldl(&env->address_space_iocsr, addr,
+                                 MEMTXATTRS_UNSPECIFIED, NULL);
+        for (i = 0; i < 4; i++) {
+            /* get mask for byte writing */
+            if (val & (0x1 << (27 + i))) {
+                mask |= 0xff << (i * 8);
+            }
         }
     }
-    return data;
+
+    data &= mask;
+    data |= (val >> 32) & ~mask;
+    address_space_stl(&env->address_space_iocsr, addr,
+                      data, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void ipi_send(uint64_t val)
 {
     int cpuid, data;
     CPULoongArchState *env;
+    CPUState *cs;
+    LoongArchCPU *cpu;
 
     cpuid = (val >> 16) & 0x3ff;
     /* IPI status vector */
     data = 1 << (val & 0x1f);
-    qemu_mutex_lock_iothread();
-    CPUState *cs = qemu_get_cpu(cpuid);
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    cs = qemu_get_cpu(cpuid);
+    cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     loongarch_cpu_set_irq(cpu, IRQ_IPI, 1);
-    qemu_mutex_unlock_iothread();
     address_space_stl(&env->address_space_iocsr, 0x1008,
                       data, MEMTXATTRS_UNSPECIFIED, NULL);
 
@@ -86,23 +96,23 @@ static void ipi_send(uint64_t val)
 
 static void mail_send(uint64_t val)
 {
-    int cpuid, data;
+    int cpuid;
     hwaddr addr;
     CPULoongArchState *env;
+    CPUState *cs;
+    LoongArchCPU *cpu;
 
     cpuid = (val >> 16) & 0x3ff;
     addr = 0x1020 + (val & 0x1c);
-    CPUState *cs = qemu_get_cpu(cpuid);
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    cs = qemu_get_cpu(cpuid);
+    cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
-    data = get_ipi_data(val);
-    address_space_stl(&env->address_space_iocsr, addr,
-                      data, MEMTXATTRS_UNSPECIFIED, NULL);
+    send_ipi_data(env, val, addr);
 }
 
 static void any_send(uint64_t val)
 {
-    int cpuid, data;
+    int cpuid;
     hwaddr addr;
     CPULoongArchState *env;
 
@@ -111,9 +121,7 @@ static void any_send(uint64_t val)
     CPUState *cs = qemu_get_cpu(cpuid);
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
-    data = get_ipi_data(val);
-    address_space_stl(&env->address_space_iocsr, addr,
-                      data, MEMTXATTRS_UNSPECIFIED, NULL);
+    send_ipi_data(env, val, addr);
 }
 
 static void loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
@@ -150,12 +158,6 @@ static void loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
     case IOCSR_IPI_SEND:
         ipi_send(val);
         break;
-    case IOCSR_MAIL_SEND:
-        mail_send(val);
-        break;
-    case IOCSR_ANY_SEND:
-        any_send(val);
-        break;
     default:
         qemu_log_mask(LOG_UNIMP, "invalid write: %x", (uint32_t)addr);
         break;
@@ -168,6 +170,32 @@ static const MemoryRegionOps loongarch_ipi_ops = {
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
     .valid.min_access_size = 4,
+    .valid.max_access_size = 8,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+/* mail send and any send only support writeq */
+static void loongarch_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned size)
+{
+    addr &= 0xfff;
+    switch (addr) {
+    case MAIL_SEND_OFFSET:
+        mail_send(val);
+        break;
+    case ANY_SEND_OFFSET:
+        any_send(val);
+        break;
+    default:
+       break;
+    }
+}
+
+static const MemoryRegionOps loongarch_ipi64_ops = {
+    .write = loongarch_ipi_writeq,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .valid.min_access_size = 8,
     .valid.max_access_size = 8,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -187,8 +215,12 @@ static void loongarch_ipi_init(Object *obj)
     lams = LOONGARCH_MACHINE(machine);
     for (cpu = 0; cpu < MAX_IPI_CORE_NUM; cpu++) {
         memory_region_init_io(&s->ipi_iocsr_mem[cpu], obj, &loongarch_ipi_ops,
-                            &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x100);
+                            &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x48);
         sysbus_init_mmio(sbd, &s->ipi_iocsr_mem[cpu]);
+
+        memory_region_init_io(&s->ipi64_iocsr_mem[cpu], obj, &loongarch_ipi64_ops,
+                              &lams->ipi_core[cpu], "loongarch_ipi64_iocsr", 0x118);
+        sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem[cpu]);
         qdev_init_gpio_out(DEVICE(obj), &lams->ipi_core[cpu].irq, 1);
     }
 }

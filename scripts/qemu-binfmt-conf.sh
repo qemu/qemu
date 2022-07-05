@@ -171,6 +171,9 @@ qemu_get_family() {
     riscv*)
         echo "riscv"
         ;;
+    loongarch*)
+        echo "loongarch"
+        ;;
     *)
         echo "$cpu"
         ;;

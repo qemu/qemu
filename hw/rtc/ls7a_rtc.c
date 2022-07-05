@@ -86,46 +86,31 @@ struct LS7ARtcState {
 };
 
 /* switch nanoseconds time to rtc ticks */
-static inline uint64_t ls7a_rtc_ticks(void)
+static uint64_t ls7a_rtc_ticks(void)
 {
     return qemu_clock_get_ns(rtc_clock) * LS7A_RTC_FREQ / NANOSECONDS_PER_SECOND;
 }
 
 /* switch rtc ticks to nanoseconds */
-static inline uint64_t ticks_to_ns(uint64_t ticks)
+static uint64_t ticks_to_ns(uint64_t ticks)
 {
     return ticks * NANOSECONDS_PER_SECOND / LS7A_RTC_FREQ;
 }
 
-static inline bool toy_enabled(LS7ARtcState *s)
+static bool toy_enabled(LS7ARtcState *s)
 {
     return FIELD_EX32(s->cntrctl, RTC_CTRL, TOYEN) &&
            FIELD_EX32(s->cntrctl, RTC_CTRL, EO);
 }
 
-static inline bool rtc_enabled(LS7ARtcState *s)
+static bool rtc_enabled(LS7ARtcState *s)
 {
     return FIELD_EX32(s->cntrctl, RTC_CTRL, RTCEN) &&
            FIELD_EX32(s->cntrctl, RTC_CTRL, EO);
 }
 
-/* parse toy value to struct tm */
-static inline void toy_val_to_time_mon(uint64_t toy_val, struct tm *tm)
-{
-    tm->tm_sec = FIELD_EX32(toy_val, TOY, SEC);
-    tm->tm_min = FIELD_EX32(toy_val, TOY, MIN);
-    tm->tm_hour = FIELD_EX32(toy_val, TOY, HOUR);
-    tm->tm_mday = FIELD_EX32(toy_val, TOY, DAY);
-    tm->tm_mon = FIELD_EX32(toy_val, TOY, MON) - 1;
-}
-
-static inline void toy_val_to_time_year(uint64_t toy_year, struct tm *tm)
-{
-    tm->tm_year = toy_year;
-}
-
 /* parse struct tm to toy value */
-static inline uint64_t toy_time_to_val_mon(struct tm *tm)
+static uint64_t toy_time_to_val_mon(const struct tm *tm)
 {
     uint64_t val = 0;
 
@@ -137,7 +122,7 @@ static inline uint64_t toy_time_to_val_mon(struct tm *tm)
     return val;
 }
 
-static inline void toymatch_val_to_time(LS7ARtcState *s, uint64_t val, struct tm *tm)
+static void toymatch_val_to_time(LS7ARtcState *s, uint64_t val, struct tm *tm)
 {
     qemu_get_timedate(tm, s->offset_toy);
     tm->tm_sec = FIELD_EX32(val, TOY_MATCH, SEC);

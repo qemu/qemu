@@ -24,8 +24,9 @@
 #define IOCSR_MAIL_SEND       0x48
 #define IOCSR_ANY_SEND        0x158
 
-/* IPI system memory address */
-#define IPI_SYSTEM_MEM        0x1fe01000
+#define MAIL_SEND_ADDR        (SMP_IPI_MAILBOX + IOCSR_MAIL_SEND)
+#define MAIL_SEND_OFFSET      0
+#define ANY_SEND_OFFSET       (IOCSR_ANY_SEND - IOCSR_MAIL_SEND)
 
 #define MAX_IPI_CORE_NUM      4
 #define MAX_IPI_MBX_NUM       4
@@ -46,7 +47,7 @@ typedef struct IPICore {
 struct LoongArchIPI {
     SysBusDevice parent_obj;
     MemoryRegion ipi_iocsr_mem[MAX_IPI_CORE_NUM];
-    MemoryRegion ipi_system_mem[MAX_IPI_CORE_NUM];
+    MemoryRegion ipi64_iocsr_mem[MAX_IPI_CORE_NUM];
 };
 
 #endif

@@ -823,13 +823,6 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 
 static void tcg_target_init(TCGContext *s)
 {
-#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
-    const char *envval = getenv("DEBUG_TCG");
-    if (envval) {
-        qemu_set_log(strtol(envval, NULL, 0));
-    }
-#endif
-
     /* The current code uses uint8_t for tcg operations. */
     tcg_debug_assert(tcg_op_defs_max <= UINT8_MAX);
 
