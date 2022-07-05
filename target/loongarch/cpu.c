@@ -479,6 +479,7 @@ static void loongarch_cpu_reset(DeviceState *dev)
 
 #ifndef CONFIG_USER_ONLY
     env->pc = 0x1c000000;
+    memset(env->tlb, 0, sizeof(env->tlb));
 #endif
 
     restore_fp_status(env);
