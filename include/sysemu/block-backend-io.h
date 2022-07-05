@@ -167,7 +167,10 @@ int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
 int generated_co_wrapper blk_flush(BlockBackend *blk);
 int coroutine_fn blk_co_flush(BlockBackend *blk);
 
-int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
+int generated_co_wrapper blk_ioctl(BlockBackend *blk, unsigned long int req,
+                                   void *buf);
+int coroutine_fn blk_co_ioctl(BlockBackend *blk, unsigned long int req,
+                              void *buf);
 
 int generated_co_wrapper blk_pwrite_compressed(BlockBackend *blk,
                                                int64_t offset, int64_t bytes,
