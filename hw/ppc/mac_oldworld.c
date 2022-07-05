@@ -271,7 +271,7 @@ static void ppc_heathrow_init(MachineState *machine)
         case PPC_FLAGS_INPUT_6xx:
             /* XXX: we register only 1 output pin for heathrow PIC */
             qdev_connect_gpio_out(pic_dev, 0,
-                ((qemu_irq *)env->irq_inputs)[PPC6xx_INPUT_INT]);
+                              qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT));
             break;
         default:
             error_report("Bus model not supported on OldWorld Mac machine");
