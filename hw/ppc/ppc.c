@@ -234,10 +234,7 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
 
 void ppc970_irq_init(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, cpu,
-                                                  PPC970_INPUT_NB);
+    qdev_init_gpio_in(DEVICE(cpu), ppc970_set_irq, PPC970_INPUT_NB);
 }
 
 /* POWER7 internal IRQ controller */
@@ -260,10 +257,7 @@ static void power7_set_irq(void *opaque, int pin, int level)
 
 void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-
-    env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, cpu,
-                                                  POWER7_INPUT_NB);
+    qdev_init_gpio_in(DEVICE(cpu), power7_set_irq, POWER7_INPUT_NB);
 }
 
 /* POWER9 internal IRQ controller */
@@ -292,10 +286,7 @@ static void power9_set_irq(void *opaque, int pin, int level)
 
 void ppcPOWER9_irq_init(PowerPCCPU *cpu)
 {
-    CPUPPCState *env = &cpu->env;
-
-    env->irq_inputs = (void **)qemu_allocate_irqs(&power9_set_irq, cpu,
-                                                  POWER9_INPUT_NB);
+    qdev_init_gpio_in(DEVICE(cpu), power9_set_irq, POWER9_INPUT_NB);
 }
 #endif /* defined(TARGET_PPC64) */
 
