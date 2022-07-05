@@ -150,12 +150,6 @@ static void loongarch_ipi_writel(void *opaque, hwaddr addr, uint64_t val,
     case IOCSR_IPI_SEND:
         ipi_send(val);
         break;
-    case IOCSR_MAIL_SEND:
-        mail_send(val);
-        break;
-    case IOCSR_ANY_SEND:
-        any_send(val);
-        break;
     default:
         qemu_log_mask(LOG_UNIMP, "invalid write: %x", (uint32_t)addr);
         break;
@@ -168,6 +162,32 @@ static const MemoryRegionOps loongarch_ipi_ops = {
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
     .valid.min_access_size = 4,
+    .valid.max_access_size = 8,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+/* mail send and any send only support writeq */
+static void loongarch_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned size)
+{
+    addr &= 0xfff;
+    switch (addr) {
+    case MAIL_SEND_OFFSET:
+        mail_send(val);
+        break;
+    case ANY_SEND_OFFSET:
+        any_send(val);
+        break;
+    default:
+       break;
+    }
+}
+
+static const MemoryRegionOps loongarch_ipi64_ops = {
+    .write = loongarch_ipi_writeq,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .valid.min_access_size = 8,
     .valid.max_access_size = 8,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -187,8 +207,12 @@ static void loongarch_ipi_init(Object *obj)
     lams = LOONGARCH_MACHINE(machine);
     for (cpu = 0; cpu < MAX_IPI_CORE_NUM; cpu++) {
         memory_region_init_io(&s->ipi_iocsr_mem[cpu], obj, &loongarch_ipi_ops,
-                            &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x100);
+                            &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x48);
         sysbus_init_mmio(sbd, &s->ipi_iocsr_mem[cpu]);
+
+        memory_region_init_io(&s->ipi64_iocsr_mem[cpu], obj, &loongarch_ipi64_ops,
+                              &lams->ipi_core[cpu], "loongarch_ipi64_iocsr", 0x118);
+        sysbus_init_mmio(sbd, &s->ipi64_iocsr_mem[cpu]);
         qdev_init_gpio_out(DEVICE(obj), &lams->ipi_core[cpu].irq, 1);
     }
 }

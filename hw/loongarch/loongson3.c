@@ -230,7 +230,10 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
         /* IPI iocsr memory region */
         memory_region_add_subregion(&env->system_iocsr, SMP_IPI_MAILBOX,
                                     sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    cpu));
+                                    cpu * 2));
+        memory_region_add_subregion(&env->system_iocsr, MAIL_SEND_ADDR,
+                                    sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
+                                    cpu * 2 + 1));
         /* extioi iocsr memory region */
         memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
