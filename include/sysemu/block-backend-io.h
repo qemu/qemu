@@ -129,7 +129,7 @@ static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
 }
 
 static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
-                                             int64_t bytes, void *buf,
+                                             int64_t bytes, const void *buf,
                                              BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
