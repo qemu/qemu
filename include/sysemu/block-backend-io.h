@@ -159,6 +159,8 @@ static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
     return blk_co_pwritev(blk, offset, bytes, &qiov, flags);
 }
 
+int generated_co_wrapper blk_pdiscard(BlockBackend *blk, int64_t offset,
+                                      int64_t bytes);
 int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
                                  int64_t bytes);
 
@@ -172,7 +174,6 @@ int generated_co_wrapper blk_pwrite_compressed(BlockBackend *blk,
                                                const void *buf);
 int coroutine_fn blk_co_pwrite_compressed(BlockBackend *blk, int64_t offset,
                                           int64_t bytes, const void *buf);
-int blk_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
 int generated_co_wrapper blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                            int64_t bytes,
                                            BdrvRequestFlags flags);
