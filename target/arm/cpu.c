@@ -828,13 +828,6 @@ static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
     bool sctlr_b;
 
     if (is_a64(env)) {
-        /* We might not be compiled with the A64 disassembler
-         * because it needs a C++ compiler. Leave print_insn
-         * unset in this case to use the caller default behaviour.
-         */
-#if defined(CONFIG_ARM_A64_DIS)
-        info->print_insn = print_insn_arm_a64;
-#endif
         info->cap_arch = CS_ARCH_ARM64;
         info->cap_insn_unit = 4;
         info->cap_insn_split = 4;

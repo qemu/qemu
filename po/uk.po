@@ -1,0 +1,75 @@
+# Ukrainian translation for QEMU.
+# This file is put in the public domain.
+# Andrij Mizyk <andmizyk@gmail.com>, 2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: QEMU 1.4.50\n"
+"Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
+"POT-Creation-Date: 2018-07-18 07:56+0200\n"
+"PO-Revision-Date: 2022-06-13 01:33+0300\n"
+"Last-Translator: Andrij Mizyk <andmizyk@gmail.com>\n"
+"Language-Team: Ukrainian\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Gtranslator 2.91.6\n"
+
+msgid " - Press Ctrl+Alt+G to release grab"
+msgstr " - Натисніть Ctrl+Alt+G, щоб відпустити захоплення"
+
+msgid " [Paused]"
+msgstr " [Призупинено]"
+
+msgid "_Pause"
+msgstr "_Призупинити"
+
+msgid "_Reset"
+msgstr "_Скинути"
+
+msgid "Power _Down"
+msgstr "Вимкнути _живлення"
+
+msgid "_Quit"
+msgstr "_Вийти"
+
+msgid "_Fullscreen"
+msgstr "Повний _екран"
+
+msgid "_Copy"
+msgstr "_Копіювати"
+
+msgid "Zoom _In"
+msgstr "_Збільшити"
+
+msgid "Zoom _Out"
+msgstr "З_меншити"
+
+msgid "Best _Fit"
+msgstr "Найкращий _розмір"
+
+msgid "Zoom To _Fit"
+msgstr "Збільшити до _розміру"
+
+msgid "Grab On _Hover"
+msgstr "Захопити при _наведенні"
+
+msgid "_Grab Input"
+msgstr "Захопити _введення"
+
+msgid "Show _Tabs"
+msgstr "Показувати _вкладки"
+
+msgid "Detach Tab"
+msgstr "Відʼєднати вкладку"
+
+msgid "Show Menubar"
+msgstr "Показувати рядок меню"
+
+msgid "_Machine"
+msgstr "_Машина"
+
+msgid "_View"
+msgstr "_Вигляд"

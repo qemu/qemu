@@ -1,61 +1,85 @@
 # All jobs needing docker-opensbi must use the same rules it uses.
 .opensbi_job_rules:
- rules: # Only run this job when ...
- - changes:
-   # this file is modified
-   - .gitlab-ci.d/opensbi.yml
-   # or the Dockerfile is modified
-   - .gitlab-ci.d/opensbi/Dockerfile
-   when: on_success
- - changes: # or roms/opensbi/ is modified (submodule updated)
-   - roms/opensbi/*
-   when: on_success
- - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/' # or the branch/tag starts with 'opensbi'
-   when: on_success
- - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i' # or last commit description contains 'OpenSBI'
-   when: on_success
+  rules:
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if any files affecting the build output are touched
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      changes:
+        - .gitlab-ci.d/opensbi.yml
+        - .gitlab-ci.d/opensbi/Dockerfile
+        - roms/opensbi/*
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the branch/tag starts with 'opensbi'
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_REF_NAME =~ /^opensbi/'
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the last commit msg contains 'OpenSBI' (case insensitive)
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_MESSAGE =~ /opensbi/i'
+      when: manual
+
+    # Run if any files affecting the build output are touched
+    - changes:
+        - .gitlab-ci.d/opensbi.yml
+        - .gitlab-ci.d/opensbi/Dockerfile
+        - roms/opensbi/*
+      when: on_success
+
+    # Run if the branch/tag starts with 'opensbi'
+    - if: '$CI_COMMIT_REF_NAME =~ /^opensbi/'
+      when: on_success
+
+    # Run if the last commit msg contains 'OpenSBI' (case insensitive)
+    - if: '$CI_COMMIT_MESSAGE =~ /opensbi/i'
+      when: on_success
 
 docker-opensbi:
- extends: .opensbi_job_rules
- stage: containers
- image: docker:19.03.1
- services:
- - docker:19.03.1-dind
- variables:
-  GIT_DEPTH: 3
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:opensbi-cross-build
-  # We don't use TLS
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
- before_script:
- - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
- script:
- - docker pull $IMAGE_TAG || true
- - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-                                        --tag $IMAGE_TAG .gitlab-ci.d/opensbi
- - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
- - docker push $IMAGE_TAG
+  extends: .opensbi_job_rules
+  stage: containers
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  variables:
+    GIT_DEPTH: 3
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:opensbi-cross-build
+    # We don't use TLS
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_TAG || true
+    - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+                                           --tag $IMAGE_TAG .gitlab-ci.d/opensbi
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker push $IMAGE_TAG
 
 build-opensbi:
- extends: .opensbi_job_rules
- stage: build
- needs: ['docker-opensbi']
- artifacts:
-   paths: # 'artifacts.zip' will contains the following files:
-   - pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
-   - pc-bios/opensbi-riscv64-generic-fw_dynamic.bin
-   - opensbi32-generic-stdout.log
-   - opensbi32-generic-stderr.log
-   - opensbi64-generic-stdout.log
-   - opensbi64-generic-stderr.log
- image: $CI_REGISTRY_IMAGE:opensbi-cross-build
- variables:
-   GIT_DEPTH: 3
- script: # Clone the required submodules and build OpenSBI
- - git submodule update --init roms/opensbi
- - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
- - echo "=== Using ${JOBS} simultaneous jobs ==="
- - make -j${JOBS} -C roms/opensbi clean
- - make -j${JOBS} -C roms opensbi32-generic 2>&1 1>opensbi32-generic-stdout.log | tee -a opensbi32-generic-stderr.log >&2
- - make -j${JOBS} -C roms/opensbi clean
- - make -j${JOBS} -C roms opensbi64-generic 2>&1 1>opensbi64-generic-stdout.log | tee -a opensbi64-generic-stderr.log >&2
+  extends: .opensbi_job_rules
+  stage: build
+  needs: ['docker-opensbi']
+  artifacts:
+    paths: # 'artifacts.zip' will contains the following files:
+      - pc-bios/opensbi-riscv32-generic-fw_dynamic.bin
+      - pc-bios/opensbi-riscv64-generic-fw_dynamic.bin
+      - opensbi32-generic-stdout.log
+      - opensbi32-generic-stderr.log
+      - opensbi64-generic-stdout.log
+      - opensbi64-generic-stderr.log
+  image: $CI_REGISTRY_IMAGE:opensbi-cross-build
+  variables:
+    GIT_DEPTH: 3
+  script: # Clone the required submodules and build OpenSBI
+    - git submodule update --init roms/opensbi
+    - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
+    - echo "=== Using ${JOBS} simultaneous jobs ==="
+    - make -j${JOBS} -C roms/opensbi clean
+    - make -j${JOBS} -C roms opensbi32-generic 2>&1 1>opensbi32-generic-stdout.log | tee -a opensbi32-generic-stderr.log >&2
+    - make -j${JOBS} -C roms/opensbi clean
+    - make -j${JOBS} -C roms opensbi64-generic 2>&1 1>opensbi64-generic-stdout.log | tee -a opensbi64-generic-stderr.log >&2

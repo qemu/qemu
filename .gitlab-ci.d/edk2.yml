@@ -1,60 +1,85 @@
 # All jobs needing docker-edk2 must use the same rules it uses.
 .edk2_job_rules:
- rules: # Only run this job when ...
- - changes:
-   # this file is modified
-   - .gitlab-ci.d/edk2.yml
-   # or the Dockerfile is modified
-   - .gitlab-ci.d/edk2/Dockerfile
-   # or roms/edk2/ is modified (submodule updated)
-   - roms/edk2/*
-   when: on_success
- - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
-   when: on_success
- - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
-   when: on_success
+  rules:
+    # Forks don't get pipelines unless QEMU_CI=1 or QEMU_CI=2 is set
+    - if: '$QEMU_CI != "1" && $QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      when: never
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if any of the files affecting the build are touched
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project"'
+      changes:
+        - .gitlab-ci.d/edk2.yml
+        - .gitlab-ci.d/edk2/Dockerfile
+        - roms/edk2/*
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if the branch/tag starts with 'edk2'
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_REF_NAME =~ /^edk2/'
+      when: manual
+
+    # In forks, if QEMU_CI=1 is set, then create manual job
+    # if last commit msg contains 'EDK2' (case insensitive)
+    - if: '$QEMU_CI == "1" && $CI_PROJECT_NAMESPACE != "qemu-project" && $CI_COMMIT_MESSAGE =~ /edk2/i'
+      when: manual
+
+    # Run if any files affecting the build output are touched
+    - changes:
+        - .gitlab-ci.d/edk2.yml
+        - .gitlab-ci.d/edk2/Dockerfile
+        - roms/edk2/*
+      when: on_success
+
+    # Run if the branch/tag starts with 'edk2'
+    - if: '$CI_COMMIT_REF_NAME =~ /^edk2/'
+      when: on_success
+
+    # Run if last commit msg contains 'EDK2' (case insensitive)
+    - if: '$CI_COMMIT_MESSAGE =~ /edk2/i'
+      when: on_success
 
 docker-edk2:
- extends: .edk2_job_rules
- stage: containers
- image: docker:19.03.1
- services:
- - docker:19.03.1-dind
- variables:
-  GIT_DEPTH: 3
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:edk2-cross-build
-  # We don't use TLS
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
- before_script:
- - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
- script:
- - docker pull $IMAGE_TAG || true
- - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
-                                        --tag $IMAGE_TAG .gitlab-ci.d/edk2
- - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
- - docker push $IMAGE_TAG
+  extends: .edk2_job_rules
+  stage: containers
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  variables:
+    GIT_DEPTH: 3
+    IMAGE_TAG: $CI_REGISTRY_IMAGE:edk2-cross-build
+    # We don't use TLS
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $IMAGE_TAG || true
+    - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+                                           --tag $IMAGE_TAG .gitlab-ci.d/edk2
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker push $IMAGE_TAG
 
 build-edk2:
- extends: .edk2_job_rules
- stage: build
- needs: ['docker-edk2']
- artifacts:
-   paths: # 'artifacts.zip' will contains the following files:
-   - pc-bios/edk2*bz2
-   - pc-bios/edk2-licenses.txt
-   - edk2-stdout.log
-   - edk2-stderr.log
- image: $CI_REGISTRY_IMAGE:edk2-cross-build
- variables:
-   GIT_DEPTH: 3
- script: # Clone the required submodules and build EDK2
- - git submodule update --init roms/edk2
- - git -C roms/edk2 submodule update --init --
-     ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
-     BaseTools/Source/C/BrotliCompress/brotli
-     CryptoPkg/Library/OpensslLib/openssl
-     MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
- - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
- - echo "=== Using ${JOBS} simultaneous jobs ==="
- - make -j${JOBS} -C roms efi 2>&1 1>edk2-stdout.log | tee -a edk2-stderr.log >&2
+  extends: .edk2_job_rules
+  stage: build
+  needs: ['docker-edk2']
+  artifacts:
+    paths: # 'artifacts.zip' will contains the following files:
+      - pc-bios/edk2*bz2
+      - pc-bios/edk2-licenses.txt
+      - edk2-stdout.log
+      - edk2-stderr.log
+  image: $CI_REGISTRY_IMAGE:edk2-cross-build
+  variables:
+    GIT_DEPTH: 3
+  script: # Clone the required submodules and build EDK2
+    - git submodule update --init roms/edk2
+    - git -C roms/edk2 submodule update --init --
+       ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
+       BaseTools/Source/C/BrotliCompress/brotli
+       CryptoPkg/Library/OpensslLib/openssl
+       MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
+    - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
+    - echo "=== Using ${JOBS} simultaneous jobs ==="
+    - make -j${JOBS} -C roms efi 2>&1 1>edk2-stdout.log | tee -a edk2-stderr.log >&2
