@@ -198,6 +198,20 @@ static void test_sync_op_blk_pwritev_part(BlockBackend *blk)
     g_assert_cmpint(ret, ==, -EIO);
 }
 
+static void test_sync_op_blk_pwrite_compressed(BlockBackend *blk)
+{
+    uint8_t buf[512] = { 0 };
+    int ret;
+
+    /* Late error: Not supported */
+    ret = blk_pwrite_compressed(blk, 0, sizeof(buf), buf);
+    g_assert_cmpint(ret, ==, -ENOTSUP);
+
+    /* Early error: Negative offset */
+    ret = blk_pwrite_compressed(blk, -2, sizeof(buf), buf);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
 static void test_sync_op_load_vmstate(BdrvChild *c)
 {
     uint8_t buf[512];
@@ -377,6 +391,10 @@ const SyncOpTest sync_op_tests[] = {
         .name   = "/sync-op/pwritev_part",
         .fn     = NULL,
         .blkfn  = test_sync_op_blk_pwritev_part,
+    }, {
+        .name   = "/sync-op/pwrite_compressed",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_pwrite_compressed,
     }, {
         .name   = "/sync-op/load_vmstate",
         .fn     = test_sync_op_load_vmstate,
