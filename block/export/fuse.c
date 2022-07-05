@@ -554,7 +554,7 @@ static void fuse_read(fuse_req_t req, fuse_ino_t inode,
         return;
     }
 
-    ret = blk_pread(exp->common.blk, offset, buf, size);
+    ret = blk_pread(exp->common.blk, offset, buf, size, 0);
     if (ret >= 0) {
         fuse_reply_buf(req, buf, size);
     } else {

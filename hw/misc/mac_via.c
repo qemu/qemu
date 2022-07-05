@@ -1029,7 +1029,7 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        ret = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM));
+        ret = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM), 0);
         if (ret < 0) {
             error_setg(errp, "can't read PRAM contents");
             return;

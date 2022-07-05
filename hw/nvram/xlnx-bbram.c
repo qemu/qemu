@@ -124,7 +124,7 @@ static void bbram_bdrv_read(XlnxBBRam *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, ram, nr) < 0) {
+    if (blk_pread(s->blk, 0, ram, nr, 0) < 0) {
         error_setg(errp,
                    "%s: Failed to read %u bytes from BBRAM backstore.",
                    blk_name(s->blk), nr);

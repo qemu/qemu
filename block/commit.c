@@ -527,7 +527,7 @@ int bdrv_commit(BlockDriverState *bs)
             goto ro_cleanup;
         }
         if (ret) {
-            ret = blk_pread(src, offset, buf, n);
+            ret = blk_pread(src, offset, buf, n, 0);
             if (ret < 0) {
                 goto ro_cleanup;
             }

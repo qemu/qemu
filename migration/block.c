@@ -568,8 +568,8 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 bmds_set_aio_inflight(bmds, sector, nr_sectors, 1);
                 blk_mig_unlock();
             } else {
-                ret = blk_pread(bmds->blk, sector * BDRV_SECTOR_SIZE, blk->buf,
-                                nr_sectors * BDRV_SECTOR_SIZE);
+                ret = blk_pread(bmds->blk, sector * BDRV_SECTOR_SIZE,
+                                blk->buf, nr_sectors * BDRV_SECTOR_SIZE, 0);
                 if (ret < 0) {
                     goto error;
                 }

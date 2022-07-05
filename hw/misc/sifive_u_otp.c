@@ -65,7 +65,7 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
                 int32_t buf;
 
                 if (blk_pread(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD, &buf,
-                              SIFIVE_U_OTP_FUSE_WORD) < 0) {
+                              SIFIVE_U_OTP_FUSE_WORD, 0) < 0) {
                     error_report("read error index<%d>", s->pa);
                     return 0xff;
                 }
@@ -240,7 +240,7 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
                 return;
             }
 
-            if (blk_pread(s->blk, 0, s->fuse, filesize) < 0) {
+            if (blk_pread(s->blk, 0, s->fuse, filesize, 0) < 0) {
                 error_setg(errp, "failed to read the initial flash content");
                 return;
             }

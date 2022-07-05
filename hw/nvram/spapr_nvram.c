@@ -179,7 +179,7 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
     }
 
     if (nvram->blk) {
-        ret = blk_pread(nvram->blk, 0, nvram->buf, nvram->size);
+        ret = blk_pread(nvram->blk, 0, nvram->buf, nvram->size, 0);
 
         if (ret < 0) {
             error_setg(errp, "can't read spapr-nvram contents");

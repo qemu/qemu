@@ -63,7 +63,7 @@ static int guess_disk_lchs(BlockBackend *blk,
 
     blk_get_geometry(blk, &nb_sectors);
 
-    if (blk_pread(blk, 0, buf, BDRV_SECTOR_SIZE) < 0) {
+    if (blk_pread(blk, 0, buf, BDRV_SECTOR_SIZE, 0) < 0) {
         return -1;
     }
     /* test msdos magic */

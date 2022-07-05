@@ -1628,8 +1628,8 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
         if (fdctrl->data_dir != FD_DIR_WRITE ||
             len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
-            if (blk_pread(cur_drv->blk, fd_offset(cur_drv),
-                          fdctrl->fifo, BDRV_SECTOR_SIZE) < 0) {
+            if (blk_pread(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
+                          BDRV_SECTOR_SIZE, 0) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1741,7 +1741,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                     return 0;
                 }
             if (blk_pread(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
-                          BDRV_SECTOR_SIZE)
+                          BDRV_SECTOR_SIZE, 0)
                 < 0) {
                 FLOPPY_DPRINTF("error getting sector %d\n",
                                fd_sector(cur_drv));

@@ -547,7 +547,7 @@ static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
         return -ERANGE;
     }
 
-    ret = blk_pread(blk, offset, (uint8_t *)buf, bytes);
+    ret = blk_pread(blk, offset, (uint8_t *)buf, bytes, 0);
     if (ret < 0) {
         return ret;
     }

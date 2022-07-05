@@ -667,7 +667,7 @@ static void glue(nand_blk_write_, NAND_PAGE_SIZE)(NANDFlashState *s)
         off = (s->addr & PAGE_MASK) + s->offset;
         soff = SECTOR_OFFSET(s->addr);
         if (blk_pread(s->blk, sector << BDRV_SECTOR_BITS, iobuf,
-                      PAGE_SECTORS << BDRV_SECTOR_BITS) < 0) {
+                      PAGE_SECTORS << BDRV_SECTOR_BITS, 0) < 0) {
             printf("%s: read error in sector %" PRIu64 "\n", __func__, sector);
             return;
         }
@@ -688,7 +688,7 @@ static void glue(nand_blk_write_, NAND_PAGE_SIZE)(NANDFlashState *s)
         sector = off >> 9;
         soff = off & 0x1ff;
         if (blk_pread(s->blk, sector << BDRV_SECTOR_BITS, iobuf,
-                      (PAGE_SECTORS + 2) << BDRV_SECTOR_BITS) < 0) {
+                      (PAGE_SECTORS + 2) << BDRV_SECTOR_BITS, 0) < 0) {
             printf("%s: read error in sector %" PRIu64 "\n", __func__, sector);
             return;
         }
@@ -731,7 +731,7 @@ static void glue(nand_blk_erase_, NAND_PAGE_SIZE)(NANDFlashState *s)
         addr = PAGE_START(addr);
         page = addr >> 9;
         if (blk_pread(s->blk, page << BDRV_SECTOR_BITS, iobuf,
-                      BDRV_SECTOR_SIZE) < 0) {
+                      BDRV_SECTOR_SIZE, 0) < 0) {
             printf("%s: read error in sector %" PRIu64 "\n", __func__, page);
         }
         memset(iobuf + (addr & 0x1ff), 0xff, (~addr & 0x1ff) + 1);
@@ -752,7 +752,7 @@ static void glue(nand_blk_erase_, NAND_PAGE_SIZE)(NANDFlashState *s)
 
         page = i >> 9;
         if (blk_pread(s->blk, page << BDRV_SECTOR_BITS, iobuf,
-                      BDRV_SECTOR_SIZE) < 0) {
+                      BDRV_SECTOR_SIZE, 0) < 0) {
             printf("%s: read error in sector %" PRIu64 "\n", __func__, page);
         }
         memset(iobuf, 0xff, ((addr - 1) & 0x1ff) + 1);
@@ -773,7 +773,7 @@ static void glue(nand_blk_load_, NAND_PAGE_SIZE)(NANDFlashState *s,
     if (s->blk) {
         if (s->mem_oob) {
             if (blk_pread(s->blk, SECTOR(addr) << BDRV_SECTOR_BITS, s->io,
-                          PAGE_SECTORS << BDRV_SECTOR_BITS) < 0) {
+                          PAGE_SECTORS << BDRV_SECTOR_BITS, 0) < 0) {
                 printf("%s: read error in sector %" PRIu64 "\n",
                                 __func__, SECTOR(addr));
             }
@@ -783,7 +783,7 @@ static void glue(nand_blk_load_, NAND_PAGE_SIZE)(NANDFlashState *s,
             s->ioaddr = s->io + SECTOR_OFFSET(s->addr) + offset;
         } else {
             if (blk_pread(s->blk, PAGE_START(addr), s->io,
-                          (PAGE_SECTORS + 2) << BDRV_SECTOR_BITS) < 0) {
+                          (PAGE_SECTORS + 2) << BDRV_SECTOR_BITS, 0) < 0) {
                 printf("%s: read error in sector %" PRIu64 "\n",
                                 __func__, PAGE_START(addr) >> 9);
             }

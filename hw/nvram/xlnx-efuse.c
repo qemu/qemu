@@ -77,7 +77,7 @@ static int efuse_bdrv_read(XlnxEFuse *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, ram, nr) < 0) {
+    if (blk_pread(s->blk, 0, ram, nr, 0) < 0) {
         error_setg(errp, "%s: Failed to read %u bytes from eFUSE backstore.",
                    blk_name(s->blk), nr);
         return -1;
