@@ -3269,7 +3269,8 @@ static void xhci_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
 
     DPRINTF("%s\n", __func__);
     slotid = ep->dev->addr;
-    if (slotid == 0 || !xhci->slots[slotid-1].enabled) {
+    if (slotid == 0 || slotid > xhci->numslots ||
+        !xhci->slots[slotid - 1].enabled) {
         DPRINTF("%s: oops, no slot for dev %d\n", __func__, ep->dev->addr);
         return;
     }
