@@ -182,7 +182,11 @@ int generated_co_wrapper blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                            BdrvRequestFlags flags);
 int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                       int64_t bytes, BdrvRequestFlags flags);
-int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
-                 PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
+int generated_co_wrapper blk_truncate(BlockBackend *blk, int64_t offset,
+                                      bool exact, PreallocMode prealloc,
+                                      BdrvRequestFlags flags, Error **errp);
+int coroutine_fn blk_co_truncate(BlockBackend *blk, int64_t offset, bool exact,
+                                 PreallocMode prealloc, BdrvRequestFlags flags,
+                                 Error **errp);
 
 #endif /* BLOCK_BACKEND_IO_H */
