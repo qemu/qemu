@@ -1563,7 +1563,7 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                         flags | BDRV_REQ_ZERO_WRITE, cb, opaque);
 }
 
-int blk_pread(BlockBackend *blk, int64_t offset, int bytes, void *buf,
+int blk_pread(BlockBackend *blk, int64_t offset, int64_t bytes, void *buf,
               BdrvRequestFlags flags)
 {
     int ret;
@@ -1577,8 +1577,8 @@ int blk_pread(BlockBackend *blk, int64_t offset, int bytes, void *buf,
     return ret;
 }
 
-int blk_pwrite(BlockBackend *blk, int64_t offset, int bytes, const void *buf,
-               BdrvRequestFlags flags)
+int blk_pwrite(BlockBackend *blk, int64_t offset, int64_t bytes,
+               const void *buf, BdrvRequestFlags flags)
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
     IO_OR_GS_CODE();
