@@ -547,7 +547,7 @@ static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
         return -ERANGE;
     }
 
-    ret = blk_pread(blk, offset, (uint8_t *)buf, bytes, 0);
+    ret = blk_pread(blk, offset, bytes, (uint8_t *)buf, 0);
     if (ret < 0) {
         return ret;
     }
@@ -564,7 +564,7 @@ static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
         return -ERANGE;
     }
 
-    ret = blk_pwrite(blk, offset, (uint8_t *)buf, bytes, flags);
+    ret = blk_pwrite(blk, offset, bytes, (uint8_t *)buf, flags);
     if (ret < 0) {
         return ret;
     }

@@ -599,7 +599,7 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
     memset(tmp, 0, sizeof(tmp));
     memcpy(tmp, &header, sizeof(header));
 
-    ret = blk_pwrite(blk, 0, tmp, BDRV_SECTOR_SIZE, 0);
+    ret = blk_pwrite(blk, 0, BDRV_SECTOR_SIZE, tmp, 0);
     if (ret < 0) {
         goto exit;
     }

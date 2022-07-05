@@ -569,7 +569,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
                 blk_mig_unlock();
             } else {
                 ret = blk_pread(bmds->blk, sector * BDRV_SECTOR_SIZE,
-                                blk->buf, nr_sectors * BDRV_SECTOR_SIZE, 0);
+                                nr_sectors * BDRV_SECTOR_SIZE, blk->buf, 0);
                 if (ret < 0) {
                     goto error;
                 }
@@ -976,8 +976,8 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                                                 cluster_size,
                                                 BDRV_REQ_MAY_UNMAP);
                     } else {
-                        ret = blk_pwrite(blk, cur_addr, cur_buf,
-                                         cluster_size, 0);
+                        ret = blk_pwrite(blk, cur_addr, cluster_size, cur_buf,
+                                         0);
                     }
                     if (ret < 0) {
                         break;

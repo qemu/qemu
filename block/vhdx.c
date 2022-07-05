@@ -1665,13 +1665,13 @@ static int vhdx_create_new_metadata(BlockBackend *blk,
                                    VHDX_META_FLAGS_IS_VIRTUAL_DISK;
     vhdx_metadata_entry_le_export(&md_table_entry[4]);
 
-    ret = blk_pwrite(blk, metadata_offset, buffer, VHDX_HEADER_BLOCK_SIZE, 0);
+    ret = blk_pwrite(blk, metadata_offset, VHDX_HEADER_BLOCK_SIZE, buffer, 0);
     if (ret < 0) {
         goto exit;
     }
 
-    ret = blk_pwrite(blk, metadata_offset + (64 * KiB), entry_buffer,
-                     VHDX_METADATA_ENTRY_BUFFER_SIZE, 0);
+    ret = blk_pwrite(blk, metadata_offset + (64 * KiB),
+                     VHDX_METADATA_ENTRY_BUFFER_SIZE, entry_buffer, 0);
     if (ret < 0) {
         goto exit;
     }
@@ -1756,7 +1756,7 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
             s->bat[sinfo.bat_idx] = cpu_to_le64(s->bat[sinfo.bat_idx]);
             sector_num += s->sectors_per_block;
         }
-        ret = blk_pwrite(blk, file_offset, s->bat, length, 0);
+        ret = blk_pwrite(blk, file_offset, length, s->bat, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to write the BAT");
             goto exit;
@@ -1860,15 +1860,15 @@ static int vhdx_create_new_region_table(BlockBackend *blk,
     }
 
     /* Now write out the region headers to disk */
-    ret = blk_pwrite(blk, VHDX_REGION_TABLE_OFFSET, buffer,
-                     VHDX_HEADER_BLOCK_SIZE, 0);
+    ret = blk_pwrite(blk, VHDX_REGION_TABLE_OFFSET, VHDX_HEADER_BLOCK_SIZE,
+                     buffer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write first region table");
         goto exit;
     }
 
-    ret = blk_pwrite(blk, VHDX_REGION_TABLE2_OFFSET, buffer,
-                     VHDX_HEADER_BLOCK_SIZE, 0);
+    ret = blk_pwrite(blk, VHDX_REGION_TABLE2_OFFSET, VHDX_HEADER_BLOCK_SIZE,
+                     buffer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write second region table");
         goto exit;
@@ -2012,7 +2012,7 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
     creator = g_utf8_to_utf16("QEMU v" QEMU_VERSION, -1, NULL,
                               &creator_items, NULL);
     signature = cpu_to_le64(VHDX_FILE_SIGNATURE);
-    ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET, &signature, sizeof(signature),
+    ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET, sizeof(signature), &signature,
                      0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write file signature");
@@ -2020,7 +2020,7 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
     }
     if (creator) {
         ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET + sizeof(signature),
-                         creator, creator_items * sizeof(gunichar2), 0);
+                         creator_items * sizeof(gunichar2), creator, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to write creator field");
             goto delete_and_exit;

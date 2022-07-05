@@ -1037,7 +1037,7 @@ static int find_image_format(BlockBackend *file, const char *filename,
         return ret;
     }
 
-    ret = blk_pread(file, 0, buf, sizeof(buf), 0);
+    ret = blk_pread(file, 0, sizeof(buf), buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read image for determining its "
                          "format");

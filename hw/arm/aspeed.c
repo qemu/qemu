@@ -253,7 +253,7 @@ static void write_boot_rom(DriveInfo *dinfo, hwaddr addr, size_t rom_size,
     }
 
     storage = g_malloc0(rom_size);
-    if (blk_pread(blk, 0, storage, rom_size, 0) < 0) {
+    if (blk_pread(blk, 0, rom_size, storage, 0) < 0) {
         error_setg(errp, "failed to read the initial flash content");
         return;
     }

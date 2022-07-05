@@ -834,13 +834,13 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     block_size = 0x200000;
     num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
-    ret = blk_pwrite(blk, offset, footer, sizeof(*footer), 0);
+    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, footer, sizeof(*footer), 0);
+    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -850,7 +850,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
 
     memset(bat_sector, 0xFF, 512);
     for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
-        ret = blk_pwrite(blk, offset, bat_sector, 512, 0);
+        ret = blk_pwrite(blk, offset, 512, bat_sector, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -878,7 +878,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, &dyndisk_header, sizeof(dyndisk_header), 0);
+    ret = blk_pwrite(blk, offset, sizeof(dyndisk_header), &dyndisk_header, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -901,8 +901,8 @@ static int create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - sizeof(*footer),
-                     footer, sizeof(*footer), 0);
+    ret = blk_pwrite(blk, total_size - sizeof(*footer), sizeof(*footer),
+                     footer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;

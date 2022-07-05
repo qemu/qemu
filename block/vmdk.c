@@ -2236,12 +2236,12 @@ static int vmdk_init_extent(BlockBackend *blk,
     header.check_bytes[3] = 0xa;
 
     /* write all the data */
-    ret = blk_pwrite(blk, 0, &magic, sizeof(magic), 0);
+    ret = blk_pwrite(blk, 0, sizeof(magic), &magic, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
-    ret = blk_pwrite(blk, sizeof(magic), &header, sizeof(header), 0);
+    ret = blk_pwrite(blk, sizeof(magic), sizeof(header), &header, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -2261,7 +2261,7 @@ static int vmdk_init_extent(BlockBackend *blk,
         gd_buf[i] = cpu_to_le32(tmp);
     }
     ret = blk_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf, gd_buf_size, 0);
+                     gd_buf_size, gd_buf, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -2273,7 +2273,7 @@ static int vmdk_init_extent(BlockBackend *blk,
         gd_buf[i] = cpu_to_le32(tmp);
     }
     ret = blk_pwrite(blk, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf, gd_buf_size, 0);
+                     gd_buf_size, gd_buf, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
     }
@@ -2584,7 +2584,7 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
         desc_offset = 0x200;
     }
 
-    ret = blk_pwrite(blk, desc_offset, desc, desc_len, 0);
+    ret = blk_pwrite(blk, desc_offset, desc_len, desc, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write description");
         goto exit;
