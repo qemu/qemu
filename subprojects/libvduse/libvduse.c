@@ -1193,7 +1193,7 @@ static int vduse_dev_init(VduseDev *dev, const char *name,
     return 0;
 }
 
-static inline bool vduse_name_is_valid(const char *name)
+static inline bool vduse_name_is_invalid(const char *name)
 {
     return strlen(name) >= VDUSE_NAME_MAX || strstr(name, "..");
 }
@@ -1242,7 +1242,7 @@ VduseDev *vduse_dev_create_by_name(const char *name, uint16_t num_queues,
     VduseDev *dev;
     int ret;
 
-    if (!name || vduse_name_is_valid(name) || !ops ||
+    if (!name || vduse_name_is_invalid(name) || !ops ||
         !ops->enable_queue || !ops->disable_queue) {
         fprintf(stderr, "Invalid parameter for vduse\n");
         return NULL;
@@ -1276,7 +1276,7 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
     struct vduse_dev_config *dev_config;
     size_t size = offsetof(struct vduse_dev_config, config);
 
-    if (!name || vduse_name_is_valid(name) ||
+    if (!name || vduse_name_is_invalid(name) ||
         !has_feature(features,  VIRTIO_F_VERSION_1) || !config ||
         !config_size || !ops || !ops->enable_queue || !ops->disable_queue) {
         fprintf(stderr, "Invalid parameter for vduse\n");
