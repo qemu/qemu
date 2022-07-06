@@ -979,7 +979,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         base = rx_desc_base(s) + sizeof(desc) * s->mac_reg[RDH];
         pci_dma_read(d, base, &desc, sizeof(desc));
         desc.special = vlan_special;
-        desc.status |= (vlan_status | E1000_RXD_STAT_DD);
+        desc.status &= ~E1000_RXD_STAT_DD;
         if (desc.buffer_addr) {
             if (desc_offset < size) {
                 size_t iov_copy;
@@ -1013,6 +1013,9 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
             DBGOUT(RX, "Null RX descriptor!!\n");
         }
         pci_dma_write(d, base, &desc, sizeof(desc));
+        desc.status |= (vlan_status | E1000_RXD_STAT_DD);
+        pci_dma_write(d, base + offsetof(struct e1000_rx_desc, status),
+                      &desc.status, sizeof(desc.status));
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
