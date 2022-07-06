@@ -1257,7 +1257,7 @@ VduseDev *vduse_dev_create_by_name(const char *name, uint16_t num_queues,
     ret = vduse_dev_init(dev, name, num_queues, ops, priv);
     if (ret < 0) {
         fprintf(stderr, "Failed to init vduse device %s: %s\n",
-                name, strerror(ret));
+                name, strerror(-ret));
         free(dev);
         return NULL;
     }
@@ -1331,7 +1331,7 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
     ret = vduse_dev_init(dev, name, num_queues, ops, priv);
     if (ret < 0) {
         fprintf(stderr, "Failed to init vduse device %s: %s\n",
-                name, strerror(ret));
+                name, strerror(-ret));
         goto err;
     }
 
