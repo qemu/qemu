@@ -218,4 +218,5 @@ read failed: Permission denied
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],
-                 supported_protocols=['file'])
+                 supported_protocols=['file'],
+                 required_fmts=['copy-before-write'])
