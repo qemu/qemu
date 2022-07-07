@@ -100,7 +100,7 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
     uint64_t buid;
     uint32_t avail, addr, pgmask = 0;
 
-    if ((nargs != 3) || (nret != 5)) {
+    if ((nargs != 3) || ((nret != 5) && (nret != 6))) {
         goto param_error_exit;
     }
 
@@ -118,9 +118,20 @@ static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, avail);
-    rtas_st(rets, 2, 0x80000000); /* The largest window we can possibly have */
-    rtas_st(rets, 3, pgmask);
-    rtas_st(rets, 4, 0); /* DMA migration mask, not supported */
+    if (nret == 6) {
+        /*
+         * Set the Max TCE number as 1<<(58-21) = 0x20.0000.0000
+         * 1<<59 is the huge window start and 21 is 2M page shift.
+         */
+        rtas_st(rets, 2, 0x00000020);
+        rtas_st(rets, 3, 0x00000000);
+        rtas_st(rets, 4, pgmask);
+        rtas_st(rets, 5, 0); /* DMA migration mask, not supported */
+    } else {
+        rtas_st(rets, 2, 0x80000000);
+        rtas_st(rets, 3, pgmask);
+        rtas_st(rets, 4, 0); /* DMA migration mask, not supported */
+    }
 
     trace_spapr_iommu_ddw_query(buid, addr, avail, 0x80000000, pgmask);
     return;
@@ -215,6 +226,7 @@ static void rtas_ibm_remove_pe_dma_window(PowerPCCPU *cpu,
     SpaprPhbState *sphb;
     SpaprTceTable *tcet;
     uint32_t liobn;
+    bool def_win_removed;
 
     if ((nargs != 1) || (nret != 1)) {
         goto param_error_exit;
@@ -231,8 +243,22 @@ static void rtas_ibm_remove_pe_dma_window(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
+    def_win_removed = tcet->def_win;
     spapr_tce_table_disable(tcet);
     trace_spapr_iommu_ddw_remove(liobn);
+
+    /*
+     * PAPR+/LoPAPR says:
+     * The platform must restore the default DMA window for the PE on a call
+     * to the ibm,remove-pe-dma-window RTAS call when all of the following
+     * are true:
+     * a. The call removes the last DMA window remaining for the PE.
+     * b. The DMA window being removed is not the default window
+     */
+    if (spapr_phb_get_active_win_num(sphb) == 0 && !def_win_removed) {
+        spapr_phb_dma_reset(sphb);
+        trace_spapr_iommu_ddw_reset(sphb->buid, 0);
+    }
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     return;

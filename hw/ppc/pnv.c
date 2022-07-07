@@ -652,25 +652,19 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
-static int pnv_chip_power8_pic_print_info_child(Object *child, void *opaque)
-{
-    Monitor *mon = opaque;
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
-
-    if (phb3) {
-        pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
-        ics_pic_print_info(&phb3->lsis, mon);
-    }
-    return 0;
-}
-
 static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(chip);
+    int i;
 
     ics_pic_print_info(&chip8->psi.ics, mon);
-    object_child_foreach(OBJECT(chip),
-                         pnv_chip_power8_pic_print_info_child, mon);
+
+    for (i = 0; i < chip8->num_phbs; i++) {
+        PnvPHB3 *phb3 = &chip8->phbs[i];
+
+        pnv_phb3_msi_pic_print_info(&phb3->msis, mon);
+        ics_pic_print_info(&phb3->lsis, mon);
+    }
 }
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
@@ -1189,10 +1183,26 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     }
 }
 
-/* Attach a root port device */
-void pnv_phb_attach_root_port(PCIHostState *pci, const char *name)
+/*
+ * Attach a root port device.
+ *
+ * 'index' will be used both as a PCIE slot value and to calculate
+ * QOM id. 'chip_id' is going to be used as PCIE chassis for the
+ * root port.
+ */
+void pnv_phb_attach_root_port(PCIHostState *pci, const char *name,
+                              int index, int chip_id)
 {
     PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
+    g_autofree char *default_id = g_strdup_printf("%s[%d]", name, index);
+    const char *dev_id = DEVICE(root)->id;
+
+    object_property_add_child(OBJECT(pci->bus), dev_id ? dev_id : default_id,
+                              OBJECT(root));
+
+    /* Set unique chassis/slot values for the root port */
+    qdev_prop_set_uint8(DEVICE(root), "chassis", chip_id);
+    qdev_prop_set_uint16(DEVICE(root), "slot", index);
 
     pci_realize_and_unref(root, pci->bus, &error_fatal);
 }
@@ -1934,44 +1944,28 @@ PowerPCCPU *pnv_chip_find_cpu(PnvChip *chip, uint32_t pir)
     return NULL;
 }
 
-typedef struct ForeachPhb3Args {
-    int irq;
-    ICSState *ics;
-} ForeachPhb3Args;
-
-static int pnv_ics_get_child(Object *child, void *opaque)
-{
-    ForeachPhb3Args *args = opaque;
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
-
-    if (phb3) {
-        if (ics_valid_irq(&phb3->lsis, args->irq)) {
-            args->ics = &phb3->lsis;
-        }
-        if (ics_valid_irq(ICS(&phb3->msis), args->irq)) {
-            args->ics = ICS(&phb3->msis);
-        }
-    }
-    return args->ics ? 1 : 0;
-}
-
 static ICSState *pnv_ics_get(XICSFabric *xi, int irq)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    ForeachPhb3Args args = { irq, NULL };
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         if (ics_valid_irq(&chip8->psi.ics, irq)) {
             return &chip8->psi.ics;
         }
 
-        object_child_foreach(OBJECT(chip), pnv_ics_get_child, &args);
-        if (args.ics) {
-            return args.ics;
+        for (j = 0; j < chip8->num_phbs; j++) {
+            PnvPHB3 *phb3 = &chip8->phbs[j];
+
+            if (ics_valid_irq(&phb3->lsis, irq)) {
+                return &phb3->lsis;
+            }
+
+            if (ics_valid_irq(ICS(&phb3->msis), irq)) {
+                return ICS(&phb3->msis);
+            }
         }
     }
     return NULL;
@@ -1990,28 +1984,22 @@ PnvChip *pnv_get_chip(PnvMachineState *pnv, uint32_t chip_id)
     return NULL;
 }
 
-static int pnv_ics_resend_child(Object *child, void *opaque)
-{
-    PnvPHB3 *phb3 = (PnvPHB3 *) object_dynamic_cast(child, TYPE_PNV_PHB3);
-
-    if (phb3) {
-        ics_resend(&phb3->lsis);
-        ics_resend(ICS(&phb3->msis));
-    }
-    return 0;
-}
-
 static void pnv_ics_resend(XICSFabric *xi)
 {
     PnvMachineState *pnv = PNV_MACHINE(xi);
-    int i;
+    int i, j;
 
     for (i = 0; i < pnv->num_chips; i++) {
-        PnvChip *chip = pnv->chips[i];
         Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
 
         ics_resend(&chip8->psi.ics);
-        object_child_foreach(OBJECT(chip), pnv_ics_resend_child, NULL);
+
+        for (j = 0; j < chip8->num_phbs; j++) {
+            PnvPHB3 *phb3 = &chip8->phbs[j];
+
+            ics_resend(&phb3->lsis);
+            ics_resend(ICS(&phb3->msis));
+        }
     }
 }
 

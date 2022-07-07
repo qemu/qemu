@@ -13,22 +13,6 @@
 #include "qemu/host-utils.h"
 
 /*
- * QEMU version of the GETFIELD/SETFIELD macros
- *
- * These are common with the PnvXive model.
- */
-static inline uint64_t GETFIELD(uint64_t mask, uint64_t word)
-{
-    return (word & mask) >> ctz64(mask);
-}
-
-static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
-                                uint64_t value)
-{
-    return (word & ~mask) | ((value << ctz64(mask)) & mask);
-}
-
-/*
  * PBCQ XSCOM registers
  */
 

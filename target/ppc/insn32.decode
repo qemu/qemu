@@ -21,11 +21,11 @@
 @A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
 
 &D              rt ra si:int64_t
-@D              ...... rt:5 ra:5 si:s16                 &D
+@D              ...... rt:5 ra:5 si:s16                         &D
 
 &D_bf           bf l:bool ra imm
-@D_bfs          ...... bf:3 - l:1 ra:5 imm:s16          &D_bf
-@D_bfu          ...... bf:3 - l:1 ra:5 imm:16           &D_bf
+@D_bfs          ...... bf:3 . l:1 ra:5 imm:s16                  &D_bf
+@D_bfu          ...... bf:3 . l:1 ra:5 imm:16                   &D_bf
 
 %dq_si          4:s12  !function=times_16
 %dq_rtp         22:4   !function=times_2
@@ -38,7 +38,7 @@
 @DQ_TSXP        ...... ..... ra:5 ............ ....             &D si=%dq_si rt=%rt_tsxp
 
 %ds_si          2:s14  !function=times_4
-@DS             ...... rt:5 ra:5 .............. ..      &D si=%ds_si
+@DS             ...... rt:5 ra:5 .............. ..              &D si=%ds_si
 
 %ds_rtp         22:4   !function=times_2
 @DS_rtp         ...... ....0 ra:5 .............. ..             &D rt=%ds_rtp si=%ds_si
@@ -49,10 +49,10 @@
 
 &DX             rt d
 %dx_d           6:s10 16:5 0:1
-@DX             ...... rt:5  ..... .......... ..... .   &DX d=%dx_d
+@DX             ...... rt:5  ..... .......... ..... .           &DX d=%dx_d
 
 &VA             vrt vra vrb rc
-@VA             ...... vrt:5 vra:5 vrb:5 rc:5 ......    &VA
+@VA             ...... vrt:5 vra:5 vrb:5 rc:5 ......            &VA
 
 &VC             vrt vra vrb rc:bool
 @VC             ...... vrt:5 vra:5 vrb:5 rc:1 ..........        &VC
@@ -61,7 +61,7 @@
 @VN             ...... vrt:5 vra:5 vrb:5 .. sh:3 ......         &VN
 
 &VX             vrt vra vrb
-@VX             ...... vrt:5 vra:5 vrb:5 .......... .   &VX
+@VX             ...... vrt:5 vra:5 vrb:5 .......... .           &VX
 
 &VX_bf          bf vra vrb
 @VX_bf          ...... bf:3 .. vra:5 vrb:5 ...........          &VX_bf
@@ -76,16 +76,19 @@
 @VX_tb_rc       ...... vrt:5 ..... vrb:5 rc:1 ..........        &VX_tb_rc
 
 &VX_uim4        vrt uim vrb
-@VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........  &VX_uim4
+@VX_uim4        ...... vrt:5 . uim:4 vrb:5 ...........          &VX_uim4
 
 &VX_tb          vrt vrb
-@VX_tb          ...... vrt:5 ..... vrb:5 ...........    &VX_tb
+@VX_tb          ...... vrt:5 ..... vrb:5 ...........            &VX_tb
 
 &X              rt ra rb
-@X              ...... rt:5 ra:5 rb:5 .......... .      &X
+@X              ...... rt:5 ra:5 rb:5 .......... .              &X
 
 &X_rc           rt ra rb rc:bool
 @X_rc           ...... rt:5 ra:5 rb:5 .......... rc:1           &X_rc
+
+&X_sa           rs ra
+@X_sa           ...... rs:5 ra:5 ..... .......... .             &X_sa
 
 %x_frtp         22:4 !function=times_2
 %x_frap         17:4 !function=times_2
@@ -94,8 +97,14 @@
 
 @X_tp_a_bp_rc   ...... ....0 ra:5 ....0 .......... rc:1         &X_rc rt=%x_frtp rb=%x_frbp
 
+&X_t            rt
+@X_t            ...... rt:5 ..... ..... .......... .            &X_t
+
 &X_tb           rt rb
 @X_tb           ...... rt:5 ..... rb:5 .......... .             &X_tb
+
+&X_t_rc         rt rc:bool
+@X_t_rc         ...... rt:5 ..... ..... .......... rc:1         &X_t_rc
 
 &X_tb_rc        rt rb rc:bool
 @X_tb_rc        ...... rt:5 ..... rb:5 .......... rc:1          &X_tb_rc
@@ -107,7 +116,7 @@
 @X_t_bp_rc      ...... rt:5 ..... ....0 .......... rc:1         &X_tb_rc rb=%x_frbp
 
 &X_bi           rt bi
-@X_bi           ...... rt:5 bi:5 ----- .......... -     &X_bi
+@X_bi           ...... rt:5 bi:5 ..... .......... .             &X_bi
 
 &X_bf           bf ra rb
 @X_bf           ...... bf:3 .. ra:5 rb:5 .......... .           &X_bf
@@ -122,7 +131,13 @@
 @X_bf_uim_bp    ...... bf:3 . uim:6 ....0 .......... .          &X_bf_uim rb=%x_frbp
 
 &X_bfl          bf l:bool ra rb
-@X_bfl          ...... bf:3 - l:1 ra:5 rb:5 ..........- &X_bfl
+@X_bfl          ...... bf:3 . l:1 ra:5 rb:5 .......... .        &X_bfl
+
+&X_imm2         rt imm
+@X_imm2         ...... rt:5 ..... ... imm:2 .......... .        &X_imm2
+
+&X_imm3         rt imm
+@X_imm3         ...... rt:5 ..... .. imm:3 .......... .         &X_imm3
 
 %x_xt           0:1 21:5
 &X_imm5         xt imm:uint8_t vrb
@@ -299,6 +314,12 @@ CNTTZDM         011111 ..... ..... ..... 1000111011 -   @X
 PDEPD           011111 ..... ..... ..... 0010011100 -   @X
 PEXTD           011111 ..... ..... ..... 0010111100 -   @X
 
+## BCD Assist
+
+ADDG6S          011111 ..... ..... ..... - 001001010 -  @X
+CDTBCD          011111 ..... ..... ----- 0100011010 -   @X_sa
+CBCDTD          011111 ..... ..... ----- 0100111010 -   @X_sa
+
 ### Float-Point Load Instructions
 
 LFS             110000 ..... ..... ................     @D
@@ -333,6 +354,16 @@ SETBC           011111 ..... ..... ----- 0110000000 -   @X_bi
 SETBCR          011111 ..... ..... ----- 0110100000 -   @X_bi
 SETNBC          011111 ..... ..... ----- 0111000000 -   @X_bi
 SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
+
+### Move To/From FPSCR
+
+MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
+MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
+MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
+MFFSCDRN        111111 ..... 10100 ..... 1001000111 -   @X_tb
+MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
+MFFSCDRNI       111111 ..... 10101 --... 1001000111 -   @X_imm3
+MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
 
 ### Decimal Floating-Point Arithmetic Instructions
 
@@ -425,6 +456,10 @@ DSCLIQ          111111 ..... ..... ...... 001000010 .   @Z22_tap_sh_rc
 
 DSCRI           111011 ..... ..... ...... 001100010 .   @Z22_ta_sh_rc
 DSCRIQ          111111 ..... ..... ...... 001100010 .   @Z22_tap_sh_rc
+
+## Vector Exclusive-OR-based Instructions
+
+VPMSUMD         000100 ..... ..... ..... 10011001000    @VX
 
 ## Vector Integer Instructions
 
@@ -545,6 +580,18 @@ VRLDNM          000100 ..... ..... ..... 00111000101    @VX
 VRLQNM          000100 ..... ..... ..... 00101000101    @VX
 
 ## Vector Integer Arithmetic Instructions
+
+VADDCUQ         000100 ..... ..... ..... 00101000000    @VX
+VADDUQM         000100 ..... ..... ..... 00100000000    @VX
+
+VADDEUQM        000100 ..... ..... ..... ..... 111100   @VA
+VADDECUQ        000100 ..... ..... ..... ..... 111101   @VA
+
+VSUBCUQ         000100 ..... ..... ..... 10101000000    @VX
+VSUBUQM         000100 ..... ..... ..... 10100000000    @VX
+
+VSUBECUQ        000100 ..... ..... ..... ..... 111111   @VA
+VSUBEUQM        000100 ..... ..... ..... ..... 111110   @VA
 
 VEXTSB2W        000100 ..... 10000 ..... 11000000010    @VX_tb
 VEXTSH2W        000100 ..... 10001 ..... 11000000010    @VX_tb

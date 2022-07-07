@@ -1391,3 +1391,68 @@ DFP_HELPER_SHIFT(DSCLI, 64, 1)
 DFP_HELPER_SHIFT(DSCLIQ, 128, 1)
 DFP_HELPER_SHIFT(DSCRI, 64, 0)
 DFP_HELPER_SHIFT(DSCRIQ, 128, 0)
+
+target_ulong helper_CDTBCD(target_ulong s)
+{
+    uint64_t res = 0;
+    uint32_t dec32, declets;
+    uint8_t bcd[6];
+    int i, w, sh;
+    decNumber a;
+
+    for (w = 1; w >= 0; w--) {
+        res <<= 32;
+        declets = extract64(s, 32 * w, 20);
+        if (declets) {
+            /* decimal32 with zero exponent and word "w" declets */
+            dec32 = (0x225ULL << 20) | declets;
+            decimal32ToNumber((decimal32 *)&dec32, &a);
+            decNumberGetBCD(&a, bcd);
+            for (i = 0; i < a.digits; i++) {
+                sh = 4 * (a.digits - 1 - i);
+                res |= (uint64_t)bcd[i] << sh;
+            }
+        }
+    }
+
+    return res;
+}
+
+target_ulong helper_CBCDTD(target_ulong s)
+{
+    uint64_t res = 0;
+    uint32_t dec32;
+    uint8_t bcd[6];
+    int w, i, offs;
+    decNumber a;
+    decContext context;
+
+    decContextDefault(&context, DEC_INIT_DECIMAL32);
+
+    for (w = 1; w >= 0; w--) {
+        res <<= 32;
+        decNumberZero(&a);
+        /* Extract each BCD field of word "w" */
+        for (i = 5; i >= 0; i--) {
+            offs = 4 * (5 - i) + 32 * w;
+            bcd[i] = extract64(s, offs, 4);
+            if (bcd[i] > 9) {
+                /*
+                 * If the field value is greater than 9, the results are
+                 * undefined. We could use a fixed value like 0 or 9, but
+                 * an and with 9 seems to better match the hardware behavior.
+                 */
+                bcd[i] &= 9;
+            }
+        }
+
+        /* Create a decNumber with the BCD values and convert to decimal32 */
+        decNumberSetBCD(&a, bcd, 6);
+        decimal32FromNumber((decimal32 *)&dec32, &a, &context);
+
+        /* Extract the two declets from the decimal32 value */
+        res |= dec32 & 0xfffff;
+    }
+
+    return res;
+}

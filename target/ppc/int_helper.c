@@ -1484,51 +1484,23 @@ PMSUM(vpmsumb, u8, u16, uint16_t)
 PMSUM(vpmsumh, u16, u32, uint32_t)
 PMSUM(vpmsumw, u32, u64, uint64_t)
 
-void helper_vpmsumd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_VPMSUMD(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-
-#ifdef CONFIG_INT128
     int i, j;
-    __uint128_t prod[2];
+    Int128 tmp, prod[2] = {int128_zero(), int128_zero()};
 
-    VECTOR_FOR_INORDER_I(i, u64) {
-        prod[i] = 0;
-        for (j = 0; j < 64; j++) {
-            if (a->u64[i] & (1ull << j)) {
-                prod[i] ^= (((__uint128_t)b->u64[i]) << j);
+    for (j = 0; j < 64; j++) {
+        for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
+            if (a->VsrD(i) & (1ull << j)) {
+                tmp = int128_make64(b->VsrD(i));
+                tmp = int128_lshift(tmp, j);
+                prod[i] = int128_xor(prod[i], tmp);
             }
         }
     }
 
-    r->u128 = prod[0] ^ prod[1];
-
-#else
-    int i, j;
-    ppc_avr_t prod[2];
-
-    VECTOR_FOR_INORDER_I(i, u64) {
-        prod[i].VsrD(1) = prod[i].VsrD(0) = 0;
-        for (j = 0; j < 64; j++) {
-            if (a->u64[i] & (1ull << j)) {
-                ppc_avr_t bshift;
-                if (j == 0) {
-                    bshift.VsrD(0) = 0;
-                    bshift.VsrD(1) = b->u64[i];
-                } else {
-                    bshift.VsrD(0) = b->u64[i] >> (64 - j);
-                    bshift.VsrD(1) = b->u64[i] << j;
-                }
-                prod[i].VsrD(1) ^= bshift.VsrD(1);
-                prod[i].VsrD(0) ^= bshift.VsrD(0);
-            }
-        }
-    }
-
-    r->VsrD(1) = prod[0].VsrD(1) ^ prod[1].VsrD(1);
-    r->VsrD(0) = prod[0].VsrD(0) ^ prod[1].VsrD(0);
-#endif
+    r->s128 = int128_xor(prod[0], prod[1]);
 }
-
 
 #if HOST_BIG_ENDIAN
 #define PKBIG 1
@@ -2204,189 +2176,66 @@ VGENERIC_DO(popcntd, u64)
 
 #undef VGENERIC_DO
 
-#if HOST_BIG_ENDIAN
-#define QW_ONE { .u64 = { 0, 1 } }
-#else
-#define QW_ONE { .u64 = { 1, 0 } }
-#endif
-
-#ifndef CONFIG_INT128
-
-static inline void avr_qw_not(ppc_avr_t *t, ppc_avr_t a)
+void helper_VADDUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-    t->u64[0] = ~a.u64[0];
-    t->u64[1] = ~a.u64[1];
+    r->s128 = int128_add(a->s128, b->s128);
 }
 
-static int avr_qw_cmpu(ppc_avr_t a, ppc_avr_t b)
+void helper_VADDEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-    if (a.VsrD(0) < b.VsrD(0)) {
-        return -1;
-    } else if (a.VsrD(0) > b.VsrD(0)) {
-        return 1;
-    } else if (a.VsrD(1) < b.VsrD(1)) {
-        return -1;
-    } else if (a.VsrD(1) > b.VsrD(1)) {
-        return 1;
-    } else {
-        return 0;
-    }
+    r->s128 = int128_add(int128_add(a->s128, b->s128),
+                         int128_make64(int128_getlo(c->s128) & 1));
 }
 
-static void avr_qw_add(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
+void helper_VADDCUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-    t->VsrD(1) = a.VsrD(1) + b.VsrD(1);
-    t->VsrD(0) = a.VsrD(0) + b.VsrD(0) +
-                     (~a.VsrD(1) < b.VsrD(1));
-}
-
-static int avr_qw_addc(ppc_avr_t *t, ppc_avr_t a, ppc_avr_t b)
-{
-    ppc_avr_t not_a;
-    t->VsrD(1) = a.VsrD(1) + b.VsrD(1);
-    t->VsrD(0) = a.VsrD(0) + b.VsrD(0) +
-                     (~a.VsrD(1) < b.VsrD(1));
-    avr_qw_not(&not_a, a);
-    return avr_qw_cmpu(not_a, b) < 0;
-}
-
-#endif
-
-void helper_vadduqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + b->u128;
-#else
-    avr_qw_add(r, *a, *b);
-#endif
-}
-
-void helper_vaddeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
-{
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + b->u128 + (c->u128 & 1);
-#else
-
-    if (c->VsrD(1) & 1) {
-        ppc_avr_t tmp;
-
-        tmp.VsrD(0) = 0;
-        tmp.VsrD(1) = c->VsrD(1) & 1;
-        avr_qw_add(&tmp, *a, tmp);
-        avr_qw_add(r, tmp, *b);
-    } else {
-        avr_qw_add(r, *a, *b);
-    }
-#endif
-}
-
-void helper_vaddcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-#ifdef CONFIG_INT128
-    r->u128 = (~a->u128 < b->u128);
-#else
-    ppc_avr_t not_a;
-
-    avr_qw_not(&not_a, *a);
-
+    r->VsrD(1) = int128_ult(int128_not(a->s128), b->s128);
     r->VsrD(0) = 0;
-    r->VsrD(1) = (avr_qw_cmpu(not_a, *b) < 0);
-#endif
 }
 
-void helper_vaddecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_VADDECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
-#ifdef CONFIG_INT128
-    int carry_out = (~a->u128 < b->u128);
-    if (!carry_out && (c->u128 & 1)) {
-        carry_out = ((a->u128 + b->u128 + 1) == 0) &&
-                    ((a->u128 != 0) || (b->u128 != 0));
-    }
-    r->u128 = carry_out;
-#else
-
-    int carry_in = c->VsrD(1) & 1;
-    int carry_out = 0;
-    ppc_avr_t tmp;
-
-    carry_out = avr_qw_addc(&tmp, *a, *b);
+    bool carry_out = int128_ult(int128_not(a->s128), b->s128),
+         carry_in = int128_getlo(c->s128) & 1;
 
     if (!carry_out && carry_in) {
-        ppc_avr_t one = QW_ONE;
-        carry_out = avr_qw_addc(&tmp, tmp, one);
-    }
-    r->VsrD(0) = 0;
-    r->VsrD(1) = carry_out;
-#endif
-}
-
-void helper_vsubuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 - b->u128;
-#else
-    ppc_avr_t tmp;
-    ppc_avr_t one = QW_ONE;
-
-    avr_qw_not(&tmp, *b);
-    avr_qw_add(&tmp, *a, tmp);
-    avr_qw_add(r, tmp, one);
-#endif
-}
-
-void helper_vsubeuqm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
-{
-#ifdef CONFIG_INT128
-    r->u128 = a->u128 + ~b->u128 + (c->u128 & 1);
-#else
-    ppc_avr_t tmp, sum;
-
-    avr_qw_not(&tmp, *b);
-    avr_qw_add(&sum, *a, tmp);
-
-    tmp.VsrD(0) = 0;
-    tmp.VsrD(1) = c->VsrD(1) & 1;
-    avr_qw_add(r, sum, tmp);
-#endif
-}
-
-void helper_vsubcuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-#ifdef CONFIG_INT128
-    r->u128 = (~a->u128 < ~b->u128) ||
-                 (a->u128 + ~b->u128 == (__uint128_t)-1);
-#else
-    int carry = (avr_qw_cmpu(*a, *b) > 0);
-    if (!carry) {
-        ppc_avr_t tmp;
-        avr_qw_not(&tmp, *b);
-        avr_qw_add(&tmp, *a, tmp);
-        carry = ((tmp.VsrSD(0) == -1ull) && (tmp.VsrSD(1) == -1ull));
-    }
-    r->VsrD(0) = 0;
-    r->VsrD(1) = carry;
-#endif
-}
-
-void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
-{
-#ifdef CONFIG_INT128
-    r->u128 =
-        (~a->u128 < ~b->u128) ||
-        ((c->u128 & 1) && (a->u128 + ~b->u128 == (__uint128_t)-1));
-#else
-    int carry_in = c->VsrD(1) & 1;
-    int carry_out = (avr_qw_cmpu(*a, *b) > 0);
-    if (!carry_out && carry_in) {
-        ppc_avr_t tmp;
-        avr_qw_not(&tmp, *b);
-        avr_qw_add(&tmp, *a, tmp);
-        carry_out = ((tmp.VsrD(0) == -1ull) && (tmp.VsrD(1) == -1ull));
+        carry_out = (int128_nz(a->s128) || int128_nz(b->s128)) &&
+                    int128_eq(int128_add(a->s128, b->s128), int128_makes64(-1));
     }
 
     r->VsrD(0) = 0;
     r->VsrD(1) = carry_out;
-#endif
+}
+
+void helper_VSUBUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    r->s128 = int128_sub(a->s128, b->s128);
+}
+
+void helper_VSUBEUQM(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    r->s128 = int128_add(int128_add(a->s128, int128_not(b->s128)),
+                         int128_make64(int128_getlo(c->s128) & 1));
+}
+
+void helper_VSUBCUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+    Int128 tmp = int128_not(b->s128);
+
+    r->VsrD(1) = int128_ult(int128_not(a->s128), tmp) ||
+                 int128_eq(int128_add(a->s128, tmp), int128_makes64(-1));
+    r->VsrD(0) = 0;
+}
+
+void helper_VSUBECUQ(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+{
+    Int128 tmp = int128_not(b->s128);
+    bool carry_out = int128_ult(int128_not(a->s128), tmp),
+         carry_in = int128_getlo(c->s128) & 1;
+
+    r->VsrD(1) = carry_out || (carry_in && int128_eq(int128_add(a->s128, tmp),
+                                                     int128_makes64(-1)));
+    r->VsrD(0) = 0;
 }
 
 #define BCD_PLUS_PREF_1 0xC
