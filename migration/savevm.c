@@ -2540,16 +2540,6 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 {
     int i;
 
-    /*
-     * If network is interrupted, any temp page we received will be useless
-     * because we didn't mark them as "received" in receivedmap.  After a
-     * proper recovery later (which will sync src dirty bitmap with receivedmap
-     * on dest) these cached small pages will be resent again.
-     */
-    for (i = 0; i < mis->postcopy_channels; i++) {
-        postcopy_temp_page_reset(&mis->postcopy_tmp_pages[i]);
-    }
-
     trace_postcopy_pause_incoming();
 
     assert(migrate_postcopy_ram());
@@ -2577,6 +2567,16 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
 
     /* Notify the fault thread for the invalidated file handle */
     postcopy_fault_thread_notify(mis);
+
+    /*
+     * If network is interrupted, any temp page we received will be useless
+     * because we didn't mark them as "received" in receivedmap.  After a
+     * proper recovery later (which will sync src dirty bitmap with receivedmap
+     * on dest) these cached small pages will be resent again.
+     */
+    for (i = 0; i < mis->postcopy_channels; i++) {
+        postcopy_temp_page_reset(&mis->postcopy_tmp_pages[i]);
+    }
 
     error_report("Detected IO failure for postcopy. "
                  "Migration paused.");
