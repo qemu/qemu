@@ -53,7 +53,7 @@ files in a disk image backing chain:
 
 (1) Directional: 'base' and 'top'.  Given the simple disk image chain
     above, image [A] can be referred to as 'base', and image [B] as
-    'top'.  (This terminology can be seen in in QAPI schema file,
+    'top'.  (This terminology can be seen in the QAPI schema file,
     block-core.json.)
 
 (2) Relational: 'backing file' and 'overlay'.  Again, taking the same
@@ -825,7 +825,7 @@ entire disk image chain, to a target, using ``blockdev-mirror`` would be:
     job ready to be completed
 
 (5) Gracefully complete the 'mirror' block device job, and notice the
-    the event ``BLOCK_JOB_COMPLETED``
+    event ``BLOCK_JOB_COMPLETED``
 
 (6) Shutdown the guest by issuing the QMP ``quit`` command so that
     caches are flushed

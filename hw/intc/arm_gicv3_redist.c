@@ -492,7 +492,7 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
         return MEMTX_OK;
     case GICR_WAKER:
         /* Only the ProcessorSleep bit is writable. When the guest sets
-         * it it requests that we transition the channel between the
+         * it, it requests that we transition the channel between the
          * redistributor and the cpu interface to quiescent, and that
          * we set the ChildrenAsleep bit once the inteface has reached the
          * quiescent state.

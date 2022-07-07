@@ -284,7 +284,7 @@ SVE CPU Property Parsing Semantics
      CPU Property Dependencies and Constraints").
 
   4) If one or more vector lengths have been explicitly enabled and at
-     at least one of the dependency lengths of the maximum enabled length
+     least one of the dependency lengths of the maximum enabled length
      has been explicitly disabled, then an error is generated (see
      constraint (2) of "SVE CPU Property Dependencies and Constraints").
 

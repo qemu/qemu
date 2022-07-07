@@ -74,7 +74,7 @@ typedef struct U2FKeyState {
 
 /*
  * API to be used by the U2F key device variants (i.e. hw/u2f-*.c)
- * to interact with the the U2F key base device (i.e. hw/u2f.c)
+ * to interact with the U2F key base device (i.e. hw/u2f.c)
  */
 void u2f_send_to_guest(U2FKeyState *key,
                        const uint8_t packet[U2FHID_PACKET_SIZE]);

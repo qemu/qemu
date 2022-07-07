@@ -386,7 +386,7 @@ bool qdev_realize_and_unref(DeviceState *dev, BusState *bus, Error **errp);
  *
  *  - unrealize any child buses by calling qbus_unrealize()
  *    (this will recursively unrealize any devices on those buses)
- *  - call the the unrealize method of @dev
+ *  - call the unrealize method of @dev
  *
  * The device can then be freed by causing its reference count to go
  * to zero.

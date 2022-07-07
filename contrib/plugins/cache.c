@@ -38,7 +38,7 @@ enum EvictionPolicy policy;
  * put in any of the blocks inside the set. The number of block per set is
  * called the associativity (assoc).
  *
- * Each block contains the the stored tag and a valid bit. Since this is not
+ * Each block contains the stored tag and a valid bit. Since this is not
  * a functional simulator, the data itself is not stored. We only identify
  * whether a block is in the cache or not by searching for its tag.
  *

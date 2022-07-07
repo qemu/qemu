@@ -68,7 +68,7 @@ static uint64_t clock_get_child_period(Clock *clk)
 {
     /*
      * Return the period to be used for child clocks, which is the parent
-     * clock period adjusted for for multiplier and divider effects.
+     * clock period adjusted for multiplier and divider effects.
      */
     return muldiv64(clk->period, clk->multiplier, clk->divider);
 }

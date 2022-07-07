@@ -379,7 +379,7 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
     copy_iov(iov, count, in_sg, in_num, iov_len);
 
     /*
-     * Build a copy of the the in_sg iov so we can skip bits in it,
+     * Build a copy of the in_sg iov so we can skip bits in it,
      * including changing the offsets
      */
     in_sg_cpy = g_new(struct iovec, in_num);

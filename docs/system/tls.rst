@@ -182,7 +182,7 @@ certificates.
               --template client-hostNNN.info \
               --outfile client-hostNNN-cert.pem
 
-The subject alt name extension data is not required for clients, so the
+The subject alt name extension data is not required for clients, so
 the ``dns_name`` and ``ip_address`` fields are not included. The
 ``tls_www_client`` keyword is the key purpose extension to indicate this
 certificate is intended for usage in a web client. Although QEMU network

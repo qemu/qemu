@@ -195,7 +195,7 @@ static bool scsi_read_capacity(VDev *vdev,
 /* virtio-scsi routines */
 
 /*
- * Tries to locate a SCSI device and and adds the information for the found
+ * Tries to locate a SCSI device and adds the information for the found
  * device to the vdev->scsi_device structure.
  * Returns 0 if SCSI device could be located, or a error code < 0 otherwise
  */

@@ -70,7 +70,7 @@
  * If the host libc is used then the implementation will appear to work
  * most of the time, but there will be a race condition where a
  * signal could arrive just before we make the host syscall inside libc,
- * and then then guest syscall will not correctly be interrupted.
+ * and then the guest syscall will not correctly be interrupted.
  * Instead the implementation of the guest syscall can use the safe_syscall
  * function but otherwise just return the result or errno in the usual
  * way; the main loop code will take care of restarting the syscall
