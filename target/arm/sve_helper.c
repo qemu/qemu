@@ -5337,6 +5337,9 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
 
 #ifdef CONFIG_USER_ONLY
     memset(&info->attrs, 0, sizeof(info->attrs));
+    /* Require both MAP_ANON and PROT_MTE -- see allocation_tag_mem. */
+    arm_tlb_mte_tagged(&info->attrs) =
+        (flags & PAGE_ANON) && (flags & PAGE_MTE);
 #else
     /*
      * Find the iotlbentry for addr and return the transaction attributes.
