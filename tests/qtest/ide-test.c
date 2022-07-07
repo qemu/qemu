@@ -90,6 +90,7 @@ enum {
 
 enum {
     CMD_DSM         = 0x06,
+    CMD_DIAGNOSE    = 0x90,
     CMD_READ_DMA    = 0xc8,
     CMD_WRITE_DMA   = 0xca,
     CMD_FLUSH_CACHE = 0xe7,
@@ -614,6 +615,36 @@ static void test_identify(void)
     free_pci_device(dev);
 }
 
+static void test_diagnostic(void)
+{
+    QTestState *qts;
+    QPCIDevice *dev;
+    QPCIBar bmdma_bar, ide_bar;
+    uint8_t data;
+
+    qts = ide_test_start(
+        "-blockdev driver=file,node-name=hda,filename=%s "
+        "-blockdev driver=file,node-name=hdb,filename=%s "
+        "-device ide-hd,drive=hda,bus=ide.0,unit=0 "
+        "-device ide-hd,drive=hdb,bus=ide.0,unit=1 ",
+        tmp_path[0], tmp_path[1]);
+
+    dev = get_pci_device(qts, &bmdma_bar, &ide_bar);
+
+    /* DIAGNOSE command on device 1 */
+    qpci_io_writeb(dev, ide_bar, reg_device, DEV);
+    data = qpci_io_readb(dev, ide_bar, reg_device);
+    g_assert_cmphex(data & DEV, ==, DEV);
+    qpci_io_writeb(dev, ide_bar, reg_command, CMD_DIAGNOSE);
+
+    /* Verify that DEVICE is now 0 */
+    data = qpci_io_readb(dev, ide_bar, reg_device);
+    g_assert_cmphex(data & DEV, ==, 0);
+
+    ide_test_quit(qts);
+    free_pci_device(dev);
+}
+
 /*
  * Write sector 1 with random data to make IDE storage dirty
  * Needed for flush tests so that flushes actually go though the block layer
@@ -1049,6 +1080,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/ide/identify", test_identify);
+
+    qtest_add_func("/ide/diagnostic", test_diagnostic);
 
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
     qtest_add_func("/ide/bmdma/trim", test_bmdma_trim);
