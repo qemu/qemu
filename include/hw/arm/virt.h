@@ -152,7 +152,7 @@ struct VirtMachineState {
     bool virt;
     bool ras;
     bool mte;
-    bool dtb_kaslr_seed;
+    bool dtb_randomness;
     OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;
