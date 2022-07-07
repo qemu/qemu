@@ -1340,6 +1340,11 @@ static void ide_reset(IDEState *s)
         s->pio_aiocb = NULL;
     }
 
+    if (s->reset_reverts) {
+        s->reset_reverts = false;
+        s->heads         = s->drive_heads;
+        s->sectors       = s->drive_sectors;
+    }
     if (s->drive_kind == IDE_CFATA)
         s->mult_sectors = 0;
     else
@@ -1618,6 +1623,20 @@ static bool cmd_check_power_mode(IDEState *s, uint8_t cmd)
     return true;
 }
 
+/* INITIALIZE DEVICE PARAMETERS */
+static bool cmd_specify(IDEState *s, uint8_t cmd)
+{
+    if (s->blk && s->drive_kind != IDE_CD) {
+        s->heads = (s->select & (ATA_DEV_HS)) + 1;
+        s->sectors = s->nsector;
+        ide_set_irq(s->bus);
+    } else {
+        ide_abort_command(s);
+    }
+
+    return true;
+}
+
 static bool cmd_set_features(IDEState *s, uint8_t cmd)
 {
     uint16_t *identify_data;
@@ -1641,7 +1660,11 @@ static bool cmd_set_features(IDEState *s, uint8_t cmd)
         ide_flush_cache(s);
         return false;
     case 0xcc: /* reverting to power-on defaults enable */
+        s->reset_reverts = true;
+        return true;
     case 0x66: /* reverting to power-on defaults disable */
+        s->reset_reverts = false;
+        return true;
     case 0xaa: /* read look-ahead enable */
     case 0x55: /* read look-ahead disable */
     case 0x05: /* set advanced power management mode */
@@ -2051,7 +2074,7 @@ static const struct {
     [WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC },
     [CFA_TRANSLATE_SECTOR]        = { cmd_cfa_translate_sector, CFA_OK },
     [WIN_DIAGNOSE]                = { cmd_exec_dev_diagnostic, ALL_OK },
-    [WIN_SPECIFY]                 = { cmd_nop, HD_CFA_OK | SET_DSC },
+    [WIN_SPECIFY]                 = { cmd_specify, HD_CFA_OK | SET_DSC },
     [WIN_STANDBYNOW2]             = { cmd_nop, HD_CFA_OK },
     [WIN_IDLEIMMEDIATE2]          = { cmd_nop, HD_CFA_OK },
     [WIN_STANDBY2]                = { cmd_nop, HD_CFA_OK },
@@ -2541,8 +2564,8 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
 
     blk_get_geometry(blk, &nb_sectors);
     s->cylinders = cylinders;
-    s->heads = heads;
-    s->sectors = secs;
+    s->heads = s->drive_heads = heads;
+    s->sectors = s->drive_sectors = secs;
     s->chs_trans = chs_trans;
     s->nb_sectors = nb_sectors;
     s->wwn = wwn;

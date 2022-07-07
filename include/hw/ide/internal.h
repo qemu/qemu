@@ -375,6 +375,7 @@ struct IDEState {
     uint8_t unit;
     /* ide config */
     IDEDriveKind drive_kind;
+    int drive_heads, drive_sectors;
     int cylinders, heads, sectors, chs_trans;
     int64_t nb_sectors;
     int mult_sectors;
@@ -400,6 +401,8 @@ struct IDEState {
 
     uint8_t select;
     uint8_t status;
+
+    bool reset_reverts;
 
     /* set for lba48 access */
     uint8_t lba48;
