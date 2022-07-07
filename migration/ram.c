@@ -442,8 +442,28 @@ struct PageSearchStatus {
     unsigned long page;
     /* Set once we wrap around */
     bool         complete_round;
-    /* Whether current page is explicitly requested by postcopy */
+    /*
+     * [POSTCOPY-ONLY] Whether current page is explicitly requested by
+     * postcopy.  When set, the request is "urgent" because the dest QEMU
+     * threads are waiting for us.
+     */
     bool         postcopy_requested;
+    /*
+     * [POSTCOPY-ONLY] The target channel to use to send current page.
+     *
+     * Note: This may _not_ match with the value in postcopy_requested
+     * above. Let's imagine the case where the postcopy request is exactly
+     * the page that we're sending in progress during precopy. In this case
+     * we'll have postcopy_requested set to true but the target channel
+     * will be the precopy channel (so that we don't split brain on that
+     * specific page since the precopy channel already contains partial of
+     * that page data).
+     *
+     * Besides that specific use case, postcopy_target_channel should
+     * always be equal to postcopy_requested, because by default we send
+     * postcopy pages via postcopy preempt channel.
+     */
+    bool         postcopy_target_channel;
 };
 typedef struct PageSearchStatus PageSearchStatus;
 
@@ -494,6 +514,9 @@ static QemuCond decomp_done_cond;
 
 static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
                                  ram_addr_t offset, uint8_t *source_buf);
+
+static void postcopy_preempt_restore(RAMState *rs, PageSearchStatus *pss,
+                                     bool postcopy_requested);
 
 static void *do_data_compress(void *opaque)
 {
@@ -1516,8 +1539,12 @@ retry:
  */
 static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
 {
-    /* This is not a postcopy requested page */
+    /*
+     * This is not a postcopy requested page, mark it "not urgent", and use
+     * precopy channel to send it.
+     */
     pss->postcopy_requested = false;
+    pss->postcopy_target_channel = RAM_CHANNEL_PRECOPY;
 
     pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page);
     if (pss->complete_round && pss->block == rs->last_seen_block &&
@@ -2038,15 +2065,20 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
     RAMBlock  *block;
     ram_addr_t offset;
 
-again:
     block = unqueue_page(rs, &offset);
 
     if (block) {
         /* See comment above postcopy_preempted_contains() */
         if (postcopy_preempted_contains(rs, block, offset)) {
             trace_postcopy_preempt_hit(block->idstr, offset);
-            /* This request is dropped */
-            goto again;
+            /*
+             * If what we preempted previously was exactly what we're
+             * requesting right now, restore the preempted precopy
+             * immediately, boosting its priority as it's requested by
+             * postcopy.
+             */
+            postcopy_preempt_restore(rs, pss, true);
+            return true;
         }
     } else {
         /*
@@ -2070,7 +2102,9 @@ again:
          * really rare.
          */
         pss->complete_round = false;
+        /* Mark it an urgent request, meanwhile using POSTCOPY channel */
         pss->postcopy_requested = true;
+        pss->postcopy_target_channel = RAM_CHANNEL_POSTCOPY;
     }
 
     return !!block;
@@ -2324,7 +2358,8 @@ static bool postcopy_preempt_triggered(RAMState *rs)
     return rs->postcopy_preempt_state.preempted;
 }
 
-static void postcopy_preempt_restore(RAMState *rs, PageSearchStatus *pss)
+static void postcopy_preempt_restore(RAMState *rs, PageSearchStatus *pss,
+                                     bool postcopy_requested)
 {
     PostcopyPreemptState *state = &rs->postcopy_preempt_state;
 
@@ -2332,8 +2367,15 @@ static void postcopy_preempt_restore(RAMState *rs, PageSearchStatus *pss)
 
     pss->block = state->ram_block;
     pss->page = state->ram_page;
-    /* This is not a postcopy request but restoring previous precopy */
-    pss->postcopy_requested = false;
+
+    /* Whether this is a postcopy request? */
+    pss->postcopy_requested = postcopy_requested;
+    /*
+     * When restoring a preempted page, the old data resides in PRECOPY
+     * slow channel, even if postcopy_requested is set.  So always use
+     * PRECOPY channel here.
+     */
+    pss->postcopy_target_channel = RAM_CHANNEL_PRECOPY;
 
     trace_postcopy_preempt_restored(pss->block->idstr, pss->page);
 
@@ -2344,11 +2386,8 @@ static void postcopy_preempt_restore(RAMState *rs, PageSearchStatus *pss)
 static void postcopy_preempt_choose_channel(RAMState *rs, PageSearchStatus *pss)
 {
     MigrationState *s = migrate_get_current();
-    unsigned int channel;
+    unsigned int channel = pss->postcopy_target_channel;
     QEMUFile *next;
-
-    channel = pss->postcopy_requested ?
-        RAM_CHANNEL_POSTCOPY : RAM_CHANNEL_PRECOPY;
 
     if (channel != rs->postcopy_channel) {
         if (channel == RAM_CHANNEL_PRECOPY) {
@@ -2505,7 +2544,7 @@ static int ram_find_and_save_block(RAMState *rs)
              * preempted precopy.  Otherwise find the next dirty bit.
              */
             if (postcopy_preempt_triggered(rs)) {
-                postcopy_preempt_restore(rs, &pss);
+                postcopy_preempt_restore(rs, &pss, false);
                 found = true;
             } else {
                 /* priority queue empty, so just search for something dirty */
