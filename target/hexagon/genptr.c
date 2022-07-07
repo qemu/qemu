@@ -638,5 +638,12 @@ static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
     tcg_temp_free_i64(mask);
 }
 
+static void probe_noshuf_load(TCGv va, int s, int mi)
+{
+    TCGv size = tcg_constant_tl(s);
+    TCGv mem_idx = tcg_constant_tl(mi);
+    gen_helper_probe_noshuf_load(cpu_env, va, size, mem_idx);
+}
+
 #include "tcg_funcs_generated.c.inc"
 #include "tcg_func_table_generated.c.inc"
