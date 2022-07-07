@@ -5986,7 +5986,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
      * Disable MTE checking if the Tagged bit is not set.  Since TBI must
      * be set within MTEDESC for MTE, !mtedesc => !mte_active.
      */
-    if (arm_tlb_mte_tagged(&info.page[0].attrs)) {
+    if (!arm_tlb_mte_tagged(&info.page[0].attrs)) {
         mtedesc = 0;
     }
 
