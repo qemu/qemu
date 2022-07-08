@@ -5337,6 +5337,9 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
 
 #ifdef CONFIG_USER_ONLY
     memset(&info->attrs, 0, sizeof(info->attrs));
+    /* Require both MAP_ANON and PROT_MTE -- see allocation_tag_mem. */
+    arm_tlb_mte_tagged(&info->attrs) =
+        (flags & PAGE_ANON) && (flags & PAGE_MTE);
 #else
     /*
      * Find the iotlbentry for addr and return the transaction attributes.
@@ -5986,7 +5989,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
      * Disable MTE checking if the Tagged bit is not set.  Since TBI must
      * be set within MTEDESC for MTE, !mtedesc => !mte_active.
      */
-    if (arm_tlb_mte_tagged(&info.page[0].attrs)) {
+    if (!arm_tlb_mte_tagged(&info.page[0].attrs)) {
         mtedesc = 0;
     }
 

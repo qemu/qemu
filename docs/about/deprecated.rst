@@ -225,6 +225,14 @@ Use the more generic event ``DEVICE_UNPLUG_GUEST_ERROR`` instead.
 System emulator machines
 ------------------------
 
+Arm ``virt`` machine ``dtb-kaslr-seed`` property
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``dtb-kaslr-seed`` property on the ``virt`` board has been
+deprecated; use the new name ``dtb-randomness`` instead. The new name
+better reflects the way this property affects all random data within
+the device tree blob, not just the ``kaslr-seed`` node.
+
 PPC 405 ``taihu`` machine (since 7.0)
 '''''''''''''''''''''''''''''''''''''
 
