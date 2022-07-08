@@ -99,6 +99,11 @@ class BaseVM(object):
         self._source_path = args.source_path
         # Allow input config to override defaults.
         self._config = DEFAULT_CONFIG.copy()
+
+        # 1GB per core, minimum of 4. This is only a default.
+        mem = max(4, args.jobs)
+        self._config['memory'] = f"{mem}G"
+
         if config != None:
             self._config.update(config)
         self.validate_ssh_keys()
