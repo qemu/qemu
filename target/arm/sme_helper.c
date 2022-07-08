@@ -19,10 +19,14 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
+#include "exec/exec-all.h"
 #include "qemu/int128.h"
 #include "vec_internal.h"
+#include "sve_ldst_internal.h"
 
 /* ResetSVEState */
 void arm_reset_sve_state(CPUARMState *env)
@@ -233,3 +237,594 @@ void HELPER(sme_mova_zc_q)(void *vd, void *za, void *vg, uint32_t desc)
 }
 
 #undef DO_MOVA_Z
+
+/*
+ * Clear elements in a tile slice comprising len bytes.
+ */
+
+typedef void ClearFn(void *ptr, size_t off, size_t len);
+
+static void clear_horizontal(void *ptr, size_t off, size_t len)
+{
+    memset(ptr + off, 0, len);
+}
+
+static void clear_vertical_b(void *vptr, size_t off, size_t len)
+{
+    for (size_t i = 0; i < len; ++i) {
+        *(uint8_t *)(vptr + tile_vslice_offset(i + off)) = 0;
+    }
+}
+
+static void clear_vertical_h(void *vptr, size_t off, size_t len)
+{
+    for (size_t i = 0; i < len; i += 2) {
+        *(uint16_t *)(vptr + tile_vslice_offset(i + off)) = 0;
+    }
+}
+
+static void clear_vertical_s(void *vptr, size_t off, size_t len)
+{
+    for (size_t i = 0; i < len; i += 4) {
+        *(uint32_t *)(vptr + tile_vslice_offset(i + off)) = 0;
+    }
+}
+
+static void clear_vertical_d(void *vptr, size_t off, size_t len)
+{
+    for (size_t i = 0; i < len; i += 8) {
+        *(uint64_t *)(vptr + tile_vslice_offset(i + off)) = 0;
+    }
+}
+
+static void clear_vertical_q(void *vptr, size_t off, size_t len)
+{
+    for (size_t i = 0; i < len; i += 16) {
+        memset(vptr + tile_vslice_offset(i + off), 0, 16);
+    }
+}
+
+/*
+ * Copy elements from an array into a tile slice comprising len bytes.
+ */
+
+typedef void CopyFn(void *dst, const void *src, size_t len);
+
+static void copy_horizontal(void *dst, const void *src, size_t len)
+{
+    memcpy(dst, src, len);
+}
+
+static void copy_vertical_b(void *vdst, const void *vsrc, size_t len)
+{
+    const uint8_t *src = vsrc;
+    uint8_t *dst = vdst;
+    size_t i;
+
+    for (i = 0; i < len; ++i) {
+        dst[tile_vslice_index(i)] = src[i];
+    }
+}
+
+static void copy_vertical_h(void *vdst, const void *vsrc, size_t len)
+{
+    const uint16_t *src = vsrc;
+    uint16_t *dst = vdst;
+    size_t i;
+
+    for (i = 0; i < len / 2; ++i) {
+        dst[tile_vslice_index(i)] = src[i];
+    }
+}
+
+static void copy_vertical_s(void *vdst, const void *vsrc, size_t len)
+{
+    const uint32_t *src = vsrc;
+    uint32_t *dst = vdst;
+    size_t i;
+
+    for (i = 0; i < len / 4; ++i) {
+        dst[tile_vslice_index(i)] = src[i];
+    }
+}
+
+static void copy_vertical_d(void *vdst, const void *vsrc, size_t len)
+{
+    const uint64_t *src = vsrc;
+    uint64_t *dst = vdst;
+    size_t i;
+
+    for (i = 0; i < len / 8; ++i) {
+        dst[tile_vslice_index(i)] = src[i];
+    }
+}
+
+static void copy_vertical_q(void *vdst, const void *vsrc, size_t len)
+{
+    for (size_t i = 0; i < len; i += 16) {
+        memcpy(vdst + tile_vslice_offset(i), vsrc + i, 16);
+    }
+}
+
+/*
+ * Host and TLB primitives for vertical tile slice addressing.
+ */
+
+#define DO_LD(NAME, TYPE, HOST, TLB)                                        \
+static inline void sme_##NAME##_v_host(void *za, intptr_t off, void *host)  \
+{                                                                           \
+    TYPE val = HOST(host);                                                  \
+    *(TYPE *)(za + tile_vslice_offset(off)) = val;                          \
+}                                                                           \
+static inline void sme_##NAME##_v_tlb(CPUARMState *env, void *za,           \
+                        intptr_t off, target_ulong addr, uintptr_t ra)      \
+{                                                                           \
+    TYPE val = TLB(env, useronly_clean_ptr(addr), ra);                      \
+    *(TYPE *)(za + tile_vslice_offset(off)) = val;                          \
+}
+
+#define DO_ST(NAME, TYPE, HOST, TLB)                                        \
+static inline void sme_##NAME##_v_host(void *za, intptr_t off, void *host)  \
+{                                                                           \
+    TYPE val = *(TYPE *)(za + tile_vslice_offset(off));                     \
+    HOST(host, val);                                                        \
+}                                                                           \
+static inline void sme_##NAME##_v_tlb(CPUARMState *env, void *za,           \
+                        intptr_t off, target_ulong addr, uintptr_t ra)      \
+{                                                                           \
+    TYPE val = *(TYPE *)(za + tile_vslice_offset(off));                     \
+    TLB(env, useronly_clean_ptr(addr), val, ra);                            \
+}
+
+/*
+ * The ARMVectorReg elements are stored in host-endian 64-bit units.
+ * For 128-bit quantities, the sequence defined by the Elem[] pseudocode
+ * corresponds to storing the two 64-bit pieces in little-endian order.
+ */
+#define DO_LDQ(HNAME, VNAME, BE, HOST, TLB)                                 \
+static inline void HNAME##_host(void *za, intptr_t off, void *host)         \
+{                                                                           \
+    uint64_t val0 = HOST(host), val1 = HOST(host + 8);                      \
+    uint64_t *ptr = za + off;                                               \
+    ptr[0] = BE ? val1 : val0, ptr[1] = BE ? val0 : val1;                   \
+}                                                                           \
+static inline void VNAME##_v_host(void *za, intptr_t off, void *host)       \
+{                                                                           \
+    HNAME##_host(za, tile_vslice_offset(off), host);                        \
+}                                                                           \
+static inline void HNAME##_tlb(CPUARMState *env, void *za, intptr_t off,    \
+                               target_ulong addr, uintptr_t ra)             \
+{                                                                           \
+    uint64_t val0 = TLB(env, useronly_clean_ptr(addr), ra);                 \
+    uint64_t val1 = TLB(env, useronly_clean_ptr(addr + 8), ra);             \
+    uint64_t *ptr = za + off;                                               \
+    ptr[0] = BE ? val1 : val0, ptr[1] = BE ? val0 : val1;                   \
+}                                                                           \
+static inline void VNAME##_v_tlb(CPUARMState *env, void *za, intptr_t off,  \
+                               target_ulong addr, uintptr_t ra)             \
+{                                                                           \
+    HNAME##_tlb(env, za, tile_vslice_offset(off), addr, ra);                \
+}
+
+#define DO_STQ(HNAME, VNAME, BE, HOST, TLB)                                 \
+static inline void HNAME##_host(void *za, intptr_t off, void *host)         \
+{                                                                           \
+    uint64_t *ptr = za + off;                                               \
+    HOST(host, ptr[BE]);                                                    \
+    HOST(host + 1, ptr[!BE]);                                               \
+}                                                                           \
+static inline void VNAME##_v_host(void *za, intptr_t off, void *host)       \
+{                                                                           \
+    HNAME##_host(za, tile_vslice_offset(off), host);                        \
+}                                                                           \
+static inline void HNAME##_tlb(CPUARMState *env, void *za, intptr_t off,    \
+                               target_ulong addr, uintptr_t ra)             \
+{                                                                           \
+    uint64_t *ptr = za + off;                                               \
+    TLB(env, useronly_clean_ptr(addr), ptr[BE], ra);                        \
+    TLB(env, useronly_clean_ptr(addr + 8), ptr[!BE], ra);                   \
+}                                                                           \
+static inline void VNAME##_v_tlb(CPUARMState *env, void *za, intptr_t off,  \
+                               target_ulong addr, uintptr_t ra)             \
+{                                                                           \
+    HNAME##_tlb(env, za, tile_vslice_offset(off), addr, ra);                \
+}
+
+DO_LD(ld1b, uint8_t, ldub_p, cpu_ldub_data_ra)
+DO_LD(ld1h_be, uint16_t, lduw_be_p, cpu_lduw_be_data_ra)
+DO_LD(ld1h_le, uint16_t, lduw_le_p, cpu_lduw_le_data_ra)
+DO_LD(ld1s_be, uint32_t, ldl_be_p, cpu_ldl_be_data_ra)
+DO_LD(ld1s_le, uint32_t, ldl_le_p, cpu_ldl_le_data_ra)
+DO_LD(ld1d_be, uint64_t, ldq_be_p, cpu_ldq_be_data_ra)
+DO_LD(ld1d_le, uint64_t, ldq_le_p, cpu_ldq_le_data_ra)
+
+DO_LDQ(sve_ld1qq_be, sme_ld1q_be, 1, ldq_be_p, cpu_ldq_be_data_ra)
+DO_LDQ(sve_ld1qq_le, sme_ld1q_le, 0, ldq_le_p, cpu_ldq_le_data_ra)
+
+DO_ST(st1b, uint8_t, stb_p, cpu_stb_data_ra)
+DO_ST(st1h_be, uint16_t, stw_be_p, cpu_stw_be_data_ra)
+DO_ST(st1h_le, uint16_t, stw_le_p, cpu_stw_le_data_ra)
+DO_ST(st1s_be, uint32_t, stl_be_p, cpu_stl_be_data_ra)
+DO_ST(st1s_le, uint32_t, stl_le_p, cpu_stl_le_data_ra)
+DO_ST(st1d_be, uint64_t, stq_be_p, cpu_stq_be_data_ra)
+DO_ST(st1d_le, uint64_t, stq_le_p, cpu_stq_le_data_ra)
+
+DO_STQ(sve_st1qq_be, sme_st1q_be, 1, stq_be_p, cpu_stq_be_data_ra)
+DO_STQ(sve_st1qq_le, sme_st1q_le, 0, stq_le_p, cpu_stq_le_data_ra)
+
+#undef DO_LD
+#undef DO_ST
+#undef DO_LDQ
+#undef DO_STQ
+
+/*
+ * Common helper for all contiguous predicated loads.
+ */
+
+static inline QEMU_ALWAYS_INLINE
+void sme_ld1(CPUARMState *env, void *za, uint64_t *vg,
+             const target_ulong addr, uint32_t desc, const uintptr_t ra,
+             const int esz, uint32_t mtedesc, bool vertical,
+             sve_ldst1_host_fn *host_fn,
+             sve_ldst1_tlb_fn *tlb_fn,
+             ClearFn *clr_fn,
+             CopyFn *cpy_fn)
+{
+    const intptr_t reg_max = simd_oprsz(desc);
+    const intptr_t esize = 1 << esz;
+    intptr_t reg_off, reg_last;
+    SVEContLdSt info;
+    void *host;
+    int flags;
+
+    /* Find the active elements.  */
+    if (!sve_cont_ldst_elements(&info, addr, vg, reg_max, esz, esize)) {
+        /* The entire predicate was false; no load occurs.  */
+        clr_fn(za, 0, reg_max);
+        return;
+    }
+
+    /* Probe the page(s).  Exit with exception for any invalid page. */
+    sve_cont_ldst_pages(&info, FAULT_ALL, env, addr, MMU_DATA_LOAD, ra);
+
+    /* Handle watchpoints for all active elements. */
+    sve_cont_ldst_watchpoints(&info, env, vg, addr, esize, esize,
+                              BP_MEM_READ, ra);
+
+    /*
+     * Handle mte checks for all active elements.
+     * Since TBI must be set for MTE, !mtedesc => !mte_active.
+     */
+    if (mtedesc) {
+        sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize,
+                                mtedesc, ra);
+    }
+
+    flags = info.page[0].flags | info.page[1].flags;
+    if (unlikely(flags != 0)) {
+#ifdef CONFIG_USER_ONLY
+        g_assert_not_reached();
+#else
+        /*
+         * At least one page includes MMIO.
+         * Any bus operation can fail with cpu_transaction_failed,
+         * which for ARM will raise SyncExternal.  Perform the load
+         * into scratch memory to preserve register state until the end.
+         */
+        ARMVectorReg scratch = { };
+
+        reg_off = info.reg_off_first[0];
+        reg_last = info.reg_off_last[1];
+        if (reg_last < 0) {
+            reg_last = info.reg_off_split;
+            if (reg_last < 0) {
+                reg_last = info.reg_off_last[0];
+            }
+        }
+
+        do {
+            uint64_t pg = vg[reg_off >> 6];
+            do {
+                if ((pg >> (reg_off & 63)) & 1) {
+                    tlb_fn(env, &scratch, reg_off, addr + reg_off, ra);
+                }
+                reg_off += esize;
+            } while (reg_off & 63);
+        } while (reg_off <= reg_last);
+
+        cpy_fn(za, &scratch, reg_max);
+        return;
+#endif
+    }
+
+    /* The entire operation is in RAM, on valid pages. */
+
+    reg_off = info.reg_off_first[0];
+    reg_last = info.reg_off_last[0];
+    host = info.page[0].host;
+
+    if (!vertical) {
+        memset(za, 0, reg_max);
+    } else if (reg_off) {
+        clr_fn(za, 0, reg_off);
+    }
+
+    while (reg_off <= reg_last) {
+        uint64_t pg = vg[reg_off >> 6];
+        do {
+            if ((pg >> (reg_off & 63)) & 1) {
+                host_fn(za, reg_off, host + reg_off);
+            } else if (vertical) {
+                clr_fn(za, reg_off, esize);
+            }
+            reg_off += esize;
+        } while (reg_off <= reg_last && (reg_off & 63));
+    }
+
+    /*
+     * Use the slow path to manage the cross-page misalignment.
+     * But we know this is RAM and cannot trap.
+     */
+    reg_off = info.reg_off_split;
+    if (unlikely(reg_off >= 0)) {
+        tlb_fn(env, za, reg_off, addr + reg_off, ra);
+    }
+
+    reg_off = info.reg_off_first[1];
+    if (unlikely(reg_off >= 0)) {
+        reg_last = info.reg_off_last[1];
+        host = info.page[1].host;
+
+        do {
+            uint64_t pg = vg[reg_off >> 6];
+            do {
+                if ((pg >> (reg_off & 63)) & 1) {
+                    host_fn(za, reg_off, host + reg_off);
+                } else if (vertical) {
+                    clr_fn(za, reg_off, esize);
+                }
+                reg_off += esize;
+            } while (reg_off & 63);
+        } while (reg_off <= reg_last);
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE
+void sme_ld1_mte(CPUARMState *env, void *za, uint64_t *vg,
+                 target_ulong addr, uint32_t desc, uintptr_t ra,
+                 const int esz, bool vertical,
+                 sve_ldst1_host_fn *host_fn,
+                 sve_ldst1_tlb_fn *tlb_fn,
+                 ClearFn *clr_fn,
+                 CopyFn *cpy_fn)
+{
+    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    int bit55 = extract64(addr, 55, 1);
+
+    /* Remove mtedesc from the normal sve descriptor. */
+    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+
+    /* Perform gross MTE suppression early. */
+    if (!tbi_check(desc, bit55) ||
+        tcma_check(desc, bit55, allocation_tag_from_addr(addr))) {
+        mtedesc = 0;
+    }
+
+    sme_ld1(env, za, vg, addr, desc, ra, esz, mtedesc, vertical,
+            host_fn, tlb_fn, clr_fn, cpy_fn);
+}
+
+#define DO_LD(L, END, ESZ)                                                 \
+void HELPER(sme_ld1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
+                                 target_ulong addr, uint32_t desc)         \
+{                                                                          \
+    sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
+            sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,           \
+            clear_horizontal, copy_horizontal);                            \
+}                                                                          \
+void HELPER(sme_ld1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
+                                 target_ulong addr, uint32_t desc)         \
+{                                                                          \
+    sme_ld1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
+            sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,             \
+            clear_vertical_##L, copy_vertical_##L);                        \
+}                                                                          \
+void HELPER(sme_ld1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
+                                     target_ulong addr, uint32_t desc)     \
+{                                                                          \
+    sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
+                sve_ld1##L##L##END##_host, sve_ld1##L##L##END##_tlb,       \
+                clear_horizontal, copy_horizontal);                        \
+}                                                                          \
+void HELPER(sme_ld1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
+                                     target_ulong addr, uint32_t desc)     \
+{                                                                          \
+    sme_ld1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
+                sme_ld1##L##END##_v_host, sme_ld1##L##END##_v_tlb,         \
+                clear_vertical_##L, copy_vertical_##L);                    \
+}
+
+DO_LD(b, , MO_8)
+DO_LD(h, _be, MO_16)
+DO_LD(h, _le, MO_16)
+DO_LD(s, _be, MO_32)
+DO_LD(s, _le, MO_32)
+DO_LD(d, _be, MO_64)
+DO_LD(d, _le, MO_64)
+DO_LD(q, _be, MO_128)
+DO_LD(q, _le, MO_128)
+
+#undef DO_LD
+
+/*
+ * Common helper for all contiguous predicated stores.
+ */
+
+static inline QEMU_ALWAYS_INLINE
+void sme_st1(CPUARMState *env, void *za, uint64_t *vg,
+             const target_ulong addr, uint32_t desc, const uintptr_t ra,
+             const int esz, uint32_t mtedesc, bool vertical,
+             sve_ldst1_host_fn *host_fn,
+             sve_ldst1_tlb_fn *tlb_fn)
+{
+    const intptr_t reg_max = simd_oprsz(desc);
+    const intptr_t esize = 1 << esz;
+    intptr_t reg_off, reg_last;
+    SVEContLdSt info;
+    void *host;
+    int flags;
+
+    /* Find the active elements.  */
+    if (!sve_cont_ldst_elements(&info, addr, vg, reg_max, esz, esize)) {
+        /* The entire predicate was false; no store occurs.  */
+        return;
+    }
+
+    /* Probe the page(s).  Exit with exception for any invalid page. */
+    sve_cont_ldst_pages(&info, FAULT_ALL, env, addr, MMU_DATA_STORE, ra);
+
+    /* Handle watchpoints for all active elements. */
+    sve_cont_ldst_watchpoints(&info, env, vg, addr, esize, esize,
+                              BP_MEM_WRITE, ra);
+
+    /*
+     * Handle mte checks for all active elements.
+     * Since TBI must be set for MTE, !mtedesc => !mte_active.
+     */
+    if (mtedesc) {
+        sve_cont_ldst_mte_check(&info, env, vg, addr, esize, esize,
+                                mtedesc, ra);
+    }
+
+    flags = info.page[0].flags | info.page[1].flags;
+    if (unlikely(flags != 0)) {
+#ifdef CONFIG_USER_ONLY
+        g_assert_not_reached();
+#else
+        /*
+         * At least one page includes MMIO.
+         * Any bus operation can fail with cpu_transaction_failed,
+         * which for ARM will raise SyncExternal.  We cannot avoid
+         * this fault and will leave with the store incomplete.
+         */
+        reg_off = info.reg_off_first[0];
+        reg_last = info.reg_off_last[1];
+        if (reg_last < 0) {
+            reg_last = info.reg_off_split;
+            if (reg_last < 0) {
+                reg_last = info.reg_off_last[0];
+            }
+        }
+
+        do {
+            uint64_t pg = vg[reg_off >> 6];
+            do {
+                if ((pg >> (reg_off & 63)) & 1) {
+                    tlb_fn(env, za, reg_off, addr + reg_off, ra);
+                }
+                reg_off += esize;
+            } while (reg_off & 63);
+        } while (reg_off <= reg_last);
+        return;
+#endif
+    }
+
+    reg_off = info.reg_off_first[0];
+    reg_last = info.reg_off_last[0];
+    host = info.page[0].host;
+
+    while (reg_off <= reg_last) {
+        uint64_t pg = vg[reg_off >> 6];
+        do {
+            if ((pg >> (reg_off & 63)) & 1) {
+                host_fn(za, reg_off, host + reg_off);
+            }
+            reg_off += 1 << esz;
+        } while (reg_off <= reg_last && (reg_off & 63));
+    }
+
+    /*
+     * Use the slow path to manage the cross-page misalignment.
+     * But we know this is RAM and cannot trap.
+     */
+    reg_off = info.reg_off_split;
+    if (unlikely(reg_off >= 0)) {
+        tlb_fn(env, za, reg_off, addr + reg_off, ra);
+    }
+
+    reg_off = info.reg_off_first[1];
+    if (unlikely(reg_off >= 0)) {
+        reg_last = info.reg_off_last[1];
+        host = info.page[1].host;
+
+        do {
+            uint64_t pg = vg[reg_off >> 6];
+            do {
+                if ((pg >> (reg_off & 63)) & 1) {
+                    host_fn(za, reg_off, host + reg_off);
+                }
+                reg_off += 1 << esz;
+            } while (reg_off & 63);
+        } while (reg_off <= reg_last);
+    }
+}
+
+static inline QEMU_ALWAYS_INLINE
+void sme_st1_mte(CPUARMState *env, void *za, uint64_t *vg, target_ulong addr,
+                 uint32_t desc, uintptr_t ra, int esz, bool vertical,
+                 sve_ldst1_host_fn *host_fn,
+                 sve_ldst1_tlb_fn *tlb_fn)
+{
+    uint32_t mtedesc = desc >> (SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+    int bit55 = extract64(addr, 55, 1);
+
+    /* Remove mtedesc from the normal sve descriptor. */
+    desc = extract32(desc, 0, SIMD_DATA_SHIFT + SVE_MTEDESC_SHIFT);
+
+    /* Perform gross MTE suppression early. */
+    if (!tbi_check(desc, bit55) ||
+        tcma_check(desc, bit55, allocation_tag_from_addr(addr))) {
+        mtedesc = 0;
+    }
+
+    sme_st1(env, za, vg, addr, desc, ra, esz, mtedesc,
+            vertical, host_fn, tlb_fn);
+}
+
+#define DO_ST(L, END, ESZ)                                                 \
+void HELPER(sme_st1##L##END##_h)(CPUARMState *env, void *za, void *vg,     \
+                                 target_ulong addr, uint32_t desc)         \
+{                                                                          \
+    sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, false,               \
+            sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);          \
+}                                                                          \
+void HELPER(sme_st1##L##END##_v)(CPUARMState *env, void *za, void *vg,     \
+                                 target_ulong addr, uint32_t desc)         \
+{                                                                          \
+    sme_st1(env, za, vg, addr, desc, GETPC(), ESZ, 0, true,                \
+            sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);            \
+}                                                                          \
+void HELPER(sme_st1##L##END##_h_mte)(CPUARMState *env, void *za, void *vg, \
+                                     target_ulong addr, uint32_t desc)     \
+{                                                                          \
+    sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, false,              \
+                sve_st1##L##L##END##_host, sve_st1##L##L##END##_tlb);      \
+}                                                                          \
+void HELPER(sme_st1##L##END##_v_mte)(CPUARMState *env, void *za, void *vg, \
+                                     target_ulong addr, uint32_t desc)     \
+{                                                                          \
+    sme_st1_mte(env, za, vg, addr, desc, GETPC(), ESZ, true,               \
+                sme_st1##L##END##_v_host, sme_st1##L##END##_v_tlb);        \
+}
+
+DO_ST(b, , MO_8)
+DO_ST(h, _be, MO_16)
+DO_ST(h, _le, MO_16)
+DO_ST(s, _be, MO_32)
+DO_ST(s, _le, MO_32)
+DO_ST(d, _be, MO_64)
+DO_ST(d, _le, MO_64)
+DO_ST(q, _be, MO_128)
+DO_ST(q, _le, MO_128)
+
+#undef DO_ST

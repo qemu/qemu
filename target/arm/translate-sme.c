@@ -173,3 +173,73 @@ static bool trans_MOVA(DisasContext *s, arg_MOVA *a)
 
     return true;
 }
+
+static bool trans_LDST1(DisasContext *s, arg_LDST1 *a)
+{
+    typedef void GenLdSt1(TCGv_env, TCGv_ptr, TCGv_ptr, TCGv, TCGv_i32);
+
+    /*
+     * Indexed by [esz][be][v][mte][st], which is (except for load/store)
+     * also the order in which the elements appear in the function names,
+     * and so how we must concatenate the pieces.
+     */
+
+#define FN_LS(F)     { gen_helper_sme_ld1##F, gen_helper_sme_st1##F }
+#define FN_MTE(F)    { FN_LS(F), FN_LS(F##_mte) }
+#define FN_HV(F)     { FN_MTE(F##_h), FN_MTE(F##_v) }
+#define FN_END(L, B) { FN_HV(L), FN_HV(B) }
+
+    static GenLdSt1 * const fns[5][2][2][2][2] = {
+        FN_END(b, b),
+        FN_END(h_le, h_be),
+        FN_END(s_le, s_be),
+        FN_END(d_le, d_be),
+        FN_END(q_le, q_be),
+    };
+
+#undef FN_LS
+#undef FN_MTE
+#undef FN_HV
+#undef FN_END
+
+    TCGv_ptr t_za, t_pg;
+    TCGv_i64 addr;
+    int svl, desc = 0;
+    bool be = s->be_data == MO_BE;
+    bool mte = s->mte_active[0];
+
+    if (!dc_isar_feature(aa64_sme, s)) {
+        return false;
+    }
+    if (!sme_smza_enabled_check(s)) {
+        return true;
+    }
+
+    t_za = get_tile_rowcol(s, a->esz, a->rs, a->za_imm, a->v);
+    t_pg = pred_full_reg_ptr(s, a->pg);
+    addr = tcg_temp_new_i64();
+
+    tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), a->esz);
+    tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
+
+    if (mte) {
+        desc = FIELD_DP32(desc, MTEDESC, MIDX, get_mem_index(s));
+        desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
+        desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
+        desc = FIELD_DP32(desc, MTEDESC, WRITE, a->st);
+        desc = FIELD_DP32(desc, MTEDESC, SIZEM1, (1 << a->esz) - 1);
+        desc <<= SVE_MTEDESC_SHIFT;
+    } else {
+        addr = clean_data_tbi(s, addr);
+    }
+    svl = streaming_vec_reg_size(s);
+    desc = simd_desc(svl, svl, desc);
+
+    fns[a->esz][be][a->v][mte][a->st](cpu_env, t_za, t_pg, addr,
+                                      tcg_constant_i32(desc));
+
+    tcg_temp_free_ptr(t_za);
+    tcg_temp_free_ptr(t_pg);
+    tcg_temp_free_i64(addr);
+    return true;
+}
