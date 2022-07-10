@@ -585,18 +585,16 @@ static bool try_poll_mode(AioContext *ctx, AioHandlerList *ready_list,
 
     max_ns = qemu_soonest_timeout(*timeout, ctx->poll_ns);
     if (max_ns && !ctx->fdmon_ops->need_wait(ctx)) {
+        /*
+         * Enable poll mode. It pairs with the poll_set_started() in
+         * aio_poll() which disables poll mode.
+         */
         poll_set_started(ctx, ready_list, true);
 
         if (run_poll_handlers(ctx, ready_list, max_ns, timeout)) {
             return true;
         }
     }
-
-    if (poll_set_started(ctx, ready_list, false)) {
-        *timeout = 0;
-        return true;
-    }
-
     return false;
 }
 
@@ -657,6 +655,17 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * system call---a single round of run_poll_handlers_once suffices.
      */
     if (timeout || ctx->fdmon_ops->need_wait(ctx)) {
+        /*
+         * Disable poll mode. poll mode should be disabled before the call
+         * of ctx->fdmon_ops->wait() so that guest's notification can wake
+         * up IO threads when some work becomes pending. It is essential to
+         * avoid hangs or unnecessary latency.
+         */
+        if (poll_set_started(ctx, &ready_list, false)) {
+            timeout = 0;
+            progress = true;
+        }
+
         ctx->fdmon_ops->wait(ctx, &ready_list, timeout);
     }
 
