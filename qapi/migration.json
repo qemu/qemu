@@ -55,6 +55,10 @@
 # @postcopy-bytes: The number of bytes sent during the post-copy phase
 #                  (since 7.0).
 #
+# @dirty-sync-missed-zero-copy: Number of times dirty RAM synchronization could
+#                               not avoid copying dirty pages. This is between
+#                               0 and @dirty-sync-count * @multifd-channels.
+#                               (since 7.1)
 # Since: 0.14
 ##
 { 'struct': 'MigrationStats',
@@ -65,7 +69,8 @@
            'postcopy-requests' : 'int', 'page-size' : 'int',
            'multifd-bytes' : 'uint64', 'pages-per-second' : 'uint64',
            'precopy-bytes' : 'uint64', 'downtime-bytes' : 'uint64',
-           'postcopy-bytes' : 'uint64' } }
+           'postcopy-bytes' : 'uint64',
+           'dirty-sync-missed-zero-copy' : 'uint64' } }
 
 ##
 # @XBZRLECacheStats:
