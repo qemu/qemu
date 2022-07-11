@@ -39,7 +39,7 @@ ideas from other posts. If you do subscribe, be prepared for a high
 volume of email, often over one thousand messages in a week. The list is
 moderated; first-time posts from an email address (whether or not you
 subscribed) may be subject to some delay while waiting for a moderator
-to whitelist your address.
+to allow your address.
 
 The larger your contribution is, or if you plan on becoming a long-term
 contributor, then the more important the rest of this page becomes.
