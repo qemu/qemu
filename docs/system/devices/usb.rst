@@ -353,3 +353,32 @@ and also assign it to the correct USB bus in QEMU like this:
         -device usb-ehci,id=ehci                             \\
         -device usb-host,bus=usb-bus.0,hostbus=3,hostport=1  \\
         -device usb-host,bus=ehci.0,hostbus=1,hostport=1
+
+``usb-host`` properties for reset behavior
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ``guest-reset`` and ``guest-reset-all`` properties control
+whenever the guest is allowed to reset the physical usb device on the
+host.  There are three cases:
+
+``guest-reset=false``
+  The guest is not allowed to reset the (physical) usb device.
+
+``guest-reset=true,guest-resets-all=false``
+  The guest is allowed to reset the device when it is not yet
+  initialized (aka no usb bus address assigned).  Usually this results
+  in one guest reset being allowed.  This is the default behavior.
+
+``guest-reset=true,guest-resets-all=true``
+  The guest is allowed to reset the device as it pleases.
+
+The reason for this existing are broken usb devices.  In theory one
+should be able to reset (and re-initialize) usb devices at any time.
+In practice that may result in shitty usb device firmware crashing and
+the device not responding any more until you power-cycle (aka un-plug
+and re-plug) it.
+
+What works best pretty much depends on the behavior of the specific
+usb device at hand, so it's a trial-and-error game.  If the default
+doesn't work, try another option and see whenever the situation
+improves.
