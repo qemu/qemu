@@ -50,7 +50,7 @@ QMPObject = Dict[str, object]
 
 # QMPMessage can be outgoing commands or incoming events/returns.
 # QMPReturnValue is usually a dict/json object, but due to QAPI's
-# 'returns-whitelist', it can actually be anything.
+# 'command-returns-exceptions', it can actually be anything.
 #
 # {'return': {}} is a QMPMessage,
 # {} is the QMPReturnValue.
