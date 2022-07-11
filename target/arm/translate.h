@@ -102,6 +102,10 @@ typedef struct DisasContext {
     bool pstate_sm;
     /* True if PSTATE.ZA is set. */
     bool pstate_za;
+    /* True if non-streaming insns should raise an SME Streaming exception. */
+    bool sme_trap_nonstreaming;
+    /* True if the current instruction is non-streaming. */
+    bool is_nonstreaming;
     /* True if MVE insns are definitely not predicated by VPR or LTPSIZE */
     bool mve_no_pred;
     /*
@@ -150,6 +154,11 @@ static inline int plus_1(DisasContext *s, int x)
 static inline int plus_2(DisasContext *s, int x)
 {
     return x + 2;
+}
+
+static inline int plus_12(DisasContext *s, int x)
+{
+    return x + 12;
 }
 
 static inline int times_2(DisasContext *s, int x)
@@ -561,5 +570,12 @@ uint64_t asimd_imm_const(uint32_t imm, int cmode, int op);
 #define TRANS_FEAT(NAME, FEAT, FUNC, ...) \
     static bool trans_##NAME(DisasContext *s, arg_##NAME *a) \
     { return dc_isar_feature(FEAT, s) && FUNC(s, __VA_ARGS__); }
+
+#define TRANS_FEAT_NONSTREAMING(NAME, FEAT, FUNC, ...)            \
+    static bool trans_##NAME(DisasContext *s, arg_##NAME *a)      \
+    {                                                             \
+        s->is_nonstreaming = true;                                \
+        return dc_isar_feature(FEAT, s) && FUNC(s, __VA_ARGS__);  \
+    }
 
 #endif /* TARGET_ARM_TRANSLATE_H */
