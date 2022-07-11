@@ -2256,6 +2256,15 @@ int page_get_flags(target_ulong address)
     return p->flags;
 }
 
+/*
+ * Allow the target to decide if PAGE_TARGET_[12] may be reset.
+ * By default, they are not kept.
+ */
+#ifndef PAGE_TARGET_STICKY
+#define PAGE_TARGET_STICKY  0
+#endif
+#define PAGE_STICKY  (PAGE_ANON | PAGE_TARGET_STICKY)
+
 /* Modify the flags of a page and invalidate the code if necessary.
    The flag PAGE_WRITE_ORG is positioned automatically depending
    on PAGE_WRITE.  The mmap_lock should already be held.  */
@@ -2299,8 +2308,8 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
             p->target_data = NULL;
             p->flags = flags;
         } else {
-            /* Using mprotect on a page does not change MAP_ANON. */
-            p->flags = (p->flags & PAGE_ANON) | flags;
+            /* Using mprotect on a page does not change sticky bits. */
+            p->flags = (p->flags & PAGE_STICKY) | flags;
         }
     }
 }
