@@ -2248,7 +2248,7 @@ store_helper_unaligned(CPUArchState *env, target_ulong addr, uint64_t val,
     const size_t tlb_off = offsetof(CPUTLBEntry, addr_write);
     uintptr_t index, index2;
     CPUTLBEntry *entry, *entry2;
-    target_ulong page2, tlb_addr, tlb_addr2;
+    target_ulong page1, page2, tlb_addr, tlb_addr2;
     MemOpIdx oi;
     size_t size2;
     int i;
@@ -2256,15 +2256,17 @@ store_helper_unaligned(CPUArchState *env, target_ulong addr, uint64_t val,
     /*
      * Ensure the second page is in the TLB.  Note that the first page
      * is already guaranteed to be filled, and that the second page
-     * cannot evict the first.
+     * cannot evict the first.  An exception to this rule is PAGE_WRITE_INV
+     * handling: the first page could have evicted itself.
      */
+    page1 = addr & TARGET_PAGE_MASK;
     page2 = (addr + size) & TARGET_PAGE_MASK;
     size2 = (addr + size) & ~TARGET_PAGE_MASK;
     index2 = tlb_index(env, mmu_idx, page2);
     entry2 = tlb_entry(env, mmu_idx, page2);
 
     tlb_addr2 = tlb_addr_write(entry2);
-    if (!tlb_hit_page(tlb_addr2, page2)) {
+    if (page1 != page2 && !tlb_hit_page(tlb_addr2, page2)) {
         if (!victim_tlb_hit(env, mmu_idx, index2, tlb_off, page2)) {
             tlb_fill(env_cpu(env), page2, size2, MMU_DATA_STORE,
                      mmu_idx, retaddr);
