@@ -382,3 +382,15 @@ What works best pretty much depends on the behavior of the specific
 usb device at hand, so it's a trial-and-error game.  If the default
 doesn't work, try another option and see whenever the situation
 improves.
+
+record usb transfers
+^^^^^^^^^^^^^^^^^^^^
+
+All usb devices have support for recording the usb traffic.  This can
+be enabled using the ``pcap=<file>`` property, for example:
+
+``-device usb-mouse,pcap=mouse.pcap``
+
+The pcap files are compatible with the linux kernels usbmon.  Many
+tools, including ``wireshark``, can decode and inspect these trace
+files.
