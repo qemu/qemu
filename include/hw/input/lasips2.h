@@ -39,7 +39,6 @@ typedef struct LASIPS2Port {
 struct LASIPS2State {
     SysBusDevice parent_obj;
 
-    hwaddr base;
     LASIPS2Port kbd;
     LASIPS2Port mouse;
     qemu_irq irq;
@@ -48,6 +47,6 @@ struct LASIPS2State {
 #define TYPE_LASIPS2 "lasips2"
 OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2State, LASIPS2)
 
-LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq);
+LASIPS2State *lasips2_initfn(qemu_irq irq);
 
 #endif /* HW_INPUT_LASIPS2_H */

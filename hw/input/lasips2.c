@@ -255,12 +255,11 @@ static void lasips2_set_mouse_irq(void *opaque, int n, int level)
     lasips2_update_irq(port->parent);
 }
 
-LASIPS2State *lasips2_initfn(hwaddr base, qemu_irq irq)
+LASIPS2State *lasips2_initfn(qemu_irq irq)
 {
     DeviceState *dev;
 
     dev = qdev_new(TYPE_LASIPS2);
-    qdev_prop_set_uint64(dev, "base", base);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
@@ -307,18 +306,12 @@ static void lasips2_init(Object *obj)
                             "ps2-mouse-input-irq", 1);
 }
 
-static Property lasips2_properties[] = {
-    DEFINE_PROP_UINT64("base", LASIPS2State, base, UINT64_MAX),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void lasips2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = lasips2_realize;
     dc->vmsd = &vmstate_lasips2;
-    device_class_set_props(dc, lasips2_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 

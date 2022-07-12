@@ -280,8 +280,7 @@ static void machine_hppa_init(MachineState *machine)
     }
 
     /* PS/2 Keyboard/Mouse */
-    dev = DEVICE(lasips2_initfn(LASI_PS2KBD_HPA,
-                                qdev_get_gpio_in(lasi_dev,
+    dev = DEVICE(lasips2_initfn(qdev_get_gpio_in(lasi_dev,
                                                  LASI_IRQ_PS2KBD_HPA)));
     memory_region_add_subregion(addr_space, LASI_PS2KBD_HPA,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
