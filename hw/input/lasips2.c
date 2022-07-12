@@ -139,28 +139,28 @@ static void lasips2_set_irq(void *opaque, int n, int level)
 static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    LASIPS2Port *port = opaque;
+    LASIPS2Port *lp = LASIPS2_PORT(opaque);
 
-    trace_lasips2_reg_write(size, port->id, addr,
+    trace_lasips2_reg_write(size, lp->id, addr,
                             lasips2_write_reg_name(addr), val);
 
     switch (addr & 0xc) {
     case REG_PS2_CONTROL:
-        port->control = val;
+        lp->control = val;
         break;
 
     case REG_PS2_XMTDATA:
-        if (port->control & LASIPS2_CONTROL_LOOPBACK) {
-            port->buf = val;
-            port->loopback_rbne = true;
-            qemu_set_irq(port->irq, 1);
+        if (lp->control & LASIPS2_CONTROL_LOOPBACK) {
+            lp->buf = val;
+            lp->loopback_rbne = true;
+            qemu_set_irq(lp->irq, 1);
             break;
         }
 
-        if (port->id) {
-            ps2_write_mouse(PS2_MOUSE_DEVICE(port->ps2dev), val);
+        if (lp->id) {
+            ps2_write_mouse(PS2_MOUSE_DEVICE(lp->ps2dev), val);
         } else {
-            ps2_write_keyboard(PS2_KBD_DEVICE(port->ps2dev), val);
+            ps2_write_keyboard(PS2_KBD_DEVICE(lp->ps2dev), val);
         }
         break;
 
@@ -176,53 +176,53 @@ static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    LASIPS2Port *port = opaque;
+    LASIPS2Port *lp = LASIPS2_PORT(opaque);
     uint64_t ret = 0;
 
     switch (addr & 0xc) {
     case REG_PS2_ID:
-        ret = port->id;
+        ret = lp->id;
         break;
 
     case REG_PS2_RCVDATA:
-        if (port->control & LASIPS2_CONTROL_LOOPBACK) {
-            port->loopback_rbne = false;
-            qemu_set_irq(port->irq, 0);
-            ret = port->buf;
+        if (lp->control & LASIPS2_CONTROL_LOOPBACK) {
+            lp->loopback_rbne = false;
+            qemu_set_irq(lp->irq, 0);
+            ret = lp->buf;
             break;
         }
 
-        ret = ps2_read_data(port->ps2dev);
+        ret = ps2_read_data(lp->ps2dev);
         break;
 
     case REG_PS2_CONTROL:
-        ret = port->control;
+        ret = lp->control;
         break;
 
     case REG_PS2_STATUS:
         ret = LASIPS2_STATUS_DATSHD | LASIPS2_STATUS_CLKSHD;
 
-        if (port->control & LASIPS2_CONTROL_DIAG) {
-            if (!(port->control & LASIPS2_CONTROL_DATDIR)) {
+        if (lp->control & LASIPS2_CONTROL_DIAG) {
+            if (!(lp->control & LASIPS2_CONTROL_DATDIR)) {
                 ret &= ~LASIPS2_STATUS_DATSHD;
             }
 
-            if (!(port->control & LASIPS2_CONTROL_CLKDIR)) {
+            if (!(lp->control & LASIPS2_CONTROL_CLKDIR)) {
                 ret &= ~LASIPS2_STATUS_CLKSHD;
             }
         }
 
-        if (port->control & LASIPS2_CONTROL_LOOPBACK) {
-            if (port->loopback_rbne) {
+        if (lp->control & LASIPS2_CONTROL_LOOPBACK) {
+            if (lp->loopback_rbne) {
                 ret |= LASIPS2_STATUS_RBNE;
             }
         } else {
-            if (!ps2_queue_empty(port->ps2dev)) {
+            if (!ps2_queue_empty(lp->ps2dev)) {
                 ret |= LASIPS2_STATUS_RBNE;
             }
         }
 
-        if (port->lasips2->int_status) {
+        if (lp->lasips2->int_status) {
             ret |= LASIPS2_STATUS_CMPINTR;
         }
         break;
@@ -233,7 +233,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    trace_lasips2_reg_read(size, port->id, addr,
+    trace_lasips2_reg_read(size, lp->id, addr,
                            lasips2_read_reg_name(addr), ret);
     return ret;
 }
