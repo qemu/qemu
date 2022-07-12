@@ -548,7 +548,7 @@ static int alloc_code_gen_buffer_anon(size_t size, int prot,
 #ifdef CONFIG_POSIX
 #include "qemu/memfd.h"
 
-static bool alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
+static int alloc_code_gen_buffer_splitwx_memfd(size_t size, Error **errp)
 {
     void *buf_rw = NULL, *buf_rx = MAP_FAILED;
     int fd = -1;
