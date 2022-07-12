@@ -2,15 +2,13 @@ include config.mak
 VPATH=$(SRC_DIR)
 all: vof.bin
 
-CC ?= $(CROSS)gcc
-LD ?= $(CROSS)ld
-OBJCOPY ?= $(CROSS)objcopy
+EXTRA_CFLAGS += -mcpu=power4
 
 %.o: %.S
-	$(CC) -m32 -mbig-endian -mcpu=power4 -c -o $@ $<
+	$(CC) $(EXTRA_CFLAGS) -c -o $@ $<
 
 %.o: %.c
-	$(CC) -m32 -mbig-endian -mcpu=power4 -c -fno-stack-protector -o $@ $<
+	$(CC) $(EXTRA_CFLAGS) -c -fno-stack-protector -o $@ $<
 
 vof.elf: entry.o main.o ci.o bootmem.o libc.o
 	$(LD) -nostdlib -e_start -T$(SRC_DIR)/vof.lds -EB -o $@ $^

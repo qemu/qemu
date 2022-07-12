@@ -12,7 +12,7 @@
  *   - sign extension when loading
  */
 
-#include <inttypes.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <minilib.h>
 

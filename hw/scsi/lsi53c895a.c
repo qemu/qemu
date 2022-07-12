@@ -1028,8 +1028,9 @@ static void lsi_do_msgout(LSIState *s)
         case 0x0d:
             /* The ABORT TAG message clears the current I/O process only. */
             trace_lsi_do_msgout_abort(current_tag);
-            if (current_req) {
+            if (current_req && current_req->req) {
                 scsi_req_cancel(current_req->req);
+                current_req->req = NULL;
             }
             lsi_disconnect(s);
             break;
