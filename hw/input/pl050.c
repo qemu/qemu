@@ -152,11 +152,7 @@ static const MemoryRegionOps pl050_ops = {
 static void pl050_realize(DeviceState *dev, Error **errp)
 {
     PL050State *s = PL050(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl050_ops, s, "pl050", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
     if (s->is_mouse) {
         s->ps2dev = ps2_mouse_init();
     } else {
@@ -197,6 +193,13 @@ static const TypeInfo pl050_mouse_info = {
 
 static void pl050_init(Object *obj)
 {
+    PL050State *s = PL050(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, obj, &pl050_ops, s, "pl050", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
+
     qdev_init_gpio_in_named(DEVICE(obj), pl050_set_irq, "ps2-input-irq", 1);
 }
 
