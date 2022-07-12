@@ -160,17 +160,24 @@ static void pl050_realize(DeviceState *dev, Error **errp)
 static void pl050_kbd_realize(DeviceState *dev, Error **errp)
 {
     PL050DeviceClass *pdc = PL050_GET_CLASS(dev);
+    PL050KbdState *s = PL050_KBD_DEVICE(dev);
     PL050State *ps = PL050(dev);
 
-    ps->ps2dev = ps2_kbd_init();
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->kbd), errp)) {
+        return;
+    }
+
+    ps->ps2dev = PS2_DEVICE(&s->kbd);
     pdc->parent_realize(dev, errp);
 }
 
 static void pl050_kbd_init(Object *obj)
 {
-    PL050State *s = PL050(obj);
+    PL050KbdState *s = PL050_KBD_DEVICE(obj);
+    PL050State *ps = PL050(obj);
 
-    s->is_mouse = false;
+    ps->is_mouse = false;
+    object_initialize_child(obj, "kbd", &s->kbd, TYPE_PS2_KBD_DEVICE);
 }
 
 static void pl050_mouse_realize(DeviceState *dev, Error **errp)

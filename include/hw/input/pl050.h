@@ -43,6 +43,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(PL050KbdState, PL050_KBD_DEVICE)
 
 struct PL050KbdState {
     PL050State parent_obj;
+
+    PS2KbdState kbd;
 };
 
 #define TYPE_PL050_MOUSE_DEVICE "pl050_mouse"
