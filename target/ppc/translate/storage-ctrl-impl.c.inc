@@ -21,6 +21,8 @@
  * Store Control Instructions
  */
 
+#include "mmu-book3s-v3.h"
+
 static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
 {
 #if defined(CONFIG_USER_ONLY)
@@ -65,6 +67,21 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
         tcg_gen_ext32u_tl(t0, cpu_gpr[rb]);
         gen_helper_tlbie(cpu_env, t0);
         tcg_temp_free(t0);
+
+#if defined(TARGET_PPC64)
+    /*
+     * ISA 3.1B says that MSR SF must be 1 when this instruction is executed;
+     * otherwise the results are undefined.
+     */
+    } else if (a->r) {
+        gen_helper_tlbie_isa300(cpu_env, cpu_gpr[rb], cpu_gpr[a->rs],
+                tcg_constant_i32(a->ric << TLBIE_F_RIC_SHIFT |
+                                 a->prs << TLBIE_F_PRS_SHIFT |
+                                 a->r << TLBIE_F_R_SHIFT |
+                                 local << TLBIE_F_LOCAL_SHIFT));
+        return true;
+#endif
+
     } else {
         gen_helper_tlbie(cpu_env, cpu_gpr[rb]);
     }
