@@ -33,6 +33,7 @@ struct LoongArchMachineState {
     bool         bios_loaded;
     /* State for other subsystems/APIs: */
     FWCfgState  *fw_cfg;
+    Notifier     machine_done;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")
