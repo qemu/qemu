@@ -50,6 +50,13 @@ struct LASIPS2KbdPort {
     LASIPS2Port parent_obj;
 };
 
+#define TYPE_LASIPS2_MOUSE_PORT "lasips2-mouse-port"
+OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2MousePort, LASIPS2_MOUSE_PORT)
+
+struct LASIPS2MousePort {
+    LASIPS2Port parent_obj;
+};
+
 struct LASIPS2State {
     SysBusDevice parent_obj;
 

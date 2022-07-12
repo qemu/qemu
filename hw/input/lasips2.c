@@ -324,11 +324,18 @@ static const TypeInfo lasips2_kbd_port_info = {
     .instance_size = sizeof(LASIPS2KbdPort),
 };
 
+static const TypeInfo lasips2_mouse_port_info = {
+    .name          = TYPE_LASIPS2_MOUSE_PORT,
+    .parent        = TYPE_LASIPS2_PORT,
+    .instance_size = sizeof(LASIPS2MousePort),
+};
+
 static void lasips2_register_types(void)
 {
     type_register_static(&lasips2_info);
     type_register_static(&lasips2_port_info);
     type_register_static(&lasips2_kbd_port_info);
+    type_register_static(&lasips2_mouse_port_info);
 }
 
 type_init(lasips2_register_types)
