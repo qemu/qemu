@@ -1195,12 +1195,17 @@
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
 #               Since 3.1
+# @show-tabs:   Display the tab bar for switching between the various graphical
+#               interfaces (e.g. VGA and virtual console character devices)
+#               by default.
+#               Since 7.1
 #
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool'  } }
+                '*zoom-to-fit'   : 'bool',
+                '*show-tabs'     : 'bool'  } }
 
 ##
 # @DisplayEGLHeadless:

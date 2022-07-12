@@ -2390,6 +2390,10 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         opts->u.gtk.grab_on_hover) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
+    if (opts->u.gtk.has_show_tabs &&
+        opts->u.gtk.show_tabs) {
+        gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
+    }
     gd_clipboard_init(s);
 }
 
