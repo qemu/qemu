@@ -322,9 +322,17 @@ static const TypeInfo lasips2_info = {
     .class_init    = lasips2_class_init,
 };
 
+static void lasips2_port_init(Object *obj)
+{
+    LASIPS2Port *s = LASIPS2_PORT(obj);
+
+    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+}
+
 static const TypeInfo lasips2_port_info = {
     .name          = TYPE_LASIPS2_PORT,
     .parent        = TYPE_DEVICE,
+    .instance_init = lasips2_port_init,
     .instance_size = sizeof(LASIPS2Port),
     .abstract      = true,
 };
