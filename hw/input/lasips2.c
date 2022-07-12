@@ -43,9 +43,9 @@ static const VMStateDescription vmstate_lasips2 = {
         VMSTATE_UINT8(kbd_port.parent_obj.control, LASIPS2State),
         VMSTATE_UINT8(kbd_port.parent_obj.id, LASIPS2State),
         VMSTATE_BOOL(kbd_port.parent_obj.irq, LASIPS2State),
-        VMSTATE_UINT8(mouse.control, LASIPS2State),
-        VMSTATE_UINT8(mouse.id, LASIPS2State),
-        VMSTATE_BOOL(mouse.irq, LASIPS2State),
+        VMSTATE_UINT8(mouse_port.parent_obj.control, LASIPS2State),
+        VMSTATE_UINT8(mouse_port.parent_obj.id, LASIPS2State),
+        VMSTATE_BOOL(mouse_port.parent_obj.irq, LASIPS2State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -119,8 +119,10 @@ static const char *lasips2_write_reg_name(uint64_t addr)
 
 static void lasips2_update_irq(LASIPS2State *s)
 {
-    trace_lasips2_intr(s->kbd_port.parent_obj.irq | s->mouse.irq);
-    qemu_set_irq(s->irq, s->kbd_port.parent_obj.irq | s->mouse.irq);
+    trace_lasips2_intr(s->kbd_port.parent_obj.irq |
+                       s->mouse_port.parent_obj.irq);
+    qemu_set_irq(s->irq, s->kbd_port.parent_obj.irq |
+                         s->mouse_port.parent_obj.irq);
 }
 
 static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
@@ -211,8 +213,9 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
             }
         }
 
-        if (port->parent->kbd_port.parent_obj.irq || port->parent->mouse.irq) {
-            ret |= LASIPS2_STATUS_CMPINTR;
+        if (port->parent->kbd_port.parent_obj.irq ||
+            port->parent->mouse_port.parent_obj.irq) {
+                ret |= LASIPS2_STATUS_CMPINTR;
         }
         break;
 
@@ -249,7 +252,7 @@ static void lasips2_set_kbd_irq(void *opaque, int n, int level)
 static void lasips2_set_mouse_irq(void *opaque, int n, int level)
 {
     LASIPS2State *s = LASIPS2(opaque);
-    LASIPS2Port *port = &s->mouse;
+    LASIPS2Port *port = LASIPS2_PORT(&s->mouse_port);
 
     port->irq = level;
     lasips2_update_irq(port->parent);
@@ -269,8 +272,14 @@ static void lasips2_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(lp->ps2dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
                                                  0));
-    s->mouse.ps2dev = ps2_mouse_init();
-    qdev_connect_gpio_out(DEVICE(s->mouse.ps2dev), PS2_DEVICE_IRQ,
+
+    lp = LASIPS2_PORT(&s->mouse_port);
+    if (!(qdev_realize(DEVICE(lp), NULL, errp))) {
+        return;
+    }
+
+    lp->ps2dev = ps2_mouse_init();
+    qdev_connect_gpio_out(DEVICE(lp->ps2dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
                                                  0));
 }
@@ -282,16 +291,13 @@ static void lasips2_init(Object *obj)
 
     object_initialize_child(obj, "lasips2-kbd-port", &s->kbd_port,
                             TYPE_LASIPS2_KBD_PORT);
-
-    s->mouse.id = 1;
-    s->mouse.parent = s;
-
-    memory_region_init_io(&s->mouse.reg, obj, &lasips2_reg_ops, &s->mouse,
-                          "lasips2-mouse", 0x100);
+    object_initialize_child(obj, "lasips2-mouse-port", &s->mouse_port,
+                            TYPE_LASIPS2_MOUSE_PORT);
 
     lp = LASIPS2_PORT(&s->kbd_port);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &lp->reg);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mouse.reg);
+    lp = LASIPS2_PORT(&s->mouse_port);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &lp->reg);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
 
@@ -343,10 +349,22 @@ static const TypeInfo lasips2_kbd_port_info = {
     .instance_init = lasips2_kbd_port_init,
 };
 
+static void lasips2_mouse_port_init(Object *obj)
+{
+    LASIPS2MousePort *s = LASIPS2_MOUSE_PORT(obj);
+    LASIPS2Port *lp = LASIPS2_PORT(obj);
+
+    memory_region_init_io(&lp->reg, obj, &lasips2_reg_ops, lp, "lasips2-mouse",
+                          0x100);
+    lp->id = 1;
+    lp->parent = container_of(s, LASIPS2State, mouse_port);
+}
+
 static const TypeInfo lasips2_mouse_port_info = {
     .name          = TYPE_LASIPS2_MOUSE_PORT,
     .parent        = TYPE_LASIPS2_PORT,
     .instance_size = sizeof(LASIPS2MousePort),
+    .instance_init = lasips2_mouse_port_init,
 };
 
 static void lasips2_register_types(void)

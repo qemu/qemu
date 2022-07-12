@@ -61,7 +61,7 @@ struct LASIPS2State {
     SysBusDevice parent_obj;
 
     LASIPS2KbdPort kbd_port;
-    LASIPS2Port mouse;
+    LASIPS2MousePort mouse_port;
     qemu_irq irq;
 };
 
