@@ -23,12 +23,13 @@
 
 #include "exec/hwaddr.h"
 #include "hw/sysbus.h"
+#include "hw/input/ps2.h"
 
 struct LASIPS2State;
 typedef struct LASIPS2Port {
     struct LASIPS2State *parent;
     MemoryRegion reg;
-    void *dev;
+    PS2State *ps2dev;
     uint8_t id;
     uint8_t control;
     uint8_t buf;

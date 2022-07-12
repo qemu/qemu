@@ -146,9 +146,9 @@ static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
         }
 
         if (port->id) {
-            ps2_write_mouse(port->dev, val);
+            ps2_write_mouse(PS2_MOUSE_DEVICE(port->ps2dev), val);
         } else {
-            ps2_write_keyboard(port->dev, val);
+            ps2_write_keyboard(PS2_KBD_DEVICE(port->ps2dev), val);
         }
         break;
 
@@ -181,7 +181,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
             break;
         }
 
-        ret = ps2_read_data(port->dev);
+        ret = ps2_read_data(port->ps2dev);
         break;
 
     case REG_PS2_CONTROL:
@@ -206,7 +206,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
                 ret |= LASIPS2_STATUS_RBNE;
             }
         } else {
-            if (!ps2_queue_empty(port->dev)) {
+            if (!ps2_queue_empty(port->ps2dev)) {
                 ret |= LASIPS2_STATUS_RBNE;
             }
         }
@@ -259,12 +259,12 @@ static void lasips2_realize(DeviceState *dev, Error **errp)
 {
     LASIPS2State *s = LASIPS2(dev);
 
-    s->kbd.dev = ps2_kbd_init();
-    qdev_connect_gpio_out(DEVICE(s->kbd.dev), PS2_DEVICE_IRQ,
+    s->kbd.ps2dev = ps2_kbd_init();
+    qdev_connect_gpio_out(DEVICE(s->kbd.ps2dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
                                                  0));
-    s->mouse.dev = ps2_mouse_init();
-    qdev_connect_gpio_out(DEVICE(s->mouse.dev), PS2_DEVICE_IRQ,
+    s->mouse.ps2dev = ps2_mouse_init();
+    qdev_connect_gpio_out(DEVICE(s->mouse.ps2dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
                                                  0));
 }
