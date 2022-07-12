@@ -47,6 +47,4 @@ struct LASIPS2State {
 #define TYPE_LASIPS2 "lasips2"
 OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2State, LASIPS2)
 
-LASIPS2State *lasips2_initfn(qemu_irq irq);
-
 #endif /* HW_INPUT_LASIPS2_H */
