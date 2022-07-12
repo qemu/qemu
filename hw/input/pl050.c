@@ -19,26 +19,12 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/input/ps2.h"
+#include "hw/input/pl050.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 
-#define TYPE_PL050 "pl050"
-OBJECT_DECLARE_SIMPLE_TYPE(PL050State, PL050)
-
-struct PL050State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    void *dev;
-    uint32_t cr;
-    uint32_t clk;
-    uint32_t last;
-    int pending;
-    qemu_irq irq;
-    bool is_mouse;
-};
 
 static const VMStateDescription vmstate_pl050 = {
     .name = "pl050",
