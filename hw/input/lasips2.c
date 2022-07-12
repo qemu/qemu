@@ -353,10 +353,15 @@ static const TypeInfo lasips2_port_info = {
 
 static void lasips2_kbd_port_realize(DeviceState *dev, Error **errp)
 {
+    LASIPS2KbdPort *s = LASIPS2_KBD_PORT(dev);
     LASIPS2Port *lp = LASIPS2_PORT(dev);
     LASIPS2PortDeviceClass *lpdc = LASIPS2_PORT_GET_CLASS(lp);
 
-    lp->ps2dev = ps2_kbd_init();
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->kbd), errp)) {
+        return;
+    }
+
+    lp->ps2dev = PS2_DEVICE(&s->kbd);
     lpdc->parent_realize(dev, errp);
 }
 
@@ -367,6 +372,9 @@ static void lasips2_kbd_port_init(Object *obj)
 
     memory_region_init_io(&lp->reg, obj, &lasips2_reg_ops, lp, "lasips2-kbd",
                           0x100);
+
+    object_initialize_child(obj, "kbd", &s->kbd, TYPE_PS2_KBD_DEVICE);
+
     lp->id = 0;
     lp->lasips2 = container_of(s, LASIPS2State, kbd_port);
 }
