@@ -322,11 +322,35 @@ static const TypeInfo lasips2_info = {
     .class_init    = lasips2_class_init,
 };
 
+static void lasips2_port_set_irq(void *opaque, int n, int level)
+{
+    LASIPS2Port *s = LASIPS2_PORT(opaque);
+
+    qemu_set_irq(s->irq, level);
+}
+
+static void lasips2_port_realize(DeviceState *dev, Error **errp)
+{
+    LASIPS2Port *s = LASIPS2_PORT(dev);
+
+    qdev_connect_gpio_out(DEVICE(s->ps2dev), PS2_DEVICE_IRQ,
+                          qdev_get_gpio_in_named(dev, "ps2-input-irq", 0));
+}
+
 static void lasips2_port_init(Object *obj)
 {
     LASIPS2Port *s = LASIPS2_PORT(obj);
 
     qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+    qdev_init_gpio_in_named(DEVICE(obj), lasips2_port_set_irq,
+                            "ps2-input-irq", 1);
+}
+
+static void lasips2_port_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = lasips2_port_realize;
 }
 
 static const TypeInfo lasips2_port_info = {
@@ -360,8 +384,10 @@ static void lasips2_kbd_port_init(Object *obj)
 static void lasips2_kbd_port_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    LASIPS2PortDeviceClass *lpdc = LASIPS2_PORT_CLASS(klass);
 
-    dc->realize = lasips2_kbd_port_realize;
+    device_class_set_parent_realize(dc, lasips2_kbd_port_realize,
+                                    &lpdc->parent_realize);
 }
 
 static const TypeInfo lasips2_kbd_port_info = {
@@ -393,8 +419,10 @@ static void lasips2_mouse_port_init(Object *obj)
 static void lasips2_mouse_port_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    LASIPS2PortDeviceClass *lpdc = LASIPS2_PORT_CLASS(klass);
 
-    dc->realize = lasips2_mouse_port_realize;
+    device_class_set_parent_realize(dc, lasips2_mouse_port_realize,
+                                    &lpdc->parent_realize);
 }
 
 static const TypeInfo lasips2_mouse_port_info = {

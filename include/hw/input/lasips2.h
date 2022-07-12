@@ -30,6 +30,8 @@ OBJECT_DECLARE_TYPE(LASIPS2Port, LASIPS2PortDeviceClass, LASIPS2_PORT)
 
 struct LASIPS2PortDeviceClass {
     DeviceClass parent;
+
+    DeviceRealize parent_realize;
 };
 
 typedef struct LASIPS2State LASIPS2State;
