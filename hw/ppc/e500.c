@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+#include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "e500.h"
 #include "e500-ccsr.h"
@@ -346,6 +347,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
         };
     const char *dtb_file = machine->dtb;
     const char *toplevel_compat = machine->dt_compatible;
+    uint8_t rng_seed[32];
 
     if (dtb_file) {
         char *filename;
@@ -402,6 +404,9 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
                                       machine->kernel_cmdline);
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
+
+    qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+    qemu_fdt_setprop(fdt, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
 
     if (kvm_enabled()) {
         /* Read out host's frequencies */
