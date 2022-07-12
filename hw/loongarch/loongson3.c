@@ -31,6 +31,10 @@
 #include "hw/loongarch/fw_cfg.h"
 #include "target/loongarch/cpu.h"
 #include "hw/firmware/smbios.h"
+#include "hw/acpi/aml-build.h"
+#include "qapi/qapi-visit-common.h"
+#include "hw/acpi/generic_event_device.h"
+#include "hw/mem/nvdimm.h"
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
@@ -67,6 +71,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     LoongArchMachineState *lams = container_of(notifier,
                                         LoongArchMachineState, machine_done);
     virt_build_smbios(lams);
+    loongarch_acpi_setup(lams);
 }
 
 struct memmap_entry {
@@ -94,7 +99,6 @@ static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
     memmap_table[memmap_entries].reserved = 0;
     memmap_entries++;
 }
-
 
 /*
  * This is a placeholder for missing ACPI,
@@ -166,7 +170,32 @@ static int64_t load_kernel_info(void)
     return kernel_entry;
 }
 
-static void loongarch_devices_init(DeviceState *pch_pic)
+static DeviceState *create_acpi_ged(DeviceState *pch_pic, LoongArchMachineState *lams)
+{
+    DeviceState *dev;
+    MachineState *ms = MACHINE(lams);
+    uint32_t event = ACPI_GED_PWR_DOWN_EVT;
+
+    if (ms->ram_slots) {
+        event |= ACPI_GED_MEM_HOTPLUG_EVT;
+    }
+    dev = qdev_new(TYPE_ACPI_GED);
+    qdev_prop_set_uint32(dev, "ged-event", event);
+
+    /* ged event */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, VIRT_GED_EVT_ADDR);
+    /* memory hotplug */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, VIRT_GED_MEM_ADDR);
+    /* ged regs used for reset and power down */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, VIRT_GED_REG_ADDR);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(pch_pic, LS7A_SCI_IRQ - PCH_PIC_IRQ_OFFSET));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    return dev;
+}
+
+static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *lams)
 {
     DeviceState *gpex_dev;
     SysBusDevice *d;
@@ -242,6 +271,8 @@ static void loongarch_devices_init(DeviceState *pch_pic)
     memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
                           NULL, "loongarch_virt_pm", PM_SIZE);
     memory_region_add_subregion(get_system_memory(), PM_BASE, pm_mem);
+    /* acpi ged */
+    lams->acpi_ged = create_acpi_ged(pch_pic, lams);
 }
 
 static void loongarch_irq_init(LoongArchMachineState *lams)
@@ -343,7 +374,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
                               qdev_get_gpio_in(extioi, i + PCH_MSI_IRQ_START));
     }
 
-    loongarch_devices_init(pch_pic);
+    loongarch_devices_init(pch_pic, lams);
 }
 
 static void loongarch_firmware_init(LoongArchMachineState *lams)
@@ -550,6 +581,40 @@ static void loongarch_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&lams->machine_done);
 }
 
+bool loongarch_is_acpi_enabled(LoongArchMachineState *lams)
+{
+    if (lams->acpi == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+    return true;
+}
+
+static void loongarch_get_acpi(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+    OnOffAuto acpi = lams->acpi;
+
+    visit_type_OnOffAuto(v, name, &acpi, errp);
+}
+
+static void loongarch_set_acpi(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &lams->acpi, errp);
+}
+
+static void loongarch_machine_initfn(Object *obj)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+
+    lams->acpi = ON_OFF_AUTO_AUTO;
+    lams->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
+    lams->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+}
+
 static void loongarch_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -565,6 +630,12 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
+
+    object_class_property_add(oc, "acpi", "OnOffAuto",
+        loongarch_get_acpi, loongarch_set_acpi,
+        NULL, NULL);
+    object_class_property_set_description(oc, "acpi",
+        "Enable ACPI");
 }
 
 static const TypeInfo loongarch_machine_types[] = {
@@ -573,6 +644,7 @@ static const TypeInfo loongarch_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(LoongArchMachineState),
         .class_init     = loongarch_class_init,
+        .instance_init = loongarch_machine_initfn,
     }
 };
 

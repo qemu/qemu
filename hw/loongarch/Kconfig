@@ -15,3 +15,5 @@ config LOONGARCH_VIRT
     select LOONGARCH_EXTIOI
     select LS7A_RTC
     select SMBIOS
+    select ACPI_PCI
+    select ACPI_HW_REDUCED
