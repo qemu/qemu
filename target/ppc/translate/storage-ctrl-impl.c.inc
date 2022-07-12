@@ -1,0 +1,87 @@
+/*
+ * Power ISA decode for Storage Control instructions
+ *
+ * Copyright (c) 2022 Instituto de Pesquisas Eldorado (eldorado.org.br)
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Store Control Instructions
+ */
+
+static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+    return true;
+#else
+    TCGv_i32 t1;
+    int rb;
+
+    rb = a->rb;
+
+    if ((ctx->insns_flags2 & PPC2_ISA300) == 0) {
+        /*
+         * Before Power ISA 3.0, the corresponding bits of RIC, PRS, and R
+         * (and RS for tlbiel) were reserved fields and should be ignored.
+         */
+        a->ric = 0;
+        a->prs = false;
+        a->r = false;
+        if (local) {
+            a->rs = 0;
+        }
+    }
+
+    if (ctx->pr) {
+        /* tlbie[l] is privileged... */
+        gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return true;
+    } else if (!ctx->hv) {
+        if ((!a->prs && ctx->hr) || (!local && !ctx->gtse)) {
+            /*
+             * ... except when PRS=0 and HR=1, or when GTSE=0 for tlbie,
+             * making it hypervisor privileged.
+             */
+            gen_priv_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+            return true;
+        }
+    }
+
+    if (!local && NARROW_MODE(ctx)) {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_ext32u_tl(t0, cpu_gpr[rb]);
+        gen_helper_tlbie(cpu_env, t0);
+        tcg_temp_free(t0);
+    } else {
+        gen_helper_tlbie(cpu_env, cpu_gpr[rb]);
+    }
+
+    if (local) {
+        return true;
+    }
+
+    t1 = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_gen_ori_i32(t1, t1, TLB_NEED_GLOBAL_FLUSH);
+    tcg_gen_st_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
+    tcg_temp_free_i32(t1);
+
+    return true;
+#endif
+}
+
+TRANS_FLAGS(MEM_TLBIE, TLBIE, do_tlbie, false)
+TRANS_FLAGS(MEM_TLBIE, TLBIEL, do_tlbie, true)

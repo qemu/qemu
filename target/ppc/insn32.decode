@@ -856,3 +856,11 @@ VMODSD          000100 ..... ..... ..... 11111001011    @VX
 VMODUD          000100 ..... ..... ..... 11011001011    @VX
 VMODSQ          000100 ..... ..... ..... 11100001011    @VX
 VMODUQ          000100 ..... ..... ..... 11000001011    @VX
+
+## TLB Management Instructions
+
+&X_tlbie        rb rs ric prs:bool r:bool
+@X_tlbie        ...... rs:5 - ric:2 prs:1 r:1 rb:5 .......... -     &X_tlbie
+
+TLBIE           011111 ..... - .. . . ..... 0100110010 -            @X_tlbie
+TLBIEL          011111 ..... - .. . . ..... 0100010010 -            @X_tlbie
