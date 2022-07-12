@@ -268,7 +268,6 @@ static void lasips2_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    lp->ps2dev = ps2_kbd_init();
     qdev_connect_gpio_out(DEVICE(lp->ps2dev), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
                                                  0));
@@ -331,6 +330,13 @@ static const TypeInfo lasips2_port_info = {
     .abstract      = true,
 };
 
+static void lasips2_kbd_port_realize(DeviceState *dev, Error **errp)
+{
+    LASIPS2Port *lp = LASIPS2_PORT(dev);
+
+    lp->ps2dev = ps2_kbd_init();
+}
+
 static void lasips2_kbd_port_init(Object *obj)
 {
     LASIPS2KbdPort *s = LASIPS2_KBD_PORT(obj);
@@ -342,11 +348,19 @@ static void lasips2_kbd_port_init(Object *obj)
     lp->parent = container_of(s, LASIPS2State, kbd_port);
 }
 
+static void lasips2_kbd_port_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = lasips2_kbd_port_realize;
+}
+
 static const TypeInfo lasips2_kbd_port_info = {
     .name          = TYPE_LASIPS2_KBD_PORT,
     .parent        = TYPE_LASIPS2_PORT,
     .instance_size = sizeof(LASIPS2KbdPort),
     .instance_init = lasips2_kbd_port_init,
+    .class_init    = lasips2_kbd_port_class_init,
 };
 
 static void lasips2_mouse_port_init(Object *obj)
