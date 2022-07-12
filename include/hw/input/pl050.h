@@ -16,8 +16,14 @@
 #include "hw/input/ps2.h"
 #include "hw/irq.h"
 
+struct PL050DeviceClass {
+    SysBusDeviceClass parent_class;
+
+    DeviceRealize parent_realize;
+};
+
 #define TYPE_PL050 "pl050"
-OBJECT_DECLARE_SIMPLE_TYPE(PL050State, PL050)
+OBJECT_DECLARE_TYPE(PL050State, PL050DeviceClass, PL050)
 
 struct PL050State {
     SysBusDevice parent_obj;
