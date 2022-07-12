@@ -222,7 +222,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
             }
         }
 
-        if (port->parent->int_status) {
+        if (port->lasips2->int_status) {
             ret |= LASIPS2_STATUS_CMPINTR;
         }
         break;
@@ -368,7 +368,7 @@ static void lasips2_kbd_port_init(Object *obj)
     memory_region_init_io(&lp->reg, obj, &lasips2_reg_ops, lp, "lasips2-kbd",
                           0x100);
     lp->id = 0;
-    lp->parent = container_of(s, LASIPS2State, kbd_port);
+    lp->lasips2 = container_of(s, LASIPS2State, kbd_port);
 }
 
 static void lasips2_kbd_port_class_init(ObjectClass *klass, void *data)
@@ -405,7 +405,7 @@ static void lasips2_mouse_port_init(Object *obj)
     memory_region_init_io(&lp->reg, obj, &lasips2_reg_ops, lp, "lasips2-mouse",
                           0x100);
     lp->id = 1;
-    lp->parent = container_of(s, LASIPS2State, mouse_port);
+    lp->lasips2 = container_of(s, LASIPS2State, mouse_port);
 }
 
 static void lasips2_mouse_port_class_init(ObjectClass *klass, void *data)

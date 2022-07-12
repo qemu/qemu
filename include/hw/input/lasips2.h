@@ -37,7 +37,7 @@ typedef struct LASIPS2State LASIPS2State;
 struct LASIPS2Port {
     DeviceState parent_obj;
 
-    LASIPS2State *parent;
+    LASIPS2State *lasips2;
     MemoryRegion reg;
     PS2State *ps2dev;
     uint8_t id;
