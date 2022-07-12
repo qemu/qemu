@@ -42,10 +42,10 @@ static const VMStateDescription vmstate_lasips2 = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(kbd_port.parent_obj.control, LASIPS2State),
         VMSTATE_UINT8(kbd_port.parent_obj.id, LASIPS2State),
-        VMSTATE_BOOL(kbd_port.parent_obj.irq, LASIPS2State),
+        VMSTATE_BOOL(kbd_port.parent_obj.birq, LASIPS2State),
         VMSTATE_UINT8(mouse_port.parent_obj.control, LASIPS2State),
         VMSTATE_UINT8(mouse_port.parent_obj.id, LASIPS2State),
-        VMSTATE_BOOL(mouse_port.parent_obj.irq, LASIPS2State),
+        VMSTATE_BOOL(mouse_port.parent_obj.birq, LASIPS2State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -119,10 +119,10 @@ static const char *lasips2_write_reg_name(uint64_t addr)
 
 static void lasips2_update_irq(LASIPS2State *s)
 {
-    trace_lasips2_intr(s->kbd_port.parent_obj.irq |
-                       s->mouse_port.parent_obj.irq);
-    qemu_set_irq(s->irq, s->kbd_port.parent_obj.irq |
-                         s->mouse_port.parent_obj.irq);
+    trace_lasips2_intr(s->kbd_port.parent_obj.birq |
+                       s->mouse_port.parent_obj.birq);
+    qemu_set_irq(s->irq, s->kbd_port.parent_obj.birq |
+                         s->mouse_port.parent_obj.birq);
 }
 
 static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
@@ -141,7 +141,7 @@ static void lasips2_reg_write(void *opaque, hwaddr addr, uint64_t val,
     case REG_PS2_XMTDATA:
         if (port->control & LASIPS2_CONTROL_LOOPBACK) {
             port->buf = val;
-            port->irq = true;
+            port->birq = true;
             port->loopback_rbne = true;
             lasips2_update_irq(port->parent);
             break;
@@ -176,7 +176,7 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
 
     case REG_PS2_RCVDATA:
         if (port->control & LASIPS2_CONTROL_LOOPBACK) {
-            port->irq = false;
+            port->birq = false;
             port->loopback_rbne = false;
             lasips2_update_irq(port->parent);
             ret = port->buf;
@@ -213,8 +213,8 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
             }
         }
 
-        if (port->parent->kbd_port.parent_obj.irq ||
-            port->parent->mouse_port.parent_obj.irq) {
+        if (port->parent->kbd_port.parent_obj.birq ||
+            port->parent->mouse_port.parent_obj.birq) {
                 ret |= LASIPS2_STATUS_CMPINTR;
         }
         break;
@@ -245,7 +245,7 @@ static void lasips2_set_kbd_irq(void *opaque, int n, int level)
     LASIPS2State *s = LASIPS2(opaque);
     LASIPS2Port *port = LASIPS2_PORT(&s->kbd_port);
 
-    port->irq = level;
+    port->birq = level;
     lasips2_update_irq(port->parent);
 }
 
@@ -254,7 +254,7 @@ static void lasips2_set_mouse_irq(void *opaque, int n, int level)
     LASIPS2State *s = LASIPS2(opaque);
     LASIPS2Port *port = LASIPS2_PORT(&s->mouse_port);
 
-    port->irq = level;
+    port->birq = level;
     lasips2_update_irq(port->parent);
 }
 

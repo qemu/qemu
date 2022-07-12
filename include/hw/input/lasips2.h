@@ -40,7 +40,7 @@ struct LASIPS2Port {
     uint8_t control;
     uint8_t buf;
     bool loopback_rbne;
-    bool irq;
+    bool birq;
 };
 
 #define TYPE_LASIPS2_KBD_PORT "lasips2-kbd-port"
