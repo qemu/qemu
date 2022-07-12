@@ -32,7 +32,7 @@ typedef struct KBDState {
     uint8_t cbdata;
     uint8_t pending_tmp;
     PS2KbdState ps2kbd;
-    void *mouse;
+    PS2MouseState ps2mouse;
     QEMUTimer *throttle_timer;
 
     qemu_irq irqs[2];
