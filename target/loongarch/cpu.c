@@ -341,6 +341,7 @@ static void loongarch_la464_initfn(Object *obj)
         env->cpucfg[i] = 0x0;
     }
 
+    cpu->dtb_compatible = "loongarch,Loongson-3A5000";
     env->cpucfg[0] = 0x14c010;  /* PRID */
 
     uint32_t data = 0;

@@ -35,6 +35,129 @@
 #include "qapi/qapi-visit-common.h"
 #include "hw/acpi/generic_event_device.h"
 #include "hw/mem/nvdimm.h"
+#include "sysemu/device_tree.h"
+#include <libfdt.h>
+
+static void create_fdt(LoongArchMachineState *lams)
+{
+    MachineState *ms = MACHINE(lams);
+
+    ms->fdt = create_device_tree(&lams->fdt_size);
+    if (!ms->fdt) {
+        error_report("create_device_tree() failed");
+        exit(1);
+    }
+
+    /* Header */
+    qemu_fdt_setprop_string(ms->fdt, "/", "compatible",
+                            "linux,dummy-loongson3");
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
+}
+
+static void fdt_add_cpu_nodes(const LoongArchMachineState *lams)
+{
+    int num;
+    const MachineState *ms = MACHINE(lams);
+    int smp_cpus = ms->smp.cpus;
+
+    qemu_fdt_add_subnode(ms->fdt, "/cpus");
+    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#address-cells", 0x1);
+    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#size-cells", 0x0);
+
+    /* cpu nodes */
+    for (num = smp_cpus - 1; num >= 0; num--) {
+        char *nodename = g_strdup_printf("/cpus/cpu@%d", num);
+        LoongArchCPU *cpu = LOONGARCH_CPU(qemu_get_cpu(num));
+
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "cpu");
+        qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                                cpu->dtb_compatible);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "reg", num);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
+                              qemu_fdt_alloc_phandle(ms->fdt));
+        g_free(nodename);
+    }
+
+    /*cpu map */
+    qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
+
+    for (num = smp_cpus - 1; num >= 0; num--) {
+        char *cpu_path = g_strdup_printf("/cpus/cpu@%d", num);
+        char *map_path;
+
+        if (ms->smp.threads > 1) {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/core%d/thread%d",
+                num / (ms->smp.cores * ms->smp.threads),
+                (num / ms->smp.threads) % ms->smp.cores,
+                num % ms->smp.threads);
+        } else {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/core%d",
+                num / ms->smp.cores,
+                num % ms->smp.cores);
+        }
+        qemu_fdt_add_path(ms->fdt, map_path);
+        qemu_fdt_setprop_phandle(ms->fdt, map_path, "cpu", cpu_path);
+
+        g_free(map_path);
+        g_free(cpu_path);
+    }
+}
+
+static void fdt_add_fw_cfg_node(const LoongArchMachineState *lams)
+{
+    char *nodename;
+    hwaddr base = VIRT_FWCFG_BASE;
+    const MachineState *ms = MACHINE(lams);
+
+    nodename = g_strdup_printf("/fw_cfg@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "qemu,fw-cfg-mmio");
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base, 2, 0x8);
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
+    g_free(nodename);
+}
+
+static void fdt_add_pcie_node(const LoongArchMachineState *lams)
+{
+    char *nodename;
+    hwaddr base_mmio = LS7A_PCI_MEM_BASE;
+    hwaddr size_mmio = LS7A_PCI_MEM_SIZE;
+    hwaddr base_pio = LS7A_PCI_IO_BASE;
+    hwaddr size_pio = LS7A_PCI_IO_SIZE;
+    hwaddr base_pcie = LS_PCIECFG_BASE;
+    hwaddr size_pcie = LS_PCIECFG_SIZE;
+    hwaddr base = base_pcie;
+
+    const MachineState *ms = MACHINE(lams);
+
+    nodename = g_strdup_printf("/pcie@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "pci-host-ecam-generic");
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "pci");
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 3);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "linux,pci-domain", 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "bus-range", 0,
+                           PCIE_MMCFG_BUS(LS_PCIECFG_SIZE - 1));
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base_pcie, 2, size_pcie);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "ranges",
+                                 1, FDT_PCI_RANGE_IOPORT, 2, LS7A_PCI_IO_OFFSET,
+                                 2, base_pio, 2, size_pio,
+                                 1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                 2, base_mmio, 2, size_mmio);
+    g_free(nodename);
+    qemu_fdt_dumpdtb(ms->fdt, lams->fdt_size);
+}
+
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
@@ -524,12 +647,12 @@ static void loongarch_init(MachineState *machine)
         error_report("ram_size must be greater than 1G.");
         exit(1);
     }
-
+    create_fdt(lams);
     /* Init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
         cpu_create(machine->cpu_type);
     }
-
+    fdt_add_cpu_nodes(lams);
     /* Add memory region */
     memory_region_init_alias(&lams->lowmem, NULL, "loongarch.lowram",
                              machine->ram, 0, 256 * MiB);
@@ -552,12 +675,12 @@ static void loongarch_init(MachineState *machine)
     /* fw_cfg init */
     lams->fw_cfg = loongarch_fw_cfg_init(ram_size, machine);
     rom_set_fw(lams->fw_cfg);
-
     if (lams->fw_cfg != NULL) {
         fw_cfg_add_file(lams->fw_cfg, "etc/memmap",
                         memmap_table,
                         sizeof(struct memmap_entry) * (memmap_entries));
     }
+    fdt_add_fw_cfg_node(lams);
     loaderparams.ram_size = ram_size;
     loaderparams.kernel_filename = machine->kernel_filename;
     loaderparams.kernel_cmdline = machine->kernel_cmdline;
@@ -579,6 +702,13 @@ static void loongarch_init(MachineState *machine)
     loongarch_irq_init(lams);
     lams->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&lams->machine_done);
+    fdt_add_pcie_node(lams);
+
+    /* load fdt */
+    MemoryRegion *fdt_rom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(fdt_rom, NULL, "fdt", LA_FDT_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), LA_FDT_BASE, fdt_rom);
+    rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, LA_FDT_BASE);
 }
 
 bool loongarch_is_acpi_enabled(LoongArchMachineState *lams)

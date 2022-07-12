@@ -28,6 +28,9 @@
 #define VIRT_GED_MEM_ADDR       (VIRT_GED_EVT_ADDR + ACPI_GED_EVT_SEL_LEN)
 #define VIRT_GED_REG_ADDR       (VIRT_GED_MEM_ADDR + MEMORY_HOTPLUG_IO_LEN)
 
+#define LA_FDT_BASE             0x1c400000
+#define LA_FDT_SIZE             0x100000
+
 struct LoongArchMachineState {
     /*< private >*/
     MachineState parent_obj;
@@ -45,6 +48,7 @@ struct LoongArchMachineState {
     char         *oem_id;
     char         *oem_table_id;
     DeviceState  *acpi_ged;
+    int          fdt_size;
 };
 
 #define TYPE_LOONGARCH_MACHINE  MACHINE_TYPE_NAME("virt")

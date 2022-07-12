@@ -326,6 +326,9 @@ struct ArchCPU {
     CPUNegativeOffsetState neg;
     CPULoongArchState env;
     QEMUTimer timer;
+
+    /* 'compatible' string for this CPU for Linux device trees */
+    const char *dtb_compatible;
 };
 
 #define TYPE_LOONGARCH_CPU "loongarch-cpu"
