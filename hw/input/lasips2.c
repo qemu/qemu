@@ -245,7 +245,7 @@ static const MemoryRegionOps lasips2_reg_ops = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void lasips2_realize(DeviceState *dev, Error **errp)
