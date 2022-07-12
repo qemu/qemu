@@ -28,12 +28,39 @@
 #include "hw/pci-host/ls7a.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/misc/unimp.h"
-
+#include "hw/loongarch/fw_cfg.h"
 #include "target/loongarch/cpu.h"
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
 #define PM_CTRL 0x10
+
+struct memmap_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
+
+static struct memmap_entry *memmap_table;
+static unsigned memmap_entries;
+
+static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
+{
+    /* Ensure there are no duplicate entries. */
+    for (unsigned i = 0; i < memmap_entries; i++) {
+        assert(memmap_table[i].address != address);
+    }
+
+    memmap_table = g_renew(struct memmap_entry, memmap_table,
+                           memmap_entries + 1);
+    memmap_table[memmap_entries].address = cpu_to_le64(address);
+    memmap_table[memmap_entries].length = cpu_to_le64(length);
+    memmap_table[memmap_entries].type = cpu_to_le32(type);
+    memmap_table[memmap_entries].reserved = 0;
+    memmap_entries++;
+}
+
 
 /*
  * This is a placeholder for missing ACPI,
@@ -331,15 +358,27 @@ static void loongarch_init(MachineState *machine)
                              machine->ram, 0, 256 * MiB);
     memory_region_add_subregion(address_space_mem, offset, &lams->lowmem);
     offset += 256 * MiB;
+    memmap_add_entry(0, 256 * MiB, 1);
     highram_size = ram_size - 256 * MiB;
     memory_region_init_alias(&lams->highmem, NULL, "loongarch.highmem",
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
+    memmap_add_entry(0x90000000, highram_size, 1);
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, LOONGARCH_ISA_IO_SIZE);
     memory_region_add_subregion(address_space_mem, LOONGARCH_ISA_IO_BASE,
                                 &lams->isa_io);
+    /* fw_cfg init */
+    lams->fw_cfg = loongarch_fw_cfg_init(ram_size, machine);
+    rom_set_fw(lams->fw_cfg);
+
+    if (lams->fw_cfg != NULL) {
+        fw_cfg_add_file(lams->fw_cfg, "etc/memmap",
+                        memmap_table,
+                        sizeof(struct memmap_entry) * (memmap_entries));
+    }
+
     if (kernel_filename) {
         loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
