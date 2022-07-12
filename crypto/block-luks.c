@@ -495,7 +495,7 @@ qcrypto_block_luks_load_header(QCryptoBlock *block,
                                 void *opaque,
                                 Error **errp)
 {
-    ssize_t rv;
+    int rv;
     size_t i;
     QCryptoBlockLUKS *luks = block->opaque;
 
@@ -856,7 +856,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                   QCRYPTO_BLOCK_LUKS_SECTOR_SIZE,
                   splitkey, splitkeylen,
                   opaque,
-                  errp) != splitkeylen) {
+                  errp) < 0) {
         goto cleanup;
     }
 
@@ -903,7 +903,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
     g_autofree uint8_t *splitkey = NULL;
     size_t splitkeylen;
     g_autofree uint8_t *possiblekey = NULL;
-    ssize_t rv;
+    int rv;
     g_autoptr(QCryptoCipher) cipher = NULL;
     uint8_t keydigest[QCRYPTO_BLOCK_LUKS_DIGEST_LEN];
     g_autoptr(QCryptoIVGen) ivgen = NULL;
@@ -1193,7 +1193,7 @@ qcrypto_block_luks_erase_key(QCryptoBlock *block,
                       garbagesplitkey,
                       splitkeylen,
                       opaque,
-                      &local_err) != splitkeylen) {
+                      &local_err) < 0) {
             error_propagate(errp, local_err);
             return -1;
         }

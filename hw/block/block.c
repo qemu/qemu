@@ -53,7 +53,7 @@ bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
      * block device and read only on demand.
      */
     assert(size <= BDRV_REQUEST_MAX_BYTES);
-    ret = blk_pread(blk, 0, buf, size);
+    ret = blk_pread(blk, 0, size, buf, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "can't read block backend");
         return false;

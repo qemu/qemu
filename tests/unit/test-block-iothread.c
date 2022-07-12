@@ -88,11 +88,11 @@ static void test_sync_op_pread(BdrvChild *c)
     int ret;
 
     /* Success */
-    ret = bdrv_pread(c, 0, buf, sizeof(buf));
-    g_assert_cmpint(ret, ==, 512);
+    ret = bdrv_pread(c, 0, sizeof(buf), buf, 0);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = bdrv_pread(c, -2, buf, sizeof(buf));
+    ret = bdrv_pread(c, -2, sizeof(buf), buf, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 
@@ -102,11 +102,11 @@ static void test_sync_op_pwrite(BdrvChild *c)
     int ret;
 
     /* Success */
-    ret = bdrv_pwrite(c, 0, buf, sizeof(buf));
-    g_assert_cmpint(ret, ==, 512);
+    ret = bdrv_pwrite(c, 0, sizeof(buf), buf, 0);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = bdrv_pwrite(c, -2, buf, sizeof(buf));
+    ret = bdrv_pwrite(c, -2, sizeof(buf), buf, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 
@@ -116,11 +116,11 @@ static void test_sync_op_blk_pread(BlockBackend *blk)
     int ret;
 
     /* Success */
-    ret = blk_pread(blk, 0, buf, sizeof(buf));
-    g_assert_cmpint(ret, ==, 512);
+    ret = blk_pread(blk, 0, sizeof(buf), buf, 0);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = blk_pread(blk, -2, buf, sizeof(buf));
+    ret = blk_pread(blk, -2, sizeof(buf), buf, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 
@@ -130,11 +130,98 @@ static void test_sync_op_blk_pwrite(BlockBackend *blk)
     int ret;
 
     /* Success */
-    ret = blk_pwrite(blk, 0, buf, sizeof(buf), 0);
-    g_assert_cmpint(ret, ==, 512);
+    ret = blk_pwrite(blk, 0, sizeof(buf), buf, 0);
+    g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = blk_pwrite(blk, -2, buf, sizeof(buf), 0);
+    ret = blk_pwrite(blk, -2, sizeof(buf), buf, 0);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_preadv(BlockBackend *blk)
+{
+    uint8_t buf[512];
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, sizeof(buf));
+    int ret;
+
+    /* Success */
+    ret = blk_preadv(blk, 0, sizeof(buf), &qiov, 0);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_preadv(blk, -2, sizeof(buf), &qiov, 0);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_pwritev(BlockBackend *blk)
+{
+    uint8_t buf[512] = { 0 };
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, sizeof(buf));
+    int ret;
+
+    /* Success */
+    ret = blk_pwritev(blk, 0, sizeof(buf), &qiov, 0);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_pwritev(blk, -2, sizeof(buf), &qiov, 0);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_preadv_part(BlockBackend *blk)
+{
+    uint8_t buf[512];
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, sizeof(buf));
+    int ret;
+
+    /* Success */
+    ret = blk_preadv_part(blk, 0, sizeof(buf), &qiov, 0, 0);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_preadv_part(blk, -2, sizeof(buf), &qiov, 0, 0);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_pwritev_part(BlockBackend *blk)
+{
+    uint8_t buf[512] = { 0 };
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, sizeof(buf));
+    int ret;
+
+    /* Success */
+    ret = blk_pwritev_part(blk, 0, sizeof(buf), &qiov, 0, 0);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_pwritev_part(blk, -2, sizeof(buf), &qiov, 0, 0);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_pwrite_compressed(BlockBackend *blk)
+{
+    uint8_t buf[512] = { 0 };
+    int ret;
+
+    /* Late error: Not supported */
+    ret = blk_pwrite_compressed(blk, 0, sizeof(buf), buf);
+    g_assert_cmpint(ret, ==, -ENOTSUP);
+
+    /* Early error: Negative offset */
+    ret = blk_pwrite_compressed(blk, -2, sizeof(buf), buf);
+    g_assert_cmpint(ret, ==, -EIO);
+}
+
+static void test_sync_op_blk_pwrite_zeroes(BlockBackend *blk)
+{
+    int ret;
+
+    /* Success */
+    ret = blk_pwrite_zeroes(blk, 0, 512, 0);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_pwrite_zeroes(blk, -2, 512, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 
@@ -209,6 +296,19 @@ static void test_sync_op_truncate(BdrvChild *c)
     g_assert_cmpint(ret, ==, -EACCES);
 
     c->bs->open_flags |= BDRV_O_RDWR;
+}
+
+static void test_sync_op_blk_truncate(BlockBackend *blk)
+{
+    int ret;
+
+    /* Normal success path */
+    ret = blk_truncate(blk, 65536, false, PREALLOC_MODE_OFF, 0, NULL);
+    g_assert_cmpint(ret, ==, 0);
+
+    /* Early error: Negative offset */
+    ret = blk_truncate(blk, -2, false, PREALLOC_MODE_OFF, 0, NULL);
+    g_assert_cmpint(ret, ==, -EINVAL);
 }
 
 static void test_sync_op_block_status(BdrvChild *c)
@@ -302,6 +402,30 @@ const SyncOpTest sync_op_tests[] = {
         .fn     = test_sync_op_pwrite,
         .blkfn  = test_sync_op_blk_pwrite,
     }, {
+        .name   = "/sync-op/preadv",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_preadv,
+    }, {
+        .name   = "/sync-op/pwritev",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_pwritev,
+    }, {
+        .name   = "/sync-op/preadv_part",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_preadv_part,
+    }, {
+        .name   = "/sync-op/pwritev_part",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_pwritev_part,
+    }, {
+        .name   = "/sync-op/pwrite_compressed",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_pwrite_compressed,
+    }, {
+        .name   = "/sync-op/pwrite_zeroes",
+        .fn     = NULL,
+        .blkfn  = test_sync_op_blk_pwrite_zeroes,
+    }, {
         .name   = "/sync-op/load_vmstate",
         .fn     = test_sync_op_load_vmstate,
     }, {
@@ -314,6 +438,7 @@ const SyncOpTest sync_op_tests[] = {
     }, {
         .name   = "/sync-op/truncate",
         .fn     = test_sync_op_truncate,
+        .blkfn  = test_sync_op_blk_truncate,
     }, {
         .name   = "/sync-op/block_status",
         .fn     = test_sync_op_block_status,
@@ -349,7 +474,9 @@ static void test_sync_op(const void *opaque)
 
     blk_set_aio_context(blk, ctx, &error_abort);
     aio_context_acquire(ctx);
-    t->fn(c);
+    if (t->fn) {
+        t->fn(c);
+    }
     if (t->blkfn) {
         t->blkfn(blk);
     }

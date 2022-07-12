@@ -1309,7 +1309,7 @@ static int check_empty_sectors(BlockBackend *blk, int64_t offset,
     int ret = 0;
     int64_t idx;
 
-    ret = blk_pread(blk, offset, buffer, bytes);
+    ret = blk_pread(blk, offset, bytes, buffer, 0);
     if (ret < 0) {
         error_report("Error while reading offset %" PRId64 " of %s: %s",
                      offset, filename, strerror(-ret));
@@ -1526,7 +1526,7 @@ static int img_compare(int argc, char **argv)
                 int64_t pnum;
 
                 chunk = MIN(chunk, IO_BUF_SIZE);
-                ret = blk_pread(blk1, offset, buf1, chunk);
+                ret = blk_pread(blk1, offset, chunk, buf1, 0);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s",
@@ -1534,7 +1534,7 @@ static int img_compare(int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = blk_pread(blk2, offset, buf2, chunk);
+                ret = blk_pread(blk2, offset, chunk, buf2, 0);
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s",
@@ -2114,7 +2114,7 @@ static int convert_do_copy(ImgConvertState *s)
 
     if (s->compressed && !s->ret) {
         /* signal EOF to align */
-        ret = blk_pwrite_compressed(s->target, 0, NULL, 0);
+        ret = blk_pwrite_compressed(s->target, 0, 0, NULL);
         if (ret < 0) {
             return ret;
         }
@@ -3779,7 +3779,7 @@ static int img_rebase(int argc, char **argv)
                     n = old_backing_size - offset;
                 }
 
-                ret = blk_pread(blk_old_backing, offset, buf_old, n);
+                ret = blk_pread(blk_old_backing, offset, n, buf_old, 0);
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
@@ -3793,7 +3793,7 @@ static int img_rebase(int argc, char **argv)
                     n = new_backing_size - offset;
                 }
 
-                ret = blk_pread(blk_new_backing, offset, buf_new, n);
+                ret = blk_pread(blk_new_backing, offset, n, buf_new, 0);
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -3812,8 +3812,8 @@ static int img_rebase(int argc, char **argv)
                     if (buf_old_is_zero) {
                         ret = blk_pwrite_zeroes(blk, offset + written, pnum, 0);
                     } else {
-                        ret = blk_pwrite(blk, offset + written,
-                                         buf_old + written, pnum, 0);
+                        ret = blk_pwrite(blk, offset + written, pnum,
+                                         buf_old + written, 0);
                     }
                     if (ret < 0) {
                         error_report("Error while writing to COW image: %s",
@@ -5120,30 +5120,23 @@ static int img_dd(int argc, char **argv)
     in.buf = g_new(uint8_t, in.bsz);
 
     for (out_pos = 0; in_pos < size; block_count++) {
-        int in_ret, out_ret;
+        int bytes = (in_pos + in.bsz > size) ? size - in_pos : in.bsz;
 
-        if (in_pos + in.bsz > size) {
-            in_ret = blk_pread(blk1, in_pos, in.buf, size - in_pos);
-        } else {
-            in_ret = blk_pread(blk1, in_pos, in.buf, in.bsz);
-        }
-        if (in_ret < 0) {
+        ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
+        if (ret < 0) {
             error_report("error while reading from input image file: %s",
-                         strerror(-in_ret));
-            ret = -1;
+                         strerror(-ret));
             goto out;
         }
-        in_pos += in_ret;
+        in_pos += bytes;
 
-        out_ret = blk_pwrite(blk2, out_pos, in.buf, in_ret, 0);
-
-        if (out_ret < 0) {
+        ret = blk_pwrite(blk2, out_pos, bytes, in.buf, 0);
+        if (ret < 0) {
             error_report("error while writing to output image file: %s",
-                         strerror(-out_ret));
-            ret = -1;
+                         strerror(-ret));
             goto out;
         }
-        out_pos += out_ret;
+        out_pos += bytes;
     }
 
 out:

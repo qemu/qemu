@@ -159,8 +159,8 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
-    ret = bdrv_pwrite_sync(bs->file, new_l1_table_offset,
-                           new_l1_table, new_l1_size2);
+    ret = bdrv_pwrite_sync(bs->file, new_l1_table_offset, new_l1_size2,
+                           new_l1_table, 0);
     if (ret < 0)
         goto fail;
     for(i = 0; i < s->l1_size; i++)
@@ -171,7 +171,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     stl_be_p(data, new_l1_size);
     stq_be_p(data + 4, new_l1_table_offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_size),
-                           data, sizeof(data));
+                           sizeof(data), data, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -249,7 +249,7 @@ int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
     ret = bdrv_pwrite_sync(bs->file,
                            s->l1_table_offset + L1E_SIZE * l1_start_index,
-                           buf, bufsize);
+                           bufsize, buf, 0);
     if (ret < 0) {
         return ret;
     }
@@ -2260,7 +2260,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                                       (void **)&l2_slice);
             } else {
                 /* load inactive L2 tables from disk */
-                ret = bdrv_pread(bs->file, slice_offset, l2_slice, slice_size2);
+                ret = bdrv_pread(bs->file, slice_offset, slice_size2,
+                                 l2_slice, 0);
             }
             if (ret < 0) {
                 goto fail;
@@ -2376,8 +2377,8 @@ static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
                         goto fail;
                     }
 
-                    ret = bdrv_pwrite(bs->file, slice_offset,
-                                      l2_slice, slice_size2);
+                    ret = bdrv_pwrite(bs->file, slice_offset, slice_size2,
+                                      l2_slice, 0);
                     if (ret < 0) {
                         goto fail;
                     }
@@ -2470,8 +2471,8 @@ int qcow2_expand_zero_clusters(BlockDriverState *bs,
 
         l1_table = new_l1_table;
 
-        ret = bdrv_pread(bs->file, s->snapshots[i].l1_table_offset,
-                         l1_table, l1_size2);
+        ret = bdrv_pread(bs->file, s->snapshots[i].l1_table_offset, l1_size2,
+                         l1_table, 0);
         if (ret < 0) {
             goto fail;
         }

@@ -107,8 +107,8 @@ static uint64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
     struct log_write_entry cur_entry;
 
     while (cur_idx < nr_entries) {
-        int read_ret = bdrv_pread(log, cur_sector << sector_bits, &cur_entry,
-                                  sizeof(cur_entry));
+        int read_ret = bdrv_pread(log, cur_sector << sector_bits,
+                                  sizeof(cur_entry), &cur_entry, 0);
         if (read_ret < 0) {
             error_setg_errno(errp, -read_ret,
                              "Failed to read log entry %"PRIu64, cur_idx);
@@ -190,7 +190,7 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
             log_sb.nr_entries = cpu_to_le64(0);
             log_sb.sectorsize = cpu_to_le32(BDRV_SECTOR_SIZE);
         } else {
-            ret = bdrv_pread(s->log_file, 0, &log_sb, sizeof(log_sb));
+            ret = bdrv_pread(s->log_file, 0, sizeof(log_sb), &log_sb, 0);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "Could not read log superblock");
                 goto fail_log;

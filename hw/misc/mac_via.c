@@ -351,7 +351,7 @@ static void via1_one_second(void *opaque)
 static void pram_update(MOS6522Q800VIA1State *v1s)
 {
     if (v1s->blk) {
-        if (blk_pwrite(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM), 0) < 0) {
+        if (blk_pwrite(v1s->blk, 0, sizeof(v1s->PRAM), v1s->PRAM, 0) < 0) {
             qemu_log("pram_update: cannot write to file\n");
         }
     }
@@ -1029,8 +1029,8 @@ static void mos6522_q800_via1_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        len = blk_pread(v1s->blk, 0, v1s->PRAM, sizeof(v1s->PRAM));
-        if (len != sizeof(v1s->PRAM)) {
+        ret = blk_pread(v1s->blk, 0, sizeof(v1s->PRAM), v1s->PRAM, 0);
+        if (ret < 0) {
             error_setg(errp, "can't read PRAM contents");
             return;
         }

@@ -60,6 +60,11 @@ if sudo -n losetup &>/dev/null; then
 else
     loopdev=false
 
+    # Check for usable FUSE in the host environment:
+    if test ! -c "/dev/fuse"; then
+        _notrun 'No passwordless sudo nor usable /dev/fuse'
+    fi
+
     # QSD --export fuse will either yield "Parameter 'id' is missing"
     # or "Invalid parameter 'fuse'", depending on whether there is
     # FUSE support or not.

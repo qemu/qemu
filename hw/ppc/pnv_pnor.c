@@ -44,8 +44,8 @@ static void pnv_pnor_update(PnvPnor *s, int offset, int size)
     offset = QEMU_ALIGN_DOWN(offset, BDRV_SECTOR_SIZE);
     offset_end = QEMU_ALIGN_UP(offset_end, BDRV_SECTOR_SIZE);
 
-    ret = blk_pwrite(s->blk, offset, s->storage + offset,
-                     offset_end - offset, 0);
+    ret = blk_pwrite(s->blk, offset, offset_end - offset, s->storage + offset,
+                     0);
     if (ret < 0) {
         error_report("Could not update PNOR offset=0x%" PRIx32" : %s", offset,
                      strerror(-ret));
@@ -99,7 +99,7 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
 
         s->storage = blk_blockalign(s->blk, s->size);
 
-        if (blk_pread(s->blk, 0, s->storage, s->size) != s->size) {
+        if (blk_pread(s->blk, 0, s->size, s->storage, 0) < 0) {
             error_setg(errp, "failed to read the initial flash content");
             return;
         }

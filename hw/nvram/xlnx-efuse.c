@@ -77,7 +77,7 @@ static int efuse_bdrv_read(XlnxEFuse *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, ram, nr) < 0) {
+    if (blk_pread(s->blk, 0, nr, ram, 0) < 0) {
         error_setg(errp, "%s: Failed to read %u bytes from eFUSE backstore.",
                    blk_name(s->blk), nr);
         return -1;
@@ -105,7 +105,7 @@ static void efuse_bdrv_sync(XlnxEFuse *s, unsigned int bit)
     le32 = cpu_to_le32(xlnx_efuse_get_row(s, bit));
 
     row_offset = (bit / 32) * 4;
-    if (blk_pwrite(s->blk, row_offset, &le32, 4, 0) < 0) {
+    if (blk_pwrite(s->blk, row_offset, 4, &le32, 0) < 0) {
         error_report("%s: Failed to write offset %u of eFUSE backstore.",
                      blk_name(s->blk), row_offset);
     }

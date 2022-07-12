@@ -124,7 +124,7 @@ static void bbram_bdrv_read(XlnxBBRam *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, ram, nr) < 0) {
+    if (blk_pread(s->blk, 0, nr, ram, 0) < 0) {
         error_setg(errp,
                    "%s: Failed to read %u bytes from BBRAM backstore.",
                    blk_name(s->blk), nr);
@@ -159,7 +159,7 @@ static void bbram_bdrv_sync(XlnxBBRam *s, uint64_t hwaddr)
     }
 
     offset = hwaddr - A_BBRAM_0;
-    rc = blk_pwrite(s->blk, offset, &le32, 4, 0);
+    rc = blk_pwrite(s->blk, offset, 4, &le32, 0);
     if (rc < 0) {
         bbram_bdrv_error(s, rc, g_strdup_printf("write to offset %u", offset));
     }

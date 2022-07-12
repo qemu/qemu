@@ -77,7 +77,7 @@ static int read_uint64(BlockDriverState *bs, int64_t offset, uint64_t *result)
     uint64_t buffer;
     int ret;
 
-    ret = bdrv_pread(bs->file, offset, &buffer, 8);
+    ret = bdrv_pread(bs->file, offset, 8, &buffer, 0);
     if (ret < 0) {
         return ret;
     }
@@ -91,7 +91,7 @@ static int read_uint32(BlockDriverState *bs, int64_t offset, uint32_t *result)
     uint32_t buffer;
     int ret;
 
-    ret = bdrv_pread(bs->file, offset, &buffer, 4);
+    ret = bdrv_pread(bs->file, offset, 4, &buffer, 0);
     if (ret < 0) {
         return ret;
     }
@@ -172,7 +172,7 @@ static int64_t dmg_find_koly_offset(BdrvChild *file, Error **errp)
         offset = length - 511 - 512;
     }
     length = length < 515 ? length : 515;
-    ret = bdrv_pread(file, offset, buffer, length);
+    ret = bdrv_pread(file, offset, length, buffer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed while reading UDIF trailer");
         return ret;
@@ -352,7 +352,7 @@ static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
         offset += 4;
 
         buffer = g_realloc(buffer, count);
-        ret = bdrv_pread(bs->file, offset, buffer, count);
+        ret = bdrv_pread(bs->file, offset, count, buffer, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -389,8 +389,8 @@ static int dmg_read_plist_xml(BlockDriverState *bs, DmgHeaderState *ds,
 
     buffer = g_malloc(info_length + 1);
     buffer[info_length] = '\0';
-    ret = bdrv_pread(bs->file, info_begin, buffer, info_length);
-    if (ret != info_length) {
+    ret = bdrv_pread(bs->file, info_begin, info_length, buffer, 0);
+    if (ret < 0) {
         ret = -EINVAL;
         goto fail;
     }
@@ -609,9 +609,9 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
         case UDZO: { /* zlib compressed */
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk],
-                             s->compressed_chunk, s->lengths[chunk]);
-            if (ret != s->lengths[chunk]) {
+            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                             s->compressed_chunk, 0);
+            if (ret < 0) {
                 return -1;
             }
 
@@ -635,9 +635,9 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk],
-                             s->compressed_chunk, s->lengths[chunk]);
-            if (ret != s->lengths[chunk]) {
+            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                             s->compressed_chunk, 0);
+            if (ret < 0) {
                 return -1;
             }
 
@@ -656,9 +656,9 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             /* we need to buffer, because only the chunk as whole can be
              * inflated. */
-            ret = bdrv_pread(bs->file, s->offsets[chunk],
-                             s->compressed_chunk, s->lengths[chunk]);
-            if (ret != s->lengths[chunk]) {
+            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                             s->compressed_chunk, 0);
+            if (ret < 0) {
                 return -1;
             }
 
@@ -672,9 +672,9 @@ static inline int dmg_read_chunk(BlockDriverState *bs, uint64_t sector_num)
             }
             break;
         case UDRW: /* copy */
-            ret = bdrv_pread(bs->file, s->offsets[chunk],
-                             s->uncompressed_chunk, s->lengths[chunk]);
-            if (ret != s->lengths[chunk]) {
+            ret = bdrv_pread(bs->file, s->offsets[chunk], s->lengths[chunk],
+                             s->uncompressed_chunk, 0);
+            if (ret < 0) {
                 return -1;
             }
             break;

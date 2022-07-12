@@ -229,8 +229,8 @@ static void onenand_reset(OneNANDState *s, int cold)
         /* Lock the whole flash */
         memset(s->blockwp, ONEN_LOCK_LOCKED, s->blocks);
 
-        if (s->blk_cur && blk_pread(s->blk_cur, 0, s->boot[0],
-                                    8 << BDRV_SECTOR_BITS) < 0) {
+        if (s->blk_cur && blk_pread(s->blk_cur, 0, 8 << BDRV_SECTOR_BITS,
+                                    s->boot[0], 0) < 0) {
             hw_error("%s: Loading the BootRAM failed.\n", __func__);
         }
     }
@@ -249,8 +249,8 @@ static inline int onenand_load_main(OneNANDState *s, int sec, int secn,
     assert(UINT32_MAX >> BDRV_SECTOR_BITS > sec);
     assert(UINT32_MAX >> BDRV_SECTOR_BITS > secn);
     if (s->blk_cur) {
-        return blk_pread(s->blk_cur, sec << BDRV_SECTOR_BITS, dest,
-                         secn << BDRV_SECTOR_BITS) < 0;
+        return blk_pread(s->blk_cur, sec << BDRV_SECTOR_BITS,
+                         secn << BDRV_SECTOR_BITS, dest, 0) < 0;
     } else if (sec + secn > s->secs_cur) {
         return 1;
     }
@@ -274,7 +274,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
         uint8_t *dp = 0;
         if (s->blk_cur) {
             dp = g_malloc(size);
-            if (!dp || blk_pread(s->blk_cur, offset, dp, size) < 0) {
+            if (!dp || blk_pread(s->blk_cur, offset, size, dp, 0) < 0) {
                 result = 1;
             }
         } else {
@@ -290,7 +290,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
                 dp[i] &= sp[i];
             }
             if (s->blk_cur) {
-                result = blk_pwrite(s->blk_cur, offset, dp, size, 0) < 0;
+                result = blk_pwrite(s->blk_cur, offset, size, dp, 0) < 0;
             }
         }
         if (dp && s->blk_cur) {
@@ -308,7 +308,7 @@ static inline int onenand_load_spare(OneNANDState *s, int sec, int secn,
 
     if (s->blk_cur) {
         uint32_t offset = (s->secs_cur + (sec >> 5)) << BDRV_SECTOR_BITS;
-        if (blk_pread(s->blk_cur, offset, buf, BDRV_SECTOR_SIZE) < 0) {
+        if (blk_pread(s->blk_cur, offset, BDRV_SECTOR_SIZE, buf, 0) < 0) {
             return 1;
         }
         memcpy(dest, buf + ((sec & 31) << 4), secn << 4);
@@ -333,7 +333,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
         if (s->blk_cur) {
             dp = g_malloc(512);
             if (!dp
-                || blk_pread(s->blk_cur, offset, dp, BDRV_SECTOR_SIZE) < 0) {
+                || blk_pread(s->blk_cur, offset, BDRV_SECTOR_SIZE, dp, 0) < 0) {
                 result = 1;
             } else {
                 dpp = dp + ((sec & 31) << 4);
@@ -351,8 +351,8 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
                 dpp[i] &= sp[i];
             }
             if (s->blk_cur) {
-                result = blk_pwrite(s->blk_cur, offset, dp,
-                                    BDRV_SECTOR_SIZE, 0) < 0;
+                result = blk_pwrite(s->blk_cur, offset, BDRV_SECTOR_SIZE, dp,
+                                    0) < 0;
             }
         }
         g_free(dp);
@@ -370,17 +370,17 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
     for (; num > 0; num--, sec++) {
         if (s->blk_cur) {
             int erasesec = s->secs_cur + (sec >> 5);
-            if (blk_pwrite(s->blk_cur, sec << BDRV_SECTOR_BITS, blankbuf,
-                           BDRV_SECTOR_SIZE, 0) < 0) {
+            if (blk_pwrite(s->blk_cur, sec << BDRV_SECTOR_BITS,
+                           BDRV_SECTOR_SIZE, blankbuf, 0) < 0) {
                 goto fail;
             }
-            if (blk_pread(s->blk_cur, erasesec << BDRV_SECTOR_BITS, tmpbuf,
-                          BDRV_SECTOR_SIZE) < 0) {
+            if (blk_pread(s->blk_cur, erasesec << BDRV_SECTOR_BITS,
+                          BDRV_SECTOR_SIZE, tmpbuf, 0) < 0) {
                 goto fail;
             }
             memcpy(tmpbuf + ((sec & 31) << 4), blankbuf, 1 << 4);
-            if (blk_pwrite(s->blk_cur, erasesec << BDRV_SECTOR_BITS, tmpbuf,
-                           BDRV_SECTOR_SIZE, 0) < 0) {
+            if (blk_pwrite(s->blk_cur, erasesec << BDRV_SECTOR_BITS,
+                           BDRV_SECTOR_SIZE, tmpbuf, 0) < 0) {
                 goto fail;
             }
         } else {
