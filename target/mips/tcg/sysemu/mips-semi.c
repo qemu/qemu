@@ -20,9 +20,11 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/log.h"
+#include "exec/gdbstub.h"
 #include "semihosting/softmmu-uaccess.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"
+#include "semihosting/syscalls.h"
 #include "internal.h"
 
 typedef enum UHIOp {
@@ -114,268 +116,241 @@ enum UHIErrno {
     UHI_EXDEV           = 18,
 };
 
-static int errno_mips(int host_errno)
+static void report_fault(CPUMIPSState *env)
 {
-    /* Errno values taken from asm-mips/errno.h */
-    switch (host_errno) {
-    case 0:             return 0;
-    case ENAMETOOLONG:  return 78;
-#ifdef EOVERFLOW
-    case EOVERFLOW:     return 79;
-#endif
-#ifdef ELOOP
-    case ELOOP:         return 90;
-#endif
-    default:            return EINVAL;
-    }
+    int op = env->active_tc.gpr[25];
+    error_report("Fault during UHI operation %d", op);
+    abort();
 }
 
-static int copy_stat_to_target(CPUMIPSState *env, const struct stat *src,
-                               target_ulong vaddr)
+static void uhi_cb(CPUState *cs, uint64_t ret, int err)
 {
-    hwaddr len = sizeof(struct UHIStat);
-    UHIStat *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
-    if (!dst) {
-        errno = EFAULT;
-        return -1;
+    CPUMIPSState *env = cs->env_ptr;
+
+#define E(N) case E##N: err = UHI_E##N; break
+
+    switch (err) {
+    case 0:
+        break;
+    E(PERM);
+    E(NOENT);
+    E(INTR);
+    E(BADF);
+    E(BUSY);
+    E(EXIST);
+    E(NOTDIR);
+    E(ISDIR);
+    E(INVAL);
+    E(NFILE);
+    E(MFILE);
+    E(FBIG);
+    E(NOSPC);
+    E(SPIPE);
+    E(ROFS);
+    E(NAMETOOLONG);
+    default:
+        err = UHI_EINVAL;
+        break;
+    case EFAULT:
+        report_fault(env);
     }
 
-    dst->uhi_st_dev = tswap16(src->st_dev);
-    dst->uhi_st_ino = tswap16(src->st_ino);
-    dst->uhi_st_mode = tswap32(src->st_mode);
-    dst->uhi_st_nlink = tswap16(src->st_nlink);
-    dst->uhi_st_uid = tswap16(src->st_uid);
-    dst->uhi_st_gid = tswap16(src->st_gid);
-    dst->uhi_st_rdev = tswap16(src->st_rdev);
-    dst->uhi_st_size = tswap64(src->st_size);
-    dst->uhi_st_atime = tswap64(src->st_atime);
-    dst->uhi_st_mtime = tswap64(src->st_mtime);
-    dst->uhi_st_ctime = tswap64(src->st_ctime);
-#ifdef _WIN32
-    dst->uhi_st_blksize = 0;
-    dst->uhi_st_blocks = 0;
-#else
-    dst->uhi_st_blksize = tswap64(src->st_blksize);
-    dst->uhi_st_blocks = tswap64(src->st_blocks);
-#endif
-    unlock_user(dst, vaddr, len);
-    return 0;
+#undef E
+
+    env->active_tc.gpr[2] = ret;
+    env->active_tc.gpr[3] = err;
 }
 
-static int get_open_flags(target_ulong target_flags)
+static void uhi_fstat_cb(CPUState *cs, uint64_t ret, int err)
 {
-    int open_flags = 0;
+    QEMU_BUILD_BUG_ON(sizeof(UHIStat) < sizeof(struct gdb_stat));
 
-    if (target_flags & UHIOpen_RDWR) {
-        open_flags |= O_RDWR;
-    } else if (target_flags & UHIOpen_WRONLY) {
-        open_flags |= O_WRONLY;
-    } else {
-        open_flags |= O_RDONLY;
+    if (!err) {
+        CPUMIPSState *env = cs->env_ptr;
+        target_ulong addr = env->active_tc.gpr[5];
+        UHIStat *dst = lock_user(VERIFY_WRITE, addr, sizeof(UHIStat), 1);
+        struct gdb_stat s;
+
+        if (!dst) {
+            report_fault(env);
+        }
+
+        memcpy(&s, dst, sizeof(struct gdb_stat));
+        memset(dst, 0, sizeof(UHIStat));
+
+        dst->uhi_st_dev = tswap16(be32_to_cpu(s.gdb_st_dev));
+        dst->uhi_st_ino = tswap16(be32_to_cpu(s.gdb_st_ino));
+        dst->uhi_st_mode = tswap32(be32_to_cpu(s.gdb_st_mode));
+        dst->uhi_st_nlink = tswap16(be32_to_cpu(s.gdb_st_nlink));
+        dst->uhi_st_uid = tswap16(be32_to_cpu(s.gdb_st_uid));
+        dst->uhi_st_gid = tswap16(be32_to_cpu(s.gdb_st_gid));
+        dst->uhi_st_rdev = tswap16(be32_to_cpu(s.gdb_st_rdev));
+        dst->uhi_st_size = tswap64(be64_to_cpu(s.gdb_st_size));
+        dst->uhi_st_atime = tswap64(be32_to_cpu(s.gdb_st_atime));
+        dst->uhi_st_mtime = tswap64(be32_to_cpu(s.gdb_st_mtime));
+        dst->uhi_st_ctime = tswap64(be32_to_cpu(s.gdb_st_ctime));
+        dst->uhi_st_blksize = tswap64(be64_to_cpu(s.gdb_st_blksize));
+        dst->uhi_st_blocks = tswap64(be64_to_cpu(s.gdb_st_blocks));
+
+        unlock_user(dst, addr, sizeof(UHIStat));
     }
 
-    open_flags |= (target_flags & UHIOpen_APPEND) ? O_APPEND : 0;
-    open_flags |= (target_flags & UHIOpen_CREAT)  ? O_CREAT  : 0;
-    open_flags |= (target_flags & UHIOpen_TRUNC)  ? O_TRUNC  : 0;
-    open_flags |= (target_flags & UHIOpen_EXCL)   ? O_EXCL   : 0;
-
-    return open_flags;
+    uhi_cb(cs, ret, err);
 }
-
-static int write_to_file(CPUMIPSState *env, target_ulong fd,
-                         target_ulong vaddr, target_ulong len)
-{
-    int num_of_bytes;
-    void *dst = lock_user(VERIFY_READ, vaddr, len, 1);
-    if (!dst) {
-        errno = EFAULT;
-        return -1;
-    }
-
-    num_of_bytes = write(fd, dst, len);
-
-    unlock_user(dst, vaddr, 0);
-    return num_of_bytes;
-}
-
-static int read_from_file(CPUMIPSState *env, target_ulong fd,
-                          target_ulong vaddr, target_ulong len)
-{
-    int num_of_bytes;
-    void *dst = lock_user(VERIFY_WRITE, vaddr, len, 0);
-    if (!dst) {
-        errno = EFAULT;
-        return -1;
-    }
-
-    num_of_bytes = read(fd, dst, len);
-
-    unlock_user(dst, vaddr, len);
-    return num_of_bytes;
-}
-
-static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
-                               target_ulong vaddr)
-{
-    int strsize = strlen(semihosting_get_arg(arg_num)) + 1;
-    char *dst = lock_user(VERIFY_WRITE, vaddr, strsize, 0);
-    if (!dst) {
-        return -1;
-    }
-
-    strcpy(dst, semihosting_get_arg(arg_num));
-
-    unlock_user(dst, vaddr, strsize);
-    return 0;
-}
-
-#define GET_TARGET_STRING(p, addr)              \
-    do {                                        \
-        p = lock_user_string(addr);             \
-        if (!p) {                               \
-            gpr[2] = -1;                        \
-            gpr[3] = EFAULT;                    \
-            return;                             \
-        }                                       \
-    } while (0)
-
-#define GET_TARGET_STRINGS_2(p, addr, p2, addr2)        \
-    do {                                                \
-        p = lock_user_string(addr);                     \
-        if (!p) {                                       \
-            gpr[2] = -1;                                \
-            gpr[3] = EFAULT;                            \
-            return;                                     \
-        }                                               \
-        p2 = lock_user_string(addr2);                   \
-        if (!p2) {                                      \
-            unlock_user(p, addr, 0);                    \
-            gpr[2] = -1;                                \
-            gpr[3] = EFAULT;                            \
-            return;                                     \
-        }                                               \
-    } while (0)
-
-#define FREE_TARGET_STRING(p, gpr)              \
-    do {                                        \
-        unlock_user(p, gpr, 0);                 \
-    } while (0)
 
 void mips_semihosting(CPUMIPSState *env)
 {
+    CPUState *cs = env_cpu(env);
     target_ulong *gpr = env->active_tc.gpr;
     const UHIOp op = gpr[25];
-    char *p, *p2;
+    char *p;
 
     switch (op) {
     case UHI_exit:
-        qemu_log("UHI(%d): exit(%d)\n", op, (int)gpr[4]);
+        gdb_exit(gpr[4]);
         exit(gpr[4]);
+
     case UHI_open:
-        GET_TARGET_STRING(p, gpr[4]);
-        if (!strcmp("/dev/stdin", p)) {
-            gpr[2] = 0;
-        } else if (!strcmp("/dev/stdout", p)) {
-            gpr[2] = 1;
-        } else if (!strcmp("/dev/stderr", p)) {
-            gpr[2] = 2;
-        } else {
-            gpr[2] = open(p, get_open_flags(gpr[5]), gpr[6]);
-            gpr[3] = errno_mips(errno);
+        {
+            target_ulong fname = gpr[4];
+            int ret = -1;
+
+            p = lock_user_string(fname);
+            if (!p) {
+                report_fault(env);
+            }
+            if (!strcmp("/dev/stdin", p)) {
+                ret = 0;
+            } else if (!strcmp("/dev/stdout", p)) {
+                ret = 1;
+            } else if (!strcmp("/dev/stderr", p)) {
+                ret = 2;
+            }
+            unlock_user(p, fname, 0);
+
+            /* FIXME: reusing a guest fd doesn't seem correct. */
+            if (ret >= 0) {
+                gpr[2] = ret;
+                break;
+            }
+
+            semihost_sys_open(cs, uhi_cb, fname, 0, gpr[5], gpr[6]);
         }
-        FREE_TARGET_STRING(p, gpr[4]);
         break;
+
     case UHI_close:
-        if (gpr[4] < 3) {
-            /* ignore closing stdin/stdout/stderr */
-            gpr[2] = 0;
-            return;
-        }
-        gpr[2] = close(gpr[4]);
-        gpr[3] = errno_mips(errno);
+        semihost_sys_close(cs, uhi_cb, gpr[4]);
         break;
     case UHI_read:
-        gpr[2] = read_from_file(env, gpr[4], gpr[5], gpr[6]);
-        gpr[3] = errno_mips(errno);
+        semihost_sys_read(cs, uhi_cb, gpr[4], gpr[5], gpr[6]);
         break;
     case UHI_write:
-        gpr[2] = write_to_file(env, gpr[4], gpr[5], gpr[6]);
-        gpr[3] = errno_mips(errno);
+        semihost_sys_write(cs, uhi_cb, gpr[4], gpr[5], gpr[6]);
         break;
     case UHI_lseek:
-        gpr[2] = lseek(gpr[4], gpr[5], gpr[6]);
-        gpr[3] = errno_mips(errno);
+        semihost_sys_lseek(cs, uhi_cb, gpr[4], gpr[5], gpr[6]);
         break;
     case UHI_unlink:
-        GET_TARGET_STRING(p, gpr[4]);
-        gpr[2] = remove(p);
-        gpr[3] = errno_mips(errno);
-        FREE_TARGET_STRING(p, gpr[4]);
+        semihost_sys_remove(cs, uhi_cb, gpr[4], 0);
         break;
     case UHI_fstat:
-        {
-            struct stat sbuf;
-            memset(&sbuf, 0, sizeof(sbuf));
-            gpr[2] = fstat(gpr[4], &sbuf);
-            gpr[3] = errno_mips(errno);
-            if (gpr[2]) {
-                return;
-            }
-            gpr[2] = copy_stat_to_target(env, &sbuf, gpr[5]);
-            gpr[3] = errno_mips(errno);
-        }
+        semihost_sys_fstat(cs, uhi_fstat_cb, gpr[4], gpr[5]);
         break;
+
     case UHI_argc:
         gpr[2] = semihosting_get_argc();
         break;
     case UHI_argnlen:
-        if (gpr[4] >= semihosting_get_argc()) {
-            gpr[2] = -1;
-            return;
+        {
+            const char *s = semihosting_get_arg(gpr[4]);
+            gpr[2] = s ? strlen(s) : -1;
         }
-        gpr[2] = strlen(semihosting_get_arg(gpr[4]));
         break;
     case UHI_argn:
-        if (gpr[4] >= semihosting_get_argc()) {
-            gpr[2] = -1;
-            return;
+        {
+            const char *s = semihosting_get_arg(gpr[4]);
+            target_ulong addr;
+            size_t len;
+
+            if (!s) {
+                gpr[2] = -1;
+                break;
+            }
+            len = strlen(s) + 1;
+            addr = gpr[5];
+            p = lock_user(VERIFY_WRITE, addr, len, 0);
+            if (!p) {
+                report_fault(env);
+            }
+            memcpy(p, s, len);
+            unlock_user(p, addr, len);
+            gpr[2] = 0;
         }
-        gpr[2] = copy_argn_to_target(env, gpr[4], gpr[5]);
         break;
+
     case UHI_plog:
-        GET_TARGET_STRING(p, gpr[4]);
-        p2 = strstr(p, "%d");
-        if (p2) {
-            int char_num = p2 - p;
-            GString *s = g_string_new_len(p, char_num);
-            g_string_append_printf(s, "%d%s", (int)gpr[5], p2 + 2);
-            gpr[2] = qemu_semihosting_log_out(s->str, s->len);
-            g_string_free(s, true);
-        } else {
-            gpr[2] = qemu_semihosting_log_out(p, strlen(p));
+        {
+            target_ulong addr = gpr[4];
+            ssize_t len = target_strlen(addr);
+            GString *str;
+            char *pct_d;
+
+            if (len < 0) {
+                report_fault(env);
+            }
+            p = lock_user(VERIFY_READ, addr, len, 1);
+            if (!p) {
+                report_fault(env);
+            }
+
+            pct_d = strstr(p, "%d");
+            if (!pct_d) {
+                unlock_user(p, addr, 0);
+                semihost_sys_write(cs, uhi_cb, 2, addr, len);
+                break;
+            }
+
+            str = g_string_new_len(p, pct_d - p);
+            g_string_append_printf(str, "%d%s", (int)gpr[5], pct_d + 2);
+            unlock_user(p, addr, 0);
+
+            /*
+             * When we're using gdb, we need a guest address, so
+             * drop the string onto the stack below the stack pointer.
+             */
+            if (use_gdb_syscalls()) {
+                addr = gpr[29] - str->len;
+                p = lock_user(VERIFY_WRITE, addr, str->len, 0);
+                memcpy(p, str->str, str->len);
+                unlock_user(p, addr, str->len);
+                semihost_sys_write(cs, uhi_cb, 2, addr, str->len);
+            } else {
+                gpr[2] = qemu_semihosting_console_write(str->str, str->len);
+            }
+            g_string_free(str, true);
         }
-        FREE_TARGET_STRING(p, gpr[4]);
         break;
+
     case UHI_assert:
-        GET_TARGET_STRINGS_2(p, gpr[4], p2, gpr[5]);
-        printf("assertion '");
-        printf("\"%s\"", p);
-        printf("': file \"%s\", line %d\n", p2, (int)gpr[6]);
-        FREE_TARGET_STRING(p2, gpr[5]);
-        FREE_TARGET_STRING(p, gpr[4]);
-        abort();
-        break;
-#ifndef _WIN32
-    case UHI_link:
-        GET_TARGET_STRINGS_2(p, gpr[4], p2, gpr[5]);
-        gpr[2] = link(p, p2);
-        gpr[3] = errno_mips(errno);
-        FREE_TARGET_STRING(p2, gpr[5]);
-        FREE_TARGET_STRING(p, gpr[4]);
-        break;
-#endif
+        {
+            const char *msg, *file;
+
+            msg = lock_user_string(gpr[4]);
+            if (!msg) {
+                msg = "<EFAULT>";
+            }
+            file = lock_user_string(gpr[5]);
+            if (!file) {
+                file = "<EFAULT>";
+            }
+
+            error_report("UHI assertion \"%s\": file \"%s\", line %d",
+                         msg, file, (int)gpr[6]);
+            abort();
+        }
+
     default:
-        fprintf(stderr, "Unknown UHI operation %d\n", op);
+        error_report("Unknown UHI operation %d", op);
         abort();
     }
     return;

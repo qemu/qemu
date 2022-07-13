@@ -1,0 +1,41 @@
+# Octeon Architecture Module instruction set
+#
+# Copyright (C) 2022 Pavel Dovgalyuk
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+
+# Branch on bit set or clear
+# BBIT0      110010 ..... ..... ................
+# BBIT032    110110 ..... ..... ................
+# BBIT1      111010 ..... ..... ................
+# BBIT132    111110 ..... ..... ................
+
+%bbit_p      28:1 16:5
+BBIT         11 set:1 . 10 rs:5 ..... offset:16 p=%bbit_p
+
+# Arithmetic
+# BADDU rd, rs, rt
+# DMUL rd, rs, rt
+# EXTS rt, rs, p, lenm1
+# EXTS32 rt, rs, p, lenm1
+# CINS rt, rs, p, lenm1
+# CINS32 rt, rs, p, lenm1
+# DPOP rd, rs
+# POP rd, rs
+# SEQ rd, rs, rt
+# SEQI rt, rs, immediate
+# SNE rd, rs, rt
+# SNEI rt, rs, immediate
+
+@r3          ...... rs:5 rt:5 rd:5 ..... ......
+%bitfield_p  0:1 6:5
+@bitfield    ...... rs:5 rt:5 lenm1:5 ..... ..... . p=%bitfield_p
+
+BADDU        011100 ..... ..... ..... 00000 101000 @r3
+DMUL         011100 ..... ..... ..... 00000 000011 @r3
+EXTS         011100 ..... ..... ..... ..... 11101 . @bitfield
+CINS         011100 ..... ..... ..... ..... 11001 . @bitfield
+POP          011100 rs:5 00000 rd:5 00000 10110 dw:1
+SEQNE        011100 rs:5 rt:5 rd:5 00000 10101 ne:1
+SEQNEI       011100 rs:5 rt:5 imm:s10 10111 ne:1

@@ -40,19 +40,6 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len);
  */
 int qemu_semihosting_console_write(void *buf, int len);
 
-/**
- * qemu_semihosting_log_out:
- * @s: pointer to string
- * @len: length of string
- *
- * Send a string to the debug output. Unlike console_out these strings
- * can't be sent to a remote gdb instance as they don't exist in guest
- * memory.
- *
- * Returns: number of bytes written
- */
-int qemu_semihosting_log_out(const char *s, int len);
-
 /*
  * qemu_semihosting_console_block_until_ready:
  * @cs: CPUState
