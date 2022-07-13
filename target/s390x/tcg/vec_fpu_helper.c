@@ -824,7 +824,7 @@ static S390MinMaxRes vfmin_res(uint16_t dcmask_a, uint16_t dcmask_b,
         default:
             g_assert_not_reached();
         }
-    } else if (unlikely(dcmask_a & dcmask_b & DCMASK_ZERO)) {
+    } else if (unlikely((dcmask_a & DCMASK_ZERO) && (dcmask_b & DCMASK_ZERO))) {
         switch (type) {
         case S390_MINMAX_TYPE_JAVA:
             return neg_a ? S390_MINMAX_RES_A : S390_MINMAX_RES_B;
@@ -874,7 +874,7 @@ static S390MinMaxRes vfmax_res(uint16_t dcmask_a, uint16_t dcmask_b,
         default:
             g_assert_not_reached();
         }
-    } else if (unlikely(dcmask_a & dcmask_b & DCMASK_ZERO)) {
+    } else if (unlikely((dcmask_a & DCMASK_ZERO) && (dcmask_b & DCMASK_ZERO))) {
         const bool neg_a = dcmask_a & DCMASK_NEGATIVE;
 
         switch (type) {
