@@ -10882,13 +10882,19 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     }
     if (cpu_isar_feature(aa64_sme, env_archcpu(env))) {
         int sme_el = sme_exception_el(env, el);
+        bool sm = FIELD_EX64(env->svcr, SVCR, SM);
 
         DP_TBFLAG_A64(flags, SMEEXC_EL, sme_el);
         if (sme_el == 0) {
             /* Similarly, do not compute SVL if SME is disabled. */
-            DP_TBFLAG_A64(flags, SVL, sve_vqm1_for_el_sm(env, el, true));
+            int svl = sve_vqm1_for_el_sm(env, el, true);
+            DP_TBFLAG_A64(flags, SVL, svl);
+            if (sm) {
+                /* If SVE is disabled, we will not have set VL above. */
+                DP_TBFLAG_A64(flags, VL, svl);
+            }
         }
-        if (FIELD_EX64(env->svcr, SVCR, SM)) {
+        if (sm) {
             DP_TBFLAG_A64(flags, PSTATE_SM, 1);
             DP_TBFLAG_A64(flags, SME_TRAP_NONSTREAMING, !sme_fa64(env, el));
         }
