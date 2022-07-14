@@ -69,7 +69,7 @@ static void test_set_input_pins(const void *data)
 
     qtest_writel(s, AST2600_GPIO_BASE + GPIO_ABCD_DATA_VALUE, 0x00000000);
     value = qtest_readl(s, AST2600_GPIO_BASE + GPIO_ABCD_DATA_VALUE);
-    g_assert_cmphex(value, ==, 0x00000000);
+    g_assert_cmphex(value, ==, 0xffffffff);
 }
 
 int main(int argc, char **argv)
