@@ -221,6 +221,7 @@ int hvf_arch_init_vcpu(CPUState *cpu)
 {
     X86CPU *x86cpu = X86_CPU(cpu);
     CPUX86State *env = &x86cpu->env;
+    uint64_t reqCap;
 
     init_emu();
     init_decoder();
@@ -257,19 +258,26 @@ int hvf_arch_init_vcpu(CPUState *cpu)
     /* set VMCS control fields */
     wvmcs(cpu->hvf->fd, VMCS_PIN_BASED_CTLS,
           cap2ctrl(hvf_state->hvf_caps->vmx_cap_pinbased,
-          VMCS_PIN_BASED_CTLS_EXTINT |
-          VMCS_PIN_BASED_CTLS_NMI |
-          VMCS_PIN_BASED_CTLS_VNMI));
+                   VMCS_PIN_BASED_CTLS_EXTINT |
+                   VMCS_PIN_BASED_CTLS_NMI |
+                   VMCS_PIN_BASED_CTLS_VNMI));
     wvmcs(cpu->hvf->fd, VMCS_PRI_PROC_BASED_CTLS,
           cap2ctrl(hvf_state->hvf_caps->vmx_cap_procbased,
-          VMCS_PRI_PROC_BASED_CTLS_HLT |
-          VMCS_PRI_PROC_BASED_CTLS_MWAIT |
-          VMCS_PRI_PROC_BASED_CTLS_TSC_OFFSET |
-          VMCS_PRI_PROC_BASED_CTLS_TPR_SHADOW) |
+                   VMCS_PRI_PROC_BASED_CTLS_HLT |
+                   VMCS_PRI_PROC_BASED_CTLS_MWAIT |
+                   VMCS_PRI_PROC_BASED_CTLS_TSC_OFFSET |
+                   VMCS_PRI_PROC_BASED_CTLS_TPR_SHADOW) |
           VMCS_PRI_PROC_BASED_CTLS_SEC_CONTROL);
+
+    reqCap = VMCS_PRI_PROC_BASED2_CTLS_APIC_ACCESSES;
+
+    /* Is RDTSCP support in CPUID?  If so, enable it in the VMCS. */
+    if (hvf_get_supported_cpuid(0x80000001, 0, R_EDX) & CPUID_EXT2_RDTSCP) {
+        reqCap |= VMCS_PRI_PROC_BASED2_CTLS_RDTSCP;
+    }
+
     wvmcs(cpu->hvf->fd, VMCS_SEC_PROC_BASED_CTLS,
-          cap2ctrl(hvf_state->hvf_caps->vmx_cap_procbased2,
-                   VMCS_PRI_PROC_BASED2_CTLS_APIC_ACCESSES));
+          cap2ctrl(hvf_state->hvf_caps->vmx_cap_procbased2, reqCap));
 
     wvmcs(cpu->hvf->fd, VMCS_ENTRY_CTLS, cap2ctrl(hvf_state->hvf_caps->vmx_cap_entry,
           0));

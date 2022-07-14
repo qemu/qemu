@@ -354,7 +354,7 @@
 #define VMCS_PRI_PROC_BASED_CTLS_TSC_OFFSET (1 << 3)
 #define VMCS_PRI_PROC_BASED_CTLS_HLT (1 << 7)
 #define VMCS_PRI_PROC_BASED_CTLS_MWAIT         (1 << 10)
-#define VMCS_PRI_PROC_BASED_CTLS_TSC           (1 << 12)
+#define VMCS_PRI_PROC_BASED_CTLS_RDTSC         (1 << 12)
 #define VMCS_PRI_PROC_BASED_CTLS_CR8_LOAD      (1 << 19)
 #define VMCS_PRI_PROC_BASED_CTLS_CR8_STORE     (1 << 20)
 #define VMCS_PRI_PROC_BASED_CTLS_TPR_SHADOW    (1 << 21)
@@ -362,6 +362,7 @@
 #define VMCS_PRI_PROC_BASED_CTLS_SEC_CONTROL   (1 << 31)
 
 #define VMCS_PRI_PROC_BASED2_CTLS_APIC_ACCESSES (1 << 0)
+#define VMCS_PRI_PROC_BASED2_CTLS_RDTSCP        (1 << 3)
 #define VMCS_PRI_PROC_BASED2_CTLS_X2APIC        (1 << 4)
 
 enum task_switch_reason {

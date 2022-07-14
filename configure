@@ -329,7 +329,7 @@ fi
 fdt="auto"
 
 # 2. Automatically enable/disable other options
-tcg="enabled"
+tcg="auto"
 cfi="false"
 
 # parse CC options second
@@ -1409,11 +1409,6 @@ EOF
   fi
 fi
 
-if test "$tcg" = "enabled"; then
-    git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
-    git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
-fi
-
 if test -z "${target_list+xxx}" ; then
     default_targets=yes
     for target in $default_target_list; do
@@ -1443,6 +1438,19 @@ case " $target_list " in
   *) softmmu=no
   ;;
 esac
+
+if test "$tcg" = "auto"; then
+  if test -z "$target_list"; then
+    tcg="disabled"
+  else
+    tcg="enabled"
+  fi
+fi
+
+if test "$tcg" = "enabled"; then
+    git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
+    git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
+fi
 
 feature_not_found() {
   feature=$1
