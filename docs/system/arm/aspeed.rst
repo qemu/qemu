@@ -31,7 +31,10 @@ AST2600 SoC based machines :
 - ``tacoma-bmc``           OpenPOWER Witherspoon POWER9 AST2600 BMC
 - ``rainier-bmc``          IBM Rainier POWER10 BMC
 - ``fuji-bmc``             Facebook Fuji BMC
+- ``bletchley-bmc``        Facebook Bletchley BMC
 - ``fby35-bmc``            Facebook fby35 BMC
+- ``qcom-dc-scm-v1-bmc``   Qualcomm DC-SCM V1 BMC
+- ``qcom-firework-bmc``    Qualcomm Firework BMC
 
 Supported devices
 -----------------
@@ -40,7 +43,7 @@ Supported devices
  * Interrupt Controller (VIC)
  * Timer Controller
  * RTC Controller
- * I2C Controller
+ * I2C Controller, including the new register interface of the AST2600
  * System Control Unit (SCU)
  * SRAM mapping
  * X-DMA Controller (basic interface)
@@ -57,6 +60,10 @@ Supported devices
  * LPC Peripheral Controller (a subset of subdevices are supported)
  * Hash/Crypto Engine (HACE) - Hash support only. TODO: HMAC and RSA
  * ADC
+ * Secure Boot Controller (AST2600)
+ * eMMC Boot Controller (dummy)
+ * PECI Controller (minimal)
+ * I3C Controller
 
 
 Missing devices
@@ -68,12 +75,10 @@ Missing devices
  * Super I/O Controller
  * PCI-Express 1 Controller
  * Graphic Display Controller
- * PECI Controller
  * MCTP Controller
  * Mailbox Controller
  * Virtual UART
  * eSPI Controller
- * I3C Controller
 
 Boot options
 ------------
@@ -154,6 +159,8 @@ Supported devices
  * LPC Peripheral Controller (a subset of subdevices are supported)
  * Hash/Crypto Engine (HACE) - Hash support only. TODO: HMAC and RSA
  * ADC
+ * Secure Boot Controller
+ * PECI Controller (minimal)
 
 
 Missing devices
@@ -161,7 +168,6 @@ Missing devices
 
  * PWM and Fan Controller
  * Slave GPIO Controller
- * PECI Controller
  * Mailbox Controller
  * Virtual UART
  * eSPI Controller
