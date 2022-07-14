@@ -241,8 +241,8 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
             return ret;
         }
 
-        ret = bdrv_co_pwritev(bs->file, s->data_end * BDRV_SECTOR_SIZE,
-                              nb_cow_bytes, buf, 0);
+        ret = bdrv_co_pwrite(bs->file, s->data_end * BDRV_SECTOR_SIZE,
+                             nb_cow_bytes, buf, 0);
         qemu_vfree(buf);
         if (ret < 0) {
             return ret;
