@@ -2,7 +2,7 @@ plugin_ldflags = []
 # Modules need more symbols than just those in plugins/qemu-plugins.symbols
 if not enable_modules
   if targetos == 'darwin'
-    qemu_plugins_symbols_list = configure_file(
+    configure_file(
       input: files('qemu-plugins.symbols'),
       output: 'qemu-plugins-ld64.symbols',
       capture: true,
