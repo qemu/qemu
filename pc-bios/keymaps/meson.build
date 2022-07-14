@@ -38,7 +38,6 @@ if meson.is_cross_build() or 'CONFIG_XKBCOMMON' not in config_host
 else
   native_qemu_keymap = qemu_keymap
 endif
-cp = find_program('cp')
 
 if native_qemu_keymap.found()
   t = []

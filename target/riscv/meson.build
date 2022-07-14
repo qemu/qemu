@@ -1,6 +1,4 @@
 # FIXME extra_args should accept files()
-dir = meson.current_source_dir()
-
 gen = [
   decodetree.process('insn16.decode', extra_args: ['--static-decode=decode_insn16', '--insnwidth=16']),
   decodetree.process('insn32.decode', extra_args: '--static-decode=decode_insn32'),

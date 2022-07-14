@@ -3405,7 +3405,6 @@ foreach target : target_dirs
     target_inc += include_directories('linux-headers', is_system: true)
   endif
   if target.endswith('-softmmu')
-    qemu_target_name = 'qemu-system-' + target_name
     target_type='system'
     t = target_softmmu_arch[target_base_arch].apply(config_target, strict: false)
     arch_srcs += t.sources()
@@ -3422,7 +3421,6 @@ foreach target : target_dirs
     abi = config_target['TARGET_ABI_DIR']
     target_type='user'
     target_inc += common_user_inc
-    qemu_target_name = 'qemu-' + target_name
     if target_base_arch in target_user_arch
       t = target_user_arch[target_base_arch].apply(config_target, strict: false)
       arch_srcs += t.sources()
