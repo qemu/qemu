@@ -619,11 +619,6 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_ifencei = true;
         }
 
-        if (cpu->cfg.ext_m && cpu->cfg.ext_zmmul) {
-            warn_report("Zmmul will override M");
-            cpu->cfg.ext_m = false;
-        }
-
         if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
             error_setg(errp,
                        "I and E extensions are incompatible");
