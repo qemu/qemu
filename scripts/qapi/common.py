@@ -114,7 +114,7 @@ def c_name(name: str, protect: bool = True) -> str:
                      'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
                      'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
-    polluted_words = set(['unix', 'errno', 'mips', 'sparc', 'i386'])
+    polluted_words = set(['unix', 'errno', 'mips', 'sparc', 'i386', 'linux'])
     name = re.sub(r'[^A-Za-z0-9_]', '_', name)
     if protect and (name in (c89_words | c99_words | c11_words | gcc_words
                              | cpp_words | polluted_words)
