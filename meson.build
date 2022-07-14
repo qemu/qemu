@@ -18,10 +18,7 @@ targetos = host_machine.system()
 sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
-enable_static = 'CONFIG_STATIC' in config_host
-
-# Allow both shared and static libraries unless --enable-static
-static_kwargs = enable_static ? {'static': true} : {}
+static_kwargs = {}
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
@@ -193,7 +190,7 @@ qemu_cflags = config_host['QEMU_CFLAGS'].split()
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
 
-if enable_static
+if get_option('prefer_static')
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
 endif
 
@@ -841,7 +838,7 @@ if targetos == 'linux' and have_tools and get_option('mpath').allowed()
                                     kwargs: static_kwargs)
   if libmpathpersist.found()
     mpathlibs += libmpathpersist
-    if enable_static
+    if get_option('prefer_static')
       mpathlibs += cc.find_library('devmapper',
                                      required: get_option('mpath'),
                                      kwargs: static_kwargs)
@@ -1225,7 +1222,7 @@ if not gnutls_crypto.found()
     # Debian has removed -lgpg-error from libgcrypt-config
     # as it "spreads unnecessary dependencies" which in
     # turn breaks static builds...
-    if gcrypt.found() and enable_static
+    if gcrypt.found() and get_option('prefer_static')
       gcrypt = declare_dependency(dependencies: [
         gcrypt,
         cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
@@ -1657,7 +1654,7 @@ endif
 # libdw
 libdw = not_found
 if not get_option('libdw').auto() or \
-        (not enable_static and (have_system or have_user))
+        (not get_option('prefer_static') and (have_system or have_user))
     libdw = dependency('libdw',
                        method: 'pkg-config',
                        kwargs: static_kwargs,

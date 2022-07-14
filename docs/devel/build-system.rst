@@ -311,8 +311,7 @@ dependency will be used::
   sdl_image = not_found
   if not get_option('sdl_image').auto() or have_system
     sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
-                           method: 'pkg-config',
-                           static: enable_static)
+                           method: 'pkg-config')
   endif
 
 This avoids warnings on static builds of user-mode emulators, for example.
