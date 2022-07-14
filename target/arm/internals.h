@@ -781,14 +781,14 @@ static inline uint64_t regime_sctlr(CPUARMState *env, ARMMMUIdx mmu_idx)
 static inline uint64_t regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     if (mmu_idx == ARMMMUIdx_Stage2) {
-        return env->cp15.vtcr_el2.raw_tcr;
+        return env->cp15.vtcr_el2;
     }
     if (mmu_idx == ARMMMUIdx_Stage2_S) {
         /*
          * Note: Secure stage 2 nominally shares fields from VTCR_EL2, but
          * those are not currently used by QEMU, so just return VSTCR_EL2.
          */
-        return env->cp15.vstcr_el2.raw_tcr;
+        return env->cp15.vstcr_el2;
     }
     return env->cp15.tcr_el[regime_el(env, mmu_idx)].raw_tcr;
 }

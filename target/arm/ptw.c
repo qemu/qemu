@@ -241,9 +241,9 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
         if (arm_is_secure_below_el3(env)) {
             /* Check if page table walk is to secure or non-secure PA space. */
             if (*is_secure) {
-                *is_secure = !(env->cp15.vstcr_el2.raw_tcr & VSTCR_SW);
+                *is_secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
             } else {
-                *is_secure = !(env->cp15.vtcr_el2.raw_tcr & VTCR_NSW);
+                *is_secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
             }
         } else {
             assert(!*is_secure);
@@ -2341,9 +2341,9 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             ipa_secure = attrs->secure;
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
-                    attrs->secure = !(env->cp15.vstcr_el2.raw_tcr & VSTCR_SW);
+                    attrs->secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
                 } else {
-                    attrs->secure = !(env->cp15.vtcr_el2.raw_tcr & VTCR_NSW);
+                    attrs->secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
                 }
             } else {
                 assert(!ipa_secure);
@@ -2385,11 +2385,11 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
                     attrs->secure =
-                        !(env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW));
+                        !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
                 } else {
                     attrs->secure =
-                        !((env->cp15.vtcr_el2.raw_tcr & (VTCR_NSA | VTCR_NSW))
-                        || (env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW)));
+                        !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
+                        || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
                 }
             }
             return 0;
