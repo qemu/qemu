@@ -7,6 +7,8 @@ add_test_setup('quick', exclude_suites: ['slow', 'thorough'], is_default: true)
 add_test_setup('slow', exclude_suites: ['thorough'], env: ['G_TEST_SLOW=1', 'SPEED=slow'])
 add_test_setup('thorough', env: ['G_TEST_SLOW=1', 'SPEED=thorough'])
 
+meson.add_postconf_script(find_program('scripts/symlink-install-tree.py'))
+
 not_found = dependency('', required: false)
 keyval = import('keyval')
 ss = import('sourceset')
@@ -356,10 +358,12 @@ nvmm =not_found
 hvf = not_found
 midl = not_found
 widl = not_found
+pathcch = not_found
 host_dsosuf = '.so'
 if targetos == 'windows'
   midl = find_program('midl', required: false)
   widl = find_program('widl', required: false)
+  pathcch = cc.find_library('pathcch')
   socket = cc.find_library('ws2_32')
   winmm = cc.find_library('winmm')
 
@@ -1715,7 +1719,13 @@ config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
 config_host_data.set_quoted('CONFIG_QEMU_CONFDIR', get_option('prefix') / qemu_confdir)
 config_host_data.set_quoted('CONFIG_QEMU_DATADIR', get_option('prefix') / qemu_datadir)
 config_host_data.set_quoted('CONFIG_QEMU_DESKTOPDIR', get_option('prefix') / qemu_desktopdir)
-config_host_data.set_quoted('CONFIG_QEMU_FIRMWAREPATH', get_option('prefix') / get_option('qemu_firmwarepath'))
+
+qemu_firmwarepath = ''
+foreach k : get_option('qemu_firmwarepath')
+  qemu_firmwarepath += '"' + get_option('prefix') / k + '", '
+endforeach
+config_host_data.set('CONFIG_QEMU_FIRMWAREPATH', qemu_firmwarepath)
+
 config_host_data.set_quoted('CONFIG_QEMU_HELPERDIR', get_option('prefix') / get_option('libexecdir'))
 config_host_data.set_quoted('CONFIG_QEMU_ICONDIR', get_option('prefix') / qemu_icondir)
 config_host_data.set_quoted('CONFIG_QEMU_LOCALEDIR', get_option('prefix') / get_option('localedir'))
@@ -3680,7 +3690,8 @@ endif
 summary_info = {}
 summary_info += {'Install prefix':    get_option('prefix')}
 summary_info += {'BIOS directory':    qemu_datadir}
-summary_info += {'firmware path':     get_option('prefix') / get_option('qemu_firmwarepath')}
+pathsep = targetos == 'windows' ? ';' : ':'
+summary_info += {'firmware path':     pathsep.join(get_option('qemu_firmwarepath'))}
 summary_info += {'binary directory':  get_option('prefix') / get_option('bindir')}
 summary_info += {'library directory': get_option('prefix') / get_option('libdir')}
 summary_info += {'module directory':  qemu_moddir}

@@ -156,7 +156,7 @@ def cli_metavar(opt):
     if opt["type"] == "string":
         return "VALUE"
     if opt["type"] == "array":
-        return "CHOICES"
+        return "CHOICES" if "choices" in opt else "VALUES"
     return "CHOICE"
 
 
@@ -199,7 +199,10 @@ def print_parse(options):
         key = cli_option(opt)
         name = opt["name"]
         if require_arg(opt):
-            print(f'    --{key}=*) quote_sh "-D{name}=$2" ;;')
+            if opt["type"] == "array" and not "choices" in opt:
+                print(f'    --{key}=*) quote_sh "-D{name}=$(meson_option_build_array $2)" ;;')
+            else:
+                print(f'    --{key}=*) quote_sh "-D{name}=$2" ;;')
         elif opt["type"] == "boolean":
             print(f'    --enable-{key}) printf "%s" -D{name}=true ;;')
             print(f'    --disable-{key}) printf "%s" -D{name}=false ;;')

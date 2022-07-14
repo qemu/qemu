@@ -225,6 +225,7 @@
 #define TYPE_NO_LUN         0x7f
 
 /* Mode page codes for mode sense/set */
+#define MODE_PAGE_VENDOR_SPECIFIC             0x00
 #define MODE_PAGE_R_W_ERROR                   0x01
 #define MODE_PAGE_HD_GEOMETRY                 0x04
 #define MODE_PAGE_FLEXIBLE_DISK_GEOMETRY      0x05
@@ -234,6 +235,7 @@
 #define MODE_PAGE_FAULT_FAIL                  0x1c
 #define MODE_PAGE_TO_PROTECT                  0x1d
 #define MODE_PAGE_CAPABILITIES                0x2a
+#define MODE_PAGE_APPLE_VENDOR                0x30
 #define MODE_PAGE_ALLS                        0x3f
 /* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
  * of MODE_PAGE_SENSE_POWER */
