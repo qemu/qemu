@@ -793,6 +793,12 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
 }
 
+/* Return the raw value of the TCR controlling this translation regime */
+static inline uint64_t regime_tcr_value(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return regime_tcr(env, mmu_idx)->raw_tcr;
+}
+
 /**
  * arm_num_brps: Return number of implemented breakpoints.
  * Note that the ID register BRPS field is "number of bps - 1",
