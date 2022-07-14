@@ -252,9 +252,9 @@ unsigned int arm_pamax(ARMCPU *cpu);
  */
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
-    TCR *tcr = &env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+    uint64_t tcr = env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
     return arm_el_is_aa64(env, 1) ||
-           (arm_feature(env, ARM_FEATURE_LPAE) && (tcr->raw_tcr & TTBCR_EAE));
+           (arm_feature(env, ARM_FEATURE_LPAE) && (tcr & TTBCR_EAE));
 }
 
 /* Update a QEMU watchpoint based on the information the guest has set in the
@@ -790,7 +790,7 @@ static inline uint64_t regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
          */
         return env->cp15.vstcr_el2;
     }
-    return env->cp15.tcr_el[regime_el(env, mmu_idx)].raw_tcr;
+    return env->cp15.tcr_el[regime_el(env, mmu_idx)];
 }
 
 /**

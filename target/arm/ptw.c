@@ -2466,7 +2466,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             int r_el = regime_el(env, mmu_idx);
             if (arm_el_is_aa64(env, r_el)) {
                 int pamax = arm_pamax(env_archcpu(env));
-                uint64_t tcr = env->cp15.tcr_el[r_el].raw_tcr;
+                uint64_t tcr = env->cp15.tcr_el[r_el];
                 int addrtop, tbi;
 
                 tbi = aa64_va_parameter_tbi(tcr, mmu_idx);

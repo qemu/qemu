@@ -226,7 +226,7 @@ static void arm_cpu_reset(DeviceState *dev)
          * Enable TBI0 but not TBI1.
          * Note that this must match useronly_clean_ptr.
          */
-        env->cp15.tcr_el[1].raw_tcr = 5 | (1ULL << 37);
+        env->cp15.tcr_el[1] = 5 | (1ULL << 37);
 
         /* Enable MTE */
         if (cpu_isar_feature(aa64_mte, cpu)) {
