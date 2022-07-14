@@ -315,7 +315,7 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
                                      uint32_t *table, uint32_t address)
 {
     /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
-    uint64_t tcr = regime_tcr_value(env, mmu_idx);
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     int maskshift = extract32(tcr, 0, 3);
     uint32_t mask = ~(((uint32_t)0xffffffffu) >> maskshift);
     uint32_t base_mask;
@@ -824,7 +824,7 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
 static ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
                                           ARMMMUIdx mmu_idx)
 {
-    uint64_t tcr = regime_tcr_value(env, mmu_idx);
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     uint32_t el = regime_el(env, mmu_idx);
     int select, tsz;
     bool epd, hpd;
@@ -998,7 +998,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
     uint32_t attrs;
     int32_t stride;
     int addrsize, inputsize, outputsize;
-    uint64_t tcr = regime_tcr_value(env, mmu_idx);
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     int ap, ns, xn, pxn;
     uint32_t el = regime_el(env, mmu_idx);
     uint64_t descaddrmask;
