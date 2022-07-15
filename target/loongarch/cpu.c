@@ -140,7 +140,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
 
     if (cs->exception_index != EXCCODE_INT) {
         if (cs->exception_index < 0 ||
-            cs->exception_index > ARRAY_SIZE(excp_names)) {
+            cs->exception_index >= ARRAY_SIZE(excp_names)) {
             name = "unknown";
         } else {
             name = excp_names[cs->exception_index];
@@ -190,8 +190,8 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
         cause = cs->exception_index;
         break;
     default:
-        qemu_log("Error: exception(%d) '%s' has not been supported\n",
-                 cs->exception_index, excp_names[cs->exception_index]);
+        qemu_log("Error: exception(%d) has not been supported\n",
+                 cs->exception_index);
         abort();
     }
 
