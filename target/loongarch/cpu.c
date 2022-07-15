@@ -406,7 +406,7 @@ static void loongarch_la464_initfn(Object *obj)
     data = 0;
     data = FIELD_DP32(data, CPUCFG20, L3IU_WAYS, 15);
     data = FIELD_DP32(data, CPUCFG20, L3IU_SETS, 14);
-    data = FIELD_DP32(data, CPUCFG20, L3IU_SETS, 6);
+    data = FIELD_DP32(data, CPUCFG20, L3IU_SIZE, 6);
     env->cpucfg[20] = data;
 
     env->CSR_ASID = FIELD_DP64(0, CSR_ASID, ASIDBITS, 0xa);
