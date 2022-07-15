@@ -2253,6 +2253,8 @@ void helper_##op(CPUPPCState *env, target_ulong ea, target_ulong ra,          \
 
 HELPER_HASH(HASHST, env->spr[SPR_HASHKEYR], true)
 HELPER_HASH(HASHCHK, env->spr[SPR_HASHKEYR], false)
+HELPER_HASH(HASHSTP, env->spr[SPR_HASHPKEYR], true)
+HELPER_HASH(HASHCHKP, env->spr[SPR_HASHPKEYR], false)
 
 #if !defined(CONFIG_USER_ONLY)
 
