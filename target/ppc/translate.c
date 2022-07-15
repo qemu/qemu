@@ -6473,6 +6473,11 @@ static int times_16(DisasContext *ctx, int x)
     return x * 16;
 }
 
+static int64_t dw_compose_ea(DisasContext *ctx, int x)
+{
+    return deposit64(0xfffffffffffffe00, 3, 6, x);
+}
+
 /*
  * Helpers for trans_* functions to check for specific insns flags.
  * Use token pasting to ensure that we use the proper flag with the
