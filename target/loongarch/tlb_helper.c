@@ -298,7 +298,7 @@ static void invalidate_tlb_entry(CPULoongArchState *env, int index)
     } else {
         tlb_ps = FIELD_EX64(env->CSR_STLBPS, CSR_STLBPS, PS);
     }
-    pagesize = 1 << tlb_ps;
+    pagesize = MAKE_64BIT_MASK(tlb_ps, 1);
     mask = MAKE_64BIT_MASK(0, tlb_ps + 1);
 
     if (tlb_v0) {
@@ -736,7 +736,7 @@ void helper_ldpte(CPULoongArchState *env, target_ulong base, target_ulong odd,
                 (tmp0 & (~(1 << R_TLBENTRY_G_SHIFT)));
         ps = ptbase + ptwidth - 1;
         if (odd) {
-            tmp0 += (1 << ps);
+            tmp0 += MAKE_64BIT_MASK(ps, 1);
         }
     } else {
         /* 0:64bit, 1:128bit, 2:192bit, 3:256bit */
