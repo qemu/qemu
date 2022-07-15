@@ -261,6 +261,11 @@ void pmbus_check_limits(PMBusDevice *pmdev)
     }
 }
 
+void pmbus_idle(PMBusDevice *pmdev)
+{
+    pmdev->code = PMBUS_IDLE_STATE;
+}
+
 /* assert the status_cml error upon receipt of malformed command */
 static void pmbus_cml_error(PMBusDevice *pmdev)
 {
@@ -978,6 +983,10 @@ static uint8_t pmbus_receive_byte(SMBusDevice *smd)
         } else {
             goto passthough;
         }
+        break;
+
+    case PMBUS_IDLE_STATE:
+        pmbus_send8(pmdev, PMBUS_ERR_BYTE);
         break;
 
     case PMBUS_CLEAR_FAULTS:              /* Send Byte */

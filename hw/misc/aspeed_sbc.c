@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/aspeed_sbc.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -18,6 +19,27 @@
 #define R_PROT          (0x000 / 4)
 #define R_STATUS        (0x014 / 4)
 #define R_QSR           (0x040 / 4)
+
+/* R_STATUS */
+#define ABR_EN                  BIT(14) /* Mirrors SCU510[11] */
+#define ABR_IMAGE_SOURCE        BIT(13)
+#define SPI_ABR_IMAGE_SOURCE    BIT(12)
+#define SB_CRYPTO_KEY_EXP_DONE  BIT(11)
+#define SB_CRYPTO_BUSY          BIT(10)
+#define OTP_WP_EN               BIT(9)
+#define OTP_ADDR_WP_EN          BIT(8)
+#define LOW_SEC_KEY_EN          BIT(7)
+#define SECURE_BOOT_EN          BIT(6)
+#define UART_BOOT_EN            BIT(5)
+/* bit 4 reserved*/
+#define OTP_CHARGE_PUMP_READY   BIT(3)
+#define OTP_IDLE                BIT(2)
+#define OTP_MEM_IDLE            BIT(1)
+#define OTP_COMPARE_STATUS      BIT(0)
+
+/* QSR */
+#define QSR_RSA_MASK           (0x3 << 12)
+#define QSR_HASH_MASK          (0x3 << 10)
 
 static uint64_t aspeed_sbc_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -80,8 +102,17 @@ static void aspeed_sbc_reset(DeviceState *dev)
     memset(s->regs, 0, sizeof(s->regs));
 
     /* Set secure boot enabled with RSA4096_SHA256 and enable eMMC ABR */
-    s->regs[R_STATUS] = 0x000044C6;
-    s->regs[R_QSR] = 0x07C07C89;
+    s->regs[R_STATUS] = OTP_IDLE | OTP_MEM_IDLE;
+
+    if (s->emmc_abr) {
+        s->regs[R_STATUS] &= ABR_EN;
+    }
+
+    if (s->signing_settings) {
+        s->regs[R_STATUS] &= SECURE_BOOT_EN;
+    }
+
+    s->regs[R_QSR] = s->signing_settings;
 }
 
 static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
@@ -105,6 +136,12 @@ static const VMStateDescription vmstate_aspeed_sbc = {
     }
 };
 
+static Property aspeed_sbc_properties[] = {
+    DEFINE_PROP_BOOL("emmc-abr", AspeedSBCState, emmc_abr, 0),
+    DEFINE_PROP_UINT32("signing-settings", AspeedSBCState, signing_settings, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void aspeed_sbc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -112,6 +149,7 @@ static void aspeed_sbc_class_init(ObjectClass *klass, void *data)
     dc->realize = aspeed_sbc_realize;
     dc->reset = aspeed_sbc_reset;
     dc->vmsd = &vmstate_aspeed_sbc;
+    device_class_set_props(dc, aspeed_sbc_properties);
 }
 
 static const TypeInfo aspeed_sbc_info = {
