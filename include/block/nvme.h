@@ -98,28 +98,28 @@ enum NvmeCapMask {
 #define NVME_CAP_PMRS(cap)  (((cap) >> CAP_PMRS_SHIFT)   & CAP_PMRS_MASK)
 #define NVME_CAP_CMBS(cap)  (((cap) >> CAP_CMBS_SHIFT)   & CAP_CMBS_MASK)
 
-#define NVME_CAP_SET_MQES(cap, val)   (cap |= (uint64_t)(val & CAP_MQES_MASK)  \
-                                                           << CAP_MQES_SHIFT)
-#define NVME_CAP_SET_CQR(cap, val)    (cap |= (uint64_t)(val & CAP_CQR_MASK)   \
-                                                           << CAP_CQR_SHIFT)
-#define NVME_CAP_SET_AMS(cap, val)    (cap |= (uint64_t)(val & CAP_AMS_MASK)   \
-                                                           << CAP_AMS_SHIFT)
-#define NVME_CAP_SET_TO(cap, val)     (cap |= (uint64_t)(val & CAP_TO_MASK)    \
-                                                           << CAP_TO_SHIFT)
-#define NVME_CAP_SET_DSTRD(cap, val)  (cap |= (uint64_t)(val & CAP_DSTRD_MASK) \
-                                                           << CAP_DSTRD_SHIFT)
-#define NVME_CAP_SET_NSSRS(cap, val)  (cap |= (uint64_t)(val & CAP_NSSRS_MASK) \
-                                                           << CAP_NSSRS_SHIFT)
-#define NVME_CAP_SET_CSS(cap, val)    (cap |= (uint64_t)(val & CAP_CSS_MASK)   \
-                                                           << CAP_CSS_SHIFT)
-#define NVME_CAP_SET_MPSMIN(cap, val) (cap |= (uint64_t)(val & CAP_MPSMIN_MASK)\
-                                                           << CAP_MPSMIN_SHIFT)
-#define NVME_CAP_SET_MPSMAX(cap, val) (cap |= (uint64_t)(val & CAP_MPSMAX_MASK)\
-                                                           << CAP_MPSMAX_SHIFT)
-#define NVME_CAP_SET_PMRS(cap, val)   (cap |= (uint64_t)(val & CAP_PMRS_MASK)  \
-                                                           << CAP_PMRS_SHIFT)
-#define NVME_CAP_SET_CMBS(cap, val)   (cap |= (uint64_t)(val & CAP_CMBS_MASK)  \
-                                                           << CAP_CMBS_SHIFT)
+#define NVME_CAP_SET_MQES(cap, val)   \
+    ((cap) |= (uint64_t)((val) & CAP_MQES_MASK)   << CAP_MQES_SHIFT)
+#define NVME_CAP_SET_CQR(cap, val)    \
+    ((cap) |= (uint64_t)((val) & CAP_CQR_MASK)    << CAP_CQR_SHIFT)
+#define NVME_CAP_SET_AMS(cap, val)    \
+    ((cap) |= (uint64_t)((val) & CAP_AMS_MASK)    << CAP_AMS_SHIFT)
+#define NVME_CAP_SET_TO(cap, val)     \
+    ((cap) |= (uint64_t)((val) & CAP_TO_MASK)     << CAP_TO_SHIFT)
+#define NVME_CAP_SET_DSTRD(cap, val)  \
+    ((cap) |= (uint64_t)((val) & CAP_DSTRD_MASK)  << CAP_DSTRD_SHIFT)
+#define NVME_CAP_SET_NSSRS(cap, val)  \
+    ((cap) |= (uint64_t)((val) & CAP_NSSRS_MASK)  << CAP_NSSRS_SHIFT)
+#define NVME_CAP_SET_CSS(cap, val)    \
+    ((cap) |= (uint64_t)((val) & CAP_CSS_MASK)    << CAP_CSS_SHIFT)
+#define NVME_CAP_SET_MPSMIN(cap, val) \
+    ((cap) |= (uint64_t)((val) & CAP_MPSMIN_MASK) << CAP_MPSMIN_SHIFT)
+#define NVME_CAP_SET_MPSMAX(cap, val) \
+    ((cap) |= (uint64_t)((val) & CAP_MPSMAX_MASK) << CAP_MPSMAX_SHIFT)
+#define NVME_CAP_SET_PMRS(cap, val)   \
+    ((cap) |= (uint64_t)((val) & CAP_PMRS_MASK)   << CAP_PMRS_SHIFT)
+#define NVME_CAP_SET_CMBS(cap, val)   \
+    ((cap) |= (uint64_t)((val) & CAP_CMBS_MASK)   << CAP_CMBS_SHIFT)
 
 enum NvmeCapCss {
     NVME_CAP_CSS_NVM        = 1 << 0,
@@ -596,6 +596,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
     NVME_ADM_CMD_VIRT_MNGMT     = 0x1c,
+    NVME_ADM_CMD_DBBUF_CONFIG   = 0x7c,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
     NVME_ADM_CMD_SECURITY_SEND  = 0x81,
     NVME_ADM_CMD_SECURITY_RECV  = 0x82,
@@ -1141,6 +1142,7 @@ enum NvmeIdCtrlOacs {
     NVME_OACS_FORMAT    = 1 << 1,
     NVME_OACS_FW        = 1 << 2,
     NVME_OACS_NS_MGMT   = 1 << 3,
+    NVME_OACS_DBBUF     = 1 << 8,
 };
 
 enum NvmeIdCtrlOncs {
