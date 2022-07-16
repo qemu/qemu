@@ -1,0 +1,15 @@
+# -*- Mode: makefile -*-
+#
+# LoongArch64 specific tweaks
+
+# Loongarch64 doesn't support gdb, so skip the EXTRA_RUNS
+EXTRA_RUNS =
+
+LOONGARCH64_SRC=$(SRC_PATH)/tests/tcg/loongarch64
+VPATH += $(LOONGARCH64_SRC)
+
+LDFLAGS+=-lm
+
+LOONGARCH64_TESTS  = test_bit
+
+TESTS += $(LOONGARCH64_TESTS)
