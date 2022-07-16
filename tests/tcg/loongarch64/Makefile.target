@@ -14,5 +14,6 @@ LOONGARCH64_TESTS  = test_bit
 LOONGARCH64_TESTS  += test_div
 LOONGARCH64_TESTS  += test_fclass
 LOONGARCH64_TESTS  += test_fpcom
+LOONGARCH64_TESTS  += test_pcadd
 
 TESTS += $(LOONGARCH64_TESTS)
