@@ -13,5 +13,6 @@ LDFLAGS+=-lm
 LOONGARCH64_TESTS  = test_bit
 LOONGARCH64_TESTS  += test_div
 LOONGARCH64_TESTS  += test_fclass
+LOONGARCH64_TESTS  += test_fpcom
 
 TESTS += $(LOONGARCH64_TESTS)
