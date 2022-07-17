@@ -544,7 +544,7 @@ static TCGv get_address(DisasContext *ctx, int rs1, int imm)
 
     tcg_gen_addi_tl(addr, src1, imm);
     if (ctx->pm_mask_enabled) {
-        tcg_gen_and_tl(addr, addr, pm_mask);
+        tcg_gen_andc_tl(addr, addr, pm_mask);
     } else if (get_xl(ctx) == MXL_RV32) {
         tcg_gen_ext32u_tl(addr, addr);
     }
