@@ -312,13 +312,7 @@ static int aia_smode32(CPURISCVState *env, int csrno)
 static RISCVException hmode(CPURISCVState *env, int csrno)
 {
     if (riscv_has_ext(env, RVH)) {
-        /* Hypervisor extension is supported */
-        if ((env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
-            env->priv == PRV_M) {
-            return RISCV_EXCP_NONE;
-        } else {
-            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
-        }
+        return RISCV_EXCP_NONE;
     }
 
     return RISCV_EXCP_ILLEGAL_INST;
@@ -3279,13 +3273,11 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
 #if !defined(CONFIG_USER_ONLY)
     int csr_priv, effective_priv = env->priv;
 
-    if (riscv_has_ext(env, RVH) && env->priv == PRV_S) {
+    if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
+        !riscv_cpu_virt_enabled(env)) {
         /*
-         * We are in either HS or VS mode.
-         * Add 1 to the effective privledge level to allow us to access the
-         * Hypervisor CSRs. The `hmode` predicate will determine if access
-         * should be allowed(HS) or if a virtual instruction exception should be
-         * raised(VS).
+         * We are in HS mode. Add 1 to the effective privledge level to
+         * allow us to access the Hypervisor CSRs.
          */
         effective_priv++;
     }
