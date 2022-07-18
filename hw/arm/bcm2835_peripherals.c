@@ -23,6 +23,13 @@
 /* Capabilities for SD controller: no DMA, high-speed, default clocks etc. */
 #define BCM2835_SDHC_CAPAREG 0x52134b4
 
+/*
+ * According to Linux driver & DTS, dma channels 0--10 have separate IRQ,
+ * while channels 11--14 share one IRQ:
+ */
+#define SEPARATE_DMA_IRQ_MAX 10
+#define ORGATED_DMA_IRQ_COUNT 4
+
 static void create_unimp(BCM2835PeripheralState *ps,
                          UnimplementedDeviceState *uds,
                          const char *name, hwaddr ofs, hwaddr size)
@@ -100,6 +107,11 @@ static void bcm2835_peripherals_init(Object *obj)
 
     /* DMA Channels */
     object_initialize_child(obj, "dma", &s->dma, TYPE_BCM2835_DMA);
+
+    object_initialize_child(obj, "orgated-dma-irq",
+                            &s->orgated_dma_irq, TYPE_OR_IRQ);
+    object_property_set_int(OBJECT(&s->orgated_dma_irq), "num-lines",
+                            ORGATED_DMA_IRQ_COUNT, &error_abort);
 
     object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
@@ -322,12 +334,24 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->peri_mr, DMA15_OFFSET,
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dma), 1));
 
-    for (n = 0; n <= 12; n++) {
+    for (n = 0; n <= SEPARATE_DMA_IRQ_MAX; n++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma), n,
                            qdev_get_gpio_in_named(DEVICE(&s->ic),
                                                   BCM2835_IC_GPU_IRQ,
                                                   INTERRUPT_DMA0 + n));
     }
+    if (!qdev_realize(DEVICE(&s->orgated_dma_irq), NULL, errp)) {
+        return;
+    }
+    for (n = 0; n < ORGATED_DMA_IRQ_COUNT; n++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->dma),
+                           SEPARATE_DMA_IRQ_MAX + 1 + n,
+                           qdev_get_gpio_in(DEVICE(&s->orgated_dma_irq), n));
+    }
+    qdev_connect_gpio_out(DEVICE(&s->orgated_dma_irq), 0,
+                          qdev_get_gpio_in_named(DEVICE(&s->ic),
+                              BCM2835_IC_GPU_IRQ,
+                              INTERRUPT_DMA0 + SEPARATE_DMA_IRQ_MAX + 1));
 
     /* THERMAL */
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->thermal), errp)) {

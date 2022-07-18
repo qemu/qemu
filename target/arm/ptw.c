@@ -241,9 +241,9 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
         if (arm_is_secure_below_el3(env)) {
             /* Check if page table walk is to secure or non-secure PA space. */
             if (*is_secure) {
-                *is_secure = !(env->cp15.vstcr_el2.raw_tcr & VSTCR_SW);
+                *is_secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
             } else {
-                *is_secure = !(env->cp15.vtcr_el2.raw_tcr & VTCR_NSW);
+                *is_secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
             }
         } else {
             assert(!*is_secure);
@@ -315,20 +315,24 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
                                      uint32_t *table, uint32_t address)
 {
     /* Note that we can only get here for an AArch32 PL0/PL1 lookup */
-    TCR *tcr = regime_tcr(env, mmu_idx);
+    uint64_t tcr = regime_tcr(env, mmu_idx);
+    int maskshift = extract32(tcr, 0, 3);
+    uint32_t mask = ~(((uint32_t)0xffffffffu) >> maskshift);
+    uint32_t base_mask;
 
-    if (address & tcr->mask) {
-        if (tcr->raw_tcr & TTBCR_PD1) {
+    if (address & mask) {
+        if (tcr & TTBCR_PD1) {
             /* Translation table walk disabled for TTBR1 */
             return false;
         }
         *table = regime_ttbr(env, mmu_idx, 1) & 0xffffc000;
     } else {
-        if (tcr->raw_tcr & TTBCR_PD0) {
+        if (tcr & TTBCR_PD0) {
             /* Translation table walk disabled for TTBR0 */
             return false;
         }
-        *table = regime_ttbr(env, mmu_idx, 0) & tcr->base_mask;
+        base_mask = ~((uint32_t)0x3fffu >> maskshift);
+        *table = regime_ttbr(env, mmu_idx, 0) & base_mask;
     }
     *table |= (address >> 18) & 0x3ffc;
     return true;
@@ -820,7 +824,7 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
 static ARMVAParameters aa32_va_parameters(CPUARMState *env, uint32_t va,
                                           ARMMMUIdx mmu_idx)
 {
-    uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     uint32_t el = regime_el(env, mmu_idx);
     int select, tsz;
     bool epd, hpd;
@@ -994,7 +998,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
     uint32_t attrs;
     int32_t stride;
     int addrsize, inputsize, outputsize;
-    TCR *tcr = regime_tcr(env, mmu_idx);
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     int ap, ns, xn, pxn;
     uint32_t el = regime_el(env, mmu_idx);
     uint64_t descaddrmask;
@@ -1112,8 +1116,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
          * For stage 2 translations the starting level is specified by the
          * VTCR_EL2.SL0 field (whose interpretation depends on the page size)
          */
-        uint32_t sl0 = extract32(tcr->raw_tcr, 6, 2);
-        uint32_t sl2 = extract64(tcr->raw_tcr, 33, 1);
+        uint32_t sl0 = extract32(tcr, 6, 2);
+        uint32_t sl2 = extract64(tcr, 33, 1);
         uint32_t startlevel;
         bool ok;
 
@@ -2337,9 +2341,9 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             ipa_secure = attrs->secure;
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
-                    attrs->secure = !(env->cp15.vstcr_el2.raw_tcr & VSTCR_SW);
+                    attrs->secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
                 } else {
-                    attrs->secure = !(env->cp15.vtcr_el2.raw_tcr & VTCR_NSW);
+                    attrs->secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
                 }
             } else {
                 assert(!ipa_secure);
@@ -2381,11 +2385,11 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
                     attrs->secure =
-                        !(env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW));
+                        !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
                 } else {
                     attrs->secure =
-                        !((env->cp15.vtcr_el2.raw_tcr & (VTCR_NSA | VTCR_NSW))
-                        || (env->cp15.vstcr_el2.raw_tcr & (VSTCR_SA | VSTCR_SW)));
+                        !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
+                        || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
                 }
             }
             return 0;
@@ -2462,7 +2466,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             int r_el = regime_el(env, mmu_idx);
             if (arm_el_is_aa64(env, r_el)) {
                 int pamax = arm_pamax(env_archcpu(env));
-                uint64_t tcr = env->cp15.tcr_el[r_el].raw_tcr;
+                uint64_t tcr = env->cp15.tcr_el[r_el];
                 int addrtop, tbi;
 
                 tbi = aa64_va_parameter_tbi(tcr, mmu_idx);

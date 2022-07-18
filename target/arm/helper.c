@@ -3606,19 +3606,21 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.c6_region[7]) },
 };
 
-static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                 uint64_t value)
+static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
 {
-    TCR *tcr = raw_ptr(env, ri);
-    int maskshift = extract32(value, 0, 3);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (!arm_feature(env, ARM_FEATURE_V8)) {
         if (arm_feature(env, ARM_FEATURE_LPAE) && (value & TTBCR_EAE)) {
-            /* Pre ARMv8 bits [21:19], [15:14] and [6:3] are UNK/SBZP when
-             * using Long-desciptor translation table format */
+            /*
+             * Pre ARMv8 bits [21:19], [15:14] and [6:3] are UNK/SBZP when
+             * using Long-descriptor translation table format
+             */
             value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
         } else if (arm_feature(env, ARM_FEATURE_EL3)) {
-            /* In an implementation that includes the Security Extensions
+            /*
+             * In an implementation that includes the Security Extensions
              * TTBCR has additional fields PD0 [4] and PD1 [5] for
              * Short-descriptor translation table format.
              */
@@ -3628,55 +3630,23 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
     }
 
-    /* Update the masks corresponding to the TCR bank being written
-     * Note that we always calculate mask and base_mask, but
-     * they are only used for short-descriptor tables (ie if EAE is 0);
-     * for long-descriptor tables the TCR fields are used differently
-     * and the mask and base_mask values are meaningless.
-     */
-    tcr->raw_tcr = value;
-    tcr->mask = ~(((uint32_t)0xffffffffu) >> maskshift);
-    tcr->base_mask = ~((uint32_t)0x3fffu >> maskshift);
-}
-
-static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                             uint64_t value)
-{
-    ARMCPU *cpu = env_archcpu(env);
-    TCR *tcr = raw_ptr(env, ri);
-
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
         /* With LPAE the TTBCR could result in a change of ASID
          * via the TTBCR.A1 bit, so do a TLB flush.
          */
         tlb_flush(CPU(cpu));
     }
-    /* Preserve the high half of TCR_EL1, set via TTBCR2.  */
-    value = deposit64(tcr->raw_tcr, 0, 32, value);
-    vmsa_ttbcr_raw_write(env, ri, value);
-}
-
-static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
-{
-    TCR *tcr = raw_ptr(env, ri);
-
-    /* Reset both the TCR as well as the masks corresponding to the bank of
-     * the TCR being reset.
-     */
-    tcr->raw_tcr = 0;
-    tcr->mask = 0;
-    tcr->base_mask = 0xffffc000u;
+    raw_write(env, ri, value);
 }
 
 static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
     ARMCPU *cpu = env_archcpu(env);
-    TCR *tcr = raw_ptr(env, ri);
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
     tlb_flush(CPU(cpu));
-    tcr->raw_tcr = value;
+    raw_write(env, ri, value);
 }
 
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3780,15 +3750,15 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .opc0 = 3, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .writefn = vmsa_tcr_el12_write,
-      .resetfn = vmsa_ttbcr_reset, .raw_writefn = raw_write,
+      .raw_writefn = raw_write,
+      .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[1]) },
     { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .accessfn = access_tvm_trvm,
       .type = ARM_CP_ALIAS, .writefn = vmsa_ttbcr_write,
-      .raw_writefn = vmsa_ttbcr_raw_write,
-      /* No offsetoflow32 -- pass the entire TCR to writefn/raw_writefn. */
-      .bank_fieldoffsets = { offsetof(CPUARMState, cp15.tcr_el[3]),
-                             offsetof(CPUARMState, cp15.tcr_el[1])} },
+      .raw_writefn = raw_write,
+      .bank_fieldoffsets = { offsetoflow32(CPUARMState, cp15.tcr_el[3]),
+                             offsetoflow32(CPUARMState, cp15.tcr_el[1])} },
 };
 
 /* Note that unlike TTBCR, writing to TTBCR2 does not require flushing
@@ -3799,8 +3769,8 @@ static const ARMCPRegInfo ttbcr2_reginfo = {
     .access = PL1_RW, .accessfn = access_tvm_trvm,
     .type = ARM_CP_ALIAS,
     .bank_fieldoffsets = {
-        offsetofhigh32(CPUARMState, cp15.tcr_el[3].raw_tcr),
-        offsetofhigh32(CPUARMState, cp15.tcr_el[1].raw_tcr),
+        offsetofhigh32(CPUARMState, cp15.tcr_el[3]),
+        offsetofhigh32(CPUARMState, cp15.tcr_el[1]),
     },
 };
 
@@ -4216,7 +4186,7 @@ static int vae1_tlbmask(CPUARMState *env)
 static int tlbbits_for_regime(CPUARMState *env, ARMMMUIdx mmu_idx,
                               uint64_t addr)
 {
-    uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     int tbi = aa64_va_parameter_tbi(tcr, mmu_idx);
     int select = extract64(addr, 55, 1);
 
@@ -5403,19 +5373,16 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "TCR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 0, .opc2 = 2,
       .access = PL2_RW, .writefn = vmsa_tcr_el12_write,
-      /* no .raw_writefn or .resetfn needed as we never use mask/base_mask */
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[2]) },
     { .name = "VTCR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
       .type = ARM_CP_ALIAS,
       .access = PL2_RW, .accessfn = access_el3_aa32ns,
-      .fieldoffset = offsetof(CPUARMState, cp15.vtcr_el2) },
+      .fieldoffset = offsetoflow32(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
       .access = PL2_RW,
-      /* no .writefn needed as this can't cause an ASID change;
-       * no .raw_writefn or .resetfn needed as we never use mask/base_mask
-       */
+      /* no .writefn needed as this can't cause an ASID change */
       .fieldoffset = offsetof(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTTBR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 6, .crm = 2,
@@ -5645,12 +5612,8 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
     { .name = "TCR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 2, .crm = 0, .opc2 = 2,
       .access = PL3_RW,
-      /* no .writefn needed as this can't cause an ASID change;
-       * we must provide a .raw_writefn and .resetfn because we handle
-       * reset and migration for the AArch32 TTBCR(S), which might be
-       * using mask and base_mask.
-       */
-      .resetfn = vmsa_ttbcr_reset, .raw_writefn = vmsa_ttbcr_raw_write,
+      /* no .writefn needed as this can't cause an ASID change */
+      .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.tcr_el[3]) },
     { .name = "ELR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
@@ -10158,7 +10121,7 @@ static int aa64_va_parameter_tcma(uint64_t tcr, ARMMMUIdx mmu_idx)
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data)
 {
-    uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     bool epd, hpd, using16k, using64k, tsz_oob, ds;
     int select, tsz, tbi, max_tsz, min_tsz, ps, sh;
     ARMCPU *cpu = env_archcpu(env);
@@ -10849,7 +10812,7 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
 {
     CPUARMTBFlags flags = {};
     ARMMMUIdx stage1 = stage_1_mmu_idx(mmu_idx);
-    uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+    uint64_t tcr = regime_tcr(env, mmu_idx);
     uint64_t sctlr;
     int tbii, tbid;
 
@@ -10882,13 +10845,19 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
     }
     if (cpu_isar_feature(aa64_sme, env_archcpu(env))) {
         int sme_el = sme_exception_el(env, el);
+        bool sm = FIELD_EX64(env->svcr, SVCR, SM);
 
         DP_TBFLAG_A64(flags, SMEEXC_EL, sme_el);
         if (sme_el == 0) {
             /* Similarly, do not compute SVL if SME is disabled. */
-            DP_TBFLAG_A64(flags, SVL, sve_vqm1_for_el_sm(env, el, true));
+            int svl = sve_vqm1_for_el_sm(env, el, true);
+            DP_TBFLAG_A64(flags, SVL, svl);
+            if (sm) {
+                /* If SVE is disabled, we will not have set VL above. */
+                DP_TBFLAG_A64(flags, VL, svl);
+            }
         }
-        if (FIELD_EX64(env->svcr, SVCR, SM)) {
+        if (sm) {
             DP_TBFLAG_A64(flags, PSTATE_SM, 1);
             DP_TBFLAG_A64(flags, SME_TRAP_NONSTREAMING, !sme_fa64(env, el));
         }
@@ -11222,6 +11191,21 @@ void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
     }
 }
 
+static uint32_t sve_vqm1_for_el_sm_ena(CPUARMState *env, int el, bool sm)
+{
+    int exc_el;
+
+    if (sm) {
+        exc_el = sme_exception_el(env, el);
+    } else {
+        exc_el = sve_exception_el(env, el);
+    }
+    if (exc_el) {
+        return 0; /* disabled */
+    }
+    return sve_vqm1_for_el_sm(env, el, sm);
+}
+
 /*
  * Notice a change in SVE vector size when changing EL.
  */
@@ -11230,7 +11214,7 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el,
 {
     ARMCPU *cpu = env_archcpu(env);
     int old_len, new_len;
-    bool old_a64, new_a64;
+    bool old_a64, new_a64, sm;
 
     /* Nothing to do if no SVE.  */
     if (!cpu_isar_feature(aa64_sve, cpu)) {
@@ -11250,7 +11234,8 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el,
      * invoke ResetSVEState when taking an exception from, or
      * returning to, AArch32 state when PSTATE.SM is enabled.
      */
-    if (old_a64 != new_a64 && FIELD_EX64(env->svcr, SVCR, SM)) {
+    sm = FIELD_EX64(env->svcr, SVCR, SM);
+    if (old_a64 != new_a64 && sm) {
         arm_reset_sve_state(env);
         return;
     }
@@ -11267,10 +11252,13 @@ void aarch64_sve_change_el(CPUARMState *env, int old_el,
      * we already have the correct register contents when encountering the
      * vq0->vq0 transition between EL0->EL1.
      */
-    old_len = (old_a64 && !sve_exception_el(env, old_el)
-               ? sve_vqm1_for_el(env, old_el) : 0);
-    new_len = (new_a64 && !sve_exception_el(env, new_el)
-               ? sve_vqm1_for_el(env, new_el) : 0);
+    old_len = new_len = 0;
+    if (old_a64) {
+        old_len = sve_vqm1_for_el_sm_ena(env, old_el, sm);
+    }
+    if (new_a64) {
+        new_len = sve_vqm1_for_el_sm_ena(env, new_el, sm);
+    }
 
     /* When changing vector length, clear inaccessible state.  */
     if (new_len < old_len) {

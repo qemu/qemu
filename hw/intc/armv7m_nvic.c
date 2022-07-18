@@ -2389,8 +2389,15 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
         startvec = 8 * (offset - 0x280) + NVIC_FIRST_IRQ; /* vector # */
 
         for (i = 0, end = size * 8; i < end && startvec + i < s->num_irq; i++) {
+            /*
+             * Note that if the input line is still held high and the interrupt
+             * is not active then rule R_CVJS requires that the Pending state
+             * remains set; in that case we mustn't let it be cleared.
+             */
             if (value & (1 << i) &&
-                (attrs.secure || s->itns[startvec + i])) {
+                (attrs.secure || s->itns[startvec + i]) &&
+                !(setval == 0 && s->vectors[startvec + i].level &&
+                  !s->vectors[startvec + i].active)) {
                 s->vectors[startvec + i].pending = setval;
             }
         }

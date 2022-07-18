@@ -166,12 +166,6 @@ typedef struct ARMGenericTimer {
 #define GTIMER_HYPVIRT  4
 #define NUM_GTIMERS     5
 
-typedef struct {
-    uint64_t raw_tcr;
-    uint32_t mask;
-    uint32_t base_mask;
-} TCR;
-
 #define VTCR_NSW (1u << 29)
 #define VTCR_NSA (1u << 30)
 #define VSTCR_SW VTCR_NSW
@@ -339,9 +333,9 @@ typedef struct CPUArchState {
         uint64_t vttbr_el2; /* Virtualization Translation Table Base.  */
         uint64_t vsttbr_el2; /* Secure Virtualization Translation Table. */
         /* MMU translation table base control. */
-        TCR tcr_el[4];
-        TCR vtcr_el2; /* Virtualization Translation Control.  */
-        TCR vstcr_el2; /* Secure Virtualization Translation Control. */
+        uint64_t tcr_el[4];
+        uint64_t vtcr_el2; /* Virtualization Translation Control.  */
+        uint64_t vstcr_el2; /* Secure Virtualization Translation Control. */
         uint32_t c2_data; /* MPU data cacheable bits.  */
         uint32_t c2_insn; /* MPU instruction cacheable bits.  */
         union { /* MMU domain access control register
@@ -1417,6 +1411,25 @@ FIELD(CPTR_EL3, TCPAC, 31, 1)
 #define TTBCR_ORGN1  (3U << 26)
 #define TTBCR_SH1    (1U << 28)
 #define TTBCR_EAE    (1U << 31)
+
+FIELD(VTCR, T0SZ, 0, 6)
+FIELD(VTCR, SL0, 6, 2)
+FIELD(VTCR, IRGN0, 8, 2)
+FIELD(VTCR, ORGN0, 10, 2)
+FIELD(VTCR, SH0, 12, 2)
+FIELD(VTCR, TG0, 14, 2)
+FIELD(VTCR, PS, 16, 3)
+FIELD(VTCR, VS, 19, 1)
+FIELD(VTCR, HA, 21, 1)
+FIELD(VTCR, HD, 22, 1)
+FIELD(VTCR, HWU59, 25, 1)
+FIELD(VTCR, HWU60, 26, 1)
+FIELD(VTCR, HWU61, 27, 1)
+FIELD(VTCR, HWU62, 28, 1)
+FIELD(VTCR, NSW, 29, 1)
+FIELD(VTCR, NSA, 30, 1)
+FIELD(VTCR, DS, 32, 1)
+FIELD(VTCR, SL2, 33, 1)
 
 /* Bit definitions for ARMv8 SPSR (PSTATE) format.
  * Only these are valid when in AArch64 mode; in
@@ -3392,9 +3405,12 @@ static inline MemTxAttrs *typecheck_memtxattrs(MemTxAttrs *x)
 
 /*
  * AArch64 usage of the PAGE_TARGET_* bits for linux-user.
+ * Note that with the Linux kernel, PROT_MTE may not be cleared by mprotect
+ * mprotect but PROT_BTI may be cleared.  C.f. the kernel's VM_ARCH_CLEAR.
  */
-#define PAGE_BTI  PAGE_TARGET_1
-#define PAGE_MTE  PAGE_TARGET_2
+#define PAGE_BTI            PAGE_TARGET_1
+#define PAGE_MTE            PAGE_TARGET_2
+#define PAGE_TARGET_STICKY  PAGE_MTE
 
 #ifdef TARGET_TAGGED_ADDRESSES
 /**
