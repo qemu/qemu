@@ -587,6 +587,431 @@ else
   cpu=$(uname -m)
 fi
 
+# cpu flag for x86
+x86_cpu_flags=""
+
+get_x86_cpu_flags(){
+    # check sse flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128 a,b;
+    int res= _mm_ucomieq_ss(a,b);
+    return 0;
+}
+EOF
+    local_cpu_flag="-msse"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -msse"
+    fi
+
+    # check sse2 flag
+    cat > $TMPC << EOF
+#include <emmintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128d a,b;
+    int res= _mm_ucomineq_sd (a, b);
+    return 0;
+}
+EOF
+    local_cpu_flag="-msse2"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -msse2"
+    fi
+
+    # check sse3 flag
+    cat > $TMPC << EOF
+#include <pmmintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128 a;
+    __m128  res= _mm_moveldup_ps (a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-msse3"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -msse3"
+    fi
+
+    # check ssse3 flag
+    cat > $TMPC << EOF
+#include <tmmintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128i a;
+    __m12i8  res= _mm_abs_epi32 (a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mssse3"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mssse3"
+    fi
+
+    # check sse4.1 flag    
+    cat > $TMPC << EOF
+#include <smmintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128 a;
+    __m128 res=_mm_ceil_ps (a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-msse4.1"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -msse4.1"
+    fi
+
+    # check sse4.2 flag    
+    cat > $TMPC << EOF
+#include <nmmintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128i a,b;
+    __m128i res=_mm_cmpgt_epi64 (a,b);
+    return 0;
+}
+EOF
+    local_cpu_flag="-msse4.2"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -msse4.2"
+    fi
+
+    # check avx flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m256 a; 
+    __m256 res= _mm256_ceil_ps(a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx"
+    fi
+
+    # check avx2 flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m256i a; 
+    __m256i res= _mm256_abs_epi32(a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx2"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx2"
+    fi
+
+    # check AVX_VNNI flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128i a,b,c; 
+    __m128i res= _mm_dpbusd_epi32(a,b,c);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavxvnni"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavxvnni"
+    fi
+
+    # check AVX512f flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128d a; 
+    __m512d res= _mm512_broadcastsd_pd(a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512f"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512f"
+    fi
+
+    # check AVX512bw flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a; 
+    __m512i res= _mm512_abs_epi8(a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512bw"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512bw"
+    fi
+
+    # check AVX512CD flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a; 
+    __mmask16 k;
+    __m512i res= _mm512_maskz_lzcnt_epi32 (k, a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512cd"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512cd"
+    fi
+
+    # check AVX512DQ flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __mmask8 a,b; 
+    __mmask8 res=_kxor_mask8(a,b);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512dq"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512dq"
+    fi
+
+    # check AVX512ER flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512d a; 
+    __m512d res=_mm512_rsqrt28_pd(a) ;
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512er"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512er"
+    fi
+
+    # check AVX512IFMA52 flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a,b,c; 
+    __m512i res= _mm512_madd52lo_epu64 (a, b, c);	
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512ifma"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512ifma"
+    fi
+
+    # check AVX512PF flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    char* base_addr;
+    __mmask8 k;
+    __m512i vindex;
+    _mm512_mask_prefetch_i64scatter_pd (base_addr, k, vindex, 1, 2);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512pf"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512pf"
+    fi
+
+    # check AVX512VPOPCNTDQ flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a;
+    __mmask8 k; 
+    __m512i res= _mm512_maskz_popcnt_epi64(k,a);	
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512vpopcntdq"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512vpopcntdq"
+    fi
+
+    # check AVX512_4VNNIW flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a,b,c,d,e;
+    __m128 g; 
+    __m512i res= _mm512_4dpwssd_epi32 (a, b, c, d, e, &g);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx5124vnniw"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx5124vnniw"
+    fi
+
+    # check AVX512_BITALG flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a;
+    __m512i res= _mm512_popcnt_epi16 (a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512bitalg"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512bitalg"
+    fi
+
+    # check AVX512_VBMI flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a,b,c;
+    __m512i res= _mm512_permutex2var_epi8  (a, b, c);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512vbmi"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512vbmi"
+    fi
+
+    # check AVX512_VBMI2 flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a,b,c;
+    __m512i res= _mm512_shrdv_epi64  (a, b, c);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512vbmi2"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512vbmi2"
+    fi
+
+    # check AVX512_VNNI flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m512i a,b,c;
+    __mmask16 k;
+    __m512i res=  _mm512_maskz_dpwssds_epi32 (k,a, b, c);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512vnni"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512vnni"
+    fi
+
+    # check AVX512_FP16 flag    
+    cat > $TMPC << EOF
+#include <immintrin.h>
+int main(int argc, char *argv[])
+{
+    __m128h a;
+    __m128 res=  _mm_castph_ps (a);
+    return 0;
+}
+EOF
+    local_cpu_flag="-mavx512fp16"
+    rm -f  $TMPE
+    do_cc $local_cpu_flag  -o $TMPE $TMPC
+    if [ -e  $TMPE ]
+    then
+        x86_cpu_flags="$x86_cpu_flags -mavx512fp16"
+    fi
+}
+
 # Normalise host CPU name, set multilib cflags
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
@@ -595,16 +1020,19 @@ case "$cpu" in
 
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
-    CPU_CFLAGS="-m32" ;;
+    get_x86_cpu_flags
+    CPU_CFLAGS="-m32 $x86_cpu_flags" ;;
   x32)
     cpu="x86_64"
-    CPU_CFLAGS="-mx32" ;;
+    get_x86_cpu_flags
+    CPU_CFLAGS="-mx32 $x86_cpu_flags" ;;
   x86_64|amd64)
     cpu="x86_64"
+    get_x86_cpu_flags
     # ??? Only extremely old AMD cpus do not have cmpxchg16b.
     # If we truly care, we should simply detect this case at
     # runtime and generate the fallback to serial emulation.
-    CPU_CFLAGS="-m64 -mcx16" ;;
+    CPU_CFLAGS="-m64 -mcx16 $x86_cpu_flags" ;;
 
   mips*)
     cpu="mips" ;;
