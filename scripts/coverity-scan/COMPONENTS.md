@@ -143,3 +143,6 @@ testlibs
 
 tests
   ~ (/qemu)?(/tests/.*)
+
+loongarch
+  ~ (/qemu)?((/include)?/hw/(loongarch/.*|.*/loongarch.*)|/target/loongarch/.*)
