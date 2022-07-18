@@ -62,10 +62,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#ifdef __HAIKU__
-#include <kernel/image.h>
-#endif
-
 #include "qemu/mmap-alloc.h"
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
