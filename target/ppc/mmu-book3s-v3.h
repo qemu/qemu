@@ -50,6 +50,21 @@ struct prtb_entry {
 
 #ifdef TARGET_PPC64
 
+/*
+ * tlbie[l] helper flags
+ *
+ * RIC, PRS, R and local are passed as flags in the last argument.
+ */
+#define TLBIE_F_RIC_SHIFT       0
+#define TLBIE_F_PRS_SHIFT       2
+#define TLBIE_F_R_SHIFT         3
+#define TLBIE_F_LOCAL_SHIFT     4
+
+#define TLBIE_F_RIC_MASK        (3 << TLBIE_F_RIC_SHIFT)
+#define TLBIE_F_PRS             (1 << TLBIE_F_PRS_SHIFT)
+#define TLBIE_F_R               (1 << TLBIE_F_R_SHIFT)
+#define TLBIE_F_LOCAL           (1 << TLBIE_F_LOCAL_SHIFT)
+
 static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)
 {
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_UPRT);

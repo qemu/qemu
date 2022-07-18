@@ -301,23 +301,25 @@ void icp_reset(ICPState *icp)
 static void icp_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     Error *err = NULL;
 
     assert(icp->xics);
     assert(icp->cs);
 
-    env = &POWERPC_CPU(icp->cs)->env;
+    cpu = POWERPC_CPU(icp->cs);
+    env = &cpu->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER7:
-        icp->output = env->irq_inputs[POWER7_INPUT_INT];
+        icp->output = qdev_get_gpio_in(DEVICE(cpu), POWER7_INPUT_INT);
         break;
     case PPC_FLAGS_INPUT_POWER9: /* For SPAPR xics emulation */
-        icp->output = env->irq_inputs[POWER9_INPUT_INT];
+        icp->output = qdev_get_gpio_in(DEVICE(cpu), POWER9_INPUT_INT);
         break;
 
     case PPC_FLAGS_INPUT_970:
-        icp->output = env->irq_inputs[PPC970_INPUT_INT];
+        icp->output = qdev_get_gpio_in(DEVICE(cpu), PPC970_INPUT_INT);
         break;
 
     default:

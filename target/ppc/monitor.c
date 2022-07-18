@@ -55,6 +55,9 @@ static target_long monitor_get_decr(Monitor *mon, const struct MonitorDef *md,
                                     int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
+    if (!env->tb_env) {
+        return 0;
+    }
     return cpu_ppc_load_decr(env);
 }
 
@@ -62,6 +65,9 @@ static target_long monitor_get_tbu(Monitor *mon, const struct MonitorDef *md,
                                    int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
+    if (!env->tb_env) {
+        return 0;
+    }
     return cpu_ppc_load_tbu(env);
 }
 
@@ -69,6 +75,9 @@ static target_long monitor_get_tbl(Monitor *mon, const struct MonitorDef *md,
                                    int val)
 {
     CPUArchState *env = mon_get_cpu_env(mon);
+    if (!env->tb_env) {
+        return 0;
+    }
     return cpu_ppc_load_tbl(env);
 }
 
