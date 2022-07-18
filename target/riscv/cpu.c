@@ -721,6 +721,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             return;
         }
 
+        if (cpu->cfg.ext_s && !cpu->cfg.ext_u) {
+            error_setg(errp,
+                       "Setting S extension without U extension is illegal");
+            return;
+        }
+
         if (cpu->cfg.ext_f && !cpu->cfg.ext_icsr) {
             error_setg(errp, "F extension requires Zicsr");
             return;
