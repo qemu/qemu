@@ -843,17 +843,15 @@ static uint64_t pc_get_cxl_range_start(PCMachineState *pcms)
 
 static uint64_t pc_get_cxl_range_end(PCMachineState *pcms)
 {
-    uint64_t start = 0;
+    uint64_t start = pc_get_cxl_range_start(pcms) + MiB;
 
-    if (pcms->cxl_devices_state.host_mr.addr) {
-        start = pcms->cxl_devices_state.host_mr.addr +
-            memory_region_size(&pcms->cxl_devices_state.host_mr);
-        if (pcms->cxl_devices_state.fixed_windows) {
-            GList *it;
-            for (it = pcms->cxl_devices_state.fixed_windows; it; it = it->next) {
-                CXLFixedWindow *fw = it->data;
-                start = fw->mr.addr + memory_region_size(&fw->mr);
-            }
+    if (pcms->cxl_devices_state.fixed_windows) {
+        GList *it;
+
+        start = ROUND_UP(start, 256 * MiB);
+        for (it = pcms->cxl_devices_state.fixed_windows; it; it = it->next) {
+            CXLFixedWindow *fw = it->data;
+            start += fw->size;
         }
     }
 
