@@ -54,6 +54,7 @@ static struct arch2cpu cpus_map[] = {
     { "riscv64", "rv64" },
     { "riscv32", "rv32" },
     { "rx", "rx62n" },
+    { "loongarch64", "la464"},
 };
 
 static const char *get_cpu_model_by_arch(const char *arch)

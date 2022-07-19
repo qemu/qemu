@@ -40,7 +40,7 @@ def check_fields_match(name, s_field, d_field):
         return True
 
     # Some fields changed names between qemu versions.  This list
-    # is used to whitelist such changes in each section / description.
+    # is used to allow such changes in each section / description.
     changed_names = {
         'apic': ['timer', 'timer_expiry'],
         'e1000': ['dev', 'parent_obj'],
