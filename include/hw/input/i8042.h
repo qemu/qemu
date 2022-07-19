@@ -10,6 +10,7 @@
 
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "hw/input/ps2.h"
 #include "qom/object.h"
 
 #define I8042_KBD_IRQ      0
@@ -30,8 +31,8 @@ typedef struct KBDState {
     uint8_t obdata;
     uint8_t cbdata;
     uint8_t pending_tmp;
-    void *kbd;
-    void *mouse;
+    PS2KbdState ps2kbd;
+    PS2MouseState ps2mouse;
     QEMUTimer *throttle_timer;
 
     qemu_irq irqs[2];
@@ -87,8 +88,6 @@ struct MMIOKBDState {
 #define I8042_A20_LINE "a20"
 
 
-MMIOKBDState *i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
-                            ram_addr_t size, hwaddr mask);
 void i8042_isa_mouse_fake_event(ISAKBDState *isa);
 void i8042_setup_a20_line(ISADevice *dev, qemu_irq a20_out);
 

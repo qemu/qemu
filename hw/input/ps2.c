@@ -1224,19 +1224,6 @@ static void ps2_kbd_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_keyboard_handler);
 }
 
-void *ps2_kbd_init(void)
-{
-    DeviceState *dev;
-    PS2KbdState *s;
-
-    dev = qdev_new(TYPE_PS2_KBD_DEVICE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    s = PS2_KBD_DEVICE(dev);
-
-    trace_ps2_kbd_init(s);
-    return s;
-}
-
 static QemuInputHandler ps2_mouse_handler = {
     .name  = "QEMU PS/2 Mouse",
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
@@ -1247,19 +1234,6 @@ static QemuInputHandler ps2_mouse_handler = {
 static void ps2_mouse_realize(DeviceState *dev, Error **errp)
 {
     qemu_input_handler_register(dev, &ps2_mouse_handler);
-}
-
-void *ps2_mouse_init(void)
-{
-    DeviceState *dev;
-    PS2MouseState *s;
-
-    dev = qdev_new(TYPE_PS2_MOUSE_DEVICE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    s = PS2_MOUSE_DEVICE(dev);
-
-    trace_ps2_mouse_init(s);
-    return s;
 }
 
 static void ps2_kbd_class_init(ObjectClass *klass, void *data)

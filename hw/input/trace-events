@@ -41,8 +41,6 @@ ps2_mouse_fake_event(void *opaque) "%p"
 ps2_write_mouse(void *opaque, int val) "%p val %d"
 ps2_kbd_reset(void *opaque) "%p"
 ps2_mouse_reset(void *opaque) "%p"
-ps2_kbd_init(void *s) "%p"
-ps2_mouse_init(void *s) "%p"
 
 # hid.c
 hid_kbd_queue_full(void) "queue full"
