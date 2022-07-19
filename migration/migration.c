@@ -1306,7 +1306,9 @@ static bool migrate_caps_check(bool *cap_list,
 #ifdef CONFIG_LINUX
     if (cap_list[MIGRATION_CAPABILITY_ZERO_COPY_SEND] &&
         (!cap_list[MIGRATION_CAPABILITY_MULTIFD] ||
-         migrate_use_compression() ||
+         cap_list[MIGRATION_CAPABILITY_COMPRESS] ||
+         cap_list[MIGRATION_CAPABILITY_XBZRLE] ||
+         migrate_multifd_compression() ||
          migrate_use_tls())) {
         error_setg(errp,
                    "Zero copy only available for non-compressed non-TLS multifd migration");
@@ -1550,6 +1552,17 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         error_prepend(errp, "Invalid mapping given for block-bitmap-mapping: ");
         return false;
     }
+
+#ifdef CONFIG_LINUX
+    if (migrate_use_zero_copy_send() &&
+        ((params->has_multifd_compression && params->multifd_compression) ||
+         (params->has_tls_creds && params->tls_creds && *params->tls_creds))) {
+        error_setg(errp,
+                   "Zero copy only available for non-compressed non-TLS multifd migration");
+        return false;
+    }
+#endif
+
     return true;
 }
 
