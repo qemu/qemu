@@ -46,7 +46,7 @@ Those hosts are officially supported, with various accelerators:
    * - PPC
      - kvm, tcg
    * - RISC-V
-     - tcg
+     - kvm, tcg
    * - s390x
      - kvm, tcg
    * - SPARC
