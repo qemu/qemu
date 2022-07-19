@@ -631,6 +631,14 @@ static void microvm_machine_initfn(Object *obj)
     qemu_register_powerdown_notifier(&mms->powerdown_req);
 }
 
+GlobalProperty microvm_properties[] = {
+    /*
+     * pcie host bridge (gpex) on microvm has no io address window,
+     * so reserving io space is not going to work.  Turn it off.
+     */
+    { "pcie-root-port", "io-reserve", "0" },
+};
+
 static void microvm_class_init(ObjectClass *oc, void *data)
 {
     X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
@@ -707,6 +715,9 @@ static void microvm_class_init(ObjectClass *oc, void *data)
         "Set off to disable adding virtio-mmio devices to the kernel cmdline");
 
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
+
+    compat_props_add(mc->compat_props, microvm_properties,
+                     G_N_ELEMENTS(microvm_properties));
 }
 
 static const TypeInfo microvm_machine_info = {
