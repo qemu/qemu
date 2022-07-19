@@ -94,8 +94,16 @@ not tested anymore, so it is recommended to use one of the latest versions of
 Windows instead.
 
 The project supports building QEMU with current versions of the MinGW
-toolchain, either hosted on Linux (Debian/Fedora) or via MSYS2 on Windows.
+toolchain, either hosted on Linux (Debian/Fedora) or via `MSYS2`_ on Windows.
+A more recent Windows version is always preferred as it is less likely to have
+problems with building via MSYS2. The building process of QEMU involves some
+Python scripts that call os.symlink() which needs special attention for the
+build process to successfully complete. On newer versions of Windows 10,
+unprivileged accounts can create symlinks if Developer Mode is enabled.
+When Developer Mode is not available/enabled, the SeCreateSymbolicLinkPrivilege
+privilege is required, or the process must be run as an administrator.
 
 .. _Homebrew: https://brew.sh/
 .. _MacPorts: https://www.macports.org/
+.. _MSYS2: https://www.msys2.org/
 .. _Repology: https://repology.org/
