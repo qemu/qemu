@@ -15,21 +15,21 @@
 
 static void pch_pic_update_irq(LoongArchPCHPIC *s, uint64_t mask, int level)
 {
-    unsigned long val;
+    uint64_t val;
     int irq;
 
     if (level) {
         val = mask & s->intirr & ~s->int_mask;
         if (val) {
-            irq = find_first_bit(&val, 64);
-            s->intisr |= 0x1ULL << irq;
+            irq = ctz64(val);
+            s->intisr |= MAKE_64BIT_MASK(irq, 1);
             qemu_set_irq(s->parent_irq[s->htmsi_vector[irq]], 1);
         }
     } else {
         val = mask & s->intisr;
         if (val) {
-            irq = find_first_bit(&val, 64);
-            s->intisr &= ~(0x1ULL << irq);
+            irq = ctz64(val);
+            s->intisr &= ~MAKE_64BIT_MASK(irq, 1);
             qemu_set_irq(s->parent_irq[s->htmsi_vector[irq]], 0);
         }
     }

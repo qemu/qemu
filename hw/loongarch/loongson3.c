@@ -28,12 +28,200 @@
 #include "hw/pci-host/ls7a.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/misc/unimp.h"
-
+#include "hw/loongarch/fw_cfg.h"
 #include "target/loongarch/cpu.h"
+#include "hw/firmware/smbios.h"
+#include "hw/acpi/aml-build.h"
+#include "qapi/qapi-visit-common.h"
+#include "hw/acpi/generic_event_device.h"
+#include "hw/mem/nvdimm.h"
+#include "sysemu/device_tree.h"
+#include <libfdt.h>
+
+static void create_fdt(LoongArchMachineState *lams)
+{
+    MachineState *ms = MACHINE(lams);
+
+    ms->fdt = create_device_tree(&lams->fdt_size);
+    if (!ms->fdt) {
+        error_report("create_device_tree() failed");
+        exit(1);
+    }
+
+    /* Header */
+    qemu_fdt_setprop_string(ms->fdt, "/", "compatible",
+                            "linux,dummy-loongson3");
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, "/", "#size-cells", 0x2);
+}
+
+static void fdt_add_cpu_nodes(const LoongArchMachineState *lams)
+{
+    int num;
+    const MachineState *ms = MACHINE(lams);
+    int smp_cpus = ms->smp.cpus;
+
+    qemu_fdt_add_subnode(ms->fdt, "/cpus");
+    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#address-cells", 0x1);
+    qemu_fdt_setprop_cell(ms->fdt, "/cpus", "#size-cells", 0x0);
+
+    /* cpu nodes */
+    for (num = smp_cpus - 1; num >= 0; num--) {
+        char *nodename = g_strdup_printf("/cpus/cpu@%d", num);
+        LoongArchCPU *cpu = LOONGARCH_CPU(qemu_get_cpu(num));
+
+        qemu_fdt_add_subnode(ms->fdt, nodename);
+        qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "cpu");
+        qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                                cpu->dtb_compatible);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "reg", num);
+        qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle",
+                              qemu_fdt_alloc_phandle(ms->fdt));
+        g_free(nodename);
+    }
+
+    /*cpu map */
+    qemu_fdt_add_subnode(ms->fdt, "/cpus/cpu-map");
+
+    for (num = smp_cpus - 1; num >= 0; num--) {
+        char *cpu_path = g_strdup_printf("/cpus/cpu@%d", num);
+        char *map_path;
+
+        if (ms->smp.threads > 1) {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/core%d/thread%d",
+                num / (ms->smp.cores * ms->smp.threads),
+                (num / ms->smp.threads) % ms->smp.cores,
+                num % ms->smp.threads);
+        } else {
+            map_path = g_strdup_printf(
+                "/cpus/cpu-map/socket%d/core%d",
+                num / ms->smp.cores,
+                num % ms->smp.cores);
+        }
+        qemu_fdt_add_path(ms->fdt, map_path);
+        qemu_fdt_setprop_phandle(ms->fdt, map_path, "cpu", cpu_path);
+
+        g_free(map_path);
+        g_free(cpu_path);
+    }
+}
+
+static void fdt_add_fw_cfg_node(const LoongArchMachineState *lams)
+{
+    char *nodename;
+    hwaddr base = VIRT_FWCFG_BASE;
+    const MachineState *ms = MACHINE(lams);
+
+    nodename = g_strdup_printf("/fw_cfg@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "qemu,fw-cfg-mmio");
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base, 2, 0x8);
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
+    g_free(nodename);
+}
+
+static void fdt_add_pcie_node(const LoongArchMachineState *lams)
+{
+    char *nodename;
+    hwaddr base_mmio = LS7A_PCI_MEM_BASE;
+    hwaddr size_mmio = LS7A_PCI_MEM_SIZE;
+    hwaddr base_pio = LS7A_PCI_IO_BASE;
+    hwaddr size_pio = LS7A_PCI_IO_SIZE;
+    hwaddr base_pcie = LS_PCIECFG_BASE;
+    hwaddr size_pcie = LS_PCIECFG_SIZE;
+    hwaddr base = base_pcie;
+
+    const MachineState *ms = MACHINE(lams);
+
+    nodename = g_strdup_printf("/pcie@%" PRIx64, base);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_string(ms->fdt, nodename,
+                            "compatible", "pci-host-ecam-generic");
+    qemu_fdt_setprop_string(ms->fdt, nodename, "device_type", "pci");
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 3);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "linux,pci-domain", 0);
+    qemu_fdt_setprop_cells(ms->fdt, nodename, "bus-range", 0,
+                           PCIE_MMCFG_BUS(LS_PCIECFG_SIZE - 1));
+    qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, base_pcie, 2, size_pcie);
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "ranges",
+                                 1, FDT_PCI_RANGE_IOPORT, 2, LS7A_PCI_IO_OFFSET,
+                                 2, base_pio, 2, size_pio,
+                                 1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                 2, base_mmio, 2, size_mmio);
+    g_free(nodename);
+    qemu_fdt_dumpdtb(ms->fdt, lams->fdt_size);
+}
+
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
 #define PM_CTRL 0x10
+
+static void virt_build_smbios(LoongArchMachineState *lams)
+{
+    MachineState *ms = MACHINE(lams);
+    MachineClass *mc = MACHINE_GET_CLASS(lams);
+    uint8_t *smbios_tables, *smbios_anchor;
+    size_t smbios_tables_len, smbios_anchor_len;
+    const char *product = "QEMU Virtual Machine";
+
+    if (!lams->fw_cfg) {
+        return;
+    }
+
+    smbios_set_defaults("QEMU", product, mc->name, false,
+                        true, SMBIOS_ENTRY_POINT_TYPE_64);
+
+    smbios_get_tables(ms, NULL, 0, &smbios_tables, &smbios_tables_len,
+                      &smbios_anchor, &smbios_anchor_len, &error_fatal);
+
+    if (smbios_anchor) {
+        fw_cfg_add_file(lams->fw_cfg, "etc/smbios/smbios-tables",
+                        smbios_tables, smbios_tables_len);
+        fw_cfg_add_file(lams->fw_cfg, "etc/smbios/smbios-anchor",
+                        smbios_anchor, smbios_anchor_len);
+    }
+}
+
+static void virt_machine_done(Notifier *notifier, void *data)
+{
+    LoongArchMachineState *lams = container_of(notifier,
+                                        LoongArchMachineState, machine_done);
+    virt_build_smbios(lams);
+    loongarch_acpi_setup(lams);
+}
+
+struct memmap_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+};
+
+static struct memmap_entry *memmap_table;
+static unsigned memmap_entries;
+
+static void memmap_add_entry(uint64_t address, uint64_t length, uint32_t type)
+{
+    /* Ensure there are no duplicate entries. */
+    for (unsigned i = 0; i < memmap_entries; i++) {
+        assert(memmap_table[i].address != address);
+    }
+
+    memmap_table = g_renew(struct memmap_entry, memmap_table,
+                           memmap_entries + 1);
+    memmap_table[memmap_entries].address = cpu_to_le64(address);
+    memmap_table[memmap_entries].length = cpu_to_le64(length);
+    memmap_table[memmap_entries].type = cpu_to_le32(type);
+    memmap_table[memmap_entries].reserved = 0;
+    memmap_entries++;
+}
 
 /*
  * This is a placeholder for missing ACPI,
@@ -76,6 +264,8 @@ static const MemoryRegionOps loongarch_virt_pm_ops = {
 static struct _loaderparams {
     uint64_t ram_size;
     const char *kernel_filename;
+    const char *kernel_cmdline;
+    const char *initrd_filename;
 } loaderparams;
 
 static uint64_t cpu_loongarch_virt_to_phys(void *opaque, uint64_t addr)
@@ -103,7 +293,32 @@ static int64_t load_kernel_info(void)
     return kernel_entry;
 }
 
-static void loongarch_devices_init(DeviceState *pch_pic)
+static DeviceState *create_acpi_ged(DeviceState *pch_pic, LoongArchMachineState *lams)
+{
+    DeviceState *dev;
+    MachineState *ms = MACHINE(lams);
+    uint32_t event = ACPI_GED_PWR_DOWN_EVT;
+
+    if (ms->ram_slots) {
+        event |= ACPI_GED_MEM_HOTPLUG_EVT;
+    }
+    dev = qdev_new(TYPE_ACPI_GED);
+    qdev_prop_set_uint32(dev, "ged-event", event);
+
+    /* ged event */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, VIRT_GED_EVT_ADDR);
+    /* memory hotplug */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, VIRT_GED_MEM_ADDR);
+    /* ged regs used for reset and power down */
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, VIRT_GED_REG_ADDR);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+                       qdev_get_gpio_in(pch_pic, LS7A_SCI_IRQ - PCH_PIC_IRQ_OFFSET));
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    return dev;
+}
+
+static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *lams)
 {
     DeviceState *gpex_dev;
     SysBusDevice *d;
@@ -179,6 +394,8 @@ static void loongarch_devices_init(DeviceState *pch_pic)
     memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
                           NULL, "loongarch_virt_pm", PM_SIZE);
     memory_region_add_subregion(get_system_memory(), PM_BASE, pm_mem);
+    /* acpi ged */
+    lams->acpi_ged = create_acpi_ged(pch_pic, lams);
 }
 
 static void loongarch_irq_init(LoongArchMachineState *lams)
@@ -280,7 +497,38 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
                               qdev_get_gpio_in(extioi, i + PCH_MSI_IRQ_START));
     }
 
-    loongarch_devices_init(pch_pic);
+    loongarch_devices_init(pch_pic, lams);
+}
+
+static void loongarch_firmware_init(LoongArchMachineState *lams)
+{
+    char *filename = MACHINE(lams)->firmware;
+    char *bios_name = NULL;
+    int bios_size;
+
+    lams->bios_loaded = false;
+    if (filename) {
+        bios_name = qemu_find_file(QEMU_FILE_TYPE_BIOS, filename);
+        if (!bios_name) {
+            error_report("Could not find ROM image '%s'", filename);
+            exit(1);
+        }
+
+        bios_size = load_image_targphys(bios_name, VIRT_BIOS_BASE, VIRT_BIOS_SIZE);
+        if (bios_size < 0) {
+            error_report("Could not load ROM image '%s'", bios_name);
+            exit(1);
+        }
+
+        g_free(bios_name);
+
+        memory_region_init_ram(&lams->bios, NULL, "loongarch.bios",
+                               VIRT_BIOS_SIZE, &error_fatal);
+        memory_region_set_readonly(&lams->bios, true);
+        memory_region_add_subregion(get_system_memory(), VIRT_BIOS_BASE, &lams->bios);
+        lams->bios_loaded = true;
+    }
+
 }
 
 static void reset_load_elf(void *opaque)
@@ -294,18 +542,97 @@ static void reset_load_elf(void *opaque)
     }
 }
 
+/* Load an image file into an fw_cfg entry identified by key. */
+static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
+                                 uint16_t data_key, const char *image_name,
+                                 bool try_decompress)
+{
+    size_t size = -1;
+    uint8_t *data;
+
+    if (image_name == NULL) {
+        return;
+    }
+
+    if (try_decompress) {
+        size = load_image_gzipped_buffer(image_name,
+                                         LOAD_IMAGE_MAX_GUNZIP_BYTES, &data);
+    }
+
+    if (size == (size_t)-1) {
+        gchar *contents;
+        gsize length;
+
+        if (!g_file_get_contents(image_name, &contents, &length, NULL)) {
+            error_report("failed to load \"%s\"", image_name);
+            exit(1);
+        }
+        size = length;
+        data = (uint8_t *)contents;
+    }
+
+    fw_cfg_add_i32(fw_cfg, size_key, size);
+    fw_cfg_add_bytes(fw_cfg, data_key, data, size);
+}
+
+static void fw_cfg_add_kernel_info(FWCfgState *fw_cfg)
+{
+    /*
+     * Expose the kernel, the command line, and the initrd in fw_cfg.
+     * We don't process them here at all, it's all left to the
+     * firmware.
+     */
+    load_image_to_fw_cfg(fw_cfg,
+                         FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
+                         loaderparams.kernel_filename,
+                         false);
+
+    if (loaderparams.initrd_filename) {
+        load_image_to_fw_cfg(fw_cfg,
+                             FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
+                             loaderparams.initrd_filename, false);
+    }
+
+    if (loaderparams.kernel_cmdline) {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
+                       strlen(loaderparams.kernel_cmdline) + 1);
+        fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
+                          loaderparams.kernel_cmdline);
+    }
+}
+
+static void loongarch_firmware_boot(LoongArchMachineState *lams)
+{
+    fw_cfg_add_kernel_info(lams->fw_cfg);
+}
+
+static void loongarch_direct_kernel_boot(LoongArchMachineState *lams)
+{
+    MachineState *machine = MACHINE(lams);
+    int64_t kernel_addr = 0;
+    LoongArchCPU *lacpu;
+    int i;
+
+    kernel_addr = load_kernel_info();
+    if (!machine->firmware) {
+        for (i = 0; i < machine->smp.cpus; i++) {
+            lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
+            lacpu->env.load_elf = true;
+            lacpu->env.elf_address = kernel_addr;
+        }
+    }
+}
+
 static void loongarch_init(MachineState *machine)
 {
+    LoongArchCPU *lacpu;
     const char *cpu_model = machine->cpu_type;
-    const char *kernel_filename = machine->kernel_filename;
     ram_addr_t offset = 0;
     ram_addr_t ram_size = machine->ram_size;
     uint64_t highram_size = 0;
     MemoryRegion *address_space_mem = get_system_memory();
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
-    LoongArchCPU *lacpu;
     int i;
-    int64_t kernel_addr = 0;
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
@@ -320,41 +647,102 @@ static void loongarch_init(MachineState *machine)
         error_report("ram_size must be greater than 1G.");
         exit(1);
     }
-
+    create_fdt(lams);
     /* Init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
         cpu_create(machine->cpu_type);
     }
-
+    fdt_add_cpu_nodes(lams);
     /* Add memory region */
     memory_region_init_alias(&lams->lowmem, NULL, "loongarch.lowram",
                              machine->ram, 0, 256 * MiB);
     memory_region_add_subregion(address_space_mem, offset, &lams->lowmem);
     offset += 256 * MiB;
+    memmap_add_entry(0, 256 * MiB, 1);
     highram_size = ram_size - 256 * MiB;
     memory_region_init_alias(&lams->highmem, NULL, "loongarch.highmem",
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
+    memmap_add_entry(0x90000000, highram_size, 1);
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, LOONGARCH_ISA_IO_SIZE);
     memory_region_add_subregion(address_space_mem, LOONGARCH_ISA_IO_BASE,
                                 &lams->isa_io);
-    if (kernel_filename) {
-        loaderparams.ram_size = ram_size;
-        loaderparams.kernel_filename = kernel_filename;
-        kernel_addr = load_kernel_info();
-        if (!machine->firmware) {
-            for (i = 0; i < machine->smp.cpus; i++) {
-                lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
-                lacpu->env.load_elf = true;
-                lacpu->env.elf_address = kernel_addr;
-                qemu_register_reset(reset_load_elf, lacpu);
-            }
+    /* load the BIOS image. */
+    loongarch_firmware_init(lams);
+
+    /* fw_cfg init */
+    lams->fw_cfg = loongarch_fw_cfg_init(ram_size, machine);
+    rom_set_fw(lams->fw_cfg);
+    if (lams->fw_cfg != NULL) {
+        fw_cfg_add_file(lams->fw_cfg, "etc/memmap",
+                        memmap_table,
+                        sizeof(struct memmap_entry) * (memmap_entries));
+    }
+    fdt_add_fw_cfg_node(lams);
+    loaderparams.ram_size = ram_size;
+    loaderparams.kernel_filename = machine->kernel_filename;
+    loaderparams.kernel_cmdline = machine->kernel_cmdline;
+    loaderparams.initrd_filename = machine->initrd_filename;
+    /* load the kernel. */
+    if (loaderparams.kernel_filename) {
+        if (lams->bios_loaded) {
+            loongarch_firmware_boot(lams);
+        } else {
+            loongarch_direct_kernel_boot(lams);
         }
+    }
+    /* register reset function */
+    for (i = 0; i < machine->smp.cpus; i++) {
+        lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
+        qemu_register_reset(reset_load_elf, lacpu);
     }
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
+    lams->machine_done.notify = virt_machine_done;
+    qemu_add_machine_init_done_notifier(&lams->machine_done);
+    fdt_add_pcie_node(lams);
+
+    /* load fdt */
+    MemoryRegion *fdt_rom = g_new(MemoryRegion, 1);
+    memory_region_init_rom(fdt_rom, NULL, "fdt", LA_FDT_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), LA_FDT_BASE, fdt_rom);
+    rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, LA_FDT_BASE);
+}
+
+bool loongarch_is_acpi_enabled(LoongArchMachineState *lams)
+{
+    if (lams->acpi == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+    return true;
+}
+
+static void loongarch_get_acpi(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+    OnOffAuto acpi = lams->acpi;
+
+    visit_type_OnOffAuto(v, name, &acpi, errp);
+}
+
+static void loongarch_set_acpi(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &lams->acpi, errp);
+}
+
+static void loongarch_machine_initfn(Object *obj)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(obj);
+
+    lams->acpi = ON_OFF_AUTO_AUTO;
+    lams->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
+    lams->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
 }
 
 static void loongarch_class_init(ObjectClass *oc, void *data)
@@ -372,6 +760,12 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
+
+    object_class_property_add(oc, "acpi", "OnOffAuto",
+        loongarch_get_acpi, loongarch_set_acpi,
+        NULL, NULL);
+    object_class_property_set_description(oc, "acpi",
+        "Enable ACPI");
 }
 
 static const TypeInfo loongarch_machine_types[] = {
@@ -380,6 +774,7 @@ static const TypeInfo loongarch_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(LoongArchMachineState),
         .class_init     = loongarch_class_init,
+        .instance_init = loongarch_machine_initfn,
     }
 };
 
