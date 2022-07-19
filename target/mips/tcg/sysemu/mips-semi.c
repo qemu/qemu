@@ -321,6 +321,9 @@ void mips_semihosting(CPUMIPSState *env)
             if (use_gdb_syscalls()) {
                 addr = gpr[29] - str->len;
                 p = lock_user(VERIFY_WRITE, addr, str->len, 0);
+                if (!p) {
+                    report_fault(env);
+                }
                 memcpy(p, str->str, str->len);
                 unlock_user(p, addr, str->len);
                 semihost_sys_write(cs, uhi_cb, 2, addr, str->len);
