@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include "hw/loader.h"
 #include "hw/rx/rx62n.h"
@@ -83,6 +84,7 @@ static void rx_gdbsim_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     const char *kernel_filename = machine->kernel_filename;
     const char *dtb_filename = machine->dtb;
+    uint8_t rng_seed[32];
 
     if (machine->ram_size < mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -140,6 +142,8 @@ static void rx_gdbsim_init(MachineState *machine)
                 error_report("Couldn't set /chosen/bootargs");
                 exit(1);
             }
+            qemu_guest_getrandom_nofail(rng_seed, sizeof(rng_seed));
+            qemu_fdt_setprop(dtb, "/chosen", "rng-seed", rng_seed, sizeof(rng_seed));
             /* DTB is located at the end of SDRAM space. */
             dtb_offset = ROUND_DOWN(machine->ram_size - dtb_size, 16);
             rom_add_blob_fixed("dtb", dtb, dtb_size,
