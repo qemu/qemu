@@ -387,6 +387,7 @@ static void pc_q35_7_0_machine_options(MachineClass *m)
     pc_q35_7_1_machine_options(m);
     m->alias = NULL;
     pcmc->legacy_no_rng_seed = true;
+    pcmc->enforce_amd_1tb_hole = false;
     compat_props_add(m->compat_props, hw_compat_7_0, hw_compat_7_0_len);
     compat_props_add(m->compat_props, pc_compat_7_0, pc_compat_7_0_len);
 }
