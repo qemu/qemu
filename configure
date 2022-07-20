@@ -684,9 +684,10 @@ meson_option_build_array() {
     IFS=:
   fi
   for e in $1; do
-    e=${e/'\'/'\\'}
-    e=${e/\"/'\"'}
-    printf '"""%s""",' "$e"
+    printf '"""'
+    # backslash escape any '\' and '"' characters
+    printf "%s" "$e" | sed -e 's/\([\"]\)/\\\1/g'
+    printf '""",'
   done)
   printf ']\n'
 }
