@@ -33,6 +33,9 @@ typedef struct VhostVDPAState {
     NetClientState nc;
     struct vhost_vdpa vhost_vdpa;
     VHostNetState *vhost_net;
+
+    /* Control commands shadow buffers */
+    void *cvq_cmd_out_buffer, *cvq_cmd_in_buffer;
     bool started;
 } VhostVDPAState;
 
@@ -131,6 +134,8 @@ static void vhost_vdpa_cleanup(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
 
+    qemu_vfree(s->cvq_cmd_out_buffer);
+    qemu_vfree(s->cvq_cmd_in_buffer);
     if (s->vhost_net) {
         vhost_net_cleanup(s->vhost_net);
         g_free(s->vhost_net);
@@ -190,24 +195,191 @@ static NetClientInfo net_vhost_vdpa_info = {
         .check_peer_type = vhost_vdpa_check_peer_type,
 };
 
+static void vhost_vdpa_cvq_unmap_buf(struct vhost_vdpa *v, void *addr)
+{
+    VhostIOVATree *tree = v->iova_tree;
+    DMAMap needle = {
+        /*
+         * No need to specify size or to look for more translations since
+         * this contiguous chunk was allocated by us.
+         */
+        .translated_addr = (hwaddr)(uintptr_t)addr,
+    };
+    const DMAMap *map = vhost_iova_tree_find_iova(tree, &needle);
+    int r;
+
+    if (unlikely(!map)) {
+        error_report("Cannot locate expected map");
+        return;
+    }
+
+    r = vhost_vdpa_dma_unmap(v, map->iova, map->size + 1);
+    if (unlikely(r != 0)) {
+        error_report("Device cannot unmap: %s(%d)", g_strerror(r), r);
+    }
+
+    vhost_iova_tree_remove(tree, map);
+}
+
+static size_t vhost_vdpa_net_cvq_cmd_len(void)
+{
+    /*
+     * MAC_TABLE_SET is the ctrl command that produces the longer out buffer.
+     * In buffer is always 1 byte, so it should fit here
+     */
+    return sizeof(struct virtio_net_ctrl_hdr) +
+           2 * sizeof(struct virtio_net_ctrl_mac) +
+           MAC_TABLE_ENTRIES * ETH_ALEN;
+}
+
+static size_t vhost_vdpa_net_cvq_cmd_page_len(void)
+{
+    return ROUND_UP(vhost_vdpa_net_cvq_cmd_len(), qemu_real_host_page_size());
+}
+
+/** Copy and map a guest buffer. */
+static bool vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v,
+                                   const struct iovec *out_data,
+                                   size_t out_num, size_t data_len, void *buf,
+                                   size_t *written, bool write)
+{
+    DMAMap map = {};
+    int r;
+
+    if (unlikely(!data_len)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid legnth of %s buffer\n",
+                      __func__, write ? "in" : "out");
+        return false;
+    }
+
+    *written = iov_to_buf(out_data, out_num, 0, buf, data_len);
+    map.translated_addr = (hwaddr)(uintptr_t)buf;
+    map.size = vhost_vdpa_net_cvq_cmd_page_len() - 1;
+    map.perm = write ? IOMMU_RW : IOMMU_RO,
+    r = vhost_iova_tree_map_alloc(v->iova_tree, &map);
+    if (unlikely(r != IOVA_OK)) {
+        error_report("Cannot map injected element");
+        return false;
+    }
+
+    r = vhost_vdpa_dma_map(v, map.iova, vhost_vdpa_net_cvq_cmd_page_len(), buf,
+                           !write);
+    if (unlikely(r < 0)) {
+        goto dma_map_err;
+    }
+
+    return true;
+
+dma_map_err:
+    vhost_iova_tree_remove(v->iova_tree, &map);
+    return false;
+}
+
 /**
- * Forward buffer for the moment.
+ * Copy the guest element into a dedicated buffer suitable to be sent to NIC
+ *
+ * @iov: [0] is the out buffer, [1] is the in one
+ */
+static bool vhost_vdpa_net_cvq_map_elem(VhostVDPAState *s,
+                                        VirtQueueElement *elem,
+                                        struct iovec *iov)
+{
+    size_t in_copied;
+    bool ok;
+
+    iov[0].iov_base = s->cvq_cmd_out_buffer;
+    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, elem->out_sg, elem->out_num,
+                                vhost_vdpa_net_cvq_cmd_len(), iov[0].iov_base,
+                                &iov[0].iov_len, false);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    iov[1].iov_base = s->cvq_cmd_in_buffer;
+    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, NULL, 0,
+                                sizeof(virtio_net_ctrl_ack), iov[1].iov_base,
+                                &in_copied, true);
+    if (unlikely(!ok)) {
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer);
+        return false;
+    }
+
+    iov[1].iov_len = sizeof(virtio_net_ctrl_ack);
+    return true;
+}
+
+/**
+ * Do not forward commands not supported by SVQ. Otherwise, the device could
+ * accept it and qemu would not know how to update the device model.
+ */
+static bool vhost_vdpa_net_cvq_validate_cmd(const struct iovec *out,
+                                            size_t out_num)
+{
+    struct virtio_net_ctrl_hdr ctrl;
+    size_t n;
+
+    n = iov_to_buf(out, out_num, 0, &ctrl, sizeof(ctrl));
+    if (unlikely(n < sizeof(ctrl))) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid legnth of out buffer %zu\n", __func__, n);
+        return false;
+    }
+
+    switch (ctrl.class) {
+    case VIRTIO_NET_CTRL_MAC:
+        switch (ctrl.cmd) {
+        case VIRTIO_NET_CTRL_MAC_ADDR_SET:
+            return true;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid mac cmd %u\n",
+                          __func__, ctrl.cmd);
+        };
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid control class %u\n",
+                      __func__, ctrl.class);
+    };
+
+    return false;
+}
+
+/**
+ * Validate and copy control virtqueue commands.
+ *
+ * Following QEMU guidelines, we offer a copy of the buffers to the device to
+ * prevent TOCTOU bugs.
  */
 static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
                                             VirtQueueElement *elem,
                                             void *opaque)
 {
-    unsigned int n = elem->out_num + elem->in_num;
-    g_autofree struct iovec *dev_buffers = g_new(struct iovec, n);
+    VhostVDPAState *s = opaque;
     size_t in_len, dev_written;
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
-    int r;
+    /* out and in buffers sent to the device */
+    struct iovec dev_buffers[2] = {
+        { .iov_base = s->cvq_cmd_out_buffer },
+        { .iov_base = s->cvq_cmd_in_buffer },
+    };
+    /* in buffer used for device model */
+    const struct iovec in = {
+        .iov_base = &status,
+        .iov_len = sizeof(status),
+    };
+    int r = -EINVAL;
+    bool ok;
 
-    memcpy(dev_buffers, elem->out_sg, elem->out_num);
-    memcpy(dev_buffers + elem->out_num, elem->in_sg, elem->in_num);
+    ok = vhost_vdpa_net_cvq_map_elem(s, elem, dev_buffers);
+    if (unlikely(!ok)) {
+        goto out;
+    }
 
-    r = vhost_svq_add(svq, &dev_buffers[0], elem->out_num, &dev_buffers[1],
-                      elem->in_num, elem);
+    ok = vhost_vdpa_net_cvq_validate_cmd(&dev_buffers[0], 1);
+    if (unlikely(!ok)) {
+        goto out;
+    }
+
+    r = vhost_svq_add(svq, &dev_buffers[0], 1, &dev_buffers[1], 1, elem);
     if (unlikely(r != 0)) {
         if (unlikely(r == -ENOSPC)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No space on device queue\n",
@@ -224,6 +396,18 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     dev_written = vhost_svq_poll(svq);
     if (unlikely(dev_written < sizeof(status))) {
         error_report("Insufficient written data (%zu)", dev_written);
+        goto out;
+    }
+
+    memcpy(&status, dev_buffers[1].iov_base, sizeof(status));
+    if (status != VIRTIO_NET_OK) {
+        goto out;
+    }
+
+    status = VIRTIO_NET_ERR;
+    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, dev_buffers, 1);
+    if (status != VIRTIO_NET_OK) {
+        error_report("Bad CVQ processing in model");
     }
 
 out:
@@ -234,6 +418,12 @@ out:
     }
     vhost_svq_push_elem(svq, elem, MIN(in_len, sizeof(status)));
     g_free(elem);
+    if (dev_buffers[0].iov_base) {
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, dev_buffers[0].iov_base);
+    }
+    if (dev_buffers[1].iov_base) {
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, dev_buffers[1].iov_base);
+    }
     return r;
 }
 
@@ -266,6 +456,13 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     s->vhost_vdpa.index = queue_pair_index;
     if (!is_datapath) {
+        s->cvq_cmd_out_buffer = qemu_memalign(qemu_real_host_page_size(),
+                                            vhost_vdpa_net_cvq_cmd_page_len());
+        memset(s->cvq_cmd_out_buffer, 0, vhost_vdpa_net_cvq_cmd_page_len());
+        s->cvq_cmd_in_buffer = qemu_memalign(qemu_real_host_page_size(),
+                                            vhost_vdpa_net_cvq_cmd_page_len());
+        memset(s->cvq_cmd_in_buffer, 0, vhost_vdpa_net_cvq_cmd_page_len());
+
         s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
         s->vhost_vdpa.shadow_vq_ops_opaque = s;
     }
