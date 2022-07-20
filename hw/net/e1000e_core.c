@@ -159,6 +159,8 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
 
     if (msi_enabled(timer->core->owner)) {
         trace_e1000e_irq_msi_notify_postponed();
+        /* Clear msi_causes_pending to fire MSI eventually */
+        timer->core->msi_causes_pending = 0;
         e1000e_set_interrupt_cause(timer->core, 0);
     } else {
         trace_e1000e_irq_legacy_notify_postponed();
