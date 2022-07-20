@@ -678,7 +678,7 @@ werror=""
 
 meson_option_build_array() {
   printf '['
-  (if test "$targetos" == windows; then
+  (if test "$targetos" = windows; then
     IFS=\;
   else
     IFS=:
