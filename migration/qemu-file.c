@@ -161,6 +161,33 @@ int qemu_file_get_error_obj(QEMUFile *f, Error **errp)
 }
 
 /*
+ * Get last error for either stream f1 or f2 with optional Error*.
+ * The error returned (non-zero) can be either from f1 or f2.
+ *
+ * If any of the qemufile* is NULL, then skip the check on that file.
+ *
+ * When there is no error on both qemufile, zero is returned.
+ */
+int qemu_file_get_error_obj_any(QEMUFile *f1, QEMUFile *f2, Error **errp)
+{
+    int ret = 0;
+
+    if (f1) {
+        ret = qemu_file_get_error_obj(f1, errp);
+        /* If there's already error detected, return */
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (f2) {
+        ret = qemu_file_get_error_obj(f2, errp);
+    }
+
+    return ret;
+}
+
+/*
  * Set the last error for stream f with optional Error*
  */
 void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err)
@@ -384,10 +411,8 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
         f->total_transferred += len;
     } else if (len == 0) {
         qemu_file_set_error_obj(f, -EIO, local_error);
-    } else if (len != -EAGAIN) {
-        qemu_file_set_error_obj(f, len, local_error);
     } else {
-        error_free(local_error);
+        qemu_file_set_error_obj(f, len, local_error);
     }
 
     return len;

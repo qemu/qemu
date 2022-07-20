@@ -27,6 +27,8 @@ struct zlib_data {
     uint8_t *zbuff;
     /* size of compressed buffer */
     uint32_t zbuff_len;
+    /* uncompressed buffer of size qemu_target_page_size() */
+    uint8_t *buf;
 };
 
 /* Multifd zlib compression */
@@ -45,26 +47,38 @@ static int zlib_send_setup(MultiFDSendParams *p, Error **errp)
 {
     struct zlib_data *z = g_new0(struct zlib_data, 1);
     z_stream *zs = &z->zs;
+    const char *err_msg;
 
     zs->zalloc = Z_NULL;
     zs->zfree = Z_NULL;
     zs->opaque = Z_NULL;
     if (deflateInit(zs, migrate_multifd_zlib_level()) != Z_OK) {
-        g_free(z);
-        error_setg(errp, "multifd %u: deflate init failed", p->id);
-        return -1;
+        err_msg = "deflate init failed";
+        goto err_free_z;
     }
     /* This is the maxium size of the compressed buffer */
     z->zbuff_len = compressBound(MULTIFD_PACKET_SIZE);
     z->zbuff = g_try_malloc(z->zbuff_len);
     if (!z->zbuff) {
-        deflateEnd(&z->zs);
-        g_free(z);
-        error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
-        return -1;
+        err_msg = "out of memory for zbuff";
+        goto err_deflate_end;
+    }
+    z->buf = g_try_malloc(qemu_target_page_size());
+    if (!z->buf) {
+        err_msg = "out of memory for buf";
+        goto err_free_zbuff;
     }
     p->data = z;
     return 0;
+
+err_free_zbuff:
+    g_free(z->zbuff);
+err_deflate_end:
+    deflateEnd(&z->zs);
+err_free_z:
+    g_free(z);
+    error_setg(errp, "multifd %u: %s", p->id, err_msg);
+    return -1;
 }
 
 /**
@@ -82,6 +96,8 @@ static void zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
     deflateEnd(&z->zs);
     g_free(z->zbuff);
     z->zbuff = NULL;
+    g_free(z->buf);
+    z->buf = NULL;
     g_free(p->data);
     p->data = NULL;
 }
@@ -114,8 +130,14 @@ static int zlib_send_prepare(MultiFDSendParams *p, Error **errp)
             flush = Z_SYNC_FLUSH;
         }
 
+        /*
+         * Since the VM might be running, the page may be changing concurrently
+         * with compression. zlib does not guarantee that this is safe,
+         * therefore copy the page before calling deflate().
+         */
+        memcpy(z->buf, p->pages->block->host + p->normal[i], page_size);
         zs->avail_in = page_size;
-        zs->next_in = p->pages->block->host + p->normal[i];
+        zs->next_in = z->buf;
 
         zs->avail_out = available;
         zs->next_out = z->zbuff + out_size;
