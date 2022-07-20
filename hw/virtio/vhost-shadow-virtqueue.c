@@ -246,6 +246,7 @@ static bool vhost_svq_add(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
     }
 
     svq->ring_id_maps[qemu_head] = elem;
+    vhost_svq_kick(svq);
     return true;
 }
 
@@ -306,7 +307,6 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 /* VQ is broken, just return and ignore any other kicks */
                 return;
             }
-            vhost_svq_kick(svq);
         }
 
         virtio_queue_set_notification(svq->vq, true);
