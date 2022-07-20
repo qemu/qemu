@@ -17,6 +17,12 @@
 
 typedef struct SVQDescState {
     VirtQueueElement *elem;
+
+    /*
+     * Number of descriptors exposed to the device. May or may not match
+     * guest's
+     */
+    unsigned int ndescs;
 } SVQDescState;
 
 /* Shadow virtqueue to relay notifications */
