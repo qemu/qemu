@@ -17,6 +17,13 @@ TESTS+=trap
 TESTS+=signals-s390x
 TESTS+=branch-relative-long
 
+Z14_TESTS=vfminmax
+vfminmax: LDFLAGS+=-lm
+$(Z14_TESTS): CFLAGS+=-march=z14 -O2
+
+TESTS+=$(if $(shell $(CC) -march=z14 -S -o /dev/null -xc /dev/null \
+			 >/dev/null 2>&1 && echo OK),$(Z14_TESTS))
+
 VECTOR_TESTS=vxeh2_vs
 VECTOR_TESTS+=vxeh2_vcvt
 VECTOR_TESTS+=vxeh2_vlstr
