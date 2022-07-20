@@ -46,7 +46,14 @@ int parse_packet_early(Packet *pkt)
     static const uint8_t vlan[] = {0x81, 0x00};
     uint8_t *data = pkt->data + pkt->vnet_hdr_len;
     uint16_t l3_proto;
-    ssize_t l2hdr_len = eth_get_l2_hdr_length(data);
+    ssize_t l2hdr_len;
+
+    if (data == NULL) {
+        trace_colo_proxy_main_vnet_info("This packet is not parsed correctly, "
+                                        "pkt->vnet_hdr_len", pkt->vnet_hdr_len);
+        return 1;
+    }
+    l2hdr_len = eth_get_l2_hdr_length(data);
 
     if (pkt->size < ETH_HLEN + pkt->vnet_hdr_len) {
         trace_colo_proxy_main("pkt->size < ETH_HLEN");
@@ -218,7 +225,7 @@ Connection *connection_get(GHashTable *connection_track_table,
             /*
              * clear the conn_list
              */
-            while (!g_queue_is_empty(conn_list)) {
+            while (conn_list && !g_queue_is_empty(conn_list)) {
                 connection_destroy(g_queue_pop_head(conn_list));
             }
         }

@@ -1323,7 +1323,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,
                                                       g_free,
-                                                      connection_destroy);
+                                                      NULL);
 
     colo_compare_iothread(s);
 
