@@ -87,8 +87,10 @@ if [ "$GITLAB_CI" != "true" ]; then
     make "-j$(nproc)" qemu-fuzz-i386 V=1
 fi
 
-# Prepare a preinstalled tree
+# Place data files in the preinstall tree
 make install DESTDIR=$DEST_DIR/qemu-bundle
+rm -rf $DEST_DIR/qemu-bundle/opt/qemu-oss-fuzz/bin
+rm -rf $DEST_DIR/qemu-bundle/opt/qemu-oss-fuzz/libexec
 
 targets=$(./qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}')
 base_copy="$DEST_DIR/qemu-fuzz-i386-target-$(echo "$targets" | head -n 1)"
