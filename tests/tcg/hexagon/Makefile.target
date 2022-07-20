@@ -35,6 +35,7 @@ HEX_TESTS += preg_alias
 HEX_TESTS += dual_stores
 HEX_TESTS += multi_result
 HEX_TESTS += mem_noshuf
+HEX_TESTS += mem_noshuf_exception
 HEX_TESTS += circ
 HEX_TESTS += brev
 HEX_TESTS += load_unpack

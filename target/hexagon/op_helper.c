@@ -442,6 +442,17 @@ static void probe_store(CPUHexagonState *env, int slot, int mmu_idx)
     }
 }
 
+/*
+ * Called from a mem_noshuf packet to make sure the load doesn't
+ * raise an exception
+ */
+void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
+                               int size, int mmu_idx)
+{
+    uintptr_t retaddr = GETPC();
+    probe_read(env, va, size, mmu_idx, retaddr);
+}
+
 /* Called during packet commit when there are two scalar stores */
 void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
 {
@@ -514,10 +525,12 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
  * If the load is in slot 0 and there is a store in slot1 (that
  * wasn't cancelled), we have to do the store first.
  */
-static void check_noshuf(CPUHexagonState *env, uint32_t slot)
+static void check_noshuf(CPUHexagonState *env, uint32_t slot,
+                         target_ulong vaddr, int size)
 {
     if (slot == 0 && env->pkt_has_store_s1 &&
         ((env->slot_cancelled & (1 << 1)) == 0)) {
+        HELPER(probe_noshuf_load)(env, vaddr, size, MMU_USER_IDX);
         HELPER(commit_store)(env, 1);
     }
 }
@@ -526,7 +539,7 @@ static uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
                          target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot);
+    check_noshuf(env, slot, vaddr, 1);
     return cpu_ldub_data_ra(env, vaddr, ra);
 }
 
@@ -534,7 +547,7 @@ static uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot);
+    check_noshuf(env, slot, vaddr, 2);
     return cpu_lduw_data_ra(env, vaddr, ra);
 }
 
@@ -542,7 +555,7 @@ static uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot);
+    check_noshuf(env, slot, vaddr, 4);
     return cpu_ldl_data_ra(env, vaddr, ra);
 }
 
@@ -550,7 +563,7 @@ static uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
                           target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot);
+    check_noshuf(env, slot, vaddr, 8);
     return cpu_ldq_data_ra(env, vaddr, ra);
 }
 

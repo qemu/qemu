@@ -339,12 +339,13 @@
     do { \
         TCGv LSB = tcg_temp_local_new(); \
         TCGLabel *label = gen_new_label(); \
-        GET_EA; \
+        tcg_gen_movi_tl(EA, 0); \
         PRED;  \
+        CHECK_NOSHUF_PRED(GET_EA, SIZE, LSB); \
         PRED_LOAD_CANCEL(LSB, EA); \
         tcg_gen_movi_tl(RdV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
-            fLOAD(1, SIZE, SIGN, EA, RdV); \
+        fLOAD(1, SIZE, SIGN, EA, RdV); \
         gen_set_label(label); \
         tcg_temp_free(LSB); \
     } while (0)
@@ -398,12 +399,13 @@
     do { \
         TCGv LSB = tcg_temp_local_new(); \
         TCGLabel *label = gen_new_label(); \
-        GET_EA; \
+        tcg_gen_movi_tl(EA, 0); \
         PRED;  \
+        CHECK_NOSHUF_PRED(GET_EA, 8, LSB); \
         PRED_LOAD_CANCEL(LSB, EA); \
         tcg_gen_movi_i64(RddV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
-            fLOAD(1, 8, u, EA, RddV); \
+        fLOAD(1, 8, u, EA, RddV); \
         gen_set_label(label); \
         tcg_temp_free(LSB); \
     } while (0)

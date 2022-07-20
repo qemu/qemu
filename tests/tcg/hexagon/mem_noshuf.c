@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -84,6 +84,70 @@ MEM_NOSHUF32(mem_noshuf_sd_luh, long long,    unsigned short,   memd, memuh)
 MEM_NOSHUF32(mem_noshuf_sd_lw,  long long,    signed int,       memd, memw)
 MEM_NOSHUF64(mem_noshuf_sd_ld,  long long,    signed long long, memd, memd)
 
+static inline int pred_lw_sw(int pred, int *p, int *q, int x, int y)
+{
+    int ret;
+    asm volatile("p0 = cmp.eq(%5, #0)\n\t"
+                 "%0 = %3\n\t"
+                 "{\n\t"
+                 "    memw(%1) = %4\n\t"
+                 "    if (!p0) %0 = memw(%2)\n\t"
+                 "}:mem_noshuf\n"
+                 : "=&r"(ret)
+                 : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
+                 : "p0", "memory");
+    return ret;
+}
+
+static inline int pred_lw_sw_pi(int pred, int *p, int *q, int x, int y)
+{
+    int ret;
+    asm volatile("p0 = cmp.eq(%5, #0)\n\t"
+                 "%0 = %3\n\t"
+                 "r7 = %2\n\t"
+                 "{\n\t"
+                 "    memw(%1) = %4\n\t"
+                 "    if (!p0) %0 = memw(r7++#4)\n\t"
+                 "}:mem_noshuf\n"
+                 : "=&r"(ret)
+                 : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
+                 : "r7", "p0", "memory");
+    return ret;
+}
+
+static inline long long pred_ld_sd(int pred, long long *p, long long *q,
+                                   long long x, long long y)
+{
+    unsigned long long ret;
+    asm volatile("p0 = cmp.eq(%5, #0)\n\t"
+                 "%0 = %3\n\t"
+                 "{\n\t"
+                 "    memd(%1) = %4\n\t"
+                 "    if (!p0) %0 = memd(%2)\n\t"
+                 "}:mem_noshuf\n"
+                 : "=&r"(ret)
+                 : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
+                 : "p0", "memory");
+    return ret;
+}
+
+static inline long long pred_ld_sd_pi(int pred, long long *p, long long *q,
+                                      long long x, long long y)
+{
+    long long ret;
+    asm volatile("p0 = cmp.eq(%5, #0)\n\t"
+                 "%0 = %3\n\t"
+                 "r7 = %2\n\t"
+                 "{\n\t"
+                 "    memd(%1) = %4\n\t"
+                 "    if (!p0) %0 = memd(r7++#8)\n\t"
+                 "}:mem_noshuf\n"
+                 : "=&r"(ret)
+                 : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
+                 : "p0", "memory");
+    return ret;
+}
+
 static inline unsigned int cancel_sw_lb(int pred, int *p, signed char *q, int x)
 {
     unsigned int ret;
@@ -126,18 +190,22 @@ typedef union {
 
 int err;
 
-static void check32(int n, int expect)
+#define check32(n, expect) check32_(n, expect, __LINE__)
+
+static void check32_(int n, int expect, int line)
 {
     if (n != expect) {
-        printf("ERROR: 0x%08x != 0x%08x\n", n, expect);
+        printf("ERROR: 0x%08x != 0x%08x, line %d\n", n, expect, line);
         err++;
     }
 }
 
-static void check64(long long n, long long expect)
+#define check64(n, expect) check64_(n, expect, __LINE__)
+
+static void check64_(long long n, long long expect, int line)
 {
     if (n != expect) {
-        printf("ERROR: 0x%08llx != 0x%08llx\n", n, expect);
+        printf("ERROR: 0x%08llx != 0x%08llx, line %d\n", n, expect, line);
         err++;
     }
 }
@@ -322,6 +390,50 @@ int main()
     n.d[1] = ~0LL;
     res64 = mem_noshuf_sd_ld(&n.d[0], &n.d[1], 0x123456789abcdef0LL);
     check64(res64, 0xffffffffffffffffLL);
+
+    n.w[0] = ~0;
+    res32 = pred_lw_sw(0, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    check32(res32, 0x12345678);
+    check32(n.w[0], 0xc0ffeeda);
+
+    n.w[0] = ~0;
+    res32 = pred_lw_sw(1, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    check32(res32, 0xc0ffeeda);
+    check32(n.w[0], 0xc0ffeeda);
+
+    n.w[0] = ~0;
+    res32 = pred_lw_sw_pi(0, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    check32(res32, 0x12345678);
+    check32(n.w[0], 0xc0ffeeda);
+
+    n.w[0] = ~0;
+    res32 = pred_lw_sw_pi(1, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    check32(res32, 0xc0ffeeda);
+    check32(n.w[0], 0xc0ffeeda);
+
+    n.d[0] = ~0LL;
+    res64 = pred_ld_sd(0, &n.d[0], &n.d[0],
+                       0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
+    check64(res64, 0x1234567812345678LL);
+    check64(n.d[0], 0xc0ffeedac0ffeedaLL);
+
+    n.d[0] = ~0LL;
+    res64 = pred_ld_sd(1, &n.d[0], &n.d[0],
+                       0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
+    check64(res64, 0xc0ffeedac0ffeedaLL);
+    check64(n.d[0], 0xc0ffeedac0ffeedaLL);
+
+    n.d[0] = ~0LL;
+    res64 = pred_ld_sd_pi(0, &n.d[0], &n.d[0],
+                          0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
+    check64(res64, 0x1234567812345678LL);
+    check64(n.d[0], 0xc0ffeedac0ffeedaLL);
+
+    n.d[0] = ~0LL;
+    res64 = pred_ld_sd_pi(1, &n.d[0], &n.d[0],
+                          0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
+    check64(res64, 0xc0ffeedac0ffeedaLL);
+    check64(n.d[0], 0xc0ffeedac0ffeedaLL);
 
     puts(err ? "FAIL" : "PASS");
     return err;
