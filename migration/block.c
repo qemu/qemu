@@ -28,7 +28,7 @@
 #include "sysemu/block-backend.h"
 #include "trace.h"
 
-#define BLK_MIG_BLOCK_SIZE           (1 << 20)
+#define BLK_MIG_BLOCK_SIZE           (1ULL << 20)
 #define BDRV_SECTORS_PER_DIRTY_CHUNK (BLK_MIG_BLOCK_SIZE >> BDRV_SECTOR_BITS)
 
 #define BLK_MIG_FLAG_DEVICE_BLOCK       0x01
