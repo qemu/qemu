@@ -2342,6 +2342,8 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
 
         if (stats_value->type == QTYPE_QNUM) {
             monitor_printf(mon, ": %" PRId64 "\n", stats_value->u.scalar);
+        } else if (stats_value->type == QTYPE_QBOOL) {
+            monitor_printf(mon, ": %s\n", stats_value->u.boolean ? "yes" : "no");
         } else if (stats_value->type == QTYPE_QLIST) {
             uint64List *list;
             int i;

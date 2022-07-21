@@ -3769,6 +3769,7 @@ static StatsList *add_kvmstat_entry(struct kvm_stats_desc *pdesc,
     case KVM_STATS_UNIT_BYTES:
     case KVM_STATS_UNIT_CYCLES:
     case KVM_STATS_UNIT_SECONDS:
+    case KVM_STATS_UNIT_BOOLEAN:
         break;
     default:
         return stats_list;
@@ -3787,7 +3788,10 @@ static StatsList *add_kvmstat_entry(struct kvm_stats_desc *pdesc,
     stats->name = g_strdup(pdesc->name);
     stats->value = g_new0(StatsValue, 1);;
 
-    if (pdesc->size == 1) {
+    if ((pdesc->flags & KVM_STATS_UNIT_MASK) == KVM_STATS_UNIT_BOOLEAN) {
+        stats->value->u.boolean = *stats_data;
+        stats->value->type = QTYPE_QBOOL;
+    } else if (pdesc->size == 1) {
         stats->value->u.scalar = *stats_data;
         stats->value->type = QTYPE_QNUM;
     } else {
@@ -3834,6 +3838,10 @@ static StatsSchemaValueList *add_kvmschema_entry(struct kvm_stats_desc *pdesc,
 
     switch (pdesc->flags & KVM_STATS_UNIT_MASK) {
     case KVM_STATS_UNIT_NONE:
+        break;
+    case KVM_STATS_UNIT_BOOLEAN:
+        schema_entry->value->has_unit = true;
+        schema_entry->value->unit = STATS_UNIT_BOOLEAN;
         break;
     case KVM_STATS_UNIT_BYTES:
         schema_entry->value->has_unit = true;

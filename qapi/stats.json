@@ -38,11 +38,12 @@
 # @bytes: stat reported in bytes.
 # @seconds: stat reported in seconds.
 # @cycles: stat reported in clock cycles.
+# @boolean: stat is a boolean value.
 #
 # Since: 7.1
 ##
 { 'enum' : 'StatsUnit',
-  'data' : [ 'bytes', 'seconds', 'cycles' ] }
+  'data' : [ 'bytes', 'seconds', 'cycles', 'boolean' ] }
 
 ##
 # @StatsProvider:
@@ -123,6 +124,7 @@
 ##
 { 'alternate': 'StatsValue',
   'data': { 'scalar': 'uint64',
+            'boolean': 'bool',
             'list': [ 'uint64' ] } }
 
 ##
