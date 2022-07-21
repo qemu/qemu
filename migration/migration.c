@@ -2617,6 +2617,7 @@ MultiFDCompression migrate_multifd_compression(void)
 
     s = migrate_get_current();
 
+    assert(s->parameters.multifd_compression < MULTIFD_COMPRESSION__MAX);
     return s->parameters.multifd_compression;
 }
 
