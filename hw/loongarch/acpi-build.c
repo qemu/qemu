@@ -411,9 +411,8 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
     GArray *table_offsets;
     AcpiFadtData fadt_data;
-    unsigned facs, rsdt, fadt, dsdt;
+    unsigned facs, rsdt, dsdt;
     uint8_t *u;
-    size_t aml_len = 0;
     GArray *tables_blob = tables->table_data;
 
     init_common_fadt_data(&fadt_data);
@@ -437,21 +436,13 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     dsdt = tables_blob->len;
     build_dsdt(tables_blob, tables->linker, machine);
 
-    /*
-     * Count the size of the DSDT, we will need it for
-     * legacy sizing of ACPI tables.
-     */
-    aml_len += tables_blob->len - dsdt;
-
     /* ACPI tables pointed to by RSDT */
-    fadt = tables_blob->len;
     acpi_add_table(table_offsets, tables_blob);
     fadt_data.facs_tbl_offset = &facs;
     fadt_data.dsdt_tbl_offset = &dsdt;
     fadt_data.xdsdt_tbl_offset = &dsdt;
     build_fadt(tables_blob, tables->linker, &fadt_data,
                lams->oem_id, lams->oem_table_id);
-    aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
     build_madt(tables_blob, tables->linker, lams);
