@@ -217,10 +217,8 @@ class AsyncProtocol(Generic[T]):
     # -------------------------
 
     def __init__(self, name: Optional[str] = None) -> None:
-        #: The nickname for this connection, if any.
-        self.name: Optional[str] = name
-        if self.name is not None:
-            self.logger = self.logger.getChild(self.name)
+        self._name: Optional[str]
+        self.name = name
 
         # stream I/O
         self._reader: Optional[StreamReader] = None
@@ -256,6 +254,24 @@ class AsyncProtocol(Generic[T]):
             tokens.append(f"name={self.name!r}")
         tokens.append(f"runstate={self.runstate.name}")
         return f"<{cls_name} {' '.join(tokens)}>"
+
+    @property
+    def name(self) -> Optional[str]:
+        """
+        The nickname for this connection, if any.
+
+        This name is used for differentiating instances in debug output.
+        """
+        return self._name
+
+    @name.setter
+    def name(self, name: Optional[str]) -> None:
+        logger = logging.getLogger(__name__)
+        if name:
+            self.logger = logger.getChild(name)
+        else:
+            self.logger = logger
+        self._name = name
 
     @property  # @upper_half
     def runstate(self) -> Runstate:
