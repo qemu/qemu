@@ -607,6 +607,8 @@ def main_wrap() -> None:
 
                 for _ in qemu.repl():
                     pass
+    except FileNotFoundError:
+        sys.stderr.write(f"ERROR: QEMU executable '{cmd[0]}' not found.\n")
     finally:
         os.unlink(sockpath)
 
