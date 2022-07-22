@@ -3898,7 +3898,7 @@ static const ARMCPRegInfo cache_dirty_status_cp_reginfo[] = {
 };
 
 static const ARMCPRegInfo cache_block_ops_cp_reginfo[] = {
-    /* We never have a a block transfer operation in progress */
+    /* We never have a block transfer operation in progress */
     { .name = "BXSR", .cp = 15, .crn = 7, .crm = 12, .opc1 = 0, .opc2 = 4,
       .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_NO_RAW,
       .resetvalue = 0 },

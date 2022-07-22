@@ -1,7 +1,7 @@
 #
 # Docker Debian Native
 #
-# This this intended to build QEMU on native host systems. Debian is
+# This is intended to build QEMU on native host systems. Debian is
 # chosen due to the broadest range on supported host systems for QEMU.
 #
 # This docker target is based on the docker.io Debian Bullseye base
