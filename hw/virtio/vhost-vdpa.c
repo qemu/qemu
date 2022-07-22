@@ -290,7 +290,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
         result = vhost_iova_tree_find_iova(v->iova_tree, &mem_region);
         iova = result->iova;
-        vhost_iova_tree_remove(v->iova_tree, &mem_region);
+        vhost_iova_tree_remove(v->iova_tree, result);
     }
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
