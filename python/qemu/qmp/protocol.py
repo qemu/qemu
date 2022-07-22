@@ -80,7 +80,7 @@ class ConnectError(QMPError):
     :param exc: The root-cause exception.
     """
     def __init__(self, error_message: str, exc: Exception):
-        super().__init__(error_message)
+        super().__init__(error_message, exc)
         #: Human-readable error string
         self.error_message: str = error_message
         #: Wrapped root cause exception
@@ -108,10 +108,13 @@ class StateError(QMPError):
     """
     def __init__(self, error_message: str,
                  state: Runstate, required: Runstate):
-        super().__init__(error_message)
+        super().__init__(error_message, state, required)
         self.error_message = error_message
         self.state = state
         self.required = required
+
+    def __str__(self) -> str:
+        return self.error_message
 
 
 F = TypeVar('F', bound=Callable[..., Any])  # pylint: disable=invalid-name
