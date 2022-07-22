@@ -514,21 +514,27 @@ def die(msg: str) -> NoReturn:
     sys.exit(1)
 
 
-def main() -> None:
-    """
-    qmp-shell entry point: parse command line arguments and start the REPL.
-    """
+def common_parser() -> argparse.ArgumentParser:
+    """Build common parsing options used by qmp-shell and qmp-shell-wrap."""
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', '--hmp', action='store_true',
                         help='Use HMP interface')
-    parser.add_argument('-N', '--skip-negotiation', action='store_true',
-                        help='Skip negotiate (for qemu-ga)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Verbose (echo commands sent and received)')
     parser.add_argument('-p', '--pretty', action='store_true',
                         help='Pretty-print JSON')
     parser.add_argument('-l', '--logfile',
                         help='Save log of all QMP messages to PATH')
+    return parser
+
+
+def main() -> None:
+    """
+    qmp-shell entry point: parse command line arguments and start the REPL.
+    """
+    parser = common_parser()
+    parser.add_argument('-N', '--skip-negotiation', action='store_true',
+                        help='Skip negotiate (for qemu-ga)')
 
     default_server = os.environ.get('QMP_SOCKET')
     parser.add_argument('qmp_server', action='store',
@@ -564,16 +570,7 @@ def main_wrap() -> None:
     qmp-shell-wrap entry point: parse command line arguments and
     start the REPL.
     """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-H', '--hmp', action='store_true',
-                        help='Use HMP interface')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Verbose (echo commands sent and received)')
-    parser.add_argument('-p', '--pretty', action='store_true',
-                        help='Pretty-print JSON')
-    parser.add_argument('-l', '--logfile',
-                        help='Save log of all QMP messages to PATH')
-
+    parser = common_parser()
     parser.add_argument('command', nargs=argparse.REMAINDER,
                         help='QEMU command line to invoke')
 
