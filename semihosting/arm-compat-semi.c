@@ -504,16 +504,25 @@ void do_common_semihosting(CPUState *cs)
         GET_ARG(1);
         GET_ARG(2);
         len = asprintf(&s, "/tmp/qemu-%x%02x", getpid(), (int)arg1 & 0xff);
+        if (len < 0) {
+            common_semi_set_ret(cs, -1);
+            break;
+        }
+
+        /* Allow for trailing NUL */
+        len++;
         /* Make sure there's enough space in the buffer */
-        if (len < 0 || len >= arg2) {
+        if (len > arg2) {
+            free(s);
             common_semi_set_ret(cs, -1);
             break;
         }
         p = lock_user(VERIFY_WRITE, arg0, len, 0);
         if (!p) {
+            free(s);
             goto do_fault;
         }
-        memcpy(p, s, len + 1);
+        memcpy(p, s, len);
         unlock_user(p, arg0, len);
         free(s);
         common_semi_set_ret(cs, 0);
