@@ -9,6 +9,7 @@ packages:
  - capstone
  - ccache
  - clang
+ - cmocka
  - column
  - ctags
  - cyrus-sasl
@@ -26,15 +27,16 @@ packages:
  - genisoimage
  - glib2
  - glib2-static
- - glibc-static
  - glusterfs
  - gnutls
  - gtk3
  - hostname
+ - json-c
  - libaio
  - libattr
  - libasan
  - libbpf
+ - libc-static
  - libcacard
  - libcap-ng
  - libcurl
@@ -90,7 +92,7 @@ packages:
  - python3-pip
  - python3-sphinx
  - python3-sphinx-rtd-theme
- - python3-virtualenv
+ - python3-venv
  - rpm2cpio
  - sdl2
  - sdl2-image

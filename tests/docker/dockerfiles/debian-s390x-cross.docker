@@ -84,6 +84,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libcacard-dev:s390x \
             libcap-ng-dev:s390x \
             libcapstone-dev:s390x \
+            libcmocka-dev:s390x \
             libcurl4-gnutls-dev:s390x \
             libdaxctl-dev:s390x \
             libdrm-dev:s390x \
@@ -102,6 +103,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libiscsi-dev:s390x \
             libjemalloc-dev:s390x \
             libjpeg62-turbo-dev:s390x \
+            libjson-c-dev:s390x \
             liblttng-ust-dev:s390x \
             liblzo2-dev:s390x \
             libncursesw5-dev:s390x \

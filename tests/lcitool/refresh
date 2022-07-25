@@ -25,7 +25,7 @@ self_dir = Path(__file__).parent
 src_dir = self_dir.parent.parent
 dockerfiles_dir = Path(src_dir, "tests", "docker", "dockerfiles")
 
-lcitool_path = Path(self_dir, "libvirt-ci", "lcitool")
+lcitool_path = Path(self_dir, "libvirt-ci", "bin", "lcitool")
 
 lcitool_cmd = [lcitool_path, "--data-dir", self_dir]
 
@@ -112,7 +112,7 @@ try:
     generate_dockerfile("debian-amd64", "debian-11",
                         trailer="".join(debian11_extras))
     generate_dockerfile("fedora", "fedora-35")
-    generate_dockerfile("opensuse-leap", "opensuse-leap-152")
+    generate_dockerfile("opensuse-leap", "opensuse-leap-153")
     generate_dockerfile("ubuntu2004", "ubuntu-2004",
                         trailer="".join(ubuntu2004_tsanhack))
 
