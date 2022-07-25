@@ -111,7 +111,8 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
 int qemu_semihosting_console_write(void *buf, int len)
 {
     if (console.chr) {
-        return qemu_chr_write_all(console.chr, (uint8_t *)buf, len);
+        int r = qemu_chr_write_all(console.chr, (uint8_t *)buf, len);
+        return r < 0 ? 0 : r;
     } else {
         return fwrite(buf, 1, len, stderr);
     }
