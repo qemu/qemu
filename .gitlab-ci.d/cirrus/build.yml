@@ -32,5 +32,6 @@ build_task:
     - $MAKE -j$(sysctl -n hw.ncpu)
     - for TARGET in $TEST_TARGETS ;
       do
-        $MAKE -j$(sysctl -n hw.ncpu) $TARGET V=1 ;
+        $MAKE -j$(sysctl -n hw.ncpu) $TARGET V=1
+        || { cat meson-logs/testlog.txt; exit 1; } ;
       done
