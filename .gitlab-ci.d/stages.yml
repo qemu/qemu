@@ -3,6 +3,5 @@
 #  - test (for test stages, using build artefacts from a build stage)
 stages:
   - containers
-  - containers-layer2
   - build
   - test
