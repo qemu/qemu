@@ -529,9 +529,10 @@ static void do_predtest(DisasContext *s, int dofs, int gofs, int words)
 }
 
 /* For each element size, the bits within a predicate word that are active.  */
-const uint64_t pred_esz_masks[4] = {
+const uint64_t pred_esz_masks[5] = {
     0xffffffffffffffffull, 0x5555555555555555ull,
-    0x1111111111111111ull, 0x0101010101010101ull
+    0x1111111111111111ull, 0x0101010101010101ull,
+    0x0001000100010001ull,
 };
 
 static bool trans_INVALID(DisasContext *s, arg_INVALID *a)

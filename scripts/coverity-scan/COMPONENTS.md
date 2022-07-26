@@ -108,8 +108,8 @@ qemu-ga
 scsi
   ~ (/qemu)?(/scsi/.*|/hw/scsi/.*|/include/hw/scsi/.*)
 
-slirp
-  ~ (/qemu)?(/.*slirp.*)
+slirp (component should be ignored in analysis)
+  ~ (/qemu)?(/slirp/.*)
 
 tcg
   ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)
@@ -143,3 +143,6 @@ testlibs
 
 tests
   ~ (/qemu)?(/tests/.*)
+
+loongarch
+  ~ (/qemu)?((/include)?/hw/(loongarch/.*|.*/loongarch.*)|/target/loongarch/.*)

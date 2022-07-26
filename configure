@@ -678,15 +678,16 @@ werror=""
 
 meson_option_build_array() {
   printf '['
-  (if test "$targetos" == windows; then
+  (if test "$targetos" = windows; then
     IFS=\;
   else
     IFS=:
   fi
   for e in $1; do
-    e=${e/'\'/'\\'}
-    e=${e/\"/'\"'}
-    printf '"""%s""",' "$e"
+    printf '"""'
+    # backslash escape any '\' and '"' characters
+    printf "%s" "$e" | sed -e 's/\([\"]\)/\\\1/g'
+    printf '""",'
   done)
   printf ']\n'
 }
@@ -2250,13 +2251,6 @@ if test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
 fi
 
-case "$ARCH" in
-alpha)
-  # Ensure there's only a single GP
-  QEMU_CFLAGS="-msmall-data $QEMU_CFLAGS"
-;;
-esac
-
 if test "$have_asan" = "yes"; then
   QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
   QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
@@ -2343,7 +2337,7 @@ if test -n "$target_cc" &&
     # emulation. Linux and OpenBSD/amd64 use 'elf_i386'; FreeBSD uses the _fbsd
     # variant; OpenBSD/i386 uses the _obsd variant; and Windows uses i386pe.
     for emu in elf_i386 elf_i386_fbsd elf_i386_obsd i386pe; do
-        if "$target_ld" -verbose 2>&1 | grep -q "^[[:space:]]*$emu[[:space:]]*$"; then
+        if "$target_ld" -verbose 2>&1 | grep -q "^[[:space:]]*${emu}[[:space:]]*$"; then
             ld_i386_emulation="$emu"
             break
         fi
@@ -2425,7 +2419,7 @@ else
     cxx=
 fi
 
-if !(GIT="$git" "$source_path/scripts/git-submodule.sh" "$git_submodules_action" "$git_submodules"); then
+if ! (GIT="$git" "$source_path/scripts/git-submodule.sh" "$git_submodules_action" "$git_submodules"); then
     exit 1
 fi
 

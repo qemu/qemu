@@ -3387,7 +3387,7 @@ static inline uint64_t *aa64_vfp_qreg(CPUARMState *env, unsigned regno)
 }
 
 /* Shared between translate-sve.c and sve_helper.c.  */
-extern const uint64_t pred_esz_masks[4];
+extern const uint64_t pred_esz_masks[5];
 
 /* Helper for the macros below, validating the argument type. */
 static inline MemTxAttrs *typecheck_memtxattrs(MemTxAttrs *x)
