@@ -82,9 +82,9 @@ static void snapshot_access_refresh_filename(BlockDriverState *bs)
 static int snapshot_access_open(BlockDriverState *bs, QDict *options, int flags,
                                 Error **errp)
 {
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
-                               false, errp);
+    bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
+                    BDRV_CHILD_DATA | BDRV_CHILD_PRIMARY,
+                    false, errp);
     if (!bs->file) {
         return -EINVAL;
     }
