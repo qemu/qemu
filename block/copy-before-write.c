@@ -412,6 +412,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     int64_t cluster_size;
     g_autoptr(BlockdevOptions) full_opts = NULL;
     BlockdevOptionsCbw *opts;
+    int ret;
 
     full_opts = cbw_parse_options(options, errp);
     if (!full_opts) {
@@ -420,11 +421,9 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     assert(full_opts->driver == BLOCKDEV_DRIVER_COPY_BEFORE_WRITE);
     opts = &full_opts->u.copy_before_write;
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
-                               false, errp);
-    if (!bs->file) {
-        return -EINVAL;
+    ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
+    if (ret < 0) {
+        return ret;
     }
 
     s->target = bdrv_open_child(NULL, options, "target", bs, &child_of_bds,
