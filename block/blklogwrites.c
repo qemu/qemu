@@ -254,10 +254,6 @@ fail_log:
         s->log_file = NULL;
     }
 fail:
-    if (ret < 0) {
-        bdrv_unref_child(bs, bs->file);
-        bs->file = NULL;
-    }
     qemu_opts_del(opts);
     return ret;
 }
