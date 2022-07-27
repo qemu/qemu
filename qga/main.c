@@ -87,7 +87,7 @@ struct GAState {
 #endif
     bool delimit_response;
     bool frozen;
-    GList *blacklist;
+    GList *blockedrpcs;
     char *state_filepath_isfrozen;
     struct {
         const char *log_filepath;
@@ -107,7 +107,7 @@ struct GAState *ga_state;
 QmpCommandList ga_commands;
 
 /* commands that are safe to issue while filesystems are frozen */
-static const char *ga_freeze_whitelist[] = {
+static const char *ga_freeze_allowlist[] = {
     "guest-ping",
     "guest-info",
     "guest-sync",
@@ -363,31 +363,31 @@ static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 }
 
 /* disable commands that aren't safe for fsfreeze */
-static void ga_disable_non_whitelisted(const QmpCommand *cmd, void *opaque)
+static void ga_disable_not_allowed(const QmpCommand *cmd, void *opaque)
 {
-    bool whitelisted = false;
+    bool allowed = false;
     int i = 0;
     const char *name = qmp_command_name(cmd);
 
-    while (ga_freeze_whitelist[i] != NULL) {
-        if (strcmp(name, ga_freeze_whitelist[i]) == 0) {
-            whitelisted = true;
+    while (ga_freeze_allowlist[i] != NULL) {
+        if (strcmp(name, ga_freeze_allowlist[i]) == 0) {
+            allowed = true;
         }
         i++;
     }
-    if (!whitelisted) {
+    if (!allowed) {
         g_debug("disabling command: %s", name);
         qmp_disable_command(&ga_commands, name, "the agent is in frozen state");
     }
 }
 
-/* [re-]enable all commands, except those explicitly blacklisted by user */
-static void ga_enable_non_blacklisted(const QmpCommand *cmd, void *opaque)
+/* [re-]enable all commands, except those explicitly blocked by user */
+static void ga_enable_non_blocked(const QmpCommand *cmd, void *opaque)
 {
-    GList *blacklist = opaque;
+    GList *blockedrpcs = opaque;
     const char *name = qmp_command_name(cmd);
 
-    if (g_list_find_custom(blacklist, name, ga_strcmp) == NULL &&
+    if (g_list_find_custom(blockedrpcs, name, ga_strcmp) == NULL &&
         !qmp_command_is_enabled(cmd)) {
         g_debug("enabling command: %s", name);
         qmp_enable_command(&ga_commands, name);
@@ -426,8 +426,8 @@ void ga_set_frozen(GAState *s)
     if (ga_is_frozen(s)) {
         return;
     }
-    /* disable all non-whitelisted (for frozen state) commands */
-    qmp_for_each_command(&ga_commands, ga_disable_non_whitelisted, NULL);
+    /* disable all forbidden (for frozen state) commands */
+    qmp_for_each_command(&ga_commands, ga_disable_not_allowed, NULL);
     g_warning("disabling logging due to filesystem freeze");
     ga_disable_logging(s);
     s->frozen = true;
@@ -465,8 +465,8 @@ void ga_unset_frozen(GAState *s)
         s->deferred_options.pid_filepath = NULL;
     }
 
-    /* enable all disabled, non-blacklisted commands */
-    qmp_for_each_command(&ga_commands, ga_enable_non_blacklisted, s->blacklist);
+    /* enable all disabled, non-blocked commands */
+    qmp_for_each_command(&ga_commands, ga_enable_non_blocked, s->blockedrpcs);
     s->frozen = false;
     if (!ga_delete_file(s->state_filepath_isfrozen)) {
         g_warning("unable to delete %s, fsfreeze may not function properly",
@@ -896,7 +896,8 @@ int64_t ga_get_fd_handle(GAState *s, Error **errp)
     int64_t handle;
 
     g_assert(s->pstate_filepath);
-    /* we blacklist commands and avoid operations that potentially require
+    /*
+     * We block commands and avoid operations that potentially require
      * writing to disk when we're in a frozen state. this includes opening
      * new files, so we should never get here in that situation
      */
@@ -950,8 +951,8 @@ struct GAConfig {
 #ifdef _WIN32
     const char *service;
 #endif
-    gchar *bliststr; /* blacklist may point to this string */
-    GList *blacklist;
+    gchar *bliststr; /* blockedrpcs may point to this string */
+    GList *blockedrpcs;
     int daemonize;
     GLogLevelFlags log_level;
     int dumpconf;
@@ -1019,7 +1020,7 @@ static void config_load(GAConfig *config)
     if (g_key_file_has_key(keyfile, "general", blockrpcs_key, NULL)) {
         config->bliststr =
             g_key_file_get_string(keyfile, "general", blockrpcs_key, &gerr);
-        config->blacklist = g_list_concat(config->blacklist,
+        config->blockedrpcs = g_list_concat(config->blockedrpcs,
                                           split_list(config->bliststr, ","));
     }
 
@@ -1079,7 +1080,7 @@ static void config_dump(GAConfig *config)
                            config->log_level == G_LOG_LEVEL_MASK);
     g_key_file_set_boolean(keyfile, "general", "retry-path",
                            config->retry_path);
-    tmp = list_join(config->blacklist, ',');
+    tmp = list_join(config->blockedrpcs, ',');
     g_key_file_set_string(keyfile, "general", "block-rpcs", tmp);
     g_free(tmp);
 
@@ -1171,8 +1172,8 @@ static void config_parse(GAConfig *config, int argc, char **argv)
                 qmp_for_each_command(&ga_commands, ga_print_cmd, NULL);
                 exit(EXIT_SUCCESS);
             }
-            config->blacklist = g_list_concat(config->blacklist,
-                                             split_list(optarg, ","));
+            config->blockedrpcs = g_list_concat(config->blockedrpcs,
+                                                split_list(optarg, ","));
             break;
         }
 #ifdef _WIN32
@@ -1226,7 +1227,7 @@ static void config_free(GAConfig *config)
 #ifdef CONFIG_FSFREEZE
     g_free(config->fsfreeze_hook);
 #endif
-    g_list_free_full(config->blacklist, g_free);
+    g_list_free_full(config->blockedrpcs, g_free);
     g_free(config);
 }
 
@@ -1310,7 +1311,7 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
             s->deferred_options.log_filepath = config->log_filepath;
         }
         ga_disable_logging(s);
-        qmp_for_each_command(&ga_commands, ga_disable_non_whitelisted, NULL);
+        qmp_for_each_command(&ga_commands, ga_disable_not_allowed, NULL);
     } else {
         if (config->daemonize) {
             become_daemon(config->pid_filepath);
@@ -1334,10 +1335,10 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
         return NULL;
     }
 
-    config->blacklist = ga_command_blacklist_init(config->blacklist);
-    if (config->blacklist) {
-        GList *l = config->blacklist;
-        s->blacklist = config->blacklist;
+    config->blockedrpcs = ga_command_init_blockedrpcs(config->blockedrpcs);
+    if (config->blockedrpcs) {
+        GList *l = config->blockedrpcs;
+        s->blockedrpcs = config->blockedrpcs;
         do {
             g_debug("disabling command: %s", (char *)l->data);
             qmp_disable_command(&ga_commands, l->data, NULL);

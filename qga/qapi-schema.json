@@ -16,8 +16,8 @@
 
 { 'pragma': { 'doc-required': true } }
 
-# Whitelists to permit QAPI rule violations; think twice before you
-# add to them!
+# Lists with items allowed to permit QAPI rule violations; think twice
+# before you add to them!
 { 'pragma': {
     # Types whose member names may use '_'
     'member-name-exceptions': [
