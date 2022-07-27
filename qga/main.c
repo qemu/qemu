@@ -260,8 +260,8 @@ QEMU_COPYRIGHT "\n"
 #ifdef _WIN32
 "  -s, --service     service commands: install, uninstall, vss-install, vss-uninstall\n"
 #endif
-"  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\"\n"
-"                    to list available RPCs)\n"
+"  -b, --block-rpcs  comma-separated list of RPCs to disable (no spaces,\n"
+"                    use \"help\" to list available RPCs)\n"
 "  -D, --dump-conf   dump a qemu-ga config file based on current config\n"
 "                    options / command-line parameters to stdout\n"
 "  -r, --retry-path  attempt re-opening path if it's unavailable or closed\n"
@@ -963,6 +963,7 @@ static void config_load(GAConfig *config)
     GError *gerr = NULL;
     GKeyFile *keyfile;
     g_autofree char *conf = g_strdup(g_getenv("QGA_CONF")) ?: get_relocated_path(QGA_CONF_DEFAULT);
+    const gchar *blockrpcs_key = "block-rpcs";
 
     /* read system config */
     keyfile = g_key_file_new();
@@ -1009,9 +1010,15 @@ static void config_load(GAConfig *config)
         config->retry_path =
             g_key_file_get_boolean(keyfile, "general", "retry-path", &gerr);
     }
+
     if (g_key_file_has_key(keyfile, "general", "blacklist", NULL)) {
+        g_warning("config using deprecated 'blacklist' key, should be replaced"
+                  " with the 'block-rpcs' key.");
+        blockrpcs_key = "blacklist";
+    }
+    if (g_key_file_has_key(keyfile, "general", blockrpcs_key, NULL)) {
         config->bliststr =
-            g_key_file_get_string(keyfile, "general", "blacklist", &gerr);
+            g_key_file_get_string(keyfile, "general", blockrpcs_key, &gerr);
         config->blacklist = g_list_concat(config->blacklist,
                                           split_list(config->bliststr, ","));
     }
@@ -1073,7 +1080,7 @@ static void config_dump(GAConfig *config)
     g_key_file_set_boolean(keyfile, "general", "retry-path",
                            config->retry_path);
     tmp = list_join(config->blacklist, ',');
-    g_key_file_set_string(keyfile, "general", "blacklist", tmp);
+    g_key_file_set_string(keyfile, "general", "block-rpcs", tmp);
     g_free(tmp);
 
     tmp = g_key_file_to_data(keyfile, NULL, &error);
@@ -1105,7 +1112,8 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { "method", 1, NULL, 'm' },
         { "path", 1, NULL, 'p' },
         { "daemonize", 0, NULL, 'd' },
-        { "blacklist", 1, NULL, 'b' },
+        { "block-rpcs", 1, NULL, 'b' },
+        { "blacklist", 1, NULL, 'b' },  /* deprecated alias for 'block-rpcs' */
 #ifdef _WIN32
         { "service", 1, NULL, 's' },
 #endif

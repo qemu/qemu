@@ -79,10 +79,10 @@ Options
 
   Daemonize after startup (detach from terminal).
 
-.. option:: -b, --blacklist=LIST
+.. option:: -b, --block-rpcs=LIST
 
-  Comma-separated list of RPCs to disable (no spaces, ``?`` to list
-  available RPCs).
+  Comma-separated list of RPCs to disable (no spaces, use ``help`` to
+  list available RPCs).
 
 .. option:: -D, --dump-conf
 
@@ -125,7 +125,7 @@ pidfile        string
 fsfreeze-hook  string
 statedir       string
 verbose        boolean
-blacklist      string list
+block-rpcs     string list
 =============  ===========
 
 See also
