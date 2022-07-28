@@ -2265,7 +2265,7 @@ static void kvm_irqchip_create(KVMState *s)
     ret = kvm_arch_irqchip_create(s);
     if (ret == 0) {
         if (s->kernel_irqchip_split == ON_OFF_AUTO_ON) {
-            perror("Split IRQ chip mode not supported.");
+            error_report("Split IRQ chip mode not supported.");
             exit(1);
         } else {
             ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);

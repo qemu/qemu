@@ -959,7 +959,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
 int kvm_arch_irqchip_create(KVMState *s)
 {
     if (kvm_kernel_irqchip_split()) {
-        perror("-machine kernel_irqchip=split is not supported on ARM.");
+        error_report("-machine kernel_irqchip=split is not supported on ARM.");
         exit(1);
     }
 
