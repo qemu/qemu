@@ -4238,7 +4238,9 @@ static void nvme_cq_notifier(EventNotifier *e)
     NvmeCQueue *cq = container_of(e, NvmeCQueue, notifier);
     NvmeCtrl *n = cq->ctrl;
 
-    event_notifier_test_and_clear(&cq->notifier);
+    if (!event_notifier_test_and_clear(e)) {
+        return;
+    }
 
     nvme_update_cq_head(cq);
 
@@ -4275,7 +4277,9 @@ static void nvme_sq_notifier(EventNotifier *e)
 {
     NvmeSQueue *sq = container_of(e, NvmeSQueue, notifier);
 
-    event_notifier_test_and_clear(&sq->notifier);
+    if (!event_notifier_test_and_clear(e)) {
+        return;
+    }
 
     nvme_process_sq(sq);
 }
