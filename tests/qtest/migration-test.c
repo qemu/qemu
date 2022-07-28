@@ -2424,13 +2424,10 @@ int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
     const bool has_kvm = qtest_has_accel("kvm");
+    const bool has_uffd = ufd_version_check();
     int ret;
 
     g_test_init(&argc, &argv, NULL);
-
-    if (!ufd_version_check()) {
-        return g_test_run();
-    }
 
     /*
      * On ppc64, the test only works with kvm-hv, but not with kvm-pr and TCG
@@ -2460,13 +2457,15 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
 
-    qtest_add_func("/migration/postcopy/unix", test_postcopy);
-    qtest_add_func("/migration/postcopy/plain", test_postcopy);
-    qtest_add_func("/migration/postcopy/recovery/plain",
-                   test_postcopy_recovery);
-    qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
-    qtest_add_func("/migration/postcopy/preempt/recovery/plain",
-                    test_postcopy_preempt_recovery);
+    if (has_uffd) {
+        qtest_add_func("/migration/postcopy/unix", test_postcopy);
+        qtest_add_func("/migration/postcopy/plain", test_postcopy);
+        qtest_add_func("/migration/postcopy/recovery/plain",
+                       test_postcopy_recovery);
+        qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
+        qtest_add_func("/migration/postcopy/preempt/recovery/plain",
+                       test_postcopy_preempt_recovery);
+    }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
     qtest_add_func("/migration/precopy/unix/plain", test_precopy_unix_plain);
@@ -2474,18 +2473,21 @@ int main(int argc, char **argv)
 #ifdef CONFIG_GNUTLS
     qtest_add_func("/migration/precopy/unix/tls/psk",
                    test_precopy_unix_tls_psk);
-    /*
-     * NOTE: psk test is enough for postcopy, as other types of TLS
-     * channels are tested under precopy.  Here what we want to test is the
-     * general postcopy path that has TLS channel enabled.
-     */
-    qtest_add_func("/migration/postcopy/tls/psk", test_postcopy_tls_psk);
-    qtest_add_func("/migration/postcopy/recovery/tls/psk",
-                   test_postcopy_recovery_tls_psk);
-    qtest_add_func("/migration/postcopy/preempt/tls/psk",
-                   test_postcopy_preempt_tls_psk);
-    qtest_add_func("/migration/postcopy/preempt/recovery/tls/psk",
-                   test_postcopy_preempt_all);
+
+    if (has_uffd) {
+        /*
+         * NOTE: psk test is enough for postcopy, as other types of TLS
+         * channels are tested under precopy.  Here what we want to test is the
+         * general postcopy path that has TLS channel enabled.
+         */
+        qtest_add_func("/migration/postcopy/tls/psk", test_postcopy_tls_psk);
+        qtest_add_func("/migration/postcopy/recovery/tls/psk",
+                       test_postcopy_recovery_tls_psk);
+        qtest_add_func("/migration/postcopy/preempt/tls/psk",
+                       test_postcopy_preempt_tls_psk);
+        qtest_add_func("/migration/postcopy/preempt/recovery/tls/psk",
+                       test_postcopy_preempt_all);
+    }
 #ifdef CONFIG_TASN1
     qtest_add_func("/migration/precopy/unix/tls/x509/default-host",
                    test_precopy_unix_tls_x509_default_host);
