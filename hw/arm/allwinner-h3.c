@@ -174,7 +174,7 @@ void allwinner_h3_bootrom_setup(AwH3State *s, BlockBackend *blk)
     const int64_t rom_size = 32 * KiB;
     g_autofree uint8_t *buffer = g_new0(uint8_t, rom_size);
 
-    if (blk_pread(blk, 8 * KiB, rom_size, buffer, 0) < 0) {
+    if (blk_pread(blk, 8 * KiB, buffer, rom_size) < 0) {
         error_setg(&error_fatal, "%s: failed to read BlockBackend data",
                    __func__);
         return;
@@ -204,7 +204,7 @@ static void allwinner_h3_init(Object *obj)
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
                               "clk1-freq");
 
-    object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_H3_CCU);
+    object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_CCU"-h3");
 
     object_initialize_child(obj, "sysctrl", &s->sysctrl, TYPE_AW_H3_SYSCTRL);
 

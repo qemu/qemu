@@ -12,3 +12,6 @@ softmmu_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_gpio.c'))
 softmmu_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_gpio.c'))
 softmmu_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_gpio.c'))
 softmmu_ss.add(when: 'CONFIG_SIFIVE_GPIO', if_true: files('sifive_gpio.c'))
+
+softmmu_ss.add(when: 'CONFIG_ALLWINNER_F1', if_true: files('allwinner-f1-pio.c'))
+softmmu_ss.add(when: 'CONFIG_FNIRSI_1013D', if_true: files('fnirsi-1013d-tp.c', 'fnirsi-1013d-fpga.c'))

@@ -29,7 +29,6 @@ config ARM_VIRT
     select ACPI_APEI
     select ACPI_VIOT
     select VIRTIO_MEM_SUPPORTED
-    select ACPI_CXL
 
 config CHEETAH
     bool
@@ -332,7 +331,19 @@ config ALLWINNER_H3
     select UNIMP
     select USB_OHCI
     select USB_EHCI_SYSBUS
-    select SD
+    select ALLWINNER_SD
+
+config ALLWINNER_F1
+    bool
+    select ALLWINNER_F1_PIC
+    select ALLWINNER_F1_PIT
+    select ALLWINNER_SD
+    select SERIAL
+    select UNIMP
+
+config FNIRSI_1013D
+    bool
+    select ALLWINNER_F1
 
 config RASPI
     bool
@@ -455,8 +466,6 @@ config ASPEED_SOC
     select EMC141X
     select UNIMP
     select LED
-    select PMBUS
-    select MAX31785
 
 config MPS2
     bool

@@ -39,7 +39,7 @@
 #include "hw/arm/boot.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/arm_gic.h"
-#include "hw/misc/allwinner-h3-ccu.h"
+#include "hw/misc/allwinner-ccu.h"
 #include "hw/misc/allwinner-cpucfg.h"
 #include "hw/misc/allwinner-h3-dramc.h"
 #include "hw/misc/allwinner-h3-sysctrl.h"
@@ -124,7 +124,7 @@ struct AwH3State {
     ARMCPU cpus[AW_H3_NUM_CPUS];
     const hwaddr *memmap;
     AwA10PITState timer;
-    AwH3ClockCtlState ccu;
+    AwClockCtlState ccu;
     AwCpuCfgState cpucfg;
     AwH3DramCtlState dramc;
     AwH3SysCtrlState sysctrl;

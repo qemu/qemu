@@ -25,6 +25,10 @@ config ALLWINNER_A10_PIT
     bool
     select PTIMER
 
+config ALLWINNER_F1_PIT
+    bool
+    select PTIMER
+
 config SIFIVE_PWM
     bool
 

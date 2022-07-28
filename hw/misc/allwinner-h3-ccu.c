@@ -23,7 +23,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/misc/allwinner-h3-ccu.h"
+#include "hw/misc/allwinner-ccu.h"
 
 /* CCU register offsets */
 enum {
@@ -103,11 +103,11 @@ enum {
 static uint64_t allwinner_h3_ccu_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
-    const AwH3ClockCtlState *s = AW_H3_CCU(opaque);
+    const AwClockCtlState *s = AW_CCU(opaque);
     const uint32_t idx = REG_INDEX(offset);
 
     switch (offset) {
-    case 0x308 ... AW_H3_CCU_IOSIZE:
+    case 0x308 ... AW_CCU_IOSIZE:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset 0x%04x\n",
                       __func__, (uint32_t)offset);
         return 0;
@@ -119,7 +119,7 @@ static uint64_t allwinner_h3_ccu_read(void *opaque, hwaddr offset,
 static void allwinner_h3_ccu_write(void *opaque, hwaddr offset,
                                    uint64_t val, unsigned size)
 {
-    AwH3ClockCtlState *s = AW_H3_CCU(opaque);
+    AwClockCtlState *s = AW_CCU(opaque);
     const uint32_t idx = REG_INDEX(offset);
 
     switch (offset) {
@@ -139,7 +139,7 @@ static void allwinner_h3_ccu_write(void *opaque, hwaddr offset,
             val |= REG_PLL_LOCK;
         }
         break;
-    case 0x308 ... AW_H3_CCU_IOSIZE:
+    case 0x308 ... AW_CCU_IOSIZE:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset 0x%04x\n",
                       __func__, (uint32_t)offset);
         break;
@@ -165,7 +165,7 @@ static const MemoryRegionOps allwinner_h3_ccu_ops = {
 
 static void allwinner_h3_ccu_reset(DeviceState *dev)
 {
-    AwH3ClockCtlState *s = AW_H3_CCU(dev);
+    AwClockCtlState *s = AW_CCU(dev);
 
     /* Set default values for registers */
     s->regs[REG_INDEX(REG_PLL_CPUX)] = REG_PLL_CPUX_RST;
@@ -200,11 +200,11 @@ static void allwinner_h3_ccu_reset(DeviceState *dev)
 static void allwinner_h3_ccu_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwH3ClockCtlState *s = AW_H3_CCU(obj);
+    AwClockCtlState *s = AW_CCU(obj);
 
     /* Memory mapping */
     memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_h3_ccu_ops, s,
-                          TYPE_AW_H3_CCU, AW_H3_CCU_IOSIZE);
+                          TYPE_AW_H3_CCU, AW_CCU_IOSIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
@@ -213,7 +213,7 @@ static const VMStateDescription allwinner_h3_ccu_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AwH3ClockCtlState, AW_H3_CCU_REGS_NUM),
+        VMSTATE_UINT32_ARRAY(regs, AwClockCtlState, AW_CCU_REGS_NUM),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -230,7 +230,7 @@ static const TypeInfo allwinner_h3_ccu_info = {
     .name          = TYPE_AW_H3_CCU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_init = allwinner_h3_ccu_init,
-    .instance_size = sizeof(AwH3ClockCtlState),
+    .instance_size = sizeof(AwClockCtlState),
     .class_init    = allwinner_h3_ccu_class_init,
 };
 

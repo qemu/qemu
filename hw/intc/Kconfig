@@ -44,6 +44,9 @@ config XIVE
 config ALLWINNER_A10_PIC
     bool
 
+config ALLWINNER_F1_PIC
+    bool
+
 config S390_FLIC
     bool
 
@@ -83,22 +86,4 @@ config GOLDFISH_PIC
     bool
 
 config M68K_IRQC
-    bool
-
-config NIOS2_VIC
-    bool
-
-config LOONGARCH_IPI
-    bool
-
-config LOONGARCH_PCH_PIC
-    bool
-    select UNIMP
-
-config LOONGARCH_PCH_MSI
-    select MSI_NONBROKEN
-    bool
-    select UNIMP
-
-config LOONGARCH_EXTIOI
     bool

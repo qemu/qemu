@@ -114,9 +114,7 @@ enum {
 };
 
 enum {
-    SD_STAR_FIFO_EMPTY      = (1 << 2),
     SD_STAR_CARD_PRESENT    = (1 << 8),
-    SD_STAR_FIFO_LEVEL_1    = (1 << 17),
 };
 
 enum {
@@ -251,10 +249,20 @@ static void allwinner_sdhost_send_command(AwSdHostState *s)
 
         /* If the command has a response, store it in the response registers */
         if ((s->command & SD_CMDR_RESPONSE)) {
+#if 0
             if (rlen == 4 && !(s->command & SD_CMDR_RESPONSE_LONG)) {
                 s->response[0] = ldl_be_p(&resp[0]);
                 s->response[1] = s->response[2] = s->response[3] = 0;
-
+#else
+            if (rlen == 4) {
+                if (!(s->command & SD_CMDR_RESPONSE_LONG)) {
+                    s->response[0] = ldl_be_p(&resp[0]);
+                    s->response[1] = s->response[2] = s->response[3] = 0;
+                } else { // TODO: Check with real hardware
+                    s->response[3] = ldl_be_p(&resp[0]);
+                    s->response[2] = s->response[1] = s->response[0] = 0;
+                }
+#endif
             } else if (rlen == 16 && (s->command & SD_CMDR_RESPONSE_LONG)) {
                 s->response[0] = ldl_be_p(&resp[12]);
                 s->response[1] = ldl_be_p(&resp[8]);
@@ -415,6 +423,51 @@ static void allwinner_sdhost_dma(AwSdHostState *s)
     }
 }
 
+static void allwinner_sdhost_reset(DeviceState *dev)
+{
+    AwSdHostState *s = AW_SDHOST(dev);
+
+    s->global_ctl = REG_SD_GCTL_RST;
+    s->clock_ctl = REG_SD_CKCR_RST;
+    s->timeout = REG_SD_TMOR_RST;
+    s->bus_width = REG_SD_BWDR_RST;
+    s->block_size = REG_SD_BKSR_RST;
+    s->byte_count = REG_SD_BYCR_RST;
+    s->transfer_cnt = 0;
+
+    s->command = REG_SD_CMDR_RST;
+    s->command_arg = REG_SD_CAGR_RST;
+
+    for (int i = 0; i < ARRAY_SIZE(s->response); i++) {
+        s->response[i] = REG_SD_RESP_RST;
+    }
+
+    s->irq_mask = REG_SD_IMKR_RST;
+    s->irq_status = REG_SD_RISR_RST;
+    s->status = REG_SD_STAR_RST;
+
+    s->fifo_wlevel = REG_SD_FWLR_RST;
+    s->fifo_func_sel = REG_SD_FUNS_RST;
+    s->debug_enable = REG_SD_DBGC_RST;
+    s->auto12_arg = REG_SD_A12A_RST;
+    s->newtiming_set = REG_SD_NTSR_RST;
+    s->newtiming_debug = REG_SD_SDBG_RST;
+    s->hardware_rst = REG_SD_HWRST_RST;
+    s->dmac = REG_SD_DMAC_RST;
+    s->desc_base = REG_SD_DLBA_RST;
+    s->dmac_status = REG_SD_IDST_RST;
+    s->dmac_irq = REG_SD_IDIE_RST;
+    s->card_threshold = REG_SD_THLDC_RST;
+    s->startbit_detect = REG_SD_DSBD_RST;
+    s->response_crc = REG_SD_RES_CRC_RST;
+
+    for (int i = 0; i < ARRAY_SIZE(s->data_crc); i++) {
+        s->data_crc[i] = REG_SD_DATA_CRC_RST;
+    }
+
+    s->status_crc = REG_SD_CRC_STA_RST;
+}
+
 static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
@@ -469,11 +522,6 @@ static uint64_t allwinner_sdhost_read(void *opaque, hwaddr offset,
         break;
     case REG_SD_STAR:      /* Status */
         res = s->status;
-        if (sdbus_data_ready(&s->sdbus)) {
-            res |= SD_STAR_FIFO_LEVEL_1;
-        } else {
-            res |= SD_STAR_FIFO_EMPTY;
-        }
         break;
     case REG_SD_FWLR:      /* FIFO Water Level */
         res = s->fifo_wlevel;
@@ -640,7 +688,11 @@ static void allwinner_sdhost_write(void *opaque, hwaddr offset,
         s->newtiming_debug = value;
         break;
     case REG_SD_HWRST:     /* Hardware Reset Register */
-        s->hardware_rst = value;
+        s->hardware_rst = value & 1;
+        if (s->hardware_rst == 0) {
+            allwinner_sdhost_reset(opaque);
+            s->hardware_rst = 0;
+        }
         break;
     case REG_SD_DMAC:      /* Internal DMA Controller Control */
         s->dmac = value;
@@ -766,51 +818,6 @@ static void allwinner_sdhost_realize(DeviceState *dev, Error **errp)
     }
 
     address_space_init(&s->dma_as, s->dma_mr, "sdhost-dma");
-}
-
-static void allwinner_sdhost_reset(DeviceState *dev)
-{
-    AwSdHostState *s = AW_SDHOST(dev);
-
-    s->global_ctl = REG_SD_GCTL_RST;
-    s->clock_ctl = REG_SD_CKCR_RST;
-    s->timeout = REG_SD_TMOR_RST;
-    s->bus_width = REG_SD_BWDR_RST;
-    s->block_size = REG_SD_BKSR_RST;
-    s->byte_count = REG_SD_BYCR_RST;
-    s->transfer_cnt = 0;
-
-    s->command = REG_SD_CMDR_RST;
-    s->command_arg = REG_SD_CAGR_RST;
-
-    for (int i = 0; i < ARRAY_SIZE(s->response); i++) {
-        s->response[i] = REG_SD_RESP_RST;
-    }
-
-    s->irq_mask = REG_SD_IMKR_RST;
-    s->irq_status = REG_SD_RISR_RST;
-    s->status = REG_SD_STAR_RST;
-
-    s->fifo_wlevel = REG_SD_FWLR_RST;
-    s->fifo_func_sel = REG_SD_FUNS_RST;
-    s->debug_enable = REG_SD_DBGC_RST;
-    s->auto12_arg = REG_SD_A12A_RST;
-    s->newtiming_set = REG_SD_NTSR_RST;
-    s->newtiming_debug = REG_SD_SDBG_RST;
-    s->hardware_rst = REG_SD_HWRST_RST;
-    s->dmac = REG_SD_DMAC_RST;
-    s->desc_base = REG_SD_DLBA_RST;
-    s->dmac_status = REG_SD_IDST_RST;
-    s->dmac_irq = REG_SD_IDIE_RST;
-    s->card_threshold = REG_SD_THLDC_RST;
-    s->startbit_detect = REG_SD_DSBD_RST;
-    s->response_crc = REG_SD_RES_CRC_RST;
-
-    for (int i = 0; i < ARRAY_SIZE(s->data_crc); i++) {
-        s->data_crc[i] = REG_SD_DATA_CRC_RST;
-    }
-
-    s->status_crc = REG_SD_CRC_STA_RST;
 }
 
 static void allwinner_sdhost_bus_class_init(ObjectClass *klass, void *data)
