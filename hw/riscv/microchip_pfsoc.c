@@ -583,7 +583,7 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
         riscv_setup_rom_reset_vec(machine, &s->soc.u_cpus, firmware_load_addr,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].base,
                                   memmap[MICROCHIP_PFSOC_ENVM_DATA].size,
-                                  kernel_entry, fdt_load_addr, machine->fdt);
+                                  kernel_entry, fdt_load_addr);
     }
 }
 

@@ -1305,7 +1305,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     riscv_setup_rom_reset_vec(machine, &s->soc[0], start_addr,
                               virt_memmap[VIRT_MROM].base,
                               virt_memmap[VIRT_MROM].size, kernel_entry,
-                              fdt_load_addr, machine->fdt);
+                              fdt_load_addr);
 
     /*
      * Only direct boot kernel is currently supported for KVM VM,
