@@ -43,7 +43,7 @@ _supported_os Linux
 
 inuse_offset=$((0x2c))
 
-size=64M
+size=$((64 * 1024 * 1024))
 CLUSTER_SIZE=64k
 IMGFMT=parallels
 _make_test_img $size
@@ -69,6 +69,39 @@ poke_file "$TEST_IMG" "$inuse_offset" "\x59\x6e\x6f\x74"
 _check_test_img
 _check_test_img -r all
 { $QEMU_IO -c "read -P 0x11 64k 64k" "$TEST_IMG"; } 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo "== allocate with backing =="
+# Verify that allocating clusters works fine even when there is a backing image.
+# Regression test for a bug where we would pass a buffer read from the backing
+# node as a QEMUIOVector object, which could cause anything from I/O errors over
+# assertion failures to invalid reads from memory.
+
+# Clear image
+_make_test_img $size
+# Create base image
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+
+# Write some data to the base image (which would trigger an assertion failure if
+# interpreted as a QEMUIOVector)
+$QEMU_IO -c 'write -P 42 0 64k' "$TEST_IMG.base" | _filter_qemu_io
+
+# Parallels does not seem to support storing a backing filename in the image
+# itself, so we need to build our backing chain on the command line
+imgopts="driver=$IMGFMT,file.driver=$IMGPROTO,file.filename=$TEST_IMG"
+imgopts+=",backing.driver=$IMGFMT"
+imgopts+=",backing.file.driver=$IMGPROTO,backing.file.filename=$TEST_IMG.base"
+
+# Cause allocation in the top image
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
+    $QEMU_IO --image-opts "$imgopts" -c 'write -P 1 0 64' | _filter_qemu_io
+
+# Verify
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
+    $QEMU_IO --image-opts "$imgopts" \
+    -c 'read -P 1 0 64' \
+    -c "read -P 42 64 $((64 * 1024 - 64))" \
+    -c "read -P 0 64k $((size - 64 * 1024))" \
+    | _filter_qemu_io
 
 # success, all done
 echo "*** done"
