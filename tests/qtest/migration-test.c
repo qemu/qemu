@@ -1768,7 +1768,7 @@ static void test_migrate_auto_converge(void)
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     MigrateStart args = {};
     QTestState *from, *to;
-    int64_t remaining, percentage;
+    int64_t percentage;
 
     /*
      * We want the test to be stable and as fast as possible.
@@ -1776,14 +1776,6 @@ static void test_migrate_auto_converge(void)
      * so we need to decrease a bandwidth.
      */
     const int64_t init_pct = 5, inc_pct = 50, max_pct = 95;
-    const int64_t max_bandwidth = 400000000; /* ~400Mb/s */
-    const int64_t downtime_limit = 250; /* 250ms */
-    /*
-     * We migrate through unix-socket (> 500Mb/s).
-     * Thus, expected migration speed ~= bandwidth limit (< 500Mb/s).
-     * So, we can predict expected_threshold
-     */
-    const int64_t expected_threshold = max_bandwidth * downtime_limit / 1000;
 
     if (test_migrate_start(&from, &to, uri, &args)) {
         return;
@@ -1818,8 +1810,7 @@ static void test_migrate_auto_converge(void)
     /* The first percentage of throttling should be equal to init_pct */
     g_assert_cmpint(percentage, ==, init_pct);
     /* Now, when we tested that throttling works, let it converge */
-    migrate_set_parameter_int(from, "downtime-limit", downtime_limit);
-    migrate_set_parameter_int(from, "max-bandwidth", max_bandwidth);
+    migrate_ensure_converge(from);
 
     /*
      * Wait for pre-switchover status to check last throttle percentage
@@ -1830,18 +1821,12 @@ static void test_migrate_auto_converge(void)
     /* The final percentage of throttling shouldn't be greater than max_pct */
     percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
     g_assert_cmpint(percentage, <=, max_pct);
-
-    remaining = read_ram_property_int(from, "remaining");
-    g_assert_cmpint(remaining, <,
-                    (expected_threshold + expected_threshold / 100));
-
     migrate_continue(from, "pre-switchover");
 
     qtest_qmp_eventwait(to, "RESUME");
 
     wait_for_serial("dest_serial");
     wait_for_migration_complete(from);
-
 
     test_migrate_end(from, to, true);
 }
