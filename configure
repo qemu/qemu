@@ -2028,7 +2028,7 @@ probe_target_compiler() {
         ;;
       ppc64|ppc64le)
         container_image=debian-powerpc-test-cross
-        container_cross_prefix=powerpc${1#ppc}-linux-gnu-
+        container_cross_prefix=powerpc${target_arch#ppc}-linux-gnu-
         container_cross_cc=${container_cross_prefix}gcc-10
         ;;
       riscv64)
