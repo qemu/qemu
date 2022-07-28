@@ -1677,8 +1677,8 @@ dbus_display = get_option('dbus_display') \
            error_message: '-display dbus requires --enable-modules') \
   .require(gdbus_codegen.found(),
            error_message: '-display dbus requires gdbus-codegen') \
-  .require(opengl.found(),
-           error_message: '-display dbus requires epoxy/egl') \
+  .require(opengl.found() and gbm.found(),
+           error_message: '-display dbus requires epoxy/egl and gbm') \
   .allowed()
 
 have_virtfs = get_option('virtfs') \
