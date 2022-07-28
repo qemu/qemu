@@ -1,8 +1,9 @@
 /*
- * Allwinner A10 SoC emulation
+ * Allwinner F1 SoC emulation
  *
  * Copyright (C) 2013 Li Guang
  * Written by Li Guang <lig.fnst@cn.fujitsu.com>
+ * Copyright (C) 2022 froloff
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
