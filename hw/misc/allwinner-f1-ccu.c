@@ -2,6 +2,7 @@
  * Allwinner F1 Clock Control Unit emulation
  *
  * Copyright (C) 2019 Niek Linnenbank <nieklinnenbank@gmail.com>
+ * Copyright (C) 2022 froloffAdd missing Copyright 
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
