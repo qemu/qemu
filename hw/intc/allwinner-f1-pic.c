@@ -1,8 +1,9 @@
 /*
- * Allwinner F1100s/F1300s interrupt controller device emulation
+ * Allwinner F1 interrupt controller device emulation
  *
  * Copyright (C) 2013 Li Guang
  * Written by Li Guang <lig.fnst@cn.fujitsu.com>
+ * Copyright (C) 2022 froloff 
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
