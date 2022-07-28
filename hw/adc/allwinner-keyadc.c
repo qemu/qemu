@@ -1,12 +1,10 @@
 /*
  * AllWinner F1 KEYADC Unit emulation
  *
- * Copyright (C) 2021 pecostm32
+ * Copyright (C) 2022 froloff
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Avatar
-pecostm32
-
  * Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
