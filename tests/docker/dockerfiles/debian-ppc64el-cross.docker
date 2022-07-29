@@ -84,6 +84,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libcacard-dev:ppc64el \
             libcap-ng-dev:ppc64el \
             libcapstone-dev:ppc64el \
+            libcmocka-dev:ppc64el \
             libcurl4-gnutls-dev:ppc64el \
             libdaxctl-dev:ppc64el \
             libdrm-dev:ppc64el \
@@ -102,6 +103,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libiscsi-dev:ppc64el \
             libjemalloc-dev:ppc64el \
             libjpeg62-turbo-dev:ppc64el \
+            libjson-c-dev:ppc64el \
             liblttng-ust-dev:ppc64el \
             liblzo2-dev:ppc64el \
             libncursesw5-dev:ppc64el \

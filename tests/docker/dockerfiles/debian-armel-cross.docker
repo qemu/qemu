@@ -84,6 +84,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libcacard-dev:armel \
             libcap-ng-dev:armel \
             libcapstone-dev:armel \
+            libcmocka-dev:armel \
             libcurl4-gnutls-dev:armel \
             libdaxctl-dev:armel \
             libdrm-dev:armel \
@@ -102,6 +103,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libiscsi-dev:armel \
             libjemalloc-dev:armel \
             libjpeg62-turbo-dev:armel \
+            libjson-c-dev:armel \
             liblttng-ust-dev:armel \
             liblzo2-dev:armel \
             libncursesw5-dev:armel \

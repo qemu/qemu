@@ -32,11 +32,13 @@
 
 int qemu_main(int argc, char **argv, char **envp)
 {
+    int status;
+
     qemu_init(argc, argv, envp);
-    qemu_main_loop();
+    status = qemu_main_loop();
     qemu_cleanup();
 
-    return 0;
+    return status;
 }
 
 #ifndef CONFIG_COCOA

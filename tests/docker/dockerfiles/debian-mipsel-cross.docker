@@ -83,6 +83,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libcacard-dev:mipsel \
             libcap-ng-dev:mipsel \
             libcapstone-dev:mipsel \
+            libcmocka-dev:mipsel \
             libcurl4-gnutls-dev:mipsel \
             libdaxctl-dev:mipsel \
             libdrm-dev:mipsel \
@@ -101,6 +102,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libiscsi-dev:mipsel \
             libjemalloc-dev:mipsel \
             libjpeg62-turbo-dev:mipsel \
+            libjson-c-dev:mipsel \
             liblttng-ust-dev:mipsel \
             liblzo2-dev:mipsel \
             libncursesw5-dev:mipsel \

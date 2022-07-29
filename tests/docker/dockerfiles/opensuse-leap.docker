@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all opensuse-leap-152 qemu
+#  $ lcitool dockerfile --layers all opensuse-leap-153 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM registry.opensuse.org/opensuse/leap:15.2
+FROM registry.opensuse.org/opensuse/leap:15.3
 
 RUN zypper update -y && \
     zypper install -y \
@@ -44,6 +44,7 @@ RUN zypper update -y && \
            libbz2-devel \
            libcacard-devel \
            libcap-ng-devel \
+           libcmocka-devel \
            libcurl-devel \
            libdrm-devel \
            libepoxy-devel \
@@ -53,6 +54,7 @@ RUN zypper update -y && \
            libgnutls-devel \
            libiscsi-devel \
            libjpeg8-devel \
+           libjson-c-devel \
            libndctl-devel \
            libnettle-devel \
            libnfs-devel \
@@ -94,7 +96,6 @@ RUN zypper update -y && \
            python3-pip \
            python3-setuptools \
            python3-sphinx_rtd_theme \
-           python3-virtualenv \
            python3-wheel \
            rdma-core-devel \
            rpm \

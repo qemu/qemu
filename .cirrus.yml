@@ -10,7 +10,7 @@ windows_msys2_task:
     memory: 8G
   env:
     CIRRUS_SHELL: powershell
-    MSYS: winsymlinks:nativestrict
+    MSYS: winsymlinks:native
     MSYSTEM: MINGW64
     MSYS2_URL: https://github.com/msys2/msys2-installer/releases/download/2022-05-03/msys2-base-x86_64-20220503.sfx.exe
     MSYS2_FINGERPRINT: 0

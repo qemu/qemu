@@ -6,11 +6,12 @@
 
 FROM quay.io/centos/centos:stream8
 
-RUN dnf update -y && \
+RUN dnf distro-sync -y && \
     dnf install 'dnf-command(config-manager)' -y && \
     dnf config-manager --set-enabled -y powertools && \
     dnf install -y centos-release-advanced-virtualization && \
     dnf install -y epel-release && \
+    dnf install -y epel-next-release && \
     dnf install -y \
         SDL2-devel \
         alsa-lib-devel \
@@ -45,6 +46,7 @@ RUN dnf update -y && \
         gtk3-devel \
         hostname \
         jemalloc-devel \
+        json-c-devel \
         libaio-devel \
         libasan \
         libattr-devel \
@@ -60,7 +62,6 @@ RUN dnf update -y && \
         libgcrypt-devel \
         libiscsi-devel \
         libjpeg-devel \
-        json-c-devel \
         libnfs-devel \
         libpmem-devel \
         libpng-devel \
@@ -99,7 +100,6 @@ RUN dnf update -y && \
         python3-pip \
         python3-sphinx \
         python3-sphinx_rtd_theme \
-        python3-virtualenv \
         rdma-core-devel \
         rpm \
         sed \

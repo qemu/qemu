@@ -84,6 +84,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libcacard-dev:armhf \
             libcap-ng-dev:armhf \
             libcapstone-dev:armhf \
+            libcmocka-dev:armhf \
             libcurl4-gnutls-dev:armhf \
             libdaxctl-dev:armhf \
             libdrm-dev:armhf \
@@ -102,6 +103,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
             libiscsi-dev:armhf \
             libjemalloc-dev:armhf \
             libjpeg62-turbo-dev:armhf \
+            libjson-c-dev:armhf \
             liblttng-ust-dev:armhf \
             liblzo2-dev:armhf \
             libncursesw5-dev:armhf \

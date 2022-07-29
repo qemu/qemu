@@ -23,6 +23,8 @@ centos-stream-8-x86_64:
  - mkdir build
  - cd build
  - ../scripts/ci/org.centos/stream/8/x86_64/configure
+   || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make -j"$JOBS"
  - make NINJA=":" check
+   || { cat meson-logs/testlog.txt; exit 1; } ;
  - ../scripts/ci/org.centos/stream/8/x86_64/test-avocado

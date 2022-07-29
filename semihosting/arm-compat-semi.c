@@ -171,6 +171,12 @@ static LayoutInfo common_semi_find_bases(CPUState *cs)
  * Read the input value from the argument block; fail the semihosting
  * call if the memory read fails. Eventually we could use a generic
  * CPUState helper function here.
+ * Note that GET_ARG() handles memory access errors by jumping to
+ * do_fault, so must be used as the first thing done in handling a
+ * semihosting call, to avoid accidentally leaking allocated resources.
+ * SET_ARG(), since it unavoidably happens late, instead returns an
+ * error indication (0 on success, non-0 for error) which the caller
+ * should check.
  */
 
 #define GET_ARG(n) do {                                 \
@@ -498,16 +504,25 @@ void do_common_semihosting(CPUState *cs)
         GET_ARG(1);
         GET_ARG(2);
         len = asprintf(&s, "/tmp/qemu-%x%02x", getpid(), (int)arg1 & 0xff);
+        if (len < 0) {
+            common_semi_set_ret(cs, -1);
+            break;
+        }
+
+        /* Allow for trailing NUL */
+        len++;
         /* Make sure there's enough space in the buffer */
-        if (len < 0 || len >= arg2) {
+        if (len > arg2) {
+            free(s);
             common_semi_set_ret(cs, -1);
             break;
         }
         p = lock_user(VERIFY_WRITE, arg0, len, 0);
         if (!p) {
+            free(s);
             goto do_fault;
         }
-        memcpy(p, s, len + 1);
+        memcpy(p, s, len);
         unlock_user(p, arg0, len);
         free(s);
         common_semi_set_ret(cs, 0);
@@ -739,10 +754,14 @@ void do_common_semihosting(CPUState *cs)
     case TARGET_SYS_ELAPSED:
         elapsed = get_clock() - clock_start;
         if (sizeof(target_ulong) == 8) {
-            SET_ARG(0, elapsed);
+            if (SET_ARG(0, elapsed)) {
+                goto do_fault;
+            }
         } else {
-            SET_ARG(0, (uint32_t) elapsed);
-            SET_ARG(1, (uint32_t) (elapsed >> 32));
+            if (SET_ARG(0, (uint32_t) elapsed) ||
+                SET_ARG(1, (uint32_t) (elapsed >> 32))) {
+                goto do_fault;
+            }
         }
         common_semi_set_ret(cs, 0);
         break;

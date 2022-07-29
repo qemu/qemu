@@ -627,7 +627,7 @@ static void console_write(CPUState *cs, gdb_syscall_complete_cb complete,
     }
     ret = qemu_semihosting_console_write(ptr, len);
     complete(cs, ret ? ret : -1, ret ? 0 : EIO);
-    unlock_user(ptr, buf, ret);
+    unlock_user(ptr, buf, 0);
 }
 
 static void console_fstat(CPUState *cs, gdb_syscall_complete_cb complete,

@@ -1,20 +1,20 @@
 alpha-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-alpha-cross
 
 amd64-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-amd64-cross
 
 amd64-debian-user-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-all-test-cross
@@ -65,21 +65,21 @@ hexagon-cross-container:
 
 hppa-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-hppa-cross
 
 m68k-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-m68k-cross
 
 mips64-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-mips64-cross
@@ -92,7 +92,7 @@ mips64el-debian-cross-container:
 
 mips-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-mips-cross
@@ -105,7 +105,7 @@ mipsel-debian-cross-container:
 
 powerpc-test-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian11-container']
   variables:
     NAME: debian-powerpc-test-cross
@@ -127,7 +127,7 @@ riscv64-debian-cross-container:
 # we can however build TCG tests using a non-sid base
 riscv64-debian-test-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian11-container']
   variables:
     NAME: debian-riscv64-test-cross
@@ -140,21 +140,21 @@ s390x-debian-cross-container:
 
 sh4-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-sh4-cross
 
 sparc64-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-sparc64-cross
 
 tricore-debian-cross-container:
   extends: .container_job_template
-  stage: containers-layer2
+  stage: containers
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-tricore-cross

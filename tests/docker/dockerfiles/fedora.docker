@@ -53,12 +53,14 @@ exec "$@"' > /usr/bin/nosync && \
         gtk3-devel \
         hostname \
         jemalloc-devel \
+        json-c-devel \
         libaio-devel \
         libasan \
         libattr-devel \
         libbpf-devel \
         libcacard-devel \
         libcap-ng-devel \
+        libcmocka-devel \
         libcurl-devel \
         libdrm-devel \
         libepoxy-devel \
@@ -106,7 +108,6 @@ exec "$@"' > /usr/bin/nosync && \
         python3-pip \
         python3-sphinx \
         python3-sphinx_rtd_theme \
-        python3-virtualenv \
         rdma-core-devel \
         rpm \
         sed \
