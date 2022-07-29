@@ -64,9 +64,7 @@ static abi_ulong get_sigframe(struct target_sigaction *ka,
 
     /* This is the X/Open sanctioned signal stack switching.  */
     sp = target_sigsp(sp, ka) - framesize;
-
-    /* XXX: kernel aligns with 0xf ? */
-    sp &= ~3UL; /* align sp on 4-byte boundary */
+    sp &= ~0xf;
 
     return sp;
 }
