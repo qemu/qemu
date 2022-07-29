@@ -15,7 +15,7 @@
   3A5000 support multiple interrupt cascading while here we just emulate the extioi interrupt
   cascading. LS7A1000 host bridge support multiple devices, such as sata, gmac, uart, rtc
   and so on. But we just realize the rtc. Others use the qemu common devices. It does not affect
-  the general use. We also introduced the emulation of devices at docs/system/loongarch/loongson3.rst.
+  the general use. We also introduced the emulation of devices at docs/system/loongarch/virt.rst.
 
   This version only supports running binary files in ELF format, and does not depend on BIOS and kernel file.
   You can compile the test program with 'make & make check-tcg' and run the test case with the following command:
