@@ -126,12 +126,12 @@ static void fdt_add_fw_cfg_node(const LoongArchMachineState *lams)
 static void fdt_add_pcie_node(const LoongArchMachineState *lams)
 {
     char *nodename;
-    hwaddr base_mmio = LS7A_PCI_MEM_BASE;
-    hwaddr size_mmio = LS7A_PCI_MEM_SIZE;
-    hwaddr base_pio = LS7A_PCI_IO_BASE;
-    hwaddr size_pio = LS7A_PCI_IO_SIZE;
-    hwaddr base_pcie = LS_PCIECFG_BASE;
-    hwaddr size_pcie = LS_PCIECFG_SIZE;
+    hwaddr base_mmio = VIRT_PCI_MEM_BASE;
+    hwaddr size_mmio = VIRT_PCI_MEM_SIZE;
+    hwaddr base_pio = VIRT_PCI_IO_BASE;
+    hwaddr size_pio = VIRT_PCI_IO_SIZE;
+    hwaddr base_pcie = VIRT_PCI_CFG_BASE;
+    hwaddr size_pcie = VIRT_PCI_CFG_SIZE;
     hwaddr base = base_pcie;
 
     const MachineState *ms = MACHINE(lams);
@@ -145,12 +145,12 @@ static void fdt_add_pcie_node(const LoongArchMachineState *lams)
     qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 2);
     qemu_fdt_setprop_cell(ms->fdt, nodename, "linux,pci-domain", 0);
     qemu_fdt_setprop_cells(ms->fdt, nodename, "bus-range", 0,
-                           PCIE_MMCFG_BUS(LS_PCIECFG_SIZE - 1));
+                           PCIE_MMCFG_BUS(VIRT_PCI_CFG_SIZE - 1));
     qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
                                  2, base_pcie, 2, size_pcie);
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "ranges",
-                                 1, FDT_PCI_RANGE_IOPORT, 2, LS7A_PCI_IO_OFFSET,
+                                 1, FDT_PCI_RANGE_IOPORT, 2, VIRT_PCI_IO_OFFSET,
                                  2, base_pio, 2, size_pio,
                                  1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
                                  2, base_mmio, 2, size_mmio);
@@ -313,7 +313,7 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic, LoongArchMachineState 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, VIRT_GED_REG_ADDR);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
-                       qdev_get_gpio_in(pch_pic, LS7A_SCI_IRQ - PCH_PIC_IRQ_OFFSET));
+                       qdev_get_gpio_in(pch_pic, VIRT_SCI_IRQ - PCH_PIC_IRQ_OFFSET));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     return dev;
 }
@@ -336,24 +336,24 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
     ecam_alias = g_new0(MemoryRegion, 1);
     ecam_reg = sysbus_mmio_get_region(d, 0);
     memory_region_init_alias(ecam_alias, OBJECT(gpex_dev), "pcie-ecam",
-                             ecam_reg, 0, LS_PCIECFG_SIZE);
-    memory_region_add_subregion(get_system_memory(), LS_PCIECFG_BASE,
+                             ecam_reg, 0, VIRT_PCI_CFG_SIZE);
+    memory_region_add_subregion(get_system_memory(), VIRT_PCI_CFG_BASE,
                                 ecam_alias);
 
     /* Map PCI mem space */
     mmio_alias = g_new0(MemoryRegion, 1);
     mmio_reg = sysbus_mmio_get_region(d, 1);
     memory_region_init_alias(mmio_alias, OBJECT(gpex_dev), "pcie-mmio",
-                             mmio_reg, LS7A_PCI_MEM_BASE, LS7A_PCI_MEM_SIZE);
-    memory_region_add_subregion(get_system_memory(), LS7A_PCI_MEM_BASE,
+                             mmio_reg, VIRT_PCI_MEM_BASE, VIRT_PCI_MEM_SIZE);
+    memory_region_add_subregion(get_system_memory(), VIRT_PCI_MEM_BASE,
                                 mmio_alias);
 
     /* Map PCI IO port space. */
     pio_alias = g_new0(MemoryRegion, 1);
     pio_reg = sysbus_mmio_get_region(d, 2);
     memory_region_init_alias(pio_alias, OBJECT(gpex_dev), "pcie-io", pio_reg,
-                             LS7A_PCI_IO_OFFSET, LS7A_PCI_IO_SIZE);
-    memory_region_add_subregion(get_system_memory(), LS7A_PCI_IO_BASE,
+                             VIRT_PCI_IO_OFFSET, VIRT_PCI_IO_SIZE);
+    memory_region_add_subregion(get_system_memory(), VIRT_PCI_IO_BASE,
                                 pio_alias);
 
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
@@ -362,9 +362,9 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
         gpex_set_irq_num(GPEX_HOST(gpex_dev), i, 16 + i);
     }
 
-    serial_mm_init(get_system_memory(), LS7A_UART_BASE, 0,
+    serial_mm_init(get_system_memory(), VIRT_UART_BASE, 0,
                    qdev_get_gpio_in(pch_pic,
-                                    LS7A_UART_IRQ - PCH_PIC_IRQ_OFFSET),
+                                    VIRT_UART_IRQ - PCH_PIC_IRQ_OFFSET),
                    115200, serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     /* Network init */
@@ -386,9 +386,9 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
      * Create some unimplemented devices to emulate this.
      */
     create_unimplemented_device("pci-dma-cfg", 0x1001041c, 0x4);
-    sysbus_create_simple("ls7a_rtc", LS7A_RTC_REG_BASE,
+    sysbus_create_simple("ls7a_rtc", VIRT_RTC_REG_BASE,
                          qdev_get_gpio_in(pch_pic,
-                         LS7A_RTC_IRQ - PCH_PIC_IRQ_OFFSET));
+                         VIRT_RTC_IRQ - PCH_PIC_IRQ_OFFSET));
 
     pm_mem = g_new(MemoryRegion, 1);
     memory_region_init_io(pm_mem, NULL, &loongarch_virt_pm_ops,
@@ -472,13 +472,13 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     pch_pic = qdev_new(TYPE_LOONGARCH_PCH_PIC);
     d = SYS_BUS_DEVICE(pch_pic);
     sysbus_realize_and_unref(d, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), LS7A_IOAPIC_REG_BASE,
+    memory_region_add_subregion(get_system_memory(), VIRT_IOAPIC_REG_BASE,
                             sysbus_mmio_get_region(d, 0));
     memory_region_add_subregion(get_system_memory(),
-                            LS7A_IOAPIC_REG_BASE + PCH_PIC_ROUTE_ENTRY_OFFSET,
+                            VIRT_IOAPIC_REG_BASE + PCH_PIC_ROUTE_ENTRY_OFFSET,
                             sysbus_mmio_get_region(d, 1));
     memory_region_add_subregion(get_system_memory(),
-                            LS7A_IOAPIC_REG_BASE + PCH_PIC_INT_STATUS_LO,
+                            VIRT_IOAPIC_REG_BASE + PCH_PIC_INT_STATUS_LO,
                             sysbus_mmio_get_region(d, 2));
 
     /* Connect 64 pch_pic irqs to extioi */
@@ -490,7 +490,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     qdev_prop_set_uint32(pch_msi, "msi_irq_base", PCH_MSI_IRQ_START);
     d = SYS_BUS_DEVICE(pch_msi);
     sysbus_realize_and_unref(d, &error_fatal);
-    sysbus_mmio_map(d, 0, LS7A_PCH_MSI_ADDR_LOW);
+    sysbus_mmio_map(d, 0, VIRT_PCH_MSI_ADDR_LOW);
     for (i = 0; i < PCH_MSI_IRQ_NUM; i++) {
         /* Connect 192 pch_msi irqs to extioi */
         qdev_connect_gpio_out(DEVICE(d), i,
@@ -666,8 +666,8 @@ static void loongarch_init(MachineState *machine)
     memmap_add_entry(0x90000000, highram_size, 1);
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
-                             get_system_io(), 0, LOONGARCH_ISA_IO_SIZE);
-    memory_region_add_subregion(address_space_mem, LOONGARCH_ISA_IO_BASE,
+                             get_system_io(), 0, VIRT_ISA_IO_SIZE);
+    memory_region_add_subregion(address_space_mem, VIRT_ISA_IO_BASE,
                                 &lams->isa_io);
     /* load the BIOS image. */
     loongarch_firmware_init(lams);
@@ -706,9 +706,9 @@ static void loongarch_init(MachineState *machine)
 
     /* load fdt */
     MemoryRegion *fdt_rom = g_new(MemoryRegion, 1);
-    memory_region_init_rom(fdt_rom, NULL, "fdt", LA_FDT_SIZE, &error_fatal);
-    memory_region_add_subregion(get_system_memory(), LA_FDT_BASE, fdt_rom);
-    rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, LA_FDT_BASE);
+    memory_region_init_rom(fdt_rom, NULL, "fdt", VIRT_FDT_SIZE, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), VIRT_FDT_BASE, fdt_rom);
+    rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, VIRT_FDT_BASE);
 }
 
 bool loongarch_is_acpi_enabled(LoongArchMachineState *lams)

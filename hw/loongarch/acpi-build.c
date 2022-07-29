@@ -135,7 +135,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
     build_append_int_noprefix(table_data, 21, 1);        /* Type */
     build_append_int_noprefix(table_data, 19, 1);        /* Length */
     build_append_int_noprefix(table_data, 1, 1);         /* Version */
-    build_append_int_noprefix(table_data, LS7A_PCH_MSI_ADDR_LOW, 8);/* Address */
+    build_append_int_noprefix(table_data, VIRT_PCH_MSI_ADDR_LOW, 8);/* Address */
     build_append_int_noprefix(table_data, 0x40, 4);      /* Start */
     build_append_int_noprefix(table_data, 0xc0, 4);      /* Count */
 
@@ -143,7 +143,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, LoongArchMachineState *lams)
     build_append_int_noprefix(table_data, 22, 1);        /* Type */
     build_append_int_noprefix(table_data, 17, 1);        /* Length */
     build_append_int_noprefix(table_data, 1, 1);         /* Version */
-    build_append_int_noprefix(table_data, LS7A_PCH_REG_BASE, 8);/* Address */
+    build_append_int_noprefix(table_data, VIRT_PCH_REG_BASE, 8);/* Address */
     build_append_int_noprefix(table_data, 0x1000, 2);    /* Size */
     build_append_int_noprefix(table_data, 0, 2);         /* Id */
     build_append_int_noprefix(table_data, 0x40, 2);      /* Base */
@@ -307,7 +307,7 @@ static void build_uart_device_aml(Aml *table)
     Aml *dev;
     Aml *crs;
     Aml *pkg0, *pkg1, *pkg2;
-    uint32_t uart_irq = LS7A_UART_IRQ;
+    uint32_t uart_irq = VIRT_UART_IRQ;
 
     Aml *scope = aml_scope("_SB");
     dev = aml_device("COMA");
@@ -367,7 +367,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     if (lams->acpi_ged) {
         build_ged_aml(dsdt, "\\_SB."GED_DEVICE,
                       HOTPLUG_HANDLER(lams->acpi_ged),
-                      LS7A_SCI_IRQ - PCH_PIC_IRQ_OFFSET, AML_SYSTEM_MEMORY,
+                      VIRT_SCI_IRQ - PCH_PIC_IRQ_OFFSET, AML_SYSTEM_MEMORY,
                       VIRT_GED_EVT_ADDR);
     }
 
@@ -385,9 +385,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     aml_append(crs,
         aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                          AML_CACHEABLE, AML_READ_WRITE,
-                         0, LS7A_PCI_MEM_BASE,
-                         LS7A_PCI_MEM_BASE + LS7A_PCI_MEM_SIZE - 1,
-                         0, LS7A_PCI_MEM_BASE));
+                         0, VIRT_PCI_MEM_BASE,
+                         VIRT_PCI_MEM_BASE + VIRT_PCI_MEM_SIZE - 1,
+                         0, VIRT_PCI_MEM_BASE));
     aml_append(scope, aml_name_decl("_CRS", crs));
     aml_append(dsdt, scope);
 
@@ -462,8 +462,8 @@ static void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     acpi_add_table(table_offsets, tables_blob);
     {
         AcpiMcfgInfo mcfg = {
-           .base = cpu_to_le64(LS_PCIECFG_BASE),
-           .size = cpu_to_le64(LS_PCIECFG_SIZE),
+           .base = cpu_to_le64(VIRT_PCI_CFG_BASE),
+           .size = cpu_to_le64(VIRT_PCI_CFG_SIZE),
         };
         build_mcfg(tables_blob, tables->linker, &mcfg, lams->oem_id,
                    lams->oem_table_id);
