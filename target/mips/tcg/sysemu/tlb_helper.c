@@ -1056,6 +1056,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
     case EXCP_SEMIHOST:
         cs->exception_index = EXCP_NONE;
         mips_semihosting(env);
+        env->active_tc.PC += env->error_code;
         return;
     case EXCP_DSS:
         env->CP0_Debug |= 1 << CP0DB_DSS;

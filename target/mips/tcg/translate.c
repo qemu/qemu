@@ -1213,9 +1213,6 @@ TCGv_i64 fpu_f64[32];
 
 #include "exec/gen-icount.h"
 
-#define DISAS_STOP       DISAS_TARGET_0
-#define DISAS_EXIT       DISAS_TARGET_1
-
 static const char regnames_HI[][4] = {
     "HI0", "HI1", "HI2", "HI3",
 };
@@ -13902,7 +13899,7 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
         break;
     case R6_OPC_SDBBP:
         if (is_uhi(extract32(ctx->opcode, 6, 20))) {
-            generate_exception_end(ctx, EXCP_SEMIHOST);
+            ctx->base.is_jmp = DISAS_SEMIHOST;
         } else {
             if (ctx->hflags & MIPS_HFLAG_SBRI) {
                 gen_reserved_instruction(ctx);
@@ -14314,7 +14311,7 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_SDBBP:
         if (is_uhi(extract32(ctx->opcode, 6, 20))) {
-            generate_exception_end(ctx, EXCP_SEMIHOST);
+            ctx->base.is_jmp = DISAS_SEMIHOST;
         } else {
             /*
              * XXX: not clear which exception should be raised
@@ -16097,6 +16094,9 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     }
     if (is_slot) {
         gen_branch(ctx, insn_bytes);
+    }
+    if (ctx->base.is_jmp == DISAS_SEMIHOST) {
+        generate_exception_err(ctx, EXCP_SEMIHOST, insn_bytes);
     }
     ctx->base.pc_next += insn_bytes;
 
