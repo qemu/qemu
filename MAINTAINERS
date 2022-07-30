@@ -1129,7 +1129,7 @@ Virt
 M: Xiaojuan Yang <yangxiaojuan@loongson.cn>
 M: Song Gao <gaosong@loongson.cn>
 S: Maintained
-F: docs/system/loongarch/loongson3.rst
+F: docs/system/loongarch/virt.rst
 F: configs/targets/loongarch64-softmmu.mak
 F: configs/devices/loongarch64-softmmu/default.mak
 F: hw/loongarch/
