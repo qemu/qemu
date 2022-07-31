@@ -158,7 +158,11 @@ struct PowerPCCPUClass {
     void (*parent_parse_features)(const char *type, char *str, Error **errp);
 
     uint32_t pvr;
-    bool (*pvr_match)(struct PowerPCCPUClass *pcc, uint32_t pvr);
+    /*
+     * If @best is false, match if pcc is in the family of pvr
+     * Else match only if pcc is the best match for pvr in this family.
+     */
+    bool (*pvr_match)(struct PowerPCCPUClass *pcc, uint32_t pvr, bool best);
     uint64_t pcr_mask;          /* Available bits in PCR register */
     uint64_t pcr_supported;     /* Bits for supported PowerISA versions */
     uint32_t svr;
