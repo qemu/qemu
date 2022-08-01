@@ -498,6 +498,49 @@ static void test_vsubuwsat_dv(void)
     check_output_w(__LINE__, 2);
 }
 
+static void test_vshuff(void)
+{
+    /* Test that vshuff works when the two operands are the same register */
+    const uint32_t splat = 0x089be55c;
+    const uint32_t shuff = 0x454fa926;
+    MMVector v0, v1;
+
+    memset(expect, 0x12, sizeof(MMVector));
+    memset(output, 0x34, sizeof(MMVector));
+
+    asm volatile("v25 = vsplat(%0)\n\t"
+                 "vshuff(v25, v25, %1)\n\t"
+                 "vmem(%2 + #0) = v25\n\t"
+                 : /* no outputs */
+                 : "r"(splat), "r"(shuff), "r"(output)
+                 : "v25", "memory");
+
+    /*
+     * The semantics of Hexagon are the operands are pass-by-value, so create
+     * two copies of the vsplat result.
+     */
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; i++) {
+        v0.uw[i] = splat;
+        v1.uw[i] = splat;
+    }
+    /* Do the vshuff operation */
+    for (int offset = 1; offset < MAX_VEC_SIZE_BYTES; offset <<= 1) {
+        if (shuff & offset) {
+            for (int k = 0; k < MAX_VEC_SIZE_BYTES; k++) {
+                if (!(k & offset)) {
+                    uint8_t tmp = v0.ub[k];
+                    v0.ub[k] = v1.ub[k + offset];
+                    v1.ub[k + offset] = tmp;
+                }
+            }
+        }
+    }
+    /* Put the result in the expect buffer for verification */
+    expect[0] = v1;
+
+    check_output_b(__LINE__, 1);
+}
+
 int main()
 {
     init_buffers();
@@ -532,6 +575,8 @@ int main()
 
     test_vadduwsat();
     test_vsubuwsat_dv();
+
+    test_vshuff();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

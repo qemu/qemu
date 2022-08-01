@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -164,7 +164,9 @@ def genptr_decl(f, tag, regtype, regid, regno):
                 (regtype, regid, regno))
             f.write("    const intptr_t %s%sV_off =\n" % \
                 (regtype, regid))
-            if (hex_common.is_tmp_result(tag)):
+            if (regid == "y"):
+                f.write("        offsetof(CPUHexagonState, vtmp);\n")
+            elif (hex_common.is_tmp_result(tag)):
                 f.write("        ctx_tmp_vreg_off(ctx, %s%sN, 1, true);\n" % \
                     (regtype, regid))
             else:
@@ -379,9 +381,6 @@ def genptr_src_read(f, tag, regtype, regid):
             f.write("        vreg_src_off(ctx, %s%sN),\n" % \
                              (regtype, regid))
             f.write("        sizeof(MMVector), sizeof(MMVector));\n")
-            if (not hex_common.skip_qemu_helper(tag)):
-                f.write("    tcg_gen_addi_ptr(%s%sV, cpu_env, %s%sV_off);\n" % \
-                                 (regtype, regid, regtype, regid))
         else:
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "Q"):
