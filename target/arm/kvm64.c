@@ -675,7 +675,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         }
     }
 
-    sve_supported = ioctl(fdarray[0], KVM_CHECK_EXTENSION, KVM_CAP_ARM_SVE) > 0;
+    sve_supported = kvm_arm_sve_supported();
 
     /* Add feature bits that can't appear until after VCPU init. */
     if (sve_supported) {
