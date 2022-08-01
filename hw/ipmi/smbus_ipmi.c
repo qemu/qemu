@@ -281,7 +281,9 @@ static int ipmi_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
              */
             send = true;
         }
-        memcpy(sid->inmsg + sid->inlen, buf, len);
+        if (len > 0) {
+            memcpy(sid->inmsg + sid->inlen, buf, len);
+        }
         sid->inlen += len;
         break;
     }
