@@ -79,7 +79,7 @@ def add_visual_margin(
     :param content: The text to wrap and decorate.
     :param width:
         The number of columns to use, including for the decoration
-        itself. The default (None) uses the the available width of the
+        itself. The default (None) uses the available width of the
         current terminal, or a fallback of 72 lines. A negative number
         subtracts a fixed-width from the default size. The default obeys
         the COLUMNS environment variable, if set.

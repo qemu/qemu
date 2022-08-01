@@ -29,7 +29,7 @@ help:
 	@echo "    Performs no environment setup of any kind."
 	@echo ""
 	@echo "make develop:"
-	@echo "    Install deps needed for for 'make check',"
+	@echo "    Install deps needed for 'make check',"
 	@echo "    and install the qemu package in editable mode."
 	@echo "    (Can be used in or outside of a venv.)"
 	@echo ""

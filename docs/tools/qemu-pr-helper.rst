@@ -21,8 +21,8 @@ programs because incorrect usage can disrupt regular operation of the
 storage fabric. QEMU's SCSI passthrough devices ``scsi-block``
 and ``scsi-generic`` support passing guest persistent reservation
 requests to a privileged external helper program. :program:`qemu-pr-helper`
-is that external helper; it creates a socket which QEMU can
-connect to to communicate with it.
+is that external helper; it creates a listener socket which will
+accept incoming connections for communication with QEMU.
 
 If you want to run VMs in a setup like this, this helper should be
 started as a system service, and you should read the QEMU manual

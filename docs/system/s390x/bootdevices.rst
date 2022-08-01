@@ -65,7 +65,7 @@ you can specify it via the ``-global s390-ipl.netboot_fw=filename``
 command line option.
 
 The ``bootindex`` property is especially important for booting via the network.
-If you don't specify the the ``bootindex`` property here, the network bootloader
+If you don't specify the ``bootindex`` property here, the network bootloader
 firmware code won't get loaded into the guest memory so that the network boot
 will fail. For a successful network boot, try something like this::
 

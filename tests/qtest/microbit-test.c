@@ -447,11 +447,11 @@ static void test_nrf51_timer(void)
 
     timer_set_bitmode(qts, NRF51_TIMER_WIDTH_16); /* 16 MHz Timer */
     timer_set_prescaler(qts, 0);
-    /* Swept over in first step */
+    /* Swept over, during the first step */
     timer_set_cc(qts, 0, 2);
-    /* Barely miss on first step */
+    /* Barely miss, after the second step */
     timer_set_cc(qts, 1, 162);
-    /* Spot on on third step */
+    /* Spot on, after the third step */
     timer_set_cc(qts, 2, 480);
 
     timer_assert_events(qts, 0, 0, 0, 0);

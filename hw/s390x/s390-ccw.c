@@ -57,7 +57,7 @@ IOInstEnding s390_ccw_store(SubchDev *sch)
 
     /*
      * This code is called for both virtual and passthrough devices,
-     * but only applies to to the latter.  This ugly check makes that
+     * but only applies to the latter.  This ugly check makes that
      * distinction for us.
      */
     if (object_dynamic_cast(OBJECT(sch->driver_data), TYPE_S390_CCW)) {

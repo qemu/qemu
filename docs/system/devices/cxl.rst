@@ -15,7 +15,7 @@ with CXL Host Bridges, which have CXL Root Ports which may be directly
 attached to CXL or PCI End Points. Alternatively there may be CXL Switches
 with CXL and PCI Endpoints attached below them.  In many cases additional
 control and capabilities are exposed via PCI Express interfaces.
-This sharing of interfaces and hence emulation code is is reflected
+This sharing of interfaces and hence emulation code is reflected
 in how the devices are emulated in QEMU. In most cases the various
 CXL elements are built upon an equivalent PCIe devices.
 

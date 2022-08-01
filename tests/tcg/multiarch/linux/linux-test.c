@@ -263,7 +263,7 @@ static int server_socket(void)
     sockaddr.sin_port = htons(0); /* choose random ephemeral port) */
     sockaddr.sin_addr.s_addr = 0;
     chk_error(bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)));
-    chk_error(listen(fd, 0));
+    chk_error(listen(fd, 1));
     return fd;
 
 }

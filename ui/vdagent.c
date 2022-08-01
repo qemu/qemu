@@ -544,7 +544,7 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
     if (size > sizeof(uint32_t) * 10) {
         /*
          * spice has 6 types as of 2021. Limiting to 10 entries
-         * so we we have some wiggle room.
+         * so we have some wiggle room.
          */
         return;
     }

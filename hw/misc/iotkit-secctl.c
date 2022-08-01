@@ -114,7 +114,7 @@ static const uint8_t iotkit_secctl_ns_sse300_idregs[] = {
  * AHB expansion, APB expansion) are all set up so that they are
  * in 16-aligned blocks so offsets 0xN0, 0xN4, 0xN8, 0xNC are PPCs
  * 0, 1, 2, 3 of that type, so we can convert a register address offset
- * into an an index into a PPC array easily.
+ * into an index into a PPC array easily.
  */
 static inline int offset_to_ppc_idx(uint32_t offset)
 {

@@ -237,7 +237,7 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
             r = s->ewctrl;
             break;
         case ARMSSE_SSE300:
-            /* In SSE300 this offset is is NMI_ENABLE */
+            /* In SSE300 this offset is NMI_ENABLE */
             r = s->nmi_enable;
             break;
         default:
@@ -555,7 +555,7 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             s->ewctrl = value;
             break;
         case ARMSSE_SSE300:
-            /* In SSE300 this offset is is NMI_ENABLE */
+            /* In SSE300 this offset is NMI_ENABLE */
             qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl NMI_ENABLE unimplemented\n");
             s->nmi_enable = value;
             break;

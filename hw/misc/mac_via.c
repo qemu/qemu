@@ -587,7 +587,7 @@ static void adb_via_poll(void *opaque)
         /*
          * For older Linux kernels that switch to IDLE mode after sending the
          * ADB command, detect if there is an existing response and return that
-         * as a a "fake" autopoll reply or bus timeout accordingly
+         * as a "fake" autopoll reply or bus timeout accordingly
          */
         *data = v1s->adb_data_out[0];
         olen = v1s->adb_data_in_size;

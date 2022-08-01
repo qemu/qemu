@@ -274,7 +274,7 @@ static void omap_eac_format_update(struct omap_eac_s *s)
     fmt.freq = s->codec.rate;
     /* TODO: signedness possibly depends on the CODEC hardware - or
      * does I2S specify it?  */
-    /* All register writes are 16 bits so we we store 16-bit samples
+    /* All register writes are 16 bits so we store 16-bit samples
      * in the buffers regardless of AGCFR[B8_16] value.  */
     fmt.fmt = AUDIO_FORMAT_U16;
 
