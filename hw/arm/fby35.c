@@ -72,11 +72,13 @@ static void fby35_bmc_init(Fby35State *s)
 {
     DriveInfo *drive0 = drive_get(IF_MTD, 0, 0);
 
-    memory_region_init(&s->bmc_memory, OBJECT(s), "bmc-memory", UINT64_MAX);
-    memory_region_init_ram(&s->bmc_dram, OBJECT(s), "bmc-dram",
+    object_initialize_child(OBJECT(s), "bmc", &s->bmc, "ast2600-a3");
+
+    memory_region_init(&s->bmc_memory, OBJECT(&s->bmc), "bmc-memory",
+                       UINT64_MAX);
+    memory_region_init_ram(&s->bmc_dram, OBJECT(&s->bmc), "bmc-dram",
                            FBY35_BMC_RAM_SIZE, &error_abort);
 
-    object_initialize_child(OBJECT(s), "bmc", &s->bmc, "ast2600-a3");
     object_property_set_int(OBJECT(&s->bmc), "ram-size", FBY35_BMC_RAM_SIZE,
                             &error_abort);
     object_property_set_link(OBJECT(&s->bmc), "memory", OBJECT(&s->bmc_memory),
@@ -120,9 +122,11 @@ static void fby35_bic_init(Fby35State *s)
     s->bic_sysclk = clock_new(OBJECT(s), "SYSCLK");
     clock_set_hz(s->bic_sysclk, 200000000ULL);
 
-    memory_region_init(&s->bic_memory, OBJECT(s), "bic-memory", UINT64_MAX);
-
     object_initialize_child(OBJECT(s), "bic", &s->bic, "ast1030-a1");
+
+    memory_region_init(&s->bic_memory, OBJECT(&s->bic), "bic-memory",
+                       UINT64_MAX);
+
     qdev_connect_clock_in(DEVICE(&s->bic), "sysclk", s->bic_sysclk);
     object_property_set_link(OBJECT(&s->bic), "memory", OBJECT(&s->bic_memory),
                              &error_abort);
