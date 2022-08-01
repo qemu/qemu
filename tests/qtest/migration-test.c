@@ -2425,6 +2425,7 @@ int main(int argc, char **argv)
     char template[] = "/tmp/migration-test-XXXXXX";
     const bool has_kvm = qtest_has_accel("kvm");
     const bool has_uffd = ufd_version_check();
+    const char *arch = qtest_get_arch();
     int ret;
 
     g_test_init(&argc, &argv, NULL);
@@ -2434,7 +2435,7 @@ int main(int argc, char **argv)
      * is touchy due to race conditions on dirty bits (especially on PPC for
      * some reason)
      */
-    if (g_str_equal(qtest_get_arch(), "ppc64") &&
+    if (g_str_equal(arch, "ppc64") &&
         (!has_kvm || access("/sys/module/kvm_hv", F_OK))) {
         g_test_message("Skipping test: kvm_hv not available");
         return g_test_run();
@@ -2444,7 +2445,7 @@ int main(int argc, char **argv)
      * Similar to ppc64, s390x seems to be touchy with TCG, so disable it
      * there until the problems are resolved
      */
-    if (g_str_equal(qtest_get_arch(), "s390x") && !has_kvm) {
+    if (g_str_equal(arch, "s390x") && !has_kvm) {
         g_test_message("Skipping test: s390x host with KVM is required");
         return g_test_run();
     }
@@ -2559,7 +2560,7 @@ int main(int argc, char **argv)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
-    if (kvm_dirty_ring_supported()) {
+    if (g_str_equal(arch, "x86_64") && has_kvm && kvm_dirty_ring_supported()) {
         qtest_add_func("/migration/dirty_ring",
                        test_precopy_unix_dirty_ring);
         qtest_add_func("/migration/vcpu_dirty_limit",
