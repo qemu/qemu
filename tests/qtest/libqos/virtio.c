@@ -101,6 +101,8 @@ uint64_t qvirtio_get_features(QVirtioDevice *d)
 
 void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
 {
+    g_assert(!(features & QVIRTIO_F_BAD_FEATURE));
+
     d->features = features;
     d->bus->set_features(d, features);
 
