@@ -32,4 +32,13 @@
  */
 int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6);
 
+/*
+ * @has_afunix: set to true on return if unix socket support is available
+ *
+ * Check whether unix domain socket support is available for use.
+ * On success, @has_afunix will be set to indicate whether AF_UNIX protocol
+ * is available.
+ */
+void socket_check_afunix_support(bool *has_afunix);
+
 #endif
