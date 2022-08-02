@@ -26,6 +26,7 @@
 #include "libqos/virtio-pci.h"
 
 #include "libqos/malloc-pc.h"
+#include "libqos/qgraph_internal.h"
 #include "hw/virtio/virtio-net.h"
 
 #include "standard-headers/linux/vhost_types.h"
@@ -316,7 +317,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     }
 
     if (size != VHOST_USER_HDR_SIZE) {
-        g_test_message("Wrong message size received %d", size);
+        qos_printf("%s: Wrong message size received %d\n", __func__, size);
         return;
     }
 
@@ -327,8 +328,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         p += VHOST_USER_HDR_SIZE;
         size = qemu_chr_fe_read_all(chr, p, msg.size);
         if (size != msg.size) {
-            g_test_message("Wrong message size received %d != %d",
-                           size, msg.size);
+            qos_printf("%s: Wrong message size received %d != %d\n",
+                       __func__, size, msg.size);
             return;
         }
     }
@@ -450,7 +451,7 @@ static const char *init_hugepagefs(void)
     }
 
     if (access(path, R_OK | W_OK | X_OK)) {
-        g_test_message("access on path (%s): %s", path, strerror(errno));
+        qos_printf("access on path (%s): %s", path, strerror(errno));
         g_test_fail();
         return NULL;
     }
@@ -460,13 +461,13 @@ static const char *init_hugepagefs(void)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        g_test_message("statfs on path (%s): %s", path, strerror(errno));
+        qos_printf("statfs on path (%s): %s", path, strerror(errno));
         g_test_fail();
         return NULL;
     }
 
     if (fs.f_type != HUGETLBFS_MAGIC) {
-        g_test_message("Warning: path not on HugeTLBFS: %s", path);
+        qos_printf("Warning: path not on HugeTLBFS: %s", path);
         g_test_fail();
         return NULL;
     }

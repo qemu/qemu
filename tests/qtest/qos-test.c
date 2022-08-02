@@ -321,6 +321,11 @@ static void walk_path(QOSGraphNode *orig_path, int len)
 int main(int argc, char **argv, char** envp)
 {
     g_test_init(&argc, &argv, NULL);
+
+    if (g_test_subprocess()) {
+        qos_printf("qos_test running single test in subprocess\n");
+    }
+
     if (g_test_verbose()) {
         qos_printf("ENVIRONMENT VARIABLES: {\n");
         for (char **env = envp; *env != 0; env++) {
