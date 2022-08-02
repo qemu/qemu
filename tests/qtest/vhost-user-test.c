@@ -985,8 +985,7 @@ static void test_multiqueue(void *obj, void *arg, QGuestAllocator *alloc)
 static void vu_net_set_features(TestServer *s, CharBackend *chr,
         VhostUserMsg *msg)
 {
-    g_assert_cmpint(msg->payload.u64 &
-            (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES), !=, 0ULL);
+    g_assert(msg->payload.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES));
     if (s->test_flags == TEST_FLAGS_DISCONNECT) {
         qemu_chr_fe_disconnect(chr);
         s->test_flags = TEST_FLAGS_BAD;
