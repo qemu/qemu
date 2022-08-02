@@ -150,7 +150,12 @@ void hd_geometry_guess(BlockBackend *blk,
         translation = BIOS_ATA_TRANSLATION_NONE;
     }
     if (ptrans) {
-        *ptrans = translation;
+        if (*ptrans == BIOS_ATA_TRANSLATION_AUTO) {
+            *ptrans = translation;
+        } else {
+            /* Defer to the translation specified by the user.  */
+            translation = *ptrans;
+        }
     }
     trace_hd_geometry_guess(blk, *pcyls, *pheads, *psecs, translation);
 }

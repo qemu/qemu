@@ -279,7 +279,11 @@ bool qemu_mutex_iothread_locked(void);
  */
 bool qemu_in_main_thread(void);
 
-/* Mark and check that the function is part of the global state API. */
+/*
+ * Mark and check that the function is part of the Global State API.
+ * Please refer to include/block/block-global-state.h for more
+ * information about GS API.
+ */
 #ifdef CONFIG_COCOA
 /*
  * When using the Cocoa UI, addRemovableDevicesMenuItems() is called from
@@ -298,13 +302,21 @@ bool qemu_in_main_thread(void);
     } while (0)
 #endif /* CONFIG_COCOA */
 
-/* Mark and check that the function is part of the I/O API. */
+/*
+ * Mark and check that the function is part of the I/O API.
+ * Please refer to include/block/block-io.h for more
+ * information about IO API.
+ */
 #define IO_CODE()                                                   \
     do {                                                            \
         /* nop */                                                   \
     } while (0)
 
-/* Mark and check that the function is part of the "I/O OR GS" API. */
+/*
+ * Mark and check that the function is part of the "I/O OR GS" API.
+ * Please refer to include/block/block-io.h for more
+ * information about "IO or GS" API.
+ */
 #define IO_OR_GS_CODE()                                             \
     do {                                                            \
         /* nop */                                                   \

@@ -982,7 +982,7 @@ _require_large_file()
 #
 _require_devices()
 {
-    available=$($QEMU -M none -device help | \
+    available=$($QEMU -M none -device help 2> /dev/null | \
                 grep ^name | sed -e 's/^name "//' -e 's/".*$//')
     for device
     do
@@ -994,7 +994,7 @@ _require_devices()
 
 _require_one_device_of()
 {
-    available=$($QEMU -M none -device help | \
+    available=$($QEMU -M none -device help 2> /dev/null | \
                 grep ^name | sed -e 's/^name "//' -e 's/".*$//')
     for device
     do

@@ -1193,7 +1193,7 @@ static int vduse_dev_init(VduseDev *dev, const char *name,
     return 0;
 }
 
-static inline bool vduse_name_is_valid(const char *name)
+static inline bool vduse_name_is_invalid(const char *name)
 {
     return strlen(name) >= VDUSE_NAME_MAX || strstr(name, "..");
 }
@@ -1242,7 +1242,7 @@ VduseDev *vduse_dev_create_by_name(const char *name, uint16_t num_queues,
     VduseDev *dev;
     int ret;
 
-    if (!name || vduse_name_is_valid(name) || !ops ||
+    if (!name || vduse_name_is_invalid(name) || !ops ||
         !ops->enable_queue || !ops->disable_queue) {
         fprintf(stderr, "Invalid parameter for vduse\n");
         return NULL;
@@ -1257,7 +1257,7 @@ VduseDev *vduse_dev_create_by_name(const char *name, uint16_t num_queues,
     ret = vduse_dev_init(dev, name, num_queues, ops, priv);
     if (ret < 0) {
         fprintf(stderr, "Failed to init vduse device %s: %s\n",
-                name, strerror(ret));
+                name, strerror(-ret));
         free(dev);
         return NULL;
     }
@@ -1276,7 +1276,7 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
     struct vduse_dev_config *dev_config;
     size_t size = offsetof(struct vduse_dev_config, config);
 
-    if (!name || vduse_name_is_valid(name) ||
+    if (!name || vduse_name_is_invalid(name) ||
         !has_feature(features,  VIRTIO_F_VERSION_1) || !config ||
         !config_size || !ops || !ops->enable_queue || !ops->disable_queue) {
         fprintf(stderr, "Invalid parameter for vduse\n");
@@ -1309,7 +1309,8 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
         goto err_dev;
     }
 
-    strcpy(dev_config->name, name);
+    strncpy(dev_config->name, name, VDUSE_NAME_MAX);
+    dev_config->name[VDUSE_NAME_MAX - 1] = '\0';
     dev_config->device_id = device_id;
     dev_config->vendor_id = vendor_id;
     dev_config->features = features;
@@ -1330,7 +1331,7 @@ VduseDev *vduse_dev_create(const char *name, uint32_t device_id,
     ret = vduse_dev_init(dev, name, num_queues, ops, priv);
     if (ret < 0) {
         fprintf(stderr, "Failed to init vduse device %s: %s\n",
-                name, strerror(ret));
+                name, strerror(-ret));
         goto err;
     }
 
