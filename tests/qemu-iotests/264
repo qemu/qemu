@@ -101,7 +101,7 @@ class TestNbdReconnect(iotests.QMPTestCase):
         start_t = time.time()
         self.vm.event_wait('BLOCK_JOB_CANCELLED')
         delta_t = time.time() - start_t
-        self.assertTrue(delta_t < 2.0)
+        self.assertTrue(delta_t < 5.0)
 
     def test_mirror_cancel(self):
         # Mirror speed limit doesn't work well enough, it seems that mirror
