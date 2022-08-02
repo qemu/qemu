@@ -144,3 +144,8 @@ virtio_mem_state_response(uint16_t state) "state=%" PRIu16
 virtio_pmem_flush_request(void) "flush request"
 virtio_pmem_response(void) "flush response"
 virtio_pmem_flush_done(int type) "fsync return=%d"
+
+# virtio-gpio.c
+virtio_gpio_start(void) "start"
+virtio_gpio_stop(void) "stop"
+virtio_gpio_set_status(uint8_t status) "0x%x"
