@@ -34,7 +34,7 @@ CFLAGS += -I$(SRC_PATH)/include/qemu
 all: $(SONAMES)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -DCURRENT_PLUGIN=\"$(basename $@)\" -c -o $@ $<
 
 lib%.so: %.o
 	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)
