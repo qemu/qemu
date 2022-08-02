@@ -24,7 +24,12 @@
 #include "qom/object.h"
 #include "hw/virtio/vhost.h"
 
-/* A guest should never accept this.  It implies negotiation is broken. */
+/*
+ * A guest should never accept this. It implies negotiation is broken
+ * between the driver frontend and the device. This bit is re-used for
+ * vhost-user to advertise VHOST_USER_F_PROTOCOL_FEATURES between QEMU
+ * and a vhost-user backend.
+ */
 #define VIRTIO_F_BAD_FEATURE		30
 
 #define VIRTIO_LEGACY_FEATURES ((0x1ULL << VIRTIO_F_BAD_FEATURE) | \
