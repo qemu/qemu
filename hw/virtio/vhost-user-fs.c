@@ -20,6 +20,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "qemu/error-report.h"
+#include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
@@ -124,7 +125,7 @@ static void vuf_set_status(VirtIODevice *vdev, uint8_t status)
     VHostUserFS *fs = VHOST_USER_FS(vdev);
     bool should_start = virtio_device_started(vdev, status);
 
-    if (fs->vhost_dev.started == should_start) {
+    if (vhost_dev_is_started(&fs->vhost_dev) == should_start) {
         return;
     }
 

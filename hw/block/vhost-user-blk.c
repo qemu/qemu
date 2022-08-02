@@ -229,7 +229,7 @@ static void vhost_user_blk_set_status(VirtIODevice *vdev, uint8_t status)
         return;
     }
 
-    if (s->dev.started == should_start) {
+    if (vhost_dev_is_started(&s->dev) == should_start) {
         return;
     }
 
@@ -286,7 +286,7 @@ static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
-    if (s->dev.started) {
+    if (vhost_dev_is_started(&s->dev)) {
         return;
     }
 
@@ -415,6 +415,12 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
              * the vhost migration code. If disconnect was caught there is an
              * option for the general vhost code to get the dev state without
              * knowing its type (in this case vhost-user).
+             *
+             * FIXME: this is sketchy to be reaching into vhost_dev
+             * now because we are forcing something that implies we
+             * have executed vhost_dev_stop() but that won't happen
+             * until vhost_user_blk_stop() gets called from the bh.
+             * Really this state check should be tracked locally.
              */
             s->dev.started = false;
         }

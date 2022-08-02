@@ -92,7 +92,7 @@ static void vu_rng_set_status(VirtIODevice *vdev, uint8_t status)
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
     bool should_start = virtio_device_started(vdev, status);
 
-    if (rng->vhost_dev.started == should_start) {
+    if (vhost_dev_is_started(&rng->vhost_dev) == should_start) {
         return;
     }
 
@@ -160,7 +160,7 @@ static void vu_rng_disconnect(DeviceState *dev)
 
     rng->connected = false;
 
-    if (rng->vhost_dev.started) {
+    if (vhost_dev_is_started(&rng->vhost_dev)) {
         vu_rng_stop(vdev);
     }
 }

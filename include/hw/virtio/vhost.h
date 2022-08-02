@@ -94,6 +94,7 @@ struct vhost_dev {
     uint64_t protocol_features;
     uint64_t max_queues;
     uint64_t backend_cap;
+    /* @started: is the vhost device started? */
     bool started;
     bool log_enabled;
     uint64_t log_size;
@@ -164,6 +165,17 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
  * Disable direct notifications to vhost device.
  */
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
+
+/**
+ * vhost_dev_is_started() - report status of vhost device
+ * @hdev: common vhost_dev structure
+ *
+ * Return the started status of the vhost device
+ */
+static inline bool vhost_dev_is_started(struct vhost_dev *hdev)
+{
+    return hdev->started;
+}
 
 /**
  * vhost_dev_start() - start the vhost device
