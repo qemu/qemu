@@ -8,6 +8,10 @@ vhost_region_add_section_aligned(const char *name, uint64_t gpa, uint64_t size, 
 vhost_section(const char *name) "%s"
 vhost_reject_section(const char *name, int d) "%s:%d"
 vhost_iotlb_miss(void *dev, int step) "%p step %d"
+vhost_dev_cleanup(void *dev) "%p"
+vhost_dev_start(void *dev, const char *name) "%p:%s"
+vhost_dev_stop(void *dev, const char *name) "%p:%s"
+
 
 # vhost-user.c
 vhost_user_postcopy_end_entry(void) ""
