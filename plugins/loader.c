@@ -265,6 +265,30 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
     return 1;
 }
 
+/**
+ * is_plugin_named - compare a plugins's name to a provided name
+ * @ctx: the ctx for the plugin in question
+ * @name: the name that should be used in the comparison
+ *
+ * Returns true if the names match.
+ */
+
+bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name)
+{
+  char *plugin_basename = basename(ctx.desc->path);
+  /*
+   * First resolve the name of the shared object for the current plugin,
+   * then check if it could possibly be of the form libNAME.so
+   * where NAME is the provided name. If so, compare the strings.
+   */
+  if (plugin_basename == NULL || strlen(plugin_basename) != strlen(name) + 6) {
+    return false;
+  }
+
+  return strncmp(plugin_basename + 3, name,
+                 strlen(plugin_basename) - 6) == 0;
+}
+
 /* call after having removed @desc from the list */
 static void plugin_desc_free(struct qemu_plugin_desc *desc)
 {

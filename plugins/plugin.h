@@ -97,4 +97,9 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
 
 void exec_inline_op(struct qemu_plugin_dyn_cb *cb);
 
+GModule *qemu_plugin_name_to_handle(const char* name);
+
+/* loader.c */
+bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name);
+
 #endif /* PLUGIN_H */

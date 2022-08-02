@@ -18,6 +18,7 @@
   qemu_plugin_mem_size_shift;
   qemu_plugin_n_max_vcpus;
   qemu_plugin_n_vcpus;
+  qemu_plugin_name_to_handle;
   qemu_plugin_outs;
   qemu_plugin_path_to_binary;
   qemu_plugin_register_atexit_cb;
