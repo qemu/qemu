@@ -2102,7 +2102,7 @@ vhost-user-gpio
 M: Alex Bennée <alex.bennee@linaro.org>
 R: Viresh Kumar <viresh.kumar@linaro.org>
 S: Maintained
-F: hw/virtio/vhost-user-gpio.c
+F: hw/virtio/vhost-user-gpio*
 F: include/hw/virtio/vhost-user-gpio.h
 
 virtio-crypto
