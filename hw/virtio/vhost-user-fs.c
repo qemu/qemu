@@ -122,11 +122,7 @@ static void vuf_stop(VirtIODevice *vdev)
 static void vuf_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
-    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
-
-    if (!vdev->vm_running) {
-        should_start = false;
-    }
+    bool should_start = virtio_device_started(vdev, status);
 
     if (fs->vhost_dev.started == should_start) {
         return;

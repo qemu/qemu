@@ -100,6 +100,7 @@ struct VirtIODevice
     VirtQueue *vq;
     MemoryListener listener;
     uint16_t device_id;
+    /* @vm_running: current VM running state via virtio_vmstate_change() */
     bool vm_running;
     bool broken; /* device in invalid state, needs reset */
     bool use_disabled_flag; /* allow use of 'disable' flag when needed */
@@ -374,6 +375,10 @@ static inline bool virtio_device_started(VirtIODevice *vdev, uint8_t status)
 {
     if (vdev->use_started) {
         return vdev->started;
+    }
+
+    if (!vdev->vm_running) {
+        return false;
     }
 
     return status & VIRTIO_CONFIG_S_DRIVER_OK;
