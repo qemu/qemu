@@ -2104,6 +2104,7 @@ R: Viresh Kumar <viresh.kumar@linaro.org>
 S: Maintained
 F: hw/virtio/vhost-user-gpio*
 F: include/hw/virtio/vhost-user-gpio.h
+F: tests/qtest/libqos/virtio-gpio.*
 
 virtio-crypto
 M: Gonglei <arei.gonglei@huawei.com>

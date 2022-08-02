@@ -110,7 +110,7 @@ void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
      * This could be a separate function for drivers that want to access
      * configuration space before setting FEATURES_OK, but no existing users
      * need that and it's less code for callers if this is done implicitly.
-    */
+     */
     if (features & (1ull << VIRTIO_F_VERSION_1)) {
         uint8_t status = d->bus->get_status(d) |
                          VIRTIO_CONFIG_S_FEATURES_OK;
