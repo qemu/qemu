@@ -396,6 +396,13 @@ Use ``-display sdl`` instead.
 
 Use ``-display curses`` instead.
 
+Creating sound card devices using ``-soundhw`` (removed in 7.1)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Sound card devices should be created using ``-device`` or ``-audio``.
+The exception is ``pcspk`` which can be activated using ``-machine
+pcspk-audiodev=<name>``.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
@@ -680,13 +687,6 @@ The ``ppc64abi32`` architecture has a number of issues which regularly
 tripped up the CI testing and was suspected to be quite broken. For that
 reason the maintainers strongly suspected no one actually used it.
 
-
-Creating sound card devices using ``-soundhw`` (removed in 7.1)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Sound card devices should be created using ``-device`` or ``-audio``.
-The exception is ``pcspk`` which can be activated using ``-machine
-pcspk-audiodev=<name>``.
 
 TCG introspection features
 --------------------------
