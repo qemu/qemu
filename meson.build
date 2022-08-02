@@ -1890,6 +1890,9 @@ config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
 config_host_data.set('HAVE_SYS_DISK_H', cc.has_header('sys/disk.h'))
 config_host_data.set('HAVE_SYS_IOCCOM_H', cc.has_header('sys/ioccom.h'))
 config_host_data.set('HAVE_SYS_KCOV_H', cc.has_header('sys/kcov.h'))
+if targetos == 'windows'
+  config_host_data.set('HAVE_AFUNIX_H', cc.has_header('afunix.h'))
+endif
 
 # has_function
 config_host_data.set('CONFIG_ACCEPT4', cc.has_function('accept4'))
