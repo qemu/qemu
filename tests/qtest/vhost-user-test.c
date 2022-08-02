@@ -358,10 +358,42 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         }
         break;
 
+    case VHOST_USER_SET_OWNER:
+        /*
+         * We don't need to do anything here, the remote is just
+         * letting us know it is in charge. Just log it.
+         */
+        qos_printf("set_owner: start of session\n");
+        break;
+
     case VHOST_USER_GET_PROTOCOL_FEATURES:
         if (s->vu_ops->get_protocol_features) {
             s->vu_ops->get_protocol_features(s, chr, &msg);
         }
+        break;
+
+    case VHOST_USER_SET_PROTOCOL_FEATURES:
+        /*
+         * We did set VHOST_USER_F_PROTOCOL_FEATURES so its valid for
+         * the remote end to send this. There is no handshake reply so
+         * just log the details for debugging.
+         */
+        qos_printf("set_protocol_features: 0x%"PRIx64 "\n", msg.payload.u64);
+        break;
+
+        /*
+         * A real vhost-user backend would actually set the size and
+         * address of the vrings but we can simply report them.
+         */
+    case VHOST_USER_SET_VRING_NUM:
+        qos_printf("set_vring_num: %d/%d\n",
+                   msg.payload.state.index, msg.payload.state.num);
+        break;
+    case VHOST_USER_SET_VRING_ADDR:
+        qos_printf("set_vring_addr: 0x%"PRIx64"/0x%"PRIx64"/0x%"PRIx64"\n",
+                   msg.payload.addr.avail_user_addr,
+                   msg.payload.addr.desc_user_addr,
+                   msg.payload.addr.used_user_addr);
         break;
 
     case VHOST_USER_GET_VRING_BASE:
@@ -428,7 +460,18 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
 
+    case VHOST_USER_SET_VRING_ENABLE:
+        /*
+         * Another case we ignore as we don't need to respond. With a
+         * fully functioning vhost-user we would enable/disable the
+         * vring monitoring.
+         */
+        qos_printf("set_vring(%d)=%s\n", msg.payload.state.index,
+                   msg.payload.state.num ? "enabled" : "disabled");
+        break;
+
     default:
+        qos_printf("vhost-user: un-handled message: %d\n", msg.request);
         break;
     }
 
