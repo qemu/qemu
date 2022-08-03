@@ -1697,16 +1697,27 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
             ret = -EINVAL;
             goto fail;
         }
+
+        s->image_backing_file = g_malloc(len + 1);
         ret = bdrv_pread(bs->file, header.backing_file_offset, len,
-                         bs->auto_backing_file, 0);
+                         s->image_backing_file, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read backing file name");
             goto fail;
         }
-        bs->auto_backing_file[len] = '\0';
-        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
-                bs->auto_backing_file);
-        s->image_backing_file = g_strdup(bs->auto_backing_file);
+        s->image_backing_file[len] = '\0';
+
+        /*
+         * Update only when something has changed.  This function is called by
+         * qcow2_co_invalidate_cache(), and we do not want to reset
+         * auto_backing_file unless necessary.
+         */
+        if (!g_str_equal(s->image_backing_file, bs->backing_file)) {
+            pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                    s->image_backing_file);
+            pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+                    s->image_backing_file);
+        }
     }
 
     /*
