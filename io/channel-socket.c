@@ -746,8 +746,8 @@ static int qio_channel_socket_flush(QIOChannel *ioc,
         }
 
         cm = CMSG_FIRSTHDR(&msg);
-        if (cm->cmsg_level != SOL_IP &&
-            cm->cmsg_type != IP_RECVERR) {
+        if (cm->cmsg_level != SOL_IP   && cm->cmsg_type != IP_RECVERR &&
+            cm->cmsg_level != SOL_IPV6 && cm->cmsg_type != IPV6_RECVERR) {
             error_setg_errno(errp, EPROTOTYPE,
                              "Wrong cmsg in errqueue");
             return -1;
