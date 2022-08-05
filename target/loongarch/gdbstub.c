@@ -19,8 +19,11 @@ int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     if (0 <= n && n < 32) {
         return gdb_get_regl(mem_buf, env->gpr[n]);
     } else if (n == 32) {
-        return gdb_get_regl(mem_buf, env->pc);
+        /* orig_a0 */
+        return gdb_get_regl(mem_buf, 0);
     } else if (n == 33) {
+        return gdb_get_regl(mem_buf, env->pc);
+    } else if (n == 34) {
         return gdb_get_regl(mem_buf, env->CSR_BADV);
     }
     return 0;
@@ -36,7 +39,7 @@ int loongarch_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (0 <= n && n < 32) {
         env->gpr[n] = tmp;
         length = sizeof(target_ulong);
-    } else if (n == 32) {
+    } else if (n == 33) {
         env->pc = tmp;
         length = sizeof(target_ulong);
     }

@@ -39,6 +39,7 @@
   <reg name="r29" bitsize="64" type="uint64" group="general"/>
   <reg name="r30" bitsize="64" type="uint64" group="general"/>
   <reg name="r31" bitsize="64" type="uint64" group="general"/>
+  <reg name="orig_a0" bitsize="64" type="uint64" group="general"/>
   <reg name="pc" bitsize="64" type="code_ptr" group="general"/>
   <reg name="badvaddr" bitsize="64" type="code_ptr" group="general"/>
 </feature>
