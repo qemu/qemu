@@ -348,7 +348,6 @@ static inline int float_overflow_excp(CPUPPCState *env)
 
     bool overflow_enabled = !!(env->fpscr & FP_OE);
     if (overflow_enabled) {
-        /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         /* We must update the target FPR before raising the exception */
@@ -367,7 +366,6 @@ static inline void float_underflow_excp(CPUPPCState *env)
     /* Update the floating-point exception summary */
     env->fpscr |= FP_FX;
     if (env->fpscr & FP_UE) {
-        /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
         env->fpscr |= FP_FEX;
         /* We must update the target FPR before raising the exception */
