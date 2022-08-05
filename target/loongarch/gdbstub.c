@@ -11,6 +11,24 @@
 #include "internals.h"
 #include "exec/gdbstub.h"
 
+uint64_t read_fcc(CPULoongArchState *env)
+{
+    uint64_t ret = 0;
+
+    for (int i = 0; i < 8; ++i) {
+        ret |= (uint64_t)env->cf[i] << (i * 8);
+    }
+
+    return ret;
+}
+
+void write_fcc(CPULoongArchState *env, uint64_t val)
+{
+    for (int i = 0; i < 8; ++i) {
+        env->cf[i] = (val >> (i * 8)) & 1;
+    }
+}
+
 int loongarch_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 {
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
@@ -51,9 +69,10 @@ static int loongarch_gdb_get_fpu(CPULoongArchState *env,
 {
     if (0 <= n && n < 32) {
         return gdb_get_reg64(mem_buf, env->fpr[n]);
-    } else if (32 <= n && n < 40) {
-        return gdb_get_reg8(mem_buf, env->cf[n - 32]);
-    } else if (n == 40) {
+    } else if (n == 32) {
+        uint64_t val = read_fcc(env);
+        return gdb_get_reg64(mem_buf, val);
+    } else if (n == 33) {
         return gdb_get_reg32(mem_buf, env->fcsr0);
     }
     return 0;
@@ -67,10 +86,11 @@ static int loongarch_gdb_set_fpu(CPULoongArchState *env,
     if (0 <= n && n < 32) {
         env->fpr[n] = ldq_p(mem_buf);
         length = 8;
-    } else if (32 <= n && n < 40) {
-        env->cf[n - 32] = ldub_p(mem_buf);
-        length = 1;
-    } else if (n == 40) {
+    } else if (n == 32) {
+        uint64_t val = ldq_p(mem_buf);
+        write_fcc(env, val);
+        length = 8;
+    } else if (n == 33) {
         env->fcsr0 = ldl_p(mem_buf);
         length = 4;
     }
