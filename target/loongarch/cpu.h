@@ -47,11 +47,23 @@ FIELD(FCSR0, FLAGS, 16, 5)
 FIELD(FCSR0, CAUSE, 24, 5)
 
 #define GET_FP_CAUSE(REG)      FIELD_EX32(REG, FCSR0, CAUSE)
-#define SET_FP_CAUSE(REG, V)   FIELD_DP32(REG, FCSR0, CAUSE, V)
+#define SET_FP_CAUSE(REG, V) \
+    do { \
+        (REG) = FIELD_DP32(REG, FCSR0, CAUSE, V); \
+    } while (0)
+
 #define GET_FP_ENABLES(REG)    FIELD_EX32(REG, FCSR0, ENABLES)
-#define SET_FP_ENABLES(REG, V) FIELD_DP32(REG, FCSR0, ENABLES, V)
+#define SET_FP_ENABLES(REG, V) \
+    do { \
+        (REG) = FIELD_DP32(REG, FCSR0, ENABLES, V); \
+    } while (0)
+
 #define GET_FP_FLAGS(REG)      FIELD_EX32(REG, FCSR0, FLAGS)
-#define SET_FP_FLAGS(REG, V)   FIELD_DP32(REG, FCSR0, FLAGS, V)
+#define SET_FP_FLAGS(REG, V) \
+    do { \
+        (REG) = FIELD_DP32(REG, FCSR0, FLAGS, V); \
+    } while (0)
+
 #define UPDATE_FP_FLAGS(REG, V) \
     do { \
         (REG) |= FIELD_DP32(0, FCSR0, FLAGS, V); \

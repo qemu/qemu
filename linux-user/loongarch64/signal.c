@@ -71,26 +71,6 @@ struct extctx_layout {
     struct ctx_layout end;
 };
 
-/* The kernel's sc_save_fcc macro is a sequence of MOVCF2GR+BSTRINS. */
-static uint64_t read_all_fcc(CPULoongArchState *env)
-{
-    uint64_t ret = 0;
-
-    for (int i = 0; i < 8; ++i) {
-        ret |= (uint64_t)env->cf[i] << (i * 8);
-    }
-
-    return ret;
-}
-
-/* The kernel's sc_restore_fcc macro is a sequence of BSTRPICK+MOVGR2CF. */
-static void write_all_fcc(CPULoongArchState *env, uint64_t val)
-{
-    for (int i = 0; i < 8; ++i) {
-        env->cf[i] = (val >> (i * 8)) & 1;
-    }
-}
-
 static abi_ptr extframe_alloc(struct extctx_layout *extctx,
                               struct ctx_layout *sctx, unsigned size,
                               unsigned align, abi_ptr orig_sp)
@@ -150,7 +130,7 @@ static void setup_sigframe(CPULoongArchState *env,
     for (i = 0; i < 32; ++i) {
         __put_user(env->fpr[i], &fpu_ctx->regs[i]);
     }
-    __put_user(read_all_fcc(env), &fpu_ctx->fcc);
+    __put_user(read_fcc(env), &fpu_ctx->fcc);
     __put_user(env->fcsr0, &fpu_ctx->fcsr);
 
     /*
@@ -216,7 +196,7 @@ static void restore_sigframe(CPULoongArchState *env,
             __get_user(env->fpr[i], &fpu_ctx->regs[i]);
         }
         __get_user(fcc, &fpu_ctx->fcc);
-        write_all_fcc(env, fcc);
+        write_fcc(env, fcc);
         __get_user(env->fcsr0, &fpu_ctx->fcsr);
         restore_fp_status(env);
     }

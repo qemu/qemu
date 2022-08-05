@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Copyright (C) 2021 Free Software Foundation, Inc.
+<!-- Copyright (C) 2022 Free Software Foundation, Inc.
 
      Copying and distribution of this file, with or without modification,
      are permitted in any medium without royalty provided the copyright
@@ -8,9 +8,9 @@
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.loongarch.base">
   <reg name="r0" bitsize="64" type="uint64" group="general"/>
-  <reg name="r1" bitsize="64" type="uint64" group="general"/>
-  <reg name="r2" bitsize="64" type="uint64" group="general"/>
-  <reg name="r3" bitsize="64" type="uint64" group="general"/>
+  <reg name="r1" bitsize="64" type="code_ptr" group="general"/>
+  <reg name="r2" bitsize="64" type="data_ptr" group="general"/>
+  <reg name="r3" bitsize="64" type="data_ptr" group="general"/>
   <reg name="r4" bitsize="64" type="uint64" group="general"/>
   <reg name="r5" bitsize="64" type="uint64" group="general"/>
   <reg name="r6" bitsize="64" type="uint64" group="general"/>
@@ -29,7 +29,7 @@
   <reg name="r19" bitsize="64" type="uint64" group="general"/>
   <reg name="r20" bitsize="64" type="uint64" group="general"/>
   <reg name="r21" bitsize="64" type="uint64" group="general"/>
-  <reg name="r22" bitsize="64" type="uint64" group="general"/>
+  <reg name="r22" bitsize="64" type="data_ptr" group="general"/>
   <reg name="r23" bitsize="64" type="uint64" group="general"/>
   <reg name="r24" bitsize="64" type="uint64" group="general"/>
   <reg name="r25" bitsize="64" type="uint64" group="general"/>
@@ -39,6 +39,7 @@
   <reg name="r29" bitsize="64" type="uint64" group="general"/>
   <reg name="r30" bitsize="64" type="uint64" group="general"/>
   <reg name="r31" bitsize="64" type="uint64" group="general"/>
+  <reg name="orig_a0" bitsize="64" type="uint64" group="general"/>
   <reg name="pc" bitsize="64" type="code_ptr" group="general"/>
-  <reg name="badvaddr" bitsize="64" type="code_ptr" group="general"/>
+  <reg name="badv" bitsize="64" type="code_ptr" group="general"/>
 </feature>
