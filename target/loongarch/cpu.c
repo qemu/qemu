@@ -661,6 +661,11 @@ static const struct SysemuCPUOps loongarch_sysemu_ops = {
 };
 #endif
 
+static gchar *loongarch_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("loongarch64");
+}
+
 static void loongarch_cpu_class_init(ObjectClass *c, void *data)
 {
     LoongArchCPUClass *lacc = LOONGARCH_CPU_CLASS(c);
@@ -686,6 +691,7 @@ static void loongarch_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_num_core_regs = 35;
     cc->gdb_core_xml_file = "loongarch-base64.xml";
     cc->gdb_stop_before_watchpoint = true;
+    cc->gdb_arch_name = loongarch_gdb_arch_name;
 
 #ifdef CONFIG_TCG
     cc->tcg_ops = &loongarch_tcg_ops;
