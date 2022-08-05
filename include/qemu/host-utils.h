@@ -533,8 +533,7 @@ static inline bool umul64_overflow(uint64_t x, uint64_t y, uint64_t *ret)
  */
 static inline bool mulu128(uint64_t *plow, uint64_t *phigh, uint64_t factor)
 {
-#if defined(CONFIG_INT128) && \
-    (__has_builtin(__builtin_mul_overflow) || __GNUC__ >= 5)
+#if defined(CONFIG_INT128)
     bool res;
     __uint128_t r;
     __uint128_t f = ((__uint128_t)*phigh << 64) | *plow;
