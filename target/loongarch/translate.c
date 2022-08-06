@@ -22,7 +22,6 @@
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval;
-TCGv_i32 cpu_fcsr0;
 TCGv_i64 cpu_fpr[32];
 
 #include "exec/gen-icount.h"
@@ -266,8 +265,6 @@ void loongarch_translate_init(void)
     }
 
     cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPULoongArchState, pc), "pc");
-    cpu_fcsr0 = tcg_global_mem_new_i32(cpu_env,
-                    offsetof(CPULoongArchState, fcsr0), "fcsr0");
     cpu_lladdr = tcg_global_mem_new(cpu_env,
                     offsetof(CPULoongArchState, lladdr), "lladdr");
     cpu_llval = tcg_global_mem_new(cpu_env,
