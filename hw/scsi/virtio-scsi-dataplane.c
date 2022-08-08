@@ -136,6 +136,14 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
+    /*
+     * These fields are visible to the IOThread so we rely on implicit barriers
+     * in aio_context_acquire() on the write side and aio_notify_accept() on
+     * the read side.
+     */
+    s->dataplane_starting = false;
+    s->dataplane_started = true;
+
     aio_context_acquire(s->ctx);
     virtio_queue_aio_attach_host_notifier(vs->ctrl_vq, s->ctx);
     virtio_queue_aio_attach_host_notifier_no_poll(vs->event_vq, s->ctx);
@@ -143,9 +151,6 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     for (i = 0; i < vs->conf.num_queues; i++) {
         virtio_queue_aio_attach_host_notifier(vs->cmd_vqs[i], s->ctx);
     }
-
-    s->dataplane_starting = false;
-    s->dataplane_started = true;
     aio_context_release(s->ctx);
     return 0;
 

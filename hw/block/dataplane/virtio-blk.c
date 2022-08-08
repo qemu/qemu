@@ -219,6 +219,11 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
 
     memory_region_transaction_commit();
 
+    /*
+     * These fields are visible to the IOThread so we rely on implicit barriers
+     * in aio_context_acquire() on the write side and aio_notify_accept() on
+     * the read side.
+     */
     s->starting = false;
     vblk->dataplane_started = true;
     trace_virtio_blk_data_plane_start(s);
