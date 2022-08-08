@@ -26,6 +26,7 @@ qtests_generic = [
   'qom-test',
   'test-hmp',
   'qos-test',
+  'readconfig-test',
 ]
 if config_host.has_key('CONFIG_MODULES')
   qtests_generic += [ 'modules-test' ]
