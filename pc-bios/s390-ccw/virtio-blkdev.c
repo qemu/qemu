@@ -173,7 +173,7 @@ int virtio_get_block_size(void)
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_BLOCK:
-        return vdev->config.blk.blk_size << vdev->config.blk.physical_block_exp;
+        return vdev->config.blk.blk_size;
     case VIRTIO_ID_SCSI:
         return vdev->scsi_block_size;
     }

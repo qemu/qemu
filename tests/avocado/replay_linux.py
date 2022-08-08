@@ -189,3 +189,4 @@ class ReplayLinuxAarch64(ReplayLinux):
 
         self.run_rr(shift=3,
                     args=(*self.get_common_args(),
+                          "-machine", "virt,gic-version=3"))
