@@ -50,6 +50,15 @@
 
 #define USE_FLASH_BIOS
 
+#define TYPE_PPC405_MACHINE MACHINE_TYPE_NAME("ppc405")
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405MachineState, PPC405_MACHINE);
+
+struct Ppc405MachineState {
+    /* Private */
+    MachineState parent_obj;
+    /* Public */
+};
+
 /*****************************************************************************/
 /* PPC405EP reference board (IBM) */
 /* Standalone board with:
@@ -332,18 +341,34 @@ static void ref405ep_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ref405ep";
     mc->init = ref405ep_init;
-    mc->default_ram_size = 0x08000000;
-    mc->default_ram_id = "ef405ep.ram";
 }
 
 static const TypeInfo ref405ep_type = {
     .name = MACHINE_TYPE_NAME("ref405ep"),
-    .parent = TYPE_MACHINE,
+    .parent = TYPE_PPC405_MACHINE,
     .class_init = ref405ep_class_init,
+};
+
+static void ppc405_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "PPC405 generic machine";
+    mc->default_ram_size = 128 * MiB;
+    mc->default_ram_id = "ppc405.ram";
+}
+
+static const TypeInfo ppc405_machine_type = {
+    .name = TYPE_PPC405_MACHINE,
+    .parent = TYPE_MACHINE,
+    .instance_size = sizeof(Ppc405MachineState),
+    .class_init = ppc405_machine_class_init,
+    .abstract = true,
 };
 
 static void ppc405_machine_init(void)
 {
+    type_register_static(&ppc405_machine_type);
     type_register_static(&ref405ep_type);
 }
 
