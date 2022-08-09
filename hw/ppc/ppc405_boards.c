@@ -237,9 +237,7 @@ static void ppc405_init(MachineState *machine)
     Ppc405MachineState *ppc405 = PPC405_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
-    PowerPCCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
-    DeviceState *uicdev;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -254,11 +252,11 @@ static void ppc405_init(MachineState *machine)
                              machine->ram_size, &error_fatal);
     object_property_set_link(OBJECT(&ppc405->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
+    object_property_set_bool(OBJECT(&ppc405->soc), "dram-init",
+                             kernel_filename != NULL, &error_abort);
+    object_property_set_uint(OBJECT(&ppc405->soc), "sys-clk", 33333333,
+                             &error_abort);
     qdev_realize(DEVICE(&ppc405->soc), NULL, &error_fatal);
-
-    cpu = ppc405ep_init(sysmem, ppc405->soc.ram_banks, ppc405->soc.ram_bases,
-                        ppc405->soc.ram_sizes,
-                        33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
 
     /* allocate and load BIOS */
     if (machine->firmware) {
@@ -315,7 +313,7 @@ static void ppc405_init(MachineState *machine)
 
     /* Load ELF kernel and rootfs.cpio */
     } else if (kernel_filename && !machine->firmware) {
-        boot_from_kernel(machine, cpu);
+        boot_from_kernel(machine, ppc405->soc.cpu);
     }
 }
 

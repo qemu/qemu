@@ -73,9 +73,14 @@ struct Ppc405SoCState {
     /* Public */
     MemoryRegion ram_banks[2];
     hwaddr ram_bases[2], ram_sizes[2];
+    bool do_dram_init;
 
     MemoryRegion *dram_mr;
     hwaddr ram_size;
+
+    uint32_t sysclk;
+    PowerPCCPU *cpu;
+    DeviceState *uic;
 };
 
 /* PowerPC 405 core */
@@ -83,12 +88,5 @@ ram_addr_t ppc405_set_bootinfo(CPUPPCState *env, ram_addr_t ram_size);
 
 void ppc4xx_plb_init(CPUPPCState *env);
 void ppc405_ebc_init(CPUPPCState *env);
-
-PowerPCCPU *ppc405ep_init(MemoryRegion *address_space_mem,
-                        MemoryRegion ram_memories[2],
-                        hwaddr ram_bases[2],
-                        hwaddr ram_sizes[2],
-                        uint32_t sysclk, DeviceState **uicdev,
-                        int do_init);
 
 #endif /* PPC405_H */
