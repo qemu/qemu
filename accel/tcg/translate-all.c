@@ -71,8 +71,21 @@
 
 __thread int cur_block_is_good;
 
-void HELPER(afl_maybe_log)(target_ulong cur_loc) {
+static int afl_track_unstable_log_fd(void) {
+    static bool initialized = false;
+    static int track_fd = -1;
+    if (unlikely(!initialized)) {
+        char * fname = getenv("AFL_QEMU_TRACK_UNSTABLE");
+        if (fname != NULL) {
+            track_fd = open(fname, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR);
+        }
+        initialized = true;
+        if (track_fd > 0) dprintf(track_fd, "QEMU UNSTABLE TRACKING ENABLED\n");
+    }
+    return track_fd;
+}
 
+void HELPER(afl_maybe_log)(target_ulong cur_loc) {
   register uintptr_t afl_idx = cur_loc ^ afl_prev_loc;
 
   INC_AFL_AREA(afl_idx);
@@ -80,7 +93,10 @@ void HELPER(afl_maybe_log)(target_ulong cur_loc) {
   // afl_prev_loc = ((cur_loc & (MAP_SIZE - 1) >> 1)) |
   //                ((cur_loc & 1) << ((int)ceil(log2(MAP_SIZE)) -1));
   afl_prev_loc = cur_loc >> 1;
+}
 
+void HELPER(afl_maybe_log_trace)(target_ulong cur_loc) {
+  INC_AFL_AREA(cur_loc);
 }
 
 static target_ulong pc_hash(target_ulong x) {
@@ -116,7 +132,11 @@ static void afl_gen_trace(target_ulong cur_loc) {
   if (cur_loc >= afl_inst_rms) return;
 
   TCGv cur_loc_v = tcg_const_tl(cur_loc);
-  gen_helper_afl_maybe_log(cur_loc_v);
+  if (unlikely(afl_track_unstable_log_fd() >= 0)) {
+    gen_helper_afl_maybe_log_trace(cur_loc_v);
+  } else {
+    gen_helper_afl_maybe_log(cur_loc_v);
+  }
   tcg_temp_free(cur_loc_v);
 
 }
@@ -1930,7 +1950,7 @@ TranslationBlock *afl_gen_edge(CPUState *cpu, unsigned long afl_id)
     tcg_func_start(tcg_ctx);
 
     tcg_ctx->cpu = env_cpu(env);
-    
+
     target_ulong afl_loc = afl_id & (MAP_SIZE -1);
     //*afl_dynamic_size = MAX(*afl_dynamic_size, afl_loc);
     TCGv tmp0 = tcg_const_tl(afl_loc);
@@ -2074,6 +2094,18 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     max_insns = tb->icount;
 
     trace_translate_block(tb, tb->pc, tb->tc.ptr);
+
+    /* If we are tracking block instability, then since afl-fuzz will log the ids
+       of the unstable blocks, in fuzzer_stats, we must log these alongside the
+       instruction pointer so that the user can associate these back with the
+       actual binary */
+    int track_fd = afl_track_unstable_log_fd();
+    if (unlikely(track_fd >= 0)) {
+      uintptr_t block_id = (uintptr_t)(afl_hash_ip((uint64_t)pc));
+      block_id &= (MAP_SIZE - 1);
+      dprintf(track_fd, "BLOCK ID: 0x%016" PRIx64 ", PC: 0x%016zx-0x%016zx\n",
+              block_id, pc, pc + tb->size);
+    }
 
     /* generate machine code */
     tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
