@@ -230,13 +230,11 @@ static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
     env->load_info = &boot_info;
 }
 
-static void ref405ep_init(MachineState *machine)
+static void ppc405_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     PowerPCCPU *cpu;
-    DeviceState *dev;
-    SysBusDevice *s;
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
@@ -294,15 +292,6 @@ static void ref405ep_init(MachineState *machine)
         memory_region_add_subregion(sysmem, (uint32_t)(-bios_size), bios);
     }
 
-    /* Register FPGA */
-    ref405ep_fpga_init(sysmem, PPC405EP_FPGA_BASE);
-    /* Register NVRAM */
-    dev = qdev_new("sysbus-m48t08");
-    qdev_prop_set_int32(dev, "base-year", 1968);
-    s = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_mmio_map(s, 0, PPC405EP_NVRAM_BASE);
-
     /* Load kernel and initrd using U-Boot images */
     if (kernel_filename && machine->firmware) {
         target_ulong kernel_base, initrd_base;
@@ -335,6 +324,23 @@ static void ref405ep_init(MachineState *machine)
     }
 }
 
+static void ref405ep_init(MachineState *machine)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    ppc405_init(machine);
+
+    /* Register FPGA */
+    ref405ep_fpga_init(get_system_memory(), PPC405EP_FPGA_BASE);
+    /* Register NVRAM */
+    dev = qdev_new("sysbus-m48t08");
+    qdev_prop_set_int32(dev, "base-year", 1968);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_mmio_map(s, 0, PPC405EP_NVRAM_BASE);
+}
+
 static void ref405ep_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -354,6 +360,7 @@ static void ppc405_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "PPC405 generic machine";
+    mc->init = ppc405_init;
     mc->default_ram_size = 128 * MiB;
     mc->default_ram_id = "ppc405.ram";
 }
