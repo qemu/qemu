@@ -86,26 +86,18 @@ static int afl_track_unstable_log_fd(void) {
 }
 
 void HELPER(afl_maybe_log)(target_ulong cur_loc) {
+  register uintptr_t afl_idx = cur_loc ^ afl_prev_loc;
 
-  /* If we are tracking fuzzing instability in QEMU, then we simply use the
-     block id when updating the coverage map (rather than combining it with the
-     id of the previous block. Therefore when afl-fuzz writes the var_bytes
-     entries in fuzzer_stats, they actually just contain block ids rather than
-     edge ids. */
-  if (unlikely(afl_track_unstable_log_fd() > 0)) {
+  INC_AFL_AREA(afl_idx);
 
-    register uintptr_t afl_idx = cur_loc;
-    INC_AFL_AREA(afl_idx);
+  // afl_prev_loc = ((cur_loc & (MAP_SIZE - 1) >> 1)) |
+  //                ((cur_loc & 1) << ((int)ceil(log2(MAP_SIZE)) -1));
+  afl_prev_loc = cur_loc >> 1;
+}
 
-  } else {
-    register uintptr_t afl_idx = cur_loc ^ afl_prev_loc;
-
-    INC_AFL_AREA(afl_idx);
-
-    // afl_prev_loc = ((cur_loc & (MAP_SIZE - 1) >> 1)) |
-    //                ((cur_loc & 1) << ((int)ceil(log2(MAP_SIZE)) -1));
-    afl_prev_loc = cur_loc >> 1;
-  }
+void HELPER(afl_maybe_log_trace)(target_ulong cur_loc) {
+  register uintptr_t afl_idx = cur_loc;
+  INC_AFL_AREA(afl_idx);
 }
 
 static target_ulong pc_hash(target_ulong x) {
@@ -141,7 +133,11 @@ static void afl_gen_trace(target_ulong cur_loc) {
   if (cur_loc >= afl_inst_rms) return;
 
   TCGv cur_loc_v = tcg_const_tl(cur_loc);
-  gen_helper_afl_maybe_log(cur_loc_v);
+  if (unlikely(afl_track_unstable_log_fd() >= 0)) {
+    gen_helper_afl_maybe_log_trace(cur_loc_v);
+  } else {
+    gen_helper_afl_maybe_log(cur_loc_v);
+  }
   tcg_temp_free(cur_loc_v);
 
 }
@@ -2105,10 +2101,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
        instruction pointer so that the user can associate these back with the
        actual binary */
     int track_fd = afl_track_unstable_log_fd();
-    if (unlikely(track_fd > 0)) {
-        uintptr_t block_id = (uintptr_t)(afl_hash_ip((uint64_t)pc));
-        block_id &= (MAP_SIZE - 1);
-        dprintf(track_fd, "BLOCK ID: 0x%016" PRIx64 ", PC: 0x%016zx-0x%016zx\n", block_id, pc, pc + tb->size);
+    if (unlikely(track_fd >= 0)) {
+      uintptr_t block_id = (uintptr_t)(afl_hash_ip((uint64_t)pc));
+      block_id &= (MAP_SIZE - 1);
+      dprintf(track_fd, "BLOCK ID: 0x%016" PRIx64 ", PC: 0x%016zx-0x%016zx\n",
+              block_id, pc, pc + tb->size);
     }
 
     /* generate machine code */
