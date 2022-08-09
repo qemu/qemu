@@ -33,12 +33,11 @@ static QTestState *qtest_init_with_config(const char *cfgdata)
     g_assert_cmpint(cfgfd, >=, 0);
 
     ret = qemu_write_full(cfgfd, cfgdata, strlen(cfgdata));
+    close(cfgfd);
     if (ret < 0) {
         unlink(cfgpath);
     }
     g_assert_cmpint(ret, ==, strlen(cfgdata));
-
-    close(cfgfd);
 
     args = g_strdup_printf("-nodefaults -machine none -readconfig %s", cfgpath);
 
@@ -79,7 +78,7 @@ static void test_x86_memdev(void)
         "size = \"200\"";
 
     qts = qtest_init_with_config(cfgdata);
-   /* Test valid command */
+    /* Test valid command */
     resp = qtest_qmp(qts, "{ 'execute': 'query-memdev' }");
     test_x86_memdev_resp(qdict_get(resp, "return"));
     qobject_unref(resp);
@@ -96,7 +95,7 @@ static void test_spice_resp(QObject *res)
 
     g_assert(res);
     v = qobject_input_visitor_new(res);
-    visit_type_SpiceInfo(v, "spcie", &spice, &error_abort);
+    visit_type_SpiceInfo(v, "spice", &spice, &error_abort);
 
     g_assert(spice);
     g_assert(spice->enabled);
@@ -114,7 +113,7 @@ static void test_spice(void)
         "unix = \"on\"\n";
 
     qts = qtest_init_with_config(cfgdata);
-   /* Test valid command */
+    /* Test valid command */
     resp = qtest_qmp(qts, "{ 'execute': 'query-spice' }");
     test_spice_resp(qdict_get(resp, "return"));
     qobject_unref(resp);
@@ -144,6 +143,7 @@ static void test_object_rng_resp(QObject *res)
         if (g_str_equal(obj->name, "rng0") &&
             g_str_equal(obj->type, "child<rng-builtin>")) {
             seen_rng = true;
+            break;
         }
 
         tmp = tmp->next;
@@ -164,7 +164,7 @@ static void test_object_rng(void)
         "id = \"rng0\"\n";
 
     qts = qtest_init_with_config(cfgdata);
-   /* Test valid command */
+    /* Test valid command */
     resp = qtest_qmp(qts,
                      "{ 'execute': 'qom-list',"
                      "  'arguments': {'path': '/objects' }}");
