@@ -96,8 +96,7 @@ void HELPER(afl_maybe_log)(target_ulong cur_loc) {
 }
 
 void HELPER(afl_maybe_log_trace)(target_ulong cur_loc) {
-  register uintptr_t afl_idx = cur_loc;
-  INC_AFL_AREA(afl_idx);
+  INC_AFL_AREA(cur_loc);
 }
 
 static target_ulong pc_hash(target_ulong x) {
