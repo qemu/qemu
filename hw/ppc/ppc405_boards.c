@@ -57,6 +57,8 @@ struct Ppc405MachineState {
     /* Private */
     MachineState parent_obj;
     /* Public */
+
+    Ppc405SoCState soc;
 };
 
 /*****************************************************************************/
@@ -232,11 +234,10 @@ static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
 
 static void ppc405_init(MachineState *machine)
 {
+    Ppc405MachineState *ppc405 = PPC405_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     PowerPCCPU *cpu;
-    MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
-    hwaddr ram_bases[2], ram_sizes[2];
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *uicdev;
 
@@ -247,16 +248,16 @@ static void ppc405_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    /* XXX: fix this */
-    memory_region_init_alias(&ram_memories[0], NULL, "ef405ep.ram.alias",
-                             machine->ram, 0, machine->ram_size);
-    ram_bases[0] = 0;
-    ram_sizes[0] = machine->ram_size;
-    memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
-    ram_bases[1] = 0x00000000;
-    ram_sizes[1] = 0x00000000;
+    object_initialize_child(OBJECT(machine), "soc", &ppc405->soc,
+                            TYPE_PPC405_SOC);
+    object_property_set_uint(OBJECT(&ppc405->soc), "ram-size",
+                             machine->ram_size, &error_fatal);
+    object_property_set_link(OBJECT(&ppc405->soc), "dram",
+                             OBJECT(machine->ram), &error_abort);
+    qdev_realize(DEVICE(&ppc405->soc), NULL, &error_fatal);
 
-    cpu = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
+    cpu = ppc405ep_init(sysmem, ppc405->soc.ram_banks, ppc405->soc.ram_bases,
+                        ppc405->soc.ram_sizes,
                         33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
 
     /* allocate and load BIOS */

@@ -25,6 +25,7 @@
 #ifndef PPC405_H
 #define PPC405_H
 
+#include "qom/object.h"
 #include "hw/ppc/ppc4xx.h"
 
 #define PPC405EP_SDRAM_BASE 0x00000000
@@ -60,6 +61,21 @@ struct ppc4xx_bd_info_t {
     uint8_t  bi_pci_enetaddr2[6]; /* PPC405EP specific */
     uint32_t bi_opbfreq;
     uint32_t bi_iic_fast[2];
+};
+
+#define TYPE_PPC405_SOC "ppc405-soc"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405SoCState, PPC405_SOC);
+
+struct Ppc405SoCState {
+    /* Private */
+    DeviceState parent_obj;
+
+    /* Public */
+    MemoryRegion ram_banks[2];
+    hwaddr ram_bases[2], ram_sizes[2];
+
+    MemoryRegion *dram_mr;
+    hwaddr ram_size;
 };
 
 /* PowerPC 405 core */
