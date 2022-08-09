@@ -106,10 +106,7 @@ static void vub_req_complete(VubReq *req)
                   req->size + 1);
     vu_queue_notify(vu_dev, req->vq);
 
-    if (req->elem) {
-        free(req->elem);
-    }
-
+    g_free(req->elem);
     g_free(req);
 }
 
@@ -243,7 +240,7 @@ static int vub_virtio_process_req(VubDev *vdev_blk,
     /* refer to hw/block/virtio_blk.c */
     if (elem->out_num < 1 || elem->in_num < 1) {
         fprintf(stderr, "virtio-blk request missing headers\n");
-        free(elem);
+        g_free(elem);
         return -1;
     }
 
@@ -325,7 +322,7 @@ static int vub_virtio_process_req(VubDev *vdev_blk,
     return 0;
 
 err:
-    free(elem);
+    g_free(elem);
     g_free(req);
     return -1;
 }
