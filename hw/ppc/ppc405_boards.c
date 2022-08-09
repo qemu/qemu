@@ -235,7 +235,6 @@ static void ppc405_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     PowerPCCPU *cpu;
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_memories = g_new(MemoryRegion, 2);
     hwaddr ram_bases[2], ram_sizes[2];
     MemoryRegion *sysmem = get_system_memory();
@@ -259,11 +258,6 @@ static void ppc405_init(MachineState *machine)
 
     cpu = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &uicdev, kernel_filename == NULL ? 0 : 1);
-
-    /* allocate SRAM */
-    memory_region_init_ram(sram, NULL, "ef405ep.sram", PPC405EP_SRAM_SIZE,
-                           &error_fatal);
-    memory_region_add_subregion(sysmem, PPC405EP_SRAM_BASE, sram);
 
     /* allocate and load BIOS */
     if (machine->firmware) {
@@ -328,8 +322,14 @@ static void ref405ep_init(MachineState *machine)
 {
     DeviceState *dev;
     SysBusDevice *s;
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     ppc405_init(machine);
+
+    /* allocate SRAM */
+    memory_region_init_ram(sram, NULL, "ref405ep.sram", PPC405EP_SRAM_SIZE,
+                           &error_fatal);
+    memory_region_add_subregion(get_system_memory(), PPC405EP_SRAM_BASE, sram);
 
     /* Register FPGA */
     ref405ep_fpga_init(get_system_memory(), PPC405EP_FPGA_BASE);
