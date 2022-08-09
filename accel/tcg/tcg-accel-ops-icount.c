@@ -109,7 +109,13 @@ void icount_prepare_for_run(CPUState *cpu)
     replay_mutex_lock();
 
     if (cpu->icount_budget == 0) {
+        /*
+         * We're called without the iothread lock, so must take it while
+         * we're calling timer handlers.
+         */
+        qemu_mutex_lock_iothread();
         icount_notify_aio_contexts();
+        qemu_mutex_unlock_iothread();
     }
 }
 
