@@ -8,6 +8,7 @@ config LOONGARCH_VIRT
     select SERIAL
     select SERIAL_ISA
     select VIRTIO_PCI
+    select PLATFORM_BUS
     select LOONGARCH_IPI
     select LOONGARCH_PCH_PIC
     select LOONGARCH_PCH_MSI
