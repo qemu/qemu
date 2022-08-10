@@ -306,22 +306,12 @@ bool host_memory_backend_is_mapped(HostMemoryBackend *backend)
     return backend->is_mapped;
 }
 
-#ifdef __linux__
 size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 {
-    Object *obj = OBJECT(memdev);
-    char *path = object_property_get_str(obj, "mem-path", NULL);
-    size_t pagesize = qemu_mempath_getpagesize(path);
-
-    g_free(path);
+    size_t pagesize = qemu_ram_pagesize(memdev->mr.ram_block);
+    g_assert(pagesize >= qemu_real_host_page_size());
     return pagesize;
 }
-#else
-size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
-{
-    return qemu_real_host_page_size();
-}
-#endif
 
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
