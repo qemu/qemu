@@ -158,6 +158,33 @@ static void fdt_add_pcie_node(const LoongArchMachineState *lams)
     qemu_fdt_dumpdtb(ms->fdt, lams->fdt_size);
 }
 
+static void fdt_add_irqchip_node(LoongArchMachineState *lams)
+{
+    MachineState *ms = MACHINE(lams);
+    char *nodename;
+    uint32_t irqchip_phandle;
+
+    irqchip_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+    qemu_fdt_setprop_cell(ms->fdt, "/", "interrupt-parent", irqchip_phandle);
+
+    nodename = g_strdup_printf("/intc@%lx", VIRT_IOAPIC_REG_BASE);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 3);
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 0x2);
+    qemu_fdt_setprop(ms->fdt, nodename, "ranges", NULL, 0);
+
+    qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                            "loongarch,ls7a");
+
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, VIRT_IOAPIC_REG_BASE,
+                                 2, PCH_PIC_ROUTE_ENTRY_OFFSET);
+
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", irqchip_phandle);
+    g_free(nodename);
+}
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
@@ -697,6 +724,7 @@ static void loongarch_init(MachineState *machine)
     }
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
+    fdt_add_irqchip_node(lams);
     lams->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&lams->machine_done);
     fdt_add_pcie_node(lams);
