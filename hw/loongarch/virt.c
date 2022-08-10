@@ -39,6 +39,7 @@
 #include <libfdt.h>
 #include "hw/core/sysbus-fdt.h"
 #include "hw/platform-bus.h"
+#include "hw/display/ramfb.h"
 
 static void create_fdt(LoongArchMachineState *lams)
 {
@@ -852,6 +853,7 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "acpi",
         "Enable ACPI");
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
 }
 
 static const TypeInfo loongarch_machine_types[] = {
