@@ -2,7 +2,6 @@ config LOONGARCH_VIRT
     bool
     select PCI
     select PCI_EXPRESS_GENERIC_BRIDGE
-    imply VGA_PCI
     imply VIRTIO_VGA
     imply PCI_DEVICES
     select ISA_BUS

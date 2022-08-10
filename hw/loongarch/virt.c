@@ -378,9 +378,6 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
         pci_nic_init_nofail(nd, pci_bus, nd->model, NULL);
     }
 
-    /* VGA setup */
-    pci_vga_init(pci_bus);
-
     /*
      * There are some invalid guest memory access.
      * Create some unimplemented devices to emulate this.
