@@ -1331,13 +1331,6 @@ GString *ram_block_format(void)
     return buf;
 }
 
-#ifdef __linux__
-/*
- * FIXME TOCTTOU: this iterates over memory backends' mem-path, which
- * may or may not name the same files / on the same filesystem now as
- * when we actually open and map them.  Iterate over the file
- * descriptors instead, and use qemu_fd_getpagesize().
- */
 static int find_min_backend_pagesize(Object *obj, void *opaque)
 {
     long *hpsize_min = opaque;
@@ -1391,16 +1384,6 @@ long qemu_maxrampagesize(void)
     object_child_foreach(memdev_root, find_max_backend_pagesize, &pagesize);
     return pagesize;
 }
-#else
-long qemu_minrampagesize(void)
-{
-    return qemu_real_host_page_size();
-}
-long qemu_maxrampagesize(void)
-{
-    return qemu_real_host_page_size();
-}
-#endif
 
 #ifdef CONFIG_POSIX
 static int64_t get_file_size(int fd)
