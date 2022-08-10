@@ -96,7 +96,8 @@ void HELPER(afl_maybe_log)(target_ulong cur_loc) {
 }
 
 void HELPER(afl_maybe_log_trace)(target_ulong cur_loc) {
-  INC_AFL_AREA(cur_loc);
+  register uintptr_t afl_idx = cur_loc;
+  INC_AFL_AREA(afl_idx);
 }
 
 static target_ulong pc_hash(target_ulong x) {
@@ -2101,10 +2102,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
        actual binary */
     int track_fd = afl_track_unstable_log_fd();
     if (unlikely(track_fd >= 0)) {
-      uintptr_t block_id = (uintptr_t)(afl_hash_ip((uint64_t)pc));
+      uint64_t  ip = (uint64_t)pc;
+      uintptr_t block_id = (uintptr_t)(afl_hash_ip(ip));
       block_id &= (MAP_SIZE - 1);
       dprintf(track_fd, "BLOCK ID: 0x%016" PRIx64 ", PC: 0x%016zx-0x%016zx\n",
-              block_id, pc, pc + tb->size);
+              block_id, ip, ip + tb->size);
     }
 
     /* generate machine code */
