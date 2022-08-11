@@ -281,6 +281,26 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
     g_free(reg);
 }
 
+/*
+ * Adds a PnvPHB to the chip. Returns the parent obj of the
+ * PHB which varies with each version (phb version 3 is parented
+ * by the chip, version 4 and 5 are parented by the PEC
+ * device).
+ *
+ * TODO: for version 3 we're still parenting the PHB with the
+ * chip. We should parent with a (so far not implemented)
+ * PHB3 PEC device.
+ */
+Object *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp)
+{
+    if (phb->version == 3) {
+        return OBJECT(chip);
+    } else {
+        /* phb4 support will be added later */
+        return NULL;
+    }
+}
+
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
     static const char compat[] = "ibm,power8-xscom\0ibm,xscom";
