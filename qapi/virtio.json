@@ -106,10 +106,10 @@
             'n-tmp-sections': 'int',
             'nvqs': 'uint32',
             'vq-index': 'int',
-            'features': 'uint64',
-            'acked-features': 'uint64',
-            'backend-features': 'uint64',
-            'protocol-features': 'uint64',
+            'features': 'VirtioDeviceFeatures',
+            'acked-features': 'VirtioDeviceFeatures',
+            'backend-features': 'VirtioDeviceFeatures',
+            'protocol-features': 'VhostDeviceProtocols',
             'max-queues': 'uint64',
             'backend-cap': 'uint64',
             'log-enabled': 'bool',
@@ -176,11 +176,11 @@
             'device-id': 'uint16',
             'vhost-started': 'bool',
             'device-endian': 'str',
-            'guest-features': 'uint64',
-            'host-features': 'uint64',
-            'backend-features': 'uint64',
+            'guest-features': 'VirtioDeviceFeatures',
+            'host-features': 'VirtioDeviceFeatures',
+            'backend-features': 'VirtioDeviceFeatures',
             'num-vqs': 'int',
-            'status': 'uint8',
+            'status': 'VirtioDeviceStatus',
             'isr': 'uint8',
             'queue-sel': 'uint16',
             'vm-running': 'bool',
@@ -222,14 +222,41 @@
 #          "name": "virtio-crypto",
 #          "started": true,
 #          "device-id": 20,
-#          "backend-features": 0,
+#          "backend-features": {
+#              "transports": [],
+#              "dev-features": []
+#          },
 #          "start-on-kick": false,
 #          "isr": 1,
 #          "broken": false,
-#          "status": 15,
+#          "status": {
+#              "statuses": [
+#                  "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+#                  "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+#                  "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+#                  "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+#              ]
+#          },
 #          "num-vqs": 2,
-#          "guest-features": 5100273664,
-#          "host-features": 6325010432,
+#          "guest-features": {
+#              "dev-features": [],
+#              "transports": [
+#                  "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                  "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+#              ]
+#          },
+#          "host-features": {
+#              "unknown-dev-features": 1073741824,
+#              "dev-features": [],
+#              "transports": [
+#                  "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                  "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+#                  "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+#                  "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+#              ]
+#          },
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 1,
@@ -257,22 +284,147 @@
 #              "max-queues": 1,
 #              "backend-cap": 2,
 #              "log-size": 0,
-#              "backend-features": 0,
+#              "backend-features": {
+#                  "dev-features": [],
+#                  "transports": []
+#              },
 #              "nvqs": 2,
-#              "protocol-features": 0,
+#              "protocol-features": {
+#                  "protocols": []
+#              },
 #              "vq-index": 0,
 #              "log-enabled": false,
-#              "acked-features": 5100306432,
-#              "features": 13908344832
+#              "acked-features": {
+#                  "dev-features": [
+#                      "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers"
+#                  ],
+#                  "transports": [
+#                      "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                      "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                      "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+#                  ]
+#              },
+#              "features": {
+#                  "dev-features": [
+#                      "VHOST_F_LOG_ALL: Logging write descriptors supported",
+#                      "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers"
+#                  ],
+#                  "transports": [
+#                      "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                      "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                      "VIRTIO_F_IOMMU_PLATFORM: Device can be used on IOMMU platform",
+#                      "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+#                      "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+#                      "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+#                  ]
+#              }
 #          },
-#          "backend-features": 6337593319,
+#          "backend-features": {
+#              "dev-features": [
+#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotation supported",
+#                  "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
+#                  "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+#                  "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+#                  "VIRTIO_NET_F_CTRL_RX_EXTRA: Extra RX mode control supported",
+#                  "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+#                  "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+#                  "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+#                  "VIRTIO_NET_F_STATUS: Configuration status field available",
+#                  "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+#                  "VIRTIO_NET_F_HOST_UFO: Device can receive UFO",
+#                  "VIRTIO_NET_F_HOST_ECN: Device can receive TSO with ECN",
+#                  "VIRTIO_NET_F_HOST_TSO6: Device can receive TSOv6",
+#                  "VIRTIO_NET_F_HOST_TSO4: Device can receive TSOv4",
+#                  "VIRTIO_NET_F_GUEST_UFO: Driver can receive UFO",
+#                  "VIRTIO_NET_F_GUEST_ECN: Driver can receive TSO with ECN",
+#                  "VIRTIO_NET_F_GUEST_TSO6: Driver can receive TSOv6",
+#                  "VIRTIO_NET_F_GUEST_TSO4: Driver can receive TSOv4",
+#                  "VIRTIO_NET_F_MAC: Device has given MAC address",
+#                  "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported",
+#                  "VIRTIO_NET_F_GUEST_CSUM: Driver handling packets with partial checksum supported",
+#                  "VIRTIO_NET_F_CSUM: Device handling packets with partial checksum supported"
+#              ],
+#              "transports": [
+#                  "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                  "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+#                  "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+#                  "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+#              ]
+#          },
 #          "start-on-kick": false,
 #          "isr": 1,
 #          "broken": false,
-#          "status": 15,
+#          "status": {
+#              "statuses": [
+#                  "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+#                  "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+#                  "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+#                  "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+#              ]
+#          },
 #          "num-vqs": 3,
-#          "guest-features": 5111807911,
-#          "host-features": 6337593319,
+#          "guest-features": {
+#              "dev-features": [
+#                  "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+#                  "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+#                  "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+#                  "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+#                  "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+#                  "VIRTIO_NET_F_STATUS: Configuration status field available",
+#                  "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+#                  "VIRTIO_NET_F_HOST_UFO: Device can receive UFO",
+#                  "VIRTIO_NET_F_HOST_ECN: Device can receive TSO with ECN",
+#                  "VIRTIO_NET_F_HOST_TSO6: Device can receive TSOv6",
+#                  "VIRTIO_NET_F_HOST_TSO4: Device can receive TSOv4",
+#                  "VIRTIO_NET_F_GUEST_UFO: Driver can receive UFO",
+#                  "VIRTIO_NET_F_GUEST_ECN: Driver can receive TSO with ECN",
+#                  "VIRTIO_NET_F_GUEST_TSO6: Driver can receive TSOv6",
+#                  "VIRTIO_NET_F_GUEST_TSO4: Driver can receive TSOv4",
+#                  "VIRTIO_NET_F_MAC: Device has given MAC address",
+#                  "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported",
+#                  "VIRTIO_NET_F_GUEST_CSUM: Driver handling packets with partial checksum supported",
+#                  "VIRTIO_NET_F_CSUM: Device handling packets with partial checksum supported"
+#              ],
+#              "transports": [
+#                  "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                  "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+#             ]
+#          },
+#          "host-features": {
+#              "dev-features": [
+#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotation supported",
+#                  "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
+#                  "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+#                  "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+#                  "VIRTIO_NET_F_CTRL_RX_EXTRA: Extra RX mode control supported",
+#                  "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+#                  "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+#                  "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+#                  "VIRTIO_NET_F_STATUS: Configuration status field available",
+#                  "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+#                  "VIRTIO_NET_F_HOST_UFO: Device can receive UFO",
+#                  "VIRTIO_NET_F_HOST_ECN: Device can receive TSO with ECN",
+#                  "VIRTIO_NET_F_HOST_TSO6: Device can receive TSOv6",
+#                  "VIRTIO_NET_F_HOST_TSO4: Device can receive TSOv4",
+#                  "VIRTIO_NET_F_GUEST_UFO: Driver can receive UFO",
+#                  "VIRTIO_NET_F_GUEST_ECN: Driver can receive TSO with ECN",
+#                  "VIRTIO_NET_F_GUEST_TSO6: Driver can receive TSOv6",
+#                  "VIRTIO_NET_F_GUEST_TSO4: Driver can receive TSOv4",
+#                  "VIRTIO_NET_F_MAC: Device has given MAC address",
+#                  "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported",
+#                  "VIRTIO_NET_F_GUEST_CSUM: Driver handling packets with partial checksum supported",
+#                  "VIRTIO_NET_F_CSUM: Device handling packets with partial checksum supported"
+#              ],
+#              "transports": [
+#                  "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+#                  "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+#                  "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+#                  "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+#                  "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+#             ]
+#          },
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 2,
@@ -288,3 +440,62 @@
   'data': { 'path': 'str' },
   'returns': 'VirtioStatus',
   'features': [ 'unstable' ] }
+
+##
+# @VirtioDeviceStatus:
+#
+# A structure defined to list the configuration statuses of a virtio
+# device
+#
+# @statuses: List of decoded configuration statuses of the virtio
+#            device
+#
+# @unknown-statuses: Virtio device statuses bitmap that have not been decoded
+#
+# Since: 7.1
+##
+
+{ 'struct': 'VirtioDeviceStatus',
+  'data': { 'statuses': [ 'str' ],
+            '*unknown-statuses': 'uint8' } }
+
+##
+# @VhostDeviceProtocols:
+#
+# A structure defined to list the vhost user protocol features of a
+# Vhost User device
+#
+# @protocols: List of decoded vhost user protocol features of a vhost
+#             user device
+#
+# @unknown-protocols: Vhost user device protocol features bitmap that
+#                     have not been decoded
+#
+# Since: 7.1
+##
+
+{ 'struct': 'VhostDeviceProtocols',
+  'data': { 'protocols': [ 'str' ],
+            '*unknown-protocols': 'uint64' } }
+
+##
+# @VirtioDeviceFeatures:
+#
+# The common fields that apply to most Virtio devices. Some devices
+# may not have their own device-specific features (e.g. virtio-rng).
+#
+# @transports: List of transport features of the virtio device
+#
+# @dev-features: List of device-specific features (if the device has
+#                unique features)
+#
+# @unknown-dev-features: Virtio device features bitmap that have not
+#                        been decoded
+#
+# Since: 7.1
+##
+
+{ 'struct': 'VirtioDeviceFeatures',
+  'data': { 'transports': [ 'str' ],
+            '*dev-features': [ 'str' ],
+            '*unknown-dev-features': 'uint64' } }
