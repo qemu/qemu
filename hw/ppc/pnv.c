@@ -1178,20 +1178,22 @@ static void pnv_chip_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer", &chip8->homer, TYPE_PNV8_HOMER);
 
-    chip8->num_phbs = pcc->num_phbs;
+    if (defaults_enabled()) {
+        chip8->num_phbs = pcc->num_phbs;
 
-    for (i = 0; i < chip8->num_phbs; i++) {
-        Object *phb = object_new(TYPE_PNV_PHB);
+        for (i = 0; i < chip8->num_phbs; i++) {
+            Object *phb = object_new(TYPE_PNV_PHB);
 
-        /*
-         * We need the chip to parent the PHB to allow the DT
-         * to build correctly (via pnv_xscom_dt()).
-         *
-         * TODO: the PHB should be parented by a PEC device that, at
-         * this moment, is not modelled powernv8/phb3.
-         */
-        object_property_add_child(obj, "phb[*]", phb);
-        chip8->phbs[i] = PNV_PHB(phb);
+            /*
+             * We need the chip to parent the PHB to allow the DT
+             * to build correctly (via pnv_xscom_dt()).
+             *
+             * TODO: the PHB should be parented by a PEC device that, at
+             * this moment, is not modelled powernv8/phb3.
+             */
+            object_property_add_child(obj, "phb[*]", phb);
+            chip8->phbs[i] = PNV_PHB(phb);
+        }
     }
 
 }
@@ -2155,6 +2157,8 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
 
     pmc->compat = compat;
     pmc->compat_size = sizeof(compat);
+
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
 
 static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
