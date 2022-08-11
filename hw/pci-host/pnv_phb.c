@@ -25,20 +25,18 @@
  * QOM id. 'chip_id' is going to be used as PCIE chassis for the
  * root port.
  */
-static void pnv_phb_attach_root_port(PCIHostState *pci, int index, int chip_id)
+static void pnv_phb_attach_root_port(PCIHostState *pci)
 {
     PCIDevice *root = pci_new(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
-    g_autofree char *default_id = g_strdup_printf("%s[%d]",
-                                                  TYPE_PNV_PHB_ROOT_PORT,
-                                                  index);
     const char *dev_id = DEVICE(root)->id;
+    g_autofree char *default_id = NULL;
+    int index;
+
+    index = object_property_get_int(OBJECT(pci->bus), "phb-id", &error_fatal);
+    default_id = g_strdup_printf("%s[%d]", TYPE_PNV_PHB_ROOT_PORT, index);
 
     object_property_add_child(OBJECT(pci->bus), dev_id ? dev_id : default_id,
                               OBJECT(root));
-
-    /* Set unique chassis/slot values for the root port */
-    qdev_prop_set_uint8(DEVICE(root), "chassis", chip_id);
-    qdev_prop_set_uint16(DEVICE(root), "slot", index);
 
     pci_realize_and_unref(root, pci->bus, &error_fatal);
 }
@@ -93,7 +91,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         pnv_phb4_bus_init(dev, PNV_PHB4(phb->backend));
     }
 
-    pnv_phb_attach_root_port(pci, phb->phb_id, phb->chip_id);
+    pnv_phb_attach_root_port(pci);
 }
 
 static const char *pnv_phb_root_bus_path(PCIHostState *host_bridge,
@@ -162,9 +160,18 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
 {
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
     PnvPHBRootPort *phb_rp = PNV_PHB_ROOT_PORT(dev);
+    PCIBus *bus = PCI_BUS(qdev_get_parent_bus(dev));
     PCIDevice *pci = PCI_DEVICE(dev);
     uint16_t device_id = 0;
     Error *local_err = NULL;
+    int chip_id, index;
+
+    chip_id = object_property_get_int(OBJECT(bus), "chip-id", &error_fatal);
+    index = object_property_get_int(OBJECT(bus), "phb-id", &error_fatal);
+
+    /* Set unique chassis/slot values for the root port */
+    qdev_prop_set_uint8(dev, "chassis", chip_id);
+    qdev_prop_set_uint16(dev, "slot", index);
 
     rpc->parent_realize(dev, &local_err);
     if (local_err) {
