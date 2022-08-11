@@ -260,7 +260,7 @@ static void write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
     }
 }
 
-static void write_elf64_phdr_note(DumpState *s, Elf64_Phdr *phdr)
+static void prepare_elf64_phdr_note(DumpState *s, Elf64_Phdr *phdr)
 {
     memset(phdr, 0, sizeof(*phdr));
     phdr->p_type = cpu_to_dump32(s, PT_NOTE);
@@ -316,7 +316,7 @@ static void write_elf64_notes(WriteCoreDumpFunction f, DumpState *s,
     write_guest_note(f, s, errp);
 }
 
-static void write_elf32_phdr_note(DumpState *s, Elf32_Phdr *phdr)
+static void prepare_elf32_phdr_note(DumpState *s, Elf32_Phdr *phdr)
 {
     memset(phdr, 0, sizeof(*phdr));
     phdr->p_type = cpu_to_dump32(s, PT_NOTE);
@@ -364,11 +364,11 @@ static void write_elf_phdr_note(DumpState *s, Error **errp)
     int ret;
 
     if (dump_is_64bit(s)) {
-        write_elf64_phdr_note(s, &phdr64);
+        prepare_elf64_phdr_note(s, &phdr64);
         size = sizeof(phdr64);
         phdr = &phdr64;
     } else {
-        write_elf32_phdr_note(s, &phdr32);
+        prepare_elf32_phdr_note(s, &phdr32);
         size = sizeof(phdr32);
         phdr = &phdr32;
     }
