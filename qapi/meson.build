@@ -49,6 +49,7 @@ qapi_all_modules = [
   'stats',
   'trace',
   'transaction',
+  'virtio',
   'yank',
 ]
 if have_system
