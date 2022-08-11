@@ -166,8 +166,6 @@ typedef struct DumpState {
     hwaddr memory_offset;
     int fd;
 
-    GuestPhysBlock *next_block;
-    ram_addr_t start;
     bool has_filter;
     int64_t begin;
     int64_t length;
