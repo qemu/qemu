@@ -1938,13 +1938,13 @@ extern const VMStateDescription vmstate_x86_cpu;
 int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request);
 
 int x86_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
-                             int cpuid, void *opaque);
+                             int cpuid, DumpState *s);
 int x86_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
-                             int cpuid, void *opaque);
+                             int cpuid, DumpState *s);
 int x86_cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
-                                 void *opaque);
+                                 DumpState *s);
 int x86_cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
-                                 void *opaque);
+                                 DumpState *s);
 
 void x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);

@@ -1102,9 +1102,9 @@ int arm_gen_dynamic_svereg_xml(CPUState *cpu, int base_reg);
 const char *arm_gdb_get_dynamic_xml(CPUState *cpu, const char *xmlname);
 
 int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque);
+                             int cpuid, DumpState *s);
 int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque);
+                             int cpuid, DumpState *s);
 
 #ifdef TARGET_AARCH64
 int aarch64_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
