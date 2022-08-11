@@ -1397,6 +1397,8 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "occ", &chip9->occ, TYPE_PNV9_OCC);
 
+    object_initialize_child(obj, "sbe", &chip9->sbe, TYPE_PNV9_SBE);
+
     object_initialize_child(obj, "homer", &chip9->homer, TYPE_PNV9_HOMER);
 
     /* Number of PECs is the chip default */
@@ -1549,6 +1551,17 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
                                 &chip9->occ.sram_regs);
 
+    /* SBE */
+    if (!qdev_realize(DEVICE(&chip9->sbe), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_SBE_CTRL_BASE,
+                            &chip9->sbe.xscom_ctrl_regs);
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_SBE_MBOX_BASE,
+                            &chip9->sbe.xscom_mbox_regs);
+    qdev_connect_gpio_out(DEVICE(&chip9->sbe), 0, qdev_get_gpio_in(
+                              DEVICE(&chip9->psi), PSIHB9_IRQ_PSU));
+
     /* HOMER */
     object_property_set_link(OBJECT(&chip9->homer), "chip", OBJECT(chip),
                              &error_abort);
@@ -1613,6 +1626,7 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "psi", &chip10->psi, TYPE_PNV10_PSI);
     object_initialize_child(obj, "lpc", &chip10->lpc, TYPE_PNV10_LPC);
     object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
+    object_initialize_child(obj, "sbe",  &chip10->sbe, TYPE_PNV10_SBE);
     object_initialize_child(obj, "homer", &chip10->homer, TYPE_PNV10_HOMER);
 
     chip->num_pecs = pcc->num_pecs;
@@ -1753,6 +1767,17 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(),
                                 PNV10_OCC_SENSOR_BASE(chip),
                                 &chip10->occ.sram_regs);
+
+    /* SBE */
+    if (!qdev_realize(DEVICE(&chip10->sbe), NULL, errp)) {
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_SBE_CTRL_BASE,
+                            &chip10->sbe.xscom_ctrl_regs);
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_SBE_MBOX_BASE,
+                            &chip10->sbe.xscom_mbox_regs);
+    qdev_connect_gpio_out(DEVICE(&chip10->sbe), 0, qdev_get_gpio_in(
+                              DEVICE(&chip10->psi), PSIHB9_IRQ_PSU));
 
     /* HOMER */
     object_property_set_link(OBJECT(&chip10->homer), "chip", OBJECT(chip),

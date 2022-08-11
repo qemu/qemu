@@ -46,6 +46,7 @@ ppc_ss.add(when: 'CONFIG_POWERNV', if_true: files(
   'pnv_lpc.c',
   'pnv_psi.c',
   'pnv_occ.c',
+  'pnv_sbe.c',
   'pnv_bmc.c',
   'pnv_homer.c',
   'pnv_pnor.c',

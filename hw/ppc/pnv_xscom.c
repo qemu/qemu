@@ -295,6 +295,9 @@ int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset,
     _FDT((fdt_setprop(fdt, xscom_offset, "reg", reg, sizeof(reg))));
     _FDT((fdt_setprop(fdt, xscom_offset, "compatible", compat, compat_size)));
     _FDT((fdt_setprop(fdt, xscom_offset, "scom-controller", NULL, 0)));
+    if (chip->chip_id == 0) {
+        _FDT((fdt_setprop(fdt, xscom_offset, "primary", NULL, 0)));
+    }
 
     args.fdt = fdt;
     args.xscom_offset = xscom_offset;
