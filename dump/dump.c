@@ -59,6 +59,11 @@ static inline bool dump_is_64bit(DumpState *s)
     return s->dump_info.d_class == ELFCLASS64;
 }
 
+static inline bool dump_has_filter(DumpState *s)
+{
+    return s->filter_area_length > 0;
+}
+
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val)
 {
     if (s->dump_info.d_endian == ELFDATA2LSB) {
@@ -443,29 +448,30 @@ static void get_offset_range(hwaddr phys_addr,
     *p_offset = -1;
     *p_filesz = 0;
 
-    if (s->has_filter) {
-        if (phys_addr < s->begin || phys_addr >= s->begin + s->length) {
+    if (dump_has_filter(s)) {
+        if (phys_addr < s->filter_area_begin ||
+            phys_addr >= s->filter_area_begin + s->filter_area_length) {
             return;
         }
     }
 
     QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
-        if (s->has_filter) {
-            if (block->target_start >= s->begin + s->length ||
-                block->target_end <= s->begin) {
+        if (dump_has_filter(s)) {
+            if (block->target_start >= s->filter_area_begin + s->filter_area_length ||
+                block->target_end <= s->filter_area_begin) {
                 /* This block is out of the range */
                 continue;
             }
 
-            if (s->begin <= block->target_start) {
+            if (s->filter_area_begin <= block->target_start) {
                 start = block->target_start;
             } else {
-                start = s->begin;
+                start = s->filter_area_begin;
             }
 
             size_in_block = block->target_end - start;
-            if (s->begin + s->length < block->target_end) {
-                size_in_block -= block->target_end - (s->begin + s->length);
+            if (s->filter_area_begin + s->filter_area_length < block->target_end) {
+                size_in_block -= block->target_end - (s->filter_area_begin + s->filter_area_length);
             }
         } else {
             start = block->target_start;
@@ -638,12 +644,12 @@ static void dump_iterate(DumpState *s, Error **errp)
     int64_t memblock_size, memblock_start;
 
     QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
-        memblock_start = dump_filtered_memblock_start(block, s->begin, s->length);
+        memblock_start = dump_filtered_memblock_start(block, s->filter_area_begin, s->filter_area_length);
         if (memblock_start == -1) {
             continue;
         }
 
-        memblock_size = dump_filtered_memblock_size(block, s->begin, s->length);
+        memblock_size = dump_filtered_memblock_size(block, s->filter_area_begin, s->filter_area_length);
 
         /* Write the memory to file */
         write_memory(s, block, memblock_start, memblock_size, errp);
@@ -1504,14 +1510,14 @@ static int validate_start_block(DumpState *s)
 {
     GuestPhysBlock *block;
 
-    if (!s->has_filter) {
+    if (!dump_has_filter(s)) {
         return 0;
     }
 
     QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
         /* This block is out of the range */
-        if (block->target_start >= s->begin + s->length ||
-            block->target_end <= s->begin) {
+        if (block->target_start >= s->filter_area_begin + s->filter_area_length ||
+            block->target_end <= s->filter_area_begin) {
             continue;
         }
         return 0;
@@ -1550,10 +1556,10 @@ static int64_t dump_calculate_size(DumpState *s)
     int64_t size = 0, total = 0, left = 0, right = 0;
 
     QTAILQ_FOREACH(block, &s->guest_phys_blocks.head, next) {
-        if (s->has_filter) {
+        if (dump_has_filter(s)) {
             /* calculate the overlapped region. */
-            left = MAX(s->begin, block->target_start);
-            right = MIN(s->begin + s->length, block->target_end);
+            left = MAX(s->filter_area_begin, block->target_start);
+            right = MIN(s->filter_area_begin + s->filter_area_length, block->target_end);
             size = right - left;
             size = size > 0 ? size : 0;
         } else {
@@ -1643,9 +1649,12 @@ static void dump_init(DumpState *s, int fd, bool has_format,
     }
 
     s->fd = fd;
-    s->has_filter = has_filter;
-    s->begin = begin;
-    s->length = length;
+    if (has_filter && !length) {
+        error_setg(errp, QERR_INVALID_PARAMETER, "length");
+        goto cleanup;
+    }
+    s->filter_area_begin = begin;
+    s->filter_area_length = length;
 
     memory_mapping_list_init(&s->list);
 
@@ -1778,8 +1787,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         return;
     }
 
-    if (s->has_filter) {
-        memory_mapping_filter(&s->list, s->begin, s->length);
+    if (dump_has_filter(s)) {
+        memory_mapping_filter(&s->list, s->filter_area_begin, s->filter_area_length);
     }
 
     /*

@@ -166,9 +166,16 @@ typedef struct DumpState {
     hwaddr memory_offset;
     int fd;
 
-    bool has_filter;
-    int64_t begin;
-    int64_t length;
+    /*
+     * Dump filter area variables
+     *
+     * A filtered dump only contains the guest memory designated by
+     * the start address and length variables defined below.
+     *
+     * If length is 0, no filtering is applied.
+     */
+    int64_t filter_area_begin;  /* Start address of partial guest memory area */
+    int64_t filter_area_length; /* Length of partial guest memory area */
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
