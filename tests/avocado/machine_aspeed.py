@@ -101,7 +101,9 @@ class AST2x00Machine(QemuSystemTest):
         self.wait_for_console_pattern('Starting kernel ...')
         self.wait_for_console_pattern('Booting Linux on physical CPU ' + cpu_id)
         self.wait_for_console_pattern('lease of 10.0.2.15')
+        # the line before login:
         self.wait_for_console_pattern('Aspeed EVB')
+        time.sleep(0.1)
         exec_command(self, 'root')
         time.sleep(0.1)
 
