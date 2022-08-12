@@ -447,9 +447,8 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     g_assert(head != NULL);
 
     for (i = 0, item = head; item; item = item->next, i++) {
-        char string[12];
+        g_autofree char *string = g_strdup_printf("string%d", i);
 
-        snprintf(string, sizeof(string), "string%d", i);
         g_assert_cmpstr(item->value->string, ==, string);
         g_assert_cmpint(item->value->integer, ==, 42 + i);
     }

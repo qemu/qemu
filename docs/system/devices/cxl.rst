@@ -83,7 +83,7 @@ CXL Fixed Memory Windows (CFMW)
 A CFMW consists of a particular range of Host Physical Address space
 which is routed to particular CXL Host Bridges.  At time of generic
 software initialization it will have a particularly interleaving
-configuration and associated Quality of Serice Throtling Group (QTG).
+configuration and associated Quality of Service Throttling Group (QTG).
 This information is available to system software, when making
 decisions about how to configure interleave across available CXL
 memory devices.  It is provide as CFMW Structures (CFMWS) in
@@ -98,7 +98,7 @@ specification defined register interface called CXL Host Bridge
 Component Registers (CHBCR). The location of this CHBCR MMIO
 space is described to system software via a CXL Host Bridge
 Structure (CHBS) in the CEDT ACPI table.  The actual interfaces
-are identical to those used for other parts of the CXL heirarchy
+are identical to those used for other parts of the CXL hierarchy
 as CXL Component Registers in PCI BARs.
 
 Interfaces provided include:
@@ -143,7 +143,7 @@ CXL Memory Devices - Type 3
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 CXL type 3 devices use a PCI class code and are intended to be supported
 by a generic operating system driver. They have HDM decoders
-though in these EP devices, the decoder is reponsible not for
+though in these EP devices, the decoder is responsible not for
 routing but for translation of the incoming host physical address (HPA)
 into a Device Physical Address (DPA).
 
@@ -209,7 +209,7 @@ Notes:
     ranges of the system physical address map.  Each CFMW has
     particular interleave setup across the CXL Host Bridges (HB)
     CFMW0 provides uninterleaved access to HB0, CFW2 provides
-    uninterleaved acess to HB1. CFW1 provides interleaved memory access
+    uninterleaved access to HB1. CFW1 provides interleaved memory access
     across HB0 and HB1.
 
 (2) **Two CXL Host Bridges**. Each of these has 2 CXL Root Ports and
@@ -282,7 +282,7 @@ Example topology involving a switch::
             ---------------------------------------------------
            |    Switch 0  USP as PCI 0d:00.0                   |
            |    USP has HDM decoder which direct traffic to    |
-           |    appropiate downstream port                     |
+           |    appropriate downstream port                    |
            |    Switch BUS appears as 0e                       |
            |x__________________________________________________|
             |                  |               |              |
@@ -366,7 +366,7 @@ An example of 4 devices below a switch suitable for 1, 2 or 4 way interleave::
 Kernel Configuration Options
 ----------------------------
 
-In Linux 5.18 the followings options are necessary to make use of
+In Linux 5.18 the following options are necessary to make use of
 OS management of CXL memory devices as described here.
 
 * CONFIG_CXL_BUS

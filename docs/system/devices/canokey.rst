@@ -28,9 +28,9 @@ With the same software configuration as a hardware key,
 the guest OS can use all the functionalities of a secure key as if
 there was actually an hardware key plugged in.
 
-CanoKey QEMU provides much convenience for debuging:
+CanoKey QEMU provides much convenience for debugging:
 
-* libcanokey-qemu supports debuging output thus developers can
+* libcanokey-qemu supports debugging output thus developers can
   inspect what happens inside a secure key
 * CanoKey QEMU supports trace event thus event
 * QEMU USB stack supports pcap thus USB packet between the guest
@@ -102,8 +102,8 @@ and find CanoKey QEMU there:
 
 You may setup the key as guided in [6]_. The console for the key is at [7]_.
 
-Debuging
-========
+Debugging
+=========
 
 CanoKey QEMU consists of two parts, ``libcanokey-qemu.so`` and ``canokey.c``,
 the latter of which resides in QEMU. The former provides core functionality

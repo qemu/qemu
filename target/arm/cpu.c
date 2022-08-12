@@ -1933,6 +1933,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
+    if (tcg_enabled()) {
+        /*
+         * Don't report the Statistical Profiling Extension in the ID
+         * registers, because TCG doesn't implement it yet (not even a
+         * minimal stub version) and guests will fall over when they
+         * try to access the non-existent system registers for it.
+         */
+        cpu->isar.id_aa64dfr0 =
+            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMSVER, 0);
+    }
+
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu
      * to false or by setting pmsav7-dregion to 0.
      */
