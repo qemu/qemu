@@ -111,6 +111,13 @@ static struct {
     .processor_id = 0,
 };
 
+struct type8_instance {
+    const char *internal_reference, *external_reference;
+    uint8_t connector_type, port_type;
+    QTAILQ_ENTRY(type8_instance) next;
+};
+static QTAILQ_HEAD(, type8_instance) type8 = QTAILQ_HEAD_INITIALIZER(type8);
+
 static struct {
     size_t nvalues;
     char **values;
@@ -335,6 +342,29 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
         .help = "processor id",
     },
     { /* end of list */ }
+};
+
+static const QemuOptDesc qemu_smbios_type8_opts[] = {
+    {
+        .name = "internal_reference",
+        .type = QEMU_OPT_STRING,
+        .help = "internal reference designator",
+    },
+    {
+        .name = "external_reference",
+        .type = QEMU_OPT_STRING,
+        .help = "external reference designator",
+    },
+    {
+        .name = "connector_type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "connector type",
+    },
+    {
+        .name = "port_type",
+        .type = QEMU_OPT_NUMBER,
+        .help = "port type",
+    },
 };
 
 static const QemuOptDesc qemu_smbios_type11_opts[] = {
@@ -718,6 +748,26 @@ static void smbios_build_type_4_table(MachineState *ms, unsigned instance)
     smbios_type4_count++;
 }
 
+static void smbios_build_type_8_table(void)
+{
+    unsigned instance = 0;
+    struct type8_instance *t8;
+
+    QTAILQ_FOREACH(t8, &type8, next) {
+        SMBIOS_BUILD_TABLE_PRE(8, T0_BASE + instance, true);
+
+        SMBIOS_TABLE_SET_STR(8, internal_reference_str, t8->internal_reference);
+        SMBIOS_TABLE_SET_STR(8, external_reference_str, t8->external_reference);
+        /* most vendors seem to set this to None */
+        t->internal_connector_type = 0x0;
+        t->external_connector_type = t8->connector_type;
+        t->port_type = t8->port_type;
+
+        SMBIOS_BUILD_TABLE_POST;
+        instance++;
+    }
+}
+
 static void smbios_build_type_11_table(void)
 {
     char count_str[128];
@@ -1030,6 +1080,7 @@ void smbios_get_tables(MachineState *ms,
             smbios_build_type_4_table(ms, i);
         }
 
+        smbios_build_type_8_table();
         smbios_build_type_11_table();
 
 #define MAX_DIMM_SZ (16 * GiB)
@@ -1347,6 +1398,18 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
                 error_setg(errp, "SMBIOS CPU speed is too large (> %d)",
                            UINT16_MAX);
             }
+            return;
+        case 8:
+            if (!qemu_opts_validate(opts, qemu_smbios_type8_opts, errp)) {
+                return;
+            }
+            struct type8_instance *t;
+            t = g_new0(struct type8_instance, 1);
+            save_opt(&t->internal_reference, opts, "internal_reference");
+            save_opt(&t->external_reference, opts, "external_reference");
+            t->connector_type = qemu_opt_get_number(opts, "connector_type", 0);
+            t->port_type = qemu_opt_get_number(opts, "port_type", 0);
+            QTAILQ_INSERT_TAIL(&type8, t, next);
             return;
         case 11:
             if (!qemu_opts_validate(opts, qemu_smbios_type11_opts, errp)) {
