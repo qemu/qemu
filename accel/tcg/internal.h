@@ -21,7 +21,11 @@ void tb_htable_init(void);
 /* Return the current PC from CPU, which may be cached in TB. */
 static inline target_ulong log_pc(CPUState *cpu, const TranslationBlock *tb)
 {
+#if TARGET_TB_PCREL
+    return cpu->cc->get_pc(cpu);
+#else
     return tb_pc(tb);
+#endif
 }
 
 #endif /* ACCEL_TCG_INTERNAL_H */
