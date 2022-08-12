@@ -297,7 +297,7 @@ by using ``-machine graphics=off``.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In QEMU versions 6.1, 6.2 and 7.0, the ``nvme-ns`` generates an EUI-64
-identifer that is not globally unique. If an EUI-64 identifer is required, the
+identifier that is not globally unique. If an EUI-64 identifier is required, the
 user must set it explicitly using the ``nvme-ns`` device parameter ``eui64``.
 
 ``-device nvme,use-intel-id=on|off`` (since 7.1)

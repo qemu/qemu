@@ -108,7 +108,7 @@ Slot 0 contains a backend storage header that identifies the contents
 as ERST and also facilitates efficient access to the records.
 Depending upon the size of the backend storage, additional slots will
 be designated to be a part of the slot 0 header. For example, at 8KiB,
-the slot 0 header can accomodate 1021 records. Thus a storage size
+the slot 0 header can accommodate 1021 records. Thus a storage size
 of 8MiB (8KiB * 1024) requires an additional slot for use by the
 header. In this scenario, slot 0 and slot 1 form the backend storage
 header, and records can be stored starting at slot 2.
@@ -196,5 +196,5 @@ References
 [2] "Unified Extensible Firmware Interface Specification",
     version 2.1, October 2008.
 
-[3] "Windows Hardware Error Architecture", specfically
+[3] "Windows Hardware Error Architecture", specifically
     "Error Record Persistence Mechanism".
