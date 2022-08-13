@@ -100,8 +100,11 @@ static const MemMapEntry microchip_pfsoc_memmap[] = {
     [MICROCHIP_PFSOC_L2LIM] =           {  0x8000000,  0x2000000 },
     [MICROCHIP_PFSOC_PLIC] =            {  0xc000000,  0x4000000 },
     [MICROCHIP_PFSOC_MMUART0] =         { 0x20000000,     0x1000 },
+    [MICROCHIP_PFSOC_WDOG0] =           { 0x20001000,     0x1000 },
     [MICROCHIP_PFSOC_SYSREG] =          { 0x20002000,     0x2000 },
+    [MICROCHIP_PFSOC_AXISW] =           { 0x20004000,     0x1000 },
     [MICROCHIP_PFSOC_MPUCFG] =          { 0x20005000,     0x1000 },
+    [MICROCHIP_PFSOC_FMETER] =          { 0x20006000,     0x1000 },
     [MICROCHIP_PFSOC_DDR_SGMII_PHY] =   { 0x20007000,     0x1000 },
     [MICROCHIP_PFSOC_EMMC_SD] =         { 0x20008000,     0x1000 },
     [MICROCHIP_PFSOC_DDR_CFG] =         { 0x20080000,    0x40000 },
@@ -109,19 +112,28 @@ static const MemMapEntry microchip_pfsoc_memmap[] = {
     [MICROCHIP_PFSOC_MMUART2] =         { 0x20102000,     0x1000 },
     [MICROCHIP_PFSOC_MMUART3] =         { 0x20104000,     0x1000 },
     [MICROCHIP_PFSOC_MMUART4] =         { 0x20106000,     0x1000 },
+    [MICROCHIP_PFSOC_WDOG1] =           { 0x20101000,     0x1000 },
+    [MICROCHIP_PFSOC_WDOG2] =           { 0x20103000,     0x1000 },
+    [MICROCHIP_PFSOC_WDOG3] =           { 0x20105000,     0x1000 },
+    [MICROCHIP_PFSOC_WDOG4] =           { 0x20106000,     0x1000 },
     [MICROCHIP_PFSOC_SPI0] =            { 0x20108000,     0x1000 },
     [MICROCHIP_PFSOC_SPI1] =            { 0x20109000,     0x1000 },
+    [MICROCHIP_PFSOC_I2C0] =            { 0x2010a000,     0x1000 },
     [MICROCHIP_PFSOC_I2C1] =            { 0x2010b000,     0x1000 },
+    [MICROCHIP_PFSOC_CAN0] =            { 0x2010c000,     0x1000 },
+    [MICROCHIP_PFSOC_CAN1] =            { 0x2010d000,     0x1000 },
     [MICROCHIP_PFSOC_GEM0] =            { 0x20110000,     0x2000 },
     [MICROCHIP_PFSOC_GEM1] =            { 0x20112000,     0x2000 },
     [MICROCHIP_PFSOC_GPIO0] =           { 0x20120000,     0x1000 },
     [MICROCHIP_PFSOC_GPIO1] =           { 0x20121000,     0x1000 },
     [MICROCHIP_PFSOC_GPIO2] =           { 0x20122000,     0x1000 },
+    [MICROCHIP_PFSOC_RTC] =             { 0x20124000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_CFG] =        { 0x20200000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_DATA] =       { 0x20220000,    0x20000 },
+    [MICROCHIP_PFSOC_USB] =             { 0x20201000,     0x1000 },
     [MICROCHIP_PFSOC_QSPI_XIP] =        { 0x21000000,  0x1000000 },
     [MICROCHIP_PFSOC_IOSCB] =           { 0x30000000, 0x10000000 },
-    [MICROCHIP_PFSOC_EMMC_SD_MUX] =     { 0x4f000000,        0x4 },
+    [MICROCHIP_PFSOC_FABRIC_FIC3] =     { 0x40000000, 0x20000000 },
     [MICROCHIP_PFSOC_DRAM_LO] =         { 0x80000000, 0x40000000 },
     [MICROCHIP_PFSOC_DRAM_LO_ALIAS] =   { 0xc0000000, 0x40000000 },
     [MICROCHIP_PFSOC_DRAM_HI] =       { 0x1000000000,        0x0 },
@@ -292,10 +304,20 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysreg), 0,
                     memmap[MICROCHIP_PFSOC_SYSREG].base);
 
+    /* AXISW */
+    create_unimplemented_device("microchip.pfsoc.axisw",
+        memmap[MICROCHIP_PFSOC_AXISW].base,
+        memmap[MICROCHIP_PFSOC_AXISW].size);
+
     /* MPUCFG */
     create_unimplemented_device("microchip.pfsoc.mpucfg",
         memmap[MICROCHIP_PFSOC_MPUCFG].base,
         memmap[MICROCHIP_PFSOC_MPUCFG].size);
+
+    /* FMETER */
+    create_unimplemented_device("microchip.pfsoc.fmeter",
+        memmap[MICROCHIP_PFSOC_FMETER].base,
+        memmap[MICROCHIP_PFSOC_FMETER].size);
 
     /* DDR SGMII PHY */
     sysbus_realize(SYS_BUS_DEVICE(&s->ddr_sgmii_phy), errp);
@@ -336,6 +358,23 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in(DEVICE(s->plic), MICROCHIP_PFSOC_MMUART4_IRQ),
         serial_hd(4));
 
+    /* Watchdogs */
+    create_unimplemented_device("microchip.pfsoc.watchdog0",
+        memmap[MICROCHIP_PFSOC_WDOG0].base,
+        memmap[MICROCHIP_PFSOC_WDOG0].size);
+    create_unimplemented_device("microchip.pfsoc.watchdog1",
+        memmap[MICROCHIP_PFSOC_WDOG1].base,
+        memmap[MICROCHIP_PFSOC_WDOG1].size);
+    create_unimplemented_device("microchip.pfsoc.watchdog2",
+        memmap[MICROCHIP_PFSOC_WDOG2].base,
+        memmap[MICROCHIP_PFSOC_WDOG2].size);
+    create_unimplemented_device("microchip.pfsoc.watchdog3",
+        memmap[MICROCHIP_PFSOC_WDOG3].base,
+        memmap[MICROCHIP_PFSOC_WDOG3].size);
+    create_unimplemented_device("microchip.pfsoc.watchdog4",
+        memmap[MICROCHIP_PFSOC_WDOG4].base,
+        memmap[MICROCHIP_PFSOC_WDOG4].size);
+
     /* SPI */
     create_unimplemented_device("microchip.pfsoc.spi0",
         memmap[MICROCHIP_PFSOC_SPI0].base,
@@ -344,10 +383,26 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         memmap[MICROCHIP_PFSOC_SPI1].base,
         memmap[MICROCHIP_PFSOC_SPI1].size);
 
-    /* I2C1 */
+    /* I2C */
+    create_unimplemented_device("microchip.pfsoc.i2c0",
+        memmap[MICROCHIP_PFSOC_I2C0].base,
+        memmap[MICROCHIP_PFSOC_I2C0].size);
     create_unimplemented_device("microchip.pfsoc.i2c1",
         memmap[MICROCHIP_PFSOC_I2C1].base,
         memmap[MICROCHIP_PFSOC_I2C1].size);
+
+    /* CAN */
+    create_unimplemented_device("microchip.pfsoc.can0",
+        memmap[MICROCHIP_PFSOC_CAN0].base,
+        memmap[MICROCHIP_PFSOC_CAN0].size);
+    create_unimplemented_device("microchip.pfsoc.can1",
+        memmap[MICROCHIP_PFSOC_CAN1].base,
+        memmap[MICROCHIP_PFSOC_CAN1].size);
+
+    /* USB */
+    create_unimplemented_device("microchip.pfsoc.usb",
+        memmap[MICROCHIP_PFSOC_USB].base,
+        memmap[MICROCHIP_PFSOC_USB].size);
 
     /* GEMs */
 
@@ -402,10 +457,10 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioscb), 0,
                     memmap[MICROCHIP_PFSOC_IOSCB].base);
 
-    /* eMMC/SD mux */
-    create_unimplemented_device("microchip.pfsoc.emmc_sd_mux",
-        memmap[MICROCHIP_PFSOC_EMMC_SD_MUX].base,
-        memmap[MICROCHIP_PFSOC_EMMC_SD_MUX].size);
+    /* FPGA Fabric */
+    create_unimplemented_device("microchip.pfsoc.fabricfic3",
+        memmap[MICROCHIP_PFSOC_FABRIC_FIC3].base,
+        memmap[MICROCHIP_PFSOC_FABRIC_FIC3].size);
 
     /* QSPI Flash */
     memory_region_init_rom(qspi_xip_mem, OBJECT(dev),
