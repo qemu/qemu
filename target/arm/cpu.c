@@ -84,9 +84,9 @@ void arm_cpu_synchronize_from_tb(CPUState *cs,
      * never possible for an AArch64 TB to chain to an AArch32 TB.
      */
     if (is_a64(env)) {
-        env->pc = tb->pc;
+        env->pc = tb_pc(tb);
     } else {
-        env->regs[15] = tb->pc;
+        env->regs[15] = tb_pc(tb);
     }
 }
 #endif /* CONFIG_TCG */
