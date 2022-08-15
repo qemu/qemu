@@ -100,10 +100,11 @@ static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns,
 
 static void tb_jmp_cache_clear_page(CPUState *cpu, target_ulong page_addr)
 {
-    unsigned int i, i0 = tb_jmp_cache_hash_page(page_addr);
+    int i, i0 = tb_jmp_cache_hash_page(page_addr);
+    CPUJumpCache *jc = cpu->tb_jmp_cache;
 
     for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
-        qatomic_set(&cpu->tb_jmp_cache[i0 + i], NULL);
+        qatomic_set(&jc->array[i0 + i].tb, NULL);
     }
 }
 
@@ -356,7 +357,7 @@ static void tlb_flush_by_mmuidx_async_work(CPUState *cpu, run_on_cpu_data data)
 
     qemu_spin_unlock(&env_tlb(env)->c.lock);
 
-    cpu_tb_jmp_cache_clear(cpu);
+    tcg_flush_jmp_cache(cpu);
 
     if (to_clean == ALL_MMUIDX_BITS) {
         qatomic_set(&env_tlb(env)->c.full_flush_count,
@@ -785,7 +786,7 @@ static void tlb_flush_range_by_mmuidx_async_0(CPUState *cpu,
      * longer to clear each entry individually than it will to clear it all.
      */
     if (d.len >= (TARGET_PAGE_SIZE * TB_JMP_CACHE_SIZE)) {
-        cpu_tb_jmp_cache_clear(cpu);
+        tcg_flush_jmp_cache(cpu);
         return;
     }
 

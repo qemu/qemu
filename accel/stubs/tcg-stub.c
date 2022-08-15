@@ -21,6 +21,10 @@ void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
 {
 }
 
+void tcg_flush_jmp_cache(CPUState *cpu)
+{
+}
+
 int probe_access_flags(CPUArchState *env, target_ulong addr,
                        MMUAccessType access_type, int mmu_idx,
                        bool nonfault, void **phost, uintptr_t retaddr)
