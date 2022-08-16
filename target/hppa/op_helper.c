@@ -170,7 +170,7 @@ target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
                           uint32_t level, uint32_t want)
 {
 #ifdef CONFIG_USER_ONLY
-    return page_check_range(addr, 1, want);
+    return (page_check_range(addr, 1, want) == 0) ? 1 : 0;
 #else
     int prot, excp;
     hwaddr phys;
