@@ -71,6 +71,7 @@ config SAM460EX
 
 config PEGASOS2
     bool
+    imply ATI_VGA
     select MV64361
     select VT82C686
     select IDE_VIA
@@ -78,7 +79,6 @@ config PEGASOS2
     select VOF
 # This should come with VT82C686
     select ACPI_X86
-    imply ATI_VGA
 
 config PREP
     bool
