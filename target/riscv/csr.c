@@ -98,17 +98,22 @@ static RISCVException ctr(CPURISCVState *env, int csrno)
 
 skip_ext_pmu_check:
 
-    if (((env->priv == PRV_S) && (!get_field(env->mcounteren, ctr_mask))) ||
-        ((env->priv == PRV_U) && (!get_field(env->scounteren, ctr_mask)))) {
+    if (env->priv < PRV_M && !get_field(env->mcounteren, ctr_mask)) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
     if (riscv_cpu_virt_enabled(env)) {
-        if (!get_field(env->hcounteren, ctr_mask) &&
-            get_field(env->mcounteren, ctr_mask)) {
+        if (!get_field(env->hcounteren, ctr_mask) ||
+            (env->priv == PRV_U && !get_field(env->scounteren, ctr_mask))) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
     }
+
+    if (riscv_has_ext(env, RVS) && env->priv == PRV_U &&
+        !get_field(env->scounteren, ctr_mask)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
 #endif
     return RISCV_EXCP_NONE;
 }
