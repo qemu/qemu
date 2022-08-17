@@ -63,6 +63,39 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_iic_fast[2];
 };
 
+#define TYPE_PPC405_CPC "ppc405-cpc"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405CpcState, PPC405_CPC);
+
+enum {
+    PPC405EP_CPU_CLK   = 0,
+    PPC405EP_PLB_CLK   = 1,
+    PPC405EP_OPB_CLK   = 2,
+    PPC405EP_EBC_CLK   = 3,
+    PPC405EP_MAL_CLK   = 4,
+    PPC405EP_PCI_CLK   = 5,
+    PPC405EP_UART0_CLK = 6,
+    PPC405EP_UART1_CLK = 7,
+    PPC405EP_CLK_NB    = 8,
+};
+
+struct Ppc405CpcState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    uint32_t sysclk;
+    clk_setup_t clk_setup[PPC405EP_CLK_NB];
+    uint32_t boot;
+    uint32_t epctl;
+    uint32_t pllmr[2];
+    uint32_t ucr;
+    uint32_t srr;
+    uint32_t jtagid;
+    uint32_t pci;
+    /* Clock and power management */
+    uint32_t er;
+    uint32_t fr;
+    uint32_t sr;
+};
+
 #define TYPE_PPC405_SOC "ppc405-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405SoCState, PPC405_SOC);
 
@@ -78,9 +111,9 @@ struct Ppc405SoCState {
     MemoryRegion *dram_mr;
     hwaddr ram_size;
 
-    uint32_t sysclk;
     PowerPCCPU cpu;
     DeviceState *uic;
+    Ppc405CpcState cpc;
 };
 
 /* PowerPC 405 core */
