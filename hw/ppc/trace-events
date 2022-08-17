@@ -173,7 +173,6 @@ ocm_unmap(const char* prefix, uint32_t isarc) "OCM unmap %s 0x%08" PRIx32
 
 ppc4xx_gpt_read(uint64_t addr, uint32_t size) "addr 0x%" PRIx64 " size %d"
 ppc4xx_gpt_write(uint64_t addr, uint32_t size, uint64_t val) "addr 0x%" PRIx64 " size %d = 0x%" PRIx64
-ppc4xx_gpt_init(uint64_t addr) "offet 0x%" PRIx64
 
 ppc405ep_clocks_compute(const char *param, uint32_t param2, uint32_t val) "%s 0x%1" PRIx32 " %d"
 ppc405ep_clocks_setup(const char *trace) "%s"

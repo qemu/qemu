@@ -63,6 +63,27 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_iic_fast[2];
 };
 
+/* General purpose timers */
+#define TYPE_PPC405_GPT "ppc405-gpt"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405GptState, PPC405_GPT);
+struct Ppc405GptState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion iomem;
+
+    int64_t tb_offset;
+    uint32_t tb_freq;
+    QEMUTimer *timer;
+    qemu_irq irqs[5];
+    uint32_t oe;
+    uint32_t ol;
+    uint32_t im;
+    uint32_t is;
+    uint32_t ie;
+    uint32_t comp[5];
+    uint32_t mask[5];
+};
+
 #define TYPE_PPC405_CPC "ppc405-cpc"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405CpcState, PPC405_CPC);
 
@@ -114,6 +135,7 @@ struct Ppc405SoCState {
     PowerPCCPU cpu;
     DeviceState *uic;
     Ppc405CpcState cpc;
+    Ppc405GptState gpt;
 };
 
 /* PowerPC 405 core */

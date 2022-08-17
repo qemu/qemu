@@ -926,34 +926,18 @@ static void ppc405_ocm_init(CPUPPCState *env)
 
 /*****************************************************************************/
 /* General purpose timers */
-typedef struct ppc4xx_gpt_t ppc4xx_gpt_t;
-struct ppc4xx_gpt_t {
-    MemoryRegion iomem;
-    int64_t tb_offset;
-    uint32_t tb_freq;
-    QEMUTimer *timer;
-    qemu_irq irqs[5];
-    uint32_t oe;
-    uint32_t ol;
-    uint32_t im;
-    uint32_t is;
-    uint32_t ie;
-    uint32_t comp[5];
-    uint32_t mask[5];
-};
-
-static int ppc4xx_gpt_compare (ppc4xx_gpt_t *gpt, int n)
+static int ppc4xx_gpt_compare(Ppc405GptState *gpt, int n)
 {
     /* XXX: TODO */
     return 0;
 }
 
-static void ppc4xx_gpt_set_output (ppc4xx_gpt_t *gpt, int n, int level)
+static void ppc4xx_gpt_set_output(Ppc405GptState *gpt, int n, int level)
 {
     /* XXX: TODO */
 }
 
-static void ppc4xx_gpt_set_outputs (ppc4xx_gpt_t *gpt)
+static void ppc4xx_gpt_set_outputs(Ppc405GptState *gpt)
 {
     uint32_t mask;
     int i;
@@ -974,7 +958,7 @@ static void ppc4xx_gpt_set_outputs (ppc4xx_gpt_t *gpt)
     }
 }
 
-static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
+static void ppc4xx_gpt_set_irqs(Ppc405GptState *gpt)
 {
     uint32_t mask;
     int i;
@@ -989,14 +973,14 @@ static void ppc4xx_gpt_set_irqs (ppc4xx_gpt_t *gpt)
     }
 }
 
-static void ppc4xx_gpt_compute_timer (ppc4xx_gpt_t *gpt)
+static void ppc4xx_gpt_compute_timer(Ppc405GptState *gpt)
 {
     /* XXX: TODO */
 }
 
 static uint64_t ppc4xx_gpt_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ppc4xx_gpt_t *gpt = opaque;
+    Ppc405GptState *gpt = opaque;
     uint32_t ret;
     int idx;
 
@@ -1050,7 +1034,7 @@ static uint64_t ppc4xx_gpt_read(void *opaque, hwaddr addr, unsigned size)
 static void ppc4xx_gpt_write(void *opaque, hwaddr addr, uint64_t value,
                              unsigned size)
 {
-    ppc4xx_gpt_t *gpt = opaque;
+    Ppc405GptState *gpt = opaque;
     int idx;
 
     trace_ppc4xx_gpt_write(addr, size, value);
@@ -1114,22 +1098,20 @@ static const MemoryRegionOps gpt_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void ppc4xx_gpt_cb (void *opaque)
+static void ppc4xx_gpt_cb(void *opaque)
 {
-    ppc4xx_gpt_t *gpt;
+    Ppc405GptState *gpt = opaque;
 
-    gpt = opaque;
     ppc4xx_gpt_set_irqs(gpt);
     ppc4xx_gpt_set_outputs(gpt);
     ppc4xx_gpt_compute_timer(gpt);
 }
 
-static void ppc4xx_gpt_reset (void *opaque)
+static void ppc405_gpt_reset(DeviceState *dev)
 {
-    ppc4xx_gpt_t *gpt;
+    Ppc405GptState *gpt = PPC405_GPT(dev);
     int i;
 
-    gpt = opaque;
     timer_del(gpt->timer);
     gpt->oe = 0x00000000;
     gpt->ol = 0x00000000;
@@ -1142,21 +1124,37 @@ static void ppc4xx_gpt_reset (void *opaque)
     }
 }
 
-static void ppc4xx_gpt_init(hwaddr base, qemu_irq irqs[5])
+static void ppc405_gpt_realize(DeviceState *dev, Error **errp)
 {
-    ppc4xx_gpt_t *gpt;
+    Ppc405GptState *s = PPC405_GPT(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
-    trace_ppc4xx_gpt_init(base);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &ppc4xx_gpt_cb, s);
+    memory_region_init_io(&s->iomem, OBJECT(s), &gpt_ops, s, "gpt", 0xd4);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    gpt = g_new0(ppc4xx_gpt_t, 1);
-    for (i = 0; i < 5; i++) {
-        gpt->irqs[i] = irqs[i];
+    for (i = 0; i < ARRAY_SIZE(s->irqs); i++) {
+        sysbus_init_irq(sbd, &s->irqs[i]);
     }
-    gpt->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &ppc4xx_gpt_cb, gpt);
-    memory_region_init_io(&gpt->iomem, NULL, &gpt_ops, gpt, "gpt", 0x0d4);
-    memory_region_add_subregion(get_system_memory(), base, &gpt->iomem);
-    qemu_register_reset(ppc4xx_gpt_reset, gpt);
+}
+
+static void ppc405_gpt_finalize(Object *obj)
+{
+    /* timer will be NULL if the GPT wasn't realized */
+    if (PPC405_GPT(obj)->timer) {
+        timer_del(PPC405_GPT(obj)->timer);
+    }
+}
+
+static void ppc405_gpt_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc405_gpt_realize;
+    dc->reset = ppc405_gpt_reset;
+    /* Reason: only works as function of a ppc4xx SoC */
+    dc->user_creatable = false;
 }
 
 /*****************************************************************************/
@@ -1420,6 +1418,8 @@ static void ppc405_soc_instance_init(Object *obj)
 
     object_initialize_child(obj, "cpc", &s->cpc, TYPE_PPC405_CPC);
     object_property_add_alias(obj, "sys-clk", OBJECT(&s->cpc), "sys-clk");
+
+    object_initialize_child(obj, "gpt", &s->gpt, TYPE_PPC405_GPT);
 }
 
 static void ppc405_reset(void *opaque)
@@ -1430,8 +1430,10 @@ static void ppc405_reset(void *opaque)
 static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 {
     Ppc405SoCState *s = PPC405_SOC(dev);
-    qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
+    qemu_irq dma_irqs[4], mal_irqs[4];
     CPUPPCState *env;
+    SysBusDevice *sbd;
+    int i;
 
     /* init CPUs */
     if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
@@ -1517,12 +1519,14 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     ppc405_ocm_init(env);
 
     /* GPT */
-    gpt_irqs[0] = qdev_get_gpio_in(s->uic, 19);
-    gpt_irqs[1] = qdev_get_gpio_in(s->uic, 20);
-    gpt_irqs[2] = qdev_get_gpio_in(s->uic, 21);
-    gpt_irqs[3] = qdev_get_gpio_in(s->uic, 22);
-    gpt_irqs[4] = qdev_get_gpio_in(s->uic, 23);
-    ppc4xx_gpt_init(0xef600000, gpt_irqs);
+    sbd = SYS_BUS_DEVICE(&s->gpt);
+    if (!sysbus_realize(sbd, errp)) {
+        return;
+    }
+    sysbus_mmio_map(sbd, 0, 0xef600000);
+    for (i = 0; i < ARRAY_SIZE(s->gpt.irqs); i++) {
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(s->uic, 19 + i));
+    }
 
     /* MAL */
     mal_irqs[0] = qdev_get_gpio_in(s->uic, 11);
@@ -1555,6 +1559,12 @@ static void ppc405_soc_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ppc405_types[] = {
     {
+        .name           = TYPE_PPC405_GPT,
+        .parent         = TYPE_SYS_BUS_DEVICE,
+        .instance_size  = sizeof(Ppc405GptState),
+        .instance_finalize = ppc405_gpt_finalize,
+        .class_init     = ppc405_gpt_class_init,
+    }, {
         .name           = TYPE_PPC405_CPC,
         .parent         = TYPE_PPC4xx_DCR_DEVICE,
         .instance_size  = sizeof(Ppc405CpcState),
