@@ -314,7 +314,6 @@ static void sam460ex_init(MachineState *machine)
 
     /* interrupt controllers */
     for (i = 0; i < ARRAY_SIZE(uic); i++) {
-        SysBusDevice *sbd;
         /*
          * UICs 1, 2 and 3 are cascaded through UIC 0.
          * input_ints[n] is the interrupt number on UIC 0 which
@@ -326,22 +325,20 @@ static void sam460ex_init(MachineState *machine)
         const int input_ints[] = { -1, 30, 10, 16 };
 
         uic[i] = qdev_new(TYPE_PPC_UIC);
-        sbd = SYS_BUS_DEVICE(uic[i]);
-
         qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
-        object_property_set_link(OBJECT(uic[i]), "cpu", OBJECT(cpu),
-                                 &error_fatal);
-        sysbus_realize_and_unref(sbd, &error_fatal);
+        ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uic[i]), cpu, &error_fatal);
+        object_unref(OBJECT(uic[i]));
 
+        sbdev = SYS_BUS_DEVICE(uic[i]);
         if (i == 0) {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
         } else {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                                qdev_get_gpio_in(uic[0], input_ints[i]));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                                qdev_get_gpio_in(uic[0], input_ints[i] + 1));
         }
     }

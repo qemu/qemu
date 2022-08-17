@@ -1152,12 +1152,10 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sbd, 0, 0xef600600);
 
     /* Universal interrupt controller */
-    object_property_set_link(OBJECT(&s->uic), "cpu", OBJECT(&s->cpu),
-                             &error_fatal);
-    sbd = SYS_BUS_DEVICE(&s->uic);
-    if (!sysbus_realize(sbd, errp)) {
+    if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->uic), &s->cpu, errp)) {
         return;
     }
+    sbd = SYS_BUS_DEVICE(&s->uic);
     sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(&s->cpu), PPC40x_INPUT_INT));
     sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
