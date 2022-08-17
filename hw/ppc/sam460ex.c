@@ -25,7 +25,6 @@
 #include "elf.h"
 #include "exec/memory.h"
 #include "ppc440.h"
-#include "ppc405.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
