@@ -712,6 +712,11 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     SCSICommand cmd = { .len = 0 };
     int ret;
 
+    if (buf_len == 0) {
+        trace_scsi_req_parse_bad(d->id, lun, tag, 0);
+        goto invalid_opcode;
+    }
+
     if ((d->unit_attention.key == UNIT_ATTENTION ||
          bus->unit_attention.key == UNIT_ATTENTION) &&
         (buf[0] != INQUIRY &&
@@ -741,6 +746,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
     if (ret != 0) {
         trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
+invalid_opcode:
         req = scsi_req_alloc(&reqops_invalid_opcode, d, tag, lun, hba_private);
     } else {
         assert(cmd.len != 0);
@@ -1316,7 +1322,7 @@ int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 
     cmd->lba = -1;
     len = scsi_cdb_length(buf);
-    if (len < 0) {
+    if (len < 0 || len > buf_len) {
         return -1;
     }
 
