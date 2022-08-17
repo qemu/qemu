@@ -63,6 +63,26 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_iic_fast[2];
 };
 
+/* GPIO */
+#define TYPE_PPC405_GPIO "ppc405-gpio"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc405GpioState, PPC405_GPIO);
+struct Ppc405GpioState {
+    SysBusDevice parent_obj;
+
+    MemoryRegion io;
+    uint32_t or;
+    uint32_t tcr;
+    uint32_t osrh;
+    uint32_t osrl;
+    uint32_t tsrh;
+    uint32_t tsrl;
+    uint32_t odr;
+    uint32_t ir;
+    uint32_t rr1;
+    uint32_t isr1h;
+    uint32_t isr1l;
+};
+
 /* On Chip Memory */
 #define TYPE_PPC405_OCM "ppc405-ocm"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405OcmState, PPC405_OCM);
@@ -152,6 +172,7 @@ struct Ppc405SoCState {
     Ppc405CpcState cpc;
     Ppc405GptState gpt;
     Ppc405OcmState ocm;
+    Ppc405GpioState gpio;
 };
 
 /* PowerPC 405 core */
