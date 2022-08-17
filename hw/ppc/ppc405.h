@@ -63,17 +63,6 @@ struct ppc4xx_bd_info_t {
     uint32_t bi_iic_fast[2];
 };
 
-/* Peripheral local bus arbitrer */
-#define TYPE_PPC405_PLB "ppc405-plb"
-OBJECT_DECLARE_SIMPLE_TYPE(Ppc405PlbState, PPC405_PLB);
-struct Ppc405PlbState {
-    Ppc4xxDcrDeviceState parent_obj;
-
-    uint32_t acr;
-    uint32_t bear;
-    uint32_t besr;
-};
-
 /* PLB to OPB bridge */
 #define TYPE_PPC405_POB "ppc405-pob"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405PobState, PPC405_POB);

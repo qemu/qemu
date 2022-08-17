@@ -658,6 +658,95 @@ static void ppc4xx_mal_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, ppc4xx_mal_properties);
 }
 
+/*****************************************************************************/
+/* Peripheral local bus arbitrer */
+enum {
+    PLB3A0_ACR = 0x077,
+    PLB4A0_ACR = 0x081,
+    PLB0_BESR  = 0x084,
+    PLB0_BEAR  = 0x086,
+    PLB0_ACR   = 0x087,
+    PLB4A1_ACR = 0x089,
+};
+
+static uint32_t dcr_read_plb(void *opaque, int dcrn)
+{
+    Ppc405PlbState *plb = opaque;
+    uint32_t ret;
+
+    switch (dcrn) {
+    case PLB0_ACR:
+        ret = plb->acr;
+        break;
+    case PLB0_BEAR:
+        ret = plb->bear;
+        break;
+    case PLB0_BESR:
+        ret = plb->besr;
+        break;
+    default:
+        /* Avoid gcc warning */
+        ret = 0;
+        break;
+    }
+
+    return ret;
+}
+
+static void dcr_write_plb(void *opaque, int dcrn, uint32_t val)
+{
+    Ppc405PlbState *plb = opaque;
+
+    switch (dcrn) {
+    case PLB0_ACR:
+        /*
+         * We don't care about the actual parameters written as
+         * we don't manage any priorities on the bus
+         */
+        plb->acr = val & 0xF8000000;
+        break;
+    case PLB0_BEAR:
+        /* Read only */
+        break;
+    case PLB0_BESR:
+        /* Write-clear */
+        plb->besr &= ~val;
+        break;
+    }
+}
+
+static void ppc405_plb_reset(DeviceState *dev)
+{
+    Ppc405PlbState *plb = PPC405_PLB(dev);
+
+    plb->acr = 0x00000000;
+    plb->bear = 0x00000000;
+    plb->besr = 0x00000000;
+}
+
+static void ppc405_plb_realize(DeviceState *dev, Error **errp)
+{
+    Ppc405PlbState *plb = PPC405_PLB(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
+
+    ppc4xx_dcr_register(dcr, PLB3A0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_dcr_register(dcr, PLB4A0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_dcr_register(dcr, PLB0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_dcr_register(dcr, PLB0_BEAR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_dcr_register(dcr, PLB0_BESR, plb, &dcr_read_plb, &dcr_write_plb);
+    ppc4xx_dcr_register(dcr, PLB4A1_ACR, plb, &dcr_read_plb, &dcr_write_plb);
+}
+
+static void ppc405_plb_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc405_plb_realize;
+    dc->reset = ppc405_plb_reset;
+    /* Reason: only works as function of a ppc4xx SoC */
+    dc->user_creatable = false;
+}
+
 /* PPC4xx_DCR_DEVICE */
 
 void ppc4xx_dcr_register(Ppc4xxDcrDeviceState *dev, int dcrn, void *opaque,
@@ -694,6 +783,11 @@ static const TypeInfo ppc4xx_types[] = {
         .instance_size  = sizeof(Ppc4xxMalState),
         .instance_finalize = ppc4xx_mal_finalize,
         .class_init     = ppc4xx_mal_class_init,
+    }, {
+        .name           = TYPE_PPC405_PLB,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc405PlbState),
+        .class_init     = ppc405_plb_class_init,
     }, {
         .name           = TYPE_PPC4xx_DCR_DEVICE,
         .parent         = TYPE_SYS_BUS_DEVICE,
