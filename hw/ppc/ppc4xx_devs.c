@@ -671,7 +671,7 @@ enum {
 
 static uint32_t dcr_read_plb(void *opaque, int dcrn)
 {
-    Ppc405PlbState *plb = opaque;
+    Ppc4xxPlbState *plb = opaque;
     uint32_t ret;
 
     switch (dcrn) {
@@ -695,7 +695,7 @@ static uint32_t dcr_read_plb(void *opaque, int dcrn)
 
 static void dcr_write_plb(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc405PlbState *plb = opaque;
+    Ppc4xxPlbState *plb = opaque;
 
     switch (dcrn) {
     case PLB0_ACR:
@@ -717,7 +717,7 @@ static void dcr_write_plb(void *opaque, int dcrn, uint32_t val)
 
 static void ppc405_plb_reset(DeviceState *dev)
 {
-    Ppc405PlbState *plb = PPC405_PLB(dev);
+    Ppc4xxPlbState *plb = PPC4xx_PLB(dev);
 
     plb->acr = 0x00000000;
     plb->bear = 0x00000000;
@@ -726,7 +726,7 @@ static void ppc405_plb_reset(DeviceState *dev)
 
 static void ppc405_plb_realize(DeviceState *dev, Error **errp)
 {
-    Ppc405PlbState *plb = PPC405_PLB(dev);
+    Ppc4xxPlbState *plb = PPC4xx_PLB(dev);
     Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
 
     ppc4xx_dcr_register(dcr, PLB3A0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
@@ -784,9 +784,9 @@ static const TypeInfo ppc4xx_types[] = {
         .instance_finalize = ppc4xx_mal_finalize,
         .class_init     = ppc4xx_mal_class_init,
     }, {
-        .name           = TYPE_PPC405_PLB,
+        .name           = TYPE_PPC4xx_PLB,
         .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc405PlbState),
+        .instance_size  = sizeof(Ppc4xxPlbState),
         .class_init     = ppc405_plb_class_init,
     }, {
         .name           = TYPE_PPC4xx_DCR_DEVICE,

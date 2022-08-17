@@ -1286,7 +1286,7 @@ static void ppc405_soc_instance_init(Object *obj)
 
     object_initialize_child(obj, "pob", &s->pob, TYPE_PPC405_POB);
 
-    object_initialize_child(obj, "plb", &s->plb, TYPE_PPC405_PLB);
+    object_initialize_child(obj, "plb", &s->plb, TYPE_PPC4xx_PLB);
 
     object_initialize_child(obj, "mal", &s->mal, TYPE_PPC4xx_MAL);
 }

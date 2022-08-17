@@ -232,7 +232,7 @@ struct Ppc405SoCState {
     Ppc405EbcState ebc;
     Ppc405OpbaState opba;
     Ppc405PobState pob;
-    Ppc405PlbState plb;
+    Ppc4xxPlbState plb;
     Ppc4xxMalState mal;
 };
 

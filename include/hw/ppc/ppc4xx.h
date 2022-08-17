@@ -84,9 +84,9 @@ struct Ppc4xxMalState {
 };
 
 /* Peripheral local bus arbitrer */
-#define TYPE_PPC405_PLB "ppc405-plb"
-OBJECT_DECLARE_SIMPLE_TYPE(Ppc405PlbState, PPC405_PLB);
-struct Ppc405PlbState {
+#define TYPE_PPC4xx_PLB "ppc4xx-plb"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxPlbState, PPC4xx_PLB);
+struct Ppc4xxPlbState {
     Ppc4xxDcrDeviceState parent_obj;
 
     uint32_t acr;
