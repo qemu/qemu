@@ -756,7 +756,7 @@ enum {
 
 static uint32_t dcr_read_ebc(void *opaque, int dcrn)
 {
-    Ppc405EbcState *ebc = opaque;
+    Ppc4xxEbcState *ebc = opaque;
     uint32_t ret;
 
     switch (dcrn) {
@@ -840,7 +840,7 @@ static uint32_t dcr_read_ebc(void *opaque, int dcrn)
 
 static void dcr_write_ebc(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc405EbcState *ebc = opaque;
+    Ppc4xxEbcState *ebc = opaque;
 
     switch (dcrn) {
     case EBC0_CFGADDR:
@@ -899,7 +899,7 @@ static void dcr_write_ebc(void *opaque, int dcrn, uint32_t val)
 
 static void ppc405_ebc_reset(DeviceState *dev)
 {
-    Ppc405EbcState *ebc = PPC405_EBC(dev);
+    Ppc4xxEbcState *ebc = PPC4xx_EBC(dev);
     int i;
 
     ebc->addr = 0x00000000;
@@ -916,7 +916,7 @@ static void ppc405_ebc_reset(DeviceState *dev)
 
 static void ppc405_ebc_realize(DeviceState *dev, Error **errp)
 {
-    Ppc405EbcState *ebc = PPC405_EBC(dev);
+    Ppc4xxEbcState *ebc = PPC4xx_EBC(dev);
     Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
 
     ppc4xx_dcr_register(dcr, EBC0_CFGADDR, ebc, &dcr_read_ebc, &dcr_write_ebc);
@@ -975,9 +975,9 @@ static const TypeInfo ppc4xx_types[] = {
         .instance_size  = sizeof(Ppc4xxPlbState),
         .class_init     = ppc405_plb_class_init,
     }, {
-        .name           = TYPE_PPC405_EBC,
+        .name           = TYPE_PPC4xx_EBC,
         .parent         = TYPE_PPC4xx_DCR_DEVICE,
-        .instance_size  = sizeof(Ppc405EbcState),
+        .instance_size  = sizeof(Ppc4xxEbcState),
         .class_init     = ppc405_ebc_class_init,
     }, {
         .name           = TYPE_PPC4xx_DCR_DEVICE,

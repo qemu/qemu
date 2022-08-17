@@ -214,7 +214,7 @@ struct Ppc405SoCState {
     Ppc405OcmState ocm;
     Ppc405GpioState gpio;
     Ppc405DmaState dma;
-    Ppc405EbcState ebc;
+    Ppc4xxEbcState ebc;
     Ppc405OpbaState opba;
     Ppc405PobState pob;
     Ppc4xxPlbState plb;

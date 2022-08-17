@@ -1094,7 +1094,7 @@ static void ppc405_soc_instance_init(Object *obj)
 
     object_initialize_child(obj, "dma", &s->dma, TYPE_PPC405_DMA);
 
-    object_initialize_child(obj, "ebc", &s->ebc, TYPE_PPC405_EBC);
+    object_initialize_child(obj, "ebc", &s->ebc, TYPE_PPC4xx_EBC);
 
     object_initialize_child(obj, "opba", &s->opba, TYPE_PPC405_OPBA);
 

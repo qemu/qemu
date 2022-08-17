@@ -95,9 +95,9 @@ struct Ppc4xxPlbState {
 };
 
 /* Peripheral controller */
-#define TYPE_PPC405_EBC "ppc405-ebc"
-OBJECT_DECLARE_SIMPLE_TYPE(Ppc405EbcState, PPC405_EBC);
-struct Ppc405EbcState {
+#define TYPE_PPC4xx_EBC "ppc4xx-ebc"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxEbcState, PPC4xx_EBC);
+struct Ppc4xxEbcState {
     Ppc4xxDcrDeviceState parent_obj;
 
     uint32_t addr;
