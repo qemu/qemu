@@ -4728,57 +4728,21 @@ GEN_VEXT_FRED(vfredmin_vs_h, uint16_t, uint16_t, H2, H2, float16_minimum_number)
 GEN_VEXT_FRED(vfredmin_vs_w, uint32_t, uint32_t, H4, H4, float32_minimum_number)
 GEN_VEXT_FRED(vfredmin_vs_d, uint64_t, uint64_t, H8, H8, float64_minimum_number)
 
+/* Vector Widening Floating-Point Add Instructions */
+static uint32_t fwadd16(uint32_t a, uint16_t b, float_status *s)
+{
+    return float32_add(a, float16_to_float32(b, true, s), s);
+}
+
+static uint64_t fwadd32(uint64_t a, uint32_t b, float_status *s)
+{
+    return float64_add(a, float32_to_float64(b, s), s);
+}
+
 /* Vector Widening Floating-Point Reduction Instructions */
 /* Unordered reduce 2*SEW = 2*SEW + sum(promote(SEW)) */
-void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
-                            void *vs2, CPURISCVState *env, uint32_t desc)
-{
-    uint32_t vm = vext_vm(desc);
-    uint32_t vl = env->vl;
-    uint32_t esz = sizeof(uint32_t);
-    uint32_t vlenb = simd_maxsz(desc);
-    uint32_t vta = vext_vta(desc);
-    uint32_t i;
-    uint32_t s1 =  *((uint32_t *)vs1 + H4(0));
-
-    for (i = env->vstart; i < vl; i++) {
-        uint16_t s2 = *((uint16_t *)vs2 + H2(i));
-        if (!vm && !vext_elem_mask(v0, i)) {
-            continue;
-        }
-        s1 = float32_add(s1, float16_to_float32(s2, true, &env->fp_status),
-                         &env->fp_status);
-    }
-    *((uint32_t *)vd + H4(0)) = s1;
-    env->vstart = 0;
-    /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, esz, vlenb);
-}
-
-void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
-                            void *vs2, CPURISCVState *env, uint32_t desc)
-{
-    uint32_t vm = vext_vm(desc);
-    uint32_t vl = env->vl;
-    uint32_t esz = sizeof(uint64_t);
-    uint32_t vlenb = simd_maxsz(desc);
-    uint32_t vta = vext_vta(desc);
-    uint32_t i;
-    uint64_t s1 =  *((uint64_t *)vs1);
-
-    for (i = env->vstart; i < vl; i++) {
-        uint32_t s2 = *((uint32_t *)vs2 + H4(i));
-        if (!vm && !vext_elem_mask(v0, i)) {
-            continue;
-        }
-        s1 = float64_add(s1, float32_to_float64(s2, &env->fp_status),
-                         &env->fp_status);
-    }
-    *((uint64_t *)vd) = s1;
-    env->vstart = 0;
-    /* set tail elements to 1s */
-    vext_set_elems_1s(vd, vta, esz, vlenb);
-}
+GEN_VEXT_FRED(vfwredsum_vs_h, uint32_t, uint16_t, H4, H2, fwadd16)
+GEN_VEXT_FRED(vfwredsum_vs_w, uint64_t, uint32_t, H8, H4, fwadd32)
 
 /*
  *** Vector Mask Operations
