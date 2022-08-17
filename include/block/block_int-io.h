@@ -73,7 +73,7 @@ static inline int coroutine_fn bdrv_co_pwrite(BdrvChild *child,
     return bdrv_co_pwritev(child, offset, bytes, &qiov, flags);
 }
 
-bool coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
+void coroutine_fn bdrv_make_request_serialising(BdrvTrackedRequest *req,
                                                 uint64_t align);
 BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs);
 
