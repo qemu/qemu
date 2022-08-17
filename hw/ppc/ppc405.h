@@ -27,6 +27,7 @@
 
 #include "qom/object.h"
 #include "hw/ppc/ppc4xx.h"
+#include "hw/intc/ppc-uic.h"
 
 #define PPC405EP_SDRAM_BASE 0x00000000
 #define PPC405EP_NVRAM_BASE 0xF0000000
@@ -208,7 +209,7 @@ struct Ppc405SoCState {
     hwaddr ram_size;
 
     PowerPCCPU cpu;
-    DeviceState *uic;
+    PPCUIC uic;
     Ppc405CpcState cpc;
     Ppc405GptState gpt;
     Ppc405OcmState ocm;

@@ -1083,6 +1083,8 @@ static void ppc405_soc_instance_init(Object *obj)
     object_initialize_child(obj, "cpu", &s->cpu,
                             POWERPC_CPU_TYPE_NAME("405ep"));
 
+    object_initialize_child(obj, "uic", &s->uic, TYPE_PPC_UIC);
+
     object_initialize_child(obj, "cpc", &s->cpc, TYPE_PPC405_CPC);
     object_property_add_alias(obj, "sys-clk", OBJECT(&s->cpc), "sys-clk");
 
@@ -1150,17 +1152,15 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(sbd, 0, 0xef600600);
 
     /* Universal interrupt controller */
-    s->uic = qdev_new(TYPE_PPC_UIC);
-
-    object_property_set_link(OBJECT(s->uic), "cpu", OBJECT(&s->cpu),
+    object_property_set_link(OBJECT(&s->uic), "cpu", OBJECT(&s->cpu),
                              &error_fatal);
-    if (!sysbus_realize(SYS_BUS_DEVICE(s->uic), errp)) {
+    sbd = SYS_BUS_DEVICE(&s->uic);
+    if (!sysbus_realize(sbd, errp)) {
         return;
     }
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(s->uic), PPCUIC_OUTPUT_INT,
+    sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(&s->cpu), PPC40x_INPUT_INT));
-    sysbus_connect_irq(SYS_BUS_DEVICE(s->uic), PPCUIC_OUTPUT_CINT,
+    sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
                        qdev_get_gpio_in(DEVICE(&s->cpu), PPC40x_INPUT_CINT));
 
     /* SDRAM controller */
@@ -1171,7 +1171,7 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
                              "ppc405.sdram0", s->dram_mr,
                              s->ram_bases[0], s->ram_sizes[0]);
 
-    ppc4xx_sdram_init(env, qdev_get_gpio_in(s->uic, 17), 1,
+    ppc4xx_sdram_init(env, qdev_get_gpio_in(DEVICE(&s->uic), 17), 1,
                       s->ram_banks, s->ram_bases, s->ram_sizes,
                       s->do_dram_init);
 
@@ -1186,12 +1186,12 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     }
     sbd = SYS_BUS_DEVICE(&s->dma);
     for (i = 0; i < ARRAY_SIZE(s->dma.irqs); i++) {
-        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(s->uic, 5 + i));
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(DEVICE(&s->uic), 5 + i));
     }
 
     /* I2C controller */
     sysbus_create_simple(TYPE_PPC4xx_I2C, 0xef600500,
-                         qdev_get_gpio_in(s->uic, 2));
+                         qdev_get_gpio_in(DEVICE(&s->uic), 2));
 
     /* GPIO */
     sbd = SYS_BUS_DEVICE(&s->gpio);
@@ -1203,13 +1203,13 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     /* Serial ports */
     if (serial_hd(0) != NULL) {
         serial_mm_init(get_system_memory(), 0xef600300, 0,
-                       qdev_get_gpio_in(s->uic, 0),
+                       qdev_get_gpio_in(DEVICE(&s->uic), 0),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(0),
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hd(1) != NULL) {
         serial_mm_init(get_system_memory(), 0xef600400, 0,
-                       qdev_get_gpio_in(s->uic, 1),
+                       qdev_get_gpio_in(DEVICE(&s->uic), 1),
                        PPC_SERIAL_MM_BAUDBASE, serial_hd(1),
                        DEVICE_BIG_ENDIAN);
     }
@@ -1226,7 +1226,7 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     }
     sysbus_mmio_map(sbd, 0, 0xef600000);
     for (i = 0; i < ARRAY_SIZE(s->gpt.irqs); i++) {
-        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(s->uic, 19 + i));
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(DEVICE(&s->uic), 19 + i));
     }
 
     /* MAL */
@@ -1237,7 +1237,7 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     }
     sbd = SYS_BUS_DEVICE(&s->mal);
     for (i = 0; i < ARRAY_SIZE(s->mal.irqs); i++) {
-        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(s->uic, 11 + i));
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(DEVICE(&s->uic), 11 + i));
     }
 
     /* Ethernet */
