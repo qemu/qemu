@@ -613,35 +613,20 @@ enum {
     DMA0_POL = 0x126,
 };
 
-typedef struct ppc405_dma_t ppc405_dma_t;
-struct ppc405_dma_t {
-    qemu_irq irqs[4];
-    uint32_t cr[4];
-    uint32_t ct[4];
-    uint32_t da[4];
-    uint32_t sa[4];
-    uint32_t sg[4];
-    uint32_t sr;
-    uint32_t sgc;
-    uint32_t slp;
-    uint32_t pol;
-};
-
-static uint32_t dcr_read_dma (void *opaque, int dcrn)
+static uint32_t dcr_read_dma(void *opaque, int dcrn)
 {
     return 0;
 }
 
-static void dcr_write_dma (void *opaque, int dcrn, uint32_t val)
+static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
 {
 }
 
-static void ppc405_dma_reset (void *opaque)
+static void ppc405_dma_reset(DeviceState *dev)
 {
-    ppc405_dma_t *dma;
+    Ppc405DmaState *dma = PPC405_DMA(dev);
     int i;
 
-    dma = opaque;
     for (i = 0; i < 4; i++) {
         dma->cr[i] = 0x00000000;
         dma->ct[i] = 0x00000000;
@@ -655,61 +640,50 @@ static void ppc405_dma_reset (void *opaque)
     dma->pol = 0x00000000;
 }
 
-static void ppc405_dma_init(CPUPPCState *env, qemu_irq irqs[4])
+static void ppc405_dma_realize(DeviceState *dev, Error **errp)
 {
-    ppc405_dma_t *dma;
+    Ppc405DmaState *dma = PPC405_DMA(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
+    int i;
 
-    dma = g_new0(ppc405_dma_t, 1);
-    memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
-    qemu_register_reset(&ppc405_dma_reset, dma);
-    ppc_dcr_register(env, DMA0_CR0,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CT0,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_DA0,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SA0,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SG0,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CR1,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CT1,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_DA1,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SA1,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SG1,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CR2,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CT2,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_DA2,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SA2,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SG2,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CR3,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_CT3,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_DA3,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SA3,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SG3,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SR,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SGC,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_SLP,
-                     dma, &dcr_read_dma, &dcr_write_dma);
-    ppc_dcr_register(env, DMA0_POL,
-                     dma, &dcr_read_dma, &dcr_write_dma);
+    for (i = 0; i < ARRAY_SIZE(dma->irqs); i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(dma), &dma->irqs[i]);
+    }
+
+    ppc4xx_dcr_register(dcr, DMA0_CR0, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CT0, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_DA0, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SA0, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SG0, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CR1, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CT1, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_DA1, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SA1, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SG1, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CR2, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CT2, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_DA2, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SA2, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SG2, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CR3, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_CT3, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_DA3, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SA3, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SG3, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SR,  dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SGC, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_SLP, dma, &dcr_read_dma, &dcr_write_dma);
+    ppc4xx_dcr_register(dcr, DMA0_POL, dma, &dcr_read_dma, &dcr_write_dma);
+}
+
+static void ppc405_dma_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc405_dma_realize;
+    dc->reset = ppc405_dma_reset;
+    /* Reason: only works as function of a ppc4xx SoC */
+    dc->user_creatable = false;
 }
 
 /*****************************************************************************/
@@ -1402,6 +1376,8 @@ static void ppc405_soc_instance_init(Object *obj)
     object_initialize_child(obj, "ocm", &s->ocm, TYPE_PPC405_OCM);
 
     object_initialize_child(obj, "gpio", &s->gpio, TYPE_PPC405_GPIO);
+
+    object_initialize_child(obj, "dma", &s->dma, TYPE_PPC405_DMA);
 }
 
 static void ppc405_reset(void *opaque)
@@ -1412,7 +1388,7 @@ static void ppc405_reset(void *opaque)
 static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 {
     Ppc405SoCState *s = PPC405_SOC(dev);
-    qemu_irq dma_irqs[4], mal_irqs[4];
+    qemu_irq mal_irqs[4];
     CPUPPCState *env;
     SysBusDevice *sbd;
     int i;
@@ -1471,11 +1447,13 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     ppc405_ebc_init(env);
 
     /* DMA controller */
-    dma_irqs[0] = qdev_get_gpio_in(s->uic, 5);
-    dma_irqs[1] = qdev_get_gpio_in(s->uic, 6);
-    dma_irqs[2] = qdev_get_gpio_in(s->uic, 7);
-    dma_irqs[3] = qdev_get_gpio_in(s->uic, 8);
-    ppc405_dma_init(env, dma_irqs);
+    if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->dma), &s->cpu, errp)) {
+        return;
+    }
+    sbd = SYS_BUS_DEVICE(&s->dma);
+    for (i = 0; i < ARRAY_SIZE(s->dma.irqs); i++) {
+        sysbus_connect_irq(sbd, i, qdev_get_gpio_in(s->uic, 5 + i));
+    }
 
     /* I2C controller */
     sysbus_create_simple(TYPE_PPC4xx_I2C, 0xef600500,
@@ -1548,6 +1526,11 @@ static void ppc405_soc_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo ppc405_types[] = {
     {
+        .name           = TYPE_PPC405_DMA,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc405DmaState),
+        .class_init     = ppc405_dma_class_init,
+    }, {
         .name           = TYPE_PPC405_GPIO,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Ppc405GpioState),
