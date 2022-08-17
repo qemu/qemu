@@ -30,41 +30,6 @@
 #include "hw/intc/ppc-uic.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 
-#define PPC405EP_SDRAM_BASE 0x00000000
-#define PPC405EP_NVRAM_BASE 0xF0000000
-#define PPC405EP_FPGA_BASE  0xF0300000
-#define PPC405EP_SRAM_BASE  0xFFF00000
-#define PPC405EP_SRAM_SIZE  (512 * KiB)
-#define PPC405EP_FLASH_BASE 0xFFF80000
-
-/* Bootinfo as set-up by u-boot */
-typedef struct ppc4xx_bd_info_t ppc4xx_bd_info_t;
-struct ppc4xx_bd_info_t {
-    uint32_t bi_memstart;
-    uint32_t bi_memsize;
-    uint32_t bi_flashstart;
-    uint32_t bi_flashsize;
-    uint32_t bi_flashoffset; /* 0x10 */
-    uint32_t bi_sramstart;
-    uint32_t bi_sramsize;
-    uint32_t bi_bootflags;
-    uint32_t bi_ipaddr; /* 0x20 */
-    uint8_t  bi_enetaddr[6];
-    uint16_t bi_ethspeed;
-    uint32_t bi_intfreq;
-    uint32_t bi_busfreq; /* 0x30 */
-    uint32_t bi_baudrate;
-    uint8_t  bi_s_version[4];
-    uint8_t  bi_r_version[32];
-    uint32_t bi_procfreq;
-    uint32_t bi_plb_busfreq;
-    uint32_t bi_pci_busfreq;
-    uint8_t  bi_pci_enetaddr[6];
-    uint8_t  bi_pci_enetaddr2[6]; /* PPC405EP specific */
-    uint32_t bi_opbfreq;
-    uint32_t bi_iic_fast[2];
-};
-
 /* PLB to OPB bridge */
 #define TYPE_PPC405_POB "ppc405-pob"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc405PobState, PPC405_POB);
@@ -223,8 +188,5 @@ struct Ppc405SoCState {
     Ppc4xxPlbState plb;
     Ppc4xxMalState mal;
 };
-
-/* PowerPC 405 core */
-ram_addr_t ppc405_set_bootinfo(CPUPPCState *env, ram_addr_t ram_size);
 
 #endif /* PPC405_H */
