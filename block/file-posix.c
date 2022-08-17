@@ -1295,7 +1295,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 #endif
 
-    if (bs->sg || S_ISBLK(st.st_mode)) {
+    if (bdrv_is_sg(bs) || S_ISBLK(st.st_mode)) {
         int ret = hdev_get_max_hw_transfer(s->fd, &st);
 
         if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
