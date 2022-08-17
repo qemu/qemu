@@ -84,27 +84,30 @@ static int bamboo_load_device_tree(hwaddr addr,
 
     ret = qemu_fdt_setprop(fdt, "/memory", "reg", mem_reg_property,
                            sizeof(mem_reg_property));
-    if (ret < 0)
+    if (ret < 0) {
         fprintf(stderr, "couldn't set /memory/reg\n");
-
+    }
     ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start",
                                 initrd_base);
-    if (ret < 0)
+    if (ret < 0) {
         fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
-
+    }
     ret = qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                                 (initrd_base + initrd_size));
-    if (ret < 0)
+    if (ret < 0) {
         fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
-
+    }
     ret = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
                                   kernel_cmdline);
-    if (ret < 0)
+    if (ret < 0) {
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
+    }
 
-    /* Copy data from the host device tree into the guest. Since the guest can
+    /*
+     * Copy data from the host device tree into the guest. Since the guest can
      * directly access the timebase without host involvement, we must expose
-     * the correct frequencies. */
+     * the correct frequencies.
+     */
     if (kvm_enabled()) {
         tb_freq = kvmppc_get_tbfreq();
         clock_freq = kvmppc_get_clockfreq();
@@ -246,8 +249,10 @@ static void bamboo_init(MachineState *machine)
     if (pcibus) {
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
-            /* There are no PCI NICs on the Bamboo board, but there are
-             * PCI slots, so we can pick whatever default model we want. */
+            /*
+             * There are no PCI NICs on the Bamboo board, but there are
+             * PCI slots, so we can pick whatever default model we want.
+             */
             pci_nic_init_nofail(&nd_table[i], pcibus, "e1000", NULL);
         }
     }

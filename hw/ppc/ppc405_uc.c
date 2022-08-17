@@ -540,10 +540,11 @@ static void ppc4xx_gpt_set_irqs(Ppc405GptState *gpt)
 
     mask = 0x00008000;
     for (i = 0; i < 5; i++) {
-        if (gpt->is & gpt->im & mask)
+        if (gpt->is & gpt->im & mask) {
             qemu_irq_raise(gpt->irqs[i]);
-        else
+        } else {
             qemu_irq_lower(gpt->irqs[i]);
+        }
         mask = mask >> 1;
     }
 }

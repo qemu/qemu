@@ -16,8 +16,10 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
-/* This file implements emulation of the 32-bit PCI controller found in some
- * 4xx SoCs, such as the 440EP. */
+/*
+ * This file implements emulation of the 32-bit PCI controller found in some
+ * 4xx SoCs, such as the 440EP.
+ */
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
@@ -65,8 +67,10 @@ struct PPC4xxPCIState {
 #define PCIC0_CFGADDR       0x0
 #define PCIC0_CFGDATA       0x4
 
-/* PLB Memory Map (PMM) registers specify which PLB addresses are translated to
- * PCI accesses. */
+/*
+ * PLB Memory Map (PMM) registers specify which PLB addresses are translated to
+ * PCI accesses.
+ */
 #define PCIL0_PMM0LA        0x0
 #define PCIL0_PMM0MA        0x4
 #define PCIL0_PMM0PCILA     0x8
@@ -80,8 +84,10 @@ struct PPC4xxPCIState {
 #define PCIL0_PMM2PCILA     0x28
 #define PCIL0_PMM2PCIHA     0x2c
 
-/* PCI Target Map (PTM) registers specify which PCI addresses are translated to
- * PLB accesses. */
+/*
+ * PCI Target Map (PTM) registers specify which PCI addresses are translated to
+ * PLB accesses.
+ */
 #define PCIL0_PTM1MS        0x30
 #define PCIL0_PTM1LA        0x34
 #define PCIL0_PTM2MS        0x38
@@ -96,9 +102,10 @@ static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
 {
     struct PPC4xxPCIState *pci = opaque;
 
-    /* We ignore all target attempts at PCI configuration, effectively
-     * assuming a bidirectional 1:1 mapping of PLB and PCI space. */
-
+    /*
+     * We ignore all target attempts at PCI configuration, effectively
+     * assuming a bidirectional 1:1 mapping of PLB and PCI space.
+     */
     switch (offset) {
     case PCIL0_PMM0LA:
         pci->pmm[0].la = value;
@@ -243,8 +250,10 @@ static void ppc4xx_pci_reset(void *opaque)
     memset(pci->ptm, 0, sizeof(pci->ptm));
 }
 
-/* On Bamboo, all pins from each slot are tied to a single board IRQ. This
- * may need further refactoring for other boards. */
+/*
+ * On Bamboo, all pins from each slot are tied to a single board IRQ.
+ * This may need further refactoring for other boards.
+ */
 static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot = PCI_SLOT(pci_dev->devfn);

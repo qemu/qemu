@@ -65,12 +65,12 @@ enum {
     SDRAM0_CFGDATA = 0x011,
 };
 
-/* XXX: TOFIX: some patches have made this code become inconsistent:
+/*
+ * XXX: TOFIX: some patches have made this code become inconsistent:
  *      there are type inconsistencies, mixing hwaddr, target_ulong
  *      and uint32_t
  */
-static uint32_t sdram_bcr (hwaddr ram_base,
-                           hwaddr ram_size)
+static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
 {
     uint32_t bcr;
 
@@ -113,16 +113,17 @@ static inline hwaddr sdram_base(uint32_t bcr)
     return bcr & 0xFF800000;
 }
 
-static target_ulong sdram_size (uint32_t bcr)
+static target_ulong sdram_size(uint32_t bcr)
 {
     target_ulong size;
     int sh;
 
     sh = (bcr >> 17) & 0x7;
-    if (sh == 7)
+    if (sh == 7) {
         size = -1;
-    else
+    } else {
         size = (4 * MiB) << sh;
+    }
 
     return size;
 }
@@ -153,7 +154,7 @@ static void sdram_set_bcr(ppc4xx_sdram_t *sdram, int i,
     }
 }
 
-static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
+static void sdram_map_bcr(ppc4xx_sdram_t *sdram)
 {
     int i;
 
@@ -167,7 +168,7 @@ static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
     }
 }
 
-static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
+static void sdram_unmap_bcr(ppc4xx_sdram_t *sdram)
 {
     int i;
 
@@ -179,7 +180,7 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
     }
 }
 
-static uint32_t dcr_read_sdram (void *opaque, int dcrn)
+static uint32_t dcr_read_sdram(void *opaque, int dcrn)
 {
     ppc4xx_sdram_t *sdram;
     uint32_t ret;
@@ -247,7 +248,7 @@ static uint32_t dcr_read_sdram (void *opaque, int dcrn)
     return ret;
 }
 
-static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
+static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
 {
     ppc4xx_sdram_t *sdram;
 
@@ -280,10 +281,11 @@ static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
                 sdram_unmap_bcr(sdram);
                 sdram->status |= 0x80000000;
             }
-            if (!(sdram->cfg & 0x40000000) && (val & 0x40000000))
+            if (!(sdram->cfg & 0x40000000) && (val & 0x40000000)) {
                 sdram->status |= 0x40000000;
-            else if ((sdram->cfg & 0x40000000) && !(val & 0x40000000))
+            } else if ((sdram->cfg & 0x40000000) && !(val & 0x40000000)) {
                 sdram->status &= ~0x40000000;
+            }
             sdram->cfg = val;
             break;
         case 0x24: /* SDRAM_STATUS */
@@ -315,10 +317,11 @@ static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
             break;
         case 0x98: /* SDRAM_ECCESR */
             val &= 0xFFF0F000;
-            if (sdram->eccesr == 0 && val != 0)
+            if (sdram->eccesr == 0 && val != 0) {
                 qemu_irq_raise(sdram->irq);
-            else if (sdram->eccesr != 0 && val == 0)
+            } else if (sdram->eccesr != 0 && val == 0) {
                 qemu_irq_lower(sdram->irq);
+            }
             sdram->eccesr = val;
             break;
         default: /* Error */
@@ -328,7 +331,7 @@ static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void sdram_reset (void *opaque)
+static void sdram_reset(void *opaque)
 {
     ppc4xx_sdram_t *sdram;
 
@@ -348,11 +351,11 @@ static void sdram_reset (void *opaque)
     sdram->cfg = 0x00800000;
 }
 
-void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
-                        MemoryRegion *ram_memories,
-                        hwaddr *ram_bases,
-                        hwaddr *ram_sizes,
-                        int do_init)
+void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
+                       MemoryRegion *ram_memories,
+                       hwaddr *ram_bases,
+                       hwaddr *ram_sizes,
+                       int do_init)
 {
     ppc4xx_sdram_t *sdram;
 
@@ -371,8 +374,9 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
     ppc_dcr_register(env, SDRAM0_CFGDATA,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
-    if (do_init)
+    if (do_init) {
         sdram_map_bcr(sdram);
+    }
 }
 
 /*
@@ -429,7 +433,7 @@ void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
         }
         error_report("at most %d bank%s of %s MiB each supported",
                      nr_banks, nr_banks == 1 ? "" : "s", s->str);
-        error_printf("Possible valid RAM size: %" PRIi64 " MiB \n",
+        error_printf("Possible valid RAM size: %" PRIi64 " MiB\n",
             used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
 
         g_string_free(s, true);
