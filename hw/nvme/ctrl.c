@@ -262,6 +262,7 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_SET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_GET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
+    [NVME_ADM_CMD_NS_MGMT]          = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_VIRT_MNGMT]       = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_DBBUF_CONFIG]     = NVME_CMD_EFF_CSUPP,
@@ -5658,6 +5659,53 @@ static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
         }
         break;
     }
+}
+
+static uint16_t nvme_ns_delete(NvmeCtrl *n, uint32_t nsid)
+{
+    NvmeNamespace *ns = NULL;
+    NvmeSubsystem *subsys = n->subsys;
+
+    ns = nvme_subsys_ns(n->subsys, nsid);
+    if (!ns) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (ns->attached) {
+        n->namespaces[nsid] = NULL;
+        ns->attached--;
+        nvme_update_dmrsl(n);
+
+        if (!test_and_set_bit(nsid, n->changed_nsids)) {
+            nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                               NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
+                               NVME_LOG_CHANGED_NSLIST);
+        }
+    }
+
+    subsys->namespaces[nsid] = NULL;
+    nvme_ns_drain(ns);
+    nvme_ns_shutdown(ns);
+    nvme_ns_cleanup(ns);
+
+    return NVME_SUCCESS;
+}
+
+static uint16_t nvme_ns_mgmt(NvmeCtrl *n, NvmeRequest *req)
+{
+    uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+    uint8_t sel = dw10 & 0xf;
+
+    switch (sel) {
+    case NVME_NS_MGMT_CREATE:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    case NVME_NS_MGMT_DELETE:
+        return nvme_ns_delete(n, nsid);
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+    return NVME_SUCCESS;
 }
 
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)

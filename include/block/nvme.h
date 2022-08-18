@@ -592,6 +592,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_FEATURES   = 0x09,
     NVME_ADM_CMD_GET_FEATURES   = 0x0a,
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
+    NVME_ADM_CMD_NS_MGMT        = 0x0d,
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
@@ -1187,6 +1188,11 @@ enum NvmeIdCtrlCmic {
 enum NvmeNsAttachmentOperation {
     NVME_NS_ATTACHMENT_ATTACH = 0x0,
     NVME_NS_ATTACHMENT_DETACH = 0x1,
+};
+
+enum NvmeNsMgmtOperation {
+    NVME_NS_MGMT_CREATE = 0x0,
+    NVME_NS_MGMT_DELETE = 0x1,
 };
 
 #define NVME_CTRL_SQES_MIN(sqes) ((sqes) & 0xf)
