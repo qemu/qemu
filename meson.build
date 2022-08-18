@@ -1097,7 +1097,7 @@ if (have_system or have_tools) and (virgl.found() or opengl.found())
   gbm = dependency('gbm', method: 'pkg-config', required: false,
                    kwargs: static_kwargs)
 endif
-have_vhost_user_gpu = have_vhost_user_gpu and virgl.found() and gbm.found()
+have_vhost_user_gpu = have_vhost_user_gpu and virgl.found() and opengl.found() and gbm.found()
 
 gnutls = not_found
 gnutls_crypto = not_found
