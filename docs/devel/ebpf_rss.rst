@@ -29,7 +29,7 @@ Not for all packets, the hash can/should be calculated.
 
 Note: currently, eBPF RSS does not support hash reporting.
 
-eBPF RSS turned on by different combinations of vhost-net, vitrio-net and tap configurations:
+eBPF RSS turned on by different combinations of vhost-net, virtio-net and tap configurations:
 
 - eBPF is used:
 
