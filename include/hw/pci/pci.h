@@ -692,26 +692,12 @@ pci_set_byte_by_mask(uint8_t *config, uint8_t mask, uint8_t reg)
     pci_set_byte(config, (~mask & val) | (mask & rval));
 }
 
-static inline uint8_t
-pci_get_byte_by_mask(uint8_t *config, uint8_t mask)
-{
-    uint8_t val = pci_get_byte(config);
-    return (val & mask) >> ctz32(mask);
-}
-
 static inline void
 pci_set_word_by_mask(uint8_t *config, uint16_t mask, uint16_t reg)
 {
     uint16_t val = pci_get_word(config);
     uint16_t rval = reg << ctz32(mask);
     pci_set_word(config, (~mask & val) | (mask & rval));
-}
-
-static inline uint16_t
-pci_get_word_by_mask(uint8_t *config, uint16_t mask)
-{
-    uint16_t val = pci_get_word(config);
-    return (val & mask) >> ctz32(mask);
 }
 
 static inline void
@@ -722,26 +708,12 @@ pci_set_long_by_mask(uint8_t *config, uint32_t mask, uint32_t reg)
     pci_set_long(config, (~mask & val) | (mask & rval));
 }
 
-static inline uint32_t
-pci_get_long_by_mask(uint8_t *config, uint32_t mask)
-{
-    uint32_t val = pci_get_long(config);
-    return (val & mask) >> ctz32(mask);
-}
-
 static inline void
 pci_set_quad_by_mask(uint8_t *config, uint64_t mask, uint64_t reg)
 {
     uint64_t val = pci_get_quad(config);
     uint64_t rval = reg << ctz32(mask);
     pci_set_quad(config, (~mask & val) | (mask & rval));
-}
-
-static inline uint64_t
-pci_get_quad_by_mask(uint8_t *config, uint64_t mask)
-{
-    uint64_t val = pci_get_quad(config);
-    return (val & mask) >> ctz32(mask);
 }
 
 PCIDevice *pci_new_multifunction(int devfn, bool multifunction,
