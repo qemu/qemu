@@ -1632,7 +1632,9 @@ static void test_acpi_q35_applesmc(void)
         .variant = ".applesmc",
     };
 
-    test_acpi_one("-device isa-applesmc", &data);
+    /* supply fake 64-byte OSK to silence missing key warning */
+    test_acpi_one("-device isa-applesmc,osk=any64characterfakeoskisenough"
+                  "topreventinvalidkeywarningsonstderr", &data);
     free_test_data(&data);
 }
 
