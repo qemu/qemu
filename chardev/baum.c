@@ -299,7 +299,8 @@ static void baum_chr_accept_input(struct Chardev *chr)
 static void baum_write_packet(BaumChardev *baum, const uint8_t *buf, int len)
 {
     Chardev *chr = CHARDEV(baum);
-    uint8_t io_buf[1 + 2 * len], *cur = io_buf;
+    g_autofree uint8_t *io_buf = g_malloc(1 + 2 * len);
+    uint8_t *cur = io_buf;
     int room;
     *cur++ = ESC;
     while (len--)
