@@ -4131,7 +4131,9 @@ void query_stats_schemas_cb(StatsSchemaList **result, Error **errp)
     query_stats_schema(result, STATS_TARGET_VM, stats_fd, errp);
     close(stats_fd);
 
-    stats_args.result.schema = result;
-    stats_args.errp = errp;
-    run_on_cpu(first_cpu, query_stats_schema_vcpu, RUN_ON_CPU_HOST_PTR(&stats_args));
+    if (first_cpu) {
+        stats_args.result.schema = result;
+        stats_args.errp = errp;
+        run_on_cpu(first_cpu, query_stats_schema_vcpu, RUN_ON_CPU_HOST_PTR(&stats_args));
+    }
 }
