@@ -63,29 +63,6 @@ static bool pnv_parent_fixup(Object *parent, BusState *parent_bus,
 }
 
 /*
- * Attach a root port device.
- *
- * 'index' will be used both as a PCIE slot value and to calculate
- * QOM id. 'chip_id' is going to be used as PCIE chassis for the
- * root port.
- */
-static void pnv_phb_attach_root_port(PCIHostState *pci)
-{
-    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
-    const char *dev_id = DEVICE(root)->id;
-    g_autofree char *default_id = NULL;
-    int index;
-
-    index = object_property_get_int(OBJECT(pci->bus), "phb-id", &error_fatal);
-    default_id = g_strdup_printf("%s[%d]", TYPE_PNV_PHB_ROOT_PORT, index);
-
-    object_property_add_child(OBJECT(pci->bus), dev_id ? dev_id : default_id,
-                              OBJECT(root));
-
-    pci_realize_and_unref(root, pci->bus, &error_fatal);
-}
-
-/*
  * User created devices won't have the initial setup that default
  * devices have. This setup consists of assigning a parent device
  * (chip for PHB3, PEC for PHB4/5) that will be the QOM/bus parent
@@ -180,11 +157,11 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
         pnv_phb4_bus_init(dev, PNV_PHB4(phb->backend));
     }
 
-    if (!defaults_enabled()) {
-        return;
-    }
+    if (defaults_enabled()) {
+        PCIDevice *root = pci_new(PCI_DEVFN(0, 0), TYPE_PNV_PHB_ROOT_PORT);
 
-    pnv_phb_attach_root_port(pci);
+        pci_realize_and_unref(root, pci->bus, errp);
+    }
 }
 
 static const char *pnv_phb_root_bus_path(PCIHostState *host_bridge,
@@ -259,12 +236,28 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
     int chip_id, index;
 
+    /*
+     * 'index' will be used both as a PCIE slot value and to calculate
+     * QOM id. 'chip_id' is going to be used as PCIE chassis for the
+     * root port.
+     */
     chip_id = object_property_get_int(OBJECT(bus), "chip-id", &error_fatal);
     index = object_property_get_int(OBJECT(bus), "phb-id", &error_fatal);
 
     /* Set unique chassis/slot values for the root port */
     qdev_prop_set_uint8(dev, "chassis", chip_id);
     qdev_prop_set_uint16(dev, "slot", index);
+
+    /*
+     * User created root ports are QOM parented to one of
+     * the peripheral containers but it's already at the right
+     * parent bus. Change the QOM parent to be the same as the
+     * parent bus it's already assigned to.
+     */
+    if (!pnv_parent_fixup(OBJECT(bus), BUS(bus), OBJECT(dev),
+                          index, errp)) {
+        return;
+    }
 
     rpc->parent_realize(dev, &local_err);
     if (local_err) {
