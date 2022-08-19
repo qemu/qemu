@@ -21,34 +21,45 @@
 
 
 /*
- * Set the QOM parent of an object child. If the device state
- * associated with the child has an id, use it as QOM id. Otherwise
- * use object_typename[index] as QOM id.
+ * Set the QOM parent and parent bus of an object child. If the device
+ * state associated with the child has an id, use it as QOM id.
+ * Otherwise use object_typename[index] as QOM id.
+ *
+ * This helper does both operations at the same time because seting
+ * a new QOM child will erase the bus parent of the device. This happens
+ * because object_unparent() will call object_property_del_child(),
+ * which in turn calls the property release callback prop->release if
+ * it's defined. In our case this callback is set to
+ * object_finalize_child_property(), which was assigned during the
+ * first object_property_add_child() call. This callback will end up
+ * calling device_unparent(), and this function removes the device
+ * from its parent bus.
+ *
+ * The QOM and parent bus to be set aren´t necessarily related, so
+ * let's receive both as arguments.
  */
-static void pnv_parent_qom_fixup(Object *parent, Object *child, int index)
+static bool pnv_parent_fixup(Object *parent, BusState *parent_bus,
+                             Object *child, int index,
+                             Error **errp)
 {
     g_autofree char *default_id =
         g_strdup_printf("%s[%d]", object_get_typename(child), index);
     const char *dev_id = DEVICE(child)->id;
 
     if (child->parent == parent) {
-        return;
+        return true;
     }
 
     object_ref(child);
     object_unparent(child);
     object_property_add_child(parent, dev_id ? dev_id : default_id, child);
     object_unref(child);
-}
 
-static void pnv_parent_bus_fixup(DeviceState *parent, DeviceState *child,
-                                 Error **errp)
-{
-    BusState *parent_bus = qdev_get_parent_bus(parent);
-
-    if (!qdev_set_parent_bus(child, parent_bus, errp)) {
-        return;
+    if (!qdev_set_parent_bus(DEVICE(child), parent_bus, errp)) {
+        return false;
     }
+
+    return true;
 }
 
 /*
@@ -101,8 +112,10 @@ static bool pnv_phb_user_device_init(PnvPHB *phb, Error **errp)
      * correctly the device tree. pnv_xscom_dt() needs every
      * PHB to be a child of the chip to build the DT correctly.
      */
-    pnv_parent_qom_fixup(parent, OBJECT(phb), phb->phb_id);
-    pnv_parent_bus_fixup(DEVICE(chip), DEVICE(phb), errp);
+    if (!pnv_parent_fixup(parent, qdev_get_parent_bus(DEVICE(chip)),
+                          OBJECT(phb), phb->phb_id, errp)) {
+        return false;
+    }
 
     return true;
 }
