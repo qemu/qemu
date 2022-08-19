@@ -3,3 +3,4 @@
 
 VPATH += $(SRC_PATH)/tests/tcg/riscv64
 TESTS += test-div
+TESTS += noexec
