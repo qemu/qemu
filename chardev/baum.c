@@ -383,9 +383,9 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
     switch (req) {
     case BAUM_REQ_DisplayData:
     {
-        uint8_t cells[baum->x * baum->y], c;
-        uint8_t text[baum->x * baum->y];
-        uint8_t zero[baum->x * baum->y];
+        uint8_t cells[X_MAX * Y_MAX], c;
+        uint8_t text[X_MAX * Y_MAX];
+        uint8_t zero[X_MAX * Y_MAX];
         int cursor = BRLAPI_CURSOR_OFF;
         int i;
 
@@ -408,7 +408,7 @@ static int baum_eat_packet(BaumChardev *baum, const uint8_t *buf, int len)
         }
         timer_del(baum->cellCount_timer);
 
-        memset(zero, 0, sizeof(zero));
+        memset(zero, 0, baum->x * baum->y);
 
         brlapi_writeArguments_t wa = {
             .displayNumber = BRLAPI_DISPLAY_DEFAULT,
