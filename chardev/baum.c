@@ -87,6 +87,9 @@
 
 #define BUF_SIZE 256
 
+#define X_MAX   84
+#define Y_MAX   1
+
 struct BaumChardev {
     Chardev parent;
 
@@ -244,11 +247,11 @@ static int baum_deferred_init(BaumChardev *baum)
         brlapi_perror("baum: brlapi__getDisplaySize");
         return 0;
     }
-    if (baum->y > 1) {
-        baum->y = 1;
+    if (baum->y > Y_MAX) {
+        baum->y = Y_MAX;
     }
-    if (baum->x > 84) {
-        baum->x = 84;
+    if (baum->x > X_MAX) {
+        baum->x = X_MAX;
     }
 
     con = qemu_console_lookup_by_index(0);
