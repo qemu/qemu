@@ -567,8 +567,8 @@ static void ics_reset_irq(ICSIRQState *irq)
 static void ics_reset(DeviceState *dev)
 {
     ICSState *ics = ICS(dev);
+    g_autofree uint8_t *flags = g_malloc(ics->nr_irqs);
     int i;
-    uint8_t flags[ics->nr_irqs];
 
     for (i = 0; i < ics->nr_irqs; i++) {
         flags[i] = ics->irqs[i].flags;
