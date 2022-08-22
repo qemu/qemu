@@ -53,7 +53,6 @@ innerloop:
         /* increment the first byte of each page by 1 */
         ldrb    w3, [x4]
         add     w3, w3, #1
-        and     w3, w3, #0xff
         strb    w3, [x4]
 
         /* make sure QEMU user space can see consistent data as MMU is off */
@@ -64,7 +63,7 @@ innerloop:
         blt     innerloop
 
         add     w5, w5, #1
-        and     w5, w5, #0xff
+        and     w5, w5, #0x1f
         cmp     w5, #0
         bne     mainloop
 
