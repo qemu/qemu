@@ -2461,7 +2461,6 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QOM);
 
     if (has_uffd) {
-        qtest_add_func("/migration/postcopy/unix", test_postcopy);
         qtest_add_func("/migration/postcopy/plain", test_postcopy);
         qtest_add_func("/migration/postcopy/recovery/plain",
                        test_postcopy_recovery);
