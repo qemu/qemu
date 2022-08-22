@@ -2806,11 +2806,10 @@ uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
     if (arm_current_el(env) != 0 || alt) {
         GetPhysAddrResult res = {};
         ARMMMUFaultInfo fi = {};
-        bool is_subpage;
 
         /* We can ignore the return value as prot is always set */
         pmsav8_mpu_lookup(env, addr, MMU_DATA_LOAD, mmu_idx,
-                          &res, &is_subpage, &fi, &mregion);
+                          &res, &fi, &mregion);
         if (mregion == -1) {
             mrvalid = false;
             mregion = 0;
