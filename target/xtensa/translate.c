@@ -2366,9 +2366,9 @@ static uint32_t test_exceptions_simcall(DisasContext *dc,
     bool ill = true;
 #else
     /* Between RE.2 and RE.3 simcall opcode's become nop for the hardware. */
-    bool ill = dc->config->hw_version <= 250002 && !semihosting_enabled();
+    bool ill = dc->config->hw_version <= 250002 && !semihosting_enabled(false);
 #endif
-    if (ill || !semihosting_enabled()) {
+    if (ill || !semihosting_enabled(false)) {
         qemu_log_mask(LOG_GUEST_ERROR, "SIMCALL but semihosting is disabled\n");
     }
     return ill ? XTENSA_OP_ILL : 0;
@@ -2378,7 +2378,7 @@ static void translate_simcall(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
 #ifndef CONFIG_USER_ONLY
-    if (semihosting_enabled()) {
+    if (semihosting_enabled(false)) {
         gen_helper_simcall(cpu_env);
     }
 #endif
