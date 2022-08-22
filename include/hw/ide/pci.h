@@ -55,12 +55,6 @@ struct PCIIDEState {
     MemoryRegion data_bar[2];
 };
 
-static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
-{
-    assert(bmdma->bus->retry_unit != (uint8_t)-1);
-    return bmdma->bus->ifs + bmdma->bus->retry_unit;
-}
-
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);
 extern MemoryRegionOps bmdma_addr_ioport_ops;

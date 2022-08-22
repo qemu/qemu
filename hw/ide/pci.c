@@ -104,6 +104,12 @@ const MemoryRegionOps pci_ide_data_le_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static IDEState *bmdma_active_if(BMDMAState *bmdma)
+{
+    assert(bmdma->bus->retry_unit != (uint8_t)-1);
+    return bmdma->bus->ifs + bmdma->bus->retry_unit;
+}
+
 static void bmdma_start_dma(const IDEDMA *dma, IDEState *s,
                             BlockCompletionFunc *dma_cb)
 {
