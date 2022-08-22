@@ -2300,18 +2300,12 @@ static ARMCacheAttrs combine_cacheattrs(CPUARMState *env,
  * @address: virtual address to get physical address for
  * @access_type: 0 for read, 1 for write, 2 for execute
  * @mmu_idx: MMU index indicating required translation regime
- * @phys_ptr: set to the physical address corresponding to the virtual address
- * @attrs: set to the memory transaction attributes to use
- * @prot: set to the permissions for the page containing phys_ptr
- * @page_size: set to the size of the page containing phys_ptr
+ * @result: set on translation success.
  * @fi: set to fault info if the translation fails
- * @cacheattrs: (if non-NULL) set to the cacheability/shareability attributes
  */
 bool get_phys_addr(CPUARMState *env, target_ulong address,
                    MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                   hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                   target_ulong *page_size,
-                   ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
+                   GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
 {
     ARMMMUIdx s1_mmu_idx = stage_1_mmu_idx(mmu_idx);
 
@@ -2322,43 +2316,54 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
          */
         if (arm_feature(env, ARM_FEATURE_EL2)) {
             hwaddr ipa;
-            int s2_prot;
+            int s1_prot;
             int ret;
             bool ipa_secure;
-            ARMCacheAttrs cacheattrs2 = {};
+            ARMCacheAttrs cacheattrs1;
             ARMMMUIdx s2_mmu_idx;
             bool is_el0;
 
-            ret = get_phys_addr(env, address, access_type, s1_mmu_idx, &ipa,
-                                attrs, prot, page_size, fi, cacheattrs);
+            ret = get_phys_addr(env, address, access_type, s1_mmu_idx,
+                                result, fi);
 
             /* If S1 fails or S2 is disabled, return early.  */
             if (ret || regime_translation_disabled(env, ARMMMUIdx_Stage2)) {
-                *phys_ptr = ipa;
                 return ret;
             }
 
-            ipa_secure = attrs->secure;
+            ipa = result->phys;
+            ipa_secure = result->attrs.secure;
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
-                    attrs->secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
+                    result->attrs.secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
                 } else {
-                    attrs->secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
+                    result->attrs.secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
                 }
             } else {
                 assert(!ipa_secure);
             }
 
-            s2_mmu_idx = attrs->secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
+            s2_mmu_idx = (result->attrs.secure
+                          ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2);
             is_el0 = mmu_idx == ARMMMUIdx_E10_0 || mmu_idx == ARMMMUIdx_SE10_0;
 
-            /* S1 is done. Now do S2 translation.  */
+            /*
+             * S1 is done, now do S2 translation.
+             * Save the stage1 results so that we may merge
+             * prot and cacheattrs later.
+             */
+            s1_prot = result->prot;
+            cacheattrs1 = result->cacheattrs;
+            memset(result, 0, sizeof(*result));
+
             ret = get_phys_addr_lpae(env, ipa, access_type, s2_mmu_idx, is_el0,
-                                     phys_ptr, attrs, &s2_prot,
-                                     page_size, fi, &cacheattrs2);
+                                     &result->phys, &result->attrs,
+                                     &result->prot, &result->page_size,
+                                     fi, &result->cacheattrs);
             fi->s2addr = ipa;
+
             /* Combine the S1 and S2 perms.  */
-            *prot &= s2_prot;
+            result->prot &= s1_prot;
 
             /* If S2 fails, return early.  */
             if (ret) {
@@ -2374,20 +2379,21 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                  *  Outer Write-Back Read-Allocate Write-Allocate.
                  * Do not overwrite Tagged within attrs.
                  */
-                if (cacheattrs->attrs != 0xf0) {
-                    cacheattrs->attrs = 0xff;
+                if (cacheattrs1.attrs != 0xf0) {
+                    cacheattrs1.attrs = 0xff;
                 }
-                cacheattrs->shareability = 0;
+                cacheattrs1.shareability = 0;
             }
-            *cacheattrs = combine_cacheattrs(env, *cacheattrs, cacheattrs2);
+            result->cacheattrs = combine_cacheattrs(env, cacheattrs1,
+                                                    result->cacheattrs);
 
             /* Check if IPA translates to secure or non-secure PA space. */
             if (arm_is_secure_below_el3(env)) {
                 if (ipa_secure) {
-                    attrs->secure =
+                    result->attrs.secure =
                         !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
                 } else {
-                    attrs->secure =
+                    result->attrs.secure =
                         !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
                         || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
                 }
@@ -2406,8 +2412,8 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
      * cannot upgrade an non-secure translation regime's attributes
      * to secure.
      */
-    attrs->secure = regime_is_secure(env, mmu_idx);
-    attrs->user = regime_is_user(env, mmu_idx);
+    result->attrs.secure = regime_is_secure(env, mmu_idx);
+    result->attrs.user = regime_is_user(env, mmu_idx);
 
     /*
      * Fast Context Switch Extension. This doesn't exist at all in v8.
@@ -2424,20 +2430,22 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         bool ret;
-        *page_size = TARGET_PAGE_SIZE;
+        result->page_size = TARGET_PAGE_SIZE;
 
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
             ret = get_phys_addr_pmsav8(env, address, access_type, mmu_idx,
-                                       phys_ptr, attrs, prot, page_size, fi);
+                                       &result->phys, &result->attrs,
+                                       &result->prot, &result->page_size, fi);
         } else if (arm_feature(env, ARM_FEATURE_V7)) {
             /* PMSAv7 */
             ret = get_phys_addr_pmsav7(env, address, access_type, mmu_idx,
-                                       phys_ptr, prot, page_size, fi);
+                                       &result->phys, &result->prot,
+                                       &result->page_size, fi);
         } else {
             /* Pre-v7 MPU */
             ret = get_phys_addr_pmsav5(env, address, access_type, mmu_idx,
-                                       phys_ptr, prot, fi);
+                                       &result->phys, &result->prot, fi);
         }
         qemu_log_mask(CPU_LOG_MMU, "PMSA MPU lookup for %s at 0x%08" PRIx32
                       " mmu_idx %u -> %s (prot %c%c%c)\n",
@@ -2445,9 +2453,9 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                       (access_type == MMU_DATA_STORE ? "writing" : "execute"),
                       (uint32_t)address, mmu_idx,
                       ret ? "Miss" : "Hit",
-                      *prot & PAGE_READ ? 'r' : '-',
-                      *prot & PAGE_WRITE ? 'w' : '-',
-                      *prot & PAGE_EXEC ? 'x' : '-');
+                      result->prot & PAGE_READ ? 'r' : '-',
+                      result->prot & PAGE_WRITE ? 'w' : '-',
+                      result->prot & PAGE_EXEC ? 'x' : '-');
 
         return ret;
     }
@@ -2492,14 +2500,14 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                 address = extract64(address, 0, 52);
             }
         }
-        *phys_ptr = address;
-        *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        *page_size = TARGET_PAGE_SIZE;
+        result->phys = address;
+        result->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        result->page_size = TARGET_PAGE_SIZE;
 
         /* Fill in cacheattr a-la AArch64.TranslateAddressS1Off. */
         hcr = arm_hcr_el2_eff(env);
-        cacheattrs->shareability = 0;
-        cacheattrs->is_s2_format = false;
+        result->cacheattrs.shareability = 0;
+        result->cacheattrs.is_s2_format = false;
         if (hcr & HCR_DC) {
             if (hcr & HCR_DCT) {
                 memattr = 0xf0;  /* Tagged, Normal, WB, RWA */
@@ -2512,24 +2520,27 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             } else {
                 memattr = 0x44;  /* Normal, NC, No */
             }
-            cacheattrs->shareability = 2; /* outer sharable */
+            result->cacheattrs.shareability = 2; /* outer sharable */
         } else {
             memattr = 0x00;      /* Device, nGnRnE */
         }
-        cacheattrs->attrs = memattr;
+        result->cacheattrs.attrs = memattr;
         return 0;
     }
 
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, address, access_type, mmu_idx, false,
-                                  phys_ptr, attrs, prot, page_size,
-                                  fi, cacheattrs);
+                                  &result->phys, &result->attrs,
+                                  &result->prot, &result->page_size,
+                                  fi, &result->cacheattrs);
     } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
         return get_phys_addr_v6(env, address, access_type, mmu_idx,
-                                phys_ptr, attrs, prot, page_size, fi);
+                                &result->phys, &result->attrs,
+                                &result->prot, &result->page_size, fi);
     } else {
         return get_phys_addr_v5(env, address, access_type, mmu_idx,
-                                    phys_ptr, prot, page_size, fi);
+                                &result->phys, &result->prot,
+                                &result->page_size, fi);
     }
 }
 
@@ -2538,21 +2549,16 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    hwaddr phys_addr;
-    target_ulong page_size;
-    int prot;
-    bool ret;
+    GetPhysAddrResult res = {};
     ARMMMUFaultInfo fi = {};
     ARMMMUIdx mmu_idx = arm_mmu_idx(env);
-    ARMCacheAttrs cacheattrs = {};
+    bool ret;
 
-    *attrs = (MemTxAttrs) {};
-
-    ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &phys_addr,
-                        attrs, &prot, &page_size, &fi, &cacheattrs);
+    ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &res, &fi);
+    *attrs = res.attrs;
 
     if (ret) {
         return -1;
     }
-    return phys_addr;
+    return res.phys;
 }
