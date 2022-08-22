@@ -1743,7 +1743,6 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         atexit(audio_cleanup);
         atexit_registered = true;
     }
-    QTAILQ_INSERT_TAIL(&audio_states, s, list);
 
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
@@ -1768,6 +1767,10 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
             done = !audio_driver_init(s, driver, true, dev);
         } else {
             dolog ("Unknown audio driver `%s'\n", drvname);
+        }
+        if (!done) {
+            free_audio_state(s);
+            return NULL;
         }
     } else {
         for (i = 0; audio_prio_list[i]; i++) {
@@ -1806,6 +1809,7 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
                "(Audio can continue looping even after stopping the VM)\n");
     }
 
+    QTAILQ_INSERT_TAIL(&audio_states, s, list);
     QLIST_INIT (&s->card_head);
     vmstate_register (NULL, 0, &vmstate_audio, s);
     return s;
@@ -2119,13 +2123,17 @@ void audio_define(Audiodev *dev)
     QSIMPLEQ_INSERT_TAIL(&audiodevs, e, next);
 }
 
-void audio_init_audiodevs(void)
+bool audio_init_audiodevs(void)
 {
     AudiodevListEntry *e;
 
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
-        audio_init(e->dev, NULL);
+        if (!audio_init(e->dev, NULL)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
