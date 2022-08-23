@@ -198,7 +198,16 @@ static bool tb_lookup_cmp(const void *p, const void *d)
             tb_page_addr_t phys_page2;
             target_ulong virt_page2;
 
-            virt_page2 = (desc->pc & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
+            /*
+             * We know that the first page matched, and an otherwise valid TB
+             * encountered an incomplete instruction at the end of that page,
+             * therefore we know that generating a new TB from the current PC
+             * must also require reading from the next page -- even if the
+             * second pages do not match, and therefore the resulting insn
+             * is different for the new TB.  Therefore any exception raised
+             * here by the faulting lookup is not premature.
+             */
+            virt_page2 = TARGET_PAGE_ALIGN(desc->pc);
             phys_page2 = get_page_addr_code(desc->env, virt_page2);
             if (tb->page_addr[1] == phys_page2) {
                 return true;
