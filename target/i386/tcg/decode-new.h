@@ -168,6 +168,13 @@ typedef struct X86DecodedOp {
     MemOp ot;     /* For b/c/d/p/s/q/v/w/y/z */
     X86OpUnit unit;
     bool has_ea;
+    int offset;   /* For MMX and SSE */
+
+    /*
+     * This field is used internally by macros OP0_PTR/OP1_PTR/OP2_PTR,
+     * do not access directly!
+     */
+    TCGv_ptr v_ptr;
 } X86DecodedOp;
 
 struct X86DecodedInsn {

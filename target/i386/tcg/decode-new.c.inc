@@ -513,6 +513,20 @@ static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_
     return true;
 }
 
+static void decode_temp_free(X86DecodedOp *op)
+{
+    if (op->v_ptr) {
+        tcg_temp_free_ptr(op->v_ptr);
+    }
+}
+
+static void decode_temps_free(X86DecodedInsn *decode)
+{
+    decode_temp_free(&decode->op[0]);
+    decode_temp_free(&decode->op[1]);
+    decode_temp_free(&decode->op[2]);
+}
+
 /*
  * Convert one instruction. s->base.is_jmp is set if the translation must
  * be stopped.
@@ -738,7 +752,24 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     if (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea) {
         gen_load_ea(s, &decode.mem);
     }
-    decode.e.gen(s, env, &decode);
+    if (s->prefix & PREFIX_LOCK) {
+        if (decode.op[0].unit != X86_OP_INT || !decode.op[0].has_ea) {
+            goto illegal_op;
+        }
+        gen_load(s, &decode, 2, s->T1);
+        decode.e.gen(s, env, &decode);
+    } else {
+        if (decode.op[0].unit == X86_OP_MMX) {
+            compute_mmx_offset(&decode.op[0]);
+        } else if (decode.op[0].unit == X86_OP_SSE) {
+            compute_xmm_offset(&decode.op[0]);
+        }
+        gen_load(s, &decode, 1, s->T0);
+        gen_load(s, &decode, 2, s->T1);
+        decode.e.gen(s, env, &decode);
+        gen_writeback(s, &decode, 0, s->T0);
+    }
+    decode_temps_free(&decode);
     return;
  illegal_op:
     gen_illegal_opcode(s);
