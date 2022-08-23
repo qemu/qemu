@@ -289,6 +289,10 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
         };
 
         result = vhost_iova_tree_find_iova(v->iova_tree, &mem_region);
+        if (!result) {
+            /* The memory listener map wasn't mapped */
+            return;
+        }
         iova = result->iova;
         vhost_iova_tree_remove(v->iova_tree, result);
     }
