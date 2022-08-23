@@ -86,6 +86,9 @@ typedef struct DisasContext {
     int8_t override; /* -1 if no override, else R_CS, R_DS, etc */
     uint8_t prefix;
 
+    bool has_modrm;
+    uint8_t modrm;
+
 #ifndef CONFIG_USER_ONLY
     uint8_t cpl;   /* code priv level */
     uint8_t iopl;  /* i/o priv level */
@@ -2425,6 +2428,31 @@ static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, MemOp ot)
     return ret;
 }
 
+static target_long insn_get_signed(CPUX86State *env, DisasContext *s, MemOp ot)
+{
+    target_long ret;
+
+    switch (ot) {
+    case MO_8:
+        ret = (int8_t) x86_ldub_code(env, s);
+        break;
+    case MO_16:
+        ret = (int16_t) x86_lduw_code(env, s);
+        break;
+    case MO_32:
+        ret = (int32_t) x86_ldl_code(env, s);
+        break;
+#ifdef TARGET_X86_64
+    case MO_64:
+        ret = x86_ldq_code(env, s);
+        break;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+    return ret;
+}
+
 static inline int insn_const_size(MemOp ot)
 {
     if (ot <= MO_32) {
@@ -2926,6 +2954,11 @@ typedef void (*SSEFunc_0_eppi)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
 typedef void (*SSEFunc_0_ppi)(TCGv_ptr reg_a, TCGv_ptr reg_b, TCGv_i32 val);
 typedef void (*SSEFunc_0_eppt)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                TCGv val);
+
+static bool first = true; static unsigned long limit;
+#include "decode-new.h"
+#include "emit.c.inc"
+#include "decode-new.c.inc"
 
 #define SSE_OPF_CMP       (1 << 1) /* does not write for first operand */
 #define SSE_OPF_SPECIAL   (1 << 3) /* magic */
@@ -4859,10 +4892,35 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 
     prefixes = 0;
 
+    if (first) first = false, limit = getenv("LIMIT") ? atol(getenv("LIMIT")) : -1;
+    bool use_new = true;
+#ifdef CONFIG_USER_ONLY
+    use_new &= limit > 0;
+#endif
  next_byte:
+    s->prefix = prefixes;
     b = x86_ldub_code(env, s);
     /* Collect prefixes.  */
     switch (b) {
+    default:
+#ifndef CONFIG_USER_ONLY
+        use_new &= b <= limit;
+#endif
+        if (use_new && 0) {
+            disas_insn_new(s, cpu, b);
+            return s->pc;
+        }
+        break;
+    case 0x0f:
+        b = x86_ldub_code(env, s) + 0x100;
+#ifndef CONFIG_USER_ONLY
+        use_new &= b <= limit;
+#endif
+        if (use_new && 0) {
+            disas_insn_new(s, cpu, b + 0x100);
+            return s->pc;
+        }
+        break;
     case 0xf3:
         prefixes |= PREFIX_REPZ;
         prefixes &= ~PREFIX_REPNZ;
@@ -4913,6 +4971,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #endif
     case 0xc5: /* 2-byte VEX */
     case 0xc4: /* 3-byte VEX */
+        use_new = false;
         /* VEX prefixes cannot be used except in 32-bit mode.
            Otherwise the instruction is LES or LDS.  */
         if (CODE32(s) && !VM86(s)) {
@@ -4997,14 +5056,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     s->dflag = dflag;
 
     /* now check op code */
- reswitch:
-    switch(b) {
-    case 0x0f:
-        /**************************/
-        /* extended op code */
-        b = x86_ldub_code(env, s) | 0x100;
-        goto reswitch;
-
+    switch (b) {
         /**************************/
         /* arith & logic */
     case 0x00 ... 0x05:
