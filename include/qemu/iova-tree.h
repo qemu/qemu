@@ -73,7 +73,7 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map);
  * all the mappings that are included in the provided range will be
  * removed from the tree.  Here map->translated_addr is meaningless.
  */
-void iova_tree_remove(IOVATree *tree, const DMAMap *map);
+void iova_tree_remove(IOVATree *tree, DMAMap map);
 
 /**
  * iova_tree_find:

@@ -244,7 +244,7 @@ static void vhost_vdpa_cvq_unmap_buf(struct vhost_vdpa *v, void *addr)
         error_report("Device cannot unmap: %s(%d)", g_strerror(r), r);
     }
 
-    vhost_iova_tree_remove(tree, map);
+    vhost_iova_tree_remove(tree, *map);
 }
 
 static size_t vhost_vdpa_net_cvq_cmd_len(void)
@@ -297,7 +297,7 @@ static bool vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v,
     return true;
 
 dma_map_err:
-    vhost_iova_tree_remove(v->iova_tree, &map);
+    vhost_iova_tree_remove(v->iova_tree, map);
     return false;
 }
 

@@ -240,7 +240,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
 fail_map:
     if (v->shadow_vqs_enabled) {
-        vhost_iova_tree_remove(v->iova_tree, &mem_region);
+        vhost_iova_tree_remove(v->iova_tree, mem_region);
     }
 
 fail:
@@ -300,7 +300,7 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
             return;
         }
         iova = result->iova;
-        vhost_iova_tree_remove(v->iova_tree, result);
+        vhost_iova_tree_remove(v->iova_tree, *result);
     }
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
@@ -944,7 +944,7 @@ static bool vhost_vdpa_svq_map_ring(struct vhost_vdpa *v, DMAMap *needle,
                            needle->perm == IOMMU_RO);
     if (unlikely(r != 0)) {
         error_setg_errno(errp, -r, "Cannot map region to device");
-        vhost_iova_tree_remove(v->iova_tree, needle);
+        vhost_iova_tree_remove(v->iova_tree, *needle);
     }
 
     return r == 0;
