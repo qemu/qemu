@@ -1430,6 +1430,7 @@ static void aspeed_minibmc_machine_init(MachineState *machine)
 
     armv7m_load_kernel(ARM_CPU(first_cpu),
                        machine->kernel_filename,
+                       0,
                        AST1030_INTERNAL_FLASH_SIZE);
 }
 
