@@ -263,29 +263,20 @@ static size_t vhost_vdpa_net_cvq_cmd_page_len(void)
     return ROUND_UP(vhost_vdpa_net_cvq_cmd_len(), qemu_real_host_page_size());
 }
 
-/** Copy and map a guest buffer. */
-static bool vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v,
-                                   const struct iovec *out_data,
-                                   size_t out_num, size_t data_len, void *buf,
-                                   size_t *written, bool write)
+/** Map CVQ buffer. */
+static int vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v, void *buf, size_t size,
+                                  bool write)
 {
     DMAMap map = {};
     int r;
 
-    if (unlikely(!data_len)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid legnth of %s buffer\n",
-                      __func__, write ? "in" : "out");
-        return false;
-    }
-
-    *written = iov_to_buf(out_data, out_num, 0, buf, data_len);
     map.translated_addr = (hwaddr)(uintptr_t)buf;
-    map.size = vhost_vdpa_net_cvq_cmd_page_len() - 1;
+    map.size = size - 1;
     map.perm = write ? IOMMU_RW : IOMMU_RO,
     r = vhost_iova_tree_map_alloc(v->iova_tree, &map);
     if (unlikely(r != IOVA_OK)) {
         error_report("Cannot map injected element");
-        return false;
+        return r;
     }
 
     r = vhost_vdpa_dma_map(v, map.iova, vhost_vdpa_net_cvq_cmd_page_len(), buf,
@@ -294,50 +285,58 @@ static bool vhost_vdpa_cvq_map_buf(struct vhost_vdpa *v,
         goto dma_map_err;
     }
 
-    return true;
+    return 0;
 
 dma_map_err:
     vhost_iova_tree_remove(v->iova_tree, map);
-    return false;
+    return r;
 }
 
-/**
- * Copy the guest element into a dedicated buffer suitable to be sent to NIC
- *
- * @iov: [0] is the out buffer, [1] is the in one
- */
-static bool vhost_vdpa_net_cvq_map_elem(VhostVDPAState *s,
-                                        VirtQueueElement *elem,
-                                        struct iovec *iov)
+static int vhost_vdpa_net_cvq_start(NetClientState *nc)
 {
-    size_t in_copied;
-    bool ok;
+    VhostVDPAState *s;
+    int r;
 
-    iov[0].iov_base = s->cvq_cmd_out_buffer;
-    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, elem->out_sg, elem->out_num,
-                                vhost_vdpa_net_cvq_cmd_len(), iov[0].iov_base,
-                                &iov[0].iov_len, false);
-    if (unlikely(!ok)) {
-        return false;
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
+
+    s = DO_UPCAST(VhostVDPAState, nc, nc);
+    if (!s->vhost_vdpa.shadow_vqs_enabled) {
+        return 0;
     }
 
-    iov[1].iov_base = s->cvq_cmd_in_buffer;
-    ok = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, NULL, 0,
-                                sizeof(virtio_net_ctrl_ack), iov[1].iov_base,
-                                &in_copied, true);
-    if (unlikely(!ok)) {
+    r = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer,
+                               vhost_vdpa_net_cvq_cmd_page_len(), false);
+    if (unlikely(r < 0)) {
+        return r;
+    }
+
+    r = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, s->cvq_cmd_in_buffer,
+                               vhost_vdpa_net_cvq_cmd_page_len(), true);
+    if (unlikely(r < 0)) {
         vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer);
-        return false;
     }
 
-    iov[1].iov_len = sizeof(virtio_net_ctrl_ack);
-    return true;
+    return r;
+}
+
+static void vhost_vdpa_net_cvq_stop(NetClientState *nc)
+{
+    VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
+
+    assert(nc->info->type == NET_CLIENT_DRIVER_VHOST_VDPA);
+
+    if (s->vhost_vdpa.shadow_vqs_enabled) {
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer);
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_in_buffer);
+    }
 }
 
 static NetClientInfo net_vhost_vdpa_cvq_info = {
     .type = NET_CLIENT_DRIVER_VHOST_VDPA,
     .size = sizeof(VhostVDPAState),
     .receive = vhost_vdpa_receive,
+    .start = vhost_vdpa_net_cvq_start,
+    .stop = vhost_vdpa_net_cvq_stop,
     .cleanup = vhost_vdpa_cleanup,
     .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
     .has_ufo = vhost_vdpa_has_ufo,
@@ -348,19 +347,17 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
  * Do not forward commands not supported by SVQ. Otherwise, the device could
  * accept it and qemu would not know how to update the device model.
  */
-static bool vhost_vdpa_net_cvq_validate_cmd(const struct iovec *out,
-                                            size_t out_num)
+static bool vhost_vdpa_net_cvq_validate_cmd(const void *out_buf, size_t len)
 {
     struct virtio_net_ctrl_hdr ctrl;
-    size_t n;
 
-    n = iov_to_buf(out, out_num, 0, &ctrl, sizeof(ctrl));
-    if (unlikely(n < sizeof(ctrl))) {
+    if (unlikely(len < sizeof(ctrl))) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid legnth of out buffer %zu\n", __func__, n);
+                      "%s: invalid legnth of out buffer %zu\n", __func__, len);
         return false;
     }
 
+    memcpy(&ctrl, out_buf, sizeof(ctrl));
     switch (ctrl.class) {
     case VIRTIO_NET_CTRL_MAC:
         switch (ctrl.cmd) {
@@ -392,10 +389,14 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     VhostVDPAState *s = opaque;
     size_t in_len, dev_written;
     virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
-    /* out and in buffers sent to the device */
-    struct iovec dev_buffers[2] = {
-        { .iov_base = s->cvq_cmd_out_buffer },
-        { .iov_base = s->cvq_cmd_in_buffer },
+    /* Out buffer sent to both the vdpa device and the device model */
+    struct iovec out = {
+        .iov_base = s->cvq_cmd_out_buffer,
+    };
+    /* In buffer sent to the device */
+    const struct iovec dev_in = {
+        .iov_base = s->cvq_cmd_in_buffer,
+        .iov_len = sizeof(virtio_net_ctrl_ack),
     };
     /* in buffer used for device model */
     const struct iovec in = {
@@ -405,17 +406,15 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     int r = -EINVAL;
     bool ok;
 
-    ok = vhost_vdpa_net_cvq_map_elem(s, elem, dev_buffers);
+    out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
+                             s->cvq_cmd_out_buffer,
+                             vhost_vdpa_net_cvq_cmd_len());
+    ok = vhost_vdpa_net_cvq_validate_cmd(s->cvq_cmd_out_buffer, out.iov_len);
     if (unlikely(!ok)) {
         goto out;
     }
 
-    ok = vhost_vdpa_net_cvq_validate_cmd(&dev_buffers[0], 1);
-    if (unlikely(!ok)) {
-        goto out;
-    }
-
-    r = vhost_svq_add(svq, &dev_buffers[0], 1, &dev_buffers[1], 1, elem);
+    r = vhost_svq_add(svq, &out, 1, &dev_in, 1, elem);
     if (unlikely(r != 0)) {
         if (unlikely(r == -ENOSPC)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: No space on device queue\n",
@@ -435,13 +434,13 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         goto out;
     }
 
-    memcpy(&status, dev_buffers[1].iov_base, sizeof(status));
+    memcpy(&status, s->cvq_cmd_in_buffer, sizeof(status));
     if (status != VIRTIO_NET_OK) {
         goto out;
     }
 
     status = VIRTIO_NET_ERR;
-    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, dev_buffers, 1);
+    virtio_net_handle_ctrl_iov(svq->vdev, &in, 1, &out, 1);
     if (status != VIRTIO_NET_OK) {
         error_report("Bad CVQ processing in model");
     }
@@ -454,12 +453,6 @@ out:
     }
     vhost_svq_push_elem(svq, elem, MIN(in_len, sizeof(status)));
     g_free(elem);
-    if (dev_buffers[0].iov_base) {
-        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, dev_buffers[0].iov_base);
-    }
-    if (dev_buffers[1].iov_base) {
-        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, dev_buffers[1].iov_base);
-    }
     return r;
 }
 
