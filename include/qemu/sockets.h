@@ -14,6 +14,24 @@ int inet_aton(const char *cp, struct in_addr *ia);
 /* misc helpers */
 bool fd_is_socket(int fd);
 int qemu_socket(int domain, int type, int protocol);
+
+#ifndef WIN32
+/**
+ * qemu_socketpair:
+ * @domain: specifies a communication domain, such as PF_UNIX
+ * @type: specifies the socket type.
+ * @protocol: specifies a particular protocol to be used with the  socket
+ * @sv: an array to store the pair of socket created
+ *
+ * Creates an unnamed pair of connected sockets in the specified domain,
+ * of the specified type, and using the optionally specified protocol.
+ * And automatically set the close-on-exec flags on the returned sockets
+ *
+ * Return 0 on success.
+ */
+int qemu_socketpair(int domain, int type, int protocol, int sv[2]);
+#endif
+
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int socket_set_cork(int fd, int v);
 int socket_set_nodelay(int fd);
