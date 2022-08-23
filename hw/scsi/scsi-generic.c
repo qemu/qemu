@@ -147,6 +147,18 @@ static int execute_command(BlockBackend *blk,
     return 0;
 }
 
+static uint64_t calculate_max_transfer(SCSIDevice *s)
+{
+    uint64_t max_transfer = blk_get_max_hw_transfer(s->conf.blk);
+    uint32_t max_iov = blk_get_max_hw_iov(s->conf.blk);
+
+    assert(max_transfer);
+    max_transfer = MIN_NON_ZERO(max_transfer,
+                                max_iov * qemu_real_host_page_size());
+
+    return max_transfer / s->blocksize;
+}
+
 static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
 {
     uint8_t page, page_idx;
@@ -179,12 +191,7 @@ static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
         (r->req.cmd.buf[1] & 0x01)) {
         page = r->req.cmd.buf[2];
         if (page == 0xb0) {
-            uint64_t max_transfer = blk_get_max_hw_transfer(s->conf.blk);
-            uint32_t max_iov = blk_get_max_hw_iov(s->conf.blk);
-
-            assert(max_transfer);
-            max_transfer = MIN_NON_ZERO(max_transfer, max_iov * qemu_real_host_page_size())
-                / s->blocksize;
+            uint64_t max_transfer = calculate_max_transfer(s);
             stl_be_p(&r->buf[8], max_transfer);
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
@@ -230,7 +237,7 @@ static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
     uint8_t buf[64];
 
     SCSIBlockLimits bl = {
-        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+        .max_io_sectors = calculate_max_transfer(s),
     };
 
     memset(r->buf, 0, r->buflen);
