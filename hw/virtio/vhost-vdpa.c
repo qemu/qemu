@@ -884,10 +884,12 @@ static int vhost_vdpa_svq_set_fds(struct vhost_dev *dev,
 /**
  * Unmap a SVQ area in the device
  */
-static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v,
-                                      const DMAMap *needle)
+static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr addr)
 {
-    const DMAMap *result = vhost_iova_tree_find_iova(v->iova_tree, needle);
+    const DMAMap needle = {
+        .translated_addr = addr,
+    };
+    const DMAMap *result = vhost_iova_tree_find_iova(v->iova_tree, &needle);
     hwaddr size;
     int r;
 
@@ -909,17 +911,14 @@ static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v,
 static void vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
                                        const VhostShadowVirtqueue *svq)
 {
-    DMAMap needle = {};
     struct vhost_vdpa *v = dev->opaque;
     struct vhost_vring_addr svq_addr;
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
-    needle.translated_addr = svq_addr.desc_user_addr;
-    vhost_vdpa_svq_unmap_ring(v, &needle);
+    vhost_vdpa_svq_unmap_ring(v, svq_addr.desc_user_addr);
 
-    needle.translated_addr = svq_addr.used_user_addr;
-    vhost_vdpa_svq_unmap_ring(v, &needle);
+    vhost_vdpa_svq_unmap_ring(v, svq_addr.used_user_addr);
 }
 
 /**
@@ -997,7 +996,7 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
     ok = vhost_vdpa_svq_map_ring(v, &device_region, errp);
     if (unlikely(!ok)) {
         error_prepend(errp, "Cannot create vq device region: ");
-        vhost_vdpa_svq_unmap_ring(v, &driver_region);
+        vhost_vdpa_svq_unmap_ring(v, driver_region.translated_addr);
     }
     addr->used_user_addr = device_region.iova;
 
