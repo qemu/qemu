@@ -244,6 +244,13 @@ static int vhost_net_start_one(struct vhost_net *net,
     struct vhost_vring_file file = { };
     int r;
 
+    if (net->nc->info->start) {
+        r = net->nc->info->start(net->nc);
+        if (r < 0) {
+            return r;
+        }
+    }
+
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {
         goto fail_notifiers;
