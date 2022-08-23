@@ -602,13 +602,13 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
         event_notifier_set_handler(svq_kick, NULL);
     }
 
+    event_notifier_init_fd(svq_kick, svq_kick_fd);
     /*
      * event_notifier_set_handler already checks for guest's notifications if
      * they arrive at the new file descriptor in the switch, so there is no
      * need to explicitly check for them.
      */
     if (poll_start) {
-        event_notifier_init_fd(svq_kick, svq_kick_fd);
         event_notifier_set(svq_kick);
         event_notifier_set_handler(svq_kick, vhost_handle_guest_kick_notifier);
     }
@@ -655,7 +655,7 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
  */
 void vhost_svq_stop(VhostShadowVirtqueue *svq)
 {
-    event_notifier_set_handler(&svq->svq_kick, NULL);
+    vhost_svq_set_svq_kick_fd(svq, VHOST_FILE_UNBIND);
     g_autofree VirtQueueElement *next_avail_elem = NULL;
 
     if (!svq->vq) {
