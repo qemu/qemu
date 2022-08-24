@@ -239,7 +239,6 @@ qos_test_ss.add(
   'adm1272-test.c',
   'ds1338-test.c',
   'e1000-test.c',
-  'e1000e-test.c',
   'eepro100-test.c',
   'es1370-test.c',
   'ipoctal232-test.c',
@@ -267,6 +266,9 @@ qos_test_ss.add(
   'virtio-iommu-test.c',
   'vmxnet3-test.c',
 )
+if config_host.has_key('CONFIG_POSIX')
+  qos_test_ss.add(files('e1000e-test.c'))
+endif
 if have_virtfs
   qos_test_ss.add(files('virtio-9p-test.c'))
 endif
