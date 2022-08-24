@@ -1461,6 +1461,7 @@ static void test_acpi_piix4_tcg_acpi_hmat(void)
     test_acpi_tcg_acpi_hmat(MACHINE_PC);
 }
 
+#ifdef CONFIG_POSIX
 static void test_acpi_erst(const char *machine)
 {
     gchar *tmp_path = g_dir_make_tmp("qemu-test-erst.XXXXXX", NULL);
@@ -1511,6 +1512,7 @@ static void test_acpi_microvm_acpi_erst(void)
     g_free(tmp_path);
     free_test_data(&data);
 }
+#endif /* CONFIG_POSIX */
 
 static void test_acpi_virt_tcg(void)
 {
@@ -1551,6 +1553,7 @@ static void test_acpi_q35_viot(void)
     free_test_data(&data);
 }
 
+#ifdef CONFIG_POSIX
 static void test_acpi_q35_cxl(void)
 {
     gchar *tmp_path = g_dir_make_tmp("qemu-test-cxl.XXXXXX", NULL);
@@ -1593,6 +1596,7 @@ static void test_acpi_q35_cxl(void)
     g_free(tmp_path);
     free_test_data(&data);
 }
+#endif /* CONFIG_POSIX */
 
 static void test_acpi_virt_viot(void)
 {
@@ -1805,8 +1809,10 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
         qtest_add_func("acpi/piix4/acpihmat", test_acpi_piix4_tcg_acpi_hmat);
         qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_tcg_acpi_hmat);
+#ifdef CONFIG_POSIX
         qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_acpi_erst);
         qtest_add_func("acpi/q35/acpierst", test_acpi_q35_acpi_erst);
+#endif
         qtest_add_func("acpi/q35/applesmc", test_acpi_q35_applesmc);
         qtest_add_func("acpi/q35/pvpanic-isa", test_acpi_q35_pvpanic_isa);
         qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
@@ -1818,7 +1824,9 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/q35/ivrs", test_acpi_q35_tcg_ivrs);
             if (strcmp(arch, "x86_64") == 0) {
                 qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+#ifdef CONFIG_POSIX
                 qtest_add_func("acpi/microvm/acpierst", test_acpi_microvm_acpi_erst);
+#endif
             }
         }
         if (has_kvm) {
@@ -1826,7 +1834,9 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/q35/kvm/dmar", test_acpi_q35_kvm_dmar);
         }
         qtest_add_func("acpi/q35/viot", test_acpi_q35_viot);
+#ifdef CONFIG_POSIX
         qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
+#endif
         qtest_add_func("acpi/q35/slic", test_acpi_q35_slic);
     } else if (strcmp(arch, "aarch64") == 0) {
         if (has_tcg) {
