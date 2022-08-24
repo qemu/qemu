@@ -1304,8 +1304,6 @@ static const char *csr_name(int csrno)
     case 0x0043: return "utval";
     case 0x0044: return "uip";
     case 0x0100: return "sstatus";
-    case 0x0102: return "sedeleg";
-    case 0x0103: return "sideleg";
     case 0x0104: return "sie";
     case 0x0105: return "stvec";
     case 0x0106: return "scounteren";
