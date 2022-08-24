@@ -50,6 +50,7 @@ innerloop:
         jl innerloop
 
         inc %bl
+        andb $0x3f,%bl
         jnz mainloop
 
         mov $66,%ax
