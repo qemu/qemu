@@ -393,7 +393,7 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
     char *sock_path, sock_dir[] = "/tmp/qtest-serial-XXXXXX";
     QTestState *qts;
 
-    g_assert_true(mkdtemp(sock_dir) != NULL);
+    g_assert_true(g_mkdtemp(sock_dir) != NULL);
     sock_path = g_strdup_printf("%s/sock", sock_dir);
 
     sock_fd_init = init_socket(sock_path);

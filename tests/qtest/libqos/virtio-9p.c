@@ -48,9 +48,9 @@ void virtio_9p_create_local_test_dir(void)
      */
     char *template = concat_path(pwd, "qtest-9p-local-XXXXXX");
 
-    local_test_path = mkdtemp(template);
+    local_test_path = g_mkdtemp(template);
     if (!local_test_path) {
-        g_test_message("mkdtemp('%s') failed: %s", template, strerror(errno));
+        g_test_message("g_mkdtemp('%s') failed: %s", template, strerror(errno));
     }
 
     g_assert(local_test_path != NULL);

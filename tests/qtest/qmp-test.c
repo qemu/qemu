@@ -166,8 +166,8 @@ char *fifo_name;
 
 static void setup_blocking_cmd(void)
 {
-    if (!mkdtemp(tmpdir)) {
-        g_error("mkdtemp: %s", strerror(errno));
+    if (!g_mkdtemp(tmpdir)) {
+        g_error("g_mkdtemp: %s", strerror(errno));
     }
     fifo_name = g_strdup_printf("%s/fifo", tmpdir);
     if (mkfifo(fifo_name, 0666)) {

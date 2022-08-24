@@ -95,7 +95,7 @@ static void cxl_t3d(void)
     char template[] = "/tmp/cxl-test-XXXXXX";
     const char *tmpfs;
 
-    tmpfs = mkdtemp(template);
+    tmpfs = g_mkdtemp(template);
 
     g_string_printf(cmdline, QEMU_PXB_CMD QEMU_RP QEMU_T3D, tmpfs, tmpfs);
 
@@ -109,7 +109,7 @@ static void cxl_1pxb_2rp_2t3d(void)
     char template[] = "/tmp/cxl-test-XXXXXX";
     const char *tmpfs;
 
-    tmpfs = mkdtemp(template);
+    tmpfs = g_mkdtemp(template);
 
     g_string_printf(cmdline, QEMU_PXB_CMD QEMU_2RP QEMU_2T3D,
                     tmpfs, tmpfs, tmpfs, tmpfs);
@@ -124,7 +124,7 @@ static void cxl_2pxb_4rp_4t3d(void)
     char template[] = "/tmp/cxl-test-XXXXXX";
     const char *tmpfs;
 
-    tmpfs = mkdtemp(template);
+    tmpfs = g_mkdtemp(template);
 
     g_string_printf(cmdline, QEMU_2PXB_CMD QEMU_4RP QEMU_4T3D,
                     tmpfs, tmpfs, tmpfs, tmpfs, tmpfs, tmpfs,
