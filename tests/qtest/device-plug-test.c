@@ -95,7 +95,7 @@ static void test_pci_unplug_json_request(void)
     }
 
     QTestState *qtest = qtest_initf(
-        "%s -device '{\"driver\": \"virtio-mouse-pci\", \"id\": \"dev0\"}'",
+        "%s -device \"{'driver': 'virtio-mouse-pci', 'id': 'dev0'}\"",
         machine_addition);
 
     /*
