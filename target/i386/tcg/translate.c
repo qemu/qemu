@@ -4733,9 +4733,11 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     switch (b) {
     case 0xf3:
         prefixes |= PREFIX_REPZ;
+        prefixes &= ~PREFIX_REPNZ;
         goto next_byte;
     case 0xf2:
         prefixes |= PREFIX_REPNZ;
+        prefixes &= ~PREFIX_REPZ;
         goto next_byte;
     case 0xf0:
         prefixes |= PREFIX_LOCK;
