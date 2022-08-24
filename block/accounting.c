@@ -38,6 +38,8 @@ void block_acct_init(BlockAcctStats *stats)
     if (qtest_enabled()) {
         clock_type = QEMU_CLOCK_VIRTUAL;
     }
+    stats->account_invalid = true;
+    stats->account_failed = true;
 }
 
 static bool bool_from_onoffauto(OnOffAuto val, bool def)
@@ -57,8 +59,10 @@ static bool bool_from_onoffauto(OnOffAuto val, bool def)
 void block_acct_setup(BlockAcctStats *stats, enum OnOffAuto account_invalid,
                       enum OnOffAuto account_failed)
 {
-    stats->account_invalid = bool_from_onoffauto(account_invalid, true);
-    stats->account_failed = bool_from_onoffauto(account_failed, true);
+    stats->account_invalid = bool_from_onoffauto(account_invalid,
+                                                 stats->account_invalid);
+    stats->account_failed = bool_from_onoffauto(account_failed,
+                                                stats->account_failed);
 }
 
 void block_acct_cleanup(BlockAcctStats *stats)

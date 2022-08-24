@@ -188,7 +188,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
                 ],
                 "failed_unmap_operations": 0,
                 "failed_flush_operations": 0,
-                "account_invalid": false,
+                "account_invalid": true,
                 "rd_total_time_ns": 0,
                 "invalid_unmap_operations": 0,
                 "flush_operations": 0,
@@ -198,7 +198,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
                 "rd_bytes": 0,
                 "unmap_total_time_ns": 0,
                 "invalid_flush_operations": 0,
-                "account_failed": false,
+                "account_failed": true,
                 "rd_operations": 0,
                 "invalid_wr_operations": 0,
                 "invalid_rd_operations": 0
