@@ -24,6 +24,7 @@ NAMES += drcov
 NAMES += qpp_srv
 NAMES += qpp_client
 NAMES += syscalls
+NAMES += syscalls_logger
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
