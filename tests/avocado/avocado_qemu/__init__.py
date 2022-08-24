@@ -299,6 +299,12 @@ class QemuSystemTest(QemuBaseTest):
             self.cancel("%s accelerator does not seem to be "
                         "available" % accelerator)
 
+    def require_netdev(self, netdevname):
+        netdevhelp = run_cmd([self.qemu_bin,
+                             '-M', 'none', '-netdev', 'help'])[0];
+        if netdevhelp.find('\n' + netdevname + '\n') < 0:
+            self.cancel('no support for user networking')
+
     def _new_vm(self, name, *args):
         self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
         vm = QEMUMachine(self.qemu_bin, base_temp_dir=self.workdir,
@@ -550,6 +556,7 @@ class LinuxTest(LinuxSSHMixIn, QemuSystemTest):
 
     def setUp(self, ssh_pubkey=None, network_device_type='virtio-net'):
         super().setUp()
+        self.require_netdev('user')
         self._set_distro()
         self.vm.add_args('-smp', self.smp)
         self.vm.add_args('-m', self.memory)
