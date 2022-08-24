@@ -71,6 +71,7 @@ class HaikuVM(basevm.BaseVM):
         "devel:libpixman_1",
         "devel:libpng16",
         "devel:libsdl2_2.0",
+        "devel:libslirp",
         "devel:libsnappy",
         "devel:libssh2",
         "devel:libtasn1",
@@ -89,7 +90,7 @@ class HaikuVM(basevm.BaseVM):
         mkdir -p /usr/bin
         ln -s /boot/system/bin/env /usr/bin/env
         cd ../build
-        ../src/configure --disable-slirp {configure_opts};
+        ../src/configure {configure_opts};
         make --output-sync -j{jobs} {target} {verbose};
     """
 
