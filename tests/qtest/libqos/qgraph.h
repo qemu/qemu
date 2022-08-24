@@ -21,7 +21,7 @@
 
 #include <gmodule.h>
 #include "qemu/module.h"
-#include "malloc.h"
+#include "libqos-malloc.h"
 
 /* maximum path length */
 #define QOS_PATH_MAX_ELEMENT_SIZE 50

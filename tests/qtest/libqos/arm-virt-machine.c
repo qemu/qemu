@@ -19,7 +19,7 @@
 #include "qemu/osdep.h"
 #include "../libqtest.h"
 #include "qemu/module.h"
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "qgraph.h"
 #include "virtio-mmio.h"
 #include "generic-pcihost.h"

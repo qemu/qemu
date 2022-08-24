@@ -5,7 +5,7 @@
 
 #ifndef LIBQOS_RTAS_H
 #define LIBQOS_RTAS_H
-#include "malloc.h"
+#include "libqos-malloc.h"
 
 int qrtas_get_time_of_day(QTestState *qts, QGuestAllocator *alloc,
                           struct tm *tm, uint32_t *ns);

@@ -25,7 +25,7 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qapi-visit-qom.h"
-#include "libqos/malloc.h"
+#include "libqos/libqos-malloc.h"
 #include "libqos/qgraph.h"
 #include "libqos/qgraph_internal.h"
 #include "libqos/qos_external.h"

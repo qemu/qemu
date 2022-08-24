@@ -21,7 +21,7 @@
 
 #include "qgraph.h"
 
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-types-qom.h"
 
