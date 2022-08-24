@@ -135,11 +135,69 @@ static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
     return s->modrm;
 }
 
+static void decode_group17(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    static const X86GenFunc group17_gen[8] = {
+        NULL, gen_BLSR, gen_BLSMSK, gen_BLSI,
+    };
+    int op = (get_modrm(s, env) >> 3) & 7;
+    entry->gen = group17_gen[op];
+}
+
 static const X86OpEntry opcodes_0F38_00toEF[240] = {
 };
 
 /* five rows for no prefix, 66, F3, F2, 66+F2  */
 static const X86OpEntry opcodes_0F38_F0toFF[16][5] = {
+    [0] = {
+        X86_OP_ENTRY3(MOVBE, G,y, M,y, None,None, cpuid(MOVBE)),
+        X86_OP_ENTRY3(MOVBE, G,w, M,w, None,None, cpuid(MOVBE)),
+        {},
+        X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
+        X86_OP_ENTRY2(CRC32, G,d, E,b, cpuid(SSE42)),
+    },
+    [1] = {
+        X86_OP_ENTRY3(MOVBE, M,y, G,y, None,None, cpuid(MOVBE)),
+        X86_OP_ENTRY3(MOVBE, M,w, G,w, None,None, cpuid(MOVBE)),
+        {},
+        X86_OP_ENTRY2(CRC32, G,d, E,y, cpuid(SSE42)),
+        X86_OP_ENTRY2(CRC32, G,d, E,w, cpuid(SSE42)),
+    },
+    [2] = {
+        X86_OP_ENTRY3(ANDN, G,y, B,y, E,y, vex13 cpuid(BMI1)),
+        {},
+        {},
+        {},
+        {},
+    },
+    [3] = {
+        X86_OP_GROUP3(group17, B,y, E,y, None,None, vex13 cpuid(BMI1)),
+        {},
+        {},
+        {},
+        {},
+    },
+    [5] = {
+        X86_OP_ENTRY3(BZHI, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        {},
+        X86_OP_ENTRY3(PEXT, G,y, B,y, E,y, vex13 cpuid(BMI2)),
+        X86_OP_ENTRY3(PDEP, G,y, B,y, E,y, vex13 cpuid(BMI2)),
+        {},
+    },
+    [6] = {
+        {},
+        X86_OP_ENTRY2(ADCX, G,y, E,y, cpuid(ADX)),
+        X86_OP_ENTRY2(ADOX, G,y, E,y, cpuid(ADX)),
+        X86_OP_ENTRY3(MULX, /* B,y, */ G,y, E,y, 2,y, vex13 cpuid(BMI2)),
+        {},
+    },
+    [7] = {
+        X86_OP_ENTRY3(BEXTR, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(SHLX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(SARX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        X86_OP_ENTRY3(SHRX, G,y, E,y, B,y, vex13 cpuid(BMI1)),
+        {},
+    },
 };
 
 static void decode_0F38(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
@@ -161,6 +219,7 @@ static void decode_0F38(DisasContext *s, CPUX86State *env, X86OpEntry *entry, ui
 }
 
 static const X86OpEntry opcodes_0F3A[256] = {
+    [0xF0] = X86_OP_ENTRY3(RORX, G,y, E,y, I,b, vex13 cpuid(BMI2) p_f2),
 };
 
 static void decode_0F3A(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
