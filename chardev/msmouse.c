@@ -247,7 +247,9 @@ static void char_msmouse_finalize(Object *obj)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(obj);
 
-    qemu_input_handler_unregister(mouse->hs);
+    if (mouse->hs) {
+        qemu_input_handler_unregister(mouse->hs);
+    }
     fifo8_destroy(&mouse->outbuf);
 }
 
