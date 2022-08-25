@@ -186,6 +186,12 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     build_srat_memory(table_data, VIRT_HIGHMEM_BASE, machine->ram_size - VIRT_LOWMEM_SIZE,
                       0, MEM_AFFINITY_ENABLED);
 
+    if (ms->device_memory) {
+        build_srat_memory(table_data, ms->device_memory->base,
+                          memory_region_size(&ms->device_memory->mr),
+                          0, MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+    }
+
     acpi_table_end(linker, &table);
 }
 
@@ -335,6 +341,25 @@ static void build_uart_device_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static void
+build_la_ged_aml(Aml *dsdt, MachineState *machine)
+{
+    uint32_t event;
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
+
+    build_ged_aml(dsdt, "\\_SB."GED_DEVICE,
+                  HOTPLUG_HANDLER(lams->acpi_ged),
+                  VIRT_SCI_IRQ, AML_SYSTEM_MEMORY,
+                  VIRT_GED_EVT_ADDR);
+    event = object_property_get_uint(OBJECT(lams->acpi_ged),
+                                     "ged-event", &error_abort);
+    if (event & ACPI_GED_MEM_HOTPLUG_EVT) {
+        build_memory_hotplug_aml(dsdt, machine->ram_slots, "\\_SB", NULL,
+                                 AML_SYSTEM_MEMORY,
+                                 VIRT_GED_MEM_ADDR);
+    }
+}
+
 /* build DSDT */
 static void
 build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
@@ -364,12 +389,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
     build_gpex_pci0_int(dsdt);
     build_uart_device_aml(dsdt);
-    if (lams->acpi_ged) {
-        build_ged_aml(dsdt, "\\_SB."GED_DEVICE,
-                      HOTPLUG_HANDLER(lams->acpi_ged),
-                      VIRT_SCI_IRQ, AML_SYSTEM_MEMORY,
-                      VIRT_GED_EVT_ADDR);
-    }
+    build_la_ged_aml(dsdt, machine);
 
     scope = aml_scope("\\_SB.PCI0");
     /* Build PCI0._CRS */

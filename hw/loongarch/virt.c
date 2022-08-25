@@ -40,6 +40,7 @@
 #include "hw/core/sysbus-fdt.h"
 #include "hw/platform-bus.h"
 #include "hw/display/ramfb.h"
+#include "hw/mem/pc-dimm.h"
 
 static void create_fdt(LoongArchMachineState *lams)
 {
@@ -718,6 +719,35 @@ static void loongarch_init(MachineState *machine)
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
     memmap_add_entry(0x90000000, highram_size, 1);
+
+    /* initialize device memory address space */
+    if (machine->ram_size < machine->maxram_size) {
+        machine->device_memory = g_malloc0(sizeof(*machine->device_memory));
+        ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+            error_report("unsupported amount of memory slots: %"PRIu64,
+                         machine->ram_slots);
+            exit(EXIT_FAILURE);
+        }
+
+        if (QEMU_ALIGN_UP(machine->maxram_size,
+                          TARGET_PAGE_SIZE) != machine->maxram_size) {
+            error_report("maximum memory size must by aligned to multiple of "
+                         "%d bytes", TARGET_PAGE_SIZE);
+            exit(EXIT_FAILURE);
+        }
+        /* device memory base is the top of high memory address. */
+        machine->device_memory->base = 0x90000000 + highram_size;
+        machine->device_memory->base =
+            ROUND_UP(machine->device_memory->base, 1 * GiB);
+
+        memory_region_init(&machine->device_memory->mr, OBJECT(lams),
+                           "device-memory", device_mem_size);
+        memory_region_add_subregion(address_space_mem, machine->device_memory->base,
+                                    &machine->device_memory->mr);
+    }
+
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, VIRT_ISA_IO_SIZE);
@@ -804,6 +834,73 @@ static void loongarch_machine_initfn(Object *obj)
     lams->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
 }
 
+static bool memhp_type_supported(DeviceState *dev)
+{
+    /* we only support pc dimm now */
+    return object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) &&
+           !object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
+}
+
+static void virt_mem_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp)
+{
+    pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), NULL, errp);
+}
+
+static void virt_machine_device_pre_plug(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_pre_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_unplug_request(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    /* the acpi ged is always exist */
+    hotplug_handler_unplug_request(HOTPLUG_HANDLER(lams->acpi_ged), dev,
+                                   errp);
+}
+
+static void virt_machine_device_unplug_request(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_unplug_request(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_unplug(HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lams->acpi_ged), dev, errp);
+    pc_dimm_unplug(PC_DIMM(dev), MACHINE(lams));
+    qdev_unrealize(dev);
+}
+
+static void virt_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_unplug(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_plug(HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    pc_dimm_plug(PC_DIMM(dev), MACHINE(lams));
+    hotplug_handler_plug(HOTPLUG_HANDLER(lams->acpi_ged),
+                         dev, &error_abort);
+}
+
 static void loongarch_machine_device_plug_cb(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
@@ -815,6 +912,8 @@ static void loongarch_machine_device_plug_cb(HotplugHandler *hotplug_dev,
             platform_bus_link_device(PLATFORM_BUS_DEVICE(lams->platform_bus_dev),
                                      SYS_BUS_DEVICE(dev));
         }
+    } else if (memhp_type_supported(dev)) {
+        virt_mem_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -823,7 +922,8 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
-    if (device_is_dynamic_sysbus(mc, dev)) {
+    if (device_is_dynamic_sysbus(mc, dev) ||
+        memhp_type_supported(dev)) {
         return HOTPLUG_HANDLER(machine);
     }
     return NULL;
@@ -847,6 +947,9 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->no_cdrom = 1;
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     hc->plug = loongarch_machine_device_plug_cb;
+    hc->pre_plug = virt_machine_device_pre_plug;
+    hc->unplug_request = virt_machine_device_unplug_request;
+    hc->unplug = virt_machine_device_unplug;
 
     object_class_property_add(oc, "acpi", "OnOffAuto",
         loongarch_get_acpi, loongarch_set_acpi,

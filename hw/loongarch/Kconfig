@@ -4,6 +4,7 @@ config LOONGARCH_VIRT
     select PCI_EXPRESS_GENERIC_BRIDGE
     imply VIRTIO_VGA
     imply PCI_DEVICES
+    imply NVDIMM
     select ISA_BUS
     select SERIAL
     select SERIAL_ISA
@@ -18,3 +19,4 @@ config LOONGARCH_VIRT
     select ACPI_PCI
     select ACPI_HW_REDUCED
     select FW_CFG_DMA
+    select DIMM
