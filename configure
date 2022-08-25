@@ -67,8 +67,7 @@ fi
 # it when configure exits.)
 TMPDIR1="config-temp"
 rm -rf "${TMPDIR1}"
-mkdir -p "${TMPDIR1}"
-if [ $? -ne 0 ]; then
+if ! mkdir -p "${TMPDIR1}"; then
     echo "ERROR: failed to create temporary directory"
     exit 1
 fi
