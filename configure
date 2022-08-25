@@ -110,7 +110,7 @@ error_exit() {
 do_compiler() {
   # Run the compiler, capturing its output to the log. First argument
   # is compiler binary to execute.
-  local compiler="$1"
+  compiler="$1"
   shift
   if test -n "$BASH_VERSION"; then eval '
       echo >>config.log "
@@ -2065,7 +2065,6 @@ probe_target_compiler() {
     : ${container_cross_strip:=${container_cross_prefix}strip}
   done
 
-  local t try
   try=cross
   case "$target_arch:$cpu" in
     aarch64_be:aarch64 | \
@@ -2078,8 +2077,8 @@ probe_target_compiler() {
       try='native cross' ;;
   esac
   eval "target_cflags=\${cross_cc_cflags_$target_arch}"
-  for t in $try; do
-    case $t in
+  for thistry in $try; do
+    case $thistry in
     native)
       target_cc=$cc
       target_ccas=$ccas
