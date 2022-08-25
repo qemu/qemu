@@ -367,6 +367,16 @@ int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error);
 int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
 
 /**
+ * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory
+ * @gva: Guest virtual address
+ * @buf: Buffer to copy guest memory into
+ * @length: Size of buf
+ *
+ * Returns: True if the memory was successfully copied into buf
+ */
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length);
+
+/**
  * qemu_plugin_tb_get_insn() - retrieve handle for instruction
  * @tb: opaque handle to TB passed to callback
  * @idx: instruction number, 0 indexed

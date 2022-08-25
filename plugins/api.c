@@ -52,6 +52,7 @@
 #endif
 #endif
 
+
 /* Uninstall and Reset handlers */
 
 void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
@@ -221,6 +222,24 @@ uint64_t qemu_plugin_get_pc(void) {
     return (uint64_t)pc;
 }
 
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#else
+    // Convert virtual address to physical, then read it
+    CPUState *cpu = current_cpu;
+    uint64_t page = gva & TARGET_PAGE_MASK;
+    hwaddr gpa = cpu_get_phys_page_debug(cpu, page);
+    if (gpa == (hwaddr)-1) {
+        return false;
+    }
+
+    gpa += (gva & ~TARGET_PAGE_MASK);
+    cpu_physical_memory_rw(gpa, buf, length, false);
+    return true;
+#endif
+}
+
 int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error) {
     // Should we directly use gdbsub.c's gdb_read_register?
     CPUState *cpu = current_cpu;
@@ -230,14 +249,10 @@ int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error) {
     int32_t rv = 0;
     int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
     *error = (bytes_read == 0);
-
-    // XXX: buffer contains integer in target byte order
-
-    // There must be a better way to do this
-    for (int i=sizeof(rv)-1; i>=0; i--) {
-      rv = rv << 4;
-      rv += result->data[i];
+    if (*error) {
+      return 0;
     }
+    memcpy(&rv, result->data, sizeof(rv));
 
     g_byte_array_free(result, true);
     return rv;
@@ -252,15 +267,11 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
     int64_t rv = 0;
     int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
     *error = (bytes_read == 0);
-
-    // XXX: buffer contains integer in target byte order
-    // There must be a better way to do this
-    for (int i=sizeof(rv)-1; i>=0; i--) {
-      //printf("Byte %d has value %x\n", i, result->data[i]);
-      rv = rv << 4;
-      rv += result->data[i];
+    if (*error) {
+      return 0;
     }
 
+    memcpy(&rv, result->data, sizeof(rv));
     g_byte_array_free(result, true);
     return rv;
 }

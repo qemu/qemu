@@ -24,6 +24,7 @@
   qemu_plugin_name_to_handle;
   qemu_plugin_outs;
   qemu_plugin_path_to_binary;
+  qemu_plugin_read_guest_virt_mem;
   qemu_plugin_register_atexit_cb;
   qemu_plugin_register_flush_cb;
   qemu_plugin_register_vcpu_exit_cb;
