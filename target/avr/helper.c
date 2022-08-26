@@ -28,7 +28,6 @@
 
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
-    bool ret = false;
     AVRCPU *cpu = AVR_CPU(cs);
     CPUAVRState *env = &cpu->env;
 
@@ -38,8 +37,7 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             avr_cpu_do_interrupt(cs);
 
             cs->interrupt_request &= ~CPU_INTERRUPT_RESET;
-
-            ret = true;
+            return true;
         }
     }
     if (interrupt_request & CPU_INTERRUPT_HARD) {
@@ -52,11 +50,10 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             if (!env->intsrc) {
                 cs->interrupt_request &= ~CPU_INTERRUPT_HARD;
             }
-
-            ret = true;
+            return true;
         }
     }
-    return ret;
+    return false;
 }
 
 void avr_cpu_do_interrupt(CPUState *cs)
