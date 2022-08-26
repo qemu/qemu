@@ -31,6 +31,15 @@ bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     AVRCPU *cpu = AVR_CPU(cs);
     CPUAVRState *env = &cpu->env;
 
+    /*
+     * We cannot separate a skip from the next instruction,
+     * as the skip would not be preserved across the interrupt.
+     * Separating the two insn normally only happens at page boundaries.
+     */
+    if (env->skip) {
+        return false;
+    }
+
     if (interrupt_request & CPU_INTERRUPT_RESET) {
         if (cpu_interrupts_enabled(env)) {
             cs->exception_index = EXCP_RESET;
