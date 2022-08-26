@@ -34,31 +34,31 @@
 #define dh_typecode_ZMMReg dh_typecode_ptr
 #define dh_typecode_MMXReg dh_typecode_ptr
 
-DEF_HELPER_3(glue(psrlw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psraw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psllw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psrld, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psrad, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pslld, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psrlq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psllq, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(psrlw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psraw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psllw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psrld, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psrad, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pslld, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psrlq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psllq, SUFFIX), void, env, Reg, Reg, Reg)
 
 #if SHIFT >= 1
-DEF_HELPER_3(glue(psrldq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pslldq, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(psrldq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pslldq, SUFFIX), void, env, Reg, Reg, Reg)
 #endif
 
 #define SSE_HELPER_B(name, F)\
-    DEF_HELPER_3(glue(name, SUFFIX), void, env, Reg, Reg)
+    DEF_HELPER_4(glue(name, SUFFIX), void, env, Reg, Reg, Reg)
 
 #define SSE_HELPER_W(name, F)\
-    DEF_HELPER_3(glue(name, SUFFIX), void, env, Reg, Reg)
+    DEF_HELPER_4(glue(name, SUFFIX), void, env, Reg, Reg, Reg)
 
 #define SSE_HELPER_L(name, F)\
-    DEF_HELPER_3(glue(name, SUFFIX), void, env, Reg, Reg)
+    DEF_HELPER_4(glue(name, SUFFIX), void, env, Reg, Reg, Reg)
 
 #define SSE_HELPER_Q(name, F)\
-    DEF_HELPER_3(glue(name, SUFFIX), void, env, Reg, Reg)
+    DEF_HELPER_4(glue(name, SUFFIX), void, env, Reg, Reg, Reg)
 
 SSE_HELPER_B(paddb, FADD)
 SSE_HELPER_W(paddw, FADD)
@@ -109,10 +109,10 @@ SSE_HELPER_W(pmulhw, FMULHW)
 SSE_HELPER_B(pavgb, FAVG)
 SSE_HELPER_W(pavgw, FAVG)
 
-DEF_HELPER_3(glue(pmuludq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaddwd, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(pmuludq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmaddwd, SUFFIX), void, env, Reg, Reg, Reg)
 
-DEF_HELPER_3(glue(psadbw, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(psadbw, SUFFIX), void, env, Reg, Reg, Reg)
 #if SHIFT < 2
 DEF_HELPER_4(glue(maskmov, SUFFIX), void, env, Reg, Reg, tl)
 #endif
@@ -134,8 +134,8 @@ DEF_HELPER_3(glue(pshufhw, SUFFIX), void, Reg, Reg, int)
 /* XXX: not accurate */
 
 #define SSE_HELPER_P4(name)                                             \
-    DEF_HELPER_3(glue(name ## ps, SUFFIX), void, env, Reg, Reg)         \
-    DEF_HELPER_3(glue(name ## pd, SUFFIX), void, env, Reg, Reg)
+    DEF_HELPER_4(glue(name ## ps, SUFFIX), void, env, Reg, Reg, Reg)    \
+    DEF_HELPER_4(glue(name ## pd, SUFFIX), void, env, Reg, Reg, Reg)
 
 #define SSE_HELPER_P3(name, ...)                                        \
     DEF_HELPER_3(glue(name ## ps, SUFFIX), void, env, Reg, Reg)         \
@@ -144,8 +144,8 @@ DEF_HELPER_3(glue(pshufhw, SUFFIX), void, Reg, Reg, int)
 #if SHIFT == 1
 #define SSE_HELPER_S4(name)                                             \
     SSE_HELPER_P4(name)                                                 \
-    DEF_HELPER_3(name ## ss, void, env, Reg, Reg)                       \
-    DEF_HELPER_3(name ## sd, void, env, Reg, Reg)
+    DEF_HELPER_4(name ## ss, void, env, Reg, Reg, Reg)                  \
+    DEF_HELPER_4(name ## sd, void, env, Reg, Reg, Reg)
 #define SSE_HELPER_S3(name)                                             \
     SSE_HELPER_P3(name)                                                 \
     DEF_HELPER_3(name ## ss, void, env, Reg, Reg)                       \
@@ -155,8 +155,8 @@ DEF_HELPER_3(glue(pshufhw, SUFFIX), void, Reg, Reg, int)
 #define SSE_HELPER_S3(name, ...) SSE_HELPER_P3(name)
 #endif
 
-DEF_HELPER_3(glue(shufps, SUFFIX), void, Reg, Reg, int)
-DEF_HELPER_3(glue(shufpd, SUFFIX), void, Reg, Reg, int)
+DEF_HELPER_4(glue(shufps, SUFFIX), void, Reg, Reg, Reg, int)
+DEF_HELPER_4(glue(shufpd, SUFFIX), void, Reg, Reg, Reg, int)
 
 SSE_HELPER_S4(add)
 SSE_HELPER_S4(sub)
@@ -212,6 +212,7 @@ DEF_HELPER_2(cvttsd2sq, s64, env, ZMMReg)
 
 DEF_HELPER_3(glue(rsqrtps, SUFFIX), void, env, ZMMReg, ZMMReg)
 DEF_HELPER_3(glue(rcpps, SUFFIX), void, env, ZMMReg, ZMMReg)
+
 #if SHIFT == 1
 DEF_HELPER_3(rsqrtss, void, env, ZMMReg, ZMMReg)
 DEF_HELPER_3(rcpss, void, env, ZMMReg, ZMMReg)
@@ -248,20 +249,20 @@ DEF_HELPER_2(glue(movmskpd, SUFFIX), i32, env, Reg)
 #endif
 
 DEF_HELPER_2(glue(pmovmskb, SUFFIX), i32, env, Reg)
-DEF_HELPER_3(glue(packsswb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(packuswb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(packssdw, SUFFIX), void, env, Reg, Reg)
-#define UNPCK_OP(base_name, base)                                       \
-    DEF_HELPER_3(glue(punpck ## base_name ## bw, SUFFIX), void, env, Reg, Reg) \
-    DEF_HELPER_3(glue(punpck ## base_name ## wd, SUFFIX), void, env, Reg, Reg) \
-    DEF_HELPER_3(glue(punpck ## base_name ## dq, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(packsswb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(packuswb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(packssdw, SUFFIX), void, env, Reg, Reg, Reg)
+#define UNPCK_OP(name, base)                                       \
+    DEF_HELPER_4(glue(punpck ## name ## bw, SUFFIX), void, env, Reg, Reg, Reg) \
+    DEF_HELPER_4(glue(punpck ## name ## wd, SUFFIX), void, env, Reg, Reg, Reg) \
+    DEF_HELPER_4(glue(punpck ## name ## dq, SUFFIX), void, env, Reg, Reg, Reg)
 
 UNPCK_OP(l, 0)
 UNPCK_OP(h, 1)
 
 #if SHIFT >= 1
-DEF_HELPER_3(glue(punpcklqdq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(punpckhqdq, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(punpcklqdq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(punpckhqdq, SUFFIX), void, env, Reg, Reg, Reg)
 #endif
 
 /* 3DNow! float ops */
@@ -288,28 +289,28 @@ DEF_HELPER_3(pswapd, void, env, MMXReg, MMXReg)
 #endif
 
 /* SSSE3 op helpers */
-DEF_HELPER_3(glue(phaddw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(phaddd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(phaddsw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(phsubw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(phsubd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(phsubsw, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(phaddw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(phaddd, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(phaddsw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(phsubw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(phsubd, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(phsubsw, SUFFIX), void, env, Reg, Reg, Reg)
 DEF_HELPER_3(glue(pabsb, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pabsw, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pabsd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaddubsw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmulhrsw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pshufb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psignb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psignw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(psignd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_4(glue(palignr, SUFFIX), void, env, Reg, Reg, s32)
+DEF_HELPER_4(glue(pmaddubsw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmulhrsw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pshufb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psignb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psignw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(psignd, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_5(glue(palignr, SUFFIX), void, env, Reg, Reg, Reg, s32)
 
 /* SSE4.1 op helpers */
 #if SHIFT >= 1
-DEF_HELPER_3(glue(pblendvb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(blendvps, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(blendvpd, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_5(glue(pblendvb, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(blendvps, SUFFIX), void, env, Reg, Reg, Reg, Reg)
+DEF_HELPER_5(glue(blendvpd, SUFFIX), void, env, Reg, Reg, Reg, Reg)
 DEF_HELPER_3(glue(ptest, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pmovsxbw, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pmovsxbd, SUFFIX), void, env, Reg, Reg)
@@ -323,40 +324,40 @@ DEF_HELPER_3(glue(pmovzxbq, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pmovzxwd, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pmovzxwq, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_3(glue(pmovzxdq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmuldq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pcmpeqq, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(packusdw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pminsb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pminsd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pminuw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pminud, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaxsb, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaxsd, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaxuw, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmaxud, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(pmulld, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(pmuldq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pcmpeqq, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(packusdw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pminsb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pminsd, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pminuw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pminud, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmaxsb, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmaxsd, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmaxuw, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmaxud, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(pmulld, SUFFIX), void, env, Reg, Reg, Reg)
 #if SHIFT == 1
 DEF_HELPER_3(glue(phminposuw, SUFFIX), void, env, Reg, Reg)
 #endif
 DEF_HELPER_4(glue(roundps, SUFFIX), void, env, Reg, Reg, i32)
 DEF_HELPER_4(glue(roundpd, SUFFIX), void, env, Reg, Reg, i32)
 #if SHIFT == 1
-DEF_HELPER_4(glue(roundss, SUFFIX), void, env, Reg, Reg, i32)
-DEF_HELPER_4(glue(roundsd, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_4(roundss_xmm, void, env, Reg, Reg, i32)
+DEF_HELPER_4(roundsd_xmm, void, env, Reg, Reg, i32)
 #endif
-DEF_HELPER_4(glue(blendps, SUFFIX), void, env, Reg, Reg, i32)
-DEF_HELPER_4(glue(blendpd, SUFFIX), void, env, Reg, Reg, i32)
-DEF_HELPER_4(glue(pblendw, SUFFIX), void, env, Reg, Reg, i32)
-DEF_HELPER_4(glue(dpps, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_5(glue(blendps, SUFFIX), void, env, Reg, Reg, Reg, i32)
+DEF_HELPER_5(glue(blendpd, SUFFIX), void, env, Reg, Reg, Reg, i32)
+DEF_HELPER_5(glue(pblendw, SUFFIX), void, env, Reg, Reg, Reg, i32)
+DEF_HELPER_5(glue(dpps, SUFFIX), void, env, Reg, Reg, Reg, i32)
 #if SHIFT == 1
-DEF_HELPER_4(glue(dppd, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_5(glue(dppd, SUFFIX), void, env, Reg, Reg, Reg, i32)
 #endif
-DEF_HELPER_4(glue(mpsadbw, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_5(glue(mpsadbw, SUFFIX), void, env, Reg, Reg, Reg, i32)
 #endif
 
 /* SSE4.2 op helpers */
 #if SHIFT >= 1
-DEF_HELPER_3(glue(pcmpgtq, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(pcmpgtq, SUFFIX), void, env, Reg, Reg, Reg)
 #endif
 #if SHIFT == 1
 DEF_HELPER_4(glue(pcmpestri, SUFFIX), void, env, Reg, Reg, i32)
@@ -368,15 +369,15 @@ DEF_HELPER_3(crc32, tl, i32, tl, i32)
 
 /* AES-NI op helpers */
 #if SHIFT >= 1
-DEF_HELPER_3(glue(aesdec, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(aesdeclast, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(aesenc, SUFFIX), void, env, Reg, Reg)
-DEF_HELPER_3(glue(aesenclast, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(aesdec, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(aesdeclast, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(aesenc, SUFFIX), void, env, Reg, Reg, Reg)
+DEF_HELPER_4(glue(aesenclast, SUFFIX), void, env, Reg, Reg, Reg)
 #if SHIFT == 1
 DEF_HELPER_3(glue(aesimc, SUFFIX), void, env, Reg, Reg)
 DEF_HELPER_4(glue(aeskeygenassist, SUFFIX), void, env, Reg, Reg, i32)
 #endif
-DEF_HELPER_4(glue(pclmulqdq, SUFFIX), void, env, Reg, Reg, i32)
+DEF_HELPER_5(glue(pclmulqdq, SUFFIX), void, env, Reg, Reg, Reg, i32)
 #endif
 
 #undef SHIFT
