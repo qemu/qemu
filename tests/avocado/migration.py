@@ -14,7 +14,7 @@ import tempfile
 from avocado_qemu import QemuSystemTest
 from avocado import skipUnless
 
-from avocado.utils import network
+from avocado.utils.network import ports
 from avocado.utils import wait
 from avocado.utils.path import find_command
 
@@ -57,7 +57,7 @@ class Migration(QemuSystemTest):
         self.assert_migration(source_vm, dest_vm)
 
     def _get_free_port(self):
-        port = network.find_free_port()
+        port = ports.find_free_port()
         if port is None:
             self.cancel('Failed to find a free port')
         return port
