@@ -602,17 +602,10 @@ static void vfu_msix_irq_state(vfu_ctx_t *vfu_ctx, uint32_t start,
                                uint32_t count, bool mask)
 {
     VfuObject *o = vfu_get_private(vfu_ctx);
-    Error *err = NULL;
     uint32_t vector;
 
     for (vector = start; vector < count; vector++) {
-        msix_set_mask(o->pci_dev, vector, mask, &err);
-        if (err) {
-            VFU_OBJECT_ERROR(o, "vfu: %s: %s", o->device,
-                             error_get_pretty(err));
-            error_free(err);
-            err = NULL;
-        }
+        msix_set_mask(o->pci_dev, vector, mask);
     }
 }
 

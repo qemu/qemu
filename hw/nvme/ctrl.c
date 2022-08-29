@@ -4744,11 +4744,8 @@ static void nvme_init_cq(NvmeCQueue *cq, NvmeCtrl *n, uint64_t dma_addr,
                          uint16_t cqid, uint16_t vector, uint16_t size,
                          uint16_t irq_enabled)
 {
-    int ret;
-
     if (msix_enabled(&n->parent_obj)) {
-        ret = msix_vector_use(&n->parent_obj, vector);
-        assert(ret == 0);
+        msix_vector_use(&n->parent_obj, vector);
     }
     cq->ctrl = n;
     cq->cqid = cqid;

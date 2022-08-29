@@ -276,25 +276,18 @@ e1000e_unuse_msix_vectors(E1000EState *s, int num_vectors)
     }
 }
 
-static bool
+static void
 e1000e_use_msix_vectors(E1000EState *s, int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
-        int res = msix_vector_use(PCI_DEVICE(s), i);
-        if (res < 0) {
-            trace_e1000e_msix_use_vector_fail(i, res);
-            e1000e_unuse_msix_vectors(s, i);
-            return false;
-        }
+        msix_vector_use(PCI_DEVICE(s), i);
     }
-    return true;
 }
 
 static void
 e1000e_init_msix(E1000EState *s)
 {
-    PCIDevice *d = PCI_DEVICE(s);
     int res = msix_init(PCI_DEVICE(s), E1000E_MSIX_VEC_NUM,
                         &s->msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
@@ -305,9 +298,7 @@ e1000e_init_msix(E1000EState *s)
     if (res < 0) {
         trace_e1000e_msix_init_fail(res);
     } else {
-        if (!e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM)) {
-            msix_uninit(d, &s->msix, &s->msix);
-        }
+        e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM);
     }
 }
 
