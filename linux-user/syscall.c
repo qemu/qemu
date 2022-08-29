@@ -7789,6 +7789,7 @@ static int do_futex(CPUState *cpu, bool time64, target_ulong uaddr,
         val = tswap32(val);
         break;
     case FUTEX_WAKE:
+    case FUTEX_WAKE_BITSET:
         timeout = 0;
         break;
     case FUTEX_FD:
