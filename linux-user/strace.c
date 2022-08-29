@@ -3919,26 +3919,37 @@ print_syscall(CPUArchState *cpu_env, int num,
               abi_long arg4, abi_long arg5, abi_long arg6)
 {
     int i;
-    const char *format="%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")";
+    FILE *f;
+    const char *format = "%s(" TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ","
+                               TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ","
+                               TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ")";
 
-    qemu_log("%d ", getpid());
+    f = qemu_log_trylock();
+    if (!f) {
+        return;
+    }
+    fprintf(f, "%d ", getpid());
 
-    for(i=0;i<nsyscalls;i++)
-        if( scnames[i].nr == num ) {
-            if( scnames[i].call != NULL ) {
-                scnames[i].call(
-                    cpu_env, &scnames[i], arg1, arg2, arg3, arg4, arg5, arg6);
+    for (i = 0; i < nsyscalls; i++) {
+        if (scnames[i].nr == num) {
+            if (scnames[i].call != NULL) {
+                scnames[i].call(cpu_env, &scnames[i], arg1, arg2, arg3,
+                                arg4, arg5, arg6);
             } else {
                 /* XXX: this format system is broken because it uses
                    host types and host pointers for strings */
-                if( scnames[i].format != NULL )
+                if (scnames[i].format != NULL) {
                     format = scnames[i].format;
-                qemu_log(format,
-                         scnames[i].name, arg1, arg2, arg3, arg4, arg5, arg6);
+                }
+                fprintf(f, format, scnames[i].name, arg1, arg2,
+                        arg3, arg4, arg5, arg6);
             }
+            qemu_log_unlock(f);
             return;
         }
-    qemu_log("Unknown syscall %d\n", num);
+    }
+    fprintf(f, "Unknown syscall %d\n", num);
+    qemu_log_unlock(f);
 }
 
 
@@ -3948,21 +3959,29 @@ print_syscall_ret(CPUArchState *cpu_env, int num, abi_long ret,
                   abi_long arg4, abi_long arg5, abi_long arg6)
 {
     int i;
+    FILE *f;
 
-    for(i=0;i<nsyscalls;i++)
-        if( scnames[i].nr == num ) {
-            if( scnames[i].result != NULL ) {
+    f = qemu_log_trylock();
+    if (!f) {
+        return;
+    }
+
+    for (i = 0; i < nsyscalls; i++) {
+        if (scnames[i].nr == num) {
+            if (scnames[i].result != NULL) {
                 scnames[i].result(cpu_env, &scnames[i], ret,
                                   arg1, arg2, arg3,
                                   arg4, arg5, arg6);
             } else {
                 if (!print_syscall_err(ret)) {
-                    qemu_log(TARGET_ABI_FMT_ld, ret);
+                    fprintf(f, TARGET_ABI_FMT_ld, ret);
                 }
-                qemu_log("\n");
+                fprintf(f, "\n");
             }
             break;
         }
+    }
+    qemu_log_unlock(f);
 }
 
 void print_taken_signal(int target_signum, const target_siginfo_t *tinfo)
@@ -3970,9 +3989,17 @@ void print_taken_signal(int target_signum, const target_siginfo_t *tinfo)
     /* Print the strace output for a signal being taken:
      * --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=0} ---
      */
-    qemu_log("--- ");
+    FILE *f;
+
+    f = qemu_log_trylock();
+    if (!f) {
+        return;
+    }
+
+    fprintf(f, "--- ");
     print_signal(target_signum, 1);
-    qemu_log(" ");
+    fprintf(f, " ");
     print_siginfo(tinfo);
-    qemu_log(" ---\n");
+    fprintf(f, " ---\n");
+    qemu_log_unlock(f);
 }
