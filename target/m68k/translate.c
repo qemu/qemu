@@ -2825,19 +2825,39 @@ DISAS_INSN(illegal)
     gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
 }
 
-/* ??? This should be atomic.  */
 DISAS_INSN(tas)
 {
-    TCGv dest;
-    TCGv src1;
-    TCGv addr;
+    int mode = extract32(insn, 3, 3);
+    int reg0 = REG(insn, 0);
 
-    dest = tcg_temp_new();
-    SRC_EA(env, src1, OS_BYTE, 1, &addr);
-    gen_logic_cc(s, src1, OS_BYTE);
-    tcg_gen_ori_i32(dest, src1, 0x80);
-    DEST_EA(env, insn, OS_BYTE, dest, &addr);
-    tcg_temp_free(dest);
+    if (mode == 0) {
+        /* data register direct */
+        TCGv dest = cpu_dregs[reg0];
+        gen_logic_cc(s, dest, OS_BYTE);
+        tcg_gen_ori_tl(dest, dest, 0x80);
+    } else {
+        TCGv src1, addr;
+
+        addr = gen_lea_mode(env, s, mode, reg0, OS_BYTE);
+        if (IS_NULL_QREG(addr)) {
+            gen_addr_fault(s);
+            return;
+        }
+        src1 = tcg_temp_new();
+        tcg_gen_atomic_fetch_or_tl(src1, addr, tcg_constant_tl(0x80),
+                                   IS_USER(s), MO_SB);
+        gen_logic_cc(s, src1, OS_BYTE);
+        tcg_temp_free(src1);
+
+        switch (mode) {
+        case 3: /* Indirect postincrement.  */
+            tcg_gen_addi_i32(AREG(insn, 0), addr, 1);
+            break;
+        case 4: /* Indirect predecrememnt.  */
+            tcg_gen_mov_i32(AREG(insn, 0), addr);
+            break;
+        }
+    }
 }
 
 DISAS_INSN(mull)
