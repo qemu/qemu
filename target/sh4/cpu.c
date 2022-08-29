@@ -47,7 +47,7 @@ static void superh_cpu_synchronize_from_tb(CPUState *cs,
     SuperHCPU *cpu = SUPERH_CPU(cs);
 
     cpu->env.pc = tb_pc(tb);
-    cpu->env.flags = tb->flags & TB_FLAG_ENVFLAGS_MASK;
+    cpu->env.flags = tb->flags;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -57,10 +57,10 @@ static bool superh_io_recompile_replay_branch(CPUState *cs,
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
 
-    if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
+    if ((env->flags & (TB_FLAG_DELAY_SLOT | TB_FLAG_DELAY_SLOT_COND))
         && env->pc != tb_pc(tb)) {
         env->pc -= 2;
-        env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+        env->flags &= ~(TB_FLAG_DELAY_SLOT | TB_FLAG_DELAY_SLOT_COND);
         return true;
     }
     return false;
