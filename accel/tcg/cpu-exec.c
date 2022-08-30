@@ -601,6 +601,14 @@ void afl_setup(void) {
 
 }
 
+static void afl_flush_tb(void)
+{
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        tb_flush(cpu);
+    }
+}
+
 /* Fork server logic, invoked once we hit _start. */
 
 void afl_forkserver(CPUState *cpu) {
@@ -655,6 +663,9 @@ void afl_forkserver(CPUState *cpu) {
     }
 
   }
+
+  // Flush translation cache just before fork server starts.
+  afl_flush_tb();
 
   /* All right, let's await orders... */
 
