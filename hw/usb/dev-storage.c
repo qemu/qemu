@@ -191,6 +191,23 @@ static void usb_msd_packet_complete(MSDState *s)
     usb_packet_complete(&s->dev, p);
 }
 
+static void usb_msd_fatal_error(MSDState *s)
+{
+    trace_usb_msd_fatal_error();
+
+    if (s->packet) {
+        s->packet->status = USB_RET_STALL;
+        usb_msd_packet_complete(s);
+    }
+
+    /*
+     * Guest messed up up device state with illegal requests.  Go
+     * ignore any requests until the guests resets the device (and
+     * brings it into a known state that way).
+     */
+    s->needs_reset = true;
+}
+
 static void usb_msd_copy_data(MSDState *s, USBPacket *p)
 {
     uint32_t len;
@@ -227,7 +244,11 @@ void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    assert((s->mode == USB_MSDM_DATAOUT) == (req->cmd.mode == SCSI_XFER_TO_DEV));
+    if ((s->mode == USB_MSDM_DATAOUT) != (req->cmd.mode == SCSI_XFER_TO_DEV)) {
+        usb_msd_fatal_error(s);
+        return;
+    }
+
     s->scsi_len = len;
     s->scsi_off = 0;
     if (p) {
@@ -317,6 +338,8 @@ void usb_msd_handle_reset(USBDevice *dev)
 
     memset(&s->csw, 0, sizeof(s->csw));
     s->mode = USB_MSDM_CBW;
+
+    s->needs_reset = false;
 }
 
 static void usb_msd_handle_control(USBDevice *dev, USBPacket *p,
@@ -381,6 +404,11 @@ static void usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     uint8_t devep = p->ep->nr;
     SCSIDevice *scsi_dev;
     uint32_t len;
+
+    if (s->needs_reset) {
+        p->status = USB_RET_STALL;
+        return;
+    }
 
     switch (p->pid) {
     case USB_TOKEN_OUT:

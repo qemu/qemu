@@ -263,6 +263,7 @@ usb_msd_packet_complete(void) ""
 usb_msd_cmd_submit(unsigned lun, unsigned tag, unsigned flags, unsigned len, unsigned data_len) "lun %u, tag 0x%x, flags 0x%08x, len %d, data-len %d"
 usb_msd_cmd_complete(unsigned status, unsigned tag) "status %d, tag 0x%x"
 usb_msd_cmd_cancel(unsigned tag) "tag 0x%x"
+usb_msd_fatal_error(void) ""
 
 # dev-uas.c
 usb_uas_reset(int addr) "dev %d"
