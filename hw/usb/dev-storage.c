@@ -177,6 +177,20 @@ static const USBDesc desc = {
     .str   = desc_strings,
 };
 
+static void usb_msd_packet_complete(MSDState *s)
+{
+    USBPacket *p = s->packet;
+
+    /*
+     * Set s->packet to NULL before calling usb_packet_complete
+     * because another request may be issued before
+     * usb_packet_complete returns.
+     */
+    trace_usb_msd_packet_complete();
+    s->packet = NULL;
+    usb_packet_complete(&s->dev, p);
+}
+
 static void usb_msd_copy_data(MSDState *s, USBPacket *p)
 {
     uint32_t len;
@@ -206,18 +220,6 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     len = MIN(sizeof(s->csw), p->iov.size);
     usb_packet_copy(p, &s->csw, len);
     memset(&s->csw, 0, sizeof(s->csw));
-}
-
-static void usb_msd_packet_complete(MSDState *s)
-{
-    USBPacket *p = s->packet;
-
-    /* Set s->packet to NULL before calling usb_packet_complete
-       because another request may be issued before
-       usb_packet_complete returns.  */
-    trace_usb_msd_packet_complete();
-    s->packet = NULL;
-    usb_packet_complete(&s->dev, p);
 }
 
 void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
