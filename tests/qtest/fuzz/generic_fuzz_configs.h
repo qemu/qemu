@@ -21,7 +21,7 @@ typedef struct generic_fuzz_config {
 
 static inline gchar *generic_fuzzer_virtio_9p_args(void){
     char tmpdir[] = "/tmp/qemu-fuzz.XXXXXX";
-    g_assert_nonnull(mkdtemp(tmpdir));
+    g_assert_nonnull(g_mkdtemp(tmpdir));
 
     return g_strdup_printf("-machine q35 -nodefaults "
     "-device virtio-9p,fsdev=hshare,mount_tag=hshare "

@@ -71,7 +71,8 @@ qtests_i386 = \
   (config_all_devices.has_key('CONFIG_SB16') ? ['fuzz-sb16-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_SDHCI_PCI') ? ['fuzz-sdcard-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_ESP_PCI') ? ['am53c974-test'] : []) +                 \
-  (config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +                        \
+  (config_host.has_key('CONFIG_POSIX') and                                                  \
+   config_all_devices.has_key('CONFIG_ACPI_ERST') ? ['erst-test'] : []) +                   \
   (config_all_devices.has_key('CONFIG_VIRTIO_NET') and                                      \
    config_all_devices.has_key('CONFIG_Q35') and                                             \
    config_all_devices.has_key('CONFIG_VIRTIO_PCI') and                                      \
@@ -239,7 +240,6 @@ qos_test_ss.add(
   'adm1272-test.c',
   'ds1338-test.c',
   'e1000-test.c',
-  'e1000e-test.c',
   'eepro100-test.c',
   'es1370-test.c',
   'ipoctal232-test.c',
@@ -267,6 +267,9 @@ qos_test_ss.add(
   'virtio-iommu-test.c',
   'vmxnet3-test.c',
 )
+if config_host.has_key('CONFIG_POSIX')
+  qos_test_ss.add(files('e1000e-test.c'))
+endif
 if have_virtfs
   qos_test_ss.add(files('virtio-9p-test.c'))
 endif

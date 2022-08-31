@@ -28,7 +28,7 @@ static void *ac97_get_driver(void *obj, const char *interface)
         return &ac97->dev;
     }
 
-    fprintf(stderr, "%s not present in e1000e\n", interface);
+    fprintf(stderr, "%s not present in ac97\n", interface);
     g_assert_not_reached();
 }
 

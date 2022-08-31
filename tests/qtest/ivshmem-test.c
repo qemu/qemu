@@ -481,8 +481,8 @@ int main(int argc, char **argv)
     tmpshmem = mmap(0, TMPSHMSIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     g_assert(tmpshmem != MAP_FAILED);
     /* server */
-    if (mkdtemp(dir) == NULL) {
-        g_error("mkdtemp: %s", g_strerror(errno));
+    if (g_mkdtemp(dir) == NULL) {
+        g_error("g_mkdtemp: %s", g_strerror(errno));
     }
     tmpdir = dir;
     tmpserver = g_strconcat(tmpdir, "/server", NULL);

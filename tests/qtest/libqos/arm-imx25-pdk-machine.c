@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "../libqtest.h"
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "qgraph.h"
 #include "i2c.h"
 

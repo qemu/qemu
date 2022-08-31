@@ -34,6 +34,7 @@ static void check_stop_event(QTestState *who)
     }
 }
 
+#ifndef _WIN32
 /*
  * Events can get in the way of responses we are actually waiting for.
  */
@@ -58,6 +59,7 @@ QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
 
     return ret;
 }
+#endif
 
 /*
  * Events can get in the way of responses we are actually waiting for.

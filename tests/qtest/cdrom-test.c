@@ -52,7 +52,7 @@ static int prepare_image(const char *arch, char *isoimage)
         perror("Error creating temporary iso image file");
         return -1;
     }
-    if (!mkdtemp(srcdir)) {
+    if (!g_mkdtemp(srcdir)) {
         perror("Error creating temporary directory");
         goto cleanup;
     }

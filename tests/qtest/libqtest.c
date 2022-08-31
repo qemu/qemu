@@ -393,7 +393,7 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd)
     char *sock_path, sock_dir[] = "/tmp/qtest-serial-XXXXXX";
     QTestState *qts;
 
-    g_assert_true(mkdtemp(sock_dir) != NULL);
+    g_assert_true(g_mkdtemp(sock_dir) != NULL);
     sock_path = g_strdup_printf("%s/sock", sock_dir);
 
     sock_fd_init = init_socket(sock_path);
@@ -1424,7 +1424,7 @@ QTestState *qtest_inproc_init(QTestState **s, bool log, const char* arch,
      * way, qtest_get_arch works for inproc qtest.
      */
     gchar *bin_path = g_strconcat("/qemu-system-", arch, NULL);
-    setenv("QTEST_QEMU_BINARY", bin_path, 0);
+    g_setenv("QTEST_QEMU_BINARY", bin_path, 0);
     g_free(bin_path);
 
     return qts;

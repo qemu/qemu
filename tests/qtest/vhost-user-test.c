@@ -491,9 +491,9 @@ static TestServer *test_server_new(const gchar *name,
     /* run the main loop thread so the chardev may operate */
     server->thread = g_thread_new(NULL, thread_function, server->loop);
 
-    tmpfs = mkdtemp(template);
+    tmpfs = g_mkdtemp(template);
     if (!tmpfs) {
-        g_test_message("mkdtemp on path (%s): %s", template, strerror(errno));
+        g_test_message("g_mkdtemp on path (%s): %s", template, strerror(errno));
     }
     g_assert(tmpfs);
 

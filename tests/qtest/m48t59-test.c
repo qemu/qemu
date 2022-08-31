@@ -137,7 +137,7 @@ static void cmos_get_date_time(QTestState *s, struct tm *date)
     date->tm_mday = mday;
     date->tm_mon = mon - 1;
     date->tm_year = base_year + year - 1900;
-#ifndef __sun__
+#if !defined(__sun__) && !defined(_WIN32)
     date->tm_gmtoff = 0;
 #endif
 

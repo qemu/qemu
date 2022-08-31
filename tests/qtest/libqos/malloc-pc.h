@@ -13,7 +13,7 @@
 #ifndef LIBQOS_MALLOC_PC_H
 #define LIBQOS_MALLOC_PC_H
 
-#include "malloc.h"
+#include "libqos-malloc.h"
 
 void pc_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags);
 

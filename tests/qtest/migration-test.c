@@ -761,14 +761,14 @@ test_migrate_tls_psk_start_common(QTestState *from,
     data->workdir = g_strdup_printf("%s/tlscredspsk0", tmpfs);
     data->pskfile = g_strdup_printf("%s/%s", data->workdir,
                                     QCRYPTO_TLS_CREDS_PSKFILE);
-    mkdir(data->workdir, 0700);
+    g_mkdir_with_parents(data->workdir, 0700);
     test_tls_psk_init(data->pskfile);
 
     if (mismatch) {
         data->workdiralt = g_strdup_printf("%s/tlscredspskalt0", tmpfs);
         data->pskfilealt = g_strdup_printf("%s/%s", data->workdiralt,
                                            QCRYPTO_TLS_CREDS_PSKFILE);
-        mkdir(data->workdiralt, 0700);
+        g_mkdir_with_parents(data->workdiralt, 0700);
         test_tls_psk_init_alt(data->pskfilealt);
     }
 
@@ -873,12 +873,20 @@ test_migrate_tls_x509_start_common(QTestState *from,
         data->clientcert = g_strdup_printf("%s/client-cert.pem", data->workdir);
     }
 
-    mkdir(data->workdir, 0700);
+    g_mkdir_with_parents(data->workdir, 0700);
 
     test_tls_init(data->keyfile);
+#ifndef _WIN32
     g_assert(link(data->keyfile, data->serverkey) == 0);
+#else
+    g_assert(CreateHardLink(data->serverkey, data->keyfile, NULL) != 0);
+#endif
     if (args->clientcert) {
+#ifndef _WIN32
         g_assert(link(data->keyfile, data->clientkey) == 0);
+#else
+        g_assert(CreateHardLink(data->clientkey, data->keyfile, NULL) != 0);
+#endif
     }
 
     TLS_ROOT_REQ_SIMPLE(cacertreq, data->cacert);
@@ -1623,6 +1631,7 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
+#ifndef _WIN32
 static void *test_migrate_fd_start_hook(QTestState *from,
                                         QTestState *to)
 {
@@ -1691,6 +1700,7 @@ static void test_migrate_fd_proto(void)
     };
     test_precopy_common(&args);
 }
+#endif /* _WIN32 */
 
 static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
 {
@@ -2452,9 +2462,9 @@ int main(int argc, char **argv)
         return g_test_run();
     }
 
-    tmpfs = mkdtemp(template);
+    tmpfs = g_mkdtemp(template);
     if (!tmpfs) {
-        g_test_message("mkdtemp on path (%s): %s", template, strerror(errno));
+        g_test_message("g_mkdtemp on path (%s): %s", template, strerror(errno));
     }
     g_assert(tmpfs);
 
@@ -2523,7 +2533,9 @@ int main(int argc, char **argv)
 #endif /* CONFIG_GNUTLS */
 
     /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
+#ifndef _WIN32
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
+#endif
     qtest_add_func("/migration/validate_uuid", test_validate_uuid);
     qtest_add_func("/migration/validate_uuid_error", test_validate_uuid_error);
     qtest_add_func("/migration/validate_uuid_src_not_set",

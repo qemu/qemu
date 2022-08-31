@@ -278,6 +278,8 @@ static void test_i440fx_pam(gconstpointer opaque)
     qtest_end();
 }
 
+#ifndef _WIN32
+
 #define BLOB_SIZE ((size_t)65536)
 #define ISA_BIOS_MAXSZ ((size_t)(128 * 1024))
 
@@ -396,6 +398,8 @@ static void request_pflash(FirmwareTestFixture *fixture,
     fixture->is_bios = false;
 }
 
+#endif /* _WIN32 */
+
 int main(int argc, char **argv)
 {
     TestData data;
@@ -406,8 +410,10 @@ int main(int argc, char **argv)
 
     qtest_add_data_func("i440fx/defaults", &data, test_i440fx_defaults);
     qtest_add_data_func("i440fx/pam", &data, test_i440fx_pam);
+#ifndef _WIN32
     add_firmware_test("i440fx/firmware/bios", request_bios);
     add_firmware_test("i440fx/firmware/pflash", request_pflash);
+#endif
 
     return g_test_run();
 }

@@ -8,7 +8,7 @@
 #ifndef LIBQOS_MALLOC_SPAPR_H
 #define LIBQOS_MALLOC_SPAPR_H
 
-#include "malloc.h"
+#include "libqos-malloc.h"
 
 void spapr_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags);
 

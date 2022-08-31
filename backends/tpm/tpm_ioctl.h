@@ -9,8 +9,10 @@
 #ifndef TPM_IOCTL_H
 #define TPM_IOCTL_H
 
+#ifndef _WIN32
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#endif
 
 #ifdef HAVE_SYS_IOCCOM_H
 #include <sys/ioccom.h>
@@ -222,6 +224,7 @@ typedef struct ptm_setbuffersize ptm_setbuffersize;
 #define PTM_CAP_SET_DATAFD         (1 << 12)
 #define PTM_CAP_SET_BUFFERSIZE     (1 << 13)
 
+#ifndef _WIN32
 enum {
     PTM_GET_CAPABILITY     = _IOR('P', 0, ptm_cap),
     PTM_INIT               = _IOWR('P', 1, ptm_init),
@@ -241,6 +244,7 @@ enum {
     PTM_SET_DATAFD         = _IOR('P', 15, ptm_res),
     PTM_SET_BUFFERSIZE     = _IOWR('P', 16, ptm_setbuffersize),
 };
+#endif
 
 /*
  * Commands used by the non-CUSE TPMs

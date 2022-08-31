@@ -14,7 +14,7 @@
 #define LIBQOS_GENERIC_PCIHOST_H
 
 #include "pci.h"
-#include "malloc.h"
+#include "libqos-malloc.h"
 #include "qgraph.h"
 
 typedef struct QGenericPCIBus {

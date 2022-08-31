@@ -297,7 +297,7 @@ build and test QEMU in predefined and widely accessible Linux
 environments. This makes it possible to expand the test coverage
 across distros, toolchain flavors and library versions. The support
 was originally written for Docker although we also support Podman as
-an alternative container runtime. Although the many of the target
+an alternative container runtime. Although many of the target
 names and scripts are prefixed with "docker" the system will
 automatically run on whichever is configured.
 
