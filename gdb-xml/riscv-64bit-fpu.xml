@@ -49,8 +49,4 @@
   <reg name="ft9" bitsize="64" type="riscv_double"/>
   <reg name="ft10" bitsize="64" type="riscv_double"/>
   <reg name="ft11" bitsize="64" type="riscv_double"/>
-
-  <reg name="fflags" bitsize="32" type="int" regnum="66"/>
-  <reg name="frm" bitsize="32" type="int" regnum="67"/>
-  <reg name="fcsr" bitsize="32" type="int" regnum="68"/>
 </feature>
