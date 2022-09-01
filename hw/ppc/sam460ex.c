@@ -25,7 +25,6 @@
 #include "elf.h"
 #include "exec/memory.h"
 #include "ppc440.h"
-#include "ppc405.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/reset.h"
@@ -280,7 +279,6 @@ static void sam460ex_init(MachineState *machine)
     hwaddr ram_sizes[SDRAM_NR_BANKS] = {0};
     MemoryRegion *l2cache_ram = g_new(MemoryRegion, 1);
     DeviceState *uic[4];
-    qemu_irq mal_irqs[4];
     int i;
     PCIBus *pci_bus;
     PowerPCCPU *cpu;
@@ -309,11 +307,12 @@ static void sam460ex_init(MachineState *machine)
     ppc_dcr_init(env, NULL, NULL);
 
     /* PLB arbitrer */
-    ppc4xx_plb_init(env);
+    dev = qdev_new(TYPE_PPC4xx_PLB);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
 
     /* interrupt controllers */
     for (i = 0; i < ARRAY_SIZE(uic); i++) {
-        SysBusDevice *sbd;
         /*
          * UICs 1, 2 and 3 are cascaded through UIC 0.
          * input_ints[n] is the interrupt number on UIC 0 which
@@ -325,22 +324,20 @@ static void sam460ex_init(MachineState *machine)
         const int input_ints[] = { -1, 30, 10, 16 };
 
         uic[i] = qdev_new(TYPE_PPC_UIC);
-        sbd = SYS_BUS_DEVICE(uic[i]);
-
         qdev_prop_set_uint32(uic[i], "dcr-base", 0xc0 + i * 0x10);
-        object_property_set_link(OBJECT(uic[i]), "cpu", OBJECT(cpu),
-                                 &error_fatal);
-        sysbus_realize_and_unref(sbd, &error_fatal);
+        ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uic[i]), cpu, &error_fatal);
+        object_unref(OBJECT(uic[i]));
 
+        sbdev = SYS_BUS_DEVICE(uic[i]);
         if (i == 0) {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                              qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_CINT));
         } else {
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_INT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_INT,
                                qdev_get_gpio_in(uic[0], input_ints[i]));
-            sysbus_connect_irq(sbd, PPCUIC_OUTPUT_CINT,
+            sysbus_connect_irq(sbdev, PPCUIC_OUTPUT_CINT,
                                qdev_get_gpio_in(uic[0], input_ints[i] + 1));
         }
     }
@@ -371,7 +368,9 @@ static void sam460ex_init(MachineState *machine)
                                qdev_get_gpio_in(uic[0], 3));
 
     /* External bus controller */
-    ppc405_ebc_init(env);
+    dev = qdev_new(TYPE_PPC4xx_EBC);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
 
     /* CPR */
     ppc4xx_cpr_init(env);
@@ -383,10 +382,15 @@ static void sam460ex_init(MachineState *machine)
     ppc4xx_sdr_init(env);
 
     /* MAL */
-    for (i = 0; i < ARRAY_SIZE(mal_irqs); i++) {
-        mal_irqs[i] = qdev_get_gpio_in(uic[2], 3 + i);
+    dev = qdev_new(TYPE_PPC4xx_MAL);
+    qdev_prop_set_uint32(dev, "txc-num", 4);
+    qdev_prop_set_uint32(dev, "rxc-num", 16);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
+    sbdev = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < ARRAY_SIZE(PPC4xx_MAL(dev)->irqs); i++) {
+        sysbus_connect_irq(sbdev, i, qdev_get_gpio_in(uic[2], 3 + i));
     }
-    ppc4xx_mal_init(env, 4, 16, mal_irqs);
 
     /* DMA */
     ppc4xx_dma_init(env, 0x200);

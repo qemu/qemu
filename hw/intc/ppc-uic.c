@@ -25,11 +25,8 @@
 #include "qemu/osdep.h"
 #include "hw/intc/ppc-uic.h"
 #include "hw/irq.h"
-#include "cpu.h"
-#include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "qapi/error.h"
 
 enum {
     DCR_UICSR  = 0x000,
@@ -105,10 +102,9 @@ static void ppcuic_trigger_irq(PPCUIC *uic)
 
 static void ppcuic_set_irq(void *opaque, int irq_num, int level)
 {
-    PPCUIC *uic;
+    PPCUIC *uic = opaque;
     uint32_t mask, sr;
 
-    uic = opaque;
     mask = 1U << (31 - irq_num);
     LOG_UIC("%s: irq %d level %d uicsr %08" PRIx32
                 " mask %08" PRIx32 " => %08" PRIx32 " %08" PRIx32 "\n",
@@ -144,10 +140,9 @@ static void ppcuic_set_irq(void *opaque, int irq_num, int level)
 
 static uint32_t dcr_read_uic(void *opaque, int dcrn)
 {
-    PPCUIC *uic;
+    PPCUIC *uic = opaque;
     uint32_t ret;
 
-    uic = opaque;
     dcrn -= uic->dcr_base;
     switch (dcrn) {
     case DCR_UICSR:
@@ -192,9 +187,8 @@ static uint32_t dcr_read_uic(void *opaque, int dcrn)
 
 static void dcr_write_uic(void *opaque, int dcrn, uint32_t val)
 {
-    PPCUIC *uic;
+    PPCUIC *uic = opaque;
 
-    uic = opaque;
     dcrn -= uic->dcr_base;
     LOG_UIC("%s: dcr %d val 0x%x\n", __func__, dcrn, val);
     switch (dcrn) {
@@ -251,19 +245,12 @@ static void ppc_uic_reset(DeviceState *dev)
 static void ppc_uic_realize(DeviceState *dev, Error **errp)
 {
     PPCUIC *uic = PPC_UIC(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    PowerPCCPU *cpu;
     int i;
 
-    if (!uic->cpu) {
-        /* This is a programming error in the code using this device */
-        error_setg(errp, "ppc-uic 'cpu' link property was not set");
-        return;
-    }
-
-    cpu = POWERPC_CPU(uic->cpu);
     for (i = 0; i < DCR_UICMAX; i++) {
-        ppc_dcr_register(&cpu->env, uic->dcr_base + i, uic,
+        ppc4xx_dcr_register(dcr, uic->dcr_base + i, uic,
                          &dcr_read_uic, &dcr_write_uic);
     }
 
@@ -273,7 +260,6 @@ static void ppc_uic_realize(DeviceState *dev, Error **errp)
 }
 
 static Property ppc_uic_properties[] = {
-    DEFINE_PROP_LINK("cpu", PPCUIC, cpu, TYPE_CPU, CPUState *),
     DEFINE_PROP_UINT32("dcr-base", PPCUIC, dcr_base, 0xc0),
     DEFINE_PROP_BOOL("use-vectors", PPCUIC, use_vectors, true),
     DEFINE_PROP_END_OF_LIST()
@@ -308,7 +294,7 @@ static void ppc_uic_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ppc_uic_info = {
     .name = TYPE_PPC_UIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
+    .parent = TYPE_PPC4xx_DCR_DEVICE,
     .instance_size = sizeof(PPCUIC),
     .class_init = ppc_uic_class_init,
 };

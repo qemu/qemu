@@ -27,11 +27,7 @@
 
 #include "hw/ppc/ppc.h"
 #include "exec/memory.h"
-
-/* PowerPC 4xx core initialization */
-PowerPCCPU *ppc4xx_init(const char *cpu_model,
-                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                        uint32_t sysclk);
+#include "hw/sysbus.h"
 
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         MemoryRegion ram_memories[],
@@ -44,9 +40,73 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         hwaddr *ram_sizes,
                         int do_init);
 
-void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
-                     qemu_irq irqs[4]);
-
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
+
+/*
+ * Generic DCR device
+ */
+#define TYPE_PPC4xx_DCR_DEVICE "ppc4xx-dcr-device"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxDcrDeviceState, PPC4xx_DCR_DEVICE);
+struct Ppc4xxDcrDeviceState {
+    SysBusDevice parent_obj;
+
+    PowerPCCPU *cpu;
+};
+
+void ppc4xx_dcr_register(Ppc4xxDcrDeviceState *dev, int dcrn, void *opaque,
+                         dcr_read_cb dcr_read, dcr_write_cb dcr_write);
+bool ppc4xx_dcr_realize(Ppc4xxDcrDeviceState *dev, PowerPCCPU *cpu,
+                        Error **errp);
+
+/* Memory Access Layer (MAL) */
+#define TYPE_PPC4xx_MAL "ppc4xx-mal"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxMalState, PPC4xx_MAL);
+struct Ppc4xxMalState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    qemu_irq irqs[4];
+    uint32_t cfg;
+    uint32_t esr;
+    uint32_t ier;
+    uint32_t txcasr;
+    uint32_t txcarr;
+    uint32_t txeobisr;
+    uint32_t txdeir;
+    uint32_t rxcasr;
+    uint32_t rxcarr;
+    uint32_t rxeobisr;
+    uint32_t rxdeir;
+    uint32_t *txctpr;
+    uint32_t *rxctpr;
+    uint32_t *rcbs;
+    uint8_t  txcnum;
+    uint8_t  rxcnum;
+};
+
+/* Peripheral local bus arbitrer */
+#define TYPE_PPC4xx_PLB "ppc4xx-plb"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxPlbState, PPC4xx_PLB);
+struct Ppc4xxPlbState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    uint32_t acr;
+    uint32_t bear;
+    uint32_t besr;
+};
+
+/* Peripheral controller */
+#define TYPE_PPC4xx_EBC "ppc4xx-ebc"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxEbcState, PPC4xx_EBC);
+struct Ppc4xxEbcState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    uint32_t addr;
+    uint32_t bcr[8];
+    uint32_t bap[8];
+    uint32_t bear;
+    uint32_t besr0;
+    uint32_t besr1;
+    uint32_t cfg;
+};
 
 #endif /* PPC4XX_H */

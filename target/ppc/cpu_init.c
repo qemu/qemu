@@ -5912,15 +5912,25 @@ static void init_proc_POWER7(CPUPPCState *env)
     ppcPOWER7_irq_init(env_archcpu(env));
 }
 
-static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr)
+static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 {
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER7P_BASE) {
-        return true;
+    uint32_t base = pvr & CPU_POWERPC_POWER_SERVER_MASK;
+    uint32_t pcc_base = pcc->pvr & CPU_POWERPC_POWER_SERVER_MASK;
+
+    if (!best) {
+        if (base == CPU_POWERPC_POWER7_BASE) {
+            return true;
+        }
+        if (base == CPU_POWERPC_POWER7P_BASE) {
+            return true;
+        }
     }
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER7_BASE) {
-        return true;
+
+    if (base != pcc_base) {
+        return false;
     }
-    return false;
+
+    return true;
 }
 
 static bool cpu_has_work_POWER7(CPUState *cs)
@@ -6073,18 +6083,27 @@ static void init_proc_POWER8(CPUPPCState *env)
     ppcPOWER7_irq_init(env_archcpu(env));
 }
 
-static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr)
+static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 {
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8NVL_BASE) {
-        return true;
+    uint32_t base = pvr & CPU_POWERPC_POWER_SERVER_MASK;
+    uint32_t pcc_base = pcc->pvr & CPU_POWERPC_POWER_SERVER_MASK;
+
+    if (!best) {
+        if (base == CPU_POWERPC_POWER8_BASE) {
+            return true;
+        }
+        if (base == CPU_POWERPC_POWER8E_BASE) {
+            return true;
+        }
+        if (base == CPU_POWERPC_POWER8NVL_BASE) {
+            return true;
+        }
     }
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8E_BASE) {
-        return true;
+    if (base != pcc_base) {
+        return false;
     }
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER8_BASE) {
-        return true;
-    }
-    return false;
+
+    return true;
 }
 
 static bool cpu_has_work_POWER8(CPUState *cs)
@@ -6282,11 +6301,26 @@ static void init_proc_POWER9(CPUPPCState *env)
     ppcPOWER9_irq_init(env_archcpu(env));
 }
 
-static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
+static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 {
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER9_BASE) {
+    uint32_t base = pvr & CPU_POWERPC_POWER_SERVER_MASK;
+    uint32_t pcc_base = pcc->pvr & CPU_POWERPC_POWER_SERVER_MASK;
+
+    if (!best) {
+        if (base == CPU_POWERPC_POWER9_BASE) {
+            return true;
+        }
+    }
+
+    if (base != pcc_base) {
+        return false;
+    }
+
+    if ((pvr & 0x0f00) == (pcc->pvr & 0x0f00)) {
+        /* Major DD version matches to power9_v1.0 and power9_v2.0 */
         return true;
     }
+
     return false;
 }
 
@@ -6499,11 +6533,26 @@ static void init_proc_POWER10(CPUPPCState *env)
     ppcPOWER9_irq_init(env_archcpu(env));
 }
 
-static bool ppc_pvr_match_power10(PowerPCCPUClass *pcc, uint32_t pvr)
+static bool ppc_pvr_match_power10(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 {
-    if ((pvr & CPU_POWERPC_POWER_SERVER_MASK) == CPU_POWERPC_POWER10_BASE) {
+    uint32_t base = pvr & CPU_POWERPC_POWER_SERVER_MASK;
+    uint32_t pcc_base = pcc->pvr & CPU_POWERPC_POWER_SERVER_MASK;
+
+    if (!best) {
+        if (base == CPU_POWERPC_POWER10_BASE) {
+            return true;
+        }
+    }
+
+    if (base != pcc_base) {
+        return false;
+    }
+
+    if ((pvr & 0x0f00) == (pcc->pvr & 0x0f00)) {
+        /* Major DD version matches to power10_v1.0 and power10_v2.0 */
         return true;
     }
+
     return false;
 }
 
@@ -6910,7 +6959,7 @@ static gint ppc_cpu_compare_class_pvr_mask(gconstpointer a, gconstpointer b)
         return -1;
     }
 
-    if (pcc->pvr_match(pcc, pvr)) {
+    if (pcc->pvr_match(pcc, pvr, true)) {
         return 0;
     }
 
@@ -7308,7 +7357,7 @@ static void ppc_cpu_instance_finalize(Object *obj)
     ppc_hash64_finalize(cpu);
 }
 
-static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr)
+static bool ppc_pvr_match_default(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
 {
     return pcc->pvr == pvr;
 }

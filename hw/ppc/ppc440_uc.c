@@ -1028,7 +1028,8 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
 
 /*****************************************************************************/
 /* PCI Express controller */
-/* FIXME: This is not complete and does not work, only implemented partially
+/*
+ * FIXME: This is not complete and does not work, only implemented partially
  * to allow firmware and guests to find an empty bus. Cards should use PCI.
  */
 #include "hw/pci/pcie_host.h"

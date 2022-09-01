@@ -25,8 +25,7 @@
 #ifndef HW_INTC_PPC_UIC_H
 #define HW_INTC_PPC_UIC_H
 
-#include "hw/sysbus.h"
-#include "qom/object.h"
+#include "hw/ppc/ppc4xx.h"
 
 #define TYPE_PPC_UIC "ppc-uic"
 OBJECT_DECLARE_SIMPLE_TYPE(PPCUIC, PPC_UIC)
@@ -56,14 +55,13 @@ enum {
 
 struct PPCUIC {
     /*< private >*/
-    SysBusDevice parent_obj;
+    Ppc4xxDcrDeviceState parent_obj;
 
     /*< public >*/
     qemu_irq output_int;
     qemu_irq output_cint;
 
     /* properties */
-    CPUState *cpu;
     uint32_t dcr_base;
     bool use_vectors;
 

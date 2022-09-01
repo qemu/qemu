@@ -214,16 +214,33 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
                 p->frac_lo &= ~round_mask;
             }
         } else if (unlikely(exp >= exp_max)) {
-            flags |= float_flag_overflow | float_flag_inexact;
-            if (overflow_norm) {
+            flags |= float_flag_overflow;
+            if (s->rebias_overflow) {
+                exp -= fmt->exp_re_bias;
+            } else if (overflow_norm) {
+                flags |= float_flag_inexact;
                 exp = exp_max - 1;
                 frac_allones(p);
                 p->frac_lo &= ~round_mask;
             } else {
+                flags |= float_flag_inexact;
                 p->cls = float_class_inf;
                 exp = exp_max;
                 frac_clear(p);
             }
+        }
+        frac_shr(p, frac_shift);
+    } else if (unlikely(s->rebias_underflow)) {
+        flags |= float_flag_underflow;
+        exp += fmt->exp_re_bias;
+        if (p->frac_lo & round_mask) {
+            flags |= float_flag_inexact;
+            if (frac_addi(p, p, inc)) {
+                frac_shr(p, 1);
+                p->frac_hi |= DECOMPOSED_IMPLICIT_BIT;
+                exp++;
+            }
+            p->frac_lo &= ~round_mask;
         }
         frac_shr(p, frac_shift);
     } else if (s->flush_to_zero) {

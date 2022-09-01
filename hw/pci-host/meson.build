@@ -35,5 +35,6 @@ specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
   'pnv_phb3_msi.c',
   'pnv_phb3_pbcq.c',
   'pnv_phb4.c',
-  'pnv_phb4_pec.c'
+  'pnv_phb4_pec.c',
+  'pnv_phb.c',
 ))

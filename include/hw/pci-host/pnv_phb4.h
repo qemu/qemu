@@ -18,6 +18,7 @@
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
 typedef struct PnvPHB4 PnvPHB4;
+typedef struct PnvPHB PnvPHB;
 typedef struct PnvChip PnvChip;
 
 /*
@@ -45,15 +46,16 @@ typedef struct PnvPhb4DMASpace {
 } PnvPhb4DMASpace;
 
 /*
- * PHB4 PCIe Root port
+ * PHB4 PCIe Root Bus
  */
 #define TYPE_PNV_PHB4_ROOT_BUS "pnv-phb4-root"
-#define TYPE_PNV_PHB4_ROOT_PORT "pnv-phb4-root-port"
-#define TYPE_PNV_PHB5_ROOT_PORT "pnv-phb5-root-port"
+struct PnvPHB4RootBus {
+    PCIBus parent;
 
-typedef struct PnvPHB4RootPort {
-    PCIESlot parent_obj;
-} PnvPHB4RootPort;
+    uint32_t chip_id;
+    uint32_t phb_id;
+};
+OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4RootBus, PNV_PHB4_ROOT_BUS)
 
 /*
  * PHB4 PCIe Host Bridge for PowerNV machines (POWER9)
@@ -78,12 +80,12 @@ OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
 #define PCI_MMIO_TOTAL_SIZE        (0x1ull << 60)
 
 struct PnvPHB4 {
-    PCIExpressHost parent_obj;
+    DeviceState parent;
+
+    PnvPHB *phb_base;
 
     uint32_t chip_id;
     uint32_t phb_id;
-
-    uint64_t version;
 
     /* The owner PEC */
     PnvPhb4PecState *pec;
@@ -157,6 +159,7 @@ struct PnvPHB4 {
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, Monitor *mon);
 int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index);
+void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb);
 extern const MemoryRegionOps pnv_phb4_xscom_ops;
 
 /*
@@ -205,7 +208,6 @@ struct PnvPhb4PecClass {
     uint64_t version;
     const char *phb_type;
     const uint32_t *num_phbs;
-    const char *rp_model;
 };
 
 /*

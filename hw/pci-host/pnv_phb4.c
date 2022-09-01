@@ -33,7 +33,7 @@
 
 static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     uint64_t addr = phb->regs[PHB_CONFIG_ADDRESS >> 3];
     uint8_t bus, devfn;
 
@@ -129,7 +129,7 @@ static uint64_t pnv_phb4_config_read(PnvPHB4 *phb, unsigned off,
 static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
                                      unsigned size, uint64_t val)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     PCIDevice *pdev;
 
     if (size != 4) {
@@ -150,7 +150,7 @@ static void pnv_phb4_rc_config_write(PnvPHB4 *phb, unsigned off,
 static uint64_t pnv_phb4_rc_config_read(PnvPHB4 *phb, unsigned off,
                                         unsigned size)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(phb);
+    PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     PCIDevice *pdev;
     uint64_t val;
 
@@ -1528,11 +1528,42 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
+void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
+{
+    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    char name[32];
+
+    /*
+     * PHB4 doesn't support IO space. However, qemu gets very upset if
+     * we don't have an IO region to anchor IO BARs onto so we just
+     * initialize one which we never hook up to anything
+     */
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
+
+    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
+             phb->phb_id);
+    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
+                       PCI_MMIO_TOTAL_SIZE);
+
+    pci->bus = pci_register_root_bus(dev, dev->id ? dev->id : NULL,
+                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
+                                     &phb->pci_mmio, &phb->pci_io,
+                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
+
+    object_property_set_int(OBJECT(pci->bus), "phb-id", phb->phb_id,
+                            &error_abort);
+    object_property_set_int(OBJECT(pci->bus), "chip-id", phb->chip_id,
+                            &error_abort);
+
+    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
+    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+}
+
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(dev);
-    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     XiveSource *xsrc = &phb->xsrc;
     int nr_irqs;
     char name[32];
@@ -1545,32 +1576,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
              phb->phb_id);
     memory_region_init_io(&phb->mr_regs, OBJECT(phb), &pnv_phb4_reg_ops, phb,
                           name, 0x2000);
-
-    /*
-     * PHB4 doesn't support IO space. However, qemu gets very upset if
-     * we don't have an IO region to anchor IO BARs onto so we just
-     * initialize one which we never hook up to anything
-     */
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-io", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_io, OBJECT(phb), name, 0x10000);
-
-    snprintf(name, sizeof(name), "phb4-%d.%d-pci-mmio", phb->chip_id,
-             phb->phb_id);
-    memory_region_init(&phb->pci_mmio, OBJECT(phb), name,
-                       PCI_MMIO_TOTAL_SIZE);
-
-    pci->bus = pci_register_root_bus(dev, dev->id,
-                                     pnv_phb4_set_irq, pnv_phb4_map_irq, phb,
-                                     &phb->pci_mmio, &phb->pci_io,
-                                     0, 4, TYPE_PNV_PHB4_ROOT_BUS);
-    pci_setup_iommu(pci->bus, pnv_phb4_dma_iommu, phb);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
-
-    /* Add a single Root port if running with defaults */
-    pnv_phb_attach_root_port(pci, pecc->rp_model,
-                             phb->phb_id, phb->chip_id);
 
     /* Setup XIVE Source */
     if (phb->big_phb) {
@@ -1589,16 +1594,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
 
     pnv_phb4_xscom_realize(phb);
-}
-
-static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
-{
-    PnvPHB4 *phb = PNV_PHB4(host_bridge);
-
-    snprintf(phb->bus_path, sizeof(phb->bus_path), "00%02x:%02x",
-             phb->chip_id, phb->phb_id);
-    return phb->bus_path;
 }
 
 /*
@@ -1685,19 +1680,17 @@ static Property pnv_phb4_properties[] = {
     DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
     DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
                      PnvPhb4PecState *),
+    DEFINE_PROP_LINK("phb-base", PnvPHB4, phb_base, TYPE_PNV_PHB, PnvPHB *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void pnv_phb4_class_init(ObjectClass *klass, void *data)
 {
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xfc = XIVE_NOTIFIER_CLASS(klass);
 
-    hc->root_bus_path   = pnv_phb4_root_bus_path;
     dc->realize         = pnv_phb4_realize;
     device_class_set_props(dc, pnv_phb4_properties);
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->user_creatable  = false;
 
     xfc->notify         = pnv_phb4_xive_notify;
@@ -1705,7 +1698,7 @@ static void pnv_phb4_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pnv_phb4_type_info = {
     .name          = TYPE_PNV_PHB4,
-    .parent        = TYPE_PCIE_HOST_BRIDGE,
+    .parent        = TYPE_DEVICE,
     .instance_init = pnv_phb4_instance_init,
     .instance_size = sizeof(PnvPHB4),
     .class_init    = pnv_phb4_class_init,
@@ -1721,9 +1714,54 @@ static const TypeInfo pnv_phb5_type_info = {
     .instance_size = sizeof(PnvPHB4),
 };
 
+static void pnv_phb4_root_bus_get_prop(Object *obj, Visitor *v,
+                                       const char *name,
+                                       void *opaque, Error **errp)
+{
+    PnvPHB4RootBus *bus = PNV_PHB4_ROOT_BUS(obj);
+    uint64_t value = 0;
+
+    if (strcmp(name, "phb-id") == 0) {
+        value = bus->phb_id;
+    } else {
+        value = bus->chip_id;
+    }
+
+    visit_type_size(v, name, &value, errp);
+}
+
+static void pnv_phb4_root_bus_set_prop(Object *obj, Visitor *v,
+                                       const char *name,
+                                       void *opaque, Error **errp)
+
+{
+    PnvPHB4RootBus *bus = PNV_PHB4_ROOT_BUS(obj);
+    uint64_t value;
+
+    if (!visit_type_size(v, name, &value, errp)) {
+        return;
+    }
+
+    if (strcmp(name, "phb-id") == 0) {
+        bus->phb_id = value;
+    } else {
+        bus->chip_id = value;
+    }
+}
+
 static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+
+    object_class_property_add(klass, "phb-id", "int",
+                              pnv_phb4_root_bus_get_prop,
+                              pnv_phb4_root_bus_set_prop,
+                              NULL, NULL);
+
+    object_class_property_add(klass, "chip-id", "int",
+                              pnv_phb4_root_bus_get_prop,
+                              pnv_phb4_root_bus_set_prop,
+                              NULL, NULL);
 
     /*
      * PHB4 has only a single root complex. Enforce the limit on the
@@ -1738,94 +1776,9 @@ static const TypeInfo pnv_phb4_root_bus_info = {
     .class_init = pnv_phb4_root_bus_class_init,
 };
 
-static void pnv_phb4_root_port_reset(DeviceState *dev)
-{
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    PCIDevice *d = PCI_DEVICE(dev);
-    uint8_t *conf = d->config;
-
-    rpc->parent_reset(dev);
-
-    pci_byte_test_and_set_mask(conf + PCI_IO_BASE,
-                               PCI_IO_RANGE_MASK & 0xff);
-    pci_byte_test_and_clear_mask(conf + PCI_IO_LIMIT,
-                                 PCI_IO_RANGE_MASK & 0xff);
-    pci_set_word(conf + PCI_MEMORY_BASE, 0);
-    pci_set_word(conf + PCI_MEMORY_LIMIT, 0xfff0);
-    pci_set_word(conf + PCI_PREF_MEMORY_BASE, 0x1);
-    pci_set_word(conf + PCI_PREF_MEMORY_LIMIT, 0xfff1);
-    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0x1); /* Hack */
-    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0xffffffff);
-    pci_config_set_interrupt_pin(conf, 0);
-}
-
-static void pnv_phb4_root_port_realize(DeviceState *dev, Error **errp)
-{
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    Error *local_err = NULL;
-
-    rpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-}
-
-static void pnv_phb4_root_port_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
-
-    dc->desc     = "IBM PHB4 PCIE Root Port";
-    dc->user_creatable = false;
-
-    device_class_set_parent_realize(dc, pnv_phb4_root_port_realize,
-                                    &rpc->parent_realize);
-    device_class_set_parent_reset(dc, pnv_phb4_root_port_reset,
-                                  &rpc->parent_reset);
-
-    k->vendor_id = PCI_VENDOR_ID_IBM;
-    k->device_id = PNV_PHB4_DEVICE_ID;
-    k->revision  = 0;
-
-    rpc->exp_offset = 0x48;
-    rpc->aer_offset = 0x100;
-
-    dc->reset = &pnv_phb4_root_port_reset;
-}
-
-static const TypeInfo pnv_phb4_root_port_info = {
-    .name          = TYPE_PNV_PHB4_ROOT_PORT,
-    .parent        = TYPE_PCIE_ROOT_PORT,
-    .instance_size = sizeof(PnvPHB4RootPort),
-    .class_init    = pnv_phb4_root_port_class_init,
-};
-
-static void pnv_phb5_root_port_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    dc->desc     = "IBM PHB5 PCIE Root Port";
-    dc->user_creatable = false;
-
-    k->vendor_id = PCI_VENDOR_ID_IBM;
-    k->device_id = PNV_PHB5_DEVICE_ID;
-}
-
-static const TypeInfo pnv_phb5_root_port_info = {
-    .name          = TYPE_PNV_PHB5_ROOT_PORT,
-    .parent        = TYPE_PNV_PHB4_ROOT_PORT,
-    .instance_size = sizeof(PnvPHB4RootPort),
-    .class_init    = pnv_phb5_root_port_class_init,
-};
-
 static void pnv_phb4_register_types(void)
 {
     type_register_static(&pnv_phb4_root_bus_info);
-    type_register_static(&pnv_phb5_root_port_info);
-    type_register_static(&pnv_phb4_root_port_info);
     type_register_static(&pnv_phb4_type_info);
     type_register_static(&pnv_phb5_type_info);
     type_register_static(&pnv_phb4_iommu_memory_region_info);

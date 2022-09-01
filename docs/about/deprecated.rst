@@ -233,15 +233,6 @@ deprecated; use the new name ``dtb-randomness`` instead. The new name
 better reflects the way this property affects all random data within
 the device tree blob, not just the ``kaslr-seed`` node.
 
-PPC 405 ``taihu`` machine (since 7.0)
-'''''''''''''''''''''''''''''''''''''
-
-The PPC 405 CPU is a system-on-a-chip, so all 405 machines are very similar,
-except for some external periphery. However, the periphery of the ``taihu``
-machine is hardly emulated at all (e.g. neither the LCD nor the USB part had
-been implemented), so there is not much value added by this board. Use the
-``ref405ep`` machine instead.
-
 ``pc-i440fx-1.4`` up to ``pc-i440fx-1.7`` (since 7.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''
 

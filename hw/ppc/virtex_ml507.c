@@ -104,12 +104,9 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
 
     /* interrupt controller */
     uicdev = qdev_new(TYPE_PPC_UIC);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(uicdev), cpu, &error_fatal);
+    object_unref(OBJECT(uicdev));
     uicsbd = SYS_BUS_DEVICE(uicdev);
-
-    object_property_set_link(OBJECT(uicdev), "cpu", OBJECT(cpu),
-                             &error_fatal);
-    sysbus_realize_and_unref(uicsbd, &error_fatal);
-
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_INT,
                        qdev_get_gpio_in(DEVICE(cpu), PPC40x_INPUT_INT));
     sysbus_connect_irq(uicsbd, PPCUIC_OUTPUT_CINT,
