@@ -4783,7 +4783,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #endif
         if (use_new &&
             ((b >= 0x150 && b <= 0x17f) ||
-             (b >= 0x1d8 && b <= 0x1ff && (b & 8)))) {
+             (b >= 0x1d0 && b <= 0x1ff))) {
             disas_insn_new(s, cpu, b + 0x100);
             return s->pc;
         }

@@ -471,6 +471,7 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 }
 HORIZONTAL_FP_SSE(VHADD, hadd)
 HORIZONTAL_FP_SSE(VHSUB, hsub)
+HORIZONTAL_FP_SSE(VADDSUB, addsub)
 
 #define BINARY_INT_GVEC(uname, func, ...)                                          \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
@@ -485,6 +486,7 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 BINARY_INT_GVEC(PADDB,   tcg_gen_gvec_add, MO_8)
 BINARY_INT_GVEC(PADDW,   tcg_gen_gvec_add, MO_16)
 BINARY_INT_GVEC(PADDD,   tcg_gen_gvec_add, MO_32)
+BINARY_INT_GVEC(PADDQ,   tcg_gen_gvec_add, MO_64)
 BINARY_INT_GVEC(PADDSB,  tcg_gen_gvec_ssadd, MO_8)
 BINARY_INT_GVEC(PADDSW,  tcg_gen_gvec_ssadd, MO_16)
 BINARY_INT_GVEC(PADDUSB, tcg_gen_gvec_usadd, MO_8)
@@ -500,6 +502,7 @@ BINARY_INT_GVEC(PMAXSW,  tcg_gen_gvec_smax, MO_16)
 BINARY_INT_GVEC(PMAXUB,  tcg_gen_gvec_umax, MO_8)
 BINARY_INT_GVEC(PMINSW,  tcg_gen_gvec_smin, MO_16)
 BINARY_INT_GVEC(PMINUB,  tcg_gen_gvec_umin, MO_8)
+BINARY_INT_GVEC(PMULLW,  tcg_gen_gvec_mul, MO_16)
 BINARY_INT_GVEC(POR,     tcg_gen_gvec_or, MO_64)
 BINARY_INT_GVEC(PSUBB,   tcg_gen_gvec_sub, MO_8)
 BINARY_INT_GVEC(PSUBW,   tcg_gen_gvec_sub, MO_16)
@@ -557,6 +560,23 @@ BINARY_INT_MMX(PUNPCKHWD,  punpckhwd)
 BINARY_INT_MMX(PUNPCKHDQ,  punpckhdq)
 BINARY_INT_MMX(PACKSSDW,   packssdw)
 
+BINARY_INT_MMX(PAVGB,   pavgb)
+BINARY_INT_MMX(PAVGW,   pavgw)
+BINARY_INT_MMX(PMADDWD, pmaddwd)
+BINARY_INT_MMX(PMULHUW, pmulhuw)
+BINARY_INT_MMX(PMULHW,  pmulhw)
+BINARY_INT_MMX(PMULUDQ, pmuludq)
+BINARY_INT_MMX(PSADBW,  psadbw)
+
+BINARY_INT_MMX(PSLLW_r, psllw)
+BINARY_INT_MMX(PSLLD_r, pslld)
+BINARY_INT_MMX(PSLLQ_r, psllq)
+BINARY_INT_MMX(PSRLW_r, psrlw)
+BINARY_INT_MMX(PSRLD_r, psrld)
+BINARY_INT_MMX(PSRLQ_r, psrlq)
+BINARY_INT_MMX(PSRAW_r, psraw)
+BINARY_INT_MMX(PSRAD_r, psrad)
+
 /* Instructions with no MMX equivalent.  */
 #define BINARY_INT_SSE(uname, lname)                                               \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
@@ -588,6 +608,9 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
                       gen_helper_##lname##_ymm);                                   \
 }
 
+UNARY_INT_SSE(VCVTDQ2PD, cvtdq2pd)
+UNARY_INT_SSE(VCVTPD2DQ, cvtpd2dq)
+UNARY_INT_SSE(VCVTTPD2DQ, cvttpd2dq)
 UNARY_INT_SSE(VCVTDQ2PS, cvtdq2ps)
 UNARY_INT_SSE(VCVTPS2DQ, cvtps2dq)
 UNARY_INT_SSE(VCVTTPS2DQ, cvttps2dq)
@@ -802,6 +825,19 @@ static void gen_INSERTQ_r(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
     gen_helper_insertq_r(cpu_env, OP_PTR0, OP_PTR2);
 }
 
+static void gen_MASKMOV(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    tcg_gen_mov_tl(s->A0, cpu_regs[R_EDI]);
+    gen_extu(s->aflag, s->A0);
+    gen_add_A0_ds_seg(s);
+
+    if (s->prefix & PREFIX_DATA) {
+        gen_helper_maskmov_xmm(cpu_env, OP_PTR1, OP_PTR2, s->A0);
+    } else {
+        gen_helper_maskmov_mmx(cpu_env, OP_PTR1, OP_PTR2, s->A0);
+    }
+}
+
 static void gen_MOVBE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -875,16 +911,27 @@ static void gen_MOVQ(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     int lo_ofs = vector_elem_offset(&decode->op[0], MO_64, 0);
 
     tcg_gen_ld_i64(s->tmp1_i64, cpu_env, decode->op[2].offset);
-    /*
-     * tcg_gen_gvec_dup_i64(MO_64, op0.offset, 8, vec_len, s->tmp1_64) would
-     * seem to work, but it does not on big-endian platforms; the cleared parts
-     * are always at higher addresses, but cross-endian emulation inverts the
-     * byte order so that the cleared parts need to be at *lower* addresses.
-     * Because oprsz is 8, we see this here even for SSE; but more in general,
-     * it disqualifies using oprsz < maxsz to emulate VEX128.
-     */
-    tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
-    tcg_gen_st_i64(s->tmp1_i64, cpu_env, lo_ofs);
+    if (decode->op[0].has_ea) {
+        tcg_gen_qemu_st_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEUQ);
+    } else {
+        /*
+         * tcg_gen_gvec_dup_i64(MO_64, op0.offset, 8, vec_len, s->tmp1_64) would
+         * seem to work, but it does not on big-endian platforms; the cleared parts
+         * are always at higher addresses, but cross-endian emulation inverts the
+         * byte order so that the cleared parts need to be at *lower* addresses.
+         * Because oprsz is 8, we see this here even for SSE; but more in general,
+         * it disqualifies using oprsz < maxsz to emulate VEX128.
+         */
+        tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
+        tcg_gen_st_i64(s->tmp1_i64, cpu_env, lo_ofs);
+    }
+}
+
+static void gen_MOVq_dq(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_enter_mmx(cpu_env);
+    /* Otherwise the same as any other movq.  */
+    return gen_MOVQ(s, env, decode);
 }
 
 static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -936,6 +983,16 @@ static void gen_PEXT(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         tcg_gen_ext32u_tl(s->T0, s->T0);
     }
     gen_helper_pext(s->T0, s->T0, s->T1);
+}
+
+static void gen_PMOVMSKB(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    if (s->prefix & PREFIX_DATA) {
+        gen_helper_pmovmskb_xmm(s->tmp2_i32, cpu_env, OP_PTR2);
+    } else {
+        gen_helper_pmovmskb_mmx(s->tmp2_i32, cpu_env, OP_PTR2);
+    }
+    tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
 }
 
 static void gen_PSHUFW(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
