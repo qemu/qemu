@@ -1327,11 +1327,11 @@ void helper_pf2iw(CPUX86State *env, MMXReg *d, MMXReg *s)
 
 void helper_pfacc(CPUX86State *env, MMXReg *d, MMXReg *s)
 {
-    MMXReg r;
+    float32 r;
 
-    r.MMX_S(0) = float32_add(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
-    r.MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
-    MOVE(*d, r);
+    r = float32_add(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    d->MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    d->MMX_S(0) = r;
 }
 
 void helper_pfadd(CPUX86State *env, MMXReg *d, MMXReg *s)
@@ -1392,20 +1392,20 @@ void helper_pfmul(CPUX86State *env, MMXReg *d, MMXReg *s)
 
 void helper_pfnacc(CPUX86State *env, MMXReg *d, MMXReg *s)
 {
-    MMXReg r;
+    float32 r;
 
-    r.MMX_S(0) = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
-    r.MMX_S(1) = float32_sub(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
-    MOVE(*d, r);
+    r = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    d->MMX_S(1) = float32_sub(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    d->MMX_S(0) = r;
 }
 
 void helper_pfpnacc(CPUX86State *env, MMXReg *d, MMXReg *s)
 {
-    MMXReg r;
+    float32 r;
 
-    r.MMX_S(0) = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
-    r.MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
-    MOVE(*d, r);
+    r = float32_sub(d->MMX_S(0), d->MMX_S(1), &env->mmx_status);
+    d->MMX_S(1) = float32_add(s->MMX_S(0), s->MMX_S(1), &env->mmx_status);
+    d->MMX_S(0) = r;
 }
 
 void helper_pfrcp(CPUX86State *env, MMXReg *d, MMXReg *s)
@@ -1438,11 +1438,11 @@ void helper_pfsubr(CPUX86State *env, MMXReg *d, MMXReg *s)
 
 void helper_pswapd(CPUX86State *env, MMXReg *d, MMXReg *s)
 {
-    MMXReg r;
+    uint32_t r;
 
-    r.MMX_L(0) = s->MMX_L(1);
-    r.MMX_L(1) = s->MMX_L(0);
-    MOVE(*d, r);
+    r = s->MMX_L(0);
+    d->MMX_L(0) = s->MMX_L(1);
+    d->MMX_L(1) = r;
 }
 #endif
 
