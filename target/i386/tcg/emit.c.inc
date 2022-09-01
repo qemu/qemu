@@ -443,6 +443,30 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 UNARY_FP32_SSE(VRSQRT, rsqrt)
 UNARY_FP32_SSE(VRCP, rcp)
 
+/*
+ * 66 = v*pd Vpd, Hpd, Wpd
+ * f2 = v*ps Vps, Hps, Wps
+ */
+static inline void gen_horizontal_fp_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                                         SSEFunc_0_eppp pd_xmm, SSEFunc_0_eppp ps_xmm,
+                                         SSEFunc_0_eppp pd_ymm, SSEFunc_0_eppp ps_ymm)
+{
+    SSEFunc_0_eppp ps, pd, fn;
+    ps = s->vex_l ? ps_ymm : ps_xmm;
+    pd = s->vex_l ? pd_ymm : pd_xmm;
+    fn = s->prefix & PREFIX_DATA ? pd : ps;
+    fn(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+}
+#define HORIZONTAL_FP_SSE(uname, lname)                                            \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_horizontal_fp_sse(s, env, decode,                                          \
+                          gen_helper_##lname##pd_xmm, gen_helper_##lname##ps_xmm,  \
+                          gen_helper_##lname##pd_ymm, gen_helper_##lname##ps_ymm); \
+}
+HORIZONTAL_FP_SSE(VHADD, hadd)
+HORIZONTAL_FP_SSE(VHSUB, hsub)
+
 #define BINARY_INT_GVEC(uname, func, ...)                                          \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
 {                                                                                  \
@@ -716,6 +740,32 @@ static void gen_CRC32(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_helper_crc32(s->T0, s->tmp2_i32, s->T1, tcg_constant_i32(8 << ot));
 }
 
+static void gen_EXTRQ_i(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    TCGv_i32 length = tcg_constant_i32(decode->immediate & 63);
+    TCGv_i32 index = tcg_constant_i32((decode->immediate >> 8) & 63);
+
+    gen_helper_extrq_i(cpu_env, OP_PTR0, index, length);
+}
+
+static void gen_EXTRQ_r(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_extrq_r(cpu_env, OP_PTR0, OP_PTR2);
+}
+
+static void gen_INSERTQ_i(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    TCGv_i32 length = tcg_constant_i32(decode->immediate & 63);
+    TCGv_i32 index = tcg_constant_i32((decode->immediate >> 8) & 63);
+
+    gen_helper_insertq_i(cpu_env, OP_PTR0, OP_PTR1, index, length);
+}
+
+static void gen_INSERTQ_r(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_insertq_r(cpu_env, OP_PTR0, OP_PTR2);
+}
+
 static void gen_MOVBE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -725,6 +775,24 @@ static void gen_MOVBE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         tcg_gen_qemu_st_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
     } else {
         tcg_gen_qemu_ld_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
+    }
+}
+
+static void gen_MOVD_from(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[2].ot;
+
+    switch (ot) {
+    case MO_32:
+#ifdef TARGET_X86_64
+        tcg_gen_ld32u_tl(s->T0, cpu_env, decode->op[2].offset);
+        break;
+    case MO_64:
+#endif
+        tcg_gen_ld_tl(s->T0, cpu_env, decode->op[2].offset);
+        break;
+    default:
+        abort();
     }
 }
 
@@ -763,6 +831,24 @@ static void gen_MOVMSK(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode
     fn = s->prefix & PREFIX_DATA ? pd : ps;
     fn(s->tmp2_i32, cpu_env, OP_PTR2);
     tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
+}
+
+static void gen_MOVQ(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    int vec_len = vector_len(s, decode);
+    int lo_ofs = vector_elem_offset(&decode->op[0], MO_64, 0);
+
+    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, decode->op[2].offset);
+    /*
+     * tcg_gen_gvec_dup_i64(MO_64, op0.offset, 8, vec_len, s->tmp1_64) would
+     * seem to work, but it does not on big-endian platforms; the cleared parts
+     * are always at higher addresses, but cross-endian emulation inverts the
+     * byte order so that the cleared parts need to be at *lower* addresses.
+     * Because oprsz is 8, we see this here even for SSE; but more in general,
+     * it disqualifies using oprsz < maxsz to emulate VEX128.
+     */
+    tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
+    tcg_gen_st_i64(s->tmp1_i64, cpu_env, lo_ofs);
 }
 
 static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
