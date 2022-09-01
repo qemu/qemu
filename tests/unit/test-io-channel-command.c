@@ -41,7 +41,8 @@ static void test_io_channel_command_fifo(bool async)
 
     unlink(TEST_FIFO);
     if (access("/bin/socat", X_OK) < 0) {
-        return; /* Pretend success if socat is not present */
+        g_test_skip("socat is missing");
+        return;
     }
     if (mkfifo(TEST_FIFO, 0600) < 0) {
         abort();
