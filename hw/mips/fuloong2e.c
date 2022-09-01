@@ -196,22 +196,6 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
-                                       I2CBus **i2c_bus)
-{
-    PCIDevice *dev, *via;
-
-    via = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
-                                          TYPE_VT82C686B_ISA);
-    qdev_connect_gpio_out(DEVICE(via), 0, intc);
-
-    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "ide"));
-    pci_ide_create_devs(dev);
-
-    dev = PCI_DEVICE(object_resolve_path_component(OBJECT(via), "pm"));
-    *i2c_bus = I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
-}
-
 /* Network support */
 static void network_init(PCIBus *pci_bus)
 {
@@ -308,8 +292,16 @@ static void mips_fuloong2e_init(MachineState *machine)
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    vt82c686b_southbridge_init(pci_bus, FULOONG2E_VIA_SLOT, env->irq[5],
-                               &smbus);
+    pci_dev = pci_create_simple_multifunction(pci_bus,
+                                              PCI_DEVFN(FULOONG2E_VIA_SLOT, 0),
+                                              true, TYPE_VT82C686B_ISA);
+    qdev_connect_gpio_out(DEVICE(pci_dev), 0, env->irq[5]);
+
+    dev = DEVICE(object_resolve_path_component(OBJECT(pci_dev), "ide"));
+    pci_ide_create_devs(PCI_DEVICE(dev));
+
+    dev = DEVICE(object_resolve_path_component(OBJECT(pci_dev), "pm"));
+    smbus = I2C_BUS(qdev_get_child_bus(dev, "i2c"));
 
     /* GPU */
     if (vga_interface_type != VGA_NONE) {
