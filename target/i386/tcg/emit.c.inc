@@ -318,6 +318,131 @@ static void gen_store_sse(DisasContext *s, X86DecodedInsn *decode, int src_ofs)
     }
 }
 
+/*
+ * 00 = v*ps Vps, Hps, Wpd
+ * 66 = v*pd Vpd, Hpd, Wps
+ * f3 = v*ss Vss, Hss, Wps
+ * f2 = v*sd Vsd, Hsd, Wps
+ */
+static inline void gen_unary_fp_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                              SSEFunc_0_epp pd_xmm, SSEFunc_0_epp ps_xmm,
+                              SSEFunc_0_epp pd_ymm, SSEFunc_0_epp ps_ymm,
+                              SSEFunc_0_eppp sd, SSEFunc_0_eppp ss)
+{
+    if ((s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) != 0) {
+        SSEFunc_0_eppp fn = s->prefix & PREFIX_REPZ ? ss : sd;
+        if (!fn) {
+            gen_illegal_opcode(s);
+            return;
+        }
+        fn(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    } else {
+        SSEFunc_0_epp ps, pd, fn;
+        ps = s->vex_l ? ps_ymm : ps_xmm;
+        pd = s->vex_l ? pd_ymm : pd_xmm;
+        fn = s->prefix & PREFIX_DATA ? pd : ps;
+        if (!fn) {
+            gen_illegal_opcode(s);
+            return;
+        }
+        fn(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+#define UNARY_FP_SSE(uname, lname)                                                 \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_unary_fp_sse(s, env, decode,                                               \
+                     gen_helper_##lname##pd_xmm,                                   \
+                     gen_helper_##lname##ps_xmm,                                   \
+                     gen_helper_##lname##pd_ymm,                                   \
+                     gen_helper_##lname##ps_ymm,                                   \
+                     gen_helper_##lname##sd,                                       \
+                     gen_helper_##lname##ss);                                      \
+}
+UNARY_FP_SSE(VSQRT, sqrt)
+
+/*
+ * 00 = v*ps Vps, Hps, Wpd
+ * 66 = v*pd Vpd, Hpd, Wps
+ * f3 = v*ss Vss, Hss, Wps
+ * f2 = v*sd Vsd, Hsd, Wps
+ */
+static inline void gen_fp_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                              SSEFunc_0_eppp pd_xmm, SSEFunc_0_eppp ps_xmm,
+                              SSEFunc_0_eppp pd_ymm, SSEFunc_0_eppp ps_ymm,
+                              SSEFunc_0_eppp sd, SSEFunc_0_eppp ss)
+{
+    SSEFunc_0_eppp ps, pd, fn;
+    if ((s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) != 0) {
+        fn = s->prefix & PREFIX_REPZ ? ss : sd;
+    } else {
+        ps = s->vex_l ? ps_ymm : ps_xmm;
+        pd = s->vex_l ? pd_ymm : pd_xmm;
+        fn = s->prefix & PREFIX_DATA ? pd : ps;
+    }
+    if (fn) {
+        fn(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    } else {
+        gen_illegal_opcode(s);
+    }
+}
+#define FP_SSE(uname, lname)                                                       \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_fp_sse(s, env, decode,                                                     \
+               gen_helper_##lname##pd_xmm,                                         \
+               gen_helper_##lname##ps_xmm,                                         \
+               gen_helper_##lname##pd_ymm,                                         \
+               gen_helper_##lname##ps_ymm,                                         \
+               gen_helper_##lname##sd,                                             \
+               gen_helper_##lname##ss);                                            \
+}
+FP_SSE(VADD, add)
+FP_SSE(VMUL, mul)
+FP_SSE(VSUB, sub)
+FP_SSE(VMIN, min)
+FP_SSE(VDIV, div)
+FP_SSE(VMAX, max)
+
+/*
+ * 00 = v*ps Vps, Wpd
+ * f3 = v*ss Vss, Wps
+ */
+static inline void gen_unary_fp32_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                                      SSEFunc_0_epp ps_xmm,
+                                      SSEFunc_0_epp ps_ymm,
+                                      SSEFunc_0_eppp ss)
+{
+    if ((s->prefix & (PREFIX_DATA | PREFIX_REPNZ)) != 0) {
+        goto illegal_op;
+    } else if (s->prefix & PREFIX_REPZ) {
+        if (!ss) {
+            goto illegal_op;
+        }
+        ss(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    } else {
+        SSEFunc_0_epp fn = s->vex_l ? ps_ymm : ps_xmm;
+        if (!fn) {
+            goto illegal_op;
+        }
+        fn(cpu_env, OP_PTR0, OP_PTR2);
+    }
+    return;
+
+illegal_op:
+    gen_illegal_opcode(s);
+}
+#define UNARY_FP32_SSE(uname, lname)                                               \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_unary_fp32_sse(s, env, decode,                                             \
+                       gen_helper_##lname##ps_xmm,                                 \
+                       gen_helper_##lname##ps_ymm,                                 \
+                       gen_helper_##lname##ss);                                    \
+}
+UNARY_FP32_SSE(VRSQRT, rsqrt)
+UNARY_FP32_SSE(VRCP, rcp)
+
 #define BINARY_INT_GVEC(uname, func, ...)                                          \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
 {                                                                                  \
@@ -412,6 +537,29 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
 
 BINARY_INT_SSE(PUNPCKLQDQ, punpcklqdq)
 BINARY_INT_SSE(PUNPCKHQDQ, punpckhqdq)
+
+static inline void gen_unary_int_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                                     SSEFunc_0_epp xmm, SSEFunc_0_epp ymm)
+{
+    if (!s->vex_l) {
+        xmm(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        ymm(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+
+#define UNARY_INT_SSE(uname, lname)                                                \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_unary_int_sse(s, env, decode,                                              \
+                      gen_helper_##lname##_xmm,                                    \
+                      gen_helper_##lname##_ymm);                                   \
+}
+
+UNARY_INT_SSE(VCVTDQ2PS, cvtdq2ps)
+UNARY_INT_SSE(VCVTPS2DQ, cvtps2dq)
+UNARY_INT_SSE(VCVTTPS2DQ, cvttps2dq)
+
 
 static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
 {
@@ -607,6 +755,16 @@ static void gen_MOVDQ(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_store_sse(s, decode, decode->op[2].offset);
 }
 
+static void gen_MOVMSK(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    typeof(gen_helper_movmskps_ymm) *ps, *pd, *fn;
+    ps = s->vex_l ? gen_helper_movmskps_ymm : gen_helper_movmskps_xmm;
+    pd = s->vex_l ? gen_helper_movmskpd_ymm : gen_helper_movmskpd_xmm;
+    fn = s->prefix & PREFIX_DATA ? pd : ps;
+    fn(s->tmp2_i32, cpu_env, OP_PTR2);
+    tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
+}
+
 static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
@@ -706,4 +864,12 @@ static void gen_SHRX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
         tcg_gen_ext32u_tl(s->T0, s->T0);
     }
     tcg_gen_shr_tl(s->T0, s->T0, s->T1);
+}
+
+static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_unary_fp_sse(s, env, decode,
+                     gen_helper_cvtpd2ps_xmm, gen_helper_cvtps2pd_xmm,
+                     gen_helper_cvtpd2ps_ymm, gen_helper_cvtps2pd_ymm,
+                     gen_helper_cvtsd2ss, gen_helper_cvtss2sd);
 }
