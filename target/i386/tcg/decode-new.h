@@ -93,6 +93,25 @@ typedef enum X86OpSize {
     X86_SIZE_f64,
 } X86OpSize;
 
+typedef enum X86CPUIDFeature {
+    X86_FEAT_None,
+    X86_FEAT_ADX,
+    X86_FEAT_AES,
+    X86_FEAT_AVX,
+    X86_FEAT_AVX2,
+    X86_FEAT_BMI1,
+    X86_FEAT_BMI2,
+    X86_FEAT_MOVBE,
+    X86_FEAT_PCLMULQDQ,
+    X86_FEAT_SSE,
+    X86_FEAT_SSE2,
+    X86_FEAT_SSE3,
+    X86_FEAT_SSSE3,
+    X86_FEAT_SSE41,
+    X86_FEAT_SSE42,
+    X86_FEAT_SSE4A,
+} X86CPUIDFeature;
+
 /* Execution flags */
 
 typedef enum X86OpUnit {
@@ -160,6 +179,7 @@ struct X86OpEntry {
     X86OpSize    s3:8;
 
     X86InsnSpecial special:8;
+    X86CPUIDFeature cpuid:8;
     bool         is_decode:1;
 };
 

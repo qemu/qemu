@@ -85,6 +85,7 @@
 #define X86_OP_ENTRY0(op, ...)                                    \
     X86_OP_ENTRY3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
+#define cpuid(feat) .cpuid = X86_FEAT_##feat,
 #define i64 .special = X86_SPECIAL_i64,
 #define o64 .special = X86_SPECIAL_o64,
 #define xchg .special = X86_SPECIAL_Locked,
@@ -513,6 +514,56 @@ static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_
     return true;
 }
 
+static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
+{
+    switch (cpuid) {
+    case X86_FEAT_None:
+        return true;
+    case X86_FEAT_MOVBE:
+        return (s->cpuid_ext_features & CPUID_EXT_MOVBE);
+    case X86_FEAT_PCLMULQDQ:
+        return (s->cpuid_ext_features & CPUID_EXT_PCLMULQDQ);
+    case X86_FEAT_SSE:
+        return (s->cpuid_ext_features & CPUID_SSE);
+    case X86_FEAT_SSE2:
+        return (s->cpuid_ext_features & CPUID_SSE2);
+    case X86_FEAT_SSE3:
+        return (s->cpuid_ext_features & CPUID_EXT_SSE3);
+    case X86_FEAT_SSSE3:
+        return (s->cpuid_ext_features & CPUID_EXT_SSSE3);
+    case X86_FEAT_SSE41:
+        return (s->cpuid_ext_features & CPUID_EXT_SSE41);
+    case X86_FEAT_SSE42:
+        return (s->cpuid_ext_features & CPUID_EXT_SSE42);
+    case X86_FEAT_AES:
+        if (!(s->cpuid_ext_features & CPUID_EXT_AES)) {
+            return false;
+        } else if (!(s->prefix & PREFIX_VEX)) {
+            return true;
+        } else if (!(s->cpuid_ext_features & CPUID_EXT_AVX)) {
+            return false;
+        } else {
+            return !s->vex_l || (s->cpuid_7_0_ecx_features & CPUID_7_0_ECX_VAES);
+        }
+
+    case X86_FEAT_AVX:
+        return (s->cpuid_ext_features & CPUID_EXT_AVX);
+
+    case X86_FEAT_SSE4A:
+        return (s->cpuid_ext3_features & CPUID_EXT3_SSE4A);
+
+    case X86_FEAT_ADX:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_ADX);
+    case X86_FEAT_BMI1:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI1);
+    case X86_FEAT_BMI2:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_BMI2);
+    case X86_FEAT_AVX2:
+        return (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_AVX2);
+    }
+    g_assert_not_reached();
+}
+
 static void decode_temp_free(X86DecodedOp *op)
 {
     if (op->v_ptr) {
@@ -699,6 +750,10 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     }
     if (!decode.e.gen) {
         goto unknown_op;
+    }
+
+    if (!has_cpuid_feature(s, decode.e.cpuid)) {
+        goto illegal_op;
     }
 
     switch (decode.e.special) {
