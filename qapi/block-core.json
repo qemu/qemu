@@ -5252,7 +5252,7 @@
 #
 # <- { "event": "BLOCK_JOB_READY",
 #      "data": { "device": "drive0", "type": "mirror", "speed": 0,
-#                "len": 2097152, "offset": 2097152 }
+#                "len": 2097152, "offset": 2097152 },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 #
 ##
