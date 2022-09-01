@@ -1416,7 +1416,7 @@
 #
 # Example:
 #
-# <- { "event": "MEM_UNPLUG_ERROR"
+# <- { "event": "MEM_UNPLUG_ERROR",
 #      "data": { "device": "dimm1",
 #                "msg": "acpi: device unplug for unsupported device"
 #      },
