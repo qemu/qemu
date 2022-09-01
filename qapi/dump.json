@@ -195,7 +195,7 @@
 #
 # -> { "execute": "query-dump-guest-memory-capability" }
 # <- { "return": { "formats":
-#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] } }
 #
 ##
 { 'command': 'query-dump-guest-memory-capability',
