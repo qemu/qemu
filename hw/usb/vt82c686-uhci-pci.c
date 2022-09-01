@@ -31,7 +31,7 @@ static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
 
 static UHCIInfo uhci_info[] = {
     {
-        .name      = "vt82c686b-usb-uhci",
+        .name      = TYPE_VT82C686B_USB_UHCI,
         .vendor_id = PCI_VENDOR_ID_VIA,
         .device_id = PCI_DEVICE_ID_VIA_UHCI,
         .revision  = 0x01,
@@ -45,7 +45,7 @@ static UHCIInfo uhci_info[] = {
 
 static const TypeInfo vt82c686b_usb_uhci_type_info = {
     .parent         = TYPE_UHCI,
-    .name           = "vt82c686b-usb-uhci",
+    .name           = TYPE_VT82C686B_USB_UHCI,
     .class_init     = uhci_data_class_init,
     .class_data     = uhci_info,
 };
