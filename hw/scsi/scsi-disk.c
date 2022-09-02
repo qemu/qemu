@@ -3030,14 +3030,15 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 }
 
 static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,
-                                  uint8_t *buf, void *hba_private)
+                                  uint8_t *buf, size_t buf_len,
+                                  void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
 
     if (scsi_block_is_passthrough(s, buf)) {
-        return scsi_bus_parse_cdb(&s->qdev, cmd, buf, hba_private);
+        return scsi_bus_parse_cdb(&s->qdev, cmd, buf, buf_len, hba_private);
     } else {
-        return scsi_req_parse_cdb(&s->qdev, cmd, buf);
+        return scsi_req_parse_cdb(&s->qdev, cmd, buf, buf_len);
     }
 }
 

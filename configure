@@ -1468,15 +1468,6 @@ if test "$tcg" = "enabled"; then
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 fi
 
-feature_not_found() {
-  feature=$1
-  remedy=$2
-
-  error_exit "User requested feature $feature" \
-      "configure was not able to find it." \
-      "$remedy"
-}
-
 # ---
 # big/little endian test
 cat > $TMPC << EOF
@@ -1639,7 +1630,7 @@ else
     ;;
   ucontext)
     if test "$ucontext_works" != "yes"; then
-      feature_not_found "ucontext"
+      error_exit "'ucontext' backend requested but makecontext not available"
     fi
     ;;
   sigaltstack)

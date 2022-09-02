@@ -622,7 +622,8 @@ static void virtio_scsi_command_complete(SCSIRequest *r, size_t resid)
 }
 
 static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
-                                 uint8_t *buf, void *hba_private)
+                                 uint8_t *buf, size_t buf_len,
+                                 void *hba_private)
 {
     VirtIOSCSIReq *req = hba_private;
 
@@ -696,7 +697,7 @@ static int virtio_scsi_handle_cmd_req_prepare(VirtIOSCSI *s, VirtIOSCSIReq *req)
     virtio_scsi_ctx_check(s, d);
     req->sreq = scsi_req_new(d, req->req.cmd.tag,
                              virtio_scsi_get_lun(req->req.cmd.lun),
-                             req->req.cmd.cdb, req);
+                             req->req.cmd.cdb, vs->cdb_size, req);
 
     if (req->sreq->cmd.mode != SCSI_XFER_NONE
         && (req->sreq->cmd.mode != req->mode ||

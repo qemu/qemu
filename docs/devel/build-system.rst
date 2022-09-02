@@ -99,11 +99,6 @@ developers in checking for system features:
    Write a minimal C program main() function to the temporary file
    indicated by $TMPC
 
-``feature_not_found $NAME $REMEDY``
-   Print a message to stderr that the feature $NAME was not available
-   on the system, suggesting the user try $REMEDY to address the
-   problem.
-
 ``error_exit $MESSAGE $MORE...``
    Print $MESSAGE to stderr, followed by $MORE... and then exit from the
    configure script with non-zero status

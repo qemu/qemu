@@ -1695,6 +1695,30 @@ static void kvm_init_xsave(CPUX86State *env)
            env->xsave_buf_len);
 }
 
+static void kvm_init_nested_state(CPUX86State *env)
+{
+    struct kvm_vmx_nested_state_hdr *vmx_hdr;
+    uint32_t size;
+
+    if (!env->nested_state) {
+        return;
+    }
+
+    size = env->nested_state->size;
+
+    memset(env->nested_state, 0, size);
+    env->nested_state->size = size;
+
+    if (cpu_has_vmx(env)) {
+        env->nested_state->format = KVM_STATE_NESTED_FORMAT_VMX;
+        vmx_hdr = &env->nested_state->hdr.vmx;
+        vmx_hdr->vmxon_pa = -1ull;
+        vmx_hdr->vmcs12_pa = -1ull;
+    } else if (cpu_has_svm(env)) {
+        env->nested_state->format = KVM_STATE_NESTED_FORMAT_SVM;
+    }
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     struct {
@@ -2122,19 +2146,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
         assert(max_nested_state_len >= offsetof(struct kvm_nested_state, data));
 
         if (cpu_has_vmx(env) || cpu_has_svm(env)) {
-            struct kvm_vmx_nested_state_hdr *vmx_hdr;
-
             env->nested_state = g_malloc0(max_nested_state_len);
             env->nested_state->size = max_nested_state_len;
 
-            if (cpu_has_vmx(env)) {
-                env->nested_state->format = KVM_STATE_NESTED_FORMAT_VMX;
-                vmx_hdr = &env->nested_state->hdr.vmx;
-                vmx_hdr->vmxon_pa = -1ull;
-                vmx_hdr->vmcs12_pa = -1ull;
-            } else {
-                env->nested_state->format = KVM_STATE_NESTED_FORMAT_SVM;
-            }
+            kvm_init_nested_state(env);
         }
     }
 
@@ -2198,6 +2213,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
     }
     /* enabled by default */
     env->poll_control_msr = 1;
+
+    kvm_init_nested_state(env);
 
     sev_es_set_reset_vector(CPU(cpu));
 }
@@ -4512,6 +4529,18 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
+    /*
+     * Put MSR_IA32_FEATURE_CONTROL first, this ensures the VM gets out of VMX
+     * root operation upon vCPU reset. kvm_put_msr_feature_control() should also
+     * preceed kvm_put_nested_state() when 'real' nested state is set.
+     */
+    if (level >= KVM_PUT_RESET_STATE) {
+        ret = kvm_put_msr_feature_control(x86_cpu);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     /* must be before kvm_put_nested_state so that EFER.SVME is set */
     ret = has_sregs2 ? kvm_put_sregs2(x86_cpu) : kvm_put_sregs(x86_cpu);
     if (ret < 0) {
@@ -4520,11 +4549,6 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
 
     if (level >= KVM_PUT_RESET_STATE) {
         ret = kvm_put_nested_state(x86_cpu);
-        if (ret < 0) {
-            return ret;
-        }
-
-        ret = kvm_put_msr_feature_control(x86_cpu);
         if (ret < 0) {
             return ret;
         }

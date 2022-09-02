@@ -791,9 +791,10 @@ static Property scsi_generic_properties[] = {
 };
 
 static int scsi_generic_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
-                                  uint8_t *buf, void *hba_private)
+                                  uint8_t *buf, size_t buf_len,
+                                  void *hba_private)
 {
-    return scsi_bus_parse_cdb(dev, cmd, buf, hba_private);
+    return scsi_bus_parse_cdb(dev, cmd, buf, buf_len, hba_private);
 }
 
 static void scsi_generic_class_initfn(ObjectClass *klass, void *data)

@@ -324,7 +324,8 @@ static int mptsas_process_scsi_io_request(MPTSASState *s,
     }
 
     req->sreq = scsi_req_new(sdev, scsi_io->MsgContext,
-                            scsi_io->LUN[1], scsi_io->CDB, req);
+                             scsi_io->LUN[1], scsi_io->CDB,
+                             scsi_io->CDBLength, req);
 
     if (req->sreq->cmd.xfer > scsi_io->DataLength) {
         goto overrun;

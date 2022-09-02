@@ -292,7 +292,7 @@ static void do_command_phase(ESPState *s)
     esp_fifo_pop_buf(&s->cmdfifo, buf, cmdlen);
 
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, s->lun);
-    s->current_req = scsi_req_new(current_lun, 0, s->lun, buf, s);
+    s->current_req = scsi_req_new(current_lun, 0, s->lun, buf, cmdlen, s);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     fifo8_reset(&s->cmdfifo);
@@ -939,6 +939,11 @@ static void esp_soft_reset(ESPState *s)
     esp_hard_reset(s);
 }
 
+static void esp_bus_reset(ESPState *s)
+{
+    qbus_reset_all(BUS(&s->bus));
+}
+
 static void parent_esp_reset(ESPState *s, int irq, int level)
 {
     if (level) {
@@ -1067,6 +1072,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             break;
         case CMD_BUSRESET:
             trace_esp_mem_writeb_cmd_bus_reset(val);
+            esp_bus_reset(s);
             if (!(s->wregs[ESP_CFG1] & CFG1_RESREPT)) {
                 s->rregs[ESP_RINTR] |= INTR_RST;
                 esp_raise_irq(s);
