@@ -2868,29 +2868,29 @@ static inline void gen_ldo_env_A0(DisasContext *s, int offset, bool align)
     int mem_index = s->mem_index;
     tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0, mem_index,
                         MO_LEUQ | (align ? MO_ALIGN_16 : 0));
-    tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(0)));
+    tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
     tcg_gen_addi_tl(s->tmp0, s->A0, 8);
     tcg_gen_qemu_ld_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
-    tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(1)));
+    tcg_gen_st_i64(s->tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
 }
 
 static inline void gen_sto_env_A0(DisasContext *s, int offset, bool align)
 {
     int mem_index = s->mem_index;
-    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(0)));
+    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
     tcg_gen_qemu_st_i64(s->tmp1_i64, s->A0, mem_index,
                         MO_LEUQ | (align ? MO_ALIGN_16 : 0));
     tcg_gen_addi_tl(s->tmp0, s->A0, 8);
-    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, offset + offsetof(ZMMReg, ZMM_Q(1)));
+    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
     tcg_gen_qemu_st_i64(s->tmp1_i64, s->tmp0, mem_index, MO_LEUQ);
 }
 
 static inline void gen_op_movo(DisasContext *s, int d_offset, int s_offset)
 {
-    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(0)));
-    tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(0)));
-    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, ZMM_Q(1)));
-    tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, ZMM_Q(1)));
+    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_ld_i64(s->tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_st_i64(s->tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(1)));
 }
 
 static inline void gen_op_movq(DisasContext *s, int d_offset, int s_offset)
@@ -2912,6 +2912,7 @@ static inline void gen_op_movq_env_0(DisasContext *s, int d_offset)
 }
 
 #define ZMM_OFFSET(reg) offsetof(CPUX86State, xmm_regs[reg])
+#define XMM_OFFSET(reg) offsetof(CPUX86State, xmm_regs[reg].ZMM_X(0))
 
 typedef void (*SSEFunc_i_ep)(TCGv_i32 val, TCGv_ptr env, TCGv_ptr reg);
 typedef void (*SSEFunc_l_ep)(TCGv_i64 val, TCGv_ptr env, TCGv_ptr reg);
@@ -3424,13 +3425,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
             if (mod == 3)
                 goto illegal_op;
             gen_lea_modrm(env, s, modrm);
-            gen_sto_env_A0(s, ZMM_OFFSET(reg), true);
+            gen_sto_env_A0(s, XMM_OFFSET(reg), true);
             break;
         case 0x3f0: /* lddqu */
             if (mod == 3)
                 goto illegal_op;
             gen_lea_modrm(env, s, modrm);
-            gen_ldo_env_A0(s, ZMM_OFFSET(reg), false);
+            gen_ldo_env_A0(s, XMM_OFFSET(reg), true);
             break;
         case 0x22b: /* movntss */
         case 0x32b: /* movntsd */
@@ -3499,12 +3500,12 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         case 0x26f: /* movdqu xmm, ea */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, ZMM_OFFSET(reg),
+                gen_ldo_env_A0(s, XMM_OFFSET(reg),
                                /* movaps, movapd, movdqa */
                                b == 0x028 || b == 0x128 || b == 0x16f);
             } else {
                 rm = (modrm & 7) | REX_B(s);
-                gen_op_movo(s, ZMM_OFFSET(reg), ZMM_OFFSET(rm));
+                gen_op_movo(s, XMM_OFFSET(reg), XMM_OFFSET(rm));
             }
             break;
         case 0x210: /* movss xmm, ea */
@@ -3560,7 +3561,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         case 0x212: /* movsldup */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, ZMM_OFFSET(reg), true);
+                gen_ldo_env_A0(s, XMM_OFFSET(reg), true);
             } else {
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(0)),
@@ -3602,7 +3603,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         case 0x216: /* movshdup */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, ZMM_OFFSET(reg), true);
+                gen_ldo_env_A0(s, XMM_OFFSET(reg), true);
             } else {
                 rm = (modrm & 7) | REX_B(s);
                 gen_op_movl(s, offsetof(CPUX86State, xmm_regs[reg].ZMM_L(1)),
@@ -3706,12 +3707,12 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         case 0x27f: /* movdqu ea, xmm */
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                gen_sto_env_A0(s, ZMM_OFFSET(reg),
+                gen_sto_env_A0(s, XMM_OFFSET(reg),
                                /* movaps, movapd, movdqa */
                                b == 0x029 || b == 0x129 || b == 0x17f);
             } else {
                 rm = (modrm & 7) | REX_B(s);
-                gen_op_movo(s, ZMM_OFFSET(rm), ZMM_OFFSET(reg));
+                gen_op_movo(s, XMM_OFFSET(rm), XMM_OFFSET(reg));
             }
             break;
         case 0x211: /* movss ea, xmm */
@@ -3863,7 +3864,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
             gen_helper_enter_mmx(cpu_env);
             if (mod != 3) {
                 gen_lea_modrm(env, s, modrm);
-                op2_offset = offsetof(CPUX86State,xmm_t0);
+                op2_offset = offsetof(CPUX86State, xmm_t0.ZMM_X(0));
                 /* FIXME: should be 64-bit access if b1 == 0.  */
                 gen_ldo_env_A0(s, op2_offset, !!b1);
             } else {
@@ -4055,10 +4056,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
                                         offsetof(ZMMReg, ZMM_W(0)));
                         break;
                     case 0x2a:            /* movntdqa */
-                        gen_ldo_env_A0(s, op1_offset, true);
+                        gen_ldo_env_A0(s, op1_offset + offsetof(ZMMReg, ZMM_X(0)), true);
                         return;
                     default:
-                        gen_ldo_env_A0(s, op2_offset, true);
+                        gen_ldo_env_A0(s, op2_offset + offsetof(ZMMReg, ZMM_X(0)), true);
                     }
                 }
                 if (!op6->fn[b1].op1) {
@@ -4640,7 +4641,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
             } else {
                 op2_offset = offsetof(CPUX86State, xmm_t0);
                 gen_lea_modrm(env, s, modrm);
-                gen_ldo_env_A0(s, op2_offset, true);
+                gen_ldo_env_A0(s, op2_offset + offsetof(ZMMReg, ZMM_X(0)), true);
             }
 
             val = x86_ldub_code(env, s);
@@ -4747,7 +4748,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
                     break;
                 default:
                     /* 128 bit access */
-                    gen_ldo_env_A0(s, op2_offset, true);
+                    gen_ldo_env_A0(s, offsetof(CPUX86State, xmm_t0.ZMM_X(0)), true);
                     break;
                 }
             } else {
