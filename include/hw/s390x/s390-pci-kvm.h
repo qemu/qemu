@@ -12,12 +12,26 @@
 #ifndef HW_S390_PCI_KVM_H
 #define HW_S390_PCI_KVM_H
 
+#include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/s390-pci-inst.h"
+
 #ifdef CONFIG_KVM
 bool s390_pci_kvm_interp_allowed(void);
+int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist);
+int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev);
 #else
 static inline bool s390_pci_kvm_interp_allowed(void)
 {
     return false;
+}
+static inline int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib,
+                                          bool assist)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_kvm_aif_disable(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
 }
 #endif
 
