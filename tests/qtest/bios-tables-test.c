@@ -1671,7 +1671,7 @@ static void test_oem_fields(test_data *data)
     }
 }
 
-static void test_acpi_oem_fields_pc(void)
+static void test_acpi_piix4_oem_fields(void)
 {
     test_data data;
     char *args;
@@ -1691,7 +1691,7 @@ static void test_acpi_oem_fields_pc(void)
     g_free(args);
 }
 
-static void test_acpi_oem_fields_q35(void)
+static void test_acpi_q35_oem_fields(void)
 {
     test_data data;
     char *args;
@@ -1711,7 +1711,7 @@ static void test_acpi_oem_fields_q35(void)
     g_free(args);
 }
 
-static void test_acpi_oem_fields_microvm(void)
+static void test_acpi_microvm_oem_fields(void)
 {
     test_data data;
     char *args;
@@ -1728,7 +1728,7 @@ static void test_acpi_oem_fields_microvm(void)
     g_free(args);
 }
 
-static void test_acpi_oem_fields_virt(void)
+static void test_acpi_virt_oem_fields(void)
 {
     test_data data = {
         .machine = "virt",
@@ -1766,13 +1766,13 @@ int main(int argc, char *argv[])
         if (ret) {
             return ret;
         }
-        qtest_add_func("acpi/q35/oem-fields", test_acpi_oem_fields_q35);
+        qtest_add_func("acpi/q35/oem-fields", test_acpi_q35_oem_fields);
         if (tpm_model_is_available("-machine q35", "tpm-tis")) {
             qtest_add_func("acpi/q35/tpm2-tis", test_acpi_q35_tcg_tpm2_tis);
             qtest_add_func("acpi/q35/tpm12-tis", test_acpi_q35_tcg_tpm12_tis);
         }
         qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
-        qtest_add_func("acpi/oem-fields", test_acpi_oem_fields_pc);
+        qtest_add_func("acpi/piix4/oem-fields", test_acpi_piix4_oem_fields);
         qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
         qtest_add_func("acpi/piix4/pci-hotplug/no_root_hotplug",
                        test_acpi_piix4_no_root_hotplug);
@@ -1819,7 +1819,7 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
         qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
         qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2_tcg);
-        qtest_add_func("acpi/microvm/oem-fields", test_acpi_oem_fields_microvm);
+        qtest_add_func("acpi/microvm/oem-fields", test_acpi_microvm_oem_fields);
         if (has_tcg) {
             qtest_add_func("acpi/q35/ivrs", test_acpi_q35_tcg_ivrs);
             if (strcmp(arch, "x86_64") == 0) {
@@ -1844,7 +1844,7 @@ int main(int argc, char *argv[])
             qtest_add_func("acpi/virt/numamem", test_acpi_virt_tcg_numamem);
             qtest_add_func("acpi/virt/memhp", test_acpi_virt_tcg_memhp);
             qtest_add_func("acpi/virt/pxb", test_acpi_virt_tcg_pxb);
-            qtest_add_func("acpi/virt/oem-fields", test_acpi_oem_fields_virt);
+            qtest_add_func("acpi/virt/oem-fields", test_acpi_virt_oem_fields);
             qtest_add_func("acpi/virt/viot", test_acpi_virt_viot);
         }
     }
