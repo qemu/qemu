@@ -21,7 +21,7 @@ static void test_lsi_do_msgout_cancel_req(void)
         return;
     }
 
-    s = qtest_init("-M q35 -m 4G -display none -nodefaults "
+    s = qtest_init("-M q35 -m 2G -display none -nodefaults "
                    "-device lsi53c895a,id=scsi "
                    "-device scsi-hd,drive=disk0 "
                    "-drive file=null-co://,id=disk0,if=none,format=raw");
