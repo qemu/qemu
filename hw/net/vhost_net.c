@@ -244,6 +244,13 @@ static int vhost_net_start_one(struct vhost_net *net,
     struct vhost_vring_file file = { };
     int r;
 
+    if (net->nc->info->start) {
+        r = net->nc->info->start(net->nc);
+        if (r < 0) {
+            return r;
+        }
+    }
+
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {
         goto fail_notifiers;
@@ -272,6 +279,13 @@ static int vhost_net_start_one(struct vhost_net *net,
                 r = -errno;
                 goto fail;
             }
+        }
+    }
+
+    if (net->nc->info->load) {
+        r = net->nc->info->load(net->nc);
+        if (r < 0) {
+            goto fail;
         }
     }
     return 0;
@@ -313,6 +327,9 @@ static void vhost_net_stop_one(struct vhost_net *net,
         net->nc->info->poll(net->nc, true);
     }
     vhost_dev_stop(&net->dev, dev);
+    if (net->nc->info->stop) {
+        net->nc->info->stop(net->nc);
+    }
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
 

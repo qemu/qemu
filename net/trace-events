@@ -9,7 +9,7 @@ vhost_user_event(const char *chr, int event) "chr: %s got event: %d"
 
 # colo.c
 colo_proxy_main(const char *chr) ": %s"
-colo_proxy_main_vnet_info(const char *sta, int size) ": %s = %d"
+colo_proxy_main_vnet_info(const char *sta, uint32_t vnet_hdr, int size) ": %s pkt->vnet_hdr_len = %u, pkt->size = %d"
 
 # colo-compare.c
 colo_compare_main(const char *chr) ": %s"
