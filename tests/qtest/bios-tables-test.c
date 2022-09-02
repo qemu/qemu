@@ -725,7 +725,7 @@ static char *test_acpi_create_args(test_data *data, const char *params,
         }
     } else {
         args = g_strdup_printf("-machine %s %s -accel tcg "
-            "-net none -display none %s "
+            "-net none %s "
             "-drive id=hd0,if=none,file=%s,format=raw "
             "-device %s,drive=hd0 ",
              data->machine, data->tcg_only ? "" : "-accel kvm",
