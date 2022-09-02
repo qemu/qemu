@@ -1766,82 +1766,93 @@ int main(int argc, char *argv[])
         if (ret) {
             return ret;
         }
-        qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
-        qtest_add_func("acpi/piix4/oem-fields", test_acpi_piix4_oem_fields);
-        qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
-        qtest_add_func("acpi/piix4/pci-hotplug/no_root_hotplug",
-                       test_acpi_piix4_no_root_hotplug);
-        qtest_add_func("acpi/piix4/pci-hotplug/no_bridge_hotplug",
-                       test_acpi_piix4_no_bridge_hotplug);
-        qtest_add_func("acpi/piix4/pci-hotplug/off",
-                       test_acpi_piix4_no_acpi_pci_hotplug);
-        qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
-        qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_tcg_cphp);
-        qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
-        qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
-        qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_tcg_nosmm);
-        qtest_add_func("acpi/piix4/smm-compat",
-                       test_acpi_piix4_tcg_smm_compat);
-        qtest_add_func("acpi/piix4/smm-compat-nosmm",
-                       test_acpi_piix4_tcg_smm_compat_nosmm);
-        qtest_add_func("acpi/piix4/nohpet", test_acpi_piix4_tcg_nohpet);
-        qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
-        qtest_add_func("acpi/piix4/acpihmat", test_acpi_piix4_tcg_acpi_hmat);
+        if (qtest_has_machine(MACHINE_PC)) {
+            qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
+            qtest_add_func("acpi/piix4/oem-fields", test_acpi_piix4_oem_fields);
+            qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
+            qtest_add_func("acpi/piix4/pci-hotplug/no_root_hotplug",
+                           test_acpi_piix4_no_root_hotplug);
+            qtest_add_func("acpi/piix4/pci-hotplug/no_bridge_hotplug",
+                           test_acpi_piix4_no_bridge_hotplug);
+            qtest_add_func("acpi/piix4/pci-hotplug/off",
+                           test_acpi_piix4_no_acpi_pci_hotplug);
+            qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
+            qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_tcg_cphp);
+            qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
+            qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
+            qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_tcg_nosmm);
+            qtest_add_func("acpi/piix4/smm-compat",
+                           test_acpi_piix4_tcg_smm_compat);
+            qtest_add_func("acpi/piix4/smm-compat-nosmm",
+                           test_acpi_piix4_tcg_smm_compat_nosmm);
+            qtest_add_func("acpi/piix4/nohpet", test_acpi_piix4_tcg_nohpet);
+            qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
+            qtest_add_func("acpi/piix4/acpihmat",
+                           test_acpi_piix4_tcg_acpi_hmat);
 #ifdef CONFIG_POSIX
-        qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_acpi_erst);
+            qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_acpi_erst);
 #endif
-
-        qtest_add_func("acpi/q35", test_acpi_q35_tcg);
-        qtest_add_func("acpi/q35/oem-fields", test_acpi_q35_oem_fields);
-        if (tpm_model_is_available("-machine q35", "tpm-tis")) {
-            qtest_add_func("acpi/q35/tpm2-tis", test_acpi_q35_tcg_tpm2_tis);
-            qtest_add_func("acpi/q35/tpm12-tis", test_acpi_q35_tcg_tpm12_tis);
         }
-        qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
-        qtest_add_func("acpi/q35/multif-bridge", test_acpi_q35_multif_bridge);
-        qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
-        qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
-        qtest_add_func("acpi/q35/smbus/ipmi", test_acpi_q35_tcg_smbus_ipmi);
-        qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
-        qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
-        qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
-        qtest_add_func("acpi/q35/nosmm", test_acpi_q35_tcg_nosmm);
-        qtest_add_func("acpi/q35/smm-compat",
-                       test_acpi_q35_tcg_smm_compat);
-        qtest_add_func("acpi/q35/smm-compat-nosmm",
-                       test_acpi_q35_tcg_smm_compat_nosmm);
-        qtest_add_func("acpi/q35/nohpet", test_acpi_q35_tcg_nohpet);
-        qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
-        qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_tcg_acpi_hmat);
+        if (qtest_has_machine(MACHINE_Q35)) {
+            qtest_add_func("acpi/q35", test_acpi_q35_tcg);
+            qtest_add_func("acpi/q35/oem-fields", test_acpi_q35_oem_fields);
+            if (tpm_model_is_available("-machine q35", "tpm-tis")) {
+                qtest_add_func("acpi/q35/tpm2-tis", test_acpi_q35_tcg_tpm2_tis);
+                qtest_add_func("acpi/q35/tpm12-tis",
+                               test_acpi_q35_tcg_tpm12_tis);
+            }
+            qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+            qtest_add_func("acpi/q35/multif-bridge",
+                           test_acpi_q35_multif_bridge);
+            qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
+            qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
+            qtest_add_func("acpi/q35/smbus/ipmi", test_acpi_q35_tcg_smbus_ipmi);
+            qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
+            qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
+            qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
+            qtest_add_func("acpi/q35/nosmm", test_acpi_q35_tcg_nosmm);
+            qtest_add_func("acpi/q35/smm-compat",
+                           test_acpi_q35_tcg_smm_compat);
+            qtest_add_func("acpi/q35/smm-compat-nosmm",
+                           test_acpi_q35_tcg_smm_compat_nosmm);
+            qtest_add_func("acpi/q35/nohpet", test_acpi_q35_tcg_nohpet);
+            qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
+            qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_tcg_acpi_hmat);
 #ifdef CONFIG_POSIX
-        qtest_add_func("acpi/q35/acpierst", test_acpi_q35_acpi_erst);
+            qtest_add_func("acpi/q35/acpierst", test_acpi_q35_acpi_erst);
 #endif
-        qtest_add_func("acpi/q35/applesmc", test_acpi_q35_applesmc);
-        qtest_add_func("acpi/q35/pvpanic-isa", test_acpi_q35_pvpanic_isa);
-        if (has_tcg) {
-            qtest_add_func("acpi/q35/ivrs", test_acpi_q35_tcg_ivrs);
+            qtest_add_func("acpi/q35/applesmc", test_acpi_q35_applesmc);
+            qtest_add_func("acpi/q35/pvpanic-isa", test_acpi_q35_pvpanic_isa);
+            if (has_tcg) {
+                qtest_add_func("acpi/q35/ivrs", test_acpi_q35_tcg_ivrs);
+            }
+            if (has_kvm) {
+                qtest_add_func("acpi/q35/kvm/xapic", test_acpi_q35_kvm_xapic);
+                qtest_add_func("acpi/q35/kvm/dmar", test_acpi_q35_kvm_dmar);
+            }
+            qtest_add_func("acpi/q35/viot", test_acpi_q35_viot);
+#ifdef CONFIG_POSIX
+            qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
+#endif
+            qtest_add_func("acpi/q35/slic", test_acpi_q35_slic);
         }
-        if (has_kvm) {
-            qtest_add_func("acpi/q35/kvm/xapic", test_acpi_q35_kvm_xapic);
-            qtest_add_func("acpi/q35/kvm/dmar", test_acpi_q35_kvm_dmar);
-        }
-        qtest_add_func("acpi/q35/viot", test_acpi_q35_viot);
+        if (qtest_has_machine("microvm")) {
+            qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
+            qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
+            qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
+            qtest_add_func("acpi/microvm/ioapic2",
+                           test_acpi_microvm_ioapic2_tcg);
+            qtest_add_func("acpi/microvm/oem-fields",
+                           test_acpi_microvm_oem_fields);
+            if (has_tcg) {
+                if (strcmp(arch, "x86_64") == 0) {
+                    qtest_add_func("acpi/microvm/pcie",
+                                   test_acpi_microvm_pcie_tcg);
 #ifdef CONFIG_POSIX
-        qtest_add_func("acpi/q35/cxl", test_acpi_q35_cxl);
+                    qtest_add_func("acpi/microvm/acpierst",
+                                   test_acpi_microvm_acpi_erst);
 #endif
-        qtest_add_func("acpi/q35/slic", test_acpi_q35_slic);
-
-        qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
-        qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
-        qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
-        qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2_tcg);
-        qtest_add_func("acpi/microvm/oem-fields", test_acpi_microvm_oem_fields);
-        if (has_tcg) {
-            if (strcmp(arch, "x86_64") == 0) {
-                qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
-#ifdef CONFIG_POSIX
-                qtest_add_func("acpi/microvm/acpierst", test_acpi_microvm_acpi_erst);
-#endif
+                }
             }
         }
     } else if (strcmp(arch, "aarch64") == 0) {
