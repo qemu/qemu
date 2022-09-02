@@ -645,6 +645,21 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
+static inline bool machine_get_zpcii_disable(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->zpcii_disable;
+}
+
+static inline void machine_set_zpcii_disable(Object *obj, bool value,
+                                             Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->zpcii_disable = value;
+}
+
 static S390CcwMachineClass *current_mc;
 
 /*
@@ -740,6 +755,13 @@ static inline void s390_machine_initfn(Object *obj)
             "Up to 8 chars in set of [A-Za-z0-9. ] (lower case chars converted"
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
+
+    object_property_add_bool(obj, "zpcii-disable",
+                             machine_get_zpcii_disable,
+                             machine_set_zpcii_disable);
+    object_property_set_description(obj, "zpcii-disable",
+            "disable zPCI interpretation facilties");
+    object_property_set_bool(obj, "zpcii-disable", false, NULL);
 }
 
 static const TypeInfo ccw_machine_info = {
@@ -804,10 +826,12 @@ DEFINE_CCW_MACHINE(7_2, "7.2", true);
 static void ccw_machine_7_1_instance_options(MachineState *machine)
 {
     static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V7_1 };
+    S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
 
     ccw_machine_7_2_instance_options(machine);
     s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAIE);
     s390_set_qemu_cpu_model(0x8561, 15, 1, qemu_cpu_feat);
+    ms->zpcii_disable = true;
 }
 
 static void ccw_machine_7_1_class_options(MachineClass *mc)
