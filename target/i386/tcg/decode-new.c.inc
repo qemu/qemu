@@ -1542,9 +1542,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
     X86DecodedInsn decode;
     X86DecodeFunc decode_func = decode_root;
 
-#ifdef CONFIG_USER_ONLY
-    if (limit) { --limit; }
-#endif
     s->has_modrm = false;
 
  next_byte:
