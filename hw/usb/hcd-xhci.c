@@ -1020,7 +1020,9 @@ static XHCIStreamContext *xhci_find_stream(XHCIEPContext *epctx,
         }
         sctx = epctx->pstreams + streamid;
     } else {
-        FIXME("secondary streams not implemented yet");
+        fprintf(stderr, "xhci: FIXME: secondary streams not implemented yet");
+        *cc_error = CC_INVALID_STREAM_TYPE_ERROR;
+        return NULL;
     }
 
     if (sctx->sct == -1) {
