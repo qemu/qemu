@@ -162,7 +162,7 @@ static int qcrypto_block_luks_cipher_name_lookup(const char *name,
         }
     }
 
-    error_setg(errp, "Algorithm %s with key size %d bytes not supported",
+    error_setg(errp, "Algorithm '%s' with key size %d bytes not supported",
                name, key_bytes);
     return 0;
 }
@@ -198,7 +198,7 @@ static int qcrypto_block_luks_name_lookup(const char *name,
     int ret = qapi_enum_parse(map, name, -1, NULL);
 
     if (ret < 0) {
-        error_setg(errp, "%s %s not supported", type, name);
+        error_setg(errp, "%s '%s' not supported", type, name);
         return 0;
     }
     return ret;
@@ -592,7 +592,7 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
      */
     ivgen_name = strchr(cipher_mode, '-');
     if (!ivgen_name) {
-        error_setg(errp, "Unexpected cipher mode string format %s",
+        error_setg(errp, "Unexpected cipher mode string format '%s'",
                    luks->header.cipher_mode);
         return -1;
     }
