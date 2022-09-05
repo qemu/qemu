@@ -369,6 +369,7 @@ STFDUX          011111 ..... ...... .... 1011110111 -   @X
 ### Floating-Point Arithmetic Instructions
 
 FSQRT           111111 ..... ----- ..... ----- 10110 .  @A_tb
+FSQRTS          111011 ..... ----- ..... ----- 10110 .  @A_tb
 
 ### Floating-Point Select Instruction
 

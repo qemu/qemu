@@ -281,28 +281,7 @@ static bool do_helper_fsqrt(DisasContext *ctx, arg_A_tb *a,
 }
 
 TRANS(FSQRT, do_helper_fsqrt, gen_helper_fsqrt);
-
-static void gen_fsqrts(DisasContext *ctx)
-{
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    gen_reset_fpstatus();
-    get_fpr(t0, rB(ctx->opcode));
-    gen_helper_fsqrts(t1, cpu_env, t0);
-    set_fpr(rD(ctx->opcode), t1);
-    gen_compute_fprf_float64(t1);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
+TRANS(FSQRTS, do_helper_fsqrt, gen_helper_fsqrts);
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadds */
