@@ -19,6 +19,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+typedef void (*SSEFunc_0_epp)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b);
 typedef void (*SSEFunc_0_epppti)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                  TCGv_ptr reg_c, TCGv a0, TCGv_i32 scale);
 
@@ -323,6 +324,66 @@ static void gen_store_sse(DisasContext *s, X86DecodedInsn *decode, int src_ofs)
         break;
     default:
         g_assert_not_reached();
+    }
+}
+
+static void gen_helper_pavgusb(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b)
+{
+    gen_helper_pavgb_mmx(env, reg_a, reg_a, reg_b);
+}
+
+#define FN_3DNOW_MOVE ((SSEFunc_0_epp) (uintptr_t) 1)
+static const SSEFunc_0_epp fns_3dnow[] = {
+    [0x0c] = gen_helper_pi2fw,
+    [0x0d] = gen_helper_pi2fd,
+    [0x1c] = gen_helper_pf2iw,
+    [0x1d] = gen_helper_pf2id,
+    [0x8a] = gen_helper_pfnacc,
+    [0x8e] = gen_helper_pfpnacc,
+    [0x90] = gen_helper_pfcmpge,
+    [0x94] = gen_helper_pfmin,
+    [0x96] = gen_helper_pfrcp,
+    [0x97] = gen_helper_pfrsqrt,
+    [0x9a] = gen_helper_pfsub,
+    [0x9e] = gen_helper_pfadd,
+    [0xa0] = gen_helper_pfcmpgt,
+    [0xa4] = gen_helper_pfmax,
+    [0xa6] = FN_3DNOW_MOVE, /* PFRCPIT1; no need to actually increase precision */
+    [0xa7] = FN_3DNOW_MOVE, /* PFRSQIT1 */
+    [0xb6] = FN_3DNOW_MOVE, /* PFRCPIT2 */
+    [0xaa] = gen_helper_pfsubr,
+    [0xae] = gen_helper_pfacc,
+    [0xb0] = gen_helper_pfcmpeq,
+    [0xb4] = gen_helper_pfmul,
+    [0xb7] = gen_helper_pmulhrw_mmx,
+    [0xbb] = gen_helper_pswapd,
+    [0xbf] = gen_helper_pavgusb,
+};
+
+static void gen_3dnow(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    uint8_t b = decode->immediate;
+    SSEFunc_0_epp fn = b < ARRAY_SIZE(fns_3dnow) ? fns_3dnow[b] : NULL;
+
+    if (!fn) {
+        gen_illegal_opcode(s);
+        return;
+    }
+    if (s->flags & HF_TS_MASK) {
+        gen_NM_exception(s);
+        return;
+    }
+    if (s->flags & HF_EM_MASK) {
+        gen_illegal_opcode(s);
+        return;
+    }
+
+    gen_helper_enter_mmx(cpu_env);
+    if (fn == FN_3DNOW_MOVE) {
+       tcg_gen_ld_i64(s->tmp1_i64, cpu_env, decode->op[1].offset);
+       tcg_gen_st_i64(s->tmp1_i64, cpu_env, decode->op[0].offset);
+    } else {
+       fn(cpu_env, OP_PTR0, OP_PTR1);
     }
 }
 

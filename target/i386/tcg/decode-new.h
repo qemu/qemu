@@ -96,6 +96,7 @@ typedef enum X86OpSize {
 
 typedef enum X86CPUIDFeature {
     X86_FEAT_None,
+    X86_FEAT_3DNOW,
     X86_FEAT_ADX,
     X86_FEAT_AES,
     X86_FEAT_AVX,

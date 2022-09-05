@@ -3011,7 +3011,6 @@ static bool first = true; static unsigned long limit;
 #define SSE_OPF_CMP       (1 << 1) /* does not write for first operand */
 #define SSE_OPF_BLENDV    (1 << 2) /* blendv* instruction */
 #define SSE_OPF_SPECIAL   (1 << 3) /* magic */
-#define SSE_OPF_3DNOW     (1 << 4) /* 3DNow! instruction */
 #define SSE_OPF_MMX       (1 << 5) /* MMX/integer/AVX2 instruction */
 #define SSE_OPF_SCALAR    (1 << 6) /* Has SSE scalar variants */
 #define SSE_OPF_SHUF      (1 << 9) /* pshufx/shufpx */
@@ -3045,13 +3044,9 @@ struct SSEOpHelper_table1 {
     SSEFuncs fn[4];
 };
 
-#define SSE_3DNOW { SSE_OPF_3DNOW }
 #define SSE_SPECIAL { SSE_OPF_SPECIAL }
 
 static const struct SSEOpHelper_table1 sse_op_table1[256] = {
-    /* 3DNow! extensions */
-    [0x0e] = SSE_SPECIAL, /* femms */
-    [0x0f] = SSE_3DNOW, /* pf... (sse_op_table5) */
     /* pure SSE operations */
     [0x10] = SSE_SPECIAL, /* movups, movupd, movss, movsd */
     [0x11] = SSE_SPECIAL, /* movups, movupd, movss, movsd */
@@ -3260,38 +3255,6 @@ static const SSEFunc_0_eppp sse_op_table4[8][4] = {
 };
 #undef SSE_CMP
 
-static void gen_helper_pavgusb(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b)
-{
-    gen_helper_pavgb_mmx(env, reg_a, reg_a, reg_b);
-}
-
-static const SSEFunc_0_epp sse_op_table5[256] = {
-    [0x0c] = gen_helper_pi2fw,
-    [0x0d] = gen_helper_pi2fd,
-    [0x1c] = gen_helper_pf2iw,
-    [0x1d] = gen_helper_pf2id,
-    [0x8a] = gen_helper_pfnacc,
-    [0x8e] = gen_helper_pfpnacc,
-    [0x90] = gen_helper_pfcmpge,
-    [0x94] = gen_helper_pfmin,
-    [0x96] = gen_helper_pfrcp,
-    [0x97] = gen_helper_pfrsqrt,
-    [0x9a] = gen_helper_pfsub,
-    [0x9e] = gen_helper_pfadd,
-    [0xa0] = gen_helper_pfcmpgt,
-    [0xa4] = gen_helper_pfmax,
-    [0xa6] = gen_helper_movq, /* pfrcpit1; no need to actually increase precision */
-    [0xa7] = gen_helper_movq, /* pfrsqit1 */
-    [0xaa] = gen_helper_pfsubr,
-    [0xae] = gen_helper_pfacc,
-    [0xb0] = gen_helper_pfcmpeq,
-    [0xb4] = gen_helper_pfmul,
-    [0xb6] = gen_helper_movq, /* pfrcpit2 */
-    [0xb7] = gen_helper_pmulhrw_mmx,
-    [0xbb] = gen_helper_pswapd,
-    [0xbf] = gen_helper_pavgusb,
-};
-
 struct SSEOpHelper_table6 {
     SSEFuncs fn[2];
     uint32_t ext_mask;
@@ -3443,7 +3406,7 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         b1 = 0;
     sse_op_flags = sse_op_table1[b].flags;
     sse_op_fn = sse_op_table1[b].fn[b1];
-    if ((sse_op_flags & (SSE_OPF_SPECIAL | SSE_OPF_3DNOW)) == 0
+    if ((sse_op_flags & SSE_OPF_SPECIAL) == 0
             && !sse_op_fn.op1) {
         goto unknown_op;
     }
@@ -3455,11 +3418,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
             is_xmm = 0;
         } else {
             is_xmm = 1;
-        }
-    }
-    if (sse_op_flags & SSE_OPF_3DNOW) {
-        if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW)) {
-            goto illegal_op;
         }
     }
     /* simple MMX/SSE operation */
@@ -3476,15 +3434,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         && !(s->flags & HF_OSFXSR_MASK)
         && (b != 0x38 && b != 0x3a)) {
         goto unknown_op;
-    }
-    if (b == 0x0e) {
-        if (!(s->cpuid_ext2_features & CPUID_EXT2_3DNOW)) {
-            /* If we were fully decoding this we might use illegal_op.  */
-            goto unknown_op;
-        }
-        /* femms */
-        gen_helper_emms(cpu_env);
-        return;
     }
     if (b == 0x77) {
         /* emms */
@@ -4643,18 +4592,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
                 rm = (modrm & 7);
                 op2_offset = offsetof(CPUX86State,fpregs[rm].mmx);
             }
-            if (sse_op_flags & SSE_OPF_3DNOW) {
-                /* 3DNow! data insns */
-                val = x86_ldub_code(env, s);
-                SSEFunc_0_epp op_3dnow = sse_op_table5[val];
-                if (!op_3dnow) {
-                    goto unknown_op;
-                }
-                tcg_gen_addi_ptr(s->ptr0, cpu_env, op1_offset);
-                tcg_gen_addi_ptr(s->ptr1, cpu_env, op2_offset);
-                op_3dnow(cpu_env, s->ptr0, s->ptr1);
-                return;
-            }
         }
 
 
@@ -4783,7 +4720,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #endif
         if (use_new &&
             (b == 0x138 || b == 0x13a ||
-             (b >= 0x110 && b <= 0x117) ||
+             (b >= 0x10e && b <= 0x117) ||
              (b >= 0x128 && b <= 0x12f) ||
              (b >= 0x150 && b <= 0x17f) ||
              b == 0x1c2 || (b >= 0x1c4 && b <= 0x1c6) ||
@@ -8512,10 +8449,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 
         set_cc_op(s, CC_OP_POPCNT);
         break;
-    case 0x10e ... 0x10f:
-        /* 3DNow! instructions, ignore prefixes */
-        s->prefix &= ~(PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
-        /* fall through */
     case 0x110 ... 0x117:
     case 0x128 ... 0x12f:
     case 0x138 ... 0x13a:
