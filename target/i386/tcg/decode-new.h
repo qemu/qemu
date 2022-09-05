@@ -212,6 +212,7 @@ struct X86OpEntry {
     X86CPUIDFeature cpuid:8;
     unsigned     vex_class:8;
     X86VEXSpecial vex_special:8;
+    uint16_t     valid_prefix:16;
     bool         is_decode:1;
 };
 

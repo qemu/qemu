@@ -110,6 +110,22 @@
 
 #define avx2_256 .vex_special = X86_VEX_AVX2_256,
 
+#define P_00          1
+#define P_66          (1 << PREFIX_DATA)
+#define P_F3          (1 << PREFIX_REPZ)
+#define P_F2          (1 << PREFIX_REPNZ)
+
+#define p_00          .valid_prefix = P_00,
+#define p_66          .valid_prefix = P_66,
+#define p_f3          .valid_prefix = P_F3,
+#define p_f2          .valid_prefix = P_F2,
+#define p_00_66       .valid_prefix = P_00 | P_66,
+#define p_00_f3       .valid_prefix = P_00 | P_F3,
+#define p_66_f2       .valid_prefix = P_66 | P_F2,
+#define p_00_66_f3    .valid_prefix = P_00 | P_66 | P_F3,
+#define p_66_f3_f2    .valid_prefix = P_66 | P_F3 | P_F2,
+#define p_00_66_f3_f2 .valid_prefix = P_00 | P_66 | P_F3 | P_F2,
+
 static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
 {
     if (!s->has_modrm) {
@@ -480,6 +496,23 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
     return true;
 }
 
+static bool validate_sse_prefix(DisasContext *s, X86OpEntry *e)
+{
+    uint16_t sse_prefixes;
+
+    if (!e->valid_prefix) {
+        return true;
+    }
+    if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+        /* In SSE instructions, 0xF3 and 0xF2 cancel 0x66.  */
+        s->prefix &= ~PREFIX_DATA;
+    }
+
+    /* Now, either zero or one bit is set in sse_prefixes.  */
+    sse_prefixes = s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA);
+    return e->valid_prefix & (1 << sse_prefixes);
+}
+
 static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_func,
                         X86DecodedInsn *decode)
 {
@@ -489,6 +522,10 @@ static bool decode_insn(DisasContext *s, CPUX86State *env, X86DecodeFunc decode_
     while (e->is_decode) {
         e->is_decode = false;
         e->decode(s, env, e, &decode->b);
+    }
+
+    if (!validate_sse_prefix(s, e)) {
+        return false;
     }
 
     /* First compute size of operands in order to initialize s->rip_offset.  */
