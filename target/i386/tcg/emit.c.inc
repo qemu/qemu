@@ -328,9 +328,31 @@ static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
          decode->op[2].offset, vec_len, vec_len);                                  \
 }
 
+BINARY_INT_GVEC(PADDB,   tcg_gen_gvec_add, MO_8)
+BINARY_INT_GVEC(PADDW,   tcg_gen_gvec_add, MO_16)
+BINARY_INT_GVEC(PADDD,   tcg_gen_gvec_add, MO_32)
+BINARY_INT_GVEC(PADDSB,  tcg_gen_gvec_ssadd, MO_8)
+BINARY_INT_GVEC(PADDSW,  tcg_gen_gvec_ssadd, MO_16)
+BINARY_INT_GVEC(PADDUSB, tcg_gen_gvec_usadd, MO_8)
+BINARY_INT_GVEC(PADDUSW, tcg_gen_gvec_usadd, MO_16)
+BINARY_INT_GVEC(PAND,    tcg_gen_gvec_and, MO_64)
 BINARY_INT_GVEC(PCMPGTB, tcg_gen_gvec_cmp, TCG_COND_GT, MO_8)
 BINARY_INT_GVEC(PCMPGTW, tcg_gen_gvec_cmp, TCG_COND_GT, MO_16)
 BINARY_INT_GVEC(PCMPGTD, tcg_gen_gvec_cmp, TCG_COND_GT, MO_32)
+BINARY_INT_GVEC(PMAXSW,  tcg_gen_gvec_smax, MO_16)
+BINARY_INT_GVEC(PMAXUB,  tcg_gen_gvec_umax, MO_8)
+BINARY_INT_GVEC(PMINSW,  tcg_gen_gvec_smin, MO_16)
+BINARY_INT_GVEC(PMINUB,  tcg_gen_gvec_umin, MO_8)
+BINARY_INT_GVEC(POR,     tcg_gen_gvec_or, MO_64)
+BINARY_INT_GVEC(PSUBB,   tcg_gen_gvec_sub, MO_8)
+BINARY_INT_GVEC(PSUBW,   tcg_gen_gvec_sub, MO_16)
+BINARY_INT_GVEC(PSUBD,   tcg_gen_gvec_sub, MO_32)
+BINARY_INT_GVEC(PSUBQ,   tcg_gen_gvec_sub, MO_64)
+BINARY_INT_GVEC(PSUBSB,  tcg_gen_gvec_sssub, MO_8)
+BINARY_INT_GVEC(PSUBSW,  tcg_gen_gvec_sssub, MO_16)
+BINARY_INT_GVEC(PSUBUSB, tcg_gen_gvec_ussub, MO_8)
+BINARY_INT_GVEC(PSUBUSW, tcg_gen_gvec_ussub, MO_16)
+BINARY_INT_GVEC(PXOR,    tcg_gen_gvec_xor, MO_64)
 
 
 /*
@@ -606,6 +628,16 @@ static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 #endif
     }
 
+}
+
+static void gen_PANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    int vec_len = vector_len(s, decode);
+
+    /* Careful, operand order is reversed!  */
+    tcg_gen_gvec_andc(MO_64,
+                      decode->op[0].offset, decode->op[2].offset,
+                      decode->op[1].offset, vec_len, vec_len);
 }
 
 static void gen_PDEP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
