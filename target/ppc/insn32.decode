@@ -20,6 +20,9 @@
 &A              frt fra frb frc rc:bool
 @A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
 
+&A_tb           frt frb rc:bool
+@A_tb           ...... frt:5 ..... frb:5 ..... ..... rc:1       &A_tb
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                         &D
 
@@ -362,6 +365,10 @@ STFD            110110 ..... ...... ...............     @D
 STFDU           110111 ..... ...... ...............     @D
 STFDX           011111 ..... ...... .... 1011010111 -   @X
 STFDUX          011111 ..... ...... .... 1011110111 -   @X
+
+### Floating-Point Arithmetic Instructions
+
+FSQRT           111111 ..... ----- ..... ----- 10110 .  @A_tb
 
 ### Floating-Point Select Instruction
 
