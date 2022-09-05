@@ -32,6 +32,7 @@ static int connect_qga(char *path)
             g_usleep(G_USEC_PER_SEC);
         }
         if (i++ == 10) {
+            close(s);
             return -1;
         }
     } while (ret == -1);
