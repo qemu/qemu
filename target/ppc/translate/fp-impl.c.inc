@@ -280,8 +280,8 @@ static bool do_helper_fsqrt(DisasContext *ctx, arg_A_tb *a,
     return true;
 }
 
-TRANS(FSQRT, do_helper_fsqrt, gen_helper_fsqrt);
-TRANS(FSQRTS, do_helper_fsqrt, gen_helper_fsqrts);
+TRANS(FSQRT, do_helper_fsqrt, gen_helper_FSQRT);
+TRANS(FSQRTS, do_helper_fsqrt, gen_helper_FSQRTS);
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadds */
