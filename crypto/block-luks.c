@@ -602,7 +602,7 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
             return -1;
         }
 
-        if (start1 < DIV_ROUND_UP(sizeof(QCryptoBlockLUKSHeader),
+        if (start1 < DIV_ROUND_UP(QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET,
                                   QCRYPTO_BLOCK_LUKS_SECTOR_SIZE)) {
             error_setg(errp,
                        "Keyslot %zu is overlapping with the LUKS header",
