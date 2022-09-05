@@ -579,6 +579,11 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
         return -1;
     }
 
+    if (luks->header.master_key_iterations == 0) {
+        error_setg(errp, "LUKS key iteration count is zero");
+        return -1;
+    }
+
     /* Check all keyslots for corruption  */
     for (i = 0 ; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; i++) {
 
@@ -599,6 +604,12 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
             slot1->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED) {
             error_setg(errp,
                        "Keyslot %zu state (active/disable) is corrupted", i);
+            return -1;
+        }
+
+        if (slot1->active == QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED &&
+            slot1->iterations == 0) {
+            error_setg(errp, "Keyslot %zu iteration count is zero", i);
             return -1;
         }
 
