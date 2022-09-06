@@ -2281,11 +2281,13 @@ S: Maintained
 F: contrib/vhost-user-blk/
 F: contrib/vhost-user-scsi/
 F: hw/block/vhost-user-blk.c
+F: hw/block/virtio-blk-common.c
 F: hw/scsi/vhost-user-scsi.c
 F: hw/virtio/vhost-user-blk-pci.c
 F: hw/virtio/vhost-user-scsi-pci.c
 F: include/hw/virtio/vhost-user-blk.h
 F: include/hw/virtio/vhost-user-scsi.h
+F: include/hw/virtio/virtio-blk-common.h
 
 vhost-user-gpu
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
