@@ -1336,6 +1336,11 @@ static void gen_PINSRB(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode
     gen_pinsr(s, env, decode, MO_8);
 }
 
+static void gen_PINSRW(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_pinsr(s, env, decode, MO_16);
+}
+
 static void gen_PINSR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_pinsr(s, env, decode, decode->op[2].ot);
@@ -1640,6 +1645,66 @@ static void gen_VAESIMC(DisasContext *s, CPUX86State *env, X86DecodedInsn *decod
     gen_helper_aesimc_xmm(cpu_env, OP_PTR0, OP_PTR2);
 }
 
+/*
+ * 00 = v*ps Vps, Hps, Wpd
+ * 66 = v*pd Vpd, Hpd, Wps
+ * f3 = v*ss Vss, Hss, Wps
+ * f2 = v*sd Vsd, Hsd, Wps
+ */
+#define SSE_CMP(x) { \
+    gen_helper_ ## x ## ps ## _xmm, gen_helper_ ## x ## pd ## _xmm, \
+    gen_helper_ ## x ## ss, gen_helper_ ## x ## sd, \
+    gen_helper_ ## x ## ps ## _ymm, gen_helper_ ## x ## pd ## _ymm}
+static const SSEFunc_0_eppp gen_helper_cmp_funcs[32][6] = {
+    SSE_CMP(cmpeq),
+    SSE_CMP(cmplt),
+    SSE_CMP(cmple),
+    SSE_CMP(cmpunord),
+    SSE_CMP(cmpneq),
+    SSE_CMP(cmpnlt),
+    SSE_CMP(cmpnle),
+    SSE_CMP(cmpord),
+
+    SSE_CMP(cmpequ),
+    SSE_CMP(cmpnge),
+    SSE_CMP(cmpngt),
+    SSE_CMP(cmpfalse),
+    SSE_CMP(cmpnequ),
+    SSE_CMP(cmpge),
+    SSE_CMP(cmpgt),
+    SSE_CMP(cmptrue),
+
+    SSE_CMP(cmpeqs),
+    SSE_CMP(cmpltq),
+    SSE_CMP(cmpleq),
+    SSE_CMP(cmpunords),
+    SSE_CMP(cmpneqq),
+    SSE_CMP(cmpnltq),
+    SSE_CMP(cmpnleq),
+    SSE_CMP(cmpords),
+
+    SSE_CMP(cmpequs),
+    SSE_CMP(cmpngeq),
+    SSE_CMP(cmpngtq),
+    SSE_CMP(cmpfalses),
+    SSE_CMP(cmpnequs),
+    SSE_CMP(cmpgeq),
+    SSE_CMP(cmpgtq),
+    SSE_CMP(cmptrues),
+};
+#undef SSE_CMP
+
+static void gen_VCMP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    int index = decode->immediate & (s->prefix & PREFIX_VEX ? 31 : 7);
+    int b =
+        s->prefix & PREFIX_REPZ  ? 2 /* ss */ :
+        s->prefix & PREFIX_REPNZ ? 3 /* sd */ :
+        !!(s->prefix & PREFIX_DATA) /* pd */ + (s->vex_l << 2);
+
+    gen_helper_cmp_funcs[index][b](cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+}
+
 static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_unary_fp_sse(s, env, decode,
@@ -1783,6 +1848,16 @@ static void gen_VROUNDSS(DisasContext *s, CPUX86State *env, X86DecodedInsn *deco
     TCGv_i32 imm = tcg_constant8u_i32(decode->immediate);
     assert(!s->vex_l);
     gen_helper_roundss_xmm(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2, imm);
+}
+
+static void gen_VSHUF(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    TCGv_i32 imm = tcg_constant_i32(decode->immediate);
+    SSEFunc_0_pppi ps, pd, fn;
+    ps = s->vex_l ? gen_helper_shufps_ymm : gen_helper_shufps_xmm;
+    pd = s->vex_l ? gen_helper_shufpd_ymm : gen_helper_shufpd_xmm;
+    fn = s->prefix & PREFIX_DATA ? pd : ps;
+    fn(OP_PTR0, OP_PTR1, OP_PTR2, imm);
 }
 
 static void gen_VZEROALL(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
