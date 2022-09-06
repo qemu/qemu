@@ -1038,6 +1038,36 @@ static void gen_CRC32(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_helper_crc32(s->T0, s->tmp2_i32, s->T1, tcg_constant_i32(8 << ot));
 }
 
+static void gen_CVTPI2Px(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_enter_mmx(cpu_env);
+    if (s->prefix & PREFIX_DATA) {
+        gen_helper_cvtpi2pd(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        gen_helper_cvtpi2ps(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+
+static void gen_CVTPx2PI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_enter_mmx(cpu_env);
+    if (s->prefix & PREFIX_DATA) {
+        gen_helper_cvtpd2pi(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        gen_helper_cvtps2pi(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+
+static void gen_CVTTPx2PI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_helper_enter_mmx(cpu_env);
+    if (s->prefix & PREFIX_DATA) {
+        gen_helper_cvttpd2pi(cpu_env, OP_PTR0, OP_PTR2);
+    } else {
+        gen_helper_cvttps2pi(cpu_env, OP_PTR0, OP_PTR2);
+    }
+}
+
 static void gen_EMMS(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_helper_emms(cpu_env);
@@ -1724,12 +1754,102 @@ static void gen_VCMP(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_helper_cmp_funcs[index][b](cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
 }
 
+static void gen_VCOMI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    SSEFunc_0_epp fn;
+    fn = s->prefix & PREFIX_DATA ? gen_helper_comisd : gen_helper_comiss;
+    fn(cpu_env, OP_PTR1, OP_PTR2);
+    set_cc_op(s, CC_OP_EFLAGS);
+}
+
 static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_unary_fp_sse(s, env, decode,
                      gen_helper_cvtpd2ps_xmm, gen_helper_cvtps2pd_xmm,
                      gen_helper_cvtpd2ps_ymm, gen_helper_cvtps2pd_ymm,
                      gen_helper_cvtsd2ss, gen_helper_cvtss2sd);
+}
+
+static void gen_VCVTSI2Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    int vec_len = vector_len(s, decode);
+    TCGv_i32 in;
+
+    tcg_gen_gvec_mov(MO_64, decode->op[0].offset, decode->op[1].offset, vec_len, vec_len);
+
+#ifdef TARGET_X86_64
+    MemOp ot = decode->op[2].ot;
+    if (ot == MO_64) {
+        if (s->prefix & PREFIX_REPNZ) {
+            gen_helper_cvtsq2sd(cpu_env, OP_PTR0, s->T1);
+        } else {
+            gen_helper_cvtsq2ss(cpu_env, OP_PTR0, s->T1);
+        }
+        return;
+    }
+    in = s->tmp2_i32;
+    tcg_gen_trunc_tl_i32(in, s->T1);
+#else
+    in = s->T1;
+#endif
+
+    if (s->prefix & PREFIX_REPNZ) {
+        gen_helper_cvtsi2sd(cpu_env, OP_PTR0, in);
+    } else {
+        gen_helper_cvtsi2ss(cpu_env, OP_PTR0, in);
+    }
+}
+
+static inline void gen_VCVTtSx2SI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                                  SSEFunc_i_ep ss2si, SSEFunc_l_ep ss2sq,
+                                  SSEFunc_i_ep sd2si, SSEFunc_l_ep sd2sq)
+{
+    TCGv_i32 out;
+
+#ifdef TARGET_X86_64
+    MemOp ot = decode->op[0].ot;
+    if (ot == MO_64) {
+        if (s->prefix & PREFIX_REPNZ) {
+            sd2sq(s->T0, cpu_env, OP_PTR2);
+        } else {
+            ss2sq(s->T0, cpu_env, OP_PTR2);
+        }
+        return;
+    }
+
+    out = s->tmp2_i32;
+#else
+    out = s->T0;
+#endif
+    if (s->prefix & PREFIX_REPNZ) {
+        sd2si(out, cpu_env, OP_PTR2);
+    } else {
+        ss2si(out, cpu_env, OP_PTR2);
+    }
+#ifdef TARGET_X86_64
+    tcg_gen_extu_i32_tl(s->T0, out);
+#endif
+}
+
+#ifndef TARGET_X86_64
+#define gen_helper_cvtss2sq NULL
+#define gen_helper_cvtsd2sq NULL
+#define gen_helper_cvttss2sq NULL
+#define gen_helper_cvttsd2sq NULL
+#endif
+
+static void gen_VCVTSx2SI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_VCVTtSx2SI(s, env, decode,
+                   gen_helper_cvtss2si, gen_helper_cvtss2sq,
+                   gen_helper_cvtsd2si, gen_helper_cvtsd2sq);
+}
+
+static void gen_VCVTTSx2SI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_VCVTtSx2SI(s, env, decode,
+                   gen_helper_cvttss2si, gen_helper_cvttss2sq,
+                   gen_helper_cvttsd2si, gen_helper_cvttsd2sq);
 }
 
 static void gen_VEXTRACTx128(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1985,6 +2105,14 @@ static void gen_VSHUF(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     pd = s->vex_l ? gen_helper_shufpd_ymm : gen_helper_shufpd_xmm;
     fn = s->prefix & PREFIX_DATA ? pd : ps;
     fn(OP_PTR0, OP_PTR1, OP_PTR2, imm);
+}
+
+static void gen_VUCOMI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    SSEFunc_0_epp fn;
+    fn = s->prefix & PREFIX_DATA ? gen_helper_ucomisd : gen_helper_ucomiss;
+    fn(cpu_env, OP_PTR1, OP_PTR2);
+    set_cc_op(s, CC_OP_EFLAGS);
 }
 
 static void gen_VZEROALL(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
