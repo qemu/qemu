@@ -49,8 +49,14 @@ typedef struct VirtIOFeature {
     size_t end;
 } VirtIOFeature;
 
-size_t virtio_feature_get_config_size(const VirtIOFeature *features,
-                                      uint64_t host_features);
+typedef struct VirtIOConfigSizeParams {
+    size_t min_size;
+    size_t max_size;
+    const VirtIOFeature *feature_sizes;
+} VirtIOConfigSizeParams;
+
+size_t virtio_get_config_size(const VirtIOConfigSizeParams *params,
+                              uint64_t host_features);
 
 typedef struct VirtQueue VirtQueue;
 
