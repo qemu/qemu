@@ -42,13 +42,16 @@ static void get_dfp128(ppc_vsr_t *dst, ppc_fprp_t *dfp)
 
 static void set_dfp64(ppc_fprp_t *dfp, ppc_vsr_t *src)
 {
-    dfp->VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(1) = 0ULL;
 }
 
 static void set_dfp128(ppc_fprp_t *dfp, ppc_vsr_t *src)
 {
     dfp[0].VsrD(0) = src->VsrD(0);
     dfp[1].VsrD(0) = src->VsrD(1);
+    dfp[0].VsrD(1) = 0ULL;
+    dfp[1].VsrD(1) = 0ULL;
 }
 
 static void set_dfp128_to_avr(ppc_avr_t *dst, ppc_vsr_t *src)
