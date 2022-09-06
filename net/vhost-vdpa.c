@@ -400,6 +400,28 @@ static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
     return 0;
 }
 
+static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
+                                  const VirtIONet *n)
+{
+    struct virtio_net_ctrl_mq mq;
+    uint64_t features = n->parent_obj.guest_features;
+    ssize_t dev_written;
+
+    if (!(features & BIT_ULL(VIRTIO_NET_F_MQ))) {
+        return 0;
+    }
+
+    mq.virtqueue_pairs = cpu_to_le16(n->curr_queue_pairs);
+    dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MQ,
+                                          VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET, &mq,
+                                          sizeof(mq));
+    if (unlikely(dev_written < 0)) {
+        return dev_written;
+    }
+
+    return *s->status != VIRTIO_NET_OK;
+}
+
 static int vhost_vdpa_net_load(NetClientState *nc)
 {
     VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, nc);
@@ -416,6 +438,10 @@ static int vhost_vdpa_net_load(NetClientState *nc)
     n = VIRTIO_NET(v->dev->vdev);
     r = vhost_vdpa_net_load_mac(s, n);
     if (unlikely(r < 0)) {
+        return r;
+    }
+    r = vhost_vdpa_net_load_mq(s, n);
+    if (unlikely(r)) {
         return r;
     }
 
