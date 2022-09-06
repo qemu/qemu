@@ -177,9 +177,11 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
             goto error;
         }
     }
+
     page_set_flags(start, start + len, page_flags);
-    mmap_unlock();
-    return 0;
+    tb_invalidate_phys_range(start, start + len);
+    ret = 0;
+
 error:
     mmap_unlock();
     return ret;
