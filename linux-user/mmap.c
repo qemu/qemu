@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "user-internals.h"
 #include "user-mmap.h"
+#include "target_mman.h"
 
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
@@ -897,7 +898,7 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
      * anonymous mappings. In this case passthrough is safe, so do it.
      */
     mmap_lock();
-    if (advice == MADV_DONTNEED &&
+    if (advice == TARGET_MADV_DONTNEED &&
         can_passthrough_madv_dontneed(start, end)) {
         ret = get_errno(madvise(g2h_untagged(start), len, MADV_DONTNEED));
         if (ret == 0) {
