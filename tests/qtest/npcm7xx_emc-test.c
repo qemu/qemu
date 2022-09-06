@@ -381,7 +381,8 @@ static void test_init(gconstpointer test_data)
 
 #undef CHECK_REG
 
-    for (i = 0; i < NUM_CAMML_REGS; ++i) {
+    /* Skip over the MAC address registers, which is BASE+0 */
+    for (i = 1; i < NUM_CAMML_REGS; ++i) {
         g_assert_cmpuint(emc_read(qts, mod, REG_CAMM_BASE + i * 2), ==,
                          0);
         g_assert_cmpuint(emc_read(qts, mod, REG_CAML_BASE + i * 2), ==,
