@@ -35,7 +35,9 @@ typedef struct VhostVDPAState {
     VHostNetState *vhost_net;
 
     /* Control commands shadow buffers */
-    void *cvq_cmd_out_buffer, *cvq_cmd_in_buffer;
+    void *cvq_cmd_out_buffer;
+    virtio_net_ctrl_ack *status;
+
     bool started;
 } VhostVDPAState;
 
@@ -158,7 +160,7 @@ static void vhost_vdpa_cleanup(NetClientState *nc)
     struct vhost_dev *dev = &s->vhost_net->dev;
 
     qemu_vfree(s->cvq_cmd_out_buffer);
-    qemu_vfree(s->cvq_cmd_in_buffer);
+    qemu_vfree(s->status);
     if (dev->vq_index + dev->nvqs == dev->vq_index_end) {
         g_clear_pointer(&s->vhost_vdpa.iova_tree, vhost_iova_tree_delete);
     }
@@ -310,7 +312,7 @@ static int vhost_vdpa_net_cvq_start(NetClientState *nc)
         return r;
     }
 
-    r = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, s->cvq_cmd_in_buffer,
+    r = vhost_vdpa_cvq_map_buf(&s->vhost_vdpa, s->status,
                                vhost_vdpa_net_cvq_cmd_page_len(), true);
     if (unlikely(r < 0)) {
         vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer);
@@ -327,7 +329,7 @@ static void vhost_vdpa_net_cvq_stop(NetClientState *nc)
 
     if (s->vhost_vdpa.shadow_vqs_enabled) {
         vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_out_buffer);
-        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->cvq_cmd_in_buffer);
+        vhost_vdpa_cvq_unmap_buf(&s->vhost_vdpa, s->status);
     }
 }
 
@@ -340,7 +342,7 @@ static ssize_t vhost_vdpa_net_cvq_add(VhostVDPAState *s, size_t out_len,
         .iov_len = out_len,
     };
     const struct iovec in = {
-        .iov_base = s->cvq_cmd_in_buffer,
+        .iov_base = s->status,
         .iov_len = sizeof(virtio_net_ctrl_ack),
     };
     VhostShadowVirtqueue *svq = g_ptr_array_index(s->vhost_vdpa.shadow_vqs, 0);
@@ -396,7 +398,7 @@ static int vhost_vdpa_net_load(NetClientState *nc)
             return dev_written;
         }
 
-        return *((virtio_net_ctrl_ack *)s->cvq_cmd_in_buffer) != VIRTIO_NET_OK;
+        return *s->status != VIRTIO_NET_OK;
     }
 
     return 0;
@@ -491,8 +493,7 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         goto out;
     }
 
-    memcpy(&status, s->cvq_cmd_in_buffer, sizeof(status));
-    if (status != VIRTIO_NET_OK) {
+    if (*s->status != VIRTIO_NET_OK) {
         return VIRTIO_NET_ERR;
     }
 
@@ -549,9 +550,9 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         s->cvq_cmd_out_buffer = qemu_memalign(qemu_real_host_page_size(),
                                             vhost_vdpa_net_cvq_cmd_page_len());
         memset(s->cvq_cmd_out_buffer, 0, vhost_vdpa_net_cvq_cmd_page_len());
-        s->cvq_cmd_in_buffer = qemu_memalign(qemu_real_host_page_size(),
-                                            vhost_vdpa_net_cvq_cmd_page_len());
-        memset(s->cvq_cmd_in_buffer, 0, vhost_vdpa_net_cvq_cmd_page_len());
+        s->status = qemu_memalign(qemu_real_host_page_size(),
+                                  vhost_vdpa_net_cvq_cmd_page_len());
+        memset(s->status, 0, vhost_vdpa_net_cvq_cmd_page_len());
 
         s->vhost_vdpa.shadow_vq_ops = &vhost_vdpa_net_svq_ops;
         s->vhost_vdpa.shadow_vq_ops_opaque = s;
