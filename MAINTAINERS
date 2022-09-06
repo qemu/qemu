@@ -2030,8 +2030,10 @@ virtio-blk
 M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
+F: hw/block/virtio-blk-common.c
 F: hw/block/virtio-blk.c
 F: hw/block/dataplane/*
+F: include/hw/virtio/virtio-blk-common.h
 F: tests/qtest/virtio-blk-test.c
 T: git https://github.com/stefanha/qemu.git block
 
