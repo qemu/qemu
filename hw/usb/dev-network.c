@@ -647,6 +647,7 @@ struct USBNetState {
     uint8_t in_buf[2048];
 
     USBEndpoint *intr;
+    USBEndpoint *bulk_in;
 
     char usbstring_mac[13];
     NICState *nic;
@@ -1317,6 +1318,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     memcpy(in_buf, buf, size);
     s->in_len = total_size;
     s->in_ptr = 0;
+    usb_wakeup(s->bulk_in, 0);
     return size;
 }
 
@@ -1359,6 +1361,7 @@ static void usb_net_realize(USBDevice *dev, Error **errp)
     s->filter = 0;
     s->vendorid = 0x1234;
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
+    s->bulk_in = usb_ep_get(dev, USB_TOKEN_IN, 2);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
