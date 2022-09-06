@@ -6443,6 +6443,14 @@ static inline void get_fpr(TCGv_i64 dst, int regno)
 static inline void set_fpr(int regno, TCGv_i64 src)
 {
     tcg_gen_st_i64(src, cpu_env, fpr_offset(regno));
+    /*
+     * Before PowerISA v3.1 the result of doubleword 1 of the VSR
+     * corresponding to the target FPR was undefined. However,
+     * most (if not all) real hardware were setting the result to 0.
+     * Starting at ISA v3.1, the result for doubleword 1 is now defined
+     * to be 0.
+     */
+    tcg_gen_st_i64(tcg_constant_i64(0), cpu_env, vsr64_offset(regno, false));
 }
 
 static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
