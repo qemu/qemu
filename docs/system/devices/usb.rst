@@ -178,8 +178,20 @@ option or the ``device_add`` monitor command. Available devices are:
    host character device id.
 
 ``usb-braille,chardev=id``
-   Braille device. This will use BrlAPI to display the braille output on
-   a real or fake device referenced by id.
+   Braille device. This emulates a Baum Braille device USB port. id has to
+   specify a character device defined with ``-chardev …,id=id``.  One will
+   normally use BrlAPI to display the braille output on a BRLTTY-supported
+   device with
+
+   .. parsed-literal::
+
+      |qemu_system| [...] -chardev braille,id=brl -device usb-braille,chardev=brl
+
+   or alternatively, use the following equivalent shortcut:
+
+   .. parsed-literal::
+
+      |qemu_system| [...] -usbdevice braille
 
 ``usb-net[,netdev=id]``
    Network adapter that supports CDC ethernet and RNDIS protocols. id
