@@ -286,7 +286,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
-                               uint64_t fdt_load_addr, void *fdt)
+                               uint64_t fdt_load_addr)
 {
     int i;
     uint32_t start_addr_hi32 = 0x00000000;
@@ -326,8 +326,6 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                           rom_base, &address_space_memory);
     riscv_rom_copy_firmware_info(machine, rom_base, rom_size, sizeof(reset_vec),
                                  kernel_entry);
-
-    return;
 }
 
 void riscv_setup_direct_kernel(hwaddr kernel_addr, hwaddr fdt_addr)

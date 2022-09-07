@@ -2402,10 +2402,25 @@ static int32_t operand_sbimm12(rv_inst inst)
         ((inst << 56) >> 63) << 11;
 }
 
-static uint32_t operand_cimmsh6(rv_inst inst)
+static uint32_t operand_cimmshl6(rv_inst inst, rv_isa isa)
 {
-    return ((inst << 51) >> 63) << 5 |
+    int imm = ((inst << 51) >> 63) << 5 |
         (inst << 57) >> 59;
+    if (isa == rv128) {
+        imm = imm ? imm : 64;
+    }
+    return imm;
+}
+
+static uint32_t operand_cimmshr6(rv_inst inst, rv_isa isa)
+{
+    int imm = ((inst << 51) >> 63) << 5 |
+        (inst << 57) >> 59;
+    if (isa == rv128) {
+        imm = imm | (imm & 32) << 1;
+        imm = imm ? imm : 64;
+    }
+    return imm;
 }
 
 static int32_t operand_cimmi(rv_inst inst)
@@ -2529,7 +2544,7 @@ static uint32_t operand_rnum(rv_inst inst)
 
 /* decode operands */
 
-static void decode_inst_operands(rv_decode *dec)
+static void decode_inst_operands(rv_decode *dec, rv_isa isa)
 {
     rv_inst inst = dec->inst;
     dec->codec = opcode_data[dec->op].codec;
@@ -2652,7 +2667,7 @@ static void decode_inst_operands(rv_decode *dec)
     case rv_codec_cb_sh6:
         dec->rd = dec->rs1 = operand_crs1rdq(inst) + 8;
         dec->rs2 = rv_ireg_zero;
-        dec->imm = operand_cimmsh6(inst);
+        dec->imm = operand_cimmshr6(inst, isa);
         break;
     case rv_codec_ci:
         dec->rd = dec->rs1 = operand_crs1rd(inst);
@@ -2667,7 +2682,7 @@ static void decode_inst_operands(rv_decode *dec)
     case rv_codec_ci_sh6:
         dec->rd = dec->rs1 = operand_crs1rd(inst);
         dec->rs2 = rv_ireg_zero;
-        dec->imm = operand_cimmsh6(inst);
+        dec->imm = operand_cimmshl6(inst, isa);
         break;
     case rv_codec_ci_16sp:
         dec->rd = rv_ireg_sp;
@@ -3193,7 +3208,7 @@ disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst)
     dec.pc = pc;
     dec.inst = inst;
     decode_inst_opcode(&dec, isa);
-    decode_inst_operands(&dec);
+    decode_inst_operands(&dec, isa);
     decode_inst_decompress(&dec, isa);
     decode_inst_lift_pseudo(&dec);
     format_inst(buf, buflen, 16, &dec);
