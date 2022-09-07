@@ -757,7 +757,6 @@
 #      "data": { "name": "vnet0",
 #                "path": "/machine/peripheral/vnet0/virtio-backend" },
 #      "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
-#    }
 #
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
