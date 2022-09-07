@@ -1191,14 +1191,92 @@ static void gen_PINSR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     gen_pinsr(s, env, decode, decode->op[2].ot);
 }
 
+static void gen_pmovmskb_i64(TCGv_i64 d, TCGv_i64 s)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(d, s, 0x8080808080808080ull);
+
+    /*
+     * After each shift+or pair:
+     * 0:  a.......b.......c.......d.......e.......f.......g.......h.......
+     * 7:  ab......bc......cd......de......ef......fg......gh......h.......
+     * 14: abcd....bcde....cdef....defg....efgh....fgh.....gh......h.......
+     * 28: abcdefghbcdefgh.cdefgh..defgh...efgh....fgh.....gh......h.......
+     * The result is left in the high bits of the word.
+     */
+    tcg_gen_shli_i64(t, d, 7);
+    tcg_gen_or_i64(d, d, t);
+    tcg_gen_shli_i64(t, d, 14);
+    tcg_gen_or_i64(d, d, t);
+    tcg_gen_shli_i64(t, d, 28);
+    tcg_gen_or_i64(d, d, t);
+}
+
+static void gen_pmovmskb_vec(unsigned vece, TCGv_vec d, TCGv_vec s)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+    TCGv_vec m = tcg_constant_vec_matching(d, MO_8, 0x80);
+
+    /* See above */
+    tcg_gen_and_vec(vece, d, s, m);
+    tcg_gen_shli_vec(vece, t, d, 7);
+    tcg_gen_or_vec(vece, d, d, t);
+    tcg_gen_shli_vec(vece, t, d, 14);
+    tcg_gen_or_vec(vece, d, d, t);
+    tcg_gen_shli_vec(vece, t, d, 28);
+    tcg_gen_or_vec(vece, d, d, t);
+}
+
+#ifdef TARGET_X86_64
+#define TCG_TARGET_HAS_extract2_tl TCG_TARGET_HAS_extract2_i64
+#else
+#define TCG_TARGET_HAS_extract2_tl TCG_TARGET_HAS_extract2_i32
+#endif
+
 static void gen_PMOVMSKB(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
-    if (s->prefix & PREFIX_DATA) {
-        gen_helper_pmovmskb_xmm(s->tmp2_i32, cpu_env, OP_PTR2);
-    } else {
-        gen_helper_pmovmskb_mmx(s->tmp2_i32, cpu_env, OP_PTR2);
+    static const TCGOpcode vecop_list[] = { INDEX_op_shli_vec, 0 };
+    static const GVecGen2 g = {
+        .fni8 = gen_pmovmskb_i64,
+        .fniv = gen_pmovmskb_vec,
+        .opt_opc = vecop_list,
+        .vece = MO_64,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64
+    };
+    MemOp ot = decode->op[2].ot;
+    int vec_len = vector_len(s, decode);
+    TCGv t = tcg_temp_new();
+
+    tcg_gen_gvec_2(offsetof(CPUX86State, xmm_t0) + xmm_offset(ot), decode->op[2].offset,
+                   vec_len, vec_len, &g);
+    tcg_gen_ld8u_tl(s->T0, cpu_env, offsetof(CPUX86State, xmm_t0.ZMM_B(vec_len - 1)));
+    while (vec_len > 8) {
+        vec_len -= 8;
+        if (TCG_TARGET_HAS_extract2_tl) {
+            /*
+             * Load the next byte of the result into the high byte of T.
+             * TCG does a similar expansion of deposit to shl+extract2; by
+             * loading the whole word, the shift left is avoided.
+             */
+#ifdef TARGET_X86_64
+            tcg_gen_ld_tl(t, cpu_env, offsetof(CPUX86State, xmm_t0.ZMM_Q((vec_len - 1) / 8)));
+#else
+            tcg_gen_ld_tl(t, cpu_env, offsetof(CPUX86State, xmm_t0.ZMM_L((vec_len - 1) / 4)));
+#endif
+
+            tcg_gen_extract2_tl(s->T0, t, s->T0, TARGET_LONG_BITS - 8);
+        } else {
+            /*
+             * The _previous_ value is deposited into bits 8 and higher of t.  Because
+             * those bits are known to be zero after ld8u, this becomes a shift+or
+             * if deposit is not available.
+             */
+            tcg_gen_ld8u_tl(t, cpu_env, offsetof(CPUX86State, xmm_t0.ZMM_B(vec_len - 1)));
+            tcg_gen_deposit_tl(s->T0, t, s->T0, 8, TARGET_LONG_BITS - 8);
+        }
     }
-    tcg_gen_extu_i32_tl(s->T0, s->tmp2_i32);
+    tcg_temp_free(t);
 }
 
 static void gen_PSHUFW(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
