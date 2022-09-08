@@ -30,7 +30,7 @@ def main():
 
     destdir = tempfile.mkdtemp()
     try:
-        subprocess.run(["make", "install", "DESTDIR=" + destdir + os.path.sep])
+        subprocess.run(["make", "install", "DESTDIR=" + destdir])
         with open(
             os.path.join(destdir + args.prefix, "system-emulations.nsh"), "w"
         ) as nsh, open(
