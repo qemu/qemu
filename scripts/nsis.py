@@ -28,16 +28,18 @@ def main():
     parser.add_argument("nsisargs", nargs="*")
     args = parser.parse_args()
 
+    # canonicalize the Windows native prefix path
+    prefix = os.path.splitdrive(args.prefix)[1]
     destdir = tempfile.mkdtemp()
     try:
         subprocess.run(["make", "install", "DESTDIR=" + destdir])
         with open(
-            os.path.join(destdir + args.prefix, "system-emulations.nsh"), "w"
+            os.path.join(destdir + prefix, "system-emulations.nsh"), "w"
         ) as nsh, open(
-            os.path.join(destdir + args.prefix, "system-mui-text.nsh"), "w"
+            os.path.join(destdir + prefix, "system-mui-text.nsh"), "w"
         ) as muinsh:
             for exe in sorted(glob.glob(
-                os.path.join(destdir + args.prefix, "qemu-system-*.exe")
+                os.path.join(destdir + prefix, "qemu-system-*.exe")
             )):
                 exe = os.path.basename(exe)
                 arch = exe[12:-4]
@@ -61,7 +63,7 @@ def main():
                 !insertmacro MUI_DESCRIPTION_TEXT ${{Section_{0}}} "{1}"
                 """.format(arch, desc))
 
-        for exe in glob.glob(os.path.join(destdir + args.prefix, "*.exe")):
+        for exe in glob.glob(os.path.join(destdir + prefix, "*.exe")):
             signcode(exe)
 
         makensis = [
@@ -69,7 +71,7 @@ def main():
             "-V2",
             "-NOCD",
             "-DSRCDIR=" + args.srcdir,
-            "-DBINDIR=" + destdir + args.prefix,
+            "-DBINDIR=" + destdir + prefix,
         ]
         dlldir = "w32"
         if args.cpu == "x86_64":
