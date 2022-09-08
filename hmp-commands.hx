@@ -1743,23 +1743,6 @@ SRST
 ERST
 
     {
-        .name       = "info",
-        .args_type  = "item:s?",
-        .params     = "[subcommand]",
-        .help       = "show various information about the system state",
-        .cmd        = hmp_info_help,
-        .sub_table  = hmp_info_cmds,
-        .flags      = "p",
-    },
-
-SRST
-``calc_dirty_rate`` *second*
-  Start a round of dirty rate measurement with the period specified in *second*.
-  The result of the dirty rate measurement may be observed with ``info
-  dirty_rate`` command.
-ERST
-
-    {
         .name       = "calc_dirty_rate",
         .args_type  = "dirty_ring:-r,dirty_bitmap:-b,second:l,sample_pages_per_GB:l?",
         .params     = "[-r] [-b] second [sample_pages_per_GB]",
@@ -1770,10 +1753,10 @@ ERST
     },
 
 SRST
-``set_vcpu_dirty_limit``
-  Set dirty page rate limit on virtual CPU, the information about all the
-  virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
-  command.
+``calc_dirty_rate`` *second*
+  Start a round of dirty rate measurement with the period specified in *second*.
+  The result of the dirty rate measurement may be observed with ``info
+  dirty_rate`` command.
 ERST
 
     {
@@ -1786,8 +1769,8 @@ ERST
     },
 
 SRST
-``cancel_vcpu_dirty_limit``
-  Cancel dirty page rate limit on virtual CPU, the information about all the
+``set_vcpu_dirty_limit``
+  Set dirty page rate limit on virtual CPU, the information about all the
   virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
   command.
 ERST
@@ -1799,4 +1782,21 @@ ERST
         .help       = "cancel dirty page rate limit, use cpu_index to cancel"
                       "\n\t\t\t\t\t limit on a specified virtual cpu",
         .cmd        = hmp_cancel_vcpu_dirty_limit,
+    },
+
+SRST
+``cancel_vcpu_dirty_limit``
+  Cancel dirty page rate limit on virtual CPU, the information about all the
+  virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
+  command.
+ERST
+
+    {
+        .name       = "info",
+        .args_type  = "item:s?",
+        .params     = "[subcommand]",
+        .help       = "show various information about the system state",
+        .cmd        = hmp_info_help,
+        .sub_table  = hmp_info_cmds,
+        .flags      = "p",
     },
