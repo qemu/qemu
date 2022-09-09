@@ -44,6 +44,19 @@ typedef enum {
     TRIGGER_TYPE_NUM
 } trigger_type_t;
 
+/* actions */
+typedef enum {
+    DBG_ACTION_NONE = -1,           /* sentinel value */
+    DBG_ACTION_BP = 0,
+    DBG_ACTION_DBG_MODE,
+    DBG_ACTION_TRACE0,
+    DBG_ACTION_TRACE1,
+    DBG_ACTION_TRACE2,
+    DBG_ACTION_TRACE3,
+    DBG_ACTION_EXT_DBG0 = 8,
+    DBG_ACTION_EXT_DBG1
+} trigger_action_t;
+
 /* tdata1 field masks */
 
 #define RV32_TYPE(t)    ((uint32_t)(t) << 28)

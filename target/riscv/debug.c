@@ -92,6 +92,37 @@ static inline target_ulong get_trigger_type(CPURISCVState *env,
     return extract_trigger_type(env, env->tdata1[trigger_index]);
 }
 
+static trigger_action_t get_trigger_action(CPURISCVState *env,
+                                           target_ulong trigger_index)
+{
+    target_ulong tdata1 = env->tdata1[trigger_index];
+    int trigger_type = get_trigger_type(env, trigger_index);
+    trigger_action_t action = DBG_ACTION_NONE;
+
+    switch (trigger_type) {
+    case TRIGGER_TYPE_AD_MATCH:
+        action = (tdata1 & TYPE2_ACTION) >> 12;
+        break;
+    case TRIGGER_TYPE_INST_CNT:
+    case TRIGGER_TYPE_INT:
+    case TRIGGER_TYPE_EXCP:
+    case TRIGGER_TYPE_AD_MATCH6:
+    case TRIGGER_TYPE_EXT_SRC:
+        qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
+                      trigger_type);
+        break;
+    case TRIGGER_TYPE_NO_EXIST:
+    case TRIGGER_TYPE_UNAVAIL:
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
+                      trigger_type);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return action;
+}
+
 static inline target_ulong build_tdata1(CPURISCVState *env,
                                         trigger_type_t type,
                                         bool dmode, target_ulong data)
@@ -179,6 +210,30 @@ static inline void warn_always_zero_bit(target_ulong val, target_ulong mask,
 {
     if (val & mask) {
         qemu_log_mask(LOG_UNIMP, "%s bit is always zero\n", msg);
+    }
+}
+
+static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
+{
+    trigger_action_t action = get_trigger_action(env, trigger_index);
+
+    switch (action) {
+    case DBG_ACTION_NONE:
+        break;
+    case DBG_ACTION_BP:
+        riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
+        break;
+    case DBG_ACTION_DBG_MODE:
+    case DBG_ACTION_TRACE0:
+    case DBG_ACTION_TRACE1:
+    case DBG_ACTION_TRACE2:
+    case DBG_ACTION_TRACE3:
+    case DBG_ACTION_EXT_DBG0:
+    case DBG_ACTION_EXT_DBG1:
+        qemu_log_mask(LOG_UNIMP, "action: %d is not supported\n", action);
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -384,11 +439,11 @@ void riscv_cpu_debug_excp_handler(CPUState *cs)
     if (cs->watchpoint_hit) {
         if (cs->watchpoint_hit->flags & BP_CPU) {
             cs->watchpoint_hit = NULL;
-            riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
+            do_trigger_action(env, DBG_ACTION_BP);
         }
     } else {
         if (cpu_breakpoint_test(cs, env->pc, BP_CPU)) {
-            riscv_raise_exception(env, RISCV_EXCP_BREAKPOINT, 0);
+            do_trigger_action(env, DBG_ACTION_BP);
         }
     }
 }
