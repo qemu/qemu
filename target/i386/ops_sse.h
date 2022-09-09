@@ -557,12 +557,20 @@ void glue(helper_pshufhw, SUFFIX)(Reg *d, Reg *s, int order)
                                                                         \
     void helper_ ## name ## ss(CPUX86State *env, Reg *d, Reg *v, Reg *s)\
     {                                                                   \
+        int i;                                                          \
         d->ZMM_S(0) = F(32, v->ZMM_S(0), s->ZMM_S(0));                  \
+        for (i = 1; i < 2 << SHIFT; i++) {                              \
+            d->ZMM_L(i) = v->ZMM_L(i);                                  \
+        }                                                               \
     }                                                                   \
                                                                         \
     void helper_ ## name ## sd(CPUX86State *env, Reg *d, Reg *v, Reg *s)\
     {                                                                   \
+        int i;                                                          \
         d->ZMM_D(0) = F(64, v->ZMM_D(0), s->ZMM_D(0));                  \
+        for (i = 1; i < 1 << SHIFT; i++) {                              \
+            d->ZMM_Q(i) = v->ZMM_Q(i);                                  \
+        }                                                               \
     }
 
 #else
@@ -1027,12 +1035,20 @@ void glue(helper_addsubpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
     SSE_HELPER_CMP_P(name, F, C)                                            \
     void helper_ ## name ## ss(CPUX86State *env, Reg *d, Reg *v, Reg *s)    \
     {                                                                       \
+        int i;                                                              \
         d->ZMM_L(0) = C(F(32, v->ZMM_S(0), s->ZMM_S(0))) ? -1 : 0;          \
+        for (i = 1; i < 2 << SHIFT; i++) {                                  \
+            d->ZMM_L(i) = v->ZMM_L(i);                                      \
+        }                                                                   \
     }                                                                       \
                                                                             \
     void helper_ ## name ## sd(CPUX86State *env, Reg *d, Reg *v, Reg *s)    \
     {                                                                       \
+        int i;                                                              \
         d->ZMM_Q(0) = C(F(64, v->ZMM_D(0), s->ZMM_D(0))) ? -1 : 0;          \
+        for (i = 1; i < 1 << SHIFT; i++) {                                  \
+            d->ZMM_Q(i) = v->ZMM_Q(i);                                      \
+        }                                                                   \
     }
 
 #define FPU_EQ(x) (x == float_relation_equal)
