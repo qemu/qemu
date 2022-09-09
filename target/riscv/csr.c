@@ -3070,7 +3070,7 @@ static RISCVException read_tdata(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
     /* return 0 in tdata1 to end the trigger enumeration */
-    if (env->trigger_cur >= TRIGGER_NUM && csrno == CSR_TDATA1) {
+    if (env->trigger_cur >= RV_MAX_TRIGGERS && csrno == CSR_TDATA1) {
         *val = 0;
         return RISCV_EXCP_NONE;
     }

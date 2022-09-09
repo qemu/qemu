@@ -247,7 +247,7 @@ static const VMStateDescription vmstate_debug = {
     .needed = debug_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL(env.trigger_cur, RISCVCPU),
-        VMSTATE_STRUCT_ARRAY(env.type2_trig, RISCVCPU, TRIGGER_TYPE2_NUM,
+        VMSTATE_STRUCT_ARRAY(env.type2_trig, RISCVCPU, RV_MAX_TRIGGERS,
                              0, vmstate_debug_type2, type2_trigger_t),
         VMSTATE_END_OF_LIST()
     }

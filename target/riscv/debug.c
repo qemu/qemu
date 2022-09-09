@@ -52,8 +52,15 @@
 /* tdata availability of a trigger */
 typedef bool tdata_avail[TDATA_NUM];
 
-static tdata_avail tdata_mapping[TRIGGER_NUM] = {
-    [TRIGGER_TYPE2_IDX_0 ... TRIGGER_TYPE2_IDX_1] = { true, true, false },
+static tdata_avail tdata_mapping[TRIGGER_TYPE_NUM] = {
+    [TRIGGER_TYPE_NO_EXIST] = { false, false, false },
+    [TRIGGER_TYPE_AD_MATCH] = { true, true, true },
+    [TRIGGER_TYPE_INST_CNT] = { true, false, true },
+    [TRIGGER_TYPE_INT] = { true, true, true },
+    [TRIGGER_TYPE_EXCP] = { true, true, true },
+    [TRIGGER_TYPE_AD_MATCH6] = { true, true, true },
+    [TRIGGER_TYPE_EXT_SRC] = { true, false, false },
+    [TRIGGER_TYPE_UNAVAIL] = { true, true, true }
 };
 
 /* only breakpoint size 1/2/4/8 supported */
@@ -66,6 +73,27 @@ static int access_size[SIZE_NUM] = {
     [SIZE_8B]  = 8,
     [6 ... 15] = -1,
 };
+
+static inline target_ulong extract_trigger_type(CPURISCVState *env,
+                                                target_ulong tdata1)
+{
+    switch (riscv_cpu_mxl(env)) {
+    case MXL_RV32:
+        return extract32(tdata1, 28, 4);
+    case MXL_RV64:
+    case MXL_RV128:
+        return extract64(tdata1, 60, 4);
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static inline target_ulong get_trigger_type(CPURISCVState *env,
+                                            target_ulong trigger_index)
+{
+    target_ulong tdata1 = env->type2_trig[trigger_index].mcontrol;
+    return extract_trigger_type(env, tdata1);
+}
 
 static inline target_ulong trigger_type(CPURISCVState *env,
                                         trigger_type_t type)
@@ -89,15 +117,17 @@ static inline target_ulong trigger_type(CPURISCVState *env,
 
 bool tdata_available(CPURISCVState *env, int tdata_index)
 {
+    int trigger_type = get_trigger_type(env, env->trigger_cur);
+
     if (unlikely(tdata_index >= TDATA_NUM)) {
         return false;
     }
 
-    if (unlikely(env->trigger_cur >= TRIGGER_NUM)) {
+    if (unlikely(env->trigger_cur >= RV_MAX_TRIGGERS)) {
         return false;
     }
 
-    return tdata_mapping[env->trigger_cur][tdata_index];
+    return tdata_mapping[trigger_type][tdata_index];
 }
 
 target_ulong tselect_csr_read(CPURISCVState *env)
@@ -137,6 +167,7 @@ static target_ulong tdata1_validate(CPURISCVState *env, target_ulong val,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "ignoring type write to tdata1 register\n");
     }
+
     if (dmode != 0) {
         qemu_log_mask(LOG_UNIMP, "debug mode is not supported\n");
     }
@@ -261,9 +292,8 @@ static void type2_breakpoint_remove(CPURISCVState *env, target_ulong index)
 }
 
 static target_ulong type2_reg_read(CPURISCVState *env,
-                                   target_ulong trigger_index, int tdata_index)
+                                   target_ulong index, int tdata_index)
 {
-    uint32_t index = trigger_index - TRIGGER_TYPE2_IDX_0;
     target_ulong tdata;
 
     switch (tdata_index) {
@@ -280,10 +310,9 @@ static target_ulong type2_reg_read(CPURISCVState *env,
     return tdata;
 }
 
-static void type2_reg_write(CPURISCVState *env, target_ulong trigger_index,
+static void type2_reg_write(CPURISCVState *env, target_ulong index,
                             int tdata_index, target_ulong val)
 {
-    uint32_t index = trigger_index - TRIGGER_TYPE2_IDX_0;
     target_ulong new_val;
 
     switch (tdata_index) {
@@ -309,35 +338,64 @@ static void type2_reg_write(CPURISCVState *env, target_ulong trigger_index,
     return;
 }
 
-typedef target_ulong (*tdata_read_func)(CPURISCVState *env,
-                                        target_ulong trigger_index,
-                                        int tdata_index);
-
-static tdata_read_func trigger_read_funcs[TRIGGER_NUM] = {
-    [TRIGGER_TYPE2_IDX_0 ... TRIGGER_TYPE2_IDX_1] = type2_reg_read,
-};
-
-typedef void (*tdata_write_func)(CPURISCVState *env,
-                                 target_ulong trigger_index,
-                                 int tdata_index,
-                                 target_ulong val);
-
-static tdata_write_func trigger_write_funcs[TRIGGER_NUM] = {
-    [TRIGGER_TYPE2_IDX_0 ... TRIGGER_TYPE2_IDX_1] = type2_reg_write,
-};
-
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
-    tdata_read_func read_func = trigger_read_funcs[env->trigger_cur];
+    int trigger_type = get_trigger_type(env, env->trigger_cur);
 
-    return read_func(env, env->trigger_cur, tdata_index);
+    switch (trigger_type) {
+    case TRIGGER_TYPE_AD_MATCH:
+        return type2_reg_read(env, env->trigger_cur, tdata_index);
+        break;
+    case TRIGGER_TYPE_INST_CNT:
+    case TRIGGER_TYPE_INT:
+    case TRIGGER_TYPE_EXCP:
+    case TRIGGER_TYPE_AD_MATCH6:
+    case TRIGGER_TYPE_EXT_SRC:
+        qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
+                      trigger_type);
+        break;
+    case TRIGGER_TYPE_NO_EXIST:
+    case TRIGGER_TYPE_UNAVAIL:
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
+                      trigger_type);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return 0;
 }
 
 void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 {
-    tdata_write_func write_func = trigger_write_funcs[env->trigger_cur];
+    int trigger_type;
 
-    return write_func(env, env->trigger_cur, tdata_index, val);
+    if (tdata_index == TDATA1) {
+        trigger_type = extract_trigger_type(env, val);
+    } else {
+        trigger_type = get_trigger_type(env, env->trigger_cur);
+    }
+
+    switch (trigger_type) {
+    case TRIGGER_TYPE_AD_MATCH:
+        type2_reg_write(env, env->trigger_cur, tdata_index, val);
+        break;
+    case TRIGGER_TYPE_INST_CNT:
+    case TRIGGER_TYPE_INT:
+    case TRIGGER_TYPE_EXCP:
+    case TRIGGER_TYPE_AD_MATCH6:
+    case TRIGGER_TYPE_EXT_SRC:
+        qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
+                      trigger_type);
+        break;
+    case TRIGGER_TYPE_NO_EXIST:
+    case TRIGGER_TYPE_UNAVAIL:
+        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
+                      trigger_type);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 void riscv_cpu_debug_excp_handler(CPUState *cs)
@@ -364,18 +422,28 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
     CPUBreakpoint *bp;
     target_ulong ctrl;
     target_ulong pc;
+    int trigger_type;
     int i;
 
     QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-        for (i = 0; i < TRIGGER_TYPE2_NUM; i++) {
-            ctrl = env->type2_trig[i].mcontrol;
-            pc = env->type2_trig[i].maddress;
+        for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+            trigger_type = get_trigger_type(env, i);
 
-            if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
-                /* check U/S/M bit against current privilege level */
-                if ((ctrl >> 3) & BIT(env->priv)) {
-                    return true;
+            switch (trigger_type) {
+            case TRIGGER_TYPE_AD_MATCH:
+                ctrl = env->type2_trig[i].mcontrol;
+                pc = env->type2_trig[i].maddress;
+
+                if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
+                    /* check U/S/M bit against current privilege level */
+                    if ((ctrl >> 3) & BIT(env->priv)) {
+                        return true;
+                    }
                 }
+                break;
+            default:
+                /* other trigger types are not supported or irrelevant */
+                break;
             }
         }
     }
@@ -389,26 +457,36 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
     CPURISCVState *env = &cpu->env;
     target_ulong ctrl;
     target_ulong addr;
+    int trigger_type;
     int flags;
     int i;
 
-    for (i = 0; i < TRIGGER_TYPE2_NUM; i++) {
-        ctrl = env->type2_trig[i].mcontrol;
-        addr = env->type2_trig[i].maddress;
-        flags = 0;
+    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
+        trigger_type = get_trigger_type(env, i);
 
-        if (ctrl & TYPE2_LOAD) {
-            flags |= BP_MEM_READ;
-        }
-        if (ctrl & TYPE2_STORE) {
-            flags |= BP_MEM_WRITE;
-        }
+        switch (trigger_type) {
+        case TRIGGER_TYPE_AD_MATCH:
+            ctrl = env->type2_trig[i].mcontrol;
+            addr = env->type2_trig[i].maddress;
+            flags = 0;
 
-        if ((wp->flags & flags) && (wp->vaddr == addr)) {
-            /* check U/S/M bit against current privilege level */
-            if ((ctrl >> 3) & BIT(env->priv)) {
-                return true;
+            if (ctrl & TYPE2_LOAD) {
+                flags |= BP_MEM_READ;
             }
+            if (ctrl & TYPE2_STORE) {
+                flags |= BP_MEM_WRITE;
+            }
+
+            if ((wp->flags & flags) && (wp->vaddr == addr)) {
+                /* check U/S/M bit against current privilege level */
+                if ((ctrl >> 3) & BIT(env->priv)) {
+                    return true;
+                }
+            }
+            break;
+        default:
+            /* other trigger types are not supported */
+            break;
         }
     }
 
@@ -417,11 +495,11 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
 void riscv_trigger_init(CPURISCVState *env)
 {
-    target_ulong type2 = trigger_type(env, TRIGGER_TYPE_AD_MATCH);
+    target_ulong tdata1 = trigger_type(env, TRIGGER_TYPE_AD_MATCH);
     int i;
 
-    /* type 2 triggers */
-    for (i = 0; i < TRIGGER_TYPE2_NUM; i++) {
+    /* init to type 2 triggers */
+    for (i = 0; i < RV_MAX_TRIGGERS; i++) {
         /*
          * type = TRIGGER_TYPE_AD_MATCH
          * dmode = 0 (both debug and M-mode can write tdata)
@@ -435,7 +513,7 @@ void riscv_trigger_init(CPURISCVState *env)
          * chain = 0 (unimplemented, always 0)
          * match = 0 (always 0, when any compare value equals tdata2)
          */
-        env->type2_trig[i].mcontrol = type2;
+        env->type2_trig[i].mcontrol = tdata1;
         env->type2_trig[i].maddress = 0;
         env->type2_trig[i].bp = NULL;
         env->type2_trig[i].wp = NULL;

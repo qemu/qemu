@@ -22,13 +22,7 @@
 #ifndef RISCV_DEBUG_H
 #define RISCV_DEBUG_H
 
-/* trigger indexes implemented */
-enum {
-    TRIGGER_TYPE2_IDX_0 = 0,
-    TRIGGER_TYPE2_IDX_1,
-    TRIGGER_TYPE2_NUM,
-    TRIGGER_NUM = TRIGGER_TYPE2_NUM
-};
+#define RV_MAX_TRIGGERS         2
 
 /* register index of tdata CSRs */
 enum {
@@ -46,7 +40,8 @@ typedef enum {
     TRIGGER_TYPE_EXCP = 5,          /* exception trigger */
     TRIGGER_TYPE_AD_MATCH6 = 6,     /* new address/data match trigger */
     TRIGGER_TYPE_EXT_SRC = 7,       /* external source trigger */
-    TRIGGER_TYPE_UNAVAIL = 15       /* trigger exists, but unavailable */
+    TRIGGER_TYPE_UNAVAIL = 15,      /* trigger exists, but unavailable */
+    TRIGGER_TYPE_NUM
 } trigger_type_t;
 
 typedef struct {
@@ -56,7 +51,7 @@ typedef struct {
     struct CPUWatchpoint *wp;
 } type2_trigger_t;
 
-/* tdata field masks */
+/* tdata1 field masks */
 
 #define RV32_TYPE(t)    ((uint32_t)(t) << 28)
 #define RV32_TYPE_MASK  (0xf << 28)
