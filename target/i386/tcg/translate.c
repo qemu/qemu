@@ -3011,6 +3011,9 @@ static bool first = true; static unsigned long limit;
 #define SSE_OP(sname, dname, op, flags) OP(op, flags, \
         gen_helper_##sname##_xmm, gen_helper_##dname##_xmm, NULL, NULL)
 
+#define SSE_OP_UNARY(a, b, c, d)       \
+    {SSE_OPF_SCALAR | SSE_OPF_V0, {{.op1 = a}, {.op1 = b}, {.op2 = c}, {.op2 = d} } }
+
 typedef union SSEFuncs {
     SSEFunc_0_epp op1;
     SSEFunc_0_ppi op1i;
@@ -3053,12 +3056,12 @@ static const struct SSEOpHelper_table1 sse_op_table1[256] = {
     [0x2f] = OP(op1, SSE_OPF_CMP | SSE_OPF_SCALAR | SSE_OPF_V0,
             gen_helper_comiss, gen_helper_comisd, NULL, NULL),
     [0x50] = SSE_SPECIAL, /* movmskps, movmskpd */
-    [0x51] = OP(op1, SSE_OPF_SCALAR | SSE_OPF_V0,
+    [0x51] = SSE_OP_UNARY(
                 gen_helper_sqrtps_xmm, gen_helper_sqrtpd_xmm,
                 gen_helper_sqrtss, gen_helper_sqrtsd),
-    [0x52] = OP(op1, SSE_OPF_SCALAR | SSE_OPF_V0,
+    [0x52] = SSE_OP_UNARY(
                 gen_helper_rsqrtps_xmm, NULL, gen_helper_rsqrtss, NULL),
-    [0x53] = OP(op1, SSE_OPF_SCALAR | SSE_OPF_V0,
+    [0x53] = SSE_OP_UNARY(
                 gen_helper_rcpps_xmm, NULL, gen_helper_rcpss, NULL),
     [0x54] = SSE_OP(pand, pand, op2, 0), /* andps, andpd */
     [0x55] = SSE_OP(pandn, pandn, op2, 0), /* andnps, andnpd */
@@ -3066,9 +3069,9 @@ static const struct SSEOpHelper_table1 sse_op_table1[256] = {
     [0x57] = SSE_OP(pxor, pxor, op2, 0), /* xorps, xorpd */
     [0x58] = SSE_FOP(add),
     [0x59] = SSE_FOP(mul),
-    [0x5a] = OP(op1, SSE_OPF_SCALAR | SSE_OPF_V0,
-                gen_helper_cvtps2pd_xmm, gen_helper_cvtpd2ps_xmm,
-                gen_helper_cvtss2sd, gen_helper_cvtsd2ss),
+    [0x5a] = SSE_OP_UNARY(
+                 gen_helper_cvtps2pd_xmm, gen_helper_cvtpd2ps_xmm,
+                 gen_helper_cvtss2sd, gen_helper_cvtsd2ss),
     [0x5b] = OP(op1, SSE_OPF_V0,
                 gen_helper_cvtdq2ps_xmm, gen_helper_cvtps2dq_xmm,
                 gen_helper_cvttps2dq_xmm, NULL),
@@ -3364,8 +3367,8 @@ static const struct SSEOpHelper_table6 sse_op_table6[256] = {
 static const struct SSEOpHelper_table7 sse_op_table7[256] = {
     [0x08] = UNARY_OP(roundps, SSE41, 0),
     [0x09] = UNARY_OP(roundpd, SSE41, 0),
-    [0x0a] = UNARY_OP(roundss, SSE41, SSE_OPF_SCALAR),
-    [0x0b] = UNARY_OP(roundsd, SSE41, SSE_OPF_SCALAR),
+    [0x0a] = BINARY_OP(roundss, SSE41, SSE_OPF_SCALAR),
+    [0x0b] = BINARY_OP(roundsd, SSE41, SSE_OPF_SCALAR),
     [0x0c] = BINARY_OP(blendps, SSE41, 0),
     [0x0d] = BINARY_OP(blendpd, SSE41, 0),
     [0x0e] = BINARY_OP(pblendw, SSE41, SSE_OPF_MMX),
@@ -4640,7 +4643,8 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 
         tcg_gen_addi_ptr(s->ptr0, cpu_env, op1_offset);
         tcg_gen_addi_ptr(s->ptr1, cpu_env, op2_offset);
-        if (sse_op_flags & SSE_OPF_V0) {
+        if ((sse_op_flags & SSE_OPF_V0) &&
+            !((sse_op_flags & SSE_OPF_SCALAR) && b1 >= 2)) {
             if (sse_op_flags & SSE_OPF_SHUF) {
                 val = x86_ldub_code(env, s);
                 sse_op_fn.op1i(s->ptr0, s->ptr1, tcg_const_i32(val));
