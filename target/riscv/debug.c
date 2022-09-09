@@ -91,8 +91,7 @@ static inline target_ulong extract_trigger_type(CPURISCVState *env,
 static inline target_ulong get_trigger_type(CPURISCVState *env,
                                             target_ulong trigger_index)
 {
-    target_ulong tdata1 = env->type2_trig[trigger_index].mcontrol;
-    return extract_trigger_type(env, tdata1);
+    return extract_trigger_type(env, env->tdata1[trigger_index]);
 }
 
 static inline target_ulong build_tdata1(CPURISCVState *env,
@@ -188,6 +187,8 @@ static inline void warn_always_zero_bit(target_ulong val, target_ulong mask,
     }
 }
 
+/* type 2 trigger */
+
 static uint32_t type2_breakpoint_size(CPURISCVState *env, target_ulong ctrl)
 {
     uint32_t size, sizelo, sizehi = 0;
@@ -247,8 +248,8 @@ static target_ulong type2_mcontrol_validate(CPURISCVState *env,
 
 static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
 {
-    target_ulong ctrl = env->type2_trig[index].mcontrol;
-    target_ulong addr = env->type2_trig[index].maddress;
+    target_ulong ctrl = env->tdata1[index];
+    target_ulong addr = env->tdata2[index];
     bool enabled = type2_breakpoint_enabled(ctrl);
     CPUState *cs = env_cpu(env);
     int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
@@ -259,7 +260,7 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
     }
 
     if (ctrl & TYPE2_EXEC) {
-        cpu_breakpoint_insert(cs, addr, flags, &env->type2_trig[index].bp);
+        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
     }
 
     if (ctrl & TYPE2_LOAD) {
@@ -273,10 +274,10 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
         size = type2_breakpoint_size(env, ctrl);
         if (size != 0) {
             cpu_watchpoint_insert(cs, addr, size, flags,
-                                  &env->type2_trig[index].wp);
+                                  &env->cpu_watchpoint[index]);
         } else {
             cpu_watchpoint_insert(cs, addr, 8, flags,
-                                  &env->type2_trig[index].wp);
+                                  &env->cpu_watchpoint[index]);
         }
     }
 }
@@ -285,34 +286,15 @@ static void type2_breakpoint_remove(CPURISCVState *env, target_ulong index)
 {
     CPUState *cs = env_cpu(env);
 
-    if (env->type2_trig[index].bp) {
-        cpu_breakpoint_remove_by_ref(cs, env->type2_trig[index].bp);
-        env->type2_trig[index].bp = NULL;
+    if (env->cpu_breakpoint[index]) {
+        cpu_breakpoint_remove_by_ref(cs, env->cpu_breakpoint[index]);
+        env->cpu_breakpoint[index] = NULL;
     }
 
-    if (env->type2_trig[index].wp) {
-        cpu_watchpoint_remove_by_ref(cs, env->type2_trig[index].wp);
-        env->type2_trig[index].wp = NULL;
+    if (env->cpu_watchpoint[index]) {
+        cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[index]);
+        env->cpu_watchpoint[index] = NULL;
     }
-}
-
-static target_ulong type2_reg_read(CPURISCVState *env,
-                                   target_ulong index, int tdata_index)
-{
-    target_ulong tdata;
-
-    switch (tdata_index) {
-    case TDATA1:
-        tdata = env->type2_trig[index].mcontrol;
-        break;
-    case TDATA2:
-        tdata = env->type2_trig[index].maddress;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    return tdata;
 }
 
 static void type2_reg_write(CPURISCVState *env, target_ulong index,
@@ -323,18 +305,22 @@ static void type2_reg_write(CPURISCVState *env, target_ulong index,
     switch (tdata_index) {
     case TDATA1:
         new_val = type2_mcontrol_validate(env, val);
-        if (new_val != env->type2_trig[index].mcontrol) {
-            env->type2_trig[index].mcontrol = new_val;
+        if (new_val != env->tdata1[index]) {
+            env->tdata1[index] = new_val;
             type2_breakpoint_remove(env, index);
             type2_breakpoint_insert(env, index);
         }
         break;
     case TDATA2:
-        if (val != env->type2_trig[index].maddress) {
-            env->type2_trig[index].maddress = val;
+        if (val != env->tdata2[index]) {
+            env->tdata2[index] = val;
             type2_breakpoint_remove(env, index);
             type2_breakpoint_insert(env, index);
         }
+        break;
+    case TDATA3:
+        qemu_log_mask(LOG_UNIMP,
+                      "tdata3 is not supported for type 2 trigger\n");
         break;
     default:
         g_assert_not_reached();
@@ -345,30 +331,16 @@ static void type2_reg_write(CPURISCVState *env, target_ulong index,
 
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
-    int trigger_type = get_trigger_type(env, env->trigger_cur);
-
-    switch (trigger_type) {
-    case TRIGGER_TYPE_AD_MATCH:
-        return type2_reg_read(env, env->trigger_cur, tdata_index);
-        break;
-    case TRIGGER_TYPE_INST_CNT:
-    case TRIGGER_TYPE_INT:
-    case TRIGGER_TYPE_EXCP:
-    case TRIGGER_TYPE_AD_MATCH6:
-    case TRIGGER_TYPE_EXT_SRC:
-        qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
-                      trigger_type);
-        break;
-    case TRIGGER_TYPE_NO_EXIST:
-    case TRIGGER_TYPE_UNAVAIL:
-        qemu_log_mask(LOG_GUEST_ERROR, "trigger type: %d does not exit\n",
-                      trigger_type);
-        break;
+    switch (tdata_index) {
+    case TDATA1:
+        return env->tdata1[env->trigger_cur];
+    case TDATA2:
+        return env->tdata2[env->trigger_cur];
+    case TDATA3:
+        return env->tdata3[env->trigger_cur];
     default:
         g_assert_not_reached();
     }
-
-    return 0;
 }
 
 void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
@@ -436,8 +408,8 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
 
             switch (trigger_type) {
             case TRIGGER_TYPE_AD_MATCH:
-                ctrl = env->type2_trig[i].mcontrol;
-                pc = env->type2_trig[i].maddress;
+                ctrl = env->tdata1[i];
+                pc = env->tdata2[i];
 
                 if ((ctrl & TYPE2_EXEC) && (bp->pc == pc)) {
                     /* check U/S/M bit against current privilege level */
@@ -471,8 +443,8 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
-            ctrl = env->type2_trig[i].mcontrol;
-            addr = env->type2_trig[i].maddress;
+            ctrl = env->tdata1[i];
+            addr = env->tdata2[i];
             flags = 0;
 
             if (ctrl & TYPE2_LOAD) {
@@ -518,9 +490,10 @@ void riscv_trigger_init(CPURISCVState *env)
          * chain = 0 (unimplemented, always 0)
          * match = 0 (always 0, when any compare value equals tdata2)
          */
-        env->type2_trig[i].mcontrol = tdata1;
-        env->type2_trig[i].maddress = 0;
-        env->type2_trig[i].bp = NULL;
-        env->type2_trig[i].wp = NULL;
+        env->tdata1[i] = tdata1;
+        env->tdata2[i] = 0;
+        env->tdata3[i] = 0;
+        env->cpu_breakpoint[i] = NULL;
+        env->cpu_watchpoint[i] = NULL;
     }
 }

@@ -44,13 +44,6 @@ typedef enum {
     TRIGGER_TYPE_NUM
 } trigger_type_t;
 
-typedef struct {
-    target_ulong mcontrol;
-    target_ulong maddress;
-    struct CPUBreakpoint *bp;
-    struct CPUWatchpoint *wp;
-} type2_trigger_t;
-
 /* tdata1 field masks */
 
 #define RV32_TYPE(t)    ((uint32_t)(t) << 28)
