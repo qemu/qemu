@@ -464,6 +464,11 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
 
             switch (trigger_type) {
             case TRIGGER_TYPE_AD_MATCH:
+                /* type 2 trigger cannot be fired in VU/VS mode */
+                if (riscv_cpu_virt_enabled(env)) {
+                    return false;
+                }
+
                 ctrl = env->tdata1[i];
                 pc = env->tdata2[i];
 
@@ -499,6 +504,11 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
+            /* type 2 trigger cannot be fired in VU/VS mode */
+            if (riscv_cpu_virt_enabled(env)) {
+                return false;
+            }
+
             ctrl = env->tdata1[i];
             addr = env->tdata2[i];
             flags = 0;
