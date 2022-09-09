@@ -95,18 +95,23 @@ static inline target_ulong get_trigger_type(CPURISCVState *env,
     return extract_trigger_type(env, tdata1);
 }
 
-static inline target_ulong trigger_type(CPURISCVState *env,
-                                        trigger_type_t type)
+static inline target_ulong build_tdata1(CPURISCVState *env,
+                                        trigger_type_t type,
+                                        bool dmode, target_ulong data)
 {
     target_ulong tdata1;
 
     switch (riscv_cpu_mxl(env)) {
     case MXL_RV32:
-        tdata1 = RV32_TYPE(type);
+        tdata1 = RV32_TYPE(type) |
+                 (dmode ? RV32_DMODE : 0) |
+                 (data & RV32_DATA_MASK);
         break;
     case MXL_RV64:
     case MXL_RV128:
-        tdata1 = RV64_TYPE(type);
+        tdata1 = RV64_TYPE(type) |
+                 (dmode ? RV64_DMODE : 0) |
+                 (data & RV64_DATA_MASK);
         break;
     default:
         g_assert_not_reached();
@@ -495,7 +500,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 
 void riscv_trigger_init(CPURISCVState *env)
 {
-    target_ulong tdata1 = trigger_type(env, TRIGGER_TYPE_AD_MATCH);
+    target_ulong tdata1 = build_tdata1(env, TRIGGER_TYPE_AD_MATCH, 0, 0);
     int i;
 
     /* init to type 2 triggers */

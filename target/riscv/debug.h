@@ -56,9 +56,11 @@ typedef struct {
 #define RV32_TYPE(t)    ((uint32_t)(t) << 28)
 #define RV32_TYPE_MASK  (0xf << 28)
 #define RV32_DMODE      BIT(27)
+#define RV32_DATA_MASK  0x7ffffff
 #define RV64_TYPE(t)    ((uint64_t)(t) << 60)
 #define RV64_TYPE_MASK  (0xfULL << 60)
 #define RV64_DMODE      BIT_ULL(59)
+#define RV64_DATA_MASK  0x7ffffffffffffff
 
 /* mcontrol field masks */
 
