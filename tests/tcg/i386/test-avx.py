@@ -103,7 +103,11 @@ class XMMArg():
 
 class MMArg():
     isxmm = True
-    ismem = False # TODO
+    def __init__(self, mw):
+        if mw not in [0, 32, 64]:
+            raise Exception("Bad mem width: %s" % mw)
+        self.mw = mw
+        self.ismem = mw != 0
     def regstr(self, n):
         return "mm%d" % (n & 7)
 
@@ -169,6 +173,9 @@ class ArgMem():
     def regstr(self, n):
         return mem_w(self.w)
 
+class SkipInstruction(Exception):
+    pass
+
 def ArgGenerator(arg, op):
     if arg[:3] == 'xmm' or arg[:3] == "ymm":
         if "/" in arg:
@@ -179,7 +186,13 @@ def ArgGenerator(arg, op):
         else:
             return XMMArg(arg[0], 0);
     elif arg[:2] == 'mm':
-        return MMArg();
+        if "/" in arg:
+            r, m = arg.split('/')
+            if (m[0] != 'm'):
+                raise Exception("Expected /m: %s", arg)
+            return MMArg(int(m[1:]));
+        else:
+            return MMArg(0);
     elif arg[:4] == 'imm8':
         return ArgImm8u(op);
     elif arg == '<XMM0>':
@@ -217,8 +230,12 @@ class InsnGenerator:
 
         try:
             self.args = list(ArgGenerator(a, op) for a in args)
+            if not any((x.isxmm for x in self.args)):
+                raise SkipInstruction
             if len(self.args) > 0 and self.args[-1] is None:
                 self.args = self.args[:-1]
+        except SkipInstruction:
+            raise
         except Exception as e:
             raise Exception("Bad arg %s: %s" % (op, e))
 
@@ -339,10 +356,13 @@ def main():
                 continue
             cpuid = row[6]
             if cpuid in archs:
-                g = InsnGenerator(insn[0], insn[1:])
-                for insn in g.gen():
-                    outf.write('TEST(%d, "%s", %s)\n' % (n, insn, g.optype))
-                    n += 1
+                try:
+                    g = InsnGenerator(insn[0], insn[1:])
+                    for insn in g.gen():
+                        outf.write('TEST(%d, "%s", %s)\n' % (n, insn, g.optype))
+                        n += 1
+                except SkipInstruction:
+                    pass
         outf.write("#undef TEST\n")
         csvfile.close()
 
