@@ -39,7 +39,7 @@
  * - tdata3
  * - tinfo
  *
- * The following triggers are implemented:
+ * The following triggers are initialized by default:
  *
  * Index | Type |          tdata mapping | Description
  * ------+------+------------------------+------------
@@ -103,10 +103,12 @@ static trigger_action_t get_trigger_action(CPURISCVState *env,
     case TRIGGER_TYPE_AD_MATCH:
         action = (tdata1 & TYPE2_ACTION) >> 12;
         break;
+    case TRIGGER_TYPE_AD_MATCH6:
+        action = (tdata1 & TYPE6_ACTION) >> 12;
+        break;
     case TRIGGER_TYPE_INST_CNT:
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
-    case TRIGGER_TYPE_AD_MATCH6:
     case TRIGGER_TYPE_EXT_SRC:
         qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
                       trigger_type);
@@ -379,6 +381,123 @@ static void type2_reg_write(CPURISCVState *env, target_ulong index,
     return;
 }
 
+/* type 6 trigger */
+
+static inline bool type6_breakpoint_enabled(target_ulong ctrl)
+{
+    bool mode = !!(ctrl & (TYPE6_VU | TYPE6_VS | TYPE6_U | TYPE6_S | TYPE6_M));
+    bool rwx = !!(ctrl & (TYPE6_LOAD | TYPE6_STORE | TYPE6_EXEC));
+
+    return mode && rwx;
+}
+
+static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
+                                             target_ulong ctrl)
+{
+    target_ulong val;
+    uint32_t size;
+
+    /* validate the generic part first */
+    val = tdata1_validate(env, ctrl, TRIGGER_TYPE_AD_MATCH6);
+
+    /* validate unimplemented (always zero) bits */
+    warn_always_zero_bit(ctrl, TYPE6_MATCH, "match");
+    warn_always_zero_bit(ctrl, TYPE6_CHAIN, "chain");
+    warn_always_zero_bit(ctrl, TYPE6_ACTION, "action");
+    warn_always_zero_bit(ctrl, TYPE6_TIMING, "timing");
+    warn_always_zero_bit(ctrl, TYPE6_SELECT, "select");
+    warn_always_zero_bit(ctrl, TYPE6_HIT, "hit");
+
+    /* validate size encoding */
+    size = extract32(ctrl, 16, 4);
+    if (access_size[size] == -1) {
+        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using SIZE_ANY\n",
+                      size);
+    } else {
+        val |= (ctrl & TYPE6_SIZE);
+    }
+
+    /* keep the mode and attribute bits */
+    val |= (ctrl & (TYPE6_VU | TYPE6_VS | TYPE6_U | TYPE6_S | TYPE6_M |
+                    TYPE6_LOAD | TYPE6_STORE | TYPE6_EXEC));
+
+    return val;
+}
+
+static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
+{
+    target_ulong ctrl = env->tdata1[index];
+    target_ulong addr = env->tdata2[index];
+    bool enabled = type6_breakpoint_enabled(ctrl);
+    CPUState *cs = env_cpu(env);
+    int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
+    uint32_t size;
+
+    if (!enabled) {
+        return;
+    }
+
+    if (ctrl & TYPE6_EXEC) {
+        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
+    }
+
+    if (ctrl & TYPE6_LOAD) {
+        flags |= BP_MEM_READ;
+    }
+
+    if (ctrl & TYPE6_STORE) {
+        flags |= BP_MEM_WRITE;
+    }
+
+    if (flags & BP_MEM_ACCESS) {
+        size = extract32(ctrl, 16, 4);
+        if (size != 0) {
+            cpu_watchpoint_insert(cs, addr, size, flags,
+                                  &env->cpu_watchpoint[index]);
+        } else {
+            cpu_watchpoint_insert(cs, addr, 8, flags,
+                                  &env->cpu_watchpoint[index]);
+        }
+    }
+}
+
+static void type6_breakpoint_remove(CPURISCVState *env, target_ulong index)
+{
+    type2_breakpoint_remove(env, index);
+}
+
+static void type6_reg_write(CPURISCVState *env, target_ulong index,
+                            int tdata_index, target_ulong val)
+{
+    target_ulong new_val;
+
+    switch (tdata_index) {
+    case TDATA1:
+        new_val = type6_mcontrol6_validate(env, val);
+        if (new_val != env->tdata1[index]) {
+            env->tdata1[index] = new_val;
+            type6_breakpoint_remove(env, index);
+            type6_breakpoint_insert(env, index);
+        }
+        break;
+    case TDATA2:
+        if (val != env->tdata2[index]) {
+            env->tdata2[index] = val;
+            type6_breakpoint_remove(env, index);
+            type6_breakpoint_insert(env, index);
+        }
+        break;
+    case TDATA3:
+        qemu_log_mask(LOG_UNIMP,
+                      "tdata3 is not supported for type 6 trigger\n");
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return;
+}
+
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
     switch (tdata_index) {
@@ -407,10 +526,12 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
     case TRIGGER_TYPE_AD_MATCH:
         type2_reg_write(env, env->trigger_cur, tdata_index, val);
         break;
+    case TRIGGER_TYPE_AD_MATCH6:
+        type6_reg_write(env, env->trigger_cur, tdata_index, val);
+        break;
     case TRIGGER_TYPE_INST_CNT:
     case TRIGGER_TYPE_INT:
     case TRIGGER_TYPE_EXCP:
-    case TRIGGER_TYPE_AD_MATCH6:
     case TRIGGER_TYPE_EXT_SRC:
         qemu_log_mask(LOG_UNIMP, "trigger type: %d is not supported\n",
                       trigger_type);
@@ -428,7 +549,8 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
 target_ulong tinfo_csr_read(CPURISCVState *env)
 {
     /* assume all triggers support the same types of triggers */
-    return BIT(TRIGGER_TYPE_AD_MATCH);
+    return BIT(TRIGGER_TYPE_AD_MATCH) |
+           BIT(TRIGGER_TYPE_AD_MATCH6);
 }
 
 void riscv_cpu_debug_excp_handler(CPUState *cs)
@@ -479,6 +601,24 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                     }
                 }
                 break;
+            case TRIGGER_TYPE_AD_MATCH6:
+                ctrl = env->tdata1[i];
+                pc = env->tdata2[i];
+
+                if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
+                    if (riscv_cpu_virt_enabled(env)) {
+                        /* check VU/VS bit against current privilege level */
+                        if ((ctrl >> 23) & BIT(env->priv)) {
+                            return true;
+                        }
+                    } else {
+                        /* check U/S/M bit against current privilege level */
+                        if ((ctrl >> 3) & BIT(env->priv)) {
+                            return true;
+                        }
+                    }
+                }
+                break;
             default:
                 /* other trigger types are not supported or irrelevant */
                 break;
@@ -524,6 +664,32 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
                 /* check U/S/M bit against current privilege level */
                 if ((ctrl >> 3) & BIT(env->priv)) {
                     return true;
+                }
+            }
+            break;
+        case TRIGGER_TYPE_AD_MATCH6:
+            ctrl = env->tdata1[i];
+            addr = env->tdata2[i];
+            flags = 0;
+
+            if (ctrl & TYPE6_LOAD) {
+                flags |= BP_MEM_READ;
+            }
+            if (ctrl & TYPE6_STORE) {
+                flags |= BP_MEM_WRITE;
+            }
+
+            if ((wp->flags & flags) && (wp->vaddr == addr)) {
+                if (riscv_cpu_virt_enabled(env)) {
+                    /* check VU/VS bit against current privilege level */
+                    if ((ctrl >> 23) & BIT(env->priv)) {
+                        return true;
+                    }
+                } else {
+                    /* check U/S/M bit against current privilege level */
+                    if ((ctrl >> 3) & BIT(env->priv)) {
+                        return true;
+                    }
                 }
             }
             break;
