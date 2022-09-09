@@ -37,9 +37,7 @@
  * - tdata1
  * - tdata2
  * - tdata3
- *
- * We don't support writable 'type' field in the tdata1 register, so there is
- * no need to implement the "tinfo" CSR.
+ * - tinfo
  *
  * The following triggers are implemented:
  *
@@ -370,6 +368,12 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val)
     default:
         g_assert_not_reached();
     }
+}
+
+target_ulong tinfo_csr_read(CPURISCVState *env)
+{
+    /* assume all triggers support the same types of triggers */
+    return BIT(TRIGGER_TYPE_AD_MATCH);
 }
 
 void riscv_cpu_debug_excp_handler(CPUState *cs)
