@@ -289,7 +289,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
         virtio_queue_set_notification(svq->vq, false);
 
         while (true) {
-            g_autofree VirtQueueElement *elem;
+            g_autofree VirtQueueElement *elem = NULL;
             int r;
 
             if (svq->next_guest_avail_elem) {
