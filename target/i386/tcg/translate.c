@@ -439,32 +439,51 @@ static inline MemOp mo_b_d32(int b, MemOp ot)
     return b & 1 ? (ot == MO_16 ? MO_16 : MO_32) : MO_8;
 }
 
-static void gen_op_mov_reg_v(DisasContext *s, MemOp ot, int reg, TCGv t0)
+/* Compute the result of writing t0 to the OT-sized register REG.
+ *
+ * If DEST is NULL, store the result into the register and return the
+ * register's TCGv.
+ *
+ * If DEST is not NULL, store the result into DEST and return the
+ * register's TCGv.
+ */
+static TCGv gen_op_deposit_reg_v(DisasContext *s, MemOp ot, int reg, TCGv dest, TCGv t0)
 {
     switch(ot) {
     case MO_8:
-        if (!byte_reg_is_xH(s, reg)) {
-            tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 8);
-        } else {
-            tcg_gen_deposit_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], t0, 8, 8);
+        if (byte_reg_is_xH(s, reg)) {
+            dest = dest ? dest : cpu_regs[reg - 4];
+            tcg_gen_deposit_tl(dest, cpu_regs[reg - 4], t0, 8, 8);
+            return cpu_regs[reg - 4];
         }
+        dest = dest ? dest : cpu_regs[reg];
+        tcg_gen_deposit_tl(dest, cpu_regs[reg], t0, 0, 8);
         break;
     case MO_16:
-        tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 16);
+        dest = dest ? dest : cpu_regs[reg];
+        tcg_gen_deposit_tl(dest, cpu_regs[reg], t0, 0, 16);
         break;
     case MO_32:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
-        tcg_gen_ext32u_tl(cpu_regs[reg], t0);
+        dest = dest ? dest : cpu_regs[reg];
+        tcg_gen_ext32u_tl(dest, t0);
         break;
 #ifdef TARGET_X86_64
     case MO_64:
-        tcg_gen_mov_tl(cpu_regs[reg], t0);
+        dest = dest ? dest : cpu_regs[reg];
+        tcg_gen_mov_tl(dest, t0);
         break;
 #endif
     default:
         tcg_abort();
     }
+    return cpu_regs[reg];
+}
+
+static void gen_op_mov_reg_v(DisasContext *s, MemOp ot, int reg, TCGv t0)
+{
+    gen_op_deposit_reg_v(s, ot, reg, NULL, t0);
 }
 
 static inline
@@ -3747,7 +3766,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1b0:
     case 0x1b1: /* cmpxchg Ev, Gv */
         {
-            TCGv oldv, newv, cmpv;
+            TCGv oldv, newv, cmpv, dest;
 
             ot = mo_b_d(b, dflag);
             modrm = x86_ldub_code(env, s);
@@ -3758,7 +3777,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             cmpv = tcg_temp_new();
             gen_op_mov_v_reg(s, ot, newv, reg);
             tcg_gen_mov_tl(cmpv, cpu_regs[R_EAX]);
-
+            gen_extu(ot, cmpv);
             if (s->prefix & PREFIX_LOCK) {
                 if (mod == 3) {
                     goto illegal_op;
@@ -3766,32 +3785,43 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 gen_lea_modrm(env, s, modrm);
                 tcg_gen_atomic_cmpxchg_tl(oldv, s->A0, cmpv, newv,
                                           s->mem_index, ot | MO_LE);
-                gen_op_mov_reg_v(s, ot, R_EAX, oldv);
             } else {
                 if (mod == 3) {
                     rm = (modrm & 7) | REX_B(s);
                     gen_op_mov_v_reg(s, ot, oldv, rm);
+                    gen_extu(ot, oldv);
+
+                    /*
+                     * Unlike the memory case, where "the destination operand receives
+                     * a write cycle without regard to the result of the comparison",
+                     * rm must not be touched altogether if the write fails, including
+                     * not zero-extending it on 64-bit processors.  So, precompute
+                     * the result of a successful writeback and perform the movcond
+                     * directly on cpu_regs.  Also need to write accumulator first, in
+                     * case rm is part of RAX too.
+                     */
+                    dest = gen_op_deposit_reg_v(s, ot, rm, newv, newv);
+                    tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, newv, dest);
                 } else {
                     gen_lea_modrm(env, s, modrm);
                     gen_op_ld_v(s, ot, oldv, s->A0);
-                    rm = 0; /* avoid warning */
-                }
-                gen_extu(ot, oldv);
-                gen_extu(ot, cmpv);
-                /* store value = (old == cmp ? new : old);  */
-                tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
-                if (mod == 3) {
-                    gen_op_mov_reg_v(s, ot, R_EAX, oldv);
-                    gen_op_mov_reg_v(s, ot, rm, newv);
-                } else {
-                    /* Perform an unconditional store cycle like physical cpu;
-                       must be before changing accumulator to ensure
-                       idempotency if the store faults and the instruction
-                       is restarted */
+
+                    /*
+                     * Perform an unconditional store cycle like physical cpu;
+                     * must be before changing accumulator to ensure
+                     * idempotency if the store faults and the instruction
+                     * is restarted
+                     */
+                    tcg_gen_movcond_tl(TCG_COND_EQ, newv, oldv, cmpv, newv, oldv);
                     gen_op_st_v(s, ot, newv, s->A0);
-                    gen_op_mov_reg_v(s, ot, R_EAX, oldv);
                 }
             }
+	    /*
+	     * Write EAX only if the cmpxchg fails; reuse newv as the destination,
+	     * since it's dead here.
+	     */
+            dest = gen_op_deposit_reg_v(s, ot, R_EAX, newv, oldv);
+            tcg_gen_movcond_tl(TCG_COND_EQ, dest, oldv, cmpv, dest, newv);
             tcg_gen_mov_tl(cpu_cc_src, oldv);
             tcg_gen_mov_tl(s->cc_srcT, cmpv);
             tcg_gen_sub_tl(cpu_cc_dst, cmpv, oldv);
