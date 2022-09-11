@@ -82,6 +82,10 @@
 
 #define X86_OP_ENTRY2(op, op0, s0, op1, s1, ...)                  \
     X86_OP_ENTRY3(op, op0, s0, 2op, s0, op1, s1, ## __VA_ARGS__)
+#define X86_OP_ENTRYw(op, op0, s0, ...)                           \
+    X86_OP_ENTRY3(op, op0, s0, None, None, None, None, ## __VA_ARGS__)
+#define X86_OP_ENTRYr(op, op0, s0, ...)                           \
+    X86_OP_ENTRY3(op, None, None, None, None, op0, s0, ## __VA_ARGS__)
 #define X86_OP_ENTRY0(op, ...)                                    \
     X86_OP_ENTRY3(op, None, None, None, None, None, None, ## __VA_ARGS__)
 
@@ -146,6 +150,25 @@ static inline const X86OpEntry *decode_by_prefix(DisasContext *s, const X86OpEnt
         return &entries[1];
     } else {
         return &entries[0];
+    }
+}
+
+static void decode_group15(DisasContext *s, CPUX86State *env, X86OpEntry *entry, uint8_t *b)
+{
+    /* only includes ldmxcsr and stmxcsr, because they have AVX variants.  */
+    static const X86OpEntry group15_reg[8] = {
+    };
+
+    static const X86OpEntry group15_mem[8] = {
+        [2] = X86_OP_ENTRYr(LDMXCSR,    E,d, vex5),
+        [3] = X86_OP_ENTRYw(STMXCSR,    E,d, vex5),
+    };
+
+    uint8_t modrm = get_modrm(s, env);
+    if ((modrm >> 6) == 3) {
+        *entry = group15_reg[(modrm >> 3) & 7];
+    } else {
+        *entry = group15_mem[(modrm >> 3) & 7];
     }
 }
 
@@ -829,6 +852,8 @@ static const X86OpEntry opcodes_0F[256] = {
     [0x7d] = X86_OP_ENTRY3(VHSUB,      V,x, H,x, W,x,  vex2 cpuid(SSE3) p_66_f2),
     [0x7e] = X86_OP_GROUP0(0F7E),
     [0x7f] = X86_OP_GROUP0(0F7F),
+
+    [0xae] = X86_OP_GROUP0(group15),
 
     [0xc2] = X86_OP_ENTRY4(VCMP,       V,x, H,x, W,x,       vex2_rep3 p_00_66_f3_f2),
     [0xc4] = X86_OP_ENTRY4(PINSRW,     V,dq,H,dq,E,w,       vex5 mmx p_00_66),
