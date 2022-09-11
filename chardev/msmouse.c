@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/fifo8.h"
 #include "chardev/char.h"
 #include "chardev/char-serial.h"
 #include "ui/console.h"
@@ -34,6 +35,12 @@
 #define MSMOUSE_HI2(n)  (((n) & 0xc0) >> 6)
 #define MSMOUSE_PWR(cm) (cm & (CHR_TIOCM_RTS | CHR_TIOCM_DTR))
 
+/* Serial fifo size. */
+#define MSMOUSE_BUF_SZ 64
+
+/* Mouse ID: Send "M3" cause we behave like a 3 button logitech mouse. */
+const uint8_t mouse_id[] = {'M', '3'};
+
 struct MouseChardev {
     Chardev parent;
 
@@ -42,8 +49,7 @@ struct MouseChardev {
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
     bool btnc[INPUT_BUTTON__MAX];
-    uint8_t outbuf[32];
-    int outlen;
+    Fifo8 outbuf;
 };
 typedef struct MouseChardev MouseChardev;
 
@@ -54,20 +60,18 @@ DECLARE_INSTANCE_CHECKER(MouseChardev, MOUSE_CHARDEV,
 static void msmouse_chr_accept_input(Chardev *chr)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(chr);
-    int len;
+    uint32_t len, avail;
 
     len = qemu_chr_be_can_write(chr);
-    if (len > mouse->outlen) {
-        len = mouse->outlen;
-    }
-    if (!len) {
-        return;
-    }
+    avail = fifo8_num_used(&mouse->outbuf);
+    while (len > 0 && avail > 0) {
+        const uint8_t *buf;
+        uint32_t size;
 
-    qemu_chr_be_write(chr, mouse->outbuf, len);
-    mouse->outlen -= len;
-    if (mouse->outlen) {
-        memmove(mouse->outbuf, mouse->outbuf + len, mouse->outlen);
+        buf = fifo8_pop_buf(&mouse->outbuf, MIN(len, avail), &size);
+        qemu_chr_be_write(chr, buf, size);
+        len = qemu_chr_be_can_write(chr);
+        avail -= size;
     }
 }
 
@@ -94,12 +98,11 @@ static void msmouse_queue_event(MouseChardev *mouse)
         mouse->btnc[INPUT_BUTTON_MIDDLE]) {
         bytes[3] |= (mouse->btns[INPUT_BUTTON_MIDDLE] ? 0x20 : 0x00);
         mouse->btnc[INPUT_BUTTON_MIDDLE] = false;
-        count = 4;
+        count++;
     }
 
-    if (mouse->outlen <= sizeof(mouse->outbuf) - count) {
-        memcpy(mouse->outbuf + mouse->outlen, bytes, count);
-        mouse->outlen += count;
+    if (fifo8_num_free(&mouse->outbuf) >= count) {
+        fifo8_push_all(&mouse->outbuf, bytes, count);
     } else {
         /* queue full -> drop event */
     }
@@ -172,9 +175,7 @@ static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
                  * cause we behave like a 3 button logitech
                  * mouse.
                  */
-                mouse->outbuf[0] = 'M';
-                mouse->outbuf[1] = '3';
-                mouse->outlen = 2;
+                fifo8_push_all(&mouse->outbuf, mouse_id, sizeof(mouse_id));
                 /* Start sending data to serial. */
                 msmouse_chr_accept_input(chr);
             }
@@ -184,7 +185,7 @@ static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
          * Reset mouse buffers on power down.
          * Mouse won't send anything without power.
          */
-        mouse->outlen = 0;
+        fifo8_reset(&mouse->outbuf);
         memset(mouse->axis, 0, sizeof(mouse->axis));
         memset(mouse->btns, false, sizeof(mouse->btns));
         memset(mouse->btnc, false, sizeof(mouse->btns));
@@ -204,6 +205,7 @@ static void char_msmouse_finalize(Object *obj)
     MouseChardev *mouse = MOUSE_CHARDEV(obj);
 
     qemu_input_handler_unregister(mouse->hs);
+    fifo8_destroy(&mouse->outbuf);
 }
 
 static QemuInputHandler msmouse_handler = {
@@ -224,6 +226,7 @@ static void msmouse_chr_open(Chardev *chr,
     mouse->hs = qemu_input_handler_register((DeviceState *)mouse,
                                             &msmouse_handler);
     mouse->tiocm = 0;
+    fifo8_create(&mouse->outbuf, MSMOUSE_BUF_SZ);
 }
 
 static void char_msmouse_class_init(ObjectClass *oc, void *data)
