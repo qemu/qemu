@@ -25,17 +25,20 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "chardev/char.h"
+#include "chardev/char-serial.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "qom/object.h"
 
-#define MSMOUSE_LO6(n) ((n) & 0x3f)
-#define MSMOUSE_HI2(n) (((n) & 0xc0) >> 6)
+#define MSMOUSE_LO6(n)  ((n) & 0x3f)
+#define MSMOUSE_HI2(n)  (((n) & 0xc0) >> 6)
+#define MSMOUSE_PWR(cm) (cm & (CHR_TIOCM_RTS | CHR_TIOCM_DTR))
 
 struct MouseChardev {
     Chardev parent;
 
     QemuInputHandlerState *hs;
+    int tiocm;
     int axis[INPUT_AXIS__MAX];
     bool btns[INPUT_BUTTON__MAX];
     bool btnc[INPUT_BUTTON__MAX];
@@ -109,6 +112,11 @@ static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
     InputMoveEvent *move;
     InputBtnEvent *btn;
 
+    /* Ignore events if serial mouse powered down. */
+    if (!MSMOUSE_PWR(mouse->tiocm)) {
+        return;
+    }
+
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
         move = evt->u.rel.data;
@@ -132,6 +140,11 @@ static void msmouse_input_sync(DeviceState *dev)
     MouseChardev *mouse = MOUSE_CHARDEV(dev);
     Chardev *chr = CHARDEV(dev);
 
+    /* Ignore events if serial mouse powered down. */
+    if (!MSMOUSE_PWR(mouse->tiocm)) {
+        return;
+    }
+
     msmouse_queue_event(mouse);
     msmouse_chr_accept_input(chr);
 }
@@ -140,6 +153,50 @@ static int msmouse_chr_write(struct Chardev *s, const uint8_t *buf, int len)
 {
     /* Ignore writes to mouse port */
     return len;
+}
+
+static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
+{
+    MouseChardev *mouse = MOUSE_CHARDEV(chr);
+    int c;
+    int *targ = (int *)arg;
+
+    switch (cmd) {
+    case CHR_IOCTL_SERIAL_SET_TIOCM:
+        c = mouse->tiocm;
+        mouse->tiocm = *(int *)arg;
+        if (MSMOUSE_PWR(mouse->tiocm)) {
+            if (!MSMOUSE_PWR(c)) {
+                /*
+                 * Power on after reset: send "M3"
+                 * cause we behave like a 3 button logitech
+                 * mouse.
+                 */
+                mouse->outbuf[0] = 'M';
+                mouse->outbuf[1] = '3';
+                mouse->outlen = 2;
+                /* Start sending data to serial. */
+                msmouse_chr_accept_input(chr);
+            }
+            break;
+        }
+        /*
+         * Reset mouse buffers on power down.
+         * Mouse won't send anything without power.
+         */
+        mouse->outlen = 0;
+        memset(mouse->axis, 0, sizeof(mouse->axis));
+        memset(mouse->btns, false, sizeof(mouse->btns));
+        memset(mouse->btnc, false, sizeof(mouse->btns));
+        break;
+    case CHR_IOCTL_SERIAL_GET_TIOCM:
+        /* Remember line control status. */
+        *targ = mouse->tiocm;
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
 }
 
 static void char_msmouse_finalize(Object *obj)
@@ -166,6 +223,7 @@ static void msmouse_chr_open(Chardev *chr,
     *be_opened = false;
     mouse->hs = qemu_input_handler_register((DeviceState *)mouse,
                                             &msmouse_handler);
+    mouse->tiocm = 0;
 }
 
 static void char_msmouse_class_init(ObjectClass *oc, void *data)
@@ -175,6 +233,7 @@ static void char_msmouse_class_init(ObjectClass *oc, void *data)
     cc->open = msmouse_chr_open;
     cc->chr_write = msmouse_chr_write;
     cc->chr_accept_input = msmouse_chr_accept_input;
+    cc->chr_ioctl = msmouse_ioctl;
 }
 
 static const TypeInfo char_msmouse_type_info = {
