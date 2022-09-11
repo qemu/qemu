@@ -35,11 +35,24 @@
 #define MSMOUSE_HI2(n)  (((n) & 0xc0) >> 6)
 #define MSMOUSE_PWR(cm) (cm & (CHR_TIOCM_RTS | CHR_TIOCM_DTR))
 
+/* Serial PnP for 6 bit devices/mice sends all ASCII chars - 0x20 */
+#define M(c) (c - 0x20)
 /* Serial fifo size. */
 #define MSMOUSE_BUF_SZ 64
 
 /* Mouse ID: Send "M3" cause we behave like a 3 button logitech mouse. */
 const uint8_t mouse_id[] = {'M', '3'};
+/*
+ * PnP start "(", PnP version (1.0), vendor ID, product ID, '\\',
+ * serial ID (omitted), '\\', MS class name, '\\', driver ID (omitted), '\\',
+ * product description, checksum, ")"
+ * Missing parts are inserted later.
+ */
+const uint8_t pnp_data[] = {M('('), 1, '$', M('Q'), M('M'), M('U'),
+                         M('0'), M('0'), M('0'), M('1'),
+                         M('\\'), M('\\'),
+                         M('M'), M('O'), M('U'), M('S'), M('E'),
+                         M('\\'), M('\\')};
 
 struct MouseChardev {
     Chardev parent;
@@ -158,11 +171,22 @@ static int msmouse_chr_write(struct Chardev *s, const uint8_t *buf, int len)
     return len;
 }
 
+static QemuInputHandler msmouse_handler = {
+    .name  = "QEMU Microsoft Mouse",
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
+    .event = msmouse_input_event,
+    .sync  = msmouse_input_sync,
+};
+
 static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
 {
     MouseChardev *mouse = MOUSE_CHARDEV(chr);
-    int c;
+    int c, i, j;
+    uint8_t bytes[MSMOUSE_BUF_SZ / 2];
     int *targ = (int *)arg;
+    const uint8_t hexchr[16] = {M('0'), M('1'), M('2'), M('3'), M('4'), M('5'),
+                             M('6'), M('7'), M('8'), M('9'), M('A'), M('B'),
+                             M('C'), M('D'), M('E'), M('F')};
 
     switch (cmd) {
     case CHR_IOCTL_SERIAL_SET_TIOCM:
@@ -171,11 +195,30 @@ static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
         if (MSMOUSE_PWR(mouse->tiocm)) {
             if (!MSMOUSE_PWR(c)) {
                 /*
-                 * Power on after reset: send "M3"
-                 * cause we behave like a 3 button logitech
-                 * mouse.
+                 * Power on after reset: Send ID and PnP data
+                 * No need to check fifo space as it is empty at this point.
                  */
                 fifo8_push_all(&mouse->outbuf, mouse_id, sizeof(mouse_id));
+                /* Add PnP data: */
+                fifo8_push_all(&mouse->outbuf, pnp_data, sizeof(pnp_data));
+                /*
+                 * Add device description from qemu handler name.
+                 * Make sure this all fits into the queue beforehand!
+                 */
+                c = M(')');
+                for (i = 0; msmouse_handler.name[i]; i++) {
+                    bytes[i] = M(msmouse_handler.name[i]);
+                    c += bytes[i];
+                }
+                /* Calc more of checksum */
+                for (j = 0; j < sizeof(pnp_data); j++) {
+                    c += pnp_data[j];
+                }
+                c &= 0xff;
+                bytes[i++] = hexchr[c >> 4];
+                bytes[i++] = hexchr[c & 0x0f];
+                bytes[i++] = M(')');
+                fifo8_push_all(&mouse->outbuf, bytes, i);
                 /* Start sending data to serial. */
                 msmouse_chr_accept_input(chr);
             }
@@ -207,13 +250,6 @@ static void char_msmouse_finalize(Object *obj)
     qemu_input_handler_unregister(mouse->hs);
     fifo8_destroy(&mouse->outbuf);
 }
-
-static QemuInputHandler msmouse_handler = {
-    .name  = "QEMU Microsoft Mouse",
-    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
-    .event = msmouse_input_event,
-    .sync  = msmouse_input_sync,
-};
 
 static void msmouse_chr_open(Chardev *chr,
                              ChardevBackend *backend,
