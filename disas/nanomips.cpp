@@ -505,20 +505,6 @@ static int64 neg_copy(uint64 d)
 }
 
 
-/* strange wrapper around  gpr3 */
-static uint64 encode_rs3_and_check_rs3_ge_rt3(uint64 d)
-{
-return decode_gpr_gpr3(d);
-}
-
-
-/* strange wrapper around  gpr3 */
-static uint64 encode_rs3_and_check_rs3_lt_rt3(uint64 d)
-{
-    return decode_gpr_gpr3(d);
-}
-
-
 static uint64 encode_count3_from_count(uint64 d)
 {
     IMGASSERTONCE(d < 8);
@@ -2958,7 +2944,7 @@ static std::string BEQC_16_(uint64 instruction, Dis_info *info)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_3_2_1_0__s1(instruction);
 
-    std::string rs3 = GPR(encode_rs3_and_check_rs3_lt_rt3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = ADDRESS(u_value, 2, info);
 
@@ -3244,7 +3230,7 @@ static std::string BNEC_16_(uint64 instruction, Dis_info *info)
     uint64 rs3_value = extract_rs3_6_5_4(instruction);
     uint64 u_value = extract_u_3_2_1_0__s1(instruction);
 
-    std::string rs3 = GPR(encode_rs3_and_check_rs3_ge_rt3(rs3_value));
+    std::string rs3 = GPR(decode_gpr_gpr3(rs3_value));
     std::string rt3 = GPR(decode_gpr_gpr3(rt3_value));
     std::string u = ADDRESS(u_value, 2, info);
 
