@@ -139,7 +139,14 @@ void qemu_clipboard_request(QemuClipboardInfo *info,
 void qemu_clipboard_reset_serial(void)
 {
     QemuClipboardNotify notify = { .type = QEMU_CLIPBOARD_RESET_SERIAL };
+    int i;
 
+    for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
+        QemuClipboardInfo *info = qemu_clipboard_info(i);
+        if (info) {
+            info->serial = 0;
+        }
+    }
     notifier_list_notify(&clipboard_notifiers, &notify);
 }
 
