@@ -127,15 +127,20 @@ xkeymap_vendor(const char *name) "vendor '%s'"
 xkeymap_keycodes(const char *name) "keycodes '%s'"
 xkeymap_keymap(const char *name) "keymap '%s'"
 
+# clipboard.c
+clipboard_check_serial(int cur, int recv, bool ok) "cur:%d recv:%d %d"
+
 # vdagent.c
 vdagent_open(void) ""
 vdagent_close(void) ""
+vdagent_disconnect(void) ""
 vdagent_send(const char *name) "msg %s"
 vdagent_send_empty_clipboard(void) ""
 vdagent_recv_chunk(uint32_t size) "size %d"
 vdagent_recv_msg(const char *name, uint32_t size) "msg %s, size %d"
 vdagent_peer_cap(const char *name) "cap %s"
 vdagent_cb_grab_selection(const char *name) "selection %s"
+vdagent_cb_grab_discard(const char *name, int cur, int recv) "selection %s, cur:%d recv:%d"
 vdagent_cb_grab_type(const char *name) "type %s"
 vdagent_cb_serial_discard(uint32_t current, uint32_t received) "current=%u, received=%u"
 

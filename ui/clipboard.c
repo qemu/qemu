@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "ui/clipboard.h"
+#include "trace.h"
 
 static NotifierList clipboard_notifiers =
     NOTIFIER_LIST_INITIALIZER(clipboard_notifiers);
@@ -43,17 +44,23 @@ void qemu_clipboard_peer_release(QemuClipboardPeer *peer,
 
 bool qemu_clipboard_check_serial(QemuClipboardInfo *info, bool client)
 {
+    bool ok;
+
     if (!info->has_serial ||
         !cbinfo[info->selection] ||
         !cbinfo[info->selection]->has_serial) {
+        trace_clipboard_check_serial(-1, -1, true);
         return true;
     }
 
     if (client) {
-        return cbinfo[info->selection]->serial >= info->serial;
+        ok = cbinfo[info->selection]->serial >= info->serial;
     } else {
-        return cbinfo[info->selection]->serial > info->serial;
+        ok = cbinfo[info->selection]->serial > info->serial;
     }
+
+    trace_clipboard_check_serial(cbinfo[info->selection]->serial, info->serial, ok);
+    return ok;
 }
 
 void qemu_clipboard_update(QemuClipboardInfo *info)
