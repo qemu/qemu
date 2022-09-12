@@ -54,9 +54,9 @@ bool qemu_clipboard_check_serial(QemuClipboardInfo *info, bool client)
     }
 
     if (client) {
-        ok = cbinfo[info->selection]->serial >= info->serial;
+        ok = info->serial >= cbinfo[info->selection]->serial;
     } else {
-        ok = cbinfo[info->selection]->serial > info->serial;
+        ok = info->serial > cbinfo[info->selection]->serial;
     }
 
     trace_clipboard_check_serial(cbinfo[info->selection]->serial, info->serial, ok);
