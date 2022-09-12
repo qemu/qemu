@@ -50,8 +50,8 @@ int nanomips_dis(char *buf,
     std::string disasm;
     uint16 bits[3] = {one, two, three};
 
-    NMD::TABLE_ENTRY_TYPE type;
-    NMD d(address, NMD::ALL_ATTRIBUTES);
+    TABLE_ENTRY_TYPE type;
+    NMD d(address, ALL_ATTRIBUTES);
     int size = d.Disassemble(bits, disasm, type);
 
     strcpy(buf, disasm.c_str());
@@ -772,7 +772,7 @@ uint64 NMD::extract_op_code_value(const uint16 * data, int size)
 
 
 int NMD::Disassemble(const uint16 * data, std::string & dis,
-                     NMD::TABLE_ENTRY_TYPE & type)
+                     TABLE_ENTRY_TYPE & type)
 {
     return Disassemble(data, dis, type, MAJOR, 2);
 }
@@ -790,7 +790,7 @@ int NMD::Disassemble(const uint16 * data, std::string & dis,
  *      disassembly string  - on error will constain error string
  */
 int NMD::Disassemble(const uint16 * data, std::string & dis,
-                     NMD::TABLE_ENTRY_TYPE & type, const Pool *table,
+                     TABLE_ENTRY_TYPE & type, const Pool *table,
                      int table_size)
 {
     try
