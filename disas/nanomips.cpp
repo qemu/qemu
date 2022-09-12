@@ -21917,12 +21917,6 @@ static const Pool MAJOR[2] = {
        0x0                 },        /* P16 */
 };
 
-static int Disassemble(const uint16 *data, char **dis,
-                       TABLE_ENTRY_TYPE & type, Dis_info *info)
-{
-    return Disassemble(data, dis, type, MAJOR, 2, info);
-}
-
 static int nanomips_dis(char **buf,
                  Dis_info *info,
                  unsigned short one,
@@ -21932,7 +21926,7 @@ static int nanomips_dis(char **buf,
     uint16 bits[3] = {one, two, three};
 
     TABLE_ENTRY_TYPE type;
-    int size = Disassemble(bits, buf, type, info);
+    int size = Disassemble(bits, buf, type, MAJOR, 2, info);
     return size;
 }
 
