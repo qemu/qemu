@@ -40,16 +40,16 @@ typedef uint32_t uint32;
 typedef uint16_t uint16;
 typedef uint64_t img_address;
 
-enum TABLE_ENTRY_TYPE {
+typedef enum  {
     instruction,
     call_instruction,
     branch_instruction,
     return_instruction,
     reserved_block,
     pool,
-};
+} TABLE_ENTRY_TYPE;
 
-enum TABLE_ATTRIBUTE_TYPE {
+typedef enum {
     MIPS64_    = 0x00000001,
     XNP_       = 0x00000002,
     XMMS_      = 0x00000004,
@@ -67,7 +67,7 @@ enum TABLE_ATTRIBUTE_TYPE {
     TLB_       = 0x00004000,
     MVH_       = 0x00008000,
     ALL_ATTRIBUTES = 0xffffffffull,
-};
+} TABLE_ATTRIBUTE_TYPE;
 
 typedef struct Dis_info {
   img_address m_pc;
