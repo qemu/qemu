@@ -80,19 +80,4 @@ typedef struct Pool {
     uint64               attributes;
 } Pool;
 
-class NMD
-{
-public:
-
-    int Disassemble(const uint16 *data, std::string & dis,
-                    TABLE_ENTRY_TYPE & type, Dis_info *info);
-
-private:
-
-    uint64 extract_op_code_value(const uint16 *data, int size);
-    int Disassemble(const uint16 *data, std::string & dis,
-                    TABLE_ENTRY_TYPE & type, const Pool *table, int table_size,
-                    Dis_info *info);
-};
-
 #endif
