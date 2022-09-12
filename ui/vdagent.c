@@ -471,7 +471,7 @@ static void vdagent_clipboard_reset_serial(VDAgentChardev *vd)
 
     /* reopen the agent connection to reset the serial state */
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    /* OPENED again after the guest disconnected, see set_fe_open */
 }
 
 static void vdagent_clipboard_notify(Notifier *notifier, void *data)
@@ -875,6 +875,9 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
 {
     if (!fe_open) {
         trace_vdagent_close();
+        /* To reset_serial, we CLOSED our side. Make sure the other end knows we
+         * are ready again. */
+        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         return;
     }
 
