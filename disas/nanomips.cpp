@@ -51,7 +51,7 @@ int nanomips_dis(char *buf,
     uint16 bits[3] = {one, two, three};
 
     TABLE_ENTRY_TYPE type;
-    NMD d(address, ALL_ATTRIBUTES);
+    NMD d(address);
     int size = d.Disassemble(bits, disasm, type);
 
     strcpy(buf, disasm.c_str());
@@ -812,17 +812,6 @@ int NMD::Disassemble(const uint16 * data, std::string & dis,
                                    (table[i].type == call_instruction) ||
                                    (table[i].type == branch_instruction) ||
                                    (table[i].type == return_instruction)) {
-                            if ((table[i].attributes != 0) &&
-                                (m_requested_instruction_categories &
-                                 table[i].attributes) == 0) {
-                                /*
-                                 * failed due to instruction having
-                                 * an ASE attribute and the requested version
-                                 * not having that attribute
-                                 */
-                                dis = "ASE attribute mismatch";
-                                return -5;
-                            }
                             disassembly_function dis_fn = table[i].disassembly;
                             if (dis_fn == 0) {
                                 dis = "disassembler failure - bad table entry";
