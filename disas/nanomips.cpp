@@ -31,7 +31,6 @@
 #include "disas/dis-asm.h"
 
 #include <string.h>
-#include <stdexcept>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -133,10 +132,9 @@ static uint64 renumber_registers(uint64 index, uint64 *register_list,
         return register_list[index];
     }
 
-    throw std::runtime_error(img_format(
-                   "Invalid register mapping index %" PRIu64
-                   ", size of list = %zu",
-                   index, register_list_size));
+    info->fprintf_func(info->stream, "Invalid register mapping index %" PRIu64
+                       ", size of list = %zu", index, register_list_size);
+    siglongjmp(info->buf, 1);
 }
 
 
@@ -466,8 +464,9 @@ static const char *GPR(uint64 reg, Dis_info *info)
         return gpr_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid GPR register index %" PRIu64,
-                                         reg));
+    info->fprintf_func(info->stream, "Invalid GPR register index %" PRIu64,
+                       reg);
+    siglongjmp(info->buf, 1);
 }
 
 
@@ -503,8 +502,9 @@ static const char *FPR(uint64 reg, Dis_info *info)
         return fpr_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid FPR register index %" PRIu64,
-                                         reg));
+    info->fprintf_func(info->stream, "Invalid FPR register index %" PRIu64,
+                       reg);
+    siglongjmp(info->buf, 1);
 }
 
 
@@ -518,8 +518,9 @@ static const char *AC(uint64 reg, Dis_info *info)
         return ac_reg[reg];
     }
 
-    throw std::runtime_error(img_format("Invalid AC register index %" PRIu64,
-                                         reg));
+    info->fprintf_func(info->stream, "Invalid AC register index %" PRIu64,
+                       reg);
+    siglongjmp(info->buf, 1);
 }
 
 
@@ -562,55 +563,38 @@ static int Disassemble(const uint16 *data, char **dis,
                      TABLE_ENTRY_TYPE & type, const Pool *table,
                      int table_size, Dis_info *info)
 {
-    try
-    {
-        for (int i = 0; i < table_size; i++) {
-            uint64 op_code = extract_op_code_value(data,
-                                 table[i].instructions_size);
-            if ((op_code & table[i].mask) == table[i].value) {
-                /* possible match */
-                conditional_function cond = table[i].condition;
-                if ((cond == NULL) || cond(op_code)) {
-                    try
-                    {
-                        if (table[i].type == pool) {
-                            return Disassemble(data, dis, type,
-                                               table[i].next_table,
-                                               table[i].next_table_size,
-                                               info);
-                        } else if ((table[i].type == instruction) ||
-                                   (table[i].type == call_instruction) ||
-                                   (table[i].type == branch_instruction) ||
-                                   (table[i].type == return_instruction)) {
-                            disassembly_function dis_fn = table[i].disassembly;
-                            if (dis_fn == 0) {
-                                *dis = g_strdup(
-                                    "disassembler failure - bad table entry");
-                                return -6;
-                            }
-                            type = table[i].type;
-                            *dis = dis_fn(op_code, info);
-                            return table[i].instructions_size;
-                        } else {
-                            *dis = g_strdup("reserved instruction");
-                            return -2;
-                        }
+    for (int i = 0; i < table_size; i++) {
+        uint64 op_code = extract_op_code_value(data,
+                             table[i].instructions_size);
+        if ((op_code & table[i].mask) == table[i].value) {
+            /* possible match */
+            conditional_function cond = table[i].condition;
+            if ((cond == NULL) || cond(op_code)) {
+                if (table[i].type == pool) {
+                    return Disassemble(data, dis, type,
+                                       table[i].next_table,
+                                       table[i].next_table_size,
+                                       info);
+                } else if ((table[i].type == instruction) ||
+                           (table[i].type == call_instruction) ||
+                           (table[i].type == branch_instruction) ||
+                           (table[i].type == return_instruction)) {
+                    disassembly_function dis_fn = table[i].disassembly;
+                    if (dis_fn == 0) {
+                        *dis = g_strdup(
+                            "disassembler failure - bad table entry");
+                        return -6;
                     }
-                    catch (std::runtime_error & e)
-                    {
-                        *dis = g_strdup(e.what());
-                        return -3;          /* runtime error */
-                    }
+                    type = table[i].type;
+                    *dis = dis_fn(op_code, info);
+                    return table[i].instructions_size;
+                } else {
+                    *dis = g_strdup("reserved instruction");
+                    return -2;
                 }
             }
         }
     }
-    catch (std::exception & e)
-    {
-        *dis = g_strdup(e.what());
-        return -4;          /* runtime error */
-    }
-
     *dis = g_strdup("failed to disassemble");
     return -1;      /* failed to disassemble        */
 }
@@ -22001,6 +21985,12 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         (*info->fprintf_func)(info->stream, "%04x ", insn3);
     } else {
         (*info->fprintf_func)(info->stream, "     ");
+    }
+
+    /* Handle runtime errors. */
+    if (sigsetjmp(disassm_info.buf, 0) != 0) {
+        info->insn_type = dis_noninsn;
+        return insn3 ? 6 : insn2 ? 4 : 2;
     }
 
     int length = nanomips_dis(&buf, &disassm_info, insn1, insn2, insn3);
