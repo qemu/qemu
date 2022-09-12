@@ -519,13 +519,6 @@ static const char *AC(uint64 reg)
 }
 
 
-static char *CPR(uint64 reg)
-{
-    /* needs more work */
-    return img_format("CP%" PRIu64, reg);
-}
-
-
 static char *ADDRESS(uint64 value, int instruction_size, Dis_info *info)
 {
     /* token for string replace */
@@ -2774,10 +2767,9 @@ static char *BC2EQZC(uint64 instruction, Dis_info *info)
     uint64 ct_value = extract_ct_25_24_23_22_21(instruction);
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
-    char *ct = CPR(ct_value);
     char *s = ADDRESS(s_value, 4, info);
 
-    return img_format("BC2EQZC %s, %s", ct, s);
+    return img_format("BC2EQZC CP%" PRIu64 ", %s", ct_value, s);
 }
 
 
@@ -2796,10 +2788,9 @@ static char *BC2NEZC(uint64 instruction, Dis_info *info)
     uint64 ct_value = extract_ct_25_24_23_22_21(instruction);
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
-    char *ct = CPR(ct_value);
     char *s = ADDRESS(s_value, 4, info);
 
-    return img_format("BC2NEZC %s, %s", ct, s);
+    return img_format("BC2NEZC CP%" PRIu64 ", %s", ct_value, s);
 }
 
 
@@ -3403,9 +3394,8 @@ static char *CFC1(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("CFC1 %s, %s", rt, cs);
+    return img_format("CFC1 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -3425,9 +3415,8 @@ static char *CFC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("CFC2 %s, %s", rt, cs);
+    return img_format("CFC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -4889,9 +4878,8 @@ static char *CTC1(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("CTC1 %s, %s", rt, cs);
+    return img_format("CTC1 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -4911,9 +4899,8 @@ static char *CTC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("CTC2 %s, %s", rt, cs);
+    return img_format("CTC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -5745,9 +5732,9 @@ static char *DMFC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("DMFC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("DMFC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -5789,9 +5776,8 @@ static char *DMFC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("DMFC2 %s, %s", rt, cs);
+    return img_format("DMFC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -5812,9 +5798,9 @@ static char *DMFGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("DMFGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("DMFGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -5883,9 +5869,9 @@ static char *DMTC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("DMTC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("DMTC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -5927,9 +5913,8 @@ static char *DMTC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("DMTC2 %s, %s", rt, cs);
+    return img_format("DMTC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -5950,9 +5935,9 @@ static char *DMTGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("DMTGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("DMTGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -8148,10 +8133,10 @@ static char *LDC2(uint64 instruction, Dis_info *info)
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     int64 s_value = extract_s__se8_15_7_6_5_4_3_2_1_0(instruction);
 
-    char *ct = CPR(ct_value);
     const char *rs = GPR(rs_value);
 
-    return img_format("LDC2 %s, %" PRId64 "(%s)", ct, s_value, rs);
+    return img_format("LDC2 CP%" PRIu64 ", %" PRId64 "(%s)",
+                      ct_value, s_value, rs);
 }
 
 
@@ -9089,10 +9074,10 @@ static char *LWC2(uint64 instruction, Dis_info *info)
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     int64 s_value = extract_s__se8_15_7_6_5_4_3_2_1_0(instruction);
 
-    char *ct = CPR(ct_value);
     const char *rs = GPR(rs_value);
 
-    return img_format("LWC2 %s, %" PRId64 "(%s)", ct, s_value, rs);
+    return img_format("LWC2 CP%" PRIu64 ", %" PRId64 "(%s)",
+                      ct_value, s_value, rs);
 }
 
 
@@ -9665,9 +9650,9 @@ static char *MFC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MFC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MFC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -9709,9 +9694,8 @@ static char *MFC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("MFC2 %s, %s", rt, cs);
+    return img_format("MFC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -9732,9 +9716,9 @@ static char *MFGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MFGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MFGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -9755,9 +9739,9 @@ static char *MFHC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MFHC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MFHC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -9799,9 +9783,8 @@ static char *MFHC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("MFHC2 %s, %s", rt, cs);
+    return img_format("MFHC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -9822,9 +9805,9 @@ static char *MFHGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MFHGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MFHGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -10391,9 +10374,9 @@ static char *MTC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MTC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MTC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -10435,9 +10418,8 @@ static char *MTC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("MTC2 %s, %s", rt, cs);
+    return img_format("MTC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -10458,9 +10440,9 @@ static char *MTGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MTGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MTGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -10481,9 +10463,9 @@ static char *MTHC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MTHC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MTHC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -10525,9 +10507,8 @@ static char *MTHC2(uint64 instruction, Dis_info *info)
     uint64 cs_value = extract_cs_20_19_18_17_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *cs = CPR(cs_value);
 
-    return img_format("MTHC2 %s, %s", rt, cs);
+    return img_format("MTHC2 %s, CP%" PRIu64, rt, cs_value);
 }
 
 
@@ -10548,9 +10529,9 @@ static char *MTHGC0(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_15_14_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *c0s = CPR(c0s_value);
 
-    return img_format("MTHGC0 %s, %s, 0x%" PRIx64, rt, c0s, sel_value);
+    return img_format("MTHGC0 %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, c0s_value, sel_value);
 }
 
 
@@ -12021,9 +12002,9 @@ static char *RDHWR(uint64 instruction, Dis_info *info)
     uint64 sel_value = extract_sel_13_12_11(instruction);
 
     const char *rt = GPR(rt_value);
-    char *hs = CPR(hs_value);
 
-    return img_format("RDHWR %s, %s, 0x%" PRIx64, rt, hs, sel_value);
+    return img_format("RDHWR %s, CP%" PRIu64 ", 0x%" PRIx64,
+                      rt, hs_value, sel_value);
 }
 
 
@@ -13089,10 +13070,9 @@ static char *SDC2(uint64 instruction, Dis_info *info)
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     int64 s_value = extract_s__se8_15_7_6_5_4_3_2_1_0(instruction);
 
-    char *cs = CPR(cs_value);
     const char *rs = GPR(rs_value);
 
-    return img_format("SDC2 %s, %s(%s)", cs, s_value, rs);
+    return img_format("SDC2 CP%" PRIu64 ", %s(%s)", cs_value, s_value, rs);
 }
 
 
@@ -15244,10 +15224,10 @@ static char *SWC2(uint64 instruction, Dis_info *info)
     uint64 rs_value = extract_rs_20_19_18_17_16(instruction);
     int64 s_value = extract_s__se8_15_7_6_5_4_3_2_1_0(instruction);
 
-    char *cs = CPR(cs_value);
     const char *rs = GPR(rs_value);
 
-    return img_format("SWC2 %s, %" PRId64 "(%s)", cs, s_value, rs);
+    return img_format("SWC2 CP%" PRIu64 ", %" PRId64 "(%s)",
+                      cs_value, s_value, rs);
 }
 
 
