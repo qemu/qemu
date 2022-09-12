@@ -1937,7 +1937,7 @@ static char *ADDIUPC_32_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se21_0_20_to_1_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("ADDIUPC %s, %s", rt, s);
 }
@@ -1959,7 +1959,7 @@ static char *ADDIUPC_48_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_15_to_0_31_to_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 6, info);
+    g_autofree char *s = ADDRESS(s_value, 6, info);
 
     return img_format("ADDIUPC %s, %s", rt, s);
 }
@@ -2417,7 +2417,7 @@ static char *ALUIPC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_0_11_to_2_20_to_12_s12(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("ALUIPC %s, %%pcrel_hi(%s)", rt, s);
 }
@@ -2574,7 +2574,7 @@ static char *BALC_16_(uint64 instruction, Dis_info *info)
 {
     int64 s_value = extract_s__se10_0_9_8_7_6_5_4_3_2_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 2, info);
+    g_autofree char *s = ADDRESS(s_value, 2, info);
 
     return img_format("BALC %s", s);
 }
@@ -2594,7 +2594,7 @@ static char *BALC_32_(uint64 instruction, Dis_info *info)
 {
     int64 s_value = extract_s__se25_0_24_to_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BALC %s", s);
 }
@@ -2639,7 +2639,7 @@ static char *BBEQZC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BBEQZC %s, 0x%" PRIx64 ", %s", rt, bit_value, s);
 }
@@ -2662,7 +2662,7 @@ static char *BBNEZC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BBNEZC %s, 0x%" PRIx64 ", %s", rt, bit_value, s);
 }
@@ -2682,7 +2682,7 @@ static char *BC_16_(uint64 instruction, Dis_info *info)
 {
     int64 s_value = extract_s__se10_0_9_8_7_6_5_4_3_2_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 2, info);
+    g_autofree char *s = ADDRESS(s_value, 2, info);
 
     return img_format("BC %s", s);
 }
@@ -2702,7 +2702,7 @@ static char *BC_32_(uint64 instruction, Dis_info *info)
 {
     int64 s_value = extract_s__se25_0_24_to_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BC %s", s);
 }
@@ -2724,7 +2724,7 @@ static char *BC1EQZC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
     const char *ft = FPR(ft_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BC1EQZC %s, %s", ft, s);
 }
@@ -2746,7 +2746,7 @@ static char *BC1NEZC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
     const char *ft = FPR(ft_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BC1NEZC %s, %s", ft, s);
 }
@@ -2767,7 +2767,7 @@ static char *BC2EQZC(uint64 instruction, Dis_info *info)
     uint64 ct_value = extract_ct_25_24_23_22_21(instruction);
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BC2EQZC CP%" PRIu64 ", %s", ct_value, s);
 }
@@ -2788,7 +2788,7 @@ static char *BC2NEZC(uint64 instruction, Dis_info *info)
     uint64 ct_value = extract_ct_25_24_23_22_21(instruction);
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BC2NEZC CP%" PRIu64 ", %s", ct_value, s);
 }
@@ -2812,7 +2812,7 @@ static char *BEQC_16_(uint64 instruction, Dis_info *info)
 
     const char *rs3 = GPR(decode_gpr_gpr3(rs3_value));
     const char *rt3 = GPR(decode_gpr_gpr3(rt3_value));
-    char *u = ADDRESS(u_value, 2, info);
+    g_autofree char *u = ADDRESS(u_value, 2, info);
 
     return img_format("BEQC %s, %s, %s", rs3, rt3, u);
 }
@@ -2836,7 +2836,7 @@ static char *BEQC_32_(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BEQC %s, %s, %s", rs, rt, s);
 }
@@ -2859,7 +2859,7 @@ static char *BEQIC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BEQIC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -2881,7 +2881,7 @@ static char *BEQZC_16_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se7_0_6_5_4_3_2_1_s1(instruction);
 
     const char *rt3 = GPR(decode_gpr_gpr3(rt3_value));
-    char *s = ADDRESS(s_value, 2, info);
+    g_autofree char *s = ADDRESS(s_value, 2, info);
 
     return img_format("BEQZC %s, %s", rt3, s);
 }
@@ -2905,7 +2905,7 @@ static char *BGEC(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BGEC %s, %s, %s", rs, rt, s);
 }
@@ -2928,7 +2928,7 @@ static char *BGEIC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BGEIC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -2951,7 +2951,7 @@ static char *BGEIUC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BGEIUC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -2975,7 +2975,7 @@ static char *BGEUC(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BGEUC %s, %s, %s", rs, rt, s);
 }
@@ -2999,7 +2999,7 @@ static char *BLTC(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BLTC %s, %s, %s", rs, rt, s);
 }
@@ -3022,7 +3022,7 @@ static char *BLTIC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BLTIC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -3045,7 +3045,7 @@ static char *BLTIUC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BLTIUC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -3069,7 +3069,7 @@ static char *BLTUC(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BLTUC %s, %s, %s", rs, rt, s);
 }
@@ -3093,7 +3093,7 @@ static char *BNEC_16_(uint64 instruction, Dis_info *info)
 
     const char *rs3 = GPR(decode_gpr_gpr3(rs3_value));
     const char *rt3 = GPR(decode_gpr_gpr3(rt3_value));
-    char *u = ADDRESS(u_value, 2, info);
+    g_autofree char *u = ADDRESS(u_value, 2, info);
 
     return img_format("BNEC %s, %s, %s", rs3, rt3, u);
 }
@@ -3117,7 +3117,7 @@ static char *BNEC_32_(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value);
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BNEC %s, %s, %s", rs, rt, s);
 }
@@ -3140,7 +3140,7 @@ static char *BNEIC(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se11_0_10_9_8_7_6_5_4_3_2_1_0_s1(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BNEIC %s, 0x%" PRIx64 ", %s", rt, u_value, s);
 }
@@ -3162,7 +3162,7 @@ static char *BNEZC_16_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se7_0_6_5_4_3_2_1_s1(instruction);
 
     const char *rt3 = GPR(decode_gpr_gpr3(rt3_value));
-    char *s = ADDRESS(s_value, 2, info);
+    g_autofree char *s = ADDRESS(s_value, 2, info);
 
     return img_format("BNEZC %s, %s", rt3, s);
 }
@@ -3182,7 +3182,7 @@ static char *BPOSGE32C(uint64 instruction, Dis_info *info)
 {
     int64 s_value = extract_s__se14_0_13_to_1_s1(instruction);
 
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("BPOSGE32C %s", s);
 }
@@ -8182,7 +8182,7 @@ static char *LDPC_48_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_15_to_0_31_to_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 6, info);
+    g_autofree char *s = ADDRESS(s_value, 6, info);
 
     return img_format("LDPC %s, %s", rt, s);
 }
@@ -9146,7 +9146,7 @@ static char *LWPC_48_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_15_to_0_31_to_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 6, info);
+    g_autofree char *s = ADDRESS(s_value, 6, info);
 
     return img_format("LWPC %s, %s", rt, s);
 }
@@ -10131,7 +10131,7 @@ static char *MOVE_BALC(uint64 instruction, Dis_info *info)
 
     const char *rd1 = GPR(decode_gpr_gpr1(rd1_value));
     const char *rtz4 = GPR(decode_gpr_gpr4_zero(rtz4_value));
-    char *s = ADDRESS(s_value, 4, info);
+    g_autofree char *s = ADDRESS(s_value, 4, info);
 
     return img_format("MOVE.BALC %s, %s, %s", rd1, rtz4, s);
 }
@@ -12176,8 +12176,9 @@ static char *RESTORE_32_(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3__s3(instruction);
     uint64 gp_value = extract_gp_2(instruction);
 
-    return img_format("RESTORE 0x%" PRIx64 "%s", u_value,
-               save_restore_list(rt_value, count_value, gp_value));
+    g_autofree char *save_restore_str = save_restore_list(
+        rt_value, count_value, gp_value);
+    return img_format("RESTORE 0x%" PRIx64 "%s", u_value, save_restore_str);
 }
 
 
@@ -12197,8 +12198,9 @@ static char *RESTORE_JRC_16_(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_7_6_5_4__s4(instruction);
     uint64 count_value = extract_count_3_2_1_0(instruction);
 
-    return img_format("RESTORE.JRC 0x%" PRIx64 "%s", u_value,
-        save_restore_list(encode_rt1_from_rt(rt1_value), count_value, 0));
+    g_autofree char *save_restore_str = save_restore_list(
+        encode_rt1_from_rt(rt1_value), count_value, 0);
+    return img_format("RESTORE.JRC 0x%" PRIx64 "%s", u_value, save_restore_str);
 }
 
 
@@ -12219,8 +12221,10 @@ static char *RESTORE_JRC_32_(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3__s3(instruction);
     uint64 gp_value = extract_gp_2(instruction);
 
+    g_autofree char *save_restore_str = save_restore_list(
+        rt_value, count_value, gp_value);
     return img_format("RESTORE.JRC 0x%" PRIx64 "%s", u_value,
-               save_restore_list(rt_value, count_value, gp_value));
+                      save_restore_str);
 }
 
 
@@ -12509,8 +12513,9 @@ static char *SAVE_16_(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_7_6_5_4__s4(instruction);
     uint64 count_value = extract_count_3_2_1_0(instruction);
 
-    return img_format("SAVE 0x%" PRIx64 "%s", u_value,
-        save_restore_list(encode_rt1_from_rt(rt1_value), count_value, 0));
+    g_autofree char *save_restore_str = save_restore_list(
+        encode_rt1_from_rt(rt1_value), count_value, 0);
+    return img_format("SAVE 0x%" PRIx64 "%s", u_value, save_restore_str);
 }
 
 
@@ -12531,8 +12536,9 @@ static char *SAVE_32_(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3__s3(instruction);
     uint64 gp_value = extract_gp_2(instruction);
 
-    return img_format("SAVE 0x%" PRIx64 "%s", u_value,
-               save_restore_list(rt_value, count_value, gp_value));
+    g_autofree char *save_restore_str = save_restore_list(
+        rt_value, count_value, gp_value);
+    return img_format("SAVE 0x%" PRIx64 "%s", u_value, save_restore_str);
 }
 
 
@@ -13117,7 +13123,7 @@ static char *SDPC_48_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_15_to_0_31_to_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 6, info);
+    g_autofree char *s = ADDRESS(s_value, 6, info);
 
     return img_format("SDPC %s, %s", rt, s);
 }
@@ -15296,7 +15302,7 @@ static char *SWPC_48_(uint64 instruction, Dis_info *info)
     int64 s_value = extract_s__se31_15_to_0_31_to_16(instruction);
 
     const char *rt = GPR(rt_value);
-    char *s = ADDRESS(s_value, 6, info);
+    g_autofree char *s = ADDRESS(s_value, 6, info);
 
     return img_format("SWPC %s, %s", rt, s);
 }
@@ -21935,7 +21941,7 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     int status;
     bfd_byte buffer[2];
     uint16_t insn1 = 0, insn2 = 0, insn3 = 0;
-    char *buf = NULL;
+    g_autofree char *buf = NULL;
 
     info->bytes_per_chunk = 2;
     info->display_endian = info->endian;
