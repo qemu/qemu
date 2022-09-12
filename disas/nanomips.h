@@ -29,11 +29,7 @@ typedef int64_t int64;
 typedef uint64_t uint64;
 typedef uint32_t uint32;
 typedef uint16_t uint16;
-
-namespace img
-{
-    typedef uint64_t address;
-}
+typedef uint64_t img_address;
 
 
 class NMD
@@ -70,7 +66,7 @@ public:
     };
 
 
-    NMD(img::address pc, TABLE_ATTRIBUTE_TYPE requested_instruction_categories)
+    NMD(img_address pc, TABLE_ATTRIBUTE_TYPE requested_instruction_categories)
         : m_pc(pc)
         , m_requested_instruction_categories(requested_instruction_categories)
     {
@@ -81,7 +77,7 @@ public:
 
 private:
 
-    img::address           m_pc;
+    img_address           m_pc;
     TABLE_ATTRIBUTE_TYPE   m_requested_instruction_categories;
 
     typedef std::string(NMD:: *disassembly_function)(uint64 instruction);
