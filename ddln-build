@@ -28,4 +28,4 @@ EOT
 # package everything up
 tar -czf qemu.tar.gz qemu/
 
-echo "Done. Output is in 'build/qemu.tar'."
+echo "Done. Output is in 'build/qemu.tar.gz'."
