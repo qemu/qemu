@@ -5912,8 +5912,10 @@ DISAS_INSN(from_mext)
 DISAS_INSN(macsr_to_ccr)
 {
     TCGv tmp = tcg_temp_new();
-    tcg_gen_andi_i32(tmp, QREG_MACSR, 0xf);
-    gen_helper_set_sr(cpu_env, tmp);
+
+    /* Note that X and C are always cleared. */
+    tcg_gen_andi_i32(tmp, QREG_MACSR, CCF_N | CCF_Z | CCF_V);
+    gen_helper_set_ccr(cpu_env, tmp);
     tcg_temp_free(tmp);
     set_cc_op(s, CC_OP_FLAGS);
 }
