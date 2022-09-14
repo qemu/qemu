@@ -4,7 +4,7 @@
 # This dockerfile is used for building a cross-compiler toolchain.
 # The script for building the toolchain is supplied via extra-files.
 #
-FROM qemu/debian10
+FROM docker.io/library/debian:11-slim
 
 # Install build utilities for building gcc and glibc.
 # ??? The build-dep isn't working, missing a number of
@@ -15,6 +15,7 @@ RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
         bison \
+        ca-certificates \
         flex \
         gawk \
         libmpc-dev \
@@ -32,5 +33,5 @@ RUN cd /root && ./build-toolchain.sh
 # Throw away the extra toolchain build deps, the downloaded source,
 # and the build trees by restoring the original debian10 image,
 # then copying the built toolchain from stage 0.
-FROM qemu/debian10
+FROM docker.io/library/debian:bullseye-slim
 COPY --from=0 /usr/local /usr/local
