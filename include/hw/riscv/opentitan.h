@@ -46,6 +46,8 @@ struct LowRISCIbexSoCState {
     IbexTimerState timer;
     IbexSPIHostState spi_host[OPENTITAN_NUM_SPI_HOSTS];
 
+    uint32_t resetvec;
+
     MemoryRegion flash_mem;
     MemoryRegion rom;
     MemoryRegion flash_alias;
