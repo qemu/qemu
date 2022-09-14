@@ -10,8 +10,3 @@ amd64-fedora-container:
   extends: .container_job_template
   variables:
     NAME: fedora
-
-amd64-debian10-container:
-  extends: .container_job_template
-  variables:
-    NAME: debian10

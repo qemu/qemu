@@ -69,9 +69,7 @@ docker-binfmt-image-debian-%: $(DOCKER_FILES_DIR)/debian-bootstrap.docker
 			{ echo "You will need to build $(EXECUTABLE)"; exit 1;},\
 			"CHECK", "debian-$* exists"))
 
-# Enforce dependencies for composite images
-# we don't run tests on intermediate images (used as base by another image)
-DOCKER_PARTIAL_IMAGES := debian10 debian11
+# Special case cross-compiling x86_64 on non-x86_64 systems.
 ifeq ($(HOST_ARCH),x86_64)
 DOCKER_PARTIAL_IMAGES += debian-amd64-cross
 else
@@ -88,10 +86,6 @@ endif
 
 # The native build should never use the registry
 docker-image-debian-native: DOCKER_REGISTRY=
-
-# base images should not add a local user
-docker-image-debian10: NOUSER=1
-docker-image-debian11: NOUSER=1
 
 # alpine has no adduser
 docker-image-alpine: NOUSER=1
