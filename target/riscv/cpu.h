@@ -190,7 +190,7 @@ struct CPUArchState {
     /* This contains QEMU specific information about the virt state. */
     target_ulong virt;
     target_ulong geilen;
-    target_ulong resetvec;
+    uint64_t resetvec;
 
     target_ulong mhartid;
     /*
@@ -474,7 +474,6 @@ struct RISCVCPUConfig {
     bool pmp;
     bool epmp;
     bool debug;
-    uint64_t resetvec;
 
     bool short_isa_string;
 };
