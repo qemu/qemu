@@ -70,20 +70,6 @@ cross-i386-tci:
     EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user
     MAKE_CHECK_ARGS: check check-tcg
 
-cross-mips-system:
-  extends: .cross_system_build_job
-  needs:
-    job: mips-debian-cross-container
-  variables:
-    IMAGE: debian-mips-cross
-
-cross-mips-user:
-  extends: .cross_user_build_job
-  needs:
-    job: mips-debian-cross-container
-  variables:
-    IMAGE: debian-mips-cross
-
 cross-mipsel-system:
   extends: .cross_system_build_job
   needs:
