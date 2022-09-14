@@ -71,7 +71,6 @@ hppa-debian-cross-container:
 m68k-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-m68k-cross
 
