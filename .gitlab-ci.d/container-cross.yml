@@ -143,7 +143,6 @@ sh4-debian-cross-container:
 sparc64-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-sparc64-cross
 
