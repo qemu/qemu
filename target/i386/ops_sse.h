@@ -2382,6 +2382,36 @@ void glue(helper_aeskeygenassist, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 #endif
 
 #if SHIFT >= 1
+void glue(helper_vpermilpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
+{
+    uint64_t r0, r1;
+    int i;
+
+    for (i = 0; i < 1 << SHIFT; i += 2) {
+        r0 = v->Q(i + ((s->Q(i) >> 1) & 1));
+        r1 = v->Q(i + ((s->Q(i+1) >> 1) & 1));
+        d->Q(i) = r0;
+        d->Q(i+1) = r1;
+    }
+}
+
+void glue(helper_vpermilps, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
+{
+    uint32_t r0, r1, r2, r3;
+    int i;
+
+    for (i = 0; i < 2 << SHIFT; i += 4) {
+        r0 = v->L(i + (s->L(i) & 3));
+        r1 = v->L(i + (s->L(i+1) & 3));
+        r2 = v->L(i + (s->L(i+2) & 3));
+        r3 = v->L(i + (s->L(i+3) & 3));
+        d->L(i) = r0;
+        d->L(i+1) = r1;
+        d->L(i+2) = r2;
+        d->L(i+3) = r3;
+    }
+}
+
 void glue(helper_vpermilpd_imm, SUFFIX)(Reg *d, Reg *s, uint32_t order)
 {
     uint64_t r0, r1;
@@ -2413,6 +2443,150 @@ void glue(helper_vpermilps_imm, SUFFIX)(Reg *d, Reg *s, uint32_t order)
         d->L(i+3) = r3;
     }
 }
+
+#if SHIFT == 1
+#define FPSRLVD(x, c) (c < 32 ? ((x) >> c) : 0)
+#define FPSRLVQ(x, c) (c < 64 ? ((x) >> c) : 0)
+#define FPSRAVD(x, c) ((int32_t)(x) >> (c < 32 ? c : 31))
+#define FPSRAVQ(x, c) ((int64_t)(x) >> (c < 64 ? c : 63))
+#define FPSLLVD(x, c) (c < 32 ? ((x) << c) : 0)
+#define FPSLLVQ(x, c) (c < 64 ? ((x) << c) : 0)
+#endif
+
+SSE_HELPER_L(helper_vpsrlvd, FPSRLVD)
+SSE_HELPER_L(helper_vpsravd, FPSRAVD)
+SSE_HELPER_L(helper_vpsllvd, FPSLLVD)
+
+SSE_HELPER_Q(helper_vpsrlvq, FPSRLVQ)
+SSE_HELPER_Q(helper_vpsravq, FPSRAVQ)
+SSE_HELPER_Q(helper_vpsllvq, FPSLLVQ)
+
+void glue(helper_vtestps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    uint32_t zf = 0, cf = 0;
+    int i;
+
+    for (i = 0; i < 2 << SHIFT; i++) {
+        zf |= (s->L(i) &  d->L(i));
+        cf |= (s->L(i) & ~d->L(i));
+    }
+    CC_SRC = ((zf >> 31) ? 0 : CC_Z) | ((cf >> 31) ? 0 : CC_C);
+}
+
+void glue(helper_vtestpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    uint64_t zf = 0, cf = 0;
+    int i;
+
+    for (i = 0; i < 1 << SHIFT; i++) {
+        zf |= (s->Q(i) &  d->Q(i));
+        cf |= (s->Q(i) & ~d->Q(i));
+    }
+    CC_SRC = ((zf >> 63) ? 0 : CC_Z) | ((cf >> 63) ? 0 : CC_C);
+}
+
+void glue(helper_vpmaskmovd_st, SUFFIX)(CPUX86State *env,
+                                        Reg *v, Reg *s, target_ulong a0)
+{
+    int i;
+
+    for (i = 0; i < (2 << SHIFT); i++) {
+        if (v->L(i) >> 31) {
+            cpu_stl_data_ra(env, a0 + i * 4, s->L(i), GETPC());
+        }
+    }
+}
+
+void glue(helper_vpmaskmovq_st, SUFFIX)(CPUX86State *env,
+                                        Reg *v, Reg *s, target_ulong a0)
+{
+    int i;
+
+    for (i = 0; i < (1 << SHIFT); i++) {
+        if (v->Q(i) >> 63) {
+            cpu_stq_data_ra(env, a0 + i * 8, s->Q(i), GETPC());
+        }
+    }
+}
+
+void glue(helper_vpmaskmovd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
+{
+    int i;
+
+    for (i = 0; i < (2 << SHIFT); i++) {
+        d->L(i) = (v->L(i) >> 31) ? s->L(i) : 0;
+    }
+}
+
+void glue(helper_vpmaskmovq, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
+{
+    int i;
+
+    for (i = 0; i < (1 << SHIFT); i++) {
+        d->Q(i) = (v->Q(i) >> 63) ? s->Q(i) : 0;
+    }
+}
+
+void glue(helper_vpgatherdd, SUFFIX)(CPUX86State *env,
+        Reg *d, Reg *v, Reg *s, target_ulong a0, unsigned scale)
+{
+    int i;
+    for (i = 0; i < (2 << SHIFT); i++) {
+        if (v->L(i) >> 31) {
+            target_ulong addr = a0
+                + ((target_ulong)(int32_t)s->L(i) << scale);
+            d->L(i) = cpu_ldl_data_ra(env, addr, GETPC());
+        }
+        v->L(i) = 0;
+    }
+}
+
+void glue(helper_vpgatherdq, SUFFIX)(CPUX86State *env,
+        Reg *d, Reg *v, Reg *s, target_ulong a0, unsigned scale)
+{
+    int i;
+    for (i = 0; i < (1 << SHIFT); i++) {
+        if (v->Q(i) >> 63) {
+            target_ulong addr = a0
+                + ((target_ulong)(int32_t)s->L(i) << scale);
+            d->Q(i) = cpu_ldq_data_ra(env, addr, GETPC());
+        }
+        v->Q(i) = 0;
+    }
+}
+
+void glue(helper_vpgatherqd, SUFFIX)(CPUX86State *env,
+        Reg *d, Reg *v, Reg *s, target_ulong a0, unsigned scale)
+{
+    int i;
+    for (i = 0; i < (1 << SHIFT); i++) {
+        if (v->L(i) >> 31) {
+            target_ulong addr = a0
+                + ((target_ulong)(int64_t)s->Q(i) << scale);
+            d->L(i) = cpu_ldl_data_ra(env, addr, GETPC());
+        }
+        v->L(i) = 0;
+    }
+    for (i /= 2; i < 1 << SHIFT; i++) {
+        d->Q(i) = 0;
+        v->Q(i) = 0;
+    }
+}
+
+void glue(helper_vpgatherqq, SUFFIX)(CPUX86State *env,
+        Reg *d, Reg *v, Reg *s, target_ulong a0, unsigned scale)
+{
+    int i;
+    for (i = 0; i < (1 << SHIFT); i++) {
+        if (v->Q(i) >> 63) {
+            target_ulong addr = a0
+                + ((target_ulong)(int64_t)s->Q(i) << scale);
+            d->Q(i) = cpu_ldq_data_ra(env, addr, GETPC());
+        }
+        v->Q(i) = 0;
+    }
+}
+#endif
 
 #if SHIFT >= 2
 void helper_vpermdq_ymm(Reg *d, Reg *v, Reg *s, uint32_t order)
@@ -2473,7 +2647,19 @@ void helper_vpermq_ymm(Reg *d, Reg *s, uint32_t order)
     d->Q(2) = r2;
     d->Q(3) = r3;
 }
-#endif
+
+void helper_vpermd_ymm(Reg *d, Reg *v, Reg *s)
+{
+    uint32_t r[8];
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        r[i] = s->L(v->L(i) & 7);
+    }
+    for (i = 0; i < 8; i++) {
+        d->L(i) = r[i];
+    }
+}
 #endif
 
 #undef SSE_HELPER_S

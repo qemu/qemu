@@ -143,6 +143,12 @@ typedef enum X86InsnSpecial {
     X86_SPECIAL_ZExtOp2,
 
     /*
+     * Register operand 2 is extended to full width, while a memory operand
+     * is doubled in size if VEX.L=1.
+     */
+    X86_SPECIAL_AVXExtMov,
+
+    /*
      * MMX instruction exists with no prefix; if there is no prefix, V/H/W/U operands
      * become P/P/Q/N, and size "x" becomes "q".
      */
