@@ -130,6 +130,8 @@ class BootLinuxS390X(LinuxTest):
     :avocado: tags=arch:s390x
     """
 
+    timeout = 240
+
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390_ccw_virtio_tcg(self):
         """
