@@ -137,7 +137,6 @@ s390x-debian-cross-container:
 sh4-debian-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-sh4-cross
 
