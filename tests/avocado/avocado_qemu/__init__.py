@@ -229,7 +229,7 @@ def exec_command_and_wait_for_pattern(test, command,
 class QemuBaseTest(avocado.Test):
 
     # default timeout for all tests, can be overridden
-    timeout = 900
+    timeout = 120
 
     def _get_unique_tag_val(self, tag_name):
         """
