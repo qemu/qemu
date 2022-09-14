@@ -119,6 +119,13 @@ try:
     #
     # Cross compiling builds
     #
+    generate_dockerfile("debian-amd64-cross", "debian-11",
+                        cross="x86_64",
+                        trailer=debian_cross_build("x86_64-linux-gnu-",
+                                                   "x86_64-softmmu,"
+                                                   "x86_64-linux-user,"
+                                                   "i386-softmmu,i386-linux-user"))
+
     generate_dockerfile("debian-arm64-cross", "debian-11",
                         cross="aarch64",
                         trailer=debian_cross_build("aarch64-linux-gnu-",
