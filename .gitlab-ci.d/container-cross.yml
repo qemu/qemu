@@ -102,7 +102,6 @@ mipsel-debian-cross-container:
 powerpc-test-cross-container:
   extends: .container_job_template
   stage: containers
-  needs: ['amd64-debian11-container']
   variables:
     NAME: debian-powerpc-test-cross
 

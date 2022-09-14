@@ -1,13 +1,15 @@
 #
 # Docker powerpc/ppc64/ppc64le cross-compiler target
 #
-# This docker target builds on the debian Bullseye base image.
+# This docker target builds on the Debian Bullseye base image.
 #
-FROM qemu/debian11
+FROM docker.io/library/debian:11-slim
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
         gcc-powerpc-linux-gnu \
         libc6-dev-powerpc-cross \
         gcc-10-powerpc64-linux-gnu \
