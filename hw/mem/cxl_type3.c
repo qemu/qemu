@@ -49,7 +49,7 @@ static void build_dvsecs(CXLType3Dev *ct3d)
         .phase2_power = 0x33, /* 0x33 miliwatts */
     };
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
-                               GPF_DEVICE_DVSEC_LENGTH, GPF_PORT_DVSEC,
+                               GPF_DEVICE_DVSEC_LENGTH, GPF_DEVICE_DVSEC,
                                GPF_DEVICE_DVSEC_REVID, dvsec);
 }
 
