@@ -734,13 +734,13 @@ target_long qasan_actions_dispatcher(void *cpu_env,
 #ifdef ASAN_GIOVESE
         case QASAN_ACTION_CHECK_LOAD:
         if (asan_giovese_guest_loadN(arg1, arg2)) {
-          asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, arg1, arg2, PC_GET(env), BP_GET(env), SP_GET(env));
+          asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, arg1, arg2, env);
         }
         break;
         
         case QASAN_ACTION_CHECK_STORE:
         if (asan_giovese_guest_storeN(arg1, arg2)) {
-          asan_giovese_report_and_crash(ACCESS_TYPE_STORE, arg1, arg2, PC_GET(env), BP_GET(env), SP_GET(env));
+          asan_giovese_report_and_crash(ACCESS_TYPE_STORE, arg1, arg2, env);
         }
         break;
         
@@ -849,7 +849,7 @@ void HELPER(qasan_load1)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load1(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 1, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 1, env);
   }
 #else
   __asan_load1(ptr);
@@ -867,7 +867,7 @@ void HELPER(qasan_load2)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load2(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 2, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 2, env);
   }
 #else
   __asan_load2(ptr);
@@ -885,7 +885,7 @@ void HELPER(qasan_load4)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load4(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 4, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 4, env);
   }
 #else
   __asan_load4(ptr);
@@ -903,7 +903,7 @@ void HELPER(qasan_load8)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_load8(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 8, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_LOAD, addr, 8, env);
   }
 #else
   __asan_load8(ptr);
@@ -921,7 +921,7 @@ void HELPER(qasan_store1)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store1(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 1, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 1, env);
   }
 #else
   __asan_store1(ptr);
@@ -939,7 +939,7 @@ void HELPER(qasan_store2)(CPUArchState *env, target_ulong addr) {
   
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store2(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 2, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 2, env);
   }
 #else
   __asan_store2(ptr);
@@ -957,7 +957,7 @@ void HELPER(qasan_store4)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store4(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 4, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 4, env);
   }
 #else
   __asan_store4(ptr);
@@ -975,7 +975,7 @@ void HELPER(qasan_store8)(CPUArchState *env, target_ulong addr) {
 
 #ifdef ASAN_GIOVESE
   if (asan_giovese_store8(ptr)) {
-    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 8, PC_GET(env), BP_GET(env), SP_GET(env));
+    asan_giovese_report_and_crash(ACCESS_TYPE_STORE, addr, 8, env);
   }
 #else
   __asan_store8(ptr);
