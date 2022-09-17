@@ -1683,6 +1683,10 @@ void glue(helper_ptest, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     CC_SRC = (zf ? 0 : CC_Z) | (cf ? 0 : CC_C);
 }
 
+#define FMOVSLDUP(i) s->L((i) & ~1)
+#define FMOVSHDUP(i) s->L((i) | 1)
+#define FMOVDLDUP(i) s->Q((i) & ~1)
+
 #define SSE_HELPER_F(name, elem, num, F)                        \
     void glue(name, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)   \
     {                                                           \
@@ -1705,6 +1709,9 @@ SSE_HELPER_F(helper_pmovzxbq, Q, 1 << SHIFT, s->B)
 SSE_HELPER_F(helper_pmovzxwd, L, 2 << SHIFT, s->W)
 SSE_HELPER_F(helper_pmovzxwq, Q, 1 << SHIFT, s->W)
 SSE_HELPER_F(helper_pmovzxdq, Q, 1 << SHIFT, s->L)
+SSE_HELPER_F(helper_pmovsldup, L, 2 << SHIFT, FMOVSLDUP)
+SSE_HELPER_F(helper_pmovshdup, L, 2 << SHIFT, FMOVSHDUP)
+SSE_HELPER_F(helper_pmovdldup, Q, 1 << SHIFT, FMOVDLDUP)
 #endif
 
 void glue(helper_pmuldq, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s)
