@@ -50,8 +50,6 @@
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
 
-#define MAX_IDE_BUS 2
-
 #define CFG_ADDR 0xf0000510
 
 #define KERNEL_LOAD_ADDR 0x01000000

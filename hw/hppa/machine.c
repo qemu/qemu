@@ -30,8 +30,6 @@
 #include "qemu/log.h"
 #include "net/net.h"
 
-#define MAX_IDE_BUS 2
-
 #define MIN_SEABIOS_HPPA_VERSION 6 /* require at least this fw version */
 
 #define HPA_POWER_BUTTON (FIRMWARE_END - 0x10)

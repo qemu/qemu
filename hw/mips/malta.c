@@ -70,8 +70,6 @@
 
 #define FLASH_SIZE          0x400000
 
-#define MAX_IDE_BUS         2
-
 typedef struct {
     MemoryRegion iomem;
     MemoryRegion iomem_lo; /* 0 - 0x900 */
