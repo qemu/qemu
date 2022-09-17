@@ -480,8 +480,9 @@ void do_m68k_semihosting(CPUM68KState *env, int nr);
  */
 
 enum m68k_features {
-    /* Base m68k instruction set */
-    M68K_FEATURE_M68000,
+    /* Base Motorola CPU set (not set for Coldfire CPUs) */
+    M68K_FEATURE_M68K,
+    /* Motorola CPU feature sets */
     M68K_FEATURE_M68010,
     M68K_FEATURE_M68020,
     M68K_FEATURE_M68030,
