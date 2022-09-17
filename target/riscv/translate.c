@@ -28,6 +28,7 @@
 
 #include "exec/translator.h"
 #include "exec/log.h"
+#include "semihosting/semihost.h"
 
 #include "instmap.h"
 #include "internals.h"

@@ -4627,12 +4627,12 @@ SRST
     information about the facilities this enables.
 ERST
 DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
-    "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]\n" \
+    "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]\n" \
     "                semihosting configuration\n",
 QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
 QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
 SRST
-``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]``
+``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]``
     Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V
     only).
 
@@ -4658,6 +4658,13 @@ SRST
     ``chardev=str1``
         Send the output to a chardev backend output for native or auto
         output when not in gdb
+
+    ``userspace=on|off``
+        Allows code running in guest userspace to access the semihosting
+        interface. The default is that only privileged guest code can
+        make semihosting calls. Note that setting ``userspace=on`` should
+        only be used if all guest code is trusted (for example, in
+        bare-metal test case code).
 
     ``arg=str1,arg=str2,...``
         Allows the user to pass input arguments, and can be used

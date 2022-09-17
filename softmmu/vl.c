@@ -1822,7 +1822,7 @@ static void qemu_apply_machine_options(QDict *qdict)
 {
     object_set_properties_from_keyval(OBJECT(current_machine), qdict, false, &error_fatal);
 
-    if (semihosting_enabled() && !semihosting_get_argc()) {
+    if (semihosting_enabled(false) && !semihosting_get_argc()) {
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(current_machine->kernel_filename, current_machine->kernel_cmdline);
     }
