@@ -25,13 +25,16 @@ typedef enum {
  * armv7m_load_kernel:
  * @cpu: CPU
  * @kernel_filename: file to load
+ * @mem_base: base address to load image at (should be where the
+ *            CPU expects to find its vector table on reset)
  * @mem_size: mem_size: maximum image size to load
  *
  * Load the guest image for an ARMv7M system. This must be called by
  * any ARMv7M board. (This is necessary to ensure that the CPU resets
  * correctly on system reset, as well as for kernel loading.)
  */
-void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size);
+void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
+                        hwaddr mem_base, int mem_size);
 
 /* arm_boot.c */
 struct arm_boot_info {
