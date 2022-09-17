@@ -152,6 +152,36 @@ typedef enum X86InsnSpecial {
     X86_SPECIAL_o64,
 } X86InsnSpecial;
 
+/*
+ * Special cases for instructions that operate on XMM/YMM registers.  Intel
+ * retconned all of them to have VEX exception classes other than 0 and 13, so
+ * all these only matter for instructions that have a VEX exception class.
+ * Based on tables in the "AVX and SSE Instruction Exception Specification"
+ * section of the manual.
+ */
+typedef enum X86VEXSpecial {
+    /* Legacy SSE instructions that allow unaligned operands */
+    X86_VEX_SSEUnaligned,
+
+    /*
+     * Used for instructions that distinguish the XMM operand type with an
+     * instruction prefix; legacy SSE encodings will allow unaligned operands
+     * for scalar operands only (identified by a REP prefix).  In this case,
+     * the decoding table uses "x" for the vector operands instead of specifying
+     * pd/ps/sd/ss individually.
+     */
+    X86_VEX_REPScalar,
+
+    /*
+     * VEX instructions that only support 256-bit operands with AVX2 (Table 2-17
+     * column 3).  Columns 2 and 4 (instructions limited to 256- and 127-bit
+     * operands respectively) are implicit in the presence of dq and qq
+     * operands, and thus handled by decode_op_size.
+     */
+    X86_VEX_AVX2_256,
+} X86VEXSpecial;
+
+
 typedef struct X86OpEntry  X86OpEntry;
 typedef struct X86DecodedInsn X86DecodedInsn;
 
@@ -180,6 +210,8 @@ struct X86OpEntry {
 
     X86InsnSpecial special:8;
     X86CPUIDFeature cpuid:8;
+    unsigned     vex_class:8;
+    X86VEXSpecial vex_special:8;
     bool         is_decode:1;
 };
 

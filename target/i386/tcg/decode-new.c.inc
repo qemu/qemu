@@ -93,6 +93,23 @@
 #define zext0 .special = X86_SPECIAL_ZExtOp0,
 #define zext2 .special = X86_SPECIAL_ZExtOp2,
 
+#define vex1 .vex_class = 1,
+#define vex1_rep3 .vex_class = 1, .vex_special = X86_VEX_REPScalar,
+#define vex2 .vex_class = 2,
+#define vex2_rep3 .vex_class = 2, .vex_special = X86_VEX_REPScalar,
+#define vex3 .vex_class = 3,
+#define vex4 .vex_class = 4,
+#define vex4_unal .vex_class = 4, .vex_special = X86_VEX_SSEUnaligned,
+#define vex5 .vex_class = 5,
+#define vex6 .vex_class = 6,
+#define vex7 .vex_class = 7,
+#define vex8 .vex_class = 8,
+#define vex11 .vex_class = 11,
+#define vex12 .vex_class = 12,
+#define vex13 .vex_class = 13,
+
+#define avx2_256 .vex_special = X86_VEX_AVX2_256,
+
 static uint8_t get_modrm(DisasContext *s, CPUX86State *env)
 {
     if (!s->has_modrm) {
@@ -157,6 +174,18 @@ static const X86OpEntry opcodes_root[256] = {
 };
 
 #undef mmx
+#undef vex1
+#undef vex2
+#undef vex3
+#undef vex4
+#undef vex4_unal
+#undef vex5
+#undef vex6
+#undef vex7
+#undef vex8
+#undef vex11
+#undef vex12
+#undef vex13
 
 /*
  * Decode the fixed part of the opcode and place the last
@@ -564,6 +593,136 @@ static bool has_cpuid_feature(DisasContext *s, X86CPUIDFeature cpuid)
     g_assert_not_reached();
 }
 
+static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
+{
+    X86OpEntry *e = &decode->e;
+
+    switch (e->vex_special) {
+    case X86_VEX_REPScalar:
+        /*
+         * Instructions which differ between 00/66 and F2/F3 in the
+         * exception classification and the size of the memory operand.
+         */
+        assert(e->vex_class == 1 || e->vex_class == 2);
+        if (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ)) {
+            e->vex_class = 3;
+            if (s->vex_l) {
+                goto illegal;
+            }
+            assert(decode->e.s2 == X86_SIZE_x);
+            if (decode->op[2].has_ea) {
+                decode->op[2].ot = s->prefix & PREFIX_REPZ ? MO_32 : MO_64;
+            }
+        }
+        break;
+
+    case X86_VEX_SSEUnaligned:
+        /* handled in sse_needs_alignment.  */
+        break;
+
+    case X86_VEX_AVX2_256:
+        if ((s->prefix & PREFIX_VEX) && s->vex_l && !has_cpuid_feature(s, X86_FEAT_AVX2)) {
+            goto illegal;
+        }
+    }
+
+    /* TODO: instructions that require VEX.W=0 (Table 2-16) */
+
+    switch (e->vex_class) {
+    case 0:
+        if (s->prefix & PREFIX_VEX) {
+            goto illegal;
+        }
+        return true;
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 7:
+        if (s->prefix & PREFIX_VEX) {
+            if (!(s->flags & HF_AVX_EN_MASK)) {
+                goto illegal;
+            }
+        } else {
+            if (!(s->flags & HF_OSFXSR_MASK)) {
+                goto illegal;
+            }
+        }
+        break;
+    case 12:
+        /* Must have a VSIB byte and no address prefix.  */
+        assert(s->has_modrm);
+        if ((s->modrm & 7) != 4 || s->aflag == MO_16) {
+            goto illegal;
+        }
+
+        /* Check no overlap between registers.  */
+        if (!decode->op[0].has_ea &&
+            (decode->op[0].n == decode->mem.index || decode->op[0].n == decode->op[1].n)) {
+            goto illegal;
+        }
+        assert(!decode->op[1].has_ea);
+        if (decode->op[1].n == decode->mem.index) {
+            goto illegal;
+        }
+        if (!decode->op[2].has_ea &&
+            (decode->op[2].n == decode->mem.index || decode->op[2].n == decode->op[1].n)) {
+            goto illegal;
+        }
+        /* fall through */
+    case 6:
+    case 11:
+        if (!(s->prefix & PREFIX_VEX)) {
+            goto illegal;
+        }
+        if (!(s->flags & HF_AVX_EN_MASK)) {
+            goto illegal;
+        }
+        break;
+    case 8:
+        if (!(s->prefix & PREFIX_VEX)) {
+            /* EMMS */
+            return true;
+        }
+        if (!(s->flags & HF_AVX_EN_MASK)) {
+            goto illegal;
+        }
+        break;
+    case 13:
+        if (!(s->prefix & PREFIX_VEX)) {
+            goto illegal;
+        }
+        if (s->vex_l) {
+            goto illegal;
+        }
+        /* All integer instructions use VEX.vvvv, so exit.  */
+        return true;
+    }
+
+    if (s->vex_v != 0 &&
+        e->op0 != X86_TYPE_H && e->op0 != X86_TYPE_B &&
+        e->op1 != X86_TYPE_H && e->op1 != X86_TYPE_B &&
+        e->op2 != X86_TYPE_H && e->op2 != X86_TYPE_B) {
+        goto illegal;
+    }
+
+    if (s->flags & HF_TS_MASK) {
+        goto nm_exception;
+    }
+    if (s->flags & HF_EM_MASK) {
+        goto illegal;
+    }
+    return true;
+
+nm_exception:
+    gen_NM_exception(s);
+    return false;
+illegal:
+    gen_illegal_opcode(s);
+    return false;
+}
+
 static void decode_temp_free(X86DecodedOp *op)
 {
     if (op->v_ptr) {
@@ -804,8 +963,11 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         break;
     }
 
+    if (!validate_vex(s, &decode)) {
+        return;
+    }
     if (decode.op[0].has_ea || decode.op[1].has_ea || decode.op[2].has_ea) {
-        gen_load_ea(s, &decode.mem);
+        gen_load_ea(s, &decode.mem, decode.e.vex_class == 12);
     }
     if (s->prefix & PREFIX_LOCK) {
         if (decode.op[0].unit != X86_OP_INT || !decode.op[0].has_ea) {

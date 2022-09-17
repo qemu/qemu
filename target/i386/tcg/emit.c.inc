@@ -19,14 +19,19 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+static void gen_NM_exception(DisasContext *s)
+{
+    gen_exception(s, EXCP07_PREX);
+}
+
 static void gen_illegal(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     gen_illegal_opcode(s);
 }
 
-static void gen_load_ea(DisasContext *s, AddressParts *mem)
+static void gen_load_ea(DisasContext *s, AddressParts *mem, bool is_vsib)
 {
-    TCGv ea = gen_lea_modrm_1(s, *mem);
+    TCGv ea = gen_lea_modrm_1(s, *mem, is_vsib);
     gen_lea_v_seg(s, s->aflag, ea, mem->def_seg, s->override);
 }
 
@@ -113,6 +118,25 @@ static void gen_load_sse(DisasContext *s, TCGv temp, MemOp ot, int dest_ofs, boo
     }
 }
 
+static bool sse_needs_alignment(DisasContext *s, X86DecodedInsn *decode, MemOp ot)
+{
+    switch (decode->e.vex_class) {
+    case 2:
+    case 4:
+        if ((s->prefix & PREFIX_VEX) ||
+            decode->e.vex_special == X86_VEX_SSEUnaligned) {
+            /* MOST legacy SSE instructions require aligned memory operands, but not all.  */
+            return false;
+        }
+        /* fall through */
+    case 1:
+        return ot >= MO_128;
+
+    default:
+        return false;
+    }
+}
+
 static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
 {
     X86DecodedOp *op = &decode->op[opn];
@@ -149,7 +173,8 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
         compute_xmm_offset(op);
     load_vector:
         if (op->has_ea) {
-            gen_load_sse(s, v, op->ot, op->offset, true);
+            bool aligned = sse_needs_alignment(s, decode, op->ot);
+            gen_load_sse(s, v, op->ot, op->offset, aligned);
         }
         break;
 
@@ -176,7 +201,13 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
         }
         break;
     case X86_OP_MMX:
+        break;
     case X86_OP_SSE:
+        if ((s->prefix & PREFIX_VEX) && op->ot == MO_128) {
+            tcg_gen_gvec_dup_imm(MO_64,
+                                 offsetof(CPUX86State, xmm_regs[op->n].ZMM_X(1)),
+                                 16, 16, 0);
+        }
         break;
     case X86_OP_CR:
     case X86_OP_DR:
