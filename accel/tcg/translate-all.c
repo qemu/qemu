@@ -2271,6 +2271,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
 
 void page_reset_target_data(target_ulong start, target_ulong end)
 {
+#ifdef TARGET_PAGE_DATA_SIZE
     target_ulong addr, len;
 
     /*
@@ -2293,15 +2294,17 @@ void page_reset_target_data(target_ulong start, target_ulong end)
         g_free(p->target_data);
         p->target_data = NULL;
     }
+#endif
 }
 
+#ifdef TARGET_PAGE_DATA_SIZE
 void *page_get_target_data(target_ulong address)
 {
     PageDesc *p = page_find(address >> TARGET_PAGE_BITS);
     return p ? p->target_data : NULL;
 }
 
-void *page_alloc_target_data(target_ulong address, size_t size)
+void *page_alloc_target_data(target_ulong address)
 {
     PageDesc *p = page_find(address >> TARGET_PAGE_BITS);
     void *ret = NULL;
@@ -2309,11 +2312,12 @@ void *page_alloc_target_data(target_ulong address, size_t size)
     if (p->flags & PAGE_VALID) {
         ret = p->target_data;
         if (!ret) {
-            p->target_data = ret = g_malloc0(size);
+            p->target_data = ret = g_malloc0(TARGET_PAGE_DATA_SIZE);
         }
     }
     return ret;
 }
+#endif /* TARGET_PAGE_DATA_SIZE */
 
 int page_check_range(target_ulong start, target_ulong len, int flags)
 {
