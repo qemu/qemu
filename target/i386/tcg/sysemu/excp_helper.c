@@ -439,3 +439,11 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
     }
     return true;
 }
+
+G_NORETURN void x86_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
+                                            MMUAccessType access_type,
+                                            int mmu_idx, uintptr_t retaddr)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    handle_unaligned_access(&cpu->env, vaddr, access_type, retaddr);
+}
