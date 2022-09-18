@@ -253,7 +253,11 @@ static int mmap_frag(abi_ulong real_start,
 # define TASK_UNMAPPED_BASE  (1ul << 38)
 #endif
 #else
+#ifdef TARGET_HPPA
+# define TASK_UNMAPPED_BASE  0xfa000000
+#else
 # define TASK_UNMAPPED_BASE  0x40000000
+#endif
 #endif
 abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
 
