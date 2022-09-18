@@ -63,33 +63,7 @@
 #include "tb-context.h"
 #include "internal.h"
 
-/* #define DEBUG_TB_INVALIDATE */
-/* #define DEBUG_TB_FLUSH */
 /* make various TB consistency checks */
-/* #define DEBUG_TB_CHECK */
-
-#ifdef DEBUG_TB_INVALIDATE
-#define DEBUG_TB_INVALIDATE_GATE 1
-#else
-#define DEBUG_TB_INVALIDATE_GATE 0
-#endif
-
-#ifdef DEBUG_TB_FLUSH
-#define DEBUG_TB_FLUSH_GATE 1
-#else
-#define DEBUG_TB_FLUSH_GATE 0
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-/* TB consistency checks only implemented for usermode emulation.  */
-#undef DEBUG_TB_CHECK
-#endif
-
-#ifdef DEBUG_TB_CHECK
-#define DEBUG_TB_CHECK_GATE 1
-#else
-#define DEBUG_TB_CHECK_GATE 0
-#endif
 
 /* Access to the various translations structures need to be serialised via locks
  * for consistency.
@@ -940,15 +914,6 @@ static void page_flush_tb(void)
     }
 }
 
-static gboolean tb_host_size_iter(gpointer key, gpointer value, gpointer data)
-{
-    const TranslationBlock *tb = value;
-    size_t *size = data;
-
-    *size += tb->tc.size;
-    return false;
-}
-
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
@@ -962,15 +927,6 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
         goto done;
     }
     did_flush = true;
-
-    if (DEBUG_TB_FLUSH_GATE) {
-        size_t nb_tbs = tcg_nb_tbs();
-        size_t host_size = 0;
-
-        tcg_tb_foreach(tb_host_size_iter, &host_size);
-        printf("qemu: flush code_size=%zu nb_tbs=%zu avg_tb_size=%zu\n",
-               tcg_code_size(), nb_tbs, nb_tbs > 0 ? host_size / nb_tbs : 0);
-    }
 
     CPU_FOREACH(cpu) {
         tcg_flush_jmp_cache(cpu);
@@ -1004,57 +960,6 @@ void tb_flush(CPUState *cpu)
         }
     }
 }
-
-/*
- * Formerly ifdef DEBUG_TB_CHECK. These debug functions are user-mode-only,
- * so in order to prevent bit rot we compile them unconditionally in user-mode,
- * and let the optimizer get rid of them by wrapping their user-only callers
- * with if (DEBUG_TB_CHECK_GATE).
- */
-#ifdef CONFIG_USER_ONLY
-
-static void do_tb_invalidate_check(void *p, uint32_t hash, void *userp)
-{
-    TranslationBlock *tb = p;
-    target_ulong addr = *(target_ulong *)userp;
-
-    if (!(addr + TARGET_PAGE_SIZE <= tb_pc(tb) ||
-          addr >= tb_pc(tb) + tb->size)) {
-        printf("ERROR invalidate: address=" TARGET_FMT_lx
-               " PC=%08lx size=%04x\n", addr, (long)tb_pc(tb), tb->size);
-    }
-}
-
-/* verify that all the pages have correct rights for code
- *
- * Called with mmap_lock held.
- */
-static void tb_invalidate_check(target_ulong address)
-{
-    address &= TARGET_PAGE_MASK;
-    qht_iter(&tb_ctx.htable, do_tb_invalidate_check, &address);
-}
-
-static void do_tb_page_check(void *p, uint32_t hash, void *userp)
-{
-    TranslationBlock *tb = p;
-    int flags1, flags2;
-
-    flags1 = page_get_flags(tb_pc(tb));
-    flags2 = page_get_flags(tb_pc(tb) + tb->size - 1);
-    if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
-        printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
-               (long)tb_pc(tb), tb->size, flags1, flags2);
-    }
-}
-
-/* verify that all the pages have correct rights for code */
-static void tb_page_check(void)
-{
-    qht_iter(&tb_ctx.htable, do_tb_page_check, NULL);
-}
-
-#endif /* CONFIG_USER_ONLY */
 
 /*
  * user-mode: call with mmap_lock held
@@ -1339,12 +1244,6 @@ tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
         page_unlock(p2);
     }
     page_unlock(p);
-
-#ifdef CONFIG_USER_ONLY
-    if (DEBUG_TB_CHECK_GATE) {
-        tb_page_check();
-    }
-#endif
     return tb;
 }
 
@@ -2400,9 +2299,6 @@ void page_protect(tb_page_addr_t page_addr)
         }
         mprotect(g2h_untagged(page_addr), qemu_host_page_size,
                  (prot & PAGE_BITS) & ~PAGE_WRITE);
-        if (DEBUG_TB_INVALIDATE_GATE) {
-            printf("protecting code page: 0x" TB_PAGE_ADDR_FMT "\n", page_addr);
-        }
     }
 }
 
@@ -2458,11 +2354,6 @@ int page_unprotect(target_ulong address, uintptr_t pc)
                 /* and since the content will be modified, we must invalidate
                    the corresponding translated code. */
                 current_tb_invalidated |= tb_invalidate_phys_page(addr, pc);
-#ifdef CONFIG_USER_ONLY
-                if (DEBUG_TB_CHECK_GATE) {
-                    tb_invalidate_check(addr);
-                }
-#endif
             }
             mprotect((void *)g2h_untagged(host_start), qemu_host_page_size,
                      prot & PAGE_BITS);
