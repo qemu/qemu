@@ -1505,6 +1505,11 @@ print_file_mode(abi_long mode, int last)
     const char *sep = "";
     const struct flags *m;
 
+    if (mode == 0) {
+        qemu_log("000%s", get_comma(last));
+        return;
+    }
+
     for (m = &mode_flags[0]; m->f_string != NULL; m++) {
         if ((m->f_value & mode) == m->f_value) {
             qemu_log("%s%s", m->f_string, sep);
