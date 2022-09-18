@@ -3506,10 +3506,20 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     gen_helper_extrq_i(cpu_env, s->ptr0,
                                        tcg_const_i32(bit_index),
                                        tcg_const_i32(field_length));
-                else
-                    gen_helper_insertq_i(cpu_env, s->ptr0,
+                else {
+                    if (mod != 3) {
+                        gen_lea_modrm(env, s, modrm);
+                        op2_offset = offsetof(CPUX86State, xmm_t0);
+                        gen_ldq_env_A0(s, offsetof(CPUX86State, xmm_t0.ZMM_D(0)));
+                    } else {
+                        rm = (modrm & 7) | REX_B(s);
+                        op2_offset = ZMM_OFFSET(rm);
+                    }
+                    tcg_gen_addi_ptr(s->ptr1, cpu_env, op2_offset);
+                    gen_helper_insertq_i(cpu_env, s->ptr0, s->ptr1,
                                          tcg_const_i32(bit_index),
                                          tcg_const_i32(field_length));
+                }
             }
             break;
         case 0x7e: /* movd ea, mm */

@@ -934,7 +934,7 @@ void helper_extrq_i(CPUX86State *env, ZMMReg *d, int index, int length)
     d->ZMM_Q(0) = helper_extrq(d->ZMM_Q(0), index, length);
 }
 
-static inline uint64_t helper_insertq(uint64_t src, int shift, int len)
+static inline uint64_t helper_insertq(uint64_t dest, uint64_t src, int shift, int len)
 {
     uint64_t mask;
 
@@ -943,17 +943,17 @@ static inline uint64_t helper_insertq(uint64_t src, int shift, int len)
     } else {
         mask = (1ULL << len) - 1;
     }
-    return (src & ~(mask << shift)) | ((src & mask) << shift);
+    return (dest & ~(mask << shift)) | ((src & mask) << shift);
 }
 
 void helper_insertq_r(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_Q(0) = helper_insertq(s->ZMM_Q(0), s->ZMM_B(9) & 63, s->ZMM_B(8) & 63);
+    d->ZMM_Q(0) = helper_insertq(d->ZMM_Q(0), s->ZMM_Q(0), s->ZMM_B(9) & 63, s->ZMM_B(8) & 63);
 }
 
-void helper_insertq_i(CPUX86State *env, ZMMReg *d, int index, int length)
+void helper_insertq_i(CPUX86State *env, ZMMReg *d, ZMMReg *s, int index, int length)
 {
-    d->ZMM_Q(0) = helper_insertq(d->ZMM_Q(0), index, length);
+    d->ZMM_Q(0) = helper_insertq(d->ZMM_Q(0), s->ZMM_Q(0), index, length);
 }
 #endif
 
