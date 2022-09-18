@@ -926,7 +926,7 @@ static inline uint64_t helper_extrq(uint64_t src, int shift, int len)
 
 void helper_extrq_r(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_Q(0) = helper_extrq(d->ZMM_Q(0), s->ZMM_B(1), s->ZMM_B(0));
+    d->ZMM_Q(0) = helper_extrq(d->ZMM_Q(0), s->ZMM_B(1) & 63, s->ZMM_B(0) & 63);
 }
 
 void helper_extrq_i(CPUX86State *env, ZMMReg *d, int index, int length)
@@ -948,7 +948,7 @@ static inline uint64_t helper_insertq(uint64_t src, int shift, int len)
 
 void helper_insertq_r(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_Q(0) = helper_insertq(s->ZMM_Q(0), s->ZMM_B(9), s->ZMM_B(8));
+    d->ZMM_Q(0) = helper_insertq(s->ZMM_Q(0), s->ZMM_B(9) & 63, s->ZMM_B(8) & 63);
 }
 
 void helper_insertq_i(CPUX86State *env, ZMMReg *d, int index, int length)
