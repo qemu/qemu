@@ -183,7 +183,7 @@ static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
     target_ulong val = 0;
     int result = riscv_csrrw_debug(env, csrno, &val, 0, 0);
 
-    if (result == 0) {
+    if (result == RISCV_EXCP_NONE) {
         return gdb_get_regl(buf, val);
     }
 
@@ -210,7 +210,7 @@ static int riscv_gdb_set_vector(CPURISCVState *env, uint8_t *mem_buf, int n)
     target_ulong val = ldtul_p(mem_buf);
     int result = riscv_csrrw_debug(env, csrno, NULL, val, -1);
 
-    if (result == 0) {
+    if (result == RISCV_EXCP_NONE) {
         return sizeof(target_ulong);
     }
 
