@@ -1394,12 +1394,27 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
    * each block to allow functionality such as execution tracing (the -d exec
    * argument)to work properly.
    */
-  env->exception.vaddress = fault_addr;
-  
+
+  /*
+   * Queue a SIGSEGV representing our fault.
+   */
+  target_siginfo_t info = {
+    .si_signo = TARGET_SIGSEGV,
+    .si_errno = 0,
+    .si_code = TARGET_SEGV_MAPERR,
+    ._sifields._sigfault._addr = fault_addr
+  };
+  queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+
+  /*
+   * Set the CPU state to represent an interrupt. This is suffient to cause the
+   * cpu_loop to break out and handle the queued exceptions.
+   */
   CPUState *cs = env_cpu(env);
-  cs->exception_index = EXCP_DATA_ABORT;
+  cs->exception_index = EXCP_INTERRUPT;
   cpu_loop_exit(cs);
-  
+
+
   return 0;
 }
 
