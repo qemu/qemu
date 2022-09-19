@@ -11,6 +11,37 @@
 
 #include "exec/exec-all.h"
 
+/*
+ * Access to the various translations structures need to be serialised
+ * via locks for consistency.  In user-mode emulation access to the
+ * memory related structures are protected with mmap_lock.
+ * In !user-mode we use per-page locks.
+ */
+#ifdef CONFIG_SOFTMMU
+#define assert_memory_lock()
+#else
+#define assert_memory_lock() tcg_debug_assert(have_mmap_lock())
+#endif
+
+typedef struct PageDesc {
+    /* list of TBs intersecting this ram page */
+    uintptr_t first_tb;
+#ifdef CONFIG_USER_ONLY
+    unsigned long flags;
+    void *target_data;
+#endif
+#ifdef CONFIG_SOFTMMU
+    QemuSpin lock;
+#endif
+} PageDesc;
+
+PageDesc *page_find_alloc(tb_page_addr_t index, bool alloc);
+
+static inline PageDesc *page_find(tb_page_addr_t index)
+{
+    return page_find_alloc(index, false);
+}
+
 TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
                               target_ulong cs_base, uint32_t flags,
                               int cflags);

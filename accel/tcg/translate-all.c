@@ -65,30 +65,6 @@
 
 /* make various TB consistency checks */
 
-/* Access to the various translations structures need to be serialised via locks
- * for consistency.
- * In user-mode emulation access to the memory related structures are protected
- * with mmap_lock.
- * In !user-mode we use per-page locks.
- */
-#ifdef CONFIG_SOFTMMU
-#define assert_memory_lock()
-#else
-#define assert_memory_lock() tcg_debug_assert(have_mmap_lock())
-#endif
-
-typedef struct PageDesc {
-    /* list of TBs intersecting this ram page */
-    uintptr_t first_tb;
-#ifdef CONFIG_USER_ONLY
-    unsigned long flags;
-    void *target_data;
-#endif
-#ifdef CONFIG_SOFTMMU
-    QemuSpin lock;
-#endif
-} PageDesc;
-
 /**
  * struct page_entry - page descriptor entry
  * @pd:     pointer to the &struct PageDesc of the page this entry represents
@@ -445,7 +421,7 @@ void page_init(void)
 #endif
 }
 
-static PageDesc *page_find_alloc(tb_page_addr_t index, bool alloc)
+PageDesc *page_find_alloc(tb_page_addr_t index, bool alloc)
 {
     PageDesc *pd;
     void **lp;
@@ -509,11 +485,6 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, bool alloc)
     }
 
     return pd + (index & (V_L2_SIZE - 1));
-}
-
-static inline PageDesc *page_find(tb_page_addr_t index)
-{
-    return page_find_alloc(index, false);
 }
 
 static void page_lock_pair(PageDesc **ret_p1, tb_page_addr_t phys1,
