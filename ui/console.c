@@ -304,8 +304,8 @@ static bool png_save(int fd, pixman_image_t *image, Error **errp)
 {
     int width = pixman_image_get_width(image);
     int height = pixman_image_get_height(image);
-    g_autofree png_struct *png_ptr = NULL;
-    g_autofree png_info *info_ptr = NULL;
+    png_struct *png_ptr;
+    png_info *info_ptr;
     g_autoptr(pixman_image_t) linebuf =
                             qemu_pixman_linebuf_create(PIXMAN_a8r8g8b8, width);
     uint8_t *buf = (uint8_t *)pixman_image_get_data(linebuf);
@@ -346,7 +346,6 @@ static bool png_save(int fd, pixman_image_t *image, Error **errp)
         qemu_pixman_linebuf_fill(linebuf, image, width, 0, y);
         png_write_row(png_ptr, buf);
     }
-    qemu_pixman_image_unref(linebuf);
 
     png_write_end(png_ptr, NULL);
 
