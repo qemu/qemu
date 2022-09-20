@@ -37,6 +37,10 @@
 #include "hw/mem/nvdimm.h"
 #include "sysemu/device_tree.h"
 #include <libfdt.h>
+#include "hw/core/sysbus-fdt.h"
+#include "hw/platform-bus.h"
+#include "hw/display/ramfb.h"
+#include "hw/mem/pc-dimm.h"
 
 static void create_fdt(LoongArchMachineState *lams)
 {
@@ -118,7 +122,7 @@ static void fdt_add_fw_cfg_node(const LoongArchMachineState *lams)
     qemu_fdt_setprop_string(ms->fdt, nodename,
                             "compatible", "qemu,fw-cfg-mmio");
     qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
-                                 2, base, 2, 0x8);
+                                 2, base, 2, 0x18);
     qemu_fdt_setprop(ms->fdt, nodename, "dma-coherent", NULL, 0);
     g_free(nodename);
 }
@@ -158,6 +162,33 @@ static void fdt_add_pcie_node(const LoongArchMachineState *lams)
     qemu_fdt_dumpdtb(ms->fdt, lams->fdt_size);
 }
 
+static void fdt_add_irqchip_node(LoongArchMachineState *lams)
+{
+    MachineState *ms = MACHINE(lams);
+    char *nodename;
+    uint32_t irqchip_phandle;
+
+    irqchip_phandle = qemu_fdt_alloc_phandle(ms->fdt);
+    qemu_fdt_setprop_cell(ms->fdt, "/", "interrupt-parent", irqchip_phandle);
+
+    nodename = g_strdup_printf("/intc@%lx", VIRT_IOAPIC_REG_BASE);
+    qemu_fdt_add_subnode(ms->fdt, nodename);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#interrupt-cells", 3);
+    qemu_fdt_setprop(ms->fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#address-cells", 0x2);
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "#size-cells", 0x2);
+    qemu_fdt_setprop(ms->fdt, nodename, "ranges", NULL, 0);
+
+    qemu_fdt_setprop_string(ms->fdt, nodename, "compatible",
+                            "loongarch,ls7a");
+
+    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
+                                 2, VIRT_IOAPIC_REG_BASE,
+                                 2, PCH_PIC_ROUTE_ENTRY_OFFSET);
+
+    qemu_fdt_setprop_cell(ms->fdt, nodename, "phandle", irqchip_phandle);
+    g_free(nodename);
+}
 
 #define PM_BASE 0x10080000
 #define PM_SIZE 0x100
@@ -318,6 +349,31 @@ static DeviceState *create_acpi_ged(DeviceState *pch_pic, LoongArchMachineState 
     return dev;
 }
 
+static DeviceState *create_platform_bus(DeviceState *pch_pic)
+{
+    DeviceState *dev;
+    SysBusDevice *sysbus;
+    int i, irq;
+    MemoryRegion *sysmem = get_system_memory();
+
+    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
+    qdev_prop_set_uint32(dev, "num_irqs", VIRT_PLATFORM_BUS_NUM_IRQS);
+    qdev_prop_set_uint32(dev, "mmio_size", VIRT_PLATFORM_BUS_SIZE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sysbus = SYS_BUS_DEVICE(dev);
+    for (i = 0; i < VIRT_PLATFORM_BUS_NUM_IRQS; i++) {
+        irq = VIRT_PLATFORM_BUS_IRQ - PCH_PIC_IRQ_OFFSET + i;
+        sysbus_connect_irq(sysbus, i, qdev_get_gpio_in(pch_pic, irq));
+    }
+
+    memory_region_add_subregion(sysmem,
+                                VIRT_PLATFORM_BUS_BASEADDRESS,
+                                sysbus_mmio_get_region(sysbus, 0));
+    return dev;
+}
+
 static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *lams)
 {
     DeviceState *gpex_dev;
@@ -331,6 +387,7 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
     d = SYS_BUS_DEVICE(gpex_dev);
     sysbus_realize_and_unref(d, &error_fatal);
     pci_bus = PCI_HOST_BRIDGE(gpex_dev)->bus;
+    lams->pci_bus = pci_bus;
 
     /* Map only part size_ecam bytes of ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);
@@ -378,9 +435,6 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
         pci_nic_init_nofail(nd, pci_bus, nd->model, NULL);
     }
 
-    /* VGA setup */
-    pci_vga_init(pci_bus);
-
     /*
      * There are some invalid guest memory access.
      * Create some unimplemented devices to emulate this.
@@ -396,6 +450,8 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
     memory_region_add_subregion(get_system_memory(), PM_BASE, pm_mem);
     /* acpi ged */
     lams->acpi_ged = create_acpi_ged(pch_pic, lams);
+    /* platform bus */
+    lams->platform_bus_dev = create_platform_bus(pch_pic);
 }
 
 static void loongarch_irq_init(LoongArchMachineState *lams)
@@ -664,6 +720,35 @@ static void loongarch_init(MachineState *machine)
                              machine->ram, offset, highram_size);
     memory_region_add_subregion(address_space_mem, 0x90000000, &lams->highmem);
     memmap_add_entry(0x90000000, highram_size, 1);
+
+    /* initialize device memory address space */
+    if (machine->ram_size < machine->maxram_size) {
+        machine->device_memory = g_malloc0(sizeof(*machine->device_memory));
+        ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
+            error_report("unsupported amount of memory slots: %"PRIu64,
+                         machine->ram_slots);
+            exit(EXIT_FAILURE);
+        }
+
+        if (QEMU_ALIGN_UP(machine->maxram_size,
+                          TARGET_PAGE_SIZE) != machine->maxram_size) {
+            error_report("maximum memory size must by aligned to multiple of "
+                         "%d bytes", TARGET_PAGE_SIZE);
+            exit(EXIT_FAILURE);
+        }
+        /* device memory base is the top of high memory address. */
+        machine->device_memory->base = 0x90000000 + highram_size;
+        machine->device_memory->base =
+            ROUND_UP(machine->device_memory->base, 1 * GiB);
+
+        memory_region_init(&machine->device_memory->mr, OBJECT(lams),
+                           "device-memory", device_mem_size);
+        memory_region_add_subregion(address_space_mem, machine->device_memory->base,
+                                    &machine->device_memory->mr);
+    }
+
     /* Add isa io region */
     memory_region_init_alias(&lams->isa_io, NULL, "isa-io",
                              get_system_io(), 0, VIRT_ISA_IO_SIZE);
@@ -700,6 +785,11 @@ static void loongarch_init(MachineState *machine)
     }
     /* Initialize the IO interrupt subsystem */
     loongarch_irq_init(lams);
+    fdt_add_irqchip_node(lams);
+    platform_bus_add_all_fdt_nodes(machine->fdt, "/intc",
+                                   VIRT_PLATFORM_BUS_BASEADDRESS,
+                                   VIRT_PLATFORM_BUS_SIZE,
+                                   VIRT_PLATFORM_BUS_IRQ);
     lams->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&lams->machine_done);
     fdt_add_pcie_node(lams);
@@ -745,9 +835,105 @@ static void loongarch_machine_initfn(Object *obj)
     lams->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
 }
 
+static bool memhp_type_supported(DeviceState *dev)
+{
+    /* we only support pc dimm now */
+    return object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) &&
+           !object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
+}
+
+static void virt_mem_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp)
+{
+    pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), NULL, errp);
+}
+
+static void virt_machine_device_pre_plug(HotplugHandler *hotplug_dev,
+                                            DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_pre_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_unplug_request(HotplugHandler *hotplug_dev,
+                                     DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    /* the acpi ged is always exist */
+    hotplug_handler_unplug_request(HOTPLUG_HANDLER(lams->acpi_ged), dev,
+                                   errp);
+}
+
+static void virt_machine_device_unplug_request(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_unplug_request(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_unplug(HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    hotplug_handler_unplug(HOTPLUG_HANDLER(lams->acpi_ged), dev, errp);
+    pc_dimm_unplug(PC_DIMM(dev), MACHINE(lams));
+    qdev_unrealize(dev);
+}
+
+static void virt_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                          DeviceState *dev, Error **errp)
+{
+    if (memhp_type_supported(dev)) {
+        virt_mem_unplug(hotplug_dev, dev, errp);
+    }
+}
+
+static void virt_mem_plug(HotplugHandler *hotplug_dev,
+                             DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+
+    pc_dimm_plug(PC_DIMM(dev), MACHINE(lams));
+    hotplug_handler_plug(HOTPLUG_HANDLER(lams->acpi_ged),
+                         dev, &error_abort);
+}
+
+static void loongarch_machine_device_plug_cb(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev, Error **errp)
+{
+    LoongArchMachineState *lams = LOONGARCH_MACHINE(hotplug_dev);
+    MachineClass *mc = MACHINE_GET_CLASS(lams);
+
+    if (device_is_dynamic_sysbus(mc, dev)) {
+        if (lams->platform_bus_dev) {
+            platform_bus_link_device(PLATFORM_BUS_DEVICE(lams->platform_bus_dev),
+                                     SYS_BUS_DEVICE(dev));
+        }
+    } else if (memhp_type_supported(dev)) {
+        virt_mem_plug(hotplug_dev, dev, errp);
+    }
+}
+
+static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
+                                                        DeviceState *dev)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+    if (device_is_dynamic_sysbus(mc, dev) ||
+        memhp_type_supported(dev)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+    return NULL;
+}
+
 static void loongarch_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->desc = "Loongson-3A5000 LS7A1000 machine";
     mc->init = loongarch_init;
@@ -760,12 +946,18 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
+    mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+    hc->plug = loongarch_machine_device_plug_cb;
+    hc->pre_plug = virt_machine_device_pre_plug;
+    hc->unplug_request = virt_machine_device_unplug_request;
+    hc->unplug = virt_machine_device_unplug;
 
     object_class_property_add(oc, "acpi", "OnOffAuto",
         loongarch_get_acpi, loongarch_set_acpi,
         NULL, NULL);
     object_class_property_set_description(oc, "acpi",
         "Enable ACPI");
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_RAMFB_DEVICE);
 }
 
 static const TypeInfo loongarch_machine_types[] = {
@@ -775,6 +967,10 @@ static const TypeInfo loongarch_machine_types[] = {
         .instance_size  = sizeof(LoongArchMachineState),
         .class_init     = loongarch_class_init,
         .instance_init = loongarch_machine_initfn,
+        .interfaces = (InterfaceInfo[]) {
+         { TYPE_HOTPLUG_HANDLER },
+         { }
+        },
     }
 };
 
