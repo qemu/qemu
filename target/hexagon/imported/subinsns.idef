@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,18 +39,18 @@ Q6INSN(SA1_clrf,     "if (!p0) Rd16=#0",      ATTRIBS(A_SUBINSN),"clear if false
 Q6INSN(SA1_addsp,    "Rd16=add(r29,#u6:2)",   ATTRIBS(A_SUBINSN),"Add",        { RdV=fREAD_SP()+uiV; })
 Q6INSN(SA1_inc,      "Rd16=add(Rs16,#1)",     ATTRIBS(A_SUBINSN),"Inc",        { RdV=RsV+1;})
 Q6INSN(SA1_dec,      "Rd16=add(Rs16,#-1)",    ATTRIBS(A_SUBINSN),"Dec",        { RdV=RsV-1;})
-Q6INSN(SA1_addrx,    "Rx16=add(Rx16,Rs16)",   ATTRIBS(A_SUBINSN),"Add",        { RxV=RxV+RsV; })
+Q6INSN(SA1_addrx,    "Rx16=add(Rx16,Rs16)",   ATTRIBS(A_SUBINSN,A_COMMUTES),"Add",        { RxV=RxV+RsV; })
 Q6INSN(SA1_zxtb,     "Rd16=and(Rs16,#255)",   ATTRIBS(A_SUBINSN),"Zxtb",       { RdV= fZXTN(8,32,RsV);})
 Q6INSN(SA1_and1,     "Rd16=and(Rs16,#1)",     ATTRIBS(A_SUBINSN),"And #1",     { RdV= RsV&1;})
 Q6INSN(SA1_sxtb,     "Rd16=sxtb(Rs16)",       ATTRIBS(A_SUBINSN),"Sxtb",       { RdV= fSXTN(8,32,RsV);})
 Q6INSN(SA1_zxth,     "Rd16=zxth(Rs16)",       ATTRIBS(A_SUBINSN),"Zxth",       { RdV= fZXTN(16,32,RsV);})
 Q6INSN(SA1_sxth,     "Rd16=sxth(Rs16)",       ATTRIBS(A_SUBINSN),"Sxth",       { RdV= fSXTN(16,32,RsV);})
-Q6INSN(SA1_combinezr,"Rdd8=combine(#0,Rs16)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,RsV); fSETWORD(1,RddV,0); })
-Q6INSN(SA1_combinerz,"Rdd8=combine(Rs16,#0)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,0); fSETWORD(1,RddV,RsV); })
-Q6INSN(SA1_combine0i,"Rdd8=combine(#0,#u2)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,0); })
-Q6INSN(SA1_combine1i,"Rdd8=combine(#1,#u2)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,1); })
-Q6INSN(SA1_combine2i,"Rdd8=combine(#2,#u2)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,2); })
-Q6INSN(SA1_combine3i,"Rdd8=combine(#3,#u2)", ATTRIBS(A_SUBINSN),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,3); })
+Q6INSN(SA1_combinezr,"Rdd8=combine(#0,Rs16)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,RsV); fSETWORD(1,RddV,0); })
+Q6INSN(SA1_combinerz,"Rdd8=combine(Rs16,#0)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,0); fSETWORD(1,RddV,RsV); })
+Q6INSN(SA1_combine0i,"Rdd8=combine(#0,#u2)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,0); })
+Q6INSN(SA1_combine1i,"Rdd8=combine(#1,#u2)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,1); })
+Q6INSN(SA1_combine2i,"Rdd8=combine(#2,#u2)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,2); })
+Q6INSN(SA1_combine3i,"Rdd8=combine(#3,#u2)", ATTRIBS(A_SUBINSN,A_ROPS_2),"Combines",   { fSETWORD(0,RddV,uiV); fSETWORD(1,RddV,3); })
 Q6INSN(SA1_cmpeqi,   "p0=cmp.eq(Rs16,#u2)",   ATTRIBS(A_SUBINSN),"CompareImmed",{fWRITE_P0(f8BITSOF(RsV==uiV));})
 
 
@@ -62,16 +62,16 @@ Q6INSN(SA1_cmpeqi,   "p0=cmp.eq(Rs16,#u2)",   ATTRIBS(A_SUBINSN),"CompareImmed",
 /*                                                               */
 /*****************************************************************/
 
-Q6INSN(SL1_loadri_io,  "Rd16=memw(Rs16+#u4:2)", ATTRIBS(A_LOAD,A_SUBINSN),"load word", {fEA_RI(RsV,uiV); fLOAD(1,4,u,EA,RdV);})
-Q6INSN(SL1_loadrub_io, "Rd16=memub(Rs16+#u4:0)",ATTRIBS(A_LOAD,A_SUBINSN),"load byte", {fEA_RI(RsV,uiV); fLOAD(1,1,u,EA,RdV);})
+Q6INSN(SL1_loadri_io,  "Rd16=memw(Rs16+#u4:2)", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_LOAD,A_SUBINSN),"load word", {fEA_RI(RsV,uiV); fLOAD(1,4,u,EA,RdV);})
+Q6INSN(SL1_loadrub_io, "Rd16=memub(Rs16+#u4:0)",ATTRIBS(A_MEMSIZE_1B,A_LOAD,A_SUBINSN,A_REGWRSIZE_1B),"load byte", {fEA_RI(RsV,uiV); fLOAD(1,1,u,EA,RdV);})
 
-Q6INSN(SL2_loadrh_io,  "Rd16=memh(Rs16+#u3:1)", ATTRIBS(A_LOAD,A_SUBINSN),"load half", {fEA_RI(RsV,uiV); fLOAD(1,2,s,EA,RdV);})
-Q6INSN(SL2_loadruh_io, "Rd16=memuh(Rs16+#u3:1)",ATTRIBS(A_LOAD,A_SUBINSN),"load half", {fEA_RI(RsV,uiV); fLOAD(1,2,u,EA,RdV);})
-Q6INSN(SL2_loadrb_io,  "Rd16=memb(Rs16+#u3:0)", ATTRIBS(A_LOAD,A_SUBINSN),"load byte", {fEA_RI(RsV,uiV); fLOAD(1,1,s,EA,RdV);})
-Q6INSN(SL2_loadri_sp,  "Rd16=memw(r29+#u5:2)",  ATTRIBS(A_LOAD,A_SUBINSN),"load word", {fEA_RI(fREAD_SP(),uiV); fLOAD(1,4,u,EA,RdV);})
-Q6INSN(SL2_loadrd_sp,  "Rdd8=memd(r29+#u5:3)", ATTRIBS(A_LOAD,A_SUBINSN),"load dword",{fEA_RI(fREAD_SP(),uiV); fLOAD(1,8,u,EA,RddV);})
+Q6INSN(SL2_loadrh_io,  "Rd16=memh(Rs16+#u3:1)", ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD,A_SUBINSN),"load half", {fEA_RI(RsV,uiV); fLOAD(1,2,s,EA,RdV);})
+Q6INSN(SL2_loadruh_io, "Rd16=memuh(Rs16+#u3:1)",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD,A_SUBINSN),"load half", {fEA_RI(RsV,uiV); fLOAD(1,2,u,EA,RdV);})
+Q6INSN(SL2_loadrb_io,  "Rd16=memb(Rs16+#u3:0)", ATTRIBS(A_MEMSIZE_1B,A_LOAD,A_SUBINSN),"load byte", {fEA_RI(RsV,uiV); fLOAD(1,1,s,EA,RdV);})
+Q6INSN(SL2_loadri_sp,  "Rd16=memw(r29+#u5:2)",  ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_LOAD,A_SUBINSN),"load word", {fEA_RI(fREAD_SP(),uiV); fLOAD(1,4,u,EA,RdV);})
+Q6INSN(SL2_loadrd_sp,  "Rdd8=memd(r29+#u5:3)", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_SUBINSN),"load dword",{fEA_RI(fREAD_SP(),uiV); fLOAD(1,8,u,EA,RddV);})
 
-Q6INSN(SL2_deallocframe,"deallocframe", ATTRIBS(A_SUBINSN,A_LOAD), "Deallocate stack frame",
+Q6INSN(SL2_deallocframe,"deallocframe", ATTRIBS(A_REGWRSIZE_8B,A_SUBINSN,A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAME), "Deallocate stack frame",
 { fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
   fLOAD(1,8,u,EA,tmp);
   tmp = fFRAME_UNSCRAMBLE(tmp);
@@ -79,7 +79,7 @@ Q6INSN(SL2_deallocframe,"deallocframe", ATTRIBS(A_SUBINSN,A_LOAD), "Deallocate s
   fWRITE_FP(fGETWORD(0,tmp));
   fWRITE_SP(EA+8); })
 
-Q6INSN(SL2_return,"dealloc_return", ATTRIBS(A_JINDIR,A_SUBINSN,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY), "Deallocate stack frame and return",
+Q6INSN(SL2_return,"dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_JINDIR,A_SUBINSN,A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY,A_RET_TYPE,A_DEALLOCRET), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fEA_REG(fREAD_FP());
   fLOAD(1,8,u,EA,tmp);
   tmp = fFRAME_UNSCRAMBLE(tmp);
@@ -88,40 +88,40 @@ Q6INSN(SL2_return,"dealloc_return", ATTRIBS(A_JINDIR,A_SUBINSN,A_LOAD,A_RETURN,A
   fWRITE_SP(EA+8);
   fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);})
 
-Q6INSN(SL2_return_t,"if (p0) dealloc_return", ATTRIBS(A_JINDIROLD,A_SUBINSN,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY), "Deallocate stack frame and return",
+Q6INSN(SL2_return_t,"if (p0) dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_JINDIROLD,A_SUBINSN,A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY,A_RET_TYPE), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;); fBRANCH_SPECULATE_STALL(fLSBOLD(fREAD_P0()),, SPECULATE_NOT_TAKEN,4,0); fEA_REG(fREAD_FP()); if (fLSBOLD(fREAD_P0())) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8);
   fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);} })
 
-Q6INSN(SL2_return_f,"if (!p0) dealloc_return", ATTRIBS(A_JINDIROLD,A_SUBINSN,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY), "Deallocate stack frame and return",
+Q6INSN(SL2_return_f,"if (!p0) dealloc_return", ATTRIBS(A_REGWRSIZE_8B,A_JINDIROLD,A_SUBINSN,A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY,A_RET_TYPE), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;);fBRANCH_SPECULATE_STALL(fLSBOLDNOT(fREAD_P0()),, SPECULATE_NOT_TAKEN,4,0); fEA_REG(fREAD_FP()); if (fLSBOLDNOT(fREAD_P0())) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8);
   fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);} })
 
 
 
-Q6INSN(SL2_return_tnew,"if (p0.new) dealloc_return:nt", ATTRIBS(A_JINDIRNEW,A_SUBINSN,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY), "Deallocate stack frame and return",
+Q6INSN(SL2_return_tnew,"if (p0.new) dealloc_return:nt", ATTRIBS(A_REGWRSIZE_8B,A_JINDIRNEW,A_SUBINSN,A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY,A_RET_TYPE), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEW0,, SPECULATE_NOT_TAKEN , 4,3); fEA_REG(fREAD_FP()); if (fLSBNEW0) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8);
   fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);} })
 
-Q6INSN(SL2_return_fnew,"if (!p0.new) dealloc_return:nt", ATTRIBS(A_JINDIRNEW,A_SUBINSN,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY), "Deallocate stack frame and return",
+Q6INSN(SL2_return_fnew,"if (!p0.new) dealloc_return:nt", ATTRIBS(A_REGWRSIZE_8B,A_JINDIRNEW,A_SUBINSN,A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN,A_RESTRICT_SLOT0ONLY,A_RET_TYPE), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fBRANCH_SPECULATE_STALL(fLSBNEW0NOT,, SPECULATE_NOT_TAKEN , 4,3); fEA_REG(fREAD_FP()); if (fLSBNEW0NOT) { fLOAD(1,8,u,EA,tmp); tmp = fFRAME_UNSCRAMBLE(tmp); fWRITE_LR(fGETWORD(1,tmp)); fWRITE_FP(fGETWORD(0,tmp)); fWRITE_SP(EA+8);
   fJUMPR(REG_LR,fGETWORD(1,tmp),COF_TYPE_JUMPR);} else {LOAD_CANCEL(EA);} })
 
 
-Q6INSN(SL2_jumpr31,"jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIR,A_RESTRICT_SLOT0ONLY),"indirect unconditional jump",
+Q6INSN(SL2_jumpr31,"jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIR,A_RESTRICT_SLOT0ONLY,A_RET_TYPE),"indirect unconditional jump",
 { fJUMPR(REG_LR,fREAD_LR(),COF_TYPE_JUMPR);})
 
-Q6INSN(SL2_jumpr31_t,"if (p0) jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIROLD,A_RESTRICT_SLOT0ONLY),"indirect conditional jump if true",
+Q6INSN(SL2_jumpr31_t,"if (p0) jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIROLD,A_NOTE_CONDITIONAL,A_RESTRICT_SLOT0ONLY,A_RET_TYPE),"indirect conditional jump if true",
 {fBRANCH_SPECULATE_STALL(fLSBOLD(fREAD_P0()),, SPECULATE_TAKEN,4,0); if (fLSBOLD(fREAD_P0())) {fJUMPR(REG_LR,fREAD_LR(),COF_TYPE_JUMPR);}})
 
-Q6INSN(SL2_jumpr31_f,"if (!p0) jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIROLD,A_RESTRICT_SLOT0ONLY),"indirect conditional jump if false",
+Q6INSN(SL2_jumpr31_f,"if (!p0) jumpr r31",ATTRIBS(A_SUBINSN,A_JINDIROLD,A_NOTE_CONDITIONAL,A_RESTRICT_SLOT0ONLY,A_RET_TYPE),"indirect conditional jump if false",
 {fBRANCH_SPECULATE_STALL(fLSBOLDNOT(fREAD_P0()),, SPECULATE_TAKEN,4,0); if (fLSBOLDNOT(fREAD_P0())) {fJUMPR(REG_LR,fREAD_LR(),COF_TYPE_JUMPR);}})
 
 
 
-Q6INSN(SL2_jumpr31_tnew,"if (p0.new) jumpr:nt r31",ATTRIBS(A_SUBINSN,A_JINDIRNEW,A_RESTRICT_SLOT0ONLY),"indirect conditional jump if true",
+Q6INSN(SL2_jumpr31_tnew,"if (p0.new) jumpr:nt r31",ATTRIBS(A_SUBINSN,A_JINDIRNEW,A_NOTE_CONDITIONAL,A_RESTRICT_SLOT0ONLY,A_RET_TYPE),"indirect conditional jump if true",
 {fBRANCH_SPECULATE_STALL(fLSBNEW0,, SPECULATE_NOT_TAKEN , 4,3); if (fLSBNEW0) {fJUMPR(REG_LR,fREAD_LR(),COF_TYPE_JUMPR);}})
 
-Q6INSN(SL2_jumpr31_fnew,"if (!p0.new) jumpr:nt r31",ATTRIBS(A_SUBINSN,A_JINDIRNEW,A_RESTRICT_SLOT0ONLY),"indirect conditional jump if false",
+Q6INSN(SL2_jumpr31_fnew,"if (!p0.new) jumpr:nt r31",ATTRIBS(A_SUBINSN,A_JINDIRNEW,A_NOTE_CONDITIONAL,A_RESTRICT_SLOT0ONLY,A_RET_TYPE),"indirect conditional jump if false",
 {fBRANCH_SPECULATE_STALL(fLSBNEW0NOT,, SPECULATE_NOT_TAKEN , 4,3); if (fLSBNEW0NOT) {fJUMPR(REG_LR,fREAD_LR(),COF_TYPE_JUMPR);}})
 
 
@@ -134,16 +134,16 @@ Q6INSN(SL2_jumpr31_fnew,"if (!p0.new) jumpr:nt r31",ATTRIBS(A_SUBINSN,A_JINDIRNE
 /*                                                               */
 /*****************************************************************/
 
-Q6INSN(SS1_storew_io,  "memw(Rs16+#u4:2)=Rt16", ATTRIBS(A_STORE,A_SUBINSN), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,RtV);})
-Q6INSN(SS1_storeb_io,  "memb(Rs16+#u4:0)=Rt16", ATTRIBS(A_STORE,A_SUBINSN), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,fGETBYTE(0,RtV));})
-Q6INSN(SS2_storeh_io,  "memh(Rs16+#u3:1)=Rt16", ATTRIBS(A_STORE,A_SUBINSN), "store half", {fEA_RI(RsV,uiV); fSTORE(1,2,EA,fGETHALF(0,RtV));})
-Q6INSN(SS2_stored_sp,  "memd(r29+#s6:3)=Rtt8", ATTRIBS(A_STORE,A_SUBINSN), "store dword",{fEA_RI(fREAD_SP(),siV); fSTORE(1,8,EA,RttV);})
-Q6INSN(SS2_storew_sp,  "memw(r29+#u5:2)=Rt16",  ATTRIBS(A_STORE,A_SUBINSN), "store word", {fEA_RI(fREAD_SP(),uiV); fSTORE(1,4,EA,RtV);})
-Q6INSN(SS2_storewi0,   "memw(Rs16+#u4:2)=#0", ATTRIBS(A_STORE,A_SUBINSN), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,0);})
-Q6INSN(SS2_storebi0,   "memb(Rs16+#u4:0)=#0", ATTRIBS(A_STORE,A_SUBINSN), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,0);})
-Q6INSN(SS2_storewi1,   "memw(Rs16+#u4:2)=#1", ATTRIBS(A_STORE,A_SUBINSN), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,1);})
-Q6INSN(SS2_storebi1,   "memb(Rs16+#u4:0)=#1", ATTRIBS(A_STORE,A_SUBINSN), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,1);})
+Q6INSN(SS1_storew_io,  "memw(Rs16+#u4:2)=Rt16", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_SUBINSN), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,RtV);})
+Q6INSN(SS1_storeb_io,  "memb(Rs16+#u4:0)=Rt16", ATTRIBS(A_MEMSIZE_1B,A_STORE,A_SUBINSN), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,fGETBYTE(0,RtV));})
+Q6INSN(SS2_storeh_io,  "memh(Rs16+#u3:1)=Rt16", ATTRIBS(A_MEMSIZE_2B,A_STORE,A_SUBINSN), "store half", {fEA_RI(RsV,uiV); fSTORE(1,2,EA,fGETHALF(0,RtV));})
+Q6INSN(SS2_stored_sp,  "memd(r29+#s6:3)=Rtt8", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_SUBINSN), "store dword",{fEA_RI(fREAD_SP(),siV); fSTORE(1,8,EA,RttV);})
+Q6INSN(SS2_storew_sp,  "memw(r29+#u5:2)=Rt16",  ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_SUBINSN), "store word", {fEA_RI(fREAD_SP(),uiV); fSTORE(1,4,EA,RtV);})
+Q6INSN(SS2_storewi0,   "memw(Rs16+#u4:2)=#0", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_SUBINSN,A_ROPS_2), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,0);})
+Q6INSN(SS2_storebi0,   "memb(Rs16+#u4:0)=#0", ATTRIBS(A_MEMSIZE_1B,A_STORE,A_SUBINSN,A_ROPS_2), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,0);})
+Q6INSN(SS2_storewi1,   "memw(Rs16+#u4:2)=#1", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_SUBINSN,A_ROPS_2), "store word", {fEA_RI(RsV,uiV); fSTORE(1,4,EA,1);})
+Q6INSN(SS2_storebi1,   "memb(Rs16+#u4:0)=#1", ATTRIBS(A_MEMSIZE_1B,A_STORE,A_SUBINSN,A_ROPS_2), "store byte", {fEA_RI(RsV,uiV); fSTORE(1,1,EA,1);})
 
 
-Q6INSN(SS2_allocframe,"allocframe(#u5:3)", ATTRIBS(A_SUBINSN,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
+Q6INSN(SS2_allocframe,"allocframe(#u5:3)", ATTRIBS(A_REGWRSIZE_8B,A_SUBINSN,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
 { fEA_RI(fREAD_SP(),-8);  fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); fWRITE_SP(EA-uiV); })
