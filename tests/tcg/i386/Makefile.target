@@ -7,8 +7,8 @@ VPATH 		+= $(I386_SRC)
 
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
 ALL_X86_TESTS=$(I386_SRCS:.c=)
-SKIP_I386_TESTS=test-i386-ssse3 test-avx
-X86_64_TESTS:=$(filter test-i386-bmi2 test-i386-ssse3 test-avx, $(ALL_X86_TESTS))
+SKIP_I386_TESTS=test-i386-ssse3 test-avx test-3dnow test-mmx
+X86_64_TESTS:=$(filter test-i386-bmi2 $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
 
 test-i386-sse-exceptions: CFLAGS += -msse4.1 -mfpmath=sse
 run-test-i386-sse-exceptions: QEMU_OPTS += -cpu max
@@ -82,9 +82,27 @@ run-plugin-sha512-sse-with-%: QEMU_OPTS+=-cpu max
 
 TESTS+=sha512-sse
 
-CLEANFILES += test-avx.h
+CLEANFILES += test-avx.h test-mmx.h test-3dnow.h
+test-3dnow.h: test-mmx.py x86.csv
+	$(PYTHON) $(I386_SRC)/test-mmx.py $(I386_SRC)/x86.csv $@ 3DNOW
+
+test-mmx.h: test-mmx.py x86.csv
+	$(PYTHON) $(I386_SRC)/test-mmx.py $(I386_SRC)/x86.csv $@ MMX SSE SSE2 SSE3 SSSE3
+
 test-avx.h: test-avx.py x86.csv
 	$(PYTHON) $(I386_SRC)/test-avx.py $(I386_SRC)/x86.csv $@
 
+test-3dnow: CFLAGS += -masm=intel -O -I.
+run-test-3dnow: QEMU_OPTS += -cpu max
+run-plugin-test-3dnow: QEMU_OPTS += -cpu max
+test-3dnow: test-3dnow.h
+
+test-mmx: CFLAGS += -masm=intel -O -I.
+run-test-mmx: QEMU_OPTS += -cpu max
+run-plugin-test-mmx: QEMU_OPTS += -cpu max
+test-mmx: test-mmx.h
+
 test-avx: CFLAGS += -masm=intel -O -I.
+run-test-avx: QEMU_OPTS += -cpu max
+run-plugin-test-avx: QEMU_OPTS += -cpu max
 test-avx: test-avx.h
