@@ -87,6 +87,31 @@ static inline bool host_signal_write(siginfo_t *info, host_sigcontext *uc)
             return true;
         }
         break;
+    case 0xe6:
+        switch (pinsn[2] & 0xff) {
+        case 0x09: /* VSTEBRH */
+        case 0x0a: /* VSTEBRG */
+        case 0x0b: /* VSTEBRF */
+        case 0x0e: /* VSTBR */
+        case 0x0f: /* VSTER */
+        case 0x3f: /* VSTRLR */
+            return true;
+        }
+        break;
+    case 0xe7:
+        switch (pinsn[2] & 0xff) {
+        case 0x08: /* VSTEB */
+        case 0x09: /* VSTEH */
+        case 0x0a: /* VSTEG */
+        case 0x0b: /* VSTEF */
+        case 0x0e: /* VST */
+        case 0x1a: /* VSCEG */
+        case 0x1b: /* VSCEF */
+        case 0x3e: /* VSTM */
+        case 0x3f: /* VSTL */
+            return true;
+        }
+        break;
     case 0xeb: /* RSY format insns */
         switch (pinsn[2] & 0xff) {
         case 0x14: /* CSY */
