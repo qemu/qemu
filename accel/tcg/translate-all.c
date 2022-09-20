@@ -698,9 +698,9 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
         }
         assert_page_locked(pd);
         PAGE_FOR_EACH_TB(pd, tb, n) {
-            if (page_trylock_add(set, tb->page_addr[0]) ||
-                (tb->page_addr[1] != -1 &&
-                 page_trylock_add(set, tb->page_addr[1]))) {
+            if (page_trylock_add(set, tb_page_addr0(tb)) ||
+                (tb_page_addr1(tb) != -1 &&
+                 page_trylock_add(set, tb_page_addr1(tb)))) {
                 /* drop all locks, and reacquire in order */
                 g_tree_foreach(set->tree, page_entry_unlock, NULL);
                 goto retry;
@@ -771,8 +771,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->flags = flags;
     tb->cflags = cflags;
     tb->trace_vcpu_dstate = *cpu->trace_dstate;
-    tb->page_addr[0] = phys_pc;
-    tb->page_addr[1] = -1;
+    tb_set_page_addr0(tb, phys_pc);
+    tb_set_page_addr1(tb, -1);
     tcg_ctx->tb_cflags = cflags;
  tb_overflow:
 
@@ -970,7 +970,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * a temporary one-insn TB, and we have nothing left to do. Return early
      * before attempting to link to other TBs or add to the lookup table.
      */
-    if (tb->page_addr[0] == -1) {
+    if (tb_page_addr0(tb) == -1) {
         return tb;
     }
 
@@ -985,7 +985,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * No explicit memory barrier is required -- tb_link_page() makes the
      * TB visible in a consistent state.
      */
-    existing_tb = tb_link_page(tb, tb->page_addr[0], tb->page_addr[1]);
+    existing_tb = tb_link_page(tb, tb_page_addr0(tb), tb_page_addr1(tb));
     /* if the TB already exists, discard what we just translated */
     if (unlikely(existing_tb != tb)) {
         uintptr_t orig_aligned = (uintptr_t)gen_code_buf;
@@ -1140,7 +1140,7 @@ static gboolean tb_tree_stats_iter(gpointer key, gpointer value, gpointer data)
     if (tb->size > tst->max_target_size) {
         tst->max_target_size = tb->size;
     }
-    if (tb->page_addr[1] != -1) {
+    if (tb_page_addr1(tb) != -1) {
         tst->cross_page++;
     }
     if (tb->jmp_reset_offset[0] != TB_JMP_RESET_OFFSET_INVALID) {

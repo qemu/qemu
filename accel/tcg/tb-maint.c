@@ -44,8 +44,8 @@ static bool tb_cmp(const void *ap, const void *bp)
             a->flags == b->flags &&
             (tb_cflags(a) & ~CF_INVALID) == (tb_cflags(b) & ~CF_INVALID) &&
             a->trace_vcpu_dstate == b->trace_vcpu_dstate &&
-            a->page_addr[0] == b->page_addr[0] &&
-            a->page_addr[1] == b->page_addr[1]);
+            tb_page_addr0(a) == tb_page_addr0(b) &&
+            tb_page_addr1(a) == tb_page_addr1(b));
 }
 
 void tb_htable_init(void)
@@ -273,7 +273,7 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     qemu_spin_unlock(&tb->jmp_lock);
 
     /* remove the TB from the hash list */
-    phys_pc = tb->page_addr[0];
+    phys_pc = tb_page_addr0(tb);
     h = tb_hash_func(phys_pc, (TARGET_TB_PCREL ? 0 : tb_pc(tb)),
                      tb->flags, orig_cflags, tb->trace_vcpu_dstate);
     if (!qht_remove(&tb_ctx.htable, tb, h)) {
@@ -282,10 +282,11 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
     /* remove the TB from the page list */
     if (rm_from_page_list) {
-        p = page_find(tb->page_addr[0] >> TARGET_PAGE_BITS);
+        p = page_find(phys_pc >> TARGET_PAGE_BITS);
         tb_page_remove(p, tb);
-        if (tb->page_addr[1] != -1) {
-            p = page_find(tb->page_addr[1] >> TARGET_PAGE_BITS);
+        phys_pc = tb_page_addr1(tb);
+        if (phys_pc != -1) {
+            p = page_find(phys_pc >> TARGET_PAGE_BITS);
             tb_page_remove(p, tb);
         }
     }
@@ -358,16 +359,16 @@ static inline void page_unlock_tb(const TranslationBlock *tb) { }
 /* lock the page(s) of a TB in the correct acquisition order */
 static void page_lock_tb(const TranslationBlock *tb)
 {
-    page_lock_pair(NULL, tb->page_addr[0], NULL, tb->page_addr[1], false);
+    page_lock_pair(NULL, tb_page_addr0(tb), NULL, tb_page_addr1(tb), false);
 }
 
 static void page_unlock_tb(const TranslationBlock *tb)
 {
-    PageDesc *p1 = page_find(tb->page_addr[0] >> TARGET_PAGE_BITS);
+    PageDesc *p1 = page_find(tb_page_addr0(tb) >> TARGET_PAGE_BITS);
 
     page_unlock(p1);
-    if (unlikely(tb->page_addr[1] != -1)) {
-        PageDesc *p2 = page_find(tb->page_addr[1] >> TARGET_PAGE_BITS);
+    if (unlikely(tb_page_addr1(tb) != -1)) {
+        PageDesc *p2 = page_find(tb_page_addr1(tb) >> TARGET_PAGE_BITS);
 
         if (p2 != p1) {
             page_unlock(p2);
@@ -382,7 +383,7 @@ static void page_unlock_tb(const TranslationBlock *tb)
  */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
-    if (page_addr == -1 && tb->page_addr[0] != -1) {
+    if (page_addr == -1 && tb_page_addr0(tb) != -1) {
         page_lock_tb(tb);
         do_tb_phys_invalidate(tb, true);
         page_unlock_tb(tb);
@@ -516,11 +517,11 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
         if (n == 0) {
             /* NOTE: tb_end may be after the end of the page, but
                it is not a problem */
-            tb_start = tb->page_addr[0];
+            tb_start = tb_page_addr0(tb);
             tb_end = tb_start + tb->size;
         } else {
-            tb_start = tb->page_addr[1];
-            tb_end = tb_start + ((tb->page_addr[0] + tb->size)
+            tb_start = tb_page_addr1(tb);
+            tb_end = tb_start + ((tb_page_addr0(tb) + tb->size)
                                  & ~TARGET_PAGE_MASK);
         }
         if (!(tb_end <= start || tb_start >= end)) {
