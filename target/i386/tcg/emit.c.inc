@@ -71,6 +71,56 @@ static inline int xmm_offset(MemOp ot)
     }
 }
 
+static int vector_reg_offset(X86DecodedOp *op)
+{
+    assert(op->unit == X86_OP_MMX || op->unit == X86_OP_SSE);
+
+    if (op->unit == X86_OP_MMX) {
+        return op->offset - mmx_offset(op->ot);
+    } else {
+        return op->offset - xmm_offset(op->ot);
+    }
+}
+
+static int vector_elem_offset(X86DecodedOp *op, MemOp ot, int n)
+{
+    int base_ofs = vector_reg_offset(op);
+    switch(ot) {
+    case MO_8:
+        if (op->unit == X86_OP_MMX) {
+            return base_ofs + offsetof(MMXReg, MMX_B(n));
+        } else {
+            return base_ofs + offsetof(ZMMReg, ZMM_B(n));
+        }
+    case MO_16:
+        if (op->unit == X86_OP_MMX) {
+            return base_ofs + offsetof(MMXReg, MMX_W(n));
+        } else {
+            return base_ofs + offsetof(ZMMReg, ZMM_W(n));
+        }
+    case MO_32:
+        if (op->unit == X86_OP_MMX) {
+            return base_ofs + offsetof(MMXReg, MMX_L(n));
+        } else {
+            return base_ofs + offsetof(ZMMReg, ZMM_L(n));
+        }
+    case MO_64:
+        if (op->unit == X86_OP_MMX) {
+            return base_ofs;
+        } else {
+            return base_ofs + offsetof(ZMMReg, ZMM_Q(n));
+        }
+    case MO_128:
+        assert(op->unit == X86_OP_SSE);
+        return base_ofs + offsetof(ZMMReg, ZMM_X(n));
+    case MO_256:
+        assert(op->unit == X86_OP_SSE);
+        return base_ofs + offsetof(ZMMReg, ZMM_Y(n));
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void compute_mmx_offset(X86DecodedOp *op)
 {
     if (!op->has_ea) {
@@ -183,6 +233,23 @@ static void gen_load(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
     }
 }
 
+static TCGv_ptr op_ptr(X86DecodedInsn *decode, int opn)
+{
+    X86DecodedOp *op = &decode->op[opn];
+    if (op->v_ptr) {
+        return op->v_ptr;
+    }
+    op->v_ptr = tcg_temp_new_ptr();
+
+    /* The temporary points to the MMXReg or ZMMReg.  */
+    tcg_gen_addi_ptr(op->v_ptr, cpu_env, vector_reg_offset(op));
+    return op->v_ptr;
+}
+
+#define OP_PTR0 op_ptr(decode, 0)
+#define OP_PTR1 op_ptr(decode, 1)
+#define OP_PTR2 op_ptr(decode, 2)
+
 static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv v)
 {
     X86DecodedOp *op = &decode->op[opn];
@@ -215,6 +282,114 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
         g_assert_not_reached();
     }
 }
+
+static inline int vector_len(DisasContext *s, X86DecodedInsn *decode)
+{
+    if (decode->e.special == X86_SPECIAL_MMX &&
+        !(s->prefix & (PREFIX_DATA | PREFIX_REPZ | PREFIX_REPNZ))) {
+        return 8;
+    }
+    return s->vex_l ? 32 : 16;
+}
+
+static void gen_store_sse(DisasContext *s, X86DecodedInsn *decode, int src_ofs)
+{
+    MemOp ot = decode->op[0].ot;
+    int vec_len = vector_len(s, decode);
+    bool aligned = sse_needs_alignment(s, decode, ot);
+
+    if (!decode->op[0].has_ea) {
+        tcg_gen_gvec_mov(MO_64, decode->op[0].offset, src_ofs, vec_len, vec_len);
+        return;
+    }
+
+    switch (ot) {
+    case MO_64:
+        gen_stq_env_A0(s, src_ofs);
+        break;
+    case MO_128:
+        gen_sto_env_A0(s, src_ofs, aligned);
+        break;
+    case MO_256:
+        gen_sty_env_A0(s, src_ofs, aligned);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+#define BINARY_INT_GVEC(uname, func, ...)                                          \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    int vec_len = vector_len(s, decode);                                          \
+                                                                                   \
+    func(__VA_ARGS__,                                                              \
+         decode->op[0].offset, decode->op[1].offset,                               \
+         decode->op[2].offset, vec_len, vec_len);                                  \
+}
+
+BINARY_INT_GVEC(PCMPGTB, tcg_gen_gvec_cmp, TCG_COND_GT, MO_8)
+BINARY_INT_GVEC(PCMPGTW, tcg_gen_gvec_cmp, TCG_COND_GT, MO_16)
+BINARY_INT_GVEC(PCMPGTD, tcg_gen_gvec_cmp, TCG_COND_GT, MO_32)
+
+
+/*
+ * 00 = p*  Pq, Qq (if mmx not NULL; no VEX)
+ * 66 = vp* Vx, Hx, Wx
+ *
+ * These are really the same encoding, because 1) V is the same as P when VEX.V
+ * is not present 2) P and Q are the same as H and W apart from MM/XMM
+ */
+static inline void gen_binary_int_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+                                      SSEFunc_0_eppp mmx, SSEFunc_0_eppp xmm, SSEFunc_0_eppp ymm)
+{
+    assert(!!mmx == !!(decode->e.special == X86_SPECIAL_MMX));
+
+    if (mmx && (s->prefix & PREFIX_VEX) && !(s->prefix & PREFIX_DATA)) {
+        /* VEX encoding is not applicable to MMX instructions.  */
+        gen_illegal_opcode(s);
+        return;
+    }
+    if (!(s->prefix & PREFIX_DATA)) {
+        mmx(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    } else if (!s->vex_l) {
+        xmm(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    } else {
+        ymm(cpu_env, OP_PTR0, OP_PTR1, OP_PTR2);
+    }
+}
+
+
+#define BINARY_INT_MMX(uname, lname)                                               \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_binary_int_sse(s, env, decode,                                             \
+                          gen_helper_##lname##_mmx,                                \
+                          gen_helper_##lname##_xmm,                                \
+                          gen_helper_##lname##_ymm);                               \
+}
+BINARY_INT_MMX(PUNPCKLBW,  punpcklbw)
+BINARY_INT_MMX(PUNPCKLWD,  punpcklwd)
+BINARY_INT_MMX(PUNPCKLDQ,  punpckldq)
+BINARY_INT_MMX(PACKSSWB,   packsswb)
+BINARY_INT_MMX(PACKUSWB,   packuswb)
+BINARY_INT_MMX(PUNPCKHBW,  punpckhbw)
+BINARY_INT_MMX(PUNPCKHWD,  punpckhwd)
+BINARY_INT_MMX(PUNPCKHDQ,  punpckhdq)
+BINARY_INT_MMX(PACKSSDW,   packssdw)
+
+/* Instructions with no MMX equivalent.  */
+#define BINARY_INT_SSE(uname, lname)                                               \
+static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    gen_binary_int_sse(s, env, decode,                                             \
+                          NULL,                                                    \
+                          gen_helper_##lname##_xmm,                                \
+                          gen_helper_##lname##_ymm);                               \
+}
+
+BINARY_INT_SSE(PUNPCKLQDQ, punpcklqdq)
+BINARY_INT_SSE(PUNPCKHQDQ, punpckhqdq)
 
 static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
 {
@@ -381,6 +556,33 @@ static void gen_MOVBE(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
     } else {
         tcg_gen_qemu_ld_tl(s->T0, s->A0, s->mem_index, ot | MO_BE);
     }
+}
+
+static void gen_MOVD_to(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    MemOp ot = decode->op[2].ot;
+    int vec_len = vector_len(s, decode);
+    int lo_ofs = vector_elem_offset(&decode->op[0], ot, 0);
+
+    tcg_gen_gvec_dup_imm(MO_64, decode->op[0].offset, vec_len, vec_len, 0);
+
+    switch (ot) {
+    case MO_32:
+#ifdef TARGET_X86_64
+        tcg_gen_st32_tl(s->T1, cpu_env, lo_ofs);
+        break;
+    case MO_64:
+#endif
+        tcg_gen_st_tl(s->T1, cpu_env, lo_ofs);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void gen_MOVDQ(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_store_sse(s, decode, decode->op[2].offset);
 }
 
 static void gen_MULX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
