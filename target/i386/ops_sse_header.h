@@ -335,7 +335,7 @@ DEF_HELPER_4(glue(pshufb, SUFFIX), void, env, Reg, Reg, Reg)
 DEF_HELPER_4(glue(psignb, SUFFIX), void, env, Reg, Reg, Reg)
 DEF_HELPER_4(glue(psignw, SUFFIX), void, env, Reg, Reg, Reg)
 DEF_HELPER_4(glue(psignd, SUFFIX), void, env, Reg, Reg, Reg)
-DEF_HELPER_5(glue(palignr, SUFFIX), void, env, Reg, Reg, Reg, s32)
+DEF_HELPER_5(glue(palignr, SUFFIX), void, env, Reg, Reg, Reg, i32)
 
 /* SSE4.1 op helpers */
 #if SHIFT >= 1

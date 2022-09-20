@@ -1605,17 +1605,17 @@ SSE_HELPER_W(helper_psignw, FSIGNW)
 SSE_HELPER_L(helper_psignd, FSIGNL)
 
 void glue(helper_palignr, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
-                                  int32_t shift)
+                                  uint32_t imm)
 {
     int i;
 
     /* XXX could be checked during translation */
-    if (shift >= (SHIFT ? 32 : 16)) {
+    if (imm >= (SHIFT ? 32 : 16)) {
         for (i = 0; i < (1 << SHIFT); i++) {
             d->Q(i) = 0;
         }
     } else {
-        shift <<= 3;
+        int shift = imm * 8;
 #define SHR(v, i) (i < 64 && i > -64 ? i > 0 ? v >> (i) : (v << -(i)) : 0)
 #if SHIFT == 0
         d->Q(0) = SHR(s->Q(0), shift - 0) |
@@ -2093,7 +2093,7 @@ static inline int pcmp_val(Reg *r, uint8_t ctrl, int i)
 }
 
 static inline unsigned pcmpxstrx(CPUX86State *env, Reg *d, Reg *s,
-                                 int8_t ctrl, int valids, int validd)
+                                 uint8_t ctrl, int valids, int validd)
 {
     unsigned int res = 0;
     int v;
