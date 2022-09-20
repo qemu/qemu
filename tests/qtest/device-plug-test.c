@@ -61,6 +61,18 @@ static void wait_device_deleted_event(QTestState *qtest, const char *id)
     }
 }
 
+static void process_device_remove(QTestState *qtest, const char *id)
+{
+    /*
+     * Request device removal. As the guest is not running, the request won't
+     * be processed. However during system reset, the removal will be
+     * handled, removing the device.
+     */
+    device_del(qtest, id);
+    system_reset(qtest);
+    wait_device_deleted_event(qtest, id);
+}
+
 static void test_pci_unplug_request(void)
 {
     const char *arch = qtest_get_arch();
@@ -73,14 +85,7 @@ static void test_pci_unplug_request(void)
     QTestState *qtest = qtest_initf("%s -device virtio-mouse-pci,id=dev0",
                                     machine_addition);
 
-    /*
-     * Request device removal. As the guest is not running, the request won't
-     * be processed. However during system reset, the removal will be
-     * handled, removing the device.
-     */
-    device_del(qtest, "dev0");
-    system_reset(qtest);
-    wait_device_deleted_event(qtest, "dev0");
+    process_device_remove(qtest, "dev0");
 
     qtest_quit(qtest);
 }
@@ -98,14 +103,7 @@ static void test_pci_unplug_json_request(void)
         "%s -device \"{'driver': 'virtio-mouse-pci', 'id': 'dev0'}\"",
         machine_addition);
 
-    /*
-     * Request device removal. As the guest is not running, the request won't
-     * be processed. However during system reset, the removal will be
-     * handled, removing the device.
-     */
-    device_del(qtest, "dev0");
-    system_reset(qtest);
-    wait_device_deleted_event(qtest, "dev0");
+    process_device_remove(qtest, "dev0");
 
     qtest_quit(qtest);
 }
@@ -128,9 +126,7 @@ static void test_spapr_cpu_unplug_request(void)
                         "-device power9_v2.0-spapr-cpu-core,core-id=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
-    device_del(qtest, "dev0");
-    system_reset(qtest);
-    wait_device_deleted_event(qtest, "dev0");
+    process_device_remove(qtest, "dev0");
 
     qtest_quit(qtest);
 }
@@ -144,9 +140,7 @@ static void test_spapr_memory_unplug_request(void)
                         "-device pc-dimm,id=dev0,memdev=mem0");
 
     /* similar to test_pci_unplug_request */
-    device_del(qtest, "dev0");
-    system_reset(qtest);
-    wait_device_deleted_event(qtest, "dev0");
+    process_device_remove(qtest, "dev0");
 
     qtest_quit(qtest);
 }
@@ -158,9 +152,7 @@ static void test_spapr_phb_unplug_request(void)
     qtest = qtest_initf("-device spapr-pci-host-bridge,index=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
-    device_del(qtest, "dev0");
-    system_reset(qtest);
-    wait_device_deleted_event(qtest, "dev0");
+    process_device_remove(qtest, "dev0");
 
     qtest_quit(qtest);
 }
