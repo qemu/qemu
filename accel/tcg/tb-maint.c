@@ -405,7 +405,6 @@ static inline void tb_page_add(PageDesc *p, TranslationBlock *tb,
 
     assert_page_locked(p);
 
-    tb->page_addr[n] = page_addr;
     tb->page_next[n] = p->first_tb;
 #ifndef CONFIG_USER_ONLY
     page_already_protected = p->first_tb != (uintptr_t)NULL;
@@ -461,8 +460,6 @@ TranslationBlock *tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     tb_page_add(p, tb, 0, phys_pc);
     if (p2) {
         tb_page_add(p2, tb, 1, phys_page2);
-    } else {
-        tb->page_addr[1] = -1;
     }
 
     /* add in the hash table */
