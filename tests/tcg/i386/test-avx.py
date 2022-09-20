@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 
 archs = [
     "SSE", "SSE2", "SSE3", "SSSE3", "SSE4_1", "SSE4_2",
+    "AES", "AVX", "AVX2", "AES+AVX", "VAES+AVX",
 ]
 
 ignore = set(["FISTTP",
@@ -42,7 +43,7 @@ imask = {
     'vROUND[PS][SD]': 0x7,
     'vSHUFPD': 0x0f,
     'vSHUFPS': 0xff,
-    'vAESKEYGENASSIST': 0,
+    'vAESKEYGENASSIST': 0xff,
     'VEXTRACT[FI]128': 0x01,
     'VINSERT[FI]128': 0x01,
     'VPBLENDD': 0xff,
@@ -85,7 +86,7 @@ def mem_w(w):
     else:
         raise Exception()
 
-    return t + " PTR 16[rdx]"
+    return t + " PTR 32[rdx]"
 
 class XMMArg():
     isxmm = True
