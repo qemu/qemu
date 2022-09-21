@@ -37,6 +37,7 @@
 #include "sysemu/whpx.h"
 #include "sysemu/numa.h"
 #include "sysemu/replay.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/xen.h"
@@ -764,6 +765,24 @@ static bool load_elfboot(const char *kernel_filename,
     return true;
 }
 
+typedef struct SetupDataFixup {
+    void *pos;
+    hwaddr orig_val, new_val;
+    uint32_t addr;
+} SetupDataFixup;
+
+static void fixup_setup_data(void *opaque)
+{
+    SetupDataFixup *fixup = opaque;
+    stq_p(fixup->pos, fixup->new_val);
+}
+
+static void reset_setup_data(void *opaque)
+{
+    SetupDataFixup *fixup = opaque;
+    stq_p(fixup->pos, fixup->orig_val);
+}
+
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
                     int acpi_data_size,
@@ -1088,8 +1107,11 @@ void x86_load_linux(X86MachineState *x86ms,
         qemu_guest_getrandom_nofail(setup_data->data, RNG_SEED_LENGTH);
     }
 
-    /* Offset 0x250 is a pointer to the first setup_data link. */
-    stq_p(header + 0x250, first_setup_data);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, prot_addr);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
+    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, kernel, kernel_size);
+    sev_load_ctx.kernel_data = (char *)kernel;
+    sev_load_ctx.kernel_size = kernel_size;
 
     /*
      * If we're starting an encrypted VM, it will be OVMF based, which uses the
@@ -1099,16 +1121,20 @@ void x86_load_linux(X86MachineState *x86ms,
      * file the user passed in.
      */
     if (!sev_enabled()) {
+        SetupDataFixup *fixup = g_malloc(sizeof(*fixup));
+
         memcpy(setup, header, MIN(sizeof(header), setup_size));
+        /* Offset 0x250 is a pointer to the first setup_data link. */
+        fixup->pos = setup + 0x250;
+        fixup->orig_val = ldq_p(fixup->pos);
+        fixup->new_val = first_setup_data;
+        fixup->addr = cpu_to_le32(real_addr);
+        fw_cfg_add_bytes_callback(fw_cfg, FW_CFG_SETUP_ADDR, fixup_setup_data, NULL,
+                                  fixup, &fixup->addr, sizeof(fixup->addr), true);
+        qemu_register_reset(reset_setup_data, fixup);
+    } else {
+        fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_ADDR, real_addr);
     }
-
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, prot_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_KERNEL_DATA, kernel, kernel_size);
-    sev_load_ctx.kernel_data = (char *)kernel;
-    sev_load_ctx.kernel_size = kernel_size;
-
-    fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_ADDR, real_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA, setup, setup_size);
     sev_load_ctx.setup_data = (char *)setup;

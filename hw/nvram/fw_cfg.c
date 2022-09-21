@@ -692,12 +692,12 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
-                                      FWCfgCallback select_cb,
-                                      FWCfgWriteCallback write_cb,
-                                      void *callback_opaque,
-                                      void *data, size_t len,
-                                      bool read_only)
+void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
+                               FWCfgCallback select_cb,
+                               FWCfgWriteCallback write_cb,
+                               void *callback_opaque,
+                               void *data, size_t len,
+                               bool read_only)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
