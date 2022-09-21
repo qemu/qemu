@@ -29,6 +29,11 @@ config PCI_TESTDEV
     default y if TEST_DEVICES
     depends on PCI
 
+config FWD_FPGA
+    bool
+    default y if TEST_DEVICES
+    depends on PCI && MSI_NONBROKEN
+
 config EDU
     bool
     default y if TEST_DEVICES
