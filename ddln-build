@@ -28,6 +28,6 @@ var QemuCommand = []string { Qemu.Absolute(), "-L", Bios.Absolute() }
 EOT
 
 # package everything up
-tar -czf ../qemu.tar.gz qemu/
+tar -czf qemu.tar.gz qemu/
 
-echo "Done. Output is in 'qemu.tar.gz'."
+echo "Done. Output is in 'build/qemu.tar.gz'."
