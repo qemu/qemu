@@ -275,6 +275,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 if (ret < 0) {
                     error_setg_errno(errp, -ret, "ERROR: ext_feature_table: "
                                      "Could not read table");
+                    g_free(feature_table);
                     return ret;
                 }
 
