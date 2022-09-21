@@ -1,12 +1,14 @@
-#!/bin/sh -ex
+#!/bin/bash -ex
 
-# cleanup
+QEMU_DIR=$(dirname ${BASH_SOURCE})
+
+# create
 rm -rf build/
 mkdir build/
 cd build
 
 # make qemu
-../configure --target-list="x86_64-softmmu"
+${QEMU_DIR}/configure --target-list="x86_64-softmmu"
 make -j8
 
 # copy relevant build outputs
@@ -15,7 +17,7 @@ cp qemu-system-x86_64 qemu
 cp pc-bios/*.bin pc-bios/*.rom qemu/pc-bios
 
 # create BUILD.go file
-cat <<EOT >> qemu/BUILD.go
+cat <<EOT > qemu/BUILD.go
 package qemu
 
 var Qemu = in("qemu-system-x86_64")
@@ -26,6 +28,6 @@ var QemuCommand = []string { Qemu.Absolute(), "-L", Bios.Absolute() }
 EOT
 
 # package everything up
-tar -czf qemu.tar.gz qemu/
+tar -czf ../qemu.tar.gz qemu/
 
-echo "Done. Output is in 'build/qemu.tar.gz'."
+echo "Done. Output is in 'qemu.tar.gz'."
