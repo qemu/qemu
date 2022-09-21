@@ -3724,7 +3724,8 @@ GitLab custom runner (Works On Arm Sponsored)
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
-F: .gitlab-ci.d/custom-runners/ubuntu-20.04-aarch64.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch64.yml
+F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch32.yml
 
 Documentation
 -------------

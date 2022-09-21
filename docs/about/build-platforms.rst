@@ -41,7 +41,7 @@ Those hosts are officially supported, with various accelerators:
      - Accelerators
    * - Arm
      - kvm (64 bit only), tcg, xen
-   * - MIPS
+   * - MIPS (little endian only)
      - kvm, tcg
    * - PPC
      - kvm, tcg

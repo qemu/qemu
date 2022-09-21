@@ -1,22 +1,168 @@
+# THIS FILE WAS AUTO-GENERATED
 #
-# Docker x86_64 cross target
+#  $ lcitool dockerfile --layers all --cross x86_64 debian-11 qemu
 #
-# This docker target is used on non-x86_64 machines which need the
-# x86_64 cross compilers installed.
-#
-FROM qemu/debian10
-MAINTAINER Alex Bennée <alex.bennee@linaro.org>
+# https://gitlab.com/libvirt/libvirt-ci
 
-# Add the foreign architecture we want and install dependencies
-RUN dpkg --add-architecture amd64
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt install -y --no-install-recommends \
-        crossbuild-essential-amd64
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a amd64 --arch-only qemu
+FROM docker.io/library/debian:11-slim
 
-# Specify the cross prefix for this image (see tests/docker/common.rc)
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install -y eatmydata && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y \
+            bash \
+            bc \
+            bsdextrautils \
+            bzip2 \
+            ca-certificates \
+            ccache \
+            dbus \
+            debianutils \
+            diffutils \
+            exuberant-ctags \
+            findutils \
+            gcovr \
+            genisoimage \
+            gettext \
+            git \
+            hostname \
+            libpcre2-dev \
+            libspice-protocol-dev \
+            llvm \
+            locales \
+            make \
+            meson \
+            ncat \
+            ninja-build \
+            openssh-client \
+            perl-base \
+            pkgconf \
+            python3 \
+            python3-numpy \
+            python3-opencv \
+            python3-pillow \
+            python3-pip \
+            python3-sphinx \
+            python3-sphinx-rtd-theme \
+            python3-venv \
+            python3-yaml \
+            rpm2cpio \
+            sed \
+            sparse \
+            tar \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            texinfo && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    sed -Ei 's,^# (en_US\.UTF-8 .*)$,\1,' /etc/locale.gen && \
+    dpkg-reconfigure locales
+
+ENV LANG "en_US.UTF-8"
+ENV MAKE "/usr/bin/make"
+ENV NINJA "/usr/bin/ninja"
+ENV PYTHON "/usr/bin/python3"
+ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
+
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    dpkg --add-architecture amd64 && \
+    eatmydata apt-get update && \
+    eatmydata apt-get dist-upgrade -y && \
+    eatmydata apt-get install --no-install-recommends -y dpkg-dev && \
+    eatmydata apt-get install --no-install-recommends -y \
+            g++-x86-64-linux-gnu \
+            gcc-x86-64-linux-gnu \
+            libaio-dev:amd64 \
+            libasan5:amd64 \
+            libasound2-dev:amd64 \
+            libattr1-dev:amd64 \
+            libbpf-dev:amd64 \
+            libbrlapi-dev:amd64 \
+            libbz2-dev:amd64 \
+            libc6-dev:amd64 \
+            libcacard-dev:amd64 \
+            libcap-ng-dev:amd64 \
+            libcapstone-dev:amd64 \
+            libcmocka-dev:amd64 \
+            libcurl4-gnutls-dev:amd64 \
+            libdaxctl-dev:amd64 \
+            libdrm-dev:amd64 \
+            libepoxy-dev:amd64 \
+            libfdt-dev:amd64 \
+            libffi-dev:amd64 \
+            libfuse3-dev:amd64 \
+            libgbm-dev:amd64 \
+            libgcrypt20-dev:amd64 \
+            libglib2.0-dev:amd64 \
+            libglusterfs-dev:amd64 \
+            libgnutls28-dev:amd64 \
+            libgtk-3-dev:amd64 \
+            libibumad-dev:amd64 \
+            libibverbs-dev:amd64 \
+            libiscsi-dev:amd64 \
+            libjemalloc-dev:amd64 \
+            libjpeg62-turbo-dev:amd64 \
+            libjson-c-dev:amd64 \
+            liblttng-ust-dev:amd64 \
+            liblzo2-dev:amd64 \
+            libncursesw5-dev:amd64 \
+            libnfs-dev:amd64 \
+            libnuma-dev:amd64 \
+            libpam0g-dev:amd64 \
+            libpixman-1-dev:amd64 \
+            libpmem-dev:amd64 \
+            libpng-dev:amd64 \
+            libpulse-dev:amd64 \
+            librbd-dev:amd64 \
+            librdmacm-dev:amd64 \
+            libsasl2-dev:amd64 \
+            libsdl2-dev:amd64 \
+            libsdl2-image-dev:amd64 \
+            libseccomp-dev:amd64 \
+            libselinux1-dev:amd64 \
+            libslirp-dev:amd64 \
+            libsnappy-dev:amd64 \
+            libspice-server-dev:amd64 \
+            libssh-gcrypt-dev:amd64 \
+            libsystemd-dev:amd64 \
+            libtasn1-6-dev:amd64 \
+            libubsan1:amd64 \
+            libudev-dev:amd64 \
+            liburing-dev:amd64 \
+            libusb-1.0-0-dev:amd64 \
+            libusbredirhost-dev:amd64 \
+            libvdeplug-dev:amd64 \
+            libvirglrenderer-dev:amd64 \
+            libvte-2.91-dev:amd64 \
+            libxen-dev:amd64 \
+            libzstd-dev:amd64 \
+            nettle-dev:amd64 \
+            systemtap-sdt-dev:amd64 \
+            xfslibs-dev:amd64 \
+            zlib1g-dev:amd64 && \
+    eatmydata apt-get autoremove -y && \
+    eatmydata apt-get autoclean -y && \
+    mkdir -p /usr/local/share/meson/cross && \
+    echo "[binaries]\n\
+c = '/usr/bin/x86_64-linux-gnu-gcc'\n\
+ar = '/usr/bin/x86_64-linux-gnu-gcc-ar'\n\
+strip = '/usr/bin/x86_64-linux-gnu-strip'\n\
+pkgconfig = '/usr/bin/x86_64-linux-gnu-pkg-config'\n\
+\n\
+[host_machine]\n\
+system = 'linux'\n\
+cpu_family = 'x86_64'\n\
+cpu = 'x86_64'\n\
+endian = 'little'" > /usr/local/share/meson/cross/x86_64-linux-gnu && \
+    dpkg-query --showformat '${Package}_${Version}_${Architecture}\n' --show > /packages.txt && \
+    mkdir -p /usr/libexec/ccache-wrappers && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-linux-gnu-c++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-linux-gnu-cc && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-linux-gnu-g++ && \
+    ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/x86_64-linux-gnu-gcc
+
+ENV ABI "x86_64-linux-gnu"
+ENV MESON_OPTS "--cross-file=x86_64-linux-gnu"
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=x86_64-linux-gnu-
 ENV DEF_TARGET_LIST x86_64-softmmu,x86_64-linux-user,i386-softmmu,i386-linux-user

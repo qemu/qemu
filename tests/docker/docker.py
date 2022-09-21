@@ -205,22 +205,17 @@ def _read_qemu_dockerfile(img_name):
     return _read_dockerfile(df)
 
 
-def _dockerfile_preprocess(df):
-    out = ""
+def _dockerfile_verify_flat(df):
+    "Verify we do not include other qemu/ layers"
     for l in df.splitlines():
         if len(l.strip()) == 0 or l.startswith("#"):
             continue
         from_pref = "FROM qemu/"
         if l.startswith(from_pref):
-            # TODO: Alternatively we could replace this line with "FROM $ID"
-            # where $ID is the image's hex id obtained with
-            #    $ docker images $IMAGE --format="{{.Id}}"
-            # but unfortunately that's not supported by RHEL 7.
-            inlining = _read_qemu_dockerfile(l[len(from_pref):])
-            out += _dockerfile_preprocess(inlining)
-            continue
-        out += l + "\n"
-    return out
+            print("We no longer support multiple QEMU layers.")
+            print("Dockerfiles should be flat, ideally created by lcitool")
+            return False
+    return True
 
 
 class Docker(object):
@@ -309,23 +304,10 @@ class Docker(object):
         if argv is None:
             argv = []
 
-        # pre-calculate the docker checksum before any
-        # substitutions we make for caching
-        checksum = _text_checksum(_dockerfile_preprocess(dockerfile))
+        if not _dockerfile_verify_flat(dockerfile):
+            return -1
 
-        if registry is not None:
-            sources = re.findall("FROM qemu\/(.*)", dockerfile)
-            # Fetch any cache layers we can, may fail
-            for s in sources:
-                pull_args = ["pull", "%s/qemu/%s" % (registry, s)]
-                if self._do(pull_args, quiet=quiet) != 0:
-                    registry = None
-                    break
-            # Make substitutions
-            if registry is not None:
-                dockerfile = dockerfile.replace("FROM qemu/",
-                                                "FROM %s/qemu/" %
-                                                (registry))
+        checksum = _text_checksum(dockerfile)
 
         tmp_df = tempfile.NamedTemporaryFile(mode="w+t",
                                              encoding='utf-8',
@@ -371,7 +353,7 @@ class Docker(object):
             checksum = self.get_image_dockerfile_checksum(tag)
         except Exception:
             return False
-        return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
+        return checksum == _text_checksum(dockerfile)
 
     def run(self, cmd, keep, quiet, as_user=False):
         label = uuid.uuid4().hex
