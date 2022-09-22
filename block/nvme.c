@@ -1242,8 +1242,10 @@ static inline bool nvme_qiov_aligned(BlockDriverState *bs,
     return true;
 }
 
-static int nvme_co_prw(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
-                       QEMUIOVector *qiov, bool is_write, int flags)
+static coroutine_fn int nvme_co_prw(BlockDriverState *bs,
+                                    uint64_t offset, uint64_t bytes,
+                                    QEMUIOVector *qiov, bool is_write,
+                                    int flags)
 {
     BDRVNVMeState *s = bs->opaque;
     int r;
