@@ -2180,7 +2180,7 @@ static void raw_aio_unplug(BlockDriverState *bs)
 #endif
 }
 
-static int raw_co_flush_to_disk(BlockDriverState *bs)
+static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
