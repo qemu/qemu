@@ -436,7 +436,7 @@ void coroutine_fn job_pause_point(Job *job);
  *
  * Yield the job coroutine.
  */
-void job_yield(Job *job);
+void coroutine_fn job_yield(Job *job);
 
 /**
  * @job: The job that calls the function.

@@ -525,7 +525,7 @@ void coroutine_fn job_pause_point(Job *job)
     }
 }
 
-void job_yield(Job *job)
+void coroutine_fn job_yield(Job *job)
 {
     assert(job->busy);
 
