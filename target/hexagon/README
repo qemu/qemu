@@ -27,6 +27,10 @@ Hexagon-specific code are
         encode*.def             Encoding patterns for each instruction
         iclass.def              Instruction class definitions used to determine
                                 legal VLIW slots for each instruction
+    qemu/target/hexagon/idef-parser
+        Parser that, given the high-level definitions of an instruction,
+        produces a C function generating equivalent tiny code instructions.
+        See README.rst.
     qemu/linux-user/hexagon
         Helpers for loading the ELF file and making Linux system calls,
         signals, etc
@@ -47,6 +51,7 @@ header files in <BUILD_DIR>/target/hexagon
         gen_tcg_funcs.py                -> tcg_funcs_generated.c.inc
         gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
+        gen_idef_parser_funcs.py        -> idef_parser_input.h
 
 Qemu helper functions have 3 parts
     DEF_HELPER declaration indicates the signature of the helper
