@@ -21,6 +21,7 @@ hex_common_py = 'hex_common.py'
 attribs_def = meson.current_source_dir() / 'attribs_def.h.inc'
 gen_tcg_h = meson.current_source_dir() / 'gen_tcg.h'
 gen_tcg_hvx_h = meson.current_source_dir() / 'gen_tcg_hvx.h'
+idef_parser_dir = meson.current_source_dir() / 'idef-parser'
 
 #
 #  Step 1
@@ -178,5 +179,24 @@ hexagon_ss.add(files(
     'mmvec/decode_ext_mmvec.c',
     'mmvec/system_ext_mmvec.c',
 ))
+
+idef_parser_enabled = get_option('hexagon_idef_parser')
+if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
+    idef_parser_input_generated = custom_target(
+        'idef_parser_input.h.inc',
+        output: 'idef_parser_input.h.inc',
+        depends: [semantics_generated],
+        depend_files: [hex_common_py],
+        command: [python, files('gen_idef_parser_funcs.py'), semantics_generated, attribs_def, '@OUTPUT@'],
+    )
+
+    preprocessed_idef_parser_input_generated = custom_target(
+        'idef_parser_input.preprocessed.h.inc',
+        output: 'idef_parser_input.preprocessed.h.inc',
+        input: idef_parser_input_generated,
+        depend_files: [idef_parser_dir / 'macros.inc'],
+        command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
+    )
+endif
 
 target_arch += {'hexagon': hexagon_ss}
