@@ -995,7 +995,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
  */
 static size_t audio_frontend_frames_in(SWVoiceIn *sw, size_t frames_in)
 {
-    return ((int64_t)frames_in << 32) / sw->ratio;
+    return (int64_t)frames_in * sw->ratio >> 32;
 }
 
 static size_t audio_get_avail (SWVoiceIn *sw)
