@@ -29,6 +29,13 @@
 #undef QEMU_GENERATE
 #include "gen_tcg.h"
 #include "gen_tcg_hvx.h"
+#include "genptr.h"
+
+TCGv gen_read_preg(TCGv pred, uint8_t num)
+{
+    tcg_gen_mov_tl(pred, hex_pred[num]);
+    return pred;
+}
 
 static inline void gen_log_predicated_reg_write(int rnum, TCGv val,
                                                 uint32_t slot)
@@ -54,7 +61,7 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val,
     tcg_temp_free(slot_mask);
 }
 
-static inline void gen_log_reg_write(int rnum, TCGv val)
+void gen_log_reg_write(int rnum, TCGv val)
 {
     tcg_gen_mov_tl(hex_new_value[rnum], val);
     if (HEX_DEBUG) {
@@ -116,7 +123,7 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
     }
 }
 
-static inline void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
+void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
     TCGv base_val = tcg_temp_new();
 
@@ -274,7 +281,7 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
     }
 }
 
-static TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
+TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
 {
     if (sign) {
         tcg_gen_sextract_tl(result, src, N * 8, 8);
@@ -284,7 +291,7 @@ static TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
     return result;
 }
 
-static TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
+TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
 {
     TCGv_i64 res64 = tcg_temp_new_i64();
     if (sign) {
@@ -298,7 +305,7 @@ static TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
     return result;
 }
 
-static inline TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign)
+TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign)
 {
     if (sign) {
         tcg_gen_sextract_tl(result, src, N * 16, 16);
@@ -308,12 +315,12 @@ static inline TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign)
     return result;
 }
 
-static inline void gen_set_half(int N, TCGv result, TCGv src)
+void gen_set_half(int N, TCGv result, TCGv src)
 {
     tcg_gen_deposit_tl(result, result, src, N * 16, 16);
 }
 
-static inline void gen_set_half_i64(int N, TCGv_i64 result, TCGv src)
+void gen_set_half_i64(int N, TCGv_i64 result, TCGv src)
 {
     TCGv_i64 src64 = tcg_temp_new_i64();
     tcg_gen_extu_i32_i64(src64, src);
@@ -321,7 +328,7 @@ static inline void gen_set_half_i64(int N, TCGv_i64 result, TCGv src)
     tcg_temp_free_i64(src64);
 }
 
-static void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
+void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
 {
     TCGv_i64 src64 = tcg_temp_new_i64();
     tcg_gen_extu_i32_i64(src64, src);
@@ -396,60 +403,60 @@ static inline void gen_store_conditional8(DisasContext *ctx,
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
 }
 
-static inline void gen_store32(TCGv vaddr, TCGv src, int width, uint32_t slot)
+void gen_store32(TCGv vaddr, TCGv src, int width, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
     tcg_gen_movi_tl(hex_store_width[slot], width);
     tcg_gen_mov_tl(hex_store_val32[slot], src);
 }
 
-static inline void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
+void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
 {
     gen_store32(vaddr, src, 1, slot);
 }
 
-static inline void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
+void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
 {
     TCGv tmp = tcg_constant_tl(src);
     gen_store1(cpu_env, vaddr, tmp, slot);
 }
 
-static inline void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
+void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
 {
     gen_store32(vaddr, src, 2, slot);
 }
 
-static inline void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
+void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
 {
     TCGv tmp = tcg_constant_tl(src);
     gen_store2(cpu_env, vaddr, tmp, slot);
 }
 
-static inline void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
+void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src, uint32_t slot)
 {
     gen_store32(vaddr, src, 4, slot);
 }
 
-static inline void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
+void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot)
 {
     TCGv tmp = tcg_constant_tl(src);
     gen_store4(cpu_env, vaddr, tmp, slot);
 }
 
-static inline void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, uint32_t slot)
+void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);
     tcg_gen_movi_tl(hex_store_width[slot], 8);
     tcg_gen_mov_i64(hex_store_val64[slot], src);
 }
 
-static inline void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src, uint32_t slot)
+void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src, uint32_t slot)
 {
     TCGv_i64 tmp = tcg_constant_i64(src);
     gen_store8(cpu_env, vaddr, tmp, slot);
 }
 
-static TCGv gen_8bitsof(TCGv result, TCGv value)
+TCGv gen_8bitsof(TCGv result, TCGv value)
 {
     TCGv zero = tcg_constant_tl(0);
     TCGv ones = tcg_constant_tl(0xff);
@@ -1014,7 +1021,7 @@ static void vec_to_qvec(size_t size, intptr_t dstoff, intptr_t srcoff)
     tcg_temp_free_i64(mask);
 }
 
-static void probe_noshuf_load(TCGv va, int s, int mi)
+void probe_noshuf_load(TCGv va, int s, int mi)
 {
     TCGv size = tcg_constant_tl(s);
     TCGv mem_idx = tcg_constant_tl(mi);
