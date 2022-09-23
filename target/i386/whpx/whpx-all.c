@@ -1225,14 +1225,12 @@ static void whpx_translate_cpu_breakpoints(
         }
     }
 
-    if (breakpoints->breakpoints) {
-        /*
-         * Free the previous breakpoint list. This can be optimized by keeping
-         * it as shadow buffer for the next computation instead of freeing
-         * it immediately.
-         */
-        g_free(breakpoints->breakpoints);
-    }
+    /*
+     * Free the previous breakpoint list. This can be optimized by keeping
+     * it as shadow buffer for the next computation instead of freeing
+     * it immediately.
+     */
+    g_free(breakpoints->breakpoints);
 
     breakpoints->breakpoints = new_breakpoints;
 }
