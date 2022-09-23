@@ -242,7 +242,10 @@ static size_t line_in_read(HWVoiceIn *hw, void *buf, size_t len)
     uint64_t to_read = audio_rate_get_bytes(&hw->info, &in->rate, len) >> 2;
     size_t ready = spice_server_record_get_samples(&in->sin, buf, to_read);
 
-    /* XXX: do we need this? */
+    /*
+     * If the client didn't send new frames, it most likely disconnected.
+     * Generate silence in this case to avoid a stalled audio stream.
+     */
     if (ready == 0) {
         memset(buf, 0, to_read << 2);
         ready = to_read;
