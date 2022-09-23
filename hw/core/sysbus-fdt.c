@@ -299,7 +299,8 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
     void *guest_fdt = data->fdt, *host_fdt;
     const void *r;
     int i, prop_len;
-    uint32_t *irq_attr, *reg_attr, *host_clock_phandles;
+    uint32_t *irq_attr, *reg_attr;
+    const uint32_t *host_clock_phandles;
     uint64_t mmio_base, irq_number;
     uint32_t guest_clock_phandles[2];
 
@@ -339,7 +340,7 @@ static int add_amd_xgbe_fdt_node(SysBusDevice *sbdev, void *opaque)
         error_report("%s clocks property should contain 2 handles", __func__);
         exit(1);
     }
-    host_clock_phandles = (uint32_t *)r;
+    host_clock_phandles = r;
     guest_clock_phandles[0] = qemu_fdt_alloc_phandle(guest_fdt);
     guest_clock_phandles[1] = qemu_fdt_alloc_phandle(guest_fdt);
 
