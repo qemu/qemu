@@ -197,6 +197,12 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
         depend_files: [idef_parser_dir / 'macros.inc'],
         command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
     )
+
+    flex = generator(
+        find_program('flex'),
+        output: ['@BASENAME@.yy.c', '@BASENAME@.yy.h'],
+        arguments: ['-o', '@OUTPUT0@', '--header-file=@OUTPUT1@', '@INPUT@']
+    )
 endif
 
 target_arch += {'hexagon': hexagon_ss}
