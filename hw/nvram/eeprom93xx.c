@@ -315,7 +315,7 @@ eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
         addrbits = 6;
     }
 
-    eeprom = (eeprom_t *)g_malloc0(sizeof(*eeprom) + nwords * 2);
+    eeprom = g_malloc0(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
     eeprom->addrbits = addrbits;
     /* Output DO is tristate, read results in 1. */
