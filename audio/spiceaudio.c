@@ -120,6 +120,13 @@ static void line_out_fini (HWVoiceOut *hw)
     spice_server_remove_interface (&out->sin.base);
 }
 
+static size_t line_out_get_free(HWVoiceOut *hw)
+{
+    SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
+
+    return audio_rate_peek_bytes(&out->rate, &hw->info);
+}
+
 static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
 {
     SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
@@ -133,14 +140,14 @@ static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
         *size = MIN((out->fsize - out->fpos) << 2, *size);
     }
 
-    *size = audio_rate_get_bytes(&hw->info, &out->rate, *size);
-
     return out->frame + out->fpos;
 }
 
 static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
 {
     SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
+
+    audio_rate_add_bytes(&out->rate, size);
 
     if (buf) {
         assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
@@ -282,6 +289,7 @@ static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
     .fini_out = line_out_fini,
     .write    = audio_generic_write,
+    .buffer_get_free = line_out_get_free,
     .get_buffer_out = line_out_get_buffer,
     .put_buffer_out = line_out_put_buffer,
     .enable_out = line_out_enable,
