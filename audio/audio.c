@@ -1143,6 +1143,10 @@ static void audio_run_out (AudioState *s)
                                 hw_free * sw->info.bytes_per_frame);
             }
 
+            if (hw->pcm_ops->run_buffer_out) {
+                hw->pcm_ops->run_buffer_out(hw);
+            }
+
             continue;
         }
 
@@ -1499,10 +1503,6 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
         if (proc == 0 || proc < copy_size) {
             break;
         }
-    }
-
-    if (hw->pcm_ops->run_buffer_out) {
-        hw->pcm_ops->run_buffer_out(hw);
     }
 
     return total;
