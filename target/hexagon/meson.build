@@ -203,6 +203,35 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
         output: ['@BASENAME@.yy.c', '@BASENAME@.yy.h'],
         arguments: ['-o', '@OUTPUT0@', '--header-file=@OUTPUT1@', '@INPUT@']
     )
+
+    bison = generator(
+        find_program('bison'),
+        output: ['@BASENAME@.tab.c', '@BASENAME@.tab.h'],
+        arguments: ['@INPUT@', '--defines=@OUTPUT1@', '--output=@OUTPUT0@']
+    )
+
+    glib_dep = dependency('glib-2.0', native: true)
+
+    idef_parser = executable(
+        'idef-parser',
+        [flex.process(idef_parser_dir / 'idef-parser.lex'),
+         bison.process(idef_parser_dir / 'idef-parser.y'),
+         idef_parser_dir / 'parser-helpers.c'],
+        include_directories: ['idef-parser', '../../include/'],
+        dependencies: [glib_dep],
+        c_args: ['-Wextra'],
+        native: true
+    )
+
+    idef_generated_tcg = custom_target(
+        'idef-generated-tcg',
+        output: ['idef-generated-emitter.c',
+                 'idef-generated-emitter.h.inc',
+                 'idef-generated-enabled-instructions'],
+        input: preprocessed_idef_parser_input_generated,
+        depend_files: [hex_common_py],
+        command: [idef_parser, '@INPUT@', '@OUTPUT0@', '@OUTPUT1@', '@OUTPUT2@']
+    )
 endif
 
 target_arch += {'hexagon': hexagon_ss}
