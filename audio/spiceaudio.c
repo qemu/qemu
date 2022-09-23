@@ -239,7 +239,7 @@ static void line_in_fini (HWVoiceIn *hw)
 static size_t line_in_read(HWVoiceIn *hw, void *buf, size_t len)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
-    uint64_t to_read = audio_rate_get_bytes(&hw->info, &in->rate, len) >> 2;
+    uint64_t to_read = audio_rate_get_bytes(&in->rate, &hw->info, len) >> 2;
     size_t ready = spice_server_record_get_samples(&in->sin, buf, to_read);
 
     /*

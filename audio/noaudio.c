@@ -44,7 +44,7 @@ typedef struct NoVoiceIn {
 static size_t no_write(HWVoiceOut *hw, void *buf, size_t len)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    return audio_rate_get_bytes(&hw->info, &no->rate, len);
+    return audio_rate_get_bytes(&no->rate, &hw->info, len);
 }
 
 static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
@@ -89,7 +89,7 @@ static void no_fini_in (HWVoiceIn *hw)
 static size_t no_read(HWVoiceIn *hw, void *buf, size_t size)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
-    int64_t bytes = audio_rate_get_bytes(&hw->info, &no->rate, size);
+    int64_t bytes = audio_rate_get_bytes(&no->rate, &hw->info, size);
 
     audio_pcm_info_clear_buf(&hw->info, buf, bytes / hw->info.bytes_per_frame);
     return bytes;

@@ -2276,7 +2276,7 @@ void audio_rate_add_bytes(RateCtl *rate, size_t bytes_used)
     rate->bytes_sent += bytes_used;
 }
 
-size_t audio_rate_get_bytes(struct audio_pcm_info *info, RateCtl *rate,
+size_t audio_rate_get_bytes(RateCtl *rate, struct audio_pcm_info *info,
                             size_t bytes_avail)
 {
     size_t bytes;
