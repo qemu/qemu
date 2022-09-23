@@ -4756,8 +4756,8 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 }
 
-static void sdcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                       uint64_t value)
+static void mdcr_el3_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t value)
 {
     /*
      * Some MDCR_EL3 bits affect whether PMU counters are running:
@@ -4769,10 +4769,17 @@ static void sdcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (pmu_op) {
         pmu_op_start(env);
     }
-    env->cp15.mdcr_el3 = value & SDCR_VALID_MASK;
+    env->cp15.mdcr_el3 = value;
     if (pmu_op) {
         pmu_op_finish(env);
     }
+}
+
+static void sdcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t value)
+{
+    /* Not all bits defined for MDCR_EL3 exist in the AArch32 SDCR */
+    mdcr_el3_write(env, ri, value & SDCR_VALID_MASK);
 }
 
 static void mdcr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -5122,9 +5129,12 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .access = PL2_RW,
       .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_FIQ]) },
     { .name = "MDCR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_IO,
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 3, .opc2 = 1,
       .resetvalue = 0,
-      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el3) },
+      .access = PL3_RW,
+      .writefn = mdcr_el3_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el3) },
     { .name = "SDCR", .type = ARM_CP_ALIAS | ARM_CP_IO,
       .cp = 15, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 1,
       .access = PL1_RW, .accessfn = access_trap_aa32s_el1,
