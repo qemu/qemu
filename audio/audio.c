@@ -986,6 +986,18 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
     }
 }
 
+/**
+ * audio_frontend_frames_in() - returns the number of frames the resampling
+ * code generates from frames_in frames
+ *
+ * @sw: audio recording frontend
+ * @frames_in: number of frames
+ */
+static size_t audio_frontend_frames_in(SWVoiceIn *sw, size_t frames_in)
+{
+    return ((int64_t)frames_in << 32) / sw->ratio;
+}
+
 static size_t audio_get_avail (SWVoiceIn *sw)
 {
     size_t live;
@@ -1002,12 +1014,12 @@ static size_t audio_get_avail (SWVoiceIn *sw)
     }
 
     ldebug (
-        "%s: get_avail live %zu ret %" PRId64 "\n",
+        "%s: get_avail live %zu frontend frames %zu\n",
         SW_NAME (sw),
-        live, (((int64_t) live << 32) / sw->ratio) * sw->info.bytes_per_frame
+        live, audio_frontend_frames_in(sw, live)
         );
 
-    return (((int64_t) live << 32) / sw->ratio) * sw->info.bytes_per_frame;
+    return live;
 }
 
 /**
@@ -1309,11 +1321,13 @@ static void audio_run_in (AudioState *s)
             sw->total_hw_samples_acquired -= min;
 
             if (sw->active) {
+                size_t sw_avail = audio_get_avail(sw);
                 size_t avail;
 
-                avail = audio_get_avail (sw);
+                avail = audio_frontend_frames_in(sw, sw_avail);
                 if (avail > 0) {
-                    sw->callback.fn (sw->callback.opaque, avail);
+                    sw->callback.fn(sw->callback.opaque,
+                                    avail * sw->info.bytes_per_frame);
                 }
             }
         }
