@@ -2251,26 +2251,39 @@ void audio_rate_start(RateCtl *rate)
     rate->start_ticks = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
-size_t audio_rate_get_bytes(struct audio_pcm_info *info, RateCtl *rate,
-                            size_t bytes_avail)
+size_t audio_rate_peek_bytes(RateCtl *rate, struct audio_pcm_info *info)
 {
     int64_t now;
     int64_t ticks;
     int64_t bytes;
-    int64_t samples;
-    size_t ret;
+    int64_t frames;
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ticks = now - rate->start_ticks;
     bytes = muldiv64(ticks, info->bytes_per_second, NANOSECONDS_PER_SECOND);
-    samples = (bytes - rate->bytes_sent) / info->bytes_per_frame;
-    if (samples < 0 || samples > 65536) {
-        AUD_log(NULL, "Resetting rate control (%" PRId64 " samples)\n", samples);
+    frames = (bytes - rate->bytes_sent) / info->bytes_per_frame;
+    if (frames < 0 || frames > 65536) {
+        AUD_log(NULL, "Resetting rate control (%" PRId64 " frames)\n", frames);
         audio_rate_start(rate);
-        samples = 0;
+        frames = 0;
     }
 
-    ret = MIN(samples * info->bytes_per_frame, bytes_avail);
-    rate->bytes_sent += ret;
-    return ret;
+    return frames * info->bytes_per_frame;
+}
+
+void audio_rate_add_bytes(RateCtl *rate, size_t bytes_used)
+{
+    rate->bytes_sent += bytes_used;
+}
+
+size_t audio_rate_get_bytes(struct audio_pcm_info *info, RateCtl *rate,
+                            size_t bytes_avail)
+{
+    size_t bytes;
+
+    bytes = audio_rate_peek_bytes(rate, info);
+    bytes = MIN(bytes, bytes_avail);
+    audio_rate_add_bytes(rate, bytes);
+
+    return bytes;
 }
