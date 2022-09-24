@@ -37,14 +37,9 @@ typedef struct {
     uint32_t bcr;
 } Ppc4xxSdramBank;
 
-void ppc4xx_sdram_enable(CPUPPCState *env);
-
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         Ppc4xxSdramBank ram_banks[],
                         const ram_addr_t sdram_bank_sizes[]);
-
-void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
-                       MemoryRegion *ram);
 
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
 
@@ -114,5 +109,31 @@ struct Ppc4xxEbcState {
     uint32_t besr1;
     uint32_t cfg;
 };
+
+/* SDRAM DDR controller */
+#define TYPE_PPC4xx_SDRAM_DDR "ppc4xx-sdram-ddr"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxSdramDdrState, PPC4xx_SDRAM_DDR);
+struct Ppc4xxSdramDdrState {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    MemoryRegion *dram_mr;
+    uint32_t nbanks; /* Banks to use from 4, e.g. when board has less slots */
+    Ppc4xxSdramBank bank[4];
+    qemu_irq irq;
+
+    uint32_t addr;
+    uint32_t besr0;
+    uint32_t besr1;
+    uint32_t bear;
+    uint32_t cfg;
+    uint32_t status;
+    uint32_t rtr;
+    uint32_t pmit;
+    uint32_t tr;
+    uint32_t ecccfg;
+    uint32_t eccesr;
+};
+
+void ppc4xx_sdram_enable(Ppc4xxSdramDdrState *s);
 
 #endif /* PPC4XX_H */

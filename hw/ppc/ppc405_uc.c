@@ -1016,6 +1016,9 @@ static void ppc405_soc_instance_init(Object *obj)
     object_initialize_child(obj, "plb", &s->plb, TYPE_PPC4xx_PLB);
 
     object_initialize_child(obj, "mal", &s->mal, TYPE_PPC4xx_MAL);
+
+    object_initialize_child(obj, "sdram", &s->sdram, TYPE_PPC4xx_SDRAM_DDR);
+    object_property_add_alias(obj, "dram", OBJECT(&s->sdram), "dram");
 }
 
 static void ppc405_reset(void *opaque)
@@ -1073,9 +1076,17 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->cpu), PPC40x_INPUT_CINT));
 
     /* SDRAM controller */
+    /*
+     * We use the 440 DDR SDRAM controller which has more regs and features
+     * but it's compatible enough for now
+     */
+    object_property_set_int(OBJECT(&s->sdram), "nbanks", 2, &error_abort);
+    if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->sdram), &s->cpu, errp)) {
+        return;
+    }
     /* XXX 405EP has no ECC interrupt */
-    ppc4xx_sdram_init(env, qdev_get_gpio_in(DEVICE(&s->uic), 17), 1,
-                      s->dram_mr);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sdram), 0,
+                       qdev_get_gpio_in(DEVICE(&s->uic), 17));
 
     /* External bus controller */
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->ebc), &s->cpu, errp)) {
@@ -1150,12 +1161,6 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
     /* Uses UIC IRQs 9, 15, 17 */
 }
 
-static Property ppc405_soc_properties[] = {
-    DEFINE_PROP_LINK("dram", Ppc405SoCState, dram_mr, TYPE_MEMORY_REGION,
-                     MemoryRegion *),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void ppc405_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -1163,7 +1168,6 @@ static void ppc405_soc_class_init(ObjectClass *oc, void *data)
     dc->realize = ppc405_soc_realize;
     /* Reason: only works as part of a ppc405 board/machine */
     dc->user_creatable = false;
-    device_class_set_props(dc, ppc405_soc_properties);
 }
 
 static const TypeInfo ppc405_types[] = {
