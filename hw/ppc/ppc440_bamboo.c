@@ -211,7 +211,9 @@ static void bamboo_init(MachineState *machine)
     ppc4xx_sdram_init(env,
                       qdev_get_gpio_in(uicdev, 14),
                       PPC440EP_SDRAM_NR_BANKS, ram_memories,
-                      ram_bases, ram_sizes, 1);
+                      ram_bases, ram_sizes);
+    /* Enable SDRAM memory regions, this should be done by the firmware */
+    ppc4xx_sdram_enable(env);
 
     /* PCI */
     dev = sysbus_create_varargs(TYPE_PPC4xx_PCI_HOST_BRIDGE,

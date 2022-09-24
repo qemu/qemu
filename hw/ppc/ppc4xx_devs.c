@@ -350,8 +350,7 @@ static void sdram_reset(void *opaque)
 void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
                        MemoryRegion *ram_memories,
                        hwaddr *ram_bases,
-                       hwaddr *ram_sizes,
-                       int do_init)
+                       hwaddr *ram_sizes)
 {
     ppc4xx_sdram_t *sdram;
     int i;
@@ -369,9 +368,12 @@ void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
     ppc_dcr_register(env, SDRAM0_CFGDATA,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
-    if (do_init) {
-        sdram_map_bcr(sdram);
-    }
+}
+
+void ppc4xx_sdram_enable(CPUPPCState *env)
+{
+    ppc_dcr_write(env->dcr_env, SDRAM0_CFGADDR, 0x20);
+    ppc_dcr_write(env->dcr_env, SDRAM0_CFGDATA, 0x80000000);
 }
 
 /*

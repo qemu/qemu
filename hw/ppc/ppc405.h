@@ -169,7 +169,6 @@ struct Ppc405SoCState {
     /* Public */
     MemoryRegion ram_banks[2];
     hwaddr ram_bases[2], ram_sizes[2];
-    bool do_dram_init;
 
     MemoryRegion *dram_mr;
     hwaddr ram_size;
