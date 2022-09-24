@@ -204,7 +204,7 @@ static void bamboo_init(MachineState *machine)
     /* XXX 440EP's ECC interrupts are on UIC1, but we've only created UIC0. */
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(uicdev, 14));
     /* Enable SDRAM memory regions, this should be done by the firmware */
-    ppc4xx_sdram_enable(PPC4xx_SDRAM_DDR(dev));
+    ppc4xx_sdram_ddr_enable(PPC4xx_SDRAM_DDR(dev));
 
     /* PCI */
     dev = sysbus_create_varargs(TYPE_PPC4xx_PCI_HOST_BRIDGE,

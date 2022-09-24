@@ -37,7 +37,7 @@ typedef struct {
     uint32_t bcr;
 } Ppc4xxSdramBank;
 
-void ppc440_sdram_enable(CPUPPCState *env);
+void ppc4xx_sdram_ddr2_enable(CPUPPCState *env);
 
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         Ppc4xxSdramBank ram_banks[],
@@ -136,6 +136,6 @@ struct Ppc4xxSdramDdrState {
     uint32_t eccesr;
 };
 
-void ppc4xx_sdram_enable(Ppc4xxSdramDdrState *s);
+void ppc4xx_sdram_ddr_enable(Ppc4xxSdramDdrState *s);
 
 #endif /* PPC4XX_H */

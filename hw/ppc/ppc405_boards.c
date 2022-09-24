@@ -337,7 +337,7 @@ static void ppc405_init(MachineState *machine)
 
     /* Load ELF kernel and rootfs.cpio */
     } else if (kernel_filename && !machine->firmware) {
-        ppc4xx_sdram_enable(&ppc405->soc.sdram);
+        ppc4xx_sdram_ddr_enable(&ppc405->soc.sdram);
         boot_from_kernel(machine, &ppc405->soc.cpu);
     }
 }
