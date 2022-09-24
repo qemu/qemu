@@ -487,7 +487,7 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 typedef struct ppc440_sdram_t {
     uint32_t addr;
     uint32_t mcopt2;
-    int nbanks;
+    int nbanks; /* Banks to use from the 4, e.g. when board has less slots */
     Ppc4xxSdramBank bank[4];
 } ppc440_sdram_t;
 
@@ -733,18 +733,21 @@ static void sdram_ddr2_reset(void *opaque)
 }
 
 void ppc440_sdram_init(CPUPPCState *env, int nbanks,
-                       Ppc4xxSdramBank *ram_banks)
+                       MemoryRegion *ram)
 {
     ppc440_sdram_t *s;
-    int i;
+    /*
+     * SoC also has 4 GiB but that causes problem with 32 bit
+     * builds (4*GiB overflows the 32 bit ram_addr_t).
+     */
+    const ram_addr_t valid_bank_sizes[] = {
+        2 * GiB, 1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB,
+        64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 0
+    };
 
     s = g_malloc0(sizeof(*s));
     s->nbanks = nbanks;
-    for (i = 0; i < nbanks; i++) {
-        s->bank[i].ram = ram_banks[i].ram;
-        s->bank[i].base = ram_banks[i].base;
-        s->bank[i].size = ram_banks[i].size;
-    }
+    ppc4xx_sdram_banks(ram, s->nbanks, s->bank, valid_bank_sizes);
     qemu_register_reset(&sdram_ddr2_reset, s);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
