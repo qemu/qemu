@@ -54,31 +54,31 @@ static uint32_t sdram_ddr_bcr(hwaddr ram_base, hwaddr ram_size)
 
     switch (ram_size) {
     case 4 * MiB:
-        bcr = 0x00000000;
+        bcr = 0;
         break;
     case 8 * MiB:
-        bcr = 0x00020000;
+        bcr = 0x20000;
         break;
     case 16 * MiB:
-        bcr = 0x00040000;
+        bcr = 0x40000;
         break;
     case 32 * MiB:
-        bcr = 0x00060000;
+        bcr = 0x60000;
         break;
     case 64 * MiB:
-        bcr = 0x00080000;
+        bcr = 0x80000;
         break;
     case 128 * MiB:
-        bcr = 0x000A0000;
+        bcr = 0xA0000;
         break;
     case 256 * MiB:
-        bcr = 0x000C0000;
+        bcr = 0xC0000;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid RAM size 0x%" HWADDR_PRIx "\n", __func__,
                       ram_size);
-        return 0x00000000;
+        return 0;
     }
     bcr |= ram_base & 0xFF800000;
     bcr |= 1;
@@ -109,7 +109,7 @@ static target_ulong sdram_size(uint32_t bcr)
 static void sdram_set_bcr(Ppc4xxSdramDdrState *sdram, int i,
                           uint32_t bcr, int enabled)
 {
-    if (sdram->bank[i].bcr & 0x00000001) {
+    if (sdram->bank[i].bcr & 1) {
         /* Unmap RAM */
         trace_ppc4xx_sdram_unmap(sdram_base(sdram->bank[i].bcr),
                                  sdram_size(sdram->bank[i].bcr));
@@ -120,7 +120,7 @@ static void sdram_set_bcr(Ppc4xxSdramDdrState *sdram, int i,
         object_unparent(OBJECT(&sdram->bank[i].container));
     }
     sdram->bank[i].bcr = bcr & 0xFFDEE001;
-    if (enabled && (bcr & 0x00000001)) {
+    if (enabled && (bcr & 1)) {
         trace_ppc4xx_sdram_map(sdram_base(bcr), sdram_size(bcr));
         memory_region_init(&sdram->bank[i].container, NULL, "sdram-container",
                            sdram_size(bcr));
@@ -141,7 +141,7 @@ static void sdram_map_bcr(Ppc4xxSdramDdrState *sdram)
             sdram_set_bcr(sdram, i, sdram_ddr_bcr(sdram->bank[i].base,
                                                   sdram->bank[i].size), 1);
         } else {
-            sdram_set_bcr(sdram, i, 0x00000000, 0);
+            sdram_set_bcr(sdram, i, 0, 0);
         }
     }
 }
@@ -218,7 +218,7 @@ static uint32_t sdram_ddr_dcr_read(void *opaque, int dcrn)
         break;
     default:
         /* Avoid gcc warning */
-        ret = 0x00000000;
+        ret = 0;
         break;
     }
 
@@ -311,18 +311,18 @@ static void ppc4xx_sdram_ddr_reset(DeviceState *dev)
 {
     Ppc4xxSdramDdrState *sdram = PPC4xx_SDRAM_DDR(dev);
 
-    sdram->addr = 0x00000000;
-    sdram->bear = 0x00000000;
-    sdram->besr0 = 0x00000000; /* No error */
-    sdram->besr1 = 0x00000000; /* No error */
-    sdram->cfg = 0x00000000;
-    sdram->ecccfg = 0x00000000; /* No ECC */
-    sdram->eccesr = 0x00000000; /* No error */
+    sdram->addr = 0;
+    sdram->bear = 0;
+    sdram->besr0 = 0; /* No error */
+    sdram->besr1 = 0; /* No error */
+    sdram->cfg = 0;
+    sdram->ecccfg = 0; /* No ECC */
+    sdram->eccesr = 0; /* No error */
     sdram->pmit = 0x07C00000;
     sdram->rtr = 0x05F00000;
     sdram->tr = 0x00854009;
     /* We pre-initialize RAM banks */
-    sdram->status = 0x00000000;
+    sdram->status = 0;
     sdram->cfg = 0x00800000;
 }
 
