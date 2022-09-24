@@ -499,34 +499,34 @@ static uint32_t sdram_ddr2_bcr(hwaddr ram_base, hwaddr ram_size)
     uint32_t bcr;
 
     switch (ram_size) {
-    case (8 * MiB):
+    case 8 * MiB:
         bcr = 0xffc0;
         break;
-    case (16 * MiB):
+    case 16 * MiB:
         bcr = 0xff80;
         break;
-    case (32 * MiB):
+    case 32 * MiB:
         bcr = 0xff00;
         break;
-    case (64 * MiB):
+    case 64 * MiB:
         bcr = 0xfe00;
         break;
-    case (128 * MiB):
+    case 128 * MiB:
         bcr = 0xfc00;
         break;
-    case (256 * MiB):
+    case 256 * MiB:
         bcr = 0xf800;
         break;
-    case (512 * MiB):
+    case 512 * MiB:
         bcr = 0xf000;
         break;
-    case (1 * GiB):
+    case 1 * GiB:
         bcr = 0xe000;
         break;
-    case (2 * GiB):
+    case 2 * GiB:
         bcr = 0xc000;
         break;
-    case (4 * GiB):
+    case 4 * GiB:
         bcr = 0x8000;
         break;
     default:
