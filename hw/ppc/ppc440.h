@@ -11,14 +11,13 @@
 #ifndef PPC440_H
 #define PPC440_H
 
-#include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc4xx.h"
 
 void ppc4xx_l2sram_init(CPUPPCState *env);
 void ppc4xx_cpr_init(CPUPPCState *env);
 void ppc4xx_sdr_init(CPUPPCState *env);
 void ppc440_sdram_init(CPUPPCState *env, int nbanks,
-                       MemoryRegion *ram_memories,
-                       hwaddr *ram_bases, hwaddr *ram_sizes,
+                       Ppc4xxSdramBank *ram_banks,
                        int do_init);
 void ppc4xx_ahb_init(CPUPPCState *env);
 void ppc4xx_dma_init(CPUPPCState *env, int dcr_base);

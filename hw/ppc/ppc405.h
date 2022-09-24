@@ -167,9 +167,7 @@ struct Ppc405SoCState {
     DeviceState parent_obj;
 
     /* Public */
-    MemoryRegion ram_banks[2];
-    hwaddr ram_bases[2], ram_sizes[2];
-
+    Ppc4xxSdramBank ram_banks[2];
     MemoryRegion *dram_mr;
     hwaddr ram_size;
 

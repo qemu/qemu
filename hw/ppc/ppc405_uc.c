@@ -1074,14 +1074,14 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 
     /* SDRAM controller */
         /* XXX 405EP has no ECC interrupt */
-    s->ram_bases[0] = 0;
-    s->ram_sizes[0] = s->ram_size;
-    memory_region_init_alias(&s->ram_banks[0], OBJECT(s),
+    s->ram_banks[0].base = 0;
+    s->ram_banks[0].size = s->ram_size;
+    memory_region_init_alias(&s->ram_banks[0].ram, OBJECT(s),
                              "ppc405.sdram0", s->dram_mr,
-                             s->ram_bases[0], s->ram_sizes[0]);
+                             s->ram_banks[0].base, s->ram_banks[0].size);
 
     ppc4xx_sdram_init(env, qdev_get_gpio_in(DEVICE(&s->uic), 17), 1,
-                      s->ram_banks, s->ram_bases, s->ram_sizes);
+                      s->ram_banks);
 
     /* External bus controller */
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->ebc), &s->cpu, errp)) {

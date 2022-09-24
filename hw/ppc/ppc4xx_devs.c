@@ -348,9 +348,7 @@ static void sdram_reset(void *opaque)
 }
 
 void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
-                       MemoryRegion *ram_memories,
-                       hwaddr *ram_bases,
-                       hwaddr *ram_sizes)
+                       Ppc4xxSdramBank *ram_banks)
 {
     ppc4xx_sdram_t *sdram;
     int i;
@@ -359,9 +357,9 @@ void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     for (i = 0; i < nbanks; i++) {
-        sdram->bank[i].ram = ram_memories[i];
-        sdram->bank[i].base = ram_bases[i];
-        sdram->bank[i].size = ram_sizes[i];
+        sdram->bank[i].ram = ram_banks[i].ram;
+        sdram->bank[i].base = ram_banks[i].base;
+        sdram->bank[i].size = ram_banks[i].size;
     }
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
@@ -387,8 +385,7 @@ void ppc4xx_sdram_enable(CPUPPCState *env)
  * sizes varies by SoC.
  */
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
-                        MemoryRegion ram_memories[],
-                        hwaddr ram_bases[], hwaddr ram_sizes[],
+                        Ppc4xxSdramBank ram_banks[],
                         const ram_addr_t sdram_bank_sizes[])
 {
     ram_addr_t size_left = memory_region_size(ram);
@@ -403,13 +400,13 @@ void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
             if (bank_size <= size_left) {
                 char name[32];
 
-                ram_bases[i] = base;
-                ram_sizes[i] = bank_size;
+                ram_banks[i].base = base;
+                ram_banks[i].size = bank_size;
                 base += bank_size;
                 size_left -= bank_size;
                 snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                memory_region_init_alias(&ram_memories[i], NULL, name, ram,
-                                         ram_bases[i], ram_sizes[i]);
+                memory_region_init_alias(&ram_banks[i].ram, NULL, name, ram,
+                                         ram_banks[i].base, ram_banks[i].size);
                 break;
             }
         }

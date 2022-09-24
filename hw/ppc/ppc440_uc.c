@@ -692,8 +692,7 @@ static void sdram_reset(void *opaque)
 }
 
 void ppc440_sdram_init(CPUPPCState *env, int nbanks,
-                       MemoryRegion *ram_memories,
-                       hwaddr *ram_bases, hwaddr *ram_sizes,
+                       Ppc4xxSdramBank *ram_banks,
                        int do_init)
 {
     ppc440_sdram_t *sdram;
@@ -702,9 +701,9 @@ void ppc440_sdram_init(CPUPPCState *env, int nbanks,
     sdram = g_malloc0(sizeof(*sdram));
     sdram->nbanks = nbanks;
     for (i = 0; i < nbanks; i++) {
-        sdram->bank[i].ram = ram_memories[i];
-        sdram->bank[i].base = ram_bases[i];
-        sdram->bank[i].size = ram_sizes[i];
+        sdram->bank[i].ram = ram_banks[i].ram;
+        sdram->bank[i].base = ram_banks[i].base;
+        sdram->bank[i].size = ram_banks[i].size;
     }
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
