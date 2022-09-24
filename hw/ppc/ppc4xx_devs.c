@@ -42,10 +42,7 @@ typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
 struct ppc4xx_sdram_t {
     uint32_t addr;
     int nbanks;
-    MemoryRegion containers[4]; /* used for clipping */
-    MemoryRegion *ram_memories;
-    hwaddr ram_bases[4];
-    hwaddr ram_sizes[4];
+    Ppc4xxSdramBank bank[4];
     uint32_t besr0;
     uint32_t besr1;
     uint32_t bear;
@@ -53,7 +50,6 @@ struct ppc4xx_sdram_t {
     uint32_t status;
     uint32_t rtr;
     uint32_t pmit;
-    uint32_t bcr[4];
     uint32_t tr;
     uint32_t ecccfg;
     uint32_t eccesr;
@@ -131,26 +127,26 @@ static target_ulong sdram_size(uint32_t bcr)
 static void sdram_set_bcr(ppc4xx_sdram_t *sdram, int i,
                           uint32_t bcr, int enabled)
 {
-    if (sdram->bcr[i] & 0x00000001) {
+    if (sdram->bank[i].bcr & 0x00000001) {
         /* Unmap RAM */
-        trace_ppc4xx_sdram_unmap(sdram_base(sdram->bcr[i]),
-                                 sdram_size(sdram->bcr[i]));
+        trace_ppc4xx_sdram_unmap(sdram_base(sdram->bank[i].bcr),
+                                 sdram_size(sdram->bank[i].bcr));
         memory_region_del_subregion(get_system_memory(),
-                                    &sdram->containers[i]);
-        memory_region_del_subregion(&sdram->containers[i],
-                                    &sdram->ram_memories[i]);
-        object_unparent(OBJECT(&sdram->containers[i]));
+                                    &sdram->bank[i].container);
+        memory_region_del_subregion(&sdram->bank[i].container,
+                                    &sdram->bank[i].ram);
+        object_unparent(OBJECT(&sdram->bank[i].container));
     }
-    sdram->bcr[i] = bcr & 0xFFDEE001;
+    sdram->bank[i].bcr = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {
         trace_ppc4xx_sdram_map(sdram_base(bcr), sdram_size(bcr));
-        memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
+        memory_region_init(&sdram->bank[i].container, NULL, "sdram-container",
                            sdram_size(bcr));
-        memory_region_add_subregion(&sdram->containers[i], 0,
-                                    &sdram->ram_memories[i]);
+        memory_region_add_subregion(&sdram->bank[i].container, 0,
+                                    &sdram->bank[i].ram);
         memory_region_add_subregion(get_system_memory(),
                                     sdram_base(bcr),
-                                    &sdram->containers[i]);
+                                    &sdram->bank[i].container);
     }
 }
 
@@ -159,9 +155,9 @@ static void sdram_map_bcr(ppc4xx_sdram_t *sdram)
     int i;
 
     for (i = 0; i < sdram->nbanks; i++) {
-        if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(sdram, i, sdram_bcr(sdram->ram_bases[i],
-                                              sdram->ram_sizes[i]), 1);
+        if (sdram->bank[i].size != 0) {
+            sdram_set_bcr(sdram, i, sdram_bcr(sdram->bank[i].base,
+                                              sdram->bank[i].size), 1);
         } else {
             sdram_set_bcr(sdram, i, 0x00000000, 0);
         }
@@ -173,10 +169,10 @@ static void sdram_unmap_bcr(ppc4xx_sdram_t *sdram)
     int i;
 
     for (i = 0; i < sdram->nbanks; i++) {
-        trace_ppc4xx_sdram_unmap(sdram_base(sdram->bcr[i]),
-                                 sdram_size(sdram->bcr[i]));
+        trace_ppc4xx_sdram_unmap(sdram_base(sdram->bank[i].bcr),
+                                 sdram_size(sdram->bank[i].bcr));
         memory_region_del_subregion(get_system_memory(),
-                                    &sdram->ram_memories[i]);
+                                    &sdram->bank[i].ram);
     }
 }
 
@@ -214,16 +210,16 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
             ret = sdram->pmit;
             break;
         case 0x40: /* SDRAM_B0CR */
-            ret = sdram->bcr[0];
+            ret = sdram->bank[0].bcr;
             break;
         case 0x44: /* SDRAM_B1CR */
-            ret = sdram->bcr[1];
+            ret = sdram->bank[1].bcr;
             break;
         case 0x48: /* SDRAM_B2CR */
-            ret = sdram->bcr[2];
+            ret = sdram->bank[2].bcr;
             break;
         case 0x4C: /* SDRAM_B3CR */
-            ret = sdram->bcr[3];
+            ret = sdram->bank[3].bcr;
             break;
         case 0x80: /* SDRAM_TR */
             ret = -1; /* ? */
@@ -358,13 +354,16 @@ void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
                        int do_init)
 {
     ppc4xx_sdram_t *sdram;
+    int i;
 
     sdram = g_new0(ppc4xx_sdram_t, 1);
     sdram->irq = irq;
     sdram->nbanks = nbanks;
-    sdram->ram_memories = ram_memories;
-    memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(hwaddr));
-    memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(hwaddr));
+    for (i = 0; i < nbanks; i++) {
+        sdram->bank[i].ram = ram_memories[i];
+        sdram->bank[i].base = ram_bases[i];
+        sdram->bank[i].size = ram_sizes[i];
+    }
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);

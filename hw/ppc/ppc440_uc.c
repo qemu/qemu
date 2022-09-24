@@ -16,7 +16,7 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "exec/memory.h"
-#include "hw/ppc/ppc.h"
+#include "hw/ppc/ppc4xx.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "sysemu/block-backend.h"
@@ -485,11 +485,7 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 typedef struct ppc440_sdram_t {
     uint32_t addr;
     int nbanks;
-    MemoryRegion containers[4]; /* used for clipping */
-    MemoryRegion *ram_memories;
-    hwaddr ram_bases[4];
-    hwaddr ram_sizes[4];
-    uint32_t bcr[4];
+    Ppc4xxSdramBank bank[4];
 } ppc440_sdram_t;
 
 enum {
@@ -570,23 +566,23 @@ static uint64_t sdram_size(uint32_t bcr)
 static void sdram_set_bcr(ppc440_sdram_t *sdram, int i,
                           uint32_t bcr, int enabled)
 {
-    if (sdram->bcr[i] & 1) {
+    if (sdram->bank[i].bcr & 1) {
         /* First unmap RAM if enabled */
         memory_region_del_subregion(get_system_memory(),
-                                    &sdram->containers[i]);
-        memory_region_del_subregion(&sdram->containers[i],
-                                    &sdram->ram_memories[i]);
-        object_unparent(OBJECT(&sdram->containers[i]));
+                                    &sdram->bank[i].container);
+        memory_region_del_subregion(&sdram->bank[i].container,
+                                    &sdram->bank[i].ram);
+        object_unparent(OBJECT(&sdram->bank[i].container));
     }
-    sdram->bcr[i] = bcr & 0xffe0ffc1;
+    sdram->bank[i].bcr = bcr & 0xffe0ffc1;
     if (enabled && (bcr & 1)) {
-        memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
+        memory_region_init(&sdram->bank[i].container, NULL, "sdram-container",
                            sdram_size(bcr));
-        memory_region_add_subregion(&sdram->containers[i], 0,
-                                    &sdram->ram_memories[i]);
+        memory_region_add_subregion(&sdram->bank[i].container, 0,
+                                    &sdram->bank[i].ram);
         memory_region_add_subregion(get_system_memory(),
                                     sdram_base(bcr),
-                                    &sdram->containers[i]);
+                                    &sdram->bank[i].container);
     }
 }
 
@@ -595,9 +591,9 @@ static void sdram_map_bcr(ppc440_sdram_t *sdram)
     int i;
 
     for (i = 0; i < sdram->nbanks; i++) {
-        if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(sdram, i, sdram_bcr(sdram->ram_bases[i],
-                                              sdram->ram_sizes[i]), 1);
+        if (sdram->bank[i].size != 0) {
+            sdram_set_bcr(sdram, i, sdram_bcr(sdram->bank[i].base,
+                                              sdram->bank[i].size), 1);
         } else {
             sdram_set_bcr(sdram, i, 0, 0);
         }
@@ -614,9 +610,9 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
     case SDRAM_R1BAS:
     case SDRAM_R2BAS:
     case SDRAM_R3BAS:
-        if (sdram->ram_sizes[dcrn - SDRAM_R0BAS]) {
-            ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
-                            sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        if (sdram->bank[dcrn - SDRAM_R0BAS].size) {
+            ret = sdram_bcr(sdram->bank[dcrn - SDRAM_R0BAS].base,
+                            sdram->bank[dcrn - SDRAM_R0BAS].size);
         }
         break;
     case SDRAM_CONF1HB:
@@ -701,12 +697,15 @@ void ppc440_sdram_init(CPUPPCState *env, int nbanks,
                        int do_init)
 {
     ppc440_sdram_t *sdram;
+    int i;
 
     sdram = g_malloc0(sizeof(*sdram));
     sdram->nbanks = nbanks;
-    sdram->ram_memories = ram_memories;
-    memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(hwaddr));
-    memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(hwaddr));
+    for (i = 0; i < nbanks; i++) {
+        sdram->bank[i].ram = ram_memories[i];
+        sdram->bank[i].base = ram_bases[i];
+        sdram->bank[i].size = ram_sizes[i];
+    }
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
