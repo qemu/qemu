@@ -484,13 +484,6 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc440_sdram_t {
-    uint32_t addr;
-    uint32_t mcopt2;
-    int nbanks; /* Banks to use from the 4, e.g. when board has less slots */
-    Ppc4xxSdramBank bank[4];
-} ppc440_sdram_t;
-
 enum {
     SDRAM0_CFGADDR = 0x10,
     SDRAM0_CFGDATA,
@@ -581,7 +574,7 @@ static void sdram_bank_unmap(Ppc4xxSdramBank *bank)
     object_unparent(OBJECT(&bank->container));
 }
 
-static void sdram_ddr2_set_bcr(ppc440_sdram_t *sdram, int i,
+static void sdram_ddr2_set_bcr(Ppc4xxSdramDdr2State *sdram, int i,
                                uint32_t bcr, int enabled)
 {
     if (sdram->bank[i].bcr & 1) {
@@ -597,7 +590,7 @@ static void sdram_ddr2_set_bcr(ppc440_sdram_t *sdram, int i,
     }
 }
 
-static void sdram_ddr2_map_bcr(ppc440_sdram_t *sdram)
+static void sdram_ddr2_map_bcr(Ppc4xxSdramDdr2State *sdram)
 {
     int i;
 
@@ -612,7 +605,7 @@ static void sdram_ddr2_map_bcr(ppc440_sdram_t *sdram)
     }
 }
 
-static void sdram_ddr2_unmap_bcr(ppc440_sdram_t *sdram)
+static void sdram_ddr2_unmap_bcr(Ppc4xxSdramDdr2State *sdram)
 {
     int i;
 
@@ -625,7 +618,7 @@ static void sdram_ddr2_unmap_bcr(ppc440_sdram_t *sdram)
 
 static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)
 {
-    ppc440_sdram_t *sdram = opaque;
+    Ppc4xxSdramDdr2State *sdram = opaque;
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -680,7 +673,7 @@ static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)
 
 static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
 {
-    ppc440_sdram_t *sdram = opaque;
+    Ppc4xxSdramDdr2State *sdram = opaque;
 
     switch (dcrn) {
     case SDRAM_R0BAS:
@@ -724,18 +717,18 @@ static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void sdram_ddr2_reset(void *opaque)
+static void ppc4xx_sdram_ddr2_reset(DeviceState *dev)
 {
-    ppc440_sdram_t *sdram = opaque;
+    Ppc4xxSdramDdr2State *sdram = PPC4xx_SDRAM_DDR2(dev);
 
     sdram->addr = 0;
     sdram->mcopt2 = 0;
 }
 
-void ppc440_sdram_init(CPUPPCState *env, int nbanks,
-                       MemoryRegion *ram)
+static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
 {
-    ppc440_sdram_t *s;
+    Ppc4xxSdramDdr2State *s = PPC4xx_SDRAM_DDR2(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
     /*
      * SoC also has 4 GiB but that causes problem with 32 bit
      * builds (4*GiB overflows the 32 bit ram_addr_t).
@@ -745,40 +738,74 @@ void ppc440_sdram_init(CPUPPCState *env, int nbanks,
         64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 0
     };
 
-    s = g_malloc0(sizeof(*s));
-    s->nbanks = nbanks;
-    ppc4xx_sdram_banks(ram, s->nbanks, s->bank, valid_bank_sizes);
-    qemu_register_reset(&sdram_ddr2_reset, s);
-    ppc_dcr_register(env, SDRAM0_CFGADDR,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM0_CFGDATA,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    if (s->nbanks < 1 || s->nbanks > 4) {
+        error_setg(errp, "Invalid number of RAM banks");
+        return;
+    }
+    if (!s->dram_mr) {
+        error_setg(errp, "Missing dram memory region");
+        return;
+    }
+    ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank, valid_bank_sizes);
 
-    ppc_dcr_register(env, SDRAM_R0BAS,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_R1BAS,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_R2BAS,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_R3BAS,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_CONF1HB,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_PLBADDULL,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_CONF1LL,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_CONFPATHB,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
-    ppc_dcr_register(env, SDRAM_PLBADDUHB,
-                     s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGADDR,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGDATA,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+
+    ppc4xx_dcr_register(dcr, SDRAM_R0BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R1BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R2BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R3BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONF1HB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_PLBADDULL,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONF1LL,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONFPATHB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_PLBADDUHB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
 }
 
-void ppc4xx_sdram_ddr2_enable(CPUPPCState *env)
+static Property ppc4xx_sdram_ddr2_props[] = {
+    DEFINE_PROP_LINK("dram", Ppc4xxSdramDdr2State, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_UINT32("nbanks", Ppc4xxSdramDdr2State, nbanks, 4),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc4xx_sdram_ddr2_class_init(ObjectClass *oc, void *data)
 {
-    ppc_dcr_write(env->dcr_env, SDRAM0_CFGADDR, 0x21);
-    ppc_dcr_write(env->dcr_env, SDRAM0_CFGDATA, 0x08000000);
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc4xx_sdram_ddr2_realize;
+    dc->reset = ppc4xx_sdram_ddr2_reset;
+    /* Reason: only works as function of a ppc4xx SoC */
+    dc->user_creatable = false;
+    device_class_set_props(dc, ppc4xx_sdram_ddr2_props);
 }
+
+void ppc4xx_sdram_ddr2_enable(Ppc4xxSdramDdr2State *s)
+{
+    sdram_ddr2_dcr_write(s, SDRAM0_CFGADDR, 0x21);
+    sdram_ddr2_dcr_write(s, SDRAM0_CFGDATA, 0x08000000);
+}
+
+static const TypeInfo ppc4xx_types[] = {
+    {
+        .name           = TYPE_PPC4xx_SDRAM_DDR2,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc4xxSdramDdr2State),
+        .class_init     = ppc4xx_sdram_ddr2_class_init,
+    }
+};
+DEFINE_TYPES(ppc4xx_types)
 
 /*****************************************************************************/
 /* PLB to AHB bridge */

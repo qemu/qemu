@@ -37,8 +37,6 @@ typedef struct {
     uint32_t bcr;
 } Ppc4xxSdramBank;
 
-void ppc4xx_sdram_ddr2_enable(CPUPPCState *env);
-
 void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         Ppc4xxSdramBank ram_banks[],
                         const ram_addr_t sdram_bank_sizes[]);
@@ -137,5 +135,21 @@ struct Ppc4xxSdramDdrState {
 };
 
 void ppc4xx_sdram_ddr_enable(Ppc4xxSdramDdrState *s);
+
+/* SDRAM DDR2 controller */
+#define TYPE_PPC4xx_SDRAM_DDR2 "ppc4xx-sdram-ddr2"
+OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxSdramDdr2State, PPC4xx_SDRAM_DDR2);
+struct Ppc4xxSdramDdr2State {
+    Ppc4xxDcrDeviceState parent_obj;
+
+    MemoryRegion *dram_mr;
+    uint32_t nbanks; /* Banks to use from 4, e.g. when board has less slots */
+    Ppc4xxSdramBank bank[4];
+
+    uint32_t addr;
+    uint32_t mcopt2;
+};
+
+void ppc4xx_sdram_ddr2_enable(Ppc4xxSdramDdr2State *s);
 
 #endif /* PPC4XX_H */

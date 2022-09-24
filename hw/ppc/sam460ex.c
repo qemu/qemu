@@ -342,14 +342,19 @@ static void sam460ex_init(MachineState *machine)
         error_report("Memory below 64 MiB is not supported");
         exit(1);
     }
+    dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR2);
+    object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
+                             &error_abort);
     /*
      * Put all RAM on first bank because board has one slot
      * and firmware only checks that
      */
-    ppc440_sdram_init(env, 1, machine->ram);
+    object_property_set_int(OBJECT(dev), "nbanks", 1, &error_abort);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
     /* FIXME: does 460EX have ECC interrupts? */
     /* Enable SDRAM memory regions as we may boot without firmware */
-    ppc4xx_sdram_ddr2_enable(env);
+    ppc4xx_sdram_ddr2_enable(PPC4xx_SDRAM_DDR2(dev));
 
     /* IIC controllers and devices */
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
