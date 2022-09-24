@@ -140,8 +140,7 @@ int asan_giovese_unpoison_guest_region(target_ulong addr, size_t n);
 // addr is a guest pointer
 
 int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
-                                  target_ulong pc, target_ulong bp,
-                                  target_ulong sp);
+                                  CPUArchState *env);
 
 int asan_giovese_deadly_signal(int signum, target_ulong addr, target_ulong pc,
                                target_ulong bp, target_ulong sp);

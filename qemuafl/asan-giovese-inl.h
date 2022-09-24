@@ -1294,9 +1294,11 @@ static void print_alloc_location(target_ulong addr, target_ulong fault_addr) {
 }
 
 int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
-                                  target_ulong pc, target_ulong bp,
-                                  target_ulong sp) {
+                                  CPUArchState *env) {
 
+  target_ulong pc= PC_GET(env);
+  target_ulong bp= BP_GET(env);
+  target_ulong sp= SP_GET(env);
   struct call_context ctx;
   asan_giovese_populate_context(&ctx, pc);
   target_ulong fault_addr = 0;
@@ -1367,9 +1369,53 @@ int asan_giovese_report_and_crash(int access_type, target_ulong addr, size_t n,
       "==%d==ABORTING\n",
       getpid());
 
-  signal(SIGABRT, SIG_DFL);
-  abort();
+  /* 
+   * Rather than aborting this host, we signal a DATA ABORT in the guest and
+   * abort the cpu_loop. This results in the generation of a SIGSEGV and 
+   * subsequent generation (if configured) of a core-file for the guest which is
+   * much more useful for debugging purposes.
+   * 
+   * However, it should be noted that there are a few limitations to these core 
+   * files. Firstly the CPU program counter is set to the start of the basic 
+   * block rather that to the faulting instruction (hence the context printed 
+   * above and the core file do not have an up to date instruction pointer) and 
+   * secondly the core file does not include the address of fault (this is a 
+   * limitation of the core file format).
+   * 
+   * When translating basic blocks the DisasContext structure carries the 
+   * instruction pointer thereby allowing RIP-relative instructions to be 
+   * properly translated. However, during execution, it is the CPUArchState 
+   * state which carries the register context (including the instruction 
+   * pointer). However, since the instruction pointer at the point of execution
+   * is fixed for any given instruction, its value can be incorporated at 
+   * instrumentation time rather than execution. This therefore avoids the 
+   * overhead of updating the CPUArchState at the completion of each 
+   * instruction. However, this state is required to be updated at the start of
+   * each block to allow functionality such as execution tracing (the -d exec
+   * argument)to work properly.
+   */
 
+  /*
+   * Queue a SIGSEGV representing our fault.
+   */
+  target_siginfo_t info = {
+    .si_signo = TARGET_SIGSEGV,
+    .si_errno = 0,
+    .si_code = TARGET_SEGV_MAPERR,
+    ._sifields._sigfault._addr = fault_addr
+  };
+  queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+
+  /*
+   * Set the CPU state to represent an interrupt. This is suffient to cause the
+   * cpu_loop to break out and handle the queued exceptions.
+   */
+  CPUState *cs = env_cpu(env);
+  cs->exception_index = EXCP_INTERRUPT;
+  cpu_loop_exit(cs);
+
+
+  return 0;
 }
 
 static const char* singal_to_string[] = {
