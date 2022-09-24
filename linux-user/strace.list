@@ -279,10 +279,10 @@
 { TARGET_NR_getcwd, "getcwd" , "%s(%p,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getdents
-{ TARGET_NR_getdents, "getdents" , NULL, NULL, NULL },
+{ TARGET_NR_getdents, "getdents" , "%s(%d,%p,%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getdents64
-{ TARGET_NR_getdents64, "getdents64" , NULL, NULL, NULL },
+{ TARGET_NR_getdents64, "getdents64" , "%s(%d,%p,%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getdomainname
 { TARGET_NR_getdomainname, "getdomainname" , NULL, NULL, NULL },
