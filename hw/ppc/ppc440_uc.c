@@ -380,10 +380,6 @@ enum {
     PESDR1_RSTSTA = 0x365,
 };
 
-#define SDR0_DDR0_DDRM_ENCODE(n)  ((((unsigned long)(n)) & 0x03) << 29)
-#define SDR0_DDR0_DDRM_DDR1       0x20000000
-#define SDR0_DDR0_DDRM_DDR2       0x40000000
-
 static uint32_t dcr_read_sdr(void *opaque, int dcrn)
 {
     ppc4xx_sdr_t *sdr = opaque;

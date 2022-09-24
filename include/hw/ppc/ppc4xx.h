@@ -111,6 +111,10 @@ struct Ppc4xxEbcState {
 };
 
 /* SDRAM DDR controller */
+#define SDR0_DDR0_DDRM_ENCODE(n)  ((((unsigned long)(n)) & 0x03) << 29)
+#define SDR0_DDR0_DDRM_DDR1       0x20000000
+#define SDR0_DDR0_DDRM_DDR2       0x40000000
+
 #define TYPE_PPC4xx_SDRAM_DDR "ppc4xx-sdram-ddr"
 OBJECT_DECLARE_SIMPLE_TYPE(Ppc4xxSdramDdrState, PPC4xx_SDRAM_DDR);
 struct Ppc4xxSdramDdrState {
