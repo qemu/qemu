@@ -363,12 +363,8 @@ void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     sdram->ram_memories = ram_memories;
-    memset(sdram->ram_bases, 0, 4 * sizeof(hwaddr));
-    memcpy(sdram->ram_bases, ram_bases,
-           nbanks * sizeof(hwaddr));
-    memset(sdram->ram_sizes, 0, 4 * sizeof(hwaddr));
-    memcpy(sdram->ram_sizes, ram_sizes,
-           nbanks * sizeof(hwaddr));
+    memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(hwaddr));
+    memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(hwaddr));
     qemu_register_reset(&sdram_reset, sdram);
     ppc_dcr_register(env, SDRAM0_CFGADDR,
                      sdram, &dcr_read_sdram, &dcr_write_sdram);
