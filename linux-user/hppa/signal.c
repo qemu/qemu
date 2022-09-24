@@ -49,23 +49,13 @@ struct target_rt_sigframe {
 
 static void setup_sigcontext(struct target_sigcontext *sc, CPUArchState *env)
 {
-    int flags = 0;
     int i;
 
-    /* ??? if on_sig_stack, flags |= 1 (PARISC_SC_FLAG_ONSTACK).  */
-
-    if (env->iaoq_f < TARGET_PAGE_SIZE) {
-        /* In the gateway page, executing a syscall.  */
-        flags |= 2; /* PARISC_SC_FLAG_IN_SYSCALL */
-        __put_user(env->gr[31], &sc->sc_iaoq[0]);
-        __put_user(env->gr[31] + 4, &sc->sc_iaoq[1]);
-    } else {
-        __put_user(env->iaoq_f, &sc->sc_iaoq[0]);
-        __put_user(env->iaoq_b, &sc->sc_iaoq[1]);
-    }
+    __put_user(env->iaoq_f, &sc->sc_iaoq[0]);
+    __put_user(env->iaoq_b, &sc->sc_iaoq[1]);
     __put_user(0, &sc->sc_iasq[0]);
     __put_user(0, &sc->sc_iasq[1]);
-    __put_user(flags, &sc->sc_flags);
+    __put_user(0, &sc->sc_flags);
 
     __put_user(cpu_hppa_get_psw(env), &sc->sc_gr[0]);
     for (i = 1; i < 32; ++i) {
