@@ -1073,15 +1073,9 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->cpu), PPC40x_INPUT_CINT));
 
     /* SDRAM controller */
-        /* XXX 405EP has no ECC interrupt */
-    s->ram_banks[0].base = 0;
-    s->ram_banks[0].size = s->ram_size;
-    memory_region_init_alias(&s->ram_banks[0].ram, OBJECT(s),
-                             "ppc405.sdram0", s->dram_mr,
-                             s->ram_banks[0].base, s->ram_banks[0].size);
-
+    /* XXX 405EP has no ECC interrupt */
     ppc4xx_sdram_init(env, qdev_get_gpio_in(DEVICE(&s->uic), 17), 1,
-                      s->ram_banks);
+                      s->dram_mr);
 
     /* External bus controller */
     if (!ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(&s->ebc), &s->cpu, errp)) {
@@ -1159,7 +1153,6 @@ static void ppc405_soc_realize(DeviceState *dev, Error **errp)
 static Property ppc405_soc_properties[] = {
     DEFINE_PROP_LINK("dram", Ppc405SoCState, dram_mr, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_UINT64("ram-size", Ppc405SoCState, ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

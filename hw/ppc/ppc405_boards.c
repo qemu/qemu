@@ -271,21 +271,11 @@ static void boot_from_kernel(MachineState *machine, PowerPCCPU *cpu)
 static void ppc405_init(MachineState *machine)
 {
     Ppc405MachineState *ppc405 = PPC405_MACHINE(machine);
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     MemoryRegion *sysmem = get_system_memory();
 
-    if (machine->ram_size != mc->default_ram_size) {
-        char *sz = size_to_str(mc->default_ram_size);
-        error_report("Invalid RAM size, should be %s", sz);
-        g_free(sz);
-        exit(EXIT_FAILURE);
-    }
-
     object_initialize_child(OBJECT(machine), "soc", &ppc405->soc,
                             TYPE_PPC405_SOC);
-    object_property_set_uint(OBJECT(&ppc405->soc), "ram-size",
-                             machine->ram_size, &error_fatal);
     object_property_set_link(OBJECT(&ppc405->soc), "dram",
                              OBJECT(machine->ram), &error_abort);
     object_property_set_uint(OBJECT(&ppc405->soc), "sys-clk", 33333333,

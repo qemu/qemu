@@ -44,7 +44,7 @@ void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                         const ram_addr_t sdram_bank_sizes[]);
 
 void ppc4xx_sdram_init(CPUPPCState *env, qemu_irq irq, int nbanks,
-                       Ppc4xxSdramBank *ram_banks);
+                       MemoryRegion *ram);
 
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
 
