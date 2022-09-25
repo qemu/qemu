@@ -537,6 +537,8 @@ enum m68k_features {
     M68K_FEATURE_UNALIGNED_DATA,
     /* TRAPcc insn. (680[2346]0, and CPU32) */
     M68K_FEATURE_TRAPCC,
+    /* MOVE from SR privileged (from 68010) */
+    M68K_FEATURE_MOVEFROMSR_PRIV,
 };
 
 static inline bool m68k_feature(CPUM68KState *env, int feature)
