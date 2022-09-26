@@ -871,29 +871,35 @@ fi
 default_target_list=""
 mak_wilds=""
 
-if [ "$linux_user" != no ]; then
-    if [ "$targetos" = linux ] && [ -n "$host_arch" ]; then
-        linux_user=yes
-    elif [ "$linux_user" = yes ]; then
-        error_exit "linux-user not supported on this architecture"
+if [ -n "$host_arch" ] && [ -d "$source_path/common-user/host/$host_arch" ]; then
+    if [ "$linux_user" != no ]; then
+        if [ "$targetos" = linux ]; then
+            linux_user=yes
+        elif [ "$linux_user" = yes ]; then
+            error_exit "linux-user not supported on this architecture"
+        fi
+        if [ "$linux_user" = "yes" ]; then
+            mak_wilds="${mak_wilds} $source_path/configs/targets/*-linux-user.mak"
+        fi
     fi
-fi
-if [ "$bsd_user" != no ]; then
-    if [ "$bsd_user" = "" ]; then
-        test $targetos = freebsd && bsd_user=yes
+    if [ "$bsd_user" != no ]; then
+        if [ "$bsd_user" = "" ]; then
+            test $targetos = freebsd && bsd_user=yes
+        fi
+        if [ "$bsd_user" = yes ] && ! [ -d "$source_path/bsd-user/$targetos" ]; then
+            error_exit "bsd-user not supported on this host OS"
+        fi
+        if [ "$bsd_user" = "yes" ]; then
+            mak_wilds="${mak_wilds} $source_path/configs/targets/*-bsd-user.mak"
+        fi
     fi
-    if [ "$bsd_user" = yes ] && ! [ -d "$source_path/bsd-user/$targetos" ]; then
-        error_exit "bsd-user not supported on this host OS"
+else
+    if [ "$linux_user" = yes ] || [ "$bsd_user" = yes ]; then
+        error_exit "user mode emulation not supported on this architecture"
     fi
 fi
 if [ "$softmmu" = "yes" ]; then
     mak_wilds="${mak_wilds} $source_path/configs/targets/*-softmmu.mak"
-fi
-if [ "$linux_user" = "yes" ]; then
-    mak_wilds="${mak_wilds} $source_path/configs/targets/*-linux-user.mak"
-fi
-if [ "$bsd_user" = "yes" ]; then
-    mak_wilds="${mak_wilds} $source_path/configs/targets/*-bsd-user.mak"
 fi
 
 for config in $mak_wilds; do
