@@ -40,20 +40,37 @@ typedef struct BlockJobDriver BlockJobDriver;
  * Long-running operation on a BlockDriverState.
  */
 typedef struct BlockJob {
-    /** Data belonging to the generic Job infrastructure */
+    /**
+     * Data belonging to the generic Job infrastructure.
+     * Protected by job mutex.
+     */
     Job job;
 
-    /** Status that is published by the query-block-jobs QMP API */
+    /**
+     * Status that is published by the query-block-jobs QMP API.
+     * Protected by job mutex.
+     */
     BlockDeviceIoStatus iostatus;
 
-    /** Speed that was set with @block_job_set_speed.  */
+    /**
+     * Speed that was set with @block_job_set_speed.
+     * Always modified and read under QEMU global mutex (GLOBAL_STATE_CODE).
+     */
     int64_t speed;
 
-    /** Rate limiting data structure for implementing @speed. */
+    /**
+     * Rate limiting data structure for implementing @speed.
+     * RateLimit API is thread-safe.
+     */
     RateLimit limit;
 
-    /** Block other operations when block job is running */
+    /**
+     * Block other operations when block job is running.
+     * Always modified and read under QEMU global mutex (GLOBAL_STATE_CODE).
+     */
     Error *blocker;
+
+    /** All notifiers are set once in block_job_create() and never modified. */
 
     /** Called when a cancelled job is finalised. */
     Notifier finalize_cancelled_notifier;
@@ -70,7 +87,10 @@ typedef struct BlockJob {
     /** Called when the job coroutine yields or terminates */
     Notifier idle_notifier;
 
-    /** BlockDriverStates that are involved in this block job */
+    /**
+     * BlockDriverStates that are involved in this block job.
+     * Always modified and read under QEMU global mutex (GLOBAL_STATE_CODE).
+     */
     GSList *nodes;
 } BlockJob;
 
