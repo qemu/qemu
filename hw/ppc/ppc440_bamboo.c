@@ -34,6 +34,8 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 
+#include <libfdt.h>
+
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
 /* from u-boot */
@@ -50,14 +52,13 @@
 
 static hwaddr entry;
 
-static int bamboo_load_device_tree(hwaddr addr,
-                                     uint32_t ramsize,
-                                     hwaddr initrd_base,
-                                     hwaddr initrd_size,
-                                     const char *kernel_cmdline)
+static int bamboo_load_device_tree(MachineState *machine,
+                                   hwaddr addr,
+                                   hwaddr initrd_base,
+                                   hwaddr initrd_size)
 {
     int ret = -1;
-    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
+    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(machine->ram_size) };
     char *filename;
     int fdt_size;
     void *fdt;
@@ -92,7 +93,7 @@ static int bamboo_load_device_tree(hwaddr addr,
         fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
     }
     ret = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
-                                  kernel_cmdline);
+                                  machine->kernel_cmdline);
     if (ret < 0) {
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
     }
@@ -113,7 +114,10 @@ static int bamboo_load_device_tree(hwaddr addr,
                           tb_freq);
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    g_free(fdt);
+
+    /* Set ms->fdt for 'dumpdtb' QMP/HMP command */
+    machine->fdt = fdt;
+
     return 0;
 }
 
@@ -157,7 +161,6 @@ static void main_cpu_reset(void *opaque)
 static void bamboo_init(MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
     MemoryRegion *address_space_mem = get_system_memory();
@@ -280,8 +283,8 @@ static void bamboo_init(MachineState *machine)
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
-        if (bamboo_load_device_tree(FDT_ADDR, machine->ram_size, RAMDISK_ADDR,
-                                    initrd_size, kernel_cmdline) < 0) {
+        if (bamboo_load_device_tree(machine, FDT_ADDR,
+                                    RAMDISK_ADDR, initrd_size) < 0) {
             error_report("couldn't load device tree");
             exit(1);
         }
