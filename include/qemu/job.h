@@ -40,26 +40,51 @@ typedef struct JobTxn JobTxn;
  * Long-running operation.
  */
 typedef struct Job {
+
+    /* Fields set at initialization (job_create), and never modified */
+
     /** The ID of the job. May be NULL for internal jobs. */
     char *id;
 
-    /** The type of this job. */
+    /**
+     * The type of this job.
+     * All callbacks are called with job_mutex *not* held.
+     */
     const JobDriver *driver;
+
+    /**
+     * The coroutine that executes the job.  If not NULL, it is reentered when
+     * busy is false and the job is cancelled.
+     * Initialized in job_start()
+     */
+    Coroutine *co;
+
+    /** True if this job should automatically finalize itself */
+    bool auto_finalize;
+
+    /** True if this job should automatically dismiss itself */
+    bool auto_dismiss;
+
+    /** The completion function that will be called when the job completes.  */
+    BlockCompletionFunc *cb;
+
+    /** The opaque value that is passed to the completion function.  */
+    void *opaque;
+
+    /* ProgressMeter API is thread-safe */
+    ProgressMeter progress;
+
+
+    /** Protected by AioContext lock */
+
+    /** AioContext to run the job coroutine in */
+    AioContext *aio_context;
 
     /** Reference count of the block job */
     int refcnt;
 
     /** Current state; See @JobStatus for details. */
     JobStatus status;
-
-    /** AioContext to run the job coroutine in */
-    AioContext *aio_context;
-
-    /**
-     * The coroutine that executes the job.  If not NULL, it is reentered when
-     * busy is false and the job is cancelled.
-     */
-    Coroutine *co;
 
     /**
      * Timer that is used by @job_sleep_ns. Accessed under job_mutex (in
@@ -112,14 +137,6 @@ typedef struct Job {
     /** Set to true when the job has deferred work to the main loop. */
     bool deferred_to_main_loop;
 
-    /** True if this job should automatically finalize itself */
-    bool auto_finalize;
-
-    /** True if this job should automatically dismiss itself */
-    bool auto_dismiss;
-
-    ProgressMeter progress;
-
     /**
      * Return code from @run and/or @prepare callback(s).
      * Not final until the job has reached the CONCLUDED status.
@@ -133,12 +150,6 @@ typedef struct Job {
      * to strerror(-job->ret) during job_completed.
      */
     Error *err;
-
-    /** The completion function that will be called when the job completes.  */
-    BlockCompletionFunc *cb;
-
-    /** The opaque value that is passed to the completion function.  */
-    void *opaque;
 
     /** Notifiers called when a cancelled job is finalised */
     NotifierList on_finalize_cancelled;
@@ -167,6 +178,7 @@ typedef struct Job {
 
 /**
  * Callbacks and other information about a Job driver.
+ * All callbacks are invoked with job_mutex *not* held.
  */
 struct JobDriver {
 
@@ -471,7 +483,6 @@ void coroutine_fn job_yield(Job *job);
  * interrupt the wait.
  */
 void coroutine_fn job_sleep_ns(Job *job, int64_t ns);
-
 
 /** Returns the JobType of a given Job. */
 JobType job_type(const Job *job);
