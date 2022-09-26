@@ -26,6 +26,9 @@
 #include "hw/loader.h"
 #include "hw/boards.h"
 #include "qemu/config-file.h"
+#include "qapi/qapi-commands-machine.h"
+#include "qapi/qmp/qdict.h"
+#include "monitor/hmp.h"
 
 #include <libfdt.h>
 
@@ -642,4 +645,38 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
 out:
     g_free(propcells);
     return ret;
+}
+
+void qmp_dumpdtb(const char *filename, Error **errp)
+{
+    g_autoptr(GError) err = NULL;
+    uint32_t size;
+
+    if (!current_machine->fdt) {
+        error_setg(errp, "This machine doesn't have a FDT");
+        return;
+    }
+
+    size = fdt_totalsize(current_machine->fdt);
+
+    g_assert(size > 0);
+
+    if (!g_file_set_contents(filename, current_machine->fdt, size, &err)) {
+        error_setg(errp, "Error saving FDT to file %s: %s",
+                   filename, err->message);
+    }
+}
+
+void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *local_err = NULL;
+
+    qmp_dumpdtb(filename, &local_err);
+
+    if (hmp_handle_error(mon, local_err)) {
+        return;
+    }
+
+    info_report("dtb dumped to %s", filename);
 }
