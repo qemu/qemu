@@ -233,12 +233,6 @@ int job_apply_verb_locked(Job *job, JobVerb verb, Error **errp)
     return -EPERM;
 }
 
-int job_apply_verb(Job *job, JobVerb verb, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    return job_apply_verb_locked(job, verb, errp);
-}
-
 JobType job_type(const Job *job)
 {
     return job->driver->job_type;
@@ -324,7 +318,7 @@ bool job_is_completed_locked(Job *job)
     return false;
 }
 
-bool job_is_completed(Job *job)
+static bool job_is_completed(Job *job)
 {
     JOB_LOCK_GUARD();
     return job_is_completed_locked(job);
@@ -366,12 +360,6 @@ Job *job_get_locked(const char *id)
     }
 
     return NULL;
-}
-
-Job *job_get(const char *id)
-{
-    JOB_LOCK_GUARD();
-    return job_get_locked(id);
 }
 
 void job_set_aio_context(Job *job, AioContext *ctx)
@@ -465,12 +453,6 @@ void job_ref_locked(Job *job)
     ++job->refcnt;
 }
 
-void job_ref(Job *job)
-{
-    JOB_LOCK_GUARD();
-    job_ref_locked(job);
-}
-
 void job_unref_locked(Job *job)
 {
     GLOBAL_STATE_CODE();
@@ -497,12 +479,6 @@ void job_unref_locked(Job *job)
         g_free(job->id);
         g_free(job);
     }
-}
-
-void job_unref(Job *job)
-{
-    JOB_LOCK_GUARD();
-    job_unref_locked(job);
 }
 
 void job_progress_update(Job *job, uint64_t done)
@@ -579,12 +555,6 @@ void job_enter_cond_locked(Job *job, bool(*fn)(Job *job))
     job_unlock();
     aio_co_wake(job->co);
     job_lock();
-}
-
-void job_enter_cond(Job *job, bool(*fn)(Job *job))
-{
-    JOB_LOCK_GUARD();
-    job_enter_cond_locked(job, fn);
 }
 
 void job_enter(Job *job)
@@ -674,8 +644,9 @@ void coroutine_fn job_pause_point(Job *job)
     job_pause_point_locked(job);
 }
 
-static void coroutine_fn job_yield_locked(Job *job)
+void coroutine_fn job_yield(Job *job)
 {
+    JOB_LOCK_GUARD();
     assert(job->busy);
 
     /* Check cancellation *before* setting busy = false, too!  */
@@ -688,12 +659,6 @@ static void coroutine_fn job_yield_locked(Job *job)
     }
 
     job_pause_point_locked(job);
-}
-
-void coroutine_fn job_yield(Job *job)
-{
-    JOB_LOCK_GUARD();
-    job_yield_locked(job);
 }
 
 void coroutine_fn job_sleep_ns(Job *job, int64_t ns)
@@ -764,21 +729,9 @@ void job_user_pause_locked(Job *job, Error **errp)
     job_pause_locked(job);
 }
 
-void job_user_pause(Job *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_user_pause_locked(job, errp);
-}
-
 bool job_user_paused_locked(Job *job)
 {
     return job->user_paused;
-}
-
-bool job_user_paused(Job *job)
-{
-    JOB_LOCK_GUARD();
-    return job_user_paused_locked(job);
 }
 
 void job_user_resume_locked(Job *job, Error **errp)
@@ -799,12 +752,6 @@ void job_user_resume_locked(Job *job, Error **errp)
     }
     job->user_paused = false;
     job_resume_locked(job);
-}
-
-void job_user_resume(Job *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_user_resume_locked(job, errp);
 }
 
 /* Called with job_mutex held, but releases it temporarily. */
@@ -832,12 +779,6 @@ void job_dismiss_locked(Job **jobptr, Error **errp)
 
     job_do_dismiss_locked(job);
     *jobptr = NULL;
-}
-
-void job_dismiss(Job **jobptr, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_dismiss_locked(jobptr, errp);
 }
 
 void job_early_fail(Job *job)
@@ -1084,12 +1025,6 @@ void job_finalize_locked(Job *job, Error **errp)
     job_do_finalize_locked(job);
 }
 
-void job_finalize(Job *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_finalize_locked(job, errp);
-}
-
 /* Called with job_mutex held. */
 static int job_transition_to_pending_locked(Job *job)
 {
@@ -1236,12 +1171,6 @@ void job_cancel_locked(Job *job, bool force)
     }
 }
 
-void job_cancel(Job *job, bool force)
-{
-    JOB_LOCK_GUARD();
-    job_cancel_locked(job, force);
-}
-
 void job_user_cancel_locked(Job *job, bool force, Error **errp)
 {
     if (job_apply_verb_locked(job, JOB_VERB_CANCEL, errp)) {
@@ -1250,15 +1179,9 @@ void job_user_cancel_locked(Job *job, bool force, Error **errp)
     job_cancel_locked(job, force);
 }
 
-void job_user_cancel(Job *job, bool force, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_user_cancel_locked(job, force, errp);
-}
-
-/* A wrapper around job_cancel() taking an Error ** parameter so it may be
- * used with job_finish_sync() without the need for (rather nasty) function
- * pointer casts there.
+/* A wrapper around job_cancel_locked() taking an Error ** parameter so it may
+ * be used with job_finish_sync_locked() without the need for (rather nasty)
+ * function pointer casts there.
  *
  * Called with job_mutex held.
  */
@@ -1306,12 +1229,6 @@ int job_complete_sync_locked(Job *job, Error **errp)
     return job_finish_sync_locked(job, job_complete_locked, errp);
 }
 
-int job_complete_sync(Job *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    return job_complete_sync_locked(job, errp);
-}
-
 void job_complete_locked(Job *job, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
@@ -1329,12 +1246,6 @@ void job_complete_locked(Job *job, Error **errp)
     job_unlock();
     job->driver->complete(job, errp);
     job_lock();
-}
-
-void job_complete(Job *job, Error **errp)
-{
-    JOB_LOCK_GUARD();
-    job_complete_locked(job, errp);
 }
 
 int job_finish_sync_locked(Job *job,
@@ -1365,10 +1276,4 @@ int job_finish_sync_locked(Job *job,
           ? -ECANCELED : job->ret;
     job_unref_locked(job);
     return ret;
-}
-
-int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
-{
-    JOB_LOCK_GUARD();
-    return job_finish_sync_locked(job, finish, errp);
 }
