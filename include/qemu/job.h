@@ -65,7 +65,11 @@ typedef struct Job {
     /** True if this job should automatically dismiss itself */
     bool auto_dismiss;
 
-    /** The completion function that will be called when the job completes.  */
+    /**
+     * The completion function that will be called when the job completes.
+     * Called with AioContext lock held, since many callback implementations
+     * use bdrv_* functions that require to hold the lock.
+     */
     BlockCompletionFunc *cb;
 
     /** The opaque value that is passed to the completion function.  */
@@ -260,6 +264,9 @@ struct JobDriver {
      *
      * This callback will not be invoked if the job has already failed.
      * If it fails, abort and then clean will be called.
+     *
+     * Called with AioContext lock held, since many callbacs implementations
+     * use bdrv_* functions that require to hold the lock.
      */
     int (*prepare)(Job *job);
 
@@ -270,6 +277,9 @@ struct JobDriver {
      *
      * All jobs will complete with a call to either .commit() or .abort() but
      * never both.
+     *
+     * Called with AioContext lock held, since many callback implementations
+     * use bdrv_* functions that require to hold the lock.
      */
     void (*commit)(Job *job);
 
@@ -280,6 +290,9 @@ struct JobDriver {
      *
      * All jobs will complete with a call to either .commit() or .abort() but
      * never both.
+     *
+     * Called with AioContext lock held, since many callback implementations
+     * use bdrv_* functions that require to hold the lock.
      */
     void (*abort)(Job *job);
 
@@ -288,6 +301,9 @@ struct JobDriver {
      * .commit() or .abort(). Regardless of which callback is invoked after
      * completion, .clean() will always be called, even if the job does not
      * belong to a transaction group.
+     *
+     * Called with AioContext lock held, since many callbacs implementations
+     * use bdrv_* functions that require to hold the lock.
      */
     void (*clean)(Job *job);
 
@@ -302,11 +318,18 @@ struct JobDriver {
      * READY).
      * (If the callback is NULL, the job is assumed to terminate
      * without I/O.)
+     *
+     * Called with AioContext lock held, since many callback implementations
+     * use bdrv_* functions that require to hold the lock.
      */
     bool (*cancel)(Job *job, bool force);
 
 
-    /** Called when the job is freed */
+    /**
+     * Called when the job is freed.
+     * Called with AioContext lock held, since many callback implementations
+     * use bdrv_* functions that require to hold the lock.
+     */
     void (*free)(Job *job);
 };
 
