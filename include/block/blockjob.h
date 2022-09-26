@@ -92,6 +92,9 @@ typedef struct BlockJob {
  */
 BlockJob *block_job_next(BlockJob *job);
 
+/* Same as block_job_next(), but called with job lock held. */
+BlockJob *block_job_next_locked(BlockJob *job);
+
 /**
  * block_job_get:
  * @id: The id of the block job.
@@ -101,6 +104,9 @@ BlockJob *block_job_next(BlockJob *job);
  * Returns the requested job, or %NULL if it doesn't exist.
  */
 BlockJob *block_job_get(const char *id);
+
+/* Same as block_job_get(), but called with job lock held. */
+BlockJob *block_job_get_locked(const char *id);
 
 /**
  * block_job_add_bdrv:
@@ -145,6 +151,12 @@ bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs);
  */
 bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
+/*
+ * Same as block_job_set_speed(), but called with job lock held.
+ * Might release the lock temporarily.
+ */
+bool block_job_set_speed_locked(BlockJob *job, int64_t speed, Error **errp);
+
 /**
  * block_job_query:
  * @job: The job to get information about.
@@ -152,6 +164,9 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
  * Return information about a job.
  */
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
+
+/* Same as block_job_query(), but called with job lock held. */
+BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp);
 
 /**
  * block_job_iostatus_reset:
@@ -161,6 +176,9 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
  * other than job->blk.
  */
 void block_job_iostatus_reset(BlockJob *job);
+
+/* Same as block_job_iostatus_reset(), but called with job lock held. */
+void block_job_iostatus_reset_locked(BlockJob *job);
 
 /*
  * block_job_get_aio_context:
