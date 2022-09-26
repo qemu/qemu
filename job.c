@@ -33,6 +33,22 @@
 #include "qapi/qapi-events-job.h"
 
 /*
+ * The job API is composed of two categories of functions.
+ *
+ * The first includes functions used by the monitor.  The monitor is
+ * peculiar in that it accesses the job list with job_get, and
+ * therefore needs consistency across job_get and the actual operation
+ * (e.g. job_user_cancel). To achieve this consistency, the caller
+ * calls job_lock/job_unlock itself around the whole operation.
+ *
+ *
+ * The second includes functions used by the job drivers and sometimes
+ * by the core block layer. These delegate the locking to the callee instead.
+ *
+ * TODO Actually make this true
+ */
+
+/*
  * job_mutex protects the jobs list, but also makes the
  * struct job fields thread-safe.
  */
