@@ -911,7 +911,6 @@ static void run_block_job(BlockJob *job, Error **errp)
     AioContext *aio_context = block_job_get_aio_context(job);
     int ret = 0;
 
-    aio_context_acquire(aio_context);
     job_lock();
     job_ref_locked(&job->job);
     do {
@@ -936,7 +935,6 @@ static void run_block_job(BlockJob *job, Error **errp)
     }
     job_unref_locked(&job->job);
     job_unlock();
-    aio_context_release(aio_context);
 
     /* publish completion progress only when success */
     if (!ret) {

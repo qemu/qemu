@@ -88,7 +88,7 @@ typedef struct Job {
     AioContext *aio_context;
 
 
-    /** Protected by AioContext lock */
+    /** Protected by job_mutex */
 
     /** Reference count of the block job */
     int refcnt;
@@ -111,7 +111,7 @@ typedef struct Job {
     /**
      * Set to false by the job while the coroutine has yielded and may be
      * re-entered by job_enter(). There may still be I/O or event loop activity
-     * pending. Accessed under block_job_mutex (in blockjob.c).
+     * pending. Accessed under job_mutex.
      *
      * When the job is deferred to the main loop, busy is true as long as the
      * bottom half is still pending.
@@ -346,9 +346,9 @@ typedef enum JobCreateFlags {
 
 extern QemuMutex job_mutex;
 
-#define JOB_LOCK_GUARD() /* QEMU_LOCK_GUARD(&job_mutex) */
+#define JOB_LOCK_GUARD() QEMU_LOCK_GUARD(&job_mutex)
 
-#define WITH_JOB_LOCK_GUARD() /* WITH_QEMU_LOCK_GUARD(&job_mutex) */
+#define WITH_JOB_LOCK_GUARD() WITH_QEMU_LOCK_GUARD(&job_mutex)
 
 /**
  * job_lock:
@@ -422,6 +422,8 @@ void job_ref_locked(Job *job);
 /**
  * Release a reference that was previously acquired with job_ref() or
  * job_create(). If it's the last reference to the object, it will be freed.
+ *
+ * Takes AioContext lock internally to invoke a job->driver callback.
  */
 void job_unref(Job *job);
 
@@ -696,7 +698,7 @@ void job_user_cancel_locked(Job *job, bool force, Error **errp);
  * Returns the return value from the job if the job actually completed
  * during the call, or -ECANCELED if it was canceled.
  *
- * Callers must hold the AioContext lock of job->aio_context.
+ * Called with job_lock *not* held.
  */
 int job_cancel_sync(Job *job, bool force);
 
@@ -721,8 +723,7 @@ void job_cancel_sync_all(void);
  * function).
  *
  * Returns the return value from the job.
- *
- * Callers must hold the AioContext lock of job->aio_context.
+ * Called with job_lock *not* held.
  */
 int job_complete_sync(Job *job, Error **errp);
 
@@ -758,7 +759,7 @@ void job_dismiss_locked(Job **job, Error **errp);
  * Returns 0 if the job is successfully completed, -ECANCELED if the job was
  * cancelled before completing, and -errno in other error cases.
  *
- * Callers must hold the AioContext lock of job->aio_context.
+ * Called with job_lock *not* held.
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp),
                     Error **errp);
