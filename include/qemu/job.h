@@ -74,11 +74,17 @@ typedef struct Job {
     /* ProgressMeter API is thread-safe */
     ProgressMeter progress;
 
+    /**
+     * AioContext to run the job coroutine in.
+     * The job Aiocontext can be read when holding *either*
+     * the BQL (so we are in the main loop) or the job_mutex.
+     * It can only be written when we hold *both* BQL
+     * and the job_mutex.
+     */
+    AioContext *aio_context;
+
 
     /** Protected by AioContext lock */
-
-    /** AioContext to run the job coroutine in */
-    AioContext *aio_context;
 
     /** Reference count of the block job */
     int refcnt;
@@ -740,5 +746,16 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp),
  */
 int job_finish_sync_locked(Job *job, void (*finish)(Job *, Error **errp),
                            Error **errp);
+
+/**
+ * Sets the @job->aio_context.
+ * Called with job_mutex *not* held.
+ *
+ * This function must run in the main thread to protect against
+ * concurrent read in job_finish_sync_locked(), takes the job_mutex
+ * lock to protect against the read in job_do_yield_locked(), and must
+ * be called when the job is quiescent.
+ */
+void job_set_aio_context(Job *job, AioContext *ctx);
 
 #endif
