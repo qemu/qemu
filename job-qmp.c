@@ -164,7 +164,8 @@ void qmp_job_dismiss(const char *id, Error **errp)
     aio_context_release(aio_context);
 }
 
-static JobInfo *job_query_single(Job *job, Error **errp)
+/* Called with job_mutex held. */
+static JobInfo *job_query_single_locked(Job *job, Error **errp)
 {
     JobInfo *info;
     uint64_t progress_current;
@@ -194,7 +195,9 @@ JobInfoList *qmp_query_jobs(Error **errp)
     JobInfoList *head = NULL, **tail = &head;
     Job *job;
 
-    for (job = job_next(NULL); job; job = job_next(job)) {
+    JOB_LOCK_GUARD();
+
+    for (job = job_next_locked(NULL); job; job = job_next_locked(job)) {
         JobInfo *value;
         AioContext *aio_context;
 
@@ -203,7 +206,7 @@ JobInfoList *qmp_query_jobs(Error **errp)
         }
         aio_context = job->aio_context;
         aio_context_acquire(aio_context);
-        value = job_query_single(job, errp);
+        value = job_query_single_locked(job, errp);
         aio_context_release(aio_context);
         if (!value) {
             qapi_free_JobInfoList(head);
