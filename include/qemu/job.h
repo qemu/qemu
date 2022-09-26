@@ -359,18 +359,6 @@ JobTxn *job_txn_new(void);
 void job_txn_unref(JobTxn *txn);
 
 /**
- * @txn: The transaction (may be NULL)
- * @job: Job to add to the transaction
- *
- * Add @job to the transaction.  The @job must not already be in a transaction.
- * The caller must call either job_txn_unref() or job_completed() to release
- * the reference that is automatically grabbed here.
- *
- * If @txn is NULL, the function does nothing.
- */
-void job_txn_add_job(JobTxn *txn, Job *job);
-
-/**
  * Create a new long-running job and return it.
  *
  * @job_id: The id of the newly-created job, or %NULL for internal jobs
@@ -430,12 +418,6 @@ void job_progress_set_remaining(Job *job, uint64_t remaining);
  * operation running in background.)
  */
 void job_progress_increase_remaining(Job *job, uint64_t delta);
-
-/** To be called when a cancelled job is finalised. */
-void job_event_cancelled(Job *job);
-
-/** To be called when a successfully completed job is finalised. */
-void job_event_completed(Job *job);
 
 /**
  * Conditionally enter the job coroutine if the job is ready to run, not
