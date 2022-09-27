@@ -3136,7 +3136,8 @@ static bool freduction_check(DisasContext *s, arg_rmrr *a)
            require_zve64f(s);
 }
 
-GEN_OPFVV_TRANS(vfredsum_vs, freduction_check)
+GEN_OPFVV_TRANS(vfredusum_vs, freduction_check)
+GEN_OPFVV_TRANS(vfredosum_vs, freduction_check)
 GEN_OPFVV_TRANS(vfredmax_vs, freduction_check)
 GEN_OPFVV_TRANS(vfredmin_vs, freduction_check)
 
@@ -3148,7 +3149,8 @@ static bool freduction_widen_check(DisasContext *s, arg_rmrr *a)
            (s->sew != MO_8);
 }
 
-GEN_OPFVV_WIDEN_TRANS(vfwredsum_vs, freduction_widen_check)
+GEN_OPFVV_WIDEN_TRANS(vfwredusum_vs, freduction_widen_check)
+GEN_OPFVV_WIDEN_TRANS(vfwredosum_vs, freduction_widen_check)
 
 /*
  *** Vector Mask Operations
