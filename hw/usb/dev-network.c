@@ -91,6 +91,8 @@ enum usbstring_idx {
 #define USB_CDC_SET_ETHERNET_PACKET_FILTER	0x43
 #define USB_CDC_GET_ETHERNET_STATISTIC		0x44
 
+#define USB_CDC_NETWORK_CONNECTION	0x00
+
 #define LOG2_STATUS_INTERVAL_MSEC	5    /* 1 << 5 == 32 msec */
 #define STATUS_BYTECOUNT		16   /* 8 byte header + data */
 
@@ -640,6 +642,8 @@ struct USBNetState {
     uint16_t filter;
     uint32_t vendorid;
 
+    uint16_t connection;
+
     unsigned int out_ptr;
     uint8_t out_buf[2048];
 
@@ -647,6 +651,7 @@ struct USBNetState {
     uint8_t in_buf[2048];
 
     USBEndpoint *intr;
+    USBEndpoint *bulk_in;
 
     char usbstring_mac[13];
     NICState *nic;
@@ -1121,6 +1126,12 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
 #endif
         break;
 
+    case ClassInterfaceOutRequest | USB_CDC_SET_ETHERNET_PACKET_FILTER:
+        if (is_rndis(s)) {
+            goto fail;
+        }
+        break;
+
     default:
     fail:
         fprintf(stderr, "usbnet: failed control transaction: "
@@ -1133,18 +1144,28 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_net_handle_statusin(USBNetState *s, USBPacket *p)
 {
-    le32 buf[2];
+    le32 rbuf[2];
+    uint16_t ebuf[4];
 
     if (p->iov.size < 8) {
         p->status = USB_RET_STALL;
         return;
     }
 
-    buf[0] = cpu_to_le32(1);
-    buf[1] = cpu_to_le32(0);
-    usb_packet_copy(p, buf, 8);
-    if (!s->rndis_resp.tqh_first) {
-        p->status = USB_RET_NAK;
+    if (is_rndis(s)) {
+        rbuf[0] = cpu_to_le32(1);
+        rbuf[1] = cpu_to_le32(0);
+        usb_packet_copy(p, rbuf, 8);
+        if (!s->rndis_resp.tqh_first) {
+            p->status = USB_RET_NAK;
+        }
+    } else {
+        ebuf[0] =
+            cpu_to_be16(ClassInterfaceRequest | USB_CDC_NETWORK_CONNECTION);
+        ebuf[1] = cpu_to_le16(s->connection);
+        ebuf[2] = cpu_to_le16(1);
+        ebuf[3] = cpu_to_le16(0);
+        usb_packet_copy(p, ebuf, 8);
     }
 
 #ifdef TRAFFIC_DEBUG
@@ -1204,7 +1225,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     s->out_ptr += sz;
 
     if (!is_rndis(s)) {
-        if (p->iov.size < 64) {
+        if (p->iov.size % 64 || p->iov.size == 0) {
             qemu_send_packet(qemu_get_queue(s->nic), s->out_buf, s->out_ptr);
             s->out_ptr = 0;
         }
@@ -1317,6 +1338,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     memcpy(in_buf, buf, size);
     s->in_len = total_size;
     s->in_ptr = 0;
+    usb_wakeup(s->bulk_in, 0);
     return size;
 }
 
@@ -1358,7 +1380,9 @@ static void usb_net_realize(USBDevice *dev, Error **errp)
     s->media_state = 0;	/* NDIS_MEDIA_STATE_CONNECTED */;
     s->filter = 0;
     s->vendorid = 0x1234;
+    s->connection = 1;	/* Connected */
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
+    s->bulk_in = usb_ep_get(dev, USB_TOKEN_IN, 2);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
