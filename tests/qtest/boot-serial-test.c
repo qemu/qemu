@@ -233,6 +233,7 @@ static void test_machine(const void *data)
 
     ser_fd = g_file_open_tmp("qtest-boot-serial-sXXXXXX", &serialtmp, NULL);
     g_assert(ser_fd != -1);
+    close(ser_fd);
 
     if (test->kernel) {
         code = test->kernel;
@@ -266,6 +267,8 @@ static void test_machine(const void *data)
         unlink(codetmp);
     }
 
+    ser_fd = open(serialtmp, O_RDONLY);
+    g_assert(ser_fd != -1);
     if (!check_guest_output(qts, test, ser_fd)) {
         g_error("Failed to find expected string. Please check '%s'",
                 serialtmp);
