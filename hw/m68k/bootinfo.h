@@ -48,13 +48,14 @@
         stw_phys(as, base, id); \
         base += 2; \
         stw_phys(as, base, \
-                 (sizeof(struct bi_record) + strlen(string) + 2) & ~1); \
+                 (sizeof(struct bi_record) + strlen(string) + \
+                  1 /* null termination */ + 3 /* padding */) & ~3); \
         base += 2; \
         for (i = 0; string[i]; i++) { \
             stb_phys(as, base++, string[i]); \
         } \
         stb_phys(as, base++, 0); \
-        base = (base + 1) & ~1; \
+        base = (base + 3) & ~3; \
     } while (0)
 
 #define BOOTINFODATA(as, base, id, data, len) \
@@ -63,13 +64,14 @@
         stw_phys(as, base, id); \
         base += 2; \
         stw_phys(as, base, \
-                 (sizeof(struct bi_record) + len + 3) & ~1); \
+                 (sizeof(struct bi_record) + len + \
+                  2 /* length field */ + 3 /* padding */) & ~3); \
         base += 2; \
         stw_phys(as, base, len); \
         base += 2; \
         for (i = 0; i < len; ++i) { \
             stb_phys(as, base++, data[i]); \
         } \
-        base = (base + 1) & ~1; \
+        base = (base + 3) & ~3; \
     } while (0)
 #endif

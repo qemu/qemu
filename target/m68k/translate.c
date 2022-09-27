@@ -4624,7 +4624,7 @@ DISAS_INSN(move_from_sr)
 {
     TCGv sr;
 
-    if (IS_USER(s) && !m68k_feature(env, M68K_FEATURE_M68K)) {
+    if (IS_USER(s) && m68k_feature(env, M68K_FEATURE_MOVEFROMSR_PRIV)) {
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
