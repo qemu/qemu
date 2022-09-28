@@ -841,7 +841,8 @@ static char *create_listen_socket(int *fd)
     char *path;
 
     /* No race because our pid makes the path unique */
-    path = g_strdup_printf("/tmp/qtest-%d-sock.XXXXXX", getpid());
+    path = g_strdup_printf("%s/qtest-%d-sock.XXXXXX",
+                           g_get_tmp_dir(), getpid());
     tmp_fd = mkstemp(path);
     g_assert_cmpint(tmp_fd, >=, 0);
     close(tmp_fd);

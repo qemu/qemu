@@ -27,16 +27,16 @@
 
 static char *create_test_img(int secs)
 {
-    char *template = strdup("/tmp/qtest.XXXXXX");
+    char *template;
     int fd, ret;
 
-    fd = mkstemp(template);
+    fd = g_file_open_tmp("qtest.XXXXXX", &template, NULL);
     g_assert(fd >= 0);
     ret = ftruncate(fd, (off_t)secs * 512);
     close(fd);
 
     if (ret) {
-        free(template);
+        g_free(template);
         template = NULL;
     }
 
@@ -422,9 +422,8 @@ static MBRpartitions empty_mbr = { {false, 0, 0, 0, 0, 0, 0, 0, 0},
 
 static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
 {
-    const char *template = "/tmp/qtest.XXXXXX";
-    char *raw_path = strdup(template);
-    char *qcow2_path = strdup(template);
+    g_autofree char *raw_path = NULL;
+    char *qcow2_path;
     char cmd[100 + 2 * PATH_MAX];
     uint8_t buf[512] = {};
     int i, ret, fd, offset;
@@ -468,7 +467,7 @@ static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
         offset += 0x10;
     }
 
-    fd = mkstemp(raw_path);
+    fd = g_file_open_tmp("qtest.XXXXXX", &raw_path, NULL);
     g_assert(fd >= 0);
     close(fd);
 
@@ -478,7 +477,7 @@ static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
     g_assert(ret == sizeof(buf));
     close(fd);
 
-    fd = mkstemp(qcow2_path);
+    fd = g_file_open_tmp("qtest.XXXXXX", &qcow2_path, NULL);
     g_assert(fd >= 0);
     close(fd);
 
@@ -506,7 +505,6 @@ static char *create_qcow2_with_mbr(MBRpartitions mbr, uint64_t sectors)
     free(qemu_img_abs_path);
 
     unlink(raw_path);
-    free(raw_path);
 
     return qcow2_path;
 }
@@ -714,7 +712,7 @@ static void test_override(TestArgs *args, CHSResult expected[])
 
     for (i = 0; i < args->n_drives; i++) {
         unlink(args->drives[i]);
-        free(args->drives[i]);
+        g_free(args->drives[i]);
     }
     g_free(args->drives);
     g_strfreev(args->argv);
@@ -867,7 +865,7 @@ static void test_override_scsi_hot_unplug(void)
 
     for (i = 0; i < args->n_drives; i++) {
         unlink(args->drives[i]);
-        free(args->drives[i]);
+        g_free(args->drives[i]);
     }
     g_free(args->drives);
     g_strfreev(args->argv);
@@ -927,7 +925,7 @@ static void test_override_virtio_hot_unplug(void)
 
     for (i = 0; i < args->n_drives; i++) {
         unlink(args->drives[i]);
-        free(args->drives[i]);
+        g_free(args->drives[i]);
     }
     g_free(args->drives);
     g_strfreev(args->argv);
@@ -987,7 +985,7 @@ test_add_done:
     for (i = 0; i < backend_last; i++) {
         if (img_file_name[i]) {
             unlink(img_file_name[i]);
-            free(img_file_name[i]);
+            g_free(img_file_name[i]);
         }
     }
 

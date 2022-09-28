@@ -482,8 +482,8 @@ static TestServer *test_server_new(const gchar *name,
         struct vhost_user_ops *ops)
 {
     TestServer *server = g_new0(TestServer, 1);
-    char template[] = "/tmp/vhost-test-XXXXXX";
-    const char *tmpfs;
+    g_autofree const char *tmpfs = NULL;
+    GError *err = NULL;
 
     server->context = g_main_context_new();
     server->loop = g_main_loop_new(server->context, FALSE);
@@ -491,9 +491,11 @@ static TestServer *test_server_new(const gchar *name,
     /* run the main loop thread so the chardev may operate */
     server->thread = g_thread_new(NULL, thread_function, server->loop);
 
-    tmpfs = g_mkdtemp(template);
+    tmpfs = g_dir_make_tmp("vhost-test-XXXXXX", &err);
     if (!tmpfs) {
-        g_test_message("g_mkdtemp on path (%s): %s", template, strerror(errno));
+        g_test_message("g_dir_make_tmp on path (%s): %s", tmpfs,
+                       err->message);
+        g_error_free(err);
     }
     g_assert(tmpfs);
 
