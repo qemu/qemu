@@ -2111,29 +2111,31 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     {
         struct vfio_iommu_type1_info *info;
 
-        /*
-         * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
-         * IOVA whatsoever.  That's not actually true, but the current
-         * kernel interface doesn't tell us what it can map, and the
-         * existing Type1 IOMMUs generally support any IOVA we're
-         * going to actually try in practice.
-         */
         ret = vfio_get_iommu_info(container, &info);
-
-        if (ret || !(info->flags & VFIO_IOMMU_INFO_PGSIZES)) {
-            /* Assume 4k IOVA page size */
-            info->iova_pgsizes = 4096;
+        if (ret) {
+            error_setg_errno(errp, -ret, "Failed to get VFIO IOMMU info");
+            goto enable_discards_exit;
         }
-        vfio_host_win_add(container, 0, (hwaddr)-1, info->iova_pgsizes);
-        container->pgsizes = info->iova_pgsizes;
 
-        /* The default in the kernel ("dma_entry_limit") is 65535. */
-        container->dma_max_mappings = 65535;
-        if (!ret) {
-            vfio_get_info_dma_avail(info, &container->dma_max_mappings);
-            vfio_get_iommu_info_migration(container, info);
+        if (info->flags & VFIO_IOMMU_INFO_PGSIZES) {
+            container->pgsizes = info->iova_pgsizes;
+        } else {
+            container->pgsizes = qemu_real_host_page_size();
         }
+
+        if (!vfio_get_info_dma_avail(info, &container->dma_max_mappings)) {
+            container->dma_max_mappings = 65535;
+        }
+        vfio_get_iommu_info_migration(container, info);
         g_free(info);
+
+        /*
+         * FIXME: We should parse VFIO_IOMMU_TYPE1_INFO_CAP_IOVA_RANGE
+         * information to get the actual window extent rather than assume
+         * a 64-bit IOVA address space.
+         */
+        vfio_host_win_add(container, 0, (hwaddr)-1, container->pgsizes);
+
         break;
     }
     case VFIO_SPAPR_TCE_v2_IOMMU:
