@@ -2899,14 +2899,22 @@ static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
 
 static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
-    return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
+    if (unlikely(TARGET_REGISTER_BITS == 32 && a->size > MO_32)) {
+        return gen_illegal(ctx);
+    } else {
+        return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
                    a->disp, a->sp, a->m, a->size | MO_TE);
+    }
 }
 
 static bool trans_st(DisasContext *ctx, arg_ldst *a)
 {
     assert(a->x == 0 && a->scale == 0);
-    return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
+    if (unlikely(TARGET_REGISTER_BITS == 32 && a->size > MO_32)) {
+        return gen_illegal(ctx);
+    } else {
+        return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
+    }
 }
 
 static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
