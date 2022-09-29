@@ -206,7 +206,7 @@ out:
 }
 #endif
 
-bool module_load_one(const char *prefix, const char *lib_name)
+bool module_load(const char *prefix, const char *lib_name)
 {
     bool success = false;
 
@@ -254,7 +254,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
             if (strcmp(modinfo->name, module_name) == 0) {
                 /* we depend on other module(s) */
                 for (sl = modinfo->deps; *sl != NULL; sl++) {
-                    module_load_one("", *sl);
+                    module_load("", *sl);
                 }
             } else {
                 for (sl = modinfo->deps; *sl != NULL; sl++) {
@@ -312,7 +312,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
 
 static bool module_loaded_qom_all;
 
-void module_load_qom_one(const char *type)
+void module_load_qom(const char *type)
 {
     const QemuModinfo *modinfo;
     const char **sl;
@@ -331,7 +331,7 @@ void module_load_qom_one(const char *type)
         }
         for (sl = modinfo->objs; *sl != NULL; sl++) {
             if (strcmp(type, *sl) == 0) {
-                module_load_one("", modinfo->name);
+                module_load("", modinfo->name);
             }
         }
     }
@@ -352,7 +352,7 @@ void module_load_qom_all(void)
         if (!module_check_arch(modinfo)) {
             continue;
         }
-        module_load_one("", modinfo->name);
+        module_load("", modinfo->name);
     }
     module_loaded_qom_all = true;
 }
@@ -368,7 +368,7 @@ void qemu_load_module_for_opts(const char *group)
         }
         for (sl = modinfo->opts; *sl != NULL; sl++) {
             if (strcmp(group, *sl) == 0) {
-                module_load_one("", modinfo->name);
+                module_load("", modinfo->name);
             }
         }
     }
@@ -378,7 +378,7 @@ void qemu_load_module_for_opts(const char *group)
 
 void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
-void module_load_qom_one(const char *type) {}
+void module_load_qom(const char *type) {}
 void module_load_qom_all(void) {}
 
 #endif

@@ -526,7 +526,7 @@ void object_initialize(void *data, size_t size, const char *typename)
 
 #ifdef CONFIG_MODULES
     if (!type) {
-        module_load_qom_one(typename);
+        module_load_qom(typename);
         type = type_get_by_name(typename);
     }
 #endif
@@ -1033,7 +1033,7 @@ ObjectClass *module_object_class_by_name(const char *typename)
     oc = object_class_by_name(typename);
 #ifdef CONFIG_MODULES
     if (!oc) {
-        module_load_qom_one(typename);
+        module_load_qom(typename);
         oc = object_class_by_name(typename);
     }
 #endif
