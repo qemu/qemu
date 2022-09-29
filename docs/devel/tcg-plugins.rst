@@ -172,7 +172,7 @@ slightly faster (but not thread safe) counters.
 
 Example::
 
-  ./aarch64-linux-user/qemu-aarch64 \
+  $ qemu-aarch64 \
     -plugin contrib/plugins/libhotblocks.so -d plugin \
     ./tests/tcg/aarch64-linux-user/sha1
   SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
@@ -186,7 +186,7 @@ Example::
 
 Similar to hotblocks but this time tracks memory accesses::
 
-  ./aarch64-linux-user/qemu-aarch64 \
+  $ qemu-aarch64 \
     -plugin contrib/plugins/libhotpages.so -d plugin \
     ./tests/tcg/aarch64-linux-user/sha1
   SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
@@ -220,7 +220,7 @@ counted. You can give a value to the ``count`` argument for a class of
 instructions to break it down fully, so for example to see all the system
 registers accesses::
 
-  ./aarch64-softmmu/qemu-system-aarch64 $(QEMU_ARGS) \
+  $ qemu-system-aarch64 $(QEMU_ARGS) \
     -append "root=/dev/sda2 systemd.unit=benchmark.service" \
     -smp 4 -plugin ./contrib/plugins/libhowvec.so,count=sreg -d plugin
 
@@ -288,10 +288,10 @@ for the plugin is a path for the socket the two instances will
 communicate over::
 
 
-  ./sparc-softmmu/qemu-system-sparc -monitor none -parallel none \
+  $ qemu-system-sparc -monitor none -parallel none \
     -net none -M SS-20 -m 256 -kernel day11/zImage.elf \
     -plugin ./contrib/plugins/liblockstep.so,sockpath=lockstep-sparc.sock \
-  -d plugin,nochain
+    -d plugin,nochain
 
 which will eventually report::
 
@@ -348,7 +348,7 @@ Please be aware that this will generate a lot of output.
 
 The plugin needs default argument::
 
-  qemu-system-arm $(QEMU_ARGS) \
+  $ qemu-system-arm $(QEMU_ARGS) \
     -plugin ./contrib/plugins/libexeclog.so -d plugin
 
 which will output an execution trace following this structure::
@@ -365,10 +365,10 @@ which will output an execution trace following this structure::
   0, 0x10c8, 0xfff96c43, "ldr r3, [r0, #0x44]", load, 0x200000e4, RAM
 
 the output can be filtered to only track certain instructions or
-addresses using the `ifilter` or `afilter` options. You can stack the
+addresses using the ``ifilter`` or ``afilter`` options. You can stack the
 arguments if required::
 
-  qemu-system-arm $(QEMU_ARGS) \
+  $ qemu-system-arm $(QEMU_ARGS) \
     -plugin ./contrib/plugins/libexeclog.so,ifilter=st1w,afilter=0x40001808 -d plugin
 
 - contrib/plugins/cache.c
@@ -377,7 +377,7 @@ Cache modelling plugin that measures the performance of a given L1 cache
 configuration, and optionally a unified L2 per-core cache when a given working
 set is run::
 
-    qemu-x86_64 -plugin ./contrib/plugins/libcache.so \
+  $ qemu-x86_64 -plugin ./contrib/plugins/libcache.so \
       -d plugin -D cache.log ./tests/tcg/x86_64-linux-user/float_convs
 
 will report the following::
