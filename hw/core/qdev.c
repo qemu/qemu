@@ -147,8 +147,21 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp)
 
 DeviceState *qdev_new(const char *name)
 {
-    if (!object_class_by_name(name)) {
-        module_load_qom(name);
+    ObjectClass *oc = object_class_by_name(name);
+#ifdef CONFIG_MODULES
+    if (!oc) {
+        int rv = module_load_qom(name, &error_fatal);
+        if (rv > 0) {
+            oc = object_class_by_name(name);
+        } else {
+            error_report("could not find a module for type '%s'", name);
+            exit(1);
+        }
+    }
+#endif
+    if (!oc) {
+        error_report("unknown type '%s'", name);
+        abort();
     }
     return DEVICE(object_new(name));
 }

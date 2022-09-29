@@ -444,9 +444,17 @@ static int dmg_open(BlockDriverState *bs, QDict *options, int flags,
     if (ret < 0) {
         return ret;
     }
-
-    block_module_load("dmg-bz2");
-    block_module_load("dmg-lzfse");
+    /*
+     * NB: if uncompress submodules are absent,
+     * ie block_module_load return value == 0, the function pointers
+     * dmg_uncompress_bz2 and dmg_uncompress_lzfse will be NULL.
+     */
+    if (block_module_load("dmg-bz2", errp) < 0) {
+        return -EINVAL;
+    }
+    if (block_module_load("dmg-lzfse", errp) < 0) {
+        return -EINVAL;
+    }
 
     s->n_chunks = 0;
     s->offsets = s->lengths = s->sectors = s->sectorcounts = NULL;
