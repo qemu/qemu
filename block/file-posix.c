@@ -2061,6 +2061,27 @@ static int coroutine_fn raw_thread_pool_submit(BlockDriverState *bs,
     return thread_pool_submit_co(pool, func, arg);
 }
 
+/*
+ * Check if all memory in this vector is sector aligned.
+ */
+static bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
+{
+    int i;
+    size_t alignment = bdrv_min_mem_align(bs);
+    IO_CODE();
+
+    for (i = 0; i < qiov->niov; i++) {
+        if ((uintptr_t) qiov->iov[i].iov_base % alignment) {
+            return false;
+        }
+        if (qiov->iov[i].iov_len % alignment) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
                                    uint64_t bytes, QEMUIOVector *qiov, int type)
 {
