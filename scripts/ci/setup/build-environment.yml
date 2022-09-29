@@ -153,6 +153,7 @@
           - make
           - mesa-libEGL-devel
           - nettle-devel
+          - ninja-build
           - nmap-ncat
           - perl-Test-Harness
           - pixman-devel
