@@ -49,7 +49,10 @@
 #include "sysemu/runstate.h"
 #include "semihosting/semihost.h"
 #include "exec/exec-all.h"
+#include "exec/hwaddr.h"
 #include "sysemu/replay.h"
+
+#include "internals.h"
 
 #ifdef CONFIG_USER_ONLY
 #define GDB_ATTACHED "0"
@@ -1012,130 +1015,16 @@ void gdb_register_coprocessor(CPUState *cpu,
     }
 }
 
-#ifndef CONFIG_USER_ONLY
-/* Translate GDB watchpoint type to a flags value for cpu_watchpoint_* */
-static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
-{
-    static const int xlat[] = {
-        [GDB_WATCHPOINT_WRITE]  = BP_GDB | BP_MEM_WRITE,
-        [GDB_WATCHPOINT_READ]   = BP_GDB | BP_MEM_READ,
-        [GDB_WATCHPOINT_ACCESS] = BP_GDB | BP_MEM_ACCESS,
-    };
-
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    int cputype = xlat[gdbtype];
-
-    if (cc->gdb_stop_before_watchpoint) {
-        cputype |= BP_STOP_BEFORE_ACCESS;
-    }
-    return cputype;
-}
-#endif
-
-static int gdb_breakpoint_insert(int type, target_ulong addr, target_ulong len)
-{
-    CPUState *cpu;
-    int err = 0;
-
-    if (kvm_enabled()) {
-        return kvm_insert_breakpoint(gdbserver_state.c_cpu, addr, len, type);
-    }
-
-    switch (type) {
-    case GDB_BREAKPOINT_SW:
-    case GDB_BREAKPOINT_HW:
-        CPU_FOREACH(cpu) {
-            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
-            if (err) {
-                break;
-            }
-        }
-        return err;
-#ifndef CONFIG_USER_ONLY
-    case GDB_WATCHPOINT_WRITE:
-    case GDB_WATCHPOINT_READ:
-    case GDB_WATCHPOINT_ACCESS:
-        CPU_FOREACH(cpu) {
-            err = cpu_watchpoint_insert(cpu, addr, len,
-                                        xlat_gdb_type(cpu, type), NULL);
-            if (err) {
-                break;
-            }
-        }
-        return err;
-#endif
-    default:
-        return -ENOSYS;
-    }
-}
-
-static int gdb_breakpoint_remove(int type, target_ulong addr, target_ulong len)
-{
-    CPUState *cpu;
-    int err = 0;
-
-    if (kvm_enabled()) {
-        return kvm_remove_breakpoint(gdbserver_state.c_cpu, addr, len, type);
-    }
-
-    switch (type) {
-    case GDB_BREAKPOINT_SW:
-    case GDB_BREAKPOINT_HW:
-        CPU_FOREACH(cpu) {
-            err = cpu_breakpoint_remove(cpu, addr, BP_GDB);
-            if (err) {
-                break;
-            }
-        }
-        return err;
-#ifndef CONFIG_USER_ONLY
-    case GDB_WATCHPOINT_WRITE:
-    case GDB_WATCHPOINT_READ:
-    case GDB_WATCHPOINT_ACCESS:
-        CPU_FOREACH(cpu) {
-            err = cpu_watchpoint_remove(cpu, addr, len,
-                                        xlat_gdb_type(cpu, type));
-            if (err)
-                break;
-        }
-        return err;
-#endif
-    default:
-        return -ENOSYS;
-    }
-}
-
-static inline void gdb_cpu_breakpoint_remove_all(CPUState *cpu)
-{
-    cpu_breakpoint_remove_all(cpu, BP_GDB);
-#ifndef CONFIG_USER_ONLY
-    cpu_watchpoint_remove_all(cpu, BP_GDB);
-#endif
-}
-
 static void gdb_process_breakpoint_remove_all(GDBProcess *p)
 {
     CPUState *cpu = get_first_cpu_in_process(p);
 
     while (cpu) {
-        gdb_cpu_breakpoint_remove_all(cpu);
+        gdb_breakpoint_remove_all(cpu);
         cpu = gdb_next_cpu_in_process(cpu);
     }
 }
 
-static void gdb_breakpoint_remove_all(void)
-{
-    CPUState *cpu;
-
-    if (kvm_enabled()) {
-        kvm_remove_all_breakpoints(gdbserver_state.c_cpu);
-        return;
-    }
-
-    CPU_FOREACH(cpu) {
-        gdb_cpu_breakpoint_remove_all(cpu);
-    }
-}
 
 static void gdb_set_cpu_pc(target_ulong pc)
 {
@@ -1667,7 +1556,8 @@ static void handle_insert_bp(GArray *params, void *user_ctx)
         return;
     }
 
-    res = gdb_breakpoint_insert(get_param(params, 0)->val_ul,
+    res = gdb_breakpoint_insert(gdbserver_state.c_cpu,
+                                get_param(params, 0)->val_ul,
                                 get_param(params, 1)->val_ull,
                                 get_param(params, 2)->val_ull);
     if (res >= 0) {
@@ -1690,7 +1580,8 @@ static void handle_remove_bp(GArray *params, void *user_ctx)
         return;
     }
 
-    res = gdb_breakpoint_remove(get_param(params, 0)->val_ul,
+    res = gdb_breakpoint_remove(gdbserver_state.c_cpu,
+                                get_param(params, 0)->val_ul,
                                 get_param(params, 1)->val_ull,
                                 get_param(params, 2)->val_ull);
     if (res >= 0) {
@@ -2541,7 +2432,7 @@ static void handle_target_halt(GArray *params, void *user_ctx)
      * because gdb is doing an initial connect and the state
      * should be cleaned up.
      */
-    gdb_breakpoint_remove_all();
+    gdb_breakpoint_remove_all(gdbserver_state.c_cpu);
 }
 
 static int gdb_handle_packet(const char *line_buf)
