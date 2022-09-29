@@ -34,6 +34,7 @@ libqos_srcs = files(
         'tpci200.c',
         'virtio.c',
         'virtio-9p.c',
+        'virtio-9p-client.c',
         'virtio-balloon.c',
         'virtio-blk.c',
         'vhost-user-blk.c',

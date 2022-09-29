@@ -1,0 +1,684 @@
+/*
+ * 9P network client for VirtIO 9P test cases (based on QTest)
+ *
+ * Copyright (c) 2014 SUSE LINUX Products GmbH
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+
+/*
+ * Not so fast! You might want to read the 9p developer docs first:
+ * https://wiki.qemu.org/Documentation/9p
+ */
+
+#include "qemu/osdep.h"
+#include "virtio-9p-client.h"
+
+#define QVIRTIO_9P_TIMEOUT_US (10 * 1000 * 1000)
+static QGuestAllocator *alloc;
+
+void v9fs_set_allocator(QGuestAllocator *t_alloc)
+{
+    alloc = t_alloc;
+}
+
+void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
+{
+    qtest_memwrite(req->qts, req->t_msg + req->t_off, addr, len);
+    req->t_off += len;
+}
+
+void v9fs_memskip(P9Req *req, size_t len)
+{
+    req->r_off += len;
+}
+
+void v9fs_memread(P9Req *req, void *addr, size_t len)
+{
+    qtest_memread(req->qts, req->r_msg + req->r_off, addr, len);
+    req->r_off += len;
+}
+
+void v9fs_uint8_read(P9Req *req, uint8_t *val)
+{
+    v9fs_memread(req, val, 1);
+}
+
+void v9fs_uint16_write(P9Req *req, uint16_t val)
+{
+    uint16_t le_val = cpu_to_le16(val);
+
+    v9fs_memwrite(req, &le_val, 2);
+}
+
+void v9fs_uint16_read(P9Req *req, uint16_t *val)
+{
+    v9fs_memread(req, val, 2);
+    le16_to_cpus(val);
+}
+
+void v9fs_uint32_write(P9Req *req, uint32_t val)
+{
+    uint32_t le_val = cpu_to_le32(val);
+
+    v9fs_memwrite(req, &le_val, 4);
+}
+
+void v9fs_uint64_write(P9Req *req, uint64_t val)
+{
+    uint64_t le_val = cpu_to_le64(val);
+
+    v9fs_memwrite(req, &le_val, 8);
+}
+
+void v9fs_uint32_read(P9Req *req, uint32_t *val)
+{
+    v9fs_memread(req, val, 4);
+    le32_to_cpus(val);
+}
+
+void v9fs_uint64_read(P9Req *req, uint64_t *val)
+{
+    v9fs_memread(req, val, 8);
+    le64_to_cpus(val);
+}
+
+/* len[2] string[len] */
+uint16_t v9fs_string_size(const char *string)
+{
+    size_t len = strlen(string);
+
+    g_assert_cmpint(len, <=, UINT16_MAX - 2);
+
+    return 2 + len;
+}
+
+void v9fs_string_write(P9Req *req, const char *string)
+{
+    int len = strlen(string);
+
+    g_assert_cmpint(len, <=, UINT16_MAX);
+
+    v9fs_uint16_write(req, (uint16_t) len);
+    v9fs_memwrite(req, string, len);
+}
+
+void v9fs_string_read(P9Req *req, uint16_t *len, char **string)
+{
+    uint16_t local_len;
+
+    v9fs_uint16_read(req, &local_len);
+    if (len) {
+        *len = local_len;
+    }
+    if (string) {
+        *string = g_malloc(local_len + 1);
+        v9fs_memread(req, *string, local_len);
+        (*string)[local_len] = 0;
+    } else {
+        v9fs_memskip(req, local_len);
+    }
+}
+
+typedef struct {
+    uint32_t size;
+    uint8_t id;
+    uint16_t tag;
+} QEMU_PACKED P9Hdr;
+
+P9Req *v9fs_req_init(QVirtio9P *v9p, uint32_t size, uint8_t id,
+                     uint16_t tag)
+{
+    P9Req *req = g_new0(P9Req, 1);
+    uint32_t total_size = 7; /* 9P header has well-known size of 7 bytes */
+    P9Hdr hdr = {
+        .id = id,
+        .tag = cpu_to_le16(tag)
+    };
+
+    g_assert_cmpint(total_size, <=, UINT32_MAX - size);
+    total_size += size;
+    hdr.size = cpu_to_le32(total_size);
+
+    g_assert_cmpint(total_size, <=, P9_MAX_SIZE);
+
+    req->qts = global_qtest;
+    req->v9p = v9p;
+    req->t_size = total_size;
+    req->t_msg = guest_alloc(alloc, req->t_size);
+    v9fs_memwrite(req, &hdr, 7);
+    req->tag = tag;
+    return req;
+}
+
+void v9fs_req_send(P9Req *req)
+{
+    QVirtio9P *v9p = req->v9p;
+
+    req->r_msg = guest_alloc(alloc, P9_MAX_SIZE);
+    req->free_head = qvirtqueue_add(req->qts, v9p->vq, req->t_msg, req->t_size,
+                                    false, true);
+    qvirtqueue_add(req->qts, v9p->vq, req->r_msg, P9_MAX_SIZE, true, false);
+    qvirtqueue_kick(req->qts, v9p->vdev, v9p->vq, req->free_head);
+    req->t_off = 0;
+}
+
+static const char *rmessage_name(uint8_t id)
+{
+    return
+        id == P9_RLERROR ? "RLERROR" :
+        id == P9_RVERSION ? "RVERSION" :
+        id == P9_RATTACH ? "RATTACH" :
+        id == P9_RWALK ? "RWALK" :
+        id == P9_RLOPEN ? "RLOPEN" :
+        id == P9_RWRITE ? "RWRITE" :
+        id == P9_RMKDIR ? "RMKDIR" :
+        id == P9_RLCREATE ? "RLCREATE" :
+        id == P9_RSYMLINK ? "RSYMLINK" :
+        id == P9_RLINK ? "RLINK" :
+        id == P9_RUNLINKAT ? "RUNLINKAT" :
+        id == P9_RFLUSH ? "RFLUSH" :
+        id == P9_RREADDIR ? "READDIR" :
+        "<unknown>";
+}
+
+void v9fs_req_wait_for_reply(P9Req *req, uint32_t *len)
+{
+    QVirtio9P *v9p = req->v9p;
+
+    qvirtio_wait_used_elem(req->qts, v9p->vdev, v9p->vq, req->free_head, len,
+                           QVIRTIO_9P_TIMEOUT_US);
+}
+
+void v9fs_req_recv(P9Req *req, uint8_t id)
+{
+    P9Hdr hdr;
+
+    v9fs_memread(req, &hdr, 7);
+    hdr.size = ldl_le_p(&hdr.size);
+    hdr.tag = lduw_le_p(&hdr.tag);
+
+    g_assert_cmpint(hdr.size, >=, 7);
+    g_assert_cmpint(hdr.size, <=, P9_MAX_SIZE);
+    g_assert_cmpint(hdr.tag, ==, req->tag);
+
+    if (hdr.id != id) {
+        g_printerr("Received response %d (%s) instead of %d (%s)\n",
+                   hdr.id, rmessage_name(hdr.id), id, rmessage_name(id));
+
+        if (hdr.id == P9_RLERROR) {
+            uint32_t err;
+            v9fs_uint32_read(req, &err);
+            g_printerr("Rlerror has errno %d (%s)\n", err, strerror(err));
+        }
+    }
+    g_assert_cmpint(hdr.id, ==, id);
+}
+
+void v9fs_req_free(P9Req *req)
+{
+    guest_free(alloc, req->t_msg);
+    guest_free(alloc, req->r_msg);
+    g_free(req);
+}
+
+/* size[4] Rlerror tag[2] ecode[4] */
+void v9fs_rlerror(P9Req *req, uint32_t *err)
+{
+    v9fs_req_recv(req, P9_RLERROR);
+    v9fs_uint32_read(req, err);
+    v9fs_req_free(req);
+}
+
+/* size[4] Tversion tag[2] msize[4] version[s] */
+P9Req *v9fs_tversion(QVirtio9P *v9p, uint32_t msize, const char *version,
+                     uint16_t tag)
+{
+    P9Req *req;
+    uint32_t body_size = 4;
+    uint16_t string_size = v9fs_string_size(version);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+    req = v9fs_req_init(v9p, body_size, P9_TVERSION, tag);
+
+    v9fs_uint32_write(req, msize);
+    v9fs_string_write(req, version);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rversion tag[2] msize[4] version[s] */
+void v9fs_rversion(P9Req *req, uint16_t *len, char **version)
+{
+    uint32_t msize;
+
+    v9fs_req_recv(req, P9_RVERSION);
+    v9fs_uint32_read(req, &msize);
+
+    g_assert_cmpint(msize, ==, P9_MAX_SIZE);
+
+    if (len || version) {
+        v9fs_string_read(req, len, version);
+    }
+
+    v9fs_req_free(req);
+}
+
+/* size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4] */
+P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
+                    uint16_t tag)
+{
+    const char *uname = ""; /* ignored by QEMU */
+    const char *aname = ""; /* ignored by QEMU */
+    P9Req *req = v9fs_req_init(v9p, 4 + 4 + 2 + 2 + 4, P9_TATTACH, tag);
+
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, P9_NOFID);
+    v9fs_string_write(req, uname);
+    v9fs_string_write(req, aname);
+    v9fs_uint32_write(req, n_uname);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rattach tag[2] qid[13] */
+void v9fs_rattach(P9Req *req, v9fs_qid *qid)
+{
+    v9fs_req_recv(req, P9_RATTACH);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Twalk tag[2] fid[4] newfid[4] nwname[2] nwname*(wname[s]) */
+P9Req *v9fs_twalk(QVirtio9P *v9p, uint32_t fid, uint32_t newfid,
+                  uint16_t nwname, char *const wnames[], uint16_t tag)
+{
+    P9Req *req;
+    int i;
+    uint32_t body_size = 4 + 4 + 2;
+
+    for (i = 0; i < nwname; i++) {
+        uint16_t wname_size = v9fs_string_size(wnames[i]);
+
+        g_assert_cmpint(body_size, <=, UINT32_MAX - wname_size);
+        body_size += wname_size;
+    }
+    req = v9fs_req_init(v9p,  body_size, P9_TWALK, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, newfid);
+    v9fs_uint16_write(req, nwname);
+    for (i = 0; i < nwname; i++) {
+        v9fs_string_write(req, wnames[i]);
+    }
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rwalk tag[2] nwqid[2] nwqid*(wqid[13]) */
+void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
+{
+    uint16_t local_nwqid;
+
+    v9fs_req_recv(req, P9_RWALK);
+    v9fs_uint16_read(req, &local_nwqid);
+    if (nwqid) {
+        *nwqid = local_nwqid;
+    }
+    if (wqid) {
+        *wqid = g_malloc(local_nwqid * 13);
+        v9fs_memread(req, *wqid, local_nwqid * 13);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tgetattr tag[2] fid[4] request_mask[8] */
+P9Req *v9fs_tgetattr(QVirtio9P *v9p, uint32_t fid, uint64_t request_mask,
+                     uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p, 4 + 8, P9_TGETATTR, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, request_mask);
+    v9fs_req_send(req);
+    return req;
+}
+
+/*
+ * size[4] Rgetattr tag[2] valid[8] qid[13] mode[4] uid[4] gid[4] nlink[8]
+ *                  rdev[8] size[8] blksize[8] blocks[8]
+ *                  atime_sec[8] atime_nsec[8] mtime_sec[8] mtime_nsec[8]
+ *                  ctime_sec[8] ctime_nsec[8] btime_sec[8] btime_nsec[8]
+ *                  gen[8] data_version[8]
+ */
+void v9fs_rgetattr(P9Req *req, v9fs_attr *attr)
+{
+    v9fs_req_recv(req, P9_RGETATTR);
+
+    v9fs_uint64_read(req, &attr->valid);
+    v9fs_memread(req, &attr->qid, 13);
+    v9fs_uint32_read(req, &attr->mode);
+    v9fs_uint32_read(req, &attr->uid);
+    v9fs_uint32_read(req, &attr->gid);
+    v9fs_uint64_read(req, &attr->nlink);
+    v9fs_uint64_read(req, &attr->rdev);
+    v9fs_uint64_read(req, &attr->size);
+    v9fs_uint64_read(req, &attr->blksize);
+    v9fs_uint64_read(req, &attr->blocks);
+    v9fs_uint64_read(req, &attr->atime_sec);
+    v9fs_uint64_read(req, &attr->atime_nsec);
+    v9fs_uint64_read(req, &attr->mtime_sec);
+    v9fs_uint64_read(req, &attr->mtime_nsec);
+    v9fs_uint64_read(req, &attr->ctime_sec);
+    v9fs_uint64_read(req, &attr->ctime_nsec);
+    v9fs_uint64_read(req, &attr->btime_sec);
+    v9fs_uint64_read(req, &attr->btime_nsec);
+    v9fs_uint64_read(req, &attr->gen);
+    v9fs_uint64_read(req, &attr->data_version);
+
+    v9fs_req_free(req);
+}
+
+/* size[4] Treaddir tag[2] fid[4] offset[8] count[4] */
+P9Req *v9fs_treaddir(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
+                     uint32_t count, uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p, 4 + 8 + 4, P9_TREADDIR, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, offset);
+    v9fs_uint32_write(req, count);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rreaddir tag[2] count[4] data[count] */
+void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
+                   struct V9fsDirent **entries)
+{
+    uint32_t local_count;
+    struct V9fsDirent *e = NULL;
+    uint16_t slen;
+    uint32_t n = 0;
+
+    v9fs_req_recv(req, P9_RREADDIR);
+    v9fs_uint32_read(req, &local_count);
+
+    if (count) {
+        *count = local_count;
+    }
+
+    for (int32_t togo = (int32_t)local_count;
+         togo >= 13 + 8 + 1 + 2;
+         togo -= 13 + 8 + 1 + 2 + slen, ++n)
+    {
+        if (!e) {
+            e = g_new(struct V9fsDirent, 1);
+            if (entries) {
+                *entries = e;
+            }
+        } else {
+            e = e->next = g_new(struct V9fsDirent, 1);
+        }
+        e->next = NULL;
+        /* qid[13] offset[8] type[1] name[s] */
+        v9fs_memread(req, &e->qid, 13);
+        v9fs_uint64_read(req, &e->offset);
+        v9fs_uint8_read(req, &e->type);
+        v9fs_string_read(req, &slen, &e->name);
+    }
+
+    if (nentries) {
+        *nentries = n;
+    }
+
+    v9fs_req_free(req);
+}
+
+void v9fs_free_dirents(struct V9fsDirent *e)
+{
+    struct V9fsDirent *next = NULL;
+
+    for (; e; e = next) {
+        next = e->next;
+        g_free(e->name);
+        g_free(e);
+    }
+}
+
+/* size[4] Tlopen tag[2] fid[4] flags[4] */
+P9Req *v9fs_tlopen(QVirtio9P *v9p, uint32_t fid, uint32_t flags,
+                   uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p,  4 + 4, P9_TLOPEN, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint32_write(req, flags);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlopen tag[2] qid[13] iounit[4] */
+void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
+{
+    v9fs_req_recv(req, P9_RLOPEN);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    if (iounit) {
+        v9fs_uint32_read(req, iounit);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Twrite tag[2] fid[4] offset[8] count[4] data[count] */
+P9Req *v9fs_twrite(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
+                   uint32_t count, const void *data, uint16_t tag)
+{
+    P9Req *req;
+    uint32_t body_size = 4 + 8 + 4;
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - count);
+    body_size += count;
+    req = v9fs_req_init(v9p,  body_size, P9_TWRITE, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_uint64_write(req, offset);
+    v9fs_uint32_write(req, count);
+    v9fs_memwrite(req, data, count);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rwrite tag[2] count[4] */
+void v9fs_rwrite(P9Req *req, uint32_t *count)
+{
+    v9fs_req_recv(req, P9_RWRITE);
+    if (count) {
+        v9fs_uint32_read(req, count);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tflush tag[2] oldtag[2] */
+P9Req *v9fs_tflush(QVirtio9P *v9p, uint16_t oldtag, uint16_t tag)
+{
+    P9Req *req;
+
+    req = v9fs_req_init(v9p,  2, P9_TFLUSH, tag);
+    v9fs_uint32_write(req, oldtag);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rflush tag[2] */
+void v9fs_rflush(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RFLUSH);
+    v9fs_req_free(req);
+}
+
+/* size[4] Tmkdir tag[2] dfid[4] name[s] mode[4] gid[4] */
+P9Req *v9fs_tmkdir(QVirtio9P *v9p, uint32_t dfid, const char *name,
+                   uint32_t mode, uint32_t gid, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4 + 4;
+    uint16_t string_size = v9fs_string_size(name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TMKDIR, tag);
+    v9fs_uint32_write(req, dfid);
+    v9fs_string_write(req, name);
+    v9fs_uint32_write(req, mode);
+    v9fs_uint32_write(req, gid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rmkdir tag[2] qid[13] */
+void v9fs_rmkdir(P9Req *req, v9fs_qid *qid)
+{
+    v9fs_req_recv(req, P9_RMKDIR);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tlcreate tag[2] fid[4] name[s] flags[4] mode[4] gid[4] */
+P9Req *v9fs_tlcreate(QVirtio9P *v9p, uint32_t fid, const char *name,
+                     uint32_t flags, uint32_t mode, uint32_t gid,
+                     uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4 + 4 + 4;
+    uint16_t string_size = v9fs_string_size(name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TLCREATE, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_uint32_write(req, flags);
+    v9fs_uint32_write(req, mode);
+    v9fs_uint32_write(req, gid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlcreate tag[2] qid[13] iounit[4] */
+void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
+{
+    v9fs_req_recv(req, P9_RLCREATE);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    if (iounit) {
+        v9fs_uint32_read(req, iounit);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tsymlink tag[2] fid[4] name[s] symtgt[s] gid[4] */
+P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
+                     const char *symtgt, uint32_t gid, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size = v9fs_string_size(name) + v9fs_string_size(symtgt);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TSYMLINK, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_string_write(req, symtgt);
+    v9fs_uint32_write(req, gid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rsymlink tag[2] qid[13] */
+void v9fs_rsymlink(P9Req *req, v9fs_qid *qid)
+{
+    v9fs_req_recv(req, P9_RSYMLINK);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    v9fs_req_free(req);
+}
+
+/* size[4] Tlink tag[2] dfid[4] fid[4] name[s] */
+P9Req *v9fs_tlink(QVirtio9P *v9p, uint32_t dfid, uint32_t fid,
+                  const char *name, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size = v9fs_string_size(name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TLINK, tag);
+    v9fs_uint32_write(req, dfid);
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rlink tag[2] */
+void v9fs_rlink(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RLINK);
+    v9fs_req_free(req);
+}
+
+/* size[4] Tunlinkat tag[2] dirfd[4] name[s] flags[4] */
+P9Req *v9fs_tunlinkat(QVirtio9P *v9p, uint32_t dirfd, const char *name,
+                      uint32_t flags, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size = v9fs_string_size(name);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TUNLINKAT, tag);
+    v9fs_uint32_write(req, dirfd);
+    v9fs_string_write(req, name);
+    v9fs_uint32_write(req, flags);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Runlinkat tag[2] */
+void v9fs_runlinkat(P9Req *req)
+{
+    v9fs_req_recv(req, P9_RUNLINKAT);
+    v9fs_req_free(req);
+}
