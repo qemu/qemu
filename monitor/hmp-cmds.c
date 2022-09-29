@@ -730,7 +730,7 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
     monitor_printf(mon, "    ");
 
     if (dev->class_info->has_desc) {
-        monitor_printf(mon, "%s", dev->class_info->desc);
+        monitor_puts(mon, dev->class_info->desc);
     } else {
         monitor_printf(mon, "Class %04" PRId64, dev->class_info->q_class);
     }
@@ -2258,12 +2258,12 @@ static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)
     if (unit && value->base == 10 &&
         value->exponent >= -18 && value->exponent <= 18 &&
         value->exponent % 3 == 0) {
-        monitor_printf(mon, "%s", si_prefix(value->exponent));
+        monitor_puts(mon, si_prefix(value->exponent));
     } else if (unit && value->base == 2 &&
                value->exponent >= 0 && value->exponent <= 60 &&
                value->exponent % 10 == 0) {
 
-        monitor_printf(mon, "%s", iec_binary_prefix(value->exponent));
+        monitor_puts(mon, iec_binary_prefix(value->exponent));
     } else if (value->exponent) {
         /* Use exponential notation and write the unit's English name */
         monitor_printf(mon, "* %d^%d%s",
@@ -2273,7 +2273,7 @@ static void print_stats_schema_value(Monitor *mon, StatsSchemaValue *value)
     }
 
     if (value->has_unit) {
-        monitor_printf(mon, "%s", unit ? unit : StatsUnit_str(value->unit));
+        monitor_puts(mon, unit ? unit : StatsUnit_str(value->unit));
     }
 
     /* Print bucket size for linear histograms */
