@@ -110,11 +110,6 @@ details are opaque to plugins. The plugin is able to query select
 details of instructions and system configuration only through the
 exported *qemu_plugin* functions.
 
-API
-~~~
-
-.. kernel-doc:: include/qemu/qemu-plugin.h
-
 Internals
 ---------
 
@@ -448,3 +443,13 @@ The plugin has a number of arguments, all of them are optional:
   associativity of the L2 cache, respectively. Setting any of the L2
   configuration arguments implies ``l2=on``.
   (default: N = 2097152 (2MB), B = 64, A = 16)
+
+API
+---
+
+The following API is generated from the inline documentation in
+``include/qemu/qemu-plugin.h``. Please ensure any updates to the API
+include the full kernel-doc annotations.
+
+.. kernel-doc:: include/qemu/qemu-plugin.h
+
