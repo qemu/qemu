@@ -31,7 +31,7 @@
 
 all:
 -include ../config-host.mak
--include ../config-$(TARGET).mak
+-include config-target.mak
 
 # Get semihosting definitions for user-mode emulation
 ifeq ($(filter %-softmmu, $(TARGET)),)

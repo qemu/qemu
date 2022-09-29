@@ -1784,6 +1784,9 @@ if test $use_containers = "yes"; then
         podman) container=podman ;;
         no) container=no ;;
     esac
+    if test "$container" != "no"; then
+        docker_py="$python $source_path/tests/docker/docker.py --engine $container"
+    fi
 fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
@@ -2153,16 +2156,16 @@ write_target_makefile() {
 write_container_target_makefile() {
   echo "EXTRA_CFLAGS=$target_cflags"
   if test -n "$container_cross_cc"; then
-    echo "CC=\$(DOCKER_SCRIPT) cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
-    echo "CCAS=\$(DOCKER_SCRIPT) cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
+    echo "CC=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
+    echo "CCAS=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
   fi
-  echo "AR=\$(DOCKER_SCRIPT) cc --cc $container_cross_ar -i qemu/$container_image -s $source_path --"
-  echo "AS=\$(DOCKER_SCRIPT) cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
-  echo "LD=\$(DOCKER_SCRIPT) cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
-  echo "NM=\$(DOCKER_SCRIPT) cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
-  echo "OBJCOPY=\$(DOCKER_SCRIPT) cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
-  echo "RANLIB=\$(DOCKER_SCRIPT) cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
-  echo "STRIP=\$(DOCKER_SCRIPT) cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
+  echo "AR=$docker_py cc --cc $container_cross_ar -i qemu/$container_image -s $source_path --"
+  echo "AS=$docker_py cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
+  echo "LD=$docker_py cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
+  echo "NM=$docker_py cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
+  echo "OBJCOPY=$docker_py cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
+  echo "RANLIB=$docker_py cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
+  echo "STRIP=$docker_py cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
 }
 
 
@@ -2558,6 +2561,8 @@ for target in $target_list; do
   fi
   if test $got_cross_cc = yes; then
       mkdir -p tests/tcg/$target
+      ln -sf ../config-$target.mak tests/tcg/$target/config-target.mak
+      echo "TARGET=$target" >> "$config_target_mak"
       echo "QEMU=$PWD/$qemu" >> "$config_target_mak"
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> $makefile
       tcg_tests_targets="$tcg_tests_targets $target"
