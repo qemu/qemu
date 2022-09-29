@@ -19,4 +19,6 @@ vof.elf: entry.o main.o ci.o bootmem.o libc.o
 clean:
 	rm -f *.o vof.bin vof.elf *~
 
-.PHONY: all clean
+distclean: clean
+
+.PHONY: all clean distclean
