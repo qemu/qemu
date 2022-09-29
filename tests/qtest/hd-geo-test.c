@@ -963,6 +963,42 @@ static void test_override_scsi_hot_unplug(void)
     test_override_hot_unplug(args, "scsi-disk0", expected, expected2);
 }
 
+static void test_override_scsi_hot_unplug_q35(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@2/channel@0/disk@0,0",
+            {10000, 120, 30}
+        },
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@2/channel@0/disk@1,0",
+            {20, 20, 20}
+        },
+        {NULL, {0, 0, 0} }
+    };
+    CHSResult expected2[] = {
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@2/channel@0/disk@1,0",
+            {20, 20, 20}
+        },
+        {NULL, {0, 0, 0} }
+    };
+
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE,
+                            g_strdup("-device pcie-root-port,id=p0 "
+                                     "-device pcie-pci-bridge,bus=p0,id=b1 "
+                                     "-machine q35"));
+
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_scsi_controller(args, "virtio-scsi-pci", "b1", 2);
+    add_scsi_disk(args, 0, 0, 0, 0, 0, 10000, 120, 30);
+    add_scsi_disk(args, 1, 0, 0, 1, 0, 20, 20, 20);
+
+    test_override_hot_unplug(args, "scsi-disk0", expected, expected2);
+}
+
 static void test_override_virtio_hot_unplug(void)
 {
     TestArgs *args = create_args();
@@ -982,6 +1018,41 @@ static void test_override_virtio_hot_unplug(void)
 
     args->argc = append_arg(args->argc, args->argv, ARGV_SIZE,
                             g_strdup("-machine pc"));
+
+    test_override_hot_unplug(args, "virtio-disk0", expected, expected2);
+}
+
+static void test_override_virtio_hot_unplug_q35(void)
+{
+    TestArgs *args = create_args();
+    CHSResult expected[] = {
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@2/disk@0,0",
+            {10000, 120, 30}
+        },
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@3/disk@0,0",
+            {20, 20, 20}
+        },
+        {NULL, {0, 0, 0} }
+    };
+    CHSResult expected2[] = {
+        {
+            "/pci@i0cf8/pci-bridge@1/pci-bridge@0/scsi@3/disk@0,0",
+            {20, 20, 20}
+        },
+        {NULL, {0, 0, 0} }
+    };
+
+    args->argc = append_arg(args->argc, args->argv, ARGV_SIZE,
+                            g_strdup("-device pcie-root-port,id=p0 "
+                                     "-device pcie-pci-bridge,bus=p0,id=b1 "
+                                     "-machine q35"));
+
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_drive_with_mbr(args, empty_mbr, 1);
+    add_virtio_disk(args, 0, "b1", 2, 10000, 120, 30);
+    add_virtio_disk(args, 1, "b1", 3, 20, 20, 20);
 
     test_override_hot_unplug(args, "virtio-disk0", expected, expected2);
 }
@@ -1035,11 +1106,14 @@ int main(int argc, char **argv)
                            test_override_virtio_blk_q35);
             qtest_add_func("hd-geo/override/zero_chs_q35",
                            test_override_zero_chs_q35);
-
             if (qtest_has_device("lsi53c895a")) {
                 qtest_add_func("hd-geo/override/scsi_q35",
                                test_override_scsi_q35);
             }
+            qtest_add_func("hd-geo/override/scsi_hot_unplug_q35",
+                           test_override_scsi_hot_unplug_q35);
+            qtest_add_func("hd-geo/override/virtio_hot_unplug_q35",
+                           test_override_virtio_hot_unplug_q35);
         }
     } else {
         g_test_message("QTEST_QEMU_IMG not set or qemu-img missing; "
