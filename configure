@@ -2126,50 +2126,48 @@ probe_target_compiler() {
 
 write_target_makefile() {
   echo "EXTRA_CFLAGS=$target_cflags"
-  if test -n "$target_cc"; then
-    echo "CC=$target_cc"
-    echo "CCAS=$target_ccas"
-  fi
-  if test -n "$target_ar"; then
-    echo "AR=$target_ar"
-  fi
-  if test -n "$target_as"; then
-    echo "AS=$target_as"
-  fi
-  if test -n "$target_ld"; then
-    echo "LD=$target_ld"
-  fi
-  if test -n "$target_nm"; then
-    echo "NM=$target_nm"
-  fi
-  if test -n "$target_objcopy"; then
-    echo "OBJCOPY=$target_objcopy"
-  fi
-  if test -n "$target_ranlib"; then
-    echo "RANLIB=$target_ranlib"
-  fi
-  if test -n "$target_strip"; then
-    echo "STRIP=$target_strip"
+  if test -z "$target_cc" && test -z "$target_as"; then
+    test -z "$container_image" && error_exit "Internal error: could not find cross compiler for $1?"
+    echo "$1: docker-image-$container_image" >> Makefile.prereqs
+    if test -n "$container_cross_cc"; then
+      echo "CC=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
+      echo "CCAS=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
+    fi
+    echo "AR=$docker_py cc --cc $container_cross_ar -i qemu/$container_image -s $source_path --"
+    echo "AS=$docker_py cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
+    echo "LD=$docker_py cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
+    echo "NM=$docker_py cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
+    echo "OBJCOPY=$docker_py cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
+    echo "RANLIB=$docker_py cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
+    echo "STRIP=$docker_py cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
+  else
+    if test -n "$target_cc"; then
+      echo "CC=$target_cc"
+      echo "CCAS=$target_ccas"
+    fi
+    if test -n "$target_ar"; then
+      echo "AR=$target_ar"
+    fi
+    if test -n "$target_as"; then
+      echo "AS=$target_as"
+    fi
+    if test -n "$target_ld"; then
+      echo "LD=$target_ld"
+    fi
+    if test -n "$target_nm"; then
+      echo "NM=$target_nm"
+    fi
+    if test -n "$target_objcopy"; then
+      echo "OBJCOPY=$target_objcopy"
+    fi
+    if test -n "$target_ranlib"; then
+      echo "RANLIB=$target_ranlib"
+    fi
+    if test -n "$target_strip"; then
+      echo "STRIP=$target_strip"
+    fi
   fi
 }
-
-write_container_target_makefile() {
-  echo "$1: docker-image-$container_image" >> Makefile.prereqs
-  echo "EXTRA_CFLAGS=$target_cflags"
-  if test -n "$container_cross_cc"; then
-    echo "CC=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
-    echo "CCAS=$docker_py cc --cc $container_cross_cc -i qemu/$container_image -s $source_path --"
-  fi
-  echo "AR=$docker_py cc --cc $container_cross_ar -i qemu/$container_image -s $source_path --"
-  echo "AS=$docker_py cc --cc $container_cross_as -i qemu/$container_image -s $source_path --"
-  echo "LD=$docker_py cc --cc $container_cross_ld -i qemu/$container_image -s $source_path --"
-  echo "NM=$docker_py cc --cc $container_cross_nm -i qemu/$container_image -s $source_path --"
-  echo "OBJCOPY=$docker_py cc --cc $container_cross_objcopy -i qemu/$container_image -s $source_path --"
-  echo "RANLIB=$docker_py cc --cc $container_cross_ranlib -i qemu/$container_image -s $source_path --"
-  echo "STRIP=$docker_py cc --cc $container_cross_strip -i qemu/$container_image -s $source_path --"
-}
-
-
 
 ##########################################
 # check for vfio_user_server
@@ -2488,15 +2486,9 @@ for target in $target_list; do
       ;;
   esac
 
-  probe_target_compiler $target
-  if test $got_cross_cc = yes; then
-      write_target_makefile >> "$config_target_mak"
-  elif test -n "$container_image"; then
-      build_static=y
-      write_container_target_makefile build-tcg-tests-$target >> "$config_target_mak"
-      got_cross_cc=yes
-  fi
-  if test $got_cross_cc = yes; then
+  if probe_target_compiler $target || test -n "$container_image"; then
+      test -n "$container_image" && build_static=y
+      write_target_makefile "build-tcg-tests-$target >> "$config_target_mak"
       mkdir -p "tests/tcg/$target"
       ln -sf "$source_path/tests/tcg/Makefile.target" "tests/tcg/$target/Makefile"
       ln -sf "../config-$target.mak" "tests/tcg/$target/config-target.mak"
