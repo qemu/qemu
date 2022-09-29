@@ -88,7 +88,7 @@ static void vcpu_insn_exec(unsigned int cpu_index, void *udata)
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 {
     struct qemu_plugin_insn *insn;
-    bool skip = (imatches || amatches) ? true : false;
+    bool skip = (imatches || amatches);
 
     size_t n = qemu_plugin_tb_n_insns(tb);
     for (size_t i = 0; i < n; i++) {
@@ -147,6 +147,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             /* Register callback on instruction */
             qemu_plugin_register_vcpu_insn_exec_cb(insn, vcpu_insn_exec,
                                                    QEMU_PLUGIN_CB_NO_REGS, output);
+
+            /* reset skip */
+            skip = (imatches || amatches);
         }
 
     }
