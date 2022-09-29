@@ -123,12 +123,10 @@ static const char *qvirtio_get_dev_type(void)
 
 static void device_add(QTestState *qts)
 {
-    QDict *response;
-    char driver[32];
-    snprintf(driver, sizeof(driver), "virtio-blk-%s",
-             qvirtio_get_dev_type());
-
-    response = qtest_qmp(qts, "{'execute': 'device_add',"
+    g_autofree char *driver = g_strdup_printf("virtio-blk-%s",
+                                              qvirtio_get_dev_type());
+    QDict *response =
+               qtest_qmp(qts, "{'execute': 'device_add',"
                               " 'arguments': {"
                               "   'driver': %s,"
                               "   'drive': 'drive0',"
