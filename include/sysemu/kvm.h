@@ -349,6 +349,8 @@ bool kvm_device_supported(int vmfd, uint64_t type);
 
 extern const KVMCapabilityInfo kvm_arch_required_capabilities[];
 
+void kvm_arch_accel_class_init(ObjectClass *oc);
+
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run);
 MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
 

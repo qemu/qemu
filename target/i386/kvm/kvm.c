@@ -5468,3 +5468,7 @@ void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask)
         mask &= ~BIT_ULL(bit);
     }
 }
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
+}
