@@ -40,9 +40,17 @@ endif
 
 # for including , in command strings
 COMMA := ,
+NULL :=
+SPACE := $(NULL) #
+TARGET_PREFIX=tests/tcg/$(TARGET):$(SPACE)
 
 quiet-@ = $(if $(V),,@$(if $1,printf "  %-7s %s\n" "$(strip $1)" "$(strip $2)" && ))
 quiet-command = $(call quiet-@,$2,$3)$1
+
+cc-test = $(CC) -Werror $1 -c -o /dev/null -xc /dev/null >/dev/null 2>&1
+cc-option = if $(call cc-test, $1); then \
+    echo "$(TARGET_PREFIX)$1 detected" && echo "$(strip $2)=y" >&3; else \
+    echo "$(TARGET_PREFIX)$1 not detected"; fi
 
 # $1 = test name, $2 = cmd, $3 = desc
 ifeq ($(filter %-softmmu, $(TARGET)),)
@@ -190,4 +198,4 @@ clean:
 	rm -f $(TESTS) *.o $(CLEANFILES)
 
 distclean:
-	rm -f config-target.mak ../config-$(TARGET).mak
+	rm -f config-cc.mak config-target.mak ../config-$(TARGET).mak

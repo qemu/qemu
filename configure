@@ -2490,73 +2490,11 @@ for target in $target_list; do
 
   probe_target_compiler $target
   if test $got_cross_cc = yes; then
-      # Test for compiler features for optional tests. We only do this
-      # for cross compilers because ensuring the docker containers based
-      # compilers is a requirememt for adding a new test that needs a
-      # compiler feature.
-
-      echo "BUILD_STATIC=$build_static" >> "$config_target_mak"
       write_target_makefile >> "$config_target_mak"
-      case $target in
-          aarch64-*)
-              if do_compiler "$target_cc" $target_cflags \
-                             -march=armv8.1-a+sve -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_SVE=y" >> "$config_target_mak"
-              fi
-              if do_compiler "$target_cc" $target_cflags \
-                             -march=armv8.1-a+sve2 -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_SVE2=y" >> "$config_target_mak"
-              fi
-              if do_compiler "$target_cc" $target_cflags \
-                             -march=armv8.3-a -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_ARMV8_3=y" >> "$config_target_mak"
-              fi
-              if do_compiler "$target_cc" $target_cflags \
-                             -mbranch-protection=standard -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_ARMV8_BTI=y" >> "$config_target_mak"
-              fi
-              if do_compiler "$target_cc" $target_cflags \
-                             -march=armv8.5-a+memtag -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_ARMV8_MTE=y" >> "$config_target_mak"
-              fi
-              ;;
-          ppc*)
-              if do_compiler "$target_cc" $target_cflags \
-                             -mpower8-vector -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> "$config_target_mak"
-              fi
-              if do_compiler "$target_cc" $target_cflags \
-                             -mpower10 -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_POWER10=y" >> "$config_target_mak"
-              fi
-              ;;
-          i386-linux-user)
-              if do_compiler "$target_cc" $target_cflags \
-                             -Werror -fno-pie -o $TMPE $TMPC; then
-                  echo "CROSS_CC_HAS_I386_NOPIE=y" >> "$config_target_mak"
-              fi
-              ;;
-      esac
   elif test -n "$container_image"; then
+      build_static=y
       echo "build-tcg-tests-$target: docker-image-$container_image" >> $makefile
-      echo "BUILD_STATIC=y" >> "$config_target_mak"
       write_container_target_makefile >> "$config_target_mak"
-      case $target in
-          aarch64-*)
-              echo "CROSS_CC_HAS_SVE=y" >> "$config_target_mak"
-              echo "CROSS_CC_HAS_SVE2=y" >> "$config_target_mak"
-              echo "CROSS_CC_HAS_ARMV8_3=y" >> "$config_target_mak"
-              echo "CROSS_CC_HAS_ARMV8_BTI=y" >> "$config_target_mak"
-              echo "CROSS_CC_HAS_ARMV8_MTE=y" >> "$config_target_mak"
-              ;;
-          ppc*)
-              echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> "$config_target_mak"
-              echo "CROSS_CC_HAS_POWER10=y" >> "$config_target_mak"
-              ;;
-          i386-linux-user)
-              echo "CROSS_CC_HAS_I386_NOPIE=y" >> "$config_target_mak"
-              ;;
-      esac
       got_cross_cc=yes
   fi
   if test $got_cross_cc = yes; then
@@ -2565,6 +2503,7 @@ for target in $target_list; do
       ln -sf "../config-$target.mak" "tests/tcg/$target/config-target.mak"
       echo "TARGET=$target" >> "$config_target_mak"
       echo "QEMU=$PWD/$qemu" >> "$config_target_mak"
+      echo "BUILD_STATIC=$build_static" >> "$config_target_mak"
       echo "run-tcg-tests-$target: $qemu\$(EXESUF)" >> $makefile
       tcg_tests_targets="$tcg_tests_targets $target"
   fi

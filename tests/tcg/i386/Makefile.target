@@ -5,6 +5,12 @@ I386_SRC=$(SRC_PATH)/tests/tcg/i386
 # Set search path for all sources
 VPATH 		+= $(I386_SRC)
 
+config-cc.mak: Makefile
+	$(quiet-@)( \
+          $(call cc-option,-fno-pie, CROSS_CC_HAS_I386_NOPIE)) 3> config-cc.mak
+
+-include config-cc.mak
+
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
 ALL_X86_TESTS=$(I386_SRCS:.c=)
 SKIP_I386_TESTS=test-i386-ssse3 test-avx test-3dnow test-mmx
