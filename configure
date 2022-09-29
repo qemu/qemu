@@ -1779,9 +1779,11 @@ fi
 
 container="no"
 if test $use_containers = "yes"; then
-    if has "docker" || has "podman"; then
-        container=$($python "$source_path"/tests/docker/docker.py probe)
-    fi
+    case $($python "$source_path"/tests/docker/docker.py probe) in
+        *docker) container=docker ;;
+        podman) container=podman ;;
+        no) container=no ;;
+    esac
 fi
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
@@ -2373,6 +2375,9 @@ if test -n "$gdb_bin"; then
     fi
 fi
 
+if test "$container" != no; then
+    echo "ENGINE=$container" >> $config_host_mak
+fi
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
