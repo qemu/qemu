@@ -15,17 +15,6 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
-static void device_del(QTestState *qtest, const char *id)
-{
-    QDict *resp;
-
-    resp = qtest_qmp(qtest,
-                     "{'execute': 'device_del', 'arguments': { 'id': %s } }", id);
-
-    g_assert(qdict_haskey(resp, "return"));
-    qobject_unref(resp);
-}
-
 static void system_reset(QTestState *qtest)
 {
     QDict *resp;
@@ -68,7 +57,7 @@ static void process_device_remove(QTestState *qtest, const char *id)
      * be processed. However during system reset, the removal will be
      * handled, removing the device.
      */
-    device_del(qtest, id);
+    qtest_qmp_device_del_send(qtest, id);
     system_reset(qtest);
     wait_device_deleted_event(qtest, id);
 }
@@ -112,7 +101,7 @@ static void test_ccw_unplug(void)
 {
     QTestState *qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
 
-    device_del(qtest, "dev0");
+    qtest_qmp_device_del_send(qtest, "dev0");
     wait_device_deleted_event(qtest, "dev0");
 
     qtest_quit(qtest);

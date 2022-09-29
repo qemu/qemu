@@ -762,11 +762,21 @@ void qtest_qmp_add_client(QTestState *qts, const char *protocol, int fd);
 #endif /* _WIN32 */
 
 /**
+ * qtest_qmp_device_del_send:
+ * @qts: QTestState instance to operate on
+ * @id: Identification string
+ *
+ * Generic hot-unplugging test via the device_del QMP command.
+ */
+void qtest_qmp_device_del_send(QTestState *qts, const char *id);
+
+/**
  * qtest_qmp_device_del:
  * @qts: QTestState instance to operate on
  * @id: Identification string
  *
  * Generic hot-unplugging test via the device_del QMP command.
+ * Waiting for command completion event.
  */
 void qtest_qmp_device_del(QTestState *qts, const char *id);
 

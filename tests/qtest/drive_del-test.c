@@ -143,11 +143,7 @@ static void device_del(QTestState *qts, bool and_reset)
 {
     QDict *response;
 
-    response = qtest_qmp(qts, "{'execute': 'device_del',"
-                         " 'arguments': { 'id': 'dev0' } }");
-    g_assert(response);
-    g_assert(qdict_haskey(response, "return"));
-    qobject_unref(response);
+    qtest_qmp_device_del_send(qts, "dev0");
 
     if (and_reset) {
         response = qtest_qmp(qts, "{'execute': 'system_reset' }");
