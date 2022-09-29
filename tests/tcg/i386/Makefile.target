@@ -53,7 +53,7 @@ test-i386-fprem.ref: test-i386-fprem
 
 run-test-i386-fprem: TIMEOUT=60
 run-test-i386-fprem: test-i386-fprem test-i386-fprem.ref
-	$(call run-test,test-i386-fprem, $(QEMU) $<,"$< on $(TARGET_NAME)")
+	$(call run-test,test-i386-fprem, $(QEMU) $<)
 	$(call diff-out,test-i386-fprem, test-i386-fprem.ref)
 else
 SKIP_I386_TESTS+=test-i386-fprem
@@ -63,8 +63,7 @@ endif
 run-plugin-%-with-libinsn.so:
 	$(call run-test, $@, $(QEMU) $(QEMU_OPTS) \
 	       -plugin ../../plugin/libinsn.so$(COMMA)inline=on \
-	       -d plugin -D $*-with-libinsn.so.pout $*, \
-		"$* (inline) on $(TARGET_NAME)")
+	       -d plugin -D $*-with-libinsn.so.pout $*)
 
 # Update TESTS
 I386_TESTS:=$(filter-out $(SKIP_I386_TESTS), $(ALL_X86_TESTS))

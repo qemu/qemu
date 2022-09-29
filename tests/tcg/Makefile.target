@@ -41,14 +41,16 @@ endif
 # for including , in command strings
 COMMA := ,
 
-quiet-command = $(if $(V),$1,$(if $(2),@printf "  %-7s %s\n" $2 $3 && $1, @$1))
+quiet-@ = $(if $(V),,@$(if $1,printf "  %-7s %s\n" "$(strip $1)" "$(strip $2)" && ))
+quiet-command = $(call quiet-@,$2,$3)$1
 
 # $1 = test name, $2 = cmd, $3 = desc
 ifeq ($(filter %-softmmu, $(TARGET)),)
 run-test = $(call quiet-command, timeout --foreground $(TIMEOUT) $2 > $1.out, \
-	"TEST",$3)
+	TEST,$(or $3, $*, $<) on $(TARGET_NAME))
 else
-run-test = $(call quiet-command, timeout --foreground $(TIMEOUT) $2,"TEST",$3)
+run-test = $(call quiet-command, timeout --foreground $(TIMEOUT) $2, \
+        TEST,$(or $3, $*, $<) on $(TARGET_NAME))
 endif
 
 # $1 = test name, $2 = reference
@@ -56,7 +58,7 @@ endif
 # we know it failed and then force failure at the end.
 diff-out = $(call quiet-command, diff -q $1.out $2 || \
                                  (diff -u $1.out $2 | head -n 10 && false), \
-                                 "DIFF","$1.out with $2")
+                                 DIFF,$1.out with $2)
 
 # $1 = test name, $2 = reason
 skip-test = @printf "  SKIPPED %s on $(TARGET_NAME) because %s\n" $1 $2
@@ -155,21 +157,19 @@ RUN_TESTS+=$(EXTRA_RUNS)
 
 ifeq ($(filter %-softmmu, $(TARGET)),)
 run-%: %
-	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
+	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<)
 
 run-plugin-%:
 	$(call run-test, $@, $(QEMU) $(QEMU_OPTS) \
 		-plugin $(PLUGIN_LIB)/$(call extract-plugin,$@) \
 		-d plugin -D $*.pout \
-		 $(call strip-plugin,$<), \
-	"$* on $(TARGET_NAME)")
+		 $(call strip-plugin,$<))
 else
 run-%: %
 	$(call run-test, $<, \
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
-	   	  $(QEMU_OPTS) $<, \
-	  "$< on $(TARGET_NAME)")
+		  $(QEMU_OPTS) $<)
 
 run-plugin-%:
 	$(call run-test, $@, \
@@ -177,8 +177,7 @@ run-plugin-%:
 		  -chardev file$(COMMA)path=$@.out$(COMMA)id=output \
 	   	  -plugin $(PLUGIN_LIB)/$(call extract-plugin,$@) \
 	    	  -d plugin -D $*.pout \
-	   	  $(QEMU_OPTS) $(call strip-plugin,$<), \
-	  "$* on $(TARGET_NAME)")
+		  $(QEMU_OPTS) $(call strip-plugin,$<))
 endif
 
 gdb-%: %

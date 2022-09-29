@@ -25,7 +25,7 @@ run-gdbstub-memory: memory
 		--qargs \
 		"-monitor none -display none -chardev file$(COMMA)path=$<.out$(COMMA)id=output $(QEMU_OPTS)" \
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/memory.py, \
-	"softmmu gdbstub support")
+	softmmu gdbstub support)
 
 else
 run-gdbstub-%:
