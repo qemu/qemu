@@ -189,3 +189,6 @@ run: $(RUN_TESTS)
 
 clean:
 	rm -f $(TESTS) *.o $(CLEANFILES)
+
+distclean:
+	rm -f config-target.mak ../config-$(TARGET).mak
