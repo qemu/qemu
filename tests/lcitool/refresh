@@ -107,7 +107,7 @@ try:
     #
     # Standard native builds
     #
-    generate_dockerfile("alpine", "alpine-edge")
+    generate_dockerfile("alpine", "alpine-316")
     generate_dockerfile("centos8", "centos-stream-8")
     generate_dockerfile("debian-amd64", "debian-11",
                         trailer="".join(debian11_extras))
