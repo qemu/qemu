@@ -327,7 +327,7 @@ static void test_blockdev_add_device_add_and_del(void)
     qts = qtest_init(machine_addition);
 
     /*
-     * blockdev_add/device_add and device_del.  The it drive is used by a
+     * blockdev_add/device_add and device_del. The drive is used by a
      * device that unplugs after reset, but it doesn't go away.
      */
     blockdev_add_with_media(qts);
