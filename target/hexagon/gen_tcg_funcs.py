@@ -548,7 +548,7 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
         if (hex_common.is_hvx_reg(regtype)):
             if (hex_common.is_new_result(tag)):
                 genptr_dst_write_ext(f, tag, regtype, regid, "EXT_NEW")
-            if (hex_common.is_tmp_result(tag)):
+            elif (hex_common.is_tmp_result(tag)):
                 genptr_dst_write_ext(f, tag, regtype, regid, "EXT_TMP")
             else:
                 genptr_dst_write_ext(f, tag, regtype, regid, "EXT_DFL")
