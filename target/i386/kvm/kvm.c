@@ -2203,20 +2203,30 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
         env->mp_state = KVM_MP_STATE_RUNNABLE;
     }
 
-    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
-        int i;
-        for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
-            env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
-        }
-
-        hyperv_x86_synic_reset(cpu);
-    }
     /* enabled by default */
     env->poll_control_msr = 1;
 
     kvm_init_nested_state(env);
 
     sev_es_set_reset_vector(CPU(cpu));
+}
+
+void kvm_arch_after_reset_vcpu(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    /*
+     * Reset SynIC after all other devices have been reset to let them remove
+     * their SINT routes first.
+     */
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
+        for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
+            env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
+        }
+
+        hyperv_x86_synic_reset(cpu);
+    }
 }
 
 void kvm_arch_do_init_vcpu(X86CPU *cpu)
