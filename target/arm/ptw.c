@@ -2298,7 +2298,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             hwaddr ipa;
             int s1_prot;
             int ret;
-            bool ipa_secure;
+            bool ipa_secure, s2walk_secure;
             ARMCacheAttrs cacheattrs1;
             ARMMMUIdx s2_mmu_idx;
             bool is_el0;
@@ -2313,17 +2313,17 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
 
             ipa = result->phys;
             ipa_secure = result->attrs.secure;
-            if (arm_is_secure_below_el3(env)) {
-                if (ipa_secure) {
-                    result->attrs.secure = !(env->cp15.vstcr_el2 & VSTCR_SW);
-                } else {
-                    result->attrs.secure = !(env->cp15.vtcr_el2 & VTCR_NSW);
-                }
+            if (is_secure) {
+                /* Select TCR based on the NS bit from the S1 walk. */
+                s2walk_secure = !(ipa_secure
+                                  ? env->cp15.vstcr_el2 & VSTCR_SW
+                                  : env->cp15.vtcr_el2 & VTCR_NSW);
             } else {
                 assert(!ipa_secure);
+                s2walk_secure = false;
             }
 
-            s2_mmu_idx = (result->attrs.secure
+            s2_mmu_idx = (s2walk_secure
                           ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2);
             is_el0 = mmu_idx == ARMMMUIdx_E10_0 || mmu_idx == ARMMMUIdx_SE10_0;
 
@@ -2366,7 +2366,7 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                                                     result->cacheattrs);
 
             /* Check if IPA translates to secure or non-secure PA space. */
-            if (arm_is_secure_below_el3(env)) {
+            if (is_secure) {
                 if (ipa_secure) {
                     result->attrs.secure =
                         !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
