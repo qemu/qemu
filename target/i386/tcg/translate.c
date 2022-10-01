@@ -64,6 +64,7 @@
 
 /* global register indexes */
 static TCGv cpu_cc_dst, cpu_cc_src, cpu_cc_src2;
+static TCGv cpu_eip;
 static TCGv_i32 cpu_cc_op;
 static TCGv cpu_regs[CPU_NB_REGS];
 static TCGv cpu_seg_base[6];
@@ -481,7 +482,7 @@ static void gen_add_A0_im(DisasContext *s, int val)
 
 static inline void gen_op_jmp_v(TCGv dest)
 {
-    tcg_gen_st_tl(dest, cpu_env, offsetof(CPUX86State, eip));
+    tcg_gen_mov_tl(cpu_eip, dest);
 }
 
 static inline
@@ -518,7 +519,7 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
 
 static void gen_jmp_im(DisasContext *s, target_ulong pc)
 {
-    gen_op_jmp_v(tcg_constant_tl(pc));
+    tcg_gen_movi_tl(cpu_eip, pc);
 }
 
 static void gen_update_eip_cur(DisasContext *s)
@@ -8616,6 +8617,13 @@ void tcg_x86_init(void)
         [R_ESP] = "esp",
 #endif
     };
+    static const char eip_name[] = {
+#ifdef TARGET_X86_64
+        "rip"
+#else
+        "eip"
+#endif
+    };
     static const char seg_base_names[6][8] = {
         [R_CS] = "cs_base",
         [R_DS] = "ds_base",
@@ -8640,6 +8648,7 @@ void tcg_x86_init(void)
                                     "cc_src");
     cpu_cc_src2 = tcg_global_mem_new(cpu_env, offsetof(CPUX86State, cc_src2),
                                      "cc_src2");
+    cpu_eip = tcg_global_mem_new(cpu_env, offsetof(CPUX86State, eip), eip_name);
 
     for (i = 0; i < CPU_NB_REGS; ++i) {
         cpu_regs[i] = tcg_global_mem_new(cpu_env,
