@@ -1071,10 +1071,7 @@ typedef struct ARMCacheAttrs {
 
 /* Fields that are valid upon success. */
 typedef struct GetPhysAddrResult {
-    hwaddr phys;
-    target_ulong page_size;
-    int prot;
-    MemTxAttrs attrs;
+    CPUTLBEntryFull f;
     ARMCacheAttrs cacheattrs;
 } GetPhysAddrResult;
 

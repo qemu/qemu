@@ -256,7 +256,7 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
             assert(!is_secure);
         }
 
-        addr = s2.phys;
+        addr = s2.f.phys_addr;
     }
     return addr;
 }
@@ -476,7 +476,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
         /* 1Mb section.  */
         phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
         ap = (desc >> 10) & 3;
-        result->page_size = 1024 * 1024;
+        result->f.lg_page_size = 20; /* 1MB */
     } else {
         /* Lookup l2 entry.  */
         if (type == 1) {
@@ -497,12 +497,12 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
         case 1: /* 64k page.  */
             phys_addr = (desc & 0xffff0000) | (address & 0xffff);
             ap = (desc >> (4 + ((address >> 13) & 6))) & 3;
-            result->page_size = 0x10000;
+            result->f.lg_page_size = 16;
             break;
         case 2: /* 4k page.  */
             phys_addr = (desc & 0xfffff000) | (address & 0xfff);
             ap = (desc >> (4 + ((address >> 9) & 6))) & 3;
-            result->page_size = 0x1000;
+            result->f.lg_page_size = 12;
             break;
         case 3: /* 1k page, or ARMv6/XScale "extended small (4k) page" */
             if (type == 1) {
@@ -510,7 +510,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                 if (arm_feature(env, ARM_FEATURE_XSCALE)
                     || arm_feature(env, ARM_FEATURE_V6)) {
                     phys_addr = (desc & 0xfffff000) | (address & 0xfff);
-                    result->page_size = 0x1000;
+                    result->f.lg_page_size = 12;
                 } else {
                     /*
                      * UNPREDICTABLE in ARMv5; we choose to take a
@@ -521,7 +521,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                 }
             } else {
                 phys_addr = (desc & 0xfffffc00) | (address & 0x3ff);
-                result->page_size = 0x400;
+                result->f.lg_page_size = 10;
             }
             ap = (desc >> 4) & 3;
             break;
@@ -530,14 +530,14 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
             g_assert_not_reached();
         }
     }
-    result->prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
-    result->prot |= result->prot ? PAGE_EXEC : 0;
-    if (!(result->prot & (1 << access_type))) {
+    result->f.prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+    result->f.prot |= result->f.prot ? PAGE_EXEC : 0;
+    if (!(result->f.prot & (1 << access_type))) {
         /* Access permission fault.  */
         fi->type = ARMFault_Permission;
         goto do_fault;
     }
-    result->phys = phys_addr;
+    result->f.phys_addr = phys_addr;
     return false;
 do_fault:
     fi->domain = domain;
@@ -607,11 +607,11 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
             phys_addr = (desc & 0xff000000) | (address & 0x00ffffff);
             phys_addr |= (uint64_t)extract32(desc, 20, 4) << 32;
             phys_addr |= (uint64_t)extract32(desc, 5, 4) << 36;
-            result->page_size = 0x1000000;
+            result->f.lg_page_size = 24;  /* 16MB */
         } else {
             /* Section.  */
             phys_addr = (desc & 0xfff00000) | (address & 0x000fffff);
-            result->page_size = 0x100000;
+            result->f.lg_page_size = 20;  /* 1MB */
         }
         ap = ((desc >> 10) & 3) | ((desc >> 13) & 4);
         xn = desc & (1 << 4);
@@ -636,12 +636,12 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
         case 1: /* 64k page.  */
             phys_addr = (desc & 0xffff0000) | (address & 0xffff);
             xn = desc & (1 << 15);
-            result->page_size = 0x10000;
+            result->f.lg_page_size = 16;
             break;
         case 2: case 3: /* 4k page.  */
             phys_addr = (desc & 0xfffff000) | (address & 0xfff);
             xn = desc & 1;
-            result->page_size = 0x1000;
+            result->f.lg_page_size = 12;
             break;
         default:
             /* Never happens, but compiler isn't smart enough to tell.  */
@@ -649,7 +649,7 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
         }
     }
     if (domain_prot == 3) {
-        result->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        result->f.prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     } else {
         if (pxn && !regime_is_user(env, mmu_idx)) {
             xn = 1;
@@ -667,14 +667,14 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
                 fi->type = ARMFault_AccessFlag;
                 goto do_fault;
             }
-            result->prot = simple_ap_to_rw_prot(env, mmu_idx, ap >> 1);
+            result->f.prot = simple_ap_to_rw_prot(env, mmu_idx, ap >> 1);
         } else {
-            result->prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+            result->f.prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
         }
-        if (result->prot && !xn) {
-            result->prot |= PAGE_EXEC;
+        if (result->f.prot && !xn) {
+            result->f.prot |= PAGE_EXEC;
         }
-        if (!(result->prot & (1 << access_type))) {
+        if (!(result->f.prot & (1 << access_type))) {
             /* Access permission fault.  */
             fi->type = ARMFault_Permission;
             goto do_fault;
@@ -685,9 +685,9 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
          * the CPU doesn't support TZ or this is a non-secure translation
          * regime, because the attribute will already be non-secure.
          */
-        result->attrs.secure = false;
+        result->f.attrs.secure = false;
     }
-    result->phys = phys_addr;
+    result->f.phys_addr = phys_addr;
     return false;
 do_fault:
     fi->domain = domain;
@@ -1298,16 +1298,16 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
     if (mmu_idx == ARMMMUIdx_Stage2 || mmu_idx == ARMMMUIdx_Stage2_S) {
         ns = mmu_idx == ARMMMUIdx_Stage2;
         xn = extract32(attrs, 11, 2);
-        result->prot = get_S2prot(env, ap, xn, s1_is_el0);
+        result->f.prot = get_S2prot(env, ap, xn, s1_is_el0);
     } else {
         ns = extract32(attrs, 3, 1);
         xn = extract32(attrs, 12, 1);
         pxn = extract32(attrs, 11, 1);
-        result->prot = get_S1prot(env, mmu_idx, aarch64, ap, ns, xn, pxn);
+        result->f.prot = get_S1prot(env, mmu_idx, aarch64, ap, ns, xn, pxn);
     }
 
     fault_type = ARMFault_Permission;
-    if (!(result->prot & (1 << access_type))) {
+    if (!(result->f.prot & (1 << access_type))) {
         goto do_fault;
     }
 
@@ -1317,11 +1317,11 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
          * the CPU doesn't support TZ or this is a non-secure translation
          * regime, because the attribute will already be non-secure.
          */
-        result->attrs.secure = false;
+        result->f.attrs.secure = false;
     }
     /* When in aarch64 mode, and BTI is enabled, remember GP in the IOTLB.  */
     if (aarch64 && guarded && cpu_isar_feature(aa64_bti, cpu)) {
-        arm_tlb_bti_gp(&result->attrs) = true;
+        arm_tlb_bti_gp(&result->f.attrs) = true;
     }
 
     if (mmu_idx == ARMMMUIdx_Stage2 || mmu_idx == ARMMMUIdx_Stage2_S) {
@@ -1347,8 +1347,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
         result->cacheattrs.shareability = extract32(attrs, 6, 2);
     }
 
-    result->phys = descaddr;
-    result->page_size = page_size;
+    result->f.phys_addr = descaddr;
+    result->f.lg_page_size = ctz64(page_size);
     return false;
 
 do_fault:
@@ -1373,12 +1373,12 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
 
     if (regime_translation_disabled(env, mmu_idx, is_secure)) {
         /* MPU disabled.  */
-        result->phys = address;
-        result->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        result->f.phys_addr = address;
+        result->f.prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return false;
     }
 
-    result->phys = address;
+    result->f.phys_addr = address;
     for (n = 7; n >= 0; n--) {
         base = env->cp15.c6_region[n];
         if ((base & 1) == 0) {
@@ -1414,16 +1414,16 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
             fi->level = 1;
             return true;
         }
-        result->prot = PAGE_READ | PAGE_WRITE;
+        result->f.prot = PAGE_READ | PAGE_WRITE;
         break;
     case 2:
-        result->prot = PAGE_READ;
+        result->f.prot = PAGE_READ;
         if (!is_user) {
-            result->prot |= PAGE_WRITE;
+            result->f.prot |= PAGE_WRITE;
         }
         break;
     case 3:
-        result->prot = PAGE_READ | PAGE_WRITE;
+        result->f.prot = PAGE_READ | PAGE_WRITE;
         break;
     case 5:
         if (is_user) {
@@ -1431,10 +1431,10 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
             fi->level = 1;
             return true;
         }
-        result->prot = PAGE_READ;
+        result->f.prot = PAGE_READ;
         break;
     case 6:
-        result->prot = PAGE_READ;
+        result->f.prot = PAGE_READ;
         break;
     default:
         /* Bad permission.  */
@@ -1442,12 +1442,12 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
         fi->level = 1;
         return true;
     }
-    result->prot |= PAGE_EXEC;
+    result->f.prot |= PAGE_EXEC;
     return false;
 }
 
 static void get_phys_addr_pmsav7_default(CPUARMState *env, ARMMMUIdx mmu_idx,
-                                         int32_t address, int *prot)
+                                         int32_t address, uint8_t *prot)
 {
     if (!arm_feature(env, ARM_FEATURE_M)) {
         *prot = PAGE_READ | PAGE_WRITE;
@@ -1531,9 +1531,9 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
     int n;
     bool is_user = regime_is_user(env, mmu_idx);
 
-    result->phys = address;
-    result->page_size = TARGET_PAGE_SIZE;
-    result->prot = 0;
+    result->f.phys_addr = address;
+    result->f.lg_page_size = TARGET_PAGE_BITS;
+    result->f.prot = 0;
 
     if (regime_translation_disabled(env, mmu_idx, secure) ||
         m_is_ppb_region(env, address)) {
@@ -1545,7 +1545,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
          * which always does a direct read using address_space_ldl(), rather
          * than going via this function, so we don't need to check that here.
          */
-        get_phys_addr_pmsav7_default(env, mmu_idx, address, &result->prot);
+        get_phys_addr_pmsav7_default(env, mmu_idx, address, &result->f.prot);
     } else { /* MPU enabled */
         for (n = (int)cpu->pmsav7_dregion - 1; n >= 0; n--) {
             /* region search */
@@ -1587,7 +1587,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 if (ranges_overlap(base, rmask,
                                    address & TARGET_PAGE_MASK,
                                    TARGET_PAGE_SIZE)) {
-                    result->page_size = 1;
+                    result->f.lg_page_size = 0;
                 }
                 continue;
             }
@@ -1625,7 +1625,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 continue;
             }
             if (rsize < TARGET_PAGE_BITS) {
-                result->page_size = 1 << rsize;
+                result->f.lg_page_size = rsize;
             }
             break;
         }
@@ -1636,7 +1636,8 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 fi->type = ARMFault_Background;
                 return true;
             }
-            get_phys_addr_pmsav7_default(env, mmu_idx, address, &result->prot);
+            get_phys_addr_pmsav7_default(env, mmu_idx, address,
+                                         &result->f.prot);
         } else { /* a MPU hit! */
             uint32_t ap = extract32(env->pmsav7.dracr[n], 8, 3);
             uint32_t xn = extract32(env->pmsav7.dracr[n], 12, 1);
@@ -1653,16 +1654,16 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 case 5:
                     break; /* no access */
                 case 3:
-                    result->prot |= PAGE_WRITE;
+                    result->f.prot |= PAGE_WRITE;
                     /* fall through */
                 case 2:
                 case 6:
-                    result->prot |= PAGE_READ | PAGE_EXEC;
+                    result->f.prot |= PAGE_READ | PAGE_EXEC;
                     break;
                 case 7:
                     /* for v7M, same as 6; for R profile a reserved value */
                     if (arm_feature(env, ARM_FEATURE_M)) {
-                        result->prot |= PAGE_READ | PAGE_EXEC;
+                        result->f.prot |= PAGE_READ | PAGE_EXEC;
                         break;
                     }
                     /* fall through */
@@ -1678,16 +1679,16 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                 case 1:
                 case 2:
                 case 3:
-                    result->prot |= PAGE_WRITE;
+                    result->f.prot |= PAGE_WRITE;
                     /* fall through */
                 case 5:
                 case 6:
-                    result->prot |= PAGE_READ | PAGE_EXEC;
+                    result->f.prot |= PAGE_READ | PAGE_EXEC;
                     break;
                 case 7:
                     /* for v7M, same as 6; for R profile a reserved value */
                     if (arm_feature(env, ARM_FEATURE_M)) {
-                        result->prot |= PAGE_READ | PAGE_EXEC;
+                        result->f.prot |= PAGE_READ | PAGE_EXEC;
                         break;
                     }
                     /* fall through */
@@ -1700,14 +1701,14 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
 
             /* execute never */
             if (xn) {
-                result->prot &= ~PAGE_EXEC;
+                result->f.prot &= ~PAGE_EXEC;
             }
         }
     }
 
     fi->type = ARMFault_Permission;
     fi->level = 1;
-    return !(result->prot & (1 << access_type));
+    return !(result->f.prot & (1 << access_type));
 }
 
 bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
@@ -1733,9 +1734,9 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
     uint32_t addr_page_base = address & TARGET_PAGE_MASK;
     uint32_t addr_page_limit = addr_page_base + (TARGET_PAGE_SIZE - 1);
 
-    result->page_size = TARGET_PAGE_SIZE;
-    result->phys = address;
-    result->prot = 0;
+    result->f.lg_page_size = TARGET_PAGE_BITS;
+    result->f.phys_addr = address;
+    result->f.prot = 0;
     if (mregion) {
         *mregion = -1;
     }
@@ -1785,13 +1786,13 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                     ranges_overlap(base, limit - base + 1,
                                    addr_page_base,
                                    TARGET_PAGE_SIZE)) {
-                    result->page_size = 1;
+                    result->f.lg_page_size = 0;
                 }
                 continue;
             }
 
             if (base > addr_page_base || limit < addr_page_limit) {
-                result->page_size = 1;
+                result->f.lg_page_size = 0;
             }
 
             if (matchregion != -1) {
@@ -1817,7 +1818,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
 
     if (matchregion == -1) {
         /* hit using the background region */
-        get_phys_addr_pmsav7_default(env, mmu_idx, address, &result->prot);
+        get_phys_addr_pmsav7_default(env, mmu_idx, address, &result->f.prot);
     } else {
         uint32_t ap = extract32(env->pmsav8.rbar[secure][matchregion], 1, 2);
         uint32_t xn = extract32(env->pmsav8.rbar[secure][matchregion], 0, 1);
@@ -1832,9 +1833,9 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
             xn = 1;
         }
 
-        result->prot = simple_ap_to_rw_prot(env, mmu_idx, ap);
-        if (result->prot && !xn && !(pxn && !is_user)) {
-            result->prot |= PAGE_EXEC;
+        result->f.prot = simple_ap_to_rw_prot(env, mmu_idx, ap);
+        if (result->f.prot && !xn && !(pxn && !is_user)) {
+            result->f.prot |= PAGE_EXEC;
         }
         /*
          * We don't need to look the attribute up in the MAIR0/MAIR1
@@ -1847,7 +1848,7 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
 
     fi->type = ARMFault_Permission;
     fi->level = 1;
-    return !(result->prot & (1 << access_type));
+    return !(result->f.prot & (1 << access_type));
 }
 
 static bool v8m_is_sau_exempt(CPUARMState *env,
@@ -2011,9 +2012,9 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
                 } else {
                     fi->type = ARMFault_QEMU_SFault;
                 }
-                result->page_size = sattrs.subpage ? 1 : TARGET_PAGE_SIZE;
-                result->phys = address;
-                result->prot = 0;
+                result->f.lg_page_size = sattrs.subpage ? 0 : TARGET_PAGE_BITS;
+                result->f.phys_addr = address;
+                result->f.prot = 0;
                 return true;
             }
         } else {
@@ -2023,7 +2024,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
              * might downgrade a secure access to nonsecure.
              */
             if (sattrs.ns) {
-                result->attrs.secure = false;
+                result->f.attrs.secure = false;
             } else if (!secure) {
                 /*
                  * NS access to S memory must fault.
@@ -2036,9 +2037,9 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
                  * for M_FAKE_FSR_SFAULT in arm_v7m_cpu_do_interrupt().
                  */
                 fi->type = ARMFault_QEMU_SFault;
-                result->page_size = sattrs.subpage ? 1 : TARGET_PAGE_SIZE;
-                result->phys = address;
-                result->prot = 0;
+                result->f.lg_page_size = sattrs.subpage ? 0 : TARGET_PAGE_BITS;
+                result->f.phys_addr = address;
+                result->f.prot = 0;
                 return true;
             }
         }
@@ -2047,7 +2048,7 @@ static bool get_phys_addr_pmsav8(CPUARMState *env, uint32_t address,
     ret = pmsav8_mpu_lookup(env, address, access_type, mmu_idx, secure,
                             result, fi, NULL);
     if (sattrs.subpage) {
-        result->page_size = 1;
+        result->f.lg_page_size = 0;
     }
     return ret;
 }
@@ -2338,9 +2339,9 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
         result->cacheattrs.is_s2_format = false;
     }
 
-    result->phys = address;
-    result->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    result->page_size = TARGET_PAGE_SIZE;
+    result->f.phys_addr = address;
+    result->f.prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    result->f.lg_page_size = TARGET_PAGE_BITS;
     result->cacheattrs.shareability = shareability;
     result->cacheattrs.attrs = memattr;
     return 0;
@@ -2377,8 +2378,8 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                 return ret;
             }
 
-            ipa = result->phys;
-            ipa_secure = result->attrs.secure;
+            ipa = result->f.phys_addr;
+            ipa_secure = result->f.attrs.secure;
             if (is_secure) {
                 /* Select TCR based on the NS bit from the S1 walk. */
                 s2walk_secure = !(ipa_secure
@@ -2398,7 +2399,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
              * Save the stage1 results so that we may merge
              * prot and cacheattrs later.
              */
-            s1_prot = result->prot;
+            s1_prot = result->f.prot;
             cacheattrs1 = result->cacheattrs;
             memset(result, 0, sizeof(*result));
 
@@ -2407,7 +2408,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
             fi->s2addr = ipa;
 
             /* Combine the S1 and S2 perms.  */
-            result->prot &= s1_prot;
+            result->f.prot &= s1_prot;
 
             /* If S2 fails, return early.  */
             if (ret) {
@@ -2436,7 +2437,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
              * Check if IPA translates to secure or non-secure PA space.
              * Note that VSTCR overrides VTCR and {N}SW overrides {N}SA.
              */
-            result->attrs.secure =
+            result->f.attrs.secure =
                 (is_secure
                  && !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
                  && (ipa_secure
@@ -2456,8 +2457,8 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
      * cannot upgrade an non-secure translation regime's attributes
      * to secure.
      */
-    result->attrs.secure = is_secure;
-    result->attrs.user = regime_is_user(env, mmu_idx);
+    result->f.attrs.secure = is_secure;
+    result->f.attrs.user = regime_is_user(env, mmu_idx);
 
     /*
      * Fast Context Switch Extension. This doesn't exist at all in v8.
@@ -2474,7 +2475,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
 
     if (arm_feature(env, ARM_FEATURE_PMSA)) {
         bool ret;
-        result->page_size = TARGET_PAGE_SIZE;
+        result->f.lg_page_size = TARGET_PAGE_BITS;
 
         if (arm_feature(env, ARM_FEATURE_V8)) {
             /* PMSAv8 */
@@ -2495,9 +2496,9 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                       (access_type == MMU_DATA_STORE ? "writing" : "execute"),
                       (uint32_t)address, mmu_idx,
                       ret ? "Miss" : "Hit",
-                      result->prot & PAGE_READ ? 'r' : '-',
-                      result->prot & PAGE_WRITE ? 'w' : '-',
-                      result->prot & PAGE_EXEC ? 'x' : '-');
+                      result->f.prot & PAGE_READ ? 'r' : '-',
+                      result->f.prot & PAGE_WRITE ? 'w' : '-',
+                      result->f.prot & PAGE_EXEC ? 'x' : '-');
 
         return ret;
     }
@@ -2572,10 +2573,10 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
     bool ret;
 
     ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &res, &fi);
-    *attrs = res.attrs;
+    *attrs = res.f.attrs;
 
     if (ret) {
         return -1;
     }
-    return res.phys;
+    return res.f.phys_addr;
 }

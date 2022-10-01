@@ -3323,8 +3323,8 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
         /* Create a 64-bit PAR */
         par64 = (1 << 11); /* LPAE bit always set */
         if (!ret) {
-            par64 |= res.phys & ~0xfffULL;
-            if (!res.attrs.secure) {
+            par64 |= res.f.phys_addr & ~0xfffULL;
+            if (!res.f.attrs.secure) {
                 par64 |= (1 << 9); /* NS */
             }
             par64 |= (uint64_t)res.cacheattrs.attrs << 56; /* ATTR */
@@ -3348,13 +3348,13 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
          */
         if (!ret) {
             /* We do not set any attribute bits in the PAR */
-            if (res.page_size == (1 << 24)
+            if (res.f.lg_page_size == 24
                 && arm_feature(env, ARM_FEATURE_V7)) {
-                par64 = (res.phys & 0xff000000) | (1 << 1);
+                par64 = (res.f.phys_addr & 0xff000000) | (1 << 1);
             } else {
-                par64 = res.phys & 0xfffff000;
+                par64 = res.f.phys_addr & 0xfffff000;
             }
-            if (!res.attrs.secure) {
+            if (!res.f.attrs.secure) {
                 par64 |= (1 << 9); /* NS */
             }
         } else {
