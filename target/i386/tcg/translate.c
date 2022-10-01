@@ -517,19 +517,14 @@ static inline void gen_op_st_rm_T0_A0(DisasContext *s, int idx, int d)
     }
 }
 
-static void gen_jmp_im(DisasContext *s, target_ulong pc)
-{
-    tcg_gen_movi_tl(cpu_eip, pc);
-}
-
 static void gen_update_eip_cur(DisasContext *s)
 {
-    gen_jmp_im(s, s->base.pc_next - s->cs_base);
+    tcg_gen_movi_tl(cpu_eip, s->base.pc_next - s->cs_base);
 }
 
 static void gen_update_eip_next(DisasContext *s)
 {
-    gen_jmp_im(s, s->pc - s->cs_base);
+    tcg_gen_movi_tl(cpu_eip, s->pc - s->cs_base);
 }
 
 static int cur_insn_len(DisasContext *s)
@@ -2767,17 +2762,17 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     gen_update_cc_op(s);
     set_cc_op(s, CC_OP_DYNAMIC);
     if (!s->jmp_opt) {
-        gen_jmp_im(s, dest);
+        tcg_gen_movi_tl(cpu_eip, dest);
         gen_eob(s);
     } else if (translator_use_goto_tb(&s->base, dest))  {
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
-        gen_jmp_im(s, dest);
+        tcg_gen_movi_tl(cpu_eip, dest);
         tcg_gen_exit_tb(s->base.tb, tb_num);
         s->base.is_jmp = DISAS_NORETURN;
     } else {
         /* jump to another page */
-        gen_jmp_im(s, dest);
+        tcg_gen_movi_tl(cpu_eip, dest);
         gen_jr(s);
     }
 }
