@@ -24,14 +24,13 @@
 #endif
 
 typedef struct PageDesc {
-    /* list of TBs intersecting this ram page */
-    uintptr_t first_tb;
 #ifdef CONFIG_USER_ONLY
     unsigned long flags;
     void *target_data;
-#endif
-#ifdef CONFIG_SOFTMMU
+#else
     QemuSpin lock;
+    /* list of TBs intersecting this ram page */
+    uintptr_t first_tb;
 #endif
 } PageDesc;
 
@@ -69,9 +68,6 @@ static inline PageDesc *page_find(tb_page_addr_t index)
          tb; tb = (TranslationBlock *)tb->field[n], n = (uintptr_t)tb & 1, \
              tb = (TranslationBlock *)((uintptr_t)tb & ~1))
 
-#define PAGE_FOR_EACH_TB(pagedesc, tb, n)                       \
-    TB_FOR_EACH_TAGGED((pagedesc)->first_tb, tb, n, page_next)
-
 #define TB_FOR_EACH_JMP(head_tb, tb, n)                                 \
     TB_FOR_EACH_TAGGED((head_tb)->jmp_list_head, tb, n, jmp_list_next)
 
@@ -89,6 +85,12 @@ void do_assert_page_locked(const PageDesc *pd, const char *file, int line);
 #endif
 void page_lock(PageDesc *pd);
 void page_unlock(PageDesc *pd);
+
+/* TODO: For now, still shared with translate-all.c for system mode. */
+typedef int PageForEachNext;
+#define PAGE_FOR_EACH_TB(start, end, pagedesc, tb, n) \
+    TB_FOR_EACH_TAGGED((pagedesc)->first_tb, tb, n, page_next)
+
 #endif
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_DEBUG_TCG)
 void assert_no_pages_locked(void);

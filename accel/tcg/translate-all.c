@@ -709,7 +709,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
 
     for (index = start; index <= end; index++) {
         TranslationBlock *tb;
-        int n;
+        PageForEachNext n;
 
         pd = page_find(index);
         if (pd == NULL) {
@@ -720,7 +720,7 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
             goto retry;
         }
         assert_page_locked(pd);
-        PAGE_FOR_EACH_TB(pd, tb, n) {
+        PAGE_FOR_EACH_TB(unused, unused, pd, tb, n) {
             if (page_trylock_add(set, tb_page_addr0(tb)) ||
                 (tb_page_addr1(tb) != -1 &&
                  page_trylock_add(set, tb_page_addr1(tb)))) {
