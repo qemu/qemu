@@ -93,6 +93,8 @@ class AST2x00Machine(QemuSystemTest):
         self.do_test_arm_aspeed(image_path)
 
     def do_test_arm_aspeed_buidroot_start(self, image, cpu_id):
+        self.require_netdev('user')
+
         self.vm.set_console()
         self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
                          '-net', 'nic', '-net', 'user')
@@ -193,6 +195,7 @@ class AST2x00MachineSDK(QemuSystemTest):
                                  vm=vm)
 
     def do_test_arm_aspeed_sdk_start(self, image, cpu_id):
+        self.require_netdev('user')
         self.vm.set_console()
         self.vm.add_args('-drive', 'file=' + image + ',if=mtd,format=raw',
                          '-net', 'nic', '-net', 'user')
