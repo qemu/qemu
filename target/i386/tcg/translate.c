@@ -2457,13 +2457,15 @@ static void gen_movl_seg_T0(DisasContext *s, X86Seg seg_reg)
            because ss32 may change. For R_SS, translation must always
            stop as a special handling must be done to disable hardware
            interrupts for the next instruction */
-        if (seg_reg == R_SS || (CODE32(s) && seg_reg < R_FS)) {
-            s->base.is_jmp = DISAS_TOO_MANY;
+        if (seg_reg == R_SS) {
+            s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
+        } else if (CODE32(s) && seg_reg < R_FS) {
+            s->base.is_jmp = DISAS_EOB_NEXT;
         }
     } else {
         gen_op_movl_seg_T0_vm(s, seg_reg);
         if (seg_reg == R_SS) {
-            s->base.is_jmp = DISAS_TOO_MANY;
+            s->base.is_jmp = DISAS_EOB_INHIBIT_IRQ;
         }
     }
 }
@@ -5726,26 +5728,12 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         ot = gen_pop_T0(s);
         gen_movl_seg_T0(s, reg);
         gen_pop_update(s, ot);
-        /* Note that reg == R_SS in gen_movl_seg_T0 always sets is_jmp.  */
-        if (s->base.is_jmp) {
-            gen_update_eip_next(s);
-            if (reg == R_SS) {
-                s->flags &= ~HF_TF_MASK;
-                gen_eob_inhibit_irq(s, true);
-            } else {
-                gen_eob(s);
-            }
-        }
         break;
     case 0x1a1: /* pop fs */
     case 0x1a9: /* pop gs */
         ot = gen_pop_T0(s);
         gen_movl_seg_T0(s, (b >> 3) & 7);
         gen_pop_update(s, ot);
-        if (s->base.is_jmp) {
-            gen_update_eip_next(s);
-            gen_eob(s);
-        }
         break;
 
         /**************************/
@@ -5792,16 +5780,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             goto illegal_op;
         gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
         gen_movl_seg_T0(s, reg);
-        /* Note that reg == R_SS in gen_movl_seg_T0 always sets is_jmp.  */
-        if (s->base.is_jmp) {
-            gen_update_eip_next(s);
-            if (reg == R_SS) {
-                s->flags &= ~HF_TF_MASK;
-                gen_eob_inhibit_irq(s, true);
-            } else {
-                gen_eob(s);
-            }
-        }
         break;
     case 0x8c: /* mov Gv, seg */
         modrm = x86_ldub_code(env, s);
@@ -5991,10 +5969,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         gen_movl_seg_T0(s, op);
         /* then put the data */
         gen_op_mov_reg_v(s, ot, reg, s->T1);
-        if (s->base.is_jmp) {
-            gen_update_eip_next(s);
-            gen_eob(s);
-        }
         break;
 
         /************************/
