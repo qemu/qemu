@@ -676,20 +676,21 @@ static void gen_exts(MemOp ot, TCGv reg)
     gen_ext_tl(reg, reg, ot, true);
 }
 
-static inline
-void gen_op_jnz_ecx(DisasContext *s, MemOp size, TCGLabel *label1)
+static void gen_op_j_ecx(DisasContext *s, TCGCond cond, TCGLabel *label1)
 {
     tcg_gen_mov_tl(s->tmp0, cpu_regs[R_ECX]);
-    gen_extu(size, s->tmp0);
-    tcg_gen_brcondi_tl(TCG_COND_NE, s->tmp0, 0, label1);
+    gen_extu(s->aflag, s->tmp0);
+    tcg_gen_brcondi_tl(cond, s->tmp0, 0, label1);
 }
 
-static inline
-void gen_op_jz_ecx(DisasContext *s, MemOp size, TCGLabel *label1)
+static inline void gen_op_jz_ecx(DisasContext *s, TCGLabel *label1)
 {
-    tcg_gen_mov_tl(s->tmp0, cpu_regs[R_ECX]);
-    gen_extu(size, s->tmp0);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, s->tmp0, 0, label1);
+    gen_op_j_ecx(s, TCG_COND_EQ, label1);
+}
+
+static inline void gen_op_jnz_ecx(DisasContext *s, TCGLabel *label1)
+{
+    gen_op_j_ecx(s, TCG_COND_NE, label1);
 }
 
 static void gen_helper_in_func(MemOp ot, TCGv v, TCGv_i32 n)
@@ -1183,7 +1184,7 @@ static TCGLabel *gen_jz_ecx_string(DisasContext *s)
 {
     TCGLabel *l1 = gen_new_label();
     TCGLabel *l2 = gen_new_label();
-    gen_op_jnz_ecx(s, s->aflag, l1);
+    gen_op_jnz_ecx(s, l1);
     gen_set_label(l2);
     gen_jmp_rel_csize(s, 0, 1);
     gen_set_label(l1);
@@ -1286,7 +1287,7 @@ static void gen_repz(DisasContext *s, MemOp ot,
      * before rep string_insn
      */
     if (s->repz_opt) {
-        gen_op_jz_ecx(s, s->aflag, l2);
+        gen_op_jz_ecx(s, l2);
     }
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
@@ -1306,7 +1307,7 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
     gen_update_cc_op(s);
     gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);
     if (s->repz_opt) {
-        gen_op_jz_ecx(s, s->aflag, l2);
+        gen_op_jz_ecx(s, l2);
     }
     gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
@@ -7397,16 +7398,16 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             case 0: /* loopnz */
             case 1: /* loopz */
                 gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-                gen_op_jz_ecx(s, s->aflag, l2);
+                gen_op_jz_ecx(s, l2);
                 gen_jcc1(s, (JCC_Z << 1) | (b ^ 1), l1);
                 break;
             case 2: /* loop */
                 gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-                gen_op_jnz_ecx(s, s->aflag, l1);
+                gen_op_jnz_ecx(s, l1);
                 break;
             default:
             case 3: /* jcxz */
-                gen_op_jz_ecx(s, s->aflag, l1);
+                gen_op_jz_ecx(s, l1);
                 break;
             }
 
