@@ -562,6 +562,11 @@ static TCGv eip_next_tl(DisasContext *s)
     return tcg_constant_tl(s->pc - s->cs_base);
 }
 
+static TCGv eip_cur_tl(DisasContext *s)
+{
+    return tcg_constant_tl(s->base.pc_next - s->cs_base);
+}
+
 /* Compute SEG:REG into A0.  SEG is selected from the override segment
    (OVR_SEG) and the default segment (DEF_SEG).  OVR_SEG may be -1 to
    indicate no override.  */
@@ -6617,7 +6622,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                                offsetof(CPUX86State, segs[R_CS].selector));
                 tcg_gen_st16_i32(s->tmp2_i32, cpu_env,
                                  offsetof(CPUX86State, fpcs));
-                tcg_gen_st_tl(tcg_constant_tl(s->base.pc_next - s->cs_base),
+                tcg_gen_st_tl(eip_cur_tl(s),
                               cpu_env, offsetof(CPUX86State, fpip));
             }
         }
