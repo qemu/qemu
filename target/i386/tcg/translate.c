@@ -541,6 +541,27 @@ static TCGv_i32 cur_insn_len_i32(DisasContext *s)
     return tcg_constant_i32(cur_insn_len(s));
 }
 
+static TCGv_i32 eip_next_i32(DisasContext *s)
+{
+    /*
+     * This function has two users: lcall_real (always 16-bit mode), and
+     * iret_protected (16, 32, or 64-bit mode).  IRET only uses the value
+     * when EFLAGS.NT is set, which is illegal in 64-bit mode, which is
+     * why passing a 32-bit value isn't broken.  To avoid using this where
+     * we shouldn't, return -1 in 64-bit mode so that execution goes into
+     * the weeds quickly.
+     */
+    if (CODE64(s)) {
+        return tcg_constant_i32(-1);
+    }
+    return tcg_constant_i32(s->pc - s->cs_base);
+}
+
+static TCGv eip_next_tl(DisasContext *s)
+{
+    return tcg_constant_tl(s->pc - s->cs_base);
+}
+
 /* Compute SEG:REG into A0.  SEG is selected from the override segment
    (OVR_SEG) and the default segment (DEF_SEG).  OVR_SEG may be -1 to
    indicate no override.  */
@@ -1213,12 +1234,9 @@ static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
         /* user-mode cpu should not be in IOBPT mode */
         g_assert_not_reached();
 #else
-        TCGv_i32 t_size = tcg_const_i32(1 << ot);
-        TCGv t_next = tcg_const_tl(s->pc - s->cs_base);
-
+        TCGv_i32 t_size = tcg_constant_i32(1 << ot);
+        TCGv t_next = eip_next_tl(s);
         gen_helper_bpt_io(cpu_env, t_port, t_size, t_next);
-        tcg_temp_free_i32(t_size);
-        tcg_temp_free(t_next);
 #endif /* CONFIG_USER_ONLY */
     }
 }
@@ -5324,9 +5342,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             if (dflag == MO_16) {
                 tcg_gen_ext16u_tl(s->T0, s->T0);
             }
-            next_eip = s->pc - s->cs_base;
-            tcg_gen_movi_tl(s->T1, next_eip);
-            gen_push_v(s, s->T1);
+            gen_push_v(s, eip_next_tl(s));
             gen_op_jmp_v(s->T0);
             gen_bnd_jmp(s);
             s->base.is_jmp = DISAS_JUMP;
@@ -5342,14 +5358,14 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             if (PE(s) && !VM86(s)) {
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_lcall_protected(cpu_env, s->tmp2_i32, s->T1,
-                                           tcg_const_i32(dflag - 1),
-                                           tcg_const_tl(s->pc - s->cs_base));
+                                           tcg_constant_i32(dflag - 1),
+                                           eip_next_tl(s));
             } else {
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
                 gen_helper_lcall_real(cpu_env, s->tmp2_i32, s->tmp3_i32,
-                                      tcg_const_i32(dflag - 1),
-                                      tcg_const_i32(s->pc - s->cs_base));
+                                      tcg_constant_i32(dflag - 1),
+                                      eip_next_i32(s));
             }
             s->base.is_jmp = DISAS_JUMP;
             break;
@@ -5372,7 +5388,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             if (PE(s) && !VM86(s)) {
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
                 gen_helper_ljmp_protected(cpu_env, s->tmp2_i32, s->T1,
-                                          tcg_const_tl(s->pc - s->cs_base));
+                                          eip_next_tl(s));
             } else {
                 gen_op_movl_seg_T0_vm(s, R_CS);
                 gen_op_jmp_v(s->T1);
@@ -6854,8 +6870,8 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             }
             gen_helper_iret_real(cpu_env, tcg_const_i32(dflag - 1));
         } else {
-            gen_helper_iret_protected(cpu_env, tcg_const_i32(dflag - 1),
-                                      tcg_const_i32(s->pc - s->cs_base));
+            gen_helper_iret_protected(cpu_env, tcg_constant_i32(dflag - 1),
+                                      eip_next_i32(s));
         }
         set_cc_op(s, CC_OP_EFLAGS);
         s->base.is_jmp = DISAS_EOB_ONLY;
@@ -6867,15 +6883,13 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             } else {
                 tval = (int16_t)insn_get(env, s, MO_16);
             }
-            next_eip = s->pc - s->cs_base;
-            tval += next_eip;
+            tval += s->pc - s->cs_base;
             if (dflag == MO_16) {
                 tval &= 0xffff;
             } else if (!CODE64(s)) {
                 tval &= 0xffffffff;
             }
-            tcg_gen_movi_tl(s->T0, next_eip);
-            gen_push_v(s, s->T0);
+            gen_push_v(s, eip_next_tl(s));
             gen_bnd_jmp(s);
             gen_jmp(s, tval);
         }
@@ -7409,8 +7423,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             TCGLabel *l1, *l2, *l3;
 
             tval = (int8_t)insn_get(env, s, MO_8);
-            next_eip = s->pc - s->cs_base;
-            tval += next_eip;
+            tval += s->pc - s->cs_base;
             if (dflag == MO_16) {
                 tval &= 0xffff;
             }
