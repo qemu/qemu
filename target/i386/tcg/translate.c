@@ -224,7 +224,6 @@ STUB_HELPER(wrmsr, TCGv_env env)
 
 static void gen_eob(DisasContext *s);
 static void gen_jr(DisasContext *s);
-static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
 static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d);
@@ -2393,23 +2392,6 @@ static inline int insn_const_size(MemOp ot)
     }
 }
 
-static void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
-{
-    target_ulong pc = s->cs_base + eip;
-
-    if (translator_use_goto_tb(&s->base, pc))  {
-        /* jump to same page: we can use a direct jump */
-        tcg_gen_goto_tb(tb_num);
-        gen_jmp_im(s, eip);
-        tcg_gen_exit_tb(s->base.tb, tb_num);
-        s->base.is_jmp = DISAS_NORETURN;
-    } else {
-        /* jump to another page */
-        gen_jmp_im(s, eip);
-        gen_jr(s);
-    }
-}
-
 static void gen_jcc(DisasContext *s, int b, int diff)
 {
     TCGLabel *l1 = gen_new_label();
@@ -2762,20 +2744,6 @@ static void gen_jr(DisasContext *s)
     do_gen_eob_worker(s, false, false, true);
 }
 
-/* generate a jump to eip. No segment change must happen before as a
-   direct call to the next block may occur */
-static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
-{
-    gen_update_cc_op(s);
-    set_cc_op(s, CC_OP_DYNAMIC);
-    if (s->jmp_opt) {
-        gen_goto_tb(s, tb_num, eip);
-    } else {
-        gen_jmp_im(s, eip);
-        gen_eob(s);
-    }
-}
-
 /* Jump to eip+diff, truncating the result to OT. */
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
 {
@@ -2789,7 +2757,23 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
             dest &= 0xffffffff;
         }
     }
-    gen_jmp_tb(s, dest, tb_num);
+
+    gen_update_cc_op(s);
+    set_cc_op(s, CC_OP_DYNAMIC);
+    if (!s->jmp_opt) {
+        gen_jmp_im(s, dest);
+        gen_eob(s);
+    } else if (translator_use_goto_tb(&s->base, dest))  {
+        /* jump to same page: we can use a direct jump */
+        tcg_gen_goto_tb(tb_num);
+        gen_jmp_im(s, dest);
+        tcg_gen_exit_tb(s->base.tb, tb_num);
+        s->base.is_jmp = DISAS_NORETURN;
+    } else {
+        /* jump to another page */
+        gen_jmp_im(s, dest);
+        gen_jr(s);
+    }
 }
 
 /* Jump to eip+diff, truncating to the current code size. */
