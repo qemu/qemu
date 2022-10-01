@@ -224,9 +224,9 @@ STUB_HELPER(wrmsr, TCGv_env env)
 
 static void gen_eob(DisasContext *s);
 static void gen_jr(DisasContext *s);
-static void gen_jmp(DisasContext *s, target_ulong eip);
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num);
+static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num);
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d);
 static void gen_exception_gpf(DisasContext *s);
 
@@ -1185,7 +1185,7 @@ static TCGLabel *gen_jz_ecx_string(DisasContext *s)
     TCGLabel *l2 = gen_new_label();
     gen_op_jnz_ecx(s, s->aflag, l1);
     gen_set_label(l2);
-    gen_jmp_tb(s, s->pc - s->cs_base, 1);
+    gen_jmp_rel_csize(s, 0, 1);
     gen_set_label(l1);
     return l2;
 }
@@ -1288,7 +1288,7 @@ static void gen_repz(DisasContext *s, MemOp ot,
     if (s->repz_opt) {
         gen_op_jz_ecx(s, s->aflag, l2);
     }
-    gen_jmp(s, s->base.pc_next - s->cs_base);
+    gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
 
 #define GEN_REPZ(op) \
@@ -1308,7 +1308,7 @@ static void gen_repz2(DisasContext *s, MemOp ot, int nz,
     if (s->repz_opt) {
         gen_op_jz_ecx(s, s->aflag, l2);
     }
-    gen_jmp(s, s->base.pc_next - s->cs_base);
+    gen_jmp_rel_csize(s, -cur_insn_len(s), 0);
 }
 
 #define GEN_REPZ2(op) \
@@ -2793,6 +2793,7 @@ static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num)
     }
 }
 
+/* Jump to eip+diff, truncating the result to OT. */
 static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
 {
     target_ulong dest = s->pc - s->cs_base + diff;
@@ -2808,9 +2809,11 @@ static void gen_jmp_rel(DisasContext *s, MemOp ot, int diff, int tb_num)
     gen_jmp_tb(s, dest, tb_num);
 }
 
-static void gen_jmp(DisasContext *s, target_ulong eip)
+/* Jump to eip+diff, truncating to the current code size. */
+static void gen_jmp_rel_csize(DisasContext *s, int diff, int tb_num)
 {
-    gen_jmp_tb(s, eip, 0);
+    /* CODE64 ignores the OT argument, so we need not consider it. */
+    gen_jmp_rel(s, CODE32(s) ? MO_32 : MO_16, diff, tb_num);
 }
 
 static inline void gen_ldq_env_A0(DisasContext *s, int offset)
@@ -7404,24 +7407,18 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0xe2: /* loop */
     case 0xe3: /* jecxz */
         {
-            TCGLabel *l1, *l2, *l3;
-
-            tval = (int8_t)insn_get(env, s, MO_8);
-            tval += s->pc - s->cs_base;
-            if (dflag == MO_16) {
-                tval &= 0xffff;
-            }
+            TCGLabel *l1, *l2;
+            int diff = (int8_t)insn_get(env, s, MO_8);
 
             l1 = gen_new_label();
             l2 = gen_new_label();
-            l3 = gen_new_label();
             gen_update_cc_op(s);
             b &= 3;
             switch(b) {
             case 0: /* loopnz */
             case 1: /* loopz */
                 gen_op_add_reg_im(s, s->aflag, R_ECX, -1);
-                gen_op_jz_ecx(s, s->aflag, l3);
+                gen_op_jz_ecx(s, s->aflag, l2);
                 gen_jcc1(s, (JCC_Z << 1) | (b ^ 1), l1);
                 break;
             case 2: /* loop */
@@ -7434,14 +7431,11 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 break;
             }
 
-            gen_set_label(l3);
-            gen_update_eip_next(s);
-            tcg_gen_br(l2);
+            gen_set_label(l2);
+            gen_jmp_rel_csize(s, 0, 1);
 
             gen_set_label(l1);
-            gen_jmp_im(s, tval);
-            gen_set_label(l2);
-            s->base.is_jmp = DISAS_EOB_ONLY;
+            gen_jmp_rel(s, dflag, diff, 0);
         }
         break;
     case 0x130: /* wrmsr */
