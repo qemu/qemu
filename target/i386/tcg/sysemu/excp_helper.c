@@ -30,8 +30,10 @@ typedef hwaddr (*MMUTranslateFunc)(CPUState *cs, hwaddr gphys, MMUAccessType acc
 #define GET_HPHYS(cs, gpa, access_type, prot)  \
 	(get_hphys_func ? get_hphys_func(cs, gpa, access_type, prot) : gpa)
 
-static int mmu_translate(CPUState *cs, hwaddr addr, MMUTranslateFunc get_hphys_func,
-                         uint64_t cr3, int is_write1, int mmu_idx, int pg_mode,
+static int mmu_translate(CPUState *cs, hwaddr addr,
+                         MMUTranslateFunc get_hphys_func,
+                         uint64_t cr3, MMUAccessType access_type,
+                         int mmu_idx, int pg_mode,
                          hwaddr *xlat, int *page_size, int *prot)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -40,13 +42,13 @@ static int mmu_translate(CPUState *cs, hwaddr addr, MMUTranslateFunc get_hphys_f
     int32_t a20_mask;
     target_ulong pde_addr, pte_addr;
     int error_code = 0;
-    int is_dirty, is_write, is_user;
+    bool is_dirty, is_write, is_user;
     uint64_t rsvd_mask = PG_ADDRESS_MASK & ~MAKE_64BIT_MASK(0, cpu->phys_bits);
     uint32_t page_offset;
     uint32_t pkr;
 
     is_user = (mmu_idx == MMU_USER_IDX);
-    is_write = is_write1 & 1;
+    is_write = (access_type == MMU_DATA_STORE);
     a20_mask = x86_get_a20_mask(env);
 
     if (!(pg_mode & PG_MODE_NXE)) {
@@ -264,14 +266,14 @@ do_check_protect_pse36:
         }
 
         *prot &= pkr_prot;
-        if ((pkr_prot & (1 << is_write1)) == 0) {
-            assert(is_write1 != 2);
+        if ((pkr_prot & (1 << access_type)) == 0) {
+            assert(access_type != MMU_INST_FETCH);
             error_code |= PG_ERROR_PK_MASK;
             goto do_fault_protect;
         }
     }
 
-    if ((*prot & (1 << is_write1)) == 0) {
+    if ((*prot & (1 << access_type)) == 0) {
         goto do_fault_protect;
     }
 
@@ -297,7 +299,7 @@ do_check_protect_pse36:
     /* align to page_size */
     pte &= PG_ADDRESS_MASK & ~(*page_size - 1);
     page_offset = addr & (*page_size - 1);
-    *xlat = GET_HPHYS(cs, pte + page_offset, is_write1, prot);
+    *xlat = GET_HPHYS(cs, pte + page_offset, access_type, prot);
     return PG_ERROR_OK;
 
  do_fault_rsvd:
@@ -308,7 +310,7 @@ do_check_protect_pse36:
     error_code |= (is_write << PG_ERROR_W_BIT);
     if (is_user)
         error_code |= PG_ERROR_U_MASK;
-    if (is_write1 == 2 &&
+    if (access_type == MMU_INST_FETCH &&
         ((pg_mode & PG_MODE_NXE) || (pg_mode & PG_MODE_SMEP)))
         error_code |= PG_ERROR_I_D_MASK;
     return error_code;
@@ -353,7 +355,7 @@ hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
  * 1  = generate PF fault
  */
 static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
-                            int is_write1, int mmu_idx)
+                            MMUAccessType access_type, int mmu_idx)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -365,7 +367,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
 
 #if defined(DEBUG_MMU)
     printf("MMU fault: addr=%" VADDR_PRIx " w=%d mmu=%d eip=" TARGET_FMT_lx "\n",
-           addr, is_write1, mmu_idx, env->eip);
+           addr, access_type, mmu_idx, env->eip);
 #endif
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
@@ -393,7 +395,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
             }
         }
 
-        error_code = mmu_translate(cs, addr, get_hphys, env->cr[3], is_write1,
+        error_code = mmu_translate(cs, addr, get_hphys, env->cr[3], access_type,
                                    mmu_idx, pg_mode,
                                    &paddr, &page_size, &prot);
     }
@@ -404,7 +406,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
         vaddr = addr & TARGET_PAGE_MASK;
         paddr &= TARGET_PAGE_MASK;
 
-        assert(prot & (1 << is_write1));
+        assert(prot & (1 << access_type));
         tlb_set_page_with_attrs(cs, vaddr, paddr, cpu_get_mem_attrs(env),
                                 prot, mmu_idx, page_size);
         return 0;
