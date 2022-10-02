@@ -82,7 +82,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
     const bool is_user = (in->mmu_idx == MMU_USER_IDX);
     const MMUAccessType access_type = in->access_type;
     uint64_t ptep, pte;
-    hwaddr pde_addr, pte_addr;
+    hwaddr pte_addr;
     uint64_t rsvd_mask = PG_ADDRESS_MASK & ~MAKE_64BIT_MASK(0, cpu->phys_bits);
     uint32_t pkr;
     int page_size;
@@ -92,116 +92,122 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
     }
 
     if (pg_mode & PG_MODE_PAE) {
-        uint64_t pde, pdpe;
-        target_ulong pdpe_addr;
-
 #ifdef TARGET_X86_64
         if (pg_mode & PG_MODE_LMA) {
-            bool la57 = pg_mode & PG_MODE_LA57;
-            uint64_t pml5e_addr, pml5e;
-            uint64_t pml4e_addr, pml4e;
-
-            if (la57) {
-                pml5e_addr = ((in->cr3 & ~0xfff) +
-                        (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
-                PTE_HPHYS(pml5e_addr);
-                pml5e = x86_ldq_phys(cs, pml5e_addr);
-                if (!(pml5e & PG_PRESENT_MASK)) {
+            if (pg_mode & PG_MODE_LA57) {
+                /*
+                 * Page table level 5
+                 */
+                pte_addr = ((in->cr3 & ~0xfff) +
+                            (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
+                PTE_HPHYS(pte_addr);
+                pte = x86_ldq_phys(cs, pte_addr);
+                if (!(pte & PG_PRESENT_MASK)) {
                     goto do_fault;
                 }
-                if (pml5e & (rsvd_mask | PG_PSE_MASK)) {
+                if (pte & (rsvd_mask | PG_PSE_MASK)) {
                     goto do_fault_rsvd;
                 }
-                if (!(pml5e & PG_ACCESSED_MASK)) {
-                    pml5e |= PG_ACCESSED_MASK;
-                    x86_stl_phys_notdirty(cs, pml5e_addr, pml5e);
+                if (!(pte & PG_ACCESSED_MASK)) {
+                    pte |= PG_ACCESSED_MASK;
+                    x86_stl_phys_notdirty(cs, pte_addr, pte);
                 }
-                ptep = pml5e ^ PG_NX_MASK;
+                ptep = pte ^ PG_NX_MASK;
             } else {
-                pml5e = in->cr3;
+                pte = in->cr3;
                 ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
             }
 
-            pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
-                    (((addr >> 39) & 0x1ff) << 3)) & a20_mask;
-            PTE_HPHYS(pml4e_addr);
-            pml4e = x86_ldq_phys(cs, pml4e_addr);
-            if (!(pml4e & PG_PRESENT_MASK)) {
+            /*
+             * Page table level 4
+             */
+            pte_addr = ((pte & PG_ADDRESS_MASK) +
+                        (((addr >> 39) & 0x1ff) << 3)) & a20_mask;
+            PTE_HPHYS(pte_addr);
+            pte = x86_ldq_phys(cs, pte_addr);
+            if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
-            if (pml4e & (rsvd_mask | PG_PSE_MASK)) {
+            if (pte & (rsvd_mask | PG_PSE_MASK)) {
                 goto do_fault_rsvd;
             }
-            if (!(pml4e & PG_ACCESSED_MASK)) {
-                pml4e |= PG_ACCESSED_MASK;
-                x86_stl_phys_notdirty(cs, pml4e_addr, pml4e);
+            if (!(pte & PG_ACCESSED_MASK)) {
+                pte |= PG_ACCESSED_MASK;
+                x86_stl_phys_notdirty(cs, pte_addr, pte);
             }
-            ptep &= pml4e ^ PG_NX_MASK;
-            pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
-                a20_mask;
-            PTE_HPHYS(pdpe_addr);
-            pdpe = x86_ldq_phys(cs, pdpe_addr);
-            if (!(pdpe & PG_PRESENT_MASK)) {
+            ptep &= pte ^ PG_NX_MASK;
+
+            /*
+             * Page table level 3
+             */
+            pte_addr = ((pte & PG_ADDRESS_MASK) +
+                        (((addr >> 30) & 0x1ff) << 3)) & a20_mask;
+            PTE_HPHYS(pte_addr);
+            pte = x86_ldq_phys(cs, pte_addr);
+            if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
-            if (pdpe & rsvd_mask) {
+            if (pte & rsvd_mask) {
                 goto do_fault_rsvd;
             }
-            ptep &= pdpe ^ PG_NX_MASK;
-            if (!(pdpe & PG_ACCESSED_MASK)) {
-                pdpe |= PG_ACCESSED_MASK;
-                x86_stl_phys_notdirty(cs, pdpe_addr, pdpe);
+            ptep &= pte ^ PG_NX_MASK;
+            if (!(pte & PG_ACCESSED_MASK)) {
+                pte |= PG_ACCESSED_MASK;
+                x86_stl_phys_notdirty(cs, pte_addr, pte);
             }
-            if (pdpe & PG_PSE_MASK) {
+            if (pte & PG_PSE_MASK) {
                 /* 1 GB page */
                 page_size = 1024 * 1024 * 1024;
-                pte_addr = pdpe_addr;
-                pte = pdpe;
                 goto do_check_protect;
             }
         } else
 #endif
         {
-            /* XXX: load them when cr3 is loaded ? */
-            pdpe_addr = ((in->cr3 & ~0x1f) + ((addr >> 27) & 0x18)) &
-                a20_mask;
-            PTE_HPHYS(pdpe_addr);
-            pdpe = x86_ldq_phys(cs, pdpe_addr);
-            if (!(pdpe & PG_PRESENT_MASK)) {
+            /*
+             * Page table level 3
+             */
+            pte_addr = ((in->cr3 & ~0x1f) + ((addr >> 27) & 0x18)) & a20_mask;
+            PTE_HPHYS(pte_addr);
+            pte = x86_ldq_phys(cs, pte_addr);
+            if (!(pte & PG_PRESENT_MASK)) {
                 goto do_fault;
             }
             rsvd_mask |= PG_HI_USER_MASK;
-            if (pdpe & (rsvd_mask | PG_NX_MASK)) {
+            if (pte & (rsvd_mask | PG_NX_MASK)) {
                 goto do_fault_rsvd;
             }
             ptep = PG_NX_MASK | PG_USER_MASK | PG_RW_MASK;
         }
 
-        pde_addr = ((pdpe & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
-            a20_mask;
-        PTE_HPHYS(pde_addr);
-        pde = x86_ldq_phys(cs, pde_addr);
-        if (!(pde & PG_PRESENT_MASK)) {
+        /*
+         * Page table level 2
+         */
+        pte_addr = ((pte & PG_ADDRESS_MASK) +
+                    (((addr >> 21) & 0x1ff) << 3)) & a20_mask;
+        PTE_HPHYS(pte_addr);
+        pte = x86_ldq_phys(cs, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }
-        if (pde & rsvd_mask) {
+        if (pte & rsvd_mask) {
             goto do_fault_rsvd;
         }
-        ptep &= pde ^ PG_NX_MASK;
-        if (pde & PG_PSE_MASK) {
+        ptep &= pte ^ PG_NX_MASK;
+        if (pte & PG_PSE_MASK) {
             /* 2 MB page */
             page_size = 2048 * 1024;
-            pte_addr = pde_addr;
-            pte = pde;
             goto do_check_protect;
         }
-        /* 4 KB page */
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            x86_stl_phys_notdirty(cs, pde_addr, pde);
+        if (!(pte & PG_ACCESSED_MASK)) {
+            pte |= PG_ACCESSED_MASK;
+            x86_stl_phys_notdirty(cs, pte_addr, pte);
         }
-        pte_addr = ((pde & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
-            a20_mask;
+
+        /*
+         * Page table level 1
+         */
+        pte_addr = ((pte & PG_ADDRESS_MASK) +
+                    (((addr >> 12) & 0x1ff) << 3)) & a20_mask;
         PTE_HPHYS(pte_addr);
         pte = x86_ldq_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
@@ -214,39 +220,37 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         ptep &= pte ^ PG_NX_MASK;
         page_size = 4096;
     } else {
-        uint32_t pde;
-
-        /* page directory entry */
-        pde_addr = ((in->cr3 & ~0xfff) + ((addr >> 20) & 0xffc)) &
-            a20_mask;
-        PTE_HPHYS(pde_addr);
-        pde = x86_ldl_phys(cs, pde_addr);
-        if (!(pde & PG_PRESENT_MASK)) {
+        /*
+         * Page table level 2
+         */
+        pte_addr = ((in->cr3 & ~0xfff) + ((addr >> 20) & 0xffc)) & a20_mask;
+        PTE_HPHYS(pte_addr);
+        pte = x86_ldl_phys(cs, pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
         }
-        ptep = pde | PG_NX_MASK;
+        ptep = pte | PG_NX_MASK;
 
         /* if PSE bit is set, then we use a 4MB page */
-        if ((pde & PG_PSE_MASK) && (pg_mode & PG_MODE_PSE)) {
+        if ((pte & PG_PSE_MASK) && (pg_mode & PG_MODE_PSE)) {
             page_size = 4096 * 1024;
-            pte_addr = pde_addr;
-
-            /* Bits 20-13 provide bits 39-32 of the address, bit 21 is reserved.
+            /*
+             * Bits 20-13 provide bits 39-32 of the address, bit 21 is reserved.
              * Leave bits 20-13 in place for setting accessed/dirty bits below.
              */
-            pte = pde | ((pde & 0x1fe000LL) << (32 - 13));
+            pte = (uint32_t)pte | ((pte & 0x1fe000LL) << (32 - 13));
             rsvd_mask = 0x200000;
             goto do_check_protect_pse36;
         }
-
-        if (!(pde & PG_ACCESSED_MASK)) {
-            pde |= PG_ACCESSED_MASK;
-            x86_stl_phys_notdirty(cs, pde_addr, pde);
+        if (!(pte & PG_ACCESSED_MASK)) {
+            pte |= PG_ACCESSED_MASK;
+            x86_stl_phys_notdirty(cs, pte_addr, pte);
         }
 
-        /* page directory entry */
-        pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
-            a20_mask;
+        /*
+         * Page table level 1
+         */
+        pte_addr = ((pte & ~0xfffu) + ((addr >> 10) & 0xffc)) & a20_mask;
         PTE_HPHYS(pte_addr);
         pte = x86_ldl_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
