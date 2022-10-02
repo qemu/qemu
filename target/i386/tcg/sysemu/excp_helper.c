@@ -24,14 +24,10 @@
 
 #define PG_ERROR_OK (-1)
 
-typedef hwaddr (*MMUTranslateFunc)(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
-				int *prot);
-
 #define GET_HPHYS(cs, gpa, access_type, prot)  \
-	(get_hphys_func ? get_hphys_func(cs, gpa, access_type, prot) : gpa)
+	(use_stage2 ? get_hphys(cs, gpa, access_type, prot) : gpa)
 
-static int mmu_translate(CPUState *cs, hwaddr addr,
-                         MMUTranslateFunc get_hphys_func,
+static int mmu_translate(CPUState *cs, hwaddr addr, bool use_stage2,
                          uint64_t cr3, MMUAccessType access_type,
                          int mmu_idx, int pg_mode,
                          hwaddr *xlat, int *page_size, int *prot)
@@ -329,7 +325,7 @@ hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
         return gphys;
     }
 
-    exit_info_1 = mmu_translate(cs, gphys, NULL, env->nested_cr3,
+    exit_info_1 = mmu_translate(cs, gphys, false, env->nested_cr3,
                                access_type, MMU_USER_IDX, env->nested_pg_mode,
                                &hphys, &page_size, &next_prot);
     if (exit_info_1 == PG_ERROR_OK) {
@@ -395,7 +391,7 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
             }
         }
 
-        error_code = mmu_translate(cs, addr, get_hphys, env->cr[3], access_type,
+        error_code = mmu_translate(cs, addr, true, env->cr[3], access_type,
                                    mmu_idx, pg_mode,
                                    &paddr, &page_size, &prot);
     }
