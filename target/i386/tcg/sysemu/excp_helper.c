@@ -143,7 +143,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         .err = err,
         .ptw_idx = in->ptw_idx,
     };
-    hwaddr pte_addr;
+    hwaddr pte_addr, paddr;
     uint32_t pkr;
     int page_size;
 
@@ -420,33 +420,47 @@ do_check_protect_pse36:
     }
 
     /* align to page_size */
-    out->paddr = (pte & a20_mask & PG_ADDRESS_MASK & ~(page_size - 1))
-               | (addr & (page_size - 1));
+    paddr = (pte & a20_mask & PG_ADDRESS_MASK & ~(page_size - 1))
+          | (addr & (page_size - 1));
 
     if (in->ptw_idx == MMU_NESTED_IDX) {
-        TranslateParams nested_in = {
-            .addr = out->paddr,
-            .access_type = access_type,
-            .cr3 = env->nested_cr3,
-            .pg_mode = env->nested_pg_mode,
-            .mmu_idx = MMU_USER_IDX,
-            .ptw_idx = MMU_PHYS_IDX,
-        };
+        CPUTLBEntryFull *full;
+        int flags, nested_page_size;
 
-        if (!mmu_translate(env, &nested_in, out, err)) {
+        flags = probe_access_full(env, paddr, access_type,
+                                  MMU_NESTED_IDX, true,
+                                  &pte_trans.haddr, &full, 0);
+        if (unlikely(flags & TLB_INVALID_MASK)) {
+            err->exception_index = 0; /* unused */
+            err->error_code = env->error_code;
+            err->cr2 = paddr;
             err->stage2 = S2_GPA;
             return false;
         }
 
         /* Merge stage1 & stage2 protection bits. */
-        prot &= out->prot;
+        prot &= full->prot;
 
         /* Re-verify resulting protection. */
         if ((prot & (1 << access_type)) == 0) {
             goto do_fault_protect;
         }
+
+        /* Merge stage1 & stage2 addresses to final physical address. */
+        nested_page_size = 1 << full->lg_page_size;
+        paddr = (full->phys_addr & ~(nested_page_size - 1))
+              | (paddr & (nested_page_size - 1));
+
+        /*
+         * Use the larger of stage1 & stage2 page sizes, so that
+         * invalidation works.
+         */
+        if (nested_page_size > page_size) {
+            page_size = nested_page_size;
+        }
     }
 
+    out->paddr = paddr;
     out->prot = prot;
     out->page_size = page_size;
     return true;
