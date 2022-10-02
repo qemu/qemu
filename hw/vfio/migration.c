@@ -456,7 +456,7 @@ static void vfio_save_cleanup(void *opaque)
     trace_vfio_save_cleanup(vbasedev->name);
 }
 
-static void vfio_save_pending(QEMUFile *f, void *opaque,
+static void vfio_save_pending(void *opaque,
                               uint64_t threshold_size,
                               uint64_t *res_precopy_only,
                               uint64_t *res_compatible,

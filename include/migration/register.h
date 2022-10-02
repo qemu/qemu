@@ -46,7 +46,7 @@ typedef struct SaveVMHandlers {
 
     /* This runs outside the iothread lock!  */
     int (*save_setup)(QEMUFile *f, void *opaque);
-    void (*save_live_pending)(QEMUFile *f, void *opaque,
+    void (*save_live_pending)(void *opaque,
                               uint64_t threshold_size,
                               uint64_t *res_precopy_only,
                               uint64_t *res_compatible,

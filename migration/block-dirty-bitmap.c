@@ -762,7 +762,7 @@ static int dirty_bitmap_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void dirty_bitmap_save_pending(QEMUFile *f, void *opaque,
+static void dirty_bitmap_save_pending(void *opaque,
                                       uint64_t max_size,
                                       uint64_t *res_precopy_only,
                                       uint64_t *res_compatible,
