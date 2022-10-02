@@ -37,18 +37,43 @@ typedef struct TranslateResult {
     int page_size;
 } TranslateResult;
 
+typedef enum TranslateFaultStage2 {
+    S2_NONE,
+    S2_GPA,
+    S2_GPT,
+} TranslateFaultStage2;
+
 typedef struct TranslateFault {
     int exception_index;
     int error_code;
     target_ulong cr2;
+    TranslateFaultStage2 stage2;
 } TranslateFault;
 
-#define GET_HPHYS(cs, gpa, access_type, prot)  \
-	(in->use_stage2 ? get_hphys(cs, gpa, access_type, prot) : gpa)
+#define PTE_HPHYS(ADDR)                                         \
+    do {                                                        \
+        if (in->use_stage2) {                                   \
+            nested_in.addr = (ADDR);                            \
+            if (!mmu_translate(env, &nested_in, out, err)) {    \
+                err->stage2 = S2_GPT;                           \
+                return false;                                   \
+            }                                                   \
+            (ADDR) = out->paddr;                                \
+        }                                                       \
+    } while (0)
 
 static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
                           TranslateResult *out, TranslateFault *err)
 {
+    TranslateParams nested_in = {
+        /* Use store for page table entries, to allow A/D flag updates. */
+        .access_type = MMU_DATA_STORE,
+        .cr3 = env->nested_cr3,
+        .pg_mode = env->nested_pg_mode,
+        .mmu_idx = MMU_USER_IDX,
+        .use_stage2 = false,
+    };
+
     CPUState *cs = env_cpu(env);
     X86CPU *cpu = env_archcpu(env);
     const int32_t a20_mask = x86_get_a20_mask(env);
@@ -79,7 +104,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             if (la57) {
                 pml5e_addr = ((in->cr3 & ~0xfff) +
                         (((addr >> 48) & 0x1ff) << 3)) & a20_mask;
-                pml5e_addr = GET_HPHYS(cs, pml5e_addr, MMU_DATA_STORE, NULL);
+                PTE_HPHYS(pml5e_addr);
                 pml5e = x86_ldq_phys(cs, pml5e_addr);
                 if (!(pml5e & PG_PRESENT_MASK)) {
                     goto do_fault;
@@ -99,7 +124,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
 
             pml4e_addr = ((pml5e & PG_ADDRESS_MASK) +
                     (((addr >> 39) & 0x1ff) << 3)) & a20_mask;
-            pml4e_addr = GET_HPHYS(cs, pml4e_addr, MMU_DATA_STORE, NULL);
+            PTE_HPHYS(pml4e_addr);
             pml4e = x86_ldq_phys(cs, pml4e_addr);
             if (!(pml4e & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -114,7 +139,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             ptep &= pml4e ^ PG_NX_MASK;
             pdpe_addr = ((pml4e & PG_ADDRESS_MASK) + (((addr >> 30) & 0x1ff) << 3)) &
                 a20_mask;
-            pdpe_addr = GET_HPHYS(cs, pdpe_addr, MMU_DATA_STORE, NULL);
+            PTE_HPHYS(pdpe_addr);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -140,7 +165,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
             /* XXX: load them when cr3 is loaded ? */
             pdpe_addr = ((in->cr3 & ~0x1f) + ((addr >> 27) & 0x18)) &
                 a20_mask;
-            pdpe_addr = GET_HPHYS(cs, pdpe_addr, MMU_DATA_STORE, NULL);
+            PTE_HPHYS(pdpe_addr);
             pdpe = x86_ldq_phys(cs, pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK)) {
                 goto do_fault;
@@ -154,7 +179,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
 
         pde_addr = ((pdpe & PG_ADDRESS_MASK) + (((addr >> 21) & 0x1ff) << 3)) &
             a20_mask;
-        pde_addr = GET_HPHYS(cs, pde_addr, MMU_DATA_STORE, NULL);
+        PTE_HPHYS(pde_addr);
         pde = x86_ldq_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -177,7 +202,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         }
         pte_addr = ((pde & PG_ADDRESS_MASK) + (((addr >> 12) & 0x1ff) << 3)) &
             a20_mask;
-        pte_addr = GET_HPHYS(cs, pte_addr, MMU_DATA_STORE, NULL);
+        PTE_HPHYS(pte_addr);
         pte = x86_ldq_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -194,7 +219,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         /* page directory entry */
         pde_addr = ((in->cr3 & ~0xfff) + ((addr >> 20) & 0xffc)) &
             a20_mask;
-        pde_addr = GET_HPHYS(cs, pde_addr, MMU_DATA_STORE, NULL);
+        PTE_HPHYS(pde_addr);
         pde = x86_ldl_phys(cs, pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -222,7 +247,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
         /* page directory entry */
         pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) &
             a20_mask;
-        pte_addr = GET_HPHYS(cs, pte_addr, MMU_DATA_STORE, NULL);
+        PTE_HPHYS(pte_addr);
         pte = x86_ldl_phys(cs, pte_addr);
         if (!(pte & PG_PRESENT_MASK)) {
             goto do_fault;
@@ -303,13 +328,31 @@ do_check_protect_pse36:
         assert(access_type != MMU_DATA_STORE);
         prot &= ~PAGE_WRITE;
     }
-    out->prot = prot;
-    out->page_size = page_size;
 
     /* align to page_size */
     out->paddr = (pte & a20_mask & PG_ADDRESS_MASK & ~(page_size - 1))
                | (addr & (page_size - 1));
-    out->paddr = GET_HPHYS(cs, out->paddr, access_type, &out->prot);
+
+    if (in->use_stage2) {
+        nested_in.addr = out->paddr;
+        nested_in.access_type = access_type;
+
+        if (!mmu_translate(env, &nested_in, out, err)) {
+            err->stage2 = S2_GPA;
+            return false;
+        }
+
+        /* Merge stage1 & stage2 protection bits. */
+        prot &= out->prot;
+
+        /* Re-verify resulting protection. */
+        if ((prot & (1 << access_type)) == 0) {
+            goto do_fault_protect;
+        }
+    }
+
+    out->prot = prot;
+    out->page_size = page_size;
     return true;
 
     int error_code;
@@ -344,13 +387,36 @@ do_check_protect_pse36:
     err->exception_index = EXCP0E_PAGE;
     err->error_code = error_code;
     err->cr2 = addr;
+    err->stage2 = S2_NONE;
     return false;
+}
+
+static G_NORETURN void raise_stage2(CPUX86State *env, TranslateFault *err,
+                                    uintptr_t retaddr)
+{
+    uint64_t exit_info_1 = err->error_code;
+
+    switch (err->stage2) {
+    case S2_GPT:
+        exit_info_1 |= SVM_NPTEXIT_GPT;
+        break;
+    case S2_GPA:
+        exit_info_1 |= SVM_NPTEXIT_GPA;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    x86_stq_phys(env_cpu(env),
+                 env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
+                 err->cr2);
+    cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, retaddr);
 }
 
 hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
                  int *prot)
 {
-    CPUX86State *env = &X86_CPU(cs)->env;
+    CPUX86State *env = cs->env_ptr;
 
     if (likely(!(env->hflags2 & HF2_NPT_MASK))) {
         return gphys;
@@ -365,20 +431,16 @@ hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
         };
         TranslateResult out;
         TranslateFault err;
-        uint64_t exit_info_1;
 
-        if (mmu_translate(env, &in, &out, &err)) {
-            if (prot) {
-                *prot &= out.prot;
-            }
-            return out.paddr;
+        if (!mmu_translate(env, &in, &out, &err)) {
+            err.stage2 = prot ? SVM_NPTEXIT_GPA : SVM_NPTEXIT_GPT;
+            raise_stage2(env, &err, env->retaddr);
         }
 
-        x86_stq_phys(cs, env->vm_vmcb +
-                     offsetof(struct vmcb, control.exit_info_2), gphys);
-        exit_info_1 = err.error_code
-                    | (prot ? SVM_NPTEXIT_GPA : SVM_NPTEXIT_GPT);
-        cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, env->retaddr);
+        if (prot) {
+            *prot &= out.prot;
+        }
+        return out.paddr;
     }
 }
 
@@ -405,7 +467,7 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
             .pg_mode = get_pg_mode(env),
             .mmu_idx = mmu_idx,
             .access_type = access_type,
-            .use_stage2 = true
+            .use_stage2 = env->hflags2 & HF2_NPT_MASK,
         };
 
         if (in.pg_mode & PG_MODE_LMA) {
@@ -444,8 +506,13 @@ bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
         return true;
     }
 
-    /* FIXME: On error in get_hphys we have already jumped out.  */
-    g_assert(!probe);
+    if (probe) {
+        return false;
+    }
+
+    if (err.stage2 != S2_NONE) {
+        raise_stage2(env, &err, retaddr);
+    }
 
     if (env->intercept_exceptions & (1 << err.exception_index)) {
         /* cr2 is not modified in case of exceptions */
