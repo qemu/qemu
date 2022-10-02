@@ -27,19 +27,19 @@
 
 /* Secure Virtual Machine helpers */
 
-static inline void svm_save_seg(CPUX86State *env, hwaddr addr,
-                                const SegmentCache *sc)
+static void svm_save_seg(CPUX86State *env, int mmu_idx, hwaddr addr,
+                         const SegmentCache *sc)
 {
-    CPUState *cs = env_cpu(env);
-
-    x86_stw_phys(cs, addr + offsetof(struct vmcb_seg, selector),
-             sc->selector);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb_seg, base),
-             sc->base);
-    x86_stl_phys(cs, addr + offsetof(struct vmcb_seg, limit),
-             sc->limit);
-    x86_stw_phys(cs, addr + offsetof(struct vmcb_seg, attrib),
-             ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
+    cpu_stw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
+                      sc->selector, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
+                      sc->base, mmu_idx, 0);
+    cpu_stl_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
+                      sc->limit, mmu_idx, 0);
+    cpu_stw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
+                      ((sc->flags >> 8) & 0xff)
+                      | ((sc->flags >> 12) & 0x0f00),
+                      mmu_idx, 0);
 }
 
 /*
@@ -52,29 +52,36 @@ static inline void svm_canonicalization(CPUX86State *env, target_ulong *seg_base
     *seg_base = ((((long) *seg_base) << shift_amt) >> shift_amt);
 }
 
-static inline void svm_load_seg(CPUX86State *env, hwaddr addr,
-                                SegmentCache *sc)
+static void svm_load_seg(CPUX86State *env, int mmu_idx, hwaddr addr,
+                         SegmentCache *sc)
 {
-    CPUState *cs = env_cpu(env);
     unsigned int flags;
 
-    sc->selector = x86_lduw_phys(cs,
-                             addr + offsetof(struct vmcb_seg, selector));
-    sc->base = x86_ldq_phys(cs, addr + offsetof(struct vmcb_seg, base));
-    sc->limit = x86_ldl_phys(cs, addr + offsetof(struct vmcb_seg, limit));
-    flags = x86_lduw_phys(cs, addr + offsetof(struct vmcb_seg, attrib));
+    sc->selector =
+        cpu_lduw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, selector),
+                           mmu_idx, 0);
+    sc->base =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, base),
+                          mmu_idx, 0);
+    sc->limit =
+        cpu_ldl_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, limit),
+                          mmu_idx, 0);
+    flags =
+        cpu_lduw_mmuidx_ra(env, addr + offsetof(struct vmcb_seg, attrib),
+                           mmu_idx, 0);
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
+
     svm_canonicalization(env, &sc->base);
 }
 
-static inline void svm_load_seg_cache(CPUX86State *env, hwaddr addr,
-                                      int seg_reg)
+static void svm_load_seg_cache(CPUX86State *env, int mmu_idx,
+                               hwaddr addr, int seg_reg)
 {
-    SegmentCache sc1, *sc = &sc1;
+    SegmentCache sc;
 
-    svm_load_seg(env, addr, sc);
-    cpu_x86_load_seg_cache(env, seg_reg, sc->selector,
-                           sc->base, sc->limit, sc->flags);
+    svm_load_seg(env, mmu_idx, addr, &sc);
+    cpu_x86_load_seg_cache(env, seg_reg, sc.selector,
+                           sc.base, sc.limit, sc.flags);
 }
 
 static inline bool is_efer_invalid_state (CPUX86State *env)
@@ -199,13 +206,17 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
              env->vm_hsave + offsetof(struct vmcb, save.rflags),
              cpu_compute_eflags(env));
 
-    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.es),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_hsave + offsetof(struct vmcb, save.es),
                  &env->segs[R_ES]);
-    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.cs),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_hsave + offsetof(struct vmcb, save.cs),
                  &env->segs[R_CS]);
-    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.ss),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_hsave + offsetof(struct vmcb, save.ss),
                  &env->segs[R_SS]);
-    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.ds),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_hsave + offsetof(struct vmcb, save.ds),
                  &env->segs[R_DS]);
 
     x86_stq_phys(cs, env->vm_hsave + offsetof(struct vmcb, save.rip),
@@ -325,18 +336,18 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
                                                           save.rflags)),
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
 
-    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
-                       R_ES);
-    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.cs),
-                       R_CS);
-    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ss),
-                       R_SS);
-    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
-                       R_DS);
-    svm_load_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.idtr),
-                       &env->idt);
-    svm_load_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.gdtr),
-                       &env->gdt);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_vmcb + offsetof(struct vmcb, save.es), R_ES);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_vmcb + offsetof(struct vmcb, save.cs), R_CS);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_vmcb + offsetof(struct vmcb, save.ss), R_SS);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_vmcb + offsetof(struct vmcb, save.ds), R_DS);
+    svm_load_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.idtr), &env->idt);
+    svm_load_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.gdtr), &env->gdt);
 
     env->eip = x86_ldq_phys(cs,
                         env->vm_vmcb + offsetof(struct vmcb, save.rip));
@@ -451,9 +462,8 @@ void helper_vmmcall(CPUX86State *env)
 
 void helper_vmload(CPUX86State *env, int aflag)
 {
-    CPUState *cs = env_cpu(env);
+    int mmu_idx = MMU_PHYS_IDX;
     target_ulong addr;
-    int prot;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0, GETPC());
 
@@ -464,43 +474,52 @@ void helper_vmload(CPUX86State *env, int aflag)
     }
 
     if (virtual_vm_load_save_enabled(env, SVM_EXIT_VMLOAD, GETPC())) {
-        addr = get_hphys(cs, addr, MMU_DATA_LOAD, &prot);
+        mmu_idx = MMU_NESTED_IDX;
     }
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmload! " TARGET_FMT_lx
-                  "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
-                  addr, x86_ldq_phys(cs, addr + offsetof(struct vmcb,
-                                                          save.fs.base)),
-                  env->segs[R_FS].base);
-
-    svm_load_seg_cache(env, addr + offsetof(struct vmcb, save.fs), R_FS);
-    svm_load_seg_cache(env, addr + offsetof(struct vmcb, save.gs), R_GS);
-    svm_load_seg(env, addr + offsetof(struct vmcb, save.tr), &env->tr);
-    svm_load_seg(env, addr + offsetof(struct vmcb, save.ldtr), &env->ldt);
+    svm_load_seg_cache(env, mmu_idx,
+                       addr + offsetof(struct vmcb, save.fs), R_FS);
+    svm_load_seg_cache(env, mmu_idx,
+                       addr + offsetof(struct vmcb, save.gs), R_GS);
+    svm_load_seg(env, mmu_idx,
+                 addr + offsetof(struct vmcb, save.tr), &env->tr);
+    svm_load_seg(env, mmu_idx,
+                 addr + offsetof(struct vmcb, save.ldtr), &env->ldt);
 
 #ifdef TARGET_X86_64
-    env->kernelgsbase = x86_ldq_phys(cs, addr + offsetof(struct vmcb,
-                                                 save.kernel_gs_base));
-    env->lstar = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.lstar));
-    env->cstar = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.cstar));
-    env->fmask = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.sfmask));
+    env->kernelgsbase =
+        cpu_ldq_mmuidx_ra(env,
+                          addr + offsetof(struct vmcb, save.kernel_gs_base),
+                          mmu_idx, 0);
+    env->lstar =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
+                          mmu_idx, 0);
+    env->cstar =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
+                          mmu_idx, 0);
+    env->fmask =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
+                          mmu_idx, 0);
     svm_canonicalization(env, &env->kernelgsbase);
 #endif
-    env->star = x86_ldq_phys(cs, addr + offsetof(struct vmcb, save.star));
-    env->sysenter_cs = x86_ldq_phys(cs,
-                                addr + offsetof(struct vmcb, save.sysenter_cs));
-    env->sysenter_esp = x86_ldq_phys(cs, addr + offsetof(struct vmcb,
-                                                 save.sysenter_esp));
-    env->sysenter_eip = x86_ldq_phys(cs, addr + offsetof(struct vmcb,
-                                                 save.sysenter_eip));
-
+    env->star =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
+                          mmu_idx, 0);
+    env->sysenter_cs =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_cs),
+                          mmu_idx, 0);
+    env->sysenter_esp =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_esp),
+                          mmu_idx, 0);
+    env->sysenter_eip =
+        cpu_ldq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_eip),
+                          mmu_idx, 0);
 }
 
 void helper_vmsave(CPUX86State *env, int aflag)
 {
-    CPUState *cs = env_cpu(env);
+    int mmu_idx = MMU_PHYS_IDX;
     target_ulong addr;
-    int prot;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0, GETPC());
 
@@ -511,38 +530,36 @@ void helper_vmsave(CPUX86State *env, int aflag)
     }
 
     if (virtual_vm_load_save_enabled(env, SVM_EXIT_VMSAVE, GETPC())) {
-        addr = get_hphys(cs, addr, MMU_DATA_STORE, &prot);
+        mmu_idx = MMU_NESTED_IDX;
     }
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmsave! " TARGET_FMT_lx
-                  "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
-                  addr, x86_ldq_phys(cs,
-                                 addr + offsetof(struct vmcb, save.fs.base)),
-                  env->segs[R_FS].base);
-
-    svm_save_seg(env, addr + offsetof(struct vmcb, save.fs),
+    svm_save_seg(env, mmu_idx, addr + offsetof(struct vmcb, save.fs),
                  &env->segs[R_FS]);
-    svm_save_seg(env, addr + offsetof(struct vmcb, save.gs),
+    svm_save_seg(env, mmu_idx, addr + offsetof(struct vmcb, save.gs),
                  &env->segs[R_GS]);
-    svm_save_seg(env, addr + offsetof(struct vmcb, save.tr),
+    svm_save_seg(env, mmu_idx, addr + offsetof(struct vmcb, save.tr),
                  &env->tr);
-    svm_save_seg(env, addr + offsetof(struct vmcb, save.ldtr),
+    svm_save_seg(env, mmu_idx, addr + offsetof(struct vmcb, save.ldtr),
                  &env->ldt);
 
 #ifdef TARGET_X86_64
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.kernel_gs_base),
-             env->kernelgsbase);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.lstar), env->lstar);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.cstar), env->cstar);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.sfmask), env->fmask);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.kernel_gs_base),
+                      env->kernelgsbase, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.lstar),
+                      env->lstar, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.cstar),
+                      env->cstar, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sfmask),
+                      env->fmask, mmu_idx, 0);
 #endif
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.star), env->star);
-    x86_stq_phys(cs,
-             addr + offsetof(struct vmcb, save.sysenter_cs), env->sysenter_cs);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.sysenter_esp),
-             env->sysenter_esp);
-    x86_stq_phys(cs, addr + offsetof(struct vmcb, save.sysenter_eip),
-             env->sysenter_eip);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.star),
+                      env->star, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_cs),
+                      env->sysenter_cs, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_esp),
+                      env->sysenter_esp, mmu_idx, 0);
+    cpu_stq_mmuidx_ra(env, addr + offsetof(struct vmcb, save.sysenter_eip),
+                      env->sysenter_eip, mmu_idx, 0);
 }
 
 void helper_stgi(CPUX86State *env)
@@ -725,13 +742,17 @@ void do_vmexit(CPUX86State *env)
     tlb_flush_by_mmuidx(cs, 1 << MMU_NESTED_IDX);
 
     /* Save the VM state in the vmcb */
-    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.es),
                  &env->segs[R_ES]);
-    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.cs),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.cs),
                  &env->segs[R_CS]);
-    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.ss),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.ss),
                  &env->segs[R_SS]);
-    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
+    svm_save_seg(env, MMU_PHYS_IDX,
+                 env->vm_vmcb + offsetof(struct vmcb, save.ds),
                  &env->segs[R_DS]);
 
     x86_stq_phys(cs, env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base),
@@ -812,14 +833,14 @@ void do_vmexit(CPUX86State *env)
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK |
                       VM_MASK));
 
-    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.es),
-                       R_ES);
-    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.cs),
-                       R_CS);
-    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.ss),
-                       R_SS);
-    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.ds),
-                       R_DS);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_hsave + offsetof(struct vmcb, save.es), R_ES);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_hsave + offsetof(struct vmcb, save.cs), R_CS);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_hsave + offsetof(struct vmcb, save.ss), R_SS);
+    svm_load_seg_cache(env, MMU_PHYS_IDX,
+                       env->vm_hsave + offsetof(struct vmcb, save.ds), R_DS);
 
     env->eip = x86_ldq_phys(cs,
                         env->vm_hsave + offsetof(struct vmcb, save.rip));

@@ -413,37 +413,6 @@ static G_NORETURN void raise_stage2(CPUX86State *env, TranslateFault *err,
     cpu_vmexit(env, SVM_EXIT_NPF, exit_info_1, retaddr);
 }
 
-hwaddr get_hphys(CPUState *cs, hwaddr gphys, MMUAccessType access_type,
-                 int *prot)
-{
-    CPUX86State *env = cs->env_ptr;
-
-    if (likely(!(env->hflags2 & HF2_NPT_MASK))) {
-        return gphys;
-    } else {
-        TranslateParams in = {
-            .addr = gphys,
-            .cr3 = env->nested_cr3,
-            .pg_mode = env->nested_pg_mode,
-            .mmu_idx = MMU_USER_IDX,
-            .access_type = access_type,
-            .use_stage2 = false,
-        };
-        TranslateResult out;
-        TranslateFault err;
-
-        if (!mmu_translate(env, &in, &out, &err)) {
-            err.stage2 = prot ? SVM_NPTEXIT_GPA : SVM_NPTEXIT_GPT;
-            raise_stage2(env, &err, env->retaddr);
-        }
-
-        if (prot) {
-            *prot &= out.prot;
-        }
-        return out.paddr;
-    }
-}
-
 static bool get_physical_address(CPUX86State *env, vaddr addr,
                                  MMUAccessType access_type, int mmu_idx,
                                  TranslateResult *out, TranslateFault *err)
