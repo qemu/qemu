@@ -448,41 +448,65 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
                                  MMUAccessType access_type, int mmu_idx,
                                  TranslateResult *out, TranslateFault *err)
 {
-    if (!(env->cr[0] & CR0_PG_MASK)) {
-        out->paddr = addr & x86_get_a20_mask(env);
+    TranslateParams in;
+    bool use_stage2 = env->hflags2 & HF2_NPT_MASK;
 
-#ifdef TARGET_X86_64
-        if (!(env->hflags & HF_LMA_MASK)) {
-            /* Without long mode we can only address 32bits in real mode */
-            out->paddr = (uint32_t)out->paddr;
-        }
-#endif
-        out->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-        out->page_size = TARGET_PAGE_SIZE;
-        return true;
-    } else {
-        TranslateParams in = {
-            .addr = addr,
-            .cr3 = env->cr[3],
-            .pg_mode = get_pg_mode(env),
-            .mmu_idx = mmu_idx,
-            .access_type = access_type,
-            .use_stage2 = env->hflags2 & HF2_NPT_MASK,
-        };
+    in.addr = addr;
+    in.access_type = access_type;
 
-        if (in.pg_mode & PG_MODE_LMA) {
-            /* test virtual address sign extension */
-            int shift = in.pg_mode & PG_MODE_LA57 ? 56 : 47;
-            int64_t sext = (int64_t)addr >> shift;
-            if (sext != 0 && sext != -1) {
-                err->exception_index = EXCP0D_GPF;
-                err->error_code = 0;
-                err->cr2 = addr;
+    switch (mmu_idx) {
+    case MMU_PHYS_IDX:
+        break;
+
+    case MMU_NESTED_IDX:
+        if (likely(use_stage2)) {
+            in.cr3 = env->nested_cr3;
+            in.pg_mode = env->nested_pg_mode;
+            in.mmu_idx = MMU_USER_IDX;
+            in.use_stage2 = false;
+
+            if (!mmu_translate(env, &in, out, err)) {
+                err->stage2 = S2_GPA;
                 return false;
             }
+            return true;
         }
-        return mmu_translate(env, &in, out, err);
+        break;
+
+    default:
+        in.cr3 = env->cr[3];
+        in.mmu_idx = mmu_idx;
+        in.use_stage2 = use_stage2;
+        in.pg_mode = get_pg_mode(env);
+
+        if (likely(in.pg_mode)) {
+            if (in.pg_mode & PG_MODE_LMA) {
+                /* test virtual address sign extension */
+                int shift = in.pg_mode & PG_MODE_LA57 ? 56 : 47;
+                int64_t sext = (int64_t)addr >> shift;
+                if (sext != 0 && sext != -1) {
+                    err->exception_index = EXCP0D_GPF;
+                    err->error_code = 0;
+                    err->cr2 = addr;
+                    return false;
+                }
+            }
+            return mmu_translate(env, &in, out, err);
+        }
+        break;
     }
+
+    /* Translation disabled. */
+    out->paddr = addr & x86_get_a20_mask(env);
+#ifdef TARGET_X86_64
+    if (!(env->hflags & HF_LMA_MASK)) {
+        /* Without long mode we can only address 32bits in real mode */
+        out->paddr = (uint32_t)out->paddr;
+    }
+#endif
+    out->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    out->page_size = TARGET_PAGE_SIZE;
+    return true;
 }
 
 bool x86_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,

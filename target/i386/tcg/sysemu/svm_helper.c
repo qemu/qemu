@@ -271,6 +271,8 @@ void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
         env->hflags2 |= HF2_NPT_MASK;
 
         env->nested_pg_mode = get_pg_mode(env) & PG_MODE_SVM_MASK;
+
+        tlb_flush_by_mmuidx(cs, 1 << MMU_NESTED_IDX);
     }
 
     /* enable intercepts */
@@ -720,6 +722,7 @@ void do_vmexit(CPUX86State *env)
                  env->vm_vmcb + offsetof(struct vmcb, control.int_state), 0);
     }
     env->hflags2 &= ~HF2_NPT_MASK;
+    tlb_flush_by_mmuidx(cs, 1 << MMU_NESTED_IDX);
 
     /* Save the VM state in the vmcb */
     svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
