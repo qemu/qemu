@@ -1007,24 +1007,22 @@ void ppce500_init(MachineState *machine)
     }
 
     /* Platform Bus Device */
-    if (pmc->has_platform_bus) {
-        dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
-        dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
-        qdev_prop_set_uint32(dev, "num_irqs", pmc->platform_bus_num_irqs);
-        qdev_prop_set_uint32(dev, "mmio_size", pmc->platform_bus_size);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        pms->pbus_dev = PLATFORM_BUS_DEVICE(dev);
+    dev = qdev_new(TYPE_PLATFORM_BUS_DEVICE);
+    dev->id = g_strdup(TYPE_PLATFORM_BUS_DEVICE);
+    qdev_prop_set_uint32(dev, "num_irqs", pmc->platform_bus_num_irqs);
+    qdev_prop_set_uint32(dev, "mmio_size", pmc->platform_bus_size);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    pms->pbus_dev = PLATFORM_BUS_DEVICE(dev);
 
-        s = SYS_BUS_DEVICE(pms->pbus_dev);
-        for (i = 0; i < pmc->platform_bus_num_irqs; i++) {
-            int irqn = pmc->platform_bus_first_irq + i;
-            sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, irqn));
-        }
-
-        memory_region_add_subregion(address_space_mem,
-                                    pmc->platform_bus_base,
-                                    &pms->pbus_dev->mmio);
+    s = SYS_BUS_DEVICE(pms->pbus_dev);
+    for (i = 0; i < pmc->platform_bus_num_irqs; i++) {
+        int irqn = pmc->platform_bus_first_irq + i;
+        sysbus_connect_irq(s, i, qdev_get_gpio_in(mpicdev, irqn));
     }
+
+    memory_region_add_subregion(address_space_mem,
+                                pmc->platform_bus_base,
+                                &pms->pbus_dev->mmio);
 
     /*
      * Smart firmware defaults ahead!
