@@ -132,6 +132,14 @@ config E500
     select FDT_PPC
     select DS1338
 
+config E500PLAT
+    bool
+    select E500
+
+config MPC8544DS
+    bool
+    select E500
+
 config VIRTEX
     bool
     select PPC4XX
