@@ -36,7 +36,7 @@ static void mpc8544ds_init(MachineState *machine)
     ppce500_init(machine);
 }
 
-static void e500plat_machine_class_init(ObjectClass *oc, void *data)
+static void mpc8544ds_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PPCE500MachineClass *pmc = PPCE500_MACHINE_CLASS(oc);
@@ -63,7 +63,7 @@ static void e500plat_machine_class_init(ObjectClass *oc, void *data)
 static const TypeInfo mpc8544ds_info = {
     .name          = TYPE_MPC8544DS_MACHINE,
     .parent        = TYPE_PPCE500_MACHINE,
-    .class_init    = e500plat_machine_class_init,
+    .class_init    = mpc8544ds_machine_class_init,
 };
 
 static void mpc8544ds_register_types(void)
