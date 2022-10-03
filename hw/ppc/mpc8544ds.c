@@ -14,6 +14,7 @@
 #include "sysemu/device_tree.h"
 #include "hw/ppc/openpic.h"
 #include "qemu/error-report.h"
+#include "qemu/units.h"
 #include "cpu.h"
 
 static void mpc8544ds_fixup_devtree(void *fdt)
@@ -45,6 +46,11 @@ static void mpc8544ds_machine_class_init(ObjectClass *oc, void *data)
     pmc->pci_nr_slots = 2;
     pmc->fixup_devtree = mpc8544ds_fixup_devtree;
     pmc->mpic_version = OPENPIC_MODEL_FSL_MPIC_20;
+    pmc->has_platform_bus = true;
+    pmc->platform_bus_base = 0xFF800000ULL;
+    pmc->platform_bus_size = 8 * MiB;
+    pmc->platform_bus_first_irq = 5;
+    pmc->platform_bus_num_irqs = 10;
     pmc->ccsrbar_base = 0xE0000000ULL;
     pmc->pci_mmio_base = 0xC0000000ULL;
     pmc->pci_mmio_bus_base = 0xC0000000ULL;
