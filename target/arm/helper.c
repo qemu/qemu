@@ -4473,6 +4473,24 @@ typedef struct {
     uint64_t length;
 } TLBIRange;
 
+static ARMGranuleSize tlbi_range_tg_to_gran_size(int tg)
+{
+    /*
+     * Note that the TLBI range TG field encoding differs from both
+     * TG0 and TG1 encodings.
+     */
+    switch (tg) {
+    case 1:
+        return Gran4K;
+    case 2:
+        return Gran16K;
+    case 3:
+        return Gran64K;
+    default:
+        return GranInvalid;
+    }
+}
+
 static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
                                      uint64_t value)
 {
@@ -4481,17 +4499,19 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     uint64_t select = sextract64(value, 36, 1);
     ARMVAParameters param = aa64_va_parameters(env, select, mmuidx, true);
     TLBIRange ret = { };
+    ARMGranuleSize gran;
 
     page_size_granule = extract64(value, 46, 2);
+    gran = tlbi_range_tg_to_gran_size(page_size_granule);
 
     /* The granule encoded in value must match the granule in use. */
-    if (page_size_granule != (param.using64k ? 3 : param.using16k ? 2 : 1)) {
+    if (gran != param.gran) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid tlbi page size granule %d\n",
                       page_size_granule);
         return ret;
     }
 
-    page_shift = (page_size_granule - 1) * 2 + 12;
+    page_shift = arm_granule_bits(gran);
     num = extract64(value, 39, 5);
     scale = extract64(value, 44, 2);
     exponent = (5 * scale) + 1;
@@ -10375,7 +10395,7 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data)
 {
     uint64_t tcr = regime_tcr(env, mmu_idx);
-    bool epd, hpd, using16k, using64k, tsz_oob, ds;
+    bool epd, hpd, tsz_oob, ds;
     int select, tsz, tbi, max_tsz, min_tsz, ps, sh;
     ARMGranuleSize gran;
     ARMCPU *cpu = env_archcpu(env);
@@ -10419,11 +10439,9 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
     }
 
     gran = sanitize_gran_size(cpu, gran, stage2);
-    using64k = gran == Gran64K;
-    using16k = gran == Gran16K;
 
     if (cpu_isar_feature(aa64_st, cpu)) {
-        max_tsz = 48 - using64k;
+        max_tsz = 48 - (gran == Gran64K);
     } else {
         max_tsz = 39;
     }
@@ -10433,7 +10451,7 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
      * adjust the effective value of DS, as documented.
      */
     min_tsz = 16;
-    if (using64k) {
+    if (gran == Gran64K) {
         if (cpu_isar_feature(aa64_lva, cpu)) {
             min_tsz = 12;
         }
@@ -10442,14 +10460,14 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
         switch (mmu_idx) {
         case ARMMMUIdx_Stage2:
         case ARMMMUIdx_Stage2_S:
-            if (using16k) {
+            if (gran == Gran16K) {
                 ds = cpu_isar_feature(aa64_tgran16_2_lpa2, cpu);
             } else {
                 ds = cpu_isar_feature(aa64_tgran4_2_lpa2, cpu);
             }
             break;
         default:
-            if (using16k) {
+            if (gran == Gran16K) {
                 ds = cpu_isar_feature(aa64_tgran16_lpa2, cpu);
             } else {
                 ds = cpu_isar_feature(aa64_tgran4_lpa2, cpu);
@@ -10486,10 +10504,9 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
         .tbi = tbi,
         .epd = epd,
         .hpd = hpd,
-        .using16k = using16k,
-        .using64k = using64k,
         .tsz_oob = tsz_oob,
         .ds = ds,
+        .gran = gran,
     };
 }
 
