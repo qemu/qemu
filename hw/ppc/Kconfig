@@ -124,6 +124,7 @@ config E500
     imply AT24C
     imply VIRTIO_PCI
     select ETSEC
+    select GPIO_MPC8XXX
     select OPENPIC
     select PLATFORM_BUS
     select PPCE500_PCI
