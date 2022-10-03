@@ -1023,7 +1023,7 @@ void ppce500_init(MachineState *machine)
 
         memory_region_add_subregion(address_space_mem,
                                     pmc->platform_bus_base,
-                                    sysbus_mmio_get_region(s, 0));
+                                    &pms->pbus_dev->mmio);
     }
 
     /*
