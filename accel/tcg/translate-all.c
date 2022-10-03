@@ -1537,6 +1537,44 @@ void tb_flush(CPUState *cpu)
     }
 }
 
+/* 
+ * If we call tb_flush, from inside cpu_exec, then it will queue do_tb_flush to
+ * run asyncronously. Since we wish to do this when we start the forkserver to
+ * flush any translated blocks which may have been translated before the 
+ * configuration from environment variables has been parsed, this will cause the
+ * flush to be deferred and instead performed after the fork server is running
+ * resulting in the flush occurring repeatedly rather than just the once, with 
+ * the obvious resulting performance overhead.
+ * 
+ * However, we know that the fork server should be initialized when the target
+ * application has only a single thread (since the fork syscall will only clone
+ * the calling thread into the child process). Therefore, we don't need any 
+ * synchronization with respect to any other VCPUs and can therefore perform the
+ * flush synchronously instead.
+ */
+void tb_flush_sync(void)
+{
+    CPUState *cpu = NULL;
+    size_t num_cpus = 0;
+    
+    if (!tcg_enabled()) {
+        return;        
+    }
+    
+    CPU_FOREACH(cpu) {
+        num_cpus++;
+    }
+    
+    if (num_cpus != 1) {
+      fprintf(stderr, "Warning: More than one VCPU when attempting to flush "
+        "translation block cache. Skipping since we can't do it synchronously.");
+      return;
+    }
+    
+    unsigned tb_flush_count = qatomic_mb_read(&tb_ctx.tb_flush_count);
+    do_tb_flush(cpu, RUN_ON_CPU_HOST_INT(tb_flush_count));
+}
+
 /*
  * Formerly ifdef DEBUG_TB_CHECK. These debug functions are user-mode-only,
  * so in order to prevent bit rot we compile them unconditionally in user-mode,
