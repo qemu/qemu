@@ -1295,7 +1295,7 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 #endif
 
-    if (bs->sg || S_ISBLK(st.st_mode)) {
+    if (bdrv_is_sg(bs) || S_ISBLK(st.st_mode)) {
         int ret = hdev_get_max_hw_transfer(s->fd, &st);
 
         if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
@@ -2059,6 +2059,28 @@ static int coroutine_fn raw_thread_pool_submit(BlockDriverState *bs,
     /* @bs can be NULL, bdrv_get_aio_context() returns the main context then */
     ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     return thread_pool_submit_co(pool, func, arg);
+}
+
+/*
+ * Check if all memory in this vector is sector aligned.
+ */
+static bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
+{
+    int i;
+    size_t alignment = bdrv_min_mem_align(bs);
+    size_t len = bs->bl.request_alignment;
+    IO_CODE();
+
+    for (i = 0; i < qiov->niov; i++) {
+        if ((uintptr_t) qiov->iov[i].iov_base % alignment) {
+            return false;
+        }
+        if (qiov->iov[i].iov_len % len) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
