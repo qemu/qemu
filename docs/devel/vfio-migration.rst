@@ -28,7 +28,7 @@ VFIO implements the device hooks for the iterative approach as follows:
 * A ``load_setup`` function that sets up the migration region on the
   destination and sets _RESUMING flag in the VFIO device state.
 
-* A ``save_live_pending`` function that reads pending_bytes from the vendor
+* A ``state_pending_exact`` function that reads pending_bytes from the vendor
   driver, which indicates the amount of data that the vendor driver has yet to
   save for the VFIO device.
 
@@ -114,7 +114,7 @@ Live migration save path
                     (RUNNING, _SETUP, _RUNNING|_SAVING)
                                   |
                     (RUNNING, _ACTIVE, _RUNNING|_SAVING)
-             If device is active, get pending_bytes by .save_live_pending()
+             If device is active, get pending_bytes by .state_pending_exact()
           If total pending_bytes >= threshold_size, call .save_live_iterate()
                   Data of VFIO device for pre-copy phase is copied
         Iterate till total pending bytes converge and are less than threshold
