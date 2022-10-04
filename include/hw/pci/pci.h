@@ -76,6 +76,7 @@ extern bool pci_available;
 #define PCI_SUBVENDOR_ID_REDHAT_QUMRANET 0x1af4
 #define PCI_SUBDEVICE_ID_QEMU            0x1100
 
+/* legacy virtio-pci devices */
 #define PCI_DEVICE_ID_VIRTIO_NET         0x1000
 #define PCI_DEVICE_ID_VIRTIO_BLOCK       0x1001
 #define PCI_DEVICE_ID_VIRTIO_BALLOON     0x1002
@@ -84,6 +85,15 @@ extern bool pci_available;
 #define PCI_DEVICE_ID_VIRTIO_RNG         0x1005
 #define PCI_DEVICE_ID_VIRTIO_9P          0x1009
 #define PCI_DEVICE_ID_VIRTIO_VSOCK       0x1012
+
+/*
+ * modern virtio-pci devices get their id assigned automatically,
+ * there is no need to add #defines here.  It gets calculated as
+ *
+ * PCI_DEVICE_ID = PCI_DEVICE_ID_VIRTIO_10_BASE +
+ *                 virtio_bus_get_vdev_id(bus)
+ */
+#define PCI_DEVICE_ID_VIRTIO_10_BASE     0x1040
 
 #define PCI_VENDOR_ID_REDHAT             0x1b36
 #define PCI_DEVICE_ID_REDHAT_BRIDGE      0x0001
