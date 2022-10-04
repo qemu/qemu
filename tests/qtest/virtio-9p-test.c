@@ -26,6 +26,7 @@
 #define tflush(...) v9fs_tflush((TFlushOpt) __VA_ARGS__)
 #define tmkdir(...) v9fs_tmkdir((TMkdirOpt) __VA_ARGS__)
 #define tlcreate(...) v9fs_tlcreate((TlcreateOpt) __VA_ARGS__)
+#define tsymlink(...) v9fs_tsymlink((TsymlinkOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -479,22 +480,6 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
-/* create symlink named @a clink in directory @a path pointing to @a to */
-static void do_symlink(QVirtio9P *v9p, const char *path, const char *clink,
-                       const char *to)
-{
-    g_autofree char *name = g_strdup(clink);
-    g_autofree char *dst = g_strdup(to);
-    uint32_t fid;
-    P9Req *req;
-
-    fid = twalk({ .client = v9p, .path = path }).newfid;
-
-    req = v9fs_tsymlink(v9p, fid, name, dst, 0, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rsymlink(req, NULL);
-}
-
 /* create a hard link named @a clink in directory @a path pointing to @a to */
 static void do_hardlink(QVirtio9P *v9p, const char *path, const char *clink,
                         const char *to)
@@ -642,7 +627,10 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert(stat(real_file, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
-    do_symlink(v9p, "05", "symlink_file", "real_file");
+    tsymlink({
+        .client = v9p, .atPath = "05", .name = "symlink_file",
+        .symtgt = "real_file"
+    });
 
     /* check if created link exists now */
     g_assert(stat(symlink_file, &st) == 0);
@@ -663,7 +651,10 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     g_assert(stat(real_file, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
-    do_symlink(v9p, "06", "symlink_file", "real_file");
+    tsymlink({
+        .client = v9p, .atPath = "06", .name = "symlink_file",
+        .symtgt = "real_file"
+    });
     g_assert(stat(symlink_file, &st) == 0);
 
     do_unlinkat(v9p, "06", "symlink_file", 0);

@@ -355,6 +355,38 @@ typedef struct TlcreateRes {
     P9Req *req;
 } TlcreateRes;
 
+/* options for 'Tsymlink' 9p request */
+typedef struct TsymlinkOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* low-level variant of directory where symlink shall be created */
+    uint32_t fid;
+    /* high-level variant of directory where symlink shall be created */
+    const char *atPath;
+    /* name of symlink (required) */
+    const char *name;
+    /* where symlink will point to (required) */
+    const char *symtgt;
+    /* effective group ID of caller */
+    uint32_t gid;
+    /* data being received from 9p server as 'Rsymlink' response (optional) */
+    struct {
+        v9fs_qid *qid;
+    } rsymlink;
+    /* only send Tsymlink request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TsymlinkOpt;
+
+/* result of 'Tsymlink' 9p request */
+typedef struct TsymlinkRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TsymlinkRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -398,8 +430,7 @@ TMkdirRes v9fs_tmkdir(TMkdirOpt);
 void v9fs_rmkdir(P9Req *req, v9fs_qid *qid);
 TlcreateRes v9fs_tlcreate(TlcreateOpt);
 void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
-P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
-                     const char *symtgt, uint32_t gid, uint16_t tag);
+TsymlinkRes v9fs_tsymlink(TsymlinkOpt);
 void v9fs_rsymlink(P9Req *req, v9fs_qid *qid);
 P9Req *v9fs_tlink(QVirtio9P *v9p, uint32_t dfid, uint32_t fid,
                   const char *name, uint16_t tag);

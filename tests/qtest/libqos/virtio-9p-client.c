@@ -892,10 +892,23 @@ void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
 }
 
 /* size[4] Tsymlink tag[2] fid[4] name[s] symtgt[s] gid[4] */
-P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
-                     const char *symtgt, uint32_t gid, uint16_t tag)
+TsymlinkRes v9fs_tsymlink(TsymlinkOpt opt)
 {
     P9Req *req;
+    uint32_t err;
+    g_autofree char *name = g_strdup(opt.name);
+    g_autofree char *symtgt = g_strdup(opt.symtgt);
+
+    g_assert(opt.client);
+    /* expecting either hi-level atPath or low-level fid, but not both */
+    g_assert(!opt.atPath || !opt.fid);
+    /* expecting either Rsymlink or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !opt.rsymlink.qid);
+
+    if (opt.atPath) {
+        opt.fid = v9fs_twalk((TWalkOpt) { .client = opt.client,
+                                          .path = opt.atPath }).newfid;
+    }
 
     uint32_t body_size = 4 + 4;
     uint16_t string_size = v9fs_string_size(name) + v9fs_string_size(symtgt);
@@ -903,13 +916,25 @@ P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
 
-    req = v9fs_req_init(v9p, body_size, P9_TSYMLINK, tag);
-    v9fs_uint32_write(req, fid);
+    req = v9fs_req_init(opt.client, body_size, P9_TSYMLINK, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
     v9fs_string_write(req, name);
     v9fs_string_write(req, symtgt);
-    v9fs_uint32_write(req, gid);
+    v9fs_uint32_write(req, opt.gid);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rsymlink(req, opt.rsymlink.qid);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TsymlinkRes) { .req = req };
 }
 
 /* size[4] Rsymlink tag[2] qid[13] */
