@@ -27,6 +27,7 @@
 #define tmkdir(...) v9fs_tmkdir((TMkdirOpt) __VA_ARGS__)
 #define tlcreate(...) v9fs_tlcreate((TlcreateOpt) __VA_ARGS__)
 #define tsymlink(...) v9fs_tsymlink((TsymlinkOpt) __VA_ARGS__)
+#define tlink(...) v9fs_tlink((TlinkOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -480,21 +481,6 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
-/* create a hard link named @a clink in directory @a path pointing to @a to */
-static void do_hardlink(QVirtio9P *v9p, const char *path, const char *clink,
-                        const char *to)
-{
-    uint32_t dfid, fid;
-    P9Req *req;
-
-    dfid = twalk({ .client = v9p, .path = path }).newfid;
-    fid = twalk({ .client = v9p, .path = to }).newfid;
-
-    req = v9fs_tlink(v9p, dfid, fid, clink, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlink(req);
-}
-
 static void do_unlinkat(QVirtio9P *v9p, const char *atpath, const char *rpath,
                         uint32_t flags)
 {
@@ -676,7 +662,10 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert(stat(real_file, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
 
-    do_hardlink(v9p, "07", "hardlink_file", "07/real_file");
+    tlink({
+        .client = v9p, .atPath = "07", .name = "hardlink_file",
+        .toPath = "07/real_file"
+    });
 
     /* check if link exists now ... */
     g_assert(stat(hardlink_file, &st_link) == 0);
@@ -701,7 +690,10 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     g_assert(stat(real_file, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
 
-    do_hardlink(v9p, "08", "hardlink_file", "08/real_file");
+    tlink({
+        .client = v9p, .atPath = "08", .name = "hardlink_file",
+        .toPath = "08/real_file"
+    });
     g_assert(stat(hardlink_file, &st_link) == 0);
 
     do_unlinkat(v9p, "08", "hardlink_file", 0);
