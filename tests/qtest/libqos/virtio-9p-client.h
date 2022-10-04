@@ -267,6 +267,26 @@ typedef struct TWriteRes {
     uint32_t count;
 } TWriteRes;
 
+/* options for 'Tflush' 9p request */
+typedef struct TFlushOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* message to flush (required) */
+    uint16_t oldtag;
+    /* only send Tflush request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TFlushOpt;
+
+/* result of 'Tflush' 9p request */
+typedef struct TFlushRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TFlushRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -304,7 +324,7 @@ TLOpenRes v9fs_tlopen(TLOpenOpt);
 void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
 TWriteRes v9fs_twrite(TWriteOpt);
 void v9fs_rwrite(P9Req *req, uint32_t *count);
-P9Req *v9fs_tflush(QVirtio9P *v9p, uint16_t oldtag, uint16_t tag);
+TFlushRes v9fs_tflush(TFlushOpt);
 void v9fs_rflush(P9Req *req);
 P9Req *v9fs_tmkdir(QVirtio9P *v9p, uint32_t dfid, const char *name,
                    uint32_t mode, uint32_t gid, uint16_t tag);

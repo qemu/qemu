@@ -23,6 +23,7 @@
 #define treaddir(...) v9fs_treaddir((TReadDirOpt) __VA_ARGS__)
 #define tlopen(...) v9fs_tlopen((TLOpenOpt) __VA_ARGS__)
 #define twrite(...) v9fs_twrite((TWriteOpt) __VA_ARGS__)
+#define tflush(...) v9fs_tflush((TFlushOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -420,7 +421,9 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
         .requestOnly = true
     }).req;
 
-    flush_req = v9fs_tflush(v9p, req->tag, 1);
+    flush_req = tflush({
+        .client = v9p, .oldtag = req->tag, .tag = 1, .requestOnly = true
+    }).req;
 
     /* The write request is supposed to be flushed: the server should just
      * mark the write request as used and reply to the flush request.
@@ -459,7 +462,9 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
         .requestOnly = true
     }).req;
 
-    flush_req = v9fs_tflush(v9p, req->tag, 1);
+    flush_req = tflush({
+        .client = v9p, .oldtag = req->tag, .tag = 1, .requestOnly = true
+    }).req;
 
     /* The write request is supposed to complete. The server should
      * reply to the write request and the flush request.

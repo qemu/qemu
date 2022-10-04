@@ -733,14 +733,29 @@ void v9fs_rwrite(P9Req *req, uint32_t *count)
 }
 
 /* size[4] Tflush tag[2] oldtag[2] */
-P9Req *v9fs_tflush(QVirtio9P *v9p, uint16_t oldtag, uint16_t tag)
+TFlushRes v9fs_tflush(TFlushOpt opt)
 {
     P9Req *req;
+    uint32_t err;
 
-    req = v9fs_req_init(v9p,  2, P9_TFLUSH, tag);
-    v9fs_uint32_write(req, oldtag);
+    g_assert(opt.client);
+
+    req = v9fs_req_init(opt.client, 2, P9_TFLUSH, opt.tag);
+    v9fs_uint32_write(req, opt.oldtag);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rflush(req);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TFlushRes) { .req = req };
 }
 
 /* size[4] Rflush tag[2] */
