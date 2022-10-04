@@ -489,16 +489,36 @@ void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid)
 }
 
 /* size[4] Tgetattr tag[2] fid[4] request_mask[8] */
-P9Req *v9fs_tgetattr(QVirtio9P *v9p, uint32_t fid, uint64_t request_mask,
-                     uint16_t tag)
+TGetAttrRes v9fs_tgetattr(TGetAttrOpt opt)
 {
     P9Req *req;
+    uint32_t err;
 
-    req = v9fs_req_init(v9p, 4 + 8, P9_TGETATTR, tag);
-    v9fs_uint32_write(req, fid);
-    v9fs_uint64_write(req, request_mask);
+    g_assert(opt.client);
+    /* expecting either Rgetattr or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !opt.rgetattr.attr);
+
+    if (!opt.request_mask) {
+        opt.request_mask = P9_GETATTR_ALL;
+    }
+
+    req = v9fs_req_init(opt.client, 4 + 8, P9_TGETATTR, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint64_write(req, opt.request_mask);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rgetattr(req, opt.rgetattr.attr);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TGetAttrRes) { .req = req };
 }
 
 /*

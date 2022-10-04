@@ -19,6 +19,7 @@
 #define twalk(...) v9fs_twalk((TWalkOpt) __VA_ARGS__)
 #define tversion(...) v9fs_tversion((TVersionOpt) __VA_ARGS__)
 #define tattach(...) v9fs_tattach((TAttachOpt) __VA_ARGS__)
+#define tgetattr(...) v9fs_tgetattr((TGetAttrOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -285,7 +286,10 @@ static void fs_walk_2nd_nonexistent(void *obj, void *data,
     g_assert(wqid && wqid[0] && !is_same_qid(root_qid, wqid[0]));
 
     /* expect fid being unaffected by walk above */
-    req = v9fs_tgetattr(v9p, fid, P9_GETATTR_BASIC, 0);
+    req = tgetattr({
+        .client = v9p, .fid = fid, .request_mask = P9_GETATTR_BASIC,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlerror(req, &err);
 
@@ -315,7 +319,10 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     /* special case: no QID is returned if nwname=0 was sent */
     g_assert(wqid == NULL);
 
-    req = v9fs_tgetattr(v9p, 1, P9_GETATTR_BASIC, 0);
+    req = tgetattr({
+        .client = v9p, .fid = 1, .request_mask = P9_GETATTR_BASIC,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rgetattr(req, &attr);
 

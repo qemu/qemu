@@ -63,6 +63,7 @@ typedef struct v9fs_attr {
 } v9fs_attr;
 
 #define P9_GETATTR_BASIC    0x000007ffULL /* Mask for fields up to BLOCKS */
+#define P9_GETATTR_ALL      0x00003fffULL /* Mask for ALL fields */
 
 struct V9fsDirent {
     v9fs_qid qid;
@@ -155,6 +156,32 @@ typedef struct TAttachRes {
     P9Req *req;
 } TAttachRes;
 
+/* options for 'Tgetattr' 9p request */
+typedef struct TGetAttrOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of file/dir whose attributes shall be retrieved (required) */
+    uint32_t fid;
+    /* bitmask indicating attribute fields to be retrieved (optional) */
+    uint64_t request_mask;
+    /* data being received from 9p server as 'Rgetattr' response (optional) */
+    struct {
+        v9fs_attr *attr;
+    } rgetattr;
+    /* only send Tgetattr request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TGetAttrOpt;
+
+/* result of 'Tgetattr' 9p request */
+typedef struct TGetAttrRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TGetAttrRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -182,8 +209,7 @@ TAttachRes v9fs_tattach(TAttachOpt);
 void v9fs_rattach(P9Req *req, v9fs_qid *qid);
 TWalkRes v9fs_twalk(TWalkOpt opt);
 void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid);
-P9Req *v9fs_tgetattr(QVirtio9P *v9p, uint32_t fid, uint64_t request_mask,
-                     uint16_t tag);
+TGetAttrRes v9fs_tgetattr(TGetAttrOpt);
 void v9fs_rgetattr(P9Req *req, v9fs_attr *attr);
 P9Req *v9fs_treaddir(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
                      uint32_t count, uint16_t tag);
