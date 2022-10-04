@@ -281,27 +281,18 @@ void page_reset_target_data(target_ulong start, target_ulong end);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 
 /**
- * page_alloc_target_data(address)
+ * page_get_target_data(address)
  * @address: guest virtual address
  *
- * Allocate TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
- * with the guest page at @address.  If the page is not mapped, NULL will
- * be returned.  If there is existing data associated with @address,
- * no new memory will be allocated.
+ * Return TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
+ * with the guest page at @address, allocating it if necessary.  The
+ * caller should already have verified that the address is valid.
  *
  * The memory will be freed when the guest page is deallocated,
  * e.g. with the munmap system call.
  */
-void *page_alloc_target_data(target_ulong address);
-
-/**
- * page_get_target_data(address)
- * @address: guest virtual address
- *
- * Return any out-of-bound memory assocated with the guest page
- * at @address, as per page_alloc_target_data.
- */
-void *page_get_target_data(target_ulong address);
+void *page_get_target_data(target_ulong address)
+    __attribute__((returns_nonnull));
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
