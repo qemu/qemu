@@ -302,11 +302,10 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     struct v9fs_attr attr;
 
     tversion({ .client = v9p });
-    req = tattach({
-        .client = v9p, .fid = 0, .n_uname = getuid(), .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rattach(req, &root_qid);
+    tattach({
+        .client = v9p, .fid = 0, .n_uname = getuid(),
+        .rattach.qid = &root_qid
+    });
 
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 0, .wnames = NULL,
@@ -330,14 +329,12 @@ static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
     char *wnames[] = { g_strdup("..") };
     v9fs_qid root_qid;
     g_autofree v9fs_qid *wqid = NULL;
-    P9Req *req;
 
     tversion({ .client = v9p });
-    req = tattach((TAttachOpt) {
-        .client = v9p, .fid = 0, .n_uname = getuid(), .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rattach(req, &root_qid);
+    tattach({
+        .client = v9p, .fid = 0, .n_uname = getuid(),
+        .rattach.qid = &root_qid
+    });
 
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
