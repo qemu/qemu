@@ -1,5 +1,6 @@
 /GNUmakefile
 /build/
+/.cache/
 *.pyc
 .sdk
 .stgit-*

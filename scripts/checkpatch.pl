@@ -1667,6 +1667,7 @@ sub process {
 # some scripts we imported from other projects.
 		next if ($realfile =~ /\.(s|S)$/);
 		next if ($realfile =~ /(checkpatch|get_maintainer)\.pl$/);
+		next if ($realfile =~ /^target\/hexagon\/imported\/*/);
 
 		if ($rawline =~ /^\+.*\t/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";

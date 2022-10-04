@@ -119,9 +119,9 @@ static DirtyPageRecord *vcpu_dirty_stat_alloc(VcpuStat *stat)
     }
 
     stat->nvcpu = nvcpu;
-    stat->rates = g_malloc0(sizeof(DirtyRateVcpu) * nvcpu);
+    stat->rates = g_new0(DirtyRateVcpu, nvcpu);
 
-    records = g_malloc0(sizeof(DirtyPageRecord) * nvcpu);
+    records = g_new0(DirtyPageRecord, nvcpu);
 
     return records;
 }

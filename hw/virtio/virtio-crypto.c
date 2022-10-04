@@ -710,7 +710,7 @@ virtio_crypto_handle_asym_req(VirtIOCrypto *vcrypto,
     uint8_t *src = NULL;
     uint8_t *dst = NULL;
 
-    asym_op_info = g_malloc0(sizeof(CryptoDevBackendAsymOpInfo));
+    asym_op_info = g_new0(CryptoDevBackendAsymOpInfo, 1);
     src_len = ldl_le_p(&req->para.src_data_len);
     dst_len = ldl_le_p(&req->para.dst_data_len);
 
