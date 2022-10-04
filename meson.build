@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.59.3',
+project('qemu', ['c'], meson_version: '>=0.61.3',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -180,9 +180,16 @@ endif
 ##################
 
 qemu_cflags = config_host['QEMU_CFLAGS'].split()
-qemu_cxxflags = config_host['QEMU_CXXFLAGS'].split()
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
+
+if enable_static
+  qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
+endif
+
+# Detect support for PT_GNU_RELRO + DT_BIND_NOW.
+# The combination is known as "full relro", because .got.plt is read-only too.
+qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
 
 if targetos == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--no-seh', '-Wl,--nxcompat')
@@ -194,7 +201,6 @@ endif
 
 if get_option('gprof')
   qemu_cflags += ['-p']
-  qemu_cxxflags += ['-p']
   qemu_objcflags += ['-p']
   qemu_ldflags += ['-p']
 endif
@@ -240,8 +246,38 @@ if get_option('fuzzing')
 endif
 
 add_global_arguments(qemu_cflags, native: false, language: ['c'])
-add_global_arguments(qemu_cxxflags, native: false, language: ['cpp'])
 add_global_arguments(qemu_objcflags, native: false, language: ['objc'])
+
+# Check that the C++ compiler exists and works with the C compiler.
+link_language = 'c'
+linker = cc
+qemu_cxxflags = []
+if add_languages('cpp', required: false, native: false)
+  cxx = meson.get_compiler('cpp')
+  add_global_arguments(['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'],
+                       native: false, language: 'cpp')
+  foreach k: qemu_cflags
+    if k not in ['-Wstrict-prototypes', '-Wmissing-prototypes', '-Wnested-externs',
+                 '-Wold-style-declaration', '-Wold-style-definition', '-Wredundant-decls']
+      qemu_cxxflags += [k]
+    endif
+  endforeach
+  add_global_arguments(qemu_cxxflags, native: false, language: 'cpp')
+
+  if cxx.links(files('scripts/main.c'), args: qemu_cflags)
+    link_language = 'cpp'
+    linker = cxx
+  else
+    message('C++ compiler does not work with C compiler')
+    message('Disabling C++-specific optional code')
+  endif
+endif
+
+# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
+if targetos != 'sunos' and not config_host.has_key('CONFIG_TSAN')
+  qemu_ldflags += linker.get_supported_link_arguments('-Wl,--warn-common')
+endif
+
 add_global_link_arguments(qemu_ldflags, native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
@@ -255,14 +291,6 @@ add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir() / 'include',
                       language: ['c', 'cpp', 'objc'])
 
-link_language = meson.get_external_property('link_language', 'cpp')
-if link_language == 'cpp'
-  add_languages('cpp', required: true, native: false)
-  cxx = meson.get_compiler('cpp')
-  linker = cxx
-else
-  linker = cc
-endif
 if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
 endif
@@ -487,6 +515,7 @@ meson.override_dependency('glib-2.0', glib)
 
 gio = not_found
 gdbus_codegen = not_found
+gdbus_codegen_error = '@0@ requires gdbus-codegen, please install libgio'
 if not get_option('gio').auto() or have_system
   gio = dependency('gio-2.0', required: get_option('gio'),
                    method: 'pkg-config', kwargs: static_kwargs)
@@ -510,6 +539,10 @@ if not get_option('gio').auto() or have_system
     gio = declare_dependency(dependencies: [gio, gio_unix],
                              version: gio.version())
   endif
+endif
+if gdbus_codegen.found() and get_option('cfi')
+  gdbus_codegen = not_found
+  gdbus_codegen_error = '@0@ uses gdbus-codegen, which does not support control flow integrity'
 endif
 
 lttng = not_found
@@ -844,14 +877,10 @@ if have_system and get_option('curses').allowed()
     }'''
 
   curses_dep_list = targetos == 'windows' ? ['ncurses', 'ncursesw'] : ['ncursesw']
-  foreach curses_dep : curses_dep_list
-    if not curses.found()
-      curses = dependency(curses_dep,
-                          required: false,
-                          method: 'pkg-config',
-                          kwargs: static_kwargs)
-    endif
-  endforeach
+  curses = dependency(curses_dep_list,
+                      required: false,
+                      method: 'pkg-config',
+                      kwargs: static_kwargs)
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
   curses_compile_args = ['-DNCURSES_WIDECHAR=1']
   if curses.found()
@@ -1689,14 +1718,11 @@ endif
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
 
-# FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
 dbus_display = get_option('dbus_display') \
   .require(gio.version().version_compare('>=2.64'),
            error_message: '-display dbus requires glib>=2.64') \
-  .require(enable_modules,
-           error_message: '-display dbus requires --enable-modules') \
   .require(gdbus_codegen.found(),
-           error_message: '-display dbus requires gdbus-codegen') \
+           error_message: gdbus_codegen_error.format('-display dbus')) \
   .require(opengl.found() and gbm.found(),
            error_message: '-display dbus requires epoxy/egl and gbm') \
   .allowed()

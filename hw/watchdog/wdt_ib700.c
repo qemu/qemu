@@ -128,11 +128,6 @@ static void wdt_ib700_reset(DeviceState *dev)
     timer_del(s->timer);
 }
 
-static WatchdogTimerModel model = {
-    .wdt_name = "ib700",
-    .wdt_description = "iBASE 700",
-};
-
 static void wdt_ib700_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -153,7 +148,6 @@ static const TypeInfo wdt_ib700_info = {
 
 static void wdt_ib700_register_types(void)
 {
-    watchdog_add_model(&model);
     type_register_static(&wdt_ib700_info);
 }
 

@@ -53,7 +53,6 @@
 #include "hw/isa/isa.h"
 #include "hw/scsi/scsi.h"
 #include "hw/display/vga.h"
-#include "sysemu/watchdog.h"
 #include "hw/firmware/smbios.h"
 #include "hw/acpi/acpi.h"
 #include "hw/xen/xen.h"
@@ -181,7 +180,6 @@ static Chardev **serial_hds;
 static const char *log_mask;
 static const char *log_file;
 static bool list_data_dirs;
-static const char *watchdog;
 static const char *qtest_chrdev;
 static const char *qtest_log;
 
@@ -2329,12 +2327,6 @@ static void qemu_process_sugar_options(void)
         }
         object_register_sugar_prop("memory-backend", "prealloc", "on", false);
     }
-
-    if (watchdog) {
-        int i = select_watchdog(watchdog);
-        if (i > 0)
-            exit (i == 1 ? 1 : 0);
-    }
 }
 
 /* -action processing */
@@ -3106,14 +3098,6 @@ void qemu_init(int argc, char **argv)
                 if (strncmp(optarg, "mon:", 4) == 0) {
                     default_monitor = 0;
                 }
-                break;
-            case QEMU_OPTION_watchdog:
-                if (watchdog) {
-                    error_report("only one watchdog option may be given");
-                    exit(1);
-                }
-                warn_report("-watchdog is deprecated; use -device instead.");
-                watchdog = optarg;
                 break;
             case QEMU_OPTION_action:
                 olist = qemu_find_opts("action");
