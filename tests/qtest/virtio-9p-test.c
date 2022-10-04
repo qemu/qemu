@@ -18,6 +18,7 @@
 
 #define twalk(...) v9fs_twalk((TWalkOpt) __VA_ARGS__)
 #define tversion(...) v9fs_tversion((TVersionOpt) __VA_ARGS__)
+#define tattach(...) v9fs_tattach((TAttachOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -48,25 +49,10 @@ static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
     tversion({ .client = obj });
 }
 
-static void do_attach_rqid(QVirtio9P *v9p, v9fs_qid *qid)
-{
-    P9Req *req;
-
-    tversion({ .client = v9p });
-    req = v9fs_tattach(v9p, 0, getuid(), 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rattach(req, qid);
-}
-
-static void do_attach(QVirtio9P *v9p)
-{
-    do_attach_rqid(v9p, NULL);
-}
-
 static void fs_attach(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     v9fs_set_allocator(t_alloc);
-    do_attach(obj);
+    tattach({ .client = obj });
 }
 
 static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -82,7 +68,7 @@ static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
         wnames[i] = g_strdup_printf(QTEST_V9FS_SYNTH_WALK_FILE, i);
     }
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1,
         .nwname = P9_MAXWELEM, .wnames = wnames,
@@ -118,7 +104,7 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     struct V9fsDirent *entries = NULL;
     P9Req *req;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1,
         .nwname = 1, .wnames = wnames, .rwalk.nwqid = &nqid
@@ -173,7 +159,7 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
     int fid;
     uint64_t offset;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
 
     fid = 1;
     offset = 0;
@@ -248,7 +234,7 @@ static void fs_walk_no_slash(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_set_allocator(t_alloc);
     char *wnames[] = { g_strdup(" /") };
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
         .expectErr = ENOENT
@@ -262,7 +248,7 @@ static void fs_walk_nonexistent(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     /*
      * The 9p2000 protocol spec says: "If the first element cannot be walked
      * for any reason, Rerror is returned."
@@ -284,7 +270,7 @@ static void fs_walk_2nd_nonexistent(void *obj, void *data,
         QTEST_V9FS_SYNTH_WALK_FILE "/non-existent", 0
     );
 
-    do_attach_rqid(v9p, &root_qid);
+    tattach({ .client = v9p, .rattach.qid = &root_qid });
     fid = twalk({
         .client = v9p, .path = path,
         .rwalk = { .nwqid = &nwqid, .wqid = &wqid }
@@ -316,7 +302,9 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     struct v9fs_attr attr;
 
     tversion({ .client = v9p });
-    req = v9fs_tattach(v9p, 0, getuid(), 0);
+    req = tattach({
+        .client = v9p, .fid = 0, .n_uname = getuid(), .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);
 
@@ -345,7 +333,9 @@ static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
     P9Req *req;
 
     tversion({ .client = v9p });
-    req = v9fs_tattach(v9p, 0, getuid(), 0);
+    req = tattach((TAttachOpt) {
+        .client = v9p, .fid = 0, .n_uname = getuid(), .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);
 
@@ -366,7 +356,7 @@ static void fs_lopen(void *obj, void *data, QGuestAllocator *t_alloc)
     char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_LOPEN_FILE) };
     P9Req *req;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
@@ -388,7 +378,7 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t count;
     P9Req *req;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
@@ -414,7 +404,7 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t reply_len;
     uint8_t should_block;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
@@ -451,7 +441,7 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t count;
     uint8_t should_block;
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
@@ -588,7 +578,7 @@ static void fs_create_dir(void *obj, void *data, QGuestAllocator *t_alloc)
 
     g_assert(root_path != NULL);
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "01");
 
     /* check if created directory really exists now ... */
@@ -607,7 +597,7 @@ static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
 
     g_assert(root_path != NULL);
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "02");
 
     /* check if created directory really exists now ... */
@@ -627,7 +617,7 @@ static void fs_create_file(void *obj, void *data, QGuestAllocator *t_alloc)
     struct stat st;
     g_autofree char *new_file = virtio_9p_test_path("03/1st_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "03");
     do_lcreate(v9p, "03", "1st_file");
 
@@ -644,7 +634,7 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     struct stat st;
     g_autofree char *new_file = virtio_9p_test_path("04/doa_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "04");
     do_lcreate(v9p, "04", "doa_file");
 
@@ -666,7 +656,7 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *real_file = virtio_9p_test_path("05/real_file");
     g_autofree char *symlink_file = virtio_9p_test_path("05/symlink_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "05");
     do_lcreate(v9p, "05", "real_file");
     g_assert(stat(real_file, &st) == 0);
@@ -687,7 +677,7 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     g_autofree char *real_file = virtio_9p_test_path("06/real_file");
     g_autofree char *symlink_file = virtio_9p_test_path("06/symlink_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "06");
     do_lcreate(v9p, "06", "real_file");
     g_assert(stat(real_file, &st) == 0);
@@ -709,7 +699,7 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *real_file = virtio_9p_test_path("07/real_file");
     g_autofree char *hardlink_file = virtio_9p_test_path("07/hardlink_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "07");
     do_lcreate(v9p, "07", "real_file");
     g_assert(stat(real_file, &st_real) == 0);
@@ -734,7 +724,7 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     g_autofree char *real_file = virtio_9p_test_path("08/real_file");
     g_autofree char *hardlink_file = virtio_9p_test_path("08/hardlink_file");
 
-    do_attach(v9p);
+    tattach({ .client = v9p });
     do_mkdir(v9p, "/", "08");
     do_lcreate(v9p, "08", "real_file");
     g_assert(stat(real_file, &st_real) == 0);

@@ -128,6 +128,33 @@ typedef struct TVersionRes {
     P9Req *req;
 } TVersionRes;
 
+/* options for 'Tattach' 9p request */
+typedef struct TAttachOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID to be associated with root of file tree (optional) */
+    uint32_t fid;
+    /* numerical uid of user being introduced to server (optional) */
+    uint32_t n_uname;
+    /* data being received from 9p server as 'Rattach' response (optional) */
+    struct {
+        /* server's idea of the root of the file tree */
+        v9fs_qid *qid;
+    } rattach;
+    /* only send Tattach request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TAttachOpt;
+
+/* result of 'Tattach' 9p request */
+typedef struct TAttachRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TAttachRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -151,8 +178,7 @@ void v9fs_req_free(P9Req *req);
 void v9fs_rlerror(P9Req *req, uint32_t *err);
 TVersionRes v9fs_tversion(TVersionOpt);
 void v9fs_rversion(P9Req *req, uint16_t *len, char **version);
-P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
-                    uint16_t tag);
+TAttachRes v9fs_tattach(TAttachOpt);
 void v9fs_rattach(P9Req *req, v9fs_qid *qid);
 TWalkRes v9fs_twalk(TWalkOpt opt);
 void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid);

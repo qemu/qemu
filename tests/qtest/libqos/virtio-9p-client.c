@@ -359,20 +359,48 @@ void v9fs_rversion(P9Req *req, uint16_t *len, char **version)
 }
 
 /* size[4] Tattach tag[2] fid[4] afid[4] uname[s] aname[s] n_uname[4] */
-P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
-                    uint16_t tag)
+TAttachRes v9fs_tattach(TAttachOpt opt)
 {
+    uint32_t err;
     const char *uname = ""; /* ignored by QEMU */
     const char *aname = ""; /* ignored by QEMU */
-    P9Req *req = v9fs_req_init(v9p, 4 + 4 + 2 + 2 + 4, P9_TATTACH, tag);
 
-    v9fs_uint32_write(req, fid);
+    g_assert(opt.client);
+    /* expecting either Rattach or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !opt.rattach.qid);
+
+    if (!opt.requestOnly) {
+        v9fs_tversion((TVersionOpt) { .client = opt.client });
+    }
+
+    if (!opt.n_uname) {
+        opt.n_uname = getuid();
+    }
+
+    P9Req *req = v9fs_req_init(opt.client, 4 + 4 + 2 + 2 + 4, P9_TATTACH,
+                               opt.tag);
+
+    v9fs_uint32_write(req, opt.fid);
     v9fs_uint32_write(req, P9_NOFID);
     v9fs_string_write(req, uname);
     v9fs_string_write(req, aname);
-    v9fs_uint32_write(req, n_uname);
+    v9fs_uint32_write(req, opt.n_uname);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rattach(req, opt.rattach.qid);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TAttachRes) {
+        .req = req,
+    };
 }
 
 /* size[4] Rattach tag[2] qid[13] */
