@@ -105,7 +105,6 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_qid qid;
     uint32_t count, nentries;
     struct V9fsDirent *entries = NULL;
-    P9Req *req;
 
     tattach({ .client = v9p });
     twalk({
@@ -114,11 +113,9 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     });
     g_assert_cmpint(nqid, ==, 1);
 
-    req = tlopen({
-        .client = v9p, .fid = 1, .flags = O_DIRECTORY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, &qid, NULL);
+    tlopen({
+        .client = v9p, .fid = 1, .flags = O_DIRECTORY, .rlopen.qid = &qid
+    });
 
     /*
      * submit count = msize - 11, because 11 is the header size of Rreaddir
@@ -163,7 +160,6 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
     v9fs_qid qid;
     uint32_t nentries, npartialentries;
     struct V9fsDirent *entries, *tail, *partialentries;
-    P9Req *req;
     int fid;
     uint64_t offset;
 
@@ -181,11 +177,9 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
     });
     g_assert_cmpint(nqid, ==, 1);
 
-    req = tlopen({
-        .client = v9p, .fid = fid, .flags = O_DIRECTORY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, &qid, NULL);
+    tlopen({
+        .client = v9p, .fid = fid, .flags = O_DIRECTORY, .rlopen.qid = &qid
+    });
 
     /*
      * send as many Treaddir requests as required to get all directory
@@ -363,18 +357,13 @@ static void fs_lopen(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_LOPEN_FILE) };
-    P9Req *req;
 
     tattach({ .client = v9p });
     twalk({
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = tlopen({
-        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, NULL, NULL);
+    tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
     g_free(wnames[0]);
 }
@@ -394,11 +383,7 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = tlopen({
-        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, NULL, NULL);
+    tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
     req = v9fs_twrite(v9p, 1, 0, write_count, buf, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -422,11 +407,7 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = tlopen({
-        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, NULL, NULL);
+    tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
     /* This will cause the 9p server to try to write data to the backend,
      * until the write request gets cancelled.
@@ -461,11 +442,7 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = tlopen({
-        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlopen(req, NULL, NULL);
+    tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
     /* This will cause the write request to complete right away, before it
      * could be actually cancelled.
