@@ -16,61 +16,7 @@
 #include "qemu/module.h"
 #include "libqos/virtio-9p-client.h"
 
-/*
- * Used to auto generate new fids. Start with arbitrary high value to avoid
- * collision with hard coded fids in basic test code.
- */
-static uint32_t fid_generator = 1000;
-
-static uint32_t genfid(void)
-{
-    return fid_generator++;
-}
-
-/**
- * Splits the @a in string by @a delim into individual (non empty) strings
- * and outputs them to @a out. The output array @a out is NULL terminated.
- *
- * Output array @a out must be freed by calling split_free().
- *
- * @returns number of individual elements in output array @a out (without the
- *          final NULL terminating element)
- */
-static int split(const char *in, const char *delim, char ***out)
-{
-    int n = 0, i = 0;
-    char *tmp, *p;
-
-    tmp = g_strdup(in);
-    for (p = strtok(tmp, delim); p != NULL; p = strtok(NULL, delim)) {
-        if (strlen(p) > 0) {
-            ++n;
-        }
-    }
-    g_free(tmp);
-
-    *out = g_new0(char *, n + 1); /* last element NULL delimiter */
-
-    tmp = g_strdup(in);
-    for (p = strtok(tmp, delim); p != NULL; p = strtok(NULL, delim)) {
-        if (strlen(p) > 0) {
-            (*out)[i++] = g_strdup(p);
-        }
-    }
-    g_free(tmp);
-
-    return n;
-}
-
-static void split_free(char ***out)
-{
-    int i;
-    for (i = 0; (*out)[i]; ++i) {
-        g_free((*out)[i]);
-    }
-    g_free(*out);
-    *out = NULL;
-}
+#define twalk(...) v9fs_twalk((TWalkOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -107,52 +53,6 @@ static void do_version(QVirtio9P *v9p)
     v9fs_rversion(req, &server_len, &server_version);
 
     g_assert_cmpmem(server_version, server_len, version, strlen(version));
-}
-
-/*
- * utility function: walk to requested dir and return fid for that dir and
- * the QIDs of server response
- */
-static uint32_t do_walk_rqids(QVirtio9P *v9p, const char *path, uint16_t *nwqid,
-                              v9fs_qid **wqid)
-{
-    char **wnames;
-    P9Req *req;
-    const uint32_t fid = genfid();
-
-    int nwnames = split(path, "/", &wnames);
-
-    req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rwalk(req, nwqid, wqid);
-
-    split_free(&wnames);
-    return fid;
-}
-
-/* utility function: walk to requested dir and return fid for that dir */
-static uint32_t do_walk(QVirtio9P *v9p, const char *path)
-{
-    return do_walk_rqids(v9p, path, NULL, NULL);
-}
-
-/* utility function: walk to requested dir and expect passed error response */
-static void do_walk_expect_error(QVirtio9P *v9p, const char *path, uint32_t err)
-{
-    char **wnames;
-    P9Req *req;
-    uint32_t _err;
-    const uint32_t fid = genfid();
-
-    int nwnames = split(path, "/", &wnames);
-
-    req = v9fs_twalk(v9p, 0, fid, nwnames, wnames, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rlerror(req, &_err);
-
-    g_assert_cmpint(_err, ==, err);
-
-    split_free(&wnames);
 }
 
 static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -197,7 +97,10 @@ static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
     }
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, P9_MAXWELEM, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1,
+        .nwname = P9_MAXWELEM, .wnames = wnames, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, &nwqid, &wqid);
 
@@ -223,7 +126,7 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
     uint16_t nqid;
     v9fs_qid qid;
     uint32_t count, nentries;
@@ -231,7 +134,10 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     P9Req *req;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1,
+        .nwname = 1, .wnames = wnames, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, &nqid, NULL);
     g_assert_cmpint(nqid, ==, 1);
@@ -275,7 +181,7 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
 /* readdir test where overall request is split over several messages */
 static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
 {
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
     uint16_t nqid;
     v9fs_qid qid;
     uint32_t nentries, npartialentries;
@@ -292,7 +198,10 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
     nentries = 0;
     tail = NULL;
 
-    req = v9fs_twalk(v9p, 0, fid, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = fid,
+        .nwname = 1, .wnames = wnames, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, &nqid, NULL);
     g_assert_cmpint(nqid, ==, 1);
@@ -356,12 +265,15 @@ static void fs_walk_no_slash(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup(" /") };
+    char *wnames[] = { g_strdup(" /") };
     P9Req *req;
     uint32_t err;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlerror(req, &err);
 
@@ -380,7 +292,7 @@ static void fs_walk_nonexistent(void *obj, void *data, QGuestAllocator *t_alloc)
      * The 9p2000 protocol spec says: "If the first element cannot be walked
      * for any reason, Rerror is returned."
      */
-    do_walk_expect_error(v9p, "non-existent", ENOENT);
+    twalk({ .client = v9p, .path = "non-existent", .expectErr = ENOENT });
 }
 
 static void fs_walk_2nd_nonexistent(void *obj, void *data,
@@ -398,7 +310,10 @@ static void fs_walk_2nd_nonexistent(void *obj, void *data,
     );
 
     do_attach_rqid(v9p, &root_qid);
-    fid = do_walk_rqids(v9p, path, &nwqid, &wqid);
+    fid = twalk({
+        .client = v9p, .path = path,
+        .rwalk.nwqid = &nwqid, .rwalk.wqid = &wqid
+    }).newfid;
     /*
      * The 9p2000 protocol spec says: "nwqid is therefore either nwname or the
      * index of the first elementwise walk that failed."
@@ -430,7 +345,10 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);
 
-    req = v9fs_twalk(v9p, 0, 1, 0, NULL, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 0, .wnames = NULL,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, &wqid);
 
@@ -448,7 +366,7 @@ static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup("..") };
+    char *wnames[] = { g_strdup("..") };
     v9fs_qid root_qid;
     g_autofree v9fs_qid *wqid = NULL;
     P9Req *req;
@@ -458,7 +376,10 @@ static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);
 
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, &wqid); /* We now we'll get one qid */
 
@@ -471,11 +392,14 @@ static void fs_lopen(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_LOPEN_FILE) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_LOPEN_FILE) };
     P9Req *req;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
 
@@ -491,13 +415,16 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
     static const uint32_t write_count = P9_MAX_SIZE / 2;
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_WRITE_FILE) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_WRITE_FILE) };
     g_autofree char *buf = g_malloc0(write_count);
     uint32_t count;
     P9Req *req;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
 
@@ -517,13 +444,16 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_FLUSH_FILE) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_FLUSH_FILE) };
     P9Req *req, *flush_req;
     uint32_t reply_len;
     uint8_t should_block;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
 
@@ -554,13 +484,16 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
     v9fs_set_allocator(t_alloc);
-    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_FLUSH_FILE) };
+    char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_FLUSH_FILE) };
     P9Req *req, *flush_req;
     uint32_t count;
     uint8_t should_block;
 
     do_attach(v9p);
-    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    req = twalk({
+        .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames,
+        .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
 
@@ -593,7 +526,7 @@ static void do_mkdir(QVirtio9P *v9p, const char *path, const char *cname)
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = twalk({ .client = v9p, .path = path }).newfid;
 
     req = v9fs_tmkdir(v9p, fid, name, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -608,7 +541,7 @@ static uint32_t do_lcreate(QVirtio9P *v9p, const char *path,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = twalk({ .client = v9p, .path = path }).newfid;
 
     req = v9fs_tlcreate(v9p, fid, name, 0, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -626,7 +559,7 @@ static void do_symlink(QVirtio9P *v9p, const char *path, const char *clink,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, path);
+    fid = twalk({ .client = v9p, .path = path }).newfid;
 
     req = v9fs_tsymlink(v9p, fid, name, dst, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -640,8 +573,8 @@ static void do_hardlink(QVirtio9P *v9p, const char *path, const char *clink,
     uint32_t dfid, fid;
     P9Req *req;
 
-    dfid = do_walk(v9p, path);
-    fid = do_walk(v9p, to);
+    dfid = twalk({ .client = v9p, .path = path }).newfid;
+    fid = twalk({ .client = v9p, .path = to }).newfid;
 
     req = v9fs_tlink(v9p, dfid, fid, clink, 0);
     v9fs_req_wait_for_reply(req, NULL);
@@ -655,7 +588,7 @@ static void do_unlinkat(QVirtio9P *v9p, const char *atpath, const char *rpath,
     uint32_t fid;
     P9Req *req;
 
-    fid = do_walk(v9p, atpath);
+    fid = twalk({ .client = v9p, .path = atpath }).newfid;
 
     req = v9fs_tunlinkat(v9p, fid, name, flags, 0);
     v9fs_req_wait_for_reply(req, NULL);

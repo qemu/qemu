@@ -23,6 +23,65 @@ void v9fs_set_allocator(QGuestAllocator *t_alloc)
     alloc = t_alloc;
 }
 
+/*
+ * Used to auto generate new fids. Start with arbitrary high value to avoid
+ * collision with hard coded fids in basic test code.
+ */
+static uint32_t fid_generator = 1000;
+
+static uint32_t genfid(void)
+{
+    return fid_generator++;
+}
+
+/**
+ * Splits the @a in string by @a delim into individual (non empty) strings
+ * and outputs them to @a out. The output array @a out is NULL terminated.
+ *
+ * Output array @a out must be freed by calling split_free().
+ *
+ * @returns number of individual elements in output array @a out (without the
+ *          final NULL terminating element)
+ */
+static int split(const char *in, const char *delim, char ***out)
+{
+    int n = 0, i = 0;
+    char *tmp, *p;
+
+    tmp = g_strdup(in);
+    for (p = strtok(tmp, delim); p != NULL; p = strtok(NULL, delim)) {
+        if (strlen(p) > 0) {
+            ++n;
+        }
+    }
+    g_free(tmp);
+
+    *out = g_new0(char *, n + 1); /* last element NULL delimiter */
+
+    tmp = g_strdup(in);
+    for (p = strtok(tmp, delim); p != NULL; p = strtok(NULL, delim)) {
+        if (strlen(p) > 0) {
+            (*out)[i++] = g_strdup(p);
+        }
+    }
+    g_free(tmp);
+
+    return n;
+}
+
+static void split_free(char ***out)
+{
+    int i;
+    if (!*out) {
+        return;
+    }
+    for (i = 0; (*out)[i]; ++i) {
+        g_free((*out)[i]);
+    }
+    g_free(*out);
+    *out = NULL;
+}
+
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
 {
     qtest_memwrite(req->qts, req->t_msg + req->t_off, addr, len);
@@ -294,28 +353,61 @@ void v9fs_rattach(P9Req *req, v9fs_qid *qid)
 }
 
 /* size[4] Twalk tag[2] fid[4] newfid[4] nwname[2] nwname*(wname[s]) */
-P9Req *v9fs_twalk(QVirtio9P *v9p, uint32_t fid, uint32_t newfid,
-                  uint16_t nwname, char *const wnames[], uint16_t tag)
+TWalkRes v9fs_twalk(TWalkOpt opt)
 {
     P9Req *req;
     int i;
     uint32_t body_size = 4 + 4 + 2;
+    uint32_t err;
+    char **wnames = NULL;
 
-    for (i = 0; i < nwname; i++) {
-        uint16_t wname_size = v9fs_string_size(wnames[i]);
+    g_assert(opt.client);
+    /* expecting either high- or low-level path, both not both */
+    g_assert(!opt.path || !(opt.nwname || opt.wnames));
+    /* expecting either Rwalk or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.rwalk.nwqid || opt.rwalk.wqid));
+
+    if (!opt.newfid) {
+        opt.newfid = genfid();
+    }
+
+    if (opt.path) {
+        opt.nwname = split(opt.path, "/", &wnames);
+        opt.wnames = wnames;
+    }
+
+    for (i = 0; i < opt.nwname; i++) {
+        uint16_t wname_size = v9fs_string_size(opt.wnames[i]);
 
         g_assert_cmpint(body_size, <=, UINT32_MAX - wname_size);
         body_size += wname_size;
     }
-    req = v9fs_req_init(v9p,  body_size, P9_TWALK, tag);
-    v9fs_uint32_write(req, fid);
-    v9fs_uint32_write(req, newfid);
-    v9fs_uint16_write(req, nwname);
-    for (i = 0; i < nwname; i++) {
-        v9fs_string_write(req, wnames[i]);
+    req = v9fs_req_init(opt.client, body_size, P9_TWALK, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint32_write(req, opt.newfid);
+    v9fs_uint16_write(req, opt.nwname);
+    for (i = 0; i < opt.nwname; i++) {
+        v9fs_string_write(req, opt.wnames[i]);
     }
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rwalk(req, opt.rwalk.nwqid, opt.rwalk.wqid);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    split_free(&wnames);
+
+    return (TWalkRes) {
+        .newfid = opt.newfid,
+        .req = req,
+    };
 }
 
 /* size[4] Rwalk tag[2] nwqid[2] nwqid*(wqid[13]) */

@@ -72,6 +72,40 @@ struct V9fsDirent {
     struct V9fsDirent *next;
 };
 
+/* options for 'Twalk' 9p request */
+typedef struct TWalkOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of directory from where walk should start (optional) */
+    uint32_t fid;
+    /* file ID for target directory being walked to (optional) */
+    uint32_t newfid;
+    /* low level variant of path to walk to (optional) */
+    uint16_t nwname;
+    char **wnames;
+    /* high level variant of path to walk to (optional) */
+    const char *path;
+    /* data being received from 9p server as 'Rwalk' response (optional) */
+    struct {
+        uint16_t *nwqid;
+        v9fs_qid **wqid;
+    } rwalk;
+    /* only send Twalk request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TWalkOpt;
+
+/* result of 'Twalk' 9p request */
+typedef struct TWalkRes {
+    /* file ID of target directory been walked to */
+    uint32_t newfid;
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TWalkRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -99,8 +133,7 @@ void v9fs_rversion(P9Req *req, uint16_t *len, char **version);
 P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
                     uint16_t tag);
 void v9fs_rattach(P9Req *req, v9fs_qid *qid);
-P9Req *v9fs_twalk(QVirtio9P *v9p, uint32_t fid, uint32_t newfid,
-                  uint16_t nwname, char *const wnames[], uint16_t tag);
+TWalkRes v9fs_twalk(TWalkOpt opt);
 void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid);
 P9Req *v9fs_tgetattr(QVirtio9P *v9p, uint32_t fid, uint64_t request_mask,
                      uint16_t tag);
