@@ -557,17 +557,35 @@ void v9fs_rgetattr(P9Req *req, v9fs_attr *attr)
 }
 
 /* size[4] Treaddir tag[2] fid[4] offset[8] count[4] */
-P9Req *v9fs_treaddir(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
-                     uint32_t count, uint16_t tag)
+TReadDirRes v9fs_treaddir(TReadDirOpt opt)
 {
     P9Req *req;
+    uint32_t err;
 
-    req = v9fs_req_init(v9p, 4 + 8 + 4, P9_TREADDIR, tag);
-    v9fs_uint32_write(req, fid);
-    v9fs_uint64_write(req, offset);
-    v9fs_uint32_write(req, count);
+    g_assert(opt.client);
+    /* expecting either Rreaddir or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.rreaddir.count ||
+             opt.rreaddir.nentries || opt.rreaddir.entries));
+
+    req = v9fs_req_init(opt.client, 4 + 8 + 4, P9_TREADDIR, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint64_write(req, opt.offset);
+    v9fs_uint32_write(req, opt.count);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rreaddir(req, opt.rreaddir.count, opt.rreaddir.nentries,
+                          opt.rreaddir.entries);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TReadDirRes) { .req = req };
 }
 
 /* size[4] Rreaddir tag[2] count[4] data[count] */

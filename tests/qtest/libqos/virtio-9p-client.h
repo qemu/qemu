@@ -182,6 +182,36 @@ typedef struct TGetAttrRes {
     P9Req *req;
 } TGetAttrRes;
 
+/* options for 'Treaddir' 9p request */
+typedef struct TReadDirOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of directory whose entries shall be retrieved (required) */
+    uint32_t fid;
+    /* offset in entries stream, i.e. for multiple requests (optional) */
+    uint64_t offset;
+    /* maximum bytes to be returned by server (required) */
+    uint32_t count;
+    /* data being received from 9p server as 'Rreaddir' response (optional) */
+    struct {
+        uint32_t *count;
+        uint32_t *nentries;
+        struct V9fsDirent **entries;
+    } rreaddir;
+    /* only send Treaddir request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TReadDirOpt;
+
+/* result of 'Treaddir' 9p request */
+typedef struct TReadDirRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TReadDirRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -211,8 +241,7 @@ TWalkRes v9fs_twalk(TWalkOpt opt);
 void v9fs_rwalk(P9Req *req, uint16_t *nwqid, v9fs_qid **wqid);
 TGetAttrRes v9fs_tgetattr(TGetAttrOpt);
 void v9fs_rgetattr(P9Req *req, v9fs_attr *attr);
-P9Req *v9fs_treaddir(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
-                     uint32_t count, uint16_t tag);
+TReadDirRes v9fs_treaddir(TReadDirOpt);
 void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
                    struct V9fsDirent **entries);
 void v9fs_free_dirents(struct V9fsDirent *e);
