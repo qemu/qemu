@@ -320,6 +320,41 @@ typedef struct TMkdirRes {
     P9Req *req;
 } TMkdirRes;
 
+/* options for 'Tlcreate' 9p request */
+typedef struct TlcreateOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* low-level variant of directory where new file shall be created */
+    uint32_t fid;
+    /* high-level variant of directory where new file shall be created */
+    const char *atPath;
+    /* name of new file (required) */
+    const char *name;
+    /* Linux kernel intent bits */
+    uint32_t flags;
+    /* Linux create(2) mode bits */
+    uint32_t mode;
+    /* effective group ID of caller */
+    uint32_t gid;
+    /* data being received from 9p server as 'Rlcreate' response (optional) */
+    struct {
+        v9fs_qid *qid;
+        uint32_t *iounit;
+    } rlcreate;
+    /* only send Tlcreate request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TlcreateOpt;
+
+/* result of 'Tlcreate' 9p request */
+typedef struct TlcreateRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TlcreateRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -361,9 +396,7 @@ TFlushRes v9fs_tflush(TFlushOpt);
 void v9fs_rflush(P9Req *req);
 TMkdirRes v9fs_tmkdir(TMkdirOpt);
 void v9fs_rmkdir(P9Req *req, v9fs_qid *qid);
-P9Req *v9fs_tlcreate(QVirtio9P *v9p, uint32_t fid, const char *name,
-                     uint32_t flags, uint32_t mode, uint32_t gid,
-                     uint16_t tag);
+TlcreateRes v9fs_tlcreate(TlcreateOpt);
 void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
 P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
                      const char *symtgt, uint32_t gid, uint16_t tag);

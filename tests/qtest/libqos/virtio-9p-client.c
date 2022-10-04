@@ -827,11 +827,26 @@ void v9fs_rmkdir(P9Req *req, v9fs_qid *qid)
 }
 
 /* size[4] Tlcreate tag[2] fid[4] name[s] flags[4] mode[4] gid[4] */
-P9Req *v9fs_tlcreate(QVirtio9P *v9p, uint32_t fid, const char *name,
-                     uint32_t flags, uint32_t mode, uint32_t gid,
-                     uint16_t tag)
+TlcreateRes v9fs_tlcreate(TlcreateOpt opt)
 {
     P9Req *req;
+    uint32_t err;
+    g_autofree char *name = g_strdup(opt.name);
+
+    g_assert(opt.client);
+    /* expecting either hi-level atPath or low-level fid, but not both */
+    g_assert(!opt.atPath || !opt.fid);
+    /* expecting either Rlcreate or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.rlcreate.qid || opt.rlcreate.iounit));
+
+    if (opt.atPath) {
+        opt.fid = v9fs_twalk((TWalkOpt) { .client = opt.client,
+                                          .path = opt.atPath }).newfid;
+    }
+
+    if (!opt.mode) {
+        opt.mode = 0750;
+    }
 
     uint32_t body_size = 4 + 4 + 4 + 4;
     uint16_t string_size = v9fs_string_size(name);
@@ -839,14 +854,26 @@ P9Req *v9fs_tlcreate(QVirtio9P *v9p, uint32_t fid, const char *name,
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
 
-    req = v9fs_req_init(v9p, body_size, P9_TLCREATE, tag);
-    v9fs_uint32_write(req, fid);
+    req = v9fs_req_init(opt.client, body_size, P9_TLCREATE, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
     v9fs_string_write(req, name);
-    v9fs_uint32_write(req, flags);
-    v9fs_uint32_write(req, mode);
-    v9fs_uint32_write(req, gid);
+    v9fs_uint32_write(req, opt.flags);
+    v9fs_uint32_write(req, opt.mode);
+    v9fs_uint32_write(req, opt.gid);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rlcreate(req, opt.rlcreate.qid, opt.rlcreate.iounit);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TlcreateRes) { .req = req };
 }
 
 /* size[4] Rlcreate tag[2] qid[13] iounit[4] */
