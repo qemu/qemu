@@ -770,7 +770,6 @@ TMkdirRes v9fs_tmkdir(TMkdirOpt opt)
 {
     P9Req *req;
     uint32_t err;
-    g_autofree char *name = g_strdup(opt.name);
 
     g_assert(opt.client);
     /* expecting either hi-level atPath or low-level dfid, but not both */
@@ -788,14 +787,14 @@ TMkdirRes v9fs_tmkdir(TMkdirOpt opt)
     }
 
     uint32_t body_size = 4 + 4 + 4;
-    uint16_t string_size = v9fs_string_size(name);
+    uint16_t string_size = v9fs_string_size(opt.name);
 
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
 
     req = v9fs_req_init(opt.client, body_size, P9_TMKDIR, opt.tag);
     v9fs_uint32_write(req, opt.dfid);
-    v9fs_string_write(req, name);
+    v9fs_string_write(req, opt.name);
     v9fs_uint32_write(req, opt.mode);
     v9fs_uint32_write(req, opt.gid);
     v9fs_req_send(req);
@@ -831,7 +830,6 @@ TlcreateRes v9fs_tlcreate(TlcreateOpt opt)
 {
     P9Req *req;
     uint32_t err;
-    g_autofree char *name = g_strdup(opt.name);
 
     g_assert(opt.client);
     /* expecting either hi-level atPath or low-level fid, but not both */
@@ -849,14 +847,14 @@ TlcreateRes v9fs_tlcreate(TlcreateOpt opt)
     }
 
     uint32_t body_size = 4 + 4 + 4 + 4;
-    uint16_t string_size = v9fs_string_size(name);
+    uint16_t string_size = v9fs_string_size(opt.name);
 
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
 
     req = v9fs_req_init(opt.client, body_size, P9_TLCREATE, opt.tag);
     v9fs_uint32_write(req, opt.fid);
-    v9fs_string_write(req, name);
+    v9fs_string_write(req, opt.name);
     v9fs_uint32_write(req, opt.flags);
     v9fs_uint32_write(req, opt.mode);
     v9fs_uint32_write(req, opt.gid);
@@ -896,8 +894,6 @@ TsymlinkRes v9fs_tsymlink(TsymlinkOpt opt)
 {
     P9Req *req;
     uint32_t err;
-    g_autofree char *name = g_strdup(opt.name);
-    g_autofree char *symtgt = g_strdup(opt.symtgt);
 
     g_assert(opt.client);
     /* expecting either hi-level atPath or low-level fid, but not both */
@@ -911,15 +907,16 @@ TsymlinkRes v9fs_tsymlink(TsymlinkOpt opt)
     }
 
     uint32_t body_size = 4 + 4;
-    uint16_t string_size = v9fs_string_size(name) + v9fs_string_size(symtgt);
+    uint16_t string_size = v9fs_string_size(opt.name) +
+                           v9fs_string_size(opt.symtgt);
 
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
 
     req = v9fs_req_init(opt.client, body_size, P9_TSYMLINK, opt.tag);
     v9fs_uint32_write(req, opt.fid);
-    v9fs_string_write(req, name);
-    v9fs_string_write(req, symtgt);
+    v9fs_string_write(req, opt.name);
+    v9fs_string_write(req, opt.symtgt);
     v9fs_uint32_write(req, opt.gid);
     v9fs_req_send(req);
 
