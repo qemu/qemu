@@ -22,6 +22,7 @@
 #define tgetattr(...) v9fs_tgetattr((TGetAttrOpt) __VA_ARGS__)
 #define treaddir(...) v9fs_treaddir((TReadDirOpt) __VA_ARGS__)
 #define tlopen(...) v9fs_tlopen((TLOpenOpt) __VA_ARGS__)
+#define twrite(...) v9fs_twrite((TWriteOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -385,7 +386,10 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
 
     tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
-    req = v9fs_twrite(v9p, 1, 0, write_count, buf, 0);
+    req = twrite({
+        .client = v9p, .fid = 1, .offset = 0, .count = write_count,
+        .data = buf, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwrite(req, &count);
     g_assert_cmpint(count, ==, write_count);
@@ -413,7 +417,11 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
      * until the write request gets cancelled.
      */
     should_block = 1;
-    req = v9fs_twrite(v9p, 1, 0, sizeof(should_block), &should_block, 0);
+    req = twrite({
+        .client = v9p, .fid = 1, .offset = 0,
+        .count = sizeof(should_block), .data = &should_block,
+        .requestOnly = true
+    }).req;
 
     flush_req = v9fs_tflush(v9p, req->tag, 1);
 
@@ -448,7 +456,11 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
      * could be actually cancelled.
      */
     should_block = 0;
-    req = v9fs_twrite(v9p, 1, 0, sizeof(should_block), &should_block, 0);
+    req = twrite({
+        .client = v9p, .fid = 1, .offset = 0,
+        .count = sizeof(should_block), .data = &should_block,
+        .requestOnly = true
+    }).req;
 
     flush_req = v9fs_tflush(v9p, req->tag, 1);
 

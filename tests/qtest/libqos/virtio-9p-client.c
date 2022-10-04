@@ -687,21 +687,39 @@ void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
 }
 
 /* size[4] Twrite tag[2] fid[4] offset[8] count[4] data[count] */
-P9Req *v9fs_twrite(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
-                   uint32_t count, const void *data, uint16_t tag)
+TWriteRes v9fs_twrite(TWriteOpt opt)
 {
     P9Req *req;
+    uint32_t err;
     uint32_t body_size = 4 + 8 + 4;
+    uint32_t written = 0;
 
-    g_assert_cmpint(body_size, <=, UINT32_MAX - count);
-    body_size += count;
-    req = v9fs_req_init(v9p,  body_size, P9_TWRITE, tag);
-    v9fs_uint32_write(req, fid);
-    v9fs_uint64_write(req, offset);
-    v9fs_uint32_write(req, count);
-    v9fs_memwrite(req, data, count);
+    g_assert(opt.client);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - opt.count);
+    body_size += opt.count;
+    req = v9fs_req_init(opt.client, body_size, P9_TWRITE, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint64_write(req, opt.offset);
+    v9fs_uint32_write(req, opt.count);
+    v9fs_memwrite(req, opt.data, opt.count);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rwrite(req, &written);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TWriteRes) {
+        .req = req,
+        .count = written
+    };
 }
 
 /* size[4] Rwrite tag[2] count[4] */

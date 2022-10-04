@@ -239,6 +239,34 @@ typedef struct TLOpenRes {
     P9Req *req;
 } TLOpenRes;
 
+/* options for 'Twrite' 9p request */
+typedef struct TWriteOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* file ID of file to write to (required) */
+    uint32_t fid;
+    /* start position of write from beginning of file (optional) */
+    uint64_t offset;
+    /* how many bytes to write */
+    uint32_t count;
+    /* data to be written */
+    const void *data;
+    /* only send Twrite request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TWriteOpt;
+
+/* result of 'Twrite' 9p request */
+typedef struct TWriteRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+    /* amount of bytes written */
+    uint32_t count;
+} TWriteRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -274,8 +302,7 @@ void v9fs_rreaddir(P9Req *req, uint32_t *count, uint32_t *nentries,
 void v9fs_free_dirents(struct V9fsDirent *e);
 TLOpenRes v9fs_tlopen(TLOpenOpt);
 void v9fs_rlopen(P9Req *req, v9fs_qid *qid, uint32_t *iounit);
-P9Req *v9fs_twrite(QVirtio9P *v9p, uint32_t fid, uint64_t offset,
-                   uint32_t count, const void *data, uint16_t tag);
+TWriteRes v9fs_twrite(TWriteOpt);
 void v9fs_rwrite(P9Req *req, uint32_t *count);
 P9Req *v9fs_tflush(QVirtio9P *v9p, uint16_t oldtag, uint16_t tag);
 void v9fs_rflush(P9Req *req);
