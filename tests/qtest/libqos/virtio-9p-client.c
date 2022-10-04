@@ -291,21 +291,54 @@ void v9fs_rlerror(P9Req *req, uint32_t *err)
 }
 
 /* size[4] Tversion tag[2] msize[4] version[s] */
-P9Req *v9fs_tversion(QVirtio9P *v9p, uint32_t msize, const char *version,
-                     uint16_t tag)
+TVersionRes v9fs_tversion(TVersionOpt opt)
 {
     P9Req *req;
+    uint32_t err;
     uint32_t body_size = 4;
-    uint16_t string_size = v9fs_string_size(version);
+    uint16_t string_size;
+    uint16_t server_len;
+    g_autofree char *server_version = NULL;
 
+    g_assert(opt.client);
+
+    if (!opt.msize) {
+        opt.msize = P9_MAX_SIZE;
+    }
+
+    if (!opt.tag) {
+        opt.tag = P9_NOTAG;
+    }
+
+    if (!opt.version) {
+        opt.version = "9P2000.L";
+    }
+
+    string_size = v9fs_string_size(opt.version);
     g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
     body_size += string_size;
-    req = v9fs_req_init(v9p, body_size, P9_TVERSION, tag);
+    req = v9fs_req_init(opt.client, body_size, P9_TVERSION, opt.tag);
 
-    v9fs_uint32_write(req, msize);
-    v9fs_string_write(req, version);
+    v9fs_uint32_write(req, opt.msize);
+    v9fs_string_write(req, opt.version);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rversion(req, &server_len, &server_version);
+            g_assert_cmpmem(server_version, server_len,
+                            opt.version, strlen(opt.version));
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TVersionRes) {
+        .req = req,
+    };
 }
 
 /* size[4] Rversion tag[2] msize[4] version[s] */

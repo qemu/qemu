@@ -17,6 +17,7 @@
 #include "libqos/virtio-9p-client.h"
 
 #define twalk(...) v9fs_twalk((TWalkOpt) __VA_ARGS__)
+#define tversion(...) v9fs_tversion((TVersionOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -41,31 +42,17 @@ static inline bool is_same_qid(v9fs_qid a, v9fs_qid b)
     return a[0] == b[0] && memcmp(&a[5], &b[5], 8) == 0;
 }
 
-static void do_version(QVirtio9P *v9p)
-{
-    const char *version = "9P2000.L";
-    uint16_t server_len;
-    g_autofree char *server_version = NULL;
-    P9Req *req;
-
-    req = v9fs_tversion(v9p, P9_MAX_SIZE, version, P9_NOTAG);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rversion(req, &server_len, &server_version);
-
-    g_assert_cmpmem(server_version, server_len, version, strlen(version));
-}
-
 static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     v9fs_set_allocator(t_alloc);
-    do_version(obj);
+    tversion({ .client = obj });
 }
 
 static void do_attach_rqid(QVirtio9P *v9p, v9fs_qid *qid)
 {
     P9Req *req;
 
-    do_version(v9p);
+    tversion({ .client = v9p });
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, qid);
@@ -328,7 +315,7 @@ static void fs_walk_none(void *obj, void *data, QGuestAllocator *t_alloc)
     P9Req *req;
     struct v9fs_attr attr;
 
-    do_version(v9p);
+    tversion({ .client = v9p });
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);
@@ -357,7 +344,7 @@ static void fs_walk_dotdot(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree v9fs_qid *wqid = NULL;
     P9Req *req;
 
-    do_version(v9p);
+    tversion({ .client = v9p });
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, &root_qid);

@@ -106,6 +106,28 @@ typedef struct TWalkRes {
     P9Req *req;
 } TWalkRes;
 
+/* options for 'Tversion' 9p request */
+typedef struct TVersionOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* maximum message size that can be handled by client (optional) */
+    uint32_t msize;
+    /* protocol version (optional) */
+    const char *version;
+    /* only send Tversion request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TVersionOpt;
+
+/* result of 'Tversion' 9p request */
+typedef struct TVersionRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TVersionRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -127,8 +149,7 @@ void v9fs_req_wait_for_reply(P9Req *req, uint32_t *len);
 void v9fs_req_recv(P9Req *req, uint8_t id);
 void v9fs_req_free(P9Req *req);
 void v9fs_rlerror(P9Req *req, uint32_t *err);
-P9Req *v9fs_tversion(QVirtio9P *v9p, uint32_t msize, const char *version,
-                     uint16_t tag);
+TVersionRes v9fs_tversion(TVersionOpt);
 void v9fs_rversion(P9Req *req, uint16_t *len, char **version);
 P9Req *v9fs_tattach(QVirtio9P *v9p, uint32_t fid, uint32_t n_uname,
                     uint16_t tag);
