@@ -21,6 +21,7 @@
 #define tattach(...) v9fs_tattach((TAttachOpt) __VA_ARGS__)
 #define tgetattr(...) v9fs_tgetattr((TGetAttrOpt) __VA_ARGS__)
 #define treaddir(...) v9fs_treaddir((TReadDirOpt) __VA_ARGS__)
+#define tlopen(...) v9fs_tlopen((TLOpenOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -113,7 +114,9 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     });
     g_assert_cmpint(nqid, ==, 1);
 
-    req = v9fs_tlopen(v9p, 1, O_DIRECTORY, 0);
+    req = tlopen({
+        .client = v9p, .fid = 1, .flags = O_DIRECTORY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, &qid, NULL);
 
@@ -178,7 +181,9 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
     });
     g_assert_cmpint(nqid, ==, 1);
 
-    req = v9fs_tlopen(v9p, fid, O_DIRECTORY, 0);
+    req = tlopen({
+        .client = v9p, .fid = fid, .flags = O_DIRECTORY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, &qid, NULL);
 
@@ -365,7 +370,9 @@ static void fs_lopen(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    req = tlopen({
+        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, NULL, NULL);
 
@@ -387,7 +394,9 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    req = tlopen({
+        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, NULL, NULL);
 
@@ -413,7 +422,9 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    req = tlopen({
+        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, NULL, NULL);
 
@@ -450,7 +461,9 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
         .client = v9p, .fid = 0, .newfid = 1, .nwname = 1, .wnames = wnames
     });
 
-    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    req = tlopen({
+        .client = v9p, .fid = 1, .flags = O_WRONLY, .requestOnly = true
+    }).req;
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, NULL, NULL);
 

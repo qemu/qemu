@@ -643,16 +643,32 @@ void v9fs_free_dirents(struct V9fsDirent *e)
 }
 
 /* size[4] Tlopen tag[2] fid[4] flags[4] */
-P9Req *v9fs_tlopen(QVirtio9P *v9p, uint32_t fid, uint32_t flags,
-                   uint16_t tag)
+TLOpenRes v9fs_tlopen(TLOpenOpt opt)
 {
     P9Req *req;
+    uint32_t err;
 
-    req = v9fs_req_init(v9p,  4 + 4, P9_TLOPEN, tag);
-    v9fs_uint32_write(req, fid);
-    v9fs_uint32_write(req, flags);
+    g_assert(opt.client);
+    /* expecting either Rlopen or Rlerror, but obviously not both */
+    g_assert(!opt.expectErr || !(opt.rlopen.qid || opt.rlopen.iounit));
+
+    req = v9fs_req_init(opt.client,  4 + 4, P9_TLOPEN, opt.tag);
+    v9fs_uint32_write(req, opt.fid);
+    v9fs_uint32_write(req, opt.flags);
     v9fs_req_send(req);
-    return req;
+
+    if (!opt.requestOnly) {
+        v9fs_req_wait_for_reply(req, NULL);
+        if (opt.expectErr) {
+            v9fs_rlerror(req, &err);
+            g_assert_cmpint(err, ==, opt.expectErr);
+        } else {
+            v9fs_rlopen(req, opt.rlopen.qid, opt.rlopen.iounit);
+        }
+        req = NULL; /* request was freed */
+    }
+
+    return (TLOpenRes) { .req = req };
 }
 
 /* size[4] Rlopen tag[2] qid[13] iounit[4] */
