@@ -377,7 +377,6 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
     char *wnames[] = { g_strdup(QTEST_V9FS_SYNTH_WRITE_FILE) };
     g_autofree char *buf = g_malloc0(write_count);
     uint32_t count;
-    P9Req *req;
 
     tattach({ .client = v9p });
     twalk({
@@ -386,12 +385,10 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
 
     tlopen({ .client = v9p, .fid = 1, .flags = O_WRONLY });
 
-    req = twrite({
+    count = twrite({
         .client = v9p, .fid = 1, .offset = 0, .count = write_count,
-        .data = buf, .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rwrite(req, &count);
+        .data = buf
+    }).count;
     g_assert_cmpint(count, ==, write_count);
 
     g_free(wnames[0]);
