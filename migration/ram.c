@@ -2305,13 +2305,12 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss)
     }
 
     /*
-     * Do not use multifd for:
-     * 1. Compression as the first page in the new block should be posted out
-     *    before sending the compressed page
-     * 2. In postcopy as one whole host page should be placed
+     * Do not use multifd in postcopy as one whole host page should be
+     * placed.  Meanwhile postcopy requires atomic update of pages, so even
+     * if host page size == guest page size the dest guest during run may
+     * still see partially copied pages which is data corruption.
      */
-    if (!save_page_use_compression(rs) && migrate_use_multifd()
-        && !migration_in_postcopy()) {
+    if (migrate_use_multifd() && !migration_in_postcopy()) {
         return ram_save_multifd_page(rs, block, offset);
     }
 
