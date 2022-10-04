@@ -24,6 +24,7 @@
 #define tlopen(...) v9fs_tlopen((TLOpenOpt) __VA_ARGS__)
 #define twrite(...) v9fs_twrite((TWriteOpt) __VA_ARGS__)
 #define tflush(...) v9fs_tflush((TFlushOpt) __VA_ARGS__)
+#define tmkdir(...) v9fs_tmkdir((TMkdirOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -477,19 +478,6 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
-static void do_mkdir(QVirtio9P *v9p, const char *path, const char *cname)
-{
-    g_autofree char *name = g_strdup(cname);
-    uint32_t fid;
-    P9Req *req;
-
-    fid = twalk({ .client = v9p, .path = path }).newfid;
-
-    req = v9fs_tmkdir(v9p, fid, name, 0750, 0, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rmkdir(req, NULL);
-}
-
 /* create a regular file with Tlcreate and return file's fid */
 static uint32_t do_lcreate(QVirtio9P *v9p, const char *path,
                            const char *cname)
@@ -587,7 +575,7 @@ static void fs_create_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert(root_path != NULL);
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "01");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "01" });
 
     /* check if created directory really exists now ... */
     g_assert(stat(new_dir, &st) == 0);
@@ -606,7 +594,7 @@ static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     g_assert(root_path != NULL);
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "02");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "02" });
 
     /* check if created directory really exists now ... */
     g_assert(stat(new_dir, &st) == 0);
@@ -626,7 +614,7 @@ static void fs_create_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *new_file = virtio_9p_test_path("03/1st_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "03");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "03" });
     do_lcreate(v9p, "03", "1st_file");
 
     /* check if created file exists now ... */
@@ -643,7 +631,7 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *new_file = virtio_9p_test_path("04/doa_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "04");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "04" });
     do_lcreate(v9p, "04", "doa_file");
 
     /* check if created file exists now ... */
@@ -665,7 +653,7 @@ static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *symlink_file = virtio_9p_test_path("05/symlink_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "05");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "05" });
     do_lcreate(v9p, "05", "real_file");
     g_assert(stat(real_file, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
@@ -686,7 +674,7 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     g_autofree char *symlink_file = virtio_9p_test_path("06/symlink_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "06");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "06" });
     do_lcreate(v9p, "06", "real_file");
     g_assert(stat(real_file, &st) == 0);
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
@@ -708,7 +696,7 @@ static void fs_hardlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_autofree char *hardlink_file = virtio_9p_test_path("07/hardlink_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "07");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "07" });
     do_lcreate(v9p, "07", "real_file");
     g_assert(stat(real_file, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);
@@ -733,7 +721,7 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     g_autofree char *hardlink_file = virtio_9p_test_path("08/hardlink_file");
 
     tattach({ .client = v9p });
-    do_mkdir(v9p, "/", "08");
+    tmkdir({ .client = v9p, .atPath = "/", .name = "08" });
     do_lcreate(v9p, "08", "real_file");
     g_assert(stat(real_file, &st_real) == 0);
     g_assert((st_real.st_mode & S_IFMT) == S_IFREG);

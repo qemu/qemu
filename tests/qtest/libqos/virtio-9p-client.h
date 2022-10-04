@@ -287,6 +287,39 @@ typedef struct TFlushRes {
     P9Req *req;
 } TFlushRes;
 
+/* options for 'Tmkdir' 9p request */
+typedef struct TMkdirOpt {
+    /* 9P client being used (mandatory) */
+    QVirtio9P *client;
+    /* user supplied tag number being returned with response (optional) */
+    uint16_t tag;
+    /* low level variant of directory where new one shall be created */
+    uint32_t dfid;
+    /* high-level variant of directory where new one shall be created */
+    const char *atPath;
+    /* New directory's name (required) */
+    const char *name;
+    /* Linux mkdir(2) mode bits (optional) */
+    uint32_t mode;
+    /* effective group ID of caller */
+    uint32_t gid;
+    /* data being received from 9p server as 'Rmkdir' response (optional) */
+    struct {
+        /* QID of newly created directory */
+        v9fs_qid *qid;
+    } rmkdir;
+    /* only send Tmkdir request but not wait for a reply? (optional) */
+    bool requestOnly;
+    /* do we expect an Rlerror response, if yes which error code? (optional) */
+    uint32_t expectErr;
+} TMkdirOpt;
+
+/* result of 'TMkdir' 9p request */
+typedef struct TMkdirRes {
+    /* if requestOnly was set: request object for further processing */
+    P9Req *req;
+} TMkdirRes;
+
 void v9fs_set_allocator(QGuestAllocator *t_alloc);
 void v9fs_memwrite(P9Req *req, const void *addr, size_t len);
 void v9fs_memskip(P9Req *req, size_t len);
@@ -326,8 +359,7 @@ TWriteRes v9fs_twrite(TWriteOpt);
 void v9fs_rwrite(P9Req *req, uint32_t *count);
 TFlushRes v9fs_tflush(TFlushOpt);
 void v9fs_rflush(P9Req *req);
-P9Req *v9fs_tmkdir(QVirtio9P *v9p, uint32_t dfid, const char *name,
-                   uint32_t mode, uint32_t gid, uint16_t tag);
+TMkdirRes v9fs_tmkdir(TMkdirOpt);
 void v9fs_rmkdir(P9Req *req, v9fs_qid *qid);
 P9Req *v9fs_tlcreate(QVirtio9P *v9p, uint32_t fid, const char *name,
                      uint32_t flags, uint32_t mode, uint32_t gid,
