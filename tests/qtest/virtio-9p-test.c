@@ -120,12 +120,12 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     /*
      * submit count = msize - 11, because 11 is the header size of Rreaddir
      */
-    req = treaddir({
+    treaddir({
         .client = v9p, .fid = 1, .offset = 0, .count = P9_MAX_SIZE - 11,
-        .requestOnly = true
-    }).req;
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_rreaddir(req, &count, &nentries, &entries);
+        .rreaddir = {
+            .count = &count, .nentries = &nentries, .entries = &entries
+        }
+    });
 
     /*
      * Assuming msize (P9_MAX_SIZE) is large enough so we can retrieve all
@@ -190,12 +190,13 @@ static void do_readdir_split(QVirtio9P *v9p, uint32_t count)
         npartialentries = 0;
         partialentries = NULL;
 
-        req = treaddir({
+        treaddir({
             .client = v9p, .fid = fid, .offset = offset, .count = count,
-            .requestOnly = true
-        }).req;
-        v9fs_req_wait_for_reply(req, NULL);
-        v9fs_rreaddir(req, &count, &npartialentries, &partialentries);
+            .rreaddir = {
+                .count = &count, .nentries = &npartialentries,
+                .entries = &partialentries
+            }
+        });
         if (npartialentries > 0 && partialentries) {
             if (!entries) {
                 entries = partialentries;
