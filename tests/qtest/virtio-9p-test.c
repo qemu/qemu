@@ -28,6 +28,7 @@
 #define tlcreate(...) v9fs_tlcreate((TlcreateOpt) __VA_ARGS__)
 #define tsymlink(...) v9fs_tsymlink((TsymlinkOpt) __VA_ARGS__)
 #define tlink(...) v9fs_tlink((TlinkOpt) __VA_ARGS__)
+#define tunlinkat(...) v9fs_tunlinkat((TunlinkatOpt) __VA_ARGS__)
 
 static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 {
@@ -481,20 +482,6 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
-static void do_unlinkat(QVirtio9P *v9p, const char *atpath, const char *rpath,
-                        uint32_t flags)
-{
-    g_autofree char *name = g_strdup(rpath);
-    uint32_t fid;
-    P9Req *req;
-
-    fid = twalk({ .client = v9p, .path = atpath }).newfid;
-
-    req = v9fs_tunlinkat(v9p, fid, name, flags, 0);
-    v9fs_req_wait_for_reply(req, NULL);
-    v9fs_runlinkat(req);
-}
-
 static void fs_readdir_split_128(void *obj, void *data,
                                  QGuestAllocator *t_alloc)
 {
@@ -556,7 +543,10 @@ static void fs_unlinkat_dir(void *obj, void *data, QGuestAllocator *t_alloc)
     /* ... and is actually a directory */
     g_assert((st.st_mode & S_IFMT) == S_IFDIR);
 
-    do_unlinkat(v9p, "/", "02", P9_DOTL_AT_REMOVEDIR);
+    tunlinkat({
+        .client = v9p, .atPath = "/", .name = "02",
+        .flags = P9_DOTL_AT_REMOVEDIR
+    });
     /* directory should be gone now */
     g_assert(stat(new_dir, &st) != 0);
 }
@@ -594,7 +584,7 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     /* ... and is a regular file */
     g_assert((st.st_mode & S_IFMT) == S_IFREG);
 
-    do_unlinkat(v9p, "04", "doa_file", 0);
+    tunlinkat({ .client = v9p, .atPath = "04", .name = "doa_file" });
     /* file should be gone now */
     g_assert(stat(new_file, &st) != 0);
 }
@@ -643,7 +633,7 @@ static void fs_unlinkat_symlink(void *obj, void *data,
     });
     g_assert(stat(symlink_file, &st) == 0);
 
-    do_unlinkat(v9p, "06", "symlink_file", 0);
+    tunlinkat({ .client = v9p, .atPath = "06", .name = "symlink_file" });
     /* symlink should be gone now */
     g_assert(stat(symlink_file, &st) != 0);
 }
@@ -696,7 +686,7 @@ static void fs_unlinkat_hardlink(void *obj, void *data,
     });
     g_assert(stat(hardlink_file, &st_link) == 0);
 
-    do_unlinkat(v9p, "08", "hardlink_file", 0);
+    tunlinkat({ .client = v9p, .atPath = "08", .name = "hardlink_file" });
     /* symlink should be gone now */
     g_assert(stat(hardlink_file, &st_link) != 0);
     /* and old file should still exist */
