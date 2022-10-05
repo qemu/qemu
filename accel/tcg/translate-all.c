@@ -1382,7 +1382,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         if (!(p->flags & PAGE_WRITE) &&
             (flags & PAGE_WRITE) &&
             p->first_tb) {
-            tb_invalidate_phys_page_unwind(addr, 0);
+            tb_invalidate_phys_page(addr);
         }
         if (reset_target_data) {
             g_free(p->target_data);
