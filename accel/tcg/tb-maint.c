@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "exec/cputlb.h"
 #include "exec/log.h"
+#include "exec/exec-all.h"
 #include "exec/translate-all.h"
 #include "sysemu/tcg.h"
 #include "tcg/tcg.h"
@@ -27,12 +28,6 @@
 #include "tb-context.h"
 #include "internal.h"
 
-/* FIXME: tb_invalidate_phys_range is declared in different places. */
-#ifdef CONFIG_USER_ONLY
-#include "exec/exec-all.h"
-#else
-#include "exec/ram_addr.h"
-#endif
 
 static bool tb_cmp(const void *ap, const void *bp)
 {
@@ -599,11 +594,7 @@ void tb_invalidate_phys_page(tb_page_addr_t addr)
  *
  * Called with mmap_lock held for user-mode emulation.
  */
-#ifdef CONFIG_SOFTMMU
-void tb_invalidate_phys_range(ram_addr_t start, ram_addr_t end)
-#else
-void tb_invalidate_phys_range(target_ulong start, target_ulong end)
-#endif
+void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
     struct page_collection *pages;
     tb_page_addr_t next;
