@@ -68,15 +68,23 @@ static void tb_remove_all(void)
 /* Call with mmap_lock held. */
 static void tb_record(TranslationBlock *tb, PageDesc *p1, PageDesc *p2)
 {
-    /* translator_loop() must have made all TB pages non-writable */
-    assert(!(p1->flags & PAGE_WRITE));
-    if (p2) {
-        assert(!(p2->flags & PAGE_WRITE));
-    }
+    target_ulong addr;
+    int flags;
 
     assert_memory_lock();
-
     tb->itree.last = tb->itree.start + tb->size - 1;
+
+    /* translator_loop() must have made all TB pages non-writable */
+    addr = tb_page_addr0(tb);
+    flags = page_get_flags(addr);
+    assert(!(flags & PAGE_WRITE));
+
+    addr = tb_page_addr1(tb);
+    if (addr != -1) {
+        flags = page_get_flags(addr);
+        assert(!(flags & PAGE_WRITE));
+    }
+
     interval_tree_insert(&tb->itree, &tb_root);
 }
 

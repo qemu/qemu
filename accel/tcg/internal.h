@@ -24,9 +24,7 @@
 #endif
 
 typedef struct PageDesc {
-#ifdef CONFIG_USER_ONLY
-    unsigned long flags;
-#else
+#ifndef CONFIG_USER_ONLY
     QemuSpin lock;
     /* list of TBs intersecting this ram page */
     uintptr_t first_tb;
