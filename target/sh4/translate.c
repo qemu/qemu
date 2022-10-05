@@ -175,13 +175,13 @@ void superh_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 		    i, env->gregs[i], i + 1, env->gregs[i + 1],
 		    i + 2, env->gregs[i + 2], i + 3, env->gregs[i + 3]);
     }
-    if (env->flags & DELAY_SLOT) {
+    if (env->flags & TB_FLAG_DELAY_SLOT) {
         qemu_printf("in delay slot (delayed_pc=0x%08x)\n",
 		    env->delayed_pc);
-    } else if (env->flags & DELAY_SLOT_CONDITIONAL) {
+    } else if (env->flags & TB_FLAG_DELAY_SLOT_COND) {
         qemu_printf("in conditional delay slot (delayed_pc=0x%08x)\n",
 		    env->delayed_pc);
-    } else if (env->flags & DELAY_SLOT_RTE) {
+    } else if (env->flags & TB_FLAG_DELAY_SLOT_RTE) {
         qemu_fprintf(f, "in rte delay slot (delayed_pc=0x%08x)\n",
                      env->delayed_pc);
     }
@@ -223,7 +223,7 @@ static inline void gen_save_cpu_state(DisasContext *ctx, bool save_pc)
 
 static inline bool use_exit_tb(DisasContext *ctx)
 {
-    return (ctx->tbflags & GUSA_EXCLUSIVE) != 0;
+    return (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) != 0;
 }
 
 static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
@@ -276,12 +276,12 @@ static void gen_conditional_jump(DisasContext *ctx, target_ulong dest,
     TCGLabel *l1 = gen_new_label();
     TCGCond cond_not_taken = jump_if_true ? TCG_COND_EQ : TCG_COND_NE;
 
-    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
         /* When in an exclusive region, we must continue to the end.
            Therefore, exit the region on a taken branch, but otherwise
            fall through to the next instruction.  */
         tcg_gen_brcondi_i32(cond_not_taken, cpu_sr_t, 0, l1);
-        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~GUSA_MASK);
+        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~TB_FLAG_GUSA_MASK);
         /* Note that this won't actually use a goto_tb opcode because we
            disallow it in use_goto_tb, but it handles exit + singlestep.  */
         gen_goto_tb(ctx, 0, dest);
@@ -307,14 +307,14 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     tcg_gen_mov_i32(ds, cpu_delayed_cond);
     tcg_gen_discard_i32(cpu_delayed_cond);
 
-    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
         /* When in an exclusive region, we must continue to the end.
            Therefore, exit the region on a taken branch, but otherwise
            fall through to the next instruction.  */
         tcg_gen_brcondi_i32(TCG_COND_EQ, ds, 0, l1);
 
         /* Leave the gUSA region.  */
-        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~GUSA_MASK);
+        tcg_gen_movi_i32(cpu_flags, ctx->envflags & ~TB_FLAG_GUSA_MASK);
         gen_jump(ctx);
 
         gen_set_label(l1);
@@ -361,8 +361,8 @@ static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
 
 #define CHECK_NOT_DELAY_SLOT \
-    if (ctx->envflags & DELAY_SLOT_MASK) {  \
-        goto do_illegal_slot;               \
+    if (ctx->envflags & TB_FLAG_DELAY_SLOT_MASK) {  \
+        goto do_illegal_slot;                       \
     }
 
 #define CHECK_PRIVILEGED \
@@ -436,7 +436,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0x000b:		/* rts */
 	CHECK_NOT_DELAY_SLOT
 	tcg_gen_mov_i32(cpu_delayed_pc, cpu_pr);
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x0028:		/* clrmac */
@@ -458,7 +458,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
         gen_write_sr(cpu_ssr);
 	tcg_gen_mov_i32(cpu_delayed_pc, cpu_spc);
-        ctx->envflags |= DELAY_SLOT_RTE;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT_RTE;
 	ctx->delayed_pc = (uint32_t) - 1;
         ctx->base.is_jmp = DISAS_STOP;
 	return;
@@ -513,12 +513,15 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xe000:		/* mov #imm,Rn */
 #ifdef CONFIG_USER_ONLY
-        /* Detect the start of a gUSA region.  If so, update envflags
-           and end the TB.  This will allow us to see the end of the
-           region (stored in R0) in the next TB.  */
+        /*
+         * Detect the start of a gUSA region (mov #-n, r15).
+         * If so, update envflags and end the TB.  This will allow us
+         * to see the end of the region (stored in R0) in the next TB.
+         */
         if (B11_8 == 15 && B7_0s < 0 &&
             (tb_cflags(ctx->base.tb) & CF_PARALLEL)) {
-            ctx->envflags = deposit32(ctx->envflags, GUSA_SHIFT, 8, B7_0s);
+            ctx->envflags =
+                deposit32(ctx->envflags, TB_FLAG_GUSA_SHIFT, 8, B7_0s);
             ctx->base.is_jmp = DISAS_STOP;
         }
 #endif
@@ -544,13 +547,13 @@ static void _decode_opc(DisasContext * ctx)
     case 0xa000:		/* bra disp */
 	CHECK_NOT_DELAY_SLOT
         ctx->delayed_pc = ctx->base.pc_next + 4 + B11_0s * 2;
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	return;
     case 0xb000:		/* bsr disp */
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_movi_i32(cpu_pr, ctx->base.pc_next + 4);
         ctx->delayed_pc = ctx->base.pc_next + 4 + B11_0s * 2;
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	return;
     }
 
@@ -1194,7 +1197,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_xori_i32(cpu_delayed_cond, cpu_sr_t, 1);
         ctx->delayed_pc = ctx->base.pc_next + 4 + B7_0s * 2;
-        ctx->envflags |= DELAY_SLOT_CONDITIONAL;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT_COND;
 	return;
     case 0x8900:		/* bt label */
 	CHECK_NOT_DELAY_SLOT
@@ -1204,7 +1207,7 @@ static void _decode_opc(DisasContext * ctx)
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_mov_i32(cpu_delayed_cond, cpu_sr_t);
         ctx->delayed_pc = ctx->base.pc_next + 4 + B7_0s * 2;
-        ctx->envflags |= DELAY_SLOT_CONDITIONAL;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT_COND;
 	return;
     case 0x8800:		/* cmp/eq #imm,R0 */
         tcg_gen_setcondi_i32(TCG_COND_EQ, cpu_sr_t, REG(0), B7_0s);
@@ -1388,14 +1391,14 @@ static void _decode_opc(DisasContext * ctx)
     case 0x0023:		/* braf Rn */
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_addi_i32(cpu_delayed_pc, REG(B11_8), ctx->base.pc_next + 4);
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x0003:		/* bsrf Rn */
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_movi_i32(cpu_pr, ctx->base.pc_next + 4);
 	tcg_gen_add_i32(cpu_delayed_pc, REG(B11_8), cpu_pr);
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x4015:		/* cmp/pl Rn */
@@ -1411,14 +1414,14 @@ static void _decode_opc(DisasContext * ctx)
     case 0x402b:		/* jmp @Rn */
 	CHECK_NOT_DELAY_SLOT
 	tcg_gen_mov_i32(cpu_delayed_pc, REG(B11_8));
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x400b:		/* jsr @Rn */
 	CHECK_NOT_DELAY_SLOT
         tcg_gen_movi_i32(cpu_pr, ctx->base.pc_next + 4);
 	tcg_gen_mov_i32(cpu_delayed_pc, REG(B11_8));
-        ctx->envflags |= DELAY_SLOT;
+        ctx->envflags |= TB_FLAG_DELAY_SLOT;
 	ctx->delayed_pc = (uint32_t) - 1;
 	return;
     case 0x400e:		/* ldc Rm,SR */
@@ -1839,7 +1842,7 @@ static void _decode_opc(DisasContext * ctx)
     fflush(stderr);
 #endif
  do_illegal:
-    if (ctx->envflags & DELAY_SLOT_MASK) {
+    if (ctx->envflags & TB_FLAG_DELAY_SLOT_MASK) {
  do_illegal_slot:
         gen_save_cpu_state(ctx, true);
         gen_helper_raise_slot_illegal_instruction(cpu_env);
@@ -1852,7 +1855,7 @@ static void _decode_opc(DisasContext * ctx)
 
  do_fpu_disabled:
     gen_save_cpu_state(ctx, true);
-    if (ctx->envflags & DELAY_SLOT_MASK) {
+    if (ctx->envflags & TB_FLAG_DELAY_SLOT_MASK) {
         gen_helper_raise_slot_fpu_disable(cpu_env);
     } else {
         gen_helper_raise_fpu_disable(cpu_env);
@@ -1867,23 +1870,23 @@ static void decode_opc(DisasContext * ctx)
 
     _decode_opc(ctx);
 
-    if (old_flags & DELAY_SLOT_MASK) {
+    if (old_flags & TB_FLAG_DELAY_SLOT_MASK) {
         /* go out of the delay slot */
-        ctx->envflags &= ~DELAY_SLOT_MASK;
+        ctx->envflags &= ~TB_FLAG_DELAY_SLOT_MASK;
 
         /* When in an exclusive region, we must continue to the end
            for conditional branches.  */
-        if (ctx->tbflags & GUSA_EXCLUSIVE
-            && old_flags & DELAY_SLOT_CONDITIONAL) {
+        if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE
+            && old_flags & TB_FLAG_DELAY_SLOT_COND) {
             gen_delayed_conditional_jump(ctx);
             return;
         }
         /* Otherwise this is probably an invalid gUSA region.
            Drop the GUSA bits so the next TB doesn't see them.  */
-        ctx->envflags &= ~GUSA_MASK;
+        ctx->envflags &= ~TB_FLAG_GUSA_MASK;
 
         tcg_gen_movi_i32(cpu_flags, ctx->envflags);
-        if (old_flags & DELAY_SLOT_CONDITIONAL) {
+        if (old_flags & TB_FLAG_DELAY_SLOT_COND) {
 	    gen_delayed_conditional_jump(ctx);
         } else {
             gen_jump(ctx);
@@ -2223,7 +2226,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
     }
 
     /* The entire region has been translated.  */
-    ctx->envflags &= ~GUSA_MASK;
+    ctx->envflags &= ~TB_FLAG_GUSA_MASK;
     ctx->base.pc_next = pc_end;
     ctx->base.num_insns += max_insns - 1;
     return;
@@ -2234,7 +2237,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
 
     /* Restart with the EXCLUSIVE bit set, within a TB run via
        cpu_exec_step_atomic holding the exclusive lock.  */
-    ctx->envflags |= GUSA_EXCLUSIVE;
+    ctx->envflags |= TB_FLAG_GUSA_EXCLUSIVE;
     gen_save_cpu_state(ctx, false);
     gen_helper_exclusive(cpu_env);
     ctx->base.is_jmp = DISAS_NORETURN;
@@ -2267,17 +2270,19 @@ static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
                   (tbflags & (1 << SR_RB))) * 0x10;
     ctx->fbank = tbflags & FPSCR_FR ? 0x10 : 0;
 
-    if (tbflags & GUSA_MASK) {
+#ifdef CONFIG_USER_ONLY
+    if (tbflags & TB_FLAG_GUSA_MASK) {
+        /* In gUSA exclusive region. */
         uint32_t pc = ctx->base.pc_next;
         uint32_t pc_end = ctx->base.tb->cs_base;
-        int backup = sextract32(ctx->tbflags, GUSA_SHIFT, 8);
+        int backup = sextract32(ctx->tbflags, TB_FLAG_GUSA_SHIFT, 8);
         int max_insns = (pc_end - pc) / 2;
 
         if (pc != pc_end + backup || max_insns < 2) {
             /* This is a malformed gUSA region.  Don't do anything special,
                since the interpreter is likely to get confused.  */
-            ctx->envflags &= ~GUSA_MASK;
-        } else if (tbflags & GUSA_EXCLUSIVE) {
+            ctx->envflags &= ~TB_FLAG_GUSA_MASK;
+        } else if (tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
             /* Regardless of single-stepping or the end of the page,
                we must complete execution of the gUSA region while
                holding the exclusive lock.  */
@@ -2285,6 +2290,7 @@ static void sh4_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
             return;
         }
     }
+#endif
 
     /* Since the ISA is fixed-width, we can bound by the number
        of instructions remaining on the page.  */
@@ -2309,8 +2315,8 @@ static void sh4_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
 #ifdef CONFIG_USER_ONLY
-    if (unlikely(ctx->envflags & GUSA_MASK)
-        && !(ctx->envflags & GUSA_EXCLUSIVE)) {
+    if (unlikely(ctx->envflags & TB_FLAG_GUSA_MASK)
+        && !(ctx->envflags & TB_FLAG_GUSA_EXCLUSIVE)) {
         /* We're in an gUSA region, and we have not already fallen
            back on using an exclusive region.  Attempt to parse the
            region into a single supported atomic operation.  Failure
@@ -2330,9 +2336,9 @@ static void sh4_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    if (ctx->tbflags & GUSA_EXCLUSIVE) {
+    if (ctx->tbflags & TB_FLAG_GUSA_EXCLUSIVE) {
         /* Ending the region of exclusivity.  Clear the bits.  */
-        ctx->envflags &= ~GUSA_MASK;
+        ctx->envflags &= ~TB_FLAG_GUSA_MASK;
     }
 
     switch (ctx->base.is_jmp) {

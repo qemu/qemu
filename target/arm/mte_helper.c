@@ -106,7 +106,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
     return tags + index;
 #else
     uintptr_t index;
-    CPUIOTLBEntry *iotlbentry;
+    CPUTLBEntryFull *full;
     int in_page, flags;
     ram_addr_t ptr_ra;
     hwaddr ptr_paddr, tag_paddr, xlat;
@@ -129,7 +129,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
     assert(!(flags & TLB_INVALID_MASK));
 
     /*
-     * Find the iotlbentry for ptr.  This *must* be present in the TLB
+     * Find the CPUTLBEntryFull for ptr.  This *must* be present in the TLB
      * because we just found the mapping.
      * TODO: Perhaps there should be a cputlb helper that returns a
      * matching tlb entry + iotlb entry.
@@ -144,10 +144,10 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
         g_assert(tlb_hit(comparator, ptr));
     }
 # endif
-    iotlbentry = &env_tlb(env)->d[ptr_mmu_idx].iotlb[index];
+    full = &env_tlb(env)->d[ptr_mmu_idx].fulltlb[index];
 
     /* If the virtual page MemAttr != Tagged, access unchecked. */
-    if (!arm_tlb_mte_tagged(&iotlbentry->attrs)) {
+    if (!arm_tlb_mte_tagged(&full->attrs)) {
         return NULL;
     }
 
@@ -181,7 +181,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
         int wp = ptr_access == MMU_DATA_LOAD ? BP_MEM_READ : BP_MEM_WRITE;
         assert(ra != 0);
         cpu_check_watchpoint(env_cpu(env), ptr, ptr_size,
-                             iotlbentry->attrs, wp, ra);
+                             full->attrs, wp, ra);
     }
 
     /*
@@ -202,11 +202,11 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
     tag_paddr = ptr_paddr >> (LOG2_TAG_GRANULE + 1);
 
     /* Look up the address in tag space. */
-    tag_asi = iotlbentry->attrs.secure ? ARMASIdx_TagS : ARMASIdx_TagNS;
+    tag_asi = full->attrs.secure ? ARMASIdx_TagS : ARMASIdx_TagNS;
     tag_as = cpu_get_address_space(env_cpu(env), tag_asi);
     mr = address_space_translate(tag_as, tag_paddr, &xlat, NULL,
                                  tag_access == MMU_DATA_STORE,
-                                 iotlbentry->attrs);
+                                 full->attrs);
 
     /*
      * Note that @mr will never be NULL.  If there is nothing in the address

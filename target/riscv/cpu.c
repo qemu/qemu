@@ -462,6 +462,18 @@ static void riscv_cpu_set_pc(CPUState *cs, vaddr value)
     }
 }
 
+static vaddr riscv_cpu_get_pc(CPUState *cs)
+{
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
+
+    /* Match cpu_get_tb_cpu_state. */
+    if (env->xl == MXL_RV32) {
+        return env->pc & UINT32_MAX;
+    }
+    return env->pc;
+}
+
 static void riscv_cpu_synchronize_from_tb(CPUState *cs,
                                           const TranslationBlock *tb)
 {
@@ -470,9 +482,9 @@ static void riscv_cpu_synchronize_from_tb(CPUState *cs,
     RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
 
     if (xl == MXL_RV32) {
-        env->pc = (int32_t)tb->pc;
+        env->pc = (int32_t)tb_pc(tb);
     } else {
-        env->pc = tb->pc;
+        env->pc = tb_pc(tb);
     }
 }
 
@@ -1154,6 +1166,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->has_work = riscv_cpu_has_work;
     cc->dump_state = riscv_cpu_dump_state;
     cc->set_pc = riscv_cpu_set_pc;
+    cc->get_pc = riscv_cpu_get_pc;
     cc->gdb_read_register = riscv_cpu_gdb_read_register;
     cc->gdb_write_register = riscv_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 33;

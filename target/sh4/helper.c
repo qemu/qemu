@@ -147,11 +147,11 @@ void superh_cpu_do_interrupt(CPUState *cs)
     env->sr |= (1u << SR_BL) | (1u << SR_MD) | (1u << SR_RB);
     env->lock_addr = -1;
 
-    if (env->flags & DELAY_SLOT_MASK) {
+    if (env->flags & TB_FLAG_DELAY_SLOT_MASK) {
         /* Branch instruction should be executed again before delay slot. */
 	env->spc -= 2;
 	/* Clear flags for exception/interrupt routine. */
-        env->flags &= ~DELAY_SLOT_MASK;
+        env->flags &= ~TB_FLAG_DELAY_SLOT_MASK;
     }
 
     if (do_exp) {
@@ -786,7 +786,7 @@ bool superh_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         CPUSH4State *env = &cpu->env;
 
         /* Delay slots are indivisible, ignore interrupts */
-        if (env->flags & DELAY_SLOT_MASK) {
+        if (env->flags & TB_FLAG_DELAY_SLOT_MASK) {
             return false;
         } else {
             superh_cpu_do_interrupt(cs);

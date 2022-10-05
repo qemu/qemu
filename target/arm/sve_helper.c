@@ -5384,8 +5384,8 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
         g_assert(tlb_hit(comparator, addr));
 # endif
 
-        CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
-        info->attrs = iotlbentry->attrs;
+        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
+        info->attrs = full->attrs;
     }
 #endif
 

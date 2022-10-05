@@ -56,7 +56,7 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id)
 static void plugin_cpu_update__async(CPUState *cpu, run_on_cpu_data data)
 {
     bitmap_copy(cpu->plugin_mask, &data.host_ulong, QEMU_PLUGIN_EV_MAX);
-    cpu_tb_jmp_cache_clear(cpu);
+    tcg_flush_jmp_cache(cpu);
 }
 
 static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)

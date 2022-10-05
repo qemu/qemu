@@ -23,6 +23,7 @@
 #include "exec/cpu-defs.h"
 #include "exec/exec-all.h"
 #include "qemu/xxhash.h"
+#include "tb-jmp-cache.h"
 
 #ifdef CONFIG_SOFTMMU
 

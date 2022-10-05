@@ -54,6 +54,9 @@
 #  error TARGET_PAGE_BITS must be defined in cpu-param.h
 # endif
 #endif
+#ifndef TARGET_TB_PCREL
+# define TARGET_TB_PCREL 0
+#endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
 
@@ -108,6 +111,7 @@ typedef uint64_t target_ulong;
 #  endif
 # endif
 
+/* Minimalized TLB entry for use by TCG fast path. */
 typedef struct CPUTLBEntry {
     /* bit TARGET_LONG_BITS to TARGET_PAGE_BITS : virtual address
        bit TARGET_PAGE_BITS-1..4  : Nonzero for accesses that should not
@@ -131,14 +135,14 @@ typedef struct CPUTLBEntry {
 
 QEMU_BUILD_BUG_ON(sizeof(CPUTLBEntry) != (1 << CPU_TLB_ENTRY_BITS));
 
-/* The IOTLB is not accessed directly inline by generated TCG code,
- * so the CPUIOTLBEntry layout is not as critical as that of the
- * CPUTLBEntry. (This is also why we don't want to combine the two
- * structs into one.)
+/*
+ * The full TLB entry, which is not accessed by generated TCG code,
+ * so the layout is not as critical as that of CPUTLBEntry. This is
+ * also why we don't want to combine the two structs.
  */
-typedef struct CPUIOTLBEntry {
+typedef struct CPUTLBEntryFull {
     /*
-     * @addr contains:
+     * @xlat_section contains:
      *  - in the lower TARGET_PAGE_BITS, a physical section number
      *  - with the lower TARGET_PAGE_BITS masked off, an offset which
      *    must be added to the virtual address to obtain:
@@ -146,9 +150,32 @@ typedef struct CPUIOTLBEntry {
      *       number is PHYS_SECTION_NOTDIRTY or PHYS_SECTION_ROM)
      *     + the offset within the target MemoryRegion (otherwise)
      */
-    hwaddr addr;
+    hwaddr xlat_section;
+
+    /*
+     * @phys_addr contains the physical address in the address space
+     * given by cpu_asidx_from_attrs(cpu, @attrs).
+     */
+    hwaddr phys_addr;
+
+    /* @attrs contains the memory transaction attributes for the page. */
     MemTxAttrs attrs;
-} CPUIOTLBEntry;
+
+    /* @prot contains the complete protections for the page. */
+    uint8_t prot;
+
+    /* @lg_page_size contains the log2 of the page size. */
+    uint8_t lg_page_size;
+
+    /*
+     * Allow target-specific additions to this structure.
+     * This may be used to cache items from the guest cpu
+     * page tables for later use by the implementation.
+     */
+#ifdef TARGET_PAGE_ENTRY_EXTRA
+    TARGET_PAGE_ENTRY_EXTRA
+#endif
+} CPUTLBEntryFull;
 
 /*
  * Data elements that are per MMU mode, minus the bits accessed by
@@ -172,9 +199,8 @@ typedef struct CPUTLBDesc {
     size_t vindex;
     /* The tlb victim table, in two parts.  */
     CPUTLBEntry vtable[CPU_VTLB_SIZE];
-    CPUIOTLBEntry viotlb[CPU_VTLB_SIZE];
-    /* The iotlb.  */
-    CPUIOTLBEntry *iotlb;
+    CPUTLBEntryFull vfulltlb[CPU_VTLB_SIZE];
+    CPUTLBEntryFull *fulltlb;
 } CPUTLBDesc;
 
 /*
