@@ -3383,10 +3383,10 @@ print_pidfd_send_signal(CPUArchState *cpu_env, const struct syscallname *name,
 
         unlock_user(p, arg2, 0);
     } else {
-        print_pointer(arg2, 1);
+        print_pointer(arg2, 0);
     }
 
-    print_raw_param("%u", arg3, 0);
+    print_raw_param("%u", arg3, 1);
     print_syscall_epilogue(name);
 }
 #endif

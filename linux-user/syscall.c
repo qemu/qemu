@@ -8679,16 +8679,21 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #if defined(__NR_pidfd_send_signal) && defined(TARGET_NR_pidfd_send_signal)
     case TARGET_NR_pidfd_send_signal:
         {
-            siginfo_t uinfo;
+            siginfo_t uinfo, *puinfo;
 
-            p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
-            if (!p) {
-                return -TARGET_EFAULT;
+            if (arg3) {
+                p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
+                if (!p) {
+                    return -TARGET_EFAULT;
+                 }
+                 target_to_host_siginfo(&uinfo, p);
+                 unlock_user(p, arg3, 0);
+                 puinfo = &uinfo;
+            } else {
+                 puinfo = NULL;
             }
-            target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg3, 0);
             ret = get_errno(pidfd_send_signal(arg1, target_to_host_signal(arg2),
-                &uinfo, arg4));
+                                              puinfo, arg4));
         }
         return ret;
 #endif
