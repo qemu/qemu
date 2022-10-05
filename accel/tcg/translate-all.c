@@ -1352,7 +1352,7 @@ int page_get_flags(target_ulong address)
 void page_set_flags(target_ulong start, target_ulong end, int flags)
 {
     target_ulong addr, len;
-    bool reset;
+    bool reset, inval_tb = false;
 
     /* This function should never be called with addresses outside the
        guest address space.  If this assert fires, it probably indicates
@@ -1388,10 +1388,14 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
             && (reset ||
                 !(flags & PAGE_EXEC) ||
                 (flags & ~p->flags & PAGE_WRITE))) {
-            tb_invalidate_phys_page(addr);
+            inval_tb = true;
         }
         /* Using mprotect on a page does not change sticky bits. */
         p->flags = (reset ? 0 : p->flags & PAGE_STICKY) | flags;
+    }
+
+    if (inval_tb) {
+        tb_invalidate_phys_range(start, end);
     }
 }
 
