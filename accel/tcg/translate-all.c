@@ -1382,7 +1382,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         if (!(p->flags & PAGE_WRITE) &&
             (flags & PAGE_WRITE) &&
             p->first_tb) {
-            tb_invalidate_phys_page(addr, 0);
+            tb_invalidate_phys_page_unwind(addr, 0);
         }
         if (reset_target_data) {
             g_free(p->target_data);
@@ -1580,7 +1580,8 @@ int page_unprotect(target_ulong address, uintptr_t pc)
 
                 /* and since the content will be modified, we must invalidate
                    the corresponding translated code. */
-                current_tb_invalidated |= tb_invalidate_phys_page(addr, pc);
+                current_tb_invalidated |=
+                    tb_invalidate_phys_page_unwind(addr, pc);
             }
             mprotect((void *)g2h_untagged(host_start), qemu_host_page_size,
                      prot & PAGE_BITS);

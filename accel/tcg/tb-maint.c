@@ -657,7 +657,7 @@ void tb_invalidate_phys_page_fast(struct page_collection *pages,
  * TB (because it was modified by this store and the guest CPU has
  * precise-SMC semantics).
  */
-bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
+bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
 {
     TranslationBlock *tb;
     PageDesc *p;

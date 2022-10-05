@@ -105,7 +105,7 @@ void tb_htable_init(void);
 void tb_reset_jump(TranslationBlock *tb, int n);
 TranslationBlock *tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                                tb_page_addr_t phys_page2);
-bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc);
+bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc);
 int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                               uintptr_t searched_pc, bool reset_icount);
 
