@@ -1370,6 +1370,9 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
         flags |= PAGE_WRITE_ORG;
     }
     reset = !(flags & PAGE_VALID) || (flags & PAGE_RESET);
+    if (reset) {
+        page_reset_target_data(start, end);
+    }
     flags &= ~PAGE_RESET;
 
     for (addr = start, len = end - start;
@@ -1387,14 +1390,8 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
                 (flags & ~p->flags & PAGE_WRITE))) {
             tb_invalidate_phys_page(addr);
         }
-        if (reset) {
-            g_free(p->target_data);
-            p->target_data = NULL;
-            p->flags = flags;
-        } else {
-            /* Using mprotect on a page does not change sticky bits. */
-            p->flags = (p->flags & PAGE_STICKY) | flags;
-        }
+        /* Using mprotect on a page does not change sticky bits. */
+        p->flags = (reset ? 0 : p->flags & PAGE_STICKY) | flags;
     }
 }
 
