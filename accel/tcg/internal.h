@@ -90,6 +90,11 @@ void do_assert_page_locked(const PageDesc *pd, const char *file, int line);
 void page_lock(PageDesc *pd);
 void page_unlock(PageDesc *pd);
 #endif
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_DEBUG_TCG)
+void assert_no_pages_locked(void);
+#else
+static inline void assert_no_pages_locked(void) { }
+#endif
 
 TranslationBlock *tb_gen_code(CPUState *cpu, target_ulong pc,
                               target_ulong cs_base, uint32_t flags,
