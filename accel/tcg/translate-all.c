@@ -1352,7 +1352,7 @@ int page_get_flags(target_ulong address)
 void page_set_flags(target_ulong start, target_ulong end, int flags)
 {
     target_ulong addr, len;
-    bool reset_target_data;
+    bool reset;
 
     /* This function should never be called with addresses outside the
        guest address space.  If this assert fires, it probably indicates
@@ -1369,7 +1369,7 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
     if (flags & PAGE_WRITE) {
         flags |= PAGE_WRITE_ORG;
     }
-    reset_target_data = !(flags & PAGE_VALID) || (flags & PAGE_RESET);
+    reset = !(flags & PAGE_VALID) || (flags & PAGE_RESET);
     flags &= ~PAGE_RESET;
 
     for (addr = start, len = end - start;
@@ -1377,14 +1377,17 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
          len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
         PageDesc *p = page_find_alloc(addr >> TARGET_PAGE_BITS, true);
 
-        /* If the write protection bit is set, then we invalidate
-           the code inside.  */
-        if (!(p->flags & PAGE_WRITE) &&
-            (flags & PAGE_WRITE) &&
-            p->first_tb) {
+        /*
+         * If the page was executable, but is reset, or is no longer
+         * executable, or has become writable, then invalidate any code.
+         */
+        if ((p->flags & PAGE_EXEC)
+            && (reset ||
+                !(flags & PAGE_EXEC) ||
+                (flags & ~p->flags & PAGE_WRITE))) {
             tb_invalidate_phys_page(addr);
         }
-        if (reset_target_data) {
+        if (reset) {
             g_free(p->target_data);
             p->target_data = NULL;
             p->flags = flags;
