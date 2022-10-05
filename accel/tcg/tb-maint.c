@@ -565,25 +565,26 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
 }
 
 /*
- * Invalidate all TBs which intersect with the target physical address range
- * [start;end[. NOTE: start and end must refer to the *same* physical page.
- * 'is_cpu_write_access' should be true if called from a real cpu write
- * access: the virtual CPU will exit the current TB if code is modified inside
- * this TB.
+ * Invalidate all TBs which intersect with the target physical
+ * address page @addr.
  *
  * Called with mmap_lock held for user-mode emulation
  */
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end)
+void tb_invalidate_phys_page(tb_page_addr_t addr)
 {
     struct page_collection *pages;
+    tb_page_addr_t start, end;
     PageDesc *p;
 
     assert_memory_lock();
 
-    p = page_find(start >> TARGET_PAGE_BITS);
+    p = page_find(addr >> TARGET_PAGE_BITS);
     if (p == NULL) {
         return;
     }
+
+    start = addr & TARGET_PAGE_MASK;
+    end = start + TARGET_PAGE_SIZE;
     pages = page_collection_lock(start, end);
     tb_invalidate_phys_page_range__locked(pages, p, start, end, 0);
     page_collection_unlock(pages);
