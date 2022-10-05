@@ -810,7 +810,6 @@ static void gen_##name(DisasContext *ctx)                                     \
         gen_helper_##name(ignored, cpu_env, xt, xa, xb);                      \
         tcg_temp_free_i32(ignored);                                           \
     }                                                                         \
-    gen_helper_float_check_status(cpu_env);                                   \
     tcg_temp_free_ptr(xt);                                                    \
     tcg_temp_free_ptr(xa);                                                    \
     tcg_temp_free_ptr(xb);                                                    \
