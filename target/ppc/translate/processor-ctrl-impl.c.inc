@@ -94,3 +94,12 @@ static bool trans_MSGSNDP(DisasContext *ctx, arg_X_rb *a)
 #endif
     return true;
 }
+
+static bool trans_MSGSYNC(DisasContext *ctx, arg_MSGSYNC *a)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_HV(ctx);
+
+    /* interpreted as no-op */
+    return true;
+}
