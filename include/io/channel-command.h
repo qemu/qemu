@@ -41,7 +41,7 @@ struct QIOChannelCommand {
     QIOChannel parent;
     int writefd;
     int readfd;
-    pid_t pid;
+    GPid pid;
 };
 
 

@@ -31,7 +31,7 @@
  * qio_channel_command_new_pid:
  * @writefd: the FD connected to the command's stdin
  * @readfd: the FD connected to the command's stdout
- * @pid: the PID of the running child command
+ * @pid: the PID/HANDLE of the running child command
  * @errp: pointer to a NULL-initialized error object
  *
  * Create a channel for performing I/O with the
@@ -50,7 +50,7 @@
 static QIOChannelCommand *
 qio_channel_command_new_pid(int writefd,
                             int readfd,
-                            pid_t pid)
+                            GPid pid)
 {
     QIOChannelCommand *ioc;
 
@@ -69,94 +69,24 @@ qio_channel_command_new_spawn(const char *const argv[],
                               int flags,
                               Error **errp)
 {
-    pid_t pid = -1;
-    int stdinfd[2] = { -1, -1 };
-    int stdoutfd[2] = { -1, -1 };
-    int devnull = -1;
-    bool stdinnull = false, stdoutnull = false;
-    QIOChannelCommand *ioc;
+    g_autoptr(GError) err = NULL;
+    GPid pid = 0;
+    GSpawnFlags gflags = G_SPAWN_CLOEXEC_PIPES | G_SPAWN_DO_NOT_REAP_CHILD;
+    int stdinfd = -1, stdoutfd = -1;
 
     flags = flags & O_ACCMODE;
+    gflags |= flags == O_WRONLY ? G_SPAWN_STDOUT_TO_DEV_NULL : 0;
 
-    if (flags == O_RDONLY) {
-        stdinnull = true;
-    }
-    if (flags == O_WRONLY) {
-        stdoutnull = true;
-    }
-
-    if (stdinnull || stdoutnull) {
-        devnull = open("/dev/null", O_RDWR);
-        if (devnull < 0) {
-            error_setg_errno(errp, errno,
-                             "Unable to open /dev/null");
-            goto error;
-        }
+    if (!g_spawn_async_with_pipes(NULL, (char **)argv, NULL, gflags, NULL, NULL,
+                                  &pid,
+                                  flags == O_RDONLY ? NULL : &stdinfd,
+                                  flags == O_WRONLY ? NULL : &stdoutfd,
+                                  NULL, &err)) {
+        error_setg(errp, "%s", err->message);
+        return NULL;
     }
 
-    if ((!stdinnull && !g_unix_open_pipe(stdinfd, FD_CLOEXEC, NULL)) ||
-        (!stdoutnull && !g_unix_open_pipe(stdoutfd, FD_CLOEXEC, NULL))) {
-        error_setg_errno(errp, errno,
-                         "Unable to open pipe");
-        goto error;
-    }
-
-    pid = qemu_fork(errp);
-    if (pid < 0) {
-        goto error;
-    }
-
-    if (pid == 0) { /* child */
-        dup2(stdinnull ? devnull : stdinfd[0], STDIN_FILENO);
-        dup2(stdoutnull ? devnull : stdoutfd[1], STDOUT_FILENO);
-        /* Leave stderr connected to qemu's stderr */
-
-        if (!stdinnull) {
-            close(stdinfd[0]);
-            close(stdinfd[1]);
-        }
-        if (!stdoutnull) {
-            close(stdoutfd[0]);
-            close(stdoutfd[1]);
-        }
-        if (devnull != -1) {
-            close(devnull);
-        }
-
-        execv(argv[0], (char * const *)argv);
-        _exit(1);
-    }
-
-    if (!stdinnull) {
-        close(stdinfd[0]);
-    }
-    if (!stdoutnull) {
-        close(stdoutfd[1]);
-    }
-
-    ioc = qio_channel_command_new_pid(stdinnull ? devnull : stdinfd[1],
-                                      stdoutnull ? devnull : stdoutfd[0],
-                                      pid);
-    trace_qio_channel_command_new_spawn(ioc, argv[0], flags);
-    return ioc;
-
- error:
-    if (devnull != -1) {
-        close(devnull);
-    }
-    if (stdinfd[0] != -1) {
-        close(stdinfd[0]);
-    }
-    if (stdinfd[1] != -1) {
-        close(stdinfd[1]);
-    }
-    if (stdoutfd[0] != -1) {
-        close(stdoutfd[0]);
-    }
-    if (stdoutfd[1] != -1) {
-        close(stdoutfd[1]);
-    }
-    return NULL;
+    return qio_channel_command_new_pid(stdinfd, stdoutfd, pid);
 }
 
 #else /* WIN32 */
@@ -221,7 +151,7 @@ static void qio_channel_command_init(Object *obj)
     QIOChannelCommand *ioc = QIO_CHANNEL_COMMAND(obj);
     ioc->readfd = -1;
     ioc->writefd = -1;
-    ioc->pid = -1;
+    ioc->pid = 0;
 }
 
 static void qio_channel_command_finalize(Object *obj)
@@ -239,6 +169,7 @@ static void qio_channel_command_finalize(Object *obj)
 #ifndef WIN32
         qio_channel_command_abort(ioc, NULL);
 #endif
+        g_spawn_close_pid(ioc->pid);
     }
 }
 
