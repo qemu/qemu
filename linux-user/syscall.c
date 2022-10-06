@@ -11793,7 +11793,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return -host_to_target_errno(ret);
 #endif
 
-#if TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32)
 
 #ifdef TARGET_NR_fadvise64_64
     case TARGET_NR_fadvise64_64:
@@ -11920,7 +11920,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         return get_errno(sys_gettid());
 #ifdef TARGET_NR_readahead
     case TARGET_NR_readahead:
-#if TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32)
         if (regpairs_aligned(cpu_env, num)) {
             arg2 = arg3;
             arg3 = arg4;
@@ -12612,7 +12612,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #endif /* CONFIG_EVENTFD  */
 #if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
     case TARGET_NR_fallocate:
-#if TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32)
         ret = get_errno(fallocate(arg1, arg2, target_offset64(arg3, arg4),
                                   target_offset64(arg5, arg6)));
 #else
@@ -12623,7 +12623,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 #if defined(CONFIG_SYNC_FILE_RANGE)
 #if defined(TARGET_NR_sync_file_range)
     case TARGET_NR_sync_file_range:
-#if TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32)
 #if defined(TARGET_MIPS)
         ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
                                         target_offset64(arg5, arg6), arg7));
@@ -12645,7 +12645,7 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
     case TARGET_NR_arm_sync_file_range:
 #endif
         /* This is like sync_file_range but the arguments are reordered */
-#if TARGET_ABI_BITS == 32
+#if TARGET_ABI_BITS == 32 && !defined(TARGET_ABI_MIPSN32)
         ret = get_errno(sync_file_range(arg1, target_offset64(arg3, arg4),
                                         target_offset64(arg5, arg6), arg2));
 #else
