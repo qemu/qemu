@@ -232,8 +232,6 @@ static bool quorum_has_too_much_io_failed(QuorumAIOCB *acb)
     return false;
 }
 
-static int read_fifo_child(QuorumAIOCB *acb);
-
 static void quorum_copy_qiov(QEMUIOVector *dest, QEMUIOVector *source)
 {
     int i;
