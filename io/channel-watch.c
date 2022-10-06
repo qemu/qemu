@@ -115,16 +115,12 @@ static gboolean
 qio_channel_socket_source_check(GSource *source)
 {
     static struct timeval tv0;
-
     QIOChannelSocketSource *ssource = (QIOChannelSocketSource *)source;
-    WSANETWORKEVENTS ev;
     fd_set rfds, wfds, xfds;
 
     if (!ssource->condition) {
         return 0;
     }
-
-    WSAEnumNetworkEvents(ssource->socket, ssource->ioc->event, &ev);
 
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
