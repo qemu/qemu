@@ -6545,12 +6545,12 @@ static int64_t dw_compose_ea(DisasContext *ctx, int x)
         }                           \
     } while (0)
 
-#define REQUIRE_HV(CTX)                         \
-    do {                                        \
-        if (unlikely((CTX)->pr || !(CTX)->hv))  \
-            gen_priv_opc(CTX);                  \
-            return true;                        \
-        }                                       \
+#define REQUIRE_HV(CTX)                             \
+    do {                                            \
+        if (unlikely((CTX)->pr || !(CTX)->hv)) {    \
+            gen_priv_opc(CTX);                      \
+            return true;                            \
+        }                                           \
     } while (0)
 #else
 #define REQUIRE_SV(CTX) do { gen_priv_opc(CTX); return true; } while (0)
