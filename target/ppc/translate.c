@@ -6241,34 +6241,6 @@ static void gen_icbt_440(DisasContext *ctx)
 
 /* Embedded.Processor Control */
 
-static void gen_msgclr(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_HV(ctx);
-    if (is_book3s_arch2x(ctx)) {
-        gen_helper_book3s_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-    } else {
-        gen_helper_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-    }
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
-static void gen_msgsnd(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_HV(ctx);
-    if (is_book3s_arch2x(ctx)) {
-        gen_helper_book3s_msgsnd(cpu_gpr[rB(ctx->opcode)]);
-    } else {
-        gen_helper_msgsnd(cpu_gpr[rB(ctx->opcode)]);
-    }
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
 #if defined(TARGET_PPC64)
 static void gen_msgclrp(DisasContext *ctx)
 {
@@ -6628,6 +6600,8 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
 
 #include "translate/branch-impl.c.inc"
 
+#include "translate/processor-ctrl-impl.c.inc"
+
 #include "translate/storage-ctrl-impl.c.inc"
 
 /* Handles lfdp */
@@ -6901,10 +6875,6 @@ GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
                PPC_NONE, PPC2_BOOKE206),
-GEN_HANDLER2_E(msgsnd, "msgsnd", 0x1F, 0x0E, 0x06, 0x03ff0001,
-               PPC_NONE, (PPC2_PRCNTL | PPC2_ISA207S)),
-GEN_HANDLER2_E(msgclr, "msgclr", 0x1F, 0x0E, 0x07, 0x03ff0001,
-               PPC_NONE, (PPC2_PRCNTL | PPC2_ISA207S)),
 GEN_HANDLER2_E(msgsync, "msgsync", 0x1F, 0x16, 0x1B, 0x00000000,
                PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
