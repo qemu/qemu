@@ -42,6 +42,9 @@ struct QIOChannelCommand {
     int writefd;
     int readfd;
     GPid pid;
+#ifdef WIN32
+    bool blocking;
+#endif
 };
 
 
