@@ -41,7 +41,7 @@ run-gdbstub-signals-s390x: signals-s390x
 		--gdb $(HAVE_GDB_BIN) \
 		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
 		--bin $< --test $(S390X_SRC)/gdbstub/test-signals-s390x.py, \
-	"mixing signals and debugging on s390x")
+	mixing signals and debugging)
 
 EXTRA_RUNS += run-gdbstub-signals-s390x
 endif
