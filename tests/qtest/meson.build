@@ -306,8 +306,14 @@ qtests = {
   'vmgenid-test': files('boot-sector.c', 'acpi-utils.c'),
 }
 
+gvnc = dependency('gvnc-1.0', required: false)
+if gvnc.found()
+  qtests += {'vnc-display-test': [gvnc]}
+  qtests_generic += [ 'vnc-display-test' ]
+endif
+
 if dbus_display
-qtests += {'dbus-display-test': [dbus_display1, gio]}
+  qtests += {'dbus-display-test': [dbus_display1, gio]}
 endif
 
 qtest_executables = {}
