@@ -2365,17 +2365,16 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
             result->cacheattrs = combine_cacheattrs(env, cacheattrs1,
                                                     result->cacheattrs);
 
-            /* Check if IPA translates to secure or non-secure PA space. */
-            if (is_secure) {
-                if (ipa_secure) {
-                    result->attrs.secure =
-                        !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW));
-                } else {
-                    result->attrs.secure =
-                        !((env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))
-                        || (env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW)));
-                }
-            }
+            /*
+             * Check if IPA translates to secure or non-secure PA space.
+             * Note that VSTCR overrides VTCR and {N}SW overrides {N}SA.
+             */
+            result->attrs.secure =
+                (is_secure
+                 && !(env->cp15.vstcr_el2 & (VSTCR_SA | VSTCR_SW))
+                 && (ipa_secure
+                     || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))));
+
             return 0;
         } else {
             /*
