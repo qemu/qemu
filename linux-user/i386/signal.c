@@ -163,9 +163,16 @@ struct sigframe {
     abi_ulong pretcode;
     int sig;
     struct target_sigcontext sc;
-    struct target_fpstate fpstate;
+    /*
+     * The actual fpstate is placed after retcode[] below, to make
+     * room for the variable-sized xsave data.  The older unused fpstate
+     * has to be kept to avoid changing the offset of extramask[], which
+     * is part of the ABI.
+     */
+    struct target_fpstate fpstate_unused;
     abi_ulong extramask[TARGET_NSIG_WORDS-1];
     char retcode[8];
+    struct target_fpstate fpstate;
 };
 
 struct rt_sigframe {
@@ -175,8 +182,8 @@ struct rt_sigframe {
     abi_ulong puc;
     struct target_siginfo info;
     struct target_ucontext uc;
-    struct target_fpstate fpstate;
     char retcode[8];
+    struct target_fpstate fpstate;
 };
 
 #else
