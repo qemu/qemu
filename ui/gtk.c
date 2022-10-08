@@ -681,9 +681,13 @@ static void gd_mouse_mode_change(Notifier *notify, void *data)
 
     s = container_of(notify, GtkDisplayState, mouse_mode_notifier);
     /* release the grab at switching to absolute mode */
-    if (qemu_input_is_absolute() && gd_is_grab_active(s)) {
-        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                       FALSE);
+    if (qemu_input_is_absolute() && s->ptr_owner) {
+        if (!s->ptr_owner->window) {
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
+                                           FALSE);
+        } else {
+            gd_ungrab_pointer(s);
+        }
     }
     for (i = 0; i < s->nb_vcs; i++) {
         VirtualConsole *vc = &s->vc[i];
