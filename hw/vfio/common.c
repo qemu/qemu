@@ -542,6 +542,7 @@ static void vfio_host_win_add(VFIOContainer *container,
     hostwin->max_iova = max_iova;
     hostwin->iova_pgsizes = iova_pgsizes;
     QLIST_INSERT_HEAD(&container->hostwin_list, hostwin, hostwin_next);
+    g_free(hostwin);
 }
 
 static int vfio_host_win_del(VFIOContainer *container, hwaddr min_iova,
