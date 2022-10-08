@@ -2790,8 +2790,10 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a vhost-user network, backed by a chardev 'dev'\n"
 #endif
 #ifdef __linux__
-    "-netdev vhost-vdpa,id=str,vhostdev=/path/to/dev\n"
+    "-netdev vhost-vdpa,id=str[,vhostdev=/path/to/dev][,vhostfd=h]\n"
     "                configure a vhost-vdpa network,Establish a vhost-vdpa netdev\n"
+    "                use 'vhostdev=/path/to/dev' to open a vhost vdpa device\n"
+    "                use 'vhostfd=h' to connect to an already opened vhost vdpa device\n"
 #endif
 #ifdef CONFIG_VMNET
     "-netdev vmnet-host,id=str[,isolated=on|off][,net-uuid=uuid]\n"
@@ -3296,7 +3298,7 @@ SRST
              -netdev type=vhost-user,id=net0,chardev=chr0 \
              -device virtio-net-pci,netdev=net0
 
-``-netdev vhost-vdpa,vhostdev=/path/to/dev``
+``-netdev vhost-vdpa[,vhostdev=/path/to/dev][,vhostfd=h]``
     Establish a vhost-vdpa netdev.
 
     vDPA device is a device that uses a datapath which complies with

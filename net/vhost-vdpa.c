@@ -634,14 +634,29 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
-    if (!opts->vhostdev) {
-        error_setg(errp, "vdpa character device not specified with vhostdev");
+    if (!opts->has_vhostdev && !opts->has_vhostfd) {
+        error_setg(errp,
+                   "vhost-vdpa: neither vhostdev= nor vhostfd= was specified");
         return -1;
     }
 
-    vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
-    if (vdpa_device_fd == -1) {
-        return -errno;
+    if (opts->has_vhostdev && opts->has_vhostfd) {
+        error_setg(errp,
+                   "vhost-vdpa: vhostdev= and vhostfd= are mutually exclusive");
+        return -1;
+    }
+
+    if (opts->has_vhostdev) {
+        vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
+        if (vdpa_device_fd == -1) {
+            return -errno;
+        }
+    } else if (opts->has_vhostfd) {
+        vdpa_device_fd = monitor_fd_param(monitor_cur(), opts->vhostfd, errp);
+        if (vdpa_device_fd == -1) {
+            error_prepend(errp, "vhost-vdpa: unable to parse vhostfd: ");
+            return -1;
+        }
     }
 
     r = vhost_vdpa_get_features(vdpa_device_fd, &features, errp);
