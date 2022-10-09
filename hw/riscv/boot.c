@@ -111,8 +111,8 @@ char *riscv_find_firmware(const char *firmware_filename)
     if (filename == NULL) {
         if (!qtest_enabled()) {
             /*
-             * We only ship plain binary bios images in the QEMU source.
-             * With Spike machine that uses ELF images as the default bios,
+             * We only ship OpenSBI binary bios images in the QEMU source.
+             * For machines that use images other than the default bios,
              * running QEMU test will complain hence let's suppress the error
              * report for QEMU testing.
              */
