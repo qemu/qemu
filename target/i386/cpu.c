@@ -1467,7 +1467,7 @@ ExtSaveArea x86_ext_save_areas[XSAVE_STATE_AREA_COUNT] = {
     },
 };
 
-static uint32_t xsave_area_size(uint64_t mask, bool compacted)
+uint32_t xsave_area_size(uint64_t mask, bool compacted)
 {
     uint64_t ret = x86_ext_save_areas[0].size;
     const ExtSaveArea *esa;

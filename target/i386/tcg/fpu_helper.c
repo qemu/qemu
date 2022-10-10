@@ -2502,18 +2502,6 @@ void helper_frstor(CPUX86State *env, target_ulong ptr, int data32)
     do_frstor(env, ptr, data32, GETPC());
 }
 
-#if defined(CONFIG_USER_ONLY)
-void cpu_x86_fsave(CPUX86State *env, target_ulong ptr, int data32)
-{
-    do_fsave(env, ptr, data32, 0);
-}
-
-void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
-{
-    do_frstor(env, ptr, data32, 0);
-}
-#endif
-
 #define XO(X)  offsetof(X86XSaveArea, X)
 
 static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
@@ -2787,21 +2775,8 @@ void helper_fxrstor(CPUX86State *env, target_ulong ptr)
     do_fxrstor(env, ptr, GETPC());
 }
 
-#if defined(CONFIG_USER_ONLY)
-void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
+static void do_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm, uintptr_t ra)
 {
-    do_fxsave(env, ptr, 0);
-}
-
-void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
-{
-    do_fxrstor(env, ptr, 0);
-}
-#endif
-
-void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
-{
-    uintptr_t ra = GETPC();
     uint64_t xstate_bv, xcomp_bv, reserve0;
 
     rfbm &= env->xcr0;
@@ -2893,6 +2868,43 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 }
 
 #undef XO
+
+void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    do_xrstor(env, ptr, rfbm, GETPC());
+}
+
+#if defined(CONFIG_USER_ONLY)
+void cpu_x86_fsave(CPUX86State *env, target_ulong ptr, int data32)
+{
+    do_fsave(env, ptr, data32, 0);
+}
+
+void cpu_x86_frstor(CPUX86State *env, target_ulong ptr, int data32)
+{
+    do_frstor(env, ptr, data32, 0);
+}
+
+void cpu_x86_fxsave(CPUX86State *env, target_ulong ptr)
+{
+    do_fxsave(env, ptr, 0);
+}
+
+void cpu_x86_fxrstor(CPUX86State *env, target_ulong ptr)
+{
+    do_fxrstor(env, ptr, 0);
+}
+
+void cpu_x86_xsave(CPUX86State *env, target_ulong ptr)
+{
+    do_xsave(env, ptr, -1, get_xinuse(env), -1, 0);
+}
+
+void cpu_x86_xrstor(CPUX86State *env, target_ulong ptr)
+{
+    do_xrstor(env, ptr, -1, 0);
+}
+#endif
 
 uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
 {

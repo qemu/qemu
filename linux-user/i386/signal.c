@@ -24,6 +24,10 @@
 
 /* from the Linux kernel - /arch/x86/include/uapi/asm/sigcontext.h */
 
+#define TARGET_FP_XSTATE_MAGIC1         0x46505853U /* FPXS */
+#define TARGET_FP_XSTATE_MAGIC2         0x46505845U /* FPXE */
+#define TARGET_FP_XSTATE_MAGIC2_SIZE    4
+
 struct target_fpreg {
     uint16_t significand[4];
     uint16_t exponent;
@@ -39,6 +43,15 @@ struct target_xmmreg {
     uint32_t element[4];
 };
 
+struct target_fpx_sw_bytes {
+    uint32_t magic1;
+    uint32_t extended_size;
+    uint64_t xfeatures;
+    uint32_t xstate_size;
+    uint32_t reserved[7];
+};
+QEMU_BUILD_BUG_ON(sizeof(struct target_fpx_sw_bytes) != 12*4);
+
 struct target_fpstate_fxsave {
     /* FXSAVE format */
     uint16_t cw;
@@ -51,10 +64,13 @@ struct target_fpstate_fxsave {
     uint32_t mxcsr_mask;
     uint32_t st_space[32];
     uint32_t xmm_space[64];
-    uint32_t reserved[24];
+    uint32_t hw_reserved[12];
+    struct target_fpx_sw_bytes sw_reserved;
+    uint8_t xfeatures[];
 };
 #define TARGET_FXSAVE_SIZE   sizeof(struct target_fpstate_fxsave)
 QEMU_BUILD_BUG_ON(TARGET_FXSAVE_SIZE != 512);
+QEMU_BUILD_BUG_ON(offsetof(struct target_fpstate_fxsave, sw_reserved) != 464);
 
 struct target_fpstate_32 {
     /* Regular FPU environment */
@@ -214,13 +230,39 @@ struct rt_sigframe {
  * Set up a signal frame.
  */
 
-static void fxsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxsave,
-                              abi_ulong fxsave_addr)
+static void xsave_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxsave,
+                             abi_ulong fxsave_addr)
 {
-    /* fxsave_addr must be 16 byte aligned for fxsave */
-    assert(!(fxsave_addr & 0xf));
+    if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
+        /* fxsave_addr must be 16 byte aligned for fxsave */
+        assert(!(fxsave_addr & 0xf));
 
-    cpu_x86_fxsave(env, fxsave_addr);
+        cpu_x86_fxsave(env, fxsave_addr);
+        __put_user(0, &fxsave->sw_reserved.magic1);
+    } else {
+        uint32_t xstate_size = xsave_area_size(env->xcr0, false);
+        uint32_t xfeatures_size = xstate_size - TARGET_FXSAVE_SIZE;
+
+        /*
+         * extended_size is the offset from fpstate_addr to right after the end
+         * of the extended save states.  On 32-bit that includes the legacy
+         * FSAVE area.
+         */
+        uint32_t extended_size = TARGET_FPSTATE_FXSAVE_OFFSET
+            + xstate_size + TARGET_FP_XSTATE_MAGIC2_SIZE;
+
+        /* fxsave_addr must be 64 byte aligned for xsave */
+        assert(!(fxsave_addr & 0x3f));
+
+        /* Zero the header, XSAVE *adds* features to an existing save state.  */
+        memset(fxsave->xfeatures, 0, 64);
+        cpu_x86_xsave(env, fxsave_addr);
+        __put_user(TARGET_FP_XSTATE_MAGIC1, &fxsave->sw_reserved.magic1);
+        __put_user(extended_size, &fxsave->sw_reserved.extended_size);
+        __put_user(env->xcr0, &fxsave->sw_reserved.xfeatures);
+        __put_user(xstate_size, &fxsave->sw_reserved.xstate_size);
+        __put_user(TARGET_FP_XSTATE_MAGIC2, (uint32_t *) &fxsave->xfeatures[xfeatures_size]);
+    }
 }
 
 static void setup_sigcontext(struct target_sigcontext *sc,
@@ -257,8 +299,8 @@ static void setup_sigcontext(struct target_sigcontext *sc,
     if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
         magic = 0xffff;
     } else {
-        fxsave_sigcontext(env, &fpstate->fxsave,
-                          fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
+        xsave_sigcontext(env, &fpstate->fxsave,
+                         fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
         magic = 0;
     }
     __put_user(magic, &fpstate->magic);
@@ -291,7 +333,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
     __put_user((uint16_t)0, &sc->fs);
     __put_user(env->segs[R_SS].selector, &sc->ss);
 
-    fxsave_sigcontext(env, fpstate, fpstate_addr);
+    xsave_sigcontext(env, fpstate, fpstate_addr);
 #endif
 
     __put_user(fpstate_addr, &sc->fpstate);
@@ -332,8 +374,12 @@ get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t fxsave_offset
 
     if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
         return (esp - (fxsave_offset + TARGET_FXSAVE_SIZE)) & -8ul;
-    } else {
+    } else if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
         return ((esp - TARGET_FXSAVE_SIZE) & -16ul) - fxsave_offset;
+    } else {
+        size_t xstate_size =
+               xsave_area_size(env->xcr0, false) + TARGET_FP_XSTATE_MAGIC2_SIZE;
+        return ((esp - xstate_size) & -64ul) - fxsave_offset;
     }
 }
 
@@ -437,7 +483,11 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     /* Create the ucontext.  */
-    __put_user(0, &frame->uc.tuc_flags);
+    if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
+        __put_user(1, &frame->uc.tuc_flags);
+    } else {
+        __put_user(0, &frame->uc.tuc_flags);
+    }
     __put_user(0, &frame->uc.tuc_link);
     target_save_altstack(&frame->uc.tuc_stack, env);
     setup_sigcontext(&frame->uc.tuc_mcontext, &frame->fpstate, env,
@@ -491,10 +541,37 @@ give_sigsegv:
     force_sigsegv(sig);
 }
 
+static int xrstor_sigcontext(CPUX86State *env, struct target_fpstate_fxsave *fxsave,
+                             abi_ulong fxsave_addr)
+{
+    if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
+        uint32_t extended_size = tswapl(fxsave->sw_reserved.extended_size);
+        uint32_t xstate_size = tswapl(fxsave->sw_reserved.xstate_size);
+        uint32_t xfeatures_size = xstate_size - TARGET_FXSAVE_SIZE;
+
+        /* Linux checks MAGIC2 using xstate_size, not extended_size.  */
+        if (tswapl(fxsave->sw_reserved.magic1) == TARGET_FP_XSTATE_MAGIC1 &&
+            extended_size >= TARGET_FPSTATE_FXSAVE_OFFSET + xstate_size + TARGET_FP_XSTATE_MAGIC2_SIZE) {
+            if (!access_ok(env_cpu(env), VERIFY_READ, fxsave_addr,
+                           extended_size - TARGET_FPSTATE_FXSAVE_OFFSET)) {
+                return 1;
+            }
+            if (tswapl(*(uint32_t *) &fxsave->xfeatures[xfeatures_size]) == TARGET_FP_XSTATE_MAGIC2) {
+                cpu_x86_xrstor(env, fxsave_addr);
+                return 0;
+            }
+        }
+        /* fall through to fxrstor */
+    }
+
+    cpu_x86_fxrstor(env, fxsave_addr);
+    return 0;
+}
+
 static int
 restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
 {
-    unsigned int err = 0;
+    int err = 1;
     abi_ulong fpstate_addr;
     unsigned int tmpflags;
 
@@ -545,24 +622,28 @@ restore_sigcontext(CPUX86State *env, struct target_sigcontext *sc)
 
     fpstate_addr = tswapl(sc->fpstate);
     if (fpstate_addr != 0) {
-        if (!access_ok(env_cpu(env), VERIFY_READ, fpstate_addr,
-                       sizeof(struct target_fpstate))) {
-            goto badframe;
+        struct target_fpstate *fpstate;
+        if (!lock_user_struct(VERIFY_READ, fpstate, fpstate_addr,
+                              sizeof(struct target_fpstate))) {
+            return err;
         }
 #ifndef TARGET_X86_64
         if (!(env->features[FEAT_1_EDX] & CPUID_FXSR)) {
             cpu_x86_frstor(env, fpstate_addr, 1);
+            err = 0;
         } else {
-            cpu_x86_fxrstor(env, fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
+            err = xrstor_sigcontext(env, &fpstate->fxsave,
+                                    fpstate_addr + TARGET_FPSTATE_FXSAVE_OFFSET);
         }
 #else
-        cpu_x86_fxrstor(env, fpstate_addr);
+        err = xrstor_sigcontext(env, fpstate, fpstate_addr);
 #endif
+        unlock_user_struct(fpstate, fpstate_addr, 0);
+    } else {
+        err = 0;
     }
 
     return err;
-badframe:
-    return 1;
 }
 
 /* Note: there is no sigreturn on x86_64, there is only rt_sigreturn */
