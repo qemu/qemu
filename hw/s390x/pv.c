@@ -50,7 +50,7 @@ static int __s390_pv_cmd(uint32_t cmd, const char *cmdname, void *data)
  * This macro lets us pass the command as a string to the function so
  * we can print it on an error.
  */
-#define s390_pv_cmd(cmd, data) __s390_pv_cmd(cmd, #cmd, data);
+#define s390_pv_cmd(cmd, data) __s390_pv_cmd(cmd, #cmd, data)
 #define s390_pv_cmd_exit(cmd, data)    \
 {                                      \
     int rc;                            \
