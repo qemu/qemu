@@ -539,7 +539,7 @@ wrote 4096/4096 bytes at offset 0
 read 4096/4096 bytes at offset 0
 4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Testing: -drive driver=null-co,snapshot=on
-QEMU_PROG: -drive driver=null-co,snapshot=on: Could not get temporary filename: No such file or directory
+QEMU_PROG: -drive driver=null-co,snapshot=on: Could not open temporary file SNAPSHOT_PATH: No such file or directory
 
 Testing: -drive file=TEST_DIR/t.qcow2,snapshot=on,read-only=on,if=none,id=drive0
 QEMU X.Y.Z monitor - type 'help' for more information
