@@ -499,7 +499,7 @@ static bool valid_filename(const unsigned char *name)
               (c >= 'A' && c <= 'Z') ||
               (c >= 'a' && c <= 'z') ||
               c > 127 ||
-              strchr("$%'-_@~`!(){}^#&.+,;=[]", c) != NULL))
+              strchr(" $%'-_@~`!(){}^#&.+,;=[]", c) != NULL))
         {
             return false;
         }
