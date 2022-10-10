@@ -84,7 +84,6 @@ T: git https://github.com/vivier/qemu.git trivial-patches
 Architecture support
 --------------------
 S390 general architecture support
-M: Cornelia Huck <cohuck@redhat.com>
 M: Thomas Huth <thuth@redhat.com>
 S: Supported
 F: configs/devices/s390x-softmmu/default.mak
@@ -106,7 +105,6 @@ F: docs/system/target-s390x.rst
 F: docs/system/s390x/
 F: tests/migration/s390x/
 K: ^Subject:.*(?i)s390x?
-T: git https://gitlab.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 MIPS general architecture support
