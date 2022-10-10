@@ -887,10 +887,7 @@ int get_tmp_filename(char *filename, int size)
     if (fd < 0) {
         return -errno;
     }
-    if (close(fd) != 0) {
-        unlink(filename);
-        return -errno;
-    }
+    close(fd);
     return 0;
 #endif
 }
