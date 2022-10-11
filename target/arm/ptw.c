@@ -19,6 +19,7 @@ typedef struct S1Translate {
     bool in_secure;
     bool in_debug;
     bool out_secure;
+    bool out_be;
     hwaddr out_phys;
 } S1Translate;
 
@@ -277,6 +278,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
 
     ptw->out_secure = is_secure;
     ptw->out_phys = addr;
+    ptw->out_be = regime_translation_big_endian(env, ptw->in_mmu_idx);
     return true;
 }
 
@@ -296,7 +298,7 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, S1Translate *ptw, hwaddr addr,
     addr = ptw->out_phys;
     attrs.secure = ptw->out_secure;
     as = arm_addressspace(cs, attrs);
-    if (regime_translation_big_endian(env, ptw->in_mmu_idx)) {
+    if (ptw->out_be) {
         data = address_space_ldl_be(as, addr, attrs, &result);
     } else {
         data = address_space_ldl_le(as, addr, attrs, &result);
@@ -324,7 +326,7 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw, hwaddr addr,
     addr = ptw->out_phys;
     attrs.secure = ptw->out_secure;
     as = arm_addressspace(cs, attrs);
-    if (regime_translation_big_endian(env, ptw->in_mmu_idx)) {
+    if (ptw->out_be) {
         data = address_space_ldq_be(as, addr, attrs, &result);
     } else {
         data = address_space_ldq_le(as, addr, attrs, &result);
