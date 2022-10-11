@@ -3815,10 +3815,10 @@ static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * A change in VMID to the stage2 page table (Stage2) invalidates
      * the stage2 and combined stage 1&2 tlbs (EL10_1 and EL10_0).
      */
-    if (raw_read(env, ri) != value) {
+    if (extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
         tlb_flush_by_mmuidx(cs, alle1_tlbmask(env));
-        raw_write(env, ri, value);
     }
+    raw_write(env, ri, value);
 }
 
 static const ARMCPRegInfo vmsa_pmsa_cp_reginfo[] = {
