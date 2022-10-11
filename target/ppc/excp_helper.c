@@ -1684,7 +1684,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
     powerpc_excp(cpu, cs->exception_index);
 }
 
-static int ppc_next_unmasked_interrupt(CPUPPCState *env)
+static int ppc_next_unmasked_interrupt_generic(CPUPPCState *env)
 {
     bool async_deliver;
 
@@ -1796,7 +1796,15 @@ static int ppc_next_unmasked_interrupt(CPUPPCState *env)
     return 0;
 }
 
-static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
+static int ppc_next_unmasked_interrupt(CPUPPCState *env)
+{
+    switch (env->excp_model) {
+    default:
+        return ppc_next_unmasked_interrupt_generic(env);
+    }
+}
+
+static void ppc_deliver_interrupt_generic(CPUPPCState *env, int interrupt)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
@@ -1897,6 +1905,14 @@ static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
         break;
     default:
         cpu_abort(cs, "Invalid PowerPC interrupt %d. Aborting\n", interrupt);
+    }
+}
+
+static void ppc_deliver_interrupt(CPUPPCState *env, int interrupt)
+{
+    switch (env->excp_model) {
+    default:
+        ppc_deliver_interrupt_generic(env, interrupt);
     }
 }
 
