@@ -92,6 +92,10 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "not a number: %s\n", optarg);
                 exit(1);
             }
+            if (dpi == 0) {
+                fprintf(stderr, "cannot be zero: %s\n", optarg);
+                exit(1);
+            }
             break;
         case 'v':
             info.vendor = optarg;
