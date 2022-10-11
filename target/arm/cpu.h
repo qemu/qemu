@@ -225,6 +225,8 @@ typedef struct CPUARMTBFlags {
     target_ulong flags2;
 } CPUARMTBFlags;
 
+typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
+
 typedef struct CPUArchState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -714,6 +716,9 @@ typedef struct CPUArchState {
 
     struct CPUBreakpoint *cpu_breakpoint[16];
     struct CPUWatchpoint *cpu_watchpoint[16];
+
+    /* Optional fault info across tlb lookup. */
+    ARMMMUFaultInfo *tlb_fi;
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;

@@ -208,9 +208,20 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       bool probe, uintptr_t retaddr)
 {
     ARMCPU *cpu = ARM_CPU(cs);
-    ARMMMUFaultInfo fi = {};
     GetPhysAddrResult res = {};
+    ARMMMUFaultInfo local_fi, *fi;
     int ret;
+
+    /*
+     * Allow S1_ptw_translate to see any fault generated here.
+     * Since this may recurse, read and clear.
+     */
+    fi = cpu->env.tlb_fi;
+    if (fi) {
+        cpu->env.tlb_fi = NULL;
+    } else {
+        fi = memset(&local_fi, 0, sizeof(local_fi));
+    }
 
     /*
      * Walk the page table and (if the mapping exists) add the page
@@ -220,7 +231,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
      */
     ret = get_phys_addr(&cpu->env, address, access_type,
                         core_to_arm_mmu_idx(&cpu->env, mmu_idx),
-                        &res, &fi);
+                        &res, fi);
     if (likely(!ret)) {
         /*
          * Map a single [sub]page. Regions smaller than our declared
@@ -242,7 +253,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else {
         /* now we have a real cpu fault */
         cpu_restore_state(cs, retaddr, true);
-        arm_deliver_fault(cpu, address, access_type, mmu_idx, &fi);
+        arm_deliver_fault(cpu, address, access_type, mmu_idx, fi);
     }
 }
 #else
