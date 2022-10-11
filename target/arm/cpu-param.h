@@ -30,6 +30,18 @@
  */
 # define TARGET_PAGE_BITS_VARY
 # define TARGET_PAGE_BITS_MIN  10
+
+/*
+ * Cache the attrs and shareability fields from the page table entry.
+ *
+ * For ARMMMUIdx_Stage2*, pte_attrs is the S2 descriptor bits [5:2].
+ * Otherwise, pte_attrs is the same as the MAIR_EL1 8-bit format.
+ * For shareability, as in the SH field of the VMSAv8-64 PTEs.
+ */
+# define TARGET_PAGE_ENTRY_EXTRA  \
+     uint8_t pte_attrs;           \
+     uint8_t shareability;
+
 #endif
 
 #define NB_MMU_MODES 8
