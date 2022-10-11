@@ -163,7 +163,7 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
     helper_hfscr_facility_check(env, HFSCR_MSGP, "load DPDES", HFSCR_IC_MSGP);
 
     /* TODO: TCG supports only one thread */
-    if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
+    if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
         dpdes = 1;
     }
 
@@ -185,10 +185,10 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
     }
 
     if (val & 0x1) {
-        env->pending_interrupts |= 1 << PPC_INTERRUPT_DOORBELL;
+        env->pending_interrupts |= PPC_INTERRUPT_DOORBELL;
         cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
-        env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
+        env->pending_interrupts &= ~PPC_INTERRUPT_DOORBELL;
     }
 }
 #endif /* defined(TARGET_PPC64) */

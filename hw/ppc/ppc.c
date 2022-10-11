@@ -40,7 +40,7 @@
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
 
-void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
+void ppc_set_irq(PowerPCCPU *cpu, int irq, int level)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -56,21 +56,21 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
     old_pending = env->pending_interrupts;
 
     if (level) {
-        env->pending_interrupts |= 1 << n_IRQ;
+        env->pending_interrupts |= irq;
         cpu_interrupt(cs, CPU_INTERRUPT_HARD);
     } else {
-        env->pending_interrupts &= ~(1 << n_IRQ);
+        env->pending_interrupts &= ~irq;
         if (env->pending_interrupts == 0) {
             cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
         }
     }
 
     if (old_pending != env->pending_interrupts) {
-        kvmppc_set_interrupt(cpu, n_IRQ, level);
+        kvmppc_set_interrupt(cpu, irq, level);
     }
 
 
-    trace_ppc_irq_set_exit(env, n_IRQ, level, env->pending_interrupts,
+    trace_ppc_irq_set_exit(env, irq, level, env->pending_interrupts,
                            CPU(cpu)->interrupt_request);
 
     if (locked) {

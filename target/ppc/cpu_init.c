@@ -5969,23 +5969,23 @@ static bool cpu_has_work_POWER7(CPUState *cs)
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE0)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE1)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_MCK) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HMI)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HMI) &&
             (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
             return true;
         }
-        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+        if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
             return true;
         }
         return false;
@@ -6142,31 +6142,31 @@ static bool cpu_has_work_POWER8(CPUState *cs)
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE2)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE3)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_MCK) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HMI)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HMI) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE0)) {
             return true;
         }
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HDOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_P8_PECE1)) {
             return true;
         }
-        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+        if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
             return true;
         }
         return false;
@@ -6368,7 +6368,7 @@ static bool cpu_has_work_POWER9(CPUState *cs)
             return true;
         }
         /* External Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
             if (!heic || !FIELD_EX64_HV(env->msr) ||
@@ -6377,31 +6377,31 @@ static bool cpu_has_work_POWER9(CPUState *cs)
             }
         }
         /* Decrementer Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
             (env->spr[SPR_LPCR] & LPCR_DEE)) {
             return true;
         }
         /* Machine Check or Hypervisor Maintenance Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK |
-            1u << PPC_INTERRUPT_HMI)) && (env->spr[SPR_LPCR] & LPCR_OEE)) {
+        if ((env->pending_interrupts & (PPC_INTERRUPT_MCK | PPC_INTERRUPT_HMI))
+            && (env->spr[SPR_LPCR] & LPCR_OEE)) {
             return true;
         }
         /* Privileged Doorbell Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_PDEE)) {
             return true;
         }
         /* Hypervisor Doorbell Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HDOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_HDEE)) {
             return true;
         }
         /* Hypervisor virtualization exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HVIRT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HVIRT) &&
             (env->spr[SPR_LPCR] & LPCR_HVEE)) {
             return true;
         }
-        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+        if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
             return true;
         }
         return false;
@@ -6601,7 +6601,7 @@ static bool cpu_has_work_POWER10(CPUState *cs)
             return true;
         }
         /* External Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
             bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
             if (!heic || !FIELD_EX64_HV(env->msr) ||
@@ -6610,31 +6610,31 @@ static bool cpu_has_work_POWER10(CPUState *cs)
             }
         }
         /* Decrementer Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
             (env->spr[SPR_LPCR] & LPCR_DEE)) {
             return true;
         }
         /* Machine Check or Hypervisor Maintenance Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_MCK |
-            1u << PPC_INTERRUPT_HMI)) && (env->spr[SPR_LPCR] & LPCR_OEE)) {
+        if ((env->pending_interrupts & (PPC_INTERRUPT_MCK | PPC_INTERRUPT_HMI))
+            && (env->spr[SPR_LPCR] & LPCR_OEE)) {
             return true;
         }
         /* Privileged Doorbell Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_PDEE)) {
             return true;
         }
         /* Hypervisor Doorbell Exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HDOORBELL)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
             (env->spr[SPR_LPCR] & LPCR_HDEE)) {
             return true;
         }
         /* Hypervisor virtualization exception */
-        if ((env->pending_interrupts & (1u << PPC_INTERRUPT_HVIRT)) &&
+        if ((env->pending_interrupts & PPC_INTERRUPT_HVIRT) &&
             (env->spr[SPR_LPCR] & LPCR_HVEE)) {
             return true;
         }
-        if (env->pending_interrupts & (1u << PPC_INTERRUPT_RESET)) {
+        if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
             return true;
         }
         return false;

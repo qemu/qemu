@@ -127,7 +127,7 @@ ppc40x_set_tb_clk(uint32_t value) "new frequency %" PRIu32
 ppc40x_timers_init(uint32_t value) "frequency %" PRIu32
 
 ppc_irq_set(void *env, uint32_t pin, uint32_t level) "env [%p] pin %d level %d"
-ppc_irq_set_exit(void *env, uint32_t n_IRQ, uint32_t level, uint32_t pending, uint32_t request) "env [%p] n_IRQ %d level %d => pending 0x%08" PRIx32 " req 0x%08" PRIx32
+ppc_irq_set_exit(void *env, uint32_t irq, uint32_t level, uint32_t pending, uint32_t request) "env [%p] irq 0x%05" PRIx32 " level %d => pending 0x%08" PRIx32 " req 0x%08" PRIx32
 ppc_irq_set_state(const char *name, uint32_t level) "\"%s\" level %d"
 ppc_irq_reset(const char *name) "%s"
 ppc_irq_cpu(const char *action) "%s"
