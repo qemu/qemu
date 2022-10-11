@@ -204,7 +204,7 @@ static const NoteFuncDesc note_linux[] = {
 static int s390x_write_elf64_notes(const char *note_name,
                                        WriteCoreDumpFunction f,
                                        S390CPU *cpu, int id,
-                                       void *opaque,
+                                       DumpState *s,
                                        const NoteFuncDesc *funcs)
 {
     Note note;
@@ -222,7 +222,7 @@ static int s390x_write_elf64_notes(const char *note_name,
         (*nf->note_contents_func)(&note, cpu, id);
 
         note_size = sizeof(note) - sizeof(note.contents) + nf->contents_size;
-        ret = f(&note, note_size, opaque);
+        ret = f(&note, note_size, s);
 
         if (ret < 0) {
             return -1;
@@ -235,16 +235,16 @@ static int s390x_write_elf64_notes(const char *note_name,
 
 
 int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                              int cpuid, void *opaque)
+                              int cpuid, DumpState *s)
 {
     S390CPU *cpu = S390_CPU(cs);
     int r;
 
-    r = s390x_write_elf64_notes("CORE", f, cpu, cpuid, opaque, note_core);
+    r = s390x_write_elf64_notes("CORE", f, cpu, cpuid, s, note_core);
     if (r) {
         return r;
     }
-    return s390x_write_elf64_notes("LINUX", f, cpu, cpuid, opaque, note_linux);
+    return s390x_write_elf64_notes("LINUX", f, cpu, cpuid, s, note_linux);
 }
 
 int cpu_get_dump_info(ArchDumpInfo *info,
