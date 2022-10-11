@@ -17,6 +17,7 @@
 typedef struct S1Translate {
     ARMMMUIdx in_mmu_idx;
     bool in_secure;
+    bool in_debug;
     bool out_secure;
     hwaddr out_phys;
 } S1Translate;
@@ -230,6 +231,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
         S1Translate s2ptw = {
             .in_mmu_idx = s2_mmu_idx,
             .in_secure = is_secure,
+            .in_debug = ptw->in_debug,
         };
         uint64_t hcr;
         int ret;
@@ -2370,13 +2372,15 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
     return 0;
 }
 
-bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
-                               MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                               bool is_secure, GetPhysAddrResult *result,
-                               ARMMMUFaultInfo *fi)
+static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
+                                      target_ulong address,
+                                      MMUAccessType access_type,
+                                      GetPhysAddrResult *result,
+                                      ARMMMUFaultInfo *fi)
 {
+    ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     ARMMMUIdx s1_mmu_idx = stage_1_mmu_idx(mmu_idx);
-    S1Translate ptw;
+    bool is_secure = ptw->in_secure;
 
     if (mmu_idx != s1_mmu_idx) {
         /*
@@ -2392,8 +2396,9 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
             bool is_el0;
             uint64_t hcr;
 
-            ret = get_phys_addr_with_secure(env, address, access_type,
-                                            s1_mmu_idx, is_secure, result, fi);
+            ptw->in_mmu_idx = s1_mmu_idx;
+            ret = get_phys_addr_with_struct(env, ptw, address, access_type,
+                                            result, fi);
 
             /* If S1 fails or S2 is disabled, return early.  */
             if (ret || regime_translation_disabled(env, ARMMMUIdx_Stage2,
@@ -2413,9 +2418,9 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                 s2walk_secure = false;
             }
 
-            ptw.in_mmu_idx =
+            ptw->in_mmu_idx =
                 s2walk_secure ? ARMMMUIdx_Stage2_S : ARMMMUIdx_Stage2;
-            ptw.in_secure = s2walk_secure;
+            ptw->in_secure = s2walk_secure;
             is_el0 = mmu_idx == ARMMMUIdx_E10_0;
 
             /*
@@ -2427,7 +2432,7 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
             cacheattrs1 = result->cacheattrs;
             memset(result, 0, sizeof(*result));
 
-            ret = get_phys_addr_lpae(env, &ptw, ipa, access_type,
+            ret = get_phys_addr_lpae(env, ptw, ipa, access_type,
                                      is_el0, result, fi);
             fi->s2addr = ipa;
 
@@ -2534,17 +2539,27 @@ bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
                                       is_secure, result, fi);
     }
 
-    ptw.in_mmu_idx = mmu_idx;
-    ptw.in_secure = is_secure;
-
     if (regime_using_lpae_format(env, mmu_idx)) {
-        return get_phys_addr_lpae(env, &ptw, address, access_type, false,
+        return get_phys_addr_lpae(env, ptw, address, access_type, false,
                                   result, fi);
     } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
-        return get_phys_addr_v6(env, &ptw, address, access_type, result, fi);
+        return get_phys_addr_v6(env, ptw, address, access_type, result, fi);
     } else {
-        return get_phys_addr_v5(env, &ptw, address, access_type, result, fi);
+        return get_phys_addr_v5(env, ptw, address, access_type, result, fi);
     }
+}
+
+bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
+                               MMUAccessType access_type, ARMMMUIdx mmu_idx,
+                               bool is_secure, GetPhysAddrResult *result,
+                               ARMMMUFaultInfo *fi)
+{
+    S1Translate ptw = {
+        .in_mmu_idx = mmu_idx,
+        .in_secure = is_secure,
+    };
+    return get_phys_addr_with_struct(env, &ptw, address, access_type,
+                                     result, fi);
 }
 
 bool get_phys_addr(CPUARMState *env, target_ulong address,
@@ -2595,12 +2610,16 @@ hwaddr arm_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+    S1Translate ptw = {
+        .in_mmu_idx = arm_mmu_idx(env),
+        .in_secure = arm_is_secure(env),
+        .in_debug = true,
+    };
     GetPhysAddrResult res = {};
     ARMMMUFaultInfo fi = {};
-    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
     bool ret;
 
-    ret = get_phys_addr(env, addr, MMU_DATA_LOAD, mmu_idx, &res, &fi);
+    ret = get_phys_addr_with_struct(env, &ptw, addr, MMU_DATA_LOAD, &res, &fi);
     *attrs = res.f.attrs;
 
     if (ret) {
