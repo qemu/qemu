@@ -2432,7 +2432,7 @@ static bool get_phys_addr_disabled(CPUARMState *env, target_ulong address,
     result->f.lg_page_size = TARGET_PAGE_BITS;
     result->cacheattrs.shareability = shareability;
     result->cacheattrs.attrs = memattr;
-    return 0;
+    return false;
 }
 
 static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
@@ -2443,9 +2443,8 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 {
     hwaddr ipa;
     int s1_prot;
-    int ret;
     bool is_secure = ptw->in_secure;
-    bool ipa_secure, s2walk_secure;
+    bool ret, ipa_secure, s2walk_secure;
     ARMCacheAttrs cacheattrs1;
     bool is_el0;
     uint64_t hcr;
@@ -2520,7 +2519,7 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
          && (ipa_secure
              || !(env->cp15.vtcr_el2 & (VTCR_NSA | VTCR_NSW))));
 
-    return 0;
+    return false;
 }
 
 static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
