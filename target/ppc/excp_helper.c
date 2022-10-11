@@ -1685,14 +1685,17 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 }
 
 #if defined(TARGET_PPC64)
+#define P9_UNUSED_INTERRUPTS \
+    (PPC_INTERRUPT_RESET | PPC_INTERRUPT_DEBUG | PPC_INTERRUPT_CEXT |   \
+     PPC_INTERRUPT_WDT | PPC_INTERRUPT_CDOORBELL | PPC_INTERRUPT_FIT |  \
+     PPC_INTERRUPT_PIT | PPC_INTERRUPT_THERM)
+
 static int p9_next_unmasked_interrupt(CPUPPCState *env)
 {
     bool async_deliver;
 
-    /* External reset */
-    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
-        return PPC_INTERRUPT_RESET;
-    }
+    assert((env->pending_interrupts & P9_UNUSED_INTERRUPTS) == 0);
+
     /* Machine check exception */
     if (env->pending_interrupts & PPC_INTERRUPT_MCK) {
         return PPC_INTERRUPT_MCK;
@@ -1736,28 +1739,7 @@ static int p9_next_unmasked_interrupt(CPUPPCState *env)
             return PPC_INTERRUPT_EXT;
         }
     }
-    if (FIELD_EX64(env->msr, MSR, CE)) {
-        /* External critical interrupt */
-        if (env->pending_interrupts & PPC_INTERRUPT_CEXT) {
-            return PPC_INTERRUPT_CEXT;
-        }
-    }
     if (async_deliver != 0) {
-        /* Watchdog timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_WDT) {
-            return PPC_INTERRUPT_WDT;
-        }
-        if (env->pending_interrupts & PPC_INTERRUPT_CDOORBELL) {
-            return PPC_INTERRUPT_CDOORBELL;
-        }
-        /* Fixed interval timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_FIT) {
-            return PPC_INTERRUPT_FIT;
-        }
-        /* Programmable interval timer on embedded PowerPC */
-        if (env->pending_interrupts & PPC_INTERRUPT_PIT) {
-            return PPC_INTERRUPT_PIT;
-        }
         /* Decrementer exception */
         if (env->pending_interrupts & PPC_INTERRUPT_DECR) {
             return PPC_INTERRUPT_DECR;
@@ -1770,10 +1752,6 @@ static int p9_next_unmasked_interrupt(CPUPPCState *env)
         }
         if (env->pending_interrupts & PPC_INTERRUPT_PERFM) {
             return PPC_INTERRUPT_PERFM;
-        }
-        /* Thermal interrupt */
-        if (env->pending_interrupts & PPC_INTERRUPT_THERM) {
-            return PPC_INTERRUPT_THERM;
         }
         /* EBB exception */
         if (env->pending_interrupts & PPC_INTERRUPT_EBB) {
