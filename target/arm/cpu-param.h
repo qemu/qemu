@@ -36,12 +36,13 @@
  *
  * For ARMMMUIdx_Stage2*, pte_attrs is the S2 descriptor bits [5:2].
  * Otherwise, pte_attrs is the same as the MAIR_EL1 8-bit format.
- * For shareability, as in the SH field of the VMSAv8-64 PTEs.
+ * For shareability and guarded, as in the SH and GP fields respectively
+ * of the VMSAv8-64 PTEs.
  */
 # define TARGET_PAGE_ENTRY_EXTRA  \
-     uint8_t pte_attrs;           \
-     uint8_t shareability;
-
+    uint8_t pte_attrs;            \
+    uint8_t shareability;         \
+    bool guarded;
 #endif
 
 #define NB_MMU_MODES 8
