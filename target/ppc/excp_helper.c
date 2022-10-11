@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "internal.h"
 #include "helper_regs.h"
+#include "hw/ppc/ppc.h"
 
 #include "trace.h"
 
@@ -2086,7 +2087,6 @@ void helper_rfebb(CPUPPCState *env, target_ulong s)
 static void do_ebb(CPUPPCState *env, int ebb_excp)
 {
     PowerPCCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
 
     /*
      * FSCR_EBB and FSCR_IC_EBB are the same bits used with
@@ -2104,8 +2104,7 @@ static void do_ebb(CPUPPCState *env, int ebb_excp)
     if (FIELD_EX64(env->msr, MSR, PR)) {
         powerpc_excp(cpu, ebb_excp);
     } else {
-        env->pending_interrupts |= PPC_INTERRUPT_EBB;
-        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        ppc_set_irq(cpu, PPC_INTERRUPT_EBB, 1);
     }
 }
 
@@ -2298,7 +2297,7 @@ void helper_msgclr(CPUPPCState *env, target_ulong rb)
         return;
     }
 
-    env->pending_interrupts &= ~irq;
+    ppc_set_irq(env_archcpu(env), irq, 0);
 }
 
 void helper_msgsnd(target_ulong rb)
@@ -2317,8 +2316,7 @@ void helper_msgsnd(target_ulong rb)
         CPUPPCState *cenv = &cpu->env;
 
         if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
-            cenv->pending_interrupts |= irq;
-            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+            ppc_set_irq(cpu, irq, 1);
         }
     }
     qemu_mutex_unlock_iothread();
@@ -2342,7 +2340,7 @@ void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
         return;
     }
 
-    env->pending_interrupts &= ~PPC_INTERRUPT_HDOORBELL;
+    ppc_set_irq(env_archcpu(env), PPC_INTERRUPT_HDOORBELL, 0);
 }
 
 static void book3s_msgsnd_common(int pir, int irq)
@@ -2356,8 +2354,7 @@ static void book3s_msgsnd_common(int pir, int irq)
 
         /* TODO: broadcast message to all threads of the same  processor */
         if (cenv->spr_cb[SPR_PIR].default_value == pir) {
-            cenv->pending_interrupts |= irq;
-            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+            ppc_set_irq(cpu, irq, 1);
         }
     }
     qemu_mutex_unlock_iothread();
@@ -2383,7 +2380,7 @@ void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
         return;
     }
 
-    env->pending_interrupts &= ~PPC_INTERRUPT_DOORBELL;
+    ppc_set_irq(env_archcpu(env), PPC_INTERRUPT_HDOORBELL, 0);
 }
 
 /*
