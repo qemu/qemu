@@ -6351,7 +6351,7 @@ static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
     return false;
 }
 
-static int p9_interrupt_powersave(CPUPPCState *env)
+int p9_interrupt_powersave(CPUPPCState *env)
 {
     /* External Exception */
     if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
