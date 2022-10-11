@@ -6133,7 +6133,7 @@ static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
     return true;
 }
 
-static int p8_interrupt_powersave(CPUPPCState *env)
+int p8_interrupt_powersave(CPUPPCState *env)
 {
     if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
         (env->spr[SPR_LPCR] & LPCR_P8_PECE2)) {

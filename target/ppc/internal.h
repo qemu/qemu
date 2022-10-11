@@ -308,6 +308,7 @@ static inline int ger_pack_masks(int pmsk, int ymsk, int xmsk)
 
 #if defined(TARGET_PPC64)
 int p9_interrupt_powersave(CPUPPCState *env);
+int p8_interrupt_powersave(CPUPPCState *env);
 #endif
 
 #endif /* PPC_INTERNAL_H */
