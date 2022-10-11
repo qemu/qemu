@@ -5351,8 +5351,19 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
      */
     addr = useronly_clean_ptr(addr);
 
+#ifdef CONFIG_USER_ONLY
     flags = probe_access_flags(env, addr, access_type, mmu_idx, nofault,
                                &info->host, retaddr);
+    memset(&info->attrs, 0, sizeof(info->attrs));
+    /* Require both ANON and MTE; see allocation_tag_mem(). */
+    info->tagged = (flags & PAGE_ANON) && (flags & PAGE_MTE);
+#else
+    CPUTLBEntryFull *full;
+    flags = probe_access_full(env, addr, access_type, mmu_idx, nofault,
+                              &info->host, &full, retaddr);
+    info->attrs = full->attrs;
+    info->tagged = full->pte_attrs == 0xf0;
+#endif
     info->flags = flags;
 
     if (flags & TLB_INVALID_MASK) {
@@ -5362,33 +5373,6 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
 
     /* Ensure that info->host[] is relative to addr, not addr + mem_off. */
     info->host -= mem_off;
-
-#ifdef CONFIG_USER_ONLY
-    memset(&info->attrs, 0, sizeof(info->attrs));
-    /* Require both MAP_ANON and PROT_MTE -- see allocation_tag_mem. */
-    arm_tlb_mte_tagged(&info->attrs) =
-        (flags & PAGE_ANON) && (flags & PAGE_MTE);
-#else
-    /*
-     * Find the iotlbentry for addr and return the transaction attributes.
-     * This *must* be present in the TLB because we just found the mapping.
-     */
-    {
-        uintptr_t index = tlb_index(env, mmu_idx, addr);
-
-# ifdef CONFIG_DEBUG_TCG
-        CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
-        target_ulong comparator = (access_type == MMU_DATA_LOAD
-                                   ? entry->addr_read
-                                   : tlb_addr_write(entry));
-        g_assert(tlb_hit(comparator, addr));
-# endif
-
-        CPUTLBEntryFull *full = &env_tlb(env)->d[mmu_idx].fulltlb[index];
-        info->attrs = full->attrs;
-    }
-#endif
-
     return true;
 }
 
@@ -5617,7 +5601,7 @@ void sve_cont_ldst_mte_check(SVEContLdSt *info, CPUARMState *env,
     intptr_t mem_off, reg_off, reg_last;
 
     /* Process the page only if MemAttr == Tagged. */
-    if (arm_tlb_mte_tagged(&info->page[0].attrs)) {
+    if (info->page[0].tagged) {
         mem_off = info->mem_off_first[0];
         reg_off = info->reg_off_first[0];
         reg_last = info->reg_off_split;
@@ -5638,7 +5622,7 @@ void sve_cont_ldst_mte_check(SVEContLdSt *info, CPUARMState *env,
     }
 
     mem_off = info->mem_off_first[1];
-    if (mem_off >= 0 && arm_tlb_mte_tagged(&info->page[1].attrs)) {
+    if (mem_off >= 0 && info->page[1].tagged) {
         reg_off = info->reg_off_first[1];
         reg_last = info->reg_off_last[1];
 
@@ -6017,7 +6001,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
      * Disable MTE checking if the Tagged bit is not set.  Since TBI must
      * be set within MTEDESC for MTE, !mtedesc => !mte_active.
      */
-    if (!arm_tlb_mte_tagged(&info.page[0].attrs)) {
+    if (!info.page[0].tagged) {
         mtedesc = 0;
     }
 
@@ -6568,7 +6552,7 @@ void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                         cpu_check_watchpoint(env_cpu(env), addr, msize,
                                              info.attrs, BP_MEM_READ, retaddr);
                     }
-                    if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
+                    if (mtedesc && info.tagged) {
                         mte_check(env, mtedesc, addr, retaddr);
                     }
                     if (unlikely(info.flags & TLB_MMIO)) {
@@ -6585,7 +6569,7 @@ void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                                              msize, info.attrs,
                                              BP_MEM_READ, retaddr);
                     }
-                    if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
+                    if (mtedesc && info.tagged) {
                         mte_check(env, mtedesc, addr, retaddr);
                     }
                     tlb_fn(env, &scratch, reg_off, addr, retaddr);
@@ -6786,9 +6770,7 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                      (env_cpu(env), addr, msize) & BP_MEM_READ)) {
                     goto fault;
                 }
-                if (mtedesc &&
-                    arm_tlb_mte_tagged(&info.attrs) &&
-                    !mte_probe(env, mtedesc, addr)) {
+                if (mtedesc && info.tagged && !mte_probe(env, mtedesc, addr)) {
                     goto fault;
                 }
 
@@ -6974,7 +6956,7 @@ void sve_st1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                                          info.attrs, BP_MEM_WRITE, retaddr);
                 }
 
-                if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
+                if (mtedesc && info.tagged) {
                     mte_check(env, mtedesc, addr, retaddr);
                 }
             }
