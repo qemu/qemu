@@ -1925,18 +1925,11 @@ static void p9_deliver_interrupt(CPUPPCState *env, int interrupt)
         break;
 
     case PPC_INTERRUPT_DECR: /* Decrementer exception */
-        if (ppc_decr_clear_on_delivery(env)) {
-            env->pending_interrupts &= ~PPC_INTERRUPT_DECR;
-        }
         powerpc_excp(cpu, POWERPC_EXCP_DECR);
         break;
     case PPC_INTERRUPT_DOORBELL:
         env->pending_interrupts &= ~PPC_INTERRUPT_DOORBELL;
-        if (is_book3s_arch2x(env)) {
-            powerpc_excp(cpu, POWERPC_EXCP_SDOOR);
-        } else {
-            powerpc_excp(cpu, POWERPC_EXCP_DOORI);
-        }
+        powerpc_excp(cpu, POWERPC_EXCP_SDOOR);
         break;
     case PPC_INTERRUPT_HDOORBELL:
         env->pending_interrupts &= ~PPC_INTERRUPT_HDOORBELL;
