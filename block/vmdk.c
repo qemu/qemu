@@ -1787,10 +1787,11 @@ static int coroutine_fn vmdk_co_block_status(BlockDriverState *bs,
     return ret;
 }
 
-static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
-                            int64_t offset_in_cluster, QEMUIOVector *qiov,
-                            uint64_t qiov_offset, uint64_t n_bytes,
-                            uint64_t offset)
+static int coroutine_fn
+vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
+                  int64_t offset_in_cluster, QEMUIOVector *qiov,
+                  uint64_t qiov_offset, uint64_t n_bytes,
+                  uint64_t offset)
 {
     int ret;
     VmdkGrainMarker *data = NULL;
@@ -1868,9 +1869,10 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     return ret;
 }
 
-static int vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
-                            int64_t offset_in_cluster, QEMUIOVector *qiov,
-                            int bytes)
+static int coroutine_fn
+vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
+                 int64_t offset_in_cluster, QEMUIOVector *qiov,
+                 int bytes)
 {
     int ret;
     int cluster_bytes, buf_bytes;
@@ -2015,9 +2017,9 @@ fail:
  *
  * Returns: error code with 0 for success.
  */
-static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
-                       uint64_t bytes, QEMUIOVector *qiov,
-                       bool zeroed, bool zero_dry_run)
+static int coroutine_fn vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
+                                     uint64_t bytes, QEMUIOVector *qiov,
+                                     bool zeroed, bool zero_dry_run)
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
