@@ -2227,20 +2227,6 @@ if test "$have_ubsan" = "yes"; then
   QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
 fi
 
-##########################################
-# Guest agent Windows MSI package
-
-if test "$QEMU_GA_MANUFACTURER" = ""; then
-  QEMU_GA_MANUFACTURER=QEMU
-fi
-if test "$QEMU_GA_DISTRO" = ""; then
-  QEMU_GA_DISTRO=Linux
-fi
-if test "$QEMU_GA_VERSION" = ""; then
-    QEMU_GA_VERSION=$(cat "$source_path"/VERSION)
-fi
-
-
 #######################################
 # cross-compiled firmware targets
 
@@ -2336,9 +2322,9 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
-  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
-  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
+  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
+  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO-Linux}" >> $config_host_mak
+  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION-$(cat "$source_path"/VERSION)}" >> $config_host_mak
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -2653,6 +2639,9 @@ preserve_env PKG_CONFIG
 preserve_env PKG_CONFIG_LIBDIR
 preserve_env PKG_CONFIG_PATH
 preserve_env PYTHON
+preserve_env QEMU_GA_MANUFACTURER
+preserve_env QEMU_GA_DISTRO
+preserve_env QEMU_GA_VERSION
 preserve_env SDL2_CONFIG
 preserve_env SMBD
 preserve_env STRIP
