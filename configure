@@ -231,7 +231,6 @@ safe_stack=""
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
-glib_has_gslice="no"
 
 if test -e "$source_path/.git"
 then
@@ -1510,95 +1509,6 @@ if ! has "$pkg_config_exe"; then
 fi
 
 ##########################################
-# glib support probe
-
-# When bumping glib_req_ver, please check also whether we should increase
-# the _WIN32_WINNT setting in osdep.h according to the value from glib
-glib_req_ver=2.56
-glib_modules=gthread-2.0
-if test "$modules" = yes; then
-    glib_modules="$glib_modules gmodule-export-2.0"
-elif test "$plugins" = "yes"; then
-    glib_modules="$glib_modules gmodule-no-export-2.0"
-fi
-
-for i in $glib_modules; do
-    if $pkg_config --atleast-version=$glib_req_ver $i; then
-        glib_cflags=$($pkg_config --cflags $i)
-        glib_libs=$($pkg_config --libs $i)
-    else
-        error_exit "glib-$glib_req_ver $i is required to compile QEMU"
-    fi
-done
-
-# Check whether glib has gslice, which we have to avoid for correctness.
-# TODO: remove this check and the corresponding workaround (qtree) when
-# the minimum supported glib is >= $glib_dropped_gslice_version.
-glib_dropped_gslice_version=2.75.3
-for i in $glib_modules; do
-    if ! $pkg_config --atleast-version=$glib_dropped_gslice_version $i; then
-        glib_has_gslice="yes"
-	break
-    fi
-done
-
-glib_bindir="$($pkg_config --variable=bindir glib-2.0)"
-if test -z "$glib_bindir" ; then
-	glib_bindir="$($pkg_config --variable=prefix glib-2.0)"/bin
-fi
-
-# This workaround is required due to a bug in pkg-config file for glib as it
-# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
-
-if test "$static" = yes && test "$mingw32" = yes; then
-    glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
-fi
-
-# Sanity check that the current size_t matches the
-# size that glib thinks it should be. This catches
-# problems on multi-arch where people try to build
-# 32-bit QEMU while pointing at 64-bit glib headers
-cat > $TMPC <<EOF
-#include <glib.h>
-#include <unistd.h>
-
-#define QEMU_BUILD_BUG_ON(x) \
-  typedef char qemu_build_bug_on[(x)?-1:1] __attribute__((unused));
-
-int main(void) {
-   QEMU_BUILD_BUG_ON(sizeof(size_t) != GLIB_SIZEOF_SIZE_T);
-   return 0;
-}
-EOF
-
-if ! compile_prog "$glib_cflags" "$glib_libs" ; then
-    error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
-               "You probably need to set PKG_CONFIG_LIBDIR"\
-	       "to point to the right pkg-config files for your"\
-	       "build target"
-fi
-
-# Silence clang warnings triggered by glib < 2.57.2
-cat > $TMPC << EOF
-#include <glib.h>
-typedef struct Foo {
-    int i;
-} Foo;
-static void foo_free(Foo *f)
-{
-    g_free(f);
-}
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
-int main(void) { return 0; }
-EOF
-if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
-    if cc_has_warning_flag "-Wno-unused-function"; then
-        glib_cflags="$glib_cflags -Wno-unused-function"
-        CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-unused-function"
-    fi
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -2454,16 +2364,10 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
+echo "PKG_CONFIG=${pkg_config_exe}" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_OBJCFLAGS=$QEMU_OBJCFLAGS" >> $config_host_mak
-echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
-echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
-echo "GLIB_BINDIR=$glib_bindir" >> $config_host_mak
-echo "GLIB_VERSION=$($pkg_config --modversion glib-2.0)" >> $config_host_mak
-if test "$glib_has_gslice" = "yes" ; then
-    echo "HAVE_GLIB_WITH_SLICE_ALLOCATOR=y" >> $config_host_mak
-fi
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 
