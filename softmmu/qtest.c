@@ -977,7 +977,7 @@ static void qtest_set_log(Object *obj, const char *value, Error **errp)
     QTest *q = QTEST(obj);
 
     if (qtest == q) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, "Property 'log' can not be set now");
     } else {
         g_free(q->log);
         q->log = g_strdup(value);
@@ -997,7 +997,7 @@ static void qtest_set_chardev(Object *obj, const char *value, Error **errp)
     Chardev *chr;
 
     if (qtest == q) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, "Property 'chardev' can not be set now");
         return;
     }
 
