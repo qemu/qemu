@@ -1,0 +1,77 @@
+mappings:
+  flake8:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  meson:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3:
+    CentOSStream8: python38
+    OpenSUSELeap153: python39-base
+
+  python3-PyYAML:
+    CentOSStream8: python38-PyYAML
+    OpenSUSELeap153:
+
+  python3-devel:
+    CentOSStream8: python38-devel
+    OpenSUSELeap153: python39-devel
+
+  python3-docutils:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-numpy:
+    CentOSStream8: python38-numpy
+    OpenSUSELeap153:
+
+  python3-opencv:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-pillow:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-pip:
+    CentOSStream8: python38-pip
+    OpenSUSELeap153: python39-pip
+
+  python3-pillow:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-selinux:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-setuptools:
+    CentOSStream8: python38-setuptools
+    OpenSUSELeap153: python39-setuptools
+
+  python3-sphinx:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-sphinx-rtd-theme:
+    CentOSStream8:
+    OpenSUSELeap153:
+
+  python3-venv:
+    CentOSStream8: python38
+    OpenSUSELeap153: python39-base
+
+  python3-wheel:
+    CentOSStream8: python38-wheel
+    OpenSUSELeap153: python39-pip
+
+pypi_mappings:
+  # Request more recent version
+  meson:
+    default: meson==0.63.2
+
+  # Drop packages that need devel headers
+  python3-numpy:
+    OpenSUSELeap153:

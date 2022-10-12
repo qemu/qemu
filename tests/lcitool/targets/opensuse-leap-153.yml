@@ -1,0 +1,3 @@
+paths:
+  pip3: /usr/bin/pip3.9
+  python: /usr/bin/python3.9

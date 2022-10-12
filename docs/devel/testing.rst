@@ -473,6 +473,12 @@ thus some extra preparation steps will be required first
    the ``libvirt-ci`` submodule to point to a commit that contains
    the ``mappings.yml`` update.
 
+For enterprise distros that default to old, end-of-life versions of the
+Python runtime, QEMU uses a separate set of mappings that work with more
+recent versions.  These can be found in ``tests/lcitool/mappings.yml``.
+Modifying this file should not be necessary unless the new pre-requisite
+is a Python library or tool.
+
 
 Adding new OS distros
 ^^^^^^^^^^^^^^^^^^^^^
