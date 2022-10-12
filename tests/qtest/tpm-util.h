@@ -53,5 +53,6 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
                                    const char *machine_options);
 
 void tpm_util_wait_for_migration_complete(QTestState *who);
+void tpm_util_rmdir(const char *path);
 
 #endif /* TESTS_TPM_UTIL_H */
