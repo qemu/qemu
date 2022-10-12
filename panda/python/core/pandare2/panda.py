@@ -232,7 +232,7 @@ class Panda():
         self.athread = AsyncThread(self.started) # athread manages actions that need to occur outside qemu's CPU loop
 
         # Callbacks
-        # self.register_cb_decorators()
+        self.register_cb_decorators()
         self.plugin_register_count = 0
         self.registered_callbacks = {} # name -> {procname: "bash", enabled: False, callback: None}
 
@@ -242,6 +242,7 @@ class Panda():
 
         self._initialized_panda = False
         self.disabled_tb_chaining = False
+        self.preinit_callbacks = []
         self.named_hooks = {}
         self.hook_list = []
         self.hook_list2 = {}
@@ -252,6 +253,7 @@ class Panda():
         # Asid stuff
         self.current_asid_name = None
         self.asid_mapping = {}
+        self.qemu_id = None
 
         # Shutdown stuff
         self.exception = None # When set to an exn, we'll raise and exit
@@ -508,7 +510,7 @@ class Panda():
             self.libpanda.panda_setup_signal_handling(self.__sighandler)
 
 
-    def run(self,init):
+    def run(self):
         '''
         This function starts our running PANDA instance from Python. At termination this function returns and the script continues to run after it.
 
@@ -533,18 +535,22 @@ class Panda():
             progress ("Running")
 
                 
-        def init(id, info, argc, argv):
-            print("got to init")
+        def qemu_init_cb(id, info, argc, argv):
+            self.qemu_id = id
+            print("in init_cb")
+            import ipdb
+            ipdb.set_trace()
+            while cb:= self.preinit_callbacks.pop():
+                self.register_callback(*cb['args'],**cb['kwargs'])
+                
             return 0
-        init2 = self.ffi.callback("int(qemu_plugin_id_t id, const qemu_info_t *info,int argc, char **argv)")(init)
+        init2 = self.ffi.callback("int(qemu_plugin_id_t id, const qemu_info_t *info,int argc, char **argv)")(qemu_init_cb)
         self.pandummy.external_plugin_install = init2
 
         self.initializing.set()
         if not self._initialized_panda:
             self._initialize_panda()
         self.initializing.clear()
-
-
 
         if not self.started.is_set():
             self.started.set()
@@ -559,18 +565,17 @@ class Panda():
         exit_code = self.libpanda.qemu_main_loop()
 
         self.running.clear() # Back from panda's execution (due to shutdown or monitor quit)
-        self.delete_callbacks()
-        self.unload_plugins() # Unload pyplugins and C plugins
-        self.libpanda.panda_unload_plugins() # Unload c plugins - should be safe now since exec has stopped
-        self.plugins = plugin_list(self)
+        # self.delete_callbacks()
+        # self.libpanda.panda_unload_plugins() # Unload c plugins - should be safe now since exec has stopped
+        # self.plugins = plugin_list(self)
         # Write PANDALOG, if any
         #self.libpanda.panda_cleanup_record()
-        if self._in_replay:
-            self.reset()
-        if hasattr(self, "exit_exception"):
-            saved_exception = self.exit_exception
-            del self.exit_exception
-            raise saved_exception
+        # if self._in_replay:
+            # self.reset()
+        # if hasattr(self, "exit_exception"):
+            # saved_exception = self.exit_exception
+            # del self.exit_exception
+            # raise saved_exception
 
 
     def end_analysis(self):
@@ -2720,30 +2725,37 @@ class Panda():
         Callbacks can be called as @panda.cb_XYZ in which case they'll take default arguments and be named the same as the decorated function
         Or they can be called as @panda.cb_XYZ(name='A', procname='B', enabled=True). Defaults: name is function name, procname=None, enabled=True unless procname set
         '''
-        for cb_name, pandatype in zip(self.callback._fields, self.callback):
+        cbs = [i for i in dir(self.libpanda) if i.startswith("qemu_plugin_register_") and i.endswith("_cb")]
+        for cb_name in cbs:
+            reg_fn = getattr(self.libpanda,cb_name)
+            reg_ptype = self.ffi.typeof(reg_fn)
+            # the registration function takes an argument as a funciton pointer in the first arg
+            ptype = reg_ptype.args[1]
+            pandatype = self.ffi.callback(ptype)
             def closure(closed_cb_name, closed_pandatype): # Closure on cb_name and pandatype
                 def f(*args, **kwargs):
                     if len(args): # Called as @panda.cb_XYZ without ()s- no arguments to decorator but we get the function name instead
                         # Call our decorator with only a name argument ON the function itself
                         fun = args[0]
-                        return self._generated_callback(closed_pandatype, **{"name": fun.__name__})(fun)
+                        return self._generated_callback(closed_pandatype, **{"name": fun.__name__, "cb_reg": cb_name,'type': ptype, 'reg_fn': reg_fn})(fun)
                     else:
                         # Otherwise, we were called as @panda.cb_XYZ() with potential args - Just return the decorator and it's applied to the function
-                        return self._generated_callback(closed_pandatype, *args, **kwargs)
+                        return self._generated_callback(closed_pandatype, *args, **{"name": fun.__name__, "cb_reg": cb_name, 'type': ptype, 'reg_fn': reg_fn})
                 return f
+            new_name = 'cb_' + cb_name.replace('qemu_plugin_register_','').replace('_cb','')
+            setattr(self, new_name, closure(cb_name, pandatype))
+            
 
-            setattr(self, 'cb_'+cb_name, closure(cb_name, pandatype))
-
-    def _generated_callback(self, pandatype, name=None, procname=None, enabled=True):
+    def _generated_callback(self, pandatype, name=None, procname=None, enabled=True, **kwargs):
         '''
         Actual implementation of self.cb_XYZ. pandatype is pcb.XYZ
         name must uniquely describe a callback
         if procname is specified, callback will only be enabled when that asid is running (requires OSI support)
         '''
 
-        if procname:
-            enabled = False # Process won't be running at time 0 (probably)
-            self._register_internal_asid_changed_cb()
+        # if procname:
+        #     enabled = False # Process won't be running at time 0 (probably)
+        #     self._register_internal_asid_changed_cb()
 
         def decorator(fun):
             local_name = name  # We need a new varaible otherwise we have scoping issues with _generated_callback's name
@@ -2788,7 +2800,7 @@ class Panda():
             if return_type.cname == "void":
                 return_type = None
 
-            self.register_callback(pandatype, cast_rc, local_name, enabled=enabled, procname=procname)
+            self.register_callback(pandatype, cast_rc, local_name, enabled=enabled, procname=procname, **kwargs)
             def wrapper(*args, **kw):
                 return _run_and_catch(*args, **kw)
             return wrapper
@@ -2855,39 +2867,58 @@ class Panda():
 
         self._registered_asid_changed_internal_cb = True
 
-    def register_callback(self, callback, function, name, enabled=True, procname=None):
+    def register_callback(self, callback, function, name, enabled=True, procname=None, **kwargs):
         # CB   = self.callback.main_loop_wait
         # func = main_loop_wait_cb
         # name = main_loop_wait
+        cb_reg = kwargs['cb_reg']
+        cb_type = kwargs['type']
+        reg_fn = kwargs['reg_fn']
 
-        if name in self.registered_callbacks:
-            print(f"Warning: replacing existing callback '{name}' since it was re-registered")
-            self.delete_callback(name)
+        # if name in self.registered_callbacks:
+            # print(f"Warning: replacing existing callback '{name}' since it was re-registered")
+            # self.delete_callback(name)
 
-        cb = self.callback_dictionary[callback]
+        # cb = self.callback_dictionary[callback]
 
         # Generate a unique handle for each callback type using the number of previously registered CBs of that type added to a constant
-        self.plugin_register_count += 1
-        handle = self.ffi.cast('void *', self.plugin_register_count)
+        
+        if self.qemu_id:
+            rtype = self.ffi.typeof(reg_fn)
+            fn_arg = rtype.args[1]
+            fn_cast = self.ffi.cast(fn_arg, function)
+            if len(cb_type.args) == 2:
+                reg_fn(self.qemu_id, fn_cast)
+            elif len(cb_type.args) == 3:
+                reg_fn(self.qemu_id, fn_cast, self.ffi.NULL)
+            else:
+                assert False, "whoops"
+            self.plugin_register_count += 1
+        else:
+            self.preinit_callbacks.append({'args':[callback, function, name, enabled, procname],'kwargs': kwargs})
+
+            
+            # self.libpanda.
+        # handle = self.ffi.cast('void *', self.plugin_register_count)
 
         # XXX: We should have another layer of indirection here so we can catch
         #      exceptions raised during execution of the CB and abort analysis
-        pcb = self.ffi.new("panda_cb *", {cb.name:function})
+        # pcb = self.ffi.new("panda_cb *", {cb.name:function})
 
-        if debug:
-            progress("Registered function '{}' to run on callback {}".format(name, cb.name))
+        # if debug:
+            # progress("Registered function '{}' to run on callback {}".format(name, cb.name))
 
-        self.libpanda.panda_register_callback_helper(handle, cb.number, pcb)
-        self.registered_callbacks[name] = {"procname": procname, "enabled": True, "callback": cb,
-                           "handle": handle, "pcb": pcb, "function": function} # XXX: if function is not saved here it gets GC'd and everything breaks! Watch out!
+        # self.libpanda.panda_register_callback_helper(handle, cb.number, pcb)
+        # self.registered_callbacks[name] = {"procname": procname, "enabled": True, "callback": cb,
+        #                    "handle": handle, "pcb": pcb, "function": function} # XXX: if function is not saved here it gets GC'd and everything breaks! Watch out!
 
-        if not enabled: # Note the registered_callbacks dict starts with enabled true and then we update it to false as necessary here
-            self.disable_callback(name)
+        # if not enabled: # Note the registered_callbacks dict starts with enabled true and then we update it to false as necessary here
+        #     self.disable_callback(name)
 
-        if "block" in cb.name and "start" not in cb.name and "end" not in cb.name:
-            if not self.disabled_tb_chaining:
-                print("Warning: disabling TB chaining to support {} callback".format(cb.name))
-                self.disable_tb_chaining()
+        # if "block" in cb.name and "start" not in cb.name and "end" not in cb.name:
+        #     if not self.disabled_tb_chaining:
+        #         print("Warning: disabling TB chaining to support {} callback".format(cb.name))
+        #         self.disable_tb_chaining()
 
 
     def is_callback_enabled(self, name):
