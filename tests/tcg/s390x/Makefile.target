@@ -1,6 +1,13 @@
 S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
 VPATH+=$(S390X_SRC)
 CFLAGS+=-march=zEC12 -m64
+
+config-cc.mak: Makefile
+	$(quiet-@)( \
+	    $(call cc-option,-march=z14, CROSS_CC_HAS_Z14); \
+	    $(call cc-option,-march=z15, CROSS_CC_HAS_Z15)) 3> config-cc.mak
+-include config-cc.mak
+
 TESTS+=hello-s390x
 TESTS+=csst
 TESTS+=ipm
@@ -18,20 +25,20 @@ TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
 
+ifneq ($(CROSS_CC_HAS_Z14),)
 Z14_TESTS=vfminmax
 vfminmax: LDFLAGS+=-lm
 $(Z14_TESTS): CFLAGS+=-march=z14 -O2
+TESTS+=$(Z14_TESTS)
+endif
 
-TESTS+=$(if $(shell $(CC) -march=z14 -S -o /dev/null -xc /dev/null \
-			 >/dev/null 2>&1 && echo OK),$(Z14_TESTS))
-
-VECTOR_TESTS=vxeh2_vs
-VECTOR_TESTS+=vxeh2_vcvt
-VECTOR_TESTS+=vxeh2_vlstr
-$(VECTOR_TESTS): CFLAGS+=-march=z15 -O2
-
-TESTS+=$(if $(shell $(CC) -march=z15 -S -o /dev/null -xc /dev/null \
-			 >/dev/null 2>&1 && echo OK),$(VECTOR_TESTS))
+ifneq ($(CROSS_CC_HAS_Z15),)
+Z15_TESTS=vxeh2_vs
+Z15_TESTS+=vxeh2_vcvt
+Z15_TESTS+=vxeh2_vlstr
+$(Z15_TESTS): CFLAGS+=-march=z15 -O2
+TESTS+=$(Z15_TESTS)
+endif
 
 ifneq ($(HAVE_GDB_BIN),)
 GDB_SCRIPT=$(SRC_PATH)/tests/guest-debug/run-test.py
