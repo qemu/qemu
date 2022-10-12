@@ -25,6 +25,10 @@ TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
 
+Z13_TESTS=vistr
+$(Z13_TESTS): CFLAGS+=-march=z13 -O2
+TESTS+=$(Z13_TESTS)
+
 ifneq ($(CROSS_CC_HAS_Z14),)
 Z14_TESTS=vfminmax
 vfminmax: LDFLAGS+=-lm
