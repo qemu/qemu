@@ -205,8 +205,6 @@ def compile(arch, bits, pypanda_headers, install, static_inc):
         glib_flags = check_output("pkg-config --cflags --libs glib-2.0".split()).decode().split()
         out = check_output(["cpp", "-I",QEMU_INCLDUE_DIR,*glib_flags,fname])
         outval = "\n".join([i for i in out.decode().split("\n") if not i.startswith("# ")])
-        with open("ooo", "w") as f:
-            f.write(outval)
         ffi.cdef(outval)
     
     define_messy_header(ffi,"pandare2/include/header.h")
