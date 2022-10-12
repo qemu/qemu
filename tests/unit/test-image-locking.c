@@ -79,7 +79,7 @@ static void test_image_locking_basic(void)
     g_autofree char *img_path = NULL;
     uint64_t perm, shared_perm;
 
-    int fd = g_file_open_tmp("qtest.XXXXXX", &img_path, NULL);
+    int fd = g_file_open_tmp("qemu-tst-img-lock.XXXXXX", &img_path, NULL);
     assert(fd >= 0);
 
     perm = BLK_PERM_WRITE | BLK_PERM_CONSISTENT_READ;
@@ -120,7 +120,7 @@ static void test_set_perm_abort(void)
     g_autofree char *img_path = NULL;
     uint64_t perm, shared_perm;
     int r;
-    int fd = g_file_open_tmp("qtest.XXXXXX", &img_path, NULL);
+    int fd = g_file_open_tmp("qemu-tst-img-lock.XXXXXX", &img_path, NULL);
     assert(fd >= 0);
 
     perm = BLK_PERM_WRITE | BLK_PERM_CONSISTENT_READ;
@@ -140,6 +140,8 @@ static void test_set_perm_abort(void)
     check_locked_bytes(fd, perm, ~shared_perm);
     blk_unref(blk1);
     blk_unref(blk2);
+    close(fd);
+    unlink(img_path);
 }
 
 int main(int argc, char **argv)
