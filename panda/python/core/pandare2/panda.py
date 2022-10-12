@@ -698,6 +698,9 @@ class Panda():
     def _plugin_loaded(self, name):
         name_c = self.ffi.new("char[]", bytes(name, "utf-8"))
         return self.libpanda.panda_get_plugin_by_name(name_c) != self.ffi.NULL
+    
+    def plugin_outs(self, message:str):
+        return self.libpanda.qemu_plugin_outs(self.ffi.new("char[]",bytes(message,"utf8")))
 
     def load_plugin(self, name, args={}):
         '''
