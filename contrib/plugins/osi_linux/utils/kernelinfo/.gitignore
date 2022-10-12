@@ -1,0 +1,9 @@
+Module.symvers
+modules.order
+.cache.mk
+.*.cmd
+*.mod.c
+.tmp*
+*.o
+*.ko
+kernelinfo_size
