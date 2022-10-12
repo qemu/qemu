@@ -2,7 +2,6 @@
 This module simply contains the Panda class.
 """
 
-from pyclbr import Function
 from sys import version_info, exit
 
 if version_info[0] < 3:
@@ -538,7 +537,7 @@ class Panda():
                 
         def qemu_init_cb(id, info, argc, argv):
             self.qemu_id = id
-            print("in init_cb")
+            print(f"in init_cb {self.qemu_id=}")
             if len(self.preinit_callbacks) > 0:
                 while self.preinit_callbacks:
                     cb = self.preinit_callbacks.pop()
@@ -564,6 +563,9 @@ class Panda():
         self.running.set()
         # self.libpanda.panda_run() # Give control to panda
         exit_code = self.libpanda.qemu_main_loop()
+        print(f"got exit code {exit_code=}")
+        self.libpanda.qemu_cleanup()
+
 
         self.running.clear() # Back from panda's execution (due to shutdown or monitor quit)
         # self.delete_callbacks()
@@ -573,10 +575,10 @@ class Panda():
         #self.libpanda.panda_cleanup_record()
         # if self._in_replay:
             # self.reset()
-        # if hasattr(self, "exit_exception"):
-            # saved_exception = self.exit_exception
-            # del self.exit_exception
-            # raise saved_exception
+        if hasattr(self, "exit_exception"):
+            saved_exception = self.exit_exception
+            del self.exit_exception
+            raise saved_exception
 
 
     def end_analysis(self):
@@ -2733,18 +2735,20 @@ class Panda():
             # the registration function takes an argument as a funciton pointer in the first arg
             ptype = reg_ptype.args[1]
             pandatype = self.ffi.callback(ptype)
-            def closure(closed_cb_name, closed_pandatype): # Closure on cb_name and pandatype
+            def closure(closed_cb_name, closed_pandatype, pt, rfn): # Closure on cb_name and pandatype
                 def f(*args, **kwargs):
                     if len(args): # Called as @panda.cb_XYZ without ()s- no arguments to decorator but we get the function name instead
                         # Call our decorator with only a name argument ON the function itself
                         fun = args[0]
-                        return self._generated_callback(closed_pandatype, **{"name": fun.__name__, "cb_reg": cb_name,'type': ptype, 'reg_fn': reg_fn})(fun)
+                        
+                        
+                        return self._generated_callback(closed_pandatype, **{"name": fun.__name__, "cb_reg": cb_name,'type': pt, 'reg_fn': rfn, 'args': kwargs.get('args',None)})(fun)
                     else:
                         # Otherwise, we were called as @panda.cb_XYZ() with potential args - Just return the decorator and it's applied to the function
-                        return self._generated_callback(closed_pandatype, *args, **{"name": fun.__name__, "cb_reg": cb_name, 'type': ptype, 'reg_fn': reg_fn})
+                        return self._generated_callback(closed_pandatype, *args, **{"name": fun.__name__, "cb_reg": cb_name, 'type': pt, 'reg_fn': rfn, 'args': kwargs.get('args',None)})
                 return f
             new_name = 'cb_' + cb_name.replace('qemu_plugin_register_','').replace('_cb','')
-            setattr(self, new_name, closure(cb_name, pandatype))
+            setattr(self, new_name, closure(cb_name, pandatype,ptype, reg_fn))
             
 
     def _generated_callback(self, pandatype, name=None, procname=None, enabled=True, **kwargs):
@@ -2789,6 +2793,8 @@ class Panda():
                         # machine exits.
                         if self.catch_exceptions:
                             self.exit_exception = e
+                            raise e
+                            print(e)
                             self.end_analysis()
                         else:
                             raise e
@@ -2875,6 +2881,8 @@ class Panda():
         cb_reg = kwargs['cb_reg']
         cb_type = kwargs['type']
         reg_fn = kwargs['reg_fn']
+        
+        extra_arg = self.ffi.cast("void*",kwargs.get('extra_arg', self.ffi.NULL))
 
         # if name in self.registered_callbacks:
             # print(f"Warning: replacing existing callback '{name}' since it was re-registered")
@@ -2888,12 +2896,12 @@ class Panda():
             rtype = self.ffi.typeof(reg_fn)
             fn_arg = rtype.args[1]
             fn_cast = self.ffi.cast(fn_arg, function)
-            if len(cb_type.args) == 2:
-                # import ipdb
-                # ipdb.set_trace()
+            if kwargs.get('args', None):
+                reg_fn(*kwargs['args'])
+            elif len(rtype.args) == 2:
                 reg_fn(self.qemu_id, fn_cast)
-            elif len(cb_type.args) == 3:
-                reg_fn(self.qemu_id, fn_cast, self.ffi.NULL)
+            elif len(rtype.args) == 3:
+                reg_fn(self.qemu_id, fn_cast, extra_arg)
             else:
                 assert False, "whoops"
             self.plugin_register_count += 1

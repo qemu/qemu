@@ -6,7 +6,7 @@ panda = Panda(generic="arm")
 i = 0
 d = {}
 
-outfile = argv[1]
+outfile = "out"
 
 header = ["DRCOV VERSION: 2\n",
                 "DRCOV FLAVOR: drcov-64\n",
@@ -14,17 +14,17 @@ header = ["DRCOV VERSION: 2\n",
                 "Columns: id, base, end, entry, path\n"]
 
 @panda.queue_blocking
-def run_cmd():
-    # panda.revert_sync("root")
-    # print(panda.run_serial_cmd("uname -a"))
-    panda.end_analysis()
+def qb():
+    from time import sleep
+    sleep(10)
+    panda.run_monitor_cmd("q")
 
 @panda.ffi.callback("void(unsigned int, void*)")
 def vcpu_tb_exec(cpu_index, udata):
     i = panda.ffi.cast("int", udata)
     d[i]['exec'] = True
 
-@panda.ffi.callback("void(qemu_plugin_id_t, struct qemu_plugin_tb*)")
+@panda.cb_vcpu_tb_trans
 def vcpu_tb(id, tb):
     # print(f"vcpu_tb in Python!!! {id} {tb}")
     pc = panda.libpanda.qemu_plugin_tb_vaddr(tb)
@@ -35,10 +35,12 @@ def vcpu_tb(id, tb):
     
     for j in range(n):
         d[i]['size'] += panda.libpanda.qemu_plugin_insn_size(panda.libpanda.qemu_plugin_tb_get_insn(tb, j))
+    # panda.cb_vcpu_tb_exec(vcpu_tb_exec, args=[tb, vcpu_tb_exec, panda.libpanda.QEMU_PLUGIN_CB_NO_REGS, panda.ffi.cast("void*", i)])
     panda.libpanda.qemu_plugin_register_vcpu_tb_exec_cb(tb, vcpu_tb_exec, panda.libpanda.QEMU_PLUGIN_CB_NO_REGS, panda.ffi.cast("void*", i))
     i += 1
 
-@panda.ffi.callback("void(qemu_plugin_id_t, void*)")
+# @panda.ffi.callback("void(qemu_plugin_id_t, void*)")
+@panda.cb_atexit
 def atexit(id, p):
     print("at exit")
     with open(outfile,"w") as f:
@@ -65,6 +67,5 @@ def init(id, info, argc, argv):
     return 0 
 
 print("entering main loop")
-panda.run(init)
-# exit = panda.libpanda.qemu_main_loop()
-# panda.libpanda.qemu_cleanup()
+panda.run()
+print("exiting")
