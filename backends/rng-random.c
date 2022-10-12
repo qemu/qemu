@@ -96,7 +96,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
     RngRandom *s = RNG_RANDOM(obj);
 
     if (b->opened) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, "Property 'filename' can no longer be set");
         return;
     }
 
