@@ -9,6 +9,7 @@
 #ifndef X86_64_HOST_SIGNAL_H
 #define X86_64_HOST_SIGNAL_H
 
+#include <sys/param.h>
 #include <sys/ucontext.h>
 #include <machine/trap.h>
 #include <vm/pmap.h>
