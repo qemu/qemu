@@ -227,7 +227,6 @@ cross_compile="no"
 cross_prefix=""
 host_cc="cc"
 stack_protector=""
-safe_stack=""
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
@@ -830,10 +829,6 @@ for opt do
   ;;
   --disable-stack-protector) stack_protector="no"
   ;;
-  --enable-safe-stack) safe_stack="yes"
-  ;;
-  --disable-safe-stack) safe_stack="no"
-  ;;
   --enable-cfi)
       cfi="true";
       meson_option_add -Db_lto=true
@@ -1024,8 +1019,6 @@ cat << EOF
   pie             Position Independent Executables
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
-  safe-stack      SafeStack Stack Smash Protection. Depends on
-                  clang/llvm and requires coroutine backend ucontext.
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1519,68 +1512,6 @@ else
     error_exit "unknown coroutine backend $coroutine"
     ;;
   esac
-fi
-
-##################################################
-# SafeStack
-
-
-if test "$safe_stack" = "yes"; then
-cat > $TMPC << EOF
-int main(void)
-{
-#if ! __has_feature(safe_stack)
-#error SafeStack Disabled
-#endif
-    return 0;
-}
-EOF
-  flag="-fsanitize=safe-stack"
-  # Check that safe-stack is supported and enabled.
-  if compile_prog "-Werror $flag" "$flag"; then
-    # Flag needed both at compilation and at linking
-    QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-  else
-    error_exit "SafeStack not supported by your compiler"
-  fi
-  if test "$coroutine" != "ucontext"; then
-    error_exit "SafeStack is only supported by the coroutine backend ucontext"
-  fi
-else
-cat > $TMPC << EOF
-int main(void)
-{
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-#error SafeStack Enabled
-#endif
-#endif
-    return 0;
-}
-EOF
-if test "$safe_stack" = "no"; then
-  # Make sure that safe-stack is disabled
-  if ! compile_prog "-Werror" ""; then
-    # SafeStack was already enabled, try to explicitly remove the feature
-    flag="-fno-sanitize=safe-stack"
-    if ! compile_prog "-Werror $flag" "$flag"; then
-      error_exit "Configure cannot disable SafeStack"
-    fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-  fi
-else # "$safe_stack" = ""
-  # Set safe_stack to yes or no based on pre-existing flags
-  if compile_prog "-Werror" ""; then
-    safe_stack="no"
-  else
-    safe_stack="yes"
-    if test "$coroutine" != "ucontext"; then
-      error_exit "SafeStack is only supported by the coroutine backend ucontext"
-    fi
-  fi
-fi
 fi
 
 ########################################
@@ -2240,10 +2171,6 @@ fi
 
 if test "$ccache_cpp2" = "yes"; then
   echo "export CCACHE_CPP2=y" >> $config_host_mak
-fi
-
-if test "$safe_stack" = "yes"; then
-  echo "CONFIG_SAFESTACK=y" >> $config_host_mak
 fi
 
 # tests/tcg configuration

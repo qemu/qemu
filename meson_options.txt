@@ -82,6 +82,8 @@ option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
 option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
+option('safe_stack', type: 'boolean', value: false,
+       description: 'SafeStack Stack Smash Protection (requires clang/llvm and coroutine backend ucontext)')
 option('sanitizers', type: 'boolean', value: false,
        description: 'enable default sanitizers')
 option('tsan', type: 'boolean', value: false,
