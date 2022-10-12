@@ -94,7 +94,28 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         }
 
         if (db->pc_next == afl_entry_point) {
-            afl_setup();
+            static bool first = true;
+            /*
+             * We guard this section since we flush the translation cache after
+             * we load the configuration, which in turn means we will need to
+             * re-translate our block. If we were to perform this flush every
+             * time (rather than just when our configuration is first loaded),
+             * we would just end up translation this block repeatedly.
+             */
+            if (first) {
+                afl_setup();
+                /*
+                 * We flush the translation cache here since we may already have
+                 * translated some blocks and included instrumentation in them
+                 * before we have processed the configuration from the
+                 * environment variables which configures which ranges to
+                 * include and exclude. Therefore we may have some blocks in our
+                 * cache which are incorrectly instrumented and cause some
+                 * fuzzing stability or performance problems.
+                 */
+                tb_flush(cpu);
+                first = false;
+            }
             gen_helper_afl_entry_routine(cpu_env);
         }
 
