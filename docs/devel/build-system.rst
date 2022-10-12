@@ -103,10 +103,6 @@ developers in checking for system features:
    Print $MESSAGE to stderr, followed by $MORE... and then exit from the
    configure script with non-zero status
 
-``query_pkg_config $ARGS...``
-   Run pkg-config passing it $ARGS. If QEMU is doing a static build,
-   then --static will be automatically added to $ARGS
-
 
 Stage 2: Meson
 ==============

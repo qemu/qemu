@@ -389,11 +389,7 @@ strip="${STRIP-${cross_prefix}strip}"
 widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
 windmc="${WINDMC-${cross_prefix}windmc}"
-pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
-query_pkg_config() {
-    "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
-}
-pkg_config=query_pkg_config
+pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 
 # default flags for all hosts
@@ -791,9 +787,7 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
-  --static)
-    static="yes"
-    QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
+  --static) static="yes"
   ;;
   --bindir=*) bindir="$optarg"
   ;;
@@ -1499,13 +1493,6 @@ EOF
     echo big/little test failed
     exit 1
   fi
-fi
-
-##########################################
-# pkg-config probe
-
-if ! has "$pkg_config_exe"; then
-  error_exit "pkg-config binary '$pkg_config_exe' not found"
 fi
 
 ##########################################
@@ -2364,7 +2351,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
-echo "PKG_CONFIG=${pkg_config_exe}" >> $config_host_mak
+echo "PKG_CONFIG=${pkg_config}" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_OBJCFLAGS=$QEMU_OBJCFLAGS" >> $config_host_mak
@@ -2514,7 +2501,7 @@ if test "$skip_meson" = no; then
   test -n "$objcc" && echo "objc = [$(meson_quote $objcc $CPU_CFLAGS)]" >> $cross
   echo "ar = [$(meson_quote $ar)]" >> $cross
   echo "nm = [$(meson_quote $nm)]" >> $cross
-  echo "pkgconfig = [$(meson_quote $pkg_config_exe)]" >> $cross
+  echo "pkgconfig = [$(meson_quote $pkg_config)]" >> $cross
   echo "ranlib = [$(meson_quote $ranlib)]" >> $cross
   if has $sdl2_config; then
     echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
