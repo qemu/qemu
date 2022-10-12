@@ -1664,33 +1664,33 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
 
 #define HPFAR_NS      (1ULL << 63)
 
-#define SCR_NS                (1U << 0)
-#define SCR_IRQ               (1U << 1)
-#define SCR_FIQ               (1U << 2)
-#define SCR_EA                (1U << 3)
-#define SCR_FW                (1U << 4)
-#define SCR_AW                (1U << 5)
-#define SCR_NET               (1U << 6)
-#define SCR_SMD               (1U << 7)
-#define SCR_HCE               (1U << 8)
-#define SCR_SIF               (1U << 9)
-#define SCR_RW                (1U << 10)
-#define SCR_ST                (1U << 11)
-#define SCR_TWI               (1U << 12)
-#define SCR_TWE               (1U << 13)
-#define SCR_TLOR              (1U << 14)
-#define SCR_TERR              (1U << 15)
-#define SCR_APK               (1U << 16)
-#define SCR_API               (1U << 17)
-#define SCR_EEL2              (1U << 18)
-#define SCR_EASE              (1U << 19)
-#define SCR_NMEA              (1U << 20)
-#define SCR_FIEN              (1U << 21)
-#define SCR_ENSCXT            (1U << 25)
-#define SCR_ATA               (1U << 26)
-#define SCR_FGTEN             (1U << 27)
-#define SCR_ECVEN             (1U << 28)
-#define SCR_TWEDEN            (1U << 29)
+#define SCR_NS                (1ULL << 0)
+#define SCR_IRQ               (1ULL << 1)
+#define SCR_FIQ               (1ULL << 2)
+#define SCR_EA                (1ULL << 3)
+#define SCR_FW                (1ULL << 4)
+#define SCR_AW                (1ULL << 5)
+#define SCR_NET               (1ULL << 6)
+#define SCR_SMD               (1ULL << 7)
+#define SCR_HCE               (1ULL << 8)
+#define SCR_SIF               (1ULL << 9)
+#define SCR_RW                (1ULL << 10)
+#define SCR_ST                (1ULL << 11)
+#define SCR_TWI               (1ULL << 12)
+#define SCR_TWE               (1ULL << 13)
+#define SCR_TLOR              (1ULL << 14)
+#define SCR_TERR              (1ULL << 15)
+#define SCR_APK               (1ULL << 16)
+#define SCR_API               (1ULL << 17)
+#define SCR_EEL2              (1ULL << 18)
+#define SCR_EASE              (1ULL << 19)
+#define SCR_NMEA              (1ULL << 20)
+#define SCR_FIEN              (1ULL << 21)
+#define SCR_ENSCXT            (1ULL << 25)
+#define SCR_ATA               (1ULL << 26)
+#define SCR_FGTEN             (1ULL << 27)
+#define SCR_ECVEN             (1ULL << 28)
+#define SCR_TWEDEN            (1ULL << 29)
 #define SCR_TWEDEL            MAKE_64BIT_MASK(30, 4)
 #define SCR_TME               (1ULL << 34)
 #define SCR_AMVOFFEN          (1ULL << 35)
@@ -2412,15 +2412,15 @@ static inline bool arm_is_secure(CPUARMState *env)
  * Return true if the current security state has AArch64 EL2 or AArch32 Hyp.
  * This corresponds to the pseudocode EL2Enabled()
  */
+static inline bool arm_is_el2_enabled_secstate(CPUARMState *env, bool secure)
+{
+    return arm_feature(env, ARM_FEATURE_EL2)
+           && (!secure || (env->cp15.scr_el3 & SCR_EEL2));
+}
+
 static inline bool arm_is_el2_enabled(CPUARMState *env)
 {
-    if (arm_feature(env, ARM_FEATURE_EL2)) {
-        if (arm_is_secure_below_el3(env)) {
-            return (env->cp15.scr_el3 & SCR_EEL2) != 0;
-        }
-        return true;
-    }
-    return false;
+    return arm_is_el2_enabled_secstate(env, arm_is_secure_below_el3(env));
 }
 
 #else
@@ -2430,6 +2430,11 @@ static inline bool arm_is_secure_below_el3(CPUARMState *env)
 }
 
 static inline bool arm_is_secure(CPUARMState *env)
+{
+    return false;
+}
+
+static inline bool arm_is_el2_enabled_secstate(CPUARMState *env, bool secure)
 {
     return false;
 }
@@ -2446,6 +2451,7 @@ static inline bool arm_is_el2_enabled(CPUARMState *env)
  * "for all purposes other than a direct read or write access of HCR_EL2."
  * Not included here is HCR_RW.
  */
+uint64_t arm_hcr_el2_eff_secstate(CPUARMState *env, bool secure);
 uint64_t arm_hcr_el2_eff(CPUARMState *env);
 uint64_t arm_hcrx_el2_eff(CPUARMState *env);
 
@@ -2884,26 +2890,27 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
  *     table over and over.
  *  6. we need separate EL1/EL2 mmu_idx for handling the Privileged Access
  *     Never (PAN) bit within PSTATE.
+ *  7. we fold together the secure and non-secure regimes for A-profile,
+ *     because there are no banked system registers for aarch64, so the
+ *     process of switching between secure and non-secure is
+ *     already heavyweight.
  *
  * This gives us the following list of cases:
  *
- * NS EL0 EL1&0 stage 1+2 (aka NS PL0)
- * NS EL1 EL1&0 stage 1+2 (aka NS PL1)
- * NS EL1 EL1&0 stage 1+2 +PAN
- * NS EL0 EL2&0
- * NS EL2 EL2&0
- * NS EL2 EL2&0 +PAN
- * NS EL2 (aka NS PL2)
- * S EL0 EL1&0 (aka S PL0)
- * S EL1 EL1&0 (not used if EL3 is 32 bit)
- * S EL1 EL1&0 +PAN
- * S EL3 (aka S PL1)
+ * EL0 EL1&0 stage 1+2 (aka NS PL0)
+ * EL1 EL1&0 stage 1+2 (aka NS PL1)
+ * EL1 EL1&0 stage 1+2 +PAN
+ * EL0 EL2&0
+ * EL2 EL2&0
+ * EL2 EL2&0 +PAN
+ * EL2 (aka NS PL2)
+ * EL3 (aka S PL1)
  *
- * for a total of 11 different mmu_idx.
+ * for a total of 8 different mmu_idx.
  *
  * R profile CPUs have an MPU, but can use the same set of MMU indexes
- * as A profile. They only need to distinguish NS EL0 and NS EL1 (and
- * NS EL2 if we ever model a Cortex-R52).
+ * as A profile. They only need to distinguish EL0 and EL1 (and
+ * EL2 if we ever model a Cortex-R52).
  *
  * M profile CPUs are rather different as they do not have a true MMU.
  * They have the following different MMU indexes:
@@ -2942,9 +2949,6 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
 #define ARM_MMU_IDX_NOTLB 0x20  /* does not have a TLB */
 #define ARM_MMU_IDX_M     0x40  /* M profile */
 
-/* Meanings of the bits for A profile mmu idx values */
-#define ARM_MMU_IDX_A_NS     0x8
-
 /* Meanings of the bits for M profile mmu idx values */
 #define ARM_MMU_IDX_M_PRIV   0x1
 #define ARM_MMU_IDX_M_NEGPRI 0x2
@@ -2958,22 +2962,14 @@ typedef enum ARMMMUIdx {
     /*
      * A-profile.
      */
-    ARMMMUIdx_SE10_0     =  0 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE20_0     =  1 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE10_1     =  2 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE20_2     =  3 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE10_1_PAN =  4 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE20_2_PAN =  5 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE2        =  6 | ARM_MMU_IDX_A,
-    ARMMMUIdx_SE3        =  7 | ARM_MMU_IDX_A,
-
-    ARMMMUIdx_E10_0     = ARMMMUIdx_SE10_0 | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E20_0     = ARMMMUIdx_SE20_0 | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E10_1     = ARMMMUIdx_SE10_1 | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E20_2     = ARMMMUIdx_SE20_2 | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E10_1_PAN = ARMMMUIdx_SE10_1_PAN | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E20_2_PAN = ARMMMUIdx_SE20_2_PAN | ARM_MMU_IDX_A_NS,
-    ARMMMUIdx_E2        = ARMMMUIdx_SE2 | ARM_MMU_IDX_A_NS,
+    ARMMMUIdx_E10_0     = 0 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_0     = 1 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1     = 2 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2     = 3 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E10_1_PAN = 4 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E20_2_PAN = 5 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E2        = 6 | ARM_MMU_IDX_A,
+    ARMMMUIdx_E3        = 7 | ARM_MMU_IDX_A,
 
     /*
      * These are not allocated TLBs and are used only for AT system
@@ -2982,9 +2978,6 @@ typedef enum ARMMMUIdx {
     ARMMMUIdx_Stage1_E0 = 0 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1 = 1 | ARM_MMU_IDX_NOTLB,
     ARMMMUIdx_Stage1_E1_PAN = 2 | ARM_MMU_IDX_NOTLB,
-    ARMMMUIdx_Stage1_SE0 = 3 | ARM_MMU_IDX_NOTLB,
-    ARMMMUIdx_Stage1_SE1 = 4 | ARM_MMU_IDX_NOTLB,
-    ARMMMUIdx_Stage1_SE1_PAN = 5 | ARM_MMU_IDX_NOTLB,
     /*
      * Not allocated a TLB: used only for second stage of an S12 page
      * table walk, or for descriptor loads during first stage of an S1
@@ -2992,8 +2985,8 @@ typedef enum ARMMMUIdx {
      * then various TLB flush insns which currently are no-ops or flush
      * only stage 1 MMU indexes will need to change to flush stage 2.
      */
-    ARMMMUIdx_Stage2     = 6 | ARM_MMU_IDX_NOTLB,
-    ARMMMUIdx_Stage2_S   = 7 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_Stage2     = 3 | ARM_MMU_IDX_NOTLB,
+    ARMMMUIdx_Stage2_S   = 4 | ARM_MMU_IDX_NOTLB,
 
     /*
      * M-profile.
@@ -3023,14 +3016,7 @@ typedef enum ARMMMUIdxBit {
     TO_CORE_BIT(E2),
     TO_CORE_BIT(E20_2),
     TO_CORE_BIT(E20_2_PAN),
-    TO_CORE_BIT(SE10_0),
-    TO_CORE_BIT(SE20_0),
-    TO_CORE_BIT(SE10_1),
-    TO_CORE_BIT(SE20_2),
-    TO_CORE_BIT(SE10_1_PAN),
-    TO_CORE_BIT(SE20_2_PAN),
-    TO_CORE_BIT(SE2),
-    TO_CORE_BIT(SE3),
+    TO_CORE_BIT(E3),
 
     TO_CORE_BIT(MUser),
     TO_CORE_BIT(MPriv),
@@ -3203,6 +3189,8 @@ FIELD(TBFLAG_M32, NEW_FP_CTXT_NEEDED, 3, 1)     /* Not cached. */
 FIELD(TBFLAG_M32, FPCCR_S_WRONG, 4, 1)          /* Not cached. */
 /* Set if MVE insns are definitely not predicated by VPR or LTPSIZE */
 FIELD(TBFLAG_M32, MVE_NO_PRED, 5, 1)            /* Not cached. */
+/* Set if in secure mode */
+FIELD(TBFLAG_M32, SECURE, 6, 1)
 
 /*
  * Bit usage when in AArch64 state
@@ -4107,6 +4095,39 @@ static inline bool isar_feature_aa64_tgran16_2_lpa2(const ARMISARegisters *id)
 {
     unsigned t = FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN16_2);
     return t >= 3 || (t == 0 && isar_feature_aa64_tgran16_lpa2(id));
+}
+
+static inline bool isar_feature_aa64_tgran4(const ARMISARegisters *id)
+{
+    return FIELD_SEX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN4) >= 0;
+}
+
+static inline bool isar_feature_aa64_tgran16(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN16) >= 1;
+}
+
+static inline bool isar_feature_aa64_tgran64(const ARMISARegisters *id)
+{
+    return FIELD_SEX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN64) >= 0;
+}
+
+static inline bool isar_feature_aa64_tgran4_2(const ARMISARegisters *id)
+{
+    unsigned t = FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN4_2);
+    return t >= 2 || (t == 0 && isar_feature_aa64_tgran4(id));
+}
+
+static inline bool isar_feature_aa64_tgran16_2(const ARMISARegisters *id)
+{
+    unsigned t = FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN16_2);
+    return t >= 2 || (t == 0 && isar_feature_aa64_tgran16(id));
+}
+
+static inline bool isar_feature_aa64_tgran64_2(const ARMISARegisters *id)
+{
+    unsigned t = FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN64_2);
+    return t >= 2 || (t == 0 && isar_feature_aa64_tgran64(id));
 }
 
 static inline bool isar_feature_aa64_ccidx(const ARMISARegisters *id)

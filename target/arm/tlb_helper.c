@@ -227,17 +227,16 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
          * target page size are handled specially, so for those we
          * pass in the exact addresses.
          */
-        if (res.page_size >= TARGET_PAGE_SIZE) {
-            res.phys &= TARGET_PAGE_MASK;
+        if (res.f.lg_page_size >= TARGET_PAGE_BITS) {
+            res.f.phys_addr &= TARGET_PAGE_MASK;
             address &= TARGET_PAGE_MASK;
         }
         /* Notice and record tagged memory. */
         if (cpu_isar_feature(aa64_mte, cpu) && res.cacheattrs.attrs == 0xf0) {
-            arm_tlb_mte_tagged(&res.attrs) = true;
+            arm_tlb_mte_tagged(&res.f.attrs) = true;
         }
 
-        tlb_set_page_with_attrs(cs, address, res.phys, res.attrs,
-                                res.prot, mmu_idx, res.page_size);
+        tlb_set_page_full(cs, mmu_idx, address, &res.f);
         return true;
     } else if (probe) {
         return false;

@@ -763,6 +763,10 @@ static void do_cpu_reset(void *opaque)
                     if (cpu_isar_feature(aa64_sve, cpu)) {
                         env->cp15.cptr_el[3] |= R_CPTR_EL3_EZ_MASK;
                     }
+                    if (cpu_isar_feature(aa64_sme, cpu)) {
+                        env->cp15.cptr_el[3] |= R_CPTR_EL3_ESM_MASK;
+                        env->cp15.scr_el3 |= SCR_ENTP2;
+                    }
                     /* AArch64 kernels never boot in secure mode */
                     assert(!info->secure_boot);
                     /* This hook is only supported for AArch32 currently:

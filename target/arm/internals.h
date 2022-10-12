@@ -649,66 +649,15 @@ static inline bool regime_has_2_ranges(ARMMMUIdx mmu_idx)
     case ARMMMUIdx_Stage1_E0:
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
-    case ARMMMUIdx_Stage1_SE0:
-    case ARMMMUIdx_Stage1_SE1:
-    case ARMMMUIdx_Stage1_SE1_PAN:
     case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E10_1:
     case ARMMMUIdx_E10_1_PAN:
     case ARMMMUIdx_E20_0:
     case ARMMMUIdx_E20_2:
     case ARMMMUIdx_E20_2_PAN:
-    case ARMMMUIdx_SE10_0:
-    case ARMMMUIdx_SE10_1:
-    case ARMMMUIdx_SE10_1_PAN:
-    case ARMMMUIdx_SE20_0:
-    case ARMMMUIdx_SE20_2:
-    case ARMMMUIdx_SE20_2_PAN:
         return true;
     default:
         return false;
-    }
-}
-
-/* Return true if this address translation regime is secure */
-static inline bool regime_is_secure(CPUARMState *env, ARMMMUIdx mmu_idx)
-{
-    switch (mmu_idx) {
-    case ARMMMUIdx_E10_0:
-    case ARMMMUIdx_E10_1:
-    case ARMMMUIdx_E10_1_PAN:
-    case ARMMMUIdx_E20_0:
-    case ARMMMUIdx_E20_2:
-    case ARMMMUIdx_E20_2_PAN:
-    case ARMMMUIdx_Stage1_E0:
-    case ARMMMUIdx_Stage1_E1:
-    case ARMMMUIdx_Stage1_E1_PAN:
-    case ARMMMUIdx_E2:
-    case ARMMMUIdx_Stage2:
-    case ARMMMUIdx_MPrivNegPri:
-    case ARMMMUIdx_MUserNegPri:
-    case ARMMMUIdx_MPriv:
-    case ARMMMUIdx_MUser:
-        return false;
-    case ARMMMUIdx_SE3:
-    case ARMMMUIdx_SE10_0:
-    case ARMMMUIdx_SE10_1:
-    case ARMMMUIdx_SE10_1_PAN:
-    case ARMMMUIdx_SE20_0:
-    case ARMMMUIdx_SE20_2:
-    case ARMMMUIdx_SE20_2_PAN:
-    case ARMMMUIdx_Stage1_SE0:
-    case ARMMMUIdx_Stage1_SE1:
-    case ARMMMUIdx_Stage1_SE1_PAN:
-    case ARMMMUIdx_SE2:
-    case ARMMMUIdx_Stage2_S:
-    case ARMMMUIdx_MSPrivNegPri:
-    case ARMMMUIdx_MSUserNegPri:
-    case ARMMMUIdx_MSPriv:
-    case ARMMMUIdx_MSUser:
-        return true;
-    default:
-        g_assert_not_reached();
     }
 }
 
@@ -716,11 +665,8 @@ static inline bool regime_is_pan(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     switch (mmu_idx) {
     case ARMMMUIdx_Stage1_E1_PAN:
-    case ARMMMUIdx_Stage1_SE1_PAN:
     case ARMMMUIdx_E10_1_PAN:
     case ARMMMUIdx_E20_2_PAN:
-    case ARMMMUIdx_SE10_1_PAN:
-    case ARMMMUIdx_SE20_2_PAN:
         return true;
     default:
         return false;
@@ -731,30 +677,20 @@ static inline bool regime_is_pan(CPUARMState *env, ARMMMUIdx mmu_idx)
 static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     switch (mmu_idx) {
-    case ARMMMUIdx_SE20_0:
-    case ARMMMUIdx_SE20_2:
-    case ARMMMUIdx_SE20_2_PAN:
     case ARMMMUIdx_E20_0:
     case ARMMMUIdx_E20_2:
     case ARMMMUIdx_E20_2_PAN:
     case ARMMMUIdx_Stage2:
     case ARMMMUIdx_Stage2_S:
-    case ARMMMUIdx_SE2:
     case ARMMMUIdx_E2:
         return 2;
-    case ARMMMUIdx_SE3:
+    case ARMMMUIdx_E3:
         return 3;
-    case ARMMMUIdx_SE10_0:
-    case ARMMMUIdx_Stage1_SE0:
-        return arm_el_is_aa64(env, 3) ? 1 : 3;
-    case ARMMMUIdx_SE10_1:
-    case ARMMMUIdx_SE10_1_PAN:
+    case ARMMMUIdx_E10_0:
     case ARMMMUIdx_Stage1_E0:
+        return arm_el_is_aa64(env, 3) || !arm_is_secure_below_el3(env) ? 1 : 3;
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
-    case ARMMMUIdx_Stage1_SE1:
-    case ARMMMUIdx_Stage1_SE1_PAN:
-    case ARMMMUIdx_E10_0:
     case ARMMMUIdx_E10_1:
     case ARMMMUIdx_E10_1_PAN:
     case ARMMMUIdx_MPrivNegPri:
@@ -996,9 +932,6 @@ static inline bool arm_mmu_idx_is_stage1_of_2(ARMMMUIdx mmu_idx)
     case ARMMMUIdx_Stage1_E0:
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
-    case ARMMMUIdx_Stage1_SE0:
-    case ARMMMUIdx_Stage1_SE1:
-    case ARMMMUIdx_Stage1_SE1_PAN:
         return true;
     default:
         return false;
@@ -1065,6 +998,35 @@ static inline uint32_t aarch64_pstate_valid_mask(const ARMISARegisters *id)
     return valid;
 }
 
+/* Granule size (i.e. page size) */
+typedef enum ARMGranuleSize {
+    /* Same order as TG0 encoding */
+    Gran4K,
+    Gran64K,
+    Gran16K,
+    GranInvalid,
+} ARMGranuleSize;
+
+/**
+ * arm_granule_bits: Return address size of the granule in bits
+ *
+ * Return the address size of the granule in bits. This corresponds
+ * to the pseudocode TGxGranuleBits().
+ */
+static inline int arm_granule_bits(ARMGranuleSize gran)
+{
+    switch (gran) {
+    case Gran64K:
+        return 16;
+    case Gran16K:
+        return 14;
+    case Gran4K:
+        return 12;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 /*
  * Parameters of a given virtual address, as extracted from the
  * translation control register (TCR) for a given regime.
@@ -1077,10 +1039,9 @@ typedef struct ARMVAParameters {
     bool tbi        : 1;
     bool epd        : 1;
     bool hpd        : 1;
-    bool using16k   : 1;
-    bool using64k   : 1;
     bool tsz_oob    : 1;  /* tsz has been clamped to legal range */
     bool ds         : 1;
+    ARMGranuleSize gran : 2;
 } ARMVAParameters;
 
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
@@ -1138,13 +1099,50 @@ typedef struct ARMCacheAttrs {
 
 /* Fields that are valid upon success. */
 typedef struct GetPhysAddrResult {
-    hwaddr phys;
-    target_ulong page_size;
-    int prot;
-    MemTxAttrs attrs;
+    CPUTLBEntryFull f;
     ARMCacheAttrs cacheattrs;
 } GetPhysAddrResult;
 
+/**
+ * get_phys_addr_with_secure: get the physical address for a virtual address
+ * @env: CPUARMState
+ * @address: virtual address to get physical address for
+ * @access_type: 0 for read, 1 for write, 2 for execute
+ * @mmu_idx: MMU index indicating required translation regime
+ * @is_secure: security state for the access
+ * @result: set on translation success.
+ * @fi: set to fault info if the translation fails
+ *
+ * Find the physical address corresponding to the given virtual address,
+ * by doing a translation table walk on MMU based systems or using the
+ * MPU state on MPU based systems.
+ *
+ * Returns false if the translation was successful. Otherwise, phys_ptr, attrs,
+ * prot and page_size may not be filled in, and the populated fsr value provides
+ * information on why the translation aborted, in the format of a
+ * DFSR/IFSR fault register, with the following caveats:
+ *  * we honour the short vs long DFSR format differences.
+ *  * the WnR bit is never set (the caller must do this).
+ *  * for PSMAv5 based systems we don't bother to return a full FSR format
+ *    value.
+ */
+bool get_phys_addr_with_secure(CPUARMState *env, target_ulong address,
+                               MMUAccessType access_type,
+                               ARMMMUIdx mmu_idx, bool is_secure,
+                               GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
+    __attribute__((nonnull));
+
+/**
+ * get_phys_addr: get the physical address for a virtual address
+ * @env: CPUARMState
+ * @address: virtual address to get physical address for
+ * @access_type: 0 for read, 1 for write, 2 for execute
+ * @mmu_idx: MMU index indicating required translation regime
+ * @result: set on translation success.
+ * @fi: set to fault info if the translation fails
+ *
+ * Similarly, but use the security regime of @mmu_idx.
+ */
 bool get_phys_addr(CPUARMState *env, target_ulong address,
                    MMUAccessType access_type, ARMMMUIdx mmu_idx,
                    GetPhysAddrResult *result, ARMMMUFaultInfo *fi)
