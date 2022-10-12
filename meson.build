@@ -211,6 +211,34 @@ if get_option('prefer_static')
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
 endif
 
+coroutine_backend = get_option('coroutine_backend')
+ucontext_probe = '''
+  #include <ucontext.h>
+  #ifdef __stub_makecontext
+  #error Ignoring glibc stub makecontext which will always fail
+  #endif
+  int main(void) { makecontext(0, 0, 0); return 0; }'''
+
+# On Windows the only valid backend is the Windows specific one.
+# For POSIX prefer ucontext, but it's not always possible. The fallback
+# is sigcontext.
+supported_backends = []
+if targetos == 'windows'
+  supported_backends += ['windows']
+else
+  if targetos != 'darwin' and cc.links(ucontext_probe)
+    supported_backends += ['ucontext']
+  endif
+  supported_backends += ['sigaltstack']
+endif
+
+if coroutine_backend == 'auto'
+  coroutine_backend = supported_backends[0]
+elif coroutine_backend not in supported_backends
+  error('"@0@" backend requested but not available.  Available backends: @1@' \
+        .format(coroutine_backend, ', '.join(supported_backends)))
+endif
+
 # Compiles if SafeStack *not* enabled
 safe_stack_probe = '''
   int main(void)
@@ -232,7 +260,7 @@ if get_option('safe_stack') != not cc.compiles(safe_stack_probe)
   qemu_cflags += safe_stack_arg
   qemu_ldflags += safe_stack_arg
 endif
-if get_option('safe_stack') and config_host['CONFIG_COROUTINE_BACKEND'] != 'ucontext'
+if get_option('safe_stack') and coroutine_backend != 'ucontext'
   error('SafeStack is only supported with the ucontext coroutine backend')
 endif
 
@@ -4037,7 +4065,7 @@ summary(summary_info, bool_yn: true, section: 'Targets and accelerators')
 
 # Block layer
 summary_info = {}
-summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
+summary_info += {'coroutine backend': coroutine_backend}
 summary_info += {'coroutine pool':    have_coroutine_pool}
 if have_block
   summary_info += {'Block whitelist (rw)': get_option('block_drv_rw_whitelist')}

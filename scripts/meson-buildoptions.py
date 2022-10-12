@@ -35,6 +35,7 @@ SKIP_OPTIONS = {
 OPTION_NAMES = {
     "b_coverage": "gcov",
     "b_lto": "lto",
+    "coroutine_backend": "with-coroutine",
     "malloc": "enable-malloc",
     "pkgversion": "with-pkgversion",
     "qemu_firmwarepath": "firmwarepath",
