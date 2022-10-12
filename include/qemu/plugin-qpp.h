@@ -10,7 +10,10 @@
 #include <dlfcn.h>
 #include <gmodule.h>
 #include <assert.h>
-extern GModule * qemu_plugin_name_to_handle(const char *);
+#ifdef __cplusplus
+extern "C"
+#endif
+GModule * qemu_plugin_name_to_handle(const char *);
 
 /*
  ****************************************************************
@@ -179,7 +182,7 @@ bool qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
 #define QPP_REG_CB(other_plugin, cb_name, cb_func)      \
 {                                                       \
   dlerror();                                            \
-  void *h = qemu_plugin_name_to_handle(other_plugin);   \
+  GModule *h = qemu_plugin_name_to_handle(other_plugin);   \
   if (!h) {                                             \
     fprintf(stderr, "In trying to add plugin callback, "\
                     "couldn't load %s plugin\n",        \
@@ -203,7 +206,7 @@ bool qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
 #define QPP_REMOVE_CB(other_plugin, cb_name, cb_func)            \
 {                                                                \
   dlerror();                                                     \
-  void *op = panda_get_plugin_by_name(other_plugin);             \
+  GModule *op = qemu_plugin_name_to_handle(other_plugin);             \
   if (!op) {                                                     \
     fprintf(stderr, "In trying to remove plugin callback, "      \
                     "couldn't load %s plugin\n", other_plugin);  \
