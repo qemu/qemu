@@ -2,6 +2,7 @@
 This module simply contains the Panda class.
 """
 
+from pyclbr import Function
 from sys import version_info, exit
 
 if version_info[0] < 3:
@@ -538,10 +539,10 @@ class Panda():
         def qemu_init_cb(id, info, argc, argv):
             self.qemu_id = id
             print("in init_cb")
-            import ipdb
-            ipdb.set_trace()
-            while cb:= self.preinit_callbacks.pop():
-                self.register_callback(*cb['args'],**cb['kwargs'])
+            if len(self.preinit_callbacks) > 0:
+                while self.preinit_callbacks:
+                    cb = self.preinit_callbacks.pop()
+                    self.register_callback(*cb['args'],**cb['kwargs'])
                 
             return 0
         init2 = self.ffi.callback("int(qemu_plugin_id_t id, const qemu_info_t *info,int argc, char **argv)")(qemu_init_cb)
@@ -2888,12 +2889,15 @@ class Panda():
             fn_arg = rtype.args[1]
             fn_cast = self.ffi.cast(fn_arg, function)
             if len(cb_type.args) == 2:
+                # import ipdb
+                # ipdb.set_trace()
                 reg_fn(self.qemu_id, fn_cast)
             elif len(cb_type.args) == 3:
                 reg_fn(self.qemu_id, fn_cast, self.ffi.NULL)
             else:
                 assert False, "whoops"
             self.plugin_register_count += 1
+            self.registered_callbacks[name] = (name, function, fn_cast, function, reg_fn)
         else:
             self.preinit_callbacks.append({'args':[callback, function, name, enabled, procname],'kwargs': kwargs})
 
