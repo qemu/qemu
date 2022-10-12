@@ -292,8 +292,11 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
 
 /*
  * Check if the address has required RWX privs to complete desired operation
+ * Return PMP rule index if a pmp rule match
+ * Return MAX_RISCV_PMPS if default match
+ * Return negtive value if no match
  */
-bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
+int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
     target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
     target_ulong mode)
 {
@@ -305,8 +308,10 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        return pmp_hart_has_privs_default(env, addr, size, privs,
-                                          allowed_privs, mode);
+        if (pmp_hart_has_privs_default(env, addr, size, privs,
+                                       allowed_privs, mode)) {
+            ret = MAX_RISCV_PMPS;
+        }
     }
 
     if (size == 0) {
@@ -333,7 +338,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         if ((s + e) == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "pmp violation - access is partially inside\n");
-            ret = 0;
+            ret = -1;
             break;
         }
 
@@ -436,18 +441,22 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
                 }
             }
 
-            ret = ((privs & *allowed_privs) == privs);
+            if ((privs & *allowed_privs) == privs) {
+                ret = i;
+            }
             break;
         }
     }
 
     /* No rule matched */
     if (ret == -1) {
-        return pmp_hart_has_privs_default(env, addr, size, privs,
-                                          allowed_privs, mode);
+        if (pmp_hart_has_privs_default(env, addr, size, privs,
+                                       allowed_privs, mode)) {
+            ret = MAX_RISCV_PMPS;
+        }
     }
 
-    return ret == 1 ? true : false;
+    return ret;
 }
 
 /*
@@ -586,64 +595,25 @@ target_ulong mseccfg_csr_read(CPURISCVState *env)
  * Calculate the TLB size if the start address or the end address of
  * PMP entry is presented in the TLB page.
  */
-static target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
-                                     target_ulong tlb_sa, target_ulong tlb_ea)
+target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
+                              target_ulong tlb_sa, target_ulong tlb_ea)
 {
     target_ulong pmp_sa = env->pmp_state.addr[pmp_index].sa;
     target_ulong pmp_ea = env->pmp_state.addr[pmp_index].ea;
 
-    if (pmp_sa >= tlb_sa && pmp_ea <= tlb_ea) {
-        return pmp_ea - pmp_sa + 1;
-    }
-
-    if (pmp_sa >= tlb_sa && pmp_sa <= tlb_ea && pmp_ea >= tlb_ea) {
-        return tlb_ea - pmp_sa + 1;
-    }
-
-    if (pmp_ea <= tlb_ea && pmp_ea >= tlb_sa && pmp_sa <= tlb_sa) {
-        return pmp_ea - tlb_sa + 1;
-    }
-
-    return 0;
-}
-
-/*
- * Check is there a PMP entry which range covers this page. If so,
- * try to find the minimum granularity for the TLB size.
- */
-bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
-                         target_ulong *tlb_size)
-{
-    int i;
-    target_ulong val;
-    target_ulong tlb_ea = (tlb_sa + TARGET_PAGE_SIZE - 1);
-
-    for (i = 0; i < MAX_RISCV_PMPS; i++) {
-        val = pmp_get_tlb_size(env, i, tlb_sa, tlb_ea);
-        if (val) {
-            if (*tlb_size == 0 || *tlb_size > val) {
-                *tlb_size = val;
-            }
-        }
-    }
-
-    if (*tlb_size != 0) {
+    if (pmp_sa <= tlb_sa && pmp_ea >= tlb_ea) {
+        return TARGET_PAGE_SIZE;
+    } else {
         /*
-         * At this point we have a tlb_size that is the smallest possible size
-         * That fits within a TARGET_PAGE_SIZE and the PMP region.
-         *
-         * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
-         * This means the result isn't cached in the TLB and is only used for
-         * a single translation.
-         */
-        if (*tlb_size < TARGET_PAGE_SIZE) {
-            *tlb_size = 1;
-        }
-
-        return true;
+        * At this point we have a tlb_size that is the smallest possible size
+        * That fits within a TARGET_PAGE_SIZE and the PMP region.
+        *
+        * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
+        * This means the result isn't cached in the TLB and is only used for
+        * a single translation.
+        */
+        return 1;
     }
-
-    return false;
 }
 
 /*
