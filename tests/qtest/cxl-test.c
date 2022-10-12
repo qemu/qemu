@@ -101,6 +101,7 @@ static void cxl_t3d(void)
 
     qtest_start(cmdline->str);
     qtest_end();
+    rmdir(tmpfs);
 }
 
 static void cxl_1pxb_2rp_2t3d(void)
@@ -115,6 +116,7 @@ static void cxl_1pxb_2rp_2t3d(void)
 
     qtest_start(cmdline->str);
     qtest_end();
+    rmdir(tmpfs);
 }
 
 static void cxl_2pxb_4rp_4t3d(void)
@@ -130,6 +132,7 @@ static void cxl_2pxb_4rp_4t3d(void)
 
     qtest_start(cmdline->str);
     qtest_end();
+    rmdir(tmpfs);
 }
 #endif /* CONFIG_POSIX */
 
