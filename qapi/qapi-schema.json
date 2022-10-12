@@ -94,3 +94,4 @@
 { 'include': 'acpi.json' }
 { 'include': 'pci.json' }
 { 'include': 'stats.json' }
+{ 'include': 'virtio.json' }

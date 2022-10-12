@@ -374,6 +374,25 @@ build_facs(GArray *table_data)
     g_array_append_vals(table_data, reserved, 40); /* Reserved */
 }
 
+Aml *aml_pci_device_dsm(void)
+{
+    Aml *method;
+
+    method = aml_method("_DSM", 4, AML_SERIALIZED);
+    {
+        Aml *params = aml_local(0);
+        Aml *pkg = aml_package(2);
+        aml_append(pkg, aml_name("BSEL"));
+        aml_append(pkg, aml_name("ASUN"));
+        aml_append(method, aml_store(pkg, params));
+        aml_append(method,
+            aml_return(aml_call5("PDSM", aml_arg(0), aml_arg(1),
+                                 aml_arg(2), aml_arg(3), params))
+        );
+    }
+    return method;
+}
+
 static void build_append_pcihp_notify_entry(Aml *method, int slot)
 {
     Aml *if_ctx;
@@ -408,13 +427,41 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         int func = PCI_FUNC(devfn);
         /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
         int adr = slot << 16 | func;
-        bool hotplug_enabled_dev;
-        bool bridge_in_acpi;
-        bool cold_plugged_bridge;
+        bool hotpluggbale_slot = false;
+        bool bridge_in_acpi = false;
+        bool cold_plugged_bridge = false;
+        bool is_vga = false;
 
-        if (!pdev) {
+        if (pdev) {
+            pc = PCI_DEVICE_GET_CLASS(pdev);
+            dc = DEVICE_GET_CLASS(pdev);
+
+            if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
+                continue;
+            }
+
+            is_vga = pc->class_id == PCI_CLASS_DISPLAY_VGA;
+
             /*
-             * add hotplug slots for non present devices.
+             * Cold plugged bridges aren't themselves hot-pluggable.
+             * Hotplugged bridges *are* hot-pluggable.
+             */
+            cold_plugged_bridge = pc->is_bridge && !DEVICE(pdev)->hotplugged;
+            bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
+
+            hotpluggbale_slot = bsel && dc->hotpluggable &&
+                                !cold_plugged_bridge;
+
+            /*
+             * allow describing coldplugged bridges in ACPI even if they are not
+             * on function 0, as they are not unpluggable, for all other devices
+             * generate description only for function 0 per slot
+             */
+            if (func && !bridge_in_acpi) {
+                continue;
+            }
+        } else {
+            /*
              * hotplug is supported only for non-multifunction device
              * so generate device description only for function 0
              */
@@ -422,51 +469,11 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 if (pci_bus_is_express(bus) && slot > 0) {
                     break;
                 }
-                dev = aml_device("S%.02X", devfn);
-                aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-                aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
-                method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-                aml_append(method,
-                    aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
-                );
-                aml_append(dev, method);
-                method = aml_method("_DSM", 4, AML_SERIALIZED);
-                aml_append(method,
-                    aml_return(aml_call6("PDSM", aml_arg(0), aml_arg(1),
-                                         aml_arg(2), aml_arg(3),
-                                         aml_name("BSEL"), aml_name("_SUN")))
-                );
-                aml_append(dev, method);
-                aml_append(parent_scope, dev);
-
-                build_append_pcihp_notify_entry(notify_method, slot);
+                /* mark it as empty hotpluggable slot */
+                hotpluggbale_slot = true;
+            } else {
+                continue;
             }
-            continue;
-        }
-
-        pc = PCI_DEVICE_GET_CLASS(pdev);
-        dc = DEVICE_GET_CLASS(pdev);
-
-        /*
-         * Cold plugged bridges aren't themselves hot-pluggable.
-         * Hotplugged bridges *are* hot-pluggable.
-         */
-        cold_plugged_bridge = pc->is_bridge && !DEVICE(pdev)->hotplugged;
-        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
-
-        hotplug_enabled_dev = bsel && dc->hotpluggable && !cold_plugged_bridge;
-
-        if (pc->class_id == PCI_CLASS_BRIDGE_ISA) {
-            continue;
-        }
-
-        /*
-         * allow describing coldplugged bridges in ACPI even if they are not
-         * on function 0, as they are not unpluggable, for all other devices
-         * generate description only for function 0 per slot
-         */
-        if (func && !bridge_in_acpi) {
-            continue;
         }
 
         /* start to compose PCI device descriptor */
@@ -479,15 +486,10 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
              * enumeration order in linux kernel, so use another variable for it
              */
             aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
-            method = aml_method("_DSM", 4, AML_SERIALIZED);
-            aml_append(method, aml_return(
-                aml_call6("PDSM", aml_arg(0), aml_arg(1), aml_arg(2),
-                          aml_arg(3), aml_name("BSEL"), aml_name("ASUN"))
-            ));
-            aml_append(dev, method);
+            aml_append(dev, aml_pci_device_dsm());
         }
 
-        if (pc->class_id == PCI_CLASS_DISPLAY_VGA) {
+        if (is_vga) {
             /* add VGA specific AML methods */
             int s3d;
 
@@ -508,19 +510,10 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             method = aml_method("_S3D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(s3d)));
             aml_append(dev, method);
-        } else if (hotplug_enabled_dev) {
-            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-            /* add _EJ0 to make slot hotpluggable  */
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
-            );
-            aml_append(dev, method);
+        }
 
-            if (bsel) {
-                build_append_pcihp_notify_entry(notify_method, slot);
-            }
-        } else if (bridge_in_acpi) {
+        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
+        if (bridge_in_acpi) {
             /*
              * device is coldplugged bridge,
              * add child device descriptions into its scope
@@ -529,6 +522,19 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
             build_append_pci_bus_devices(dev, sec_bus, pcihp_bridge_en);
         }
+
+        if (hotpluggbale_slot) {
+            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
+            /* add _EJ0 to make slot hotpluggable  */
+            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+            aml_append(method,
+                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
+            );
+            aml_append(dev, method);
+
+            build_append_pcihp_notify_entry(notify_method, slot);
+        }
+
         /* device descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
     }
@@ -572,84 +578,100 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_unref(bsel);
 }
 
-Aml *aml_pci_device_dsm(void)
+static Aml *aml_pci_pdsm(void)
 {
-    Aml *method, *UUID, *ifctx, *ifctx1, *ifctx2, *ifctx3, *elsectx;
-    Aml *acpi_index = aml_local(0);
+    Aml *method, *UUID, *ifctx, *ifctx1;
+    Aml *ret = aml_local(0);
+    Aml *caps = aml_local(1);
+    Aml *acpi_index = aml_local(2);
     Aml *zero = aml_int(0);
-    Aml *bnum = aml_arg(4);
+    Aml *one = aml_int(1);
     Aml *func = aml_arg(2);
     Aml *rev = aml_arg(1);
-    Aml *sunum = aml_arg(5);
+    Aml *params = aml_arg(4);
+    Aml *bnum = aml_derefof(aml_index(params, aml_int(0)));
+    Aml *sunum = aml_derefof(aml_index(params, aml_int(1)));
 
-    method = aml_method("PDSM", 6, AML_SERIALIZED);
+    method = aml_method("PDSM", 5, AML_SERIALIZED);
 
+    /* get supported functions */
+    ifctx = aml_if(aml_equal(func, zero));
+    {
+        uint8_t byte_list[1] = { 0 }; /* nothing supported yet */
+        aml_append(ifctx, aml_store(aml_buffer(1, byte_list), ret));
+        aml_append(ifctx, aml_store(zero, caps));
+
+       /*
+        * PCI Firmware Specification 3.1
+        * 4.6.  _DSM Definitions for PCI
+        */
+        UUID = aml_touuid("E5C937D0-3553-4D7A-9117-EA4D19C3434D");
+        ifctx1 = aml_if(aml_lnot(aml_equal(aml_arg(0), UUID)));
+        {
+            /* call is for unsupported UUID, bail out */
+            aml_append(ifctx1, aml_return(ret));
+        }
+        aml_append(ifctx, ifctx1);
+
+        ifctx1 = aml_if(aml_lless(rev, aml_int(2)));
+        {
+            /* call is for unsupported REV, bail out */
+            aml_append(ifctx1, aml_return(ret));
+        }
+        aml_append(ifctx, ifctx1);
+
+        aml_append(ifctx,
+            aml_store(aml_call2("AIDX", bnum, sunum), acpi_index));
+        /*
+         * advertise function 7 if device has acpi-index
+         * acpi_index values:
+         *            0: not present (default value)
+         *     FFFFFFFF: not supported (old QEMU without PIDX reg)
+         *        other: device's acpi-index
+         */
+        ifctx1 = aml_if(aml_lnot(
+                     aml_or(aml_equal(acpi_index, zero),
+                            aml_equal(acpi_index, aml_int(0xFFFFFFFF)), NULL)
+                 ));
+        {
+            /* have supported functions */
+            aml_append(ifctx1, aml_or(caps, one, caps));
+            /* support for function 7 */
+            aml_append(ifctx1,
+                aml_or(caps, aml_shiftleft(one, aml_int(7)), caps));
+        }
+        aml_append(ifctx, ifctx1);
+
+        aml_append(ifctx, aml_store(caps, aml_index(ret, zero)));
+        aml_append(ifctx, aml_return(ret));
+    }
+    aml_append(method, ifctx);
+
+    /* handle specific functions requests */
     /*
      * PCI Firmware Specification 3.1
-     * 4.6.  _DSM Definitions for PCI
+     * 4.6.7. _DSM for Naming a PCI or PCI Express Device Under
+     *        Operating Systems
      */
-    UUID = aml_touuid("E5C937D0-3553-4D7A-9117-EA4D19C3434D");
-    ifctx = aml_if(aml_equal(aml_arg(0), UUID));
+    ifctx = aml_if(aml_equal(func, aml_int(7)));
     {
-        aml_append(ifctx, aml_store(aml_call2("AIDX", bnum, sunum), acpi_index));
-        ifctx1 = aml_if(aml_equal(func, zero));
-        {
-            uint8_t byte_list[1];
+       Aml *pkg = aml_package(2);
 
-            ifctx2 = aml_if(aml_equal(rev, aml_int(2)));
-            {
-                /*
-                 * advertise function 7 if device has acpi-index
-                 * acpi_index values:
-                 *            0: not present (default value)
-                 *     FFFFFFFF: not supported (old QEMU without PIDX reg)
-                 *        other: device's acpi-index
-                 */
-                ifctx3 = aml_if(aml_lnot(
-                    aml_or(aml_equal(acpi_index, zero),
-                           aml_equal(acpi_index, aml_int(0xFFFFFFFF)), NULL)
-                ));
-                {
-                    byte_list[0] =
-                        1 /* have supported functions */ |
-                        1 << 7 /* support for function 7 */
-                    ;
-                    aml_append(ifctx3, aml_return(aml_buffer(1, byte_list)));
-                }
-                aml_append(ifctx2, ifctx3);
-             }
-             aml_append(ifctx1, ifctx2);
+       aml_append(pkg, zero);
+       /*
+        * optional, if not impl. should return null string
+        */
+       aml_append(pkg, aml_string("%s", ""));
+       aml_append(ifctx, aml_store(pkg, ret));
 
-             byte_list[0] = 0; /* nothing supported */
-             aml_append(ifctx1, aml_return(aml_buffer(1, byte_list)));
-         }
-         aml_append(ifctx, ifctx1);
-         elsectx = aml_else();
-         /*
-          * PCI Firmware Specification 3.1
-          * 4.6.7. _DSM for Naming a PCI or PCI Express Device Under
-          *        Operating Systems
-          */
-         ifctx1 = aml_if(aml_equal(func, aml_int(7)));
-         {
-             Aml *pkg = aml_package(2);
-             Aml *ret = aml_local(1);
-
-             aml_append(pkg, zero);
-             /*
-              * optional, if not impl. should return null string
-              */
-             aml_append(pkg, aml_string("%s", ""));
-             aml_append(ifctx1, aml_store(pkg, ret));
-             /*
-              * update acpi-index to actual value
-              */
-             aml_append(ifctx1, aml_store(acpi_index, aml_index(ret, zero)));
-             aml_append(ifctx1, aml_return(ret));
-         }
-         aml_append(elsectx, ifctx1);
-         aml_append(ifctx, elsectx);
+       aml_append(ifctx, aml_store(aml_call2("AIDX", bnum, sunum), acpi_index));
+       /*
+        * update acpi-index to actual value
+        */
+       aml_append(ifctx, aml_store(acpi_index, aml_index(ret, zero)));
+       aml_append(ifctx, aml_return(ret));
     }
+
     aml_append(method, ifctx);
     return method;
 }
@@ -1339,7 +1361,7 @@ static void build_x86_acpi_pci_hotplug(Aml *table, uint64_t pcihp_addr)
     aml_append(method, aml_return(aml_local(0)));
     aml_append(scope, method);
 
-    aml_append(scope, aml_pci_device_dsm());
+    aml_append(scope, aml_pci_pdsm());
 
     aml_append(table, scope);
 }
@@ -1467,9 +1489,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
 
-        if (misc->has_hpet) {
-            build_hpet_aml(dsdt);
-        }
         build_piix4_isa_bridge(dsdt);
         if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
             build_x86_acpi_pci_hotplug(dsdt, pm->pcihp_io_base);
@@ -1515,9 +1534,6 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
         aml_append(dsdt, sb_scope);
 
-        if (misc->has_hpet) {
-            build_hpet_aml(dsdt);
-        }
         build_q35_isa_bridge(dsdt);
         if (pm->pcihp_bridge_en) {
             build_x86_acpi_pci_hotplug(dsdt, pm->pcihp_io_base);
@@ -1526,6 +1542,10 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         if (pcms->smbus) {
             build_smb0(dsdt, ICH9_SMB_DEV, ICH9_SMB_FUNC);
         }
+    }
+
+    if (misc->has_hpet) {
+        build_hpet_aml(dsdt);
     }
 
     if (vmbus_bridge) {
