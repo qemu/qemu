@@ -40,6 +40,7 @@
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/ram_addr.h"
+#include "exec/address-spaces.h"
 #include "disas/disas.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
@@ -274,6 +275,41 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
     memcpy(&rv, result->data, sizeof(rv));
     g_byte_array_free(result, true);
     return rv;
+}
+
+inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#endif
+    CPUState *cpu = current_cpu;
+    target_ulong page;
+    hwaddr phys_addr;
+    page = addr & TARGET_PAGE_MASK;
+    phys_addr = cpu_get_phys_page_debug(cpu, page);
+    if (phys_addr == -1) {
+        // no physical page mapped
+        return -1;
+    }
+    phys_addr += (addr & ~TARGET_PAGE_MASK);
+    return phys_addr;
+}
+
+void *qemu_plugin_virt_to_host(uint64_t addr, int len)
+{
+#ifdef CONFIG_USER_ONLY
+  return;
+#endif
+    uint64_t phys = qemu_plugin_virt_to_phys(addr);
+    hwaddr addr1;
+    hwaddr l = (hwaddr)len;
+    MemoryRegion *mr =
+        address_space_translate(&address_space_memory, phys, &addr1, &l, true, MEMTXATTRS_UNSPECIFIED);
+
+    if (!memory_access_is_direct(mr, true)) {
+        return NULL;
+    }
+
+    return qemu_map_ram_ptr(mr->ram_block, addr1);
 }
 
 /*
