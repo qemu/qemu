@@ -338,9 +338,6 @@ for opt do
   ;;
   esac
 done
-# OS specific
-# Using uname is really, really broken.  Once we have the right set of checks
-# we can eliminate its usage altogether.
 
 # Preferred compiler:
 #  ${CC} (if set)
@@ -491,13 +488,6 @@ sunos)
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-  # $(uname -m) returns i86pc even on an x86_64 box, so default based on isainfo
-  # Note that this check is broken for cross-compilation: if you're
-  # cross-compiling to one of these OSes then you'll need to specify
-  # the correct CPU with the --cpu option.
-  if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
-    cpu="x86_64"
-  fi
 ;;
 haiku)
   pie="no"
@@ -552,16 +542,21 @@ elif check_define __aarch64__ ; then
 elif check_define __loongarch64 ; then
   cpu="loongarch64"
 else
+  # Using uname is really broken, but it is just a fallback for architectures
+  # that are going to use TCI anyway
   cpu=$(uname -m)
+  echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
 fi
 
-# Normalise host CPU name, set multilib cflags
+# Normalise host CPU name and set multilib cflags.  The canonicalization
+# isn't really necessary, because the architectures that we check for
+# should not hit the 'uname -m' case, but better safe than sorry.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
   armv*b|armv*l|arm)
     cpu="arm" ;;
 
-  i386|i486|i586|i686|i86pc|BePC)
+  i386|i486|i586|i686)
     cpu="i386"
     CPU_CFLAGS="-m32" ;;
   x32)
