@@ -180,7 +180,7 @@ compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
   do_cc $CFLAGS $EXTRA_CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC \
-      $LDFLAGS $EXTRA_LDFLAGS $CONFIGURE_LDFLAGS $QEMU_LDFLAGS $local_ldflags
+      $LDFLAGS $EXTRA_LDFLAGS $CONFIGURE_LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -226,7 +226,6 @@ static="no"
 cross_compile="no"
 cross_prefix=""
 host_cc="cc"
-stack_protector=""
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
@@ -393,8 +392,6 @@ sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 # provides these semantics.)
 QEMU_CFLAGS="-fno-strict-aliasing -fno-common -fwrapv"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
-
-QEMU_LDFLAGS=
 
 # Flags that are needed during configure but later taken care of by Meson
 CONFIGURE_CFLAGS="-std=gnu11 -Wall"
@@ -824,10 +821,6 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
-  --enable-stack-protector) stack_protector="yes"
-  ;;
-  --disable-stack-protector) stack_protector="no"
-  ;;
   --enable-cfi)
       cfi="true";
       meson_option_add -Db_lto=true
@@ -998,7 +991,6 @@ Advanced options (experts only):
   --with-devices-ARCH=NAME override default configs/devices
   --enable-debug           enable common debug build options
   --disable-werror         disable compilation abort on warning
-  --disable-stack-protector disable compiler-provided stack protection
   --cpu=CPU                Build for host CPU [$cpu]
   --enable-plugins
                            enable plugins via shared library loading
@@ -1257,7 +1249,7 @@ EOF
     optflag="$(echo $1 | sed -e 's/^-Wno-/-W/')"
     do_objc -Werror $optflag \
       $OBJCFLAGS $EXTRA_OBJCFLAGS $CONFIGURE_OBJCFLAGS $QEMU_OBJCFLAGS \
-      -o $TMPE $TMPM $QEMU_LDFLAGS
+      -o $TMPE $TMPM
 }
 
 for flag in $gcc_flags; do
@@ -1268,37 +1260,6 @@ for flag in $gcc_flags; do
         QEMU_OBJCFLAGS="$QEMU_OBJCFLAGS $flag"
     fi
 done
-
-if test "$stack_protector" != "no"; then
-  cat > $TMPC << EOF
-int main(int argc, char *argv[])
-{
-    char arr[64], *p = arr, *c = argv[argc - 1];
-    while (*c) {
-        *p++ = *c++;
-    }
-    return 0;
-}
-EOF
-  gcc_flags="-fstack-protector-strong -fstack-protector-all"
-  sp_on=0
-  for flag in $gcc_flags; do
-    # We need to check both a compile and a link, since some compiler
-    # setups fail only on a .c->.o compile and some only at link time
-    if compile_object "-Werror $flag" &&
-       compile_prog "-Werror $flag" ""; then
-      QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-      QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-      sp_on=1
-      break
-    fi
-  done
-  if test "$stack_protector" = yes; then
-    if test $sp_on = 0; then
-      error_exit "Stack protector not supported"
-    fi
-  fi
-fi
 
 if test "$static" = "yes" ; then
   if test "$plugins" = "yes"; then
@@ -2057,7 +2018,6 @@ echo "PKG_CONFIG=${pkg_config}" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_OBJCFLAGS=$QEMU_OBJCFLAGS" >> $config_host_mak
-echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 
 # use included Linux headers

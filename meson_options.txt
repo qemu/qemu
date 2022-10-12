@@ -91,6 +91,8 @@ option('sanitizers', type: 'boolean', value: false,
        description: 'enable default sanitizers')
 option('tsan', type: 'boolean', value: false,
        description: 'enable thread sanitizer')
+option('stack_protector', type: 'feature', value: 'auto',
+       description: 'compiler-provided stack protection')
 option('cfi', type: 'boolean', value: false,
        description: 'Control-Flow Integrity (CFI)')
 option('cfi_debug', type: 'boolean', value: false,

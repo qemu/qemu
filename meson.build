@@ -200,7 +200,7 @@ foreach arg : config_host['QEMU_CFLAGS'].split()
   endif
 endforeach
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
-qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
+qemu_ldflags = []
 
 if get_option('gprof')
   qemu_common_flags += ['-p']
@@ -209,6 +209,32 @@ endif
 
 if get_option('prefer_static')
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
+endif
+
+if not get_option('stack_protector').disabled()
+  stack_protector_probe = '''
+    int main(int argc, char *argv[])
+    {
+      char arr[64], *p = arr, *c = argv[argc - 1];
+      while (*c) {
+          *p++ = *c++;
+      }
+      return 0;
+    }'''
+  have_stack_protector = false
+  foreach arg : ['-fstack-protector-strong', '-fstack-protector-all']
+    # We need to check both a compile and a link, since some compiler
+    # setups fail only on a .c->.o compile and some only at link time
+    if cc.compiles(stack_protector_probe, args: ['-Werror', arg]) and \
+       cc.links(stack_protector_probe, args: ['-Werror', arg])
+      have_stack_protector = true
+      qemu_cflags += arg
+      qemu_ldflags += arg
+      break
+    endif
+  endforeach
+  get_option('stack_protector') \
+    .require(have_stack_protector, error_message: 'Stack protector not supported')
 endif
 
 coroutine_backend = get_option('coroutine_backend')
