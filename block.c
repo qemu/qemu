@@ -1641,6 +1641,20 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         goto open_failed;
     }
 
+    assert(!(bs->supported_read_flags & ~BDRV_REQ_MASK));
+    assert(!(bs->supported_write_flags & ~BDRV_REQ_MASK));
+
+    /*
+     * Always allow the BDRV_REQ_REGISTERED_BUF optimization hint. This saves
+     * drivers that pass read/write requests through to a child the trouble of
+     * declaring support explicitly.
+     *
+     * Drivers must not propagate this flag accidentally when they initiate I/O
+     * to a bounce buffer. That case should be rare though.
+     */
+    bs->supported_read_flags |= BDRV_REQ_REGISTERED_BUF;
+    bs->supported_write_flags |= BDRV_REQ_REGISTERED_BUF;
+
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");

@@ -261,7 +261,6 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
     int ret;
     int64_t n;
 
-    assert(!flags);
     ret = replication_get_io_status(s);
     if (ret < 0) {
         goto out;

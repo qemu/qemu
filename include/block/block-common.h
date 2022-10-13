@@ -80,6 +80,15 @@ typedef enum {
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
 
+    /*
+     * An optimization hint when all QEMUIOVector elements are within
+     * previously registered bdrv_register_buf() memory ranges.
+     *
+     * Code that replaces the user's QEMUIOVector elements with bounce buffers
+     * must take care to clear this flag.
+     */
+    BDRV_REQ_REGISTERED_BUF     = 0x8,
+
     BDRV_REQ_FUA                = 0x10,
     BDRV_REQ_WRITE_COMPRESSED   = 0x20,
 
