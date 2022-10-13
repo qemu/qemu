@@ -2581,3 +2581,7 @@ int kvm_s390_get_zpci_op(void)
 {
     return cap_zpci_op;
 }
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
+}

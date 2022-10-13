@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
@@ -132,12 +133,15 @@ static int has_xcrs;
 static int has_pit_state2;
 static int has_sregs2;
 static int has_exception_payload;
+static int has_triple_fault_event;
 
 static bool has_msr_mcg_ext_ctl;
 
 static struct kvm_cpuid2 *cpuid_cache;
 static struct kvm_cpuid2 *hv_cpuid_cache;
 static struct kvm_msr_list *kvm_feature_msrs;
+
+static KVMMSRHandlers msr_handlers[KVM_MSR_FILTER_MAX_RANGES];
 
 #define BUS_LOCK_SLICE_TIME 1000000000ULL /* ns */
 static RateLimit bus_lock_ratelimit_ctrl;
@@ -2397,6 +2401,17 @@ static int kvm_get_supported_msrs(KVMState *s)
     return ret;
 }
 
+static bool kvm_rdmsr_core_thread_count(X86CPU *cpu, uint32_t msr,
+                                        uint64_t *val)
+{
+    CPUState *cs = CPU(cpu);
+
+    *val = cs->nr_threads * cs->nr_cores; /* thread count, bits 15..0 */
+    *val |= ((uint32_t)cs->nr_cores << 16); /* core count, bits 31..16 */
+
+    return true;
+}
+
 static Notifier smram_machine_done;
 static KVMMemoryListener smram_listener;
 static AddressSpace smram_address_space;
@@ -2474,6 +2489,16 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         ret = kvm_vm_enable_cap(s, KVM_CAP_EXCEPTION_PAYLOAD, 0, true);
         if (ret < 0) {
             error_report("kvm: Failed to enable exception payload cap: %s",
+                         strerror(-ret));
+            return ret;
+        }
+    }
+
+    has_triple_fault_event = kvm_check_extension(s, KVM_CAP_X86_TRIPLE_FAULT_EVENT);
+    if (has_triple_fault_event) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_TRIPLE_FAULT_EVENT, 0, true);
+        if (ret < 0) {
+            error_report("kvm: Failed to enable triple fault event cap: %s",
                          strerror(-ret));
             return ret;
         }
@@ -2581,6 +2606,40 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             ratelimit_init(&bus_lock_ratelimit_ctrl);
             ratelimit_set_speed(&bus_lock_ratelimit_ctrl,
                                 x86ms->bus_lock_ratelimit, BUS_LOCK_SLICE_TIME);
+        }
+    }
+
+    if (s->notify_vmexit != NOTIFY_VMEXIT_OPTION_DISABLE &&
+        kvm_check_extension(s, KVM_CAP_X86_NOTIFY_VMEXIT)) {
+            uint64_t notify_window_flags =
+                ((uint64_t)s->notify_window << 32) |
+                KVM_X86_NOTIFY_VMEXIT_ENABLED |
+                KVM_X86_NOTIFY_VMEXIT_USER;
+            ret = kvm_vm_enable_cap(s, KVM_CAP_X86_NOTIFY_VMEXIT, 0,
+                                    notify_window_flags);
+            if (ret < 0) {
+                error_report("kvm: Failed to enable notify vmexit cap: %s",
+                             strerror(-ret));
+                return ret;
+            }
+    }
+    if (kvm_vm_check_extension(s, KVM_CAP_X86_USER_SPACE_MSR)) {
+        bool r;
+
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
+                                KVM_MSR_EXIT_REASON_FILTER);
+        if (ret) {
+            error_report("Could not enable user space MSRs: %s",
+                         strerror(-ret));
+            exit(1);
+        }
+
+        r = kvm_filter_msr(s, MSR_CORE_THREAD_COUNT,
+                           kvm_rdmsr_core_thread_count, NULL);
+        if (!r) {
+            error_report("Could not install MSR_CORE_THREAD_COUNT handler: %s",
+                         strerror(-ret));
+            exit(1);
         }
     }
 
@@ -4295,6 +4354,11 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
         }
     }
 
+    if (has_triple_fault_event) {
+        events.flags |= KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
+        events.triple_fault.pending = env->triple_fault_pending;
+    }
+
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_VCPU_EVENTS, &events);
 }
 
@@ -4362,6 +4426,10 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
         } else {
             cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_INIT);
         }
+    }
+
+    if (events.flags & KVM_VCPUEVENT_VALID_TRIPLE_FAULT) {
+        env->triple_fault_pending = events.triple_fault.pending;
     }
 
     env->sipi_vector = events.sipi_vector;
@@ -5073,6 +5141,108 @@ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
     }
 }
 
+static bool kvm_install_msr_filters(KVMState *s)
+{
+    uint64_t zero = 0;
+    struct kvm_msr_filter filter = {
+        .flags = KVM_MSR_FILTER_DEFAULT_ALLOW,
+    };
+    int r, i, j = 0;
+
+    for (i = 0; i < KVM_MSR_FILTER_MAX_RANGES; i++) {
+        KVMMSRHandlers *handler = &msr_handlers[i];
+        if (handler->msr) {
+            struct kvm_msr_filter_range *range = &filter.ranges[j++];
+
+            *range = (struct kvm_msr_filter_range) {
+                .flags = 0,
+                .nmsrs = 1,
+                .base = handler->msr,
+                .bitmap = (__u8 *)&zero,
+            };
+
+            if (handler->rdmsr) {
+                range->flags |= KVM_MSR_FILTER_READ;
+            }
+
+            if (handler->wrmsr) {
+                range->flags |= KVM_MSR_FILTER_WRITE;
+            }
+        }
+    }
+
+    r = kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
+    if (r) {
+        return false;
+    }
+
+    return true;
+}
+
+bool kvm_filter_msr(KVMState *s, uint32_t msr, QEMURDMSRHandler *rdmsr,
+                    QEMUWRMSRHandler *wrmsr)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+        if (!msr_handlers[i].msr) {
+            msr_handlers[i] = (KVMMSRHandlers) {
+                .msr = msr,
+                .rdmsr = rdmsr,
+                .wrmsr = wrmsr,
+            };
+
+            if (!kvm_install_msr_filters(s)) {
+                msr_handlers[i] = (KVMMSRHandlers) { };
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int kvm_handle_rdmsr(X86CPU *cpu, struct kvm_run *run)
+{
+    int i;
+    bool r;
+
+    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+        KVMMSRHandlers *handler = &msr_handlers[i];
+        if (run->msr.index == handler->msr) {
+            if (handler->rdmsr) {
+                r = handler->rdmsr(cpu, handler->msr,
+                                   (uint64_t *)&run->msr.data);
+                run->msr.error = r ? 0 : 1;
+                return 0;
+            }
+        }
+    }
+
+    assert(false);
+}
+
+static int kvm_handle_wrmsr(X86CPU *cpu, struct kvm_run *run)
+{
+    int i;
+    bool r;
+
+    for (i = 0; i < ARRAY_SIZE(msr_handlers); i++) {
+        KVMMSRHandlers *handler = &msr_handlers[i];
+        if (run->msr.index == handler->msr) {
+            if (handler->wrmsr) {
+                r = handler->wrmsr(cpu, handler->msr, run->msr.data);
+                run->msr.error = r ? 0 : 1;
+                return 0;
+            }
+        }
+    }
+
+    assert(false);
+}
+
 static bool has_sgx_provisioning;
 
 static bool __kvm_enable_sgx_provisioning(KVMState *s)
@@ -5117,6 +5287,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     X86CPU *cpu = X86_CPU(cs);
     uint64_t code;
     int ret;
+    bool ctx_invalid;
+    char str[256];
+    KVMState *state;
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
@@ -5171,6 +5344,31 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_X86_BUS_LOCK:
         /* already handled in kvm_arch_post_run */
         ret = 0;
+        break;
+    case KVM_EXIT_NOTIFY:
+        ctx_invalid = !!(run->notify.flags & KVM_NOTIFY_CONTEXT_INVALID);
+        state = KVM_STATE(current_accel());
+        sprintf(str, "Encounter a notify exit with %svalid context in"
+                     " guest. There can be possible misbehaves in guest."
+                     " Please have a look.", ctx_invalid ? "in" : "");
+        if (ctx_invalid ||
+            state->notify_vmexit == NOTIFY_VMEXIT_OPTION_INTERNAL_ERROR) {
+            warn_report("KVM internal error: %s", str);
+            ret = -1;
+        } else {
+            warn_report_once("KVM: %s", str);
+            ret = 0;
+        }
+        break;
+    case KVM_EXIT_X86_RDMSR:
+        /* We only enable MSR filtering, any other exit is bogus */
+        assert(run->msr.reason == KVM_MSR_EXIT_REASON_FILTER);
+        ret = kvm_handle_rdmsr(cpu, run);
+        break;
+    case KVM_EXIT_X86_WRMSR:
+        /* We only enable MSR filtering, any other exit is bogus */
+        assert(run->msr.reason == KVM_MSR_EXIT_REASON_FILTER);
+        ret = kvm_handle_wrmsr(cpu, run);
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
@@ -5447,4 +5645,72 @@ void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask)
         }
         mask &= ~BIT_ULL(bit);
     }
+}
+
+static int kvm_arch_get_notify_vmexit(Object *obj, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    return s->notify_vmexit;
+}
+
+static void kvm_arch_set_notify_vmexit(Object *obj, int value, Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+
+    if (s->fd != -1) {
+        error_setg(errp, "Cannot set properties after the accelerator has been initialized");
+        return;
+    }
+
+    s->notify_vmexit = value;
+}
+
+static void kvm_arch_get_notify_window(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    uint32_t value = s->notify_window;
+
+    visit_type_uint32(v, name, &value, errp);
+}
+
+static void kvm_arch_set_notify_window(Object *obj, Visitor *v,
+                                       const char *name, void *opaque,
+                                       Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    Error *error = NULL;
+    uint32_t value;
+
+    if (s->fd != -1) {
+        error_setg(errp, "Cannot set properties after the accelerator has been initialized");
+        return;
+    }
+
+    visit_type_uint32(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    s->notify_window = value;
+}
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
+    object_class_property_add_enum(oc, "notify-vmexit", "NotifyVMexitOption",
+                                   &NotifyVmexitOption_lookup,
+                                   kvm_arch_get_notify_vmexit,
+                                   kvm_arch_set_notify_vmexit);
+    object_class_property_set_description(oc, "notify-vmexit",
+                                          "Enable notify VM exit");
+
+    object_class_property_add(oc, "notify-window", "uint32",
+                              kvm_arch_get_notify_window,
+                              kvm_arch_set_notify_window,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "notify-window",
+                                          "Clock cycles without an event window "
+                                          "after which a notification VM exit occurs");
 }

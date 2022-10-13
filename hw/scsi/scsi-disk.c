@@ -2544,6 +2544,7 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     AioContext *ctx;
     int ret;
+    uint32_t blocksize = 2048;
 
     if (!dev->conf.blk) {
         /* Anonymous BlockBackend for an empty drive. As we put it into
@@ -2553,9 +2554,13 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
         assert(ret == 0);
     }
 
+    if (dev->conf.physical_block_size != 0) {
+        blocksize = dev->conf.physical_block_size;
+    }
+
     ctx = blk_get_aio_context(dev->conf.blk);
     aio_context_acquire(ctx);
-    s->qdev.blocksize = 2048;
+    s->qdev.blocksize = blocksize;
     s->qdev.type = TYPE_ROM;
     s->features |= 1 << SCSI_DISK_F_REMOVABLE;
     if (!s->product) {
