@@ -27,7 +27,9 @@
 #include "tcg/tcg-op.h"
 #include "trace.h"
 #include "semihosting/common-semi.h"
+#include "sysemu/cpu-timers.h"
 #include "cpu_bits.h"
+#include "debug.h"
 
 int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 {
@@ -102,6 +104,10 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 
         flags = FIELD_DP32(flags, TB_FLAGS, MSTATUS_HS_VS,
                            get_field(env->mstatus_hs, MSTATUS_VS));
+    }
+    if (riscv_feature(env, RISCV_FEATURE_DEBUG) && !icount_enabled()) {
+        flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER,
+                           riscv_itrigger_enabled(env));
     }
 #endif
 

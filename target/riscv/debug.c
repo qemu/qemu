@@ -29,6 +29,7 @@
 #include "cpu.h"
 #include "trace.h"
 #include "exec/exec-all.h"
+#include "exec/helper-proto.h"
 
 /*
  * The following M-mode trigger CSRs are implemented:
@@ -494,6 +495,76 @@ static void type6_reg_write(CPURISCVState *env, target_ulong index,
     }
 
     return;
+}
+
+/* icount trigger type */
+static inline int
+itrigger_get_count(CPURISCVState *env, int index)
+{
+    return get_field(env->tdata1[index], ITRIGGER_COUNT);
+}
+
+static inline void
+itrigger_set_count(CPURISCVState *env, int index, int value)
+{
+    env->tdata1[index] = set_field(env->tdata1[index],
+                                   ITRIGGER_COUNT, value);
+}
+
+static bool check_itrigger_priv(CPURISCVState *env, int index)
+{
+    target_ulong tdata1 = env->tdata1[index];
+    if (riscv_cpu_virt_enabled(env)) {
+        /* check VU/VS bit against current privilege level */
+        return (get_field(tdata1, ITRIGGER_VS) == env->priv) ||
+               (get_field(tdata1, ITRIGGER_VU) == env->priv);
+    } else {
+        /* check U/S/M bit against current privilege level */
+        return (get_field(tdata1, ITRIGGER_M) == env->priv) ||
+               (get_field(tdata1, ITRIGGER_S) == env->priv) ||
+               (get_field(tdata1, ITRIGGER_U) == env->priv);
+    }
+}
+
+bool riscv_itrigger_enabled(CPURISCVState *env)
+{
+    int count;
+    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+        if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
+            continue;
+        }
+        if (check_itrigger_priv(env, i)) {
+            continue;
+        }
+        count = itrigger_get_count(env, i);
+        if (!count) {
+            continue;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void helper_itrigger_match(CPURISCVState *env)
+{
+    int count;
+    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+        if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
+            continue;
+        }
+        if (check_itrigger_priv(env, i)) {
+            continue;
+        }
+        count = itrigger_get_count(env, i);
+        if (!count) {
+            continue;
+        }
+        itrigger_set_count(env, i, count--);
+        if (!count) {
+            do_trigger_action(env, i);
+        }
+    }
 }
 
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
