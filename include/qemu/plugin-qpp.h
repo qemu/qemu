@@ -58,6 +58,39 @@ GModule * qemu_plugin_name_to_handle(const char *);
  *
  * Also note that qpp_[cb_name]_num_cb will be initialized to 0 per the C spec.
  */
+
+#ifdef __cplusplus
+#define QPP_CREATE_CB(cb_name)                              \
+extern "C" { \
+void qpp_add_cb_##cb_name(cb_name##_t fptr);                \
+int qpp_remove_cb_##cb_name(cb_name##_t fptr);             \
+cb_name##_t * qpp_##cb_name##_cb[QPP_MAX_CB];               \
+int qpp_##cb_name##_num_cb;                                 \
+} \
+void qpp_add_cb_##cb_name(cb_name##_t fptr)                 \
+{                                                           \
+  assert(qpp_##cb_name##_num_cb < QPP_MAX_CB);              \
+  qpp_##cb_name##_cb[qpp_##cb_name##_num_cb] = fptr;        \
+  qpp_##cb_name##_num_cb += 1;                              \
+}                                                           \
+                                                            \
+int qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
+{                                                           \
+  fprintf(stderr, "Trying to remove something\n"); \
+  int i = 0;                                                \
+  bool found = 0;                                       \
+  for (; i < MIN(QPP_MAX_CB, qpp_##cb_name##_num_cb); i++) {\
+    if (!found && fptr == qpp_##cb_name##_cb[i]) {          \
+        found = 1;                                       \
+        qpp_##cb_name##_num_cb--;                           \
+    }                                                       \
+    if (found && i < QPP_MAX_CB - 2) {                      \
+        qpp_##cb_name##_cb[i] = qpp_##cb_name##_cb[i + 1];  \
+    }                                                       \
+  }                                                         \
+  return found;                                             \
+}
+#else
 #define QPP_CREATE_CB(cb_name)                              \
 void qpp_add_cb_##cb_name(cb_name##_t fptr);                \
 int qpp_remove_cb_##cb_name(cb_name##_t fptr);             \
@@ -86,6 +119,7 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
   }                                                         \
   return found;                                             \
 }
+#endif
 
 
 /*
