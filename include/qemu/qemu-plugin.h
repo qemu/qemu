@@ -383,9 +383,9 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
  * @buf: Buffer to copy guest memory into
  * @length: Size of buf
  *
- * Returns: True if the memory was successfully copied into buf
+ * Returns: -1 on failure
  */
-bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length);
+int qemu_plugin_read_guest_virt_mem(uint64_t gva, void* buf, size_t length);
 
 /**
  * Translates guest virtual addres to a guest physical address.

@@ -223,24 +223,6 @@ uint64_t qemu_plugin_get_pc(void) {
     return (uint64_t)pc;
 }
 
-bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length) {
-#ifdef CONFIG_USER_ONLY
-  return false;
-#else
-    // Convert virtual address to physical, then read it
-    CPUState *cpu = current_cpu;
-    uint64_t page = gva & TARGET_PAGE_MASK;
-    hwaddr gpa = cpu_get_phys_page_debug(cpu, page);
-    if (gpa == (hwaddr)-1) {
-        return false;
-    }
-
-    gpa += (gva & ~TARGET_PAGE_MASK);
-    cpu_physical_memory_rw(gpa, buf, length, false);
-    return true;
-#endif
-}
-
 int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error) {
     // Should we directly use gdbsub.c's gdb_read_register?
     CPUState *cpu = current_cpu;
@@ -293,6 +275,14 @@ inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
     phys_addr += (addr & ~TARGET_PAGE_MASK);
     return phys_addr;
 }
+
+int qemu_plugin_read_guest_virt_mem(uint64_t gva, void* buf, size_t length) {
+#ifdef CONFIG_USER_ONLY
+  return -1;
+#endif
+    return cpu_memory_rw_debug(current_cpu, gva, buf, length, 0);
+}
+
 
 void *qemu_plugin_virt_to_host(uint64_t addr, int len)
 {

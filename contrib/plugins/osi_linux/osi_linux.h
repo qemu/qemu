@@ -74,11 +74,12 @@ typedef enum : int8_t {
 template <typename T>
 struct_get_ret_t struct_get(T *v, target_ptr_t ptr, off_t offset) {
     if (ptr == (target_ptr_t)NULL) {
+        printf("WARNING: struct get of NULLPTR\n");
         memset((uint8_t *)v, 0, sizeof(T));
         return struct_get_ret_t::ERROR_DEREF;
     }
 
-    switch(panda_virtual_memory_rw(ptr+offset, (uint8_t *)v, sizeof(T), 0)) {
+    switch(panda_virtual_memory_rw(ptr+offset, (void *)v, sizeof(T), 0)) {
         case -1:
             memset((uint8_t *)v, 0, sizeof(T));
             return struct_get_ret_t::ERROR_MEMORY;
@@ -104,24 +105,20 @@ struct_get_ret_t struct_get(T *v, target_ptr_t ptr, std::initializer_list<off_t>
     while (true) {
         it++;
         if (it == offsets.end()) break;
-        //printf("\tDereferenced 0x%x (offset 0x%lx) to get ", ptr, o);
         auto r = struct_get(&ptr, ptr, o);
         if (r != struct_get_ret_t::SUCCESS) {
-            //printf("ERROR\n");
             memset((uint8_t *)v, 0, sizeof(T));
             return r;
         }
         o = *it;
         // We just read a pointer so we may need to fix its endianness
         if (sizeof(T) == 4) fixupendian(ptr); // XXX wrong for 64-bit guests
-        //printf("0x%x\n", ptr);
     }
 
     // last item is read using the size of the type of v
     // this isn't a pointer so there's no need to fix its endianness
     auto ret = struct_get(v, ptr, o); // deref ptr into v, result in ret
     fixupendian(*v);
-    //printf("Struct_get final 0x%x => 0x%x\n", ptr, *v);
     return ret;
 }
 #endif
@@ -137,7 +134,7 @@ struct_get_ret_t struct_get(T *v, target_ptr_t ptr, std::initializer_list<off_t>
 #define IMPLEMENT_OFFSET_GET(_name, _paramName, _retType, _offset, _errorRetValue) \
 static inline _retType _name(target_ptr_t _paramName) { \
     _retType _t; \
-    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, &_t, sizeof(_retType), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t)); \
@@ -158,7 +155,7 @@ static inline _retType _name(target_ptr_t _paramName) { \
     _retType _t; \
     if (_offset == NULL)\
         return 0; \
-    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, &_t, sizeof(_retType), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t)); \
@@ -179,10 +176,10 @@ static inline _retType _name(target_ptr_t _paramName) { \
 static inline _retType2 _name(target_ptr_t _paramName) { \
     _retType1 _t1; \
     _retType2 _t2; \
-    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, (uint8_t *)&_t1, sizeof(_retType1), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, &_t1, sizeof(_retType1), 0)) { \
         return (_errorRetValue); \
     } \
-    if (-1 == panda_virtual_memory_rw(flipbadendian(_t1) + _offset2, (uint8_t *)&_t2, sizeof(_retType2), 0)) { \
+    if (-1 == panda_virtual_memory_rw(flipbadendian(_t1) + _offset2, &_t2, sizeof(_retType2), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t2)); \
@@ -206,7 +203,7 @@ static inline int _funcName(target_ptr_t _paramName, _retType* _retName) { \
     size_t ret_size = ((_retSize) == OG_AUTOSIZE) ? sizeof(_retType) : (_retSize); \
     OG_printf(#_funcName ":1:" TARGET_PTR_FMT ":%d\n", _paramName, _offset); \
     OG_printf(#_funcName ":2:" TARGET_PTR_FMT ":%zu\n", _paramName + _offset, ret_size); \
-    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)_retName, ret_size, 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, _retName, ret_size, 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":3:ok\n"); \
@@ -225,7 +222,7 @@ static inline int _funcName(target_ptr_t _paramName, _retType* _retName) { \
     size_t ret_size = ((_retSize) == OG_AUTOSIZE) ? sizeof(_retType) : (_retSize); \
     OG_printf(#_funcName ":1:" TARGET_PTR_FMT ":%d\n", _paramName, _offset1); \
     OG_printf(#_funcName ":2:" TARGET_PTR_FMT ":%zu\n", _paramName + _offset1, sizeof(target_ptr_t)); \
-    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, (uint8_t *)&_p1, sizeof(target_ptr_t), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, &_p1, sizeof(target_ptr_t), 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":3:" TARGET_PTR_FMT ":%d\n", _p1, _offset2); \
@@ -233,7 +230,7 @@ static inline int _funcName(target_ptr_t _paramName, _retType* _retName) { \
         return OG_ERROR_DEREF; \
     } \
     OG_printf(#_funcName ":4:" TARGET_PTR_FMT ":%zu\n", _p1 + _offset2, ret_size); \
-    if (-1 == panda_virtual_memory_rw(_p1 + _offset2, (uint8_t *)_retName, ret_size, 0)) { \
+    if (-1 == panda_virtual_memory_rw(_p1 + _offset2, _retName, ret_size, 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":5:ok\n"); \
@@ -399,7 +396,7 @@ static inline target_ptr_t get_fd_file(target_ptr_t fd_file_array, int n) {
     fd_file_ptr = fd_file_array+n*sizeof(target_ptr_t);
 
     // Read address of the file struct.
-    if (-1 == panda_virtual_memory_rw(fd_file_ptr, (uint8_t *)&fd_file, sizeof(target_ptr_t), 0)) {
+    if (-1 == panda_virtual_memory_rw(fd_file_ptr, &fd_file, sizeof(target_ptr_t), 0)) {
         return (target_ptr_t)NULL;
     }
     fixupendian(fd_file_ptr);
@@ -481,7 +478,7 @@ static inline char *read_dentry_name(target_ptr_t dentry) {
 
         target_ptr_t guest_addr = *(target_ptr_t *)(d_name + ki.qstr.name_offset);
         fixupendian(guest_addr);
-        og_err1 = panda_virtual_memory_rw(guest_addr, (uint8_t *)pcomp, pcomp_length*sizeof(char), 0);
+        og_err1 = panda_virtual_memory_rw(guest_addr, (void *)pcomp, pcomp_length*sizeof(char), 0);
 
     // I think this aims to be a re-implementation of the Linux kernel function
     // __dentry_path but the logic seems pretty different.
@@ -626,7 +623,7 @@ static inline char *read_vfsmount_name(target_ptr_t vfsmount) {
 static inline char *get_name(target_ptr_t task_struct, char *name) {
     if (name == NULL) { name = (char *)g_malloc0(ki.task.comm_size * sizeof(char)); }
     else { name = (char *)g_realloc(name, ki.task.comm_size * sizeof(char)); }
-    if (-1 == panda_virtual_memory_rw(task_struct + ki.task.comm_offset, (uint8_t *)name, ki.task.comm_size * sizeof(char), 0)) {
+    if (-1 == panda_virtual_memory_rw(task_struct + ki.task.comm_offset, (void *)name, ki.task.comm_size * sizeof(char), 0)) {
         strncpy(name, "N/A", ki.task.comm_size*sizeof(char));
     }
     return name;

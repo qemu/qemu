@@ -6,18 +6,18 @@
 #include "osi_linux/osi_types.h"
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
-
+ 
 void log_syscall(uint64_t pc, uint64_t callno);
 
 void log_syscall(uint64_t pc, uint64_t callno)
 {
   g_autoptr(GString) report = g_string_new(CURRENT_PLUGIN ": Syscall at ");
-
-  const OsiProcHandle *h = osi_get_current_process_handle();
-  OsiProc *p = osi_get_process(h);
-
-  g_string_append_printf(report, ": %lx: %ld. Proc '%s', pid %d, ppid %d, asid %lx\n", pc, callno, p->name, p->pid, p->ppid, p->asid);
-  qemu_plugin_outs(report->str);
+  g_string_append_printf(report, "pc %lx: number %ld.", pc, callno);
+  OsiProc *p = osi_get_current_process();
+  if (p != NULL) {
+    g_string_append_printf(report, ": %lx: %ld. Process '%s', pid %d, ppid %d, asid %lx\n", pc, callno, p->name, p->pid, p->ppid, p->asid);
+    qemu_plugin_outs(report->str);
+  }
 }
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,

@@ -5,7 +5,7 @@
 /**
  * @brief Retrieves the task_struct address using per cpu information.
  */
-target_ptr_t default_get_current_task_struct()
+target_ptr_t default_get_current_task_struct(void)
 {
     struct_get_ret_t err;
     target_ptr_t current_task_addr;
@@ -17,6 +17,7 @@ target_ptr_t default_get_current_task_struct()
       // Callers need to check if we return NULL!
       return 0;
     }
+
     fixupendian(ts);
     return ts;
 }

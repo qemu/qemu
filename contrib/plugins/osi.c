@@ -6,8 +6,15 @@
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
+QPP_CREATE_CB(on_get_current_process);
 QPP_CREATE_CB(on_get_process);
 QPP_CREATE_CB(on_get_current_process_handle);
+
+OsiProc *get_current_process(void) {
+    OsiProc *p = NULL;
+    QPP_RUN_CB(on_get_current_process, &p);
+    return p;
+}
 
 QEMU_PLUGIN_EXPORT OsiProc *get_process(const OsiProcHandle *h) {
     OsiProc *p = NULL;

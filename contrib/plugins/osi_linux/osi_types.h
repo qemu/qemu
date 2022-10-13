@@ -31,10 +31,9 @@ extern "C" {
 typedef void CPUState;
 typedef uint64_t target_ulong; // This is iffy?
 // Stupid panda shim
-static int panda_virtual_memory_rw(target_ulong addr,
-                                          uint8_t *buf, int len, bool is_write) {
- assert(is_write == 0);
- return qemu_plugin_read_guest_virt_mem((uint64_t)addr, (char*)buf, len);
+static int panda_virtual_memory_rw(uint64_t gva, void* buf, size_t length, bool is_write) {
+  assert(is_write == 0); // Not yet implemented
+  return qemu_plugin_read_guest_virt_mem(gva, buf, length);
 }
 
 

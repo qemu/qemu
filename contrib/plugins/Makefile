@@ -55,13 +55,13 @@ stringsearch.o: stringsearch.cpp
 libosi_linux.so: osi_linux.o default_profile.o kernelinfo_read.o
 	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)
 
-osi_linux.o: osi_linux/osi_linux.cpp
+osi_linux.o: osi_linux/osi_linux.cpp osi_linux/osi_linux.h  osi_linux/osi_types.h 
 	$(CC) $(CPPFLAGS) -DCURRENT_PLUGIN=\"osi_linux\" -c -o $@ $<
 
-default_profile.o: osi_linux/default_profile.cpp
+default_profile.o: osi_linux/default_profile.cpp  osi_linux/osi_linux.h  osi_linux/osi_types.h 
 	$(CC) $(CPPFLAGS) -DCURRENT_PLUGIN=\"osi_linux\" -c -o $@ $<
 
-kernelinfo_read.o: osi_linux/utils/kernelinfo/kernelinfo_read.c osi_linux/utils/kernelinfo/kernelinfo.h
+kernelinfo_read.o: osi_linux/utils/kernelinfo/kernelinfo_read.c osi_linux/utils/kernelinfo/kernelinfo.h  osi_linux/osi_linux.h  osi_linux/osi_types.h 
 	$(CC) $(CPPFLAGS) -DCURRENT_PLUGIN=\"osi_linux\" -c -o $@ $<
 
 %.o: %.c
