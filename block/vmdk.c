@@ -1403,13 +1403,13 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
  * [@skip_start_sector, @skip_end_sector) is not copied or written, and leave
  * it for call to write user data in the request.
  */
-static int get_whole_cluster(BlockDriverState *bs,
-                             VmdkExtent *extent,
-                             uint64_t cluster_offset,
-                             uint64_t offset,
-                             uint64_t skip_start_bytes,
-                             uint64_t skip_end_bytes,
-                             bool zeroed)
+static int coroutine_fn get_whole_cluster(BlockDriverState *bs,
+                                          VmdkExtent *extent,
+                                          uint64_t cluster_offset,
+                                          uint64_t offset,
+                                          uint64_t skip_start_bytes,
+                                          uint64_t skip_end_bytes,
+                                          bool zeroed)
 {
     int ret = VMDK_OK;
     int64_t cluster_bytes;
@@ -1484,8 +1484,8 @@ exit:
     return ret;
 }
 
-static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
-                         uint32_t offset)
+static int coroutine_fn vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
+                                      uint32_t offset)
 {
     offset = cpu_to_le32(offset);
     /* update L2 table */
@@ -1536,14 +1536,14 @@ static int vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
  *          VMDK_UNALLOC if cluster is not mapped and @allocate is false.
  *          VMDK_ERROR if failed.
  */
-static int get_cluster_offset(BlockDriverState *bs,
-                              VmdkExtent *extent,
-                              VmdkMetaData *m_data,
-                              uint64_t offset,
-                              bool allocate,
-                              uint64_t *cluster_offset,
-                              uint64_t skip_start_bytes,
-                              uint64_t skip_end_bytes)
+static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
+                                           VmdkExtent *extent,
+                                           VmdkMetaData *m_data,
+                                           uint64_t offset,
+                                           bool allocate,
+                                           uint64_t *cluster_offset,
+                                           uint64_t skip_start_bytes,
+                                           uint64_t skip_end_bytes)
 {
     unsigned int l1_index, l2_offset, l2_index;
     int min_index, i, j;
