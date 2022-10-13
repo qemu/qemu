@@ -563,6 +563,7 @@ void helper_itrigger_match(CPURISCVState *env)
         }
         itrigger_set_count(env, i, count--);
         if (!count) {
+            env->itrigger_enabled = riscv_itrigger_enabled(env);
             do_trigger_action(env, i);
         }
     }
@@ -660,6 +661,8 @@ static void itrigger_reg_write(CPURISCVState *env, target_ulong index,
                 /* set the count to timer */
                 timer_mod(env->itrigger_timer[index],
                           env->last_icount + itrigger_get_count(env, index));
+            } else {
+                env->itrigger_enabled = riscv_itrigger_enabled(env);
             }
         }
         break;

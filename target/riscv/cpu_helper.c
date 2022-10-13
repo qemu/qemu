@@ -106,8 +106,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
                            get_field(env->mstatus_hs, MSTATUS_VS));
     }
     if (riscv_feature(env, RISCV_FEATURE_DEBUG) && !icount_enabled()) {
-        flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER,
-                           riscv_itrigger_enabled(env));
+        flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER, env->itrigger_enabled);
     }
 #endif
 

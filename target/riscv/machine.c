@@ -21,6 +21,8 @@
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "migration/cpu.h"
+#include "sysemu/cpu-timers.h"
+#include "debug.h"
 
 static bool pmp_needed(void *opaque)
 {
@@ -229,11 +231,24 @@ static bool debug_needed(void *opaque)
     return riscv_feature(env, RISCV_FEATURE_DEBUG);
 }
 
+static int debug_post_load(void *opaque, int version_id)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    if (icount_enabled()) {
+        env->itrigger_enabled = riscv_itrigger_enabled(env);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_debug = {
     .name = "cpu/debug",
     .version_id = 2,
     .minimum_version_id = 2,
     .needed = debug_needed,
+    .post_load = debug_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL(env.trigger_cur, RISCVCPU),
         VMSTATE_UINTTL_ARRAY(env.tdata1, RISCVCPU, RV_MAX_TRIGGERS),
