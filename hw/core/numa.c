@@ -857,8 +857,9 @@ void ram_block_notifier_remove(RAMBlockNotifier *n)
 void ram_block_notify_add(void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_added) {
             notifier->ram_block_added(notifier, host, size, max_size);
         }
@@ -868,8 +869,9 @@ void ram_block_notify_add(void *host, size_t size, size_t max_size)
 void ram_block_notify_remove(void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_removed) {
             notifier->ram_block_removed(notifier, host, size, max_size);
         }
@@ -879,8 +881,9 @@ void ram_block_notify_remove(void *host, size_t size, size_t max_size)
 void ram_block_notify_resize(void *host, size_t old_size, size_t new_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_resized) {
             notifier->ram_block_resized(notifier, host, old_size, new_size);
         }
