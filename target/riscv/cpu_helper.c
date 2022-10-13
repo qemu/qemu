@@ -676,6 +676,9 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
     if (newpriv == PRV_H) {
         newpriv = PRV_U;
     }
+    if (icount_enabled() && newpriv != env->priv) {
+        riscv_itrigger_update_priv(env);
+    }
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
     env->xl = cpu_recompute_xl(env);

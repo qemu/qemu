@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "sysemu/cpu-timers.h"
 
 /*
  * The following M-mode trigger CSRs are implemented:
@@ -567,6 +568,62 @@ void helper_itrigger_match(CPURISCVState *env)
     }
 }
 
+static void riscv_itrigger_update_count(CPURISCVState *env)
+{
+    int count, executed;
+    /*
+     * Record last icount, so that we can evaluate the executed instructions
+     * since last priviledge mode change or timer expire.
+     */
+    int64_t last_icount = env->last_icount, current_icount;
+    current_icount = env->last_icount = icount_get_raw();
+
+    for (int i = 0; i < RV_MAX_TRIGGERS; i++) {
+        if (get_trigger_type(env, i) != TRIGGER_TYPE_INST_CNT) {
+            continue;
+        }
+        count = itrigger_get_count(env, i);
+        if (!count) {
+            continue;
+        }
+        /*
+         * Only when priviledge is changed or itrigger timer expires,
+         * the count field in itrigger tdata1 register is updated.
+         * And the count field in itrigger only contains remaining value.
+         */
+        if (check_itrigger_priv(env, i)) {
+            /*
+             * If itrigger enabled in this priviledge mode, the number of
+             * executed instructions since last priviledge change
+             * should be reduced from current itrigger count.
+             */
+            executed = current_icount - last_icount;
+            itrigger_set_count(env, i, count - executed);
+            if (count == executed) {
+                do_trigger_action(env, i);
+            }
+        } else {
+            /*
+             * If itrigger is not enabled in this priviledge mode,
+             * the number of executed instructions will be discard and
+             * the count field in itrigger will not change.
+             */
+            timer_mod(env->itrigger_timer[i],
+                      current_icount + count);
+        }
+    }
+}
+
+static void riscv_itrigger_timer_cb(void *opaque)
+{
+    riscv_itrigger_update_count((CPURISCVState *)opaque);
+}
+
+void riscv_itrigger_update_priv(CPURISCVState *env)
+{
+    riscv_itrigger_update_count(env);
+}
+
 target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
 {
     switch (tdata_index) {
@@ -796,5 +853,7 @@ void riscv_trigger_init(CPURISCVState *env)
         env->tdata3[i] = 0;
         env->cpu_breakpoint[i] = NULL;
         env->cpu_watchpoint[i] = NULL;
+        env->itrigger_timer[i] = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                              riscv_itrigger_timer_cb, env);
     }
 }
