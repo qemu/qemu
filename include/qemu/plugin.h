@@ -27,6 +27,7 @@ enum qemu_plugin_event {
     QEMU_PLUGIN_EV_VCPU_SYSCALL_RET,
     QEMU_PLUGIN_EV_FLUSH,
     QEMU_PLUGIN_EV_ATEXIT,
+    QEMU_PLUGIN_EV_LOADVM,
     QEMU_PLUGIN_EV_MAX, /* total number of plugin events we support */
 };
 
@@ -196,6 +197,7 @@ void qemu_plugin_vcpu_init_hook(CPUState *cpu);
 void qemu_plugin_vcpu_exit_hook(CPUState *cpu);
 void qemu_plugin_tb_trans_cb(CPUState *cpu, struct qemu_plugin_tb *tb);
 void qemu_plugin_vcpu_idle_cb(CPUState *cpu);
+void qemu_plugin_vcpu_loadvm(CPUState *cpu);
 void qemu_plugin_vcpu_resume_cb(CPUState *cpu);
 void
 qemu_plugin_vcpu_syscall(CPUState *cpu, int64_t num, uint64_t a1,
@@ -269,6 +271,9 @@ static inline void qemu_plugin_tb_trans_cb(CPUState *cpu,
 { }
 
 static inline void qemu_plugin_vcpu_idle_cb(CPUState *cpu)
+{ }
+
+static inline void qemu_plugin_loadvm(CPUState *cpu)
 { }
 
 static inline void qemu_plugin_vcpu_resume_cb(CPUState *cpu)

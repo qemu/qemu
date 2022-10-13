@@ -62,6 +62,10 @@ static int cpu_common_post_load(void *opaque, int version_id)
      */
     tb_flush(cpu);
 
+    if (tcg_enabled()) {
+      tcg_exec_post_load(cpu);
+    }
+
     return 0;
 }
 

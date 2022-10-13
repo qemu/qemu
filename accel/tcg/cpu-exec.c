@@ -1039,6 +1039,11 @@ int cpu_exec(CPUState *cpu)
     return ret;
 }
 
+void tcg_exec_post_load(CPUState *cpu)
+{
+    qemu_plugin_vcpu_loadvm(cpu);
+}
+
 void tcg_exec_realizefn(CPUState *cpu, Error **errp)
 {
     static bool tcg_target_initialized;

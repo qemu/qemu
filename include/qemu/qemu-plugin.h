@@ -206,6 +206,17 @@ void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb);
 
+/**
+ * qemu_plugin_register_vcpu_loadvm_cb() - register a callback on loadvm
+ * @id: plugin ID
+ * @cb: callback function
+ *
+ * The @cb function is called every time a new virtual machine state is loaded
+ */
+void qemu_plugin_register_vcpu_loadvm_cb(qemu_plugin_id_t id,
+                                         qemu_plugin_vcpu_simple_cb_t cb);
+
+
 /** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;
 /** struct qemu_plugin_insn - Opaque handle for a translated instruction */
