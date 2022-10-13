@@ -387,7 +387,7 @@ static int coroutine_fn bdrv_qed_do_open(BlockDriverState *bs, QDict *options,
     int64_t file_size;
     int ret;
 
-    ret = bdrv_pread(bs->file, 0, sizeof(le_header), &le_header, 0);
+    ret = bdrv_co_pread(bs->file, 0, sizeof(le_header), &le_header, 0);
     if (ret < 0) {
         error_setg(errp, "Failed to read QED header");
         return ret;
@@ -492,7 +492,7 @@ static int coroutine_fn bdrv_qed_do_open(BlockDriverState *bs, QDict *options,
         }
 
         /* From here on only known autoclear feature bits are valid */
-        bdrv_flush(bs->file->bs);
+        bdrv_co_flush(bs->file->bs);
     }
 
     s->l1_table = qed_alloc_table(s);
@@ -693,7 +693,7 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
      * The QED format associates file length with allocation status,
      * so a new file (which is empty) must have a length of 0.
      */
-    ret = blk_truncate(blk, 0, true, PREALLOC_MODE_OFF, 0, errp);
+    ret = blk_co_truncate(blk, 0, true, PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         goto out;
     }
@@ -712,18 +712,18 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
     }
 
     qed_header_cpu_to_le(&header, &le_header);
-    ret = blk_pwrite(blk, 0, sizeof(le_header), &le_header, 0);
+    ret = blk_co_pwrite(blk, 0, sizeof(le_header), &le_header, 0);
     if (ret < 0) {
         goto out;
     }
-    ret = blk_pwrite(blk, sizeof(le_header), header.backing_filename_size,
+    ret = blk_co_pwrite(blk, sizeof(le_header), header.backing_filename_size,
                      qed_opts->backing_file, 0);
     if (ret < 0) {
         goto out;
     }
 
     l1_table = g_malloc0(l1_size);
-    ret = blk_pwrite(blk, header.l1_table_offset, l1_size, l1_table, 0);
+    ret = blk_co_pwrite(blk, header.l1_table_offset, l1_size, l1_table, 0);
     if (ret < 0) {
         goto out;
     }
