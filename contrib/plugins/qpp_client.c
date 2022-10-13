@@ -20,6 +20,8 @@ void my_on_exit(int x, bool b)
 
   g_string_printf(report, "Client: calls qpp_srv's do_sub(1): %d\n",
                            qpp_srv_do_sub(1));
+
+  QPP_REMOVE_CB("qpp_srv", on_exit, my_on_exit);
   qemu_plugin_outs(report->str);
 }
 

@@ -42,8 +42,6 @@ extern "C" {
 //Intentional changes for QEMU
 typedef void CPUState;
 typedef uint64_t target_ulong; // This is iffy?
-static int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
-                                          uint8_t *buf, int len, bool is_write);
 
 #define LOG_INFO printf
 #define LOG_ERROR printf
@@ -65,8 +63,8 @@ typedef enum : int8_t {
     SUCCESS = 0
 } struct_get_ret_t;
 
-// TODO PANDA SHIM
-static inline int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
+// Stupid panda shim
+static int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
                                           uint8_t *buf, int len, bool is_write) {
  assert(is_write == 0);
  return qemu_plugin_read_guest_virt_mem((uint64_t)addr, (char*)buf, len);

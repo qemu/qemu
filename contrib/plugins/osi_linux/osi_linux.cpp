@@ -9,12 +9,16 @@
 #include <unordered_set>
 #include <plugin-qpp.h>
 
+// Other plugins
 #include "../syscalls.h"
+//#include "../osi.h"
 
+// Internal headers
 #include "osi_types.h"
 #include "osi_linux.h"
 #include "osi_linux_int_fns.h"
 #include "default_profile.h"
+
 extern "C" {
 #include <qemu-plugin.h>
 }
@@ -22,15 +26,18 @@ extern "C" {
 
 void on_first_syscall(uint64_t pc, uint64_t callno);
 
-void on_get_processes(CPUState *env, GArray **out);
-void on_get_process_handles(CPUState *env, GArray **out);
+// Using these
+void osil_on_get_process(const OsiProcHandle *, OsiProc **);
+void osil_on_get_process_handles(GArray **out);
+
+// Not these
+void osil_on_get_processes(GArray **out);
 void on_get_current_process(CPUState *env, OsiProc **out_p);
 void on_get_current_process_handle(CPUState *env, OsiProcHandle **out_p);
-void on_get_process(CPUState *, const OsiProcHandle *, OsiProc **);
 void on_get_mappings(CPUState *env, OsiProc *p, GArray **out);
 void on_get_current_thread(CPUState *env, OsiThread *t);
 
-void init_per_cpu_offsets(CPUState *cpu);
+void init_per_cpu_offsets();
 struct kernelinfo ki;
 struct KernelProfile const *kernel_profile;
 
@@ -249,7 +256,7 @@ inline bool can_read_current() {
  * Returns true if introspection is available.
  *
  * If introspection is unavailable at the first check, this will register a PPP-style
- * callback with syscalls2 to try reinitializing at the first syscall.
+ * callback with syscalls to try reinitializing at the first syscall.
  *
  * If that fails, then we raise an assertion because OSI has really failed.
  */
@@ -259,29 +266,21 @@ bool osi_guest_is_ready(CPUState *cpu, void** ret) {
       return true;      // or, if it isn't, the user wants an assertion error
     }
 
-
+    printf("Is guest ready\n");
     // If it's the very first time, try reading current, if we can't
     // wait until first sycall and try again
     if (first_osi_check) {
-        #ifdef TARGET_MIPS
-        if (!get_id(cpu)){
-            // If we're on MIPS, we need to wait until r28 is set before
-            // moving to a syscall strategy
-            if (!id_is_initialized()){
-                ret = NULL;
-                return false;
-            }
-        }
-        #endif
+        // not MIPS
         first_osi_check = false;
 
-        init_per_cpu_offsets(cpu); // Formerly in _machine_init callback, but now it will work with loading OSI after init and snapshots
+        init_per_cpu_offsets(); // Formerly in _machine_init callback, but now it will work with loading OSI after init and snapshots
 
         // Try to load current, if it works, return true
         if (can_read_current()) {
+            printf("IS READY\n");
             // Disable on_first_syscall PPP callback because we're all set
-            QPP_REMOVE_CB("syscalls2", on_all_sys_enter, on_first_syscall); // XXX may be disabled?
-            LOG_INFO(CURRENT_PLUGIN " initialization complete.");
+            QPP_REMOVE_CB("syscalls", on_all_sys_enter, on_first_syscall); // XXX may be disabled?
+            LOG_INFO(CURRENT_PLUGIN " initialization complete.\n");
             osi_initialized=true;
             return true;
         }
@@ -289,9 +288,9 @@ bool osi_guest_is_ready(CPUState *cpu, void** ret) {
         // We can't read the current task right now. This isn't a surprise,
         // it could be happening because we're in boot.
         // Wait until on_first_syscall runs, everything should work then
-        LOG_INFO(CURRENT_PLUGIN " cannot find current task struct. Deferring OSI initialization until first syscall.");
+        LOG_INFO(CURRENT_PLUGIN " cannot find current task struct. Deferring OSI initialization until first syscall.\n");
 
-        QPP_REG_CB("syscalls2", on_all_sys_enter, on_first_syscall);
+        QPP_REG_CB("syscalls", on_all_sys_enter, on_first_syscall);
     }
     // Not yet initialized, just set the caller's result buffer to NULL
     ret = NULL;
@@ -306,20 +305,20 @@ bool osi_guest_is_ready(CPUState *cpu, void** ret) {
  * @brief PPP callback to retrieve process list from the running OS.
  *
  */
-void on_get_processes(CPUState *env, GArray **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void osil_on_get_processes(GArray **out) {
+    if (!osi_guest_is_ready(NULL, (void**)out)) return;
     // instantiate and call function from get_process_info template
-    get_process_info<>(env, out, fill_osiproc, free_osiproc_contents);
+    get_process_info<>(NULL, out, fill_osiproc, free_osiproc_contents);
 }
 
 /**
  * @brief PPP callback to retrieve process handles from the running OS.
  */
-void on_get_process_handles(CPUState *env, GArray **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void osil_on_get_process_handles(GArray **out) {
+    if (!osi_guest_is_ready(NULL, (void**)out)) return;
 
     // instantiate and call function from get_process_info template
-    get_process_info<>(env, out, fill_osiprochandle, free_osiprochandle_contents);
+    get_process_info<>(NULL, out, fill_osiprochandle, free_osiprochandle_contents);
 }
 
 /**
@@ -374,14 +373,14 @@ void on_get_current_process(CPUState *env, OsiProc **out) {
 /**
  * @brief PPP callback to the handle of the currently running process.
  */
-void on_get_current_process_handle(CPUState *env, OsiProcHandle **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void osil_on_get_current_process_handle(OsiProcHandle **out) {
+    if (!osi_guest_is_ready(NULL, (void**)out)) return;
 
     OsiProcHandle *p = NULL;
-    target_ptr_t ts = kernel_profile->get_current_task_struct(env);
+    target_ptr_t ts = kernel_profile->get_current_task_struct(NULL);
     if (ts) {
         p = (OsiProcHandle *)g_malloc(sizeof(OsiProcHandle));
-        fill_osiprochandle(env, p, ts);
+        fill_osiprochandle(NULL, p, ts);
     }
     *out = p;
 }
@@ -390,13 +389,13 @@ void on_get_current_process_handle(CPUState *env, OsiProcHandle **out) {
  * @brief PPP callback to retrieve info about a running process using its
  * handle.
  */
-void on_get_process(CPUState *env, const OsiProcHandle *h, OsiProc **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void osil_on_get_process(const OsiProcHandle *h, OsiProc **out) {
+    if (!osi_guest_is_ready(NULL, (void**)out)) return;
 
     OsiProc *p = NULL;
     if (h != NULL && h->taskd != (target_ptr_t)NULL) {
         p = (OsiProc *)g_malloc(sizeof(OsiProc));
-        fill_osiproc(env, p, h->taskd);
+        fill_osiproc(NULL, p, h->taskd);
     }
     *out = p;
 }
@@ -576,7 +575,7 @@ int osi_linux_test(CPUState *env, target_ulong oldval, target_ulong newval) {
     static uint32_t asid_change_count = 0;
     GArray *ps = NULL;
 
-    on_get_processes(env, &ps);
+    osil_on_get_processes(env, &ps);
     assert(ps != NULL && ps->len > 0 && "no processes retrieved");
 
 #if PANDA_LOG_LEVEL >= PANDA_LOG_INFO
@@ -631,7 +630,7 @@ int osi_linux_test(CPUState *env, target_ulong oldval, target_ulong newval) {
  * Currently the only per-cpu offset we use in osi_linux is
  * ki.task.per_cpu_offset_0_addr.
  */
-void init_per_cpu_offsets(CPUState *cpu) {
+void init_per_cpu_offsets() {
     // old kernel - no per-cpu offsets to update
     if (PROFILE_KVER_LE(ki, 2, 4, 254)) {
         return;
@@ -646,7 +645,7 @@ void init_per_cpu_offsets(CPUState *cpu) {
 
     // skip update because of failure to read from per_cpu_offsets_addr
     target_ptr_t per_cpu_offset_0_addr;
-    auto r = struct_get(cpu, &per_cpu_offset_0_addr, ki.task.per_cpu_offsets_addr,
+    auto r = struct_get(NULL, &per_cpu_offset_0_addr, ki.task.per_cpu_offsets_addr,
                         0*sizeof(target_ptr_t));
     if (r != struct_get_ret_t::SUCCESS) {
         LOG_ERROR("Unable to update value of ki.task.per_cpu_offset_0_addr.");
@@ -656,7 +655,7 @@ void init_per_cpu_offsets(CPUState *cpu) {
 
     ki.task.per_cpu_offset_0_addr = per_cpu_offset_0_addr;
     LOG_INFO("Updated value for ki.task.per_cpu_offset_0_addr: "
-             TARGET_PTR_FMT, (target_ptr_t)ki.task.per_cpu_offset_0_addr);
+             TARGET_PTR_FMT "\n", (target_ptr_t)ki.task.per_cpu_offset_0_addr);
 }
 
 /**
@@ -672,7 +671,7 @@ void restore_after_snapshot(CPUState* cpu) {
     // it runs at the first syscall (and asserts if it fails)
     osi_initialized=false;
     first_osi_check = true;
-    QPP_REG_CB("syscalls2", on_all_sys_enter, on_first_syscall);
+    QPP_REG_CB("syscalls", on_all_sys_enter, on_first_syscall);
 }
 #endif
 
@@ -726,6 +725,31 @@ static void before_tcg_codegen_callback(CPUState *cpu, TranslationBlock *tb)
 }
 #endif
 
+OsiProc *osi_get_process(const OsiProcHandle *h) {
+    OsiProc *p = NULL;
+    //QPP_RUN_CB(on_get_process, h, &p);
+    osil_on_get_process(h, &p);
+    return p;
+}
+
+OsiProcHandle *osi_get_current_process_handle() {
+    OsiProcHandle *h = NULL;
+    //QPP_RUN_CB(on_get_current_process_handle, &h);
+    osil_on_get_current_process_handle(&h);
+    return h;
+}
+
+void log_syscall(uint64_t pc, uint64_t callno)
+{
+  g_autoptr(GString) report = g_string_new(CURRENT_PLUGIN ": Syscall at ");
+
+  const OsiProcHandle *h = osi_get_current_process_handle();
+  OsiProc *p = osi_get_process(h);
+
+  g_string_append_printf(report, "%lx: %ld\n", pc, callno);
+  qemu_plugin_outs(report->str);
+}
+
 extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 /**
@@ -746,16 +770,16 @@ extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         //panda_register_callback(self, PANDA_CB_ASID_CHANGED, pcb);
 #endif
 
-  char kconf_file[] = "kconf";
-  char kconf_group[] = "group";
-  osi_initialized = false;
+    char kconf_file[] = "/home/andrew/git/panda/panda/plugins/osi_linux/kernelinfo.conf";
+    char kconf_group[] = "ubuntu:4.15.0-72-generic:64";
+    osi_initialized = false;
 
     // Load kernel offsets.
     if (read_kernelinfo(kconf_file, kconf_group, &ki) != 0) {
-        LOG_ERROR("Failed to read group %s from %s.", kconf_group, kconf_file);
+        printf("Failed to read group %s from %s.\n", kconf_group, kconf_file);
         goto error;
     }
-    LOG_INFO("Read kernel info from group \"%s\" of file \"%s\".", kconf_group, kconf_file);
+    LOG_INFO("Read kernel info from group \"%s\" of file \"%s\".\n", kconf_group, kconf_file);
 
     if (PROFILE_KVER_LE(ki, 2, 4, 254)) {
         //kernel_profile = &KERNEL24X_PROFILE;
@@ -764,30 +788,31 @@ extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         kernel_profile = &DEFAULT_PROFILE;
     }
 
+    //QPP_REG_CB("osi", on_get_process, osil_on_get_process);
+    //QPP_REG_CB("osi", on_get_current_process_handle, osil_on_get_current_process_handle);
+
+    //QPP_REG_CB("osi", on_get_process_handles, osil_on_get_process_handles);
     /*
-    PPP_REG_CB("osi", on_get_processes, on_get_processes);
-    PPP_REG_CB("osi", on_get_process_handles, on_get_process_handles);
+    QPP_REG_CB("osi", on_get_processes, osil_on_get_processes);
     PPP_REG_CB("osi", on_get_current_process, on_get_current_process);
-    PPP_REG_CB("osi", on_get_current_process_handle, on_get_current_process_handle);
-    PPP_REG_CB("osi", on_get_process, on_get_process);
     PPP_REG_CB("osi", on_get_mappings, on_get_mappings);
     PPP_REG_CB("osi", on_get_current_thread, on_get_current_thread);
     PPP_REG_CB("osi", on_get_process_pid, on_get_process_pid);
     PPP_REG_CB("osi", on_get_process_ppid, on_get_process_ppid);
     */
 
-    // By default, we'll request syscalls2 to load on first syscall
-    //panda_require("syscalls2");
+    // By default, we'll request syscalls to load on first syscall
+    //panda_require("syscalls");
 
     // Setup exec task change notifications.
     /*
-    PPP_REG_CB("syscalls2", on_sys_execve_enter, [](CPUState *cpu,
+    PPP_REG_CB("syscalls", on_sys_execve_enter, [](CPUState *cpu,
         target_ulong pc, target_ulong fnp, target_ulong ap,
         target_ulong envp)
     {
         exec_enter(cpu);
     });
-    PPP_REG_CB("syscalls2", on_sys_execveat_enter, [](CPUState *cpu,
+    PPP_REG_CB("syscalls", on_sys_execveat_enter, [](CPUState *cpu,
         target_ulong pc, int dirfd, target_ulong pathname_ptr, target_ulong ap,
         target_ulong envp, int flags)
     {
@@ -795,10 +820,14 @@ extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     });
     */
 
-    return true;
+    // XXX DEBUGGING
+    //QPP_REG_CB("syscalls", on_all_sys_enter, log_syscall)
+
+    return 0;
 
 error:
-    return false;
+    qemu_plugin_outs("Error loading plugin\n");
+    return 1;
 }
 
 /* vim:set tabstop=4 softtabstop=4 expandtab: */

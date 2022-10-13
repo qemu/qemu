@@ -2,6 +2,8 @@
 #include <qemu-plugin.h>
 #include <plugin-qpp.h>
 #include "syscalls.h"
+#include "osi.h"
+#include "osi_linux/osi_types.h"
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
@@ -10,7 +12,11 @@ void log_syscall(uint64_t pc, uint64_t callno);
 void log_syscall(uint64_t pc, uint64_t callno)
 {
   g_autoptr(GString) report = g_string_new(CURRENT_PLUGIN ": Syscall at ");
-  g_string_append_printf(report, "%lx: %ld\n", pc, callno);
+
+  const OsiProcHandle *h = osi_get_current_process_handle();
+  OsiProc *p = osi_get_process(h);
+
+  g_string_append_printf(report, ": %lx: %ld. Proc '%s', pid %d, ppid %d, asid %lx\n", pc, callno, p->name, p->pid, p->ppid, p->asid);
   qemu_plugin_outs(report->str);
 }
 

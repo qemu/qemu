@@ -26,8 +26,9 @@ NAMES += qpp_client
 NAMES += syscalls
 NAMES += syscalls_logger
 NAMES += sc_file_log
-#NAMES += osi_linux
 NAMES += stringsearch
+NAMES += osi_linux
+NAMES += osi
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
@@ -44,7 +45,6 @@ CPPFLAGS += $(if $(findstring no-psabi,$(QEMU_CFLAGS)),-Wpsabi)
 CPPFLAGS += -idirafter $(SRC_PATH)/include/qemu
 
 all: $(SONAMES)
-
 
 libstringsearch.so: stringsearch.o
 	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)

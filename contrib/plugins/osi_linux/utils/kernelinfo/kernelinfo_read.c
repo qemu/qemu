@@ -60,7 +60,7 @@ struct kernelinfo_errors {
 
 #define OPTIONAL_READ_INFO_X(key_file_get, ki, memb, gerr, errcount, errbmp)\
 	((ki)->memb) = key_file_get(keyfile, group_real, #memb, &gerr);\
-	if (gerr != NULL) { g_error_free(gerr); gerr = NULL; LOG_WARNING("failed to read " #memb); ((ki)->memb) = (uint64_t)NULL;}\
+	if (gerr != NULL) { g_error_free(gerr); gerr = NULL; LOG_WARNING("WARNING failed to read " #memb "\n"); ((ki)->memb) = (uint64_t)NULL;}\
 	memset(&(errbmp)->memb, 0xff, sizeof((errbmp)->memb));
 
 #define OPTIONAL_READ_INFO_INT(ki, memb, gerr, errcount, errbmp)\
@@ -229,7 +229,7 @@ int read_kernelinfo(gchar const *file, gchar const *group, struct kernelinfo *ki
 
 			if (doprint) {
 				/* don't make errors critical - alignment padding bytes are never written */
-				LOG_WARNING("kernelinfo bytes [%td-%td] not read", b-b_first-notread, b-b_first-1);
+				LOG_WARNING("WARNING kernelinfo bytes [%td-%td] not read\n", b-b_first-notread, b-b_first-1);
 				notread = 0;
 				/* rval = -1; */
 			}

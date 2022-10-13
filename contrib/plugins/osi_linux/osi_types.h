@@ -5,6 +5,15 @@
 #pragma once
 #include <gmodule.h>
 #include <stdio.h>
+#include <assert.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <qemu-plugin.h>
+#ifdef __cplusplus
+}
+#endif
 
 /**
  * @brief Wrapper macro for quashing warnings for unused variables.
