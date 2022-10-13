@@ -11,9 +11,13 @@
 #include "qemu/osdep.h"
 #include <blkio.h>
 #include "block/block_int.h"
+#include "exec/memory.h"
+#include "exec/cpu-common.h" /* for qemu_ram_get_fd() */
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/module.h"
+#include "exec/memory.h" /* for ram_block_discard_disable() */
 
 /*
  * Keep the QEMU BlockDriver names identical to the libblkio driver names.
@@ -73,6 +77,12 @@ typedef struct {
 
     /* Can we skip adding/deleting blkio_mem_regions? */
     bool needs_mem_regions;
+
+    /* Are file descriptors necessary for blkio_mem_regions? */
+    bool needs_mem_region_fd;
+
+    /* Are madvise(MADV_DONTNEED)-style operations unavailable? */
+    bool may_pin_mem_regions;
 } BDRVBlkioState;
 
 /* Called with s->bounce_lock held */
@@ -347,7 +357,8 @@ blkio_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
         .coroutine = qemu_coroutine_self(),
     };
     BDRVBlkioState *s = bs->opaque;
-    bool use_bounce_buffer = s->needs_mem_regions;
+    bool use_bounce_buffer =
+        s->needs_mem_regions && !(flags & BDRV_REQ_REGISTERED_BUF);
     BlkioBounceBuf bounce;
     struct iovec *iov = qiov->iov;
     int iovcnt = qiov->niov;
@@ -390,7 +401,8 @@ static int coroutine_fn blkio_co_pwritev(BlockDriverState *bs, int64_t offset,
         .coroutine = qemu_coroutine_self(),
     };
     BDRVBlkioState *s = bs->opaque;
-    bool use_bounce_buffer = s->needs_mem_regions;
+    bool use_bounce_buffer =
+        s->needs_mem_regions && !(flags & BDRV_REQ_REGISTERED_BUF);
     BlkioBounceBuf bounce;
     struct iovec *iov = qiov->iov;
     int iovcnt = qiov->niov;
@@ -470,6 +482,130 @@ static void blkio_io_unplug(BlockDriverState *bs)
 
     WITH_QEMU_LOCK_GUARD(&s->blkio_lock) {
         blkio_submit_io(bs);
+    }
+}
+
+typedef enum {
+    BMRR_OK,
+    BMRR_SKIP,
+    BMRR_FAIL,
+} BlkioMemRegionResult;
+
+/*
+ * Produce a struct blkio_mem_region for a given address and size.
+ *
+ * This function produces identical results when called multiple times with the
+ * same arguments. This property is necessary because blkio_unmap_mem_region()
+ * must receive the same struct blkio_mem_region field values that were passed
+ * to blkio_map_mem_region().
+ */
+static BlkioMemRegionResult
+blkio_mem_region_from_host(BlockDriverState *bs,
+                           void *host, size_t size,
+                           struct blkio_mem_region *region,
+                           Error **errp)
+{
+    BDRVBlkioState *s = bs->opaque;
+    int fd = -1;
+    ram_addr_t fd_offset = 0;
+
+    if (((uintptr_t)host | size) % s->mem_region_alignment) {
+        error_setg(errp, "unaligned buf %p with size %zu", host, size);
+        return BMRR_FAIL;
+    }
+
+    /* Attempt to find the fd for the underlying memory */
+    if (s->needs_mem_region_fd) {
+        RAMBlock *ram_block;
+        RAMBlock *end_block;
+        ram_addr_t offset;
+
+        /*
+         * bdrv_register_buf() is called with the BQL held so mr lives at least
+         * until this function returns.
+         */
+        ram_block = qemu_ram_block_from_host(host, false, &fd_offset);
+        if (ram_block) {
+            fd = qemu_ram_get_fd(ram_block);
+        }
+        if (fd == -1) {
+            /*
+             * Ideally every RAMBlock would have an fd. pc-bios and other
+             * things don't. Luckily they are usually not I/O buffers and we
+             * can just ignore them.
+             */
+            return BMRR_SKIP;
+        }
+
+        /* Make sure the fd covers the entire range */
+        end_block = qemu_ram_block_from_host(host + size - 1, false, &offset);
+        if (ram_block != end_block) {
+            error_setg(errp, "registered buffer at %p with size %zu extends "
+                       "beyond RAMBlock", host, size);
+            return BMRR_FAIL;
+        }
+    }
+
+    *region = (struct blkio_mem_region){
+        .addr = host,
+        .len = size,
+        .fd = fd,
+        .fd_offset = fd_offset,
+    };
+    return BMRR_OK;
+}
+
+static bool blkio_register_buf(BlockDriverState *bs, void *host, size_t size,
+                               Error **errp)
+{
+    BDRVBlkioState *s = bs->opaque;
+    struct blkio_mem_region region;
+    BlkioMemRegionResult region_result;
+    int ret;
+
+    /*
+     * Mapping memory regions conflicts with RAM discard (virtio-mem) when
+     * there is pinning, so only do it when necessary.
+     */
+    if (!s->needs_mem_regions && s->may_pin_mem_regions) {
+        return true;
+    }
+
+    region_result = blkio_mem_region_from_host(bs, host, size, &region, errp);
+    if (region_result == BMRR_SKIP) {
+        return true;
+    } else if (region_result != BMRR_OK) {
+        return false;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->blkio_lock) {
+        ret = blkio_map_mem_region(s->blkio, &region);
+    }
+
+    if (ret < 0) {
+        error_setg(errp, "Failed to add blkio mem region %p with size %zu: %s",
+                   host, size, blkio_get_error_msg());
+        return false;
+    }
+    return true;
+}
+
+static void blkio_unregister_buf(BlockDriverState *bs, void *host, size_t size)
+{
+    BDRVBlkioState *s = bs->opaque;
+    struct blkio_mem_region region;
+
+    /* See blkio_register_buf() */
+    if (!s->needs_mem_regions && s->may_pin_mem_regions) {
+        return;
+    }
+
+    if (blkio_mem_region_from_host(bs, host, size, &region, NULL) != BMRR_OK) {
+        return;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->blkio_lock) {
+        blkio_unmap_mem_region(s->blkio, &region);
     }
 }
 
@@ -609,6 +745,17 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
+    ret = blkio_get_bool(s->blkio,
+                         "needs-mem-region-fd",
+                         &s->needs_mem_region_fd);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "failed to get needs-mem-region-fd: %s",
+                         blkio_get_error_msg());
+        blkio_destroy(&s->blkio);
+        return ret;
+    }
+
     ret = blkio_get_uint64(s->blkio,
                            "mem-region-alignment",
                            &s->mem_region_alignment);
@@ -620,15 +767,39 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
+    ret = blkio_get_bool(s->blkio,
+                         "may-pin-mem-regions",
+                         &s->may_pin_mem_regions);
+    if (ret < 0) {
+        /* Be conservative (assume pinning) if the property is not supported */
+        s->may_pin_mem_regions = s->needs_mem_regions;
+    }
+
+    /*
+     * Notify if libblkio drivers pin memory and prevent features like
+     * virtio-mem from working.
+     */
+    if (s->may_pin_mem_regions) {
+        ret = ram_block_discard_disable(true);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "ram_block_discard_disable() failed");
+            blkio_destroy(&s->blkio);
+            return ret;
+        }
+    }
+
     ret = blkio_start(s->blkio);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "blkio_start failed: %s",
                          blkio_get_error_msg());
         blkio_destroy(&s->blkio);
+        if (s->may_pin_mem_regions) {
+            ram_block_discard_disable(false);
+        }
         return ret;
     }
 
-    bs->supported_write_flags = BDRV_REQ_FUA;
+    bs->supported_write_flags = BDRV_REQ_FUA | BDRV_REQ_REGISTERED_BUF;
     bs->supported_zero_flags = BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP |
                                BDRV_REQ_NO_FALLBACK;
 
@@ -652,6 +823,10 @@ static void blkio_close(BlockDriverState *bs)
     qemu_mutex_destroy(&s->blkio_lock);
     blkio_detach_aio_context(bs);
     blkio_destroy(&s->blkio);
+
+    if (s->may_pin_mem_regions) {
+        ram_block_discard_disable(false);
+    }
 }
 
 static int64_t blkio_getlength(BlockDriverState *bs)
@@ -799,6 +974,8 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .bdrv_co_pwrite_zeroes   = blkio_co_pwrite_zeroes, \
         .bdrv_io_unplug          = blkio_io_unplug, \
         .bdrv_refresh_limits     = blkio_refresh_limits, \
+        .bdrv_register_buf       = blkio_register_buf, \
+        .bdrv_unregister_buf     = blkio_unregister_buf, \
         __VA_ARGS__ \
     }
 
