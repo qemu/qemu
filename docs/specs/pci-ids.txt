@@ -22,16 +22,14 @@ maintained as part of the virtio specification.
 1af4:1004  SCSI host bus adapter device (legacy)
 1af4:1005  entropy generator device (legacy)
 1af4:1009  9p filesystem device (legacy)
+1af4:1012  vsock device (bug compatibility)
 
-1af4:1041  network device (modern)
-1af4:1042  block device (modern)
-1af4:1043  console device (modern)
-1af4:1044  entropy generator device (modern)
-1af4:1045  balloon device (modern)
-1af4:1048  SCSI host bus adapter device (modern)
-1af4:1049  9p filesystem device (modern)
-1af4:1050  virtio gpu device (modern)
-1af4:1052  virtio input device (modern)
+1af4:1040  Start of ID range for modern virtio devices.  The PCI device
+   to      ID is calculated from the virtio device ID by adding the
+1af4:10ef  0x1040 offset.  The virtio IDs are defined in the virtio
+           specification.  The Linux kernel has a header file with
+           defines for all virtio IDs (linux/virtio_ids.h), qemu has a
+           copy in include/standard-headers/.
 
 1af4:10f0  Available for experimental usage without registration.  Must get
    to      official ID when the code leaves the test lab (i.e. when seeking

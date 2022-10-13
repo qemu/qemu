@@ -2442,8 +2442,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         if (len == 1) {
             return 8;
         }
+        uint32_t dlen = abs(read_s32(data, 4));
         if (len == 8) {
-            uint32_t dlen = abs(read_s32(data, 4));
             if (dlen > (1 << 20)) {
                 error_report("vnc: client_cut_text msg payload has %u bytes"
                              " which exceeds our limit of 1MB.", dlen);
@@ -2456,8 +2456,13 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         }
 
         if (read_s32(data, 4) < 0) {
-            vnc_client_cut_text_ext(vs, abs(read_s32(data, 4)),
-                                    read_u32(data, 8), data + 12);
+            if (dlen < 4) {
+                error_report("vnc: malformed payload (header less than 4 bytes)"
+                             " in extended clipboard pseudo-encoding.");
+                vnc_client_error(vs);
+                break;
+            }
+            vnc_client_cut_text_ext(vs, dlen, read_u32(data, 8), data + 12);
             break;
         }
         vnc_client_cut_text(vs, read_u32(data, 4), data + 8);
