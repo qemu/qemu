@@ -60,10 +60,9 @@ GModule * qemu_plugin_name_to_handle(const char *);
  */
 #define QPP_CREATE_CB(cb_name)                              \
 void qpp_add_cb_##cb_name(cb_name##_t fptr);                \
-bool qpp_remove_cb_##cb_name(cb_name##_t fptr);             \
+int qpp_remove_cb_##cb_name(cb_name##_t fptr);             \
 cb_name##_t * qpp_##cb_name##_cb[QPP_MAX_CB];               \
 int qpp_##cb_name##_num_cb;                                 \
-                                                            \
 void qpp_add_cb_##cb_name(cb_name##_t fptr)                 \
 {                                                           \
   assert(qpp_##cb_name##_num_cb < QPP_MAX_CB);              \
@@ -71,13 +70,14 @@ void qpp_add_cb_##cb_name(cb_name##_t fptr)                 \
   qpp_##cb_name##_num_cb += 1;                              \
 }                                                           \
                                                             \
-bool qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
+int qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
 {                                                           \
+  fprintf(stderr, "Trying to remove something\n"); \
   int i = 0;                                                \
-  bool found = false;                                       \
+  bool found = 0;                                       \
   for (; i < MIN(QPP_MAX_CB, qpp_##cb_name##_num_cb); i++) {\
     if (!found && fptr == qpp_##cb_name##_cb[i]) {          \
-        found = true;                                       \
+        found = 1;                                       \
         qpp_##cb_name##_num_cb--;                           \
     }                                                       \
     if (found && i < QPP_MAX_CB - 2) {                      \
@@ -149,14 +149,14 @@ bool qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
                                                                               \
   void __attribute__ ((constructor)) _QPP_SETUP_NAME(plugin_name, fn) (void) {\
     GModule *h = qemu_plugin_name_to_handle(#plugin_name);                    \
-    if (!h && strcmp(PLUGIN_STR(CURRENT_PLUGIN), #plugin_name) != 0) {        \
+    if (!h && strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
       fprintf(stderr, "Error plugin %s cannot access %s. Is it loaded?\n",    \
                        PLUGIN_STR(CURRENT_PLUGIN), #plugin_name);             \
       abort();                                                                \
     } else if (h && !g_module_symbol(h, #fn,                                  \
                            (gpointer *)&QPP_NAME(plugin_name, fn))) {         \
-      fprintf(stderr, "Error loading symbol " # fn " from plugin "            \
-                      # plugin_name "\n");                                    \
+      fprintf(stderr, "Error loading symbol " # fn " in plugin "              \
+                      # plugin_name " from %s\n", PLUGIN_STR(CURRENT_PLUGIN));\
       abort();                                                                \
     }                                                                         \
   }
@@ -203,19 +203,29 @@ bool qpp_remove_cb_##cb_name(cb_name##_t fptr)              \
  * If a plugin wishes to disable a previously-registered `cb_func` it should
  * use the QPP_REMOVE_CB macro.
  */
-#define QPP_REMOVE_CB(other_plugin, cb_name, cb_func)            \
-{                                                                \
-  dlerror();                                                     \
-  GModule *op = qemu_plugin_name_to_handle(other_plugin);             \
-  if (!op) {                                                     \
-    fprintf(stderr, "In trying to remove plugin callback, "      \
-                    "couldn't load %s plugin\n", other_plugin);  \
-    assert(op);                                                  \
-  }                                                              \
-  void (*rm_cb)(cb_name##_t fptr) = (void (*)(cb_name##_t))      \
-                                    dlsym(op, "qpp_remove_cb_"   \
-                                              #cb_name);         \
-  assert(rm_cb != 0);                                            \
-  rm_cb(cb_func);                                                \
+#define QPP_REMOVE_CB(other_plugin, cb_name, cb_func)           \
+{                                                               \
+  dlerror();                                                    \
+  GModule *op = qemu_plugin_name_to_handle(other_plugin);       \
+  if (!op) {                                                    \
+    fprintf(stderr, "In trying to remove plugin callback, "     \
+                    "couldn't load %s plugin\n", other_plugin); \
+    assert(op);                                                 \
+  }                                                             \
+  GModule *h = qemu_plugin_name_to_handle(other_plugin);        \
+  if (!h) {                                                     \
+    fprintf(stderr, "In trying to remove plugin callback, "     \
+                    "couldn't load %s plugin\n",                \
+                    other_plugin);                              \
+    assert(h);                                                  \
+  }                                                             \
+  void (*rm_cb)(cb_name##_t fptr);                              \
+  if (g_module_symbol(h, "qpp_remove_cb_" #cb_name,             \
+                      (gpointer *) &rm_cb)) {                   \
+  rm_cb(cb_func);                                               \
+  } else {                                                      \
+    fprintf(stderr, "ERROR: %s\n", dlerror());                  \
+    assert(0);                                                  \
+  }                                                             \
 }
 #endif /* PLUGIN_QPP_H */
