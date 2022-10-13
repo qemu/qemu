@@ -381,9 +381,9 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
         s->l1_table[l1_index] = l2_offset;
         tmp = cpu_to_be64(l2_offset);
         BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
-        ret = bdrv_pwrite_sync(bs->file,
-                               s->l1_table_offset + l1_index * sizeof(tmp),
-                               sizeof(tmp), &tmp, 0);
+        ret = bdrv_co_pwrite_sync(bs->file,
+                                  s->l1_table_offset + l1_index * sizeof(tmp),
+                                  sizeof(tmp), &tmp, 0);
         if (ret < 0) {
             return ret;
         }
@@ -414,14 +414,14 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
     BLKDBG_EVENT(bs->file, BLKDBG_L2_LOAD);
     if (new_l2_table) {
         memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
-        ret = bdrv_pwrite_sync(bs->file, l2_offset,
-                               s->l2_size * sizeof(uint64_t), l2_table, 0);
+        ret = bdrv_co_pwrite_sync(bs->file, l2_offset,
+                                  s->l2_size * sizeof(uint64_t), l2_table, 0);
         if (ret < 0) {
             return ret;
         }
     } else {
-        ret = bdrv_pread(bs->file, l2_offset, s->l2_size * sizeof(uint64_t),
-                         l2_table, 0);
+        ret = bdrv_co_pread(bs->file, l2_offset,
+                            s->l2_size * sizeof(uint64_t), l2_table, 0);
         if (ret < 0) {
             return ret;
         }
@@ -453,8 +453,8 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
             cluster_offset = QEMU_ALIGN_UP(cluster_offset, s->cluster_size);
             /* write the cluster content */
             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-            ret = bdrv_pwrite(bs->file, cluster_offset, s->cluster_size,
-                              s->cluster_cache, 0);
+            ret = bdrv_co_pwrite(bs->file, cluster_offset, s->cluster_size,
+                                 s->cluster_cache, 0);
             if (ret < 0) {
                 return ret;
             }
@@ -469,8 +469,9 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
                 if (cluster_offset + s->cluster_size > INT64_MAX) {
                     return -E2BIG;
                 }
-                ret = bdrv_truncate(bs->file, cluster_offset + s->cluster_size,
-                                    false, PREALLOC_MODE_OFF, 0, NULL);
+                ret = bdrv_co_truncate(bs->file,
+                                       cluster_offset + s->cluster_size,
+                                       false, PREALLOC_MODE_OFF, 0, NULL);
                 if (ret < 0) {
                     return ret;
                 }
@@ -492,9 +493,9 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
                                 return -EIO;
                             }
                             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-                            ret = bdrv_pwrite(bs->file, cluster_offset + i,
-                                              BDRV_SECTOR_SIZE,
-                                              s->cluster_data, 0);
+                            ret = bdrv_co_pwrite(bs->file, cluster_offset + i,
+                                                 BDRV_SECTOR_SIZE,
+                                                 s->cluster_data, 0);
                             if (ret < 0) {
                                 return ret;
                             }
@@ -514,8 +515,8 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
         } else {
             BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE);
         }
-        ret = bdrv_pwrite_sync(bs->file, l2_offset + l2_index * sizeof(tmp),
-                               sizeof(tmp), &tmp, 0);
+        ret = bdrv_co_pwrite_sync(bs->file, l2_offset + l2_index * sizeof(tmp),
+                                  sizeof(tmp), &tmp, 0);
         if (ret < 0) {
             return ret;
         }
@@ -597,7 +598,7 @@ static int coroutine_fn decompress_cluster(BlockDriverState *bs,
         csize = cluster_offset >> (63 - s->cluster_bits);
         csize &= (s->cluster_size - 1);
         BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-        ret = bdrv_pread(bs->file, coffset, csize, s->cluster_data, 0);
+        ret = bdrv_co_pread(bs->file, coffset, csize, s->cluster_data, 0);
         if (ret < 0)
             return -1;
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
@@ -891,14 +892,14 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     }
 
     /* write all the data */
-    ret = blk_pwrite(qcow_blk, 0, sizeof(header), &header, 0);
+    ret = blk_co_pwrite(qcow_blk, 0, sizeof(header), &header, 0);
     if (ret < 0) {
         goto exit;
     }
 
     if (qcow_opts->has_backing_file) {
-        ret = blk_pwrite(qcow_blk, sizeof(header), backing_filename_len,
-                         qcow_opts->backing_file, 0);
+        ret = blk_co_pwrite(qcow_blk, sizeof(header), backing_filename_len,
+                            qcow_opts->backing_file, 0);
         if (ret < 0) {
             goto exit;
         }
@@ -907,8 +908,8 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     tmp = g_malloc0(BDRV_SECTOR_SIZE);
     for (i = 0; i < DIV_ROUND_UP(sizeof(uint64_t) * l1_size, BDRV_SECTOR_SIZE);
          i++) {
-        ret = blk_pwrite(qcow_blk, header_size + BDRV_SECTOR_SIZE * i,
-                         BDRV_SECTOR_SIZE, tmp, 0);
+        ret = blk_co_pwrite(qcow_blk, header_size + BDRV_SECTOR_SIZE * i,
+                            BDRV_SECTOR_SIZE, tmp, 0);
         if (ret < 0) {
             g_free(tmp);
             goto exit;
