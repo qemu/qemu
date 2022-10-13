@@ -2011,15 +2011,15 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
     creator = g_utf8_to_utf16("QEMU v" QEMU_VERSION, -1, NULL,
                               &creator_items, NULL);
     signature = cpu_to_le64(VHDX_FILE_SIGNATURE);
-    ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET, sizeof(signature), &signature,
-                     0);
+    ret = blk_co_pwrite(blk, VHDX_FILE_ID_OFFSET, sizeof(signature), &signature,
+                        0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to write file signature");
         goto delete_and_exit;
     }
     if (creator) {
-        ret = blk_pwrite(blk, VHDX_FILE_ID_OFFSET + sizeof(signature),
-                         creator_items * sizeof(gunichar2), creator, 0);
+        ret = blk_co_pwrite(blk, VHDX_FILE_ID_OFFSET + sizeof(signature),
+                            creator_items * sizeof(gunichar2), creator, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Failed to write creator field");
             goto delete_and_exit;
