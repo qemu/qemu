@@ -92,7 +92,8 @@ typedef struct BDRVQcowState {
 
 static QemuOptsList qcow_create_opts;
 
-static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
+static int coroutine_fn decompress_cluster(BlockDriverState *bs,
+                                           uint64_t cluster_offset);
 
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -349,10 +350,11 @@ static int qcow_reopen_prepare(BDRVReopenState *state,
  * return 0 if not allocated, 1 if *result is assigned, and negative
  * errno on failure.
  */
-static int get_cluster_offset(BlockDriverState *bs,
-                              uint64_t offset, int allocate,
-                              int compressed_size,
-                              int n_start, int n_end, uint64_t *result)
+static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
+                                           uint64_t offset, int allocate,
+                                           int compressed_size,
+                                           int n_start, int n_end,
+                                           uint64_t *result)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index, i, j, l1_index, l2_index, ret;
@@ -583,7 +585,8 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
     return 0;
 }
 
-static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
+static int coroutine_fn decompress_cluster(BlockDriverState *bs,
+                                           uint64_t cluster_offset)
 {
     BDRVQcowState *s = bs->opaque;
     int ret, csize;
