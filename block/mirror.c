@@ -922,8 +922,8 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
      * active layer. */
     if (s->base == blk_bs(s->target)) {
         if (s->bdev_length > target_length) {
-            ret = blk_truncate(s->target, s->bdev_length, false,
-                               PREALLOC_MODE_OFF, 0, NULL);
+            ret = blk_co_truncate(s->target, s->bdev_length, false,
+                                  PREALLOC_MODE_OFF, 0, NULL);
             if (ret < 0) {
                 goto immediate_exit;
             }
