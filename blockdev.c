@@ -2448,7 +2448,7 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
     bdrv_co_unlock(bs);
 
     old_ctx = bdrv_co_enter(bs);
-    blk_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
+    blk_co_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
     bdrv_co_leave(bs, old_ctx);
 
     bdrv_co_lock(bs);
