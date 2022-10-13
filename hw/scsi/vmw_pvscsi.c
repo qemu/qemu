@@ -880,7 +880,7 @@ pvscsi_on_cmd_reset_device(PVSCSIState *s)
 
     if (sdev != NULL) {
         s->resetting++;
-        device_legacy_reset(&sdev->qdev);
+        device_cold_reset(&sdev->qdev);
         s->resetting--;
         return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
     }
