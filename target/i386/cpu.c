@@ -6043,7 +6043,7 @@ void x86_cpu_after_reset(X86CPU *cpu)
     }
 
     if (cpu->apic_state) {
-        device_legacy_reset(cpu->apic_state);
+        device_cold_reset(cpu->apic_state);
     }
 #endif
 }
