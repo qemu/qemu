@@ -118,8 +118,8 @@ int coroutine_fn qcow2_refcount_init(BlockDriverState *bs)
             goto fail;
         }
         BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
-        ret = bdrv_pread(bs->file, s->refcount_table_offset,
-                         refcount_table_size2, s->refcount_table, 0);
+        ret = bdrv_co_pread(bs->file, s->refcount_table_offset,
+                            refcount_table_size2, s->refcount_table, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -3657,9 +3657,9 @@ int coroutine_fn qcow2_shrink_reftable(BlockDriverState *bs)
         reftable_tmp[i] = unused_block ? 0 : cpu_to_be64(s->refcount_table[i]);
     }
 
-    ret = bdrv_pwrite_sync(bs->file, s->refcount_table_offset,
-                           s->refcount_table_size * REFTABLE_ENTRY_SIZE,
-                           reftable_tmp, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, s->refcount_table_offset,
+                              s->refcount_table_size * REFTABLE_ENTRY_SIZE,
+                              reftable_tmp, 0);
     /*
      * If the write in the reftable failed the image may contain a partially
      * overwritten reftable. In this case it would be better to clear the

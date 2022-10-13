@@ -48,14 +48,14 @@ int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
 #endif
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_WRITE_TABLE);
-    ret = bdrv_pwrite_zeroes(bs->file, s->l1_table_offset +
-                                       new_l1_size * L1E_SIZE,
-                             (s->l1_size - new_l1_size) * L1E_SIZE, 0);
+    ret = bdrv_co_pwrite_zeroes(bs->file,
+                                s->l1_table_offset + new_l1_size * L1E_SIZE,
+                                (s->l1_size - new_l1_size) * L1E_SIZE, 0);
     if (ret < 0) {
         goto fail;
     }
 
-    ret = bdrv_flush(bs->file->bs);
+    ret = bdrv_co_flush(bs->file->bs);
     if (ret < 0) {
         goto fail;
     }

@@ -441,9 +441,9 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
     } QEMU_PACKED snapshot_table_pointer;
 
     /* qcow2_do_open() discards this information in check mode */
-    ret = bdrv_pread(bs->file, offsetof(QCowHeader, nb_snapshots),
-                     sizeof(snapshot_table_pointer), &snapshot_table_pointer,
-                     0);
+    ret = bdrv_co_pread(bs->file, offsetof(QCowHeader, nb_snapshots),
+                        sizeof(snapshot_table_pointer), &snapshot_table_pointer,
+                        0);
     if (ret < 0) {
         result->check_errors++;
         fprintf(stderr, "ERROR failed to read the snapshot table pointer from "
