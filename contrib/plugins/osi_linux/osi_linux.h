@@ -63,13 +63,6 @@ typedef enum : int8_t {
     SUCCESS = 0
 } struct_get_ret_t;
 
-// Stupid panda shim
-static int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
-                                          uint8_t *buf, int len, bool is_write) {
- assert(is_write == 0);
- return qemu_plugin_read_guest_virt_mem((uint64_t)addr, (char*)buf, len);
-}
-
 // End shims
 
 /**
@@ -79,13 +72,13 @@ static int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
  * IMPLEMENT_OFFSET_GET.
  */
 template <typename T>
-struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, off_t offset) {
+struct_get_ret_t struct_get(T *v, target_ptr_t ptr, off_t offset) {
     if (ptr == (target_ptr_t)NULL) {
         memset((uint8_t *)v, 0, sizeof(T));
         return struct_get_ret_t::ERROR_DEREF;
     }
 
-    switch(panda_virtual_memory_rw(cpu, ptr+offset, (uint8_t *)v, sizeof(T), 0)) {
+    switch(panda_virtual_memory_rw(ptr+offset, (uint8_t *)v, sizeof(T), 0)) {
         case -1:
             memset((uint8_t *)v, 0, sizeof(T));
             return struct_get_ret_t::ERROR_MEMORY;
@@ -103,7 +96,7 @@ struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, off_t offset)
  * IMPLEMENT_OFFSET_GET*.
  */
 template <typename T>
-struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, std::initializer_list<off_t> offsets) {
+struct_get_ret_t struct_get(T *v, target_ptr_t ptr, std::initializer_list<off_t> offsets) {
     // read all but last item as pointers
     // After each pointer read, flip endianness as necessary
     auto it = offsets.begin();
@@ -112,7 +105,7 @@ struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, std::initiali
         it++;
         if (it == offsets.end()) break;
         //printf("\tDereferenced 0x%x (offset 0x%lx) to get ", ptr, o);
-        auto r = struct_get(cpu, &ptr, ptr, o);
+        auto r = struct_get(&ptr, ptr, o);
         if (r != struct_get_ret_t::SUCCESS) {
             //printf("ERROR\n");
             memset((uint8_t *)v, 0, sizeof(T));
@@ -126,7 +119,7 @@ struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, std::initiali
 
     // last item is read using the size of the type of v
     // this isn't a pointer so there's no need to fix its endianness
-    auto ret = struct_get(cpu, v, ptr, o); // deref ptr into v, result in ret
+    auto ret = struct_get(v, ptr, o); // deref ptr into v, result in ret
     fixupendian(*v);
     //printf("Struct_get final 0x%x => 0x%x\n", ptr, *v);
     return ret;
@@ -142,9 +135,9 @@ struct_get_ret_t struct_get(CPUState *cpu, T *v, target_ptr_t ptr, std::initiali
  * Use IMPLEMENT_OFFSET_GETN instead.
  */
 #define IMPLEMENT_OFFSET_GET(_name, _paramName, _retType, _offset, _errorRetValue) \
-static inline _retType _name(CPUState* env, target_ptr_t _paramName) { \
+static inline _retType _name(target_ptr_t _paramName) { \
     _retType _t; \
-    if (-1 == panda_virtual_memory_rw(env, _paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t)); \
@@ -161,11 +154,11 @@ static inline _retType _name(CPUState* env, target_ptr_t _paramName) { \
  * Use IMPLEMENT_OFFSET_GETN instead.
  */
 #define IMPLEMENT_OPTIONAL_OFFSET_GET(_name, _paramName, _retType, _offset, _errorRetValue) \
-static inline _retType _name(CPUState* env, target_ptr_t _paramName) { \
+static inline _retType _name(target_ptr_t _paramName) { \
     _retType _t; \
     if (_offset == NULL)\
         return 0; \
-    if (-1 == panda_virtual_memory_rw(env, _paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)&_t, sizeof(_retType), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t)); \
@@ -183,13 +176,13 @@ static inline _retType _name(CPUState* env, target_ptr_t _paramName) { \
  * Use IMPLEMENT_OFFSET_GET2LN instead.
  */
 #define IMPLEMENT_OFFSET_GET2L(_name, _paramName, _retType1, _offset1, _retType2, _offset2, _errorRetValue) \
-static inline _retType2 _name(CPUState* env, target_ptr_t _paramName) { \
+static inline _retType2 _name(target_ptr_t _paramName) { \
     _retType1 _t1; \
     _retType2 _t2; \
-    if (-1 == panda_virtual_memory_rw(env, _paramName + _offset1, (uint8_t *)&_t1, sizeof(_retType1), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, (uint8_t *)&_t1, sizeof(_retType1), 0)) { \
         return (_errorRetValue); \
     } \
-    if (-1 == panda_virtual_memory_rw(env, flipbadendian(_t1) + _offset2, (uint8_t *)&_t2, sizeof(_retType2), 0)) { \
+    if (-1 == panda_virtual_memory_rw(flipbadendian(_t1) + _offset2, (uint8_t *)&_t2, sizeof(_retType2), 0)) { \
         return (_errorRetValue); \
     } \
     return (flipbadendian(_t2)); \
@@ -209,11 +202,11 @@ static inline _retType2 _name(CPUState* env, target_ptr_t _paramName) { \
  * limited to retrieving only primitive types.
  */
 #define IMPLEMENT_OFFSET_GETN(_funcName, _paramName, _retType, _retName, _retSize, _offset) \
-static inline int _funcName(CPUState* env, target_ptr_t _paramName, _retType* _retName) { \
+static inline int _funcName(target_ptr_t _paramName, _retType* _retName) { \
     size_t ret_size = ((_retSize) == OG_AUTOSIZE) ? sizeof(_retType) : (_retSize); \
     OG_printf(#_funcName ":1:" TARGET_PTR_FMT ":%d\n", _paramName, _offset); \
     OG_printf(#_funcName ":2:" TARGET_PTR_FMT ":%zu\n", _paramName + _offset, ret_size); \
-    if (-1 == panda_virtual_memory_rw(env, _paramName + _offset, (uint8_t *)_retName, ret_size, 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset, (uint8_t *)_retName, ret_size, 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":3:ok\n"); \
@@ -227,12 +220,12 @@ static inline int _funcName(CPUState* env, target_ptr_t _paramName, _retType* _r
  * limited to retrieving only primitive types.
  */
 #define IMPLEMENT_OFFSET_GET2LN(_funcName, _paramName, _retType, _retName, _retSize, _offset1, _offset2) \
-static inline int _funcName(CPUState* env, target_ptr_t _paramName, _retType* _retName) { \
+static inline int _funcName(target_ptr_t _paramName, _retType* _retName) { \
     target_ptr_t _p1; \
     size_t ret_size = ((_retSize) == OG_AUTOSIZE) ? sizeof(_retType) : (_retSize); \
     OG_printf(#_funcName ":1:" TARGET_PTR_FMT ":%d\n", _paramName, _offset1); \
     OG_printf(#_funcName ":2:" TARGET_PTR_FMT ":%zu\n", _paramName + _offset1, sizeof(target_ptr_t)); \
-    if (-1 == panda_virtual_memory_rw(env, _paramName + _offset1, (uint8_t *)&_p1, sizeof(target_ptr_t), 0)) { \
+    if (-1 == panda_virtual_memory_rw(_paramName + _offset1, (uint8_t *)&_p1, sizeof(target_ptr_t), 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":3:" TARGET_PTR_FMT ":%d\n", _p1, _offset2); \
@@ -240,7 +233,7 @@ static inline int _funcName(CPUState* env, target_ptr_t _paramName, _retType* _r
         return OG_ERROR_DEREF; \
     } \
     OG_printf(#_funcName ":4:" TARGET_PTR_FMT ":%zu\n", _p1 + _offset2, ret_size); \
-    if (-1 == panda_virtual_memory_rw(env, _p1 + _offset2, (uint8_t *)_retName, ret_size, 0)) { \
+    if (-1 == panda_virtual_memory_rw(_p1 + _offset2, (uint8_t *)_retName, ret_size, 0)) { \
         return OG_ERROR_MEMORY; \
     } \
     OG_printf(#_funcName ":5:ok\n"); \
@@ -400,13 +393,13 @@ IMPLEMENT_OFFSET_GETN(get_dentry_parent, dentry, target_ptr_t, dentry_parent, OG
 /**
  * @brief Retrieves the n-th file struct from an fd file array. (pp 479)
  */
-static inline target_ptr_t get_fd_file(CPUState *env, target_ptr_t fd_file_array, int n) {
+static inline target_ptr_t get_fd_file(target_ptr_t fd_file_array, int n) {
     target_ptr_t fd_file, fd_file_ptr;
     // Compute address of the pointer to the file struct of the n-th fd.
     fd_file_ptr = fd_file_array+n*sizeof(target_ptr_t);
 
     // Read address of the file struct.
-    if (-1 == panda_virtual_memory_rw(env, fd_file_ptr, (uint8_t *)&fd_file, sizeof(target_ptr_t), 0)) {
+    if (-1 == panda_virtual_memory_rw(fd_file_ptr, (uint8_t *)&fd_file, sizeof(target_ptr_t), 0)) {
         return (target_ptr_t)NULL;
     }
     fixupendian(fd_file_ptr);
@@ -422,7 +415,7 @@ static inline target_ptr_t get_fd_file(CPUState *env, target_ptr_t fd_file_array
  * @note We can always use dentry.d_name->name and ignore dentry.d_iname.
  * When the latter is used, the former will be set to point to it.
  */
-static inline char *read_dentry_name(CPUState *env, target_ptr_t dentry) {
+static inline char *read_dentry_name(target_ptr_t dentry) {
     char *name = NULL;
 
     // current path component
@@ -448,8 +441,8 @@ static inline char *read_dentry_name(CPUState *env, target_ptr_t dentry) {
 
         // read dentry d_parent and d_name
         memset(d_name, 0, ki.qstr.size * sizeof(uint8_t));
-        og_err1 = get_dentry_name(env, current_dentry, d_name);
-        og_err2 = get_dentry_parent(env, current_dentry, &current_dentry_parent);
+        og_err1 = get_dentry_name(current_dentry, d_name);
+        og_err2 = get_dentry_parent(current_dentry, &current_dentry_parent);
 
         // Note we don't fix endian of dentry name because it's a large(r than 4)
         // byte buffer. Instead we'll fix it just before use (in guest_addr)
@@ -462,7 +455,7 @@ static inline char *read_dentry_name(CPUState *env, target_ptr_t dentry) {
 
         // read d_dname function pointer - indicates a dynamic name
         target_ptr_t d_dname;
-        og_err1 = get_dentry_dname(env, current_dentry, &d_dname);
+        og_err1 = get_dentry_dname(current_dentry, &d_dname);
         if (OG_SUCCESS != og_err1) {
             // static name
             d_dname = (target_ptr_t)NULL;
@@ -488,7 +481,7 @@ static inline char *read_dentry_name(CPUState *env, target_ptr_t dentry) {
 
         target_ptr_t guest_addr = *(target_ptr_t *)(d_name + ki.qstr.name_offset);
         fixupendian(guest_addr);
-        og_err1 = panda_virtual_memory_rw(env, guest_addr, (uint8_t *)pcomp, pcomp_length*sizeof(char), 0);
+        og_err1 = panda_virtual_memory_rw(guest_addr, (uint8_t *)pcomp, pcomp_length*sizeof(char), 0);
 
     // I think this aims to be a re-implementation of the Linux kernel function
     // __dentry_path but the logic seems pretty different.
@@ -549,7 +542,7 @@ static inline char *read_dentry_name(CPUState *env, target_ptr_t dentry) {
  *
  * The function traverses all the mount points to the root mount.
  */
-static inline char *read_vfsmount_name(CPUState *env, target_ptr_t vfsmount) {
+static inline char *read_vfsmount_name(target_ptr_t vfsmount) {
     char *name = NULL;
 
     // current path component
@@ -570,14 +563,14 @@ static inline char *read_vfsmount_name(CPUState *env, target_ptr_t vfsmount) {
         current_vfsmount = current_vfsmount_parent;
 
         // retrieve vfsmount members
-        og_err0 = get_vfsmount_dentry(env, current_vfsmount, &current_vfsmount_dentry);
-        og_err1 = get_vfsmount_parent(env, current_vfsmount, &current_vfsmount_parent);
+        og_err0 = get_vfsmount_dentry(current_vfsmount, &current_vfsmount_dentry);
+        og_err1 = get_vfsmount_parent(current_vfsmount, &current_vfsmount_parent);
         fixupendian(current_vfsmount_dentry);
         fixupendian(current_vfsmount_parent);
 
         //printf("###D:%d:" TARGET_PTR_FMT ":" TARGET_PTR_FMT "\n", og_err0, current_vfsmount, current_vfsmount_dentry);
         //printf("###R:%d:" TARGET_PTR_FMT ":" TARGET_PTR_FMT "\n", og_err2, current_vfsmount, root_dentry);
-        //og_err2 = get_vfsmount_root_dentry(env, current_vfsmount, &root_dentry);
+        //og_err2 = get_vfsmount_root_dentry(current_vfsmount, &root_dentry);
         //printf("###P:%d:" TARGET_PTR_FMT ":" TARGET_PTR_FMT "\n", og_err1, current_vfsmount, current_vfsmount_parent);
 
         // check whether we should break out
@@ -589,7 +582,7 @@ static inline char *read_vfsmount_name(CPUState *env, target_ptr_t vfsmount) {
         }
 
         // read and copy component
-        pcomp = read_dentry_name(env, current_vfsmount_dentry);
+        pcomp = read_dentry_name(current_vfsmount_dentry);
         //printf("###S:%s\n", pcomp);
 
         // this may hapen it seems
@@ -630,17 +623,17 @@ static inline char *read_vfsmount_name(CPUState *env, target_ptr_t vfsmount) {
  * @note task.comm is a fixed length array.
  * This means that we don't have to account for the terminating '\0'.
  */
-static inline char *get_name(CPUState *env, target_ptr_t task_struct, char *name) {
+static inline char *get_name(target_ptr_t task_struct, char *name) {
     if (name == NULL) { name = (char *)g_malloc0(ki.task.comm_size * sizeof(char)); }
     else { name = (char *)g_realloc(name, ki.task.comm_size * sizeof(char)); }
-    if (-1 == panda_virtual_memory_rw(env, task_struct + ki.task.comm_offset, (uint8_t *)name, ki.task.comm_size * sizeof(char), 0)) {
+    if (-1 == panda_virtual_memory_rw(task_struct + ki.task.comm_offset, (uint8_t *)name, ki.task.comm_size * sizeof(char), 0)) {
         strncpy(name, "N/A", ki.task.comm_size*sizeof(char));
     }
     return name;
 }
 
-void fill_osiproc(CPUState *env, OsiProc *p, target_ptr_t task_addr);
-void fill_osithread(CPUState *env, OsiThread *t, target_ptr_t task_addr);
+void fill_osiproc(OsiProc *p, target_ptr_t task_addr);
+void fill_osithread(OsiThread *t, target_ptr_t task_addr);
 
 #if defined(__cplusplus)
 /**
@@ -655,8 +648,8 @@ void fill_osithread(CPUState *env, OsiThread *t, target_ptr_t task_addr);
  * Avoiding these infinite loops was mostly a trial+error process.
  */
 template <typename ET>
-void get_process_info(CPUState *cpu, GArray **out,
-                      void (*fill_element)(CPUState *, ET *, target_ptr_t),
+void get_process_info(GArray **out,
+                      void (*fill_element)(ET *, target_ptr_t),
                       void (*free_element_contents)(ET *)) {
     ET element;
     target_ptr_t ts_first, ts_current;
@@ -673,27 +666,27 @@ void get_process_info(CPUState *cpu, GArray **out,
     ts_first = ki.task.init_addr;
 #else
     // Start process enumeration (roughly) from the current task. This is the default.
-    ts_first = kernel_profile->get_current_task_struct(cpu);
+    ts_first = kernel_profile->get_current_task_struct();
 
     // To avoid infinite loops, we need to actually start traversal from the next
     // process after the thread group leader of the current task.
-    ts_first = kernel_profile->get_group_leader(cpu, ts_first);
-    ts_first = kernel_profile->get_task_struct_next(cpu, ts_first);
+    ts_first = kernel_profile->get_group_leader(ts_first);
+    ts_first = kernel_profile->get_task_struct_next(ts_first);
 #endif
 
     ts_current = ts_first;
 
     if (ts_first == (target_ptr_t)NULL) goto error;
 #if defined(OSI_LINUX_PSDEBUG)
-    LOG_INFO("START %c:%c " TARGET_PTR_FMT " " TARGET_PTR_FMT, TS_THREAD_CHR(cpu, ts_first),  TS_LEADER_CHR(cpu, ts_first), ts_first, ts_first);
+    LOG_INFO("START %c:%c " TARGET_PTR_FMT " " TARGET_PTR_FMT, TS_THREAD_CHR(ts_first),  TS_LEADER_CHR(ts_first), ts_first, ts_first);
 #endif
 
     do {
 #if defined(OSI_LINUX_PSDEBUG)
-         LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", (*out)->len, ts_current, get_pid(cpu, ts_current), get_tgid(cpu, ts_current), TS_THREAD_CHR(cpu, ts_current), TS_LEADER_CHR(cpu, ts_current));
+         LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", (*out)->len, ts_current, get_pid(ts_current), get_tgid(ts_current), TS_THREAD_CHR(ts_current), TS_LEADER_CHR(ts_current));
 #endif
         memset(&element, 0, sizeof(ET));
-        fill_element(cpu, &element, ts_current);
+        fill_element(&element, ts_current);
         g_array_append_val(*out, element);
         OSI_MAX_PROC_CHECK((*out)->len, "traversing process list");
 
@@ -701,20 +694,20 @@ void get_process_info(CPUState *cpu, GArray **out,
         // Traverse thread group list.
         // It is assumed that ts_current is a thread group leader.
         tg_first = ts_current + ki.task.thread_group_offset;
-        while ((tg_next = get_thread_group(cpu, ts_current)) != tg_first) {
+        while ((tg_next = get_thread_group(ts_current)) != tg_first) {
             ts_current = tg_next - ki.task.thread_group_offset;
 #if defined(OSI_LINUX_PSDEBUG)
-            LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", a->len, ts_current, get_pid(cpu, ts_current), get_tgid(cpu, ts_current), TS_THREAD_CHR(cpu, ts_current), TS_LEADER_CHR(cpu, ts_current));
+            LOG_INFO("\t %03u:" TARGET_PTR_FMT ":" TARGET_PID_FMT ":" TARGET_PID_FMT ":%c:%c", a->len, ts_current, get_pid(ts_current), get_tgid(ts_current), TS_THREAD_CHR(ts_current), TS_LEADER_CHR(ts_current));
 #endif
             memset(&element, 0, sizeof(ET));
-            element_fill(cpu, &element, ts_current);
+            element_fill(&element, ts_current);
             g_array_append_val(*out, element);
             OSI_MAX_PROC_CHECK((*out)->len, "traversing thread group list");
         }
         ts_current = tg_first - ki.task.thread_group_offset;
 #endif
 
-        ts_current = kernel_profile->get_task_struct_next(cpu, ts_current);
+        ts_current = kernel_profile->get_task_struct_next(ts_current);
     } while(ts_current != (target_ptr_t)NULL && ts_current != ts_first);
 
     // memory read error

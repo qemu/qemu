@@ -11,7 +11,7 @@
 
 // Other plugins
 #include "../syscalls.h"
-//#include "../osi.h"
+#include "../osi.h"
 
 // Internal headers
 #include "osi_types.h"
@@ -32,10 +32,10 @@ void osil_on_get_process_handles(GArray **out);
 
 // Not these
 void osil_on_get_processes(GArray **out);
-void on_get_current_process(CPUState *env, OsiProc **out_p);
-void on_get_current_process_handle(CPUState *env, OsiProcHandle **out_p);
-void on_get_mappings(CPUState *env, OsiProc *p, GArray **out);
-void on_get_current_thread(CPUState *env, OsiThread *t);
+void on_get_current_process(OsiProc **out_p);
+void on_get_current_process_handle(OsiProcHandle **out_p);
+void on_get_mappings(OsiProc *p, GArray **out);
+void on_get_current_thread(OsiThread *t);
 
 void init_per_cpu_offsets();
 struct kernelinfo ki;
@@ -49,13 +49,13 @@ static bool first_osi_check = true;
 /**
  * @brief Resolves a file struct and returns its full pathname.
  */
-static char *get_file_name(CPUState *env, target_ptr_t file_struct) {
+static char *get_file_name(target_ptr_t file_struct) {
     char *name = NULL;
     target_ptr_t file_dentry, file_mnt;
 
     // Read addresses for dentry, vfsmnt structs.
-    file_dentry = get_file_dentry(env, file_struct);
-    file_mnt = get_file_mnt(env, file_struct);
+    file_dentry = get_file_dentry(file_struct);
+    file_mnt = get_file_mnt(file_struct);
 
     if (unlikely(file_dentry == (target_ptr_t)NULL || file_mnt == (target_ptr_t)NULL)) {
         LOG_INFO("failure resolving file struct " TARGET_PTR_FMT "/" TARGET_PTR_FMT, file_dentry, file_mnt);
@@ -63,8 +63,8 @@ static char *get_file_name(CPUState *env, target_ptr_t file_struct) {
     }
 
     char *s1, *s2;
-    s1 = read_vfsmount_name(env, file_mnt);
-    s2 = read_dentry_name(env, file_dentry);
+    s1 = read_vfsmount_name(file_mnt);
+    s2 = read_dentry_name(file_dentry);
     name = g_strconcat(s1, s2, NULL);
     g_free(s1);
     g_free(s2);
@@ -72,19 +72,19 @@ static char *get_file_name(CPUState *env, target_ptr_t file_struct) {
     return name;
 }
 
-static uint64_t get_file_position(CPUState *env, target_ptr_t file_struct) {
-    return get_file_pos(env, file_struct);
+static uint64_t get_file_position(target_ptr_t file_struct) {
+    return get_file_pos(file_struct);
 }
 
-static target_ptr_t get_file_struct_ptr(CPUState *env, target_ptr_t task_struct, int fd) {
-    target_ptr_t files = get_files(env, task_struct);
-    target_ptr_t fds = kernel_profile->get_files_fds(env, files);
+static target_ptr_t get_file_struct_ptr( target_ptr_t task_struct, int fd) {
+    target_ptr_t files = get_files(task_struct);
+    target_ptr_t fds = kernel_profile->get_files_fds(files);
     target_ptr_t fd_file_ptr, fd_file;
 
     // fds is a flat array with struct file pointers.
     // Calculate the address of the nth pointer and read it.
     fd_file_ptr = fds + fd*sizeof(target_ptr_t);
-    if (-1 == panda_virtual_memory_rw(env, fd_file_ptr, (uint8_t *)&fd_file, sizeof(target_ptr_t), 0)) {
+    if (-1 == panda_virtual_memory_rw(fd_file_ptr, (uint8_t *)&fd_file, sizeof(target_ptr_t), 0)) {
         return (target_ptr_t)NULL;
     }
     fixupendian(fd_file);
@@ -97,62 +97,62 @@ static target_ptr_t get_file_struct_ptr(CPUState *env, target_ptr_t task_struct,
 /**
  * @brief Resolves a file struct and returns its full pathname.
  */
-static char *get_fd_name(CPUState *env, target_ptr_t task_struct, int fd) {
-    target_ptr_t fd_file = get_file_struct_ptr(env, task_struct, fd);
+static char *get_fd_name( target_ptr_t task_struct, int fd) {
+    target_ptr_t fd_file = get_file_struct_ptr(task_struct, fd);
     if (fd_file == (target_ptr_t)NULL) return NULL;
-    return get_file_name(env, fd_file);
+    return get_file_name(fd_file);
 }
 
 /**
  * @brief Retrieves the current offset of a file descriptor.
  */
-static uint64_t get_fd_pos(CPUState *env, target_ptr_t task_struct, int fd) {
-    target_ptr_t fd_file = get_file_struct_ptr(env, task_struct, fd);
+static uint64_t get_fd_pos(target_ptr_t task_struct, int fd) {
+    target_ptr_t fd_file = get_file_struct_ptr(task_struct, fd);
     if (fd_file == (target_ptr_t)NULL) return ((uint64_t) INVALID_FILE_POS);
-    return get_file_position(env, fd_file);
+    return get_file_position(fd_file);
 }
 
 /**
  * @brief Fills an OsiProcHandle struct.
  */
-static void fill_osiprochandle(CPUState *cpu, OsiProcHandle *h,
+static void fill_osiprochandle(OsiProcHandle *h,
         target_ptr_t task_addr) {
     struct_get_ret_t UNUSED(err);
 
     // h->asid = taskd->mm->pgd (some kernel tasks are expected to return error)
-    err = struct_get(cpu, &h->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
+    err = struct_get(&h->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
 
     // Convert asid to physical to be able to compare it with the pgd register.
     h->asid = qemu_plugin_virt_to_phys(h->asid);
-    h->taskd = kernel_profile->get_group_leader(cpu, task_addr);
+    h->taskd = kernel_profile->get_group_leader(task_addr);
 }
 
 /**
  * @brief Fills an OsiProc struct. Any existing contents are overwritten.
  */
-void fill_osiproc(CPUState *cpu, OsiProc *p, target_ptr_t task_addr) {
+void fill_osiproc(OsiProc *p, target_ptr_t task_addr) {
     struct_get_ret_t UNUSED(err);
     memset(p, 0, sizeof(OsiProc));
 
     // p->asid = taskd->mm->pgd (some kernel tasks are expected to return error)
-    err = struct_get(cpu, &p->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
+    err = struct_get(&p->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
 
     // p->ppid = taskd->real_parent->pid
-    err = struct_get(cpu, &p->ppid, task_addr,
+    err = struct_get( &p->ppid, task_addr,
                      {ki.task.real_parent_offset, ki.task.tgid_offset});
 
     // Convert asid to physical to be able to compare it with the pgd register.
     p->asid = p->asid ? qemu_plugin_virt_to_phys(p->asid) : (target_ulong) NULL;
-    p->taskd = kernel_profile->get_group_leader(cpu, task_addr);
+    p->taskd = kernel_profile->get_group_leader(task_addr);
 
-    p->name = get_name(cpu, task_addr, p->name);
-    p->pid = get_tgid(cpu, task_addr);
-    //p->ppid = get_real_parent_pid(cpu, task_addr);
+    p->name = get_name(task_addr, p->name);
+    p->pid = get_tgid(task_addr);
+    //p->ppid = get_real_parent_pid(task_addr);
     p->pages = NULL;  // OsiPage - TODO
 
     //if kernel version is < 3.17
     if(ki.version.a < 3 || (ki.version.a == 3 && ki.version.b < 17)) {
-        uint64_t tmp = get_start_time(cpu, task_addr);
+        uint64_t tmp = get_start_time(task_addr);
 
         //if there's an endianness mismatch
         #if defined(TARGET_WORDS_BIGENDIAN) != defined(HOST_WORDS_BIGENDIAN)
@@ -164,22 +164,22 @@ void fill_osiproc(CPUState *cpu, OsiProc *p, target_ptr_t task_addr) {
         #endif
        
     } else {
-        p->create_time = get_start_time(cpu, task_addr);
+        p->create_time = get_start_time(task_addr);
     }
 }
 
 /**
  * @brief Fills an OsiModule struct.
  */
-static void fill_osimodule(CPUState *env, OsiModule *m, target_ptr_t vma_addr) {
+static void fill_osimodule(OsiModule *m, target_ptr_t vma_addr) {
     target_ulong vma_start, vma_end;
     target_ptr_t vma_vm_file;
     target_ptr_t vma_dentry;
     target_ptr_t mm_addr, start_brk, brk, start_stack;
 
-    vma_start = get_vma_start(env, vma_addr);
-    vma_end = get_vma_end(env, vma_addr);
-    vma_vm_file = get_vma_vm_file(env, vma_addr);
+    vma_start = get_vma_start(vma_addr);
+    vma_end = get_vma_end(vma_addr);
+    vma_vm_file = get_vma_vm_file(vma_addr);
 
     // Fill everything but m->name and m->file.
     m->modd = vma_addr;
@@ -188,15 +188,15 @@ static void fill_osimodule(CPUState *env, OsiModule *m, target_ptr_t vma_addr) {
 
     if (vma_vm_file !=
         (target_ptr_t)NULL) {  // Memory area is mapped from a file.
-        vma_dentry = get_vma_dentry(env, vma_addr);
-        m->file = read_dentry_name(env, vma_dentry);
+        vma_dentry = get_vma_dentry(vma_addr);
+        m->file = read_dentry_name(vma_dentry);
         m->name = g_strrstr(m->file, "/");
         if (m->name != NULL) m->name = g_strdup(m->name + 1);
     } else {  // Other memory areas.
-        mm_addr = get_vma_vm_mm(env, vma_addr);
-        start_brk = get_mm_start_brk(env, mm_addr);
-        brk = get_mm_brk(env, mm_addr);
-        start_stack = get_mm_start_stack(env, mm_addr);
+        mm_addr = get_vma_vm_mm(vma_addr);
+        start_brk = get_mm_start_brk(mm_addr);
+        brk = get_mm_brk(mm_addr);
+        start_stack = get_mm_start_stack(mm_addr);
 
         m->file = NULL;
         if (vma_start <= start_brk && vma_end >= brk) {
@@ -212,11 +212,11 @@ static void fill_osimodule(CPUState *env, OsiModule *m, target_ptr_t vma_addr) {
 /**
  * @brief Fills an OsiThread struct. Any existing contents are overwritten.
  */
-void fill_osithread(CPUState *env, OsiThread *t,
+void fill_osithread(OsiThread *t,
                            target_ptr_t task_addr) {
     memset(t, 0, sizeof(*t));
-    t->tid = get_pid(env, task_addr);
-    t->pid = get_tgid(env, task_addr);
+    t->tid = get_pid(task_addr);
+    t->pid = get_tgid(task_addr);
 }
 
 /* ******************************************************************
@@ -230,7 +230,7 @@ void on_first_syscall(uint64_t pc, uint64_t callno) {
     // Make sure we can now read current. Note this isn't like all the other on_...
     // functions that are registered as OSI callbacks
     /*
-    if (can_read_current(cpu) == false) {
+    if (can_read_current() == false) {
       printf("Failed to read at first syscall. Retrying...\n");
       return;
     }
@@ -247,7 +247,7 @@ void on_first_syscall(uint64_t pc, uint64_t callno) {
  * @brief Test to see if we can read the current task struct
  */
 inline bool can_read_current() {
-    target_ptr_t ts = kernel_profile->get_current_task_struct(NULL); // XXX: no CPUState
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     return 0x0 != ts;
 }
 
@@ -260,7 +260,7 @@ inline bool can_read_current() {
  *
  * If that fails, then we raise an assertion because OSI has really failed.
  */
-bool osi_guest_is_ready(CPUState *cpu, void** ret) {
+bool osi_guest_is_ready(void** ret) {
 
     if (osi_initialized) { // If osi_initialized is set, the guest must be ready
       return true;      // or, if it isn't, the user wants an assertion error
@@ -306,26 +306,26 @@ bool osi_guest_is_ready(CPUState *cpu, void** ret) {
  *
  */
 void osil_on_get_processes(GArray **out) {
-    if (!osi_guest_is_ready(NULL, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
     // instantiate and call function from get_process_info template
-    get_process_info<>(NULL, out, fill_osiproc, free_osiproc_contents);
+    get_process_info<>(out, fill_osiproc, free_osiproc_contents);
 }
 
 /**
  * @brief PPP callback to retrieve process handles from the running OS.
  */
 void osil_on_get_process_handles(GArray **out) {
-    if (!osi_guest_is_ready(NULL, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
 
     // instantiate and call function from get_process_info template
-    get_process_info<>(NULL, out, fill_osiprochandle, free_osiprochandle_contents);
+    get_process_info<>(out, fill_osiprochandle, free_osiprochandle_contents);
 }
 
 /**
  * @brief PPP callback to retrieve info about the currently running process.
  */
-void on_get_current_process(CPUState *env, OsiProc **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void on_get_current_process(OsiProc **out) {
+    if (!osi_guest_is_ready((void**)out)) return;
 
     static target_ptr_t last_ts = 0x0;
     static target_ptr_t cached_taskd = 0x0;
@@ -338,14 +338,14 @@ void on_get_current_process(CPUState *env, OsiProc **out) {
     // OsiPage - TODO
 
     OsiProc *p = NULL;
-    target_ptr_t ts = kernel_profile->get_current_task_struct(env);
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     if (0x0 != ts) {
         p = (OsiProc *)g_malloc(sizeof(*p));
         if ((ts != last_ts) || (NULL == cached_comm_ptr) ||
             (0 != strncmp((char *)cached_comm_ptr, cached_name,
                           ki.task.comm_size))) {
             last_ts = ts;
-            fill_osiproc(env, p, ts);
+            fill_osiproc(p, ts);
 
             // update the cache
             cached_taskd = p->taskd;
@@ -374,13 +374,13 @@ void on_get_current_process(CPUState *env, OsiProc **out) {
  * @brief PPP callback to the handle of the currently running process.
  */
 void osil_on_get_current_process_handle(OsiProcHandle **out) {
-    if (!osi_guest_is_ready(NULL, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
 
     OsiProcHandle *p = NULL;
-    target_ptr_t ts = kernel_profile->get_current_task_struct(NULL);
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     if (ts) {
         p = (OsiProcHandle *)g_malloc(sizeof(OsiProcHandle));
-        fill_osiprochandle(NULL, p, ts);
+        fill_osiprochandle(p, ts);
     }
     *out = p;
 }
@@ -390,12 +390,12 @@ void osil_on_get_current_process_handle(OsiProcHandle **out) {
  * handle.
  */
 void osil_on_get_process(const OsiProcHandle *h, OsiProc **out) {
-    if (!osi_guest_is_ready(NULL, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
 
     OsiProc *p = NULL;
     if (h != NULL && h->taskd != (target_ptr_t)NULL) {
         p = (OsiProc *)g_malloc(sizeof(OsiProc));
-        fill_osiproc(NULL, p, h->taskd);
+        fill_osiproc(p, h->taskd);
     }
     *out = p;
 }
@@ -409,14 +409,14 @@ void osil_on_get_process(const OsiProcHandle *h, OsiProc **out) {
  *
  * @todo Remove duplicates from results.
  */
-void on_get_mappings(CPUState *env, OsiProc *p, GArray **out) {
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+void on_get_mappings(OsiProc *p, GArray **out) {
+    if (!osi_guest_is_ready((void**)out)) return;
 
     OsiModule m;
     target_ptr_t vma_first, vma_current;
 
     // Read the module info for the process.
-    vma_first = vma_current = get_vma_first(env, p->taskd);
+    vma_first = vma_current = get_vma_first(p->taskd);
     if (vma_current == (target_ptr_t)NULL) goto error0;
 
     if (*out == NULL) {
@@ -427,9 +427,9 @@ void on_get_mappings(CPUState *env, OsiProc *p, GArray **out) {
 
     do {
         memset(&m, 0, sizeof(OsiModule));
-        fill_osimodule(env, &m, vma_current);
+        fill_osimodule(&m, vma_current);
         g_array_append_val(*out, m);
-        vma_current = get_vma_next(env, vma_current);
+        vma_current = get_vma_next(vma_current);
     } while(vma_current != (target_ptr_t)NULL && vma_current != vma_first);
 
     return;
@@ -447,19 +447,19 @@ error0:
 /**
  * @brief PPP callback to retrieve current thread.
  */
-void on_get_current_thread(CPUState *env, OsiThread **out) {
+void on_get_current_thread(OsiThread **out) {
     static target_ptr_t last_ts = 0x0;
     static target_pid_t cached_tid = 0;
     static target_pid_t cached_pid = 0;
 
-    if (!osi_guest_is_ready(env, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
 
     OsiThread *t = NULL;
-    target_ptr_t ts = kernel_profile->get_current_task_struct(env);
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     if (0x0 != ts) {
         t = (OsiThread *)g_malloc(sizeof(OsiThread));
         if (last_ts != ts) {
-            fill_osithread(env, t, ts);
+            fill_osithread(t, ts);
             cached_tid = t->tid;
             cached_pid = t->pid;
         } else {
@@ -474,28 +474,28 @@ void on_get_current_thread(CPUState *env, OsiThread **out) {
 /**
  * @brief PPP callback to retrieve the process pid from a handle.
  */
-void on_get_process_pid(CPUState *env, const OsiProcHandle *h, target_pid_t *pid) {
-    if (!osi_guest_is_ready(env, (void**)pid)) return;
+void on_get_process_pid(const OsiProcHandle *h, target_pid_t *pid) {
+    if (!osi_guest_is_ready((void**)pid)) return;
 
     if (h->taskd == NULL || h->taskd == (target_ptr_t)-1) {
         *pid = (target_pid_t)-1;
     } else {
-        *pid = get_tgid(env, h->taskd);
+        *pid = get_tgid(h->taskd);
     }
 }
 
 /**
  * @brief PPP callback to retrieve the process parent pid from a handle.
  */
-void on_get_process_ppid(CPUState *cpu, const OsiProcHandle *h, target_pid_t *ppid) {
+void on_get_process_ppid(const OsiProcHandle *h, target_pid_t *ppid) {
     struct_get_ret_t UNUSED(err);
-    if (!osi_guest_is_ready(cpu, (void**)ppid)) return;
+    if (!osi_guest_is_ready((void**)ppid)) return;
 
     if (h->taskd == (target_ptr_t)-1) {
         *ppid = (target_pid_t)-1;
     } else {
         // ppid = taskd->real_parent->pid
-        err = struct_get(cpu, ppid, h->taskd,
+        err = struct_get(ppid, h->taskd,
                          {ki.task.real_parent_offset, ki.task.pid_offset});
         if (err != struct_get_ret_t::SUCCESS) {
             *ppid = (target_pid_t)-1;
@@ -507,7 +507,7 @@ void on_get_process_ppid(CPUState *cpu, const OsiProcHandle *h, target_pid_t *pp
  osi_linux extra API
 ****************************************************************** */
 
-char *osi_linux_fd_to_filename(CPUState *env, OsiProc *p, int fd) {
+char *osi_linux_fd_to_filename(OsiProc *p, int fd) {
     char *filename = NULL;
     target_ptr_t ts_current;
     //const char *err = NULL;
@@ -523,7 +523,7 @@ char *osi_linux_fd_to_filename(CPUState *env, OsiProc *p, int fd) {
         goto end;
     }
 
-    filename = get_fd_name(env, ts_current, fd);
+    filename = get_fd_name(ts_current, fd);
     if (unlikely(filename == NULL)) {
         //err = "can't get filename";
         goto end;
@@ -545,21 +545,21 @@ end:
 }
 
 
-target_ptr_t ext_get_file_dentry(CPUState *env, target_ptr_t file_struct) {
-	return get_file_dentry(env, file_struct);
+target_ptr_t ext_get_file_dentry(target_ptr_t file_struct) {
+	return get_file_dentry(file_struct);
 } 
 
-target_ptr_t ext_get_file_struct_ptr(CPUState *env, target_ptr_t task_struct, int fd) {
-	return get_file_struct_ptr(env, task_struct, fd);
+target_ptr_t ext_get_file_struct_ptr(target_ptr_t task_struct, int fd) {
+	return get_file_struct_ptr(task_struct, fd);
 }
 
 
-unsigned long long  osi_linux_fd_to_pos(CPUState *env, OsiProc *p, int fd) {
+unsigned long long  osi_linux_fd_to_pos(OsiProc *p, int fd) {
     //    target_ulong asid = panda_current_asid(env);
     target_ptr_t ts_current = 0;
     ts_current = p->taskd;
     if (ts_current == 0) return INVALID_FILE_POS;
-    return get_fd_pos(env, ts_current, fd);
+    return get_fd_pos(ts_current, fd);
 }
 
 /* ******************************************************************
@@ -571,11 +571,11 @@ unsigned long long  osi_linux_fd_to_pos(CPUState *env, OsiProc *p, int fd) {
  * respective introspection functions. For testing the functions via
  * their callbacks, use the osi_test plugin.
  */
-int osi_linux_test(CPUState *env, target_ulong oldval, target_ulong newval) {
+int osi_linux_test(target_ulong oldval, target_ulong newval) {
     static uint32_t asid_change_count = 0;
     GArray *ps = NULL;
 
-    osil_on_get_processes(env, &ps);
+    osil_on_get_processes(&ps);
     assert(ps != NULL && ps->len > 0 && "no processes retrieved");
 
 #if PANDA_LOG_LEVEL >= PANDA_LOG_INFO
@@ -587,7 +587,7 @@ int osi_linux_test(CPUState *env, target_ulong oldval, target_ulong newval) {
                  p->pid, p->ppid, p->name, p->asid, p->taskd);
 #if defined(OSI_LINUX_TEST_MODULES)
         GArray *ms = NULL;
-        on_get_mappings(env, p, &ms);
+        on_get_mappings(p, &ms);
         if (ms != NULL) {
             for (uint32_t j = 0; j < ms->len; j++) {
                 OsiModule *m = &g_array_index(ms, OsiModule, j);
@@ -603,7 +603,7 @@ int osi_linux_test(CPUState *env, target_ulong oldval, target_ulong newval) {
 #endif
 #if defined(OSI_LINUX_TEST_FDNAME)
         for (uint32_t fd=0; fd<16; fd++) {
-            char *s = get_fd_name(env, ps->proc[i].offset, fd);
+            char *s = get_fd_name(ps->proc[i].offset, fd);
             LOG_INFO("\tfd%d -> %s", fd, s);
             g_free(s);
         }
@@ -645,7 +645,7 @@ void init_per_cpu_offsets() {
 
     // skip update because of failure to read from per_cpu_offsets_addr
     target_ptr_t per_cpu_offset_0_addr;
-    auto r = struct_get(NULL, &per_cpu_offset_0_addr, ki.task.per_cpu_offsets_addr,
+    auto r = struct_get(&per_cpu_offset_0_addr, ki.task.per_cpu_offsets_addr,
                         0*sizeof(target_ptr_t));
     if (r != struct_get_ret_t::SUCCESS) {
         LOG_ERROR("Unable to update value of ki.task.per_cpu_offset_0_addr.");
@@ -675,6 +675,9 @@ void restore_after_snapshot(CPUState* cpu) {
 }
 #endif
 
+
+// Disable inserted TCG calls
+#if 0
 // Keep track of which tasks have entered execve. Note that we simply track
 // based on the task struct. This works because the other threads in the thread
 // group will be terminated and the current task will be the only task in the
@@ -685,13 +688,10 @@ static std::unordered_set<target_ptr_t> tasks_in_execve;
 static void exec_enter(CPUState *cpu)
 {
     bool **out=0;
-    if (!osi_guest_is_ready(cpu, (void**)out)) return;
-    target_ptr_t ts = kernel_profile->get_current_task_struct(cpu);
+    if (!osi_guest_is_ready((void**)out)) return;
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     tasks_in_execve.insert(ts);
 }
-
-// Disable inserted TCG calls
-#if 0
 static void exec_check(CPUState *cpu)
 {
     // Fast Path: Nothing is in execve, so there's nothing to do.
@@ -699,10 +699,10 @@ static void exec_check(CPUState *cpu)
         return;
     }
     bool** out=0;
-    if (!osi_guest_is_ready(cpu, (void**)out)) return;
+    if (!osi_guest_is_ready((void**)out)) return;
 
     // Slow Path: Something is in execve, so we have to check.
-    target_ptr_t ts = kernel_profile->get_current_task_struct(cpu);
+    target_ptr_t ts = kernel_profile->get_current_task_struct();
     auto it = tasks_in_execve.find(ts);
     if (tasks_in_execve.end() != it && !panda_in_kernel(cpu)) {
         notify_task_change(cpu);
@@ -716,39 +716,14 @@ static void before_tcg_codegen_callback(CPUState *cpu, TranslationBlock *tb)
 {
     TCGOp *op = find_first_guest_insn();
     assert(NULL != op);
-    insert_call(&op, exec_check, cpu);
+    insert_call(&op, exec_check);
 
     if (0x0 != ki.task.switch_task_hook_addr && tb->pc == ki.task.switch_task_hook_addr) {
         // Instrument the task switch address.
-        insert_call(&op, notify_task_change, cpu);
+        insert_call(&op, notify_task_change);
     }
 }
 #endif
-
-OsiProc *osi_get_process(const OsiProcHandle *h) {
-    OsiProc *p = NULL;
-    //QPP_RUN_CB(on_get_process, h, &p);
-    osil_on_get_process(h, &p);
-    return p;
-}
-
-OsiProcHandle *osi_get_current_process_handle() {
-    OsiProcHandle *h = NULL;
-    //QPP_RUN_CB(on_get_current_process_handle, &h);
-    osil_on_get_current_process_handle(&h);
-    return h;
-}
-
-void log_syscall(uint64_t pc, uint64_t callno)
-{
-  g_autoptr(GString) report = g_string_new(CURRENT_PLUGIN ": Syscall at ");
-
-  const OsiProcHandle *h = osi_get_current_process_handle();
-  OsiProc *p = osi_get_process(h);
-
-  g_string_append_printf(report, "%lx: %ld\n", pc, callno);
-  qemu_plugin_outs(report->str);
-}
 
 extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
@@ -788,8 +763,8 @@ extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         kernel_profile = &DEFAULT_PROFILE;
     }
 
-    //QPP_REG_CB("osi", on_get_process, osil_on_get_process);
-    //QPP_REG_CB("osi", on_get_current_process_handle, osil_on_get_current_process_handle);
+    QPP_REG_CB("osi", on_get_process, osil_on_get_process);
+    QPP_REG_CB("osi", on_get_current_process_handle, osil_on_get_current_process_handle);
 
     //QPP_REG_CB("osi", on_get_process_handles, osil_on_get_process_handles);
     /*
