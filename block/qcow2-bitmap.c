@@ -955,8 +955,8 @@ static void set_readonly_helper(gpointer bitmap, gpointer value)
  * If header_updated is not NULL then it is set appropriately regardless of
  * the return value.
  */
-bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
-                              Error **errp)
+bool coroutine_fn qcow2_load_dirty_bitmaps(BlockDriverState *bs,
+                                           bool *header_updated, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;

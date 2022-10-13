@@ -31,7 +31,8 @@
 #include "qemu/memalign.h"
 #include "trace.h"
 
-int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t exact_size)
+int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
+                                       uint64_t exact_size)
 {
     BDRVQcow2State *s = bs->opaque;
     int new_l1_size, i, ret;
@@ -823,10 +824,10 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
  *
  * Return 0 on success and -errno in error cases
  */
-int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
-                                          uint64_t offset,
-                                          int compressed_size,
-                                          uint64_t *host_offset)
+int coroutine_fn qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
+                                                       uint64_t offset,
+                                                       int compressed_size,
+                                                       uint64_t *host_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index, ret;
@@ -1488,8 +1489,9 @@ static int coroutine_fn handle_dependencies(BlockDriverState *bs,
  *
  *  -errno: in error cases
  */
-static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
+static int coroutine_fn handle_copied(BlockDriverState *bs,
+    uint64_t guest_offset, uint64_t *host_offset, uint64_t *bytes,
+    QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index;
@@ -1653,8 +1655,9 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  *
  *  -errno: in error cases
  */
-static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
+static int coroutine_fn handle_alloc(BlockDriverState *bs,
+    uint64_t guest_offset, uint64_t *host_offset, uint64_t *bytes,
+    QCowL2Meta **m)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index;

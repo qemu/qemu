@@ -97,7 +97,7 @@ static void update_max_refcount_table_index(BDRVQcow2State *s)
     s->max_refcount_table_index = i;
 }
 
-int qcow2_refcount_init(BlockDriverState *bs)
+int coroutine_fn qcow2_refcount_init(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     unsigned int refcount_table_size2, i;
@@ -3559,8 +3559,8 @@ static int64_t get_refblock_offset(BlockDriverState *bs, uint64_t offset)
     return covering_refblock_offset;
 }
 
-static int qcow2_discard_refcount_block(BlockDriverState *bs,
-                                        uint64_t discard_block_offs)
+static int coroutine_fn
+qcow2_discard_refcount_block(BlockDriverState *bs, uint64_t discard_block_offs)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t refblock_offs;
@@ -3616,7 +3616,7 @@ static int qcow2_discard_refcount_block(BlockDriverState *bs,
     return 0;
 }
 
-int qcow2_shrink_reftable(BlockDriverState *bs)
+int coroutine_fn qcow2_shrink_reftable(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *reftable_tmp =

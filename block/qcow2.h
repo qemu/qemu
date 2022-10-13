@@ -846,7 +846,7 @@ int qcow2_validate_table(BlockDriverState *bs, uint64_t offset,
                          Error **errp);
 
 /* qcow2-refcount.c functions */
-int qcow2_refcount_init(BlockDriverState *bs);
+int coroutine_fn qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
 int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
@@ -893,14 +893,14 @@ int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
 int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 BlockDriverAmendStatusCB *status_cb,
                                 void *cb_opaque, Error **errp);
-int qcow2_shrink_reftable(BlockDriverState *bs);
+int coroutine_fn qcow2_shrink_reftable(BlockDriverState *bs);
 int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size);
 int coroutine_fn qcow2_detect_metadata_preallocation(BlockDriverState *bs);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
-int qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size);
+int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size);
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
 int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
                           uint8_t *buf, int nb_sectors, bool enc, Error **errp);
@@ -911,10 +911,10 @@ int qcow2_get_host_offset(BlockDriverState *bs, uint64_t offset,
 int coroutine_fn qcow2_alloc_host_offset(BlockDriverState *bs, uint64_t offset,
                                          unsigned int *bytes,
                                          uint64_t *host_offset, QCowL2Meta **m);
-int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
-                                          uint64_t offset,
-                                          int compressed_size,
-                                          uint64_t *host_offset);
+int coroutine_fn qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
+                                                       uint64_t offset,
+                                                       int compressed_size,
+                                                       uint64_t *host_offset);
 void qcow2_parse_compressed_l2_entry(BlockDriverState *bs, uint64_t l2_entry,
                                      uint64_t *coffset, int *csize);
 
@@ -982,8 +982,8 @@ void qcow2_cache_discard(Qcow2Cache *c, void *table);
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
                                   int64_t *refcount_table_size);
-bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, bool *header_updated,
-                              Error **errp);
+bool coroutine_fn qcow2_load_dirty_bitmaps(BlockDriverState *bs,
+                                           bool *header_updated, Error **errp);
 bool qcow2_get_bitmap_info_list(BlockDriverState *bs,
                                 Qcow2BitmapInfoList **info_list, Error **errp);
 int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp);
