@@ -865,7 +865,7 @@ static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
                 break;
             }
 
-            qdev_reset_all(&d->qdev);
+            device_cold_reset(&d->qdev);
             break;
 
         case SRP_TSK_ABORT_TASK_SET:
