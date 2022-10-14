@@ -839,10 +839,17 @@
 #                threads created in the thread context (default: QEMU main
 #                thread CPU affinity)
 #
+# @node-affinity: the list of host node numbers that will be resolved to a
+#                 list of host CPU numbers used as CPU affinity. This is a
+#                 shortcut for specifying the list of host CPU numbers
+#                 belonging to the host nodes manually by setting
+#                 @cpu-affinity. (default: QEMU main thread affinity)
+#
 # Since: 7.2
 ##
 { 'struct': 'ThreadContextProperties',
-  'data': { '*cpu-affinity': ['uint16'] } }
+  'data': { '*cpu-affinity': ['uint16'],
+            '*node-affinity': ['uint16'] } }
 
 
 ##
