@@ -477,6 +477,18 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     thread->data = data;
 }
 
+int qemu_thread_set_affinity(QemuThread *thread, unsigned long *host_cpus,
+                             unsigned long nbits)
+{
+    return -ENOSYS;
+}
+
+int qemu_thread_get_affinity(QemuThread *thread, unsigned long **host_cpus,
+                             unsigned long *nbits)
+{
+    return -ENOSYS;
+}
+
 void qemu_thread_get_self(QemuThread *thread)
 {
     thread->data = qemu_thread_data;
