@@ -220,8 +220,6 @@ struct IntelHDAReg {
     void       (*rhandler)(IntelHDAState *d, const IntelHDAReg *reg);
 };
 
-static void intel_hda_reset(DeviceState *dev);
-
 /* --------------------------------------------------------------------- */
 
 static hwaddr intel_hda_addr(uint32_t lbase, uint32_t ubase)
