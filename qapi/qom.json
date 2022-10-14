@@ -578,6 +578,9 @@
 #
 # @prealloc-threads: number of CPU threads to use for prealloc (default: 1)
 #
+# @prealloc-context: thread context to use for creation of preallocation threads
+#                    (default: none) (since 7.2)
+#
 # @share: if false, the memory is private to QEMU; if true, it is shared
 #         (default: false)
 #
@@ -608,6 +611,7 @@
             '*policy': 'HostMemPolicy',
             '*prealloc': 'bool',
             '*prealloc-threads': 'uint32',
+            '*prealloc-context': 'str',
             '*share': 'bool',
             '*reserve': 'bool',
             'size': 'size',
