@@ -42,6 +42,7 @@
 #include "qemu/cutils.h"
 #include "qemu/compiler.h"
 #include "qemu/units.h"
+#include "qemu/thread-context.h"
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
