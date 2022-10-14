@@ -354,7 +354,7 @@ static void qemu_init_sigbus(void)
 
     /*
      * ALERT: when modifying this, take care that SIGBUS forwarding in
-     * os_mem_prealloc() will continue working as expected.
+     * qemu_prealloc_mem() will continue working as expected.
      */
     memset(&action, 0, sizeof(action));
     action.sa_flags = SA_SIGINFO;

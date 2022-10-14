@@ -268,14 +268,14 @@ int getpagesize(void)
     return system_info.dwPageSize;
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
-                     Error **errp)
+void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
+                       Error **errp)
 {
     int i;
     size_t pagesize = qemu_real_host_page_size();
 
-    memory = (memory + pagesize - 1) & -pagesize;
-    for (i = 0; i < memory / pagesize; i++) {
+    sz = (sz + pagesize - 1) & -pagesize;
+    for (i = 0; i < sz / pagesize; i++) {
         memset(area + pagesize * i, 0, 1);
     }
 }

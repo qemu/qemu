@@ -329,7 +329,7 @@ static void sigbus_handler(int signal)
         return;
     }
 #endif /* CONFIG_LINUX */
-    warn_report("os_mem_prealloc: unrelated SIGBUS detected and ignored");
+    warn_report("qemu_prealloc_mem: unrelated SIGBUS detected and ignored");
 }
 
 static void *do_touch_pages(void *arg)
@@ -399,13 +399,13 @@ static void *do_madv_populate_write_pages(void *arg)
 }
 
 static inline int get_memset_num_threads(size_t hpagesize, size_t numpages,
-                                         int smp_cpus)
+                                         int max_threads)
 {
     long host_procs = sysconf(_SC_NPROCESSORS_ONLN);
     int ret = 1;
 
     if (host_procs > 0) {
-        ret = MIN(MIN(host_procs, MAX_MEM_PREALLOC_THREAD_COUNT), smp_cpus);
+        ret = MIN(MIN(host_procs, MAX_MEM_PREALLOC_THREAD_COUNT), max_threads);
     }
 
     /* Especially with gigantic pages, don't create more threads than pages. */
@@ -418,11 +418,11 @@ static inline int get_memset_num_threads(size_t hpagesize, size_t numpages,
 }
 
 static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
-                           int smp_cpus, bool use_madv_populate_write)
+                           int max_threads, bool use_madv_populate_write)
 {
     static gsize initialized = 0;
     MemsetContext context = {
-        .num_threads = get_memset_num_threads(hpagesize, numpages, smp_cpus),
+        .num_threads = get_memset_num_threads(hpagesize, numpages, max_threads),
     };
     size_t numpages_per_thread, leftover;
     void *(*touch_fn)(void *);
@@ -494,13 +494,13 @@ static bool madv_populate_write_possible(char *area, size_t pagesize)
            errno != EINVAL;
 }
 
-void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
-                     Error **errp)
+void qemu_prealloc_mem(int fd, char *area, size_t sz, int max_threads,
+                       Error **errp)
 {
     static gsize initialized;
     int ret;
     size_t hpagesize = qemu_fd_getpagesize(fd);
-    size_t numpages = DIV_ROUND_UP(memory, hpagesize);
+    size_t numpages = DIV_ROUND_UP(sz, hpagesize);
     bool use_madv_populate_write;
     struct sigaction act;
 
@@ -530,24 +530,24 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
         if (ret) {
             qemu_mutex_unlock(&sigbus_mutex);
             error_setg_errno(errp, errno,
-                "os_mem_prealloc: failed to install signal handler");
+                "qemu_prealloc_mem: failed to install signal handler");
             return;
         }
     }
 
     /* touch pages simultaneously */
-    ret = touch_all_pages(area, hpagesize, numpages, smp_cpus,
+    ret = touch_all_pages(area, hpagesize, numpages, max_threads,
                           use_madv_populate_write);
     if (ret) {
         error_setg_errno(errp, -ret,
-                         "os_mem_prealloc: preallocating memory failed");
+                         "qemu_prealloc_mem: preallocating memory failed");
     }
 
     if (!use_madv_populate_write) {
         ret = sigaction(SIGBUS, &sigbus_oldact, NULL);
         if (ret) {
             /* Terminate QEMU since it can't recover from error */
-            perror("os_mem_prealloc: failed to reinstall signal handler");
+            perror("qemu_prealloc_mem: failed to reinstall signal handler");
             exit(1);
         }
         qemu_mutex_unlock(&sigbus_mutex);

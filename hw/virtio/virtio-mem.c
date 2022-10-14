@@ -467,7 +467,7 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
             int fd = memory_region_get_fd(&vmem->memdev->mr);
             Error *local_err = NULL;
 
-            os_mem_prealloc(fd, area, size, 1, &local_err);
+            qemu_prealloc_mem(fd, area, size, 1, &local_err);
             if (local_err) {
                 static bool warned;
 
