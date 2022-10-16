@@ -628,6 +628,18 @@ bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
     }
 
     if (*tlb_size != 0) {
+        /*
+         * At this point we have a tlb_size that is the smallest possible size
+         * That fits within a TARGET_PAGE_SIZE and the PMP region.
+         *
+         * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
+         * This means the result isn't cached in the TLB and is only used for
+         * a single translation.
+         */
+        if (*tlb_size < TARGET_PAGE_SIZE) {
+            *tlb_size = 1;
+        }
+
         return true;
     }
 
