@@ -4817,6 +4817,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     int modrm, reg, rm, mod, op, opreg, val;
     bool orig_cc_op_dirty = s->cc_op_dirty;
     CCOp orig_cc_op = s->cc_op;
+    target_ulong orig_pc_save = s->pc_save;
 
     s->pc = s->base.pc_next;
     s->override = -1;
@@ -4838,8 +4839,15 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 2:
         /* Restore state that may affect the next instruction. */
         s->pc = s->base.pc_next;
+        /*
+         * TODO: These save/restore can be removed after the table-based
+         * decoder is complete; we will be decoding the insn completely
+         * before any code generation that might affect these variables.
+         */
         s->cc_op_dirty = orig_cc_op_dirty;
         s->cc_op = orig_cc_op;
+        s->pc_save = orig_pc_save;
+        /* END TODO */
         s->base.num_insns--;
         tcg_remove_ops_after(s->prev_insn_end);
         s->base.is_jmp = DISAS_TOO_MANY;
