@@ -80,19 +80,8 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #else
 #define SOFTMMU_RESERVE_REGS 0
 #endif
-
-/*
- * Note that sparcv8plus can only hold 64 bit quantities in %g and %o
- * registers.  These are saved manually by the kernel in full 64-bit
- * slots.  The %i and %l registers are saved by the register window
- * mechanism, which only allocates space for 32 bits.  Given that this
- * window spill/fill can happen on any signal, we must consider the
- * high bits of the %i and %l registers garbage at all times.
- */
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 32)
-# define ALL_GENERAL_REGS64  ALL_GENERAL_REGS
 #define ALL_QLDST_REGS       (ALL_GENERAL_REGS & ~SOFTMMU_RESERVE_REGS)
-#define ALL_QLDST_REGS64     (ALL_GENERAL_REGS64 & ~SOFTMMU_RESERVE_REGS)
 
 /* Define some temporary registers.  T2 is used for constant generation.  */
 #define TCG_REG_T1  TCG_REG_G1
@@ -1738,107 +1727,91 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O0_I1(r);
 
     case INDEX_op_ld8u_i32:
+    case INDEX_op_ld8u_i64:
     case INDEX_op_ld8s_i32:
+    case INDEX_op_ld8s_i64:
     case INDEX_op_ld16u_i32:
+    case INDEX_op_ld16u_i64:
     case INDEX_op_ld16s_i32:
+    case INDEX_op_ld16s_i64:
     case INDEX_op_ld_i32:
+    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld32s_i64:
+    case INDEX_op_ld_i64:
     case INDEX_op_neg_i32:
+    case INDEX_op_neg_i64:
     case INDEX_op_not_i32:
+    case INDEX_op_not_i64:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
+    case INDEX_op_extrh_i64_i32:
         return C_O1_I1(r, r);
 
     case INDEX_op_st8_i32:
+    case INDEX_op_st8_i64:
     case INDEX_op_st16_i32:
+    case INDEX_op_st16_i64:
     case INDEX_op_st_i32:
+    case INDEX_op_st32_i64:
+    case INDEX_op_st_i64:
         return C_O0_I2(rZ, r);
 
     case INDEX_op_add_i32:
+    case INDEX_op_add_i64:
     case INDEX_op_mul_i32:
+    case INDEX_op_mul_i64:
     case INDEX_op_div_i32:
+    case INDEX_op_div_i64:
     case INDEX_op_divu_i32:
+    case INDEX_op_divu_i64:
     case INDEX_op_sub_i32:
+    case INDEX_op_sub_i64:
     case INDEX_op_and_i32:
+    case INDEX_op_and_i64:
     case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
     case INDEX_op_or_i32:
+    case INDEX_op_or_i64:
     case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
     case INDEX_op_xor_i32:
+    case INDEX_op_xor_i64:
     case INDEX_op_shl_i32:
+    case INDEX_op_shl_i64:
     case INDEX_op_shr_i32:
+    case INDEX_op_shr_i64:
     case INDEX_op_sar_i32:
+    case INDEX_op_sar_i64:
     case INDEX_op_setcond_i32:
+    case INDEX_op_setcond_i64:
         return C_O1_I2(r, rZ, rJ);
 
     case INDEX_op_brcond_i32:
+    case INDEX_op_brcond_i64:
         return C_O0_I2(rZ, rJ);
     case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
         return C_O1_I4(r, rZ, rJ, rI, 0);
     case INDEX_op_add2_i32:
+    case INDEX_op_add2_i64:
     case INDEX_op_sub2_i32:
+    case INDEX_op_sub2_i64:
         return C_O2_I4(r, r, rZ, rZ, rJ, rJ);
     case INDEX_op_mulu2_i32:
     case INDEX_op_muls2_i32:
         return C_O2_I2(r, r, rZ, rJ);
-
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-    case INDEX_op_ld_i64:
-    case INDEX_op_ext_i32_i64:
-    case INDEX_op_extu_i32_i64:
-        return C_O1_I1(R, r);
-
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i64:
-        return C_O0_I2(RZ, r);
-
-    case INDEX_op_add_i64:
-    case INDEX_op_mul_i64:
-    case INDEX_op_div_i64:
-    case INDEX_op_divu_i64:
-    case INDEX_op_sub_i64:
-    case INDEX_op_and_i64:
-    case INDEX_op_andc_i64:
-    case INDEX_op_or_i64:
-    case INDEX_op_orc_i64:
-    case INDEX_op_xor_i64:
-    case INDEX_op_shl_i64:
-    case INDEX_op_shr_i64:
-    case INDEX_op_sar_i64:
-    case INDEX_op_setcond_i64:
-        return C_O1_I2(R, RZ, RJ);
-
-    case INDEX_op_neg_i64:
-    case INDEX_op_not_i64:
-    case INDEX_op_ext32s_i64:
-    case INDEX_op_ext32u_i64:
-        return C_O1_I1(R, R);
-
-    case INDEX_op_extrl_i64_i32:
-    case INDEX_op_extrh_i64_i32:
-        return C_O1_I1(r, R);
-
-    case INDEX_op_brcond_i64:
-        return C_O0_I2(RZ, RJ);
-    case INDEX_op_movcond_i64:
-        return C_O1_I4(R, RZ, RJ, RI, 0);
-    case INDEX_op_add2_i64:
-    case INDEX_op_sub2_i64:
-        return C_O2_I4(R, R, RZ, RZ, RJ, RI);
     case INDEX_op_muluh_i64:
-        return C_O1_I2(R, R, R);
+        return C_O1_I2(r, r, r);
 
     case INDEX_op_qemu_ld_i32:
-        return C_O1_I1(r, A);
     case INDEX_op_qemu_ld_i64:
-        return C_O1_I1(R, A);
+        return C_O1_I1(r, s);
     case INDEX_op_qemu_st_i32:
-        return C_O0_I2(sZ, A);
     case INDEX_op_qemu_st_i64:
-        return C_O0_I2(SZ, A);
+        return C_O0_I2(sZ, s);
 
     default:
         g_assert_not_reached();
@@ -1859,7 +1832,7 @@ static void tcg_target_init(TCGContext *s)
 #endif
 
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
-    tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS64;
+    tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS;
 
     tcg_target_call_clobber_regs = 0;
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_G1);
