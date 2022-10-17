@@ -442,6 +442,7 @@ static int multifd_send_pages(QEMUFile *f)
 int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
 {
     MultiFDPages_t *pages = multifd_send_state->pages;
+    bool changed = false;
 
     if (!pages->block) {
         pages->block = block;
@@ -454,14 +455,16 @@ int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
         if (pages->num < pages->allocated) {
             return 1;
         }
+    } else {
+        changed = true;
     }
 
     if (multifd_send_pages(f) < 0) {
         return -1;
     }
 
-    if (pages->block != block) {
-        return  multifd_queue_page(f, block, offset);
+    if (changed) {
+        return multifd_queue_page(f, block, offset);
     }
 
     return 1;
