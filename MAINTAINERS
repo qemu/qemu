@@ -110,7 +110,7 @@ T: git https://gitlab.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
 MIPS general architecture support
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Odd Fixes
 K: ^Subject:.*(?i)mips
@@ -233,7 +233,7 @@ F: tests/docker/dockerfiles/debian-microblaze-cross.d/build-toolchain.sh
 F: tests/tcg/nios2/Makefile.target
 
 MIPS TCG CPUs
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
@@ -550,7 +550,7 @@ X: qga/*win32*
 F: qemu.nsi
 
 Darwin (macOS, iOS)
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: .gitlab-ci.d/cirrus/macos-*
 F: */*.m
@@ -681,7 +681,7 @@ F: include/hw/rtc/goldfish_rtc.h
 
 Gumstix
 M: Peter Maydell <peter.maydell@linaro.org>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/gumstix.c
@@ -832,7 +832,7 @@ F: docs/system/arm/palm.rst
 
 Raspberry Pi
 M: Peter Maydell <peter.maydell@linaro.org>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/raspi.c
@@ -1095,7 +1095,7 @@ F: include/hw/misc/avr_power.h
 F: hw/misc/avr_power.c
 
 Arduino
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: hw/avr/arduino.c
 
@@ -1210,7 +1210,7 @@ F: hw/microblaze/petalogix_ml605_mmu.c
 MIPS Machines
 -------------
 Overall MIPS Machines
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: configs/devices/mips*/*
 F: hw/mips/
@@ -1225,7 +1225,7 @@ F: hw/display/jazz_led.c
 F: hw/dma/rc4030.c
 
 Malta
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: hw/isa/piix4.c
@@ -1244,7 +1244,7 @@ F: hw/net/mipsnet.c
 
 Fuloong 2E
 M: Huacai Chen <chenhuacai@kernel.org>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Odd Fixes
 F: hw/mips/fuloong2e.c
@@ -1700,7 +1700,7 @@ F: pc-bios/bios-microvm.bin
 Machine core
 M: Eduardo Habkost <eduardo@habkost.net>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Yanan Wang <wangyanan55@huawei.com>
 S: Supported
 F: cpu.c
@@ -1893,7 +1893,7 @@ F: docs/virtio-net-failover.rst
 T: git https://github.com/jasowang/qemu.git net
 
 Parallel NOR Flash devices
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 T: git https://gitlab.com/philmd/qemu.git pflash-next
 S: Maintained
 F: hw/block/pflash_cfi*.c
@@ -1926,7 +1926,7 @@ S: Maintained
 F: hw/ssi/xilinx_*
 
 SD (Secure Card)
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 M: Bin Meng <bin.meng@windriver.com>
 L: qemu-block@nongnu.org
 S: Odd Fixes
@@ -2233,14 +2233,14 @@ F: tests/qtest/vmgenid-test.c
 F: stubs/vmgenid.c
 
 LED
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: include/hw/misc/led.h
 F: hw/misc/led.c
 
 Unimplemented device
 M: Peter Maydell <peter.maydell@linaro.org>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Ani Sinha <ani@anisinha.ca>
 S: Maintained
 F: include/hw/misc/unimp.h
@@ -2248,7 +2248,7 @@ F: hw/misc/unimp.c
 
 Empty slot
 M: Artyom Tarasenko <atar4qemu@gmail.com>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Ani Sinha <ani@anisinha.ca>
 S: Maintained
 F: include/hw/misc/empty_slot.h
@@ -2312,13 +2312,13 @@ F: qemu-edid.c
 
 PIIX4 South Bridge (i82371AB)
 M: Hervé Poussineau <hpoussin@reactos.org>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: hw/isa/piix4.c
 F: include/hw/southbridge/piix.h
 
 Firmware configuration (fw_cfg)
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
 F: docs/specs/fw_cfg.txt
@@ -2374,13 +2374,13 @@ F: hw/intc/openpic.c
 F: include/hw/ppc/openpic.h
 
 MIPS CPS
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: hw/misc/mips_*
 F: include/hw/misc/mips_*
 
 MIPS GIC
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: hw/intc/mips_gic.c
 F: hw/timer/mips_gictimer.c
@@ -2462,7 +2462,7 @@ F: audio/alsaaudio.c
 
 Core Audio framework backend
 M: Gerd Hoffmann <kraxel@redhat.com>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 R: Akihiko Odaki <akihiko.odaki@gmail.com>
 S: Odd Fixes
@@ -2687,7 +2687,7 @@ F: scripts/coccinelle/errp-guard.cocci
 
 GDB stub
 M: Alex Bennée <alex.bennee@linaro.org>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: gdbstub/*
 F: include/exec/gdbstub.h
@@ -2698,7 +2698,7 @@ Memory API
 M: Paolo Bonzini <pbonzini@redhat.com>
 M: Peter Xu <peterx@redhat.com>
 M: David Hildenbrand <david@redhat.com>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Supported
 F: include/exec/ioport.h
 F: include/exec/memop.h
@@ -2748,7 +2748,7 @@ F: util/drm.c
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Akihiko Odaki <akihiko.odaki@gmail.com>
 S: Odd Fixes
 F: ui/cocoa.m
@@ -3231,14 +3231,14 @@ F: tests/qtest/max34451-test.c
 F: tests/qtest/isl_pmbus_vr-test.c
 
 Firmware schema specifications
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Daniel P. Berrange <berrange@redhat.com>
 R: Kashyap Chamarthy <kchamart@redhat.com>
 S: Maintained
 F: docs/interop/firmware.json
 
 EDK2 Firmware
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Supported
 F: hw/i386/*ovmf*
@@ -3349,7 +3349,7 @@ S: Maintained
 F: tcg/loongarch64/
 
 MIPS TCG target
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 R: Huacai Chen <chenhuacai@kernel.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
@@ -3472,7 +3472,7 @@ F: block/null.c
 NVMe Block Driver
 M: Stefan Hajnoczi <stefanha@redhat.com>
 R: Fam Zheng <fam@euphon.net>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
@@ -3691,7 +3691,7 @@ Build and test automation
 -------------------------
 Build and test automation, general continuous integration
 M: Alex Bennée <alex.bennee@linaro.org>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 M: Thomas Huth <thuth@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 R: Beraldo Leal <bleal@redhat.com>
@@ -3724,7 +3724,7 @@ W: https://cirrus-ci.com/github/qemu/qemu
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
@@ -3732,7 +3732,7 @@ F: tests/tcg/Makefile.include
 Integration Testing with the Avocado framework
 W: https://trello.com/b/6Qi1pxVn/avocado-qemu
 R: Cleber Rosa <crosa@redhat.com>
-R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 R: Beraldo Leal <bleal@redhat.com>
 S: Odd Fixes
@@ -3740,7 +3740,7 @@ F: tests/avocado/
 
 GitLab custom runner (Works On Arm Sponsored)
 M: Alex Bennée <alex.bennee@linaro.org>
-M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Maintained
 F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch64.yml
 F: .gitlab-ci.d/custom-runners/ubuntu-22.04-aarch32.yml
