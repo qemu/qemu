@@ -1876,6 +1876,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         s->phdr_offset = s->shdr_offset + sizeof(Elf32_Shdr) * s->shdr_num;
         s->note_offset = s->phdr_offset + sizeof(Elf32_Phdr) * s->phdr_num;
     }
+    s->memory_offset = s->note_offset + s->note_size;
+    s->section_offset = s->memory_offset + s->total_size;
 
     return;
 
