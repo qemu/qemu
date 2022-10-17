@@ -3370,7 +3370,7 @@ L: qemu-s390x@nongnu.org
 
 SPARC TCG target
 S: Odd Fixes
-F: tcg/sparc/
+F: tcg/sparc64/
 F: disas/sparc.c
 
 TCI TCG target
