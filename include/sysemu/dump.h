@@ -180,6 +180,9 @@ typedef struct DumpState {
     hwaddr note_offset;
 
     void *elf_section_hdrs;     /* Pointer to section header buffer */
+    void *elf_section_data;     /* Pointer to section data buffer */
+    uint64_t elf_section_data_size; /* Size of section data */
+    GArray *string_table_buf;   /* String table data buffer */
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
