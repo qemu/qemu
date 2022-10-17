@@ -656,9 +656,6 @@ void afl_forkserver(CPUState *cpu) {
 
   }
 
-  // Flush translation cache just before fork server starts.
-  tb_flush_sync();
-
   /* All right, let's await orders... */
 
   while (1) {
