@@ -167,3 +167,19 @@ GuestCpuStatsList *qmp_guest_get_cpustats(Error **errp)
     return NULL;
 }
 #endif /* CONFIG_FSFREEZE */
+
+#ifdef HAVE_GETIFADDRS
+/*
+ * Fill "buf" with MAC address by ifaddrs. Pointer buf must point to a
+ * buffer with ETHER_ADDR_LEN length at least.
+ *
+ * Returns false in case of an error, otherwise true. "obtained" arguument
+ * is true if a MAC address was obtained successful, otherwise false.
+ */
+bool guest_get_hw_addr(struct ifaddrs *ifa, unsigned char *buf,
+                       bool *obtained, Error **errp)
+{
+    *obtained = false;
+    return true;
+}
+#endif /* HAVE_GETIFADDRS */
