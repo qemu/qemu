@@ -25,8 +25,6 @@
 #ifndef SPARC_TCG_TARGET_H
 #define SPARC_TCG_TARGET_H
 
-#define TCG_TARGET_REG_BITS 64
-
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_TLB_DISPLACEMENT_BITS 32
 #define TCG_TARGET_NB_REGS 32
@@ -70,19 +68,10 @@ typedef enum {
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_O6
 
-#ifdef __arch64__
 #define TCG_TARGET_STACK_BIAS           2047
 #define TCG_TARGET_STACK_ALIGN          16
 #define TCG_TARGET_CALL_STACK_OFFSET    (128 + 6*8 + TCG_TARGET_STACK_BIAS)
-#else
-#define TCG_TARGET_STACK_BIAS           0
-#define TCG_TARGET_STACK_ALIGN          8
-#define TCG_TARGET_CALL_STACK_OFFSET    (64 + 4 + 6*4)
-#endif
-
-#ifdef __arch64__
 #define TCG_TARGET_EXTEND_ARGS 1
-#endif
 
 #if defined(__VIS__) && __VIS__ >= 0x300
 #define use_vis3_instructions  1

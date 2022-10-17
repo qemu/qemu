@@ -22,6 +22,11 @@
  * THE SOFTWARE.
  */
 
+/* We only support generating code for 64-bit mode.  */
+#ifndef __arch64__
+#error "unsupported code generation mode"
+#endif
+
 #include "../tcg-pool.c.inc"
 
 #ifdef CONFIG_DEBUG_TCG
@@ -61,12 +66,6 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-#ifdef __arch64__
-# define SPARC64 1
-#else
-# define SPARC64 0
-#endif
-
 #define TCG_CT_CONST_S11  0x100
 #define TCG_CT_CONST_S13  0x200
 #define TCG_CT_CONST_ZERO 0x400
@@ -91,11 +90,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
  * high bits of the %i and %l registers garbage at all times.
  */
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 32)
-#if SPARC64
 # define ALL_GENERAL_REGS64  ALL_GENERAL_REGS
-#else
-# define ALL_GENERAL_REGS64  MAKE_64BIT_MASK(0, 16)
-#endif
 #define ALL_QLDST_REGS       (ALL_GENERAL_REGS & ~SOFTMMU_RESERVE_REGS)
 #define ALL_QLDST_REGS64     (ALL_GENERAL_REGS64 & ~SOFTMMU_RESERVE_REGS)
 
@@ -306,11 +301,7 @@ static bool check_fit_i32(int32_t val, unsigned int bits)
 }
 
 #define check_fit_tl    check_fit_i64
-#if SPARC64
-# define check_fit_ptr  check_fit_i64
-#else
-# define check_fit_ptr  check_fit_i32
-#endif
+#define check_fit_ptr   check_fit_i64
 
 static bool patch_reloc(tcg_insn_unit *src_rw, int type,
                         intptr_t value, intptr_t addend)
@@ -571,11 +562,6 @@ static void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, const void *arg)
 static void tcg_out_sety(TCGContext *s, TCGReg rs)
 {
     tcg_out32(s, WRY | INSN_RS1(TCG_REG_G0) | INSN_RS2(rs));
-}
-
-static void tcg_out_rdy(TCGContext *s, TCGReg rd)
-{
-    tcg_out32(s, RDY | INSN_RD(rd));
 }
 
 static void tcg_out_div32(TCGContext *s, TCGReg rd, TCGReg rs1,
@@ -914,9 +900,7 @@ static void emit_extend(TCGContext *s, TCGReg r, int op)
         tcg_out_arithi(s, r, r, 16, SHIFT_SRL);
         break;
     case MO_32:
-        if (SPARC64) {
-            tcg_out_arith(s, r, r, 0, SHIFT_SRL);
-        }
+        tcg_out_arith(s, r, r, 0, SHIFT_SRL);
         break;
     case MO_64:
         break;
@@ -948,7 +932,6 @@ static void build_trampolines(TCGContext *s)
     };
 
     int i;
-    TCGReg ra;
 
     for (i = 0; i < ARRAY_SIZE(qemu_ld_helpers); ++i) {
         if (qemu_ld_helpers[i] == NULL) {
@@ -961,16 +944,8 @@ static void build_trampolines(TCGContext *s)
         }
         qemu_ld_trampoline[i] = tcg_splitwx_to_rx(s->code_ptr);
 
-        if (SPARC64 || TARGET_LONG_BITS == 32) {
-            ra = TCG_REG_O3;
-        } else {
-            /* Install the high part of the address.  */
-            tcg_out_arithi(s, TCG_REG_O1, TCG_REG_O2, 32, SHIFT_SRLX);
-            ra = TCG_REG_O4;
-        }
-
         /* Set the retaddr operand.  */
-        tcg_out_mov(s, TCG_TYPE_PTR, ra, TCG_REG_O7);
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O3, TCG_REG_O7);
         /* Tail call.  */
         tcg_out_jmpl_const(s, qemu_ld_helpers[i], true, true);
         /* delay slot -- set the env argument */
@@ -988,37 +963,10 @@ static void build_trampolines(TCGContext *s)
         }
         qemu_st_trampoline[i] = tcg_splitwx_to_rx(s->code_ptr);
 
-        if (SPARC64) {
-            emit_extend(s, TCG_REG_O2, i);
-            ra = TCG_REG_O4;
-        } else {
-            ra = TCG_REG_O1;
-            if (TARGET_LONG_BITS == 64) {
-                /* Install the high part of the address.  */
-                tcg_out_arithi(s, ra, ra + 1, 32, SHIFT_SRLX);
-                ra += 2;
-            } else {
-                ra += 1;
-            }
-            if ((i & MO_SIZE) == MO_64) {
-                /* Install the high part of the data.  */
-                tcg_out_arithi(s, ra, ra + 1, 32, SHIFT_SRLX);
-                ra += 2;
-            } else {
-                emit_extend(s, ra, i);
-                ra += 1;
-            }
-            /* Skip the oi argument.  */
-            ra += 1;
-        }
-                
+        emit_extend(s, TCG_REG_O2, i);
+
         /* Set the retaddr operand.  */
-        if (ra >= TCG_REG_O6) {
-            tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_O7, TCG_REG_CALL_STACK,
-                       TCG_TARGET_CALL_STACK_OFFSET);
-        } else {
-            tcg_out_mov(s, TCG_TYPE_PTR, ra, TCG_REG_O7);
-        }
+        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O4, TCG_REG_O7);
 
         /* Tail call.  */
         tcg_out_jmpl_const(s, qemu_st_helpers[i], true, true);
@@ -1045,11 +993,6 @@ static void build_trampolines(TCGContext *s)
         } else {
             helper = helper_unaligned_st;
             qemu_unalign_st_trampoline = tcg_splitwx_to_rx(s->code_ptr);
-        }
-
-        if (!SPARC64 && TARGET_LONG_BITS == 64) {
-            /* Install the high part of the address.  */
-            tcg_out_arithi(s, TCG_REG_O1, TCG_REG_O2, 32, SHIFT_SRLX);
         }
 
         /* Tail call.  */
@@ -1182,7 +1125,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
     tcg_out_cmp(s, r0, r2, 0);
 
     /* If the guest address must be zero-extended, do so now.  */
-    if (SPARC64 && TARGET_LONG_BITS == 32) {
+    if (TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, r0, addr, 0, SHIFT_SRL);
         return r0;
     }
@@ -1231,7 +1174,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 
 #ifdef CONFIG_SOFTMMU
     unsigned memi = get_mmuidx(oi);
-    TCGReg addrz, param;
+    TCGReg addrz;
     const tcg_insn_unit *func;
 
     addrz = tcg_out_tlb_load(s, addr, memi, memop,
@@ -1251,12 +1194,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 
     /* TLB Miss.  */
 
-    param = TCG_REG_O1;
-    if (!SPARC64 && TARGET_LONG_BITS == 64) {
-        /* Skip the high-part; we'll perform the extract in the trampoline.  */
-        param++;
-    }
-    tcg_out_mov(s, TCG_TYPE_REG, param++, addrz);
+    tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O1, addrz);
 
     /* We use the helpers to extend SB and SW data, leaving the case
        of SL needing explicit extending below.  */
@@ -1268,30 +1206,13 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     tcg_debug_assert(func != NULL);
     tcg_out_call_nodelay(s, func, false);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_I32, param, oi);
+    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_O2, oi);
 
-    /* Recall that all of the helpers return 64-bit results.
-       Which complicates things for sparcv8plus.  */
-    if (SPARC64) {
-        /* We let the helper sign-extend SB and SW, but leave SL for here.  */
-        if (is_64 && (memop & MO_SSIZE) == MO_SL) {
-            tcg_out_arithi(s, data, TCG_REG_O0, 0, SHIFT_SRA);
-        } else {
-            tcg_out_mov(s, TCG_TYPE_REG, data, TCG_REG_O0);
-        }
+    /* We let the helper sign-extend SB and SW, but leave SL for here.  */
+    if (is_64 && (memop & MO_SSIZE) == MO_SL) {
+        tcg_out_arithi(s, data, TCG_REG_O0, 0, SHIFT_SRA);
     } else {
-        if ((memop & MO_SIZE) == MO_64) {
-            tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, 32, SHIFT_SLLX);
-            tcg_out_arithi(s, TCG_REG_O1, TCG_REG_O1, 0, SHIFT_SRL);
-            tcg_out_arith(s, data, TCG_REG_O0, TCG_REG_O1, ARITH_OR);
-        } else if (is_64) {
-            /* Re-extend from 32-bit rather than reassembling when we
-               know the high register must be an extension.  */
-            tcg_out_arithi(s, data, TCG_REG_O1, 0,
-                           memop & MO_SIGN ? SHIFT_SRA : SHIFT_SRL);
-        } else {
-            tcg_out_mov(s, TCG_TYPE_I32, data, TCG_REG_O1);
-        }
+        tcg_out_mov(s, TCG_TYPE_REG, data, TCG_REG_O0);
     }
 
     *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
@@ -1301,7 +1222,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned s_bits = memop & MO_SIZE;
     unsigned t_bits;
 
-    if (SPARC64 && TARGET_LONG_BITS == 32) {
+    if (TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
         addr = TCG_REG_T1;
     }
@@ -1337,10 +1258,9 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
          * operation in the delay slot, and failure need only invoke the
          * handler for SIGBUS.
          */
-        TCGReg arg_low = TCG_REG_O1 + (!SPARC64 && TARGET_LONG_BITS == 64);
         tcg_out_call_nodelay(s, qemu_unalign_ld_trampoline, false);
         /* delay slot -- move to low part of argument reg */
-        tcg_out_mov_delay(s, arg_low, addr);
+        tcg_out_mov_delay(s, TCG_REG_O1, addr);
     } else {
         /* Underalignment: load by pieces of minimum alignment. */
         int ld_opc, a_size, s_size, i;
@@ -1400,7 +1320,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 
 #ifdef CONFIG_SOFTMMU
     unsigned memi = get_mmuidx(oi);
-    TCGReg addrz, param;
+    TCGReg addrz;
     const tcg_insn_unit *func;
 
     addrz = tcg_out_tlb_load(s, addr, memi, memop,
@@ -1418,23 +1338,14 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 
     /* TLB Miss.  */
 
-    param = TCG_REG_O1;
-    if (!SPARC64 && TARGET_LONG_BITS == 64) {
-        /* Skip the high-part; we'll perform the extract in the trampoline.  */
-        param++;
-    }
-    tcg_out_mov(s, TCG_TYPE_REG, param++, addrz);
-    if (!SPARC64 && (memop & MO_SIZE) == MO_64) {
-        /* Skip the high-part; we'll perform the extract in the trampoline.  */
-        param++;
-    }
-    tcg_out_mov(s, TCG_TYPE_REG, param++, data);
+    tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O1, addrz);
+    tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O2, data);
 
     func = qemu_st_trampoline[memop & (MO_BSWAP | MO_SIZE)];
     tcg_debug_assert(func != NULL);
     tcg_out_call_nodelay(s, func, false);
     /* delay slot */
-    tcg_out_movi(s, TCG_TYPE_I32, param, oi);
+    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_O3, oi);
 
     *label_ptr |= INSN_OFF19(tcg_ptr_byte_diff(s->code_ptr, label_ptr));
 #else
@@ -1443,7 +1354,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned s_bits = memop & MO_SIZE;
     unsigned t_bits;
 
-    if (SPARC64 && TARGET_LONG_BITS == 32) {
+    if (TARGET_LONG_BITS == 32) {
         tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
         addr = TCG_REG_T1;
     }
@@ -1479,10 +1390,9 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
          * operation in the delay slot, and failure need only invoke the
          * handler for SIGBUS.
          */
-        TCGReg arg_low = TCG_REG_O1 + (!SPARC64 && TARGET_LONG_BITS == 64);
         tcg_out_call_nodelay(s, qemu_unalign_st_trampoline, false);
         /* delay slot -- move to low part of argument reg */
-        tcg_out_mov_delay(s, arg_low, addr);
+        tcg_out_mov_delay(s, TCG_REG_O1, addr);
     } else {
         /* Underalignment: store by pieces of minimum alignment. */
         int st_opc, a_size, s_size, i;
@@ -1719,14 +1629,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_muls2_i32:
         c = ARITH_SMUL;
     do_mul2:
-        /* The 32-bit multiply insns produce a full 64-bit result.  If the
-           destination register can hold it, we can avoid the slower RDY.  */
+        /* The 32-bit multiply insns produce a full 64-bit result. */
         tcg_out_arithc(s, a0, a2, args[3], const_args[3], c);
-        if (SPARC64 || a0 <= TCG_REG_O7) {
-            tcg_out_arithi(s, a1, a0, 32, SHIFT_SRLX);
-        } else {
-            tcg_out_rdy(s, a1);
-        }
+        tcg_out_arithi(s, a1, a0, 32, SHIFT_SRLX);
         break;
 
     case INDEX_op_qemu_ld_i32:
@@ -1984,16 +1889,11 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T2); /* for internal use */
 }
 
-#if SPARC64
-# define ELF_HOST_MACHINE  EM_SPARCV9
-#else
-# define ELF_HOST_MACHINE  EM_SPARC32PLUS
-# define ELF_HOST_FLAGS    EF_SPARC_32PLUS
-#endif
+#define ELF_HOST_MACHINE  EM_SPARCV9
 
 typedef struct {
     DebugFrameHeader h;
-    uint8_t fde_def_cfa[SPARC64 ? 4 : 2];
+    uint8_t fde_def_cfa[4];
     uint8_t fde_win_save;
     uint8_t fde_ret_save[3];
 } DebugFrame;
@@ -2010,12 +1910,8 @@ static const DebugFrame debug_frame = {
     .h.fde.len = sizeof(DebugFrame) - offsetof(DebugFrame, h.fde.cie_offset),
 
     .fde_def_cfa = {
-#if SPARC64
         12, 30,                         /* DW_CFA_def_cfa i6, 2047 */
         (2047 & 0x7f) | 0x80, (2047 >> 7)
-#else
-        13, 30                          /* DW_CFA_def_cfa_register i6 */
-#endif
     },
     .fde_win_save = 0x2d,               /* DW_CFA_GNU_window_save */
     .fde_ret_save = { 9, 15, 31 },      /* DW_CFA_register o7, i7 */

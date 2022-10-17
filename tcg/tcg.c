@@ -1487,39 +1487,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     }
 #endif
 
-#if defined(__sparc__) && !defined(__arch64__) \
-    && !defined(CONFIG_TCG_INTERPRETER)
-    /* We have 64-bit values in one register, but need to pass as two
-       separate parameters.  Split them.  */
-    int orig_typemask = typemask;
-    int orig_nargs = nargs;
-    TCGv_i64 retl, reth;
-    TCGTemp *split_args[MAX_OPC_PARAM];
-
-    retl = NULL;
-    reth = NULL;
-    typemask = 0;
-    for (i = real_args = 0; i < nargs; ++i) {
-        int argtype = extract32(orig_typemask, (i + 1) * 3, 3);
-        bool is_64bit = (argtype & ~1) == dh_typecode_i64;
-
-        if (is_64bit) {
-            TCGv_i64 orig = temp_tcgv_i64(args[i]);
-            TCGv_i32 h = tcg_temp_new_i32();
-            TCGv_i32 l = tcg_temp_new_i32();
-            tcg_gen_extr_i64_i32(l, h, orig);
-            split_args[real_args++] = tcgv_i32_temp(h);
-            typemask |= dh_typecode_i32 << (real_args * 3);
-            split_args[real_args++] = tcgv_i32_temp(l);
-            typemask |= dh_typecode_i32 << (real_args * 3);
-        } else {
-            split_args[real_args++] = args[i];
-            typemask |= argtype << (real_args * 3);
-        }
-    }
-    nargs = real_args;
-    args = split_args;
-#elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
+#if defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
         int argtype = extract32(typemask, (i + 1) * 3, 3);
         bool is_32bit = (argtype & ~1) == dh_typecode_i32;
@@ -1542,22 +1510,6 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
 
     pi = 0;
     if (ret != NULL) {
-#if defined(__sparc__) && !defined(__arch64__) \
-    && !defined(CONFIG_TCG_INTERPRETER)
-        if ((typemask & 6) == dh_typecode_i64) {
-            /* The 32-bit ABI is going to return the 64-bit value in
-               the %o0/%o1 register pair.  Prepare for this by using
-               two return temporaries, and reassemble below.  */
-            retl = tcg_temp_new_i64();
-            reth = tcg_temp_new_i64();
-            op->args[pi++] = tcgv_i64_arg(reth);
-            op->args[pi++] = tcgv_i64_arg(retl);
-            nb_rets = 2;
-        } else {
-            op->args[pi++] = temp_arg(ret);
-            nb_rets = 1;
-        }
-#else
         if (TCG_TARGET_REG_BITS < 64 && (typemask & 6) == dh_typecode_i64) {
 #if HOST_BIG_ENDIAN
             op->args[pi++] = temp_arg(ret + 1);
@@ -1571,7 +1523,6 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
             op->args[pi++] = temp_arg(ret);
             nb_rets = 1;
         }
-#endif
     } else {
         nb_rets = 0;
     }
@@ -1634,29 +1585,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     tcg_debug_assert(TCGOP_CALLI(op) == real_args);
     tcg_debug_assert(pi <= ARRAY_SIZE(op->args));
 
-#if defined(__sparc__) && !defined(__arch64__) \
-    && !defined(CONFIG_TCG_INTERPRETER)
-    /* Free all of the parts we allocated above.  */
-    for (i = real_args = 0; i < orig_nargs; ++i) {
-        int argtype = extract32(orig_typemask, (i + 1) * 3, 3);
-        bool is_64bit = (argtype & ~1) == dh_typecode_i64;
-
-        if (is_64bit) {
-            tcg_temp_free_internal(args[real_args++]);
-            tcg_temp_free_internal(args[real_args++]);
-        } else {
-            real_args++;
-        }
-    }
-    if ((orig_typemask & 6) == dh_typecode_i64) {
-        /* The 32-bit ABI returned two 32-bit pieces.  Re-assemble them.
-           Note that describing these as TCGv_i64 eliminates an unnecessary
-           zero-extension that tcg_gen_concat_i32_i64 would create.  */
-        tcg_gen_concat32_i64(temp_tcgv_i64(ret), retl, reth);
-        tcg_temp_free_i64(retl);
-        tcg_temp_free_i64(reth);
-    }
-#elif defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
+#if defined(TCG_TARGET_EXTEND_ARGS) && TCG_TARGET_REG_BITS == 64
     for (i = 0; i < nargs; ++i) {
         int argtype = extract32(typemask, (i + 1) * 3, 3);
         bool is_32bit = (argtype & ~1) == dh_typecode_i32;
