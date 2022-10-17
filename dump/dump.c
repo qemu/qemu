@@ -708,9 +708,9 @@ static void dump_begin(DumpState *s, Error **errp)
     write_elf_notes(s, errp);
 }
 
-static int64_t dump_filtered_memblock_size(GuestPhysBlock *block,
-                                           int64_t filter_area_start,
-                                           int64_t filter_area_length)
+int64_t dump_filtered_memblock_size(GuestPhysBlock *block,
+                                    int64_t filter_area_start,
+                                    int64_t filter_area_length)
 {
     int64_t size, left, right;
 
@@ -728,9 +728,9 @@ static int64_t dump_filtered_memblock_size(GuestPhysBlock *block,
     return size;
 }
 
-static int64_t dump_filtered_memblock_start(GuestPhysBlock *block,
-                                            int64_t filter_area_start,
-                                            int64_t filter_area_length)
+int64_t dump_filtered_memblock_start(GuestPhysBlock *block,
+                                     int64_t filter_area_start,
+                                     int64_t filter_area_length)
 {
     if (filter_area_length) {
         /* return -1 if the block is not within filter area */

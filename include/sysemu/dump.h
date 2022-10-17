@@ -215,4 +215,9 @@ typedef struct DumpState {
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
 uint32_t cpu_to_dump32(DumpState *s, uint32_t val);
 uint64_t cpu_to_dump64(DumpState *s, uint64_t val);
+
+int64_t dump_filtered_memblock_size(GuestPhysBlock *block, int64_t filter_area_start,
+                                    int64_t filter_area_length);
+int64_t dump_filtered_memblock_start(GuestPhysBlock *block, int64_t filter_area_start,
+                                     int64_t filter_area_length);
 #endif
