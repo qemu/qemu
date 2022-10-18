@@ -211,10 +211,6 @@ version_ge () {
     done
 }
 
-glob() {
-    eval test -z '"${1#'"$2"'}"'
-}
-
 if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]:]";
 then
   error_exit "main directory cannot contain spaces nor colons"
