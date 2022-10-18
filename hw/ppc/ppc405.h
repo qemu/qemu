@@ -167,13 +167,6 @@ struct Ppc405SoCState {
     DeviceState parent_obj;
 
     /* Public */
-    MemoryRegion ram_banks[2];
-    hwaddr ram_bases[2], ram_sizes[2];
-    bool do_dram_init;
-
-    MemoryRegion *dram_mr;
-    hwaddr ram_size;
-
     PowerPCCPU cpu;
     PPCUIC uic;
     Ppc405CpcState cpc;
@@ -187,6 +180,7 @@ struct Ppc405SoCState {
     Ppc405PobState pob;
     Ppc4xxPlbState plb;
     Ppc4xxMalState mal;
+    Ppc4xxSdramDdrState sdram;
 };
 
 #endif /* PPC405_H */

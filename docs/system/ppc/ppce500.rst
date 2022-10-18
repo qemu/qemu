@@ -146,6 +146,9 @@ You can specify a real world SoC device that QEMU has built-in support but all
 these SoCs are e500v2 based MPC85xx series, hence you cannot test anything
 built for P4080 (e500mc), P5020 (e5500) and T2080 (e6500).
 
+Networking
+----------
+
 By default a VirtIO standard PCI networking device is connected as an ethernet
 interface at PCI address 0.1.0, but we can switch that to an e1000 NIC by:
 
