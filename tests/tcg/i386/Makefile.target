@@ -107,7 +107,7 @@ run-test-mmx: QEMU_OPTS += -cpu max
 run-plugin-test-mmx: QEMU_OPTS += -cpu max
 test-mmx: test-mmx.h
 
-test-avx: CFLAGS += -masm=intel -O -I.
+test-avx: CFLAGS += -mavx -masm=intel -O -I.
 run-test-avx: QEMU_OPTS += -cpu max
 run-plugin-test-avx: QEMU_OPTS += -cpu max
 test-avx: test-avx.h
