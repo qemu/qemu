@@ -99,8 +99,8 @@ typedef struct DisasContext {
     uint8_t rex_r;
     uint8_t rex_x;
     uint8_t rex_b;
-    bool rex_w;
 #endif
+    bool vex_w; /* used by AVX even on 32-bit processors */
     bool jmp_opt; /* use direct block chaining for direct jumps */
     bool repz_opt; /* optimize jumps within repz instructions */
     bool cc_op_dirty;
@@ -177,7 +177,7 @@ typedef struct DisasContext {
 
 #ifdef TARGET_X86_64
 #define REX_PREFIX(S)  (((S)->prefix & PREFIX_REX) != 0)
-#define REX_W(S)       ((S)->rex_w)
+#define REX_W(S)       ((S)->vex_w)
 #define REX_R(S)       ((S)->rex_r + 0)
 #define REX_X(S)       ((S)->rex_x + 0)
 #define REX_B(S)       ((S)->rex_b + 0)
@@ -4823,7 +4823,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     s->pc = s->base.pc_next;
     s->override = -1;
 #ifdef TARGET_X86_64
-    s->rex_w = false;
     s->rex_r = 0;
     s->rex_x = 0;
     s->rex_b = 0;
@@ -4831,6 +4830,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     s->rip_offset = 0; /* for relative ip address */
     s->vex_l = 0;
     s->vex_v = 0;
+    s->vex_w = false;
     switch (sigsetjmp(s->jmpbuf, 0)) {
     case 0:
         break;
@@ -4903,7 +4903,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (CODE64(s)) {
             /* REX prefix */
             prefixes |= PREFIX_REX;
-            s->rex_w = (b >> 3) & 1;
+            s->vex_w = (b >> 3) & 1;
             s->rex_r = (b & 0x4) << 1;
             s->rex_x = (b & 0x2) << 2;
             s->rex_b = (b & 0x1) << 3;
@@ -4946,8 +4946,8 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
 #ifdef TARGET_X86_64
                 s->rex_x = (~vex2 >> 3) & 8;
                 s->rex_b = (~vex2 >> 2) & 8;
-                s->rex_w = (vex3 >> 7) & 1;
 #endif
+                s->vex_w = (vex3 >> 7) & 1;
                 switch (vex2 & 0x1f) {
                 case 0x01: /* Implied 0f leading opcode bytes.  */
                     b = x86_ldub_code(env, s) | 0x100;
