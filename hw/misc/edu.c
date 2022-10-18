@@ -103,24 +103,24 @@ static void edu_lower_irq(EduState *edu, uint32_t val)
     }
 }
 
-static void edu_check_range(uint64_t addr, uint64_t size1,
-                uint64_t start, uint64_t size2)
+static void edu_check_range(uint64_t xfer_start, uint64_t xfer_size,
+                uint64_t dma_start, uint64_t dma_size)
 {
-    uint64_t end1 = addr + size1;
-    uint64_t end2 = start + size2;
+    uint64_t xfer_end = xfer_start + xfer_size;
+    uint64_t dma_end = dma_start + dma_size;
 
     /*
      * 1. ensure we aren't overflowing
-     * 2. ensure that [addr, end1) is within [start, size2)
+     * 2. ensure that xfer is within dma address range
      */
-    if (end2 >= start && end1 >= addr &&
-        addr >= start && end1 <= end2) {
+    if (dma_end >= dma_start && xfer_end >= xfer_start &&
+        xfer_start >= dma_start && xfer_end <= dma_end) {
         return;
     }
 
     hw_error("EDU: DMA range 0x%016"PRIx64"-0x%016"PRIx64
              " out of bounds (0x%016"PRIx64"-0x%016"PRIx64")!",
-            addr, end1 - 1, start, end2 - 1);
+            xfer_start, xfer_end - 1, dma_start, dma_end - 1);
 }
 
 static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
