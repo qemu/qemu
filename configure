@@ -124,41 +124,8 @@ lines: ${BASH_LINENO[*]}"
   $compiler "$@" >> config.log 2>&1 || return $?
 }
 
-do_compiler_werror() {
-    # Run the compiler, capturing its output to the log. First argument
-    # is compiler binary to execute.
-    compiler="$1"
-    shift
-    if test -n "$BASH_VERSION"; then eval '
-        echo >>config.log "
-funcs: ${FUNCNAME[*]}
-lines: ${BASH_LINENO[*]}"
-    '; fi
-    echo $compiler "$@" >> config.log
-    $compiler "$@" >> config.log 2>&1 || return $?
-    # Test passed. If this is an --enable-werror build, rerun
-    # the test with -Werror and bail out if it fails. This
-    # makes warning-generating-errors in configure test code
-    # obvious to developers.
-    if test "$werror" != "yes"; then
-        return 0
-    fi
-    # Don't bother rerunning the compile if we were already using -Werror
-    case "$*" in
-        *-Werror*)
-           return 0
-        ;;
-    esac
-    echo $compiler -Werror "$@" >> config.log
-    $compiler -Werror "$@" >> config.log 2>&1 && return $?
-    error_exit "configure test passed without -Werror but failed with -Werror." \
-        "This is probably a bug in the configure script. The failing command" \
-        "will be at the bottom of config.log." \
-        "You can run configure with --disable-werror to bypass this check."
-}
-
 do_cc() {
-    do_compiler_werror "$cc" $CPU_CFLAGS "$@"
+    do_compiler "$cc" $CPU_CFLAGS "$@"
 }
 
 compile_object() {
