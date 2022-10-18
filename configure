@@ -845,17 +845,6 @@ for opt do
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
-  --disable-zlib-test)
-  ;;
-  --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
-      echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
-  ;;
-  --enable-vhdx|--disable-vhdx)
-      echo "$0: $opt is obsolete, VHDX driver is always built" >&2
-  ;;
-  --enable-uuid|--disable-uuid)
-      echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
   --with-git=*) git="$optarg"
   ;;
   --with-git-submodules=*)
@@ -875,18 +864,9 @@ for opt do
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
-  # backwards compatibility options
-  --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
-  ;;
-  --disable-blobs) meson_option_parse --disable-install-blobs ""
-  ;;
   --enable-vfio-user-server) vfio_user_server="enabled"
   ;;
   --disable-vfio-user-server) vfio_user_server="disabled"
-  ;;
-  --enable-tcmalloc) meson_option_parse --enable-malloc=tcmalloc tcmalloc
-  ;;
-  --enable-jemalloc) meson_option_parse --enable-malloc=jemalloc jemalloc
   ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"

@@ -188,7 +188,7 @@
 --enable-tcg \
 --enable-tools \
 --enable-tpm \
---enable-trace-backend=dtrace \
+--enable-trace-backends=dtrace \
 --enable-usb-redir \
 --enable-virtiofsd \
 --enable-vhost-kernel \
