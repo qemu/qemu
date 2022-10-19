@@ -92,6 +92,7 @@ typedef enum X86OpSize {
     /* Custom */
     X86_SIZE_d64,
     X86_SIZE_f64,
+    X86_SIZE_ph, /* SSE/AVX packed half precision */
 } X86OpSize;
 
 typedef enum X86CPUIDFeature {
@@ -103,6 +104,7 @@ typedef enum X86CPUIDFeature {
     X86_FEAT_AVX2,
     X86_FEAT_BMI1,
     X86_FEAT_BMI2,
+    X86_FEAT_F16C,
     X86_FEAT_MOVBE,
     X86_FEAT_PCLMULQDQ,
     X86_FEAT_SSE,

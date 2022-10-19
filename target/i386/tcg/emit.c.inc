@@ -296,7 +296,7 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_MMX:
         break;
     case X86_OP_SSE:
-        if (!op->has_ea && (s->prefix & PREFIX_VEX) && op->ot == MO_128) {
+        if (!op->has_ea && (s->prefix & PREFIX_VEX) && op->ot <= MO_128) {
             tcg_gen_gvec_dup_imm(MO_64,
                                  offsetof(CPUX86State, xmm_regs[op->n].ZMM_X(1)),
                                  16, 16, 0);
@@ -852,6 +852,7 @@ UNARY_INT_SSE(VCVTTPD2DQ, cvttpd2dq)
 UNARY_INT_SSE(VCVTDQ2PS, cvtdq2ps)
 UNARY_INT_SSE(VCVTPS2DQ, cvtps2dq)
 UNARY_INT_SSE(VCVTTPS2DQ, cvttps2dq)
+UNARY_INT_SSE(VCVTPH2PS, cvtph2ps)
 
 
 static inline void gen_unary_imm_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
@@ -1866,6 +1867,20 @@ static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
                      gen_helper_cvtpd2ps_xmm, gen_helper_cvtps2pd_xmm,
                      gen_helper_cvtpd2ps_ymm, gen_helper_cvtps2pd_ymm,
                      gen_helper_cvtsd2ss, gen_helper_cvtss2sd);
+}
+
+static void gen_VCVTPS2PH(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_unary_imm_fp_sse(s, env, decode,
+                      gen_helper_cvtps2ph_xmm,
+                      gen_helper_cvtps2ph_ymm);
+    /*
+     * VCVTPS2PH is the only instruction that performs an operation on a
+     * register source and then *stores* into memory.
+     */
+    if (decode->op[0].has_ea) {
+        gen_store_sse(s, decode, decode->op[0].offset);
+    }
 }
 
 static void gen_VCVTSI2Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

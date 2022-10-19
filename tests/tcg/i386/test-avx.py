@@ -9,6 +9,7 @@ from fnmatch import fnmatch
 archs = [
     "SSE", "SSE2", "SSE3", "SSSE3", "SSE4_1", "SSE4_2",
     "AES", "AVX", "AVX2", "AES+AVX", "VAES+AVX",
+    "F16C",
 ]
 
 ignore = set(["FISTTP",
@@ -19,6 +20,7 @@ imask = {
     'vBLENDPS': 0x0f,
     'CMP[PS][SD]': 0x07,
     'VCMP[PS][SD]': 0x1f,
+    'vCVTPS2PH': 0x7,
     'vDPPD': 0x33,
     'vDPPS': 0xff,
     'vEXTRACTPS': 0x03,
@@ -221,8 +223,10 @@ def ArgGenerator(arg, op):
 class InsnGenerator:
     def __init__(self, op, args):
         self.op = op
-        if op[-2:] in ["PS", "PD", "SS", "SD"]:
-            if op[-1] == 'S':
+        if op[-2:] in ["PH", "PS", "PD", "SS", "SD"]:
+            if op[-1] == 'H':
+                self.optype = 'F16'
+            elif op[-1] == 'S':
                 self.optype = 'F32'
             else:
                 self.optype = 'F64'

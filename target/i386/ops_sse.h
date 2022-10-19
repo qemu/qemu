@@ -586,6 +586,35 @@ void glue(helper_cvtpd2ps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     }
 }
 
+#if SHIFT >= 1
+void glue(helper_cvtph2ps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+
+    for (i = 2 << SHIFT; --i >= 0; ) {
+         d->ZMM_S(i) = float16_to_float32(s->ZMM_H(i), true, &env->sse_status);
+    }
+}
+
+void glue(helper_cvtps2ph, SUFFIX)(CPUX86State *env, Reg *d, Reg *s, int mode)
+{
+    int i;
+    FloatRoundMode prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2))) {
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
+    }
+
+    for (i = 0; i < 2 << SHIFT; i++) {
+        d->ZMM_H(i) = float32_to_float16(s->ZMM_S(i), true, &env->sse_status);
+    }
+    for (i >>= 2; i < 1 << SHIFT; i++) {
+        d->Q(i) = 0;
+    }
+
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+#endif
+
 #if SHIFT == 1
 void helper_cvtss2sd(CPUX86State *env, Reg *d, Reg *v, Reg *s)
 {
