@@ -32,7 +32,8 @@
 #define ST(n)  (env->fpregs[(env->fpstt + (n)) & 7].d)
 #define ST1    ST(1)
 
-#define FPU_RC_MASK         0xc00
+#define FPU_RC_SHIFT        10
+#define FPU_RC_MASK         (3 << FPU_RC_SHIFT)
 #define FPU_RC_NEAR         0x000
 #define FPU_RC_DOWN         0x400
 #define FPU_RC_UP           0x800
@@ -685,28 +686,26 @@ uint32_t helper_fnstcw(CPUX86State *env)
     return env->fpuc;
 }
 
+static void set_x86_rounding_mode(unsigned mode, float_status *status)
+{
+    static FloatRoundMode x86_round_mode[4] = {
+        float_round_nearest_even,
+        float_round_down,
+        float_round_up,
+        float_round_to_zero
+    };
+    assert(mode < ARRAY_SIZE(x86_round_mode));
+    set_float_rounding_mode(x86_round_mode[mode], status);
+}
+
 void update_fp_status(CPUX86State *env)
 {
-    FloatRoundMode rnd_mode;
+    int rnd_mode;
     FloatX80RoundPrec rnd_prec;
 
     /* set rounding mode */
-    switch (env->fpuc & FPU_RC_MASK) {
-    default:
-    case FPU_RC_NEAR:
-        rnd_mode = float_round_nearest_even;
-        break;
-    case FPU_RC_DOWN:
-        rnd_mode = float_round_down;
-        break;
-    case FPU_RC_UP:
-        rnd_mode = float_round_up;
-        break;
-    case FPU_RC_CHOP:
-        rnd_mode = float_round_to_zero;
-        break;
-    }
-    set_float_rounding_mode(rnd_mode, &env->fp_status);
+    rnd_mode = (env->fpuc & FPU_RC_MASK) >> FPU_RC_SHIFT;
+    set_x86_rounding_mode(rnd_mode, &env->fp_status);
 
     switch ((env->fpuc >> 8) & 3) {
     case 0:
@@ -3038,11 +3037,8 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
 /* XXX: optimize by storing fptt and fptags in the static cpu state */
 
 #define SSE_DAZ             0x0040
-#define SSE_RC_MASK         0x6000
-#define SSE_RC_NEAR         0x0000
-#define SSE_RC_DOWN         0x2000
-#define SSE_RC_UP           0x4000
-#define SSE_RC_CHOP         0x6000
+#define SSE_RC_SHIFT        13
+#define SSE_RC_MASK         (3 << SSE_RC_SHIFT)
 #define SSE_FZ              0x8000
 
 void update_mxcsr_status(CPUX86State *env)
@@ -3051,22 +3047,8 @@ void update_mxcsr_status(CPUX86State *env)
     int rnd_type;
 
     /* set rounding mode */
-    switch (mxcsr & SSE_RC_MASK) {
-    default:
-    case SSE_RC_NEAR:
-        rnd_type = float_round_nearest_even;
-        break;
-    case SSE_RC_DOWN:
-        rnd_type = float_round_down;
-        break;
-    case SSE_RC_UP:
-        rnd_type = float_round_up;
-        break;
-    case SSE_RC_CHOP:
-        rnd_type = float_round_to_zero;
-        break;
-    }
-    set_float_rounding_mode(rnd_type, &env->sse_status);
+    rnd_type = (mxcsr & SSE_RC_MASK) >> SSE_RC_SHIFT;
+    set_x86_rounding_mode(rnd_type, &env->sse_status);
 
     /* Set exception flags.  */
     set_float_exception_flags((mxcsr & FPUS_IE ? float_flag_invalid : 0) |
