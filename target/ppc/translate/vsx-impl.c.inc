@@ -1136,6 +1136,23 @@ static bool do_xvtstdc(DisasContext *ctx, arg_XX2_uim *a, unsigned vece)
 TRANS_FLAGS2(VSX, XVTSTDCSP, do_xvtstdc, MO_32)
 TRANS_FLAGS2(VSX, XVTSTDCDP, do_xvtstdc, MO_64)
 
+static bool do_XX2_bf_uim(DisasContext *ctx, arg_XX2_bf_uim *a, bool vsr,
+                     void (*gen_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_ptr))
+{
+    TCGv_ptr xb;
+
+    REQUIRE_VSX(ctx);
+    xb = vsr ? gen_vsr_ptr(a->xb) : gen_avr_ptr(a->xb);
+    gen_helper(cpu_env, tcg_constant_i32(a->bf), tcg_constant_i32(a->uim), xb);
+    tcg_temp_free_ptr(xb);
+
+    return true;
+}
+
+TRANS_FLAGS2(ISA300, XSTSTDCSP, do_XX2_bf_uim, true, gen_helper_XSTSTDCSP)
+TRANS_FLAGS2(ISA300, XSTSTDCDP, do_XX2_bf_uim, true, gen_helper_XSTSTDCDP)
+TRANS_FLAGS2(ISA300, XSTSTDCQP, do_XX2_bf_uim, false, gen_helper_XSTSTDCQP)
+
 bool trans_XSCVSPDPN(DisasContext *ctx, arg_XX2 *a)
 {
     TCGv_i64 tmp;
@@ -1182,9 +1199,6 @@ GEN_VSX_HELPER_X2(xssqrtsp, 0x16, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xsrsqrtesp, 0x14, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvsxdsp, 0x10, 0x13, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvuxdsp, 0x10, 0x12, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X1(xststdcsp, 0x14, 0x12, 0, PPC2_ISA300)
-GEN_VSX_HELPER_2(xststdcdp, 0x14, 0x16, 0, PPC2_ISA300)
-GEN_VSX_HELPER_2(xststdcqp, 0x04, 0x16, 0, PPC2_ISA300)
 
 GEN_VSX_HELPER_X3(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)

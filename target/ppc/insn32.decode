@@ -202,6 +202,9 @@
 %xx_uim7        6:1 2:1 16:5
 @XX2_uim7       ...... ..... ..... ..... .... . ... . ..        &XX2_uim xt=%xx_xt xb=%xx_xb uim=%xx_uim7
 
+&XX2_bf_uim     bf xb uim
+@XX2_bf_uim     ...... bf:3 uim:7 ..... ......... . .           &XX2_bf_uim
+
 &XX2_bf_xb      bf xb
 @XX2_bf_xb      ...... bf:3 .. ..... ..... ......... . .        &XX2_bf_xb xb=%xx_xb
 
@@ -853,6 +856,9 @@ XSCVSPDPN       111100 ..... ----- ..... 101001011 ..   @XX2
 XVXSIGSP        111100 ..... 01001 ..... 111011011 ..   @XX2
 XVTSTDCDP       111100 ..... ..... ..... 1111 . 101 ... @XX2_uim7
 XVTSTDCSP       111100 ..... ..... ..... 1101 . 101 ... @XX2_uim7
+XSTSTDCSP       111100 ... ....... ..... 100101010 . -  @XX2_bf_uim xb=%xx_xb
+XSTSTDCDP       111100 ... ....... ..... 101101010 . -  @XX2_bf_uim xb=%xx_xb
+XSTSTDCQP       111111 ... ....... xb:5  1011000100 -   @XX2_bf_uim
 
 ## VSX Vector Test Least-Significant Bit by Byte Instruction
 
