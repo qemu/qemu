@@ -43,6 +43,67 @@
 /*****************************************************************************/
 /* Shared functions */
 
+/*
+ * Split RAM between SDRAM banks.
+ *
+ * sdram_bank_sizes[] must be in descending order, that is sizes[i] > sizes[i+1]
+ * and must be 0-terminated.
+ *
+ * The 4xx SDRAM controller supports a small number of banks, and each bank
+ * must be one of a small set of sizes. The number of banks and the supported
+ * sizes varies by SoC.
+ */
+static void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
+                               Ppc4xxSdramBank ram_banks[],
+                               const ram_addr_t sdram_bank_sizes[])
+{
+    ram_addr_t size_left = memory_region_size(ram);
+    ram_addr_t base = 0;
+    ram_addr_t bank_size;
+    int i;
+    int j;
+
+    for (i = 0; i < nr_banks; i++) {
+        for (j = 0; sdram_bank_sizes[j] != 0; j++) {
+            bank_size = sdram_bank_sizes[j];
+            if (bank_size <= size_left) {
+                char name[32];
+
+                ram_banks[i].base = base;
+                ram_banks[i].size = bank_size;
+                base += bank_size;
+                size_left -= bank_size;
+                snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
+                memory_region_init_alias(&ram_banks[i].ram, NULL, name, ram,
+                                         ram_banks[i].base, ram_banks[i].size);
+                break;
+            }
+        }
+        if (!size_left) {
+            /* No need to use the remaining banks. */
+            break;
+        }
+    }
+
+    if (size_left) {
+        ram_addr_t used_size = memory_region_size(ram) - size_left;
+        GString *s = g_string_new(NULL);
+
+        for (i = 0; sdram_bank_sizes[i]; i++) {
+            g_string_append_printf(s, "%" PRIi64 "%s",
+                                   sdram_bank_sizes[i] / MiB,
+                                   sdram_bank_sizes[i + 1] ? ", " : "");
+        }
+        error_report("at most %d bank%s of %s MiB each supported",
+                     nr_banks, nr_banks == 1 ? "" : "s", s->str);
+        error_printf("Possible valid RAM size: %" PRIi64 " MiB\n",
+            used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
+
+        g_string_free(s, true);
+        exit(EXIT_FAILURE);
+    }
+}
+
 static void sdram_bank_map(Ppc4xxSdramBank *bank)
 {
     memory_region_init(&bank->container, NULL, "sdram-container", bank->size);
