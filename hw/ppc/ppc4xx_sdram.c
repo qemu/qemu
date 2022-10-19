@@ -52,10 +52,12 @@
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC.
  */
-static void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
+static bool ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                                Ppc4xxSdramBank ram_banks[],
-                               const ram_addr_t sdram_bank_sizes[])
+                               const ram_addr_t sdram_bank_sizes[],
+                               Error **errp)
 {
+    ERRP_GUARD();
     ram_addr_t size_left = memory_region_size(ram);
     ram_addr_t base = 0;
     ram_addr_t bank_size;
@@ -93,14 +95,16 @@ static void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
                                    sdram_bank_sizes[i] / MiB,
                                    sdram_bank_sizes[i + 1] ? ", " : "");
         }
-        error_report("at most %d bank%s of %s MiB each supported",
-                     nr_banks, nr_banks == 1 ? "" : "s", s->str);
-        error_printf("Possible valid RAM size: %" PRIi64 " MiB\n",
-            used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
+        error_setg(errp, "Invalid SDRAM banks");
+        error_append_hint(errp, "at most %d bank%s of %s MiB each supported\n",
+                          nr_banks, nr_banks == 1 ? "" : "s", s->str);
+        error_append_hint(errp, "Possible valid RAM size: %" PRIi64 " MiB\n",
+                  used_size ? used_size / MiB : sdram_bank_sizes[i - 1] / MiB);
 
         g_string_free(s, true);
-        exit(EXIT_FAILURE);
+        return false;
     }
+    return true;
 }
 
 static void sdram_bank_map(Ppc4xxSdramBank *bank)
@@ -399,7 +403,10 @@ static void ppc4xx_sdram_ddr_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Missing dram memory region");
         return;
     }
-    ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank, valid_bank_sizes);
+    if (!ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank,
+                            valid_bank_sizes, errp)) {
+        return;
+    }
     for (i = 0; i < s->nbanks; i++) {
         if (s->bank[i].size) {
             s->bank[i].bcr = sdram_ddr_bcr(s->bank[i].base, s->bank[i].size);
@@ -666,7 +673,10 @@ static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Missing dram memory region");
         return;
     }
-    ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank, valid_bank_sizes);
+    if (!ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank,
+                            valid_bank_sizes, errp)) {
+        return;
+    }
     for (i = 0; i < s->nbanks; i++) {
         if (s->bank[i].size) {
             s->bank[i].bcr = sdram_ddr2_bcr(s->bank[i].base, s->bank[i].size);
