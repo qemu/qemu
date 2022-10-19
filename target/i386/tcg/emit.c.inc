@@ -39,6 +39,11 @@ typedef void (*SSEFunc_0_eppt)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                TCGv val);
 typedef void (*SSEFunc_0_epppti)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                  TCGv_ptr reg_c, TCGv a0, TCGv_i32 scale);
+typedef void (*SSEFunc_0_eppppi)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
+                                  TCGv_ptr reg_c, TCGv_ptr reg_d, TCGv_i32 flags);
+typedef void (*SSEFunc_0_eppppii)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
+                                  TCGv_ptr reg_c, TCGv_ptr reg_d, TCGv_i32 even,
+                                  TCGv_i32 odd);
 
 static inline TCGv_i32 tcg_constant8u_i32(uint8_t val)
 {
@@ -490,6 +495,52 @@ FP_SSE(VSUB, sub)
 FP_SSE(VMIN, min)
 FP_SSE(VDIV, div)
 FP_SSE(VMAX, max)
+
+#define FMA_SSE_PACKED(uname, ptr0, ptr1, ptr2, even, odd)                         \
+static void gen_##uname##Px(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_eppppii xmm = s->vex_w ? gen_helper_fma4pd_xmm : gen_helper_fma4ps_xmm; \
+    SSEFunc_0_eppppii ymm = s->vex_w ? gen_helper_fma4pd_ymm : gen_helper_fma4ps_ymm; \
+    SSEFunc_0_eppppii fn = s->vex_l ? ymm : xmm;                                   \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2,                                         \
+       tcg_constant_i32(even),                                                     \
+       tcg_constant_i32((even) ^ (odd)));                                          \
+}
+
+#define FMA_SSE(uname, ptr0, ptr1, ptr2, flags)                                    \
+FMA_SSE_PACKED(uname, ptr0, ptr1, ptr2, flags, flags)                              \
+static void gen_##uname##Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_eppppi fn = s->vex_w ? gen_helper_fma4sd : gen_helper_fma4ss;        \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2,                                         \
+       tcg_constant_i32(flags));                                                   \
+}                                                                                  \
+
+FMA_SSE(VFMADD231,  OP_PTR1, OP_PTR2, OP_PTR0, 0)
+FMA_SSE(VFMADD213,  OP_PTR1, OP_PTR0, OP_PTR2, 0)
+FMA_SSE(VFMADD132,  OP_PTR0, OP_PTR2, OP_PTR1, 0)
+
+FMA_SSE(VFNMADD231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_product)
+FMA_SSE(VFNMADD213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_product)
+FMA_SSE(VFNMADD132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_product)
+
+FMA_SSE(VFMSUB231,  OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c)
+FMA_SSE(VFMSUB213,  OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c)
+FMA_SSE(VFMSUB132,  OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c)
+
+FMA_SSE(VFNMSUB231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c|float_muladd_negate_product)
+FMA_SSE(VFNMSUB213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c|float_muladd_negate_product)
+FMA_SSE(VFNMSUB132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c|float_muladd_negate_product)
+
+FMA_SSE_PACKED(VFMADDSUB231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c, 0)
+FMA_SSE_PACKED(VFMADDSUB213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c, 0)
+FMA_SSE_PACKED(VFMADDSUB132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c, 0)
+
+FMA_SSE_PACKED(VFMSUBADD231, OP_PTR1, OP_PTR2, OP_PTR0, 0, float_muladd_negate_c)
+FMA_SSE_PACKED(VFMSUBADD213, OP_PTR1, OP_PTR0, OP_PTR2, 0, float_muladd_negate_c)
+FMA_SSE_PACKED(VFMSUBADD132, OP_PTR0, OP_PTR2, OP_PTR1, 0, float_muladd_negate_c)
 
 #define FP_UNPACK_SSE(uname, lname)                                                \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \

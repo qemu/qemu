@@ -9,7 +9,7 @@ from fnmatch import fnmatch
 archs = [
     "SSE", "SSE2", "SSE3", "SSSE3", "SSE4_1", "SSE4_2",
     "AES", "AVX", "AVX2", "AES+AVX", "VAES+AVX",
-    "F16C",
+    "F16C", "FMA",
 ]
 
 ignore = set(["FISTTP",

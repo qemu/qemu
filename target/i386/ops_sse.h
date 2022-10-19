@@ -2522,6 +2522,33 @@ void helper_vpermd_ymm(Reg *d, Reg *v, Reg *s)
 }
 #endif
 
+/* FMA3 op helpers */
+#if SHIFT == 1
+#define SSE_HELPER_FMAS(name, elem, F)                                         \
+    void name(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c, int flags)     \
+    {                                                                          \
+        d->elem(0) = F(a->elem(0), b->elem(0), c->elem(0), flags, &env->sse_status); \
+    }
+#define SSE_HELPER_FMAP(name, elem, num, F)                                    \
+    void glue(name, SUFFIX)(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c,  \
+                            int flags, int flip)                               \
+    {                                                                          \
+        int i;                                                                 \
+        for (i = 0; i < num; i++) {                                            \
+            d->elem(i) = F(a->elem(i), b->elem(i), c->elem(i), flags, &env->sse_status); \
+            flags ^= flip;                                                     \
+        }                                                                      \
+    }
+
+SSE_HELPER_FMAS(helper_fma4ss,  ZMM_S, float32_muladd)
+SSE_HELPER_FMAS(helper_fma4sd,  ZMM_D, float64_muladd)
+#endif
+
+#if SHIFT >= 1
+SSE_HELPER_FMAP(helper_fma4ps,  ZMM_S, 2 << SHIFT, float32_muladd)
+SSE_HELPER_FMAP(helper_fma4pd,  ZMM_D, 1 << SHIFT, float64_muladd)
+#endif
+
 #undef SSE_HELPER_S
 
 #undef LANE_WIDTH
