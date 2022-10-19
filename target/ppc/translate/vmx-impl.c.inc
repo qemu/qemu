@@ -2521,7 +2521,7 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
         tcg_temp_free_ptr(rd);                                          \
     }
 
-GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
+GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
 
 static bool do_va_helper(DisasContext *ctx, arg_VA *a,
     void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
@@ -2620,7 +2620,8 @@ static bool do_va_env_helper(DisasContext *ctx, arg_VA *a,
 TRANS_FLAGS(ALTIVEC, VMSUMUHS, do_va_env_helper, gen_helper_VMSUMUHS)
 TRANS_FLAGS(ALTIVEC, VMSUMSHS, do_va_env_helper, gen_helper_VMSUMSHS)
 
-GEN_VAFORM_PAIRED(vmaddfp, vnmsubfp, 23)
+TRANS_FLAGS(ALTIVEC, VMHADDSHS, do_va_env_helper, gen_helper_VMHADDSHS)
+TRANS_FLAGS(ALTIVEC, VMHRADDSHS, do_va_env_helper, gen_helper_VMHRADDSHS)
 
 GEN_VXFORM_NOA(vclzb, 1, 28)
 GEN_VXFORM_NOA(vclzh, 1, 29)

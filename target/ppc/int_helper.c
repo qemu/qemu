@@ -939,7 +939,7 @@ target_ulong helper_vctzlsbb(ppc_avr_t *r)
     return count;
 }
 
-void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+void helper_VMHADDSHS(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                       ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
@@ -957,7 +957,7 @@ void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 }
 
-void helper_vmhraddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+void helper_VMHRADDSHS(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
                        ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
