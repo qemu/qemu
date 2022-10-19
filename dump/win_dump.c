@@ -273,6 +273,13 @@ static void patch_and_save_context(WinDumpHeader *h, bool x64,
         uint64_t Context;
         WinContext ctx;
 
+        if (i >= WIN_DUMP_FIELD(NumberProcessors)) {
+            warn_report("win-dump: number of QEMU CPUs is bigger than"
+                        " NumberProcessors (%u) in guest Windows",
+                        WIN_DUMP_FIELD(NumberProcessors));
+            return;
+        }
+
         if (cpu_read_ptr(x64, first_cpu,
                 KiProcessorBlock + i * win_dump_ptr_size(x64),
                 &Prcb)) {
