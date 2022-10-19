@@ -141,6 +141,8 @@ enum {
 
 /*****************************************************************************/
 /* DDR SDRAM controller */
+#define SDRAM_DDR_BCR_MASK 0xFFDEE001
+
 static uint32_t sdram_ddr_bcr(hwaddr ram_base, hwaddr ram_size)
 {
     uint32_t bcr;
@@ -197,58 +199,6 @@ static hwaddr sdram_ddr_size(uint32_t bcr)
     }
 
     return size;
-}
-
-static void sdram_ddr_set_bcr(Ppc4xxSdramDdrState *sdram, int i,
-                              uint32_t bcr, int enabled)
-{
-    if (sdram->bank[i].bcr & 1) {
-        /* Unmap RAM */
-        trace_ppc4xx_sdram_unmap(sdram_ddr_base(sdram->bank[i].bcr),
-                                 sdram_ddr_size(sdram->bank[i].bcr));
-        memory_region_del_subregion(get_system_memory(),
-                                    &sdram->bank[i].container);
-        memory_region_del_subregion(&sdram->bank[i].container,
-                                    &sdram->bank[i].ram);
-        object_unparent(OBJECT(&sdram->bank[i].container));
-    }
-    sdram->bank[i].bcr = bcr & 0xFFDEE001;
-    if (enabled && (bcr & 1)) {
-        trace_ppc4xx_sdram_map(sdram_ddr_base(bcr), sdram_ddr_size(bcr));
-        memory_region_init(&sdram->bank[i].container, NULL, "sdram-container",
-                           sdram_ddr_size(bcr));
-        memory_region_add_subregion(&sdram->bank[i].container, 0,
-                                    &sdram->bank[i].ram);
-        memory_region_add_subregion(get_system_memory(),
-                                    sdram_ddr_base(bcr),
-                                    &sdram->bank[i].container);
-    }
-}
-
-static void sdram_ddr_map_bcr(Ppc4xxSdramDdrState *sdram)
-{
-    int i;
-
-    for (i = 0; i < sdram->nbanks; i++) {
-        if (sdram->bank[i].size != 0) {
-            sdram_ddr_set_bcr(sdram, i, sdram_ddr_bcr(sdram->bank[i].base,
-                                                      sdram->bank[i].size), 1);
-        } else {
-            sdram_ddr_set_bcr(sdram, i, 0, 0);
-        }
-    }
-}
-
-static void sdram_ddr_unmap_bcr(Ppc4xxSdramDdrState *sdram)
-{
-    int i;
-
-    for (i = 0; i < sdram->nbanks; i++) {
-        trace_ppc4xx_sdram_unmap(sdram_ddr_base(sdram->bank[i].bcr),
-                                 sdram_ddr_size(sdram->bank[i].bcr));
-        memory_region_del_subregion(get_system_memory(),
-                                    &sdram->bank[i].ram);
-    }
 }
 
 static uint32_t sdram_ddr_dcr_read(void *opaque, int dcrn)
@@ -321,6 +271,7 @@ static uint32_t sdram_ddr_dcr_read(void *opaque, int dcrn)
 static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
 {
     Ppc4xxSdramDdrState *s = opaque;
+    int i;
 
     switch (dcrn) {
     case SDRAM0_CFGADDR:
@@ -342,12 +293,24 @@ static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
             if (!(s->cfg & 0x80000000) && (val & 0x80000000)) {
                 trace_ppc4xx_sdram_enable("enable");
                 /* validate all RAM mappings */
-                sdram_ddr_map_bcr(s);
+                for (i = 0; i < s->nbanks; i++) {
+                    if (s->bank[i].size) {
+                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                                           s->bank[i].base, s->bank[i].size,
+                                           1);
+                    }
+                }
                 s->status &= ~0x80000000;
             } else if ((s->cfg & 0x80000000) && !(val & 0x80000000)) {
                 trace_ppc4xx_sdram_enable("disable");
                 /* invalidate all RAM mappings */
-                sdram_ddr_unmap_bcr(s);
+                for (i = 0; i < s->nbanks; i++) {
+                    if (s->bank[i].size) {
+                        sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                                           s->bank[i].base, s->bank[i].size,
+                                           0);
+                    }
+                }
                 s->status |= 0x80000000;
             }
             if (!(s->cfg & 0x40000000) && (val & 0x40000000)) {
@@ -367,16 +330,16 @@ static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
             s->pmit = (val & 0xF8000000) | 0x07C00000;
             break;
         case 0x40: /* SDRAM_B0CR */
-            sdram_ddr_set_bcr(s, 0, val, s->cfg & 0x80000000);
-            break;
         case 0x44: /* SDRAM_B1CR */
-            sdram_ddr_set_bcr(s, 1, val, s->cfg & 0x80000000);
-            break;
         case 0x48: /* SDRAM_B2CR */
-            sdram_ddr_set_bcr(s, 2, val, s->cfg & 0x80000000);
-            break;
         case 0x4C: /* SDRAM_B3CR */
-            sdram_ddr_set_bcr(s, 3, val, s->cfg & 0x80000000);
+            i = (s->addr - 0x40) / 4;
+            val &= SDRAM_DDR_BCR_MASK;
+            if (s->bank[i].size) {
+                sdram_bank_set_bcr(&s->bank[i], val,
+                                   sdram_ddr_base(val), sdram_ddr_size(val),
+                                   s->cfg & 0x80000000);
+            }
             break;
         case 0x80: /* SDRAM_TR */
             s->tr = val & 0x018FC01F;
@@ -426,6 +389,7 @@ static void ppc4xx_sdram_ddr_realize(DeviceState *dev, Error **errp)
     const ram_addr_t valid_bank_sizes[] = {
         256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 4 * MiB, 0
     };
+    int i;
 
     if (s->nbanks < 1 || s->nbanks > 4) {
         error_setg(errp, "Invalid number of RAM banks");
@@ -436,6 +400,18 @@ static void ppc4xx_sdram_ddr_realize(DeviceState *dev, Error **errp)
         return;
     }
     ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank, valid_bank_sizes);
+    for (i = 0; i < s->nbanks; i++) {
+        if (s->bank[i].size) {
+            s->bank[i].bcr = sdram_ddr_bcr(s->bank[i].base, s->bank[i].size);
+            sdram_bank_set_bcr(&s->bank[i], s->bank[i].bcr,
+                               s->bank[i].base, s->bank[i].size, 0);
+        } else {
+            sdram_bank_set_bcr(&s->bank[i], 0, 0, 0, 0);
+        }
+        trace_ppc4xx_sdram_init(sdram_ddr_base(s->bank[i].bcr),
+                                sdram_ddr_size(s->bank[i].bcr),
+                                s->bank[i].bcr);
+    }
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 
