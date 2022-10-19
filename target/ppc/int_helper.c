@@ -570,25 +570,23 @@ VARITHSAT_UNSIGNED(w, u32, uint64_t, cvtsduw)
 #undef VARITHSAT_SIGNED
 #undef VARITHSAT_UNSIGNED
 
-#define VAVG_DO(name, element, etype)                                   \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            etype x = (etype)a->element[i] + (etype)b->element[i] + 1;  \
-            r->element[i] = x >> 1;                                     \
-        }                                                               \
+#define VAVG(name, element, etype)                                          \
+    void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t v)\
+    {                                                                       \
+        int i;                                                              \
+                                                                            \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                      \
+            etype x = (etype)a->element[i] + (etype)b->element[i] + 1;      \
+            r->element[i] = x >> 1;                                         \
+        }                                                                   \
     }
 
-#define VAVG(type, signed_element, signed_type, unsigned_element,       \
-             unsigned_type)                                             \
-    VAVG_DO(avgs##type, signed_element, signed_type)                    \
-    VAVG_DO(avgu##type, unsigned_element, unsigned_type)
-VAVG(b, s8, int16_t, u8, uint16_t)
-VAVG(h, s16, int32_t, u16, uint32_t)
-VAVG(w, s32, int64_t, u32, uint64_t)
-#undef VAVG_DO
+VAVG(VAVGSB, s8, int16_t)
+VAVG(VAVGUB, u8, uint16_t)
+VAVG(VAVGSH, s16, int32_t)
+VAVG(VAVGUH, u16, uint32_t)
+VAVG(VAVGSW, s32, int64_t)
+VAVG(VAVGUW, u32, uint64_t)
 #undef VAVG
 
 #define VABSDU_DO(name, element)                                        \
