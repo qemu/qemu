@@ -528,6 +528,12 @@ VAVGUB          000100 ..... ..... ..... 10000000010    @VX
 VAVGUH          000100 ..... ..... ..... 10001000010    @VX
 VAVGUW          000100 ..... ..... ..... 10010000010    @VX
 
+## Vector Integer Absolute Difference Instructions
+
+VABSDUB         000100 ..... ..... ..... 10000000011    @VX
+VABSDUH         000100 ..... ..... ..... 10001000011    @VX
+VABSDUW         000100 ..... ..... ..... 10010000011    @VX
+
 ## Vector Bit Manipulation Instruction
 
 VGNB            000100 ..... -- ... ..... 10011001100   @VX_n

@@ -589,8 +589,8 @@ VAVG(VAVGSW, s32, int64_t)
 VAVG(VAVGUW, u32, uint64_t)
 #undef VAVG
 
-#define VABSDU_DO(name, element)                                        \
-void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)           \
+#define VABSDU(name, element)                                           \
+void helper_##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t v)\
 {                                                                       \
     int i;                                                              \
                                                                         \
@@ -606,12 +606,9 @@ void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)           \
  *   name    - instruction mnemonic suffix (b: byte, h: halfword, w: word)
  *   element - element type to access from vector
  */
-#define VABSDU(type, element)                   \
-    VABSDU_DO(absdu##type, element)
-VABSDU(b, u8)
-VABSDU(h, u16)
-VABSDU(w, u32)
-#undef VABSDU_DO
+VABSDU(VABSDUB, u8)
+VABSDU(VABSDUH, u16)
+VABSDU(VABSDUW, u32)
 #undef VABSDU
 
 #define VCF(suffix, cvt, element)                                       \

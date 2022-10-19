@@ -431,9 +431,6 @@ GEN_VXFORM_V(vminsb, MO_8, tcg_gen_gvec_smin, 1, 12);
 GEN_VXFORM_V(vminsh, MO_16, tcg_gen_gvec_smin, 1, 13);
 GEN_VXFORM_V(vminsw, MO_32, tcg_gen_gvec_smin, 1, 14);
 GEN_VXFORM_V(vminsd, MO_64, tcg_gen_gvec_smin, 1, 15);
-GEN_VXFORM(vabsdub, 1, 16);
-GEN_VXFORM(vabsduh, 1, 17);
-GEN_VXFORM(vabsduw, 1, 18);
 GEN_VXFORM(vmrghb, 6, 0);
 GEN_VXFORM(vmrghh, 6, 1);
 GEN_VXFORM(vmrghw, 6, 2);
@@ -3454,6 +3451,52 @@ TRANS_FLAGS(ALTIVEC, VAVGSW, do_vx_vavg, 1, MO_32)
 TRANS_FLAGS(ALTIVEC, VAVGUB, do_vx_vavg, 0, MO_8)
 TRANS_FLAGS(ALTIVEC, VAVGUH, do_vx_vavg, 0, MO_16)
 TRANS_FLAGS(ALTIVEC, VAVGUW, do_vx_vavg, 0, MO_32)
+
+static void gen_vabsdu(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    tcg_gen_umax_vec(vece, t, a, b);
+    tcg_gen_umin_vec(vece, a, a, b);
+    tcg_gen_sub_vec(vece, t, t, a);
+}
+
+static bool do_vabsdu(DisasContext *ctx, arg_VX *a, const int vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_umax_vec, INDEX_op_umin_vec, INDEX_op_sub_vec, 0
+    };
+
+    static const GVecGen3 op[] = {
+        {
+            .fniv = gen_vabsdu,
+            .fno = gen_helper_VABSDUB,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vabsdu,
+            .fno = gen_helper_VABSDUH,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vabsdu,
+            .fno = gen_helper_VABSDUW,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+    };
+
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_3(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), 16, 16, &op[vece]);
+
+    return true;
+}
+
+TRANS_FLAGS2(ISA300, VABSDUB, do_vabsdu, MO_8)
+TRANS_FLAGS2(ISA300, VABSDUH, do_vabsdu, MO_16)
+TRANS_FLAGS2(ISA300, VABSDUW, do_vabsdu, MO_32)
 
 static bool do_vdiv_vmod(DisasContext *ctx, arg_VX *a, const int vece,
                          void (*func_32)(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b),
