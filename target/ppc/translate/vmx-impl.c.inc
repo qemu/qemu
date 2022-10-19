@@ -1659,9 +1659,71 @@ GEN_VXFORM_NOA_ENV(vrfim, 5, 11);
 GEN_VXFORM_NOA_ENV(vrfin, 5, 8);
 GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
 GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
-GEN_VXFORM_NOA(vprtybw, 1, 24);
-GEN_VXFORM_NOA(vprtybd, 1, 24);
-GEN_VXFORM_NOA(vprtybq, 1, 24);
+
+static void gen_vprtyb_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    int i;
+    TCGv_vec tmp = tcg_temp_new_vec_matching(b);
+    /* MO_32 is 2, so 2 iteractions for MO_32 and 3 for MO_64 */
+    for (i = 0; i < vece; i++) {
+        tcg_gen_shri_vec(vece, tmp, b, (4 << (vece - i)));
+        tcg_gen_xor_vec(vece, b, tmp, b);
+    }
+    tcg_gen_and_vec(vece, t, b, tcg_constant_vec_matching(t, vece, 1));
+    tcg_temp_free_vec(tmp);
+}
+
+/* vprtybw */
+static void gen_vprtyb_i32(TCGv_i32 t, TCGv_i32 b)
+{
+    tcg_gen_ctpop_i32(t, b);
+    tcg_gen_and_i32(t, t, tcg_constant_i32(1));
+}
+
+/* vprtybd */
+static void gen_vprtyb_i64(TCGv_i64 t, TCGv_i64 b)
+{
+    tcg_gen_ctpop_i64(t, b);
+    tcg_gen_and_i64(t, t, tcg_constant_i64(1));
+}
+
+static bool do_vx_vprtyb(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shri_vec, 0
+    };
+
+    static const GVecGen2 op[] = {
+        {
+            .fniv = gen_vprtyb_vec,
+            .fni4 = gen_vprtyb_i32,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vprtyb_vec,
+            .fni8 = gen_vprtyb_i64,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+        {
+            .fno = gen_helper_VPRTYBQ,
+            .vece = MO_128
+        },
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_2(avr_full_offset(a->vrt), avr_full_offset(a->vrb),
+                   16, 16, &op[vece - MO_32]);
+
+    return true;
+}
+
+TRANS(VPRTYBW, do_vx_vprtyb, MO_32)
+TRANS(VPRTYBD, do_vx_vprtyb, MO_64)
+TRANS(VPRTYBQ, do_vx_vprtyb, MO_128)
 
 static void gen_vsplt(DisasContext *ctx, int vece)
 {
