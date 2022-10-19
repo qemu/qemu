@@ -2523,24 +2523,6 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
 
 GEN_VAFORM_PAIRED(vmhaddshs, vmhraddshs, 16)
 
-static void gen_vmladduhm(DisasContext *ctx)
-{
-    TCGv_ptr ra, rb, rc, rd;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    ra = gen_avr_ptr(rA(ctx->opcode));
-    rb = gen_avr_ptr(rB(ctx->opcode));
-    rc = gen_avr_ptr(rC(ctx->opcode));
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_vmladduhm(rd, ra, rb, rc);
-    tcg_temp_free_ptr(ra);
-    tcg_temp_free_ptr(rb);
-    tcg_temp_free_ptr(rc);
-    tcg_temp_free_ptr(rd);
-}
-
 static bool do_va_helper(DisasContext *ctx, arg_VA *a,
     void (*gen_helper)(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr))
 {
@@ -2568,6 +2550,36 @@ TRANS_FLAGS2(ALTIVEC_207, VSUBECUQ, do_va_helper, gen_helper_VSUBECUQ)
 
 TRANS_FLAGS(ALTIVEC, VPERM, do_va_helper, gen_helper_VPERM)
 TRANS_FLAGS2(ISA300, VPERMR, do_va_helper, gen_helper_VPERMR)
+
+static void gen_vmladduhm_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
+                              TCGv_vec c)
+{
+    tcg_gen_mul_vec(vece, t, a, b);
+    tcg_gen_add_vec(vece, t, t, c);
+}
+
+static bool trans_VMLADDUHM(DisasContext *ctx, arg_VA *a)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_add_vec, INDEX_op_mul_vec, 0
+    };
+
+    static const GVecGen4 op = {
+        .fno = gen_helper_VMLADDUHM,
+        .fniv = gen_vmladduhm_vec,
+        .opt_opc = vecop_list,
+        .vece = MO_16
+    };
+
+    REQUIRE_INSNS_FLAGS(ctx, ALTIVEC);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_4(avr_full_offset(a->vrt), avr_full_offset(a->vra),
+                   avr_full_offset(a->vrb), avr_full_offset(a->rc),
+                   16, 16, &op);
+
+    return true;
+}
 
 static bool trans_VSEL(DisasContext *ctx, arg_VA *a)
 {
