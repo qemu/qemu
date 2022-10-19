@@ -754,6 +754,15 @@ STXVRHX         011111 ..... ..... ..... 0010101101 .   @X_TSX
 STXVRWX         011111 ..... ..... ..... 0011001101 .   @X_TSX
 STXVRDX         011111 ..... ..... ..... 0011101101 .   @X_TSX
 
+## VSX Vector Binary Floating-Point Sign Manipulation Instructions
+
+XVABSDP         111100 ..... 00000 ..... 111011001 ..   @XX2
+XVABSSP         111100 ..... 00000 ..... 110011001 ..   @XX2
+XVNABSDP        111100 ..... 00000 ..... 111101001 ..   @XX2
+XVNABSSP        111100 ..... 00000 ..... 110101001 ..   @XX2
+XVNEGDP         111100 ..... 00000 ..... 111111001 ..   @XX2
+XVNEGSP         111100 ..... 00000 ..... 110111001 ..   @XX2
+
 ## VSX Scalar Multiply-Add Instructions
 
 XSMADDADP       111100 ..... ..... ..... 00100001 . . . @XX3

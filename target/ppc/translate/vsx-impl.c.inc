@@ -782,14 +782,75 @@ static void glue(gen_, name)(DisasContext *ctx)                  \
         tcg_temp_free_i64(sgm);                                  \
     }
 
-VSX_VECTOR_MOVE(xvabsdp, OP_ABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnabsdp, OP_NABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnegdp, OP_NEG, SGN_MASK_DP)
 VSX_VECTOR_MOVE(xvcpsgndp, OP_CPSGN, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvabssp, OP_ABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
+
+#define TCG_OP_IMM_i64(FUNC, OP, IMM)                           \
+    static void FUNC(TCGv_i64 t, TCGv_i64 b)                    \
+    {                                                           \
+        OP(t, b, IMM);                                          \
+    }
+
+TCG_OP_IMM_i64(do_xvabssp_i64, tcg_gen_andi_i64, ~SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvnabssp_i64, tcg_gen_ori_i64, SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvnegsp_i64, tcg_gen_xori_i64, SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvabsdp_i64, tcg_gen_andi_i64, ~SGN_MASK_DP)
+TCG_OP_IMM_i64(do_xvnabsdp_i64, tcg_gen_ori_i64, SGN_MASK_DP)
+TCG_OP_IMM_i64(do_xvnegdp_i64, tcg_gen_xori_i64, SGN_MASK_DP)
+#undef TCG_OP_IMM_i64
+
+static void xv_msb_op1(unsigned vece, TCGv_vec t, TCGv_vec b,
+                 void (*tcg_gen_op_vec)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
+{
+    uint64_t msb = (vece == MO_32) ? SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_op_vec(vece, t, b, tcg_constant_vec_matching(t, vece, msb));
+}
+
+static void do_xvabs_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_andc_vec);
+}
+
+static void do_xvnabs_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_or_vec);
+}
+
+static void do_xvneg_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_xor_vec);
+}
+
+static bool do_vsx_msb_op(DisasContext *ctx, arg_XX2 *a, unsigned vece,
+                          void (*vec)(unsigned, TCGv_vec, TCGv_vec),
+                          void (*i64)(TCGv_i64, TCGv_i64))
+{
+    static const TCGOpcode vecop_list[] = {
+        0
+    };
+
+    const GVecGen2 op = {
+       .fni8 = i64,
+       .fniv = vec,
+       .opt_opc = vecop_list,
+       .vece = vece
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_2(vsr_full_offset(a->xt), vsr_full_offset(a->xb),
+                   16, 16, &op);
+
+    return true;
+}
+
+TRANS(XVABSDP, do_vsx_msb_op, MO_64, do_xvabs_vec, do_xvabsdp_i64)
+TRANS(XVNABSDP, do_vsx_msb_op, MO_64, do_xvnabs_vec, do_xvnabsdp_i64)
+TRANS(XVNEGDP, do_vsx_msb_op, MO_64, do_xvneg_vec, do_xvnegdp_i64)
+TRANS(XVABSSP, do_vsx_msb_op, MO_32, do_xvabs_vec, do_xvabssp_i64)
+TRANS(XVNABSSP, do_vsx_msb_op, MO_32, do_xvnabs_vec, do_xvnabssp_i64)
+TRANS(XVNEGSP, do_vsx_msb_op, MO_32, do_xvneg_vec, do_xvnegsp_i64)
 
 #define VSX_CMP(name, op1, op2, inval, type)                                  \
 static void gen_##name(DisasContext *ctx)                                     \

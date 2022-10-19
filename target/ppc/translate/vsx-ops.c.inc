@@ -165,13 +165,7 @@ GEN_XX3FORM(name, opc2, opc3 | 1, fl2)
 GEN_XX2FORM_DCMX(xvtstdcdp, 0x14, 0x1E, PPC2_ISA300),
 GEN_XX2FORM_DCMX(xvtstdcsp, 0x14, 0x1A, PPC2_ISA300),
 
-GEN_XX2FORM(xvabsdp, 0x12, 0x1D, PPC2_VSX),
-GEN_XX2FORM(xvnabsdp, 0x12, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvnegdp, 0x12, 0x1F, PPC2_VSX),
 GEN_XX3FORM(xvcpsgndp, 0x00, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
-GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
-GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
 GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
 
 GEN_XX3FORM(xsadddp, 0x00, 0x04, PPC2_VSX),
