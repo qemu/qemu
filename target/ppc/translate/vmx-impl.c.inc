@@ -2625,8 +2625,19 @@ GEN_VXFORM_NOA(vclzb, 1, 28)
 GEN_VXFORM_NOA(vclzh, 1, 29)
 GEN_VXFORM_TRANS(vclzw, 1, 30)
 GEN_VXFORM_TRANS(vclzd, 1, 31)
-GEN_VXFORM_NOA_2(vnegw, 1, 24, 6)
-GEN_VXFORM_NOA_2(vnegd, 1, 24, 7)
+
+static bool do_vneg(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
+    REQUIRE_VECTOR(ctx);
+
+    tcg_gen_gvec_neg(vece, avr_full_offset(a->vrt), avr_full_offset(a->vrb),
+                     16, 16);
+    return true;
+}
+
+TRANS(VNEGW, do_vneg, MO_32)
+TRANS(VNEGD, do_vneg, MO_64)
 
 static void gen_vexts_i64(TCGv_i64 t, TCGv_i64 b, int64_t s)
 {
