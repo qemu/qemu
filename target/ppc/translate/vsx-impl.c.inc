@@ -630,6 +630,8 @@ static void gen_mtvsrws(DisasContext *ctx)
 #define OP_CPSGN 4
 #define SGN_MASK_DP  0x8000000000000000ull
 #define SGN_MASK_SP 0x8000000080000000ull
+#define EXP_MASK_DP  0x7FF0000000000000ull
+#define EXP_MASK_SP 0x7F8000007F800000ull
 
 #define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
 static void glue(gen_, name)(DisasContext *ctx)                   \
@@ -1110,6 +1112,30 @@ GEN_VSX_HELPER_X2(xscvhpdp, 0x16, 0x15, 0x10, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xscvsdqp, 0x04, 0x1A, 0x0A, PPC2_ISA300)
 GEN_VSX_HELPER_X2(xscvspdp, 0x12, 0x14, 0, PPC2_VSX)
 
+static bool do_xvtstdc(DisasContext *ctx, arg_XX2_uim *a, unsigned vece)
+{
+    static const GVecGen2i op[] = {
+        {
+            .fnoi = gen_helper_XVTSTDCSP,
+            .vece = MO_32
+        },
+        {
+            .fnoi = gen_helper_XVTSTDCDP,
+            .vece = MO_64
+        },
+    };
+
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_2i(vsr_full_offset(a->xt), vsr_full_offset(a->xb),
+                    16, 16, (int32_t)(a->uim), &op[vece - MO_32]);
+
+    return true;
+}
+
+TRANS_FLAGS2(VSX, XVTSTDCSP, do_xvtstdc, MO_32)
+TRANS_FLAGS2(VSX, XVTSTDCDP, do_xvtstdc, MO_64)
+
 bool trans_XSCVSPDPN(DisasContext *ctx, arg_XX2 *a)
 {
     TCGv_i64 tmp;
@@ -1213,8 +1239,6 @@ GEN_VSX_HELPER_X2(xvrspic, 0x16, 0x0A, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspim, 0x12, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspip, 0x12, 0x0A, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspiz, 0x12, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtstdcsp, 0x14, 0x1A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtstdcdp, 0x14, 0x1E, 0, PPC2_VSX)
 
 static bool trans_XXPERM(DisasContext *ctx, arg_XX3 *a)
 {

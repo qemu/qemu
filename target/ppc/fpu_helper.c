@@ -3295,10 +3295,45 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)         \
     }                                                       \
 }
 
-VSX_TEST_DC(xvtstdcdp, 2, xB(opcode), float64, VsrD(i), VsrD(i), UINT64_MAX, 0)
-VSX_TEST_DC(xvtstdcsp, 4, xB(opcode), float32, VsrW(i), VsrW(i), UINT32_MAX, 0)
 VSX_TEST_DC(xststdcdp, 1, xB(opcode), float64, VsrD(0), VsrD(0), 0, 1)
 VSX_TEST_DC(xststdcqp, 1, (rB(opcode) + 32), float128, f128, VsrD(0), 0, 1)
+
+#define VSX_TSTDC(tp)                                       \
+static int32_t tp##_tstdc(tp b, uint32_t dcmx)              \
+{                                                           \
+    uint32_t match = 0;                                     \
+    uint32_t sign = tp##_is_neg(b);                         \
+    if (tp##_is_any_nan(b)) {                               \
+        match = extract32(dcmx, 6, 1);                      \
+    } else if (tp##_is_infinity(b)) {                       \
+        match = extract32(dcmx, 4 + !sign, 1);              \
+    } else if (tp##_is_zero(b)) {                           \
+        match = extract32(dcmx, 2 + !sign, 1);              \
+    } else if (tp##_is_zero_or_denormal(b)) {               \
+        match = extract32(dcmx, 0 + !sign, 1);              \
+    }                                                       \
+    return (match != 0);                                    \
+}
+
+VSX_TSTDC(float32)
+VSX_TSTDC(float64)
+#undef VSX_TSTDC
+
+void helper_XVTSTDCDP(ppc_vsr_t *t, ppc_vsr_t *b, uint64_t dcmx, uint32_t v)
+{
+    int i;
+    for (i = 0; i < 2; i++) {
+        t->s64[i] = (int64_t)-float64_tstdc(b->f64[i], dcmx);
+    }
+}
+
+void helper_XVTSTDCSP(ppc_vsr_t *t, ppc_vsr_t *b, uint64_t dcmx, uint32_t v)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        t->s32[i] = (int32_t)-float32_tstdc(b->f32[i], dcmx);
+    }
+}
 
 void helper_xststdcsp(CPUPPCState *env, uint32_t opcode, ppc_vsr_t *xb)
 {
