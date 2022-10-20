@@ -175,7 +175,7 @@ static void md_attr_write(PCMCIACardState *card, uint32_t at, uint8_t value)
     case 0x00:	/* Configuration Option Register */
         s->opt = value & 0xcf;
         if (value & OPT_SRESET) {
-            device_legacy_reset(DEVICE(s));
+            device_cold_reset(DEVICE(s));
         }
         md_interrupt_update(s);
         break;
@@ -318,7 +318,7 @@ static void md_common_write(PCMCIACardState *card, uint32_t at, uint16_t value)
     case 0xe:	/* Device Control */
         s->ctrl = value;
         if (value & CTRL_SRST) {
-            device_legacy_reset(DEVICE(s));
+            device_cold_reset(DEVICE(s));
         }
         md_interrupt_update(s);
         break;
@@ -543,7 +543,7 @@ static int dscm1xxxx_attach(PCMCIACardState *card)
     md->attr_base = pcc->cis[0x74] | (pcc->cis[0x76] << 8);
     md->io_base = 0x0;
 
-    device_legacy_reset(DEVICE(md));
+    device_cold_reset(DEVICE(md));
     md_interrupt_update(md);
 
     return 0;
@@ -553,7 +553,7 @@ static int dscm1xxxx_detach(PCMCIACardState *card)
 {
     MicroDriveState *md = MICRODRIVE(card);
 
-    device_legacy_reset(DEVICE(md));
+    device_cold_reset(DEVICE(md));
     return 0;
 }
 

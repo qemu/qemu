@@ -134,6 +134,7 @@ typedef struct {
     void *host;
     int flags;
     MemTxAttrs attrs;
+    bool tagged;
 } SVEHostPage;
 
 bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
