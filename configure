@@ -640,7 +640,6 @@ if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   # MinGW needs -mthreads for TLS and macro _MT.
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
-  write_c_skeleton;
   prefix="/qemu"
   bindir=""
   qemu_suffix=""
