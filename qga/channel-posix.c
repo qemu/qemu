@@ -138,7 +138,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
             0
         );
         if (fd == -1) {
-            error_setg_errno(errp, errno, "error opening channel");
+            error_setg_errno(errp, errno, "error opening channel '%s'", path);
             return false;
         }
 #ifdef CONFIG_SOLARIS
@@ -182,7 +182,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
         assert(fd < 0);
         fd = qga_open_cloexec(path, O_RDWR | O_NOCTTY | O_NONBLOCK, 0);
         if (fd == -1) {
-            error_setg_errno(errp, errno, "error opening channel");
+            error_setg_errno(errp, errno, "error opening channel '%s'", path);
             return false;
         }
         tcgetattr(fd, &tio);
