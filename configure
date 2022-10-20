@@ -163,14 +163,14 @@ do_cc() {
 
 compile_object() {
   local_cflags="$1"
-  do_cc $CFLAGS $EXTRA_CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -c -o $TMPO $TMPC
+  do_cc $CFLAGS $EXTRA_CFLAGS $local_cflags -c -o $TMPO $TMPC
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  do_cc $CFLAGS $EXTRA_CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC \
-      $LDFLAGS $EXTRA_LDFLAGS $CONFIGURE_LDFLAGS $local_ldflags
+  do_cc $CFLAGS $EXTRA_CFLAGS $local_cflags -o $TMPE $TMPC \
+      $LDFLAGS $EXTRA_LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -375,19 +375,6 @@ windmc="${WINDMC-${cross_prefix}windmc}"
 pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 
-# default flags for all hosts
-# We use -fwrapv to tell the compiler that we require a C dialect where
-# left shift of signed integers is well defined and has the expected
-# 2s-complement style results. (Both clang and gcc agree that it
-# provides these semantics.)
-QEMU_CFLAGS="-fno-strict-aliasing -fno-common -fwrapv"
-QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
-
-# Flags that are needed during configure but later taken care of by Meson
-CONFIGURE_CFLAGS="-std=gnu11 -Wall"
-CONFIGURE_LDFLAGS=
-
-
 check_define() {
 cat > $TMPC <<EOF
 #if !defined($1)
@@ -466,21 +453,13 @@ openbsd)
 darwin)
   bsd="yes"
   darwin="yes"
-  # Disable attempts to use ObjectiveC features in os/object.h since they
-  # won't work when we're compiling with gcc as a C compiler.
-  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
 ;;
 sunos)
   solaris="yes"
   make="${MAKE-gmake}"
-# needed for CMSG_ macros in sys/socket.h
-  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
-# needed for TIOCWIN* defines in termios.h
-  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
 ;;
 haiku)
   pie="no"
-  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
 ;;
 linux)
   linux="yes"
@@ -633,8 +612,6 @@ done
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
-  # MinGW needs -mthreads for TLS and macro _MT.
-  CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   prefix="/qemu"
   bindir=""
   qemu_suffix=""
@@ -1196,59 +1173,26 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-# Meson currently only handles pie as a boolean for now so if we have
-# explicitly disabled PIE we need to extend our cflags because it wont.
 if test "$static" = "yes"; then
   if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
-    CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
     pie="yes"
   elif test "$pie" = "yes"; then
     error_exit "-static-pie not available due to missing toolchain support"
   else
     pie="no"
-    QEMU_CFLAGS="-fno-pie $QEMU_CFLAGS"
   fi
-elif test "$pie" = "no"; then
-  if compile_prog "-Werror -fno-pie" "-no-pie"; then
-    CONFIGURE_CFLAGS="-fno-pie $CONFIGURE_CFLAGS"
-    CONFIGURE_LDFLAGS="-no-pie $CONFIGURE_LDFLAGS"
-    QEMU_CFLAGS="-fno-pie -no-pie $QEMU_CFLAGS"
+elif test "$pie" != "no"; then
+  if compile_prog "-Werror -fPIE -DPIE" "-pie"; then
+    pie="yes"
+  elif test "$pie" = "yes"; then
+    error_exit "PIE not available due to missing toolchain support"
+  else
+    echo "Disabling PIE due to missing toolchain support"
+    pie="no"
   fi
-elif compile_prog "-Werror -fPIE -DPIE" "-pie"; then
-  CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
-  CONFIGURE_LDFLAGS="-pie $CONFIGURE_LDFLAGS"
-  pie="yes"
-elif test "$pie" = "yes"; then
-  error_exit "PIE not available due to missing toolchain support"
-else
-  echo "Disabling PIE due to missing toolchain support"
-  pie="no"
 fi
 
 ##########################################
-# __sync_fetch_and_and requires at least -march=i486. Many toolchains
-# use i686 as default anyway, but for those that don't, an explicit
-# specification is necessary
-
-if test "$cpu" = "i386"; then
-  cat > $TMPC << EOF
-static int sfaa(int *ptr)
-{
-  return __sync_fetch_and_and(ptr, 0);
-}
-
-int main(void)
-{
-  int val = 42;
-  val = __sync_val_compare_and_swap(&val, 0, 1);
-  sfaa(&val);
-  return val;
-}
-EOF
-  if ! compile_prog "" "" ; then
-    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
-  fi
-fi
 
 if test -z "${target_list+xxx}" ; then
     default_targets=yes
@@ -1931,7 +1875,6 @@ echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
 echo "PKG_CONFIG=${pkg_config}" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
-echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 
 # use included Linux headers
