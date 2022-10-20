@@ -17,7 +17,6 @@ fs = import('fs')
 targetos = host_machine.system()
 sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-enable_modules = 'CONFIG_MODULES' in config_host
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
@@ -83,6 +82,12 @@ have_ga = get_option('guest_agent') \
   .disable_auto_if(not have_system and not have_tools) \
   .require(targetos in ['sunos', 'linux', 'windows', 'freebsd', 'netbsd', 'openbsd'],
            error_message: 'unsupported OS for QEMU guest agent') \
+  .allowed()
+enable_modules = get_option('modules') \
+  .require(targetos != 'windows',
+           error_message: 'Modules are not available for Windows') \
+  .require(not get_option('prefer_static'),
+           error_message: 'Modules are incompatible with static linking') \
   .allowed()
 have_block = have_system or have_tools
 
@@ -498,7 +503,7 @@ glib_req_ver = '>=2.56.0'
 glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
                     method: 'pkg-config')
 glib_cflags = []
-if config_host.has_key('CONFIG_MODULES')
+if enable_modules
   gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
                        method: 'pkg-config')
 elif config_host.has_key('CONFIG_PLUGIN')
@@ -1725,7 +1730,7 @@ if get_option('cfi')
   if not get_option('b_lto')
     error('Selected Control-Flow Integrity but LTO is disabled')
   endif
-  if config_host.has_key('CONFIG_MODULES')
+  if enable_modules
     error('Selected Control-Flow Integrity is not compatible with modules')
   endif
   # Check for cfi flags. CFI requires LTO so we can't use
@@ -1828,7 +1833,7 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
-if config_host.has_key('CONFIG_MODULES')
+if enable_modules
   config_host_data.set('CONFIG_STAMP', run_command(
       meson.current_source_dir() / 'scripts/qemu-stamp.py',
       meson.project_version(), get_option('pkgversion'), '--',
@@ -1891,6 +1896,7 @@ config_host_data.set('CONFIG_LIBSSH', libssh.found())
 config_host_data.set('CONFIG_LINUX_AIO', libaio.found())
 config_host_data.set('CONFIG_LINUX_IO_URING', linux_io_uring.found())
 config_host_data.set('CONFIG_LIBPMEM', libpmem.found())
+config_host_data.set('CONFIG_MODULES', enable_modules)
 config_host_data.set('CONFIG_NUMA', numa.found())
 if numa.found()
   config_host_data.set('HAVE_NUMA_HAS_PREFERRED_MANY',
@@ -3254,7 +3260,7 @@ foreach d, list : modules
   endif
 
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       module_ss = module_ss.apply(config_all, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
@@ -3287,7 +3293,7 @@ endforeach
 
 foreach d, list : target_modules
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
@@ -3807,8 +3813,8 @@ summary_info += {'system-mode emulation': have_system}
 summary_info += {'user-mode emulation': have_user}
 summary_info += {'block layer':       have_block}
 summary_info += {'Install blobs':     get_option('install_blobs')}
-summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
-if config_host.has_key('CONFIG_MODULES')
+summary_info += {'module support':    enable_modules}
+if enable_modules
   summary_info += {'alternative module path': get_option('module_upgrades')}
 endif
 summary_info += {'fuzzing support':   get_option('fuzzing')}
