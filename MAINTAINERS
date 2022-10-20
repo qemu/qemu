@@ -2509,6 +2509,8 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+F: qapi/block*.json
+F: qapi/transaction.json
 F: include/block/
 F: qemu-img*
 F: docs/tools/qemu-img.rst
@@ -2581,16 +2583,6 @@ F: util/qemu-co-shared-resource.c
 F: include/qemu/co-shared-resource.h
 T: git https://gitlab.com/jsnow/qemu.git jobs
 T: git https://gitlab.com/vsementsov/qemu.git block
-
-Block QAPI, monitor, command line
-M: Markus Armbruster <armbru@redhat.com>
-S: Supported
-F: blockdev.c
-F: blockdev-hmp-cmds.c
-F: block/qapi.c
-F: qapi/block*.json
-F: qapi/transaction.json
-T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Compute Express Link
 M: Ben Widawsky <ben.widawsky@intel.com>
