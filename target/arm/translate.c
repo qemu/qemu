@@ -162,7 +162,7 @@ uint64_t asimd_imm_const(uint32_t imm, int cmode, int op)
 void arm_gen_condlabel(DisasContext *s)
 {
     if (!s->condjmp) {
-        s->condlabel = gen_new_label();
+        s->condlabel = gen_disas_label(s);
         s->condjmp = 1;
     }
 }
@@ -268,7 +268,12 @@ static target_long jmp_diff(DisasContext *s, target_long diff)
 
 static void gen_pc_plus_diff(DisasContext *s, TCGv_i32 var, target_long diff)
 {
-    tcg_gen_movi_i32(var, s->pc_curr + diff);
+    assert(s->pc_save != -1);
+    if (TARGET_TB_PCREL) {
+        tcg_gen_addi_i32(var, cpu_R[15], (s->pc_curr - s->pc_save) + diff);
+    } else {
+        tcg_gen_movi_i32(var, s->pc_curr + diff);
+    }
 }
 
 /* Set a variable to the value of a CPU register.  */
@@ -314,6 +319,7 @@ void store_reg(DisasContext *s, int reg, TCGv_i32 var)
          */
         tcg_gen_andi_i32(var, var, s->thumb ? ~1 : ~3);
         s->base.is_jmp = DISAS_JUMP;
+        s->pc_save = -1;
     } else if (reg == 13 && arm_dc_feature(s, ARM_FEATURE_M)) {
         /* For M-profile SP bits [1:0] are always zero */
         tcg_gen_andi_i32(var, var, ~3);
@@ -779,7 +785,8 @@ void gen_set_condexec(DisasContext *s)
 
 void gen_update_pc(DisasContext *s, target_long diff)
 {
-    tcg_gen_movi_i32(cpu_R[15], s->pc_curr + diff);
+    gen_pc_plus_diff(s, cpu_R[15], diff);
+    s->pc_save = s->pc_curr + diff;
 }
 
 /* Set PC and Thumb state from var.  var is marked as dead.  */
@@ -789,6 +796,7 @@ static inline void gen_bx(DisasContext *s, TCGv_i32 var)
     tcg_gen_andi_i32(cpu_R[15], var, ~1);
     tcg_gen_andi_i32(var, var, 1);
     store_cpu_field(var, thumb);
+    s->pc_save = -1;
 }
 
 /*
@@ -830,7 +838,7 @@ static inline void gen_bx_excret(DisasContext *s, TCGv_i32 var)
 static inline void gen_bx_excret_final_code(DisasContext *s)
 {
     /* Generate the code to finish possible exception return and end the TB */
-    TCGLabel *excret_label = gen_new_label();
+    DisasLabel excret_label = gen_disas_label(s);
     uint32_t min_magic;
 
     if (arm_dc_feature(s, ARM_FEATURE_M_SECURITY)) {
@@ -842,14 +850,14 @@ static inline void gen_bx_excret_final_code(DisasContext *s)
     }
 
     /* Is the new PC value in the magic range indicating exception return? */
-    tcg_gen_brcondi_i32(TCG_COND_GEU, cpu_R[15], min_magic, excret_label);
+    tcg_gen_brcondi_i32(TCG_COND_GEU, cpu_R[15], min_magic, excret_label.label);
     /* No: end the TB as we would for a DISAS_JMP */
     if (s->ss_active) {
         gen_singlestep_exception(s);
     } else {
         tcg_gen_exit_tb(NULL, 0);
     }
-    gen_set_label(excret_label);
+    set_disas_label(s, excret_label);
     /* Yes: this is an exception return.
      * At this point in runtime env->regs[15] and env->thumb will hold
      * the exception-return magic number, which do_v7m_exception_exit()
@@ -2603,11 +2611,22 @@ static void gen_goto_ptr(void)
  */
 static void gen_goto_tb(DisasContext *s, int n, target_long diff)
 {
-    target_ulong dest = s->pc_curr + diff;
-
-    if (translator_use_goto_tb(&s->base, dest)) {
-        tcg_gen_goto_tb(n);
-        gen_update_pc(s, diff);
+    if (translator_use_goto_tb(&s->base, s->pc_curr + diff)) {
+        /*
+         * For pcrel, the pc must always be up-to-date on entry to
+         * the linked TB, so that it can use simple additions for all
+         * further adjustments.  For !pcrel, the linked TB is compiled
+         * to know its full virtual address, so we can delay the
+         * update to pc to the unlinked path.  A long chain of links
+         * can thus avoid many updates to the PC.
+         */
+        if (TARGET_TB_PCREL) {
+            gen_update_pc(s, diff);
+            tcg_gen_goto_tb(n);
+        } else {
+            tcg_gen_goto_tb(n);
+            gen_update_pc(s, diff);
+        }
         tcg_gen_exit_tb(s->base.tb, n);
     } else {
         gen_update_pc(s, diff);
@@ -5221,7 +5240,7 @@ static void gen_srs(DisasContext *s,
 static void arm_skip_unless(DisasContext *s, uint32_t cond)
 {
     arm_gen_condlabel(s);
-    arm_gen_test_cc(cond ^ 1, s->condlabel);
+    arm_gen_test_cc(cond ^ 1, s->condlabel.label);
 }
 
 
@@ -8472,7 +8491,7 @@ static bool trans_WLS(DisasContext *s, arg_WLS *a)
 {
     /* M-profile low-overhead while-loop start */
     TCGv_i32 tmp;
-    TCGLabel *nextlabel;
+    DisasLabel nextlabel;
 
     if (!dc_isar_feature(aa32_lob, s)) {
         return false;
@@ -8513,8 +8532,8 @@ static bool trans_WLS(DisasContext *s, arg_WLS *a)
         }
     }
 
-    nextlabel = gen_new_label();
-    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_R[a->rn], 0, nextlabel);
+    nextlabel = gen_disas_label(s);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_R[a->rn], 0, nextlabel.label);
     tmp = load_reg(s, a->rn);
     store_reg(s, 14, tmp);
     if (a->size != 4) {
@@ -8535,7 +8554,7 @@ static bool trans_WLS(DisasContext *s, arg_WLS *a)
     }
     gen_jmp_tb(s, curr_insn_len(s), 1);
 
-    gen_set_label(nextlabel);
+    set_disas_label(s, nextlabel);
     gen_jmp(s, jmp_diff(s, a->imm));
     return true;
 }
@@ -8551,7 +8570,7 @@ static bool trans_LE(DisasContext *s, arg_LE *a)
      * any faster.
      */
     TCGv_i32 tmp;
-    TCGLabel *loopend;
+    DisasLabel loopend;
     bool fpu_active;
 
     if (!dc_isar_feature(aa32_lob, s)) {
@@ -8606,12 +8625,12 @@ static bool trans_LE(DisasContext *s, arg_LE *a)
 
     if (!a->tp && dc_isar_feature(aa32_mve, s) && fpu_active) {
         /* Need to do a runtime check for LTPSIZE != 4 */
-        TCGLabel *skipexc = gen_new_label();
+        DisasLabel skipexc = gen_disas_label(s);
         tmp = load_cpu_field(v7m.ltpsize);
-        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 4, skipexc);
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 4, skipexc.label);
         tcg_temp_free_i32(tmp);
         gen_exception_insn(s, 0, EXCP_INVSTATE, syn_uncategorized());
-        gen_set_label(skipexc);
+        set_disas_label(s, skipexc);
     }
 
     if (a->f) {
@@ -8626,9 +8645,9 @@ static bool trans_LE(DisasContext *s, arg_LE *a)
      * loop decrement value is 1. For LETP we need to calculate the decrement
      * value from LTPSIZE.
      */
-    loopend = gen_new_label();
+    loopend = gen_disas_label(s);
     if (!a->tp) {
-        tcg_gen_brcondi_i32(TCG_COND_LEU, cpu_R[14], 1, loopend);
+        tcg_gen_brcondi_i32(TCG_COND_LEU, cpu_R[14], 1, loopend.label);
         tcg_gen_addi_i32(cpu_R[14], cpu_R[14], -1);
     } else {
         /*
@@ -8641,7 +8660,7 @@ static bool trans_LE(DisasContext *s, arg_LE *a)
         tcg_gen_shl_i32(decr, tcg_constant_i32(1), decr);
         tcg_temp_free_i32(ltpsize);
 
-        tcg_gen_brcond_i32(TCG_COND_LEU, cpu_R[14], decr, loopend);
+        tcg_gen_brcond_i32(TCG_COND_LEU, cpu_R[14], decr, loopend.label);
 
         tcg_gen_sub_i32(cpu_R[14], cpu_R[14], decr);
         tcg_temp_free_i32(decr);
@@ -8649,7 +8668,7 @@ static bool trans_LE(DisasContext *s, arg_LE *a)
     /* Jump back to the loop start */
     gen_jmp(s, jmp_diff(s, -a->imm));
 
-    gen_set_label(loopend);
+    set_disas_label(s, loopend);
     if (a->tp) {
         /* Exits from tail-pred loops must reset LTPSIZE to 4 */
         store_cpu_field(tcg_constant_i32(4), v7m.ltpsize);
@@ -8753,7 +8772,7 @@ static bool trans_CBZ(DisasContext *s, arg_CBZ *a)
 
     arm_gen_condlabel(s);
     tcg_gen_brcondi_i32(a->nz ? TCG_COND_EQ : TCG_COND_NE,
-                        tmp, 0, s->condlabel);
+                        tmp, 0, s->condlabel.label);
     tcg_temp_free_i32(tmp);
     gen_jmp(s, jmp_diff(s, a->imm));
     return true;
@@ -9319,7 +9338,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 
     dc->isar = &cpu->isar;
     dc->condjmp = 0;
-
+    dc->pc_save = dc->base.pc_first;
     dc->aarch64 = false;
     dc->thumb = EX_TBFLAG_AM32(tb_flags, THUMB);
     dc->be_data = EX_TBFLAG_ANY(tb_flags, BE_DATA) ? MO_BE : MO_LE;
@@ -9337,7 +9356,6 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
      */
     dc->eci = dc->condexec_mask = dc->condexec_cond = 0;
     dc->eci_handled = false;
-    dc->insn_eci_rewind = NULL;
     if (condexec & 0xf) {
         dc->condexec_mask = (condexec & 0xf) << 1;
         dc->condexec_cond = condexec >> 4;
@@ -9473,13 +9491,17 @@ static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
      * fields here.
      */
     uint32_t condexec_bits;
+    target_ulong pc_arg = dc->base.pc_next;
 
+    if (TARGET_TB_PCREL) {
+        pc_arg &= ~TARGET_PAGE_MASK;
+    }
     if (dc->eci) {
         condexec_bits = dc->eci << 4;
     } else {
         condexec_bits = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
     }
-    tcg_gen_insn_start(dc->base.pc_next, condexec_bits, 0);
+    tcg_gen_insn_start(pc_arg, condexec_bits, 0);
     dc->insn_start = tcg_last_op();
 }
 
@@ -9522,8 +9544,11 @@ static bool arm_check_ss_active(DisasContext *dc)
 
 static void arm_post_translate_insn(DisasContext *dc)
 {
-    if (dc->condjmp && !dc->base.is_jmp) {
-        gen_set_label(dc->condlabel);
+    if (dc->condjmp && dc->base.is_jmp == DISAS_NEXT) {
+        if (dc->pc_save != dc->condlabel.pc_save) {
+            gen_update_pc(dc, dc->condlabel.pc_save - dc->pc_save);
+        }
+        gen_set_label(dc->condlabel.label);
         dc->condjmp = 0;
     }
     translator_loop_temp_check(&dc->base);
@@ -9626,6 +9651,9 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     uint32_t pc = dc->base.pc_next;
     uint32_t insn;
     bool is_16bit;
+    /* TCG op to rewind to if this turns out to be an invalid ECI state */
+    TCGOp *insn_eci_rewind = NULL;
+    target_ulong insn_eci_pc_save = -1;
 
     /* Misaligned thumb PC is architecturally impossible. */
     assert((dc->base.pc_next & 1) == 0);
@@ -9687,7 +9715,8 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
          *     insn" case. We will rewind to the marker (ie throwing away
          *     all the generated code) and instead emit "take exception".
          */
-        dc->insn_eci_rewind = tcg_last_op();
+        insn_eci_rewind = tcg_last_op();
+        insn_eci_pc_save = dc->pc_save;
     }
 
     if (dc->condexec_mask && !thumb_insn_is_unconditional(dc, insn)) {
@@ -9723,7 +9752,8 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
          * Insn wasn't valid for ECI/ICI at all: undo what we
          * just generated and instead emit an exception
          */
-        tcg_remove_ops_after(dc->insn_eci_rewind);
+        tcg_remove_ops_after(insn_eci_rewind);
+        dc->pc_save = insn_eci_pc_save;
         dc->condjmp = 0;
         gen_exception_insn(dc, 0, EXCP_INVSTATE, syn_uncategorized());
     }
@@ -9852,7 +9882,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
 
     if (dc->condjmp) {
         /* "Condition failed" instruction codepath for the branch/trap insn */
-        gen_set_label(dc->condlabel);
+        set_disas_label(dc, dc->condlabel);
         gen_set_condexec(dc);
         if (unlikely(dc->ss_active)) {
             gen_update_pc(dc, curr_insn_len(dc));
@@ -9914,11 +9944,19 @@ void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
     if (is_a64(env)) {
-        env->pc = data[0];
+        if (TARGET_TB_PCREL) {
+            env->pc = (env->pc & TARGET_PAGE_MASK) | data[0];
+        } else {
+            env->pc = data[0];
+        }
         env->condexec_bits = 0;
         env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     } else {
-        env->regs[15] = data[0];
+        if (TARGET_TB_PCREL) {
+            env->regs[15] = (env->regs[15] & TARGET_PAGE_MASK) | data[0];
+        } else {
+            env->regs[15] = data[0];
+        }
         env->condexec_bits = data[1];
         env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
     }

@@ -6,18 +6,42 @@
 
 
 /* internal defines */
+
+/*
+ * Save pc_save across a branch, so that we may restore the value from
+ * before the branch at the point the label is emitted.
+ */
+typedef struct DisasLabel {
+    TCGLabel *label;
+    target_ulong pc_save;
+} DisasLabel;
+
 typedef struct DisasContext {
     DisasContextBase base;
     const ARMISARegisters *isar;
 
     /* The address of the current instruction being translated. */
     target_ulong pc_curr;
+    /*
+     * For TARGET_TB_PCREL, the full value of cpu_pc is not known
+     * (although the page offset is known).  For convenience, the
+     * translation loop uses the full virtual address that triggered
+     * the translation, from base.pc_start through pc_curr.
+     * For efficiency, we do not update cpu_pc for every instruction.
+     * Instead, pc_save has the value of pc_curr at the time of the
+     * last update to cpu_pc, which allows us to compute the addend
+     * needed to bring cpu_pc current: pc_curr - pc_save.
+     * If cpu_pc now contains the destination of an indirect branch,
+     * pc_save contains -1 to indicate that relative updates are no
+     * longer possible.
+     */
+    target_ulong pc_save;
     target_ulong page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
     int condjmp;
     /* The label that will be jumped to when the instruction is skipped.  */
-    TCGLabel *condlabel;
+    DisasLabel condlabel;
     /* Thumb-2 conditional execution bits.  */
     int condexec_mask;
     int condexec_cond;
@@ -28,8 +52,6 @@ typedef struct DisasContext {
      * after decode (ie after any UNDEF checks)
      */
     bool eci_handled;
-    /* TCG op to rewind to if this turns out to be an invalid ECI state */
-    TCGOp *insn_eci_rewind;
     int sctlr_b;
     MemOp be_data;
 #if !defined(CONFIG_USER_ONLY)
@@ -565,6 +587,28 @@ static inline MemOp finalize_memop(DisasContext *s, MemOp opc)
  * we produce an immediate constant value of 0 in these cases.
  */
 uint64_t asimd_imm_const(uint32_t imm, int cmode, int op);
+
+/*
+ * gen_disas_label:
+ * Create a label and cache a copy of pc_save.
+ */
+static inline DisasLabel gen_disas_label(DisasContext *s)
+{
+    return (DisasLabel){
+        .label = gen_new_label(),
+        .pc_save = s->pc_save,
+    };
+}
+
+/*
+ * set_disas_label:
+ * Emit a label and restore the cached copy of pc_save.
+ */
+static inline void set_disas_label(DisasContext *s, DisasLabel l)
+{
+    gen_set_label(l.label);
+    s->pc_save = l.pc_save;
+}
 
 /*
  * Helpers for implementing sets of trans_* functions.

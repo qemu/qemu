@@ -142,12 +142,18 @@ static void reset_btype(DisasContext *s)
 
 static void gen_pc_plus_diff(DisasContext *s, TCGv_i64 dest, target_long diff)
 {
-    tcg_gen_movi_i64(dest, s->pc_curr + diff);
+    assert(s->pc_save != -1);
+    if (TARGET_TB_PCREL) {
+        tcg_gen_addi_i64(dest, cpu_pc, (s->pc_curr - s->pc_save) + diff);
+    } else {
+        tcg_gen_movi_i64(dest, s->pc_curr + diff);
+    }
 }
 
 void gen_a64_update_pc(DisasContext *s, target_long diff)
 {
     gen_pc_plus_diff(s, cpu_pc, diff);
+    s->pc_save = s->pc_curr + diff;
 }
 
 /*
@@ -201,6 +207,7 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
      * then loading an address into the PC will clear out any tag.
      */
     gen_top_byte_ignore(s, cpu_pc, src, s->tbii);
+    s->pc_save = -1;
 }
 
 /*
@@ -377,11 +384,22 @@ static inline bool use_goto_tb(DisasContext *s, uint64_t dest)
 
 static void gen_goto_tb(DisasContext *s, int n, int64_t diff)
 {
-    uint64_t dest = s->pc_curr + diff;
-
-    if (use_goto_tb(s, dest)) {
-        tcg_gen_goto_tb(n);
-        gen_a64_update_pc(s, diff);
+    if (use_goto_tb(s, s->pc_curr + diff)) {
+        /*
+         * For pcrel, the pc must always be up-to-date on entry to
+         * the linked TB, so that it can use simple additions for all
+         * further adjustments.  For !pcrel, the linked TB is compiled
+         * to know its full virtual address, so we can delay the
+         * update to pc to the unlinked path.  A long chain of links
+         * can thus avoid many updates to the PC.
+         */
+        if (TARGET_TB_PCREL) {
+            gen_a64_update_pc(s, diff);
+            tcg_gen_goto_tb(n);
+        } else {
+            tcg_gen_goto_tb(n);
+            gen_a64_update_pc(s, diff);
+        }
         tcg_gen_exit_tb(s->base.tb, n);
         s->base.is_jmp = DISAS_NORETURN;
     } else {
@@ -1383,7 +1401,7 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
 {
     unsigned int sf, op, rt;
     int64_t diff;
-    TCGLabel *label_match;
+    DisasLabel match;
     TCGv_i64 tcg_cmp;
 
     sf = extract32(insn, 31, 1);
@@ -1392,14 +1410,13 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
     diff = sextract32(insn, 5, 19) * 4;
 
     tcg_cmp = read_cpu_reg(s, rt, sf);
-    label_match = gen_new_label();
-
     reset_btype(s);
-    tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
-                        tcg_cmp, 0, label_match);
 
+    match = gen_disas_label(s);
+    tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
+                        tcg_cmp, 0, match.label);
     gen_goto_tb(s, 0, 4);
-    gen_set_label(label_match);
+    set_disas_label(s, match);
     gen_goto_tb(s, 1, diff);
 }
 
@@ -1413,7 +1430,7 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
 {
     unsigned int bit_pos, op, rt;
     int64_t diff;
-    TCGLabel *label_match;
+    DisasLabel match;
     TCGv_i64 tcg_cmp;
 
     bit_pos = (extract32(insn, 31, 1) << 5) | extract32(insn, 19, 5);
@@ -1423,14 +1440,15 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
 
     tcg_cmp = tcg_temp_new_i64();
     tcg_gen_andi_i64(tcg_cmp, cpu_reg(s, rt), (1ULL << bit_pos));
-    label_match = gen_new_label();
 
     reset_btype(s);
+
+    match = gen_disas_label(s);
     tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
-                        tcg_cmp, 0, label_match);
+                        tcg_cmp, 0, match.label);
     tcg_temp_free_i64(tcg_cmp);
     gen_goto_tb(s, 0, 4);
-    gen_set_label(label_match);
+    set_disas_label(s, match);
     gen_goto_tb(s, 1, diff);
 }
 
@@ -1455,10 +1473,10 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
     reset_btype(s);
     if (cond < 0x0e) {
         /* genuinely conditional branches */
-        TCGLabel *label_match = gen_new_label();
-        arm_gen_test_cc(cond, label_match);
+        DisasLabel match = gen_disas_label(s);
+        arm_gen_test_cc(cond, match.label);
         gen_goto_tb(s, 0, 4);
-        gen_set_label(label_match);
+        set_disas_label(s, match);
         gen_goto_tb(s, 1, diff);
     } else {
         /* 0xe and 0xf are both "always" conditions */
@@ -14698,7 +14716,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
 
     dc->isar = &arm_cpu->isar;
     dc->condjmp = 0;
-
+    dc->pc_save = dc->base.pc_first;
     dc->aarch64 = true;
     dc->thumb = false;
     dc->sctlr_b = 0;
@@ -14780,8 +14798,12 @@ static void aarch64_tr_tb_start(DisasContextBase *db, CPUState *cpu)
 static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
+    target_ulong pc_arg = dc->base.pc_next;
 
-    tcg_gen_insn_start(dc->base.pc_next, 0, 0);
+    if (TARGET_TB_PCREL) {
+        pc_arg &= ~TARGET_PAGE_MASK;
+    }
+    tcg_gen_insn_start(pc_arg, 0, 0);
     dc->insn_start = tcg_last_op();
 }
 
