@@ -58,6 +58,7 @@ static void pnv_core_cpu_reset(PnvCore *pc, PowerPCCPU *cpu)
     env->msr |= MSR_HVB; /* Hypervisor mode */
     env->spr[SPR_HRMOR] = pc->hrmor;
     hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
 
     pcc->intc_reset(pc->chip, cpu);
 }

@@ -305,6 +305,14 @@ static void gen_icount_io_start(DisasContext *ctx)
     }
 }
 
+#if !defined(CONFIG_USER_ONLY)
+static void gen_ppc_maybe_interrupt(DisasContext *ctx)
+{
+    gen_icount_io_start(ctx);
+    gen_helper_ppc_maybe_interrupt(cpu_env);
+}
+#endif
+
 /*
  * Tells the caller what is the appropriate exception to generate and prepares
  * SPR registers for this exception.
@@ -6161,7 +6169,6 @@ static void gen_tlbilx_booke206(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-
 /* wrtee */
 static void gen_wrtee(DisasContext *ctx)
 {
@@ -6175,6 +6182,7 @@ static void gen_wrtee(DisasContext *ctx)
     tcg_gen_andi_tl(t0, cpu_gpr[rD(ctx->opcode)], (1 << MSR_EE));
     tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+    gen_ppc_maybe_interrupt(ctx);
     tcg_temp_free(t0);
     /*
      * Stop translation to have a chance to raise an exception if we
@@ -6193,6 +6201,7 @@ static void gen_wrteei(DisasContext *ctx)
     CHK_SV(ctx);
     if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+        gen_ppc_maybe_interrupt(ctx);
         /* Stop translation to have a chance to raise an exception */
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;
     } else {
