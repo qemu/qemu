@@ -38,6 +38,7 @@
 #include "io/channel.h"
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
+#include "qapi/qapi-events-net.h"
 
 typedef struct NetStreamState {
     NetClientState nc;
@@ -168,6 +169,8 @@ static gboolean net_stream_send(QIOChannel *ioc,
         s->nc.link_down = true;
         qemu_set_info_str(&s->nc, "");
 
+        qapi_event_send_netdev_stream_disconnected(s->nc.name);
+
         return G_SOURCE_REMOVE;
     }
     buf = buf1;
@@ -244,6 +247,7 @@ static void net_stream_listen(QIONetListener *listener,
     uri = socket_uri(addr);
     qemu_set_info_str(&s->nc, uri);
     g_free(uri);
+    qapi_event_send_netdev_stream_connected(s->nc.name, addr);
     qapi_free_SocketAddress(addr);
 }
 
@@ -335,6 +339,7 @@ static void net_stream_client_connected(QIOTask *task, gpointer opaque)
     s->ioc_read_tag = qio_channel_add_watch(s->ioc, G_IO_IN, net_stream_send,
                                             s, NULL);
     s->nc.link_down = false;
+    qapi_event_send_netdev_stream_connected(s->nc.name, addr);
     qapi_free_SocketAddress(addr);
 
     return;

@@ -898,3 +898,52 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @NETDEV_STREAM_CONNECTED:
+#
+# Emitted when the netdev stream backend is connected
+#
+# @netdev-id: QEMU netdev id that is connected
+# @addr: The destination address
+#
+# Since: 7.2
+#
+# Example:
+#
+# <- { "event": "NETDEV_STREAM_CONNECTED",
+#      "data": { "netdev-id": "netdev0",
+#                "addr": { "port": "47666", "ipv6": true,
+#                          "host": "::1", "type": "inet" } },
+#      "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
+#
+# or
+#
+# <- { "event": "NETDEV_STREAM_CONNECTED",
+#      "data": { "netdev-id": "netdev0",
+#                "addr": { "path": "/tmp/qemu0", "type": "unix" } },
+#      "timestamp": { "seconds": 1666269706, "microseconds": 413651 } }
+#
+##
+{ 'event': 'NETDEV_STREAM_CONNECTED',
+  'data': { 'netdev-id': 'str',
+            'addr': 'SocketAddress' } }
+
+##
+# @NETDEV_STREAM_DISCONNECTED:
+#
+# Emitted when the netdev stream backend is disconnected
+#
+# @netdev-id: QEMU netdev id that is disconnected
+#
+# Since: 7.2
+#
+# Example:
+#
+# <- { 'event': 'NETDEV_STREAM_DISCONNECTED',
+#      'data': {'netdev-id': 'netdev0'},
+#      'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
+#
+##
+{ 'event': 'NETDEV_STREAM_DISCONNECTED',
+  'data': { 'netdev-id': 'str' } }
