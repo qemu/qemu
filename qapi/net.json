@@ -586,7 +586,7 @@
 #        or connect to (server=false)
 # @server: create server socket (default: false)
 #
-# Only SocketAddress types 'inet' and 'fd' are supported.
+# Only SocketAddress types 'unix', 'inet' and 'fd' are supported.
 #
 # Since: 7.2
 ##
