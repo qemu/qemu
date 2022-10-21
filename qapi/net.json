@@ -7,6 +7,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @set_link:
@@ -577,6 +578,60 @@
   'if': 'CONFIG_VMNET' }
 
 ##
+# @NetdevStreamOptions:
+#
+# Configuration info for stream socket netdev
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @server: create server socket (default: false)
+#
+# Only SocketAddress types 'inet' and 'fd' are supported.
+#
+# Since: 7.2
+##
+{ 'struct': 'NetdevStreamOptions',
+  'data': {
+    'addr':   'SocketAddress',
+    '*server': 'bool' } }
+
+##
+# @NetdevDgramOptions:
+#
+# Configuration info for datagram socket netdev.
+#
+# @remote: remote address
+# @local: local address
+#
+# Only SocketAddress types 'inet' and 'fd' are supported.
+#
+# If remote address is present and it's a multicast address, local address
+# is optional. Otherwise local address is required and remote address is
+# optional.
+#
+# .. table:: Valid parameters combination table
+#    :widths: auto
+#
+#    =============  ========  =====
+#    remote         local     okay?
+#    =============  ========  =====
+#    absent         absent    no
+#    absent         not fd    no
+#    absent         fd        yes
+#    multicast      absent    yes
+#    multicast      present   yes
+#    not multicast  absent    no
+#    not multicast  present   yes
+#    =============  ========  =====
+#
+# Since: 7.2
+##
+{ 'struct': 'NetdevDgramOptions',
+  'data': {
+    '*local':  'SocketAddress',
+    '*remote': 'SocketAddress' } }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -587,10 +642,13 @@
 #        @vmnet-host since 7.1
 #        @vmnet-shared since 7.1
 #        @vmnet-bridged since 7.1
+#        @stream since 7.2
+#        @dgram since 7.2
 ##
 { 'enum': 'NetClientDriver',
-  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa',
+  'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
+            'dgram', 'vde', 'bridge', 'hubport', 'netmap', 'vhost-user',
+            'vhost-vdpa',
             { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
             { 'name': 'vmnet-bridged', 'if': 'CONFIG_VMNET' }] }
@@ -610,6 +668,8 @@
 #        'vmnet-host' - since 7.1
 #        'vmnet-shared' - since 7.1
 #        'vmnet-bridged' - since 7.1
+#        'stream' since 7.2
+#        'dgram' since 7.2
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -620,6 +680,8 @@
     'tap':      'NetdevTapOptions',
     'l2tpv3':   'NetdevL2TPv3Options',
     'socket':   'NetdevSocketOptions',
+    'stream':   'NetdevStreamOptions',
+    'dgram':    'NetdevDgramOptions',
     'vde':      'NetdevVdeOptions',
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',

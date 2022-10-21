@@ -13,6 +13,8 @@ softmmu_ss.add(files(
   'net.c',
   'queue.c',
   'socket.c',
+  'stream.c',
+  'dgram.c',
   'util.c',
 ))
 

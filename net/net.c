@@ -48,6 +48,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"
+#include "qemu/keyval.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "sysemu/runstate.h"
@@ -1021,6 +1022,8 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
 #endif
         [NET_CLIENT_DRIVER_TAP]       = net_init_tap,
         [NET_CLIENT_DRIVER_SOCKET]    = net_init_socket,
+        [NET_CLIENT_DRIVER_STREAM]    = net_init_stream,
+        [NET_CLIENT_DRIVER_DGRAM]     = net_init_dgram,
 #ifdef CONFIG_VDE
         [NET_CLIENT_DRIVER_VDE]       = net_init_vde,
 #endif
@@ -1112,6 +1115,8 @@ void show_netdevs(void)
     int idx;
     const char *available_netdevs[] = {
         "socket",
+        "stream",
+        "dgram",
         "hubport",
         "tap",
 #ifdef CONFIG_SLIRP
@@ -1624,7 +1629,30 @@ void net_init_clients(void)
  */
 bool netdev_is_modern(const char *optarg)
 {
-    return false;
+    QemuOpts *opts;
+    bool is_modern;
+    const char *type;
+    static QemuOptsList dummy_opts = {
+        .name = "netdev",
+        .implied_opt_name = "type",
+        .head = QTAILQ_HEAD_INITIALIZER(dummy_opts.head),
+        .desc = { { } },
+    };
+
+    if (optarg[0] == '{') {
+        /* This is JSON, which means it's modern syntax */
+        return true;
+    }
+
+    opts = qemu_opts_create(&dummy_opts, NULL, false, &error_abort);
+    qemu_opts_do_parse(opts, optarg, dummy_opts.implied_opt_name,
+                       &error_abort);
+    type = qemu_opt_get(opts, "type");
+    is_modern = !g_strcmp0(type, "stream") || !g_strcmp0(type, "dgram");
+
+    qemu_opts_reset(&dummy_opts);
+
+    return is_modern;
 }
 
 /*
