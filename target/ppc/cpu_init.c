@@ -5960,30 +5960,6 @@ static bool ppc_pvr_match_power7(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
     return true;
 }
 
-int p7_interrupt_powersave(CPUPPCState *env)
-{
-    if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
-        (env->spr[SPR_LPCR] & LPCR_P7_PECE0)) {
-        return PPC_INTERRUPT_EXT;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
-        (env->spr[SPR_LPCR] & LPCR_P7_PECE1)) {
-        return PPC_INTERRUPT_DECR;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_MCK) &&
-        (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
-        return PPC_INTERRUPT_MCK;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_HMI) &&
-        (env->spr[SPR_LPCR] & LPCR_P7_PECE2)) {
-        return PPC_INTERRUPT_HMI;
-    }
-    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
-        return PPC_INTERRUPT_RESET;
-    }
-    return 0;
-}
-
 POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -6118,38 +6094,6 @@ static bool ppc_pvr_match_power8(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
     }
 
     return true;
-}
-
-int p8_interrupt_powersave(CPUPPCState *env)
-{
-    if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE2)) {
-        return PPC_INTERRUPT_EXT;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE3)) {
-        return PPC_INTERRUPT_DECR;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_MCK) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
-        return PPC_INTERRUPT_MCK;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_HMI) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE4)) {
-        return PPC_INTERRUPT_HMI;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE0)) {
-        return PPC_INTERRUPT_DOORBELL;
-    }
-    if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
-        (env->spr[SPR_LPCR] & LPCR_P8_PECE1)) {
-        return PPC_INTERRUPT_HDOORBELL;
-    }
-    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
-        return PPC_INTERRUPT_RESET;
-    }
-    return 0;
 }
 
 POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
@@ -6323,52 +6267,6 @@ static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr, bool best)
     }
 
     return false;
-}
-
-int p9_interrupt_powersave(CPUPPCState *env)
-{
-    /* External Exception */
-    if ((env->pending_interrupts & PPC_INTERRUPT_EXT) &&
-        (env->spr[SPR_LPCR] & LPCR_EEE)) {
-        bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
-        if (!heic || !FIELD_EX64_HV(env->msr) ||
-            FIELD_EX64(env->msr, MSR, PR)) {
-            return PPC_INTERRUPT_EXT;
-        }
-    }
-    /* Decrementer Exception */
-    if ((env->pending_interrupts & PPC_INTERRUPT_DECR) &&
-        (env->spr[SPR_LPCR] & LPCR_DEE)) {
-        return PPC_INTERRUPT_DECR;
-    }
-    /* Machine Check or Hypervisor Maintenance Exception */
-    if (env->spr[SPR_LPCR] & LPCR_OEE) {
-        if (env->pending_interrupts & PPC_INTERRUPT_MCK) {
-            return PPC_INTERRUPT_MCK;
-        }
-        if (env->pending_interrupts & PPC_INTERRUPT_HMI) {
-            return PPC_INTERRUPT_HMI;
-        }
-    }
-    /* Privileged Doorbell Exception */
-    if ((env->pending_interrupts & PPC_INTERRUPT_DOORBELL) &&
-        (env->spr[SPR_LPCR] & LPCR_PDEE)) {
-        return PPC_INTERRUPT_DOORBELL;
-    }
-    /* Hypervisor Doorbell Exception */
-    if ((env->pending_interrupts & PPC_INTERRUPT_HDOORBELL) &&
-        (env->spr[SPR_LPCR] & LPCR_HDEE)) {
-        return PPC_INTERRUPT_HDOORBELL;
-    }
-    /* Hypervisor virtualization exception */
-    if ((env->pending_interrupts & PPC_INTERRUPT_HVIRT) &&
-        (env->spr[SPR_LPCR] & LPCR_HVEE)) {
-        return PPC_INTERRUPT_HVIRT;
-    }
-    if (env->pending_interrupts & PPC_INTERRUPT_RESET) {
-        return PPC_INTERRUPT_RESET;
-    }
-    return 0;
 }
 
 POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
