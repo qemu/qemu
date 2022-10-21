@@ -42,6 +42,7 @@ static QemuMutex global_mutex;
 static char *global_filename;
 static FILE *global_file;
 static __thread FILE *thread_file;
+static __thread Notifier qemu_log_thread_cleanup_notifier;
 
 int qemu_loglevel;
 static bool log_append;
@@ -77,6 +78,12 @@ static int log_thread_id(void)
 #endif
 }
 
+static void qemu_log_thread_cleanup(Notifier *n, void *unused)
+{
+    fclose(thread_file);
+    thread_file = NULL;
+}
+
 /* Lock/unlock output. */
 
 FILE *qemu_log_trylock(void)
@@ -93,6 +100,8 @@ FILE *qemu_log_trylock(void)
                 return NULL;
             }
             thread_file = logfile;
+            qemu_log_thread_cleanup_notifier.notify = qemu_log_thread_cleanup;
+            qemu_thread_atexit_add(&qemu_log_thread_cleanup_notifier);
         } else {
             rcu_read_lock();
             /*
