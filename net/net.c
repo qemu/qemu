@@ -66,15 +66,47 @@ static QTAILQ_HEAD(, NetClientState) net_clients;
 /***********************************************************/
 /* network device redirectors */
 
+int convert_host_port(struct sockaddr_in *saddr, const char *host,
+                      const char *port, Error **errp)
+{
+    struct hostent *he;
+    const char *r;
+    long p;
+
+    memset(saddr, 0, sizeof(*saddr));
+
+    saddr->sin_family = AF_INET;
+    if (host[0] == '\0') {
+        saddr->sin_addr.s_addr = 0;
+    } else {
+        if (qemu_isdigit(host[0])) {
+            if (!inet_aton(host, &saddr->sin_addr)) {
+                error_setg(errp, "host address '%s' is not a valid "
+                           "IPv4 address", host);
+                return -1;
+            }
+        } else {
+            he = gethostbyname(host);
+            if (he == NULL) {
+                error_setg(errp, "can't resolve host address '%s'", host);
+                return -1;
+            }
+            saddr->sin_addr = *(struct in_addr *)he->h_addr;
+        }
+    }
+    if (qemu_strtol(port, &r, 0, &p) != 0) {
+        error_setg(errp, "port number '%s' is invalid", port);
+        return -1;
+    }
+    saddr->sin_port = htons(p);
+    return 0;
+}
+
 int parse_host_port(struct sockaddr_in *saddr, const char *str,
                     Error **errp)
 {
     gchar **substrings;
-    struct hostent *he;
-    const char *addr, *p, *r;
-    int port, ret = 0;
-
-    memset(saddr, 0, sizeof(*saddr));
+    int ret;
 
     substrings = g_strsplit(str, ":", 2);
     if (!substrings || !substrings[0] || !substrings[1]) {
@@ -84,37 +116,7 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str,
         goto out;
     }
 
-    addr = substrings[0];
-    p = substrings[1];
-
-    saddr->sin_family = AF_INET;
-    if (addr[0] == '\0') {
-        saddr->sin_addr.s_addr = 0;
-    } else {
-        if (qemu_isdigit(addr[0])) {
-            if (!inet_aton(addr, &saddr->sin_addr)) {
-                error_setg(errp, "host address '%s' is not a valid "
-                           "IPv4 address", addr);
-                ret = -1;
-                goto out;
-            }
-        } else {
-            he = gethostbyname(addr);
-            if (he == NULL) {
-                error_setg(errp, "can't resolve host address '%s'", addr);
-                ret = -1;
-                goto out;
-            }
-            saddr->sin_addr = *(struct in_addr *)he->h_addr;
-        }
-    }
-    port = strtol(p, (char **)&r, 0);
-    if (r == p) {
-        error_setg(errp, "port number '%s' is invalid", p);
-        ret = -1;
-        goto out;
-    }
-    saddr->sin_port = htons(port);
+    ret = convert_host_port(saddr, substrings[0], substrings[1], errp);
 
 out:
     g_strfreev(substrings);
