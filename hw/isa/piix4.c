@@ -28,6 +28,7 @@
 #include "hw/irq.h"
 #include "hw/southbridge/piix.h"
 #include "hw/pci/pci.h"
+#include "hw/ide/piix.h"
 #include "hw/isa/isa.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
@@ -277,7 +278,7 @@ static void piix4_init(Object *obj)
     PIIX4State *s = PIIX4_PCI_DEVICE(obj);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
-    object_initialize_child(obj, "ide", &s->ide, "piix4-ide");
+    object_initialize_child(obj, "ide", &s->ide, TYPE_PIIX4_IDE);
     object_initialize_child(obj, "uhci", &s->uhci, "piix4-usb-uhci");
 
     object_initialize_child(obj, "pm", &s->pm, TYPE_PIIX4_PM);
