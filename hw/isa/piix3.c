@@ -375,7 +375,7 @@ static void piix3_realize(PCIDevice *dev, Error **errp)
     pci_bus_irqs(pci_bus, piix3_set_irq, pci_slot_get_pirq,
                  piix3, PIIX_NUM_PIRQS);
     pci_bus_set_route_irq_fn(pci_bus, piix3_route_intx_pin_to_irq);
-};
+}
 
 static void piix3_class_init(ObjectClass *klass, void *data)
 {
@@ -410,7 +410,7 @@ static void piix3_xen_realize(PCIDevice *dev, Error **errp)
      */
     pci_bus_irqs(pci_bus, xen_piix3_set_irq, xen_pci_slot_get_pirq,
                  piix3, XEN_PIIX_NUM_PIRQS);
-};
+}
 
 static void piix3_xen_class_init(ObjectClass *klass, void *data)
 {
@@ -418,7 +418,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
 
     k->config_write = piix3_write_config_xen;
     k->realize = piix3_xen_realize;
-};
+}
 
 static const TypeInfo piix3_xen_info = {
     .name          = TYPE_PIIX3_XEN_DEVICE,
