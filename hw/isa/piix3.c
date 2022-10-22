@@ -290,7 +290,11 @@ static uint64_t rcr_read(void *opaque, hwaddr addr, unsigned len)
 static const MemoryRegionOps rcr_ops = {
     .read = rcr_read,
     .write = rcr_write,
-    .endianness = DEVICE_LITTLE_ENDIAN
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void pci_piix3_realize(PCIDevice *dev, Error **errp)
