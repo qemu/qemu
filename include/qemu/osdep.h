@@ -186,6 +186,14 @@ void QEMU_ERROR("code path is reachable")
 #define qemu_build_not_reached()  g_assert_not_reached()
 #endif
 
+/**
+ * qemu_build_assert()
+ *
+ * The compiler, during optimization, is expected to prove that the
+ * assertion is true.
+ */
+#define qemu_build_assert(test)  while (!(test)) qemu_build_not_reached()
+
 /*
  * According to waitpid man page:
  * WCOREDUMP
