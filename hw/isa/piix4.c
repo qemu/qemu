@@ -140,6 +140,8 @@ static void piix4_isa_reset(DeviceState *dev)
     pci_conf[0xab] = 0x00;
     pci_conf[0xac] = 0x00;
     pci_conf[0xae] = 0x00;
+
+    d->rcr = 0;
 }
 
 static int piix4_post_load(void *opaque, int version_id)
