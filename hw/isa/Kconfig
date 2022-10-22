@@ -33,6 +33,7 @@ config PC87312
 
 config PIIX3
     bool
+    select I8257
     select ISA_BUS
 
 config PIIX4
@@ -68,6 +69,7 @@ config LPC_ICH9
     bool
     # For historical reasons, SuperIO devices are created in the board
     # for ICH9.
+    select I8257
     select ISA_BUS
     select ACPI_SMBUS
     select ACPI_X86_ICH
