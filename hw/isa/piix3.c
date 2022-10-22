@@ -301,7 +301,7 @@ static void pci_piix3_realize(PCIDevice *dev, Error **errp)
     PIIX3State *d = PIIX3_PCI_DEVICE(dev);
     ISABus *isa_bus;
 
-    isa_bus = isa_bus_new(DEVICE(d), get_system_memory(),
+    isa_bus = isa_bus_new(DEVICE(d), pci_address_space(dev),
                           pci_address_space_io(dev), errp);
     if (!isa_bus) {
         return;
