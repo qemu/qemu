@@ -203,7 +203,7 @@ void qtest_wait_qemu(QTestState *s)
 #ifndef _WIN32
     pid_t pid;
 
-    TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
+    pid = RETRY_ON_EINTR(waitpid(s->qemu_pid, &s->wstatus, 0));
     assert(pid == s->qemu_pid);
 #else
     DWORD ret;
