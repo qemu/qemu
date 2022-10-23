@@ -63,9 +63,7 @@ static void ga_wait_child(pid_t pid, int *status, Error **errp)
 
     *status = 0;
 
-    do {
-        rpid = waitpid(pid, status, 0);
-    } while (rpid == -1 && errno == EINTR);
+    rpid = RETRY_ON_EINTR(waitpid(pid, status, 0));
 
     if (rpid == -1) {
         error_setg_errno(errp, errno, "failed to wait for child (pid: %d)",

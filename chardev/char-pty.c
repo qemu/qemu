@@ -93,9 +93,7 @@ static void pty_chr_update_read_handler(Chardev *chr)
     pfd.fd = fioc->fd;
     pfd.events = G_IO_OUT;
     pfd.revents = 0;
-    do {
-        rc = g_poll(&pfd, 1, 0);
-    } while (rc == -1 && errno == EINTR);
+    rc = RETRY_ON_EINTR(g_poll(&pfd, 1, 0));
     assert(rc >= 0);
 
     if (pfd.revents & G_IO_HUP) {
