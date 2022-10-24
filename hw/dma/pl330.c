@@ -1328,7 +1328,7 @@ static void pl330_debug_exec(PL330State *s)
     }
     if (!insn) {
         pl330_fault(ch, PL330_FAULT_UNDEF_INSTR | PL330_FAULT_DBG_INSTR);
-        return ;
+        return;
     }
     ch->stall = 0;
     insn->exec(ch, opcode, args, insn->size - 1);

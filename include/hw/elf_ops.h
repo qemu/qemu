@@ -117,7 +117,7 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     shdr_table = load_at(fd, ehdr->e_shoff,
                          sizeof(struct elf_shdr) * ehdr->e_shnum);
     if (!shdr_table) {
-        return ;
+        return;
     }
 
     if (must_swab) {
