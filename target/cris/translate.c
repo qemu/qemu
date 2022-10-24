@@ -3392,9 +3392,3 @@ void cris_initialize_tcg(void)
                                        pregnames_v32[i]);
     }
 }
-
-void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}
