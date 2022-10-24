@@ -349,7 +349,8 @@ static const FlashPartInfo known_devices[] = {
       .sfdp_read = m25p80_sfdp_w25q256 },
     { INFO("w25q512jv",   0xef4020,      0,  64 << 10, 1024, ER_4K),
       .sfdp_read = m25p80_sfdp_w25q512jv },
-    { INFO("w25q01jvq",   0xef4021,      0,  64 << 10, 2048, ER_4K) },
+    { INFO("w25q01jvq",   0xef4021,      0,  64 << 10, 2048, ER_4K),
+      .sfdp_read = m25p80_sfdp_w25q01jvq },
 };
 
 typedef enum {
