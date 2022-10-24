@@ -338,6 +338,7 @@ typedef enum ARMFaultType {
     ARMFault_AsyncExternal,
     ARMFault_Debug,
     ARMFault_TLBConflict,
+    ARMFault_UnsuppAtomicUpdate,
     ARMFault_Lockdown,
     ARMFault_Exclusive,
     ARMFault_ICacheMaint,
@@ -523,6 +524,9 @@ static inline uint32_t arm_fi_to_lfsc(ARMMMUFaultInfo *fi)
         break;
     case ARMFault_TLBConflict:
         fsc = 0x30;
+        break;
+    case ARMFault_UnsuppAtomicUpdate:
+        fsc = 0x31;
         break;
     case ARMFault_Lockdown:
         fsc = 0x34;
