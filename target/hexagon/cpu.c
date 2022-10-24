@@ -271,9 +271,13 @@ static bool hexagon_cpu_has_work(CPUState *cs)
     return true;
 }
 
-void restore_state_to_opc(CPUHexagonState *env, TranslationBlock *tb,
-                          target_ulong *data)
+static void hexagon_restore_state_to_opc(CPUState *cs,
+                                         const TranslationBlock *tb,
+                                         const uint64_t *data)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
     env->gpr[HEX_REG_PC] = data[0];
 }
 
@@ -327,6 +331,7 @@ static void hexagon_cpu_init(Object *obj)
 static const struct TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
+    .restore_state_to_opc = hexagon_restore_state_to_opc,
 };
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
