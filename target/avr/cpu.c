@@ -57,6 +57,16 @@ static void avr_cpu_synchronize_from_tb(CPUState *cs,
     env->pc_w = tb_pc(tb) / 2; /* internally PC points to words */
 }
 
+static void avr_restore_state_to_opc(CPUState *cs,
+                                     const TranslationBlock *tb,
+                                     const uint64_t *data)
+{
+    AVRCPU *cpu = AVR_CPU(cs);
+    CPUAVRState *env = &cpu->env;
+
+    env->pc_w = data[0];
+}
+
 static void avr_cpu_reset(DeviceState *ds)
 {
     CPUState *cs = CPU(ds);
@@ -202,6 +212,7 @@ static const struct SysemuCPUOps avr_sysemu_ops = {
 static const struct TCGCPUOps avr_tcg_ops = {
     .initialize = avr_cpu_tcg_init,
     .synchronize_from_tb = avr_cpu_synchronize_from_tb,
+    .restore_state_to_opc = avr_restore_state_to_opc,
     .cpu_exec_interrupt = avr_cpu_exec_interrupt,
     .tlb_fill = avr_cpu_tlb_fill,
     .do_interrupt = avr_cpu_do_interrupt,
