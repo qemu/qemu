@@ -2381,13 +2381,3 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
 
     translator_loop(cs, tb, max_insns, pc, host_pc, &sh4_tr_ops, &ctx.base);
 }
-
-void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-    env->flags = data[1];
-    /* Theoretically delayed_pc should also be restored. In practice the
-       branch instruction is re-executed after exception, so the delayed
-       branch target will be recomputed. */
-}

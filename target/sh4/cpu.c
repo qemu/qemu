@@ -50,6 +50,21 @@ static void superh_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.flags = tb->flags;
 }
 
+static void superh_restore_state_to_opc(CPUState *cs,
+                                        const TranslationBlock *tb,
+                                        const uint64_t *data)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+
+    cpu->env.pc = data[0];
+    cpu->env.flags = data[1];
+    /*
+     * Theoretically delayed_pc should also be restored. In practice the
+     * branch instruction is re-executed after exception, so the delayed
+     * branch target will be recomputed.
+     */
+}
+
 #ifndef CONFIG_USER_ONLY
 static bool superh_io_recompile_replay_branch(CPUState *cs,
                                               const TranslationBlock *tb)
@@ -243,6 +258,7 @@ static const struct SysemuCPUOps sh4_sysemu_ops = {
 static const struct TCGCPUOps superh_tcg_ops = {
     .initialize = sh4_translate_init,
     .synchronize_from_tb = superh_cpu_synchronize_from_tb,
+    .restore_state_to_opc = superh_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = superh_cpu_tlb_fill,
