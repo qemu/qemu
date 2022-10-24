@@ -22,5 +22,6 @@ uint8_t m25p80_sfdp_mx25l25635f(uint32_t addr);
 uint8_t m25p80_sfdp_mx66l1g45g(uint32_t addr);
 
 uint8_t m25p80_sfdp_w25q256(uint32_t addr);
+uint8_t m25p80_sfdp_w25q512jv(uint32_t addr);
 
 #endif
