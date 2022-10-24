@@ -256,7 +256,6 @@ int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 {
     target_ulong data[TARGET_INSN_START_WORDS];
     uintptr_t host_pc = (uintptr_t)tb->tc.ptr;
-    CPUArchState *env = cpu->env_ptr;
     const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
 #ifdef CONFIG_PROFILER
@@ -295,7 +294,20 @@ int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
            and shift if to the number of actually executed instructions */
         cpu_neg(cpu)->icount_decr.u16.low += num_insns - i;
     }
-    restore_state_to_opc(env, tb, data);
+
+    {
+        const struct TCGCPUOps *ops = cpu->cc->tcg_ops;
+        __typeof(ops->restore_state_to_opc) restore = ops->restore_state_to_opc;
+        if (restore) {
+            uint64_t d64[TARGET_INSN_START_WORDS];
+            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
+                d64[i] = data[i];
+            }
+            restore(cpu, tb, d64);
+        } else {
+            restore_state_to_opc(cpu->env_ptr, tb, data);
+        }
+    }
 
 #ifdef CONFIG_PROFILER
     qatomic_set(&prof->restore_time,
@@ -307,6 +319,14 @@ int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 
 bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
 {
+    /*
+     * The pc update associated with restore without exit will
+     * break the relative pc adjustments performed by TARGET_TB_PCREL.
+     */
+    if (TARGET_TB_PCREL) {
+        assert(will_exit);
+    }
+
     /*
      * The host_pc has to be in the rx region of the code buffer.
      * If it is not we will not be able to resolve it here.

@@ -40,7 +40,7 @@ typedef ram_addr_t tb_page_addr_t;
 #endif
 
 void restore_state_to_opc(CPUArchState *env, TranslationBlock *tb,
-                          target_ulong *data);
+                          target_ulong *data) __attribute__((weak));
 
 /**
  * cpu_restore_state:
