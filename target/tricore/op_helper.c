@@ -31,7 +31,7 @@ void raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin
 {
     CPUState *cs = env_cpu(env);
     /* in case we come from a helper-call we need to restore the PC */
-    cpu_restore_state(cs, pc, true);
+    cpu_restore_state(cs, pc);
 
     /* Tin is loaded into d[15] */
     env->gpr_d[15] = tin;

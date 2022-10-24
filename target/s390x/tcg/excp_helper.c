@@ -39,7 +39,7 @@ G_NORETURN void tcg_s390_program_interrupt(CPUS390XState *env,
 {
     CPUState *cs = env_cpu(env);
 
-    cpu_restore_state(cs, ra, true);
+    cpu_restore_state(cs, ra);
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
     trigger_pgm_exception(env, code);

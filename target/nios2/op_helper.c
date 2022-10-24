@@ -40,7 +40,7 @@ void nios2_cpu_loop_exit_advance(CPUNios2State *env, uintptr_t retaddr)
      * Do this here, rather than in restore_state_to_opc(),
      * lest we affect QEMU internal exceptions, like EXCP_DEBUG.
      */
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
     env->pc += 4;
     cpu_loop_exit(cs);
 }

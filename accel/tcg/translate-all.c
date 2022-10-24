@@ -318,16 +318,8 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 #endif
 }
 
-bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
+bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc)
 {
-    /*
-     * The pc update associated with restore without exit will
-     * break the relative pc adjustments performed by TARGET_TB_PCREL.
-     */
-    if (TARGET_TB_PCREL) {
-        assert(will_exit);
-    }
-
     /*
      * The host_pc has to be in the rx region of the code buffer.
      * If it is not we will not be able to resolve it here.
@@ -341,7 +333,7 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
     if (in_code_gen_buffer((const void *)(host_pc - tcg_splitwx_diff))) {
         TranslationBlock *tb = tcg_tb_lookup(host_pc);
         if (tb) {
-            cpu_restore_state_from_tb(cpu, tb, host_pc, will_exit);
+            cpu_restore_state_from_tb(cpu, tb, host_pc, true);
             return true;
         }
     }
