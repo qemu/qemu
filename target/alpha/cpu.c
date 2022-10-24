@@ -40,6 +40,14 @@ static vaddr alpha_cpu_get_pc(CPUState *cs)
     return cpu->env.pc;
 }
 
+static void alpha_restore_state_to_opc(CPUState *cs,
+                                       const TranslationBlock *tb,
+                                       const uint64_t *data)
+{
+    AlphaCPU *cpu = ALPHA_CPU(cs);
+
+    cpu->env.pc = data[0];
+}
 
 static bool alpha_cpu_has_work(CPUState *cs)
 {
@@ -226,6 +234,7 @@ static const struct SysemuCPUOps alpha_sysemu_ops = {
 
 static const struct TCGCPUOps alpha_tcg_ops = {
     .initialize = alpha_translate_init,
+    .restore_state_to_opc = alpha_restore_state_to_opc,
 
 #ifdef CONFIG_USER_ONLY
     .record_sigsegv = alpha_cpu_record_sigsegv,
