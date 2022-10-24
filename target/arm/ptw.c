@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/range.h"
+#include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "cpu.h"
 #include "internals.h"
@@ -21,7 +22,9 @@ typedef struct S1Translate {
     bool in_secure;
     bool in_debug;
     bool out_secure;
+    bool out_rw;
     bool out_be;
+    hwaddr out_virt;
     hwaddr out_phys;
     void *out_host;
 } S1Translate;
@@ -219,6 +222,8 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
     uint8_t pte_attrs;
     bool pte_secure;
 
+    ptw->out_virt = addr;
+
     if (unlikely(ptw->in_debug)) {
         /*
          * From gdbstub, do not use softmmu so that we don't modify the
@@ -247,6 +252,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             pte_secure = is_secure;
         }
         ptw->out_host = NULL;
+        ptw->out_rw = false;
     } else {
         CPUTLBEntryFull *full;
         int flags;
@@ -261,6 +267,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
             goto fail;
         }
         ptw->out_phys = full->phys_addr;
+        ptw->out_rw = full->prot & PAGE_WRITE;
         pte_attrs = full->pte_attrs;
         pte_secure = full->attrs.secure;
     }
@@ -304,14 +311,16 @@ static uint32_t arm_ldl_ptw(CPUARMState *env, S1Translate *ptw,
                             ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
+    void *host = ptw->out_host;
     uint32_t data;
 
-    if (likely(ptw->out_host)) {
+    if (likely(host)) {
         /* Page tables are in RAM, and we have the host address. */
+        data = qatomic_read((uint32_t *)host);
         if (ptw->out_be) {
-            data = ldl_be_p(ptw->out_host);
+            data = be32_to_cpu(data);
         } else {
-            data = ldl_le_p(ptw->out_host);
+            data = le32_to_cpu(data);
         }
     } else {
         /* Page tables are in MMIO. */
@@ -337,15 +346,25 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
                             ARMMMUFaultInfo *fi)
 {
     CPUState *cs = env_cpu(env);
+    void *host = ptw->out_host;
     uint64_t data;
 
-    if (likely(ptw->out_host)) {
+    if (likely(host)) {
         /* Page tables are in RAM, and we have the host address. */
+#ifdef CONFIG_ATOMIC64
+        data = qatomic_read__nocheck((uint64_t *)host);
         if (ptw->out_be) {
-            data = ldq_be_p(ptw->out_host);
+            data = be64_to_cpu(data);
         } else {
-            data = ldq_le_p(ptw->out_host);
+            data = le64_to_cpu(data);
         }
+#else
+        if (ptw->out_be) {
+            data = ldq_be_p(host);
+        } else {
+            data = ldq_le_p(host);
+        }
+#endif
     } else {
         /* Page tables are in MMIO. */
         MemTxAttrs attrs = { .secure = ptw->out_secure };
@@ -364,6 +383,91 @@ static uint64_t arm_ldq_ptw(CPUARMState *env, S1Translate *ptw,
         }
     }
     return data;
+}
+
+static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
+                             uint64_t new_val, S1Translate *ptw,
+                             ARMMMUFaultInfo *fi)
+{
+    uint64_t cur_val;
+    void *host = ptw->out_host;
+
+    if (unlikely(!host)) {
+        fi->type = ARMFault_UnsuppAtomicUpdate;
+        fi->s1ptw = true;
+        return 0;
+    }
+
+    /*
+     * Raising a stage2 Protection fault for an atomic update to a read-only
+     * page is delayed until it is certain that there is a change to make.
+     */
+    if (unlikely(!ptw->out_rw)) {
+        int flags;
+        void *discard;
+
+        env->tlb_fi = fi;
+        flags = probe_access_flags(env, ptw->out_virt, MMU_DATA_STORE,
+                                   arm_to_core_mmu_idx(ptw->in_ptw_idx),
+                                   true, &discard, 0);
+        env->tlb_fi = NULL;
+
+        if (unlikely(flags & TLB_INVALID_MASK)) {
+            assert(fi->type != ARMFault_None);
+            fi->s2addr = ptw->out_virt;
+            fi->stage2 = true;
+            fi->s1ptw = true;
+            fi->s1ns = !ptw->in_secure;
+            return 0;
+        }
+
+        /* In case CAS mismatches and we loop, remember writability. */
+        ptw->out_rw = true;
+    }
+
+#ifdef CONFIG_ATOMIC64
+    if (ptw->out_be) {
+        old_val = cpu_to_be64(old_val);
+        new_val = cpu_to_be64(new_val);
+        cur_val = qatomic_cmpxchg__nocheck((uint64_t *)host, old_val, new_val);
+        cur_val = be64_to_cpu(cur_val);
+    } else {
+        old_val = cpu_to_le64(old_val);
+        new_val = cpu_to_le64(new_val);
+        cur_val = qatomic_cmpxchg__nocheck((uint64_t *)host, old_val, new_val);
+        cur_val = le64_to_cpu(cur_val);
+    }
+#else
+    /*
+     * We can't support the full 64-bit atomic cmpxchg on the host.
+     * Because this is only used for FEAT_HAFDBS, which is only for AA64,
+     * we know that TCG_OVERSIZED_GUEST is set, which means that we are
+     * running in round-robin mode and could only race with dma i/o.
+     */
+#ifndef TCG_OVERSIZED_GUEST
+# error "Unexpected configuration"
+#endif
+    bool locked = qemu_mutex_iothread_locked();
+    if (!locked) {
+       qemu_mutex_lock_iothread();
+    }
+    if (ptw->out_be) {
+        cur_val = ldq_be_p(host);
+        if (cur_val == old_val) {
+            stq_be_p(host, new_val);
+        }
+    } else {
+        cur_val = ldq_le_p(host);
+        if (cur_val == old_val) {
+            stq_le_p(host, new_val);
+        }
+    }
+    if (!locked) {
+        qemu_mutex_unlock_iothread();
+    }
+#endif
+
+    return cur_val;
 }
 
 static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
@@ -1058,7 +1162,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     uint32_t el = regime_el(env, mmu_idx);
     uint64_t descaddrmask;
     bool aarch64 = arm_el_is_aa64(env, el);
-    uint64_t descriptor;
+    uint64_t descriptor, new_descriptor;
     bool nstable;
 
     /* TODO: This code does not support shareability levels. */
@@ -1272,7 +1376,9 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     if (fi->type != ARMFault_None) {
         goto do_fault;
     }
+    new_descriptor = descriptor;
 
+ restart_atomic_update:
     if (!(descriptor & 1) || (!(descriptor & 2) && (level == 3))) {
         /* Invalid, or the Reserved level 3 encoding */
         goto do_translation_fault;
@@ -1318,17 +1424,36 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
      * to give a correct page or table address, the address field
      * in a block descriptor is smaller; so we need to explicitly
      * clear the lower bits here before ORing in the low vaddr bits.
+     *
+     * Afterward, descaddr is the final physical address.
      */
     page_size = (1ULL << ((stride * (4 - level)) + 3));
     descaddr &= ~(hwaddr)(page_size - 1);
     descaddr |= (address & (page_size - 1));
 
+    if (likely(!ptw->in_debug)) {
+        /*
+         * Access flag.
+         * If HA is enabled, prepare to update the descriptor below.
+         * Otherwise, pass the access fault on to software.
+         */
+        if (!(descriptor & (1 << 10))) {
+            if (param.ha) {
+                new_descriptor |= 1 << 10; /* AF */
+            } else {
+                fi->type = ARMFault_AccessFlag;
+                goto do_fault;
+            }
+        }
+    }
+
     /*
-     * Extract attributes from the descriptor, and apply table descriptors.
-     * Stage 2 table descriptors do not include any attribute fields.
-     * HPD disables all the table attributes except NSTable.
+     * Extract attributes from the (modified) descriptor, and apply
+     * table descriptors. Stage 2 table descriptors do not include
+     * any attribute fields. HPD disables all the table attributes
+     * except NSTable.
      */
-    attrs = descriptor & (MAKE_64BIT_MASK(2, 10) | MAKE_64BIT_MASK(50, 14));
+    attrs = new_descriptor & (MAKE_64BIT_MASK(2, 10) | MAKE_64BIT_MASK(50, 14));
     if (!regime_is_stage2(mmu_idx)) {
         attrs |= nstable << 5; /* NS */
         if (!param.hpd) {
@@ -1342,18 +1467,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         }
     }
 
-    /*
-     * Here descaddr is the final physical address, and attributes
-     * are all in attrs.
-     */
-    if ((attrs & (1 << 10)) == 0) {
-        /* Access flag */
-        fi->type = ARMFault_AccessFlag;
-        goto do_fault;
-    }
-
     ap = extract32(attrs, 6, 2);
-
     if (regime_is_stage2(mmu_idx)) {
         ns = mmu_idx == ARMMMUIdx_Stage2;
         xn = extract64(attrs, 53, 2);
@@ -1368,6 +1482,25 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     if (!(result->f.prot & (1 << access_type))) {
         fi->type = ARMFault_Permission;
         goto do_fault;
+    }
+
+    /* If FEAT_HAFDBS has made changes, update the PTE. */
+    if (new_descriptor != descriptor) {
+        new_descriptor = arm_casq_ptw(env, descriptor, new_descriptor, ptw, fi);
+        if (fi->type != ARMFault_None) {
+            goto do_fault;
+        }
+        /*
+         * I_YZSVV says that if the in-memory descriptor has changed,
+         * then we must use the information in that new value
+         * (which might include a different output address, different
+         * attributes, or generate a fault).
+         * Restart the handling of the descriptor value from scratch.
+         */
+        if (new_descriptor != descriptor) {
+            descriptor = new_descriptor;
+            goto restart_atomic_update;
+        }
     }
 
     if (ns) {
