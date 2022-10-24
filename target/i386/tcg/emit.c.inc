@@ -39,6 +39,11 @@ typedef void (*SSEFunc_0_eppt)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                TCGv val);
 typedef void (*SSEFunc_0_epppti)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
                                  TCGv_ptr reg_c, TCGv a0, TCGv_i32 scale);
+typedef void (*SSEFunc_0_eppppi)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
+                                  TCGv_ptr reg_c, TCGv_ptr reg_d, TCGv_i32 flags);
+typedef void (*SSEFunc_0_eppppii)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
+                                  TCGv_ptr reg_c, TCGv_ptr reg_d, TCGv_i32 even,
+                                  TCGv_i32 odd);
 
 static inline TCGv_i32 tcg_constant8u_i32(uint8_t val)
 {
@@ -296,7 +301,7 @@ static void gen_writeback(DisasContext *s, X86DecodedInsn *decode, int opn, TCGv
     case X86_OP_MMX:
         break;
     case X86_OP_SSE:
-        if ((s->prefix & PREFIX_VEX) && op->ot == MO_128) {
+        if (!op->has_ea && (s->prefix & PREFIX_VEX) && op->ot <= MO_128) {
             tcg_gen_gvec_dup_imm(MO_64,
                                  offsetof(CPUX86State, xmm_regs[op->n].ZMM_X(1)),
                                  16, 16, 0);
@@ -490,6 +495,52 @@ FP_SSE(VSUB, sub)
 FP_SSE(VMIN, min)
 FP_SSE(VDIV, div)
 FP_SSE(VMAX, max)
+
+#define FMA_SSE_PACKED(uname, ptr0, ptr1, ptr2, even, odd)                         \
+static void gen_##uname##Px(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_eppppii xmm = s->vex_w ? gen_helper_fma4pd_xmm : gen_helper_fma4ps_xmm; \
+    SSEFunc_0_eppppii ymm = s->vex_w ? gen_helper_fma4pd_ymm : gen_helper_fma4ps_ymm; \
+    SSEFunc_0_eppppii fn = s->vex_l ? ymm : xmm;                                   \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2,                                         \
+       tcg_constant_i32(even),                                                     \
+       tcg_constant_i32((even) ^ (odd)));                                          \
+}
+
+#define FMA_SSE(uname, ptr0, ptr1, ptr2, flags)                                    \
+FMA_SSE_PACKED(uname, ptr0, ptr1, ptr2, flags, flags)                              \
+static void gen_##uname##Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
+{                                                                                  \
+    SSEFunc_0_eppppi fn = s->vex_w ? gen_helper_fma4sd : gen_helper_fma4ss;        \
+                                                                                   \
+    fn(cpu_env, OP_PTR0, ptr0, ptr1, ptr2,                                         \
+       tcg_constant_i32(flags));                                                   \
+}                                                                                  \
+
+FMA_SSE(VFMADD231,  OP_PTR1, OP_PTR2, OP_PTR0, 0)
+FMA_SSE(VFMADD213,  OP_PTR1, OP_PTR0, OP_PTR2, 0)
+FMA_SSE(VFMADD132,  OP_PTR0, OP_PTR2, OP_PTR1, 0)
+
+FMA_SSE(VFNMADD231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_product)
+FMA_SSE(VFNMADD213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_product)
+FMA_SSE(VFNMADD132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_product)
+
+FMA_SSE(VFMSUB231,  OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c)
+FMA_SSE(VFMSUB213,  OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c)
+FMA_SSE(VFMSUB132,  OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c)
+
+FMA_SSE(VFNMSUB231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c|float_muladd_negate_product)
+FMA_SSE(VFNMSUB213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c|float_muladd_negate_product)
+FMA_SSE(VFNMSUB132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c|float_muladd_negate_product)
+
+FMA_SSE_PACKED(VFMADDSUB231, OP_PTR1, OP_PTR2, OP_PTR0, float_muladd_negate_c, 0)
+FMA_SSE_PACKED(VFMADDSUB213, OP_PTR1, OP_PTR0, OP_PTR2, float_muladd_negate_c, 0)
+FMA_SSE_PACKED(VFMADDSUB132, OP_PTR0, OP_PTR2, OP_PTR1, float_muladd_negate_c, 0)
+
+FMA_SSE_PACKED(VFMSUBADD231, OP_PTR1, OP_PTR2, OP_PTR0, 0, float_muladd_negate_c)
+FMA_SSE_PACKED(VFMSUBADD213, OP_PTR1, OP_PTR0, OP_PTR2, 0, float_muladd_negate_c)
+FMA_SSE_PACKED(VFMSUBADD132, OP_PTR0, OP_PTR2, OP_PTR1, 0, float_muladd_negate_c)
 
 #define FP_UNPACK_SSE(uname, lname)                                                \
 static void gen_##uname(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode) \
@@ -852,6 +903,7 @@ UNARY_INT_SSE(VCVTTPD2DQ, cvttpd2dq)
 UNARY_INT_SSE(VCVTDQ2PS, cvtdq2ps)
 UNARY_INT_SSE(VCVTPS2DQ, cvtps2dq)
 UNARY_INT_SSE(VCVTTPS2DQ, cvttps2dq)
+UNARY_INT_SSE(VCVTPH2PS, cvtph2ps)
 
 
 static inline void gen_unary_imm_sse(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
@@ -1866,6 +1918,20 @@ static void gen_VCVTfp2fp(DisasContext *s, CPUX86State *env, X86DecodedInsn *dec
                      gen_helper_cvtpd2ps_xmm, gen_helper_cvtps2pd_xmm,
                      gen_helper_cvtpd2ps_ymm, gen_helper_cvtps2pd_ymm,
                      gen_helper_cvtsd2ss, gen_helper_cvtss2sd);
+}
+
+static void gen_VCVTPS2PH(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+{
+    gen_unary_imm_fp_sse(s, env, decode,
+                      gen_helper_cvtps2ph_xmm,
+                      gen_helper_cvtps2ph_ymm);
+    /*
+     * VCVTPS2PH is the only instruction that performs an operation on a
+     * register source and then *stores* into memory.
+     */
+    if (decode->op[0].has_ea) {
+        gen_store_sse(s, decode, decode->op[0].offset);
+    }
 }
 
 static void gen_VCVTSI2Sx(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)

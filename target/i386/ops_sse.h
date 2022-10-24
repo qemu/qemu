@@ -586,6 +586,35 @@ void glue(helper_cvtpd2ps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
     }
 }
 
+#if SHIFT >= 1
+void glue(helper_cvtph2ps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s)
+{
+    int i;
+
+    for (i = 2 << SHIFT; --i >= 0; ) {
+         d->ZMM_S(i) = float16_to_float32(s->ZMM_H(i), true, &env->sse_status);
+    }
+}
+
+void glue(helper_cvtps2ph, SUFFIX)(CPUX86State *env, Reg *d, Reg *s, int mode)
+{
+    int i;
+    FloatRoundMode prev_rounding_mode = env->sse_status.float_rounding_mode;
+    if (!(mode & (1 << 2))) {
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
+    }
+
+    for (i = 0; i < 2 << SHIFT; i++) {
+        d->ZMM_H(i) = float32_to_float16(s->ZMM_S(i), true, &env->sse_status);
+    }
+    for (i >>= 2; i < 1 << SHIFT; i++) {
+        d->Q(i) = 0;
+    }
+
+    env->sse_status.float_rounding_mode = prev_rounding_mode;
+}
+#endif
+
 #if SHIFT == 1
 void helper_cvtss2sd(CPUX86State *env, Reg *d, Reg *v, Reg *s)
 {
@@ -1684,20 +1713,7 @@ void glue(helper_roundps, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
-        switch (mode & 3) {
-        case 0:
-            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
-            break;
-        case 1:
-            set_float_rounding_mode(float_round_down, &env->sse_status);
-            break;
-        case 2:
-            set_float_rounding_mode(float_round_up, &env->sse_status);
-            break;
-        case 3:
-            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
-            break;
-        }
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
 
     for (i = 0; i < 2 << SHIFT; i++) {
@@ -1721,20 +1737,7 @@ void glue(helper_roundpd, SUFFIX)(CPUX86State *env, Reg *d, Reg *s,
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
-        switch (mode & 3) {
-        case 0:
-            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
-            break;
-        case 1:
-            set_float_rounding_mode(float_round_down, &env->sse_status);
-            break;
-        case 2:
-            set_float_rounding_mode(float_round_up, &env->sse_status);
-            break;
-        case 3:
-            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
-            break;
-        }
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
 
     for (i = 0; i < 1 << SHIFT; i++) {
@@ -1759,20 +1762,7 @@ void glue(helper_roundss, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
-        switch (mode & 3) {
-        case 0:
-            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
-            break;
-        case 1:
-            set_float_rounding_mode(float_round_down, &env->sse_status);
-            break;
-        case 2:
-            set_float_rounding_mode(float_round_up, &env->sse_status);
-            break;
-        case 3:
-            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
-            break;
-        }
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
 
     d->ZMM_S(0) = float32_round_to_int(s->ZMM_S(0), &env->sse_status);
@@ -1797,20 +1787,7 @@ void glue(helper_roundsd, SUFFIX)(CPUX86State *env, Reg *d, Reg *v, Reg *s,
 
     prev_rounding_mode = env->sse_status.float_rounding_mode;
     if (!(mode & (1 << 2))) {
-        switch (mode & 3) {
-        case 0:
-            set_float_rounding_mode(float_round_nearest_even, &env->sse_status);
-            break;
-        case 1:
-            set_float_rounding_mode(float_round_down, &env->sse_status);
-            break;
-        case 2:
-            set_float_rounding_mode(float_round_up, &env->sse_status);
-            break;
-        case 3:
-            set_float_rounding_mode(float_round_to_zero, &env->sse_status);
-            break;
-        }
+        set_x86_rounding_mode(mode & 3, &env->sse_status);
     }
 
     d->ZMM_D(0) = float64_round_to_int(s->ZMM_D(0), &env->sse_status);
@@ -2543,6 +2520,33 @@ void helper_vpermd_ymm(Reg *d, Reg *v, Reg *s)
         d->L(i) = r[i];
     }
 }
+#endif
+
+/* FMA3 op helpers */
+#if SHIFT == 1
+#define SSE_HELPER_FMAS(name, elem, F)                                         \
+    void name(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c, int flags)     \
+    {                                                                          \
+        d->elem(0) = F(a->elem(0), b->elem(0), c->elem(0), flags, &env->sse_status); \
+    }
+#define SSE_HELPER_FMAP(name, elem, num, F)                                    \
+    void glue(name, SUFFIX)(CPUX86State *env, Reg *d, Reg *a, Reg *b, Reg *c,  \
+                            int flags, int flip)                               \
+    {                                                                          \
+        int i;                                                                 \
+        for (i = 0; i < num; i++) {                                            \
+            d->elem(i) = F(a->elem(i), b->elem(i), c->elem(i), flags, &env->sse_status); \
+            flags ^= flip;                                                     \
+        }                                                                      \
+    }
+
+SSE_HELPER_FMAS(helper_fma4ss,  ZMM_S, float32_muladd)
+SSE_HELPER_FMAS(helper_fma4sd,  ZMM_D, float64_muladd)
+#endif
+
+#if SHIFT >= 1
+SSE_HELPER_FMAP(helper_fma4ps,  ZMM_S, 2 << SHIFT, float32_muladd)
+SSE_HELPER_FMAP(helper_fma4pd,  ZMM_D, 1 << SHIFT, float64_muladd)
 #endif
 
 #undef SSE_HELPER_S

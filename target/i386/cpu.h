@@ -1258,6 +1258,7 @@ typedef union ZMMReg {
     uint16_t _w_ZMMReg[512 / 16];
     uint32_t _l_ZMMReg[512 / 32];
     uint64_t _q_ZMMReg[512 / 64];
+    float16  _h_ZMMReg[512 / 16];
     float32  _s_ZMMReg[512 / 32];
     float64  _d_ZMMReg[512 / 64];
     XMMReg   _x_ZMMReg[512 / 128];
@@ -1282,6 +1283,7 @@ typedef struct BNDCSReg {
 #define ZMM_B(n) _b_ZMMReg[63 - (n)]
 #define ZMM_W(n) _w_ZMMReg[31 - (n)]
 #define ZMM_L(n) _l_ZMMReg[15 - (n)]
+#define ZMM_H(n) _h_ZMMReg[31 - (n)]
 #define ZMM_S(n) _s_ZMMReg[15 - (n)]
 #define ZMM_Q(n) _q_ZMMReg[7 - (n)]
 #define ZMM_D(n) _d_ZMMReg[7 - (n)]
@@ -1301,6 +1303,7 @@ typedef struct BNDCSReg {
 #define ZMM_B(n) _b_ZMMReg[n]
 #define ZMM_W(n) _w_ZMMReg[n]
 #define ZMM_L(n) _l_ZMMReg[n]
+#define ZMM_H(n) _h_ZMMReg[n]
 #define ZMM_S(n) _s_ZMMReg[n]
 #define ZMM_Q(n) _q_ZMMReg[n]
 #define ZMM_D(n) _d_ZMMReg[n]

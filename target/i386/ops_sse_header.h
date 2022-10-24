@@ -353,6 +353,23 @@ DEF_HELPER_4(glue(aeskeygenassist, SUFFIX), void, env, Reg, Reg, i32)
 DEF_HELPER_5(glue(pclmulqdq, SUFFIX), void, env, Reg, Reg, Reg, i32)
 #endif
 
+/* F16C helpers */
+#if SHIFT >= 1
+DEF_HELPER_3(glue(cvtph2ps, SUFFIX), void, env, Reg, Reg)
+DEF_HELPER_4(glue(cvtps2ph, SUFFIX), void, env, Reg, Reg, int)
+#endif
+
+/* FMA3 helpers */
+#if SHIFT == 1
+DEF_HELPER_6(fma4ss, void, env, Reg, Reg, Reg, Reg, int)
+DEF_HELPER_6(fma4sd, void, env, Reg, Reg, Reg, Reg, int)
+#endif
+
+#if SHIFT >= 1
+DEF_HELPER_7(glue(fma4ps, SUFFIX), void, env, Reg, Reg, Reg, Reg, int, int)
+DEF_HELPER_7(glue(fma4pd, SUFFIX), void, env, Reg, Reg, Reg, Reg, int, int)
+#endif
+
 /* AVX helpers */
 #if SHIFT >= 1
 DEF_HELPER_4(glue(vpermilpd, SUFFIX), void, env, Reg, Reg, Reg)

@@ -28,6 +28,7 @@ typedef struct {
 } TestDef;
 
 reg_state initI;
+reg_state initF16;
 reg_state initF32;
 reg_state initF64;
 
@@ -221,6 +222,7 @@ static void run_all(void)
 
 #define ARRAY_LEN(x) (sizeof(x) / sizeof(x[0]))
 
+uint16_t val_f16[] = { 0x4000, 0xbc00, 0x44cd, 0x3a66, 0x4200, 0x7a1a, 0x4780, 0x4826 };
 float val_f32[] = {2.0, -1.0, 4.8, 0.8, 3, -42.0, 5e6, 7.5, 8.3};
 double val_f64[] = {2.0, -1.0, 4.8, 0.8, 3, -42.0, 5e6, 7.5};
 v4di val_i64[] = {
@@ -240,6 +242,12 @@ v4di indexd = {0x00000002000000efull, 0xfffffff500000010ull,
                0x0000000afffffff0ull, 0x000000000000000eull};
 
 v4di gather_mem[0x20];
+
+void init_f16reg(v4di *r)
+{
+    memset(r, 0, sizeof(*r));
+    memcpy(r, val_f16, sizeof(val_f16));
+}
 
 void init_f32reg(v4di *r)
 {
@@ -314,6 +322,15 @@ int main(int argc, char *argv[])
     init_intreg(&initI.mem0[1]);
     printf("Int:\n");
     dump_regs(&initI);
+
+    init_all(&initF16);
+    init_f16reg(&initF16.ymm[10]);
+    init_f16reg(&initF16.ymm[11]);
+    init_f16reg(&initF16.ymm[12]);
+    init_f16reg(&initF16.mem0[1]);
+    initF16.ff = 16;
+    printf("F16:\n");
+    dump_regs(&initF16);
 
     init_all(&initF32);
     init_f32reg(&initF32.ymm[10]);
