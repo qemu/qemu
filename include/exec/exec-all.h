@@ -39,9 +39,6 @@ typedef ram_addr_t tb_page_addr_t;
 #define TB_PAGE_ADDR_FMT RAM_ADDR_FMT
 #endif
 
-void restore_state_to_opc(CPUArchState *env, TranslationBlock *tb,
-                          target_ulong *data) __attribute__((weak));
-
 /**
  * cpu_restore_state:
  * @cpu: the vCPU state is to be restore to

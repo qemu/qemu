@@ -254,7 +254,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
 int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                               uintptr_t searched_pc, bool reset_icount)
 {
-    target_ulong data[TARGET_INSN_START_WORDS];
+    uint64_t data[TARGET_INSN_START_WORDS];
     uintptr_t host_pc = (uintptr_t)tb->tc.ptr;
     const uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
@@ -295,19 +295,7 @@ int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
         cpu_neg(cpu)->icount_decr.u16.low += num_insns - i;
     }
 
-    {
-        const struct TCGCPUOps *ops = cpu->cc->tcg_ops;
-        __typeof(ops->restore_state_to_opc) restore = ops->restore_state_to_opc;
-        if (restore) {
-            uint64_t d64[TARGET_INSN_START_WORDS];
-            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
-                d64[i] = data[i];
-            }
-            restore(cpu, tb, d64);
-        } else {
-            restore_state_to_opc(cpu->env_ptr, tb, data);
-        }
-    }
+    cpu->cc->tcg_ops->restore_state_to_opc(cpu, tb, data);
 
 #ifdef CONFIG_PROFILER
     qatomic_set(&prof->restore_time,
