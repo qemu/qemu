@@ -1110,9 +1110,3 @@ void nios2_tcg_init(void)
     cpu_pc = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUNios2State, pc), "pc");
 }
-
-void restore_state_to_opc(CPUNios2State *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}
