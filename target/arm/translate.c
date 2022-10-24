@@ -9939,25 +9939,3 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns,
 
     translator_loop(cpu, tb, max_insns, pc, host_pc, ops, &dc.base);
 }
-
-void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    if (is_a64(env)) {
-        if (TARGET_TB_PCREL) {
-            env->pc = (env->pc & TARGET_PAGE_MASK) | data[0];
-        } else {
-            env->pc = data[0];
-        }
-        env->condexec_bits = 0;
-        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
-    } else {
-        if (TARGET_TB_PCREL) {
-            env->regs[15] = (env->regs[15] & TARGET_PAGE_MASK) | data[0];
-        } else {
-            env->regs[15] = data[0];
-        }
-        env->condexec_bits = data[1];
-        env->exception.syndrome = data[2] << ARM_INSN_START_WORD2_SHIFT;
-    }
-}
