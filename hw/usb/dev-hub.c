@@ -54,44 +54,44 @@ struct USBHubState {
 #define TYPE_USB_HUB "usb-hub"
 OBJECT_DECLARE_SIMPLE_TYPE(USBHubState, USB_HUB)
 
-#define ClearHubFeature		(0x2000 | USB_REQ_CLEAR_FEATURE)
-#define ClearPortFeature	(0x2300 | USB_REQ_CLEAR_FEATURE)
-#define GetHubDescriptor	(0xa000 | USB_REQ_GET_DESCRIPTOR)
-#define GetHubStatus		(0xa000 | USB_REQ_GET_STATUS)
-#define GetPortStatus		(0xa300 | USB_REQ_GET_STATUS)
-#define SetHubFeature		(0x2000 | USB_REQ_SET_FEATURE)
-#define SetPortFeature		(0x2300 | USB_REQ_SET_FEATURE)
+#define ClearHubFeature         (0x2000 | USB_REQ_CLEAR_FEATURE)
+#define ClearPortFeature        (0x2300 | USB_REQ_CLEAR_FEATURE)
+#define GetHubDescriptor        (0xa000 | USB_REQ_GET_DESCRIPTOR)
+#define GetHubStatus            (0xa000 | USB_REQ_GET_STATUS)
+#define GetPortStatus           (0xa300 | USB_REQ_GET_STATUS)
+#define SetHubFeature           (0x2000 | USB_REQ_SET_FEATURE)
+#define SetPortFeature          (0x2300 | USB_REQ_SET_FEATURE)
 
-#define PORT_STAT_CONNECTION	0x0001
-#define PORT_STAT_ENABLE	0x0002
-#define PORT_STAT_SUSPEND	0x0004
-#define PORT_STAT_OVERCURRENT	0x0008
-#define PORT_STAT_RESET		0x0010
-#define PORT_STAT_POWER		0x0100
-#define PORT_STAT_LOW_SPEED	0x0200
+#define PORT_STAT_CONNECTION    0x0001
+#define PORT_STAT_ENABLE        0x0002
+#define PORT_STAT_SUSPEND       0x0004
+#define PORT_STAT_OVERCURRENT   0x0008
+#define PORT_STAT_RESET         0x0010
+#define PORT_STAT_POWER         0x0100
+#define PORT_STAT_LOW_SPEED     0x0200
 #define PORT_STAT_HIGH_SPEED    0x0400
 #define PORT_STAT_TEST          0x0800
 #define PORT_STAT_INDICATOR     0x1000
 
-#define PORT_STAT_C_CONNECTION	0x0001
-#define PORT_STAT_C_ENABLE	0x0002
-#define PORT_STAT_C_SUSPEND	0x0004
-#define PORT_STAT_C_OVERCURRENT	0x0008
-#define PORT_STAT_C_RESET	0x0010
+#define PORT_STAT_C_CONNECTION  0x0001
+#define PORT_STAT_C_ENABLE      0x0002
+#define PORT_STAT_C_SUSPEND     0x0004
+#define PORT_STAT_C_OVERCURRENT 0x0008
+#define PORT_STAT_C_RESET       0x0010
 
-#define PORT_CONNECTION	        0
-#define PORT_ENABLE		1
-#define PORT_SUSPEND		2
-#define PORT_OVERCURRENT	3
-#define PORT_RESET		4
-#define PORT_POWER		8
-#define PORT_LOWSPEED		9
-#define PORT_HIGHSPEED		10
-#define PORT_C_CONNECTION	16
-#define PORT_C_ENABLE		17
-#define PORT_C_SUSPEND		18
-#define PORT_C_OVERCURRENT	19
-#define PORT_C_RESET		20
+#define PORT_CONNECTION         0
+#define PORT_ENABLE             1
+#define PORT_SUSPEND            2
+#define PORT_OVERCURRENT        3
+#define PORT_RESET              4
+#define PORT_POWER              8
+#define PORT_LOWSPEED           9
+#define PORT_HIGHSPEED          10
+#define PORT_C_CONNECTION       16
+#define PORT_C_ENABLE           17
+#define PORT_C_SUSPEND          18
+#define PORT_C_OVERCURRENT      19
+#define PORT_C_RESET            20
 #define PORT_TEST               21
 #define PORT_INDICATOR          22
 
@@ -155,13 +155,13 @@ static const USBDesc desc_hub = {
 
 static const uint8_t qemu_hub_hub_descriptor[] =
 {
-        0x00,			/*  u8  bLength; patched in later */
-        0x29,			/*  u8  bDescriptorType; Hub-descriptor */
-        0x00,			/*  u8  bNbrPorts; (patched later) */
-        0x0a,			/* u16  wHubCharacteristics; */
-        0x00,			/*   (per-port OC, no power switching) */
-        0x01,			/*  u8  bPwrOn2pwrGood; 2ms */
-        0x00			/*  u8  bHubContrCurrent; 0 mA */
+        0x00,                   /*  u8  bLength; patched in later */
+        0x29,                   /*  u8  bDescriptorType; Hub-descriptor */
+        0x00,                   /*  u8  bNbrPorts; (patched later) */
+        0x0a,                   /* u16  wHubCharacteristics; */
+        0x00,                   /*   (per-port OC, no power switching) */
+        0x01,                   /*  u8  bPwrOn2pwrGood; 2ms */
+        0x00                    /*  u8  bHubContrCurrent; 0 mA */
 
         /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };
