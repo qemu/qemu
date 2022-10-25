@@ -101,6 +101,7 @@ packages:
  - sdl2-image
  - sed
  - snappy
+ - sndio
  - sparse
  - spice-protocol
  - spice-server

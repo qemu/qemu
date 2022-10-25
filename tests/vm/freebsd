@@ -66,6 +66,9 @@ class FreeBSDVM(basevm.BaseVM):
 
         # libs: networking
         "libslirp",
+
+        # libs: sndio
+        "sndio",
     ]
 
     BUILD_SCRIPT = """
