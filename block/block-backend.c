@@ -134,10 +134,6 @@ static void blk_root_drained_end(BdrvChild *child, int *drained_end_counter);
 static void blk_root_change_media(BdrvChild *child, bool load);
 static void blk_root_resize(BdrvChild *child);
 
-static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
-                                     GSList **ignore, Error **errp);
-static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
-                                 GSList **ignore);
 static bool blk_root_change_aio_ctx(BdrvChild *child, AioContext *ctx,
                                     GHashTable *visited, Transaction *tran,
                                     Error **errp);
@@ -337,8 +333,6 @@ static const BdrvChildClass child_root = {
     .attach             = blk_root_attach,
     .detach             = blk_root_detach,
 
-    .can_set_aio_ctx    = blk_root_can_set_aio_ctx,
-    .set_aio_ctx        = blk_root_set_aio_ctx,
     .change_aio_ctx     = blk_root_change_aio_ctx,
 
     .get_parent_aio_context = blk_root_get_parent_aio_context,
@@ -2231,33 +2225,6 @@ static bool blk_root_change_aio_ctx(BdrvChild *child, AioContext *ctx,
 
     tran_add(tran, &set_blk_root_context, s);
     return true;
-}
-
-static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
-                                     GSList **ignore, Error **errp)
-{
-    BlockBackend *blk = child->opaque;
-
-    if (blk->allow_aio_context_change) {
-        return true;
-    }
-
-    /* Only manually created BlockBackends that are not attached to anything
-     * can change their AioContext without updating their user. */
-    if (!blk->name || blk->dev) {
-        /* TODO Add BB name/QOM path */
-        error_setg(errp, "Cannot change iothread of active block backend");
-        return false;
-    }
-
-    return true;
-}
-
-static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
-                                 GSList **ignore)
-{
-    BlockBackend *blk = child->opaque;
-    blk_do_set_aio_context(blk, ctx, false, &error_abort);
 }
 
 void blk_add_aio_context_notifier(BlockBackend *blk,

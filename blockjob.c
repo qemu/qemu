@@ -170,39 +170,6 @@ static bool child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx,
     return true;
 }
 
-static bool child_job_can_set_aio_ctx(BdrvChild *c, AioContext *ctx,
-                                      GSList **ignore, Error **errp)
-{
-    BlockJob *job = c->opaque;
-    GSList *l;
-
-    for (l = job->nodes; l; l = l->next) {
-        BdrvChild *sibling = l->data;
-        if (!bdrv_child_can_set_aio_context(sibling, ctx, ignore, errp)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
-                                  GSList **ignore)
-{
-    BlockJob *job = c->opaque;
-    GSList *l;
-
-    for (l = job->nodes; l; l = l->next) {
-        BdrvChild *sibling = l->data;
-        if (g_slist_find(*ignore, sibling)) {
-            continue;
-        }
-        *ignore = g_slist_prepend(*ignore, sibling);
-        bdrv_set_aio_context_ignore(sibling->bs, ctx, ignore);
-    }
-
-    job_set_aio_context(&job->job, ctx);
-}
-
 static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
@@ -216,8 +183,6 @@ static const BdrvChildClass child_job = {
     .drained_begin      = child_job_drained_begin,
     .drained_poll       = child_job_drained_poll,
     .drained_end        = child_job_drained_end,
-    .can_set_aio_ctx    = child_job_can_set_aio_ctx,
-    .set_aio_ctx        = child_job_set_aio_ctx,
     .change_aio_ctx     = child_job_change_aio_ctx,
     .stay_at_node       = true,
     .get_parent_aio_context = child_job_get_parent_aio_context,

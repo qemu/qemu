@@ -220,18 +220,9 @@ void coroutine_fn bdrv_co_lock(BlockDriverState *bs);
  */
 void coroutine_fn bdrv_co_unlock(BlockDriverState *bs);
 
-void bdrv_set_aio_context_ignore(BlockDriverState *bs,
-                                 AioContext *new_context, GSList **ignore);
 int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                              Error **errp);
-int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                   BdrvChild *ignore_child, Error **errp);
-bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
-                                    GSList **ignore, Error **errp);
-bool bdrv_can_set_aio_context(BlockDriverState *bs, AioContext *ctx,
-                              GSList **ignore, Error **errp);
 AioContext *bdrv_child_get_parent_aio_context(BdrvChild *c);
-
 bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
                                    GHashTable *visited, Transaction *tran,
                                    Error **errp);
