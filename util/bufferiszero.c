@@ -258,8 +258,7 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
 
         /* We must check that AVX is not just available, but usable.  */
         if ((c & bit_OSXSAVE) && (c & bit_AVX) && max >= 7) {
-            int bv;
-            __asm("xgetbv" : "=a"(bv), "=d"(d) : "c"(0));
+            unsigned bv = xgetbv_low(0);
             __cpuid_count(7, 0, a, b, c, d);
             if ((bv & 0x6) == 0x6 && (b & bit_AVX2)) {
                 cache |= CACHE_AVX2;

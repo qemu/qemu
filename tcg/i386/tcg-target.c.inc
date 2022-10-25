@@ -4156,12 +4156,9 @@ static void tcg_target_init(TCGContext *s)
         /* There are a number of things we must check before we can be
            sure of not hitting invalid opcode.  */
         if (c & bit_OSXSAVE) {
-            unsigned xcrl, xcrh;
-            /* The xgetbv instruction is not available to older versions of
-             * the assembler, so we encode the instruction manually.
-             */
-            asm(".byte 0x0f, 0x01, 0xd0" : "=a" (xcrl), "=d" (xcrh) : "c" (0));
-            if ((xcrl & 6) == 6) {
+            unsigned bv = xgetbv_low(0);
+
+            if ((bv & 6) == 6) {
                 have_avx1 = (c & bit_AVX) != 0;
                 have_avx2 = (b7 & bit_AVX2) != 0;
 
@@ -4172,7 +4169,7 @@ static void tcg_target_init(TCGContext *s)
                  * check that OPMASK and all extended ZMM state are enabled
                  * even if we're not using them -- the insns will fault.
                  */
-                if ((xcrl & 0xe0) == 0xe0
+                if ((bv & 0xe0) == 0xe0
                     && (b7 & bit_AVX512F)
                     && (b7 & bit_AVX512VL)) {
                     have_avx512vl = true;
