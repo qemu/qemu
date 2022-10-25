@@ -56,6 +56,7 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x1000  },
     [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x1000  },
     [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000  },
+    [IBEX_DEV_AON_TIMER] =      {  0x40470000,  0x1000  },
     [IBEX_DEV_SENSOR_CTRL] =    {  0x40490000,  0x1000  },
     [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x1000  },
     [IBEX_DEV_AES] =            {  0x41100000,  0x1000  },
@@ -272,6 +273,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_CLKMGR].base, memmap[IBEX_DEV_CLKMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
         memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.aon_timer",
+        memmap[IBEX_DEV_AON_TIMER].base, memmap[IBEX_DEV_AON_TIMER].size);
     create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
         memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
     create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",
