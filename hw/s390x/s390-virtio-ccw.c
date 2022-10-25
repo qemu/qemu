@@ -411,7 +411,7 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
     s390_pv_prep_reset();
 }
 
-static void s390_machine_reset(MachineState *machine)
+static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
     enum s390_reset reset_type;
@@ -433,7 +433,7 @@ static void s390_machine_reset(MachineState *machine)
             s390_machine_unprotect(ms);
         }
 
-        qemu_devices_reset();
+        qemu_devices_reset(reason);
         s390_crypto_reset();
 
         /* configure and start the ipl CPU only */
