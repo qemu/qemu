@@ -206,11 +206,19 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         if (s->cr & CR_SWR) {
             /* handle the reset */
             imx_epit_reset(DEVICE(s));
-            /*
-             * TODO: could we 'break' here? following operations appear
-             * to duplicate the work imx_epit_reset() already did.
-             */
         }
+
+        /*
+         * The interrupt state can change due to:
+         * - reset clears both SR.OCIF and CR.OCIE
+         * - write to CR.EN or CR.OCIE
+         */
+        imx_epit_update_int(s);
+
+        /*
+         * TODO: could we 'break' here for reset? following operations appear
+         * to duplicate the work imx_epit_reset() already did.
+         */
 
         ptimer_transaction_begin(s->timer_cmp);
         ptimer_transaction_begin(s->timer_reload);
