@@ -2151,8 +2151,7 @@ static int blk_do_set_aio_context(BlockBackend *blk, AioContext *new_context,
              * update_root_node MUST be false for blk_root_set_aio_ctx_commit(),
              * as we are already in the commit function of a transaction.
              */
-            ret = bdrv_child_try_change_aio_context(bs, new_context, blk->root,
-                                                    errp);
+            ret = bdrv_try_change_aio_context(bs, new_context, blk->root, errp);
             if (ret < 0) {
                 bdrv_unref(bs);
                 return ret;

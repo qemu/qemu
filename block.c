@@ -7340,8 +7340,8 @@ static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
  * bdrv_drained_end calls BDRV_POLL_WHILE that assumes the lock is taken too.
  * Therefore the new AioContext lock must not be taken by the caller.
  */
-int bdrv_child_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                      BdrvChild *ignore_child, Error **errp)
+int bdrv_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                BdrvChild *ignore_child, Error **errp)
 {
     Transaction *tran;
     GHashTable *visited;
@@ -7411,7 +7411,7 @@ int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                              Error **errp)
 {
     GLOBAL_STATE_CODE();
-    return bdrv_child_try_change_aio_context(bs, ctx, NULL, errp);
+    return bdrv_try_change_aio_context(bs, ctx, NULL, errp);
 }
 
 void bdrv_add_aio_context_notifier(BlockDriverState *bs,
