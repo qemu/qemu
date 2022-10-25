@@ -105,7 +105,7 @@ static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 static bool bdrv_backing_overridden(BlockDriverState *bs);
 
 static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                    GSList **visited, Transaction *tran,
+                                    GHashTable *visited, Transaction *tran,
                                     Error **errp);
 
 /* If non-zero, use only whitelisted block drivers */
@@ -7315,14 +7315,15 @@ typedef struct BdrvStateSetAioContext {
 } BdrvStateSetAioContext;
 
 static bool bdrv_parent_change_aio_context(BdrvChild *c, AioContext *ctx,
-                                           GSList **visited, Transaction *tran,
+                                           GHashTable *visited,
+                                           Transaction *tran,
                                            Error **errp)
 {
     GLOBAL_STATE_CODE();
-    if (g_slist_find(*visited, c)) {
+    if (g_hash_table_contains(visited, c)) {
         return true;
     }
-    *visited = g_slist_prepend(*visited, c);
+    g_hash_table_add(visited, c);
 
     /*
      * A BdrvChildClass that doesn't handle AioContext changes cannot
@@ -7353,14 +7354,14 @@ bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
 }
 
 bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
-                                   GSList **visited, Transaction *tran,
+                                   GHashTable *visited, Transaction *tran,
                                    Error **errp)
 {
     GLOBAL_STATE_CODE();
-    if (g_slist_find(*visited, c)) {
+    if (g_hash_table_contains(visited, c)) {
         return true;
     }
-    *visited = g_slist_prepend(*visited, c);
+    g_hash_table_add(visited, c);
     return bdrv_change_aio_context(c->bs, ctx, visited, tran, errp);
 }
 
@@ -7445,7 +7446,7 @@ static TransactionActionDrv set_aio_context = {
  * responsible for freeing the list afterwards.
  */
 static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
-                                    GSList **visited, Transaction *tran,
+                                    GHashTable *visited, Transaction *tran,
                                     Error **errp)
 {
     BdrvChild *c;
@@ -7524,7 +7525,7 @@ int bdrv_child_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
                                       BdrvChild *ignore_child, Error **errp)
 {
     Transaction *tran;
-    GSList *visited;
+    GHashTable *visited;
     int ret;
     AioContext *old_context = bdrv_get_aio_context(bs);
     GLOBAL_STATE_CODE();
@@ -7536,9 +7537,12 @@ int bdrv_child_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
      * is successful (the transaction itself).
      */
     tran = tran_new();
-    visited = ignore_child ? g_slist_prepend(NULL, ignore_child) : NULL;
-    ret = bdrv_change_aio_context(bs, ctx, &visited, tran, errp);
-    g_slist_free(visited);
+    visited = g_hash_table_new(NULL, NULL);
+    if (ignore_child) {
+        g_hash_table_add(visited, ignore_child);
+    }
+    ret = bdrv_change_aio_context(bs, ctx, visited, tran, errp);
+    g_hash_table_destroy(visited);
 
     /*
      * Linear phase: go through all callbacks collected in the transaction.
