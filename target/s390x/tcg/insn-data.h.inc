@@ -8,7 +8,7 @@
  *
  *  OPC  = (op << 8) | op2 where op is the major, op2 the minor opcode
  *  NAME = name of the opcode, used internally
- *  FMT  = format of the opcode (defined in insn-format.def)
+ *  FMT  = format of the opcode (defined in insn-format.h.inc)
  *  FAC  = facility the opcode is available in (defined in DisasFacility)
  *  I1   = func in1_xx fills o->in1
  *  I2   = func in2_xx fills o->in2
