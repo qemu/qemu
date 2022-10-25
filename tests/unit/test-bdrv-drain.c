@@ -1538,16 +1538,16 @@ static void test_set_aio_context(void)
                               &error_abort);
 
     bdrv_drained_begin(bs);
-    bdrv_try_set_aio_context(bs, ctx_a, &error_abort);
+    bdrv_try_change_aio_context(bs, ctx_a, NULL, &error_abort);
 
     aio_context_acquire(ctx_a);
     bdrv_drained_end(bs);
 
     bdrv_drained_begin(bs);
-    bdrv_try_set_aio_context(bs, ctx_b, &error_abort);
+    bdrv_try_change_aio_context(bs, ctx_b, NULL, &error_abort);
     aio_context_release(ctx_a);
     aio_context_acquire(ctx_b);
-    bdrv_try_set_aio_context(bs, qemu_get_aio_context(), &error_abort);
+    bdrv_try_change_aio_context(bs, qemu_get_aio_context(), NULL, &error_abort);
     aio_context_release(ctx_b);
     bdrv_drained_end(bs);
 
