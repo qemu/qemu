@@ -74,9 +74,7 @@ struct IMXEPITState {
     uint32_t sr;
     uint32_t lr;
     uint32_t cmp;
-    uint32_t cnt;
 
-    uint32_t freq;
     qemu_irq irq;
 };
 
