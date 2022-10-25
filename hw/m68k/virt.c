@@ -89,7 +89,6 @@ typedef struct {
     M68kCPU *cpu;
     hwaddr initial_pc;
     hwaddr initial_stack;
-    struct bi_record *rng_seed;
 } ResetInfo;
 
 static void main_cpu_reset(void *opaque)
@@ -98,14 +97,16 @@ static void main_cpu_reset(void *opaque)
     M68kCPU *cpu = reset_info->cpu;
     CPUState *cs = CPU(cpu);
 
-    if (reset_info->rng_seed) {
-        qemu_guest_getrandom_nofail((void *)reset_info->rng_seed->data + 2,
-            be16_to_cpu(*(uint16_t *)reset_info->rng_seed->data));
-    }
-
     cpu_reset(cs);
     cpu->env.aregs[7] = reset_info->initial_stack;
     cpu->env.pc = reset_info->initial_pc;
+}
+
+static void rerandomize_rng_seed(void *opaque)
+{
+    struct bi_record *rng_seed = opaque;
+    qemu_guest_getrandom_nofail((void *)rng_seed->data + 2,
+                                be16_to_cpu(*(uint16_t *)rng_seed->data));
 }
 
 static void virt_init(MachineState *machine)
@@ -289,9 +290,10 @@ static void virt_init(MachineState *machine)
         BOOTINFO0(param_ptr, BI_LAST);
         rom_add_blob_fixed_as("bootinfo", param_blob, param_ptr - param_blob,
                               parameters_base, cs->as);
-        reset_info->rng_seed = rom_ptr_for_as(cs->as, parameters_base,
-                                              param_ptr - param_blob) +
-                               (param_rng_seed - param_blob);
+        qemu_register_reset_nosnapshotload(rerandomize_rng_seed,
+                            rom_ptr_for_as(cs->as, parameters_base,
+                                           param_ptr - param_blob) +
+                            (param_rng_seed - param_blob));
         g_free(param_blob);
     }
 }
