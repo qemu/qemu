@@ -197,6 +197,15 @@ int qemu_fdt_setprop_sized_cells_from_array(void *fdt,
                                                 qdt_tmp);                 \
     })
 
+
+/**
+ * qemu_fdt_randomize_seeds:
+ * @fdt: device tree blob
+ *
+ * Re-randomize all "rng-seed" properties with new seeds.
+ */
+void qemu_fdt_randomize_seeds(void *fdt);
+
 #define FDT_PCI_RANGE_RELOCATABLE          0x80000000
 #define FDT_PCI_RANGE_PREFETCHABLE         0x40000000
 #define FDT_PCI_RANGE_ALIASED              0x20000000
