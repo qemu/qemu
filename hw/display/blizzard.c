@@ -1007,7 +1007,7 @@ static const GraphicHwOps blizzard_ops = {
 
 void *s1d13745_init(qemu_irq gpio_int)
 {
-    BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
+    BlizzardState *s = g_malloc0(sizeof(*s));
     DisplaySurface *surface;
 
     s->fb = g_malloc(0x180000);

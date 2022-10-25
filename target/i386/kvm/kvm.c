@@ -2262,8 +2262,7 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
     }
 
     assert(msr_list.nmsrs > 0);
-    kvm_feature_msrs = (struct kvm_msr_list *) \
-        g_malloc0(sizeof(msr_list) +
+    kvm_feature_msrs = g_malloc0(sizeof(msr_list) +
                  msr_list.nmsrs * sizeof(msr_list.indices[0]));
 
     kvm_feature_msrs->nmsrs = msr_list.nmsrs;

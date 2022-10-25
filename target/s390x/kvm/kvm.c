@@ -1033,7 +1033,7 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
         }
         size = nb_hw_breakpoints * sizeof(struct kvm_hw_breakpoint);
         hw_breakpoints =
-             (struct kvm_hw_breakpoint *)g_realloc(hw_breakpoints, size);
+             g_realloc(hw_breakpoints, size);
     } else {
         g_free(hw_breakpoints);
         hw_breakpoints = NULL;

@@ -571,8 +571,8 @@ static TestServer *test_server_new(const gchar *name,
 
     tmpfs = g_dir_make_tmp("vhost-test-XXXXXX", &err);
     if (!tmpfs) {
-        g_test_message("g_dir_make_tmp on path (%s): %s", tmpfs,
-                       err->message);
+        g_test_message("Can't create temporary directory in %s: %s",
+                       g_get_tmp_dir(), err->message);
         g_error_free(err);
     }
     g_assert(tmpfs);

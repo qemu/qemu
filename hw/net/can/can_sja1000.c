@@ -431,7 +431,7 @@ void can_sja_mem_write(CanSJA1000State *s, hwaddr addr, uint64_t val,
             (unsigned long long)val, (unsigned int)addr);
 
     if (addr > CAN_SJA_MEM_SIZE) {
-        return ;
+        return;
     }
 
     if (s->clock & 0x80) { /* PeliCAN Mode */

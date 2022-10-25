@@ -57,7 +57,7 @@ static void update_events(RCMTState *cmt, int ch)
 
     if ((cmt->cmstr & (1 << ch)) == 0) {
         /* count disable, so not happened next event. */
-        return ;
+        return;
     }
     next_time = cmt->cmcor[ch] - cmt->cmcnt[ch];
     next_time *= NANOSECONDS_PER_SECOND;

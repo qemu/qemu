@@ -133,7 +133,7 @@ static void cbus_sel(void *opaque, int line, int level)
 
 CBus *cbus_init(qemu_irq dat)
 {
-    CBusPriv *s = (CBusPriv *) g_malloc0(sizeof(*s));
+    CBusPriv *s = g_malloc0(sizeof(*s));
 
     s->dat_out = dat;
     s->cbus.clk = qemu_allocate_irq(cbus_clk, s, 0);
@@ -388,7 +388,7 @@ static void retu_io(void *opaque, int rw, int reg, uint16_t *val)
 
 void *retu_init(qemu_irq irq, int vilma)
 {
-    CBusRetu *s = (CBusRetu *) g_malloc0(sizeof(*s));
+    CBusRetu *s = g_malloc0(sizeof(*s));
 
     s->irq = irq;
     s->irqen = 0xffff;
@@ -604,7 +604,7 @@ static void tahvo_io(void *opaque, int rw, int reg, uint16_t *val)
 
 void *tahvo_init(qemu_irq irq, int betty)
 {
-    CBusTahvo *s = (CBusTahvo *) g_malloc0(sizeof(*s));
+    CBusTahvo *s = g_malloc0(sizeof(*s));
 
     s->irq = irq;
     s->irqen = 0xffff;

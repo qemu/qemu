@@ -1803,7 +1803,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
     err = pdu_unmarshal(pdu, offset, "ddw", &fid, &newfid, &nwnames);
     if (err < 0) {
         pdu_complete(pdu, err);
-        return ;
+        return;
     }
     offset += err;
 

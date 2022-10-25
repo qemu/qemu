@@ -51,7 +51,7 @@ void rr_kick_vcpu_thread(CPUState *unused)
  *
  * The kick timer is responsible for moving single threaded vCPU
  * emulation on to the next vCPU. If more than one vCPU is running a
- * timer event with force a cpu->exit so the next vCPU can get
+ * timer event we force a cpu->exit so the next vCPU can get
  * scheduled.
  *
  * The timer is removed if all vCPUs are idle and restarted again once

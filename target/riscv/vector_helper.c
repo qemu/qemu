@@ -211,7 +211,7 @@ static void vext_set_elems_1s(void *base, uint32_t is_agnostic, uint32_t cnt,
         return;
     }
     if (tot - cnt == 0) {
-        return ;
+        return;
     }
     memset(base + cnt, -1, tot - cnt);
 }

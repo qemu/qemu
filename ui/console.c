@@ -1297,7 +1297,7 @@ static void kbd_send_chars(QemuConsole *s)
         uint32_t size;
 
         buf = fifo8_pop_buf(&s->out_fifo, MIN(len, avail), &size);
-        qemu_chr_be_write(s->chr, (uint8_t *)buf, size);
+        qemu_chr_be_write(s->chr, buf, size);
         len = qemu_chr_be_can_write(s->chr);
         avail -= size;
     }
