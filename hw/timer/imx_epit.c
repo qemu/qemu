@@ -96,13 +96,14 @@ static void imx_epit_set_freq(IMXEPITState *s)
     }
 }
 
+/*
+ * This is called both on hardware (device) reset and software reset.
+ */
 static void imx_epit_reset(DeviceState *dev)
 {
     IMXEPITState *s = IMX_EPIT(dev);
 
-    /*
-     * Soft reset doesn't touch some bits; hard reset clears them
-     */
+    /* Soft reset doesn't touch some bits; hard reset clears them */
     s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
     s->sr = 0;
     s->lr = EPIT_TIMER_MAX;
@@ -214,6 +215,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         ptimer_transaction_begin(s->timer_cmp);
         ptimer_transaction_begin(s->timer_reload);
 
+        /* Update the frequency. Has been done already in case of a reset. */
         if (!(s->cr & CR_SWR)) {
             imx_epit_set_freq(s);
         }
@@ -254,7 +256,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         break;
 
     case 1: /* SR - ACK*/
-        /* writing 1 to OCIF clear the OCIF bit */
+        /* writing 1 to OCIF clears the OCIF bit */
         if (value & 0x01) {
             s->sr = 0;
             imx_epit_update_int(s);
@@ -352,8 +354,18 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
+    /*
+     * The reload timer keeps running when the peripheral is enabled. It is a
+     * kind of wall clock that does not generate any interrupts. The callback
+     * needs to be provided, but it does nothing as the ptimer already supports
+     * all necessary reloading functionality.
+     */
     s->timer_reload = ptimer_init(imx_epit_reload, s, PTIMER_POLICY_LEGACY);
 
+    /*
+     * The compare timer is running only when the peripheral configuration is
+     * in a state that will generate compare interrupts.
+     */
     s->timer_cmp = ptimer_init(imx_epit_cmp, s, PTIMER_POLICY_LEGACY);
 }
 
