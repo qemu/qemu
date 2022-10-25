@@ -621,6 +621,10 @@ static void network_init(PCIBus *pci_bus)
 static void bl_setup_gt64120_jump_kernel(void **p, uint64_t run_addr,
                                          uint64_t kernel_entry)
 {
+    static const char pci_pins_cfg[PCI_NUM_PINS] = {
+        10, 10, 11, 11 /* PIIX IRQRC[A:D] */
+    };
+
     /* Bus endianess is always reversed */
 #if TARGET_BIG_ENDIAN
 #define cpu_to_gt32 cpu_to_le32
@@ -658,6 +662,20 @@ static void bl_setup_gt64120_jump_kernel(void **p, uint64_t run_addr,
                      cpu_to_gt32(0x0bc00000 << 3));
 
 #undef cpu_to_gt32
+
+    /*
+     * The PIIX ISA bridge is on PCI bus 0 dev 10 func 0.
+     * Load the PIIX IRQC[A:D] routing config address, then
+     * write routing configuration to the config data register.
+     */
+    bl_gen_write_u32(p, /* GT_PCI0_CFGADDR */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0xcf8),
+                     tswap32((1 << 31) /* ConfigEn */
+                             | PCI_BUILD_BDF(0, PIIX4_PCI_DEVFN) << 8
+                             | PIIX_PIRQCA));
+    bl_gen_write_u32(p, /* GT_PCI0_CFGDATA */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0xcfc),
+                     tswap32(ldl_be_p(pci_pins_cfg)));
 
     bl_gen_jump_kernel(p,
                        true, ENVP_VADDR - 64,
