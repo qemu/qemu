@@ -14,6 +14,9 @@
 #define POWER8_PMU_H
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+
+#define PMC_COUNTER_NEGATIVE_VAL 0x80000000UL
+
 void cpu_ppc_pmu_init(CPUPPCState *env);
 void pmu_update_summaries(CPUPPCState *env);
 #else
