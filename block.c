@@ -104,6 +104,10 @@ static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 
 static bool bdrv_backing_overridden(BlockDriverState *bs);
 
+static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                    GSList **visited, Transaction *tran,
+                                    Error **errp);
+
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -7196,7 +7200,7 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
  * must not own the AioContext lock for new_context (unless new_context is the
  * same as the current context of bs).
  *
- * @ignore will accumulate all visited BdrvChild object. The caller is
+ * @ignore will accumulate all visited BdrvChild objects. The caller is
  * responsible for freeing the list afterwards.
  */
 void bdrv_set_aio_context_ignore(BlockDriverState *bs,
@@ -7305,6 +7309,38 @@ static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,
     return true;
 }
 
+typedef struct BdrvStateSetAioContext {
+    AioContext *new_ctx;
+    BlockDriverState *bs;
+} BdrvStateSetAioContext;
+
+static bool bdrv_parent_change_aio_context(BdrvChild *c, AioContext *ctx,
+                                           GSList **visited, Transaction *tran,
+                                           Error **errp)
+{
+    GLOBAL_STATE_CODE();
+    if (g_slist_find(*visited, c)) {
+        return true;
+    }
+    *visited = g_slist_prepend(*visited, c);
+
+    /*
+     * A BdrvChildClass that doesn't handle AioContext changes cannot
+     * tolerate any AioContext changes
+     */
+    if (!c->klass->change_aio_ctx) {
+        char *user = bdrv_child_user_desc(c);
+        error_setg(errp, "Changing iothreads is not supported by %s", user);
+        g_free(user);
+        return false;
+    }
+    if (!c->klass->change_aio_ctx(c, ctx, visited, tran, errp)) {
+        assert(!errp || *errp);
+        return false;
+    }
+    return true;
+}
+
 bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
                                     GSList **ignore, Error **errp)
 {
@@ -7314,6 +7350,18 @@ bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
     }
     *ignore = g_slist_prepend(*ignore, c);
     return bdrv_can_set_aio_context(c->bs, ctx, ignore, errp);
+}
+
+bool bdrv_child_change_aio_context(BdrvChild *c, AioContext *ctx,
+                                   GSList **visited, Transaction *tran,
+                                   Error **errp)
+{
+    GLOBAL_STATE_CODE();
+    if (g_slist_find(*visited, c)) {
+        return true;
+    }
+    *visited = g_slist_prepend(*visited, c);
+    return bdrv_change_aio_context(c->bs, ctx, visited, tran, errp);
 }
 
 /* @ignore will accumulate all visited BdrvChild object. The caller is
@@ -7343,6 +7391,98 @@ bool bdrv_can_set_aio_context(BlockDriverState *bs, AioContext *ctx,
     return true;
 }
 
+static void bdrv_set_aio_context_clean(void *opaque)
+{
+    BdrvStateSetAioContext *state = (BdrvStateSetAioContext *) opaque;
+    BlockDriverState *bs = (BlockDriverState *) state->bs;
+
+    /* Paired with bdrv_drained_begin in bdrv_change_aio_context() */
+    bdrv_drained_end(bs);
+
+    g_free(state);
+}
+
+static void bdrv_set_aio_context_commit(void *opaque)
+{
+    BdrvStateSetAioContext *state = (BdrvStateSetAioContext *) opaque;
+    BlockDriverState *bs = (BlockDriverState *) state->bs;
+    AioContext *new_context = state->new_ctx;
+    AioContext *old_context = bdrv_get_aio_context(bs);
+    assert_bdrv_graph_writable(bs);
+
+    /*
+     * Take the old AioContex when detaching it from bs.
+     * At this point, new_context lock is already acquired, and we are now
+     * also taking old_context. This is safe as long as bdrv_detach_aio_context
+     * does not call AIO_POLL_WHILE().
+     */
+    if (old_context != qemu_get_aio_context()) {
+        aio_context_acquire(old_context);
+    }
+    bdrv_detach_aio_context(bs);
+    if (old_context != qemu_get_aio_context()) {
+        aio_context_release(old_context);
+    }
+    bdrv_attach_aio_context(bs, new_context);
+}
+
+static TransactionActionDrv set_aio_context = {
+    .commit = bdrv_set_aio_context_commit,
+    .clean = bdrv_set_aio_context_clean,
+};
+
+/*
+ * Changes the AioContext used for fd handlers, timers, and BHs by this
+ * BlockDriverState and all its children and parents.
+ *
+ * Must be called from the main AioContext.
+ *
+ * The caller must own the AioContext lock for the old AioContext of bs, but it
+ * must not own the AioContext lock for new_context (unless new_context is the
+ * same as the current context of bs).
+ *
+ * @visited will accumulate all visited BdrvChild objects. The caller is
+ * responsible for freeing the list afterwards.
+ */
+static bool bdrv_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                    GSList **visited, Transaction *tran,
+                                    Error **errp)
+{
+    BdrvChild *c;
+    BdrvStateSetAioContext *state;
+
+    GLOBAL_STATE_CODE();
+
+    if (bdrv_get_aio_context(bs) == ctx) {
+        return true;
+    }
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (!bdrv_parent_change_aio_context(c, ctx, visited, tran, errp)) {
+            return false;
+        }
+    }
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        if (!bdrv_child_change_aio_context(c, ctx, visited, tran, errp)) {
+            return false;
+        }
+    }
+
+    state = g_new(BdrvStateSetAioContext, 1);
+    *state = (BdrvStateSetAioContext) {
+        .new_ctx = ctx,
+        .bs = bs,
+    };
+
+    /* Paired with bdrv_drained_end in bdrv_set_aio_context_clean() */
+    bdrv_drained_begin(bs);
+
+    tran_add(tran, &set_aio_context, state);
+
+    return true;
+}
+
 int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                                    BdrvChild *ignore_child, Error **errp)
 {
@@ -7362,6 +7502,84 @@ int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
     ignore = ignore_child ? g_slist_prepend(NULL, ignore_child) : NULL;
     bdrv_set_aio_context_ignore(bs, ctx, &ignore);
     g_slist_free(ignore);
+
+    return 0;
+}
+
+/*
+ * Change bs's and recursively all of its parents' and children's AioContext
+ * to the given new context, returning an error if that isn't possible.
+ *
+ * If ignore_child is not NULL, that child (and its subgraph) will not
+ * be touched.
+ *
+ * This function still requires the caller to take the bs current
+ * AioContext lock, otherwise draining will fail since AIO_WAIT_WHILE
+ * assumes the lock is always held if bs is in another AioContext.
+ * For the same reason, it temporarily also holds the new AioContext, since
+ * bdrv_drained_end calls BDRV_POLL_WHILE that assumes the lock is taken too.
+ * Therefore the new AioContext lock must not be taken by the caller.
+ */
+int bdrv_child_try_change_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                      BdrvChild *ignore_child, Error **errp)
+{
+    Transaction *tran;
+    GSList *visited;
+    int ret;
+    AioContext *old_context = bdrv_get_aio_context(bs);
+    GLOBAL_STATE_CODE();
+
+    /*
+     * Recursion phase: go through all nodes of the graph.
+     * Take care of checking that all nodes support changing AioContext
+     * and drain them, builing a linear list of callbacks to run if everything
+     * is successful (the transaction itself).
+     */
+    tran = tran_new();
+    visited = ignore_child ? g_slist_prepend(NULL, ignore_child) : NULL;
+    ret = bdrv_change_aio_context(bs, ctx, &visited, tran, errp);
+    g_slist_free(visited);
+
+    /*
+     * Linear phase: go through all callbacks collected in the transaction.
+     * Run all callbacks collected in the recursion to switch all nodes
+     * AioContext lock (transaction commit), or undo all changes done in the
+     * recursion (transaction abort).
+     */
+
+    if (!ret) {
+        /* Just run clean() callbacks. No AioContext changed. */
+        tran_abort(tran);
+        return -EPERM;
+    }
+
+    /*
+     * Release old AioContext, it won't be needed anymore, as all
+     * bdrv_drained_begin() have been called already.
+     */
+    if (qemu_get_aio_context() != old_context) {
+        aio_context_release(old_context);
+    }
+
+    /*
+     * Acquire new AioContext since bdrv_drained_end() is going to be called
+     * after we switched all nodes in the new AioContext, and the function
+     * assumes that the lock of the bs is always taken.
+     */
+    if (qemu_get_aio_context() != ctx) {
+        aio_context_acquire(ctx);
+    }
+
+    tran_commit(tran);
+
+    if (qemu_get_aio_context() != ctx) {
+        aio_context_release(ctx);
+    }
+
+    /* Re-acquire the old AioContext, since the caller takes and releases it. */
+    if (qemu_get_aio_context() != old_context) {
+        aio_context_acquire(old_context);
+    }
 
     return 0;
 }
