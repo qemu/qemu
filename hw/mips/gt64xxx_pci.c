@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "hw/registerfields.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "hw/misc/empty_slot.h"
@@ -40,6 +41,9 @@
 /* CPU Configuration */
 #define GT_CPU                  (0x000 >> 2)
 #define GT_MULTI                (0x120 >> 2)
+
+REG32(GT_CPU,                   0x000)
+FIELD(GT_CPU,                   Endianness,     12, 1)
 
 /* CPU Address Decode */
 #define GT_SCS10LD              (0x008 >> 2)
@@ -209,6 +213,17 @@
 #define GT_PCI1_CFGDATA         (0xcf4 >> 2)
 #define GT_PCI0_CFGADDR         (0xcf8 >> 2)
 #define GT_PCI0_CFGDATA         (0xcfc >> 2)
+
+REG32(GT_PCI0_CMD,              0xc00)
+FIELD(GT_PCI0_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI0_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI0_CMD_ByteSwap_MASK \
+        (R_GT_PCI0_CMD_MByteSwap_MASK | R_GT_PCI0_CMD_SByteSwap_MASK)
+REG32(GT_PCI1_CMD,              0xc80)
+FIELD(GT_PCI1_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI1_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI1_CMD_ByteSwap_MASK \
+        (R_GT_PCI1_CMD_MByteSwap_MASK | R_GT_PCI1_CMD_SByteSwap_MASK)
 
 /* Interrupts */
 #define GT_INTRCAUSE            (0xc18 >> 2)
@@ -1020,15 +1035,16 @@ static const MemoryRegionOps isd_mem_ops = {
 static void gt64120_reset(DeviceState *dev)
 {
     GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
+#if TARGET_BIG_ENDIAN
+    bool cpu_little_endian = false;
+#else
+    bool cpu_little_endian = true;
+#endif
 
     /* FIXME: Malta specific hw assumptions ahead */
 
     /* CPU Configuration */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_CPU]           = 0x00000000;
-#else
-    s->regs[GT_CPU]           = 0x00001000;
-#endif
+    s->regs[GT_CPU] = cpu_little_endian ? R_GT_CPU_Endianness_MASK : 0;
     s->regs[GT_MULTI]         = 0x00000003;
 
     /* CPU Address decode */
@@ -1135,11 +1151,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD] = cpu_little_endian ? R_GT_PCI0_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
@@ -1156,11 +1168,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
     s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
     s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI1_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI1_CMD] = cpu_little_endian ? R_GT_PCI1_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI1_TOR]      = 0x0000070f;
     s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
