@@ -6479,13 +6479,3 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                  env->mmu.mmusr, env->mmu.ar);
 #endif
 }
-
-void restore_state_to_opc(CPUM68KState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    int cc_op = data[1];
-    env->pc = data[0];
-    if (cc_op != CC_OP_DYNAMIC) {
-        env->cc_op = cc_op;
-    }
-}

@@ -503,10 +503,14 @@ static bool riscv_cpu_has_work(CPUState *cs)
 #endif
 }
 
-void restore_state_to_opc(CPURISCVState *env, TranslationBlock *tb,
-                          target_ulong *data)
+static void riscv_restore_state_to_opc(CPUState *cs,
+                                       const TranslationBlock *tb,
+                                       const uint64_t *data)
 {
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
     RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
+
     if (xl == MXL_RV32) {
         env->pc = (int32_t)data[0];
     } else {
@@ -1138,6 +1142,7 @@ static const struct SysemuCPUOps riscv_sysemu_ops = {
 static const struct TCGCPUOps riscv_tcg_ops = {
     .initialize = riscv_translate_init,
     .synchronize_from_tb = riscv_cpu_synchronize_from_tb,
+    .restore_state_to_opc = riscv_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = riscv_cpu_tlb_fill,

@@ -47,6 +47,15 @@ static void rx_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.pc = tb_pc(tb);
 }
 
+static void rx_restore_state_to_opc(CPUState *cs,
+                                    const TranslationBlock *tb,
+                                    const uint64_t *data)
+{
+    RXCPU *cpu = RX_CPU(cs);
+
+    cpu->env.pc = data[0];
+}
+
 static bool rx_cpu_has_work(CPUState *cs)
 {
     return cs->interrupt_request &
@@ -192,6 +201,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 static const struct TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
+    .restore_state_to_opc = rx_restore_state_to_opc,
     .tlb_fill = rx_cpu_tlb_fill,
 
 #ifndef CONFIG_USER_ONLY

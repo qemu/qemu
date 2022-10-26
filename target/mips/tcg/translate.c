@@ -16229,9 +16229,13 @@ void mips_tcg_init(void)
     }
 }
 
-void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb,
-                          target_ulong *data)
+void mips_restore_state_to_opc(CPUState *cs,
+                               const TranslationBlock *tb,
+                               const uint64_t *data)
 {
+    MIPSCPU *cpu = MIPS_CPU(cs);
+    CPUMIPSState *env = &cpu->env;
+
     env->active_tc.PC = data[0];
     env->hflags &= ~MIPS_HFLAG_BMASK;
     env->hflags |= data[1];

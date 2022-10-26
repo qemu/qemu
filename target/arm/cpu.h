@@ -3410,6 +3410,14 @@ extern const uint64_t pred_esz_masks[5];
 #define PAGE_MTE            PAGE_TARGET_2
 #define PAGE_TARGET_STICKY  PAGE_MTE
 
+/* We associate one allocation tag per 16 bytes, the minimum.  */
+#define LOG2_TAG_GRANULE 4
+#define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
+
+#ifdef CONFIG_USER_ONLY
+#define TARGET_PAGE_DATA_SIZE (TARGET_PAGE_SIZE >> (LOG2_TAG_GRANULE + 1))
+#endif
+
 #ifdef TARGET_TAGGED_ADDRESSES
 /**
  * cpu_untagged_addr:

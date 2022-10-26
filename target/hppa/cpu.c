@@ -68,6 +68,24 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.psw_n = (tb->flags & PSW_N) != 0;
 }
 
+static void hppa_restore_state_to_opc(CPUState *cs,
+                                      const TranslationBlock *tb,
+                                      const uint64_t *data)
+{
+    HPPACPU *cpu = HPPA_CPU(cs);
+
+    cpu->env.iaoq_f = data[0];
+    if (data[1] != (target_ureg)-1) {
+        cpu->env.iaoq_b = data[1];
+    }
+    /*
+     * Since we were executing the instruction at IAOQ_F, and took some
+     * sort of action that provoked the cpu_restore_state, we can infer
+     * that the instruction was not nullified.
+     */
+    cpu->env.psw_n = 0;
+}
+
 static bool hppa_cpu_has_work(CPUState *cs)
 {
     return cs->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
@@ -153,6 +171,7 @@ static const struct SysemuCPUOps hppa_sysemu_ops = {
 static const struct TCGCPUOps hppa_tcg_ops = {
     .initialize = hppa_translate_init,
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
+    .restore_state_to_opc = hppa_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = hppa_cpu_tlb_fill,

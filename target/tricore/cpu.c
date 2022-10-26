@@ -58,6 +58,16 @@ static void tricore_cpu_synchronize_from_tb(CPUState *cs,
     env->PC = tb_pc(tb);
 }
 
+static void tricore_restore_state_to_opc(CPUState *cs,
+                                         const TranslationBlock *tb,
+                                         const uint64_t *data)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(cs);
+    CPUTriCoreState *env = &cpu->env;
+
+    env->PC = data[0];
+}
+
 static void tricore_cpu_reset(DeviceState *dev)
 {
     CPUState *s = CPU(dev);
@@ -161,6 +171,7 @@ static const struct SysemuCPUOps tricore_sysemu_ops = {
 static const struct TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
+    .restore_state_to_opc = tricore_restore_state_to_opc,
     .tlb_fill = tricore_cpu_tlb_fill,
 };
 

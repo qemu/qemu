@@ -46,6 +46,18 @@ static void openrisc_cpu_synchronize_from_tb(CPUState *cs,
     cpu->env.pc = tb_pc(tb);
 }
 
+static void openrisc_restore_state_to_opc(CPUState *cs,
+                                          const TranslationBlock *tb,
+                                          const uint64_t *data)
+{
+    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
+
+    cpu->env.pc = data[0];
+    cpu->env.dflag = data[1] & 1;
+    if (data[1] & 2) {
+        cpu->env.ppc = cpu->env.pc - 4;
+    }
+}
 
 static bool openrisc_cpu_has_work(CPUState *cs)
 {
@@ -203,6 +215,7 @@ static const struct SysemuCPUOps openrisc_sysemu_ops = {
 static const struct TCGCPUOps openrisc_tcg_ops = {
     .initialize = openrisc_translate_init,
     .synchronize_from_tb = openrisc_cpu_synchronize_from_tb,
+    .restore_state_to_opc = openrisc_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = openrisc_cpu_tlb_fill,

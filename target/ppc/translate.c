@@ -7739,9 +7739,3 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
 
     translator_loop(cs, tb, max_insns, pc, host_pc, &ppc_tr_ops, &ctx.base);
 }
-
-void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->nip = data[0];
-}

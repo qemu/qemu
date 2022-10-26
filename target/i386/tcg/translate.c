@@ -7023,18 +7023,3 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns,
 
     translator_loop(cpu, tb, max_insns, pc, host_pc, &i386_tr_ops, &dc.base);
 }
-
-void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    int cc_op = data[1];
-
-    if (TARGET_TB_PCREL) {
-        env->eip = (env->eip & TARGET_PAGE_MASK) | data[0];
-    } else {
-        env->eip = data[0] - tb->cs_base;
-    }
-    if (cc_op != CC_OP_DYNAMIC) {
-        env->cc_op = cc_op;
-    }
-}

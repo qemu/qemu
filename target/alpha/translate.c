@@ -3049,9 +3049,3 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns,
     DisasContext dc;
     translator_loop(cpu, tb, max_insns, pc, host_pc, &alpha_tr_ops, &dc.base);
 }
-
-void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}

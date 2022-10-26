@@ -6691,9 +6691,12 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
     translator_loop(cs, tb, max_insns, pc, host_pc, &s390x_tr_ops, &dc.base);
 }
 
-void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb,
-                          target_ulong *data)
+void s390x_restore_state_to_opc(CPUState *cs,
+                                const TranslationBlock *tb,
+                                const uint64_t *data)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     int cc_op = data[1];
 
     env->psw.addr = data[0];

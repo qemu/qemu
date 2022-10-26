@@ -1355,12 +1355,6 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}
-
 static void translate_abs(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {

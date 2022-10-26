@@ -1164,10 +1164,6 @@ void arm_log_exception(CPUState *cs);
  */
 #define GMID_EL1_BS  6
 
-/* We associate one allocation tag per 16 bytes, the minimum.  */
-#define LOG2_TAG_GRANULE 4
-#define TAG_GRANULE      (1 << LOG2_TAG_GRANULE)
-
 /*
  * SVE predicates are 1/8 the size of SVE vectors, and cannot use
  * the same simd_desc() encoding due to restrictions on size.

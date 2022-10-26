@@ -182,7 +182,6 @@ int target_mprotect(abi_ulong start, abi_ulong len, int target_prot)
     }
 
     page_set_flags(start, start + len, page_flags);
-    tb_invalidate_phys_range(start, start + len);
     ret = 0;
 
 error:
@@ -662,7 +661,6 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
             qemu_log_unlock(f);
         }
     }
-    tb_invalidate_phys_range(start, start + len);
     mmap_unlock();
     return start;
 fail:
@@ -766,7 +764,6 @@ int target_munmap(abi_ulong start, abi_ulong len)
 
     if (ret == 0) {
         page_set_flags(start, start + len, 0);
-        tb_invalidate_phys_range(start, start + len);
     }
     mmap_unlock();
     return ret;
@@ -856,7 +853,6 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         page_set_flags(new_addr, new_addr + new_size,
                        prot | PAGE_VALID | PAGE_RESET);
     }
-    tb_invalidate_phys_range(new_addr, new_addr + new_size);
     mmap_unlock();
     return new_addr;
 }

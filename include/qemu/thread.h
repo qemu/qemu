@@ -227,7 +227,7 @@ struct QemuSpin {
 
 static inline void qemu_spin_init(QemuSpin *spin)
 {
-    __sync_lock_release(&spin->value);
+    qatomic_set(&spin->value, 0);
 #ifdef CONFIG_TSAN
     __tsan_mutex_create(spin, __tsan_mutex_not_static);
 #endif
@@ -246,7 +246,7 @@ static inline void qemu_spin_lock(QemuSpin *spin)
 #ifdef CONFIG_TSAN
     __tsan_mutex_pre_lock(spin, 0);
 #endif
-    while (unlikely(__sync_lock_test_and_set(&spin->value, true))) {
+    while (unlikely(qatomic_xchg(&spin->value, 1))) {
         while (qatomic_read(&spin->value)) {
             cpu_relax();
         }
@@ -261,7 +261,7 @@ static inline bool qemu_spin_trylock(QemuSpin *spin)
 #ifdef CONFIG_TSAN
     __tsan_mutex_pre_lock(spin, __tsan_mutex_try_lock);
 #endif
-    bool busy = __sync_lock_test_and_set(&spin->value, true);
+    bool busy = qatomic_xchg(&spin->value, true);
 #ifdef CONFIG_TSAN
     unsigned flags = __tsan_mutex_try_lock;
     flags |= busy ? __tsan_mutex_try_lock_failed : 0;
@@ -280,7 +280,7 @@ static inline void qemu_spin_unlock(QemuSpin *spin)
 #ifdef CONFIG_TSAN
     __tsan_mutex_pre_unlock(spin, 0);
 #endif
-    __sync_lock_release(&spin->value);
+    qatomic_store_release(&spin->value, 0);
 #ifdef CONFIG_TSAN
     __tsan_mutex_post_unlock(spin, 0);
 #endif
