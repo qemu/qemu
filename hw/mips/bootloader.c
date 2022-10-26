@@ -165,15 +165,29 @@ void bl_gen_jump_to(uint32_t **p, target_ulong jump_addr)
     bl_gen_nop(p); /* delay slot */
 }
 
-void bl_gen_jump_kernel(uint32_t **p, target_ulong sp, target_ulong a0,
-                        target_ulong a1, target_ulong a2, target_ulong a3,
+void bl_gen_jump_kernel(uint32_t **p,
+                        bool set_sp, target_ulong sp,
+                        bool set_a0, target_ulong a0,
+                        bool set_a1, target_ulong a1,
+                        bool set_a2, target_ulong a2,
+                        bool set_a3, target_ulong a3,
                         target_ulong kernel_addr)
 {
-    bl_gen_load_ulong(p, BL_REG_SP, sp);
-    bl_gen_load_ulong(p, BL_REG_A0, a0);
-    bl_gen_load_ulong(p, BL_REG_A1, a1);
-    bl_gen_load_ulong(p, BL_REG_A2, a2);
-    bl_gen_load_ulong(p, BL_REG_A3, a3);
+    if (set_sp) {
+        bl_gen_load_ulong(p, BL_REG_SP, sp);
+    }
+    if (set_a0) {
+        bl_gen_load_ulong(p, BL_REG_A0, a0);
+    }
+    if (set_a1) {
+        bl_gen_load_ulong(p, BL_REG_A1, a1);
+    }
+    if (set_a2) {
+        bl_gen_load_ulong(p, BL_REG_A2, a2);
+    }
+    if (set_a3) {
+        bl_gen_load_ulong(p, BL_REG_A3, a3);
+    }
 
     bl_gen_jump_to(p, kernel_addr);
 }
