@@ -882,6 +882,7 @@ static void get_single_disk_info(int disk_number,
             || disk->bus_type == GUEST_DISK_BUS_TYPE_RAID
             /* This bus type is not supported before Windows Server 2003 SP1 */
             || disk->bus_type == GUEST_DISK_BUS_TYPE_SAS
+            || disk->bus_type == GUEST_DISK_BUS_TYPE_USB
         ) {
         /* We are able to use the same ioctls for different bus types
          * according to Microsoft docs
