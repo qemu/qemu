@@ -158,6 +158,7 @@ static int cap_hpage_1m;
 static int cap_vcpu_resets;
 static int cap_protected;
 static int cap_zpci_op;
+static int cap_protected_dump;
 
 static bool mem_op_storage_key_support;
 
@@ -364,6 +365,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
     cap_zpci_op = kvm_check_extension(s, KVM_CAP_S390_ZPCI_OP);
+    cap_protected_dump = kvm_check_extension(s, KVM_CAP_S390_PROTECTED_DUMP);
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
@@ -2043,6 +2045,11 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
         kick.flags |= KVM_IOEVENTFD_FLAG_DEASSIGN;
     }
     return kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
+}
+
+int kvm_s390_get_protected_dump(void)
+{
+    return cap_protected_dump;
 }
 
 int kvm_s390_get_ri(void)
