@@ -18,10 +18,29 @@
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 
 /* Store last executed instruction on each vCPU as a GString */
-GArray *last_exec;
+static GPtrArray *last_exec;
+static GMutex expand_array_lock;
 
 static GPtrArray *imatches;
 static GArray *amatches;
+
+/*
+ * Expand last_exec array.
+ *
+ * As we could have multiple threads trying to do this we need to
+ * serialise the expansion under a lock. Threads accessing already
+ * created entries can continue without issue even if the ptr array
+ * gets reallocated during resize.
+ */
+static void expand_last_exec(int cpu_index)
+{
+    g_mutex_lock(&expand_array_lock);
+    while (cpu_index >= last_exec->len) {
+        GString *s = g_string_new(NULL);
+        g_ptr_array_add(last_exec, s);
+    }
+    g_mutex_unlock(&expand_array_lock);
+}
 
 /**
  * Add memory read or write information to current instruction log
@@ -33,7 +52,7 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
 
     /* Find vCPU in array */
     g_assert(cpu_index < last_exec->len);
-    s = g_array_index(last_exec, GString *, cpu_index);
+    s = g_ptr_array_index(last_exec, cpu_index);
 
     /* Indicate type of memory access */
     if (qemu_plugin_mem_is_store(info)) {
@@ -61,11 +80,10 @@ static void vcpu_insn_exec(unsigned int cpu_index, void *udata)
     GString *s;
 
     /* Find or create vCPU in array */
-    while (cpu_index >= last_exec->len) {
-        s = g_string_new(NULL);
-        g_array_append_val(last_exec, s);
+    if (cpu_index >= last_exec->len) {
+        expand_last_exec(cpu_index);
     }
-    s = g_array_index(last_exec, GString *, cpu_index);
+    s = g_ptr_array_index(last_exec, cpu_index);
 
     /* Print previous instruction in cache */
     if (s->len) {
@@ -163,7 +181,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     guint i;
     GString *s;
     for (i = 0; i < last_exec->len; i++) {
-        s = g_array_index(last_exec, GString *, i);
+        s = g_ptr_array_index(last_exec, i);
         if (s->str) {
             qemu_plugin_outs(s->str);
             qemu_plugin_outs("\n");
@@ -201,7 +219,11 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
      * Initialize dynamic array to cache vCPU instruction. In user mode
      * we don't know the size before emulation.
      */
-    last_exec = g_array_new(FALSE, FALSE, sizeof(GString *));
+    if (info->system_emulation) {
+        last_exec = g_ptr_array_sized_new(info->system.max_vcpus);
+    } else {
+        last_exec = g_ptr_array_new();
+    }
 
     for (int i = 0; i < argc; i++) {
         char *opt = argv[i];
