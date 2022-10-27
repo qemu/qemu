@@ -547,12 +547,14 @@ F: */*win32*
 F: include/*/*win32*
 X: qga/*win32*
 F: qemu.nsi
+F: scripts/nsis.py
 
 Darwin (macOS, iOS)
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
 S: Odd Fixes
 F: .gitlab-ci.d/cirrus/macos-*
 F: */*.m
+F: scripts/entitlement.sh
 
 Alpha Machines
 --------------
@@ -3762,6 +3764,29 @@ F: docs/about/deprecated.rst
 
 Build System
 ------------
+Meson
+M: Paolo Bonzini <pbonzini@redhat.com>
+R: Marc-André Lureau <marcandre.lureau@redhat.com>
+R: Daniel P. Berrange <berrange@redhat.com>
+R: Thomas Huth <thuth@redhat.com>
+R: Philippe Mathieu-Daudé <philmd@linaro.org>
+S: Maintained
+F: meson.build
+F: meson_options.txt
+F: scripts/meson-buildoptions.*
+F: scripts/check_sparse.py
+F: scripts/symlink-install-tree.py
+
+Top Level Makefile and configure
+M: Paolo Bonzini <pbonzini@redhat.com>
+R: Alex Bennée <alex.bennee@linaro.org>
+R: Thomas Huth <thuth@redhat.com>
+S: Maintained
+F: Makefile
+F: configure
+F: scripts/mtest2make.py
+F: tests/Makefile.include
+
 GIT submodules
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
