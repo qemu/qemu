@@ -2486,6 +2486,9 @@ echo "HOST_CC=$host_cc" >> $config_host_mak
 if test -n "$gdb_bin"; then
     echo "HAVE_GDB_BIN=$gdb_bin" >> $config_host_mak
 fi
+if test "$plugins" = "yes" ; then
+    echo "CONFIG_PLUGIN=y" >> $config_host_mak
+fi
 
 tcg_tests_targets=
 for target in $target_list; do
