@@ -1522,21 +1522,37 @@ IOInstEnding css_do_xsch(SubchDev *sch)
 IOInstEnding css_do_csch(SubchDev *sch)
 {
     SCHIB *schib = &sch->curr_status;
+    uint16_t old_scsw_ctrl;
+    IOInstEnding ccode;
 
     if (~(schib->pmcw.flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         return IOINST_CC_NOT_OPERATIONAL;
     }
 
+    /*
+     * Save the current scsw.ctrl in case CSCH fails and we need
+     * to revert the scsw to the status quo ante.
+     */
+    old_scsw_ctrl = schib->scsw.ctrl;
+
     /* Trigger the clear function. */
     schib->scsw.ctrl &= ~(SCSW_CTRL_MASK_FCTL | SCSW_CTRL_MASK_ACTL);
     schib->scsw.ctrl |= SCSW_FCTL_CLEAR_FUNC | SCSW_ACTL_CLEAR_PEND;
 
-    return do_subchannel_work(sch);
+    ccode = do_subchannel_work(sch);
+
+    if (ccode != IOINST_CC_EXPECTED) {
+        schib->scsw.ctrl = old_scsw_ctrl;
+    }
+
+    return ccode;
 }
 
 IOInstEnding css_do_hsch(SubchDev *sch)
 {
     SCHIB *schib = &sch->curr_status;
+    uint16_t old_scsw_ctrl;
+    IOInstEnding ccode;
 
     if (~(schib->pmcw.flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         return IOINST_CC_NOT_OPERATIONAL;
@@ -1553,6 +1569,12 @@ IOInstEnding css_do_hsch(SubchDev *sch)
         return IOINST_CC_BUSY;
     }
 
+    /*
+     * Save the current scsw.ctrl in case HSCH fails and we need
+     * to revert the scsw to the status quo ante.
+     */
+    old_scsw_ctrl = schib->scsw.ctrl;
+
     /* Trigger the halt function. */
     schib->scsw.ctrl |= SCSW_FCTL_HALT_FUNC;
     schib->scsw.ctrl &= ~SCSW_FCTL_START_FUNC;
@@ -1564,7 +1586,13 @@ IOInstEnding css_do_hsch(SubchDev *sch)
     }
     schib->scsw.ctrl |= SCSW_ACTL_HALT_PEND;
 
-    return do_subchannel_work(sch);
+    ccode = do_subchannel_work(sch);
+
+    if (ccode != IOINST_CC_EXPECTED) {
+        schib->scsw.ctrl = old_scsw_ctrl;
+    }
+
+    return ccode;
 }
 
 static void css_update_chnmon(SubchDev *sch)
@@ -1605,6 +1633,8 @@ static void css_update_chnmon(SubchDev *sch)
 IOInstEnding css_do_ssch(SubchDev *sch, ORB *orb)
 {
     SCHIB *schib = &sch->curr_status;
+    uint16_t old_scsw_ctrl, old_scsw_flags;
+    IOInstEnding ccode;
 
     if (~(schib->pmcw.flags) & (PMCW_FLAGS_MASK_DNV | PMCW_FLAGS_MASK_ENA)) {
         return IOINST_CC_NOT_OPERATIONAL;
@@ -1626,11 +1656,26 @@ IOInstEnding css_do_ssch(SubchDev *sch, ORB *orb)
     }
     sch->orb = *orb;
     sch->channel_prog = orb->cpa;
+
+    /*
+     * Save the current scsw.ctrl and scsw.flags in case SSCH fails and we need
+     * to revert the scsw to the status quo ante.
+     */
+    old_scsw_ctrl = schib->scsw.ctrl;
+    old_scsw_flags = schib->scsw.flags;
+
     /* Trigger the start function. */
     schib->scsw.ctrl |= (SCSW_FCTL_START_FUNC | SCSW_ACTL_START_PEND);
     schib->scsw.flags &= ~SCSW_FLAGS_MASK_PNO;
 
-    return do_subchannel_work(sch);
+    ccode = do_subchannel_work(sch);
+
+    if (ccode != IOINST_CC_EXPECTED) {
+        schib->scsw.ctrl = old_scsw_ctrl;
+        schib->scsw.flags = old_scsw_flags;
+    }
+
+    return ccode;
 }
 
 static void copy_irb_to_guest(IRB *dest, const IRB *src, const PMCW *pmcw,
