@@ -6612,7 +6612,7 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 static target_ulong get_next_pc(CPUS390XState *env, DisasContext *s,
                                 uint64_t pc)
 {
-    uint64_t insn = ld_code2(env, s, pc);
+    uint64_t insn = cpu_lduw_code(env, pc);
 
     return pc + get_ilen((insn >> 8) & 0xff);
 }
