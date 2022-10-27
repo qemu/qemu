@@ -321,25 +321,21 @@ static const TypeInfo glue_info = {
     },
 };
 
-typedef struct {
-    M68kCPU *cpu;
-    struct bi_record *rng_seed;
-} ResetInfo;
-
 static void main_cpu_reset(void *opaque)
 {
-    ResetInfo *reset_info = opaque;
-    M68kCPU *cpu = reset_info->cpu;
+    M68kCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
-
-    if (reset_info->rng_seed) {
-        qemu_guest_getrandom_nofail((void *)reset_info->rng_seed->data + 2,
-            be16_to_cpu(*(uint16_t *)reset_info->rng_seed->data));
-    }
 
     cpu_reset(cs);
     cpu->env.aregs[7] = ldl_phys(cs->as, 0);
     cpu->env.pc = ldl_phys(cs->as, 4);
+}
+
+static void rerandomize_rng_seed(void *opaque)
+{
+    struct bi_record *rng_seed = opaque;
+    qemu_guest_getrandom_nofail((void *)rng_seed->data + 2,
+                                be16_to_cpu(*(uint16_t *)rng_seed->data));
 }
 
 static uint8_t fake_mac_rom[] = {
@@ -397,7 +393,6 @@ static void q800_init(MachineState *machine)
     NubusBus *nubus;
     DeviceState *glue;
     DriveInfo *dinfo;
-    ResetInfo *reset_info;
     uint8_t rng_seed[32];
 
     linux_boot = (kernel_filename != NULL);
@@ -408,12 +403,9 @@ static void q800_init(MachineState *machine)
         exit(1);
     }
 
-    reset_info = g_new0(ResetInfo, 1);
-
     /* init CPUs */
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
-    reset_info->cpu = cpu;
-    qemu_register_reset(main_cpu_reset, reset_info);
+    qemu_register_reset(main_cpu_reset, cpu);
 
     /* RAM */
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
@@ -687,9 +679,10 @@ static void q800_init(MachineState *machine)
         BOOTINFO0(param_ptr, BI_LAST);
         rom_add_blob_fixed_as("bootinfo", param_blob, param_ptr - param_blob,
                               parameters_base, cs->as);
-        reset_info->rng_seed = rom_ptr_for_as(cs->as, parameters_base,
-                                              param_ptr - param_blob) +
-                               (param_rng_seed - param_blob);
+        qemu_register_reset_nosnapshotload(rerandomize_rng_seed,
+                            rom_ptr_for_as(cs->as, parameters_base,
+                                           param_ptr - param_blob) +
+                            (param_rng_seed - param_blob));
         g_free(param_blob);
     } else {
         uint8_t *ptr;

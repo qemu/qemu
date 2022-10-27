@@ -22,6 +22,7 @@
 #include "qemu/option.h"
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
+#include "qemu/guest-random.h"
 #include "sysemu/device_tree.h"
 #include "hw/loader.h"
 #include "hw/boards.h"
@@ -679,4 +680,24 @@ void hmp_dumpdtb(Monitor *mon, const QDict *qdict)
     }
 
     info_report("dtb dumped to %s", filename);
+}
+
+void qemu_fdt_randomize_seeds(void *fdt)
+{
+    int noffset, poffset, len;
+    const char *name;
+    uint8_t *data;
+
+    for (noffset = fdt_next_node(fdt, 0, NULL);
+         noffset >= 0;
+         noffset = fdt_next_node(fdt, noffset, NULL)) {
+        for (poffset = fdt_first_property_offset(fdt, noffset);
+             poffset >= 0;
+             poffset = fdt_next_property_offset(fdt, poffset)) {
+            data = (uint8_t *)fdt_getprop_by_offset(fdt, poffset, &name, &len);
+            if (!data || strcmp(name, "rng-seed"))
+                continue;
+            qemu_guest_getrandom_nofail(data, len);
+        }
+    }
 }

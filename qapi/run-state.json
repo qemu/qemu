@@ -86,12 +86,16 @@
 #                   ignores --no-reboot. This is useful for sanitizing
 #                   hypercalls on s390 that are used during kexec/kdump/boot
 #
+# @snapshot-load: A snapshot is being loaded by the record & replay
+#                 subsystem. This value is used only within QEMU.  It
+#                 doesn't occur in QMP. (since 7.2)
+#
 ##
 { 'enum': 'ShutdownCause',
   # Beware, shutdown_caused_by_guest() depends on enumeration order
   'data': [ 'none', 'host-error', 'host-qmp-quit', 'host-qmp-system-reset',
             'host-signal', 'host-ui', 'guest-shutdown', 'guest-reset',
-            'guest-panic', 'subsystem-reset'] }
+            'guest-panic', 'subsystem-reset', 'snapshot-load'] }
 
 ##
 # @StatusInfo:
