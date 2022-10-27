@@ -42,6 +42,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/generic_event_device.h"
 #include "hw/acpi/tpm.h"
+#include "hw/acpi/hmat.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
@@ -986,6 +987,12 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
             acpi_add_table(table_offsets, tables_blob);
             build_slit(tables_blob, tables->linker, ms, vms->oem_id,
                        vms->oem_table_id);
+        }
+
+        if (ms->numa_state->hmat_enabled) {
+            acpi_add_table(table_offsets, tables_blob);
+            build_hmat(tables_blob, tables->linker, ms->numa_state,
+                       vms->oem_id, vms->oem_table_id);
         }
     }
 
