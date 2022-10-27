@@ -1944,7 +1944,7 @@ bool blk_enable_write_cache(BlockBackend *blk)
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
-    GLOBAL_STATE_CODE();
+    IO_CODE();
     blk->enable_write_cache = wce;
 }
 
