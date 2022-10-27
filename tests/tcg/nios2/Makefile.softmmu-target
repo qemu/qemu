@@ -25,8 +25,7 @@ LDFLAGS += -Wl,-T$(LINK_SCRIPT) -static -nostdlib $(CRT_OBJS) -lgcc
 %: %.o $(LINK_SCRIPT) $(CRT_OBJS)
 	$(call quiet-command, $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS), LD, $@)
 
-# FIXME: nios2 semihosting writes to stdout, not a chardev
-QEMU_OPTS = -M 10m50-ghrd,vic=on -semihosting >$@.out -kernel
+QEMU_OPTS = -M 10m50-ghrd,vic=on -semihosting-config enable=on,target=native,chardev=output -kernel
 
 memory: CFLAGS+=-DCHECK_UNALIGNED=0
 TESTS += $(MULTIARCH_TESTS)
