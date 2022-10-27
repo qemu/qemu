@@ -3622,6 +3622,17 @@ static void gen_fcpy_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
     tcg_gen_mov_i32(dst, src);
 }
 
+static bool trans_fid_f(DisasContext *ctx, arg_fid_f *a)
+{
+    nullify_over(ctx);
+#if TARGET_REGISTER_BITS == 64
+    save_frd(0, tcg_const_i64(0x13080000000000ULL)); /* PA8700 (PCX-W2) */
+#else
+    save_frd(0, tcg_const_i64(0x0f080000000000ULL)); /* PA7300LC (PCX-L2) */
+#endif
+    return nullify_end(ctx);
+}
+
 static bool trans_fcpy_f(DisasContext *ctx, arg_fclass01 *a)
 {
     return do_fop_wew(ctx, a->t, a->r, gen_fcpy_f);
