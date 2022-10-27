@@ -14,6 +14,9 @@ from qemu.utils import get_info_usernet_hostfwd_port
 
 
 class InfoUsernet(QemuSystemTest):
+    """
+    :avocado: tags=machine:none
+    """
 
     def test_hostfwd(self):
         self.require_netdev('user')
