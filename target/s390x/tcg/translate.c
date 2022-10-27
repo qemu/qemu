@@ -6317,12 +6317,18 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
     if (unlikely(s->ex_value)) {
         /* Drop the EX data now, so that it's clear on exception paths.  */
         TCGv_i64 zero = tcg_const_i64(0);
+        int i;
         tcg_gen_st_i64(zero, cpu_env, offsetof(CPUS390XState, ex_value));
         tcg_temp_free_i64(zero);
 
         /* Extract the values saved by EXECUTE.  */
         insn = s->ex_value & 0xffffffffffff0000ull;
         ilen = s->ex_value & 0xf;
+        /* register insn bytes with translator so plugins work */
+        for (i = 0; i < ilen; i++) {
+            uint8_t byte = extract64(insn, 56 - (i * 8), 8);
+            translator_fake_ldb(byte, pc + i);
+        }
         op = insn >> 56;
     } else {
         insn = ld_code2(env, s, pc);

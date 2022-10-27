@@ -211,6 +211,23 @@ translator_ldq_swap(CPUArchState *env, DisasContextBase *db,
     return ret;
 }
 
+/**
+ * translator_fake_ldb - fake instruction load
+ * @insn8: byte of instruction
+ * @pc: program counter of instruction
+ *
+ * This is a special case helper used where the instruction we are
+ * about to translate comes from somewhere else (e.g. being
+ * re-synthesised for s390x "ex"). It ensures we update other areas of
+ * the translator with details of the executed instruction.
+ */
+
+static inline void translator_fake_ldb(uint8_t insn8, abi_ptr pc)
+{
+    plugin_insn_append(pc, &insn8, sizeof(insn8));
+}
+
+
 /*
  * Return whether addr is on the same page as where disassembly started.
  * Translators can use this to enforce the rule that only single-insn
