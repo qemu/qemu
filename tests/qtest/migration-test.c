@@ -1342,7 +1342,7 @@ static void test_precopy_common(MigrateCommon *args)
         wait_for_migration_fail(from, allow_active);
 
         if (args->result == MIG_TEST_FAIL_DEST_QUIT_ERR) {
-            qtest_set_expected_status(to, 1);
+            qtest_set_expected_status(to, EXIT_FAILURE);
         }
     } else {
         if (args->iterations) {
@@ -1738,7 +1738,7 @@ static void do_test_validate_uuid(MigrateStart *args, bool should_fail)
     migrate_qmp(from, uri, "{}");
 
     if (should_fail) {
-        qtest_set_expected_status(to, 1);
+        qtest_set_expected_status(to, EXIT_FAILURE);
         wait_for_migration_fail(from, true);
     } else {
         wait_for_migration_complete(from);
