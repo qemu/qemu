@@ -35,29 +35,6 @@
 #define KERNEL_LOAD_ADDR 0x01000000
 #define KERNEL_GAP       0x00100000
 
-#define ESCC_CLOCK 3686400
-
-/* Old World IRQs */
-#define OLDWORLD_CUDA_IRQ      0x12
-#define OLDWORLD_ESCCB_IRQ     0x10
-#define OLDWORLD_ESCCA_IRQ     0xf
-#define OLDWORLD_IDE0_IRQ      0xd
-#define OLDWORLD_IDE0_DMA_IRQ  0x2
-#define OLDWORLD_IDE1_IRQ      0xe
-#define OLDWORLD_IDE1_DMA_IRQ  0x3
-
-/* New World IRQs */
-#define NEWWORLD_CUDA_IRQ      0x19
-#define NEWWORLD_PMU_IRQ       0x19
-#define NEWWORLD_ESCCB_IRQ     0x24
-#define NEWWORLD_ESCCA_IRQ     0x25
-#define NEWWORLD_IDE0_IRQ      0xd
-#define NEWWORLD_IDE0_DMA_IRQ  0x2
-#define NEWWORLD_IDE1_IRQ      0xe
-#define NEWWORLD_IDE1_DMA_IRQ  0x3
-#define NEWWORLD_EXTING_GPIO1  0x2f
-#define NEWWORLD_EXTING_GPIO9  0x37
-
 /* Grackle PCI */
 #define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 
