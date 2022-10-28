@@ -95,15 +95,17 @@ typedef struct Core99MachineState Core99MachineState;
 DECLARE_INSTANCE_CHECKER(Core99MachineState, CORE99_MACHINE,
                          TYPE_CORE99_MACHINE)
 
-#define CORE99_VIA_CONFIG_CUDA     0x0
-#define CORE99_VIA_CONFIG_PMU      0x1
-#define CORE99_VIA_CONFIG_PMU_ADB  0x2
+typedef enum {
+    CORE99_VIA_CONFIG_CUDA = 0,
+    CORE99_VIA_CONFIG_PMU,
+    CORE99_VIA_CONFIG_PMU_ADB
+} Core99ViaConfig;
 
 struct Core99MachineState {
     /*< private >*/
     MachineState parent;
 
-    uint8_t via_config;
+    Core99ViaConfig via_config;
 };
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
