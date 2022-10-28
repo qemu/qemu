@@ -1,5 +1,5 @@
 /*
- * QEMU PowerMac emulation shared definitions and prototypes
+ * PowerMac NVRAM emulation
  *
  * Copyright (c) 2004-2007 Fabrice Bellard
  * Copyright (c) 2007 Jocelyn Mayer
@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef PPC_MAC_H
-#define PPC_MAC_H
+#ifndef MAC_NVRAM_H
+#define MAC_NVRAM_H
 
 #include "exec/memory.h"
 #include "hw/sysbus.h"
@@ -47,5 +47,6 @@ struct MacIONVRAMState {
     uint8_t *data;
 };
 
-void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
-#endif /* PPC_MAC_H */
+void pmac_format_nvram_partition(MacIONVRAMState *nvr, int len);
+
+#endif /* MAC_NVRAM_H */

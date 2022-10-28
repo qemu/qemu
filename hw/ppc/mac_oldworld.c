@@ -30,7 +30,6 @@
 #include "qapi/error.h"
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
-#include "mac.h"
 #include "hw/boards.h"
 #include "hw/input/adb.h"
 #include "sysemu/sysemu.h"
