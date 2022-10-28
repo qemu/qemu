@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/pci/pci_host.h"
 #include "hw/ppc/mac.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
@@ -33,18 +32,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qom/object.h"
-
-OBJECT_DECLARE_SIMPLE_TYPE(GrackleState, GRACKLE_PCI_HOST_BRIDGE)
-
-struct GrackleState {
-    PCIHostState parent_obj;
-
-    uint32_t ofw_addr;
-    qemu_irq irqs[4];
-    MemoryRegion pci_mmio;
-    MemoryRegion pci_hole;
-    MemoryRegion pci_io;
-};
+#include "hw/pci-host/grackle.h"
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
 static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)

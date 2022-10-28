@@ -1,7 +1,7 @@
 /*
- * QEMU PowerMac emulation shared definitions and prototypes
+ * QEMU Grackle PCI host (heathrow OldWorld PowerMac)
  *
- * Copyright (c) 2004-2007 Fabrice Bellard
+ * Copyright (c) 2006-2007 Fabrice Bellard
  * Copyright (c) 2007 Jocelyn Mayer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,33 +23,22 @@
  * THE SOFTWARE.
  */
 
-#ifndef PPC_MAC_H
-#define PPC_MAC_H
+#ifndef GRACKLE_H
+#define GRACKLE_H
 
-#include "exec/memory.h"
-#include "hw/sysbus.h"
+#include "hw/pci/pci_host.h"
 
-#define NVRAM_SIZE        0x2000
-#define PROM_FILENAME    "openbios-ppc"
+#define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
+OBJECT_DECLARE_SIMPLE_TYPE(GrackleState, GRACKLE_PCI_HOST_BRIDGE)
 
-#define KERNEL_LOAD_ADDR 0x01000000
-#define KERNEL_GAP       0x00100000
+struct GrackleState {
+    PCIHostState parent_obj;
 
-/* Mac NVRAM */
-#define TYPE_MACIO_NVRAM "macio-nvram"
-OBJECT_DECLARE_SIMPLE_TYPE(MacIONVRAMState, MACIO_NVRAM)
-
-struct MacIONVRAMState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    uint32_t size;
-    uint32_t it_shift;
-
-    MemoryRegion mem;
-    uint8_t *data;
+    uint32_t ofw_addr;
+    qemu_irq irqs[4];
+    MemoryRegion pci_mmio;
+    MemoryRegion pci_hole;
+    MemoryRegion pci_io;
 };
 
-void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
-#endif /* PPC_MAC_H */
+#endif
