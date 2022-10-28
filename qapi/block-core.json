@@ -2960,6 +2960,7 @@
             'raw', 'rbd',
             { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
             'ssh', 'throttle', 'vdi', 'vhdx',
+            { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
             { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
             { 'name': 'virtio-blk-vhost-vdpa', 'if': 'CONFIG_BLKIO' },
             'vmdk', 'vpc', 'vvfat' ] }
@@ -3712,6 +3713,20 @@
   'if': 'CONFIG_BLKIO' }
 
 ##
+# @BlockdevOptionsVirtioBlkVfioPci:
+#
+# Driver specific block device options for the virtio-blk-vfio-pci backend.
+#
+# @path: path to the PCI device's sysfs directory (e.g.
+#        /sys/bus/pci/devices/0000:00:01.0).
+#
+# Since: 7.2
+##
+{ 'struct': 'BlockdevOptionsVirtioBlkVfioPci',
+  'data': { 'path': 'str' },
+  'if': 'CONFIG_BLKIO' }
+
+##
 # @BlockdevOptionsVirtioBlkVhostUser:
 #
 # Driver specific block device options for the virtio-blk-vhost-user backend.
@@ -4390,6 +4405,9 @@
       'throttle':   'BlockdevOptionsThrottle',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
+      'virtio-blk-vfio-pci':
+                    { 'type': 'BlockdevOptionsVirtioBlkVfioPci',
+                      'if': 'CONFIG_BLKIO' },
       'virtio-blk-vhost-user':
                     { 'type': 'BlockdevOptionsVirtioBlkVhostUser',
                       'if': 'CONFIG_BLKIO' },

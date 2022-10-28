@@ -25,6 +25,7 @@
  */
 #define DRIVER_IO_URING "io_uring"
 #define DRIVER_NVME_IO_URING "nvme-io_uring"
+#define DRIVER_VIRTIO_BLK_VFIO_PCI "virtio-blk-vfio-pci"
 #define DRIVER_VIRTIO_BLK_VHOST_USER "virtio-blk-vhost-user"
 #define DRIVER_VIRTIO_BLK_VHOST_VDPA "virtio-blk-vhost-vdpa"
 
@@ -704,6 +705,8 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         ret = blkio_io_uring_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_NVME_IO_URING) == 0) {
         ret = blkio_nvme_io_uring(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VFIO_PCI) == 0) {
+        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_USER) == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_VDPA) == 0) {
@@ -989,6 +992,10 @@ static BlockDriver bdrv_nvme_io_uring = BLKIO_DRIVER(
     .bdrv_needs_filename = true,
 );
 
+static BlockDriver bdrv_virtio_blk_vfio_pci = BLKIO_DRIVER(
+    DRIVER_VIRTIO_BLK_VFIO_PCI
+);
+
 static BlockDriver bdrv_virtio_blk_vhost_user = BLKIO_DRIVER(
     DRIVER_VIRTIO_BLK_VHOST_USER
 );
@@ -1001,6 +1008,7 @@ static void bdrv_blkio_init(void)
 {
     bdrv_register(&bdrv_io_uring);
     bdrv_register(&bdrv_nvme_io_uring);
+    bdrv_register(&bdrv_virtio_blk_vfio_pci);
     bdrv_register(&bdrv_virtio_blk_vhost_user);
     bdrv_register(&bdrv_virtio_blk_vhost_vdpa);
 }
