@@ -97,11 +97,13 @@ struct VTDPASIDEntry {
 struct VTDAddressSpace {
     PCIBus *bus;
     uint8_t devfn;
+    uint32_t pasid;
     AddressSpace as;
     IOMMUMemoryRegion iommu;
     MemoryRegion root;          /* The root container of the device */
     MemoryRegion nodmar;        /* The alias of shared nodmar MR */
     MemoryRegion iommu_ir;      /* Interrupt region: 0xfeeXXXXX */
+    MemoryRegion iommu_ir_fault; /* Interrupt region for catching fault */
     IntelIOMMUState *iommu_state;
     VTDContextCacheEntry context_cache_entry;
     QLIST_ENTRY(VTDAddressSpace) next;
@@ -113,6 +115,7 @@ struct VTDAddressSpace {
 struct VTDIOTLBEntry {
     uint64_t gfn;
     uint16_t domain_id;
+    uint32_t pasid;
     uint64_t slpte;
     uint64_t mask;
     uint8_t access_flags;
@@ -261,6 +264,7 @@ struct IntelIOMMUState {
     uint8_t aw_bits;                /* Host/IOVA address width (in bits) */
     bool dma_drain;                 /* Whether DMA r/w draining enabled */
     bool dma_translation;           /* Whether DMA translation supported */
+    bool pasid;                     /* Whether to support PASID */
 
     /*
      * Protects IOMMU states in general.  Currently it protects the
@@ -272,6 +276,7 @@ struct IntelIOMMUState {
 /* Find the VTD Address space associated with the given bus pointer,
  * create a new one if none exists
  */
-VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn);
+VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
+                                 int devfn, unsigned int pasid);
 
 #endif

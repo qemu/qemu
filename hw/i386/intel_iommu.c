@@ -58,6 +58,14 @@
 struct vtd_as_key {
     PCIBus *bus;
     uint8_t devfn;
+    uint32_t pasid;
+};
+
+struct vtd_iotlb_key {
+    uint64_t gfn;
+    uint32_t pasid;
+    uint32_t level;
+    uint16_t sid;
 };
 
 static void vtd_address_space_refresh_all(IntelIOMMUState *s);
@@ -199,14 +207,24 @@ static inline gboolean vtd_as_has_map_notifier(VTDAddressSpace *as)
 }
 
 /* GHashTable functions */
-static gboolean vtd_uint64_equal(gconstpointer v1, gconstpointer v2)
+static gboolean vtd_iotlb_equal(gconstpointer v1, gconstpointer v2)
 {
-    return *((const uint64_t *)v1) == *((const uint64_t *)v2);
+    const struct vtd_iotlb_key *key1 = v1;
+    const struct vtd_iotlb_key *key2 = v2;
+
+    return key1->sid == key2->sid &&
+           key1->pasid == key2->pasid &&
+           key1->level == key2->level &&
+           key1->gfn == key2->gfn;
 }
 
-static guint vtd_uint64_hash(gconstpointer v)
+static guint vtd_iotlb_hash(gconstpointer v)
 {
-    return (guint)*(const uint64_t *)v;
+    const struct vtd_iotlb_key *key = v;
+
+    return key->gfn | ((key->sid) << VTD_IOTLB_SID_SHIFT) |
+           (key->level) << VTD_IOTLB_LVL_SHIFT |
+           (key->pasid) << VTD_IOTLB_PASID_SHIFT;
 }
 
 static gboolean vtd_as_equal(gconstpointer v1, gconstpointer v2)
@@ -214,7 +232,8 @@ static gboolean vtd_as_equal(gconstpointer v1, gconstpointer v2)
     const struct vtd_as_key *key1 = v1;
     const struct vtd_as_key *key2 = v2;
 
-    return (key1->bus == key2->bus) && (key1->devfn == key2->devfn);
+    return (key1->bus == key2->bus) && (key1->devfn == key2->devfn) &&
+           (key1->pasid == key2->pasid);
 }
 
 /*
@@ -302,13 +321,6 @@ static void vtd_reset_caches(IntelIOMMUState *s)
     vtd_iommu_unlock(s);
 }
 
-static uint64_t vtd_get_iotlb_key(uint64_t gfn, uint16_t source_id,
-                                  uint32_t level)
-{
-    return gfn | ((uint64_t)(source_id) << VTD_IOTLB_SID_SHIFT) |
-           ((uint64_t)(level) << VTD_IOTLB_LVL_SHIFT);
-}
-
 static uint64_t vtd_get_iotlb_gfn(hwaddr addr, uint32_t level)
 {
     return (addr & vtd_slpt_level_page_mask(level)) >> VTD_PAGE_SHIFT_4K;
@@ -316,15 +328,17 @@ static uint64_t vtd_get_iotlb_gfn(hwaddr addr, uint32_t level)
 
 /* Must be called with IOMMU lock held */
 static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
-                                       hwaddr addr)
+                                       uint32_t pasid, hwaddr addr)
 {
+    struct vtd_iotlb_key key;
     VTDIOTLBEntry *entry;
-    uint64_t key;
     int level;
 
     for (level = VTD_SL_PT_LEVEL; level < VTD_SL_PML4_LEVEL; level++) {
-        key = vtd_get_iotlb_key(vtd_get_iotlb_gfn(addr, level),
-                                source_id, level);
+        key.gfn = vtd_get_iotlb_gfn(addr, level);
+        key.level = level;
+        key.sid = source_id;
+        key.pasid = pasid;
         entry = g_hash_table_lookup(s->iotlb, &key);
         if (entry) {
             goto out;
@@ -338,10 +352,11 @@ out:
 /* Must be with IOMMU lock held */
 static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
                              uint16_t domain_id, hwaddr addr, uint64_t slpte,
-                             uint8_t access_flags, uint32_t level)
+                             uint8_t access_flags, uint32_t level,
+                             uint32_t pasid)
 {
     VTDIOTLBEntry *entry = g_malloc(sizeof(*entry));
-    uint64_t *key = g_malloc(sizeof(*key));
+    struct vtd_iotlb_key *key = g_malloc(sizeof(*key));
     uint64_t gfn = vtd_get_iotlb_gfn(addr, level);
 
     trace_vtd_iotlb_page_update(source_id, addr, slpte, domain_id);
@@ -355,7 +370,13 @@ static void vtd_update_iotlb(IntelIOMMUState *s, uint16_t source_id,
     entry->slpte = slpte;
     entry->access_flags = access_flags;
     entry->mask = vtd_slpt_level_page_mask(level);
-    *key = vtd_get_iotlb_key(gfn, source_id, level);
+    entry->pasid = pasid;
+
+    key->gfn = gfn;
+    key->sid = source_id;
+    key->level = level;
+    key->pasid = pasid;
+
     g_hash_table_replace(s->iotlb, key, entry);
 }
 
@@ -448,7 +469,8 @@ static void vtd_set_frcd_and_update_ppf(IntelIOMMUState *s, uint16_t index)
 /* Must not update F field now, should be done later */
 static void vtd_record_frcd(IntelIOMMUState *s, uint16_t index,
                             uint16_t source_id, hwaddr addr,
-                            VTDFaultReason fault, bool is_write)
+                            VTDFaultReason fault, bool is_write,
+                            bool is_pasid, uint32_t pasid)
 {
     uint64_t hi = 0, lo;
     hwaddr frcd_reg_addr = DMAR_FRCD_REG_OFFSET + (((uint64_t)index) << 4);
@@ -456,7 +478,8 @@ static void vtd_record_frcd(IntelIOMMUState *s, uint16_t index,
     assert(index < DMAR_FRCD_REG_NR);
 
     lo = VTD_FRCD_FI(addr);
-    hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault);
+    hi = VTD_FRCD_SID(source_id) | VTD_FRCD_FR(fault) |
+         VTD_FRCD_PV(pasid) | VTD_FRCD_PP(is_pasid);
     if (!is_write) {
         hi |= VTD_FRCD_T;
     }
@@ -487,7 +510,8 @@ static bool vtd_try_collapse_fault(IntelIOMMUState *s, uint16_t source_id)
 /* Log and report an DMAR (address translation) fault to software */
 static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
                                   hwaddr addr, VTDFaultReason fault,
-                                  bool is_write)
+                                  bool is_write, bool is_pasid,
+                                  uint32_t pasid)
 {
     uint32_t fsts_reg = vtd_get_long_raw(s, DMAR_FSTS_REG);
 
@@ -514,7 +538,8 @@ static void vtd_report_dmar_fault(IntelIOMMUState *s, uint16_t source_id,
         return;
     }
 
-    vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault, is_write);
+    vtd_record_frcd(s, s->next_frcd_reg, source_id, addr, fault,
+                    is_write, is_pasid, pasid);
 
     if (fsts_reg & VTD_FSTS_PPF) {
         error_report_once("There are pending faults already, "
@@ -819,13 +844,15 @@ static int vtd_get_pe_from_pasid_table(IntelIOMMUState *s,
 
 static int vtd_ce_get_rid2pasid_entry(IntelIOMMUState *s,
                                       VTDContextEntry *ce,
-                                      VTDPASIDEntry *pe)
+                                      VTDPASIDEntry *pe,
+                                      uint32_t pasid)
 {
-    uint32_t pasid;
     dma_addr_t pasid_dir_base;
     int ret = 0;
 
-    pasid = VTD_CE_GET_RID2PASID(ce);
+    if (pasid == PCI_NO_PASID) {
+        pasid = VTD_CE_GET_RID2PASID(ce);
+    }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
     ret = vtd_get_pe_from_pasid_table(s, pasid_dir_base, pasid, pe);
 
@@ -834,15 +861,17 @@ static int vtd_ce_get_rid2pasid_entry(IntelIOMMUState *s,
 
 static int vtd_ce_get_pasid_fpd(IntelIOMMUState *s,
                                 VTDContextEntry *ce,
-                                bool *pe_fpd_set)
+                                bool *pe_fpd_set,
+                                uint32_t pasid)
 {
     int ret;
-    uint32_t pasid;
     dma_addr_t pasid_dir_base;
     VTDPASIDDirEntry pdire;
     VTDPASIDEntry pe;
 
-    pasid = VTD_CE_GET_RID2PASID(ce);
+    if (pasid == PCI_NO_PASID) {
+        pasid = VTD_CE_GET_RID2PASID(ce);
+    }
     pasid_dir_base = VTD_CE_GET_PASID_DIR_TABLE(ce);
 
     /*
@@ -888,12 +917,13 @@ static inline uint32_t vtd_ce_get_level(VTDContextEntry *ce)
 }
 
 static uint32_t vtd_get_iova_level(IntelIOMMUState *s,
-                                   VTDContextEntry *ce)
+                                   VTDContextEntry *ce,
+                                   uint32_t pasid)
 {
     VTDPASIDEntry pe;
 
     if (s->root_scalable) {
-        vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+        vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
         return VTD_PE_GET_LEVEL(&pe);
     }
 
@@ -906,12 +936,13 @@ static inline uint32_t vtd_ce_get_agaw(VTDContextEntry *ce)
 }
 
 static uint32_t vtd_get_iova_agaw(IntelIOMMUState *s,
-                                  VTDContextEntry *ce)
+                                  VTDContextEntry *ce,
+                                  uint32_t pasid)
 {
     VTDPASIDEntry pe;
 
     if (s->root_scalable) {
-        vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+        vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
         return 30 + ((pe.val[0] >> 2) & VTD_SM_PASID_ENTRY_AW) * 9;
     }
 
@@ -953,31 +984,33 @@ static inline bool vtd_ce_type_check(X86IOMMUState *x86_iommu,
 }
 
 static inline uint64_t vtd_iova_limit(IntelIOMMUState *s,
-                                      VTDContextEntry *ce, uint8_t aw)
+                                      VTDContextEntry *ce, uint8_t aw,
+                                      uint32_t pasid)
 {
-    uint32_t ce_agaw = vtd_get_iova_agaw(s, ce);
+    uint32_t ce_agaw = vtd_get_iova_agaw(s, ce, pasid);
     return 1ULL << MIN(ce_agaw, aw);
 }
 
 /* Return true if IOVA passes range check, otherwise false. */
 static inline bool vtd_iova_range_check(IntelIOMMUState *s,
                                         uint64_t iova, VTDContextEntry *ce,
-                                        uint8_t aw)
+                                        uint8_t aw, uint32_t pasid)
 {
     /*
      * Check if @iova is above 2^X-1, where X is the minimum of MGAW
      * in CAP_REG and AW in context-entry.
      */
-    return !(iova & ~(vtd_iova_limit(s, ce, aw) - 1));
+    return !(iova & ~(vtd_iova_limit(s, ce, aw, pasid) - 1));
 }
 
 static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
-                                          VTDContextEntry *ce)
+                                          VTDContextEntry *ce,
+                                          uint32_t pasid)
 {
     VTDPASIDEntry pe;
 
     if (s->root_scalable) {
-        vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+        vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
         return pe.val[0] & VTD_SM_PASID_ENTRY_SLPTPTR;
     }
 
@@ -1011,18 +1044,19 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
 static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
                              uint64_t iova, bool is_write,
                              uint64_t *slptep, uint32_t *slpte_level,
-                             bool *reads, bool *writes, uint8_t aw_bits)
+                             bool *reads, bool *writes, uint8_t aw_bits,
+                             uint32_t pasid)
 {
-    dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce);
-    uint32_t level = vtd_get_iova_level(s, ce);
+    dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce, pasid);
+    uint32_t level = vtd_get_iova_level(s, ce, pasid);
     uint32_t offset;
     uint64_t slpte;
     uint64_t access_right_check;
     uint64_t xlat, size;
 
-    if (!vtd_iova_range_check(s, iova, ce, aw_bits)) {
-        error_report_once("%s: detected IOVA overflow (iova=0x%" PRIx64 ")",
-                          __func__, iova);
+    if (!vtd_iova_range_check(s, iova, ce, aw_bits, pasid)) {
+        error_report_once("%s: detected IOVA overflow (iova=0x%" PRIx64 ","
+                          "pasid=0x%" PRIx32 ")", __func__, iova, pasid);
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
 
@@ -1035,8 +1069,9 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
 
         if (slpte == (uint64_t)-1) {
             error_report_once("%s: detected read error on DMAR slpte "
-                              "(iova=0x%" PRIx64 ")", __func__, iova);
-            if (level == vtd_get_iova_level(s, ce)) {
+                              "(iova=0x%" PRIx64 ", pasid=0x%" PRIx32 ")",
+                              __func__, iova, pasid);
+            if (level == vtd_get_iova_level(s, ce, pasid)) {
                 /* Invalid programming of context-entry */
                 return -VTD_FR_CONTEXT_ENTRY_INV;
             } else {
@@ -1048,15 +1083,16 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
         if (!(slpte & access_right_check)) {
             error_report_once("%s: detected slpte permission error "
                               "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
-                              "slpte=0x%" PRIx64 ", write=%d)", __func__,
-                              iova, level, slpte, is_write);
+                              "slpte=0x%" PRIx64 ", write=%d, pasid=0x%"
+                              PRIx32 ")", __func__, iova, level,
+                              slpte, is_write, pasid);
             return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
         }
         if (vtd_slpte_nonzero_rsvd(slpte, level)) {
             error_report_once("%s: detected splte reserve non-zero "
                               "iova=0x%" PRIx64 ", level=0x%" PRIx32
-                              "slpte=0x%" PRIx64 ")", __func__, iova,
-                              level, slpte);
+                              "slpte=0x%" PRIx64 ", pasid=0x%" PRIX32 ")",
+                              __func__, iova, level, slpte, pasid);
             return -VTD_FR_PAGING_ENTRY_RSVD;
         }
 
@@ -1084,9 +1120,10 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
         error_report_once("%s: xlat address is in interrupt range "
                           "(iova=0x%" PRIx64 ", level=0x%" PRIx32 ", "
                           "slpte=0x%" PRIx64 ", write=%d, "
-                          "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ")",
+                          "xlat=0x%" PRIx64 ", size=0x%" PRIx64 ", "
+                          "pasid=0x%" PRIx32 ")",
                           __func__, iova, level, slpte, is_write,
-                          xlat, size);
+                          xlat, size, pasid);
         return s->scalable_mode ? -VTD_FR_SM_INTERRUPT_ADDR :
                                   -VTD_FR_INTERRUPT_ADDR;
     }
@@ -1300,18 +1337,19 @@ next:
  */
 static int vtd_page_walk(IntelIOMMUState *s, VTDContextEntry *ce,
                          uint64_t start, uint64_t end,
-                         vtd_page_walk_info *info)
+                         vtd_page_walk_info *info,
+                         uint32_t pasid)
 {
-    dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce);
-    uint32_t level = vtd_get_iova_level(s, ce);
+    dma_addr_t addr = vtd_get_iova_pgtbl_base(s, ce, pasid);
+    uint32_t level = vtd_get_iova_level(s, ce, pasid);
 
-    if (!vtd_iova_range_check(s, start, ce, info->aw)) {
+    if (!vtd_iova_range_check(s, start, ce, info->aw, pasid)) {
         return -VTD_FR_ADDR_BEYOND_MGAW;
     }
 
-    if (!vtd_iova_range_check(s, end, ce, info->aw)) {
+    if (!vtd_iova_range_check(s, end, ce, info->aw, pasid)) {
         /* Fix end so that it reaches the maximum */
-        end = vtd_iova_limit(s, ce, info->aw);
+        end = vtd_iova_limit(s, ce, info->aw, pasid);
     }
 
     return vtd_page_walk_level(addr, start, end, level, true, true, info);
@@ -1379,7 +1417,7 @@ static int vtd_ce_rid2pasid_check(IntelIOMMUState *s,
      * has valid rid2pasid setting, which includes valid
      * rid2pasid field and corresponding pasid entry setting
      */
-    return vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+    return vtd_ce_get_rid2pasid_entry(s, ce, &pe, PCI_NO_PASID);
 }
 
 /* Map a device to its corresponding domain (context-entry) */
@@ -1462,12 +1500,13 @@ static int vtd_sync_shadow_page_hook(IOMMUTLBEvent *event,
 }
 
 static uint16_t vtd_get_domain_id(IntelIOMMUState *s,
-                                  VTDContextEntry *ce)
+                                  VTDContextEntry *ce,
+                                  uint32_t pasid)
 {
     VTDPASIDEntry pe;
 
     if (s->root_scalable) {
-        vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+        vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
         return VTD_SM_PASID_ENTRY_DID(pe.val[1]);
     }
 
@@ -1485,10 +1524,10 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
         .notify_unmap = true,
         .aw = s->aw_bits,
         .as = vtd_as,
-        .domain_id = vtd_get_domain_id(s, ce),
+        .domain_id = vtd_get_domain_id(s, ce, vtd_as->pasid),
     };
 
-    return vtd_page_walk(s, ce, addr, addr + size, &info);
+    return vtd_page_walk(s, ce, addr, addr + size, &info, vtd_as->pasid);
 }
 
 static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
@@ -1532,13 +1571,14 @@ static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
  * 1st-level translation or 2nd-level translation, it depends
  * on PGTT setting.
  */
-static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce)
+static bool vtd_dev_pt_enabled(IntelIOMMUState *s, VTDContextEntry *ce,
+                               uint32_t pasid)
 {
     VTDPASIDEntry pe;
     int ret;
 
     if (s->root_scalable) {
-        ret = vtd_ce_get_rid2pasid_entry(s, ce, &pe);
+        ret = vtd_ce_get_rid2pasid_entry(s, ce, &pe, pasid);
         if (ret) {
             /*
              * This error is guest triggerable. We should assumt PT
@@ -1572,19 +1612,20 @@ static bool vtd_as_pt_enabled(VTDAddressSpace *as)
         return false;
     }
 
-    return vtd_dev_pt_enabled(s, &ce);
+    return vtd_dev_pt_enabled(s, &ce, as->pasid);
 }
 
 /* Return whether the device is using IOMMU translation. */
 static bool vtd_switch_address_space(VTDAddressSpace *as)
 {
-    bool use_iommu;
+    bool use_iommu, pt;
     /* Whether we need to take the BQL on our own */
     bool take_bql = !qemu_mutex_iothread_locked();
 
     assert(as);
 
     use_iommu = as->iommu_state->dmar_enabled && !vtd_as_pt_enabled(as);
+    pt = as->iommu_state->dmar_enabled && vtd_as_pt_enabled(as);
 
     trace_vtd_switch_address_space(pci_bus_num(as->bus),
                                    VTD_PCI_SLOT(as->devfn),
@@ -1604,9 +1645,51 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
     if (use_iommu) {
         memory_region_set_enabled(&as->nodmar, false);
         memory_region_set_enabled(MEMORY_REGION(&as->iommu), true);
+        /*
+         * vt-d spec v3.4 3.14:
+         *
+         * """
+         * Requests-with-PASID with input address in range 0xFEEx_xxxx
+         * are translated normally like any other request-with-PASID
+         * through DMA-remapping hardware.
+         * """
+         *
+         * Need to disable ir for as with PASID.
+         */
+        if (as->pasid != PCI_NO_PASID) {
+            memory_region_set_enabled(&as->iommu_ir, false);
+        } else {
+            memory_region_set_enabled(&as->iommu_ir, true);
+        }
     } else {
         memory_region_set_enabled(MEMORY_REGION(&as->iommu), false);
         memory_region_set_enabled(&as->nodmar, true);
+    }
+
+    /*
+     * vtd-spec v3.4 3.14:
+     *
+     * """
+     * Requests-with-PASID with input address in range 0xFEEx_xxxx are
+     * translated normally like any other request-with-PASID through
+     * DMA-remapping hardware. However, if such a request is processed
+     * using pass-through translation, it will be blocked as described
+     * in the paragraph below.
+     *
+     * Software must not program paging-structure entries to remap any
+     * address to the interrupt address range. Untranslated requests
+     * and translation requests that result in an address in the
+     * interrupt range will be blocked with condition code LGN.4 or
+     * SGN.8.
+     * """
+     *
+     * We enable per as memory region (iommu_ir_fault) for catching
+     * the tranlsation for interrupt range through PASID + PT.
+     */
+    if (pt && as->pasid != PCI_NO_PASID) {
+        memory_region_set_enabled(&as->iommu_ir_fault, true);
+    } else {
+        memory_region_set_enabled(&as->iommu_ir_fault, false);
     }
 
     if (take_bql) {
@@ -1709,12 +1792,15 @@ static void vtd_report_fault(IntelIOMMUState *s,
                              int err, bool is_fpd_set,
                              uint16_t source_id,
                              hwaddr addr,
-                             bool is_write)
+                             bool is_write,
+                             bool is_pasid,
+                             uint32_t pasid)
 {
     if (is_fpd_set && vtd_is_qualified_fault(err)) {
         trace_vtd_fault_disabled();
     } else {
-        vtd_report_dmar_fault(s, source_id, addr, err, is_write);
+        vtd_report_dmar_fault(s, source_id, addr, err, is_write,
+                              is_pasid, pasid);
     }
 }
 
@@ -1739,13 +1825,14 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
     uint8_t bus_num = pci_bus_num(bus);
     VTDContextCacheEntry *cc_entry;
     uint64_t slpte, page_mask;
-    uint32_t level;
+    uint32_t level, pasid = vtd_as->pasid;
     uint16_t source_id = PCI_BUILD_BDF(bus_num, devfn);
     int ret_fr;
     bool is_fpd_set = false;
     bool reads = true;
     bool writes = true;
     uint8_t access_flags;
+    bool rid2pasid = (pasid == PCI_NO_PASID) && s->root_scalable;
     VTDIOTLBEntry *iotlb_entry;
 
     /*
@@ -1758,15 +1845,17 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
 
     cc_entry = &vtd_as->context_cache_entry;
 
-    /* Try to fetch slpte form IOTLB */
-    iotlb_entry = vtd_lookup_iotlb(s, source_id, addr);
-    if (iotlb_entry) {
-        trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->slpte,
-                                 iotlb_entry->domain_id);
-        slpte = iotlb_entry->slpte;
-        access_flags = iotlb_entry->access_flags;
-        page_mask = iotlb_entry->mask;
-        goto out;
+    /* Try to fetch slpte form IOTLB, we don't need RID2PASID logic */
+    if (!rid2pasid) {
+        iotlb_entry = vtd_lookup_iotlb(s, source_id, pasid, addr);
+        if (iotlb_entry) {
+            trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->slpte,
+                                     iotlb_entry->domain_id);
+            slpte = iotlb_entry->slpte;
+            access_flags = iotlb_entry->access_flags;
+            page_mask = iotlb_entry->mask;
+            goto out;
+        }
     }
 
     /* Try to fetch context-entry from cache first */
@@ -1777,10 +1866,11 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         ce = cc_entry->context_entry;
         is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
         if (!is_fpd_set && s->root_scalable) {
-            ret_fr = vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set);
+            ret_fr = vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set, pasid);
             if (ret_fr) {
                 vtd_report_fault(s, -ret_fr, is_fpd_set,
-                                 source_id, addr, is_write);
+                                 source_id, addr, is_write,
+                                 false, 0);
                 goto error;
             }
         }
@@ -1788,11 +1878,12 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         ret_fr = vtd_dev_to_context_entry(s, bus_num, devfn, &ce);
         is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
         if (!ret_fr && !is_fpd_set && s->root_scalable) {
-            ret_fr = vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set);
+            ret_fr = vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set, pasid);
         }
         if (ret_fr) {
             vtd_report_fault(s, -ret_fr, is_fpd_set,
-                             source_id, addr, is_write);
+                             source_id, addr, is_write,
+                             false, 0);
             goto error;
         }
         /* Update context-cache */
@@ -1803,11 +1894,15 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         cc_entry->context_cache_gen = s->context_cache_gen;
     }
 
+    if (rid2pasid) {
+        pasid = VTD_CE_GET_RID2PASID(&ce);
+    }
+
     /*
      * We don't need to translate for pass-through context entries.
      * Also, let's ignore IOTLB caching as well for PT devices.
      */
-    if (vtd_dev_pt_enabled(s, &ce)) {
+    if (vtd_dev_pt_enabled(s, &ce, pasid)) {
         entry->iova = addr & VTD_PAGE_MASK_4K;
         entry->translated_addr = entry->iova;
         entry->addr_mask = ~VTD_PAGE_MASK_4K;
@@ -1828,18 +1923,31 @@ static bool vtd_do_iommu_translate(VTDAddressSpace *vtd_as, PCIBus *bus,
         return true;
     }
 
+    /* Try to fetch slpte form IOTLB for RID2PASID slow path */
+    if (rid2pasid) {
+        iotlb_entry = vtd_lookup_iotlb(s, source_id, pasid, addr);
+        if (iotlb_entry) {
+            trace_vtd_iotlb_page_hit(source_id, addr, iotlb_entry->slpte,
+                                     iotlb_entry->domain_id);
+            slpte = iotlb_entry->slpte;
+            access_flags = iotlb_entry->access_flags;
+            page_mask = iotlb_entry->mask;
+            goto out;
+        }
+    }
+
     ret_fr = vtd_iova_to_slpte(s, &ce, addr, is_write, &slpte, &level,
-                               &reads, &writes, s->aw_bits);
+                               &reads, &writes, s->aw_bits, pasid);
     if (ret_fr) {
         vtd_report_fault(s, -ret_fr, is_fpd_set, source_id,
-                         addr, is_write);
+                         addr, is_write, pasid != PCI_NO_PASID, pasid);
         goto error;
     }
 
     page_mask = vtd_slpt_level_page_mask(level);
     access_flags = IOMMU_ACCESS_FLAG(reads, writes);
-    vtd_update_iotlb(s, source_id, vtd_get_domain_id(s, &ce), addr, slpte,
-                     access_flags, level);
+    vtd_update_iotlb(s, source_id, vtd_get_domain_id(s, &ce, pasid),
+                     addr, slpte, access_flags, level, pasid);
 out:
     vtd_iommu_unlock(s);
     entry->iova = addr & page_mask;
@@ -2031,7 +2139,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
-            domain_id == vtd_get_domain_id(s, &ce)) {
+            domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
             vtd_sync_shadow_page_table(vtd_as);
         }
     }
@@ -2039,7 +2147,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
 
 static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                                            uint16_t domain_id, hwaddr addr,
-                                           uint8_t am)
+                                             uint8_t am, uint32_t pasid)
 {
     VTDAddressSpace *vtd_as;
     VTDContextEntry ce;
@@ -2047,9 +2155,12 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
     hwaddr size = (1 << am) * VTD_PAGE_SIZE;
 
     QLIST_FOREACH(vtd_as, &(s->vtd_as_with_notifiers), next) {
+        if (pasid != PCI_NO_PASID && pasid != vtd_as->pasid) {
+            continue;
+        }
         ret = vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                        vtd_as->devfn, &ce);
-        if (!ret && domain_id == vtd_get_domain_id(s, &ce)) {
+        if (!ret && domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
             if (vtd_as_has_map_notifier(vtd_as)) {
                 /*
                  * As long as we have MAP notifications registered in
@@ -2093,7 +2204,7 @@ static void vtd_iotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->iotlb, vtd_hash_remove_by_page, &info);
     vtd_iommu_unlock(s);
-    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am);
+    vtd_iotlb_page_invalidate_notify(s, domain_id, addr, am, PCI_NO_PASID);
 }
 
 /* Flush IOTLB
@@ -3162,6 +3273,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
     DEFINE_PROP_BOOL("x-scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
     DEFINE_PROP_BOOL("snoop-control", IntelIOMMUState, snoop_control, false),
+    DEFINE_PROP_BOOL("x-pasid-mode", IntelIOMMUState, pasid, false),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_BOOL("dma-translation", IntelIOMMUState, dma_translation, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -3436,7 +3548,64 @@ static const MemoryRegionOps vtd_mem_ir_ops = {
     },
 };
 
-VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
+static void vtd_report_ir_illegal_access(VTDAddressSpace *vtd_as,
+                                         hwaddr addr, bool is_write)
+{
+    IntelIOMMUState *s = vtd_as->iommu_state;
+    uint8_t bus_n = pci_bus_num(vtd_as->bus);
+    uint16_t sid = PCI_BUILD_BDF(bus_n, vtd_as->devfn);
+    bool is_fpd_set = false;
+    VTDContextEntry ce;
+
+    assert(vtd_as->pasid != PCI_NO_PASID);
+
+    /* Try out best to fetch FPD, we can't do anything more */
+    if (vtd_dev_to_context_entry(s, bus_n, vtd_as->devfn, &ce) == 0) {
+        is_fpd_set = ce.lo & VTD_CONTEXT_ENTRY_FPD;
+        if (!is_fpd_set && s->root_scalable) {
+            vtd_ce_get_pasid_fpd(s, &ce, &is_fpd_set, vtd_as->pasid);
+        }
+    }
+
+    vtd_report_fault(s, VTD_FR_SM_INTERRUPT_ADDR,
+                     is_fpd_set, sid, addr, is_write,
+                     true, vtd_as->pasid);
+}
+
+static MemTxResult vtd_mem_ir_fault_read(void *opaque, hwaddr addr,
+                                         uint64_t *data, unsigned size,
+                                         MemTxAttrs attrs)
+{
+    vtd_report_ir_illegal_access(opaque, addr, false);
+
+    return MEMTX_ERROR;
+}
+
+static MemTxResult vtd_mem_ir_fault_write(void *opaque, hwaddr addr,
+                                          uint64_t value, unsigned size,
+                                          MemTxAttrs attrs)
+{
+    vtd_report_ir_illegal_access(opaque, addr, true);
+
+    return MEMTX_ERROR;
+}
+
+static const MemoryRegionOps vtd_mem_ir_fault_ops = {
+    .read_with_attrs = vtd_mem_ir_fault_read,
+    .write_with_attrs = vtd_mem_ir_fault_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus,
+                                 int devfn, unsigned int pasid)
 {
     /*
      * We can't simply use sid here since the bus number might not be
@@ -3445,6 +3614,7 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     struct vtd_as_key key = {
         .bus = bus,
         .devfn = devfn,
+        .pasid = pasid,
     };
     VTDAddressSpace *vtd_dev_as;
     char name[128];
@@ -3455,13 +3625,21 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
 
         new_key->bus = bus;
         new_key->devfn = devfn;
+        new_key->pasid = pasid;
 
-        snprintf(name, sizeof(name), "vtd-%02x.%x", PCI_SLOT(devfn),
-                 PCI_FUNC(devfn));
+        if (pasid == PCI_NO_PASID) {
+            snprintf(name, sizeof(name), "vtd-%02x.%x", PCI_SLOT(devfn),
+                     PCI_FUNC(devfn));
+        } else {
+            snprintf(name, sizeof(name), "vtd-%02x.%x-pasid-%x", PCI_SLOT(devfn),
+                     PCI_FUNC(devfn), pasid);
+        }
+
         vtd_dev_as = g_new0(VTDAddressSpace, 1);
 
         vtd_dev_as->bus = bus;
         vtd_dev_as->devfn = (uint8_t)devfn;
+        vtd_dev_as->pasid = pasid;
         vtd_dev_as->iommu_state = s;
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
         vtd_dev_as->iova_tree = iova_tree_new();
@@ -3501,6 +3679,24 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         memory_region_add_subregion_overlap(MEMORY_REGION(&vtd_dev_as->iommu),
                                             VTD_INTERRUPT_ADDR_FIRST,
                                             &vtd_dev_as->iommu_ir, 1);
+
+        /*
+         * This region is used for catching fault to access interrupt
+         * range via passthrough + PASID. See also
+         * vtd_switch_address_space(). We can't use alias since we
+         * need to know the sid which is valid for MSI who uses
+         * bus_master_as (see msi_send_message()).
+         */
+        memory_region_init_io(&vtd_dev_as->iommu_ir_fault, OBJECT(s),
+                              &vtd_mem_ir_fault_ops, vtd_dev_as, "vtd-no-ir",
+                              VTD_INTERRUPT_ADDR_SIZE);
+        /*
+         * Hook to root since when PT is enabled vtd_dev_as->iommu
+         * will be disabled.
+         */
+        memory_region_add_subregion_overlap(MEMORY_REGION(&vtd_dev_as->root),
+                                            VTD_INTERRUPT_ADDR_FIRST,
+                                            &vtd_dev_as->iommu_ir_fault, 2);
 
         /*
          * Hook both the containers under the root container, we
@@ -3622,7 +3818,7 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                                   "legacy mode",
                                   bus_n, PCI_SLOT(vtd_as->devfn),
                                   PCI_FUNC(vtd_as->devfn),
-                                  vtd_get_domain_id(s, &ce),
+                                  vtd_get_domain_id(s, &ce, vtd_as->pasid),
                                   ce.hi, ce.lo);
         if (vtd_as_has_map_notifier(vtd_as)) {
             /* This is required only for MAP typed notifiers */
@@ -3632,10 +3828,10 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
                 .notify_unmap = false,
                 .aw = s->aw_bits,
                 .as = vtd_as,
-                .domain_id = vtd_get_domain_id(s, &ce),
+                .domain_id = vtd_get_domain_id(s, &ce, vtd_as->pasid),
             };
 
-            vtd_page_walk(s, &ce, 0, ~0ULL, &info);
+            vtd_page_walk(s, &ce, 0, ~0ULL, &info, vtd_as->pasid);
         }
     } else {
         trace_vtd_replay_ce_invalid(bus_n, PCI_SLOT(vtd_as->devfn),
@@ -3735,6 +3931,10 @@ static void vtd_init(IntelIOMMUState *s)
         s->ecap |= VTD_ECAP_SC;
     }
 
+    if (s->pasid) {
+        s->ecap |= VTD_ECAP_PASID;
+    }
+
     vtd_reset_caches(s);
 
     /* Define registers with default values and bit semantics */
@@ -3808,7 +4008,7 @@ static AddressSpace *vtd_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
     assert(0 <= devfn && devfn < PCI_DEVFN_MAX);
 
-    vtd_as = vtd_find_add_as(s, bus, devfn);
+    vtd_as = vtd_find_add_as(s, bus, devfn, PCI_NO_PASID);
     return &vtd_as->as;
 }
 
@@ -3851,6 +4051,11 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
         return false;
     }
 
+    if (s->pasid && !s->scalable_mode) {
+        error_setg(errp, "Need to set scalable mode for PASID");
+        return false;
+    }
+
     return true;
 }
 
@@ -3887,6 +4092,17 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     X86MachineState *x86ms = X86_MACHINE(ms);
     PCIBus *bus = pcms->bus;
     IntelIOMMUState *s = INTEL_IOMMU_DEVICE(dev);
+    X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(s);
+
+    if (s->pasid && x86_iommu->dt_supported) {
+        /*
+         * PASID-based-Device-TLB Invalidate Descriptor is not
+         * implemented and it requires support from vhost layer which
+         * needs to be implemented in the future.
+         */
+        error_setg(errp, "PASID based device IOTLB is not supported");
+        return;
+    }
 
     if (!vtd_decide_config(s, errp)) {
         return;
@@ -3913,7 +4129,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->csrmem);
     /* No corresponding destroy */
-    s->iotlb = g_hash_table_new_full(vtd_uint64_hash, vtd_uint64_equal,
+    s->iotlb = g_hash_table_new_full(vtd_iotlb_hash, vtd_iotlb_equal,
                                      g_free, g_free);
     s->vtd_address_spaces = g_hash_table_new_full(vtd_as_hash, vtd_as_equal,
                                       g_free, g_free);

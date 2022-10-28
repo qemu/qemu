@@ -114,8 +114,9 @@
                                      VTD_INTERRUPT_ADDR_FIRST + 1)
 
 /* The shift of source_id in the key of IOTLB hash table */
-#define VTD_IOTLB_SID_SHIFT         36
-#define VTD_IOTLB_LVL_SHIFT         52
+#define VTD_IOTLB_SID_SHIFT         20
+#define VTD_IOTLB_LVL_SHIFT         28
+#define VTD_IOTLB_PASID_SHIFT       30
 #define VTD_IOTLB_MAX_SIZE          1024    /* Max size of the hash table */
 
 /* IOTLB_REG */
@@ -191,6 +192,7 @@
 #define VTD_ECAP_SC                 (1ULL << 7)
 #define VTD_ECAP_MHMV               (15ULL << 20)
 #define VTD_ECAP_SRS                (1ULL << 31)
+#define VTD_ECAP_PASID              (1ULL << 40)
 #define VTD_ECAP_SMTS               (1ULL << 43)
 #define VTD_ECAP_SLTS               (1ULL << 46)
 
@@ -211,6 +213,8 @@
 #define VTD_CAP_DRAIN_READ          (1ULL << 55)
 #define VTD_CAP_DRAIN               (VTD_CAP_DRAIN_READ | VTD_CAP_DRAIN_WRITE)
 #define VTD_CAP_CM                  (1ULL << 7)
+#define VTD_PASID_ID_SHIFT          20
+#define VTD_PASID_ID_MASK           ((1ULL << VTD_PASID_ID_SHIFT) - 1)
 
 /* Supported Adjusted Guest Address Widths */
 #define VTD_CAP_SAGAW_SHIFT         8
@@ -262,6 +266,8 @@
 #define VTD_FRCD_SID(val)       ((val) & VTD_FRCD_SID_MASK)
 /* For the low 64-bit of 128-bit */
 #define VTD_FRCD_FI(val)        ((val) & ~0xfffULL)
+#define VTD_FRCD_PV(val)        (((val) & 0xffffULL) << 40)
+#define VTD_FRCD_PP(val)        (((val) & 0x1) << 31)
 
 /* DMA Remapping Fault Conditions */
 typedef enum VTDFaultReason {
@@ -379,6 +385,11 @@ typedef union VTDInvDesc VTDInvDesc;
 #define VTD_INV_DESC_IOTLB_AM(val)      ((val) & 0x3fULL)
 #define VTD_INV_DESC_IOTLB_RSVD_LO      0xffffffff0000ff00ULL
 #define VTD_INV_DESC_IOTLB_RSVD_HI      0xf80ULL
+#define VTD_INV_DESC_IOTLB_PASID_PASID  (2ULL << 4)
+#define VTD_INV_DESC_IOTLB_PASID_PAGE   (3ULL << 4)
+#define VTD_INV_DESC_IOTLB_PASID(val)   (((val) >> 32) & VTD_PASID_ID_MASK)
+#define VTD_INV_DESC_IOTLB_PASID_RSVD_LO      0xfff00000000001c0ULL
+#define VTD_INV_DESC_IOTLB_PASID_RSVD_HI      0xf80ULL
 
 /* Mask for Device IOTLB Invalidate Descriptor */
 #define VTD_INV_DESC_DEVICE_IOTLB_ADDR(val) ((val) & 0xfffffffffffff000ULL)
@@ -413,6 +424,7 @@ typedef union VTDInvDesc VTDInvDesc;
 /* Information about page-selective IOTLB invalidate */
 struct VTDIOTLBPageInvInfo {
     uint16_t domain_id;
+    uint32_t pasid;
     uint64_t addr;
     uint8_t mask;
 };
