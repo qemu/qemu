@@ -640,12 +640,17 @@ static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
 static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
                                Error **errp)
 {
-    const char *filename = qdict_get_str(options, "filename");
+    const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
     int ret;
 
-    ret = blkio_set_str(s->blkio, "path", filename);
-    qdict_del(options, "filename");
+    if (!path) {
+        error_setg(errp, "missing 'path' option");
+        return -EINVAL;
+    }
+
+    ret = blkio_set_str(s->blkio, "path", path);
+    qdict_del(options, "path");
     if (ret < 0) {
         error_setg_errno(errp, -ret, "failed to set path: %s",
                          blkio_get_error_msg());
@@ -1016,7 +1021,6 @@ static BlockDriver bdrv_io_uring = BLKIO_DRIVER(
 
 static BlockDriver bdrv_nvme_io_uring = BLKIO_DRIVER(
     DRIVER_NVME_IO_URING,
-    .bdrv_needs_filename = true,
 );
 
 static BlockDriver bdrv_virtio_blk_vfio_pci = BLKIO_DRIVER(

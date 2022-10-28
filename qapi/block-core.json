@@ -3704,12 +3704,12 @@
 #
 # Driver specific block device options for the nvme-io_uring backend.
 #
-# @filename: path to the image file
+# @path: path to the image file
 #
 # Since: 7.2
 ##
 { 'struct': 'BlockdevOptionsNvmeIoUring',
-  'data': { 'filename': 'str' },
+  'data': { 'path': 'str' },
   'if': 'CONFIG_BLKIO' }
 
 ##
