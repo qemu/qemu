@@ -112,16 +112,16 @@ static void test_pci_unplug_json_request(void)
 
 static void test_q35_pci_unplug_json_request(void)
 {
-    const char *port = "-device '{\"driver\": \"pcie-root-port\", "
-                                      "\"id\": \"p1\"}'";
+    const char *port = "-device \"{'driver': 'pcie-root-port', "
+                                  "'id': 'p1'}\"";
 
-    const char *bridge = "-device '{\"driver\": \"pcie-pci-bridge\", "
-                                   "\"id\": \"b1\", "
-                                   "\"bus\": \"p1\"}'";
+    const char *bridge = "-device \"{'driver': 'pcie-pci-bridge', "
+                                    "'id': 'b1', "
+                                    "'bus': 'p1'}\"";
 
-    const char *device = "-device '{\"driver\": \"virtio-mouse-pci\", "
-                                   "\"bus\": \"b1\", "
-                                   "\"id\": \"dev0\"}'";
+    const char *device = "-device \"{'driver': 'virtio-mouse-pci', "
+                                    "'bus': 'b1', "
+                                    "'id': 'dev0'}\"";
 
     QTestState *qtest = qtest_initf("-machine q35 %s %s %s",
                                     port, bridge, device);
