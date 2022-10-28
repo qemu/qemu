@@ -76,6 +76,15 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args);
 QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd);
 
 /**
+ * qtest_wait_qemu:
+ * @s: #QTestState instance to operate on.
+ *
+ * Wait for the QEMU process to terminate. It is safe to call this function
+ * multiple times.
+ */
+void qtest_wait_qemu(QTestState *s);
+
+/**
  * qtest_kill_qemu:
  * @s: #QTestState instance to operate on.
  *

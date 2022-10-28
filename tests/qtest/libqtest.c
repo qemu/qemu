@@ -156,37 +156,14 @@ void qtest_set_expected_status(QTestState *s, int status)
     s->expected_status = status;
 }
 
-void qtest_kill_qemu(QTestState *s)
+static void qtest_check_status(QTestState *s)
 {
-    pid_t pid = s->qemu_pid;
-#ifndef _WIN32
-    int wstatus;
-#else
-    DWORD ret;
-#endif
-
-    /* Skip wait if qtest_probe_child already reaped.  */
-    if (pid != -1) {
-#ifndef _WIN32
-        kill(pid, SIGTERM);
-        TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
-        assert(pid == s->qemu_pid);
-#else
-        TerminateProcess((HANDLE)pid, s->expected_status);
-        ret = WaitForSingleObject((HANDLE)pid, INFINITE);
-        assert(ret == WAIT_OBJECT_0);
-        GetExitCodeProcess((HANDLE)pid, &s->exit_code);
-        CloseHandle((HANDLE)pid);
-#endif
-        s->qemu_pid = -1;
-    }
-
     /*
      * Check whether qemu exited with expected exit status; anything else is
      * fishy and should be logged with as much detail as possible.
      */
 #ifndef _WIN32
-    wstatus = s->wstatus;
+    int wstatus = s->wstatus;
     if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != s->expected_status) {
         fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
                 "process but encountered exit status %d (expected %d)\n",
@@ -210,6 +187,42 @@ void qtest_kill_qemu(QTestState *s)
         abort();
     }
 #endif
+}
+
+void qtest_wait_qemu(QTestState *s)
+{
+#ifndef _WIN32
+    pid_t pid;
+
+    TFR(pid = waitpid(s->qemu_pid, &s->wstatus, 0));
+    assert(pid == s->qemu_pid);
+#else
+    DWORD ret;
+
+    ret = WaitForSingleObject((HANDLE)s->qemu_pid, INFINITE);
+    assert(ret == WAIT_OBJECT_0);
+    GetExitCodeProcess((HANDLE)s->qemu_pid, &s->exit_code);
+    CloseHandle((HANDLE)s->qemu_pid);
+#endif
+
+    qtest_check_status(s);
+}
+
+void qtest_kill_qemu(QTestState *s)
+{
+    /* Skip wait if qtest_probe_child() already reaped */
+    if (s->qemu_pid != -1) {
+#ifndef _WIN32
+        kill(s->qemu_pid, SIGTERM);
+#else
+        TerminateProcess((HANDLE)s->qemu_pid, s->expected_status);
+#endif
+        qtest_wait_qemu(s);
+        s->qemu_pid = -1;
+        return;
+    }
+
+    qtest_check_status(s);
 }
 
 static void kill_qemu_hook_func(void *s)
