@@ -90,9 +90,8 @@ static void ppc_heathrow_init(MachineState *machine)
     uint32_t kernel_base = 0, initrd_base = 0, cmdline_base = 0;
     int32_t kernel_size = 0, initrd_size = 0;
     PCIBus *pci_bus;
-    PCIDevice *macio;
+    Object *macio;
     MACIOIDEState *macio_ide;
-    ESCCState *escc;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev, *grackle_dev;
     BusState *adb_bus;
@@ -231,17 +230,16 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_bus = PCI_HOST_BRIDGE(grackle_dev)->bus;
 
     /* MacIO */
-    macio = pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO);
-    dev = DEVICE(macio);
-    qdev_prop_set_uint64(dev, "frequency", tbfreq);
+    macio = OBJECT(pci_new(PCI_DEVFN(16, 0), TYPE_OLDWORLD_MACIO));
+    qdev_prop_set_uint64(DEVICE(macio), "frequency", tbfreq);
 
-    escc = ESCC(object_resolve_path_component(OBJECT(macio), "escc"));
-    qdev_prop_set_chr(DEVICE(escc), "chrA", serial_hd(0));
-    qdev_prop_set_chr(DEVICE(escc), "chrB", serial_hd(1));
+    dev = DEVICE(object_resolve_path_component(macio, "escc"));
+    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
+    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
 
-    pci_realize_and_unref(macio, pci_bus, &error_fatal);
+    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
 
-    pic_dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pic"));
+    pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
         qdev_connect_gpio_out(grackle_dev, i,
                               qdev_get_gpio_in(pic_dev, 0x15 + i));
@@ -269,16 +267,14 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* MacIO IDE */
     ide_drive_get(hd, ARRAY_SIZE(hd));
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[0]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[1]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     /* MacIO CUDA/ADB */
-    dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    dev = DEVICE(object_resolve_path_component(macio, "cuda"));
     adb_bus = qdev_get_child_bus(dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);

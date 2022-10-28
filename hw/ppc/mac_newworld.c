@@ -116,18 +116,16 @@ static void ppc_core99_init(MachineState *machine)
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base = 0, initrd_base = 0, cmdline_base = 0;
     long kernel_size = 0, initrd_size = 0;
-    UNINHostState *uninorth_pci;
     PCIBus *pci_bus;
-    PCIDevice *macio;
-    ESCCState *escc;
     bool has_pmu, has_adb;
+    Object *macio;
     MACIOIDEState *macio_ide;
     BusState *adb_bus;
     MacIONVRAMState *nvr;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     SysBusDevice *s;
-    DeviceState *dev, *pic_dev;
+    DeviceState *dev, *pic_dev, *uninorth_pci_dev;
     DeviceState *uninorth_internal_dev = NULL, *uninorth_agp_dev = NULL;
     hwaddr nvram_addr = 0xFFF04000;
     uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
@@ -229,6 +227,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     openpic_irqs = g_new0(IrqLines, machine->smp.cpus);
+    dev = DEVICE(cpu);
     for (i = 0; i < machine->smp.cpus; i++) {
         /* Mac99 IRQ connection between OpenPIC outputs pins
          * and PowerPC input pins
@@ -236,30 +235,30 @@ static void ppc_core99_init(MachineState *machine)
         switch (PPC_INPUT(env)) {
         case PPC_FLAGS_INPUT_6xx:
             openpic_irqs[i].irq[OPENPIC_OUTPUT_INT] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT);
+                qdev_get_gpio_in(dev, PPC6xx_INPUT_INT);
             openpic_irqs[i].irq[OPENPIC_OUTPUT_CINT] =
-                 qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_INT);
+                 qdev_get_gpio_in(dev, PPC6xx_INPUT_INT);
             openpic_irqs[i].irq[OPENPIC_OUTPUT_MCK] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_MCP);
+                qdev_get_gpio_in(dev, PPC6xx_INPUT_MCP);
             /* Not connected ? */
             openpic_irqs[i].irq[OPENPIC_OUTPUT_DEBUG] = NULL;
             /* Check this */
             openpic_irqs[i].irq[OPENPIC_OUTPUT_RESET] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
+                qdev_get_gpio_in(dev, PPC6xx_INPUT_HRESET);
             break;
 #if defined(TARGET_PPC64)
         case PPC_FLAGS_INPUT_970:
             openpic_irqs[i].irq[OPENPIC_OUTPUT_INT] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC970_INPUT_INT);
+                qdev_get_gpio_in(dev, PPC970_INPUT_INT);
             openpic_irqs[i].irq[OPENPIC_OUTPUT_CINT] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC970_INPUT_INT);
+                qdev_get_gpio_in(dev, PPC970_INPUT_INT);
             openpic_irqs[i].irq[OPENPIC_OUTPUT_MCK] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC970_INPUT_MCP);
+                qdev_get_gpio_in(dev, PPC970_INPUT_MCP);
             /* Not connected ? */
             openpic_irqs[i].irq[OPENPIC_OUTPUT_DEBUG] = NULL;
             /* Check this */
             openpic_irqs[i].irq[OPENPIC_OUTPUT_RESET] =
-                qdev_get_gpio_in(DEVICE(cpu), PPC970_INPUT_HRESET);
+                qdev_get_gpio_in(dev, PPC970_INPUT_HRESET);
             break;
 #endif /* defined(TARGET_PPC64) */
         default:
@@ -278,9 +277,8 @@ static void ppc_core99_init(MachineState *machine)
         machine_arch = ARCH_MAC99_U3;
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
-        dev = qdev_new(TYPE_U3_AGP_HOST_BRIDGE);
-        uninorth_pci = U3_AGP_HOST_BRIDGE(dev);
-        s = SYS_BUS_DEVICE(dev);
+        uninorth_pci_dev = qdev_new(TYPE_U3_AGP_HOST_BRIDGE);
+        s = SYS_BUS_DEVICE(uninorth_pci_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
@@ -309,10 +307,9 @@ static void ppc_core99_init(MachineState *machine)
         sysbus_mmio_map(s, 1, 0xf4c00000);
 
         /* Uninorth main bus - this must be last to make it the default */
-        dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
-        qdev_prop_set_uint32(dev, "ofw-addr", 0xf2000000);
-        uninorth_pci = UNI_NORTH_PCI_HOST_BRIDGE(dev);
-        s = SYS_BUS_DEVICE(dev);
+        uninorth_pci_dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
+        qdev_prop_set_uint32(uninorth_pci_dev, "ofw-addr", 0xf2000000);
+        s = SYS_BUS_DEVICE(uninorth_pci_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf2800000);
         sysbus_mmio_map(s, 1, 0xf2c00000);
@@ -330,24 +327,24 @@ static void ppc_core99_init(MachineState *machine)
                core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
 
     /* init basic PC hardware */
-    pci_bus = PCI_HOST_BRIDGE(uninorth_pci)->bus;
+    pci_bus = PCI_HOST_BRIDGE(uninorth_pci_dev)->bus;
 
     /* MacIO */
-    macio = pci_new(-1, TYPE_NEWWORLD_MACIO);
+    macio = OBJECT(pci_new(-1, TYPE_NEWWORLD_MACIO));
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     qdev_prop_set_bit(dev, "has-pmu", has_pmu);
     qdev_prop_set_bit(dev, "has-adb", has_adb);
 
-    escc = ESCC(object_resolve_path_component(OBJECT(macio), "escc"));
-    qdev_prop_set_chr(DEVICE(escc), "chrA", serial_hd(0));
-    qdev_prop_set_chr(DEVICE(escc), "chrB", serial_hd(1));
+    dev = DEVICE(object_resolve_path_component(macio, "escc"));
+    qdev_prop_set_chr(dev, "chrA", serial_hd(0));
+    qdev_prop_set_chr(dev, "chrB", serial_hd(1));
 
-    pci_realize_and_unref(macio, pci_bus, &error_fatal);
+    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
 
-    pic_dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pic"));
+    pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
-        qdev_connect_gpio_out(DEVICE(uninorth_pci), i,
+        qdev_connect_gpio_out(uninorth_pci_dev, i,
                               qdev_get_gpio_in(pic_dev, 0x1b + i));
     }
 
@@ -379,19 +376,17 @@ static void ppc_core99_init(MachineState *machine)
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[0]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(OBJECT(macio),
-                                                        "ide[1]"));
+    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     if (has_adb) {
         if (has_pmu) {
-            dev = DEVICE(object_resolve_path_component(OBJECT(macio), "pmu"));
+            dev = DEVICE(object_resolve_path_component(macio, "pmu"));
         } else {
-            dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+            dev = DEVICE(object_resolve_path_component(macio, "cuda"));
         }
 
         adb_bus = qdev_get_child_bus(dev, "adb.0");
