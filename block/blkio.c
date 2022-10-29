@@ -848,6 +848,31 @@ static int64_t blkio_getlength(BlockDriverState *bs)
     return capacity;
 }
 
+static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
+                                       bool exact, PreallocMode prealloc,
+                                       BdrvRequestFlags flags, Error **errp)
+{
+    int64_t current_length;
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    current_length = blkio_getlength(bs);
+
+    if (offset > current_length) {
+        error_setg(errp, "Cannot grow device");
+        return -EINVAL;
+    } else if (exact && offset != current_length) {
+        error_setg(errp, "Cannot resize device");
+        return -ENOTSUP;
+    }
+
+    return 0;
+}
+
 static int blkio_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
@@ -963,10 +988,12 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
     { \
         .format_name             = name, \
         .protocol_name           = name, \
+        .has_variable_length     = true, \
         .instance_size           = sizeof(BDRVBlkioState), \
         .bdrv_file_open          = blkio_file_open, \
         .bdrv_close              = blkio_close, \
         .bdrv_getlength          = blkio_getlength, \
+        .bdrv_co_truncate        = blkio_truncate, \
         .bdrv_get_info           = blkio_get_info, \
         .bdrv_attach_aio_context = blkio_attach_aio_context, \
         .bdrv_detach_aio_context = blkio_detach_aio_context, \
