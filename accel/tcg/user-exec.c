@@ -931,6 +931,8 @@ static void *cpu_mmu_lookup(CPUArchState *env, target_ulong addr,
     return ret;
 }
 
+#include "ldst_atomicity.c.inc"
+
 uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr addr,
                     MemOpIdx oi, uintptr_t ra)
 {
@@ -953,10 +955,10 @@ uint16_t cpu_ldw_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = lduw_be_p(haddr);
+    ret = load_atom_2(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_be16(ret);
 }
 
 uint32_t cpu_ldl_be_mmu(CPUArchState *env, abi_ptr addr,
@@ -967,10 +969,10 @@ uint32_t cpu_ldl_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = ldl_be_p(haddr);
+    ret = load_atom_4(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_be32(ret);
 }
 
 uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr addr,
@@ -981,10 +983,10 @@ uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_BEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = ldq_be_p(haddr);
+    ret = load_atom_8(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_be64(ret);
 }
 
 uint16_t cpu_ldw_le_mmu(CPUArchState *env, abi_ptr addr,
@@ -995,10 +997,10 @@ uint16_t cpu_ldw_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUW);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = lduw_le_p(haddr);
+    ret = load_atom_2(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_le16(ret);
 }
 
 uint32_t cpu_ldl_le_mmu(CPUArchState *env, abi_ptr addr,
@@ -1009,10 +1011,10 @@ uint32_t cpu_ldl_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUL);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = ldl_le_p(haddr);
+    ret = load_atom_4(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_le32(ret);
 }
 
 uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr addr,
@@ -1023,10 +1025,10 @@ uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr addr,
 
     validate_memop(oi, MO_LEUQ);
     haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    ret = ldq_le_p(haddr);
+    ret = load_atom_8(env, ra, haddr, get_memop(oi));
     clear_helper_retaddr();
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-    return ret;
+    return cpu_to_le64(ret);
 }
 
 Int128 cpu_ld16_be_mmu(CPUArchState *env, abi_ptr addr,
