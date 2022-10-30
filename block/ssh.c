@@ -1129,9 +1129,9 @@ static coroutine_fn int ssh_co_readv(BlockDriverState *bs,
     return ret;
 }
 
-static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
-                     int64_t offset, size_t size,
-                     QEMUIOVector *qiov)
+static coroutine_fn int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
+                                  int64_t offset, size_t size,
+                                  QEMUIOVector *qiov)
 {
     ssize_t r;
     size_t written;

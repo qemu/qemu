@@ -109,7 +109,7 @@ The AioContext originates from the QEMU block layer, even though nowadays
 AioContext is a generic event loop that can be used by any QEMU subsystem.
 
 The block layer has support for AioContext integrated.  Each BlockDriverState
-is associated with an AioContext using bdrv_try_set_aio_context() and
+is associated with an AioContext using bdrv_try_change_aio_context() and
 bdrv_get_aio_context().  This allows block layer code to process I/O inside the
 right AioContext.  Other subsystems may wish to follow a similar approach.
 
@@ -134,5 +134,5 @@ Long-running jobs (usually in the form of coroutines) are best scheduled in
 the BlockDriverState's AioContext to avoid the need to acquire/release around
 each bdrv_*() call.  The functions bdrv_add/remove_aio_context_notifier,
 or alternatively blk_add/remove_aio_context_notifier if you use BlockBackends,
-can be used to get a notification whenever bdrv_try_set_aio_context() moves a
+can be used to get a notification whenever bdrv_try_change_aio_context() moves a
 BlockDriverState to a different AioContext.

@@ -11,14 +11,12 @@
 #include "qemu/osdep.h"
 #include <liburing.h>
 #include "block/aio.h"
-#include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "block/block.h"
 #include "block/raw-aio.h"
 #include "qemu/coroutine.h"
 #include "qapi/error.h"
 #include "trace.h"
-
 
 /* io_uring ring size */
 #define MAX_ENTRIES 128
@@ -432,17 +430,8 @@ LuringState *luring_init(Error **errp)
     }
 
     ioq_init(&s->io_q);
-#ifdef CONFIG_LIBURING_REGISTER_RING_FD
-    if (io_uring_register_ring_fd(&s->ring) < 0) {
-        /*
-         * Only warn about this error: we will fallback to the non-optimized
-         * io_uring operations.
-         */
-        warn_report("failed to register linux io_uring ring file descriptor");
-    }
-#endif
-
     return s;
+
 }
 
 void luring_cleanup(LuringState *s)

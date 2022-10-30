@@ -97,6 +97,10 @@ static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
     VHostUserBlk *s = VHOST_USER_BLK(dev->vdev);
     Error *local_err = NULL;
 
+    if (!dev->started) {
+        return 0;
+    }
+
     ret = vhost_dev_get_config(dev, (uint8_t *)&blkcfg,
                                vdev->config_len, &local_err);
     if (ret < 0) {

@@ -765,7 +765,7 @@ static void test_propagate_mirror(void)
     filter = bdrv_find_node("filter_node");
 
     /* Change the AioContext of src */
-    bdrv_try_set_aio_context(src, ctx, &error_abort);
+    bdrv_try_change_aio_context(src, ctx, NULL, &error_abort);
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
     g_assert(bdrv_get_aio_context(filter) == ctx);
@@ -773,7 +773,7 @@ static void test_propagate_mirror(void)
 
     /* Change the AioContext of target */
     aio_context_acquire(ctx);
-    bdrv_try_set_aio_context(target, main_ctx, &error_abort);
+    bdrv_try_change_aio_context(target, main_ctx, NULL, &error_abort);
     aio_context_release(ctx);
     g_assert(bdrv_get_aio_context(src) == main_ctx);
     g_assert(bdrv_get_aio_context(target) == main_ctx);
@@ -783,7 +783,7 @@ static void test_propagate_mirror(void)
     blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
     blk_insert_bs(blk, src, &error_abort);
 
-    bdrv_try_set_aio_context(target, ctx, &local_err);
+    bdrv_try_change_aio_context(target, ctx, NULL, &local_err);
     error_free_or_abort(&local_err);
 
     g_assert(blk_get_aio_context(blk) == main_ctx);
@@ -794,7 +794,7 @@ static void test_propagate_mirror(void)
     /* ...unless we explicitly allow it */
     aio_context_acquire(ctx);
     blk_set_allow_aio_context_change(blk, true);
-    bdrv_try_set_aio_context(target, ctx, &error_abort);
+    bdrv_try_change_aio_context(target, ctx, NULL, &error_abort);
     aio_context_release(ctx);
 
     g_assert(blk_get_aio_context(blk) == ctx);
@@ -806,7 +806,7 @@ static void test_propagate_mirror(void)
 
     aio_context_acquire(ctx);
     blk_set_aio_context(blk, main_ctx, &error_abort);
-    bdrv_try_set_aio_context(target, main_ctx, &error_abort);
+    bdrv_try_change_aio_context(target, main_ctx, NULL, &error_abort);
     aio_context_release(ctx);
 
     blk_unref(blk);

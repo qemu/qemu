@@ -375,7 +375,8 @@ if [ "${VALGRIND_QEMU_VM}" == "y" ]; then
     _casenotrun "Valgrind needs a valid TMPDIR for itself"
 fi
 VALGRIND_QEMU_VM= \
-TMPDIR=/nonexistent run_qemu -drive driver=null-co,snapshot=on
+TMPDIR=/nonexistent run_qemu -drive driver=null-co,snapshot=on |
+    sed -e "s#'[^']*/vl\.[A-Za-z0-9]\{6\}'#SNAPSHOT_PATH#g"
 
 # Using snapshot=on together with read-only=on
 echo "info block" |

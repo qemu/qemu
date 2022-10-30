@@ -129,7 +129,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 
         /* Ignore errors with fixed-iothread=false */
         set_context_errp = fixed_iothread ? errp : NULL;
-        ret = bdrv_try_set_aio_context(bs, new_ctx, set_context_errp);
+        ret = bdrv_try_change_aio_context(bs, new_ctx, NULL, set_context_errp);
         if (ret == 0) {
             aio_context_release(ctx);
             aio_context_acquire(new_ctx);

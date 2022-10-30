@@ -588,7 +588,7 @@ static void coroutine_fn job_do_yield_locked(Job *job, uint64_t ns)
     next_aio_context = job->aio_context;
     /*
      * Coroutine has resumed, but in the meanwhile the job AioContext
-     * might have changed via bdrv_try_set_aio_context(), so we need to move
+     * might have changed via bdrv_try_change_aio_context(), so we need to move
      * the coroutine too in the new aiocontext.
      */
     while (qemu_get_current_aio_context() != next_aio_context) {
