@@ -312,6 +312,19 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
         goto seccomp_return;
     }
 
+#if defined(CONFIG_SECCOMP_SYSRAWRC)
+    /*
+     * This must be the first seccomp_attr_set() call to have full
+     * error propagation from subsequent seccomp APIs.
+     */
+    rc = seccomp_attr_set(ctx, SCMP_FLTATR_API_SYSRAWRC, 1);
+    if (rc != 0) {
+        error_setg_errno(errp, -rc,
+                         "failed to set seccomp rawrc attribute");
+        goto seccomp_return;
+    }
+#endif
+
     rc = seccomp_attr_set(ctx, SCMP_FLTATR_CTL_TSYNC, 1);
     if (rc != 0) {
         error_setg_errno(errp, -rc,

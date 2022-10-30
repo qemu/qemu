@@ -24,6 +24,11 @@
 #ifndef _WIN32
 #include <sys/resource.h>
 #endif
+#ifdef CONFIG_DARWIN
+#include <mach/mach_init.h>
+#include <mach/thread_act.h>
+#include <mach/mach_port.h>
+#endif
 
 
 static int qcrypto_pbkdf2_get_thread_cpu(unsigned long long *val_ms,
@@ -44,6 +49,24 @@ static int qcrypto_pbkdf2_get_thread_cpu(unsigned long long *val_ms,
 
     /* QuadPart is units of 100ns and we want ms as unit */
     *val_ms = thread_time.QuadPart / 10000ll;
+    return 0;
+#elif defined(CONFIG_DARWIN)
+    mach_port_t thread;
+    kern_return_t kr;
+    mach_msg_type_number_t count;
+    thread_basic_info_data_t info;
+
+    thread = mach_thread_self();
+    count = THREAD_BASIC_INFO_COUNT;
+    kr = thread_info(thread, THREAD_BASIC_INFO, (thread_info_t)&info, &count);
+    mach_port_deallocate(mach_task_self(), thread);
+    if (kr != KERN_SUCCESS || (info.flags & TH_FLAGS_IDLE) != 0) {
+        error_setg_errno(errp, errno, "Unable to get thread CPU usage");
+        return -1;
+    }
+
+    *val_ms = ((info.user_time.seconds * 1000ll) +
+               (info.user_time.microseconds / 1000));
     return 0;
 #elif defined(RUSAGE_THREAD)
     struct rusage ru;
