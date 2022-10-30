@@ -141,7 +141,7 @@ static void set_chardev(Object *obj, const char *value, Error **errp)
     Chardev *chr;
 
     if (b->completed) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, "Property 'chardev' can no longer be set");
         return;
     }
 
