@@ -1222,7 +1222,6 @@ static int coroutine_fn nbd_client_co_preadv(BlockDriverState *bs, int64_t offse
     };
 
     assert(bytes <= NBD_MAX_BUFFER_SIZE);
-    assert(!flags);
 
     if (!bytes) {
         return 0;

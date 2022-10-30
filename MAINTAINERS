@@ -2510,6 +2510,7 @@ F: block*
 F: block/
 F: hw/block/
 F: include/block/
+F: include/sysemu/block-*.h
 F: qemu-img*
 F: docs/tools/qemu-img.rst
 F: qemu-io*
@@ -3414,6 +3415,12 @@ M: Stefan Weil <sw@weilnetz.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/vdi.c
+
+blkio
+M: Stefan Hajnoczi <stefanha@redhat.com>
+L: qemu-block@nongnu.org
+S: Maintained
+F: block/blkio.c
 
 iSCSI
 M: Ronnie Sahlberg <ronniesahlberg@gmail.com>

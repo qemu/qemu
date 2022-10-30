@@ -198,14 +198,25 @@ typedef struct CoQueue {
  */
 void qemu_co_queue_init(CoQueue *queue);
 
+typedef enum {
+    /*
+     * Enqueue at front instead of back. Use this to re-queue a request when
+     * its wait condition is not satisfied after being woken up.
+     */
+    CO_QUEUE_WAIT_FRONT = 0x1,
+} CoQueueWaitFlags;
+
 /**
  * Adds the current coroutine to the CoQueue and transfers control to the
  * caller of the coroutine.  The mutex is unlocked during the wait and
  * locked again afterwards.
  */
 #define qemu_co_queue_wait(queue, lock) \
-    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock))
-void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock);
+    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock), 0)
+#define qemu_co_queue_wait_flags(queue, lock, flags) \
+    qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock), (flags))
+void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock,
+                                          CoQueueWaitFlags flags);
 
 /**
  * Removes the next coroutine from the CoQueue, and queue it to run after

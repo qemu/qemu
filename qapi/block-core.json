@@ -2951,11 +2951,18 @@
             'file', 'snapshot-access', 'ftp', 'ftps', 'gluster',
             {'name': 'host_cdrom', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             {'name': 'host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
-            'http', 'https', 'iscsi',
-            'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels',
-            'preallocate', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
+            'http', 'https',
+            { 'name': 'io_uring', 'if': 'CONFIG_BLKIO' },
+            'iscsi',
+            'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme',
+            { 'name': 'nvme-io_uring', 'if': 'CONFIG_BLKIO' },
+            'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
+            'raw', 'rbd',
             { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
-            'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
+            'ssh', 'throttle', 'vdi', 'vhdx',
+            { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
+            { 'name': 'virtio-blk-vhost-vdpa', 'if': 'CONFIG_BLKIO' },
+            'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsFile:
@@ -3679,6 +3686,58 @@
             '*logfile': 'str' } }
 
 ##
+# @BlockdevOptionsIoUring:
+#
+# Driver specific block device options for the io_uring backend.
+#
+# @filename: path to the image file
+#
+# Since: 7.2
+##
+{ 'struct': 'BlockdevOptionsIoUring',
+  'data': { 'filename': 'str' },
+  'if': 'CONFIG_BLKIO' }
+
+##
+# @BlockdevOptionsNvmeIoUring:
+#
+# Driver specific block device options for the nvme-io_uring backend.
+#
+# @filename: path to the image file
+#
+# Since: 7.2
+##
+{ 'struct': 'BlockdevOptionsNvmeIoUring',
+  'data': { 'filename': 'str' },
+  'if': 'CONFIG_BLKIO' }
+
+##
+# @BlockdevOptionsVirtioBlkVhostUser:
+#
+# Driver specific block device options for the virtio-blk-vhost-user backend.
+#
+# @path: path to the vhost-user UNIX domain socket.
+#
+# Since: 7.2
+##
+{ 'struct': 'BlockdevOptionsVirtioBlkVhostUser',
+  'data': { 'path': 'str' },
+  'if': 'CONFIG_BLKIO' }
+
+##
+# @BlockdevOptionsVirtioBlkVhostVdpa:
+#
+# Driver specific block device options for the virtio-blk-vhost-vdpa backend.
+#
+# @path: path to the vhost-vdpa character device.
+#
+# Since: 7.2
+##
+{ 'struct': 'BlockdevOptionsVirtioBlkVhostVdpa',
+  'data': { 'path': 'str' },
+  'if': 'CONFIG_BLKIO' }
+
+##
 # @IscsiTransport:
 #
 # An enumeration of libiscsi transport types
@@ -4305,6 +4364,8 @@
                        'if': 'HAVE_HOST_BLOCK_DEVICE' },
       'http':       'BlockdevOptionsCurlHttp',
       'https':      'BlockdevOptionsCurlHttps',
+      'io_uring':   { 'type': 'BlockdevOptionsIoUring',
+                      'if': 'CONFIG_BLKIO' },
       'iscsi':      'BlockdevOptionsIscsi',
       'luks':       'BlockdevOptionsLUKS',
       'nbd':        'BlockdevOptionsNbd',
@@ -4312,6 +4373,8 @@
       'null-aio':   'BlockdevOptionsNull',
       'null-co':    'BlockdevOptionsNull',
       'nvme':       'BlockdevOptionsNVMe',
+      'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
+                         'if': 'CONFIG_BLKIO' },
       'parallels':  'BlockdevOptionsGenericFormat',
       'preallocate':'BlockdevOptionsPreallocate',
       'qcow2':      'BlockdevOptionsQcow2',
@@ -4327,6 +4390,12 @@
       'throttle':   'BlockdevOptionsThrottle',
       'vdi':        'BlockdevOptionsGenericFormat',
       'vhdx':       'BlockdevOptionsGenericFormat',
+      'virtio-blk-vhost-user':
+                    { 'type': 'BlockdevOptionsVirtioBlkVhostUser',
+                      'if': 'CONFIG_BLKIO' },
+      'virtio-blk-vhost-vdpa':
+                    { 'type': 'BlockdevOptionsVirtioBlkVhostVdpa',
+                      'if': 'CONFIG_BLKIO' },
       'vmdk':       'BlockdevOptionsGenericCOWFormat',
       'vpc':        'BlockdevOptionsGenericFormat',
       'vvfat':      'BlockdevOptionsVVFAT'
