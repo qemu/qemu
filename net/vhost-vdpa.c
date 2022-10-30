@@ -63,7 +63,6 @@ const int vdpa_feature_bits[] = {
     VIRTIO_NET_F_CTRL_RX,
     VIRTIO_NET_F_CTRL_RX_EXTRA,
     VIRTIO_NET_F_CTRL_VLAN,
-    VIRTIO_NET_F_GUEST_ANNOUNCE,
     VIRTIO_NET_F_CTRL_MAC_ADDR,
     VIRTIO_NET_F_RSS,
     VIRTIO_NET_F_MQ,
@@ -463,48 +462,6 @@ static NetClientInfo net_vhost_vdpa_cvq_info = {
 };
 
 /**
- * Do not forward commands not supported by SVQ. Otherwise, the device could
- * accept it and qemu would not know how to update the device model.
- */
-static bool vhost_vdpa_net_cvq_validate_cmd(const void *out_buf, size_t len)
-{
-    struct virtio_net_ctrl_hdr ctrl;
-
-    if (unlikely(len < sizeof(ctrl))) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid legnth of out buffer %zu\n", __func__, len);
-        return false;
-    }
-
-    memcpy(&ctrl, out_buf, sizeof(ctrl));
-    switch (ctrl.class) {
-    case VIRTIO_NET_CTRL_MAC:
-        switch (ctrl.cmd) {
-        case VIRTIO_NET_CTRL_MAC_ADDR_SET:
-            return true;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid mac cmd %u\n",
-                          __func__, ctrl.cmd);
-        };
-        break;
-    case VIRTIO_NET_CTRL_MQ:
-        switch (ctrl.cmd) {
-        case VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET:
-            return true;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid mq cmd %u\n",
-                          __func__, ctrl.cmd);
-        };
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid control class %u\n",
-                      __func__, ctrl.class);
-    };
-
-    return false;
-}
-
-/**
  * Validate and copy control virtqueue commands.
  *
  * Following QEMU guidelines, we offer a copy of the buffers to the device to
@@ -527,16 +484,10 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
         .iov_len = sizeof(status),
     };
     ssize_t dev_written = -EINVAL;
-    bool ok;
 
     out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                              s->cvq_cmd_out_buffer,
                              vhost_vdpa_net_cvq_cmd_len());
-    ok = vhost_vdpa_net_cvq_validate_cmd(s->cvq_cmd_out_buffer, out.iov_len);
-    if (unlikely(!ok)) {
-        goto out;
-    }
-
     dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
     if (unlikely(dev_written < 0)) {
         goto out;
@@ -593,7 +544,7 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         nc = qemu_new_net_control_client(&net_vhost_vdpa_cvq_info, peer,
                                          device, name);
     }
-    snprintf(nc->info_str, sizeof(nc->info_str), TYPE_VHOST_VDPA);
+    qemu_set_info_str(nc, TYPE_VHOST_VDPA);
     s = DO_UPCAST(VhostVDPAState, nc, nc);
 
     s->vhost_vdpa.device_fd = vdpa_device_fd;
@@ -683,14 +634,29 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
-    if (!opts->vhostdev) {
-        error_setg(errp, "vdpa character device not specified with vhostdev");
+    if (!opts->has_vhostdev && !opts->has_vhostfd) {
+        error_setg(errp,
+                   "vhost-vdpa: neither vhostdev= nor vhostfd= was specified");
         return -1;
     }
 
-    vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
-    if (vdpa_device_fd == -1) {
-        return -errno;
+    if (opts->has_vhostdev && opts->has_vhostfd) {
+        error_setg(errp,
+                   "vhost-vdpa: vhostdev= and vhostfd= are mutually exclusive");
+        return -1;
+    }
+
+    if (opts->has_vhostdev) {
+        vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
+        if (vdpa_device_fd == -1) {
+            return -errno;
+        }
+    } else if (opts->has_vhostfd) {
+        vdpa_device_fd = monitor_fd_param(monitor_cur(), opts->vhostfd, errp);
+        if (vdpa_device_fd == -1) {
+            error_prepend(errp, "vhost-vdpa: unable to parse vhostfd: ");
+            return -1;
+        }
     }
 
     r = vhost_vdpa_get_features(vdpa_device_fd, &features, errp);

@@ -2526,6 +2526,7 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
     VirtIONet *n = qemu_get_nic_opaque(nc);
     VirtIONetQueue *q = virtio_net_get_subqueue(nc);
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int ret;
 
     virtqueue_push(q->tx_vq, q->async_tx.elem, 0);
     virtio_notify(vdev, q->tx_vq);
@@ -2534,7 +2535,22 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
     q->async_tx.elem = NULL;
 
     virtio_queue_set_notification(q->tx_vq, 1);
-    virtio_net_flush_tx(q);
+    ret = virtio_net_flush_tx(q);
+    if (ret >= n->tx_burst) {
+        /*
+         * the flush has been stopped by tx_burst
+         * we will not receive notification for the
+         * remainining part, so re-schedule
+         */
+        virtio_queue_set_notification(q->tx_vq, 0);
+        if (q->tx_bh) {
+            qemu_bh_schedule(q->tx_bh);
+        } else {
+            timer_mod(q->tx_timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+        }
+        q->tx_waiting = 1;
+    }
 }
 
 /* TX */
@@ -2633,6 +2649,8 @@ drop:
     return num_packets;
 }
 
+static void virtio_net_tx_timer(void *opaque);
+
 static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -2650,15 +2668,13 @@ static void virtio_net_handle_tx_timer(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     if (q->tx_waiting) {
-        virtio_queue_set_notification(vq, 1);
+        /* We already have queued packets, immediately flush */
         timer_del(q->tx_timer);
-        q->tx_waiting = 0;
-        if (virtio_net_flush_tx(q) == -EINVAL) {
-            return;
-        }
+        virtio_net_tx_timer(q);
     } else {
+        /* re-arm timer to flush it (and more) on next tick */
         timer_mod(q->tx_timer,
-                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
         q->tx_waiting = 1;
         virtio_queue_set_notification(vq, 0);
     }
@@ -2691,6 +2707,8 @@ static void virtio_net_tx_timer(void *opaque)
     VirtIONetQueue *q = opaque;
     VirtIONet *n = q->n;
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int ret;
+
     /* This happens when device was stopped but BH wasn't. */
     if (!vdev->vm_running) {
         /* Make sure tx waiting is set, so we'll run when restarted. */
@@ -2705,8 +2723,33 @@ static void virtio_net_tx_timer(void *opaque)
         return;
     }
 
+    ret = virtio_net_flush_tx(q);
+    if (ret == -EBUSY || ret == -EINVAL) {
+        return;
+    }
+    /*
+     * If we flush a full burst of packets, assume there are
+     * more coming and immediately rearm
+     */
+    if (ret >= n->tx_burst) {
+        q->tx_waiting = 1;
+        timer_mod(q->tx_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+        return;
+    }
+    /*
+     * If less than a full burst, re-enable notification and flush
+     * anything that may have come in while we weren't looking.  If
+     * we find something, assume the guest is still active and rearm
+     */
     virtio_queue_set_notification(q->tx_vq, 1);
-    virtio_net_flush_tx(q);
+    ret = virtio_net_flush_tx(q);
+    if (ret > 0) {
+        virtio_queue_set_notification(q->tx_vq, 0);
+        q->tx_waiting = 1;
+        timer_mod(q->tx_timer,
+                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + n->tx_timeout);
+    }
 }
 
 static void virtio_net_tx_bh(void *opaque)

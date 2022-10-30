@@ -33,6 +33,7 @@ bool vhost_svq_valid_features(uint64_t features, Error **errp)
          ++b) {
         switch (b) {
         case VIRTIO_F_ANY_LAYOUT:
+        case VIRTIO_RING_F_EVENT_IDX:
             continue;
 
         case VIRTIO_F_ACCESS_PLATFORM:
@@ -218,12 +219,22 @@ static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
 
 static void vhost_svq_kick(VhostShadowVirtqueue *svq)
 {
+    bool needs_kick;
+
     /*
      * We need to expose the available array entries before checking the used
      * flags
      */
     smp_mb();
-    if (svq->vring.used->flags & VRING_USED_F_NO_NOTIFY) {
+
+    if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        uint16_t avail_event = *(uint16_t *)(&svq->vring.used->ring[svq->vring.num]);
+        needs_kick = vring_need_event(avail_event, svq->shadow_avail_idx, svq->shadow_avail_idx - 1);
+    } else {
+        needs_kick = !(svq->vring.used->flags & VRING_USED_F_NO_NOTIFY);
+    }
+
+    if (!needs_kick) {
         return;
     }
 
@@ -369,15 +380,27 @@ static bool vhost_svq_more_used(VhostShadowVirtqueue *svq)
  */
 static bool vhost_svq_enable_notification(VhostShadowVirtqueue *svq)
 {
-    svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
-    /* Make sure the flag is written before the read of used_idx */
+    if (virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        uint16_t *used_event = (uint16_t *)&svq->vring.avail->ring[svq->vring.num];
+        *used_event = svq->shadow_used_idx;
+    } else {
+        svq->vring.avail->flags &= ~cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    }
+
+    /* Make sure the event is enabled before the read of used_idx */
     smp_mb();
     return !vhost_svq_more_used(svq);
 }
 
 static void vhost_svq_disable_notification(VhostShadowVirtqueue *svq)
 {
-    svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    /*
+     * No need to disable notification in the event idx case, since used event
+     * index is already an index too far away.
+     */
+    if (!virtio_vdev_has_feature(svq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
+        svq->vring.avail->flags |= cpu_to_le16(VRING_AVAIL_F_NO_INTERRUPT);
+    }
 }
 
 static uint16_t vhost_svq_last_desc_of_chain(const VhostShadowVirtqueue *svq,
@@ -570,16 +593,16 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
 {
     size_t desc_size = sizeof(vring_desc_t) * svq->vring.num;
-    size_t avail_size = offsetof(vring_avail_t, ring) +
-                                             sizeof(uint16_t) * svq->vring.num;
+    size_t avail_size = offsetof(vring_avail_t, ring[svq->vring.num]) +
+                                                              sizeof(uint16_t);
 
     return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size());
 }
 
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
 {
-    size_t used_size = offsetof(vring_used_t, ring) +
-                                    sizeof(vring_used_elem_t) * svq->vring.num;
+    size_t used_size = offsetof(vring_used_t, ring[svq->vring.num]) +
+                                                              sizeof(uint16_t);
     return ROUND_UP(used_size, qemu_real_host_page_size());
 }
 
