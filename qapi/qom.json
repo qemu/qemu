@@ -589,7 +589,7 @@
 #
 # @size: size of the memory region in bytes
 #
-# @x-use-canonical-path-for-ramblock-id: if true, the canoncial path is used
+# @x-use-canonical-path-for-ramblock-id: if true, the canonical path is used
 #                                        for ramblock-id. Disable this for 4.0
 #                                        machine types or older to allow
 #                                        migration with newer QEMU versions.

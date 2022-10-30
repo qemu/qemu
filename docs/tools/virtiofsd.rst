@@ -232,7 +232,7 @@ e.g.:
 
   ``:ok:server::security.:``
 
-  will pass 'securty.' xattr's in listxattr from the server
+  will pass 'security.' xattr's in listxattr from the server
   and ignore following rules.
 
   ``:ok:all:::``

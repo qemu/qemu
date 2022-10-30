@@ -736,7 +736,7 @@ bool qtest_has_device(const char *device);
  * qtest_qmp_device_add_qdict:
  * @qts: QTestState instance to operate on
  * @drv: Name of the device that should be added
- * @arguments: QDict with properties for the device to intialize
+ * @arguments: QDict with properties for the device to initialize
  *
  * Generic hot-plugging test via the device_add QMP command with properties
  * supplied in form of QDict. Use NULL for empty properties list.
