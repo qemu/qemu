@@ -149,7 +149,7 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     if (!nvdimm->unarmed && memory_region_is_rom(mr)) {
         HostMemoryBackend *hostmem = dimm->hostmem;
 
-        error_setg(errp, "'unarmed' property must be off since memdev %s "
+        error_setg(errp, "'unarmed' property must be 'on' since memdev %s "
                    "is read-only",
                    object_get_canonical_path_component(OBJECT(hostmem)));
         return;

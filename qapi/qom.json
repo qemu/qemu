@@ -578,6 +578,9 @@
 #
 # @prealloc-threads: number of CPU threads to use for prealloc (default: 1)
 #
+# @prealloc-context: thread context to use for creation of preallocation threads
+#                    (default: none) (since 7.2)
+#
 # @share: if false, the memory is private to QEMU; if true, it is shared
 #         (default: false)
 #
@@ -608,6 +611,7 @@
             '*policy': 'HostMemPolicy',
             '*prealloc': 'bool',
             '*prealloc-threads': 'uint32',
+            '*prealloc-context': 'str',
             '*share': 'bool',
             '*reserve': 'bool',
             'size': 'size',
@@ -831,6 +835,28 @@
             '*kernel-hashes': 'bool' } }
 
 ##
+# @ThreadContextProperties:
+#
+# Properties for thread context objects.
+#
+# @cpu-affinity: the list of host CPU numbers used as CPU affinity for all
+#                threads created in the thread context (default: QEMU main
+#                thread CPU affinity)
+#
+# @node-affinity: the list of host node numbers that will be resolved to a
+#                 list of host CPU numbers used as CPU affinity. This is a
+#                 shortcut for specifying the list of host CPU numbers
+#                 belonging to the host nodes manually by setting
+#                 @cpu-affinity. (default: QEMU main thread affinity)
+#
+# Since: 7.2
+##
+{ 'struct': 'ThreadContextProperties',
+  'data': { '*cpu-affinity': ['uint16'],
+            '*node-affinity': ['uint16'] } }
+
+
+##
 # @ObjectType:
 #
 # Features:
@@ -882,6 +908,7 @@
     { 'name': 'secret_keyring',
       'if': 'CONFIG_SECRET_KEYRING' },
     'sev-guest',
+    'thread-context',
     's390-pv-guest',
     'throttle-group',
     'tls-creds-anon',
@@ -948,6 +975,7 @@
       'secret_keyring':             { 'type': 'SecretKeyringProperties',
                                       'if': 'CONFIG_SECRET_KEYRING' },
       'sev-guest':                  'SevGuestProperties',
+      'thread-context':             'ThreadContextProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',
