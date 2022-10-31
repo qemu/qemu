@@ -51,7 +51,7 @@ void tb_htable_init(void)
 }
 
 /* Set to NULL all the 'first_tb' fields in all PageDescs. */
-static void page_flush_tb_1(int level, void **lp)
+static void tb_remove_all_1(int level, void **lp)
 {
     int i;
 
@@ -70,17 +70,17 @@ static void page_flush_tb_1(int level, void **lp)
         void **pp = *lp;
 
         for (i = 0; i < V_L2_SIZE; ++i) {
-            page_flush_tb_1(level - 1, pp + i);
+            tb_remove_all_1(level - 1, pp + i);
         }
     }
 }
 
-static void page_flush_tb(void)
+static void tb_remove_all(void)
 {
     int i, l1_sz = v_l1_size;
 
     for (i = 0; i < l1_sz; i++) {
-        page_flush_tb_1(v_l2_levels, l1_map + i);
+        tb_remove_all_1(v_l2_levels, l1_map + i);
     }
 }
 
@@ -101,7 +101,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
     }
 
     qht_reset_size(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
-    page_flush_tb();
+    tb_remove_all();
 
     tcg_region_reset_all();
     /* XXX: flush processor icache at this point if cache flush is expensive */
