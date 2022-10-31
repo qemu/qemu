@@ -651,7 +651,8 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         if (vdpa_device_fd == -1) {
             return -errno;
         }
-    } else if (opts->has_vhostfd) {
+    } else {
+        /* has_vhostfd */
         vdpa_device_fd = monitor_fd_param(monitor_cur(), opts->vhostfd, errp);
         if (vdpa_device_fd == -1) {
             error_prepend(errp, "vhost-vdpa: unable to parse vhostfd: ");
