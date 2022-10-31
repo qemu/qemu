@@ -2723,7 +2723,7 @@ static DisasJumpType op_vfene(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_vistr(DisasContext *s, DisasOps *o)
 {
-    const uint8_t es = get_field(s, m4);
+    const uint8_t es = get_field(s, m3);
     const uint8_t m5 = get_field(s, m5);
     static gen_helper_gvec_2 * const g[3] = {
         gen_helper_gvec_vistr8,

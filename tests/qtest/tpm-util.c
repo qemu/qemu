@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <glib/gstdio.h>
 
 #include "hw/acpi/tpm.h"
 #include "libqtest.h"
@@ -291,4 +292,22 @@ void tpm_util_migration_start_qemu(QTestState **src_qemu,
 
     g_free(src_qemu_args);
     g_free(dst_qemu_args);
+}
+
+/* Remove directory with remainders of swtpm */
+void tpm_util_rmdir(const char *path)
+{
+    char *filename;
+    int ret;
+
+    filename = g_strdup_printf("%s/tpm2-00.permall", path);
+    g_unlink(filename);
+    g_free(filename);
+
+    filename = g_strdup_printf("%s/.lock", path);
+    g_unlink(filename);
+    g_free(filename);
+
+    ret = g_rmdir(path);
+    g_assert(!ret);
 }
