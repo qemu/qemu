@@ -1580,15 +1580,13 @@ void tcg_flush_jmp_cache(CPUState *cpu)
 {
     CPUJumpCache *jc = cpu->tb_jmp_cache;
 
-    if (likely(jc)) {
-        for (int i = 0; i < TB_JMP_CACHE_SIZE; i++) {
-            qatomic_set(&jc->array[i].tb, NULL);
-        }
-    } else {
-        /* This should happen once during realize, and thus never race. */
-        jc = g_new0(CPUJumpCache, 1);
-        jc = qatomic_xchg(&cpu->tb_jmp_cache, jc);
-        assert(jc == NULL);
+    /* During early initialization, the cache may not yet be allocated. */
+    if (unlikely(jc == NULL)) {
+        return;
+    }
+
+    for (int i = 0; i < TB_JMP_CACHE_SIZE; i++) {
+        qatomic_set(&jc->array[i].tb, NULL);
     }
 }
 

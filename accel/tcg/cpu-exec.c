@@ -1052,23 +1052,25 @@ void tcg_exec_realizefn(CPUState *cpu, Error **errp)
         cc->tcg_ops->initialize();
         tcg_target_initialized = true;
     }
-    tlb_init(cpu);
-    qemu_plugin_vcpu_init_hook(cpu);
 
+    cpu->tb_jmp_cache = g_new0(CPUJumpCache, 1);
+    tlb_init(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_init_notifier_list(cpu);
 #endif /* !CONFIG_USER_ONLY */
+    /* qemu_plugin_vcpu_init_hook delayed until cpu_index assigned. */
 }
 
 /* undo the initializations in reverse order */
 void tcg_exec_unrealizefn(CPUState *cpu)
 {
+    qemu_plugin_vcpu_exit_hook(cpu);
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_free_notifier_list(cpu);
 #endif /* !CONFIG_USER_ONLY */
 
-    qemu_plugin_vcpu_exit_hook(cpu);
     tlb_destroy(cpu);
+    g_free(cpu->tb_jmp_cache);
 }
 
 #ifndef CONFIG_USER_ONLY
