@@ -352,7 +352,10 @@ static void gen_firmware(uint32_t *p, hwaddr kernel_entry, hwaddr fdt_addr)
      * a2/$6 = 0
      * a3/$7 = 0
      */
-    bl_gen_jump_kernel(&p, 0, (int32_t)-2, fdt_addr, 0, 0, kernel_entry);
+    bl_gen_jump_kernel(&p,
+                       true, 0, true, (int32_t)-2,
+                       true, fdt_addr, true, 0, true, 0,
+                       kernel_entry);
 }
 
 static const void *boston_fdt_filter(void *opaque, const void *fdt_orig,
@@ -425,7 +428,7 @@ static inline XilinxPCIEHost *
 xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
                  hwaddr cfg_base, uint64_t cfg_size,
                  hwaddr mmio_base, uint64_t mmio_size,
-                 qemu_irq irq, bool link_up)
+                 qemu_irq irq)
 {
     DeviceState *dev;
     MemoryRegion *cfg, *mmio;
@@ -437,7 +440,6 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     qdev_prop_set_uint64(dev, "cfg_size", cfg_size);
     qdev_prop_set_uint64(dev, "mmio_base", mmio_base);
     qdev_prop_set_uint64(dev, "mmio_size", mmio_size);
-    qdev_prop_set_bit(dev, "link_up", link_up);
 
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
@@ -730,21 +732,21 @@ static void boston_mach_init(MachineState *machine)
                      boston_memmap[BOSTON_PCIE0].size,
                      boston_memmap[BOSTON_PCIE0_MMIO].base,
                      boston_memmap[BOSTON_PCIE0_MMIO].size,
-                     get_cps_irq(&s->cps, 2), false);
+                     get_cps_irq(&s->cps, 2));
 
     xilinx_pcie_init(sys_mem, 1,
                      boston_memmap[BOSTON_PCIE1].base,
                      boston_memmap[BOSTON_PCIE1].size,
                      boston_memmap[BOSTON_PCIE1_MMIO].base,
                      boston_memmap[BOSTON_PCIE1_MMIO].size,
-                     get_cps_irq(&s->cps, 1), false);
+                     get_cps_irq(&s->cps, 1));
 
     pcie2 = xilinx_pcie_init(sys_mem, 2,
                              boston_memmap[BOSTON_PCIE2].base,
                              boston_memmap[BOSTON_PCIE2].size,
                              boston_memmap[BOSTON_PCIE2_MMIO].base,
                              boston_memmap[BOSTON_PCIE2_MMIO].size,
-                             get_cps_irq(&s->cps, 0), true);
+                             get_cps_irq(&s->cps, 0));
 
     platreg = g_new(MemoryRegion, 1);
     memory_region_init_io(platreg, NULL, &boston_platreg_ops, s,

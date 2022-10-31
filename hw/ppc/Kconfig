@@ -74,7 +74,6 @@ config PEGASOS2
     imply ATI_VGA
     select MV64361
     select VT82C686
-    select IDE_VIA
     select SMBUS_EEPROM
     select VOF
 # This should come with VT82C686
