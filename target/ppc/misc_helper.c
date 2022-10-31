@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "mmu-book3s-v3.h"
+#include "hw/ppc/ppc.h"
 
 #include "helper_regs.h"
 
@@ -163,7 +164,7 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
     helper_hfscr_facility_check(env, HFSCR_MSGP, "load DPDES", HFSCR_IC_MSGP);
 
     /* TODO: TCG supports only one thread */
-    if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
+    if (env->pending_interrupts & PPC_INTERRUPT_DOORBELL) {
         dpdes = 1;
     }
 
@@ -173,7 +174,6 @@ target_ulong helper_load_dpdes(CPUPPCState *env)
 void helper_store_dpdes(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
-    CPUState *cs = CPU(cpu);
 
     helper_hfscr_facility_check(env, HFSCR_MSGP, "store DPDES", HFSCR_IC_MSGP);
 
@@ -184,12 +184,7 @@ void helper_store_dpdes(CPUPPCState *env, target_ulong val)
         return;
     }
 
-    if (val & 0x1) {
-        env->pending_interrupts |= 1 << PPC_INTERRUPT_DOORBELL;
-        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
-    } else {
-        env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
-    }
+    ppc_set_irq(cpu, PPC_INTERRUPT_DOORBELL, val & 0x1);
 }
 #endif /* defined(TARGET_PPC64) */
 

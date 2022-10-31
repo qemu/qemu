@@ -490,6 +490,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
 
     if (spapr_cpu->prod) {
         spapr_cpu->prod = false;
@@ -500,6 +501,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
         cs->halted = 1;
         cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
+        ppc_maybe_interrupt(env);
     }
 
     return H_SUCCESS;
@@ -521,6 +523,7 @@ static target_ulong h_confer_self(PowerPCCPU *cpu)
     cs->halted = 1;
     cs->exception_index = EXCP_HALTED;
     cs->exit_request = 1;
+    ppc_maybe_interrupt(&cpu->env);
 
     return H_SUCCESS;
 }
@@ -633,6 +636,7 @@ static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
     spapr_cpu = spapr_cpu_state(tcpu);
     spapr_cpu->prod = true;
     cs->halted = 0;
+    ppc_maybe_interrupt(&cpu->env);
     qemu_cpu_kick(cs);
 
     return H_SUCCESS;
@@ -1669,6 +1673,7 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     spapr_cpu->in_nested = true;
 
     hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
     tlb_flush(cs);
     env->reserve_addr = -1; /* Reset the reservation */
 
@@ -1810,6 +1815,7 @@ out_restore_l1:
     spapr_cpu->in_nested = false;
 
     hreg_compute_hflags(env);
+    ppc_maybe_interrupt(env);
     tlb_flush(cs);
     env->reserve_addr = -1; /* Reset the reservation */
 

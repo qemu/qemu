@@ -36,6 +36,7 @@
 #include "exec/log.h"
 #include "qemu/atomic128.h"
 #include "spr_common.h"
+#include "power8-pmu.h"
 
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"
@@ -177,6 +178,8 @@ struct DisasContext {
     bool hr;
     bool mmcr0_pmcc0;
     bool mmcr0_pmcc1;
+    bool mmcr0_pmcjce;
+    bool pmc_other;
     bool pmu_insn_cnt;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
@@ -304,6 +307,14 @@ static void gen_icount_io_start(DisasContext *ctx)
         ctx->base.is_jmp = DISAS_TOO_MANY;
     }
 }
+
+#if !defined(CONFIG_USER_ONLY)
+static void gen_ppc_maybe_interrupt(DisasContext *ctx)
+{
+    gen_icount_io_start(ctx);
+    gen_helper_ppc_maybe_interrupt(cpu_env);
+}
+#endif
 
 /*
  * Tells the caller what is the appropriate exception to generate and prepares
@@ -4261,6 +4272,9 @@ static void pmu_count_insns(DisasContext *ctx)
     }
 
  #if !defined(CONFIG_USER_ONLY)
+    TCGLabel *l;
+    TCGv t0;
+
     /*
      * The PMU insns_inc() helper stops the internal PMU timer if a
      * counter overflows happens. In that case, if the guest is
@@ -4269,8 +4283,26 @@ static void pmu_count_insns(DisasContext *ctx)
      */
     gen_icount_io_start(ctx);
 
-    gen_helper_insns_inc(cpu_env, tcg_constant_i32(ctx->base.num_insns));
-#else
+    /* Avoid helper calls when only PMC5-6 are enabled. */
+    if (!ctx->pmc_other) {
+        l = gen_new_label();
+        t0 = tcg_temp_new();
+
+        gen_load_spr(t0, SPR_POWER_PMC5);
+        tcg_gen_addi_tl(t0, t0, ctx->base.num_insns);
+        gen_store_spr(SPR_POWER_PMC5, t0);
+        /* Check for overflow, if it's enabled */
+        if (ctx->mmcr0_pmcjce) {
+            tcg_gen_brcondi_tl(TCG_COND_LT, t0, PMC_COUNTER_NEGATIVE_VAL, l);
+            gen_helper_handle_pmc5_overflow(cpu_env);
+        }
+
+        gen_set_label(l);
+        tcg_temp_free(t0);
+    } else {
+        gen_helper_insns_inc(cpu_env, tcg_constant_i32(ctx->base.num_insns));
+    }
+  #else
     /*
      * User mode can read (but not write) PMC5 and start/stop
      * the PMU via MMCR0_FC. In this case just increment
@@ -4283,7 +4315,7 @@ static void pmu_count_insns(DisasContext *ctx)
     gen_store_spr(SPR_POWER_PMC5, t0);
 
     tcg_temp_free(t0);
-#endif /* #if !defined(CONFIG_USER_ONLY) */
+  #endif /* #if !defined(CONFIG_USER_ONLY) */
 }
 #else
 static void pmu_count_insns(DisasContext *ctx)
@@ -6161,7 +6193,6 @@ static void gen_tlbilx_booke206(DisasContext *ctx)
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
-
 /* wrtee */
 static void gen_wrtee(DisasContext *ctx)
 {
@@ -6175,6 +6206,7 @@ static void gen_wrtee(DisasContext *ctx)
     tcg_gen_andi_tl(t0, cpu_gpr[rD(ctx->opcode)], (1 << MSR_EE));
     tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     tcg_gen_or_tl(cpu_msr, cpu_msr, t0);
+    gen_ppc_maybe_interrupt(ctx);
     tcg_temp_free(t0);
     /*
      * Stop translation to have a chance to raise an exception if we
@@ -6193,6 +6225,7 @@ static void gen_wrteei(DisasContext *ctx)
     CHK_SV(ctx);
     if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
+        gen_ppc_maybe_interrupt(ctx);
         /* Stop translation to have a chance to raise an exception */
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;
     } else {
@@ -6237,68 +6270,6 @@ static void gen_icbt_440(DisasContext *ctx)
      * XXX: specification say this is treated as a load by the MMU but
      *      does not generate any exception
      */
-}
-
-/* Embedded.Processor Control */
-
-static void gen_msgclr(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_HV(ctx);
-    if (is_book3s_arch2x(ctx)) {
-        gen_helper_book3s_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-    } else {
-        gen_helper_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-    }
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
-static void gen_msgsnd(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_HV(ctx);
-    if (is_book3s_arch2x(ctx)) {
-        gen_helper_book3s_msgsnd(cpu_gpr[rB(ctx->opcode)]);
-    } else {
-        gen_helper_msgsnd(cpu_gpr[rB(ctx->opcode)]);
-    }
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
-#if defined(TARGET_PPC64)
-static void gen_msgclrp(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_SV(ctx);
-    gen_helper_book3s_msgclrp(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-
-static void gen_msgsndp(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_SV(ctx);
-    gen_helper_book3s_msgsndp(cpu_env, cpu_gpr[rB(ctx->opcode)]);
-#endif /* defined(CONFIG_USER_ONLY) */
-}
-#endif
-
-static void gen_msgsync(DisasContext *ctx)
-{
-#if defined(CONFIG_USER_ONLY)
-    GEN_PRIV(ctx);
-#else
-    CHK_HV(ctx);
-#endif /* defined(CONFIG_USER_ONLY) */
-    /* interpreted as no-op */
 }
 
 #if defined(TARGET_PPC64)
@@ -6545,12 +6516,12 @@ static int64_t dw_compose_ea(DisasContext *ctx, int x)
         }                           \
     } while (0)
 
-#define REQUIRE_HV(CTX)                         \
-    do {                                        \
-        if (unlikely((CTX)->pr || !(CTX)->hv))  \
-            gen_priv_opc(CTX);                  \
-            return true;                        \
-        }                                       \
+#define REQUIRE_HV(CTX)                             \
+    do {                                            \
+        if (unlikely((CTX)->pr || !(CTX)->hv)) {    \
+            gen_priv_opc(CTX);                      \
+            return true;                            \
+        }                                           \
     } while (0)
 #else
 #define REQUIRE_SV(CTX) do { gen_priv_opc(CTX); return true; } while (0)
@@ -6627,6 +6598,8 @@ static bool resolve_PLS_D(DisasContext *ctx, arg_D *d, arg_PLS_D *a)
 #include "translate/spe-impl.c.inc"
 
 #include "translate/branch-impl.c.inc"
+
+#include "translate/processor-ctrl-impl.c.inc"
 
 #include "translate/storage-ctrl-impl.c.inc"
 
@@ -6901,12 +6874,6 @@ GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
                PPC_NONE, PPC2_BOOKE206),
-GEN_HANDLER2_E(msgsnd, "msgsnd", 0x1F, 0x0E, 0x06, 0x03ff0001,
-               PPC_NONE, PPC2_PRCNTL),
-GEN_HANDLER2_E(msgclr, "msgclr", 0x1F, 0x0E, 0x07, 0x03ff0001,
-               PPC_NONE, PPC2_PRCNTL),
-GEN_HANDLER2_E(msgsync, "msgsync", 0x1F, 0x16, 0x1B, 0x00000000,
-               PPC_NONE, PPC2_PRCNTL),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
 GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
@@ -6921,15 +6888,10 @@ GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(lvsr, 0x1f, 0x06, 0x01, 0x00000001, PPC_ALTIVEC),
 GEN_HANDLER(mfvscr, 0x04, 0x2, 0x18, 0x001ff800, PPC_ALTIVEC),
 GEN_HANDLER(mtvscr, 0x04, 0x2, 0x19, 0x03ff0000, PPC_ALTIVEC),
-GEN_HANDLER(vmladduhm, 0x04, 0x11, 0xFF, 0x00000000, PPC_ALTIVEC),
 #if defined(TARGET_PPC64)
 GEN_HANDLER_E(maddhd_maddhdu, 0x04, 0x18, 0xFF, 0x00000000, PPC_NONE,
               PPC2_ISA300),
 GEN_HANDLER_E(maddld, 0x04, 0x19, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA300),
-GEN_HANDLER2_E(msgsndp, "msgsndp", 0x1F, 0x0E, 0x04, 0x03ff0001,
-               PPC_NONE, PPC2_ISA207S),
-GEN_HANDLER2_E(msgclrp, "msgclrp", 0x1F, 0x0E, 0x05, 0x03ff0001,
-               PPC_NONE, PPC2_ISA207S),
 #endif
 
 #undef GEN_INT_ARITH_ADD
@@ -7574,6 +7536,8 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->hr = (hflags >> HFLAGS_HR) & 1;
     ctx->mmcr0_pmcc0 = (hflags >> HFLAGS_PMCC0) & 1;
     ctx->mmcr0_pmcc1 = (hflags >> HFLAGS_PMCC1) & 1;
+    ctx->mmcr0_pmcjce = (hflags >> HFLAGS_PMCJCE) & 1;
+    ctx->pmc_other = (hflags >> HFLAGS_PMC_OTHER) & 1;
     ctx->pmu_insn_cnt = (hflags >> HFLAGS_INSN_CNT) & 1;
 
     ctx->singlestep_enabled = 0;

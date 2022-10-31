@@ -147,32 +147,11 @@ GEN_HANDLER_E(xsiexpdp, 0x3C, 0x16, 0x1C, 0, PPC_NONE, PPC2_ISA300),
 GEN_VSX_XFORM_300(xsiexpqp, 0x4, 0x1B, 0x00000001),
 #endif
 
-GEN_XX2FORM(xststdcdp, 0x14, 0x16, PPC2_ISA300),
-GEN_XX2FORM(xststdcsp, 0x14, 0x12, PPC2_ISA300),
-GEN_VSX_XFORM_300(xststdcqp, 0x04, 0x16, 0x00000001),
-
 GEN_XX3FORM(xviexpsp, 0x00, 0x1B, PPC2_ISA300),
 GEN_XX3FORM(xviexpdp, 0x00, 0x1F, PPC2_ISA300),
 GEN_XX2FORM_EO(xvxexpdp, 0x16, 0x1D, 0x00, PPC2_ISA300),
 GEN_XX2FORM_EO(xvxsigdp, 0x16, 0x1D, 0x01, PPC2_ISA300),
 GEN_XX2FORM_EO(xvxexpsp, 0x16, 0x1D, 0x08, PPC2_ISA300),
-
-/* DCMX  =  bit[25] << 6 | bit[29] << 5 | bit[11:15] */
-#define GEN_XX2FORM_DCMX(name, opc2, opc3, fl2) \
-GEN_XX3FORM(name, opc2, opc3 | 0, fl2),         \
-GEN_XX3FORM(name, opc2, opc3 | 1, fl2)
-
-GEN_XX2FORM_DCMX(xvtstdcdp, 0x14, 0x1E, PPC2_ISA300),
-GEN_XX2FORM_DCMX(xvtstdcsp, 0x14, 0x1A, PPC2_ISA300),
-
-GEN_XX2FORM(xvabsdp, 0x12, 0x1D, PPC2_VSX),
-GEN_XX2FORM(xvnabsdp, 0x12, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvnegdp, 0x12, 0x1F, PPC2_VSX),
-GEN_XX3FORM(xvcpsgndp, 0x00, 0x1E, PPC2_VSX),
-GEN_XX2FORM(xvabssp, 0x12, 0x19, PPC2_VSX),
-GEN_XX2FORM(xvnabssp, 0x12, 0x1A, PPC2_VSX),
-GEN_XX2FORM(xvnegsp, 0x12, 0x1B, PPC2_VSX),
-GEN_XX3FORM(xvcpsgnsp, 0x00, 0x1A, PPC2_VSX),
 
 GEN_XX3FORM(xsadddp, 0x00, 0x04, PPC2_VSX),
 GEN_VSX_XFORM_300(xsaddqp, 0x04, 0x00, 0x0),

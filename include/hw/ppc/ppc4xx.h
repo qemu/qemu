@@ -29,18 +29,6 @@
 #include "exec/memory.h"
 #include "hw/sysbus.h"
 
-typedef struct {
-    MemoryRegion ram;
-    MemoryRegion container; /* used for clipping */
-    hwaddr base;
-    hwaddr size;
-    uint32_t bcr;
-} Ppc4xxSdramBank;
-
-void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
-                        Ppc4xxSdramBank ram_banks[],
-                        const ram_addr_t sdram_bank_sizes[]);
-
 #define TYPE_PPC4xx_PCI_HOST_BRIDGE "ppc4xx-pcihost"
 
 /*
@@ -111,6 +99,14 @@ struct Ppc4xxEbcState {
 };
 
 /* SDRAM DDR controller */
+typedef struct {
+    MemoryRegion ram;
+    MemoryRegion container; /* used for clipping */
+    hwaddr base;
+    hwaddr size;
+    uint32_t bcr;
+} Ppc4xxSdramBank;
+
 #define SDR0_DDR0_DDRM_ENCODE(n)  ((((unsigned long)(n)) & 0x03) << 29)
 #define SDR0_DDR0_DDRM_DDR1       0x20000000
 #define SDR0_DDR0_DDRM_DDR2       0x40000000

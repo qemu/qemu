@@ -630,6 +630,10 @@ static void gen_mtvsrws(DisasContext *ctx)
 #define OP_CPSGN 4
 #define SGN_MASK_DP  0x8000000000000000ull
 #define SGN_MASK_SP 0x8000000080000000ull
+#define EXP_MASK_DP  0x7FF0000000000000ull
+#define EXP_MASK_SP 0x7F8000007F800000ull
+#define FRC_MASK_DP (~(SGN_MASK_DP | EXP_MASK_DP))
+#define FRC_MASK_SP (~(SGN_MASK_SP | EXP_MASK_SP))
 
 #define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
 static void glue(gen_, name)(DisasContext *ctx)                   \
@@ -729,67 +733,125 @@ VSX_SCALAR_MOVE_QP(xsnabsqp, OP_NABS, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xsnegqp, OP_NEG, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xscpsgnqp, OP_CPSGN, SGN_MASK_DP)
 
-#define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
-static void glue(gen_, name)(DisasContext *ctx)                  \
-    {                                                            \
-        TCGv_i64 xbh, xbl, sgm;                                  \
-        if (unlikely(!ctx->vsx_enabled)) {                       \
-            gen_exception(ctx, POWERPC_EXCP_VSXU);               \
-            return;                                              \
-        }                                                        \
-        xbh = tcg_temp_new_i64();                                \
-        xbl = tcg_temp_new_i64();                                \
-        sgm = tcg_temp_new_i64();                                \
-        get_cpu_vsr(xbh, xB(ctx->opcode), true);                 \
-        get_cpu_vsr(xbl, xB(ctx->opcode), false);                \
-        tcg_gen_movi_i64(sgm, sgn_mask);                         \
-        switch (op) {                                            \
-            case OP_ABS: {                                       \
-                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
-                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
-                break;                                           \
-            }                                                    \
-            case OP_NABS: {                                      \
-                tcg_gen_or_i64(xbh, xbh, sgm);                   \
-                tcg_gen_or_i64(xbl, xbl, sgm);                   \
-                break;                                           \
-            }                                                    \
-            case OP_NEG: {                                       \
-                tcg_gen_xor_i64(xbh, xbh, sgm);                  \
-                tcg_gen_xor_i64(xbl, xbl, sgm);                  \
-                break;                                           \
-            }                                                    \
-            case OP_CPSGN: {                                     \
-                TCGv_i64 xah = tcg_temp_new_i64();               \
-                TCGv_i64 xal = tcg_temp_new_i64();               \
-                get_cpu_vsr(xah, xA(ctx->opcode), true);         \
-                get_cpu_vsr(xal, xA(ctx->opcode), false);        \
-                tcg_gen_and_i64(xah, xah, sgm);                  \
-                tcg_gen_and_i64(xal, xal, sgm);                  \
-                tcg_gen_andc_i64(xbh, xbh, sgm);                 \
-                tcg_gen_andc_i64(xbl, xbl, sgm);                 \
-                tcg_gen_or_i64(xbh, xbh, xah);                   \
-                tcg_gen_or_i64(xbl, xbl, xal);                   \
-                tcg_temp_free_i64(xah);                          \
-                tcg_temp_free_i64(xal);                          \
-                break;                                           \
-            }                                                    \
-        }                                                        \
-        set_cpu_vsr(xT(ctx->opcode), xbh, true);                 \
-        set_cpu_vsr(xT(ctx->opcode), xbl, false);                \
-        tcg_temp_free_i64(xbh);                                  \
-        tcg_temp_free_i64(xbl);                                  \
-        tcg_temp_free_i64(sgm);                                  \
+#define TCG_OP_IMM_i64(FUNC, OP, IMM)                           \
+    static void FUNC(TCGv_i64 t, TCGv_i64 b)                    \
+    {                                                           \
+        OP(t, b, IMM);                                          \
     }
 
-VSX_VECTOR_MOVE(xvabsdp, OP_ABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnabsdp, OP_NABS, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvnegdp, OP_NEG, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvcpsgndp, OP_CPSGN, SGN_MASK_DP)
-VSX_VECTOR_MOVE(xvabssp, OP_ABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
-VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvabssp_i64, tcg_gen_andi_i64, ~SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvnabssp_i64, tcg_gen_ori_i64, SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvnegsp_i64, tcg_gen_xori_i64, SGN_MASK_SP)
+TCG_OP_IMM_i64(do_xvabsdp_i64, tcg_gen_andi_i64, ~SGN_MASK_DP)
+TCG_OP_IMM_i64(do_xvnabsdp_i64, tcg_gen_ori_i64, SGN_MASK_DP)
+TCG_OP_IMM_i64(do_xvnegdp_i64, tcg_gen_xori_i64, SGN_MASK_DP)
+#undef TCG_OP_IMM_i64
+
+static void xv_msb_op1(unsigned vece, TCGv_vec t, TCGv_vec b,
+                 void (*tcg_gen_op_vec)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec))
+{
+    uint64_t msb = (vece == MO_32) ? SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_op_vec(vece, t, b, tcg_constant_vec_matching(t, vece, msb));
+}
+
+static void do_xvabs_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_andc_vec);
+}
+
+static void do_xvnabs_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_or_vec);
+}
+
+static void do_xvneg_vec(unsigned vece, TCGv_vec t, TCGv_vec b)
+{
+    xv_msb_op1(vece, t, b, tcg_gen_xor_vec);
+}
+
+static bool do_vsx_msb_op(DisasContext *ctx, arg_XX2 *a, unsigned vece,
+                          void (*vec)(unsigned, TCGv_vec, TCGv_vec),
+                          void (*i64)(TCGv_i64, TCGv_i64))
+{
+    static const TCGOpcode vecop_list[] = {
+        0
+    };
+
+    const GVecGen2 op = {
+       .fni8 = i64,
+       .fniv = vec,
+       .opt_opc = vecop_list,
+       .vece = vece
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_2(vsr_full_offset(a->xt), vsr_full_offset(a->xb),
+                   16, 16, &op);
+
+    return true;
+}
+
+TRANS(XVABSDP, do_vsx_msb_op, MO_64, do_xvabs_vec, do_xvabsdp_i64)
+TRANS(XVNABSDP, do_vsx_msb_op, MO_64, do_xvnabs_vec, do_xvnabsdp_i64)
+TRANS(XVNEGDP, do_vsx_msb_op, MO_64, do_xvneg_vec, do_xvnegdp_i64)
+TRANS(XVABSSP, do_vsx_msb_op, MO_32, do_xvabs_vec, do_xvabssp_i64)
+TRANS(XVNABSSP, do_vsx_msb_op, MO_32, do_xvnabs_vec, do_xvnabssp_i64)
+TRANS(XVNEGSP, do_vsx_msb_op, MO_32, do_xvneg_vec, do_xvnegsp_i64)
+
+static void do_xvcpsgndp_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_andi_i64(a, a, SGN_MASK_DP);
+    tcg_gen_andi_i64(b, b, ~SGN_MASK_DP);
+    tcg_gen_or_i64(t, a, b);
+}
+
+static void do_xvcpsgnsp_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    tcg_gen_andi_i64(a, a, SGN_MASK_SP);
+    tcg_gen_andi_i64(b, b, ~SGN_MASK_SP);
+    tcg_gen_or_i64(t, a, b);
+}
+
+static void do_xvcpsgn_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    uint64_t msb = (vece == MO_32) ? SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_bitsel_vec(vece, t, tcg_constant_vec_matching(t, vece, msb), a, b);
+}
+
+static bool do_xvcpsgn(DisasContext *ctx, arg_XX3 *a, unsigned vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        0
+    };
+
+    static const GVecGen3 op[] = {
+        {
+            .fni8 = do_xvcpsgnsp_i64,
+            .fniv = do_xvcpsgn_vec,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = do_xvcpsgndp_i64,
+            .fniv = do_xvcpsgn_vec,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    REQUIRE_INSNS_FLAGS2(ctx, VSX);
+    REQUIRE_VSX(ctx);
+
+    tcg_gen_gvec_3(vsr_full_offset(a->xt), vsr_full_offset(a->xa),
+                   vsr_full_offset(a->xb), 16, 16, &op[vece - MO_32]);
+
+    return true;
+}
+
+TRANS(XVCPSGNSP, do_xvcpsgn, MO_32)
+TRANS(XVCPSGNDP, do_xvcpsgn, MO_64)
 
 #define VSX_CMP(name, op1, op2, inval, type)                                  \
 static void gen_##name(DisasContext *ctx)                                     \
@@ -1052,6 +1114,192 @@ GEN_VSX_HELPER_X2(xscvhpdp, 0x16, 0x15, 0x10, PPC2_ISA300)
 GEN_VSX_HELPER_R2(xscvsdqp, 0x04, 0x1A, 0x0A, PPC2_ISA300)
 GEN_VSX_HELPER_X2(xscvspdp, 0x12, 0x14, 0, PPC2_VSX)
 
+/* test if +Inf */
+static void gen_is_pos_inf(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t exp_msk = (vece == MO_32) ? (uint32_t)EXP_MASK_SP : EXP_MASK_DP;
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, exp_msk));
+}
+
+/* test if -Inf */
+static void gen_is_neg_inf(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t exp_msk = (vece == MO_32) ? (uint32_t)EXP_MASK_SP : EXP_MASK_DP;
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, sgn_msk | exp_msk));
+}
+
+/* test if +Inf or -Inf */
+static void gen_is_any_inf(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t exp_msk = (vece == MO_32) ? (uint32_t)EXP_MASK_SP : EXP_MASK_DP;
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_andc_vec(vece, b, b, tcg_constant_vec_matching(t, vece, sgn_msk));
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, exp_msk));
+}
+
+/* test if +0 */
+static void gen_is_pos_zero(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, 0));
+}
+
+/* test if -0 */
+static void gen_is_neg_zero(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, sgn_msk));
+}
+
+/* test if +0 or -0 */
+static void gen_is_any_zero(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_andc_vec(vece, b, b, tcg_constant_vec_matching(t, vece, sgn_msk));
+    tcg_gen_cmp_vec(TCG_COND_EQ, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, 0));
+}
+
+/* test if +Denormal */
+static void gen_is_pos_denormal(unsigned vece, TCGv_vec t,
+                                TCGv_vec b, int64_t v)
+{
+    uint64_t frc_msk = (vece == MO_32) ? (uint32_t)FRC_MASK_SP : FRC_MASK_DP;
+    tcg_gen_cmp_vec(TCG_COND_LEU, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, frc_msk));
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, b, b,
+                    tcg_constant_vec_matching(t, vece, 0));
+    tcg_gen_and_vec(vece, t, t, b);
+}
+
+/* test if -Denormal */
+static void gen_is_neg_denormal(unsigned vece, TCGv_vec t,
+                                TCGv_vec b, int64_t v)
+{
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    uint64_t frc_msk = (vece == MO_32) ? (uint32_t)FRC_MASK_SP : FRC_MASK_DP;
+    tcg_gen_cmp_vec(TCG_COND_LEU, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, sgn_msk | frc_msk));
+    tcg_gen_cmp_vec(TCG_COND_GTU, vece, b, b,
+                    tcg_constant_vec_matching(t, vece, sgn_msk));
+    tcg_gen_and_vec(vece, t, t, b);
+}
+
+/* test if +Denormal or -Denormal */
+static void gen_is_any_denormal(unsigned vece, TCGv_vec t,
+                                TCGv_vec b, int64_t v)
+{
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    uint64_t frc_msk = (vece == MO_32) ? (uint32_t)FRC_MASK_SP : FRC_MASK_DP;
+    tcg_gen_andc_vec(vece, b, b, tcg_constant_vec_matching(t, vece, sgn_msk));
+    tcg_gen_cmp_vec(TCG_COND_LE, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, frc_msk));
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, b, b,
+                    tcg_constant_vec_matching(t, vece, 0));
+    tcg_gen_and_vec(vece, t, t, b);
+}
+
+/* test if NaN */
+static void gen_is_nan(unsigned vece, TCGv_vec t, TCGv_vec b, int64_t v)
+{
+    uint64_t exp_msk = (vece == MO_32) ? (uint32_t)EXP_MASK_SP : EXP_MASK_DP;
+    uint64_t sgn_msk = (vece == MO_32) ? (uint32_t)SGN_MASK_SP : SGN_MASK_DP;
+    tcg_gen_and_vec(vece, b, b, tcg_constant_vec_matching(t, vece, ~sgn_msk));
+    tcg_gen_cmp_vec(TCG_COND_GT, vece, t, b,
+                    tcg_constant_vec_matching(t, vece, exp_msk));
+}
+
+static bool do_xvtstdc(DisasContext *ctx, arg_XX2_uim *a, unsigned vece)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_cmp_vec, 0
+    };
+
+    GVecGen2i op = {
+        .fnoi = (vece == MO_32) ? gen_helper_XVTSTDCSP : gen_helper_XVTSTDCDP,
+        .vece = vece,
+        .opt_opc = vecop_list
+    };
+
+    REQUIRE_VSX(ctx);
+
+    switch (a->uim) {
+    case 0:
+        set_cpu_vsr(a->xt, tcg_constant_i64(0), true);
+        set_cpu_vsr(a->xt, tcg_constant_i64(0), false);
+        return true;
+    case ((1 << 0) | (1 << 1)):
+        /* test if +Denormal or -Denormal */
+        op.fniv = gen_is_any_denormal;
+        break;
+    case (1 << 0):
+        /* test if -Denormal */
+        op.fniv = gen_is_neg_denormal;
+        break;
+    case (1 << 1):
+        /* test if +Denormal */
+        op.fniv = gen_is_pos_denormal;
+        break;
+    case ((1 << 2) | (1 << 3)):
+        /* test if +0 or -0 */
+        op.fniv = gen_is_any_zero;
+        break;
+    case (1 << 2):
+        /* test if -0 */
+        op.fniv = gen_is_neg_zero;
+        break;
+    case (1 << 3):
+        /* test if +0 */
+        op.fniv = gen_is_pos_zero;
+        break;
+    case ((1 << 4) | (1 << 5)):
+        /* test if +Inf or -Inf */
+        op.fniv = gen_is_any_inf;
+        break;
+    case (1 << 4):
+        /* test if -Inf */
+        op.fniv = gen_is_neg_inf;
+        break;
+    case (1 << 5):
+        /* test if +Inf */
+        op.fniv = gen_is_pos_inf;
+        break;
+    case (1 << 6):
+        /* test if NaN */
+        op.fniv = gen_is_nan;
+        break;
+    }
+    tcg_gen_gvec_2i(vsr_full_offset(a->xt), vsr_full_offset(a->xb),
+                    16, 16, a->uim, &op);
+
+    return true;
+}
+
+TRANS_FLAGS2(VSX, XVTSTDCSP, do_xvtstdc, MO_32)
+TRANS_FLAGS2(VSX, XVTSTDCDP, do_xvtstdc, MO_64)
+
+static bool do_XX2_bf_uim(DisasContext *ctx, arg_XX2_bf_uim *a, bool vsr,
+                     void (*gen_helper)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_ptr))
+{
+    TCGv_ptr xb;
+
+    REQUIRE_VSX(ctx);
+    xb = vsr ? gen_vsr_ptr(a->xb) : gen_avr_ptr(a->xb);
+    gen_helper(cpu_env, tcg_constant_i32(a->bf), tcg_constant_i32(a->uim), xb);
+    tcg_temp_free_ptr(xb);
+
+    return true;
+}
+
+TRANS_FLAGS2(ISA300, XSTSTDCSP, do_XX2_bf_uim, true, gen_helper_XSTSTDCSP)
+TRANS_FLAGS2(ISA300, XSTSTDCDP, do_XX2_bf_uim, true, gen_helper_XSTSTDCDP)
+TRANS_FLAGS2(ISA300, XSTSTDCQP, do_XX2_bf_uim, false, gen_helper_XSTSTDCQP)
+
 bool trans_XSCVSPDPN(DisasContext *ctx, arg_XX2 *a)
 {
     TCGv_i64 tmp;
@@ -1098,9 +1346,6 @@ GEN_VSX_HELPER_X2(xssqrtsp, 0x16, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xsrsqrtesp, 0x14, 0x00, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvsxdsp, 0x10, 0x13, 0, PPC2_VSX207)
 GEN_VSX_HELPER_X2(xscvuxdsp, 0x10, 0x12, 0, PPC2_VSX207)
-GEN_VSX_HELPER_X1(xststdcsp, 0x14, 0x12, 0, PPC2_ISA300)
-GEN_VSX_HELPER_2(xststdcdp, 0x14, 0x16, 0, PPC2_ISA300)
-GEN_VSX_HELPER_2(xststdcqp, 0x04, 0x16, 0, PPC2_ISA300)
 
 GEN_VSX_HELPER_X3(xvadddp, 0x00, 0x0C, 0, PPC2_VSX)
 GEN_VSX_HELPER_X3(xvsubdp, 0x00, 0x0D, 0, PPC2_VSX)
@@ -1155,8 +1400,6 @@ GEN_VSX_HELPER_X2(xvrspic, 0x16, 0x0A, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspim, 0x12, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspip, 0x12, 0x0A, 0, PPC2_VSX)
 GEN_VSX_HELPER_X2(xvrspiz, 0x12, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtstdcsp, 0x14, 0x1A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvtstdcdp, 0x14, 0x1E, 0, PPC2_VSX)
 
 static bool trans_XXPERM(DisasContext *ctx, arg_XX3 *a)
 {
