@@ -32,8 +32,10 @@
 #include "qemu/sockets.h"
 #include "qemu/lockable.h"
 #include "io/channel-socket.h"
+#include "sysemu/runstate.h"
 #include "sysemu/tpm_backend.h"
 #include "sysemu/tpm_util.h"
+#include "sysemu/runstate.h"
 #include "tpm_int.h"
 #include "tpm_ioctl.h"
 #include "migration/blocker.h"
@@ -81,6 +83,9 @@ struct TPMEmulator {
     unsigned int established_flag_cached:1;
 
     TPMBlobBuffers state_blobs;
+
+    bool relock_storage;
+    VMChangeStateEntry *vmstate;
 };
 
 struct tpm_error {
@@ -302,6 +307,35 @@ static int tpm_emulator_stop_tpm(TPMBackend *tb)
     return 0;
 }
 
+static int tpm_emulator_lock_storage(TPMEmulator *tpm_emu)
+{
+    ptm_lockstorage pls;
+
+    if (!TPM_EMULATOR_IMPLEMENTS_ALL_CAPS(tpm_emu, PTM_CAP_LOCK_STORAGE)) {
+        trace_tpm_emulator_lock_storage_cmd_not_supt();
+        return 0;
+    }
+
+    /* give failing side 300 * 10ms time to release lock */
+    pls.u.req.retries = cpu_to_be32(300);
+    if (tpm_emulator_ctrlcmd(tpm_emu, CMD_LOCK_STORAGE, &pls,
+                             sizeof(pls.u.req), sizeof(pls.u.resp)) < 0) {
+        error_report("tpm-emulator: Could not lock storage within 3 seconds: "
+                     "%s", strerror(errno));
+        return -1;
+    }
+
+    pls.u.resp.tpm_result = be32_to_cpu(pls.u.resp.tpm_result);
+    if (pls.u.resp.tpm_result != 0) {
+        error_report("tpm-emulator: TPM result for CMD_LOCK_STORAGE: 0x%x %s",
+                     pls.u.resp.tpm_result,
+                     tpm_emulator_strerror(pls.u.resp.tpm_result));
+        return -1;
+    }
+
+    return 0;
+}
+
 static int tpm_emulator_set_buffer_size(TPMBackend *tb,
                                         size_t wanted_size,
                                         size_t *actual_size)
@@ -383,6 +417,15 @@ err_exit:
 
 static int tpm_emulator_startup_tpm(TPMBackend *tb, size_t buffersize)
 {
+    /* TPM startup will be done from post_load hook */
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        if (buffersize != 0) {
+            return tpm_emulator_set_buffer_size(tb, buffersize, NULL);
+        }
+
+        return 0;
+    }
+
     return tpm_emulator_startup_tpm_resume(tb, buffersize, false);
 }
 
@@ -843,13 +886,34 @@ static int tpm_emulator_pre_save(void *opaque)
 {
     TPMBackend *tb = opaque;
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+    int ret;
 
     trace_tpm_emulator_pre_save();
 
     tpm_backend_finish_sync(tb);
 
     /* get the state blobs from the TPM */
-    return tpm_emulator_get_state_blobs(tpm_emu);
+    ret = tpm_emulator_get_state_blobs(tpm_emu);
+
+    tpm_emu->relock_storage = ret == 0;
+
+    return ret;
+}
+
+static void tpm_emulator_vm_state_change(void *opaque, bool running,
+                                         RunState state)
+{
+    TPMBackend *tb = opaque;
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+
+    trace_tpm_emulator_vm_state_change(running, state);
+
+    if (!running || state != RUN_STATE_RUNNING || !tpm_emu->relock_storage) {
+        return;
+    }
+
+    /* lock storage after migration fall-back */
+    tpm_emulator_lock_storage(tpm_emu);
 }
 
 /*
@@ -911,6 +975,9 @@ static void tpm_emulator_inst_init(Object *obj)
     tpm_emu->options = g_new0(TPMEmulatorOptions, 1);
     tpm_emu->cur_locty_number = ~0;
     qemu_mutex_init(&tpm_emu->mutex);
+    tpm_emu->vmstate =
+        qemu_add_vm_change_state_handler(tpm_emulator_vm_state_change,
+                                         tpm_emu);
 
     vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY,
                      &vmstate_tpm_emulator, obj);
@@ -960,6 +1027,7 @@ static void tpm_emulator_inst_finalize(Object *obj)
     tpm_sized_buffer_reset(&state_blobs->savestate);
 
     qemu_mutex_destroy(&tpm_emu->mutex);
+    qemu_del_vm_change_state_handler(tpm_emu->vmstate);
 
     vmstate_unregister(NULL, &vmstate_tpm_emulator, obj);
 }

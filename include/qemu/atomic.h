@@ -133,7 +133,7 @@
 
 #define qatomic_read(ptr)                              \
     ({                                                 \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     qatomic_read__nocheck(ptr);                        \
     })
 
@@ -141,7 +141,7 @@
     __atomic_store_n(ptr, i, __ATOMIC_RELAXED)
 
 #define qatomic_set(ptr, i)  do {                      \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     qatomic_set__nocheck(ptr, i);                      \
 } while(0)
 
@@ -159,27 +159,27 @@
 
 #define qatomic_rcu_read(ptr)                          \
     ({                                                 \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     typeof_strip_qual(*ptr) _val;                      \
     qatomic_rcu_read__nocheck(ptr, &_val);             \
     _val;                                              \
     })
 
 #define qatomic_rcu_set(ptr, i) do {                   \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);        \
 } while(0)
 
 #define qatomic_load_acquire(ptr)                       \
     ({                                                  \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     typeof_strip_qual(*ptr) _val;                       \
     __atomic_load(ptr, &_val, __ATOMIC_ACQUIRE);        \
     _val;                                               \
     })
 
 #define qatomic_store_release(ptr, i)  do {             \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE); \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);         \
 } while(0)
 
@@ -191,7 +191,7 @@
 })
 
 #define qatomic_xchg(ptr, i)    ({                          \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);      \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE);     \
     qatomic_xchg__nocheck(ptr, i);                          \
 })
 
@@ -204,7 +204,7 @@
 })
 
 #define qatomic_cmpxchg(ptr, old, new)    ({                            \
-    QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);                  \
+    qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE);                 \
     qatomic_cmpxchg__nocheck(ptr, old, new);                            \
 })
 

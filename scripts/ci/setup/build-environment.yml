@@ -97,7 +97,7 @@
         state: present
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['architecture'] != 's390x'
+        - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
 
     - name: Install basic packages to build QEMU on Ubuntu 20.04
       package:
@@ -153,13 +153,13 @@
           - make
           - mesa-libEGL-devel
           - nettle-devel
+          - ninja-build
           - nmap-ncat
           - perl-Test-Harness
           - pixman-devel
           - python36
           - rdma-core-devel
           - spice-glib-devel
-          - spice-server
           - systemtap-sdt-devel
           - tar
           - zlib-devel
@@ -167,3 +167,14 @@
       when:
         - ansible_facts['distribution_file_variety'] == 'RedHat'
         - ansible_facts['distribution_version'] == '8'
+
+    - name: Install packages only available on x86 and aarch64
+      dnf:
+        # Spice server not available in ppc64le
+        name:
+          - spice-server
+        state: present
+      when:
+        - ansible_facts['distribution_file_variety'] == 'RedHat'
+        - ansible_facts['distribution_version'] == '8'
+        - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'

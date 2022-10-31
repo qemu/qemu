@@ -1080,6 +1080,37 @@ static uint32_t get_elf_hwcap(void)
 #define elf_check_abi(x) (!((x) & EF_MIPS_ABI2))
 #endif
 
+#define ELF_BASE_PLATFORM get_elf_base_platform()
+
+#define MATCH_PLATFORM_INSN(_flags, _base_platform)      \
+    do { if ((cpu->env.insn_flags & (_flags)) == _flags) \
+    { return _base_platform; } } while (0)
+
+static const char *get_elf_base_platform(void)
+{
+    MIPSCPU *cpu = MIPS_CPU(thread_cpu);
+
+    /* 64 bit ISAs goes first */
+    MATCH_PLATFORM_INSN(CPU_MIPS64R6, "mips64r6");
+    MATCH_PLATFORM_INSN(CPU_MIPS64R5, "mips64r5");
+    MATCH_PLATFORM_INSN(CPU_MIPS64R2, "mips64r2");
+    MATCH_PLATFORM_INSN(CPU_MIPS64R1, "mips64");
+    MATCH_PLATFORM_INSN(CPU_MIPS5, "mips5");
+    MATCH_PLATFORM_INSN(CPU_MIPS4, "mips4");
+    MATCH_PLATFORM_INSN(CPU_MIPS3, "mips3");
+
+    /* 32 bit ISAs */
+    MATCH_PLATFORM_INSN(CPU_MIPS32R6, "mips32r6");
+    MATCH_PLATFORM_INSN(CPU_MIPS32R5, "mips32r5");
+    MATCH_PLATFORM_INSN(CPU_MIPS32R2, "mips32r2");
+    MATCH_PLATFORM_INSN(CPU_MIPS32R1, "mips32");
+    MATCH_PLATFORM_INSN(CPU_MIPS2, "mips2");
+
+    /* Fallback */
+    return "mips";
+}
+#undef MATCH_PLATFORM_INSN
+
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
 {
@@ -1776,6 +1807,10 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #endif /* TARGET_HEXAGON */
 
+#ifndef ELF_BASE_PLATFORM
+#define ELF_BASE_PLATFORM (NULL)
+#endif
+
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
 #endif
@@ -2096,9 +2131,15 @@ static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
     if (size < STACK_LOWER_LIMIT) {
         size = STACK_LOWER_LIMIT;
     }
-    guard = TARGET_PAGE_SIZE;
-    if (guard < qemu_real_host_page_size()) {
-        guard = qemu_real_host_page_size();
+
+    if (STACK_GROWS_DOWN) {
+        guard = TARGET_PAGE_SIZE;
+        if (guard < qemu_real_host_page_size()) {
+            guard = qemu_real_host_page_size();
+        }
+    } else {
+        /* no guard page for hppa target where stack grows upwards. */
+        guard = 0;
     }
 
     prot = PROT_READ | PROT_WRITE;
@@ -2118,7 +2159,6 @@ static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
         info->stack_limit = error + guard;
         return info->stack_limit + size - sizeof(void *);
     } else {
-        target_mprotect(error + size, guard, PROT_NONE);
         info->stack_limit = error + size;
         return error;
     }
@@ -2215,8 +2255,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     int i;
     abi_ulong u_rand_bytes;
     uint8_t k_rand_bytes[16];
-    abi_ulong u_platform;
-    const char *k_platform;
+    abi_ulong u_platform, u_base_platform;
+    const char *k_platform, *k_base_platform;
     const int n = sizeof(elf_addr_t);
 
     sp = p;
@@ -2235,6 +2275,22 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         } else {
             info->interpreter_loadmap_addr = 0;
             info->interpreter_pt_dynamic_addr = 0;
+        }
+    }
+
+    u_base_platform = 0;
+    k_base_platform = ELF_BASE_PLATFORM;
+    if (k_base_platform) {
+        size_t len = strlen(k_base_platform) + 1;
+        if (STACK_GROWS_DOWN) {
+            sp -= (len + n - 1) & ~(n - 1);
+            u_base_platform = sp;
+            /* FIXME - check return value of memcpy_to_target() for failure */
+            memcpy_to_target(sp, k_base_platform, len);
+        } else {
+            memcpy_to_target(sp, k_base_platform, len);
+            u_base_platform = sp;
+            sp += len + 1;
         }
     }
 
@@ -2279,6 +2335,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     }
 
     size = (DLINFO_ITEMS + 1) * 2;
+    if (k_base_platform)
+        size += 2;
     if (k_platform)
         size += 2;
 #ifdef DLINFO_ARCH_ITEMS
@@ -2356,6 +2414,9 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_HWCAP2, (abi_ulong) ELF_HWCAP2);
 #endif
 
+    if (u_base_platform) {
+        NEW_AUX_ENT(AT_BASE_PLATFORM, u_base_platform);
+    }
     if (u_platform) {
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
     }

@@ -6443,6 +6443,14 @@ static inline void get_fpr(TCGv_i64 dst, int regno)
 static inline void set_fpr(int regno, TCGv_i64 src)
 {
     tcg_gen_st_i64(src, cpu_env, fpr_offset(regno));
+    /*
+     * Before PowerISA v3.1 the result of doubleword 1 of the VSR
+     * corresponding to the target FPR was undefined. However,
+     * most (if not all) real hardware were setting the result to 0.
+     * Starting at ISA v3.1, the result for doubleword 1 is now defined
+     * to be 0.
+     */
+    tcg_gen_st_i64(tcg_constant_i64(0), cpu_env, vsr64_offset(regno, false));
 }
 
 static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
@@ -6471,6 +6479,11 @@ static int times_4(DisasContext *ctx, int x)
 static int times_16(DisasContext *ctx, int x)
 {
     return x * 16;
+}
+
+static int64_t dw_compose_ea(DisasContext *ctx, int x)
+{
+    return deposit64(0xfffffffffffffe00, 3, 6, x);
 }
 
 /*
@@ -7725,10 +7738,4 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
     DisasContext ctx;
 
     translator_loop(cs, tb, max_insns, pc, host_pc, &ppc_tr_ops, &ctx.base);
-}
-
-void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->nip = data[0];
 }

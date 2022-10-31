@@ -702,7 +702,7 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
 static void *mipid_init(void)
 {
-    struct mipid_s *s = (struct mipid_s *) g_malloc0(sizeof(*s));
+    struct mipid_s *s = g_malloc0(sizeof(*s));
 
     s->id = 0x838f03;
     mipid_reset(s);
@@ -1300,7 +1300,7 @@ static int n810_atag_setup(const struct arm_boot_info *info, void *p)
 static void n8x0_init(MachineState *machine,
                       struct arm_boot_info *binfo, int model)
 {
-    struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
+    struct n800_s *s = g_malloc0(sizeof(*s));
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
     if (machine->ram_size != mc->default_ram_size) {

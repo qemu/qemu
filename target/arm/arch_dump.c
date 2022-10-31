@@ -232,12 +232,11 @@ static int aarch64_write_elf64_sve(WriteCoreDumpFunction f,
 #endif
 
 int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque)
+                             int cpuid, DumpState *s)
 {
     struct aarch64_note note;
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    DumpState *s = opaque;
     uint64_t pstate, sp;
     int ret, i;
 
@@ -360,12 +359,11 @@ static int arm_write_elf32_vfp(WriteCoreDumpFunction f, CPUARMState *env,
 }
 
 int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque)
+                             int cpuid, DumpState *s)
 {
     struct arm_note note;
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    DumpState *s = opaque;
     int ret, i;
     bool fpvalid = cpu_isar_feature(aa32_vfp_simd, cpu);
 

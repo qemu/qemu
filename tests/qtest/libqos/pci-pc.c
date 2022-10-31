@@ -179,13 +179,7 @@ void qpci_free_pc(QPCIBus *bus)
 
 void qpci_unplug_acpi_device_test(QTestState *qts, const char *id, uint8_t slot)
 {
-    QDict *response;
-
-    response = qtest_qmp(qts, "{'execute': 'device_del',"
-                              " 'arguments': {'id': %s}}", id);
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
+    qtest_qmp_device_del_send(qts, id);
 
     qtest_outl(qts, ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
 

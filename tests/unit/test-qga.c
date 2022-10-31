@@ -32,6 +32,7 @@ static int connect_qga(char *path)
             g_usleep(G_USEC_PER_SEC);
         }
         if (i++ == 10) {
+            close(s);
             return -1;
         }
     } while (ret == -1);
@@ -59,7 +60,7 @@ fixture_setup(TestFixture *fixture, gconstpointer data, gchar **envp)
 
     fixture->loop = g_main_loop_new(NULL, FALSE);
 
-    fixture->test_dir = g_strdup("/tmp/qgatest.XXXXXX");
+    fixture->test_dir = g_strdup_printf("%s/qgatest.XXXXXX", g_get_tmp_dir());
     g_assert_nonnull(g_mkdtemp(fixture->test_dir));
 
     path = g_build_filename(fixture->test_dir, "sock", NULL);
@@ -729,7 +730,7 @@ static void test_qga_config(gconstpointer data)
     g_assert_true(g_key_file_get_boolean(kf, "general", "verbose", &error));
     g_assert_no_error(error);
 
-    strv = g_key_file_get_string_list(kf, "general", "blacklist", &n, &error);
+    strv = g_key_file_get_string_list(kf, "general", "block-rpcs", &n, &error);
     g_assert_cmpint(n, ==, 2);
     g_assert_true(g_strv_contains((const char * const *)strv,
                                   "guest-ping"));

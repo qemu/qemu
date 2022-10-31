@@ -460,7 +460,7 @@ void m68k_switch_sp(CPUM68KState *env)
     int new_sp;
 
     env->sp[env->current_sp] = env->aregs[7];
-    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+    if (m68k_feature(env, M68K_FEATURE_M68K)) {
         if (env->sr & SR_S) {
             /* SR:Master-Mode bit unimplemented then ISP is not available */
             if (!m68k_feature(env, M68K_FEATURE_MSP) || env->sr & SR_M) {

@@ -124,10 +124,14 @@ static void usage(int exitcode);
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
 
+#if !defined(TARGET_DEFAULT_STACK_SIZE)
 /* XXX: on x86 MAP_GROWSDOWN only works if ESP <= address + 32, so
    we allocate a bigger stack. Need a better solution, for example
    by remapping the process stack directly at the right place */
-unsigned long guest_stack_size = 8 * 1024 * 1024UL;
+#define TARGET_DEFAULT_STACK_SIZE	8 * 1024 * 1024UL
+#endif
+
+unsigned long guest_stack_size = TARGET_DEFAULT_STACK_SIZE;
 
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */
@@ -138,10 +142,12 @@ void fork_start(void)
     start_exclusive();
     mmap_fork_start();
     cpu_list_lock();
+    qemu_plugin_user_prefork_lock();
 }
 
 void fork_end(int child)
 {
+    qemu_plugin_user_postfork(child);
     mmap_fork_end(child);
     if (child) {
         CPUState *cpu, *next_cpu;
@@ -668,7 +674,8 @@ int main(int argc, char **argv, char **envp)
         struct rlimit lim;
         if (getrlimit(RLIMIT_STACK, &lim) == 0
             && lim.rlim_cur != RLIM_INFINITY
-            && lim.rlim_cur == (target_long)lim.rlim_cur) {
+            && lim.rlim_cur == (target_long)lim.rlim_cur
+            && lim.rlim_cur > guest_stack_size) {
             guest_stack_size = lim.rlim_cur;
         }
     }

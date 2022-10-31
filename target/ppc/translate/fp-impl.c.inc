@@ -254,50 +254,34 @@ static bool trans_FSEL(DisasContext *ctx, arg_A *a)
 GEN_FLOAT_AB(sub, 0x14, 0x000007C0, 1, PPC_FLOAT);
 /* Optional: */
 
-/* fsqrt */
-static void gen_fsqrt(DisasContext *ctx)
+static bool do_helper_fsqrt(DisasContext *ctx, arg_A_tb *a,
+                            void (*helper)(TCGv_i64, TCGv_ptr, TCGv_i64))
 {
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
+    TCGv_i64 t0, t1;
+
+    REQUIRE_INSNS_FLAGS(ctx, FLOAT_FSQRT);
+    REQUIRE_FPU(ctx);
+
     t0 = tcg_temp_new_i64();
     t1 = tcg_temp_new_i64();
+
     gen_reset_fpstatus();
-    get_fpr(t0, rB(ctx->opcode));
-    gen_helper_fsqrt(t1, cpu_env, t0);
-    set_fpr(rD(ctx->opcode), t1);
+    get_fpr(t0, a->frb);
+    helper(t1, cpu_env, t0);
+    set_fpr(a->frt, t1);
     gen_compute_fprf_float64(t1);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
+    if (unlikely(a->rc != 0)) {
         gen_set_cr1_from_fpscr(ctx);
     }
+
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
+
+    return true;
 }
 
-static void gen_fsqrts(DisasContext *ctx)
-{
-    TCGv_i64 t0;
-    TCGv_i64 t1;
-    if (unlikely(!ctx->fpu_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_FPU);
-        return;
-    }
-    t0 = tcg_temp_new_i64();
-    t1 = tcg_temp_new_i64();
-    gen_reset_fpstatus();
-    get_fpr(t0, rB(ctx->opcode));
-    gen_helper_fsqrts(t1, cpu_env, t0);
-    set_fpr(rD(ctx->opcode), t1);
-    gen_compute_fprf_float64(t1);
-    if (unlikely(Rc(ctx->opcode) != 0)) {
-        gen_set_cr1_from_fpscr(ctx);
-    }
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-}
+TRANS(FSQRT, do_helper_fsqrt, gen_helper_FSQRT);
+TRANS(FSQRTS, do_helper_fsqrt, gen_helper_FSQRTS);
 
 /***                     Floating-Point multiply-and-add                   ***/
 /* fmadd - fmadds */

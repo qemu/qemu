@@ -67,18 +67,18 @@ static void update_events(RTMRState *tmr, int ch)
     int i, event;
 
     if (tmr->tccr[ch] == 0) {
-        return ;
+        return;
     }
     if (FIELD_EX8(tmr->tccr[ch], TCCR, CSS) == 0) {
         /* external clock mode */
         /* event not happened */
-        return ;
+        return;
     }
     if (FIELD_EX8(tmr->tccr[0], TCCR, CSS) == CSS_CASCADING) {
         /* cascading mode */
         if (ch == 1) {
             tmr->next[ch] = none;
-            return ;
+            return;
         }
         diff[cmia] = concat_reg(tmr->tcora) - concat_reg(tmr->tcnt);
         diff[cmib] = concat_reg(tmr->tcorb) - concat_reg(tmr->tcnt);
@@ -384,7 +384,7 @@ static void timer_events(RTMRState *tmr, int ch)
                                     tmr->tcorb[ch]) & 0xff;
     } else {
         if (ch == 1) {
-            return ;
+            return;
         }
         tcnt = issue_event(tmr, ch, 16,
                            concat_reg(tmr->tcnt),

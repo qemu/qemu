@@ -944,13 +944,6 @@ MPY_ENC(F2_dfmpyfix,         "1000","ddddd","0","0","1","0","11")
 MPY_ENC(F2_dfmin,            "1000","ddddd","0","0","1","1","11")
 MPY_ENC(F2_dfmax,            "1000","ddddd","0","1","0","0","11")
 MPY_ENC(F2_dfmpyll,          "1000","ddddd","0","1","0","1","11")
-#ifdef ADD_DP_OPS
-MPY_ENC(F2_dfdivcheat,       "1000","ddddd","0","0","0","1","00")
-
-MPY_ENC(F2_dffixupn,         "1000","ddddd","0","1","0","1","11")
-MPY_ENC(F2_dffixupd,         "1000","ddddd","0","1","1","0","11")
-MPY_ENC(F2_dfrecipa,         "1000","ddddd","0","1","1","1","ee")
-#endif
 
 MPY_ENC(M7_dcmpyrw,          "1000","ddddd","0","0","0","1","10")
 MPY_ENC(M7_dcmpyrwc,         "1000","ddddd","0","0","1","1","10")
@@ -1024,15 +1017,6 @@ MPY_ENC(M5_vdmacbsu,         "1010","xxxxx","0","1","0","0","01")
 
 MPY_ENC(F2_dfmpylh,          "1010","xxxxx","0","0","0","0","11")
 MPY_ENC(F2_dfmpyhh,          "1010","xxxxx","0","0","0","1","11")
-#ifdef ADD_DP_OPS
-MPY_ENC(F2_dfmpyhh,          "1010","xxxxx","0","0","1","0","11")
-MPY_ENC(F2_dffma,            "1010","xxxxx","0","0","0","0","11")
-MPY_ENC(F2_dffms,            "1010","xxxxx","0","0","0","1","11")
-
-MPY_ENC(F2_dffma_lib,        "1010","xxxxx","0","0","1","0","11")
-MPY_ENC(F2_dffms_lib,        "1010","xxxxx","0","0","1","1","11")
-MPY_ENC(F2_dffma_sc,         "1010","xxxxx","0","1","1","1","uu")
-#endif
 
 
 MPY_ENC(M7_dcmpyrw_acc,      "1010","xxxxx","0","0","0","1","10")
@@ -1547,15 +1531,8 @@ SH2_RR_ENC(F2_conv_df2d,      "0000","111","0","0 00","ddddd")
 SH2_RR_ENC(F2_conv_df2ud,     "0000","111","0","0 01","ddddd")
 SH2_RR_ENC(F2_conv_ud2df,     "0000","111","0","0 10","ddddd")
 SH2_RR_ENC(F2_conv_d2df,      "0000","111","0","0 11","ddddd")
-#ifdef ADD_DP_OPS
-SH2_RR_ENC(F2_dffixupr,       "0000","111","0","1 00","ddddd")
-SH2_RR_ENC(F2_dfsqrtcheat,    "0000","111","0","1 01","ddddd")
-#endif
 SH2_RR_ENC(F2_conv_df2d_chop, "0000","111","0","1 10","ddddd")
 SH2_RR_ENC(F2_conv_df2ud_chop,"0000","111","0","1 11","ddddd")
-#ifdef ADD_DP_OPS
-SH2_RR_ENC(F2_dfinvsqrta,     "0000","111","1","0 ee","ddddd")
-#endif
 
 
 

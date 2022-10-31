@@ -19,7 +19,7 @@ static void test_mmio_oob_from_memory_region_cache(void)
 {
     QTestState *s;
 
-    s = qtest_init("-M pc-q35-5.2 -display none -m 512M "
+    s = qtest_init("-M pc-q35-5.2 -m 512M "
                    "-device virtio-scsi,num_queues=8,addr=03.0 ");
 
     qtest_outl(s, 0xcf8, 0x80001811);

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fWRITE_P3', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fSET_OVERFLOW', 'A_IMPLICIT_WRITES_USR')
     add_qemu_macro_attrib('fSET_LPCFG', 'A_IMPLICIT_WRITES_USR')
+    add_qemu_macro_attrib('fSTORE', 'A_SCALAR_STORE')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())

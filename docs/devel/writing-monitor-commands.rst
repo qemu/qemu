@@ -716,7 +716,7 @@ message. Here's the implementation of the "info roms" HMP command::
      if (hmp_handle_error(mon, err)) {
          return;
      }
-     monitor_printf(mon, "%s", info->human_readable_text);
+     monitor_puts(mon, info->human_readable_text);
  }
 
 Also, you have to add the function's prototype to the hmp.h file.

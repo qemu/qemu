@@ -595,7 +595,7 @@ void hmp_info_via(Monitor *mon, const QDict *qdict)
     if (hmp_handle_error(mon, err)) {
         return;
     }
-    monitor_printf(mon, "%s", info->human_readable_text);
+    monitor_puts(mon, info->human_readable_text);
 }
 
 static const MemoryRegionOps mos6522_ops = {

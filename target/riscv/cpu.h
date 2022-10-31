@@ -85,7 +85,6 @@ enum {
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
     RISCV_FEATURE_MISA,
-    RISCV_FEATURE_AIA,
     RISCV_FEATURE_DEBUG
 };
 
@@ -137,6 +136,8 @@ typedef struct PMUCTRState {
     /* Snapshort value of a counter in RV32 */
     target_ulong mhpmcounterh_prev;
     bool started;
+    /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
+    target_ulong irq_overflow_left;
 } PMUCTRState;
 
 struct CPUArchState {
@@ -189,7 +190,7 @@ struct CPUArchState {
     /* This contains QEMU specific information about the virt state. */
     target_ulong virt;
     target_ulong geilen;
-    target_ulong resetvec;
+    uint64_t resetvec;
 
     target_ulong mhartid;
     /*
@@ -285,6 +286,11 @@ struct CPUArchState {
     /* Signals whether the current exception occurred with two-stage address
        translation active. */
     bool two_stage_lookup;
+    /*
+     * Signals whether the current exception occurred while doing two-stage
+     * address translation for the VS-stage page table walk.
+     */
+    bool two_stage_indirect_lookup;
 
     target_ulong scounteren;
     target_ulong mcounteren;
@@ -297,13 +303,20 @@ struct CPUArchState {
     /* PMU event selector configured values. First three are unused*/
     target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
 
+    /* PMU event selector configured values for RV32*/
+    target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
+
     target_ulong sscratch;
     target_ulong mscratch;
 
     /* temporary htif regs */
     uint64_t mfromhost;
     uint64_t mtohost;
-    uint64_t timecmp;
+
+    /* Sstc CSRs */
+    uint64_t stimecmp;
+
+    uint64_t vstimecmp;
 
     /* physical memory protection */
     pmp_table_t pmp_state;
@@ -311,7 +324,11 @@ struct CPUArchState {
 
     /* trigger module */
     target_ulong trigger_cur;
-    type2_trigger_t type2_trig[TRIGGER_TYPE2_NUM];
+    target_ulong tdata1[RV_MAX_TRIGGERS];
+    target_ulong tdata2[RV_MAX_TRIGGERS];
+    target_ulong tdata3[RV_MAX_TRIGGERS];
+    struct CPUBreakpoint *cpu_breakpoint[RV_MAX_TRIGGERS];
+    struct CPUWatchpoint *cpu_watchpoint[RV_MAX_TRIGGERS];
 
     /* machine specific rdtime callback */
     uint64_t (*rdtime_fn)(void *);
@@ -358,7 +375,9 @@ struct CPUArchState {
     float_status fp_status;
 
     /* Fields from here on are preserved across CPU reset. */
-    QEMUTimer *timer; /* Internal timer */
+    QEMUTimer *stimer; /* Internal timer for S-mode interrupt */
+    QEMUTimer *vstimer; /* Internal timer for VS-mode interrupt */
+    bool vstime_irq;
 
     hwaddr kernel_addr;
     hwaddr fdt_addr;
@@ -421,6 +440,8 @@ struct RISCVCPUConfig {
     bool ext_zkt;
     bool ext_ifencei;
     bool ext_icsr;
+    bool ext_zihintpause;
+    bool ext_sstc;
     bool ext_svinval;
     bool ext_svnapot;
     bool ext_svpbmt;
@@ -433,7 +454,11 @@ struct RISCVCPUConfig {
     bool ext_zve32f;
     bool ext_zve64f;
     bool ext_zmmul;
+    bool ext_smaia;
+    bool ext_ssaia;
+    bool ext_sscofpmf;
     bool rvv_ta_all_1s;
+    bool rvv_ma_all_1s;
 
     uint32_t mvendorid;
     uint64_t marchid;
@@ -452,9 +477,7 @@ struct RISCVCPUConfig {
     bool mmu;
     bool pmp;
     bool epmp;
-    bool aia;
     bool debug;
-    uint64_t resetvec;
 
     bool short_isa_string;
 };
@@ -479,6 +502,12 @@ struct ArchCPU {
 
     /* Configuration Settings */
     RISCVCPUConfig cfg;
+
+    QEMUTimer *pmu_timer;
+    /* A bitmask of Available programmable counters */
+    uint32_t pmu_avail_ctrs;
+    /* Mapping of events to counters */
+    GHashTable *pmu_event_ctr_map;
 };
 
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
@@ -505,9 +534,9 @@ extern const char * const riscv_fpr_regnames[];
 const char *riscv_cpu_get_trap_name(target_ulong cause, bool async);
 void riscv_cpu_do_interrupt(CPUState *cpu);
 int riscv_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque);
+                               int cpuid, DumpState *s);
 int riscv_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque);
+                               int cpuid, DumpState *s);
 int riscv_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int riscv_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 int riscv_cpu_hviprio_index2irq(int index, int *out_irq, int *out_rdzero);
@@ -591,6 +620,7 @@ FIELD(TB_FLAGS, XL, 20, 2)
 FIELD(TB_FLAGS, PM_MASK_ENABLED, 22, 1)
 FIELD(TB_FLAGS, PM_BASE_ENABLED, 23, 1)
 FIELD(TB_FLAGS, VTA, 24, 1)
+FIELD(TB_FLAGS, VMA, 25, 1)
 
 #ifdef TARGET_RISCV32
 #define riscv_cpu_mxl(env)  ((void)(env), MXL_RV32)
@@ -736,6 +766,19 @@ typedef struct {
 /* CSR function table constants */
 enum {
     CSR_TABLE_SIZE = 0x1000
+};
+
+/**
+ * The event id are encoded based on the encoding specified in the
+ * SBI specification v0.3
+ */
+
+enum riscv_pmu_event_idx {
+    RISCV_PMU_EVENT_HW_CPU_CYCLES = 0x01,
+    RISCV_PMU_EVENT_HW_INSTRUCTIONS = 0x02,
+    RISCV_PMU_EVENT_CACHE_DTLB_READ_MISS = 0x10019,
+    RISCV_PMU_EVENT_CACHE_DTLB_WRITE_MISS = 0x1001B,
+    RISCV_PMU_EVENT_CACHE_ITLB_PREFETCH_MISS = 0x10021,
 };
 
 /* CSR function table */

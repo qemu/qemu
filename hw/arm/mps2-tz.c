@@ -1197,7 +1197,7 @@ static void mps2tz_common_init(MachineState *machine)
     }
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
-                       boot_ram_size(mms));
+                       0, boot_ram_size(mms));
 }
 
 static void mps2_tz_idau_check(IDAUInterface *ii, uint32_t address,
@@ -1239,7 +1239,7 @@ static void mps2_set_remap(Object *obj, const char *value, Error **errp)
     }
 }
 
-static void mps2_machine_reset(MachineState *machine)
+static void mps2_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
 
@@ -1249,7 +1249,7 @@ static void mps2_machine_reset(MachineState *machine)
      * reset see the correct mapping.
      */
     remap_memory(mms, mms->remap);
-    qemu_devices_reset();
+    qemu_devices_reset(reason);
 }
 
 static void mps2tz_class_init(ObjectClass *oc, void *data)

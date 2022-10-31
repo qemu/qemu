@@ -157,6 +157,8 @@ static int cap_ri;
 static int cap_hpage_1m;
 static int cap_vcpu_resets;
 static int cap_protected;
+static int cap_zpci_op;
+static int cap_protected_dump;
 
 static bool mem_op_storage_key_support;
 
@@ -362,6 +364,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
     cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
+    cap_zpci_op = kvm_check_extension(s, KVM_CAP_S390_ZPCI_OP);
+    cap_protected_dump = kvm_check_extension(s, KVM_CAP_S390_PROTECTED_DUMP);
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
@@ -1031,7 +1035,7 @@ int kvm_arch_remove_hw_breakpoint(target_ulong addr,
         }
         size = nb_hw_breakpoints * sizeof(struct kvm_hw_breakpoint);
         hw_breakpoints =
-             (struct kvm_hw_breakpoint *)g_realloc(hw_breakpoints, size);
+             g_realloc(hw_breakpoints, size);
     } else {
         g_free(hw_breakpoints);
         hw_breakpoints = NULL;
@@ -2043,6 +2047,11 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     return kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &kick);
 }
 
+int kvm_s390_get_protected_dump(void)
+{
+    return cap_protected_dump;
+}
+
 int kvm_s390_get_ri(void)
 {
     return cap_ri;
@@ -2573,4 +2582,13 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
+}
+
+int kvm_s390_get_zpci_op(void)
+{
+    return cap_zpci_op;
+}
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
 }

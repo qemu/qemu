@@ -163,6 +163,7 @@ int load_multiboot(X86MachineState *x86ms,
     uint8_t *mb_bootinfo_data;
     uint32_t cmdline_len;
     GList *mods = NULL;
+    g_autofree char *kcmdline = NULL;
 
     /* Ok, let's see if it is a multiboot image.
        The header is 12x32bit long, so the latest entry may be 8192 - 48. */
@@ -362,9 +363,7 @@ int load_multiboot(X86MachineState *x86ms,
     }
 
     /* Commandline support */
-    char kcmdline[strlen(kernel_filename) + strlen(kernel_cmdline) + 2];
-    snprintf(kcmdline, sizeof(kcmdline), "%s %s",
-             kernel_filename, kernel_cmdline);
+    kcmdline = g_strdup_printf("%s %s", kernel_filename, kernel_cmdline);
     stl_p(bootinfo + MBI_CMDLINE, mb_add_cmdline(&mbs, kcmdline));
 
     stl_p(bootinfo + MBI_BOOTLOADER, mb_add_bootloader(&mbs, bootloader_name));

@@ -65,7 +65,6 @@ class Engine(object):
         return records
 
     def _cpu_timing(self, pid):
-        records = []
         now = time.time()
 
         jiffies_per_sec = os.sysconf(os.sysconf_names['SC_CLK_TCK'])

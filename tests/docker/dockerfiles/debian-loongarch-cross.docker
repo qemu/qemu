@@ -1,11 +1,13 @@
 #
 # Docker cross-compiler target
 #
-# This docker target builds on the debian11 base image,
-# using a prebuilt toolchains for LoongArch64 from:
+# This docker target uses prebuilt toolchains for LoongArch64 from:
 # https://github.com/loongson/build-tools/releases
 #
-FROM qemu/debian11
+FROM docker.io/library/debian:11-slim
+
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \

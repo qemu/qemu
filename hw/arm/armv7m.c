@@ -568,20 +568,14 @@ static void armv7m_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
+void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename,
+                        hwaddr mem_base, int mem_size)
 {
     ssize_t image_size;
     uint64_t entry;
-    int big_endian;
     AddressSpace *as;
     int asidx;
     CPUState *cs = CPU(cpu);
-
-#if TARGET_BIG_ENDIAN
-    big_endian = 1;
-#else
-    big_endian = 0;
-#endif
 
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
         asidx = ARMASIdx_S;
@@ -593,9 +587,9 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
     if (kernel_filename) {
         image_size = load_elf_as(kernel_filename, NULL, NULL, NULL,
                                  &entry, NULL, NULL,
-                                 NULL, big_endian, EM_ARM, 1, 0, as);
+                                 NULL, 0, EM_ARM, 1, 0, as);
         if (image_size < 0) {
-            image_size = load_image_targphys_as(kernel_filename, 0,
+            image_size = load_image_targphys_as(kernel_filename, mem_base,
                                                 mem_size, as);
         }
         if (image_size < 0) {

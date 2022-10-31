@@ -20,6 +20,9 @@
 &A              frt fra frb frc rc:bool
 @A              ...... frt:5 fra:5 frb:5 frc:5 ..... rc:1       &A
 
+&A_tb           frt frb rc:bool
+@A_tb           ...... frt:5 ..... frb:5 ..... ..... rc:1       &A_tb
+
 &D              rt ra si:int64_t
 @D              ...... rt:5 ra:5 si:s16                         &D
 
@@ -172,6 +175,9 @@
 @X_TSX          ...... ..... ra:5 rb:5 .......... .             &X rt=%x_rt_tsx
 @X_TSXP         ...... ..... ra:5 rb:5 .......... .             &X rt=%rt_tsxp
 
+%x_dw           0:1 21:5 !function=dw_compose_ea
+@X_DW           ...... ..... ra:5 rb:5 .......... .             &X rt=%x_dw
+
 &X_frtp_vrb     frtp vrb
 @X_frtp_vrb     ...... ....0 ..... vrb:5 .......... .           &X_frtp_vrb frtp=%x_frtp
 
@@ -323,6 +329,13 @@ CNTTZDM         011111 ..... ..... ..... 1000111011 -   @X
 PDEPD           011111 ..... ..... ..... 0010011100 -   @X
 PEXTD           011111 ..... ..... ..... 0010111100 -   @X
 
+# Fixed-Point Hash Instructions
+
+HASHST          011111 ..... ..... ..... 1011010010 .   @X_DW
+HASHCHK         011111 ..... ..... ..... 1011110010 .   @X_DW
+HASHSTP         011111 ..... ..... ..... 1010010010 .   @X_DW
+HASHCHKP        011111 ..... ..... ..... 1010110010 .   @X_DW
+
 ## BCD Assist
 
 ADDG6S          011111 ..... ..... ..... - 001001010 -  @X
@@ -352,6 +365,11 @@ STFD            110110 ..... ...... ...............     @D
 STFDU           110111 ..... ...... ...............     @D
 STFDX           011111 ..... ...... .... 1011010111 -   @X
 STFDUX          011111 ..... ...... .... 1011110111 -   @X
+
+### Floating-Point Arithmetic Instructions
+
+FSQRT           111111 ..... ----- ..... ----- 10110 .  @A_tb
+FSQRTS          111011 ..... ----- ..... ----- 10110 .  @A_tb
 
 ### Floating-Point Select Instruction
 

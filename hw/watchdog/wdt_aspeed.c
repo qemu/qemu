@@ -202,11 +202,6 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
     return;
 }
 
-static WatchdogTimerModel model = {
-    .wdt_name = TYPE_ASPEED_WDT,
-    .wdt_description = "Aspeed watchdog device",
-};
-
 static const VMStateDescription vmstate_aspeed_wdt = {
     .name = "vmstate_aspeed_wdt",
     .version_id = 0,
@@ -416,7 +411,6 @@ static const TypeInfo aspeed_1030_wdt_info = {
 
 static void wdt_aspeed_register_types(void)
 {
-    watchdog_add_model(&model);
     type_register_static(&aspeed_wdt_info);
     type_register_static(&aspeed_2400_wdt_info);
     type_register_static(&aspeed_2500_wdt_info);

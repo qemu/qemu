@@ -1484,7 +1484,7 @@ static int megasas_cluster_reset_ld(MegasasState *s, MegasasCmd *cmd)
         MegasasCmd *tmp_cmd = &s->frames[i];
         if (tmp_cmd->req && tmp_cmd->req->dev->id == target_id) {
             SCSIDevice *d = tmp_cmd->req->dev;
-            qdev_reset_all(&d->qdev);
+            device_cold_reset(&d->qdev);
         }
     }
     return MFI_STAT_OK;

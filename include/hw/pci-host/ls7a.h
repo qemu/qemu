@@ -42,4 +42,9 @@
 #define VIRT_RTC_REG_BASE        (VIRT_MISC_REG_BASE + 0x00050100)
 #define VIRT_RTC_LEN             0x100
 #define VIRT_SCI_IRQ             (PCH_PIC_IRQ_OFFSET + 4)
+
+#define VIRT_PLATFORM_BUS_BASEADDRESS   0x16000000
+#define VIRT_PLATFORM_BUS_SIZE          0x2000000
+#define VIRT_PLATFORM_BUS_NUM_IRQS      2
+#define VIRT_PLATFORM_BUS_IRQ           69
 #endif

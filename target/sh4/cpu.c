@@ -34,13 +34,35 @@ static void superh_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static vaddr superh_cpu_get_pc(CPUState *cs)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+
+    return cpu->env.pc;
+}
+
 static void superh_cpu_synchronize_from_tb(CPUState *cs,
                                            const TranslationBlock *tb)
 {
     SuperHCPU *cpu = SUPERH_CPU(cs);
 
-    cpu->env.pc = tb->pc;
-    cpu->env.flags = tb->flags & TB_FLAG_ENVFLAGS_MASK;
+    cpu->env.pc = tb_pc(tb);
+    cpu->env.flags = tb->flags;
+}
+
+static void superh_restore_state_to_opc(CPUState *cs,
+                                        const TranslationBlock *tb,
+                                        const uint64_t *data)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+
+    cpu->env.pc = data[0];
+    cpu->env.flags = data[1];
+    /*
+     * Theoretically delayed_pc should also be restored. In practice the
+     * branch instruction is re-executed after exception, so the delayed
+     * branch target will be recomputed.
+     */
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -50,10 +72,10 @@ static bool superh_io_recompile_replay_branch(CPUState *cs,
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
 
-    if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
-        && env->pc != tb->pc) {
+    if ((env->flags & (TB_FLAG_DELAY_SLOT | TB_FLAG_DELAY_SLOT_COND))
+        && env->pc != tb_pc(tb)) {
         env->pc -= 2;
-        env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
+        env->flags &= ~(TB_FLAG_DELAY_SLOT | TB_FLAG_DELAY_SLOT_COND);
         return true;
     }
     return false;
@@ -236,6 +258,7 @@ static const struct SysemuCPUOps sh4_sysemu_ops = {
 static const struct TCGCPUOps superh_tcg_ops = {
     .initialize = sh4_translate_init,
     .synchronize_from_tb = superh_cpu_synchronize_from_tb,
+    .restore_state_to_opc = superh_restore_state_to_opc,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = superh_cpu_tlb_fill,
@@ -261,6 +284,7 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->has_work = superh_cpu_has_work;
     cc->dump_state = superh_cpu_dump_state;
     cc->set_pc = superh_cpu_set_pc;
+    cc->get_pc = superh_cpu_get_pc;
     cc->gdb_read_register = superh_cpu_gdb_read_register;
     cc->gdb_write_register = superh_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY

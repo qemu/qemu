@@ -1946,10 +1946,3 @@ void mb_tcg_init(void)
     cpu_res_addr =
         tcg_global_mem_new(cpu_env, offsetof(CPUMBState, res_addr), "res_addr");
 }
-
-void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-    env->iflags = data[1];
-}

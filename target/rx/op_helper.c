@@ -286,7 +286,7 @@ void helper_suntil(CPURXState *env, uint32_t sz)
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
     if (env->regs[3] == 0) {
-        return ;
+        return;
     }
     do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());
@@ -305,7 +305,7 @@ void helper_swhile(CPURXState *env, uint32_t sz)
     uint32_t tmp;
     tcg_debug_assert(sz < 3);
     if (env->regs[3] == 0) {
-        return ;
+        return;
     }
     do {
         tmp = cpu_ldufn[sz](env, env->regs[1], GETPC());

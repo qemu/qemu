@@ -1773,6 +1773,7 @@ static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_phb4_root_bus_info = {
     .name = TYPE_PNV_PHB4_ROOT_BUS,
     .parent = TYPE_PCIE_BUS,
+    .instance_size = sizeof(PnvPHB4RootBus),
     .class_init = pnv_phb4_root_bus_class_init,
 };
 

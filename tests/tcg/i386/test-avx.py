@@ -7,8 +7,9 @@ import sys
 from fnmatch import fnmatch
 
 archs = [
-    # TODO: MMX?
     "SSE", "SSE2", "SSE3", "SSSE3", "SSE4_1", "SSE4_2",
+    "AES", "AVX", "AVX2", "AES+AVX", "VAES+AVX",
+    "F16C", "FMA",
 ]
 
 ignore = set(["FISTTP",
@@ -19,6 +20,7 @@ imask = {
     'vBLENDPS': 0x0f,
     'CMP[PS][SD]': 0x07,
     'VCMP[PS][SD]': 0x1f,
+    'vCVTPS2PH': 0x7,
     'vDPPD': 0x33,
     'vDPPS': 0xff,
     'vEXTRACTPS': 0x03,
@@ -43,7 +45,7 @@ imask = {
     'vROUND[PS][SD]': 0x7,
     'vSHUFPD': 0x0f,
     'vSHUFPS': 0xff,
-    'vAESKEYGENASSIST': 0,
+    'vAESKEYGENASSIST': 0xff,
     'VEXTRACT[FI]128': 0x01,
     'VINSERT[FI]128': 0x01,
     'VPBLENDD': 0xff,
@@ -86,7 +88,7 @@ def mem_w(w):
     else:
         raise Exception()
 
-    return t + " PTR 16[rdx]"
+    return t + " PTR 32[rdx]"
 
 class XMMArg():
     isxmm = True
@@ -104,7 +106,11 @@ class XMMArg():
 
 class MMArg():
     isxmm = True
-    ismem = False # TODO
+    def __init__(self, mw):
+        if mw not in [0, 32, 64]:
+            raise Exception("Bad mem width: %s" % mw)
+        self.mw = mw
+        self.ismem = mw != 0
     def regstr(self, n):
         return "mm%d" % (n & 7)
 
@@ -170,6 +176,9 @@ class ArgMem():
     def regstr(self, n):
         return mem_w(self.w)
 
+class SkipInstruction(Exception):
+    pass
+
 def ArgGenerator(arg, op):
     if arg[:3] == 'xmm' or arg[:3] == "ymm":
         if "/" in arg:
@@ -180,7 +189,13 @@ def ArgGenerator(arg, op):
         else:
             return XMMArg(arg[0], 0);
     elif arg[:2] == 'mm':
-        return MMArg();
+        if "/" in arg:
+            r, m = arg.split('/')
+            if (m[0] != 'm'):
+                raise Exception("Expected /m: %s", arg)
+            return MMArg(int(m[1:]));
+        else:
+            return MMArg(0);
     elif arg[:4] == 'imm8':
         return ArgImm8u(op);
     elif arg == '<XMM0>':
@@ -208,8 +223,10 @@ def ArgGenerator(arg, op):
 class InsnGenerator:
     def __init__(self, op, args):
         self.op = op
-        if op[-2:] in ["PS", "PD", "SS", "SD"]:
-            if op[-1] == 'S':
+        if op[-2:] in ["PH", "PS", "PD", "SS", "SD"]:
+            if op[-1] == 'H':
+                self.optype = 'F16'
+            elif op[-1] == 'S':
                 self.optype = 'F32'
             else:
                 self.optype = 'F64'
@@ -218,8 +235,12 @@ class InsnGenerator:
 
         try:
             self.args = list(ArgGenerator(a, op) for a in args)
+            if not any((x.isxmm for x in self.args)):
+                raise SkipInstruction
             if len(self.args) > 0 and self.args[-1] is None:
                 self.args = self.args[:-1]
+        except SkipInstruction:
+            raise
         except Exception as e:
             raise Exception("Bad arg %s: %s" % (op, e))
 
@@ -340,10 +361,13 @@ def main():
                 continue
             cpuid = row[6]
             if cpuid in archs:
-                g = InsnGenerator(insn[0], insn[1:])
-                for insn in g.gen():
-                    outf.write('TEST(%d, "%s", %s)\n' % (n, insn, g.optype))
-                    n += 1
+                try:
+                    g = InsnGenerator(insn[0], insn[1:])
+                    for insn in g.gen():
+                        outf.write('TEST(%d, "%s", %s)\n' % (n, insn, g.optype))
+                        n += 1
+                except SkipInstruction:
+                    pass
         outf.write("#undef TEST\n")
         csvfile.close()
 

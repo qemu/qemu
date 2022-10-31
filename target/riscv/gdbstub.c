@@ -114,20 +114,6 @@ static int riscv_gdb_get_fpu(CPURISCVState *env, GByteArray *buf, int n)
         if (env->misa_ext & RVF) {
             return gdb_get_reg32(buf, env->fpr[n]);
         }
-    /* there is hole between ft11 and fflags in fpu.xml */
-    } else if (n < 36 && n > 32) {
-        target_ulong val = 0;
-        int result;
-        /*
-         * CSR_FFLAGS is at index 1 in csr_register, and gdb says it is FP
-         * register 33, so we recalculate the map index.
-         * This also works for CSR_FRM and CSR_FCSR.
-         */
-        result = riscv_csrrw_debug(env, n - 32, &val,
-                                   0, 0);
-        if (result == RISCV_EXCP_NONE) {
-            return gdb_get_regl(buf, val);
-        }
     }
     return 0;
 }
@@ -137,20 +123,6 @@ static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
     if (n < 32) {
         env->fpr[n] = ldq_p(mem_buf); /* always 64-bit */
         return sizeof(uint64_t);
-    /* there is hole between ft11 and fflags in fpu.xml */
-    } else if (n < 36 && n > 32) {
-        target_ulong val = ldtul_p(mem_buf);
-        int result;
-        /*
-         * CSR_FFLAGS is at index 1 in csr_register, and gdb says it is FP
-         * register 33, so we recalculate the map index.
-         * This also works for CSR_FRM and CSR_FCSR.
-         */
-        result = riscv_csrrw_debug(env, n - 32, NULL,
-                                   val, -1);
-        if (result == RISCV_EXCP_NONE) {
-            return sizeof(target_ulong);
-        }
     }
     return 0;
 }
@@ -211,7 +183,7 @@ static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
     target_ulong val = 0;
     int result = riscv_csrrw_debug(env, csrno, &val, 0, 0);
 
-    if (result == 0) {
+    if (result == RISCV_EXCP_NONE) {
         return gdb_get_regl(buf, val);
     }
 
@@ -238,7 +210,7 @@ static int riscv_gdb_set_vector(CPURISCVState *env, uint8_t *mem_buf, int n)
     target_ulong val = ldtul_p(mem_buf);
     int result = riscv_csrrw_debug(env, csrno, NULL, val, -1);
 
-    if (result == 0) {
+    if (result == RISCV_EXCP_NONE) {
         return sizeof(target_ulong);
     }
 
@@ -404,10 +376,10 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     CPURISCVState *env = &cpu->env;
     if (env->misa_ext & RVD) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
-                                 36, "riscv-64bit-fpu.xml", 0);
+                                 32, "riscv-64bit-fpu.xml", 0);
     } else if (env->misa_ext & RVF) {
         gdb_register_coprocessor(cs, riscv_gdb_get_fpu, riscv_gdb_set_fpu,
-                                 36, "riscv-32bit-fpu.xml", 0);
+                                 32, "riscv-32bit-fpu.xml", 0);
     }
     if (env->misa_ext & RVV) {
         gdb_register_coprocessor(cs, riscv_gdb_get_vector, riscv_gdb_set_vector,

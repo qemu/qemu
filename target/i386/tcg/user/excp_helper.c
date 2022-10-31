@@ -48,3 +48,10 @@ void x86_cpu_record_sigsegv(CPUState *cs, vaddr addr,
 
     cpu_loop_exit_restore(cs, ra);
 }
+
+void x86_cpu_record_sigbus(CPUState *cs, vaddr addr,
+                           MMUAccessType access_type, uintptr_t ra)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    handle_unaligned_access(&cpu->env, addr, access_type, ra);
+}

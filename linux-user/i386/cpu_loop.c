@@ -201,7 +201,6 @@ void cpu_loop(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr;
-    abi_ulong pc;
     abi_ulong ret;
 
     for(;;) {
@@ -307,9 +306,8 @@ void cpu_loop(CPUX86State *env)
             cpu_exec_step_atomic(cs);
             break;
         default:
-            pc = env->segs[R_CS].base + env->eip;
-            EXCP_DUMP(env, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
-                      (long)pc, trapnr);
+            EXCP_DUMP(env, "qemu: unhandled CPU exception 0x%x - aborting\n",
+                      trapnr);
             abort();
         }
         process_pending_signals(env);

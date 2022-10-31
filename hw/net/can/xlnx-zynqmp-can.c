@@ -696,30 +696,30 @@ static void update_rx_fifo(XlnxZynqMPCANState *s, const qemu_can_frame *frame)
                                                timestamp));
 
             /* First 32 bit of the data. */
-            fifo32_push(&s->rx_fifo, deposit32(0, R_TXFIFO_DATA1_DB3_SHIFT,
-                                               R_TXFIFO_DATA1_DB3_LENGTH,
+            fifo32_push(&s->rx_fifo, deposit32(0, R_RXFIFO_DATA1_DB3_SHIFT,
+                                               R_RXFIFO_DATA1_DB3_LENGTH,
                                                frame->data[0]) |
-                                     deposit32(0, R_TXFIFO_DATA1_DB2_SHIFT,
-                                               R_TXFIFO_DATA1_DB2_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA1_DB2_SHIFT,
+                                               R_RXFIFO_DATA1_DB2_LENGTH,
                                                frame->data[1]) |
-                                     deposit32(0, R_TXFIFO_DATA1_DB1_SHIFT,
-                                               R_TXFIFO_DATA1_DB1_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA1_DB1_SHIFT,
+                                               R_RXFIFO_DATA1_DB1_LENGTH,
                                                frame->data[2]) |
-                                     deposit32(0, R_TXFIFO_DATA1_DB0_SHIFT,
-                                               R_TXFIFO_DATA1_DB0_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA1_DB0_SHIFT,
+                                               R_RXFIFO_DATA1_DB0_LENGTH,
                                                frame->data[3]));
             /* Last 32 bit of the data. */
-            fifo32_push(&s->rx_fifo, deposit32(0, R_TXFIFO_DATA2_DB7_SHIFT,
-                                               R_TXFIFO_DATA2_DB7_LENGTH,
+            fifo32_push(&s->rx_fifo, deposit32(0, R_RXFIFO_DATA2_DB7_SHIFT,
+                                               R_RXFIFO_DATA2_DB7_LENGTH,
                                                frame->data[4]) |
-                                     deposit32(0, R_TXFIFO_DATA2_DB6_SHIFT,
-                                               R_TXFIFO_DATA2_DB6_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA2_DB6_SHIFT,
+                                               R_RXFIFO_DATA2_DB6_LENGTH,
                                                frame->data[5]) |
-                                     deposit32(0, R_TXFIFO_DATA2_DB5_SHIFT,
-                                               R_TXFIFO_DATA2_DB5_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA2_DB5_SHIFT,
+                                               R_RXFIFO_DATA2_DB5_LENGTH,
                                                frame->data[6]) |
-                                     deposit32(0, R_TXFIFO_DATA2_DB4_SHIFT,
-                                               R_TXFIFO_DATA2_DB4_LENGTH,
+                                     deposit32(0, R_RXFIFO_DATA2_DB4_SHIFT,
+                                               R_RXFIFO_DATA2_DB4_LENGTH,
                                                frame->data[7]));
 
             ARRAY_FIELD_DP32(s->regs, INTERRUPT_STATUS_REGISTER, RXOK, 1);

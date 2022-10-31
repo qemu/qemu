@@ -57,7 +57,7 @@ cases. See below for a description of the supported disk formats.
 *OUTPUT_FMT* is the destination format.
 
 *OPTIONS* is a comma separated list of format specific options in a
-name=value format. Use ``-o ?`` for an overview of the options supported
+name=value format. Use ``-o help`` for an overview of the options supported
 by the used format or see the format descriptions below for details.
 
 *SNAPSHOT_PARAM* is param used for internal snapshot, format is

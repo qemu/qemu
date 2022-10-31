@@ -56,7 +56,7 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id)
 static void plugin_cpu_update__async(CPUState *cpu, run_on_cpu_data data)
 {
     bitmap_copy(cpu->plugin_mask, &data.host_ulong, QEMU_PLUGIN_EV_MAX);
-    cpu_tb_jmp_cache_clear(cpu);
+    tcg_flush_jmp_cache(cpu);
 }
 
 static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
@@ -525,6 +525,26 @@ void qemu_plugin_user_exit(void)
     /* now it's safe to handle the exit case */
     qemu_plugin_atexit_cb();
 }
+
+/*
+ * Helpers for *-user to ensure locks are sane across fork() events.
+ */
+
+void qemu_plugin_user_prefork_lock(void)
+{
+    qemu_rec_mutex_lock(&plugin.lock);
+}
+
+void qemu_plugin_user_postfork(bool is_child)
+{
+    if (is_child) {
+        /* should we just reset via plugin_init? */
+        qemu_rec_mutex_init(&plugin.lock);
+    } else {
+        qemu_rec_mutex_unlock(&plugin.lock);
+    }
+}
+
 
 /*
  * Call this function after longjmp'ing to the main loop. It's possible that the

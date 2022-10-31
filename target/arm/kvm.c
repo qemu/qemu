@@ -79,7 +79,9 @@ bool kvm_arm_create_scratch_host_vcpu(const uint32_t *cpus_to_try,
     if (max_vm_pa_size < 0) {
         max_vm_pa_size = 0;
     }
-    vmfd = ioctl(kvmfd, KVM_CREATE_VM, max_vm_pa_size);
+    do {
+        vmfd = ioctl(kvmfd, KVM_CREATE_VM, max_vm_pa_size);
+    } while (vmfd == -1 && errno == EINTR);
     if (vmfd < 0) {
         goto err;
     }
@@ -1055,4 +1057,8 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
+}
+
+void kvm_arch_accel_class_init(ObjectClass *oc)
+{
 }

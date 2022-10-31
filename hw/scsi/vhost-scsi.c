@@ -120,7 +120,7 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
         start = false;
     }
 
-    if (vsc->dev.started == start) {
+    if (vhost_dev_is_started(&vsc->dev) == start) {
         return;
     }
 
@@ -147,7 +147,7 @@ static int vhost_scsi_pre_save(void *opaque)
 
     /* At this point, backend must be stopped, otherwise
      * it might keep writing to memory. */
-    assert(!vsc->dev.started);
+    assert(!vhost_dev_is_started(&vsc->dev));
 
     return 0;
 }

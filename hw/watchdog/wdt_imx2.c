@@ -291,14 +291,8 @@ static const TypeInfo imx2_wdt_info = {
     .class_init    = imx2_wdt_class_init,
 };
 
-static WatchdogTimerModel model = {
-    .wdt_name = "imx2-watchdog",
-    .wdt_description = "i.MX2 Watchdog",
-};
-
 static void imx2_wdt_register_type(void)
 {
-    watchdog_add_model(&model);
     type_register_static(&imx2_wdt_info);
 }
 type_init(imx2_wdt_register_type)

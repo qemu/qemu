@@ -29,9 +29,9 @@
 #include "sysemu/sysemu.h"
 
 static const MemMapEntry ibex_memmap[] = {
-    [IBEX_DEV_ROM] =            {  0x00008000, 16 * KiB },
-    [IBEX_DEV_RAM] =            {  0x10000000,  0x10000 },
-    [IBEX_DEV_FLASH] =          {  0x20000000,  0x80000 },
+    [IBEX_DEV_ROM] =            {  0x00008000,   0x8000 },
+    [IBEX_DEV_RAM] =            {  0x10000000,  0x20000 },
+    [IBEX_DEV_FLASH] =          {  0x20000000,  0x100000 },
     [IBEX_DEV_UART] =           {  0x40000000,  0x1000  },
     [IBEX_DEV_GPIO] =           {  0x40040000,  0x1000  },
     [IBEX_DEV_SPI_DEVICE] =     {  0x40050000,  0x1000  },
@@ -40,6 +40,7 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_TIMER] =          {  0x40100000,  0x1000  },
     [IBEX_DEV_SENSOR_CTRL] =    {  0x40110000,  0x1000  },
     [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x4000  },
+    [IBEX_DEV_LC_CTRL] =        {  0x40140000,  0x1000  },
     [IBEX_DEV_USBDEV] =         {  0x40150000,  0x1000  },
     [IBEX_DEV_SPI_HOST0] =      {  0x40300000,  0x1000  },
     [IBEX_DEV_SPI_HOST1] =      {  0x40310000,  0x1000  },
@@ -141,7 +142,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpus), "num-harts", ms->smp.cpus,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->cpus), "resetvec", 0x8080, &error_abort);
+    object_property_set_int(OBJECT(&s->cpus), "resetvec", s->resetvec,
+                            &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpus), &error_fatal);
 
     /* Boot ROM */
@@ -253,6 +255,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_SENSOR_CTRL].base, memmap[IBEX_DEV_SENSOR_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.otp_ctrl",
         memmap[IBEX_DEV_OTP_CTRL].base, memmap[IBEX_DEV_OTP_CTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.lc_ctrl",
+        memmap[IBEX_DEV_LC_CTRL].base, memmap[IBEX_DEV_LC_CTRL].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pwrmgr",
         memmap[IBEX_DEV_PWRMGR].base, memmap[IBEX_DEV_PWRMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.rstmgr",
@@ -293,10 +297,16 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_PERI].base, memmap[IBEX_DEV_PERI].size);
 }
 
+static Property lowrisc_ibex_soc_props[] = {
+    DEFINE_PROP_UINT32("resetvec", LowRISCIbexSoCState, resetvec, 0x20000400),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, lowrisc_ibex_soc_props);
     dc->realize = lowrisc_ibex_soc_realize;
     /* Reason: Uses serial_hds in realize function, thus can't be used twice */
     dc->user_creatable = false;

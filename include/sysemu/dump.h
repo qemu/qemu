@@ -154,23 +154,35 @@ typedef struct DumpState {
     GuestPhysBlockList guest_phys_blocks;
     ArchDumpInfo dump_info;
     MemoryMappingList list;
-    uint32_t phdr_num;
-    uint32_t shdr_num;
     bool resume;
     bool detached;
+    hwaddr memory_offset;
+    int fd;
+
+    /*
+     * Dump filter area variables
+     *
+     * A filtered dump only contains the guest memory designated by
+     * the start address and length variables defined below.
+     *
+     * If length is 0, no filtering is applied.
+     */
+    int64_t filter_area_begin;  /* Start address of partial guest memory area */
+    int64_t filter_area_length; /* Length of partial guest memory area */
+
+    /* Elf dump related data */
+    uint32_t phdr_num;
+    uint32_t shdr_num;
     ssize_t note_size;
     hwaddr shdr_offset;
     hwaddr phdr_offset;
     hwaddr section_offset;
     hwaddr note_offset;
-    hwaddr memory_offset;
-    int fd;
 
-    GuestPhysBlock *next_block;
-    ram_addr_t start;
-    bool has_filter;
-    int64_t begin;
-    int64_t length;
+    void *elf_section_hdrs;     /* Pointer to section header buffer */
+    void *elf_section_data;     /* Pointer to section data buffer */
+    uint64_t elf_section_data_size; /* Size of section data */
+    GArray *string_table_buf;   /* String table data buffer */
 
     uint8_t *note_buf;          /* buffer for notes */
     size_t note_buf_offset;     /* the writing place in note_buf */
@@ -203,4 +215,9 @@ typedef struct DumpState {
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
 uint32_t cpu_to_dump32(DumpState *s, uint32_t val);
 uint64_t cpu_to_dump64(DumpState *s, uint64_t val);
+
+int64_t dump_filtered_memblock_size(GuestPhysBlock *block, int64_t filter_area_start,
+                                    int64_t filter_area_length);
+int64_t dump_filtered_memblock_start(GuestPhysBlock *block, int64_t filter_area_start,
+                                     int64_t filter_area_length);
 #endif

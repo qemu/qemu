@@ -64,12 +64,11 @@ static void riscv64_note_init(struct riscv64_note *note, DumpState *s,
 }
 
 int riscv_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque)
+                               int cpuid, DumpState *s)
 {
     struct riscv64_note note;
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    DumpState *s = opaque;
     int ret, i = 0;
     const char name[] = "CORE";
 
@@ -134,12 +133,11 @@ static void riscv32_note_init(struct riscv32_note *note, DumpState *s,
 }
 
 int riscv_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque)
+                               int cpuid, DumpState *s)
 {
     struct riscv32_note note;
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
-    DumpState *s = opaque;
     int ret, i;
     const char name[] = "CORE";
 

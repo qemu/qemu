@@ -203,9 +203,9 @@ static int coroutine_fn cbw_co_flush(BlockDriverState *bs)
  * It's guaranteed that guest writes will not interact in the region until
  * cbw_snapshot_read_unlock() called.
  */
-static BlockReq *cbw_snapshot_read_lock(BlockDriverState *bs,
-                                        int64_t offset, int64_t bytes,
-                                        int64_t *pnum, BdrvChild **file)
+static coroutine_fn BlockReq *
+cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       int64_t *pnum, BdrvChild **file)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
     BlockReq *req = g_new(BlockReq, 1);
@@ -240,7 +240,8 @@ static BlockReq *cbw_snapshot_read_lock(BlockDriverState *bs,
     return req;
 }
 
-static void cbw_snapshot_read_unlock(BlockDriverState *bs, BlockReq *req)
+static coroutine_fn void
+cbw_snapshot_read_unlock(BlockDriverState *bs, BlockReq *req)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
 

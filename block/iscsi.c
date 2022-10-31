@@ -290,7 +290,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     }
 }
 
-static void iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
+static void coroutine_fn
+iscsi_co_init_iscsitask(IscsiLun *iscsilun, struct IscsiTask *iTask)
 {
     *iTask = (struct IscsiTask) {
         .co         = qemu_coroutine_self(),
@@ -2065,7 +2066,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
     uint64_t max_xfer_len = iscsilun->use_16_for_rw ? 0xffffffff : 0xffff;
     unsigned int block_size = MAX(BDRV_SECTOR_SIZE, iscsilun->block_size);
 
-    assert(iscsilun->block_size >= BDRV_SECTOR_SIZE || bs->sg);
+    assert(iscsilun->block_size >= BDRV_SECTOR_SIZE || bdrv_is_sg(bs));
 
     bs->bl.request_alignment = block_size;
 

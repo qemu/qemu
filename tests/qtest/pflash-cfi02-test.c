@@ -56,7 +56,7 @@ typedef struct {
     QTestState *qtest;
 } FlashConfig;
 
-static char image_path[] = "/tmp/qtest.XXXXXX";
+static char *image_path;
 
 /*
  * The pflash implementation allows some parameters to be unspecified. We want
@@ -608,6 +608,7 @@ static void test_cfi_in_autoselect(const void *opaque)
 static void cleanup(void *opaque)
 {
     unlink(image_path);
+    g_free(image_path);
 }
 
 /*
@@ -635,16 +636,14 @@ static const FlashConfig configuration[] = {
 
 int main(int argc, char **argv)
 {
-    int fd = mkstemp(image_path);
-    if (fd == -1) {
-        g_printerr("Failed to create temporary file %s: %s\n", image_path,
-                   strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    GError *err = NULL;
+    int fd = g_file_open_tmp("qtest.XXXXXX", &image_path, &err);
+    g_assert_no_error(err);
+
     if (ftruncate(fd, UNIFORM_FLASH_SIZE) < 0) {
         int error_code = errno;
         close(fd);
-        unlink(image_path);
+        cleanup(NULL);
         g_printerr("Failed to truncate file %s to %u MB: %s\n", image_path,
                    UNIFORM_FLASH_SIZE, strerror(error_code));
         exit(EXIT_FAILURE);

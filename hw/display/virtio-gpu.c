@@ -515,9 +515,10 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
         for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
             scanout = &g->parent_obj.scanout[i];
             if (scanout->resource_id == res->resource_id &&
-                rf.r.x >= scanout->x && rf.r.y >= scanout->y &&
-                rf.r.x + rf.r.width <= scanout->x + scanout->width &&
-                rf.r.y + rf.r.height <= scanout->y + scanout->height &&
+                rf.r.x < scanout->x + scanout->width &&
+                rf.r.x + rf.r.width >= scanout->x &&
+                rf.r.y < scanout->y + scanout->height &&
+                rf.r.y + rf.r.height >= scanout->y &&
                 console_has_gl(scanout->con)) {
                 dpy_gl_update(scanout->con, 0, 0, scanout->width,
                               scanout->height);

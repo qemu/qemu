@@ -19,6 +19,11 @@ EXTRA_RUNS+=$(MULTIARCH_RUNS)
 CFLAGS+=-nostdlib -ggdb -O0 $(MINILIB_INC)
 LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
 
+config-cc.mak: Makefile
+	$(quiet-@)( \
+	    $(call cc-option,-march=armv8.3-a, CROSS_CC_HAS_ARMV8_3)) 3> config-cc.mak
+-include config-cc.mak
+
 # building head blobs
 .PRECIOUS: $(CRT_OBJS)
 
@@ -50,8 +55,7 @@ run-memory-record: memory-record memory
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
 		  -icount shift=5$(COMMA)rr=record$(COMMA)rrfile=record.bin \
-	   	  $(QEMU_OPTS) memory, \
-	  "$< on $(TARGET_NAME)")
+		  $(QEMU_OPTS) memory)
 
 .PHONY: memory-replay
 run-memory-replay: memory-replay run-memory-record
@@ -59,8 +63,7 @@ run-memory-replay: memory-replay run-memory-record
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
 		  -icount shift=5$(COMMA)rr=replay$(COMMA)rrfile=record.bin \
-	   	  $(QEMU_OPTS) memory, \
-	  "$< on $(TARGET_NAME)")
+		  $(QEMU_OPTS) memory)
 
 EXTRA_RUNS+=run-memory-replay
 

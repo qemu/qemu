@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,12 +31,12 @@ Q6INSN(L2_##TAG##_pci, OPER"(Rx32++#s4:"SHFT":circ(Mu2))",ATTRIB,DESCR,{fEA_REG(
 Q6INSN(L2_##TAG##_pcr, OPER"(Rx32++I:circ(Mu2))",  ATTRIB,DESCR,{fEA_REG(RxV); fPM_CIRR(RxV,fREAD_IREG(MuV)<<SCALE,MuV); SEMANTICS;})
 
 /* The set of 32-bit load instructions */
-STD_LD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_LOAD),"0",fLOAD(1,1,u,EA,RdV),0)
-STD_LD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_LOAD),"0",fLOAD(1,1,s,EA,RdV),0)
-STD_LD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_LOAD),"1",fLOAD(1,2,u,EA,RdV),1)
-STD_LD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_LOAD),"1",fLOAD(1,2,s,EA,RdV),1)
-STD_LD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_LOAD),"2",fLOAD(1,4,u,EA,RdV),2)
-STD_LD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_LOAD),"3",fLOAD(1,8,u,EA,RddV),3)
+STD_LD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_MEMSIZE_1B,A_LOAD,A_REGWRSIZE_1B),"0",fLOAD(1,1,u,EA,RdV),0)
+STD_LD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_MEMSIZE_1B,A_LOAD),"0",fLOAD(1,1,s,EA,RdV),0)
+STD_LD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD),"1",fLOAD(1,2,u,EA,RdV),1)
+STD_LD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD),"1",fLOAD(1,2,s,EA,RdV),1)
+STD_LD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_LOAD),"2",fLOAD(1,4,u,EA,RdV),2)
+STD_LD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD),"3",fLOAD(1,8,u,EA,RddV),3)
 
 /* These instructions do a load an unpack */
 STD_LD_AMODES(loadbzw2, "Rd32=memubh", "Load Bytes and Vector Zero-Extend (unpack)",
@@ -113,28 +113,28 @@ Q6INSN(S2_##TAG##_pcr, OPER"(Rx32++I:circ(Mu2))="DEST,  ATTRIB,DESCR,{fEA_REG(Rx
 
 
 /* The set of 32-bit store instructions */
-STD_ST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)),0)
-STD_ST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)),1)
-STD_ST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)),1)
-STD_ST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_STORE),"2",fSTORE(1,4,EA,RtV),2)
-STD_ST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_STORE),"3",fSTORE(1,8,EA,RttV),3)
-STD_ST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_STORE),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)),2)
-STD_ST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))),0)
-STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))),1)
+STD_ST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_MEMSIZE_1B,A_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)),0)
+STD_ST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)),1)
+STD_ST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_STORE),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)),1)
+STD_ST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE),"2",fSTORE(1,4,EA,RtV),2)
+STD_ST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE),"3",fSTORE(1,8,EA,RttV),3)
+STD_ST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)),2)
+STD_ST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))),0)
+STD_ST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))),1)
 
 
-Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
+Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY), "Allocate stack frame",
 { fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
 
-#define A_RETURN A_RESTRICT_SLOT0ONLY
+#define A_RETURN A_RESTRICT_COF_MAX1,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE,A_RET_TYPE,A_DEALLOCRET
 
-Q6INSN(L2_deallocframe,"Rdd32=deallocframe(Rs32):raw", ATTRIBS(A_LOAD), "Deallocate stack frame",
+Q6INSN(L2_deallocframe,"Rdd32=deallocframe(Rs32):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAME), "Deallocate stack frame",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);
   fLOAD(1,8,u,EA,tmp);
   RddV = fFRAME_UNSCRAMBLE(tmp);
   fWRITE_SP(EA+8); })
 
-Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_JINDIR,A_LOAD,A_RETURN), "Deallocate stack frame and return",
+Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_REGWRSIZE_8B,A_ROPS_2,A_JINDIR,A_MEMSIZE_8B,A_LOAD,A_RETURN), "Deallocate stack frame and return",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);
   fLOAD(1,8,u,EA,tmp);
   RddV = fFRAME_UNSCRAMBLE(tmp);
@@ -166,7 +166,7 @@ Q6INSN(L4_return,"Rdd32=dealloc_return(Rs32):raw", ATTRIBS(A_JINDIR,A_LOAD,A_RET
     COND_RETURN_TF(TG,new_pt,".new",12,0,SPECULATE_TAKEN,ATTRIBS,fLSBNEW,PvN,":t") \
     COND_RETURN_TF(TG,new_pnt,".new",12,0,SPECULATE_NOT_TAKEN,ATTRIBS,fLSBNEW,PvN,":nt") \
 
-#define RETURN_ATTRIBS A_LOAD,A_RETURN
+#define RETURN_ATTRIBS A_ROPS_2,A_MEMSIZE_8B,A_LOAD,A_RETURN
 
 COND_RETURN_TF(L4_return,,,7,0,SPECULATE_NOT_TAKEN,ATTRIBS(RETURN_ATTRIBS,A_JINDIROLD),fLSBOLD,PvV,)
 COND_RETURN_NEW(L4_return,12,0,ATTRIBS(RETURN_ATTRIBS,A_JINDIRNEW))
@@ -174,18 +174,18 @@ COND_RETURN_NEW(L4_return,12,0,ATTRIBS(RETURN_ATTRIBS,A_JINDIRNEW))
 
 
 
-Q6INSN(L2_loadw_locked,"Rd32=memw_locked(Rs32)", ATTRIBS(A_LOAD,A_RESTRICT_SLOT0ONLY), "Load word with lock",
+Q6INSN(L2_loadw_locked,"Rd32=memw_locked(Rs32)", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_LOAD,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK), "Load word with lock",
 { fEA_REG(RsV); fLOAD_LOCKED(1,4,u,EA,RdV) })
 
 
-Q6INSN(S2_storew_locked,"memw_locked(Rs32,Pd4)=Rt32", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Store word with lock",
+Q6INSN(S2_storew_locked,"memw_locked(Rs32,Pd4)=Rt32", ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED), "Store word with lock",
 { fEA_REG(RsV); fSTORE_LOCKED(1,4,EA,RtV,PdV) })
 
 
-Q6INSN(L4_loadd_locked,"Rdd32=memd_locked(Rs32)", ATTRIBS(A_LOAD,A_RESTRICT_SLOT0ONLY), "Load double with lock",
+Q6INSN(L4_loadd_locked,"Rdd32=memd_locked(Rs32)", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK), "Load double with lock",
 { fEA_REG(RsV); fLOAD_LOCKED(1,8,u,EA,RddV) })
 
-Q6INSN(S4_stored_locked,"memd_locked(Rs32,Pd4)=Rtt32", ATTRIBS(A_STORE,A_RESTRICT_SLOT0ONLY), "Store word with lock",
+Q6INSN(S4_stored_locked,"memd_locked(Rs32,Pd4)=Rtt32", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY,A_RESTRICT_PACKET_AXOK,A_NOTE_AXOK,A_RESTRICT_LATEPRED,A_NOTE_LATEPRED), "Store word with lock",
 { fEA_REG(RsV); fSTORE_LOCKED(1,8,EA,RttV,PdV) })
 
 
@@ -220,12 +220,12 @@ Q6INSN(L4_p##TAG##fnew_abs,"if (!Pt4.new) "OPER"(#u6)",ATTRIB,DESCR,{fMUST_IMMEX
 
 
 /* The set of 32-bit predicated load instructions */
-STD_PLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_ARCHV2,A_LOAD),"0",0,fLOAD(1,1,u,EA,RdV))
-STD_PLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_ARCHV2,A_LOAD),"0",0,fLOAD(1,1,s,EA,RdV))
-STD_PLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_ARCHV2,A_LOAD),"1",1,fLOAD(1,2,u,EA,RdV))
-STD_PLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_ARCHV2,A_LOAD),"1",1,fLOAD(1,2,s,EA,RdV))
-STD_PLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_ARCHV2,A_LOAD),"2",2,fLOAD(1,4,u,EA,RdV))
-STD_PLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_ARCHV2,A_LOAD),"3",3,fLOAD(1,8,u,EA,RddV))
+STD_PLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_LOAD,A_REGWRSIZE_1B),"0",0,fLOAD(1,1,u,EA,RdV))
+STD_PLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_LOAD),"0",0,fLOAD(1,1,s,EA,RdV))
+STD_PLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_LOAD),"1",1,fLOAD(1,2,u,EA,RdV))
+STD_PLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_LOAD),"1",1,fLOAD(1,2,s,EA,RdV))
+STD_PLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_LOAD),"2",2,fLOAD(1,4,u,EA,RdV))
+STD_PLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_LOAD),"3",3,fLOAD(1,8,u,EA,RddV))
 
 /* The set of addressing modes standard to all predicated store instructions */
 #define STD_PST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SHFTNUM,SEMANTICS)\
@@ -251,14 +251,14 @@ Q6INSN(S4_p##TAG##fnew_abs,"if (!Pv4.new) "OPER"(#u6)="DEST,ATTRIB,DESCR,{fMUST_
 
 
 /* The set of 32-bit predicated store instructions */
-STD_PST_AMODES(storerb,"Rt32","memb","Store Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,RtV)))
-STD_PST_AMODES(storerh,"Rt32","memh","Store Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,RtV)))
-STD_PST_AMODES(storerf,"Rt.H32","memh","Store Upper Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(1,RtV)))
-STD_PST_AMODES(storeri,"Rt32","memw","Store Word",ATTRIBS(A_ARCHV2,A_STORE),"2",2,fSTORE(1,4,EA,RtV))
-STD_PST_AMODES(storerd,"Rtt32","memd","Store Double integer",ATTRIBS(A_ARCHV2,A_STORE),"3",3,fSTORE(1,8,EA,RttV))
-STD_PST_AMODES(storerinew,"Nt8.new","memw","Store Word",ATTRIBS(A_ARCHV2,A_STORE),"2",2,fSTORE(1,4,EA,fNEWREG_ST(NtN)))
-STD_PST_AMODES(storerbnew,"Nt8.new","memb","Store Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
-STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
+STD_PST_AMODES(storerb,"Rt32","memb","Store Byte",ATTRIBS(A_ARCHV2,A_MEMSIZE_1B,A_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,RtV)))
+STD_PST_AMODES(storerh,"Rt32","memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,RtV)))
+STD_PST_AMODES(storerf,"Rt.H32","memh","Store Upper Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_MEMSIZE_2B,A_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(1,RtV)))
+STD_PST_AMODES(storeri,"Rt32","memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_MEMSIZE_4B,A_STORE),"2",2,fSTORE(1,4,EA,RtV))
+STD_PST_AMODES(storerd,"Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_ARCHV2,A_MEMSIZE_8B,A_STORE),"3",3,fSTORE(1,8,EA,RttV))
+STD_PST_AMODES(storerinew,"Nt8.new","memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"2",2,fSTORE(1,4,EA,fNEWREG_ST(NtN)))
+STD_PST_AMODES(storerbnew,"Nt8.new","memb","Store Byte",ATTRIBS(A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"0",0,fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
+STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE),"1",1,fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
 
 
 
@@ -271,9 +271,9 @@ STD_PST_AMODES(storerhnew,"Nt8.new","memh","Store Half integer",ATTRIBS(A_ARCHV2
 
 /* The set of 32-bit non-predicated mem-ops */
 #define STD_MEMOP_AMODES(TAG,OPER,DESCR,SEMANTICS)\
-Q6INSN(L4_##TAG##w_io,  "memw(Rs32+#u6:2)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,4,s,EA,tmp); SEMANTICS;  fSTORE(1,4,EA,tmp); })\
-Q6INSN(L4_##TAG##b_io,  "memb(Rs32+#u6:0)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,1,s,EA,tmp); SEMANTICS;  fSTORE(1,1,EA,tmp); })\
-Q6INSN(L4_##TAG##h_io,  "memh(Rs32+#u6:1)"OPER,     ATTRIBS(A_RESTRICT_SLOT0ONLY),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,2,s,EA,tmp); SEMANTICS;  fSTORE(1,2,EA,tmp); })
+Q6INSN(L4_##TAG##w_io,  "memw(Rs32+#u6:2)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_4B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,4,s,EA,tmp); SEMANTICS;  fSTORE(1,4,EA,tmp); })\
+Q6INSN(L4_##TAG##b_io,  "memb(Rs32+#u6:0)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_1B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,1,s,EA,tmp); SEMANTICS;  fSTORE(1,1,EA,tmp); })\
+Q6INSN(L4_##TAG##h_io,  "memh(Rs32+#u6:1)"OPER,     ATTRIBS(A_MEMOP,A_ROPS_3,A_MEMSIZE_2B,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE),DESCR,{fIMMEXT(uiV); fEA_RI(RsV,uiV); fHIDE(size4s_t tmp;) fLOAD(1,2,s,EA,tmp); SEMANTICS;  fSTORE(1,2,EA,tmp); })
 
 
 
@@ -302,9 +302,9 @@ Q6INSN(S4_##TAG##tnew_io,"if (Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESC
 Q6INSN(S4_##TAG##fnew_io,"if (!Pv4.new) "OPER"(Rs32+#u6:"SHFT")="DEST,ATTRIB,DESCR,{fEA_RI(RsV,uiV); if (fLSBNEWNOT(PvN)){ SEMANTICS; } else {STORE_CANCEL(EA);}})
 
 /* The set of 32-bit store immediate instructions */
-V4_PSTI_AMODES(storeirb,"#S6","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
-V4_PSTI_AMODES(storeirh,"#S6","memh","Store Immediate Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
-V4_PSTI_AMODES(storeiri,"#S6","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_STORE),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
+V4_PSTI_AMODES(storeirb,"#S6","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_ROPS_2,A_MEMSIZE_1B,A_STORE,A_STOREIMMED),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
+V4_PSTI_AMODES(storeirh,"#S6","memh","Store Immediate Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_ROPS_2,A_MEMSIZE_2B,A_STORE,A_STOREIMMED),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
+V4_PSTI_AMODES(storeiri,"#S6","memw","Store Immediate Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_ROPS_2,A_MEMSIZE_4B,A_STORE,A_STOREIMMED),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
 
 
 /* Non-predicated store immediates */
@@ -312,9 +312,9 @@ V4_PSTI_AMODES(storeiri,"#S6","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_S
 Q6INSN(S4_##TAG##_io,  OPER"(Rs32+#u6:"SHFT")="DEST,  ATTRIB,DESCR,{fEA_RI(RsV,uiV); SEMANTICS; })
 
 /* The set of 32-bit store immediate instructions */
-V4_STI_AMODES(storeirb,"#S8","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_STORE),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
-V4_STI_AMODES(storeirh,"#S8","memh","Store Immediate Half integer",ATTRIBS(A_ARCHV2,A_STORE),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
-V4_STI_AMODES(storeiri,"#S8","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_STORE),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
+V4_STI_AMODES(storeirb,"#S8","memb","Store Immediate Byte",ATTRIBS(A_ARCHV2,A_ROPS_2,A_MEMSIZE_1B,A_STORE,A_STOREIMMED),"0",fIMMEXT(SiV); fSTORE(1,1,EA,SiV))
+V4_STI_AMODES(storeirh,"#S8","memh","Store Immediate Half integer",ATTRIBS(A_REGWRSIZE_2B,A_ARCHV2,A_ROPS_2,A_MEMSIZE_2B,A_STORE,A_STOREIMMED),"1",fIMMEXT(SiV); fSTORE(1,2,EA,SiV))
+V4_STI_AMODES(storeiri,"#S8","memw","Store Immediate Word",ATTRIBS(A_REGWRSIZE_4B,A_ARCHV2,A_ROPS_2,A_MEMSIZE_4B,A_STORE,A_STOREIMMED),"2",fIMMEXT(SiV); fSTORE(1,4,EA,SiV))
 
 
 
@@ -332,23 +332,23 @@ V4_STI_AMODES(storeiri,"#S8","memw","Store Immediate Word",ATTRIBS(A_ARCHV2,A_ST
 Q6INSN(L2_##TAG##gp, OPER"(gp+#u16:"SHFT")",   ATTRIB,DESCR,{fIMMEXT(uiV); fEA_GPI(uiV); SEMANTICS; })
 
 /* The set of 32-bit load instructions */
-STD_GPLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_LOAD,A_ARCHV2),"0",fLOAD(1,1,u,EA,RdV))
-STD_GPLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_LOAD,A_ARCHV2),"0",fLOAD(1,1,s,EA,RdV))
-STD_GPLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_LOAD,A_ARCHV2),"1",fLOAD(1,2,u,EA,RdV))
-STD_GPLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_LOAD,A_ARCHV2),"1",fLOAD(1,2,s,EA,RdV))
-STD_GPLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_LOAD,A_ARCHV2),"2",fLOAD(1,4,u,EA,RdV))
-STD_GPLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_LOAD,A_ARCHV2),"3",fLOAD(1,8,u,EA,RddV))
+STD_GPLD_AMODES(loadrub,"Rd32=memub","Load Unsigned Byte",ATTRIBS(A_MEMSIZE_1B,A_LOAD,A_ARCHV2,A_REGWRSIZE_1B),"0",fLOAD(1,1,u,EA,RdV))
+STD_GPLD_AMODES(loadrb, "Rd32=memb", "Load signed Byte",ATTRIBS(A_MEMSIZE_1B,A_LOAD,A_ARCHV2),"0",fLOAD(1,1,s,EA,RdV))
+STD_GPLD_AMODES(loadruh,"Rd32=memuh","Load unsigned Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD,A_ARCHV2),"1",fLOAD(1,2,u,EA,RdV))
+STD_GPLD_AMODES(loadrh, "Rd32=memh", "Load signed Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_LOAD,A_ARCHV2),"1",fLOAD(1,2,s,EA,RdV))
+STD_GPLD_AMODES(loadri, "Rd32=memw", "Load Word",ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_LOAD,A_ARCHV2),"2",fLOAD(1,4,u,EA,RdV))
+STD_GPLD_AMODES(loadrd, "Rdd32=memd","Load Double integer",ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_ARCHV2),"3",fLOAD(1,8,u,EA,RddV))
 
 
 #define STD_GPST_AMODES(TAG,DEST,OPER,DESCR,ATTRIB,SHFT,SEMANTICS)\
 Q6INSN(S2_##TAG##gp, OPER"(gp+#u16:"SHFT")="DEST, ATTRIB,DESCR,{fIMMEXT(uiV); fEA_GPI(uiV); SEMANTICS; })
 
 /* The set of 32-bit store instructions */
-STD_GPST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)))
-STD_GPST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)))
-STD_GPST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)))
-STD_GPST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,RtV))
-STD_GPST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_STORE,A_ARCHV2),"3",fSTORE(1,8,EA,RttV))
-STD_GPST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)))
-STD_GPST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
-STD_GPST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))
+STD_GPST_AMODES(storerb, "Rt32", "memb","Store Byte",ATTRIBS(A_MEMSIZE_1B,A_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,RtV)))
+STD_GPST_AMODES(storerh, "Rt32", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,RtV)))
+STD_GPST_AMODES(storerf, "Rt.H32", "memh","Store Upper Half integer",ATTRIBS(A_REGWRSIZE_2B,A_MEMSIZE_2B,A_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(1,RtV)))
+STD_GPST_AMODES(storeri, "Rt32", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_MEMSIZE_4B,A_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,RtV))
+STD_GPST_AMODES(storerd, "Rtt32","memd","Store Double integer",ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_STORE,A_ARCHV2),"3",fSTORE(1,8,EA,RttV))
+STD_GPST_AMODES(storerinew, "Nt8.new", "memw","Store Word",ATTRIBS(A_REGWRSIZE_4B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_4B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"2",fSTORE(1,4,EA,fNEWREG_ST(NtN)))
+STD_GPST_AMODES(storerbnew, "Nt8.new", "memb","Store Byte",ATTRIBS(A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_1B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"0",fSTORE(1,1,EA,fGETBYTE(0,fNEWREG_ST(NtN))))
+STD_GPST_AMODES(storerhnew, "Nt8.new", "memh","Store Half integer",ATTRIBS(A_REGWRSIZE_2B,A_NOTE_NEWVAL_SLOT0,A_NVSTORE,A_NOTE_NVSLOT0,A_MEMSIZE_2B,A_STORE,A_RESTRICT_NOSLOT1_STORE,A_ARCHV2),"1",fSTORE(1,2,EA,fGETHALF(0,fNEWREG_ST(NtN))))

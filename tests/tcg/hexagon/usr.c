@@ -86,6 +86,7 @@ const uint32_t SF_QNaN_neg =         0xffc00000;
 const uint32_t SF_SNaN_neg =         0xffb00000;
 const uint32_t SF_HEX_NaN =          0xffffffff;
 const uint32_t SF_zero =             0x00000000;
+const uint32_t SF_zero_neg =         0x80000000;
 const uint32_t SF_one =              0x3f800000;
 const uint32_t SF_one_recip =        0x3f7f0001;         /* 0.9960...  */
 const uint32_t SF_one_invsqrta =     0x3f7f0000;         /* 0.99609375 */
@@ -100,6 +101,7 @@ const uint64_t DF_QNaN_neg =         0xfff8000000000000ULL;
 const uint64_t DF_SNaN_neg =         0xfff7000000000000ULL;
 const uint64_t DF_HEX_NaN =          0xffffffffffffffffULL;
 const uint64_t DF_zero =             0x0000000000000000ULL;
+const uint64_t DF_zero_neg =         0x8000000000000000ULL;
 const uint64_t DF_any =              0x3f80000000000000ULL;
 const uint64_t DF_one =              0x3ff0000000000000ULL;
 const uint64_t DF_one_hh =           0x3ff001ff80000000ULL;     /* 1.00048... */
@@ -933,6 +935,8 @@ int main()
     TEST_R_OP_RR(sfmin,  SF_QNaN,     SF_one,         SF_one,       USR_CLEAR);
     TEST_R_OP_RR(sfmin,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
     TEST_R_OP_RR(sfmin,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmin,  SF_zero,     SF_zero_neg,    SF_zero_neg,  USR_CLEAR);
+    TEST_R_OP_RR(sfmin,  SF_zero_neg, SF_zero,        SF_zero_neg,  USR_CLEAR);
 
     TEST_R_OP_RR(sfmax,  SF_one,      SF_small_neg,   SF_one,       USR_CLEAR);
     TEST_R_OP_RR(sfmax,  SF_one,      SF_SNaN,        SF_one,       USR_FPINVF);
@@ -941,6 +945,8 @@ int main()
     TEST_R_OP_RR(sfmax,  SF_QNaN,     SF_one,         SF_one,       USR_CLEAR);
     TEST_R_OP_RR(sfmax,  SF_SNaN,     SF_QNaN,        SF_HEX_NaN,   USR_FPINVF);
     TEST_R_OP_RR(sfmax,  SF_QNaN,     SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
+    TEST_R_OP_RR(sfmax,  SF_zero,     SF_zero_neg,    SF_zero,      USR_CLEAR);
+    TEST_R_OP_RR(sfmax,  SF_zero_neg, SF_zero,        SF_zero,      USR_CLEAR);
 
     TEST_R_OP_RR(sfadd,  SF_one,      SF_QNaN,        SF_HEX_NaN,   USR_CLEAR);
     TEST_R_OP_RR(sfadd,  SF_one,      SF_SNaN,        SF_HEX_NaN,   USR_FPINVF);
@@ -1003,6 +1009,8 @@ int main()
     TEST_P_OP_PP(dfmin,  DF_QNaN,   DF_any,          DF_any,        USR_CLEAR);
     TEST_P_OP_PP(dfmin,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
     TEST_P_OP_PP(dfmin,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfmin,  DF_zero,   DF_zero_neg,     DF_zero_neg,   USR_CLEAR);
+    TEST_P_OP_PP(dfmin,  DF_zero_neg, DF_zero,       DF_zero_neg,   USR_CLEAR);
 
     TEST_P_OP_PP(dfmax,  DF_any,    DF_small_neg,    DF_any,        USR_CLEAR);
     TEST_P_OP_PP(dfmax,  DF_any,    DF_SNaN,         DF_any,        USR_FPINVF);
@@ -1011,6 +1019,8 @@ int main()
     TEST_P_OP_PP(dfmax,  DF_QNaN,   DF_any,          DF_any,        USR_CLEAR);
     TEST_P_OP_PP(dfmax,  DF_SNaN,   DF_QNaN,         DF_HEX_NaN,    USR_FPINVF);
     TEST_P_OP_PP(dfmax,  DF_QNaN,   DF_SNaN,         DF_HEX_NaN,    USR_FPINVF);
+    TEST_P_OP_PP(dfmax,  DF_zero,   DF_zero_neg,     DF_zero,       USR_CLEAR);
+    TEST_P_OP_PP(dfmax,  DF_zero_neg, DF_zero,       DF_zero,       USR_CLEAR);
 
     TEST_XP_OP_PP(dfmpyhh, DF_one,   DF_one,  DF_one,   DF_one_hh,  USR_CLEAR);
     TEST_XP_OP_PP(dfmpyhh, DF_zero,  DF_any,  DF_QNaN,  DF_HEX_NaN, USR_CLEAR);

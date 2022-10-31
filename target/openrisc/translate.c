@@ -1726,13 +1726,3 @@ void openrisc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
                      (i % 4) == 3 ? '\n' : ' ');
     }
 }
-
-void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-    env->dflag = data[1] & 1;
-    if (data[1] & 2) {
-        env->ppc = env->pc - 4;
-    }
-}

@@ -275,10 +275,15 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
             /* If IOVW bit is set then set the timer value */
             ptimer_set_count(s->timer_reload, s->lr);
         }
-
+        /*
+         * Commit the change to s->timer_reload, so it can propagate. Otherwise
+         * the timer interrupt may not fire properly. The commit must happen
+         * before calling imx_epit_reload_compare_timer(), which reads
+         * s->timer_reload internally again.
+         */
+        ptimer_transaction_commit(s->timer_reload);
         imx_epit_reload_compare_timer(s);
         ptimer_transaction_commit(s->timer_cmp);
-        ptimer_transaction_commit(s->timer_reload);
         break;
 
     case 3: /* CMP */

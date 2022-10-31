@@ -154,7 +154,7 @@ void vcpu_dirty_rate_stat_initialize(void)
 
     vcpu_dirty_rate_stat->stat.nvcpu = max_cpus;
     vcpu_dirty_rate_stat->stat.rates =
-        g_malloc0(sizeof(DirtyRateVcpu) * max_cpus);
+        g_new0(DirtyRateVcpu, max_cpus);
 
     vcpu_dirty_rate_stat->running = false;
 }
@@ -198,7 +198,7 @@ void dirtylimit_state_initialize(void)
     dirtylimit_state = g_malloc0(sizeof(*dirtylimit_state));
 
     dirtylimit_state->states =
-            g_malloc0(sizeof(VcpuDirtyLimitState) * max_cpus);
+            g_new0(VcpuDirtyLimitState, max_cpus);
 
     for (i = 0; i < max_cpus; i++) {
         dirtylimit_state->states[i].cpu_index = i;

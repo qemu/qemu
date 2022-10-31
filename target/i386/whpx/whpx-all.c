@@ -1164,9 +1164,8 @@ static void whpx_translate_cpu_breakpoints(
         (breakpoints->breakpoints ? breakpoints->breakpoints->used : 0);
 
     struct whpx_breakpoint_collection *new_breakpoints =
-        (struct whpx_breakpoint_collection *)g_malloc0(
-        sizeof(struct whpx_breakpoint_collection) +
-            max_breakpoints * sizeof(struct whpx_breakpoint));
+        g_malloc0(sizeof(struct whpx_breakpoint_collection)
+                  + max_breakpoints * sizeof(struct whpx_breakpoint));
 
     new_breakpoints->allocated = max_breakpoints;
     new_breakpoints->used = 0;
@@ -1225,14 +1224,12 @@ static void whpx_translate_cpu_breakpoints(
         }
     }
 
-    if (breakpoints->breakpoints) {
-        /*
-         * Free the previous breakpoint list. This can be optimized by keeping
-         * it as shadow buffer for the next computation instead of freeing
-         * it immediately.
-         */
-        g_free(breakpoints->breakpoints);
-    }
+    /*
+     * Free the previous breakpoint list. This can be optimized by keeping
+     * it as shadow buffer for the next computation instead of freeing
+     * it immediately.
+     */
+    g_free(breakpoints->breakpoints);
 
     breakpoints->breakpoints = new_breakpoints;
 }

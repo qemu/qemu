@@ -41,13 +41,31 @@ static void tricore_cpu_set_pc(CPUState *cs, vaddr value)
     env->PC = value & ~(target_ulong)1;
 }
 
+static vaddr tricore_cpu_get_pc(CPUState *cs)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(cs);
+    CPUTriCoreState *env = &cpu->env;
+
+    return env->PC;
+}
+
 static void tricore_cpu_synchronize_from_tb(CPUState *cs,
                                             const TranslationBlock *tb)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     CPUTriCoreState *env = &cpu->env;
 
-    env->PC = tb->pc;
+    env->PC = tb_pc(tb);
+}
+
+static void tricore_restore_state_to_opc(CPUState *cs,
+                                         const TranslationBlock *tb,
+                                         const uint64_t *data)
+{
+    TriCoreCPU *cpu = TRICORE_CPU(cs);
+    CPUTriCoreState *env = &cpu->env;
+
+    env->PC = data[0];
 }
 
 static void tricore_cpu_reset(DeviceState *dev)
@@ -153,6 +171,7 @@ static const struct SysemuCPUOps tricore_sysemu_ops = {
 static const struct TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
+    .restore_state_to_opc = tricore_restore_state_to_opc,
     .tlb_fill = tricore_cpu_tlb_fill,
 };
 
@@ -176,6 +195,7 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
 
     cc->dump_state = tricore_cpu_dump_state;
     cc->set_pc = tricore_cpu_set_pc;
+    cc->get_pc = tricore_cpu_get_pc;
     cc->sysemu_ops = &tricore_sysemu_ops;
     cc->tcg_ops = &tricore_tcg_ops;
 }

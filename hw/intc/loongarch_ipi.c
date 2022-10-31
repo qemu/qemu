@@ -88,7 +88,6 @@ static void ipi_send(uint64_t val)
     cs = qemu_get_cpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
-    loongarch_cpu_set_irq(cpu, IRQ_IPI, 1);
     address_space_stl(&env->address_space_iocsr, 0x1008,
                       data, MEMTXATTRS_UNSPECIFIED, NULL);
 

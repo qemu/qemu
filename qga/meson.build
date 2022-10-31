@@ -72,6 +72,12 @@ qga_ss.add(when: 'CONFIG_POSIX', if_true: files(
   'commands-posix.c',
   'commands-posix-ssh.c',
 ))
+qga_ss.add(when: 'CONFIG_LINUX', if_true: files(
+  'commands-linux.c',
+))
+qga_ss.add(when: 'CONFIG_BSD', if_true: files(
+  'commands-bsd.c',
+))
 qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
   'channel-win32.c',
   'commands-win32.c',
@@ -138,7 +144,7 @@ else
   if get_option('guest_agent_msi').enabled()
     error('MSI guest agent package is available only for MinGW Windows cross-compilation')
   endif
-  install_subdir('run', install_dir: get_option('localstatedir'))
+  install_emptydir(get_option('localstatedir') / 'run')
 endif
 
 alias_target('qemu-ga', all_qga)

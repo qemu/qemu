@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -38,6 +38,17 @@ DEF_ATTRIB(SUBINSN, "sub-instruction", "", "")
 /* Load and Store attributes */
 DEF_ATTRIB(LOAD, "Loads from memory", "", "")
 DEF_ATTRIB(STORE, "Stores to memory", "", "")
+DEF_ATTRIB(STOREIMMED, "Stores immed to memory", "", "")
+DEF_ATTRIB(MEMSIZE_0B, "Memory width is 0 byte", "", "")
+DEF_ATTRIB(MEMSIZE_1B, "Memory width is 1 byte", "", "")
+DEF_ATTRIB(MEMSIZE_2B, "Memory width is 2 bytes", "", "")
+DEF_ATTRIB(MEMSIZE_4B, "Memory width is 4 bytes", "", "")
+DEF_ATTRIB(MEMSIZE_8B, "Memory width is 8 bytes", "", "")
+DEF_ATTRIB(SCALAR_STORE, "Store is scalar", "", "")
+DEF_ATTRIB(REGWRSIZE_1B, "Memory width is 1 byte", "", "")
+DEF_ATTRIB(REGWRSIZE_2B, "Memory width is 2 bytes", "", "")
+DEF_ATTRIB(REGWRSIZE_4B, "Memory width is 4 bytes", "", "")
+DEF_ATTRIB(REGWRSIZE_8B, "Memory width is 8 bytes", "", "")
 DEF_ATTRIB(MEMLIKE, "Memory-like instruction", "", "")
 DEF_ATTRIB(MEMLIKE_PACKET_RULES, "follows Memory-like packet rules", "", "")
 
@@ -71,6 +82,11 @@ DEF_ATTRIB(COF, "Change-of-flow instruction", "", "")
 DEF_ATTRIB(CONDEXEC, "May be cancelled by a predicate", "", "")
 DEF_ATTRIB(DOTNEWVALUE, "Uses a register value generated in this pkt", "", "")
 DEF_ATTRIB(NEWCMPJUMP, "Compound compare and jump", "", "")
+DEF_ATTRIB(NVSTORE, "New-value store", "", "")
+DEF_ATTRIB(MEMOP, "memop", "", "")
+
+DEF_ATTRIB(ROPS_2, "Compound instruction worth 2 RISC-ops", "", "")
+DEF_ATTRIB(ROPS_3, "Compound instruction worth 3 RISC-ops", "", "")
 
 /* access to implicit registers */
 DEF_ATTRIB(IMPLICIT_WRITES_LR, "Writes the link register", "", "UREG.LR")
@@ -87,6 +103,9 @@ DEF_ATTRIB(IMPLICIT_WRITES_P3, "May write Predicate 3", "", "UREG.P3")
 DEF_ATTRIB(IMPLICIT_READS_PC, "Reads the PC register", "", "")
 DEF_ATTRIB(IMPLICIT_WRITES_USR, "May write USR", "", "")
 DEF_ATTRIB(WRITES_PRED_REG, "Writes a predicate register", "", "")
+DEF_ATTRIB(COMMUTES, "The operation is communitive", "", "")
+DEF_ATTRIB(DEALLOCRET, "dealloc_return", "", "")
+DEF_ATTRIB(DEALLOCFRAME, "deallocframe", "", "")
 
 DEF_ATTRIB(CRSLOT23, "Can execute in slot 2 or slot 3 (CR)", "", "")
 DEF_ATTRIB(IT_NOP, "nop instruction", "", "")
@@ -94,17 +113,21 @@ DEF_ATTRIB(IT_EXTENDER, "constant extender instruction", "", "")
 
 
 /* Restrictions to make note of */
+DEF_ATTRIB(RESTRICT_COF_MAX1, "One change-of-flow per packet", "", "")
+DEF_ATTRIB(RESTRICT_NOPACKET, "Not allowed in a packet", "", "")
 DEF_ATTRIB(RESTRICT_SLOT0ONLY, "Must execute on slot0", "", "")
 DEF_ATTRIB(RESTRICT_SLOT1ONLY, "Must execute on slot1", "", "")
 DEF_ATTRIB(RESTRICT_SLOT2ONLY, "Must execute on slot2", "", "")
 DEF_ATTRIB(RESTRICT_SLOT3ONLY, "Must execute on slot3", "", "")
 DEF_ATTRIB(RESTRICT_NOSLOT1, "No slot 1 instruction in parallel", "", "")
 DEF_ATTRIB(RESTRICT_PREFERSLOT0, "Try to encode into slot 0", "", "")
+DEF_ATTRIB(RESTRICT_PACKET_AXOK, "May exist with A-type or X-type", "", "")
 
 DEF_ATTRIB(ICOP, "Instruction cache op", "", "")
 
 DEF_ATTRIB(HWLOOP0_END, "Ends HW loop0", "", "")
 DEF_ATTRIB(HWLOOP1_END, "Ends HW loop1", "", "")
+DEF_ATTRIB(RET_TYPE, "return type", "", "")
 DEF_ATTRIB(DCZEROA, "dczeroa type", "", "")
 DEF_ATTRIB(ICFLUSHOP, "icflush op type", "", "")
 DEF_ATTRIB(DCFLUSHOP, "dcflush op type", "", "")
@@ -115,6 +138,19 @@ DEF_ATTRIB(L2FETCH, "Instruction is l2fetch type", "", "")
 
 DEF_ATTRIB(ICINVA, "icinva", "", "")
 DEF_ATTRIB(DCCLEANINVA, "dccleaninva", "", "")
+
+/* Documentation Notes */
+DEF_ATTRIB(NOTE_CONDITIONAL, "can be conditionally executed", "", "")
+DEF_ATTRIB(NOTE_NEWVAL_SLOT0, "New-value oprnd must execute on slot 0", "", "")
+DEF_ATTRIB(NOTE_PRIV, "Monitor-level feature", "", "")
+DEF_ATTRIB(NOTE_NOPACKET, "solo instruction", "", "")
+DEF_ATTRIB(NOTE_AXOK, "May only be grouped with ALU32 or non-FP XTYPE.", "", "")
+DEF_ATTRIB(NOTE_LATEPRED, "The predicate can not be used as a .new", "", "")
+DEF_ATTRIB(NOTE_NVSLOT0, "Can execute only in slot 0 (ST)", "", "")
+
+/* Restrictions to make note of */
+DEF_ATTRIB(RESTRICT_NOSLOT1_STORE, "Packet must not have slot 1 store", "", "")
+DEF_ATTRIB(RESTRICT_LATEPRED, "Predicate can not be used as a .new.", "", "")
 
 /* Keep this as the last attribute: */
 DEF_ATTRIB(ZZ_LASTATTRIB, "Last attribute in the file", "", "")

@@ -14,6 +14,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
+#include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
@@ -199,7 +200,7 @@ int vhost_vsock_common_pre_save(void *opaque)
      * At this point, backend must be stopped, otherwise
      * it might keep writing to memory.
      */
-    assert(!vvc->vhost_dev.started);
+    assert(!vhost_dev_is_started(&vvc->vhost_dev));
 
     return 0;
 }

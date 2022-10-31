@@ -258,6 +258,8 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, int64_t offset,
         qemu_iovec_add(&local_qiov, buf, 512);
         qemu_iovec_concat(&local_qiov, qiov, 512, qiov->size - 512);
         qiov = &local_qiov;
+
+        flags &= ~BDRV_REQ_REGISTERED_BUF;
     }
 
     ret = raw_adjust_offset(bs, &offset, bytes, true);
@@ -411,7 +413,8 @@ static void raw_lock_medium(BlockDriverState *bs, bool locked)
     bdrv_lock_medium(bs->file->bs, locked);
 }
 
-static int raw_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+static int coroutine_fn raw_co_ioctl(BlockDriverState *bs,
+                                     unsigned long int req, void *buf)
 {
     BDRVRawState *s = bs->opaque;
     if (s->offset || s->has_size) {
@@ -463,7 +466,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
-    bs->sg = bs->file->bs->sg;
+    bs->sg = bdrv_is_sg(bs->file->bs);
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
         (BDRV_REQ_FUA & bs->file->bs->supported_write_flags);
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
@@ -489,7 +492,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
         return ret;
     }
 
-    if (bs->sg && (s->offset || s->has_size)) {
+    if (bdrv_is_sg(bs) && (s->offset || s->has_size)) {
         error_setg(errp, "Cannot use offset/size with SCSI generic devices");
         return -EINVAL;
     }

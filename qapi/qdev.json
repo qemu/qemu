@@ -150,10 +150,9 @@
 #
 # Example:
 #
-# <- { "event": "DEVICE_UNPLUG_GUEST_ERROR"
+# <- { "event": "DEVICE_UNPLUG_GUEST_ERROR",
 #      "data": { "device": "core1",
 #                "path": "/machine/peripheral/core1" },
-#      },
 #      "timestamp": { "seconds": 1615570772, "microseconds": 202844 } }
 #
 ##

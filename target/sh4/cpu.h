@@ -78,26 +78,33 @@
 #define FPSCR_RM_NEAREST       (0 << 0)
 #define FPSCR_RM_ZERO          (1 << 0)
 
-#define DELAY_SLOT_MASK        0x7
-#define DELAY_SLOT             (1 << 0)
-#define DELAY_SLOT_CONDITIONAL (1 << 1)
-#define DELAY_SLOT_RTE         (1 << 2)
+#define TB_FLAG_DELAY_SLOT       (1 << 0)
+#define TB_FLAG_DELAY_SLOT_COND  (1 << 1)
+#define TB_FLAG_DELAY_SLOT_RTE   (1 << 2)
+#define TB_FLAG_PENDING_MOVCA    (1 << 3)
+#define TB_FLAG_GUSA_SHIFT       4                      /* [11:4] */
+#define TB_FLAG_GUSA_EXCLUSIVE   (1 << 12)
+#define TB_FLAG_UNALIGN          (1 << 13)
+#define TB_FLAG_SR_FD            (1 << SR_FD)           /* 15 */
+#define TB_FLAG_FPSCR_PR         FPSCR_PR               /* 19 */
+#define TB_FLAG_FPSCR_SZ         FPSCR_SZ               /* 20 */
+#define TB_FLAG_FPSCR_FR         FPSCR_FR               /* 21 */
+#define TB_FLAG_SR_RB            (1 << SR_RB)           /* 29 */
+#define TB_FLAG_SR_MD            (1 << SR_MD)           /* 30 */
 
-#define TB_FLAG_PENDING_MOVCA  (1 << 3)
-#define TB_FLAG_UNALIGN        (1 << 4)
-
-#define GUSA_SHIFT             4
-#ifdef CONFIG_USER_ONLY
-#define GUSA_EXCLUSIVE         (1 << 12)
-#define GUSA_MASK              ((0xff << GUSA_SHIFT) | GUSA_EXCLUSIVE)
-#else
-/* Provide dummy versions of the above to allow tests against tbflags
-   to be elided while avoiding ifdefs.  */
-#define GUSA_EXCLUSIVE         0
-#define GUSA_MASK              0
-#endif
-
-#define TB_FLAG_ENVFLAGS_MASK  (DELAY_SLOT_MASK | GUSA_MASK)
+#define TB_FLAG_DELAY_SLOT_MASK  (TB_FLAG_DELAY_SLOT |       \
+                                  TB_FLAG_DELAY_SLOT_COND |  \
+                                  TB_FLAG_DELAY_SLOT_RTE)
+#define TB_FLAG_GUSA_MASK        ((0xff << TB_FLAG_GUSA_SHIFT) | \
+                                  TB_FLAG_GUSA_EXCLUSIVE)
+#define TB_FLAG_FPSCR_MASK       (TB_FLAG_FPSCR_PR | \
+                                  TB_FLAG_FPSCR_SZ | \
+                                  TB_FLAG_FPSCR_FR)
+#define TB_FLAG_SR_MASK          (TB_FLAG_SR_FD | \
+                                  TB_FLAG_SR_RB | \
+                                  TB_FLAG_SR_MD)
+#define TB_FLAG_ENVFLAGS_MASK    (TB_FLAG_DELAY_SLOT_MASK | \
+                                  TB_FLAG_GUSA_MASK)
 
 typedef struct tlb_t {
     uint32_t vpn;		/* virtual page number */
@@ -258,7 +265,7 @@ static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
 {
     /* The instruction in a RTE delay slot is fetched in privileged
        mode, but executed in user mode.  */
-    if (ifetch && (env->flags & DELAY_SLOT_RTE)) {
+    if (ifetch && (env->flags & TB_FLAG_DELAY_SLOT_RTE)) {
         return 0;
     } else {
         return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
@@ -366,11 +373,10 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
 {
     *pc = env->pc;
     /* For a gUSA region, notice the end of the region.  */
-    *cs_base = env->flags & GUSA_MASK ? env->gregs[0] : 0;
-    *flags = env->flags /* TB_FLAG_ENVFLAGS_MASK: bits 0-2, 4-12 */
-            | (env->fpscr & (FPSCR_FR | FPSCR_SZ | FPSCR_PR))  /* Bits 19-21 */
-            | (env->sr & ((1u << SR_MD) | (1u << SR_RB)))      /* Bits 29-30 */
-            | (env->sr & (1u << SR_FD))                        /* Bit 15 */
+    *cs_base = env->flags & TB_FLAG_GUSA_MASK ? env->gregs[0] : 0;
+    *flags = env->flags
+            | (env->fpscr & TB_FLAG_FPSCR_MASK)
+            | (env->sr & TB_FLAG_SR_MASK)
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 3 */
 #ifdef CONFIG_USER_ONLY
     *flags |= TB_FLAG_UNALIGN * !env_cpu(env)->prctl_unalign_sigbus;

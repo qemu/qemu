@@ -332,7 +332,7 @@ static void microvm_memory_init(MicrovmMachineState *mms)
     rom_set_fw(fw_cfg);
 
     if (machine->kernel_filename != NULL) {
-        x86_load_linux(x86ms, fw_cfg, 0, true, true);
+        x86_load_linux(x86ms, fw_cfg, 0, true, false);
     }
 
     if (mms->option_roms) {
@@ -467,7 +467,7 @@ static void microvm_machine_state_init(MachineState *machine)
     microvm_devices_init(mms);
 }
 
-static void microvm_machine_reset(MachineState *machine)
+static void microvm_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(machine);
     CPUState *cs;
@@ -480,14 +480,12 @@ static void microvm_machine_reset(MachineState *machine)
         mms->kernel_cmdline_fixed = true;
     }
 
-    qemu_devices_reset();
+    qemu_devices_reset(reason);
 
     CPU_FOREACH(cs) {
         cpu = X86_CPU(cs);
 
-        if (cpu->apic_state) {
-            device_legacy_reset(cpu->apic_state);
-        }
+        x86_cpu_after_reset(cpu);
     }
 }
 

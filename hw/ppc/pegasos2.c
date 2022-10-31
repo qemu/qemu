@@ -248,14 +248,14 @@ static void pegasos2_pci_config_write(Pegasos2MachineState *pm, int bus,
     pegasos2_mv_reg_write(pm, pcicfg + 4, len, val);
 }
 
-static void pegasos2_machine_reset(MachineState *machine)
+static void pegasos2_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     Pegasos2MachineState *pm = PEGASOS2_MACHINE(machine);
     void *fdt;
     uint64_t d[2];
     int sz;
 
-    qemu_devices_reset();
+    qemu_devices_reset(reason);
     if (!pm->vof) {
         return; /* Firmware should set up machine so nothing to do */
     }
@@ -331,6 +331,10 @@ static void pegasos2_machine_reset(MachineState *machine)
 
     vof_build_dt(fdt, pm->vof);
     vof_client_open_store(fdt, pm->vof, "/chosen", "stdout", "/failsafe");
+
+    /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+    machine->fdt = fdt;
+
     pm->cpu->vhyp = PPC_VIRTUAL_HYPERVISOR(machine);
 }
 
