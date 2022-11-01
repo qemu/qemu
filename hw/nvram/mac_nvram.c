@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/nvram/chrp_nvram.h"
-#include "hw/ppc/mac.h"
+#include "hw/nvram/mac_nvram.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"

@@ -26,7 +26,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/ppc/mac.h"
 #include "hw/misc/macio/cuda.h"
 #include "hw/pci/pci.h"
 #include "hw/ppc/mac_dbdma.h"
@@ -37,8 +36,9 @@
 #include "hw/intc/heathrow_pic.h"
 #include "trace.h"
 
-/* Note: this code is strongly inspirated from the corresponding code
- * in PearPC */
+#define ESCC_CLOCK 3686400
+
+/* Note: this code is strongly inspired by the corresponding code in PearPC */
 
 /*
  * The mac-io has two interfaces to the ESCC. One is called "escc-legacy",
@@ -226,7 +226,7 @@ static void macio_oldworld_init(Object *obj)
 
     object_initialize_child(OBJECT(s), "nvram", &os->nvram, TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);
-    qdev_prop_set_uint32(dev, "size", 0x2000);
+    qdev_prop_set_uint32(dev, "size", MACIO_NVRAM_SIZE);
     qdev_prop_set_uint32(dev, "it_shift", 4);
 
     for (i = 0; i < 2; i++) {

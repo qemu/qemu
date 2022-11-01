@@ -1327,6 +1327,7 @@ F: hw/nvram/mac_nvram.c
 F: hw/input/adb*
 F: include/hw/misc/macio/
 F: include/hw/misc/mos6522.h
+F: include/hw/nvram/mac_nvram.h
 F: include/hw/ppc/mac_dbdma.h
 F: include/hw/pci-host/uninorth.h
 F: include/hw/input/adb*
@@ -1344,6 +1345,7 @@ F: hw/intc/heathrow_pic.c
 F: hw/input/adb*
 F: include/hw/intc/heathrow_pic.h
 F: include/hw/input/adb*
+F: include/hw/pci-host/grackle.h
 F: pc-bios/qemu_vga.ndrv
 
 PReP
