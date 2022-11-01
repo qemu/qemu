@@ -1076,37 +1076,6 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg,
 }
 
 #if defined(CONFIG_SOFTMMU)
-static void * const qemu_ld_helpers[MO_SSIZE + 1] = {
-    [MO_UB]   = helper_ret_ldub_mmu,
-    [MO_SB]   = helper_ret_ldsb_mmu,
-#if HOST_BIG_ENDIAN
-    [MO_UW] = helper_be_lduw_mmu,
-    [MO_SW] = helper_be_ldsw_mmu,
-    [MO_UL] = helper_be_ldul_mmu,
-    [MO_SL] = helper_be_ldsl_mmu,
-    [MO_UQ] = helper_be_ldq_mmu,
-#else
-    [MO_UW] = helper_le_lduw_mmu,
-    [MO_SW] = helper_le_ldsw_mmu,
-    [MO_UL] = helper_le_ldul_mmu,
-    [MO_UQ] = helper_le_ldq_mmu,
-    [MO_SL] = helper_le_ldsl_mmu,
-#endif
-};
-
-static void * const qemu_st_helpers[MO_SIZE + 1] = {
-    [MO_UB]   = helper_ret_stb_mmu,
-#if HOST_BIG_ENDIAN
-    [MO_UW] = helper_be_stw_mmu,
-    [MO_UL] = helper_be_stl_mmu,
-    [MO_UQ] = helper_be_stq_mmu,
-#else
-    [MO_UW] = helper_le_stw_mmu,
-    [MO_UL] = helper_le_stl_mmu,
-    [MO_UQ] = helper_le_stq_mmu,
-#endif
-};
-
 /* We have four temps, we might as well expose three of them. */
 static const TCGLdstHelperParam ldst_helper_param = {
     .ntmp = 3, .tmp = { TCG_TMP0, TCG_TMP1, TCG_TMP2 }

@@ -293,31 +293,21 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     uintptr_t ra = (uintptr_t)tb_ptr;
 
 #ifdef CONFIG_SOFTMMU
-    switch (mop & (MO_BSWAP | MO_SSIZE)) {
+    switch (mop & MO_SSIZE) {
     case MO_UB:
-        return helper_ret_ldub_mmu(env, taddr, oi, ra);
+        return helper_ldub_mmu(env, taddr, oi, ra);
     case MO_SB:
-        return helper_ret_ldsb_mmu(env, taddr, oi, ra);
-    case MO_LEUW:
-        return helper_le_lduw_mmu(env, taddr, oi, ra);
-    case MO_LESW:
-        return helper_le_ldsw_mmu(env, taddr, oi, ra);
-    case MO_LEUL:
-        return helper_le_ldul_mmu(env, taddr, oi, ra);
-    case MO_LESL:
-        return helper_le_ldsl_mmu(env, taddr, oi, ra);
-    case MO_LEUQ:
-        return helper_le_ldq_mmu(env, taddr, oi, ra);
-    case MO_BEUW:
-        return helper_be_lduw_mmu(env, taddr, oi, ra);
-    case MO_BESW:
-        return helper_be_ldsw_mmu(env, taddr, oi, ra);
-    case MO_BEUL:
-        return helper_be_ldul_mmu(env, taddr, oi, ra);
-    case MO_BESL:
-        return helper_be_ldsl_mmu(env, taddr, oi, ra);
-    case MO_BEUQ:
-        return helper_be_ldq_mmu(env, taddr, oi, ra);
+        return helper_ldsb_mmu(env, taddr, oi, ra);
+    case MO_UW:
+        return helper_lduw_mmu(env, taddr, oi, ra);
+    case MO_SW:
+        return helper_ldsw_mmu(env, taddr, oi, ra);
+    case MO_UL:
+        return helper_ldul_mmu(env, taddr, oi, ra);
+    case MO_SL:
+        return helper_ldsl_mmu(env, taddr, oi, ra);
+    case MO_UQ:
+        return helper_ldq_mmu(env, taddr, oi, ra);
     default:
         g_assert_not_reached();
     }
@@ -382,27 +372,18 @@ static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
     uintptr_t ra = (uintptr_t)tb_ptr;
 
 #ifdef CONFIG_SOFTMMU
-    switch (mop & (MO_BSWAP | MO_SIZE)) {
+    switch (mop & MO_SIZE) {
     case MO_UB:
-        helper_ret_stb_mmu(env, taddr, val, oi, ra);
+        helper_stb_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUW:
-        helper_le_stw_mmu(env, taddr, val, oi, ra);
+    case MO_UW:
+        helper_stw_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUL:
-        helper_le_stl_mmu(env, taddr, val, oi, ra);
+    case MO_UL:
+        helper_stl_mmu(env, taddr, val, oi, ra);
         break;
-    case MO_LEUQ:
-        helper_le_stq_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUW:
-        helper_be_stw_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUL:
-        helper_be_stl_mmu(env, taddr, val, oi, ra);
-        break;
-    case MO_BEUQ:
-        helper_be_stq_mmu(env, taddr, val, oi, ra);
+    case MO_UQ:
+        helper_stq_mmu(env, taddr, val, oi, ra);
         break;
     default:
         g_assert_not_reached();
