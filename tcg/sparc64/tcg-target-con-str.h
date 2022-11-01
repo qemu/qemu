@@ -9,10 +9,7 @@
  * REGS(letter, register_mask)
  */
 REGS('r', ALL_GENERAL_REGS)
-REGS('R', ALL_GENERAL_REGS64)
 REGS('s', ALL_QLDST_REGS)
-REGS('S', ALL_QLDST_REGS64)
-REGS('A', TARGET_LONG_BITS == 64 ? ALL_QLDST_REGS64 : ALL_QLDST_REGS)
 
 /*
  * Define constraint letters for constants:

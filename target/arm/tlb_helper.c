@@ -156,7 +156,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
 
     fi.type = ARMFault_Alignment;
     arm_deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
@@ -196,7 +196,7 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
 
     fi.ea = arm_extabort_type(response);
     fi.type = ARMFault_SyncExternal;
@@ -252,7 +252,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         return false;
     } else {
         /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr, true);
+        cpu_restore_state(cs, retaddr);
         arm_deliver_fault(cpu, address, access_type, mmu_idx, fi);
     }
 }
@@ -271,7 +271,7 @@ void arm_cpu_record_sigsegv(CPUState *cs, vaddr addr,
      * We report both ESR and FAR to signal handlers.
      * For now, it's easiest to deliver the fault normally.
      */
-    cpu_restore_state(cs, ra, true);
+    cpu_restore_state(cs, ra);
     arm_deliver_fault(cpu, addr, access_type, MMU_USER_IDX, &fi);
 }
 

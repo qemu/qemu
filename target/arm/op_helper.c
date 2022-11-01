@@ -78,7 +78,7 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
      * we must restore CPU state here before setting the syndrome
      * the caller passed us, and cannot use cpu_loop_exit_restore().
      */
-    cpu_restore_state(cs, ra, true);
+    cpu_restore_state(cs, ra);
     raise_exception(env, excp, syndrome, target_el);
 }
 

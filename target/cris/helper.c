@@ -87,7 +87,7 @@ bool cris_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cs->exception_index = EXCP_BUSFAULT;
     env->fault_vector = res.bf_vec;
     if (retaddr) {
-        if (cpu_restore_state(cs, retaddr, true)) {
+        if (cpu_restore_state(cs, retaddr)) {
             /* Evaluate flags after retranslation. */
             helper_top_evaluate_flags(env);
         }

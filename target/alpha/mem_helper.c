@@ -28,7 +28,7 @@ static void do_unaligned_access(CPUAlphaState *env, vaddr addr, uintptr_t retadd
     uint64_t pc;
     uint32_t insn;
 
-    cpu_restore_state(env_cpu(env), retaddr, true);
+    cpu_restore_state(env_cpu(env), retaddr);
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);

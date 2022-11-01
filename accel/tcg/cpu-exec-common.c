@@ -71,7 +71,7 @@ void cpu_loop_exit(CPUState *cpu)
 void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc)
 {
     if (pc) {
-        cpu_restore_state(cpu, pc, true);
+        cpu_restore_state(cpu, pc);
     }
     cpu_loop_exit(cpu);
 }

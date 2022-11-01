@@ -3075,7 +3075,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     uint32_t insn;
 
     /* Restore state and reload the insn we executed, for filling in DSISR.  */
-    cpu_restore_state(cs, retaddr, true);
+    cpu_restore_state(cs, retaddr);
     insn = cpu_ldl_code(env, env->nip);
 
     switch (env->mmu_model) {
