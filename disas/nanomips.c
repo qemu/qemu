@@ -12235,7 +12235,8 @@ static char *RESTOREF(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3__s3(instruction);
 
 
-    return img_format("RESTOREF 0x%" PRIx64 ", %s", u_value, count_value);
+    return img_format("RESTOREF 0x%" PRIx64 ", 0x%" PRIx64,
+                      u_value, count_value);
 }
 
 
