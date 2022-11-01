@@ -30,10 +30,6 @@
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
 
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-
 typedef int64_t int64;
 typedef uint64_t uint64;
 typedef uint32_t uint32;
