@@ -3252,7 +3252,8 @@ static char *CACHE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("CACHE 0x%" PRIx64 ", %s(%s)", op_value, s_value, rs);
+    return img_format("CACHE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      op_value, s_value, rs);
 }
 
 
@@ -3274,7 +3275,8 @@ static char *CACHEE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("CACHEE 0x%" PRIx64 ", %s(%s)", op_value, s_value, rs);
+    return img_format("CACHEE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      op_value, s_value, rs);
 }
 
 
@@ -5173,7 +5175,7 @@ static char *DADDIU_48_(uint64 instruction, Dis_info *info)
 
     const char *rt = GPR(rt_value, info);
 
-    return img_format("DADDIU %s, %s", rt, s_value);
+    return img_format("DADDIU %s, %" PRId64, rt, s_value);
 }
 
 
@@ -11859,7 +11861,7 @@ static char *PREF_S9_(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("PREF 0x%" PRIx64 ", %s(%s)",
+    return img_format("PREF 0x%" PRIx64 ", %" PRId64 "(%s)",
                       hint_value, s_value, rs);
 }
 
@@ -11905,7 +11907,8 @@ static char *PREFE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("PREFE 0x%" PRIx64 ", %s(%s)", hint_value, s_value, rs);
+    return img_format("PREFE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      hint_value, s_value, rs);
 }
 
 
@@ -12079,7 +12082,7 @@ static char *REPL_PH(uint64 instruction, Dis_info *info)
 
     const char *rt = GPR(rt_value, info);
 
-    return img_format("REPL.PH %s, %s", rt, s_value);
+    return img_format("REPL.PH %s, %" PRId64, rt, s_value);
 }
 
 
@@ -12613,7 +12616,7 @@ static char *SB_S9_(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SB %s, %s(%s)", rt, s_value, rs);
+    return img_format("SB %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12659,7 +12662,7 @@ static char *SBE(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SBE %s, %s(%s)", rt, s_value, rs);
+    return img_format("SBE %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12706,7 +12709,7 @@ static char *SC(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SC %s, %s(%s)", rt, s_value, rs);
+    return img_format("SC %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12729,7 +12732,7 @@ static char *SCD(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SCD %s, %s(%s)", rt, s_value, rs);
+    return img_format("SCD %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12776,7 +12779,7 @@ static char *SCE(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SCE %s, %s(%s)", rt, s_value, rs);
+    return img_format("SCE %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12868,7 +12871,7 @@ static char *SD_S9_(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SD %s, %s(%s)", rt, s_value, rs);
+    return img_format("SD %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12973,7 +12976,7 @@ static char *SDC1_S9_(uint64 instruction, Dis_info *info)
     const char *ft = FPR(ft_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SDC1 %s, %s(%s)", ft, s_value, rs);
+    return img_format("SDC1 %s, %" PRId64 "(%s)", ft, s_value, rs);
 }
 
 
@@ -13066,7 +13069,8 @@ static char *SDC2(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SDC2 CP%" PRIu64 ", %s(%s)", cs_value, s_value, rs);
+    return img_format("SDC2 CP%" PRIu64 ", %" PRId64 "(%s)",
+                      cs_value, s_value, rs);
 }
 
 
@@ -13091,7 +13095,8 @@ static char *SDM(uint64 instruction, Dis_info *info)
     const char *rs = GPR(rs_value, info);
     uint64 count3 = encode_count3_from_count(count3_value);
 
-    return img_format("SDM %s, %s(%s), 0x%" PRIx64, rt, s_value, rs, count3);
+    return img_format("SDM %s, %" PRId64 "(%s), 0x%" PRIx64,
+                      rt, s_value, rs, count3);
 }
 
 
