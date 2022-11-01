@@ -95,7 +95,7 @@ typedef struct Pool {
 #define IMGASSERTONCE(test)
 
 
-static char *img_format(const char *format, ...)
+static char * G_GNUC_PRINTF(1, 2) img_format(const char *format, ...)
 {
     char *buffer;
     va_list args;
