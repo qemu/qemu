@@ -110,11 +110,6 @@ details are opaque to plugins. The plugin is able to query select
 details of instructions and system configuration only through the
 exported *qemu_plugin* functions.
 
-API
-~~~
-
-.. kernel-doc:: include/qemu/qemu-plugin.h
-
 Internals
 ---------
 
@@ -150,12 +145,141 @@ Example Plugins
 
 There are a number of plugins included with QEMU and you are
 encouraged to contribute your own plugins plugins upstream. There is a
-``contrib/plugins`` directory where they can go.
+``contrib/plugins`` directory where they can go. There are also some
+basic plugins that are used to test and exercise the API during the
+``make check-tcg`` target in ``tests\plugins``.
 
-- tests/plugins
+- tests/plugins/empty.c
 
-These are some basic plugins that are used to test and exercise the
-API during the ``make check-tcg`` target.
+Purely a test plugin for measuring the overhead of the plugins system
+itself. Does no instrumentation.
+
+- tests/plugins/bb.c
+
+A very basic plugin which will measure execution in course terms as
+each basic block is executed. By default the results are shown once
+execution finishes::
+
+  $ qemu-aarch64 -plugin tests/plugin/libbb.so \
+      -d plugin ./tests/tcg/aarch64-linux-user/sha1
+  SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
+  bb's: 2277338, insns: 158483046
+
+Behaviour can be tweaked with the following arguments:
+
+ * inline=true|false
+
+ Use faster inline addition of a single counter. Not per-cpu and not
+ thread safe.
+
+ * idle=true|false
+
+ Dump the current execution stats whenever the guest vCPU idles
+
+- tests/plugins/insn.c
+
+This is a basic instruction level instrumentation which can count the
+number of instructions executed on each core/thread::
+
+  $ qemu-aarch64 -plugin tests/plugin/libinsn.so \
+      -d plugin ./tests/tcg/aarch64-linux-user/threadcount
+  Created 10 threads
+  Done
+  cpu 0 insns: 46765
+  cpu 1 insns: 3694
+  cpu 2 insns: 3694
+  cpu 3 insns: 2994
+  cpu 4 insns: 1497
+  cpu 5 insns: 1497
+  cpu 6 insns: 1497
+  cpu 7 insns: 1497
+  total insns: 63135
+
+Behaviour can be tweaked with the following arguments:
+
+ * inline=true|false
+
+ Use faster inline addition of a single counter. Not per-cpu and not
+ thread safe.
+
+ * sizes=true|false
+
+ Give a summary of the instruction sizes for the execution
+
+ * match=<string>
+
+ Only instrument instructions matching the string prefix. Will show
+ some basic stats including how many instructions have executed since
+ the last execution. For example::
+
+   $ qemu-aarch64 -plugin tests/plugin/libinsn.so,match=bl \
+       -d plugin ./tests/tcg/aarch64-linux-user/sha512-vector
+   ...
+   0x40069c, 'bl #0x4002b0', 10 hits, 1093 match hits, Δ+1257 since last match, 98 avg insns/match
+   0x4006ac, 'bl #0x403690', 10 hits, 1094 match hits, Δ+47 since last match, 98 avg insns/match 
+   0x4037fc, 'bl #0x4002b0', 18 hits, 1095 match hits, Δ+22 since last match, 98 avg insns/match 
+   0x400720, 'bl #0x403690', 10 hits, 1096 match hits, Δ+58 since last match, 98 avg insns/match 
+   0x4037fc, 'bl #0x4002b0', 19 hits, 1097 match hits, Δ+22 since last match, 98 avg insns/match 
+   0x400730, 'bl #0x403690', 10 hits, 1098 match hits, Δ+33 since last match, 98 avg insns/match 
+   0x4037ac, 'bl #0x4002b0', 12 hits, 1099 match hits, Δ+20 since last match, 98 avg insns/match 
+   ...
+
+For more detailed execution tracing see the ``execlog`` plugin for
+other options.
+
+- tests/plugins/mem.c
+
+Basic instruction level memory instrumentation::
+
+  $ qemu-aarch64 -plugin tests/plugin/libmem.so,inline=true \
+      -d plugin ./tests/tcg/aarch64-linux-user/sha1
+  SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
+  inline mem accesses: 79525013
+
+Behaviour can be tweaked with the following arguments:
+
+ * inline=true|false
+
+ Use faster inline addition of a single counter. Not per-cpu and not
+ thread safe.
+
+ * callback=true|false
+
+ Use callbacks on each memory instrumentation.
+
+ * hwaddr=true|false
+
+ Count IO accesses (only for system emulation)
+
+- tests/plugins/syscall.c
+
+A basic syscall tracing plugin. This only works for user-mode. By
+default it will give a summary of syscall stats at the end of the
+run::
+
+  $ qemu-aarch64 -plugin tests/plugin/libsyscall \
+      -d plugin ./tests/tcg/aarch64-linux-user/threadcount
+  Created 10 threads
+  Done
+  syscall no.  calls  errors
+  226          12     0
+  99           11     11
+  115          11     0
+  222          11     0
+  93           10     0
+  220          10     0
+  233          10     0
+  215          8      0
+  214          4      0
+  134          2      0
+  64           2      0
+  96           1      0
+  94           1      0
+  80           1      0
+  261          1      0
+  78           1      0
+  160          1      0
+  135          1      0
 
 - contrib/plugins/hotblocks.c
 
@@ -172,7 +296,7 @@ slightly faster (but not thread safe) counters.
 
 Example::
 
-  ./aarch64-linux-user/qemu-aarch64 \
+  $ qemu-aarch64 \
     -plugin contrib/plugins/libhotblocks.so -d plugin \
     ./tests/tcg/aarch64-linux-user/sha1
   SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
@@ -186,7 +310,7 @@ Example::
 
 Similar to hotblocks but this time tracks memory accesses::
 
-  ./aarch64-linux-user/qemu-aarch64 \
+  $ qemu-aarch64 \
     -plugin contrib/plugins/libhotpages.so -d plugin \
     ./tests/tcg/aarch64-linux-user/sha1
   SHA1=15dd99a1991e0b3826fede3deffc1feba42278e6
@@ -220,7 +344,7 @@ counted. You can give a value to the ``count`` argument for a class of
 instructions to break it down fully, so for example to see all the system
 registers accesses::
 
-  ./aarch64-softmmu/qemu-system-aarch64 $(QEMU_ARGS) \
+  $ qemu-system-aarch64 $(QEMU_ARGS) \
     -append "root=/dev/sda2 systemd.unit=benchmark.service" \
     -smp 4 -plugin ./contrib/plugins/libhowvec.so,count=sreg -d plugin
 
@@ -288,10 +412,10 @@ for the plugin is a path for the socket the two instances will
 communicate over::
 
 
-  ./sparc-softmmu/qemu-system-sparc -monitor none -parallel none \
+  $ qemu-system-sparc -monitor none -parallel none \
     -net none -M SS-20 -m 256 -kernel day11/zImage.elf \
     -plugin ./contrib/plugins/liblockstep.so,sockpath=lockstep-sparc.sock \
-  -d plugin,nochain
+    -d plugin,nochain
 
 which will eventually report::
 
@@ -346,9 +470,9 @@ The execlog tool traces executed instructions with memory access. It can be used
 for debugging and security analysis purposes.
 Please be aware that this will generate a lot of output.
 
-The plugin takes no argument::
+The plugin needs default argument::
 
-  qemu-system-arm $(QEMU_ARGS) \
+  $ qemu-system-arm $(QEMU_ARGS) \
     -plugin ./contrib/plugins/libexeclog.so -d plugin
 
 which will output an execution trace following this structure::
@@ -364,13 +488,20 @@ which will output an execution trace following this structure::
   0, 0xd34, 0xf9c8f000, "bl #0x10c8"
   0, 0x10c8, 0xfff96c43, "ldr r3, [r0, #0x44]", load, 0x200000e4, RAM
 
+the output can be filtered to only track certain instructions or
+addresses using the ``ifilter`` or ``afilter`` options. You can stack the
+arguments if required::
+
+  $ qemu-system-arm $(QEMU_ARGS) \
+    -plugin ./contrib/plugins/libexeclog.so,ifilter=st1w,afilter=0x40001808 -d plugin
+
 - contrib/plugins/cache.c
 
 Cache modelling plugin that measures the performance of a given L1 cache
 configuration, and optionally a unified L2 per-core cache when a given working
 set is run::
 
-    qemu-x86_64 -plugin ./contrib/plugins/libcache.so \
+  $ qemu-x86_64 -plugin ./contrib/plugins/libcache.so \
       -d plugin -D cache.log ./tests/tcg/x86_64-linux-user/float_convs
 
 will report the following::
@@ -441,3 +572,13 @@ The plugin has a number of arguments, all of them are optional:
   associativity of the L2 cache, respectively. Setting any of the L2
   configuration arguments implies ``l2=on``.
   (default: N = 2097152 (2MB), B = 64, A = 16)
+
+API
+---
+
+The following API is generated from the inline documentation in
+``include/qemu/qemu-plugin.h``. Please ensure any updates to the API
+include the full kernel-doc annotations.
+
+.. kernel-doc:: include/qemu/qemu-plugin.h
+

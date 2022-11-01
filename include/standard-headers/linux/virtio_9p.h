@@ -38,7 +38,7 @@ struct virtio_9p_config {
 	/* length of the tag name */
 	__virtio16 tag_len;
 	/* non-NULL terminated tag name */
-	uint8_t tag[0];
+	uint8_t tag[];
 } QEMU_PACKED;
 
 #endif /* _LINUX_VIRTIO_9P_H */

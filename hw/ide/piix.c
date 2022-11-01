@@ -21,6 +21,10 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ * References:
+ *  [1] 82371FB (PIIX) AND 82371SB (PIIX3) PCI ISA IDE XCELERATOR,
+ *      290550-002, Intel Corporation, April 1997.
  */
 
 #include "qemu/osdep.h"
@@ -114,14 +118,11 @@ static void piix_ide_reset(DeviceState *dev)
         ide_bus_reset(&d->bus[i]);
     }
 
-    /* TODO: this is the default. do not override. */
-    pci_conf[PCI_COMMAND] = 0x00;
-    /* TODO: this is the default. do not override. */
-    pci_conf[PCI_COMMAND + 1] = 0x00;
-    /* TODO: use pci_set_word */
-    pci_conf[PCI_STATUS] = PCI_STATUS_FAST_BACK;
-    pci_conf[PCI_STATUS + 1] = PCI_STATUS_DEVSEL_MEDIUM >> 8;
-    pci_conf[0x20] = 0x01; /* BMIBA: 20-23h */
+    /* PCI command register default value (0000h) per [1, p.48].  */
+    pci_set_word(pci_conf + PCI_COMMAND, 0x0000);
+    pci_set_word(pci_conf + PCI_STATUS,
+                 PCI_STATUS_DEVSEL_MEDIUM | PCI_STATUS_FAST_BACK);
+    pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
 static int pci_piix_init_ports(PCIIDEState *d)

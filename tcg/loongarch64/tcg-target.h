@@ -42,7 +42,11 @@
 
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 32
-#define MAX_CODE_GEN_BUFFER_SIZE  SIZE_MAX
+/*
+ * PCADDU18I + JIRL sequence can give 20 + 16 + 2 = 38 bits
+ * signed offset, which is +/- 128 GiB.
+ */
+#define MAX_CODE_GEN_BUFFER_SIZE  (128 * GiB)
 
 typedef enum {
     TCG_REG_ZERO,
@@ -123,7 +127,7 @@ typedef enum {
 #define TCG_TARGET_HAS_clz_i32          1
 #define TCG_TARGET_HAS_ctz_i32          1
 #define TCG_TARGET_HAS_ctpop_i32        0
-#define TCG_TARGET_HAS_direct_jump      0
+#define TCG_TARGET_HAS_direct_jump      1
 #define TCG_TARGET_HAS_brcond2          0
 #define TCG_TARGET_HAS_setcond2         0
 #define TCG_TARGET_HAS_qemu_st8_i32     0
@@ -166,7 +170,6 @@ typedef enum {
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
 
-/* not defined -- call should be eliminated at compile time */
 void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 #define TCG_TARGET_DEFAULT_MO (0)

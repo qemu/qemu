@@ -23,6 +23,7 @@
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "hw/virtio/virtio-blk-common.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user-blk.h"
 #include "hw/virtio/virtio.h"
@@ -63,7 +64,7 @@ static void vhost_user_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     /* Our num_queues overrides the device backend */
     virtio_stw_p(vdev, &s->blkcfg.num_queues, s->num_queues);
 
-    memcpy(config, &s->blkcfg, sizeof(struct virtio_blk_config));
+    memcpy(config, &s->blkcfg, vdev->config_len);
 }
 
 static void vhost_user_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
@@ -92,12 +93,12 @@ static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
 {
     int ret;
     struct virtio_blk_config blkcfg;
+    VirtIODevice *vdev = dev->vdev;
     VHostUserBlk *s = VHOST_USER_BLK(dev->vdev);
     Error *local_err = NULL;
 
     ret = vhost_dev_get_config(dev, (uint8_t *)&blkcfg,
-                               sizeof(struct virtio_blk_config),
-                               &local_err);
+                               vdev->config_len, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
@@ -106,7 +107,7 @@ static int vhost_user_blk_handle_config_change(struct vhost_dev *dev)
     /* valid for resize only */
     if (blkcfg.capacity != s->blkcfg.capacity) {
         s->blkcfg.capacity = blkcfg.capacity;
-        memcpy(dev->vdev->config, &s->blkcfg, sizeof(struct virtio_blk_config));
+        memcpy(dev->vdev->config, &s->blkcfg, vdev->config_len);
         virtio_notify_config(dev->vdev);
     }
 
@@ -229,7 +230,7 @@ static void vhost_user_blk_set_status(VirtIODevice *vdev, uint8_t status)
         return;
     }
 
-    if (s->dev.started == should_start) {
+    if (vhost_dev_is_started(&s->dev) == should_start) {
         return;
     }
 
@@ -259,12 +260,7 @@ static uint64_t vhost_user_blk_get_features(VirtIODevice *vdev,
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_add_feature(&features, VIRTIO_BLK_F_FLUSH);
     virtio_add_feature(&features, VIRTIO_BLK_F_RO);
-    virtio_add_feature(&features, VIRTIO_BLK_F_DISCARD);
-    virtio_add_feature(&features, VIRTIO_BLK_F_WRITE_ZEROES);
 
-    if (s->config_wce) {
-        virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
-    }
     if (s->num_queues > 1) {
         virtio_add_feature(&features, VIRTIO_BLK_F_MQ);
     }
@@ -286,7 +282,7 @@ static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
-    if (s->dev.started) {
+    if (vhost_dev_is_started(&s->dev)) {
         return;
     }
 
@@ -415,6 +411,12 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
              * the vhost migration code. If disconnect was caught there is an
              * option for the general vhost code to get the dev state without
              * knowing its type (in this case vhost-user).
+             *
+             * FIXME: this is sketchy to be reaching into vhost_dev
+             * now because we are forcing something that implies we
+             * have executed vhost_dev_stop() but that won't happen
+             * until vhost_user_blk_stop() gets called from the bh.
+             * Really this state check should be tracked locally.
              */
             s->dev.started = false;
         }
@@ -447,7 +449,7 @@ static int vhost_user_blk_realize_connect(VHostUserBlk *s, Error **errp)
     assert(s->connected);
 
     ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
-                               sizeof(struct virtio_blk_config), errp);
+                               s->parent_obj.config_len, errp);
     if (ret < 0) {
         qemu_chr_fe_disconnect(&s->chardev);
         vhost_dev_cleanup(&s->dev);
@@ -462,6 +464,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     ERRP_GUARD();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    size_t config_size;
     int retries;
     int i, ret;
 
@@ -492,8 +495,9 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    virtio_init(vdev, VIRTIO_ID_BLOCK,
-                sizeof(struct virtio_blk_config));
+    config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
+                                         vdev->host_features);
+    virtio_init(vdev, VIRTIO_ID_BLOCK, config_size);
 
     s->virtqs = g_new(VirtQueue *, s->num_queues);
     for (i = 0; i < s->num_queues; i++) {
@@ -591,7 +595,12 @@ static Property vhost_user_blk_properties[] = {
     DEFINE_PROP_UINT16("num-queues", VHostUserBlk, num_queues,
                        VHOST_USER_BLK_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT32("queue-size", VHostUserBlk, queue_size, 128),
-    DEFINE_PROP_BIT("config-wce", VHostUserBlk, config_wce, 0, true),
+    DEFINE_PROP_BIT64("config-wce", VHostUserBlk, parent_obj.host_features,
+                      VIRTIO_BLK_F_CONFIG_WCE, true),
+    DEFINE_PROP_BIT64("discard", VHostUserBlk, parent_obj.host_features,
+                      VIRTIO_BLK_F_DISCARD, true),
+    DEFINE_PROP_BIT64("write-zeroes", VHostUserBlk, parent_obj.host_features,
+                      VIRTIO_BLK_F_WRITE_ZEROES, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

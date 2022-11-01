@@ -257,7 +257,7 @@ struct ethtool_tunable {
 	uint32_t	id;
 	uint32_t	type_id;
 	uint32_t	len;
-	void	*data[0];
+	void	*data[];
 };
 
 #define DOWNSHIFT_DEV_DEFAULT_COUNT	0xff
@@ -322,7 +322,7 @@ struct ethtool_regs {
 	uint32_t	cmd;
 	uint32_t	version;
 	uint32_t	len;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 /**
@@ -348,7 +348,7 @@ struct ethtool_eeprom {
 	uint32_t	magic;
 	uint32_t	offset;
 	uint32_t	len;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 /**
@@ -752,7 +752,7 @@ struct ethtool_gstrings {
 	uint32_t	cmd;
 	uint32_t	string_set;
 	uint32_t	len;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 /**
@@ -777,7 +777,7 @@ struct ethtool_sset_info {
 	uint32_t	cmd;
 	uint32_t	reserved;
 	uint64_t	sset_mask;
-	uint32_t	data[0];
+	uint32_t	data[];
 };
 
 /**
@@ -817,7 +817,7 @@ struct ethtool_test {
 	uint32_t	flags;
 	uint32_t	reserved;
 	uint32_t	len;
-	uint64_t	data[0];
+	uint64_t	data[];
 };
 
 /**
@@ -834,7 +834,7 @@ struct ethtool_test {
 struct ethtool_stats {
 	uint32_t	cmd;
 	uint32_t	n_stats;
-	uint64_t	data[0];
+	uint64_t	data[];
 };
 
 /**
@@ -851,7 +851,7 @@ struct ethtool_stats {
 struct ethtool_perm_addr {
 	uint32_t	cmd;
 	uint32_t	size;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 /* boolean flags controlling per-interface behavior characteristics.
@@ -1160,7 +1160,7 @@ struct ethtool_rxnfc {
 struct ethtool_rxfh_indir {
 	uint32_t	cmd;
 	uint32_t	size;
-	uint32_t	ring_index[0];
+	uint32_t	ring_index[];
 };
 
 /**
@@ -1201,7 +1201,7 @@ struct ethtool_rxfh {
 	uint8_t	hfunc;
 	uint8_t	rsvd8[3];
 	uint32_t	rsvd32;
-	uint32_t   rss_config[0];
+	uint32_t   rss_config[];
 };
 #define ETH_RXFH_CONTEXT_ALLOC		0xffffffff
 #define ETH_RXFH_INDIR_NO_CHANGE	0xffffffff
@@ -1286,7 +1286,7 @@ struct ethtool_dump {
 	uint32_t	version;
 	uint32_t	flag;
 	uint32_t	len;
-	uint8_t	data[0];
+	uint8_t	data[];
 };
 
 #define ETH_FW_DUMP_DISABLE 0
@@ -1318,7 +1318,7 @@ struct ethtool_get_features_block {
 struct ethtool_gfeatures {
 	uint32_t	cmd;
 	uint32_t	size;
-	struct ethtool_get_features_block features[0];
+	struct ethtool_get_features_block features[];
 };
 
 /**
@@ -1340,7 +1340,7 @@ struct ethtool_set_features_block {
 struct ethtool_sfeatures {
 	uint32_t	cmd;
 	uint32_t	size;
-	struct ethtool_set_features_block features[0];
+	struct ethtool_set_features_block features[];
 };
 
 /**
@@ -1691,6 +1691,7 @@ enum ethtool_link_mode_bit_indices {
 	ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT	 = 89,
 	ETHTOOL_LINK_MODE_100baseFX_Half_BIT		 = 90,
 	ETHTOOL_LINK_MODE_100baseFX_Full_BIT		 = 91,
+	ETHTOOL_LINK_MODE_10baseT1L_Full_BIT		 = 92,
 	/* must be last entry */
 	__ETHTOOL_LINK_MODE_MASK_NBITS
 };
@@ -2086,7 +2087,7 @@ struct ethtool_link_settings {
 	uint8_t	master_slave_state;
 	uint8_t	reserved1[1];
 	uint32_t	reserved[7];
-	uint32_t	link_mode_masks[0];
+	uint32_t	link_mode_masks[];
 	/* layout of link_mode_masks fields:
 	 * uint32_t map_supported[link_mode_masks_nwords];
 	 * uint32_t map_advertising[link_mode_masks_nwords];

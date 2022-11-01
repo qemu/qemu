@@ -961,6 +961,9 @@ void serial_set_frequency(SerialState *s, uint32_t frequency)
 const MemoryRegionOps serial_io_ops = {
     .read = serial_ioport_read,
     .write = serial_ioport_write,
+    .valid = {
+        .unaligned = 1,
+    },
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,

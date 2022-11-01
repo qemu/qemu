@@ -40,6 +40,7 @@ struct MSDState {
     bool removable;
     bool commandlog;
     SCSIDevice *scsi_dev;
+    bool needs_reset;
 };
 
 typedef struct MSDState MSDState;

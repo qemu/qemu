@@ -72,11 +72,6 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
             ilast = *ibuf++;
             rate->ipos++;
 
-            /* if ipos overflow, there is  a infinite loop */
-            if (rate->ipos == 0xffffffff) {
-                rate->ipos = 1;
-                rate->opos = rate->opos & 0xffffffff;
-            }
             /* See if we finished the input buffer yet */
             if (ibuf >= iend) {
                 goto the_end;
@@ -84,6 +79,12 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
         }
 
         icur = *ibuf;
+
+        /* wrap ipos and opos around long before they overflow */
+        if (rate->ipos >= 0x10001) {
+            rate->ipos = 1;
+            rate->opos &= 0xffffffff;
+        }
 
         /* interpolate */
 #ifdef FLOAT_MIXENG

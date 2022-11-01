@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.59.3',
+project('qemu', ['c'], meson_version: '>=0.61.3',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -75,7 +75,7 @@ have_tools = get_option('tools') \
   .allowed()
 have_ga = get_option('guest_agent') \
   .disable_auto_if(not have_system and not have_tools) \
-  .require(targetos in ['sunos', 'linux', 'windows'],
+  .require(targetos in ['sunos', 'linux', 'windows', 'freebsd'],
            error_message: 'unsupported OS for QEMU guest agent') \
   .allowed()
 have_block = have_system or have_tools
@@ -180,9 +180,16 @@ endif
 ##################
 
 qemu_cflags = config_host['QEMU_CFLAGS'].split()
-qemu_cxxflags = config_host['QEMU_CXXFLAGS'].split()
 qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
 qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
+
+if enable_static
+  qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
+endif
+
+# Detect support for PT_GNU_RELRO + DT_BIND_NOW.
+# The combination is known as "full relro", because .got.plt is read-only too.
+qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
 
 if targetos == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--no-seh', '-Wl,--nxcompat')
@@ -194,7 +201,6 @@ endif
 
 if get_option('gprof')
   qemu_cflags += ['-p']
-  qemu_cxxflags += ['-p']
   qemu_objcflags += ['-p']
   qemu_ldflags += ['-p']
 endif
@@ -240,8 +246,38 @@ if get_option('fuzzing')
 endif
 
 add_global_arguments(qemu_cflags, native: false, language: ['c'])
-add_global_arguments(qemu_cxxflags, native: false, language: ['cpp'])
 add_global_arguments(qemu_objcflags, native: false, language: ['objc'])
+
+# Check that the C++ compiler exists and works with the C compiler.
+link_language = 'c'
+linker = cc
+qemu_cxxflags = []
+if add_languages('cpp', required: false, native: false)
+  cxx = meson.get_compiler('cpp')
+  add_global_arguments(['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'],
+                       native: false, language: 'cpp')
+  foreach k: qemu_cflags
+    if k not in ['-Wstrict-prototypes', '-Wmissing-prototypes', '-Wnested-externs',
+                 '-Wold-style-declaration', '-Wold-style-definition', '-Wredundant-decls']
+      qemu_cxxflags += [k]
+    endif
+  endforeach
+  add_global_arguments(qemu_cxxflags, native: false, language: 'cpp')
+
+  if cxx.links(files('scripts/main.c'), args: qemu_cflags)
+    link_language = 'cpp'
+    linker = cxx
+  else
+    message('C++ compiler does not work with C compiler')
+    message('Disabling C++-specific optional code')
+  endif
+endif
+
+# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
+if targetos != 'sunos' and not config_host.has_key('CONFIG_TSAN')
+  qemu_ldflags += linker.get_supported_link_arguments('-Wl,--warn-common')
+endif
+
 add_global_link_arguments(qemu_ldflags, native: false, language: ['c', 'cpp', 'objc'])
 
 if targetos == 'linux'
@@ -255,14 +291,6 @@ add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir() / 'include',
                       language: ['c', 'cpp', 'objc'])
 
-link_language = meson.get_external_property('link_language', 'cpp')
-if link_language == 'cpp'
-  add_languages('cpp', required: true, native: false)
-  cxx = meson.get_compiler('cpp')
-  linker = cxx
-else
-  linker = cc
-endif
 if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
 endif
@@ -487,6 +515,7 @@ meson.override_dependency('glib-2.0', glib)
 
 gio = not_found
 gdbus_codegen = not_found
+gdbus_codegen_error = '@0@ requires gdbus-codegen, please install libgio'
 if not get_option('gio').auto() or have_system
   gio = dependency('gio-2.0', required: get_option('gio'),
                    method: 'pkg-config', kwargs: static_kwargs)
@@ -510,6 +539,10 @@ if not get_option('gio').auto() or have_system
     gio = declare_dependency(dependencies: [gio, gio_unix],
                              version: gio.version())
   endif
+endif
+if gdbus_codegen.found() and get_option('cfi')
+  gdbus_codegen = not_found
+  gdbus_codegen_error = '@0@ uses gdbus-codegen, which does not support control flow integrity'
 endif
 
 lttng = not_found
@@ -589,12 +622,6 @@ endif
 
 cocoa = dependency('appleframeworks', modules: ['Cocoa', 'CoreVideo'],
                    required: get_option('cocoa'))
-if cocoa.found() and get_option('sdl').enabled()
-  error('Cocoa and SDL cannot be enabled at the same time')
-endif
-if cocoa.found() and get_option('gtk').enabled()
-  error('Cocoa and GTK+ cannot be enabled at the same time')
-endif
 
 vmnet = dependency('appleframeworks', modules: 'vmnet', required: get_option('vmnet'))
 if vmnet.found() and not cc.has_header_symbol('vmnet/vmnet.h',
@@ -643,6 +670,26 @@ else
                          method: 'pkg-config', kwargs: static_kwargs)
 endif
 
+slirp = not_found
+if not get_option('slirp').auto() or have_system
+  slirp = dependency('slirp', required: get_option('slirp'),
+                     method: 'pkg-config', kwargs: static_kwargs)
+  # slirp < 4.7 is incompatible with CFI support in QEMU.  This is because
+  # it passes function pointers within libslirp as callbacks for timers.
+  # When using a system-wide shared libslirp, the type information for the
+  # callback is missing and the timer call produces a false positive with CFI.
+  # Do not use the "version" keyword argument to produce a better error.
+  # with control-flow integrity.
+  if get_option('cfi') and slirp.found() and slirp.version().version_compare('<4.7')
+    if get_option('slirp').enabled()
+      error('Control-Flow Integrity requires libslirp 4.7.')
+    else
+      warning('Cannot use libslirp since Control-Flow Integrity requires libslirp >= 4.7.')
+      slirp = not_found
+    endif
+  endif
+endif
+
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
@@ -681,6 +728,11 @@ if not get_option('jack').auto() or have_system
   jack = dependency('jack', required: get_option('jack'),
                     method: 'pkg-config', kwargs: static_kwargs)
 endif
+sndio = not_found
+if not get_option('sndio').auto() or have_system
+  sndio = dependency('sndio', required: get_option('sndio'),
+                    method: 'pkg-config', kwargs: static_kwargs)
+endif
 
 spice_protocol = not_found
 if not get_option('spice_protocol').auto() or have_system
@@ -717,6 +769,13 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
+                     kwargs: static_kwargs)
+endif
+blkio = not_found
+if not get_option('blkio').auto() or have_block
+  blkio = dependency('blkio',
+                     method: 'pkg-config',
+                     required: get_option('blkio'),
                      kwargs: static_kwargs)
 endif
 curl = not_found
@@ -825,14 +884,10 @@ if have_system and get_option('curses').allowed()
     }'''
 
   curses_dep_list = targetos == 'windows' ? ['ncurses', 'ncursesw'] : ['ncursesw']
-  foreach curses_dep : curses_dep_list
-    if not curses.found()
-      curses = dependency(curses_dep,
-                          required: false,
-                          method: 'pkg-config',
-                          kwargs: static_kwargs)
-    endif
-  endforeach
+  curses = dependency(curses_dep_list,
+                      required: false,
+                      method: 'pkg-config',
+                      kwargs: static_kwargs)
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
   curses_compile_args = ['-DNCURSES_WIDECHAR=1']
   if curses.found()
@@ -921,7 +976,7 @@ if not get_option('brlapi').auto() or have_system
 endif
 
 sdl = not_found
-if not get_option('sdl').auto() or (have_system and not cocoa.found())
+if not get_option('sdl').auto() or have_system
   sdl = dependency('sdl2', required: get_option('sdl'), kwargs: static_kwargs)
   sdl_image = not_found
 endif
@@ -1187,7 +1242,7 @@ endif
 gtk = not_found
 gtkx11 = not_found
 vte = not_found
-if not get_option('gtk').auto() or (have_system and not cocoa.found())
+if not get_option('gtk').auto() or have_system
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
                    required: get_option('gtk'),
@@ -1597,6 +1652,7 @@ if have_system
     'oss': oss.found(),
     'pa': pulse.found(),
     'sdl': sdl.found(),
+    'sndio': sndio.found(),
   }
   foreach k, v: audio_drivers_available
     config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
@@ -1604,7 +1660,7 @@ if have_system
 
   # Default to native drivers first, OSS second, SDL third
   audio_drivers_priority = \
-    [ 'pa', 'coreaudio', 'dsound', 'oss' ] + \
+    [ 'pa', 'coreaudio', 'dsound', 'sndio', 'oss' ] + \
     (targetos == 'linux' ? [] : [ 'sdl' ])
   audio_drivers_default = []
   foreach k: audio_drivers_priority
@@ -1669,14 +1725,11 @@ endif
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
 
-# FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
 dbus_display = get_option('dbus_display') \
   .require(gio.version().version_compare('>=2.64'),
            error_message: '-display dbus requires glib>=2.64') \
-  .require(enable_modules,
-           error_message: '-display dbus requires --enable-modules') \
   .require(gdbus_codegen.found(),
-           error_message: '-display dbus requires gdbus-codegen') \
+           error_message: gdbus_codegen_error.format('-display dbus')) \
   .require(opengl.found() and gbm.found(),
            error_message: '-display dbus requires epoxy/egl and gbm') \
   .allowed()
@@ -1769,6 +1822,7 @@ config_host_data.set('CONFIG_LIBUDEV', libudev.found())
 config_host_data.set('CONFIG_LZO', lzo.found())
 config_host_data.set('CONFIG_MPATH', mpathpersist.found())
 config_host_data.set('CONFIG_MPATH_NEW_API', mpathpersist_new_api)
+config_host_data.set('CONFIG_BLKIO', blkio.found())
 config_host_data.set('CONFIG_CURL', curl.found())
 config_host_data.set('CONFIG_CURSES', curses.found())
 config_host_data.set('CONFIG_GBM', gbm.found())
@@ -1878,7 +1932,7 @@ config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage')
 config_host_data.set('CONFIG_GPROF', get_option('gprof'))
 config_host_data.set('CONFIG_LIVE_BLOCK_MIGRATION', get_option('live_block_migration').allowed())
 config_host_data.set('CONFIG_QOM_CAST_DEBUG', get_option('qom_cast_debug'))
-config_host_data.set('CONFIG_REPLICATION', get_option('live_block_migration').allowed())
+config_host_data.set('CONFIG_REPLICATION', get_option('replication').allowed())
 
 # has_header
 config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
@@ -2617,103 +2671,6 @@ if not get_option('capstone').auto() or have_system or have_user
   endif
 endif
 
-slirp = not_found
-slirp_opt = 'disabled'
-if have_system
-  slirp_opt = get_option('slirp')
-  if slirp_opt in ['enabled', 'auto', 'system']
-    have_internal = fs.exists(meson.current_source_dir() / 'slirp/meson.build')
-    slirp_dep_required = (slirp_opt == 'system' or
-                          slirp_opt == 'enabled' and not have_internal)
-    slirp = dependency('slirp', kwargs: static_kwargs,
-                       method: 'pkg-config', version: '>=4.1.0',
-                       required: slirp_dep_required)
-    # slirp <4.7 is incompatible with CFI support in QEMU.  This is because
-    # it passes function pointers within libslirp as callbacks for timers.
-    # When using a system-wide shared libslirp, the type information for the
-    # callback is missing and the timer call produces a false positive with CFI.
-    # Do not use the "version" keyword argument to produce a better error.
-    # with control-flow integrity.
-    if get_option('cfi') and slirp.found() and slirp.version().version_compare('<4.7')
-      if slirp_dep_required
-        error('Control-Flow Integrity requires libslirp 4.7.')
-      else
-        warning('Control-Flow Integrity requires libslirp 4.7, not using system-wide libslirp.')
-        slirp = not_found
-      endif
-    endif
-    if slirp.found()
-      slirp_opt = 'system'
-    elif have_internal
-      slirp_opt = 'internal'
-    else
-      slirp_opt = 'disabled'
-    endif
-  endif
-  if slirp_opt == 'internal'
-    slirp_deps = []
-    if targetos == 'windows'
-      slirp_deps = cc.find_library('iphlpapi')
-    elif targetos == 'darwin'
-      slirp_deps = cc.find_library('resolv')
-    endif
-    slirp_conf = configuration_data()
-    slirp_conf.set('SLIRP_MAJOR_VERSION', meson.project_version().split('.')[0])
-    slirp_conf.set('SLIRP_MINOR_VERSION', meson.project_version().split('.')[1])
-    slirp_conf.set('SLIRP_MICRO_VERSION', meson.project_version().split('.')[2])
-    slirp_conf.set_quoted('SLIRP_VERSION_STRING', meson.project_version())
-    slirp_cargs = ['-DG_LOG_DOMAIN="Slirp"']
-    slirp_files = [
-      'slirp/src/arp_table.c',
-      'slirp/src/bootp.c',
-      'slirp/src/cksum.c',
-      'slirp/src/dhcpv6.c',
-      'slirp/src/dnssearch.c',
-      'slirp/src/if.c',
-      'slirp/src/ip6_icmp.c',
-      'slirp/src/ip6_input.c',
-      'slirp/src/ip6_output.c',
-      'slirp/src/ip_icmp.c',
-      'slirp/src/ip_input.c',
-      'slirp/src/ip_output.c',
-      'slirp/src/mbuf.c',
-      'slirp/src/misc.c',
-      'slirp/src/ncsi.c',
-      'slirp/src/ndp_table.c',
-      'slirp/src/sbuf.c',
-      'slirp/src/slirp.c',
-      'slirp/src/socket.c',
-      'slirp/src/state.c',
-      'slirp/src/stream.c',
-      'slirp/src/tcp_input.c',
-      'slirp/src/tcp_output.c',
-      'slirp/src/tcp_subr.c',
-      'slirp/src/tcp_timer.c',
-      'slirp/src/tftp.c',
-      'slirp/src/udp.c',
-      'slirp/src/udp6.c',
-      'slirp/src/util.c',
-      'slirp/src/version.c',
-      'slirp/src/vmstate.c',
-    ]
-
-    configure_file(
-      input : 'slirp/src/libslirp-version.h.in',
-      output : 'libslirp-version.h',
-      configuration: slirp_conf)
-
-    slirp_inc = include_directories('slirp', 'slirp/src')
-    libslirp = static_library('slirp',
-                              build_by_default: false,
-                              sources: slirp_files,
-                              c_args: slirp_cargs,
-                              include_directories: slirp_inc)
-    slirp = declare_dependency(link_with: libslirp,
-                               dependencies: slirp_deps,
-                               include_directories: slirp_inc)
-  endif
-endif
-
 libvfio_user_dep = not_found
 if have_system and vfio_user_server_allowed
   have_internal = fs.exists(meson.current_source_dir() / 'subprojects/libvfio-user/meson.build')
@@ -2914,6 +2871,7 @@ trace_events_subdirs = [
   'qom',
   'monitor',
   'util',
+  'gdbstub',
 ]
 if have_linux_user
   trace_events_subdirs += [ 'linux-user' ]
@@ -3037,6 +2995,7 @@ subdir('authz')
 subdir('crypto')
 subdir('ui')
 subdir('hw')
+subdir('gdbstub')
 
 
 if enable_modules
@@ -3114,7 +3073,7 @@ common_ss.add(files('cpus-common.c'))
 subdir('softmmu')
 
 common_ss.add(capstone)
-specific_ss.add(files('cpu.c', 'disas.c', 'gdbstub.c'), capstone)
+specific_ss.add(files('cpu.c', 'disas.c'), capstone)
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
@@ -3718,7 +3677,7 @@ summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 if targetos == 'windows' and have_ga
   summary_info += {'wixl':            wixl}
 endif
-if slirp_opt != 'disabled' and have_system
+if slirp.found() and have_system
   summary_info += {'smbd':            have_slirp_smbd ? smbd_path : false}
 endif
 summary(summary_info, bool_yn: true, section: 'Host binaries')
@@ -3815,7 +3774,7 @@ summary(summary_info, bool_yn: true, section: 'Compilation')
 summary_info = {}
 have_cross = false
 foreach target: target_dirs
-  tcg_mak = meson.current_build_dir() / 'tests/tcg' / 'config-' + target + '.mak'
+  tcg_mak = meson.current_build_dir() / 'tests/tcg' / target / 'config-target.mak'
   if fs.exists(tcg_mak)
     config_cross_tcg = keyval.load(tcg_mak)
     if 'CC' in config_cross_tcg
@@ -3912,12 +3871,13 @@ summary_info += {'SDL image support': sdl_image}
 summary_info += {'GTK support':       gtk}
 summary_info += {'pixman':            pixman}
 summary_info += {'VTE support':       vte}
-summary_info += {'slirp support':     slirp_opt == 'internal' ? slirp_opt : slirp}
+summary_info += {'slirp support':     slirp}
 summary_info += {'libtasn1':          tasn1}
 summary_info += {'PAM':               pam}
 summary_info += {'iconv support':     iconv}
 summary_info += {'curses support':    curses}
 summary_info += {'virgl support':     virgl}
+summary_info += {'blkio support':     blkio}
 summary_info += {'curl support':      curl}
 summary_info += {'Multipath support': mpathpersist}
 summary_info += {'PNG support':       png}
@@ -3928,6 +3888,7 @@ if vnc.found()
 endif
 if targetos not in ['darwin', 'haiku', 'windows']
   summary_info += {'OSS support':     oss}
+  summary_info += {'sndio support':   sndio}
 elif targetos == 'darwin'
   summary_info += {'CoreAudio support': coreaudio}
 elif targetos == 'windows'

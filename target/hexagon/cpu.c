@@ -251,12 +251,19 @@ static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
     env->gpr[HEX_REG_PC] = value;
 }
 
+static vaddr hexagon_cpu_get_pc(CPUState *cs)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+    return env->gpr[HEX_REG_PC];
+}
+
 static void hexagon_cpu_synchronize_from_tb(CPUState *cs,
                                             const TranslationBlock *tb)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
-    env->gpr[HEX_REG_PC] = tb->pc;
+    env->gpr[HEX_REG_PC] = tb_pc(tb);
 }
 
 static bool hexagon_cpu_has_work(CPUState *cs)
@@ -264,9 +271,13 @@ static bool hexagon_cpu_has_work(CPUState *cs)
     return true;
 }
 
-void restore_state_to_opc(CPUHexagonState *env, TranslationBlock *tb,
-                          target_ulong *data)
+static void hexagon_restore_state_to_opc(CPUState *cs,
+                                         const TranslationBlock *tb,
+                                         const uint64_t *data)
 {
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
+
     env->gpr[HEX_REG_PC] = data[0];
 }
 
@@ -320,6 +331,7 @@ static void hexagon_cpu_init(Object *obj)
 static const struct TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
+    .restore_state_to_opc = hexagon_restore_state_to_opc,
 };
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)
@@ -337,6 +349,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->has_work = hexagon_cpu_has_work;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
+    cc->get_pc = hexagon_cpu_get_pc;
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
     cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS + NUM_VREGS + NUM_QREGS;

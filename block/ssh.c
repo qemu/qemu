@@ -1196,7 +1196,6 @@ static coroutine_fn int ssh_co_writev(BlockDriverState *bs,
     BDRVSSHState *s = bs->opaque;
     int ret;
 
-    assert(!flags);
     qemu_co_mutex_lock(&s->lock);
     ret = ssh_write(s, bs, sector_num * BDRV_SECTOR_SIZE,
                     nb_sectors * BDRV_SECTOR_SIZE, qiov);

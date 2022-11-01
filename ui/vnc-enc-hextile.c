@@ -50,8 +50,8 @@ int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
     int has_fg, has_bg;
     uint8_t *last_fg, *last_bg;
 
-    last_fg = (uint8_t *) g_malloc(VNC_SERVER_FB_BYTES);
-    last_bg = (uint8_t *) g_malloc(VNC_SERVER_FB_BYTES);
+    last_fg = g_malloc(VNC_SERVER_FB_BYTES);
+    last_bg = g_malloc(VNC_SERVER_FB_BYTES);
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
         for (i = x; i < (x + w); i += 16) {

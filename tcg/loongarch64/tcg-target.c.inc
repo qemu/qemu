@@ -1031,6 +1031,36 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
 #endif
 }
 
+/* LoongArch uses `andi zero, zero, 0` as NOP.  */
+#define NOP OPC_ANDI
+static void tcg_out_nop(TCGContext *s)
+{
+    tcg_out32(s, NOP);
+}
+
+void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
+                              uintptr_t jmp_rw, uintptr_t addr)
+{
+    tcg_insn_unit i1, i2;
+    ptrdiff_t upper, lower;
+    ptrdiff_t offset = (ptrdiff_t)(addr - jmp_rx) >> 2;
+
+    if (offset == sextreg(offset, 0, 26)) {
+        i1 = encode_sd10k16_insn(OPC_B, offset);
+        i2 = NOP;
+    } else {
+        tcg_debug_assert(offset == sextreg(offset, 0, 36));
+        lower = (int16_t)offset;
+        upper = (offset - lower) >> 16;
+
+        i1 = encode_dsj20_insn(OPC_PCADDU18I, TCG_REG_TMP0, upper);
+        i2 = encode_djsk16_insn(OPC_JIRL, TCG_REG_ZERO, TCG_REG_TMP0, lower);
+    }
+    uint64_t pair = ((uint64_t)i2 << 32) | i1;
+    qatomic_set((uint64_t *)jmp_rw, pair);
+    flush_idcache_range(jmp_rx, jmp_rw, 8);
+}
+
 /*
  * Entry-points
  */
@@ -1058,10 +1088,20 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_goto_tb:
-        assert(s->tb_jmp_insn_offset == 0);
-        /* indirect jump method */
-        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
-                   (uintptr_t)(s->tb_jmp_target_addr + a0));
+        tcg_debug_assert(s->tb_jmp_insn_offset != NULL);
+        /*
+         * Ensure that patch area is 8-byte aligned so that an
+         * atomic write can be used to patch the target address.
+         */
+        if ((uintptr_t)s->code_ptr & 7) {
+            tcg_out_nop(s);
+        }
+        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+        /*
+         * actual branch destination will be patched by
+         * tb_target_set_jmp_target later
+         */
+        tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, 0);
         tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
         set_jmp_reset_offset(s, a0);
         break;

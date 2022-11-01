@@ -667,8 +667,8 @@
 #             {
 #                "host":"127.0.0.1",
 #                "service":"50401",
-#                "family":"ipv4"
-#                "websocket":false,
+#                "family":"ipv4",
+#                "websocket":false
 #             }
 #          ]
 #       }
@@ -1199,13 +1199,16 @@
 #               interfaces (e.g. VGA and virtual console character devices)
 #               by default.
 #               Since 7.1
+# @show-menubar: Display the main window menubar. Defaults to "on".
+#                Since 8.0
 #
 # Since: 2.12
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
                 '*zoom-to-fit'   : 'bool',
-                '*show-tabs'     : 'bool'  } }
+                '*show-tabs'     : 'bool',
+                '*show-menubar'  : 'bool'  } }
 
 ##
 # @DisplayEGLHeadless:

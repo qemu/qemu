@@ -189,6 +189,16 @@ struct smbios_type_4 {
     uint16_t processor_family2;
 } QEMU_PACKED;
 
+/* SMBIOS type 8 - Port Connector Information */
+struct smbios_type_8 {
+    struct smbios_structure_header header;
+    uint8_t internal_reference_str;
+    uint8_t internal_connector_type;
+    uint8_t external_reference_str;
+    uint8_t external_connector_type;
+    uint8_t port_type;
+} QEMU_PACKED;
+
 /* SMBIOS type 11 - OEM strings */
 struct smbios_type_11 {
     struct smbios_structure_header header;

@@ -37,7 +37,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                memory-encryption=@var{} memory encryption object to use (default=none)\n"
     "                hmat=on|off controls ACPI HMAT support (default=off)\n"
     "                memory-backend='backend-id' specifies explicitly provided backend for main RAM (default=none)\n"
-    "                cxl-fmw.0.targets.0=firsttarget,cxl-fmw.0.targets.1=secondtarget,cxl-fmw.0.size=size[,cxl-fmw.0.interleave-granularity=granularity]\n",
+    "                cxl-fmw.0.targets.0=firsttarget,cxl-fmw.0.targets.1=secondtarget,cxl-fmw.0.size=size[,cxl-fmw.0.interleave-granularity=granularity]\n"
+    "                zpcii-disable=on|off disables zPCI interpretation facilities (default=off)\n",
     QEMU_ARCH_ALL)
 SRST
 ``-machine [type=]name[,prop=value[,...]]``
@@ -157,6 +158,11 @@ SRST
         ::
 
             -machine cxl-fmw.0.targets.0=cxl.0,cxl-fmw.0.targets.1=cxl.1,cxl-fmw.0.size=128G,cxl-fmw.0.interleave-granularity=512k
+
+    ``zpcii-disable=on|off``
+        Disables zPCI interpretation facilties on s390-ccw hosts.
+        This feature can be used to disable hardware virtual assists
+        related to zPCI devices. The default is off.
 ERST
 
 DEF("M", HAS_ARG, QEMU_OPTION_M,
@@ -185,6 +191,7 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                split-wx=on|off (enable TCG split w^x mapping)\n"
     "                tb-size=n (TCG translation block cache size)\n"
     "                dirty-ring-size=n (KVM dirty ring GFN count, default 0)\n"
+    "                notify-vmexit=run|internal-error|disable,notify-window=n (enable notify VM exit and set notify window, x86 only)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
 ``-accel name[,prop=value[,...]]``
@@ -235,6 +242,16 @@ SRST
         Set this value to 0 to disable the feature.  By default, this feature
         is disabled (dirty-ring-size=0).  When enabled, KVM will instead
         record dirty pages in a bitmap.
+
+    ``notify-vmexit=run|internal-error|disable,notify-window=n``
+        Enables or disables notify VM exit support on x86 host and specify
+        the corresponding notify window to trigger the VM exit if enabled.
+        ``run`` option enables the feature. It does nothing and continue
+        if the exit happens. ``internal-error`` option enables the feature.
+        It raises a internal error. ``disable`` option doesn't enable the feature.
+        This feature can mitigate the CPU stuck issue due to event windows don't
+        open up for a specified of time (i.e. notify-window).
+        Default: notify-vmexit=run,notify-window=0.
 
 ERST
 
@@ -704,10 +721,11 @@ SRST
 ``-audio [driver=]driver,model=value[,prop[=value][,...]]``
     This option is a shortcut for configuring both the guest audio
     hardware and the host audio backend in one go.
-    The host backend options are the same as with the corresponding
-    ``-audiodev`` options below. The guest hardware model can be set with
-    ``model=modelname``. Use ``model=help`` to list the available device
-    types.
+    The driver option is the same as with the corresponding ``-audiodev`` option below.
+    The guest hardware model can be set with ``model=modelname``.
+
+    Use ``driver=help`` to list the available drivers,
+    and ``model=help`` to list the available device types.
 
     The following two example do exactly the same, to show how ``-audio``
     can be used to shorten the command line length:
@@ -721,6 +739,7 @@ ERST
 DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "-audiodev [driver=]driver,id=id[,prop[=value][,...]]\n"
     "                specifies the audio backend to use\n"
+    "                Use ``-audiodev help`` to list the available drivers\n"
     "                id= identifier of the backend\n"
     "                timer-period= timer period in microseconds\n"
     "                in|out.mixing-engine= use mixing engine to mix streams inside QEMU\n"
@@ -766,6 +785,9 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
     "                in|out.buffer-count= number of buffers\n"
+#endif
+#ifdef CONFIG_AUDIO_SNDIO
+    "-audiodev sndio,id=id[,prop[=value][,...]]\n"
 #endif
 #ifdef CONFIG_SPICE
     "-audiodev spice,id=id[,prop[=value][,...]]\n"
@@ -932,6 +954,19 @@ SRST
 
     ``in|out.buffer-count=count``
         Sets the count of the buffers.
+
+``-audiodev sndio,id=id[,prop[=value][,...]]``
+    Creates a backend using SNDIO. This backend is available on
+    OpenBSD and most other Unix-like systems.
+
+    Sndio specific options are:
+
+    ``in|out.dev=device``
+        Specify the sndio device to use for input and/or output. Default
+        is ``default``.
+
+    ``in|out.latency=usecs``
+        Sets the desired period length in microseconds.
 
 ``-audiodev spice,id=id[,prop[=value][,...]]``
     Creates a backend that sends audio through SPICE. This backend
@@ -1945,6 +1980,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_GTK)
     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
     "            [,show-tabs=on|off][,show-cursor=on|off][,window-close=on|off]\n"
+    "            [,show-menubar=on|off]\n"
 #endif
 #if defined(CONFIG_VNC)
     "-display vnc=<display>[,<optargs>]\n"
@@ -2036,6 +2072,8 @@ SRST
         ``show-cursor=on|off`` :  Force showing the mouse cursor
 
         ``window-close=on|off`` : Allow to quit qemu with window close button
+
+        ``show-menubar=on|off`` : Display the main window menubar, defaults to "on"
 
     ``curses[,charset=<encoding>]``
         Display video output via curses. For graphics device models
@@ -2548,6 +2586,8 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "              [,asset=str][,part=str][,max-speed=%d][,current-speed=%d]\n"
     "              [,processor-id=%d]\n"
     "                specify SMBIOS type 4 fields\n"
+    "-smbios type=8[,external_reference=str][,internal_reference=str][,connector_type=%d][,port_type=%d]\n"
+    "                specify SMBIOS type 8 fields\n"
     "-smbios type=11[,value=str][,path=filename]\n"
     "                specify SMBIOS type 11 fields\n"
     "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
@@ -4328,7 +4368,7 @@ SRST
 
     ``-action panic=none``
     ``-action reboot=shutdown,shutdown=pause``
-    ``-watchdog i6300esb -action watchdog=pause``
+    ``-device i6300esb -action watchdog=pause``
 
 ERST
 
@@ -4446,35 +4486,6 @@ SRST
     specifies the snapshot name used to load the initial VM state.
 ERST
 
-DEF("watchdog", HAS_ARG, QEMU_OPTION_watchdog, \
-    "-watchdog model\n" \
-    "                enable virtual hardware watchdog [default=none]\n",
-    QEMU_ARCH_ALL)
-SRST
-``-watchdog model``
-    Create a virtual hardware watchdog device. Once enabled (by a guest
-    action), the watchdog must be periodically polled by an agent inside
-    the guest or else the guest will be restarted. Choose a model for
-    which your guest has drivers.
-
-    The model is the model of hardware watchdog to emulate. Use
-    ``-watchdog help`` to list available hardware models. Only one
-    watchdog can be enabled for a guest.
-
-    The following models may be available:
-
-    ``ib700``
-        iBASE 700 is a very simple ISA watchdog with a single timer.
-
-    ``i6300esb``
-        Intel 6300ESB I/O controller hub is a much more featureful
-        PCI-based dual-timer watchdog.
-
-    ``diag288``
-        A virtual watchdog for s390x backed by the diagnose 288
-        hypercall (currently KVM only).
-ERST
-
 DEF("watchdog-action", HAS_ARG, QEMU_OPTION_watchdog_action, \
     "-watchdog-action reset|shutdown|poweroff|inject-nmi|pause|debug|none\n" \
     "                action when watchdog fires [default=reset]\n",
@@ -4496,7 +4507,7 @@ SRST
 
     Examples:
 
-    ``-watchdog i6300esb -watchdog-action pause``; \ ``-watchdog ib700``
+    ``-device i6300esb -watchdog-action pause``
 
 ERST
 
@@ -4627,12 +4638,12 @@ SRST
     information about the facilities this enables.
 ERST
 DEF("semihosting-config", HAS_ARG, QEMU_OPTION_semihosting_config,
-    "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]\n" \
+    "-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]\n" \
     "                semihosting configuration\n",
 QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA |
 QEMU_ARCH_MIPS | QEMU_ARCH_NIOS2 | QEMU_ARCH_RISCV)
 SRST
-``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,arg=str[,...]]``
+``-semihosting-config [enable=on|off][,target=native|gdb|auto][,chardev=id][,userspace=on|off][,arg=str[,...]]``
     Enable and configure semihosting (ARM, M68K, Xtensa, MIPS, Nios II, RISC-V
     only).
 
@@ -4658,6 +4669,13 @@ SRST
     ``chardev=str1``
         Send the output to a chardev backend output for native or auto
         output when not in gdb
+
+    ``userspace=on|off``
+        Allows code running in guest userspace to access the semihosting
+        interface. The default is that only privileged guest code can
+        make semihosting calls. Note that setting ``userspace=on`` should
+        only be used if all guest code is trusted (for example, in
+        bare-metal test case code).
 
     ``arg=str1,arg=str2,...``
         Allows the user to pass input arguments, and can be used

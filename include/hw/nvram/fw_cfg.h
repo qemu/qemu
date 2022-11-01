@@ -118,6 +118,28 @@ struct FWCfgMemState {
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 
 /**
+ * fw_cfg_add_bytes_callback:
+ * @s: fw_cfg device being modified
+ * @key: selector key value for new fw_cfg item
+ * @select_cb: callback function when selecting
+ * @write_cb: callback function after a write
+ * @callback_opaque: argument to be passed into callback function
+ * @data: pointer to start of item data
+ * @len: size of item data
+ * @read_only: is file read only
+ *
+ * Add a new fw_cfg item, available by selecting the given key, as a raw
+ * "blob" of the given size. The data referenced by the starting pointer
+ * is only linked, NOT copied, into the data structure of the fw_cfg device.
+ */
+void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
+                               FWCfgCallback select_cb,
+                               FWCfgWriteCallback write_cb,
+                               void *callback_opaque,
+                               void *data, size_t len,
+                               bool read_only);
+
+/**
  * fw_cfg_add_string:
  * @s: fw_cfg device being modified
  * @key: selector key value for new fw_cfg item
@@ -341,5 +363,26 @@ bool fw_cfg_dma_enabled(void *opaque);
  *          key lookup failure.
  */
 const char *fw_cfg_arch_key_name(uint16_t key);
+
+/**
+ * load_image_to_fw_cfg() - Load an image file into an fw_cfg entry identified
+ *                          by key.
+ * @fw_cfg:         The firmware config instance to store the data in.
+ * @size_key:       The firmware config key to store the size of the loaded
+ *                  data under, with fw_cfg_add_i32().
+ * @data_key:       The firmware config key to store the loaded data under,
+ *                  with fw_cfg_add_bytes().
+ * @image_name:     The name of the image file to load. If it is NULL, the
+ *                  function returns without doing anything.
+ * @try_decompress: Whether the image should be decompressed (gunzipped) before
+ *                  adding it to fw_cfg. If decompression fails, the image is
+ *                  loaded as-is.
+ *
+ * In case of failure, the function prints an error message to stderr and the
+ * process exits with status 1.
+ */
+void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
+                          uint16_t data_key, const char *image_name,
+                          bool try_decompress);
 
 #endif

@@ -5,13 +5,9 @@
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 
-<!-- Register numbers are hard-coded in order to maintain backward
-     compatibility with older versions of tools that didn't use xml
-     register descriptions.  -->
-
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.riscv.fpu">
-  <reg name="ft0" bitsize="32" type="ieee_single" regnum="33"/>
+  <reg name="ft0" bitsize="32" type="ieee_single"/>
   <reg name="ft1" bitsize="32" type="ieee_single"/>
   <reg name="ft2" bitsize="32" type="ieee_single"/>
   <reg name="ft3" bitsize="32" type="ieee_single"/>
@@ -43,8 +39,4 @@
   <reg name="ft9" bitsize="32" type="ieee_single"/>
   <reg name="ft10" bitsize="32" type="ieee_single"/>
   <reg name="ft11" bitsize="32" type="ieee_single"/>
-
-  <reg name="fflags" bitsize="32" type="int" regnum="66"/>
-  <reg name="frm" bitsize="32" type="int" regnum="67"/>
-  <reg name="fcsr" bitsize="32" type="int" regnum="68"/>
 </feature>

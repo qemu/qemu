@@ -180,8 +180,18 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
         uint32_t irq = ((addr - plic->priority_base) >> 2) + 1;
 
-        plic->source_priority[irq] = value & 7;
-        sifive_plic_update(plic);
+        if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
+            /*
+             * if "num_priorities + 1" is power-of-2, make each register bit of
+             * interrupt priority WARL (Write-Any-Read-Legal). Just filter
+             * out the access to unsupported priority bits.
+             */
+            plic->source_priority[irq] = value % (plic->num_priorities + 1);
+            sifive_plic_update(plic);
+        } else if (value <= plic->num_priorities) {
+            plic->source_priority[irq] = value;
+            sifive_plic_update(plic);
+        }
     } else if (addr_between(addr, plic->pending_base,
                             plic->num_sources >> 3)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -205,7 +215,16 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
         uint32_t contextid = (addr & (plic->context_stride - 1));
 
         if (contextid == 0) {
-            if (value <= plic->num_priorities) {
+            if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
+                /*
+                 * if "num_priorities + 1" is power-of-2, each register bit of
+                 * interrupt priority is WARL (Write-Any-Read-Legal). Just
+                 * filter out the access to unsupported priority bits.
+                 */
+                plic->target_priority[addrid] = value %
+                                                (plic->num_priorities + 1);
+                sifive_plic_update(plic);
+            } else if (value <= plic->num_priorities) {
                 plic->target_priority[addrid] = value;
                 sifive_plic_update(plic);
             }

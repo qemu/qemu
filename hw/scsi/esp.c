@@ -941,7 +941,7 @@ static void esp_soft_reset(ESPState *s)
 
 static void esp_bus_reset(ESPState *s)
 {
-    qbus_reset_all(BUS(&s->bus));
+    bus_cold_reset(BUS(&s->bus));
 }
 
 static void parent_esp_reset(ESPState *s, int irq, int level)

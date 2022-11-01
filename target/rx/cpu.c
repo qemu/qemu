@@ -32,12 +32,28 @@ static void rx_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.pc = value;
 }
 
+static vaddr rx_cpu_get_pc(CPUState *cs)
+{
+    RXCPU *cpu = RX_CPU(cs);
+
+    return cpu->env.pc;
+}
+
 static void rx_cpu_synchronize_from_tb(CPUState *cs,
                                        const TranslationBlock *tb)
 {
     RXCPU *cpu = RX_CPU(cs);
 
-    cpu->env.pc = tb->pc;
+    cpu->env.pc = tb_pc(tb);
+}
+
+static void rx_restore_state_to_opc(CPUState *cs,
+                                    const TranslationBlock *tb,
+                                    const uint64_t *data)
+{
+    RXCPU *cpu = RX_CPU(cs);
+
+    cpu->env.pc = data[0];
 }
 
 static bool rx_cpu_has_work(CPUState *cs)
@@ -185,6 +201,7 @@ static const struct SysemuCPUOps rx_sysemu_ops = {
 static const struct TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
+    .restore_state_to_opc = rx_restore_state_to_opc,
     .tlb_fill = rx_cpu_tlb_fill,
 
 #ifndef CONFIG_USER_ONLY
@@ -208,6 +225,7 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
     cc->has_work = rx_cpu_has_work;
     cc->dump_state = rx_cpu_dump_state;
     cc->set_pc = rx_cpu_set_pc;
+    cc->get_pc = rx_cpu_get_pc;
 
 #ifndef CONFIG_USER_ONLY
     cc->sysemu_ops = &rx_sysemu_ops;

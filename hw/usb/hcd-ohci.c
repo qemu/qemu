@@ -571,6 +571,11 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
 
     addr = ed->head & OHCI_DPTR_MASK;
 
+    if (addr == 0) {
+        ohci_die(ohci);
+        return 1;
+    }
+
     if (ohci_read_iso_td(ohci, addr, &iso_td)) {
         trace_usb_ohci_iso_td_read_failed(addr);
         ohci_die(ohci);
@@ -805,13 +810,14 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
     return 1;
 }
 
+#define HEX_CHAR_PER_LINE 16
+
 static void ohci_td_pkt(const char *msg, const uint8_t *buf, size_t len)
 {
     bool print16;
     bool printall;
-    const int width = 16;
     int i;
-    char tmp[3 * width + 1];
+    char tmp[3 * HEX_CHAR_PER_LINE + 1];
     char *p = tmp;
 
     print16 = !!trace_event_get_state_backends(TRACE_USB_OHCI_TD_PKT_SHORT);
@@ -822,7 +828,7 @@ static void ohci_td_pkt(const char *msg, const uint8_t *buf, size_t len)
     }
 
     for (i = 0; ; i++) {
-        if (i && (!(i % width) || (i == len))) {
+        if (i && (!(i % HEX_CHAR_PER_LINE) || (i == len))) {
             if (!printall) {
                 trace_usb_ohci_td_pkt_short(msg, tmp);
                 break;
@@ -858,6 +864,11 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     int completion;
 
     addr = ed->head & OHCI_DPTR_MASK;
+    if (addr == 0) {
+        ohci_die(ohci);
+        return 1;
+    }
+
     /* See if this TD has already been submitted to the device.  */
     completion = (addr == ohci->async_td);
     if (completion && !ohci->async_complete) {

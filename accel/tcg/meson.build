@@ -3,6 +3,7 @@ tcg_ss.add(files(
   'tcg-all.c',
   'cpu-exec-common.c',
   'cpu-exec.c',
+  'tb-maint.c',
   'tcg-runtime-gvec.c',
   'tcg-runtime.c',
   'translate-all.c',

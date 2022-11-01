@@ -111,12 +111,17 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
     /*XXX Note: windows has WSASend() and WSARecv() */
     unsigned i = 0;
     ssize_t ret = 0;
+    ssize_t off = 0;
     while (i < iov_cnt) {
         ssize_t r = do_send
-            ? send(sockfd, iov[i].iov_base, iov[i].iov_len, 0)
-            : recv(sockfd, iov[i].iov_base, iov[i].iov_len, 0);
+            ? send(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, 0)
+            : recv(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, 0);
         if (r > 0) {
             ret += r;
+            off += r;
+            if (off < iov[i].iov_len) {
+                continue;
+            }
         } else if (!r) {
             break;
         } else if (errno == EINTR) {
@@ -129,6 +134,7 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
             }
             break;
         }
+        off = 0;
         i++;
     }
     return ret;

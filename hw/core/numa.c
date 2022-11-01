@@ -822,6 +822,19 @@ static int ram_block_notify_add_single(RAMBlock *rb, void *opaque)
     return 0;
 }
 
+static int ram_block_notify_remove_single(RAMBlock *rb, void *opaque)
+{
+    const ram_addr_t max_size = qemu_ram_get_max_length(rb);
+    const ram_addr_t size = qemu_ram_get_used_length(rb);
+    void *host = qemu_ram_get_host_addr(rb);
+    RAMBlockNotifier *notifier = opaque;
+
+    if (host) {
+        notifier->ram_block_removed(notifier, host, size, max_size);
+    }
+    return 0;
+}
+
 void ram_block_notifier_add(RAMBlockNotifier *n)
 {
     QLIST_INSERT_HEAD(&ram_list.ramblock_notifiers, n, next);
@@ -835,13 +848,18 @@ void ram_block_notifier_add(RAMBlockNotifier *n)
 void ram_block_notifier_remove(RAMBlockNotifier *n)
 {
     QLIST_REMOVE(n, next);
+
+    if (n->ram_block_removed) {
+        qemu_ram_foreach_block(ram_block_notify_remove_single, n);
+    }
 }
 
 void ram_block_notify_add(void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_added) {
             notifier->ram_block_added(notifier, host, size, max_size);
         }
@@ -851,8 +869,9 @@ void ram_block_notify_add(void *host, size_t size, size_t max_size)
 void ram_block_notify_remove(void *host, size_t size, size_t max_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_removed) {
             notifier->ram_block_removed(notifier, host, size, max_size);
         }
@@ -862,8 +881,9 @@ void ram_block_notify_remove(void *host, size_t size, size_t max_size)
 void ram_block_notify_resize(void *host, size_t old_size, size_t new_size)
 {
     RAMBlockNotifier *notifier;
+    RAMBlockNotifier *next;
 
-    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+    QLIST_FOREACH_SAFE(notifier, &ram_list.ramblock_notifiers, next, next) {
         if (notifier->ram_block_resized) {
             notifier->ram_block_resized(notifier, host, old_size, new_size);
         }

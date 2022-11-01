@@ -958,9 +958,9 @@
 #
 # -> { "execute": "query-hotpluggable-cpus" }
 # <- {"return": [
-#      { "props": { "core": 8 }, "type": "POWER8-spapr-cpu-core",
+#      { "props": { "core-id": 8 }, "type": "POWER8-spapr-cpu-core",
 #        "vcpus-count": 1 },
-#      { "props": { "core": 0 }, "type": "POWER8-spapr-cpu-core",
+#      { "props": { "core-id": 0 }, "type": "POWER8-spapr-cpu-core",
 #        "vcpus-count": 1, "qom-path": "/machine/unattached/device[0]"}
 #    ]}'
 #
@@ -1074,7 +1074,7 @@
 #
 # -> { "execute": "query-balloon" }
 # <- { "return": {
-#          "actual": 1073741824,
+#          "actual": 1073741824
 #       }
 #    }
 #
@@ -1416,7 +1416,7 @@
 #
 # Example:
 #
-# <- { "event": "MEM_UNPLUG_ERROR"
+# <- { "event": "MEM_UNPLUG_ERROR",
 #      "data": { "device": "dimm1",
 #                "msg": "acpi: device unplug for unsupported device"
 #      },
@@ -1664,3 +1664,21 @@
      '*size': 'size',
      '*max-size': 'size',
      '*slots': 'uint64' } }
+
+##
+# @dumpdtb:
+#
+# Save the FDT in dtb format.
+#
+# @filename: name of the dtb file to be created
+#
+# Since: 7.2
+#
+# Example:
+#   {"execute": "dumpdtb"}
+#    "arguments": { "filename": "fdt.dtb" } }
+#
+##
+{ 'command': 'dumpdtb',
+  'data': { 'filename': 'str' },
+  'if': 'CONFIG_FDT' }

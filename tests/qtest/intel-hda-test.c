@@ -18,7 +18,7 @@
 /* Tests only initialization so far. TODO: Replace with functional tests */
 static void ich6_test(void)
 {
-    qtest_start("-device intel-hda,id=" HDA_ID CODEC_DEVICES);
+    qtest_start("-machine pc -device intel-hda,id=" HDA_ID CODEC_DEVICES);
     qtest_end();
 }
 
@@ -65,9 +65,12 @@ static void test_issue542_ich6(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/intel-hda/ich6", ich6_test);
-    qtest_add_func("/intel-hda/ich9", ich9_test);
-    qtest_add_func("/intel-hda/fuzz/issue542", test_issue542_ich6);
-
+    if (qtest_has_machine("pc")) {
+        qtest_add_func("/intel-hda/ich6", ich6_test);
+    }
+    if (qtest_has_machine("q35")) {
+        qtest_add_func("/intel-hda/ich9", ich9_test);
+        qtest_add_func("/intel-hda/fuzz/issue542", test_issue542_ich6);
+    }
     return g_test_run();
 }

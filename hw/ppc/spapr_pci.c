@@ -800,6 +800,7 @@ static char *spapr_phb_vfio_get_loc_code(SpaprPhbState *sphb,  PCIDevice *pdev)
     }
 
     /* Construct and read from host device tree the loc-code */
+    g_free(path);
     path = g_strdup_printf("/proc/device-tree%s/ibm,loc-code", devspec);
     if (!g_file_get_contents(path, &buf, NULL, NULL)) {
         return NULL;
@@ -2044,7 +2045,7 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
     DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
 
     if (dev) {
-        device_legacy_reset(dev);
+        device_cold_reset(dev);
     }
 
     return 0;

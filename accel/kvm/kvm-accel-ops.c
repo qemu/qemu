@@ -16,12 +16,14 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "sysemu/kvm.h"
 #include "sysemu/kvm_int.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
 
+#include <linux/kvm.h>
 #include "kvm-cpus.h"
 
 static void *kvm_vcpu_thread_fn(void *arg)
@@ -95,6 +97,13 @@ static void kvm_accel_ops_class_init(ObjectClass *oc, void *data)
     ops->synchronize_post_init = kvm_cpu_synchronize_post_init;
     ops->synchronize_state = kvm_cpu_synchronize_state;
     ops->synchronize_pre_loadvm = kvm_cpu_synchronize_pre_loadvm;
+
+#ifdef KVM_CAP_SET_GUEST_DEBUG
+    ops->supports_guest_debug = kvm_supports_guest_debug;
+    ops->insert_breakpoint = kvm_insert_breakpoint;
+    ops->remove_breakpoint = kvm_remove_breakpoint;
+    ops->remove_all_breakpoints = kvm_remove_all_breakpoints;
+#endif
 }
 
 static const TypeInfo kvm_accel_ops_type = {

@@ -441,11 +441,16 @@ void qemu_system_reset(ShutdownCause reason)
     cpu_synchronize_all_states();
 
     if (mc && mc->reset) {
-        mc->reset(current_machine);
+        mc->reset(current_machine, reason);
     } else {
-        qemu_devices_reset();
+        qemu_devices_reset(reason);
     }
-    if (reason && reason != SHUTDOWN_CAUSE_SUBSYSTEM_RESET) {
+    switch (reason) {
+    case SHUTDOWN_CAUSE_NONE:
+    case SHUTDOWN_CAUSE_SUBSYSTEM_RESET:
+    case SHUTDOWN_CAUSE_SNAPSHOT_LOAD:
+        break;
+    default:
         qapi_event_send_reset(shutdown_caused_by_guest(reason), reason);
     }
     cpu_synchronize_all_post_reset();

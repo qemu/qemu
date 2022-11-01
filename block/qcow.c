@@ -628,7 +628,6 @@ static coroutine_fn int qcow_co_preadv(BlockDriverState *bs, int64_t offset,
     uint8_t *buf;
     void *orig_buf;
 
-    assert(!flags);
     if (qiov->niov > 1) {
         buf = orig_buf = qemu_try_blockalign(bs, qiov->size);
         if (buf == NULL) {
@@ -725,7 +724,6 @@ static coroutine_fn int qcow_co_pwritev(BlockDriverState *bs, int64_t offset,
     uint8_t *buf;
     void *orig_buf;
 
-    assert(!flags);
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     /* We must always copy the iov when encrypting, so we

@@ -32,6 +32,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "exec/exec-all.h"
+#include "exec/hwaddr.h"
+#include "exec/gdbstub.h"
 
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-mttcg.h"
@@ -91,6 +93,97 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
     }
 }
 
+static bool tcg_supports_guest_debug(void)
+{
+    return true;
+}
+
+/* Translate GDB watchpoint type to a flags value for cpu_watchpoint_* */
+static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
+{
+    static const int xlat[] = {
+        [GDB_WATCHPOINT_WRITE]  = BP_GDB | BP_MEM_WRITE,
+        [GDB_WATCHPOINT_READ]   = BP_GDB | BP_MEM_READ,
+        [GDB_WATCHPOINT_ACCESS] = BP_GDB | BP_MEM_ACCESS,
+    };
+
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    int cputype = xlat[gdbtype];
+
+    if (cc->gdb_stop_before_watchpoint) {
+        cputype |= BP_STOP_BEFORE_ACCESS;
+    }
+    return cputype;
+}
+
+static int tcg_insert_breakpoint(CPUState *cs, int type, hwaddr addr, hwaddr len)
+{
+    CPUState *cpu;
+    int err = 0;
+
+    switch (type) {
+    case GDB_BREAKPOINT_SW:
+    case GDB_BREAKPOINT_HW:
+        CPU_FOREACH(cpu) {
+            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
+            if (err) {
+                break;
+            }
+        }
+        return err;
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        CPU_FOREACH(cpu) {
+            err = cpu_watchpoint_insert(cpu, addr, len,
+                                        xlat_gdb_type(cpu, type), NULL);
+            if (err) {
+                break;
+            }
+        }
+        return err;
+    default:
+        return -ENOSYS;
+    }
+}
+
+static int tcg_remove_breakpoint(CPUState *cs, int type, hwaddr addr, hwaddr len)
+{
+    CPUState *cpu;
+    int err = 0;
+
+    switch (type) {
+    case GDB_BREAKPOINT_SW:
+    case GDB_BREAKPOINT_HW:
+        CPU_FOREACH(cpu) {
+            err = cpu_breakpoint_remove(cpu, addr, BP_GDB);
+            if (err) {
+                break;
+            }
+        }
+        return err;
+    case GDB_WATCHPOINT_WRITE:
+    case GDB_WATCHPOINT_READ:
+    case GDB_WATCHPOINT_ACCESS:
+        CPU_FOREACH(cpu) {
+            err = cpu_watchpoint_remove(cpu, addr, len,
+                                        xlat_gdb_type(cpu, type));
+            if (err) {
+                break;
+            }
+        }
+        return err;
+    default:
+        return -ENOSYS;
+    }
+}
+
+static inline void tcg_remove_all_breakpoints(CPUState *cpu)
+{
+    cpu_breakpoint_remove_all(cpu, BP_GDB);
+    cpu_watchpoint_remove_all(cpu, BP_GDB);
+}
+
 static void tcg_accel_ops_init(AccelOpsClass *ops)
 {
     if (qemu_tcg_mttcg_enabled()) {
@@ -109,6 +202,11 @@ static void tcg_accel_ops_init(AccelOpsClass *ops)
             ops->handle_interrupt = tcg_handle_interrupt;
         }
     }
+
+    ops->supports_guest_debug = tcg_supports_guest_debug;
+    ops->insert_breakpoint = tcg_insert_breakpoint;
+    ops->remove_breakpoint = tcg_remove_breakpoint;
+    ops->remove_all_breakpoints = tcg_remove_all_breakpoints;
 }
 
 static void tcg_accel_ops_class_init(ObjectClass *oc, void *data)

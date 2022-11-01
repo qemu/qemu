@@ -15,7 +15,7 @@
  */
 static void test_fuzz_sb16_0x1c(void)
 {
-    QTestState *s = qtest_init("-M q35 -display none "
+    QTestState *s = qtest_init("-M q35 "
                                "-device sb16,audiodev=snd0 "
                                "-audiodev none,id=snd0");
     qtest_outw(s, 0x22c, 0x41);
@@ -27,7 +27,7 @@ static void test_fuzz_sb16_0x1c(void)
 
 static void test_fuzz_sb16_0x91(void)
 {
-    QTestState *s = qtest_init("-M pc -display none "
+    QTestState *s = qtest_init("-M pc "
                                "-device sb16,audiodev=none "
                                "-audiodev id=none,driver=none");
     qtest_outw(s, 0x22c, 0xf141);
@@ -43,7 +43,7 @@ static void test_fuzz_sb16_0x91(void)
  */
 static void test_fuzz_sb16_0xd4(void)
 {
-    QTestState *s = qtest_init("-M pc -display none "
+    QTestState *s = qtest_init("-M pc "
                                "-device sb16,audiodev=none "
                                "-audiodev id=none,driver=none");
     qtest_outb(s, 0x22c, 0x41);
@@ -57,9 +57,13 @@ int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_func("fuzz/test_fuzz_sb16/1c", test_fuzz_sb16_0x1c);
-    qtest_add_func("fuzz/test_fuzz_sb16/91", test_fuzz_sb16_0x91);
-    qtest_add_func("fuzz/test_fuzz_sb16/d4", test_fuzz_sb16_0xd4);
+    if (qtest_has_machine("q35")) {
+        qtest_add_func("fuzz/test_fuzz_sb16/1c", test_fuzz_sb16_0x1c);
+    }
+    if (qtest_has_machine("pc")) {
+        qtest_add_func("fuzz/test_fuzz_sb16/91", test_fuzz_sb16_0x91);
+        qtest_add_func("fuzz/test_fuzz_sb16/d4", test_fuzz_sb16_0xd4);
+    }
 
     return g_test_run();
 }

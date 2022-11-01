@@ -263,7 +263,9 @@ typedef struct RateCtl {
 } RateCtl;
 
 void audio_rate_start(RateCtl *rate);
-size_t audio_rate_get_bytes(struct audio_pcm_info *info, RateCtl *rate,
+size_t audio_rate_peek_bytes(RateCtl *rate, struct audio_pcm_info *info);
+void audio_rate_add_bytes(RateCtl *rate, size_t bytes_used);
+size_t audio_rate_get_bytes(RateCtl *rate, struct audio_pcm_info *info,
                             size_t bytes_avail);
 
 static inline size_t audio_ring_dist(size_t dst, size_t src, size_t len)

@@ -16,13 +16,15 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "exec/memory.h"
-#include "hw/ppc/ppc.h"
+#include "cpu.h"
+#include "hw/ppc/ppc4xx.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/reset.h"
 #include "ppc440.h"
 #include "qom/object.h"
+#include "trace.h"
 
 /*****************************************************************************/
 /* L2 Cache as SRAM */
@@ -378,10 +380,6 @@ enum {
     PESDR1_RSTSTA = 0x365,
 };
 
-#define SDR0_DDR0_DDRM_ENCODE(n)  ((((unsigned long)(n)) & 0x03) << 29)
-#define SDR0_DDR0_DDRM_DDR1       0x20000000
-#define SDR0_DDR0_DDRM_DDR2       0x40000000
-
 static uint32_t dcr_read_sdr(void *opaque, int dcrn)
 {
     ppc4xx_sdr_t *sdr = opaque;
@@ -482,16 +480,6 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc440_sdram_t {
-    uint32_t addr;
-    int nbanks;
-    MemoryRegion containers[4]; /* used for clipping */
-    MemoryRegion *ram_memories;
-    hwaddr ram_bases[4];
-    hwaddr ram_sizes[4];
-    uint32_t bcr[4];
-} ppc440_sdram_t;
-
 enum {
     SDRAM0_CFGADDR = 0x10,
     SDRAM0_CFGDATA,
@@ -506,39 +494,39 @@ enum {
     SDRAM_PLBADDUHB = 0x50,
 };
 
-static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
+static uint32_t sdram_ddr2_bcr(hwaddr ram_base, hwaddr ram_size)
 {
     uint32_t bcr;
 
     switch (ram_size) {
-    case (8 * MiB):
+    case 8 * MiB:
         bcr = 0xffc0;
         break;
-    case (16 * MiB):
+    case 16 * MiB:
         bcr = 0xff80;
         break;
-    case (32 * MiB):
+    case 32 * MiB:
         bcr = 0xff00;
         break;
-    case (64 * MiB):
+    case 64 * MiB:
         bcr = 0xfe00;
         break;
-    case (128 * MiB):
+    case 128 * MiB:
         bcr = 0xfc00;
         break;
-    case (256 * MiB):
+    case 256 * MiB:
         bcr = 0xf800;
         break;
-    case (512 * MiB):
+    case 512 * MiB:
         bcr = 0xf000;
         break;
-    case (1 * GiB):
+    case 1 * GiB:
         bcr = 0xe000;
         break;
-    case (2 * GiB):
+    case 2 * GiB:
         bcr = 0xc000;
         break;
-    case (4 * GiB):
+    case 4 * GiB:
         bcr = 0x8000;
         break;
     default:
@@ -551,12 +539,12 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
     return bcr;
 }
 
-static inline hwaddr sdram_base(uint32_t bcr)
+static inline hwaddr sdram_ddr2_base(uint32_t bcr)
 {
     return (bcr & 0xffe00000) << 2;
 }
 
-static uint64_t sdram_size(uint32_t bcr)
+static uint64_t sdram_ddr2_size(uint32_t bcr)
 {
     uint64_t size;
     int sh;
@@ -567,46 +555,66 @@ static uint64_t sdram_size(uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr(ppc440_sdram_t *sdram, int i,
-                          uint32_t bcr, int enabled)
+static void sdram_bank_map(Ppc4xxSdramBank *bank)
 {
-    if (sdram->bcr[i] & 1) {
+    memory_region_init(&bank->container, NULL, "sdram-container", bank->size);
+    memory_region_add_subregion(&bank->container, 0, &bank->ram);
+    memory_region_add_subregion(get_system_memory(), bank->base,
+                                &bank->container);
+}
+
+static void sdram_bank_unmap(Ppc4xxSdramBank *bank)
+{
+    memory_region_del_subregion(get_system_memory(), &bank->container);
+    memory_region_del_subregion(&bank->container, &bank->ram);
+    object_unparent(OBJECT(&bank->container));
+}
+
+static void sdram_ddr2_set_bcr(Ppc4xxSdramDdr2State *sdram, int i,
+                               uint32_t bcr, int enabled)
+{
+    if (sdram->bank[i].bcr & 1) {
         /* First unmap RAM if enabled */
-        memory_region_del_subregion(get_system_memory(),
-                                    &sdram->containers[i]);
-        memory_region_del_subregion(&sdram->containers[i],
-                                    &sdram->ram_memories[i]);
-        object_unparent(OBJECT(&sdram->containers[i]));
+        trace_ppc4xx_sdram_unmap(sdram_ddr2_base(sdram->bank[i].bcr),
+                                 sdram_ddr2_size(sdram->bank[i].bcr));
+        sdram_bank_unmap(&sdram->bank[i]);
     }
-    sdram->bcr[i] = bcr & 0xffe0ffc1;
+    sdram->bank[i].bcr = bcr & 0xffe0ffc1;
     if (enabled && (bcr & 1)) {
-        memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
-                           sdram_size(bcr));
-        memory_region_add_subregion(&sdram->containers[i], 0,
-                                    &sdram->ram_memories[i]);
-        memory_region_add_subregion(get_system_memory(),
-                                    sdram_base(bcr),
-                                    &sdram->containers[i]);
+        trace_ppc4xx_sdram_map(sdram_ddr2_base(bcr), sdram_ddr2_size(bcr));
+        sdram_bank_map(&sdram->bank[i]);
     }
 }
 
-static void sdram_map_bcr(ppc440_sdram_t *sdram)
+static void sdram_ddr2_map_bcr(Ppc4xxSdramDdr2State *sdram)
 {
     int i;
 
     for (i = 0; i < sdram->nbanks; i++) {
-        if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(sdram, i, sdram_bcr(sdram->ram_bases[i],
-                                              sdram->ram_sizes[i]), 1);
+        if (sdram->bank[i].size) {
+            sdram_ddr2_set_bcr(sdram, i,
+                               sdram_ddr2_bcr(sdram->bank[i].base,
+                                              sdram->bank[i].size), 1);
         } else {
-            sdram_set_bcr(sdram, i, 0, 0);
+            sdram_ddr2_set_bcr(sdram, i, 0, 0);
         }
     }
 }
 
-static uint32_t dcr_read_sdram(void *opaque, int dcrn)
+static void sdram_ddr2_unmap_bcr(Ppc4xxSdramDdr2State *sdram)
 {
-    ppc440_sdram_t *sdram = opaque;
+    int i;
+
+    for (i = 0; i < sdram->nbanks; i++) {
+        if (sdram->bank[i].size) {
+            sdram_ddr2_set_bcr(sdram, i, sdram->bank[i].bcr & ~1, 0);
+        }
+    }
+}
+
+static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)
+{
+    Ppc4xxSdramDdr2State *sdram = opaque;
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -614,9 +622,9 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
     case SDRAM_R1BAS:
     case SDRAM_R2BAS:
     case SDRAM_R3BAS:
-        if (sdram->ram_sizes[dcrn - SDRAM_R0BAS]) {
-            ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
-                            sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        if (sdram->bank[dcrn - SDRAM_R0BAS].size) {
+            ret = sdram_ddr2_bcr(sdram->bank[dcrn - SDRAM_R0BAS].base,
+                                 sdram->bank[dcrn - SDRAM_R0BAS].size);
         }
         break;
     case SDRAM_CONF1HB:
@@ -635,7 +643,7 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
             ret = 0x80000000;
             break;
         case 0x21: /* SDRAM_MCOPT2 */
-            ret = 0x08000000;
+            ret = sdram->mcopt2;
             break;
         case 0x40: /* SDRAM_MB0CF */
             ret = 0x00008001;
@@ -657,9 +665,11 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
     return ret;
 }
 
-static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
+#define SDRAM_DDR2_MCOPT2_DCEN BIT(27)
+
+static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
 {
-    ppc440_sdram_t *sdram = opaque;
+    Ppc4xxSdramDdr2State *sdram = opaque;
 
     switch (dcrn) {
     case SDRAM_R0BAS:
@@ -679,6 +689,21 @@ static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
         switch (sdram->addr) {
         case 0x00: /* B0CR */
             break;
+        case 0x21: /* SDRAM_MCOPT2 */
+            if (!(sdram->mcopt2 & SDRAM_DDR2_MCOPT2_DCEN) &&
+                (val & SDRAM_DDR2_MCOPT2_DCEN)) {
+                trace_ppc4xx_sdram_enable("enable");
+                /* validate all RAM mappings */
+                sdram_ddr2_map_bcr(sdram);
+                sdram->mcopt2 |= SDRAM_DDR2_MCOPT2_DCEN;
+            } else if ((sdram->mcopt2 & SDRAM_DDR2_MCOPT2_DCEN) &&
+                       !(val & SDRAM_DDR2_MCOPT2_DCEN)) {
+                trace_ppc4xx_sdram_enable("disable");
+                /* invalidate all RAM mappings */
+                sdram_ddr2_unmap_bcr(sdram);
+                sdram->mcopt2 &= ~SDRAM_DDR2_MCOPT2_DCEN;
+            }
+            break;
         default:
             break;
         }
@@ -688,53 +713,95 @@ static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void sdram_reset(void *opaque)
+static void ppc4xx_sdram_ddr2_reset(DeviceState *dev)
 {
-    ppc440_sdram_t *sdram = opaque;
+    Ppc4xxSdramDdr2State *sdram = PPC4xx_SDRAM_DDR2(dev);
 
     sdram->addr = 0;
+    sdram->mcopt2 = 0;
 }
 
-void ppc440_sdram_init(CPUPPCState *env, int nbanks,
-                       MemoryRegion *ram_memories,
-                       hwaddr *ram_bases, hwaddr *ram_sizes,
-                       int do_init)
+static void ppc4xx_sdram_ddr2_realize(DeviceState *dev, Error **errp)
 {
-    ppc440_sdram_t *sdram;
+    Ppc4xxSdramDdr2State *s = PPC4xx_SDRAM_DDR2(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
+    /*
+     * SoC also has 4 GiB but that causes problem with 32 bit
+     * builds (4*GiB overflows the 32 bit ram_addr_t).
+     */
+    const ram_addr_t valid_bank_sizes[] = {
+        2 * GiB, 1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB,
+        64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 0
+    };
 
-    sdram = g_malloc0(sizeof(*sdram));
-    sdram->nbanks = nbanks;
-    sdram->ram_memories = ram_memories;
-    memcpy(sdram->ram_bases, ram_bases, nbanks * sizeof(hwaddr));
-    memcpy(sdram->ram_sizes, ram_sizes, nbanks * sizeof(hwaddr));
-    qemu_register_reset(&sdram_reset, sdram);
-    ppc_dcr_register(env, SDRAM0_CFGADDR,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM0_CFGDATA,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    if (do_init) {
-        sdram_map_bcr(sdram);
+    if (s->nbanks < 1 || s->nbanks > 4) {
+        error_setg(errp, "Invalid number of RAM banks");
+        return;
     }
+    if (!s->dram_mr) {
+        error_setg(errp, "Missing dram memory region");
+        return;
+    }
+    ppc4xx_sdram_banks(s->dram_mr, s->nbanks, s->bank, valid_bank_sizes);
 
-    ppc_dcr_register(env, SDRAM_R0BAS,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_R1BAS,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_R2BAS,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_R3BAS,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_CONF1HB,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_PLBADDULL,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_CONF1LL,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_CONFPATHB,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
-    ppc_dcr_register(env, SDRAM_PLBADDUHB,
-                     sdram, &dcr_read_sdram, &dcr_write_sdram);
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGADDR,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM0_CFGDATA,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+
+    ppc4xx_dcr_register(dcr, SDRAM_R0BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R1BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R2BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_R3BAS,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONF1HB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_PLBADDULL,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONF1LL,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_CONFPATHB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
+    ppc4xx_dcr_register(dcr, SDRAM_PLBADDUHB,
+                        s, &sdram_ddr2_dcr_read, &sdram_ddr2_dcr_write);
 }
+
+static Property ppc4xx_sdram_ddr2_props[] = {
+    DEFINE_PROP_LINK("dram", Ppc4xxSdramDdr2State, dram_mr, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_UINT32("nbanks", Ppc4xxSdramDdr2State, nbanks, 4),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ppc4xx_sdram_ddr2_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = ppc4xx_sdram_ddr2_realize;
+    dc->reset = ppc4xx_sdram_ddr2_reset;
+    /* Reason: only works as function of a ppc4xx SoC */
+    dc->user_creatable = false;
+    device_class_set_props(dc, ppc4xx_sdram_ddr2_props);
+}
+
+void ppc4xx_sdram_ddr2_enable(Ppc4xxSdramDdr2State *s)
+{
+    sdram_ddr2_dcr_write(s, SDRAM0_CFGADDR, 0x21);
+    sdram_ddr2_dcr_write(s, SDRAM0_CFGDATA, 0x08000000);
+}
+
+static const TypeInfo ppc4xx_types[] = {
+    {
+        .name           = TYPE_PPC4xx_SDRAM_DDR2,
+        .parent         = TYPE_PPC4xx_DCR_DEVICE,
+        .instance_size  = sizeof(Ppc4xxSdramDdr2State),
+        .class_init     = ppc4xx_sdram_ddr2_class_init,
+    }
+};
+DEFINE_TYPES(ppc4xx_types)
 
 /*****************************************************************************/
 /* PLB to AHB bridge */

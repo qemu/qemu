@@ -138,7 +138,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
             0
         );
         if (fd == -1) {
-            error_setg_errno(errp, errno, "error opening channel");
+            error_setg_errno(errp, errno, "error opening channel '%s'", path);
             return false;
         }
 #ifdef CONFIG_SOLARIS
@@ -149,6 +149,25 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
             return false;
         }
 #endif
+#ifdef __FreeBSD__
+        /*
+         * In the default state channel sends echo of every command to a
+         * client. The client programm doesn't expect this and raises an
+         * error. Suppress echo by resetting ECHO terminal flag.
+         */
+        struct termios tio;
+        if (tcgetattr(fd, &tio) < 0) {
+            error_setg_errno(errp, errno, "error getting channel termios attrs");
+            close(fd);
+            return false;
+        }
+        tio.c_lflag &= ~ECHO;
+        if (tcsetattr(fd, TCSAFLUSH, &tio) < 0) {
+            error_setg_errno(errp, errno, "error setting channel termios attrs");
+            close(fd);
+            return false;
+        }
+#endif /* __FreeBSD__ */
         ret = ga_channel_client_add(c, fd);
         if (ret) {
             error_setg(errp, "error adding channel to main loop");
@@ -163,7 +182,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
         assert(fd < 0);
         fd = qga_open_cloexec(path, O_RDWR | O_NOCTTY | O_NONBLOCK, 0);
         if (fd == -1) {
-            error_setg_errno(errp, errno, "error opening channel");
+            error_setg_errno(errp, errno, "error opening channel '%s'", path);
             return false;
         }
         tcgetattr(fd, &tio);

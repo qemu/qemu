@@ -366,6 +366,12 @@ static int s390_machine_protect(S390CcwMachineState *ms)
 
     ms->pv = true;
 
+    /* Will return 0 if API is not available since it's not vital */
+    rc = s390_pv_query_info();
+    if (rc) {
+        goto out_err;
+    }
+
     /* Set SE header and unpack */
     rc = s390_ipl_prepare_pv_header();
     if (rc) {
@@ -405,7 +411,7 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
     s390_pv_prep_reset();
 }
 
-static void s390_machine_reset(MachineState *machine)
+static void s390_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
     enum s390_reset reset_type;
@@ -427,7 +433,7 @@ static void s390_machine_reset(MachineState *machine)
             s390_machine_unprotect(ms);
         }
 
-        qemu_devices_reset();
+        qemu_devices_reset(reason);
         s390_crypto_reset();
 
         /* configure and start the ipl CPU only */
@@ -645,6 +651,21 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
     ms->dea_key_wrap = value;
 }
 
+static inline bool machine_get_zpcii_disable(Object *obj, Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    return ms->zpcii_disable;
+}
+
+static inline void machine_set_zpcii_disable(Object *obj, bool value,
+                                             Error **errp)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->zpcii_disable = value;
+}
+
 static S390CcwMachineClass *current_mc;
 
 /*
@@ -740,6 +761,13 @@ static inline void s390_machine_initfn(Object *obj)
             "Up to 8 chars in set of [A-Za-z0-9. ] (lower case chars converted"
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
+
+    object_property_add_bool(obj, "zpcii-disable",
+                             machine_get_zpcii_disable,
+                             machine_set_zpcii_disable);
+    object_property_set_description(obj, "zpcii-disable",
+            "disable zPCI interpretation facilties");
+    object_property_set_bool(obj, "zpcii-disable", false, NULL);
 }
 
 static const TypeInfo ccw_machine_info = {
@@ -803,8 +831,13 @@ DEFINE_CCW_MACHINE(7_2, "7.2", true);
 
 static void ccw_machine_7_1_instance_options(MachineState *machine)
 {
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V7_1 };
+    S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
+
     ccw_machine_7_2_instance_options(machine);
     s390_cpudef_featoff_greater(16, 1, S390_FEAT_PAIE);
+    s390_set_qemu_cpu_model(0x8561, 15, 1, qemu_cpu_feat);
+    ms->zpcii_disable = true;
 }
 
 static void ccw_machine_7_1_class_options(MachineClass *mc)

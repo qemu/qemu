@@ -93,13 +93,9 @@ static void vu_i2c_stop(VirtIODevice *vdev)
 static void vu_i2c_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserI2C *i2c = VHOST_USER_I2C(vdev);
-    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
+    bool should_start = virtio_device_started(vdev, status);
 
-    if (!vdev->vm_running) {
-        should_start = false;
-    }
-
-    if (i2c->vhost_dev.started == should_start) {
+    if (vhost_dev_is_started(&i2c->vhost_dev) == should_start) {
         return;
     }
 
@@ -178,7 +174,7 @@ static void vu_i2c_disconnect(DeviceState *dev)
     }
     i2c->connected = false;
 
-    if (i2c->vhost_dev.started) {
+    if (vhost_dev_is_started(&i2c->vhost_dev)) {
         vu_i2c_stop(vdev);
     }
 }

@@ -107,6 +107,28 @@
     '*threshold': 'uint32' } }
 
 ##
+# @AudiodevSndioOptions:
+#
+# Options of the sndio audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @dev: the name of the sndio device to use (default 'default')
+#
+# @latency: play buffer size (in microseconds)
+#
+# Since: 7.2
+##
+{ 'struct': 'AudiodevSndioOptions',
+  'data': {
+    '*in':        'AudiodevPerDirectionOptions',
+    '*out':       'AudiodevPerDirectionOptions',
+    '*dev':       'str',
+    '*latency':   'uint32'} }
+
+##
 # @AudiodevCoreaudioPerDirectionOptions:
 #
 # Options of the Core Audio backend that are used for both playback and
@@ -387,7 +409,7 @@
 ##
 { 'enum': 'AudiodevDriver',
   'data': [ 'none', 'alsa', 'coreaudio', 'dbus', 'dsound', 'jack', 'oss', 'pa',
-            'sdl', 'spice', 'wav' ] }
+            'sdl', 'sndio', 'spice', 'wav' ] }
 
 ##
 # @Audiodev:
@@ -418,5 +440,6 @@
     'oss':       'AudiodevOssOptions',
     'pa':        'AudiodevPaOptions',
     'sdl':       'AudiodevSdlOptions',
+    'sndio':     'AudiodevSndioOptions',
     'spice':     'AudiodevGenericOptions',
     'wav':       'AudiodevWavOptions' } }

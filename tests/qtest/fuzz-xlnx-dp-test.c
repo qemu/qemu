@@ -14,7 +14,7 @@
  */
 static void test_fuzz_xlnx_dp_0x3ac(void)
 {
-    QTestState *s = qtest_init("-M xlnx-zcu102 -display none ");
+    QTestState *s = qtest_init("-M xlnx-zcu102 ");
     qtest_readl(s, 0xfd4a03ac);
     qtest_quit(s);
 }

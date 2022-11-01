@@ -49,7 +49,7 @@ static void vhost_user_scsi_set_status(VirtIODevice *vdev, uint8_t status)
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
     bool start = (status & VIRTIO_CONFIG_S_DRIVER_OK) && vdev->vm_running;
 
-    if (vsc->dev.started == start) {
+    if (vhost_dev_is_started(&vsc->dev) == start) {
         return;
     }
 

@@ -224,6 +224,23 @@ void qemu_plugin_disable_mem_helpers(CPUState *cpu);
  */
 void qemu_plugin_user_exit(void);
 
+/**
+ * qemu_plugin_user_prefork_lock(): take plugin lock before forking
+ *
+ * This is a user-mode only helper to take the internal plugin lock
+ * before a fork event. This is ensure a consistent lock state
+ */
+void qemu_plugin_user_prefork_lock(void);
+
+/**
+ * qemu_plugin_user_postfork(): reset the plugin lock
+ * @is_child: is this thread the child
+ *
+ * This user-mode only helper resets the lock state after a fork so we
+ * can continue using the plugin interface.
+ */
+void qemu_plugin_user_postfork(bool is_child);
+
 #else /* !CONFIG_PLUGIN */
 
 static inline void qemu_plugin_add_opts(void)
@@ -287,6 +304,13 @@ static inline void qemu_plugin_disable_mem_helpers(CPUState *cpu)
 
 static inline void qemu_plugin_user_exit(void)
 { }
+
+static inline void qemu_plugin_user_prefork_lock(void)
+{ }
+
+static inline void qemu_plugin_user_postfork(bool is_child)
+{ }
+
 #endif /* !CONFIG_PLUGIN */
 
 #endif /* QEMU_PLUGIN_H */

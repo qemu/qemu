@@ -272,9 +272,3 @@ void loongarch_translate_init(void)
     cpu_llval = tcg_global_mem_new(cpu_env,
                     offsetof(CPULoongArchState, llval), "llval");
 }
-
-void restore_state_to_opc(CPULoongArchState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}

@@ -246,7 +246,7 @@ typedef union _ppc_vsr_t {
 #ifdef CONFIG_INT128
     __uint128_t u128;
 #endif
-    Int128  s128;
+    Int128 s128;
 } ppc_vsr_t;
 
 typedef ppc_vsr_t ppc_avr_t;
@@ -1354,9 +1354,9 @@ void ppc_gdb_gen_spr_xml(PowerPCCPU *cpu);
 const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name);
 #endif
 int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque);
+                               int cpuid, DumpState *s);
 int ppc32_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                               int cpuid, void *opaque);
+                               int cpuid, DumpState *s);
 #ifndef CONFIG_USER_ONLY
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
@@ -1506,10 +1506,6 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define XER_CMP  8
 #define XER_BC   0
 #define xer_so  (env->so)
-#define xer_ov  (env->ov)
-#define xer_ca  (env->ca)
-#define xer_ov32  (env->ov)
-#define xer_ca32  (env->ca)
 #define xer_cmp ((env->xer >> XER_CMP) & 0xFF)
 #define xer_bc  ((env->xer >> XER_BC)  & 0x7F)
 
@@ -1676,6 +1672,8 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_BOOKE_GIVOR14     (0x1BD)
 #define SPR_TIR               (0x1BE)
 #define SPR_PTCR              (0x1D0)
+#define SPR_HASHKEYR          (0x1D4)
+#define SPR_HASHPKEYR         (0x1D5)
 #define SPR_BOOKE_SPEFSCR     (0x200)
 #define SPR_Exxx_BBEAR        (0x201)
 #define SPR_Exxx_BBTAR        (0x202)

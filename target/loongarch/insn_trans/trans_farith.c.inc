@@ -97,9 +97,9 @@ TRANS(fmadd_s, gen_muladd, gen_helper_fmuladd_s, 0)
 TRANS(fmadd_d, gen_muladd, gen_helper_fmuladd_d, 0)
 TRANS(fmsub_s, gen_muladd, gen_helper_fmuladd_s, float_muladd_negate_c)
 TRANS(fmsub_d, gen_muladd, gen_helper_fmuladd_d, float_muladd_negate_c)
-TRANS(fnmadd_s, gen_muladd, gen_helper_fmuladd_s,
-      float_muladd_negate_product | float_muladd_negate_c)
-TRANS(fnmadd_d, gen_muladd, gen_helper_fmuladd_d,
-      float_muladd_negate_product | float_muladd_negate_c)
-TRANS(fnmsub_s, gen_muladd, gen_helper_fmuladd_s, float_muladd_negate_product)
-TRANS(fnmsub_d, gen_muladd, gen_helper_fmuladd_d, float_muladd_negate_product)
+TRANS(fnmadd_s, gen_muladd, gen_helper_fmuladd_s, float_muladd_negate_result)
+TRANS(fnmadd_d, gen_muladd, gen_helper_fmuladd_d, float_muladd_negate_result)
+TRANS(fnmsub_s, gen_muladd, gen_helper_fmuladd_s,
+      float_muladd_negate_c | float_muladd_negate_result)
+TRANS(fnmsub_d, gen_muladd, gen_helper_fmuladd_d,
+      float_muladd_negate_c | float_muladd_negate_result)

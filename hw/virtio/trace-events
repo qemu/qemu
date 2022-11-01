@@ -8,6 +8,10 @@ vhost_region_add_section_aligned(const char *name, uint64_t gpa, uint64_t size, 
 vhost_section(const char *name) "%s"
 vhost_reject_section(const char *name, int d) "%s:%d"
 vhost_iotlb_miss(void *dev, int step) "%p step %d"
+vhost_dev_cleanup(void *dev) "%p"
+vhost_dev_start(void *dev, const char *name) "%p:%s"
+vhost_dev_stop(void *dev, const char *name) "%p:%s"
+
 
 # vhost-user.c
 vhost_user_postcopy_end_entry(void) ""
@@ -140,3 +144,8 @@ virtio_mem_state_response(uint16_t state) "state=%" PRIu16
 virtio_pmem_flush_request(void) "flush request"
 virtio_pmem_response(void) "flush response"
 virtio_pmem_flush_done(int type) "fsync return=%d"
+
+# virtio-gpio.c
+virtio_gpio_start(void) "start"
+virtio_gpio_stop(void) "stop"
+virtio_gpio_set_status(uint8_t status) "0x%x"

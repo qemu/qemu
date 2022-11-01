@@ -373,7 +373,7 @@ void vnc_start_worker_thread(void)
     VncJobQueue *q;
 
     if (vnc_worker_thread_running())
-        return ;
+        return;
 
     q = vnc_queue_init();
     qemu_thread_create(&q->thread, "vnc_worker", vnc_worker_thread, q,

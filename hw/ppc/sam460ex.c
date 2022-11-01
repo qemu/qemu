@@ -73,14 +73,6 @@
 #define OPB_FREQ 115000000
 #define EBC_FREQ 115000000
 #define UART_FREQ 11059200
-#define SDRAM_NR_BANKS 4
-
-/* The SoC could also handle 4 GiB but firmware does not work with that. */
-/* Maybe it overflows a signed 32 bit number somewhere? */
-static const ram_addr_t ppc460ex_sdram_bank_sizes[] = {
-    2 * GiB, 1 * GiB, 512 * MiB, 256 * MiB, 128 * MiB, 64 * MiB,
-    32 * MiB, 0
-};
 
 struct boot_info {
     uint32_t dt_base;
@@ -131,13 +123,12 @@ static int sam460ex_load_uboot(void)
     return 0;
 }
 
-static int sam460ex_load_device_tree(hwaddr addr,
-                                     uint32_t ramsize,
+static int sam460ex_load_device_tree(MachineState *machine,
+                                     hwaddr addr,
                                      hwaddr initrd_base,
-                                     hwaddr initrd_size,
-                                     const char *kernel_cmdline)
+                                     hwaddr initrd_size)
 {
-    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
+    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(machine->ram_size) };
     char *filename;
     int fdt_size;
     void *fdt;
@@ -171,7 +162,8 @@ static int sam460ex_load_device_tree(hwaddr addr,
     qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end",
                           (initrd_base + initrd_size));
 
-    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs", kernel_cmdline);
+    qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                            machine->kernel_cmdline);
 
     /* Copy data from the host device tree into the guest. Since the guest can
      * directly access the timebase without host involvement, we must expose
@@ -208,7 +200,9 @@ static int sam460ex_load_device_tree(hwaddr addr,
                               EBC_FREQ);
 
     rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    g_free(fdt);
+
+    /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+    machine->fdt = fdt;
 
     return fdt_size;
 }
@@ -274,9 +268,6 @@ static void sam460ex_init(MachineState *machine)
 {
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *isa = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_memories = g_new(MemoryRegion, SDRAM_NR_BANKS);
-    hwaddr ram_bases[SDRAM_NR_BANKS] = {0};
-    hwaddr ram_sizes[SDRAM_NR_BANKS] = {0};
     MemoryRegion *l2cache_ram = g_new(MemoryRegion, 1);
     DeviceState *uic[4];
     int i;
@@ -343,22 +334,37 @@ static void sam460ex_init(MachineState *machine)
     }
 
     /* SDRAM controller */
-    /* put all RAM on first bank because board has one slot
-     * and firmware only checks that */
-    ppc4xx_sdram_banks(machine->ram, 1, ram_memories, ram_bases, ram_sizes,
-                       ppc460ex_sdram_bank_sizes);
-
+    /* The SoC could also handle 4 GiB but firmware does not work with that. */
+    if (machine->ram_size > 2 * GiB) {
+        error_report("Memory over 2 GiB is not supported");
+        exit(1);
+    }
+    /* Firmware needs at least 64 MiB */
+    if (machine->ram_size < 64 * MiB) {
+        error_report("Memory below 64 MiB is not supported");
+        exit(1);
+    }
+    dev = qdev_new(TYPE_PPC4xx_SDRAM_DDR2);
+    object_property_set_link(OBJECT(dev), "dram", OBJECT(machine->ram),
+                             &error_abort);
+    /*
+     * Put all RAM on first bank because board has one slot
+     * and firmware only checks that
+     */
+    object_property_set_int(OBJECT(dev), "nbanks", 1, &error_abort);
+    ppc4xx_dcr_realize(PPC4xx_DCR_DEVICE(dev), cpu, &error_fatal);
+    object_unref(OBJECT(dev));
     /* FIXME: does 460EX have ECC interrupts? */
-    ppc440_sdram_init(env, SDRAM_NR_BANKS, ram_memories,
-                      ram_bases, ram_sizes, 1);
+    /* Enable SDRAM memory regions as we may boot without firmware */
+    ppc4xx_sdram_ddr2_enable(PPC4xx_SDRAM_DDR2(dev));
 
     /* IIC controllers and devices */
     dev = sysbus_create_simple(TYPE_PPC4xx_I2C, 0x4ef600700,
                                qdev_get_gpio_in(uic[0], 2));
     i2c = PPC4xx_I2C(dev)->bus;
     /* SPD EEPROM on RAM module */
-    spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
-                                 ram_sizes[0]);
+    spd_data = spd_data_generate(machine->ram_size < 128 * MiB ? DDR : DDR2,
+                                 machine->ram_size);
     spd_data[20] = 4; /* SO-DIMM module */
     smbus_eeprom_init_one(i2c, 0x50, spd_data);
     /* RTC */
@@ -496,9 +502,8 @@ static void sam460ex_init(MachineState *machine)
     if (machine->kernel_filename) {
         int dt_size;
 
-        dt_size = sam460ex_load_device_tree(FDT_ADDR, machine->ram_size,
-                                    RAMDISK_ADDR, initrd_size,
-                                    machine->kernel_cmdline);
+        dt_size = sam460ex_load_device_tree(machine, FDT_ADDR,
+                                            RAMDISK_ADDR, initrd_size);
 
         boot_info->dt_base = FDT_ADDR;
         boot_info->dt_size = dt_size;

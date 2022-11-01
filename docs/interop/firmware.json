@@ -113,13 +113,22 @@
 #           Virtualization, as specified in the AMD64 Architecture
 #           Programmer's Manual. QEMU command line options related to
 #           this feature are documented in
-#           "docs/amd-memory-encryption.txt".
+#           "docs/system/i386/amd-memory-encryption.rst".
 #
 # @amd-sev-es: The firmware supports running under AMD Secure Encrypted
 #              Virtualization - Encrypted State, as specified in the AMD64
 #              Architecture Programmer's Manual. QEMU command line options
 #              related to this feature are documented in
-#              "docs/amd-memory-encryption.txt".
+#              "docs/system/i386/amd-memory-encryption.rst".
+#
+# @amd-sev-snp: The firmware supports running under AMD Secure Encrypted
+#               Virtualization - Secure Nested Paging, as specified in the
+#               AMD64 Architecture Programmer's Manual. QEMU command line
+#               options related to this feature are documented in
+#               "docs/system/i386/amd-memory-encryption.rst".
+#
+# @intel-tdx: The firmware supports running under Intel Trust Domain
+#             Extensions (TDX).
 #
 # @enrolled-keys: The variable store (NVRAM) template associated with
 #                 the firmware binary has the UEFI Secure Boot
@@ -185,9 +194,11 @@
 # Since: 3.0
 ##
 { 'enum' : 'FirmwareFeature',
-  'data' : [ 'acpi-s3', 'acpi-s4', 'amd-sev', 'amd-sev-es', 'enrolled-keys',
-             'requires-smm', 'secure-boot', 'verbose-dynamic',
-             'verbose-static' ] }
+  'data' : [ 'acpi-s3', 'acpi-s4',
+             'amd-sev', 'amd-sev-es', 'amd-sev-snp',
+             'intel-tdx',
+             'enrolled-keys', 'requires-smm', 'secure-boot',
+             'verbose-dynamic', 'verbose-static' ] }
 
 ##
 # @FirmwareFlashFile:

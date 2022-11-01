@@ -140,7 +140,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
-    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent) + len);
+    EmulEvent *event = g_malloc(sizeof(EmulEvent) + len);
 
     assert(event);
     event->p.data.type = EMUL_GUEST_APDU;

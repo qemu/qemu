@@ -2371,12 +2371,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns,
     translator_loop(cs, tb, max_insns, pc, host_pc, &rx_tr_ops, &dc.base);
 }
 
-void restore_state_to_opc(CPURXState *env, TranslationBlock *tb,
-                          target_ulong *data)
-{
-    env->pc = data[0];
-}
-
 #define ALLOC_REGISTER(sym, name) \
     cpu_##sym = tcg_global_mem_new_i32(cpu_env, \
                                        offsetof(CPURXState, sym), name)

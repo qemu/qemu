@@ -49,7 +49,7 @@ static void netduino2_init(MachineState *machine)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
-                       FLASH_SIZE);
+                       0, FLASH_SIZE);
 }
 
 static void netduino2_machine_init(MachineClass *mc)

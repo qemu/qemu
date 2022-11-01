@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -327,6 +327,30 @@ static void mark_implicit_pred_writes(DisasContext *ctx, Insn *insn)
     mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
 }
 
+static void mark_store_width(DisasContext *ctx, Insn *insn)
+{
+    uint16_t opcode = insn->opcode;
+    uint32_t slot = insn->slot;
+    uint8_t width = 0;
+
+    if (GET_ATTRIB(opcode, A_SCALAR_STORE)) {
+        if (GET_ATTRIB(opcode, A_MEMSIZE_1B)) {
+            width |= 1;
+        }
+        if (GET_ATTRIB(opcode, A_MEMSIZE_2B)) {
+            width |= 2;
+        }
+        if (GET_ATTRIB(opcode, A_MEMSIZE_4B)) {
+            width |= 4;
+        }
+        if (GET_ATTRIB(opcode, A_MEMSIZE_8B)) {
+            width |= 8;
+        }
+        tcg_debug_assert(is_power_of_2(width));
+        ctx->store_width[slot] = width;
+    }
+}
+
 static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
                      Insn *insn, Packet *pkt)
 {
@@ -334,6 +358,7 @@ static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
         mark_implicit_reg_writes(ctx, insn);
         insn->generate(env, ctx, insn, pkt);
         mark_implicit_pred_writes(ctx, insn);
+        mark_store_width(ctx, insn);
     } else {
         gen_exception_end_tb(ctx, HEX_EXCP_INVALID_OPCODE);
     }
@@ -499,10 +524,12 @@ static void process_store_log(DisasContext *ctx, Packet *pkt)
      *  slot 1 and then slot 0.  This will be important when
      *  the memory accesses overlap.
      */
-    if (pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa) {
+    if (pkt->pkt_has_store_s1) {
+        g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, pkt, 1);
     }
-    if (pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa) {
+    if (pkt->pkt_has_store_s0) {
+        g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, pkt, 0);
     }
 }
@@ -665,7 +692,7 @@ static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
          * The dczeroa will be the store in slot 0, check that we don't have
          * a store in slot 1 or an HVX store.
          */
-        g_assert(has_store_s0 && !has_store_s1 && !has_hvx_store);
+        g_assert(!has_store_s1 && !has_hvx_store);
         process_dczeroa(ctx, pkt);
     } else if (has_hvx_store) {
         TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);

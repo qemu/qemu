@@ -1,9 +1,11 @@
 FROM registry.fedoraproject.org/fedora:34
 
 ENV PACKAGES \
+    bison \
     bzip2 \
     ccache \
     diffutils \
+    flex \
     findutils \
     gcc \
     git \

@@ -631,9 +631,10 @@ static int64_t create_file_fallback_truncate(BlockBackend *blk,
  * Helper function for bdrv_create_file_fallback(): Zero the first
  * sector to remove any potentially pre-existing image header.
  */
-static int create_file_fallback_zero_first_sector(BlockBackend *blk,
-                                                  int64_t current_size,
-                                                  Error **errp)
+static int coroutine_fn
+create_file_fallback_zero_first_sector(BlockBackend *blk,
+                                       int64_t current_size,
+                                       Error **errp)
 {
     int64_t bytes_to_clear;
     int ret;
@@ -1639,6 +1640,20 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         }
         goto open_failed;
     }
+
+    assert(!(bs->supported_read_flags & ~BDRV_REQ_MASK));
+    assert(!(bs->supported_write_flags & ~BDRV_REQ_MASK));
+
+    /*
+     * Always allow the BDRV_REQ_REGISTERED_BUF optimization hint. This saves
+     * drivers that pass read/write requests through to a child the trouble of
+     * declaring support explicitly.
+     *
+     * Drivers must not propagate this flag accidentally when they initiate I/O
+     * to a bounce buffer. That case should be rare though.
+     */
+    bs->supported_read_flags |= BDRV_REQ_REGISTERED_BUF;
+    bs->supported_write_flags |= BDRV_REQ_REGISTERED_BUF;
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
@@ -4980,8 +4995,8 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
-    assert(job_next(NULL) == NULL);
     GLOBAL_STATE_CODE();
+    assert(job_next(NULL) == NULL);
 
     /* Drop references from requests still in flight, such as canceled block
      * jobs whose AIO context has not been polled yet */
@@ -6167,13 +6182,16 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
         }
     }
 
-    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
-        GSList *el;
+    WITH_JOB_LOCK_GUARD() {
+        for (job = block_job_next_locked(NULL); job;
+             job = block_job_next_locked(job)) {
+            GSList *el;
 
-        xdbg_graph_add_node(gr, job, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_JOB,
-                           job->job.id);
-        for (el = job->nodes; el; el = el->next) {
-            xdbg_graph_add_edge(gr, job, (BdrvChild *)el->data);
+            xdbg_graph_add_node(gr, job, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_JOB,
+                                job->job.id);
+            for (el = job->nodes; el; el = el->next) {
+                xdbg_graph_add_edge(gr, job, (BdrvChild *)el->data);
+            }
         }
     }
 

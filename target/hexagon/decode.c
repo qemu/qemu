@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -402,10 +402,13 @@ static void decode_set_insn_attr_fields(Packet *pkt)
         }
 
         if (GET_ATTRIB(opcode, A_STORE)) {
-            if (pkt->insn[i].slot == 0) {
-                pkt->pkt_has_store_s0 = true;
-            } else {
-                pkt->pkt_has_store_s1 = true;
+            if (GET_ATTRIB(opcode, A_SCALAR_STORE) &&
+                !GET_ATTRIB(opcode, A_MEMSIZE_0B)) {
+                if (pkt->insn[i].slot == 0) {
+                    pkt->pkt_has_store_s0 = true;
+                } else {
+                    pkt->pkt_has_store_s1 = true;
+                }
             }
         }
 

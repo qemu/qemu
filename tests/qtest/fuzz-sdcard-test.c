@@ -18,7 +18,7 @@ static void oss_fuzz_29225(void)
 {
     QTestState *s;
 
-    s = qtest_init(" -display none -m 512m -nodefaults -nographic"
+    s = qtest_init(" -m 512m -nodefaults -nographic"
                    " -device sdhci-pci,sd-spec-version=3"
                    " -device sd-card,drive=d0"
                    " -drive if=none,index=0,file=null-co://,format=raw,id=d0");
@@ -61,7 +61,7 @@ static void oss_fuzz_36217(void)
 {
     QTestState *s;
 
-    s = qtest_init(" -display none -m 32 -nodefaults -nographic"
+    s = qtest_init(" -m 32 -nodefaults -nographic"
                    " -device sdhci-pci,sd-spec-version=3 "
                    "-device sd-card,drive=d0 "
                    "-drive if=none,index=0,file=null-co://,format=raw,id=d0");
@@ -95,7 +95,7 @@ static void oss_fuzz_36391(void)
 {
     QTestState *s;
 
-    s = qtest_init(" -display none -m 512M -nodefaults -nographic"
+    s = qtest_init(" -m 512M -nodefaults -nographic"
                    " -device sdhci-pci,sd-spec-version=3"
                    " -device sd-card,drive=drv"
                    " -drive if=none,index=0,file=null-co://,format=raw,id=drv");

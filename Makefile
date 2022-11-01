@@ -42,6 +42,9 @@ configure: ;
 ifneq ($(wildcard config-host.mak),)
 include config-host.mak
 
+include Makefile.prereqs
+Makefile.prereqs: config-host.mak
+
 git-submodule-update:
 .git-submodule-status: git-submodule-update config-host.mak
 Makefile: .git-submodule-status
@@ -145,7 +148,7 @@ NINJAFLAGS = $(if $V,-v) $(if $(MAKE.n), -n) $(if $(MAKE.k), -k0) \
         $(filter-out -j, $(lastword -j1 $(filter -l% -j%, $(MAKEFLAGS)))) \
         -d keepdepfile
 ninja-cmd-goals = $(or $(MAKECMDGOALS), all)
-ninja-cmd-goals += $(foreach g, $(MAKECMDGOALS), $(.ninja-goals.$g))))
+ninja-cmd-goals += $(foreach g, $(MAKECMDGOALS), $(.ninja-goals.$g))
 
 makefile-targets := build.ninja ctags TAGS cscope dist clean uninstall
 # "ninja -t targets" also lists all prerequisites.  If build system
@@ -186,7 +189,7 @@ include $(SRC_PATH)/tests/Makefile.include
 
 all: recurse-all
 
-ROMS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROMS)))
+ROMS_RULES=$(foreach t, all clean distclean, $(addsuffix /$(t), $(ROMS)))
 .PHONY: $(ROMS_RULES)
 $(ROMS_RULES):
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" $(notdir $@),)
@@ -194,6 +197,7 @@ $(ROMS_RULES):
 .PHONY: recurse-all recurse-clean
 recurse-all: $(addsuffix /all, $(ROMS))
 recurse-clean: $(addsuffix /clean, $(ROMS))
+recurse-distclean: $(addsuffix /distclean, $(ROMS))
 
 ######################################################################
 
@@ -214,10 +218,10 @@ dist: qemu-$(VERSION).tar.bz2
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
-distclean: clean
+distclean: clean recurse-distclean
 	-$(quiet-@)test -f build.ninja && $(NINJA) $(NINJAFLAGS) -t clean -g || :
-	rm -f config-host.mak qemu-bundle
-	rm -f tests/tcg/config-*.mak
+	rm -f config-host.mak Makefile.prereqs qemu-bundle
+	rm -f tests/tcg/*/config-target.mak tests/tcg/config-host.mak
 	rm -f config.status
 	rm -f roms/seabios/config.mak
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols

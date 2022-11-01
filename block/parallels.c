@@ -165,8 +165,9 @@ static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
     return start_off;
 }
 
-static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
-                                 int nb_sectors, int *pnum)
+static coroutine_fn int64_t allocate_clusters(BlockDriverState *bs,
+                                              int64_t sector_num,
+                                              int nb_sectors, int *pnum)
 {
     int ret = 0;
     BDRVParallelsState *s = bs->opaque;
@@ -328,7 +329,6 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
     QEMUIOVector hd_qiov;
     int ret = 0;
 
-    assert(!flags);
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
     while (nb_sectors > 0) {

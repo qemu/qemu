@@ -68,7 +68,7 @@ enum {
     DSKCHG  = 0x80,
 };
 
-static char test_image[] = "/tmp/qtest.XXXXXX";
+static char *test_image;
 
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
@@ -608,7 +608,7 @@ int main(int argc, char **argv)
     int ret;
 
     /* Create a temporary raw image */
-    fd = mkstemp(test_image);
+    fd = g_file_open_tmp("qtest.XXXXXX", &test_image, NULL);
     g_assert(fd >= 0);
     ret = ftruncate(fd, TEST_IMAGE_SIZE);
     g_assert(ret == 0);
@@ -640,6 +640,7 @@ int main(int argc, char **argv)
     /* Cleanup */
     qtest_end();
     unlink(test_image);
+    g_free(test_image);
 
     return ret;
 }

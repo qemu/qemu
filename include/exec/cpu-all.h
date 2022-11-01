@@ -262,6 +262,12 @@ extern const TargetPageBits target_page;
 #define PAGE_TARGET_1  0x0200
 #define PAGE_TARGET_2  0x0400
 
+/*
+ * For linux-user, indicates that the page is mapped with the same semantics
+ * in both guest and host.
+ */
+#define PAGE_PASSTHROUGH 0x0800
+
 #if defined(CONFIG_USER_ONLY)
 void page_dump(FILE *f);
 
@@ -275,28 +281,18 @@ void page_reset_target_data(target_ulong start, target_ulong end);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 
 /**
- * page_alloc_target_data(address, size)
+ * page_get_target_data(address)
  * @address: guest virtual address
- * @size: size of data to allocate
  *
- * Allocate @size bytes of out-of-band data to associate with the
- * guest page at @address.  If the page is not mapped, NULL will
- * be returned.  If there is existing data associated with @address,
- * no new memory will be allocated.
+ * Return TARGET_PAGE_DATA_SIZE bytes of out-of-band data to associate
+ * with the guest page at @address, allocating it if necessary.  The
+ * caller should already have verified that the address is valid.
  *
  * The memory will be freed when the guest page is deallocated,
  * e.g. with the munmap system call.
  */
-void *page_alloc_target_data(target_ulong address, size_t size);
-
-/**
- * page_get_target_data(address)
- * @address: guest virtual address
- *
- * Return any out-of-bound memory assocated with the guest page
- * at @address, as per page_alloc_target_data.
- */
-void *page_get_target_data(target_ulong address);
+void *page_get_target_data(target_ulong address)
+    __attribute__((returns_nonnull));
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);

@@ -176,7 +176,7 @@ static unsigned int pl011_get_baudrate(const PL011State *s)
 {
     uint64_t clk;
 
-    if (s->fbrd == 0) {
+    if (s->ibrd == 0) {
         return 0;
     }
 

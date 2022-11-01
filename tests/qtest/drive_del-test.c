@@ -123,12 +123,10 @@ static const char *qvirtio_get_dev_type(void)
 
 static void device_add(QTestState *qts)
 {
-    QDict *response;
-    char driver[32];
-    snprintf(driver, sizeof(driver), "virtio-blk-%s",
-             qvirtio_get_dev_type());
-
-    response = qtest_qmp(qts, "{'execute': 'device_add',"
+    g_autofree char *driver = g_strdup_printf("virtio-blk-%s",
+                                              qvirtio_get_dev_type());
+    QDict *response =
+               qtest_qmp(qts, "{'execute': 'device_add',"
                               " 'arguments': {"
                               "   'driver': %s,"
                               "   'drive': 'drive0',"
@@ -143,11 +141,7 @@ static void device_del(QTestState *qts, bool and_reset)
 {
     QDict *response;
 
-    response = qtest_qmp(qts, "{'execute': 'device_del',"
-                         " 'arguments': { 'id': 'dev0' } }");
-    g_assert(response);
-    g_assert(qdict_haskey(response, "return"));
-    qobject_unref(response);
+    qtest_qmp_device_del_send(qts, "dev0");
 
     if (and_reset) {
         response = qtest_qmp(qts, "{'execute': 'system_reset' }");
@@ -258,6 +252,27 @@ static void test_cli_device_del(void)
     qtest_quit(qts);
 }
 
+static void test_cli_device_del_q35(void)
+{
+    QTestState *qts;
+
+    /*
+     * -drive/-device and device_del.  Start with a drive used by a
+     * device that unplugs after reset.
+     */
+    qts = qtest_initf("-drive if=none,id=drive0,file=null-co://,"
+                      "file.read-zeroes=on,format=raw "
+                      "-machine q35 -device pcie-root-port,id=p1 "
+                      "-device pcie-pci-bridge,bus=p1,id=b1 "
+                      "-device virtio-blk-%s,drive=drive0,bus=b1,id=dev0",
+                      qvirtio_get_dev_type());
+
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
 static void test_empty_device_del(void)
 {
     QTestState *qts;
@@ -294,6 +309,43 @@ static void test_device_add_and_del(void)
     qtest_quit(qts);
 }
 
+static void device_add_q35(QTestState *qts)
+{
+    g_autofree char *driver = g_strdup_printf("virtio-blk-%s",
+                                              qvirtio_get_dev_type());
+    QDict *response =
+               qtest_qmp(qts, "{'execute': 'device_add',"
+                              " 'arguments': {"
+                              "   'driver': %s,"
+                              "   'drive': 'drive0',"
+                              "   'id': 'dev0',"
+                              "   'bus': 'b1'"
+                              "}}", driver);
+    g_assert(response);
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+}
+
+static void test_device_add_and_del_q35(void)
+{
+    QTestState *qts;
+
+    /*
+     * -drive/device_add and device_del.  Start with a drive used by a
+     * device that unplugs after reset.
+     */
+    qts = qtest_initf("-machine q35 -device pcie-root-port,id=p1 "
+                     "-device pcie-pci-bridge,bus=p1,id=b1 "
+                     "-drive if=none,id=drive0,file=null-co://,"
+                     "file.read-zeroes=on,format=raw");
+
+    device_add_q35(qts);
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
 static void test_drive_add_device_add_and_del(void)
 {
     QTestState *qts;
@@ -318,6 +370,25 @@ static void test_drive_add_device_add_and_del(void)
     qtest_quit(qts);
 }
 
+static void test_drive_add_device_add_and_del_q35(void)
+{
+    QTestState *qts;
+
+    qts = qtest_init("-machine q35 -device pcie-root-port,id=p1 "
+                     "-device pcie-pci-bridge,bus=p1,id=b1");
+
+    /*
+     * drive_add/device_add and device_del.  The drive is used by a
+     * device that unplugs after reset.
+     */
+    drive_add_with_media(qts);
+    device_add_q35(qts);
+    device_del(qts, true);
+    g_assert(!has_drive(qts));
+
+    qtest_quit(qts);
+}
+
 static void test_blockdev_add_device_add_and_del(void)
 {
     QTestState *qts;
@@ -331,11 +402,30 @@ static void test_blockdev_add_device_add_and_del(void)
     qts = qtest_init(machine_addition);
 
     /*
-     * blockdev_add/device_add and device_del.  The it drive is used by a
+     * blockdev_add/device_add and device_del. The drive is used by a
      * device that unplugs after reset, but it doesn't go away.
      */
     blockdev_add_with_media(qts);
     device_add(qts);
+    device_del(qts, true);
+    g_assert(has_blockdev(qts));
+
+    qtest_quit(qts);
+}
+
+static void test_blockdev_add_device_add_and_del_q35(void)
+{
+    QTestState *qts;
+
+    qts = qtest_init("-machine q35 -device pcie-root-port,id=p1 "
+                     "-device pcie-pci-bridge,bus=p1,id=b1");
+
+    /*
+     * blockdev_add/device_add and device_del. The drive is used by a
+     * device that unplugs after reset, but it doesn't go away.
+     */
+    blockdev_add_with_media(qts);
+    device_add_q35(qts);
     device_del(qts, true);
     g_assert(has_blockdev(qts));
 
@@ -363,6 +453,17 @@ int main(int argc, char **argv)
                        test_empty_device_del);
         qtest_add_func("/device_del/blockdev",
                        test_blockdev_add_device_add_and_del);
+
+        if (qtest_has_machine("q35")) {
+            qtest_add_func("/device_del/drive/cli_device_q35",
+                           test_cli_device_del_q35);
+            qtest_add_func("/device_del/drive/device_add_q35",
+                           test_device_add_and_del_q35);
+            qtest_add_func("/device_del/drive/drive_add_device_add_q35",
+                           test_drive_add_device_add_and_del_q35);
+            qtest_add_func("/device_del/blockdev_q35",
+                           test_blockdev_add_device_add_and_del_q35);
+        }
     }
 
     return g_test_run();

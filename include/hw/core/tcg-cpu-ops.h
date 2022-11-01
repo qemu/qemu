@@ -31,6 +31,17 @@ struct TCGCPUOps {
      * function to restore all the state, and register it here.
      */
     void (*synchronize_from_tb)(CPUState *cpu, const TranslationBlock *tb);
+    /**
+     * @restore_state_to_opc: Synchronize state from INDEX_op_start_insn
+     *
+     * This is called when we unwind state in the middle of a TB,
+     * usually before raising an exception.  Set all part of the CPU
+     * state which are tracked insn-by-insn in the target-specific
+     * arguments to start_insn, passed as @data.
+     */
+    void (*restore_state_to_opc)(CPUState *cpu, const TranslationBlock *tb,
+                                 const uint64_t *data);
+
     /** @cpu_exec_enter: Callback for cpu_exec preparation */
     void (*cpu_exec_enter)(CPUState *cpu);
     /** @cpu_exec_exit: Callback for cpu_exec cleanup */

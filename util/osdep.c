@@ -538,18 +538,22 @@ int socket_init(void)
 
 
 #ifndef CONFIG_IOVEC
-/* helper function for iov_send_recv() */
 static ssize_t
 readv_writev(int fd, const struct iovec *iov, int iov_cnt, bool do_write)
 {
     unsigned i = 0;
     ssize_t ret = 0;
+    ssize_t off = 0;
     while (i < iov_cnt) {
         ssize_t r = do_write
-            ? write(fd, iov[i].iov_base, iov[i].iov_len)
-            : read(fd, iov[i].iov_base, iov[i].iov_len);
+            ? write(fd, iov[i].iov_base + off, iov[i].iov_len - off)
+            : read(fd, iov[i].iov_base + off, iov[i].iov_len - off);
         if (r > 0) {
             ret += r;
+            off += r;
+            if (off < iov[i].iov_len) {
+                continue;
+            }
         } else if (!r) {
             break;
         } else if (errno == EINTR) {
@@ -562,6 +566,7 @@ readv_writev(int fd, const struct iovec *iov, int iov_cnt, bool do_write)
             }
             break;
         }
+        off = 0;
         i++;
     }
     return ret;
