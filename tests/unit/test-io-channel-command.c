@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <glib/gstdio.h>
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
 #include "qapi/error.h"
@@ -26,32 +27,32 @@
 
 #define TEST_FIFO "test-io-channel-command.fifo"
 
-#define SOCAT_SRC "PIPE:" TEST_FIFO ",wronly"
-#define SOCAT_DST "PIPE:" TEST_FIFO ",rdonly"
-
 static char *socat = NULL;
 
 static void test_io_channel_command_fifo(bool async)
 {
+    g_autofree gchar *tmpdir = g_dir_make_tmp("qemu-test-io-channel.XXXXXX", NULL);
+    g_autofree gchar *fifo = g_strdup_printf("%s/%s", tmpdir, TEST_FIFO);
+    g_autoptr(GString) srcargs = g_string_new(socat);
+    g_autoptr(GString) dstargs = g_string_new(socat);
+    g_auto(GStrv) srcargv;
+    g_auto(GStrv) dstargv;
     QIOChannel *src, *dst;
     QIOChannelTest *test;
-    const char *srcargv[] = {
-        socat, "-", SOCAT_SRC, NULL,
-    };
-    const char *dstargv[] = {
-        socat, SOCAT_DST, "-", NULL,
-    };
 
-    if (!socat) {
-        g_test_skip("socat is not found in PATH");
-        return;
-    }
+    g_string_append_printf(srcargs, " - PIPE:%s,wronly", fifo);
+    g_string_append_printf(dstargs, " PIPE:%s,rdonly -", fifo);
 
-    unlink(TEST_FIFO);
-    src = QIO_CHANNEL(qio_channel_command_new_spawn(srcargv,
+    srcargv = g_strsplit(srcargs->str, " ", -1);
+    dstargv = g_strsplit(dstargs->str, " ", -1);
+
+    src = QIO_CHANNEL(qio_channel_command_new_spawn((const char **) srcargv,
                                                     O_WRONLY,
                                                     &error_abort));
-    dst = QIO_CHANNEL(qio_channel_command_new_spawn(dstargv,
+    /* try to avoid a race to create the socket */
+    g_usleep(1000);
+
+    dst = QIO_CHANNEL(qio_channel_command_new_spawn((const char **) dstargv,
                                                     O_RDONLY,
                                                     &error_abort));
 
@@ -62,17 +63,27 @@ static void test_io_channel_command_fifo(bool async)
     object_unref(OBJECT(src));
     object_unref(OBJECT(dst));
 
-    unlink(TEST_FIFO);
+    g_rmdir(tmpdir);
 }
 
 
 static void test_io_channel_command_fifo_async(void)
 {
+    if (!socat) {
+        g_test_skip("socat is not found in PATH");
+        return;
+    }
+
     test_io_channel_command_fifo(true);
 }
 
 static void test_io_channel_command_fifo_sync(void)
 {
+    if (!socat) {
+        g_test_skip("socat is not found in PATH");
+        return;
+    }
+
     test_io_channel_command_fifo(false);
 }
 

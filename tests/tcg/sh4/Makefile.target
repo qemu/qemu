@@ -12,15 +12,3 @@ run-signals: signals
 	$(call skip-test, $<, "BROKEN")
 run-plugin-signals-with-%:
 	$(call skip-test, $<, "BROKEN")
-
-# This test is currently broken: https://gitlab.com/qemu-project/qemu/-/issues/704
-run-linux-test: linux-test
-	$(call skip-test, $<, "BROKEN")
-run-plugin-linux-test-with-%:
-	$(call skip-test, $<, "BROKEN")
-
-# This test is currently unreliable: https://gitlab.com/qemu-project/qemu/-/issues/856
-run-threadcount:
-	$(call skip-test, $<, "BROKEN")
-run-plugin-threadcount-with-%:
-	$(call skip-test, $<, "BROKEN")
