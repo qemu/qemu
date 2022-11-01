@@ -75,33 +75,37 @@ FIELD(FCSR0, CAUSE, 24, 5)
 #define FP_DIV0           8
 #define FP_INVALID        16
 
-#define  EXCCODE_EXTERNAL_INT   64   /* plus external interrupt number */
-#define  EXCCODE_INT                 0
-#define  EXCCODE_PIL                 1
-#define  EXCCODE_PIS                 2
-#define  EXCCODE_PIF                 3
-#define  EXCCODE_PME                 4
-#define  EXCCODE_PNR                 5
-#define  EXCCODE_PNX                 6
-#define  EXCCODE_PPI                 7
-#define  EXCCODE_ADEF                8 /* Different exception subcode */
-#define  EXCCODE_ADEM                8
-#define  EXCCODE_ALE                 9
-#define  EXCCODE_BCE                 10
-#define  EXCCODE_SYS                 11
-#define  EXCCODE_BRK                 12
-#define  EXCCODE_INE                 13
-#define  EXCCODE_IPE                 14
-#define  EXCCODE_FPD                 15
-#define  EXCCODE_SXD                 16
-#define  EXCCODE_ASXD                17
-#define  EXCCODE_FPE                 18 /* Different exception subcode */
-#define  EXCCODE_VFPE                18
-#define  EXCCODE_WPEF                19 /* Different exception subcode */
-#define  EXCCODE_WPEM                19
-#define  EXCCODE_BTD                 20
-#define  EXCCODE_BTE                 21
-#define  EXCCODE_DBP                 26 /* Reserved subcode used for debug */
+#define EXCODE(code, subcode) ( ((subcode) << 6) | (code) )
+#define EXCODE_MCODE(code)    ( (code) & 0x3f )
+#define EXCODE_SUBCODE(code)  ( (code) >> 6 )
+
+#define  EXCCODE_EXTERNAL_INT        64   /* plus external interrupt number */
+#define  EXCCODE_INT                 EXCODE(0, 0)
+#define  EXCCODE_PIL                 EXCODE(1, 0)
+#define  EXCCODE_PIS                 EXCODE(2, 0)
+#define  EXCCODE_PIF                 EXCODE(3, 0)
+#define  EXCCODE_PME                 EXCODE(4, 0)
+#define  EXCCODE_PNR                 EXCODE(5, 0)
+#define  EXCCODE_PNX                 EXCODE(6, 0)
+#define  EXCCODE_PPI                 EXCODE(7, 0)
+#define  EXCCODE_ADEF                EXCODE(8, 0) /* Different exception subcode */
+#define  EXCCODE_ADEM                EXCODE(8, 1)
+#define  EXCCODE_ALE                 EXCODE(9, 0)
+#define  EXCCODE_BCE                 EXCODE(10, 0)
+#define  EXCCODE_SYS                 EXCODE(11, 0)
+#define  EXCCODE_BRK                 EXCODE(12, 0)
+#define  EXCCODE_INE                 EXCODE(13, 0)
+#define  EXCCODE_IPE                 EXCODE(14, 0)
+#define  EXCCODE_FPD                 EXCODE(15, 0)
+#define  EXCCODE_SXD                 EXCODE(16, 0)
+#define  EXCCODE_ASXD                EXCODE(17, 0)
+#define  EXCCODE_FPE                 EXCODE(18, 0) /* Different exception subcode */
+#define  EXCCODE_VFPE                EXCODE(18, 1)
+#define  EXCCODE_WPEF                EXCODE(19, 0) /* Different exception subcode */
+#define  EXCCODE_WPEM                EXCODE(19, 1)
+#define  EXCCODE_BTD                 EXCODE(20, 0)
+#define  EXCCODE_BTE                 EXCODE(21, 0)
+#define  EXCCODE_DBP                 EXCODE(26, 0) /* Reserved subcode used for debug */
 
 /* cpucfg[0] bits */
 FIELD(CPUCFG0, PRID, 0, 32)
