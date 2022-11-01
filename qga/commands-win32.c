@@ -872,11 +872,19 @@ static void get_single_disk_info(int disk_number,
      * if that doesn't hold since that suggests some other unexpected
      * breakage
      */
+    if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
+        || disk->bus_type == GUEST_DISK_BUS_TYPE_IDE
+        || disk->bus_type == GUEST_DISK_BUS_TYPE_RAID
+        /* This bus type is not supported before Windows Server 2003 SP1 */
+        || disk->bus_type == GUEST_DISK_BUS_TYPE_SAS
+    ) {
     disk->pci_controller = get_pci_info(disk_number, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto err_close;
     }
+    }
+    
     if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
             || disk->bus_type == GUEST_DISK_BUS_TYPE_IDE
             || disk->bus_type == GUEST_DISK_BUS_TYPE_RAID
