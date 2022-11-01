@@ -25,6 +25,7 @@
  */
 #define DRIVER_IO_URING "io_uring"
 #define DRIVER_NVME_IO_URING "nvme-io_uring"
+#define DRIVER_VIRTIO_BLK_VFIO_PCI "virtio-blk-vfio-pci"
 #define DRIVER_VIRTIO_BLK_VHOST_USER "virtio-blk-vhost-user"
 #define DRIVER_VIRTIO_BLK_VHOST_VDPA "virtio-blk-vhost-vdpa"
 
@@ -639,12 +640,17 @@ static int blkio_io_uring_open(BlockDriverState *bs, QDict *options, int flags,
 static int blkio_nvme_io_uring(BlockDriverState *bs, QDict *options, int flags,
                                Error **errp)
 {
-    const char *filename = qdict_get_str(options, "filename");
+    const char *path = qdict_get_try_str(options, "path");
     BDRVBlkioState *s = bs->opaque;
     int ret;
 
-    ret = blkio_set_str(s->blkio, "path", filename);
-    qdict_del(options, "filename");
+    if (!path) {
+        error_setg(errp, "missing 'path' option");
+        return -EINVAL;
+    }
+
+    ret = blkio_set_str(s->blkio, "path", path);
+    qdict_del(options, "path");
     if (ret < 0) {
         error_setg_errno(errp, -ret, "failed to set path: %s",
                          blkio_get_error_msg());
@@ -704,6 +710,8 @@ static int blkio_file_open(BlockDriverState *bs, QDict *options, int flags,
         ret = blkio_io_uring_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_NVME_IO_URING) == 0) {
         ret = blkio_nvme_io_uring(bs, options, flags, errp);
+    } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VFIO_PCI) == 0) {
+        ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_USER) == 0) {
         ret = blkio_virtio_blk_common_open(bs, options, flags, errp);
     } else if (strcmp(blkio_driver, DRIVER_VIRTIO_BLK_VHOST_VDPA) == 0) {
@@ -845,6 +853,31 @@ static int64_t blkio_getlength(BlockDriverState *bs)
     return capacity;
 }
 
+static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
+                                       bool exact, PreallocMode prealloc,
+                                       BdrvRequestFlags flags, Error **errp)
+{
+    int64_t current_length;
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode '%s'",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    current_length = blkio_getlength(bs);
+
+    if (offset > current_length) {
+        error_setg(errp, "Cannot grow device");
+        return -EINVAL;
+    } else if (exact && offset != current_length) {
+        error_setg(errp, "Cannot resize device");
+        return -ENOTSUP;
+    }
+
+    return 0;
+}
+
 static int blkio_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
@@ -960,10 +993,12 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
     { \
         .format_name             = name, \
         .protocol_name           = name, \
+        .has_variable_length     = true, \
         .instance_size           = sizeof(BDRVBlkioState), \
         .bdrv_file_open          = blkio_file_open, \
         .bdrv_close              = blkio_close, \
         .bdrv_getlength          = blkio_getlength, \
+        .bdrv_co_truncate        = blkio_truncate, \
         .bdrv_get_info           = blkio_get_info, \
         .bdrv_attach_aio_context = blkio_attach_aio_context, \
         .bdrv_detach_aio_context = blkio_detach_aio_context, \
@@ -986,7 +1021,10 @@ static BlockDriver bdrv_io_uring = BLKIO_DRIVER(
 
 static BlockDriver bdrv_nvme_io_uring = BLKIO_DRIVER(
     DRIVER_NVME_IO_URING,
-    .bdrv_needs_filename = true,
+);
+
+static BlockDriver bdrv_virtio_blk_vfio_pci = BLKIO_DRIVER(
+    DRIVER_VIRTIO_BLK_VFIO_PCI
 );
 
 static BlockDriver bdrv_virtio_blk_vhost_user = BLKIO_DRIVER(
@@ -1001,6 +1039,7 @@ static void bdrv_blkio_init(void)
 {
     bdrv_register(&bdrv_io_uring);
     bdrv_register(&bdrv_nvme_io_uring);
+    bdrv_register(&bdrv_virtio_blk_vfio_pci);
     bdrv_register(&bdrv_virtio_blk_vhost_user);
     bdrv_register(&bdrv_virtio_blk_vhost_vdpa);
 }
