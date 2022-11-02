@@ -323,7 +323,7 @@ static void boston_register_types(void)
 }
 type_init(boston_register_types)
 
-static void gen_firmware(uint32_t *p, hwaddr kernel_entry, hwaddr fdt_addr)
+static void gen_firmware(void *p, hwaddr kernel_entry, hwaddr fdt_addr)
 {
     uint64_t regaddr;
 
