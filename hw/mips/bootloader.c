@@ -54,14 +54,30 @@ static bool bootcpu_supports_isa(uint64_t isa_mask)
     return cpu_supports_isa(&MIPS_CPU(first_cpu)->env, isa_mask);
 }
 
+static void st_nm32_p(void **ptr, uint32_t insn)
+{
+    uint16_t *p = *ptr;
+
+    stw_p(p, insn >> 16);
+    p++;
+    stw_p(p, insn >> 0);
+    p++;
+
+    *ptr = p;
+}
+
 /* Base types */
 static void bl_gen_nop(void **ptr)
 {
-    uint32_t *p = *ptr;
+    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+        st_nm32_p(ptr, 0x8000c000);
+    } else {
+        uint32_t *p = *ptr;
 
-    stl_p(p, 0);
-    p++;
-    *ptr = p;
+        stl_p(p, 0);
+        p++;
+        *ptr = p;
+    }
 }
 
 static void bl_gen_r_type(void **ptr, uint8_t opcode,
