@@ -1258,7 +1258,7 @@ if test "$stack_protector" != "no"; then
   cat > $TMPC << EOF
 int main(int argc, char *argv[])
 {
-    char arr[64], *p = arr, *c = argv[0];
+    char arr[64], *p = arr, *c = argv[argc - 1];
     while (*c) {
         *p++ = *c++;
     }
@@ -1607,7 +1607,7 @@ fi
 
 if test "$safe_stack" = "yes"; then
 cat > $TMPC << EOF
-int main(int argc, char *argv[])
+int main(void)
 {
 #if ! __has_feature(safe_stack)
 #error SafeStack Disabled
@@ -1629,7 +1629,7 @@ EOF
   fi
 else
 cat > $TMPC << EOF
-int main(int argc, char *argv[])
+int main(void)
 {
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
@@ -1675,7 +1675,7 @@ static const int Z = 1;
 #define TAUT(X) ((X) == Z)
 #define PAREN(X, Y) (X == Y)
 #define ID(X) (X)
-int main(int argc, char *argv[])
+int main(void)
 {
     int x = 0, y = 0;
     x = ID(x);
