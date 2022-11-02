@@ -806,8 +806,10 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     virtio_blk_handle_vq(s, vq);
 }
 
-void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
+static void virtio_blk_dma_restart_bh(void *opaque)
 {
+    VirtIOBlock *s = opaque;
+
     VirtIOBlockReq *req = s->rq;
     MultiReqBuffer mrb = {};
 
@@ -834,43 +836,27 @@ void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s, &mrb);
     }
-    if (is_bh) {
-        blk_dec_in_flight(s->conf.conf.blk);
-    }
+
+    /* Paired with inc in virtio_blk_dma_restart_cb() */
+    blk_dec_in_flight(s->conf.conf.blk);
+
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
-}
-
-static void virtio_blk_dma_restart_bh(void *opaque)
-{
-    VirtIOBlock *s = opaque;
-
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
-
-    virtio_blk_process_queued_requests(s, true);
 }
 
 static void virtio_blk_dma_restart_cb(void *opaque, bool running,
                                       RunState state)
 {
     VirtIOBlock *s = opaque;
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
-    VirtioBusState *bus = VIRTIO_BUS(qbus);
 
     if (!running) {
         return;
     }
 
-    /*
-     * If ioeventfd is enabled, don't schedule the BH here as queued
-     * requests will be processed while starting the data plane.
-     */
-    if (!s->bh && !virtio_bus_ioeventfd_enabled(bus)) {
-        s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
-                           virtio_blk_dma_restart_bh, s);
-        blk_inc_in_flight(s->conf.conf.blk);
-        qemu_bh_schedule(s->bh);
-    }
+    /* Paired with dec in virtio_blk_dma_restart_bh() */
+    blk_inc_in_flight(s->conf.conf.blk);
+
+    aio_bh_schedule_oneshot(blk_get_aio_context(s->conf.conf.blk),
+            virtio_blk_dma_restart_bh, s);
 }
 
 static void virtio_blk_reset(VirtIODevice *vdev)
@@ -1213,7 +1199,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
+    /*
+     * This must be after virtio_init() so virtio_blk_dma_restart_cb() gets
+     * called after ->start_ioeventfd() has already set blk's AioContext.
+     */
+    s->change =
+        qdev_add_vm_change_state_handler(dev, virtio_blk_dma_restart_cb, s);
+
     blk_ram_registrar_init(&s->blk_ram_registrar, s->blk);
     blk_set_dev_ops(s->blk, &virtio_block_ops, s);
 
