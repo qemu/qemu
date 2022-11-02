@@ -1381,7 +1381,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     descaddr |= (address >> (stride * (4 - level))) & indexmask;
     descaddr &= ~7ULL;
     nstable = extract32(tableattrs, 4, 1);
-    if (!nstable) {
+    if (nstable) {
         /*
          * Stage2_S -> Stage2 or Phys_S -> Phys_NS
          * Assert that the non-secure idx are even, and relative order.
@@ -2695,6 +2695,13 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
     bool is_secure = ptw->in_secure;
     ARMMMUIdx s1_mmu_idx;
 
+    /*
+     * The page table entries may downgrade secure to non-secure, but
+     * cannot upgrade an non-secure translation regime's attributes
+     * to secure.
+     */
+    result->f.attrs.secure = is_secure;
+
     switch (mmu_idx) {
     case ARMMMUIdx_Phys_S:
     case ARMMMUIdx_Phys_NS:
@@ -2736,12 +2743,6 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
         break;
     }
 
-    /*
-     * The page table entries may downgrade secure to non-secure, but
-     * cannot upgrade an non-secure translation regime's attributes
-     * to secure.
-     */
-    result->f.attrs.secure = is_secure;
     result->f.attrs.user = regime_is_user(env, mmu_idx);
 
     /*
