@@ -3034,7 +3034,8 @@ static uint16_t nvme_copy(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
-    if (ns->pif && format != 0x1) {
+    if ((ns->pif == 0x0 && format != 0x0) ||
+        (ns->pif != 0x0 && format != 0x1)) {
         status = NVME_INVALID_FORMAT | NVME_DNR;
         goto invalid;
     }
