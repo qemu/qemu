@@ -553,12 +553,12 @@ static bool get_physical_address(CPUX86State *env, vaddr addr,
         break;
 
     default:
-        in.cr3 = env->cr[3];
-        in.mmu_idx = mmu_idx;
-        in.ptw_idx = use_stage2 ? MMU_NESTED_IDX : MMU_PHYS_IDX;
-        in.pg_mode = get_pg_mode(env);
+        if (likely(env->cr[0] & CR0_PG_MASK)) {
+            in.cr3 = env->cr[3];
+            in.mmu_idx = mmu_idx;
+            in.ptw_idx = use_stage2 ? MMU_NESTED_IDX : MMU_PHYS_IDX;
+            in.pg_mode = get_pg_mode(env);
 
-        if (likely(in.pg_mode)) {
             if (in.pg_mode & PG_MODE_LMA) {
                 /* test virtual address sign extension */
                 int shift = in.pg_mode & PG_MODE_LA57 ? 56 : 47;
