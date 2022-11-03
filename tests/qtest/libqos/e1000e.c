@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/net/e1000_regs.h"
+#include "hw/pci/pci_ids.h"
 #include "../libqtest.h"
 #include "pci-pc.h"
 #include "qemu/sockets.h"
@@ -217,8 +218,8 @@ static void *e1000e_pci_create(void *pci_bus, QGuestAllocator *alloc,
 static void e1000e_register_nodes(void)
 {
     QPCIAddress addr = {
-        .vendor_id = 0x8086,
-        .device_id = 0x10D3,
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = E1000_DEV_ID_82574L,
     };
 
     /* FIXME: every test using this node needs to setup a -netdev socket,id=hs0
