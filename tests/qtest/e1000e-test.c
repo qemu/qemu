@@ -33,34 +33,11 @@
 #include "qemu/bitops.h"
 #include "libqos/libqos-malloc.h"
 #include "libqos/e1000e.h"
+#include "hw/net/e1000_regs.h"
 
 static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
 {
-    struct {
-        uint64_t buffer_addr;
-        union {
-            uint32_t data;
-            struct {
-                uint16_t length;
-                uint8_t cso;
-                uint8_t cmd;
-            } flags;
-        } lower;
-        union {
-            uint32_t data;
-            struct {
-                uint8_t status;
-                uint8_t css;
-                uint16_t special;
-            } fields;
-        } upper;
-    } descr;
-
-    static const uint32_t dtyp_data = BIT(20);
-    static const uint32_t dtyp_ext  = BIT(29);
-    static const uint32_t dcmd_rs   = BIT(27);
-    static const uint32_t dcmd_eop  = BIT(24);
-    static const uint32_t dsta_dd   = BIT(0);
+    struct e1000_tx_desc descr;
     static const int data_len = 64;
     char buffer[64];
     int ret;
@@ -73,10 +50,10 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
     /* Prepare TX descriptor */
     memset(&descr, 0, sizeof(descr));
     descr.buffer_addr = cpu_to_le64(data);
-    descr.lower.data = cpu_to_le32(dcmd_rs   |
-                                   dcmd_eop  |
-                                   dtyp_ext  |
-                                   dtyp_data |
+    descr.lower.data = cpu_to_le32(E1000_TXD_CMD_RS   |
+                                   E1000_TXD_CMD_EOP  |
+                                   E1000_TXD_CMD_DEXT |
+                                   E1000_TXD_DTYP_D   |
                                    data_len);
 
     /* Put descriptor to the ring */
@@ -86,7 +63,8 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
     e1000e_wait_isr(d, E1000E_TX0_MSG_ID);
 
     /* Check DD bit */
-    g_assert_cmphex(le32_to_cpu(descr.upper.data) & dsta_dd, ==, dsta_dd);
+    g_assert_cmphex(le32_to_cpu(descr.upper.data) & E1000_TXD_STAT_DD, ==,
+                    E1000_TXD_STAT_DD);
 
     /* Check data sent to the backend */
     ret = recv(test_sockets[0], &recv_len, sizeof(recv_len), 0);
@@ -101,31 +79,7 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
 
 static void e1000e_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
 {
-    union {
-        struct {
-            uint64_t buffer_addr;
-            uint64_t reserved;
-        } read;
-        struct {
-            struct {
-                uint32_t mrq;
-                union {
-                    uint32_t rss;
-                    struct {
-                        uint16_t ip_id;
-                        uint16_t csum;
-                    } csum_ip;
-                } hi_dword;
-            } lower;
-            struct {
-                uint32_t status_error;
-                uint16_t length;
-                uint16_t vlan;
-            } upper;
-        } wb;
-    } descr;
-
-    static const uint32_t esta_dd = BIT(0);
+    union e1000_rx_desc_extended descr;
 
     char test[] = "TEST";
     int len = htonl(sizeof(test));
@@ -162,7 +116,7 @@ static void e1000e_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator
 
     /* Check DD bit */
     g_assert_cmphex(le32_to_cpu(descr.wb.upper.status_error) &
-        esta_dd, ==, esta_dd);
+        E1000_RXD_STAT_DD, ==, E1000_RXD_STAT_DD);
 
     /* Check data sent to the backend */
     memread(data, buffer, sizeof(buffer));
