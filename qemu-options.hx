@@ -4790,6 +4790,25 @@ HXCOMM Internal use
 DEF("qtest", HAS_ARG, QEMU_OPTION_qtest, "", QEMU_ARCH_ALL)
 DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log, "", QEMU_ARCH_ALL)
 
+#ifdef __linux__
+DEF("async-teardown", 0, QEMU_OPTION_asyncteardown,
+    "-async-teardown enable asynchronous teardown\n",
+    QEMU_ARCH_ALL)
+#endif
+SRST
+``-async-teardown``
+    Enable asynchronous teardown. A new process called "cleanup/<QEMU_PID>"
+    will be created at startup sharing the address space with the main qemu
+    process, using clone. It will wait for the main qemu process to
+    terminate completely, and then exit.
+    This allows qemu to terminate very quickly even if the guest was
+    huge, leaving the teardown of the address space to the cleanup
+    process. Since the cleanup process shares the same cgroups as the
+    main qemu process, accounting is performed correctly. This only
+    works if the cleanup process is not forcefully killed with SIGKILL
+    before the main qemu process has terminated completely.
+ERST
+
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
     "-msg [timestamp[=on|off]][,guest-name=[on|off]]\n"
     "                control error message format\n"
