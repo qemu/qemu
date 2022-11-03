@@ -764,10 +764,12 @@ static void do_cpu_reset(void *opaque)
                     }
                     if (cpu_isar_feature(aa64_sve, cpu)) {
                         env->cp15.cptr_el[3] |= R_CPTR_EL3_EZ_MASK;
+                        env->vfp.zcr_el[3] = 0xf;
                     }
                     if (cpu_isar_feature(aa64_sme, cpu)) {
                         env->cp15.cptr_el[3] |= R_CPTR_EL3_ESM_MASK;
                         env->cp15.scr_el3 |= SCR_ENTP2;
+                        env->vfp.smcr_el[3] = 0xf;
                     }
                     /* AArch64 kernels never boot in secure mode */
                     assert(!info->secure_boot);
