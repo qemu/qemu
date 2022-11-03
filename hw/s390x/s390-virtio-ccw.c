@@ -43,6 +43,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/s390x/pv.h"
 #include "migration/blocker.h"
+#include "qapi/visitor.h"
 
 static Error *pv_mig_blocker;
 
@@ -589,38 +590,6 @@ static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
     return newsz;
 }
 
-static void ccw_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    NMIClass *nc = NMI_CLASS(oc);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
-    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
-
-    s390mc->ri_allowed = true;
-    s390mc->cpu_model_allowed = true;
-    s390mc->css_migration_enabled = true;
-    s390mc->hpage_1m_allowed = true;
-    mc->init = ccw_init;
-    mc->reset = s390_machine_reset;
-    mc->block_default_type = IF_VIRTIO;
-    mc->no_cdrom = 1;
-    mc->no_floppy = 1;
-    mc->no_parallel = 1;
-    mc->no_sdcard = 1;
-    mc->max_cpus = S390_MAX_CPUS;
-    mc->has_hotpluggable_cpus = true;
-    assert(!mc->get_hotplug_handler);
-    mc->get_hotplug_handler = s390_get_hotplug_handler;
-    mc->cpu_index_to_instance_props = s390_cpu_index_to_props;
-    mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
-    /* it is overridden with 'host' cpu *in kvm_arch_init* */
-    mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
-    hc->plug = s390_machine_device_plug;
-    hc->unplug_request = s390_machine_device_unplug_request;
-    nc->nmi_monitor_handler = s390_nmi;
-    mc->default_ram_id = "s390.ram";
-}
-
 static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
@@ -710,18 +679,28 @@ bool hpage_1m_allowed(void)
     return get_machine_class()->hpage_1m_allowed;
 }
 
-static char *machine_get_loadparm(Object *obj, Error **errp)
+static void machine_get_loadparm(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+    char *str = g_strndup((char *) ms->loadparm, sizeof(ms->loadparm));
 
-    /* make a NUL-terminated string */
-    return g_strndup((char *) ms->loadparm, sizeof(ms->loadparm));
+    visit_type_str(v, name, &str, errp);
+    g_free(str);
 }
 
-static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
+static void machine_set_loadparm(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+    char *val;
     int i;
+
+    if (!visit_type_str(v, name, &val, errp)) {
+        return;
+    }
 
     for (i = 0; i < sizeof(ms->loadparm) && val[i]; i++) {
         uint8_t c = qemu_toupper(val[i]); /* mimic HMC */
@@ -740,34 +719,72 @@ static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
         ms->loadparm[i] = ' '; /* pad right with spaces */
     }
 }
-static inline void s390_machine_initfn(Object *obj)
-{
-    object_property_add_bool(obj, "aes-key-wrap",
-                             machine_get_aes_key_wrap,
-                             machine_set_aes_key_wrap);
-    object_property_set_description(obj, "aes-key-wrap",
-            "enable/disable AES key wrapping using the CPACF wrapping key");
-    object_property_set_bool(obj, "aes-key-wrap", true, NULL);
 
-    object_property_add_bool(obj, "dea-key-wrap",
-                             machine_get_dea_key_wrap,
-                             machine_set_dea_key_wrap);
-    object_property_set_description(obj, "dea-key-wrap",
+static void ccw_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
+
+    s390mc->ri_allowed = true;
+    s390mc->cpu_model_allowed = true;
+    s390mc->css_migration_enabled = true;
+    s390mc->hpage_1m_allowed = true;
+    mc->init = ccw_init;
+    mc->reset = s390_machine_reset;
+    mc->block_default_type = IF_VIRTIO;
+    mc->no_cdrom = 1;
+    mc->no_floppy = 1;
+    mc->no_parallel = 1;
+    mc->no_sdcard = 1;
+    mc->max_cpus = S390_MAX_CPUS;
+    mc->has_hotpluggable_cpus = true;
+    assert(!mc->get_hotplug_handler);
+    mc->get_hotplug_handler = s390_get_hotplug_handler;
+    mc->cpu_index_to_instance_props = s390_cpu_index_to_props;
+    mc->possible_cpu_arch_ids = s390_possible_cpu_arch_ids;
+    /* it is overridden with 'host' cpu *in kvm_arch_init* */
+    mc->default_cpu_type = S390_CPU_TYPE_NAME("qemu");
+    hc->plug = s390_machine_device_plug;
+    hc->unplug_request = s390_machine_device_unplug_request;
+    nc->nmi_monitor_handler = s390_nmi;
+    mc->default_ram_id = "s390.ram";
+
+    object_class_property_add_bool(oc, "aes-key-wrap",
+                                   machine_get_aes_key_wrap,
+                                   machine_set_aes_key_wrap);
+    object_class_property_set_description(oc, "aes-key-wrap",
+            "enable/disable AES key wrapping using the CPACF wrapping key");
+
+    object_class_property_add_bool(oc, "dea-key-wrap",
+                                   machine_get_dea_key_wrap,
+                                   machine_set_dea_key_wrap);
+    object_class_property_set_description(oc, "dea-key-wrap",
             "enable/disable DEA key wrapping using the CPACF wrapping key");
-    object_property_set_bool(obj, "dea-key-wrap", true, NULL);
-    object_property_add_str(obj, "loadparm",
-            machine_get_loadparm, machine_set_loadparm);
-    object_property_set_description(obj, "loadparm",
+
+    object_class_property_add(oc, "loadparm", "loadparm",
+                              machine_get_loadparm, machine_set_loadparm,
+                              NULL, NULL);
+    object_class_property_set_description(oc, "loadparm",
             "Up to 8 chars in set of [A-Za-z0-9. ] (lower case chars converted"
             " to upper case) to pass to machine loader, boot manager,"
             " and guest kernel");
 
-    object_property_add_bool(obj, "zpcii-disable",
-                             machine_get_zpcii_disable,
-                             machine_set_zpcii_disable);
-    object_property_set_description(obj, "zpcii-disable",
+    object_class_property_add_bool(oc, "zpcii-disable",
+                                   machine_get_zpcii_disable,
+                                   machine_set_zpcii_disable);
+    object_class_property_set_description(oc, "zpcii-disable",
             "disable zPCI interpretation facilties");
-    object_property_set_bool(obj, "zpcii-disable", false, NULL);
+}
+
+static inline void s390_machine_initfn(Object *obj)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(obj);
+
+    ms->aes_key_wrap = true;
+    ms->dea_key_wrap = true;
+    ms->zpcii_disable = false;
 }
 
 static const TypeInfo ccw_machine_info = {
