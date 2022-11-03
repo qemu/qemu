@@ -147,15 +147,20 @@ void cpu_loop(CPUHPPAState *env)
             force_sig_fault(TARGET_SIGSEGV, TARGET_SEGV_MAPERR, env->iaoq_f);
             break;
         case EXCP_ILL:
-            EXCP_DUMP(env, "qemu: got CPU exception 0x%x - aborting\n", trapnr);
-            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPN, env->iaoq_f);
+            EXCP_DUMP(env, "qemu: EXCP_ILL exception %#x\n", trapnr);
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->iaoq_f);
             break;
         case EXCP_PRIV_OPR:
-            EXCP_DUMP(env, "qemu: got CPU exception 0x%x - aborting\n", trapnr);
-            force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVOPC, env->iaoq_f);
+            /* check for glibc ABORT_INSTRUCTION "iitlbp %r0,(%sr0, %r0)" */
+            EXCP_DUMP(env, "qemu: EXCP_PRIV_OPR exception %#x\n", trapnr);
+            if (env->cr[CR_IIR] == 0x04000000) {
+		    force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->iaoq_f);
+            } else {
+		    force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVOPC, env->iaoq_f);
+            }
             break;
         case EXCP_PRIV_REG:
-            EXCP_DUMP(env, "qemu: got CPU exception 0x%x - aborting\n", trapnr);
+            EXCP_DUMP(env, "qemu: EXCP_PRIV_REG exception %#x\n", trapnr);
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVREG, env->iaoq_f);
             break;
         case EXCP_OVERFLOW:
@@ -166,6 +171,10 @@ void cpu_loop(CPUHPPAState *env)
             break;
         case EXCP_ASSIST:
             force_sig_fault(TARGET_SIGFPE, 0, env->iaoq_f);
+            break;
+        case EXCP_BREAK:
+            EXCP_DUMP(env, "qemu: EXCP_BREAK exception %#x\n", trapnr);
+            force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->iaoq_f & ~3);
             break;
         case EXCP_DEBUG:
             force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->iaoq_f);
