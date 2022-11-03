@@ -130,8 +130,8 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
 
     /* Check the device status - link and speed */
     val = e1000e_macreg_read(&d->e1000e, E1000_STATUS);
-    g_assert_cmphex(val & (E1000_STATUS_LU | E1000_STATUS_LAN_INIT_DONE),
-        ==, E1000_STATUS_LU | E1000_STATUS_LAN_INIT_DONE);
+    g_assert_cmphex(val & (E1000_STATUS_LU | E1000_STATUS_ASDV_1000),
+        ==, E1000_STATUS_LU | E1000_STATUS_ASDV_1000);
 
     /* Initialize TX/RX logic */
     e1000e_macreg_write(&d->e1000e, E1000_RCTL, 0);
