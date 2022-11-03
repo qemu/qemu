@@ -122,7 +122,7 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
 
     /* Reset the device */
     val = e1000e_macreg_read(&d->e1000e, E1000_CTRL);
-    e1000e_macreg_write(&d->e1000e, E1000_CTRL, val | E1000_CTRL_RST);
+    e1000e_macreg_write(&d->e1000e, E1000_CTRL, val | E1000_CTRL_RST | E1000_CTRL_SLU);
 
     /* Enable and configure MSI-X */
     qpci_msix_enable(&d->pci_dev);
