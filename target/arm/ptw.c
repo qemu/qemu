@@ -503,12 +503,11 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
  * @mmu_idx:     MMU index indicating required translation regime
  * @ap:          The 3-bit access permissions (AP[2:0])
  * @domain_prot: The 2-bit domain access permissions
+ * @is_user: TRUE if accessing from PL0
  */
-static int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
-                         int ap, int domain_prot)
+static int ap_to_rw_prot_is_user(CPUARMState *env, ARMMMUIdx mmu_idx,
+                         int ap, int domain_prot, bool is_user)
 {
-    bool is_user = regime_is_user(env, mmu_idx);
-
     if (domain_prot == 3) {
         return PAGE_READ | PAGE_WRITE;
     }
@@ -550,6 +549,20 @@ static int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
     default:
         g_assert_not_reached();
     }
+}
+
+/*
+ * Translate section/page access permissions to page R/W protection flags
+ * @env:         CPUARMState
+ * @mmu_idx:     MMU index indicating required translation regime
+ * @ap:          The 3-bit access permissions (AP[2:0])
+ * @domain_prot: The 2-bit domain access permissions
+ */
+static int ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx,
+                         int ap, int domain_prot)
+{
+   return ap_to_rw_prot_is_user(env, mmu_idx, ap, domain_prot,
+                                regime_is_user(env, mmu_idx));
 }
 
 /*
@@ -720,6 +733,7 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
     hwaddr phys_addr;
     uint32_t dacr;
     bool ns;
+    int user_prot;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -831,14 +845,24 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
                 goto do_fault;
             }
             result->f.prot = simple_ap_to_rw_prot(env, mmu_idx, ap >> 1);
+            user_prot = simple_ap_to_rw_prot_is_user(ap >> 1, 1);
         } else {
             result->f.prot = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
+            user_prot = ap_to_rw_prot_is_user(env, mmu_idx, ap, domain_prot, 1);
         }
         if (result->f.prot && !xn) {
             result->f.prot |= PAGE_EXEC;
         }
         if (!(result->f.prot & (1 << access_type))) {
             /* Access permission fault.  */
+            fi->type = ARMFault_Permission;
+            goto do_fault;
+        }
+        if (regime_is_pan(env, mmu_idx) &&
+            !regime_is_user(env, mmu_idx) &&
+            user_prot &&
+            access_type != MMU_INST_FETCH) {
+            /* Privileged Access Never fault */
             fi->type = ARMFault_Permission;
             goto do_fault;
         }
@@ -1357,7 +1381,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     descaddr |= (address >> (stride * (4 - level))) & indexmask;
     descaddr &= ~7ULL;
     nstable = extract32(tableattrs, 4, 1);
-    if (!nstable) {
+    if (nstable) {
         /*
          * Stage2_S -> Stage2 or Phys_S -> Phys_NS
          * Assert that the non-secure idx are even, and relative order.
@@ -2671,6 +2695,13 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
     bool is_secure = ptw->in_secure;
     ARMMMUIdx s1_mmu_idx;
 
+    /*
+     * The page table entries may downgrade secure to non-secure, but
+     * cannot upgrade an non-secure translation regime's attributes
+     * to secure.
+     */
+    result->f.attrs.secure = is_secure;
+
     switch (mmu_idx) {
     case ARMMMUIdx_Phys_S:
     case ARMMMUIdx_Phys_NS:
@@ -2712,12 +2743,6 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
         break;
     }
 
-    /*
-     * The page table entries may downgrade secure to non-secure, but
-     * cannot upgrade an non-secure translation regime's attributes
-     * to secure.
-     */
-    result->f.attrs.secure = is_secure;
     result->f.attrs.user = regime_is_user(env, mmu_idx);
 
     /*
@@ -2773,7 +2798,8 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
     if (regime_using_lpae_format(env, mmu_idx)) {
         return get_phys_addr_lpae(env, ptw, address, access_type, false,
                                   result, fi);
-    } else if (regime_sctlr(env, mmu_idx) & SCTLR_XP) {
+    } else if (arm_feature(env, ARM_FEATURE_V7) ||
+               regime_sctlr(env, mmu_idx) & SCTLR_XP) {
         return get_phys_addr_v6(env, ptw, address, access_type, result, fi);
     } else {
         return get_phys_addr_v5(env, ptw, address, access_type, result, fi);
