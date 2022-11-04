@@ -1048,7 +1048,7 @@ static void blockdev_do_action(TransactionAction *action, Error **errp)
 
     list.value = action;
     list.next = NULL;
-    qmp_transaction(&list, false, NULL, errp);
+    qmp_transaction(&list, NULL, errp);
 }
 
 void qmp_blockdev_snapshot_sync(const char *device, const char *node_name,
@@ -2289,11 +2289,11 @@ static TransactionProperties *get_transaction_properties(
  * Always run under BQL.
  */
 void qmp_transaction(TransactionActionList *dev_list,
-                     bool has_props,
                      struct TransactionProperties *props,
                      Error **errp)
 {
     TransactionActionList *dev_entry = dev_list;
+    bool has_props = !!props;
     JobTxn *block_job_txn = NULL;
     BlkActionState *state, *next;
     Error *local_err = NULL;
