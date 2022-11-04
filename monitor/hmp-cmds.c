@@ -1496,8 +1496,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
             }
         }
 
-        qmp_blockdev_change_medium(true, device, false, NULL, target,
-                                   !!arg, arg, true, force,
+        qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                    !!read_only, read_only_mode,
                                    &err);
     }

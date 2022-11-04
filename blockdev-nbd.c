@@ -173,8 +173,8 @@ void nbd_server_start_options(NbdServerOptions *arg, Error **errp)
 }
 
 void qmp_nbd_server_start(SocketAddressLegacy *addr,
-                          bool has_tls_creds, const char *tls_creds,
-                          bool has_tls_authz, const char *tls_authz,
+                          const char *tls_creds,
+                          const char *tls_authz,
                           bool has_max_connections, uint32_t max_connections,
                           Error **errp)
 {
@@ -200,8 +200,7 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
      * block-export-add would default to the node-name, but we may have to use
      * the device name as a default here for compatibility.
      */
-    if (!arg->has_name) {
-        arg->has_name = true;
+    if (!arg->name) {
         arg->name = g_strdup(arg->device);
     }
 
@@ -215,7 +214,7 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     };
     QAPI_CLONE_MEMBERS(BlockExportOptionsNbdBase, &export_opts->u.nbd,
                        qapi_NbdServerAddOptions_base(arg));
-    if (arg->has_bitmap) {
+    if (arg->bitmap) {
         BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
 
         *el = (BlockDirtyBitmapOrStr) {

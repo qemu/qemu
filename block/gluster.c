@@ -830,7 +830,6 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
     s->logfile = g_strdup(logfile ? logfile : GLUSTER_LOGFILE_DEFAULT);
 
     gconf->logfile = g_strdup(s->logfile);
-    gconf->has_logfile = true;
 
     s->glfs = qemu_gluster_init(gconf, filename, options, errp);
     if (!s->glfs) {
@@ -917,7 +916,6 @@ static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
     gconf->debug = s->debug;
     gconf->has_debug = true;
     gconf->logfile = g_strdup(s->logfile);
-    gconf->has_logfile = true;
 
     /*
      * If 'state->bs->exact_filename' is empty, 'state->options' should contain
@@ -1162,7 +1160,6 @@ static int coroutine_fn qemu_gluster_co_create_opts(BlockDriver *drv,
     if (!gconf->logfile) {
         gconf->logfile = g_strdup(GLUSTER_LOGFILE_DEFAULT);
     }
-    gconf->has_logfile = true;
 
     ret = qemu_gluster_parse(gconf, filename, NULL, errp);
     if (ret < 0) {

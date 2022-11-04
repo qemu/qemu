@@ -202,7 +202,7 @@ static void quorum_report_bad(QuorumOpType type, uint64_t offset,
         msg = strerror(-ret);
     }
 
-    qapi_event_send_quorum_report_bad(type, !!msg, msg, node_name, start_sector,
+    qapi_event_send_quorum_report_bad(type, msg, node_name, start_sector,
                                       end_sector - start_sector);
 }
 

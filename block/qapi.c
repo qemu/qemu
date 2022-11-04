@@ -71,13 +71,11 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     };
 
     if (bs->node_name[0]) {
-        info->has_node_name = true;
         info->node_name = g_strdup(bs->node_name);
     }
 
     backing = bdrv_cow_bs(bs);
     if (backing) {
-        info->has_backing_file = true;
         info->backing_file = g_strdup(backing->filename);
     }
 
@@ -139,7 +137,6 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         info->has_iops_size = cfg.op_size;
         info->iops_size = cfg.op_size;
 
-        info->has_group = true;
         info->group =
             g_strdup(throttle_group_get_name(&blkp->throttle_group_member));
     }
@@ -170,7 +167,6 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
              */
             info->backing_file_depth++;
             bs0 = bdrv_filter_or_cow_bs(bs0);
-            (*p_image_info)->has_backing_image = true;
             p_image_info = &((*p_image_info)->backing_image);
         } else {
             break;
@@ -301,26 +297,21 @@ void bdrv_query_image_info(BlockDriverState *bs,
         qapi_free_ImageInfo(info);
         goto out;
     }
-    info->has_format_specific = info->format_specific != NULL;
-
     backing_filename = bs->backing_file;
     if (backing_filename[0] != '\0') {
         char *backing_filename2;
 
         info->backing_filename = g_strdup(backing_filename);
-        info->has_backing_filename = true;
         backing_filename2 = bdrv_get_full_backing_filename(bs, NULL);
 
         /* Always report the full_backing_filename if present, even if it's the
          * same as backing_filename. That they are same is useful info. */
         if (backing_filename2) {
             info->full_backing_filename = g_strdup(backing_filename2);
-            info->has_full_backing_filename = true;
         }
 
         if (bs->backing_format[0]) {
             info->backing_filename_format = g_strdup(bs->backing_format);
-            info->has_backing_filename_format = true;
         }
         g_free(backing_filename2);
     }
@@ -367,7 +358,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
 
     qdev = blk_get_attached_dev_id(blk);
     if (qdev && *qdev) {
-        info->has_qdev = true;
         info->qdev = qdev;
     } else {
         g_free(qdev);
@@ -384,7 +374,6 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
     }
 
     if (bs && bs->drv) {
-        info->has_inserted = true;
         info->inserted = bdrv_block_device_info(blk, bs, false, errp);
         if (info->inserted == NULL) {
             goto err;
@@ -411,23 +400,26 @@ static uint64List *uint64_list(uint64_t *list, int size)
     return out_list;
 }
 
-static void bdrv_latency_histogram_stats(BlockLatencyHistogram *hist,
-                                         bool *not_null,
-                                         BlockLatencyHistogramInfo **info)
+static BlockLatencyHistogramInfo *
+bdrv_latency_histogram_stats(BlockLatencyHistogram *hist)
 {
-    *not_null = hist->bins != NULL;
-    if (*not_null) {
-        *info = g_new0(BlockLatencyHistogramInfo, 1);
+    BlockLatencyHistogramInfo *info;
 
-        (*info)->boundaries = uint64_list(hist->boundaries, hist->nbins - 1);
-        (*info)->bins = uint64_list(hist->bins, hist->nbins);
+    if (!hist->bins) {
+        return NULL;
     }
+
+    info = g_new0(BlockLatencyHistogramInfo, 1);
+    info->boundaries = uint64_list(hist->boundaries, hist->nbins - 1);
+    info->bins = uint64_list(hist->bins, hist->nbins);
+    return info;
 }
 
 static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
     BlockAcctTimedStats *ts = NULL;
+    BlockLatencyHistogram *hgram;
 
     ds->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
     ds->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
@@ -493,15 +485,13 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
         QAPI_LIST_PREPEND(ds->timed_stats, dev_stats);
     }
 
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_READ],
-                                 &ds->has_rd_latency_histogram,
-                                 &ds->rd_latency_histogram);
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_WRITE],
-                                 &ds->has_wr_latency_histogram,
-                                 &ds->wr_latency_histogram);
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
-                                 &ds->has_flush_latency_histogram,
-                                 &ds->flush_latency_histogram);
+    hgram = stats->latency_histogram;
+    ds->rd_latency_histogram
+        = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_READ]);
+    ds->wr_latency_histogram
+        = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_WRITE]);
+    ds->flush_latency_histogram
+        = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_FLUSH]);
 }
 
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
@@ -526,16 +516,12 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
     }
 
     if (bdrv_get_node_name(bs)[0]) {
-        s->has_node_name = true;
         s->node_name = g_strdup(bdrv_get_node_name(bs));
     }
 
     s->stats->wr_highest_offset = stat64_get(&bs->wr_highest_offset);
 
     s->driver_specific = bdrv_get_specific_stats(bs);
-    if (s->driver_specific) {
-        s->has_driver_specific = true;
-    }
 
     parent_child = bdrv_primary_child(bs);
     if (!parent_child ||
@@ -564,7 +550,6 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
         }
     }
     if (parent_child) {
-        s->has_parent = true;
         s->parent = bdrv_query_bds_stats(parent_child->bs, blk_level);
     }
 
@@ -575,7 +560,6 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
          * compatibility to when we put bs0->backing here, which might
          * be either)
          */
-        s->has_backing = true;
         s->backing = bdrv_query_bds_stats(filter_or_cow_bs, blk_level);
     }
 
@@ -640,12 +624,10 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
 
             aio_context_acquire(ctx);
             s = bdrv_query_bds_stats(blk_bs(blk), true);
-            s->has_device = true;
             s->device = g_strdup(blk_name(blk));
 
             qdev = blk_get_attached_dev_id(blk);
             if (qdev && *qdev) {
-                s->has_qdev = true;
                 s->qdev = qdev;
             } else {
                 g_free(qdev);
@@ -822,16 +804,16 @@ void bdrv_image_info_dump(ImageInfo *info)
         qemu_printf("cleanly shut down: no\n");
     }
 
-    if (info->has_backing_filename) {
+    if (info->backing_filename) {
         qemu_printf("backing file: %s", info->backing_filename);
-        if (!info->has_full_backing_filename) {
+        if (!info->full_backing_filename) {
             qemu_printf(" (cannot determine actual path)");
         } else if (strcmp(info->backing_filename,
                           info->full_backing_filename) != 0) {
             qemu_printf(" (actual path: %s)", info->full_backing_filename);
         }
         qemu_printf("\n");
-        if (info->has_backing_filename_format) {
+        if (info->backing_filename_format) {
             qemu_printf("backing file format: %s\n",
                         info->backing_filename_format);
         }
@@ -865,7 +847,7 @@ void bdrv_image_info_dump(ImageInfo *info)
         }
     }
 
-    if (info->has_format_specific) {
+    if (info->format_specific) {
         qemu_printf("Format specific information:\n");
         bdrv_image_info_specific_dump(info->format_specific);
     }

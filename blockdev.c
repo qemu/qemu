@@ -1051,23 +1051,17 @@ static void blockdev_do_action(TransactionAction *action, Error **errp)
     qmp_transaction(&list, false, NULL, errp);
 }
 
-void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
-                                bool has_node_name, const char *node_name,
+void qmp_blockdev_snapshot_sync(const char *device, const char *node_name,
                                 const char *snapshot_file,
-                                bool has_snapshot_node_name,
                                 const char *snapshot_node_name,
-                                bool has_format, const char *format,
+                                const char *format,
                                 bool has_mode, NewImageMode mode, Error **errp)
 {
     BlockdevSnapshotSync snapshot = {
-        .has_device = has_device,
         .device = (char *) device,
-        .has_node_name = has_node_name,
         .node_name = (char *) node_name,
         .snapshot_file = (char *) snapshot_file,
-        .has_snapshot_node_name = has_snapshot_node_name,
         .snapshot_node_name = (char *) snapshot_node_name,
-        .has_format = has_format,
         .format = (char *) format,
         .has_mode = has_mode,
         .mode = mode,
@@ -1109,9 +1103,7 @@ void qmp_blockdev_snapshot_internal_sync(const char *device,
 }
 
 SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
-                                                         bool has_id,
                                                          const char *id,
-                                                         bool has_name,
                                                          const char *name,
                                                          Error **errp)
 {
@@ -1128,14 +1120,6 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
     }
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    if (!has_id) {
-        id = NULL;
-    }
-
-    if (!has_name) {
-        name = NULL;
-    }
 
     if (!id && !name) {
         error_setg(errp, "Name or id must be provided");
@@ -1450,8 +1434,8 @@ static void external_snapshot_prepare(BlkActionState *common,
     case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
         {
             BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
-            device = s->has_device ? s->device : NULL;
-            node_name = s->has_node_name ? s->node_name : NULL;
+            device = s->device;
+            node_name = s->node_name;
             new_image_file = s->snapshot_file;
             snapshot_ref = NULL;
         }
@@ -1495,10 +1479,9 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
         BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
-        const char *format = s->has_format ? s->format : "qcow2";
+        const char *format = s->format ?: "qcow2";
         enum NewImageMode mode;
-        const char *snapshot_node_name =
-            s->has_snapshot_node_name ? s->snapshot_node_name : NULL;
+        const char *snapshot_node_name = s->snapshot_node_name;
 
         if (node_name && !snapshot_node_name) {
             error_setg(errp, "New overlay node-name missing");
@@ -2412,8 +2395,7 @@ BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
     return ret;
 }
 
-void coroutine_fn qmp_block_resize(bool has_device, const char *device,
-                                   bool has_node_name, const char *node_name,
+void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
                                    int64_t size, Error **errp)
 {
     Error *local_err = NULL;
@@ -2421,9 +2403,7 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
     BlockDriverState *bs;
     AioContext *old_ctx;
 
-    bs = bdrv_lookup_bs(has_device ? device : NULL,
-                        has_node_name ? node_name : NULL,
-                        &local_err);
+    bs = bdrv_lookup_bs(device, node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -2458,14 +2438,14 @@ void coroutine_fn qmp_block_resize(bool has_device, const char *device,
     bdrv_co_unlock(bs);
 }
 
-void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
-                      bool has_base, const char *base,
-                      bool has_base_node, const char *base_node,
-                      bool has_backing_file, const char *backing_file,
-                      bool has_bottom, const char *bottom,
+void qmp_block_stream(const char *job_id, const char *device,
+                      const char *base,
+                      const char *base_node,
+                      const char *backing_file,
+                      const char *bottom,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
-                      bool has_filter_node_name, const char *filter_node_name,
+                      const char *filter_node_name,
                       bool has_auto_finalize, bool auto_finalize,
                       bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
@@ -2477,19 +2457,19 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
 
-    if (has_base && has_base_node) {
+    if (base && base_node) {
         error_setg(errp, "'base' and 'base-node' cannot be specified "
                    "at the same time");
         return;
     }
 
-    if (has_base && has_bottom) {
+    if (base && bottom) {
         error_setg(errp, "'base' and 'bottom' cannot be specified "
                    "at the same time");
         return;
     }
 
-    if (has_bottom && has_base_node) {
+    if (bottom && base_node) {
         error_setg(errp, "'bottom' and 'base-node' cannot be specified "
                    "at the same time");
         return;
@@ -2507,7 +2487,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (has_base) {
+    if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
             error_setg(errp, "Can't find '%s' in the backing chain", base);
@@ -2516,7 +2496,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         assert(bdrv_get_aio_context(base_bs) == aio_context);
     }
 
-    if (has_base_node) {
+    if (base_node) {
         base_bs = bdrv_lookup_bs(NULL, base_node, errp);
         if (!base_bs) {
             goto out;
@@ -2530,7 +2510,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         bdrv_refresh_filename(base_bs);
     }
 
-    if (has_bottom) {
+    if (bottom) {
         bottom_bs = bdrv_lookup_bs(NULL, bottom, errp);
         if (!bottom_bs) {
             goto out;
@@ -2555,7 +2535,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     /*
      * Check for op blockers in the whole chain between bs and base (or bottom)
      */
-    iter_end = has_bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
+    iter_end = bottom ? bdrv_filter_or_cow_bs(bottom_bs) : base_bs;
     for (iter = bs; iter && iter != iter_end;
          iter = bdrv_filter_or_cow_bs(iter))
     {
@@ -2566,7 +2546,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 
     /* if we are streaming the entire chain, the result will have no backing
      * file, and specifying one is therefore an error */
-    if (base_bs == NULL && has_backing_file) {
+    if (!base_bs && backing_file) {
         error_setg(errp, "backing file specified, but streaming the "
                          "entire chain");
         goto out;
@@ -2579,7 +2559,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
-    stream_start(has_job_id ? job_id : NULL, bs, base_bs, backing_file,
+    stream_start(job_id, bs, base_bs, backing_file,
                  bottom_bs, job_flags, has_speed ? speed : 0, on_error,
                  filter_node_name, &local_err);
     if (local_err) {
@@ -2593,15 +2573,15 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
-                      bool has_base_node, const char *base_node,
-                      bool has_base, const char *base,
-                      bool has_top_node, const char *top_node,
-                      bool has_top, const char *top,
-                      bool has_backing_file, const char *backing_file,
+void qmp_block_commit(const char *job_id, const char *device,
+                      const char *base_node,
+                      const char *base,
+                      const char *top_node,
+                      const char *top,
+                      const char *backing_file,
                       bool has_speed, int64_t speed,
                       bool has_on_error, BlockdevOnError on_error,
-                      bool has_filter_node_name, const char *filter_node_name,
+                      const char *filter_node_name,
                       bool has_auto_finalize, bool auto_finalize,
                       bool has_auto_dismiss, bool auto_dismiss,
                       Error **errp)
@@ -2619,9 +2599,6 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     }
     if (!has_on_error) {
         on_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!has_filter_node_name) {
-        filter_node_name = NULL;
     }
     if (has_auto_finalize && !auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
@@ -2658,10 +2635,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     /* default top_bs is the active layer */
     top_bs = bs;
 
-    if (has_top_node && has_top) {
+    if (top_node && top) {
         error_setg(errp, "'top-node' and 'top' are mutually exclusive");
         goto out;
-    } else if (has_top_node) {
+    } else if (top_node) {
         top_bs = bdrv_lookup_bs(NULL, top_node, errp);
         if (top_bs == NULL) {
             goto out;
@@ -2671,7 +2648,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                        top_node);
             goto out;
         }
-    } else if (has_top && top) {
+    } else if (top) {
         /* This strcmp() is just a shortcut, there is no need to
          * refresh @bs's filename.  If it mismatches,
          * bdrv_find_backing_image() will do the refresh and may still
@@ -2688,10 +2665,10 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
 
     assert(bdrv_get_aio_context(top_bs) == aio_context);
 
-    if (has_base_node && has_base) {
+    if (base_node && base) {
         error_setg(errp, "'base-node' and 'base' are mutually exclusive");
         goto out;
-    } else if (has_base_node) {
+    } else if (base_node) {
         base_bs = bdrv_lookup_bs(NULL, base_node, errp);
         if (base_bs == NULL) {
             goto out;
@@ -2701,7 +2678,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                        base_node);
             goto out;
         }
-    } else if (has_base && base) {
+    } else if (base) {
         base_bs = bdrv_find_backing_image(top_bs, base);
         if (base_bs == NULL) {
             error_setg(errp, "Can't find '%s' in the backing chain", base);
@@ -2743,7 +2720,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     if (top_perm & BLK_PERM_WRITE ||
         bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs))
     {
-        if (has_backing_file) {
+        if (backing_file) {
             if (bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs)) {
                 error_setg(errp, "'backing-file' specified,"
                                  " but 'top' is the active layer");
@@ -2753,7 +2730,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
             }
             goto out;
         }
-        if (!has_job_id) {
+        if (!job_id) {
             /*
              * Emulate here what block_job_create() does, because it
              * is possible that @bs != @top_bs (the block job should
@@ -2769,8 +2746,8 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         if (bdrv_op_is_blocked(overlay_bs, BLOCK_OP_TYPE_COMMIT_TARGET, errp)) {
             goto out;
         }
-        commit_start(has_job_id ? job_id : NULL, bs, base_bs, top_bs, job_flags,
-                     speed, on_error, has_backing_file ? backing_file : NULL,
+        commit_start(job_id, bs, base_bs, top_bs, job_flags,
+                     speed, on_error, backing_file,
                      filter_node_name, &local_err);
     }
     if (local_err != NULL) {
@@ -2803,9 +2780,6 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     if (!backup->has_on_target_error) {
         backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
     }
-    if (!backup->has_job_id) {
-        backup->job_id = NULL;
-    }
     if (!backup->has_auto_finalize) {
         backup->auto_finalize = true;
     }
@@ -2831,7 +2805,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
         (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
         /* done before desugaring 'incremental' to print the right message */
-        if (!backup->has_bitmap) {
+        if (!backup->bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
                        "'%s' sync mode", MirrorSyncMode_str(backup->sync));
             return NULL;
@@ -2852,7 +2826,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         backup->bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
     }
 
-    if (backup->has_bitmap) {
+    if (backup->bitmap) {
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
@@ -2885,7 +2859,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         }
     }
 
-    if (!backup->has_bitmap && backup->has_bitmap_mode) {
+    if (!backup->bitmap && backup->has_bitmap_mode) {
         error_setg(errp, "Cannot specify bitmap sync mode without a bitmap");
         return NULL;
     }
@@ -2945,7 +2919,7 @@ void qmp_blockdev_backup(BlockdevBackup *backup, Error **errp)
  **/
 static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockDriverState *target,
-                                   bool has_replaces, const char *replaces,
+                                   const char *replaces,
                                    enum MirrorSyncMode sync,
                                    BlockMirrorBackingMode backing_mode,
                                    bool zero_target,
@@ -2957,7 +2931,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_on_target_error,
                                    BlockdevOnError on_target_error,
                                    bool has_unmap, bool unmap,
-                                   bool has_filter_node_name,
                                    const char *filter_node_name,
                                    bool has_copy_mode, MirrorCopyMode copy_mode,
                                    bool has_auto_finalize, bool auto_finalize,
@@ -2984,9 +2957,6 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
     if (!has_unmap) {
         unmap = true;
-    }
-    if (!has_filter_node_name) {
-        filter_node_name = NULL;
     }
     if (!has_copy_mode) {
         copy_mode = MIRROR_COPY_MODE_BACKGROUND;
@@ -3020,16 +2990,15 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
-    if (!has_replaces) {
+    if (!replaces) {
         /* We want to mirror from @bs, but keep implicit filters on top */
         unfiltered_bs = bdrv_skip_implicit_filters(bs);
         if (unfiltered_bs != bs) {
             replaces = unfiltered_bs->node_name;
-            has_replaces = true;
         }
     }
 
-    if (has_replaces) {
+    if (replaces) {
         BlockDriverState *to_replace_bs;
         AioContext *replace_aio_context;
         int64_t bs_size, replace_size;
@@ -3066,7 +3035,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
      * and will allow to check whether the node still exist at mirror completion
      */
     mirror_start(job_id, bs, target,
-                 has_replaces ? replaces : NULL, job_flags,
+                 replaces, job_flags,
                  speed, granularity, buf_size, sync, backing_mode, zero_target,
                  on_source_error, on_target_error, unmap, filter_node_name,
                  copy_mode, errp);
@@ -3104,7 +3073,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         arg->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    if (!arg->has_format) {
+    if (!arg->format) {
         format = (arg->mode == NEW_IMAGE_MODE_EXISTING
                   ? NULL : bs->drv->format_name);
     }
@@ -3124,8 +3093,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         goto out;
     }
 
-    if (arg->has_replaces) {
-        if (!arg->has_node_name) {
+    if (arg->replaces) {
+        if (!arg->node_name) {
             error_setg(errp, "a node-name must be provided when replacing a"
                              " named node of the graph");
             goto out;
@@ -3175,7 +3144,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     options = qdict_new();
-    if (arg->has_node_name) {
+    if (arg->node_name) {
         qdict_put_str(options, "node-name", arg->node_name);
     }
     if (format) {
@@ -3210,8 +3179,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     aio_context_release(old_context);
     aio_context_acquire(aio_context);
 
-    blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
-                           arg->has_replaces, arg->replaces, arg->sync,
+    blockdev_mirror_common(arg->job_id, bs, target_bs,
+                           arg->replaces, arg->sync,
                            backing_mode, zero_target,
                            arg->has_speed, arg->speed,
                            arg->has_granularity, arg->granularity,
@@ -3219,7 +3188,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
                            arg->has_on_source_error, arg->on_source_error,
                            arg->has_on_target_error, arg->on_target_error,
                            arg->has_unmap, arg->unmap,
-                           false, NULL,
+                           NULL,
                            arg->has_copy_mode, arg->copy_mode,
                            arg->has_auto_finalize, arg->auto_finalize,
                            arg->has_auto_dismiss, arg->auto_dismiss,
@@ -3229,9 +3198,9 @@ out:
     aio_context_release(aio_context);
 }
 
-void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
+void qmp_blockdev_mirror(const char *job_id,
                          const char *device, const char *target,
-                         bool has_replaces, const char *replaces,
+                         const char *replaces,
                          MirrorSyncMode sync,
                          bool has_speed, int64_t speed,
                          bool has_granularity, uint32_t granularity,
@@ -3240,7 +3209,6 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          BlockdevOnError on_source_error,
                          bool has_on_target_error,
                          BlockdevOnError on_target_error,
-                         bool has_filter_node_name,
                          const char *filter_node_name,
                          bool has_copy_mode, MirrorCopyMode copy_mode,
                          bool has_auto_finalize, bool auto_finalize,
@@ -3281,15 +3249,14 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
         goto out;
     }
 
-    blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
-                           has_replaces, replaces, sync, backing_mode,
+    blockdev_mirror_common(job_id, bs, target_bs,
+                           replaces, sync, backing_mode,
                            zero_target, has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
                            has_on_source_error, on_source_error,
                            has_on_target_error, on_target_error,
-                           true, true,
-                           has_filter_node_name, filter_node_name,
+                           true, true, filter_node_name,
                            has_copy_mode, copy_mode,
                            has_auto_finalize, auto_finalize,
                            has_auto_dismiss, auto_dismiss,
@@ -3561,7 +3528,7 @@ void qmp_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
         QDict *qdict;
 
         /* Check for the selected node name */
-        if (!options->has_node_name) {
+        if (!options->node_name) {
             error_setg(errp, "node-name not specified");
             goto fail;
         }
@@ -3666,8 +3633,7 @@ static BdrvChild *bdrv_find_child(BlockDriverState *parent_bs,
     return NULL;
 }
 
-void qmp_x_blockdev_change(const char *parent, bool has_child,
-                           const char *child, bool has_node,
+void qmp_x_blockdev_change(const char *parent, const char *child,
                            const char *node, Error **errp)
 {
     BlockDriverState *parent_bs, *new_bs = NULL;
@@ -3678,8 +3644,8 @@ void qmp_x_blockdev_change(const char *parent, bool has_child,
         return;
     }
 
-    if (has_child == has_node) {
-        if (has_child) {
+    if (!child == !node) {
+        if (child) {
             error_setg(errp, "The parameters child and node are in conflict");
         } else {
             error_setg(errp, "Either child or node must be specified");
@@ -3687,7 +3653,7 @@ void qmp_x_blockdev_change(const char *parent, bool has_child,
         return;
     }
 
-    if (has_child) {
+    if (child) {
         p_child = bdrv_find_child(parent_bs, child);
         if (!p_child) {
             error_setg(errp, "Node '%s' does not have child '%s'",
@@ -3697,7 +3663,7 @@ void qmp_x_blockdev_change(const char *parent, bool has_child,
         bdrv_del_child(parent_bs, p_child, errp);
     }
 
-    if (has_node) {
+    if (node) {
         new_bs = bdrv_find_node(node);
         if (!new_bs) {
             error_setg(errp, "Node '%s' not found", node);
