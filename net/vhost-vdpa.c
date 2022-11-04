@@ -635,19 +635,19 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
-    if (!opts->has_vhostdev && !opts->has_vhostfd) {
+    if (!opts->vhostdev && !opts->vhostfd) {
         error_setg(errp,
                    "vhost-vdpa: neither vhostdev= nor vhostfd= was specified");
         return -1;
     }
 
-    if (opts->has_vhostdev && opts->has_vhostfd) {
+    if (opts->vhostdev && opts->vhostfd) {
         error_setg(errp,
                    "vhost-vdpa: vhostdev= and vhostfd= are mutually exclusive");
         return -1;
     }
 
-    if (opts->has_vhostdev) {
+    if (opts->vhostdev) {
         vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR, errp);
         if (vdpa_device_fd == -1) {
             return -errno;

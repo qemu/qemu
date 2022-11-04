@@ -578,7 +578,7 @@ int net_init_l2tpv3(const Netdev *netdev,
 
     if (l2tpv3->has_udp && l2tpv3->udp) {
         s->udp = true;
-        if (!(l2tpv3->has_srcport && l2tpv3->has_dstport)) {
+        if (!(l2tpv3->srcport && l2tpv3->dstport)) {
             error_setg(errp, "need both src and dst port for udp");
             goto outerr;
         } else {

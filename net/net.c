@@ -964,7 +964,7 @@ static int net_init_nic(const Netdev *netdev, const char *name,
 
     memset(nd, 0, sizeof(*nd));
 
-    if (nic->has_netdev) {
+    if (nic->netdev) {
         nd->netdev = qemu_find_netdev(nic->netdev);
         if (!nd->netdev) {
             error_setg(errp, "netdev '%s' not found", nic->netdev);
@@ -975,19 +975,19 @@ static int net_init_nic(const Netdev *netdev, const char *name,
         nd->netdev = peer;
     }
     nd->name = g_strdup(name);
-    if (nic->has_model) {
+    if (nic->model) {
         nd->model = g_strdup(nic->model);
     }
-    if (nic->has_addr) {
+    if (nic->addr) {
         nd->devaddr = g_strdup(nic->addr);
     }
 
-    if (nic->has_macaddr &&
+    if (nic->macaddr &&
         net_parse_macaddr(nd->macaddr.a, nic->macaddr) < 0) {
         error_setg(errp, "invalid syntax for ethernet address");
         return -1;
     }
-    if (nic->has_macaddr &&
+    if (nic->macaddr &&
         is_multicast_ether_addr(nd->macaddr.a)) {
         error_setg(errp,
                    "NIC cannot have multicast MAC address (odd 1st byte)");
@@ -1081,7 +1081,7 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
 
         /* Do not add to a hub if it's a nic with a netdev= parameter. */
         if (netdev->type != NET_CLIENT_DRIVER_NIC ||
-            !netdev->u.nic.has_netdev) {
+            !netdev->u.nic.netdev) {
             peer = net_hub_add_port(0, NULL, NULL);
         }
     }
@@ -1295,8 +1295,7 @@ void print_net_client(Monitor *mon, NetClientState *nc)
     }
 }
 
-RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
-                                      Error **errp)
+RxFilterInfoList *qmp_query_rx_filter(const char *name, Error **errp)
 {
     NetClientState *nc;
     RxFilterInfoList *filter_list = NULL, **tail = &filter_list;
@@ -1304,13 +1303,13 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     QTAILQ_FOREACH(nc, &net_clients, next) {
         RxFilterInfo *info;
 
-        if (has_name && strcmp(nc->name, name) != 0) {
+        if (name && strcmp(nc->name, name) != 0) {
             continue;
         }
 
         /* only query rx-filter information of NIC */
         if (nc->info->type != NET_CLIENT_DRIVER_NIC) {
-            if (has_name) {
+            if (name) {
                 error_setg(errp, "net client(%s) isn't a NIC", name);
                 assert(!filter_list);
                 return NULL;
@@ -1327,19 +1326,19 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         if (nc->info->query_rx_filter) {
             info = nc->info->query_rx_filter(nc);
             QAPI_LIST_APPEND(tail, info);
-        } else if (has_name) {
+        } else if (name) {
             error_setg(errp, "net client(%s) doesn't support"
                        " rx-filter querying", name);
             assert(!filter_list);
             return NULL;
         }
 
-        if (has_name) {
+        if (name) {
             break;
         }
     }
 
-    if (filter_list == NULL && has_name) {
+    if (filter_list == NULL && name) {
         error_setg(errp, "invalid net client name: %s", name);
     }
 
