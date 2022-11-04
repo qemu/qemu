@@ -758,8 +758,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
     def need_has(self):
         assert self.type
         # Temporary hack to support dropping the has_FOO in reviewable chunks
-        opt_out = [
-            'qga/qapi-schema.json']
+        opt_out = []
         if self.info and any(self.info.fname.endswith(mod)
                              for mod in opt_out):
             return self.optional

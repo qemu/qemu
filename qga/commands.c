@@ -206,14 +206,12 @@ GuestExecStatus *qmp_guest_exec_status(int64_t pid, Error **errp)
         }
 #endif
         if (gei->out.length > 0) {
-            ges->has_out_data = true;
             ges->out_data = g_base64_encode(gei->out.data, gei->out.length);
             g_free(gei->out.data);
             ges->has_out_truncated = gei->out.truncated;
         }
 
         if (gei->err.length > 0) {
-            ges->has_err_data = true;
             ges->err_data = g_base64_encode(gei->err.data, gei->err.length);
             g_free(gei->err.data);
             ges->has_err_truncated = gei->err.truncated;
@@ -385,7 +383,7 @@ close:
 GuestExec *qmp_guest_exec(const char *path,
                        bool has_arg, strList *arg,
                        bool has_env, strList *env,
-                       bool has_input_data, const char *input_data,
+                       const char *input_data,
                        bool has_capture_output, bool capture_output,
                        Error **errp)
 {
@@ -406,7 +404,7 @@ GuestExec *qmp_guest_exec(const char *path,
     arglist.value = (char *)path;
     arglist.next = has_arg ? arg : NULL;
 
-    if (has_input_data) {
+    if (input_data) {
         input = qbase64_decode(input_data, -1, &ninput, errp);
         if (!input) {
             return NULL;
@@ -423,7 +421,7 @@ GuestExec *qmp_guest_exec(const char *path,
     }
 
     ret = g_spawn_async_with_pipes(NULL, argv, envp, flags,
-            guest_exec_task_setup, NULL, &pid, has_input_data ? &in_fd : NULL,
+            guest_exec_task_setup, NULL, &pid, input_data ? &in_fd : NULL,
             has_output ? &out_fd : NULL, has_output ? &err_fd : NULL, &gerr);
     if (!ret) {
         error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
@@ -438,7 +436,7 @@ GuestExec *qmp_guest_exec(const char *path,
     gei->has_output = has_output;
     g_child_watch_add(pid, guest_exec_child_watch, gei);
 
-    if (has_input_data) {
+    if (input_data) {
         gei->in.data = g_steal_pointer(&input);
         gei->in.size = ninput;
 #ifdef G_OS_WIN32
@@ -547,7 +545,6 @@ GuestTimezone *qmp_guest_get_timezone(Error **errp)
     info->offset = g_time_zone_get_offset(tz, intv);
     name = g_time_zone_get_abbreviation(tz, intv);
     if (name != NULL) {
-        info->has_zone = true;
         info->zone = g_strdup(name);
     }
     g_time_zone_unref(tz);
