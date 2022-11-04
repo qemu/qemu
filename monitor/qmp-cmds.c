@@ -50,11 +50,7 @@ NameInfo *qmp_query_name(Error **errp)
 {
     NameInfo *info = g_malloc0(sizeof(*info));
 
-    if (qemu_name) {
-        info->has_name = true;
-        info->name = g_strdup(qemu_name);
-    }
-
+    info->name = g_strdup(qemu_name);
     return info;
 }
 
