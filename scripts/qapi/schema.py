@@ -759,7 +759,6 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         assert self.type
         # Temporary hack to support dropping the has_FOO in reviewable chunks
         opt_out = [
-            'qapi/job.json',
             'qapi/machine.json',
             'qapi/machine-target.json',
             'qapi/migration.json',
