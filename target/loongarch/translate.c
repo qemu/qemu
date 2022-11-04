@@ -75,7 +75,11 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
-    ctx->mem_idx = ctx->base.tb->flags;
+    if (ctx->base.tb->flags & HW_FLAGS_CRMD_PG) {
+        ctx->mem_idx = ctx->base.tb->flags & HW_FLAGS_PLV_MASK;
+    } else {
+        ctx->mem_idx = MMU_DA_IDX;
+    }
 
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;

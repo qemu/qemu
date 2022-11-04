@@ -159,7 +159,7 @@ static const CSRInfo csr_info[] = {
 
 static bool check_plv(DisasContext *ctx)
 {
-    if (ctx->base.tb->flags == MMU_USER_IDX) {
+    if (ctx->mem_idx == MMU_USER_IDX) {
         generate_exception(ctx, EXCCODE_IPE);
         return true;
     }
