@@ -41,7 +41,6 @@
 static QCryptoBlockCreateOptions qcow_create_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_QCOW,
     .u.qcow = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -49,7 +48,6 @@ static QCryptoBlockCreateOptions qcow_create_opts = {
 static QCryptoBlockOpenOptions qcow_open_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_QCOW,
     .u.qcow = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -59,7 +57,6 @@ static QCryptoBlockOpenOptions qcow_open_opts = {
 static QCryptoBlockOpenOptions luks_open_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -69,7 +66,6 @@ static QCryptoBlockOpenOptions luks_open_opts = {
 static QCryptoBlockCreateOptions luks_create_opts_default = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
     },
 };
@@ -79,7 +75,6 @@ static QCryptoBlockCreateOptions luks_create_opts_default = {
 static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
@@ -94,7 +89,6 @@ static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
 static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
     .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
     .u.luks = {
-        .has_key_secret = true,
         .key_secret = (char *)"sec0",
         .has_cipher_alg = true,
         .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
