@@ -536,9 +536,9 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->has_stream_name ? ppdo->stream_name : g->dev->id,
+        ppdo->stream_name ?: g->dev->id,
         PA_STREAM_PLAYBACK,
-        ppdo->has_name ? ppdo->name : NULL,
+        ppdo->name,
         &ss,
         &ba,                    /* buffering attributes */
         &error
@@ -585,9 +585,9 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     pa->stream = qpa_simple_new (
         c,
-        ppdo->has_stream_name ? ppdo->stream_name : g->dev->id,
+        ppdo->stream_name ?: g->dev->id,
         PA_STREAM_RECORD,
-        ppdo->has_name ? ppdo->name : NULL,
+        ppdo->name,
         &ss,
         &ba,                    /* buffering attributes */
         &error
@@ -827,7 +827,7 @@ static void *qpa_audio_init(Audiodev *dev)
 
     assert(dev->driver == AUDIODEV_DRIVER_PA);
 
-    if (!popts->has_server) {
+    if (!popts->server) {
         char pidfile[64];
         char *runtime;
         struct stat st;
@@ -850,7 +850,7 @@ static void *qpa_audio_init(Audiodev *dev)
     }
 
     g = g_new0(paaudio, 1);
-    server = popts->has_server ? popts->server : NULL;
+    server = popts->server;
 
     g->dev = dev;
 

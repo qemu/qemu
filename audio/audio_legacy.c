@@ -62,15 +62,12 @@ static void get_int(const char *env, uint32_t *dst, bool *has_dst)
     }
 }
 
-static void get_str(const char *env, char **dst, bool *has_dst)
+static void get_str(const char *env, char **dst)
 {
     const char *val = getenv(env);
     if (val) {
-        if (*has_dst) {
-            g_free(*dst);
-        }
+        g_free(*dst);
         *dst = g_strdup(val);
-        *has_dst = true;
     }
 }
 
@@ -169,7 +166,7 @@ static void handle_alsa_per_direction(
     get_bool(buf, &apdo->try_poll, &apdo->has_try_poll);
 
     strcpy(buf + len, "DEV");
-    get_str(buf, &apdo->dev, &apdo->has_dev);
+    get_str(buf, &apdo->dev);
 
     strcpy(buf + len, "SIZE_IN_USEC");
     get_bool(buf, &size_in_usecs, &dummy);
@@ -235,7 +232,7 @@ static void handle_oss_per_direction(
     const char *dev_env)
 {
     get_bool(try_poll_env, &opdo->try_poll, &opdo->has_try_poll);
-    get_str(dev_env, &opdo->dev, &opdo->has_dev);
+    get_str(dev_env, &opdo->dev);
 
     get_bytes_to_usecs("QEMU_OSS_FRAGSIZE",
                        &opdo->buffer_length, &opdo->has_buffer_length,
@@ -261,7 +258,7 @@ static void handle_oss(Audiodev *dev)
 static void handle_pa_per_direction(
     AudiodevPaPerDirectionOptions *ppdo, const char *env)
 {
-    get_str(env, &ppdo->name, &ppdo->has_name);
+    get_str(env, &ppdo->name);
 }
 
 static void handle_pa(Audiodev *dev)
@@ -278,7 +275,7 @@ static void handle_pa(Audiodev *dev)
         &dev->u.pa.out->has_buffer_length,
         qapi_AudiodevPaPerDirectionOptions_base(dev->u.pa.out));
 
-    get_str("QEMU_PA_SERVER", &dev->u.pa.server, &dev->u.pa.has_server);
+    get_str("QEMU_PA_SERVER", &dev->u.pa.server);
 }
 
 /* SDL */
@@ -299,7 +296,7 @@ static void handle_wav(Audiodev *dev)
             &dev->u.wav.out->has_format);
     get_int("QEMU_WAV_DAC_FIXED_CHANNELS",
             &dev->u.wav.out->channels, &dev->u.wav.out->has_channels);
-    get_str("QEMU_WAV_PATH", &dev->u.wav.path, &dev->u.wav.has_path);
+    get_str("QEMU_WAV_PATH", &dev->u.wav.path);
 }
 
 /* general */
