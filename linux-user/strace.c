@@ -945,7 +945,7 @@ print_syscall_ret_ioctl(CPUArchState *cpu_env, const struct syscallname *name,
 }
 #endif
 
-UNUSED static struct flags access_flags[] = {
+UNUSED static const struct flags access_flags[] = {
     FLAG_GENERIC(F_OK),
     FLAG_GENERIC(R_OK),
     FLAG_GENERIC(W_OK),
@@ -953,7 +953,7 @@ UNUSED static struct flags access_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags at_file_flags[] = {
+UNUSED static const struct flags at_file_flags[] = {
 #ifdef AT_EACCESS
     FLAG_GENERIC(AT_EACCESS),
 #endif
@@ -963,14 +963,14 @@ UNUSED static struct flags at_file_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags unlinkat_flags[] = {
+UNUSED static const struct flags unlinkat_flags[] = {
 #ifdef AT_REMOVEDIR
     FLAG_GENERIC(AT_REMOVEDIR),
 #endif
     FLAG_END,
 };
 
-UNUSED static struct flags mode_flags[] = {
+UNUSED static const struct flags mode_flags[] = {
     FLAG_GENERIC(S_IFSOCK),
     FLAG_GENERIC(S_IFLNK),
     FLAG_GENERIC(S_IFREG),
@@ -981,14 +981,14 @@ UNUSED static struct flags mode_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags open_access_flags[] = {
+UNUSED static const struct flags open_access_flags[] = {
     FLAG_TARGET(O_RDONLY),
     FLAG_TARGET(O_WRONLY),
     FLAG_TARGET(O_RDWR),
     FLAG_END,
 };
 
-UNUSED static struct flags open_flags[] = {
+UNUSED static const struct flags open_flags[] = {
     FLAG_TARGET(O_APPEND),
     FLAG_TARGET(O_CREAT),
     FLAG_TARGET(O_DIRECTORY),
@@ -1019,7 +1019,7 @@ UNUSED static struct flags open_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mount_flags[] = {
+UNUSED static const struct flags mount_flags[] = {
 #ifdef MS_BIND
     FLAG_GENERIC(MS_BIND),
 #endif
@@ -1044,7 +1044,7 @@ UNUSED static struct flags mount_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags umount2_flags[] = {
+UNUSED static const struct flags umount2_flags[] = {
 #ifdef MNT_FORCE
     FLAG_GENERIC(MNT_FORCE),
 #endif
@@ -1057,7 +1057,7 @@ UNUSED static struct flags umount2_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mmap_prot_flags[] = {
+UNUSED static const struct flags mmap_prot_flags[] = {
     FLAG_GENERIC(PROT_NONE),
     FLAG_GENERIC(PROT_EXEC),
     FLAG_GENERIC(PROT_READ),
@@ -1068,7 +1068,7 @@ UNUSED static struct flags mmap_prot_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mmap_flags[] = {
+UNUSED static const struct flags mmap_flags[] = {
     FLAG_TARGET(MAP_SHARED),
     FLAG_TARGET(MAP_PRIVATE),
     FLAG_TARGET(MAP_ANONYMOUS),
@@ -1092,7 +1092,7 @@ UNUSED static struct flags mmap_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags clone_flags[] = {
+UNUSED static const struct flags clone_flags[] = {
     FLAG_GENERIC(CLONE_VM),
     FLAG_GENERIC(CLONE_FS),
     FLAG_GENERIC(CLONE_FILES),
@@ -1136,7 +1136,7 @@ UNUSED static struct flags clone_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags msg_flags[] = {
+UNUSED static const struct flags msg_flags[] = {
     /* send */
     FLAG_GENERIC(MSG_CONFIRM),
     FLAG_GENERIC(MSG_DONTROUTE),
@@ -1156,7 +1156,7 @@ UNUSED static struct flags msg_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags statx_flags[] = {
+UNUSED static const struct flags statx_flags[] = {
 #ifdef AT_EMPTY_PATH
     FLAG_GENERIC(AT_EMPTY_PATH),
 #endif
@@ -1178,7 +1178,7 @@ UNUSED static struct flags statx_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags statx_mask[] = {
+UNUSED static const struct flags statx_mask[] = {
 /* This must come first, because it includes everything.  */
 #ifdef STATX_ALL
     FLAG_GENERIC(STATX_ALL),
@@ -1226,7 +1226,7 @@ UNUSED static struct flags statx_mask[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags falloc_flags[] = {
+UNUSED static const struct flags falloc_flags[] = {
     FLAG_GENERIC(FALLOC_FL_KEEP_SIZE),
     FLAG_GENERIC(FALLOC_FL_PUNCH_HOLE),
 #ifdef FALLOC_FL_NO_HIDE_STALE
@@ -1246,7 +1246,7 @@ UNUSED static struct flags falloc_flags[] = {
 #endif
 };
 
-UNUSED static struct flags termios_iflags[] = {
+UNUSED static const struct flags termios_iflags[] = {
     FLAG_TARGET(IGNBRK),
     FLAG_TARGET(BRKINT),
     FLAG_TARGET(IGNPAR),
@@ -1265,7 +1265,7 @@ UNUSED static struct flags termios_iflags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags termios_oflags[] = {
+UNUSED static const struct flags termios_oflags[] = {
     FLAG_TARGET(OPOST),
     FLAG_TARGET(OLCUC),
     FLAG_TARGET(ONLCR),
@@ -1349,7 +1349,7 @@ UNUSED static struct enums termios_cflags_CSIZE[] = {
     ENUM_END,
 };
 
-UNUSED static struct flags termios_cflags[] = {
+UNUSED static const struct flags termios_cflags[] = {
     FLAG_TARGET(CSTOPB),
     FLAG_TARGET(CREAD),
     FLAG_TARGET(PARENB),
@@ -1360,7 +1360,7 @@ UNUSED static struct flags termios_cflags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags termios_lflags[] = {
+UNUSED static const struct flags termios_lflags[] = {
     FLAG_TARGET(ISIG),
     FLAG_TARGET(ICANON),
     FLAG_TARGET(XCASE),
@@ -1380,7 +1380,7 @@ UNUSED static struct flags termios_lflags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags mlockall_flags[] = {
+UNUSED static const struct flags mlockall_flags[] = {
     FLAG_TARGET(MCL_CURRENT),
     FLAG_TARGET(MCL_FUTURE),
 #ifdef MCL_ONFAULT
