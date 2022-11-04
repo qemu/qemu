@@ -62,7 +62,7 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "  type: \"%s\"\n", l->value->type);
         monitor_printf(mon, "  vcpus_count: \"%" PRIu64 "\"\n",
                        l->value->vcpus_count);
-        if (l->value->has_qom_path) {
+        if (l->value->qom_path) {
             monitor_printf(mon, "  qom_path: \"%s\"\n", l->value->qom_path);
         }
 

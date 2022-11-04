@@ -187,10 +187,8 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     QDict *props = NULL;
     const char *base_name;
 
-    xc = x86_cpu_from_model(model->name,
-                            model->has_props ?
-                                qobject_to(QDict, model->props) :
-                                NULL, &err);
+    xc = x86_cpu_from_model(model->name, qobject_to(QDict, model->props),
+                            &err);
     if (err) {
         goto out;
     }
@@ -198,7 +196,6 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     props = qdict_new();
     ret->model = g_new0(CpuModelInfo, 1);
     ret->model->props = QOBJECT(props);
-    ret->model->has_props = true;
 
     switch (type) {
     case CPU_MODEL_EXPANSION_TYPE_STATIC:
