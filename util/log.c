@@ -206,6 +206,11 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     QEMU_LOCK_GUARD(&global_mutex);
     logfile = global_file;
 
+    /* The per-thread flag is immutable. */
+    if (log_per_thread) {
+        log_flags |= LOG_PER_THREAD;
+    }
+
     per_thread = log_flags & LOG_PER_THREAD;
 
     if (changed_name) {
