@@ -166,9 +166,9 @@ and user defined types.
 
 Now, let's update our C implementation in monitor/qmp-cmds.c::
 
- void qmp_hello_world(bool has_message, const char *message, Error **errp)
+ void qmp_hello_world(const char *message, Error **errp)
  {
-     if (has_message) {
+     if (message) {
          printf("%s\n", message);
      } else {
          printf("Hello, world\n");
@@ -210,9 +210,9 @@ file. Basically, most errors are set by calling the error_setg() function.
 Let's say we don't accept the string "message" to contain the word "love". If
 it does contain it, we want the "hello-world" command to return an error::
 
- void qmp_hello_world(bool has_message, const char *message, Error **errp)
+ void qmp_hello_world(const char *message, Error **errp)
  {
-     if (has_message) {
+     if (message) {
          if (strstr(message, "love")) {
              error_setg(errp, "the word 'love' is not allowed");
              return;
@@ -467,9 +467,9 @@ There are a number of things to be noticed:
    allocated by the regular g_malloc0() function. Note that we chose to
    initialize the memory to zero. This is recommended for all QAPI types, as
    it helps avoiding bad surprises (specially with booleans)
-4. Remember that "next_deadline" is optional? All optional members have a
-   'has_TYPE_NAME' member that should be properly set by the implementation,
-   as shown above
+4. Remember that "next_deadline" is optional? Non-pointer optional
+   members have a 'has_TYPE_NAME' member that should be properly set
+   by the implementation, as shown above
 5. Even static strings, such as "alarm_timer->name", should be dynamically
    allocated by the implementation. This is so because the QAPI also generates
    a function to free its types and it cannot distinguish between dynamically

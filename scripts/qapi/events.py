@@ -60,7 +60,7 @@ def gen_param_var(typ: QAPISchemaObjectType) -> str:
     for memb in typ.members:
         ret += sep
         sep = ', '
-        if memb.optional:
+        if memb.need_has():
             ret += 'has_' + c_name(memb.name) + sep
         if memb.type.name == 'str':
             # Cast away const added in build_params()

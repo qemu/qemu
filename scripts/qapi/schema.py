@@ -253,6 +253,11 @@ class QAPISchemaType(QAPISchemaEntity):
             return None
         return self.name
 
+    def need_has_if_optional(self):
+        # When FOO is a pointer, has_FOO == !!FOO, i.e. has_FOO is redundant.
+        # Except for arrays; see QAPISchemaArrayType.need_has_if_optional().
+        return not self.c_type().endswith(POINTER_SUFFIX)
+
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
         for feat in self.features:
@@ -351,6 +356,11 @@ class QAPISchemaArrayType(QAPISchemaType):
         assert isinstance(element_type, str)
         self._element_type_name = element_type
         self.element_type = None
+
+    def need_has_if_optional(self):
+        # When FOO is an array, we still need has_FOO to distinguish
+        # absent (!has_FOO) from present and empty (has_FOO && !FOO).
+        return True
 
     def check(self, schema):
         super().check(schema)
@@ -744,6 +754,44 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         self.type = None
         self.optional = optional
         self.features = features or []
+
+    def need_has(self):
+        assert self.type
+        # Temporary hack to support dropping the has_FOO in reviewable chunks
+        opt_out = [
+            'qapi/acpi.json',
+            'qapi/audio.json',
+            'qapi/block-core.json',
+            'qapi/block-export.json',
+            'qapi/block.json',
+            'qapi/char.json',
+            'qapi/crypto.json',
+            'qapi/dump.json',
+            'qapi/introspect.json',
+            'qapi/job.json',
+            'qapi/machine.json',
+            'qapi/machine-target.json',
+            'qapi/migration.json',
+            'qapi/misc.json',
+            'qapi/net.json',
+            'qapi/pci.json',
+            'qapi/qdev.json',
+            'qapi/qom.json',
+            'qapi/replay.json',
+            'qapi/rocker.json',
+            'qapi/run-state.json',
+            'qapi/stats.json',
+            'qapi/tpm.json',
+            'qapi/transaction.json',
+            'qapi/ui.json',
+            'qapi/virtio.json',
+            'qga/qapi-schema.json',
+            'tests/qapi-schema/qapi-schema-test.json']
+        if self.info and any(self.info.fname.endswith(mod)
+                             for mod in opt_out):
+            return self.optional
+        # End of temporary hack
+        return self.optional and self.type.need_has_if_optional()
 
     def check(self, schema):
         assert self.defined_in

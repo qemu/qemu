@@ -1410,7 +1410,6 @@ Example::
 
     struct UserDefOne {
         int64_t integer;
-        bool has_string;
         char *string;
         bool has_flag;
         bool flag;
@@ -1525,10 +1524,12 @@ Example::
 
     bool visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
     {
+        bool has_string = !!obj->string;
+
         if (!visit_type_int(v, "integer", &obj->integer, errp)) {
             return false;
         }
-        if (visit_optional(v, "string", &obj->has_string)) {
+        if (visit_optional(v, "string", &has_string)) {
             if (!visit_type_str(v, "string", &obj->string, errp)) {
                 return false;
             }
