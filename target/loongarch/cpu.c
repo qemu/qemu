@@ -48,6 +48,7 @@ static const char * const excp_names[] = {
     [EXCCODE_BRK] = "Break",
     [EXCCODE_INE] = "Instruction Non-Existent",
     [EXCCODE_IPE] = "Instruction privilege error",
+    [EXCCODE_FPD] = "Floating Point Disabled",
     [EXCCODE_FPE] = "Floating Point Exception",
     [EXCCODE_DBP] = "Debug breakpoint",
     [EXCCODE_BCE] = "Bound Check Exception",
@@ -185,6 +186,7 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     case EXCCODE_BRK:
     case EXCCODE_INE:
     case EXCCODE_IPE:
+    case EXCCODE_FPD:
     case EXCCODE_FPE:
     case EXCCODE_BCE:
         env->CSR_BADV = env->pc;

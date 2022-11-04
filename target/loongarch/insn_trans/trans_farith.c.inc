@@ -3,9 +3,22 @@
  * Copyright (c) 2021 Loongson Technology Corporation Limited
  */
 
+#ifndef CONFIG_USER_ONLY
+#define CHECK_FPE do { \
+    if ((ctx->base.tb->flags & HW_FLAGS_EUEN_FPE) == 0) { \
+        generate_exception(ctx, EXCCODE_FPD); \
+        return false; \
+    } \
+} while (0)
+#else
+#define CHECK_FPE
+#endif
+
 static bool gen_fff(DisasContext *ctx, arg_fff *a,
                     void (*func)(TCGv, TCGv_env, TCGv, TCGv))
 {
+    CHECK_FPE;
+
     func(cpu_fpr[a->fd], cpu_env, cpu_fpr[a->fj], cpu_fpr[a->fk]);
     return true;
 }
@@ -13,6 +26,8 @@ static bool gen_fff(DisasContext *ctx, arg_fff *a,
 static bool gen_ff(DisasContext *ctx, arg_ff *a,
                    void (*func)(TCGv, TCGv_env, TCGv))
 {
+    CHECK_FPE;
+
     func(cpu_fpr[a->fd], cpu_env, cpu_fpr[a->fj]);
     return true;
 }
@@ -22,6 +37,9 @@ static bool gen_muladd(DisasContext *ctx, arg_ffff *a,
                        int flag)
 {
     TCGv_i32 tflag = tcg_constant_i32(flag);
+
+    CHECK_FPE;
+
     func(cpu_fpr[a->fd], cpu_env, cpu_fpr[a->fj],
          cpu_fpr[a->fk], cpu_fpr[a->fa], tflag);
     return true;
@@ -29,18 +47,24 @@ static bool gen_muladd(DisasContext *ctx, arg_ffff *a,
 
 static bool trans_fcopysign_s(DisasContext *ctx, arg_fcopysign_s *a)
 {
+    CHECK_FPE;
+
     tcg_gen_deposit_i64(cpu_fpr[a->fd], cpu_fpr[a->fk], cpu_fpr[a->fj], 0, 31);
     return true;
 }
 
 static bool trans_fcopysign_d(DisasContext *ctx, arg_fcopysign_d *a)
 {
+    CHECK_FPE;
+
     tcg_gen_deposit_i64(cpu_fpr[a->fd], cpu_fpr[a->fk], cpu_fpr[a->fj], 0, 63);
     return true;
 }
 
 static bool trans_fabs_s(DisasContext *ctx, arg_fabs_s *a)
 {
+    CHECK_FPE;
+
     tcg_gen_andi_i64(cpu_fpr[a->fd], cpu_fpr[a->fj], MAKE_64BIT_MASK(0, 31));
     gen_nanbox_s(cpu_fpr[a->fd], cpu_fpr[a->fd]);
     return true;
@@ -48,12 +72,16 @@ static bool trans_fabs_s(DisasContext *ctx, arg_fabs_s *a)
 
 static bool trans_fabs_d(DisasContext *ctx, arg_fabs_d *a)
 {
+    CHECK_FPE;
+
     tcg_gen_andi_i64(cpu_fpr[a->fd], cpu_fpr[a->fj], MAKE_64BIT_MASK(0, 63));
     return true;
 }
 
 static bool trans_fneg_s(DisasContext *ctx, arg_fneg_s *a)
 {
+    CHECK_FPE;
+
     tcg_gen_xori_i64(cpu_fpr[a->fd], cpu_fpr[a->fj], 0x80000000);
     gen_nanbox_s(cpu_fpr[a->fd], cpu_fpr[a->fd]);
     return true;
@@ -61,6 +89,8 @@ static bool trans_fneg_s(DisasContext *ctx, arg_fneg_s *a)
 
 static bool trans_fneg_d(DisasContext *ctx, arg_fneg_d *a)
 {
+    CHECK_FPE;
+
     tcg_gen_xori_i64(cpu_fpr[a->fd], cpu_fpr[a->fj], 0x8000000000000000LL);
     return true;
 }
