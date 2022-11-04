@@ -164,7 +164,7 @@
 { TARGET_NR_execve, "execve" , NULL, print_execve, NULL },
 #endif
 #ifdef TARGET_NR_execveat
-{ TARGET_NR_execveat, "execveat" , NULL, NULL, NULL },
+{ TARGET_NR_execveat, "execveat" , NULL, print_execveat, NULL },
 #endif
 #ifdef TARGET_NR_exec_with_loader
 { TARGET_NR_exec_with_loader, "exec_with_loader" , NULL, NULL, NULL },
