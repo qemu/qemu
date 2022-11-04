@@ -548,11 +548,9 @@ static void hmp_info_vnc_clients(Monitor *mon, VncClientInfoList *client)
 
         hmp_info_VncBasicInfo(mon, qapi_VncClientInfo_base(cinfo), "Client");
         monitor_printf(mon, "    x509_dname: %s\n",
-                       cinfo->has_x509_dname ?
-                       cinfo->x509_dname : "none");
+                       cinfo->x509_dname ?: "none");
         monitor_printf(mon, "    sasl_username: %s\n",
-                       cinfo->has_sasl_username ?
-                       cinfo->sasl_username : "none");
+                       cinfo->sasl_username ?: "none");
 
         client = client->next;
     }
@@ -597,7 +595,7 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
             hmp_info_vnc_authcrypt(mon, "  ", info->auth,
                                info->has_vencrypt ? &info->vencrypt : NULL);
         }
-        if (info->has_display) {
+        if (info->display) {
             monitor_printf(mon, "  Display: %s\n", info->display);
         }
         info2l = info2l->next;
@@ -1401,7 +1399,6 @@ void hmp_set_password(Monitor *mon, const QDict *qdict)
     }
 
     if (opts.protocol == DISPLAY_PROTOCOL_VNC) {
-        opts.u.vnc.has_display = !!display;
         opts.u.vnc.display = (char *)display;
     }
 
@@ -1429,7 +1426,6 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
     }
 
     if (opts.protocol == DISPLAY_PROTOCOL_VNC) {
-        opts.u.vnc.has_display = !!display;
         opts.u.vnc.display = (char *)display;
     }
 
@@ -1714,7 +1710,7 @@ hmp_screendump(Monitor *mon, const QDict *qdict)
         goto end;
     }
 
-    qmp_screendump(filename, id != NULL, id, id != NULL, head,
+    qmp_screendump(filename, id, id != NULL, head,
                    input_format != NULL, format, &err);
 end:
     hmp_handle_error(mon, err);

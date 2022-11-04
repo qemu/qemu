@@ -759,7 +759,6 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         assert self.type
         # Temporary hack to support dropping the has_FOO in reviewable chunks
         opt_out = [
-            'qapi/ui.json',
             'qapi/virtio.json',
             'qga/qapi-schema.json']
         if self.info and any(self.info.fname.endswith(mod)

@@ -222,7 +222,6 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
         break;
     case SPICE_CHANNEL_EVENT_INITIALIZED:
         if (auth) {
-            server->has_auth = true;
             server->auth = g_strdup(auth);
         }
         add_channel_info(client, info);
@@ -522,13 +521,9 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
 
-    info->has_auth = true;
     info->auth = g_strdup(auth);
-
-    info->has_host = true;
     info->host = g_strdup(addr ? addr : "*");
 
-    info->has_compiled_version = true;
     major = (SPICE_SERVER_VERSION & 0xff0000) >> 16;
     minor = (SPICE_SERVER_VERSION & 0xff00) >> 8;
     micro = SPICE_SERVER_VERSION & 0xff;
