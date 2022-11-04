@@ -759,7 +759,6 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         assert self.type
         # Temporary hack to support dropping the has_FOO in reviewable chunks
         opt_out = [
-            'qapi/rocker.json',
             'qapi/run-state.json',
             'qapi/stats.json',
             'qapi/tpm.json',
