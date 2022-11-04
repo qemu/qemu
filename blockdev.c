@@ -1686,6 +1686,7 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     BlockDriverState *source = NULL;
     AioContext *aio_context;
     AioContext *old_context;
+    const char *format;
     QDict *options;
     Error *local_err = NULL;
     int flags;
@@ -1717,9 +1718,9 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     /* Paired with .clean() */
     bdrv_drained_begin(bs);
 
-    if (!backup->has_format) {
-        backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
-                         NULL : (char *) bs->drv->format_name;
+    format = backup->format;
+    if (!format && backup->mode != NEW_IMAGE_MODE_EXISTING) {
+        format = bs->drv->format_name;
     }
 
     /* Early check to avoid creating target */
@@ -1758,19 +1759,19 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     }
 
     if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
-        assert(backup->format);
+        assert(format);
         if (source) {
             /* Implicit filters should not appear in the filename */
             BlockDriverState *explicit_backing =
                 bdrv_skip_implicit_filters(source);
 
             bdrv_refresh_filename(explicit_backing);
-            bdrv_img_create(backup->target, backup->format,
+            bdrv_img_create(backup->target, format,
                             explicit_backing->filename,
                             explicit_backing->drv->format_name, NULL,
                             size, flags, false, &local_err);
         } else {
-            bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
+            bdrv_img_create(backup->target, format, NULL, NULL, NULL,
                             size, flags, false, &local_err);
         }
     }
@@ -1783,8 +1784,8 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     options = qdict_new();
     qdict_put_str(options, "discard", "unmap");
     qdict_put_str(options, "detect-zeroes", "unmap");
-    if (backup->format) {
-        qdict_put_str(options, "driver", backup->format);
+    if (format) {
+        qdict_put_str(options, "driver", format);
     }
 
     target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
