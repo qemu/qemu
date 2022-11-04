@@ -50,7 +50,6 @@ ReplayInfo *qmp_query_replay(Error **errp)
     retval->mode = replay_mode;
     if (replay_get_filename()) {
         retval->filename = g_strdup(replay_get_filename());
-        retval->has_filename = true;
     }
     retval->icount = replay_get_current_icount();
     return retval;
