@@ -1638,6 +1638,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
 {
     NBDExport *exp = container_of(blk_exp, NBDExport, common);
     BlockExportOptionsNbd *arg = &exp_args->u.nbd;
+    const char *name = arg->name ?: exp_args->node_name;
     BlockBackend *blk = blk_exp->blk;
     int64_t size;
     uint64_t perm, shared_perm;
@@ -1653,12 +1654,8 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         return -EINVAL;
     }
 
-    if (!arg->has_name) {
-        arg->name = exp_args->node_name;
-    }
-
-    if (strlen(arg->name) > NBD_MAX_STRING_SIZE) {
-        error_setg(errp, "export name '%s' too long", arg->name);
+    if (strlen(name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name '%s' too long", name);
         return -EINVAL;
     }
 
@@ -1667,8 +1664,8 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         return -EINVAL;
     }
 
-    if (nbd_export_find(arg->name)) {
-        error_setg(errp, "NBD server already has export named '%s'", arg->name);
+    if (nbd_export_find(name)) {
+        error_setg(errp, "NBD server already has export named '%s'", name);
         return -EEXIST;
     }
 
@@ -1688,7 +1685,7 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
     }
 
     QTAILQ_INIT(&exp->clients);
-    exp->name = g_strdup(arg->name);
+    exp->name = g_strdup(name);
     exp->description = g_strdup(arg->description);
     exp->nbdflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_FLUSH |
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
