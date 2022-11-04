@@ -757,12 +757,6 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
 
     def need_has(self):
         assert self.type
-        # Temporary hack to support dropping the has_FOO in reviewable chunks
-        opt_out = []
-        if self.info and any(self.info.fname.endswith(mod)
-                             for mod in opt_out):
-            return self.optional
-        # End of temporary hack
         return self.optional and self.type.need_has_if_optional()
 
     def check(self, schema):
