@@ -2188,7 +2188,7 @@ static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
     qobject_unref(qmp_command(who,
                   "{ 'execute': 'calc-dirty-rate',"
                   "'arguments': { "
-                  "'calc-time': %ld,"
+                  "'calc-time': %" PRIu64 ","
                   "'mode': 'dirty-ring' }}",
                   calc_time));
 }
@@ -2203,7 +2203,7 @@ static void dirtylimit_set_all(QTestState *who, uint64_t dirtyrate)
     qobject_unref(qmp_command(who,
                   "{ 'execute': 'set-vcpu-dirty-limit',"
                   "'arguments': { "
-                  "'dirty-rate': %ld } }",
+                  "'dirty-rate': %" PRIu64 " } }",
                   dirtyrate));
 }
 
