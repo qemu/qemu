@@ -21907,22 +21907,24 @@ static const Pool MAJOR[2] = {
        0x0                 },        /* P16 */
 };
 
-static int nanomips_dis(char **buf,
-                 Dis_info *info,
-                 unsigned short one,
-                 unsigned short two,
-                 unsigned short three)
+static bool nanomips_dis(char **buf, Dis_info *info,
+                         unsigned short one,
+                         unsigned short two,
+                         unsigned short three)
 {
     uint16 bits[3] = {one, two, three};
-
     TABLE_ENTRY_TYPE type;
-    int size = Disassemble(bits, buf, &type, MAJOR, 2, info);
-    return size;
+
+    /* Handle runtime errors. */
+    if (unlikely(sigsetjmp(info->buf, 0) != 0)) {
+        return false;
+    }
+    return Disassemble(bits, buf, &type, MAJOR, ARRAY_SIZE(MAJOR), info) >= 0;
 }
 
 int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
 {
-    int status;
+    int status, length;
     bfd_byte buffer[2];
     uint16_t insn1 = 0, insn2 = 0, insn3 = 0;
     g_autofree char *buf = NULL;
@@ -21952,6 +21954,7 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     } else {
         insn1 = bfd_getl16(buffer);
     }
+    length = 2;
     (*info->fprintf_func)(info->stream, "%04x ", insn1);
 
     /* Handle 32-bit opcodes.  */
@@ -21967,6 +21970,7 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         } else {
             insn2 = bfd_getl16(buffer);
         }
+        length = 4;
         (*info->fprintf_func)(info->stream, "%04x ", insn2);
     } else {
         (*info->fprintf_func)(info->stream, "     ");
@@ -21984,27 +21988,15 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         } else {
             insn3 = bfd_getl16(buffer);
         }
+        length = 6;
         (*info->fprintf_func)(info->stream, "%04x ", insn3);
     } else {
         (*info->fprintf_func)(info->stream, "     ");
     }
 
-    /* Handle runtime errors. */
-    if (sigsetjmp(disassm_info.buf, 0) != 0) {
-        info->insn_type = dis_noninsn;
-        return insn3 ? 6 : insn2 ? 4 : 2;
+    if (nanomips_dis(&buf, &disassm_info, insn1, insn2, insn3)) {
+        (*info->fprintf_func) (info->stream, "%s", buf);
     }
 
-    int length = nanomips_dis(&buf, &disassm_info, insn1, insn2, insn3);
-
-    /* FIXME: Should probably use a hash table on the major opcode here.  */
-
-    (*info->fprintf_func) (info->stream, "%s", buf);
-    if (length > 0) {
-        return length / 8;
-    }
-
-    info->insn_type = dis_noninsn;
-
-    return insn3 ? 6 : insn2 ? 4 : 2;
+    return length;
 }
