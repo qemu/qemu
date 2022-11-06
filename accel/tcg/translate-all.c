@@ -742,6 +742,37 @@ void page_collection_unlock(struct page_collection *set)
 
 #endif /* !CONFIG_USER_ONLY */
 
+/*
+ * Isolate the portion of code gen which can setjmp/longjmp.
+ * Return the size of the generated code, or negative on error.
+ */
+static int setjmp_gen_code(CPUArchState *env, TranslationBlock *tb,
+                           target_ulong pc, void *host_pc,
+                           int *max_insns, int64_t *ti)
+{
+    int ret = sigsetjmp(tcg_ctx->jmp_trans, 0);
+    if (unlikely(ret != 0)) {
+        return ret;
+    }
+
+    tcg_func_start(tcg_ctx);
+
+    tcg_ctx->cpu = env_cpu(env);
+    gen_intermediate_code(env_cpu(env), tb, *max_insns, pc, host_pc);
+    assert(tb->size != 0);
+    tcg_ctx->cpu = NULL;
+    *max_insns = tb->icount;
+
+#ifdef CONFIG_PROFILER
+    qatomic_set(&tcg_ctx->prof.tb_count, tcg_ctx->prof.tb_count + 1);
+    qatomic_set(&tcg_ctx->prof.interm_time,
+                tcg_ctx->prof.interm_time + profile_getclock() - *ti);
+    *ti = profile_getclock();
+#endif
+
+    return tcg_gen_code(tcg_ctx, tb, pc);
+}
+
 /* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
@@ -754,8 +785,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     int gen_code_size, search_size, max_insns;
 #ifdef CONFIG_PROFILER
     TCGProfile *prof = &tcg_ctx->prof;
-    int64_t ti;
 #endif
+    int64_t ti;
     void *host_pc;
 
     assert_memory_lock();
@@ -805,33 +836,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     ti = profile_getclock();
 #endif
 
-    gen_code_size = sigsetjmp(tcg_ctx->jmp_trans, 0);
-    if (unlikely(gen_code_size != 0)) {
-        goto error_return;
-    }
-
-    tcg_func_start(tcg_ctx);
-
-    tcg_ctx->cpu = env_cpu(env);
-    gen_intermediate_code(cpu, tb, max_insns, pc, host_pc);
-    assert(tb->size != 0);
-    tcg_ctx->cpu = NULL;
-    max_insns = tb->icount;
-
     trace_translate_block(tb, pc, tb->tc.ptr);
 
-    /* generate machine code */
-
-#ifdef CONFIG_PROFILER
-    qatomic_set(&prof->tb_count, prof->tb_count + 1);
-    qatomic_set(&prof->interm_time,
-                prof->interm_time + profile_getclock() - ti);
-    ti = profile_getclock();
-#endif
-
-    gen_code_size = tcg_gen_code(tcg_ctx, tb, pc);
+    gen_code_size = setjmp_gen_code(env, tb, pc, host_pc, &max_insns, &ti);
     if (unlikely(gen_code_size < 0)) {
- error_return:
         switch (gen_code_size) {
         case -1:
             /*
