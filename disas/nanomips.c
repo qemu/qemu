@@ -21907,26 +21907,22 @@ static const Pool MAJOR[2] = {
        0x0                 },        /* P16 */
 };
 
-static bool nanomips_dis(char **buf, Dis_info *info,
-                         unsigned short one,
-                         unsigned short two,
-                         unsigned short three)
+static bool nanomips_dis(const uint16_t *data, char **buf, Dis_info *info)
 {
-    uint16 bits[3] = {one, two, three};
     TABLE_ENTRY_TYPE type;
 
     /* Handle runtime errors. */
     if (unlikely(sigsetjmp(info->buf, 0) != 0)) {
         return false;
     }
-    return Disassemble(bits, buf, &type, MAJOR, ARRAY_SIZE(MAJOR), info) >= 0;
+    return Disassemble(data, buf, &type, MAJOR, ARRAY_SIZE(MAJOR), info) >= 0;
 }
 
 int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
 {
     int status, length;
     bfd_byte buffer[2];
-    uint16_t insn1 = 0, insn2 = 0, insn3 = 0;
+    uint16_t words[3] = { };
     g_autofree char *buf = NULL;
 
     info->bytes_per_chunk = 2;
@@ -21950,15 +21946,14 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     }
 
     if (info->endian == BFD_ENDIAN_BIG) {
-        insn1 = bfd_getb16(buffer);
+        words[0] = bfd_getb16(buffer);
     } else {
-        insn1 = bfd_getl16(buffer);
+        words[0] = bfd_getl16(buffer);
     }
     length = 2;
-    (*info->fprintf_func)(info->stream, "%04x ", insn1);
 
     /* Handle 32-bit opcodes.  */
-    if ((insn1 & 0x1000) == 0) {
+    if ((words[0] & 0x1000) == 0) {
         status = (*info->read_memory_func)(memaddr + 2, buffer, 2, info);
         if (status != 0) {
             (*info->memory_error_func)(status, memaddr + 2, info);
@@ -21966,17 +21961,15 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         }
 
         if (info->endian == BFD_ENDIAN_BIG) {
-            insn2 = bfd_getb16(buffer);
+            words[1] = bfd_getb16(buffer);
         } else {
-            insn2 = bfd_getl16(buffer);
+            words[1] = bfd_getl16(buffer);
         }
         length = 4;
-        (*info->fprintf_func)(info->stream, "%04x ", insn2);
-    } else {
-        (*info->fprintf_func)(info->stream, "     ");
     }
+
     /* Handle 48-bit opcodes.  */
-    if ((insn1 >> 10) == 0x18) {
+    if ((words[0] >> 10) == 0x18) {
         status = (*info->read_memory_func)(memaddr + 4, buffer, 2, info);
         if (status != 0) {
             (*info->memory_error_func)(status, memaddr + 4, info);
@@ -21984,17 +21977,22 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
         }
 
         if (info->endian == BFD_ENDIAN_BIG) {
-            insn3 = bfd_getb16(buffer);
+            words[2] = bfd_getb16(buffer);
         } else {
-            insn3 = bfd_getl16(buffer);
+            words[2] = bfd_getl16(buffer);
         }
         length = 6;
-        (*info->fprintf_func)(info->stream, "%04x ", insn3);
-    } else {
-        (*info->fprintf_func)(info->stream, "     ");
     }
 
-    if (nanomips_dis(&buf, &disassm_info, insn1, insn2, insn3)) {
+    for (int i = 0; i < ARRAY_SIZE(words); i++) {
+        if (i * 2 < length) {
+            (*info->fprintf_func)(info->stream, "%04x ", words[i]);
+        } else {
+            (*info->fprintf_func)(info->stream, "     ");
+        }
+    }
+
+    if (nanomips_dis(words, &buf, &disassm_info)) {
         (*info->fprintf_func) (info->stream, "%s", buf);
     }
 
