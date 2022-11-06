@@ -21964,14 +21964,14 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
             return -1;
         }
         length = 4;
-    }
 
-    /* Handle 48-bit opcodes.  */
-    if ((words[0] >> 10) == 0x18) {
-        if (!read_u16(&words[1], memaddr + 4, info)) {
-            return -1;
+        /* Handle 48-bit opcodes.  */
+        if ((words[0] >> 10) == 0x18) {
+            if (!read_u16(&words[1], memaddr + 4, info)) {
+                return -1;
+            }
+            length = 6;
         }
-        length = 6;
     }
 
     for (int i = 0; i < ARRAY_SIZE(words); i++) {
