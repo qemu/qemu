@@ -1735,6 +1735,10 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_qemu_st8_i32:
         return TCG_TARGET_HAS_qemu_st8_i32;
 
+    case INDEX_op_qemu_ld_i128:
+    case INDEX_op_qemu_st_i128:
+        return TCG_TARGET_HAS_qemu_ldst_i128;
+
     case INDEX_op_mov_i32:
     case INDEX_op_setcond_i32:
     case INDEX_op_brcond_i32:
@@ -2187,7 +2191,7 @@ static const char * const cond_name[] =
     [TCG_COND_GTU] = "gtu"
 };
 
-static const char * const ldst_name[] =
+static const char * const ldst_name[(MO_BSWAP | MO_SSIZE) + 1] =
 {
     [MO_UB]   = "ub",
     [MO_SB]   = "sb",
@@ -2201,6 +2205,8 @@ static const char * const ldst_name[] =
     [MO_BEUL] = "beul",
     [MO_BESL] = "besl",
     [MO_BEUQ] = "beq",
+    [MO_128 + MO_BE] = "beo",
+    [MO_128 + MO_LE] = "leo",
 };
 
 static const char * const alignment_name[(MO_AMASK >> MO_ASHIFT) + 1] = {
@@ -2357,6 +2363,8 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             case INDEX_op_qemu_st8_i32:
             case INDEX_op_qemu_ld_i64:
             case INDEX_op_qemu_st_i64:
+            case INDEX_op_qemu_ld_i128:
+            case INDEX_op_qemu_st_i128:
                 {
                     const char *s_al, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];
