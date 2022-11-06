@@ -21918,10 +21918,24 @@ static bool nanomips_dis(const uint16_t *data, char **buf, Dis_info *info)
     return Disassemble(data, buf, &type, MAJOR, ARRAY_SIZE(MAJOR), info) >= 0;
 }
 
+static bool read_u16(uint16_t *ret, bfd_vma memaddr,
+                     struct disassemble_info *info)
+{
+    int status = (*info->read_memory_func)(memaddr, (bfd_byte *)ret, 2, info);
+    if (status != 0) {
+        (*info->memory_error_func)(status, memaddr, info);
+        return false;
+    }
+
+    if ((info->endian == BFD_ENDIAN_BIG) != HOST_BIG_ENDIAN) {
+        bswap16s(ret);
+    }
+    return true;
+}
+
 int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
 {
-    int status, length;
-    bfd_byte buffer[2];
+    int length;
     uint16_t words[3] = { };
     g_autofree char *buf = NULL;
 
@@ -21939,47 +21953,23 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     disassm_info.fprintf_func = info->fprintf_func;
     disassm_info.stream = info->stream;
 
-    status = (*info->read_memory_func)(memaddr, buffer, 2, info);
-    if (status != 0) {
-        (*info->memory_error_func)(status, memaddr, info);
+    if (!read_u16(&words[0], memaddr, info)) {
         return -1;
-    }
-
-    if (info->endian == BFD_ENDIAN_BIG) {
-        words[0] = bfd_getb16(buffer);
-    } else {
-        words[0] = bfd_getl16(buffer);
     }
     length = 2;
 
     /* Handle 32-bit opcodes.  */
     if ((words[0] & 0x1000) == 0) {
-        status = (*info->read_memory_func)(memaddr + 2, buffer, 2, info);
-        if (status != 0) {
-            (*info->memory_error_func)(status, memaddr + 2, info);
+        if (!read_u16(&words[1], memaddr + 2, info)) {
             return -1;
-        }
-
-        if (info->endian == BFD_ENDIAN_BIG) {
-            words[1] = bfd_getb16(buffer);
-        } else {
-            words[1] = bfd_getl16(buffer);
         }
         length = 4;
     }
 
     /* Handle 48-bit opcodes.  */
     if ((words[0] >> 10) == 0x18) {
-        status = (*info->read_memory_func)(memaddr + 4, buffer, 2, info);
-        if (status != 0) {
-            (*info->memory_error_func)(status, memaddr + 4, info);
+        if (!read_u16(&words[1], memaddr + 4, info)) {
             return -1;
-        }
-
-        if (info->endian == BFD_ENDIAN_BIG) {
-            words[2] = bfd_getb16(buffer);
-        } else {
-            words[2] = bfd_getl16(buffer);
         }
         length = 6;
     }
