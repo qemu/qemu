@@ -236,10 +236,6 @@ static QemuOptsList machine_opts = {
             .help = "Up to 8 chars in set of [A-Za-z0-9. ](lower case chars"
                     " converted to upper case) to pass to machine"
                     " loader, boot manager, and guest kernel",
-        },{
-            .name = "zpcii-disable",
-            .type = QEMU_OPT_BOOL,
-            .help = "disable zPCI interpretation facilities",
         },
         { /* End of list */ }
     }

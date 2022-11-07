@@ -27,7 +27,6 @@ struct S390CcwMachineState {
     bool aes_key_wrap;
     bool dea_key_wrap;
     bool pv;
-    bool zpcii_disable;
     uint8_t loadparm[8];
 };
 

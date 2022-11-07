@@ -22,9 +22,7 @@
 
 bool s390_pci_kvm_interp_allowed(void)
 {
-    return (kvm_s390_get_zpci_op() && !s390_is_pv() &&
-            !object_property_get_bool(OBJECT(qdev_get_machine()),
-                                      "zpcii-disable", NULL));
+    return kvm_s390_get_zpci_op() && !s390_is_pv();
 }
 
 int s390_pci_kvm_aif_enable(S390PCIBusDevice *pbdev, ZpciFib *fib, bool assist)
