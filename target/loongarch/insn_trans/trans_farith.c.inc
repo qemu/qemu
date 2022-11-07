@@ -7,7 +7,7 @@
 #define CHECK_FPE do { \
     if ((ctx->base.tb->flags & HW_FLAGS_EUEN_FPE) == 0) { \
         generate_exception(ctx, EXCCODE_FPD); \
-        return false; \
+        return true; \
     } \
 } while (0)
 #else
