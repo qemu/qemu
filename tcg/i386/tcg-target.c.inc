@@ -4218,6 +4218,19 @@ static void tcg_target_init(TCGContext *s)
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
+#ifdef _WIN64
+    /* These are call saved, and we don't save them, so don't use them. */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM6);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM7);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM8);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM9);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM10);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM11);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM12);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM13);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM14);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_XMM15);
+#endif
 }
 
 typedef struct {
