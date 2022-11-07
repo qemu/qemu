@@ -173,7 +173,8 @@ static bool child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx,
 static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
-    GLOBAL_STATE_CODE();
+    IO_CODE();
+    JOB_LOCK_GUARD();
 
     return job->job.aio_context;
 }

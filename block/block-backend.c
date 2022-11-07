@@ -311,6 +311,7 @@ static void blk_root_detach(BdrvChild *child)
 static AioContext *blk_root_get_parent_aio_context(BdrvChild *c)
 {
     BlockBackend *blk = c->opaque;
+    IO_CODE();
 
     return blk_get_aio_context(blk);
 }
