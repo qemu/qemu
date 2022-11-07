@@ -15,7 +15,7 @@
 #
 # @name: Name of the VirtIODevice
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 { 'struct': 'VirtioInfo',
@@ -32,7 +32,7 @@
 #
 # Returns: List of gathered VirtIODevices
 #
-# Since: 7.1
+# Since: 7.2
 #
 # Example:
 #
@@ -97,7 +97,7 @@
 #
 # @log-size: vhost_dev log_size
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -167,7 +167,7 @@
 #             Present if the given VirtIODevice has an active vhost
 #             device.
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -206,7 +206,7 @@
 #
 # Returns: VirtioStatus of the virtio device
 #
-# Since: 7.1
+# Since: 7.2
 #
 # Examples:
 #
@@ -452,7 +452,7 @@
 #
 # @unknown-statuses: Virtio device statuses bitmap that have not been decoded
 #
-# Since: 7.1
+# Since: 7.2
 ##
 
 { 'struct': 'VirtioDeviceStatus',
@@ -471,7 +471,7 @@
 # @unknown-protocols: Vhost user device protocol features bitmap that
 #                     have not been decoded
 #
-# Since: 7.1
+# Since: 7.2
 ##
 
 { 'struct': 'VhostDeviceProtocols',
@@ -492,7 +492,7 @@
 # @unknown-dev-features: Virtio device features bitmap that have not
 #                        been decoded
 #
-# Since: 7.1
+# Since: 7.2
 ##
 
 { 'struct': 'VirtioDeviceFeatures',
@@ -535,7 +535,7 @@
 #
 # @signalled-used-valid: VirtQueue signalled_used_valid flag
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -576,7 +576,7 @@
 #        shadow_avail_idx will not be displayed in the case where
 #        the selected VirtIODevice has a running vhost device.
 #
-# Since: 7.1
+# Since: 7.2
 #
 # Examples:
 #
@@ -666,7 +666,7 @@
 #
 # @used-size: vhost_virtqueue used_size
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -699,7 +699,7 @@
 #
 # Returns: VirtVhostQueueStatus of the vhost_virtqueue
 #
-# Since: 7.1
+# Since: 7.2
 #
 # Examples:
 #
@@ -767,7 +767,7 @@
 #
 # @flags: List of descriptor flags
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -787,7 +787,7 @@
 #
 # @ring: VRingAvail ring[] entry at provided index
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -805,7 +805,7 @@
 #
 # @idx: VRingUsed index
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -829,7 +829,7 @@
 #
 # @used: VRingUsed info
 #
-# Since: 7.1
+# Since: 7.2
 #
 ##
 
@@ -857,7 +857,7 @@
 #
 # Returns: VirtioQueueElement information
 #
-# Since: 7.1
+# Since: 7.2
 #
 # Examples:
 #

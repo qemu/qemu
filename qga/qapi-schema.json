@@ -392,7 +392,7 @@
 ##
 # @guest-file-flush:
 #
-# Write file changes bufferred in userspace to disk/kernel buffers
+# Write file changes buffered in userspace to disk/kernel buffers
 #
 # @handle: filehandle returned by guest-file-open
 #

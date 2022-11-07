@@ -41,7 +41,7 @@ can be accessed by following steps.
 
   $ qemu-system-loongarch64 -machine virt -m 4G -cpu la464-loongarch-cpu \
       -smp 1 -bios QEMU_EFI.fd -kernel vmlinuz.efi -initrd initrd.img \
-      -append "root=/dev/ram rdinit=/sbin/init consol e=ttyS0,115200" \
+      -append "root=/dev/ram rdinit=/sbin/init console=ttyS0,115200" \
       --nographic
 
 Note: The running speed may be a little slow, as the performance of our

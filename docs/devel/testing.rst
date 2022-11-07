@@ -99,7 +99,7 @@ successfully on various hosts. The following list shows some best practices:
 * If your test cases uses the blkdebug feature, use relative path to pass
   the config and image file paths in the command line as Windows absolute
   path contains the delimiter ":" which will confuse the blkdebug parser.
-* Use double quotes in your extra QEMU commmand line in your test cases
+* Use double quotes in your extra QEMU command line in your test cases
   instead of single quotes, as Windows does not drop single quotes when
   passing the command line to QEMU.
 * Windows opens a file in text mode by default, while a POSIX compliant
