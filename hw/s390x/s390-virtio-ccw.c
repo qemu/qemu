@@ -844,9 +844,14 @@ static void ccw_machine_7_1_instance_options(MachineState *machine)
 static void ccw_machine_7_1_class_options(MachineClass *mc)
 {
     S390CcwMachineClass *s390mc = S390_CCW_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        { TYPE_S390_PCI_DEVICE, "interpret", "off", },
+        { TYPE_S390_PCI_DEVICE, "forwarding-assist", "off", },
+    };
 
     ccw_machine_7_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_7_1, hw_compat_7_1_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
     s390mc->max_threads = S390_MAX_CPUS;
 }
 DEFINE_CCW_MACHINE(7_1, "7.1", false);
