@@ -2165,7 +2165,7 @@ config_host_data.set('CONFIG_SPLICE', cc.links(gnu_source_prefix + '''
 
 config_host_data.set('HAVE_MLOCKALL', cc.links(gnu_source_prefix + '''
   #include <sys/mman.h>
-  int main(int argc, char *argv[]) {
+  int main(void) {
     return mlockall(MCL_FUTURE);
   }'''))
 
@@ -2210,7 +2210,7 @@ config_host_data.set('HAVE_FSXATTR', cc.links('''
 config_host_data.set('HAVE_BROKEN_SIZE_MAX', not cc.compiles('''
     #include <stdint.h>
     #include <stdio.h>
-    int main(int argc, char *argv[]) {
+    int main(void) {
         return printf("%zu", SIZE_MAX);
     }''', args: ['-Werror']))
 
@@ -2327,7 +2327,7 @@ config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
       __m256i x = *(__m256i *)a;
       return _mm256_testz_si256(x, x);
     }
-    int main(int argc, char *argv[]) { return bar(argv[0]); }
+    int main(int argc, char *argv[]) { return bar(argv[argc - 1]); }
   '''), error_message: 'AVX2 not available').allowed())
 
 config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
@@ -2341,7 +2341,7 @@ config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
       __m512i x = *(__m512i *)a;
       return _mm512_test_epi64_mask(x, x);
     }
-    int main(int argc, char *argv[]) { return bar(argv[0]); }
+    int main(int argc, char *argv[]) { return bar(argv[argc - 1]); }
   '''), error_message: 'AVX512F not available').allowed())
 
 have_pvrdma = get_option('pvrdma') \
