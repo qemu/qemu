@@ -220,6 +220,15 @@ static void * const qemu_st_helpers[MO_SIZE + 1] __attribute__((unused)) = {
 #endif
 };
 
+typedef struct {
+    MemOp atom;   /* lg2 bits of atomicity required */
+    MemOp align;  /* lg2 bits of alignment to use */
+} TCGAtomAlign;
+
+static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc,
+                                           MemOp host_atom, bool allow_two_ops)
+    __attribute__((unused));
+
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
 
@@ -5228,6 +5237,92 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             temp_dead(s, ts);
         }
     }
+}
+
+/**
+ * atom_and_align_for_opc:
+ * @s: tcg context
+ * @opc: memory operation code
+ * @host_atom: MO_ATOM_{IFALIGN,WITHIN16,SUBALIGN} for host operations
+ * @allow_two_ops: true if we are prepared to issue two operations
+ *
+ * Return the alignment and atomicity to use for the inline fast path
+ * for the given memory operation.  The alignment may be larger than
+ * that specified in @opc, and the correct alignment will be diagnosed
+ * by the slow path helper.
+ *
+ * If @allow_two_ops, the host is prepared to test for 2x alignment,
+ * and issue two loads or stores for subalignment.
+ */
+static TCGAtomAlign atom_and_align_for_opc(TCGContext *s, MemOp opc,
+                                           MemOp host_atom, bool allow_two_ops)
+{
+    MemOp align = get_alignment_bits(opc);
+    MemOp size = opc & MO_SIZE;
+    MemOp half = size ? size - 1 : 0;
+    MemOp atmax;
+    MemOp atom;
+
+    /* When serialized, no further atomicity required.  */
+    if (s->gen_tb->cflags & CF_PARALLEL) {
+        atom = opc & MO_ATOM_MASK;
+    } else {
+        atom = MO_ATOM_NONE;
+    }
+
+    switch (atom) {
+    case MO_ATOM_NONE:
+        /* The operation requires no specific atomicity. */
+        atmax = MO_8;
+        break;
+
+    case MO_ATOM_IFALIGN:
+        atmax = size;
+        break;
+
+    case MO_ATOM_IFALIGN_PAIR:
+        atmax = half;
+        break;
+
+    case MO_ATOM_WITHIN16:
+        atmax = size;
+        if (size == MO_128) {
+            /* Misalignment implies !within16, and therefore no atomicity. */
+        } else if (host_atom != MO_ATOM_WITHIN16) {
+            /* The host does not implement within16, so require alignment. */
+            align = MAX(align, size);
+        }
+        break;
+
+    case MO_ATOM_WITHIN16_PAIR:
+        atmax = size;
+        /*
+         * Misalignment implies !within16, and therefore half atomicity.
+         * Any host prepared for two operations can implement this with
+         * half alignment.
+         */
+        if (host_atom != MO_ATOM_WITHIN16 && allow_two_ops) {
+            align = MAX(align, half);
+        }
+        break;
+
+    case MO_ATOM_SUBALIGN:
+        atmax = size;
+        if (host_atom != MO_ATOM_SUBALIGN) {
+            /* If unaligned but not odd, there are subobjects up to half. */
+            if (allow_two_ops) {
+                align = MAX(align, half);
+            } else {
+                align = MAX(align, size);
+            }
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    return (TCGAtomAlign){ .atom = atmax, .align = align };
 }
 
 /*
