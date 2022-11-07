@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/net/e1000_regs.h"
+#include "hw/pci/pci_ids.h"
 #include "../libqtest.h"
 #include "pci-pc.h"
 #include "qemu/sockets.h"
@@ -29,9 +30,9 @@
 #include "e1000e.h"
 
 #define E1000E_IVAR_TEST_CFG \
-    (E1000E_RX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID             | \
-     ((E1000E_TX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << 8)    | \
-     ((E1000E_OTHER_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << 16) | \
+    (((E1000E_RX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_RXQ0_SHIFT) | \
+     ((E1000E_TX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_TXQ0_SHIFT) | \
+     ((E1000E_OTHER_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_OTHER_SHIFT) | \
      E1000_IVAR_TX_INT_EVERY_WB)
 
 #define E1000E_RING_LEN (0x1000)
@@ -121,7 +122,7 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
 
     /* Reset the device */
     val = e1000e_macreg_read(&d->e1000e, E1000_CTRL);
-    e1000e_macreg_write(&d->e1000e, E1000_CTRL, val | E1000_CTRL_RST);
+    e1000e_macreg_write(&d->e1000e, E1000_CTRL, val | E1000_CTRL_RST | E1000_CTRL_SLU);
 
     /* Enable and configure MSI-X */
     qpci_msix_enable(&d->pci_dev);
@@ -129,8 +130,8 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
 
     /* Check the device status - link and speed */
     val = e1000e_macreg_read(&d->e1000e, E1000_STATUS);
-    g_assert_cmphex(val & (E1000_STATUS_LU | E1000_STATUS_LAN_INIT_DONE),
-        ==, E1000_STATUS_LU | E1000_STATUS_LAN_INIT_DONE);
+    g_assert_cmphex(val & (E1000_STATUS_LU | E1000_STATUS_ASDV_1000),
+        ==, E1000_STATUS_LU | E1000_STATUS_ASDV_1000);
 
     /* Initialize TX/RX logic */
     e1000e_macreg_write(&d->e1000e, E1000_RCTL, 0);
@@ -217,8 +218,8 @@ static void *e1000e_pci_create(void *pci_bus, QGuestAllocator *alloc,
 static void e1000e_register_nodes(void)
 {
     QPCIAddress addr = {
-        .vendor_id = 0x8086,
-        .device_id = 0x10D3,
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = E1000_DEV_ID_82574L,
     };
 
     /* FIXME: every test using this node needs to setup a -netdev socket,id=hs0

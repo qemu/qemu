@@ -677,8 +677,9 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     S390PCIBusDevice *pbdev;
     S390PCIIOMMU *iommu;
     S390IOTLBEntry entry;
-    hwaddr start, end;
+    hwaddr start, end, sstart;
     uint32_t dma_avail;
+    bool again;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, ra);
@@ -691,7 +692,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
     }
 
     fh = env->regs[r1] >> 32;
-    start = env->regs[r2];
+    sstart = start = env->regs[r2];
     end = start + env->regs[r2 + 1];
 
     pbdev = s390_pci_find_dev_by_fh(s390_get_phb(), fh);
@@ -732,6 +733,9 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         goto err;
     }
 
+ retry:
+    start = sstart;
+    again = false;
     while (start < end) {
         error = s390_guest_io_table_walk(iommu->g_iota, start, &entry);
         if (error) {
@@ -739,13 +743,24 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         }
 
         start += entry.len;
-        while (entry.iova < start && entry.iova < end &&
-               (dma_avail > 0 || entry.perm == IOMMU_NONE)) {
-            dma_avail = s390_pci_update_iotlb(iommu, &entry);
-            entry.iova += TARGET_PAGE_SIZE;
-            entry.translated_addr += TARGET_PAGE_SIZE;
+        while (entry.iova < start && entry.iova < end) {
+            if (dma_avail > 0 || entry.perm == IOMMU_NONE) {
+                dma_avail = s390_pci_update_iotlb(iommu, &entry);
+                entry.iova += TARGET_PAGE_SIZE;
+                entry.translated_addr += TARGET_PAGE_SIZE;
+            } else {
+                /*
+                 * We are unable to make a new mapping at this time, continue
+                 * on and hopefully free up more space.  Then attempt another
+                 * pass.
+                 */
+                again = true;
+                break;
+            }
         }
     }
+    if (again && dma_avail > 0)
+        goto retry;
 err:
     if (error) {
         pbdev->state = ZPCI_FS_ERROR;
