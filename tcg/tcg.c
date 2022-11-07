@@ -197,8 +197,7 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *l,
                                    const TCGLdstHelperParam *p)
     __attribute__((unused));
 
-#ifdef CONFIG_SOFTMMU
-static void * const qemu_ld_helpers[MO_SSIZE + 1] = {
+static void * const qemu_ld_helpers[MO_SSIZE + 1] __attribute__((unused)) = {
     [MO_UB] = helper_ldub_mmu,
     [MO_SB] = helper_ldsb_mmu,
     [MO_UW] = helper_lduw_mmu,
@@ -210,13 +209,12 @@ static void * const qemu_ld_helpers[MO_SSIZE + 1] = {
 #endif
 };
 
-static void * const qemu_st_helpers[MO_SIZE + 1] = {
+static void * const qemu_st_helpers[MO_SIZE + 1] __attribute__((unused)) = {
     [MO_8]  = helper_stb_mmu,
     [MO_16] = helper_stw_mmu,
     [MO_32] = helper_stl_mmu,
     [MO_64] = helper_stq_mmu,
 };
-#endif
 
 TCGContext tcg_init_ctx;
 __thread TCGContext *tcg_ctx;
