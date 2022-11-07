@@ -28,6 +28,8 @@ enum PCIBusFlags {
     PCI_BUS_CXL                                             = 0x0004,
 };
 
+#define PCI_NO_PASID UINT32_MAX
+
 struct PCIBus {
     BusState qbus;
     enum PCIBusFlags flags;

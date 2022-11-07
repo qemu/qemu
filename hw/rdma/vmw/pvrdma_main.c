@@ -307,12 +307,7 @@ static int init_msix(PCIDevice *pdev)
     }
 
     for (i = 0; i < RDMA_MAX_INTRS; i++) {
-        rc = msix_vector_use(PCI_DEVICE(dev), i);
-        if (rc < 0) {
-            rdma_error_report("Fail mark MSI-X vector %d", i);
-            uninit_msix(pdev, i);
-            return rc;
-        }
+        msix_vector_use(PCI_DEVICE(dev), i);
     }
 
     return 0;

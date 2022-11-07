@@ -157,6 +157,9 @@
 
 /* Vendors and devices.  Sort key: vendor first, device next. */
 
+/* Ref: PCIe r6.0 Table 6-32 */
+#define PCI_VENDOR_ID_PCI_SIG            0x0001
+
 #define PCI_VENDOR_ID_LSI_LOGIC          0x1000
 #define PCI_DEVICE_ID_LSI_53C810         0x0001
 #define PCI_DEVICE_ID_LSI_53C895A        0x0012

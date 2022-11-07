@@ -40,7 +40,9 @@
 #include "hw/virtio/virtio-pci.h"
 #include "qom/object_interfaces.h"
 
-GlobalProperty hw_compat_7_1[] = {};
+GlobalProperty hw_compat_7_1[] = {
+    { "virtio-device", "queue_reset", "false" },
+};
 const size_t hw_compat_7_1_len = G_N_ELEMENTS(hw_compat_7_1);
 
 GlobalProperty hw_compat_7_0[] = {
@@ -1176,9 +1178,7 @@ static void numa_validate_initiator(NumaState *numa_state)
 
     for (i = 0; i < numa_state->num_nodes; i++) {
         if (numa_info[i].initiator == MAX_NODES) {
-            error_report("The initiator of NUMA node %d is missing, use "
-                         "'-numa node,initiator' option to declare it", i);
-            exit(1);
+            continue;
         }
 
         if (!numa_info[numa_info[i].initiator].present) {

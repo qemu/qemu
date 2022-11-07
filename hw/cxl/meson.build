@@ -4,6 +4,7 @@ softmmu_ss.add(when: 'CONFIG_CXL',
                    'cxl-device-utils.c',
                    'cxl-mailbox-utils.c',
                    'cxl-host.c',
+                   'cxl-cdat.c',
                ),
                if_false: files(
                    'cxl-host-stubs.c',
