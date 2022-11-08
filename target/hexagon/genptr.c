@@ -456,6 +456,61 @@ static TCGv gen_8bitsof(TCGv result, TCGv value)
     return result;
 }
 
+static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
+                                  TCGCond cond, TCGv pred)
+{
+    TCGLabel *pred_false = NULL;
+    if (cond != TCG_COND_ALWAYS) {
+        pred_false = gen_new_label();
+        tcg_gen_brcondi_tl(cond, pred, 0, pred_false);
+    }
+
+    if (ctx->pkt->pkt_has_multi_cof) {
+        /* If there are multiple branches in a packet, ignore the second one */
+        tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
+                           hex_branch_taken, tcg_constant_tl(0),
+                           hex_gpr[HEX_REG_PC], addr);
+        tcg_gen_movi_tl(hex_branch_taken, 1);
+    } else {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
+    }
+
+    if (cond != TCG_COND_ALWAYS) {
+        gen_set_label(pred_false);
+    }
+}
+
+static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
+                                   TCGCond cond, TCGv pred)
+{
+    target_ulong dest = ctx->pkt->pc + pc_off;
+    gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), cond, pred);
+}
+
+static void gen_call(DisasContext *ctx, int pc_off)
+{
+    TCGv next_PC =
+        tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
+    gen_log_reg_write(HEX_REG_LR, next_PC);
+    gen_write_new_pc_pcrel(ctx, pc_off, TCG_COND_ALWAYS, NULL);
+}
+
+static void gen_cond_call(DisasContext *ctx, TCGv pred,
+                          TCGCond cond, int pc_off)
+{
+    TCGv next_PC;
+    TCGv lsb = tcg_temp_local_new();
+    TCGLabel *skip = gen_new_label();
+    tcg_gen_andi_tl(lsb, pred, 1);
+    gen_write_new_pc_pcrel(ctx, pc_off, cond, lsb);
+    tcg_gen_brcondi_tl(cond, lsb, 0, skip);
+    tcg_temp_free(lsb);
+    next_PC =
+        tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
+    gen_log_reg_write(HEX_REG_LR, next_PC);
+    gen_set_label(skip);
+}
+
 /* Shift left with saturation */
 static void gen_shl_sat(TCGv dst, TCGv src, TCGv shift_amt)
 {
