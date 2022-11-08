@@ -484,7 +484,17 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
                                    TCGCond cond, TCGv pred)
 {
     target_ulong dest = ctx->pkt->pc + pc_off;
-    gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), cond, pred);
+    if (ctx->pkt->pkt_has_multi_cof) {
+        gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), cond, pred);
+    } else {
+        /* Defer this jump to the end of the TB */
+        ctx->branch_cond = TCG_COND_ALWAYS;
+        if (pred != NULL) {
+            ctx->branch_cond = cond;
+            tcg_gen_mov_tl(hex_branch_taken, pred);
+        }
+        ctx->branch_dest = dest;
+    }
 }
 
 static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
