@@ -3704,7 +3704,7 @@
 #
 # Driver specific block device options for the nvme-io_uring backend.
 #
-# @path: path to the image file
+# @path: path to the NVMe namespace's character device (e.g. /dev/ng0n1).
 #
 # Since: 7.2
 ##
