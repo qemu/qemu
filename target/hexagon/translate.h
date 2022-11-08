@@ -86,6 +86,12 @@ static inline bool is_preloaded(DisasContext *ctx, int num)
     return test_bit(num, ctx->regs_written);
 }
 
+static inline bool is_vreg_preloaded(DisasContext *ctx, int num)
+{
+    return test_bit(num, ctx->vregs_updated) ||
+           test_bit(num, ctx->vregs_updated_tmp);
+}
+
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
                              int num, bool alloc_ok);
 intptr_t ctx_tmp_vreg_off(DisasContext *ctx, int regnum,
