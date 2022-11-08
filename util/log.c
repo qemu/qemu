@@ -45,7 +45,6 @@ static __thread FILE *thread_file;
 static __thread Notifier qemu_log_thread_cleanup_notifier;
 
 int qemu_loglevel;
-static bool log_append;
 static bool log_per_thread;
 static GArray *debug_regions;
 
@@ -277,19 +276,20 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
     daemonized = is_daemonized();
     need_to_open_file = log_flags && !per_thread && (!daemonized || filename);
 
-    if (logfile && (!need_to_open_file || changed_name)) {
-        qatomic_rcu_set(&global_file, NULL);
-        if (logfile != stderr) {
+    if (logfile) {
+        fflush(logfile);
+        if (changed_name && logfile != stderr) {
             RCUCloseFILE *r = g_new0(RCUCloseFILE, 1);
             r->fd = logfile;
+            qatomic_rcu_set(&global_file, NULL);
             call_rcu(r, rcu_close_file, rcu);
+            logfile = NULL;
         }
-        logfile = NULL;
     }
 
     if (!logfile && need_to_open_file) {
         if (filename) {
-            logfile = fopen(filename, log_append ? "a" : "w");
+            logfile = fopen(filename, "w");
             if (!logfile) {
                 error_setg_errno(errp, errno, "Error opening logfile %s",
                                  filename);
@@ -307,8 +307,6 @@ static bool qemu_set_log_internal(const char *filename, bool changed_name,
             assert(!daemonized);
             logfile = stderr;
         }
-
-        log_append = 1;
 
         qatomic_rcu_set(&global_file, logfile);
     }
