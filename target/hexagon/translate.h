@@ -30,6 +30,7 @@ typedef struct DisasContext {
     DisasContextBase base;
     Packet *pkt;
     Insn *insn;
+    uint32_t next_PC;
     uint32_t mem_idx;
     uint32_t num_packets;
     uint32_t num_insns;
@@ -134,7 +135,6 @@ static inline void ctx_log_qreg_write(DisasContext *ctx,
 
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
-extern TCGv hex_next_PC;
 extern TCGv hex_this_PC;
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_branch_taken;

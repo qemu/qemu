@@ -612,6 +612,12 @@
         tcg_temp_free(tmp); \
     } while (0)
 
+#define fGEN_TCG_J2_pause(SHORTCODE) \
+    do { \
+        uiV = uiV; \
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC); \
+    } while (0)
+
 /* r0 = asr(r1, r2):sat */
 #define fGEN_TCG_S2_asr_r_r_sat(SHORTCODE) \
     gen_asr_r_r_sat(RdV, RsV, RtV)

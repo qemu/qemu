@@ -119,12 +119,12 @@ static void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
                           "ignoring the second one\n");
         } else {
             fCHECK_PCALIGN(addr);
-            env->next_PC = addr;
+            env->gpr[HEX_REG_PC] = addr;
             env->branch_taken = 1;
         }
     } else {
         fCHECK_PCALIGN(addr);
-        env->next_PC = addr;
+        env->gpr[HEX_REG_PC] = addr;
     }
 }
 
@@ -299,7 +299,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
         }
     }
 
-    HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->next_PC);
+    HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->gpr[HEX_REG_PC]);
     HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
                   ", insn = " TARGET_FMT_lx
                   ", hvx = " TARGET_FMT_lx "\n",

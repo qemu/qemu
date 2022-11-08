@@ -400,7 +400,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #endif
 #define fREAD_PC() (PC)
 
-#define fREAD_NPC() (env->next_PC & (0xfffffffe))
+#define fREAD_NPC() (next_PC & (0xfffffffe))
 
 #define fREAD_P0() (READ_PREG(0))
 #define fREAD_P3() (READ_PREG(3))

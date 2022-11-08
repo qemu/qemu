@@ -31,7 +31,6 @@
 
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
-TCGv hex_next_PC;
 TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
@@ -120,7 +119,6 @@ static void gen_exec_counters(DisasContext *ctx)
 static void gen_end_tb(DisasContext *ctx)
 {
     gen_exec_counters(ctx);
-    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
     tcg_gen_exit_tb(NULL, 0);
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -128,7 +126,7 @@ static void gen_end_tb(DisasContext *ctx)
 static void gen_exception_end_tb(DisasContext *ctx, int excp)
 {
     gen_exec_counters(ctx);
-    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     gen_exception_raw(excp);
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -204,6 +202,24 @@ static bool need_pred_written(Packet *pkt)
     return check_for_attrib(pkt, A_WRITES_PRED_REG);
 }
 
+static bool need_next_PC(DisasContext *ctx)
+{
+    Packet *pkt = ctx->pkt;
+
+    /* Check for conditional control flow or HW loop end */
+    for (int i = 0; i < pkt->num_insns; i++) {
+        uint16_t opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) {
+            return true;
+        }
+        if (GET_ATTRIB(opcode, A_HWLOOP0_END) ||
+            GET_ATTRIB(opcode, A_HWLOOP1_END)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void gen_start_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -211,6 +227,7 @@ static void gen_start_packet(DisasContext *ctx)
     int i;
 
     /* Clear out the disassembly context */
+    ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
@@ -243,7 +260,9 @@ static void gen_start_packet(DisasContext *ctx)
         if (pkt->pkt_has_multi_cof) {
             tcg_gen_movi_tl(hex_branch_taken, 0);
         }
-        tcg_gen_movi_tl(hex_next_PC, next_PC);
+        if (need_next_PC(ctx)) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
+        }
     }
     if (need_pred_written(pkt)) {
         tcg_gen_movi_tl(hex_pred_written, 0);
@@ -936,8 +955,6 @@ void hexagon_translate_init(void)
     }
     hex_pred_written = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, pred_written), "pred_written");
-    hex_next_PC = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, next_PC), "next_PC");
     hex_this_PC = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, this_PC), "this_PC");
     hex_slot_cancelled = tcg_global_mem_new(cpu_env,
