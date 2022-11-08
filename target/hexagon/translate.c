@@ -248,7 +248,9 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
     if (pkt->pkt_has_cof) {
-        tcg_gen_movi_tl(hex_branch_taken, 0);
+        if (pkt->pkt_has_multi_cof) {
+            tcg_gen_movi_tl(hex_branch_taken, 0);
+        }
         tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
     if (need_pred_written(pkt)) {

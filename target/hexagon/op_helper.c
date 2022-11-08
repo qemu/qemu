@@ -104,20 +104,26 @@ static void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data64 = val;
 }
 
-static void write_new_pc(CPUHexagonState *env, target_ulong addr)
+static void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
+                         target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
 
-    /*
-     * If more than one branch is taken in a packet, only the first one
-     * is actually done.
-     */
-    if (env->branch_taken) {
-        HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                      "ignoring the second one\n");
+    if (pkt_has_multi_cof) {
+        /*
+         * If more than one branch is taken in a packet, only the first one
+         * is actually done.
+         */
+        if (env->branch_taken) {
+            HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
+                          "ignoring the second one\n");
+        } else {
+            fCHECK_PCALIGN(addr);
+            env->next_PC = addr;
+            env->branch_taken = 1;
+        }
     } else {
         fCHECK_PCALIGN(addr);
-        env->branch_taken = 1;
         env->next_PC = addr;
     }
 }

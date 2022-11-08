@@ -207,6 +207,9 @@ def need_part1(tag):
 def need_ea(tag):
     return re.compile(r"\bEA\b").search(semdict[tag])
 
+def need_pkt_has_multi_cof(tag):
+    return 'A_COF' in attribdict[tag]
+
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
 

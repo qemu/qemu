@@ -407,7 +407,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fCHECK_PCALIGN(A)
 
-#define fWRITE_NPC(A) write_new_pc(env, A)
+#define fWRITE_NPC(A) write_new_pc(env, pkt_has_multi_cof != 0, A)
 
 #define fBRANCH(LOC, TYPE)          fWRITE_NPC(LOC)
 #define fJUMPR(REGNO, TARGET, TYPE) fBRANCH(TARGET, COF_TYPE_JUMPR)

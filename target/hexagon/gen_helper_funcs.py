@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -237,6 +237,9 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         for immlett,bits,immshift in imms:
             gen_helper_arg_imm(f,immlett)
             i += 1
+
+        if (hex_common.need_pkt_has_multi_cof(tag)):
+            f.write(", uint32_t pkt_has_multi_cof")
 
         if hex_common.need_slot(tag):
             if i > 0: f.write(", ")

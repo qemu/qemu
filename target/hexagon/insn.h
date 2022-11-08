@@ -57,6 +57,7 @@ struct Packet {
 
     /* Pre-decodes about COF */
     bool pkt_has_cof;          /* Has any change-of-flow */
+    bool pkt_has_multi_cof;    /* Has more than one change-of-flow */
     bool pkt_has_endloop;
 
     bool pkt_has_dczeroa;

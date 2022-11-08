@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -82,6 +82,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         ## Figure out how many arguments the helper will take
         if (numscalarresults == 0):
             def_helper_size = len(regs)+len(imms)+numscalarreadwrite+1
+            if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
@@ -89,6 +90,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             f.write(', void' )
         else:
             def_helper_size = len(regs)+len(imms)+numscalarreadwrite
+            if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
@@ -126,7 +128,9 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         for immlett,bits,immshift in imms:
             f.write(", s32")
 
-        ## Add the arguments for the instruction slot and part1 (if needed)
+        ## Add the arguments for the instruction pkt_has_multi_cof, slot and
+        ## part1 (if needed)
+        if hex_common.need_pkt_has_multi_cof(tag): f.write(', i32')
         if hex_common.need_slot(tag): f.write(', i32' )
         if hex_common.need_part1(tag): f.write(' , i32' )
         f.write(')\n')

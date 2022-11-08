@@ -622,6 +622,9 @@ def gen_tcg_func(f, tag, regs, imms):
         ## Generate the call to the helper
         for immlett,bits,immshift in imms:
             gen_helper_decl_imm(f,immlett)
+        if hex_common.need_pkt_has_multi_cof(tag):
+            f.write("    TCGv pkt_has_multi_cof = ")
+            f.write("tcg_constant_tl(ctx->pkt->pkt_has_multi_cof);\n")
         if hex_common.need_part1(tag):
             f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
@@ -654,6 +657,8 @@ def gen_tcg_func(f, tag, regs, imms):
         for immlett,bits,immshift in imms:
             gen_helper_call_imm(f,immlett)
 
+        if hex_common.need_pkt_has_multi_cof(tag):
+            f.write(", pkt_has_multi_cof")
         if hex_common.need_slot(tag): f.write(", slot")
         if hex_common.need_part1(tag): f.write(", part1" )
         f.write(");\n")
