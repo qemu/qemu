@@ -495,6 +495,12 @@ static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
     tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
 }
 
+static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
+                           TCGCond cond, TCGv pred)
+{
+    gen_write_new_pc_addr(ctx, dst_pc, cond, pred);
+}
+
 static void gen_cond_jump(DisasContext *ctx, TCGCond cond, TCGv pred,
                           int pc_off)
 {
@@ -577,6 +583,25 @@ static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx,
     }
 }
 
+static void gen_testbit0_jumpnv(DisasContext *ctx,
+                                TCGv arg, TCGCond cond, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_andi_tl(pred, arg, 1);
+    gen_cond_jump(ctx, cond, pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static void gen_jump(DisasContext *ctx, int pc_off)
+{
+    gen_write_new_pc_pcrel(ctx, pc_off, TCG_COND_ALWAYS, NULL);
+}
+
+static void gen_jumpr(DisasContext *ctx, TCGv new_pc)
+{
+    gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
+}
+
 static void gen_call(DisasContext *ctx, int pc_off)
 {
     TCGv next_PC =
@@ -599,6 +624,24 @@ static void gen_cond_call(DisasContext *ctx, TCGv pred,
         tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
     gen_log_reg_write(HEX_REG_LR, next_PC);
     gen_set_label(skip);
+}
+
+static void gen_cmp_jumpnv(DisasContext *ctx,
+                           TCGCond cond, TCGv val, TCGv src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcond_tl(cond, pred, val, src);
+    gen_cond_jump(ctx, TCG_COND_EQ, pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static void gen_cmpi_jumpnv(DisasContext *ctx,
+                            TCGCond cond, TCGv val, int src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcondi_tl(cond, pred, val, src);
+    gen_cond_jump(ctx, TCG_COND_EQ, pred, pc_off);
+    tcg_temp_free(pred);
 }
 
 /* Shift left with saturation */
