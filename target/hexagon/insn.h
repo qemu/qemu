@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,10 +28,7 @@ struct Instruction;
 struct Packet;
 struct DisasContext;
 
-typedef void (*SemanticInsn)(CPUHexagonState *env,
-                             struct DisasContext *ctx,
-                             struct Instruction *insn,
-                             struct Packet *pkt);
+typedef void (*SemanticInsn)(struct DisasContext *ctx);
 
 struct Instruction {
     SemanticInsn generate;            /* pointer to genptr routine */

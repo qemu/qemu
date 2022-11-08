@@ -561,11 +561,7 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
 ## Generate the TCG code to call the helper
 ##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
 ##     We produce:
-##    static void generate_A2_add()
-##                    CPUHexagonState *env
-##                    DisasContext *ctx,
-##                    Insn *insn,
-##                    Packet *pkt)
+##    static void generate_A2_add(DisasContext *ctx)
 ##       {
 ##           TCGv RdV = tcg_temp_local_new();
 ##           const int RdN = insn->regno[0];
@@ -584,12 +580,11 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
 ##       <GEN>  is gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
 ##
 def gen_tcg_func(f, tag, regs, imms):
-    f.write("static void generate_%s(\n" %tag)
-    f.write("                CPUHexagonState *env,\n")
-    f.write("                DisasContext *ctx,\n")
-    f.write("                Insn *insn,\n")
-    f.write("                Packet *pkt)\n")
+    f.write("static void generate_%s(DisasContext *ctx)\n" %tag)
     f.write('{\n')
+
+    f.write("    Insn *insn __attribute__((unused)) = ctx->insn;\n")
+
     if hex_common.need_ea(tag): gen_decl_ea_tcg(f, tag)
     i=0
     ## Declare all the operands (regs and immediates)

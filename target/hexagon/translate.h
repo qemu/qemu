@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,10 +23,13 @@
 #include "cpu.h"
 #include "exec/translator.h"
 #include "tcg/tcg-op.h"
+#include "insn.h"
 #include "internal.h"
 
 typedef struct DisasContext {
     DisasContextBase base;
+    Packet *pkt;
+    Insn *insn;
     uint32_t mem_idx;
     uint32_t num_packets;
     uint32_t num_insns;
@@ -147,6 +150,6 @@ extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
 
-bool is_gather_store_insn(Insn *insn, Packet *pkt);
-void process_store(DisasContext *ctx, Packet *pkt, int slot_num);
+bool is_gather_store_insn(DisasContext *ctx);
+void process_store(DisasContext *ctx, int slot_num);
 #endif

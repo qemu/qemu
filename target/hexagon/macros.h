@@ -94,9 +94,9 @@
  */
 #define CHECK_NOSHUF(VA, SIZE) \
     do { \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
             probe_noshuf_load(VA, SIZE, ctx->mem_idx); \
-            process_store(ctx, pkt, 1); \
+            process_store(ctx, 1); \
         } \
     } while (0)
 
@@ -105,12 +105,12 @@
         TCGLabel *label = gen_new_label(); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, PRED, 0, label); \
         GET_EA; \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
             probe_noshuf_load(EA, SIZE, ctx->mem_idx); \
         } \
         gen_set_label(label); \
-        if (insn->slot == 0 && pkt->pkt_has_store_s1) { \
-            process_store(ctx, pkt, 1); \
+        if (insn->slot == 0 && ctx->pkt->pkt_has_store_s1) { \
+            process_store(ctx, 1); \
         } \
     } while (0)
 

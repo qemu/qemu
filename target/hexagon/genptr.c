@@ -551,13 +551,13 @@ static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
     tcg_temp_free_i64(tmp);
 }
 
-static void gen_vreg_store(DisasContext *ctx, Insn *insn, Packet *pkt,
-                           TCGv EA, intptr_t srcoff, int slot, bool aligned)
+static void gen_vreg_store(DisasContext *ctx, TCGv EA, intptr_t srcoff,
+                           int slot, bool aligned)
 {
     intptr_t dstoff = offsetof(CPUHexagonState, vstore[slot].data);
     intptr_t maskoff = offsetof(CPUHexagonState, vstore[slot].mask);
 
-    if (is_gather_store_insn(insn, pkt)) {
+    if (is_gather_store_insn(ctx)) {
         TCGv sl = tcg_constant_tl(slot);
         gen_helper_gather_store(cpu_env, EA, sl);
         return;
