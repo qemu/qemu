@@ -1545,7 +1545,7 @@ void check_cop1x(DisasContext *ctx)
  */
 void check_cp1_64bitmode(DisasContext *ctx)
 {
-    if (unlikely(~ctx->hflags & (MIPS_HFLAG_F64 | MIPS_HFLAG_COP1X))) {
+    if (unlikely(~ctx->hflags & MIPS_HFLAG_F64)) {
         gen_reserved_instruction(ctx);
     }
 }
@@ -12173,12 +12173,16 @@ enum {
 #include "nanomips_translate.c.inc"
 
 /* MIPSDSP functions. */
-static void gen_mipsdsp_ld(DisasContext *ctx, uint32_t opc,
-                           int rd, int base, int offset)
+
+/* Indexed load is not for DSP only */
+static void gen_mips_lx(DisasContext *ctx, uint32_t opc,
+                        int rd, int base, int offset)
 {
     TCGv t0;
 
-    check_dsp(ctx);
+    if (!(ctx->insn_flags & INSN_OCTEON)) {
+        check_dsp(ctx);
+    }
     t0 = tcg_temp_new();
 
     if (base == 0) {
@@ -14523,7 +14527,7 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
         case OPC_LBUX:
         case OPC_LHX:
         case OPC_LWX:
-            gen_mipsdsp_ld(ctx, op2, rd, rs, rt);
+            gen_mips_lx(ctx, op2, rd, rs, rt);
             break;
         default:            /* Invalid */
             MIPS_INVAL("MASK LX");

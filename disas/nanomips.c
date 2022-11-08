@@ -30,10 +30,6 @@
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
 
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
-
 typedef int64_t int64;
 typedef uint64_t uint64;
 typedef uint32_t uint32;
@@ -95,7 +91,7 @@ typedef struct Pool {
 #define IMGASSERTONCE(test)
 
 
-static char *img_format(const char *format, ...)
+static char * G_GNUC_PRINTF(1, 2) img_format(const char *format, ...)
 {
     char *buffer;
     va_list args;
@@ -3252,7 +3248,8 @@ static char *CACHE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("CACHE 0x%" PRIx64 ", %s(%s)", op_value, s_value, rs);
+    return img_format("CACHE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      op_value, s_value, rs);
 }
 
 
@@ -3274,7 +3271,8 @@ static char *CACHEE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("CACHEE 0x%" PRIx64 ", %s(%s)", op_value, s_value, rs);
+    return img_format("CACHEE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      op_value, s_value, rs);
 }
 
 
@@ -5173,7 +5171,7 @@ static char *DADDIU_48_(uint64 instruction, Dis_info *info)
 
     const char *rt = GPR(rt_value, info);
 
-    return img_format("DADDIU %s, %s", rt, s_value);
+    return img_format("DADDIU %s, %" PRId64, rt, s_value);
 }
 
 
@@ -11859,7 +11857,7 @@ static char *PREF_S9_(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("PREF 0x%" PRIx64 ", %s(%s)",
+    return img_format("PREF 0x%" PRIx64 ", %" PRId64 "(%s)",
                       hint_value, s_value, rs);
 }
 
@@ -11905,7 +11903,8 @@ static char *PREFE(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("PREFE 0x%" PRIx64 ", %s(%s)", hint_value, s_value, rs);
+    return img_format("PREFE 0x%" PRIx64 ", %" PRId64 "(%s)",
+                      hint_value, s_value, rs);
 }
 
 
@@ -12079,7 +12078,7 @@ static char *REPL_PH(uint64 instruction, Dis_info *info)
 
     const char *rt = GPR(rt_value, info);
 
-    return img_format("REPL.PH %s, %s", rt, s_value);
+    return img_format("REPL.PH %s, %" PRId64, rt, s_value);
 }
 
 
@@ -12232,7 +12231,8 @@ static char *RESTOREF(uint64 instruction, Dis_info *info)
     uint64 u_value = extract_u_11_10_9_8_7_6_5_4_3__s3(instruction);
 
 
-    return img_format("RESTOREF 0x%" PRIx64 ", %s", u_value, count_value);
+    return img_format("RESTOREF 0x%" PRIx64 ", 0x%" PRIx64,
+                      u_value, count_value);
 }
 
 
@@ -12613,7 +12613,7 @@ static char *SB_S9_(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SB %s, %s(%s)", rt, s_value, rs);
+    return img_format("SB %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12659,7 +12659,7 @@ static char *SBE(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SBE %s, %s(%s)", rt, s_value, rs);
+    return img_format("SBE %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12706,7 +12706,7 @@ static char *SC(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SC %s, %s(%s)", rt, s_value, rs);
+    return img_format("SC %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12729,7 +12729,7 @@ static char *SCD(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SCD %s, %s(%s)", rt, s_value, rs);
+    return img_format("SCD %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12776,7 +12776,7 @@ static char *SCE(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SCE %s, %s(%s)", rt, s_value, rs);
+    return img_format("SCE %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12868,7 +12868,7 @@ static char *SD_S9_(uint64 instruction, Dis_info *info)
     const char *rt = GPR(rt_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SD %s, %s(%s)", rt, s_value, rs);
+    return img_format("SD %s, %" PRId64 "(%s)", rt, s_value, rs);
 }
 
 
@@ -12973,7 +12973,7 @@ static char *SDC1_S9_(uint64 instruction, Dis_info *info)
     const char *ft = FPR(ft_value, info);
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SDC1 %s, %s(%s)", ft, s_value, rs);
+    return img_format("SDC1 %s, %" PRId64 "(%s)", ft, s_value, rs);
 }
 
 
@@ -13066,7 +13066,8 @@ static char *SDC2(uint64 instruction, Dis_info *info)
 
     const char *rs = GPR(rs_value, info);
 
-    return img_format("SDC2 CP%" PRIu64 ", %s(%s)", cs_value, s_value, rs);
+    return img_format("SDC2 CP%" PRIu64 ", %" PRId64 "(%s)",
+                      cs_value, s_value, rs);
 }
 
 
@@ -13091,7 +13092,8 @@ static char *SDM(uint64 instruction, Dis_info *info)
     const char *rs = GPR(rs_value, info);
     uint64 count3 = encode_count3_from_count(count3_value);
 
-    return img_format("SDM %s, %s(%s), 0x%" PRIx64, rt, s_value, rs, count3);
+    return img_format("SDM %s, %" PRId64 "(%s), 0x%" PRIx64,
+                      rt, s_value, rs, count3);
 }
 
 
@@ -21905,24 +21907,36 @@ static const Pool MAJOR[2] = {
        0x0                 },        /* P16 */
 };
 
-static int nanomips_dis(char **buf,
-                 Dis_info *info,
-                 unsigned short one,
-                 unsigned short two,
-                 unsigned short three)
+static bool nanomips_dis(const uint16_t *data, char **buf, Dis_info *info)
 {
-    uint16 bits[3] = {one, two, three};
-
     TABLE_ENTRY_TYPE type;
-    int size = Disassemble(bits, buf, &type, MAJOR, 2, info);
-    return size;
+
+    /* Handle runtime errors. */
+    if (unlikely(sigsetjmp(info->buf, 0) != 0)) {
+        return false;
+    }
+    return Disassemble(data, buf, &type, MAJOR, ARRAY_SIZE(MAJOR), info) >= 0;
+}
+
+static bool read_u16(uint16_t *ret, bfd_vma memaddr,
+                     struct disassemble_info *info)
+{
+    int status = (*info->read_memory_func)(memaddr, (bfd_byte *)ret, 2, info);
+    if (status != 0) {
+        (*info->memory_error_func)(status, memaddr, info);
+        return false;
+    }
+
+    if ((info->endian == BFD_ENDIAN_BIG) != HOST_BIG_ENDIAN) {
+        bswap16s(ret);
+    }
+    return true;
 }
 
 int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
 {
-    int status;
-    bfd_byte buffer[2];
-    uint16_t insn1 = 0, insn2 = 0, insn3 = 0;
+    int length;
+    uint16_t words[3] = { };
     g_autofree char *buf = NULL;
 
     info->bytes_per_chunk = 2;
@@ -21939,70 +21953,38 @@ int print_insn_nanomips(bfd_vma memaddr, struct disassemble_info *info)
     disassm_info.fprintf_func = info->fprintf_func;
     disassm_info.stream = info->stream;
 
-    status = (*info->read_memory_func)(memaddr, buffer, 2, info);
-    if (status != 0) {
-        (*info->memory_error_func)(status, memaddr, info);
+    if (!read_u16(&words[0], memaddr, info)) {
         return -1;
     }
-
-    if (info->endian == BFD_ENDIAN_BIG) {
-        insn1 = bfd_getb16(buffer);
-    } else {
-        insn1 = bfd_getl16(buffer);
-    }
-    (*info->fprintf_func)(info->stream, "%04x ", insn1);
+    length = 2;
 
     /* Handle 32-bit opcodes.  */
-    if ((insn1 & 0x1000) == 0) {
-        status = (*info->read_memory_func)(memaddr + 2, buffer, 2, info);
-        if (status != 0) {
-            (*info->memory_error_func)(status, memaddr + 2, info);
+    if ((words[0] & 0x1000) == 0) {
+        if (!read_u16(&words[1], memaddr + 2, info)) {
             return -1;
         }
+        length = 4;
 
-        if (info->endian == BFD_ENDIAN_BIG) {
-            insn2 = bfd_getb16(buffer);
+        /* Handle 48-bit opcodes.  */
+        if ((words[0] >> 10) == 0x18) {
+            if (!read_u16(&words[1], memaddr + 4, info)) {
+                return -1;
+            }
+            length = 6;
+        }
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(words); i++) {
+        if (i * 2 < length) {
+            (*info->fprintf_func)(info->stream, "%04x ", words[i]);
         } else {
-            insn2 = bfd_getl16(buffer);
+            (*info->fprintf_func)(info->stream, "     ");
         }
-        (*info->fprintf_func)(info->stream, "%04x ", insn2);
-    } else {
-        (*info->fprintf_func)(info->stream, "     ");
-    }
-    /* Handle 48-bit opcodes.  */
-    if ((insn1 >> 10) == 0x18) {
-        status = (*info->read_memory_func)(memaddr + 4, buffer, 2, info);
-        if (status != 0) {
-            (*info->memory_error_func)(status, memaddr + 4, info);
-            return -1;
-        }
-
-        if (info->endian == BFD_ENDIAN_BIG) {
-            insn3 = bfd_getb16(buffer);
-        } else {
-            insn3 = bfd_getl16(buffer);
-        }
-        (*info->fprintf_func)(info->stream, "%04x ", insn3);
-    } else {
-        (*info->fprintf_func)(info->stream, "     ");
     }
 
-    /* Handle runtime errors. */
-    if (sigsetjmp(disassm_info.buf, 0) != 0) {
-        info->insn_type = dis_noninsn;
-        return insn3 ? 6 : insn2 ? 4 : 2;
+    if (nanomips_dis(words, &buf, &disassm_info)) {
+        (*info->fprintf_func) (info->stream, "%s", buf);
     }
 
-    int length = nanomips_dis(&buf, &disassm_info, insn1, insn2, insn3);
-
-    /* FIXME: Should probably use a hash table on the major opcode here.  */
-
-    (*info->fprintf_func) (info->stream, "%s", buf);
-    if (length > 0) {
-        return length / 8;
-    }
-
-    info->insn_type = dis_noninsn;
-
-    return insn3 ? 6 : insn2 ? 4 : 2;
+    return length;
 }

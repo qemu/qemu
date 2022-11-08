@@ -934,7 +934,7 @@ const mips_def_t mips_defs[] =
                        (1 << CP0C1_DS) | (4 << CP0C1_DL) | (1 << CP0C1_DA) |
                        (1 << CP0C1_PC) | (1 << CP0C1_WR) | (1 << CP0C1_EP),
         .CP0_Config2 = MIPS_CONFIG2,
-        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_LPA) | (1 << CP0C3_DSPP) ,
+        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_LPA),
         .CP0_Config4 = MIPS_CONFIG4 | (1U << CP0C4_M) |
                        (0x3c << CP0C4_KScrExist) | (1U << CP0C4_MMUExtDef) |
                        (3U << CP0C4_MMUSizeExt),
@@ -946,7 +946,7 @@ const mips_def_t mips_defs[] =
         .CP0_Status_rw_bitmask = 0x12F8FFFF,
         .SEGBITS = 42,
         .PABITS = 49,
-        .insn_flags = CPU_MIPS64R2 | INSN_OCTEON | ASE_DSP,
+        .insn_flags = CPU_MIPS64R2 | INSN_OCTEON,
         .mmu_type = MMU_TYPE_R4000,
     },
 
