@@ -487,6 +487,96 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
     gen_write_new_pc_addr(ctx, tcg_constant_tl(dest), cond, pred);
 }
 
+static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
+{
+    TCGv one = tcg_constant_tl(0xff);
+    TCGv zero = tcg_constant_tl(0);
+
+    tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
+}
+
+static void gen_cond_jump(DisasContext *ctx, TCGCond cond, TCGv pred,
+                          int pc_off)
+{
+    gen_write_new_pc_pcrel(ctx, pc_off, cond, pred);
+}
+
+static void gen_cmpnd_cmp_jmp(DisasContext *ctx,
+                              int pnum, TCGCond cond1, TCGv arg1, TCGv arg2,
+                              TCGCond cond2, int pc_off)
+{
+    if (ctx->insn->part1) {
+        TCGv pred = tcg_temp_new();
+        gen_compare(cond1, pred, arg1, arg2);
+        gen_log_pred_write(ctx, pnum, pred);
+        tcg_temp_free(pred);
+    } else {
+        TCGv pred = tcg_temp_new();
+        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        gen_cond_jump(ctx, cond2, pred, pc_off);
+        tcg_temp_free(pred);
+    }
+}
+
+static void gen_cmpnd_cmp_jmp_t(DisasContext *ctx,
+                                int pnum, TCGCond cond, TCGv arg1, TCGv arg2,
+                                int pc_off)
+{
+    gen_cmpnd_cmp_jmp(ctx, pnum, cond, arg1, arg2, TCG_COND_EQ, pc_off);
+}
+
+static void gen_cmpnd_cmp_jmp_f(DisasContext *ctx,
+                                int pnum, TCGCond cond, TCGv arg1, TCGv arg2,
+                                int pc_off)
+{
+    gen_cmpnd_cmp_jmp(ctx, pnum, cond, arg1, arg2, TCG_COND_NE, pc_off);
+}
+
+static void gen_cmpnd_cmpi_jmp_t(DisasContext *ctx,
+                                 int pnum, TCGCond cond, TCGv arg1, int arg2,
+                                 int pc_off)
+{
+    TCGv tmp = tcg_constant_tl(arg2);
+    gen_cmpnd_cmp_jmp(ctx, pnum, cond, arg1, tmp, TCG_COND_EQ, pc_off);
+}
+
+static void gen_cmpnd_cmpi_jmp_f(DisasContext *ctx,
+                                 int pnum, TCGCond cond, TCGv arg1, int arg2,
+                                 int pc_off)
+{
+    TCGv tmp = tcg_constant_tl(arg2);
+    gen_cmpnd_cmp_jmp(ctx, pnum, cond, arg1, tmp, TCG_COND_NE, pc_off);
+}
+
+static void gen_cmpnd_cmp_n1_jmp_t(DisasContext *ctx, int pnum, TCGCond cond,
+                                   TCGv arg, int pc_off)
+{
+    gen_cmpnd_cmpi_jmp_t(ctx, pnum, cond, arg, -1, pc_off);
+}
+
+static void gen_cmpnd_cmp_n1_jmp_f(DisasContext *ctx, int pnum, TCGCond cond,
+                                   TCGv arg, int pc_off)
+{
+    gen_cmpnd_cmpi_jmp_f(ctx, pnum, cond, arg, -1, pc_off);
+}
+
+static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx,
+                                  int pnum, TCGv arg, TCGCond cond, int pc_off)
+{
+    if (ctx->insn->part1) {
+        TCGv pred = tcg_temp_new();
+        tcg_gen_andi_tl(pred, arg, 1);
+        gen_8bitsof(pred, pred);
+        gen_log_pred_write(ctx, pnum, pred);
+        tcg_temp_free(pred);
+    } else {
+        TCGv pred = tcg_temp_new();
+        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        gen_cond_jump(ctx, cond, pred, pc_off);
+        tcg_temp_free(pred);
+    }
+}
+
 static void gen_call(DisasContext *ctx, int pc_off)
 {
     TCGv next_PC =
