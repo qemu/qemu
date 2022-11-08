@@ -750,4 +750,11 @@
         RsV = RsV; \
     } while (0)
 
+#define fGEN_TCG_J2_trap0(SHORTCODE) \
+    do { \
+        uiV = uiV; \
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->pkt->pc); \
+        TCGv excp = tcg_constant_tl(HEX_EXCP_TRAP0); \
+        gen_helper_raise_exception(cpu_env, excp); \
+    } while (0)
 #endif

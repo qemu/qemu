@@ -54,6 +54,7 @@ typedef struct Instruction Insn;
 struct Packet {
     uint16_t num_insns;
     uint16_t encod_pkt_size_in_bytes;
+    uint32_t pc;
 
     /* Pre-decodes about COF */
     bool pkt_has_cof;          /* Has any change-of-flow */

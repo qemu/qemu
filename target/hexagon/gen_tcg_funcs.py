@@ -629,6 +629,8 @@ def gen_tcg_func(f, tag, regs, imms):
             f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
             f.write("    TCGv slot = tcg_constant_tl(insn->slot);\n")
+        if hex_common.need_PC(tag):
+            f.write("    TCGv PC = tcg_constant_tl(ctx->pkt->pc);\n")
         f.write("    gen_helper_%s(" % (tag))
         i=0
         ## If there is a scalar result, it is the return type
@@ -659,6 +661,7 @@ def gen_tcg_func(f, tag, regs, imms):
 
         if hex_common.need_pkt_has_multi_cof(tag):
             f.write(", pkt_has_multi_cof")
+        if hex_common.need_PC(tag): f.write(", PC")
         if hex_common.need_slot(tag): f.write(", slot")
         if hex_common.need_part1(tag): f.write(", part1" )
         f.write(");\n")

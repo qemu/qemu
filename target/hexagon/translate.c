@@ -194,11 +194,6 @@ static bool check_for_attrib(Packet *pkt, int attrib)
     return false;
 }
 
-static bool need_pc(Packet *pkt)
-{
-    return check_for_attrib(pkt, A_IMPLICIT_READS_PC);
-}
-
 static bool need_slot_cancelled(Packet *pkt)
 {
     return check_for_attrib(pkt, A_CONDEXEC);
@@ -241,9 +236,6 @@ static void gen_start_packet(DisasContext *ctx)
     }
 
     /* Initialize the runtime state for packet semantics */
-    if (need_pc(pkt)) {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-    }
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
@@ -772,6 +764,7 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 
     if (decode_packet(nwords, words, &pkt, false) > 0) {
+        pkt.pc = ctx->base.pc_next;
         HEX_DEBUG_PRINT_PKT(&pkt);
         ctx->pkt = &pkt;
         gen_start_packet(ctx);

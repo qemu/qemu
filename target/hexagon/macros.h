@@ -398,7 +398,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #else
 #define fREAD_GP() READ_REG(HEX_REG_GP)
 #endif
-#define fREAD_PC() (READ_REG(HEX_REG_PC))
+#define fREAD_PC() (PC)
 
 #define fREAD_NPC() (env->next_PC & (0xfffffffe))
 

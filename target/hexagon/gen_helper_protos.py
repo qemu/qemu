@@ -85,6 +85,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
+            if hex_common.need_PC(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
             ## The return type is void
             f.write(', void' )
@@ -93,6 +94,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
+            if hex_common.need_PC(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
 
         ## Generate the qemu DEF_HELPER type for each result
@@ -131,6 +133,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         ## Add the arguments for the instruction pkt_has_multi_cof, slot and
         ## part1 (if needed)
         if hex_common.need_pkt_has_multi_cof(tag): f.write(', i32')
+        if hex_common.need_PC(tag): f.write(', i32')
         if hex_common.need_slot(tag): f.write(', i32' )
         if hex_common.need_part1(tag): f.write(' , i32' )
         f.write(')\n')

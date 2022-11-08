@@ -194,7 +194,8 @@ def is_new_val(regtype, regid, tag):
     return regtype+regid+'N' in semdict[tag]
 
 def need_slot(tag):
-    if ('A_CONDEXEC' in attribdict[tag] or
+    if (('A_CONDEXEC' in attribdict[tag] and
+         'A_JUMP' not in attribdict[tag]) or
         'A_STORE' in attribdict[tag] or
         'A_LOAD' in attribdict[tag]):
         return 1
@@ -206,6 +207,9 @@ def need_part1(tag):
 
 def need_ea(tag):
     return re.compile(r"\bEA\b").search(semdict[tag])
+
+def need_PC(tag):
+    return 'A_IMPLICIT_READS_PC' in attribdict[tag]
 
 def need_pkt_has_multi_cof(tag):
     return 'A_COF' in attribdict[tag]
