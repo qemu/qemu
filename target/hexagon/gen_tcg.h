@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -611,6 +611,14 @@
         tcg_temp_free(right); \
         tcg_temp_free(tmp); \
     } while (0)
+
+/* r0 = asr(r1, r2):sat */
+#define fGEN_TCG_S2_asr_r_r_sat(SHORTCODE) \
+    gen_asr_r_r_sat(RdV, RsV, RtV)
+
+/* r0 = asl(r1, r2):sat */
+#define fGEN_TCG_S2_asl_r_r_sat(SHORTCODE) \
+    gen_asl_r_r_sat(RdV, RsV, RtV)
 
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
