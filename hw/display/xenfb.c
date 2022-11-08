@@ -76,7 +76,7 @@ struct XenFB {
     int               do_resize;
 
     struct {
-	int x,y,w,h;
+        int x,y,w,h;
     } up_rects[UP_QUEUE];
     int               up_count;
     int               up_fullscreen;
@@ -116,32 +116,32 @@ static void common_unbind(struct common *c)
     xen_pv_unbind_evtchn(&c->xendev);
     if (c->page) {
         xenforeignmemory_unmap(xen_fmem, c->page, 1);
-	c->page = NULL;
+        c->page = NULL;
     }
 }
 
 /* -------------------------------------------------------------------- */
 /* Send an event to the keyboard frontend driver */
 static int xenfb_kbd_event(struct XenInput *xenfb,
-			   union xenkbd_in_event *event)
+                           union xenkbd_in_event *event)
 {
     struct xenkbd_page *page = xenfb->c.page;
     uint32_t prod;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
-	return 0;
+        return 0;
     if (!page)
         return 0;
 
     prod = page->in_prod;
     if (prod - page->in_cons == XENKBD_IN_RING_LEN) {
-	errno = EAGAIN;
-	return -1;
+        errno = EAGAIN;
+        return -1;
     }
 
-    xen_mb();		/* ensure ring space available */
+    xen_mb();           /* ensure ring space available */
     XENKBD_IN_RING_REF(page, prod) = *event;
-    xen_wmb();		/* ensure ring contents visible */
+    xen_wmb();          /* ensure ring contents visible */
     page->in_prod = prod + 1;
     return xen_pv_send_notify(&xenfb->c.xendev);
 }
@@ -161,7 +161,7 @@ static int xenfb_send_key(struct XenInput *xenfb, bool down, int keycode)
 
 /* Send a relative mouse movement event */
 static int xenfb_send_motion(struct XenInput *xenfb,
-			     int rel_x, int rel_y, int rel_z)
+                             int rel_x, int rel_y, int rel_z)
 {
     union xenkbd_in_event event;
 
@@ -176,7 +176,7 @@ static int xenfb_send_motion(struct XenInput *xenfb,
 
 /* Send an absolute mouse movement event */
 static int xenfb_send_position(struct XenInput *xenfb,
-			       int abs_x, int abs_y, int z)
+                               int abs_x, int abs_y, int z)
 {
     union xenkbd_in_event event;
 
@@ -354,7 +354,7 @@ static int input_initialise(struct XenLegacyDevice *xendev)
 
     rc = common_bind(&in->c);
     if (rc != 0)
-	return rc;
+        return rc;
 
     return 0;
 }
@@ -415,7 +415,7 @@ static void input_event(struct XenLegacyDevice *xendev)
 
     /* We don't understand any keyboard events, so just ignore them. */
     if (page->out_prod == page->out_cons)
-	return;
+        return;
     page->out_cons = page->out_prod;
     xen_pv_send_notify(&xenfb->c.xendev);
 }
@@ -429,7 +429,7 @@ static void xenfb_copy_mfns(int mode, int count, xen_pfn_t *dst, void *src)
     int i;
 
     for (i = 0; i < count; i++)
-	dst[i] = (mode == 32) ? src32[i] : src64[i];
+        dst[i] = (mode == 32) ? src32[i] : src64[i];
 }
 
 static int xenfb_map_fb(struct XenFB *xenfb)
@@ -447,43 +447,43 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     mode = sizeof(unsigned long) * 8;
 
     if (!protocol) {
-	/*
-	 * Undefined protocol, some guesswork needed.
-	 *
-	 * Old frontends which don't set the protocol use
-	 * one page directory only, thus pd[1] must be zero.
-	 * pd[1] of the 32bit struct layout and the lower
-	 * 32 bits of pd[0] of the 64bit struct layout have
-	 * the same location, so we can check that ...
-	 */
-	uint32_t *ptr32 = NULL;
-	uint32_t *ptr64 = NULL;
+        /*
+         * Undefined protocol, some guesswork needed.
+         *
+         * Old frontends which don't set the protocol use
+         * one page directory only, thus pd[1] must be zero.
+         * pd[1] of the 32bit struct layout and the lower
+         * 32 bits of pd[0] of the 64bit struct layout have
+         * the same location, so we can check that ...
+         */
+        uint32_t *ptr32 = NULL;
+        uint32_t *ptr64 = NULL;
 #if defined(__i386__)
-	ptr32 = (void*)page->pd;
-	ptr64 = ((void*)page->pd) + 4;
+        ptr32 = (void*)page->pd;
+        ptr64 = ((void*)page->pd) + 4;
 #elif defined(__x86_64__)
-	ptr32 = ((void*)page->pd) - 4;
-	ptr64 = (void*)page->pd;
+        ptr32 = ((void*)page->pd) - 4;
+        ptr64 = (void*)page->pd;
 #endif
-	if (ptr32) {
-	    if (ptr32[1] == 0) {
-		mode = 32;
-		pd   = ptr32;
-	    } else {
-		mode = 64;
-		pd   = ptr64;
-	    }
-	}
+        if (ptr32) {
+            if (ptr32[1] == 0) {
+                mode = 32;
+                pd   = ptr32;
+            } else {
+                mode = 64;
+                pd   = ptr64;
+            }
+        }
 #if defined(__x86_64__)
     } else if (strcmp(protocol, XEN_IO_PROTO_ABI_X86_32) == 0) {
-	/* 64bit dom0, 32bit domU */
-	mode = 32;
-	pd   = ((void*)page->pd) - 4;
+        /* 64bit dom0, 32bit domU */
+        mode = 32;
+        pd   = ((void*)page->pd) - 4;
 #elif defined(__i386__)
     } else if (strcmp(protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
-	/* 32bit dom0, 64bit domU */
-	mode = 64;
-	pd   = ((void*)page->pd) + 4;
+        /* 32bit dom0, 64bit domU */
+        mode = 64;
+        pd   = ((void*)page->pd) + 4;
 #endif
     }
 
@@ -503,14 +503,14 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     map = xenforeignmemory_map(xen_fmem, xenfb->c.xendev.dom,
                                PROT_READ, n_fbdirs, pgmfns, NULL);
     if (map == NULL)
-	goto out;
+        goto out;
     xenfb_copy_mfns(mode, xenfb->fbpages, fbmfns, map);
     xenforeignmemory_unmap(xen_fmem, map, n_fbdirs);
 
     xenfb->pixels = xenforeignmemory_map(xen_fmem, xenfb->c.xendev.dom,
             PROT_READ, xenfb->fbpages, fbmfns, NULL);
     if (xenfb->pixels == NULL)
-	goto out;
+        goto out;
 
     ret = 0; /* all is fine */
 
@@ -589,35 +589,35 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
 
 /* A convenient function for munging pixels between different depths */
 #define BLT(SRC_T,DST_T,RSB,GSB,BSB,RDB,GDB,BDB)                        \
-    for (line = y ; line < (y+h) ; line++) {				\
-	SRC_T *src = (SRC_T *)(xenfb->pixels				\
-			       + xenfb->offset				\
-			       + (line * xenfb->row_stride)		\
-			       + (x * xenfb->depth / 8));		\
-	DST_T *dst = (DST_T *)(data					\
-			       + (line * linesize)			\
-			       + (x * bpp / 8));			\
-	int col;							\
-	const int RSS = 32 - (RSB + GSB + BSB);				\
-	const int GSS = 32 - (GSB + BSB);				\
-	const int BSS = 32 - (BSB);					\
-	const uint32_t RSM = (~0U) << (32 - RSB);			\
-	const uint32_t GSM = (~0U) << (32 - GSB);			\
-	const uint32_t BSM = (~0U) << (32 - BSB);			\
-	const int RDS = 32 - (RDB + GDB + BDB);				\
-	const int GDS = 32 - (GDB + BDB);				\
-	const int BDS = 32 - (BDB);					\
-	const uint32_t RDM = (~0U) << (32 - RDB);			\
-	const uint32_t GDM = (~0U) << (32 - GDB);			\
-	const uint32_t BDM = (~0U) << (32 - BDB);			\
-	for (col = x ; col < (x+w) ; col++) {				\
-	    uint32_t spix = *src;					\
-	    *dst = (((spix << RSS) & RSM & RDM) >> RDS) |		\
-		(((spix << GSS) & GSM & GDM) >> GDS) |			\
-		(((spix << BSS) & BSM & BDM) >> BDS);			\
-	    src = (SRC_T *) ((unsigned long) src + xenfb->depth / 8);	\
-	    dst = (DST_T *) ((unsigned long) dst + bpp / 8);		\
-	}								\
+    for (line = y ; line < (y+h) ; line++) {                            \
+        SRC_T *src = (SRC_T *)(xenfb->pixels                            \
+                               + xenfb->offset                          \
+                               + (line * xenfb->row_stride)             \
+                               + (x * xenfb->depth / 8));               \
+        DST_T *dst = (DST_T *)(data                                     \
+                               + (line * linesize)                      \
+                               + (x * bpp / 8));                        \
+        int col;                                                        \
+        const int RSS = 32 - (RSB + GSB + BSB);                         \
+        const int GSS = 32 - (GSB + BSB);                               \
+        const int BSS = 32 - (BSB);                                     \
+        const uint32_t RSM = (~0U) << (32 - RSB);                       \
+        const uint32_t GSM = (~0U) << (32 - GSB);                       \
+        const uint32_t BSM = (~0U) << (32 - BSB);                       \
+        const int RDS = 32 - (RDB + GDB + BDB);                         \
+        const int GDS = 32 - (GDB + BDB);                               \
+        const int BDS = 32 - (BDB);                                     \
+        const uint32_t RDM = (~0U) << (32 - RDB);                       \
+        const uint32_t GDM = (~0U) << (32 - GDB);                       \
+        const uint32_t BDM = (~0U) << (32 - BDB);                       \
+        for (col = x ; col < (x+w) ; col++) {                           \
+            uint32_t spix = *src;                                       \
+            *dst = (((spix << RSS) & RSM & RDM) >> RDS) |               \
+                (((spix << GSS) & GSM & GDM) >> GDS) |                  \
+                (((spix << BSS) & BSM & BDM) >> BDS);                   \
+            src = (SRC_T *) ((unsigned long) src + xenfb->depth / 8);   \
+            dst = (DST_T *) ((unsigned long) dst + bpp / 8);            \
+        }                                                               \
     }
 
 
@@ -657,7 +657,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
             break;
         default:
             oops = 1;
-	}
+        }
     }
     if (oops) /* should not happen */
         xen_pv_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
@@ -816,60 +816,60 @@ static void xenfb_handle_events(struct XenFB *xenfb)
     if (prod - out_cons > XENFB_OUT_RING_LEN) {
         return;
     }
-    xen_rmb();		/* ensure we see ring contents up to prod */
+    xen_rmb();          /* ensure we see ring contents up to prod */
     for (cons = out_cons; cons != prod; cons++) {
-	union xenfb_out_event *event = &XENFB_OUT_RING_REF(page, cons);
+        union xenfb_out_event *event = &XENFB_OUT_RING_REF(page, cons);
         uint8_t type = event->type;
-	int x, y, w, h;
+        int x, y, w, h;
 
-	switch (type) {
-	case XENFB_TYPE_UPDATE:
-	    if (xenfb->up_count == UP_QUEUE)
-		xenfb->up_fullscreen = 1;
-	    if (xenfb->up_fullscreen)
-		break;
-	    x = MAX(event->update.x, 0);
-	    y = MAX(event->update.y, 0);
-	    w = MIN(event->update.width, xenfb->width - x);
-	    h = MIN(event->update.height, xenfb->height - y);
-	    if (w < 0 || h < 0) {
+        switch (type) {
+        case XENFB_TYPE_UPDATE:
+            if (xenfb->up_count == UP_QUEUE)
+                xenfb->up_fullscreen = 1;
+            if (xenfb->up_fullscreen)
+                break;
+            x = MAX(event->update.x, 0);
+            y = MAX(event->update.y, 0);
+            w = MIN(event->update.width, xenfb->width - x);
+            h = MIN(event->update.height, xenfb->height - y);
+            if (w < 0 || h < 0) {
                 xen_pv_printf(&xenfb->c.xendev, 1, "bogus update ignored\n");
-		break;
-	    }
-	    if (x != event->update.x ||
+                break;
+            }
+            if (x != event->update.x ||
                 y != event->update.y ||
-		w != event->update.width ||
-		h != event->update.height) {
+                w != event->update.width ||
+                h != event->update.height) {
                 xen_pv_printf(&xenfb->c.xendev, 1, "bogus update clipped\n");
-	    }
-	    if (w == xenfb->width && h > xenfb->height / 2) {
-		/* scroll detector: updated more than 50% of the lines,
-		 * don't bother keeping track of the rectangles then */
-		xenfb->up_fullscreen = 1;
-	    } else {
-		xenfb->up_rects[xenfb->up_count].x = x;
-		xenfb->up_rects[xenfb->up_count].y = y;
-		xenfb->up_rects[xenfb->up_count].w = w;
-		xenfb->up_rects[xenfb->up_count].h = h;
-		xenfb->up_count++;
-	    }
-	    break;
+            }
+            if (w == xenfb->width && h > xenfb->height / 2) {
+                /* scroll detector: updated more than 50% of the lines,
+                 * don't bother keeping track of the rectangles then */
+                xenfb->up_fullscreen = 1;
+            } else {
+                xenfb->up_rects[xenfb->up_count].x = x;
+                xenfb->up_rects[xenfb->up_count].y = y;
+                xenfb->up_rects[xenfb->up_count].w = w;
+                xenfb->up_rects[xenfb->up_count].h = h;
+                xenfb->up_count++;
+            }
+            break;
 #ifdef XENFB_TYPE_RESIZE
-	case XENFB_TYPE_RESIZE:
-	    if (xenfb_configure_fb(xenfb, xenfb->fb_len,
-				   event->resize.width,
-				   event->resize.height,
-				   event->resize.depth,
-				   xenfb->fb_len,
-				   event->resize.offset,
-				   event->resize.stride) < 0)
-		break;
-	    xenfb_invalidate(xenfb);
-	    break;
+        case XENFB_TYPE_RESIZE:
+            if (xenfb_configure_fb(xenfb, xenfb->fb_len,
+                                   event->resize.width,
+                                   event->resize.height,
+                                   event->resize.depth,
+                                   xenfb->fb_len,
+                                   event->resize.offset,
+                                   event->resize.stride) < 0)
+                break;
+            xenfb_invalidate(xenfb);
+            break;
 #endif
-	}
+        }
     }
-    xen_mb();		/* ensure we're done with ring contents */
+    xen_mb();           /* ensure we're done with ring contents */
     page->out_cons = cons;
 }
 
@@ -889,32 +889,32 @@ static int fb_initialise(struct XenLegacyDevice *xendev)
     int rc;
 
     if (xenstore_read_fe_int(xendev, "videoram", &videoram) == -1)
-	videoram = 0;
+        videoram = 0;
 
     rc = common_bind(&fb->c);
     if (rc != 0)
-	return rc;
+        return rc;
 
     fb_page = fb->c.page;
     rc = xenfb_configure_fb(fb, videoram * MiB,
-			    fb_page->width, fb_page->height, fb_page->depth,
-			    fb_page->mem_length, 0, fb_page->line_length);
+                            fb_page->width, fb_page->height, fb_page->depth,
+                            fb_page->mem_length, 0, fb_page->line_length);
     if (rc != 0)
-	return rc;
+        return rc;
 
     rc = xenfb_map_fb(fb);
     if (rc != 0)
-	return rc;
+        return rc;
 
     fb->con = graphic_console_init(NULL, 0, &xenfb_ops, fb);
 
     if (xenstore_read_fe_int(xendev, "feature-update", &fb->feature_update) == -1)
-	fb->feature_update = 0;
+        fb->feature_update = 0;
     if (fb->feature_update)
-	xenstore_write_be_int(xendev, "request-update", 1);
+        xenstore_write_be_int(xendev, "request-update", 1);
 
     xen_pv_printf(xendev, 1, "feature-update=%d, videoram=%d\n",
-		  fb->feature_update, videoram);
+                  fb->feature_update, videoram);
     return 0;
 }
 

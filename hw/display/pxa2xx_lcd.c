@@ -86,106 +86,106 @@ typedef struct QEMU_PACKED {
     uint32_t ldcmd;
 } PXAFrameDescriptor;
 
-#define LCCR0	0x000	/* LCD Controller Control register 0 */
-#define LCCR1	0x004	/* LCD Controller Control register 1 */
-#define LCCR2	0x008	/* LCD Controller Control register 2 */
-#define LCCR3	0x00c	/* LCD Controller Control register 3 */
-#define LCCR4	0x010	/* LCD Controller Control register 4 */
-#define LCCR5	0x014	/* LCD Controller Control register 5 */
+#define LCCR0   0x000   /* LCD Controller Control register 0 */
+#define LCCR1   0x004   /* LCD Controller Control register 1 */
+#define LCCR2   0x008   /* LCD Controller Control register 2 */
+#define LCCR3   0x00c   /* LCD Controller Control register 3 */
+#define LCCR4   0x010   /* LCD Controller Control register 4 */
+#define LCCR5   0x014   /* LCD Controller Control register 5 */
 
-#define FBR0	0x020	/* DMA Channel 0 Frame Branch register */
-#define FBR1	0x024	/* DMA Channel 1 Frame Branch register */
-#define FBR2	0x028	/* DMA Channel 2 Frame Branch register */
-#define FBR3	0x02c	/* DMA Channel 3 Frame Branch register */
-#define FBR4	0x030	/* DMA Channel 4 Frame Branch register */
-#define FBR5	0x110	/* DMA Channel 5 Frame Branch register */
-#define FBR6	0x114	/* DMA Channel 6 Frame Branch register */
+#define FBR0    0x020   /* DMA Channel 0 Frame Branch register */
+#define FBR1    0x024   /* DMA Channel 1 Frame Branch register */
+#define FBR2    0x028   /* DMA Channel 2 Frame Branch register */
+#define FBR3    0x02c   /* DMA Channel 3 Frame Branch register */
+#define FBR4    0x030   /* DMA Channel 4 Frame Branch register */
+#define FBR5    0x110   /* DMA Channel 5 Frame Branch register */
+#define FBR6    0x114   /* DMA Channel 6 Frame Branch register */
 
-#define LCSR1	0x034	/* LCD Controller Status register 1 */
-#define LCSR0	0x038	/* LCD Controller Status register 0 */
-#define LIIDR	0x03c	/* LCD Controller Interrupt ID register */
+#define LCSR1   0x034   /* LCD Controller Status register 1 */
+#define LCSR0   0x038   /* LCD Controller Status register 0 */
+#define LIIDR   0x03c   /* LCD Controller Interrupt ID register */
 
-#define TRGBR	0x040	/* TMED RGB Seed register */
-#define TCR	0x044	/* TMED Control register */
+#define TRGBR   0x040   /* TMED RGB Seed register */
+#define TCR     0x044   /* TMED Control register */
 
-#define OVL1C1	0x050	/* Overlay 1 Control register 1 */
-#define OVL1C2	0x060	/* Overlay 1 Control register 2 */
-#define OVL2C1	0x070	/* Overlay 2 Control register 1 */
-#define OVL2C2	0x080	/* Overlay 2 Control register 2 */
-#define CCR	0x090	/* Cursor Control register */
+#define OVL1C1  0x050   /* Overlay 1 Control register 1 */
+#define OVL1C2  0x060   /* Overlay 1 Control register 2 */
+#define OVL2C1  0x070   /* Overlay 2 Control register 1 */
+#define OVL2C2  0x080   /* Overlay 2 Control register 2 */
+#define CCR     0x090   /* Cursor Control register */
 
-#define CMDCR	0x100	/* Command Control register */
-#define PRSR	0x104	/* Panel Read Status register */
+#define CMDCR   0x100   /* Command Control register */
+#define PRSR    0x104   /* Panel Read Status register */
 
-#define PXA_LCDDMA_CHANS	7
-#define DMA_FDADR		0x00	/* Frame Descriptor Address register */
-#define DMA_FSADR		0x04	/* Frame Source Address register */
-#define DMA_FIDR		0x08	/* Frame ID register */
-#define DMA_LDCMD		0x0c	/* Command register */
+#define PXA_LCDDMA_CHANS        7
+#define DMA_FDADR               0x00    /* Frame Descriptor Address register */
+#define DMA_FSADR               0x04    /* Frame Source Address register */
+#define DMA_FIDR                0x08    /* Frame ID register */
+#define DMA_LDCMD               0x0c    /* Command register */
 
 /* LCD Buffer Strength Control register */
-#define BSCNTR	0x04000054
+#define BSCNTR  0x04000054
 
 /* Bitfield masks */
-#define LCCR0_ENB	(1 << 0)
-#define LCCR0_CMS	(1 << 1)
-#define LCCR0_SDS	(1 << 2)
-#define LCCR0_LDM	(1 << 3)
-#define LCCR0_SOFM0	(1 << 4)
-#define LCCR0_IUM	(1 << 5)
-#define LCCR0_EOFM0	(1 << 6)
-#define LCCR0_PAS	(1 << 7)
-#define LCCR0_DPD	(1 << 9)
-#define LCCR0_DIS	(1 << 10)
-#define LCCR0_QDM	(1 << 11)
-#define LCCR0_PDD	(0xff << 12)
-#define LCCR0_BSM0	(1 << 20)
-#define LCCR0_OUM	(1 << 21)
-#define LCCR0_LCDT	(1 << 22)
-#define LCCR0_RDSTM	(1 << 23)
-#define LCCR0_CMDIM	(1 << 24)
-#define LCCR0_OUC	(1 << 25)
-#define LCCR0_LDDALT	(1 << 26)
-#define LCCR1_PPL(x)	((x) & 0x3ff)
-#define LCCR2_LPP(x)	((x) & 0x3ff)
-#define LCCR3_API	(15 << 16)
-#define LCCR3_BPP(x)	((((x) >> 24) & 7) | (((x) >> 26) & 8))
-#define LCCR3_PDFOR(x)	(((x) >> 30) & 3)
-#define LCCR4_K1(x)	(((x) >> 0) & 7)
-#define LCCR4_K2(x)	(((x) >> 3) & 7)
-#define LCCR4_K3(x)	(((x) >> 6) & 7)
-#define LCCR4_PALFOR(x)	(((x) >> 15) & 3)
-#define LCCR5_SOFM(ch)	(1 << (ch - 1))
-#define LCCR5_EOFM(ch)	(1 << (ch + 7))
-#define LCCR5_BSM(ch)	(1 << (ch + 15))
-#define LCCR5_IUM(ch)	(1 << (ch + 23))
-#define OVLC1_EN	(1 << 31)
-#define CCR_CEN		(1 << 31)
-#define FBR_BRA		(1 << 0)
-#define FBR_BINT	(1 << 1)
-#define FBR_SRCADDR	(0xfffffff << 4)
-#define LCSR0_LDD	(1 << 0)
-#define LCSR0_SOF0	(1 << 1)
-#define LCSR0_BER	(1 << 2)
-#define LCSR0_ABC	(1 << 3)
-#define LCSR0_IU0	(1 << 4)
-#define LCSR0_IU1	(1 << 5)
-#define LCSR0_OU	(1 << 6)
-#define LCSR0_QD	(1 << 7)
-#define LCSR0_EOF0	(1 << 8)
-#define LCSR0_BS0	(1 << 9)
-#define LCSR0_SINT	(1 << 10)
-#define LCSR0_RDST	(1 << 11)
-#define LCSR0_CMDINT	(1 << 12)
-#define LCSR0_BERCH(x)	(((x) & 7) << 28)
-#define LCSR1_SOF(ch)	(1 << (ch - 1))
-#define LCSR1_EOF(ch)	(1 << (ch + 7))
-#define LCSR1_BS(ch)	(1 << (ch + 15))
-#define LCSR1_IU(ch)	(1 << (ch + 23))
-#define LDCMD_LENGTH(x)	((x) & 0x001ffffc)
-#define LDCMD_EOFINT	(1 << 21)
-#define LDCMD_SOFINT	(1 << 22)
-#define LDCMD_PAL	(1 << 26)
+#define LCCR0_ENB       (1 << 0)
+#define LCCR0_CMS       (1 << 1)
+#define LCCR0_SDS       (1 << 2)
+#define LCCR0_LDM       (1 << 3)
+#define LCCR0_SOFM0     (1 << 4)
+#define LCCR0_IUM       (1 << 5)
+#define LCCR0_EOFM0     (1 << 6)
+#define LCCR0_PAS       (1 << 7)
+#define LCCR0_DPD       (1 << 9)
+#define LCCR0_DIS       (1 << 10)
+#define LCCR0_QDM       (1 << 11)
+#define LCCR0_PDD       (0xff << 12)
+#define LCCR0_BSM0      (1 << 20)
+#define LCCR0_OUM       (1 << 21)
+#define LCCR0_LCDT      (1 << 22)
+#define LCCR0_RDSTM     (1 << 23)
+#define LCCR0_CMDIM     (1 << 24)
+#define LCCR0_OUC       (1 << 25)
+#define LCCR0_LDDALT    (1 << 26)
+#define LCCR1_PPL(x)    ((x) & 0x3ff)
+#define LCCR2_LPP(x)    ((x) & 0x3ff)
+#define LCCR3_API       (15 << 16)
+#define LCCR3_BPP(x)    ((((x) >> 24) & 7) | (((x) >> 26) & 8))
+#define LCCR3_PDFOR(x)  (((x) >> 30) & 3)
+#define LCCR4_K1(x)     (((x) >> 0) & 7)
+#define LCCR4_K2(x)     (((x) >> 3) & 7)
+#define LCCR4_K3(x)     (((x) >> 6) & 7)
+#define LCCR4_PALFOR(x) (((x) >> 15) & 3)
+#define LCCR5_SOFM(ch)  (1 << (ch - 1))
+#define LCCR5_EOFM(ch)  (1 << (ch + 7))
+#define LCCR5_BSM(ch)   (1 << (ch + 15))
+#define LCCR5_IUM(ch)   (1 << (ch + 23))
+#define OVLC1_EN        (1 << 31)
+#define CCR_CEN         (1 << 31)
+#define FBR_BRA         (1 << 0)
+#define FBR_BINT        (1 << 1)
+#define FBR_SRCADDR     (0xfffffff << 4)
+#define LCSR0_LDD       (1 << 0)
+#define LCSR0_SOF0      (1 << 1)
+#define LCSR0_BER       (1 << 2)
+#define LCSR0_ABC       (1 << 3)
+#define LCSR0_IU0       (1 << 4)
+#define LCSR0_IU1       (1 << 5)
+#define LCSR0_OU        (1 << 6)
+#define LCSR0_QD        (1 << 7)
+#define LCSR0_EOF0      (1 << 8)
+#define LCSR0_BS0       (1 << 9)
+#define LCSR0_SINT      (1 << 10)
+#define LCSR0_RDST      (1 << 11)
+#define LCSR0_CMDINT    (1 << 12)
+#define LCSR0_BERCH(x)  (((x) & 7) << 28)
+#define LCSR1_SOF(ch)   (1 << (ch - 1))
+#define LCSR1_EOF(ch)   (1 << (ch + 7))
+#define LCSR1_BS(ch)    (1 << (ch + 15))
+#define LCSR1_IU(ch)    (1 << (ch + 23))
+#define LDCMD_LENGTH(x) ((x) & 0x001ffffc)
+#define LDCMD_EOFINT    (1 << 21)
+#define LDCMD_SOFINT    (1 << 22)
+#define LDCMD_PAL       (1 << 26)
 
 /* Size of a pixel in the QEMU UI output surface, in bytes */
 #define DEST_PIXEL_WIDTH 4
@@ -788,7 +788,7 @@ static uint64_t pxa2xx_lcdc_read(void *opaque, hwaddr offset,
     case TCR:
         return s->tcr;
 
-    case 0x200 ... 0x1000:	/* DMA per-channel registers */
+    case 0x200 ... 0x1000:      /* DMA per-channel registers */
         ch = (offset - 0x200) >> 4;
         if (!(ch >= 0 && ch < PXA_LCDDMA_CHANS))
             goto fail;
@@ -938,7 +938,7 @@ static void pxa2xx_lcdc_write(void *opaque, hwaddr offset,
         s->tcr = value & 0x7fff;
         break;
 
-    case 0x200 ... 0x1000:	/* DMA per-channel registers */
+    case 0x200 ... 0x1000:      /* DMA per-channel registers */
         ch = (offset - 0x200) >> 4;
         if (!(ch >= 0 && ch < PXA_LCDDMA_CHANS))
             goto fail;
