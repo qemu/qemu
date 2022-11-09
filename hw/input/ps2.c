@@ -1001,12 +1001,18 @@ void ps2_write_mouse(PS2MouseState *s, int val)
     }
 }
 
-static void ps2_reset(DeviceState *dev)
+static void ps2_reset_hold(Object *obj)
 {
-    PS2State *s = PS2_DEVICE(dev);
+    PS2State *s = PS2_DEVICE(obj);
 
     s->write_cmd = -1;
     ps2_reset_queue(s);
+}
+
+static void ps2_reset_exit(Object *obj)
+{
+    PS2State *s = PS2_DEVICE(obj);
+
     ps2_lower_irq(s);
 }
 
@@ -1281,8 +1287,10 @@ static void ps2_init(Object *obj)
 static void ps2_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->reset = ps2_reset;
+    rc->phases.hold = ps2_reset_hold;
+    rc->phases.exit = ps2_reset_exit;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
