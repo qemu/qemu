@@ -33,6 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "ui/console.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL

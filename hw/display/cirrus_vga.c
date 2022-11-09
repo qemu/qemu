@@ -45,6 +45,7 @@
 #include "ui/pixel_ops.h"
 #include "cirrus_vga_internal.h"
 #include "qom/object.h"
+#include "ui/console.h"
 
 /*
  * TODO:

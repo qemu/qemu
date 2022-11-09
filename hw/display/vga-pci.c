@@ -30,6 +30,7 @@
 #include "migration/vmstate.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
+#include "ui/console.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/loader.h"

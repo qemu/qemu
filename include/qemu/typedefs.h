@@ -132,6 +132,8 @@ typedef struct Visitor Visitor;
 typedef struct VMChangeStateEntry VMChangeStateEntry;
 typedef struct VMStateDescription VMStateDescription;
 typedef struct DumpState DumpState;
+typedef struct GraphicHwOps GraphicHwOps;
+typedef struct QEMUCursor QEMUCursor;
 
 /*
  * Pointer types
