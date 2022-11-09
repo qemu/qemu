@@ -22,7 +22,8 @@
 import math
 import os
 import subprocess
-from typing import List
+import time
+from typing import List, Optional
 import iotests
 from iotests import qemu_img
 
@@ -195,12 +196,15 @@ class TestActiveMirror(iotests.QMPTestCase):
         self.potential_writes_in_flight = False
 
 
-class TestThrottledWithNbdExport(iotests.QMPTestCase):
+class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
     image_len = 128 * 1024 * 1024  # MB
-    iops = 16
+    iops: Optional[int] = None
     background_processes: List['subprocess.Popen[str]'] = []
 
     def setUp(self):
+        # Must be set by subclasses
+        self.assertIsNotNone(self.iops)
+
         qemu_img('create', '-f', iotests.imgfmt, source_img, '128M')
         qemu_img('create', '-f', iotests.imgfmt, target_img, '128M')
 
@@ -283,6 +287,10 @@ class TestThrottledWithNbdExport(iotests.QMPTestCase):
         self.vm.shutdown()
         os.remove(source_img)
         os.remove(target_img)
+
+
+class TestLowThrottledWithNbdExport(TestThrottledWithNbdExportBase):
+    iops = 16
 
     def testUnderLoad(self):
         '''
@@ -368,6 +376,45 @@ class TestThrottledWithNbdExport(iotests.QMPTestCase):
         # See that indeed progress was being made on the job, even while the
         # node was saturated with active requests
         self.assertGreater(start_remaining - end_remaining, 0)
+
+
+class TestHighThrottledWithNbdExport(TestThrottledWithNbdExportBase):
+    iops = 1024
+
+    def testActiveOnCreation(self):
+        '''
+        Issue requests on the mirror source node right as the mirror is
+        instated.  It's possible that requests occur before the actual job is
+        created, but after the node has been put into the graph.  Write
+        requests across the node must in that case be forwarded to the source
+        node without attempting to mirror them (there is no job object yet, so
+        attempting to access it would cause a segfault).
+        We do this with a lightly throttled node (i.e. quite high IOPS limit).
+        Using throttling seems to increase reproductivity, but if the limit is
+        too low, all requests allowed per second will be submitted before
+        mirror_start_job() gets to the problematic point.
+        '''
+
+        # Let qemu-img bench create write requests (enough for two seconds on
+        # the virtual clock)
+        bench_args = ['bench', '-w', '-d', '1024', '-f', 'nbd',
+                      '-c', str(self.iops * 2), self.nbd_url]
+        p = iotests.qemu_tool_popen(iotests.qemu_img_args + bench_args)
+        self.background_processes += [p]
+
+        # Give qemu-img bench time to start up and issue requests
+        time.sleep(1.0)
+        # Flush the request queue, so new requests can come in right as we
+        # start blockdev-mirror
+        self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             device='source-node',
+                             target='target-node',
+                             sync='full',
+                             copy_mode='write-blocking')
+        self.assert_qmp(result, 'return', {})
 
 
 if __name__ == '__main__':
