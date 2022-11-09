@@ -82,6 +82,7 @@ typedef struct MirrorBlockJob {
     int max_iov;
     bool initial_zeroing_ongoing;
     int in_active_write_counter;
+    int64_t active_write_bytes_in_flight;
     bool prepared;
     bool in_drain;
 } MirrorBlockJob;
@@ -494,6 +495,13 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     }
     bdrv_dirty_bitmap_unlock(s->dirty_bitmap);
 
+    /*
+     * Wait for concurrent requests to @offset.  The next loop will limit the
+     * copied area based on in_flight_bitmap so we only copy an area that does
+     * not overlap with concurrent in-flight requests.  Still, we would like to
+     * copy something, so wait until there are at least no more requests to the
+     * very beginning of the area.
+     */
     mirror_wait_on_conflicts(NULL, s, offset, 1);
 
     job_pause_point(&s->common.job);
@@ -988,12 +996,6 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         int64_t cnt, delta;
         bool should_complete;
 
-        /* Do not start passive operations while there are active
-         * writes in progress */
-        while (s->in_active_write_counter) {
-            mirror_wait_for_any_operation(s, true);
-        }
-
         if (s->ret < 0) {
             ret = s->ret;
             goto immediate_exit;
@@ -1010,7 +1012,9 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         /* cnt is the number of dirty bytes remaining and s->bytes_in_flight is
          * the number of bytes currently being processed; together those are
          * the current remaining operation length */
-        job_progress_set_remaining(&s->common.job, s->bytes_in_flight + cnt);
+        job_progress_set_remaining(&s->common.job,
+                                   s->bytes_in_flight + cnt +
+                                   s->active_write_bytes_in_flight);
 
         /* Note that even when no rate limit is applied we need to yield
          * periodically with no pending I/O so that bdrv_drain_all() returns.
@@ -1071,6 +1075,10 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
 
             s->in_drain = true;
             bdrv_drained_begin(bs);
+
+            /* Must be zero because we are drained */
+            assert(s->in_active_write_counter == 0);
+
             cnt = bdrv_get_dirty_count(s->dirty_bitmap);
             if (cnt > 0 || mirror_flush(s) < 0) {
                 bdrv_drained_end(bs);
@@ -1306,6 +1314,7 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
     }
 
     job_progress_increase_remaining(&job->common.job, bytes);
+    job->active_write_bytes_in_flight += bytes;
 
     switch (method) {
     case MIRROR_METHOD_COPY:
@@ -1327,6 +1336,7 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
         abort();
     }
 
+    job->active_write_bytes_in_flight -= bytes;
     if (ret >= 0) {
         job_progress_update(&job->common.job, bytes);
     } else {
@@ -1375,6 +1385,19 @@ static MirrorOp *coroutine_fn active_write_prepare(MirrorBlockJob *s,
 
     s->in_active_write_counter++;
 
+    /*
+     * Wait for concurrent requests affecting the area.  If there are already
+     * running requests that are copying off now-to-be stale data in the area,
+     * we must wait for them to finish before we begin writing fresh data to the
+     * target so that the write operations appear in the correct order.
+     * Note that background requests (see mirror_iteration()) in contrast only
+     * wait for conflicting requests at the start of the dirty area, and then
+     * (based on the in_flight_bitmap) truncate the area to copy so it will not
+     * conflict with any requests beyond that.  For active writes, however, we
+     * cannot truncate that area.  The request from our parent must be blocked
+     * until the area is copied in full.  Therefore, we must wait for the whole
+     * area to become free of concurrent requests.
+     */
     mirror_wait_on_conflicts(op, s, offset, bytes);
 
     bitmap_set(s->in_flight_bitmap, start_chunk, end_chunk - start_chunk);
