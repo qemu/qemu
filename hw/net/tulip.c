@@ -870,11 +870,10 @@ static const MemoryRegionOps tulip_ops = {
 
 static void tulip_idblock_crc(TULIPState *s, uint16_t *srom)
 {
-    int word, n;
+    int word;
     int bit;
     unsigned char bitval, crc;
     const int len = 9;
-    n = 0;
     crc = -1;
 
     for (word = 0; word < len; word++) {
@@ -887,7 +886,6 @@ static void tulip_idblock_crc(TULIPState *s, uint16_t *srom)
                 srom[len - 1] = (srom[len - 1] & 0xff00) | (unsigned short)crc;
                 break;
             }
-            n++;
             bitval = ((srom[word] >> bit) & 1) ^ ((crc >> 7) & 1);
             crc = crc << 1;
             if (bitval == 1) {
