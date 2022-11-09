@@ -1438,11 +1438,13 @@ static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
     MirrorOp *op = NULL;
     MirrorBDSOpaque *s = bs->opaque;
     int ret = 0;
-    bool copy_to_target;
+    bool copy_to_target = false;
 
-    copy_to_target = s->job->ret >= 0 &&
-                     !job_is_cancelled(&s->job->common.job) &&
-                     s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+    if (s->job) {
+        copy_to_target = s->job->ret >= 0 &&
+                         !job_is_cancelled(&s->job->common.job) &&
+                         s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+    }
 
     if (copy_to_target) {
         op = active_write_prepare(s->job, offset, bytes);
@@ -1487,11 +1489,13 @@ static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
     QEMUIOVector bounce_qiov;
     void *bounce_buf;
     int ret = 0;
-    bool copy_to_target;
+    bool copy_to_target = false;
 
-    copy_to_target = s->job->ret >= 0 &&
-                     !job_is_cancelled(&s->job->common.job) &&
-                     s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+    if (s->job) {
+        copy_to_target = s->job->ret >= 0 &&
+                         !job_is_cancelled(&s->job->common.job) &&
+                         s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING;
+    }
 
     if (copy_to_target) {
         /* The guest might concurrently modify the data to write; but
