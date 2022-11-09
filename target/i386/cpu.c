@@ -1233,7 +1233,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = {
             "sgx1", "sgx2", NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, "sgx-edeccssa",
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -1273,7 +1273,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = {
             NULL, "sgx-debug", "sgx-mode64", NULL,
             "sgx-provisionkey", "sgx-tokenkey", NULL, "sgx-kss",
-            NULL, NULL, NULL, NULL,
+            NULL, NULL, "sgx-aex-notify", NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
