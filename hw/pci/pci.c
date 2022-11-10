@@ -1789,7 +1789,6 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
                                const char *default_devaddr)
 {
     const char *devaddr = nd->devaddr ? nd->devaddr : default_devaddr;
-    GSList *list;
     GPtrArray *pci_nic_models;
     PCIBus *bus;
     PCIDevice *pci_dev;
@@ -1804,33 +1803,7 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
         nd->model = g_strdup("virtio-net-pci");
     }
 
-    list = object_class_get_list_sorted(TYPE_PCI_DEVICE, false);
-    pci_nic_models = g_ptr_array_new();
-    while (list) {
-        DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, list->data,
-                                             TYPE_DEVICE);
-        GSList *next;
-        if (test_bit(DEVICE_CATEGORY_NETWORK, dc->categories) &&
-            dc->user_creatable) {
-            const char *name = object_class_get_name(list->data);
-            /*
-             * A network device might also be something else than a NIC, see
-             * e.g. the "rocker" device. Thus we have to look for the "netdev"
-             * property, too. Unfortunately, some devices like virtio-net only
-             * create this property during instance_init, so we have to create
-             * a temporary instance here to be able to check it.
-             */
-            Object *obj = object_new_with_class(OBJECT_CLASS(dc));
-            if (object_property_find(obj, "netdev")) {
-                g_ptr_array_add(pci_nic_models, (gpointer)name);
-            }
-            object_unref(obj);
-        }
-        next = list->next;
-        g_slist_free_1(list);
-        list = next;
-    }
-    g_ptr_array_add(pci_nic_models, NULL);
+    pci_nic_models = qemu_get_nic_models(TYPE_PCI_DEVICE);
 
     if (qemu_show_nic_models(nd->model, (const char **)pci_nic_models->pdata)) {
         exit(0);
