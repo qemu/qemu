@@ -617,7 +617,6 @@ static const uInt multies[]={131073, 26215, 5243, 1049, 210};
 #endif
 void decDigitsToDPD(const decNumber *dn, uInt *targ, Int shift) {
   Int  cut;		      /* work */
-  Int  n;		      /* output bunch counter */
   Int  digits=dn->digits;     /* digit countdown */
   uInt dpd;		      /* densely packed decimal value */
   uInt bin;		      /* binary value 0-999 */
@@ -676,7 +675,7 @@ void decDigitsToDPD(const decNumber *dn, uInt *targ, Int shift) {
     bin=0;			   /* [keep compiler quiet] */
   #endif
 
-  for(n=0; digits>0; n++) {	   /* each output bunch */
+  while (digits > 0) {             /* each output bunch */
     #if DECDPUN==3		   /* fast path, 3-at-a-time */
       bin=*inu;			   /* 3 digits ready for convert */
       digits-=3;		   /* [may go negative] */
