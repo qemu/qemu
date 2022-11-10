@@ -941,7 +941,7 @@ int qemu_show_nic_models(const char *arg, const char *const *models)
         return 0;
     }
 
-    printf("Supported NIC models:\n");
+    printf("Available NIC models:\n");
     for (i = 0 ; models[i]; i++) {
         printf("%s\n", models[i]);
     }
