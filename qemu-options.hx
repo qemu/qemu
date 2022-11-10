@@ -139,7 +139,7 @@ SRST
         interleave requirements before enabling the memory devices.
 
         ``targets.X=target`` provides the mapping to CXL host bridges
-        which may be identified by the id provied in the -device entry.
+        which may be identified by the id provided in the -device entry.
         Multiple entries are needed to specify all the targets when
         the fixed memory window represents interleaved memory. X is the
         target index from 0.
@@ -362,7 +362,7 @@ SRST
   \ 
 ``-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]``
   \ 
-``-numa hmat-lb,initiator=node,target=node,hierarchy=hierarchy,data-type=tpye[,latency=lat][,bandwidth=bw]``
+``-numa hmat-lb,initiator=node,target=node,hierarchy=hierarchy,data-type=type[,latency=lat][,bandwidth=bw]``
   \ 
 ``-numa hmat-cache,node-id=node,size=size,level=level[,associativity=str][,policy=str][,line=size]``
     Define a NUMA node and assign RAM and VCPUs to it. Set the NUMA
@@ -1785,7 +1785,7 @@ SRST
     directory on host is made directly accessible by guest as a pass-through
     file system by using the 9P network protocol for communication between
     host and guests, if desired even accessible, shared by several guests
-    simultaniously.
+    simultaneously.
 
     Note that ``-virtfs`` is actually just a convenience shortcut for its
     generalized form ``-fsdev -device virtio-9p-pci``.

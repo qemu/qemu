@@ -132,7 +132,7 @@ Under ``tests/avocado/`` as the root we have:
 
    (a) They are python2.7 based scripts and not python 3 scripts.
    (b) They are run from within the bios bits VM and is not subjected to QEMU
-       build/test python script maintainance and dependency resolutions.
+       build/test python script maintenance and dependency resolutions.
    (c) They need not be loaded by avocado framework when running tests.
 
 

@@ -321,7 +321,7 @@
 #          },
 #          "backend-features": {
 #              "dev-features": [
-#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotation supported",
+#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
 #                  "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
 #                  "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
 #                  "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
@@ -394,7 +394,7 @@
 #          },
 #          "host-features": {
 #              "dev-features": [
-#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotation supported",
+#                  "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
 #                  "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
 #                  "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
 #                  "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
