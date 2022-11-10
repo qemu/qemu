@@ -13,7 +13,7 @@ util_ss.add(files(
 if have_system
   util_ss.add(files('qapi-type-helpers.c'))
 endif
-if have_system or have_tools
+if have_system or have_tools or have_ga
   util_ss.add(files(
     'qmp-dispatch.c',
     'qmp-event.c',

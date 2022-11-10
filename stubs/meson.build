@@ -49,7 +49,7 @@ stub_ss.add(files('vmstate.c'))
 stub_ss.add(files('vm-stop.c'))
 stub_ss.add(files('win32-kbd-hook.c'))
 stub_ss.add(files('cpu-synchronize-state.c'))
-if have_block
+if have_block or have_ga
   stub_ss.add(files('replay-tools.c'))
 endif
 if have_system
