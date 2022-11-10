@@ -24,7 +24,6 @@
 
 #define E1000E_RX0_MSG_ID           (0)
 #define E1000E_TX0_MSG_ID           (1)
-#define E1000E_OTHER_MSG_ID         (2)
 
 #define E1000E_TDLEN    (0x3808)
 #define E1000E_TDT      (0x3818)
