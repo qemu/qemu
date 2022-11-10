@@ -135,6 +135,8 @@ static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
 
 static void gen_end_tb(DisasContext *ctx)
 {
+    Packet *pkt = ctx->pkt;
+
     gen_exec_counters(ctx);
 
     if (ctx->branch_cond != TCG_COND_NEVER) {
@@ -147,6 +149,18 @@ static void gen_end_tb(DisasContext *ctx)
         } else {
             gen_goto_tb(ctx, 0, ctx->branch_dest);
         }
+    } else if (ctx->is_tight_loop &&
+               pkt->insn[pkt->num_insns - 1].opcode == J2_endloop0) {
+        /*
+         * When we're in a tight loop, we defer the endloop0 processing
+         * to take advantage of direct block chaining
+         */
+        TCGLabel *skip = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
+        tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
+        gen_goto_tb(ctx, 0, ctx->base.tb->pc);
+        gen_set_label(skip);
+        gen_goto_tb(ctx, 1, ctx->next_PC);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
@@ -337,6 +351,15 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
          */
         bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
                              rnum == HEX_REG_USR;
+
+        /* LC0/LC1 is conditionally written by endloop instructions */
+        if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
+            (opcode == J2_endloop0 ||
+             opcode == J2_endloop1 ||
+             opcode == J2_endloop01)) {
+            is_predicated = true;
+        }
+
         if (is_predicated && !is_preloaded(ctx, rnum)) {
             tcg_gen_mov_tl(hex_new_value[rnum], hex_gpr[rnum]);
         }
@@ -420,6 +443,14 @@ static void gen_reg_writes(DisasContext *ctx)
         int reg_num = ctx->reg_log[i];
 
         tcg_gen_mov_tl(hex_gpr[reg_num], hex_new_value[reg_num]);
+
+        /*
+         * ctx->is_tight_loop is set when SA0 points to the beginning of the TB.
+         * If we write to SA0, we have to turn off tight loop handling.
+         */
+        if (reg_num == HEX_REG_SA0) {
+            ctx->is_tight_loop = false;
+        }
     }
 }
 
@@ -833,12 +864,14 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint32_t hex_flags = dcbase->tb->flags;
 
     ctx->mem_idx = MMU_USER_IDX;
     ctx->num_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
     ctx->branch_cond = TCG_COND_NEVER;
+    ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)

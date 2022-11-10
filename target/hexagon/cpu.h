@@ -25,6 +25,7 @@
 #include "mmvec/mmvec.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
+#include "hw/registerfields.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -152,16 +153,18 @@ struct ArchCPU {
 
 #include "cpu_bits.h"
 
+FIELD(TB_FLAGS, IS_TIGHT_LOOP, 0, 1)
+
 static inline void cpu_get_tb_cpu_state(CPUHexagonState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
+    uint32_t hex_flags = 0;
     *pc = env->gpr[HEX_REG_PC];
     *cs_base = 0;
-#ifdef CONFIG_USER_ONLY
-    *flags = 0;
-#else
-#error System mode not supported on Hexagon yet
-#endif
+    if (*pc == env->gpr[HEX_REG_SA0]) {
+        hex_flags = FIELD_DP32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP, 1);
+    }
+    *flags = hex_flags;
 }
 
 static inline int cpu_mmu_index(CPUHexagonState *env, bool ifetch)

@@ -59,6 +59,7 @@ typedef struct DisasContext {
     bool pre_commit;
     TCGCond branch_cond;
     target_ulong branch_dest;
+    bool is_tight_loop;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
