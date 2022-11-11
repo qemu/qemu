@@ -89,7 +89,7 @@ static void handle_exceptions(CPUS390XState *env, bool XxC, uintptr_t retaddr)
     /*
      * invalid/divbyzero cannot coexist with other conditions.
      * overflow/underflow however can coexist with inexact, we have to
-     * handle it separatly.
+     * handle it separately.
      */
     if (s390_exc & ~S390_IEEE_MASK_INEXACT) {
         if (s390_exc & ~S390_IEEE_MASK_INEXACT & env->fpc >> 24) {

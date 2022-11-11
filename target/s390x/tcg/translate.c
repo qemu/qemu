@@ -435,7 +435,7 @@ static void gen_program_exception(DisasContext *s, int code)
 {
     TCGv_i32 tmp;
 
-    /* Remember what pgm exeption this was.  */
+    /* Remember what pgm exception this was.  */
     tmp = tcg_const_i32(code);
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_code));
     tcg_temp_free_i32(tmp);
@@ -491,7 +491,7 @@ static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
 
     /*
      * Note that d2 is limited to 20 bits, signed.  If we crop negative
-     * displacements early we create larger immedate addends.
+     * displacements early we create larger immediate addends.
      */
     if (b2 && x2) {
         tcg_gen_add_i64(tmp, regs[b2], regs[x2]);
