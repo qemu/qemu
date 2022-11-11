@@ -27,7 +27,6 @@
 
 #include "exec/ioport.h"
 #include "exec/memory.h"
-#include "ui/console.h"
 
 #include "hw/display/bochs-vbe.h"
 #include "hw/acpi/acpi_aml_interface.h"

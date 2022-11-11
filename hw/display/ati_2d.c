@@ -12,6 +12,7 @@
 #include "ati_regs.h"
 #include "qemu/log.h"
 #include "ui/pixel_ops.h"
+#include "ui/console.h"
 
 /*
  * NOTE:
