@@ -31,7 +31,7 @@
 static QGuestAllocator *alloc;
 static char *local_test_path;
 
-/* Concatenates the passed 2 pathes. Returned result must be freed. */
+/* Concatenates the passed 2 paths. Returned result must be freed. */
 static char *concat_path(const char* a, const char* b)
 {
     return g_build_filename(a, b, NULL);

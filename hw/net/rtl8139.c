@@ -2156,7 +2156,6 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     ip_data_len, saved_size - ETH_HLEN, large_send_mss);
 
                 int tcp_send_offset = 0;
-                int send_count = 0;
 
                 /* maximum IP header length is 60 bytes */
                 uint8_t saved_ip_header[60];
@@ -2261,7 +2260,6 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     /* add transferred count to TCP sequence number */
                     stl_be_p(&p_tcp_hdr->th_seq,
                              chunk_size + ldl_be_p(&p_tcp_hdr->th_seq));
-                    ++send_count;
                 }
 
                 /* Stop sending this frame */

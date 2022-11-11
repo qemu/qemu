@@ -561,7 +561,7 @@ typedef void (*ReplayRamDiscard)(MemoryRegionSection *section, void *opaque);
  * A #RamDiscardManager coordinates which parts of specific RAM #MemoryRegion
  * regions are currently populated to be used/accessed by the VM, notifying
  * after parts were discarded (freeing up memory) and before parts will be
- * populated (consuming memory), to be used/acessed by the VM.
+ * populated (consuming memory), to be used/accessed by the VM.
  *
  * A #RamDiscardManager can only be set for a RAM #MemoryRegion while the
  * #MemoryRegion isn't mapped yet; it cannot change while the #MemoryRegion is
@@ -585,7 +585,7 @@ typedef void (*ReplayRamDiscard)(MemoryRegionSection *section, void *opaque);
  * Listeners are called in multiples of the minimum granularity (unless it
  * would exceed the registered range) and changes are aligned to the minimum
  * granularity within the #MemoryRegion. Listeners have to prepare for memory
- * becomming discarded in a different granularity than it was populated and the
+ * becoming discarded in a different granularity than it was populated and the
  * other way around.
  */
 struct RamDiscardManagerClass {
@@ -1247,7 +1247,7 @@ void memory_region_init_ram_flags_nomigrate(MemoryRegion *mr,
                                             Error **errp);
 
 /**
- * memory_region_init_resizeable_ram:  Initialize memory region with resizeable
+ * memory_region_init_resizeable_ram:  Initialize memory region with resizable
  *                                     RAM.  Accesses into the region will
  *                                     modify memory directly.  Only an initial
  *                                     portion of this RAM is actually used.
