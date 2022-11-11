@@ -58,6 +58,7 @@ util_ss.add(files('yank.c'))
 util_ss.add(files('int128.c'))
 util_ss.add(files('memalign.c'))
 util_ss.add(files('interval-tree.c'))
+util_ss.add(files('lockcnt.c'))
 
 if have_user
   util_ss.add(files('selfmap.c'))
@@ -72,7 +73,6 @@ endif
 if have_block or have_ga
   util_ss.add(files('aiocb.c', 'async.c'))
   util_ss.add(files('base64.c'))
-  util_ss.add(files('lockcnt.c'))
   util_ss.add(files('main-loop.c'))
   util_ss.add(files('qemu-coroutine.c', 'qemu-coroutine-lock.c', 'qemu-coroutine-io.c'))
   util_ss.add(files('coroutine-@0@.c'.format(config_host['CONFIG_COROUTINE_BACKEND'])))
