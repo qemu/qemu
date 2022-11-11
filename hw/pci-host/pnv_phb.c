@@ -241,8 +241,16 @@ static void pnv_phb_root_port_realize(DeviceState *dev, Error **errp)
      * QOM id. 'chip_id' is going to be used as PCIE chassis for the
      * root port.
      */
-    chip_id = object_property_get_int(OBJECT(bus), "chip-id", &error_fatal);
-    index = object_property_get_int(OBJECT(bus), "phb-id", &error_fatal);
+    chip_id = object_property_get_int(OBJECT(bus), "chip-id", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    index = object_property_get_int(OBJECT(bus), "phb-id", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     /* Set unique chassis/slot values for the root port */
     qdev_prop_set_uint8(dev, "chassis", chip_id);
