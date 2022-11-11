@@ -42,11 +42,29 @@ typedef enum {
     TCG_CALL_ARG_EXTEND_S,       /*      ... as a sign-extended i64 */
 } TCGCallArgumentKind;
 
+typedef struct TCGCallArgumentLoc {
+    TCGCallArgumentKind kind    : 8;
+    unsigned arg_slot           : 8;
+    unsigned ref_slot           : 8;
+    unsigned arg_idx            : 4;
+    unsigned tmp_subindex       : 2;
+} TCGCallArgumentLoc;
+
+/* Avoid "unsigned < 0 is always false" Werror, when iarg_regs is empty. */
+#define REG_P(L) \
+    ((int)(L)->arg_slot < (int)ARRAY_SIZE(tcg_target_call_iarg_regs))
+
 typedef struct TCGHelperInfo {
     void *func;
     const char *name;
-    unsigned flags;
-    unsigned typemask;
+    unsigned typemask           : 32;
+    unsigned flags              : 8;
+    unsigned nr_in              : 8;
+    unsigned nr_out             : 8;
+    TCGCallReturnKind out_kind  : 8;
+
+    /* Maximum physical arguments are constrained by TCG_TYPE_I128. */
+    TCGCallArgumentLoc in[MAX_CALL_IARGS * (128 / TCG_TARGET_REG_BITS)];
 } TCGHelperInfo;
 
 extern TCGContext tcg_init_ctx;

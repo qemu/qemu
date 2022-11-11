@@ -38,6 +38,8 @@
 /* XXX: make safe guess about sizes */
 #define MAX_OP_PER_INSTR 266
 
+#define MAX_CALL_IARGS  7
+
 #define CPU_TEMP_BUF_NLONGS 128
 #define TCG_STATIC_FRAME_SIZE  (CPU_TEMP_BUF_NLONGS * sizeof(long))
 
@@ -410,9 +412,6 @@ typedef TCGv_ptr TCGv_env;
 #define TCG_CALL_NO_SE          TCG_CALL_NO_SIDE_EFFECTS
 #define TCG_CALL_NO_RWG_SE      (TCG_CALL_NO_RWG | TCG_CALL_NO_SE)
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
-
-/* Used to align parameters.  See the comment before tcgv_i32_temp.  */
-#define TCG_CALL_DUMMY_ARG      ((TCGArg)0)
 
 /*
  * Flags for the bswap opcodes.

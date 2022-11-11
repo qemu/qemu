@@ -667,9 +667,7 @@ static void init_arguments(OptContext *ctx, TCGOp *op, int nb_args)
 {
     for (int i = 0; i < nb_args; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
-        if (ts) {
-            init_ts_info(ctx, ts);
-        }
+        init_ts_info(ctx, ts);
     }
 }
 
@@ -680,7 +678,7 @@ static void copy_propagate(OptContext *ctx, TCGOp *op,
 
     for (int i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
-        if (ts && ts_is_copy(ts)) {
+        if (ts_is_copy(ts)) {
             op->args[i] = temp_arg(find_better_copy(s, ts));
         }
     }
