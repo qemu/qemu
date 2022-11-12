@@ -793,13 +793,13 @@ static void loongarch_init(MachineState *machine)
     qemu_add_machine_init_done_notifier(&lams->machine_done);
     fdt_add_pcie_node(lams);
     /*
-     * Since lowmem region starts from 0, FDT base address is located
-     * at 2 MiB to avoid NULL pointer access.
-     *
+     * Since lowmem region starts from 0 and Linux kernel legacy start address
+     * at 2 MiB, FDT base address is located at 1 MiB to avoid NULL pointer
+     * access. FDT size limit with 1 MiB.
      * Put the FDT into the memory map as a ROM image: this will ensure
      * the FDT is copied again upon reset, even if addr points into RAM.
      */
-    fdt_base = 2 * MiB;
+    fdt_base = 1 * MiB;
     qemu_fdt_dumpdtb(machine->fdt, lams->fdt_size);
     rom_add_blob_fixed("fdt", machine->fdt, lams->fdt_size, fdt_base);
 }
