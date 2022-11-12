@@ -45,7 +45,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <net/if_arp.h>
+#include <netinet/if_ether.h>
+#else
 #include <net/ethernet.h>
+#endif
 #include <sys/types.h>
 #ifdef CONFIG_SOLARIS
 #include <sys/sockio.h>
@@ -2872,7 +2877,7 @@ static int guest_get_network_stats(const char *name,
     return -1;
 }
 
-#ifndef __FreeBSD__
+#ifndef CONFIG_BSD
 /*
  * Fill "buf" with MAC address by ifaddrs. Pointer buf must point to a
  * buffer with ETHER_ADDR_LEN length at least.
@@ -2921,7 +2926,7 @@ bool guest_get_hw_addr(struct ifaddrs *ifa, unsigned char *buf,
     close(sock);
     return true;
 }
-#endif /* __FreeBSD__ */
+#endif /* CONFIG_BSD */
 
 /*
  * Build information about guest interfaces
