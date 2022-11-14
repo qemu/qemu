@@ -171,6 +171,8 @@ void bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event);
  */
 AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
+AioContext *bdrv_child_get_parent_aio_context(BdrvChild *c);
+
 /**
  * Move the current coroutine to the AioContext of @bs and return the old
  * AioContext of the coroutine. Increase bs->in_flight so that draining @bs

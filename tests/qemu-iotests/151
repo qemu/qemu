@@ -19,7 +19,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import math
 import os
+import subprocess
+import time
+from typing import List, Optional
 import iotests
 from iotests import qemu_img
 
@@ -50,7 +54,7 @@ class TestActiveMirror(iotests.QMPTestCase):
         self.vm = iotests.VM()
         self.vm.add_drive_raw(self.vm.qmp_to_opts(blk_source))
         self.vm.add_blockdev(self.vm.qmp_to_opts(blk_target))
-        self.vm.add_device('virtio-blk,drive=source')
+        self.vm.add_device('virtio-blk,id=vblk,drive=source')
         self.vm.launch()
 
     def tearDown(self):
@@ -190,6 +194,227 @@ class TestActiveMirror(iotests.QMPTestCase):
         self.complete_and_wait(drive='mirror')
 
         self.potential_writes_in_flight = False
+
+
+class TestThrottledWithNbdExportBase(iotests.QMPTestCase):
+    image_len = 128 * 1024 * 1024  # MB
+    iops: Optional[int] = None
+    background_processes: List['subprocess.Popen[str]'] = []
+
+    def setUp(self):
+        # Must be set by subclasses
+        self.assertIsNotNone(self.iops)
+
+        qemu_img('create', '-f', iotests.imgfmt, source_img, '128M')
+        qemu_img('create', '-f', iotests.imgfmt, target_img, '128M')
+
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        result = self.vm.qmp('object-add', **{
+            'qom-type': 'throttle-group',
+            'id': 'thrgr',
+            'limits': {
+                'iops-total': self.iops,
+                'iops-total-max': self.iops
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add', **{
+            'node-name': 'source-node',
+            'driver': 'throttle',
+            'throttle-group': 'thrgr',
+            'file': {
+                'driver': iotests.imgfmt,
+                'file': {
+                    'driver': 'file',
+                    'filename': source_img
+                }
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add', **{
+            'node-name': 'target-node',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': target_img
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        self.nbd_sock = iotests.file_path('nbd.sock',
+                                          base_dir=iotests.sock_dir)
+        self.nbd_url = f'nbd+unix:///source-node?socket={self.nbd_sock}'
+
+        result = self.vm.qmp('nbd-server-start', addr={
+            'type': 'unix',
+            'data': {
+                'path': self.nbd_sock
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-export-add', id='exp0', type='nbd',
+                             node_name='source-node', writable=True)
+        self.assert_qmp(result, 'return', {})
+
+    def tearDown(self):
+        # Wait for background requests to settle
+        try:
+            while True:
+                p = self.background_processes.pop()
+                while True:
+                    try:
+                        p.wait(timeout=0.0)
+                        break
+                    except subprocess.TimeoutExpired:
+                        self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+        except IndexError:
+            pass
+
+        # Cancel ongoing block jobs
+        for job in self.vm.qmp('query-jobs')['return']:
+            self.vm.qmp('block-job-cancel', device=job['id'], force=True)
+
+        while True:
+            self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+            if len(self.vm.qmp('query-jobs')['return']) == 0:
+                break
+
+        self.vm.shutdown()
+        os.remove(source_img)
+        os.remove(target_img)
+
+
+class TestLowThrottledWithNbdExport(TestThrottledWithNbdExportBase):
+    iops = 16
+
+    def testUnderLoad(self):
+        '''
+        Throttle the source node, then issue a whole bunch of external requests
+        while the mirror job (in write-blocking mode) is running.  We want to
+        see background requests being issued even while the source is under
+        full load by active writes, so that progress can be made towards READY.
+        '''
+
+        # Fill the first half of the source image; do not fill the second half,
+        # that is where we will have active requests occur.  This ensures that
+        # active mirroring itself will not directly contribute to the job's
+        # progress (because when the job was started, those areas were not
+        # intended to be copied, so active mirroring will only lead to not
+        # losing progress, but also not making any).
+        self.vm.hmp_qemu_io('source-node',
+                            f'aio_write -P 1 0 {self.image_len // 2}')
+        self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+
+        # Launch the mirror job
+        mirror_buf_size = 65536
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             filter_node_name='mirror-node',
+                             device='source-node',
+                             target='target-node',
+                             sync='full',
+                             copy_mode='write-blocking',
+                             buf_size=mirror_buf_size)
+        self.assert_qmp(result, 'return', {})
+
+        # We create the external requests via qemu-io processes on the NBD
+        # server.  Have their offset start in the middle of the image so they
+        # do not overlap with the background requests (which start from the
+        # beginning).
+        active_request_offset = self.image_len // 2
+        active_request_len = 4096
+
+        # Create enough requests to saturate the node for 5 seconds
+        for _ in range(0, 5 * self.iops):
+            req = f'write -P 42 {active_request_offset} {active_request_len}'
+            active_request_offset += active_request_len
+            p = iotests.qemu_io_popen('-f', 'nbd', self.nbd_url, '-c', req)
+            self.background_processes += [p]
+
+        # Now advance the clock one I/O operation at a time by the 4 seconds
+        # (i.e. one less than 5).  We expect the mirror job to issue background
+        # operations here, even though active requests are still in flight.
+        # The active requests will take precedence, however, because they have
+        # been issued earlier than mirror's background requests.
+        # Once the active requests we have started above are done (i.e. after 5
+        # virtual seconds), we expect those background requests to be worked
+        # on.  We only advance 4 seconds here to avoid race conditions.
+        for _ in range(0, 4 * self.iops):
+            step = math.ceil(1 * 1000 * 1000 * 1000 / self.iops)
+            self.vm.qtest(f'clock_step {step}')
+
+        # Note how much remains to be done until the mirror job is finished
+        job_status = self.vm.qmp('query-jobs')['return'][0]
+        start_remaining = job_status['total-progress'] - \
+            job_status['current-progress']
+
+        # Create a whole bunch of more active requests
+        for _ in range(0, 10 * self.iops):
+            req = f'write -P 42 {active_request_offset} {active_request_len}'
+            active_request_offset += active_request_len
+            p = iotests.qemu_io_popen('-f', 'nbd', self.nbd_url, '-c', req)
+            self.background_processes += [p]
+
+        # Let the clock advance more.  After 1 second, as noted above, we
+        # expect the background requests to be worked on.  Give them a couple
+        # of seconds (specifically 4) to see their impact.
+        for _ in range(0, 5 * self.iops):
+            step = math.ceil(1 * 1000 * 1000 * 1000 / self.iops)
+            self.vm.qtest(f'clock_step {step}')
+
+        # Note how much remains to be done now.  We expect this number to be
+        # reduced thanks to those background requests.
+        job_status = self.vm.qmp('query-jobs')['return'][0]
+        end_remaining = job_status['total-progress'] - \
+            job_status['current-progress']
+
+        # See that indeed progress was being made on the job, even while the
+        # node was saturated with active requests
+        self.assertGreater(start_remaining - end_remaining, 0)
+
+
+class TestHighThrottledWithNbdExport(TestThrottledWithNbdExportBase):
+    iops = 1024
+
+    def testActiveOnCreation(self):
+        '''
+        Issue requests on the mirror source node right as the mirror is
+        instated.  It's possible that requests occur before the actual job is
+        created, but after the node has been put into the graph.  Write
+        requests across the node must in that case be forwarded to the source
+        node without attempting to mirror them (there is no job object yet, so
+        attempting to access it would cause a segfault).
+        We do this with a lightly throttled node (i.e. quite high IOPS limit).
+        Using throttling seems to increase reproductivity, but if the limit is
+        too low, all requests allowed per second will be submitted before
+        mirror_start_job() gets to the problematic point.
+        '''
+
+        # Let qemu-img bench create write requests (enough for two seconds on
+        # the virtual clock)
+        bench_args = ['bench', '-w', '-d', '1024', '-f', 'nbd',
+                      '-c', str(self.iops * 2), self.nbd_url]
+        p = iotests.qemu_tool_popen(iotests.qemu_img_args + bench_args)
+        self.background_processes += [p]
+
+        # Give qemu-img bench time to start up and issue requests
+        time.sleep(1.0)
+        # Flush the request queue, so new requests can come in right as we
+        # start blockdev-mirror
+        self.vm.qtest(f'clock_step {1 * 1000 * 1000 * 1000}')
+
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             device='source-node',
+                             target='target-node',
+                             sync='full',
+                             copy_mode='write-blocking')
+        self.assert_qmp(result, 'return', {})
 
 
 if __name__ == '__main__':

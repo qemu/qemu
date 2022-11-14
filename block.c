@@ -1543,7 +1543,7 @@ const BdrvChildClass child_of_bds = {
 
 AioContext *bdrv_child_get_parent_aio_context(BdrvChild *c)
 {
-    GLOBAL_STATE_CODE();
+    IO_CODE();
     return c->klass->get_parent_aio_context(c);
 }
 

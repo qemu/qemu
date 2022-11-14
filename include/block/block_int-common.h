@@ -911,8 +911,6 @@ struct BdrvChildClass {
                            GHashTable *visited, Transaction *tran,
                            Error **errp);
 
-    AioContext *(*get_parent_aio_context)(BdrvChild *child);
-
     /*
      * I/O API functions. These functions are thread-safe.
      *
@@ -928,6 +926,8 @@ struct BdrvChildClass {
      * name), or NULL if the parent can't provide a better name.
      */
     const char *(*get_name)(BdrvChild *child);
+
+    AioContext *(*get_parent_aio_context)(BdrvChild *child);
 
     /*
      * If this pair of functions is implemented, the parent doesn't issue new

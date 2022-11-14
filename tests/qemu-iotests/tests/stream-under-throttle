@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+# group: rw
+#
+# Test streaming with throttle nodes on top
+#
+# Copyright (C) 2022 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import asyncio
+import os
+from typing import List
+import iotests
+from iotests import qemu_img_create, qemu_io
+
+
+image_size = 256 * 1024 * 1024
+base_img = os.path.join(iotests.test_dir, 'base.img')
+top_img = os.path.join(iotests.test_dir, 'top.img')
+
+
+class TcgVM(iotests.VM):
+    '''
+    Variant of iotests.VM that uses -accel tcg.  Simply using
+    iotests.VM.add_args('-accel', 'tcg') is not sufficient, because that will
+    put -accel qtest before -accel tcg, and -accel arguments are prioritized in
+    the order they appear.
+    '''
+    @property
+    def _base_args(self) -> List[str]:
+        # Put -accel tcg first so it takes precedence
+        return ['-accel', 'tcg'] + super()._base_args
+
+
+class TestStreamWithThrottle(iotests.QMPTestCase):
+    def setUp(self) -> None:
+        '''
+        Create a simple backing chain between two images, write something to
+        the base image.  Attach them to the VM underneath two throttle nodes,
+        one of which has actually no limits set, but the other does.  Then put
+        a virtio-blk device on top.
+        This test configuration has been taken from
+        https://gitlab.com/qemu-project/qemu/-/issues/1215
+        '''
+        qemu_img_create('-f', iotests.imgfmt, base_img, str(image_size))
+        qemu_img_create('-f', iotests.imgfmt, '-b', base_img, '-F',
+                        iotests.imgfmt, top_img, str(image_size))
+
+        # Write something to stream
+        qemu_io(base_img, '-c', f'write 0 {image_size}')
+
+        blockdev = {
+            'driver': 'throttle',
+            'node-name': 'throttled-node',
+            'throttle-group': 'thrgr-limited',
+            'file': {
+                'driver': 'throttle',
+                'throttle-group': 'thrgr-unlimited',
+                'file': {
+                    'driver': iotests.imgfmt,
+                    'node-name': 'unthrottled-node',
+                    'file': {
+                        'driver': 'file',
+                        'filename': top_img
+                    }
+                }
+            }
+        }
+
+        # Issue 1215 is not reproducible in qtest mode, which is why we need to
+        # create an -accel tcg VM
+        self.vm = TcgVM()
+        self.vm.add_object('iothread,id=iothr0')
+        self.vm.add_object('throttle-group,id=thrgr-unlimited')
+        self.vm.add_object('throttle-group,id=thrgr-limited,'
+                           'x-iops-total=10000,x-bps-total=104857600')
+        self.vm.add_blockdev(self.vm.qmp_to_opts(blockdev))
+        self.vm.add_device('virtio-blk,iothread=iothr0,drive=throttled-node')
+        self.vm.launch()
+
+    def tearDown(self) -> None:
+        self.vm.shutdown()
+        os.remove(top_img)
+        os.remove(base_img)
+
+    def test_stream(self) -> None:
+        '''
+        Do a simple stream beneath the two throttle nodes.  Should complete
+        with no problems.
+        '''
+        result = self.vm.qmp('block-stream',
+                             job_id='stream',
+                             device='unthrottled-node')
+        self.assert_qmp(result, 'return', {})
+
+        # Should succeed and not time out
+        try:
+            self.vm.run_job('stream')
+        except asyncio.TimeoutError:
+            # VM may be stuck, kill it before tearDown()
+            self.vm.kill()
+            raise
+
+
+if __name__ == '__main__':
+    # Must support backing images
+    iotests.main(supported_fmts=['qcow', 'qcow2', 'qed'],
+                 supported_protocols=['file'],
+                 required_fmts=['throttle'])
