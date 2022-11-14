@@ -53,6 +53,32 @@ recommended to specify a CD-ROM device via ``-device scsi-cd`` (as mentioned
 above) instead.
 
 
+Selecting kernels with the ``loadparm`` property
+------------------------------------------------
+
+The ``s390-ccw-virtio`` machine supports the so-called ``loadparm`` parameter
+which can be used to select the kernel on the disk of the guest that the
+s390-ccw bios should boot. When starting QEMU, it can be specified like this::
+
+ qemu-system-s390x -machine s390-ccw-virtio,loadparm=<string>
+
+The first way to use this parameter is to use the word ``PROMPT`` as the
+``<string>`` here. In that case the s390-ccw bios will show a list of
+installed kernels on the disk of the guest and ask the user to enter a number
+to chose which kernel should be booted -- similar to what can be achieved by
+specifying the ``-boot menu=on`` option when starting QEMU. Note that the menu
+list will only show the names of the installed kernels when using a DASD-like
+disk image with 4k byte sectors. On normal SCSI-style disks with 512-byte
+sectors, there is not enough space for the zipl loader on the disk to store
+the kernel names, so you only get a list without names here.
+
+The second way to use this parameter is to use a number in the range from 0
+to 31. The numbers that can be used here correspond to the numbers that are
+shown when using the ``PROMPT`` option, and the s390-ccw bios will then try
+to automatically boot the kernel that is associated with the given number.
+Note that ``0`` can be used to boot the default entry.
+
+
 Booting from a network device
 -----------------------------
 
