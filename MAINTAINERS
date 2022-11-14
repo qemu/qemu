@@ -1748,8 +1748,8 @@ F: tests/qtest/intel-hda-test.c
 F: tests/qtest/fuzz-sb16-test.c
 
 Xilinx CAN
-M: Vikram Garhwal <fnu.vikram@xilinx.com>
-M: Francisco Iglesias <francisco.iglesias@xilinx.com>
+M: Vikram Garhwal <vikram.garhwal@amd.com>
+M: Francisco Iglesias <francisco.iglesias@amd.com>
 S: Maintained
 F: hw/net/can/xlnx-*
 F: include/hw/net/xlnx-*

@@ -1016,8 +1016,6 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     trace_gicv3_icc_pmr_write(gicv3_redist_affid(cs), value);
 
-    value &= icc_fullprio_mask(cs);
-
     if (arm_feature(env, ARM_FEATURE_EL3) && !arm_is_secure(env) &&
         (env->cp15.scr_el3 & SCR_FIQ)) {
         /* NS access and Group 0 is inaccessible to NS: return the
@@ -1029,6 +1027,7 @@ static void icc_pmr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
         value = (value >> 1) | 0x80;
     }
+    value &= icc_fullprio_mask(cs);
     cs->icc_pmr_el1 = value;
     gicv3_cpuif_update(cs);
 }
