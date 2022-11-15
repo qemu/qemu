@@ -204,15 +204,6 @@ dbus_clipboard_unregister_proxy(DBusDisplay *dpy)
     g_clear_object(&dpy->clipboard_proxy);
 }
 
-static void
-dbus_on_clipboard_proxy_name_owner_changed(
-    DBusDisplay *dpy,
-    GObject *object,
-    GParamSpec *pspec)
-{
-    dbus_clipboard_unregister_proxy(dpy);
-}
-
 static gboolean
 dbus_clipboard_register(
     DBusDisplay *dpy,
@@ -220,6 +211,7 @@ dbus_clipboard_register(
 {
     g_autoptr(GError) err = NULL;
     const char *name = NULL;
+    GDBusConnection *connection = g_dbus_method_invocation_get_connection(invocation);
 
     if (dpy->clipboard_proxy) {
         g_dbus_method_invocation_return_error(
@@ -232,7 +224,7 @@ dbus_clipboard_register(
 
     dpy->clipboard_proxy =
         qemu_dbus_display1_clipboard_proxy_new_sync(
-            g_dbus_method_invocation_get_connection(invocation),
+            connection,
             G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
             g_dbus_method_invocation_get_sender(invocation),
             "/org/qemu/Display1/Clipboard",
@@ -252,7 +244,11 @@ dbus_clipboard_register(
 
     g_object_connect(dpy->clipboard_proxy,
                      "swapped-signal::notify::g-name-owner",
-                     dbus_on_clipboard_proxy_name_owner_changed, dpy,
+                     dbus_clipboard_unregister_proxy, dpy,
+                     NULL);
+    g_object_connect(connection,
+                     "swapped-signal::closed",
+                     dbus_clipboard_unregister_proxy, dpy,
                      NULL);
     qemu_clipboard_reset_serial();
 
