@@ -220,7 +220,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
                        dd->audiodev);
             return;
         }
-        audio_state->drv->set_dbus_server(audio_state, dd->server);
+        audio_state->drv->set_dbus_server(audio_state, dd->server, dd->p2p);
     }
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
