@@ -385,12 +385,6 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._vm.launch()
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
-        # sleep for maximum of one minute
-        max_sleep_time = time.monotonic() + 60
-        while self._vm.is_running() and time.monotonic() < max_sleep_time:
-            time.sleep(1)
-
-        self.assertFalse(time.monotonic() > max_sleep_time,
-                         'The VM seems to have failed to shutdown in time')
-
+        # Rely on avocado's unit test timeout.
+        self._vm.wait(timeout=None)
         self.parse_log()
