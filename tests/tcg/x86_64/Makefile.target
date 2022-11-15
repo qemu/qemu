@@ -11,6 +11,7 @@ include $(SRC_PATH)/tests/tcg/i386/Makefile.target
 ifeq ($(filter %-linux-user, $(TARGET)),$(TARGET))
 X86_64_TESTS += vsyscall
 X86_64_TESTS += noexec
+X86_64_TESTS += cmpxchg
 TESTS=$(MULTIARCH_TESTS) $(X86_64_TESTS) test-x86_64
 else
 TESTS=$(MULTIARCH_TESTS)
