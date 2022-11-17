@@ -29,6 +29,8 @@ typedef struct MchpPfSoCIoscbState {
     MemoryRegion lane01;
     MemoryRegion lane23;
     MemoryRegion ctrl;
+    MemoryRegion qspixip;
+    MemoryRegion mailbox;
     MemoryRegion cfg;
     MemoryRegion ccc;
     MemoryRegion pll_mss;
@@ -41,6 +43,7 @@ typedef struct MchpPfSoCIoscbState {
     MemoryRegion cfm_sgmii;
     MemoryRegion bc_sgmii;
     MemoryRegion io_calib_sgmii;
+    qemu_irq irq;
 } MchpPfSoCIoscbState;
 
 #define TYPE_MCHP_PFSOC_IOSCB "mchp.pfsoc.ioscb"

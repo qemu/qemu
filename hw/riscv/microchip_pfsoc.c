@@ -306,6 +306,9 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->sysreg), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysreg), 0,
                     memmap[MICROCHIP_PFSOC_SYSREG].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sysreg), 0,
+                       qdev_get_gpio_in(DEVICE(s->plic),
+                       MICROCHIP_PFSOC_MAILBOX_IRQ));
 
     /* AXISW */
     create_unimplemented_device("microchip.pfsoc.axisw",
@@ -459,6 +462,9 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->ioscb), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ioscb), 0,
                     memmap[MICROCHIP_PFSOC_IOSCB].base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ioscb), 0,
+                       qdev_get_gpio_in(DEVICE(s->plic),
+                       MICROCHIP_PFSOC_MAILBOX_IRQ));
 
     /* FPGA Fabric */
     create_unimplemented_device("microchip.pfsoc.fabricfic3",
