@@ -313,7 +313,7 @@ retry:
 /*
  * Get the host function handle from the vfio CLP capabilities chain.  Returns
  * true if a fh value was placed into the provided buffer.  Returns false
- * if a fh could not be obtained (ioctl failed or capabilitiy version does
+ * if a fh could not be obtained (ioctl failed or capability version does
  * not include the fh)
  */
 bool s390_pci_get_host_fh(S390PCIBusDevice *pbdev, uint32_t *fh)

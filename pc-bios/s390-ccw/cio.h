@@ -20,7 +20,7 @@ struct pmcw {
     __u32 intparm;      /* interruption parameter */
     __u32 qf:1;         /* qdio facility */
     __u32 w:1;
-    __u32 isc:3;        /* interruption sublass */
+    __u32 isc:3;        /* interruption subclass */
     __u32 res5:3;       /* reserved zeros */
     __u32 ena:1;        /* enabled */
     __u32 lm:2;         /* limit mode */

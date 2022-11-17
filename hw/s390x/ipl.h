@@ -140,7 +140,7 @@ void s390_ipl_clear_reset_request(void);
  * have an offset of 4 + n * 8 bytes within the struct in order
  * to keep it double-word aligned.
  * The total size of the struct must never exceed 28 bytes.
- * This definition must be kept in sync with the defininition
+ * This definition must be kept in sync with the definition
  * in pc-bios/s390-ccw/iplb.h.
  */
 struct QemuIplParameters {

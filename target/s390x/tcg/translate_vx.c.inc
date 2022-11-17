@@ -960,7 +960,7 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
         }
         break;
     case 0x94:
-        /* If sources and destination dont't overlap -> fast path */
+        /* If sources and destination don't overlap -> fast path */
         if (v1 != v2 && v1 != v3) {
             const uint8_t src_es = get_field(s, m4);
             const uint8_t dst_es = src_es - 1;
@@ -2075,7 +2075,7 @@ static DisasJumpType op_vmsl(DisasContext *s, DisasOps *o)
     l2 = tcg_temp_new_i64();
     h2 = tcg_temp_new_i64();
 
-    /* Multipy both even elements from v2 and v3 */
+    /* Multiply both even elements from v2 and v3 */
     read_vec_element_i64(l1, get_field(s, v2), 0, ES_64);
     read_vec_element_i64(h1, get_field(s, v3), 0, ES_64);
     tcg_gen_mulu2_i64(l1, h1, l1, h1);
@@ -2084,7 +2084,7 @@ static DisasJumpType op_vmsl(DisasContext *s, DisasOps *o)
         tcg_gen_add2_i64(l1, h1, l1, h1, l1, h1);
     }
 
-    /* Multipy both odd elements from v2 and v3 */
+    /* Multiply both odd elements from v2 and v3 */
     read_vec_element_i64(l2, get_field(s, v2), 1, ES_64);
     read_vec_element_i64(h2, get_field(s, v3), 1, ES_64);
     tcg_gen_mulu2_i64(l2, h2, l2, h2);

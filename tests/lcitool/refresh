@@ -176,7 +176,7 @@ try:
     #
     generate_cirrus("freebsd-12")
     generate_cirrus("freebsd-13")
-    generate_cirrus("macos-11")
+    generate_cirrus("macos-12")
 
     sys.exit(0)
 except Exception as ex:

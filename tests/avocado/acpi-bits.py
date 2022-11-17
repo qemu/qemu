@@ -134,6 +134,9 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
     :avocado: tags=acpi
 
     """
+    # in slower systems the test can take as long as 3 minutes to complete.
+    timeout = 200
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._vm = None

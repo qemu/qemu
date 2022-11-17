@@ -24,13 +24,13 @@ struct S390CPUDef {
     uint8_t gen;            /* hw generation identification */
     uint16_t type;          /* cpu type identification */
     uint8_t ec_ga;          /* EC GA version (on which also the BC is based) */
-    uint8_t mha_pow;        /* Maximum Host Adress Power, mha = 2^pow-1 */
+    uint8_t mha_pow;        /* maximum host address power, mha = 2^pow-1 */
     uint32_t hmfai;         /* hypervisor-managed facilities */
     /* base/min features, must never be changed between QEMU versions */
     S390FeatBitmap base_feat;
     /* used to init base_feat from generated data */
     S390FeatInit base_init;
-    /* deafault features, QEMU version specific */
+    /* default features, QEMU version specific */
     S390FeatBitmap default_feat;
     /* used to init default_feat from generated data */
     S390FeatInit default_init;
