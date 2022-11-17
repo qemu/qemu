@@ -2135,7 +2135,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             }
             ip_data_len -= hlen;
 
-            if (txdw0 & CP_TX_IPCS)
+            if (!(txdw0 & CP_TX_LGSEN) && (txdw0 & CP_TX_IPCS))
             {
                 DPRINTF("+++ C+ mode need IP checksum\n");
 
@@ -2268,7 +2268,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 /* Stop sending this frame */
                 saved_size = 0;
             }
-            else if (txdw0 & (CP_TX_TCPCS|CP_TX_UDPCS))
+            else if (!(txdw0 & CP_TX_LGSEN) && (txdw0 & (CP_TX_TCPCS|CP_TX_UDPCS)))
             {
                 DPRINTF("+++ C+ mode need TCP or UDP checksum\n");
 
