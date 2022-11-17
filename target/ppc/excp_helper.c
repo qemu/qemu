@@ -2842,6 +2842,7 @@ void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
 #endif
 #endif
 
+#ifdef CONFIG_TCG
 static uint32_t helper_SIMON_LIKE_32_64(uint32_t x, uint64_t key, uint32_t lane)
 {
     const uint16_t c = 0xfffc;
@@ -2924,6 +2925,7 @@ HELPER_HASH(HASHST, env->spr[SPR_HASHKEYR], true)
 HELPER_HASH(HASHCHK, env->spr[SPR_HASHKEYR], false)
 HELPER_HASH(HASHSTP, env->spr[SPR_HASHPKEYR], true)
 HELPER_HASH(HASHCHKP, env->spr[SPR_HASHPKEYR], false)
+#endif /* CONFIG_TCG */
 
 #if !defined(CONFIG_USER_ONLY)
 
