@@ -2027,18 +2027,21 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             s->currCPlusTxDesc = 0;
     }
 
+    /* Build the Tx Status Descriptor */
+    uint32_t tx_status = txdw0;
+
     /* transfer ownership to target */
-    txdw0 &= ~CP_TX_OWN;
+    tx_status &= ~CP_TX_OWN;
 
     /* reset error indicator bits */
-    txdw0 &= ~CP_TX_STATUS_UNF;
-    txdw0 &= ~CP_TX_STATUS_TES;
-    txdw0 &= ~CP_TX_STATUS_OWC;
-    txdw0 &= ~CP_TX_STATUS_LNKF;
-    txdw0 &= ~CP_TX_STATUS_EXC;
+    tx_status &= ~CP_TX_STATUS_UNF;
+    tx_status &= ~CP_TX_STATUS_TES;
+    tx_status &= ~CP_TX_STATUS_OWC;
+    tx_status &= ~CP_TX_STATUS_LNKF;
+    tx_status &= ~CP_TX_STATUS_EXC;
 
     /* update ring data */
-    val = cpu_to_le32(txdw0);
+    val = cpu_to_le32(tx_status);
     pci_dma_write(d, cplus_tx_ring_desc, (uint8_t *)&val, 4);
 
     /* Now decide if descriptor being processed is holding the last segment of packet */
