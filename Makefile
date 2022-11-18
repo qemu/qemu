@@ -170,6 +170,12 @@ ifneq ($(filter $(ninja-targets), $(ninja-cmd-goals)),)
 endif
 endif
 
+.PHONY: panda
+panda:
+	$(call quiet-command,\
+		$(MAKE) $(SUBDIR_MAKEFLAGS) -C panda/core V="$(V)", \
+		"BUILD", "PANDA")
+
 else # config-host.mak does not exist
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 $(error Please call configure before running make)

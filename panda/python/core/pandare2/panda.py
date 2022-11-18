@@ -173,9 +173,9 @@ class Panda():
 
         self.ffi = self._do_types_import()
 
-        self.libpanda = self.ffi.dlopen(self.libpanda_path)
+        self.libpanda = self.ffi.dlopen(self.libpanda_path, self.ffi.RTLD_GLOBAL)
         from os.path import join
-        pandummy_path = join(dirname(self.libpanda_path),'contrib/plugins/libpandummy.so')
+        pandummy_path = join(dirname(self.libpanda_path),'panda/core/libpandacore.so')
         self.pandummy = self.ffi.dlopen(pandummy_path)
         self.C = self.ffi.dlopen(None)
 
@@ -537,7 +537,7 @@ class Panda():
                 
         def qemu_init_cb(id, info, argc, argv):
             self.qemu_id = id
-            print(f"in init_cb {self.qemu_id=}")
+            # print(f"in init_cb {self.qemu_id=}")
             if len(self.preinit_callbacks) > 0:
                 while self.preinit_callbacks:
                     cb = self.preinit_callbacks.pop()
