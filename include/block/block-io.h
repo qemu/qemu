@@ -329,8 +329,7 @@ void bdrv_drained_begin(BlockDriverState *bs);
  * Quiesces a BDS like bdrv_drained_begin(), but does not wait for already
  * running requests to complete.
  */
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
-                                   BdrvChild *parent, bool ignore_bds_parents);
+void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent);
 
 /**
  * bdrv_drained_end:
