@@ -38,12 +38,22 @@ typedef struct BDRVTestState {
     bool sleep_in_drain_begin;
 } BDRVTestState;
 
+static void coroutine_fn sleep_in_drain_begin(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+    bdrv_dec_in_flight(bs);
+}
+
 static void coroutine_fn bdrv_test_co_drain_begin(BlockDriverState *bs)
 {
     BDRVTestState *s = bs->opaque;
     s->drain_count++;
     if (s->sleep_in_drain_begin) {
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+        Coroutine *co = qemu_coroutine_create(sleep_in_drain_begin, bs);
+        bdrv_inc_in_flight(bs);
+        aio_co_enter(bdrv_get_aio_context(bs), co);
     }
 }
 
@@ -1916,6 +1926,21 @@ static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
     return 0;
 }
 
+static void coroutine_fn bdrv_replace_test_drain_co(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVReplaceTestState *s = bs->opaque;
+
+    /* Keep waking io_co up until it is done */
+    while (s->io_co) {
+        aio_co_wake(s->io_co);
+        s->io_co = NULL;
+        qemu_coroutine_yield();
+    }
+    s->drain_co = NULL;
+    bdrv_dec_in_flight(bs);
+}
+
 /**
  * If .drain_count is 0, wake up .io_co if there is one; and set
  * .was_drained.
@@ -1926,18 +1951,25 @@ static void coroutine_fn bdrv_replace_test_co_drain_begin(BlockDriverState *bs)
     BDRVReplaceTestState *s = bs->opaque;
 
     if (!s->drain_count) {
-        /* Keep waking io_co up until it is done */
-        s->drain_co = qemu_coroutine_self();
-        while (s->io_co) {
-            aio_co_wake(s->io_co);
-            s->io_co = NULL;
-            qemu_coroutine_yield();
-        }
-        s->drain_co = NULL;
-
+        s->drain_co = qemu_coroutine_create(bdrv_replace_test_drain_co, bs);
+        bdrv_inc_in_flight(bs);
+        aio_co_enter(bdrv_get_aio_context(bs), s->drain_co);
         s->was_drained = true;
     }
     s->drain_count++;
+}
+
+static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    char data;
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, &data, 1);
+    int ret;
+
+    /* Queue a read request post-drain */
+    ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
+    g_assert(ret >= 0);
+    bdrv_dec_in_flight(bs);
 }
 
 /**
@@ -1951,17 +1983,13 @@ static void coroutine_fn bdrv_replace_test_co_drain_end(BlockDriverState *bs)
 
     g_assert(s->drain_count > 0);
     if (!--s->drain_count) {
-        int ret;
-
         s->was_undrained = true;
 
         if (bs->backing) {
-            char data;
-            QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, &data, 1);
-
-            /* Queue a read request post-drain */
-            ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
-            g_assert(ret >= 0);
+            Coroutine *co = qemu_coroutine_create(bdrv_replace_test_read_entry,
+                                                  bs);
+            bdrv_inc_in_flight(bs);
+            aio_co_enter(bdrv_get_aio_context(bs), co);
         }
     }
 }
