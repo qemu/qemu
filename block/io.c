@@ -346,10 +346,15 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     }
 }
 
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent)
+static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
+                                  bool poll)
 {
     IO_OR_GS_CODE();
-    assert(!qemu_in_coroutine());
+
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(bs, true, parent, poll);
+        return;
+    }
 
     /* Stop things in parent-to-child order */
     if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
@@ -359,17 +364,6 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent)
             bs->drv->bdrv_drain_begin(bs);
         }
     }
-}
-
-static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
-                                  bool poll)
-{
-    if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, true, parent, poll);
-        return;
-    }
-
-    bdrv_do_drained_begin_quiesce(bs, parent);
 
     /*
      * Wait for drained requests to finish.
@@ -383,6 +377,11 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
     if (poll) {
         BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
     }
+}
+
+void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent)
+{
+    bdrv_do_drained_begin(bs, parent, false);
 }
 
 void bdrv_drained_begin(BlockDriverState *bs)
