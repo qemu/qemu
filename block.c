@@ -1232,7 +1232,7 @@ static void bdrv_child_cb_drained_begin(BdrvChild *child)
 static bool bdrv_child_cb_drained_poll(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
-    return bdrv_drain_poll(bs, false, NULL, false);
+    return bdrv_drain_poll(bs, NULL, false);
 }
 
 static void bdrv_child_cb_drained_end(BdrvChild *child)
@@ -1482,8 +1482,6 @@ static void bdrv_child_cb_attach(BdrvChild *child)
         assert(!bs->file);
         bs->file = child;
     }
-
-    bdrv_apply_subtree_drain(child, bs);
 }
 
 static void bdrv_child_cb_detach(BdrvChild *child)
@@ -1493,8 +1491,6 @@ static void bdrv_child_cb_detach(BdrvChild *child)
     if (child->role & BDRV_CHILD_COW) {
         bdrv_backing_detach(child);
     }
-
-    bdrv_unapply_subtree_drain(child, bs);
 
     assert_bdrv_graph_writable(bs);
     QLIST_REMOVE(child, next);
@@ -2882,9 +2878,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     }
 
     if (old_bs) {
-        /* Detach first so that the recursive drain sections coming from @child
-         * are already gone and we only end the drain sections that came from
-         * elsewhere. */
         if (child->klass->detach) {
             child->klass->detach(child);
         }
@@ -2899,17 +2892,14 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
 
         /*
-         * Detaching the old node may have led to the new node's
-         * quiesce_counter having been decreased.  Not a problem, we
-         * just need to recognize this here and then invoke
-         * drained_end appropriately more often.
+         * Polling in bdrv_parent_drained_begin_single() may have led to the new
+         * node's quiesce_counter having been decreased.  Not a problem, we just
+         * need to recognize this here and then invoke drained_end appropriately
+         * more often.
          */
         assert(new_bs->quiesce_counter <= new_bs_quiesce_counter);
         drain_saldo += new_bs->quiesce_counter - new_bs_quiesce_counter;
 
-        /* Attach only after starting new drained sections, so that recursive
-         * drain sections coming from @child don't get an extra .drained_begin
-         * callback. */
         if (child->klass->attach) {
             child->klass->attach(child);
         }

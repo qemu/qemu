@@ -1184,7 +1184,6 @@ struct BlockDriverState {
 
     /* Accessed with atomic ops.  */
     int quiesce_counter;
-    int recursive_quiesce_counter;
 
     unsigned int write_gen;               /* Current data generation */
 

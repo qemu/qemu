@@ -156,7 +156,6 @@ static void call_in_coroutine(void (*entry)(void))
 enum drain_type {
     BDRV_DRAIN_ALL,
     BDRV_DRAIN,
-    BDRV_SUBTREE_DRAIN,
     DRAIN_TYPE_MAX,
 };
 
@@ -165,7 +164,6 @@ static void do_drain_begin(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_begin(); break;
     case BDRV_DRAIN:            bdrv_drained_begin(bs); break;
-    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_begin(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -175,7 +173,6 @@ static void do_drain_end(enum drain_type drain_type, BlockDriverState *bs)
     switch (drain_type) {
     case BDRV_DRAIN_ALL:        bdrv_drain_all_end(); break;
     case BDRV_DRAIN:            bdrv_drained_end(bs); break;
-    case BDRV_SUBTREE_DRAIN:    bdrv_subtree_drained_end(bs); break;
     default:                    g_assert_not_reached();
     }
 }
@@ -271,11 +268,6 @@ static void test_drv_cb_drain(void)
     test_drv_cb_common(BDRV_DRAIN, false);
 }
 
-static void test_drv_cb_drain_subtree(void)
-{
-    test_drv_cb_common(BDRV_SUBTREE_DRAIN, true);
-}
-
 static void test_drv_cb_co_drain_all(void)
 {
     call_in_coroutine(test_drv_cb_drain_all);
@@ -284,11 +276,6 @@ static void test_drv_cb_co_drain_all(void)
 static void test_drv_cb_co_drain(void)
 {
     call_in_coroutine(test_drv_cb_drain);
-}
-
-static void test_drv_cb_co_drain_subtree(void)
-{
-    call_in_coroutine(test_drv_cb_drain_subtree);
 }
 
 static void test_quiesce_common(enum drain_type drain_type, bool recursive)
@@ -332,11 +319,6 @@ static void test_quiesce_drain(void)
     test_quiesce_common(BDRV_DRAIN, false);
 }
 
-static void test_quiesce_drain_subtree(void)
-{
-    test_quiesce_common(BDRV_SUBTREE_DRAIN, true);
-}
-
 static void test_quiesce_co_drain_all(void)
 {
     call_in_coroutine(test_quiesce_drain_all);
@@ -345,11 +327,6 @@ static void test_quiesce_co_drain_all(void)
 static void test_quiesce_co_drain(void)
 {
     call_in_coroutine(test_quiesce_drain);
-}
-
-static void test_quiesce_co_drain_subtree(void)
-{
-    call_in_coroutine(test_quiesce_drain_subtree);
 }
 
 static void test_nested(void)
@@ -400,158 +377,6 @@ static void test_nested(void)
     bdrv_unref(backing);
     bdrv_unref(bs);
     blk_unref(blk);
-}
-
-static void test_multiparent(void)
-{
-    BlockBackend *blk_a, *blk_b;
-    BlockDriverState *bs_a, *bs_b, *backing;
-    BDRVTestState *a_s, *b_s, *backing_s;
-
-    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
-                                &error_abort);
-    a_s = bs_a->opaque;
-    blk_insert_bs(blk_a, bs_a, &error_abort);
-
-    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
-                                &error_abort);
-    b_s = bs_b->opaque;
-    blk_insert_bs(blk_b, bs_b, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs_a, backing, &error_abort);
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
-    g_assert_cmpint(backing->quiesce_counter, ==, 1);
-    g_assert_cmpint(a_s->drain_count, ==, 1);
-    g_assert_cmpint(b_s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, 1);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 2);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
-    g_assert_cmpint(backing->quiesce_counter, ==, 2);
-    g_assert_cmpint(a_s->drain_count, ==, 2);
-    g_assert_cmpint(b_s->drain_count, ==, 2);
-    g_assert_cmpint(backing_s->drain_count, ==, 2);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
-    g_assert_cmpint(backing->quiesce_counter, ==, 1);
-    g_assert_cmpint(a_s->drain_count, ==, 1);
-    g_assert_cmpint(b_s->drain_count, ==, 1);
-    g_assert_cmpint(backing_s->drain_count, ==, 1);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs_a);
-    bdrv_unref(bs_b);
-    blk_unref(blk_a);
-    blk_unref(blk_b);
-}
-
-static void test_graph_change_drain_subtree(void)
-{
-    BlockBackend *blk_a, *blk_b;
-    BlockDriverState *bs_a, *bs_b, *backing;
-    BDRVTestState *a_s, *b_s, *backing_s;
-
-    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
-                                &error_abort);
-    a_s = bs_a->opaque;
-    blk_insert_bs(blk_a, bs_a, &error_abort);
-
-    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
-                                &error_abort);
-    b_s = bs_b->opaque;
-    blk_insert_bs(blk_b, bs_b, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs_a, backing, &error_abort);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
-
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
-    g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
-    g_assert_cmpint(backing_s->drain_count, ==, 5);
-
-    bdrv_set_backing_hd(bs_b, NULL, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 3);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
-    g_assert_cmpint(backing->quiesce_counter, ==, 3);
-    g_assert_cmpint(a_s->drain_count, ==, 3);
-    g_assert_cmpint(b_s->drain_count, ==, 2);
-    g_assert_cmpint(backing_s->drain_count, ==, 3);
-
-    bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
-    g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
-    g_assert_cmpint(backing_s->drain_count, ==, 5);
-
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-    do_drain_end(BDRV_SUBTREE_DRAIN, bs_a);
-
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 0);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 0);
-    g_assert_cmpint(backing->quiesce_counter, ==, 0);
-    g_assert_cmpint(a_s->drain_count, ==, 0);
-    g_assert_cmpint(b_s->drain_count, ==, 0);
-    g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs_a);
-    bdrv_unref(bs_b);
-    blk_unref(blk_a);
-    blk_unref(blk_b);
 }
 
 static void test_graph_change_drain_all(void)
@@ -773,12 +598,6 @@ static void test_iothread_drain(void)
     test_iothread_common(BDRV_DRAIN, 1);
 }
 
-static void test_iothread_drain_subtree(void)
-{
-    test_iothread_common(BDRV_SUBTREE_DRAIN, 0);
-    test_iothread_common(BDRV_SUBTREE_DRAIN, 1);
-}
-
 
 typedef struct TestBlockJob {
     BlockJob common;
@@ -863,7 +682,6 @@ enum test_job_result {
 enum test_job_drain_node {
     TEST_JOB_DRAIN_SRC,
     TEST_JOB_DRAIN_SRC_CHILD,
-    TEST_JOB_DRAIN_SRC_PARENT,
 };
 
 static void test_blockjob_common_drain_node(enum drain_type drain_type,
@@ -900,9 +718,6 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         break;
     case TEST_JOB_DRAIN_SRC_CHILD:
         drain_bs = src_backing;
-        break;
-    case TEST_JOB_DRAIN_SRC_PARENT:
-        drain_bs = src_overlay;
         break;
     default:
         g_assert_not_reached();
@@ -1055,10 +870,6 @@ static void test_blockjob_common(enum drain_type drain_type, bool use_iothread,
                                     TEST_JOB_DRAIN_SRC);
     test_blockjob_common_drain_node(drain_type, use_iothread, result,
                                     TEST_JOB_DRAIN_SRC_CHILD);
-    if (drain_type == BDRV_SUBTREE_DRAIN) {
-        test_blockjob_common_drain_node(drain_type, use_iothread, result,
-                                        TEST_JOB_DRAIN_SRC_PARENT);
-    }
 }
 
 static void test_blockjob_drain_all(void)
@@ -1069,11 +880,6 @@ static void test_blockjob_drain_all(void)
 static void test_blockjob_drain(void)
 {
     test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_SUCCESS);
-}
-
-static void test_blockjob_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_error_drain_all(void)
@@ -1088,12 +894,6 @@ static void test_blockjob_error_drain(void)
     test_blockjob_common(BDRV_DRAIN, false, TEST_JOB_FAIL_PREPARE);
 }
 
-static void test_blockjob_error_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_RUN);
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, false, TEST_JOB_FAIL_PREPARE);
-}
-
 static void test_blockjob_iothread_drain_all(void)
 {
     test_blockjob_common(BDRV_DRAIN_ALL, true, TEST_JOB_SUCCESS);
@@ -1102,11 +902,6 @@ static void test_blockjob_iothread_drain_all(void)
 static void test_blockjob_iothread_drain(void)
 {
     test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_SUCCESS);
-}
-
-static void test_blockjob_iothread_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_SUCCESS);
 }
 
 static void test_blockjob_iothread_error_drain_all(void)
@@ -1119,12 +914,6 @@ static void test_blockjob_iothread_error_drain(void)
 {
     test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_FAIL_RUN);
     test_blockjob_common(BDRV_DRAIN, true, TEST_JOB_FAIL_PREPARE);
-}
-
-static void test_blockjob_iothread_error_drain_subtree(void)
-{
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_RUN);
-    test_blockjob_common(BDRV_SUBTREE_DRAIN, true, TEST_JOB_FAIL_PREPARE);
 }
 
 
@@ -1273,14 +1062,6 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
         bdrv_drain(child_bs);
         bdrv_unref(child_bs);
         break;
-    case BDRV_SUBTREE_DRAIN:
-        /* Would have to ref/unref bs here for !detach_instead_of_delete, but
-         * then the whole test becomes pointless because the graph changes
-         * don't occur during the drain any more. */
-        assert(detach_instead_of_delete);
-        bdrv_subtree_drained_begin(bs);
-        bdrv_subtree_drained_end(bs);
-        break;
     case BDRV_DRAIN_ALL:
         bdrv_drain_all_begin();
         bdrv_drain_all_end();
@@ -1313,11 +1094,6 @@ static void test_detach_by_drain_all(void)
 static void test_detach_by_drain(void)
 {
     do_test_delete_by_drain(true, BDRV_DRAIN);
-}
-
-static void test_detach_by_drain_subtree(void)
-{
-    do_test_delete_by_drain(true, BDRV_SUBTREE_DRAIN);
 }
 
 
@@ -1452,7 +1228,10 @@ static void test_detach_indirect(bool by_parent_cb)
     g_assert(acb != NULL);
 
     /* Drain and check the expected result */
-    bdrv_subtree_drained_begin(parent_b);
+    bdrv_drained_begin(parent_b);
+    bdrv_drained_begin(a);
+    bdrv_drained_begin(b);
+    bdrv_drained_begin(c);
 
     g_assert(detach_by_parent_data.child_c != NULL);
 
@@ -1467,12 +1246,15 @@ static void test_detach_indirect(bool by_parent_cb)
     g_assert(QLIST_NEXT(child_a, next) == NULL);
 
     g_assert_cmpint(parent_a->quiesce_counter, ==, 1);
-    g_assert_cmpint(parent_b->quiesce_counter, ==, 1);
+    g_assert_cmpint(parent_b->quiesce_counter, ==, 3);
     g_assert_cmpint(a->quiesce_counter, ==, 1);
-    g_assert_cmpint(b->quiesce_counter, ==, 0);
+    g_assert_cmpint(b->quiesce_counter, ==, 1);
     g_assert_cmpint(c->quiesce_counter, ==, 1);
 
-    bdrv_subtree_drained_end(parent_b);
+    bdrv_drained_end(parent_b);
+    bdrv_drained_end(a);
+    bdrv_drained_end(b);
+    bdrv_drained_end(c);
 
     bdrv_unref(parent_b);
     blk_unref(blk);
@@ -2202,70 +1984,47 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/driver-cb/drain_all", test_drv_cb_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/drain", test_drv_cb_drain);
-    g_test_add_func("/bdrv-drain/driver-cb/drain_subtree",
-                    test_drv_cb_drain_subtree);
 
     g_test_add_func("/bdrv-drain/driver-cb/co/drain_all",
                     test_drv_cb_co_drain_all);
     g_test_add_func("/bdrv-drain/driver-cb/co/drain", test_drv_cb_co_drain);
-    g_test_add_func("/bdrv-drain/driver-cb/co/drain_subtree",
-                    test_drv_cb_co_drain_subtree);
-
 
     g_test_add_func("/bdrv-drain/quiesce/drain_all", test_quiesce_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/drain", test_quiesce_drain);
-    g_test_add_func("/bdrv-drain/quiesce/drain_subtree",
-                    test_quiesce_drain_subtree);
 
     g_test_add_func("/bdrv-drain/quiesce/co/drain_all",
                     test_quiesce_co_drain_all);
     g_test_add_func("/bdrv-drain/quiesce/co/drain", test_quiesce_co_drain);
-    g_test_add_func("/bdrv-drain/quiesce/co/drain_subtree",
-                    test_quiesce_co_drain_subtree);
 
     g_test_add_func("/bdrv-drain/nested", test_nested);
-    g_test_add_func("/bdrv-drain/multiparent", test_multiparent);
 
-    g_test_add_func("/bdrv-drain/graph-change/drain_subtree",
-                    test_graph_change_drain_subtree);
     g_test_add_func("/bdrv-drain/graph-change/drain_all",
                     test_graph_change_drain_all);
 
     g_test_add_func("/bdrv-drain/iothread/drain_all", test_iothread_drain_all);
     g_test_add_func("/bdrv-drain/iothread/drain", test_iothread_drain);
-    g_test_add_func("/bdrv-drain/iothread/drain_subtree",
-                    test_iothread_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/drain_all", test_blockjob_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/drain", test_blockjob_drain);
-    g_test_add_func("/bdrv-drain/blockjob/drain_subtree",
-                    test_blockjob_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/error/drain_all",
                     test_blockjob_error_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/error/drain",
                     test_blockjob_error_drain);
-    g_test_add_func("/bdrv-drain/blockjob/error/drain_subtree",
-                    test_blockjob_error_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain_all",
                     test_blockjob_iothread_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/iothread/drain",
                     test_blockjob_iothread_drain);
-    g_test_add_func("/bdrv-drain/blockjob/iothread/drain_subtree",
-                    test_blockjob_iothread_drain_subtree);
 
     g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_all",
                     test_blockjob_iothread_error_drain_all);
     g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain",
                     test_blockjob_iothread_error_drain);
-    g_test_add_func("/bdrv-drain/blockjob/iothread/error/drain_subtree",
-                    test_blockjob_iothread_error_drain_subtree);
 
     g_test_add_func("/bdrv-drain/deletion/drain", test_delete_by_drain);
     g_test_add_func("/bdrv-drain/detach/drain_all", test_detach_by_drain_all);
     g_test_add_func("/bdrv-drain/detach/drain", test_detach_by_drain);
-    g_test_add_func("/bdrv-drain/detach/drain_subtree", test_detach_by_drain_subtree);
     g_test_add_func("/bdrv-drain/detach/parent_cb", test_detach_by_parent_cb);
     g_test_add_func("/bdrv-drain/detach/driver_cb", test_detach_by_driver_cb);
 
