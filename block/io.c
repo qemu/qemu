@@ -53,7 +53,7 @@ static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
         if (c == ignore) {
             continue;
         }
-        bdrv_parent_drained_begin_single(c, false);
+        bdrv_parent_drained_begin_single(c);
     }
 }
 
@@ -105,9 +105,8 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
     return busy;
 }
 
-void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
+void bdrv_parent_drained_begin_single(BdrvChild *c)
 {
-    AioContext *ctx = bdrv_child_get_parent_aio_context(c);
     IO_OR_GS_CODE();
 
     assert(!c->quiesced_parent);
@@ -115,9 +114,6 @@ void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
 
     if (c->klass->drained_begin) {
         c->klass->drained_begin(c);
-    }
-    if (poll) {
-        AIO_WAIT_WHILE(ctx, bdrv_parent_drained_poll_single(c));
     }
 }
 
