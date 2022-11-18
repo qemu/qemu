@@ -237,21 +237,6 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
                                     int64_t bytes, BdrvRequestFlags read_flags,
                                     BdrvRequestFlags write_flags);
 
-/**
- * bdrv_drained_end_no_poll:
- *
- * Same as bdrv_drained_end(), but do not poll for the subgraph to
- * actually become unquiesced.  Therefore, no graph changes will occur
- * with this function.
- *
- * *drained_end_counter is incremented for every background operation
- * that is scheduled, and will be decremented for every operation once
- * it settles.  The caller must poll until it reaches 0.  The counter
- * should be accessed using atomic operations only.
- */
-void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
-
-
 /*
  * "I/O or GS" API functions. These functions can run without
  * the BQL, but only in one specific iothread/main loop.
@@ -311,9 +296,6 @@ void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
  * bdrv_parent_drained_end_single:
  *
  * End a quiesced section for the parent of @c.
- *
- * This polls @bs's AioContext until all scheduled sub-drained_ends
- * have settled, which may result in graph changes.
  */
 void bdrv_parent_drained_end_single(BdrvChild *c);
 
@@ -361,12 +343,6 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs);
  * bdrv_drained_end:
  *
  * End a quiescent section started by bdrv_drained_begin().
- *
- * This polls @bs's AioContext until all scheduled sub-drained_ends
- * have settled.  On one hand, that may result in graph changes.  On
- * the other, this requires that the caller either runs in the main
- * loop; or that all involved nodes (@bs and all of its parents) are
- * in the caller's AioContext.
  */
 void bdrv_drained_end(BlockDriverState *bs);
 
