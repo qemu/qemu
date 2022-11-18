@@ -242,21 +242,6 @@ typedef struct {
     bool ignore_bds_parents;
 } BdrvCoDrainData;
 
-/* Recursively call BlockDriver.bdrv_drain_begin/end callbacks */
-static void bdrv_drain_invoke(BlockDriverState *bs, bool begin)
-{
-    if (!bs->drv || (begin && !bs->drv->bdrv_drain_begin) ||
-            (!begin && !bs->drv->bdrv_drain_end)) {
-        return;
-    }
-
-    if (begin) {
-        bs->drv->bdrv_drain_begin(bs);
-    } else {
-        bs->drv->bdrv_drain_end(bs);
-    }
-}
-
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
 bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
                      BdrvChild *ignore_parent, bool ignore_bds_parents)
@@ -390,7 +375,9 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
     }
 
     bdrv_parent_drained_begin(bs, parent, ignore_bds_parents);
-    bdrv_drain_invoke(bs, true);
+    if (bs->drv && bs->drv->bdrv_drain_begin) {
+        bs->drv->bdrv_drain_begin(bs);
+    }
 }
 
 static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
@@ -461,7 +448,9 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     assert(bs->quiesce_counter > 0);
 
     /* Re-enable things in child-to-parent order */
-    bdrv_drain_invoke(bs, false);
+    if (bs->drv && bs->drv->bdrv_drain_end) {
+        bs->drv->bdrv_drain_end(bs);
+    }
     bdrv_parent_drained_end(bs, parent, ignore_bds_parents);
 
     old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
