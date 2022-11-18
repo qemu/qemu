@@ -1654,6 +1654,7 @@ static void test_drop_intermediate_poll(void)
 
 
 typedef struct BDRVReplaceTestState {
+    bool setup_completed;
     bool was_drained;
     bool was_undrained;
     bool has_read;
@@ -1738,6 +1739,10 @@ static void bdrv_replace_test_drain_begin(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
+    if (!s->setup_completed) {
+        return;
+    }
+
     if (!s->drain_count) {
         s->drain_co = qemu_coroutine_create(bdrv_replace_test_drain_co, bs);
         bdrv_inc_in_flight(bs);
@@ -1768,6 +1773,10 @@ static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
 static void bdrv_replace_test_drain_end(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
+
+    if (!s->setup_completed) {
+        return;
+    }
 
     g_assert(s->drain_count > 0);
     if (!--s->drain_count) {
@@ -1867,6 +1876,7 @@ static void do_test_replace_child_mid_drain(int old_drain_count,
     bdrv_ref(old_child_bs);
     bdrv_attach_child(parent_bs, old_child_bs, "child", &child_of_bds,
                       BDRV_CHILD_COW, &error_abort);
+    parent_s->setup_completed = true;
 
     for (i = 0; i < old_drain_count; i++) {
         bdrv_drained_begin(old_child_bs);

@@ -293,6 +293,14 @@ bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
 
 /**
+ * bdrv_parent_drained_poll_single:
+ *
+ * Returns true if there is any pending activity to cease before @c can be
+ * called quiesced, false otherwise.
+ */
+bool bdrv_parent_drained_poll_single(BdrvChild *c);
+
+/**
  * bdrv_parent_drained_end_single:
  *
  * End a quiesced section for the parent of @c.
