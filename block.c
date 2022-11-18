@@ -4174,6 +4174,8 @@ static bool bdrv_recurse_has_child(BlockDriverState *bs,
  * bs_queue, or the existing bs_queue being used.
  *
  * bs must be drained between bdrv_reopen_queue() and bdrv_reopen_multiple().
+ *
+ * To be called with bs->aio_context locked.
  */
 static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  BlockDriverState *bs,
@@ -4332,6 +4334,7 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     return bs_queue;
 }
 
+/* To be called with bs->aio_context locked */
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
                                     QDict *options, bool keep_old_opts)
@@ -4492,11 +4495,11 @@ int bdrv_reopen(BlockDriverState *bs, QDict *opts, bool keep_old_opts,
     GLOBAL_STATE_CODE();
 
     bdrv_subtree_drained_begin(bs);
+    queue = bdrv_reopen_queue(NULL, bs, opts, keep_old_opts);
+
     if (ctx != qemu_get_aio_context()) {
         aio_context_release(ctx);
     }
-
-    queue = bdrv_reopen_queue(NULL, bs, opts, keep_old_opts);
     ret = bdrv_reopen_multiple(queue, errp);
 
     if (ctx != qemu_get_aio_context()) {
