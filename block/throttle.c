@@ -214,7 +214,7 @@ static void throttle_reopen_abort(BDRVReopenState *reopen_state)
     reopen_state->opaque = NULL;
 }
 
-static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
+static void throttle_drain_begin(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     if (qatomic_fetch_inc(&tgm->io_limits_disabled) == 0) {
@@ -222,7 +222,7 @@ static void coroutine_fn throttle_co_drain_begin(BlockDriverState *bs)
     }
 }
 
-static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
+static void throttle_drain_end(BlockDriverState *bs)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     assert(tgm->io_limits_disabled);
@@ -261,8 +261,8 @@ static BlockDriver bdrv_throttle = {
     .bdrv_reopen_commit                 =   throttle_reopen_commit,
     .bdrv_reopen_abort                  =   throttle_reopen_abort,
 
-    .bdrv_co_drain_begin                =   throttle_co_drain_begin,
-    .bdrv_co_drain_end                  =   throttle_co_drain_end,
+    .bdrv_drain_begin                   =   throttle_drain_begin,
+    .bdrv_drain_end                     =   throttle_drain_end,
 
     .is_filter                          =   true,
     .strong_runtime_opts                =   throttle_strong_runtime_opts,

@@ -252,55 +252,20 @@ typedef struct {
     int *drained_end_counter;
 } BdrvCoDrainData;
 
-static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
-{
-    BdrvCoDrainData *data = opaque;
-    BlockDriverState *bs = data->bs;
-
-    if (data->begin) {
-        bs->drv->bdrv_co_drain_begin(bs);
-    } else {
-        bs->drv->bdrv_co_drain_end(bs);
-    }
-
-    /* Set data->done and decrement drained_end_counter before bdrv_wakeup() */
-    qatomic_mb_set(&data->done, true);
-    if (!data->begin) {
-        qatomic_dec(data->drained_end_counter);
-    }
-    bdrv_dec_in_flight(bs);
-
-    g_free(data);
-}
-
-/* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
+/* Recursively call BlockDriver.bdrv_drain_begin/end callbacks */
 static void bdrv_drain_invoke(BlockDriverState *bs, bool begin,
                               int *drained_end_counter)
 {
-    BdrvCoDrainData *data;
-
-    if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
-            (!begin && !bs->drv->bdrv_co_drain_end)) {
+    if (!bs->drv || (begin && !bs->drv->bdrv_drain_begin) ||
+            (!begin && !bs->drv->bdrv_drain_end)) {
         return;
     }
 
-    data = g_new(BdrvCoDrainData, 1);
-    *data = (BdrvCoDrainData) {
-        .bs = bs,
-        .done = false,
-        .begin = begin,
-        .drained_end_counter = drained_end_counter,
-    };
-
-    if (!begin) {
-        qatomic_inc(drained_end_counter);
+    if (begin) {
+        bs->drv->bdrv_drain_begin(bs);
+    } else {
+        bs->drv->bdrv_drain_end(bs);
     }
-
-    /* Make sure the driver callback completes during the polling phase for
-     * drain_begin. */
-    bdrv_inc_in_flight(bs);
-    data->co = qemu_coroutine_create(bdrv_drain_invoke_entry, data);
-    aio_co_schedule(bdrv_get_aio_context(bs), data->co);
 }
 
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */

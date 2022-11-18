@@ -1713,8 +1713,8 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     assert(is_power_of_2(bs->bl.request_alignment));
 
     for (i = 0; i < bs->quiesce_counter; i++) {
-        if (drv->bdrv_co_drain_begin) {
-            drv->bdrv_co_drain_begin(bs);
+        if (drv->bdrv_drain_begin) {
+            drv->bdrv_drain_begin(bs);
         }
     }
 

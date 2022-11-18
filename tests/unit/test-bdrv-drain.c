@@ -46,7 +46,7 @@ static void coroutine_fn sleep_in_drain_begin(void *opaque)
     bdrv_dec_in_flight(bs);
 }
 
-static void coroutine_fn bdrv_test_co_drain_begin(BlockDriverState *bs)
+static void bdrv_test_drain_begin(BlockDriverState *bs)
 {
     BDRVTestState *s = bs->opaque;
     s->drain_count++;
@@ -57,7 +57,7 @@ static void coroutine_fn bdrv_test_co_drain_begin(BlockDriverState *bs)
     }
 }
 
-static void coroutine_fn bdrv_test_co_drain_end(BlockDriverState *bs)
+static void bdrv_test_drain_end(BlockDriverState *bs)
 {
     BDRVTestState *s = bs->opaque;
     s->drain_count--;
@@ -111,8 +111,8 @@ static BlockDriver bdrv_test = {
     .bdrv_close             = bdrv_test_close,
     .bdrv_co_preadv         = bdrv_test_co_preadv,
 
-    .bdrv_co_drain_begin    = bdrv_test_co_drain_begin,
-    .bdrv_co_drain_end      = bdrv_test_co_drain_end,
+    .bdrv_drain_begin       = bdrv_test_drain_begin,
+    .bdrv_drain_end         = bdrv_test_drain_end,
 
     .bdrv_child_perm        = bdrv_default_perms,
 
@@ -1703,6 +1703,7 @@ static void test_blockjob_commit_by_drained_end(void)
     bdrv_drained_begin(bs_child);
     g_assert(!job_has_completed);
     bdrv_drained_end(bs_child);
+    aio_poll(qemu_get_aio_context(), false);
     g_assert(job_has_completed);
 
     bdrv_unref(bs_parents[0]);
@@ -1858,6 +1859,7 @@ static void test_drop_intermediate_poll(void)
 
     g_assert(!job_has_completed);
     ret = bdrv_drop_intermediate(chain[1], chain[0], NULL);
+    aio_poll(qemu_get_aio_context(), false);
     g_assert(ret == 0);
     g_assert(job_has_completed);
 
@@ -1946,7 +1948,7 @@ static void coroutine_fn bdrv_replace_test_drain_co(void *opaque)
  * .was_drained.
  * Increment .drain_count.
  */
-static void coroutine_fn bdrv_replace_test_co_drain_begin(BlockDriverState *bs)
+static void bdrv_replace_test_drain_begin(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
@@ -1977,7 +1979,7 @@ static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
  * If .drain_count reaches 0 and the node has a backing file, issue a
  * read request.
  */
-static void coroutine_fn bdrv_replace_test_co_drain_end(BlockDriverState *bs)
+static void bdrv_replace_test_drain_end(BlockDriverState *bs)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
@@ -2002,8 +2004,8 @@ static BlockDriver bdrv_replace_test = {
     .bdrv_close             = bdrv_replace_test_close,
     .bdrv_co_preadv         = bdrv_replace_test_co_preadv,
 
-    .bdrv_co_drain_begin    = bdrv_replace_test_co_drain_begin,
-    .bdrv_co_drain_end      = bdrv_replace_test_co_drain_end,
+    .bdrv_drain_begin       = bdrv_replace_test_drain_begin,
+    .bdrv_drain_end         = bdrv_replace_test_drain_end,
 
     .bdrv_child_perm        = bdrv_default_perms,
 };

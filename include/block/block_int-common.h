@@ -735,17 +735,19 @@ struct BlockDriver {
     void (*bdrv_io_unplug)(BlockDriverState *bs);
 
     /**
-     * bdrv_co_drain_begin is called if implemented in the beginning of a
+     * bdrv_drain_begin is called if implemented in the beginning of a
      * drain operation to drain and stop any internal sources of requests in
      * the driver.
-     * bdrv_co_drain_end is called if implemented at the end of the drain.
+     * bdrv_drain_end is called if implemented at the end of the drain.
      *
      * They should be used by the driver to e.g. manage scheduled I/O
      * requests, or toggle an internal state. After the end of the drain new
      * requests will continue normally.
+     *
+     * Implementations of both functions must not call aio_poll().
      */
-    void coroutine_fn (*bdrv_co_drain_begin)(BlockDriverState *bs);
-    void coroutine_fn (*bdrv_co_drain_end)(BlockDriverState *bs);
+    void (*bdrv_drain_begin)(BlockDriverState *bs);
+    void (*bdrv_drain_end)(BlockDriverState *bs);
 
     bool (*bdrv_supports_persistent_dirty_bitmap)(BlockDriverState *bs);
     bool coroutine_fn (*bdrv_co_can_store_new_dirty_bitmap)(
