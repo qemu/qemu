@@ -53,6 +53,8 @@
 #define CR_CLKSRC_SHIFT (24)
 #define CR_CLKSRC_BITS  (2)
 
+#define SR_OCIF     (1 << 0)
+
 #define EPIT_TIMER_MAX  0XFFFFFFFFUL
 
 #define TYPE_IMX_EPIT "imx.epit"

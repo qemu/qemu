@@ -66,7 +66,7 @@ static const IMXClk imx_epit_clocks[] =  {
  */
 static void imx_epit_update_int(IMXEPITState *s)
 {
-    if (s->sr && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
+    if ((s->sr & SR_OCIF) && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
@@ -256,9 +256,9 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         break;
 
     case 1: /* SR - ACK*/
-        /* writing 1 to OCIF clears the OCIF bit */
-        if (value & 0x01) {
-            s->sr = 0;
+        /* writing 1 to SR.OCIF clears this bit and turns the interrupt off */
+        if (value & SR_OCIF) {
+            s->sr = 0; /* SR.OCIF is the only bit in this register anyway */
             imx_epit_update_int(s);
         }
         break;
@@ -309,8 +309,8 @@ static void imx_epit_cmp(void *opaque)
     IMXEPITState *s = IMX_EPIT(opaque);
 
     DPRINTF("sr was %d\n", s->sr);
-
-    s->sr = 1;
+    /* Set interrupt status bit SR.OCIF and update the interrupt state */
+    s->sr |= SR_OCIF;
     imx_epit_update_int(s);
 }
 
