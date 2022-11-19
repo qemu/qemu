@@ -99,12 +99,14 @@ static void imx_epit_set_freq(IMXEPITState *s)
 /*
  * This is called both on hardware (device) reset and software reset.
  */
-static void imx_epit_reset(DeviceState *dev)
+static void imx_epit_reset(IMXEPITState *s, bool is_hard_reset)
 {
-    IMXEPITState *s = IMX_EPIT(dev);
-
     /* Soft reset doesn't touch some bits; hard reset clears them */
-    s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    if (is_hard_reset) {
+        s->cr = 0;
+    } else {
+        s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    }
     s->sr = 0;
     s->lr = EPIT_TIMER_MAX;
     s->cmp = 0;
@@ -205,7 +207,7 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         s->cr = value & 0x03ffffff;
         if (s->cr & CR_SWR) {
             /* handle the reset */
-            imx_epit_reset(DEVICE(s));
+            imx_epit_reset(s, false);
         }
 
         /*
@@ -377,12 +379,18 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
     s->timer_cmp = ptimer_init(imx_epit_cmp, s, PTIMER_POLICY_LEGACY);
 }
 
+static void imx_epit_dev_reset(DeviceState *dev)
+{
+    IMXEPITState *s = IMX_EPIT(dev);
+    imx_epit_reset(s, true);
+}
+
 static void imx_epit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc  = DEVICE_CLASS(klass);
 
     dc->realize = imx_epit_realize;
-    dc->reset = imx_epit_reset;
+    dc->reset = imx_epit_dev_reset;
     dc->vmsd = &vmstate_imx_timer_epit;
     dc->desc = "i.MX periodic timer";
 }
