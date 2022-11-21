@@ -64,7 +64,7 @@ class BootLinuxAarch64(LinuxTest):
     :avocado: tags=machine:virt
     :avocado: tags=machine:gic-version=2
     """
-    timeout = 240
+    timeout = 720
 
     def add_common_args(self):
         self.vm.add_args('-bios',

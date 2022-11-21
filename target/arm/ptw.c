@@ -1222,6 +1222,14 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         ps = MIN(ps, param.ps);
         assert(ps < ARRAY_SIZE(pamax_map));
         outputsize = pamax_map[ps];
+
+        /*
+         * With LPA2, the effective output address (OA) size is at most 48 bits
+         * unless TCR.DS == 1
+         */
+        if (!param.ds && param.gran != Gran64K) {
+            outputsize = MIN(outputsize, 48);
+        }
     } else {
         param = aa32_va_parameters(env, address, mmu_idx);
         level = 1;
