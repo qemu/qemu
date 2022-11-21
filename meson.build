@@ -1246,6 +1246,8 @@ endif
 gtk = not_found
 gtkx11 = not_found
 vte = not_found
+have_gtk_clipboard = get_option('gtk_clipboard').enabled()
+
 if not get_option('gtk').auto() or have_system
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
@@ -1264,6 +1266,8 @@ if not get_option('gtk').auto() or have_system
                        required: get_option('vte'),
                        kwargs: static_kwargs)
     endif
+  elif have_gtk_clipboard
+    error('GTK clipboard requested, but GTK not found')
   endif
 endif
 
@@ -1842,6 +1846,7 @@ if glusterfs.found()
 endif
 config_host_data.set('CONFIG_GTK', gtk.found())
 config_host_data.set('CONFIG_VTE', vte.found())
+config_host_data.set('CONFIG_GTK_CLIPBOARD', have_gtk_clipboard)
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
