@@ -23,8 +23,8 @@ class CanonA1100Machine(QemuSystemTest):
         :avocado: tags=machine:canon-a1100
         :avocado: tags=device:pflash_cfi02
         """
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day18.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day18.tar.xz')
         tar_hash = '068b5fc4242b29381acee94713509f8a876e9db6'
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         archive.extract(file_path, self.workdir)
