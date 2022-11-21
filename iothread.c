@@ -155,8 +155,8 @@ static void iothread_init_gcontext(IOThread *iothread)
 
 static void iothread_set_aio_context_params(EventLoopBase *base, Error **errp)
 {
-    IOThread *iothread = IOTHREAD(base);
     ERRP_GUARD();
+    IOThread *iothread = IOTHREAD(base);
 
     if (!iothread->ctx) {
         return;

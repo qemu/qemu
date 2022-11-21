@@ -554,11 +554,10 @@ static void machine_get_mem(Object *obj, Visitor *v, const char *name,
 static void machine_set_mem(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
+    ERRP_GUARD();
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     MemorySizeConfiguration *mem;
-
-    ERRP_GUARD();
 
     if (!visit_type_MemorySizeConfiguration(v, name, &mem, errp)) {
         return;
