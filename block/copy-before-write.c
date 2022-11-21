@@ -522,7 +522,6 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                   BlockCopyState **bcs,
                                   Error **errp)
 {
-    ERRP_GUARD();
     BDRVCopyBeforeWriteState *state;
     BlockDriverState *top;
     QDict *opts;

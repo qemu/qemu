@@ -317,7 +317,6 @@ bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
 
 void msi_set_mask(PCIDevice *dev, int vector, bool mask, Error **errp)
 {
-    ERRP_GUARD();
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
     uint32_t irq_state, vector_mask, pending;

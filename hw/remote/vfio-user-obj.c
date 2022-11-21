@@ -719,7 +719,6 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
  */
 static void vfu_object_init_ctx(VfuObject *o, Error **errp)
 {
-    ERRP_GUARD();
     DeviceState *dev = NULL;
     vfu_pci_type_t pci_type = VFU_PCI_TYPE_CONVENTIONAL;
     int ret;
