@@ -2404,7 +2404,6 @@ static const TypeInfo vmbus_dev_type_info = {
 static void vmbus_realize(BusState *bus, Error **errp)
 {
     int ret = 0;
-    Error *local_err = NULL;
     VMBus *vmbus = VMBUS(bus);
 
     qemu_mutex_init(&vmbus->rx_queue_lock);
@@ -2415,13 +2414,13 @@ static void vmbus_realize(BusState *bus, Error **errp)
     ret = hyperv_set_msg_handler(VMBUS_MESSAGE_CONNECTION_ID,
                                  vmbus_recv_message, vmbus);
     if (ret != 0) {
-        error_setg(&local_err, "hyperv set message handler failed: %d", ret);
+        error_setg(errp, "hyperv set message handler failed: %d", ret);
         goto error_out;
     }
 
     ret = event_notifier_init(&vmbus->notifier, 0);
     if (ret != 0) {
-        error_setg(&local_err, "event notifier failed to init with %d", ret);
+        error_setg(errp, "event notifier failed to init with %d", ret);
         goto remove_msg_handler;
     }
 
@@ -2429,7 +2428,7 @@ static void vmbus_realize(BusState *bus, Error **errp)
     ret = hyperv_set_event_flag_handler(VMBUS_EVENT_CONNECTION_ID,
                                         &vmbus->notifier);
     if (ret != 0) {
-        error_setg(&local_err, "hyperv set event handler failed with %d", ret);
+        error_setg(errp, "hyperv set event handler failed with %d", ret);
         goto clear_event_notifier;
     }
 
@@ -2441,7 +2440,6 @@ remove_msg_handler:
     hyperv_set_msg_handler(VMBUS_MESSAGE_CONNECTION_ID, NULL, NULL);
 error_out:
     qemu_mutex_destroy(&vmbus->rx_queue_lock);
-    error_propagate(errp, local_err);
 }
 
 static void vmbus_unrealize(BusState *bus)
