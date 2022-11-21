@@ -90,16 +90,13 @@ static void thread_context_set_cpu_affinity(Object *obj, Visitor *v,
     uint16List *l, *host_cpus = NULL;
     unsigned long *bitmap = NULL;
     int nbits = 0, ret;
-    Error *err = NULL;
 
     if (tc->init_cpu_bitmap) {
         error_setg(errp, "Mixing CPU and node affinity not supported");
         return;
     }
 
-    visit_type_uint16List(v, name, &host_cpus, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!visit_type_uint16List(v, name, &host_cpus, errp)) {
         return;
     }
 
@@ -178,7 +175,6 @@ static void thread_context_set_node_affinity(Object *obj, Visitor *v,
     uint16List *l, *host_nodes = NULL;
     unsigned long *bitmap = NULL;
     struct bitmask *tmp_cpus;
-    Error *err = NULL;
     int ret, i;
 
     if (tc->init_cpu_bitmap) {
@@ -186,9 +182,7 @@ static void thread_context_set_node_affinity(Object *obj, Visitor *v,
         return;
     }
 
-    visit_type_uint16List(v, name, &host_nodes, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!visit_type_uint16List(v, name, &host_nodes, errp)) {
         return;
     }
 

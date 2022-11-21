@@ -1094,12 +1094,9 @@ static void virtio_mem_set_requested_size(Object *obj, Visitor *v,
                                           Error **errp)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
-    Error *err = NULL;
     uint64_t value;
 
-    visit_type_size(v, name, &value, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
 
@@ -1159,7 +1156,6 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
                                       void *opaque, Error **errp)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
-    Error *err = NULL;
     uint64_t value;
 
     if (DEVICE(obj)->realized) {
@@ -1167,9 +1163,7 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_size(v, name, &value, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
 

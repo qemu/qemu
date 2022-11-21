@@ -241,36 +241,34 @@ static void balloon_stats_poll_cb(void *opaque)
 static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    Error *err = NULL;
     VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+    bool ok = false;
     int i;
 
-    if (!visit_start_struct(v, name, NULL, 0, &err)) {
-        goto out;
+    if (!visit_start_struct(v, name, NULL, 0, errp)) {
+        return;
     }
-    if (!visit_type_int(v, "last-update", &s->stats_last_update, &err)) {
+    if (!visit_type_int(v, "last-update", &s->stats_last_update, errp)) {
         goto out_end;
     }
 
-    if (!visit_start_struct(v, "stats", NULL, 0, &err)) {
+    if (!visit_start_struct(v, "stats", NULL, 0, errp)) {
         goto out_end;
     }
     for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
-        if (!visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err)) {
+        if (!visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], errp)) {
             goto out_nested;
         }
     }
-    visit_check_struct(v, &err);
+    ok = visit_check_struct(v, errp);
 out_nested:
     visit_end_struct(v, NULL);
 
-    if (!err) {
-        visit_check_struct(v, &err);
+    if (ok) {
+        visit_check_struct(v, errp);
     }
 out_end:
     visit_end_struct(v, NULL);
-out:
-    error_propagate(errp, err);
 }
 
 static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
