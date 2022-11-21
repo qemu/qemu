@@ -813,12 +813,13 @@ static void build_ich9_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     BusChild *kid;
     ICH9LPCState *s = ICH9_LPC_DEVICE(adev);
     BusState *bus = BUS(s->isa_bus);
+    Aml *sb_scope = aml_scope("\\_SB");
 
     /* ICH9 PCI to ISA irq remapping */
     aml_append(scope, aml_operation_region("PIRQ", AML_PCI_CONFIG,
                                            aml_int(0x60), 0x0C));
     /* Fields declarion has to happen *after* operation region */
-    field = aml_field("PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    field = aml_field("PCI0.SF8.PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PRQA", 8));
     aml_append(field, aml_named_field("PRQB", 8));
     aml_append(field, aml_named_field("PRQC", 8));
@@ -828,17 +829,8 @@ static void build_ich9_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(field, aml_named_field("PRQF", 8));
     aml_append(field, aml_named_field("PRQG", 8));
     aml_append(field, aml_named_field("PRQH", 8));
-    aml_append(scope, field);
-
-    /* hack: put fields into _SB scope for LNKx to find them */
-    aml_append(scope, aml_alias("PRQA", "\\_SB.PRQA"));
-    aml_append(scope, aml_alias("PRQB", "\\_SB.PRQB"));
-    aml_append(scope, aml_alias("PRQC", "\\_SB.PRQC"));
-    aml_append(scope, aml_alias("PRQD", "\\_SB.PRQD"));
-    aml_append(scope, aml_alias("PRQE", "\\_SB.PRQE"));
-    aml_append(scope, aml_alias("PRQF", "\\_SB.PRQF"));
-    aml_append(scope, aml_alias("PRQG", "\\_SB.PRQG"));
-    aml_append(scope, aml_alias("PRQH", "\\_SB.PRQH"));
+    aml_append(sb_scope, field);
+    aml_append(scope, sb_scope);
 
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
             call_dev_aml_func(DEVICE(kid->child), scope);
