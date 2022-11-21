@@ -318,9 +318,9 @@ void qemu_add_opts(QemuOptsList *list)
 static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
                                const char *fname, Error **errp)
 {
+    ERRP_GUARD();
     char line[1024], prev_group[64], group[64], arg[64], value[1024];
     Location loc;
-    Error *local_err = NULL;
     QDict *qdict = NULL;
     int res = -EINVAL, lno = 0;
     int count = 0;
@@ -348,10 +348,9 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
             }
             if (qdict != prev) {
                 if (prev) {
-                    cb(prev_group, prev, opaque, &local_err);
+                    cb(prev_group, prev, opaque, errp);
                     qobject_unref(prev);
-                    if (local_err) {
-                        error_propagate(errp, local_err);
+                    if (*errp) {
                         goto out;
                     }
                 }
