@@ -423,12 +423,12 @@ int qemu_read_config_file(const char *filename, QEMUConfigCB *cb, Error **errp)
     return ret;
 }
 
-static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
+static bool config_parse_qdict_section(QDict *options, QemuOptsList *opts,
                                        Error **errp)
 {
     QemuOpts *subopts;
-    QDict *subqdict;
-    QList *list = NULL;
+    g_autoptr(QDict) subqdict = NULL;
+    g_autoptr(QList) list = NULL;
     size_t orig_size, enum_size;
     char *prefix;
 
@@ -437,23 +437,23 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
     g_free(prefix);
     orig_size = qdict_size(subqdict);
     if (!orig_size) {
-        goto out;
+        return true;
     }
 
     subopts = qemu_opts_create(opts, NULL, 0, errp);
     if (!subopts) {
-        goto out;
+        return false;
     }
 
     if (!qemu_opts_absorb_qdict(subopts, subqdict, errp)) {
-        goto out;
+        return false;
     }
 
     enum_size = qdict_size(subqdict);
     if (enum_size < orig_size && enum_size) {
         error_setg(errp, "Unknown option '%s' for [%s]",
                    qdict_first(subqdict)->key, opts->name);
-        goto out;
+        return false;
     }
 
     if (enum_size) {
@@ -468,7 +468,7 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
         if (qdict_size(subqdict)) {
             error_setg(errp, "Unused option '%s' for [%s]",
                        qdict_first(subqdict)->key, opts->name);
-            goto out;
+            return false;
         }
 
         QLIST_FOREACH_ENTRY(list, list_entry) {
@@ -478,46 +478,43 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
             if (!section) {
                 error_setg(errp, "[%s] section (index %u) does not consist of "
                            "keys", opts->name, i);
-                goto out;
+                return false;
             }
 
             opt_name = g_strdup_printf("%s.%u", opts->name, i++);
             subopts = qemu_opts_create(opts, opt_name, 1, errp);
             g_free(opt_name);
             if (!subopts) {
-                goto out;
+                return false;
             }
 
             if (!qemu_opts_absorb_qdict(subopts, section, errp)) {
                 qemu_opts_del(subopts);
-                goto out;
+                return false;
             }
 
             if (qdict_size(section)) {
                 error_setg(errp, "[%s] section doesn't support the option '%s'",
                            opts->name, qdict_first(section)->key);
                 qemu_opts_del(subopts);
-                goto out;
+                return false;
             }
         }
     }
 
-out:
-    qobject_unref(subqdict);
-    qobject_unref(list);
+    return true;
 }
 
-void qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
+bool qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
                              Error **errp)
 {
     int i;
-    Error *local_err = NULL;
 
     for (i = 0; lists[i]; i++) {
-        config_parse_qdict_section(options, lists[i], &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
+        if (!config_parse_qdict_section(options, lists[i], errp)) {
+            return false;
         }
     }
+
+    return true;
 }
