@@ -350,7 +350,7 @@ int qio_channel_readv_all(QIOChannel *ioc,
 int qio_channel_writev_all(QIOChannel *ioc,
                            const struct iovec *iov,
                            size_t niov,
-                           Error **erp);
+                           Error **errp);
 
 /**
  * qio_channel_readv:
