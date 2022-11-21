@@ -2612,8 +2612,8 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
 
     ret = get_phys_addr_with_struct(env, ptw, address, access_type, result, fi);
 
-    /* If S1 fails or S2 is disabled, return early.  */
-    if (ret || regime_translation_disabled(env, ARMMMUIdx_Stage2, is_secure)) {
+    /* If S1 fails, return early.  */
+    if (ret) {
         return ret;
     }
 
@@ -2739,7 +2739,8 @@ static bool get_phys_addr_with_struct(CPUARMState *env, S1Translate *ptw,
          * Otherwise, a stage1+stage2 translation is just stage 1.
          */
         ptw->in_mmu_idx = mmu_idx = s1_mmu_idx;
-        if (arm_feature(env, ARM_FEATURE_EL2)) {
+        if (arm_feature(env, ARM_FEATURE_EL2) &&
+            !regime_translation_disabled(env, ARMMMUIdx_Stage2, is_secure)) {
             return get_phys_addr_twostage(env, ptw, address, access_type,
                                           result, fi);
         }
