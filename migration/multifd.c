@@ -566,6 +566,23 @@ void multifd_save_cleanup(void)
     multifd_send_state = NULL;
 }
 
+static int multifd_zero_copy_flush(QIOChannel *c)
+{
+    int ret;
+    Error *err = NULL;
+
+    ret = qio_channel_flush(c, &err);
+    if (ret < 0) {
+        error_report_err(err);
+        return -1;
+    }
+    if (ret == 1) {
+        dirty_sync_missed_zero_copy();
+    }
+
+    return ret;
+}
+
 int multifd_send_sync_main(QEMUFile *f)
 {
     int i;
@@ -616,17 +633,8 @@ int multifd_send_sync_main(QEMUFile *f)
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_post(&p->sem);
 
-        if (flush_zero_copy && p->c) {
-            int ret;
-            Error *err = NULL;
-
-            ret = qio_channel_flush(p->c, &err);
-            if (ret < 0) {
-                error_report_err(err);
-                return -1;
-            } else if (ret == 1) {
-                dirty_sync_missed_zero_copy();
-            }
+        if (flush_zero_copy && p->c && (multifd_zero_copy_flush(p->c) < 0)) {
+            return -1;
         }
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
