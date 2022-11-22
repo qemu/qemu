@@ -527,6 +527,11 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
         .hdr.size = sizeof(msg.payload.log),
     };
 
+    /* Send only once with first queue pair */
+    if (dev->vq_index != 0) {
+        return 0;
+    }
+
     if (shmfd && log->fd != -1) {
         fds[fd_num++] = log->fd;
     }
