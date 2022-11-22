@@ -216,7 +216,6 @@ static int send_reply(fuse_req_t req, int error, const void *arg,
 
 int fuse_reply_iov(fuse_req_t req, const struct iovec *iov, int count)
 {
-    int res;
     g_autofree struct iovec *padded_iov = NULL;
 
     padded_iov = g_try_new(struct iovec, count + 1);
@@ -227,9 +226,7 @@ int fuse_reply_iov(fuse_req_t req, const struct iovec *iov, int count)
     memcpy(padded_iov + 1, iov, count * sizeof(struct iovec));
     count++;
 
-    res = send_reply_iov(req, 0, padded_iov, count);
-
-    return res;
+    return send_reply_iov(req, 0, padded_iov, count);
 }
 
 
@@ -589,7 +586,6 @@ int fuse_reply_ioctl_retry(fuse_req_t req, const struct iovec *in_iov,
     g_autofree struct fuse_ioctl_iovec *out_fiov = NULL;
     struct iovec iov[4];
     size_t count = 1;
-    int res;
 
     memset(&arg, 0, sizeof(arg));
     arg.flags |= FUSE_IOCTL_RETRY;
@@ -601,15 +597,13 @@ int fuse_reply_ioctl_retry(fuse_req_t req, const struct iovec *in_iov,
 
     /* Can't handle non-compat 64bit ioctls on 32bit */
     if (sizeof(void *) == 4 && req->ioctl_64bit) {
-        res = fuse_reply_err(req, EINVAL);
-        return res;
+        return fuse_reply_err(req, EINVAL);
     }
 
     if (in_count) {
         in_fiov = fuse_ioctl_iovec_copy(in_iov, in_count);
         if (!in_fiov) {
-            res = fuse_reply_err(req, ENOMEM);
-            return res;
+            return fuse_reply_err(req, ENOMEM);
         }
 
         iov[count].iov_base = (void *)in_fiov;
@@ -619,8 +613,7 @@ int fuse_reply_ioctl_retry(fuse_req_t req, const struct iovec *in_iov,
     if (out_count) {
         out_fiov = fuse_ioctl_iovec_copy(out_iov, out_count);
         if (!out_fiov) {
-            res = fuse_reply_err(req, ENOMEM);
-            return res;
+            return fuse_reply_err(req, ENOMEM);
         }
 
         iov[count].iov_base = (void *)out_fiov;
@@ -628,9 +621,7 @@ int fuse_reply_ioctl_retry(fuse_req_t req, const struct iovec *in_iov,
         count++;
     }
 
-    res = send_reply_iov(req, 0, iov, count);
-
-    return res;
+    return send_reply_iov(req, 0, iov, count);
 }
 
 int fuse_reply_ioctl(fuse_req_t req, int result, const void *buf, size_t size)
@@ -659,7 +650,6 @@ int fuse_reply_ioctl_iov(fuse_req_t req, int result, const struct iovec *iov,
 {
     g_autofree struct iovec *padded_iov = NULL;
     struct fuse_ioctl_out arg;
-    int res;
 
     padded_iov = g_try_new(struct iovec, count + 2);
     if (padded_iov == NULL) {
@@ -673,9 +663,7 @@ int fuse_reply_ioctl_iov(fuse_req_t req, int result, const struct iovec *iov,
 
     memcpy(&padded_iov[2], iov, count * sizeof(struct iovec));
 
-    res = send_reply_iov(req, 0, padded_iov, count + 2);
-
-    return res;
+    return send_reply_iov(req, 0, padded_iov, count + 2);
 }
 
 int fuse_reply_poll(fuse_req_t req, unsigned revents)

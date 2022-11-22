@@ -855,8 +855,6 @@ plan_tests(unsigned int tests)
 static int
 exit_status_(void)
 {
-    int r;
-
     /* If there's no plan, just return the number of failures */
     if(no_plan || !have_plan) {
         return failures;
@@ -865,15 +863,12 @@ exit_status_(void)
     /* Ran too many tests?  Return the number of tests that were run
        that shouldn't have been */
     if(e_tests < test_count) {
-        r = test_count - e_tests;
-        return r;
+        return test_count - e_tests;
     }
 
     /* Return the number of tests that failed + the number of tests
        that weren't run */
-    r = failures + e_tests - test_count;
-
-    return r;
+    return failures + e_tests - test_count;
 }
 
 int

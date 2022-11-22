@@ -243,15 +243,13 @@ static void do_trigger_action(CPURISCVState *env, target_ulong trigger_index)
 
 static uint32_t type2_breakpoint_size(CPURISCVState *env, target_ulong ctrl)
 {
-    uint32_t size, sizelo, sizehi = 0;
+    uint32_t sizelo, sizehi = 0;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
         sizehi = extract32(ctrl, 21, 2);
     }
     sizelo = extract32(ctrl, 16, 2);
-    size = (sizehi << 2) | sizelo;
-
-    return size;
+    return (sizehi << 2) | sizelo;
 }
 
 static inline bool type2_breakpoint_enabled(target_ulong ctrl)

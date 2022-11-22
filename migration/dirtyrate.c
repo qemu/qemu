@@ -111,7 +111,6 @@ static void global_dirty_log_sync(unsigned int flag, bool one_shot)
 static DirtyPageRecord *vcpu_dirty_stat_alloc(VcpuStat *stat)
 {
     CPUState *cpu;
-    DirtyPageRecord *records;
     int nvcpu = 0;
 
     CPU_FOREACH(cpu) {
@@ -121,9 +120,7 @@ static DirtyPageRecord *vcpu_dirty_stat_alloc(VcpuStat *stat)
     stat->nvcpu = nvcpu;
     stat->rates = g_new0(DirtyRateVcpu, nvcpu);
 
-    records = g_new0(DirtyPageRecord, nvcpu);
-
-    return records;
+    return g_new0(DirtyPageRecord, nvcpu);
 }
 
 static void vcpu_dirty_stat_collect(VcpuStat *stat,
@@ -473,7 +470,6 @@ find_block_matched(RAMBlock *block, int count,
                   struct RamblockDirtyInfo *infos)
 {
     int i;
-    struct RamblockDirtyInfo *matched;
 
     for (i = 0; i < count; i++) {
         if (!strcmp(infos[i].idstr, qemu_ram_get_idstr(block))) {
@@ -492,9 +488,7 @@ find_block_matched(RAMBlock *block, int count,
         return NULL;
     }
 
-    matched = &infos[i];
-
-    return matched;
+    return &infos[i];
 }
 
 static bool compare_page_hash_info(struct RamblockDirtyInfo *info,

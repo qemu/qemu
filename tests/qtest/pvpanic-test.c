@@ -59,13 +59,9 @@ static void test_panic(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/pvpanic/panic", test_panic);
     qtest_add_func("/pvpanic/panic-nopause", test_panic_nopause);
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

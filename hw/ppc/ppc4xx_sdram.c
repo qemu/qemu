@@ -520,13 +520,10 @@ static inline hwaddr sdram_ddr2_base(uint32_t bcr)
 
 static hwaddr sdram_ddr2_size(uint32_t bcr)
 {
-    hwaddr size;
     int sh;
 
     sh = 1024 - ((bcr >> 6) & 0x3ff);
-    size = 8 * MiB * sh;
-
-    return size;
+    return 8 * MiB * sh;
 }
 
 static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)

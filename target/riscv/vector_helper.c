@@ -2791,31 +2791,25 @@ static inline uint16_t
 vssrl16(CPURISCVState *env, int vxrm, uint16_t a, uint16_t b)
 {
     uint8_t round, shift = b & 0xf;
-    uint16_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 static inline uint32_t
 vssrl32(CPURISCVState *env, int vxrm, uint32_t a, uint32_t b)
 {
     uint8_t round, shift = b & 0x1f;
-    uint32_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 static inline uint64_t
 vssrl64(CPURISCVState *env, int vxrm, uint64_t a, uint64_t b)
 {
     uint8_t round, shift = b & 0x3f;
-    uint64_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 RVVCALL(OPIVV2_RM, vssrl_vv_b, OP_UUU_B, H1, H1, H1, vssrl8)
 RVVCALL(OPIVV2_RM, vssrl_vv_h, OP_UUU_H, H2, H2, H2, vssrl16)
@@ -2839,41 +2833,33 @@ static inline int8_t
 vssra8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
 {
     uint8_t round, shift = b & 0x7;
-    int8_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 static inline int16_t
 vssra16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
 {
     uint8_t round, shift = b & 0xf;
-    int16_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 static inline int32_t
 vssra32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
 {
     uint8_t round, shift = b & 0x1f;
-    int32_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 static inline int64_t
 vssra64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
 {
     uint8_t round, shift = b & 0x3f;
-    int64_t res;
 
     round = get_round(vxrm, a, shift);
-    res   = (a >> shift)  + round;
-    return res;
+    return (a >> shift) + round;
 }
 
 RVVCALL(OPIVV2_RM, vssra_vv_b, OP_SSS_B, H1, H1, H1, vssra8)
