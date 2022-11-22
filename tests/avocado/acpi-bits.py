@@ -263,7 +263,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self.logger.info('using grub-mkrescue for generating biosbits iso ...')
 
         try:
-            if os.getenv('V'):
+            if os.getenv('V') or os.getenv('BITS_DEBUG'):
                 subprocess.check_call([mkrescue_script, '-o', iso_file,
                                        bits_dir], stderr=subprocess.STDOUT)
             else:
@@ -347,7 +347,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
                 self._print_log(log)
                 raise e
             else:
-                if os.getenv('V'):
+                if os.getenv('V') or os.getenv('BITS_DEBUG'):
                     self._print_log(log)
 
     def tearDown(self):
@@ -356,8 +356,13 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         """
         if self._vm:
             self.assertFalse(not self._vm.is_running)
-        self.logger.info('removing the work directory %s', self._workDir)
-        shutil.rmtree(self._workDir)
+        if not os.getenv('BITS_DEBUG'):
+            self.logger.info('removing the work directory %s', self._workDir)
+            shutil.rmtree(self._workDir)
+        else:
+            self.logger.info('not removing the work directory %s ' \
+                             'as BITS_DEBUG is ' \
+                             'passed in the environment', self._workDir)
         super().tearDown()
 
     def test_acpi_smbios_bits(self):
@@ -388,12 +393,6 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         self._vm.launch()
         # biosbits has been configured to run all the specified test suites
         # in batch mode and then automatically initiate a vm shutdown.
-        # sleep for maximum of one minute
-        max_sleep_time = time.monotonic() + 60
-        while self._vm.is_running() and time.monotonic() < max_sleep_time:
-            time.sleep(1)
-
-        self.assertFalse(time.monotonic() > max_sleep_time,
-                         'The VM seems to have failed to shutdown in time')
-
+        # Rely on avocado's unit test timeout.
+        self._vm.wait(timeout=None)
         self.parse_log()

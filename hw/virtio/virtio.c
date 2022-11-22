@@ -2499,10 +2499,17 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
 {
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
 
+    /*
+     * TODO: Seabios is currently out of spec and triggering this error.
+     * So this needs to be fixed in Seabios, then this can
+     * be re-enabled for new machine types only, and also after
+     * being converted to LOG_GUEST_ERROR.
+     *
     if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         error_report("queue_enable is only suppported in devices of virtio "
                      "1.0 or later.");
     }
+    */
 
     if (k->queue_enable) {
         k->queue_enable(vdev, queue_index);

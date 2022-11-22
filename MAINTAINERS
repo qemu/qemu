@@ -1865,6 +1865,7 @@ F: hw/acpi/viot.h
 
 ACPI/AVOCADO/BIOSBITS
 M: Ani Sinha <ani@anisinha.ca>
+M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: tests/avocado/acpi-bits/*
 F: tests/avocado/acpi-bits.py

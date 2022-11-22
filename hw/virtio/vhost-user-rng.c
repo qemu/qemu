@@ -16,6 +16,11 @@
 #include "qemu/error-report.h"
 #include "standard-headers/linux/virtio_ids.h"
 
+static const int feature_bits[] = {
+    VIRTIO_F_RING_RESET,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 static void vu_rng_start(VirtIODevice *vdev)
 {
     VHostUserRNG *rng = VHOST_USER_RNG(vdev);
@@ -106,8 +111,10 @@ static void vu_rng_set_status(VirtIODevice *vdev, uint8_t status)
 static uint64_t vu_rng_get_features(VirtIODevice *vdev,
                                     uint64_t requested_features, Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+    VHostUserRNG *rng = VHOST_USER_RNG(vdev);
+
+    return vhost_get_features(&rng->vhost_dev, feature_bits,
+                              requested_features);
 }
 
 static void vu_rng_handle_output(VirtIODevice *vdev, VirtQueue *vq)
