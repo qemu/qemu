@@ -23,7 +23,7 @@ Descriptions of section entries:
 	W: Web-page with status/info
 	Q: Patchwork web based patch tracking system site
 	T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
-	S: Status, one of the following:
+	S: Status, one of the following (keep in sync with docs/devel/maintainers.rst):
 	   Supported:	Someone is actually paid to look after this.
 	   Maintained:	Someone actually looks after it.
 	   Odd Fixes:	It has a maintainer but they don't have time to do

@@ -58,6 +58,9 @@ class BootLinuxX8664(LinuxTest):
         self.launch_and_wait(set_up_ssh_connection=False)
 
 
+# For Aarch64 we only boot KVM tests in CI as the TCG tests are very
+# heavyweight. There are lighter weight distros which we use in the
+# machine_aarch64_virt.py tests.
 class BootLinuxAarch64(LinuxTest):
     """
     :avocado: tags=arch:aarch64
@@ -73,7 +76,8 @@ class BootLinuxAarch64(LinuxTest):
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
 
-    def test_virt_tcg_gicv2(self):
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    def test_fedora_cloud_tcg_gicv2(self):
         """
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
@@ -86,7 +90,8 @@ class BootLinuxAarch64(LinuxTest):
         self.add_common_args()
         self.launch_and_wait(set_up_ssh_connection=False)
 
-    def test_virt_tcg_gicv3(self):
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
+    def test_fedora_cloud_tcg_gicv3(self):
         """
         :avocado: tags=accel:tcg
         :avocado: tags=cpu:max
@@ -116,7 +121,7 @@ class BootLinuxPPC64(LinuxTest):
     :avocado: tags=arch:ppc64
     """
 
-    timeout = 180
+    timeout = 360
 
     def test_pseries_tcg(self):
         """
