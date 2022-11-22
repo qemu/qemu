@@ -738,9 +738,26 @@ extern "C" QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         //panda_register_callback(self, PANDA_CB_ASID_CHANGED, pcb);
 #endif
 
-    char kconf_file[] = "/home/andrew/git/panda/panda/plugins/osi_linux/kernelinfo.conf";
-    char kconf_group[] = "ubuntu:4.15.0-72-generic-noaslr-nokaslr:64";
+    gchar* kconf_file = NULL;
+    gchar* kconf_group = NULL;
     osi_initialized = false;
+
+    //parse the arguments
+    for (int i = 0; i < argc; i++) {
+        g_autofree gchar** tokens = g_strsplit(argv[i], "=", 2);
+
+        if (g_strcmp0(tokens[0], "kconf_file") == 0) {
+            kconf_file = g_strdup(tokens[1]);
+        } else if (g_strcmp0(tokens[0], "kconf_group") == 0) {
+            kconf_group = g_strdup(tokens[1]);
+        }
+    }
+
+    if (!kconf_file || !kconf_group) {
+        printf("osi_linux is missing arguments\n");
+        printf("USAGE: -plugin /path/to/libosi_linux.so,kconf_file=/path/to/kconf_file,kconf_group=name_of_group\n");
+        goto error;
+    }
 
     // Load kernel offsets.
     if (read_kernelinfo(kconf_file, kconf_group, &ki) != 0) {
