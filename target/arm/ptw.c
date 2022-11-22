@@ -1172,7 +1172,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     ARMCPU *cpu = env_archcpu(env);
     ARMMMUIdx mmu_idx = ptw->in_mmu_idx;
     bool is_secure = ptw->in_secure;
-    uint32_t level;
+    int32_t level;
     ARMVAParameters param;
     uint64_t ttbr;
     hwaddr descaddr, indexmask, indexmask_grainsize;
@@ -1302,7 +1302,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
          */
         uint32_t sl0 = extract32(tcr, 6, 2);
         uint32_t sl2 = extract64(tcr, 33, 1);
-        uint32_t startlevel;
+        int32_t startlevel;
         bool ok;
 
         /* SL2 is RES0 unless DS=1 & 4kb granule. */
