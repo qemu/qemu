@@ -73,11 +73,11 @@ int main(int argc, char *argv[argc])
     ml_printf("stack: %p <- %p\n", info.stack_limit, info.stack_base);
 
     /* finally can we read/write the heap */
-    ptr_to_heap = (uint32_t *) info.heap_base;
+    ptr_to_heap = info.heap_base;
     for (i = 0; i < 512; i++) {
         *ptr_to_heap++ = i;
     }
-    ptr_to_heap = (uint32_t *) info.heap_base;
+    ptr_to_heap = info.heap_base;
     for (i = 0; i < 512; i++) {
         uint32_t tmp = *ptr_to_heap;
         if (tmp != i) {

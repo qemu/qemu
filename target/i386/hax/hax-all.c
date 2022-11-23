@@ -388,7 +388,7 @@ static int hax_handle_io(CPUArchState *env, uint32_t df, uint16_t port,
     MemTxAttrs attrs = { 0 };
 
     if (!df) {
-        ptr = (uint8_t *) buffer;
+        ptr = buffer;
     } else {
         ptr = buffer + size * count - size;
     }

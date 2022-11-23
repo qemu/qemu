@@ -2104,7 +2104,7 @@ static void process_message(VMBus *vmbus)
         goto out;
     }
     msgdata = hv_msg->payload;
-    msg = (struct vmbus_message_header *)msgdata;
+    msg = msgdata;
 
     trace_vmbus_process_incoming_message(msg->message_type);
 
