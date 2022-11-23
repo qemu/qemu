@@ -24,8 +24,8 @@ class Sun4uMachine(LinuxKernelTest):
         :avocado: tags=arch:sparc64
         :avocado: tags=machine:sun4u
         """
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day23.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day23.tar.xz')
         tar_hash = '142db83cd974ffadc4f75c8a5cad5bcc5722c240'
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         archive.extract(file_path, self.workdir)

@@ -296,8 +296,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:vexpress-a9
         """
         tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day16.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day16.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         dtb_path = self.workdir + '/day16/vexpress-v2p-ca9.dtb'
         self.do_test_advcal_2018(file_path, 'winter.zImage',
@@ -309,8 +309,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:mcf5208evb
         """
         tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day07.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day07.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'sanity-clause.elf')
 
@@ -321,8 +321,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:petalogix-s3adsp1800
         """
         tar_hash = '08bf3e3bfb6b6c7ce1e54ab65d54e189f2caf13f'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day17.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day17.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'ballerina.bin')
 
@@ -333,8 +333,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=cpu:e5500
         """
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day19.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day19.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'uImage')
 
@@ -344,8 +344,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:or1k-sim
         """
         tar_hash = '20334cdaf386108c530ff0badaecc955693027dd'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day20.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day20.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'vmlinux')
 
@@ -355,8 +355,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:10m50-ghrd
         """
         tar_hash = 'e4251141726c412ac0407c5a6bceefbbff018918'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day14.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day14.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'vmlinux.elf')
 
@@ -366,8 +366,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:g3beige
         """
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day15.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day15.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'invaders.elf',
                                  args=('-M', 'graphics=off'))
@@ -378,8 +378,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:mac99
         """
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day15.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day15.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'invaders.elf',
                                  args=('-M', 'graphics=off'))
@@ -390,8 +390,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=machine:SS-20
         """
         tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day11.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day11.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'zImage.elf')
 
@@ -402,8 +402,8 @@ class ReplayKernelNormal(ReplayKernelBase):
         :avocado: tags=cpu:dc233c
         """
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
-        tar_url = ('https://www.qemu-advent-calendar.org'
-                   '/2018/download/day02.tar.xz')
+        tar_url = ('https://qemu-advcal.gitlab.io'
+                   '/qac-best-of-multiarch/download/day02.tar.xz')
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'santas-sleigh-ride.elf')
 
