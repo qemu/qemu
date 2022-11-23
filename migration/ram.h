@@ -46,7 +46,7 @@ typedef struct {
     uint64_t dirty_sync_missed_zero_copy;
     uint64_t downtime_bytes;
     Stat64 duplicate;
-    uint64_t multifd_bytes;
+    Stat64 multifd_bytes;
     Stat64 normal;
     Stat64 postcopy_bytes;
     int64_t postcopy_requests;
