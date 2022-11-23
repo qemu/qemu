@@ -29,7 +29,7 @@ void xhci_sysbus_reset(DeviceState *dev)
 {
     XHCISysbusState *s = XHCI_SYSBUS(dev);
 
-    device_legacy_reset(DEVICE(&s->xhci));
+    device_cold_reset(DEVICE(&s->xhci));
 }
 
 static void xhci_sysbus_realize(DeviceState *dev, Error **errp)

@@ -2403,7 +2403,9 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         opts->u.gtk.show_tabs) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->show_tabs_item));
     }
+#ifdef CONFIG_GTK_CLIPBOARD
     gd_clipboard_init(s);
+#endif /* CONFIG_GTK_CLIPBOARD */
 }
 
 static void early_gtk_display_init(DisplayOptions *opts)

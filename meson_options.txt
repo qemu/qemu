@@ -219,6 +219,13 @@ option('vnc_sasl', type : 'feature', value : 'auto',
        description: 'SASL authentication for VNC server')
 option('vte', type : 'feature', value : 'auto',
        description: 'vte support for the gtk UI')
+
+# GTK Clipboard implementation is disabled by default, since it may cause hangs
+# of the guest VCPUs. See gitlab issue 1150:
+# https://gitlab.com/qemu-project/qemu/-/issues/1150
+
+option('gtk_clipboard', type: 'feature', value : 'disabled',
+       description: 'clipboard support for the gtk UI (EXPERIMENTAL, MAY HANG)')
 option('xkbcommon', type : 'feature', value : 'auto',
        description: 'xkbcommon support')
 option('zstd', type : 'feature', value : 'auto',
