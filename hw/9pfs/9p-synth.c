@@ -75,10 +75,10 @@ int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
     V9fsSynthNode *node, *tmp;
 
     if (!synth_fs) {
-        return EAGAIN;
+        return -EAGAIN;
     }
     if (!name || (strlen(name) >= NAME_MAX)) {
-        return EINVAL;
+        return -EINVAL;
     }
     if (!parent) {
         parent = &synth_root;
@@ -86,7 +86,7 @@ int qemu_v9fs_synth_mkdir(V9fsSynthNode *parent, int mode,
     QEMU_LOCK_GUARD(&synth_mutex);
     QLIST_FOREACH(tmp, &parent->child, sibling) {
         if (!strcmp(tmp->name, name)) {
-            return EEXIST;
+            return -EEXIST;
         }
     }
     /* Add the name */
@@ -106,10 +106,10 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     V9fsSynthNode *node, *tmp;
 
     if (!synth_fs) {
-        return EAGAIN;
+        return -EAGAIN;
     }
     if (!name || (strlen(name) >= NAME_MAX)) {
-        return EINVAL;
+        return -EINVAL;
     }
     if (!parent) {
         parent = &synth_root;
@@ -118,7 +118,7 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     QEMU_LOCK_GUARD(&synth_mutex);
     QLIST_FOREACH(tmp, &parent->child, sibling) {
         if (!strcmp(tmp->name, name)) {
-            return EEXIST;
+            return -EEXIST;
         }
     }
     /* Add file type and remove write bits */
