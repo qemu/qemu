@@ -3140,11 +3140,12 @@ if have_block
 endif
 
 common_ss.add(files('cpus-common.c'))
+specific_ss.add(files('cpu.c'))
 
 subdir('softmmu')
 
 common_ss.add(capstone)
-specific_ss.add(files('cpu.c', 'disas.c'), capstone)
+specific_ss.add(files('disas.c'), capstone)
 
 # Work around a gcc bug/misfeature wherein constant propagation looks
 # through an alias:
