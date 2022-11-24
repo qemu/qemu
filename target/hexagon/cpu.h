@@ -137,7 +137,7 @@ typedef struct HexagonCPUClass {
     CPUClass parent_class;
     /*< public >*/
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
+    ResettablePhases parent_phases;
 } HexagonCPUClass;
 
 struct ArchCPU {

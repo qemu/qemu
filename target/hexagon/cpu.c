@@ -281,14 +281,16 @@ static void hexagon_restore_state_to_opc(CPUState *cs,
     env->gpr[HEX_REG_PC] = data[0];
 }
 
-static void hexagon_cpu_reset(DeviceState *dev)
+static void hexagon_cpu_reset_hold(Object *obj)
 {
-    CPUState *cs = CPU(dev);
+    CPUState *cs = CPU(obj);
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     HexagonCPUClass *mcc = HEXAGON_CPU_GET_CLASS(cpu);
     CPUHexagonState *env = &cpu->env;
 
-    mcc->parent_reset(dev);
+    if (mcc->parent_phases.hold) {
+        mcc->parent_phases.hold(obj);
+    }
 
     set_default_nan_mode(1, &env->fp_status);
     set_float_detect_tininess(float_tininess_before_rounding, &env->fp_status);
@@ -339,11 +341,13 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     HexagonCPUClass *mcc = HEXAGON_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);
     DeviceClass *dc = DEVICE_CLASS(c);
+    ResettableClass *rc = RESETTABLE_CLASS(c);
 
     device_class_set_parent_realize(dc, hexagon_cpu_realize,
                                     &mcc->parent_realize);
 
-    device_class_set_parent_reset(dc, hexagon_cpu_reset, &mcc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, hexagon_cpu_reset_hold, NULL,
+                                       &mcc->parent_phases);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
     cc->has_work = hexagon_cpu_has_work;
