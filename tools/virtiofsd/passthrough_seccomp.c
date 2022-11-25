@@ -110,6 +110,7 @@ static const int syscall_allowlist[] = {
 #endif
     SCMP_SYS(set_robust_list),
     SCMP_SYS(setxattr),
+    SCMP_SYS(sigreturn),
     SCMP_SYS(symlinkat),
     SCMP_SYS(syncfs),
     SCMP_SYS(time), /* Rarely needed, except on static builds */
