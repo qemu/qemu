@@ -41,11 +41,15 @@ msys2-64bit:
       mingw-w64-x86_64-gcc
       mingw-w64-x86_64-glib2
       mingw-w64-x86_64-gnutls
+      mingw-w64-x86_64-gtk3
+      mingw-w64-x86_64-libgcrypt
+      mingw-w64-x86_64-libjpeg-turbo
       mingw-w64-x86_64-libnfs
       mingw-w64-x86_64-libpng
       mingw-w64-x86_64-libssh
       mingw-w64-x86_64-libtasn1
       mingw-w64-x86_64-libusb
+      mingw-w64-x86_64-lzo2
       mingw-w64-x86_64-nettle
       mingw-w64-x86_64-ninja
       mingw-w64-x86_64-pixman
@@ -79,16 +83,22 @@ msys2-32bit:
       mingw-w64-i686-gtk3
       mingw-w64-i686-libgcrypt
       mingw-w64-i686-libjpeg-turbo
+      mingw-w64-i686-libnfs
+      mingw-w64-i686-libpng
       mingw-w64-i686-libssh
       mingw-w64-i686-libtasn1
       mingw-w64-i686-libusb
       mingw-w64-i686-lzo2
+      mingw-w64-i686-nettle
       mingw-w64-i686-ninja
       mingw-w64-i686-pixman
       mingw-w64-i686-pkgconf
       mingw-w64-i686-python
+      mingw-w64-i686-SDL2
+      mingw-w64-i686-SDL2_image
       mingw-w64-i686-snappy
-      mingw-w64-i686-usbredir "
+      mingw-w64-i686-usbredir
+      mingw-w64-i686-zstd "
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
   - $env:MSYSTEM = 'MINGW32'     # Start a 32-bit MinG environment
   - $env:MSYS = 'winsymlinks:native' # Enable native Windows symlink
