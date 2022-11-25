@@ -983,6 +983,12 @@ static void register_vhost_user_blk_test(void)
         .before = vhost_user_blk_test_setup,
     };
 
+    if (!getenv("QTEST_QEMU_STORAGE_DAEMON_BINARY")) {
+        g_test_message("QTEST_QEMU_STORAGE_DAEMON_BINARY not defined, "
+                       "skipping vhost-user-blk-test");
+        return;
+    }
+
     /*
      * tests for vhost-user-blk and vhost-user-blk-pci
      * The tests are borrowed from tests/virtio-blk-test.c. But some tests
