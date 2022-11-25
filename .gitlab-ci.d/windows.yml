@@ -73,7 +73,9 @@ msys2-64bit:
   - ..\msys64\usr\bin\bash -lc '../configure --target-list=x86_64-softmmu
       --without-default-devices'
   - ..\msys64\usr\bin\bash -lc 'make'
-  - ..\msys64\usr\bin\bash -lc 'make check || { cat meson-logs/testlog.txt; exit 1; } ;'
+  # qTests don't run successfully with "--without-default-devices",
+  # so let's exclude the qtests from CI for now.
+  - ..\msys64\usr\bin\bash -lc 'make check MTESTARGS=\"--no-suite qtest\" || { cat meson-logs/testlog.txt; exit 1; } ;'
 
 msys2-32bit:
   extends: .shared_msys2_builder
