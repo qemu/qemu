@@ -2008,9 +2008,10 @@ static void virtio_pci_reset(DeviceState *qdev)
     }
 }
 
-static void virtio_pci_bus_reset(DeviceState *qdev)
+static void virtio_pci_bus_reset_hold(Object *obj)
 {
-    PCIDevice *dev = PCI_DEVICE(qdev);
+    PCIDevice *dev = PCI_DEVICE(obj);
+    DeviceState *qdev = DEVICE(obj);
 
     virtio_pci_reset(qdev);
 
@@ -2071,6 +2072,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     device_class_set_props(dc, virtio_pci_properties);
     k->realize = virtio_pci_realize;
@@ -2080,7 +2082,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS;
     device_class_set_parent_realize(dc, virtio_pci_dc_realize,
                                     &vpciklass->parent_dc_realize);
-    dc->reset = virtio_pci_bus_reset;
+    rc->phases.hold = virtio_pci_bus_reset_hold;
 }
 
 static const TypeInfo virtio_pci_info = {
