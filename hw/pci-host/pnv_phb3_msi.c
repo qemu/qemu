@@ -239,11 +239,6 @@ static void phb3_msi_reset(DeviceState *dev)
     msi->rba_sum = 0;
 }
 
-static void phb3_msi_reset_handler(void *dev)
-{
-    phb3_msi_reset(dev);
-}
-
 void pnv_phb3_msi_update_config(Phb3MsiState *msi, uint32_t base,
                                 uint32_t count)
 {
@@ -272,8 +267,6 @@ static void phb3_msi_realize(DeviceState *dev, Error **errp)
     }
 
     msi->qirqs = qemu_allocate_irqs(phb3_msi_set_irq, msi, ics->nr_irqs);
-
-    qemu_register_reset(phb3_msi_reset_handler, dev);
 }
 
 static void phb3_msi_instance_init(Object *obj)

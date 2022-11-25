@@ -593,7 +593,7 @@ static void ics_reset(DeviceState *dev)
 
 static void ics_reset_handler(void *dev)
 {
-    ics_reset(dev);
+    device_cold_reset(dev);
 }
 
 static void ics_realize(DeviceState *dev, Error **errp)
