@@ -2005,6 +2005,7 @@ F: docs/interop/vhost-user.rst
 F: contrib/vhost-user-*/
 F: backends/vhost-user.c
 F: include/sysemu/vhost-user-backend.h
+F: subprojects/libvhost-user/
 
 virtio
 M: Michael S. Tsirkin <mst@redhat.com>
