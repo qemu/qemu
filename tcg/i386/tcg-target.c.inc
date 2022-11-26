@@ -2383,7 +2383,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        qemu_build_assert(TCG_TARGET_HAS_direct_jump);
         {
             /*
              * Jump displacement must be aligned for atomic patching;
@@ -2394,7 +2393,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                 tcg_out_nopn(s, gap - 1);
             }
             tcg_out8(s, OPC_JMP_long); /* jmp im */
-            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            set_jmp_insn_offset(s, a0);
             tcg_out32(s, 0);
         }
         set_jmp_reset_offset(s, a0);

@@ -1452,20 +1452,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        qemu_build_assert(TCG_TARGET_HAS_direct_jump);
         /* Direct jump. */
         if (USE_REG_TB) {
             /* make sure the patch is 8-byte aligned.  */
             if ((intptr_t)s->code_ptr & 4) {
                 tcg_out_nop(s);
             }
-            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            set_jmp_insn_offset(s, a0);
             tcg_out_sethi(s, TCG_REG_T1, 0);
             tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
             tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
             tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
         } else {
-            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            set_jmp_insn_offset(s, a0);
             tcg_out32(s, CALL);
             tcg_out_nop(s);
         }

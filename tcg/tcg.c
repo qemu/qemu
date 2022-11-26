@@ -313,6 +313,16 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
     s->tb_jmp_reset_offset[which] = tcg_current_code_size(s);
 }
 
+static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
+{
+    /*
+     * We will check for overflow at the end of the opcode loop in
+     * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
+     */
+    tcg_debug_assert(TCG_TARGET_HAS_direct_jump);
+    s->tb_jmp_insn_offset[which] = tcg_current_code_size(s);
+}
+
 /* Signal overflow, starting over with fewer guest insns. */
 static G_NORETURN
 void tcg_raise_tb_overflow(TCGContext *s)

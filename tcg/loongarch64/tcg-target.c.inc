@@ -1090,7 +1090,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        qemu_build_assert(TCG_TARGET_HAS_direct_jump);
         /*
          * Ensure that patch area is 8-byte aligned so that an
          * atomic write can be used to patch the target address.
@@ -1098,7 +1097,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if ((uintptr_t)s->code_ptr & 7) {
             tcg_out_nop(s);
         }
-        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+        set_jmp_insn_offset(s, a0);
         /*
          * actual branch destination will be patched by
          * tb_target_set_jmp_target later

@@ -1977,7 +1977,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out16(s, NOP);
         }
         tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
-        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+        set_jmp_insn_offset(s, a0);
         s->code_ptr += 2;
         set_jmp_reset_offset(s, a0);
         break;
