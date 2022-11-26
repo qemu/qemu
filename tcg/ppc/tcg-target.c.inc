@@ -2630,27 +2630,21 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_insn_offset) {
-            /* Direct jump. */
-            if (TCG_TARGET_REG_BITS == 64) {
-                /* Ensure the next insns are 8 or 16-byte aligned. */
-                while ((uintptr_t)s->code_ptr & (have_isa_2_07 ? 15 : 7)) {
-                    tcg_out32(s, NOP);
-                }
-                s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
-                tcg_out32(s, ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, 0));
-                tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, 0));
-            } else {
-                s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
-                tcg_out32(s, B);
-                s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
-                break;
+        qemu_build_assert(TCG_TARGET_HAS_direct_jump);
+        /* Direct jump. */
+        if (TCG_TARGET_REG_BITS == 64) {
+            /* Ensure the next insns are 8 or 16-byte aligned. */
+            while ((uintptr_t)s->code_ptr & (have_isa_2_07 ? 15 : 7)) {
+                tcg_out32(s, NOP);
             }
+            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
+            tcg_out32(s, ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, 0));
+            tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, 0));
         } else {
-            /* Indirect jump. */
-            tcg_debug_assert(s->tb_jmp_insn_offset == NULL);
-            tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TB, 0,
-                       (intptr_t)(s->tb_jmp_insn_offset + args[0]));
+            s->tb_jmp_insn_offset[args[0]] = tcg_current_code_size(s);
+            tcg_out32(s, B);
+            s->tb_jmp_reset_offset[args[0]] = tcg_current_code_size(s);
+            break;
         }
         tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
         tcg_out32(s, BCCTR | BO_ALWAYS);
