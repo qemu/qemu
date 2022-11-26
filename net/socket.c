@@ -179,7 +179,7 @@ static void net_socket_send(void *opaque)
         s->fd = -1;
         net_socket_rs_init(&s->rs, net_socket_rs_finalize, false);
         s->nc.link_down = true;
-        qemu_set_info_str(&s->nc, "");
+        qemu_set_info_str(&s->nc, "%s", "");
 
         return;
     }

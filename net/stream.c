@@ -167,7 +167,7 @@ static gboolean net_stream_send(QIOChannel *ioc,
 
         net_socket_rs_init(&s->rs, net_stream_rs_finalize, false);
         s->nc.link_down = true;
-        qemu_set_info_str(&s->nc, "");
+        qemu_set_info_str(&s->nc, "%s", "");
 
         qapi_event_send_netdev_stream_disconnected(s->nc.name);
 
@@ -245,7 +245,7 @@ static void net_stream_listen(QIONetListener *listener,
     }
     g_assert(addr != NULL);
     uri = socket_uri(addr);
-    qemu_set_info_str(&s->nc, uri);
+    qemu_set_info_str(&s->nc, "%s", uri);
     g_free(uri);
     qapi_event_send_netdev_stream_connected(s->nc.name, addr);
     qapi_free_SocketAddress(addr);
@@ -319,7 +319,7 @@ static void net_stream_client_connected(QIOTask *task, gpointer opaque)
     addr = qio_channel_socket_get_remote_address(sioc, NULL);
     g_assert(addr != NULL);
     uri = socket_uri(addr);
-    qemu_set_info_str(&s->nc, uri);
+    qemu_set_info_str(&s->nc, "%s", uri);
     g_free(uri);
 
     ret = qemu_socket_try_set_nonblock(sioc->fd);
