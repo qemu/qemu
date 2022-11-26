@@ -1428,6 +1428,26 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 #endif /* CONFIG_SOFTMMU */
 }
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    if (check_fit_ptr(a0, 13)) {
+        tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+        tcg_out_movi_imm13(s, TCG_REG_O0, a0);
+        return;
+    } else if (USE_REG_TB) {
+        intptr_t tb_diff = tcg_tbrel_diff(s, (void *)a0);
+        if (check_fit_ptr(tb_diff, 13)) {
+            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+            /* Note that TCG_REG_TB has been unwound to O1.  */
+            tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O1, tb_diff, ARITH_ADD);
+            return;
+        }
+    }
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, a0 & ~0x3ff);
+    tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+    tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, a0 & 0x3ff, ARITH_OR);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1442,24 +1462,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     c2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        if (check_fit_ptr(a0, 13)) {
-            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-            tcg_out_movi_imm13(s, TCG_REG_O0, a0);
-            break;
-        } else if (USE_REG_TB) {
-            intptr_t tb_diff = tcg_tbrel_diff(s, (void *)a0);
-            if (check_fit_ptr(tb_diff, 13)) {
-                tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-                /* Note that TCG_REG_TB has been unwound to O1.  */
-                tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O1, tb_diff, ARITH_ADD);
-                break;
-            }
-        }
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, a0 & ~0x3ff);
-        tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-        tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, a0 & 0x3ff, ARITH_OR);
-        break;
     case INDEX_op_goto_tb:
         if (s->tb_jmp_insn_offset) {
             /* direct jump method */
@@ -1716,6 +1718,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     default:
         tcg_abort();
     }
