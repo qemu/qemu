@@ -537,17 +537,6 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
-static void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, const void *arg)
-{
-    intptr_t diff = tcg_tbrel_diff(s, arg);
-    if (USE_REG_TB && check_fit_ptr(diff, 13)) {
-        tcg_out_ld(s, TCG_TYPE_PTR, ret, TCG_REG_TB, diff);
-        return;
-    }
-    tcg_out_movi(s, TCG_TYPE_PTR, ret, (uintptr_t)arg & ~0x3ff);
-    tcg_out_ld(s, TCG_TYPE_PTR, ret, ret, (uintptr_t)arg & 0x3ff);
-}
-
 static void tcg_out_sety(TCGContext *s, TCGReg rs)
 {
     tcg_out32(s, WRY | INSN_RS1(TCG_REG_G0) | INSN_RS2(rs));
@@ -1463,27 +1452,21 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_insn_offset) {
-            /* direct jump method */
-            if (USE_REG_TB) {
-                /* make sure the patch is 8-byte aligned.  */
-                if ((intptr_t)s->code_ptr & 4) {
-                    tcg_out_nop(s);
-                }
-                s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-                tcg_out_sethi(s, TCG_REG_T1, 0);
-                tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
-                tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
-                tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
-            } else {
-                s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-                tcg_out32(s, CALL);
+        qemu_build_assert(TCG_TARGET_HAS_direct_jump);
+        /* Direct jump. */
+        if (USE_REG_TB) {
+            /* make sure the patch is 8-byte aligned.  */
+            if ((intptr_t)s->code_ptr & 4) {
                 tcg_out_nop(s);
             }
+            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            tcg_out_sethi(s, TCG_REG_T1, 0);
+            tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
+            tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
+            tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
         } else {
-            /* indirect jump method */
-            tcg_out_ld_ptr(s, TCG_REG_TB, s->tb_jmp_target_addr + a0);
-            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_TB, 0, JMPL);
+            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+            tcg_out32(s, CALL);
             tcg_out_nop(s);
         }
         set_jmp_reset_offset(s, a0);
