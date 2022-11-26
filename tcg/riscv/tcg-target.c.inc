@@ -1311,7 +1311,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     switch (opc) {
     case INDEX_op_goto_tb:
-        assert(s->tb_jmp_insn_offset == 0);
+        qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
         /* indirect jump method */
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
                    (uintptr_t)(s->tb_jmp_target_addr + a0));

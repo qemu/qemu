@@ -1953,7 +1953,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
             intptr_t ptr, dif, dil;
             TCGReg base = TCG_REG_PC;
 
-            tcg_debug_assert(s->tb_jmp_insn_offset == 0);
+            qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
             ptr = (intptr_t)tcg_splitwx_to_rx(s->tb_jmp_target_addr + args[0]);
             dif = tcg_pcrel_diff(s, (void *)ptr) - 8;
             dil = sextract32(dif, 0, 12);
