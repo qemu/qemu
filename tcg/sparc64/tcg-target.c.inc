@@ -1437,6 +1437,41 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
     tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, a0 & 0x3ff, ARITH_OR);
 }
 
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /* Direct jump. */
+    if (USE_REG_TB) {
+        /* make sure the patch is 8-byte aligned.  */
+        if ((intptr_t)s->code_ptr & 4) {
+            tcg_out_nop(s);
+        }
+        set_jmp_insn_offset(s, which);
+        tcg_out_sethi(s, TCG_REG_T1, 0);
+        tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
+        tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
+        tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
+    } else {
+        set_jmp_insn_offset(s, which);
+        tcg_out32(s, CALL);
+        tcg_out_nop(s);
+    }
+    set_jmp_reset_offset(s, which);
+
+    /*
+     * For the unlinked path of goto_tb, we need to reset TCG_REG_TB
+     * to the beginning of this TB.
+     */
+    if (USE_REG_TB) {
+        int c = -tcg_current_code_size(s);
+        if (check_fit_i32(c, 13)) {
+            tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, c, ARITH_ADD);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, c);
+            tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
+        }
+    }
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1451,38 +1486,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     c2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_goto_tb:
-        /* Direct jump. */
-        if (USE_REG_TB) {
-            /* make sure the patch is 8-byte aligned.  */
-            if ((intptr_t)s->code_ptr & 4) {
-                tcg_out_nop(s);
-            }
-            set_jmp_insn_offset(s, a0);
-            tcg_out_sethi(s, TCG_REG_T1, 0);
-            tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
-            tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
-            tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
-        } else {
-            set_jmp_insn_offset(s, a0);
-            tcg_out32(s, CALL);
-            tcg_out_nop(s);
-        }
-        set_jmp_reset_offset(s, a0);
-
-        /* For the unlinked path of goto_tb, we need to reset
-           TCG_REG_TB to the beginning of this TB.  */
-        if (USE_REG_TB) {
-            c = -tcg_current_code_size(s);
-            if (check_fit_i32(c, 13)) {
-                tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, c, ARITH_ADD);
-            } else {
-                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, c);
-                tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB,
-                              TCG_REG_T1, ARITH_ADD);
-            }
-        }
-        break;
     case INDEX_op_goto_ptr:
         tcg_out_arithi(s, TCG_REG_G0, a0, 0, JMPL);
         if (USE_REG_TB) {
@@ -1701,6 +1704,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }

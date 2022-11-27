@@ -1898,6 +1898,26 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
     }
 }
 
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /*
+     * Ensure that ADRP+ADD are 8-byte aligned so that an atomic
+     * write can be used to patch the target address.
+     */
+    if ((uintptr_t)s->code_ptr & 7) {
+        tcg_out32(s, NOP);
+    }
+    set_jmp_insn_offset(s, which);
+    /*
+     * actual branch destination will be patched by
+     * tb_target_set_jmp_target later
+     */
+    tcg_out_insn(s, 3406, ADRP, TCG_REG_TMP, 0);
+    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_TMP, TCG_REG_TMP, 0);
+    tcg_out_insn(s, 3207, BR, TCG_REG_TMP);
+    set_jmp_reset_offset(s, which);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1917,25 +1937,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 #define REG0(I)  (const_args[I] ? TCG_REG_XZR : (TCGReg)args[I])
 
     switch (opc) {
-    case INDEX_op_goto_tb:
-        /*
-         * Ensure that ADRP+ADD are 8-byte aligned so that an atomic
-         * write can be used to patch the target address.
-         */
-        if ((uintptr_t)s->code_ptr & 7) {
-            tcg_out32(s, NOP);
-        }
-        set_jmp_insn_offset(s, a0);
-        /*
-         * actual branch destination will be patched by
-         * tb_target_set_jmp_target later
-         */
-        tcg_out_insn(s, 3406, ADRP, TCG_REG_TMP, 0);
-        tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_TMP, TCG_REG_TMP, 0);
-        tcg_out_insn(s, 3207, BR, TCG_REG_TMP);
-        set_jmp_reset_offset(s, a0);
-        break;
-
     case INDEX_op_goto_ptr:
         tcg_out_insn(s, 3207, BR, a0);
         break;
@@ -2306,6 +2307,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         g_assert_not_reached();
     }

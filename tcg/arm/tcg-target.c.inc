@@ -1939,6 +1939,31 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
     tcg_out_epilogue(s);
 }
 
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /* Indirect jump method */
+    intptr_t ptr, dif, dil;
+    TCGReg base = TCG_REG_PC;
+
+    qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
+    ptr = get_jmp_target_addr(s, which);
+    dif = tcg_pcrel_diff(s, (void *)ptr) - 8;
+    dil = sextract32(dif, 0, 12);
+    if (dif != dil) {
+        /*
+         * The TB is close, but outside the 12 bits addressable by
+         * the load.  We can extend this to 20 bits with a sub of a
+         * shifted immediate from pc.  In the vastly unlikely event
+         * the code requires more than 1MB, we'll use 2 insns and
+         * be no worse off.
+         */
+        base = TCG_REG_R0;
+        tcg_out_movi32(s, COND_AL, base, ptr - dil);
+    }
+    tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, base, dil);
+    set_jmp_reset_offset(s, which);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1947,29 +1972,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     int c;
 
     switch (opc) {
-    case INDEX_op_goto_tb:
-        {
-            /* Indirect jump method */
-            intptr_t ptr, dif, dil;
-            TCGReg base = TCG_REG_PC;
-
-            qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
-            ptr = get_jmp_target_addr(s, args[0]);
-            dif = tcg_pcrel_diff(s, (void *)ptr) - 8;
-            dil = sextract32(dif, 0, 12);
-            if (dif != dil) {
-                /* The TB is close, but outside the 12 bits addressable by
-                   the load.  We can extend this to 20 bits with a sub of a
-                   shifted immediate from pc.  In the vastly unlikely event
-                   the code requires more than 1MB, we'll use 2 insns and
-                   be no worse off.  */
-                base = TCG_REG_R0;
-                tcg_out_movi32(s, COND_AL, base, ptr - dil);
-            }
-            tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, base, dil);
-            set_jmp_reset_offset(s, args[0]);
-        }
-        break;
     case INDEX_op_goto_ptr:
         tcg_out_b_reg(s, COND_AL, args[0]);
         break;
@@ -2259,6 +2261,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }

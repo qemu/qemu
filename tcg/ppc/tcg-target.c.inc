@@ -2622,6 +2622,32 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
     tcg_out_b(s, 0, tcg_code_gen_epilogue);
 }
 
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /* Direct jump. */
+    if (TCG_TARGET_REG_BITS == 64) {
+        /* Ensure the next insns are 8 or 16-byte aligned. */
+        while ((uintptr_t)s->code_ptr & (have_isa_2_07 ? 15 : 7)) {
+            tcg_out32(s, NOP);
+        }
+        set_jmp_insn_offset(s, which);
+        tcg_out32(s, ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, 0));
+        tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, 0));
+        tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
+        tcg_out32(s, BCCTR | BO_ALWAYS);
+        set_jmp_reset_offset(s, which);
+        if (USE_REG_TB) {
+            /* For the unlinked case, need to reset TCG_REG_TB.  */
+            tcg_out_mem_long(s, ADDI, ADD, TCG_REG_TB, TCG_REG_TB,
+                             -tcg_current_code_size(s));
+        }
+    } else {
+        set_jmp_insn_offset(s, which);
+        tcg_out32(s, B);
+        set_jmp_reset_offset(s, which);
+    }
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -2629,31 +2655,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a0, a1, a2;
 
     switch (opc) {
-    case INDEX_op_goto_tb:
-        /* Direct jump. */
-        if (TCG_TARGET_REG_BITS == 64) {
-            /* Ensure the next insns are 8 or 16-byte aligned. */
-            while ((uintptr_t)s->code_ptr & (have_isa_2_07 ? 15 : 7)) {
-                tcg_out32(s, NOP);
-            }
-            set_jmp_insn_offset(s, args[0]);
-            tcg_out32(s, ADDIS | TAI(TCG_REG_TB, TCG_REG_TB, 0));
-            tcg_out32(s, ADDI | TAI(TCG_REG_TB, TCG_REG_TB, 0));
-        } else {
-            set_jmp_insn_offset(s, args[0]);
-            tcg_out32(s, B);
-            set_jmp_reset_offset(s, args[0]);
-            break;
-        }
-        tcg_out32(s, MTSPR | RS(TCG_REG_TB) | CTR);
-        tcg_out32(s, BCCTR | BO_ALWAYS);
-        set_jmp_reset_offset(s, args[0]);
-        if (USE_REG_TB) {
-            /* For the unlinked case, need to reset TCG_REG_TB.  */
-            tcg_out_mem_long(s, ADDI, ADD, TCG_REG_TB, TCG_REG_TB,
-                             -tcg_current_code_size(s));
-        }
-        break;
     case INDEX_op_goto_ptr:
         tcg_out32(s, MTSPR | RS(args[0]) | CTR);
         if (USE_REG_TB) {
@@ -3181,6 +3182,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i64:
     case INDEX_op_call:      /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:   /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:   /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }
