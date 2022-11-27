@@ -350,7 +350,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->trace_vcpu_dstate = *cpu->trace_dstate;
     tb_set_page_addr0(tb, phys_pc);
     tb_set_page_addr1(tb, -1);
-    tcg_ctx->tb_cflags = cflags;
+    tcg_ctx->gen_tb = tb;
  tb_overflow:
 
 #ifdef CONFIG_PROFILER
