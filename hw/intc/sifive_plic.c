@@ -78,6 +78,7 @@ static uint32_t sifive_plic_claimed(SiFivePLICState *plic, uint32_t addrid)
     uint32_t max_irq = 0;
     uint32_t max_prio = plic->target_priority[addrid];
     int i, j;
+    int num_irq_in_word = 32;
 
     for (i = 0; i < plic->bitfield_words; i++) {
         uint32_t pending_enabled_not_claimed =
@@ -88,7 +89,16 @@ static uint32_t sifive_plic_claimed(SiFivePLICState *plic, uint32_t addrid)
             continue;
         }
 
-        for (j = 0; j < 32; j++) {
+        if (i == (plic->bitfield_words - 1)) {
+            /*
+             * If plic->num_sources is not multiple of 32, num-of-irq in last
+             * word is not 32. Compute the num-of-irq of last word to avoid
+             * out-of-bound access of source_priority array.
+             */
+            num_irq_in_word = plic->num_sources - ((plic->bitfield_words - 1) << 5);
+        }
+
+        for (j = 0; j < num_irq_in_word; j++) {
             int irq = (i << 5) + j;
             uint32_t prio = plic->source_priority[irq];
             int enabled = pending_enabled_not_claimed & (1 << j);
