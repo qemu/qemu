@@ -1989,7 +1989,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* indirect jump method */
         qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
         tcg_out_ld(s, TCG_TYPE_PTR, TCG_TMP0, TCG_REG_ZERO,
-                   (uintptr_t)(s->tb_jmp_target_addr + a0));
+                   get_jmp_target_addr(s, a0));
         tcg_out_opc_reg(s, OPC_JR, 0, TCG_TMP0, 0);
         tcg_out_nop(s);
         set_jmp_reset_offset(s, a0);

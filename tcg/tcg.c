@@ -323,6 +323,15 @@ static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
     s->tb_jmp_insn_offset[which] = tcg_current_code_size(s);
 }
 
+static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
+{
+    /*
+     * Return the read-execute version of the pointer, for the benefit
+     * of any pc-relative addressing mode.
+     */
+    return (uintptr_t)tcg_splitwx_to_rx(&s->tb_jmp_target_addr[which]);
+}
+
 /* Signal overflow, starting over with fewer guest insns. */
 static G_NORETURN
 void tcg_raise_tb_overflow(TCGContext *s)
