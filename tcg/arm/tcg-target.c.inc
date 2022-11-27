@@ -135,6 +135,8 @@ typedef enum {
     ARITH_BIC = 0xe << 21,
     ARITH_MVN = 0xf << 21,
 
+    INSN_B         = 0x0a000000,
+
     INSN_CLZ       = 0x016f0f10,
     INSN_RBIT      = 0x06ff0f30,
 
@@ -546,7 +548,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 
 static void tcg_out_b_imm(TCGContext *s, ARMCond cond, int32_t offset)
 {
-    tcg_out32(s, (cond << 28) | 0x0a000000 |
+    tcg_out32(s, (cond << 28) | INSN_B |
                     (((offset - 8) >> 2) & 0x00ffffff));
 }
 
@@ -1941,32 +1943,52 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
 
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
-    /* Indirect jump method */
-    intptr_t ptr, dif, dil;
-    TCGReg base = TCG_REG_PC;
+    uintptr_t i_addr;
+    intptr_t i_disp;
 
-    ptr = get_jmp_target_addr(s, which);
-    dif = tcg_pcrel_diff(s, (void *)ptr) - 8;
-    dil = sextract32(dif, 0, 12);
-    if (dif != dil) {
+    /* Direct branch will be patched by tb_target_set_jmp_target. */
+    set_jmp_insn_offset(s, which);
+    tcg_out32(s, INSN_NOP);
+
+    /* When branch is out of range, fall through to indirect. */
+    i_addr = get_jmp_target_addr(s, which);
+    i_disp = tcg_pcrel_diff(s, (void *)i_addr) - 8;
+    tcg_debug_assert(i_disp < 0);
+    if (i_disp >= -0xfff) {
+        tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_PC, i_disp);
+    } else {
         /*
          * The TB is close, but outside the 12 bits addressable by
          * the load.  We can extend this to 20 bits with a sub of a
-         * shifted immediate from pc.  In the vastly unlikely event
-         * the code requires more than 1MB, we'll use 2 insns and
-         * be no worse off.
+         * shifted immediate from pc.
          */
-        base = TCG_REG_R0;
-        tcg_out_movi32(s, COND_AL, base, ptr - dil);
+        int h = -i_disp;
+        int l = h & 0xfff;
+
+        h = encode_imm_nofail(h - l);
+        tcg_out_dat_imm(s, COND_AL, ARITH_SUB, TCG_REG_R0, TCG_REG_PC, h);
+        tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, TCG_REG_R0, l);
     }
-    tcg_out_ld32_12(s, COND_AL, TCG_REG_PC, base, dil);
     set_jmp_reset_offset(s, which);
 }
 
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
                               uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
-    /* Always indirect, nothing to do */
+    uintptr_t addr = tb->jmp_target_addr[n];
+    ptrdiff_t offset = addr - (jmp_rx + 8);
+    tcg_insn_unit insn;
+
+    /* Either directly branch, or fall through to indirect branch. */
+    if (offset == sextract64(offset, 0, 26)) {
+        /* B <addr> */
+        insn = deposit32((COND_AL << 28) | INSN_B, 0, 24, offset >> 2);
+    } else {
+        insn = INSN_NOP;
+    }
+
+    qatomic_set((uint32_t *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
