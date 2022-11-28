@@ -10,6 +10,12 @@
 # This work is licensed under the terms of the GNU GPLv2 or later.
 # See the COPYING file in the top-level directory.
 
+if [ $# -ne 2 ]; then
+    echo "Usage:"
+    echo " $0 gitrepo version"
+    exit 0
+fi
+
 src="$1"
 version="$2"
 destination=qemu-${version}
