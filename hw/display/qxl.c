@@ -274,7 +274,8 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
                                           QXL_IO_MONITORS_CONFIG_ASYNC));
     }
 
-    cfg = qxl_phys2virt(qxl, qxl->guest_monitors_config, MEMSLOT_GROUP_GUEST);
+    cfg = qxl_phys2virt(qxl, qxl->guest_monitors_config, MEMSLOT_GROUP_GUEST,
+                        sizeof(QXLMonitorsConfig));
     if (cfg != NULL && cfg->count == 1) {
         qxl->guest_primary.resized = 1;
         qxl->guest_head0_width  = cfg->heads[0].width;
@@ -459,7 +460,8 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     switch (le32_to_cpu(ext->cmd.type)) {
     case QXL_CMD_SURFACE:
     {
-        QXLSurfaceCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+        QXLSurfaceCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id,
+                                           sizeof(QXLSurfaceCmd));
 
         if (!cmd) {
             return 1;
@@ -494,7 +496,8 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     }
     case QXL_CMD_CURSOR:
     {
-        QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+        QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id,
+                                          sizeof(QXLCursorCmd));
 
         if (!cmd) {
             return 1;
@@ -1456,7 +1459,8 @@ static bool qxl_get_check_slot_offset(PCIQXLDevice *qxl, QXLPHYSICAL pqxl,
 }
 
 /* can be also called from spice server thread context */
-void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
+void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id,
+                    size_t size)
 {
     uint64_t offset;
     uint32_t slot;
@@ -1964,7 +1968,7 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
         }
 
         cmd = qxl_phys2virt(qxl, qxl->guest_surfaces.cmds[i],
-                            MEMSLOT_GROUP_GUEST);
+                            MEMSLOT_GROUP_GUEST, sizeof(QXLSurfaceCmd));
         assert(cmd);
         assert(cmd->type == QXL_SURFACE_CMD_CREATE);
         qxl_dirty_one_surface(qxl, cmd->u.surface_create.data,
