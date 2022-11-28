@@ -526,8 +526,8 @@ typedef struct CreateCo {
     Error *err;
 } CreateCo;
 
-static int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
-                                       QemuOpts *opts, Error **errp)
+int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
+                                QemuOpts *opts, Error **errp)
 {
     int ret;
     GLOBAL_STATE_CODE();
@@ -545,43 +545,6 @@ static int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
     }
 
     return ret;
-}
-
-static void coroutine_fn bdrv_create_co_entry(void *opaque)
-{
-    CreateCo *cco = opaque;
-    GLOBAL_STATE_CODE();
-
-    cco->ret = bdrv_co_create(cco->drv, cco->filename, cco->opts, &cco->err);
-    aio_wait_kick();
-}
-
-int bdrv_create(BlockDriver *drv, const char* filename,
-                QemuOpts *opts, Error **errp)
-{
-    GLOBAL_STATE_CODE();
-
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
-        return bdrv_co_create(drv, filename, opts, errp);
-    } else {
-        Coroutine *co;
-        CreateCo cco = {
-            .drv = drv,
-            .filename = filename,
-            .opts = opts,
-            .ret = NOT_DONE,
-            .err = NULL,
-        };
-
-        co = qemu_coroutine_create(bdrv_create_co_entry, &cco);
-        qemu_coroutine_enter(co);
-        while (cco.ret == NOT_DONE) {
-            aio_poll(qemu_get_aio_context(), true);
-        }
-        error_propagate(errp, cco.err);
-        return cco.ret;
-    }
 }
 
 /**
