@@ -11,6 +11,8 @@
 #include "cpu.h"
 #include "hw/i386/tdvf.h"
 
+#include "tdx-quote-generator.h"
+
 #define TYPE_TDX_GUEST "tdx-guest"
 #define TDX_GUEST(obj)  OBJECT_CHECK(TdxGuest, (obj), TYPE_TDX_GUEST)
 
@@ -22,12 +24,15 @@ typedef struct TdxGuestClass {
 #define TDX_APIC_BUS_CYCLES_NS 40
 
 #define TDVMCALL_GET_TD_VM_CALL_INFO    0x10000
+#define TDVMCALL_GET_QUOTE		 0x10002
 
 #define TDG_VP_VMCALL_SUCCESS           0x0000000000000000ULL
 #define TDG_VP_VMCALL_RETRY             0x0000000000000001ULL
 #define TDG_VP_VMCALL_INVALID_OPERAND   0x8000000000000000ULL
 #define TDG_VP_VMCALL_GPA_INUSE         0x8000000000000001ULL
 #define TDG_VP_VMCALL_ALIGN_ERROR       0x8000000000000002ULL
+
+#define TDG_VP_VMCALL_SUBFUNC_GET_QUOTE 0x0000000000000001ULL
 
 enum TdxRamType {
     TDX_RAM_UNACCEPTED,
@@ -57,6 +62,10 @@ typedef struct TdxGuest {
 
     uint32_t nr_ram_entries;
     TdxRamEntry *ram_entries;
+
+    /* GetQuote */
+    SocketAddress *qg_sock_addr;
+    int num;
 } TdxGuest;
 
 #ifdef CONFIG_TDX
@@ -69,6 +78,7 @@ int tdx_pre_create_vcpu(CPUState *cpu, Error **errp);
 void tdx_set_tdvf_region(MemoryRegion *tdvf_mr);
 int tdx_parse_tdvf(void *flash_ptr, int size);
 int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run);
+void tdx_handle_get_quote(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run);
 
 #endif /* QEMU_I386_TDX_H */

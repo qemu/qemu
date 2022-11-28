@@ -6176,6 +6176,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
          * does not handle the TDVMCALL.
          */
         switch (run->tdx.nr) {
+        case TDVMCALL_GET_QUOTE:
+            tdx_handle_get_quote(cpu, run);
+            break;
         case TDVMCALL_GET_TD_VM_CALL_INFO:
             tdx_handle_get_tdvmcall_info(cpu, run);
             break;
