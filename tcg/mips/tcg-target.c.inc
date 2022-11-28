@@ -37,11 +37,9 @@
 # define LO_OFF  (MIPS_BE * 4)
 # define HI_OFF  (4 - LO_OFF)
 #else
-/* To assert at compile-time that these values are never used
-   for TCG_TARGET_REG_BITS == 64.  */
-int link_error(void);
-# define LO_OFF  link_error()
-# define HI_OFF  link_error()
+/* Assert at compile-time that these values are never used for 64-bit. */
+# define LO_OFF  ({ qemu_build_not_reached(); 0; })
+# define HI_OFF  ({ qemu_build_not_reached(); 0; })
 #endif
 
 #ifdef CONFIG_DEBUG_TCG
