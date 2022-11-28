@@ -2294,7 +2294,7 @@ static int coroutine_fn vmdk_create_extent(const char *filename,
     int ret;
     BlockBackend *blk = NULL;
 
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, errp);
     if (ret < 0) {
         goto exit;
     }

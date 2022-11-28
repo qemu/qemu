@@ -703,7 +703,7 @@ static int coroutine_fn block_crypto_co_create_opts_luks(BlockDriver *drv,
     }
 
     /* Create protocol layer */
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, errp);
     if (ret < 0) {
         goto fail;
     }
