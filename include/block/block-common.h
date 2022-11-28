@@ -42,9 +42,13 @@
  *
  * Usage: read docs/devel/block-coroutine-wrapper.rst
  *
- * co_wrapper_mixed functions can be called by both coroutine and
- * non-coroutine context.
+ * There are 2 kind of specifiers:
+ * - co_wrapper functions can be called by only non-coroutine context, because
+ *   they always generate a new coroutine.
+ * - co_wrapper_mixed functions can be called by both coroutine and
+ *   non-coroutine context.
  */
+#define co_wrapper
 #define co_wrapper_mixed
 
 /* block.c */

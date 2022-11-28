@@ -2,7 +2,7 @@
 """Generate coroutine wrappers for block subsystem.
 
 The program parses one or several concatenated c files from stdin,
-searches for functions with the 'co_wrapper_mixed' specifier
+searches for functions with the 'co_wrapper' specifier
 and generates corresponding wrappers on stdout.
 
 Usage: block-coroutine-wrapper.py generated-file.c FILE.[ch]...
@@ -62,10 +62,25 @@ class ParamDecl:
 
 
 class FuncDecl:
-    def __init__(self, return_type: str, name: str, args: str) -> None:
+    def __init__(self, return_type: str, name: str, args: str,
+                 variant: str) -> None:
         self.return_type = return_type.strip()
         self.name = name.strip()
+        self.struct_name = snake_to_camel(self.name)
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
+        self.create_only_co = 'mixed' not in variant
+
+        subsystem, subname = self.name.split('_', 1)
+        self.co_name = f'{subsystem}_co_{subname}'
+
+        t = self.args[0].type
+        if t == 'BlockDriverState *':
+            bs = 'bs'
+        elif t == 'BdrvChild *':
+            bs = 'child->bs'
+        else:
+            bs = 'blk_bs(blk)'
+        self.bs = bs
 
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
@@ -74,8 +89,9 @@ class FuncDecl:
         return '\n'.join(format.format_map(arg.__dict__) for arg in self.args)
 
 
-# Match wrappers declared with a co_wrapper_mixed mark
-func_decl_re = re.compile(r'^int\s*co_wrapper_mixed\s*'
+# Match wrappers declared with a co_wrapper mark
+func_decl_re = re.compile(r'^int\s*co_wrapper'
+                          r'(?P<variant>(_[a-z][a-z0-9_]*)?)\s*'
                           r'(?P<wrapper_name>[a-z][a-z0-9_]*)'
                           r'\((?P<args>[^)]*)\);$', re.MULTILINE)
 
@@ -84,7 +100,8 @@ def func_decl_iter(text: str) -> Iterator:
     for m in func_decl_re.finditer(text):
         yield FuncDecl(return_type='int',
                        name=m.group('wrapper_name'),
-                       args=m.group('args'))
+                       args=m.group('args'),
+                       variant=m.group('variant'))
 
 
 def snake_to_camel(func_name: str) -> str:
@@ -97,24 +114,67 @@ def snake_to_camel(func_name: str) -> str:
     return ''.join(words)
 
 
+def create_mixed_wrapper(func: FuncDecl) -> str:
+    """
+    Checks if we are already in coroutine
+    """
+    name = func.co_name
+    struct_name = func.struct_name
+    return f"""\
+int {func.name}({ func.gen_list('{decl}') })
+{{
+    if (qemu_in_coroutine()) {{
+        return {name}({ func.gen_list('{name}') });
+    }} else {{
+        {struct_name} s = {{
+            .poll_state.bs = {func.bs},
+            .poll_state.in_progress = true,
+
+{ func.gen_block('            .{name} = {name},') }
+        }};
+
+        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+        return bdrv_poll_co(&s.poll_state);
+    }}
+}}"""
+
+
+def create_co_wrapper(func: FuncDecl) -> str:
+    """
+    Assumes we are not in coroutine, and creates one
+    """
+    name = func.co_name
+    struct_name = func.struct_name
+    return f"""\
+int {func.name}({ func.gen_list('{decl}') })
+{{
+    {struct_name} s = {{
+        .poll_state.bs = {func.bs},
+        .poll_state.in_progress = true,
+
+{ func.gen_block('        .{name} = {name},') }
+    }};
+    assert(!qemu_in_coroutine());
+
+    s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+    return bdrv_poll_co(&s.poll_state);
+}}"""
+
+
 def gen_wrapper(func: FuncDecl) -> str:
     assert not '_co_' in func.name
     assert func.return_type == 'int'
     assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *',
                                  'BlockBackend *']
 
-    subsystem, subname = func.name.split('_', 1)
+    name = func.co_name
+    struct_name = func.struct_name
 
-    name = f'{subsystem}_co_{subname}'
-
-    t = func.args[0].type
-    if t == 'BlockDriverState *':
-        bs = 'bs'
-    elif t == 'BdrvChild *':
-        bs = 'child->bs'
-    else:
-        bs = 'blk_bs(blk)'
-    struct_name = snake_to_camel(name)
+    creation_function = create_mixed_wrapper
+    if func.create_only_co:
+        creation_function = create_co_wrapper
 
     return f"""\
 /*
@@ -136,23 +196,7 @@ static void coroutine_fn {name}_entry(void *opaque)
     aio_wait_kick();
 }}
 
-int {func.name}({ func.gen_list('{decl}') })
-{{
-    if (qemu_in_coroutine()) {{
-        return {name}({ func.gen_list('{name}') });
-    }} else {{
-        {struct_name} s = {{
-            .poll_state.bs = {bs},
-            .poll_state.in_progress = true,
-
-{ func.gen_block('            .{name} = {name},') }
-        }};
-
-        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
-
-        return bdrv_poll_co(&s.poll_state);
-    }}
-}}"""
+{creation_function(func)}"""
 
 
 def gen_wrappers(input_code: str) -> str:
