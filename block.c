@@ -551,7 +551,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     Coroutine *co;
     CreateCo cco = {
         .drv = drv,
-        .filename = g_strdup(filename),
+        .filename = filename,
         .opts = opts,
         .ret = NOT_DONE,
         .err = NULL,
@@ -559,8 +559,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 
     if (!drv->bdrv_co_create_opts) {
         error_setg(errp, "Driver '%s' does not support image creation", drv->format_name);
-        ret = -ENOTSUP;
-        goto out;
+        return -ENOTSUP;
     }
 
     if (qemu_in_coroutine()) {
@@ -583,8 +582,6 @@ int bdrv_create(BlockDriver *drv, const char* filename,
         }
     }
 
-out:
-    g_free(cco.filename);
     return ret;
 }
 
