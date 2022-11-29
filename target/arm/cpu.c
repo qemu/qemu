@@ -91,9 +91,9 @@ void arm_cpu_synchronize_from_tb(CPUState *cs,
     }
 }
 
-static void arm_restore_state_to_opc(CPUState *cs,
-                                     const TranslationBlock *tb,
-                                     const uint64_t *data)
+void arm_restore_state_to_opc(CPUState *cs,
+                              const TranslationBlock *tb,
+                              const uint64_t *data)
 {
     CPUARMState *env = cs->env_ptr;
 
