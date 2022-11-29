@@ -1151,37 +1151,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
 #endif
 }
 
-/* LoongArch uses `andi zero, zero, 0` as NOP.  */
-#define NOP OPC_ANDI
-static void tcg_out_nop(TCGContext *s)
-{
-    tcg_out32(s, NOP);
-}
-
-void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
-                              uintptr_t jmp_rx, uintptr_t jmp_rw)
-{
-    tcg_insn_unit i1, i2;
-    ptrdiff_t upper, lower;
-    uintptr_t addr = tb->jmp_target_addr[n];
-    ptrdiff_t offset = (ptrdiff_t)(addr - jmp_rx) >> 2;
-
-    if (offset == sextreg(offset, 0, 26)) {
-        i1 = encode_sd10k16_insn(OPC_B, offset);
-        i2 = NOP;
-    } else {
-        tcg_debug_assert(offset == sextreg(offset, 0, 36));
-        lower = (int16_t)offset;
-        upper = (offset - lower) >> 16;
-
-        i1 = encode_dsj20_insn(OPC_PCADDU18I, TCG_REG_TMP0, upper);
-        i2 = encode_djsk16_insn(OPC_JIRL, TCG_REG_ZERO, TCG_REG_TMP0, lower);
-    }
-    uint64_t pair = ((uint64_t)i2 << 32) | i1;
-    qatomic_set((uint64_t *)jmp_rw, pair);
-    flush_idcache_range(jmp_rx, jmp_rw, 8);
-}
-
 /*
  * Entry-points
  */
@@ -1202,20 +1171,41 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
     /*
-     * Ensure that patch area is 8-byte aligned so that an
-     * atomic write can be used to patch the target address.
+     * Direct branch, or load indirect address, to be patched
+     * by tb_target_set_jmp_target.  Check indirect load offset
+     * in range early, regardless of direct branch distance,
+     * via assert within tcg_out_opc_pcaddu2i.
      */
-    if ((uintptr_t)s->code_ptr & 7) {
-        tcg_out_nop(s);
-    }
+    uintptr_t i_addr = get_jmp_target_addr(s, which);
+    intptr_t i_disp = tcg_pcrel_diff(s, (void *)i_addr);
+
     set_jmp_insn_offset(s, which);
-    /*
-     * actual branch destination will be patched by
-     * tb_target_set_jmp_target later
-     */
-    tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, 0);
+    tcg_out_opc_pcaddu2i(s, TCG_REG_TMP0, i_disp >> 2);
+
+    /* Finish the load and indirect branch. */
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_TMP0, 0);
     tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
     set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    uintptr_t d_addr = tb->jmp_target_addr[n];
+    ptrdiff_t d_disp = (ptrdiff_t)(d_addr - jmp_rx) >> 2;
+    tcg_insn_unit insn;
+
+    /* Either directly branch, or load slot address for indirect branch. */
+    if (d_disp == sextreg(d_disp, 0, 26)) {
+        insn = encode_sd10k16_insn(OPC_B, d_disp);
+    } else {
+        uintptr_t i_addr = (uintptr_t)&tb->jmp_target_addr[n];
+        intptr_t i_disp = i_addr - jmp_rx;
+        insn = encode_dsj20_insn(OPC_PCADDU2I, TCG_REG_TMP0, i_disp >> 2);
+    }
+
+    qatomic_set((tcg_insn_unit *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,

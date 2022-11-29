@@ -42,11 +42,8 @@
 
 #define TCG_TARGET_INSN_UNIT_SIZE 4
 #define TCG_TARGET_NB_REGS 32
-/*
- * PCADDU18I + JIRL sequence can give 20 + 16 + 2 = 38 bits
- * signed offset, which is +/- 128 GiB.
- */
-#define MAX_CODE_GEN_BUFFER_SIZE  (128 * GiB)
+
+#define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 
 typedef enum {
     TCG_REG_ZERO,
