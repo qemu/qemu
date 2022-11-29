@@ -469,63 +469,130 @@ static void tcg_out_clzctz(TCGContext *s, LoongArchInsn opc,
     tcg_out_opc_or(s, a0, TCG_REG_TMP0, a0);
 }
 
-static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg arg1, TCGReg arg2, bool c2)
-{
-    TCGReg tmp;
+#define SETCOND_INV    TCG_TARGET_NB_REGS
+#define SETCOND_NEZ    (SETCOND_INV << 1)
+#define SETCOND_FLAGS  (SETCOND_INV | SETCOND_NEZ)
 
-    if (c2) {
-        tcg_debug_assert(arg2 == 0);
+static int tcg_out_setcond_int(TCGContext *s, TCGCond cond, TCGReg ret,
+                               TCGReg arg1, tcg_target_long arg2, bool c2)
+{
+    int flags = 0;
+
+    switch (cond) {
+    case TCG_COND_EQ:    /* -> NE  */
+    case TCG_COND_GE:    /* -> LT  */
+    case TCG_COND_GEU:   /* -> LTU */
+    case TCG_COND_GT:    /* -> LE  */
+    case TCG_COND_GTU:   /* -> LEU */
+        cond = tcg_invert_cond(cond);
+        flags ^= SETCOND_INV;
+        break;
+    default:
+        break;
     }
 
     switch (cond) {
-    case TCG_COND_EQ:
-        if (c2) {
-            tmp = arg1;
-        } else {
-            tcg_out_opc_sub_d(s, ret, arg1, arg2);
-            tmp = ret;
-        }
-        tcg_out_opc_sltui(s, ret, tmp, 1);
-        break;
-    case TCG_COND_NE:
-        if (c2) {
-            tmp = arg1;
-        } else {
-            tcg_out_opc_sub_d(s, ret, arg1, arg2);
-            tmp = ret;
-        }
-        tcg_out_opc_sltu(s, ret, TCG_REG_ZERO, tmp);
-        break;
-    case TCG_COND_LT:
-        tcg_out_opc_slt(s, ret, arg1, arg2);
-        break;
-    case TCG_COND_GE:
-        tcg_out_opc_slt(s, ret, arg1, arg2);
-        tcg_out_opc_xori(s, ret, ret, 1);
-        break;
     case TCG_COND_LE:
-        tcg_out_setcond(s, TCG_COND_GE, ret, arg2, arg1, false);
-        break;
-    case TCG_COND_GT:
-        tcg_out_setcond(s, TCG_COND_LT, ret, arg2, arg1, false);
-        break;
-    case TCG_COND_LTU:
-        tcg_out_opc_sltu(s, ret, arg1, arg2);
-        break;
-    case TCG_COND_GEU:
-        tcg_out_opc_sltu(s, ret, arg1, arg2);
-        tcg_out_opc_xori(s, ret, ret, 1);
-        break;
     case TCG_COND_LEU:
-        tcg_out_setcond(s, TCG_COND_GEU, ret, arg2, arg1, false);
+        /*
+         * If we have a constant input, the most efficient way to implement
+         * LE is by adding 1 and using LT.  Watch out for wrap around for LEU.
+         * We don't need to care for this for LE because the constant input
+         * is still constrained to int32_t, and INT32_MAX+1 is representable
+         * in the 64-bit temporary register.
+         */
+        if (c2) {
+            if (cond == TCG_COND_LEU) {
+                /* unsigned <= -1 is true */
+                if (arg2 == -1) {
+                    tcg_out_movi(s, TCG_TYPE_REG, ret, !(flags & SETCOND_INV));
+                    return ret;
+                }
+                cond = TCG_COND_LTU;
+            } else {
+                cond = TCG_COND_LT;
+            }
+            arg2 += 1;
+        } else {
+            TCGReg tmp = arg2;
+            arg2 = arg1;
+            arg1 = tmp;
+            cond = tcg_swap_cond(cond);    /* LE -> GE */
+            cond = tcg_invert_cond(cond);  /* GE -> LT */
+            flags ^= SETCOND_INV;
+        }
         break;
-    case TCG_COND_GTU:
-        tcg_out_setcond(s, TCG_COND_LTU, ret, arg2, arg1, false);
+    default:
         break;
+    }
+
+    switch (cond) {
+    case TCG_COND_NE:
+        flags |= SETCOND_NEZ;
+        if (!c2) {
+            tcg_out_opc_xor(s, ret, arg1, arg2);
+        } else if (arg2 == 0) {
+            ret = arg1;
+        } else if (arg2 >= 0 && arg2 <= 0xfff) {
+            tcg_out_opc_xori(s, ret, arg1, arg2);
+        } else {
+            tcg_out_addi(s, TCG_TYPE_REG, ret, arg1, -arg2);
+        }
+        break;
+
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        if (c2) {
+            if (arg2 >= -0x800 && arg2 <= 0x7ff) {
+                if (cond == TCG_COND_LT) {
+                    tcg_out_opc_slti(s, ret, arg1, arg2);
+                } else {
+                    tcg_out_opc_sltui(s, ret, arg1, arg2);
+                }
+                break;
+            }
+            tcg_out_movi(s, TCG_TYPE_REG, TCG_REG_TMP0, arg2);
+            arg2 = TCG_REG_TMP0;
+        }
+        if (cond == TCG_COND_LT) {
+            tcg_out_opc_slt(s, ret, arg1, arg2);
+        } else {
+            tcg_out_opc_sltu(s, ret, arg1, arg2);
+        }
+        break;
+
     default:
         g_assert_not_reached();
         break;
+    }
+
+    return ret | flags;
+}
+
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
+                            TCGReg arg1, tcg_target_long arg2, bool c2)
+{
+    int tmpflags = tcg_out_setcond_int(s, cond, ret, arg1, arg2, c2);
+
+    if (tmpflags != ret) {
+        TCGReg tmp = tmpflags & ~SETCOND_FLAGS;
+
+        switch (tmpflags & SETCOND_FLAGS) {
+        case SETCOND_INV:
+            /* Intermediate result is boolean: simply invert. */
+            tcg_out_opc_xori(s, ret, tmp, 1);
+            break;
+        case SETCOND_NEZ:
+            /* Intermediate result is zero/non-zero: test != 0. */
+            tcg_out_opc_sltu(s, ret, TCG_REG_ZERO, tmp);
+            break;
+        case SETCOND_NEZ | SETCOND_INV:
+            /* Intermediate result is zero/non-zero: test == 0. */
+            tcg_out_opc_sltui(s, ret, tmp, 1);
+            break;
+        default:
+            g_assert_not_reached();
+        }
     }
 }
 
@@ -1646,18 +1713,16 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ctz_i64:
         return C_O1_I2(r, r, rW);
 
-    case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
-        return C_O1_I2(r, r, rZ);
-
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
         /* Must deposit into the same register as input */
         return C_O1_I2(r, 0, rZ);
 
     case INDEX_op_sub_i32:
+    case INDEX_op_setcond_i32:
         return C_O1_I2(r, rZ, ri);
     case INDEX_op_sub_i64:
+    case INDEX_op_setcond_i64:
         return C_O1_I2(r, rZ, rJ);
 
     case INDEX_op_mul_i32:
