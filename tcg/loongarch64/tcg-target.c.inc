@@ -596,6 +596,30 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
+static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
+                            TCGReg c1, tcg_target_long c2, bool const2,
+                            TCGReg v1, TCGReg v2)
+{
+    int tmpflags = tcg_out_setcond_int(s, cond, TCG_REG_TMP0, c1, c2, const2);
+    TCGReg t;
+
+    /* Standardize the test below to t != 0. */
+    if (tmpflags & SETCOND_INV) {
+        t = v1, v1 = v2, v2 = t;
+    }
+
+    t = tmpflags & ~SETCOND_FLAGS;
+    if (v1 == TCG_REG_ZERO) {
+        tcg_out_opc_masknez(s, ret, v2, t);
+    } else if (v2 == TCG_REG_ZERO) {
+        tcg_out_opc_maskeqz(s, ret, v1, t);
+    } else {
+        tcg_out_opc_masknez(s, TCG_REG_TMP2, v2, t); /* t ? 0 : v2 */
+        tcg_out_opc_maskeqz(s, TCG_REG_TMP1, v1, t); /* t ? v1 : 0 */
+        tcg_out_opc_or(s, ret, TCG_REG_TMP1, TCG_REG_TMP2);
+    }
+}
+
 /*
  * Branch helpers
  */
@@ -1538,6 +1562,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_setcond(s, args[3], a0, a1, a2, c2);
         break;
 
+    case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
+        tcg_out_movcond(s, args[5], a0, a1, a2, c2, args[3], args[4]);
+        break;
+
     case INDEX_op_ld8s_i32:
     case INDEX_op_ld8s_i64:
         tcg_out_ldst(s, OPC_LD_B, a0, a1, a2);
@@ -1740,6 +1769,10 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_remu_i32:
     case INDEX_op_remu_i64:
         return C_O1_I2(r, rZ, rZ);
+
+    case INDEX_op_movcond_i32:
+    case INDEX_op_movcond_i64:
+        return C_O1_I4(r, rZ, rJ, rZ, rZ);
 
     default:
         g_assert_not_reached();
