@@ -128,11 +128,10 @@ static void pci_unin_main_realize(DeviceState *dev, Error **errp)
 
     pci_create_simple(h->bus, PCI_DEVFN(11, 0), "uni-north-pci");
 
-    /* DEC 21154 bridge */
-#if 0
-    /* XXX: not activated as PPC BIOS doesn't handle multiple buses properly */
-    pci_create_simple(h->bus, PCI_DEVFN(12, 0), "dec-21154");
-#endif
+    /*
+     * DEC 21154 bridge was unused for many years, this comment is
+     * a placeholder for whoever wishes to resurrect it
+     */
 }
 
 static void pci_unin_main_init(Object *obj)
