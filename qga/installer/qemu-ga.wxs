@@ -110,6 +110,11 @@
               <RegistryValue Type="string" Name="ProductID" Value="fb0a0d66-c7fb-4e2e-a16b-c4a3bfe8d13b" />
               <RegistryValue Type="string" Name="Version" Value="$(var.QEMU_GA_VERSION)" />
             </RegistryKey>
+            <RegistryKey Root="HKLM"
+                         Key="System\CurrentControlSet\Services\EventLog\Application\qemu-ga">
+              <RegistryValue Type="integer" Name="TypesSupported" Value="7" />
+              <RegistryValue Type="string" Name="EventMessageFile" Value="[qemu_ga_directory]qemu-ga.exe" />
+            </RegistryKey>
           </Component>
         </Directory>
       </Directory>

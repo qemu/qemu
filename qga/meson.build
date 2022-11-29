@@ -98,7 +98,24 @@ if targetos == 'windows'
   endif
 endif
 
-qga = executable('qemu-ga', qga_ss.sources(),
+qga_objs = []
+if targetos == 'windows'
+  windmc = find_program('windmc', required: true)
+  windres = find_program('windres', required: true)
+
+  msgrc = custom_target('messages-win32.rc',
+                        input: 'messages-win32.mc',
+                        output: ['messages-win32.rc', 'MSG00409.bin', 'messages-win32.h'],
+                        command: [windmc, '-h', '@OUTDIR@', '-r', '@OUTDIR@', '@INPUT@'])
+  msgobj = custom_target('messages-win32.o',
+                         input: msgrc[0],
+                         output: 'messages-win32.o',
+                         command: [windres, '-I', '@OUTDIR@', '-o', '@OUTPUT@', '@INPUT@'])
+
+  qga_objs = [msgobj]
+endif
+
+qga = executable('qemu-ga', qga_ss.sources() + qga_objs,
                  link_args: qga_libs,
                  dependencies: [qemuutil, libudev],
                  install: true)
