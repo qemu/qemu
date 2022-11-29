@@ -714,8 +714,8 @@ void qmp_calc_dirty_rate(int64_t calc_time,
         mode =  DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
     }
 
-    if (has_sample_pages && mode == DIRTY_RATE_MEASURE_MODE_DIRTY_RING) {
-        error_setg(errp, "either sample-pages or dirty-ring can be specified.");
+    if (has_sample_pages && mode != DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING) {
+        error_setg(errp, "sample-pages is used only in page-sampling mode");
         return;
     }
 
@@ -785,8 +785,10 @@ void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
                    DirtyRateStatus_str(info->status));
     monitor_printf(mon, "Start Time: %"PRIi64" (ms)\n",
                    info->start_time);
-    monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
-                   info->sample_pages);
+    if (info->mode == DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING) {
+        monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
+                       info->sample_pages);
+    }
     monitor_printf(mon, "Period: %"PRIi64" (sec)\n",
                    info->calc_time);
     monitor_printf(mon, "Mode: %s\n",
