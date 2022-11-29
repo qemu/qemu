@@ -126,7 +126,7 @@ static const int tcg_target_call_oarg_regs[] = {
 
 #define TCG_CT_CONST_ZERO  0x100
 #define TCG_CT_CONST_S12   0x200
-#define TCG_CT_CONST_N12   0x400
+#define TCG_CT_CONST_S32   0x400
 #define TCG_CT_CONST_U12   0x800
 #define TCG_CT_CONST_C12   0x1000
 #define TCG_CT_CONST_WSZ   0x2000
@@ -161,7 +161,7 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     if ((ct & TCG_CT_CONST_S12) && val == sextreg(val, 0, 12)) {
         return true;
     }
-    if ((ct & TCG_CT_CONST_N12) && -val == sextreg(-val, 0, 12)) {
+    if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
         return true;
     }
     if ((ct & TCG_CT_CONST_U12) && val >= 0 && val <= 0xfff) {
@@ -375,6 +375,45 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
 
     if (hi52 != sextreg(hi32, 20, 12)) {
         tcg_out_opc_cu52i_d(s, rd, rd, hi52);
+    }
+}
+
+static void tcg_out_addi(TCGContext *s, TCGType type, TCGReg rd,
+                         TCGReg rs, tcg_target_long imm)
+{
+    tcg_target_long lo12 = sextreg(imm, 0, 12);
+    tcg_target_long hi16 = sextreg(imm - lo12, 16, 16);
+
+    /*
+     * Note that there's a hole in between hi16 and lo12:
+     *
+     *       3                   2                   1                   0
+     *     1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+     * ...+-------------------------------+-------+-----------------------+
+     *    |             hi16              |       |          lo12         |
+     * ...+-------------------------------+-------+-----------------------+
+     *
+     * For bits within that hole, it's more efficient to use LU12I and ADD.
+     */
+    if (imm == (hi16 << 16) + lo12) {
+        if (hi16) {
+            tcg_out_opc_addu16i_d(s, rd, rs, hi16);
+            rs = rd;
+        }
+        if (type == TCG_TYPE_I32) {
+            tcg_out_opc_addi_w(s, rd, rs, lo12);
+        } else if (lo12) {
+            tcg_out_opc_addi_d(s, rd, rs, lo12);
+        } else {
+            tcg_out_mov(s, type, rd, rs);
+        }
+    } else {
+        tcg_out_movi(s, type, TCG_REG_TMP0, imm);
+        if (type == TCG_TYPE_I32) {
+            tcg_out_opc_add_w(s, rd, rs, TCG_REG_TMP0);
+        } else {
+            tcg_out_opc_add_d(s, rd, rs, TCG_REG_TMP0);
+        }
     }
 }
 
@@ -1350,14 +1389,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_add_i32:
         if (c2) {
-            tcg_out_opc_addi_w(s, a0, a1, a2);
+            tcg_out_addi(s, TCG_TYPE_I32, a0, a1, a2);
         } else {
             tcg_out_opc_add_w(s, a0, a1, a2);
         }
         break;
     case INDEX_op_add_i64:
         if (c2) {
-            tcg_out_opc_addi_d(s, a0, a1, a2);
+            tcg_out_addi(s, TCG_TYPE_I64, a0, a1, a2);
         } else {
             tcg_out_opc_add_d(s, a0, a1, a2);
         }
@@ -1365,14 +1404,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_sub_i32:
         if (c2) {
-            tcg_out_opc_addi_w(s, a0, a1, -a2);
+            tcg_out_addi(s, TCG_TYPE_I32, a0, a1, -a2);
         } else {
             tcg_out_opc_sub_w(s, a0, a1, a2);
         }
         break;
     case INDEX_op_sub_i64:
         if (c2) {
-            tcg_out_opc_addi_d(s, a0, a1, -a2);
+            tcg_out_addi(s, TCG_TYPE_I64, a0, a1, -a2);
         } else {
             tcg_out_opc_sub_d(s, a0, a1, a2);
         }
@@ -1586,8 +1625,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, ri);
 
     case INDEX_op_add_i32:
+        return C_O1_I2(r, r, ri);
     case INDEX_op_add_i64:
-        return C_O1_I2(r, r, rI);
+        return C_O1_I2(r, r, rJ);
 
     case INDEX_op_and_i32:
     case INDEX_op_and_i64:
@@ -1616,8 +1656,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, 0, rZ);
 
     case INDEX_op_sub_i32:
+        return C_O1_I2(r, rZ, ri);
     case INDEX_op_sub_i64:
-        return C_O1_I2(r, rZ, rN);
+        return C_O1_I2(r, rZ, rJ);
 
     case INDEX_op_mul_i32:
     case INDEX_op_mul_i64:
