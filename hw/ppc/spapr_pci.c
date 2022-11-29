@@ -1361,7 +1361,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 {
     int offset;
     g_autofree gchar *nodename = spapr_pci_fw_dev_name(dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     ResourceProps rp;
     SpaprDrc *drc = drc_from_dev(sphb, dev);
     uint32_t vendor_id = pci_default_read_config(dev, PCI_VENDOR_ID, 2);
@@ -1446,7 +1445,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 
     spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
 
-    if (!pc->is_bridge) {
+    if (!IS_PCI_BRIDGE(dev)) {
         /* Properties only for non-bridges */
         uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
         uint32_t max_latency = pci_default_read_config(dev, PCI_MAX_LAT, 1);
@@ -1544,7 +1543,6 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
@@ -1560,7 +1558,7 @@ static void spapr_pci_pre_plug(HotplugHandler *plug_handler,
         }
     }
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         if (!bridge_has_valid_chassis_nr(OBJECT(plugged_dev), errp)) {
             return;
         }
@@ -1589,7 +1587,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprDrc *drc = drc_from_dev(phb, pdev);
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
 
@@ -1603,7 +1600,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 
     g_assert(drc);
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         spapr_pci_bridge_plug(phb, PCI_BRIDGE(plugged_dev));
     }
 
@@ -1646,7 +1643,6 @@ static void spapr_pci_bridge_unplug(SpaprPhbState *phb,
 static void spapr_pci_unplug(HotplugHandler *plug_handler,
                              DeviceState *plugged_dev, Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
 
     /* some version guests do not wait for completion of a device
@@ -1661,7 +1657,7 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
      */
     pci_device_reset(PCI_DEVICE(plugged_dev));
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(plugged_dev)) {
         spapr_pci_bridge_unplug(phb, PCI_BRIDGE(plugged_dev));
         return;
     }
@@ -1686,7 +1682,6 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     g_assert(drc->dev == plugged_dev);
 
     if (!spapr_drc_unplug_requested(drc)) {
-        PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(plugged_dev);
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         SpaprDrc *func_drc;
         SpaprDrcClass *func_drck;
@@ -1694,7 +1689,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
         int i;
         uint8_t chassis = chassis_from_bus(pci_get_bus(pdev));
 
-        if (pc->is_bridge) {
+        if (IS_PCI_BRIDGE(plugged_dev)) {
             error_setg(errp, "PCI: Hot unplug of PCI bridges not supported");
             return;
         }

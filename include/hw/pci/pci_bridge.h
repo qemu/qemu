@@ -53,6 +53,7 @@ struct PCIBridgeWindows {
 
 #define TYPE_PCI_BRIDGE "base-pci-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIBridge, PCI_BRIDGE)
+#define IS_PCI_BRIDGE(dev) object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)
 
 struct PCIBridge {
     /*< private >*/

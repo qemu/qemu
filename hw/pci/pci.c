@@ -576,7 +576,7 @@ void pci_bus_range(PCIBus *bus, int *min_bus, int *max_bus)
     for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
         PCIDevice *dev = bus->devices[i];
 
-        if (dev && PCI_DEVICE_GET_CLASS(dev)->is_bridge) {
+        if (dev && IS_PCI_BRIDGE(dev)) {
             *min_bus = MIN(*min_bus, dev->config[PCI_SECONDARY_BUS]);
             *max_bus = MAX(*max_bus, dev->config[PCI_SUBORDINATE_BUS]);
         }
@@ -592,7 +592,6 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
                                  const VMStateField *field)
 {
     PCIDevice *s = container_of(pv, PCIDevice, config);
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(s);
     uint8_t *config;
     int i;
 
@@ -614,9 +613,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
     memcpy(s->config, config, size);
 
     pci_update_mappings(s);
-    if (pc->is_bridge) {
-        PCIBridge *b = PCI_BRIDGE(s);
-        pci_bridge_update_mappings(b);
+    if (IS_PCI_BRIDGE(s)) {
+        pci_bridge_update_mappings(PCI_BRIDGE(s));
     }
 
     memory_region_set_enabled(&s->bus_master_enable_region,
@@ -1090,9 +1088,10 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     Error *local_err = NULL;
     DeviceState *dev = DEVICE(pci_dev);
     PCIBus *bus = pci_get_bus(pci_dev);
+    bool is_bridge = IS_PCI_BRIDGE(pci_dev);
 
     /* Only pci bridges can be attached to extra PCI root buses */
-    if (pci_bus_is_root(bus) && bus->parent_dev && !pc->is_bridge) {
+    if (pci_bus_is_root(bus) && bus->parent_dev && !is_bridge) {
         error_setg(errp,
                    "PCI: Only PCI/PCIe bridges can be plugged into %s",
                     bus->parent_dev->name);
@@ -1154,7 +1153,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     pci_config_set_revision(pci_dev->config, pc->revision);
     pci_config_set_class(pci_dev->config, pc->class_id);
 
-    if (!pc->is_bridge) {
+    if (!is_bridge) {
         if (pc->subsystem_vendor_id || pc->subsystem_id) {
             pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID,
                          pc->subsystem_vendor_id);
@@ -1171,7 +1170,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     pci_init_cmask(pci_dev);
     pci_init_wmask(pci_dev);
     pci_init_w1cmask(pci_dev);
-    if (pc->is_bridge) {
+    if (is_bridge) {
         pci_init_mask_bridge(pci_dev);
     }
     pci_init_multifunction(bus, pci_dev, &local_err);
@@ -2094,7 +2093,7 @@ static bool pci_root_bus_in_range(PCIBus *bus, int bus_num)
     for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
         PCIDevice *dev = bus->devices[i];
 
-        if (dev && PCI_DEVICE_GET_CLASS(dev)->is_bridge) {
+        if (dev && IS_PCI_BRIDGE(dev)) {
             if (pci_secondary_bus_in_range(dev, bus_num)) {
                 return true;
             }
@@ -2839,7 +2838,6 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     uint16_t cmd = pci_get_word(dev->config + PCI_COMMAND);
     int i;
 
@@ -2847,7 +2845,7 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
         return;
     }
 
-    if (pc->is_bridge) {
+    if (IS_PCI_BRIDGE(dev)) {
         pcibus_t base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
         pcibus_t limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
 

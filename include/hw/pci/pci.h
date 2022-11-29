@@ -251,15 +251,7 @@ struct PCIDeviceClass {
     uint16_t subsystem_vendor_id;       /* only for header type = 0 */
     uint16_t subsystem_id;              /* only for header type = 0 */
 
-    /*
-     * pci-to-pci bridge or normal device.
-     * This doesn't mean pci host switch.
-     * When card bus bridge is supported, this would be enhanced.
-     */
-    bool is_bridge;
-
-    /* rom bar */
-    const char *romfile;
+    const char *romfile;                /* rom bar */
 };
 
 typedef void (*PCIINTxRoutingNotifier)(PCIDevice *dev);
