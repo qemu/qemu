@@ -68,7 +68,7 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc)
         goto err_guest_notifiers;
     }
 
-    ret = vhost_dev_start(&vsc->dev, vdev);
+    ret = vhost_dev_start(&vsc->dev, vdev, true);
     if (ret < 0) {
         error_report("Error start vhost dev");
         goto err_guest_notifiers;
@@ -101,7 +101,7 @@ void vhost_scsi_common_stop(VHostSCSICommon *vsc)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
 
-    vhost_dev_stop(&vsc->dev, vdev);
+    vhost_dev_stop(&vsc->dev, vdev, true);
 
     if (k->set_guest_notifiers) {
         ret = k->set_guest_notifiers(qbus->parent, vsc->dev.nvqs, false);
