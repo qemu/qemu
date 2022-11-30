@@ -65,12 +65,6 @@
 /* A scratch register that may be be used throughout the backend.  */
 #define TCG_TMP0        TCG_REG_R1
 
-/* A scratch register that holds a pointer to the beginning of the TB.
-   We don't need this when we have pc-relative loads with the general
-   instructions extension facility.  */
-#define TCG_REG_TB      TCG_REG_R12
-#define USE_REG_TB      (!HAVE_FACILITY(GEN_INST_EXT))
-
 #ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG TCG_REG_R13
 #endif
@@ -813,8 +807,8 @@ static bool maybe_out_small_movi(TCGContext *s, TCGType type,
 }
 
 /* load a register with an immediate value */
-static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
-                             tcg_target_long sval, bool in_prologue)
+static void tcg_out_movi(TCGContext *s, TCGType type,
+                         TCGReg ret, tcg_target_long sval)
 {
     tcg_target_ulong uval;
 
@@ -853,14 +847,6 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
             tcg_out_insn(s, RIL, LARL, ret, off);
             return;
         }
-    } else if (USE_REG_TB && !in_prologue) {
-        ptrdiff_t off = tcg_tbrel_diff(s, (void *)sval);
-        if (off == sextract64(off, 0, 20)) {
-            /* This is certain to be an address within TB, and therefore
-               OFF will be negative; don't try RX_LA.  */
-            tcg_out_insn(s, RXY, LAY, ret, TCG_REG_TB, TCG_REG_NONE, off);
-            return;
-        }
     }
 
     /* A 32-bit unsigned value can be loaded in 2 insns.  And given
@@ -876,22 +862,12 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     if (HAVE_FACILITY(GEN_INST_EXT)) {
         tcg_out_insn(s, RIL, LGRL, ret, 0);
         new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
-    } else if (USE_REG_TB && !in_prologue) {
-        tcg_out_insn(s, RXY, LG, ret, TCG_REG_TB, TCG_REG_NONE, 0);
-        new_pool_label(s, sval, R_390_20, s->code_ptr - 2,
-                       tcg_tbrel_diff(s, NULL));
     } else {
         TCGReg base = ret ? ret : TCG_TMP0;
         tcg_out_insn(s, RIL, LARL, base, 0);
         new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
         tcg_out_insn(s, RXY, LG, ret, base, TCG_REG_NONE, 0);
     }
-}
-
-static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long sval)
-{
-    tcg_out_movi_int(s, type, ret, sval, false);
 }
 
 /* Emit a load/store type instruction.  Inputs are:
@@ -1034,13 +1010,6 @@ static void tcg_out_ld_abs(TCGContext *s, TCGType type,
             } else {
                 tcg_out_insn(s, RIL, LGRL, dest, disp);
             }
-            return;
-        }
-    }
-    if (USE_REG_TB) {
-        ptrdiff_t disp = tcg_tbrel_diff(s, abs);
-        if (disp == sextract64(disp, 0, 20)) {
-            tcg_out_ld(s, type, dest, TCG_REG_TB, disp);
             return;
         }
     }
@@ -1243,17 +1212,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         return;
     }
 
-    /* Use the constant pool if USE_REG_TB, but not for small constants.  */
-    if (USE_REG_TB) {
-        if (!maybe_out_small_movi(s, type, TCG_TMP0, val)) {
-            tcg_out_insn(s, RXY, NG, dest, TCG_REG_TB, TCG_REG_NONE, 0);
-            new_pool_label(s, val & valid, R_390_20, s->code_ptr - 2,
-                           tcg_tbrel_diff(s, NULL));
-            return;
-        }
-    } else {
-        tcg_out_movi(s, type, TCG_TMP0, val);
-    }
+    tcg_out_movi(s, type, TCG_TMP0, val);
     if (type == TCG_TYPE_I32) {
         tcg_out_insn(s, RR, NR, dest, TCG_TMP0);
     } else {
@@ -1297,17 +1256,12 @@ static void tgen_ori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         }
     }
 
-    /* Use the constant pool if USE_REG_TB, but not for small constants.  */
     if (maybe_out_small_movi(s, type, TCG_TMP0, val)) {
         if (type == TCG_TYPE_I32) {
             tcg_out_insn(s, RR, OR, dest, TCG_TMP0);
         } else {
             tcg_out_insn(s, RRE, OGR, dest, TCG_TMP0);
         }
-    } else if (USE_REG_TB) {
-        tcg_out_insn(s, RXY, OG, dest, TCG_REG_TB, TCG_REG_NONE, 0);
-        new_pool_label(s, val, R_390_20, s->code_ptr - 2,
-                       tcg_tbrel_diff(s, NULL));
     } else {
         /* Perform the OR via sequential modifications to the high and
            low parts.  Do this via recursion to handle 16-bit vs 32-bit
@@ -1332,17 +1286,12 @@ static void tgen_xori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         }
     }
 
-    /* Use the constant pool if USE_REG_TB, but not for small constants.  */
     if (maybe_out_small_movi(s, type, TCG_TMP0, val)) {
         if (type == TCG_TYPE_I32) {
             tcg_out_insn(s, RR, XR, dest, TCG_TMP0);
         } else {
             tcg_out_insn(s, RRE, XGR, dest, TCG_TMP0);
         }
-    } else if (USE_REG_TB) {
-        tcg_out_insn(s, RXY, XG, dest, TCG_REG_TB, TCG_REG_NONE, 0);
-        new_pool_label(s, val, R_390_20, s->code_ptr - 2,
-                       tcg_tbrel_diff(s, NULL));
     } else {
         /* Perform the xor by parts.  */
         tcg_debug_assert(HAVE_FACILITY(EXT_IMM));
@@ -1395,19 +1344,6 @@ static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
         if (maybe_out_small_movi(s, type, TCG_TMP0, c2)) {
             c2 = TCG_TMP0;
             /* fall through to reg-reg */
-        } else if (USE_REG_TB) {
-            if (type == TCG_TYPE_I32) {
-                op = (is_unsigned ? RXY_CLY : RXY_CY);
-                tcg_out_insn_RXY(s, op, r1, TCG_REG_TB, TCG_REG_NONE, 0);
-                new_pool_label(s, (uint32_t)c2, R_390_20, s->code_ptr - 2,
-                               4 - tcg_tbrel_diff(s, NULL));
-            } else {
-                op = (is_unsigned ? RXY_CLG : RXY_CG);
-                tcg_out_insn_RXY(s, op, r1, TCG_REG_TB, TCG_REG_NONE, 0);
-                new_pool_label(s, c2, R_390_20, s->code_ptr - 2,
-                               tcg_tbrel_diff(s, NULL));
-            }
-            goto exit;
         } else {
             if (type == TCG_TYPE_I32) {
                 op = (is_unsigned ? RIL_CLRL : RIL_CRL);
@@ -2109,35 +2045,21 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
                 tcg_out16(s, NOP);
             }
-            tcg_debug_assert(!USE_REG_TB);
             tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
             s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
             s->code_ptr += 2;
         } else {
             /* load address stored at s->tb_jmp_target_addr + a0 */
-            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_REG_TB,
+            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_TMP0,
                            tcg_splitwx_to_rx(s->tb_jmp_target_addr + a0));
             /* and go there */
-            tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_TB);
+            tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_TMP0);
         }
         set_jmp_reset_offset(s, a0);
-
-        /* For the unlinked path of goto_tb, we need to reset
-           TCG_REG_TB to the beginning of this TB.  */
-        if (USE_REG_TB) {
-            int ofs = -tcg_current_code_size(s);
-            /* All TB are restricted to 64KiB by unwind info. */
-            tcg_debug_assert(ofs == sextract64(ofs, 0, 20));
-            tcg_out_insn(s, RXY, LAY, TCG_REG_TB,
-                         TCG_REG_TB, TCG_REG_NONE, ofs);
-        }
         break;
 
     case INDEX_op_goto_ptr:
         a0 = args[0];
-        if (USE_REG_TB) {
-            tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_TB, a0);
-        }
         tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, a0);
         break;
 
@@ -3405,9 +3327,6 @@ static void tcg_target_init(TCGContext *s)
     /* XXX many insns can't be used with R0, so we better avoid it for now */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R0);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
-    if (USE_REG_TB) {
-        tcg_regset_set_reg(s->reserved_regs, TCG_REG_TB);
-    }
 }
 
 #define FRAME_SIZE  ((int)(TCG_TARGET_CALL_STACK_OFFSET          \
@@ -3428,16 +3347,12 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 #ifndef CONFIG_SOFTMMU
     if (guest_base >= 0x80000) {
-        tcg_out_movi_int(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base, true);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
-    if (USE_REG_TB) {
-        tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_TB,
-                    tcg_target_call_iarg_regs[1]);
-    }
 
     /* br %r3 (go to TB) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, tcg_target_call_iarg_regs[1]);
