@@ -806,6 +806,7 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long sval)
 {
     tcg_target_ulong uval;
+    ptrdiff_t pc_off;
 
     /* Try all 32-bit insns that can load it in one go.  */
     if (maybe_out_small_movi(s, type, ret, sval)) {
@@ -832,14 +833,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         return;
     }
 
-    /* Try for PC-relative address load.  For odd addresses,
-       attempt to use an offset from the start of the TB.  */
-    if ((sval & 1) == 0) {
-        ptrdiff_t off = tcg_pcrel_diff(s, (void *)sval) >> 1;
-        if (off == (int32_t)off) {
-            tcg_out_insn(s, RIL, LARL, ret, off);
-            return;
+    /* Try for PC-relative address load.  For odd addresses, add one. */
+    pc_off = tcg_pcrel_diff(s, (void *)sval) >> 1;
+    if (pc_off == (int32_t)pc_off) {
+        tcg_out_insn(s, RIL, LARL, ret, pc_off);
+        if (sval & 1) {
+            tcg_out_insn(s, RI, AGHI, ret, 1);
         }
+        return;
     }
 
     /* Otherwise, stuff it in the constant pool.  */
