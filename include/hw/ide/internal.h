@@ -402,6 +402,7 @@ struct IDEState {
     uint8_t select;
     uint8_t status;
 
+    bool io8;
     bool reset_reverts;
 
     /* set for lba48 access */
