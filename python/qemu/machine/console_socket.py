@@ -68,7 +68,7 @@ class ConsoleSocket(socket.socket):
         """Kick off a thread to drain the socket."""
         # Configure socket to not block and timeout.
         # This allows our drain thread to not block
-        # on recieve and exit smoothly.
+        # on receive and exit smoothly.
         socket.socket.setblocking(self, False)
         socket.socket.settimeout(self, 1)
         drain_thread = threading.Thread(target=self._drain_fn)

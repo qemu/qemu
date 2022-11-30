@@ -812,7 +812,7 @@ class AsyncProtocol(Generic[T]):
 
     @bottom_half
     async def _bh_close_stream(self, error_pathway: bool = False) -> None:
-        # NB: Closing the writer also implcitly closes the reader.
+        # NB: Closing the writer also implicitly closes the reader.
         if not self._writer:
             return
 
