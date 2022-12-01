@@ -30,6 +30,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "qapi/error.h"
+#include "qemu/cutils.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -963,6 +964,7 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
     uint32_t error_status;
+    unsigned int num;
     bool correctable;
     PCIDevice *dev;
     PCIEAERErr err;
@@ -983,14 +985,13 @@ static int do_pcie_aer_inject_error(Monitor *mon,
 
     error_name = qdict_get_str(qdict, "error_status");
     if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
-        char *e = NULL;
-        error_status = strtoul(error_name, &e, 0);
-        correctable = qdict_get_try_bool(qdict, "correctable", false);
-        if (!e || *e != '\0') {
+        if (qemu_strtoui(error_name, NULL, 0, &num) < 0) {
             monitor_printf(mon, "invalid error status value. \"%s\"",
                            error_name);
             return -EINVAL;
         }
+        error_status = num;
+        correctable = qdict_get_try_bool(qdict, "correctable", false);
     }
     err.status = error_status;
     err.source_id = pci_requester_id(dev);
