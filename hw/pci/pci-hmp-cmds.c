@@ -189,6 +189,11 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
         }
         error_status = num;
         correctable = qdict_get_try_bool(qdict, "correctable", false);
+    } else {
+        if (qdict_haskey(qdict, "correctable")) {
+            error_setg(&err, "-c is only valid with numeric error status");
+            goto out;
+        }
     }
     aer_err.status = error_status;
     aer_err.source_id = pci_requester_id(dev);
