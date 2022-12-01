@@ -161,6 +161,7 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
+    Error *err = NULL;
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
     uint32_t error_status;
@@ -171,24 +172,20 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
     int ret;
 
     ret = pci_qdev_find_device(id, &dev);
-    if (ret < 0) {
-        monitor_printf(mon,
-                       "id or pci device path is invalid or device not "
-                       "found. %s\n", id);
-        return;
+    if (ret == -ENODEV) {
+        error_setg(&err, "device '%s' not found", id);
+        goto out;
     }
-    if (!pci_is_express(dev)) {
-        monitor_printf(mon, "the device doesn't support pci express. %s\n",
-                       id);
-        return;
+    if (ret < 0 || !pci_is_express(dev)) {
+        error_setg(&err, "device '%s' is not a PCIe device", id);
+        goto out;
     }
 
     error_name = qdict_get_str(qdict, "error_status");
     if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
         if (qemu_strtoui(error_name, NULL, 0, &num) < 0) {
-            monitor_printf(mon, "invalid error status value. \"%s\"",
-                           error_name);
-            return;
+            error_setg(&err, "invalid error status value '%s'", error_name);
+            goto out;
         }
         error_status = num;
         correctable = qdict_get_try_bool(qdict, "correctable", false);
@@ -222,12 +219,15 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 
     ret = pcie_aer_inject_error(dev, &aer_err);
     if (ret < 0) {
-        monitor_printf(mon, "failed to inject error: %s\n",
-                       strerror(-ret));
-        return;
+        error_setg_errno(&err, -ret, "failed to inject error");
+        goto out;
     }
+
 
     monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
                    id, pci_root_bus_path(dev), pci_dev_bus_num(dev),
                    PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
+
+out:
+    hmp_handle_error(mon, err);
 }
