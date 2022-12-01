@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
+#include "monitor/hmp.h"
 #include "qapi/qapi-commands-pci.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
@@ -32,6 +33,10 @@ bool pci_available;
 PciInfoList *qmp_query_pci(Error **errp)
 {
     return NULL;
+}
+
+void hmp_info_pci(Monitor *mon, const QDict *qdict)
+{
 }
 
 void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
