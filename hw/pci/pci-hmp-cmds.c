@@ -167,7 +167,7 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
     unsigned int num;
     bool correctable;
     PCIDevice *dev;
-    PCIEAERErr err;
+    PCIEAERErr aer_err;
     int ret;
 
     ret = pci_qdev_find_device(id, &dev);
@@ -193,34 +193,34 @@ void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
         error_status = num;
         correctable = qdict_get_try_bool(qdict, "correctable", false);
     }
-    err.status = error_status;
-    err.source_id = pci_requester_id(dev);
+    aer_err.status = error_status;
+    aer_err.source_id = pci_requester_id(dev);
 
-    err.flags = 0;
+    aer_err.flags = 0;
     if (correctable) {
-        err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
+        aer_err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
     }
     if (qdict_get_try_bool(qdict, "advisory_non_fatal", false)) {
-        err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
+        aer_err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
     }
     if (qdict_haskey(qdict, "header0")) {
-        err.flags |= PCIE_AER_ERR_HEADER_VALID;
+        aer_err.flags |= PCIE_AER_ERR_HEADER_VALID;
     }
     if (qdict_haskey(qdict, "prefix0")) {
-        err.flags |= PCIE_AER_ERR_TLP_PREFIX_PRESENT;
+        aer_err.flags |= PCIE_AER_ERR_TLP_PREFIX_PRESENT;
     }
 
-    err.header[0] = qdict_get_try_int(qdict, "header0", 0);
-    err.header[1] = qdict_get_try_int(qdict, "header1", 0);
-    err.header[2] = qdict_get_try_int(qdict, "header2", 0);
-    err.header[3] = qdict_get_try_int(qdict, "header3", 0);
+    aer_err.header[0] = qdict_get_try_int(qdict, "header0", 0);
+    aer_err.header[1] = qdict_get_try_int(qdict, "header1", 0);
+    aer_err.header[2] = qdict_get_try_int(qdict, "header2", 0);
+    aer_err.header[3] = qdict_get_try_int(qdict, "header3", 0);
 
-    err.prefix[0] = qdict_get_try_int(qdict, "prefix0", 0);
-    err.prefix[1] = qdict_get_try_int(qdict, "prefix1", 0);
-    err.prefix[2] = qdict_get_try_int(qdict, "prefix2", 0);
-    err.prefix[3] = qdict_get_try_int(qdict, "prefix3", 0);
+    aer_err.prefix[0] = qdict_get_try_int(qdict, "prefix0", 0);
+    aer_err.prefix[1] = qdict_get_try_int(qdict, "prefix1", 0);
+    aer_err.prefix[2] = qdict_get_try_int(qdict, "prefix2", 0);
+    aer_err.prefix[3] = qdict_get_try_int(qdict, "prefix3", 0);
 
-    ret = pcie_aer_inject_error(dev, &err);
+    ret = pcie_aer_inject_error(dev, &aer_err);
     if (ret < 0) {
         monitor_printf(mon, "failed to inject error: %s\n",
                        strerror(-ret));
