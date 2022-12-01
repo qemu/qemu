@@ -2409,15 +2409,12 @@ uint8_t pci_find_capability(PCIDevice *pdev, uint8_t cap_id)
 static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     PCIDevice *d = (PCIDevice *)dev;
-    const pci_class_desc *desc;
+    int class = pci_get_word(d->config + PCI_CLASS_DEVICE);
+    const pci_class_desc *desc = get_class_desc(class);
     char ctxt[64];
     PCIIORegion *r;
-    int i, class;
+    int i;
 
-    class = pci_get_word(d->config + PCI_CLASS_DEVICE);
-    desc = pci_class_descriptions;
-    while (desc->desc && class != desc->class)
-        desc++;
     if (desc->desc) {
         snprintf(ctxt, sizeof(ctxt), "%s", desc->desc);
     } else {
