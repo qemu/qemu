@@ -1851,10 +1851,12 @@ static PciBridgeInfo *qmp_query_pci_bridge(PCIDevice *dev, PCIBus *bus,
     range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
 
     if (dev->config[PCI_SECONDARY_BUS] != 0) {
-        PCIBus *child_bus = pci_find_bus_nr(bus, dev->config[PCI_SECONDARY_BUS]);
+        PCIBus *child_bus = pci_find_bus_nr(bus,
+                                            dev->config[PCI_SECONDARY_BUS]);
         if (child_bus) {
             info->has_devices = true;
-            info->devices = qmp_query_pci_devices(child_bus, dev->config[PCI_SECONDARY_BUS]);
+            info->devices = qmp_query_pci_devices(child_bus,
+                                            dev->config[PCI_SECONDARY_BUS]);
         }
     }
 
@@ -2610,8 +2612,9 @@ static void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
                    pci_get_word(d->config + PCI_SUBSYSTEM_ID));
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
-        if (!r->size)
+        if (!r->size) {
             continue;
+        }
         monitor_printf(mon, "%*sbar %d: %s at 0x%"FMT_PCIBUS
                        " [0x%"FMT_PCIBUS"]\n",
                        indent, "",
