@@ -19,7 +19,9 @@
 #include "monitor/monitor.h"
 #include "pci-internal.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qapi-commands-pci.h"
+#include "qemu/cutils.h"
 
 static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 {
@@ -155,4 +157,106 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
                        i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
                        r->addr, r->addr + r->size - 1);
     }
+}
+
+typedef struct PCIEErrorDetails {
+    const char *id;
+    const char *root_bus;
+    int bus;
+    int devfn;
+} PCIEErrorDetails;
+
+/*
+ * Inject an error described by @qdict.
+ * On success, set @details to show where error was sent.
+ * Return negative errno if injection failed and a message was emitted.
+ */
+static int do_pcie_aer_inject_error(Monitor *mon,
+                                    const QDict *qdict,
+                                    PCIEErrorDetails *details)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    const char *error_name;
+    uint32_t error_status;
+    unsigned int num;
+    bool correctable;
+    PCIDevice *dev;
+    PCIEAERErr err;
+    int ret;
+
+    ret = pci_qdev_find_device(id, &dev);
+    if (ret < 0) {
+        monitor_printf(mon,
+                       "id or pci device path is invalid or device not "
+                       "found. %s\n", id);
+        return ret;
+    }
+    if (!pci_is_express(dev)) {
+        monitor_printf(mon, "the device doesn't support pci express. %s\n",
+                       id);
+        return -ENOSYS;
+    }
+
+    error_name = qdict_get_str(qdict, "error_status");
+    if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
+        if (qemu_strtoui(error_name, NULL, 0, &num) < 0) {
+            monitor_printf(mon, "invalid error status value. \"%s\"",
+                           error_name);
+            return -EINVAL;
+        }
+        error_status = num;
+        correctable = qdict_get_try_bool(qdict, "correctable", false);
+    }
+    err.status = error_status;
+    err.source_id = pci_requester_id(dev);
+
+    err.flags = 0;
+    if (correctable) {
+        err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
+    }
+    if (qdict_get_try_bool(qdict, "advisory_non_fatal", false)) {
+        err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
+    }
+    if (qdict_haskey(qdict, "header0")) {
+        err.flags |= PCIE_AER_ERR_HEADER_VALID;
+    }
+    if (qdict_haskey(qdict, "prefix0")) {
+        err.flags |= PCIE_AER_ERR_TLP_PREFIX_PRESENT;
+    }
+
+    err.header[0] = qdict_get_try_int(qdict, "header0", 0);
+    err.header[1] = qdict_get_try_int(qdict, "header1", 0);
+    err.header[2] = qdict_get_try_int(qdict, "header2", 0);
+    err.header[3] = qdict_get_try_int(qdict, "header3", 0);
+
+    err.prefix[0] = qdict_get_try_int(qdict, "prefix0", 0);
+    err.prefix[1] = qdict_get_try_int(qdict, "prefix1", 0);
+    err.prefix[2] = qdict_get_try_int(qdict, "prefix2", 0);
+    err.prefix[3] = qdict_get_try_int(qdict, "prefix3", 0);
+
+    ret = pcie_aer_inject_error(dev, &err);
+    if (ret < 0) {
+        monitor_printf(mon, "failed to inject error: %s\n",
+                       strerror(-ret));
+        return ret;
+    }
+    details->id = id;
+    details->root_bus = pci_root_bus_path(dev);
+    details->bus = pci_dev_bus_num(dev);
+    details->devfn = dev->devfn;
+
+    return 0;
+}
+
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
+{
+    PCIEErrorDetails data;
+
+    if (do_pcie_aer_inject_error(mon, qdict, &data) < 0) {
+        return;
+    }
+
+    monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
+                   data.id, data.root_bus, data.bus,
+                   PCI_SLOT(data.devfn), PCI_FUNC(data.devfn));
 }
