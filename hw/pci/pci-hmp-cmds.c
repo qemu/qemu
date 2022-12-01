@@ -105,14 +105,8 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 void hmp_info_pci(Monitor *mon, const QDict *qdict)
 {
     PciInfoList *info_list, *info;
-    Error *err = NULL;
 
-    info_list = qmp_query_pci(&err);
-    if (err) {
-        monitor_printf(mon, "PCI devices not supported\n");
-        error_free(err);
-        return;
-    }
+    info_list = qmp_query_pci(&error_abort);
 
     for (info = info_list; info; info = info->next) {
         PciDeviceInfoList *dev;
