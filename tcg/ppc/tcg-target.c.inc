@@ -42,7 +42,7 @@
 # else
 #  error "Unknown ABI"
 # endif
-#endif 
+#endif
 
 #ifdef _CALL_SYSV
 # define TCG_TARGET_CALL_ALIGN_ARGS   1
