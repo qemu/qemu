@@ -428,6 +428,13 @@ respectively. The actual backend names should be used instead.
 Use ``-drive if=pflash`` to configure the OTP device of the sifive_u
 RISC-V machine instead.
 
+``-spice password=string`` (removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''
+
+This option was insecure because the SPICE password remained visible in
+the process listing. This was replaced by the new ``password-secret``
+option which lets the password be securely provided on the command
+line using a ``secret`` object instance.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

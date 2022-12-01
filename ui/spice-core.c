@@ -413,9 +413,6 @@ static QemuOptsList qemu_spice_opts = {
             .type = QEMU_OPT_BOOL,
 #endif
         },{
-            .name = "password",
-            .type = QEMU_OPT_STRING,
-        },{
             .name = "password-secret",
             .type = QEMU_OPT_STRING,
         },{
@@ -666,20 +663,8 @@ static void qemu_spice_init(void)
     }
     passwordSecret = qemu_opt_get(opts, "password-secret");
     if (passwordSecret) {
-        if (qemu_opt_get(opts, "password")) {
-            error_report("'password' option is mutually exclusive with "
-                         "'password-secret'");
-            exit(1);
-        }
         password = qcrypto_secret_lookup_as_utf8(passwordSecret,
                                                  &error_fatal);
-    } else {
-        str = qemu_opt_get(opts, "password");
-        if (str) {
-            warn_report("'password' option is deprecated and insecure, "
-                        "use 'password-secret' instead");
-            password = g_strdup(str);
-        }
     }
 
     if (tls_port) {
