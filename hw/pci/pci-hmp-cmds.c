@@ -159,21 +159,7 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     }
 }
 
-typedef struct PCIEErrorDetails {
-    const char *id;
-    const char *root_bus;
-    int bus;
-    int devfn;
-} PCIEErrorDetails;
-
-/*
- * Inject an error described by @qdict.
- * On success, set @details to show where error was sent.
- * Return negative errno if injection failed and a message was emitted.
- */
-static int do_pcie_aer_inject_error(Monitor *mon,
-                                    const QDict *qdict,
-                                    PCIEErrorDetails *details)
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
     const char *error_name;
@@ -189,12 +175,12 @@ static int do_pcie_aer_inject_error(Monitor *mon,
         monitor_printf(mon,
                        "id or pci device path is invalid or device not "
                        "found. %s\n", id);
-        return ret;
+        return;
     }
     if (!pci_is_express(dev)) {
         monitor_printf(mon, "the device doesn't support pci express. %s\n",
                        id);
-        return -ENOSYS;
+        return;
     }
 
     error_name = qdict_get_str(qdict, "error_status");
@@ -202,7 +188,7 @@ static int do_pcie_aer_inject_error(Monitor *mon,
         if (qemu_strtoui(error_name, NULL, 0, &num) < 0) {
             monitor_printf(mon, "invalid error status value. \"%s\"",
                            error_name);
-            return -EINVAL;
+            return;
         }
         error_status = num;
         correctable = qdict_get_try_bool(qdict, "correctable", false);
@@ -238,25 +224,10 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     if (ret < 0) {
         monitor_printf(mon, "failed to inject error: %s\n",
                        strerror(-ret));
-        return ret;
-    }
-    details->id = id;
-    details->root_bus = pci_root_bus_path(dev);
-    details->bus = pci_dev_bus_num(dev);
-    details->devfn = dev->devfn;
-
-    return 0;
-}
-
-void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
-{
-    PCIEErrorDetails data;
-
-    if (do_pcie_aer_inject_error(mon, qdict, &data) < 0) {
         return;
     }
 
     monitor_printf(mon, "OK id: %s root bus: %s, bus: %x devfn: %x.%x\n",
-                   data.id, data.root_bus, data.bus,
-                   PCI_SLOT(data.devfn), PCI_FUNC(data.devfn));
+                   id, pci_root_bus_path(dev), pci_dev_bus_num(dev),
+                   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 }
