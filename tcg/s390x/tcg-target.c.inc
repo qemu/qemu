@@ -202,6 +202,8 @@ typedef enum S390Opcode {
     RRFa_XRK    = 0xb9f7,
     RRFa_XGRK   = 0xb9e7,
 
+    RRFam_SELGR = 0xb9e3,
+
     RRFc_LOCR   = 0xb9f2,
     RRFc_LOCGR  = 0xb9e2,
 
@@ -626,10 +628,18 @@ static void tcg_out_insn_RRE(TCGContext *s, S390Opcode op,
     tcg_out32(s, (op << 16) | (r1 << 4) | r2);
 }
 
+/* RRF-a without the m4 field */
 static void tcg_out_insn_RRFa(TCGContext *s, S390Opcode op,
                               TCGReg r1, TCGReg r2, TCGReg r3)
 {
     tcg_out32(s, (op << 16) | (r3 << 12) | (r1 << 4) | r2);
+}
+
+/* RRF-a with the m4 field */
+static void tcg_out_insn_RRFam(TCGContext *s, S390Opcode op,
+                               TCGReg r1, TCGReg r2, TCGReg r3, int m4)
+{
+    tcg_out32(s, (op << 16) | (r3 << 12) | (m4 << 8) | (r1 << 4) | r2);
 }
 
 static void tcg_out_insn_RRFc(TCGContext *s, S390Opcode op,
@@ -1376,6 +1386,11 @@ static void tgen_movcond_int(TCGContext *s, TCGType type, TCGReg dest,
             src = v4;
         }
     } else {
+        if (HAVE_FACILITY(MISC_INSN_EXT3)) {
+            /* Emit: dest = cc ? v3 : v4. */
+            tcg_out_insn(s, RRFam, SELGR, dest, v3, v4, cc);
+            return;
+        }
         if (dest == v4) {
             src = v3;
         } else {
