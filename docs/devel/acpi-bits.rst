@@ -52,6 +52,9 @@ Under ``tests/avocado/`` as the root we have:
    for their tests. In order to enable debugging, you can set **V=1**
    environment variable. This enables verbose mode for the test and also dumps
    the entire log from bios bits and more information in case failure happens.
+   You can also set **BITS_DEBUG=1** to turn on debug mode. It will enable
+   verbose logs and also retain the temporary work directory the test used for
+   you to inspect and run the specific commands manually.
 
    In order to run this test, please perform the following steps from the QEMU
    build directory:
