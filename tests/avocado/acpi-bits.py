@@ -50,7 +50,7 @@ from qemu.machine import QEMUMachine
 from avocado import skipIf
 from avocado_qemu import QemuBaseTest
 
-deps = ["xorriso"] # dependent tools needed in the test setup/box.
+deps = ["xorriso", "mformat"] # dependent tools needed in the test setup/box.
 supported_platforms = ['x86_64'] # supported test platforms.
 
 
