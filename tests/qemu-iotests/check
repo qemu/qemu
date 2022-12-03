@@ -159,7 +159,7 @@ if __name__ == '__main__':
         if not tests:
             raise ValueError('No tests selected')
     except ValueError as e:
-        sys.exit(e)
+        sys.exit(str(e))
 
     if args.dry_run:
         print('\n'.join(tests))
