@@ -517,8 +517,9 @@ void afl_setup(void) {
     void *plib = dlopen(getenv("AFL_QEMU_PERSISTENT_HOOK"), RTLD_NOW);
     if (!plib) {
 
-      fprintf(stderr, "[AFL] ERROR: invalid AFL_QEMU_PERSISTENT_HOOK=%s\n",
-              getenv("AFL_QEMU_PERSISTENT_HOOK"));
+      fprintf(stderr, "[AFL] ERROR: invalid AFL_QEMU_PERSISTENT_HOOK=%s - %s\n",
+              getenv("AFL_QEMU_PERSISTENT_HOOK"),
+              dlerror());
       exit(1);
 
     }
