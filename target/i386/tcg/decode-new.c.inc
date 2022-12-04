@@ -1488,7 +1488,8 @@ static bool validate_vex(DisasContext *s, X86DecodedInsn *decode)
             if (!(s->flags & HF_AVX_EN_MASK)) {
                 goto illegal;
             }
-        } else {
+        } else if (e->special != X86_SPECIAL_MMX ||
+                   (s->prefix & (PREFIX_REPZ | PREFIX_REPNZ | PREFIX_DATA))) {
             if (!(s->flags & HF_OSFXSR_MASK)) {
                 goto illegal;
             }
