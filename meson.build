@@ -2338,11 +2338,9 @@ config_host_data.set('CONFIG_CPUID_H', have_cpuid_h)
 config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
   .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX2') \
   .require(cc.links('''
-    #pragma GCC push_options
-    #pragma GCC target("avx2")
     #include <cpuid.h>
     #include <immintrin.h>
-    static int bar(void *a) {
+    static int __attribute__((target("avx2"))) bar(void *a) {
       __m256i x = *(__m256i *)a;
       return _mm256_testz_si256(x, x);
     }
@@ -2352,11 +2350,9 @@ config_host_data.set('CONFIG_AVX2_OPT', get_option('avx2') \
 config_host_data.set('CONFIG_AVX512F_OPT', get_option('avx512f') \
   .require(have_cpuid_h, error_message: 'cpuid.h not available, cannot enable AVX512F') \
   .require(cc.links('''
-    #pragma GCC push_options
-    #pragma GCC target("avx512f")
     #include <cpuid.h>
     #include <immintrin.h>
-    static int bar(void *a) {
+    static int __attribute__((target("avx512f"))) bar(void *a) {
       __m512i x = *(__m512i *)a;
       return _mm512_test_epi64_mask(x, x);
     }
