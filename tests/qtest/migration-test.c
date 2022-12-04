@@ -1066,15 +1066,27 @@ test_migrate_tls_x509_finish(QTestState *from,
     TestMigrateTLSX509Data *data = opaque;
 
     test_tls_cleanup(data->keyfile);
-    unlink(data->cacert);
-    unlink(data->servercert);
-    unlink(data->serverkey);
-    unlink(data->clientcert);
-    unlink(data->clientkey);
-    rmdir(data->workdir);
-
-    g_free(data->workdir);
     g_free(data->keyfile);
+
+    unlink(data->cacert);
+    g_free(data->cacert);
+    unlink(data->servercert);
+    g_free(data->servercert);
+    unlink(data->serverkey);
+    g_free(data->serverkey);
+
+    if (data->clientcert) {
+        unlink(data->clientcert);
+        g_free(data->clientcert);
+    }
+    if (data->clientkey) {
+        unlink(data->clientkey);
+        g_free(data->clientkey);
+    }
+
+    rmdir(data->workdir);
+    g_free(data->workdir);
+
     g_free(data);
 }
 #endif /* CONFIG_TASN1 */
