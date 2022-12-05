@@ -3476,7 +3476,8 @@ static DisasJumpType op_mvcos(DisasContext *s, DisasOps *o)
 static DisasJumpType op_mvcp(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s, l1);
-    gen_helper_mvcp(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
+    int r3 = get_field(s, r3);
+    gen_helper_mvcp(cc_op, cpu_env, regs[r1], o->addr1, o->in2, regs[r3]);
     set_cc_static(s);
     return DISAS_NEXT;
 }
@@ -3484,7 +3485,8 @@ static DisasJumpType op_mvcp(DisasContext *s, DisasOps *o)
 static DisasJumpType op_mvcs(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s, l1);
-    gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
+    int r3 = get_field(s, r3);
+    gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2, regs[r3]);
     set_cc_static(s);
     return DISAS_NEXT;
 }
