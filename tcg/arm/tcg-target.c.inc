@@ -1945,7 +1945,6 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
     intptr_t ptr, dif, dil;
     TCGReg base = TCG_REG_PC;
 
-    qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
     ptr = get_jmp_target_addr(s, which);
     dif = tcg_pcrel_diff(s, (void *)ptr) - 8;
     dil = sextract32(dif, 0, 12);

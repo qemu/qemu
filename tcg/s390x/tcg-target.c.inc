@@ -1973,6 +1973,9 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
                               uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
+    if (!HAVE_FACILITY(GEN_INST_EXT)) {
+        return;
+    }
     /* patch the branch destination */
     uintptr_t addr = tb->jmp_target_addr[n];
     intptr_t disp = addr - (jmp_rx - 2);

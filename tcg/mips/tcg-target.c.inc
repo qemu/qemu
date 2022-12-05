@@ -1969,7 +1969,6 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
     /* indirect jump method */
-    qemu_build_assert(!TCG_TARGET_HAS_direct_jump);
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_TMP0, TCG_REG_ZERO,
                get_jmp_target_addr(s, which));
     tcg_out_opc_reg(s, OPC_JR, 0, TCG_TMP0, 0);

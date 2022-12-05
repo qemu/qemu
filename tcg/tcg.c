@@ -320,7 +320,6 @@ static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
      * We will check for overflow at the end of the opcode loop in
      * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
      */
-    tcg_debug_assert(TCG_TARGET_HAS_direct_jump);
     s->gen_tb->jmp_insn_offset[which] = tcg_current_code_size(s);
 }
 
