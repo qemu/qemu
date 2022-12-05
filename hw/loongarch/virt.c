@@ -42,63 +42,6 @@
 #include "hw/display/ramfb.h"
 #include "hw/mem/pc-dimm.h"
 #include "sysemu/tpm.h"
-#include "sysemu/block-backend.h"
-#include "hw/block/flash.h"
-
-static void virt_flash_create(LoongArchMachineState *lams)
-{
-    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI01);
-
-    qdev_prop_set_uint64(dev, "sector-length", VIRT_FLASH_SECTOR_SIZE);
-    qdev_prop_set_uint8(dev, "width", 4);
-    qdev_prop_set_uint8(dev, "device-width", 2);
-    qdev_prop_set_bit(dev, "big-endian", false);
-    qdev_prop_set_uint16(dev, "id0", 0x89);
-    qdev_prop_set_uint16(dev, "id1", 0x18);
-    qdev_prop_set_uint16(dev, "id2", 0x00);
-    qdev_prop_set_uint16(dev, "id3", 0x00);
-    qdev_prop_set_string(dev, "name", "virt.flash");
-    object_property_add_child(OBJECT(lams), "virt.flash", OBJECT(dev));
-    object_property_add_alias(OBJECT(lams), "pflash",
-                              OBJECT(dev), "drive");
-
-    lams->flash = PFLASH_CFI01(dev);
-}
-
-static void virt_flash_map(LoongArchMachineState *lams,
-                           MemoryRegion *sysmem)
-{
-    PFlashCFI01 *flash = lams->flash;
-    DeviceState *dev = DEVICE(flash);
-    hwaddr base = VIRT_FLASH_BASE;
-    hwaddr size = VIRT_FLASH_SIZE;
-
-    assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
-    assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
-
-    qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    memory_region_add_subregion(sysmem, base,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
-
-}
-
-static void fdt_add_flash_node(LoongArchMachineState *lams)
-{
-    MachineState *ms = MACHINE(lams);
-    char *nodename;
-
-    hwaddr flash_base = VIRT_FLASH_BASE;
-    hwaddr flash_size = VIRT_FLASH_SIZE;
-
-    nodename = g_strdup_printf("/flash@%" PRIx64, flash_base);
-    qemu_fdt_add_subnode(ms->fdt, nodename);
-    qemu_fdt_setprop_string(ms->fdt, nodename, "compatible", "cfi-flash");
-    qemu_fdt_setprop_sized_cells(ms->fdt, nodename, "reg",
-                                 2, flash_base, 2, flash_size);
-    qemu_fdt_setprop_cell(ms->fdt, nodename, "bank-width", 4);
-    g_free(nodename);
-}
 
 static void fdt_add_rtc_node(LoongArchMachineState *lams)
 {
@@ -653,9 +596,6 @@ static void loongarch_firmware_init(LoongArchMachineState *lams)
     int bios_size;
 
     lams->bios_loaded = false;
-
-    virt_flash_map(lams, get_system_memory());
-
     if (filename) {
         bios_name = qemu_find_file(QEMU_FILE_TYPE_BIOS, filename);
         if (!bios_name) {
@@ -839,7 +779,6 @@ static void loongarch_init(MachineState *machine)
             loongarch_direct_kernel_boot(lams);
         }
     }
-    fdt_add_flash_node(lams);
     /* register reset function */
     for (i = 0; i < machine->smp.cpus; i++) {
         lacpu = LOONGARCH_CPU(qemu_get_cpu(i));
@@ -899,7 +838,6 @@ static void loongarch_machine_initfn(Object *obj)
     lams->acpi = ON_OFF_AUTO_AUTO;
     lams->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
     lams->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
-    virt_flash_create(lams);
 }
 
 static bool memhp_type_supported(DeviceState *dev)
