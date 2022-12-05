@@ -202,7 +202,7 @@ target_ulong helper_mret(CPURISCVState *env)
 
     if (riscv_feature(env, RISCV_FEATURE_PMP) &&
         !pmp_get_num_rules(env) && (prev_priv != PRV_M)) {
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_INST_ACCESS_FAULT, GETPC());
     }
 
     target_ulong prev_virt = get_field(env->mstatus, MSTATUS_MPV);
