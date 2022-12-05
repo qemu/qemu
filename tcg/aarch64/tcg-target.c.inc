@@ -1353,33 +1353,6 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *target,
     tcg_out_call_int(s, target);
 }
 
-void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
-                              uintptr_t jmp_rx, uintptr_t jmp_rw)
-{
-    uintptr_t addr = tb->jmp_target_addr[n];
-    tcg_insn_unit i1, i2;
-    TCGType rt = TCG_TYPE_I64;
-    TCGReg  rd = TCG_REG_TMP;
-    uint64_t pair;
-
-    ptrdiff_t offset = addr - jmp_rx;
-
-    if (offset == sextract64(offset, 0, 26)) {
-        i1 = I3206_B | ((offset >> 2) & 0x3ffffff);
-        i2 = NOP;
-    } else {
-        offset = (addr >> 12) - (jmp_rx >> 12);
-
-        /* patch ADRP */
-        i1 = I3406_ADRP | (offset & 3) << 29 | (offset & 0x1ffffc) << (5 - 2) | rd;
-        /* patch ADDI */
-        i2 = I3401_ADDI | rt << 31 | (addr & 0xfff) << 10 | rd << 5 | rd;
-    }
-    pair = (uint64_t)i2 << 32 | i1;
-    qatomic_set((uint64_t *)jmp_rw, pair);
-    flush_idcache_range(jmp_rx, jmp_rw, 8);
-}
-
 static inline void tcg_out_goto_label(TCGContext *s, TCGLabel *l)
 {
     if (!l->has_value) {
@@ -1902,21 +1875,38 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
     /*
-     * Ensure that ADRP+ADD are 8-byte aligned so that an atomic
-     * write can be used to patch the target address.
+     * Direct branch, or indirect address load, will be patched
+     * by tb_target_set_jmp_target.  Assert indirect load offset
+     * in range early, regardless of direct branch distance.
      */
-    if ((uintptr_t)s->code_ptr & 7) {
-        tcg_out32(s, NOP);
-    }
+    intptr_t i_off = tcg_pcrel_diff(s, (void *)get_jmp_target_addr(s, which));
+    tcg_debug_assert(i_off == sextract64(i_off, 0, 21));
+
     set_jmp_insn_offset(s, which);
-    /*
-     * actual branch destination will be patched by
-     * tb_target_set_jmp_target later
-     */
-    tcg_out_insn(s, 3406, ADRP, TCG_REG_TMP, 0);
-    tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64, TCG_REG_TMP, TCG_REG_TMP, 0);
+    tcg_out32(s, I3206_B);
     tcg_out_insn(s, 3207, BR, TCG_REG_TMP);
     set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    uintptr_t d_addr = tb->jmp_target_addr[n];
+    ptrdiff_t d_offset = d_addr - jmp_rx;
+    tcg_insn_unit insn;
+
+    /* Either directly branch, or indirect branch load. */
+    if (d_offset == sextract64(d_offset, 0, 28)) {
+        insn = deposit32(I3206_B, 0, 26, d_offset >> 2);
+    } else {
+        uintptr_t i_addr = (uintptr_t)&tb->jmp_target_addr[n];
+        ptrdiff_t i_offset = i_addr - jmp_rx;
+
+        /* Note that we asserted this in range in tcg_out_goto_tb. */
+        insn = deposit32(I3305_LDR | TCG_REG_TMP, 0, 5, i_offset >> 2);
+    }
+    qatomic_set((uint32_t *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
