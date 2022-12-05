@@ -51,7 +51,7 @@ static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         /* PSW key has range 0..15, it is valid if the bit is 1 in the PKM */
-        return pkm & (0x80 >> psw_key);
+        return pkm & (0x8000 >> psw_key);
     }
     return true;
 }
