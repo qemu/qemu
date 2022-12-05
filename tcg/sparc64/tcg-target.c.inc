@@ -1885,10 +1885,11 @@ void tcg_register_jit(const void *buf, size_t buf_size)
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
 
-void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
-                              uintptr_t jmp_rw, uintptr_t addr)
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
-    intptr_t tb_disp = addr - tc_ptr;
+    uintptr_t addr = tb->jmp_target_addr[n];
+    intptr_t tb_disp = addr - (uintptr_t)tb->tc.ptr;
     intptr_t br_disp = addr - jmp_rx;
     tcg_insn_unit i1, i2;
 

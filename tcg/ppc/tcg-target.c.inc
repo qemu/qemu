@@ -1893,11 +1893,12 @@ static inline void ppc64_replace4(uintptr_t rx, uintptr_t rw,
     flush_idcache_range(rx, rw, 16);
 }
 
-void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
-                              uintptr_t jmp_rw, uintptr_t addr)
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
     tcg_insn_unit i0, i1, i2, i3;
-    intptr_t tb_diff = addr - tc_ptr;
+    uintptr_t addr = tb->jmp_target_addr[n];
+    intptr_t tb_diff = addr - (uintptr_t)tb->tc.ptr;
     intptr_t br_diff = addr - (jmp_rx + 4);
     intptr_t lo, hi;
 

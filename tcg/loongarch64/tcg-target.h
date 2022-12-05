@@ -171,7 +171,8 @@ typedef enum {
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
 
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t, uintptr_t);
 
 #define TCG_TARGET_DEFAULT_MO (0)
 

@@ -1039,11 +1039,12 @@ static void tcg_out_nop(TCGContext *s)
     tcg_out32(s, NOP);
 }
 
-void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
-                              uintptr_t jmp_rw, uintptr_t addr)
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
     tcg_insn_unit i1, i2;
     ptrdiff_t upper, lower;
+    uintptr_t addr = tb->jmp_target_addr[n];
     ptrdiff_t offset = (ptrdiff_t)(addr - jmp_rx) >> 2;
 
     if (offset == sextreg(offset, 0, 26)) {
