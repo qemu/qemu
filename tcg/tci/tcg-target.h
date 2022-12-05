@@ -176,8 +176,4 @@ typedef enum {
 
 #define TCG_TARGET_HAS_MEMORY_BSWAP     1
 
-/* not defined -- call should be eliminated at compile time */
-void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
-                              uintptr_t, uintptr_t);
-
 #endif /* TCG_TARGET_H */

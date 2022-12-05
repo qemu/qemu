@@ -165,10 +165,6 @@ typedef enum {
 #define TCG_TARGET_HAS_mulsh_i64        1
 #endif
 
-/* not defined -- call should be eliminated at compile time */
-void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
-                              uintptr_t, uintptr_t);
-
 #define TCG_TARGET_DEFAULT_MO (0)
 
 #define TCG_TARGET_NEED_LDST_LABELS

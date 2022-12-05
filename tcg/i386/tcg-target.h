@@ -220,9 +220,6 @@ extern bool have_movbe;
 #define TCG_TARGET_extract_i64_valid(ofs, len) \
     (((ofs) == 8 && (len) == 8) || ((ofs) + (len)) == 32)
 
-void tb_target_set_jmp_target(const TranslationBlock *, int,
-                              uintptr_t, uintptr_t);
-
 /* This defines the natural memory order supported by this
  * architecture before guarantees made by various barrier
  * instructions.
