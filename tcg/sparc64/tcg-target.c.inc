@@ -1436,31 +1436,54 @@ static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
 
 static void tcg_out_goto_tb(TCGContext *s, int which)
 {
-    int c;
+    ptrdiff_t off = tcg_tbrel_diff(s, (void *)get_jmp_target_addr(s, which));
 
-    /* Direct jump. */
-    /* make sure the patch is 8-byte aligned.  */
-    if ((intptr_t)s->code_ptr & 4) {
-        tcg_out_nop(s);
-    }
+    /* Direct branch will be patched by tb_target_set_jmp_target. */
     set_jmp_insn_offset(s, which);
-    tcg_out_sethi(s, TCG_REG_T1, 0);
-    tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
-    tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
-    tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
+    tcg_out32(s, CALL);
+    /* delay slot */
+    tcg_debug_assert(check_fit_ptr(off, 13));
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TB, TCG_REG_TB, off);
     set_jmp_reset_offset(s, which);
 
     /*
      * For the unlinked path of goto_tb, we need to reset TCG_REG_TB
      * to the beginning of this TB.
      */
-    c = -tcg_current_code_size(s);
-    if (check_fit_i32(c, 13)) {
-        tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, c, ARITH_ADD);
+    off = -tcg_current_code_size(s);
+    if (check_fit_i32(off, 13)) {
+        tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, off, ARITH_ADD);
     } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, c);
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, off);
         tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
     }
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    uintptr_t addr = tb->jmp_target_addr[n];
+    intptr_t br_disp = (intptr_t)(addr - jmp_rx) >> 2;
+    tcg_insn_unit insn;
+
+    br_disp >>= 2;
+    if (check_fit_ptr(br_disp, 19)) {
+        /* ba,pt %icc, addr */
+        insn = deposit32(INSN_OP(0) | INSN_OP2(1) | INSN_COND(COND_A)
+                         | BPCC_ICC | BPCC_PT, 0, 19, br_disp);
+    } else if (check_fit_ptr(br_disp, 22)) {
+        /* ba addr */
+        insn = deposit32(INSN_OP(0) | INSN_OP2(2) | INSN_COND(COND_A),
+                         0, 22, br_disp);
+    } else {
+        /* The code_gen_buffer can't be larger than 2GB.  */
+        tcg_debug_assert(check_fit_ptr(br_disp, 30));
+        /* call addr */
+        insn = deposit32(CALL, 0, 30, br_disp);
+    }
+
+    qatomic_set((uint32_t *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
@@ -1870,40 +1893,4 @@ static const DebugFrame debug_frame = {
 void tcg_register_jit(const void *buf, size_t buf_size)
 {
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
-}
-
-void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
-                              uintptr_t jmp_rx, uintptr_t jmp_rw)
-{
-    uintptr_t addr = tb->jmp_target_addr[n];
-    intptr_t tb_disp = addr - (uintptr_t)tb->tc.ptr;
-    intptr_t br_disp = addr - jmp_rx;
-    tcg_insn_unit i1, i2;
-
-    /* We can reach the entire address space for ILP32.
-       For LP64, the code_gen_buffer can't be larger than 2GB.  */
-    tcg_debug_assert(tb_disp == (int32_t)tb_disp);
-    tcg_debug_assert(br_disp == (int32_t)br_disp);
-
-    /* This does not exercise the range of the branch, but we do
-       still need to be able to load the new value of TCG_REG_TB.
-       But this does still happen quite often.  */
-    if (check_fit_ptr(tb_disp, 13)) {
-        /* ba,pt %icc, addr */
-        i1 = (INSN_OP(0) | INSN_OP2(1) | INSN_COND(COND_A)
-              | BPCC_ICC | BPCC_PT | INSN_OFF19(br_disp));
-        i2 = (ARITH_ADD | INSN_RD(TCG_REG_TB) | INSN_RS1(TCG_REG_TB)
-              | INSN_IMM13(tb_disp));
-    } else if (tb_disp >= 0) {
-        i1 = SETHI | INSN_RD(TCG_REG_T1) | ((tb_disp & 0xfffffc00) >> 10);
-        i2 = (ARITH_OR | INSN_RD(TCG_REG_T1) | INSN_RS1(TCG_REG_T1)
-              | INSN_IMM13(tb_disp & 0x3ff));
-    } else {
-        i1 = SETHI | INSN_RD(TCG_REG_T1) | ((~tb_disp & 0xfffffc00) >> 10);
-        i2 = (ARITH_XOR | INSN_RD(TCG_REG_T1) | INSN_RS1(TCG_REG_T1)
-              | INSN_IMM13((tb_disp & 0x3ff) | -0x400));
-    }
-
-    qatomic_set((uint64_t *)jmp_rw, deposit64(i2, 32, 32, i1));
-    flush_idcache_range(jmp_rx, jmp_rw, 8);
 }
