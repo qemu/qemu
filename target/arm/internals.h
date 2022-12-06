@@ -257,6 +257,10 @@ unsigned int arm_pamax(ARMCPU *cpu);
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     uint64_t tcr = env->cp15.tcr_el[arm_is_secure(env) ? 3 : 1];
+    if (arm_feature(env, ARM_FEATURE_PMSA) &&
+        arm_feature(env, ARM_FEATURE_V8)) {
+        return true;
+    }
     return arm_el_is_aa64(env, 1) ||
            (arm_feature(env, ARM_FEATURE_LPAE) && (tcr & TTBCR_EAE));
 }
