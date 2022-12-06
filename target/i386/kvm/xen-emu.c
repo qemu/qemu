@@ -15,12 +15,12 @@
 #include "kvm/kvm_i386.h"
 #include "xen-emu.h"
 
-int kvm_xen_init(KVMState *s)
+int kvm_xen_init(KVMState *s, uint32_t hypercall_msr)
 {
     const int required_caps = KVM_XEN_HVM_CONFIG_HYPERCALL_MSR |
         KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL | KVM_XEN_HVM_CONFIG_SHARED_INFO;
     struct kvm_xen_hvm_config cfg = {
-        .msr = XEN_HYPERCALL_MSR,
+        .msr = hypercall_msr,
         .flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
     };
     int xen_caps, ret;

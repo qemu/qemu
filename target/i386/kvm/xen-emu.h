@@ -12,8 +12,17 @@
 #ifndef QEMU_I386_KVM_XEN_EMU_H
 #define QEMU_I386_KVM_XEN_EMU_H
 
-#define XEN_HYPERCALL_MSR 0x40000000
+#define XEN_HYPERCALL_MSR               0x40000000
+#define XEN_HYPERCALL_MSR_HYPERV        0x40000200
 
-int kvm_xen_init(KVMState *s);
+#define XEN_CPUID_SIGNATURE        0
+#define XEN_CPUID_VENDOR           1
+#define XEN_CPUID_HVM_MSR          2
+#define XEN_CPUID_TIME             3
+#define XEN_CPUID_HVM              4
+
+#define XEN_VERSION(maj, min) ((maj) << 16 | (min))
+
+int kvm_xen_init(KVMState *s, uint32_t hypercall_msr);
 
 #endif /* QEMU_I386_KVM_XEN_EMU_H */
