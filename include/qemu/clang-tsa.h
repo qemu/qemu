@@ -98,4 +98,13 @@
  */
 #define TSA_NO_TSA TSA(no_thread_safety_analysis)
 
+/*
+ * TSA_ASSERT() is used to annotate functions: This function will assert that
+ * the lock is held. When it returns, the caller of the function is assumed to
+ * already hold the resource.
+ *
+ * More than one mutex may be specified, comma-separated.
+ */
+#define TSA_ASSERT(...) TSA(assert_capability(__VA_ARGS__))
+
 #endif /* #ifndef CLANG_TSA_H */
