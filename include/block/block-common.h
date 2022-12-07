@@ -40,14 +40,21 @@
  *
  * Usage: read docs/devel/block-coroutine-wrapper.rst
  *
- * There are 2 kind of specifiers:
+ * There are 4 kind of specifiers:
  * - co_wrapper functions can be called by only non-coroutine context, because
  *   they always generate a new coroutine.
  * - co_wrapper_mixed functions can be called by both coroutine and
  *   non-coroutine context.
+ * - co_wrapper_bdrv_rdlock are co_wrapper functions but automatically take and
+ *   release the graph rdlock when creating a new coroutine
+ * - co_wrapper_mixed_bdrv_rdlock are co_wrapper_mixed functions but
+ *   automatically take and release the graph rdlock when creating a new
+ *   coroutine.
  */
 #define co_wrapper
 #define co_wrapper_mixed
+#define co_wrapper_bdrv_rdlock
+#define co_wrapper_mixed_bdrv_rdlock
 
 #include "block/dirty-bitmap.h"
 #include "block/blockjob.h"

@@ -69,6 +69,7 @@ class FuncDecl:
         self.struct_name = snake_to_camel(self.name)
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
         self.create_only_co = 'mixed' not in variant
+        self.graph_rdlock = 'bdrv_rdlock' in variant
 
         subsystem, subname = self.name.split('_', 1)
         self.co_name = f'{subsystem}_co_{subname}'
@@ -123,10 +124,13 @@ def create_mixed_wrapper(func: FuncDecl) -> str:
     """
     name = func.co_name
     struct_name = func.struct_name
+    graph_assume_lock = 'assume_graph_lock();' if func.graph_rdlock else ''
+
     return f"""\
 {func.return_type} {func.name}({ func.gen_list('{decl}') })
 {{
     if (qemu_in_coroutine()) {{
+        {graph_assume_lock}
         return {name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
@@ -174,6 +178,12 @@ def gen_wrapper(func: FuncDecl) -> str:
     name = func.co_name
     struct_name = func.struct_name
 
+    graph_lock=''
+    graph_unlock=''
+    if func.graph_rdlock:
+        graph_lock='    bdrv_graph_co_rdlock();'
+        graph_unlock='    bdrv_graph_co_rdunlock();'
+
     creation_function = create_mixed_wrapper
     if func.create_only_co:
         creation_function = create_co_wrapper
@@ -193,7 +203,9 @@ static void coroutine_fn {name}_entry(void *opaque)
 {{
     {struct_name} *s = opaque;
 
+{graph_lock}
     s->ret = {name}({ func.gen_list('s->{name}') });
+{graph_unlock}
     s->poll_state.in_progress = false;
 
     aio_wait_kick();
