@@ -1107,6 +1107,7 @@ struct detach_by_parent_data {
     BlockDriverState *c;
     BdrvChild *child_c;
     bool by_parent_cb;
+    bool detach_on_drain;
 };
 static struct detach_by_parent_data detach_by_parent_data;
 
@@ -1114,6 +1115,7 @@ static void detach_indirect_bh(void *opaque)
 {
     struct detach_by_parent_data *data = opaque;
 
+    bdrv_dec_in_flight(data->child_b->bs);
     bdrv_unref_child(data->parent_b, data->child_b);
 
     bdrv_ref(data->c);
@@ -1128,12 +1130,21 @@ static void detach_by_parent_aio_cb(void *opaque, int ret)
 
     g_assert_cmpint(ret, ==, 0);
     if (data->by_parent_cb) {
+        bdrv_inc_in_flight(data->child_b->bs);
         detach_indirect_bh(data);
     }
 }
 
 static void detach_by_driver_cb_drained_begin(BdrvChild *child)
 {
+    struct detach_by_parent_data *data = &detach_by_parent_data;
+
+    if (!data->detach_on_drain) {
+        return;
+    }
+    data->detach_on_drain = false;
+
+    bdrv_inc_in_flight(data->child_b->bs);
     aio_bh_schedule_oneshot(qemu_get_current_aio_context(),
                             detach_indirect_bh, &detach_by_parent_data);
     child_of_bds.drained_begin(child);
@@ -1174,7 +1185,13 @@ static void test_detach_indirect(bool by_parent_cb)
         detach_by_driver_cb_class = child_of_bds;
         detach_by_driver_cb_class.drained_begin =
             detach_by_driver_cb_drained_begin;
+        detach_by_driver_cb_class.drained_end = NULL;
+        detach_by_driver_cb_class.drained_poll = NULL;
     }
+
+    detach_by_parent_data = (struct detach_by_parent_data) {
+        .detach_on_drain = false,
+    };
 
     /* Create all involved nodes */
     parent_a = bdrv_new_open_driver(&bdrv_test, "parent-a", BDRV_O_RDWR,
@@ -1227,6 +1244,7 @@ static void test_detach_indirect(bool by_parent_cb)
         .child_b = child_b,
         .c = c,
         .by_parent_cb = by_parent_cb,
+        .detach_on_drain = true,
     };
     acb = blk_aio_preadv(blk, 0, &qiov, 0, detach_by_parent_aio_cb, NULL);
     g_assert(acb != NULL);
