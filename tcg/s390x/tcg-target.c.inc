@@ -996,28 +996,6 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
-/* load data from an absolute host address */
-static void tcg_out_ld_abs(TCGContext *s, TCGType type,
-                           TCGReg dest, const void *abs)
-{
-    intptr_t addr = (intptr_t)abs;
-
-    if (HAVE_FACILITY(GEN_INST_EXT) && !(addr & 1)) {
-        ptrdiff_t disp = tcg_pcrel_diff(s, abs) >> 1;
-        if (disp == (int32_t)disp) {
-            if (type == TCG_TYPE_I32) {
-                tcg_out_insn(s, RIL, LRL, dest, disp);
-            } else {
-                tcg_out_insn(s, RIL, LGRL, dest, disp);
-            }
-            return;
-        }
-    }
-
-    tcg_out_movi(s, TCG_TYPE_PTR, dest, addr & ~0xffff);
-    tcg_out_ld(s, type, dest, dest, addr & 0xffff);
-}
-
 static inline void tcg_out_risbg(TCGContext *s, TCGReg dest, TCGReg src,
                                  int msb, int lsb, int ofs, int z)
 {
@@ -2037,24 +2015,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_goto_tb:
         a0 = args[0];
-        if (s->tb_jmp_insn_offset) {
-            /*
-             * branch displacement must be aligned for atomic patching;
-             * see if we need to add extra nop before branch
-             */
-            if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
-                tcg_out16(s, NOP);
-            }
-            tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
-            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-            s->code_ptr += 2;
-        } else {
-            /* load address stored at s->tb_jmp_target_addr + a0 */
-            tcg_out_ld_abs(s, TCG_TYPE_PTR, TCG_TMP0,
-                           tcg_splitwx_to_rx(s->tb_jmp_target_addr + a0));
-            /* and go there */
-            tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_TMP0);
+        /*
+         * branch displacement must be aligned for atomic patching;
+         * see if we need to add extra nop before branch
+         */
+        if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
+            tcg_out16(s, NOP);
         }
+        tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
+        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
+        s->code_ptr += 2;
         set_jmp_reset_offset(s, a0);
         break;
 
