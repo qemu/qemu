@@ -149,21 +149,21 @@ target_ulong helper_sret(CPURISCVState *env)
     }
 
     mstatus = env->mstatus;
+    prev_priv = get_field(mstatus, MSTATUS_SPP);
+    mstatus = set_field(mstatus, MSTATUS_SIE,
+                        get_field(mstatus, MSTATUS_SPIE));
+    mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
+    mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
+    env->mstatus = mstatus;
 
     if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
 
-        prev_priv = get_field(mstatus, MSTATUS_SPP);
         prev_virt = get_field(hstatus, HSTATUS_SPV);
 
         hstatus = set_field(hstatus, HSTATUS_SPV, 0);
-        mstatus = set_field(mstatus, MSTATUS_SPP, 0);
-        mstatus = set_field(mstatus, SSTATUS_SIE,
-                            get_field(mstatus, SSTATUS_SPIE));
-        mstatus = set_field(mstatus, SSTATUS_SPIE, 1);
 
-        env->mstatus = mstatus;
         env->hstatus = hstatus;
 
         if (prev_virt) {
@@ -171,14 +171,6 @@ target_ulong helper_sret(CPURISCVState *env)
         }
 
         riscv_cpu_set_virt_enabled(env, prev_virt);
-    } else {
-        prev_priv = get_field(mstatus, MSTATUS_SPP);
-
-        mstatus = set_field(mstatus, MSTATUS_SIE,
-                            get_field(mstatus, MSTATUS_SPIE));
-        mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
-        mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
-        env->mstatus = mstatus;
     }
 
     riscv_cpu_set_mode(env, prev_priv);
