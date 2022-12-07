@@ -57,10 +57,10 @@ typedef enum TCGReg {
 #define FACILITY_ZARCH_ACTIVE         2
 #define FACILITY_LONG_DISP            18
 #define FACILITY_EXT_IMM              21
+#define FACILITY_GEN_INST_EXT         34
 
 /* Facilities that are checked at runtime. */
 
-#define FACILITY_GEN_INST_EXT         34
 #define FACILITY_LOAD_ON_COND         45
 #define FACILITY_FAST_BCR_SER         FACILITY_LOAD_ON_COND
 #define FACILITY_DISTINCT_OPS         FACILITY_LOAD_ON_COND
@@ -92,8 +92,8 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_clz_i32        0
 #define TCG_TARGET_HAS_ctz_i32        0
 #define TCG_TARGET_HAS_ctpop_i32      0
-#define TCG_TARGET_HAS_deposit_i32    HAVE_FACILITY(GEN_INST_EXT)
-#define TCG_TARGET_HAS_extract_i32    HAVE_FACILITY(GEN_INST_EXT)
+#define TCG_TARGET_HAS_deposit_i32    1
+#define TCG_TARGET_HAS_extract_i32    1
 #define TCG_TARGET_HAS_sextract_i32   0
 #define TCG_TARGET_HAS_extract2_i32   0
 #define TCG_TARGET_HAS_movcond_i32    1
@@ -129,8 +129,8 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_clz_i64        1
 #define TCG_TARGET_HAS_ctz_i64        0
 #define TCG_TARGET_HAS_ctpop_i64      0
-#define TCG_TARGET_HAS_deposit_i64    HAVE_FACILITY(GEN_INST_EXT)
-#define TCG_TARGET_HAS_extract_i64    HAVE_FACILITY(GEN_INST_EXT)
+#define TCG_TARGET_HAS_deposit_i64    1
+#define TCG_TARGET_HAS_extract_i64    1
 #define TCG_TARGET_HAS_sextract_i64   0
 #define TCG_TARGET_HAS_extract2_i64   0
 #define TCG_TARGET_HAS_movcond_i64    1

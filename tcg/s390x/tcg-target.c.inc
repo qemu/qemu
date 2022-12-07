@@ -843,15 +843,8 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     }
 
     /* Otherwise, stuff it in the constant pool.  */
-    if (HAVE_FACILITY(GEN_INST_EXT)) {
-        tcg_out_insn(s, RIL, LGRL, ret, 0);
-        new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
-    } else {
-        TCGReg base = ret ? ret : TCG_TMP0;
-        tcg_out_insn(s, RIL, LARL, base, 0);
-        new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
-        tcg_out_insn(s, RXY, LG, ret, base, TCG_REG_NONE, 0);
-    }
+    tcg_out_insn(s, RIL, LGRL, ret, 0);
+    new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
 }
 
 /* Emit a load/store type instruction.  Inputs are:
@@ -1105,7 +1098,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
             return;
         }
     }
-    if (HAVE_FACILITY(GEN_INST_EXT) && risbg_mask(val)) {
+    if (risbg_mask(val)) {
         tgen_andi_risbg(s, dest, dest, val);
         return;
     }
@@ -1460,47 +1453,46 @@ static void tgen_brcond(TCGContext *s, TCGType type, TCGCond c,
                         TCGReg r1, TCGArg c2, int c2const, TCGLabel *l)
 {
     int cc;
+    bool is_unsigned = is_unsigned_cond(c);
+    bool in_range;
+    S390Opcode opc;
 
-    if (HAVE_FACILITY(GEN_INST_EXT)) {
-        bool is_unsigned = is_unsigned_cond(c);
-        bool in_range;
-        S390Opcode opc;
+    cc = tcg_cond_to_s390_cond[c];
 
-        cc = tcg_cond_to_s390_cond[c];
+    if (!c2const) {
+        opc = (type == TCG_TYPE_I32
+               ? (is_unsigned ? RIE_CLRJ : RIE_CRJ)
+               : (is_unsigned ? RIE_CLGRJ : RIE_CGRJ));
+        tgen_compare_branch(s, opc, cc, r1, c2, l);
+        return;
+    }
 
-        if (!c2const) {
-            opc = (type == TCG_TYPE_I32
-                   ? (is_unsigned ? RIE_CLRJ : RIE_CRJ)
-                   : (is_unsigned ? RIE_CLGRJ : RIE_CGRJ));
-            tgen_compare_branch(s, opc, cc, r1, c2, l);
-            return;
-        }
-
-        /* COMPARE IMMEDIATE AND BRANCH RELATIVE has an 8-bit immediate field.
-           If the immediate we've been given does not fit that range, we'll
-           fall back to separate compare and branch instructions using the
-           larger comparison range afforded by COMPARE IMMEDIATE.  */
-        if (type == TCG_TYPE_I32) {
-            if (is_unsigned) {
-                opc = RIE_CLIJ;
-                in_range = (uint32_t)c2 == (uint8_t)c2;
-            } else {
-                opc = RIE_CIJ;
-                in_range = (int32_t)c2 == (int8_t)c2;
-            }
+    /*
+     * COMPARE IMMEDIATE AND BRANCH RELATIVE has an 8-bit immediate field.
+     * If the immediate we've been given does not fit that range, we'll
+     * fall back to separate compare and branch instructions using the
+     * larger comparison range afforded by COMPARE IMMEDIATE.
+     */
+    if (type == TCG_TYPE_I32) {
+        if (is_unsigned) {
+            opc = RIE_CLIJ;
+            in_range = (uint32_t)c2 == (uint8_t)c2;
         } else {
-            if (is_unsigned) {
-                opc = RIE_CLGIJ;
-                in_range = (uint64_t)c2 == (uint8_t)c2;
-            } else {
-                opc = RIE_CGIJ;
-                in_range = (int64_t)c2 == (int8_t)c2;
-            }
+            opc = RIE_CIJ;
+            in_range = (int32_t)c2 == (int8_t)c2;
         }
-        if (in_range) {
-            tgen_compare_imm_branch(s, opc, cc, r1, c2, l);
-            return;
+    } else {
+        if (is_unsigned) {
+            opc = RIE_CLGIJ;
+            in_range = (uint64_t)c2 == (uint8_t)c2;
+        } else {
+            opc = RIE_CGIJ;
+            in_range = (int64_t)c2 == (int8_t)c2;
         }
+    }
+    if (in_range) {
+        tgen_compare_imm_branch(s, opc, cc, r1, c2, l);
+        return;
     }
 
     cc = tgen_cmp(s, type, c, r1, c2, c2const, false);
@@ -1659,7 +1651,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, MemOp opc,
        cross pages using the address of the last byte of the access.  */
     a_off = (a_bits >= s_bits ? 0 : s_mask - a_mask);
     tlb_mask = (uint64_t)TARGET_PAGE_MASK | a_mask;
-    if (HAVE_FACILITY(GEN_INST_EXT) && a_off == 0) {
+    if (a_off == 0) {
         tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
     } else {
         tcg_out_insn(s, RX, LA, TCG_REG_R3, addr_reg, TCG_REG_NONE, a_off);
@@ -2972,17 +2964,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
                 : C_O1_I2(r, 0, ri));
 
     case INDEX_op_mul_i32:
-        /* If we have the general-instruction-extensions, then we have
-           MULTIPLY SINGLE IMMEDIATE with a signed 32-bit, otherwise we
-           have only MULTIPLY HALFWORD IMMEDIATE, with a signed 16-bit.  */
-        return (HAVE_FACILITY(GEN_INST_EXT)
-                ? C_O1_I2(r, 0, ri)
-                : C_O1_I2(r, 0, rI));
-
+        return C_O1_I2(r, 0, ri);
     case INDEX_op_mul_i64:
-        return (HAVE_FACILITY(GEN_INST_EXT)
-                ? C_O1_I2(r, 0, rJ)
-                : C_O1_I2(r, 0, rI));
+        return C_O1_I2(r, 0, rJ);
 
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
@@ -3149,6 +3133,10 @@ static void query_s390_facilities(void)
     }
     if (!HAVE_FACILITY(EXT_IMM)) {
         which = "extended-immediate";
+        goto fail;
+    }
+    if (!HAVE_FACILITY(GEN_INST_EXT)) {
+        which = "general-instructions-extension";
         goto fail;
     }
     return;
