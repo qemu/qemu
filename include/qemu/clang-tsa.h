@@ -62,6 +62,7 @@
  * void Foo(void) TSA_REQUIRES(mutex);
  */
 #define TSA_REQUIRES(...) TSA(requires_capability(__VA_ARGS__))
+#define TSA_REQUIRES_SHARED(...) TSA(requires_shared_capability(__VA_ARGS__))
 
 /* TSA_EXCLUDES() is used to annotate functions: the caller of the
  * function MUST NOT hold resource, the function first acquires the
@@ -82,6 +83,7 @@
  * void Foo(void) TSA_ACQUIRE(mutex);
  */
 #define TSA_ACQUIRE(...) TSA(acquire_capability(__VA_ARGS__))
+#define TSA_ACQUIRE_SHARED(...) TSA(acquire_shared_capability(__VA_ARGS__))
 
 /* TSA_RELEASE() is used to annotate functions: the caller of the
  * function MUST hold the resource, but the function will then release it.
@@ -91,6 +93,7 @@
  * void Foo(void) TSA_RELEASE(mutex);
  */
 #define TSA_RELEASE(...) TSA(release_capability(__VA_ARGS__))
+#define TSA_RELEASE_SHARED(...) TSA(release_shared_capability(__VA_ARGS__))
 
 /* TSA_NO_TSA is used to annotate functions.  Use only when you need to.
  *
@@ -106,5 +109,6 @@
  * More than one mutex may be specified, comma-separated.
  */
 #define TSA_ASSERT(...) TSA(assert_capability(__VA_ARGS__))
+#define TSA_ASSERT_SHARED(...) TSA(assert_shared_capability(__VA_ARGS__))
 
 #endif /* #ifndef CLANG_TSA_H */
