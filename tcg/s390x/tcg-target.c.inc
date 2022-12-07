@@ -2218,8 +2218,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             a2 = -a2;
             goto do_addi_64;
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, SGR, a0, a2);
         } else {
             tcg_out_insn(s, RRF, SGRK, a0, a1, a2);
         }
@@ -2230,8 +2228,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
             tgen_andi(s, TCG_TYPE_I64, args[0], args[2]);
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, NGR, args[0], args[2]);
         } else {
             tcg_out_insn(s, RRF, NGRK, a0, a1, a2);
         }
@@ -2241,8 +2237,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
             tgen_ori(s, TCG_TYPE_I64, a0, a2);
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, OGR, a0, a2);
         } else {
             tcg_out_insn(s, RRF, OGRK, a0, a1, a2);
         }
@@ -2252,8 +2246,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
             tgen_xori(s, TCG_TYPE_I64, a0, a2);
-        } else if (a0 == a1) {
-            tcg_out_insn(s, RRE, XGR, a0, a2);
         } else {
             tcg_out_insn(s, RRF, XGRK, a0, a1, a2);
         }
@@ -2926,9 +2918,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_or_i64:
     case INDEX_op_xor_i32:
     case INDEX_op_xor_i64:
-        return (HAVE_FACILITY(DISTINCT_OPS)
-                ? C_O1_I2(r, r, ri)
-                : C_O1_I2(r, 0, ri));
+        return C_O1_I2(r, r, ri);
 
     case INDEX_op_mul_i32:
         return C_O1_I2(r, 0, ri);
@@ -2938,9 +2928,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
-        return (HAVE_FACILITY(DISTINCT_OPS)
-                ? C_O1_I2(r, r, ri)
-                : C_O1_I2(r, 0, ri));
+        return C_O1_I2(r, r, ri);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
