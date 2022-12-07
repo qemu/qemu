@@ -2431,7 +2431,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         /* The host memory model is quite strong, we simply need to
            serialize the instruction stream.  */
         if (args[0] & TCG_MO_ST_LD) {
-            tcg_out_insn(s, RR, BCR, HAVE_FACILITY(FAST_BCR_SER) ? 14 : 15, 0);
+            /* fast-bcr-serialization facility (45) is present */
+            tcg_out_insn(s, RR, BCR, 14, 0);
         }
         break;
 

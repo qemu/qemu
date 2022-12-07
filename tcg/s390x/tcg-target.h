@@ -62,7 +62,6 @@ typedef enum TCGReg {
 
 /* Facilities that are checked at runtime. */
 
-#define FACILITY_FAST_BCR_SER         45
 #define FACILITY_DISTINCT_OPS         45
 #define FACILITY_LOAD_ON_COND2        53
 #define FACILITY_VECTOR               129
