@@ -154,6 +154,9 @@ target_ulong helper_sret(CPURISCVState *env)
                         get_field(mstatus, MSTATUS_SPIE));
     mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
     mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
+    if (env->priv_ver >= PRIV_VERSION_1_12_0) {
+        mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
+    }
     env->mstatus = mstatus;
 
     if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
@@ -203,6 +206,9 @@ target_ulong helper_mret(CPURISCVState *env)
     mstatus = set_field(mstatus, MSTATUS_MPIE, 1);
     mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
     mstatus = set_field(mstatus, MSTATUS_MPV, 0);
+    if ((env->priv_ver >= PRIV_VERSION_1_12_0) && (prev_priv != PRV_M)) {
+        mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
+    }
     env->mstatus = mstatus;
     riscv_cpu_set_mode(env, prev_priv);
 
