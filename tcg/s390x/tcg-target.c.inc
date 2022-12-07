@@ -33,11 +33,6 @@
 #include "../tcg-pool.c.inc"
 #include "elf.h"
 
-/* ??? The translation blocks produced by TCG are generally small enough to
-   be entirely reachable with a 16-bit displacement.  Leaving the option for
-   a 32-bit displacement here Just In Case.  */
-#define USE_LONG_BRANCHES 0
-
 #define TCG_CT_CONST_S16   0x100
 #define TCG_CT_CONST_S32   0x200
 #define TCG_CT_CONST_S33   0x400
@@ -1525,10 +1520,6 @@ static void tgen_branch(TCGContext *s, int cc, TCGLabel *l)
 {
     if (l->has_value) {
         tgen_gotoi(s, cc, l->u.value_ptr);
-    } else if (USE_LONG_BRANCHES) {
-        tcg_out16(s, RIL_BRCL | (cc << 4));
-        tcg_out_reloc(s, s->code_ptr, R_390_PC32DBL, l, 2);
-        s->code_ptr += 2;
     } else {
         tcg_out16(s, RI_BRC | (cc << 4));
         tcg_out_reloc(s, s->code_ptr, R_390_PC16DBL, l, 2);
