@@ -466,15 +466,10 @@ static bool bdrv_drain_all_poll(void)
  * NOTE: no new block jobs or BlockDriverStates can be created between
  * the bdrv_drain_all_begin() and bdrv_drain_all_end() calls.
  */
-void bdrv_drain_all_begin(void)
+void bdrv_drain_all_begin_nopoll(void)
 {
     BlockDriverState *bs = NULL;
     GLOBAL_STATE_CODE();
-
-    if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(NULL, true, NULL, true);
-        return;
-    }
 
     /*
      * bdrv queue is managed by record/replay,
@@ -500,6 +495,18 @@ void bdrv_drain_all_begin(void)
         bdrv_do_drained_begin(bs, NULL, false);
         aio_context_release(aio_context);
     }
+}
+
+void bdrv_drain_all_begin(void)
+{
+    BlockDriverState *bs = NULL;
+
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(NULL, true, NULL, true);
+        return;
+    }
+
+    bdrv_drain_all_begin_nopoll();
 
     /* Now poll the in-flight requests */
     AIO_WAIT_WHILE(NULL, bdrv_drain_all_poll());
