@@ -71,7 +71,7 @@ nbd_co_do_establish_connection(BlockDriverState *bs, bool blocking,
  * the "I/O or GS" API.
  */
 
-int co_wrapper_mixed
+int co_wrapper_mixed_bdrv_rdlock
 bdrv_common_block_status_above(BlockDriverState *bs,
                                BlockDriverState *base,
                                bool include_base,

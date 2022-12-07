@@ -39,19 +39,24 @@
  * to catch when they are accidentally called by the wrong API.
  */
 
-int co_wrapper_mixed bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset,
-                                        int64_t bytes,
-                                        BdrvRequestFlags flags);
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset, int64_t bytes,
+                   BdrvRequestFlags flags);
+
 int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags);
-int co_wrapper_mixed bdrv_pread(BdrvChild *child, int64_t offset,
-                                int64_t bytes, void *buf,
-                                BdrvRequestFlags flags);
-int co_wrapper_mixed bdrv_pwrite(BdrvChild *child, int64_t offset,
-                                 int64_t bytes, const void *buf,
-                                 BdrvRequestFlags flags);
-int co_wrapper_mixed bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
-                                      int64_t bytes, const void *buf,
-                                      BdrvRequestFlags flags);
+
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_pread(BdrvChild *child, int64_t offset, int64_t bytes, void *buf,
+           BdrvRequestFlags flags);
+
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_pwrite(BdrvChild *child, int64_t offset,int64_t bytes,
+            const void *buf, BdrvRequestFlags flags);
+
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_pwrite_sync(BdrvChild *child, int64_t offset, int64_t bytes,
+                 const void *buf, BdrvRequestFlags flags);
+
 int coroutine_fn bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset,
                                      int64_t bytes, const void *buf,
                                      BdrvRequestFlags flags);
@@ -287,22 +292,26 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
 
 void bdrv_drain(BlockDriverState *bs);
 
-int co_wrapper_mixed
+int co_wrapper_mixed_bdrv_rdlock
 bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
               PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
 
-int co_wrapper_mixed bdrv_check(BlockDriverState *bs, BdrvCheckResult *res,
-                                BdrvCheckMode fix);
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
 /* Invalidate any cached metadata used by image formats */
-int co_wrapper_mixed bdrv_invalidate_cache(BlockDriverState *bs,
-                                           Error **errp);
-int co_wrapper_mixed bdrv_flush(BlockDriverState *bs);
-int co_wrapper_mixed bdrv_pdiscard(BdrvChild *child, int64_t offset,
-                                   int64_t bytes);
-int co_wrapper_mixed
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_invalidate_cache(BlockDriverState *bs, Error **errp);
+
+int co_wrapper_mixed_bdrv_rdlock bdrv_flush(BlockDriverState *bs);
+
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes);
+
+int co_wrapper_mixed_bdrv_rdlock
 bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
-int co_wrapper_mixed
+
+int co_wrapper_mixed_bdrv_rdlock
 bdrv_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
 /**
