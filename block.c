@@ -5402,6 +5402,7 @@ int coroutine_fn bdrv_co_check(BlockDriverState *bs,
                                BdrvCheckResult *res, BdrvCheckMode fix)
 {
     IO_CODE();
+    assert_bdrv_graph_readable();
     if (bs->drv == NULL) {
         return -ENOMEDIUM;
     }
@@ -6617,6 +6618,7 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
     IO_CODE();
 
     assert(!(bs->open_flags & BDRV_O_INACTIVE));
+    assert_bdrv_graph_readable();
 
     if (bs->drv->bdrv_co_invalidate_cache) {
         bs->drv->bdrv_co_invalidate_cache(bs, &local_err);

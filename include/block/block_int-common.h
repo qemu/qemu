@@ -641,8 +641,8 @@ struct BlockDriver {
     /*
      * Invalidate any cached meta-data.
      */
-    void coroutine_fn (*bdrv_co_invalidate_cache)(BlockDriverState *bs,
-                                                  Error **errp);
+    void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_invalidate_cache)(
+        BlockDriverState *bs, Error **errp);
 
     /*
      * Flushes all data for all layers by calling bdrv_co_flush for underlying
@@ -701,12 +701,11 @@ struct BlockDriver {
                                                  Error **errp);
     BlockStatsSpecific *(*bdrv_get_specific_stats)(BlockDriverState *bs);
 
-    int coroutine_fn (*bdrv_save_vmstate)(BlockDriverState *bs,
-                                          QEMUIOVector *qiov,
-                                          int64_t pos);
-    int coroutine_fn (*bdrv_load_vmstate)(BlockDriverState *bs,
-                                          QEMUIOVector *qiov,
-                                          int64_t pos);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_save_vmstate)(
+        BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_load_vmstate)(
+        BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
     /* removable device specific */
     bool (*bdrv_is_inserted)(BlockDriverState *bs);
@@ -724,9 +723,8 @@ struct BlockDriver {
      * Returns 0 for completed check, -errno for internal errors.
      * The check results are stored in result.
      */
-    int coroutine_fn (*bdrv_co_check)(BlockDriverState *bs,
-                                      BdrvCheckResult *result,
-                                      BdrvCheckMode fix);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_check)(
+        BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkdebugEvent event);
 

@@ -37,9 +37,11 @@
  * the I/O API.
  */
 
-int coroutine_fn bdrv_co_check(BlockDriverState *bs,
-                               BdrvCheckResult *res, BdrvCheckMode fix);
-int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
+
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp);
 
 int coroutine_fn
 bdrv_co_common_block_status_above(BlockDriverState *bs,
@@ -53,10 +55,11 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
                                   BlockDriverState **file,
                                   int *depth);
 
-int coroutine_fn bdrv_co_readv_vmstate(BlockDriverState *bs,
-                                       QEMUIOVector *qiov, int64_t pos);
-int coroutine_fn bdrv_co_writev_vmstate(BlockDriverState *bs,
-                                        QEMUIOVector *qiov, int64_t pos);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
+
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
 int coroutine_fn
 nbd_co_do_establish_connection(BlockDriverState *bs, bool blocking,
