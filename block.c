@@ -1402,7 +1402,7 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
     *child_flags = flags;
 }
 
-static void bdrv_child_cb_attach(BdrvChild *child)
+static void GRAPH_WRLOCK bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
@@ -1444,7 +1444,7 @@ static void bdrv_child_cb_attach(BdrvChild *child)
     }
 }
 
-static void bdrv_child_cb_detach(BdrvChild *child)
+static void GRAPH_WRLOCK bdrv_child_cb_detach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 

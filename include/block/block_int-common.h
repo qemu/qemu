@@ -898,8 +898,8 @@ struct BdrvChildClass {
     void (*activate)(BdrvChild *child, Error **errp);
     int (*inactivate)(BdrvChild *child);
 
-    void (*attach)(BdrvChild *child);
-    void (*detach)(BdrvChild *child);
+    void GRAPH_WRLOCK_PTR (*attach)(BdrvChild *child);
+    void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);
 
     /*
      * Notifies the parent that the filename of its child has changed (e.g.
