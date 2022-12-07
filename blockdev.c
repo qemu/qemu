@@ -1507,10 +1507,14 @@ static void external_snapshot_prepare(BlkActionState *common,
                 goto out;
             }
             bdrv_refresh_filename(state->old_bs);
+
+            aio_context_release(aio_context);
             bdrv_img_create(new_image_file, format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
                             NULL, size, flags, false, &local_err);
+            aio_context_acquire(aio_context);
+
             if (local_err) {
                 error_propagate(errp, local_err);
                 goto out;
