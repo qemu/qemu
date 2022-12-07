@@ -24,6 +24,9 @@
 #include "block/block.h"
 #include "block/block_int.h"
 
+/* Dummy lock object to use for Thread Safety Analysis (TSA) */
+BdrvGraphLock graph_lock;
+
 /* Protects the list of aiocontext and orphaned_reader_count */
 static QemuMutex aio_context_list_lock;
 
