@@ -13,6 +13,7 @@ stub_ss.add(files('error-printf.c'))
 stub_ss.add(files('fdset.c'))
 stub_ss.add(files('gdbstub.c'))
 stub_ss.add(files('get-vm-name.c'))
+stub_ss.add(files('graph-lock.c'))
 if linux_io_uring.found()
   stub_ss.add(files('io_uring.c'))
 endif
