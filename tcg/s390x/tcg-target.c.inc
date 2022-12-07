@@ -3211,6 +3211,7 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 static void query_s390_facilities(void)
 {
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+    const char *which;
 
     /* Is STORE FACILITY LIST EXTENDED available?  Honestly, I believe this
        is present on all 64-bit systems, but let's check for it anyway.  */
@@ -3232,6 +3233,20 @@ static void query_s390_facilities(void)
     if (!(hwcap & HWCAP_S390_VXRS)) {
         s390_facilities[2] = 0;
     }
+
+    /*
+     * Check for all required facilities.
+     * ZARCH_ACTIVE is done via preprocessor check for 64-bit.
+     */
+    if (!HAVE_FACILITY(LONG_DISP)) {
+        which = "long-displacement";
+        goto fail;
+    }
+    return;
+
+ fail:
+    error_report("%s: missing required facility %s", __func__, which);
+    exit(EXIT_FAILURE);
 }
 
 static void tcg_target_init(TCGContext *s)

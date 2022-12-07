@@ -52,11 +52,13 @@ typedef enum TCGReg {
 
 #define TCG_TARGET_NB_REGS 64
 
-/* A list of relevant facilities used by this translator.  Some of these
-   are required for proper operation, and these are checked at startup.  */
+/* Facilities required for proper operation; checked at startup. */
 
 #define FACILITY_ZARCH_ACTIVE         2
 #define FACILITY_LONG_DISP            18
+
+/* Facilities that are checked at runtime. */
+
 #define FACILITY_EXT_IMM              21
 #define FACILITY_GEN_INST_EXT         34
 #define FACILITY_LOAD_ON_COND         45
