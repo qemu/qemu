@@ -135,5 +135,71 @@ void coroutine_fn bdrv_graph_co_rdunlock(void);
 void bdrv_graph_rdlock_main_loop(void);
 void bdrv_graph_rdunlock_main_loop(void);
 
+typedef struct GraphLockable { } GraphLockable;
+
+/*
+ * In C, compound literals have the lifetime of an automatic variable.
+ * In C++ it would be different, but then C++ wouldn't need QemuLockable
+ * either...
+ */
+#define GML_OBJ_() (&(GraphLockable) { })
+
+static inline GraphLockable *graph_lockable_auto_lock(GraphLockable *x)
+{
+    bdrv_graph_co_rdlock();
+    return x;
+}
+
+static inline void graph_lockable_auto_unlock(GraphLockable *x)
+{
+    bdrv_graph_co_rdunlock();
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GraphLockable, graph_lockable_auto_unlock)
+
+#define WITH_GRAPH_RDLOCK_GUARD_(var)                                         \
+    for (g_autoptr(GraphLockable) var = graph_lockable_auto_lock(GML_OBJ_()); \
+         var;                                                                 \
+         graph_lockable_auto_unlock(var), var = NULL)
+
+#define WITH_GRAPH_RDLOCK_GUARD() \
+    WITH_GRAPH_RDLOCK_GUARD_(glue(graph_lockable_auto, __COUNTER__))
+
+#define GRAPH_RDLOCK_GUARD(x)                                       \
+    g_autoptr(GraphLockable)                                        \
+    glue(graph_lockable_auto, __COUNTER__) G_GNUC_UNUSED =          \
+            graph_lockable_auto_lock(GML_OBJ_())
+
+
+typedef struct GraphLockableMainloop { } GraphLockableMainloop;
+
+/*
+ * In C, compound literals have the lifetime of an automatic variable.
+ * In C++ it would be different, but then C++ wouldn't need QemuLockable
+ * either...
+ */
+#define GMLML_OBJ_() (&(GraphLockableMainloop) { })
+
+static inline GraphLockableMainloop *
+graph_lockable_auto_lock_mainloop(GraphLockableMainloop *x)
+{
+    bdrv_graph_rdlock_main_loop();
+    return x;
+}
+
+static inline void
+graph_lockable_auto_unlock_mainloop(GraphLockableMainloop *x)
+{
+    bdrv_graph_rdunlock_main_loop();
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GraphLockableMainloop,
+                              graph_lockable_auto_unlock_mainloop)
+
+#define GRAPH_RDLOCK_GUARD_MAINLOOP(x)                              \
+    g_autoptr(GraphLockableMainloop)                                \
+    glue(graph_lockable_auto, __COUNTER__) G_GNUC_UNUSED =          \
+            graph_lockable_auto_lock_mainloop(GMLML_OBJ_())
+
 #endif /* GRAPH_LOCK_H */
 
