@@ -120,6 +120,7 @@ void aa32_max_features(ARMCPU *cpu)
     cpu->isar.id_dfr1 = t;
 }
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 /* CPU models. These are not needed for the AArch64 linux-user build. */
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
@@ -1066,3 +1067,4 @@ static void arm_tcg_cpu_register_types(void)
 type_init(arm_tcg_cpu_register_types)
 
 #endif /* !CONFIG_USER_ONLY || !TARGET_AARCH64 */
+#endif /* disabled for RHEL */

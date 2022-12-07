@@ -653,6 +653,7 @@ static void aarch64_a57_initfn(Object *obj)
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static void aarch64_a53_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -710,6 +711,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->gic_pribits = 5;
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
+#endif
 
 static void aarch64_host_initfn(Object *obj)
 {
@@ -748,8 +750,11 @@ static void aarch64_max_initfn(Object *obj)
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
-    { .name = "cortex-a57",         .initfn = aarch64_a57_initfn },
+    { .name = "cortex-a57",         .initfn = aarch64_a57_initfn,
+      .deprecation_note = RHEL_CPU_DEPRECATION },
+#if 0 /* Disabled for Red Hat Enterprise Linux */
     { .name = "cortex-a53",         .initfn = aarch64_a53_initfn },
+#endif /* disabled for RHEL */
     { .name = "max",                .initfn = aarch64_max_initfn },
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
     { .name = "host",               .initfn = aarch64_host_initfn },
@@ -820,8 +825,13 @@ static void aarch64_cpu_instance_init(Object *obj)
 static void cpu_register_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
 
     acc->info = data;
+
+    if (acc->info->deprecation_note) {
+        cc->deprecation_note = acc->info->deprecation_note;
+    }
 }
 
 void aarch64_cpu_register(const ARMCPUInfo *info)

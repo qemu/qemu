@@ -6,7 +6,8 @@ system_ss.add(when: 'CONFIG_CXL',
                    'cxl-host.c',
                    'cxl-cdat.c',
                    'cxl-events.c',
-                   'switch-mailbox-cci.c',
+# Disabled for 8.2.0 rebase for RHEL 9.4.0
+#                   'switch-mailbox-cci.c',
                ),
                if_false: files(
                    'cxl-host-stubs.c',

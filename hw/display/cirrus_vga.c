@@ -36,6 +36,7 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "sysemu/reset.h"
 #include "qapi/error.h"
 #include "trace.h"
@@ -2945,6 +2946,9 @@ static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
     CirrusVGAState *s = &d->cirrus_vga;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     int16_t device_id = pc->device_id;
+
+    warn_report("'cirrus-vga' is deprecated, "
+                "please use a different VGA card instead");
 
     /*
      * Follow real hardware, cirrus card emulated has 4 MB video memory.

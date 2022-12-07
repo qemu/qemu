@@ -49,6 +49,8 @@
 #include "qom/object.h"
 #include "fdc-internal.h"
 
+#include "hw/boards.h"
+
 /********************************************************/
 /* debug Floppy devices */
 
@@ -2345,6 +2347,14 @@ void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl, Error **errp)
     int i, j;
     FDrive *drive;
     static int command_tables_inited = 0;
+
+    /* Restricted for Red Hat Enterprise Linux: */
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    if (!strstr(mc->name, "-rhel7.")) {
+        error_setg(errp, "Device %s is not supported with machine type %s",
+                   object_get_typename(OBJECT(dev)), mc->name);
+        return;
+    }
 
     if (fdctrl->fallback == FLOPPY_DRIVE_TYPE_AUTO) {
         error_setg(errp, "Cannot choose a fallback FDrive type of 'auto'");

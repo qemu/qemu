@@ -29,6 +29,7 @@
 #include "cpu-features.h"
 #include "cpregs.h"
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static uint64_t make_ccsidr64(unsigned assoc, unsigned linesize,
                               unsigned cachesize)
 {
@@ -135,6 +136,7 @@ static void aarch64_a35_initfn(Object *obj)
     /* These values are the same with A53/A57/A72. */
     define_cortex_a72_a57_a53_cp_reginfo(cpu);
 }
+#endif
 
 static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
@@ -224,6 +226,7 @@ static void cpu_max_get_l0gptsz(Object *obj, Visitor *v, const char *name,
 static Property arm_cpu_lpa2_property =
     DEFINE_PROP_BOOL("lpa2", ARMCPU, prop_lpa2, true);
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static void aarch64_a55_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1074,6 +1077,7 @@ static void aarch64_neoverse_n2_initfn(Object *obj)
     aarch64_add_pauth_properties(obj);
     aarch64_add_sve_properties(obj);
 }
+#endif
 
 /*
  * -cpu max: a CPU with as many features enabled as our emulation supports.
@@ -1295,6 +1299,7 @@ void aarch64_max_tcg_initfn(Object *obj)
     qdev_property_add_static(DEVICE(obj), &arm_cpu_lpa2_property);
 }
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
 static const ARMCPUInfo aarch64_cpus[] = {
     { .name = "cortex-a35",         .initfn = aarch64_a35_initfn },
     { .name = "cortex-a55",         .initfn = aarch64_a55_initfn },
@@ -1306,14 +1311,17 @@ static const ARMCPUInfo aarch64_cpus[] = {
     { .name = "neoverse-v1",        .initfn = aarch64_neoverse_v1_initfn },
     { .name = "neoverse-n2",        .initfn = aarch64_neoverse_n2_initfn },
 };
+#endif
 
 static void aarch64_cpu_register_types(void)
 {
+#if 0 /* Disabled for Red Hat Enterprise Linux */
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(aarch64_cpus); ++i) {
         aarch64_cpu_register(&aarch64_cpus[i]);
     }
+#endif
 }
 
 type_init(aarch64_cpu_register_types)

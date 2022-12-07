@@ -952,6 +952,8 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_kbd_isa;
     adevc->build_dev_aml = i8042_build_aml;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    /* Disabled for Red Hat Enterprise Linux: */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo i8042_info = {

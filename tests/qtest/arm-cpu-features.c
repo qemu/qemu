@@ -452,8 +452,10 @@ static void test_query_cpu_model_expansion(const void *data)
     assert_error(qts, "host", "The CPU type 'host' requires KVM", NULL);
 
     /* Test expected feature presence/absence for some cpu types */
+#if 0 /* Disabled for Red Hat Enterprise Linux */
     assert_has_feature_enabled(qts, "cortex-a15", "pmu");
     assert_has_not_feature(qts, "cortex-a15", "aarch64");
+#endif /* disabled for RHEL */
 
     /* Enabling and disabling pmu should always work. */
     assert_has_feature_enabled(qts, "max", "pmu");
@@ -470,6 +472,7 @@ static void test_query_cpu_model_expansion(const void *data)
         assert_has_feature_enabled(qts, "cortex-a57", "pmu");
         assert_has_feature_enabled(qts, "cortex-a57", "aarch64");
 
+#if 0 /* Disabled for Red Hat Enterprise Linux */
         assert_has_feature_enabled(qts, "a64fx", "pmu");
         assert_has_feature_enabled(qts, "a64fx", "aarch64");
         /*
@@ -482,6 +485,7 @@ static void test_query_cpu_model_expansion(const void *data)
                      "{ 'sve384': true }");
         assert_error(qts, "a64fx", "cannot enable sve640",
                      "{ 'sve640': true }");
+#endif /* disabled for RHEL */
 
         sve_tests_default(qts, "max");
         pauth_tests_default(qts, "max");

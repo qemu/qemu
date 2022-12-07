@@ -34,6 +34,9 @@ static void check_unavailable_features(const S390CPUModel *max_model,
         (max_model->def->gen == model->def->gen &&
          max_model->def->ec_ga < model->def->ec_ga)) {
         list_add_feat("type", unavailable);
+    } else if (model->def->gen < 11 && kvm_enabled()) {
+        /* Older CPU models are not supported on Red Hat Enterprise Linux */
+        list_add_feat("type", unavailable);
     }
 
     /* detect missing features if any to properly report them */

@@ -399,10 +399,12 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
         .instance_size = sizeof(SpaprCpuCore),
         .class_size = sizeof(SpaprCpuCoreClass),
     },
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     DEFINE_SPAPR_CPU_CORE_TYPE("970_v2.2"),
     DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.0"),
     DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.1"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power5p_v2.1"),
+#endif
     DEFINE_SPAPR_CPU_CORE_TYPE("power7_v2.3"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power7p_v2.1"),
     DEFINE_SPAPR_CPU_CORE_TYPE("power8_v2.0"),

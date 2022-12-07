@@ -66,6 +66,7 @@
 #define POWERPC_DEF(_name, _pvr, _type, _desc)                              \
     POWERPC_DEF_SVR(_name, _desc, _pvr, POWERPC_SVR_NONE, _type)
 
+#if 0  /* Embedded and 32-bit CPUs disabled for Red Hat Enterprise Linux */
     /* Embedded PowerPC                                                      */
     /* PowerPC 405 family                                                    */
     /* PowerPC 405 cores                                                     */
@@ -698,8 +699,10 @@
                 "PowerPC 7447A v1.2 (G4)")
     POWERPC_DEF("7457a_v1.2",    CPU_POWERPC_74x7A_v12,              7455,
                 "PowerPC 7457A v1.2 (G4)")
+#endif
     /* 64 bits PowerPC                                                       */
 #if defined(TARGET_PPC64)
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     POWERPC_DEF("970_v2.2",      CPU_POWERPC_970_v22,                970,
                 "PowerPC 970 v2.2")
     POWERPC_DEF("970fx_v1.0",    CPU_POWERPC_970FX_v10,              970,
@@ -718,6 +721,7 @@
                 "PowerPC 970MP v1.1")
     POWERPC_DEF("power5p_v2.1",  CPU_POWERPC_POWER5P_v21,            POWER5P,
                 "POWER5+ v2.1")
+#endif
     POWERPC_DEF("power7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7,
                 "POWER7 v2.3")
     POWERPC_DEF("power7p_v2.1",  CPU_POWERPC_POWER7P_v21,            POWER7,
@@ -894,13 +898,16 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "7447a", "7447a_v1.2" },
     { "7457a", "7457a_v1.2" },
     { "apollo7pm", "7457a_v1.0" },
+#endif
 #if defined(TARGET_PPC64)
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     { "970", "970_v2.2" },
     { "970fx", "970fx_v3.1" },
     { "970mp", "970mp_v1.1" },
     { "power5+", "power5p_v2.1" },
     { "power5+_v2.1", "power5p_v2.1" },
     { "power5gs", "power5+_v2.1" },
+#endif
     { "power7", "power7_v2.3" },
     { "power7+", "power7p_v2.1" },
     { "power7+_v2.1", "power7p_v2.1" },
@@ -911,12 +918,14 @@ PowerPCCPUAlias ppc_cpu_aliases[] = {
     { "power10", "power10_v2.0" },
 #endif
 
+#if 0  /* Disabled for Red Hat Enterprise Linux */
     /* Generic PowerPCs */
 #if defined(TARGET_PPC64)
     { "ppc64", "970fx_v3.1" },
 #endif
     { "ppc32", "604" },
     { "ppc", "604" },
+#endif
 
     { NULL, NULL }
 };
