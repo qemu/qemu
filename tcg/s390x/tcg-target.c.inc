@@ -1252,7 +1252,6 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
                          TCGReg dest, TCGReg c1, TCGArg c2, int c2const)
 {
     int cc;
-    bool have_loc;
 
     /* With LOC2, we can always emit the minimum 3 insns.  */
     if (HAVE_FACILITY(LOAD_ON_COND2)) {
@@ -1263,9 +1262,6 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
         return;
     }
 
-    have_loc = HAVE_FACILITY(LOAD_ON_COND);
-
-    /* For HAVE_LOC, only the paths through GTU/GT/LEU/LE are smaller.  */
  restart:
     switch (cond) {
     case TCG_COND_NE:
@@ -1310,59 +1306,35 @@ static void tgen_setcond(TCGContext *s, TCGType type, TCGCond cond,
     case TCG_COND_LT:
     case TCG_COND_GE:
         /* Swap operands so that we can use LEU/GTU/GT/LE.  */
-        if (c2const) {
-            if (have_loc) {
-                break;
-            }
-            tcg_out_movi(s, type, TCG_TMP0, c2);
-            c2 = c1;
-            c2const = 0;
-            c1 = TCG_TMP0;
-        } else {
+        if (!c2const) {
             TCGReg t = c1;
             c1 = c2;
             c2 = t;
+            cond = tcg_swap_cond(cond);
+            goto restart;
         }
-        cond = tcg_swap_cond(cond);
-        goto restart;
+        break;
 
     default:
         g_assert_not_reached();
     }
 
     cc = tgen_cmp(s, type, cond, c1, c2, c2const, false);
-    if (have_loc) {
-        /* Emit: d = 0, t = 1, d = (cc ? t : d).  */
-        tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
-        tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, 1);
-        tcg_out_insn(s, RRF, LOCGR, dest, TCG_TMP0, cc);
-    } else {
-        /* Emit: d = 1; if (cc) goto over; d = 0; over:  */
-        tcg_out_movi(s, type, dest, 1);
-        tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
-        tcg_out_movi(s, type, dest, 0);
-    }
+    /* Emit: d = 0, t = 1, d = (cc ? t : d).  */
+    tcg_out_movi(s, TCG_TYPE_I64, dest, 0);
+    tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, 1);
+    tcg_out_insn(s, RRF, LOCGR, dest, TCG_TMP0, cc);
 }
 
 static void tgen_movcond(TCGContext *s, TCGType type, TCGCond c, TCGReg dest,
                          TCGReg c1, TCGArg c2, int c2const,
                          TCGArg v3, int v3const)
 {
-    int cc;
-    if (HAVE_FACILITY(LOAD_ON_COND)) {
-        cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
-        if (v3const) {
-            tcg_out_insn(s, RIE, LOCGHI, dest, v3, cc);
-        } else {
-            tcg_out_insn(s, RRF, LOCGR, dest, v3, cc);
-        }
+    int cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
+    if (v3const) {
+        tcg_out_insn(s, RIE, LOCGHI, dest, v3, cc);
     } else {
-        c = tcg_invert_cond(c);
-        cc = tgen_cmp(s, type, c, c1, c2, c2const, false);
-
-        /* Emit: if (cc) goto over; dest = r3; over:  */
-        tcg_out_insn(s, RI, BRC, cc, (4 + 4) >> 1);
-        tcg_out_insn(s, RRE, LGR, dest, v3);
+        tcg_out_insn(s, RRF, LOCGR, dest, v3, cc);
     }
 }
 
@@ -1382,14 +1354,8 @@ static void tgen_clz(TCGContext *s, TCGReg dest, TCGReg a1,
         } else {
             tcg_out_mov(s, TCG_TYPE_I64, dest, a2);
         }
-        if (HAVE_FACILITY(LOAD_ON_COND)) {
-            /* Emit: if (one bit found) dest = r0.  */
-            tcg_out_insn(s, RRF, LOCGR, dest, TCG_REG_R0, 2);
-        } else {
-            /* Emit: if (no one bit found) goto over; dest = r0; over:  */
-            tcg_out_insn(s, RI, BRC, 8, (4 + 4) >> 1);
-            tcg_out_insn(s, RRE, LGR, dest, TCG_REG_R0);
-        }
+        /* Emit: if (one bit found) dest = r0.  */
+        tcg_out_insn(s, RRF, LOCGR, dest, TCG_REG_R0, 2);
     }
 }
 
@@ -3124,6 +3090,7 @@ static void query_s390_facilities(void)
     }
 
     /*
+     * Minimum supported cpu revision is z196.
      * Check for all required facilities.
      * ZARCH_ACTIVE is done via preprocessor check for 64-bit.
      */
@@ -3137,6 +3104,15 @@ static void query_s390_facilities(void)
     }
     if (!HAVE_FACILITY(GEN_INST_EXT)) {
         which = "general-instructions-extension";
+        goto fail;
+    }
+    /*
+     * Facility 45 is a big bin that contains: distinct-operands,
+     * fast-BCR-serialization, high-word, population-count,
+     * interlocked-access-1, and load/store-on-condition-1
+     */
+    if (!HAVE_FACILITY(45)) {
+        which = "45";
         goto fail;
     }
     return;
