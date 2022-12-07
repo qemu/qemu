@@ -259,3 +259,14 @@ void bdrv_graph_rdunlock_main_loop(void)
     GLOBAL_STATE_CODE();
     assert(!qemu_in_coroutine());
 }
+
+void assert_bdrv_graph_readable(void)
+{
+    assert(qemu_in_main_thread() || reader_count());
+}
+
+void assert_bdrv_graph_writable(void)
+{
+    assert(qemu_in_main_thread());
+    assert(qatomic_read(&has_writer));
+}

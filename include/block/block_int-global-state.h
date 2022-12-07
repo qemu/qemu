@@ -310,21 +310,4 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
  */
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
 
-/**
- * Make sure that the function is running under both drain and BQL.
- * The latter protects from concurrent writings
- * from the GS API, while the former prevents concurrent reads
- * from I/O.
- */
-static inline void assert_bdrv_graph_writable(BlockDriverState *bs)
-{
-    /*
-     * TODO: this function is incomplete. Because the users of this
-     * assert lack the necessary drains, check only for BQL.
-     * Once the necessary drains are added,
-     * assert also for qatomic_read(&bs->quiesce_counter) > 0
-     */
-    assert(qemu_in_main_thread());
-}
-
 #endif /* BLOCK_INT_GLOBAL_STATE_H */

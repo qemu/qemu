@@ -135,6 +135,21 @@ void coroutine_fn bdrv_graph_co_rdunlock(void);
 void bdrv_graph_rdlock_main_loop(void);
 void bdrv_graph_rdunlock_main_loop(void);
 
+/*
+ * assert_bdrv_graph_readable:
+ * Make sure that the reader is either the main loop,
+ * or there is at least a reader helding the rdlock.
+ * In this way an incoming writer is aware of the read and waits.
+ */
+void assert_bdrv_graph_readable(void);
+
+/*
+ * assert_bdrv_graph_writable:
+ * Make sure that the writer is the main loop and has set @has_writer,
+ * so that incoming readers will pause.
+ */
+void assert_bdrv_graph_writable(void);
+
 typedef struct GraphLockable { } GraphLockable;
 
 /*
