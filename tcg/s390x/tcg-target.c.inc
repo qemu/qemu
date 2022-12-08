@@ -33,11 +33,13 @@
 #include "../tcg-pool.c.inc"
 #include "elf.h"
 
-#define TCG_CT_CONST_S16   0x100
-#define TCG_CT_CONST_S32   0x200
-#define TCG_CT_CONST_S33   0x400
-#define TCG_CT_CONST_ZERO  0x800
-#define TCG_CT_CONST_P32   0x1000
+#define TCG_CT_CONST_S16        (1 << 8)
+#define TCG_CT_CONST_S32        (1 << 9)
+#define TCG_CT_CONST_S33        (1 << 10)
+#define TCG_CT_CONST_ZERO       (1 << 11)
+#define TCG_CT_CONST_P32        (1 << 12)
+#define TCG_CT_CONST_INV        (1 << 13)
+#define TCG_CT_CONST_INVRISBG   (1 << 14)
 
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 16)
 #define ALL_VECTOR_REGS      MAKE_64BIT_MASK(32, 32)
@@ -530,6 +532,38 @@ static int is_const_p32(uint64_t val)
     return -1;
 }
 
+/*
+ * Accept bit patterns like these:
+ *  0....01....1
+ *  1....10....0
+ *  1..10..01..1
+ *  0..01..10..0
+ * Copied from gcc sources.
+ */
+static bool risbg_mask(uint64_t c)
+{
+    uint64_t lsb;
+    /* We don't change the number of transitions by inverting,
+       so make sure we start with the LSB zero.  */
+    if (c & 1) {
+        c = ~c;
+    }
+    /* Reject all zeros or all ones.  */
+    if (c == 0) {
+        return false;
+    }
+    /* Find the first transition.  */
+    lsb = c & -c;
+    /* Invert to look for a second transition.  */
+    c = ~c;
+    /* Erase the first transition.  */
+    c &= -lsb;
+    /* Find the second transition, if any.  */
+    lsb = c & -c;
+    /* Match if all the bits are 1's, or if c is zero.  */
+    return c == -lsb;
+}
+
 /* Test if a constant matches the constraint. */
 static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 {
@@ -552,11 +586,17 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
         return val == 0;
     }
 
+    if (ct & TCG_CT_CONST_INV) {
+        val = ~val;
+    }
     /*
      * Note that is_const_p16 is a subset of is_const_p32,
      * so we don't need both constraints.
      */
     if ((ct & TCG_CT_CONST_P32) && is_const_p32(val) >= 0) {
+        return true;
+    }
+    if ((ct & TCG_CT_CONST_INVRISBG) && risbg_mask(~val)) {
         return true;
     }
 
@@ -1057,36 +1097,6 @@ static inline void tgen_ext32u(TCGContext *s, TCGReg dest, TCGReg src)
     tcg_out_insn(s, RRE, LLGFR, dest, src);
 }
 
-/* Accept bit patterns like these:
-    0....01....1
-    1....10....0
-    1..10..01..1
-    0..01..10..0
-   Copied from gcc sources.  */
-static inline bool risbg_mask(uint64_t c)
-{
-    uint64_t lsb;
-    /* We don't change the number of transitions by inverting,
-       so make sure we start with the LSB zero.  */
-    if (c & 1) {
-        c = ~c;
-    }
-    /* Reject all zeros or all ones.  */
-    if (c == 0) {
-        return false;
-    }
-    /* Find the first transition.  */
-    lsb = c & -c;
-    /* Invert to look for a second transition.  */
-    c = ~c;
-    /* Erase the first transition.  */
-    c &= -lsb;
-    /* Find the second transition, if any.  */
-    lsb = c & -c;
-    /* Match if all the bits are 1's, or if c is zero.  */
-    return c == -lsb;
-}
-
 static void tgen_andi_risbg(TCGContext *s, TCGReg out, TCGReg in, uint64_t val)
 {
     int msb, lsb;
@@ -1126,34 +1136,25 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
         return;
     }
 
-    /* Try all 32-bit insns that can perform it in one go.  */
-    for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = ~(0xffffull << i * 16);
-        if (((val | ~valid) & mask) == mask) {
-            tcg_out_insn_RI(s, ni_insns[i], dest, val >> i * 16);
-            return;
-        }
+    i = is_const_p16(~val & valid);
+    if (i >= 0) {
+        tcg_out_insn_RI(s, ni_insns[i], dest, val >> (i * 16));
+        return;
     }
 
-    /* Try all 48-bit insns that can perform it in one go.  */
-    for (i = 0; i < 2; i++) {
-        tcg_target_ulong mask = ~(0xffffffffull << i * 32);
-        if (((val | ~valid) & mask) == mask) {
-            tcg_out_insn_RIL(s, nif_insns[i], dest, val >> i * 32);
-            return;
-        }
+    i = is_const_p32(~val & valid);
+    tcg_debug_assert(i == 0 || type != TCG_TYPE_I32);
+    if (i >= 0) {
+        tcg_out_insn_RIL(s, nif_insns[i], dest, val >> (i * 32));
+        return;
     }
+
     if (risbg_mask(val)) {
         tgen_andi_risbg(s, dest, dest, val);
         return;
     }
 
-    tcg_out_movi(s, type, TCG_TMP0, val);
-    if (type == TCG_TYPE_I32) {
-        tcg_out_insn(s, RR, NR, dest, TCG_TMP0);
-    } else {
-        tcg_out_insn(s, RRE, NGR, dest, TCG_TMP0);
-    }
+    g_assert_not_reached();
 }
 
 static void tgen_ori(TCGContext *s, TCGReg dest, uint64_t val)
@@ -2935,10 +2936,11 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
     case INDEX_op_and_i32:
-    case INDEX_op_and_i64:
     case INDEX_op_or_i32:
     case INDEX_op_xor_i32:
         return C_O1_I2(r, r, ri);
+    case INDEX_op_and_i64:
+        return C_O1_I2(r, r, rNKR);
     case INDEX_op_or_i64:
     case INDEX_op_xor_i64:
         return C_O1_I2(r, r, rK);
