@@ -24,10 +24,6 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
- *
- * The implementation of g_poll (functions poll_rest, g_poll) at the end of
- * this file are based on code from GNOME glib-2 and use a different license,
- * see the license comment there.
  */
 
 #include "qemu/osdep.h"
