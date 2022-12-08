@@ -877,6 +877,9 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
 static const S390Opcode li_insns[4] = {
     RI_LLILL, RI_LLILH, RI_LLIHL, RI_LLIHH
 };
+static const S390Opcode oi_insns[4] = {
+    RI_OILL, RI_OILH, RI_OIHL, RI_OIHH
+};
 static const S390Opcode lif_insns[2] = {
     RIL_LLILF, RIL_LLIHF,
 };
@@ -928,9 +931,20 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         return;
     }
 
-    /* Otherwise, stuff it in the constant pool.  */
-    tcg_out_insn(s, RIL, LGRL, ret, 0);
-    new_pool_label(s, sval, R_390_PC32DBL, s->code_ptr - 2, 2);
+    /* Otherwise, load it by parts. */
+    i = is_const_p16((uint32_t)uval);
+    if (i >= 0) {
+        tcg_out_insn_RI(s, li_insns[i], ret, uval >> (i * 16));
+    } else {
+        tcg_out_insn(s, RIL, LLILF, ret, uval);
+    }
+    uval >>= 32;
+    i = is_const_p16(uval);
+    if (i >= 0) {
+        tcg_out_insn_RI(s, oi_insns[i + 2], ret, uval >> (i * 16));
+    } else {
+        tcg_out_insn(s, RIL, OIHF, ret, uval);
+    }
 }
 
 /* Emit a load/store type instruction.  Inputs are:
@@ -1160,9 +1174,6 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 
 static void tgen_ori(TCGContext *s, TCGReg dest, uint64_t val)
 {
-    static const S390Opcode oi_insns[4] = {
-        RI_OILL, RI_OILH, RI_OIHL, RI_OIHH
-    };
     static const S390Opcode oif_insns[2] = {
         RIL_OILF, RIL_OIHF
     };
