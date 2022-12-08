@@ -874,14 +874,19 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
     return true;
 }
 
-static const S390Opcode lli_insns[4] = {
+static const S390Opcode li_insns[4] = {
     RI_LLILL, RI_LLILH, RI_LLIHL, RI_LLIHH
 };
+static const S390Opcode lif_insns[2] = {
+    RIL_LLILF, RIL_LLIHF,
+};
 
-static bool maybe_out_small_movi(TCGContext *s, TCGType type,
-                                 TCGReg ret, tcg_target_long sval)
+/* load a register with an immediate value */
+static void tcg_out_movi(TCGContext *s, TCGType type,
+                         TCGReg ret, tcg_target_long sval)
 {
     tcg_target_ulong uval = sval;
+    ptrdiff_t pc_off;
     int i;
 
     if (type == TCG_TYPE_I32) {
@@ -892,36 +897,13 @@ static bool maybe_out_small_movi(TCGContext *s, TCGType type,
     /* Try all 32-bit insns that can load it in one go.  */
     if (sval >= -0x8000 && sval < 0x8000) {
         tcg_out_insn(s, RI, LGHI, ret, sval);
-        return true;
-    }
-
-    for (i = 0; i < 4; i++) {
-        tcg_target_long mask = 0xffffull << i * 16;
-        if ((uval & mask) == uval) {
-            tcg_out_insn_RI(s, lli_insns[i], ret, uval >> i * 16);
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/* load a register with an immediate value */
-static void tcg_out_movi(TCGContext *s, TCGType type,
-                         TCGReg ret, tcg_target_long sval)
-{
-    tcg_target_ulong uval;
-    ptrdiff_t pc_off;
-
-    /* Try all 32-bit insns that can load it in one go.  */
-    if (maybe_out_small_movi(s, type, ret, sval)) {
         return;
     }
 
-    uval = sval;
-    if (type == TCG_TYPE_I32) {
-        uval = (uint32_t)sval;
-        sval = (int32_t)sval;
+    i = is_const_p16(uval);
+    if (i >= 0) {
+        tcg_out_insn_RI(s, li_insns[i], ret, uval >> (i * 16));
+        return;
     }
 
     /* Try all 48-bit insns that can load it in one go.  */
@@ -929,12 +911,10 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         tcg_out_insn(s, RIL, LGFI, ret, sval);
         return;
     }
-    if (uval <= 0xffffffff) {
-        tcg_out_insn(s, RIL, LLILF, ret, uval);
-        return;
-    }
-    if ((uval & 0xffffffff) == 0) {
-        tcg_out_insn(s, RIL, LLIHF, ret, uval >> 32);
+
+    i = is_const_p32(uval);
+    if (i >= 0) {
+        tcg_out_insn_RIL(s, lif_insns[i], ret, uval >> (i * 32));
         return;
     }
 
