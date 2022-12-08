@@ -37,6 +37,7 @@
 #define TCG_CT_CONST_S32   0x200
 #define TCG_CT_CONST_S33   0x400
 #define TCG_CT_CONST_ZERO  0x800
+#define TCG_CT_CONST_P32   0x1000
 
 #define ALL_GENERAL_REGS     MAKE_64BIT_MASK(0, 16)
 #define ALL_VECTOR_REGS      MAKE_64BIT_MASK(32, 32)
@@ -507,6 +508,28 @@ static bool patch_reloc(tcg_insn_unit *src_rw, int type,
     return false;
 }
 
+static int is_const_p16(uint64_t val)
+{
+    for (int i = 0; i < 4; ++i) {
+        uint64_t mask = 0xffffull << (i * 16);
+        if ((val & ~mask) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static int is_const_p32(uint64_t val)
+{
+    if ((val & 0xffffffff00000000ull) == 0) {
+        return 0;
+    }
+    if ((val & 0x00000000ffffffffull) == 0) {
+        return 1;
+    }
+    return -1;
+}
+
 /* Test if a constant matches the constraint. */
 static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 {
@@ -527,6 +550,14 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
         return val >= -0xffffffffll && val <= 0xffffffffll;
     } else if (ct & TCG_CT_CONST_ZERO) {
         return val == 0;
+    }
+
+    /*
+     * Note that is_const_p16 is a subset of is_const_p32,
+     * so we don't need both constraints.
+     */
+    if ((ct & TCG_CT_CONST_P32) && is_const_p32(val) >= 0) {
+        return true;
     }
 
     return 0;
@@ -1125,7 +1156,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
     }
 }
 
-static void tgen_ori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
+static void tgen_ori(TCGContext *s, TCGReg dest, uint64_t val)
 {
     static const S390Opcode oi_insns[4] = {
         RI_OILL, RI_OILH, RI_OIHL, RI_OIHH
@@ -1136,70 +1167,32 @@ static void tgen_ori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 
     int i;
 
-    /* Look for no-op.  */
-    if (unlikely(val == 0)) {
+    i = is_const_p16(val);
+    if (i >= 0) {
+        tcg_out_insn_RI(s, oi_insns[i], dest, val >> (i * 16));
         return;
     }
 
-    /* Try all 32-bit insns that can perform it in one go.  */
-    for (i = 0; i < 4; i++) {
-        tcg_target_ulong mask = (0xffffull << i * 16);
-        if ((val & mask) != 0 && (val & ~mask) == 0) {
-            tcg_out_insn_RI(s, oi_insns[i], dest, val >> i * 16);
-            return;
-        }
+    i = is_const_p32(val);
+    if (i >= 0) {
+        tcg_out_insn_RIL(s, oif_insns[i], dest, val >> (i * 32));
+        return;
     }
 
-    /* Try all 48-bit insns that can perform it in one go.  */
-    for (i = 0; i < 2; i++) {
-        tcg_target_ulong mask = (0xffffffffull << i * 32);
-        if ((val & mask) != 0 && (val & ~mask) == 0) {
-            tcg_out_insn_RIL(s, oif_insns[i], dest, val >> i * 32);
-            return;
-        }
-    }
-
-    if (maybe_out_small_movi(s, type, TCG_TMP0, val)) {
-        if (type == TCG_TYPE_I32) {
-            tcg_out_insn(s, RR, OR, dest, TCG_TMP0);
-        } else {
-            tcg_out_insn(s, RRE, OGR, dest, TCG_TMP0);
-        }
-    } else {
-        /* Perform the OR via sequential modifications to the high and
-           low parts.  Do this via recursion to handle 16-bit vs 32-bit
-           masks in each half.  */
-        tgen_ori(s, type, dest, val & 0x00000000ffffffffull);
-        tgen_ori(s, type, dest, val & 0xffffffff00000000ull);
-    }
+    g_assert_not_reached();
 }
 
-static void tgen_xori(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
+static void tgen_xori(TCGContext *s, TCGReg dest, uint64_t val)
 {
-    /* Try all 48-bit insns that can perform it in one go.  */
-    if ((val & 0xffffffff00000000ull) == 0) {
+    switch (is_const_p32(val)) {
+    case 0:
         tcg_out_insn(s, RIL, XILF, dest, val);
-        return;
-    }
-    if ((val & 0x00000000ffffffffull) == 0) {
+        break;
+    case 1:
         tcg_out_insn(s, RIL, XIHF, dest, val >> 32);
-        return;
-    }
-
-    if (maybe_out_small_movi(s, type, TCG_TMP0, val)) {
-        if (type == TCG_TYPE_I32) {
-            tcg_out_insn(s, RR, XR, dest, TCG_TMP0);
-        } else {
-            tcg_out_insn(s, RRE, XGR, dest, TCG_TMP0);
-        }
-    } else {
-        /* Perform the xor by parts.  */
-        if (val & 0xffffffff) {
-            tcg_out_insn(s, RIL, XILF, dest, val);
-        }
-        if (val > 0xffffffff) {
-            tcg_out_insn(s, RIL, XIHF, dest, val >> 32);
-        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -1994,7 +1987,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         a0 = args[0], a1 = args[1], a2 = (uint32_t)args[2];
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
-            tgen_ori(s, TCG_TYPE_I32, a0, a2);
+            tgen_ori(s, a0, a2);
         } else if (a0 == a1) {
             tcg_out_insn(s, RR, OR, a0, a2);
         } else {
@@ -2256,7 +2249,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
-            tgen_ori(s, TCG_TYPE_I64, a0, a2);
+            tgen_ori(s, a0, a2);
         } else {
             tcg_out_insn(s, RRFa, OGRK, a0, a1, a2);
         }
@@ -2265,7 +2258,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         a0 = args[0], a1 = args[1], a2 = args[2];
         if (const_args[2]) {
             tcg_out_mov(s, TCG_TYPE_I64, a0, a1);
-            tgen_xori(s, TCG_TYPE_I64, a0, a2);
+            tgen_xori(s, a0, a2);
         } else {
             tcg_out_insn(s, RRFa, XGRK, a0, a1, a2);
         }
@@ -2944,10 +2937,11 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_and_i32:
     case INDEX_op_and_i64:
     case INDEX_op_or_i32:
-    case INDEX_op_or_i64:
     case INDEX_op_xor_i32:
-    case INDEX_op_xor_i64:
         return C_O1_I2(r, r, ri);
+    case INDEX_op_or_i64:
+    case INDEX_op_xor_i64:
+        return C_O1_I2(r, r, rK);
 
     case INDEX_op_mul_i32:
         return (HAVE_FACILITY(MISC_INSN_EXT2)

@@ -20,4 +20,5 @@ REGS('o', 0xaaaa) /* odd numbered general regs */
 CONST('A', TCG_CT_CONST_S33)
 CONST('I', TCG_CT_CONST_S16)
 CONST('J', TCG_CT_CONST_S32)
+CONST('K', TCG_CT_CONST_P32)
 CONST('Z', TCG_CT_CONST_ZERO)
