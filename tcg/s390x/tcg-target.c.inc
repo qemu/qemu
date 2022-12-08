@@ -1249,22 +1249,20 @@ static int tgen_cmp2(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
             tcg_out_insn_RIL(s, op, r1, c2);
             goto exit;
         }
+
+        /*
+         * Constraints are for a signed 33-bit operand, which is a
+         * convenient superset of this signed/unsigned test.
+         */
         if (c2 == (is_unsigned ? (TCGArg)(uint32_t)c2 : (TCGArg)(int32_t)c2)) {
             op = (is_unsigned ? RIL_CLGFI : RIL_CGFI);
             tcg_out_insn_RIL(s, op, r1, c2);
             goto exit;
         }
 
-        /* Use the constant pool, but not for small constants.  */
-        if (maybe_out_small_movi(s, type, TCG_TMP0, c2)) {
-            c2 = TCG_TMP0;
-            /* fall through to reg-reg */
-        } else {
-            op = (is_unsigned ? RIL_CLGRL : RIL_CGRL);
-            tcg_out_insn_RIL(s, op, r1, 0);
-            new_pool_label(s, c2, R_390_PC32DBL, s->code_ptr - 2, 2);
-            goto exit;
-        }
+        /* Load everything else into a register. */
+        tcg_out_movi(s, TCG_TYPE_I64, TCG_TMP0, c2);
+        c2 = TCG_TMP0;
     }
 
     if (type == TCG_TYPE_I32) {
@@ -3105,8 +3103,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_rotr_i32:
     case INDEX_op_rotr_i64:
     case INDEX_op_setcond_i32:
-    case INDEX_op_setcond_i64:
         return C_O1_I2(r, r, ri);
+    case INDEX_op_setcond_i64:
+        return C_O1_I2(r, r, rA);
 
     case INDEX_op_clz_i64:
         return C_O1_I2(r, r, rI);
@@ -3154,8 +3153,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, r, ri);
 
     case INDEX_op_brcond_i32:
-    case INDEX_op_brcond_i64:
         return C_O0_I2(r, ri);
+    case INDEX_op_brcond_i64:
+        return C_O0_I2(r, rA);
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
@@ -3196,8 +3196,9 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
         return C_O1_I2(r, rZ, r);
 
     case INDEX_op_movcond_i32:
-    case INDEX_op_movcond_i64:
         return C_O1_I4(r, r, ri, rI, r);
+    case INDEX_op_movcond_i64:
+        return C_O1_I4(r, r, rA, rI, r);
 
     case INDEX_op_div2_i32:
     case INDEX_op_div2_i64:
