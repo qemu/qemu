@@ -123,6 +123,7 @@ M: Richard Henderson <richard.henderson@linaro.org>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: softmmu/cpus.c
+F: softmmu/watchpoint.c
 F: cpus-common.c
 F: page-vary.c
 F: page-vary-common.c
