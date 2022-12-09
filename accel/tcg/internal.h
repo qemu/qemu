@@ -36,16 +36,9 @@ void page_table_config_init(void);
 #endif
 
 #ifdef CONFIG_SOFTMMU
-struct page_collection;
-void tb_invalidate_phys_page_fast__locked(struct page_collection *pages,
-                                          tb_page_addr_t start, int len,
-                                          uintptr_t retaddr);
-struct page_collection *page_collection_lock(tb_page_addr_t start,
-                                             tb_page_addr_t end);
 void tb_invalidate_phys_range_fast(ram_addr_t ram_addr,
                                    unsigned size,
                                    uintptr_t retaddr);
-void page_collection_unlock(struct page_collection *set);
 G_NORETURN void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
 #endif /* CONFIG_SOFTMMU */
 
