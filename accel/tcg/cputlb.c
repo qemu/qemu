@@ -1510,7 +1510,7 @@ static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size,
     if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
         struct page_collection *pages
             = page_collection_lock(ram_addr, ram_addr + size);
-        tb_invalidate_phys_page_fast(pages, ram_addr, size, retaddr);
+        tb_invalidate_phys_page_fast__locked(pages, ram_addr, size, retaddr);
         page_collection_unlock(pages);
     }
 

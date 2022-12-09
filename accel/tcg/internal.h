@@ -37,9 +37,9 @@ void page_table_config_init(void);
 
 #ifdef CONFIG_SOFTMMU
 struct page_collection;
-void tb_invalidate_phys_page_fast(struct page_collection *pages,
-                                  tb_page_addr_t start, int len,
-                                  uintptr_t retaddr);
+void tb_invalidate_phys_page_fast__locked(struct page_collection *pages,
+                                          tb_page_addr_t start, int len,
+                                          uintptr_t retaddr);
 struct page_collection *page_collection_lock(tb_page_addr_t start,
                                              tb_page_addr_t end);
 void page_collection_unlock(struct page_collection *set);
