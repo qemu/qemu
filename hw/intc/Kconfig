@@ -78,6 +78,7 @@ config RISCV_IMSIC
 
 config SIFIVE_PLIC
     bool
+    select MSI_NONBROKEN
 
 config GOLDFISH_PIC
     bool
