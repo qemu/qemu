@@ -132,10 +132,37 @@ static void bl_gen_jalr(void **p, bl_reg rs)
     bl_gen_r_type(p, 0, rs, 0, BL_REG_RA, 0, 0x09);
 }
 
+static void bl_gen_lui_nm(void **ptr, bl_reg rt, uint32_t imm20)
+{
+    uint32_t insn = 0;
+
+    assert(extract32(imm20, 0, 20) == imm20);
+    insn = deposit32(insn, 26, 6, 0b111000);
+    insn = deposit32(insn, 21, 5, rt);
+    insn = deposit32(insn, 12, 9, extract32(imm20, 0, 9));
+    insn = deposit32(insn, 2, 10, extract32(imm20, 9, 10));
+    insn = deposit32(insn, 0, 1, sextract32(imm20, 19, 1));
+
+    st_nm32_p(ptr, insn);
+}
+
 static void bl_gen_lui(void **p, bl_reg rt, uint16_t imm)
 {
     /* R6: It's a alias of AUI with RS = 0 */
     bl_gen_i_type(p, 0x0f, 0, rt, imm);
+}
+
+static void bl_gen_ori_nm(void **ptr, bl_reg rt, bl_reg rs, uint16_t imm12)
+{
+    uint32_t insn = 0;
+
+    assert(extract32(imm12, 0, 12) == imm12);
+    insn = deposit32(insn, 26, 6, 0b100000);
+    insn = deposit32(insn, 21, 5, rt);
+    insn = deposit32(insn, 16, 5, rs);
+    insn = deposit32(insn, 0, 12, imm12);
+
+    st_nm32_p(ptr, insn);
 }
 
 static void bl_gen_ori(void **p, bl_reg rt, bl_reg rs, uint16_t imm)
@@ -178,8 +205,13 @@ static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 /* Pseudo instructions */
 static void bl_gen_li(void **p, bl_reg rt, uint32_t imm)
 {
-    bl_gen_lui(p, rt, extract32(imm, 16, 16));
-    bl_gen_ori(p, rt, rt, extract32(imm, 0, 16));
+    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+        bl_gen_lui_nm(p, rt, extract32(imm, 12, 20));
+        bl_gen_ori_nm(p, rt, rt, extract32(imm, 0, 12));
+    } else {
+        bl_gen_lui(p, rt, extract32(imm, 16, 16));
+        bl_gen_ori(p, rt, rt, extract32(imm, 0, 16));
+    }
 }
 
 static void bl_gen_dli(void **p, bl_reg rt, uint64_t imm)
