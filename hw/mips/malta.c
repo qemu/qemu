@@ -616,11 +616,64 @@ static void network_init(PCIBus *pci_bus)
     }
 }
 
+static void bl_setup_gt64120_jump_kernel(void **p, uint64_t run_addr,
+                                         uint64_t kernel_entry)
+{
+    /* Bus endianess is always reversed */
+#if TARGET_BIG_ENDIAN
+#define cpu_to_gt32 cpu_to_le32
+#else
+#define cpu_to_gt32 cpu_to_be32
+#endif
+
+    /* setup MEM-to-PCI0 mapping as done by YAMON */
+
+    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
+    bl_gen_write_u32(p, /* GT_ISD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x14000000 + 0x68),
+                     cpu_to_gt32(0x1be00000 << 3));
+
+    /* setup PCI0 io window to 0x18000000-0x181fffff */
+    bl_gen_write_u32(p, /* GT_PCI0IOLD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x48),
+                     cpu_to_gt32(0x18000000 << 3));
+    bl_gen_write_u32(p, /* GT_PCI0IOHD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x50),
+                     cpu_to_gt32(0x08000000 << 3));
+
+    /* setup PCI0 mem windows */
+    bl_gen_write_u32(p, /* GT_PCI0M0LD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x58),
+                     cpu_to_gt32(0x10000000 << 3));
+    bl_gen_write_u32(p, /* GT_PCI0M0HD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x60),
+                     cpu_to_gt32(0x07e00000 << 3));
+    bl_gen_write_u32(p, /* GT_PCI0M1LD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
+                     cpu_to_gt32(0x18200000 << 3));
+    bl_gen_write_u32(p, /* GT_PCI0M1HD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
+                     cpu_to_gt32(0x0bc00000 << 3));
+
+#undef cpu_to_gt32
+
+    bl_gen_jump_kernel(p,
+                       true, ENVP_VADDR - 64,
+                       /*
+                        * If semihosting is used, arguments have already
+                        * been passed, so we preserve $a0.
+                        */
+                       !semihosting_get_argc(), 2,
+                       true, ENVP_VADDR,
+                       true, ENVP_VADDR + 8,
+                       true, loaderparams.ram_low_size,
+                       kernel_entry);
+}
+
 static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
                                       uint64_t kernel_entry)
 {
     uint16_t *p;
-    void *v;
 
     /* Small bootloader */
     p = (uint16_t *)base;
@@ -644,55 +697,7 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
 
     /* to_here: */
 
-#if TARGET_BIG_ENDIAN
-#define cpu_to_gt32 cpu_to_le32
-#else
-#define cpu_to_gt32 cpu_to_be32
-#endif
-    v = p;
-
-    /* setup MEM-to-PCI0 mapping as done by YAMON */
-
-    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
-    bl_gen_write_u32(&v, /* GT_ISD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x14000000 + 0x68),
-                     cpu_to_gt32(0x1be00000 << 3));
-
-    /* setup PCI0 io window to 0x18000000-0x181fffff */
-    bl_gen_write_u32(&v, /* GT_PCI0IOLD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x48),
-                     cpu_to_gt32(0x18000000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0IOHD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x50),
-                     cpu_to_gt32(0x08000000 << 3));
-
-    /* setup PCI0 mem windows */
-    bl_gen_write_u32(&v, /* GT_PCI0M0LD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x58),
-                     cpu_to_gt32(0x10000000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0M0HD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x60),
-                     cpu_to_gt32(0x07e00000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0M1LD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
-                     cpu_to_gt32(0x18200000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0M1HD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
-                     cpu_to_gt32(0x0bc00000 << 3));
-
-#undef cpu_to_gt32
-
-    bl_gen_jump_kernel(&v,
-                       true, ENVP_VADDR - 64,
-                       /*
-                        * If semihosting is used, arguments have already been
-                        * passed, so we preserve $a0.
-                        */
-                       !semihosting_get_argc(), 2,
-                       true, ENVP_VADDR,
-                       true, ENVP_VADDR + 8,
-                       true, loaderparams.ram_low_size,
-                       kernel_entry);
+    bl_setup_gt64120_jump_kernel((void **)&p, run_addr, kernel_entry);
 }
 
 /*
@@ -758,55 +763,8 @@ static void write_bootloader(uint8_t *base, uint64_t run_addr,
      *
      */
 
-    /* Bus endianess is always reversed */
-#if TARGET_BIG_ENDIAN
-#define cpu_to_gt32 cpu_to_le32
-#else
-#define cpu_to_gt32 cpu_to_be32
-#endif
     v = p;
-
-    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
-    bl_gen_write_u32(&v, /* GT_ISD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x14000000 + 0x68),
-                     cpu_to_gt32(0x1be00000 << 3));
-
-    /* setup MEM-to-PCI0 mapping */
-    /* setup PCI0 io window to 0x18000000-0x181fffff */
-    bl_gen_write_u32(&v, /* GT_PCI0IOLD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x48),
-                     cpu_to_gt32(0x18000000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0IOHD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x50),
-                     cpu_to_gt32(0x08000000 << 3));
-    /* setup PCI0 mem windows */
-    bl_gen_write_u32(&v, /* GT_PCI0M0LD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x58),
-                     cpu_to_gt32(0x10000000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0M0HD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x60),
-                     cpu_to_gt32(0x07e00000 << 3));
-
-    bl_gen_write_u32(&v, /* GT_PCI0M1LD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
-                     cpu_to_gt32(0x18200000 << 3));
-    bl_gen_write_u32(&v, /* GT_PCI0M1HD */
-                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
-                     cpu_to_gt32(0x0bc00000 << 3));
-
-#undef cpu_to_gt32
-
-    bl_gen_jump_kernel(&v,
-                       true, ENVP_VADDR - 64,
-                       /*
-                        * If semihosting is used, arguments have already been
-                        * passed, so we preserve $a0.
-                        */
-                       !semihosting_get_argc(), 2,
-                       true, ENVP_VADDR,
-                       true, ENVP_VADDR + 8,
-                       true, loaderparams.ram_low_size,
-                       kernel_entry);
+    bl_setup_gt64120_jump_kernel(&v, run_addr, kernel_entry);
     p = v;
 
     /* YAMON subroutines */
@@ -851,7 +809,6 @@ static void write_bootloader(uint8_t *base, uint64_t run_addr,
     stl_p(p++, 0x00000000);                  /* nop */
     stl_p(p++, 0x03e00009);                  /* jalr ra */
     stl_p(p++, 0xa1040000);                  /* sb a0,0(t0) */
-
 }
 
 static void G_GNUC_PRINTF(3, 4) prom_set(uint32_t *prom_buf, int index,
