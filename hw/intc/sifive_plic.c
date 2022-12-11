@@ -140,7 +140,7 @@ static uint64_t sifive_plic_read(void *opaque, hwaddr addr, unsigned size)
     SiFivePLICState *plic = opaque;
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
-        uint32_t irq = ((addr - plic->priority_base) >> 2) + 1;
+        uint32_t irq = (addr - plic->priority_base) >> 2;
 
         return plic->source_priority[irq];
     } else if (addr_between(addr, plic->pending_base, plic->num_sources >> 3)) {
@@ -187,7 +187,7 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
     SiFivePLICState *plic = opaque;
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
-        uint32_t irq = ((addr - plic->priority_base) >> 2) + 1;
+        uint32_t irq = (addr - plic->priority_base) >> 2;
 
         if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
             /*
@@ -428,6 +428,7 @@ static Property sifive_plic_properties[] = {
     /* number of interrupt sources including interrupt source 0 */
     DEFINE_PROP_UINT32("num-sources", SiFivePLICState, num_sources, 1),
     DEFINE_PROP_UINT32("num-priorities", SiFivePLICState, num_priorities, 0),
+    /* interrupt priority register base starting from source 0 */
     DEFINE_PROP_UINT32("priority-base", SiFivePLICState, priority_base, 0),
     DEFINE_PROP_UINT32("pending-base", SiFivePLICState, pending_base, 0),
     DEFINE_PROP_UINT32("enable-base", SiFivePLICState, enable_base, 0),
