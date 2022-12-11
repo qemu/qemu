@@ -129,7 +129,17 @@ static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
 
 static void bl_gen_jalr(void **p, bl_reg rs)
 {
-    bl_gen_r_type(p, 0, rs, 0, BL_REG_RA, 0, 0x09);
+    if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
+        uint32_t insn = 0;
+
+        insn = deposit32(insn, 26, 6, 0b010010); /* JALRC */
+        insn = deposit32(insn, 21, 5, BL_REG_RA);
+        insn = deposit32(insn, 16, 5, rs);
+
+        st_nm32_p(p, insn);
+    } else {
+        bl_gen_r_type(p, 0, rs, 0, BL_REG_RA, 0, 0x09);
+    }
 }
 
 static void bl_gen_lui_nm(void **ptr, bl_reg rt, uint32_t imm20)
