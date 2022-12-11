@@ -290,7 +290,7 @@ static void sifive_plic_reset(DeviceState *dev)
  */
 static void parse_hart_config(SiFivePLICState *plic)
 {
-    int addrid, hartid, modes;
+    int addrid, hartid, modes, m;
     const char *p;
     char c;
 
@@ -299,11 +299,13 @@ static void parse_hart_config(SiFivePLICState *plic)
     p = plic->hart_config;
     while ((c = *p++)) {
         if (c == ',') {
-            addrid += ctpop8(modes);
-            modes = 0;
-            hartid++;
+            if (modes) {
+                addrid += ctpop8(modes);
+                hartid++;
+                modes = 0;
+            }
         } else {
-            int m = 1 << char_to_mode(c);
+            m = 1 << char_to_mode(c);
             if (modes == (modes | m)) {
                 error_report("plic: duplicate mode '%c' in config: %s",
                              c, plic->hart_config);
@@ -314,8 +316,9 @@ static void parse_hart_config(SiFivePLICState *plic)
     }
     if (modes) {
         addrid += ctpop8(modes);
+        hartid++;
+        modes = 0;
     }
-    hartid++;
 
     plic->num_addrs = addrid;
     plic->num_harts = hartid;
@@ -326,11 +329,16 @@ static void parse_hart_config(SiFivePLICState *plic)
     p = plic->hart_config;
     while ((c = *p++)) {
         if (c == ',') {
-            hartid++;
+            if (modes) {
+                hartid++;
+                modes = 0;
+            }
         } else {
+            m = char_to_mode(c);
             plic->addr_config[addrid].addrid = addrid;
             plic->addr_config[addrid].hartid = hartid;
-            plic->addr_config[addrid].mode = char_to_mode(c);
+            plic->addr_config[addrid].mode = m;
+            modes |= (1 << m);
             addrid++;
         }
     }
