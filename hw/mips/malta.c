@@ -689,45 +689,19 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
     stw_p(p++, 0x80e7); stw_p(p++, NM_LO(loaderparams.ram_low_size));
                                 /* ori a3,a3,%lo(loaderparams.ram_low_size) */
 
-    /*
-     * Load BAR registers as done by YAMON:
-     */
-    stw_p(p++, 0xe040); stw_p(p++, 0x0681);
-                                /* lui t1, %hi(0xb4000000)      */
-
 #if TARGET_BIG_ENDIAN
 #define cpu_to_gt32 cpu_to_le32
-
-    stw_p(p++, 0xe020); stw_p(p++, 0x0be1);
-                                /* lui t0, %hi(0xdf000000)      */
-
-    /* 0x68 corresponds to GT_ISD (from hw/mips/gt64xxx_pci.c)  */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9068);
-                                /* sw t0, 0x68(t1)              */
-
-    stw_p(p++, 0xe040); stw_p(p++, 0x077d);
-                                /* lui t1, %hi(0xbbe00000)      */
-
-    stw_p(p++, 0xe020); stw_p(p++, 0x0801);
-                                /* lui t0, %hi(0xc0000000)      */
 #else
 #define cpu_to_gt32 cpu_to_be32
-
-    stw_p(p++, 0x0020); stw_p(p++, 0x00df);
-                                /* addiu[32] t0, $0, 0xdf       */
-
-    /* 0x68 corresponds to GT_ISD                               */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9068);
-                                /* sw t0, 0x68(t1)              */
-
-    /* Use kseg2 remapped address 0x1be00000                    */
-    stw_p(p++, 0xe040); stw_p(p++, 0x077d);
-                                /* lui t1, %hi(0xbbe00000)      */
-
-    stw_p(p++, 0x0020); stw_p(p++, 0x00c0);
-                                /* addiu[32] t0, $0, 0xc0       */
 #endif
     v = p;
+
+    /* setup MEM-to-PCI0 mapping as done by YAMON */
+
+    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
+    bl_gen_write_u32(&v, /* GT_ISD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x14000000 + 0x68),
+                     cpu_to_gt32(0x1be00000 << 3));
 
     /* setup PCI0 io window to 0x18000000-0x181fffff */
     bl_gen_write_u32(&v, /* GT_PCI0IOLD */
