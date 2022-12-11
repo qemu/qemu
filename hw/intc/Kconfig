@@ -72,9 +72,11 @@ config RISCV_ACLINT
 
 config RISCV_APLIC
     bool
+    select MSI_NONBROKEN
 
 config RISCV_IMSIC
     bool
+    select MSI_NONBROKEN
 
 config SIFIVE_PLIC
     bool
