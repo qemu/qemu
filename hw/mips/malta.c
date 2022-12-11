@@ -620,6 +620,7 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
                                       uint64_t kernel_entry)
 {
     uint16_t *p;
+    void *v;
 
     /* Small bootloader */
     p = (uint16_t *)base;
@@ -693,13 +694,13 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
      *
      *  - set up PCI0 I/O BARs from 0x18000000 to 0x181fffff
      *  - set up PCI0 MEM0 at 0x10000000, size 0x8000000
-     *  - set up PCI0 MEM1 at 0x18200000, size 0xbe00000
      *
      */
     stw_p(p++, 0xe040); stw_p(p++, 0x0681);
                                 /* lui t1, %hi(0xb4000000)      */
 
 #if TARGET_BIG_ENDIAN
+#define cpu_to_gt32 cpu_to_le32
 
     stw_p(p++, 0xe020); stw_p(p++, 0x0be1);
                                 /* lui t0, %hi(0xdf000000)      */
@@ -742,14 +743,8 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
     stw_p(p++, 0xe020); stw_p(p++, 0x0821);
                                 /* lui t0, %hi(0xc1000000)      */
 
-    /* 0x80 corresponds to GT_PCI0M1LD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9080);
-                                /* sw t0, 0x80(t1)              */
-
-    stw_p(p++, 0xe020); stw_p(p++, 0x0bc0);
-                                /* lui t0, %hi(0x5e000000)      */
-
 #else
+#define cpu_to_gt32 cpu_to_be32
 
     stw_p(p++, 0x0020); stw_p(p++, 0x00df);
                                 /* addiu[32] t0, $0, 0xdf       */
@@ -792,19 +787,20 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
 
     stw_p(p++, 0x0020); stw_p(p++, 0x00c1);
                                 /* addiu[32] t0, $0, 0xc1       */
-
-    /* 0x80 corresponds to GT_PCI0M1LD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9080);
-                                /* sw t0, 0x80(t1)              */
-
-    stw_p(p++, 0x0020); stw_p(p++, 0x005e);
-                                /* addiu[32] t0, $0, 0x5e       */
-
 #endif
+    v = p;
 
-    /* 0x88 corresponds to GT_PCI0M1HD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9088);
-                                /* sw t0, 0x88(t1)              */
+    /* setup PCI0 mem windows */
+    bl_gen_write_u32(&v, /* GT_PCI0M1LD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
+                     cpu_to_gt32(0x18200000 << 3));
+    bl_gen_write_u32(&v, /* GT_PCI0M1HD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
+                     cpu_to_gt32(0x0bc00000 << 3));
+
+    p = v;
+
+#undef cpu_to_gt32
 
     stw_p(p++, 0xe320 | NM_HI1(kernel_entry));
 
