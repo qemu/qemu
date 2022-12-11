@@ -693,7 +693,6 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
      * Load BAR registers as done by YAMON:
      *
      *  - set up PCI0 I/O BARs from 0x18000000 to 0x181fffff
-     *  - set up PCI0 MEM0 at 0x10000000, size 0x8000000
      *
      */
     stw_p(p++, 0xe040); stw_p(p++, 0x0681);
@@ -729,20 +728,6 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
     stw_p(p++, 0xe020); stw_p(p++, 0x0001);
                                 /* lui t0, %hi(0x80000000)      */
 
-    /* 0x58 corresponds to GT_PCI0M0LD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9058);
-                                /* sw t0, 0x58(t1)              */
-
-    stw_p(p++, 0xe020); stw_p(p++, 0x07e0);
-                                /* lui t0, %hi(0x3f000000)      */
-
-    /* 0x60 corresponds to GT_PCI0M0HD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9060);
-                                /* sw t0, 0x60(t1)              */
-
-    stw_p(p++, 0xe020); stw_p(p++, 0x0821);
-                                /* lui t0, %hi(0xc1000000)      */
-
 #else
 #define cpu_to_gt32 cpu_to_be32
 
@@ -773,24 +758,16 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
 
     stw_p(p++, 0x0020); stw_p(p++, 0x0080);
                                 /* addiu[32] t0, $0, 0x80       */
-
-    /* 0x58 corresponds to GT_PCI0M0LD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9058);
-                                /* sw t0, 0x58(t1)              */
-
-    stw_p(p++, 0x0020); stw_p(p++, 0x003f);
-                                /* addiu[32] t0, $0, 0x3f       */
-
-    /* 0x60 corresponds to GT_PCI0M0HD                          */
-    stw_p(p++, 0x8422); stw_p(p++, 0x9060);
-                                /* sw t0, 0x60(t1)              */
-
-    stw_p(p++, 0x0020); stw_p(p++, 0x00c1);
-                                /* addiu[32] t0, $0, 0xc1       */
 #endif
     v = p;
 
     /* setup PCI0 mem windows */
+    bl_gen_write_u32(&v, /* GT_PCI0M0LD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x58),
+                     cpu_to_gt32(0x10000000 << 3));
+    bl_gen_write_u32(&v, /* GT_PCI0M0HD */
+                     cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x60),
+                     cpu_to_gt32(0x07e00000 << 3));
     bl_gen_write_u32(&v, /* GT_PCI0M1LD */
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x80),
                      cpu_to_gt32(0x18200000 << 3));
