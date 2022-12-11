@@ -625,11 +625,6 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
     /* Small bootloader */
     p = (uint16_t *)base;
 
-#define NM_HI1(VAL) (((VAL) >> 16) & 0x1f)
-#define NM_HI2(VAL) \
-          (((VAL) & 0xf000) | (((VAL) >> 19) & 0xffc) | (((VAL) >> 31) & 0x1))
-#define NM_LO(VAL)  ((VAL) & 0xfff)
-
     stw_p(p++, 0x2800); stw_p(p++, 0x001c);
                                 /* bc to_here */
     stw_p(p++, 0x8000); stw_p(p++, 0xc000);
@@ -648,46 +643,6 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
                                 /* nop */
 
     /* to_here: */
-    if (semihosting_get_argc()) {
-        /* Preserve a0 content as arguments have been passed    */
-        stw_p(p++, 0x8000); stw_p(p++, 0xc000);
-                                /* nop                          */
-    } else {
-        stw_p(p++, 0x0080); stw_p(p++, 0x0002);
-                                /* li a0,2                      */
-    }
-
-    stw_p(p++, 0xe3a0 | NM_HI1(ENVP_VADDR - 64));
-
-    stw_p(p++, NM_HI2(ENVP_VADDR - 64));
-                                /* lui sp,%hi(ENVP_VADDR - 64)   */
-
-    stw_p(p++, 0x83bd); stw_p(p++, NM_LO(ENVP_VADDR - 64));
-                                /* ori sp,sp,%lo(ENVP_VADDR - 64) */
-
-    stw_p(p++, 0xe0a0 | NM_HI1(ENVP_VADDR));
-
-    stw_p(p++, NM_HI2(ENVP_VADDR));
-                                /* lui a1,%hi(ENVP_VADDR)        */
-
-    stw_p(p++, 0x80a5); stw_p(p++, NM_LO(ENVP_VADDR));
-                                /* ori a1,a1,%lo(ENVP_VADDR)     */
-
-    stw_p(p++, 0xe0c0 | NM_HI1(ENVP_VADDR + 8));
-
-    stw_p(p++, NM_HI2(ENVP_VADDR + 8));
-                                /* lui a2,%hi(ENVP_VADDR + 8)    */
-
-    stw_p(p++, 0x80c6); stw_p(p++, NM_LO(ENVP_VADDR + 8));
-                                /* ori a2,a2,%lo(ENVP_VADDR + 8) */
-
-    stw_p(p++, 0xe0e0 | NM_HI1(loaderparams.ram_low_size));
-
-    stw_p(p++, NM_HI2(loaderparams.ram_low_size));
-                                /* lui a3,%hi(loaderparams.ram_low_size) */
-
-    stw_p(p++, 0x80e7); stw_p(p++, NM_LO(loaderparams.ram_low_size));
-                                /* ori a3,a3,%lo(loaderparams.ram_low_size) */
 
 #if TARGET_BIG_ENDIAN
 #define cpu_to_gt32 cpu_to_le32
@@ -725,20 +680,19 @@ static void write_bootloader_nanomips(uint8_t *base, uint64_t run_addr,
                      cpu_mips_phys_to_kseg1(NULL, 0x1be00000 + 0x88),
                      cpu_to_gt32(0x0bc00000 << 3));
 
-    p = v;
-
 #undef cpu_to_gt32
 
-    stw_p(p++, 0xe320 | NM_HI1(kernel_entry));
-
-    stw_p(p++, NM_HI2(kernel_entry));
-                                /* lui t9,%hi(kernel_entry)     */
-
-    stw_p(p++, 0x8339); stw_p(p++, NM_LO(kernel_entry));
-                                /* ori t9,t9,%lo(kernel_entry)  */
-
-    stw_p(p++, 0x4bf9); stw_p(p++, 0x0000);
-                                /* jalrc   t8                   */
+    bl_gen_jump_kernel(&v,
+                       true, ENVP_VADDR - 64,
+                       /*
+                        * If semihosting is used, arguments have already been
+                        * passed, so we preserve $a0.
+                        */
+                       !semihosting_get_argc(), 2,
+                       true, ENVP_VADDR,
+                       true, ENVP_VADDR + 8,
+                       true, loaderparams.ram_low_size,
+                       kernel_entry);
 }
 
 /*
