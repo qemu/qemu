@@ -20,6 +20,8 @@
 #include "trace.h"
 #include "sysemu/runstate.h"
 
+#include "hw/i386/kvm/xen_overlay.h"
+
 #include "hw/xen/interface/version.h"
 #include "hw/xen/interface/sched.h"
 
@@ -280,6 +282,16 @@ int kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     if (exit->type != KVM_EXIT_XEN_HCALL) {
         return -1;
+    }
+
+    /*
+     * The kernel latches the guest 32/64 mode when the MSR is used to fill
+     * the hypercall page. So if we see a hypercall in a mode that doesn't
+     * match our own idea of the guest mode, fetch the kernel's idea of the
+     * "long mode" to remain in sync.
+     */
+    if (exit->u.hcall.longmode != xen_is_long_mode()) {
+        xen_sync_long_mode();
     }
 
     if (!do_kvm_xen_handle_exit(cpu, exit)) {
