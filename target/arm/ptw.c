@@ -2655,10 +2655,20 @@ static bool get_phys_addr_twostage(CPUARMState *env, S1Translate *ptw,
     }
 
     /*
-     * Use the maximum of the S1 & S2 page size, so that invalidation
-     * of pages > TARGET_PAGE_SIZE works correctly.
+     * If either S1 or S2 returned a result smaller than TARGET_PAGE_SIZE,
+     * this means "don't put this in the TLB"; in this case, return a
+     * result with lg_page_size == 0 to achieve that. Otherwise,
+     * use the maximum of the S1 & S2 page size, so that invalidation
+     * of pages > TARGET_PAGE_SIZE works correctly. (This works even though
+     * we know the combined result permissions etc only cover the minimum
+     * of the S1 and S2 page size, because we know that the common TLB code
+     * never actually creates TLB entries bigger than TARGET_PAGE_SIZE,
+     * and passing a larger page size value only affects invalidations.)
      */
-    if (result->f.lg_page_size < s1_lgpgsz) {
+    if (result->f.lg_page_size < TARGET_PAGE_BITS ||
+        s1_lgpgsz < TARGET_PAGE_BITS) {
+        result->f.lg_page_size = 0;
+    } else if (result->f.lg_page_size < s1_lgpgsz) {
         result->f.lg_page_size = s1_lgpgsz;
     }
 
