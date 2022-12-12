@@ -34,7 +34,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
-#include "hw/acpi/tco.h"
+#include "hw/acpi/ich9_tco.h"
 
 #include "hw/i386/ich9.h"
 #include "hw/mem/pc-dimm.h"

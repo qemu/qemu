@@ -1,5 +1,5 @@
 /*
- * QEMU ICH9 TCO emulation
+ * QEMU ICH9 TCO emulation (total cost of ownership)
  *
  * Copyright (c) 2015 Paulo Alcantara <pcacjr@zytor.com>
  *

@@ -16,7 +16,7 @@
 #include "hw/pci/pci_regs.h"
 #include "hw/i386/ich9.h"
 #include "hw/acpi/ich9.h"
-#include "hw/acpi/tco.h"
+#include "hw/acpi/ich9_tco.h"
 
 #define RCBA_BASE_ADDR    0xfed1c000
 #define PM_IO_BASE_ADDR   0xb000
