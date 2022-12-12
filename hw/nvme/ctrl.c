@@ -1333,8 +1333,12 @@ static inline void nvme_blk_write(BlockBackend *blk, int64_t offset,
 
 static void nvme_update_cq_head(NvmeCQueue *cq)
 {
-    pci_dma_read(&cq->ctrl->parent_obj, cq->db_addr, &cq->head,
-            sizeof(cq->head));
+    uint32_t v;
+
+    pci_dma_read(&cq->ctrl->parent_obj, cq->db_addr, &v, sizeof(v));
+
+    cq->head = le32_to_cpu(v);
+
     trace_pci_nvme_shadow_doorbell_cq(cq->cqid, cq->head);
 }
 
@@ -6141,15 +6145,21 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
 
 static void nvme_update_sq_eventidx(const NvmeSQueue *sq)
 {
-    pci_dma_write(&sq->ctrl->parent_obj, sq->ei_addr, &sq->tail,
-                  sizeof(sq->tail));
+    uint32_t v = cpu_to_le32(sq->tail);
+
+    pci_dma_write(&sq->ctrl->parent_obj, sq->ei_addr, &v, sizeof(v));
+
     trace_pci_nvme_eventidx_sq(sq->sqid, sq->tail);
 }
 
 static void nvme_update_sq_tail(NvmeSQueue *sq)
 {
-    pci_dma_read(&sq->ctrl->parent_obj, sq->db_addr, &sq->tail,
-                 sizeof(sq->tail));
+    uint32_t v;
+
+    pci_dma_read(&sq->ctrl->parent_obj, sq->db_addr, &v, sizeof(v));
+
+    sq->tail = le32_to_cpu(v);
+
     trace_pci_nvme_shadow_doorbell_sq(sq->sqid, sq->tail);
 }
 
