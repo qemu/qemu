@@ -113,6 +113,8 @@ M: Philippe Mathieu-Daudé <philmd@linaro.org>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Odd Fixes
 K: ^Subject:.*(?i)mips
+F: docs/system/target-mips.rst
+F: configs/targets/mips*
 
 Guest CPU cores (TCG)
 ---------------------
