@@ -130,7 +130,7 @@ int tricore_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     if (n < 16) { /* data registers */
         env->gpr_d[n] = tmp;
     } else if (n < 32) { /* address registers */
-        env->gpr_d[n - 16] = tmp;
+        env->gpr_a[n - 16] = tmp;
     } else {
         tricore_cpu_gdb_write_csfr(env, n, tmp);
     }
