@@ -21,6 +21,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
+
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
 
@@ -39,6 +40,41 @@ typedef struct XenEvtchnPort {
     uint16_t type;      /* EVTCHNSTAT_xxxx */
     uint16_t type_val;  /* pirq# / virq# / remote port according to type */
 } XenEvtchnPort;
+
+/* 32-bit compatibility definitions, also used natively in 32-bit build */
+struct compat_arch_vcpu_info {
+    unsigned int cr2;
+    unsigned int pad[5];
+};
+
+struct compat_vcpu_info {
+    uint8_t evtchn_upcall_pending;
+    uint8_t evtchn_upcall_mask;
+    uint16_t pad;
+    uint32_t evtchn_pending_sel;
+    struct compat_arch_vcpu_info arch;
+    struct vcpu_time_info time;
+}; /* 64 bytes (x86) */
+
+struct compat_arch_shared_info {
+    unsigned int max_pfn;
+    unsigned int pfn_to_mfn_frame_list_list;
+    unsigned int nmi_reason;
+    unsigned int p2m_cr3;
+    unsigned int p2m_vaddr;
+    unsigned int p2m_generation;
+    uint32_t wc_sec_hi;
+};
+
+struct compat_shared_info {
+    struct compat_vcpu_info vcpu_info[XEN_LEGACY_MAX_VCPUS];
+    uint32_t evtchn_pending[32];
+    uint32_t evtchn_mask[32];
+    uint32_t wc_version;      /* Version counter: see vcpu_time_info_t. */
+    uint32_t wc_sec;
+    uint32_t wc_nsec;
+    struct compat_arch_shared_info arch;
+};
 
 #define COMPAT_EVTCHN_2L_NR_CHANNELS            1024
 
@@ -256,4 +292,91 @@ int xen_evtchn_status_op(struct evtchn_status *status)
 
     qemu_mutex_unlock(&s->port_lock);
     return 0;
+}
+
+static int clear_port_pending(XenEvtchnState *s, evtchn_port_t port)
+{
+    void *p = xen_overlay_get_shinfo_ptr();
+
+    if (!p) {
+        return -ENOTSUP;
+    }
+
+    if (xen_is_long_mode()) {
+        struct shared_info *shinfo = p;
+        const int bits_per_word = BITS_PER_BYTE * sizeof(shinfo->evtchn_pending[0]);
+        typeof(shinfo->evtchn_pending[0]) mask;
+        int idx = port / bits_per_word;
+        int offset = port % bits_per_word;
+
+        mask = 1UL << offset;
+
+        qatomic_fetch_and(&shinfo->evtchn_pending[idx], ~mask);
+    } else {
+        struct compat_shared_info *shinfo = p;
+        const int bits_per_word = BITS_PER_BYTE * sizeof(shinfo->evtchn_pending[0]);
+        typeof(shinfo->evtchn_pending[0]) mask;
+        int idx = port / bits_per_word;
+        int offset = port % bits_per_word;
+
+        mask = 1UL << offset;
+
+        qatomic_fetch_and(&shinfo->evtchn_pending[idx], ~mask);
+    }
+    return 0;
+}
+
+static void free_port(XenEvtchnState *s, evtchn_port_t port)
+{
+    s->port_table[port].type = EVTCHNSTAT_closed;
+    s->port_table[port].type_val = 0;
+    s->port_table[port].vcpu = 0;
+
+    if (s->nr_ports == port + 1) {
+        do {
+            s->nr_ports--;
+        } while (s->nr_ports &&
+                 s->port_table[s->nr_ports - 1].type == EVTCHNSTAT_closed);
+    }
+
+    /* Clear pending event to avoid unexpected behavior on re-bind. */
+    clear_port_pending(s, port);
+}
+
+static int close_port(XenEvtchnState *s, evtchn_port_t port)
+{
+    XenEvtchnPort *p = &s->port_table[port];
+
+    switch (p->type) {
+    case EVTCHNSTAT_closed:
+        return -ENOENT;
+
+    default:
+        break;
+    }
+
+    free_port(s, port);
+    return 0;
+}
+
+int xen_evtchn_close_op(struct evtchn_close *close)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int ret;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (!valid_port(close->port)) {
+        return -EINVAL;
+    }
+
+    qemu_mutex_lock(&s->port_lock);
+
+    ret = close_port(s, close->port);
+
+    qemu_mutex_unlock(&s->port_lock);
+
+    return ret;
 }
