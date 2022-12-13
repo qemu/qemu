@@ -15,4 +15,7 @@
 void xen_evtchn_create(void);
 int xen_evtchn_set_callback_param(uint64_t param);
 
+struct evtchn_status;
+int xen_evtchn_status_op(struct evtchn_status *status);
+
 #endif /* QEMU_XEN_EVTCHN_H */
