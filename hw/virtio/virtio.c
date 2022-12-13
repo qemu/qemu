@@ -80,7 +80,7 @@ enum VhostUserProtocolFeature {
 };
 
 /* Virtio transport features mapping */
-static qmp_virtio_feature_map_t virtio_transport_map[] = {
+static const qmp_virtio_feature_map_t virtio_transport_map[] = {
     /* Virtio device transport features */
 #ifndef VIRTIO_CONFIG_NO_LEGACY
     FEATURE_ENTRY(VIRTIO_F_NOTIFY_ON_EMPTY, \
@@ -111,7 +111,7 @@ static qmp_virtio_feature_map_t virtio_transport_map[] = {
 };
 
 /* Vhost-user protocol features mapping */
-static qmp_virtio_feature_map_t vhost_user_protocol_map[] = {
+static const qmp_virtio_feature_map_t vhost_user_protocol_map[] = {
     FEATURE_ENTRY(VHOST_USER_PROTOCOL_F_MQ, \
             "VHOST_USER_PROTOCOL_F_MQ: Multiqueue protocol supported"),
     FEATURE_ENTRY(VHOST_USER_PROTOCOL_F_LOG_SHMFD, \
@@ -161,7 +161,7 @@ static qmp_virtio_feature_map_t vhost_user_protocol_map[] = {
 };
 
 /* virtio device configuration statuses */
-static qmp_virtio_feature_map_t virtio_config_status_map[] = {
+static const qmp_virtio_feature_map_t virtio_config_status_map[] = {
     FEATURE_ENTRY(VIRTIO_CONFIG_S_DRIVER_OK, \
             "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"),
     FEATURE_ENTRY(VIRTIO_CONFIG_S_FEATURES_OK, \
@@ -180,7 +180,7 @@ static qmp_virtio_feature_map_t virtio_config_status_map[] = {
 
 /* virtio-blk features mapping */
 #ifdef CONFIG_VIRTIO_BLK
-static qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_BLK_F_SIZE_MAX, \
             "VIRTIO_BLK_F_SIZE_MAX: Max segment size is size_max"),
     FEATURE_ENTRY(VIRTIO_BLK_F_SEG_MAX, \
@@ -221,7 +221,7 @@ static qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
 
 /* virtio-serial features mapping */
 #ifdef CONFIG_VIRTIO_SERIAL
-static qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_CONSOLE_F_SIZE, \
             "VIRTIO_CONSOLE_F_SIZE: Host providing console size"),
     FEATURE_ENTRY(VIRTIO_CONSOLE_F_MULTIPORT, \
@@ -234,7 +234,7 @@ static qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
 
 /* virtio-gpu features mapping */
 #ifdef CONFIG_VIRTIO_GPU
-static qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_GPU_F_VIRGL, \
             "VIRTIO_GPU_F_VIRGL: Virgl 3D mode supported"),
     FEATURE_ENTRY(VIRTIO_GPU_F_EDID, \
@@ -257,7 +257,7 @@ static qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
 
 /* virtio-input features mapping */
 #ifdef CONFIG_VIRTIO_INPUT
-static qmp_virtio_feature_map_t virtio_input_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_input_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
@@ -269,7 +269,7 @@ static qmp_virtio_feature_map_t virtio_input_feature_map[] = {
 
 /* virtio-net features mapping */
 #ifdef CONFIG_VIRTIO_NET
-static qmp_virtio_feature_map_t virtio_net_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_net_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_NET_F_CSUM, \
             "VIRTIO_NET_F_CSUM: Device handling packets with partial checksum "
             "supported"),
@@ -349,7 +349,7 @@ static qmp_virtio_feature_map_t virtio_net_feature_map[] = {
 
 /* virtio-scsi features mapping */
 #ifdef CONFIG_VIRTIO_SCSI
-static qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_SCSI_F_INOUT, \
             "VIRTIO_SCSI_F_INOUT: Requests including read and writable data "
             "buffers suppoted"),
@@ -372,7 +372,7 @@ static qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
 
 /* virtio/vhost-user-fs features mapping */
 #ifdef CONFIG_VHOST_USER_FS
-static qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
@@ -384,7 +384,7 @@ static qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
 
 /* virtio/vhost-user-i2c features mapping */
 #ifdef CONFIG_VIRTIO_I2C_ADAPTER
-static qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_I2C_F_ZERO_LENGTH_REQUEST, \
             "VIRTIO_I2C_F_ZERO_LEGNTH_REQUEST: Zero length requests supported"),
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
@@ -398,7 +398,7 @@ static qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
 
 /* virtio/vhost-vsock features mapping */
 #ifdef CONFIG_VHOST_VSOCK
-static qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_VSOCK_F_SEQPACKET, \
             "VIRTIO_VSOCK_F_SEQPACKET: SOCK_SEQPACKET supported"),
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
@@ -412,7 +412,7 @@ static qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
 
 /* virtio-balloon features mapping */
 #ifdef CONFIG_VIRTIO_BALLOON
-static qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_BALLOON_F_MUST_TELL_HOST, \
             "VIRTIO_BALLOON_F_MUST_TELL_HOST: Tell host before reclaiming "
             "pages"),
@@ -432,7 +432,7 @@ static qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
 
 /* virtio-crypto features mapping */
 #ifdef CONFIG_VIRTIO_CRYPTO
-static qmp_virtio_feature_map_t virtio_crypto_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_crypto_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     { -1, "" }
@@ -441,7 +441,7 @@ static qmp_virtio_feature_map_t virtio_crypto_feature_map[] = {
 
 /* virtio-iommu features mapping */
 #ifdef CONFIG_VIRTIO_IOMMU
-static qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_IOMMU_F_INPUT_RANGE, \
             "VIRTIO_IOMMU_F_INPUT_RANGE: Range of available virtual addrs. "
             "available"),
@@ -466,7 +466,7 @@ static qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
 
 /* virtio-mem features mapping */
 #ifdef CONFIG_VIRTIO_MEM
-static qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
 #ifndef CONFIG_ACPI
     FEATURE_ENTRY(VIRTIO_MEM_F_ACPI_PXM, \
             "VIRTIO_MEM_F_ACPI_PXM: node_id is an ACPI PXM and is valid"),
@@ -480,7 +480,7 @@ static qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
 
 /* virtio-rng features mapping */
 #ifdef CONFIG_VIRTIO_RNG
-static qmp_virtio_feature_map_t virtio_rng_feature_map[] = {
+static const qmp_virtio_feature_map_t virtio_rng_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
