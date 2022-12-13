@@ -179,7 +179,8 @@ static qmp_virtio_feature_map_t virtio_config_status_map[] = {
 };
 
 /* virtio-blk features mapping */
-qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
+#ifdef CONFIG_VIRTIO_BLK
+static qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_BLK_F_SIZE_MAX, \
             "VIRTIO_BLK_F_SIZE_MAX: Max segment size is size_max"),
     FEATURE_ENTRY(VIRTIO_BLK_F_SEG_MAX, \
@@ -216,9 +217,11 @@ qmp_virtio_feature_map_t virtio_blk_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-serial features mapping */
-qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
+#ifdef CONFIG_VIRTIO_SERIAL
+static qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_CONSOLE_F_SIZE, \
             "VIRTIO_CONSOLE_F_SIZE: Host providing console size"),
     FEATURE_ENTRY(VIRTIO_CONSOLE_F_MULTIPORT, \
@@ -227,9 +230,11 @@ qmp_virtio_feature_map_t virtio_serial_feature_map[] = {
             "VIRTIO_CONSOLE_F_EMERG_WRITE: Emergency write supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-gpu features mapping */
-qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
+#ifdef CONFIG_VIRTIO_GPU
+static qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_GPU_F_VIRGL, \
             "VIRTIO_GPU_F_VIRGL: Virgl 3D mode supported"),
     FEATURE_ENTRY(VIRTIO_GPU_F_EDID, \
@@ -248,9 +253,11 @@ qmp_virtio_feature_map_t virtio_gpu_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-input features mapping */
-qmp_virtio_feature_map_t virtio_input_feature_map[] = {
+#ifdef CONFIG_VIRTIO_INPUT
+static qmp_virtio_feature_map_t virtio_input_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
@@ -258,9 +265,11 @@ qmp_virtio_feature_map_t virtio_input_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-net features mapping */
-qmp_virtio_feature_map_t virtio_net_feature_map[] = {
+#ifdef CONFIG_VIRTIO_NET
+static qmp_virtio_feature_map_t virtio_net_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_NET_F_CSUM, \
             "VIRTIO_NET_F_CSUM: Device handling packets with partial checksum "
             "supported"),
@@ -336,9 +345,11 @@ qmp_virtio_feature_map_t virtio_net_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-scsi features mapping */
-qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
+#ifdef CONFIG_VIRTIO_SCSI
+static qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_SCSI_F_INOUT, \
             "VIRTIO_SCSI_F_INOUT: Requests including read and writable data "
             "buffers suppoted"),
@@ -357,9 +368,11 @@ qmp_virtio_feature_map_t virtio_scsi_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio/vhost-user-fs features mapping */
-qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
+#ifdef CONFIG_VHOST_USER_FS
+static qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
@@ -367,9 +380,11 @@ qmp_virtio_feature_map_t virtio_fs_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio/vhost-user-i2c features mapping */
-qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
+#ifdef CONFIG_VIRTIO_I2C_ADAPTER
+static qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_I2C_F_ZERO_LENGTH_REQUEST, \
             "VIRTIO_I2C_F_ZERO_LEGNTH_REQUEST: Zero length requests supported"),
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
@@ -379,9 +394,11 @@ qmp_virtio_feature_map_t virtio_i2c_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio/vhost-vsock features mapping */
-qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
+#ifdef CONFIG_VHOST_VSOCK
+static qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_VSOCK_F_SEQPACKET, \
             "VIRTIO_VSOCK_F_SEQPACKET: SOCK_SEQPACKET supported"),
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
@@ -391,9 +408,11 @@ qmp_virtio_feature_map_t virtio_vsock_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-balloon features mapping */
-qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
+#ifdef CONFIG_VIRTIO_BALLOON
+static qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_BALLOON_F_MUST_TELL_HOST, \
             "VIRTIO_BALLOON_F_MUST_TELL_HOST: Tell host before reclaiming "
             "pages"),
@@ -409,16 +428,20 @@ qmp_virtio_feature_map_t virtio_balloon_feature_map[] = {
             "VIRTIO_BALLOON_F_REPORTING: Page reporting VQ enabled"),
     { -1, "" }
 };
+#endif
 
 /* virtio-crypto features mapping */
-qmp_virtio_feature_map_t virtio_crypto_feature_map[] = {
+#ifdef CONFIG_VIRTIO_CRYPTO
+static qmp_virtio_feature_map_t virtio_crypto_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     { -1, "" }
 };
+#endif
 
 /* virtio-iommu features mapping */
-qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
+#ifdef CONFIG_VIRTIO_IOMMU
+static qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
     FEATURE_ENTRY(VIRTIO_IOMMU_F_INPUT_RANGE, \
             "VIRTIO_IOMMU_F_INPUT_RANGE: Range of available virtual addrs. "
             "available"),
@@ -439,9 +462,11 @@ qmp_virtio_feature_map_t virtio_iommu_feature_map[] = {
             "available"),
     { -1, "" }
 };
+#endif
 
 /* virtio-mem features mapping */
-qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
+#ifdef CONFIG_VIRTIO_MEM
+static qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
 #ifndef CONFIG_ACPI
     FEATURE_ENTRY(VIRTIO_MEM_F_ACPI_PXM, \
             "VIRTIO_MEM_F_ACPI_PXM: node_id is an ACPI PXM and is valid"),
@@ -451,9 +476,11 @@ qmp_virtio_feature_map_t virtio_mem_feature_map[] = {
             "accessed"),
     { -1, "" }
 };
+#endif
 
 /* virtio-rng features mapping */
-qmp_virtio_feature_map_t virtio_rng_feature_map[] = {
+#ifdef CONFIG_VIRTIO_RNG
+static qmp_virtio_feature_map_t virtio_rng_feature_map[] = {
     FEATURE_ENTRY(VHOST_F_LOG_ALL, \
             "VHOST_F_LOG_ALL: Logging write descriptors supported"),
     FEATURE_ENTRY(VHOST_USER_F_PROTOCOL_FEATURES, \
@@ -461,6 +488,7 @@ qmp_virtio_feature_map_t virtio_rng_feature_map[] = {
             "negotiation supported"),
     { -1, "" }
 };
+#endif
 
 /*
  * The alignment to use between consumer and producer parts of vring.
