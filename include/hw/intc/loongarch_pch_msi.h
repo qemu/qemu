@@ -15,8 +15,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHMSI, LOONGARCH_PCH_MSI)
 
 struct LoongArchPCHMSI {
     SysBusDevice parent_obj;
-    qemu_irq pch_msi_irq[PCH_MSI_IRQ_NUM];
+    qemu_irq *pch_msi_irq;
     MemoryRegion msi_mmio;
     /* irq base passed to upper extioi intc */
     unsigned int irq_base;
+    unsigned int irq_num;
 };
