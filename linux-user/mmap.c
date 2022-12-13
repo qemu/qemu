@@ -857,7 +857,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
     return new_addr;
 }
 
-static bool can_passthrough_madv_dontneed(abi_ulong start, abi_ulong end)
+static bool can_passthrough_madvise(abi_ulong start, abi_ulong end)
 {
     ulong addr;
 
@@ -901,23 +901,53 @@ abi_long target_madvise(abi_ulong start, abi_ulong len_in, int advice)
         return -TARGET_EINVAL;
     }
 
+    /* Translate for some architectures which have different MADV_xxx values */
+    switch (advice) {
+    case TARGET_MADV_DONTNEED:      /* alpha */
+        advice = MADV_DONTNEED;
+        break;
+    case TARGET_MADV_WIPEONFORK:    /* parisc */
+        advice = MADV_WIPEONFORK;
+        break;
+    case TARGET_MADV_KEEPONFORK:    /* parisc */
+        advice = MADV_KEEPONFORK;
+        break;
+    /* we do not care about the other MADV_xxx values yet */
+    }
+
     /*
-     * A straight passthrough may not be safe because qemu sometimes turns
-     * private file-backed mappings into anonymous mappings.
+     * Most advice values are hints, so ignoring and returning success is ok.
      *
-     * This is a hint, so ignoring and returning success is ok.
+     * However, some advice values such as MADV_DONTNEED, MADV_WIPEONFORK and
+     * MADV_KEEPONFORK are not hints and need to be emulated.
      *
-     * This breaks MADV_DONTNEED, completely implementing which is quite
-     * complicated. However, there is one low-hanging fruit: mappings that are
-     * known to have the same semantics in the host and the guest. In this case
-     * passthrough is safe, so do it.
+     * A straight passthrough for those may not be safe because qemu sometimes
+     * turns private file-backed mappings into anonymous mappings.
+     * can_passthrough_madvise() helps to check if a passthrough is possible by
+     * comparing mappings that are known to have the same semantics in the host
+     * and the guest. In this case passthrough is safe.
+     *
+     * We pass through MADV_WIPEONFORK and MADV_KEEPONFORK if possible and
+     * return failure if not.
+     *
+     * MADV_DONTNEED is passed through as well, if possible.
+     * If passthrough isn't possible, we nevertheless (wrongly!) return
+     * success, which is broken but some userspace programs fail to work
+     * otherwise. Completely implementing such emulation is quite complicated
+     * though.
      */
     mmap_lock();
-    if (advice == TARGET_MADV_DONTNEED &&
-        can_passthrough_madv_dontneed(start, end)) {
-        ret = get_errno(madvise(g2h_untagged(start), len, MADV_DONTNEED));
-        if (ret == 0) {
-            page_reset_target_data(start, start + len);
+    switch (advice) {
+    case MADV_WIPEONFORK:
+    case MADV_KEEPONFORK:
+        ret = -EINVAL;
+        /* fall through */
+    case MADV_DONTNEED:
+        if (can_passthrough_madvise(start, end)) {
+            ret = get_errno(madvise(g2h_untagged(start), len, advice));
+            if ((advice == MADV_DONTNEED) && (ret == 0)) {
+                page_reset_target_data(start, start + len);
+            }
         }
     }
     mmap_unlock();
