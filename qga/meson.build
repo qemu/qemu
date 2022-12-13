@@ -140,6 +140,11 @@ if targetos == 'windows'
       qemu_ga_msi_vss = ['-D', 'InstallVss']
       deps += qga_vss
     endif
+    if glib.version() < '2.73.2'
+      libpcre = 'libpcre1'
+    else
+      libpcre = 'libpcre2'
+    endif
     qga_msi = custom_target('QGA MSI',
                             input: files('installer/qemu-ga.wxs'),
                             output: 'qemu-ga-@0@.msi'.format(host_arch),
@@ -153,6 +158,7 @@ if targetos == 'windows'
                               '-D', 'QEMU_GA_VERSION=' + config_host['QEMU_GA_VERSION'],
                               '-D', 'QEMU_GA_MANUFACTURER=' + config_host['QEMU_GA_MANUFACTURER'],
                               '-D', 'QEMU_GA_DISTRO=' + config_host['QEMU_GA_DISTRO'],
+                              '-D', 'LIBPCRE=' + libpcre,
                             ])
     all_qga += [qga_msi]
     alias_target('msi', qga_msi)
