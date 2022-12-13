@@ -55,7 +55,7 @@ config VGA_MMIO
 
 config VMWARE_VGA
     bool
-    default y if PCI_DEVICES
+    default y if PCI_DEVICES && PC_PCI
     depends on PCI
     select VGA
 
