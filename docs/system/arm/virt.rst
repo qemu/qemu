@@ -98,6 +98,19 @@ compact-highmem
   Set ``on``/``off`` to enable/disable the compact layout for high memory regions.
   The default is ``on`` for machine types later than ``virt-7.2``.
 
+highmem-redists
+  Set ``on``/``off`` to enable/disable the high memory region for GICv3 or
+  GICv4 redistributor. The default is ``on``. Setting this to ``off`` will
+  limit the maximum number of CPUs when GICv3 or GICv4 is used.
+
+highmem-ecam
+  Set ``on``/``off`` to enable/disable the high memory region for PCI ECAM.
+  The default is ``on`` for machine types later than ``virt-3.0``.
+
+highmem-mmio
+  Set ``on``/``off`` to enable/disable the high memory region for PCI MMIO.
+  The default is ``on``.
+
 gic-version
   Specify the version of the Generic Interrupt Controller (GIC) to provide.
   Valid values are:
