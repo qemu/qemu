@@ -1722,18 +1722,23 @@ static void virt_set_high_memmap(VirtMachineState *vms,
         vms->memmap[i].size = region_size;
 
         /*
-         * Check each device to see if they fit in the PA space,
-         * moving highest_gpa as we go.
+         * Check each device to see if it fits in the PA space,
+         * moving highest_gpa as we go. For compatibility, move
+         * highest_gpa for disabled fitting devices as well, if
+         * the compact layout has been disabled.
          *
          * For each device that doesn't fit, disable it.
          */
         fits = (region_base + region_size) <= BIT_ULL(pa_bits);
-        if (fits) {
-            vms->highest_gpa = region_base + region_size - 1;
+        *region_enabled &= fits;
+        if (vms->highmem_compact && !*region_enabled) {
+            continue;
         }
 
-        *region_enabled &= fits;
         base = region_base + region_size;
+        if (fits) {
+            vms->highest_gpa = base - 1;
+        }
     }
 }
 
