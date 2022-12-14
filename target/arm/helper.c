@@ -1895,11 +1895,12 @@ static void scr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
     scr_write(env, ri, 0);
 }
 
-static CPAccessResult access_aa64_tid2(CPUARMState *env,
-                                       const ARMCPRegInfo *ri,
-                                       bool isread)
+static CPAccessResult access_tid4(CPUARMState *env,
+                                  const ARMCPRegInfo *ri,
+                                  bool isread)
 {
-    if (arm_current_el(env) == 1 && (arm_hcr_el2_eff(env) & HCR_TID2)) {
+    if (arm_current_el(env) == 1 &&
+        (arm_hcr_el2_eff(env) & (HCR_TID2 | HCR_TID4))) {
         return CP_ACCESS_TRAP_EL2;
     }
 
@@ -2130,12 +2131,12 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "CCSIDR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
       .access = PL1_R,
-      .accessfn = access_aa64_tid2,
+      .accessfn = access_tid4,
       .readfn = ccsidr_read, .type = ARM_CP_NO_RAW },
     { .name = "CSSELR", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 2, .opc2 = 0,
       .access = PL1_RW,
-      .accessfn = access_aa64_tid2,
+      .accessfn = access_tid4,
       .writefn = csselr_write, .resetvalue = 0,
       .bank_fieldoffsets = { offsetof(CPUARMState, cp15.csselr_s),
                              offsetof(CPUARMState, cp15.csselr_ns) } },
@@ -7281,7 +7282,7 @@ static const ARMCPRegInfo ccsidr2_reginfo[] = {
     { .name = "CCSIDR2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 1, .crn = 0, .crm = 0, .opc2 = 2,
       .access = PL1_R,
-      .accessfn = access_aa64_tid2,
+      .accessfn = access_tid4,
       .readfn = ccsidr2_read, .type = ARM_CP_NO_RAW },
 };
 
@@ -7581,7 +7582,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .name = "CLIDR", .state = ARM_CP_STATE_BOTH,
             .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
             .access = PL1_R, .type = ARM_CP_CONST,
-            .accessfn = access_aa64_tid2,
+            .accessfn = access_tid4,
             .resetvalue = cpu->clidr
         };
         define_one_arm_cp_reg(cpu, &clidr);
