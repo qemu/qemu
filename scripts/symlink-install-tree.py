@@ -17,7 +17,6 @@ introspect = os.environ.get('MESONINTROSPECT')
 out = subprocess.run([*introspect.split(' '), '--installed'],
                      stdout=subprocess.PIPE, check=True).stdout
 for source, dest in json.loads(out).items():
-    assert os.path.isabs(source)
     bundle_dest = destdir_join('qemu-bundle', dest)
     path = os.path.dirname(bundle_dest)
     try:
