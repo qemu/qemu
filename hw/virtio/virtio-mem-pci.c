@@ -65,7 +65,6 @@ static void virtio_mem_pci_fill_device_info(const MemoryDeviceState *md,
     DeviceState *dev = DEVICE(md);
 
     if (dev->id) {
-        vi->has_id = true;
         vi->id = g_strdup(dev->id);
     }
 
@@ -90,8 +89,7 @@ static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
     char *qom_path = object_get_canonical_path(OBJECT(dev));
     const uint64_t * const size_p = data;
 
-    qapi_event_send_memory_device_size_change(!!dev->id, dev->id, *size_p,
-                                              qom_path);
+    qapi_event_send_memory_device_size_change(dev->id, *size_p, qom_path);
     g_free(qom_path);
 }
 

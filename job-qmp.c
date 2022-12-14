@@ -156,8 +156,7 @@ static JobInfo *job_query_single_locked(Job *job, Error **errp)
         .status             = job->status,
         .current_progress   = progress_current,
         .total_progress     = progress_total,
-        .has_error          = !!job->err,
-        .error              = job->err ? \
+        .error              = job->err ?
                               g_strdup(error_get_pretty(job->err)) : NULL,
     };
 

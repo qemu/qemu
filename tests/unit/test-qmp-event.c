@@ -109,7 +109,7 @@ static void test_event_c(TestEventData *data,
     data->expect = qdict_from_jsonf_nofail(
         "{ 'event': 'EVENT_C', 'data': {"
         " 'a': 1, 'b': { 'integer': 2, 'string': 'test1' }, 'c': 'test2' } }");
-    qapi_event_send_event_c(true, 1, true, &b, "test2");
+    qapi_event_send_event_c(true, 1, &b, "test2");
     g_assert(data->emitted);
     qobject_unref(data->expect);
 }
@@ -135,7 +135,7 @@ static void test_event_d(TestEventData *data,
         "  'struct1': { 'integer': 2, 'string': 'test1', 'enum1': 'value1' },"
         "  'string': 'test2', 'enum2': 'value2' },"
         " 'b': 'test3', 'enum3': 'value3' } }");
-    qapi_event_send_event_d(&a, "test3", false, NULL, true, ENUM_ONE_VALUE3);
+    qapi_event_send_event_d(&a, "test3", NULL, true, ENUM_ONE_VALUE3);
     g_assert(data->emitted);
     qobject_unref(data->expect);
 }

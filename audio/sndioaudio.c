@@ -333,7 +333,7 @@ static int sndio_init(SndioVoice *self,
     unsigned int nch;
     int i, nfds;
 
-    dev_name = opts->has_dev ? opts->dev : SIO_DEVANY;
+    dev_name = opts->dev ?: SIO_DEVANY;
     latency = opts->has_latency ? opts->latency : SNDIO_LATENCY_US;
 
     /* open the device in non-blocking mode */

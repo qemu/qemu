@@ -114,7 +114,7 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     ctx = bdrv_get_aio_context(bs);
     aio_context_acquire(ctx);
 
-    if (export->has_iothread) {
+    if (export->iothread) {
         IOThread *iothread;
         AioContext *new_ctx;
         Error **set_context_errp;

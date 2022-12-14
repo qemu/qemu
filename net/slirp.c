@@ -1153,8 +1153,8 @@ int net_init_slirp(const Netdev *netdev, const char *name,
         ipv6 = 0;
     }
 
-    vnet = user->has_net ? g_strdup(user->net) :
-           user->has_ip  ? g_strdup_printf("%s/24", user->ip) :
+    vnet = user->net ? g_strdup(user->net) :
+           user->ip  ? g_strdup_printf("%s/24", user->ip) :
            NULL;
 
     dnssearch = slirp_dnssearch(user->dnssearch);

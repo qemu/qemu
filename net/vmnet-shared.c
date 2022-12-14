@@ -31,12 +31,12 @@ static bool validate_options(const Netdev *netdev, Error **errp)
     }
 #endif
 
-    if ((options->has_start_address ||
-         options->has_end_address ||
-         options->has_subnet_mask) &&
-        !(options->has_start_address &&
-          options->has_end_address &&
-          options->has_subnet_mask)) {
+    if ((options->start_address ||
+         options->end_address ||
+         options->subnet_mask) &&
+        !(options->start_address &&
+          options->end_address &&
+          options->subnet_mask)) {
         error_setg(errp,
                    "'start-address', 'end-address', 'subnet-mask' "
                    "should be provided together"
@@ -58,13 +58,13 @@ static xpc_object_t build_if_desc(const Netdev *netdev)
         VMNET_SHARED_MODE
     );
 
-    if (options->has_nat66_prefix) {
+    if (options->nat66_prefix) {
         xpc_dictionary_set_string(if_desc,
                                   vmnet_nat66_prefix_key,
                                   options->nat66_prefix);
     }
 
-    if (options->has_start_address) {
+    if (options->start_address) {
         xpc_dictionary_set_string(if_desc,
                                   vmnet_start_address_key,
                                   options->start_address);

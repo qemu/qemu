@@ -449,7 +449,7 @@ static int alsa_open(bool in, struct alsa_params_req *req,
     snd_pcm_hw_params_t *hw_params;
     int err;
     unsigned int freq, nchannels;
-    const char *pcm_name = apdo->has_dev ? apdo->dev : "default";
+    const char *pcm_name = apdo->dev ?: "default";
     snd_pcm_uframes_t obt_buffer_size;
     const char *typ = in ? "ADC" : "DAC";
     snd_pcm_format_t obtfmt;

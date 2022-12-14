@@ -1481,8 +1481,8 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
     __block Error *err = NULL;
     with_iothread_lock(^{
-        qmp_eject(true, [drive cStringUsingEncoding: NSASCIIStringEncoding],
-                  false, NULL, false, false, &err);
+        qmp_eject([drive cStringUsingEncoding: NSASCIIStringEncoding],
+                  NULL, false, false, &err);
     });
     handleAnyDeviceErrors(err);
 }
@@ -1516,13 +1516,12 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
 
         __block Error *err = NULL;
         with_iothread_lock(^{
-            qmp_blockdev_change_medium(true,
-                                       [drive cStringUsingEncoding:
+            qmp_blockdev_change_medium([drive cStringUsingEncoding:
                                                   NSASCIIStringEncoding],
-                                       false, NULL,
+                                       NULL,
                                        [file cStringUsingEncoding:
                                                  NSASCIIStringEncoding],
-                                       true, "raw",
+                                       "raw",
                                        true, false,
                                        false, 0,
                                        &err);

@@ -253,6 +253,11 @@ class QAPISchemaType(QAPISchemaEntity):
             return None
         return self.name
 
+    def need_has_if_optional(self):
+        # When FOO is a pointer, has_FOO == !!FOO, i.e. has_FOO is redundant.
+        # Except for arrays; see QAPISchemaArrayType.need_has_if_optional().
+        return not self.c_type().endswith(POINTER_SUFFIX)
+
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
         for feat in self.features:
@@ -351,6 +356,11 @@ class QAPISchemaArrayType(QAPISchemaType):
         assert isinstance(element_type, str)
         self._element_type_name = element_type
         self.element_type = None
+
+    def need_has_if_optional(self):
+        # When FOO is an array, we still need has_FOO to distinguish
+        # absent (!has_FOO) from present and empty (has_FOO && !FOO).
+        return True
 
     def check(self, schema):
         super().check(schema)
@@ -744,6 +754,10 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         self.type = None
         self.optional = optional
         self.features = features or []
+
+    def need_has(self):
+        assert self.type
+        return self.optional and self.type.need_has_if_optional()
 
     def check(self, schema):
         assert self.defined_in

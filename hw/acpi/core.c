@@ -185,7 +185,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     changed_fields = 0;
     ext_hdr->_length = cpu_to_le16(acpi_payload_size);
 
-    if (hdrs->has_sig) {
+    if (hdrs->sig) {
         strncpy(ext_hdr->sig, hdrs->sig, sizeof ext_hdr->sig);
         ++changed_fields;
     }
@@ -204,11 +204,11 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
 
     ext_hdr->checksum = 0;
 
-    if (hdrs->has_oem_id) {
+    if (hdrs->oem_id) {
         strncpy(ext_hdr->oem_id, hdrs->oem_id, sizeof ext_hdr->oem_id);
         ++changed_fields;
     }
-    if (hdrs->has_oem_table_id) {
+    if (hdrs->oem_table_id) {
         strncpy(ext_hdr->oem_table_id, hdrs->oem_table_id,
                 sizeof ext_hdr->oem_table_id);
         ++changed_fields;
@@ -217,7 +217,7 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
         ext_hdr->oem_revision = cpu_to_le32(hdrs->oem_rev);
         ++changed_fields;
     }
-    if (hdrs->has_asl_compiler_id) {
+    if (hdrs->asl_compiler_id) {
         strncpy(ext_hdr->asl_compiler_id, hdrs->asl_compiler_id,
                 sizeof ext_hdr->asl_compiler_id);
         ++changed_fields;
@@ -255,12 +255,12 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
     if (!hdrs) {
         goto out;
     }
-    if (hdrs->has_file == hdrs->has_data) {
+    if (!hdrs->file == !hdrs->data) {
         error_setg(errp, "'-acpitable' requires one of 'data' or 'file'");
         goto out;
     }
 
-    pathnames = g_strsplit(hdrs->has_file ? hdrs->file : hdrs->data, ":", 0);
+    pathnames = g_strsplit(hdrs->file ?: hdrs->data, ":", 0);
     if (pathnames == NULL || pathnames[0] == NULL) {
         error_setg(errp, "'-acpitable' requires at least one pathname");
         goto out;
@@ -297,7 +297,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
         close(fd);
     }
 
-    acpi_table_install(blob, bloblen, hdrs->has_file, hdrs, errp);
+    acpi_table_install(blob, bloblen, !!hdrs->file, hdrs, errp);
 
 out:
     g_free(blob);

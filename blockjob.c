@@ -354,7 +354,6 @@ BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)
     info->auto_finalize = job->job.auto_finalize;
     info->auto_dismiss  = job->job.auto_dismiss;
     if (job->job.ret) {
-        info->has_error = true;
         info->error = job->job.err ?
                         g_strdup(error_get_pretty(job->job.err)) :
                         g_strdup(strerror(-job->job.ret));
@@ -414,7 +413,6 @@ static void block_job_event_completed_locked(Notifier *n, void *opaque)
                                         progress_total,
                                         progress_current,
                                         job->speed,
-                                        !!msg,
                                         msg);
 }
 

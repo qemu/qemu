@@ -1251,7 +1251,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
                        "'fd' address type");
             return false;
         }
-        if (sock->has_tls_creds &&
+        if (sock->tls_creds &&
             !(sock->has_server && sock->server)) {
             error_setg(errp,
                        "'tls_creds' option is incompatible with "
@@ -1261,7 +1261,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
         break;
 
     case SOCKET_ADDRESS_TYPE_UNIX:
-        if (sock->has_tls_creds) {
+        if (sock->tls_creds) {
             error_setg(errp,
                        "'tls_creds' option is incompatible with "
                        "'unix' address type");
@@ -1273,7 +1273,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
-        if (sock->has_tls_creds) {
+        if (sock->tls_creds) {
             error_setg(errp,
                        "'tls_creds' option is incompatible with "
                        "'vsock' address type");
@@ -1284,7 +1284,7 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
         break;
     }
 
-    if (sock->has_tls_authz && !sock->has_tls_creds) {
+    if (sock->tls_authz && !sock->tls_creds) {
         error_setg(errp, "'tls_authz' option requires 'tls_creds' option");
         return false;
     }
@@ -1465,9 +1465,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->wait = qemu_opt_get_bool(opts, "wait", true);
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
     sock->reconnect = qemu_opt_get_number(opts, "reconnect", 0);
-    sock->has_tls_creds = qemu_opt_get(opts, "tls-creds");
     sock->tls_creds = g_strdup(qemu_opt_get(opts, "tls-creds"));
-    sock->has_tls_authz = qemu_opt_get(opts, "tls-authz");
     sock->tls_authz = g_strdup(qemu_opt_get(opts, "tls-authz"));
 
     addr = g_new0(SocketAddressLegacy, 1);

@@ -698,7 +698,7 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
         goto out;
     }
 
-    if (qed_opts->has_backing_file) {
+    if (qed_opts->backing_file) {
         header.features |= QED_F_BACKING_FILE;
         header.backing_filename_offset = sizeof(le_header);
         header.backing_filename_size = strlen(qed_opts->backing_file);

@@ -244,7 +244,6 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     info = g_malloc0(sizeof(*info));
     vnc_init_basic_info_from_server_addr(vd->listener->sioc[0],
                                          qapi_VncServerInfo_base(info), &err);
-    info->has_auth = true;
     info->auth = g_strdup(vnc_auth_name(vd));
     if (err) {
         qapi_free_VncServerInfo(info);
@@ -263,13 +262,10 @@ static void vnc_client_cache_auth(VncState *client)
     if (client->tls) {
         client->info->x509_dname =
             qcrypto_tls_session_get_peer_name(client->tls);
-        client->info->has_x509_dname =
-            client->info->x509_dname != NULL;
     }
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn &&
         client->sasl.username) {
-        client->info->has_sasl_username = true;
         client->info->sasl_username = g_strdup(client->sasl.username);
     }
 #endif
@@ -341,11 +337,9 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
 
     if (client->tls) {
         info->x509_dname = qcrypto_tls_session_get_peer_name(client->tls);
-        info->has_x509_dname = info->x509_dname != NULL;
     }
 #ifdef CONFIG_VNC_SASL
     if (client->sasl.conn && client->sasl.username) {
-        info->has_sasl_username = true;
         info->sasl_username = g_strdup(client->sasl.username);
     }
 #endif
@@ -426,11 +420,8 @@ VncInfo *qmp_query_vnc(Error **errp)
             abort();
         }
 
-        info->has_host = true;
-        info->has_service = true;
         info->has_family = true;
 
-        info->has_auth = true;
         info->auth = g_strdup(vnc_auth_name(vd));
     }
 
@@ -568,7 +559,6 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
         if (vd->dcl.con) {
             dev = DEVICE(object_property_get_link(OBJECT(vd->dcl.con),
                                                   "device", &error_abort));
-            info->has_display = true;
             info->display = g_strdup(dev->id);
         }
         for (i = 0; vd->listener != NULL && i < vd->listener->nsioc; i++) {

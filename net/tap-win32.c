@@ -807,7 +807,7 @@ int net_init_tap(const Netdev *netdev, const char *name,
     assert(netdev->type == NET_CLIENT_DRIVER_TAP);
     tap = &netdev->u.tap;
 
-    if (!tap->has_ifname) {
+    if (!tap->ifname) {
         error_report("tap: no interface name");
         return -1;
     }

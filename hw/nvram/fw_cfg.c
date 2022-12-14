@@ -201,7 +201,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     }
 
     /* insert splash file if user configurated */
-    if (current_machine->boot_config.has_splash) {
+    if (current_machine->boot_config.splash) {
         const char *boot_splash_filename = current_machine->boot_config.splash;
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, boot_splash_filename);
         if (filename == NULL) {

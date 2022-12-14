@@ -274,7 +274,7 @@ int net_init_hubport(const Netdev *netdev, const char *name,
     assert(!peer);
     hubport = &netdev->u.hubport;
 
-    if (hubport->has_netdev) {
+    if (hubport->netdev) {
         hubpeer = qemu_find_netdev(hubport->netdev);
         if (!hubpeer) {
             error_setg(errp, "netdev '%s' not found", hubport->netdev);

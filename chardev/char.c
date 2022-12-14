@@ -240,7 +240,7 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
     /* Any ChardevCommon member would work */
     ChardevCommon *common = backend ? backend->u.null.data : NULL;
 
-    if (common && common->has_logfile) {
+    if (common && common->logfile) {
         int flags = O_WRONLY;
         if (common->has_logappend &&
             common->logappend) {
@@ -496,9 +496,7 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
 {
     const char *logfile = qemu_opt_get(opts, "logfile");
 
-    backend->has_logfile = logfile != NULL;
     backend->logfile = g_strdup(logfile);
-
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
 }
@@ -1057,7 +1055,6 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ret = g_new0(ChardevReturn, 1);
     if (CHARDEV_IS_PTY(chr)) {
         ret->pty = g_strdup(chr->filename + 4);
-        ret->has_pty = true;
     }
 
     return ret;
@@ -1160,7 +1157,6 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
     ret = g_new0(ChardevReturn, 1);
     if (CHARDEV_IS_PTY(chr_new)) {
         ret->pty = g_strdup(chr_new->filename + 4);
-        ret->has_pty = true;
     }
 
     return ret;

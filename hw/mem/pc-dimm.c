@@ -252,7 +252,6 @@ static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
     const DeviceState *dev = DEVICE(md);
 
     if (dev->id) {
-        di->has_id = true;
         di->id = g_strdup(dev->id);
     }
     di->hotplugged = dev->hotplugged;

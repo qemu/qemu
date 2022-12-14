@@ -4901,7 +4901,6 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      */
     if (default_cpu_version != CPU_VERSION_LEGACY) {
         info->alias_of = x86_cpu_class_get_alias_of(cc);
-        info->has_alias_of = !!info->alias_of;
     }
 
     QAPI_LIST_PREPEND(*cpu_list, info);

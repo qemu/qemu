@@ -55,8 +55,7 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
         value->qom_path = object_get_canonical_path(OBJECT(cpu));
         value->thread_id = cpu->thread_id;
 
-        value->has_props = !!mc->cpu_index_to_instance_props;
-        if (value->has_props) {
+        if (mc->cpu_index_to_instance_props) {
             CpuInstanceProperties *props;
             props = g_malloc0(sizeof(*props));
             *props = mc->cpu_index_to_instance_props(ms, cpu->cpu_index);
@@ -90,7 +89,6 @@ MachineInfoList *qmp_query_machines(Error **errp)
         }
 
         if (mc->alias) {
-            info->has_alias = true;
             info->alias = g_strdup(mc->alias);
         }
 
@@ -101,11 +99,9 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->deprecated = !!mc->deprecation_reason;
         if (mc->default_cpu_type) {
             info->default_cpu_type = g_strdup(mc->default_cpu_type);
-            info->has_default_cpu_type = true;
         }
         if (mc->default_ram_id) {
             info->default_ram_id = g_strdup(mc->default_ram_id);
-            info->has_default_ram_id = true;
         }
 
         QAPI_LIST_PREPEND(mach_list, info);
@@ -168,7 +164,6 @@ static int query_memdev(Object *obj, void *opaque)
         m = g_malloc0(sizeof(*m));
 
         m->id = g_strdup(object_get_canonical_path_component(obj));
-        m->has_id = !!m->id;
 
         m->size = object_property_get_uint(obj, "size", &error_abort);
         m->merge = object_property_get_bool(obj, "merge", &error_abort);
@@ -227,7 +222,7 @@ HumanReadableText *qmp_x_query_numa(Error **errp)
     for (i = 0; i < nb_numa_nodes; i++) {
         g_string_append_printf(buf, "node %d cpus:", i);
         for (cpu = cpu_list; cpu; cpu = cpu->next) {
-            if (cpu->value->has_props && cpu->value->props->has_node_id &&
+            if (cpu->value->props && cpu->value->props->has_node_id &&
                 cpu->value->props->node_id == i) {
                 g_string_append_printf(buf, " %" PRIi64, cpu->value->cpu_index);
             }

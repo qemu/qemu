@@ -252,7 +252,7 @@ static int oss_open(int in, struct oss_params *req, audsettings *as,
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
     int setfragment = 1;
-    const char *dspname = opdo->has_dev ? opdo->dev : "/dev/dsp";
+    const char *dspname = opdo->dev ?: "/dev/dsp";
     const char *typ = in ? "ADC" : "DAC";
 #ifdef USE_DSP_POLICY
     int policy = oopts->has_dsp_policy ? oopts->dsp_policy : 5;
@@ -745,10 +745,8 @@ static void *oss_audio_init(Audiodev *dev)
     oss_init_per_direction(oopts->in);
     oss_init_per_direction(oopts->out);
 
-    if (access(oopts->in->has_dev ? oopts->in->dev : "/dev/dsp",
-               R_OK | W_OK) < 0 ||
-        access(oopts->out->has_dev ? oopts->out->dev : "/dev/dsp",
-               R_OK | W_OK) < 0) {
+    if (access(oopts->in->dev ?: "/dev/dsp", R_OK | W_OK) < 0 ||
+        access(oopts->out->dev ?: "/dev/dsp", R_OK | W_OK) < 0) {
         return NULL;
     }
     return dev;

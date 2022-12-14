@@ -1107,9 +1107,7 @@ int main(int argc, char **argv)
         .has_writable       = true,
         .writable           = !readonly,
         .u.nbd = {
-            .has_name             = true,
             .name                 = g_strdup(export_name),
-            .has_description      = !!export_description,
             .description          = g_strdup(export_description),
             .has_bitmaps          = !!bitmaps,
             .bitmaps              = bitmaps,

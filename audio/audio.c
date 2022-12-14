@@ -2035,15 +2035,13 @@ void audio_create_pdos(Audiodev *dev)
     switch (dev->driver) {
 #define CASE(DRIVER, driver, pdo_name)                              \
     case AUDIODEV_DRIVER_##DRIVER:                                  \
-        if (!dev->u.driver.has_in) {                                \
+        if (!dev->u.driver.in) {                                    \
             dev->u.driver.in = g_malloc0(                           \
                 sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
-            dev->u.driver.has_in = true;                            \
         }                                                           \
-        if (!dev->u.driver.has_out) {                               \
+        if (!dev->u.driver.out) {                                   \
             dev->u.driver.out = g_malloc0(                          \
                 sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
-            dev->u.driver.has_out = true;                           \
         }                                                           \
         break
 

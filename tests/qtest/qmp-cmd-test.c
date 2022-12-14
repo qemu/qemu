@@ -174,7 +174,7 @@ static bool object_type_has_mandatory_members(SchemaInfo *type)
     g_assert(type->meta_type == SCHEMA_META_TYPE_OBJECT);
 
     for (tail = type->u.object.members; tail; tail = tail->next) {
-        if (!tail->value->has_q_default) {
+        if (!tail->value->q_default) {
             return true;
         }
     }

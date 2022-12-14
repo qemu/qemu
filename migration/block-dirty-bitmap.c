@@ -551,7 +551,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
             }
 
             bitmap_alias = bmap_inner->alias;
-            if (bmap_inner->has_transform) {
+            if (bmap_inner->transform) {
                 bitmap_transform = bmap_inner->transform;
             }
         } else {
@@ -821,7 +821,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
     }
 
     if (s->bmap_inner &&
-        s->bmap_inner->has_transform &&
+        s->bmap_inner->transform &&
         s->bmap_inner->transform->has_persistent) {
         persistent = s->bmap_inner->transform->persistent;
     } else {

@@ -825,7 +825,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
         return -EINVAL;
     }
 
-    if (qcow_opts->has_encrypt &&
+    if (qcow_opts->encrypt &&
         qcow_opts->encrypt->format != Q_CRYPTO_BLOCK_FORMAT_QCOW)
     {
         error_setg(errp, "Unsupported encryption format");
@@ -853,7 +853,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     header.size = cpu_to_be64(total_size);
     header_size = sizeof(header);
     backing_filename_len = 0;
-    if (qcow_opts->has_backing_file) {
+    if (qcow_opts->backing_file) {
         if (strcmp(qcow_opts->backing_file, "fat:")) {
             header.backing_file_offset = cpu_to_be64(header_size);
             backing_filename_len = strlen(qcow_opts->backing_file);
@@ -861,7 +861,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
             header_size += backing_filename_len;
         } else {
             /* special backing file for vvfat */
-            qcow_opts->has_backing_file = false;
+            qcow_opts->backing_file = NULL;
         }
         header.cluster_bits = 9; /* 512 byte cluster to avoid copying
                                     unmodified sectors */
@@ -876,7 +876,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
 
     header.l1_table_offset = cpu_to_be64(header_size);
 
-    if (qcow_opts->has_encrypt) {
+    if (qcow_opts->encrypt) {
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
 
         crypto = qcrypto_block_create(qcow_opts->encrypt, "encrypt.",
@@ -895,7 +895,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
         goto exit;
     }
 
-    if (qcow_opts->has_backing_file) {
+    if (qcow_opts->backing_file) {
         ret = blk_co_pwrite(qcow_blk, sizeof(header), backing_filename_len,
                             qcow_opts->backing_file, 0);
         if (ret < 0) {

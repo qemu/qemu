@@ -182,7 +182,6 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->dict1->dict2->string = g_strdup(strings[2]);
 
     ud2->dict1->dict3 = g_malloc0(sizeof(*ud2->dict1->dict3));
-    ud2->dict1->has_dict3 = true;
     ud2->dict1->dict3->userdef = g_new0(UserDefOne, 1);
     ud2->dict1->dict3->userdef->string = g_strdup(string);
     ud2->dict1->dict3->userdef->integer = value;
@@ -284,7 +283,6 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
         value->dict1->dict2->userdef->string = g_strdup(string);
         value->dict1->dict2->userdef->integer = 42;
         value->dict1->dict2->string = g_strdup(string);
-        value->dict1->has_dict3 = false;
 
         QAPI_LIST_PREPEND(head, value);
     }

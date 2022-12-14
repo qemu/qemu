@@ -4701,7 +4701,6 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
     status->disable_legacy_check = vdev->disable_legacy_check;
     status->bus_name = g_strdup(vdev->bus_name);
     status->use_guest_notifier_mask = vdev->use_guest_notifier_mask;
-    status->has_vhost_dev = vdev->vhost_started;
 
     if (vdev->vhost_started) {
         VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);

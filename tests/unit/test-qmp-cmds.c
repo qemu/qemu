@@ -43,15 +43,15 @@ void qmp_user_def_cmd1(UserDefOne * ud1, Error **errp)
 {
 }
 
-FeatureStruct1 *qmp_test_features0(bool has_fs0, FeatureStruct0 *fs0,
-                                   bool has_fs1, FeatureStruct1 *fs1,
-                                   bool has_fs2, FeatureStruct2 *fs2,
-                                   bool has_fs3, FeatureStruct3 *fs3,
-                                   bool has_fs4, FeatureStruct4 *fs4,
-                                   bool has_cfs1, CondFeatureStruct1 *cfs1,
-                                   bool has_cfs2, CondFeatureStruct2 *cfs2,
-                                   bool has_cfs3, CondFeatureStruct3 *cfs3,
-                                   bool has_cfs4, CondFeatureStruct4 *cfs4,
+FeatureStruct1 *qmp_test_features0(FeatureStruct0 *fs0,
+                                   FeatureStruct1 *fs1,
+                                   FeatureStruct2 *fs2,
+                                   FeatureStruct3 *fs3,
+                                   FeatureStruct4 *fs4,
+                                   CondFeatureStruct1 *cfs1,
+                                   CondFeatureStruct2 *cfs2,
+                                   CondFeatureStruct3 *cfs3,
+                                   CondFeatureStruct4 *cfs4,
                                    Error **errp)
 {
     return g_new0(FeatureStruct1, 1);
@@ -77,8 +77,7 @@ void qmp_test_command_cond_features3(Error **errp)
 {
 }
 
-UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
-                              bool has_udb1, UserDefOne *ud1b,
+UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a, UserDefOne *ud1b,
                               Error **errp)
 {
     UserDefTwo *ret;
@@ -87,8 +86,8 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
 
     ud1c->string = strdup(ud1a->string);
     ud1c->integer = ud1a->integer;
-    ud1d->string = strdup(has_udb1 ? ud1b->string : "blah0");
-    ud1d->integer = has_udb1 ? ud1b->integer : 0;
+    ud1d->string = strdup(ud1b ? ud1b->string : "blah0");
+    ud1d->integer = ud1b ? ud1b->integer : 0;
 
     ret = g_new0(UserDefTwo, 1);
     ret->string0 = strdup("blah1");
@@ -98,7 +97,6 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
     ret->dict1->dict2->userdef = ud1c;
     ret->dict1->dict2->string = strdup("blah3");
     ret->dict1->dict3 = g_new0(UserDefTwoDictDict, 1);
-    ret->dict1->has_dict3 = true;
     ret->dict1->dict3->userdef = ud1d;
     ret->dict1->dict3->string = strdup("blah4");
 

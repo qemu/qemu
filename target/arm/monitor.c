@@ -221,7 +221,6 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         qobject_unref(qdict_out);
     } else {
         expansion_info->model->props = QOBJECT(qdict_out);
-        expansion_info->model->has_props = true;
     }
 
     object_unref(obj);
