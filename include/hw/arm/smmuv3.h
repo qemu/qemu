@@ -77,7 +77,7 @@ struct SMMUv3Class {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    DeviceReset   parent_reset;
+    ResettablePhases parent_phases;
 };
 
 #define TYPE_ARM_SMMUV3   "arm-smmuv3"
