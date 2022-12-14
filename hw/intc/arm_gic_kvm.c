@@ -38,7 +38,7 @@ DECLARE_OBJ_CHECKERS(GICState, KVMARMGICClass,
 struct KVMARMGICClass {
     ARMGICCommonClass parent_class;
     DeviceRealize parent_realize;
-    void (*parent_reset)(DeviceState *dev);
+    ResettablePhases parent_phases;
 };
 
 void kvm_arm_gic_set_irq(uint32_t num_irq, int irq, int level)
@@ -473,12 +473,14 @@ static void kvm_arm_gic_get(GICState *s)
     }
 }
 
-static void kvm_arm_gic_reset(DeviceState *dev)
+static void kvm_arm_gic_reset_hold(Object *obj)
 {
-    GICState *s = ARM_GIC_COMMON(dev);
+    GICState *s = ARM_GIC_COMMON(obj);
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
 
-    kgc->parent_reset(dev);
+    if (kgc->parent_phases.hold) {
+        kgc->parent_phases.hold(obj);
+    }
 
     if (kvm_arm_gic_can_save_restore(s)) {
         kvm_arm_gic_put(s);
@@ -593,6 +595,7 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
 static void kvm_arm_gic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     ARMGICCommonClass *agcc = ARM_GIC_COMMON_CLASS(klass);
     KVMARMGICClass *kgc = KVM_ARM_GIC_CLASS(klass);
 
@@ -600,7 +603,8 @@ static void kvm_arm_gic_class_init(ObjectClass *klass, void *data)
     agcc->post_load = kvm_arm_gic_put;
     device_class_set_parent_realize(dc, kvm_arm_gic_realize,
                                     &kgc->parent_realize);
-    device_class_set_parent_reset(dc, kvm_arm_gic_reset, &kgc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, kvm_arm_gic_reset_hold, NULL,
+                                       &kgc->parent_phases);
 }
 
 static const TypeInfo kvm_arm_gic_info = {
