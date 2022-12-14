@@ -1614,9 +1614,11 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 static void virt_build_smbios(VirtMachineState *vms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(vms);
+    MachineState *ms = MACHINE(vms);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
+    struct smbios_phys_mem_area mem_array;
     const char *product = "QEMU Virtual Machine";
 
     if (kvm_enabled()) {
@@ -1627,7 +1629,11 @@ static void virt_build_smbios(VirtMachineState *vms)
                         vmc->smbios_old_sys_ver ? "1.0" : mc->name, false,
                         true, SMBIOS_ENTRY_POINT_TYPE_64);
 
-    smbios_get_tables(MACHINE(vms), NULL, 0,
+    /* build the array of physical mem area from base_memmap */
+    mem_array.address = vms->memmap[VIRT_MEM].base;
+    mem_array.length = ms->ram_size;
+
+    smbios_get_tables(ms, &mem_array, 1,
                       &smbios_tables, &smbios_tables_len,
                       &smbios_anchor, &smbios_anchor_len,
                       &error_fatal);
