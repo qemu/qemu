@@ -261,9 +261,9 @@ static inline void arm_gic_common_reset_irq_state(GICState *s, int first_cpu,
     }
 }
 
-static void arm_gic_common_reset(DeviceState *dev)
+static void arm_gic_common_reset_hold(Object *obj)
 {
-    GICState *s = ARM_GIC_COMMON(dev);
+    GICState *s = ARM_GIC_COMMON(obj);
     int i, j;
     int resetprio;
 
@@ -364,9 +364,10 @@ static Property arm_gic_common_properties[] = {
 static void arm_gic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
 
-    dc->reset = arm_gic_common_reset;
+    rc->phases.hold = arm_gic_common_reset_hold;
     dc->realize = arm_gic_common_realize;
     device_class_set_props(dc, arm_gic_common_properties);
     dc->vmsd = &vmstate_gic;
