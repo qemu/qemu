@@ -390,9 +390,9 @@ static bool gicd_readl(GICv3State *s, hwaddr offset,
          * MBIS == 0 (message-based SPIs not supported)
          * SecurityExtn == 1 if security extns supported
          * CPUNumber == 0 since for us ARE is always 1
-         * ITLinesNumber == (num external irqs / 32) - 1
+         * ITLinesNumber == (((max SPI IntID + 1) / 32) - 1)
          */
-        int itlinesnumber = ((s->num_irq - GIC_INTERNAL) / 32) - 1;
+        int itlinesnumber = (s->num_irq / 32) - 1;
         /*
          * SecurityExtn must be RAZ if GICD_CTLR.DS == 1, and
          * "security extensions not supported" always implies DS == 1,
