@@ -277,10 +277,6 @@ if build_docs
                                     command: ['perl', '-pe', '$x = chr 13; s/$x$//', '@INPUT@'],
                                     capture: true)
 
-  # "full_path()" needed here to work around
-  # https://github.com/mesonbuild/meson/issues/7585
-  test('QAPI rST doc', diff, args: ['-u', qapi_doc_ref_nocr[0].full_path(),
-                                    qapi_doc_out_nocr[0].full_path()],
-       depends: [qapi_doc_ref_nocr, qapi_doc_out_nocr],
+  test('QAPI rST doc', diff, args: ['-u', qapi_doc_ref_nocr[0], qapi_doc_out_nocr[0]],
        suite: ['qapi-schema', 'qapi-doc'])
 endif
