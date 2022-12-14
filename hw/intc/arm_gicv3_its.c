@@ -27,7 +27,7 @@ DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSClass,
 
 struct GICv3ITSClass {
     GICv3ITSCommonClass parent_class;
-    void (*parent_reset)(DeviceState *dev);
+    ResettablePhases parent_phases;
 };
 
 /*
@@ -1953,12 +1953,14 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void gicv3_its_reset(DeviceState *dev)
+static void gicv3_its_reset_hold(Object *obj)
 {
-    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(dev);
+    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(obj);
     GICv3ITSClass *c = ARM_GICV3_ITS_GET_CLASS(s);
 
-    c->parent_reset(dev);
+    if (c->parent_phases.hold) {
+        c->parent_phases.hold(obj);
+    }
 
     /* Quiescent bit reset to 1 */
     s->ctlr = FIELD_DP32(s->ctlr, GITS_CTLR, QUIESCENT, 1);
@@ -2012,12 +2014,14 @@ static Property gicv3_its_props[] = {
 static void gicv3_its_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     GICv3ITSClass *ic = ARM_GICV3_ITS_CLASS(klass);
     GICv3ITSCommonClass *icc = ARM_GICV3_ITS_COMMON_CLASS(klass);
 
     dc->realize = gicv3_arm_its_realize;
     device_class_set_props(dc, gicv3_its_props);
-    device_class_set_parent_reset(dc, gicv3_its_reset, &ic->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, gicv3_its_reset_hold, NULL,
+                                       &ic->parent_phases);
     icc->post_load = gicv3_its_post_load;
 }
 
