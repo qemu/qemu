@@ -32,7 +32,27 @@
 #include "qapi/qapi-types-migration.h"
 #include "exec/cpu-common.h"
 #include "io/channel.h"
+#include "qemu/stats64.h"
 
+/*
+ * These are the migration statistic counters that need to be updated using
+ * atomic ops (can be accessed by more than one thread).  Here since we
+ * cannot modify MigrationStats directly to use Stat64 as it was defined in
+ * the QAPI scheme, we define an internal structure to hold them, and we
+ * propagate the real values when QMP queries happen.
+ *
+ * IOW, the corresponding fields within ram_counters on these specific
+ * fields will be always zero and not being used at all; they're just
+ * placeholders to make it QAPI-compatible.
+ */
+typedef struct {
+    Stat64 transferred;
+    Stat64 duplicate;
+    Stat64 normal;
+    Stat64 postcopy_bytes;
+} MigrationAtomicStats;
+
+extern MigrationAtomicStats ram_atomic_counters;
 extern MigrationStats ram_counters;
 extern XBZRLECacheStats xbzrle_counters;
 extern CompressionStats compression_counters;
@@ -64,6 +84,9 @@ int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 int ram_load_postcopy(QEMUFile *f, int channel);
 
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
+
+void ram_transferred_add(uint64_t bytes);
+void ram_release_page(const char *rbname, uint64_t offset);
 
 int ramblock_recv_bitmap_test(RAMBlock *rb, void *host_addr);
 bool ramblock_recv_bitmap_test_byte_offset(RAMBlock *rb, uint64_t byte_offset);
