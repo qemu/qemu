@@ -1037,6 +1037,9 @@ static RISCVException write_stimecmp(CPURISCVState *env, int csrno,
     RISCVCPU *cpu = env_archcpu(env);
 
     if (riscv_cpu_virt_enabled(env)) {
+        if (env->hvictl & HVICTL_VTI) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
         return write_vstimecmp(env, csrno, val);
     }
 
@@ -1057,6 +1060,9 @@ static RISCVException write_stimecmph(CPURISCVState *env, int csrno,
     RISCVCPU *cpu = env_archcpu(env);
 
     if (riscv_cpu_virt_enabled(env)) {
+        if (env->hvictl & HVICTL_VTI) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
         return write_vstimecmph(env, csrno, val);
     }
 
