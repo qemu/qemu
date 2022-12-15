@@ -1051,20 +1051,30 @@ bool migration_is_running(int state)
     }
 }
 
+static bool migrate_show_downtime(MigrationState *s)
+{
+    return (s->state == MIGRATION_STATUS_COMPLETED) || migration_in_postcopy();
+}
+
 static void populate_time_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_status = true;
     info->has_setup_time = true;
     info->setup_time = s->setup_time;
+
     if (s->state == MIGRATION_STATUS_COMPLETED) {
         info->has_total_time = true;
         info->total_time = s->total_time;
-        info->has_downtime = true;
-        info->downtime = s->downtime;
     } else {
         info->has_total_time = true;
         info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
                            s->start_time;
+    }
+
+    if (migrate_show_downtime(s)) {
+        info->has_downtime = true;
+        info->downtime = s->downtime;
+    } else {
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
     }
