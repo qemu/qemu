@@ -572,54 +572,17 @@ static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
     return 1;
 }
 
-typedef struct {
-    BlockBackend *blk;
-    int64_t offset;
-    int64_t bytes;
-    int64_t *total;
-    int flags;
-    int ret;
-    bool done;
-} CoWriteZeroes;
-
-static void coroutine_fn co_pwrite_zeroes_entry(void *opaque)
-{
-    CoWriteZeroes *data = opaque;
-
-    data->ret = blk_co_pwrite_zeroes(data->blk, data->offset, data->bytes,
-                                     data->flags);
-    data->done = true;
-    if (data->ret < 0) {
-        *data->total = data->ret;
-        return;
-    }
-
-    *data->total = data->bytes;
-}
-
-static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+static int do_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                int64_t bytes, int flags, int64_t *total)
 {
-    Coroutine *co;
-    CoWriteZeroes data = {
-        .blk    = blk,
-        .offset = offset,
-        .bytes  = bytes,
-        .total  = total,
-        .flags  = flags,
-        .done   = false,
-    };
+    int ret = blk_pwrite_zeroes(blk, offset, bytes,
+                                flags | BDRV_REQ_ZERO_WRITE);
 
-    co = qemu_coroutine_create(co_pwrite_zeroes_entry, &data);
-    bdrv_coroutine_enter(blk_bs(blk), co);
-    while (!data.done) {
-        aio_poll(blk_get_aio_context(blk), true);
+    if (ret < 0) {
+        return ret;
     }
-    if (data.ret < 0) {
-        return data.ret;
-    } else {
-        return 1;
-    }
+    *total = bytes;
+    return 1;
 }
 
 static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
@@ -1042,7 +1005,7 @@ static void write_help(void)
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
-" -z, -- write zeroes using blk_co_pwrite_zeroes\n"
+" -z, -- write zeroes using blk_pwrite_zeroes\n"
 "\n");
 }
 
@@ -1199,7 +1162,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     if (bflag) {
         ret = do_save_vmstate(blk, buf, offset, count, &total);
     } else if (zflag) {
-        ret = do_co_pwrite_zeroes(blk, offset, count, flags, &total);
+        ret = do_pwrite_zeroes(blk, offset, count, flags, &total);
     } else if (cflag) {
         ret = do_write_compressed(blk, buf, offset, count, &total);
     } else {
