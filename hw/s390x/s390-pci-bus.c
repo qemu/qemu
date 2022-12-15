@@ -24,6 +24,8 @@
 #include "hw/pci/msi.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 
 #ifndef DEBUG_S390PCI_BUS
 #define DEBUG_S390PCI_BUS  0
@@ -150,9 +152,29 @@ out:
     psccb->header.response_code = cpu_to_be16(rc);
 }
 
+static void s390_pci_shutdown_notifier(Notifier *n, void *opaque)
+{
+    S390PCIBusDevice *pbdev = container_of(n, S390PCIBusDevice,
+                                           shutdown_notifier);
+
+    pci_device_reset(pbdev->pdev);
+}
+
+static void s390_pci_reset_cb(void *opaque)
+{
+    S390PCIBusDevice *pbdev = opaque;
+
+    pci_device_reset(pbdev->pdev);
+}
+
 static void s390_pci_perform_unplug(S390PCIBusDevice *pbdev)
 {
     HotplugHandler *hotplug_ctrl;
+
+    if (pbdev->pft == ZPCI_PFT_ISM) {
+        notifier_remove(&pbdev->shutdown_notifier);
+        qemu_unregister_reset(s390_pci_reset_cb, pbdev);
+    }
 
     /* Unplug the PCI device */
     if (pbdev->pdev) {
@@ -1110,6 +1132,12 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                 /* Do vfio passthrough but intercept for I/O */
                 pbdev->fh |= FH_SHM_VFIO;
                 pbdev->forwarding_assist = false;
+            }
+            /* Register shutdown notifier and reset callback for ISM devices */
+            if (pbdev->pft == ZPCI_PFT_ISM) {
+                pbdev->shutdown_notifier.notify = s390_pci_shutdown_notifier;
+                qemu_register_shutdown_notifier(&pbdev->shutdown_notifier);
+                qemu_register_reset(s390_pci_reset_cb, pbdev);
             }
         } else {
             pbdev->fh |= FH_SHM_EMUL;

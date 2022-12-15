@@ -32,7 +32,6 @@
 #define E1000E_IVAR_TEST_CFG \
     (((E1000E_RX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_RXQ0_SHIFT) | \
      ((E1000E_TX0_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_TXQ0_SHIFT) | \
-     ((E1000E_OTHER_MSG_ID | E1000_IVAR_INT_ALLOC_VALID) << E1000_IVAR_OTHER_SHIFT) | \
      E1000_IVAR_TX_INT_EVERY_WB)
 
 #define E1000E_RING_LEN (0x1000)
@@ -152,6 +151,7 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
 
     /* Enable transmit */
     e1000e_macreg_write(&d->e1000e, E1000_TCTL, E1000_TCTL_EN);
+
     e1000e_macreg_write(&d->e1000e, E1000_RDBAL,
                            (uint32_t)d->e1000e.rx_ring);
     e1000e_macreg_write(&d->e1000e, E1000_RDBAH,

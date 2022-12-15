@@ -39,6 +39,9 @@
 #define UID_CHECKING_ENABLED 0x01
 #define ZPCI_DTSM 0x40
 
+/* zPCI Function Types */
+#define ZPCI_PFT_ISM 5
+
 OBJECT_DECLARE_SIMPLE_TYPE(S390pciState, S390_PCI_HOST_BRIDGE)
 OBJECT_DECLARE_SIMPLE_TYPE(S390PCIBus, S390_PCI_BUS)
 OBJECT_DECLARE_SIMPLE_TYPE(S390PCIBusDevice, S390_PCI_DEVICE)
@@ -278,6 +281,7 @@ struct S390PCIIOMMU {
     uint64_t g_iota;
     uint64_t pba;
     uint64_t pal;
+    uint64_t max_dma_limit;
     GHashTable *iotlb;
     S390PCIDMACount *dma_limit;
 };
@@ -343,6 +347,7 @@ struct S390PCIBusDevice {
     uint16_t noi;
     uint16_t maxstbl;
     uint8_t sum;
+    uint8_t pft;
     S390PCIGroup *pci_group;
     ClpRspQueryPci zpci_fn;
     S390MsixInfo msix;
@@ -351,6 +356,7 @@ struct S390PCIBusDevice {
     MemoryRegion msix_notify_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
+    Notifier shutdown_notifier;
     bool pci_unplug_request_processed;
     bool unplug_requested;
     bool interp;

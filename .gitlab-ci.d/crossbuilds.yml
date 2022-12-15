@@ -112,6 +112,14 @@ cross-ppc64el-user:
   variables:
     IMAGE: debian-ppc64el-cross
 
+cross-ppc64el-kvm-only:
+  extends: .cross_accel_build_job
+  needs:
+    job: ppc64el-debian-cross-container
+  variables:
+    IMAGE: debian-ppc64el-cross
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-devices
+
 # The riscv64 cross-builds currently use a 'sid' container to get
 # compilers and libraries. Until something more stable is found we
 # allow_failure so as not to block CI.

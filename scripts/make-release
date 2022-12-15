@@ -10,14 +10,22 @@
 # This work is licensed under the terms of the GNU GPLv2 or later.
 # See the COPYING file in the top-level directory.
 
+if [ $# -ne 2 ]; then
+    echo "Usage:"
+    echo " $0 gitrepo version"
+    exit 0
+fi
+
 src="$1"
 version="$2"
 destination=qemu-${version}
 
-git clone "${src}" ${destination}
+git clone --single-branch -b "v${version}" -c advice.detachedHead=false \
+    "${src}" ${destination}
+
 pushd ${destination}
-git checkout "v${version}"
-git submodule update --init
+
+git submodule update --init --single-branch
 (cd roms/seabios && git describe --tags --long --dirty > .version)
 (cd roms/skiboot && ./make_version.sh > .version)
 # Fetch edk2 submodule's submodules, since it won't have access to them via
@@ -28,7 +36,7 @@ git submodule update --init
 # submodule dependencies, so we continue to handle these on a case-by-case
 # basis for now.
 (cd roms/edk2 && \
-    git submodule update --init -- \
+    git submodule update --init --depth 1 -- \
         ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3 \
         BaseTools/Source/C/BrotliCompress/brotli \
         CryptoPkg/Library/OpensslLib/openssl \
