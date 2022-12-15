@@ -27,6 +27,8 @@
 
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
+#include "hw/i386/x86.h"
+#include "hw/irq.h"
 
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
@@ -100,9 +102,12 @@ struct XenEvtchnState {
     uint64_t callback_param;
     bool evtchn_in_kernel;
 
+    QEMUBH *gsi_bh;
+
     QemuMutex port_lock;
     uint32_t nr_ports;
     XenEvtchnPort port_table[EVTCHN_2L_NR_CHANNELS];
+    qemu_irq gsis[IOAPIC_NUM_PINS];
 };
 
 struct XenEvtchnState *xen_evtchn_singleton;
@@ -167,13 +172,42 @@ static const TypeInfo xen_evtchn_info = {
     .class_init    = xen_evtchn_class_init,
 };
 
+static void gsi_assert_bh(void *opaque)
+{
+    struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+    if (vi) {
+        xen_evtchn_set_callback_level(!!vi->evtchn_upcall_pending);
+    }
+}
+
 void xen_evtchn_create(void)
 {
     XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN,
                                                         -1, NULL));
+    int i;
+
     xen_evtchn_singleton = s;
 
     qemu_mutex_init(&s->port_lock);
+    s->gsi_bh = aio_bh_new(qemu_get_aio_context(), gsi_assert_bh, s);
+
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->gsis[i]);
+    }
+}
+
+void xen_evtchn_connect_gsis(qemu_irq *system_gsis)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int i;
+
+    if (!s) {
+        return;
+    }
+
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(s), i, system_gsis[i]);
+    }
 }
 
 static void xen_evtchn_register_types(void)
@@ -182,6 +216,64 @@ static void xen_evtchn_register_types(void)
 }
 
 type_init(xen_evtchn_register_types)
+
+void xen_evtchn_set_callback_level(int level)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    uint32_t param;
+
+    if (!s) {
+        return;
+    }
+
+    /*
+     * We get to this function in a number of ways:
+     *
+     *  • From I/O context, via PV backend drivers sending a notification to
+     *    the guest.
+     *
+     *  • From guest vCPU context, via loopback interdomain event channels
+     *    (or theoretically even IPIs but guests don't use those with GSI
+     *    delivery because that's pointless. We don't want a malicious guest
+     *    to be able to trigger a deadlock though, so we can't rule it out.)
+     *
+     *  • From guest vCPU context when the HVM_PARAM_CALLBACK_IRQ is being
+     *    configured.
+     *
+     *  • From guest vCPU context in the KVM exit handler, if the upcall
+     *    pending flag has been cleared and the GSI needs to be deasserted.
+     *
+     *  • Maybe in future, in an interrupt ack/eoi notifier when the GSI has
+     *    been acked in the irqchip.
+     *
+     * Whichever context we come from if we aren't already holding the BQL
+     * then e can't take it now, as we may already hold s->port_lock. So
+     * trigger the BH to set the IRQ for us instead of doing it immediately.
+     *
+     * In the HVM_PARAM_CALLBACK_IRQ and KVM exit handler cases, the caller
+     * will deliberately take the BQL because they want the change to take
+     * effect immediately. That just leaves interdomain loopback as the case
+     * which uses the BH.
+     */
+    if (!qemu_mutex_iothread_locked()) {
+        qemu_bh_schedule(s->gsi_bh);
+        return;
+    }
+
+    param = (uint32_t)s->callback_param;
+
+    switch (s->callback_param >> CALLBACK_VIA_TYPE_SHIFT) {
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+        if (param < IOAPIC_NUM_PINS) {
+            qemu_set_irq(s->gsis[param], level);
+            if (level) {
+                /* Ensure the vCPU polls for deassertion */
+                kvm_xen_set_callback_asserted();
+            }
+        }
+        break;
+    }
+}
 
 int xen_evtchn_set_callback_param(uint64_t param)
 {
@@ -209,6 +301,11 @@ int xen_evtchn_set_callback_param(uint64_t param)
         }
         break;
     }
+
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+        ret = 0;
+        break;
+
     default:
         /* Xen doesn't return error even if you set something bogus */
         ret = 0;

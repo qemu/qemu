@@ -320,6 +320,39 @@ void *kvm_xen_get_vcpu_info_hva(uint32_t vcpu_id)
     return X86_CPU(cs)->env.xen_vcpu_info_hva;
 }
 
+void kvm_xen_maybe_deassert_callback(CPUState *cs)
+{
+    CPUX86State *env = &X86_CPU(cs)->env;
+    struct vcpu_info *vi = env->xen_vcpu_info_hva;
+    if (!vi) {
+        return;
+    }
+
+    /* If the evtchn_upcall_pending flag is cleared, turn the GSI off. */
+    if (!vi->evtchn_upcall_pending) {
+        qemu_mutex_lock_iothread();
+        /*
+         * Check again now we have the lock, because it may have been
+         * asserted in the interim. And we don't want to take the lock
+         * every time because this is a fast path.
+         */
+        if (!vi->evtchn_upcall_pending) {
+            X86_CPU(cs)->env.xen_callback_asserted = false;
+            xen_evtchn_set_callback_level(0);
+        }
+        qemu_mutex_unlock_iothread();
+    }
+}
+
+void kvm_xen_set_callback_asserted(void)
+{
+    CPUState *cs = qemu_get_cpu(0);
+
+    if (cs) {
+        X86_CPU(cs)->env.xen_callback_asserted = true;
+    }
+}
+
 void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
 {
     CPUState *cs = qemu_get_cpu(vcpu_id);
@@ -351,6 +384,13 @@ void kvm_xen_inject_vcpu_callback_vector(uint32_t vcpu_id, int type)
          * so all we have to do is kick it out.
          */
         qemu_cpu_kick(cs);
+        break;
+
+    case HVM_PARAM_CALLBACK_TYPE_GSI:
+    case HVM_PARAM_CALLBACK_TYPE_PCI_INTX:
+        if (vcpu_id == 0) {
+            xen_evtchn_set_callback_level(1);
+        }
         break;
     }
 }
