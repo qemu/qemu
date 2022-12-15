@@ -14,6 +14,8 @@
 #include "qemu/cutils.h"
 #include "libqtest.h"
 
+static bool verbose;
+
 static void test_properties(QTestState *qts, const char *path, bool recurse)
 {
     char *child_path;
@@ -49,7 +51,9 @@ static void test_properties(QTestState *qts, const char *path, bool recurse)
             }
         } else {
             const char *prop = qdict_get_str(tuple, "name");
-            g_test_message("-> %s", prop);
+            if (verbose) {
+                g_test_message("-> %s", prop);
+            }
             tmp = qtest_qmp(qts,
                             "{ 'execute': 'qom-get',"
                             "  'arguments': { 'path': %s, 'property': %s } }",
@@ -103,6 +107,12 @@ static void add_machine_test_case(const char *mname)
 
 int main(int argc, char **argv)
 {
+    char *v_env = getenv("V");
+
+    if (v_env && atoi(v_env) >= 2) {
+        verbose = true;
+    }
+
     g_test_init(&argc, &argv, NULL);
 
     qtest_cb_for_every_machine(add_machine_test_case, g_test_quick());
