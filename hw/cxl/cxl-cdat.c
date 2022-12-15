@@ -146,7 +146,7 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
         num_ent++;
     }
     if (i != file_size) {
-        error_setg(errp, "CDAT: File length missmatch");
+        error_setg(errp, "CDAT: File length mismatch");
         return;
     }
 
