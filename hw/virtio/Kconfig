@@ -85,3 +85,8 @@ config VHOST_USER_GPIO
     bool
     default y
     depends on VIRTIO && VHOST_USER
+
+config VHOST_VDPA_DEV
+    bool
+    default y
+    depends on VIRTIO && VHOST_VDPA && LINUX
