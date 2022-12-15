@@ -19,6 +19,12 @@
 #include "hw/virtio/virtio.h"
 #include "standard-headers/linux/vhost_types.h"
 
+/*
+ * ASID dedicated to map guest's addresses.  If SVQ is disabled it maps GPA to
+ * qemu's IOVA.  If SVQ is enabled it maps also the SVQ vring here
+ */
+#define VHOST_VDPA_GUEST_PA_ASID 0
+
 typedef struct VhostVDPAHostNotifier {
     MemoryRegion mr;
     void *addr;
@@ -29,6 +35,7 @@ typedef struct vhost_vdpa {
     int index;
     uint32_t msg_type;
     bool iotlb_batch_begin_sent;
+    uint32_t address_space_id;
     MemoryListener listener;
     struct vhost_vdpa_iova_range iova_range;
     uint64_t acked_features;
@@ -42,8 +49,9 @@ typedef struct vhost_vdpa {
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
 } VhostVDPA;
 
-int vhost_vdpa_dma_map(struct vhost_vdpa *v, hwaddr iova, hwaddr size,
-                       void *vaddr, bool readonly);
-int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, hwaddr iova, hwaddr size);
+int vhost_vdpa_dma_map(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
+                       hwaddr size, void *vaddr, bool readonly);
+int vhost_vdpa_dma_unmap(struct vhost_vdpa *v, uint32_t asid, hwaddr iova,
+                         hwaddr size);
 
 #endif
