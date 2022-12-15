@@ -213,11 +213,6 @@ AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs);
  */
 void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx);
 
-/**
- * Transfer control to @co in the aio context of @bs
- */
-void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
-
 AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c);
 
 void bdrv_io_plug(BlockDriverState *bs);
