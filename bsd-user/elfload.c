@@ -156,7 +156,7 @@ static abi_ulong copy_elf_strings(int argc, char **argv, void **page,
             --p; --tmp; --len;
             if (--offset < 0) {
                 offset = p % TARGET_PAGE_SIZE;
-                pag = (char *)page[p / TARGET_PAGE_SIZE];
+                pag = page[p / TARGET_PAGE_SIZE];
                 if (!pag) {
                     pag = g_try_malloc0(TARGET_PAGE_SIZE);
                     page[p / TARGET_PAGE_SIZE] = pag;

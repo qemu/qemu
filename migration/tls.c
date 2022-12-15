@@ -126,7 +126,6 @@ QIOChannelTLS *migration_tls_client_create(MigrationState *s,
                                            Error **errp)
 {
     QCryptoTLSCreds *creds;
-    QIOChannelTLS *tioc;
 
     creds = migration_tls_get_creds(
         s, QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT, errp);
@@ -138,10 +137,7 @@ QIOChannelTLS *migration_tls_client_create(MigrationState *s,
         hostname = s->parameters.tls_hostname;
     }
 
-    tioc = qio_channel_tls_new_client(
-        ioc, creds, hostname, errp);
-
-    return tioc;
+    return qio_channel_tls_new_client(ioc, creds, hostname, errp);
 }
 
 void migration_tls_channel_connect(MigrationState *s,

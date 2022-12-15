@@ -51,7 +51,6 @@ bool qemu_console_fill_device_address(QemuConsole *con,
                                       size_t size,
                                       Error **errp)
 {
-    ERRP_GUARD();
     DeviceState *dev = DEVICE(object_property_get_link(OBJECT(con),
                                                        "device",
                                                        &error_abort));

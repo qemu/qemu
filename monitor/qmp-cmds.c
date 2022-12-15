@@ -470,9 +470,9 @@ static bool invoke_stats_cb(StatsCallbacks *entry,
                             StatsFilter *filter, StatsRequest *request,
                             Error **errp)
 {
+    ERRP_GUARD();
     strList *targets = NULL;
     strList *names = NULL;
-    ERRP_GUARD();
 
     if (request) {
         if (request->provider != entry->provider) {
@@ -537,9 +537,9 @@ StatsSchemaList *qmp_query_stats_schemas(bool has_provider,
                                          StatsProvider provider,
                                          Error **errp)
 {
+    ERRP_GUARD();
     StatsSchemaList *stats_results = NULL;
     StatsCallbacks *entry;
-    ERRP_GUARD();
 
     QTAILQ_FOREACH(entry, &stats_callbacks, next) {
         if (!has_provider || provider == entry->provider) {

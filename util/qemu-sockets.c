@@ -210,7 +210,8 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
-    struct addrinfo ai,*res,*e;
+    ERRP_GUARD();
+    struct addrinfo ai, *res, *e;
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
@@ -218,7 +219,6 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     int slisten = -1;
     int saved_errno = 0;
     bool socket_created = false;
-    Error *err = NULL;
 
     if (saddr->keep_alive) {
         error_setg(errp, "keep-alive option is not supported for passive "
@@ -231,11 +231,9 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     if (saddr->has_numeric && saddr->numeric) {
         ai.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
     }
-    ai.ai_family = inet_ai_family_from_address(saddr, &err);
     ai.ai_socktype = SOCK_STREAM;
-
-    if (err) {
-        error_propagate(errp, err);
+    ai.ai_family = inet_ai_family_from_address(saddr, errp);
+    if (*errp) {
         return -1;
     }
 
@@ -392,9 +390,9 @@ static int inet_connect_addr(const InetSocketAddress *saddr,
 static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
                                                  Error **errp)
 {
+    ERRP_GUARD();
     struct addrinfo ai, *res;
     int rc;
-    Error *err = NULL;
     static int useV4Mapped = 1;
 
     memset(&ai, 0, sizeof(ai));
@@ -403,11 +401,9 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
     if (qatomic_read(&useV4Mapped)) {
         ai.ai_flags |= AI_V4MAPPED;
     }
-    ai.ai_family = inet_ai_family_from_address(saddr, &err);
     ai.ai_socktype = SOCK_STREAM;
-
-    if (err) {
-        error_propagate(errp, err);
+    ai.ai_family = inet_ai_family_from_address(saddr, errp);
+    if (*errp) {
         return NULL;
     }
 
@@ -499,20 +495,18 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
                             InetSocketAddress *sladdr,
                             Error **errp)
 {
+    ERRP_GUARD();
     struct addrinfo ai, *peer = NULL, *local = NULL;
     const char *addr;
     const char *port;
     int sock = -1, rc;
-    Error *err = NULL;
 
     /* lookup peer addr */
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
-    ai.ai_family = inet_ai_family_from_address(sraddr, &err);
     ai.ai_socktype = SOCK_DGRAM;
-
-    if (err) {
-        error_propagate(errp, err);
+    ai.ai_family = inet_ai_family_from_address(sraddr, errp);
+    if (*errp) {
         goto err;
     }
 

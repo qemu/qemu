@@ -711,8 +711,8 @@ void monitor_init_globals_core(void)
 
 int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 {
+    ERRP_GUARD();
     Chardev *chr;
-    Error *local_err = NULL;
 
     chr = qemu_chr_find(opts->chardev);
     if (chr == NULL) {
@@ -726,7 +726,7 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
 
     switch (opts->mode) {
     case MONITOR_MODE_CONTROL:
-        monitor_init_qmp(chr, opts->pretty, &local_err);
+        monitor_init_qmp(chr, opts->pretty, errp);
         break;
     case MONITOR_MODE_READLINE:
         if (!allow_hmp) {
@@ -737,17 +737,13 @@ int monitor_init(MonitorOptions *opts, bool allow_hmp, Error **errp)
             error_setg(errp, "'pretty' is not compatible with HMP monitors");
             return -1;
         }
-        monitor_init_hmp(chr, true, &local_err);
+        monitor_init_hmp(chr, true, errp);
         break;
     default:
         g_assert_not_reached();
     }
 
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return -1;
-    }
-    return 0;
+    return *errp ? -1 : 0;
 }
 
 int monitor_init_opts(QemuOpts *opts, Error **errp)

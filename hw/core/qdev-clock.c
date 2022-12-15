@@ -134,7 +134,7 @@ void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks)
         Clock **clkp;
         /* offset cannot be inside the DeviceState part */
         assert(elem->offset > sizeof(DeviceState));
-        clkp = (Clock **)(((void *) dev) + elem->offset);
+        clkp = ((void *)dev) + elem->offset;
         if (elem->is_output) {
             *clkp = qdev_init_clock_out(dev, elem->name);
         } else {

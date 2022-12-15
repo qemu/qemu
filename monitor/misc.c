@@ -1086,6 +1086,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
         }
 
         fd = monfd->fd;
+        assert(fd >= 0);
 
         /* caller takes ownership of fd */
         QLIST_REMOVE(monfd, next);
@@ -1394,22 +1395,15 @@ void monitor_fdset_dup_fd_remove(int dup_fd)
 int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 {
     int fd;
-    Error *local_err = NULL;
 
     if (!qemu_isdigit(fdname[0]) && mon) {
-        fd = monitor_get_fd(mon, fdname, &local_err);
+        fd = monitor_get_fd(mon, fdname, errp);
     } else {
         fd = qemu_parse_fd(fdname);
-        if (fd == -1) {
-            error_setg(&local_err, "Invalid file descriptor number '%s'",
+        if (fd < 0) {
+            error_setg(errp, "Invalid file descriptor number '%s'",
                        fdname);
         }
-    }
-    if (local_err) {
-        error_propagate(errp, local_err);
-        assert(fd == -1);
-    } else {
-        assert(fd != -1);
     }
 
     return fd;

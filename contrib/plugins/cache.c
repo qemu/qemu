@@ -405,7 +405,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
     g_mutex_lock(&l1_dcache_locks[cache_idx]);
     hit_in_l1 = access_cache(l1_dcaches[cache_idx], effective_addr);
     if (!hit_in_l1) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l1_dmisses, 1, __ATOMIC_SEQ_CST);
         l1_dcaches[cache_idx]->misses++;
     }
@@ -419,7 +419,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
 
     g_mutex_lock(&l2_ucache_locks[cache_idx]);
     if (!access_cache(l2_ucaches[cache_idx], effective_addr)) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l2_misses, 1, __ATOMIC_SEQ_CST);
         l2_ucaches[cache_idx]->misses++;
     }
@@ -440,7 +440,7 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
     g_mutex_lock(&l1_icache_locks[cache_idx]);
     hit_in_l1 = access_cache(l1_icaches[cache_idx], insn_addr);
     if (!hit_in_l1) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l1_imisses, 1, __ATOMIC_SEQ_CST);
         l1_icaches[cache_idx]->misses++;
     }
@@ -454,7 +454,7 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
 
     g_mutex_lock(&l2_ucache_locks[cache_idx]);
     if (!access_cache(l2_ucaches[cache_idx], insn_addr)) {
-        insn = (InsnData *) userdata;
+        insn = userdata;
         __atomic_fetch_add(&insn->l2_misses, 1, __ATOMIC_SEQ_CST);
         l2_ucaches[cache_idx]->misses++;
     }

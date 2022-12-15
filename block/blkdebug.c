@@ -297,9 +297,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
         }
     }
 
-    qemu_config_parse_qdict(options, config_groups, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!qemu_config_parse_qdict(options, config_groups, errp)) {
         ret = -EINVAL;
         goto fail;
     }

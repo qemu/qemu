@@ -2533,11 +2533,7 @@ vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
 static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
                                           MemoryRegionSection *section)
 {
-    bool result;
-
-    result = memory_region_get_fd(section->mr) >= 0;
-
-    return result;
+    return memory_region_get_fd(section->mr) >= 0;
 }
 
 static int vhost_user_get_inflight_fd(struct vhost_dev *dev,

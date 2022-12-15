@@ -22,7 +22,7 @@ int qemu_read_config_file(const char *filename, QEMUConfigCB *f, Error **errp);
 
 /* Parse QDict options as a replacement for a config file (allowing multiple
    enumerated (0..(n-1)) configuration "sections") */
-void qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
+bool qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
                              Error **errp);
 
 #endif /* QEMU_CONFIG_FILE_H */

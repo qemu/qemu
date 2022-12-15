@@ -963,6 +963,7 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
                                      struct vhost_vring_addr *addr,
                                      Error **errp)
 {
+    ERRP_GUARD();
     DMAMap device_region, driver_region;
     struct vhost_vring_addr svq_addr;
     struct vhost_vdpa *v = dev->opaque;
@@ -971,7 +972,6 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
     size_t avail_offset;
     bool ok;
 
-    ERRP_GUARD();
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
     driver_region = (DMAMap) {

@@ -2771,24 +2771,20 @@ static void virt_dimm_unplug_request(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(hotplug_dev);
-    Error *local_err = NULL;
 
     if (!vms->acpi_dev) {
-        error_setg(&local_err,
+        error_setg(errp,
                    "memory hotplug is not enabled: missing acpi-ged device");
-        goto out;
+        return;
     }
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        error_setg(&local_err,
-                   "nvdimm device hot unplug is not supported yet.");
-        goto out;
+        error_setg(errp, "nvdimm device hot unplug is not supported yet.");
+        return;
     }
 
     hotplug_handler_unplug_request(HOTPLUG_HANDLER(vms->acpi_dev), dev,
-                                   &local_err);
-out:
-    error_propagate(errp, local_err);
+                                   errp);
 }
 
 static void virt_dimm_unplug(HotplugHandler *hotplug_dev,

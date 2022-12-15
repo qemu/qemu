@@ -1782,12 +1782,9 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
                                        Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    Error *error = NULL;
     uint64_t value;
 
-    visit_type_size(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
 

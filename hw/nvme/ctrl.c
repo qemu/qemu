@@ -4028,14 +4028,14 @@ static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
             nr_zones++;
         }
     }
-    header = (NvmeZoneReportHeader *)buf;
+    header = buf;
     header->nr_zones = cpu_to_le64(nr_zones);
 
     buf_p = buf + sizeof(NvmeZoneReportHeader);
     for (; zone_idx < ns->num_zones && max_zones > 0; zone_idx++) {
         zone = &ns->zone_array[zone_idx];
         if (nvme_zone_matches_filter(zrasf, zone)) {
-            z = (NvmeZoneDescr *)buf_p;
+            z = buf_p;
             buf_p += sizeof(NvmeZoneDescr);
 
             z->zt = zone->d.zt;

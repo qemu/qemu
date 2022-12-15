@@ -182,13 +182,10 @@ static int create_pd(PVRDMADev *dev, union pvrdma_cmd_req *req,
 {
     struct pvrdma_cmd_create_pd *cmd = &req->create_pd;
     struct pvrdma_cmd_create_pd_resp *resp = &rsp->create_pd_resp;
-    int rc;
 
     memset(resp, 0, sizeof(*resp));
-    rc = rdma_rm_alloc_pd(&dev->rdma_dev_res, &dev->backend_dev,
-                          &resp->pd_handle, cmd->ctx_handle);
-
-    return rc;
+    return rdma_rm_alloc_pd(&dev->rdma_dev_res, &dev->backend_dev,
+                            &resp->pd_handle, cmd->ctx_handle);
 }
 
 static int destroy_pd(PVRDMADev *dev, union pvrdma_cmd_req *req,
@@ -269,8 +266,7 @@ static int create_cq_ring(PCIDevice *pci_dev , PvrdmaRing **ring,
     r = g_malloc(sizeof(*r));
     *ring = r;
 
-    r->ring_state = (PvrdmaRingState *)
-        rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
+    r->ring_state = rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
 
     if (!r->ring_state) {
         rdma_error_report("Failed to map to CQ ring state");
@@ -405,8 +401,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     *rings = sr;
 
     /* Create send ring */
-    sr->ring_state = (PvrdmaRingState *)
-        rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
+    sr->ring_state = rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
     if (!sr->ring_state) {
         rdma_error_report("Failed to map to QP ring state");
         goto out_free_sr_mem;
@@ -506,20 +501,17 @@ static int modify_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                      union pvrdma_cmd_resp *rsp)
 {
     struct pvrdma_cmd_modify_qp *cmd = &req->modify_qp;
-    int rc;
 
     /* No need to verify sgid_index since it is u8 */
 
-    rc = rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev,
-                           cmd->qp_handle, cmd->attr_mask,
-                           cmd->attrs.ah_attr.grh.sgid_index,
-                           (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
-                           cmd->attrs.dest_qp_num,
-                           (enum ibv_qp_state)cmd->attrs.qp_state,
-                           cmd->attrs.qkey, cmd->attrs.rq_psn,
-                           cmd->attrs.sq_psn);
-
-    return rc;
+    return rdma_rm_modify_qp(&dev->rdma_dev_res, &dev->backend_dev,
+                             cmd->qp_handle, cmd->attr_mask,
+                             cmd->attrs.ah_attr.grh.sgid_index,
+                             (union ibv_gid *)&cmd->attrs.ah_attr.grh.dgid,
+                             cmd->attrs.dest_qp_num,
+                             (enum ibv_qp_state)cmd->attrs.qp_state,
+                             cmd->attrs.qkey, cmd->attrs.rq_psn,
+                             cmd->attrs.sq_psn);
 }
 
 static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
@@ -528,15 +520,14 @@ static int query_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     struct pvrdma_cmd_query_qp *cmd = &req->query_qp;
     struct pvrdma_cmd_query_qp_resp *resp = &rsp->query_qp_resp;
     struct ibv_qp_init_attr init_attr;
-    int rc;
 
     memset(resp, 0, sizeof(*resp));
 
-    rc = rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev, cmd->qp_handle,
-                          (struct ibv_qp_attr *)&resp->attrs, cmd->attr_mask,
-                          &init_attr);
-
-    return rc;
+    return rdma_rm_query_qp(&dev->rdma_dev_res, &dev->backend_dev,
+                            cmd->qp_handle,
+                            (struct ibv_qp_attr *)&resp->attrs,
+                            cmd->attr_mask,
+                            &init_attr);
 }
 
 static int destroy_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
@@ -562,34 +553,27 @@ static int create_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
                        union pvrdma_cmd_resp *rsp)
 {
     struct pvrdma_cmd_create_bind *cmd = &req->create_bind;
-    int rc;
     union ibv_gid *gid = (union ibv_gid *)&cmd->new_gid;
 
     if (cmd->index >= MAX_PORT_GIDS) {
         return -EINVAL;
     }
 
-    rc = rdma_rm_add_gid(&dev->rdma_dev_res, &dev->backend_dev,
-                         dev->backend_eth_device_name, gid, cmd->index);
-
-    return rc;
+    return rdma_rm_add_gid(&dev->rdma_dev_res, &dev->backend_dev,
+                           dev->backend_eth_device_name, gid, cmd->index);
 }
 
 static int destroy_bind(PVRDMADev *dev, union pvrdma_cmd_req *req,
                         union pvrdma_cmd_resp *rsp)
 {
-    int rc;
-
     struct pvrdma_cmd_destroy_bind *cmd = &req->destroy_bind;
 
     if (cmd->index >= MAX_PORT_GIDS) {
         return -EINVAL;
     }
 
-    rc = rdma_rm_del_gid(&dev->rdma_dev_res, &dev->backend_dev,
-                        dev->backend_eth_device_name, cmd->index);
-
-    return rc;
+    return rdma_rm_del_gid(&dev->rdma_dev_res, &dev->backend_dev,
+                           dev->backend_eth_device_name, cmd->index);
 }
 
 static int create_uc(PVRDMADev *dev, union pvrdma_cmd_req *req,
@@ -597,12 +581,9 @@ static int create_uc(PVRDMADev *dev, union pvrdma_cmd_req *req,
 {
     struct pvrdma_cmd_create_uc *cmd = &req->create_uc;
     struct pvrdma_cmd_create_uc_resp *resp = &rsp->create_uc_resp;
-    int rc;
 
     memset(resp, 0, sizeof(*resp));
-    rc = rdma_rm_alloc_uc(&dev->rdma_dev_res, cmd->pfn, &resp->ctx_handle);
-
-    return rc;
+    return rdma_rm_alloc_uc(&dev->rdma_dev_res, cmd->pfn, &resp->ctx_handle);
 }
 
 static int destroy_uc(PVRDMADev *dev, union pvrdma_cmd_req *req,
@@ -646,8 +627,7 @@ static int create_srq_ring(PCIDevice *pci_dev, PvrdmaRing **ring,
     r = g_malloc(sizeof(*r));
     *ring = r;
 
-    r->ring_state = (PvrdmaRingState *)
-            rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
+    r->ring_state = rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
     if (!r->ring_state) {
         rdma_error_report("Failed to map tp SRQ ring state");
         goto out_free_ring_mem;

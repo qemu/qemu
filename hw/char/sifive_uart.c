@@ -274,7 +274,6 @@ SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
 {
     DeviceState *dev;
     SysBusDevice *s;
-    SiFiveUARTState *r;
 
     dev = qdev_new("riscv.sifive.uart");
     s = SYS_BUS_DEVICE(dev);
@@ -284,6 +283,5 @@ SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, irq);
 
-    r = SIFIVE_UART(dev);
-    return r;
+    return SIFIVE_UART(dev);
 }

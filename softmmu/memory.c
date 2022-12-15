@@ -2372,20 +2372,15 @@ void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
 
 int memory_region_get_fd(MemoryRegion *mr)
 {
-    int fd;
-
     RCU_READ_LOCK_GUARD();
     while (mr->alias) {
         mr = mr->alias;
     }
-    fd = mr->ram_block->fd;
-
-    return fd;
+    return mr->ram_block->fd;
 }
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
 {
-    void *ptr;
     uint64_t offset = 0;
 
     RCU_READ_LOCK_GUARD();
@@ -2394,9 +2389,7 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
         mr = mr->alias;
     }
     assert(mr->ram_block);
-    ptr = qemu_map_ram_ptr(mr->ram_block, offset);
-
-    return ptr;
+    return qemu_map_ram_ptr(mr->ram_block, offset);
 }
 
 MemoryRegion *memory_region_from_host(void *ptr, ram_addr_t *offset)

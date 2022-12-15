@@ -271,7 +271,7 @@ static void collect_usable_iova_ranges(QEMUVFIOState *s, void *buf)
         if (!cap->next) {
             return;
         }
-        cap = (struct vfio_info_cap_header *)(buf + cap->next);
+        cap = buf + cap->next;
     }
 
     cap_iova_range = (struct vfio_iommu_type1_info_cap_iova_range *)cap;

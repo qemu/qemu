@@ -900,6 +900,7 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
 
 static void armsse_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     ARMSSE *s = ARM_SSE(dev);
     ARMSSEClass *asc = ARM_SSE_GET_CLASS(dev);
     const ARMSSEInfo *info = asc->info;
@@ -913,8 +914,6 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     DeviceState *dev_secctl;
     DeviceState *dev_splitter;
     uint32_t addr_width_max;
-
-    ERRP_GUARD();
 
     if (!s->board_memory) {
         error_setg(errp, "memory property was not set");

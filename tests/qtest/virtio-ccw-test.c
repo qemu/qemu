@@ -95,8 +95,6 @@ static void virtio_scsi_hotplug(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     g_test_init(&argc, &argv, NULL);
     qtest_add_func("/virtio/balloon/nop", virtio_balloon_nop);
     qtest_add_func("/virtio/console/nop", virtconsole_nop);
@@ -109,7 +107,5 @@ int main(int argc, char **argv)
     qtest_add_func("/virtio/scsi/nop", virtio_scsi_nop);
     qtest_add_func("/virtio/scsi/hotplug", virtio_scsi_hotplug);
 
-    ret = g_test_run();
-
-    return ret;
+    return g_test_run();
 }

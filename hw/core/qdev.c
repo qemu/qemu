@@ -493,8 +493,6 @@ void qdev_del_unplug_blocker(DeviceState *dev, Error *reason)
 
 bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
 {
-    ERRP_GUARD();
-
     if (dev->unplug_blockers) {
         error_propagate(errp, error_copy(dev->unplug_blockers->data));
         return true;
