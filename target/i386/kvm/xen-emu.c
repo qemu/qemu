@@ -131,6 +131,38 @@ int kvm_xen_init(KVMState *s, uint32_t hypercall_msr)
         return ret;
     }
 
+    /* If called a second time, don't repeat the rest of the setup. */
+    if (s->xen_caps) {
+        return 0;
+    }
+
+    /*
+     * Event channel delivery via GSI/PCI_INTX needs to poll the vcpu_info
+     * of vCPU0 to deassert the IRQ when ->evtchn_upcall_pending is cleared.
+     *
+     * In the kernel, there's a notifier hook on the PIC/IOAPIC which allows
+     * such things to be polled at precisely the right time. We *could* do
+     * it nicely in the kernel: check vcpu_info[0]->evtchn_upcall_pending at
+     * the moment the IRQ is acked, and see if it should be reasserted.
+     *
+     * But the in-kernel irqchip is deprecated, so we're unlikely to add
+     * that support in the kernel. Insist on using the split irqchip mode
+     * instead.
+     *
+     * This leaves us polling for the level going low in QEMU, which lacks
+     * the appropriate hooks in its PIC/IOAPIC code. Even VFIO is sending a
+     * spurious 'ack' to an INTX IRQ every time there's any MMIO access to
+     * the device (for which it has to unmap the device and trap access, for
+     * some period after an IRQ!!). In the Xen case, we do it on exit from
+     * KVM_RUN, if the flag is set to say that the GSI is currently asserted.
+     * Which is kind of icky, but less so than the VFIO one. I may fix them
+     * both later...
+     */
+    if (!kvm_kernel_irqchip_split()) {
+        error_report("kvm: Xen support requires kernel-irqchip=split");
+        return -EINVAL;
+    }
+
     s->xen_caps = xen_caps;
     return 0;
 }
@@ -684,7 +716,9 @@ static bool handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
 
     switch (hp.index) {
     case HVM_PARAM_CALLBACK_IRQ:
+        qemu_mutex_lock_iothread();
         err = xen_evtchn_set_callback_param(hp.value);
+        qemu_mutex_unlock_iothread();
         xen_set_long_mode(exit->u.hcall.longmode);
         break;
     default:
