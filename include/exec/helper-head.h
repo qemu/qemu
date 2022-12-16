@@ -18,6 +18,8 @@
 #ifndef EXEC_HELPER_HEAD_H
 #define EXEC_HELPER_HEAD_H
 
+#include "fpu/softfloat-types.h"
+
 #define HELPER(name) glue(helper_, name)
 
 /* Some types that make sense in C, but not for TCG.  */
