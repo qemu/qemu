@@ -408,6 +408,14 @@ pcspk-audiodev=<name>``.
 
 Use ``-device`` instead.
 
+Hexadecimal sizes with scaling multipliers (since 8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Input parameters that take a size value should only use a size suffix
+(such as 'k' or 'M') when the base is written in decimal, and not when
+the value is hexadecimal.  That is, '0x20M' should be written either as
+'32M' or as '0x2000000'.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

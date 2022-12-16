@@ -2315,6 +2315,14 @@ static void test_qemu_strtosz_invalid(void)
     g_assert_cmpint(res, ==, 0xbaadf00d);
     g_assert(endptr == str);
 
+    /* No suffixes */
+    str = "0x18M";
+    endptr = NULL;
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpint(res, ==, 0xbaadf00d);
+    g_assert(endptr == str);
+
     /* No negative values */
     str = "-0";
     endptr = NULL;
