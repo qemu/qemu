@@ -776,15 +776,6 @@ BusState *sysbus_get_default(void);
 char *qdev_get_fw_dev_path(DeviceState *dev);
 char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
 
-/**
- * device_legacy_reset:
- *
- * Reset a single device (by calling the reset method).
- * Note: This function is deprecated and will be removed when it becomes unused.
- * Please use device_cold_reset() now.
- */
-void device_legacy_reset(DeviceState *dev);
-
 void device_class_set_props(DeviceClass *dc, Property *props);
 
 /**
