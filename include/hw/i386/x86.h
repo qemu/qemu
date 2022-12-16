@@ -20,7 +20,6 @@
 #include "exec/hwaddr.h"
 #include "qemu/notify.h"
 
-#include "hw/i386/topology.h"
 #include "hw/boards.h"
 #include "hw/nmi.h"
 #include "hw/isa/isa.h"
@@ -97,8 +96,6 @@ struct X86MachineState {
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)
-
-void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 
 uint32_t x86_cpu_apic_id_from_index(X86MachineState *pcms,
                                     unsigned int cpu_index);
