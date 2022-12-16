@@ -791,7 +791,7 @@ static void usb_uas_task(UASDevice *uas, uas_iu *iu)
 
     case UAS_TMF_LOGICAL_UNIT_RESET:
         trace_usb_uas_tmf_logical_unit_reset(uas->dev.addr, tag, lun);
-        qdev_reset_all(&dev->qdev);
+        device_cold_reset(&dev->qdev);
         usb_uas_queue_response(uas, tag, UAS_RC_TMF_COMPLETE);
         break;
 
