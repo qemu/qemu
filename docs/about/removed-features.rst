@@ -416,6 +416,11 @@ Input parameters that take a size value should only use a size suffix
 the value is hexadecimal.  That is, '0x20M' should be written either as
 '32M' or as '0x2000000'.
 
+``-chardev`` backend aliases ``tty`` and ``parport`` (removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+``tty`` and ``parport`` used to be aliases for ``serial`` and ``parallel``
+respectively. The actual backend names should be used instead.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
