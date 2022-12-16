@@ -109,27 +109,27 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
 }
 
 
-int qio_channel_readv_all_eof(QIOChannel *ioc,
-                              const struct iovec *iov,
-                              size_t niov,
-                              Error **errp)
+int coroutine_mixed_fn qio_channel_readv_all_eof(QIOChannel *ioc,
+                                                 const struct iovec *iov,
+                                                 size_t niov,
+                                                 Error **errp)
 {
     return qio_channel_readv_full_all_eof(ioc, iov, niov, NULL, NULL, errp);
 }
 
-int qio_channel_readv_all(QIOChannel *ioc,
-                          const struct iovec *iov,
-                          size_t niov,
-                          Error **errp)
+int coroutine_mixed_fn qio_channel_readv_all(QIOChannel *ioc,
+                                             const struct iovec *iov,
+                                             size_t niov,
+                                             Error **errp)
 {
     return qio_channel_readv_full_all(ioc, iov, niov, NULL, NULL, errp);
 }
 
-int qio_channel_readv_full_all_eof(QIOChannel *ioc,
-                                   const struct iovec *iov,
-                                   size_t niov,
-                                   int **fds, size_t *nfds,
-                                   Error **errp)
+int coroutine_mixed_fn qio_channel_readv_full_all_eof(QIOChannel *ioc,
+                                                      const struct iovec *iov,
+                                                      size_t niov,
+                                                      int **fds, size_t *nfds,
+                                                      Error **errp)
 {
     int ret = -1;
     struct iovec *local_iov = g_new(struct iovec, niov);
@@ -215,11 +215,11 @@ next_iter:
     return ret;
 }
 
-int qio_channel_readv_full_all(QIOChannel *ioc,
-                               const struct iovec *iov,
-                               size_t niov,
-                               int **fds, size_t *nfds,
-                               Error **errp)
+int coroutine_mixed_fn qio_channel_readv_full_all(QIOChannel *ioc,
+                                                  const struct iovec *iov,
+                                                  size_t niov,
+                                                  int **fds, size_t *nfds,
+                                                  Error **errp)
 {
     int ret = qio_channel_readv_full_all_eof(ioc, iov, niov, fds, nfds, errp);
 
@@ -234,19 +234,19 @@ int qio_channel_readv_full_all(QIOChannel *ioc,
     return ret;
 }
 
-int qio_channel_writev_all(QIOChannel *ioc,
-                           const struct iovec *iov,
-                           size_t niov,
-                           Error **errp)
+int coroutine_mixed_fn qio_channel_writev_all(QIOChannel *ioc,
+                                              const struct iovec *iov,
+                                              size_t niov,
+                                              Error **errp)
 {
     return qio_channel_writev_full_all(ioc, iov, niov, NULL, 0, 0, errp);
 }
 
-int qio_channel_writev_full_all(QIOChannel *ioc,
-                                const struct iovec *iov,
-                                size_t niov,
-                                int *fds, size_t nfds,
-                                int flags, Error **errp)
+int coroutine_mixed_fn qio_channel_writev_full_all(QIOChannel *ioc,
+                                                   const struct iovec *iov,
+                                                   size_t niov,
+                                                   int *fds, size_t nfds,
+                                                   int flags, Error **errp)
 {
     int ret = -1;
     struct iovec *local_iov = g_new(struct iovec, niov);
@@ -325,30 +325,30 @@ ssize_t qio_channel_write(QIOChannel *ioc,
 }
 
 
-int qio_channel_read_all_eof(QIOChannel *ioc,
-                             char *buf,
-                             size_t buflen,
-                             Error **errp)
+int coroutine_mixed_fn qio_channel_read_all_eof(QIOChannel *ioc,
+                                                char *buf,
+                                                size_t buflen,
+                                                Error **errp)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = buflen };
     return qio_channel_readv_all_eof(ioc, &iov, 1, errp);
 }
 
 
-int qio_channel_read_all(QIOChannel *ioc,
-                         char *buf,
-                         size_t buflen,
-                         Error **errp)
+int coroutine_mixed_fn qio_channel_read_all(QIOChannel *ioc,
+                                            char *buf,
+                                            size_t buflen,
+                                            Error **errp)
 {
     struct iovec iov = { .iov_base = buf, .iov_len = buflen };
     return qio_channel_readv_all(ioc, &iov, 1, errp);
 }
 
 
-int qio_channel_write_all(QIOChannel *ioc,
-                          const char *buf,
-                          size_t buflen,
-                          Error **errp)
+int coroutine_mixed_fn qio_channel_write_all(QIOChannel *ioc,
+                                             const char *buf,
+                                             size_t buflen,
+                                             Error **errp)
 {
     struct iovec iov = { .iov_base = (char *)buf, .iov_len = buflen };
     return qio_channel_writev_all(ioc, &iov, 1, errp);
