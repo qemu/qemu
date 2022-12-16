@@ -49,7 +49,6 @@ struct hax_vm {
     struct hax_vcpu_state **vcpus;
 };
 
-#ifdef NEED_CPU_H
 /* Functions exported to host specific mode */
 hax_fd hax_vcpu_get_fd(CPUArchState *env);
 int valid_hax_tunnel_size(uint16_t size);
@@ -66,7 +65,6 @@ int hax_sync_vcpu_state(CPUArchState *env, struct vcpu_state_t *state,
                         int set);
 int hax_sync_msr(CPUArchState *env, struct hax_msr_data *msrs, int set);
 int hax_sync_fpu(CPUArchState *env, struct fx_layout *fl, int set);
-#endif
 
 int hax_vm_destroy(struct hax_vm *vm);
 int hax_capability(struct hax_state *hax, struct hax_capabilityinfo *cap);
