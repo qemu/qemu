@@ -15,7 +15,9 @@ config ACPI_X86
 
 config ACPI_ICH9
     bool
+    select ACPI_SMBUS
     select ACPI_X86
+    select APM
 
 config ACPI_CPU_HOTPLUG
     bool
