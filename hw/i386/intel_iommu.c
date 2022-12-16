@@ -396,7 +396,7 @@ static void vtd_generate_interrupt(IntelIOMMUState *s, hwaddr mesg_addr_reg,
 
     trace_vtd_irq_generate(msi.address, msi.data);
 
-    apic_get_class()->send_msi(&msi);
+    apic_get_class(NULL)->send_msi(&msi);
 }
 
 /* Generate a fault event to software via MSI if conditions are met.
@@ -3529,7 +3529,7 @@ static MemTxResult vtd_mem_ir_write(void *opaque, hwaddr addr,
         return MEMTX_ERROR;
     }
 
-    apic_get_class()->send_msi(&to);
+    apic_get_class(NULL)->send_msi(&to);
 
     return MEMTX_OK;
 }

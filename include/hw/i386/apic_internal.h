@@ -226,6 +226,6 @@ static inline int apic_get_bit(uint32_t *tab, int index)
     return !!(tab[i] & mask);
 }
 
-APICCommonClass *apic_get_class(void);
+APICCommonClass *apic_get_class(Error **errp);
 
 #endif /* QEMU_APIC_INTERNAL_H */
