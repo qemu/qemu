@@ -9,7 +9,6 @@ config ACPI_X86
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
     select ACPI_HMAT
-    select ACPI_PIIX4
     select ACPI_PCIHP
     select ACPI_ERST
 
