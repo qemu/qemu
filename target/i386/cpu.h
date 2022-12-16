@@ -2313,9 +2313,6 @@ static inline void cpu_set_fpuc(CPUX86State *env, uint16_t fpuc)
      }
 }
 
-/* mem_helper.c */
-void helper_lock_init(void);
-
 /* svm_helper.c */
 #ifdef CONFIG_USER_ONLY
 static inline void
