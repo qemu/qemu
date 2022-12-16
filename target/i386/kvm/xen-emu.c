@@ -25,6 +25,7 @@
 #include "hw/i386/apic-msidef.h"
 #include "hw/i386/kvm/xen_overlay.h"
 #include "hw/i386/kvm/xen_evtchn.h"
+#include "hw/i386/kvm/xen_gnttab.h"
 
 #include "hw/xen/interface/version.h"
 #include "hw/xen/interface/sched.h"
@@ -563,6 +564,8 @@ static int add_to_physmap_one(uint32_t space, uint64_t idx, uint64_t gfn)
         return xen_set_shared_info(gfn);
 
     case XENMAPSPACE_grant_table:
+        return xen_gnttab_map_page(idx, gfn);
+
     case XENMAPSPACE_gmfn:
     case XENMAPSPACE_gmfn_range:
         return -ENOTSUP;
