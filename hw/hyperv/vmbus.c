@@ -1578,7 +1578,7 @@ static bool vmbus_initialized(VMBus *vmbus)
 
 static void vmbus_reset_all(VMBus *vmbus)
 {
-    qbus_reset_all(BUS(vmbus));
+    bus_cold_reset(BUS(vmbus));
 }
 
 static void post_msg(VMBus *vmbus, void *msgdata, uint32_t msglen)
@@ -2035,7 +2035,7 @@ static void vdev_reset_on_close(VMBusDevice *vdev)
     }
 
     /* all channels closed -- reset device */
-    qdev_reset_all(DEVICE(vdev));
+    device_cold_reset(DEVICE(vdev));
 }
 
 static void handle_close_channel(VMBus *vmbus, vmbus_message_close_channel *msg,
