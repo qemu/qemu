@@ -129,7 +129,7 @@ static void blk_root_inherit_options(BdrvChildRole role, bool parent_is_format,
 }
 static void blk_root_drained_begin(BdrvChild *child);
 static bool blk_root_drained_poll(BdrvChild *child);
-static void blk_root_drained_end(BdrvChild *child, int *drained_end_counter);
+static void blk_root_drained_end(BdrvChild *child);
 
 static void blk_root_change_media(BdrvChild *child, bool load);
 static void blk_root_resize(BdrvChild *child);
@@ -1424,6 +1424,27 @@ int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
     return blk_co_pwritev_part(blk, offset, bytes, qiov, 0, flags);
 }
 
+int coroutine_fn blk_co_block_status_above(BlockBackend *blk,
+                                           BlockDriverState *base,
+                                           int64_t offset, int64_t bytes,
+                                           int64_t *pnum, int64_t *map,
+                                           BlockDriverState **file)
+{
+    IO_CODE();
+    return bdrv_co_block_status_above(blk_bs(blk), base, offset, bytes, pnum,
+                                      map, file);
+}
+
+int coroutine_fn blk_co_is_allocated_above(BlockBackend *blk,
+                                           BlockDriverState *base,
+                                           bool include_base, int64_t offset,
+                                           int64_t bytes, int64_t *pnum)
+{
+    IO_CODE();
+    return bdrv_co_is_allocated_above(blk_bs(blk), base, include_base, offset,
+                                      bytes, pnum);
+}
+
 typedef struct BlkRwCo {
     BlockBackend *blk;
     int64_t offset;
@@ -2556,7 +2577,7 @@ static bool blk_root_drained_poll(BdrvChild *child)
     return busy || !!blk->in_flight;
 }
 
-static void blk_root_drained_end(BdrvChild *child, int *drained_end_counter)
+static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
     assert(blk->quiesce_counter);

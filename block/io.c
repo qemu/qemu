@@ -45,53 +45,43 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags);
 
-static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
-                                      bool ignore_bds_parents)
+static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore)
 {
     BdrvChild *c, *next;
 
     QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
-        if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
+        if (c == ignore) {
             continue;
         }
-        bdrv_parent_drained_begin_single(c, false);
-    }
-}
-
-static void bdrv_parent_drained_end_single_no_poll(BdrvChild *c,
-                                                   int *drained_end_counter)
-{
-    assert(c->parent_quiesce_counter > 0);
-    c->parent_quiesce_counter--;
-    if (c->klass->drained_end) {
-        c->klass->drained_end(c, drained_end_counter);
+        bdrv_parent_drained_begin_single(c);
     }
 }
 
 void bdrv_parent_drained_end_single(BdrvChild *c)
 {
-    int drained_end_counter = 0;
-    AioContext *ctx = bdrv_child_get_parent_aio_context(c);
     IO_OR_GS_CODE();
-    bdrv_parent_drained_end_single_no_poll(c, &drained_end_counter);
-    AIO_WAIT_WHILE(ctx, qatomic_read(&drained_end_counter) > 0);
+
+    assert(c->quiesced_parent);
+    c->quiesced_parent = false;
+
+    if (c->klass->drained_end) {
+        c->klass->drained_end(c);
+    }
 }
 
-static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
-                                    bool ignore_bds_parents,
-                                    int *drained_end_counter)
+static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore)
 {
     BdrvChild *c;
 
     QLIST_FOREACH(c, &bs->parents, next_parent) {
-        if (c == ignore || (ignore_bds_parents && c->klass->parent_is_bds)) {
+        if (c == ignore) {
             continue;
         }
-        bdrv_parent_drained_end_single_no_poll(c, drained_end_counter);
+        bdrv_parent_drained_end_single(c);
     }
 }
 
-static bool bdrv_parent_drained_poll_single(BdrvChild *c)
+bool bdrv_parent_drained_poll_single(BdrvChild *c)
 {
     if (c->klass->drained_poll) {
         return c->klass->drained_poll(c);
@@ -115,16 +105,15 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
     return busy;
 }
 
-void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
+void bdrv_parent_drained_begin_single(BdrvChild *c)
 {
-    AioContext *ctx = bdrv_child_get_parent_aio_context(c);
     IO_OR_GS_CODE();
-    c->parent_quiesce_counter++;
+
+    assert(!c->quiesced_parent);
+    c->quiesced_parent = true;
+
     if (c->klass->drained_begin) {
         c->klass->drained_begin(c);
-    }
-    if (poll) {
-        AIO_WAIT_WHILE(ctx, bdrv_parent_drained_poll_single(c));
     }
 }
 
@@ -245,69 +234,14 @@ typedef struct {
     BlockDriverState *bs;
     bool done;
     bool begin;
-    bool recursive;
     bool poll;
     BdrvChild *parent;
-    bool ignore_bds_parents;
-    int *drained_end_counter;
 } BdrvCoDrainData;
 
-static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
-{
-    BdrvCoDrainData *data = opaque;
-    BlockDriverState *bs = data->bs;
-
-    if (data->begin) {
-        bs->drv->bdrv_co_drain_begin(bs);
-    } else {
-        bs->drv->bdrv_co_drain_end(bs);
-    }
-
-    /* Set data->done and decrement drained_end_counter before bdrv_wakeup() */
-    qatomic_mb_set(&data->done, true);
-    if (!data->begin) {
-        qatomic_dec(data->drained_end_counter);
-    }
-    bdrv_dec_in_flight(bs);
-
-    g_free(data);
-}
-
-/* Recursively call BlockDriver.bdrv_co_drain_begin/end callbacks */
-static void bdrv_drain_invoke(BlockDriverState *bs, bool begin,
-                              int *drained_end_counter)
-{
-    BdrvCoDrainData *data;
-
-    if (!bs->drv || (begin && !bs->drv->bdrv_co_drain_begin) ||
-            (!begin && !bs->drv->bdrv_co_drain_end)) {
-        return;
-    }
-
-    data = g_new(BdrvCoDrainData, 1);
-    *data = (BdrvCoDrainData) {
-        .bs = bs,
-        .done = false,
-        .begin = begin,
-        .drained_end_counter = drained_end_counter,
-    };
-
-    if (!begin) {
-        qatomic_inc(drained_end_counter);
-    }
-
-    /* Make sure the driver callback completes during the polling phase for
-     * drain_begin. */
-    bdrv_inc_in_flight(bs);
-    data->co = qemu_coroutine_create(bdrv_drain_invoke_entry, data);
-    aio_co_schedule(bdrv_get_aio_context(bs), data->co);
-}
-
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
-bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
-                     BdrvChild *ignore_parent, bool ignore_bds_parents)
+bool bdrv_drain_poll(BlockDriverState *bs, BdrvChild *ignore_parent,
+                     bool ignore_bds_parents)
 {
-    BdrvChild *child, *next;
     IO_OR_GS_CODE();
 
     if (bdrv_parent_drained_poll(bs, ignore_parent, ignore_bds_parents)) {
@@ -318,30 +252,18 @@ bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
         return true;
     }
 
-    if (recursive) {
-        assert(!ignore_bds_parents);
-        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
-            if (bdrv_drain_poll(child->bs, recursive, child, false)) {
-                return true;
-            }
-        }
-    }
-
     return false;
 }
 
-static bool bdrv_drain_poll_top_level(BlockDriverState *bs, bool recursive,
+static bool bdrv_drain_poll_top_level(BlockDriverState *bs,
                                       BdrvChild *ignore_parent)
 {
-    return bdrv_drain_poll(bs, recursive, ignore_parent, false);
+    return bdrv_drain_poll(bs, ignore_parent, false);
 }
 
-static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
-                                  BdrvChild *parent, bool ignore_bds_parents,
+static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
                                   bool poll);
-static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
-                                BdrvChild *parent, bool ignore_bds_parents,
-                                int *drained_end_counter);
+static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent);
 
 static void bdrv_co_drain_bh_cb(void *opaque)
 {
@@ -354,14 +276,10 @@ static void bdrv_co_drain_bh_cb(void *opaque)
         aio_context_acquire(ctx);
         bdrv_dec_in_flight(bs);
         if (data->begin) {
-            assert(!data->drained_end_counter);
-            bdrv_do_drained_begin(bs, data->recursive, data->parent,
-                                  data->ignore_bds_parents, data->poll);
+            bdrv_do_drained_begin(bs, data->parent, data->poll);
         } else {
             assert(!data->poll);
-            bdrv_do_drained_end(bs, data->recursive, data->parent,
-                                data->ignore_bds_parents,
-                                data->drained_end_counter);
+            bdrv_do_drained_end(bs, data->parent);
         }
         aio_context_release(ctx);
     } else {
@@ -374,11 +292,9 @@ static void bdrv_co_drain_bh_cb(void *opaque)
 }
 
 static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
-                                                bool begin, bool recursive,
+                                                bool begin,
                                                 BdrvChild *parent,
-                                                bool ignore_bds_parents,
-                                                bool poll,
-                                                int *drained_end_counter)
+                                                bool poll)
 {
     BdrvCoDrainData data;
     Coroutine *self = qemu_coroutine_self();
@@ -394,11 +310,8 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
         .bs = bs,
         .done = false,
         .begin = begin,
-        .recursive = recursive,
         .parent = parent,
-        .ignore_bds_parents = ignore_bds_parents,
         .poll = poll,
-        .drained_end_counter = drained_end_counter,
     };
 
     if (bs) {
@@ -429,41 +342,22 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     }
 }
 
-void bdrv_do_drained_begin_quiesce(BlockDriverState *bs,
-                                   BdrvChild *parent, bool ignore_bds_parents)
+static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
+                                  bool poll)
 {
     IO_OR_GS_CODE();
-    assert(!qemu_in_coroutine());
+
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(bs, true, parent, poll);
+        return;
+    }
 
     /* Stop things in parent-to-child order */
     if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
         aio_disable_external(bdrv_get_aio_context(bs));
-    }
-
-    bdrv_parent_drained_begin(bs, parent, ignore_bds_parents);
-    bdrv_drain_invoke(bs, true, NULL);
-}
-
-static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
-                                  BdrvChild *parent, bool ignore_bds_parents,
-                                  bool poll)
-{
-    BdrvChild *child, *next;
-
-    if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, true, recursive, parent, ignore_bds_parents,
-                               poll, NULL);
-        return;
-    }
-
-    bdrv_do_drained_begin_quiesce(bs, parent, ignore_bds_parents);
-
-    if (recursive) {
-        assert(!ignore_bds_parents);
-        bs->recursive_quiesce_counter++;
-        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
-            bdrv_do_drained_begin(child->bs, true, child, ignore_bds_parents,
-                                  false);
+        bdrv_parent_drained_begin(bs, parent);
+        if (bs->drv && bs->drv->bdrv_drain_begin) {
+            bs->drv->bdrv_drain_begin(bs);
         }
     }
 
@@ -477,117 +371,50 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, bool recursive,
      * nodes.
      */
     if (poll) {
-        assert(!ignore_bds_parents);
-        BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, recursive, parent));
+        BDRV_POLL_WHILE(bs, bdrv_drain_poll_top_level(bs, parent));
     }
+}
+
+void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent)
+{
+    bdrv_do_drained_begin(bs, parent, false);
 }
 
 void bdrv_drained_begin(BlockDriverState *bs)
 {
     IO_OR_GS_CODE();
-    bdrv_do_drained_begin(bs, false, NULL, false, true);
-}
-
-void bdrv_subtree_drained_begin(BlockDriverState *bs)
-{
-    IO_OR_GS_CODE();
-    bdrv_do_drained_begin(bs, true, NULL, false, true);
+    bdrv_do_drained_begin(bs, NULL, true);
 }
 
 /**
  * This function does not poll, nor must any of its recursively called
- * functions.  The *drained_end_counter pointee will be incremented
- * once for every background operation scheduled, and decremented once
- * the operation settles.  Therefore, the pointer must remain valid
- * until the pointee reaches 0.  That implies that whoever sets up the
- * pointee has to poll until it is 0.
- *
- * We use atomic operations to access *drained_end_counter, because
- * (1) when called from bdrv_set_aio_context_ignore(), the subgraph of
- *     @bs may contain nodes in different AioContexts,
- * (2) bdrv_drain_all_end() uses the same counter for all nodes,
- *     regardless of which AioContext they are in.
+ * functions.
  */
-static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
-                                BdrvChild *parent, bool ignore_bds_parents,
-                                int *drained_end_counter)
+static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
 {
-    BdrvChild *child;
     int old_quiesce_counter;
 
-    assert(drained_end_counter != NULL);
-
     if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(bs, false, recursive, parent, ignore_bds_parents,
-                               false, drained_end_counter);
+        bdrv_co_yield_to_drain(bs, false, parent, false);
         return;
     }
     assert(bs->quiesce_counter > 0);
 
     /* Re-enable things in child-to-parent order */
-    bdrv_drain_invoke(bs, false, drained_end_counter);
-    bdrv_parent_drained_end(bs, parent, ignore_bds_parents,
-                            drained_end_counter);
-
     old_quiesce_counter = qatomic_fetch_dec(&bs->quiesce_counter);
     if (old_quiesce_counter == 1) {
-        aio_enable_external(bdrv_get_aio_context(bs));
-    }
-
-    if (recursive) {
-        assert(!ignore_bds_parents);
-        bs->recursive_quiesce_counter--;
-        QLIST_FOREACH(child, &bs->children, next) {
-            bdrv_do_drained_end(child->bs, true, child, ignore_bds_parents,
-                                drained_end_counter);
+        if (bs->drv && bs->drv->bdrv_drain_end) {
+            bs->drv->bdrv_drain_end(bs);
         }
+        bdrv_parent_drained_end(bs, parent);
+        aio_enable_external(bdrv_get_aio_context(bs));
     }
 }
 
 void bdrv_drained_end(BlockDriverState *bs)
 {
-    int drained_end_counter = 0;
     IO_OR_GS_CODE();
-    bdrv_do_drained_end(bs, false, NULL, false, &drained_end_counter);
-    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
-}
-
-void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter)
-{
-    IO_CODE();
-    bdrv_do_drained_end(bs, false, NULL, false, drained_end_counter);
-}
-
-void bdrv_subtree_drained_end(BlockDriverState *bs)
-{
-    int drained_end_counter = 0;
-    IO_OR_GS_CODE();
-    bdrv_do_drained_end(bs, true, NULL, false, &drained_end_counter);
-    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
-}
-
-void bdrv_apply_subtree_drain(BdrvChild *child, BlockDriverState *new_parent)
-{
-    int i;
-    IO_OR_GS_CODE();
-
-    for (i = 0; i < new_parent->recursive_quiesce_counter; i++) {
-        bdrv_do_drained_begin(child->bs, true, child, false, true);
-    }
-}
-
-void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent)
-{
-    int drained_end_counter = 0;
-    int i;
-    IO_OR_GS_CODE();
-
-    for (i = 0; i < old_parent->recursive_quiesce_counter; i++) {
-        bdrv_do_drained_end(child->bs, true, child, false,
-                            &drained_end_counter);
-    }
-
-    BDRV_POLL_WHILE(child->bs, qatomic_read(&drained_end_counter) > 0);
+    bdrv_do_drained_end(bs, NULL);
 }
 
 void bdrv_drain(BlockDriverState *bs)
@@ -620,7 +447,7 @@ static bool bdrv_drain_all_poll(void)
     while ((bs = bdrv_next_all_states(bs))) {
         AioContext *aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
-        result |= bdrv_drain_poll(bs, false, NULL, true);
+        result |= bdrv_drain_poll(bs, NULL, true);
         aio_context_release(aio_context);
     }
 
@@ -639,15 +466,10 @@ static bool bdrv_drain_all_poll(void)
  * NOTE: no new block jobs or BlockDriverStates can be created between
  * the bdrv_drain_all_begin() and bdrv_drain_all_end() calls.
  */
-void bdrv_drain_all_begin(void)
+void bdrv_drain_all_begin_nopoll(void)
 {
     BlockDriverState *bs = NULL;
     GLOBAL_STATE_CODE();
-
-    if (qemu_in_coroutine()) {
-        bdrv_co_yield_to_drain(NULL, true, false, NULL, true, true, NULL);
-        return;
-    }
 
     /*
      * bdrv queue is managed by record/replay,
@@ -670,9 +492,21 @@ void bdrv_drain_all_begin(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        bdrv_do_drained_begin(bs, false, NULL, true, false);
+        bdrv_do_drained_begin(bs, NULL, false);
         aio_context_release(aio_context);
     }
+}
+
+void bdrv_drain_all_begin(void)
+{
+    BlockDriverState *bs = NULL;
+
+    if (qemu_in_coroutine()) {
+        bdrv_co_yield_to_drain(NULL, true, NULL, true);
+        return;
+    }
+
+    bdrv_drain_all_begin_nopoll();
 
     /* Now poll the in-flight requests */
     AIO_WAIT_WHILE(NULL, bdrv_drain_all_poll());
@@ -684,22 +518,19 @@ void bdrv_drain_all_begin(void)
 
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs)
 {
-    int drained_end_counter = 0;
     GLOBAL_STATE_CODE();
 
     g_assert(bs->quiesce_counter > 0);
     g_assert(!bs->refcnt);
 
     while (bs->quiesce_counter) {
-        bdrv_do_drained_end(bs, false, NULL, true, &drained_end_counter);
+        bdrv_do_drained_end(bs, NULL);
     }
-    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 void bdrv_drain_all_end(void)
 {
     BlockDriverState *bs = NULL;
-    int drained_end_counter = 0;
     GLOBAL_STATE_CODE();
 
     /*
@@ -715,13 +546,11 @@ void bdrv_drain_all_end(void)
         AioContext *aio_context = bdrv_get_aio_context(bs);
 
         aio_context_acquire(aio_context);
-        bdrv_do_drained_end(bs, false, NULL, true, &drained_end_counter);
+        bdrv_do_drained_end(bs, NULL);
         aio_context_release(aio_context);
     }
 
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
-    AIO_WAIT_WHILE(NULL, qatomic_read(&drained_end_counter) > 0);
-
     assert(bdrv_drain_all_count > 0);
     bdrv_drain_all_count--;
 }
@@ -2711,6 +2540,17 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     return ret;
 }
 
+int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
+                                            BlockDriverState *base,
+                                            int64_t offset, int64_t bytes,
+                                            int64_t *pnum, int64_t *map,
+                                            BlockDriverState **file)
+{
+    IO_CODE();
+    return bdrv_co_common_block_status_above(bs, base, false, true, offset,
+                                             bytes, pnum, map, file, NULL);
+}
+
 int bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
                             int64_t offset, int64_t bytes, int64_t *pnum,
                             int64_t *map, BlockDriverState **file)
@@ -2756,6 +2596,22 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
     return (pnum == bytes) && (ret & BDRV_BLOCK_ZERO);
 }
 
+int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t offset,
+                                      int64_t bytes, int64_t *pnum)
+{
+    int ret;
+    int64_t dummy;
+    IO_CODE();
+
+    ret = bdrv_co_common_block_status_above(bs, bs, true, false, offset,
+                                            bytes, pnum ? pnum : &dummy, NULL,
+                                            NULL, NULL);
+    if (ret < 0) {
+        return ret;
+    }
+    return !!(ret & BDRV_BLOCK_ALLOCATED);
+}
+
 int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
                       int64_t *pnum)
 {
@@ -2770,6 +2626,29 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t offset, int64_t bytes,
         return ret;
     }
     return !!(ret & BDRV_BLOCK_ALLOCATED);
+}
+
+/* See bdrv_is_allocated_above for documentation */
+int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
+                                            BlockDriverState *base,
+                                            bool include_base, int64_t offset,
+                                            int64_t bytes, int64_t *pnum)
+{
+    int depth;
+    int ret;
+    IO_CODE();
+
+    ret = bdrv_co_common_block_status_above(top, base, include_base, false,
+                                            offset, bytes, pnum, NULL, NULL,
+                                            &depth);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret & BDRV_BLOCK_ALLOCATED) {
+        return depth;
+    }
+    return 0;
 }
 
 /*
@@ -2795,10 +2674,12 @@ int bdrv_is_allocated_above(BlockDriverState *top,
                             int64_t bytes, int64_t *pnum)
 {
     int depth;
-    int ret = bdrv_common_block_status_above(top, base, include_base, false,
-                                             offset, bytes, pnum, NULL, NULL,
-                                             &depth);
+    int ret;
     IO_CODE();
+
+    ret = bdrv_common_block_status_above(top, base, include_base, false,
+                                         offset, bytes, pnum, NULL, NULL,
+                                         &depth);
     if (ret < 0) {
         return ret;
     }
@@ -2816,6 +2697,7 @@ bdrv_co_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     BlockDriverState *child_bs = bdrv_primary_bs(bs);
     int ret;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     ret = bdrv_check_qiov_request(pos, qiov->size, qiov, 0, NULL);
     if (ret < 0) {
@@ -2848,6 +2730,7 @@ bdrv_co_writev_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     BlockDriverState *child_bs = bdrv_primary_bs(bs);
     int ret;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     ret = bdrv_check_qiov_request(pos, qiov->size, qiov, 0, NULL);
     if (ret < 0) {

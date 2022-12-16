@@ -577,8 +577,9 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     return ret;
 }
 
-static int block_copy_block_status(BlockCopyState *s, int64_t offset,
-                                   int64_t bytes, int64_t *pnum)
+static coroutine_fn int block_copy_block_status(BlockCopyState *s,
+                                                int64_t offset,
+                                                int64_t bytes, int64_t *pnum)
 {
     int64_t num;
     BlockDriverState *base;
@@ -590,8 +591,8 @@ static int block_copy_block_status(BlockCopyState *s, int64_t offset,
         base = NULL;
     }
 
-    ret = bdrv_block_status_above(s->source->bs, base, offset, bytes, &num,
-                                  NULL, NULL);
+    ret = bdrv_co_block_status_above(s->source->bs, base, offset, bytes, &num,
+                                     NULL, NULL);
     if (ret < 0 || num < s->cluster_size) {
         /*
          * On error or if failed to obtain large enough chunk just fallback to
@@ -613,8 +614,9 @@ static int block_copy_block_status(BlockCopyState *s, int64_t offset,
  * Check if the cluster starting at offset is allocated or not.
  * return via pnum the number of contiguous clusters sharing this allocation.
  */
-static int block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
-                                           int64_t *pnum)
+static int coroutine_fn block_copy_is_cluster_allocated(BlockCopyState *s,
+                                                        int64_t offset,
+                                                        int64_t *pnum)
 {
     BlockDriverState *bs = s->source->bs;
     int64_t count, total_count = 0;
@@ -624,7 +626,7 @@ static int block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
 
     while (true) {
-        ret = bdrv_is_allocated(bs, offset, bytes, &count);
+        ret = bdrv_co_is_allocated(bs, offset, bytes, &count);
         if (ret < 0) {
             return ret;
         }
@@ -669,8 +671,9 @@ void block_copy_reset(BlockCopyState *s, int64_t offset, int64_t bytes)
  * @return 0 when the cluster at @offset was unallocated,
  *         1 otherwise, and -ret on error.
  */
-int64_t block_copy_reset_unallocated(BlockCopyState *s,
-                                     int64_t offset, int64_t *count)
+int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
+                                                  int64_t offset,
+                                                  int64_t *count)
 {
     int ret;
     int64_t clusters, bytes;

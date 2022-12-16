@@ -179,16 +179,4 @@ void bdrv_bsc_invalidate_range(BlockDriverState *bs,
  */
 void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
 
-
-/*
- * "I/O or GS" API functions. These functions can run without
- * the BQL, but only in one specific iothread/main loop.
- *
- * See include/block/block-io.h for more information about
- * the "I/O or GS" API.
- */
-
-void bdrv_apply_subtree_drain(BdrvChild *child, BlockDriverState *new_parent);
-void bdrv_unapply_subtree_drain(BdrvChild *child, BlockDriverState *old_parent);
-
 #endif /* BLOCK_INT_IO_H */

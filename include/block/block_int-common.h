@@ -641,8 +641,8 @@ struct BlockDriver {
     /*
      * Invalidate any cached meta-data.
      */
-    void coroutine_fn (*bdrv_co_invalidate_cache)(BlockDriverState *bs,
-                                                  Error **errp);
+    void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_invalidate_cache)(
+        BlockDriverState *bs, Error **errp);
 
     /*
      * Flushes all data for all layers by calling bdrv_co_flush for underlying
@@ -701,12 +701,11 @@ struct BlockDriver {
                                                  Error **errp);
     BlockStatsSpecific *(*bdrv_get_specific_stats)(BlockDriverState *bs);
 
-    int coroutine_fn (*bdrv_save_vmstate)(BlockDriverState *bs,
-                                          QEMUIOVector *qiov,
-                                          int64_t pos);
-    int coroutine_fn (*bdrv_load_vmstate)(BlockDriverState *bs,
-                                          QEMUIOVector *qiov,
-                                          int64_t pos);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_save_vmstate)(
+        BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_load_vmstate)(
+        BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
     /* removable device specific */
     bool (*bdrv_is_inserted)(BlockDriverState *bs);
@@ -724,9 +723,8 @@ struct BlockDriver {
      * Returns 0 for completed check, -errno for internal errors.
      * The check results are stored in result.
      */
-    int coroutine_fn (*bdrv_co_check)(BlockDriverState *bs,
-                                      BdrvCheckResult *result,
-                                      BdrvCheckMode fix);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_check)(
+        BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkdebugEvent event);
 
@@ -735,17 +733,19 @@ struct BlockDriver {
     void (*bdrv_io_unplug)(BlockDriverState *bs);
 
     /**
-     * bdrv_co_drain_begin is called if implemented in the beginning of a
+     * bdrv_drain_begin is called if implemented in the beginning of a
      * drain operation to drain and stop any internal sources of requests in
      * the driver.
-     * bdrv_co_drain_end is called if implemented at the end of the drain.
+     * bdrv_drain_end is called if implemented at the end of the drain.
      *
      * They should be used by the driver to e.g. manage scheduled I/O
      * requests, or toggle an internal state. After the end of the drain new
      * requests will continue normally.
+     *
+     * Implementations of both functions must not call aio_poll().
      */
-    void coroutine_fn (*bdrv_co_drain_begin)(BlockDriverState *bs);
-    void coroutine_fn (*bdrv_co_drain_end)(BlockDriverState *bs);
+    void (*bdrv_drain_begin)(BlockDriverState *bs);
+    void (*bdrv_drain_end)(BlockDriverState *bs);
 
     bool (*bdrv_supports_persistent_dirty_bitmap)(BlockDriverState *bs);
     bool coroutine_fn (*bdrv_co_can_store_new_dirty_bitmap)(
@@ -896,8 +896,8 @@ struct BdrvChildClass {
     void (*activate)(BdrvChild *child, Error **errp);
     int (*inactivate)(BdrvChild *child);
 
-    void (*attach)(BdrvChild *child);
-    void (*detach)(BdrvChild *child);
+    void GRAPH_WRLOCK_PTR (*attach)(BdrvChild *child);
+    void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);
 
     /*
      * Notifies the parent that the filename of its child has changed (e.g.
@@ -937,15 +937,11 @@ struct BdrvChildClass {
      * These functions must not change the graph (and therefore also must not
      * call aio_poll(), which could change the graph indirectly).
      *
-     * If drained_end() schedules background operations, it must atomically
-     * increment *drained_end_counter for each such operation and atomically
-     * decrement it once the operation has settled.
-     *
      * Note that this can be nested. If drained_begin() was called twice, new
      * I/O is allowed only after drained_end() was called twice, too.
      */
     void (*drained_begin)(BdrvChild *child);
-    void (*drained_end)(BdrvChild *child, int *drained_end_counter);
+    void (*drained_end)(BdrvChild *child);
 
     /*
      * Returns whether the parent has pending requests for the child. This
@@ -982,13 +978,13 @@ struct BdrvChild {
     bool frozen;
 
     /*
-     * How many times the parent of this child has been drained
+     * True if the parent of this child has been drained by this BdrvChild
      * (through klass->drained_*).
-     * Usually, this is equal to bs->quiesce_counter (potentially
-     * reduced by bdrv_drain_all_count).  It may differ while the
+     *
+     * It is generally true if bs->quiesce_counter > 0. It may differ while the
      * child is entering or leaving a drained section.
      */
-    int parent_quiesce_counter;
+    bool quiesced_parent;
 
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
@@ -1186,7 +1182,6 @@ struct BlockDriverState {
 
     /* Accessed with atomic ops.  */
     int quiesce_counter;
-    int recursive_quiesce_counter;
 
     unsigned int write_gen;               /* Current data generation */
 

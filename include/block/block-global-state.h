@@ -55,9 +55,14 @@ BlockDriver *bdrv_find_protocol(const char *filename,
                                 bool allow_protocol_prefix,
                                 Error **errp);
 BlockDriver *bdrv_find_format(const char *format_name);
-int bdrv_create(BlockDriver *drv, const char* filename,
-                QemuOpts *opts, Error **errp);
-int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
+
+int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
+                                QemuOpts *opts, Error **errp);
+int co_wrapper bdrv_create(BlockDriver *drv, const char *filename,
+                           QemuOpts *opts, Error **errp);
+
+int coroutine_fn bdrv_co_create_file(const char *filename, QemuOpts *opts,
+                                     Error **errp);
 
 BlockDriverState *bdrv_new(void);
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
@@ -82,6 +87,9 @@ int bdrv_open_file_child(const char *filename,
 BlockDriverState *bdrv_open_blockdev_ref(BlockdevRef *ref, Error **errp);
 int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp);
+int bdrv_set_backing_hd_drained(BlockDriverState *bs,
+                                BlockDriverState *backing_hd,
+                                Error **errp);
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp);
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
@@ -144,6 +152,7 @@ int bdrv_inactivate_all(void);
 int bdrv_flush_all(void);
 void bdrv_close_all(void);
 void bdrv_drain_all_begin(void);
+void bdrv_drain_all_begin_nopoll(void);
 void bdrv_drain_all_end(void);
 void bdrv_drain_all(void);
 

@@ -26,12 +26,12 @@ called ``bdrv_foo(<same args>)``. In this case the script can help. To
 trigger the generation:
 
 1. You need ``bdrv_foo`` declaration somewhere (for example, in
-   ``block/coroutines.h``) with the ``generated_co_wrapper`` mark,
+   ``block/coroutines.h``) with the ``co_wrapper`` mark,
    like this:
 
 .. code-block:: c
 
-    int generated_co_wrapper bdrv_foo(<some args>);
+    int co_wrapper bdrv_foo(<some args>);
 
 2. You need to feed this declaration to block-coroutine-wrapper script.
    For this, add the .h (or .c) file with the declaration to the
@@ -46,7 +46,7 @@ Links
 
 1. The script location is ``scripts/block-coroutine-wrapper.py``.
 
-2. Generic place for private ``generated_co_wrapper`` declarations is
+2. Generic place for private ``co_wrapper`` declarations is
    ``block/coroutines.h``, for public declarations:
    ``include/block/block.h``
 

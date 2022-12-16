@@ -262,7 +262,7 @@ static bool coroutine_fn qed_plug_allocating_write_reqs(BDRVQEDState *s)
     assert(!s->allocating_write_reqs_plugged);
     if (s->allocating_acb != NULL) {
         /* Another allocating write came concurrently.  This cannot happen
-         * from bdrv_qed_co_drain_begin, but it can happen when the timer runs.
+         * from bdrv_qed_drain_begin, but it can happen when the timer runs.
          */
         qemu_co_mutex_unlock(&s->table_lock);
         return false;
@@ -282,9 +282,8 @@ static void coroutine_fn qed_unplug_allocating_write_reqs(BDRVQEDState *s)
     qemu_co_mutex_unlock(&s->table_lock);
 }
 
-static void coroutine_fn qed_need_check_timer_entry(void *opaque)
+static void coroutine_fn qed_need_check_timer(BDRVQEDState *s)
 {
-    BDRVQEDState *s = opaque;
     int ret;
 
     trace_qed_need_check_timer_cb(s);
@@ -310,9 +309,20 @@ static void coroutine_fn qed_need_check_timer_entry(void *opaque)
     (void) ret;
 }
 
+static void coroutine_fn qed_need_check_timer_entry(void *opaque)
+{
+    BDRVQEDState *s = opaque;
+
+    qed_need_check_timer(opaque);
+    bdrv_dec_in_flight(s->bs);
+}
+
 static void qed_need_check_timer_cb(void *opaque)
 {
+    BDRVQEDState *s = opaque;
     Coroutine *co = qemu_coroutine_create(qed_need_check_timer_entry, opaque);
+
+    bdrv_inc_in_flight(s->bs);
     qemu_coroutine_enter(co);
 }
 
@@ -355,7 +365,7 @@ static void bdrv_qed_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void coroutine_fn bdrv_qed_co_drain_begin(BlockDriverState *bs)
+static void bdrv_qed_drain_begin(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
 
@@ -363,8 +373,12 @@ static void coroutine_fn bdrv_qed_co_drain_begin(BlockDriverState *bs)
      * header is flushed.
      */
     if (s->need_check_timer && timer_pending(s->need_check_timer)) {
+        Coroutine *co;
+
         qed_cancel_need_check_timer(s);
-        qed_need_check_timer_entry(s);
+        co = qemu_coroutine_create(qed_need_check_timer_entry, s);
+        bdrv_inc_in_flight(bs);
+        aio_co_enter(bdrv_get_aio_context(bs), co);
     }
 }
 
@@ -764,7 +778,7 @@ static int coroutine_fn bdrv_qed_co_create_opts(BlockDriver *drv,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, errp);
+    ret = bdrv_co_create_file(filename, opts, errp);
     if (ret < 0) {
         goto fail;
     }
@@ -1647,7 +1661,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_co_check            = bdrv_qed_co_check,
     .bdrv_detach_aio_context  = bdrv_qed_detach_aio_context,
     .bdrv_attach_aio_context  = bdrv_qed_attach_aio_context,
-    .bdrv_co_drain_begin      = bdrv_qed_co_drain_begin,
+    .bdrv_drain_begin         = bdrv_qed_drain_begin,
 };
 
 static void bdrv_qed_init(void)

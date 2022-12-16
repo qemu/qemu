@@ -36,8 +36,9 @@ void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm);
 void block_copy_state_free(BlockCopyState *s);
 
 void block_copy_reset(BlockCopyState *s, int64_t offset, int64_t bytes);
-int64_t block_copy_reset_unallocated(BlockCopyState *s,
-                                     int64_t offset, int64_t *count);
+int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
+                                                  int64_t offset,
+                                                  int64_t *count);
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
                             bool ignore_ratelimit, uint64_t timeout_ns,

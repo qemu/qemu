@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "block/aio.h"
 #include "block/thread-pool.h"
+#include "block/graph-lock.h"
 #include "qemu/main-loop.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu_queue.h"
@@ -376,6 +377,7 @@ aio_ctx_finalize(GSource     *source)
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_lockcnt_destroy(&ctx->list_lock);
     timerlistgroup_deinit(&ctx->tlg);
+    unregister_aiocontext(ctx);
     aio_context_destroy(ctx);
 }
 
@@ -573,6 +575,8 @@ AioContext *aio_context_new(Error **errp)
 
     ctx->thread_pool_min = 0;
     ctx->thread_pool_max = THREAD_POOL_MAX_THREADS_DEFAULT;
+
+    register_aiocontext(ctx);
 
     return ctx;
 fail:

@@ -10,6 +10,7 @@ block_ss.add(files(
   'blkverify.c',
   'block-backend.c',
   'block-copy.c',
+  'graph-lock.c',
   'commit.c',
   'copy-on-read.c',
   'preallocate.c',
@@ -137,6 +138,7 @@ block_gen_c = custom_target('block-gen.c',
                             output: 'block-gen.c',
                             input: files(
                                       '../include/block/block-io.h',
+                                      '../include/block/dirty-bitmap.h',
                                       '../include/block/block-global-state.h',
                                       '../include/sysemu/block-backend-io.h',
                                       'coroutines.h'

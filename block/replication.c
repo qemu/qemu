@@ -374,9 +374,6 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
         s->orig_secondary_read_only = bdrv_is_read_only(secondary_disk->bs);
     }
 
-    bdrv_subtree_drained_begin(hidden_disk->bs);
-    bdrv_subtree_drained_begin(secondary_disk->bs);
-
     if (s->orig_hidden_read_only) {
         QDict *opts = qdict_new();
         qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
@@ -401,9 +398,6 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
             aio_context_acquire(ctx);
         }
     }
-
-    bdrv_subtree_drained_end(hidden_disk->bs);
-    bdrv_subtree_drained_end(secondary_disk->bs);
 }
 
 static void backup_job_cleanup(BlockDriverState *bs)

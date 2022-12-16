@@ -2,7 +2,7 @@
 """Generate coroutine wrappers for block subsystem.
 
 The program parses one or several concatenated c files from stdin,
-searches for functions with the 'generated_co_wrapper' specifier
+searches for functions with the 'co_wrapper' specifier
 and generates corresponding wrappers on stdout.
 
 Usage: block-coroutine-wrapper.py generated-file.c FILE.[ch]...
@@ -62,10 +62,28 @@ class ParamDecl:
 
 
 class FuncDecl:
-    def __init__(self, return_type: str, name: str, args: str) -> None:
+    def __init__(self, return_type: str, name: str, args: str,
+                 variant: str) -> None:
         self.return_type = return_type.strip()
         self.name = name.strip()
+        self.struct_name = snake_to_camel(self.name)
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
+        self.create_only_co = 'mixed' not in variant
+        self.graph_rdlock = 'bdrv_rdlock' in variant
+
+        subsystem, subname = self.name.split('_', 1)
+        self.co_name = f'{subsystem}_co_{subname}'
+
+        t = self.args[0].type
+        if t == 'BlockDriverState *':
+            ctx = 'bdrv_get_aio_context(bs)'
+        elif t == 'BdrvChild *':
+            ctx = 'bdrv_get_aio_context(child->bs)'
+        elif t == 'BlockBackend *':
+            ctx = 'blk_get_aio_context(blk)'
+        else:
+            ctx = 'qemu_get_aio_context()'
+        self.ctx = ctx
 
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
@@ -74,17 +92,20 @@ class FuncDecl:
         return '\n'.join(format.format_map(arg.__dict__) for arg in self.args)
 
 
-# Match wrappers declared with a generated_co_wrapper mark
-func_decl_re = re.compile(r'^int\s*generated_co_wrapper\s*'
+# Match wrappers declared with a co_wrapper mark
+func_decl_re = re.compile(r'^(?P<return_type>[a-zA-Z][a-zA-Z0-9_]* [\*]?)'
+                          r'\s*co_wrapper'
+                          r'(?P<variant>(_[a-z][a-z0-9_]*)?)\s*'
                           r'(?P<wrapper_name>[a-z][a-z0-9_]*)'
                           r'\((?P<args>[^)]*)\);$', re.MULTILINE)
 
 
 def func_decl_iter(text: str) -> Iterator:
     for m in func_decl_re.finditer(text):
-        yield FuncDecl(return_type='int',
+        yield FuncDecl(return_type=m.group('return_type'),
                        name=m.group('wrapper_name'),
-                       args=m.group('args'))
+                       args=m.group('args'),
+                       variant=m.group('variant'))
 
 
 def snake_to_camel(func_name: str) -> str:
@@ -97,24 +118,75 @@ def snake_to_camel(func_name: str) -> str:
     return ''.join(words)
 
 
+def create_mixed_wrapper(func: FuncDecl) -> str:
+    """
+    Checks if we are already in coroutine
+    """
+    name = func.co_name
+    struct_name = func.struct_name
+    graph_assume_lock = 'assume_graph_lock();' if func.graph_rdlock else ''
+
+    return f"""\
+{func.return_type} {func.name}({ func.gen_list('{decl}') })
+{{
+    if (qemu_in_coroutine()) {{
+        {graph_assume_lock}
+        return {name}({ func.gen_list('{name}') });
+    }} else {{
+        {struct_name} s = {{
+            .poll_state.ctx = {func.ctx},
+            .poll_state.in_progress = true,
+
+{ func.gen_block('            .{name} = {name},') }
+        }};
+
+        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+        bdrv_poll_co(&s.poll_state);
+        return s.ret;
+    }}
+}}"""
+
+
+def create_co_wrapper(func: FuncDecl) -> str:
+    """
+    Assumes we are not in coroutine, and creates one
+    """
+    name = func.co_name
+    struct_name = func.struct_name
+    return f"""\
+{func.return_type} {func.name}({ func.gen_list('{decl}') })
+{{
+    {struct_name} s = {{
+        .poll_state.ctx = {func.ctx},
+        .poll_state.in_progress = true,
+
+{ func.gen_block('        .{name} = {name},') }
+    }};
+    assert(!qemu_in_coroutine());
+
+    s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
+
+    bdrv_poll_co(&s.poll_state);
+    return s.ret;
+}}"""
+
+
 def gen_wrapper(func: FuncDecl) -> str:
     assert not '_co_' in func.name
-    assert func.return_type == 'int'
-    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *',
-                                 'BlockBackend *']
 
-    subsystem, subname = func.name.split('_', 1)
+    name = func.co_name
+    struct_name = func.struct_name
 
-    name = f'{subsystem}_co_{subname}'
+    graph_lock=''
+    graph_unlock=''
+    if func.graph_rdlock:
+        graph_lock='    bdrv_graph_co_rdlock();'
+        graph_unlock='    bdrv_graph_co_rdunlock();'
 
-    t = func.args[0].type
-    if t == 'BlockDriverState *':
-        bs = 'bs'
-    elif t == 'BdrvChild *':
-        bs = 'child->bs'
-    else:
-        bs = 'blk_bs(blk)'
-    struct_name = snake_to_camel(name)
+    creation_function = create_mixed_wrapper
+    if func.create_only_co:
+        creation_function = create_co_wrapper
 
     return f"""\
 /*
@@ -123,6 +195,7 @@ def gen_wrapper(func: FuncDecl) -> str:
 
 typedef struct {struct_name} {{
     BdrvPollCo poll_state;
+    {func.return_type} ret;
 { func.gen_block('    {decl};') }
 }} {struct_name};
 
@@ -130,29 +203,15 @@ static void coroutine_fn {name}_entry(void *opaque)
 {{
     {struct_name} *s = opaque;
 
-    s->poll_state.ret = {name}({ func.gen_list('s->{name}') });
+{graph_lock}
+    s->ret = {name}({ func.gen_list('s->{name}') });
+{graph_unlock}
     s->poll_state.in_progress = false;
 
     aio_wait_kick();
 }}
 
-int {func.name}({ func.gen_list('{decl}') })
-{{
-    if (qemu_in_coroutine()) {{
-        return {name}({ func.gen_list('{name}') });
-    }} else {{
-        {struct_name} s = {{
-            .poll_state.bs = {bs},
-            .poll_state.in_progress = true,
-
-{ func.gen_block('            .{name} = {name},') }
-        }};
-
-        s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
-
-        return bdrv_poll_co(&s.poll_state);
-    }}
-}}"""
+{creation_function(func)}"""
 
 
 def gen_wrappers(input_code: str) -> str:
