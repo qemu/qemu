@@ -22,6 +22,7 @@
 #include "sysemu/runstate.h"
 
 #include "hw/i386/kvm/xen_overlay.h"
+#include "hw/i386/kvm/xen_evtchn.h"
 
 #include "hw/xen/interface/version.h"
 #include "hw/xen/interface/sched.h"
@@ -510,6 +511,10 @@ static bool handle_set_param(struct kvm_xen_exit *exit, X86CPU *cpu,
     }
 
     switch (hp.index) {
+    case HVM_PARAM_CALLBACK_IRQ:
+        err = xen_evtchn_set_callback_param(hp.value);
+        xen_set_long_mode(exit->u.hcall.longmode);
+        break;
     default:
         return false;
     }
@@ -718,6 +723,16 @@ int kvm_xen_soft_reset(void)
     assert(qemu_mutex_iothread_locked());
 
     trace_kvm_xen_soft_reset();
+
+    /*
+     * Zero is the reset/startup state for HVM_PARAM_CALLBACK_IRQ. Strictly,
+     * it maps to HVM_PARAM_CALLBACK_TYPE_GSI with GSI#0, but Xen refuses to
+     * to deliver to the timer interrupt and treats that as 'disabled'.
+     */
+    err = xen_evtchn_set_callback_param(0);
+    if (err) {
+        return err;
+    }
 
     CPU_FOREACH(cpu) {
         async_run_on_cpu(cpu, do_vcpu_soft_reset, RUN_ON_CPU_NULL);
