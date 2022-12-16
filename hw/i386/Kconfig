@@ -51,7 +51,6 @@ config PC_PCI
     bool
     select APIC
     select IOAPIC
-    select APM
     select PC
 
 config PC_ACPI
@@ -72,7 +71,6 @@ config I440FX
     select ACPI_PIIX4
     select PC_PCI
     select PC_ACPI
-    select ACPI_SMBUS
     select PCI_I440FX
     select PIIX3
     select IDE_PIIX
