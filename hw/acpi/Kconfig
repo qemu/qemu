@@ -13,7 +13,7 @@ config ACPI_X86
     select ACPI_PCIHP
     select ACPI_ERST
 
-config ACPI_X86_ICH
+config ACPI_ICH9
     bool
     select ACPI_X86
 

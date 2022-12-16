@@ -78,4 +78,4 @@ config LPC_ICH9
     select I8257
     select ISA_BUS
     select ACPI_SMBUS
-    select ACPI_X86_ICH
+    select ACPI_ICH9
