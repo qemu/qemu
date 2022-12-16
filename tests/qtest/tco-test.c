@@ -60,7 +60,7 @@ static void test_init(TestData *d)
     QTestState *qs;
 
     qs = qtest_initf("-machine q35 %s %s",
-                     d->noreboot ? "" : "-global ICH9-LPC.noreboot=false",
+                     d->noreboot ? "-global ICH9-LPC.noreboot=true" : "",
                      !d->args ? "" : d->args);
     qtest_irq_intercept_in(qs, "ioapic");
 
