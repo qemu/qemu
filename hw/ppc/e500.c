@@ -717,7 +717,6 @@ static int ppce500_prep_device_tree(PPCE500MachineState *machine,
                                     kernel_base, kernel_size, true);
 }
 
-/* Create -kernel TLB entries for BookE.  */
 hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
     return 63 - clz64(size / KiB);
@@ -748,6 +747,7 @@ static uint64_t mmubooke_initial_mapsize(CPUPPCState *env)
     return (1ULL << 10 << tsize);
 }
 
+/* Create -kernel TLB entries for BookE. */
 static void mmubooke_create_initial_mapping(CPUPPCState *env)
 {
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
