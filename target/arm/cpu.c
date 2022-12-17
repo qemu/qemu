@@ -202,14 +202,16 @@ static void cp_reg_check_reset(gpointer key, gpointer value,  gpointer opaque)
     assert(oldvalue == newvalue);
 }
 
-static void arm_cpu_reset(DeviceState *dev)
+static void arm_cpu_reset_hold(Object *obj)
 {
-    CPUState *s = CPU(dev);
+    CPUState *s = CPU(obj);
     ARMCPU *cpu = ARM_CPU(s);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
     CPUARMState *env = &cpu->env;
 
-    acc->parent_reset(dev);
+    if (acc->parent_phases.hold) {
+        acc->parent_phases.hold(obj);
+    }
 
     memset(env, 0, offsetof(CPUARMState, end_reset_fields));
 
@@ -2211,12 +2213,15 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(acc);
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
 
     device_class_set_parent_realize(dc, arm_cpu_realizefn,
                                     &acc->parent_realize);
 
     device_class_set_props(dc, arm_cpu_properties);
-    device_class_set_parent_reset(dc, arm_cpu_reset, &acc->parent_reset);
+
+    resettable_class_set_parent_phases(rc, NULL, arm_cpu_reset_hold, NULL,
+                                       &acc->parent_phases);
 
     cc->class_by_name = arm_cpu_class_by_name;
     cc->has_work = arm_cpu_has_work;

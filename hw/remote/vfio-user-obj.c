@@ -678,7 +678,7 @@ static int vfu_object_device_reset(vfu_ctx_t *vfu_ctx, vfu_reset_type_t type)
         return 0;
     }
 
-    qdev_reset_all(DEVICE(o->pci_dev));
+    device_cold_reset(DEVICE(o->pci_dev));
 
     return 0;
 }

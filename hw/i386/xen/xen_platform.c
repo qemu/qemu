@@ -177,7 +177,7 @@ static void pci_xen_ide_unplug(DeviceState *dev, bool aux)
             blk_unref(blk);
         }
     }
-    qdev_reset_all(dev);
+    device_cold_reset(dev);
 }
 
 static void unplug_disks(PCIBus *b, PCIDevice *d, void *opaque)

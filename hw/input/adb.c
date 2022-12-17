@@ -43,7 +43,7 @@ static const char *adb_commands[] = {
 
 static void adb_device_reset(ADBDevice *d)
 {
-    qdev_reset_all(DEVICE(d));
+    device_cold_reset(DEVICE(d));
 }
 
 static int do_adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf,

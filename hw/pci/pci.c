@@ -378,14 +378,14 @@ static void pci_do_device_reset(PCIDevice *dev)
  */
 void pci_device_reset(PCIDevice *dev)
 {
-    qdev_reset_all(&dev->qdev);
+    device_cold_reset(&dev->qdev);
     pci_do_device_reset(dev);
 }
 
 /*
  * Trigger pci bus reset under a given bus.
- * Called via qbus_reset_all on RST# assert, after the devices
- * have been reset qdev_reset_all-ed already.
+ * Called via bus_cold_reset on RST# assert, after the devices
+ * have been reset device_cold_reset-ed already.
  */
 static void pcibus_reset(BusState *qbus)
 {

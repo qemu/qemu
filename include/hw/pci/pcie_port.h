@@ -80,7 +80,7 @@ DECLARE_CLASS_CHECKERS(PCIERootPortClass, PCIE_ROOT_PORT,
 struct PCIERootPortClass {
     PCIDeviceClass parent_class;
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
+    ResettablePhases parent_phases;
 
     uint8_t (*aer_vector)(const PCIDevice *dev);
     int (*interrupts_init)(PCIDevice *dev, Error **errp);

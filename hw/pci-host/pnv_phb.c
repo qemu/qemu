@@ -199,14 +199,16 @@ static void pnv_phb_class_init(ObjectClass *klass, void *data)
     dc->user_creatable = true;
 }
 
-static void pnv_phb_root_port_reset(DeviceState *dev)
+static void pnv_phb_root_port_reset_hold(Object *obj)
 {
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    PnvPHBRootPort *phb_rp = PNV_PHB_ROOT_PORT(dev);
-    PCIDevice *d = PCI_DEVICE(dev);
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(obj);
+    PnvPHBRootPort *phb_rp = PNV_PHB_ROOT_PORT(obj);
+    PCIDevice *d = PCI_DEVICE(obj);
     uint8_t *conf = d->config;
 
-    rpc->parent_reset(dev);
+    if (rpc->parent_phases.hold) {
+        rpc->parent_phases.hold(obj);
+    }
 
     if (phb_rp->version == 3) {
         return;
@@ -300,6 +302,7 @@ static Property pnv_phb_root_port_properties[] = {
 static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(klass);
 
@@ -308,9 +311,8 @@ static void pnv_phb_root_port_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, pnv_phb_root_port_properties);
     device_class_set_parent_realize(dc, pnv_phb_root_port_realize,
                                     &rpc->parent_realize);
-    device_class_set_parent_reset(dc, pnv_phb_root_port_reset,
-                                  &rpc->parent_reset);
-    dc->reset = &pnv_phb_root_port_reset;
+    resettable_class_set_parent_phases(rc, NULL, pnv_phb_root_port_reset_hold,
+                                       NULL, &rpc->parent_phases);
     dc->user_creatable = true;
 
     k->vendor_id = PCI_VENDOR_ID_IBM;

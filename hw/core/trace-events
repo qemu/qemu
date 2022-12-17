@@ -2,12 +2,6 @@
 loader_write_rom(const char *name, uint64_t gpa, uint64_t size, bool isrom) "%s: @0x%"PRIx64" size=0x%"PRIx64" ROM=%d"
 
 # qdev.c
-qdev_reset(void *obj, const char *objtype) "obj=%p(%s)"
-qdev_reset_all(void *obj, const char *objtype) "obj=%p(%s)"
-qdev_reset_tree(void *obj, const char *objtype) "obj=%p(%s)"
-qbus_reset(void *obj, const char *objtype) "obj=%p(%s)"
-qbus_reset_all(void *obj, const char *objtype) "obj=%p(%s)"
-qbus_reset_tree(void *obj, const char *objtype) "obj=%p(%s)"
 qdev_update_parent_bus(void *obj, const char *objtype, void *oldp, const char *oldptype, void *newp, const char *newptype) "obj=%p(%s) old_parent=%p(%s) new_parent=%p(%s)"
 
 # resettable.c

@@ -157,7 +157,7 @@ OBJECT_DECLARE_TYPE(MOS6522State, MOS6522DeviceClass, MOS6522)
 struct MOS6522DeviceClass {
     DeviceClass parent_class;
 
-    DeviceReset parent_reset;
+    ResettablePhases parent_phases;
     void (*portB_write)(MOS6522State *dev);
     void (*portA_write)(MOS6522State *dev);
     /* These are used to influence the CUDA MacOS timebase calibration */

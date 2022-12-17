@@ -975,14 +975,16 @@ static int via1_post_load(void *opaque, int version_id)
 }
 
 /* VIA 1 */
-static void mos6522_q800_via1_reset(DeviceState *dev)
+static void mos6522_q800_via1_reset_hold(Object *obj)
 {
-    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(dev);
+    MOS6522Q800VIA1State *v1s = MOS6522_Q800_VIA1(obj);
     MOS6522State *ms = MOS6522(v1s);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
     ADBBusState *adb_bus = &v1s->adb_bus;
 
-    mdc->parent_reset(dev);
+    if (mdc->parent_phases.hold) {
+        mdc->parent_phases.hold(obj);
+    }
 
     ms->timers[0].frequency = VIA_TIMER_FREQ;
     ms->timers[1].frequency = VIA_TIMER_FREQ;
@@ -1097,11 +1099,12 @@ static Property mos6522_q800_via1_properties[] = {
 static void mos6522_q800_via1_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
     dc->realize = mos6522_q800_via1_realize;
-    device_class_set_parent_reset(dc, mos6522_q800_via1_reset,
-                                  &mdc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via1_reset_hold,
+                                       NULL, &mdc->parent_phases);
     dc->vmsd = &vmstate_q800_via1;
     device_class_set_props(dc, mos6522_q800_via1_properties);
 }
@@ -1123,12 +1126,14 @@ static void mos6522_q800_via2_portB_write(MOS6522State *s)
     }
 }
 
-static void mos6522_q800_via2_reset(DeviceState *dev)
+static void mos6522_q800_via2_reset_hold(Object *obj)
 {
-    MOS6522State *ms = MOS6522(dev);
+    MOS6522State *ms = MOS6522(obj);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(ms);
 
-    mdc->parent_reset(dev);
+    if (mdc->parent_phases.hold) {
+        mdc->parent_phases.hold(obj);
+    }
 
     ms->timers[0].frequency = VIA_TIMER_FREQ;
     ms->timers[1].frequency = VIA_TIMER_FREQ;
@@ -1183,10 +1188,11 @@ static const VMStateDescription vmstate_q800_via2 = {
 static void mos6522_q800_via2_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
-    device_class_set_parent_reset(dc, mos6522_q800_via2_reset,
-                                  &mdc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via2_reset_hold,
+                                       NULL, &mdc->parent_phases);
     dc->vmsd = &vmstate_q800_via2;
     mdc->portB_write = mos6522_q800_via2_portB_write;
 }

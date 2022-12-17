@@ -744,32 +744,6 @@ int qdev_walk_children(DeviceState *dev,
                        void *opaque);
 
 /**
- * @qdev_reset_all:
- * Reset @dev. See @qbus_reset_all() for more details.
- *
- * Note: This function is deprecated and will be removed when it becomes unused.
- * Please use device_cold_reset() now.
- */
-void qdev_reset_all(DeviceState *dev);
-void qdev_reset_all_fn(void *opaque);
-
-/**
- * @qbus_reset_all:
- * @bus: Bus to be reset.
- *
- * Reset @bus and perform a bus-level ("hard") reset of all devices connected
- * to it, including recursive processing of all buses below @bus itself.  A
- * hard reset means that qbus_reset_all will reset all state of the device.
- * For PCI devices, for example, this will include the base address registers
- * or configuration space.
- *
- * Note: This function is deprecated and will be removed when it becomes unused.
- * Please use bus_cold_reset() now.
- */
-void qbus_reset_all(BusState *bus);
-void qbus_reset_all_fn(void *opaque);
-
-/**
  * device_cold_reset:
  * Reset device @dev and perform a recursive processing using the resettable
  * interface. It triggers a RESET_TYPE_COLD.
@@ -801,15 +775,6 @@ BusState *sysbus_get_default(void);
 
 char *qdev_get_fw_dev_path(DeviceState *dev);
 char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
-
-/**
- * device_legacy_reset:
- *
- * Reset a single device (by calling the reset method).
- * Note: This function is deprecated and will be removed when it becomes unused.
- * Please use device_cold_reset() now.
- */
-void device_legacy_reset(DeviceState *dev);
 
 void device_class_set_props(DeviceClass *dc, Property *props);
 

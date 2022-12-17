@@ -118,7 +118,7 @@ static void subsystem_reset(void)
     for (i = 0; i < ARRAY_SIZE(reset_dev_types); i++) {
         dev = DEVICE(object_resolve_path_type("", reset_dev_types[i], NULL));
         if (dev) {
-            qdev_reset_all(dev);
+            device_cold_reset(dev);
         }
     }
 }

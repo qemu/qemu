@@ -138,12 +138,14 @@ static void cxl_rp_realize(DeviceState *dev, Error **errp)
                      component_bar);
 }
 
-static void cxl_rp_reset(DeviceState *dev)
+static void cxl_rp_reset_hold(Object *obj)
 {
-    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(dev);
-    CXLRootPort *crp = CXL_ROOT_PORT(dev);
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(obj);
+    CXLRootPort *crp = CXL_ROOT_PORT(obj);
 
-    rpc->parent_reset(dev);
+    if (rpc->parent_phases.hold) {
+        rpc->parent_phases.hold(obj);
+    }
 
     latch_registers(crp);
 }
@@ -199,6 +201,7 @@ static void cxl_root_port_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc        = DEVICE_CLASS(oc);
     PCIDeviceClass *k      = PCI_DEVICE_CLASS(oc);
+    ResettableClass *rc    = RESETTABLE_CLASS(oc);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_CLASS(oc);
 
     k->vendor_id = PCI_VENDOR_ID_INTEL;
@@ -209,7 +212,8 @@ static void cxl_root_port_class_init(ObjectClass *oc, void *data)
     k->config_write = cxl_rp_write_config;
 
     device_class_set_parent_realize(dc, cxl_rp_realize, &rpc->parent_realize);
-    device_class_set_parent_reset(dc, cxl_rp_reset, &rpc->parent_reset);
+    resettable_class_set_parent_phases(rc, NULL, cxl_rp_reset_hold, NULL,
+                                       &rpc->parent_phases);
 
     rpc->aer_offset = GEN_PCIE_ROOT_PORT_AER_OFFSET;
     rpc->acs_offset = GEN_PCIE_ROOT_PORT_ACS_OFFSET;
