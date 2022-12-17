@@ -23,7 +23,8 @@ config-cc.mak: Makefile
 	    $(call cc-option,-march=armv8.1-a+sve2,         CROSS_CC_HAS_SVE2); \
 	    $(call cc-option,-march=armv8.3-a,              CROSS_CC_HAS_ARMV8_3); \
 	    $(call cc-option,-mbranch-protection=standard,  CROSS_CC_HAS_ARMV8_BTI); \
-	    $(call cc-option,-march=armv8.5-a+memtag,       CROSS_CC_HAS_ARMV8_MTE)) 3> config-cc.mak
+	    $(call cc-option,-march=armv8.5-a+memtag,       CROSS_CC_HAS_ARMV8_MTE); \
+	    $(call cc-option,-march=armv9-a+sme,            CROSS_CC_HAS_ARMV9_SME)) 3> config-cc.mak
 -include config-cc.mak
 
 # Pauth Tests
@@ -53,7 +54,11 @@ endif
 ifneq ($(CROSS_CC_HAS_SVE),)
 # System Registers Tests
 AARCH64_TESTS += sysregs
+ifneq ($(CROSS_CC_HAS_ARMV9_SME),)
+sysregs: CFLAGS+=-march=armv9-a+sme -DHAS_ARMV9_SME
+else
 sysregs: CFLAGS+=-march=armv8.1-a+sve
+endif
 
 # SVE ioctl test
 AARCH64_TESTS += sve-ioctls
