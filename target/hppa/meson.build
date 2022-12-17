@@ -4,6 +4,7 @@ hppa_ss = ss.source_set()
 hppa_ss.add(gen)
 hppa_ss.add(files(
   'cpu.c',
+  'fpu_helper.c',
   'gdbstub.c',
   'helper.c',
   'int_helper.c',
