@@ -23,8 +23,8 @@
 #include "qemu/qemu-print.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
-#endif
 #include "hw/s390x/pv.h"
+#endif
 
 #define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
     {                                                                    \
@@ -236,6 +236,7 @@ bool s390_has_feat(S390Feat feat)
         return 0;
     }
 
+#ifndef CONFIG_USER_ONLY
     if (s390_is_pv()) {
         switch (feat) {
         case S390_FEAT_DIAG_318:
@@ -259,6 +260,7 @@ bool s390_has_feat(S390Feat feat)
             break;
         }
     }
+#endif
     return test_bit(feat, cpu->model->features);
 }
 
