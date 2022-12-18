@@ -388,6 +388,7 @@ static void decode_set_insn_attr_fields(Packet *pkt)
     uint16_t opcode;
 
     pkt->pkt_has_cof = false;
+    pkt->pkt_has_multi_cof = false;
     pkt->pkt_has_endloop = false;
     pkt->pkt_has_dczeroa = false;
 
@@ -412,13 +413,23 @@ static void decode_set_insn_attr_fields(Packet *pkt)
             }
         }
 
-        pkt->pkt_has_cof |= decode_opcode_can_jump(opcode);
+        if (decode_opcode_can_jump(opcode)) {
+            if (pkt->pkt_has_cof) {
+                pkt->pkt_has_multi_cof = true;
+            }
+            pkt->pkt_has_cof = true;
+        }
 
         pkt->insn[i].is_endloop = decode_opcode_ends_loop(opcode);
 
         pkt->pkt_has_endloop |= pkt->insn[i].is_endloop;
 
-        pkt->pkt_has_cof |= pkt->pkt_has_endloop;
+        if (pkt->pkt_has_endloop) {
+            if (pkt->pkt_has_cof) {
+                pkt->pkt_has_multi_cof = true;
+            }
+            pkt->pkt_has_cof = true;
+        }
     }
 }
 

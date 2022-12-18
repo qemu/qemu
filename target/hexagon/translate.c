@@ -31,7 +31,6 @@
 
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
-TCGv hex_next_PC;
 TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
@@ -117,18 +116,62 @@ static void gen_exec_counters(DisasContext *ctx)
                     hex_gpr[HEX_REG_QEMU_HVX_CNT], ctx->num_hvx_insns);
 }
 
+static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
+{
+    return translator_use_goto_tb(&ctx->base, dest);
+}
+
+static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
+{
+    if (use_goto_tb(ctx, dest)) {
+        tcg_gen_goto_tb(idx);
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        tcg_gen_exit_tb(ctx->base.tb, idx);
+    } else {
+        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        tcg_gen_lookup_and_goto_ptr();
+    }
+}
+
 static void gen_end_tb(DisasContext *ctx)
 {
+    Packet *pkt = ctx->pkt;
+
     gen_exec_counters(ctx);
-    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
-    tcg_gen_exit_tb(NULL, 0);
+
+    if (ctx->branch_cond != TCG_COND_NEVER) {
+        if (ctx->branch_cond != TCG_COND_ALWAYS) {
+            TCGLabel *skip = gen_new_label();
+            tcg_gen_brcondi_tl(ctx->branch_cond, hex_branch_taken, 0, skip);
+            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_set_label(skip);
+            gen_goto_tb(ctx, 1, ctx->next_PC);
+        } else {
+            gen_goto_tb(ctx, 0, ctx->branch_dest);
+        }
+    } else if (ctx->is_tight_loop &&
+               pkt->insn[pkt->num_insns - 1].opcode == J2_endloop0) {
+        /*
+         * When we're in a tight loop, we defer the endloop0 processing
+         * to take advantage of direct block chaining
+         */
+        TCGLabel *skip = gen_new_label();
+        tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
+        tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
+        gen_goto_tb(ctx, 0, ctx->base.tb->pc);
+        gen_set_label(skip);
+        gen_goto_tb(ctx, 1, ctx->next_PC);
+    } else {
+        tcg_gen_lookup_and_goto_ptr();
+    }
+
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception_end_tb(DisasContext *ctx, int excp)
 {
     gen_exec_counters(ctx);
-    tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], hex_next_PC);
+    tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->next_PC);
     gen_exception_raw(excp);
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -194,11 +237,6 @@ static bool check_for_attrib(Packet *pkt, int attrib)
     return false;
 }
 
-static bool need_pc(Packet *pkt)
-{
-    return check_for_attrib(pkt, A_IMPLICIT_READS_PC);
-}
-
 static bool need_slot_cancelled(Packet *pkt)
 {
     return check_for_attrib(pkt, A_CONDEXEC);
@@ -209,12 +247,32 @@ static bool need_pred_written(Packet *pkt)
     return check_for_attrib(pkt, A_WRITES_PRED_REG);
 }
 
-static void gen_start_packet(DisasContext *ctx, Packet *pkt)
+static bool need_next_PC(DisasContext *ctx)
 {
+    Packet *pkt = ctx->pkt;
+
+    /* Check for conditional control flow or HW loop end */
+    for (int i = 0; i < pkt->num_insns; i++) {
+        uint16_t opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CONDEXEC) && GET_ATTRIB(opcode, A_COF)) {
+            return true;
+        }
+        if (GET_ATTRIB(opcode, A_HWLOOP0_END) ||
+            GET_ATTRIB(opcode, A_HWLOOP1_END)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void gen_start_packet(DisasContext *ctx)
+{
+    Packet *pkt = ctx->pkt;
     target_ulong next_PC = ctx->base.pc_next + pkt->encod_pkt_size_in_bytes;
     int i;
 
     /* Clear out the disassembly context */
+    ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
@@ -240,15 +298,16 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
     }
 
     /* Initialize the runtime state for packet semantics */
-    if (need_pc(pkt)) {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], ctx->base.pc_next);
-    }
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
     if (pkt->pkt_has_cof) {
-        tcg_gen_movi_tl(hex_branch_taken, 0);
-        tcg_gen_movi_tl(hex_next_PC, next_PC);
+        if (pkt->pkt_has_multi_cof) {
+            tcg_gen_movi_tl(hex_branch_taken, 0);
+        }
+        if (need_next_PC(ctx)) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
+        }
     }
     if (need_pred_written(pkt)) {
         tcg_gen_movi_tl(hex_pred_written, 0);
@@ -260,8 +319,10 @@ static void gen_start_packet(DisasContext *ctx, Packet *pkt)
     }
 }
 
-bool is_gather_store_insn(Insn *insn, Packet *pkt)
+bool is_gather_store_insn(DisasContext *ctx)
 {
+    Packet *pkt = ctx->pkt;
+    Insn *insn = ctx->insn;
     if (GET_ATTRIB(insn->opcode, A_CVI_NEW) &&
         insn->new_value_producer_slot == 1) {
         /* Look for gather instruction */
@@ -280,16 +341,25 @@ bool is_gather_store_insn(Insn *insn, Packet *pkt)
  * However, there are some implicit writes marked as attributes
  * of the applicable instructions.
  */
-static void mark_implicit_reg_write(DisasContext *ctx, Insn *insn,
-                                    int attrib, int rnum)
+static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
 {
-    if (GET_ATTRIB(insn->opcode, attrib)) {
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
         /*
          * USR is used to set overflow and FP exceptions,
          * so treat it as conditional
          */
-        bool is_predicated = GET_ATTRIB(insn->opcode, A_CONDEXEC) ||
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
                              rnum == HEX_REG_USR;
+
+        /* LC0/LC1 is conditionally written by endloop instructions */
+        if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
+            (opcode == J2_endloop0 ||
+             opcode == J2_endloop1 ||
+             opcode == J2_endloop01)) {
+            is_predicated = true;
+        }
+
         if (is_predicated && !is_preloaded(ctx, rnum)) {
             tcg_gen_mov_tl(hex_new_value[rnum], hex_gpr[rnum]);
         }
@@ -298,39 +368,38 @@ static void mark_implicit_reg_write(DisasContext *ctx, Insn *insn,
     }
 }
 
-static void mark_implicit_pred_write(DisasContext *ctx, Insn *insn,
-                                     int attrib, int pnum)
+static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
 {
-    if (GET_ATTRIB(insn->opcode, attrib)) {
+    if (GET_ATTRIB(ctx->insn->opcode, attrib)) {
         ctx_log_pred_write(ctx, pnum);
     }
 }
 
-static void mark_implicit_reg_writes(DisasContext *ctx, Insn *insn)
+static void mark_implicit_reg_writes(DisasContext *ctx)
 {
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SP,  HEX_REG_SP);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, insn, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, insn, A_FPOP, HEX_REG_USR);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SP,  HEX_REG_SP);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LR,  HEX_REG_LR);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC0, HEX_REG_LC0);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
+    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
+    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
 }
 
-static void mark_implicit_pred_writes(DisasContext *ctx, Insn *insn)
+static void mark_implicit_pred_writes(DisasContext *ctx)
 {
-    mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P0, 0);
-    mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P1, 1);
-    mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P2, 2);
-    mark_implicit_pred_write(ctx, insn, A_IMPLICIT_WRITES_P3, 3);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P0, 0);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P1, 1);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P2, 2);
+    mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P3, 3);
 }
 
-static void mark_store_width(DisasContext *ctx, Insn *insn)
+static void mark_store_width(DisasContext *ctx)
 {
-    uint16_t opcode = insn->opcode;
-    uint32_t slot = insn->slot;
+    uint16_t opcode = ctx->insn->opcode;
+    uint32_t slot = ctx->insn->slot;
     uint8_t width = 0;
 
     if (GET_ATTRIB(opcode, A_SCALAR_STORE)) {
@@ -351,14 +420,13 @@ static void mark_store_width(DisasContext *ctx, Insn *insn)
     }
 }
 
-static void gen_insn(CPUHexagonState *env, DisasContext *ctx,
-                     Insn *insn, Packet *pkt)
+static void gen_insn(DisasContext *ctx)
 {
-    if (insn->generate) {
-        mark_implicit_reg_writes(ctx, insn);
-        insn->generate(env, ctx, insn, pkt);
-        mark_implicit_pred_writes(ctx, insn);
-        mark_store_width(ctx, insn);
+    if (ctx->insn->generate) {
+        mark_implicit_reg_writes(ctx);
+        ctx->insn->generate(ctx);
+        mark_implicit_pred_writes(ctx);
+        mark_store_width(ctx);
     } else {
         gen_exception_end_tb(ctx, HEX_EXCP_INVALID_OPCODE);
     }
@@ -375,10 +443,18 @@ static void gen_reg_writes(DisasContext *ctx)
         int reg_num = ctx->reg_log[i];
 
         tcg_gen_mov_tl(hex_gpr[reg_num], hex_new_value[reg_num]);
+
+        /*
+         * ctx->is_tight_loop is set when SA0 points to the beginning of the TB.
+         * If we write to SA0, we have to turn off tight loop handling.
+         */
+        if (reg_num == HEX_REG_SA0) {
+            ctx->is_tight_loop = false;
+        }
     }
 }
 
-static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
+static void gen_pred_writes(DisasContext *ctx)
 {
     int i;
 
@@ -393,7 +469,7 @@ static void gen_pred_writes(DisasContext *ctx, Packet *pkt)
      * instructions, we can use the non-conditional
      * write of the predicates.
      */
-    if (pkt->pkt_has_endloop) {
+    if (ctx->pkt->pkt_has_endloop) {
         TCGv zero = tcg_constant_tl(0);
         TCGv pred_written = tcg_temp_new();
         for (i = 0; i < ctx->preg_log_idx; i++) {
@@ -439,9 +515,9 @@ static bool slot_is_predicated(Packet *pkt, int slot_num)
     g_assert_not_reached();
 }
 
-void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
+void process_store(DisasContext *ctx, int slot_num)
 {
-    bool is_predicated = slot_is_predicated(pkt, slot_num);
+    bool is_predicated = slot_is_predicated(ctx->pkt, slot_num);
     TCGLabel *label_end = NULL;
 
     /*
@@ -517,27 +593,28 @@ void process_store(DisasContext *ctx, Packet *pkt, int slot_num)
     }
 }
 
-static void process_store_log(DisasContext *ctx, Packet *pkt)
+static void process_store_log(DisasContext *ctx)
 {
     /*
      *  When a packet has two stores, the hardware processes
      *  slot 1 and then slot 0.  This will be important when
      *  the memory accesses overlap.
      */
+    Packet *pkt = ctx->pkt;
     if (pkt->pkt_has_store_s1) {
         g_assert(!pkt->pkt_has_dczeroa);
-        process_store(ctx, pkt, 1);
+        process_store(ctx, 1);
     }
     if (pkt->pkt_has_store_s0) {
         g_assert(!pkt->pkt_has_dczeroa);
-        process_store(ctx, pkt, 0);
+        process_store(ctx, 0);
     }
 }
 
 /* Zero out a 32-bit cache line */
-static void process_dczeroa(DisasContext *ctx, Packet *pkt)
+static void process_dczeroa(DisasContext *ctx)
 {
-    if (pkt->pkt_has_dczeroa) {
+    if (ctx->pkt->pkt_has_dczeroa) {
         /* Store 32 bytes of zero starting at (addr & ~0x1f) */
         TCGv addr = tcg_temp_new();
         TCGv_i64 zero = tcg_constant_i64(0);
@@ -567,7 +644,7 @@ static bool pkt_has_hvx_store(Packet *pkt)
     return false;
 }
 
-static void gen_commit_hvx(DisasContext *ctx, Packet *pkt)
+static void gen_commit_hvx(DisasContext *ctx)
 {
     int i;
 
@@ -637,13 +714,14 @@ static void gen_commit_hvx(DisasContext *ctx, Packet *pkt)
         }
     }
 
-    if (pkt_has_hvx_store(pkt)) {
+    if (pkt_has_hvx_store(ctx->pkt)) {
         gen_helper_commit_hvx_stores(cpu_env);
     }
 }
 
-static void update_exec_counters(DisasContext *ctx, Packet *pkt)
+static void update_exec_counters(DisasContext *ctx)
 {
+    Packet *pkt = ctx->pkt;
     int num_insns = pkt->num_insns;
     int num_real_insns = 0;
     int num_hvx_insns = 0;
@@ -664,8 +742,7 @@ static void update_exec_counters(DisasContext *ctx, Packet *pkt)
     ctx->num_hvx_insns += num_hvx_insns;
 }
 
-static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
-                              Packet *pkt)
+static void gen_commit_packet(DisasContext *ctx)
 {
     /*
      * If there is more than one store in a packet, make sure they are all OK
@@ -684,6 +761,7 @@ static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
      * store.  Therefore, we call process_store_log before anything else
      * involved in committing the packet.
      */
+    Packet *pkt = ctx->pkt;
     bool has_store_s0 = pkt->pkt_has_store_s0;
     bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
     bool has_hvx_store = pkt_has_hvx_store(pkt);
@@ -693,7 +771,7 @@ static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
          * a store in slot 1 or an HVX store.
          */
         g_assert(!has_store_s1 && !has_hvx_store);
-        process_dczeroa(ctx, pkt);
+        process_dczeroa(ctx);
     } else if (has_hvx_store) {
         TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
 
@@ -724,14 +802,14 @@ static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
         gen_helper_probe_pkt_scalar_store_s0(cpu_env, mem_idx);
     }
 
-    process_store_log(ctx, pkt);
+    process_store_log(ctx);
 
     gen_reg_writes(ctx);
-    gen_pred_writes(ctx, pkt);
+    gen_pred_writes(ctx);
     if (pkt->pkt_has_hvx) {
-        gen_commit_hvx(ctx, pkt);
+        gen_commit_hvx(ctx);
     }
-    update_exec_counters(ctx, pkt);
+    update_exec_counters(ctx);
     if (HEX_DEBUG) {
         TCGv has_st0 =
             tcg_constant_tl(pkt->pkt_has_store_s0 && !pkt->pkt_has_dczeroa);
@@ -744,7 +822,8 @@ static void gen_commit_packet(CPUHexagonState *env, DisasContext *ctx,
 
     if (pkt->vhist_insn != NULL) {
         ctx->pre_commit = false;
-        pkt->vhist_insn->generate(env, ctx, pkt->vhist_insn, pkt);
+        ctx->insn = pkt->vhist_insn;
+        pkt->vhist_insn->generate(ctx);
     }
 
     if (pkt->pkt_has_cof) {
@@ -766,12 +845,15 @@ static void decode_and_translate_packet(CPUHexagonState *env, DisasContext *ctx)
     }
 
     if (decode_packet(nwords, words, &pkt, false) > 0) {
+        pkt.pc = ctx->base.pc_next;
         HEX_DEBUG_PRINT_PKT(&pkt);
-        gen_start_packet(ctx, &pkt);
+        ctx->pkt = &pkt;
+        gen_start_packet(ctx);
         for (i = 0; i < pkt.num_insns; i++) {
-            gen_insn(env, ctx, &pkt.insn[i], &pkt);
+            ctx->insn = &pkt.insn[i];
+            gen_insn(ctx);
         }
-        gen_commit_packet(env, ctx, &pkt);
+        gen_commit_packet(ctx);
         ctx->base.pc_next += pkt.encod_pkt_size_in_bytes;
     } else {
         gen_exception_end_tb(ctx, HEX_EXCP_INVALID_PACKET);
@@ -782,11 +864,14 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint32_t hex_flags = dcbase->tb->flags;
 
     ctx->mem_idx = MMU_USER_IDX;
     ctx->num_packets = 0;
     ctx->num_insns = 0;
     ctx->num_hvx_insns = 0;
+    ctx->branch_cond = TCG_COND_NEVER;
+    ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)
@@ -935,8 +1020,6 @@ void hexagon_translate_init(void)
     }
     hex_pred_written = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, pred_written), "pred_written");
-    hex_next_PC = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, next_PC), "next_PC");
     hex_this_PC = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, this_PC), "this_PC");
     hex_slot_cancelled = tcg_global_mem_new(cpu_env,

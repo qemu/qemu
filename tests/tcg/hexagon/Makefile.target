@@ -24,7 +24,7 @@ CFLAGS += -fno-unroll-loops
 HEX_SRC=$(SRC_PATH)/tests/tcg/hexagon
 VPATH += $(HEX_SRC)
 
-first: $(HEX_SRC)/first.S
+%: $(HEX_SRC)/%.S $(HEX_SRC)/crt.S
 	$(CC) -static -mv67 -nostdlib $^ -o $@
 
 HEX_TESTS = first
@@ -43,6 +43,32 @@ HEX_TESTS += load_align
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 HEX_TESTS += overflow
+
+HEX_TESTS += test_abs
+HEX_TESTS += test_bitcnt
+HEX_TESTS += test_bitsplit
+HEX_TESTS += test_call
+HEX_TESTS += test_clobber
+HEX_TESTS += test_cmp
+HEX_TESTS += test_dotnew
+HEX_TESTS += test_ext
+HEX_TESTS += test_fibonacci
+HEX_TESTS += test_hl
+HEX_TESTS += test_hwloops
+HEX_TESTS += test_jmp
+HEX_TESTS += test_lsr
+HEX_TESTS += test_mpyi
+HEX_TESTS += test_packet
+HEX_TESTS += test_reorder
+HEX_TESTS += test_round
+HEX_TESTS += test_vavgw
+HEX_TESTS += test_vcmpb
+HEX_TESTS += test_vcmpw
+HEX_TESTS += test_vlsrw
+HEX_TESTS += test_vmaxh
+HEX_TESTS += test_vminh
+HEX_TESTS += test_vpmpyh
+HEX_TESTS += test_vspliceb
 
 TESTS += $(HEX_TESTS)
 

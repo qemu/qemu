@@ -28,6 +28,7 @@ macros = {}           # macro -> macro information...
 attribinfo = {}       # Register information and misc
 tags = []             # list of all tags
 overrides = {}        # tags with helper overrides
+idef_parser_enabled = {} # tags enabled for idef-parser
 
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
@@ -66,6 +67,19 @@ def add_qemu_macro_attrib(name, attrib):
     macros[name].attribs.add(attrib)
 
 immextre = re.compile(r'f(MUST_)?IMMEXT[(]([UuSsRr])')
+
+def is_cond_jump(tag):
+    if tag == 'J2_rte':
+        return False
+    if ('A_HWLOOP0_END' in attribdict[tag] or
+        'A_HWLOOP1_END' in attribdict[tag]):
+        return False
+    return \
+        re.compile(r"(if.*fBRANCH)|(if.*fJUMPR)").search(semdict[tag]) != None
+
+def is_cond_call(tag):
+    return re.compile(r"(if.*fCALL)").search(semdict[tag]) != None
+
 def calculate_attribs():
     add_qemu_macro_attrib('fREAD_PC', 'A_IMPLICIT_READS_PC')
     add_qemu_macro_attrib('fTRAP', 'A_IMPLICIT_READS_PC')
@@ -96,6 +110,11 @@ def calculate_attribs():
         for regtype, regid, toss, numregs in regs:
             if regtype == "P" and is_written(regid):
                 attribdict[tag].add('A_WRITES_PRED_REG')
+    # Mark conditional jumps and calls
+    #     Not all instructions are properly marked with A_CONDEXEC
+    for tag in tags:
+        if is_cond_jump(tag) or is_cond_call(tag):
+            attribdict[tag].add('A_CONDEXEC')
 
 def SEMANTICS(tag, beh, sem):
     #print tag,beh,sem
@@ -194,7 +213,8 @@ def is_new_val(regtype, regid, tag):
     return regtype+regid+'N' in semdict[tag]
 
 def need_slot(tag):
-    if ('A_CONDEXEC' in attribdict[tag] or
+    if (('A_CONDEXEC' in attribdict[tag] and
+         'A_JUMP' not in attribdict[tag]) or
         'A_STORE' in attribdict[tag] or
         'A_LOAD' in attribdict[tag]):
         return 1
@@ -207,6 +227,15 @@ def need_part1(tag):
 def need_ea(tag):
     return re.compile(r"\bEA\b").search(semdict[tag])
 
+def need_PC(tag):
+    return 'A_IMPLICIT_READS_PC' in attribdict[tag]
+
+def helper_needs_next_PC(tag):
+    return 'A_CALL' in attribdict[tag]
+
+def need_pkt_has_multi_cof(tag):
+    return 'A_COF' in attribdict[tag]
+
 def skip_qemu_helper(tag):
     return tag in overrides.keys()
 
@@ -216,6 +245,9 @@ def is_tmp_result(tag):
 
 def is_new_result(tag):
     return ('A_CVI_NEW' in attribdict[tag])
+
+def is_idef_parser_enabled(tag):
+    return tag in idef_parser_enabled
 
 def imm_name(immlett):
     return "%siV" % immlett
@@ -248,3 +280,9 @@ def read_overrides_file(name):
             continue
         tag = overridere.findall(line)[0]
         overrides[tag] = True
+
+def read_idef_parser_enabled_file(name):
+    global idef_parser_enabled
+    with open(name, "r") as idef_parser_enabled_file:
+        lines = idef_parser_enabled_file.read().strip().split("\n")
+        idef_parser_enabled = set(lines)

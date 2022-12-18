@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -82,15 +82,21 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         ## Figure out how many arguments the helper will take
         if (numscalarresults == 0):
             def_helper_size = len(regs)+len(imms)+numscalarreadwrite+1
+            if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
+            if hex_common.need_PC(tag): def_helper_size += 1
+            if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
             ## The return type is void
             f.write(', void' )
         else:
             def_helper_size = len(regs)+len(imms)+numscalarreadwrite
+            if hex_common.need_pkt_has_multi_cof(tag): def_helper_size += 1
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
+            if hex_common.need_PC(tag): def_helper_size += 1
+            if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
 
         ## Generate the qemu DEF_HELPER type for each result
@@ -126,7 +132,11 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         for immlett,bits,immshift in imms:
             f.write(", s32")
 
-        ## Add the arguments for the instruction slot and part1 (if needed)
+        ## Add the arguments for the instruction pkt_has_multi_cof, slot and
+        ## part1 (if needed)
+        if hex_common.need_pkt_has_multi_cof(tag): f.write(', i32')
+        if hex_common.need_PC(tag): f.write(', i32')
+        if hex_common.helper_needs_next_PC(tag): f.write(', i32')
         if hex_common.need_slot(tag): f.write(', i32' )
         if hex_common.need_part1(tag): f.write(' , i32' )
         f.write(')\n')
@@ -136,11 +146,24 @@ def main():
     hex_common.read_attribs_file(sys.argv[2])
     hex_common.read_overrides_file(sys.argv[3])
     hex_common.read_overrides_file(sys.argv[4])
+    ## Whether or not idef-parser is enabled is
+    ## determined by the number of arguments to
+    ## this script:
+    ##
+    ##   5 args. -> not enabled,
+    ##   6 args. -> idef-parser enabled.
+    ##
+    ## The 6:th arg. then holds a list of the successfully
+    ## parsed instructions.
+    is_idef_parser_enabled = len(sys.argv) > 6
+    if is_idef_parser_enabled:
+        hex_common.read_idef_parser_enabled_file(sys.argv[5])
     hex_common.calculate_attribs()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[5], 'w') as f:
+    output_file = sys.argv[-1]
+    with open(output_file, 'w') as f:
         for tag in hex_common.tags:
             ## Skip the priv instructions
             if ( "A_PRIV" in hex_common.attribdict[tag] ) :
@@ -157,6 +180,8 @@ def main():
                 continue
 
             if ( hex_common.skip_qemu_helper(tag) ):
+                continue
+            if ( hex_common.is_idef_parser_enabled(tag) ):
                 continue
 
             gen_helper_prototype(f, tag, tagregs, tagimms)

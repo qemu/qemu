@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,10 +23,14 @@
 #include "cpu.h"
 #include "exec/translator.h"
 #include "tcg/tcg-op.h"
+#include "insn.h"
 #include "internal.h"
 
 typedef struct DisasContext {
     DisasContextBase base;
+    Packet *pkt;
+    Insn *insn;
+    uint32_t next_PC;
     uint32_t mem_idx;
     uint32_t num_packets;
     uint32_t num_insns;
@@ -53,6 +57,9 @@ typedef struct DisasContext {
     bool qreg_is_predicated[NUM_QREGS];
     int qreg_log_idx;
     bool pre_commit;
+    TCGCond branch_cond;
+    target_ulong branch_dest;
+    bool is_tight_loop;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
@@ -81,6 +88,12 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
 static inline bool is_preloaded(DisasContext *ctx, int num)
 {
     return test_bit(num, ctx->regs_written);
+}
+
+static inline bool is_vreg_preloaded(DisasContext *ctx, int num)
+{
+    return test_bit(num, ctx->vregs_updated) ||
+           test_bit(num, ctx->vregs_updated_tmp);
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
@@ -125,7 +138,6 @@ static inline void ctx_log_qreg_write(DisasContext *ctx,
 
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
-extern TCGv hex_next_PC;
 extern TCGv hex_this_PC;
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_branch_taken;
@@ -147,6 +159,6 @@ extern TCGv hex_vstore_addr[VSTORES_MAX];
 extern TCGv hex_vstore_size[VSTORES_MAX];
 extern TCGv hex_vstore_pending[VSTORES_MAX];
 
-bool is_gather_store_insn(Insn *insn, Packet *pkt);
-void process_store(DisasContext *ctx, Packet *pkt, int slot_num);
+bool is_gather_store_insn(DisasContext *ctx);
+void process_store(DisasContext *ctx, int slot_num);
 #endif

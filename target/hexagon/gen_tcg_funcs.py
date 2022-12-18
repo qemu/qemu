@@ -173,6 +173,18 @@ def genptr_decl(f, tag, regtype, regid, regno):
                 f.write("        ctx_future_vreg_off(ctx, %s%sN," % \
                     (regtype, regid))
                 f.write(" 1, true);\n");
+            if 'A_CONDEXEC' in hex_common.attribdict[tag]:
+                f.write("    if (!is_vreg_preloaded(ctx, %s)) {\n" % (regN))
+                f.write("        intptr_t src_off =")
+                f.write(" offsetof(CPUHexagonState, VRegs[%s%sN]);\n"% \
+                                     (regtype, regid))
+                f.write("        tcg_gen_gvec_mov(MO_64, %s%sV_off,\n" % \
+                                     (regtype, regid))
+                f.write("                         src_off,\n")
+                f.write("                         sizeof(MMVector),\n")
+                f.write("                         sizeof(MMVector));\n")
+                f.write("    }\n")
+
             if (not hex_common.skip_qemu_helper(tag)):
                 f.write("    TCGv_ptr %s%sV = tcg_temp_new_ptr();\n" % \
                     (regtype, regid))
@@ -561,11 +573,7 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
 ## Generate the TCG code to call the helper
 ##     For A2_add: Rd32=add(Rs32,Rt32), { RdV=RsV+RtV;}
 ##     We produce:
-##    static void generate_A2_add()
-##                    CPUHexagonState *env
-##                    DisasContext *ctx,
-##                    Insn *insn,
-##                    Packet *pkt)
+##    static void generate_A2_add(DisasContext *ctx)
 ##       {
 ##           TCGv RdV = tcg_temp_local_new();
 ##           const int RdN = insn->regno[0];
@@ -584,12 +592,11 @@ def genptr_dst_write_opn(f,regtype, regid, tag):
 ##       <GEN>  is gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
 ##
 def gen_tcg_func(f, tag, regs, imms):
-    f.write("static void generate_%s(\n" %tag)
-    f.write("                CPUHexagonState *env,\n")
-    f.write("                DisasContext *ctx,\n")
-    f.write("                Insn *insn,\n")
-    f.write("                Packet *pkt)\n")
+    f.write("static void generate_%s(DisasContext *ctx)\n" %tag)
     f.write('{\n')
+
+    f.write("    Insn *insn __attribute__((unused)) = ctx->insn;\n")
+
     if hex_common.need_ea(tag): gen_decl_ea_tcg(f, tag)
     i=0
     ## Declare all the operands (regs and immediates)
@@ -609,16 +616,45 @@ def gen_tcg_func(f, tag, regs, imms):
         if (hex_common.is_read(regid)):
             genptr_src_read_opn(f,regtype,regid,tag)
 
-    if ( hex_common.skip_qemu_helper(tag) ):
+    if hex_common.is_idef_parser_enabled(tag):
+        declared = []
+        ## Handle registers
+        for regtype,regid,toss,numregs in regs:
+            if (hex_common.is_pair(regid)
+                or (hex_common.is_single(regid)
+                    and hex_common.is_old_val(regtype, regid, tag))):
+                declared.append("%s%sV" % (regtype, regid))
+                if regtype == "M":
+                    declared.append("%s%sN" % (regtype, regid))
+            elif hex_common.is_new_val(regtype, regid, tag):
+                declared.append("%s%sN" % (regtype,regid))
+            else:
+                print("Bad register parse: ",regtype,regid,toss,numregs)
+
+        ## Handle immediates
+        for immlett,bits,immshift in imms:
+            declared.append(hex_common.imm_name(immlett))
+
+        arguments = ", ".join(["ctx", "ctx->insn", "ctx->pkt"] + declared)
+        f.write("    emit_%s(%s);\n" % (tag, arguments))
+
+    elif ( hex_common.skip_qemu_helper(tag) ):
         f.write("    fGEN_TCG_%s(%s);\n" % (tag, hex_common.semdict[tag]))
     else:
         ## Generate the call to the helper
         for immlett,bits,immshift in imms:
             gen_helper_decl_imm(f,immlett)
+        if hex_common.need_pkt_has_multi_cof(tag):
+            f.write("    TCGv pkt_has_multi_cof = ")
+            f.write("tcg_constant_tl(ctx->pkt->pkt_has_multi_cof);\n")
         if hex_common.need_part1(tag):
             f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
             f.write("    TCGv slot = tcg_constant_tl(insn->slot);\n")
+        if hex_common.need_PC(tag):
+            f.write("    TCGv PC = tcg_constant_tl(ctx->pkt->pc);\n")
+        if hex_common.helper_needs_next_PC(tag):
+            f.write("    TCGv next_PC = tcg_constant_tl(ctx->next_PC);\n")
         f.write("    gen_helper_%s(" % (tag))
         i=0
         ## If there is a scalar result, it is the return type
@@ -647,6 +683,10 @@ def gen_tcg_func(f, tag, regs, imms):
         for immlett,bits,immshift in imms:
             gen_helper_call_imm(f,immlett)
 
+        if hex_common.need_pkt_has_multi_cof(tag):
+            f.write(", pkt_has_multi_cof")
+        if hex_common.need_PC(tag): f.write(", PC")
+        if hex_common.helper_needs_next_PC(tag): f.write(", next_PC")
         if hex_common.need_slot(tag): f.write(", slot")
         if hex_common.need_part1(tag): f.write(", part1" )
         f.write(");\n")
@@ -676,12 +716,27 @@ def main():
     hex_common.read_overrides_file(sys.argv[3])
     hex_common.read_overrides_file(sys.argv[4])
     hex_common.calculate_attribs()
+    ## Whether or not idef-parser is enabled is
+    ## determined by the number of arguments to
+    ## this script:
+    ##
+    ##   5 args. -> not enabled,
+    ##   6 args. -> idef-parser enabled.
+    ##
+    ## The 6:th arg. then holds a list of the successfully
+    ## parsed instructions.
+    is_idef_parser_enabled = len(sys.argv) > 6
+    if is_idef_parser_enabled:
+        hex_common.read_idef_parser_enabled_file(sys.argv[5])
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[5], 'w') as f:
+    output_file = sys.argv[-1]
+    with open(output_file, 'w') as f:
         f.write("#ifndef HEXAGON_TCG_FUNCS_H\n")
         f.write("#define HEXAGON_TCG_FUNCS_H\n\n")
+        if is_idef_parser_enabled:
+            f.write("#include \"idef-generated-emitter.h.inc\"\n\n")
 
         for tag in hex_common.tags:
             ## Skip the priv instructions

@@ -29,6 +29,7 @@
 #include "fma_emu.h"
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
+#include "op_helper.h"
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -50,8 +51,8 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
-static void log_reg_write(CPUHexagonState *env, int rnum,
-                          target_ulong val, uint32_t slot)
+void log_reg_write(CPUHexagonState *env, int rnum,
+                   target_ulong val, uint32_t slot)
 {
     HEX_DEBUG_LOG("log_reg_write[%d] = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")",
                   rnum, val, val);
@@ -82,8 +83,8 @@ static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
     }
 }
 
-static void log_store32(CPUHexagonState *env, target_ulong addr,
-                        target_ulong val, int width, int slot)
+void log_store32(CPUHexagonState *env, target_ulong addr,
+                 target_ulong val, int width, int slot)
 {
     HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
                   ", %" PRId32 " [0x08%" PRIx32 "])\n",
@@ -93,8 +94,8 @@ static void log_store32(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data32 = val;
 }
 
-static void log_store64(CPUHexagonState *env, target_ulong addr,
-                        int64_t val, int width, int slot)
+void log_store64(CPUHexagonState *env, target_ulong addr,
+                 int64_t val, int width, int slot)
 {
     HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
                   ", %" PRId64 " [0x016%" PRIx64 "])\n",
@@ -104,21 +105,27 @@ static void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].data64 = val;
 }
 
-static void write_new_pc(CPUHexagonState *env, target_ulong addr)
+void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
+                         target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
 
-    /*
-     * If more than one branch is taken in a packet, only the first one
-     * is actually done.
-     */
-    if (env->branch_taken) {
-        HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                      "ignoring the second one\n");
+    if (pkt_has_multi_cof) {
+        /*
+         * If more than one branch is taken in a packet, only the first one
+         * is actually done.
+         */
+        if (env->branch_taken) {
+            HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
+                          "ignoring the second one\n");
+        } else {
+            fCHECK_PCALIGN(addr);
+            env->gpr[HEX_REG_PC] = addr;
+            env->branch_taken = 1;
+        }
     } else {
         fCHECK_PCALIGN(addr);
-        env->branch_taken = 1;
-        env->next_PC = addr;
+        env->gpr[HEX_REG_PC] = addr;
     }
 }
 
@@ -293,7 +300,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
         }
     }
 
-    HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->next_PC);
+    HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->gpr[HEX_REG_PC]);
     HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
                   ", insn = " TARGET_FMT_lx
                   ", hvx = " TARGET_FMT_lx "\n",
@@ -535,32 +542,28 @@ static void check_noshuf(CPUHexagonState *env, uint32_t slot,
     }
 }
 
-static uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
-                         target_ulong vaddr)
+uint8_t mem_load1(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
     check_noshuf(env, slot, vaddr, 1);
     return cpu_ldub_data_ra(env, vaddr, ra);
 }
 
-static uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
+uint16_t mem_load2(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
     check_noshuf(env, slot, vaddr, 2);
     return cpu_lduw_data_ra(env, vaddr, ra);
 }
 
-static uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
+uint32_t mem_load4(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
     check_noshuf(env, slot, vaddr, 4);
     return cpu_ldl_data_ra(env, vaddr, ra);
 }
 
-static uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
+uint64_t mem_load8(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
     check_noshuf(env, slot, vaddr, 8);
@@ -1465,7 +1468,7 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
     }
 }
 
-static void cancel_slot(CPUHexagonState *env, uint32_t slot)
+void cancel_slot(CPUHexagonState *env, uint32_t slot)
 {
     HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
     env->slot_cancelled |= (1 << slot);
