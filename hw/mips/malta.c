@@ -57,6 +57,7 @@
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
 #include "hw/qdev-clock.h"
+#include "target/mips/internal.h"
 #include "trace.h"
 
 #define ENVP_PADDR          0x2000
@@ -875,7 +876,6 @@ static uint64_t load_kernel(void)
     uint32_t *prom_buf;
     long prom_size;
     int prom_index = 0;
-    uint64_t (*xlate_to_kseg0) (void *opaque, uint64_t addr);
     uint8_t rng_seed[32];
     char rng_seed_hex[sizeof(rng_seed) * 2 + 1];
     size_t rng_seed_prom_offset;
@@ -899,19 +899,10 @@ static uint64_t load_kernel(void)
     }
 
     /* Check where the kernel has been linked */
-    if (kernel_entry & 0x80000000ll) {
-        if (kvm_enabled()) {
-            error_report("KVM guest kernels must be linked in useg. "
-                         "Did you forget to enable CONFIG_KVM_GUEST?");
-            exit(1);
-        }
-
-        xlate_to_kseg0 = cpu_mips_phys_to_kseg0;
-    } else {
-        /* if kernel entry is in useg it is probably a KVM T&E kernel */
-        mips_um_ksegs_enable();
-
-        xlate_to_kseg0 = cpu_mips_kvm_um_phys_to_kseg0;
+    if (kernel_entry <= USEG_LIMIT) {
+        error_report("Trap-and-Emul kernels (Linux CONFIG_KVM_GUEST)"
+                     " are not supported");
+        exit(1);
     }
 
     /* load initrd */
@@ -952,7 +943,7 @@ static uint64_t load_kernel(void)
     if (initrd_size > 0) {
         prom_set(prom_buf, prom_index++,
                  "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
-                 xlate_to_kseg0(NULL, initrd_offset),
+                 cpu_mips_phys_to_kseg0(NULL, initrd_offset),
                  initrd_size, loaderparams.kernel_cmdline);
     } else {
         prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_cmdline);
@@ -1019,11 +1010,6 @@ static void main_cpu_reset(void *opaque)
     }
 
     malta_mips_config(cpu);
-
-    if (kvm_enabled()) {
-        /* Start running from the bootloader we wrote to end of RAM */
-        env->active_tc.PC = 0x40000000 + loaderparams.ram_low_size;
-    }
 }
 
 static void create_cpu_without_cps(MachineState *ms, MaltaState *s,
@@ -1157,13 +1143,7 @@ void mips_malta_init(MachineState *machine)
     fl_idx++;
     if (kernel_filename) {
         ram_low_size = MIN(ram_size, 256 * MiB);
-        /* For KVM we reserve 1MB of RAM for running bootloader */
-        if (kvm_enabled()) {
-            ram_low_size -= 0x100000;
-            bootloader_run_addr = cpu_mips_kvm_um_phys_to_kseg0(NULL, ram_low_size);
-        } else {
-            bootloader_run_addr = cpu_mips_phys_to_kseg0(NULL, RESET_ADDRESS);
-        }
+        bootloader_run_addr = cpu_mips_phys_to_kseg0(NULL, RESET_ADDRESS);
 
         /* Write a small bootloader to the flash location. */
         loaderparams.ram_size = ram_size;
@@ -1180,20 +1160,8 @@ void mips_malta_init(MachineState *machine)
             write_bootloader_nanomips(memory_region_get_ram_ptr(bios),
                                       bootloader_run_addr, kernel_entry);
         }
-        if (kvm_enabled()) {
-            /* Write the bootloader code @ the end of RAM, 1MB reserved */
-            write_bootloader(memory_region_get_ram_ptr(ram_low_preio) +
-                                    ram_low_size,
-                             bootloader_run_addr, kernel_entry);
-        }
     } else {
         target_long bios_size = FLASH_SIZE;
-        /* The flash region isn't executable from a KVM guest */
-        if (kvm_enabled()) {
-            error_report("KVM enabled but no -kernel argument was specified. "
-                         "Booting from flash is not supported with KVM.");
-            exit(1);
-        }
         /* Load firmware from flash. */
         if (!dinfo) {
             /* Load a BIOS image. */
