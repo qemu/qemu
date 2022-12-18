@@ -258,10 +258,13 @@ static TCGOp *rm_ops(TCGOp *op)
 
 static TCGOp *copy_op_nocheck(TCGOp **begin_op, TCGOp *op)
 {
+    unsigned nargs = ARRAY_SIZE(op->args);
+
     *begin_op = QTAILQ_NEXT(*begin_op, link);
     tcg_debug_assert(*begin_op);
-    op = tcg_op_insert_after(tcg_ctx, op, (*begin_op)->opc);
+    op = tcg_op_insert_after(tcg_ctx, op, (*begin_op)->opc, nargs);
     memcpy(op->args, (*begin_op)->args, sizeof(op->args));
+
     return op;
 }
 
