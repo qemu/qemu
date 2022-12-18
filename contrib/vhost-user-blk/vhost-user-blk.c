@@ -532,9 +532,9 @@ vub_get_blocksize(int fd)
 static void
 vub_initialize_config(int fd, struct virtio_blk_config *config)
 {
-    off64_t capacity;
+    off_t capacity;
 
-    capacity = lseek64(fd, 0, SEEK_END);
+    capacity = lseek(fd, 0, SEEK_END);
     config->capacity = capacity >> 9;
     config->blk_size = vub_get_blocksize(fd);
     config->size_max = 65536;
