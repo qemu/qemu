@@ -18,6 +18,10 @@
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
 
+#ifdef CONFIG_PTHREAD_SET_NAME_NP
+#include <pthread_np.h>
+#endif
+
 static bool name_threads;
 
 void qemu_thread_naming(bool enable)
@@ -25,7 +29,8 @@ void qemu_thread_naming(bool enable)
     name_threads = enable;
 
 #if !defined CONFIG_PTHREAD_SETNAME_NP_W_TID && \
-    !defined CONFIG_PTHREAD_SETNAME_NP_WO_TID
+    !defined CONFIG_PTHREAD_SETNAME_NP_WO_TID && \
+    !defined CONFIG_PTHREAD_SET_NAME_NP
     /* This is a debugging option, not fatal */
     if (enable) {
         fprintf(stderr, "qemu: thread naming not supported on this host\n");
@@ -480,6 +485,8 @@ static void *qemu_thread_start(void *args)
         pthread_setname_np(pthread_self(), qemu_thread_args->name);
 # elif defined(CONFIG_PTHREAD_SETNAME_NP_WO_TID)
         pthread_setname_np(qemu_thread_args->name);
+# elif defined(CONFIG_PTHREAD_SET_NAME_NP)
+        pthread_set_name_np(pthread_self(), qemu_thread_args->name);
 # endif
     }
     QEMU_TSAN_ANNOTATE_THREAD_NAME(qemu_thread_args->name);
