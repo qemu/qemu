@@ -138,6 +138,7 @@ void qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
 }
 
 
+G_GNUC_PRINTF(2, 3)
 static QObject *do_qmp_dispatch(bool allow_oob, const char *template, ...)
 {
     va_list ap;
@@ -160,6 +161,7 @@ static QObject *do_qmp_dispatch(bool allow_oob, const char *template, ...)
     return ret;
 }
 
+G_GNUC_PRINTF(3, 4)
 static void do_qmp_dispatch_error(bool allow_oob, ErrorClass cls,
                                   const char *template, ...)
 {
@@ -269,7 +271,7 @@ static void test_dispatch_cmd_io(void)
 
 static void test_dispatch_cmd_deprecated(void)
 {
-    const char *cmd = "{ 'execute': 'test-command-features1' }";
+    #define cmd "{ 'execute': 'test-command-features1' }"
     QDict *ret;
 
     memset(&compat_policy, 0, sizeof(compat_policy));
@@ -287,12 +289,13 @@ static void test_dispatch_cmd_deprecated(void)
 
     compat_policy.deprecated_input = COMPAT_POLICY_INPUT_REJECT;
     do_qmp_dispatch_error(false, ERROR_CLASS_COMMAND_NOT_FOUND, cmd);
+    #undef cmd
 }
 
 static void test_dispatch_cmd_arg_deprecated(void)
 {
-    const char *cmd = "{ 'execute': 'test-features0',"
-        " 'arguments': { 'fs1': { 'foo': 42 } } }";
+    #define cmd "{ 'execute': 'test-features0'," \
+        " 'arguments': { 'fs1': { 'foo': 42 } } }"
     QDict *ret;
 
     memset(&compat_policy, 0, sizeof(compat_policy));
@@ -310,11 +313,12 @@ static void test_dispatch_cmd_arg_deprecated(void)
 
     compat_policy.deprecated_input = COMPAT_POLICY_INPUT_REJECT;
     do_qmp_dispatch_error(false, ERROR_CLASS_GENERIC_ERROR, cmd);
+    #undef cmd
 }
 
 static void test_dispatch_cmd_ret_deprecated(void)
 {
-    const char *cmd = "{ 'execute': 'test-features0' }";
+    #define cmd "{ 'execute': 'test-features0' }"
     QDict *ret;
 
     memset(&compat_policy, 0, sizeof(compat_policy));
@@ -334,6 +338,7 @@ static void test_dispatch_cmd_ret_deprecated(void)
     ret = qobject_to(QDict, do_qmp_dispatch(false, cmd));
     assert(ret && qdict_size(ret) == 0);
     qobject_unref(ret);
+    #undef cmd
 }
 
 /* test generated dealloc functions for generated types */
