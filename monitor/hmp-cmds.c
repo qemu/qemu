@@ -37,7 +37,6 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-net.h"
-#include "qapi/qapi-commands-pci.h"
 #include "qapi/qapi-commands-rocker.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-stats.h"
@@ -698,89 +697,6 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
     qapi_free_BalloonInfo(info);
 }
 
-static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
-{
-    PciMemoryRegionList *region;
-
-    monitor_printf(mon, "  Bus %2" PRId64 ", ", dev->bus);
-    monitor_printf(mon, "device %3" PRId64 ", function %" PRId64 ":\n",
-                   dev->slot, dev->function);
-    monitor_printf(mon, "    ");
-
-    if (dev->class_info->desc) {
-        monitor_puts(mon, dev->class_info->desc);
-    } else {
-        monitor_printf(mon, "Class %04" PRId64, dev->class_info->q_class);
-    }
-
-    monitor_printf(mon, ": PCI device %04" PRIx64 ":%04" PRIx64 "\n",
-                   dev->id->vendor, dev->id->device);
-    if (dev->id->has_subsystem_vendor && dev->id->has_subsystem) {
-        monitor_printf(mon, "      PCI subsystem %04" PRIx64 ":%04" PRIx64 "\n",
-                       dev->id->subsystem_vendor, dev->id->subsystem);
-    }
-
-    if (dev->has_irq) {
-        monitor_printf(mon, "      IRQ %" PRId64 ", pin %c\n",
-                       dev->irq, (char)('A' + dev->irq_pin - 1));
-    }
-
-    if (dev->pci_bridge) {
-        monitor_printf(mon, "      BUS %" PRId64 ".\n",
-                       dev->pci_bridge->bus->number);
-        monitor_printf(mon, "      secondary bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus->secondary);
-        monitor_printf(mon, "      subordinate bus %" PRId64 ".\n",
-                       dev->pci_bridge->bus->subordinate);
-
-        monitor_printf(mon, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
-                       dev->pci_bridge->bus->io_range->base,
-                       dev->pci_bridge->bus->io_range->limit);
-
-        monitor_printf(mon,
-                       "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus->memory_range->base,
-                       dev->pci_bridge->bus->memory_range->limit);
-
-        monitor_printf(mon, "      prefetchable memory range "
-                       "[0x%08"PRIx64", 0x%08"PRIx64"]\n",
-                       dev->pci_bridge->bus->prefetchable_range->base,
-                       dev->pci_bridge->bus->prefetchable_range->limit);
-    }
-
-    for (region = dev->regions; region; region = region->next) {
-        uint64_t addr, size;
-
-        addr = region->value->address;
-        size = region->value->size;
-
-        monitor_printf(mon, "      BAR%" PRId64 ": ", region->value->bar);
-
-        if (!strcmp(region->value->type, "io")) {
-            monitor_printf(mon, "I/O at 0x%04" PRIx64
-                                " [0x%04" PRIx64 "].\n",
-                           addr, addr + size - 1);
-        } else {
-            monitor_printf(mon, "%d bit%s memory at 0x%08" PRIx64
-                               " [0x%08" PRIx64 "].\n",
-                           region->value->mem_type_64 ? 64 : 32,
-                           region->value->prefetch ? " prefetchable" : "",
-                           addr, addr + size - 1);
-        }
-    }
-
-    monitor_printf(mon, "      id \"%s\"\n", dev->qdev_id);
-
-    if (dev->pci_bridge) {
-        if (dev->pci_bridge->has_devices) {
-            PciDeviceInfoList *cdev;
-            for (cdev = dev->pci_bridge->devices; cdev; cdev = cdev->next) {
-                hmp_info_pci_device(mon, cdev->value);
-            }
-        }
-    }
-}
-
 static int hmp_info_pic_foreach(Object *obj, void *opaque)
 {
     InterruptStatsProvider *intc;
@@ -805,29 +721,6 @@ void hmp_info_pic(Monitor *mon, const QDict *qdict)
 {
     object_child_foreach_recursive(object_get_root(),
                                    hmp_info_pic_foreach, mon);
-}
-
-void hmp_info_pci(Monitor *mon, const QDict *qdict)
-{
-    PciInfoList *info_list, *info;
-    Error *err = NULL;
-
-    info_list = qmp_query_pci(&err);
-    if (err) {
-        monitor_printf(mon, "PCI devices not supported\n");
-        error_free(err);
-        return;
-    }
-
-    for (info = info_list; info; info = info->next) {
-        PciDeviceInfoList *dev;
-
-        for (dev = info->value->devices; dev; dev = dev->next) {
-            hmp_info_pci_device(mon, dev->value);
-        }
-    }
-
-    qapi_free_PciInfoList(info_list);
 }
 
 void hmp_info_tpm(Monitor *mon, const QDict *qdict)
