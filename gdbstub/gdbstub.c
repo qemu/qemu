@@ -48,7 +48,7 @@
 #include "sysemu/runstate.h"
 #include "semihosting/semihost.h"
 #include "exec/exec-all.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 
 #include "internals.h"
 

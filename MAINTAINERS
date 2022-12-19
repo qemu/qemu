@@ -3237,6 +3237,7 @@ S: Supported
 F: replay/*
 F: block/blkreplay.c
 F: net/filter-replay.c
+F: include/exec/replay-core.h
 F: include/sysemu/replay.h
 F: docs/devel/replay.rst
 F: docs/system/replay.rst
