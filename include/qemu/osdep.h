@@ -427,11 +427,6 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #define HAVE_CHARDEV_SERIAL 1
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__) ||               \
-    defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#define HAVE_CHARDEV_PARPORT 1
-#endif
-
 #if defined(__HAIKU__)
 #define SIGIO SIGPOLL
 #endif

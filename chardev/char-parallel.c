@@ -238,7 +238,6 @@ static void qemu_chr_open_pp_fd(Chardev *chr,
 }
 #endif
 
-#ifdef HAVE_CHARDEV_PARPORT
 static void qmp_chardev_open_parallel(Chardev *chr,
                                       ChardevBackend *backend,
                                       bool *be_opened,
@@ -276,29 +275,21 @@ static void char_parallel_class_init(ObjectClass *oc, void *data)
 
     cc->parse = qemu_chr_parse_parallel;
     cc->open = qmp_chardev_open_parallel;
-#if defined(__linux__)
     cc->chr_ioctl = pp_ioctl;
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || \
-    defined(__DragonFly__)
-    cc->chr_ioctl = pp_ioctl;
-#endif
 }
 
 static void char_parallel_finalize(Object *obj)
 {
-#if defined(__linux__)
     Chardev *chr = CHARDEV(obj);
     ParallelChardev *drv = PARALLEL_CHARDEV(chr);
     int fd = drv->fd;
 
+#if defined(__linux__)
     pp_hw_mode(drv, IEEE1284_MODE_COMPAT);
     ioctl(fd, PPRELEASE);
+#endif
     close(fd);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || \
-    defined(__DragonFly__)
-    /* FIXME: close fd? */
-#endif
 }
 
 static const TypeInfo char_parallel_type_info = {
@@ -315,5 +306,3 @@ static void register_types(void)
 }
 
 type_init(register_types);
-
-#endif
