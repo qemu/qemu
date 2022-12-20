@@ -89,4 +89,6 @@ if 'ftrace' in get_option('trace_backends')
   trace_ss.add(files('ftrace.c'))
 endif
 trace_ss.add(files('control.c'))
-trace_ss.add(files('qmp.c'))
+if have_system or have_tools or have_ga
+  trace_ss.add(files('qmp.c'))
+endif
