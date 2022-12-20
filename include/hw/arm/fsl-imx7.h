@@ -235,6 +235,11 @@ enum FslIMX7IRQs {
     FSL_IMX7_USB2_IRQ     = 42,
     FSL_IMX7_USB3_IRQ     = 40,
 
+    FSL_IMX7_GPT1_IRQ     = 55,
+    FSL_IMX7_GPT2_IRQ     = 54,
+    FSL_IMX7_GPT3_IRQ     = 53,
+    FSL_IMX7_GPT4_IRQ     = 52,
+
     FSL_IMX7_WDOG1_IRQ    = 78,
     FSL_IMX7_WDOG2_IRQ    = 79,
     FSL_IMX7_WDOG3_IRQ    = 10,
