@@ -388,10 +388,7 @@ fmpyfadd_d      101110 rm1:5 rm2:5 ... 0 1 ..0 0 0 neg:1 t:5    ra3=%rc32
 
 # Floating point class 0
 
-# FID.  With r = t = 0, which via fcpy puts 0 into fr0.
-# This is machine/revision = 0, which is reserved for simulator.
-fcpy_f          001100 00000 00000 00000 000000 00000   \
-                &fclass01 r=0 t=0
+fid_f           001100 00000 00000 000 00 000000 00000
 
 fcpy_f          001100 ..... ..... 010 00 ...... .....  @f0c_0
 fabs_f          001100 ..... ..... 011 00 ...... .....  @f0c_0
