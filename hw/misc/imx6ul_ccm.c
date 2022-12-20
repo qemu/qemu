@@ -522,12 +522,6 @@ static uint32_t imx6ul_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     case CLK_32k:
         freq = CKIL_FREQ;
         break;
-    case CLK_HIGH:
-        freq = CKIH_FREQ;
-        break;
-    case CLK_HIGH_DIV:
-        freq = CKIH_FREQ / 8;
-        break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: unsupported clock %d\n",
                       TYPE_IMX6UL_CCM, __func__, clock);
