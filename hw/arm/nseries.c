@@ -1078,7 +1078,7 @@ static const struct omap_gpiosw_info_s {
         "headphone", N8X0_HEADPHONE_GPIO,
         OMAP_GPIOSW_TYPE_CONNECTION | OMAP_GPIOSW_INVERTED,
     },
-    { NULL }
+    { /* end of list */ }
 }, n810_gpiosw_info[] = {
     {
         "gps_reset", N810_GPS_RESET_GPIO,
@@ -1099,7 +1099,7 @@ static const struct omap_gpiosw_info_s {
         "slide", N810_SLIDE_GPIO,
         OMAP_GPIOSW_TYPE_COVER | OMAP_GPIOSW_INVERTED,
     },
-    { NULL }
+    { /* end of list */ }
 };
 
 static const struct omap_partition_info_s {
@@ -1113,16 +1113,14 @@ static const struct omap_partition_info_s {
     { 0x00080000, 0x00200000, 0x0, "kernel" },
     { 0x00280000, 0x00200000, 0x3, "initfs" },
     { 0x00480000, 0x0fb80000, 0x3, "rootfs" },
-
-    { 0, 0, 0, NULL }
+    { /* end of list */ }
 }, n810_part_info[] = {
     { 0x00000000, 0x00020000, 0x3, "bootloader" },
     { 0x00020000, 0x00060000, 0x0, "config" },
     { 0x00080000, 0x00220000, 0x0, "kernel" },
     { 0x002a0000, 0x00400000, 0x0, "initfs" },
     { 0x006a0000, 0x0f960000, 0x0, "rootfs" },
-
-    { 0, 0, 0, NULL }
+    { /* end of list */ }
 };
 
 static const uint8_t n8x0_bd_addr[6] = { N8X0_BD_ADDR };
