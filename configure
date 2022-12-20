@@ -372,6 +372,7 @@ smbd="$SMBD"
 strip="${STRIP-${cross_prefix}strip}"
 widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
+windmc="${WINDMC-${cross_prefix}windmc}"
 pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
 query_pkg_config() {
     "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
@@ -2561,6 +2562,7 @@ if test "$skip_meson" = no; then
   echo "strip = [$(meson_quote $strip)]" >> $cross
   echo "widl = [$(meson_quote $widl)]" >> $cross
   echo "windres = [$(meson_quote $windres)]" >> $cross
+  echo "windmc = [$(meson_quote $windmc)]" >> $cross
   if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
     echo "[host_machine]" >> $cross
@@ -2667,6 +2669,7 @@ preserve_env SMBD
 preserve_env STRIP
 preserve_env WIDL
 preserve_env WINDRES
+preserve_env WINDMC
 
 printf "exec" >>config.status
 for i in "$0" "$@"; do
