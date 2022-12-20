@@ -1069,6 +1069,21 @@ struct ppc_radix_page_info {
 };
 
 /*****************************************************************************/
+/* Dynamic Execution Control Register */
+
+#define DEXCR_ASPECT(name, num)                    \
+FIELD(DEXCR, PNH_##name, PPC_BIT_NR(num), 1)       \
+FIELD(DEXCR, PRO_##name, PPC_BIT_NR(num + 32), 1)  \
+FIELD(HDEXCR, HNU_##name, PPC_BIT_NR(num), 1)      \
+FIELD(HDEXCR, ENF_##name, PPC_BIT_NR(num + 32), 1) \
+
+DEXCR_ASPECT(SBHE, 0)
+DEXCR_ASPECT(IBRTPD, 1)
+DEXCR_ASPECT(SRAPD, 4)
+DEXCR_ASPECT(NPHIE, 5)
+DEXCR_ASPECT(PHIE, 6)
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 
 /*
@@ -1674,9 +1689,11 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_BOOKE_GIVOR13     (0x1BC)
 #define SPR_BOOKE_GIVOR14     (0x1BD)
 #define SPR_TIR               (0x1BE)
+#define SPR_UHDEXCR           (0x1C7)
 #define SPR_PTCR              (0x1D0)
 #define SPR_HASHKEYR          (0x1D4)
 #define SPR_HASHPKEYR         (0x1D5)
+#define SPR_HDEXCR            (0x1D7)
 #define SPR_BOOKE_SPEFSCR     (0x200)
 #define SPR_Exxx_BBEAR        (0x201)
 #define SPR_Exxx_BBTAR        (0x202)
@@ -1865,8 +1882,10 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #define SPR_RCPU_L2U_RA2      (0x32A)
 #define SPR_MPC_MD_DBRAM1     (0x32A)
 #define SPR_RCPU_L2U_RA3      (0x32B)
+#define SPR_UDEXCR            (0x32C)
 #define SPR_TAR               (0x32F)
 #define SPR_ASDR              (0x330)
+#define SPR_DEXCR             (0x33C)
 #define SPR_IC                (0x350)
 #define SPR_VTB               (0x351)
 #define SPR_MMCRC             (0x353)

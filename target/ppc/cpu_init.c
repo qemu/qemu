@@ -5727,6 +5727,30 @@ static void register_power10_hash_sprs(CPUPPCState *env)
             hashpkeyr_initial_value);
 }
 
+static void register_power10_dexcr_sprs(CPUPPCState *env)
+{
+    spr_register(env, SPR_DEXCR, "DEXCR",
+            SPR_NOACCESS, SPR_NOACCESS,
+            &spr_read_generic, &spr_write_generic,
+            0);
+
+    spr_register(env, SPR_UDEXCR, "DEXCR",
+            &spr_read_dexcr_ureg, SPR_NOACCESS,
+            &spr_read_dexcr_ureg, SPR_NOACCESS,
+            0);
+
+    spr_register_hv(env, SPR_HDEXCR, "HDEXCR",
+            SPR_NOACCESS, SPR_NOACCESS,
+            SPR_NOACCESS, SPR_NOACCESS,
+            &spr_read_generic, &spr_write_generic,
+            0);
+
+    spr_register(env, SPR_UHDEXCR, "HDEXCR",
+            &spr_read_dexcr_ureg, SPR_NOACCESS,
+            &spr_read_dexcr_ureg, SPR_NOACCESS,
+            0);
+}
+
 /*
  * Initialize PMU counter overflow timers for Power8 and
  * newer Power chips when using TCG.
@@ -6402,6 +6426,7 @@ static void init_proc_POWER10(CPUPPCState *env)
     register_power8_rpr_sprs(env);
     register_power9_mmu_sprs(env);
     register_power10_hash_sprs(env);
+    register_power10_dexcr_sprs(env);
 
     /* FIXME: Filter fields properly based on privilege level */
     spr_register_kvm_hv(env, SPR_PSSCR, "PSSCR", NULL, NULL, NULL, NULL,
