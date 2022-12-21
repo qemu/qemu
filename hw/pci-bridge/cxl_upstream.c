@@ -375,7 +375,6 @@ static void cxl_upstream_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(oc);
 
-    k->is_bridge = true;
     k->config_write = cxl_usp_write_config;
     k->config_read = cxl_usp_read_config;
     k->realize = cxl_usp_realize;

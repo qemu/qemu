@@ -12,7 +12,7 @@
 #include "hw/i386/ich9.h"
 #include "migration/vmstate.h"
 
-#include "hw/acpi/tco.h"
+#include "hw/acpi/ich9_tco.h"
 #include "trace.h"
 
 enum {
@@ -86,6 +86,7 @@ static inline int can_start_tco_timer(TCOIORegs *tr)
 static uint32_t tco_ioport_readw(TCOIORegs *tr, uint32_t addr)
 {
     uint16_t rld;
+    uint32_t ret = 0;
 
     switch (addr) {
     case TCO_RLD:
@@ -96,35 +97,49 @@ static uint32_t tco_ioport_readw(TCOIORegs *tr, uint32_t addr)
         } else {
             rld = tr->tco.rld;
         }
-        return rld;
+        ret = rld;
+        break;
     case TCO_DAT_IN:
-        return tr->tco.din;
+        ret = tr->tco.din;
+        break;
     case TCO_DAT_OUT:
-        return tr->tco.dout;
+        ret = tr->tco.dout;
+        break;
     case TCO1_STS:
-        return tr->tco.sts1;
+        ret = tr->tco.sts1;
+        break;
     case TCO2_STS:
-        return tr->tco.sts2;
+        ret = tr->tco.sts2;
+        break;
     case TCO1_CNT:
-        return tr->tco.cnt1;
+        ret = tr->tco.cnt1;
+        break;
     case TCO2_CNT:
-        return tr->tco.cnt2;
+        ret = tr->tco.cnt2;
+        break;
     case TCO_MESSAGE1:
-        return tr->tco.msg1;
+        ret = tr->tco.msg1;
+        break;
     case TCO_MESSAGE2:
-        return tr->tco.msg2;
+        ret = tr->tco.msg2;
+        break;
     case TCO_WDCNT:
-        return tr->tco.wdcnt;
+        ret = tr->tco.wdcnt;
+        break;
     case TCO_TMR:
-        return tr->tco.tmr;
+        ret = tr->tco.tmr;
+        break;
     case SW_IRQ_GEN:
-        return tr->sw_irq_gen;
+        ret = tr->sw_irq_gen;
+        break;
     }
-    return 0;
+    trace_tco_io_read(addr, ret);
+    return ret;
 }
 
 static void tco_ioport_writew(TCOIORegs *tr, uint32_t addr, uint32_t val)
 {
+    trace_tco_io_write(addr, val);
     switch (addr) {
     case TCO_RLD:
         tr->timeouts_no = 0;

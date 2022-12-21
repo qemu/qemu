@@ -186,7 +186,6 @@ static PCIBus *acpi_pcihp_find_hotplug_bus(AcpiPciHpState *s, int bsel)
 
 static bool acpi_pcihp_pc_no_hotplug(AcpiPciHpState *s, PCIDevice *dev)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     /*
      * ACPI doesn't allow hotplug of bridge devices.  Don't allow
@@ -196,7 +195,7 @@ static bool acpi_pcihp_pc_no_hotplug(AcpiPciHpState *s, PCIDevice *dev)
      * Don't allow hot-unplug of SR-IOV Virtual Functions, as they
      * will be removed implicitly, when Physical Function is unplugged.
      */
-    return (pc->is_bridge && !dev->qdev.hotplugged) || !dc->hotpluggable ||
+    return (IS_PCI_BRIDGE(dev) && !dev->qdev.hotplugged) || !dc->hotpluggable ||
            pci_is_vf(dev);
 }
 

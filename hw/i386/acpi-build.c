@@ -403,7 +403,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         DeviceClass *dc;
-        PCIDeviceClass *pc;
         PCIDevice *pdev = bus->devices[devfn];
         int slot = PCI_SLOT(devfn);
         int func = PCI_FUNC(devfn);
@@ -414,14 +413,14 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         bool cold_plugged_bridge = false;
 
         if (pdev) {
-            pc = PCI_DEVICE_GET_CLASS(pdev);
             dc = DEVICE_GET_CLASS(pdev);
 
             /*
              * Cold plugged bridges aren't themselves hot-pluggable.
              * Hotplugged bridges *are* hot-pluggable.
              */
-            cold_plugged_bridge = pc->is_bridge && !DEVICE(pdev)->hotplugged;
+            cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
+                                  !DEVICE(pdev)->hotplugged;
             bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
 
             hotpluggbale_slot = bsel && dc->hotpluggable &&
