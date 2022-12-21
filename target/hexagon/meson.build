@@ -197,7 +197,6 @@ if idef_parser_enabled and 'hexagon-linux-user' in target_dirs
          idef_parser_dir / 'parser-helpers.c'],
         include_directories: ['idef-parser', '../../include/'],
         dependencies: [glib_dep],
-        c_args: ['-Wextra'],
         native: true
     )
 
