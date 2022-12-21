@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/processor.h"
 #include "qemu/queue.h"

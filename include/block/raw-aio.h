@@ -17,7 +17,6 @@
 #define QEMU_RAW_AIO_H
 
 #include "block/aio.h"
-#include "qemu/coroutine.h"
 #include "qemu/iov.h"
 
 /* AIO request types */

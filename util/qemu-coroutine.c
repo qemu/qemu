@@ -16,7 +16,6 @@
 #include "trace.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
-#include "qemu/coroutine.h"
 #include "qemu/coroutine_int.h"
 #include "qemu/coroutine-tls.h"
 #include "block/aio.h"

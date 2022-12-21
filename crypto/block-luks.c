@@ -32,7 +32,6 @@
 #include "crypto/random.h"
 #include "qemu/uuid.h"
 
-#include "qemu/coroutine.h"
 #include "qemu/bitmap.h"
 
 /*
