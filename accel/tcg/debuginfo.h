@@ -7,6 +7,8 @@
 #ifndef ACCEL_TCG_DEBUGINFO_H
 #define ACCEL_TCG_DEBUGINFO_H
 
+#include "qemu/bitops.h"
+
 /*
  * Debuginfo describing a certain address.
  */
