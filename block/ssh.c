@@ -27,6 +27,7 @@
 #include <libssh/libssh.h>
 #include <libssh/sftp.h>
 
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "qapi/error.h"

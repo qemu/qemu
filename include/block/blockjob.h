@@ -26,8 +26,8 @@
 #ifndef BLOCKJOB_H
 #define BLOCKJOB_H
 
+#include "qapi/qapi-types-block-core.h"
 #include "qemu/job.h"
-#include "block/block.h"
 #include "qemu/ratelimit.h"
 
 #define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */

@@ -26,6 +26,7 @@
 #include "qemu/cutils.h"
 #include "block/qapi.h"
 #include "block/block_int.h"
+#include "block/dirty-bitmap.h"
 #include "block/throttle-groups.h"
 #include "block/write-threshold.h"
 #include "qapi/error.h"

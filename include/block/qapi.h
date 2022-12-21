@@ -25,8 +25,8 @@
 #ifndef BLOCK_QAPI_H
 #define BLOCK_QAPI_H
 
-#include "block/block.h"
 #include "block/snapshot.h"
+#include "qapi/qapi-types-block-core.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         BlockDriverState *bs,

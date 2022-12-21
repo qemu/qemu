@@ -1,6 +1,7 @@
 #ifndef BLOCK_DIRTY_BITMAP_H
 #define BLOCK_DIRTY_BITMAP_H
 
+#include "block/block-common.h"
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/hbitmap.h"
 

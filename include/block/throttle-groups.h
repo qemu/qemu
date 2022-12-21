@@ -25,8 +25,8 @@
 #ifndef THROTTLE_GROUPS_H
 #define THROTTLE_GROUPS_H
 
+#include "qemu/coroutine.h"
 #include "qemu/throttle.h"
-#include "block/block_int.h"
 #include "qom/object.h"
 
 /* The ThrottleGroupMember structure indicates membership in a ThrottleGroup

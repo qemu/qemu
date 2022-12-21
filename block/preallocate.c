@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 
 

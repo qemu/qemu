@@ -30,6 +30,7 @@
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
 #include "block/coroutines.h"
+#include "block/dirty-bitmap.h"
 #include "block/write-threshold.h"
 #include "qemu/cutils.h"
 #include "qemu/memalign.h"

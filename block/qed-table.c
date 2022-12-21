@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
 #include "trace.h"
 #include "qemu/sockets.h" /* for EINPROGRESS on Windows */
 #include "qed.h"

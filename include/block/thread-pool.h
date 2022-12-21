@@ -18,7 +18,7 @@
 #ifndef QEMU_THREAD_POOL_H
 #define QEMU_THREAD_POOL_H
 
-#include "block/block.h"
+#include "block/aio.h"
 
 #define THREAD_POOL_MAX_THREADS_DEFAULT         64
 

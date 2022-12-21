@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "qemu/job.h"
 #include "qemu/main-loop.h"

@@ -19,7 +19,9 @@
 
 #include "qemu/osdep.h"
 
+#include "block/block_int.h"
 #include "block/export.h"
+#include "block/dirty-bitmap.h"
 #include "qapi/error.h"
 #include "qemu/queue.h"
 #include "trace.h"

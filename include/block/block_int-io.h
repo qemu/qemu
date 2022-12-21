@@ -24,7 +24,9 @@
 #ifndef BLOCK_INT_IO_H
 #define BLOCK_INT_IO_H
 
-#include "block_int-common.h"
+#include "block/block_int-common.h"
+#include "qemu/hbitmap.h"
+#include "qemu/main-loop.h"
 
 /*
  * I/O API functions. These functions are thread-safe.
