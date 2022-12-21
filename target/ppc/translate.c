@@ -1249,6 +1249,25 @@ void spr_write_ebb_upper32(DisasContext *ctx, int sprn, int gprn)
     gen_fscr_facility_check(ctx, SPR_FSCR, FSCR_EBB, sprn, FSCR_IC_EBB);
     spr_write_prev_upper32(ctx, sprn, gprn);
 }
+
+void spr_read_dexcr_ureg(DisasContext *ctx, int gprn, int sprn)
+{
+    TCGv t0 = tcg_temp_new();
+
+    /*
+     * Access to the (H)DEXCR in problem state is done using separated
+     * SPR indexes which are 16 below the SPR indexes which have full
+     * access to the (H)DEXCR in privileged state. Problem state can
+     * only read bits 32:63, bits 0:31 return 0.
+     *
+     * See section 9.3.1-9.3.2 of PowerISA v3.1B
+     */
+
+    gen_load_spr(t0, sprn + 16);
+    tcg_gen_ext32u_tl(cpu_gpr[gprn], t0);
+
+    tcg_temp_free(t0);
+}
 #endif
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
