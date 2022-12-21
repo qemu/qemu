@@ -640,7 +640,7 @@ void coroutine_fn aio_co_reschedule_self(AioContext *new_ctx)
     }
 }
 
-void aio_co_wake(struct Coroutine *co)
+void aio_co_wake(Coroutine *co)
 {
     AioContext *ctx;
 
@@ -653,7 +653,7 @@ void aio_co_wake(struct Coroutine *co)
     aio_co_enter(ctx, co);
 }
 
-void aio_co_enter(AioContext *ctx, struct Coroutine *co)
+void aio_co_enter(AioContext *ctx, Coroutine *co)
 {
     if (ctx != qemu_get_current_aio_context()) {
         aio_co_schedule(ctx, co);
