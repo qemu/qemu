@@ -26,23 +26,19 @@
  * waiting for events to complete.
  *
  * These functions are re-entrant and may be used outside the global mutex.
- */
-
-/**
- * Mark a function that executes in coroutine context
  *
- * Functions that execute in coroutine context cannot be called directly from
- * normal functions.  In the future it would be nice to enable compiler or
- * static checker support for catching such errors.  This annotation might make
- * it possible and in the meantime it serves as documentation.
- *
- * For example:
+ * Functions that execute in coroutine context cannot be called
+ * directly from normal functions.  Use @coroutine_fn to mark such
+ * functions.  For example:
  *
  *   static void coroutine_fn foo(void) {
  *       ....
  *   }
+ *
+ * In the future it would be nice to have the compiler or a static
+ * checker catch misuse of such functions.  This annotation might make
+ * it possible and in the meantime it serves as documentation.
  */
-#define coroutine_fn
 
 typedef struct Coroutine Coroutine;
 

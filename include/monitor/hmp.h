@@ -15,7 +15,6 @@
 #define HMP_H
 
 #include "qemu/readline.h"
-#include "qemu/coroutine.h"
 #include "qapi/qapi-types-common.h"
 
 bool hmp_handle_error(Monitor *mon, Error *err);
