@@ -13,6 +13,8 @@
 #ifndef QEMU_PCIE_SRIOV_H
 #define QEMU_PCIE_SRIOV_H
 
+#include "hw/pci/pci.h"
+
 struct PCIESriovPF {
     uint16_t num_vfs;   /* Number of virtual functions created */
     uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
