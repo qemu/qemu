@@ -62,8 +62,8 @@
 #endif  /* !__GNUC__ */
 #ifndef MIN
 #define MIN(x, y) ({                            \
-            typeof(x) _min1 = (x);              \
-            typeof(y) _min2 = (y);              \
+            __typeof__(x) _min1 = (x);          \
+            __typeof__(y) _min2 = (y);          \
             (void) (&_min1 == &_min2);          \
             _min1 < _min2 ? _min1 : _min2; })
 #endif
