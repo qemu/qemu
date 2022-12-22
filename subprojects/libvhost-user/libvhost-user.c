@@ -626,6 +626,8 @@ generate_faults(VuDev *dev) {
         VuDevRegion *dev_region = &dev->regions[i];
         int ret;
 #ifdef UFFDIO_REGISTER
+        struct uffdio_register reg_struct;
+
         /*
          * We should already have an open ufd. Mark each memory
          * range as ufd.
@@ -659,7 +661,7 @@ generate_faults(VuDev *dev) {
                     "%s: Failed to madvise(NOHUGEPAGE) region %d: %s\n",
                     __func__, i, strerror(errno));
         }
-        struct uffdio_register reg_struct;
+
         reg_struct.range.start = (uintptr_t)dev_region->mmap_addr;
         reg_struct.range.len = dev_region->size + dev_region->mmap_offset;
         reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
