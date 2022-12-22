@@ -15,7 +15,6 @@
 #include "hw/pci-host/pnv_phb.h"
 
 typedef struct PnvPHB3 PnvPHB3;
-typedef struct PnvChip PnvChip;
 
 /*
  * PHB3 XICS Source for MSIs
