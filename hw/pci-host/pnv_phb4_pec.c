@@ -17,6 +17,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_chip.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
 
