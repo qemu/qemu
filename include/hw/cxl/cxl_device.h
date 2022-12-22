@@ -10,6 +10,7 @@
 #ifndef CXL_DEVICE_H
 #define CXL_DEVICE_H
 
+#include "hw/pci/pci.h"
 #include "hw/register.h"
 
 /*

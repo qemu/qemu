@@ -8,8 +8,6 @@
 #ifndef HW_LS7A_H
 #define HW_LS7A_H
 
-#include "hw/pci/pci.h"
-#include "hw/pci/pcie_host.h"
 #include "hw/pci-host/pam.h"
 #include "qemu/units.h"
 #include "qemu/range.h"
