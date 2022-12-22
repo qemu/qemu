@@ -2478,14 +2478,13 @@ vring_used_flags_unset_bit(VuVirtq *vq, int mask)
 static inline void
 vring_set_avail_event(VuVirtq *vq, uint16_t val)
 {
-    uint16_t *avail;
+    uint16_t val_le = htole16(val);
 
     if (!vq->notification) {
         return;
     }
 
-    avail = (uint16_t *)&vq->vring.used->ring[vq->vring.num];
-    *avail = htole16(val);
+    memcpy(&vq->vring.used->ring[vq->vring.num], &val_le, sizeof(uint16_t));
 }
 
 void
