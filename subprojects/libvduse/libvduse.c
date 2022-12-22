@@ -101,7 +101,7 @@ struct VduseVirtq {
     uint16_t signalled_used;
     bool signalled_used_valid;
     int index;
-    int inuse;
+    unsigned int inuse;
     bool ready;
     int fd;
     VduseDev *dev;
