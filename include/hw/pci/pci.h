@@ -284,8 +284,10 @@ struct PCIDevice {
     /* PCI config space */
     uint8_t *config;
 
-    /* Used to enable config checks on load. Note that writable bits are
-     * never checked even if set in cmask. */
+    /*
+     * Used to enable config checks on load. Note that writable bits are
+     * never checked even if set in cmask.
+     */
     uint8_t *cmask;
 
     /* Used to implement R/W bytes */
@@ -299,10 +301,11 @@ struct PCIDevice {
 
     /* the following fields are read only */
     int32_t devfn;
-    /* Cached device to fetch requester ID from, to avoid the PCI
-     * tree walking every time we invoke PCI request (e.g.,
-     * MSI). For conventional PCI root complex, this field is
-     * meaningless. */
+    /*
+     * Cached device to fetch requester ID from, to avoid the PCI tree
+     * walking every time we invoke PCI request (e.g., MSI). For
+     * conventional PCI root complex, this field is meaningless.
+     */
     PCIReqIDCache requester_id_cache;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
@@ -943,7 +946,7 @@ extern const VMStateDescription vmstate_pci_device;
     .name       = (stringify(_field)),                               \
     .size       = sizeof(PCIDevice),                                 \
     .vmsd       = &vmstate_pci_device,                               \
-    .flags      = VMS_STRUCT|VMS_POINTER,                            \
+    .flags      = VMS_STRUCT | VMS_POINTER,                          \
     .offset     = vmstate_offset_pointer(_state, _field, PCIDevice), \
 }
 
