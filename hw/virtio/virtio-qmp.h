@@ -13,6 +13,7 @@
 
 #include "qapi/qapi-types-virtio.h"
 #include "hw/virtio/virtio.h"
+#include "hw/virtio/vhost.h"
 
 #include "qemu/queue.h"
 
