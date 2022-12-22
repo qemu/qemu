@@ -293,6 +293,13 @@ that QEMU depends on.
 Do not include "qemu/osdep.h" from header files since the .c file will have
 already included it.
 
+Headers should normally include everything they need beyond osdep.h.
+If exceptions are needed for some reason, they must be documented in
+the header.  If all that's needed from a header is typedefs, consider
+putting those into qemu/typedefs.h instead of including the header.
+
+Cyclic inclusion is forbidden.
+
 C types
 =======
 
