@@ -1599,12 +1599,13 @@ vu_set_config(VuDev *dev, VhostUserMsg *vmsg)
 static bool
 vu_set_postcopy_advise(VuDev *dev, VhostUserMsg *vmsg)
 {
-    dev->postcopy_ufd = -1;
 #ifdef UFFDIO_API
     struct uffdio_api api_struct;
 
     dev->postcopy_ufd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
     vmsg->size = 0;
+#else
+    dev->postcopy_ufd = -1;
 #endif
 
     if (dev->postcopy_ufd == -1) {
