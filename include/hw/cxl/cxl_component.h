@@ -18,6 +18,7 @@
 #include "qemu/compiler.h"
 #include "qemu/range.h"
 #include "qemu/typedefs.h"
+#include "hw/cxl/cxl_cdat.h"
 #include "hw/register.h"
 #include "qapi/error.h"
 
