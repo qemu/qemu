@@ -23,6 +23,8 @@
 #ifndef SIFIVE_PDMA_H
 #define SIFIVE_PDMA_H
 
+#include "hw/sysbus.h"
+
 struct sifive_pdma_chan {
     uint32_t control;
     uint32_t next_config;

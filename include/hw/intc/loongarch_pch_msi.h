@@ -5,6 +5,8 @@
  * Copyright (C) 2021 Loongson Technology Corporation Limited
  */
 
+#include "hw/sysbus.h"
+
 #define TYPE_LOONGARCH_PCH_MSI "loongarch_pch_msi"
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHMSI, LOONGARCH_PCH_MSI)
 

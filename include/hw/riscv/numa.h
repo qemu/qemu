@@ -19,6 +19,7 @@
 #ifndef RISCV_NUMA_H
 #define RISCV_NUMA_H
 
+#include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "sysemu/numa.h"
 

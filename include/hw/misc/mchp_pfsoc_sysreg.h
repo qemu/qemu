@@ -23,6 +23,8 @@
 #ifndef MCHP_PFSOC_SYSREG_H
 #define MCHP_PFSOC_SYSREG_H
 
+#include "hw/sysbus.h"
+
 #define MCHP_PFSOC_SYSREG_REG_SIZE  0x2000
 
 typedef struct MchpPfSoCSysregState {

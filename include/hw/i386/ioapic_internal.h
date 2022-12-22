@@ -23,6 +23,7 @@
 #define QEMU_IOAPIC_INTERNAL_H
 
 #include "exec/memory.h"
+#include "hw/i386/ioapic.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
