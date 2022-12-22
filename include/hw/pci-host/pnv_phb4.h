@@ -10,14 +10,15 @@
 #ifndef PCI_HOST_PNV_PHB4_H
 #define PCI_HOST_PNV_PHB4_H
 
+#include "hw/pci-host/pnv_phb.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/ppc/pnv.h"
 #include "hw/ppc/xive.h"
 #include "qom/object.h"
 
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 typedef struct PnvPhb4PecStack PnvPhb4PecStack;
 typedef struct PnvPHB4 PnvPHB4;
-typedef struct PnvPHB PnvPHB;
 typedef struct PnvChip PnvChip;
 
 /*
