@@ -97,7 +97,6 @@ struct PXBDev {
     } cxl;
 };
 
-typedef struct PXBDev PXBDev;
 #define TYPE_PXB_CXL_DEVICE "pxb-cxl"
 DECLARE_INSTANCE_CHECKER(PXBDev, PXB_CXL_DEV,
                          TYPE_PXB_CXL_DEVICE)
