@@ -18,7 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/irq.h"
 #include "hw/intc/i8259.h"
 #include "hw/timer/i8254.h"

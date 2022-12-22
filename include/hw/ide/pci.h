@@ -2,7 +2,7 @@
 #define HW_IDE_PCI_H
 
 #include "hw/ide/internal.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
 #define BM_STATUS_DMAING 0x01

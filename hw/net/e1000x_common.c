@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "net/net.h"
 
 #include "e1000x_common.h"

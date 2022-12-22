@@ -25,7 +25,7 @@
 #ifndef SDHCI_H
 #define SDHCI_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
 #include "qom/object.h"

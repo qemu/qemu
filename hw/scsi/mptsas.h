@@ -2,7 +2,7 @@
 #define MPTSAS_H
 
 #include "mpi.h"
-#include "qom/object.h"
+#include "hw/pci/pci_device.h"
 
 #define MPTSAS_NUM_PORTS 8
 #define MPTSAS_MAX_FRAMES 2048     /* Firmware limit at 65535 */

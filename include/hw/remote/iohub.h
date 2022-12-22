@@ -11,7 +11,7 @@
 #ifndef REMOTE_IOHUB_H
 #define REMOTE_IOHUB_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread-posix.h"
 #include "hw/remote/mpqemu-link.h"

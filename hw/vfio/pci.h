@@ -13,7 +13,7 @@
 #define HW_VFIO_VFIO_PCI_H
 
 #include "exec/memory.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/vfio/vfio-common.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"

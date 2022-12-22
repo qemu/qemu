@@ -16,7 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "net/net.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 #include "rocker.h"
 #include "rocker_hw.h"

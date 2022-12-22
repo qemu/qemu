@@ -15,7 +15,7 @@
 #include "hw/xen/interface/io/xenbus.h"
 
 #include "hw/xen/xen.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/xen/trace.h"
 
 extern xc_interface *xen_xc;

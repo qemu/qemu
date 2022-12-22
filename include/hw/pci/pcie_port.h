@@ -23,6 +23,7 @@
 
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
 #define TYPE_PCIE_PORT "pcie-port"

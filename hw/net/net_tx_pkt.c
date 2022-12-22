@@ -21,7 +21,7 @@
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "net/net.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 enum {
     NET_TX_PKT_VHDR_FRAG = 0,

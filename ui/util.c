@@ -17,7 +17,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
 #include "qapi/error.h"
 #include "ui/console.h"

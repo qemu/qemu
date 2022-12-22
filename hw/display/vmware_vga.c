@@ -29,7 +29,7 @@
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "trace.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"

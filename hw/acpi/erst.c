@@ -14,7 +14,7 @@
 #include "hw/qdev-core.h"
 #include "exec/memory.h"
 #include "qom/object.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
