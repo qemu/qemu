@@ -20,7 +20,8 @@
 #ifndef PPC_PNV_LPC_H
 #define PPC_PNV_LPC_H
 
-#include "qom/object.h"
+#include "exec/memory.h"
+#include "hw/qdev-core.h"
 
 #define TYPE_PNV_LPC "pnv-lpc"
 typedef struct PnvLpcClass PnvLpcClass;

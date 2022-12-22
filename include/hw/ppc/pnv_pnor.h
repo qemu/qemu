@@ -10,7 +10,7 @@
 #ifndef PPC_PNV_PNOR_H
 #define PPC_PNV_PNOR_H
 
-#include "qom/object.h"
+#include "hw/sysbus.h"
 
 /*
  * PNOR offset on the LPC FW address space
