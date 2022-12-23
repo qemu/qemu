@@ -109,13 +109,18 @@ typedef enum VirtMSIControllerType {
 } VirtMSIControllerType;
 
 typedef enum VirtGICType {
-    VIRT_GIC_VERSION_MAX,
-    VIRT_GIC_VERSION_HOST,
-    VIRT_GIC_VERSION_2,
-    VIRT_GIC_VERSION_3,
-    VIRT_GIC_VERSION_4,
+    VIRT_GIC_VERSION_MAX = 0,
+    VIRT_GIC_VERSION_HOST = 1,
+    /* The concrete GIC values have to match the GIC version number */
+    VIRT_GIC_VERSION_2 = 2,
+    VIRT_GIC_VERSION_3 = 3,
+    VIRT_GIC_VERSION_4 = 4,
     VIRT_GIC_VERSION_NOSEL,
 } VirtGICType;
+
+#define VIRT_GIC_VERSION_2_MASK BIT(VIRT_GIC_VERSION_2)
+#define VIRT_GIC_VERSION_3_MASK BIT(VIRT_GIC_VERSION_3)
+#define VIRT_GIC_VERSION_4_MASK BIT(VIRT_GIC_VERSION_4)
 
 struct VirtMachineClass {
     MachineClass parent;
