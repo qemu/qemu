@@ -34,6 +34,7 @@
 
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
+#include "xen_xenstore.h"
 
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_xen.h"

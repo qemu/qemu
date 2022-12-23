@@ -93,6 +93,7 @@
 #include "hw/i386/kvm/xen_overlay.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/kvm/xen_gnttab.h"
+#include "hw/i386/kvm/xen_xenstore.h"
 #include "hw/mem/memory-device.h"
 #include "sysemu/replay.h"
 #include "target/i386/cpu.h"
@@ -1862,6 +1863,7 @@ int pc_machine_kvm_type(MachineState *machine, const char *kvm_type)
         xen_overlay_create();
         xen_evtchn_create();
         xen_gnttab_create();
+        xen_xenstore_create();
     }
 #endif
     return 0;

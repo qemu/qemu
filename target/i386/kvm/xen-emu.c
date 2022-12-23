@@ -27,6 +27,7 @@
 #include "hw/i386/kvm/xen_overlay.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/kvm/xen_gnttab.h"
+#include "hw/i386/kvm/xen_xenstore.h"
 
 #include "hw/xen/interface/version.h"
 #include "hw/xen/interface/sched.h"
@@ -178,6 +179,9 @@ int kvm_xen_init(KVMState *s, uint32_t hypercall_msr)
         fprintf(stderr, "e820_add_entry() table is full\n");
         return ret;
     }
+
+    /* The page couldn't be overlaid until KVM was initialized */
+    xen_xenstore_reset();
 
     return 0;
 }
@@ -789,6 +793,9 @@ static bool handle_get_param(struct kvm_xen_exit *exit, X86CPU *cpu,
     case HVM_PARAM_STORE_PFN:
         hp.value = XEN_SPECIAL_PFN(XENSTORE);
         break;
+    case HVM_PARAM_STORE_EVTCHN:
+        hp.value = xen_xenstore_get_port();
+        break;
     default:
         return false;
     }
@@ -1379,6 +1386,11 @@ int kvm_xen_soft_reset(void)
     }
 
     err = xen_overlay_map_shinfo_page(INVALID_GFN);
+    if (err) {
+        return err;
+    }
+
+    err = xen_xenstore_reset();
     if (err) {
         return err;
     }
