@@ -525,6 +525,8 @@ void page_set_flags(target_ulong start, target_ulong end, int flags)
 int page_check_range(target_ulong start, target_ulong len, int flags)
 {
     target_ulong last;
+    int locked;  /* tri-state: =0: unlocked, +1: global, -1: local */
+    int ret;
 
     if (len == 0) {
         return 0;  /* trivial length */
@@ -535,42 +537,67 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
         return -1; /* wrap around */
     }
 
+    locked = have_mmap_lock();
     while (true) {
         PageFlagsNode *p = pageflags_find(start, last);
         int missing;
 
         if (!p) {
-            return -1; /* entire region invalid */
+            if (!locked) {
+                /*
+                 * Lockless lookups have false negatives.
+                 * Retry with the lock held.
+                 */
+                mmap_lock();
+                locked = -1;
+                p = pageflags_find(start, last);
+            }
+            if (!p) {
+                ret = -1; /* entire region invalid */
+                break;
+            }
         }
         if (start < p->itree.start) {
-            return -1; /* initial bytes invalid */
+            ret = -1; /* initial bytes invalid */
+            break;
         }
 
         missing = flags & ~p->flags;
         if (missing & PAGE_READ) {
-            return -1; /* page not readable */
+            ret = -1; /* page not readable */
+            break;
         }
         if (missing & PAGE_WRITE) {
             if (!(p->flags & PAGE_WRITE_ORG)) {
-                return -1; /* page not writable */
+                ret = -1; /* page not writable */
+                break;
             }
             /* Asking about writable, but has been protected: undo. */
             if (!page_unprotect(start, 0)) {
-                return -1;
+                ret = -1;
+                break;
             }
             /* TODO: page_unprotect should take a range, not a single page. */
             if (last - start < TARGET_PAGE_SIZE) {
-                return 0; /* ok */
+                ret = 0; /* ok */
+                break;
             }
             start += TARGET_PAGE_SIZE;
             continue;
         }
 
         if (last <= p->itree.last) {
-            return 0; /* ok */
+            ret = 0; /* ok */
+            break;
         }
         start = p->itree.last + 1;
     }
+
+    /* Release the lock if acquired locally. */
+    if (locked < 0) {
+        mmap_unlock();
+    }
+    return ret;
 }
 
 void page_protect(tb_page_addr_t address)
