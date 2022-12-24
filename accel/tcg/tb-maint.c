@@ -1024,43 +1024,51 @@ void tb_invalidate_phys_page(tb_page_addr_t addr)
  */
 bool tb_invalidate_phys_page_unwind(tb_page_addr_t addr, uintptr_t pc)
 {
-    assert(pc != 0);
-#ifdef TARGET_HAS_PRECISE_SMC
-    assert_memory_lock();
-    {
-        TranslationBlock *current_tb = tcg_tb_lookup(pc);
-        bool current_tb_modified = false;
-        TranslationBlock *tb;
-        PageForEachNext n;
+    TranslationBlock *current_tb;
+    bool current_tb_modified;
+    TranslationBlock *tb;
+    PageForEachNext n;
 
-        addr &= TARGET_PAGE_MASK;
-
-        PAGE_FOR_EACH_TB(addr, addr + TARGET_PAGE_SIZE, unused, tb, n) {
-            if (current_tb == tb &&
-                (tb_cflags(current_tb) & CF_COUNT_MASK) != 1) {
-                /*
-                 * If we are modifying the current TB, we must stop its
-                 * execution. We could be more precise by checking that
-                 * the modification is after the current PC, but it would
-                 * require a specialized function to partially restore
-                 * the CPU state.
-                 */
-                current_tb_modified = true;
-                cpu_restore_state_from_tb(current_cpu, current_tb, pc);
-            }
-            tb_phys_invalidate__locked(tb);
-        }
-
-        if (current_tb_modified) {
-            /* Force execution of one insn next time.  */
-            CPUState *cpu = current_cpu;
-            cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(current_cpu);
-            return true;
-        }
+    /*
+     * Without precise smc semantics, or when outside of a TB,
+     * we can skip to invalidate.
+     */
+#ifndef TARGET_HAS_PRECISE_SMC
+    pc = 0;
+#endif
+    if (!pc) {
+        tb_invalidate_phys_page(addr);
+        return false;
     }
-#else
-    tb_invalidate_phys_page(addr);
-#endif /* TARGET_HAS_PRECISE_SMC */
+
+    assert_memory_lock();
+    current_tb = tcg_tb_lookup(pc);
+
+    addr &= TARGET_PAGE_MASK;
+    current_tb_modified = false;
+
+    PAGE_FOR_EACH_TB(addr, addr + TARGET_PAGE_SIZE, unused, tb, n) {
+        if (current_tb == tb &&
+            (tb_cflags(current_tb) & CF_COUNT_MASK) != 1) {
+            /*
+             * If we are modifying the current TB, we must stop its
+             * execution. We could be more precise by checking that
+             * the modification is after the current PC, but it would
+             * require a specialized function to partially restore
+             * the CPU state.
+             */
+            current_tb_modified = true;
+            cpu_restore_state_from_tb(current_cpu, current_tb, pc);
+        }
+        tb_phys_invalidate__locked(tb);
+    }
+
+    if (current_tb_modified) {
+        /* Force execution of one insn next time.  */
+        CPUState *cpu = current_cpu;
+        cpu->cflags_next_tb = 1 | CF_NOIRQ | curr_cflags(current_cpu);
+        return true;
+    }
     return false;
 }
 #else
