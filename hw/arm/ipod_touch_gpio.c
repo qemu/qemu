@@ -18,7 +18,7 @@ static uint64_t s5l8900_gpio_read(void *opaque, hwaddr addr, unsigned size)
 
     switch(addr) {
         case 0x2c4:
-            return s->gpio_state; 
+            return s->gpio_state;
         default:
             break;
     }

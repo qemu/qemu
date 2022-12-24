@@ -97,6 +97,16 @@ static uint64_t s5l8900_clock_read(void *opaque, hwaddr addr, unsigned size)
             return (1 | 2 | 4 | 8); // all PLLs are locked
         case CLOCK_PLLMODE:
             return s->pllmode;
+        case CLOCK_PWRCON0:
+            return s->pwrcon0;
+        case CLOCK_PWRCON1:
+            return s->pwrcon1;
+        case CLOCK_PWRCON2:
+            return s->pwrcon2;
+        case CLOCK_PWRCON3:
+            return s->pwrcon3;
+        case CLOCK_PWRCON4:
+            return s->pwrcon4;
       default:
             hw_error("%s: reading from unknown clock register 0x%08x\n", __func__, addr);
     }

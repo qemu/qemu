@@ -80,6 +80,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 {
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
 
+    allocate_ram(sysmem, "unknown", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
 
     // load the bootrom (vrom)
@@ -96,6 +97,18 @@ static void ipod_touch_instance_init(Object *obj)
 	
 }
 
+static inline qemu_irq s5l8900_get_irq(IPodTouchMachineState *s, int n)
+{
+    return s->irq[n / S5L8720_VIC_SIZE][n % S5L8720_VIC_SIZE];
+}
+
+static uint32_t s5l8720_usb_hwcfg[] = {
+    0,
+    0x7a8f60d0,
+    0x082000e8,
+    0x01f08024
+};
+
 static void ipod_touch_machine_init(MachineState *machine)
 {
 	IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
@@ -105,10 +118,33 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     ipod_touch_cpu_setup(machine, &sysmem, &cpu, &nsas);
 
+    // setup clock
+    nms->sysclk = clock_new(OBJECT(machine), "SYSCLK");
+    clock_set_hz(nms->sysclk, 12000000ULL);
+
     nms->cpu = cpu;
 
+    // setup VICs
+    nms->irq = g_malloc0(sizeof(qemu_irq *) * 2);
+    DeviceState *dev = pl192_manual_init("vic0", qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_IRQ), qdev_get_gpio_in(DEVICE(nms->cpu), ARM_CPU_FIQ), NULL);
+    PL192State *s = PL192(dev);
+    nms->vic0 = s;
+    memory_region_add_subregion(sysmem, VIC0_MEM_BASE, &nms->vic0->iomem);
+    nms->irq[0] = g_malloc0(sizeof(qemu_irq) * 32);
+    for (int i = 0; i < 32; i++) { nms->irq[0][i] = qdev_get_gpio_in(dev, i); }
+
+    dev = pl192_manual_init("vic1", NULL);
+    s = PL192(dev);
+    nms->vic1 = s;
+    memory_region_add_subregion(sysmem, VIC1_MEM_BASE, &nms->vic1->iomem);
+    nms->irq[1] = g_malloc0(sizeof(qemu_irq) * 32);
+    for (int i = 0; i < 32; i++) { nms->irq[1][i] = qdev_get_gpio_in(dev, i); }
+
+    // // chain VICs together
+    nms->vic1->daisy = nms->vic0;
+
     // init clock 0
-    DeviceState *dev = qdev_new("ipodtouch.clock");
+    dev = qdev_new("ipodtouch.clock");
     IPodTouchClockState *clock0_state = IPOD_TOUCH_CLOCK(dev);
     nms->clock0 = clock0_state;
     memory_region_add_subregion(sysmem, CLOCK0_MEM_BASE, &clock0_state->iomem);
@@ -119,17 +155,64 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->clock1 = clock1_state;
     memory_region_add_subregion(sysmem, CLOCK1_MEM_BASE, &clock1_state->iomem);
 
+    // init the timer
+    dev = qdev_new("ipodtouch.timer");
+    IPodTouchTimerState *timer_state = IPOD_TOUCH_TIMER(dev);
+    nms->timer1 = timer_state;
+    memory_region_add_subregion(sysmem, TIMER1_MEM_BASE, &timer_state->iomem);
+    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_TIMER1_IRQ));
+    timer_state->sysclk = nms->sysclk;
+
+    // init sysic
+    dev = qdev_new("ipodtouch.sysic");
+    IPodTouchSYSICState *sysic_state = IPOD_TOUCH_SYSIC(dev);
+    nms->sysic = (IPodTouchSYSICState *) g_malloc0(sizeof(struct IPodTouchSYSICState));
+    memory_region_add_subregion(sysmem, SYSIC_MEM_BASE, &sysic_state->iomem);
+    // busdev = SYS_BUS_DEVICE(dev);
+    // for(int grp = 0; grp < GPIO_NUMINTGROUPS; grp++) {
+    //     sysbus_connect_irq(busdev, grp, s5l8900_get_irq(nms, S5L8900_GPIO_IRQS[grp]));
+    // }
+
     // init GPIO
     dev = qdev_new("ipodtouch.gpio");
     IPodTouchGPIOState *gpio_state = IPOD_TOUCH_GPIO(dev);
     nms->gpio_state = gpio_state;
     memory_region_add_subregion(sysmem, GPIO_MEM_BASE, &gpio_state->iomem);
 
+    // init spis
+    set_spi_base(0);
+    sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
+
+    set_spi_base(1);
+    sysbus_create_simple("ipodtouch.spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI1_IRQ));
+
+    set_spi_base(2);
+    sysbus_create_simple("ipodtouch.spi", SPI2_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI2_IRQ));
+
+    set_spi_base(3);
+    sysbus_create_simple("ipodtouch.spi", SPI3_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI3_IRQ));
+
+    set_spi_base(4);
+    sysbus_create_simple("ipodtouch.spi", SPI4_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI4_IRQ));
+
     // init the chip ID module
     dev = qdev_new("ipodtouch.chipid");
     IPodTouchChipIDState *chipid_state = IPOD_TOUCH_CHIPID(dev);
     nms->chipid_state = chipid_state;
     memory_region_add_subregion(sysmem, CHIPID_MEM_BASE, &chipid_state->iomem);
+
+    // init USB OTG
+    dev = ipod_touch_init_usb_otg(s5l8900_get_irq(nms, S5L8720_USB_OTG_IRQ), s5l8720_usb_hwcfg);
+    synopsys_usb_state *usb_otg = S5L8900USBOTG(dev);
+    nms->usb_otg = usb_otg;
+    memory_region_add_subregion(sysmem, USBOTG_MEM_BASE, &nms->usb_otg->iomem);
+
+    // init the chip ID module
+    dev = qdev_new("ipodtouch.usbphys");
+    IPodTouchUSBPhysState *usb_phys_state = IPOD_TOUCH_USB_PHYS(dev);
+    nms->usb_phys_state = usb_phys_state;
+    memory_region_add_subregion(sysmem, USBPHYS_MEM_BASE, &usb_phys_state->iomem);
 
     ipod_touch_memory_setup(machine, sysmem, nsas);
 
