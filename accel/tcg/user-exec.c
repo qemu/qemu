@@ -22,6 +22,7 @@
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
 #include "qemu/bitops.h"
+#include "qemu/rcu.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translate-all.h"
 #include "exec/helper-proto.h"
@@ -136,6 +137,7 @@ bool handle_sigsegv_accerr_write(CPUState *cpu, sigset_t *old_set,
 }
 
 typedef struct PageFlagsNode {
+    struct rcu_head rcu;
     IntervalTreeNode itree;
     int flags;
 } PageFlagsNode;
@@ -266,7 +268,7 @@ static bool pageflags_unset(target_ulong start, target_ulong last)
             }
         } else if (p_last <= last) {
             /* Range completely covers node -- remove it. */
-            g_free(p);
+            g_free_rcu(p, rcu);
         } else {
             /* Truncate the node from the start. */
             p->itree.start = last + 1;
@@ -311,7 +313,7 @@ static void pageflags_create_merge(target_ulong start, target_ulong last,
     if (prev) {
         if (next) {
             prev->itree.last = next->itree.last;
-            g_free(next);
+            g_free_rcu(next, rcu);
         } else {
             prev->itree.last = last;
         }
@@ -376,7 +378,7 @@ static bool pageflags_set_clear(target_ulong start, target_ulong last,
             p->flags = merge_flags;
         } else {
             interval_tree_remove(&p->itree, &pageflags_root);
-            g_free(p);
+            g_free_rcu(p, rcu);
         }
         goto done;
     }
@@ -421,7 +423,7 @@ static bool pageflags_set_clear(target_ulong start, target_ulong last,
                     p->flags = merge_flags;
                 } else {
                     interval_tree_remove(&p->itree, &pageflags_root);
-                    g_free(p);
+                    g_free_rcu(p, rcu);
                 }
                 if (p_last < last) {
                     start = p_last + 1;
@@ -462,7 +464,7 @@ static bool pageflags_set_clear(target_ulong start, target_ulong last,
         p->itree.start = last + 1;
         interval_tree_insert(&p->itree, &pageflags_root);
     } else {
-        g_free(p);
+        g_free_rcu(p, rcu);
         goto restart;
     }
     if (set_flags) {
@@ -779,6 +781,7 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
 #define TBD_MASK   (TARGET_PAGE_MASK * TPD_PAGES)
 
 typedef struct TargetPageDataNode {
+    struct rcu_head rcu;
     IntervalTreeNode itree;
     char data[TPD_PAGES][TARGET_PAGE_DATA_SIZE] __attribute__((aligned));
 } TargetPageDataNode;
@@ -801,11 +804,11 @@ void page_reset_target_data(target_ulong start, target_ulong end)
          n = next,
          next = next ? interval_tree_iter_next(n, start, last) : NULL) {
         target_ulong n_start, n_last, p_ofs, p_len;
-        TargetPageDataNode *t;
+        TargetPageDataNode *t = container_of(n, TargetPageDataNode, itree);
 
         if (n->start >= start && n->last <= last) {
             interval_tree_remove(n, &targetdata_root);
-            g_free(n);
+            g_free_rcu(t, rcu);
             continue;
         }
 
@@ -819,7 +822,6 @@ void page_reset_target_data(target_ulong start, target_ulong end)
         n_last = MIN(last, n->last);
         p_len = (n_last + 1 - n_start) >> TARGET_PAGE_BITS;
 
-        t = container_of(n, TargetPageDataNode, itree);
         memset(t->data[p_ofs], 0, p_len * TARGET_PAGE_DATA_SIZE);
     }
 }
