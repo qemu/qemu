@@ -805,7 +805,13 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         return queue_pairs;
     }
 
-    vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    r = vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    if (unlikely(r < 0)) {
+        error_setg(errp, "vhost-vdpa: get iova range failed: %s",
+                   strerror(-r));
+        goto err;
+    }
+
     if (opts->x_svq) {
         if (!vhost_vdpa_net_valid_svq_features(features, errp)) {
             goto err_svq;
