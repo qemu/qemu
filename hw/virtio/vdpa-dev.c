@@ -53,6 +53,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VhostVdpaDevice *v = VHOST_VDPA_DEVICE(vdev);
+    struct vhost_vdpa_iova_range iova_range;
     uint16_t max_queue_size;
     struct vhost_virtqueue *vqs;
     int i, ret;
@@ -107,6 +108,14 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
     v->dev.vq_index_end = v->dev.nvqs;
     v->dev.backend_features = 0;
     v->started = false;
+
+    ret = vhost_vdpa_get_iova_range(v->vhostfd, &iova_range);
+    if (ret < 0) {
+        error_setg(errp, "vhost-vdpa-device: get iova range failed: %s",
+                   strerror(-ret));
+        goto free_vqs;
+    }
+    v->vdpa.iova_range = iova_range;
 
     ret = vhost_dev_init(&v->dev, &v->vdpa, VHOST_BACKEND_TYPE_VDPA, 0, NULL);
     if (ret < 0) {
