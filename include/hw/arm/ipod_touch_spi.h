@@ -8,6 +8,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"
+#include "hw/arm/ipod_touch_nor_spi.h"
 
 #define TYPE_IPOD_TOUCH_SPI "ipodtouch.spi"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchSPIState, IPOD_TOUCH_SPI)

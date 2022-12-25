@@ -274,6 +274,7 @@ static void ipod_touch_spi_realize(DeviceState *dev, struct Error **errp)
     // create the peripheral
     switch(s->base) {
         case 0:
+            ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_NOR_SPI);
             break;
         case 1:
             //ssi_create_peripheral(s->spi, TYPE_IPOD_TOUCH_LCD_PANEL);
