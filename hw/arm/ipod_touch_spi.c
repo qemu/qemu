@@ -130,7 +130,6 @@ static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
     //fprintf(stderr, "%s (base %d): read from location 0x%08x\n", __func__, s->base, addr);
 
     uint32_t r;
-    bool run = false;
 
     r = s->regs[addr >> 2];
     switch (addr) {
@@ -145,17 +144,12 @@ static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
         }
         buf = fifo8_pop_buf(&s->rx_fifo, word_size, &num);
         memcpy(&r, buf, num);
-        if (fifo8_is_empty(&s->rx_fifo)) {
-            run = true;
-        }
         break;
     }
     case R_STATUS: {
         int val = 0;
-        val |= fifo8_num_used(&s->tx_fifo) << R_STATUS_TXFIFO_SHIFT;
-        val |= fifo8_num_used(&s->rx_fifo) << R_STATUS_RXFIFO_SHIFT;
-        val &= (R_STATUS_TXFIFO_MASK | R_STATUS_RXFIFO_MASK);
-        r &= ~(R_STATUS_TXFIFO_MASK | R_STATUS_RXFIFO_MASK);
+        val |= (fifo8_num_used(&s->tx_fifo) << R_STATUS_TXFIFO_SHIFT);
+        val |= (fifo8_num_used(&s->rx_fifo) << R_STATUS_RXFIFO_SHIFT);
         r |= val;
         break;
     }
@@ -163,9 +157,6 @@ static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    if (run) {
-        apple_spi_run(s);
-    }
     apple_spi_update_irq(s);
     return r;
 }
@@ -194,6 +185,8 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         }
         break;
     case R_STATUS:
+        fifo8_reset(&s->tx_fifo);
+        fifo8_reset(&s->rx_fifo);
         r = old & (~r);
         run = true;
         break;

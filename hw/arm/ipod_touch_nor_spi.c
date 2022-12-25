@@ -4,7 +4,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
 {
     IPodTouchNORSPIState *s = IPOD_TOUCH_NOR_SPI(dev);
 
-    printf("NOR SPI received value 0x%08x\n", value);
+    //printf("NOR SPI received value 0x%08x\n", value);
 
     if(!s->cur_cmd && (value == 0x5)) {
         // this is a command -> set it
@@ -16,7 +16,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
         uint32_t res = 0;
         switch(s->cur_cmd) {
         case 0x5:
-            res = 0x1;
+            res = 0x0;
             break;
         default:
             break;

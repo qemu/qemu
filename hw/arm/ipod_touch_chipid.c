@@ -9,6 +9,10 @@ static uint64_t ipod_touch_chipid_read(void *opaque, hwaddr addr, unsigned size)
             return 0;
         case CHIPID_INFO:
             return (0x8720 << 16) | 0x1;
+        case CHIPID_UNKNOWN2:
+            return 0;
+        case CHIPID_UNKNOWN3:
+            return 0;
         default:
             hw_error("%s: reading from unknown chip ID register 0x%08x\n", __func__, addr);
     }
@@ -26,7 +30,7 @@ static void ipod_touch_chipid_init(Object *obj)
     IPodTouchChipIDState *s = IPOD_TOUCH_CHIPID(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, obj, &ipod_touch_chipid_ops, s, TYPE_IPOD_TOUCH_CHIPID, 0x10);
+    memory_region_init_io(&s->iomem, obj, &ipod_touch_chipid_ops, s, TYPE_IPOD_TOUCH_CHIPID, 0x14);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
