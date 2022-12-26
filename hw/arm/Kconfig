@@ -327,6 +327,7 @@ config ALLWINNER_A10
     select ALLWINNER_A10_DRAMC
     select ALLWINNER_EMAC
     select ALLWINNER_I2C
+    select AXP209_PMU
     select SERIAL
     select UNIMP
 
