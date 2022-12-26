@@ -36,6 +36,7 @@
 #define AW_A10_OHCI_BASE        0x01c14400
 #define AW_A10_SATA_BASE        0x01c18000
 #define AW_A10_RTC_BASE         0x01c20d00
+#define AW_A10_I2C0_BASE        0x01c2ac00
 
 static void aw_a10_init(Object *obj)
 {
@@ -55,6 +56,8 @@ static void aw_a10_init(Object *obj)
     object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
 
     object_initialize_child(obj, "sata", &s->sata, TYPE_ALLWINNER_AHCI);
+
+    object_initialize_child(obj, "i2c0", &s->i2c0, TYPE_AW_I2C);
 
     if (machine_usb(current_machine)) {
         int i;
@@ -176,6 +179,11 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     /* RTC */
     sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &error_fatal);
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->rtc), 0, AW_A10_RTC_BASE, 10);
+
+    /* I2C */
+    sysbus_realize(SYS_BUS_DEVICE(&s->i2c0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c0), 0, AW_A10_I2C0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c0), 0, qdev_get_gpio_in(dev, 7));
 }
 
 static void aw_a10_class_init(ObjectClass *oc, void *data)

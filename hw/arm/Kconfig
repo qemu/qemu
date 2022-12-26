@@ -326,6 +326,7 @@ config ALLWINNER_A10
     select ALLWINNER_A10_CCM
     select ALLWINNER_A10_DRAMC
     select ALLWINNER_EMAC
+    select ALLWINNER_I2C
     select SERIAL
     select UNIMP
 
@@ -333,6 +334,7 @@ config ALLWINNER_H3
     bool
     select ALLWINNER_A10_PIT
     select ALLWINNER_SUN8I_EMAC
+    select ALLWINNER_I2C
     select SERIAL
     select ARM_TIMER
     select ARM_GIC

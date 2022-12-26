@@ -25,6 +25,7 @@ The Orange Pi PC machine supports the following devices:
  * Clock Control Unit
  * System Control module
  * Security Identifier device
+ * TWI (I2C)
 
 Limitations
 """""""""""

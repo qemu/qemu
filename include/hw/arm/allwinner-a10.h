@@ -15,6 +15,7 @@
 #include "hw/rtc/allwinner-rtc.h"
 #include "hw/misc/allwinner-a10-ccm.h"
 #include "hw/misc/allwinner-a10-dramc.h"
+#include "hw/i2c/allwinner-i2c.h"
 
 #include "target/arm/cpu.h"
 #include "qom/object.h"
@@ -40,6 +41,7 @@ struct AwA10State {
     AwEmacState emac;
     AllwinnerAHCIState sata;
     AwSdHostState mmc0;
+    AWI2CState i2c0;
     AwRtcState rtc;
     MemoryRegion sram_a;
     EHCISysBusState ehci[AW_A10_NUM_USB];

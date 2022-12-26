@@ -47,6 +47,7 @@
 #include "hw/sd/allwinner-sdhost.h"
 #include "hw/net/allwinner-sun8i-emac.h"
 #include "hw/rtc/allwinner-rtc.h"
+#include "hw/i2c/allwinner-i2c.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -82,6 +83,7 @@ enum {
     AW_H3_DEV_UART2,
     AW_H3_DEV_UART3,
     AW_H3_DEV_EMAC,
+    AW_H3_DEV_TWI0,
     AW_H3_DEV_DRAMCOM,
     AW_H3_DEV_DRAMCTL,
     AW_H3_DEV_DRAMPHY,
@@ -130,6 +132,7 @@ struct AwH3State {
     AwH3SysCtrlState sysctrl;
     AwSidState sid;
     AwSdHostState mmc0;
+    AWI2CState i2c0;
     AwSun8iEmacState emac;
     AwRtcState rtc;
     GICState gic;
