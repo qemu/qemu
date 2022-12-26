@@ -25,6 +25,7 @@
 #include "hw/boards.h"
 #include "hw/usb/hcd-ohci.h"
 
+#define AW_A10_DRAMC_BASE       0x01c01000
 #define AW_A10_MMC0_BASE        0x01c0f000
 #define AW_A10_CCM_BASE         0x01c20000
 #define AW_A10_PIC_REG_BASE     0x01c20400
@@ -48,6 +49,8 @@ static void aw_a10_init(Object *obj)
     object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
 
     object_initialize_child(obj, "ccm", &s->ccm, TYPE_AW_A10_CCM);
+
+    object_initialize_child(obj, "dramc", &s->dramc, TYPE_AW_A10_DRAMC);
 
     object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
 
@@ -109,6 +112,10 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     /* Clock Control Module */
     sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccm), 0, AW_A10_CCM_BASE);
+
+    /* DRAM Control Module */
+    sysbus_realize(SYS_BUS_DEVICE(&s->dramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 0, AW_A10_DRAMC_BASE);
 
     /* FIXME use qdev NIC properties instead of nd_table[] */
     if (nd_table[0].used) {

@@ -177,4 +177,7 @@ config LASI
 config ALLWINNER_A10_CCM
     bool
 
+config ALLWINNER_A10_DRAMC
+    bool
+
 source macio/Kconfig
