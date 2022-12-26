@@ -26,6 +26,7 @@
 #include "hw/usb/hcd-ohci.h"
 
 #define AW_A10_MMC0_BASE        0x01c0f000
+#define AW_A10_CCM_BASE         0x01c20000
 #define AW_A10_PIC_REG_BASE     0x01c20400
 #define AW_A10_PIT_REG_BASE     0x01c20c00
 #define AW_A10_UART0_REG_BASE   0x01c28000
@@ -45,6 +46,8 @@ static void aw_a10_init(Object *obj)
     object_initialize_child(obj, "intc", &s->intc, TYPE_AW_A10_PIC);
 
     object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
+
+    object_initialize_child(obj, "ccm", &s->ccm, TYPE_AW_A10_CCM);
 
     object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
 
@@ -102,6 +105,10 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
                            &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0x00000000, &s->sram_a);
     create_unimplemented_device("a10-sram-ctrl", 0x01c00000, 4 * KiB);
+
+    /* Clock Control Module */
+    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccm), 0, AW_A10_CCM_BASE);
 
     /* FIXME use qdev NIC properties instead of nd_table[] */
     if (nd_table[0].used) {
