@@ -69,6 +69,7 @@ typedef struct IPodTouchSPIState {
     Fifo8 tx_fifo;
     uint32_t regs[MMIO_SIZE >> 2];
     uint8_t base;
+    IPodTouchNORSPIState *nor;
 } IPodTouchSPIState;
 
 void set_spi_base(uint32_t base);

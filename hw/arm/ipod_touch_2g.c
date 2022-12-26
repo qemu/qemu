@@ -92,9 +92,22 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     }
 }
 
+static char *ipod_touch_get_nor_path(Object *obj, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    return g_strdup(nms->nor_path);
+}
+
+static void ipod_touch_set_nor_path(Object *obj, const char *value, Error **errp)
+{
+    IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(obj);
+    g_strlcpy(nms->nor_path, value, sizeof(nms->nor_path));
+}
+
 static void ipod_touch_instance_init(Object *obj)
 {
-	
+	object_property_add_str(obj, "nor", ipod_touch_get_nor_path, ipod_touch_set_nor_path);
+    object_property_set_description(obj, "nor", "Path to the S5L8720 NOR image");
 }
 
 static inline qemu_irq s5l8900_get_irq(IPodTouchMachineState *s, int n)
@@ -182,7 +195,9 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init spis
     set_spi_base(0);
-    sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
+    dev = sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
+    IPodTouchSPIState *spi0_state = IPOD_TOUCH_SPI(dev);
+    strcpy(spi0_state->nor->nor_path, nms->nor_path);
 
     set_spi_base(1);
     sysbus_create_simple("ipodtouch.spi", SPI1_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI1_IRQ));
@@ -215,6 +230,18 @@ static void ipod_touch_machine_init(MachineState *machine)
     memory_region_add_subregion(sysmem, USBPHYS_MEM_BASE, &usb_phys_state->iomem);
 
     ipod_touch_memory_setup(machine, sysmem, nsas);
+
+    // init SHA1 engine
+    dev = qdev_new("ipodtouch.sha1");
+    IPodTouchSHA1State *sha1_state = IPOD_TOUCH_SHA1(dev);
+    nms->sha1_state = sha1_state;
+    memory_region_add_subregion(sysmem, SHA1_MEM_BASE, &sha1_state->iomem);
+
+    // init AES engine
+    dev = qdev_new("ipodtouch.aes");
+    IPodTouchAESState *aes_state = IPOD_TOUCH_AES(dev);
+    nms->aes_state = aes_state;
+    memory_region_add_subregion(sysmem, AES_MEM_BASE, &aes_state->iomem);
 
     qemu_register_reset(ipod_touch_cpu_reset, nms);
 }

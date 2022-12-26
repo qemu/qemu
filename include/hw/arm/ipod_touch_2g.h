@@ -14,6 +14,8 @@
 #include "hw/arm/ipod_touch_usb_otg.h"
 #include "hw/arm/ipod_touch_usb_phys.h"
 #include "hw/arm/ipod_touch_spi.h"
+#include "hw/arm/ipod_touch_sha1.h"
+#include "hw/arm/ipod_touch_aes.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -38,7 +40,9 @@
 // memory addresses
 #define VROM_MEM_BASE   0x0
 #define SRAM1_MEM_BASE  0x22020000
+#define SHA1_MEM_BASE 0x38000000
 #define USBOTG_MEM_BASE 0x38400000
+#define AES_MEM_BASE 0x38C00000
 #define VIC0_MEM_BASE 0x38E00000
 #define VIC1_MEM_BASE 0x38E01000
 #define SYSIC_MEM_BASE  0x39700000
@@ -72,9 +76,12 @@ typedef struct {
 	IPodTouchSYSICState *sysic;
 	synopsys_usb_state *usb_otg;
 	IPodTouchUSBPhysState *usb_phys_state;
+	IPodTouchSHA1State *sha1_state;
+	IPodTouchAESState *aes_state;
 	IT2G_CPREG_VAR_DEF(REG0);
 	IT2G_CPREG_VAR_DEF(REG1);
 	Clock *sysclk;
+	char nor_path[1024];
 } IPodTouchMachineState;
 
 #endif
