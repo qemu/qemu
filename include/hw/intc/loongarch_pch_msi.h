@@ -8,10 +8,10 @@
 #define TYPE_LOONGARCH_PCH_MSI "loongarch_pch_msi"
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHMSI, LOONGARCH_PCH_MSI)
 
-/* Msi irq start start from 64 to 255 */
-#define PCH_MSI_IRQ_START   64
+/* MSI irq start from 32 to 255 */
+#define PCH_MSI_IRQ_START   32
 #define PCH_MSI_IRQ_END     255
-#define PCH_MSI_IRQ_NUM     192
+#define PCH_MSI_IRQ_NUM     224
 
 struct LoongArchPCHMSI {
     SysBusDevice parent_obj;

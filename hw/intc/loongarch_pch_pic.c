@@ -9,6 +9,7 @@
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "hw/loongarch/virt.h"
+#include "hw/pci-host/ls7a.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "hw/qdev-properties.h"
@@ -377,7 +378,7 @@ static void loongarch_pch_pic_realize(DeviceState *dev, Error **errp)
 {
     LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(dev);
 
-    if (!s->irq_num || s->irq_num  > PCH_PIC_IRQ_NUM) {
+    if (!s->irq_num || s->irq_num  > VIRT_PCH_PIC_IRQ_NUM) {
         error_setg(errp, "Invalid 'pic_irq_num'");
         return;
     }
