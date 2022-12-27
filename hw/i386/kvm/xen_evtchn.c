@@ -38,6 +38,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_xen.h"
 #include <linux/kvm.h>
+#include <sys/eventfd.h>
 
 #include "hw/xen/interface/memory.h"
 #include "hw/xen/interface/hvm/params.h"
@@ -88,6 +89,13 @@ struct compat_shared_info {
 
 #define COMPAT_EVTCHN_2L_NR_CHANNELS            1024
 
+/* Local private implementation of struct xenevtchn_handle */
+struct xenevtchn_handle {
+    evtchn_port_t be_port;
+    evtchn_port_t guest_port; /* Or zero for unbound */
+    int fd;
+};
+
 /*
  * For unbound/interdomain ports there are only two possible remote
  * domains; self and QEMU. Use a single high bit in type_val for that,
@@ -111,12 +119,26 @@ struct XenEvtchnState {
     uint32_t nr_ports;
     XenEvtchnPort port_table[EVTCHN_2L_NR_CHANNELS];
     qemu_irq gsis[IOAPIC_NUM_PINS];
+
+    struct xenevtchn_handle *be_handles[EVTCHN_2L_NR_CHANNELS];
 };
 
 struct XenEvtchnState *xen_evtchn_singleton;
 
 /* Top bits of callback_param are the type (HVM_PARAM_CALLBACK_TYPE_xxx) */
 #define CALLBACK_VIA_TYPE_SHIFT 56
+
+static void unbind_backend_ports(XenEvtchnState *s);
+
+static int xen_evtchn_pre_load(void *opaque)
+{
+    XenEvtchnState *s = opaque;
+
+    /* Unbind all the backend-side ports; they need to rebind */
+    unbind_backend_ports(s);
+
+    return 0;
+}
 
 static int xen_evtchn_post_load(void *opaque, int version_id)
 {
@@ -151,6 +173,7 @@ static const VMStateDescription xen_evtchn_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = xen_evtchn_is_needed,
+    .pre_load = xen_evtchn_pre_load,
     .post_load = xen_evtchn_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(callback_param, XenEvtchnState),
@@ -423,6 +446,20 @@ static int assign_kernel_port(uint16_t type, evtchn_port_t port,
     return kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
 }
 
+static int assign_kernel_eventfd(uint16_t type, evtchn_port_t port, int fd)
+{
+    struct kvm_xen_hvm_attr ha;
+
+    ha.type = KVM_XEN_ATTR_TYPE_EVTCHN;
+    ha.u.evtchn.send_port = port;
+    ha.u.evtchn.type = type;
+    ha.u.evtchn.flags = 0;
+    ha.u.evtchn.deliver.eventfd.port = 0;
+    ha.u.evtchn.deliver.eventfd.fd = fd;
+
+    return kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &ha);
+}
+
 static bool valid_port(evtchn_port_t port)
 {
     if (!port) {
@@ -439,6 +476,32 @@ static bool valid_port(evtchn_port_t port)
 static bool valid_vcpu(uint32_t vcpu)
 {
     return !!qemu_get_cpu(vcpu);
+}
+
+static void unbind_backend_ports(XenEvtchnState *s)
+{
+    XenEvtchnPort *p;
+    int i;
+
+    for (i = 1; i < s->nr_ports; i++) {
+        p = &s->port_table[i];
+        if (p->type == EVTCHNSTAT_interdomain &&
+            (p->type_val & PORT_INFO_TYPEVAL_REMOTE_QEMU)) {
+            evtchn_port_t be_port = p->type_val & PORT_INFO_TYPEVAL_REMOTE_PORT_MASK;
+
+            if (s->be_handles[be_port]) {
+                /* This part will be overwritten on the load anyway. */
+                p->type = EVTCHNSTAT_unbound;
+                p->type_val = PORT_INFO_TYPEVAL_REMOTE_QEMU;
+
+                /* Leave the backend port open and unbound too. */
+                if (kvm_xen_has_cap(EVTCHN_SEND)) {
+                    deassign_kernel_port(i);
+                }
+                s->be_handles[be_port]->guest_port = 0;
+            }
+        }
+    }
 }
 
 int xen_evtchn_status_op(struct evtchn_status *status)
@@ -878,7 +941,14 @@ static int close_port(XenEvtchnState *s, evtchn_port_t port)
 
     case EVTCHNSTAT_interdomain:
         if (p->type_val & PORT_INFO_TYPEVAL_REMOTE_QEMU) {
-            /* Not yet implemented. This can't happen! */
+            uint16_t be_port = p->type_val & ~PORT_INFO_TYPEVAL_REMOTE_QEMU;
+            struct xenevtchn_handle *xc = s->be_handles[be_port];
+            if (xc) {
+                if (kvm_xen_has_cap(EVTCHN_SEND)) {
+                    deassign_kernel_port(port);
+                }
+                xc->guest_port = 0;
+            }
         } else {
             /* Loopback interdomain */
             XenEvtchnPort *rp = &s->port_table[p->type_val];
@@ -1110,8 +1180,27 @@ int xen_evtchn_bind_interdomain_op(struct evtchn_bind_interdomain *interdomain)
     }
 
     if (interdomain->remote_dom == DOMID_QEMU) {
-        /* We haven't hooked up QEMU's PV drivers to this yet */
-        ret = -ENOSYS;
+        struct xenevtchn_handle *xc = s->be_handles[interdomain->remote_port];
+        XenEvtchnPort *lp = &s->port_table[interdomain->local_port];
+
+        if (!xc) {
+            ret = -ENOENT;
+            goto out_free_port;
+        }
+
+        if (xc->guest_port) {
+            ret = -EBUSY;
+            goto out_free_port;
+        }
+
+        assert(xc->be_port == interdomain->remote_port);
+        xc->guest_port = interdomain->local_port;
+        if (kvm_xen_has_cap(EVTCHN_SEND)) {
+            assign_kernel_eventfd(lp->type, xc->guest_port, xc->fd);
+        }
+        lp->type = EVTCHNSTAT_interdomain;
+        lp->type_val = PORT_INFO_TYPEVAL_REMOTE_QEMU | interdomain->remote_port;
+        ret = 0;
     } else {
         /* Loopback */
         XenEvtchnPort *rp = &s->port_table[interdomain->remote_port];
@@ -1129,6 +1218,7 @@ int xen_evtchn_bind_interdomain_op(struct evtchn_bind_interdomain *interdomain)
         }
     }
 
+ out_free_port:
     if (ret) {
         free_port(s, interdomain->local_port);
     }
@@ -1193,11 +1283,16 @@ int xen_evtchn_send_op(struct evtchn_send *send)
         if (p->type_val & PORT_INFO_TYPEVAL_REMOTE_QEMU) {
             /*
              * This is an event from the guest to qemu itself, which is
-             * serving as the driver domain. Not yet implemented; it will
-             * be hooked up to the qemu implementation of xenstore,
-             * console, PV net/block drivers etc.
+             * serving as the driver domain.
              */
-            ret = -ENOSYS;
+            uint16_t be_port = p->type_val & ~PORT_INFO_TYPEVAL_REMOTE_QEMU;
+            struct xenevtchn_handle *xc = s->be_handles[be_port];
+            if (xc) {
+                eventfd_write(xc->fd, 1);
+                ret = 0;
+            } else {
+                ret = -ENOENT;
+            }
         } else {
             /* Loopback interdomain ports; just a complex IPI */
             set_port_pending(s, p->type_val);
@@ -1251,6 +1346,237 @@ int xen_evtchn_set_port(uint16_t port)
     qemu_mutex_unlock(&s->port_lock);
 
     return ret;
+}
+
+struct xenevtchn_handle *xen_be_evtchn_open(void)
+{
+    struct xenevtchn_handle *xc = g_new0(struct xenevtchn_handle, 1);
+
+    xc->fd = eventfd(0, EFD_CLOEXEC);
+    if (xc->fd < 0) {
+        free(xc);
+        return NULL;
+    }
+
+    return xc;
+}
+
+static int find_be_port(XenEvtchnState *s, struct xenevtchn_handle *xc)
+{
+    int i;
+
+    for (i = 1; i < EVTCHN_2L_NR_CHANNELS; i++) {
+        if (!s->be_handles[i]) {
+            s->be_handles[i] = xc;
+            xc->be_port = i;
+            return i;
+        }
+    }
+    return 0;
+}
+
+int xen_be_evtchn_bind_interdomain(struct xenevtchn_handle *xc, uint32_t domid,
+                                   evtchn_port_t guest_port)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    XenEvtchnPort *gp;
+    uint16_t be_port = 0;
+    int ret;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    if (domid != xen_domid) {
+        return -ESRCH;
+    }
+
+    if (!valid_port(guest_port)) {
+        return -EINVAL;
+    }
+
+    qemu_mutex_lock(&s->port_lock);
+
+    /* The guest has to have an unbound port waiting for us to bind */
+    gp = &s->port_table[guest_port];
+
+    switch (gp->type) {
+    case EVTCHNSTAT_interdomain:
+        /* Allow rebinding after migration, preserve port # if possible */
+        be_port = gp->type_val & ~PORT_INFO_TYPEVAL_REMOTE_QEMU;
+        assert(be_port != 0);
+        if (!s->be_handles[be_port]) {
+            s->be_handles[be_port] = xc;
+            xc->guest_port = guest_port;
+            ret = xc->be_port = be_port;
+            if (kvm_xen_has_cap(EVTCHN_SEND)) {
+                assign_kernel_eventfd(gp->type, guest_port, xc->fd);
+            }
+            break;
+        }
+        /* fall through */
+
+    case EVTCHNSTAT_unbound:
+        be_port = find_be_port(s, xc);
+        if (!be_port) {
+            ret = -ENOSPC;
+            goto out;
+        }
+
+        gp->type = EVTCHNSTAT_interdomain;
+        gp->type_val = be_port | PORT_INFO_TYPEVAL_REMOTE_QEMU;
+        xc->guest_port = guest_port;
+        if (kvm_xen_has_cap(EVTCHN_SEND)) {
+            assign_kernel_eventfd(gp->type, guest_port, xc->fd);
+        }
+        ret = be_port;
+        break;
+
+    default:
+        ret = -EINVAL;
+        break;
+    }
+
+ out:
+    qemu_mutex_unlock(&s->port_lock);
+
+    return ret;
+}
+
+int xen_be_evtchn_unbind(struct xenevtchn_handle *xc, evtchn_port_t port)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int ret;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    qemu_mutex_lock(&s->port_lock);
+
+    if (port && port != xc->be_port) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    if (xc->guest_port) {
+        XenEvtchnPort *gp = &s->port_table[xc->guest_port];
+
+        /* This should never *not* be true */
+        if (gp->type == EVTCHNSTAT_interdomain) {
+            gp->type = EVTCHNSTAT_unbound;
+            gp->type_val = PORT_INFO_TYPEVAL_REMOTE_QEMU;
+        }
+
+        if (kvm_xen_has_cap(EVTCHN_SEND)) {
+            deassign_kernel_port(xc->guest_port);
+        }
+        xc->guest_port = 0;
+    }
+
+    s->be_handles[xc->be_port] = NULL;
+    xc->be_port = 0;
+    ret = 0;
+ out:
+    qemu_mutex_unlock(&s->port_lock);
+    return ret;
+}
+
+int xen_be_evtchn_close(struct xenevtchn_handle *xc)
+{
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    xen_be_evtchn_unbind(xc, 0);
+
+    close(xc->fd);
+    free(xc);
+    return 0;
+}
+
+int xen_be_evtchn_fd(struct xenevtchn_handle *xc)
+{
+    if (!xc) {
+        return -1;
+    }
+    return xc->fd;
+}
+
+int xen_be_evtchn_notify(struct xenevtchn_handle *xc, evtchn_port_t port)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int ret;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    qemu_mutex_lock(&s->port_lock);
+
+    if (xc->guest_port) {
+        set_port_pending(s, xc->guest_port);
+        ret = 0;
+    } else {
+        ret = -ENOTCONN;
+    }
+
+    qemu_mutex_unlock(&s->port_lock);
+
+    return ret;
+}
+
+int xen_be_evtchn_pending(struct xenevtchn_handle *xc)
+{
+    uint64_t val;
+
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    if (!xc->be_port) {
+        return 0;
+    }
+
+    if (eventfd_read(xc->fd, &val)) {
+        return -errno;
+    }
+
+    return val ? xc->be_port : 0;
+}
+
+int xen_be_evtchn_unmask(struct xenevtchn_handle *xc, evtchn_port_t port)
+{
+    if (!xc) {
+        return -EFAULT;
+    }
+
+    if (xc->be_port != port) {
+        return -EINVAL;
+    }
+
+    /*
+     * We don't actually do anything to unmask it; the event was already
+     * consumed in xen_be_evtchn_pending().
+     */
+    return 0;
+}
+
+int xen_be_evtchn_get_guest_port(struct xenevtchn_handle *xc)
+{
+    return xc->guest_port;
 }
 
 EvtchnInfoList *qmp_xen_event_list(Error **errp)

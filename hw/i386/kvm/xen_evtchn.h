@@ -14,6 +14,8 @@
 
 #include "hw/sysbus.h"
 
+typedef uint32_t evtchn_port_t;
+
 void xen_evtchn_create(void);
 int xen_evtchn_soft_reset(void);
 int xen_evtchn_set_callback_param(uint64_t param);
@@ -21,6 +23,23 @@ void xen_evtchn_connect_gsis(qemu_irq *system_gsis);
 void xen_evtchn_set_callback_level(int level);
 
 int xen_evtchn_set_port(uint16_t port);
+
+/*
+ * These functions mirror the libxenevtchn library API, providing the QEMU
+ * backend side of "interdomain" event channels.
+ */
+struct xenevtchn_handle;
+struct xenevtchn_handle *xen_be_evtchn_open(void);
+int xen_be_evtchn_bind_interdomain(struct xenevtchn_handle *xc, uint32_t domid,
+                                   evtchn_port_t guest_port);
+int xen_be_evtchn_unbind(struct xenevtchn_handle *xc, evtchn_port_t port);
+int xen_be_evtchn_close(struct xenevtchn_handle *xc);
+int xen_be_evtchn_fd(struct xenevtchn_handle *xc);
+int xen_be_evtchn_notify(struct xenevtchn_handle *xc, evtchn_port_t port);
+int xen_be_evtchn_unmask(struct xenevtchn_handle *xc, evtchn_port_t port);
+int xen_be_evtchn_pending(struct xenevtchn_handle *xc);
+/* Apart from this which is a local addition */
+int xen_be_evtchn_get_guest_port(struct xenevtchn_handle *xc);
 
 struct evtchn_status;
 struct evtchn_close;
