@@ -1291,6 +1291,8 @@ assign_error:
     while (--n >= 0) {
         virtio_pci_set_guest_notifier(d, n, !assign, with_irqfd);
     }
+    g_free(proxy->vector_irqfd);
+    proxy->vector_irqfd = NULL;
     return r;
 }
 
