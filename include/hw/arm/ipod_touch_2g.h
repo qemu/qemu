@@ -16,6 +16,7 @@
 #include "hw/arm/ipod_touch_spi.h"
 #include "hw/arm/ipod_touch_sha1.h"
 #include "hw/arm/ipod_touch_aes.h"
+#include "hw/arm/ipod_touch_pke.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
@@ -52,6 +53,7 @@
 #define TIMER1_MEM_BASE 0x3C700000
 #define SPI1_MEM_BASE 0x3CE00000
 #define GPIO_MEM_BASE   0x3CF00000
+#define PKE_MEM_BASE 0x3D000000
 #define CHIPID_MEM_BASE 0x3D100000
 #define SPI2_MEM_BASE 0x3D200000
 #define SPI3_MEM_BASE 0x3DA00000
@@ -78,10 +80,13 @@ typedef struct {
 	IPodTouchUSBPhysState *usb_phys_state;
 	IPodTouchSHA1State *sha1_state;
 	IPodTouchAESState *aes_state;
-	IT2G_CPREG_VAR_DEF(REG0);
-	IT2G_CPREG_VAR_DEF(REG1);
+	IPodTouchPKEState *pke_state;
 	Clock *sysclk;
 	char nor_path[1024];
+	IT2G_CPREG_VAR_DEF(REG0);
+	IT2G_CPREG_VAR_DEF(REG1);
+	
+	
 } IPodTouchMachineState;
 
 #endif

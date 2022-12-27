@@ -243,6 +243,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->aes_state = aes_state;
     memory_region_add_subregion(sysmem, AES_MEM_BASE, &aes_state->iomem);
 
+    // init PKE engine
+    dev = qdev_new("ipodtouch.pke");
+    IPodTouchPKEState *pke_state = IPOD_TOUCH_PKE(dev);
+    nms->pke_state = pke_state;
+    memory_region_add_subregion(sysmem, PKE_MEM_BASE, &pke_state->iomem);
+
     qemu_register_reset(ipod_touch_cpu_reset, nms);
 }
 
