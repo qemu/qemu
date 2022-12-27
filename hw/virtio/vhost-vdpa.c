@@ -519,9 +519,18 @@ static void vhost_vdpa_host_notifiers_uninit(struct vhost_dev *dev, int n)
 {
     int i;
 
+    /*
+     * Pack all the changes to the memory regions in a single
+     * transaction to avoid a few updating of the address space
+     * topology.
+     */
+    memory_region_transaction_begin();
+
     for (i = dev->vq_index; i < dev->vq_index + n; i++) {
         vhost_vdpa_host_notifier_uninit(dev, i);
     }
+
+    memory_region_transaction_commit();
 }
 
 static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
@@ -534,17 +543,21 @@ static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
         return;
     }
 
+    /*
+     * Pack all the changes to the memory regions in a single
+     * transaction to avoid a few updating of the address space
+     * topology.
+     */
+    memory_region_transaction_begin();
+
     for (i = dev->vq_index; i < dev->vq_index + dev->nvqs; i++) {
         if (vhost_vdpa_host_notifier_init(dev, i)) {
-            goto err;
+            vhost_vdpa_host_notifiers_uninit(dev, i - dev->vq_index);
+            break;
         }
     }
 
-    return;
-
-err:
-    vhost_vdpa_host_notifiers_uninit(dev, i - dev->vq_index);
-    return;
+    memory_region_transaction_commit();
 }
 
 static void vhost_vdpa_svq_cleanup(struct vhost_dev *dev)
