@@ -26,24 +26,25 @@
 #define VIRT_PCH_MSI_ADDR_LOW    0x2FF00000UL
 
 /*
- * According to the kernel pch irq start from 64 offset
- * 0 ~ 16 irqs used for non-pci device while 16 ~ 64 irqs
- * used for pci device.
+ * GSI_BASE is hard-coded with 64 in linux kernel, else kernel fails to boot
+ * 0  - 15  GSI for ISA devices even if there is no ISA devices
+ * 16 - 63  GSI for CPU devices such as timers/perf monitor etc
+ * 64 -     GSI for external devices
  */
 #define VIRT_PCH_PIC_IRQ_NUM     32
-#define PCH_PIC_IRQ_OFFSET       64
+#define VIRT_GSI_BASE            64
 #define VIRT_DEVICE_IRQS         16
-#define VIRT_UART_IRQ            (PCH_PIC_IRQ_OFFSET + 2)
+#define VIRT_UART_IRQ            (VIRT_GSI_BASE + 2)
 #define VIRT_UART_BASE           0x1fe001e0
 #define VIRT_UART_SIZE           0X100
-#define VIRT_RTC_IRQ             (PCH_PIC_IRQ_OFFSET + 3)
+#define VIRT_RTC_IRQ             (VIRT_GSI_BASE + 3)
 #define VIRT_MISC_REG_BASE       (VIRT_PCH_REG_BASE + 0x00080000)
 #define VIRT_RTC_REG_BASE        (VIRT_MISC_REG_BASE + 0x00050100)
 #define VIRT_RTC_LEN             0x100
-#define VIRT_SCI_IRQ             (PCH_PIC_IRQ_OFFSET + 4)
+#define VIRT_SCI_IRQ             (VIRT_GSI_BASE + 4)
 
 #define VIRT_PLATFORM_BUS_BASEADDRESS   0x16000000
 #define VIRT_PLATFORM_BUS_SIZE          0x2000000
 #define VIRT_PLATFORM_BUS_NUM_IRQS      2
-#define VIRT_PLATFORM_BUS_IRQ           69
+#define VIRT_PLATFORM_BUS_IRQ           (VIRT_GSI_BASE + 5)
 #endif
