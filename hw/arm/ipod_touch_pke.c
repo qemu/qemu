@@ -1,28 +1,57 @@
 #include "hw/arm/ipod_touch_pke.h"
+#include <openssl/bn.h>
+#include <openssl/bio.h>
 
-uint8_t LLB_IMG3_HASH[34] = { 0x30, 0x21, 0x30, 0x09,
-                  0x06, 0x05, 0x2b, 0x0e,
-                  0x03, 0x02, 0x1a, 0x05,
-                  0x00, 0x04, 0x14, 0xc0,
-                  0x67, 0x68, 0x03, 0xe2,
-                  0x53, 0xd0, 0xf2, 0x8f,
-                  0x35, 0xba, 0xde, 0x08,
-                  0xea, 0xdc, 0x3a, 0xb3,
-                  0xd3, 0x49 };
+static uint8_t *datahex(char* string) {
 
-uint8_t LLB_IMG3_HASH_ALGO_ID = 0xCD;
+    if(string == NULL) 
+       return NULL;
+
+    size_t slength = strlen(string);
+    if((slength % 2) != 0) // must be even
+       return NULL;
+
+    size_t dlength = slength / 2;
+
+    uint8_t* data = malloc(dlength);
+    memset(data, 0, dlength);
+
+    size_t index = 0;
+    while (index < slength) {
+        char c = string[index];
+        int value = 0;
+        if(c >= '0' && c <= '9')
+          value = (c - '0');
+        else if (c >= 'A' && c <= 'F') 
+          value = (10 + (c - 'A'));
+        else if (c >= 'a' && c <= 'f')
+          value = (10 + (c - 'a'));
+        else {
+          free(data);
+          return NULL;
+        }
+
+        data[(index/2)] += value << (((index + 1) % 2) * 4);
+
+        index++;
+    }
+
+    return data;
+}
 
 static uint64_t ipod_touch_pke_read(void *opaque, hwaddr offset, unsigned size)
 {
     IPodTouchPKEState *s = (IPodTouchPKEState *)opaque;
 
-    printf("%s: offset 0x%08x\n", __FUNCTION__, offset);
+    //printf("%s: offset 0x%08x\n", __FUNCTION__, offset);
 
     switch(offset) {
-        case 0x900 ... 0x9FC:
+        case REG_PKE_SEG_SIZE:
+            return s->seg_size_reg;
+        case REG_PKE_SEG_START ... (REG_PKE_SEG_START + 1024):
         {
-            uint32_t *res = (uint32_t *)s->pmod_result;
-            return res[(offset - 0x900) / 4];
+            uint32_t *res = (uint32_t *)s->segments;
+            return res[(offset - REG_PKE_SEG_START) / 4];
         }
         default:
             break;
@@ -35,7 +64,68 @@ static void ipod_touch_pke_write(void *opaque, hwaddr offset, uint64_t value, un
 {
     IPodTouchPKEState *s = (IPodTouchPKEState *)opaque;
 
-    printf("%s: offset 0x%08x value 0x%08x\n", __FUNCTION__, offset, value);
+    //printf("%s: offset 0x%08x value 0x%08x\n", __FUNCTION__, offset, value);
+
+    switch(offset) {
+        case REG_PKE_SEG_START ... (REG_PKE_SEG_START + 1024):
+        {
+            uint32_t *segments_cast = (uint32_t *)s->segments;
+            segments_cast[(offset - REG_PKE_SEG_START) / 4] = value;
+            break;
+        }
+        case REG_PKE_START:
+        {
+            s->num_started++;
+
+            if(s->num_started == 5) { // TODO this is arbitrary!
+                // printf("Base: 0x");
+                // uint32_t *cast = (uint32_t *)(&s->segments[s->segment_size]); // segment 1
+                // for(int i = (s->segment_size / 4 - 1); i >= 0; i--) {
+                //     printf("%08x", cast[i]);
+                // }
+                // printf("\n");
+
+                // printf("Mod: 0x");
+                // cast = (uint32_t *)s->segments; // segment 0
+                // for(int i = (s->segment_size / 4 - 1); i >= 0; i--) {
+                //     printf("%08x", cast[i]);
+                // }
+                // printf("\n\n");
+
+                BIGNUM *mod_bn = BN_lebin2bn(s->segments, s->segment_size, NULL);
+                BIGNUM *base_bn = BN_lebin2bn(s->segments + s->segment_size, s->segment_size, NULL);
+                BIGNUM *exp_bn = BN_new();
+                BN_dec2bn(&exp_bn,"65537");
+                // BN_print(BIO_new_fp(stdout, BIO_NOCLOSE), exp_bn);
+                // printf("\n\n");
+
+                BIGNUM *res = BN_new();
+                BN_CTX *ctx = BN_CTX_new();
+                BN_mod_exp(res, base_bn, exp_bn, mod_bn, ctx);
+                // BN_print(BIO_new_fp(stdout, BIO_NOCLOSE), res);
+                // printf("\n\n");
+
+                char *res_hex = datahex(BN_bn2hex(res));
+
+                // copy this into SEG1 - note that the hex conversion removes the first 0x00 bytes so we add it back and shift everything to the right one place.
+                for(int i = 0; i < (s->segment_size - 1); i++) { s->segments[s->segment_size + s->segment_size - 2 - i] = res_hex[i]; }
+                s->segments[s->segment_size + s->segment_size - 1] = 0x0;
+            }
+            break;
+        }
+        case REG_PKE_SEG_SIZE:
+            s->seg_size_reg = value;
+            uint32_t size_bit = (s->seg_size_reg >> 6);
+            if(size_bit == 0) { s->segment_size = 256; }
+            else if(size_bit == 1) { s->segment_size = 128; }
+            else { hw_error("Unsupported segment size bit %d!", size_bit); }
+
+            break;
+        case REG_PKE_SWRESET:
+            s->num_started = 0;
+        default:
+            break;
+    }
 }
 
 static const MemoryRegionOps pke_ops = {
@@ -52,14 +142,6 @@ static void ipod_touch_pke_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &pke_ops, s, "pke", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
-
-    // TODO prepare the hard-coded pmod result
-    for(int i = 0; i < 254; i++) { s->pmod_result[i] = 0xFF; }
-    s->pmod_result[254] = 0x1;
-    s->pmod_result[255] = 0x0;
-    s->pmod_result[35] = 0x0;
-    for(int i = 0; i < 34; i++) { s->pmod_result[34 - i] = LLB_IMG3_HASH[i]; }
-    s->pmod_result[0] = LLB_IMG3_HASH_ALGO_ID;
 }
 
 static void ipod_touch_pke_class_init(ObjectClass *klass, void *data)
