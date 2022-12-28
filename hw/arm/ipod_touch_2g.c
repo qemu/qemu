@@ -80,7 +80,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 {
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
 
-    allocate_ram(sysmem, "unknown", 0x22000000, 0x100000);
+    allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
 
     // load the bootrom (vrom)
@@ -136,6 +136,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     clock_set_hz(nms->sysclk, 12000000ULL);
 
     nms->cpu = cpu;
+    nms->nsas = nsas;
 
     // setup VICs
     nms->irq = g_malloc0(sizeof(qemu_irq *) * 2);
@@ -222,6 +223,23 @@ static void ipod_touch_machine_init(MachineState *machine)
     synopsys_usb_state *usb_otg = S5L8900USBOTG(dev);
     nms->usb_otg = usb_otg;
     memory_region_add_subregion(sysmem, USBOTG_MEM_BASE, &nms->usb_otg->iomem);
+
+    // init two pl080 DMAC0 devices
+    dev = qdev_new("pl080");
+    PL080State *pl080_1 = PL080(dev);
+    object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem), &error_fatal);
+    memory_region_add_subregion(sysmem, DMAC0_MEM_BASE, &pl080_1->iomem);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
+
+    dev = qdev_new("pl080");
+    PL080State *pl080_2 = PL080(dev);
+    object_property_set_link(OBJECT(dev), "downstream", OBJECT(sysmem), &error_fatal);
+    memory_region_add_subregion(sysmem, DMAC1_MEM_BASE, &pl080_2->iomem);
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_realize(busdev, &error_fatal);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
 
     // init the chip ID module
     dev = qdev_new("ipodtouch.usbphys");

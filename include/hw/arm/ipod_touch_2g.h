@@ -6,6 +6,7 @@
 #include "hw/intc/pl192.h"
 #include "hw/arm/boot.h"
 #include "cpu.h"
+#include "hw/dma/pl080.h"
 #include "hw/arm/ipod_touch_timer.h"
 #include "hw/arm/ipod_touch_clock.h"
 #include "hw/arm/ipod_touch_chipid.h"
@@ -28,6 +29,8 @@
 #define S5L8720_SPI0_IRQ 0x9
 #define S5L8720_SPI1_IRQ 0xA
 #define S5L8720_SPI2_IRQ 0xB
+#define S5L8720_DMAC0_IRQ 0x10
+#define S5L8720_DMAC1_IRQ 0x11
 #define S5L8720_SPI3_IRQ 0x1C
 #define S5L8720_SPI4_IRQ 0x37
 
@@ -42,11 +45,13 @@
 #define VROM_MEM_BASE   0x0
 #define SRAM1_MEM_BASE  0x22020000
 #define SHA1_MEM_BASE 0x38000000
+#define DMAC0_MEM_BASE 0x38200000
 #define USBOTG_MEM_BASE 0x38400000
 #define AES_MEM_BASE 0x38C00000
 #define VIC0_MEM_BASE 0x38E00000
 #define VIC1_MEM_BASE 0x38E01000
 #define SYSIC_MEM_BASE  0x39700000
+#define DMAC1_MEM_BASE 0x39900000
 #define SPI0_MEM_BASE 0x3C300000
 #define USBPHYS_MEM_BASE 0x3C400000
 #define CLOCK0_MEM_BASE 0x3C500000
@@ -66,6 +71,7 @@ typedef struct {
 
 typedef struct {
 	MachineState parent;
+	AddressSpace *nsas;
 	qemu_irq **irq;
 	ARMCPU *cpu;
 	PL192State *vic0;

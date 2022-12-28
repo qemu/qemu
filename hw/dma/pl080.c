@@ -142,12 +142,12 @@ again:
             case 0:
                 break;
             case 1:
-                if ((req & (1u << dest_id)) == 0)
-                    size = 0;
+                // if ((req & (1u << dest_id)) == 0)
+                //     size = 0;
                 break;
             case 2:
-                if ((req & (1u << src_id)) == 0)
-                    size = 0;
+                // if ((req & (1u << src_id)) == 0)
+                //     size = 0;
                 break;
             case 3:
                 if ((req & (1u << src_id)) == 0
@@ -155,8 +155,9 @@ again:
                     size = 0;
                 break;
             }
-            if (!size)
+            if (!size) {
                 continue;
+            }
 
             /* Transfer one element.  */
             /* ??? Should transfer multiple elements for a burst request.  */
@@ -179,6 +180,7 @@ again:
                     ch->dest += swidth;
             }
 
+            //printf("Transfer size: %d, destination: 0x%08x\n", size, ch->dest);
             size--;
             ch->ctrl = (ch->ctrl & 0xfffff000) | size;
             if (size == 0) {
@@ -204,6 +206,7 @@ again:
                     ch->conf &= ~PL080_CCONF_E;
                 }
                 if (ch->ctrl & PL080_CCTRL_I) {
+                    //printf("Setting interrupt status of channel %d\n", c);
                     s->tc_int |= 1 << c;
                 }
             }
@@ -212,6 +215,7 @@ again:
         if (--s->running)
             s->running = 1;
     }
+    pl080_update(s);
 }
 
 static uint64_t pl080_read(void *opaque, hwaddr offset,
@@ -289,24 +293,30 @@ static void pl080_write(void *opaque, hwaddr offset,
     PL080State *s = (PL080State *)opaque;
     int i;
 
+    //fprintf(stderr, "%s: writing 0x%08x to 0x%08x\n", __func__, value, offset);
+
     if (offset >= 0x100 && offset < 0x200) {
         i = (offset & 0xe0) >> 5;
         if (i >= s->nchannels)
             goto bad_offset;
         switch ((offset >> 2) & 7) {
         case 0: /* SrcAddr */
+            //printf("%s: setting source address of channel %d to 0x%08x\n", __func__, i, value);
             s->chan[i].src = value;
             break;
         case 1: /* DestAddr */
+            //printf("%s: setting destination address of channel %d to 0x%08x\n", __func__, i, value);
             s->chan[i].dest = value;
             break;
         case 2: /* LLI */
             s->chan[i].lli = value;
             break;
         case 3: /* Control */
+            //printf("%s: setting control of channel %d to 0x%08x (transfer size: %d)\n", __func__, i, value, value & 0xfff);
             s->chan[i].ctrl = value;
             break;
         case 4: /* Configuration */
+            //printf("%s: setting configuration of channel %d to 0x%08x\n", __func__, i, value);
             s->chan[i].conf = value;
             pl080_run(s);
             break;

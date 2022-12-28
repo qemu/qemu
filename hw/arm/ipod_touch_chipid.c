@@ -6,9 +6,9 @@ static uint64_t ipod_touch_chipid_read(void *opaque, hwaddr addr, unsigned size)
 
     switch (addr) {
         case CHIPID_UNKNOWN1:
-            return 0;
+            return (1 << 5); // ind5 = production mode
         case CHIPID_INFO:
-            return (0x8720 << 16) | 0x1;
+            return (0x8720 << 16) | (1 << 2); // ind16 = chipid, ind2 = security domain, 
         case CHIPID_UNKNOWN2:
             return 0;
         case CHIPID_UNKNOWN3:
