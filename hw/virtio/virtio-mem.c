@@ -341,7 +341,7 @@ static int virtio_mem_notify_plug(VirtIOMEM *vmem, uint64_t offset,
     if (ret) {
         /* Notify all already-notified listeners. */
         QLIST_FOREACH(rdl2, &vmem->rdl_list, next) {
-            MemoryRegionSection tmp = *rdl->section;
+            MemoryRegionSection tmp = *rdl2->section;
 
             if (rdl2 == rdl) {
                 break;
