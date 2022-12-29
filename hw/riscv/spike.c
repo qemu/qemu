@@ -190,6 +190,7 @@ static void spike_board_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     target_ulong firmware_end_addr, kernel_start_addr;
+    const char *firmware_name;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
     char *soc_name;
@@ -255,15 +256,10 @@ static void spike_board_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[SPIKE_MROM].base,
                                 mask_rom);
 
-    if (riscv_is_32bit(&s->soc[0])) {
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    RISCV32_BIOS_BIN, memmap[SPIKE_DRAM].base,
-                                    htif_symbol_callback);
-    } else {
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    RISCV64_BIOS_BIN, memmap[SPIKE_DRAM].base,
-                                    htif_symbol_callback);
-    }
+    firmware_name = riscv_default_firmware_name(&s->soc[0]);
+    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
+                                                     memmap[SPIKE_DRAM].base,
+                                                     htif_symbol_callback);
 
     /* Load kernel */
     if (machine->kernel_filename) {

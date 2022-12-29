@@ -75,6 +75,15 @@ target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
     }
 }
 
+const char *riscv_default_firmware_name(RISCVHartArrayState *harts)
+{
+    if (riscv_is_32bit(harts)) {
+        return RISCV32_BIOS_BIN;
+    }
+
+    return RISCV64_BIOS_BIN;
+}
+
 static char *riscv_find_firmware(const char *firmware_filename)
 {
     char *filename;

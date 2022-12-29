@@ -1237,6 +1237,7 @@ static void virt_machine_done(Notifier *notifier, void *data)
     MachineState *machine = MACHINE(s);
     target_ulong start_addr = memmap[VIRT_DRAM].base;
     target_ulong firmware_end_addr, kernel_start_addr;
+    const char *firmware_name = riscv_default_firmware_name(&s->soc[0]);
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
 
@@ -1256,13 +1257,8 @@ static void virt_machine_done(Notifier *notifier, void *data)
         }
     }
 
-    if (riscv_is_32bit(&s->soc[0])) {
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    RISCV32_BIOS_BIN, start_addr, NULL);
-    } else {
-        firmware_end_addr = riscv_find_and_load_firmware(machine,
-                                    RISCV64_BIOS_BIN, start_addr, NULL);
-    }
+    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
+                                                     start_addr, NULL);
 
     /*
      * Init fw_cfg.  Must be done before riscv_load_fdt, otherwise the device
