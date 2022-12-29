@@ -316,9 +316,8 @@ static void spike_board_init(MachineState *machine)
                               fdt_load_addr);
 
     /* initialize HTIF using symbols found in load_kernel */
-    htif_mm_init(system_memory, mask_rom,
-                 &s->soc[0].harts[0].env, serial_hd(0),
-                 memmap[SPIKE_HTIF].base);
+    htif_mm_init(system_memory, &s->soc[0].harts[0].env,
+                 serial_hd(0), memmap[SPIKE_HTIF].base);
 }
 
 static void spike_machine_instance_init(Object *obj)

@@ -265,8 +265,8 @@ bool htif_uses_elf_symbols(void)
     return (address_symbol_set == 3) ? true : false;
 }
 
-HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
-    CPURISCVState *env, Chardev *chr, uint64_t nonelf_base)
+HTIFState *htif_mm_init(MemoryRegion *address_space, CPURISCVState *env,
+                        Chardev *chr, uint64_t nonelf_base)
 {
     uint64_t base, size, tohost_offset, fromhost_offset;
 
@@ -281,9 +281,6 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
     fromhost_offset = fromhost_addr - base;
 
     HTIFState *s = g_new0(HTIFState, 1);
-    s->address_space = address_space;
-    s->main_mem = main_mem;
-    s->main_mem_ram_ptr = memory_region_get_ram_ptr(main_mem);
     s->env = env;
     s->tohost_offset = tohost_offset;
     s->fromhost_offset = fromhost_offset;
