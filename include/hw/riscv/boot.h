@@ -38,6 +38,8 @@ target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           hwaddr firmware_load_addr,
                                           symbol_fn_t sym_cb);
 const char *riscv_default_firmware_name(RISCVHartArrayState *harts);
+char *riscv_find_firmware(const char *firmware_filename,
+                          const char *default_machine_firmware);
 target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb);

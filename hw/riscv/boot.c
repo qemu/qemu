@@ -84,11 +84,11 @@ const char *riscv_default_firmware_name(RISCVHartArrayState *harts)
     return RISCV64_BIOS_BIN;
 }
 
-static char *riscv_find_firmware(const char *firmware_filename)
+static char *riscv_find_bios(const char *bios_filename)
 {
     char *filename;
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, firmware_filename);
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_filename);
     if (filename == NULL) {
         if (!qtest_enabled()) {
             /*
@@ -97,10 +97,29 @@ static char *riscv_find_firmware(const char *firmware_filename)
              * running QEMU test will complain hence let's suppress the error
              * report for QEMU testing.
              */
-            error_report("Unable to load the RISC-V firmware \"%s\"",
-                         firmware_filename);
+            error_report("Unable to find the RISC-V BIOS \"%s\"",
+                         bios_filename);
             exit(1);
         }
+    }
+
+    return filename;
+}
+
+char *riscv_find_firmware(const char *firmware_filename,
+                          const char *default_machine_firmware)
+{
+    char *filename = NULL;
+
+    if ((!firmware_filename) || (!strcmp(firmware_filename, "default"))) {
+        /*
+         * The user didn't specify -bios, or has specified "-bios default".
+         * That means we are going to load the OpenSBI binary included in
+         * the QEMU source.
+         */
+        filename = riscv_find_bios(default_machine_firmware);
+    } else if (strcmp(firmware_filename, "none")) {
+        filename = riscv_find_bios(firmware_filename);
     }
 
     return filename;
@@ -111,19 +130,11 @@ target_ulong riscv_find_and_load_firmware(MachineState *machine,
                                           hwaddr firmware_load_addr,
                                           symbol_fn_t sym_cb)
 {
-    char *firmware_filename = NULL;
+    char *firmware_filename;
     target_ulong firmware_end_addr = firmware_load_addr;
 
-    if ((!machine->firmware) || (!strcmp(machine->firmware, "default"))) {
-        /*
-         * The user didn't specify -bios, or has specified "-bios default".
-         * That means we are going to load the OpenSBI binary included in
-         * the QEMU source.
-         */
-        firmware_filename = riscv_find_firmware(default_machine_firmware);
-    } else if (strcmp(machine->firmware, "none")) {
-        firmware_filename = riscv_find_firmware(machine->firmware);
-    }
+    firmware_filename = riscv_find_firmware(machine->firmware,
+                                            default_machine_firmware);
 
     if (firmware_filename) {
         /* If not "none" load the firmware */
