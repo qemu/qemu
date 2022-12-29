@@ -33,8 +33,6 @@ typedef struct HTIFState {
 
     hwaddr tohost_offset;
     hwaddr fromhost_offset;
-    uint64_t tohost_size;
-    uint64_t fromhost_size;
     MemoryRegion mmio;
     MemoryRegion *address_space;
     MemoryRegion *main_mem;
