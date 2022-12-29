@@ -52,20 +52,17 @@
 #define PK_SYS_WRITE            64
 
 static uint64_t fromhost_addr, tohost_addr;
-static int address_symbol_set;
 
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
                           uint64_t st_size)
 {
     if (strcmp("fromhost", st_name) == 0) {
-        address_symbol_set |= 1;
         fromhost_addr = st_value;
         if (st_size != 8) {
             error_report("HTIF fromhost must be 8 bytes");
             exit(1);
         }
     } else if (strcmp("tohost", st_name) == 0) {
-        address_symbol_set |= 2;
         tohost_addr = st_value;
         if (st_size != 8) {
             error_report("HTIF tohost must be 8 bytes");
@@ -275,19 +272,19 @@ static const MemoryRegionOps htif_mm_ops = {
     .write = htif_mm_write,
 };
 
-bool htif_uses_elf_symbols(void)
-{
-    return (address_symbol_set == 3) ? true : false;
-}
-
 HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
-                        uint64_t nonelf_base)
+                        uint64_t nonelf_base, bool custom_base)
 {
     uint64_t base, size, tohost_offset, fromhost_offset;
 
-    if (!htif_uses_elf_symbols()) {
+    if (custom_base) {
         fromhost_addr = nonelf_base;
         tohost_addr = nonelf_base + 8;
+    } else {
+        if (!fromhost_addr || !tohost_addr) {
+            error_report("Invalid HTIF fromhost or tohost address");
+            exit(1);
+        }
     }
 
     base = MIN(tohost_addr, fromhost_addr);

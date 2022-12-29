@@ -49,7 +49,8 @@ static const MemMapEntry spike_memmap[] = {
 };
 
 static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
-                       uint64_t mem_size, const char *cmdline, bool is_32_bit)
+                       uint64_t mem_size, const char *cmdline,
+                       bool is_32_bit, bool htif_custom_base)
 {
     void *fdt;
     uint64_t addr, size;
@@ -77,7 +78,7 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
 
     qemu_fdt_add_subnode(fdt, "/htif");
     qemu_fdt_setprop_string(fdt, "/htif", "compatible", "ucb,htif0");
-    if (!htif_uses_elf_symbols()) {
+    if (htif_custom_base) {
         qemu_fdt_setprop_cells(fdt, "/htif", "reg",
             0x0, memmap[SPIKE_HTIF].base, 0x0, memmap[SPIKE_HTIF].size);
     }
@@ -183,18 +184,33 @@ static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
     }
 }
 
+static bool spike_test_elf_image(char *filename)
+{
+    Error *err = NULL;
+
+    load_elf_hdr(filename, NULL, NULL, &err);
+    if (err) {
+        error_free(err);
+        return false;
+    } else {
+        return true;
+    }
+}
+
 static void spike_board_init(MachineState *machine)
 {
     const MemMapEntry *memmap = spike_memmap;
     SpikeState *s = SPIKE_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
-    target_ulong firmware_end_addr, kernel_start_addr;
-    const char *firmware_name;
+    target_ulong firmware_end_addr = memmap[SPIKE_DRAM].base;
+    target_ulong kernel_start_addr;
+    char *firmware_name;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
     char *soc_name;
     int i, base_hartid, hart_count;
+    bool htif_custom_base = false;
 
     /* Check socket count limit */
     if (SPIKE_SOCKETS_MAX < riscv_socket_count(machine)) {
@@ -256,10 +272,34 @@ static void spike_board_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[SPIKE_MROM].base,
                                 mask_rom);
 
-    firmware_name = riscv_default_firmware_name(&s->soc[0]);
-    firmware_end_addr = riscv_find_and_load_firmware(machine, firmware_name,
-                                                     memmap[SPIKE_DRAM].base,
-                                                     htif_symbol_callback);
+    /* Find firmware */
+    firmware_name = riscv_find_firmware(machine->firmware,
+                        riscv_default_firmware_name(&s->soc[0]));
+
+    /*
+     * Test the given firmware or kernel file to see if it is an ELF image.
+     * If it is an ELF, we assume it contains the symbols required for
+     * the HTIF console, otherwise we fall back to use the custom base
+     * passed from device tree for the HTIF console.
+     */
+    if (!firmware_name && !machine->kernel_filename) {
+        htif_custom_base = true;
+    } else {
+        if (firmware_name) {
+            htif_custom_base = !spike_test_elf_image(firmware_name);
+        }
+        if (!htif_custom_base && machine->kernel_filename) {
+            htif_custom_base = !spike_test_elf_image(machine->kernel_filename);
+        }
+    }
+
+    /* Load firmware */
+    if (firmware_name) {
+        firmware_end_addr = riscv_load_firmware(firmware_name,
+                                                memmap[SPIKE_DRAM].base,
+                                                htif_symbol_callback);
+        g_free(firmware_name);
+    }
 
     /* Load kernel */
     if (machine->kernel_filename) {
@@ -279,7 +319,7 @@ static void spike_board_init(MachineState *machine)
 
     /* Create device tree */
     create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
-               riscv_is_32bit(&s->soc[0]));
+               riscv_is_32bit(&s->soc[0]), htif_custom_base);
 
     /* Load initrd */
     if (machine->kernel_filename && machine->initrd_filename) {
@@ -307,7 +347,8 @@ static void spike_board_init(MachineState *machine)
                               fdt_load_addr);
 
     /* initialize HTIF using symbols found in load_kernel */
-    htif_mm_init(system_memory, serial_hd(0), memmap[SPIKE_HTIF].base);
+    htif_mm_init(system_memory, serial_hd(0), memmap[SPIKE_HTIF].base,
+                 htif_custom_base);
 }
 
 static void spike_machine_instance_init(Object *obj)
