@@ -114,6 +114,12 @@ form is preferred.
 Using ``-drive if=none`` to configure the OTP device of the sifive_u
 RISC-V machine is deprecated. Use ``-drive if=pflash`` instead.
 
+``-no-hpet`` (since 8.0)
+''''''''''''''''''''''''
+
+The HPET setting has been turned into a machine property.
+Use ``-machine hpet=off`` instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
