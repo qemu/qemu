@@ -85,7 +85,7 @@ static int htif_can_recv(void *opaque)
  */
 static void htif_recv(void *opaque, const uint8_t *buf, int size)
 {
-    HTIFState *htifstate = opaque;
+    HTIFState *s = opaque;
 
     if (size != 1) {
         return;
@@ -97,10 +97,10 @@ static void htif_recv(void *opaque, const uint8_t *buf, int size)
      *        will drop characters
      */
 
-    uint64_t val_written = htifstate->pending_read;
+    uint64_t val_written = s->pending_read;
     uint64_t resp = 0x100 | *buf;
 
-    htifstate->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
+    s->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
 }
 
 /*
@@ -142,7 +142,7 @@ static int htif_be_change(void *opaque)
  * For RV32, the tohost register is zero-extended, so only device=0 and
  * command=0 (i.e. HTIF syscalls/exit codes) are supported.
  */
-static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
+static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
 {
     uint8_t device = val_written >> HTIF_DEV_SHIFT;
     uint8_t cmd = val_written >> HTIF_CMD_SHIFT;
@@ -174,11 +174,11 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
         /* HTIF Console */
         if (cmd == HTIF_CONSOLE_CMD_GETC) {
             /* this should be a queue, but not yet implemented as such */
-            htifstate->pending_read = val_written;
-            htifstate->env->mtohost = 0; /* clear to indicate we read */
+            s->pending_read = val_written;
+            s->env->mtohost = 0; /* clear to indicate we read */
             return;
         } else if (cmd == HTIF_CONSOLE_CMD_PUTC) {
-            qemu_chr_fe_write(&htifstate->chr, (uint8_t *)&payload, 1);
+            qemu_chr_fe_write(&s->chr, (uint8_t *)&payload, 1);
             resp = 0x100 | (uint8_t)payload;
         } else {
             qemu_log("HTIF device %d: unknown command\n", device);
@@ -194,31 +194,31 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
      * With this code disabled, qemu works with bbl priv v1.9.1 and v1.10.
      * HTIF needs protocol documentation and a more complete state machine.
      *
-     *  while (!htifstate->fromhost_inprogress &&
-     *      htifstate->env->mfromhost != 0x0) {
+     *  while (!s->fromhost_inprogress &&
+     *      s->env->mfromhost != 0x0) {
      *  }
      */
-    htifstate->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
-    htifstate->env->mtohost = 0; /* clear to indicate we read */
+    s->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
+    s->env->mtohost = 0; /* clear to indicate we read */
 }
 
-#define TOHOST_OFFSET1 (htifstate->tohost_offset)
-#define TOHOST_OFFSET2 (htifstate->tohost_offset + 4)
-#define FROMHOST_OFFSET1 (htifstate->fromhost_offset)
-#define FROMHOST_OFFSET2 (htifstate->fromhost_offset + 4)
+#define TOHOST_OFFSET1      (s->tohost_offset)
+#define TOHOST_OFFSET2      (s->tohost_offset + 4)
+#define FROMHOST_OFFSET1    (s->fromhost_offset)
+#define FROMHOST_OFFSET2    (s->fromhost_offset + 4)
 
 /* CPU wants to read an HTIF register */
 static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
-    HTIFState *htifstate = opaque;
+    HTIFState *s = opaque;
     if (addr == TOHOST_OFFSET1) {
-        return htifstate->env->mtohost & 0xFFFFFFFF;
+        return s->env->mtohost & 0xFFFFFFFF;
     } else if (addr == TOHOST_OFFSET2) {
-        return (htifstate->env->mtohost >> 32) & 0xFFFFFFFF;
+        return (s->env->mtohost >> 32) & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET1) {
-        return htifstate->env->mfromhost & 0xFFFFFFFF;
+        return s->env->mfromhost & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET2) {
-        return (htifstate->env->mfromhost >> 32) & 0xFFFFFFFF;
+        return (s->env->mfromhost >> 32) & 0xFFFFFFFF;
     } else {
         qemu_log("Invalid htif read: address %016" PRIx64 "\n",
             (uint64_t)addr);
@@ -230,25 +230,25 @@ static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 static void htif_mm_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
-    HTIFState *htifstate = opaque;
+    HTIFState *s = opaque;
     if (addr == TOHOST_OFFSET1) {
-        if (htifstate->env->mtohost == 0x0) {
-            htifstate->allow_tohost = 1;
-            htifstate->env->mtohost = value & 0xFFFFFFFF;
+        if (s->env->mtohost == 0x0) {
+            s->allow_tohost = 1;
+            s->env->mtohost = value & 0xFFFFFFFF;
         } else {
-            htifstate->allow_tohost = 0;
+            s->allow_tohost = 0;
         }
     } else if (addr == TOHOST_OFFSET2) {
-        if (htifstate->allow_tohost) {
-            htifstate->env->mtohost |= value << 32;
-            htif_handle_tohost_write(htifstate, htifstate->env->mtohost);
+        if (s->allow_tohost) {
+            s->env->mtohost |= value << 32;
+            htif_handle_tohost_write(s, s->env->mtohost);
         }
     } else if (addr == FROMHOST_OFFSET1) {
-        htifstate->fromhost_inprogress = 1;
-        htifstate->env->mfromhost = value & 0xFFFFFFFF;
+        s->fromhost_inprogress = 1;
+        s->env->mfromhost = value & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET2) {
-        htifstate->env->mfromhost |= value << 32;
-        htifstate->fromhost_inprogress = 0;
+        s->env->mfromhost |= value << 32;
+        s->fromhost_inprogress = 0;
     } else {
         qemu_log("Invalid htif write: address %016" PRIx64 "\n",
             (uint64_t)addr);
