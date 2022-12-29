@@ -163,7 +163,7 @@ static inline void gen_read_p3_0(TCGv control_reg)
 
 /*
  * Certain control registers require special handling on read
- *     HEX_REG_P3_0          aliased to the predicate registers
+ *     HEX_REG_P3_0_ALIASED  aliased to the predicate registers
  *                           -> concat the 4 predicate registers together
  *     HEX_REG_PC            actual value stored in DisasContext
  *                           -> assign from ctx->base.pc_next
@@ -173,7 +173,7 @@ static inline void gen_read_p3_0(TCGv control_reg)
 static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
                                      TCGv dest)
 {
-    if (reg_num == HEX_REG_P3_0) {
+    if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_read_p3_0(dest);
     } else if (reg_num == HEX_REG_PC) {
         tcg_gen_movi_tl(dest, ctx->base.pc_next);
@@ -194,7 +194,7 @@ static inline void gen_read_ctrl_reg(DisasContext *ctx, const int reg_num,
 static inline void gen_read_ctrl_reg_pair(DisasContext *ctx, const int reg_num,
                                           TCGv_i64 dest)
 {
-    if (reg_num == HEX_REG_P3_0) {
+    if (reg_num == HEX_REG_P3_0_ALIASED) {
         TCGv p3_0 = tcg_temp_new();
         gen_read_p3_0(p3_0);
         tcg_gen_concat_i32_i64(dest, p3_0, hex_gpr[reg_num + 1]);
@@ -238,7 +238,7 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
 
 /*
  * Certain control registers require special handling on write
- *     HEX_REG_P3_0          aliased to the predicate registers
+ *     HEX_REG_P3_0_ALIASED  aliased to the predicate registers
  *                           -> break the value across 4 predicate registers
  *     HEX_REG_QEMU_*_CNT    changes in current TB in DisasContext
  *                            -> clear the changes
@@ -246,7 +246,7 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
 static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
                                       TCGv val)
 {
-    if (reg_num == HEX_REG_P3_0) {
+    if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_write_p3_0(ctx, val);
     } else {
         gen_log_reg_write(reg_num, val);
@@ -266,7 +266,7 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
 static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
                                            TCGv_i64 val)
 {
-    if (reg_num == HEX_REG_P3_0) {
+    if (reg_num == HEX_REG_P3_0_ALIASED) {
         TCGv val32 = tcg_temp_new();
         tcg_gen_extrl_i64_i32(val32, val);
         gen_write_p3_0(ctx, val32);
