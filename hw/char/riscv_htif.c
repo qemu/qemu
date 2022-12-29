@@ -48,6 +48,9 @@
 #define HTIF_CONSOLE_CMD_GETC   0
 #define HTIF_CONSOLE_CMD_PUTC   1
 
+/* PK system call number */
+#define PK_SYS_WRITE            64
+
 static uint64_t fromhost_addr, tohost_addr;
 static int address_symbol_set;
 
@@ -165,7 +168,19 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
                 int exit_code = payload >> 1;
                 exit(exit_code);
             } else {
-                qemu_log_mask(LOG_UNIMP, "pk syscall proxy not supported\n");
+                uint64_t syscall[8];
+                cpu_physical_memory_read(payload, syscall, sizeof(syscall));
+                if (syscall[0] == PK_SYS_WRITE &&
+                    syscall[1] == HTIF_DEV_CONSOLE &&
+                    syscall[3] == HTIF_CONSOLE_CMD_PUTC) {
+                    uint8_t ch;
+                    cpu_physical_memory_read(syscall[2], &ch, 1);
+                    qemu_chr_fe_write(&s->chr, &ch, 1);
+                    resp = 0x100 | (uint8_t)payload;
+                } else {
+                    qemu_log_mask(LOG_UNIMP,
+                                  "pk syscall proxy not supported\n");
+                }
             }
         } else {
             qemu_log("HTIF device %d: unknown command\n", device);
