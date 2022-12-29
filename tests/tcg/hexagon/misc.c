@@ -186,10 +186,10 @@ static int L2_ploadrifnew_pi(void *p, int pred)
   int result;
   asm volatile("%0 = #31\n\t"
                "{\n\t"
-               "    p0 = cmp.eq(%1, #1)\n\t"
-               "    if (!p0.new) %0 = memw(%2++#4)\n\t"
+               "    p0 = cmp.eq(%2, #1)\n\t"
+               "    if (!p0.new) %0 = memw(%1++#4)\n\t"
                "}\n\t"
-               : "=r"(result) : "r"(pred), "r"(p)
+               : "=&r"(result), "+r"(p) : "r"(pred)
                : "p0");
   return result;
 }

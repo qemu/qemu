@@ -144,7 +144,7 @@ static inline long long pred_ld_sd_pi(int pred, long long *p, long long *q,
                  "}:mem_noshuf\n"
                  : "=&r"(ret)
                  : "r"(p), "r"(q), "r"(x), "r"(y), "r"(pred)
-                 : "p0", "memory");
+                 : "r7", "p0", "memory");
     return ret;
 }
 
