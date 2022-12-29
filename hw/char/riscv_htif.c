@@ -38,6 +38,16 @@
         }                                                                      \
     } while (0)
 
+#define HTIF_DEV_SHIFT          56
+#define HTIF_CMD_SHIFT          48
+
+#define HTIF_DEV_SYSTEM         0
+#define HTIF_DEV_CONSOLE        1
+
+#define HTIF_SYSTEM_CMD_SYSCALL 0
+#define HTIF_CONSOLE_CMD_GETC   0
+#define HTIF_CONSOLE_CMD_PUTC   1
+
 static uint64_t fromhost_addr, tohost_addr;
 static int address_symbol_set;
 
@@ -81,9 +91,11 @@ static void htif_recv(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    /* TODO - we need to check whether mfromhost is zero which indicates
-              the device is ready to receive. The current implementation
-              will drop characters */
+    /*
+     * TODO - we need to check whether mfromhost is zero which indicates
+     *        the device is ready to receive. The current implementation
+     *        will drop characters
+     */
 
     uint64_t val_written = htifstate->pending_read;
     uint64_t resp = 0x100 | *buf;
@@ -110,10 +122,30 @@ static int htif_be_change(void *opaque)
     return 0;
 }
 
+/*
+ * See below the tohost register format.
+ *
+ * Bits 63:56 indicate the "device".
+ * Bits 55:48 indicate the "command".
+ *
+ * Device 0 is the syscall device, which is used to emulate Unixy syscalls.
+ * It only implements command 0, which has two subfunctions:
+ * - If bit 0 is clear, then bits 47:0 represent a pointer to a struct
+ *   describing the syscall.
+ * - If bit 1 is set, then bits 47:1 represent an exit code, with a zero
+ *   value indicating success and other values indicating failure.
+ *
+ * Device 1 is the blocking character device.
+ * - Command 0 reads a character
+ * - Command 1 writes a character from the 8 LSBs of tohost
+ *
+ * For RV32, the tohost register is zero-extended, so only device=0 and
+ * command=0 (i.e. HTIF syscalls/exit codes) are supported.
+ */
 static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
 {
-    uint8_t device = val_written >> 56;
-    uint8_t cmd = val_written >> 48;
+    uint8_t device = val_written >> HTIF_DEV_SHIFT;
+    uint8_t cmd = val_written >> HTIF_CMD_SHIFT;
     uint64_t payload = val_written & 0xFFFFFFFFFFFFULL;
     int resp = 0;
 
@@ -125,9 +157,9 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
      * 0: riscv-tests Pass/Fail Reporting Only (no syscall proxy)
      * 1: Console
      */
-    if (unlikely(device == 0x0)) {
+    if (unlikely(device == HTIF_DEV_SYSTEM)) {
         /* frontend syscall handler, shutdown and exit code support */
-        if (cmd == 0x0) {
+        if (cmd == HTIF_SYSTEM_CMD_SYSCALL) {
             if (payload & 0x1) {
                 /* exit code */
                 int exit_code = payload >> 1;
@@ -138,14 +170,14 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
         } else {
             qemu_log("HTIF device %d: unknown command\n", device);
         }
-    } else if (likely(device == 0x1)) {
+    } else if (likely(device == HTIF_DEV_CONSOLE)) {
         /* HTIF Console */
-        if (cmd == 0x0) {
+        if (cmd == HTIF_CONSOLE_CMD_GETC) {
             /* this should be a queue, but not yet implemented as such */
             htifstate->pending_read = val_written;
             htifstate->env->mtohost = 0; /* clear to indicate we read */
             return;
-        } else if (cmd == 0x1) {
+        } else if (cmd == HTIF_CONSOLE_CMD_PUTC) {
             qemu_chr_fe_write(&htifstate->chr, (uint8_t *)&payload, 1);
             resp = 0x100 | (uint8_t)payload;
         } else {
@@ -157,15 +189,15 @@ static void htif_handle_tohost_write(HTIFState *htifstate, uint64_t val_written)
             " payload: %016" PRIx64, device, cmd, payload & 0xFF, payload);
     }
     /*
-     * - latest bbl does not set fromhost to 0 if there is a value in tohost
-     * - with this code enabled, qemu hangs waiting for fromhost to go to 0
-     * - with this code disabled, qemu works with bbl priv v1.9.1 and v1.10
-     * - HTIF needs protocol documentation and a more complete state machine
-
-        while (!htifstate->fromhost_inprogress &&
-            htifstate->env->mfromhost != 0x0) {
-        }
-    */
+     * Latest bbl does not set fromhost to 0 if there is a value in tohost.
+     * With this code enabled, qemu hangs waiting for fromhost to go to 0.
+     * With this code disabled, qemu works with bbl priv v1.9.1 and v1.10.
+     * HTIF needs protocol documentation and a more complete state machine.
+     *
+     *  while (!htifstate->fromhost_inprogress &&
+     *      htifstate->env->mfromhost != 0x0) {
+     *  }
+     */
     htifstate->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
     htifstate->env->mtohost = 0; /* clear to indicate we read */
 }
@@ -196,7 +228,7 @@ static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 
 /* CPU wrote to an HTIF register */
 static void htif_mm_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
+                          uint64_t value, unsigned size)
 {
     HTIFState *htifstate = opaque;
     if (addr == TOHOST_OFFSET1) {
