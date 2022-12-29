@@ -255,11 +255,6 @@ static void spike_board_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[SPIKE_MROM].base,
                                 mask_rom);
 
-    /*
-     * Not like other RISC-V machines that use plain binary bios images,
-     * keeping ELF files here was intentional because BIN files don't work
-     * for the Spike machine as HTIF emulation depends on ELF parsing.
-     */
     if (riscv_is_32bit(&s->soc[0])) {
         firmware_end_addr = riscv_find_and_load_firmware(machine,
                                     RISCV32_BIOS_BIN, memmap[SPIKE_DRAM].base,
