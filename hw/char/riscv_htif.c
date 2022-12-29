@@ -100,7 +100,7 @@ static void htif_recv(void *opaque, const uint8_t *buf, int size)
     uint64_t val_written = s->pending_read;
     uint64_t resp = 0x100 | *buf;
 
-    s->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
+    s->fromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
 }
 
 /*
@@ -175,7 +175,7 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
         if (cmd == HTIF_CONSOLE_CMD_GETC) {
             /* this should be a queue, but not yet implemented as such */
             s->pending_read = val_written;
-            s->env->mtohost = 0; /* clear to indicate we read */
+            s->tohost = 0; /* clear to indicate we read */
             return;
         } else if (cmd == HTIF_CONSOLE_CMD_PUTC) {
             qemu_chr_fe_write(&s->chr, (uint8_t *)&payload, 1);
@@ -195,11 +195,11 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
      * HTIF needs protocol documentation and a more complete state machine.
      *
      *  while (!s->fromhost_inprogress &&
-     *      s->env->mfromhost != 0x0) {
+     *      s->fromhost != 0x0) {
      *  }
      */
-    s->env->mfromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
-    s->env->mtohost = 0; /* clear to indicate we read */
+    s->fromhost = (val_written >> 48 << 48) | (resp << 16 >> 16);
+    s->tohost = 0; /* clear to indicate we read */
 }
 
 #define TOHOST_OFFSET1      (s->tohost_offset)
@@ -212,13 +212,13 @@ static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
     HTIFState *s = opaque;
     if (addr == TOHOST_OFFSET1) {
-        return s->env->mtohost & 0xFFFFFFFF;
+        return s->tohost & 0xFFFFFFFF;
     } else if (addr == TOHOST_OFFSET2) {
-        return (s->env->mtohost >> 32) & 0xFFFFFFFF;
+        return (s->tohost >> 32) & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET1) {
-        return s->env->mfromhost & 0xFFFFFFFF;
+        return s->fromhost & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET2) {
-        return (s->env->mfromhost >> 32) & 0xFFFFFFFF;
+        return (s->fromhost >> 32) & 0xFFFFFFFF;
     } else {
         qemu_log("Invalid htif read: address %016" PRIx64 "\n",
             (uint64_t)addr);
@@ -232,22 +232,22 @@ static void htif_mm_write(void *opaque, hwaddr addr,
 {
     HTIFState *s = opaque;
     if (addr == TOHOST_OFFSET1) {
-        if (s->env->mtohost == 0x0) {
+        if (s->tohost == 0x0) {
             s->allow_tohost = 1;
-            s->env->mtohost = value & 0xFFFFFFFF;
+            s->tohost = value & 0xFFFFFFFF;
         } else {
             s->allow_tohost = 0;
         }
     } else if (addr == TOHOST_OFFSET2) {
         if (s->allow_tohost) {
-            s->env->mtohost |= value << 32;
-            htif_handle_tohost_write(s, s->env->mtohost);
+            s->tohost |= value << 32;
+            htif_handle_tohost_write(s, s->tohost);
         }
     } else if (addr == FROMHOST_OFFSET1) {
         s->fromhost_inprogress = 1;
-        s->env->mfromhost = value & 0xFFFFFFFF;
+        s->fromhost = value & 0xFFFFFFFF;
     } else if (addr == FROMHOST_OFFSET2) {
-        s->env->mfromhost |= value << 32;
+        s->fromhost |= value << 32;
         s->fromhost_inprogress = 0;
     } else {
         qemu_log("Invalid htif write: address %016" PRIx64 "\n",
@@ -265,8 +265,8 @@ bool htif_uses_elf_symbols(void)
     return (address_symbol_set == 3) ? true : false;
 }
 
-HTIFState *htif_mm_init(MemoryRegion *address_space, CPURISCVState *env,
-                        Chardev *chr, uint64_t nonelf_base)
+HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
+                        uint64_t nonelf_base)
 {
     uint64_t base, size, tohost_offset, fromhost_offset;
 
@@ -281,7 +281,6 @@ HTIFState *htif_mm_init(MemoryRegion *address_space, CPURISCVState *env,
     fromhost_offset = fromhost_addr - base;
 
     HTIFState *s = g_new0(HTIFState, 1);
-    s->env = env;
     s->tohost_offset = tohost_offset;
     s->fromhost_offset = fromhost_offset;
     s->pending_read = 0;

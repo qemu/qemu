@@ -309,10 +309,6 @@ struct CPUArchState {
     target_ulong sscratch;
     target_ulong mscratch;
 
-    /* temporary htif regs */
-    uint64_t mfromhost;
-    uint64_t mtohost;
-
     /* Sstc CSRs */
     uint64_t stimecmp;
 
