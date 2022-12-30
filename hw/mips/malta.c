@@ -58,6 +58,7 @@
 #include "semihosting/semihost.h"
 #include "hw/mips/cps.h"
 #include "hw/qdev-clock.h"
+#include "trace.h"
 
 #define ENVP_PADDR          0x2000
 #define ENVP_VADDR          cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
@@ -120,12 +121,14 @@ static void malta_fpga_update_display_leds(MaltaFPGAState *s)
     }
     leds_text[8] = '\0';
 
+    trace_malta_fpga_leds(leds_text);
     qemu_chr_fe_printf(&s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n",
                        leds_text);
 }
 
 static void malta_fpga_update_display_ascii(MaltaFPGAState *s)
 {
+    trace_malta_fpga_display(s->display_text);
     qemu_chr_fe_printf(&s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|",
                        s->display_text);
 }
