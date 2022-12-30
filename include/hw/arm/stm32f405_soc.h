@@ -46,7 +46,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(STM32F405State, STM32F405_SOC)
 #define FLASH_BASE_ADDRESS 0x08000000
 #define FLASH_SIZE (1024 * 1024)
 #define SRAM_BASE_ADDRESS 0x20000000
-#define SRAM_SIZE (192 * 1024)
+#define SRAM_SIZE (128 * 1024)
+#define CCM_BASE_ADDRESS 0x10000000
+#define CCM_SIZE (64 * 1024)
 
 struct STM32F405State {
     /*< private >*/
@@ -65,6 +67,7 @@ struct STM32F405State {
     STM32F2XXADCState adc[STM_NUM_ADCS];
     STM32F2XXSPIState spi[STM_NUM_SPIS];
 
+    MemoryRegion ccm;
     MemoryRegion sram;
     MemoryRegion flash;
     MemoryRegion flash_alias;
