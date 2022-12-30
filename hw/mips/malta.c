@@ -106,11 +106,10 @@ static struct _loaderparams {
 } loaderparams;
 
 /* Malta FPGA */
-static void malta_fpga_update_display(void *opaque)
+static void malta_fpga_update_display_leds(MaltaFPGAState *s)
 {
     char leds_text[9];
     int i;
-    MaltaFPGAState *s = opaque;
 
     for (i = 7 ; i >= 0 ; i--) {
         if (s->leds & (1 << i)) {
@@ -123,6 +122,10 @@ static void malta_fpga_update_display(void *opaque)
 
     qemu_chr_fe_printf(&s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n",
                        leds_text);
+}
+
+static void malta_fpga_update_display_ascii(MaltaFPGAState *s)
+{
     qemu_chr_fe_printf(&s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|",
                        s->display_text);
 }
@@ -457,13 +460,13 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
     /* LEDBAR Register */
     case 0x00408:
         s->leds = val & 0xff;
-        malta_fpga_update_display(s);
+        malta_fpga_update_display_leds(s);
         break;
 
     /* ASCIIWORD Register */
     case 0x00410:
         snprintf(s->display_text, 9, "%08X", (uint32_t)val);
-        malta_fpga_update_display(s);
+        malta_fpga_update_display_ascii(s);
         break;
 
     /* ASCIIPOS0 to ASCIIPOS7 Registers */
@@ -476,7 +479,7 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
     case 0x00448:
     case 0x00450:
         s->display_text[(saddr - 0x00418) >> 3] = (char) val;
-        malta_fpga_update_display(s);
+        malta_fpga_update_display_ascii(s);
         break;
 
     /* SOFTRES Register */
