@@ -66,3 +66,4 @@ uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_DISABLED;
 bool xen_domid_restrict;
 struct evtchn_backend_ops *xen_evtchn_ops;
+struct gnttab_backend_ops *xen_gnttab_ops;

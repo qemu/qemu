@@ -9,7 +9,7 @@
 #define HW_XEN_BUS_H
 
 #include "hw/xen/xen_backend_ops.h"
-#include "hw/xen/xen_common.h"
+#include "hw/xen/interface/io/xenbus.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
@@ -33,7 +33,6 @@ struct XenDevice {
     bool backend_online;
     XenWatch *backend_online_watch;
     xengnttab_handle *xgth;
-    bool feature_grant_copy;
     bool inactive;
     QLIST_HEAD(, XenEventChannel) event_channels;
     QLIST_ENTRY(XenDevice) list;

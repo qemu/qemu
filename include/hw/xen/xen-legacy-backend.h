@@ -1,8 +1,8 @@
 #ifndef HW_XEN_LEGACY_BACKEND_H
 #define HW_XEN_LEGACY_BACKEND_H
 
-#include "hw/xen/xen_common.h"
 #include "hw/xen/xen_backend_ops.h"
+#include "hw/xen/interface/io/xenbus.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
 #include "qom/object.h"
@@ -53,17 +53,6 @@ void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
                             unsigned int nr_refs, int prot);
 void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
                              unsigned int nr_refs);
-
-typedef struct XenGrantCopySegment {
-    union {
-        void *virt;
-        struct {
-            uint32_t ref;
-            off_t offset;
-        } foreign;
-    } source, dest;
-    size_t len;
-} XenGrantCopySegment;
 
 int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
                            bool to_domain, XenGrantCopySegment segs[],

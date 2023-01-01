@@ -947,7 +947,7 @@ static void xen_device_frontend_destroy(XenDevice *xendev)
 void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
                                    Error **errp)
 {
-    if (xengnttab_set_max_grants(xendev->xgth, nr_refs)) {
+    if (qemu_xen_gnttab_set_max_grants(xendev->xgth, nr_refs)) {
         error_setg_errno(errp, errno, "xengnttab_set_max_grants failed");
     }
 }
@@ -956,9 +956,8 @@ void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
                                 unsigned int nr_refs, int prot,
                                 Error **errp)
 {
-    void *map = xengnttab_map_domain_grant_refs(xendev->xgth, nr_refs,
-                                                xendev->frontend_id, refs,
-                                                prot);
+    void *map = qemu_xen_gnttab_map_refs(xendev->xgth, nr_refs,
+                                         xendev->frontend_id, refs, prot);
 
     if (!map) {
         error_setg_errno(errp, errno,
@@ -971,109 +970,17 @@ void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
 void xen_device_unmap_grant_refs(XenDevice *xendev, void *map,
                                  unsigned int nr_refs, Error **errp)
 {
-    if (xengnttab_unmap(xendev->xgth, map, nr_refs)) {
+    if (qemu_xen_gnttab_unmap(xendev->xgth, map, nr_refs)) {
         error_setg_errno(errp, errno, "xengnttab_unmap failed");
     }
-}
-
-static void compat_copy_grant_refs(XenDevice *xendev, bool to_domain,
-                                   XenDeviceGrantCopySegment segs[],
-                                   unsigned int nr_segs, Error **errp)
-{
-    uint32_t *refs = g_new(uint32_t, nr_segs);
-    int prot = to_domain ? PROT_WRITE : PROT_READ;
-    void *map;
-    unsigned int i;
-
-    for (i = 0; i < nr_segs; i++) {
-        XenDeviceGrantCopySegment *seg = &segs[i];
-
-        refs[i] = to_domain ? seg->dest.foreign.ref :
-            seg->source.foreign.ref;
-    }
-
-    map = xengnttab_map_domain_grant_refs(xendev->xgth, nr_segs,
-                                          xendev->frontend_id, refs,
-                                          prot);
-    if (!map) {
-        error_setg_errno(errp, errno,
-                         "xengnttab_map_domain_grant_refs failed");
-        goto done;
-    }
-
-    for (i = 0; i < nr_segs; i++) {
-        XenDeviceGrantCopySegment *seg = &segs[i];
-        void *page = map + (i * XC_PAGE_SIZE);
-
-        if (to_domain) {
-            memcpy(page + seg->dest.foreign.offset, seg->source.virt,
-                   seg->len);
-        } else {
-            memcpy(seg->dest.virt, page + seg->source.foreign.offset,
-                   seg->len);
-        }
-    }
-
-    if (xengnttab_unmap(xendev->xgth, map, nr_segs)) {
-        error_setg_errno(errp, errno, "xengnttab_unmap failed");
-    }
-
-done:
-    g_free(refs);
 }
 
 void xen_device_copy_grant_refs(XenDevice *xendev, bool to_domain,
                                 XenDeviceGrantCopySegment segs[],
                                 unsigned int nr_segs, Error **errp)
 {
-    xengnttab_grant_copy_segment_t *xengnttab_segs;
-    unsigned int i;
-
-    if (!xendev->feature_grant_copy) {
-        compat_copy_grant_refs(xendev, to_domain, segs, nr_segs, errp);
-        return;
-    }
-
-    xengnttab_segs = g_new0(xengnttab_grant_copy_segment_t, nr_segs);
-
-    for (i = 0; i < nr_segs; i++) {
-        XenDeviceGrantCopySegment *seg = &segs[i];
-        xengnttab_grant_copy_segment_t *xengnttab_seg = &xengnttab_segs[i];
-
-        if (to_domain) {
-            xengnttab_seg->flags = GNTCOPY_dest_gref;
-            xengnttab_seg->dest.foreign.domid = xendev->frontend_id;
-            xengnttab_seg->dest.foreign.ref = seg->dest.foreign.ref;
-            xengnttab_seg->dest.foreign.offset = seg->dest.foreign.offset;
-            xengnttab_seg->source.virt = seg->source.virt;
-        } else {
-            xengnttab_seg->flags = GNTCOPY_source_gref;
-            xengnttab_seg->source.foreign.domid = xendev->frontend_id;
-            xengnttab_seg->source.foreign.ref = seg->source.foreign.ref;
-            xengnttab_seg->source.foreign.offset =
-                seg->source.foreign.offset;
-            xengnttab_seg->dest.virt = seg->dest.virt;
-        }
-
-        xengnttab_seg->len = seg->len;
-    }
-
-    if (xengnttab_grant_copy(xendev->xgth, nr_segs, xengnttab_segs)) {
-        error_setg_errno(errp, errno, "xengnttab_grant_copy failed");
-        goto done;
-    }
-
-    for (i = 0; i < nr_segs; i++) {
-        xengnttab_grant_copy_segment_t *xengnttab_seg = &xengnttab_segs[i];
-
-        if (xengnttab_seg->status != GNTST_okay) {
-            error_setg(errp, "xengnttab_grant_copy seg[%u] failed", i);
-            break;
-        }
-    }
-
-done:
-    g_free(xengnttab_segs);
+    qemu_xen_gnttab_grant_copy(xendev->xgth, to_domain, xendev->frontend_id,
+                               (XenGrantCopySegment *)segs, nr_segs, errp);
 }
 
 struct XenEventChannel {
@@ -1235,7 +1142,7 @@ static void xen_device_unrealize(DeviceState *dev)
     xen_device_backend_destroy(xendev);
 
     if (xendev->xgth) {
-        xengnttab_close(xendev->xgth);
+        qemu_xen_gnttab_close(xendev->xgth);
         xendev->xgth = NULL;
     }
 
@@ -1298,14 +1205,11 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
 
     xendev->watch_list = watch_list_create(xendev->xsh);
 
-    xendev->xgth = xengnttab_open(NULL, 0);
+    xendev->xgth = qemu_xen_gnttab_open();
     if (!xendev->xgth) {
         error_setg_errno(errp, errno, "failed xengnttab_open");
         goto unrealize;
     }
-
-    xendev->feature_grant_copy =
-        (xengnttab_grant_copy(xendev->xgth, 0, NULL) == 0);
 
     xen_device_backend_create(xendev, errp);
     if (*errp) {

@@ -309,7 +309,7 @@ void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
         qemu_xen_evtchn_close(xendev->evtchndev);
     }
     if (xendev->gnttabdev != NULL) {
-        xengnttab_close(xendev->gnttabdev);
+        qemu_xen_gnttab_close(xendev->gnttabdev);
     }
 
     QTAILQ_REMOVE(&xendevs, xendev, next);

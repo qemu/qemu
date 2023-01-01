@@ -28,17 +28,6 @@ extern xc_interface *xen_xc;
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40701
 
 typedef xc_interface xenforeignmemory_handle;
-typedef xc_gnttab xengnttab_handle;
-
-#define xengnttab_open(l, f) xc_gnttab_open(l, f)
-#define xengnttab_close(h) xc_gnttab_close(h)
-#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(h, n)
-#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(h, d, r, p)
-#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(h, a, n)
-#define xengnttab_map_grant_refs(h, c, d, r, p) \
-    xc_gnttab_map_grant_refs(h, c, d, r, p)
-#define xengnttab_map_domain_grant_refs(h, c, d, r, p) \
-    xc_gnttab_map_domain_grant_refs(h, c, d, r, p)
 
 #define xenforeignmemory_open(l, f) xen_xc
 #define xenforeignmemory_close(h)
@@ -58,7 +47,6 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40701 */
 
-#include <xengnttab.h>
 #include <xenforeignmemory.h>
 
 #endif
@@ -646,33 +634,6 @@ static inline int xen_set_ioreq_server_state(domid_t dom,
                                                  enable);
 }
 
-#endif
-
-/* Xen before 4.8 */
-
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40800
-
-struct xengnttab_grant_copy_segment {
-    union xengnttab_copy_ptr {
-        void *virt;
-        struct {
-            uint32_t ref;
-            uint16_t offset;
-            uint16_t domid;
-        } foreign;
-    } source, dest;
-    uint16_t len;
-    uint16_t flags;
-    int16_t status;
-};
-
-typedef struct xengnttab_grant_copy_segment xengnttab_grant_copy_segment_t;
-
-static inline int xengnttab_grant_copy(xengnttab_handle *xgt, uint32_t count,
-                                       xengnttab_grant_copy_segment_t *segs)
-{
-    return -ENOSYS;
-}
 #endif
 
 #endif /* QEMU_HW_XEN_COMMON_H */
