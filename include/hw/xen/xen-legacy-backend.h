@@ -2,6 +2,7 @@
 #define HW_XEN_LEGACY_BACKEND_H
 
 #include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
 #include "qom/object.h"

@@ -8,6 +8,7 @@
 #ifndef HW_XEN_BUS_H
 #define HW_XEN_BUS_H
 
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/xen/xen_common.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"

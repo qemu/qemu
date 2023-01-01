@@ -238,14 +238,14 @@ void xen_pv_evtchn_event(void *opaque)
     struct XenLegacyDevice *xendev = opaque;
     evtchn_port_t port;
 
-    port = xenevtchn_pending(xendev->evtchndev);
+    port = qemu_xen_evtchn_pending(xendev->evtchndev);
     if (port != xendev->local_port) {
         xen_pv_printf(xendev, 0,
                       "xenevtchn_pending returned %d (expected %d)\n",
                       port, xendev->local_port);
         return;
     }
-    xenevtchn_unmask(xendev->evtchndev, port);
+    qemu_xen_evtchn_unmask(xendev->evtchndev, port);
 
     if (xendev->ops->event) {
         xendev->ops->event(xendev);
@@ -257,15 +257,15 @@ void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev)
     if (xendev->local_port == -1) {
         return;
     }
-    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
-    xenevtchn_unbind(xendev->evtchndev, xendev->local_port);
+    qemu_set_fd_handler(qemu_xen_evtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
+    qemu_xen_evtchn_unbind(xendev->evtchndev, xendev->local_port);
     xen_pv_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
     xendev->local_port = -1;
 }
 
 int xen_pv_send_notify(struct XenLegacyDevice *xendev)
 {
-    return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
+    return qemu_xen_evtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
 /* ------------------------------------------------------------- */
@@ -306,7 +306,7 @@ void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
     }
 
     if (xendev->evtchndev != NULL) {
-        xenevtchn_close(xendev->evtchndev);
+        qemu_xen_evtchn_close(xendev->evtchndev);
     }
     if (xendev->gnttabdev != NULL) {
         xengnttab_close(xendev->gnttabdev);

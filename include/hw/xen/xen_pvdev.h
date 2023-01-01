@@ -1,6 +1,7 @@
 #ifndef QEMU_HW_XEN_PVDEV_H
 #define QEMU_HW_XEN_PVDEV_H
 
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/xen/xen_common.h"
 /* ------------------------------------------------------------- */
 

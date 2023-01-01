@@ -294,13 +294,13 @@ static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
     xendev->debug      = debug;
     xendev->local_port = -1;
 
-    xendev->evtchndev = xenevtchn_open(NULL, 0);
+    xendev->evtchndev = qemu_xen_evtchn_open();
     if (xendev->evtchndev == NULL) {
         xen_pv_printf(NULL, 0, "can't open evtchn device\n");
         qdev_unplug(DEVICE(xendev), NULL);
         return NULL;
     }
-    qemu_set_cloexec(xenevtchn_fd(xendev->evtchndev));
+    qemu_set_cloexec(qemu_xen_evtchn_fd(xendev->evtchndev));
 
     xen_pv_insert_xendev(xendev);
 
@@ -751,14 +751,14 @@ int xen_be_bind_evtchn(struct XenLegacyDevice *xendev)
     if (xendev->local_port != -1) {
         return 0;
     }
-    xendev->local_port = xenevtchn_bind_interdomain
+    xendev->local_port = qemu_xen_evtchn_bind_interdomain
         (xendev->evtchndev, xendev->dom, xendev->remote_port);
     if (xendev->local_port == -1) {
         xen_pv_printf(xendev, 0, "xenevtchn_bind_interdomain failed\n");
         return -1;
     }
     xen_pv_printf(xendev, 2, "bind evtchn port %d\n", xendev->local_port);
-    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev),
+    qemu_set_fd_handler(qemu_xen_evtchn_fd(xendev->evtchndev),
                         xen_pv_evtchn_event, NULL, xendev);
     return 0;
 }

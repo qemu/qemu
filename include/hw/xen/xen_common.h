@@ -28,18 +28,7 @@ extern xc_interface *xen_xc;
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40701
 
 typedef xc_interface xenforeignmemory_handle;
-typedef xc_evtchn xenevtchn_handle;
 typedef xc_gnttab xengnttab_handle;
-typedef evtchn_port_or_error_t xenevtchn_port_or_error_t;
-
-#define xenevtchn_open(l, f) xc_evtchn_open(l, f);
-#define xenevtchn_close(h) xc_evtchn_close(h)
-#define xenevtchn_fd(h) xc_evtchn_fd(h)
-#define xenevtchn_pending(h) xc_evtchn_pending(h)
-#define xenevtchn_notify(h, p) xc_evtchn_notify(h, p)
-#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(h, d, p)
-#define xenevtchn_unmask(h, p) xc_evtchn_unmask(h, p)
-#define xenevtchn_unbind(h, p) xc_evtchn_unbind(h, p)
 
 #define xengnttab_open(l, f) xc_gnttab_open(l, f)
 #define xengnttab_close(h) xc_gnttab_close(h)
@@ -69,7 +58,6 @@ static inline void *xenforeignmemory_map(xc_interface *h, uint32_t dom,
 
 #else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40701 */
 
-#include <xenevtchn.h>
 #include <xengnttab.h>
 #include <xenforeignmemory.h>
 
