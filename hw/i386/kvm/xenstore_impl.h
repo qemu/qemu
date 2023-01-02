@@ -12,13 +12,7 @@
 #ifndef QEMU_XENSTORE_IMPL_H
 #define QEMU_XENSTORE_IMPL_H
 
-typedef uint32_t xs_transaction_t;
-
-#define XBT_NULL 0
-
-#define XS_PERM_NONE  0x00
-#define XS_PERM_READ  0x01
-#define XS_PERM_WRITE 0x02
+#include "hw/xen/xen_backend_ops.h"
 
 typedef struct XenstoreImplState XenstoreImplState;
 

@@ -12,6 +12,10 @@
 #ifndef QEMU_XEN_BACKEND_OPS_H
 #define QEMU_XEN_BACKEND_OPS_H
 
+#include "hw/xen/xen.h"
+#include "hw/xen/interface/xen.h"
+#include "hw/xen/interface/io/xenbus.h"
+
 /*
  * For the time being, these operations map fairly closely to the API of
  * the actual Xen libraries, e.g. libxenevtchn. As we complete the migration
@@ -35,6 +39,16 @@ typedef uint32_t grant_ref_t;
 #define XEN_PAGE_SHIFT       12
 #define XEN_PAGE_SIZE        (1UL << XEN_PAGE_SHIFT)
 #define XEN_PAGE_MASK        (~(XEN_PAGE_SIZE - 1))
+
+#ifndef xen_rmb
+#define xen_rmb() smp_rmb()
+#endif
+#ifndef xen_wmb
+#define xen_wmb() smp_wmb()
+#endif
+#ifndef xen_mb
+#define xen_mb() smp_mb()
+#endif
 
 struct evtchn_backend_ops {
     xenevtchn_handle *(*open)(void);
@@ -238,6 +252,155 @@ static inline int qemu_xen_foreignmem_unmap(void *addr, size_t pages)
         return -ENOSYS;
     }
     return xen_foreignmem_ops->unmap(addr, pages);
+}
+
+typedef void (*xs_watch_fn)(void *opaque, const char *path);
+
+struct qemu_xs_handle;
+struct qemu_xs_watch;
+typedef uint32_t xs_transaction_t;
+
+#define XBT_NULL 0
+
+#define XS_PERM_NONE  0x00
+#define XS_PERM_READ  0x01
+#define XS_PERM_WRITE 0x02
+
+struct xenstore_backend_ops {
+    struct qemu_xs_handle *(*open)(void);
+    void (*close)(struct qemu_xs_handle *h);
+    char *(*get_domain_path)(struct qemu_xs_handle *h, unsigned int domid);
+    char **(*directory)(struct qemu_xs_handle *h, xs_transaction_t t,
+                        const char *path, unsigned int *num);
+    void *(*read)(struct qemu_xs_handle *h, xs_transaction_t t,
+                  const char *path, unsigned int *len);
+    bool (*write)(struct qemu_xs_handle *h, xs_transaction_t t,
+                  const char *path, const void *data, unsigned int len);
+    bool (*create)(struct qemu_xs_handle *h, xs_transaction_t t,
+                   unsigned int owner, unsigned int domid,
+                   unsigned int perms, const char *path);
+    bool (*destroy)(struct qemu_xs_handle *h, xs_transaction_t t,
+               const char *path);
+    struct qemu_xs_watch *(*watch)(struct qemu_xs_handle *h, const char *path,
+                                   xs_watch_fn fn, void *opaque);
+    void (*unwatch)(struct qemu_xs_handle *h, struct qemu_xs_watch *w);
+    xs_transaction_t (*transaction_start)(struct qemu_xs_handle *h);
+    bool (*transaction_end)(struct qemu_xs_handle *h, xs_transaction_t t,
+                            bool abort);
+};
+
+extern struct xenstore_backend_ops *xen_xenstore_ops;
+
+static inline struct qemu_xs_handle *qemu_xen_xs_open(void)
+{
+    if (!xen_xenstore_ops) {
+        return NULL;
+    }
+    return xen_xenstore_ops->open();
+}
+
+static inline void qemu_xen_xs_close(struct qemu_xs_handle *h)
+{
+    if (!xen_xenstore_ops) {
+        return;
+    }
+    xen_xenstore_ops->close(h);
+}
+
+static inline char *qemu_xen_xs_get_domain_path(struct qemu_xs_handle *h,
+                                                unsigned int domid)
+{
+    if (!xen_xenstore_ops) {
+        return NULL;
+    }
+    return xen_xenstore_ops->get_domain_path(h, domid);
+}
+
+static inline char **qemu_xen_xs_directory(struct qemu_xs_handle *h,
+                                           xs_transaction_t t, const char *path,
+                                           unsigned int *num)
+{
+    if (!xen_xenstore_ops) {
+        return NULL;
+    }
+    return xen_xenstore_ops->directory(h, t, path, num);
+}
+
+static inline void *qemu_xen_xs_read(struct qemu_xs_handle *h,
+                                     xs_transaction_t t, const char *path,
+                                     unsigned int *len)
+{
+    if (!xen_xenstore_ops) {
+        return NULL;
+    }
+    return xen_xenstore_ops->read(h, t, path, len);
+}
+
+static inline bool qemu_xen_xs_write(struct qemu_xs_handle *h,
+                                     xs_transaction_t t, const char *path,
+                                     const void *data, unsigned int len)
+{
+    if (!xen_xenstore_ops) {
+        return false;
+    }
+    return xen_xenstore_ops->write(h, t, path, data, len);
+}
+
+static inline bool qemu_xen_xs_create(struct qemu_xs_handle *h,
+                                      xs_transaction_t t, unsigned int owner,
+                                      unsigned int domid, unsigned int perms,
+                                      const char *path)
+{
+    if (!xen_xenstore_ops) {
+        return false;
+    }
+    return xen_xenstore_ops->create(h, t, owner, domid, perms, path);
+}
+
+static inline bool qemu_xen_xs_destroy(struct qemu_xs_handle *h,
+                                       xs_transaction_t t, const char *path)
+{
+    if (!xen_xenstore_ops) {
+        return false;
+    }
+    return xen_xenstore_ops->destroy(h, t, path);
+}
+
+static inline struct qemu_xs_watch *qemu_xen_xs_watch(struct qemu_xs_handle *h,
+                                                      const char *path,
+                                                      xs_watch_fn fn,
+                                                      void *opaque)
+{
+    if (!xen_xenstore_ops) {
+        return NULL;
+    }
+    return xen_xenstore_ops->watch(h, path, fn, opaque);
+}
+
+static inline void qemu_xen_xs_unwatch(struct qemu_xs_handle *h,
+                                       struct qemu_xs_watch *w)
+{
+    if (!xen_xenstore_ops) {
+        return;
+    }
+    xen_xenstore_ops->unwatch(h, w);
+}
+
+static inline xs_transaction_t qemu_xen_xs_transaction_start(struct qemu_xs_handle *h)
+{
+    if (!xen_xenstore_ops) {
+        return XBT_NULL;
+    }
+    return xen_xenstore_ops->transaction_start(h);
+}
+
+static inline bool qemu_xen_xs_transaction_end(struct qemu_xs_handle *h,
+                                               xs_transaction_t t, bool abort)
+{
+    if (!xen_xenstore_ops) {
+        return false;
+    }
+    return xen_xenstore_ops->transaction_end(h, t, abort);
 }
 
 void setup_xen_backend_ops(void);

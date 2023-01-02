@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/uuid.h"
 #include "qapi/error.h"
 
 #include "hw/xen/xen_backend_ops.h"
@@ -262,6 +263,202 @@ struct foreignmem_backend_ops libxenforeignmem_backend_ops = {
     .unmap = libxenforeignmem_backend_unmap,
 };
 
+struct qemu_xs_handle {
+    struct xs_handle *xsh;
+    NotifierList notifiers;
+};
+
+static void watch_event(void *opaque)
+{
+    struct qemu_xs_handle *h = opaque;
+
+    for (;;) {
+        char **v = xs_check_watch(h->xsh);
+
+        if (!v) {
+            break;
+        }
+
+        notifier_list_notify(&h->notifiers, v);
+        free(v);
+    }
+}
+
+static struct qemu_xs_handle *libxenstore_open(void)
+{
+    struct xs_handle *xsh = xs_open(0);
+    struct qemu_xs_handle *h = g_new0(struct qemu_xs_handle, 1);
+
+    if (!xsh) {
+        return NULL;
+    }
+
+    h = g_new0(struct qemu_xs_handle, 1);
+    h->xsh = xsh;
+
+    notifier_list_init(&h->notifiers);
+    qemu_set_fd_handler(xs_fileno(h->xsh), watch_event, NULL, h);
+
+    return h;
+}
+
+static void libxenstore_close(struct qemu_xs_handle *h)
+{
+    g_assert(notifier_list_empty(&h->notifiers));
+    qemu_set_fd_handler(xs_fileno(h->xsh), NULL, NULL, NULL);
+    xs_close(h->xsh);
+    g_free(h);
+}
+
+static char *libxenstore_get_domain_path(struct qemu_xs_handle *h,
+                                         unsigned int domid)
+{
+    return xs_get_domain_path(h->xsh, domid);
+}
+
+static char **libxenstore_directory(struct qemu_xs_handle *h,
+                                    xs_transaction_t t, const char *path,
+                                    unsigned int *num)
+{
+    return xs_directory(h->xsh, t, path, num);
+}
+
+static void *libxenstore_read(struct qemu_xs_handle *h, xs_transaction_t t,
+                              const char *path, unsigned int *len)
+{
+    return xs_read(h->xsh, t, path, len);
+}
+
+static bool libxenstore_write(struct qemu_xs_handle *h, xs_transaction_t t,
+                              const char *path, const void *data,
+                              unsigned int len)
+{
+    return xs_write(h->xsh, t, path, data, len);
+}
+
+static bool libxenstore_create(struct qemu_xs_handle *h, xs_transaction_t t,
+                               unsigned int owner, unsigned int domid,
+                               unsigned int perms, const char *path)
+{
+    struct xs_permissions perms_list[] = {
+        {
+            .id    = owner,
+            .perms = XS_PERM_NONE,
+        },
+        {
+            .id    = domid,
+            .perms = perms,
+        },
+    };
+
+    if (!xs_mkdir(h->xsh, t, path)) {
+        return false;
+    }
+
+    return xs_set_permissions(h->xsh, t, path, perms_list,
+                              ARRAY_SIZE(perms_list));
+}
+
+static bool libxenstore_destroy(struct qemu_xs_handle *h, xs_transaction_t t,
+                                const char *path)
+{
+    return xs_rm(h->xsh, t, path);
+}
+
+struct qemu_xs_watch {
+    char *path;
+    char *token;
+    xs_watch_fn fn;
+    void *opaque;
+    Notifier notifier;
+};
+
+static void watch_notify(Notifier *n, void *data)
+{
+    struct qemu_xs_watch *w = container_of(n, struct qemu_xs_watch, notifier);
+    const char **v = data;
+
+    if (!strcmp(w->token, v[XS_WATCH_TOKEN])) {
+        w->fn(w->opaque, v[XS_WATCH_PATH]);
+    }
+}
+
+static struct qemu_xs_watch *new_watch(const char *path, xs_watch_fn fn,
+                                       void *opaque)
+{
+    struct qemu_xs_watch *w = g_new0(struct qemu_xs_watch, 1);
+    QemuUUID uuid;
+
+    qemu_uuid_generate(&uuid);
+
+    w->token = qemu_uuid_unparse_strdup(&uuid);
+    w->path = g_strdup(path);
+    w->fn = fn;
+    w->opaque = opaque;
+    w->notifier.notify = watch_notify;
+
+    return w;
+}
+
+static void free_watch(struct qemu_xs_watch *w)
+{
+    g_free(w->token);
+    g_free(w->path);
+
+    g_free(w);
+}
+
+static struct qemu_xs_watch *libxenstore_watch(struct qemu_xs_handle *h,
+                                               const char *path, xs_watch_fn fn,
+                                               void *opaque)
+{
+    struct qemu_xs_watch *w = new_watch(path, fn, opaque);
+
+    notifier_list_add(&h->notifiers, &w->notifier);
+
+    if (!xs_watch(h->xsh, path, w->token)) {
+        notifier_remove(&w->notifier);
+        free_watch(w);
+        return NULL;
+    }
+
+    return w;
+}
+
+static void libxenstore_unwatch(struct qemu_xs_handle *h,
+                                struct qemu_xs_watch *w)
+{
+    xs_unwatch(h->xsh, w->path, w->token);
+    notifier_remove(&w->notifier);
+    free_watch(w);
+}
+
+static xs_transaction_t libxenstore_transaction_start(struct qemu_xs_handle *h)
+{
+    return xs_transaction_start(h->xsh);
+}
+
+static bool libxenstore_transaction_end(struct qemu_xs_handle *h,
+                                        xs_transaction_t t, bool abort)
+{
+    return xs_transaction_end(h->xsh, t, abort);
+}
+
+struct xenstore_backend_ops libxenstore_backend_ops = {
+    .open = libxenstore_open,
+    .close = libxenstore_close,
+    .get_domain_path = libxenstore_get_domain_path,
+    .directory = libxenstore_directory,
+    .read = libxenstore_read,
+    .write = libxenstore_write,
+    .create = libxenstore_create,
+    .destroy = libxenstore_destroy,
+    .watch = libxenstore_watch,
+    .unwatch = libxenstore_unwatch,
+    .transaction_start = libxenstore_transaction_start,
+    .transaction_end = libxenstore_transaction_end,
+};
+
 void setup_xen_backend_ops(void)
 {
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40800
@@ -277,4 +474,5 @@ void setup_xen_backend_ops(void)
     xen_evtchn_ops = &libxenevtchn_backend_ops;
     xen_gnttab_ops = &libxengnttab_backend_ops;
     xen_foreignmem_ops = &libxenforeignmem_backend_ops;
+    xen_xenstore_ops = &libxenstore_backend_ops;
 }

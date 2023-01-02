@@ -39,7 +39,7 @@ BusState *xen_sysbus;
 /* ------------------------------------------------------------- */
 
 /* public */
-struct xs_handle *xenstore;
+struct qemu_xs_handle *xenstore;
 const char *xen_protocol;
 
 /* private */
@@ -274,6 +274,25 @@ static void xen_be_frontend_changed(struct XenLegacyDevice *xendev,
     }
 }
 
+static void xenstore_update_fe(void *opaque, const char *watch)
+{
+    struct XenLegacyDevice *xendev = opaque;
+    const char *node;
+    unsigned int len;
+
+    len = strlen(xendev->fe);
+    if (strncmp(xendev->fe, watch, len) != 0) {
+        return;
+    }
+    if (watch[len] != '/') {
+        return;
+    }
+    node = watch + len + 1;
+
+    xen_be_frontend_changed(xendev, node);
+    xen_be_check_state(xendev);
+}
+
 /* ------------------------------------------------------------- */
 /* Check for possible state transitions and perform them.        */
 
@@ -287,7 +306,6 @@ static void xen_be_frontend_changed(struct XenLegacyDevice *xendev,
  */
 static int xen_be_try_setup(struct XenLegacyDevice *xendev)
 {
-    char token[XEN_BUFSIZE];
     int be_state;
 
     if (xenstore_read_be_int(xendev, "state", &be_state) == -1) {
@@ -308,8 +326,9 @@ static int xen_be_try_setup(struct XenLegacyDevice *xendev)
     }
 
     /* setup frontend watch */
-    snprintf(token, sizeof(token), "fe:%p", xendev);
-    if (!xs_watch(xenstore, xendev->fe, token)) {
+    xendev->watch = qemu_xen_xs_watch(xenstore, xendev->fe, xenstore_update_fe,
+                                      xendev);
+    if (!xendev->watch) {
         xen_pv_printf(xendev, 0, "watching frontend path (%s) failed\n",
                       xendev->fe);
         return -1;
@@ -498,24 +517,67 @@ void xen_be_check_state(struct XenLegacyDevice *xendev)
 
 /* ------------------------------------------------------------- */
 
+struct xenstore_be {
+    const char *type;
+    int dom;
+    struct XenDevOps *ops;
+};
+
+static void xenstore_update_be(void *opaque, const char *watch)
+{
+    struct xenstore_be *be = opaque;
+    struct XenLegacyDevice *xendev;
+    char path[XEN_BUFSIZE], *bepath;
+    unsigned int len, dev;
+
+    len = snprintf(path, sizeof(path), "backend/%s/%d", be->type, be->dom);
+    if (strncmp(path, watch, len) != 0) {
+        return;
+    }
+    if (sscanf(watch + len, "/%u/%255s", &dev, path) != 2) {
+        strcpy(path, "");
+        if (sscanf(watch + len, "/%u", &dev) != 1) {
+            dev = -1;
+        }
+    }
+    if (dev == -1) {
+        return;
+    }
+
+    xendev = xen_be_get_xendev(be->type, be->dom, dev, be->ops);
+    if (xendev != NULL) {
+        bepath = qemu_xen_xs_read(xenstore, 0, xendev->be, &len);
+        if (bepath == NULL) {
+            xen_pv_del_xendev(xendev);
+        } else {
+            free(bepath);
+            xen_be_backend_changed(xendev, path);
+            xen_be_check_state(xendev);
+        }
+    }
+}
+
 static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
 {
     struct XenLegacyDevice *xendev;
-    char path[XEN_BUFSIZE], token[XEN_BUFSIZE];
+    char path[XEN_BUFSIZE];
+    struct xenstore_be *be = g_new0(struct xenstore_be, 1);
     char **dev = NULL;
     unsigned int cdev, j;
 
     /* setup watch */
-    snprintf(token, sizeof(token), "be:%p:%d:%p", type, dom, ops);
+    be->type = type;
+    be->dom = dom;
+    be->ops = ops;
     snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
-    if (!xs_watch(xenstore, path, token)) {
+    if (!qemu_xen_xs_watch(xenstore, path, xenstore_update_be, be)) {
         xen_pv_printf(NULL, 0, "xen be: watching backend path (%s) failed\n",
                       path);
         return -1;
     }
 
     /* look for backends */
-    dev = xs_directory(xenstore, 0, path, &cdev);
+    dev = qemu_xen_xs_directory(xenstore, 0, path, &cdev);
     if (!dev) {
         return 0;
     }
@@ -530,57 +592,6 @@ static int xenstore_scan(const char *type, int dom, struct XenDevOps *ops)
     return 0;
 }
 
-void xenstore_update_be(char *watch, char *type, int dom,
-                        struct XenDevOps *ops)
-{
-    struct XenLegacyDevice *xendev;
-    char path[XEN_BUFSIZE], *bepath;
-    unsigned int len, dev;
-
-    len = snprintf(path, sizeof(path), "backend/%s/%d", type, dom);
-    if (strncmp(path, watch, len) != 0) {
-        return;
-    }
-    if (sscanf(watch + len, "/%u/%255s", &dev, path) != 2) {
-        strcpy(path, "");
-        if (sscanf(watch + len, "/%u", &dev) != 1) {
-            dev = -1;
-        }
-    }
-    if (dev == -1) {
-        return;
-    }
-
-    xendev = xen_be_get_xendev(type, dom, dev, ops);
-    if (xendev != NULL) {
-        bepath = xs_read(xenstore, 0, xendev->be, &len);
-        if (bepath == NULL) {
-            xen_pv_del_xendev(xendev);
-        } else {
-            free(bepath);
-            xen_be_backend_changed(xendev, path);
-            xen_be_check_state(xendev);
-        }
-    }
-}
-
-void xenstore_update_fe(char *watch, struct XenLegacyDevice *xendev)
-{
-    char *node;
-    unsigned int len;
-
-    len = strlen(xendev->fe);
-    if (strncmp(xendev->fe, watch, len) != 0) {
-        return;
-    }
-    if (watch[len] != '/') {
-        return;
-    }
-    node = watch + len + 1;
-
-    xen_be_frontend_changed(xendev, node);
-    xen_be_check_state(xendev);
-}
 /* -------------------------------------------------------------------- */
 
 static void xen_set_dynamic_sysbus(void)
@@ -594,13 +605,11 @@ static void xen_set_dynamic_sysbus(void)
 
 void xen_be_init(void)
 {
-    xenstore = xs_daemon_open();
+    xenstore = qemu_xen_xs_open();
     if (!xenstore) {
         xen_pv_printf(NULL, 0, "can't connect to xenstored\n");
         exit(1);
     }
-
-    qemu_set_fd_handler(xs_fileno(xenstore), xenstore_update, NULL, NULL);
 
     if (xen_evtchn_ops == NULL || xen_gnttab_ops == NULL) {
         xen_pv_printf(NULL, 0, "Xen operations not set up\n");

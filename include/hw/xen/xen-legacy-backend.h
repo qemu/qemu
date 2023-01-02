@@ -2,7 +2,6 @@
 #define HW_XEN_LEGACY_BACKEND_H
 
 #include "hw/xen/xen_backend_ops.h"
-#include "hw/xen/interface/io/xenbus.h"
 #include "hw/xen/xen_pvdev.h"
 #include "net/net.h"
 #include "qom/object.h"
@@ -16,7 +15,7 @@ DECLARE_INSTANCE_CHECKER(XenLegacyDevice, XENBACKEND,
                          TYPE_XENBACKEND)
 
 /* variables */
-extern struct xs_handle *xenstore;
+extern struct qemu_xs_handle *xenstore;
 extern const char *xen_protocol;
 extern DeviceState *xen_sysdev;
 extern BusState *xen_sysbus;
@@ -31,9 +30,6 @@ int xenstore_write_be_int64(struct XenLegacyDevice *xendev, const char *node,
 char *xenstore_read_be_str(struct XenLegacyDevice *xendev, const char *node);
 int xenstore_read_be_int(struct XenLegacyDevice *xendev, const char *node,
                          int *ival);
-void xenstore_update_fe(char *watch, struct XenLegacyDevice *xendev);
-void xenstore_update_be(char *watch, char *type, int dom,
-                        struct XenDevOps *ops);
 char *xenstore_read_fe_str(struct XenLegacyDevice *xendev, const char *node);
 int xenstore_read_fe_int(struct XenLegacyDevice *xendev, const char *node,
                          int *ival);

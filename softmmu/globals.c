@@ -68,3 +68,4 @@ bool xen_domid_restrict;
 struct evtchn_backend_ops *xen_evtchn_ops;
 struct gnttab_backend_ops *xen_gnttab_ops;
 struct foreignmem_backend_ops *xen_foreignmem_ops;
+struct xenstore_backend_ops *xen_xenstore_ops;

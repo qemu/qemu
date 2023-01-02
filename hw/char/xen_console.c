@@ -181,7 +181,7 @@ static int con_init(struct XenLegacyDevice *xendev)
     const char *output;
 
     /* setup */
-    dom = xs_get_domain_path(xenstore, con->xendev.dom);
+    dom = qemu_xen_xs_get_domain_path(xenstore, con->xendev.dom);
     if (!xendev->dev) {
         snprintf(con->console, sizeof(con->console), "%s/console", dom);
     } else {

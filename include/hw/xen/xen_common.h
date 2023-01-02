@@ -12,7 +12,6 @@
 
 #include <xenctrl.h>
 #include <xenstore.h>
-#include "hw/xen/interface/io/xenbus.h"
 
 #include "hw/xen/xen.h"
 #include "hw/pci/pci_device.h"

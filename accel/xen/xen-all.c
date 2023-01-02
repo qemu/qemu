@@ -90,12 +90,15 @@ void xenstore_store_pv_console_info(int i, Chardev *chr)
 }
 
 
-static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
+static void xenstore_record_dm_state(const char *state)
 {
+    struct xs_handle *xs;
     char path[50];
 
+    /* We now have everything we need to set the xenstore entry. */
+    xs = xs_open(0);
     if (xs == NULL) {
-        error_report("xenstore connection not initialized");
+        fprintf(stderr, "Could not contact XenStore\n");
         exit(1);
     }
 
@@ -109,6 +112,8 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
         error_report("error recording dm state");
         exit(1);
     }
+
+    xs_close(xs);
 }
 
 
@@ -117,7 +122,7 @@ static void xen_change_state_handler(void *opaque, bool running,
 {
     if (running) {
         /* record state running */
-        xenstore_record_dm_state(xenstore, "running");
+        xenstore_record_dm_state("running");
     }
 }
 
