@@ -18,7 +18,7 @@
 #include "hw/irq.h"
 #include "hw/hw.h"
 #include "hw/i386/apic-msidef.h"
-#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_native.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen-bus.h"
 #include "hw/xen/xen-x86.h"
@@ -52,10 +52,11 @@ static bool xen_in_migration;
 
 /* Compatibility with older version */
 
-/* This allows QEMU to build on a system that has Xen 4.5 or earlier
- * installed.  This here (not in hw/xen/xen_common.h) because xen/hvm/ioreq.h
- * needs to be included before this block and hw/xen/xen_common.h needs to
- * be included before xen/hvm/ioreq.h
+/*
+ * This allows QEMU to build on a system that has Xen 4.5 or earlier installed.
+ * This is here (not in hw/xen/xen_native.h) because xen/hvm/ioreq.h needs to
+ * be included before this block and hw/xen/xen_native.h needs to be included
+ * before xen/hvm/ioreq.h
  */
 #ifndef IOREQ_TYPE_VMWARE_PORT
 #define IOREQ_TYPE_VMWARE_PORT  3
