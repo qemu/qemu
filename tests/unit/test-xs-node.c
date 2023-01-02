@@ -23,6 +23,7 @@ static GList *xs_node_list;
  * doesn't hurt).
  */
 #define __XEN_PUBLIC_XEN_H__
+typedef unsigned long xen_pfn_t;
 
 #include "hw/i386/kvm/xenstore_impl.c"
 
