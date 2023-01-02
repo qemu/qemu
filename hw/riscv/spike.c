@@ -307,8 +307,7 @@ static void spike_board_init(MachineState *machine)
         kernel_start_addr = riscv_calc_kernel_start_addr(&s->soc[0],
                                                          firmware_end_addr);
 
-        kernel_entry = riscv_load_kernel(machine->kernel_filename,
-                                         kernel_start_addr,
+        kernel_entry = riscv_load_kernel(machine, kernel_start_addr,
                                          htif_symbol_callback);
 
         if (machine->initrd_filename) {
