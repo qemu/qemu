@@ -109,8 +109,10 @@ static void test_spice(void)
     QTestState *qts;
     const char *cfgdata =
         "[spice]\n"
-        "disable-ticketing = \"on\"\n"
-        "unix = \"on\"\n";
+#ifndef WIN32
+        "unix = \"on\"\n"
+#endif
+        "disable-ticketing = \"on\"\n";
 
     qts = qtest_init_with_config(cfgdata);
     /* Test valid command */
