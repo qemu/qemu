@@ -27,8 +27,6 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "hw/input/adb.h"
-#include "hw/misc/mos6522.h"
 #include "hw/misc/macio/cuda.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"

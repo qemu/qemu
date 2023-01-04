@@ -27,9 +27,8 @@
 #ifndef MOS6522_H
 #define MOS6522_H
 
-#include "exec/memory.h"
+#include "exec/hwaddr.h"
 #include "hw/sysbus.h"
-#include "hw/input/adb.h"
 #include "qom/object.h"
 
 #define MOS6522_NUM_REGS 16

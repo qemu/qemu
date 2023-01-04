@@ -10,6 +10,7 @@
 #ifndef PMU_H
 #define PMU_H
 
+#include "hw/input/adb.h"
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/gpio.h"
 #include "qom/object.h"
