@@ -282,6 +282,8 @@ static void gt64120_isd_mapping(GT64120State *s)
     hwaddr start = ((hwaddr)s->regs[GT_ISD] << 21) & 0xFFFE00000ull;
     hwaddr length = 0x1000;
 
+    memory_region_transaction_begin();
+
     if (s->ISD_length) {
         memory_region_del_subregion(get_system_memory(), &s->ISD_mem);
     }
@@ -292,10 +294,14 @@ static void gt64120_isd_mapping(GT64120State *s)
     s->ISD_start = start;
     s->ISD_length = length;
     memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
+
+    memory_region_transaction_commit();
 }
 
 static void gt64120_pci_mapping(GT64120State *s)
 {
+    memory_region_transaction_begin();
+
     /* Update PCI0IO mapping */
     if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD]) {
         /* Unmap old IO address */
@@ -354,6 +360,8 @@ static void gt64120_pci_mapping(GT64120State *s)
                                         &s->PCI0M1_mem);
         }
     }
+
+    memory_region_transaction_commit();
 }
 
 static int gt64120_post_load(void *opaque, int version_id)
