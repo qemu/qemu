@@ -34,31 +34,11 @@ armhf-debian-cross-container:
   variables:
     NAME: debian-armhf-cross
 
-# We never want to build hexagon in the CI system and by default we
-# always want to refer to the master registry where it lives.
 hexagon-cross-container:
-  extends: .base_job_template
-  image: docker:stable
+  extends: .container_job_template
   stage: containers
   variables:
     NAME: debian-hexagon-cross
-    GIT_DEPTH: 1
-    QEMU_JOB_ONLY_FORKS: 1
-  services:
-    - docker:dind
-  before_script:
-    - export TAG="$CI_REGISTRY_IMAGE/qemu/$NAME:latest"
-    - export COMMON_TAG="$CI_REGISTRY/qemu-project/qemu/qemu/$NAME:latest"
-    - docker info
-    - docker login $CI_REGISTRY -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD"
-  script:
-    - echo "TAG:$TAG"
-    - echo "COMMON_TAG:$COMMON_TAG"
-    - docker pull $COMMON_TAG
-    - docker tag $COMMON_TAG $TAG
-    - docker push "$TAG"
-  after_script:
-    - docker logout
 
 hppa-debian-cross-container:
   extends: .container_job_template

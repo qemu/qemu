@@ -354,13 +354,17 @@ static void test_pipe(void)
             if (FD_ISSET(fds[0], &rfds)) {
                 chk_error(read(fds[0], &ch, 1));
                 rcount++;
-                if (rcount >= WCOUNT_MAX)
+                if (rcount >= WCOUNT_MAX) {
                     break;
+                }
             }
             if (FD_ISSET(fds[1], &wfds)) {
                 ch = 'a';
                 chk_error(write(fds[1], &ch, 1));
                 wcount++;
+                if (wcount >= WCOUNT_MAX) {
+                    break;
+                }
             }
         }
     }

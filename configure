@@ -83,9 +83,10 @@ rm -f config.log
 # Print a helpful header at the top of config.log
 echo "# QEMU configure log $(date)" >> config.log
 printf "# Configured with:" >> config.log
-printf " '%s'" "$0" "$@" >> config.log
-echo >> config.log
-echo "#" >> config.log
+# repeat the invocation to log and stdout for CI
+invoke=$(printf " '%s'" "$0" "$@")
+test -n "$GITLAB_CI" && echo "configuring with: $invoke"
+{ echo "$invoke"; echo; echo "#"; } >> config.log
 
 quote_sh() {
     printf "%s" "$1" | sed "s,','\\\\'',g; s,.*,'&',"
@@ -1882,9 +1883,7 @@ probe_target_compiler() {
   # We shall skip configuring the target compiler if the user didn't
   # bother enabling an appropriate guest. This avoids building
   # extraneous firmware images and tests.
-  if test "${target_list#*$1}" != "$1"; then
-      break;
-  else
+  if test "${target_list#*$1}" = "$1"; then
       return 1
   fi
 
