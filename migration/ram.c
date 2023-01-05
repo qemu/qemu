@@ -1901,7 +1901,7 @@ int ram_write_tracking_start(void)
 
         /* Apply UFFD write protection to the block memory range */
         if (uffd_change_protection(rs->uffdio_fd, block->host,
-                block->max_length, true, false)) {
+                                   block->used_length, true, false)) {
             goto fail;
         }
 
