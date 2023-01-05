@@ -23,7 +23,12 @@
 
 #ifdef CONFIG_NUMA
 #include <numaif.h>
+#include <numa.h>
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_DEFAULT != MPOL_DEFAULT);
+/*
+ * HOST_MEM_POLICY_PREFERRED may either translate to MPOL_PREFERRED or
+ * MPOL_PREFERRED_MANY, see comments further below.
+ */
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_PREFERRED != MPOL_PREFERRED);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_BIND != MPOL_BIND);
 QEMU_BUILD_BUG_ON(HOST_MEM_POLICY_INTERLEAVE != MPOL_INTERLEAVE);
@@ -346,6 +351,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          * before mbind(). note: MPOL_MF_STRICT is ignored on hugepages so
          * this doesn't catch hugepage case. */
         unsigned flags = MPOL_MF_STRICT | MPOL_MF_MOVE;
+        int mode = backend->policy;
 
         /* check for invalid host-nodes and policies and give more verbose
          * error messages than mbind(). */
@@ -369,9 +375,18 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
                BITS_TO_LONGS(MAX_NODES + 1) * sizeof(unsigned long));
         assert(maxnode <= MAX_NODES);
 
+#ifdef HAVE_NUMA_HAS_PREFERRED_MANY
+        if (mode == MPOL_PREFERRED && numa_has_preferred_many() > 0) {
+            /*
+             * Replace with MPOL_PREFERRED_MANY otherwise the mbind() below
+             * silently picks the first node.
+             */
+            mode = MPOL_PREFERRED_MANY;
+        }
+#endif
+
         if (maxnode &&
-            mbind(ptr, sz, backend->policy, backend->host_nodes, maxnode + 1,
-                  flags)) {
+            mbind(ptr, sz, mode, backend->host_nodes, maxnode + 1, flags)) {
             if (backend->policy != MPOL_DEFAULT || errno != ENOSYS) {
                 error_setg_errno(errp, errno,
                                  "cannot bind memory to host NUMA nodes");
