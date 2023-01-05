@@ -1865,6 +1865,39 @@ void ram_write_tracking_prepare(void)
     }
 }
 
+static inline int uffd_protect_section(MemoryRegionSection *section,
+                                       void *opaque)
+{
+    const hwaddr size = int128_get64(section->size);
+    const hwaddr offset = section->offset_within_region;
+    RAMBlock *rb = section->mr->ram_block;
+    int uffd_fd = (uintptr_t)opaque;
+
+    return uffd_change_protection(uffd_fd, rb->host + offset, size, true,
+                                  false);
+}
+
+static int ram_block_uffd_protect(RAMBlock *rb, int uffd_fd)
+{
+    assert(rb->flags & RAM_UF_WRITEPROTECT);
+
+    /* See ram_block_populate_read() */
+    if (rb->mr && memory_region_has_ram_discard_manager(rb->mr)) {
+        RamDiscardManager *rdm = memory_region_get_ram_discard_manager(rb->mr);
+        MemoryRegionSection section = {
+            .mr = rb->mr,
+            .offset_within_region = 0,
+            .size = rb->mr->size,
+        };
+
+        return ram_discard_manager_replay_populated(rdm, &section,
+                                                    uffd_protect_section,
+                                                    (void *)(uintptr_t)uffd_fd);
+    }
+    return uffd_change_protection(uffd_fd, rb->host,
+                                  rb->used_length, true, false);
+}
+
 /*
  * ram_write_tracking_start: start UFFD-WP memory tracking
  *
@@ -1900,8 +1933,7 @@ int ram_write_tracking_start(void)
         memory_region_ref(block->mr);
 
         /* Apply UFFD write protection to the block memory range */
-        if (uffd_change_protection(rs->uffdio_fd, block->host,
-                                   block->used_length, true, false)) {
+        if (ram_block_uffd_protect(block, uffd_fd)) {
             goto fail;
         }
 
