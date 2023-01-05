@@ -1918,12 +1918,6 @@ fail:
         if ((block->flags & RAM_UF_WRITEPROTECT) == 0) {
             continue;
         }
-        /*
-         * In case some memory block failed to be write-protected
-         * remove protection and unregister all succeeded RAM blocks
-         */
-        uffd_change_protection(rs->uffdio_fd, block->host, block->max_length,
-                false, false);
         uffd_unregister_memory(rs->uffdio_fd, block->host, block->max_length);
         /* Cleanup flags and remove reference */
         block->flags &= ~RAM_UF_WRITEPROTECT;
@@ -1949,9 +1943,6 @@ void ram_write_tracking_stop(void)
         if ((block->flags & RAM_UF_WRITEPROTECT) == 0) {
             continue;
         }
-        /* Remove protection and unregister all affected RAM blocks */
-        uffd_change_protection(rs->uffdio_fd, block->host, block->max_length,
-                false, false);
         uffd_unregister_memory(rs->uffdio_fd, block->host, block->max_length);
 
         trace_ram_write_tracking_ramblock_stop(block->idstr, block->page_size,
