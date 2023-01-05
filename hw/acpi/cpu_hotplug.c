@@ -52,6 +52,9 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
         .max_access_size = 1,
     },
 };
