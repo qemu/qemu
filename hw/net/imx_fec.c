@@ -1068,9 +1068,9 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
         return 0;
     }
 
-    /* 4 bytes for the CRC.  */
-    size += 4;
     crc = cpu_to_be32(crc32(~0, buf, size));
+    /* Increase size by 4, loop below reads the last 4 bytes from crc_ptr. */
+    size += 4;
     crc_ptr = (uint8_t *) &crc;
 
     /* Huge frames are truncated.  */
@@ -1164,9 +1164,9 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
         return 0;
     }
 
-    /* 4 bytes for the CRC.  */
-    size += 4;
     crc = cpu_to_be32(crc32(~0, buf, size));
+    /* Increase size by 4, loop below reads the last 4 bytes from crc_ptr. */
+    size += 4;
     crc_ptr = (uint8_t *) &crc;
 
     if (shift16) {

@@ -26,7 +26,6 @@
 #include "target/arm/idau.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "qapi/visitor.h"
 #include "cpu.h"
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
@@ -309,6 +308,10 @@ static void arm_cpu_reset_hold(Object *obj)
         env->cp15.cpacr_el1 = FIELD_DP64(env->cp15.cpacr_el1,
                                          CPACR, CP11, 3);
 #endif
+        if (arm_feature(env, ARM_FEATURE_V8)) {
+            env->cp15.rvbar = cpu->rvbar_prop;
+            env->regs[15] = cpu->rvbar_prop;
+        }
     }
 
 #if defined(CONFIG_USER_ONLY)
@@ -487,6 +490,14 @@ static void arm_cpu_reset_hold(Object *obj)
                        sizeof(*env->pmsav7.dracr) * cpu->pmsav7_dregion);
             }
         }
+
+        if (cpu->pmsav8r_hdregion > 0) {
+            memset(env->pmsav8.hprbar, 0,
+                   sizeof(*env->pmsav8.hprbar) * cpu->pmsav8r_hdregion);
+            memset(env->pmsav8.hprlar, 0,
+                   sizeof(*env->pmsav8.hprlar) * cpu->pmsav8r_hdregion);
+        }
+
         env->pmsav7.rnr[M_REG_NS] = 0;
         env->pmsav7.rnr[M_REG_S] = 0;
         env->pmsav8.mair0[M_REG_NS] = 0;
@@ -1345,7 +1356,7 @@ void arm_cpu_post_init(Object *obj)
         qdev_property_add_static(DEVICE(obj), &arm_cpu_reset_hivecs_property);
     }
 
-    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+    if (arm_feature(&cpu->env, ARM_FEATURE_V8)) {
         object_property_add_uint64_ptr(obj, "rvbar",
                                        &cpu->rvbar_prop,
                                        OBJ_PROP_FLAG_READWRITE);
@@ -1998,11 +2009,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     /* MPU can be configured out of a PMSA CPU either by setting has-mpu
      * to false or by setting pmsav7-dregion to 0.
      */
-    if (!cpu->has_mpu) {
-        cpu->pmsav7_dregion = 0;
-    }
-    if (cpu->pmsav7_dregion == 0) {
+    if (!cpu->has_mpu || cpu->pmsav7_dregion == 0) {
         cpu->has_mpu = false;
+        cpu->pmsav7_dregion = 0;
+        cpu->pmsav8r_hdregion = 0;
     }
 
     if (arm_feature(env, ARM_FEATURE_PMSA) &&
@@ -2028,6 +2038,19 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                 env->pmsav7.drsr = g_new0(uint32_t, nr);
                 env->pmsav7.dracr = g_new0(uint32_t, nr);
             }
+        }
+
+        if (cpu->pmsav8r_hdregion > 0xff) {
+            error_setg(errp, "PMSAv8 MPU EL2 #regions invalid %" PRIu32,
+                              cpu->pmsav8r_hdregion);
+            return;
+        }
+
+        if (cpu->pmsav8r_hdregion) {
+            env->pmsav8.hprbar = g_new0(uint32_t,
+                                        cpu->pmsav8r_hdregion);
+            env->pmsav8.hprlar = g_new0(uint32_t,
+                                        cpu->pmsav8r_hdregion);
         }
     }
 

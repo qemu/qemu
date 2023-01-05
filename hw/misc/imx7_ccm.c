@@ -16,6 +16,10 @@
 #include "hw/misc/imx7_ccm.h"
 #include "migration/vmstate.h"
 
+#include "trace.h"
+
+#define CKIH_FREQ 24000000 /* 24MHz crystal input */
+
 static void imx7_analog_reset(DeviceState *dev)
 {
     IMX7AnalogState *s = IMX7_ANALOG(dev);
@@ -219,16 +223,43 @@ static const VMStateDescription vmstate_imx7_ccm = {
 static uint32_t imx7_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
 {
     /*
-     * This function is "consumed" by GPT emulation code, however on
-     * i.MX7 each GPT block can have their own clock root. This means
-     * that this functions needs somehow to know requester's identity
-     * and the way to pass it: be it via additional IMXClk constants
-     * or by adding another argument to this method needs to be
-     * figured out
+     * This function is "consumed" by GPT emulation code. Some clocks
+     * have fixed frequencies and we can provide requested frequency
+     * easily. However for CCM provided clocks (like IPG) each GPT
+     * timer can have its own clock root.
+     * This means we need additionnal information when calling this
+     * function to know the requester's identity.
      */
-    qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Not implemented\n",
-                  TYPE_IMX7_CCM, __func__);
-    return 0;
+    uint32_t freq = 0;
+
+    switch (clock) {
+    case CLK_NONE:
+        break;
+    case CLK_32k:
+        freq = CKIL_FREQ;
+        break;
+    case CLK_HIGH:
+        freq = CKIH_FREQ;
+        break;
+    case CLK_IPG:
+    case CLK_IPG_HIGH:
+        /*
+         * For now we don't have a way to figure out the device this
+         * function is called for. Until then the IPG derived clocks
+         * are left unimplemented.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Clock %d Not implemented\n",
+                      TYPE_IMX7_CCM, __func__, clock);
+        break;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: unsupported clock %d\n",
+                      TYPE_IMX7_CCM, __func__, clock);
+        break;
+    }
+
+    trace_ccm_clock_freq(clock, freq);
+
+    return freq;
 }
 
 static void imx7_ccm_class_init(ObjectClass *klass, void *data)

@@ -6,6 +6,7 @@
  * Originally written by Hans Jiang
  * Updated by Peter Chubb
  * Updated by Jean-Christophe Dubois <jcd@tribudubois.net>
+ * Updated by Axel Heider
  *
  * This code is licensed under GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
@@ -66,71 +67,52 @@ static const IMXClk imx_epit_clocks[] =  {
  */
 static void imx_epit_update_int(IMXEPITState *s)
 {
-    if (s->sr && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
+    if ((s->sr & SR_OCIF) && (s->cr & CR_OCIEN) && (s->cr & CR_EN)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
     }
 }
 
-/*
- * Must be called from within a ptimer_transaction_begin/commit block
- * for both s->timer_cmp and s->timer_reload.
- */
-static void imx_epit_set_freq(IMXEPITState *s)
+static uint32_t imx_epit_get_freq(IMXEPITState *s)
 {
-    uint32_t clksrc;
-    uint32_t prescaler;
-
-    clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, 2);
-    prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, 12);
-
-    s->freq = imx_ccm_get_clock_frequency(s->ccm,
-                                imx_epit_clocks[clksrc]) / prescaler;
-
-    DPRINTF("Setting ptimer frequency to %u\n", s->freq);
-
-    if (s->freq) {
-        ptimer_set_freq(s->timer_reload, s->freq);
-        ptimer_set_freq(s->timer_cmp, s->freq);
-    }
+    uint32_t clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, CR_CLKSRC_BITS);
+    uint32_t prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, CR_PRESCALE_BITS);
+    uint32_t f_in = imx_ccm_get_clock_frequency(s->ccm, imx_epit_clocks[clksrc]);
+    uint32_t freq = f_in / prescaler;
+    DPRINTF("ptimer frequency is %u\n", freq);
+    return freq;
 }
 
-static void imx_epit_reset(DeviceState *dev)
+/*
+ * This is called both on hardware (device) reset and software reset.
+ */
+static void imx_epit_reset(IMXEPITState *s, bool is_hard_reset)
 {
-    IMXEPITState *s = IMX_EPIT(dev);
-
-    /*
-     * Soft reset doesn't touch some bits; hard reset clears them
-     */
-    s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    /* Soft reset doesn't touch some bits; hard reset clears them */
+    if (is_hard_reset) {
+        s->cr = 0;
+    } else {
+        s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    }
     s->sr = 0;
     s->lr = EPIT_TIMER_MAX;
     s->cmp = 0;
-    s->cnt = 0;
     ptimer_transaction_begin(s->timer_cmp);
     ptimer_transaction_begin(s->timer_reload);
-    /* stop both timers */
+
+    /*
+     * The reset switches off the input clock, so even if the CR.EN is still
+     * set, the timers are no longer running.
+     */
+    assert(imx_epit_get_freq(s) == 0);
     ptimer_stop(s->timer_cmp);
     ptimer_stop(s->timer_reload);
-    /* compute new frequency */
-    imx_epit_set_freq(s);
     /* init both timers to EPIT_TIMER_MAX */
     ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
     ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
-    if (s->freq && (s->cr & CR_EN)) {
-        /* if the timer is still enabled, restart it */
-        ptimer_run(s->timer_reload, 0);
-    }
     ptimer_transaction_commit(s->timer_cmp);
     ptimer_transaction_commit(s->timer_reload);
-}
-
-static uint32_t imx_epit_update_count(IMXEPITState *s)
-{
-    s->cnt = ptimer_get_count(s->timer_reload);
-
-    return s->cnt;
 }
 
 static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
@@ -156,8 +138,7 @@ static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
         break;
 
     case 4: /* CNT */
-        imx_epit_update_count(s);
-        reg_value = s->cnt;
+        reg_value = ptimer_get_count(s->timer_reload);
         break;
 
     default:
@@ -171,144 +152,219 @@ static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
     return reg_value;
 }
 
-/* Must be called from ptimer_transaction_begin/commit block for s->timer_cmp */
-static void imx_epit_reload_compare_timer(IMXEPITState *s)
+/*
+ * Must be called from a ptimer_transaction_begin/commit block for
+ * s->timer_cmp, but outside of a transaction block of s->timer_reload,
+ * so the proper counter value is read.
+ */
+static void imx_epit_update_compare_timer(IMXEPITState *s)
 {
-    if ((s->cr & (CR_EN | CR_OCIEN)) == (CR_EN | CR_OCIEN))  {
-        /* if the compare feature is on and timers are running */
-        uint32_t tmp = imx_epit_update_count(s);
-        uint64_t next;
-        if (tmp > s->cmp) {
-            /* It'll fire in this round of the timer */
-            next = tmp - s->cmp;
-        } else { /* catch it next time around */
-            next = tmp - s->cmp + ((s->cr & CR_RLD) ? EPIT_TIMER_MAX : s->lr);
+    uint64_t counter = 0;
+    bool is_oneshot = false;
+    /*
+     * The compare timer only has to run if the timer peripheral is active
+     * and there is an input clock, Otherwise it can be switched off.
+     */
+    bool is_active = (s->cr & CR_EN) && imx_epit_get_freq(s);
+    if (is_active) {
+        /*
+         * Calculate next timeout for compare timer. Reading the reload
+         * counter returns proper results only if pending transactions
+         * on it are committed here. Otherwise stale values are be read.
+         */
+        counter = ptimer_get_count(s->timer_reload);
+        uint64_t limit = ptimer_get_limit(s->timer_cmp);
+        /*
+         * The compare timer is a periodic timer if the limit is at least
+         * the compare value. Otherwise it may fire at most once in the
+         * current round.
+         */
+        bool is_oneshot = (limit >= s->cmp);
+        if (counter >= s->cmp) {
+            /* The compare timer fires in the current round. */
+            counter -= s->cmp;
+        } else if (!is_oneshot) {
+            /*
+             * The compare timer fires after a reload, as it is below the
+             * compare value already in this round. Note that the counter
+             * value calculated below can be above the 32-bit limit, which
+             * is legal here because the compare timer is an internal
+             * helper ptimer only.
+             */
+            counter += limit - s->cmp;
+        } else {
+            /*
+             * The compare timer won't fire in this round, and the limit is
+             * set to a value below the compare value. This practically means
+             * it will never fire, so it can be switched off.
+             */
+            is_active = false;
         }
-        ptimer_set_count(s->timer_cmp, next);
     }
+
+    /*
+     * Set the compare timer and let it run, or stop it. This is agnostic
+     * of CR.OCIEN bit, as this bit affects interrupt generation only. The
+     * compare timer needs to run even if no interrupts are to be generated,
+     * because the SR.OCIF bit must be updated also.
+     * Note that the timer might already be stopped or be running with
+     * counter values. However, finding out when an update is needed and
+     * when not is not trivial. It's much easier applying the setting again,
+     * as this does not harm either and the overhead is negligible.
+     */
+    if (is_active) {
+        ptimer_set_count(s->timer_cmp, counter);
+        ptimer_run(s->timer_cmp, is_oneshot ? 1 : 0);
+    } else {
+        ptimer_stop(s->timer_cmp);
+    }
+
+}
+
+static void imx_epit_write_cr(IMXEPITState *s, uint32_t value)
+{
+    uint32_t oldcr = s->cr;
+
+    s->cr = value & 0x03ffffff;
+
+    if (s->cr & CR_SWR) {
+        /*
+         * Reset clears CR.SWR again. It does not touch CR.EN, but the timers
+         * are still stopped because the input clock is disabled.
+         */
+        imx_epit_reset(s, false);
+    } else {
+        uint32_t freq;
+        uint32_t toggled_cr_bits = oldcr ^ s->cr;
+        /* re-initialize the limits if CR.RLD has changed */
+        bool set_limit = toggled_cr_bits & CR_RLD;
+        /* set the counter if the timer got just enabled and CR.ENMOD is set */
+        bool is_switched_on = (toggled_cr_bits & s->cr) & CR_EN;
+        bool set_counter = is_switched_on && (s->cr & CR_ENMOD);
+
+        ptimer_transaction_begin(s->timer_cmp);
+        ptimer_transaction_begin(s->timer_reload);
+        freq = imx_epit_get_freq(s);
+        if (freq) {
+            ptimer_set_freq(s->timer_reload, freq);
+            ptimer_set_freq(s->timer_cmp, freq);
+        }
+
+        if (set_limit || set_counter) {
+            uint64_t limit = (s->cr & CR_RLD) ? s->lr : EPIT_TIMER_MAX;
+            ptimer_set_limit(s->timer_reload, limit, set_counter ? 1 : 0);
+            if (set_limit) {
+                ptimer_set_limit(s->timer_cmp, limit, 0);
+            }
+        }
+        /*
+         * If there is an input clock and the peripheral is enabled, then
+         * ensure the wall clock timer is ticking. Otherwise stop the timers.
+         * The compare timer will be updated later.
+         */
+        if (freq && (s->cr & CR_EN)) {
+            ptimer_run(s->timer_reload, 0);
+        } else {
+            ptimer_stop(s->timer_reload);
+        }
+        /* Commit changes to reload timer, so they can propagate. */
+        ptimer_transaction_commit(s->timer_reload);
+        /* Update compare timer based on the committed reload timer value. */
+        imx_epit_update_compare_timer(s);
+        ptimer_transaction_commit(s->timer_cmp);
+    }
+
+    /*
+     * The interrupt state can change due to:
+     * - reset clears both SR.OCIF and CR.OCIE
+     * - write to CR.EN or CR.OCIE
+     */
+    imx_epit_update_int(s);
+}
+
+static void imx_epit_write_sr(IMXEPITState *s, uint32_t value)
+{
+    /* writing 1 to SR.OCIF clears this bit and turns the interrupt off */
+    if (value & SR_OCIF) {
+        s->sr = 0; /* SR.OCIF is the only bit in this register anyway */
+        imx_epit_update_int(s);
+    }
+}
+
+static void imx_epit_write_lr(IMXEPITState *s, uint32_t value)
+{
+    s->lr = value;
+
+    ptimer_transaction_begin(s->timer_cmp);
+    ptimer_transaction_begin(s->timer_reload);
+    if (s->cr & CR_RLD) {
+        /* Also set the limit if the LRD bit is set */
+        /* If IOVW bit is set then set the timer value */
+        ptimer_set_limit(s->timer_reload, s->lr, s->cr & CR_IOVW);
+        ptimer_set_limit(s->timer_cmp, s->lr, 0);
+    } else if (s->cr & CR_IOVW) {
+        /* If IOVW bit is set then set the timer value */
+        ptimer_set_count(s->timer_reload, s->lr);
+    }
+    /* Commit the changes to s->timer_reload, so they can propagate. */
+    ptimer_transaction_commit(s->timer_reload);
+    /* Update the compare timer based on the committed reload timer value. */
+    imx_epit_update_compare_timer(s);
+    ptimer_transaction_commit(s->timer_cmp);
+}
+
+static void imx_epit_write_cmp(IMXEPITState *s, uint32_t value)
+{
+    s->cmp = value;
+
+    /* Update the compare timer based on the committed reload timer value. */
+    ptimer_transaction_begin(s->timer_cmp);
+    imx_epit_update_compare_timer(s);
+    ptimer_transaction_commit(s->timer_cmp);
 }
 
 static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
-    uint64_t oldcr;
 
     DPRINTF("(%s, value = 0x%08x)\n", imx_epit_reg_name(offset >> 2),
             (uint32_t)value);
 
     switch (offset >> 2) {
     case 0: /* CR */
-
-        oldcr = s->cr;
-        s->cr = value & 0x03ffffff;
-        if (s->cr & CR_SWR) {
-            /* handle the reset */
-            imx_epit_reset(DEVICE(s));
-            /*
-             * TODO: could we 'break' here? following operations appear
-             * to duplicate the work imx_epit_reset() already did.
-             */
-        }
-
-        ptimer_transaction_begin(s->timer_cmp);
-        ptimer_transaction_begin(s->timer_reload);
-
-        if (!(s->cr & CR_SWR)) {
-            imx_epit_set_freq(s);
-        }
-
-        if (s->freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
-            if (s->cr & CR_ENMOD) {
-                if (s->cr & CR_RLD) {
-                    ptimer_set_limit(s->timer_reload, s->lr, 1);
-                    ptimer_set_limit(s->timer_cmp, s->lr, 1);
-                } else {
-                    ptimer_set_limit(s->timer_reload, EPIT_TIMER_MAX, 1);
-                    ptimer_set_limit(s->timer_cmp, EPIT_TIMER_MAX, 1);
-                }
-            }
-
-            imx_epit_reload_compare_timer(s);
-            ptimer_run(s->timer_reload, 0);
-            if (s->cr & CR_OCIEN) {
-                ptimer_run(s->timer_cmp, 0);
-            } else {
-                ptimer_stop(s->timer_cmp);
-            }
-        } else if (!(s->cr & CR_EN)) {
-            /* stop both timers */
-            ptimer_stop(s->timer_reload);
-            ptimer_stop(s->timer_cmp);
-        } else  if (s->cr & CR_OCIEN) {
-            if (!(oldcr & CR_OCIEN)) {
-                imx_epit_reload_compare_timer(s);
-                ptimer_run(s->timer_cmp, 0);
-            }
-        } else {
-            ptimer_stop(s->timer_cmp);
-        }
-
-        ptimer_transaction_commit(s->timer_cmp);
-        ptimer_transaction_commit(s->timer_reload);
+        imx_epit_write_cr(s, (uint32_t)value);
         break;
 
-    case 1: /* SR - ACK*/
-        /* writing 1 to OCIF clear the OCIF bit */
-        if (value & 0x01) {
-            s->sr = 0;
-            imx_epit_update_int(s);
-        }
+    case 1: /* SR */
+        imx_epit_write_sr(s, (uint32_t)value);
         break;
 
-    case 2: /* LR - set ticks */
-        s->lr = value;
-
-        ptimer_transaction_begin(s->timer_cmp);
-        ptimer_transaction_begin(s->timer_reload);
-        if (s->cr & CR_RLD) {
-            /* Also set the limit if the LRD bit is set */
-            /* If IOVW bit is set then set the timer value */
-            ptimer_set_limit(s->timer_reload, s->lr, s->cr & CR_IOVW);
-            ptimer_set_limit(s->timer_cmp, s->lr, 0);
-        } else if (s->cr & CR_IOVW) {
-            /* If IOVW bit is set then set the timer value */
-            ptimer_set_count(s->timer_reload, s->lr);
-        }
-        /*
-         * Commit the change to s->timer_reload, so it can propagate. Otherwise
-         * the timer interrupt may not fire properly. The commit must happen
-         * before calling imx_epit_reload_compare_timer(), which reads
-         * s->timer_reload internally again.
-         */
-        ptimer_transaction_commit(s->timer_reload);
-        imx_epit_reload_compare_timer(s);
-        ptimer_transaction_commit(s->timer_cmp);
+    case 2: /* LR */
+        imx_epit_write_lr(s, (uint32_t)value);
         break;
 
     case 3: /* CMP */
-        s->cmp = value;
-
-        ptimer_transaction_begin(s->timer_cmp);
-        imx_epit_reload_compare_timer(s);
-        ptimer_transaction_commit(s->timer_cmp);
-
+        imx_epit_write_cmp(s, (uint32_t)value);
         break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
                       HWADDR_PRIx "\n", TYPE_IMX_EPIT, __func__, offset);
-
         break;
     }
 }
+
 static void imx_epit_cmp(void *opaque)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
 
-    DPRINTF("sr was %d\n", s->sr);
+    /* The cmp ptimer can't be running when the peripheral is disabled */
+    assert(s->cr & CR_EN);
 
-    s->sr = 1;
+    DPRINTF("sr was %d\n", s->sr);
+    /* Set interrupt status bit SR.OCIF and update the interrupt state */
+    s->sr |= SR_OCIF;
     imx_epit_update_int(s);
 }
 
@@ -325,15 +381,13 @@ static const MemoryRegionOps imx_epit_ops = {
 
 static const VMStateDescription vmstate_imx_timer_epit = {
     .name = TYPE_IMX_EPIT,
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cr, IMXEPITState),
         VMSTATE_UINT32(sr, IMXEPITState),
         VMSTATE_UINT32(lr, IMXEPITState),
         VMSTATE_UINT32(cmp, IMXEPITState),
-        VMSTATE_UINT32(cnt, IMXEPITState),
-        VMSTATE_UINT32(freq, IMXEPITState),
         VMSTATE_PTIMER(timer_reload, IMXEPITState),
         VMSTATE_PTIMER(timer_cmp, IMXEPITState),
         VMSTATE_END_OF_LIST()
@@ -352,9 +406,25 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
+    /*
+     * The reload timer keeps running when the peripheral is enabled. It is a
+     * kind of wall clock that does not generate any interrupts. The callback
+     * needs to be provided, but it does nothing as the ptimer already supports
+     * all necessary reloading functionality.
+     */
     s->timer_reload = ptimer_init(imx_epit_reload, s, PTIMER_POLICY_LEGACY);
 
+    /*
+     * The compare timer is running only when the peripheral configuration is
+     * in a state that will generate compare interrupts.
+     */
     s->timer_cmp = ptimer_init(imx_epit_cmp, s, PTIMER_POLICY_LEGACY);
+}
+
+static void imx_epit_dev_reset(DeviceState *dev)
+{
+    IMXEPITState *s = IMX_EPIT(dev);
+    imx_epit_reset(s, true);
 }
 
 static void imx_epit_class_init(ObjectClass *klass, void *data)
@@ -362,7 +432,7 @@ static void imx_epit_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc  = DEVICE_CLASS(klass);
 
     dc->realize = imx_epit_realize;
-    dc->reset = imx_epit_reset;
+    dc->reset = imx_epit_dev_reset;
     dc->vmsd = &vmstate_imx_timer_epit;
     dc->desc = "i.MX periodic timer";
 }
