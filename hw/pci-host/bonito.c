@@ -45,6 +45,7 @@
 #include "hw/pci/pci_device.h"
 #include "hw/irq.h"
 #include "hw/mips/mips.h"
+#include "hw/pci-host/bonito.h"
 #include "hw/pci/pci_host.h"
 #include "migration/vmstate.h"
 #include "sysemu/runstate.h"
@@ -237,9 +238,6 @@ struct BonitoState {
     PCIBonitoState *pci_dev;
     MemoryRegion pci_mem;
 };
-
-#define TYPE_BONITO_PCI_HOST_BRIDGE "Bonito-pcihost"
-OBJECT_DECLARE_SIMPLE_TYPE(BonitoState, BONITO_PCI_HOST_BRIDGE)
 
 #define TYPE_PCI_BONITO "Bonito"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIBonitoState, PCI_BONITO)
