@@ -60,9 +60,7 @@ enum {
     TD_RESULT_ASYNC_CONT,
 };
 
-typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
-typedef struct UHCIPCIDeviceClass UHCIPCIDeviceClass;
 
 struct UHCIPCIDeviceClass {
     PCIDeviceClass parent_class;
