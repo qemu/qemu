@@ -86,7 +86,7 @@ static target_ulong adjust_stack_ptrs(CPUHexagonState *env, target_ulong addr)
     return addr;
 }
 
-/* HEX_REG_P3_0 (aka C4) is an alias for the predicate registers */
+/* HEX_REG_P3_0_ALIASED (aka C4) is an alias for the predicate registers */
 static target_ulong read_p3_0(CPUHexagonState *env)
 {
     int32_t control_reg = 0;
@@ -102,7 +102,7 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
 {
     target_ulong value;
 
-    if (regnum == HEX_REG_P3_0) {
+    if (regnum == HEX_REG_P3_0_ALIASED) {
         value = read_p3_0(env);
     } else {
         value = regnum < 32 ? adjust_stack_ptrs(env, env->gpr[regnum])
@@ -198,7 +198,7 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f, int flags)
     print_reg(f, env, HEX_REG_M0);
     print_reg(f, env, HEX_REG_M1);
     print_reg(f, env, HEX_REG_USR);
-    print_reg(f, env, HEX_REG_P3_0);
+    print_reg(f, env, HEX_REG_P3_0_ALIASED);
     print_reg(f, env, HEX_REG_GP);
     print_reg(f, env, HEX_REG_UGP);
     print_reg(f, env, HEX_REG_PC);

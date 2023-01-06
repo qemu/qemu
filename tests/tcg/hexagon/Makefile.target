@@ -43,6 +43,8 @@ HEX_TESTS += load_align
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 HEX_TESTS += overflow
+HEX_TESTS += signal_context
+HEX_TESTS += reg_mut
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt

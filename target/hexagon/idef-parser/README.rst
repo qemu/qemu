@@ -552,11 +552,11 @@ to compare our buggy CPU state against, running
 
 ::
 
-    meson configure -Dhexagon_idef_parser_enabled=false
+    meson configure -Dhexagon_idef_parser=false
 
 will disable the idef-parser for all instructions and fallback on manual
 tinycode generator overrides, or on helper function implementations. Recompiling
-gives us ``qemu-hexagon`` which passes all tests. If ``qemu-heaxgon-buggy`` is
+gives us ``qemu-hexagon`` which passes all tests. If ``qemu-hexagon-buggy`` is
 our binary with the incorrect tinycode generators, we can compare the CPU state
 between the two versions
 

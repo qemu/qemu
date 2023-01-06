@@ -99,6 +99,8 @@
 /* Input file containing the description of each hexagon instruction */
 input : instructions
       {
+          /* Suppress warning about unused yynerrs */
+          (void) yynerrs;
           YYACCEPT;
       }
       ;
