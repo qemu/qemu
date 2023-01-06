@@ -624,13 +624,15 @@ uint32_t HELPER(mrs_banked)(CPUARMState *env, uint32_t tgtmode, uint32_t regno)
     }
 }
 
-void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
-                                 uint32_t isread)
+const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
+                                        uint32_t syndrome, uint32_t isread)
 {
     ARMCPU *cpu = env_archcpu(env);
-    const ARMCPRegInfo *ri = rip;
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, key);
     CPAccessResult res = CP_ACCESS_OK;
     int target_el;
+
+    assert(ri != NULL);
 
     if (arm_feature(env, ARM_FEATURE_XSCALE) && ri->cp < 14
         && extract32(env->cp15.c15_cpar, ri->cp, 1) == 0) {
@@ -663,7 +665,7 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
         res = ri->accessfn(env, ri, isread);
     }
     if (likely(res == CP_ACCESS_OK)) {
-        return;
+        return ri;
     }
 
  fail:
@@ -705,7 +707,16 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome,
     raise_exception(env, EXCP_UDEF, syndrome, target_el);
 }
 
-void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
+const void *HELPER(lookup_cp_reg)(CPUARMState *env, uint32_t key)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(cpu->cp_regs, key);
+
+    assert(ri != NULL);
+    return ri;
+}
+
+void HELPER(set_cp_reg)(CPUARMState *env, const void *rip, uint32_t value)
 {
     const ARMCPRegInfo *ri = rip;
 
@@ -718,7 +729,7 @@ void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
     }
 }
 
-uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
+uint32_t HELPER(get_cp_reg)(CPUARMState *env, const void *rip)
 {
     const ARMCPRegInfo *ri = rip;
     uint32_t res;
@@ -734,7 +745,7 @@ uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
     return res;
 }
 
-void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
+void HELPER(set_cp_reg64)(CPUARMState *env, const void *rip, uint64_t value)
 {
     const ARMCPRegInfo *ri = rip;
 
@@ -747,7 +758,7 @@ void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
     }
 }
 
-uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
+uint64_t HELPER(get_cp_reg64)(CPUARMState *env, const void *rip)
 {
     const ARMCPRegInfo *ri = rip;
     uint64_t res;

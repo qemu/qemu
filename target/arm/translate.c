@@ -4714,11 +4714,10 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                            int opc1, int crn, int crm, int opc2,
                            bool isread, int rt, int rt2)
 {
-    const ARMCPRegInfo *ri;
+    uint32_t key = ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2);
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
+    TCGv_ptr tcg_ri = NULL;
     bool need_exit_tb;
-
-    ri = get_arm_cp_reginfo(s->cp_regs,
-            ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2));
 
     if (!ri) {
         /*
@@ -4800,8 +4799,9 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
 
         gen_set_condexec(s);
         gen_update_pc(s, 0);
-        gen_helper_access_check_cp_reg(cpu_env,
-                                       tcg_constant_ptr(ri),
+        tcg_ri = tcg_temp_new_ptr();
+        gen_helper_access_check_cp_reg(tcg_ri, cpu_env,
+                                       tcg_constant_i32(key),
                                        tcg_constant_i32(syndrome),
                                        tcg_constant_i32(isread));
     } else if (ri->type & ARM_CP_RAISES_EXC) {
@@ -4818,15 +4818,15 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
     case 0:
         break;
     case ARM_CP_NOP:
-        return;
+        goto exit;
     case ARM_CP_WFI:
         if (isread) {
             unallocated_encoding(s);
-            return;
+        } else {
+            gen_update_pc(s, curr_insn_len(s));
+            s->base.is_jmp = DISAS_WFI;
         }
-        gen_update_pc(s, curr_insn_len(s));
-        s->base.is_jmp = DISAS_WFI;
-        return;
+        goto exit;
     default:
         g_assert_not_reached();
     }
@@ -4843,9 +4843,11 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             if (ri->type & ARM_CP_CONST) {
                 tmp64 = tcg_constant_i64(ri->resetvalue);
             } else if (ri->readfn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
                 tmp64 = tcg_temp_new_i64();
-                gen_helper_get_cp_reg64(tmp64, cpu_env,
-                                        tcg_constant_ptr(ri));
+                gen_helper_get_cp_reg64(tmp64, cpu_env, tcg_ri);
             } else {
                 tmp64 = tcg_temp_new_i64();
                 tcg_gen_ld_i64(tmp64, cpu_env, ri->fieldoffset);
@@ -4862,8 +4864,11 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             if (ri->type & ARM_CP_CONST) {
                 tmp = tcg_constant_i32(ri->resetvalue);
             } else if (ri->readfn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
                 tmp = tcg_temp_new_i32();
-                gen_helper_get_cp_reg(tmp, cpu_env, tcg_constant_ptr(ri));
+                gen_helper_get_cp_reg(tmp, cpu_env, tcg_ri);
             } else {
                 tmp = load_cpu_offset(ri->fieldoffset);
             }
@@ -4881,7 +4886,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         /* Write */
         if (ri->type & ARM_CP_CONST) {
             /* If not forbidden by access permissions, treat as WI */
-            return;
+            goto exit;
         }
 
         if (is64) {
@@ -4893,7 +4898,10 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             tcg_temp_free_i32(tmplo);
             tcg_temp_free_i32(tmphi);
             if (ri->writefn) {
-                gen_helper_set_cp_reg64(cpu_env, tcg_constant_ptr(ri), tmp64);
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg64(cpu_env, tcg_ri, tmp64);
             } else {
                 tcg_gen_st_i64(tmp64, cpu_env, ri->fieldoffset);
             }
@@ -4901,7 +4909,10 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         } else {
             TCGv_i32 tmp = load_reg(s, rt);
             if (ri->writefn) {
-                gen_helper_set_cp_reg(cpu_env, tcg_constant_ptr(ri), tmp);
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg(cpu_env, tcg_ri, tmp);
                 tcg_temp_free_i32(tmp);
             } else {
                 store_cpu_offset(tmp, ri->fieldoffset, 4);
@@ -4928,6 +4939,11 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
     }
     if (need_exit_tb) {
         gen_lookup_tb(s);
+    }
+
+ exit:
+    if (tcg_ri) {
+        tcg_temp_free_ptr(tcg_ri);
     }
 }
 
