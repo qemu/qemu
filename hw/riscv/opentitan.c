@@ -28,8 +28,16 @@
 #include "qemu/units.h"
 #include "sysemu/sysemu.h"
 
+/*
+ * This version of the OpenTitan machine currently supports
+ * OpenTitan RTL version:
+ * <lowRISC/opentitan@d072ac505f82152678d6e04be95c72b728a347b8>
+ *
+ * MMIO mapping as per (specified commit):
+ * lowRISC/opentitan: hw/top_earlgrey/sw/autogen/top_earlgrey_memory.h
+ */
 static const MemMapEntry ibex_memmap[] = {
-    [IBEX_DEV_ROM] =            {  0x00008000,   0x8000 },
+    [IBEX_DEV_ROM] =            {  0x00008000,  0x8000 },
     [IBEX_DEV_RAM] =            {  0x10000000,  0x20000 },
     [IBEX_DEV_FLASH] =          {  0x20000000,  0x100000 },
     [IBEX_DEV_UART] =           {  0x40000000,  0x1000  },
@@ -38,17 +46,18 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_I2C] =            {  0x40080000,  0x1000  },
     [IBEX_DEV_PATTGEN] =        {  0x400e0000,  0x1000  },
     [IBEX_DEV_TIMER] =          {  0x40100000,  0x1000  },
-    [IBEX_DEV_SENSOR_CTRL] =    {  0x40110000,  0x1000  },
     [IBEX_DEV_OTP_CTRL] =       {  0x40130000,  0x4000  },
     [IBEX_DEV_LC_CTRL] =        {  0x40140000,  0x1000  },
-    [IBEX_DEV_USBDEV] =         {  0x40150000,  0x1000  },
+    [IBEX_DEV_ALERT_HANDLER] =  {  0x40150000,  0x1000  },
     [IBEX_DEV_SPI_HOST0] =      {  0x40300000,  0x1000  },
     [IBEX_DEV_SPI_HOST1] =      {  0x40310000,  0x1000  },
+    [IBEX_DEV_USBDEV] =         {  0x40320000,  0x1000  },
     [IBEX_DEV_PWRMGR] =         {  0x40400000,  0x1000  },
     [IBEX_DEV_RSTMGR] =         {  0x40410000,  0x1000  },
     [IBEX_DEV_CLKMGR] =         {  0x40420000,  0x1000  },
     [IBEX_DEV_PINMUX] =         {  0x40460000,  0x1000  },
-    [IBEX_DEV_PADCTRL] =        {  0x40470000,  0x1000  },
+    [IBEX_DEV_AON_TIMER] =      {  0x40470000,  0x1000  },
+    [IBEX_DEV_SENSOR_CTRL] =    {  0x40490000,  0x1000  },
     [IBEX_DEV_FLASH_CTRL] =     {  0x41000000,  0x1000  },
     [IBEX_DEV_AES] =            {  0x41100000,  0x1000  },
     [IBEX_DEV_HMAC] =           {  0x41110000,  0x1000  },
@@ -59,10 +68,9 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_ENTROPY] =        {  0x41160000,  0x1000  },
     [IBEX_DEV_EDNO] =           {  0x41170000,  0x1000  },
     [IBEX_DEV_EDN1] =           {  0x41180000,  0x1000  },
-    [IBEX_DEV_ALERT_HANDLER] =  {  0x411b0000,  0x1000  },
     [IBEX_DEV_NMI_GEN] =        {  0x411c0000,  0x1000  },
     [IBEX_DEV_PERI] =           {  0x411f0000,  0x10000 },
-    [IBEX_DEV_PLIC] =           {  0x48000000,  0x4005000  },
+    [IBEX_DEV_PLIC] =           {  0x48000000,  0x4005000 },
     [IBEX_DEV_FLASH_VIRTUAL] =  {  0x80000000,  0x80000 },
 };
 
@@ -165,10 +173,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* PLIC */
     qdev_prop_set_string(DEVICE(&s->plic), "hart-config", "M");
-    qdev_prop_set_uint32(DEVICE(&s->plic), "hartid-base", 0);
     qdev_prop_set_uint32(DEVICE(&s->plic), "num-sources", 180);
     qdev_prop_set_uint32(DEVICE(&s->plic), "num-priorities", 3);
-    qdev_prop_set_uint32(DEVICE(&s->plic), "priority-base", 0x00);
     qdev_prop_set_uint32(DEVICE(&s->plic), "pending-base", 0x1000);
     qdev_prop_set_uint32(DEVICE(&s->plic), "enable-base", 0x2000);
     qdev_prop_set_uint32(DEVICE(&s->plic), "enable-stride", 32);
@@ -265,8 +271,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_DEV_CLKMGR].base, memmap[IBEX_DEV_CLKMGR].size);
     create_unimplemented_device("riscv.lowrisc.ibex.pinmux",
         memmap[IBEX_DEV_PINMUX].base, memmap[IBEX_DEV_PINMUX].size);
-    create_unimplemented_device("riscv.lowrisc.ibex.padctrl",
-        memmap[IBEX_DEV_PADCTRL].base, memmap[IBEX_DEV_PADCTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.aon_timer",
+        memmap[IBEX_DEV_AON_TIMER].base, memmap[IBEX_DEV_AON_TIMER].size);
     create_unimplemented_device("riscv.lowrisc.ibex.usbdev",
         memmap[IBEX_DEV_USBDEV].base, memmap[IBEX_DEV_USBDEV].size);
     create_unimplemented_device("riscv.lowrisc.ibex.flash_ctrl",

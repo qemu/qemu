@@ -42,7 +42,6 @@ static PLICMode char_to_mode(char c)
     switch (c) {
     case 'U': return PLICMode_U;
     case 'S': return PLICMode_S;
-    case 'H': return PLICMode_H;
     case 'M': return PLICMode_M;
     default:
         error_report("plic: invalid mode '%c'", c);
@@ -78,6 +77,7 @@ static uint32_t sifive_plic_claimed(SiFivePLICState *plic, uint32_t addrid)
     uint32_t max_irq = 0;
     uint32_t max_prio = plic->target_priority[addrid];
     int i, j;
+    int num_irq_in_word = 32;
 
     for (i = 0; i < plic->bitfield_words; i++) {
         uint32_t pending_enabled_not_claimed =
@@ -88,7 +88,16 @@ static uint32_t sifive_plic_claimed(SiFivePLICState *plic, uint32_t addrid)
             continue;
         }
 
-        for (j = 0; j < 32; j++) {
+        if (i == (plic->bitfield_words - 1)) {
+            /*
+             * If plic->num_sources is not multiple of 32, num-of-irq in last
+             * word is not 32. Compute the num-of-irq of last word to avoid
+             * out-of-bound access of source_priority array.
+             */
+            num_irq_in_word = plic->num_sources - ((plic->bitfield_words - 1) << 5);
+        }
+
+        for (j = 0; j < num_irq_in_word; j++) {
             int irq = (i << 5) + j;
             uint32_t prio = plic->source_priority[irq];
             int enabled = pending_enabled_not_claimed & (1 << j);
@@ -131,10 +140,11 @@ static uint64_t sifive_plic_read(void *opaque, hwaddr addr, unsigned size)
     SiFivePLICState *plic = opaque;
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
-        uint32_t irq = ((addr - plic->priority_base) >> 2) + 1;
+        uint32_t irq = (addr - plic->priority_base) >> 2;
 
         return plic->source_priority[irq];
-    } else if (addr_between(addr, plic->pending_base, plic->num_sources >> 3)) {
+    } else if (addr_between(addr, plic->pending_base,
+                            (plic->num_sources + 31) >> 3)) {
         uint32_t word = (addr - plic->pending_base) >> 2;
 
         return plic->pending[word];
@@ -178,7 +188,7 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
     SiFivePLICState *plic = opaque;
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
-        uint32_t irq = ((addr - plic->priority_base) >> 2) + 1;
+        uint32_t irq = (addr - plic->priority_base) >> 2;
 
         if (((plic->num_priorities + 1) & plic->num_priorities) == 0) {
             /*
@@ -193,7 +203,7 @@ static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
             sifive_plic_update(plic);
         }
     } else if (addr_between(addr, plic->pending_base,
-                            plic->num_sources >> 3)) {
+                            (plic->num_sources + 31) >> 3)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid pending write: 0x%" HWADDR_PRIx "",
                       __func__, addr);
@@ -281,7 +291,7 @@ static void sifive_plic_reset(DeviceState *dev)
  */
 static void parse_hart_config(SiFivePLICState *plic)
 {
-    int addrid, hartid, modes;
+    int addrid, hartid, modes, m;
     const char *p;
     char c;
 
@@ -290,11 +300,13 @@ static void parse_hart_config(SiFivePLICState *plic)
     p = plic->hart_config;
     while ((c = *p++)) {
         if (c == ',') {
-            addrid += ctpop8(modes);
-            modes = 0;
-            hartid++;
+            if (modes) {
+                addrid += ctpop8(modes);
+                hartid++;
+                modes = 0;
+            }
         } else {
-            int m = 1 << char_to_mode(c);
+            m = 1 << char_to_mode(c);
             if (modes == (modes | m)) {
                 error_report("plic: duplicate mode '%c' in config: %s",
                              c, plic->hart_config);
@@ -305,8 +317,9 @@ static void parse_hart_config(SiFivePLICState *plic)
     }
     if (modes) {
         addrid += ctpop8(modes);
+        hartid++;
+        modes = 0;
     }
-    hartid++;
 
     plic->num_addrs = addrid;
     plic->num_harts = hartid;
@@ -317,11 +330,16 @@ static void parse_hart_config(SiFivePLICState *plic)
     p = plic->hart_config;
     while ((c = *p++)) {
         if (c == ',') {
-            hartid++;
+            if (modes) {
+                hartid++;
+                modes = 0;
+            }
         } else {
+            m = char_to_mode(c);
             plic->addr_config[addrid].addrid = addrid;
             plic->addr_config[addrid].hartid = hartid;
-            plic->addr_config[addrid].mode = char_to_mode(c);
+            plic->addr_config[addrid].mode = m;
+            modes |= (1 << m);
             addrid++;
         }
     }
@@ -346,6 +364,11 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
 
     parse_hart_config(s);
 
+    if (!s->num_sources) {
+        error_setg(errp, "plic: invalid number of interrupt sources");
+        return;
+    }
+
     s->bitfield_words = (s->num_sources + 31) >> 5;
     s->num_enables = s->bitfield_words * s->num_addrs;
     s->source_priority = g_new0(uint32_t, s->num_sources);
@@ -362,7 +385,8 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     s->m_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
     qdev_init_gpio_out(dev, s->m_external_irqs, s->num_harts);
 
-    /* We can't allow the supervisor to control SEIP as this would allow the
+    /*
+     * We can't allow the supervisor to control SEIP as this would allow the
      * supervisor to clear a pending external interrupt which will result in
      * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
      * hardware controlled when a PLIC is attached.
@@ -370,8 +394,8 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_harts; i++) {
         RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base + i));
         if (riscv_cpu_claim_interrupts(cpu, MIP_SEIP) < 0) {
-            error_report("SEIP already claimed");
-            exit(1);
+            error_setg(errp, "SEIP already claimed");
+            return;
         }
     }
 
@@ -402,8 +426,10 @@ static const VMStateDescription vmstate_sifive_plic = {
 static Property sifive_plic_properties[] = {
     DEFINE_PROP_STRING("hart-config", SiFivePLICState, hart_config),
     DEFINE_PROP_UINT32("hartid-base", SiFivePLICState, hartid_base, 0),
-    DEFINE_PROP_UINT32("num-sources", SiFivePLICState, num_sources, 0),
+    /* number of interrupt sources including interrupt source 0 */
+    DEFINE_PROP_UINT32("num-sources", SiFivePLICState, num_sources, 1),
     DEFINE_PROP_UINT32("num-priorities", SiFivePLICState, num_priorities, 0),
+    /* interrupt priority register base starting from source 0 */
     DEFINE_PROP_UINT32("priority-base", SiFivePLICState, priority_base, 0),
     DEFINE_PROP_UINT32("pending-base", SiFivePLICState, pending_base, 0),
     DEFINE_PROP_UINT32("enable-base", SiFivePLICState, enable_base, 0),
@@ -476,11 +502,11 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
         CPUState *cpu = qemu_get_cpu(cpu_num);
 
         if (plic->addr_config[i].mode == PLICMode_M) {
-            qdev_connect_gpio_out(dev, num_harts - plic->hartid_base + cpu_num,
+            qdev_connect_gpio_out(dev, cpu_num - hartid_base + num_harts,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
         }
         if (plic->addr_config[i].mode == PLICMode_S) {
-            qdev_connect_gpio_out(dev, cpu_num,
+            qdev_connect_gpio_out(dev, cpu_num - hartid_base,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
         }
     }
