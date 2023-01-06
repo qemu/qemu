@@ -859,7 +859,8 @@ static void tcg_out_call_nodelay(TCGContext *s, const tcg_insn_unit *dest,
     }
 }
 
-static void tcg_out_call(TCGContext *s, const tcg_insn_unit *dest)
+static void tcg_out_call(TCGContext *s, const tcg_insn_unit *dest,
+                         const TCGHelperInfo *info)
 {
     tcg_out_call_nodelay(s, dest, false);
     tcg_out_nop(s);

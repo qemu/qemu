@@ -1131,7 +1131,7 @@ static void tcg_out_goto(TCGContext *s, ARMCond cond, const tcg_insn_unit *addr)
  * The call case is mostly used for helpers - so it's not unreasonable
  * for them to be beyond branch range.
  */
-static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
+static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *addr)
 {
     intptr_t addri = (intptr_t)addr;
     ptrdiff_t disp = tcg_pcrel_diff(s, addr);
@@ -1148,6 +1148,12 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr)
 
     tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
     tcg_out_blx_reg(s, COND_AL, TCG_REG_TMP);
+}
+
+static void tcg_out_call(TCGContext *s, const tcg_insn_unit *addr,
+                         const TCGHelperInfo *info)
+{
+    tcg_out_call_int(s, addr);
 }
 
 static void tcg_out_goto_label(TCGContext *s, ARMCond cond, TCGLabel *l)
@@ -1515,7 +1521,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     argreg = tcg_out_arg_reg32(s, argreg, TCG_REG_R14);
 
     /* Use the canonical unsigned helpers and minimize icache usage. */
-    tcg_out_call(s, qemu_ld_helpers[opc & MO_SIZE]);
+    tcg_out_call_int(s, qemu_ld_helpers[opc & MO_SIZE]);
 
     datalo = lb->datalo_reg;
     datahi = lb->datahi_reg;

@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "tcg/tcg.h"           /* MAX_OPC_PARAM_IARGS */
 #include "exec/cpu_ldst.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-ldst.h"

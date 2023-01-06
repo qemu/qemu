@@ -197,10 +197,6 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R0,
 };
 
-#if MAX_OPC_PARAM_IARGS != 7
-# error Fix needed, number of supported input arguments changed!
-#endif
-
 /* No call arguments via registers.  All will be stored on the "stack". */
 static const int tcg_target_call_iarg_regs[] = { };
 
@@ -562,8 +558,9 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 }
 
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *func,
-                         ffi_cif *cif)
+                         const TCGHelperInfo *info)
 {
+    ffi_cif *cif = info->cif;
     tcg_insn_unit insn = 0;
     uint8_t which;
 

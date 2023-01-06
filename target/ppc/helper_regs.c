@@ -22,6 +22,7 @@
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
+#include "sysemu/tcg.h"
 #include "helper_regs.h"
 #include "power8-pmu.h"
 #include "cpu-models.h"
@@ -203,17 +204,10 @@ void cpu_interrupt_exittb(CPUState *cs)
 {
     /*
      * We don't need to worry about translation blocks
-     * when running with KVM.
+     * unless running with TCG.
      */
-    if (kvm_enabled()) {
-        return;
-    }
-
-    if (!qemu_mutex_iothread_locked()) {
-        qemu_mutex_lock_iothread();
-        cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
-        qemu_mutex_unlock_iothread();
-    } else {
+    if (tcg_enabled()) {
+        QEMU_IOTHREAD_LOCK_GUARD();
         cpu_interrupt(cs, CPU_INTERRUPT_EXITTB);
     }
 }

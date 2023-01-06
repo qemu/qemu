@@ -9,7 +9,7 @@ which make it relatively easily portable and simple while achieving good
 performances.
 
 QEMU's dynamic translation backend is called TCG, for "Tiny Code
-Generator". For more information, please take a look at ``tcg/README``.
+Generator". For more information, please take a look at :ref:`tcg-ops-ref`.
 
 The following sections outline some notable features and implementation
 details of QEMU's dynamic translator.

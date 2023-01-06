@@ -1,3 +1,5 @@
+.. _atomics-ref:
+
 =========================
 Atomic operations in QEMU
 =========================
