@@ -40,9 +40,7 @@
  */
 
 #define TYPE_MMIO_IDE "mmio-ide"
-typedef struct MMIOIDEState MMIOState;
-DECLARE_INSTANCE_CHECKER(MMIOState, MMIO_IDE,
-                         TYPE_MMIO_IDE)
+OBJECT_DECLARE_SIMPLE_TYPE(MMIOIDEState, MMIO_IDE)
 
 struct MMIOIDEState {
     /*< private >*/
@@ -58,7 +56,7 @@ struct MMIOIDEState {
 
 static void mmio_ide_reset(DeviceState *dev)
 {
-    MMIOState *s = MMIO_IDE(dev);
+    MMIOIDEState *s = MMIO_IDE(dev);
 
     ide_bus_reset(&s->bus);
 }
@@ -66,7 +64,7 @@ static void mmio_ide_reset(DeviceState *dev)
 static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    MMIOState *s = opaque;
+    MMIOIDEState *s = opaque;
     addr >>= s->shift;
     if (addr & 7)
         return ide_ioport_read(&s->bus, addr);
@@ -77,7 +75,7 @@ static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
 static void mmio_ide_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    MMIOState *s = opaque;
+    MMIOIDEState *s = opaque;
     addr >>= s->shift;
     if (addr & 7)
         ide_ioport_write(&s->bus, addr, val);
@@ -94,14 +92,14 @@ static const MemoryRegionOps mmio_ide_ops = {
 static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    MMIOState *s= opaque;
+    MMIOIDEState *s = opaque;
     return ide_status_read(&s->bus, 0);
 }
 
 static void mmio_ide_ctrl_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    MMIOState *s = opaque;
+    MMIOIDEState *s = opaque;
     ide_ctrl_write(&s->bus, 0, val);
 }
 
@@ -116,8 +114,8 @@ static const VMStateDescription vmstate_ide_mmio = {
     .version_id = 3,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_IDE_BUS(bus, MMIOState),
-        VMSTATE_IDE_DRIVES(bus.ifs, MMIOState),
+        VMSTATE_IDE_BUS(bus, MMIOIDEState),
+        VMSTATE_IDE_DRIVES(bus.ifs, MMIOIDEState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -125,7 +123,7 @@ static const VMStateDescription vmstate_ide_mmio = {
 static void mmio_ide_realizefn(DeviceState *dev, Error **errp)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
-    MMIOState *s = MMIO_IDE(dev);
+    MMIOIDEState *s = MMIO_IDE(dev);
 
     ide_init2(&s->bus, s->irq);
 
@@ -140,14 +138,14 @@ static void mmio_ide_realizefn(DeviceState *dev, Error **errp)
 static void mmio_ide_initfn(Object *obj)
 {
     SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    MMIOState *s = MMIO_IDE(obj);
+    MMIOIDEState *s = MMIO_IDE(obj);
 
     ide_bus_init(&s->bus, sizeof(s->bus), DEVICE(obj), 0, 2);
     sysbus_init_irq(d, &s->irq);
 }
 
 static Property mmio_ide_properties[] = {
-    DEFINE_PROP_UINT32("shift", MMIOState, shift, 0),
+    DEFINE_PROP_UINT32("shift", MMIOIDEState, shift, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -164,7 +162,7 @@ static void mmio_ide_class_init(ObjectClass *oc, void *data)
 static const TypeInfo mmio_ide_type_info = {
     .name = TYPE_MMIO_IDE,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MMIOState),
+    .instance_size = sizeof(MMIOIDEState),
     .instance_init = mmio_ide_initfn,
     .class_init = mmio_ide_class_init,
 };
@@ -176,7 +174,7 @@ static void mmio_ide_register_types(void)
 
 void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1)
 {
-    MMIOState *s = MMIO_IDE(dev);
+    MMIOIDEState *s = MMIO_IDE(dev);
 
     if (hd0 != NULL) {
         ide_create_drive(&s->bus, 0, hd0);
