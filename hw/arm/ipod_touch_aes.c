@@ -18,7 +18,6 @@ static uint64_t ipod_touch_aes_read(void *opaque, hwaddr offset, unsigned size)
 static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, unsigned size)
 {
     struct IPodTouchAESState *aesop = (struct IPodTouchAESState *)opaque;
-    static uint8_t keylenop = 0;
 
     uint8_t *inbuf;
     uint8_t *buf;
@@ -28,38 +27,52 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
     switch(offset) {
         case AES_GO:
             inbuf = (uint8_t *)malloc(aesop->insize);
-            cpu_physical_memory_read((aesop->inaddr - 0x80000000), inbuf, aesop->insize);
+            cpu_physical_memory_read((aesop->inaddr), inbuf, aesop->insize);
 
             switch(aesop->keytype) {
-                    case AESGID:    
-                        fprintf(stderr, "%s: No support for GID key\n", __func__);
-                        return;         
+                    case AESGID:
+                        break;         
                     case AESUID:
                         AES_set_decrypt_key(key_uid, sizeof(key_uid) * 8, &aesop->decryptKey);
                         break;
                     case AESCustom:
-                        AES_set_decrypt_key((uint8_t *)aesop->custkey, 0x20 * 8, &aesop->decryptKey);
+                        AES_set_decrypt_key((uint8_t *)(&aesop->custkey[4]), 0x10 * 8, &aesop->decryptKey);
                         break;
             }
 
             buf = (uint8_t *) malloc(aesop->insize);
+            //printf("In size: %d, out size: %d, in addr: 0x%08x, in buf: 0x%08x, out addr: 0x%08x\n", aesop->insize, aesop->outsize, aesop->inaddr, ((uint32_t *)inbuf)[0], aesop->outaddr);
 
-            AES_cbc_encrypt(inbuf, buf, aesop->insize, &aesop->decryptKey, (uint8_t *)aesop->ivec, aesop->operation);
+            if(aesop->keytype == AESGID) {
+                // Unfortunately, we don't have access to the GID key.
+                // However, we know that when the AES engine is invoked with the GID key type, it's for the decryption of the IMG file.
+                // Instead, we provide an hard-coded key as result and copy it to the output buffer.
+                // source: https://www.theiphonewiki.com/wiki/Sugar_Bowl_5F138_(iPod2,1) (LLB)
+                char key[] = { 
+                    0xce, 0x97, 0xa7, 0xc8, 0x2e, 0xf8, 0x64, 0x67, 0x5e, 0xd3, 0x68, 0x05, 0x97, 0xec, 0x2a, 0xef, // IV
+                    0x27, 0x73, 0x2a, 0x6b, 0xbf, 0xb1, 0x4a, 0x07, 0x25, 0x0a, 0x2e, 0x46, 0x82, 0xbf, 0x3c, 0xba, // key
+                               };
+                for(int i = 0; i < aesop->insize; i++) {
+                    buf[i] = key[i];
+                }
+            }
+            else {
+                AES_cbc_encrypt(inbuf, buf, aesop->insize, &aesop->decryptKey, (uint8_t *)aesop->ivec, AES_DECRYPT);
+            }
 
-            cpu_physical_memory_write((aesop->outaddr - 0x80000000), buf, aesop->insize);
+            if(aesop->outaddr != 0x220100ac) { // TODO very ugly hack - for the RSA key decryption, it seems that doing nothing results in the correct decryption key??
+                cpu_physical_memory_write((aesop->outaddr), buf, aesop->insize);
+            }
+            
             memset(aesop->custkey, 0, 0x20);
             memset(aesop->ivec, 0, 0x10);
             free(inbuf);
             free(buf);
-            keylenop = 0;
             aesop->outsize = aesop->insize;
             aesop->status = 0xf;
             break;
         case AES_KEYLEN:
-            if(keylenop == 1) {
-                aesop->operation = value;
-            }
-            keylenop++;
+            aesop->operation = value;
             aesop->keylen = value;
             break;
         case AES_INADDR:
