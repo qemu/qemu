@@ -161,7 +161,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
 
     for (i = 0; i < nr_segs; i++) {
         if ((unsigned)usbback_req->req.seg[i].offset +
-            (unsigned)usbback_req->req.seg[i].length > XC_PAGE_SIZE) {
+            (unsigned)usbback_req->req.seg[i].length > XEN_PAGE_SIZE) {
             xen_pv_printf(xendev, 0, "segment crosses page boundary\n");
             return -EINVAL;
         }
@@ -185,7 +185,7 @@ static int usbback_gnttab_map(struct usbback_req *usbback_req)
 
         for (i = 0; i < usbback_req->nr_buffer_segs; i++) {
             seg = usbback_req->req.seg + i;
-            addr = usbback_req->buffer + i * XC_PAGE_SIZE + seg->offset;
+            addr = usbback_req->buffer + i * XEN_PAGE_SIZE + seg->offset;
             qemu_iovec_add(&usbback_req->packet.iov, addr, seg->length);
         }
     }
@@ -902,8 +902,8 @@ static int usbback_connect(struct XenLegacyDevice *xendev)
     usbif->conn_ring_ref = conn_ring_ref;
     urb_sring = usbif->urb_sring;
     conn_sring = usbif->conn_sring;
-    BACK_RING_INIT(&usbif->urb_ring, urb_sring, XC_PAGE_SIZE);
-    BACK_RING_INIT(&usbif->conn_ring, conn_sring, XC_PAGE_SIZE);
+    BACK_RING_INIT(&usbif->urb_ring, urb_sring, XEN_PAGE_SIZE);
+    BACK_RING_INIT(&usbif->conn_ring, conn_sring, XEN_PAGE_SIZE);
 
     xen_be_bind_evtchn(xendev);
 

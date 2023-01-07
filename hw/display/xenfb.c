@@ -489,13 +489,13 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     }
 
     if (xenfb->pixels) {
-        munmap(xenfb->pixels, xenfb->fbpages * XC_PAGE_SIZE);
+        munmap(xenfb->pixels, xenfb->fbpages * XEN_PAGE_SIZE);
         xenfb->pixels = NULL;
     }
 
-    xenfb->fbpages = DIV_ROUND_UP(xenfb->fb_len, XC_PAGE_SIZE);
+    xenfb->fbpages = DIV_ROUND_UP(xenfb->fb_len, XEN_PAGE_SIZE);
     n_fbdirs = xenfb->fbpages * mode / 8;
-    n_fbdirs = DIV_ROUND_UP(n_fbdirs, XC_PAGE_SIZE);
+    n_fbdirs = DIV_ROUND_UP(n_fbdirs, XEN_PAGE_SIZE);
 
     pgmfns = g_new0(xen_pfn_t, n_fbdirs);
     fbmfns = g_new0(xen_pfn_t, xenfb->fbpages);
@@ -528,8 +528,8 @@ static int xenfb_configure_fb(struct XenFB *xenfb, size_t fb_len_lim,
 {
     size_t mfn_sz = sizeof_field(struct xenfb_page, pd[0]);
     size_t pd_len = sizeof_field(struct xenfb_page, pd) / mfn_sz;
-    size_t fb_pages = pd_len * XC_PAGE_SIZE / mfn_sz;
-    size_t fb_len_max = fb_pages * XC_PAGE_SIZE;
+    size_t fb_pages = pd_len * XEN_PAGE_SIZE / mfn_sz;
+    size_t fb_len_max = fb_pages * XEN_PAGE_SIZE;
     int max_width, max_height;
 
     if (fb_len_lim > fb_len_max) {
@@ -930,7 +930,7 @@ static void fb_disconnect(struct XenLegacyDevice *xendev)
      *   instead.  This releases the guest pages and keeps qemu happy.
      */
     qemu_xen_foreignmem_unmap(fb->pixels, fb->fbpages);
-    fb->pixels = mmap(fb->pixels, fb->fbpages * XC_PAGE_SIZE,
+    fb->pixels = mmap(fb->pixels, fb->fbpages * XEN_PAGE_SIZE,
                       PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON,
                       -1, 0);
     if (fb->pixels == MAP_FAILED) {
