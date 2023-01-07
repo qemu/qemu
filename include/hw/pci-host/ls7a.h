@@ -32,9 +32,9 @@
  * 0 ~ 16 irqs used for non-pci device while 16 ~ 64 irqs
  * used for pci device.
  */
+#define VIRT_PCH_PIC_IRQ_NUM     32
 #define PCH_PIC_IRQ_OFFSET       64
 #define VIRT_DEVICE_IRQS         16
-#define VIRT_PCI_IRQS            48
 #define VIRT_UART_IRQ            (PCH_PIC_IRQ_OFFSET + 2)
 #define VIRT_UART_BASE           0x1fe001e0
 #define VIRT_UART_SIZE           0X100

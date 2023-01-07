@@ -6,12 +6,16 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/bitops.h"
 #include "hw/sysbus.h"
 #include "hw/loongarch/virt.h"
+#include "hw/pci-host/ls7a.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qapi/error.h"
 
 static void pch_pic_update_irq(LoongArchPCHPIC *s, uint64_t mask, int level)
 {
@@ -40,7 +44,7 @@ static void pch_pic_irq_handler(void *opaque, int irq, int level)
     LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(opaque);
     uint64_t mask = 1ULL << irq;
 
-    assert(irq < PCH_PIC_IRQ_NUM);
+    assert(irq < s->irq_num);
     trace_loongarch_pch_pic_irq_handler(irq, level);
 
     if (s->intedge & mask) {
@@ -78,7 +82,12 @@ static uint64_t loongarch_pch_pic_low_readw(void *opaque, hwaddr addr,
         val = PCH_PIC_INT_ID_VAL;
         break;
     case PCH_PIC_INT_ID_HI:
-        val = PCH_PIC_INT_ID_NUM;
+        /*
+         * With 7A1000 manual
+         *   bit  0-15 pch irqchip version
+         *   bit 16-31 irq number supported with pch irqchip
+         */
+        val = deposit32(PCH_PIC_INT_ID_VER, 16, 16, s->irq_num - 1);
         break;
     case PCH_PIC_INT_MASK_LO:
         val = (uint32_t)s->int_mask;
@@ -365,6 +374,19 @@ static void loongarch_pch_pic_reset(DeviceState *d)
     s->int_polarity = 0x0;
 }
 
+static void loongarch_pch_pic_realize(DeviceState *dev, Error **errp)
+{
+    LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(dev);
+
+    if (!s->irq_num || s->irq_num  > VIRT_PCH_PIC_IRQ_NUM) {
+        error_setg(errp, "Invalid 'pic_irq_num'");
+        return;
+    }
+
+    qdev_init_gpio_out(dev, s->parent_irq, s->irq_num);
+    qdev_init_gpio_in(dev, pch_pic_irq_handler, s->irq_num);
+}
+
 static void loongarch_pch_pic_init(Object *obj)
 {
     LoongArchPCHPIC *s = LOONGARCH_PCH_PIC(obj);
@@ -382,9 +404,12 @@ static void loongarch_pch_pic_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem8);
     sysbus_init_mmio(sbd, &s->iomem32_high);
 
-    qdev_init_gpio_out(DEVICE(obj), s->parent_irq, PCH_PIC_IRQ_NUM);
-    qdev_init_gpio_in(DEVICE(obj), pch_pic_irq_handler, PCH_PIC_IRQ_NUM);
 }
+
+static Property loongarch_pch_pic_properties[] = {
+    DEFINE_PROP_UINT32("pch_pic_irq_num",  LoongArchPCHPIC, irq_num, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_loongarch_pch_pic = {
     .name = TYPE_LOONGARCH_PCH_PIC,
@@ -411,8 +436,10 @@ static void loongarch_pch_pic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = loongarch_pch_pic_realize;
     dc->reset = loongarch_pch_pic_reset;
     dc->vmsd = &vmstate_loongarch_pch_pic;
+    device_class_set_props(dc, loongarch_pch_pic_properties);
 }
 
 static const TypeInfo loongarch_pch_pic_info = {

@@ -32,7 +32,7 @@ static void loongarch_msi_mem_write(void *opaque, hwaddr addr,
      */
     irq_num = (val & 0xff) - s->irq_base;
     trace_loongarch_msi_set_irq(irq_num);
-    assert(irq_num < PCH_MSI_IRQ_NUM);
+    assert(irq_num < s->irq_num);
     qemu_set_irq(s->pch_msi_irq[irq_num], 1);
 }
 
@@ -49,6 +49,28 @@ static void pch_msi_irq_handler(void *opaque, int irq, int level)
     qemu_set_irq(s->pch_msi_irq[irq], level);
 }
 
+static void loongarch_pch_msi_realize(DeviceState *dev, Error **errp)
+{
+    LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(dev);
+
+    if (!s->irq_num || s->irq_num  > PCH_MSI_IRQ_NUM) {
+        error_setg(errp, "Invalid 'msi_irq_num'");
+        return;
+    }
+
+    s->pch_msi_irq = g_new(qemu_irq, s->irq_num);
+
+    qdev_init_gpio_out(dev, s->pch_msi_irq, s->irq_num);
+    qdev_init_gpio_in(dev, pch_msi_irq_handler, s->irq_num);
+}
+
+static void loongarch_pch_msi_unrealize(DeviceState *dev)
+{
+    LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(dev);
+
+    g_free(s->pch_msi_irq);
+}
+
 static void loongarch_pch_msi_init(Object *obj)
 {
     LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(obj);
@@ -59,12 +81,11 @@ static void loongarch_pch_msi_init(Object *obj)
     sysbus_init_mmio(sbd, &s->msi_mmio);
     msi_nonbroken = true;
 
-    qdev_init_gpio_out(DEVICE(obj), s->pch_msi_irq, PCH_MSI_IRQ_NUM);
-    qdev_init_gpio_in(DEVICE(obj), pch_msi_irq_handler, PCH_MSI_IRQ_NUM);
 }
 
 static Property loongarch_msi_properties[] = {
     DEFINE_PROP_UINT32("msi_irq_base", LoongArchPCHMSI, irq_base, 0),
+    DEFINE_PROP_UINT32("msi_irq_num",  LoongArchPCHMSI, irq_num, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -72,6 +93,8 @@ static void loongarch_pch_msi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->realize = loongarch_pch_msi_realize;
+    dc->unrealize = loongarch_pch_msi_unrealize;
     device_class_set_props(dc, loongarch_msi_properties);
 }
 
