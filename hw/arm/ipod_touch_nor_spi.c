@@ -35,8 +35,16 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
             s->out_buf_size = 1;
         }
         else if(value == NOR_READ_DATA_CMD) {
+            printf("Received read command!\n");
             s->in_buf_size = 4;
             s->out_buf_size = 4096;
+        }
+        else if(value == NOR_GET_JEDECID) {
+            s->in_buf_size = 1;
+            s->out_buf_size = 3;
+            s->out_buf[0] = 0x1F; // vendor: atmel, device: 0x02 -> AT25DF081A
+            s->out_buf[1] = 0x45;
+            s->out_buf[2] = 0x02;
         }
         else {
             hw_error("Unknown command 0x%02x!", value);
@@ -55,9 +63,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
         else if(s->cur_cmd == NOR_READ_DATA_CMD && s->in_buf_cur_ind == s->in_buf_size) {
             if(!s->nor_initialized) { initialize_nor(s); }
             s->nor_read_ind = (s->in_buf[1] << 16) | (s->in_buf[2] << 8) | s->in_buf[3];
-            printf("Read index: %d\n", s->nor_read_ind);
         }
-
         return 0x0;
     }
     else {
@@ -66,6 +72,7 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
         if(s->cur_cmd == NOR_READ_DATA_CMD) {
             uint8_t ret_val = s->nor_data[s->nor_read_ind];
             s->nor_read_ind++;
+            printf("Ret\n");
             return ret_val;
         }
         else {

@@ -9,6 +9,7 @@
 #include "hw/platform-bus.h"
 #include "hw/block/flash.h"
 #include "hw/qdev-clock.h"
+#include "hw/arm/exynos4210.h"
 #include "hw/arm/ipod_touch_2g.h"
 #include "target/arm/cpregs.h"
 
@@ -82,6 +83,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
+    allocate_ram(sysmem, "tvout", TVOUT_MEM_BASE, 0x1000);
 
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;
@@ -194,6 +196,36 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->gpio_state = gpio_state;
     memory_region_add_subregion(sysmem, GPIO_MEM_BASE, &gpio_state->iomem);
 
+    dev = exynos4210_uart_create(UART0_MEM_BASE, 256, 0, serial_hd(0), nms->irq[0][24]);
+    if (!dev) {
+        printf("Failed to create uart0 device!\n");
+        abort();
+    }
+
+    dev = exynos4210_uart_create(UART1_MEM_BASE, 256, 1, serial_hd(1), nms->irq[0][25]);
+    if (!dev) {
+        printf("Failed to create uart1 device!\n");
+        abort();
+    }
+
+    dev = exynos4210_uart_create(UART2_MEM_BASE, 256, 2, serial_hd(2), nms->irq[0][26]);
+    if (!dev) {
+        printf("Failed to create uart2 device!\n");
+        abort();
+    }
+
+    dev = exynos4210_uart_create(UART3_MEM_BASE, 256, 3, serial_hd(3), nms->irq[0][27]);
+    if (!dev) {
+        printf("Failed to create uart3 device!\n");
+        abort();
+    }
+
+    // dev = exynos4210_uart_create(UART4_MEM_BASE, 256, 4, serial_hd(4), nms->irq[0][28]);
+    // if (!dev) {
+    //     printf("Failed to create uart4 device!\n");
+    //     abort();
+    // }
+
     // init spis
     set_spi_base(0);
     dev = sysbus_create_simple("ipodtouch.spi", SPI0_MEM_BASE, s5l8900_get_irq(nms, S5L8720_SPI0_IRQ));
@@ -218,6 +250,11 @@ static void ipod_touch_machine_init(MachineState *machine)
     nms->chipid_state = chipid_state;
     memory_region_add_subregion(sysmem, CHIPID_MEM_BASE, &chipid_state->iomem);
 
+    // init the unknown1 module
+    dev = qdev_new("ipodtouch.unknown1");
+    IPodTouchUnknown1State *unknown1_state = IPOD_TOUCH_UNKNOWN1(dev);
+    memory_region_add_subregion(sysmem, UNKNOWN1_MEM_BASE, &unknown1_state->iomem);
+
     // init USB OTG
     dev = ipod_touch_init_usb_otg(s5l8900_get_irq(nms, S5L8720_USB_OTG_IRQ), s5l8720_usb_hwcfg);
     synopsys_usb_state *usb_otg = S5L8900USBOTG(dev);
@@ -240,6 +277,24 @@ static void ipod_touch_machine_init(MachineState *machine)
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_realize(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_DMAC0_IRQ));
+
+    // Init I2C
+    dev = qdev_new("ipodtouch.i2c");
+    IPodTouchI2CState *i2c_state = IPOD_TOUCH_I2C(dev);
+    nms->i2c0_state = i2c_state;
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C0_IRQ));
+    memory_region_add_subregion(sysmem, I2C0_MEM_BASE, &i2c_state->iomem);
+
+    // init the PMU
+    i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
+
+    dev = qdev_new("ipodtouch.i2c");
+    i2c_state = IPOD_TOUCH_I2C(dev);
+    nms->i2c1_state = i2c_state;
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_I2C1_IRQ));
+    memory_region_add_subregion(sysmem, I2C1_MEM_BASE, &i2c_state->iomem);
 
     // init the chip ID module
     dev = qdev_new("ipodtouch.usbphys");

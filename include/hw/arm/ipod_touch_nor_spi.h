@@ -12,6 +12,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchNORSPIState, IPOD_TOUCH_NOR_SPI)
 
 #define NOR_READ_DATA_CMD  0x3
 #define NOR_GET_STATUS_CMD 0x5
+#define NOR_GET_JEDECID    0x9F
 
 typedef struct IPodTouchNORSPIState {
     SSIPeripheral ssidev;

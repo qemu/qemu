@@ -85,6 +85,13 @@ static uint64_t s5l8900_clock_read(void *opaque, hwaddr addr, unsigned size)
             return s->config1;
         case CLOCK_CONFIG2:
             return s->config2;
+        case CLOCK_CONFIG3:
+            return s->config3;
+        case CLOCK_CONFIG4:
+            return s->config4;
+        case CLOCK_CONFIG5:
+            return s->config5;
+
         case CLOCK_PLL0CON:
             return s->pll0con;
         case CLOCK_PLL1CON:

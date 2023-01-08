@@ -186,7 +186,7 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         break;
     case R_STATUS:
         fifo8_reset(&s->tx_fifo);
-        fifo8_reset(&s->rx_fifo);
+        //fifo8_reset(&s->rx_fifo);
         r = old & (~r);
         run = true;
         break;
