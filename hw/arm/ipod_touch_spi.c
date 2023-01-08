@@ -88,13 +88,20 @@ static void apple_spi_run(IPodTouchSPIState *s)
     if (!(REG(s, R_CTRL) & R_CTRL_RUN)) {
         return;
     }
+    if (REG(s, R_RXCNT) == 0 && REG(s, R_TXCNT) == 0) {
+        return;
+    }
 
-    while (!fifo8_is_empty(&s->tx_fifo)) {
+    apple_spi_update_xfer_tx(s);
+
+    while (REG(s, R_TXCNT) && !fifo8_is_empty(&s->tx_fifo)) {
         tx = (uint32_t)fifo8_pop(&s->tx_fifo);
         rx = ssi_transfer(s->spi, tx);
+        REG(s, R_TXCNT)--;
         apple_spi_update_xfer_tx(s);
         if (REG(s, R_RXCNT) > 0) {
             if (fifo8_is_full(&s->rx_fifo)) {
+                hw_error("Rx buffer overflow: %d\n", fifo8_num_free(&s->rx_fifo));
                 qemu_log_mask(LOG_GUEST_ERROR, "%s: rx overflow\n", __func__);
                 REG(s, R_STATUS) |= R_STATUS_RXOVERFLOW;
             } else {
@@ -109,6 +116,7 @@ static void apple_spi_run(IPodTouchSPIState *s)
     while (!fifo8_is_full(&s->rx_fifo) && (REG(s, R_RXCNT) > 0) && (REG(s, R_CFG) & R_CFG_AGD)) {
         rx = ssi_transfer(s->spi, 0xff);
         if (fifo8_is_full(&s->rx_fifo)) {
+            hw_error("Rx buffer overflow: %d\n", fifo8_num_free(&s->rx_fifo));
             qemu_log_mask(LOG_GUEST_ERROR, "%s: rx overflow\n", __func__);
             REG(s, R_STATUS) |= R_STATUS_RXOVERFLOW;
             break;
@@ -118,45 +126,53 @@ static void apple_spi_run(IPodTouchSPIState *s)
             apple_spi_update_xfer_rx(s);
         }
     }
-    if (REG(s, R_RXCNT) == 0 && fifo8_is_empty(&s->tx_fifo)) {
+    if (REG(s, R_RXCNT) == 0 && REG(s, R_TXCNT) == 0) {
         REG(s, R_STATUS) |= R_STATUS_COMPLETE;
-        REG(s, R_CTRL) &= ~R_CTRL_RUN;
     }
 }
 
 static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
 {
     IPodTouchSPIState *s = IPOD_TOUCH_SPI(opaque);
-    //fprintf(stderr, "%s (base %d): read from location 0x%08x\n", __func__, s->base, addr);
+    //printf("%s (base %d): read from location 0x%08x\n", __func__, s->base, addr);
 
     uint32_t r;
+    bool run = false;
 
     r = s->regs[addr >> 2];
     switch (addr) {
-    case R_RXDATA: {
-        const uint8_t *buf = NULL;
-        int word_size = apple_spi_word_size(s);
-        uint32_t num = 0;
-        if (fifo8_is_empty(&s->rx_fifo)) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: rx underflow\n", __func__);
-            r = 0;
+        case R_RXDATA: {
+            const uint8_t *buf = NULL;
+            int word_size = apple_spi_word_size(s);
+            uint32_t num = 0;
+            if (fifo8_is_empty(&s->rx_fifo)) {
+                hw_error("Rx buffer underflow\n");
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: rx underflow\n", __func__);
+                r = 0;
+                break;
+            }
+            buf = fifo8_pop_buf(&s->rx_fifo, word_size, &num);
+            memcpy(&r, buf, num);
+
+            if (fifo8_is_empty(&s->rx_fifo)) {
+                run = true;
+            }
             break;
         }
-        buf = fifo8_pop_buf(&s->rx_fifo, word_size, &num);
-        memcpy(&r, buf, num);
-        break;
-    }
-    case R_STATUS: {
-        int val = 0;
-        val |= (fifo8_num_used(&s->tx_fifo) << R_STATUS_TXFIFO_SHIFT);
-        val |= (fifo8_num_used(&s->rx_fifo) << R_STATUS_RXFIFO_SHIFT);
-        r |= val;
-        break;
-    }
-    default:
-        break;
+        case R_STATUS: {
+            int val = 0;
+            val |= (fifo8_num_used(&s->tx_fifo) << R_STATUS_TXFIFO_SHIFT);
+            val |= (fifo8_num_used(&s->rx_fifo) << R_STATUS_RXFIFO_SHIFT);
+            r |= val;
+            break;
+        }
+        default:
+            break;
     }
 
+    if (run) {
+        apple_spi_run(s);
+    }
     apple_spi_update_irq(s);
     return r;
 }
@@ -164,7 +180,7 @@ static uint64_t ipod_touch_spi_read(void *opaque, hwaddr addr, unsigned size)
 static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
     IPodTouchSPIState *s = IPOD_TOUCH_SPI(opaque);
-    //fprintf(stderr, "%s (base %d): writing 0x%08x to 0x%08x\n", __func__, s->base, data, addr);
+    //printf("%s (base %d): writing 0x%08x to 0x%08x\n", __func__, s->base, data, addr);
 
     uint32_t r = data;
     uint32_t *mmio = &REG(s, addr);
@@ -185,10 +201,7 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         }
         break;
     case R_STATUS:
-        fifo8_reset(&s->tx_fifo);
-        //fifo8_reset(&s->rx_fifo);
         r = old & (~r);
-        run = true;
         break;
     case R_PIN:
         cs_flg = true;
@@ -197,7 +210,7 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
         int word_size = apple_spi_word_size(s);
         if ((fifo8_is_full(&s->tx_fifo))
             || (fifo8_num_free(&s->tx_fifo) < word_size)) {
-            hw_error("OVERFLOW: %d\n", fifo8_num_free(&s->tx_fifo));
+            hw_error("Tx buffer overflow: %d\n", fifo8_num_free(&s->tx_fifo));
             qemu_log_mask(LOG_GUEST_ERROR, "%s: tx overflow\n", __func__);
             r = 0;
             break;
@@ -219,6 +232,12 @@ static void ipod_touch_spi_write(void *opaque, hwaddr addr, uint64_t data, unsig
     if (run) {
         apple_spi_run(s);
     }
+
+    if(addr == R_STATUS) {
+        apple_spi_update_xfer_tx(s);
+        apple_spi_update_xfer_rx(s);
+    }
+
     apple_spi_update_irq(s);
 }
 

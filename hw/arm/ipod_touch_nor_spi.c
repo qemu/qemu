@@ -72,7 +72,6 @@ static uint32_t ipod_touch_nor_spi_transfer(SSIPeripheral *dev, uint32_t value)
         if(s->cur_cmd == NOR_READ_DATA_CMD) {
             uint8_t ret_val = s->nor_data[s->nor_read_ind];
             s->nor_read_ind++;
-            printf("Ret\n");
             return ret_val;
         }
         else {
