@@ -408,6 +408,19 @@ pcspk-audiodev=<name>``.
 
 Use ``-device`` instead.
 
+Hexadecimal sizes with scaling multipliers (since 8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Input parameters that take a size value should only use a size suffix
+(such as 'k' or 'M') when the base is written in decimal, and not when
+the value is hexadecimal.  That is, '0x20M' should be written either as
+'32M' or as '0x2000000'.
+
+``-chardev`` backend aliases ``tty`` and ``parport`` (removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+``tty`` and ``parport`` used to be aliases for ``serial`` and ``parallel``
+respectively. The actual backend names should be used instead.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
@@ -494,6 +507,19 @@ type of array items in query-named-block-nodes.
 
 Specify the properties for the object as top-level arguments instead.
 
+``query-sgx`` return value member ``section-size`` (removed in 8.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``section-size`` in the return value of ``query-sgx``
+was superseded by ``sections``.
+
+
+``query-sgx-capabilities`` return value member ``section-size`` (removed in 8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Member ``section-size`` in the return value of ``query-sgx-capabilities``
+was superseded by ``sections``.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -565,9 +591,8 @@ KVM guest support on 32-bit Arm hosts (removed in 5.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The Linux kernel has dropped support for allowing 32-bit Arm systems
-to host KVM guests as of the 5.7 kernel. Accordingly, QEMU is deprecating
-its support for this configuration and will remove it in a future version.
-Running 32-bit guests on a 64-bit Arm host remains supported.
+to host KVM guests as of the 5.7 kernel, and was thus removed from QEMU
+as well.  Running 32-bit guests on a 64-bit Arm host remains supported.
 
 RISC-V ISA Specific CPUs (removed in 5.1)
 '''''''''''''''''''''''''''''''''''''''''
@@ -616,6 +641,16 @@ x86 ``Icelake-Client`` CPU (removed in 7.1)
 
 There isn't ever Icelake Client CPU, it is some wrong and imaginary one.
 Use ``Icelake-Server`` instead.
+
+System accelerators
+-------------------
+
+Userspace local APIC with KVM (x86, removed 8.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+``-M kernel-irqchip=off`` cannot be used on KVM if the CPU model includes
+a local APIC.  The ``split`` setting is supported, as is using ``-M
+kernel-irqchip=off`` when the CPU does not have a local APIC.
 
 System emulator machines
 ------------------------

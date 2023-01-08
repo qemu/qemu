@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/option.h"
+#include "qemu/accel.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
 #include "qemu/units.h"

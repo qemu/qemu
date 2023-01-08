@@ -39,12 +39,6 @@ should specify an ``audiodev=`` property.  Additionally, when using
 vnc, you should specify an ``audiodev=`` property if you plan to
 transmit audio through the VNC protocol.
 
-``-chardev`` backend aliases ``tty`` and ``parport`` (since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-``tty`` and ``parport`` are aliases that will be removed. Instead, the
-actual backend names ``serial`` and ``parallel`` should be used.
-
 Short-form boolean options (since 6.0)
 ''''''''''''''''''''''''''''''''''''''
 
@@ -57,21 +51,6 @@ and will cause a warning.
 
 The replacement for the ``nodelay`` short-form boolean option is ``nodelay=on``
 rather than ``delay=off``.
-
-Userspace local APIC with KVM (x86, since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''
-
-Using ``-M kernel-irqchip=off`` with x86 machine types that include a local
-APIC is deprecated.  The ``split`` setting is supported, as is using
-``-M kernel-irqchip=off`` with the ISA PC machine type.
-
-hexadecimal sizes with scaling multipliers (since 6.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Input parameters that take a size value should only use a size suffix
-(such as 'k' or 'M') when the base is written in decimal, and not when
-the value is hexadecimal.  That is, '0x20M' is deprecated, and should
-be written either as '32M' or as '0x2000000'.
 
 ``-spice password=string`` (since 6.0)
 ''''''''''''''''''''''''''''''''''''''
@@ -185,19 +164,6 @@ This is a bug in QEMU that will be fixed in the future so that previously
 accepted incorrect commands will return an error. Users should make sure that
 all arguments passed to ``device_add`` are consistent with the documented
 property types.
-
-``query-sgx`` return value member ``section-size`` (since 7.0)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Member ``section-size`` in return value elements with meta-type ``uint64`` is
-deprecated.  Use ``sections`` instead.
-
-
-``query-sgx-capabilities`` return value member ``section-size`` (since 7.0)
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Member ``section-size`` in return value elements with meta-type ``uint64`` is
-deprecated.  Use ``sections`` instead.
 
 System accelerators
 -------------------

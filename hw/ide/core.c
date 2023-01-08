@@ -1648,6 +1648,13 @@ static bool cmd_set_features(IDEState *s, uint8_t cmd)
 
     /* XXX: valid for CDROM ? */
     switch (s->feature) {
+    case 0x01: /* 8-bit I/O enable (CompactFlash) */
+    case 0x81: /* 8-bit I/O disable (CompactFlash) */
+        if (s->drive_kind != IDE_CFATA) {
+            goto abort_cmd;
+        }
+        s->io8 = !(s->feature & 0x80);
+        return true;
     case 0x02: /* write cache enable */
         blk_set_enable_write_cache(s->blk, true);
         identify_data = (uint16_t *)s->identify_data;
@@ -2374,12 +2381,20 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     }
 
     p = s->data_ptr;
-    if (p + 2 > s->data_end) {
-        return;
-    }
+    if (s->io8) {
+        if (p + 1 > s->data_end) {
+            return;
+        }
 
-    *(uint16_t *)p = le16_to_cpu(val);
-    p += 2;
+        *p++ = val;
+    } else {
+        if (p + 2 > s->data_end) {
+            return;
+        }
+
+        *(uint16_t *)p = le16_to_cpu(val);
+        p += 2;
+    }
     s->data_ptr = p;
     if (p >= s->data_end) {
         s->status &= ~DRQ_STAT;
@@ -2401,12 +2416,20 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
     }
 
     p = s->data_ptr;
-    if (p + 2 > s->data_end) {
-        return 0;
-    }
+    if (s->io8) {
+        if (p + 1 > s->data_end) {
+            return 0;
+        }
 
-    ret = cpu_to_le16(*(uint16_t *)p);
-    p += 2;
+        ret = *p++;
+    } else {
+        if (p + 2 > s->data_end) {
+            return 0;
+        }
+
+        ret = cpu_to_le16(*(uint16_t *)p);
+        p += 2;
+    }
     s->data_ptr = p;
     if (p >= s->data_end) {
         s->status &= ~DRQ_STAT;

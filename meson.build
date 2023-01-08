@@ -14,14 +14,26 @@ keyval = import('keyval')
 ss = import('sourceset')
 fs = import('fs')
 
+targetos = host_machine.system()
 sh = find_program('sh')
-cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
 
 # Allow both shared and static libraries unless --enable-static
 static_kwargs = enable_static ? {'static': true} : {}
+
+cc = meson.get_compiler('c')
+all_languages = ['c']
+if add_languages('cpp', required: false, native: false)
+  all_languages += ['cpp']
+  cxx = meson.get_compiler('cpp')
+endif
+if targetos == 'darwin' and \
+   add_languages('objc', required: get_option('cocoa'), native: false)
+  all_languages += ['objc']
+  objc = meson.get_compiler('objc')
+endif
 
 # Temporary directory used for files created while
 # configure runs. Since it is in the build directory
@@ -57,8 +69,6 @@ cpu = host_machine.cpu_family()
 if cpu in ['riscv32', 'riscv64']
   cpu = 'riscv'
 endif
-
-targetos = host_machine.system()
 
 target_dirs = config_host['TARGET_DIRS'].split()
 have_linux_user = false
@@ -165,7 +175,7 @@ if 'dtrace' in get_option('trace_backends')
     # semaphores are linked into the main binary and not the module's shared
     # object.
     add_global_arguments('-DSTAP_SDT_V2',
-                         native: false, language: ['c', 'cpp', 'objc'])
+                         native: false, language: all_languages)
   endif
 endif
 
@@ -193,10 +203,7 @@ qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
 
 if targetos == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--no-seh', '-Wl,--nxcompat')
-  # Disable ASLR for debug builds to allow debugging with gdb
-  if get_option('optimization') == '0'
-    qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase')
-  endif
+  qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase', '-Wl,--high-entropy-va')
 endif
 
 if get_option('gprof')
@@ -210,7 +217,7 @@ endif
 if get_option('fuzzing')
   add_project_link_arguments(['-Wl,-T,',
                               (meson.current_source_dir() / 'tests/qtest/fuzz/fork_fuzz.ld')],
-                             native: false, language: ['c', 'cpp', 'objc'])
+                             native: false, language: all_languages)
 
   # Specify a filter to only instrument code that is directly related to
   # virtual-devices.
@@ -223,7 +230,7 @@ if get_option('fuzzing')
                  args: ['-fsanitize-coverage-allowlist=/dev/null',
                         '-fsanitize-coverage=trace-pc'] )
     add_global_arguments('-fsanitize-coverage-allowlist=instrumentation-filter',
-                         native: false, language: ['c', 'cpp', 'objc'])
+                         native: false, language: all_languages)
   endif
 
   if get_option('fuzzing_engine') == ''
@@ -232,9 +239,9 @@ if get_option('fuzzing')
     # everything with fsanitize=fuzzer-no-link. Otherwise, the linker will be
     # unable to bind the fuzzer-related callbacks added by instrumentation.
     add_global_arguments('-fsanitize=fuzzer-no-link',
-                         native: false, language: ['c', 'cpp', 'objc'])
+                         native: false, language: all_languages)
     add_global_link_arguments('-fsanitize=fuzzer-no-link',
-                              native: false, language: ['c', 'cpp', 'objc'])
+                              native: false, language: all_languages)
     # For the actual fuzzer binaries, we need to link against the libfuzzer
     # library. They need to be configurable, to support OSS-Fuzz
     fuzz_exe_ldflags = ['-fsanitize=fuzzer']
@@ -245,15 +252,11 @@ if get_option('fuzzing')
   endif
 endif
 
-add_global_arguments(qemu_cflags, native: false, language: ['c'])
-add_global_arguments(qemu_objcflags, native: false, language: ['objc'])
-
 # Check that the C++ compiler exists and works with the C compiler.
 link_language = 'c'
 linker = cc
 qemu_cxxflags = []
-if add_languages('cpp', required: false, native: false)
-  cxx = meson.get_compiler('cpp')
+if 'cpp' in all_languages
   add_global_arguments(['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'],
                        native: false, language: 'cpp')
   foreach k: qemu_cflags
@@ -262,7 +265,6 @@ if add_languages('cpp', required: false, native: false)
       qemu_cxxflags += [k]
     endif
   endforeach
-  add_global_arguments(qemu_cxxflags, native: false, language: 'cpp')
 
   if cxx.links(files('scripts/main.c'), args: qemu_cflags)
     link_language = 'cpp'
@@ -278,22 +280,21 @@ if targetos != 'sunos' and not config_host.has_key('CONFIG_TSAN')
   qemu_ldflags += linker.get_supported_link_arguments('-Wl,--warn-common')
 endif
 
-add_global_link_arguments(qemu_ldflags, native: false, language: ['c', 'cpp', 'objc'])
+add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
 
+add_global_arguments(qemu_cflags, native: false, language: 'c')
+add_global_arguments(qemu_cxxflags, native: false, language: 'cpp')
+add_global_arguments(qemu_objcflags, native: false, language: 'objc')
 if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
                         '-isystem', 'linux-headers',
-                        language: ['c', 'cpp'])
+                        language: all_languages)
 endif
 
 add_project_arguments('-iquote', '.',
                       '-iquote', meson.current_source_dir(),
                       '-iquote', meson.current_source_dir() / 'include',
-                      language: ['c', 'cpp', 'objc'])
-
-if host_machine.system() == 'darwin'
-  add_languages('objc', required: false, native: false)
-endif
+                      language: all_languages)
 
 sparse = find_program('cgcc', required: get_option('sparse'))
 if sparse.found()
@@ -476,7 +477,7 @@ if get_option('tcg').allowed()
     tcg_arch = 'ppc'
   endif
   add_project_arguments('-iquote', meson.current_source_dir() / 'tcg' / tcg_arch,
-                        language: ['c', 'cpp', 'objc'])
+                        language: all_languages)
 
   accelerators += 'CONFIG_TCG'
   config_host += { 'CONFIG_TCG': 'y' }
@@ -502,7 +503,7 @@ endif
 # The path to glib.h is added to all compilation commands.  This was
 # grandfathered in from the QEMU Makefiles.
 add_project_arguments(config_host['GLIB_CFLAGS'].split(),
-                      native: false, language: ['c', 'cpp', 'objc'])
+                      native: false, language: all_languages)
 glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
                           link_args: config_host['GLIB_LIBS'].split(),
                           version: config_host['GLIB_VERSION'],
@@ -1727,8 +1728,8 @@ if get_option('cfi')
       error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
     endif
   endif
-  add_global_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
-  add_global_link_arguments(cfi_flags, native: false, language: ['c', 'cpp', 'objc'])
+  add_global_arguments(cfi_flags, native: false, language: all_languages)
+  add_global_link_arguments(cfi_flags, native: false, language: all_languages)
 endif
 
 have_host_block_device = (targetos != 'darwin' or
@@ -3758,26 +3759,28 @@ endif
 if targetos == 'darwin'
   summary_info += {'Objective-C compiler': ' '.join(meson.get_compiler('objc').cmd_array())}
 endif
-summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
-                                               + ['-O' + get_option('optimization')]
-                                               + (get_option('debug') ? ['-g'] : []))}
+option_cflags = (get_option('debug') ? ['-g'] : [])
+if get_option('optimization') != 'plain'
+  option_cflags += ['-O' + get_option('optimization')]
+endif
+summary_info += {'CFLAGS':            ' '.join(get_option('c_args') + option_cflags)}
 if link_language == 'cpp'
-  summary_info += {'CXXFLAGS':        ' '.join(get_option('cpp_args')
-                                               + ['-O' + get_option('optimization')]
-                                               + (get_option('debug') ? ['-g'] : []))}
+  summary_info += {'CXXFLAGS':        ' '.join(get_option('cpp_args') + option_cflags)}
 endif
 if targetos == 'darwin'
-  summary_info += {'OBJCFLAGS':       ' '.join(get_option('objc_args')
-                                               + ['-O' + get_option('optimization')]
-                                               + (get_option('debug') ? ['-g'] : []))}
+  summary_info += {'OBJCFLAGS':       ' '.join(get_option('objc_args') + option_cflags)}
 endif
 link_args = get_option(link_language + '_link_args')
 if link_args.length() > 0
   summary_info += {'LDFLAGS':         ' '.join(link_args)}
 endif
 summary_info += {'QEMU_CFLAGS':       ' '.join(qemu_cflags)}
-summary_info += {'QEMU_CXXFLAGS':     ' '.join(qemu_cxxflags)}
-summary_info += {'QEMU_OBJCFLAGS':    ' '.join(qemu_objcflags)}
+if 'cpp' in all_languages
+  summary_info += {'QEMU_CXXFLAGS':     ' '.join(qemu_cxxflags)}
+endif
+if 'objc' in all_languages
+  summary_info += {'QEMU_OBJCFLAGS':    ' '.join(qemu_objcflags)}
+endif
 summary_info += {'QEMU_LDFLAGS':      ' '.join(qemu_ldflags)}
 summary_info += {'profiler':          get_option('profiler')}
 summary_info += {'link-time optimization (LTO)': get_option('b_lto')}

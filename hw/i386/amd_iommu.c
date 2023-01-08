@@ -1368,7 +1368,7 @@ static MemTxResult amdvi_mem_ir_write(void *opaque, hwaddr addr,
         return MEMTX_ERROR;
     }
 
-    apic_get_class()->send_msi(&to);
+    apic_get_class(NULL)->send_msi(&to);
 
     trace_amdvi_mem_ir_write(to.address, to.data);
     return MEMTX_OK;

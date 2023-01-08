@@ -26,10 +26,10 @@
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 
-typedef struct AccelState {
+struct AccelState {
     /*< private >*/
     Object parent_obj;
-} AccelState;
+};
 
 typedef struct AccelClass {
     /*< private >*/

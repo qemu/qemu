@@ -216,11 +216,11 @@ LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
 * unix:FNAME becomes -chardev socket,path=FNAME
 
-* /dev/parportN becomes -chardev parport,file=/dev/parportN
+* /dev/parportN becomes -chardev parallel,file=/dev/parportN
 
 * /dev/ppiN likewise
 
-* Any other /dev/FNAME becomes -chardev tty,path=/dev/FNAME
+* Any other /dev/FNAME becomes -chardev serial,path=/dev/FNAME
 
 * mon:LEGACY-CHARDEV is special: it multiplexes the monitor onto the
   character device defined by LEGACY-CHARDEV.  -chardev provides more

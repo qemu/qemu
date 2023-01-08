@@ -211,10 +211,6 @@ version_ge () {
     done
 }
 
-glob() {
-    eval test -z '"${1#'"$2"'}"'
-}
-
 if printf %s\\n "$source_path" "$PWD" | grep -q "[[:space:]:]";
 then
   error_exit "main directory cannot contain spaces nor colons"
@@ -342,9 +338,6 @@ for opt do
   ;;
   esac
 done
-# OS specific
-# Using uname is really, really broken.  Once we have the right set of checks
-# we can eliminate its usage altogether.
 
 # Preferred compiler:
 #  ${CC} (if set)
@@ -387,8 +380,6 @@ sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 # 2s-complement style results. (Both clang and gcc agree that it
 # provides these semantics.)
 QEMU_CFLAGS="-fno-strict-aliasing -fno-common -fwrapv"
-QEMU_CFLAGS="-Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
-QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 
 QEMU_LDFLAGS=
@@ -495,13 +486,6 @@ sunos)
   QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
 # needed for TIOCWIN* defines in termios.h
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
-  # $(uname -m) returns i86pc even on an x86_64 box, so default based on isainfo
-  # Note that this check is broken for cross-compilation: if you're
-  # cross-compiling to one of these OSes then you'll need to specify
-  # the correct CPU with the --cpu option.
-  if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
-    cpu="x86_64"
-  fi
 ;;
 haiku)
   pie="no"
@@ -556,16 +540,21 @@ elif check_define __aarch64__ ; then
 elif check_define __loongarch64 ; then
   cpu="loongarch64"
 else
+  # Using uname is really broken, but it is just a fallback for architectures
+  # that are going to use TCI anyway
   cpu=$(uname -m)
+  echo "WARNING: unrecognized host CPU, proceeding with 'uname -m' output '$cpu'"
 fi
 
-# Normalise host CPU name, set multilib cflags
+# Normalise host CPU name and set multilib cflags.  The canonicalization
+# isn't really necessary, because the architectures that we check for
+# should not hit the 'uname -m' case, but better safe than sorry.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
   armv*b|armv*l|arm)
     cpu="arm" ;;
 
-  i386|i486|i586|i686|i86pc|BePC)
+  i386|i486|i586|i686)
     cpu="i386"
     CPU_CFLAGS="-m32" ;;
   x32)
@@ -640,7 +629,6 @@ if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   # MinGW needs -mthreads for TLS and macro _MT.
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
-  write_c_skeleton;
   prefix="/qemu"
   bindir=""
   qemu_suffix=""
@@ -855,17 +843,6 @@ for opt do
   ;;
   --with-coroutine=*) coroutine="$optarg"
   ;;
-  --disable-zlib-test)
-  ;;
-  --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
-      echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
-  ;;
-  --enable-vhdx|--disable-vhdx)
-      echo "$0: $opt is obsolete, VHDX driver is always built" >&2
-  ;;
-  --enable-uuid|--disable-uuid)
-      echo "$0: $opt is obsolete, UUID support is always built" >&2
-  ;;
   --with-git=*) git="$optarg"
   ;;
   --with-git-submodules=*)
@@ -885,18 +862,9 @@ for opt do
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
-  # backwards compatibility options
-  --enable-trace-backend=*) meson_option_parse "--enable-trace-backends=$optarg" "$optarg"
-  ;;
-  --disable-blobs) meson_option_parse --disable-install-blobs ""
-  ;;
   --enable-vfio-user-server) vfio_user_server="enabled"
   ;;
   --disable-vfio-user-server) vfio_user_server="disabled"
-  ;;
-  --enable-tcmalloc) meson_option_parse --enable-malloc=tcmalloc tcmalloc
-  ;;
-  --enable-jemalloc) meson_option_parse --enable-malloc=jemalloc jemalloc
   ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
@@ -1198,6 +1166,11 @@ fi
 # just silently disable some features, so it's too error prone.
 
 warn_flags=
+add_to warn_flags -Wundef
+add_to warn_flags -Wwrite-strings
+add_to warn_flags -Wmissing-prototypes
+add_to warn_flags -Wstrict-prototypes
+add_to warn_flags -Wredundant-decls
 add_to warn_flags -Wold-style-declaration
 add_to warn_flags -Wold-style-definition
 add_to warn_flags -Wtype-limits
@@ -2237,20 +2210,6 @@ if test "$have_ubsan" = "yes"; then
   QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
 fi
 
-##########################################
-# Guest agent Windows MSI package
-
-if test "$QEMU_GA_MANUFACTURER" = ""; then
-  QEMU_GA_MANUFACTURER=QEMU
-fi
-if test "$QEMU_GA_DISTRO" = ""; then
-  QEMU_GA_DISTRO=Linux
-fi
-if test "$QEMU_GA_VERSION" = ""; then
-    QEMU_GA_VERSION=$(cat "$source_path"/VERSION)
-fi
-
-
 #######################################
 # cross-compiled firmware targets
 
@@ -2346,9 +2305,9 @@ if test "$debug_tcg" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
-  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
-  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
+  echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER-QEMU}" >> $config_host_mak
+  echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO-Linux}" >> $config_host_mak
+  echo "QEMU_GA_VERSION=${QEMU_GA_VERSION-$(cat "$source_path"/VERSION)}" >> $config_host_mak
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -2663,6 +2622,9 @@ preserve_env PKG_CONFIG
 preserve_env PKG_CONFIG_LIBDIR
 preserve_env PKG_CONFIG_PATH
 preserve_env PYTHON
+preserve_env QEMU_GA_MANUFACTURER
+preserve_env QEMU_GA_DISTRO
+preserve_env QEMU_GA_VERSION
 preserve_env SDL2_CONFIG
 preserve_env SMBD
 preserve_env STRIP

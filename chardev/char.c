@@ -530,19 +530,6 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
     return cc;
 }
 
-static struct ChardevAlias {
-    const char *typename;
-    const char *alias;
-    bool deprecation_warning_printed;
-} chardev_alias_table[] = {
-#ifdef HAVE_CHARDEV_PARPORT
-    { "parallel", "parport" },
-#endif
-#ifdef HAVE_CHARDEV_SERIAL
-    { "serial", "tty" },
-#endif
-};
-
 typedef struct ChadevClassFE {
     void (*fn)(const char *name, void *opaque);
     void *opaque;
@@ -578,28 +565,12 @@ help_string_append(const char *name, void *opaque)
     g_string_append_printf(str, "\n  %s", name);
 }
 
-static const char *chardev_alias_translate(const char *name)
-{
-    int i;
-    for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
-        if (g_strcmp0(chardev_alias_table[i].alias, name) == 0) {
-            if (!chardev_alias_table[i].deprecation_warning_printed) {
-                warn_report("The alias '%s' is deprecated, use '%s' instead",
-                            name, chardev_alias_table[i].typename);
-                chardev_alias_table[i].deprecation_warning_printed = true;
-            }
-            return chardev_alias_table[i].typename;
-        }
-    }
-    return name;
-}
-
 ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
     const ChardevClass *cc;
     ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
+    const char *name = qemu_opt_get(opts, "backend");
 
     if (name == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend",
@@ -637,7 +608,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
     const ChardevClass *cc;
     Chardev *chr = NULL;
     ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
+    const char *name = qemu_opt_get(opts, "backend");
     const char *id = qemu_opts_id(opts);
     char *bid = NULL;
 

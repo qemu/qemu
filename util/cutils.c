@@ -197,10 +197,8 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  *   fractional portion is truncated to byte
  * - 0x7fEE - hexadecimal, unit determined by @default_suffix
  *
- * The following cause a deprecation warning, and may be removed in the future
- * - 0xabc{kKmMgGtTpP} - hex with scaling suffix
- *
  * The following are intentionally not supported
+ * - hex with scaling suffix, such as 0x20M
  * - octal, such as 08
  * - fractional hex, such as 0x1.8
  * - floating point exponents, such as 1e3
@@ -222,7 +220,6 @@ static int do_strtosz(const char *nptr, const char **end,
     int retval;
     const char *endptr, *f;
     unsigned char c;
-    bool hex = false;
     uint64_t val, valf = 0;
     int64_t mul;
 
@@ -237,17 +234,16 @@ static int do_strtosz(const char *nptr, const char **end,
         goto out;
     }
     if (val == 0 && (*endptr == 'x' || *endptr == 'X')) {
-        /* Input looks like hex, reparse, and insist on no fraction. */
+        /* Input looks like hex; reparse, and insist on no fraction or suffix. */
         retval = qemu_strtou64(nptr, &endptr, 16, &val);
         if (retval) {
             goto out;
         }
-        if (*endptr == '.') {
+        if (*endptr == '.' || suffix_mul(*endptr, unit) > 0) {
             endptr = nptr;
             retval = -EINVAL;
             goto out;
         }
-        hex = true;
     } else if (*endptr == '.') {
         /*
          * Input looks like a fraction.  Make sure even 1.k works
@@ -272,10 +268,6 @@ static int do_strtosz(const char *nptr, const char **end,
     c = *endptr;
     mul = suffix_mul(c, unit);
     if (mul > 0) {
-        if (hex) {
-            warn_report("Using a multiplier suffix on hex numbers "
-                        "is deprecated: %s", nptr);
-        }
         endptr++;
     } else {
         mul = suffix_mul(default_suffix, unit);

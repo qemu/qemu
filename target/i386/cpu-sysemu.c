@@ -247,12 +247,16 @@ void x86_cpu_machine_reset_cb(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-APICCommonClass *apic_get_class(void)
+APICCommonClass *apic_get_class(Error **errp)
 {
     const char *apic_type = "apic";
 
     /* TODO: in-kernel irqchip for hvf */
-    if (kvm_apic_in_kernel()) {
+    if (kvm_enabled()) {
+        if (!kvm_apic_in_kernel()) {
+            error_setg(errp, "KVM does not support userspace APIC");
+            return NULL;
+        }
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
@@ -266,10 +270,13 @@ APICCommonClass *apic_get_class(void)
 void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 {
     APICCommonState *apic;
-    ObjectClass *apic_class = OBJECT_CLASS(apic_get_class());
+    APICCommonClass *apic_class = apic_get_class(errp);
 
-    cpu->apic_state = DEVICE(object_new_with_class(apic_class));
+    if (!apic_class) {
+        return;
+    }
 
+    cpu->apic_state = DEVICE(object_new_with_class(OBJECT_CLASS(apic_class)));
     object_property_add_child(OBJECT(cpu), "lapic",
                               OBJECT(cpu->apic_state));
     object_unref(OBJECT(cpu->apic_state));
