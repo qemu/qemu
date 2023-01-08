@@ -52,17 +52,19 @@ typedef enum TCGReg {
 
 #define TCG_TARGET_NB_REGS 64
 
-/* A list of relevant facilities used by this translator.  Some of these
-   are required for proper operation, and these are checked at startup.  */
+/* Facilities required for proper operation; checked at startup. */
 
 #define FACILITY_ZARCH_ACTIVE         2
 #define FACILITY_LONG_DISP            18
 #define FACILITY_EXT_IMM              21
 #define FACILITY_GEN_INST_EXT         34
-#define FACILITY_LOAD_ON_COND         45
-#define FACILITY_FAST_BCR_SER         FACILITY_LOAD_ON_COND
-#define FACILITY_DISTINCT_OPS         FACILITY_LOAD_ON_COND
+#define FACILITY_45                   45
+
+/* Facilities that are checked at runtime. */
+
 #define FACILITY_LOAD_ON_COND2        53
+#define FACILITY_MISC_INSN_EXT2       58
+#define FACILITY_MISC_INSN_EXT3       61
 #define FACILITY_VECTOR               129
 #define FACILITY_VECTOR_ENH1          135
 
@@ -80,18 +82,18 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_ext16u_i32     1
 #define TCG_TARGET_HAS_bswap16_i32    1
 #define TCG_TARGET_HAS_bswap32_i32    1
-#define TCG_TARGET_HAS_not_i32        0
+#define TCG_TARGET_HAS_not_i32        HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_neg_i32        1
-#define TCG_TARGET_HAS_andc_i32       0
-#define TCG_TARGET_HAS_orc_i32        0
-#define TCG_TARGET_HAS_eqv_i32        0
-#define TCG_TARGET_HAS_nand_i32       0
-#define TCG_TARGET_HAS_nor_i32        0
+#define TCG_TARGET_HAS_andc_i32       HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_orc_i32        HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_eqv_i32        HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_nand_i32       HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_nor_i32        HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_clz_i32        0
 #define TCG_TARGET_HAS_ctz_i32        0
-#define TCG_TARGET_HAS_ctpop_i32      0
-#define TCG_TARGET_HAS_deposit_i32    HAVE_FACILITY(GEN_INST_EXT)
-#define TCG_TARGET_HAS_extract_i32    HAVE_FACILITY(GEN_INST_EXT)
+#define TCG_TARGET_HAS_ctpop_i32      1
+#define TCG_TARGET_HAS_deposit_i32    1
+#define TCG_TARGET_HAS_extract_i32    1
 #define TCG_TARGET_HAS_sextract_i32   0
 #define TCG_TARGET_HAS_extract2_i32   0
 #define TCG_TARGET_HAS_movcond_i32    1
@@ -103,7 +105,7 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_mulsh_i32      0
 #define TCG_TARGET_HAS_extrl_i64_i32  0
 #define TCG_TARGET_HAS_extrh_i64_i32  0
-#define TCG_TARGET_HAS_direct_jump    HAVE_FACILITY(GEN_INST_EXT)
+#define TCG_TARGET_HAS_direct_jump    1
 #define TCG_TARGET_HAS_qemu_st8_i32   0
 
 #define TCG_TARGET_HAS_div2_i64       1
@@ -117,25 +119,25 @@ extern uint64_t s390_facilities[3];
 #define TCG_TARGET_HAS_bswap16_i64    1
 #define TCG_TARGET_HAS_bswap32_i64    1
 #define TCG_TARGET_HAS_bswap64_i64    1
-#define TCG_TARGET_HAS_not_i64        0
+#define TCG_TARGET_HAS_not_i64        HAVE_FACILITY(MISC_INSN_EXT3)
 #define TCG_TARGET_HAS_neg_i64        1
-#define TCG_TARGET_HAS_andc_i64       0
-#define TCG_TARGET_HAS_orc_i64        0
-#define TCG_TARGET_HAS_eqv_i64        0
-#define TCG_TARGET_HAS_nand_i64       0
-#define TCG_TARGET_HAS_nor_i64        0
-#define TCG_TARGET_HAS_clz_i64        HAVE_FACILITY(EXT_IMM)
+#define TCG_TARGET_HAS_andc_i64       HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_orc_i64        HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_eqv_i64        HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_nand_i64       HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_nor_i64        HAVE_FACILITY(MISC_INSN_EXT3)
+#define TCG_TARGET_HAS_clz_i64        1
 #define TCG_TARGET_HAS_ctz_i64        0
-#define TCG_TARGET_HAS_ctpop_i64      0
-#define TCG_TARGET_HAS_deposit_i64    HAVE_FACILITY(GEN_INST_EXT)
-#define TCG_TARGET_HAS_extract_i64    HAVE_FACILITY(GEN_INST_EXT)
+#define TCG_TARGET_HAS_ctpop_i64      1
+#define TCG_TARGET_HAS_deposit_i64    1
+#define TCG_TARGET_HAS_extract_i64    1
 #define TCG_TARGET_HAS_sextract_i64   0
 #define TCG_TARGET_HAS_extract2_i64   0
 #define TCG_TARGET_HAS_movcond_i64    1
 #define TCG_TARGET_HAS_add2_i64       1
 #define TCG_TARGET_HAS_sub2_i64       1
 #define TCG_TARGET_HAS_mulu2_i64      1
-#define TCG_TARGET_HAS_muls2_i64      0
+#define TCG_TARGET_HAS_muls2_i64      HAVE_FACILITY(MISC_INSN_EXT2)
 #define TCG_TARGET_HAS_muluh_i64      0
 #define TCG_TARGET_HAS_mulsh_i64      0
 
