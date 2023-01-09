@@ -91,8 +91,6 @@ static const MemoryRegionOps static_ops = {
 #define flash0_size	(16 * 1024 * 1024)
 #define flash1_size	( 8 * 1024 * 1024)
 #define flash2_size	(32 * 1024 * 1024)
-#define total_ram_v1	(sdram_size + flash0_size + flash1_size + OMAP15XX_SRAM_SIZE)
-#define total_ram_v2	(sdram_size + flash2_size + OMAP15XX_SRAM_SIZE)
 
 static struct arm_boot_info sx1_binfo = {
     .loader_start = OMAP_EMIFF_BASE,
