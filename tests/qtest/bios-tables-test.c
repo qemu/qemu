@@ -78,6 +78,7 @@
 typedef struct {
     bool tcg_only;
     const char *machine;
+    const char *machine_param;
     const char *variant;
     const char *uefi_fl1;
     const char *uefi_fl2;
@@ -776,26 +777,29 @@ static char *test_acpi_create_args(test_data *data, const char *params,
          * when arm/virt boad starts to support it.
          */
         if (data->cd) {
-            args = g_strdup_printf("-machine %s %s -accel tcg "
+            args = g_strdup_printf("-machine %s%s %s -accel tcg "
                 "-nodefaults -nographic "
                 "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
-                data->machine, data->tcg_only ? "" : "-accel kvm",
+                data->machine, data->machine_param ?: "",
+                data->tcg_only ? "" : "-accel kvm",
                 data->uefi_fl1, data->uefi_fl2, data->cd, params ? params : "");
         } else {
-            args = g_strdup_printf("-machine %s %s -accel tcg "
+            args = g_strdup_printf("-machine %s%s %s -accel tcg "
                 "-nodefaults -nographic "
                 "-drive if=pflash,format=raw,file=%s,readonly=on "
                 "-drive if=pflash,format=raw,file=%s,snapshot=on %s",
-                data->machine, data->tcg_only ? "" : "-accel kvm",
+                data->machine, data->machine_param ?: "",
+                data->tcg_only ? "" : "-accel kvm",
                 data->uefi_fl1, data->uefi_fl2, params ? params : "");
         }
     } else {
-        args = g_strdup_printf("-machine %s %s -accel tcg "
+        args = g_strdup_printf("-machine %s%s %s -accel tcg "
             "-net none %s "
             "-drive id=hd0,if=none,file=%s,format=raw "
             "-device %s,drive=hd0 ",
-             data->machine, data->tcg_only ? "" : "-accel kvm",
+             data->machine, data->machine_param ?: "",
+             data->tcg_only ? "" : "-accel kvm",
              params ? params : "", disk,
              data->blkdev ?: "ide-hd");
     }
@@ -1141,8 +1145,9 @@ static void test_acpi_piix4_tcg_nohpet(void)
 
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
+    data.machine_param = ",hpet=off";
     data.variant = ".nohpet";
-    test_acpi_one("-no-hpet", &data);
+    test_acpi_one(NULL, &data);
     free_test_data(&data);
 }
 
@@ -1210,8 +1215,9 @@ static void test_acpi_q35_tcg_nohpet(void)
 
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
+    data.machine_param = ",hpet=off";
     data.variant = ".nohpet";
-    test_acpi_one("-no-hpet", &data);
+    test_acpi_one(NULL, &data);
     free_test_data(&data);
 }
 

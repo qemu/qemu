@@ -2442,6 +2442,10 @@ void memory_global_dirty_log_stop(unsigned int flags);
 
 void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled);
 
+bool memory_region_access_valid(MemoryRegion *mr, hwaddr addr,
+                                unsigned size, bool is_write,
+                                MemTxAttrs attrs);
+
 /**
  * memory_region_dispatch_read: perform a read directly to the specified
  * MemoryRegion.

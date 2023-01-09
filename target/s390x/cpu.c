@@ -26,7 +26,6 @@
 #include "s390x-internal.h"
 #include "kvm/kvm_s390x.h"
 #include "sysemu/kvm.h"
-#include "sysemu/reset.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/qapi-types-machine.h"
@@ -35,6 +34,9 @@
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "sysemu/tcg.h"
+#ifndef CONFIG_USER_ONLY
+#include "sysemu/reset.h"
+#endif
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;

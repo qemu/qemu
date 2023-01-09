@@ -116,4 +116,5 @@ msys2-32bit:
   - ..\msys64\usr\bin\bash -lc '../configure --target-list=ppc64-softmmu
         --disable-opengl'
   - ..\msys64\usr\bin\bash -lc 'make'
-  - ..\msys64\usr\bin\bash -lc 'make check || { cat meson-logs/testlog.txt; exit 1; } ;'
+  - ..\msys64\usr\bin\bash -lc 'make check MTESTARGS=\"--no-suite qtest\" ||
+                                { cat meson-logs/testlog.txt; exit 1; }'

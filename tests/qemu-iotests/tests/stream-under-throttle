@@ -88,6 +88,8 @@ class TestStreamWithThrottle(iotests.QMPTestCase):
                            'x-iops-total=10000,x-bps-total=104857600')
         self.vm.add_blockdev(self.vm.qmp_to_opts(blockdev))
         self.vm.add_device('virtio-blk,iothread=iothr0,drive=throttled-node')
+        if iotests.qemu_default_machine == 's390-ccw-virtio':
+            self.vm.add_args('-no-shutdown')
         self.vm.launch()
 
     def tearDown(self) -> None:
