@@ -123,7 +123,7 @@ static inline bool ts_is_copy(TCGTemp *ts)
 }
 
 /* Reset TEMP's state, possibly removing the temp for the list of copies.  */
-static void reset_ts(TCGTemp *ts)
+static void reset_ts(OptContext *ctx, TCGTemp *ts)
 {
     TempOptInfo *ti = ts_info(ts);
     TempOptInfo *pi = ts_info(ti->prev_copy);
@@ -138,9 +138,9 @@ static void reset_ts(TCGTemp *ts)
     ti->s_mask = 0;
 }
 
-static void reset_temp(TCGArg arg)
+static void reset_temp(OptContext *ctx, TCGArg arg)
 {
-    reset_ts(arg_temp(arg));
+    reset_ts(ctx, arg_temp(arg));
 }
 
 /* Initialize and activate a temporary.  */
@@ -239,7 +239,7 @@ static bool tcg_opt_gen_mov(OptContext *ctx, TCGOp *op, TCGArg dst, TCGArg src)
         return true;
     }
 
-    reset_ts(dst_ts);
+    reset_ts(ctx, dst_ts);
     di = ts_info(dst_ts);
     si = ts_info(src_ts);
 
@@ -702,7 +702,7 @@ static void finish_folding(OptContext *ctx, TCGOp *op)
     nb_oargs = def->nb_oargs;
     for (i = 0; i < nb_oargs; i++) {
         TCGTemp *ts = arg_temp(op->args[i]);
-        reset_ts(ts);
+        reset_ts(ctx, ts);
         /*
          * Save the corresponding known-zero/sign bits mask for the
          * first output argument (only one supported so far).
@@ -1215,14 +1215,14 @@ static bool fold_call(OptContext *ctx, TCGOp *op)
 
         for (i = 0; i < nb_globals; i++) {
             if (test_bit(i, ctx->temps_used.l)) {
-                reset_ts(&ctx->tcg->temps[i]);
+                reset_ts(ctx, &ctx->tcg->temps[i]);
             }
         }
     }
 
     /* Reset temp data for outputs. */
     for (i = 0; i < nb_oargs; i++) {
-        reset_temp(op->args[i]);
+        reset_temp(ctx, op->args[i]);
     }
 
     /* Stop optimizing MB across calls. */
