@@ -70,9 +70,8 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 
 /* omap_intc.c */
 #define TYPE_OMAP_INTC "common-omap-intc"
-typedef struct omap_intr_handler_s omap_intr_handler;
-DECLARE_INSTANCE_CHECKER(omap_intr_handler, OMAP_INTC,
-                         TYPE_OMAP_INTC)
+typedef struct OMAPIntcState OMAPIntcState;
+DECLARE_INSTANCE_CHECKER(OMAPIntcState, OMAP_INTC, TYPE_OMAP_INTC)
 
 
 /*
@@ -89,8 +88,8 @@ DECLARE_INSTANCE_CHECKER(omap_intr_handler, OMAP_INTC,
  * (ie the struct omap_mpu_state_s*) to do the clockname to pointer
  * translation.)
  */
-void omap_intc_set_iclk(omap_intr_handler *intc, omap_clk clk);
-void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk);
+void omap_intc_set_iclk(OMAPIntcState *intc, omap_clk clk);
+void omap_intc_set_fclk(OMAPIntcState *intc, omap_clk clk);
 
 /* omap_i2c.c */
 #define TYPE_OMAP_I2C "omap_i2c"
