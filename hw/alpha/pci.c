@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/pci/pci_host.h"
 #include "alpha_sys.h"
 #include "qemu/log.h"
 #include "trace.h"

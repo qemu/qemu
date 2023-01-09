@@ -21,9 +21,8 @@
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "sysemu/dma.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/sysbus.h"
-#include "qom/object.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0

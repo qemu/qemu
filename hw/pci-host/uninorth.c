@@ -26,7 +26,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/uninorth.h"
 #include "trace.h"

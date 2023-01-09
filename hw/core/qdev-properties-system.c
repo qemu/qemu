@@ -32,6 +32,7 @@
 #include "sysemu/blockdev.h"
 #include "net/net.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pcie.h"
 #include "util/block-helpers.h"
 
 static bool check_prop_still_unset(Object *obj, const char *name,

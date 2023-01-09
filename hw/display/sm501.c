@@ -32,7 +32,7 @@
 #include "ui/console.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "hw/i2c/i2c.h"
 #include "hw/display/i2c-ddc.h"

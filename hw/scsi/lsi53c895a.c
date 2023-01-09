@@ -16,7 +16,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/irq.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/scsi/scsi.h"
 #include "migration/vmstate.h"
 #include "sysemu/dma.h"

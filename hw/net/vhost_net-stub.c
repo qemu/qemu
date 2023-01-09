@@ -82,6 +82,15 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
 {
 }
 
+bool vhost_net_config_pending(VHostNetState *net)
+{
+    return false;
+}
+
+void vhost_net_config_mask(VHostNetState *net, VirtIODevice *dev, bool mask)
+{
+}
+
 int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
 {
     return -1;
@@ -112,4 +121,9 @@ int vhost_net_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
                                 int vq_index)
 {
     return 0;
+}
+
+void vhost_net_save_acked_features(NetClientState *nc)
+{
+
 }

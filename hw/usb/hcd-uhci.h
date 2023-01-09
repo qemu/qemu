@@ -30,7 +30,7 @@
 
 #include "exec/memory.h"
 #include "qemu/timer.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/usb.h"
 
 typedef struct UHCIQueue UHCIQueue;

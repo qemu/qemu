@@ -10,7 +10,7 @@
 #define ATI_INT_H
 
 #include "qemu/timer.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "vga_int.h"
 #include "qom/object.h"

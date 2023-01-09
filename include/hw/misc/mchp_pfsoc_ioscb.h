@@ -23,6 +23,8 @@
 #ifndef MCHP_PFSOC_IOSCB_H
 #define MCHP_PFSOC_IOSCB_H
 
+#include "hw/sysbus.h"
+
 typedef struct MchpPfSoCIoscbState {
     SysBusDevice parent;
     MemoryRegion container;

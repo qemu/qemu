@@ -22,7 +22,7 @@
 #ifndef HW_ACPI_PIIX4_H
 #define HW_ACPI_PIIX4_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/acpi/memory_hotplug.h"

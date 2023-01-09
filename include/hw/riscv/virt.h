@@ -19,10 +19,10 @@
 #ifndef HW_RISCV_VIRT_H
 #define HW_RISCV_VIRT_H
 
+#include "hw/boards.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 #include "hw/block/flash.h"
-#include "qom/object.h"
 
 #define VIRT_CPUS_MAX_BITS             9
 #define VIRT_CPUS_MAX                  (1 << VIRT_CPUS_MAX_BITS)

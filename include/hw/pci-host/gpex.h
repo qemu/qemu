@@ -22,7 +22,7 @@
 
 #include "exec/hwaddr.h"
 #include "hw/sysbus.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pcie_host.h"
 #include "qom/object.h"
 

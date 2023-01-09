@@ -10,8 +10,7 @@
 #ifndef PCI_HOST_PNV_PHB4_H
 #define PCI_HOST_PNV_PHB4_H
 
-#include "hw/pci/pcie_host.h"
-#include "hw/pci/pcie_port.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/ppc/xive.h"
 #include "qom/object.h"
 

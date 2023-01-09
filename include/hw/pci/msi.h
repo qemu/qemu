@@ -21,7 +21,7 @@
 #ifndef QEMU_MSI_H
 #define QEMU_MSI_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 struct MSIMessage {
     uint64_t address;

@@ -50,7 +50,6 @@ struct PXBBus {
 };
 
 #define TYPE_PXB_DEVICE "pxb"
-typedef struct PXBDev PXBDev;
 DECLARE_INSTANCE_CHECKER(PXBDev, PXB_DEV,
                          TYPE_PXB_DEVICE)
 

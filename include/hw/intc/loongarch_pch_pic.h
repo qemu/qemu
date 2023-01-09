@@ -5,6 +5,8 @@
  * Copyright (c) 2021 Loongson Technology Corporation Limited
  */
 
+#include "hw/sysbus.h"
+
 #define TYPE_LOONGARCH_PCH_PIC "loongarch_pch_pic"
 #define PCH_PIC_NAME(name) TYPE_LOONGARCH_PCH_PIC#name
 OBJECT_DECLARE_SIMPLE_TYPE(LoongArchPCHPIC, LOONGARCH_PCH_PIC)

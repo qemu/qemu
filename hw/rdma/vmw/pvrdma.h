@@ -18,8 +18,8 @@
 
 #include "qemu/units.h"
 #include "qemu/notify.h"
-#include "hw/pci/pci.h"
 #include "hw/pci/msix.h"
+#include "hw/pci/pci_device.h"
 #include "chardev/char-fe.h"
 #include "hw/net/vmxnet3_defs.h"
 

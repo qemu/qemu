@@ -76,8 +76,6 @@ config PEGASOS2
     select VT82C686
     select SMBUS_EEPROM
     select VOF
-# This should come with VT82C686
-    select ACPI_X86
 
 config PREP
     bool

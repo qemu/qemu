@@ -52,6 +52,7 @@ config PIIX4
 config VT82C686
     bool
     select ISA_SUPERIO
+    select ACPI
     select ACPI_SMBUS
     select SERIAL_ISA
     select FDC_ISA
@@ -77,5 +78,4 @@ config LPC_ICH9
     # for ICH9.
     select I8257
     select ISA_BUS
-    select ACPI_SMBUS
-    select ACPI_X86_ICH
+    select ACPI_ICH9

@@ -22,13 +22,16 @@
 #ifndef HW_MICROCHIP_PFSOC_H
 #define HW_MICROCHIP_PFSOC_H
 
+#include "hw/boards.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
+#include "hw/cpu/cluster.h"
 #include "hw/dma/sifive_pdma.h"
 #include "hw/misc/mchp_pfsoc_dmc.h"
 #include "hw/misc/mchp_pfsoc_ioscb.h"
 #include "hw/misc/mchp_pfsoc_sysreg.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/sd/cadence_sdhci.h"
+#include "hw/riscv/riscv_hart.h"
 
 typedef struct MicrochipPFSoCState {
     /*< private >*/

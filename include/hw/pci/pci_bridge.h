@@ -26,7 +26,7 @@
 #ifndef QEMU_PCI_BRIDGE_H
 #define QEMU_PCI_BRIDGE_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/cxl/cxl.h"
 #include "qom/object.h"
@@ -97,7 +97,6 @@ struct PXBDev {
     } cxl;
 };
 
-typedef struct PXBDev PXBDev;
 #define TYPE_PXB_CXL_DEVICE "pxb-cxl"
 DECLARE_INSTANCE_CHECKER(PXBDev, PXB_CXL_DEV,
                          TYPE_PXB_CXL_DEVICE)

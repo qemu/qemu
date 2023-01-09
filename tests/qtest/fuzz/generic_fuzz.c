@@ -24,6 +24,7 @@
 #include "exec/ramblock.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/boards.h"
 #include "generic_fuzz_configs.h"
 #include "hw/mem/sparse-mem.h"

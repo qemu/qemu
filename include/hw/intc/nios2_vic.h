@@ -35,6 +35,8 @@
 #ifndef HW_INTC_NIOS2_VIC_H
 #define HW_INTC_NIOS2_VIC_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_NIOS2_VIC "nios2-vic"
 OBJECT_DECLARE_SIMPLE_TYPE(Nios2VIC, NIOS2_VIC)
 

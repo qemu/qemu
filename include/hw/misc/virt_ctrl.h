@@ -7,6 +7,8 @@
 #ifndef VIRT_CTRL_H
 #define VIRT_CTRL_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_VIRT_CTRL "virt-ctrl"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtCtrlState, VIRT_CTRL)
 

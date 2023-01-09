@@ -11,7 +11,7 @@
 #ifndef HW_PCI_I440FX_H
 #define HW_PCI_I440FX_H
 
-#include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci-host/pam.h"
 #include "qom/object.h"
 

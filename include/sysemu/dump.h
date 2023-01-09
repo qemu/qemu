@@ -15,6 +15,7 @@
 #define DUMP_H
 
 #include "qapi/qapi-types-dump.h"
+#include "qemu/thread.h"
 
 #define MAKEDUMPFILE_SIGNATURE      "makedumpfile"
 #define MAX_SIZE_MDF_HEADER         (4096) /* max size of makedumpfile_header */

@@ -2,7 +2,6 @@
 #define XEN_PT_H
 
 #include "hw/xen/xen_common.h"
-#include "hw/pci/pci.h"
 #include "xen-host-pci-device.h"
 #include "qom/object.h"
 

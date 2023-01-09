@@ -9,13 +9,14 @@ config ACPI_X86
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
     select ACPI_HMAT
-    select ACPI_PIIX4
     select ACPI_PCIHP
     select ACPI_ERST
 
-config ACPI_X86_ICH
+config ACPI_ICH9
     bool
+    select ACPI_SMBUS
     select ACPI_X86
+    select APM
 
 config ACPI_CPU_HOTPLUG
     bool
@@ -30,7 +31,9 @@ config ACPI_NVDIMM
 
 config ACPI_PIIX4
     bool
-    depends on ACPI
+    select ACPI
+    select ACPI_SMBUS
+    select APM
 
 config ACPI_PCIHP
     bool

@@ -1,8 +1,7 @@
 #ifndef HW_QXL_H
 #define HW_QXL_H
 
-
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "vga_int.h"
 #include "qemu/thread.h"
 

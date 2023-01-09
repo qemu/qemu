@@ -22,7 +22,7 @@
 #ifndef HW_Q35_H
 #define HW_Q35_H
 
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci-host/pam.h"
 #include "qemu/units.h"

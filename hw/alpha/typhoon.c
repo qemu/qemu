@@ -10,10 +10,10 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "hw/pci/pci_host.h"
 #include "cpu.h"
 #include "hw/irq.h"
 #include "alpha_sys.h"
-#include "qom/object.h"
 
 
 #define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"

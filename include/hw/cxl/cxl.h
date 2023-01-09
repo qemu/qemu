@@ -13,7 +13,6 @@
 
 #include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-visit-machine.h"
-#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "cxl_pci.h"
 #include "cxl_component.h"
@@ -24,10 +23,12 @@
 
 #define CXL_WINDOW_MAX 10
 
+typedef struct PXBDev PXBDev;
+
 typedef struct CXLFixedWindow {
     uint64_t size;
     char **targets;
-    struct PXBDev *target_hbs[8];
+    PXBDev *target_hbs[8];
     uint8_t num_targets;
     uint8_t enc_int_ways;
     uint8_t enc_int_gran;

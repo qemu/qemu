@@ -378,6 +378,13 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     return 0;
 }
 
+int vhost_vdpa_get_iova_range(int fd, struct vhost_vdpa_iova_range *iova_range)
+{
+    int ret = ioctl(fd, VHOST_VDPA_GET_IOVA_RANGE, iova_range);
+
+    return ret < 0 ? -errno : 0;
+}
+
 /*
  * The use of this function is for requests that only need to be
  * applied once. Typically such request occurs at the beginning
@@ -512,9 +519,18 @@ static void vhost_vdpa_host_notifiers_uninit(struct vhost_dev *dev, int n)
 {
     int i;
 
+    /*
+     * Pack all the changes to the memory regions in a single
+     * transaction to avoid a few updating of the address space
+     * topology.
+     */
+    memory_region_transaction_begin();
+
     for (i = dev->vq_index; i < dev->vq_index + n; i++) {
         vhost_vdpa_host_notifier_uninit(dev, i);
     }
+
+    memory_region_transaction_commit();
 }
 
 static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
@@ -527,17 +543,21 @@ static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
         return;
     }
 
+    /*
+     * Pack all the changes to the memory regions in a single
+     * transaction to avoid a few updating of the address space
+     * topology.
+     */
+    memory_region_transaction_begin();
+
     for (i = dev->vq_index; i < dev->vq_index + dev->nvqs; i++) {
         if (vhost_vdpa_host_notifier_init(dev, i)) {
-            goto err;
+            vhost_vdpa_host_notifiers_uninit(dev, i - dev->vq_index);
+            break;
         }
     }
 
-    return;
-
-err:
-    vhost_vdpa_host_notifiers_uninit(dev, i - dev->vq_index);
-    return;
+    memory_region_transaction_commit();
 }
 
 static void vhost_vdpa_svq_cleanup(struct vhost_dev *dev)
@@ -714,6 +734,13 @@ static int vhost_vdpa_set_vring_ready(struct vhost_dev *dev)
         vhost_vdpa_call(dev, VHOST_VDPA_SET_VRING_ENABLE, &state);
     }
     return 0;
+}
+
+static int vhost_vdpa_set_config_call(struct vhost_dev *dev,
+                                       int fd)
+{
+    trace_vhost_vdpa_set_config_call(dev, fd);
+    return vhost_vdpa_call(dev, VHOST_VDPA_SET_CONFIG_CALL, &fd);
 }
 
 static void vhost_vdpa_dump_config(struct vhost_dev *dev, const uint8_t *config,
@@ -1298,4 +1325,5 @@ const VhostOps vdpa_ops = {
         .vhost_get_device_id = vhost_vdpa_get_device_id,
         .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
         .vhost_force_iommu = vhost_vdpa_force_iommu,
+        .vhost_set_config_call = vhost_vdpa_set_config_call,
 };

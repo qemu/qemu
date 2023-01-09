@@ -74,7 +74,6 @@ const int vdpa_feature_bits[] = {
     VIRTIO_F_RING_RESET,
     VIRTIO_NET_F_RSS,
     VIRTIO_NET_F_HASH_REPORT,
-    VIRTIO_NET_F_GUEST_ANNOUNCE,
     VIRTIO_NET_F_STATUS,
     VHOST_INVALID_FEATURE_BIT
 };
@@ -616,9 +615,18 @@ static int vhost_vdpa_net_handle_ctrl_avail(VhostShadowVirtqueue *svq,
     out.iov_len = iov_to_buf(elem->out_sg, elem->out_num, 0,
                              s->cvq_cmd_out_buffer,
                              vhost_vdpa_net_cvq_cmd_len());
-    dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
-    if (unlikely(dev_written < 0)) {
-        goto out;
+    if (*(uint8_t *)s->cvq_cmd_out_buffer == VIRTIO_NET_CTRL_ANNOUNCE) {
+        /*
+         * Guest announce capability is emulated by qemu, so don't forward to
+         * the device.
+         */
+        dev_written = sizeof(status);
+        *s->status = VIRTIO_NET_OK;
+    } else {
+        dev_written = vhost_vdpa_net_cvq_add(s, out.iov_len, sizeof(status));
+        if (unlikely(dev_written < 0)) {
+            goto out;
+        }
     }
 
     if (unlikely(dev_written < sizeof(status))) {
@@ -700,14 +708,6 @@ static NetClientState *net_vhost_vdpa_init(NetClientState *peer,
         return NULL;
     }
     return nc;
-}
-
-static int vhost_vdpa_get_iova_range(int fd,
-                                     struct vhost_vdpa_iova_range *iova_range)
-{
-    int ret = ioctl(fd, VHOST_VDPA_GET_IOVA_RANGE, iova_range);
-
-    return ret < 0 ? -errno : 0;
 }
 
 static int vhost_vdpa_get_features(int fd, uint64_t *features, Error **errp)
@@ -805,7 +805,13 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         return queue_pairs;
     }
 
-    vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    r = vhost_vdpa_get_iova_range(vdpa_device_fd, &iova_range);
+    if (unlikely(r < 0)) {
+        error_setg(errp, "vhost-vdpa: get iova range failed: %s",
+                   strerror(-r));
+        goto err;
+    }
+
     if (opts->x_svq) {
         if (!vhost_vdpa_net_valid_svq_features(features, errp)) {
             goto err_svq;

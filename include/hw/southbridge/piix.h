@@ -12,8 +12,7 @@
 #ifndef HW_SOUTHBRIDGE_PIIX_H
 #define HW_SOUTHBRIDGE_PIIX_H
 
-#include "hw/pci/pci.h"
-#include "qom/object.h"
+#include "hw/pci/pci_device.h"
 
 /* PIRQRC[A:D]: PIRQx Route Control Registers */
 #define PIIX_PIRQCA 0x60

@@ -11,7 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/vt82c686.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 
 static void via_ac97_realize(PCIDevice *pci_dev, Error **errp)
 {

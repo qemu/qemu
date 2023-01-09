@@ -26,6 +26,9 @@
 #ifndef XLNX_VERSAL_USB2_CTRL_REGS_H
 #define XLNX_VERSAL_USB2_CTRL_REGS_H
 
+#include "hw/register.h"
+#include "hw/sysbus.h"
+
 #define TYPE_XILINX_VERSAL_USB2_CTRL_REGS "xlnx.versal-usb2-ctrl-regs"
 
 #define XILINX_VERSAL_USB2_CTRL_REGS(obj) \

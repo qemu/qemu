@@ -19,7 +19,7 @@
 #define HW_NVME_NVME_H
 
 #include "qemu/uuid.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/block/block.h"
 
 #include "block/nvme.h"

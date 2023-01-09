@@ -18,7 +18,8 @@
 
 #ifndef HW_SIFIVE_E_PRCI_H
 #define HW_SIFIVE_E_PRCI_H
-#include "qom/object.h"
+
+#include "hw/sysbus.h"
 
 enum {
     SIFIVE_E_PRCI_HFROSCCFG = 0x0,
