@@ -33,7 +33,6 @@
 #include "ui/qemu-spice.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
-#include "ui/console.h"
 #include "audio/audio.h"
 #include "disas/disas.h"
 #include "qemu/timer.h"

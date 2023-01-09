@@ -2,8 +2,6 @@
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
-#include "qapi/qmp/qdict.h"
-#include "qemu/error-report.h"
 #include "trace.h"
 #include "ui/input.h"
 #include "ui/console.h"
@@ -594,10 +592,9 @@ MouseInfoList *qmp_query_mice(Error **errp)
     return mice_list;
 }
 
-void hmp_mouse_set(Monitor *mon, const QDict *qdict)
+bool qemu_mouse_set(int index, Error **errp)
 {
     QemuInputHandlerState *s;
-    int index = qdict_get_int(qdict, "index");
     int found = 0;
 
     QTAILQ_FOREACH(s, &handlers, node) {
@@ -606,8 +603,9 @@ void hmp_mouse_set(Monitor *mon, const QDict *qdict)
         }
         if (!(s->handler->mask & (INPUT_EVENT_MASK_REL |
                                   INPUT_EVENT_MASK_ABS))) {
-            error_report("Input device '%s' is not a mouse", s->handler->name);
-            return;
+            error_setg(errp, "Input device '%s' is not a mouse",
+                       s->handler->name);
+            return false;
         }
         found = 1;
         qemu_input_handler_activate(s);
@@ -615,9 +613,10 @@ void hmp_mouse_set(Monitor *mon, const QDict *qdict)
     }
 
     if (!found) {
-        error_report("Mouse at index '%d' not found", index);
-        return;
+        error_setg(errp, "Mouse at index '%d' not found", index);
+        return false;
     }
 
     qemu_input_check_mode_change();
+    return true;
 }

@@ -69,6 +69,14 @@ void hmp_mouse_button(Monitor *mon, const QDict *qdict)
     mouse_button_state = button_state;
 }
 
+void hmp_mouse_set(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qemu_mouse_set(qdict_get_int(qdict, "index"), &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_info_mice(Monitor *mon, const QDict *qdict)
 {
     MouseInfoList *mice_list, *mouse;
