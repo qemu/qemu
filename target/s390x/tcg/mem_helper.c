@@ -35,6 +35,12 @@
 #include "hw/boards.h"
 #endif
 
+#ifdef CONFIG_USER_ONLY
+# define user_or_likely(X)    true
+#else
+# define user_or_likely(X)    likely(X)
+#endif
+
 /*****************************************************************************/
 /* Softmmu support */
 
@@ -246,59 +252,43 @@ static void access_memset(CPUS390XState *env, S390Access *desta,
                      desta->mmu_idx, ra);
 }
 
-static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr,
-                                  void *haddr, int offset,
-                                  int mmu_idx, uintptr_t ra)
-{
-#ifdef CONFIG_USER_ONLY
-    return ldub_p(haddr + offset);
-#else
-    if (likely(haddr)) {
-        return ldub_p(haddr + offset);
-    } else {
-        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-        return cpu_ldb_mmu(env, vaddr + offset, oi, ra);
-    }
-#endif
-}
-
 static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
                                int offset, uintptr_t ra)
 {
-    if (offset < access->size1) {
-        return do_access_get_byte(env, access->vaddr1, access->haddr1,
-                                  offset, access->mmu_idx, ra);
+    target_ulong vaddr = access->vaddr1;
+    void *haddr = access->haddr1;
+
+    if (unlikely(offset >= access->size1)) {
+        offset -= access->size1;
+        vaddr = access->vaddr2;
+        haddr = access->haddr2;
     }
-    return do_access_get_byte(env, access->vaddr2, access->haddr2,
-                              offset - access->size1, access->mmu_idx, ra);
-}
 
-static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, void *haddr,
-                               int offset, uint8_t byte, int mmu_idx,
-                               uintptr_t ra)
-{
-#ifdef CONFIG_USER_ONLY
-    stb_p(haddr + offset, byte);
-#else
-
-    if (likely(haddr)) {
-        stb_p(haddr + offset, byte);
+    if (user_or_likely(haddr)) {
+        return ldub_p(haddr + offset);
     } else {
-        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-        cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
+        MemOpIdx oi = make_memop_idx(MO_UB, access->mmu_idx);
+        return cpu_ldb_mmu(env, vaddr + offset, oi, ra);
     }
-#endif
 }
 
 static void access_set_byte(CPUS390XState *env, S390Access *access,
                             int offset, uint8_t byte, uintptr_t ra)
 {
-    if (offset < access->size1) {
-        do_access_set_byte(env, access->vaddr1, access->haddr1, offset, byte,
-                           access->mmu_idx, ra);
+    target_ulong vaddr = access->vaddr1;
+    void *haddr = access->haddr1;
+
+    if (unlikely(offset >= access->size1)) {
+        offset -= access->size1;
+        vaddr = access->vaddr2;
+        haddr = access->haddr2;
+    }
+
+    if (user_or_likely(haddr)) {
+        stb_p(haddr + offset, byte);
     } else {
-        do_access_set_byte(env, access->vaddr2, access->haddr2,
-                           offset - access->size1, byte, access->mmu_idx, ra);
+        MemOpIdx oi = make_memop_idx(MO_UB, access->mmu_idx);
+        cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
     }
 }
 
