@@ -119,14 +119,14 @@ void pxa27x_register_keypad(PXA2xxKeyPadState *kp,
                             const struct keymap *map, int size);
 
 /* pxa2xx.c */
-typedef struct PXA2xxI2CState PXA2xxI2CState;
+#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
+OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CState, PXA2XX_I2C)
+
 PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t page_size);
 I2CBus *pxa2xx_i2c_bus(PXA2xxI2CState *s);
 
-#define TYPE_PXA2XX_I2C "pxa2xx_i2c"
 typedef struct PXA2xxI2SState PXA2xxI2SState;
-OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxI2CState, PXA2XX_I2C)
 
 #define TYPE_PXA2XX_FIR "pxa2xx-fir"
 OBJECT_DECLARE_SIMPLE_TYPE(PXA2xxFIrState, PXA2XX_FIR)
