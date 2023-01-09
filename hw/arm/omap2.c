@@ -167,7 +167,7 @@ static inline void omap_eac_out_empty(struct omap_eac_s *s)
 
 static void omap_eac_in_cb(void *opaque, int avail_b)
 {
-    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    struct omap_eac_s *s = opaque;
 
     s->codec.rxavail = avail_b >> 2;
     omap_eac_in_refill(s);
@@ -177,7 +177,7 @@ static void omap_eac_in_cb(void *opaque, int avail_b)
 
 static void omap_eac_out_cb(void *opaque, int free_b)
 {
-    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    struct omap_eac_s *s = opaque;
 
     s->codec.txavail = free_b >> 2;
     if (s->codec.txlen)
@@ -333,10 +333,9 @@ static void omap_eac_reset(struct omap_eac_s *s)
     omap_eac_interrupt_update(s);
 }
 
-static uint64_t omap_eac_read(void *opaque, hwaddr addr,
-                              unsigned size)
+static uint64_t omap_eac_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    struct omap_eac_s *s = opaque;
     uint32_t ret;
 
     if (size != 2) {
@@ -452,7 +451,7 @@ static uint64_t omap_eac_read(void *opaque, hwaddr addr,
 static void omap_eac_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+    struct omap_eac_s *s = opaque;
 
     if (size != 2) {
         omap_badwidth_write16(opaque, addr, value);
@@ -656,7 +655,7 @@ static void omap_sti_reset(struct omap_sti_s *s)
 static uint64_t omap_sti_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    struct omap_sti_s *s = opaque;
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -697,7 +696,7 @@ static uint64_t omap_sti_read(void *opaque, hwaddr addr,
 static void omap_sti_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    struct omap_sti_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -751,8 +750,7 @@ static const MemoryRegionOps omap_sti_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t omap_sti_fifo_read(void *opaque, hwaddr addr,
-                                   unsigned size)
+static uint64_t omap_sti_fifo_read(void *opaque, hwaddr addr, unsigned size)
 {
     OMAP_BAD_REG(addr);
     return 0;
@@ -761,7 +759,7 @@ static uint64_t omap_sti_fifo_read(void *opaque, hwaddr addr,
 static void omap_sti_fifo_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+    struct omap_sti_s *s = opaque;
     int ch = addr >> 6;
     uint8_t byte = value;
 
@@ -1057,7 +1055,7 @@ static void omap_prcm_int_update(struct omap_prcm_s *s, int dom)
 static uint64_t omap_prcm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
+    struct omap_prcm_s *s = opaque;
     uint32_t ret;
 
     if (size != 4) {
@@ -1369,7 +1367,7 @@ static void omap_prcm_dpll_update(struct omap_prcm_s *s)
 static void omap_prcm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
+    struct omap_prcm_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -1849,7 +1847,7 @@ struct omap_sysctl_s {
 static uint32_t omap_sysctl_read8(void *opaque, hwaddr addr)
 {
 
-    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    struct omap_sysctl_s *s = opaque;
     int pad_offset, byte_offset;
     int value;
 
@@ -1873,7 +1871,7 @@ static uint32_t omap_sysctl_read8(void *opaque, hwaddr addr)
 
 static uint32_t omap_sysctl_read(void *opaque, hwaddr addr)
 {
-    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    struct omap_sysctl_s *s = opaque;
 
     switch (addr) {
     case 0x000:	/* CONTROL_REVISION */
@@ -1971,10 +1969,9 @@ static uint32_t omap_sysctl_read(void *opaque, hwaddr addr)
     return 0;
 }
 
-static void omap_sysctl_write8(void *opaque, hwaddr addr,
-                uint32_t value)
+static void omap_sysctl_write8(void *opaque, hwaddr addr, uint32_t value)
 {
-    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    struct omap_sysctl_s *s = opaque;
     int pad_offset, byte_offset;
     int prev_value;
 
@@ -1995,10 +1992,9 @@ static void omap_sysctl_write8(void *opaque, hwaddr addr,
     }
 }
 
-static void omap_sysctl_write(void *opaque, hwaddr addr,
-                uint32_t value)
+static void omap_sysctl_write(void *opaque, hwaddr addr, uint32_t value)
 {
-    struct omap_sysctl_s *s = (struct omap_sysctl_s *) opaque;
+    struct omap_sysctl_s *s = opaque;
 
     switch (addr) {
     case 0x000:	/* CONTROL_REVISION */
@@ -2233,7 +2229,7 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 /* General chip reset */
 static void omap2_mpu_reset(void *opaque)
 {
-    struct omap_mpu_state_s *mpu = (struct omap_mpu_state_s *) opaque;
+    struct omap_mpu_state_s *mpu = opaque;
 
     omap_dma_reset(mpu->dma);
     omap_prcm_reset(mpu->prcm);

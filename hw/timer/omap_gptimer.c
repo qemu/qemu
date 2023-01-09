@@ -159,7 +159,7 @@ static inline void omap_gp_timer_trigger(struct omap_gp_timer_s *timer)
 
 static void omap_gp_timer_tick(void *opaque)
 {
-    struct omap_gp_timer_s *timer = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *timer = opaque;
 
     if (!timer->ar) {
         timer->st = 0;
@@ -179,7 +179,7 @@ static void omap_gp_timer_tick(void *opaque)
 
 static void omap_gp_timer_match(void *opaque)
 {
-    struct omap_gp_timer_s *timer = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *timer = opaque;
 
     if (timer->trigger == gpt_trigger_both)
         omap_gp_timer_trigger(timer);
@@ -189,7 +189,7 @@ static void omap_gp_timer_match(void *opaque)
 
 static void omap_gp_timer_input(void *opaque, int line, int on)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *s = opaque;
     int trigger;
 
     switch (s->capture) {
@@ -219,7 +219,7 @@ static void omap_gp_timer_input(void *opaque, int line, int on)
 
 static void omap_gp_timer_clk_update(void *opaque, int line, int on)
 {
-    struct omap_gp_timer_s *timer = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *timer = opaque;
 
     omap_gp_timer_sync(timer);
     timer->rate = on ? omap_clk_getrate(timer->clk) : 0;
@@ -262,7 +262,7 @@ void omap_gp_timer_reset(struct omap_gp_timer_s *s)
 
 static uint32_t omap_gp_timer_readw(void *opaque, hwaddr addr)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* TIDR */
@@ -328,7 +328,7 @@ static uint32_t omap_gp_timer_readw(void *opaque, hwaddr addr)
 
 static uint32_t omap_gp_timer_readh(void *opaque, hwaddr addr)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *s = opaque;
     uint32_t ret;
 
     if (addr & 2)
@@ -340,10 +340,9 @@ static uint32_t omap_gp_timer_readh(void *opaque, hwaddr addr)
     }
 }
 
-static void omap_gp_timer_write(void *opaque, hwaddr addr,
-                uint32_t value)
+static void omap_gp_timer_write(void *opaque, hwaddr addr, uint32_t value)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* TIDR */
@@ -440,10 +439,9 @@ static void omap_gp_timer_write(void *opaque, hwaddr addr,
     }
 }
 
-static void omap_gp_timer_writeh(void *opaque, hwaddr addr,
-                uint32_t value)
+static void omap_gp_timer_writeh(void *opaque, hwaddr addr, uint32_t value)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *) opaque;
+    struct omap_gp_timer_s *s = opaque;
 
     if (addr & 2)
         omap_gp_timer_write(opaque, addr, (value << 16) | s->writeh);

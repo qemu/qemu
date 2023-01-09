@@ -72,7 +72,7 @@ static void omap_gpio_set(void *opaque, int line, int level)
 static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
+    struct omap_gpio_s *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 2) {
@@ -110,7 +110,7 @@ static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
 static void omap_gpio_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
+    struct omap_gpio_s *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
@@ -309,7 +309,7 @@ static void omap2_gpio_module_reset(struct omap2_gpio_s *s)
 
 static uint32_t omap2_gpio_module_read(void *opaque, hwaddr addr)
 {
-    struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
+    struct omap2_gpio_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* GPIO_REVISION */
@@ -382,7 +382,7 @@ static uint32_t omap2_gpio_module_read(void *opaque, hwaddr addr)
 static void omap2_gpio_module_write(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
+    struct omap2_gpio_s *s = opaque;
     uint32_t diff;
     int ln;
 
@@ -611,10 +611,9 @@ static void omap2_gpif_reset(DeviceState *dev)
     s->gpo = 0;
 }
 
-static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr,
-                                    unsigned size)
+static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
+    struct omap2_gpif_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */
@@ -643,7 +642,7 @@ static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr,
 static void omap2_gpif_top_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
+    struct omap2_gpif_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */

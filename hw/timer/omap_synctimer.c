@@ -39,7 +39,7 @@ void omap_synctimer_reset(struct omap_synctimer_s *s)
 
 static uint32_t omap_synctimer_readw(void *opaque, hwaddr addr)
 {
-    struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
+    struct omap_synctimer_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* 32KSYNCNT_REV */
@@ -55,7 +55,7 @@ static uint32_t omap_synctimer_readw(void *opaque, hwaddr addr)
 
 static uint32_t omap_synctimer_readh(void *opaque, hwaddr addr)
 {
-    struct omap_synctimer_s *s = (struct omap_synctimer_s *) opaque;
+    struct omap_synctimer_s *s = opaque;
     uint32_t ret;
 
     if (addr & 2)

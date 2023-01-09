@@ -66,7 +66,7 @@
 static uint64_t static_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
-    uint32_t *val = (uint32_t *) opaque;
+    uint32_t *val = opaque;
     uint32_t mask = (4 / size) - 1;
 
     return *val >> ((offset & mask) << 3);
