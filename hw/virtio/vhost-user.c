@@ -48,7 +48,7 @@
  * hardware plaform.
  */
 #if defined(TARGET_X86) || defined(TARGET_X86_64) || \
-    defined(TARGET_ARM) || defined(TARGET_ARM_64)
+    defined(TARGET_ARM) || defined(TARGET_AARCH64)
 #include "hw/acpi/acpi.h"
 #define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
 
