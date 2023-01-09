@@ -98,9 +98,7 @@ static SpiceCharDeviceInterface vmc_interface = {
     .write              = vmc_write,
     .read               = vmc_read,
     .event              = vmc_event,
-#if SPICE_SERVER_VERSION >= 0x000c06
     .flags              = SPICE_CHAR_DEVICE_NOTIFY_WRITABLE,
-#endif
 };
 
 

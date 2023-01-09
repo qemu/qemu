@@ -748,7 +748,7 @@ if not get_option('spice_protocol').auto() or have_system
 endif
 spice = not_found
 if not get_option('spice').auto() or have_system
-  spice = dependency('spice-server', version: '>=0.12.5',
+  spice = dependency('spice-server', version: '>=0.14.0',
                      required: get_option('spice'),
                      method: 'pkg-config', kwargs: static_kwargs)
 endif

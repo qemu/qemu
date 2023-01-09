@@ -99,9 +99,7 @@ struct PCIQXLDevice {
     QXLModes           *modes;
     uint32_t           rom_size;
     MemoryRegion       rom_bar;
-#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
     uint16_t           max_outputs;
-#endif
 
     /* vram pci bar */
     uint64_t           vram_size;
