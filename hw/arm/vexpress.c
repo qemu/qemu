@@ -659,10 +659,6 @@ static void vexpress_common_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash0 = ve_pflash_cfi01_register(map[VE_NORFLASH0], "vexpress.flash0",
                                        dinfo);
-    if (!pflash0) {
-        error_report("vexpress: error registering flash 0");
-        exit(1);
-    }
 
     if (map[VE_NORFLASHALIAS] != -1) {
         /* Map flash 0 as an alias into low memory */
@@ -673,11 +669,7 @@ static void vexpress_common_init(MachineState *machine)
     }
 
     dinfo = drive_get(IF_PFLASH, 0, 1);
-    if (!ve_pflash_cfi01_register(map[VE_NORFLASH1], "vexpress.flash1",
-                                  dinfo)) {
-        error_report("vexpress: error registering flash 1");
-        exit(1);
-    }
+    ve_pflash_cfi01_register(map[VE_NORFLASH1], "vexpress.flash1", dinfo);
 
     sram_size = 0x2000000;
     memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size,
