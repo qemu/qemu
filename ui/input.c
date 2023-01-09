@@ -616,6 +616,7 @@ void hmp_mouse_set(Monitor *mon, const QDict *qdict)
 
     if (!found) {
         error_report("Mouse at index '%d' not found", index);
+        return;
     }
 
     qemu_input_check_mode_change();
