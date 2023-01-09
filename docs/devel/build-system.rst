@@ -91,10 +91,6 @@ developers in checking for system features:
 ``check_define $NAME``
    Determine if the macro $NAME is defined by the system C compiler
 
-``check_include $NAME``
-   Determine if the include $NAME file is available to the system C
-   compiler.  The replacement in Meson is ``cc.has_header()``.
-
 ``write_c_skeleton``
    Write a minimal C program main() function to the temporary file
    indicated by $TMPC

@@ -275,9 +275,6 @@ EXTRA_OBJCFLAGS=""
 EXTRA_LDFLAGS=""
 
 debug_tcg="no"
-sanitizers="no"
-tsan="no"
-fortify_source="yes"
 docs="auto"
 EXESUF=""
 prefix="/usr/local"
@@ -411,14 +408,6 @@ cat > $TMPC <<EOF
 #if !defined($1)
 #error $1 not defined
 #endif
-int main(void) { return 0; }
-EOF
-  compile_object
-}
-
-check_include() {
-cat > $TMPC <<EOF
-#include <$1>
 int main(void) { return 0; }
 EOF
   compile_object
@@ -806,15 +795,6 @@ for opt do
       meson_option_parse --enable-debug-graph-lock ""
       meson_option_parse --enable-debug-mutex ""
       meson_option_add -Doptimization=0
-      fortify_source="no"
-  ;;
-  --enable-sanitizers) sanitizers="yes"
-  ;;
-  --disable-sanitizers) sanitizers="no"
-  ;;
-  --enable-tsan) tsan="yes"
-  ;;
-  --disable-tsan) tsan="no"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
@@ -1025,8 +1005,6 @@ Advanced options (experts only):
                            desired devices in configs/devices/)
   --with-devices-ARCH=NAME override default configs/devices
   --enable-debug           enable common debug build options
-  --enable-sanitizers      enable default sanitizers
-  --enable-tsan            enable thread sanitizer
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
   --cpu=CPU                Build for host CPU [$cpu]
@@ -1633,87 +1611,6 @@ if ! compile_object "-Werror"; then
     ccache_cpp2=yes
 fi
 
-#################################################
-# clang does not support glibc + FORTIFY_SOURCE.
-
-if test "$fortify_source" != "no"; then
-  if echo | $cc -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
-    fortify_source="no";
-  elif test -n "$cxx" && has $cxx &&
-       echo | $cxx -dM -E - | grep __clang__ >/dev/null 2>&1 ; then
-    fortify_source="no";
-  else
-    fortify_source="yes"
-  fi
-fi
-
-##########################################
-# checks for sanitizers
-
-have_asan=no
-have_ubsan=no
-have_asan_iface_h=no
-have_asan_iface_fiber=no
-
-if test "$sanitizers" = "yes" ; then
-  write_c_skeleton
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
-      have_asan=yes
-  fi
-
-  # we could use a simple skeleton for flags checks, but this also
-  # detect the static linking issue of ubsan, see also:
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
-  cat > $TMPC << EOF
-int main(int argc, char **argv)
-{
-    return argc + 1;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
-      have_ubsan=yes
-  fi
-
-  if check_include "sanitizer/asan_interface.h" ; then
-      have_asan_iface_h=yes
-  fi
-
-  cat > $TMPC << EOF
-#include <sanitizer/asan_interface.h>
-int main(void) {
-  __sanitizer_start_switch_fiber(0, 0, 0);
-  return 0;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" "" ; then
-      have_asan_iface_fiber=yes
-  fi
-fi
-
-# Thread sanitizer is, for now, much noisier than the other sanitizers;
-# keep it separate until that is not the case.
-if test "$tsan" = "yes" && test "$sanitizers" = "yes"; then
-  error_exit "TSAN is not supported with other sanitiziers."
-fi
-have_tsan=no
-have_tsan_iface_fiber=no
-if test "$tsan" = "yes" ; then
-  write_c_skeleton
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=thread" "" ; then
-      have_tsan=yes
-  fi
-  cat > $TMPC << EOF
-#include <sanitizer/tsan_interface.h>
-int main(void) {
-  __tsan_create_fiber(0);
-  return 0;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=thread" "" ; then
-      have_tsan_iface_fiber=yes
-  fi
-fi
-
 ##########################################
 # functions to probe cross compilers
 
@@ -2139,42 +2036,6 @@ case "$vfio_user_server" in
     ;;
 esac
 
-##########################################
-# End of CC checks
-# After here, no more $cc or $ld runs
-
-write_c_skeleton
-
-if test "$fortify_source" = "yes" ; then
-  QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-fi
-
-if test "$have_asan" = "yes"; then
-  QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
-  if test "$have_asan_iface_h" = "no" ; then
-      echo "ASAN build enabled, but ASAN header missing." \
-           "Without code annotation, the report may be inferior."
-  elif test "$have_asan_iface_fiber" = "no" ; then
-      echo "ASAN build enabled, but ASAN header is too old." \
-           "Without code annotation, the report may be inferior."
-  fi
-fi
-if test "$have_tsan" = "yes" ; then
-  if test "$have_tsan_iface_fiber" = "yes" ; then
-    QEMU_CFLAGS="-fsanitize=thread $QEMU_CFLAGS"
-    QEMU_LDFLAGS="-fsanitize=thread $QEMU_LDFLAGS"
-  else
-    error_exit "Cannot enable TSAN due to missing fiber annotation interface."
-  fi
-elif test "$tsan" = "yes" ; then
-  error_exit "Cannot enable TSAN due to missing sanitize thread interface."
-fi
-if test "$have_ubsan" = "yes"; then
-  QEMU_CFLAGS="-fsanitize=undefined $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
-fi
-
 #######################################
 # cross-compiled firmware targets
 
@@ -2298,14 +2159,6 @@ if [ "$bsd" = "yes" ] ; then
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
-
-if test "$have_asan_iface_fiber" = "yes" ; then
-    echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
-fi
-
-if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
-    echo "CONFIG_TSAN=y" >> $config_host_mak
-fi
 
 if test "$plugins" = "yes" ; then
     echo "CONFIG_PLUGIN=y" >> $config_host_mak

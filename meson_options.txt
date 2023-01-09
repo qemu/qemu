@@ -82,6 +82,10 @@ option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
 option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
+option('sanitizers', type: 'boolean', value: false,
+       description: 'enable default sanitizers')
+option('tsan', type: 'boolean', value: false,
+       description: 'enable thread sanitizer')
 option('cfi', type: 'boolean', value: false,
        description: 'Control-Flow Integrity (CFI)')
 option('cfi_debug', type: 'boolean', value: false,

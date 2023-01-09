@@ -211,6 +211,35 @@ if get_option('prefer_static')
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
 endif
 
+if get_option('sanitizers')
+  if cc.has_argument('-fsanitize=address')
+    qemu_cflags = ['-fsanitize=address'] + qemu_cflags
+    qemu_ldflags = ['-fsanitize=address'] + qemu_ldflags
+  endif
+
+  # Detect static linking issue with ubsan - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
+  if cc.links('int main(int argc, char **argv) { return argc + 1; }',
+              args: [qemu_ldflags, '-fsanitize=undefined'])
+    qemu_cflags = ['-fsanitize=undefined'] + qemu_cflags
+    qemu_ldflags = ['-fsanitize=undefined'] + qemu_ldflags
+  endif
+endif
+
+# Thread sanitizer is, for now, much noisier than the other sanitizers;
+# keep it separate until that is not the case.
+if get_option('tsan')
+  if get_option('sanitizers')
+    error('TSAN is not supported with other sanitizers')
+  endif
+  if not cc.has_function('__tsan_create_fiber',
+                         args: '-fsanitize=thread',
+                         prefix: '#include <sanitizer/tsan_interface.h>')
+    error('Cannot enable TSAN due to missing fiber annotation interface')
+  endif
+  qemu_cflags = ['-fsanitize=thread'] + qemu_cflags
+  qemu_ldflags = ['-fsanitize=thread'] + qemu_ldflags
+endif
+
 # Detect support for PT_GNU_RELRO + DT_BIND_NOW.
 # The combination is known as "full relro", because .got.plt is read-only too.
 qemu_ldflags += cc.get_supported_link_arguments('-Wl,-z,relro', '-Wl,-z,now')
@@ -221,7 +250,7 @@ if targetos == 'windows'
 endif
 
 # Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if targetos != 'sunos' and not config_host.has_key('CONFIG_TSAN')
+if targetos != 'sunos' and not get_option('tsan')
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--warn-common')
 endif
 
@@ -281,6 +310,16 @@ if 'cpp' in all_languages
   else
     message('C++ compiler does not work with C compiler')
     message('Disabling C++-specific optional code')
+  endif
+endif
+
+# clang does not support glibc + FORTIFY_SOURCE (is it still true?)
+if get_option('optimization') != '0' and targetos == 'linux'
+  if cc.get_id() == 'gcc'
+    qemu_cflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
+  endif
+  if 'cpp' in all_languages and cxx.get_id() == 'gcc'
+    qemu_cxxflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
   endif
 endif
 
@@ -1920,6 +1959,7 @@ if seccomp.found()
 endif
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_TPM', have_tpm)
+config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VDE', vde.found())
 config_host_data.set('CONFIG_VHOST_NET', have_vhost_net)
@@ -2050,6 +2090,18 @@ if rdma.found()
                                        dependencies: rdma,
                                        prefix: '#include <infiniband/verbs.h>'))
 endif
+
+have_asan_fiber = false
+if get_option('sanitizers') and \
+   not cc.has_function('__sanitizer_start_switch_fiber',
+                         args: '-fsanitize=address',
+                         prefix: '#include <sanitizer/asan_interface.h>')
+  warning('Missing ASAN due to missing fiber annotation interface')
+  warning('Without code annotation, the report may be inferior.')
+else
+  have_asan_fiber = true
+endif
+config_host_data.set('CONFIG_ASAN_IFACE_FIBER', have_asan_fiber)
 
 # has_header_symbol
 config_host_data.set('CONFIG_BLKZONED',
@@ -3898,7 +3950,7 @@ else
 endif
 summary_info += {'gprof':             gprof_info}
 summary_info += {'gcov':              get_option('b_coverage')}
-summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
+summary_info += {'thread sanitizer':  get_option('tsan')}
 summary_info += {'CFI support':       get_option('cfi')}
 if get_option('cfi')
   summary_info += {'CFI debug support': get_option('cfi_debug')}
