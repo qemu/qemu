@@ -867,9 +867,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             (env->priv_ver < isa_edata_arr[i].min_version)) {
             isa_ext_update_enabled(cpu, &isa_edata_arr[i], false);
 #ifndef CONFIG_USER_ONLY
-            warn_report("disabling %s extension for hart 0x%lx because "
-                        "privilege spec version does not match",
-                        isa_edata_arr[i].name, (unsigned long)env->mhartid);
+            warn_report("disabling %s extension for hart 0x" TARGET_FMT_lx
+                        " because privilege spec version does not match",
+                        isa_edata_arr[i].name, env->mhartid);
 #else
             warn_report("disabling %s extension because "
                         "privilege spec version does not match",
