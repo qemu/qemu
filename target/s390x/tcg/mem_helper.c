@@ -122,11 +122,7 @@ typedef struct S390Access {
      * If we can't access the host page directly, we'll have to do I/O access
      * via ld/st helpers. These are internal details, so we store the
      * mmu idx to do the access here instead of passing it around in the
-     * helpers. Maybe, one day we can get rid of ld/st access - once we can
-     * handle TLB_NOTDIRTY differently. We don't expect these special accesses
-     * to trigger exceptions - only if we would have TLB_NOTDIRTY on LAP
-     * pages, we might trigger a new MMU translation - very unlikely that
-     * the mapping changes in between and we would trigger a fault.
+     * helpers.
      */
     int mmu_idx;
 } S390Access;
@@ -224,28 +220,14 @@ static void do_access_memset(CPUS390XState *env, vaddr vaddr, char *haddr,
                              uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
-    g_assert(haddr);
     memset(haddr, byte, size);
 #else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-    int i;
-
     if (likely(haddr)) {
         memset(haddr, byte, size);
     } else {
-        /*
-         * Do a single access and test if we can then get access to the
-         * page. This is especially relevant to speed up TLB_NOTDIRTY.
-         */
-        g_assert(size > 0);
-        cpu_stb_mmu(env, vaddr, byte, oi, ra);
-        haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_STORE, mmu_idx);
-        if (likely(haddr)) {
-            memset(haddr + 1, byte, size - 1);
-        } else {
-            for (i = 1; i < size; i++) {
-                cpu_stb_mmu(env, vaddr + i, byte, oi, ra);
-            }
+        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+        for (int i = 0; i < size; i++) {
+            cpu_stb_mmu(env, vaddr + i, byte, oi, ra);
         }
     }
 #endif
@@ -265,25 +247,18 @@ static void access_memset(CPUS390XState *env, S390Access *desta,
 }
 
 static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr,
-                                  void **haddr, int offset,
+                                  void *haddr, int offset,
                                   int mmu_idx, uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
-    return ldub_p(*haddr + offset);
+    return ldub_p(haddr + offset);
 #else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-    uint8_t byte;
-
-    if (likely(*haddr)) {
-        return ldub_p(*haddr + offset);
+    if (likely(haddr)) {
+        return ldub_p(haddr + offset);
+    } else {
+        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+        return cpu_ldb_mmu(env, vaddr + offset, oi, ra);
     }
-    /*
-     * Do a single access and test if we can then get access to the
-     * page. This is especially relevant to speed up TLB_NOTDIRTY.
-     */
-    byte = cpu_ldb_mmu(env, vaddr + offset, oi, ra);
-    *haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_LOAD, mmu_idx);
-    return byte;
 #endif
 }
 
@@ -291,32 +266,27 @@ static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
                                int offset, uintptr_t ra)
 {
     if (offset < access->size1) {
-        return do_access_get_byte(env, access->vaddr1, &access->haddr1,
+        return do_access_get_byte(env, access->vaddr1, access->haddr1,
                                   offset, access->mmu_idx, ra);
     }
-    return do_access_get_byte(env, access->vaddr2, &access->haddr2,
+    return do_access_get_byte(env, access->vaddr2, access->haddr2,
                               offset - access->size1, access->mmu_idx, ra);
 }
 
-static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, void **haddr,
+static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, void *haddr,
                                int offset, uint8_t byte, int mmu_idx,
                                uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
-    stb_p(*haddr + offset, byte);
+    stb_p(haddr + offset, byte);
 #else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
 
-    if (likely(*haddr)) {
-        stb_p(*haddr + offset, byte);
-        return;
+    if (likely(haddr)) {
+        stb_p(haddr + offset, byte);
+    } else {
+        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+        cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
     }
-    /*
-     * Do a single access and test if we can then get access to the
-     * page. This is especially relevant to speed up TLB_NOTDIRTY.
-     */
-    cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
-    *haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_STORE, mmu_idx);
 #endif
 }
 
@@ -324,10 +294,10 @@ static void access_set_byte(CPUS390XState *env, S390Access *access,
                             int offset, uint8_t byte, uintptr_t ra)
 {
     if (offset < access->size1) {
-        do_access_set_byte(env, access->vaddr1, &access->haddr1, offset, byte,
+        do_access_set_byte(env, access->vaddr1, access->haddr1, offset, byte,
                            access->mmu_idx, ra);
     } else {
-        do_access_set_byte(env, access->vaddr2, &access->haddr2,
+        do_access_set_byte(env, access->vaddr2, access->haddr2,
                            offset - access->size1, byte, access->mmu_idx, ra);
     }
 }
