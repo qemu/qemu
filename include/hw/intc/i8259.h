@@ -3,10 +3,10 @@
 
 /* i8259.c */
 
-extern DeviceState *isa_pic;
+extern PICCommonState *isa_pic;
 qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
 qemu_irq *kvm_i8259_init(ISABus *bus);
-int pic_get_output(DeviceState *d);
-int pic_read_irq(DeviceState *d);
+int pic_get_output(PICCommonState *s);
+int pic_read_irq(PICCommonState *s);
 
 #endif
