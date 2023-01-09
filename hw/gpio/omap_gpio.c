@@ -53,7 +53,8 @@ struct omap_gpif_s {
 /* General-Purpose I/O of OMAP1 */
 static void omap_gpio_set(void *opaque, int line, int level)
 {
-    struct omap_gpio_s *s = &((struct omap_gpif_s *) opaque)->omap1;
+    struct omap_gpif_s *p = opaque;
+    struct omap_gpio_s *s = &p->omap1;
     uint16_t prev = s->inputs;
 
     if (level)
