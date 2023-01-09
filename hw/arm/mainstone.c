@@ -12,6 +12,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/arm/pxa.h"
@@ -99,19 +100,20 @@ static const struct keymap map[0xE0] = {
 
 enum mainstone_model_e { mainstone };
 
-#define MAINSTONE_RAM	0x04000000
-#define MAINSTONE_ROM	0x00800000
-#define MAINSTONE_FLASH	0x02000000
+#define MAINSTONE_RAM_SIZE      (64 * MiB)
+#define MAINSTONE_ROM_SIZE      (8 * MiB)
+#define MAINSTONE_FLASH_SIZE    (32 * MiB)
 
 static struct arm_boot_info mainstone_binfo = {
     .loader_start = PXA2XX_SDRAM_BASE,
-    .ram_size = 0x04000000,
+    .ram_size = MAINSTONE_RAM_SIZE,
 };
+
+#define FLASH_SECTOR_SIZE   (256 * KiB)
 
 static void mainstone_common_init(MachineState *machine,
                                   enum mainstone_model_e model, int arm_id)
 {
-    uint32_t sector_len = 256 * 1024;
     hwaddr mainstone_flash_base[] = { MST_FLASH_0, MST_FLASH_1 };
     PXA2xxState *mpu;
     DeviceState *mst_irq;
@@ -121,7 +123,7 @@ static void mainstone_common_init(MachineState *machine,
 
     /* Setup CPU & memory */
     mpu = pxa270_init(mainstone_binfo.ram_size, machine->cpu_type);
-    memory_region_init_rom(rom, NULL, "mainstone.rom", MAINSTONE_ROM,
+    memory_region_init_rom(rom, NULL, "mainstone.rom", MAINSTONE_ROM_SIZE,
                            &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0x00000000, rom);
 
@@ -130,9 +132,9 @@ static void mainstone_common_init(MachineState *machine,
         dinfo = drive_get(IF_PFLASH, 0, i);
         if (!pflash_cfi01_register(mainstone_flash_base[i],
                                    i ? "mainstone.flash1" : "mainstone.flash0",
-                                   MAINSTONE_FLASH,
+                                   MAINSTONE_FLASH_SIZE,
                                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                                   sector_len, 4, 0, 0, 0, 0, 0)) {
+                                   FLASH_SECTOR_SIZE, 4, 0, 0, 0, 0, 0)) {
             error_report("Error registering flash memory");
             exit(1);
         }
