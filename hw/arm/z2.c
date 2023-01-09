@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "hw/i2c/i2c.h"
@@ -297,9 +298,10 @@ static const TypeInfo aer915_info = {
     .class_init    = aer915_class_init,
 };
 
+#define FLASH_SECTOR_SIZE   (64 * KiB)
+
 static void z2_init(MachineState *machine)
 {
-    uint32_t sector_len = 0x10000;
     PXA2xxState *mpu;
     DriveInfo *dinfo;
     void *z2_lcd;
@@ -312,7 +314,7 @@ static void z2_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!pflash_cfi01_register(Z2_FLASH_BASE, "z2.flash0", Z2_FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               sector_len, 4, 0, 0, 0, 0, 0)) {
+                               FLASH_SECTOR_SIZE, 4, 0, 0, 0, 0, 0)) {
         error_report("Error registering flash memory");
         exit(1);
     }
