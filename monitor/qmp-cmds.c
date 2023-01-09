@@ -201,15 +201,28 @@ void qmp_expire_password(ExpirePasswordOptions *opts, Error **errp)
     time_t when;
     int rc;
     const char *whenstr = opts->time;
+    const char *numstr = NULL;
+    uint64_t num;
 
     if (strcmp(whenstr, "now") == 0) {
         when = 0;
     } else if (strcmp(whenstr, "never") == 0) {
         when = TIME_MAX;
     } else if (whenstr[0] == '+') {
-        when = time(NULL) + strtoull(whenstr+1, NULL, 10);
+        when = time(NULL);
+        numstr = whenstr + 1;
     } else {
-        when = strtoull(whenstr, NULL, 10);
+        when = 0;
+        numstr = whenstr;
+    }
+
+    if (numstr) {
+        if (qemu_strtou64(numstr, NULL, 10, &num) < 0) {
+            error_setg(errp, "Parameter 'time' doesn't take value '%s'",
+                       whenstr);
+            return;
+        }
+        when += num;
     }
 
     if (opts->protocol == DISPLAY_PROTOCOL_SPICE) {
