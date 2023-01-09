@@ -611,7 +611,7 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
     SpiceChannelList *chan;
     SpiceInfo *info;
     const char *channel_name;
-    const char * const channel_names[] = {
+    static const char *const channel_names[] = {
         [SPICE_CHANNEL_MAIN] = "main",
         [SPICE_CHANNEL_DISPLAY] = "display",
         [SPICE_CHANNEL_INPUTS] = "inputs",
