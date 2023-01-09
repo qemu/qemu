@@ -17,13 +17,11 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "monitor/monitor.h"
+#include "monitor/qmp-helpers.h"
 #include "sysemu/sysemu.h"
 #include "qemu/config-file.h"
 #include "qemu/uuid.h"
 #include "chardev/char.h"
-#include "ui/qemu-spice.h"
-#include "ui/console.h"
-#include "ui/dbus-display.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
@@ -170,53 +168,47 @@ void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
 {
+    static struct {
+        const char *name;
+        bool (*add_client)(int fd, bool has_skipauth, bool skipauth,
+                           bool has_tls, bool tls, Error **errp);
+    } protocol_table[] = {
+        { "spice", qmp_add_client_spice },
+#ifdef CONFIG_VNC
+        { "vnc", qmp_add_client_vnc },
+#endif
+#ifdef CONFIG_DBUS_DISPLAY
+        { "@dbus-display", qmp_add_client_dbus_display },
+#endif
+    };
     Chardev *s;
-    int fd;
+    int fd, i;
 
     fd = monitor_get_fd(monitor_cur(), fdname, errp);
     if (fd < 0) {
         return;
     }
 
-    if (strcmp(protocol, "spice") == 0) {
-        if (!qemu_using_spice(errp)) {
-            close(fd);
+    for (i = 0; i < ARRAY_SIZE(protocol_table); i++) {
+        if (!strcmp(protocol, protocol_table[i].name)) {
+            if (!protocol_table[i].add_client(fd, has_skipauth, skipauth,
+                                              has_tls, tls, errp)) {
+                close(fd);
+            }
             return;
         }
-        skipauth = has_skipauth ? skipauth : false;
-        tls = has_tls ? tls : false;
-        if (qemu_spice.display_add_client(fd, skipauth, tls) < 0) {
-            error_setg(errp, "spice failed to add client");
-            close(fd);
-        }
-#ifdef CONFIG_VNC
-    } else if (strcmp(protocol, "vnc") == 0) {
-        skipauth = has_skipauth ? skipauth : false;
-        vnc_display_add_client(NULL, fd, skipauth);
-#endif
-#ifdef CONFIG_DBUS_DISPLAY
-    } else if (strcmp(protocol, "@dbus-display") == 0) {
-        if (!qemu_using_dbus_display(errp)) {
-            close(fd);
-            return;
-        }
-        if (!qemu_dbus_display.add_client(fd, errp)) {
-            close(fd);
-            return;
-        }
-#endif
-    } else {
-        s = qemu_chr_find(protocol);
-        if (!s) {
-            error_setg(errp, "protocol '%s' is invalid", protocol);
-            close(fd);
-            return;
-        }
-        if (qemu_chr_add_client(s, fd) < 0) {
-            error_setg(errp, "failed to add client");
-            close(fd);
-            return;
-        }
+    }
+
+    s = qemu_chr_find(protocol);
+    if (!s) {
+        error_setg(errp, "protocol '%s' is invalid", protocol);
+        close(fd);
+        return;
+    }
+    if (qemu_chr_add_client(s, fd) < 0) {
+        error_setg(errp, "failed to add client");
+        close(fd);
+        return;
     }
 }
 

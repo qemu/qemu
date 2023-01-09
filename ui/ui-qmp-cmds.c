@@ -14,10 +14,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "monitor/qmp-helpers.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
 #include "ui/console.h"
+#include "ui/dbus-display.h"
 #include "ui/qemu-spice.h"
 
 void qmp_set_password(SetPasswordOptions *opts, Error **errp)
@@ -100,6 +102,45 @@ void qmp_change_vnc_password(const char *password, Error **errp)
     if (vnc_display_password(NULL, password) < 0) {
         error_setg(errp, "Could not set password");
     }
+}
+#endif
+
+bool qmp_add_client_spice(int fd, bool has_skipauth, bool skipauth,
+                          bool has_tls, bool tls, Error **errp)
+{
+    if (!qemu_using_spice(errp)) {
+        return false;
+    }
+    skipauth = has_skipauth ? skipauth : false;
+    tls = has_tls ? tls : false;
+    if (qemu_spice.display_add_client(fd, skipauth, tls) < 0) {
+        error_setg(errp, "spice failed to add client");
+        return false;
+    }
+    return true;
+}
+
+#ifdef CONFIG_VNC
+bool qmp_add_client_vnc(int fd, bool has_skipauth, bool skipauth,
+                        bool has_tls, bool tls, Error **errp)
+{
+    skipauth = has_skipauth ? skipauth : false;
+    vnc_display_add_client(NULL, fd, skipauth);
+    return true;
+}
+#endif
+
+#ifdef CONFIG_DBUS_DISPLAY
+bool qmp_add_client_dbus_display(int fd, bool has_skipauth, bool skipauth,
+                                 bool has_tls, bool tls, Error **errp)
+{
+    if (!qemu_using_dbus_display(errp)) {
+        return false;
+    }
+    if (!qemu_dbus_display.add_client(fd, errp)) {
+        return false;
+    }
+    return true;
 }
 #endif
 
