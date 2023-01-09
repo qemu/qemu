@@ -26,6 +26,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
@@ -86,15 +87,15 @@ static const MemoryRegionOps static_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-#define sdram_size	0x02000000
-#define sector_size	(128 * 1024)
-#define flash0_size	(16 * 1024 * 1024)
-#define flash1_size	( 8 * 1024 * 1024)
-#define flash2_size	(32 * 1024 * 1024)
+#define SDRAM_SIZE      (32 * MiB)
+#define SECTOR_SIZE     (128 * KiB)
+#define FLASH0_SIZE     (16 * MiB)
+#define FLASH1_SIZE     (8 * MiB)
+#define FLASH2_SIZE     (32 * MiB)
 
 static struct arm_boot_info sx1_binfo = {
     .loader_start = OMAP_EMIFF_BASE,
-    .ram_size = sdram_size,
+    .ram_size = SDRAM_SIZE,
     .board_id = 0x265,
 };
 
@@ -111,7 +112,7 @@ static void sx1_init(MachineState *machine, const int version)
     static uint32_t cs3val = 0x00001139;
     DriveInfo *dinfo;
     int fl_idx;
-    uint32_t flash_size = flash0_size;
+    uint32_t flash_size = FLASH0_SIZE;
 
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
@@ -121,7 +122,7 @@ static void sx1_init(MachineState *machine, const int version)
     }
 
     if (version == 2) {
-        flash_size = flash2_size;
+        flash_size = FLASH2_SIZE;
     }
 
     memory_region_add_subregion(address_space, OMAP_EMIFF_BASE, machine->ram);
@@ -154,7 +155,7 @@ static void sx1_init(MachineState *machine, const int version)
         if (!pflash_cfi01_register(OMAP_CS0_BASE,
                                    "omap_sx1.flash0-1", flash_size,
                                    blk_by_legacy_dinfo(dinfo),
-                                   sector_size, 4, 0, 0, 0, 0, 0)) {
+                                   SECTOR_SIZE, 4, 0, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }
@@ -165,18 +166,18 @@ static void sx1_init(MachineState *machine, const int version)
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
         MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
         memory_region_init_rom(flash_1, NULL, "omap_sx1.flash1-0",
-                               flash1_size, &error_fatal);
+                               FLASH1_SIZE, &error_fatal);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 
         memory_region_init_io(&cs[1], NULL, &static_ops, &cs1val,
-                              "sx1.cs1", OMAP_CS1_SIZE - flash1_size);
+                              "sx1.cs1", OMAP_CS1_SIZE - FLASH1_SIZE);
         memory_region_add_subregion(address_space,
-                                OMAP_CS1_BASE + flash1_size, &cs[1]);
+                                OMAP_CS1_BASE + FLASH1_SIZE, &cs[1]);
 
         if (!pflash_cfi01_register(OMAP_CS1_BASE,
-                                   "omap_sx1.flash1-1", flash1_size,
+                                   "omap_sx1.flash1-1", FLASH1_SIZE,
                                    blk_by_legacy_dinfo(dinfo),
-                                   sector_size, 4, 0, 0, 0, 0, 0)) {
+                                   SECTOR_SIZE, 4, 0, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }
@@ -218,7 +219,7 @@ static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
     mc->init = sx1_init_v2;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
-    mc->default_ram_size = sdram_size;
+    mc->default_ram_size = SDRAM_SIZE;
     mc->default_ram_id = "omap1.dram";
 }
 
@@ -236,7 +237,7 @@ static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
     mc->init = sx1_init_v1;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("ti925t");
-    mc->default_ram_size = sdram_size;
+    mc->default_ram_size = SDRAM_SIZE;
     mc->default_ram_id = "omap1.dram";
 }
 
