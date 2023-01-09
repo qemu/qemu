@@ -328,18 +328,15 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
         error_setg(errp, "Parameter 'read-only-mode' is invalid for VNC");
         return;
     }
-    if (strcmp(target, "passwd") == 0 ||
-        strcmp(target, "password") == 0) {
-        if (!arg) {
-            MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
-            monitor_read_password(hmp_mon, hmp_change_read_arg, NULL);
-            return;
-        } else {
-            qmp_change_vnc_password(arg, errp);
-        }
-    } else {
+    if (strcmp(target, "passwd") && strcmp(target, "password")) {
         error_setg(errp, "Expected 'password' after 'vnc'");
         return;
+    }
+    if (!arg) {
+        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+        monitor_read_password(hmp_mon, hmp_change_read_arg, NULL);
+    } else {
+        qmp_change_vnc_password(arg, errp);
     }
 }
 #endif
