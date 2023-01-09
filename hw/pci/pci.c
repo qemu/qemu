@@ -280,6 +280,7 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     PCIBus *bus;
     for (;;) {
         bus = pci_get_bus(pci_dev);
+        assert(bus->map_irq);
         irq_num = bus->map_irq(pci_dev, irq_num);
         if (bus->set_irq)
             break;
@@ -518,14 +519,18 @@ void pci_root_bus_cleanup(PCIBus *bus)
     qbus_unrealize(BUS(bus));
 }
 
-void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
+void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
                   void *irq_opaque, int nirq)
 {
     bus->set_irq = set_irq;
-    bus->map_irq = map_irq;
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
+}
+
+void pci_bus_map_irqs(PCIBus *bus, pci_map_irq_fn map_irq)
+{
+    bus->map_irq = map_irq;
 }
 
 void pci_bus_irqs_cleanup(PCIBus *bus)
@@ -549,7 +554,8 @@ PCIBus *pci_register_root_bus(DeviceState *parent, const char *name,
 
     bus = pci_root_bus_new(parent, name, address_space_mem,
                            address_space_io, devfn_min, typename);
-    pci_bus_irqs(bus, set_irq, map_irq, irq_opaque, nirq);
+    pci_bus_irqs(bus, set_irq, irq_opaque, nirq);
+    pci_bus_map_irqs(bus, map_irq);
     return bus;
 }
 

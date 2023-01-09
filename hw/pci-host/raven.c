@@ -258,7 +258,8 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 
     qdev_init_gpio_in(d, raven_change_gpio, 1);
 
-    pci_bus_irqs(&s->pci_bus, raven_set_irq, raven_map_irq, s, PCI_NUM_PINS);
+    pci_bus_irqs(&s->pci_bus, raven_set_irq, s, PCI_NUM_PINS);
+    pci_bus_map_irqs(&s->pci_bus, raven_map_irq);
 
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
