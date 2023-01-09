@@ -53,7 +53,7 @@ x64-freebsd-12-build:
     CIRRUS_VM_IMAGE_NAME: freebsd-12-4
     CIRRUS_VM_CPUS: 8
     CIRRUS_VM_RAM: 8G
-    UPDATE_COMMAND: pkg update
+    UPDATE_COMMAND: pkg update; pkg upgrade -y
     INSTALL_COMMAND: pkg install -y
     TEST_TARGETS: check
 
@@ -66,7 +66,7 @@ x64-freebsd-13-build:
     CIRRUS_VM_IMAGE_NAME: freebsd-13-1
     CIRRUS_VM_CPUS: 8
     CIRRUS_VM_RAM: 8G
-    UPDATE_COMMAND: pkg update
+    UPDATE_COMMAND: pkg update; pkg upgrade -y
     INSTALL_COMMAND: pkg install -y
     TEST_TARGETS: check
 
