@@ -168,7 +168,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
 {
-    static struct {
+    static const struct {
         const char *name;
         bool (*add_client)(int fd, bool has_skipauth, bool skipauth,
                            bool has_tls, bool tls, Error **errp);
