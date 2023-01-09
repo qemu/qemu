@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 {
     char *v_env = getenv("V");
 
-    if (v_env && *v_env >= '2') {
+    if (v_env && atoi(v_env) >= 2) {
         verbose = true;
     }
 
