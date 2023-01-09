@@ -41,7 +41,7 @@ struct omap_gpio_s {
     uint16_t pins;
 };
 
-struct omap_gpif_s {
+struct Omap1GpioState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -53,7 +53,7 @@ struct omap_gpif_s {
 /* General-Purpose I/O of OMAP1 */
 static void omap_gpio_set(void *opaque, int line, int level)
 {
-    struct omap_gpif_s *p = opaque;
+    Omap1GpioState *p = opaque;
     struct omap_gpio_s *s = &p->omap1;
     uint16_t prev = s->inputs;
 
@@ -594,7 +594,7 @@ static const MemoryRegionOps omap2_gpio_module_ops = {
 
 static void omap_gpif_reset(DeviceState *dev)
 {
-    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = OMAP1_GPIO(dev);
 
     omap_gpio_reset(&s->omap1);
 }
@@ -677,7 +677,7 @@ static const MemoryRegionOps omap2_gpif_top_ops = {
 static void omap_gpio_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    struct omap_gpif_s *s = OMAP1_GPIO(obj);
+    Omap1GpioState *s = OMAP1_GPIO(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, omap_gpio_set, 16);
@@ -690,7 +690,7 @@ static void omap_gpio_init(Object *obj)
 
 static void omap_gpio_realize(DeviceState *dev, Error **errp)
 {
-    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = OMAP1_GPIO(dev);
 
     if (!s->clk) {
         error_setg(errp, "omap-gpio: clk not connected");
@@ -742,13 +742,13 @@ static void omap2_gpio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-void omap_gpio_set_clk(omap_gpif *gpio, omap_clk clk)
+void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk)
 {
     gpio->clk = clk;
 }
 
 static Property omap_gpio_properties[] = {
-    DEFINE_PROP_INT32("mpu_model", struct omap_gpif_s, mpu_model, 0),
+    DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -766,7 +766,7 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo omap_gpio_info = {
     .name          = TYPE_OMAP1_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct omap_gpif_s),
+    .instance_size = sizeof(Omap1GpioState),
     .instance_init = omap_gpio_init,
     .class_init    = omap_gpio_class_init,
 };
