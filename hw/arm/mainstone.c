@@ -108,8 +108,7 @@ static struct arm_boot_info mainstone_binfo = {
     .ram_size = 0x04000000,
 };
 
-static void mainstone_common_init(MemoryRegion *address_space_mem,
-                                  MachineState *machine,
+static void mainstone_common_init(MachineState *machine,
                                   enum mainstone_model_e model, int arm_id)
 {
     uint32_t sector_len = 256 * 1024;
@@ -121,11 +120,10 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, mainstone_binfo.ram_size,
-                      machine->cpu_type);
+    mpu = pxa270_init(mainstone_binfo.ram_size, machine->cpu_type);
     memory_region_init_rom(rom, NULL, "mainstone.rom", MAINSTONE_ROM,
                            &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0, rom);
+    memory_region_add_subregion(get_system_memory(), 0x00000000, rom);
 
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
@@ -165,7 +163,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
 
 static void mainstone_init(MachineState *machine)
 {
-    mainstone_common_init(get_system_memory(), machine, mainstone, 0x196);
+    mainstone_common_init(machine, mainstone, 0x196);
 }
 
 static void mainstone2_machine_init(MachineClass *mc)
