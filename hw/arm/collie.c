@@ -40,7 +40,6 @@ static struct arm_boot_info collie_binfo = {
 
 static void collie_init(MachineState *machine)
 {
-    DriveInfo *dinfo;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CollieMachineState *cms = COLLIE_MACHINE(machine);
 
@@ -55,15 +54,13 @@ static void collie_init(MachineState *machine)
 
     memory_region_add_subregion(get_system_memory(), SA_SDCS0, machine->ram);
 
-    dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(SA_CS0, "collie.fl1", FLASH_SIZE,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);
-
-    dinfo = drive_get(IF_PFLASH, 0, 1);
-    pflash_cfi01_register(SA_CS1, "collie.fl2", FLASH_SIZE,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    for (unsigned i = 0; i < 2; i++) {
+        DriveInfo *dinfo = drive_get(IF_PFLASH, 0, i);
+        pflash_cfi01_register(i ? SA_CS1 : SA_CS0,
+                              i ? "collie.fl2" : "collie.fl1", FLASH_SIZE,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    }
 
     sysbus_create_simple("scoop", 0x40800000, NULL);
 
