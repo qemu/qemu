@@ -299,16 +299,17 @@ static void access_set_byte(CPUS390XState *env, S390Access *access,
 static void access_memmove(CPUS390XState *env, S390Access *desta,
                            S390Access *srca, uintptr_t ra)
 {
+    int len = desta->size1 + desta->size2;
     int diff;
 
-    g_assert(desta->size1 + desta->size2 == srca->size1 + srca->size2);
+    assert(len == srca->size1 + srca->size2);
 
     /* Fallback to slow access in case we don't have access to all host pages */
     if (unlikely(!desta->haddr1 || (desta->size2 && !desta->haddr2) ||
                  !srca->haddr1 || (srca->size2 && !srca->haddr2))) {
         int i;
 
-        for (i = 0; i < desta->size1 + desta->size2; i++) {
+        for (i = 0; i < len; i++) {
             uint8_t byte = access_get_byte(env, srca, i, ra);
 
             access_set_byte(env, desta, i, byte, ra);
@@ -316,20 +317,20 @@ static void access_memmove(CPUS390XState *env, S390Access *desta,
         return;
     }
 
-    if (srca->size1 == desta->size1) {
+    diff = desta->size1 - srca->size1;
+    if (likely(diff == 0)) {
         memmove(desta->haddr1, srca->haddr1, srca->size1);
         if (unlikely(srca->size2)) {
             memmove(desta->haddr2, srca->haddr2, srca->size2);
         }
-    } else if (srca->size1 < desta->size1) {
-        diff = desta->size1 - srca->size1;
+    } else if (diff > 0) {
         memmove(desta->haddr1, srca->haddr1, srca->size1);
         memmove(desta->haddr1 + srca->size1, srca->haddr2, diff);
         if (likely(desta->size2)) {
             memmove(desta->haddr2, srca->haddr2 + diff, desta->size2);
         }
     } else {
-        diff = srca->size1 - desta->size1;
+        diff = -diff;
         memmove(desta->haddr1, srca->haddr1, desta->size1);
         memmove(desta->haddr2, srca->haddr1 + desta->size1, diff);
         if (likely(srca->size2)) {
