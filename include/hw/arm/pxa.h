@@ -195,6 +195,6 @@ struct PXA2xxI2SState {
 
 PXA2xxState *pxa270_init(MemoryRegion *address_space, unsigned int sdram_size,
                          const char *revision);
-PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size);
+PXA2xxState *pxa255_init(unsigned int sdram_size);
 
 #endif /* PXA_H */

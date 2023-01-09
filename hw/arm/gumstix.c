@@ -51,12 +51,11 @@ static void connex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
-    MemoryRegion *address_space_mem = get_system_memory();
 
     uint32_t connex_rom = 0x01000000;
     uint32_t connex_ram = 0x04000000;
 
-    cpu = pxa255_init(address_space_mem, connex_ram);
+    cpu = pxa255_init(connex_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
