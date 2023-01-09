@@ -79,6 +79,7 @@ RUN nosync dnf install -y \
                mingw32-glib2 \
                mingw32-gnutls \
                mingw32-gtk3 \
+               mingw32-libepoxy \
                mingw32-libgcrypt \
                mingw32-libjpeg-turbo \
                mingw32-libpng \
