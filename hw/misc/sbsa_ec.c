@@ -21,8 +21,7 @@ typedef struct SECUREECState {
 } SECUREECState;
 
 #define TYPE_SBSA_SECURE_EC "sbsa-ec"
-#define SBSA_SECURE_EC(obj) \
-        OBJECT_CHECK(SECUREECState, (obj), TYPE_SBSA_SECURE_EC)
+OBJECT_DECLARE_SIMPLE_TYPE(SECUREECState, SBSA_SECURE_EC)
 
 enum sbsa_ec_powerstates {
     SBSA_EC_CMD_POWEROFF = 0x01,
