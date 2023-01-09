@@ -138,23 +138,27 @@ typedef struct S390Access {
  * For !CONFIG_USER_ONLY, the TEC is stored stored to env->tlb_fill_tec.
  * For CONFIG_USER_ONLY, the faulting address is stored to env->__excp_addr.
  */
-static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
-                             MMUAccessType access_type, int mmu_idx,
-                             bool nonfault, void **phost, uintptr_t ra)
+static inline int s390_probe_access(CPUArchState *env, target_ulong addr,
+                                    int size, MMUAccessType access_type,
+                                    int mmu_idx, bool nonfault,
+                                    void **phost, uintptr_t ra)
 {
-#if defined(CONFIG_USER_ONLY)
-    return probe_access_flags(env, addr, access_type, mmu_idx,
-                              nonfault, phost, ra);
-#else
-    int flags;
+    int flags = probe_access_flags(env, addr, access_type, mmu_idx,
+                                   nonfault, phost, ra);
 
-    env->tlb_fill_exc = 0;
-    flags = probe_access_flags(env, addr, access_type, mmu_idx, nonfault, phost,
-                               ra);
-    if (env->tlb_fill_exc) {
+    if (unlikely(flags & TLB_INVALID_MASK)) {
+        assert(!nonfault);
+#ifdef CONFIG_USER_ONLY
+        /* Address is in TEC in system mode; see s390_cpu_record_sigsegv. */
+        env->__excp_addr = addr & TARGET_PAGE_MASK;
+        return (page_get_flags(addr) & PAGE_VALID
+                ? PGM_PROTECTION : PGM_ADDRESSING);
+#else
         return env->tlb_fill_exc;
+#endif
     }
 
+#ifndef CONFIG_USER_ONLY
     if (unlikely(flags & TLB_WATCHPOINT)) {
         /* S390 does not presently use transaction attributes. */
         cpu_check_watchpoint(env_cpu(env), addr, size,
@@ -162,8 +166,9 @@ static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
                              (access_type == MMU_DATA_STORE
                               ? BP_MEM_WRITE : BP_MEM_READ), ra);
     }
-    return 0;
 #endif
+
+    return 0;
 }
 
 static int access_prepare_nf(S390Access *access, CPUS390XState *env,
