@@ -114,8 +114,8 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
 typedef struct S390Access {
     target_ulong vaddr1;
     target_ulong vaddr2;
-    char *haddr1;
-    char *haddr2;
+    void *haddr1;
+    void *haddr2;
     uint16_t size1;
     uint16_t size2;
     /*
@@ -268,8 +268,9 @@ static void access_memset(CPUS390XState *env, S390Access *desta,
                      desta->mmu_idx, ra);
 }
 
-static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
-                                  int offset, int mmu_idx, uintptr_t ra)
+static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr,
+                                  void **haddr, int offset,
+                                  int mmu_idx, uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
     return ldub_p(*haddr + offset);
@@ -301,7 +302,7 @@ static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
                               offset - access->size1, access->mmu_idx, ra);
 }
 
-static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
+static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, void **haddr,
                                int offset, uint8_t byte, int mmu_idx,
                                uintptr_t ra)
 {
