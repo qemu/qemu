@@ -176,39 +176,35 @@ static int access_prepare_nf(S390Access *access, CPUS390XState *env,
                              MMUAccessType access_type,
                              int mmu_idx, uintptr_t ra)
 {
-    void *haddr1, *haddr2 = NULL;
     int size1, size2, exc;
-    vaddr vaddr2 = 0;
 
     assert(size > 0 && size <= 4096);
 
     size1 = MIN(size, -(vaddr1 | TARGET_PAGE_MASK)),
     size2 = size - size1;
 
+    memset(access, 0, sizeof(*access));
+    access->vaddr1 = vaddr1;
+    access->size1 = size1;
+    access->size2 = size2;
+    access->mmu_idx = mmu_idx;
+
     exc = s390_probe_access(env, vaddr1, size1, access_type, mmu_idx, nonfault,
-                            &haddr1, ra);
-    if (exc) {
+                            &access->haddr1, ra);
+    if (unlikely(exc)) {
         return exc;
     }
     if (unlikely(size2)) {
         /* The access crosses page boundaries. */
-        vaddr2 = wrap_address(env, vaddr1 + size1);
+        vaddr vaddr2 = wrap_address(env, vaddr1 + size1);
+
+        access->vaddr2 = vaddr2;
         exc = s390_probe_access(env, vaddr2, size2, access_type, mmu_idx,
-                                nonfault, &haddr2, ra);
-        if (exc) {
+                                nonfault, &access->haddr2, ra);
+        if (unlikely(exc)) {
             return exc;
         }
     }
-
-    *access = (S390Access) {
-        .vaddr1 = vaddr1,
-        .vaddr2 = vaddr2,
-        .haddr1 = haddr1,
-        .haddr2 = haddr2,
-        .size1 = size1,
-        .size2 = size2,
-        .mmu_idx = mmu_idx
-    };
     return 0;
 }
 
