@@ -186,8 +186,10 @@ void qmp_set_password(SetPasswordOptions *opts, Error **errp)
             error_setg(errp, QERR_INVALID_PARAMETER, "connected");
             return;
         }
-        /* Note that setting an empty password will not disable login through
-         * this interface. */
+        /*
+         * Note that setting an empty password will not disable login
+         * through this interface.
+         */
         rc = vnc_display_password(opts->u.vnc.display, opts->password);
     }
 
@@ -272,12 +274,10 @@ void qmp_add_client(const char *protocol, const char *fdname,
             error_setg(errp, "spice failed to add client");
             close(fd);
         }
-        return;
 #ifdef CONFIG_VNC
     } else if (strcmp(protocol, "vnc") == 0) {
         skipauth = has_skipauth ? skipauth : false;
         vnc_display_add_client(NULL, fd, skipauth);
-        return;
 #endif
 #ifdef CONFIG_DBUS_DISPLAY
     } else if (strcmp(protocol, "@dbus-display") == 0) {
@@ -289,19 +289,20 @@ void qmp_add_client(const char *protocol, const char *fdname,
             close(fd);
             return;
         }
-        return;
 #endif
-    } else if ((s = qemu_chr_find(protocol)) != NULL) {
+    } else {
+        s = qemu_chr_find(protocol);
+        if (!s) {
+            error_setg(errp, "protocol '%s' is invalid", protocol);
+            close(fd);
+            return;
+        }
         if (qemu_chr_add_client(s, fd) < 0) {
             error_setg(errp, "failed to add client");
             close(fd);
             return;
         }
-        return;
     }
-
-    error_setg(errp, "protocol '%s' is invalid", protocol);
-    close(fd);
 }
 
 

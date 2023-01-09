@@ -587,9 +587,10 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
         hmp_info_vnc_servers(mon, info->server);
         hmp_info_vnc_clients(mon, info->clients);
         if (!info->server) {
-            /* The server entry displays its auth, we only
-             * need to display in the case of 'reverse' connections
-             * where there's no server.
+            /*
+             * The server entry displays its auth, we only need to
+             * display in the case of 'reverse' connections where
+             * there's no server.
              */
             hmp_info_vnc_authcrypt(mon, "  ", info->auth,
                                info->has_vencrypt ? &info->vencrypt : NULL);
