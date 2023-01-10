@@ -47,8 +47,10 @@ static DBusDisplay *dbus_display;
 static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
                                          QEMUGLParams *params)
 {
+#ifdef CONFIG_GBM
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
+#endif
     return qemu_egl_create_context(dgc, params);
 }
 
@@ -56,7 +58,11 @@ static bool
 dbus_is_compatible_dcl(DisplayGLCtx *dgc,
                        DisplayChangeListener *dcl)
 {
-    return dcl->ops == &dbus_gl_dcl_ops || dcl->ops == &dbus_console_dcl_ops;
+    return
+#ifdef CONFIG_GBM
+        dcl->ops == &dbus_gl_dcl_ops ||
+#endif
+        dcl->ops == &dbus_console_dcl_ops;
 }
 
 static void
@@ -459,7 +465,11 @@ early_dbus_init(DisplayOptions *opts)
     DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_OFF;
 
     if (mode != DISPLAYGL_MODE_OFF) {
+#ifdef CONFIG_OPENGL
         egl_init(opts->u.dbus.rendernode, mode, &error_fatal);
+#else
+        error_report("dbus: GL rendering is not supported");
+#endif
     }
 
     type_register(&dbus_vc_type_info);
