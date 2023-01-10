@@ -151,7 +151,7 @@ static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
     case ICPR:
         return s->pending;
     default:
-        printf("%s: Bad register offset 0x" TARGET_FMT_plx "\n",
+        printf("%s: Bad register offset 0x" HWADDR_FMT_plx "\n",
                         __func__, offset);
         return 0;
     }
@@ -173,7 +173,7 @@ static void strongarm_pic_mem_write(void *opaque, hwaddr offset,
         s->int_idle = (value & 1) ? 0 : ~0;
         break;
     default:
-        printf("%s: Bad register offset 0x" TARGET_FMT_plx "\n",
+        printf("%s: Bad register offset 0x" HWADDR_FMT_plx "\n",
                         __func__, offset);
         break;
     }
@@ -333,7 +333,7 @@ static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
                 ((qemu_clock_get_ms(rtc_clock) - s->last_hz) << 15) /
                 (1000 * ((s->rttr & 0xffff) + 1));
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
         return 0;
     }
 }
@@ -375,7 +375,7 @@ static void strongarm_rtc_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
     }
 }
 
@@ -581,7 +581,7 @@ static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
         return s->status;
 
     default:
-        printf("%s: Bad offset 0x" TARGET_FMT_plx "\n", __func__, offset);
+        printf("%s: Bad offset 0x" HWADDR_FMT_plx "\n", __func__, offset);
     }
 
     return 0;
@@ -626,7 +626,7 @@ static void strongarm_gpio_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        printf("%s: Bad offset 0x" TARGET_FMT_plx "\n", __func__, offset);
+        printf("%s: Bad offset 0x" HWADDR_FMT_plx "\n", __func__, offset);
     }
 }
 
@@ -782,7 +782,7 @@ static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
         return s->ppfr | ~0x7f001;
 
     default:
-        printf("%s: Bad offset 0x" TARGET_FMT_plx "\n", __func__, offset);
+        printf("%s: Bad offset 0x" HWADDR_FMT_plx "\n", __func__, offset);
     }
 
     return 0;
@@ -817,7 +817,7 @@ static void strongarm_ppc_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        printf("%s: Bad offset 0x" TARGET_FMT_plx "\n", __func__, offset);
+        printf("%s: Bad offset 0x" HWADDR_FMT_plx "\n", __func__, offset);
     }
 }
 
@@ -1164,7 +1164,7 @@ static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
         return s->utsr1;
 
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
         return 0;
     }
 }
@@ -1221,7 +1221,7 @@ static void strongarm_uart_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
     }
 }
 
@@ -1443,7 +1443,7 @@ static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
         strongarm_ssp_fifo_update(s);
         return retval;
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
         break;
     }
     return 0;
@@ -1509,7 +1509,7 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
         break;
 
     default:
-        printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
+        printf("%s: Bad register 0x" HWADDR_FMT_plx "\n", __func__, addr);
         break;
     }
 }

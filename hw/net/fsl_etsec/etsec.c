@@ -99,7 +99,7 @@ static uint64_t etsec_read(void *opaque, hwaddr addr, unsigned size)
         break;
     }
 
-    DPRINTF("Read  0x%08x @ 0x" TARGET_FMT_plx
+    DPRINTF("Read  0x%08x @ 0x" HWADDR_FMT_plx
             "                            : %s (%s)\n",
             ret, addr, reg->name, reg->desc);
 
@@ -276,7 +276,7 @@ static void etsec_write(void     *opaque,
         }
     }
 
-    DPRINTF("Write 0x%08x @ 0x" TARGET_FMT_plx
+    DPRINTF("Write 0x%08x @ 0x" HWADDR_FMT_plx
             " val:0x%08x->0x%08x : %s (%s)\n",
             (unsigned int)value, addr, before, reg->value,
             reg->name, reg->desc);

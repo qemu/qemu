@@ -516,13 +516,13 @@ static void xen_set_memory(struct MemoryListener *listener,
             if (xen_set_mem_type(xen_domid, mem_type,
                                  start_addr >> TARGET_PAGE_BITS,
                                  size >> TARGET_PAGE_BITS)) {
-                DPRINTF("xen_set_mem_type error, addr: "TARGET_FMT_plx"\n",
+                DPRINTF("xen_set_mem_type error, addr: "HWADDR_FMT_plx"\n",
                         start_addr);
             }
         }
     } else {
         if (xen_remove_from_physmap(state, start_addr, size) < 0) {
-            DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n", start_addr);
+            DPRINTF("physmapping does not exist at "HWADDR_FMT_plx"\n", start_addr);
         }
     }
 }
@@ -642,8 +642,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 #endif
         if (errno == ENODATA) {
             memory_region_set_dirty(framebuffer, 0, size);
-            DPRINTF("xen: track_dirty_vram failed (0x" TARGET_FMT_plx
-                    ", 0x" TARGET_FMT_plx "): %s\n",
+            DPRINTF("xen: track_dirty_vram failed (0x" HWADDR_FMT_plx
+                    ", 0x" HWADDR_FMT_plx "): %s\n",
                     start_addr, start_addr + size, strerror(errno));
         }
         return;

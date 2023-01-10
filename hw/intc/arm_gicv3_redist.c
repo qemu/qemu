@@ -601,7 +601,7 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
         /* RO registers, ignore the write */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
-                      TARGET_FMT_plx "\n", __func__, offset);
+                      HWADDR_FMT_plx "\n", __func__, offset);
         return MEMTX_OK;
         /*
          * VLPI frame registers. We don't need a version check for
@@ -668,7 +668,7 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
         /* RO register, ignore the write */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
-                      TARGET_FMT_plx "\n", __func__, offset);
+                      HWADDR_FMT_plx "\n", __func__, offset);
         return MEMTX_OK;
         /*
          * VLPI frame registers. We don't need a version check for
@@ -727,7 +727,7 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
 
     if (r != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest read at offset " TARGET_FMT_plx
+                      "%s: invalid guest read at offset " HWADDR_FMT_plx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_redist_badread(gicv3_redist_affid(cs), offset,
                                    size, attrs.secure);
@@ -786,7 +786,7 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
 
     if (r != MEMTX_OK) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest write at offset " TARGET_FMT_plx
+                      "%s: invalid guest write at offset " HWADDR_FMT_plx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_redist_badwrite(gicv3_redist_affid(cs), offset, data,
                                     size, attrs.secure);

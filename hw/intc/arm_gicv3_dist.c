@@ -564,7 +564,7 @@ static bool gicd_readl(GICv3State *s, hwaddr offset,
         /* WO registers, return unknown value */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest read from WO register at offset "
-                      TARGET_FMT_plx "\n", __func__, offset);
+                      HWADDR_FMT_plx "\n", __func__, offset);
         *data = 0;
         return true;
     default:
@@ -773,7 +773,7 @@ static bool gicd_writel(GICv3State *s, hwaddr offset,
         /* RO registers, ignore the write */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid guest write to RO register at offset "
-                      TARGET_FMT_plx "\n", __func__, offset);
+                      HWADDR_FMT_plx "\n", __func__, offset);
         return true;
     default:
         return false;
@@ -838,7 +838,7 @@ MemTxResult gicv3_dist_read(void *opaque, hwaddr offset, uint64_t *data,
 
     if (!r) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest read at offset " TARGET_FMT_plx
+                      "%s: invalid guest read at offset " HWADDR_FMT_plx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_dist_badread(offset, size, attrs.secure);
         /* The spec requires that reserved registers are RAZ/WI;
@@ -879,7 +879,7 @@ MemTxResult gicv3_dist_write(void *opaque, hwaddr offset, uint64_t data,
 
     if (!r) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: invalid guest write at offset " TARGET_FMT_plx
+                      "%s: invalid guest write at offset " HWADDR_FMT_plx
                       " size %u\n", __func__, offset, size);
         trace_gicv3_dist_badwrite(offset, data, size, attrs.secure);
         /* The spec requires that reserved registers are RAZ/WI;

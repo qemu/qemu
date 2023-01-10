@@ -357,7 +357,7 @@ tryagain:
         entry->lock++;
         if (entry->lock == 0) {
             fprintf(stderr,
-                    "mapcache entry lock overflow: "TARGET_FMT_plx" -> %p\n",
+                    "mapcache entry lock overflow: "HWADDR_FMT_plx" -> %p\n",
                     entry->paddr_index, entry->vaddr_base);
             abort();
         }
@@ -404,7 +404,7 @@ ram_addr_t xen_ram_addr_from_mapcache(void *ptr)
     if (!found) {
         fprintf(stderr, "%s, could not find %p\n", __func__, ptr);
         QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
-            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n", reventry->paddr_index,
+            DPRINTF("   "HWADDR_FMT_plx" -> %p is present\n", reventry->paddr_index,
                     reventry->vaddr_req);
         }
         abort();
@@ -445,7 +445,7 @@ static void xen_invalidate_map_cache_entry_unlocked(uint8_t *buffer)
     if (!found) {
         DPRINTF("%s, could not find %p\n", __func__, buffer);
         QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
-            DPRINTF("   "TARGET_FMT_plx" -> %p is present\n", reventry->paddr_index, reventry->vaddr_req);
+            DPRINTF("   "HWADDR_FMT_plx" -> %p is present\n", reventry->paddr_index, reventry->vaddr_req);
         }
         return;
     }
@@ -503,7 +503,7 @@ void xen_invalidate_map_cache(void)
             continue;
         }
         fprintf(stderr, "Locked DMA mapping while invalidating mapcache!"
-                " "TARGET_FMT_plx" -> %p is present\n",
+                " "HWADDR_FMT_plx" -> %p is present\n",
                 reventry->paddr_index, reventry->vaddr_req);
     }
 
@@ -562,7 +562,7 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
         entry = entry->next;
     }
     if (!entry) {
-        DPRINTF("Trying to update an entry for "TARGET_FMT_plx \
+        DPRINTF("Trying to update an entry for "HWADDR_FMT_plx \
                 "that is not in the mapcache!\n", old_phys_addr);
         return NULL;
     }
@@ -570,15 +570,15 @@ static uint8_t *xen_replace_cache_entry_unlocked(hwaddr old_phys_addr,
     address_index  = new_phys_addr >> MCACHE_BUCKET_SHIFT;
     address_offset = new_phys_addr & (MCACHE_BUCKET_SIZE - 1);
 
-    fprintf(stderr, "Replacing a dummy mapcache entry for "TARGET_FMT_plx \
-            " with "TARGET_FMT_plx"\n", old_phys_addr, new_phys_addr);
+    fprintf(stderr, "Replacing a dummy mapcache entry for "HWADDR_FMT_plx \
+            " with "HWADDR_FMT_plx"\n", old_phys_addr, new_phys_addr);
 
     xen_remap_bucket(entry, entry->vaddr_base,
                      cache_size, address_index, false);
     if (!test_bits(address_offset >> XC_PAGE_SHIFT,
                 test_bit_size >> XC_PAGE_SHIFT,
                 entry->valid_mapping)) {
-        DPRINTF("Unable to update a mapcache entry for "TARGET_FMT_plx"!\n",
+        DPRINTF("Unable to update a mapcache entry for "HWADDR_FMT_plx"!\n",
                 old_phys_addr);
         return NULL;
     }

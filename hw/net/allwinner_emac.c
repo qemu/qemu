@@ -304,7 +304,7 @@ static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
     default:
         qemu_log_mask(LOG_UNIMP,
                       "allwinner_emac: read access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      HWADDR_FMT_plx "\n", offset);
         ret = 0;
     }
 
@@ -407,7 +407,7 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
     default:
         qemu_log_mask(LOG_UNIMP,
                       "allwinner_emac: write access to unknown register 0x"
-                      TARGET_FMT_plx "\n", offset);
+                      HWADDR_FMT_plx "\n", offset);
     }
 }
 

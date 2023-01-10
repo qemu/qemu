@@ -500,7 +500,7 @@ static uint32_t sdram_ddr2_bcr(hwaddr ram_base, hwaddr ram_size)
         bcr = 0x8000;
         break;
     default:
-        error_report("invalid RAM size " TARGET_FMT_plx, ram_size);
+        error_report("invalid RAM size " HWADDR_FMT_plx, ram_size);
         return 0;
     }
     bcr |= ram_base >> 2 & 0xffe00000;

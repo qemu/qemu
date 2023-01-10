@@ -704,7 +704,7 @@ static void dbdma_write(void *opaque, hwaddr addr,
     DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
-    DBDMA_DPRINTFCH(ch, "writel 0x" TARGET_FMT_plx " <= 0x%08"PRIx64"\n",
+    DBDMA_DPRINTFCH(ch, "writel 0x" HWADDR_FMT_plx " <= 0x%08"PRIx64"\n",
                     addr, value);
     DBDMA_DPRINTFCH(ch, "channel 0x%x reg 0x%x\n",
                     (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
@@ -786,7 +786,7 @@ static uint64_t dbdma_read(void *opaque, hwaddr addr,
         break;
     }
 
-    DBDMA_DPRINTFCH(ch, "readl 0x" TARGET_FMT_plx " => 0x%08x\n", addr, value);
+    DBDMA_DPRINTFCH(ch, "readl 0x" HWADDR_FMT_plx " => 0x%08x\n", addr, value);
     DBDMA_DPRINTFCH(ch, "channel 0x%x reg 0x%x\n",
                     (uint32_t)addr >> DBDMA_CHANNEL_SHIFT, reg);
 

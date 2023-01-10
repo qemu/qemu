@@ -207,13 +207,13 @@ static void portb_changed(SH7750State *s, uint16_t prev)
 
 static void error_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") not supported\n",
+    fprintf(stderr, "%s to %s (0x" HWADDR_FMT_plx ") not supported\n",
             kind, regname(addr), addr);
 }
 
 static void ignore_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") ignored\n",
+    fprintf(stderr, "%s to %s (0x" HWADDR_FMT_plx ") ignored\n",
             kind, regname(addr), addr);
 }
 

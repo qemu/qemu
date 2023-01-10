@@ -456,7 +456,7 @@ static uint64_t axidma_read(void *opaque, hwaddr addr,
             break;
         default:
             r = s->regs[addr];
-            D(qemu_log("%s ch=%d addr=" TARGET_FMT_plx " v=%x\n",
+            D(qemu_log("%s ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
                            __func__, sid, addr * 4, r));
             break;
     }
@@ -509,7 +509,7 @@ static void axidma_write(void *opaque, hwaddr addr,
             }
             break;
         default:
-            D(qemu_log("%s: ch=%d addr=" TARGET_FMT_plx " v=%x\n",
+            D(qemu_log("%s: ch=%d addr=" HWADDR_FMT_plx " v=%x\n",
                   __func__, sid, addr * 4, (unsigned)value));
             s->regs[addr] = value;
             break;
