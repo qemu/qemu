@@ -1,10 +1,6 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #undef  bswap16
 #define bswap16(_x) __builtin_bswap16(_x)
 #undef  bswap32
@@ -394,9 +390,5 @@ DO_STN_LDN_P(be)
 #undef be_bswap
 #undef le_bswaps
 #undef be_bswaps
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* BSWAP_H */

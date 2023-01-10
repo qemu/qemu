@@ -11,10 +11,6 @@
 
 #include "qemu/bswap.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef void *PTR;
 typedef uint64_t bfd_vma;
 typedef int64_t bfd_signed_vma;
@@ -505,9 +501,5 @@ static inline bfd_vma bfd_getb16(const bfd_byte *addr)
 }
 
 typedef bool bfd_boolean;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* DISAS_DIS_ASM_H */
