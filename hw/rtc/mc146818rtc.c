@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "qemu/bcd.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "hw/intc/kvm_irqcount.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -46,7 +47,6 @@
 
 #ifdef TARGET_I386
 #include "qapi/qapi-commands-misc-target.h"
-#include "hw/i386/apic.h"
 #endif
 
 //#define DEBUG_CMOS
@@ -124,9 +124,9 @@ void qmp_rtc_reset_reinjection(Error **errp)
 
 static bool rtc_policy_slew_deliver_irq(RTCState *s)
 {
-    apic_reset_irq_delivered();
+    kvm_reset_irq_delivered();
     qemu_irq_raise(s->irq);
-    return apic_get_irq_delivered();
+    return kvm_get_irq_delivered();
 }
 
 static void rtc_coalesced_timer(void *opaque)
