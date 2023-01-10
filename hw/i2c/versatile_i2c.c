@@ -31,7 +31,7 @@
 
 typedef ArmSbconI2CState VersatileI2CState;
 DECLARE_INSTANCE_CHECKER(ArmSbconI2CState, VERSATILE_I2C,
-                         TYPE_VERSATILE_I2C)
+                         TYPE_ARM_SBCON_I2C)
 
 
 
@@ -98,7 +98,7 @@ static void versatile_i2c_init(Object *obj)
 }
 
 static const TypeInfo versatile_i2c_info = {
-    .name          = TYPE_VERSATILE_I2C,
+    .name          = TYPE_ARM_SBCON_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ArmSbconI2CState),
     .instance_init = versatile_i2c_init,
