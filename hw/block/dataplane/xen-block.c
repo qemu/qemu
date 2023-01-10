@@ -705,6 +705,7 @@ void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
         Error *local_err = NULL;
 
         xen_device_unmap_grant_refs(xendev, dataplane->sring,
+                                    dataplane->ring_ref,
                                     dataplane->nr_ring_ref, &local_err);
         dataplane->sring = NULL;
 

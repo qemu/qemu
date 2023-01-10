@@ -137,11 +137,11 @@ void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
 }
 
 void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
-                             unsigned int nr_refs)
+                             uint32_t *refs, unsigned int nr_refs)
 {
     assert(xendev->ops->flags & DEVOPS_FLAG_NEED_GNTDEV);
 
-    if (qemu_xen_gnttab_unmap(xendev->gnttabdev, ptr, nr_refs)) {
+    if (qemu_xen_gnttab_unmap(xendev->gnttabdev, ptr, refs, nr_refs)) {
         xen_pv_printf(xendev, 0, "xengnttab_unmap failed: %s\n",
                       strerror(errno));
     }

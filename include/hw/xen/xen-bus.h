@@ -102,7 +102,7 @@ void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
 void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
                                 unsigned int nr_refs, int prot,
                                 Error **errp);
-void xen_device_unmap_grant_refs(XenDevice *xendev, void *map,
+void xen_device_unmap_grant_refs(XenDevice *xendev, void *map, uint32_t *refs,
                                  unsigned int nr_refs, Error **errp);
 
 typedef struct XenDeviceGrantCopySegment {

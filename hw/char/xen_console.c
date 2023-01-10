@@ -271,7 +271,7 @@ static void con_disconnect(struct XenLegacyDevice *xendev)
         if (!xendev->dev) {
             xenforeignmemory_unmap(xen_fmem, con->sring, 1);
         } else {
-            xen_be_unmap_grant_ref(xendev, con->sring);
+            xen_be_unmap_grant_ref(xendev, con->sring, con->ring_ref);
         }
         con->sring = NULL;
     }

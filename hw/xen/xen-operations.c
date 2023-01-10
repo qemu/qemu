@@ -200,6 +200,13 @@ static xengnttab_handle *libxengnttab_backend_open(void)
     return xengnttab_open(NULL, 0);
 }
 
+static int libxengnttab_backend_unmap(xengnttab_handle *xgt,
+                                      void *start_address, uint32_t *refs,
+                                      uint32_t count)
+{
+    return xengnttab_unmap(xgt, start_address, count);
+}
+
 
 static struct gnttab_backend_ops libxengnttab_backend_ops = {
     .features = XEN_GNTTAB_OP_FEATURE_MAP_MULTIPLE,
@@ -208,7 +215,7 @@ static struct gnttab_backend_ops libxengnttab_backend_ops = {
     .grant_copy = libxengnttab_fallback_grant_copy,
     .set_max_grants = xengnttab_set_max_grants,
     .map_refs = xengnttab_map_domain_grant_refs,
-    .unmap = xengnttab_unmap,
+    .unmap = libxengnttab_backend_unmap,
 };
 
 void setup_xen_backend_ops(void)

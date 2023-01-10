@@ -144,7 +144,8 @@ struct gnttab_backend_ops {
     int (*set_max_grants)(xengnttab_handle *xgt, uint32_t nr_grants);
     void *(*map_refs)(xengnttab_handle *xgt, uint32_t count, uint32_t domid,
                       uint32_t *refs, int prot);
-    int (*unmap)(xengnttab_handle *xgt, void *start_address, uint32_t count);
+    int (*unmap)(xengnttab_handle *xgt, void *start_address, uint32_t *refs,
+                 uint32_t count);
 };
 
 extern struct gnttab_backend_ops *xen_gnttab_ops;
@@ -204,13 +205,13 @@ static inline void *qemu_xen_gnttab_map_refs(xengnttab_handle *xgt,
 }
 
 static inline int qemu_xen_gnttab_unmap(xengnttab_handle *xgt,
-                                        void *start_address,
+                                        void *start_address, uint32_t *refs,
                                         uint32_t count)
 {
     if (!xen_gnttab_ops) {
         return -ENOSYS;
     }
-    return xen_gnttab_ops->unmap(xgt, start_address, count);
+    return xen_gnttab_ops->unmap(xgt, start_address, refs, count);
 }
 
 void setup_xen_backend_ops(void);

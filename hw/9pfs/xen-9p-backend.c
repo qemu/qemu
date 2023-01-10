@@ -359,12 +359,13 @@ static int xen_9pfs_free(struct XenLegacyDevice *xendev)
         if (xen_9pdev->rings[i].data != NULL) {
             xen_be_unmap_grant_refs(&xen_9pdev->xendev,
                                     xen_9pdev->rings[i].data,
+                                    xen_9pdev->rings[i].intf->ref,
                                     (1 << xen_9pdev->rings[i].ring_order));
         }
         if (xen_9pdev->rings[i].intf != NULL) {
-            xen_be_unmap_grant_refs(&xen_9pdev->xendev,
-                                    xen_9pdev->rings[i].intf,
-                                    1);
+            xen_be_unmap_grant_ref(&xen_9pdev->xendev,
+                                   xen_9pdev->rings[i].intf,
+                                   xen_9pdev->rings[i].ref);
         }
         if (xen_9pdev->rings[i].bh != NULL) {
             qemu_bh_delete(xen_9pdev->rings[i].bh);

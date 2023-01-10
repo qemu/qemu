@@ -967,10 +967,10 @@ void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
     return map;
 }
 
-void xen_device_unmap_grant_refs(XenDevice *xendev, void *map,
+void xen_device_unmap_grant_refs(XenDevice *xendev, void *map, uint32_t *refs,
                                  unsigned int nr_refs, Error **errp)
 {
-    if (qemu_xen_gnttab_unmap(xendev->xgth, map, nr_refs)) {
+    if (qemu_xen_gnttab_unmap(xendev->xgth, map, refs, nr_refs)) {
         error_setg_errno(errp, errno, "xengnttab_unmap failed");
     }
 }

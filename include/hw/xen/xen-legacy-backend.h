@@ -52,7 +52,7 @@ void xen_be_set_max_grant_refs(struct XenLegacyDevice *xendev,
 void *xen_be_map_grant_refs(struct XenLegacyDevice *xendev, uint32_t *refs,
                             unsigned int nr_refs, int prot);
 void xen_be_unmap_grant_refs(struct XenLegacyDevice *xendev, void *ptr,
-                             unsigned int nr_refs);
+                             uint32_t *refs, unsigned int nr_refs);
 
 int xen_be_copy_grant_refs(struct XenLegacyDevice *xendev,
                            bool to_domain, XenGrantCopySegment segs[],
@@ -65,9 +65,9 @@ static inline void *xen_be_map_grant_ref(struct XenLegacyDevice *xendev,
 }
 
 static inline void xen_be_unmap_grant_ref(struct XenLegacyDevice *xendev,
-                                          void *ptr)
+                                          void *ptr, uint32_t ref)
 {
-    return xen_be_unmap_grant_refs(xendev, ptr, 1);
+    return xen_be_unmap_grant_refs(xendev, ptr, &ref, 1);
 }
 
 /* actual backend drivers */
