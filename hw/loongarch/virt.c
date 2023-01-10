@@ -316,6 +316,14 @@ static void virt_machine_done(Notifier *notifier, void *data)
     loongarch_acpi_setup(lams);
 }
 
+static void virt_powerdown_req(Notifier *notifier, void *opaque)
+{
+    LoongArchMachineState *s = container_of(notifier,
+                                   LoongArchMachineState, powerdown_notifier);
+
+    acpi_send_event(s->acpi_ged, ACPI_POWER_DOWN_STATUS);
+}
+
 struct memmap_entry {
     uint64_t address;
     uint64_t length;
@@ -859,6 +867,10 @@ static void loongarch_init(MachineState *machine)
                                    VIRT_PLATFORM_BUS_IRQ);
     lams->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&lams->machine_done);
+     /* connect powerdown request */
+    lams->powerdown_notifier.notify = virt_powerdown_req;
+    qemu_register_powerdown_notifier(&lams->powerdown_notifier);
+
     fdt_add_pcie_node(lams);
     /*
      * Since lowmem region starts from 0 and Linux kernel legacy start address

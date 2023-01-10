@@ -260,6 +260,7 @@ build_la_ged_aml(Aml *dsdt, MachineState *machine)
                                  AML_SYSTEM_MEMORY,
                                  VIRT_GED_MEM_ADDR);
     }
+    acpi_dsdt_add_power_button(dsdt);
 }
 
 static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)

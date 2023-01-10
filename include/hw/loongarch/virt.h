@@ -45,6 +45,7 @@ struct LoongArchMachineState {
     /* State for other subsystems/APIs: */
     FWCfgState  *fw_cfg;
     Notifier     machine_done;
+    Notifier     powerdown_notifier;
     OnOffAuto    acpi;
     char         *oem_id;
     char         *oem_table_id;
