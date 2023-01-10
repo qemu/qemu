@@ -434,9 +434,7 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
         info->print_insn = print_insn_little_mips;
 #endif
     } else {
-#if defined(CONFIG_NANOMIPS_DIS)
         info->print_insn = print_insn_nanomips;
-#endif
     }
 }
 
