@@ -268,6 +268,7 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 timer_mod(&iTask->retry_timer,
                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
                 iTask->do_retry = 1;
+                return;
             } else if (status == SCSI_STATUS_CHECK_CONDITION) {
                 int error = iscsi_translate_sense(&task->sense);
                 if (error == EAGAIN) {
