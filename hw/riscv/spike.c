@@ -49,7 +49,6 @@ static const MemMapEntry spike_memmap[] = {
 };
 
 static void create_fdt(SpikeState *s, const MemMapEntry *memmap,
-                       uint64_t mem_size, const char *cmdline,
                        bool is_32_bit, bool htif_custom_base)
 {
     void *fdt;
@@ -299,8 +298,7 @@ static void spike_board_init(MachineState *machine)
     }
 
     /* Create device tree */
-    create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,
-               riscv_is_32bit(&s->soc[0]), htif_custom_base);
+    create_fdt(s, memmap, riscv_is_32bit(&s->soc[0]), htif_custom_base);
 
     /* Load kernel */
     if (machine->kernel_filename) {
