@@ -36,10 +36,17 @@ void tpm_emu_test_wait_cond(TPMTestState *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
+static void tpm_emu_close_ioc(void *ioc)
+{
+    qio_channel_close(ioc, NULL);
+}
+
 static void *tpm_emu_tpm_thread(void *data)
 {
     TPMTestState *s = data;
     QIOChannel *ioc = s->tpm_ioc;
+
+    qtest_add_abrt_handler(tpm_emu_close_ioc, ioc);
 
     s->tpm_msg = g_new(struct tpm_hdr, 1);
     while (true) {
@@ -77,6 +84,7 @@ static void *tpm_emu_tpm_thread(void *data)
                           &error_abort);
     }
 
+    qtest_remove_abrt_handler(ioc);
     g_free(s->tpm_msg);
     s->tpm_msg = NULL;
     object_unref(OBJECT(s->tpm_ioc));
@@ -99,6 +107,7 @@ void *tpm_emu_ctrl_thread(void *data)
     qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);
     ioc = QIO_CHANNEL(qio_channel_socket_accept(lioc, &error_abort));
     g_assert(ioc);
+    qtest_add_abrt_handler(tpm_emu_close_ioc, ioc);
 
     {
         uint32_t cmd = 0;
@@ -190,6 +199,7 @@ void *tpm_emu_ctrl_thread(void *data)
         }
     }
 
+    qtest_remove_abrt_handler(ioc);
     object_unref(OBJECT(ioc));
     object_unref(OBJECT(lioc));
     return NULL;
