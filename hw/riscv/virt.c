@@ -805,7 +805,7 @@ static void create_fdt_sockets(RISCVVirtState *s, const MemMapEntry *memmap,
         }
     }
 
-    riscv_socket_fdt_write_distance_matrix(mc, mc->fdt);
+    riscv_socket_fdt_write_distance_matrix(mc);
 }
 
 static void create_fdt_virtio(RISCVVirtState *s, const MemMapEntry *memmap,

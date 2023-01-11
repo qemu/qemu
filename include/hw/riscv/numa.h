@@ -100,9 +100,9 @@ void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
  * @ms: pointer to machine state
  * @socket_id: socket index
  *
- * Write NUMA distance matrix in FDT for given machine
+ * Write NUMA distance matrix in MachineState->fdt
  */
-void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt);
+void riscv_socket_fdt_write_distance_matrix(const MachineState *ms);
 
 CpuInstanceProperties
 riscv_numa_cpu_index_to_props(MachineState *ms, unsigned cpu_index);

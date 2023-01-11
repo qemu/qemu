@@ -164,7 +164,7 @@ void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
     }
 }
 
-void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt)
+void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
 {
     int i, j, idx;
     uint32_t *dist_matrix, dist_matrix_size;
@@ -184,10 +184,10 @@ void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt)
             }
         }
 
-        qemu_fdt_add_subnode(fdt, "/distance-map");
-        qemu_fdt_setprop_string(fdt, "/distance-map", "compatible",
+        qemu_fdt_add_subnode(ms->fdt, "/distance-map");
+        qemu_fdt_setprop_string(ms->fdt, "/distance-map", "compatible",
                                 "numa-distance-map-v1");
-        qemu_fdt_setprop(fdt, "/distance-map", "distance-matrix",
+        qemu_fdt_setprop(ms->fdt, "/distance-map", "distance-matrix",
                          dist_matrix, dist_matrix_size);
         g_free(dist_matrix);
     }
