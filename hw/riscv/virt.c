@@ -253,7 +253,7 @@ static void create_fdt_socket_cpus(RISCVVirtState *s, int socket,
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "reg",
             s->soc[socket].hartid_base + cpu);
         qemu_fdt_setprop_string(mc->fdt, cpu_name, "device_type", "cpu");
-        riscv_socket_fdt_write_id(mc, mc->fdt, cpu_name, socket);
+        riscv_socket_fdt_write_id(mc, cpu_name, socket);
         qemu_fdt_setprop_cell(mc->fdt, cpu_name, "phandle", cpu_phandle);
 
         intc_phandles[cpu] = (*phandle)++;
@@ -291,7 +291,7 @@ static void create_fdt_socket_memory(RISCVVirtState *s,
     qemu_fdt_setprop_cells(mc->fdt, mem_name, "reg",
         addr >> 32, addr, size >> 32, size);
     qemu_fdt_setprop_string(mc->fdt, mem_name, "device_type", "memory");
-    riscv_socket_fdt_write_id(mc, mc->fdt, mem_name, socket);
+    riscv_socket_fdt_write_id(mc, mem_name, socket);
     g_free(mem_name);
 }
 
@@ -327,7 +327,7 @@ static void create_fdt_socket_clint(RISCVVirtState *s,
         0x0, clint_addr, 0x0, memmap[VIRT_CLINT].size);
     qemu_fdt_setprop(mc->fdt, clint_name, "interrupts-extended",
         clint_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
-    riscv_socket_fdt_write_id(mc, mc->fdt, clint_name, socket);
+    riscv_socket_fdt_write_id(mc, clint_name, socket);
     g_free(clint_name);
 
     g_free(clint_cells);
@@ -372,7 +372,7 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
             aclint_mswi_cells, aclint_cells_size);
         qemu_fdt_setprop(mc->fdt, name, "interrupt-controller", NULL, 0);
         qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells", 0);
-        riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
+        riscv_socket_fdt_write_id(mc, name, socket);
         g_free(name);
     }
 
@@ -396,7 +396,7 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
         0x0, RISCV_ACLINT_DEFAULT_MTIME);
     qemu_fdt_setprop(mc->fdt, name, "interrupts-extended",
         aclint_mtimer_cells, aclint_cells_size);
-    riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
+    riscv_socket_fdt_write_id(mc, name, socket);
     g_free(name);
 
     if (s->aia_type != VIRT_AIA_TYPE_APLIC_IMSIC) {
@@ -412,7 +412,7 @@ static void create_fdt_socket_aclint(RISCVVirtState *s,
             aclint_sswi_cells, aclint_cells_size);
         qemu_fdt_setprop(mc->fdt, name, "interrupt-controller", NULL, 0);
         qemu_fdt_setprop_cell(mc->fdt, name, "#interrupt-cells", 0);
-        riscv_socket_fdt_write_id(mc, mc->fdt, name, socket);
+        riscv_socket_fdt_write_id(mc, name, socket);
         g_free(name);
     }
 
@@ -471,7 +471,7 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
         0x0, plic_addr, 0x0, memmap[VIRT_PLIC].size);
     qemu_fdt_setprop_cell(mc->fdt, plic_name, "riscv,ndev",
                           VIRT_IRQCHIP_NUM_SOURCES - 1);
-    riscv_socket_fdt_write_id(mc, mc->fdt, plic_name, socket);
+    riscv_socket_fdt_write_id(mc, plic_name, socket);
     qemu_fdt_setprop_cell(mc->fdt, plic_name, "phandle",
         plic_phandles[socket]);
 
@@ -663,7 +663,7 @@ static void create_fdt_socket_aplic(RISCVVirtState *s,
         aplic_s_phandle);
     qemu_fdt_setprop_cells(mc->fdt, aplic_name, "riscv,delegate",
         aplic_s_phandle, 0x1, VIRT_IRQCHIP_NUM_SOURCES);
-    riscv_socket_fdt_write_id(mc, mc->fdt, aplic_name, socket);
+    riscv_socket_fdt_write_id(mc, aplic_name, socket);
     qemu_fdt_setprop_cell(mc->fdt, aplic_name, "phandle", aplic_m_phandle);
     g_free(aplic_name);
 
@@ -691,7 +691,7 @@ static void create_fdt_socket_aplic(RISCVVirtState *s,
         0x0, aplic_addr, 0x0, memmap[VIRT_APLIC_S].size);
     qemu_fdt_setprop_cell(mc->fdt, aplic_name, "riscv,num-sources",
         VIRT_IRQCHIP_NUM_SOURCES);
-    riscv_socket_fdt_write_id(mc, mc->fdt, aplic_name, socket);
+    riscv_socket_fdt_write_id(mc, aplic_name, socket);
     qemu_fdt_setprop_cell(mc->fdt, aplic_name, "phandle", aplic_s_phandle);
 
     if (!socket) {

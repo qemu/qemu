@@ -156,11 +156,11 @@ uint64_t riscv_socket_mem_size(const MachineState *ms, int socket_id)
             ms->numa_state->nodes[socket_id].node_mem : 0;
 }
 
-void riscv_socket_fdt_write_id(const MachineState *ms, void *fdt,
-                               const char *node_name, int socket_id)
+void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
+                               int socket_id)
 {
     if (numa_enabled(ms)) {
-        qemu_fdt_setprop_cell(fdt, node_name, "numa-node-id", socket_id);
+        qemu_fdt_setprop_cell(ms->fdt, node_name, "numa-node-id", socket_id);
     }
 }
 
