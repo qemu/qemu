@@ -1,6 +1,12 @@
 project('libvhost-user', 'c',
         license: 'GPL-2.0-or-later',
-        default_options: ['c_std=gnu99'])
+        default_options: ['warning_level=1', 'c_std=gnu99'])
+
+cc = meson.get_compiler('c')
+add_project_arguments(cc.get_supported_arguments('-Wsign-compare',
+                                                 '-Wdeclaration-after-statement',
+                                                 '-Wstrict-aliasing'),
+                      native: false, language: 'c')
 
 threads = dependency('threads')
 glib = dependency('glib-2.0')
