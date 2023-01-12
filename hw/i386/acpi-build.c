@@ -383,35 +383,40 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     aml_append(method, if_ctx);
 }
 
-static bool is_devfn_ignored(const int devfn, const PCIBus *bus,
-                             bool bus_has_hotplug)
+static bool is_devfn_ignored_generic(const int devfn, const PCIBus *bus)
 {
     const PCIDevice *pdev = bus->devices[devfn];
 
-    if (pdev) {
-        if (PCI_FUNC(devfn)) {
-            if (IS_PCI_BRIDGE(pdev)) {
-                /*
-                 * Ignore only hotplugged PCI bridges on !0 functions, but
-                 * allow describing cold plugged bridges on all functions
-                 */
-                if (DEVICE(pdev)->hotplugged) {
-                    return true;
-                }
-            } else if (!get_dev_aml_func(DEVICE(pdev))) {
-                /*
-                 * Ignore all other devices on !0 functions unless they
-                 * have AML description (i.e have get_dev_aml_func() != 0)
-                 */
+    if (PCI_FUNC(devfn)) {
+        if (IS_PCI_BRIDGE(pdev)) {
+            /*
+             * Ignore only hotplugged PCI bridges on !0 functions, but
+             * allow describing cold plugged bridges on all functions
+             */
+            if (DEVICE(pdev)->hotplugged) {
                 return true;
             }
+        } else if (!get_dev_aml_func(DEVICE(pdev))) {
+            /*
+             * Ignore all other devices on !0 functions unless they
+             * have AML description (i.e have get_dev_aml_func() != 0)
+             */
+            return true;
         }
+    }
+    return false;
+}
+
+static bool is_devfn_ignored_hotplug(const int devfn, const PCIBus *bus)
+{
+    if (bus->devices[devfn]) {
+        return is_devfn_ignored_generic(devfn, bus);
     } else { /* non populated slots */
-        /*
+         /*
          * hotplug is supported only for non-multifunction device
          * so generate device description only for function 0
          */
-        if (!bus_has_hotplug || PCI_FUNC(devfn) ||
+        if (PCI_FUNC(devfn) ||
             (pci_bus_is_express(bus) && PCI_SLOT(devfn) > 0)) {
             return true;
         }
@@ -419,29 +424,23 @@ static bool is_devfn_ignored(const int devfn, const PCIBus *bus,
     return false;
 }
 
-void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
+static void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus,
+                                     QObject *bsel)
 {
-    Aml *dev, *notify_method = NULL, *method;
-    QObject *bsel;
     int devfn;
+    Aml *dev, *notify_method = NULL, *method;
+    uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
 
-    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
-    if (bsel) {
-        uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
-
-        aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
-        notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
-    }
+    aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
+    notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
 
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         PCIDevice *pdev = bus->devices[devfn];
         int slot = PCI_SLOT(devfn);
-        int func = PCI_FUNC(devfn);
-        /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
-        int adr = slot << 16 | func;
+        int adr = slot << 16 | PCI_FUNC(devfn);
         bool hotpluggbale_slot = true;
 
-        if (is_devfn_ignored(devfn, bus, !!bsel)) {
+        if (is_devfn_ignored_hotplug(devfn, bus)) {
             continue;
         }
 
@@ -452,24 +451,20 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
              */
             bool cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
                                   !DEVICE(pdev)->hotplugged;
-            hotpluggbale_slot = bsel && DEVICE_GET_CLASS(pdev)->hotpluggable &&
+            hotpluggbale_slot = DEVICE_GET_CLASS(pdev)->hotpluggable &&
                                 !cold_plugged_bridge;
+            dev = aml_scope("S%.02X", devfn);
+        } else {
+            dev = aml_device("S%.02X", devfn);
+            aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
         }
 
-        /* start to compose PCI device descriptor */
-        dev = aml_device("S%.02X", devfn);
-        aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
-
-        if (bsel) {
-            /*
-             * Can't declare _SUN here for every device as it changes 'slot'
-             * enumeration order in linux kernel, so use another variable for it
-             */
-            aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
-            aml_append(dev, aml_pci_device_dsm());
-        }
-
-        call_dev_aml_func(DEVICE(pdev), dev);
+        /*
+         * Can't declare _SUN here for every device as it changes 'slot'
+         * enumeration order in linux kernel, so use another variable for it
+         */
+        aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
+        aml_append(dev, aml_pci_device_dsm());
 
         if (hotpluggbale_slot) {
             aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
@@ -486,9 +481,37 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
         /* device descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
     }
+    aml_append(parent_scope, notify_method);
+}
+
+void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
+{
+    QObject *bsel;
+    int devfn;
+    Aml *dev;
+
+    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
+
+    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
+        int adr = PCI_SLOT(devfn) << 16 | PCI_FUNC(devfn);
+
+        if (!bus->devices[devfn] || is_devfn_ignored_generic(devfn, bus)) {
+            continue;
+        }
+
+        /* start to compose PCI device descriptor */
+        dev = aml_device("S%.02X", devfn);
+        aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
+
+        call_dev_aml_func(DEVICE(bus->devices[devfn]), dev);
+
+        /* device descriptor has been composed, add it into parent context */
+        aml_append(parent_scope, dev);
+    }
 
     if (bsel) {
-        aml_append(parent_scope, notify_method);
+        build_append_pcihp_slots(parent_scope, bus, bsel);
     }
 
     qobject_unref(bsel);
