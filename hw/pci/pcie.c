@@ -611,11 +611,11 @@ void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)
                                PCI_EXP_SLTCAP_ABP);
 
     /*
-     * Enable native hot-plug on all hot-plugged bridges unless
-     * hot-plug is disabled on the slot.
+     * Expose native hot-plug on all bridges if hot-plug is enabled on the slot.
+     * (unless broken 6.1 ABI is enforced for compat reasons)
      */
     if (s->hotplug &&
-        (s->native_hotplug || DEVICE(dev)->hotplugged)) {
+        (!s->hide_native_hotplug_cap || DEVICE(dev)->hotplugged)) {
         pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_SLTCAP,
                                    PCI_EXP_SLTCAP_HPS |
                                    PCI_EXP_SLTCAP_HPC);

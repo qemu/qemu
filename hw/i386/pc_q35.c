@@ -257,8 +257,9 @@ static void pc_q35_init(MachineState *machine)
                                                  NULL);
 
     if (!keep_pci_slot_hpc && acpi_pcihp) {
-        object_register_sugar_prop(TYPE_PCIE_SLOT, "x-native-hotplug",
-                                   "false", true);
+        object_register_sugar_prop(TYPE_PCIE_SLOT,
+                                   "x-do-not-expose-native-hotplug-cap",
+                                   "true", true);
     }
 
     /* irq lines */
