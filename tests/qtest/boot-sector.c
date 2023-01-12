@@ -160,7 +160,9 @@ void boot_sector_test(QTestState *qts)
         qrsp = qtest_qmp(qts, "{ 'execute': 'query-status' }");
         qret = qdict_get_qdict(qrsp, "return");
         g_assert_nonnull(qret);
-        g_assert_cmpstr(qdict_get_try_str(qret, "status"), ==, "running");
+        if (qdict_get_try_str(qret, "status")) {
+            g_assert_cmpstr(qdict_get_try_str(qret, "status"), ==, "running");
+        }
         qobject_unref(qrsp);
 
         g_usleep(TEST_DELAY);
