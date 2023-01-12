@@ -383,6 +383,42 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     aml_append(method, if_ctx);
 }
 
+static bool is_devfn_ignored(const int devfn, const PCIBus *bus,
+                             bool bus_has_hotplug)
+{
+    const PCIDevice *pdev = bus->devices[devfn];
+
+    if (pdev) {
+        if (PCI_FUNC(devfn)) {
+            if (IS_PCI_BRIDGE(pdev)) {
+                /*
+                 * Ignore only hotplugged PCI bridges on !0 functions, but
+                 * allow describing cold plugged bridges on all functions
+                 */
+                if (DEVICE(pdev)->hotplugged) {
+                    return true;
+                }
+            } else if (!get_dev_aml_func(DEVICE(pdev))) {
+                /*
+                 * Ignore all other devices on !0 functions unless they
+                 * have AML description (i.e have get_dev_aml_func() != 0)
+                 */
+                return true;
+            }
+        }
+    } else { /* non populated slots */
+        /*
+         * hotplug is supported only for non-multifunction device
+         * so generate device description only for function 0
+         */
+        if (!bus_has_hotplug || PCI_FUNC(devfn) ||
+            (pci_bus_is_express(bus) && PCI_SLOT(devfn) > 0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
 {
     Aml *dev, *notify_method = NULL, *method;
@@ -398,59 +434,26 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
     }
 
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
-        DeviceClass *dc;
         PCIDevice *pdev = bus->devices[devfn];
         int slot = PCI_SLOT(devfn);
         int func = PCI_FUNC(devfn);
         /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
         int adr = slot << 16 | func;
-        bool hotpluggbale_slot = false;
-        bool cold_plugged_bridge = false;
+        bool hotpluggbale_slot = true;
+
+        if (is_devfn_ignored(devfn, bus, !!bsel)) {
+            continue;
+        }
 
         if (pdev) {
-            dc = DEVICE_GET_CLASS(pdev);
-
             /*
              * Cold plugged bridges aren't themselves hot-pluggable.
              * Hotplugged bridges *are* hot-pluggable.
              */
-            cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
+            bool cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
                                   !DEVICE(pdev)->hotplugged;
-
-            hotpluggbale_slot = bsel && dc->hotpluggable &&
+            hotpluggbale_slot = bsel && DEVICE_GET_CLASS(pdev)->hotpluggable &&
                                 !cold_plugged_bridge;
-
-            if (func) {
-                if (IS_PCI_BRIDGE(pdev)) {
-                    /*
-                     * Ignore only hotplugged PCI bridges on !0 functions, but
-                     * allow describing cold plugged bridges on all functions
-                     */
-                    if (DEVICE(pdev)->hotplugged) {
-                        continue;
-                    }
-                } else if (!get_dev_aml_func(DEVICE(pdev))) {
-                    /*
-                     * Ignore all other devices on !0 functions unless they
-                     * have AML description (i.e have get_dev_aml_func() != 0)
-                     */
-                    continue;
-                }
-            }
-        } else {
-            /*
-             * hotplug is supported only for non-multifunction device
-             * so generate device description only for function 0
-             */
-            if (bsel && !func) {
-                if (pci_bus_is_express(bus) && slot > 0) {
-                    break;
-                }
-                /* mark it as empty hotpluggable slot */
-                hotpluggbale_slot = true;
-            } else {
-                continue;
-            }
         }
 
         /* start to compose PCI device descriptor */
