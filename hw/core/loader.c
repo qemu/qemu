@@ -61,6 +61,7 @@
 #include "hw/boards.h"
 #include "qemu/cutils.h"
 #include "sysemu/runstate.h"
+#include "accel/tcg/debuginfo.h"
 
 #include <zlib.h>
 
@@ -501,6 +502,10 @@ ssize_t load_elf_ram_sym(const char *filename,
                          translate_fn, translate_opaque, must_swab,
                          pentry, lowaddr, highaddr, pflags, elf_machine,
                          clear_lsb, data_swab, as, load_rom, sym_cb);
+    }
+
+    if (ret != ELF_LOAD_FAILED) {
+        debuginfo_report_elf(filename, fd, 0);
     }
 
  fail:

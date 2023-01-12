@@ -19,6 +19,7 @@
 #include "qemu/selfmap.h"
 #include "qapi/error.h"
 #include "target_signal.h"
+#include "accel/tcg/debuginfo.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -3260,6 +3261,8 @@ static void load_elf_image(const char *image_name, int image_fd,
     if (qemu_log_enabled()) {
         load_symbols(ehdr, image_fd, load_bias);
     }
+
+    debuginfo_report_elf(image_name, image_fd, load_bias);
 
     mmap_unlock();
 
