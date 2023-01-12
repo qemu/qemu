@@ -409,8 +409,11 @@ static bool is_devfn_ignored_generic(const int devfn, const PCIBus *bus)
 
 static bool is_devfn_ignored_hotplug(const int devfn, const PCIBus *bus)
 {
-    if (bus->devices[devfn]) {
-        return is_devfn_ignored_generic(devfn, bus);
+    PCIDevice *pdev = bus->devices[devfn];
+    if (pdev) {
+        return is_devfn_ignored_generic(devfn, bus) ||
+               /* Cold plugged bridges aren't themselves hot-pluggable */
+               (IS_PCI_BRIDGE(pdev) && !DEVICE(pdev)->hotplugged);
     } else { /* non populated slots */
          /*
          * hotplug is supported only for non-multifunction device
@@ -445,14 +448,7 @@ static void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus,
         }
 
         if (pdev) {
-            /*
-             * Cold plugged bridges aren't themselves hot-pluggable.
-             * Hotplugged bridges *are* hot-pluggable.
-             */
-            bool cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
-                                  !DEVICE(pdev)->hotplugged;
-            hotpluggbale_slot = DEVICE_GET_CLASS(pdev)->hotpluggable &&
-                                !cold_plugged_bridge;
+            hotpluggbale_slot = DEVICE_GET_CLASS(pdev)->hotpluggable;
             dev = aml_scope("S%.02X", devfn);
         } else {
             dev = aml_device("S%.02X", devfn);
