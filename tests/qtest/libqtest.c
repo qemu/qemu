@@ -1435,6 +1435,10 @@ void qtest_qmp_device_add_qdict(QTestState *qts, const char *drv,
     resp = qtest_qmp(qts, "{'execute': 'device_add', 'arguments': %p}", args);
     g_assert(resp);
     g_assert(!qdict_haskey(resp, "event")); /* We don't expect any events */
+    if (qdict_haskey(resp, "error")) {
+        fprintf(stderr, "error: %s\n",
+            qdict_get_str(qdict_get_qdict(resp, "error"), "desc"));
+    }
     g_assert(!qdict_haskey(resp, "error"));
     qobject_unref(resp);
 }
