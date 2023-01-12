@@ -515,7 +515,8 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         /* Notify about child bus events in any case */
         if (pcihp_bridge_en) {
             QLIST_FOREACH(sec, &bus->child, sibling) {
-                if (pci_bus_is_root(sec)) {
+                if (pci_bus_is_root(sec) ||
+                    !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
                     continue;
                 }
 
