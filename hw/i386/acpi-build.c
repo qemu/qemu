@@ -464,7 +464,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 
         call_dev_aml_func(DEVICE(pdev), dev);
 
-        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
         if (bridge_in_acpi) {
             /*
              * device is coldplugged bridge,
