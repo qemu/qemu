@@ -39,6 +39,10 @@ config ACPI_PCIHP
     bool
     depends on ACPI
 
+config ACPI_PCI_BRIDGE
+    bool
+    depends on ACPI && PCI && ACPI_PCIHP
+
 config ACPI_HMAT
     bool
     depends on ACPI

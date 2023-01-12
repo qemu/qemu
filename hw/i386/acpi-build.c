@@ -383,8 +383,7 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     aml_append(method, if_ctx);
 }
 
-static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
-                                         bool pcihp_bridge_en)
+void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
 {
     Aml *dev, *notify_method = NULL, *method;
     QObject *bsel;
@@ -406,7 +405,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
         int adr = slot << 16 | func;
         bool hotpluggbale_slot = false;
-        bool bridge_in_acpi = false;
         bool cold_plugged_bridge = false;
 
         if (pdev) {
@@ -418,7 +416,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
              */
             cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
                                   !DEVICE(pdev)->hotplugged;
-            bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
 
             hotpluggbale_slot = bsel && dc->hotpluggable &&
                                 !cold_plugged_bridge;
@@ -470,16 +467,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         }
 
         call_dev_aml_func(DEVICE(pdev), dev);
-
-        if (bridge_in_acpi) {
-            /*
-             * device is coldplugged bridge,
-             * add child device descriptions into its scope
-             */
-            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
-
-            build_append_pci_bus_devices(dev, sec_bus, pcihp_bridge_en);
-        }
 
         if (hotpluggbale_slot) {
             aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
@@ -1704,7 +1691,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             PCIBus *bus = PCI_HOST_BRIDGE(pci_host)->bus;
             Aml *scope = aml_scope("PCI0");
             /* Scan all PCI buses. Generate tables to support hotplug. */
-            build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
+            build_append_pci_bus_devices(scope, bus);
             aml_append(sb_scope, scope);
         }
     }
