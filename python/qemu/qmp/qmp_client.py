@@ -197,8 +197,8 @@ class QMPClient(AsyncProtocol[Message], Events):
     #: Logger object used for debugging messages.
     logger = logging.getLogger(__name__)
 
-    # Read buffer limit; large enough to accept query-qmp-schema
-    _limit = (256 * 1024)
+    # Read buffer limit; 10MB like libvirt default
+    _limit = (10 * 1024 * 1024)
 
     # Type alias for pending execute() result items
     _PendingT = Union[Message, ExecInterruptedError]
