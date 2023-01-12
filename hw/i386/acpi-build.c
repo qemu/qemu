@@ -423,14 +423,22 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             hotpluggbale_slot = bsel && dc->hotpluggable &&
                                 !cold_plugged_bridge;
 
-            /*
-             * allow describing coldplugged bridges in ACPI even if they are not
-             * on function 0, as they are not unpluggable, for all other devices
-             * generate description only for function 0 per slot, and for other
-             * functions if device on function provides its own AML
-             */
-            if (func && !bridge_in_acpi && !get_dev_aml_func(DEVICE(pdev))) {
-                continue;
+            if (func) {
+                if (IS_PCI_BRIDGE(pdev)) {
+                    /*
+                     * Ignore only hotplugged PCI bridges on !0 functions, but
+                     * allow describing cold plugged bridges on all functions
+                     */
+                    if (DEVICE(pdev)->hotplugged) {
+                        continue;
+                    }
+                } else if (!get_dev_aml_func(DEVICE(pdev))) {
+                    /*
+                     * Ignore all other devices on !0 functions unless they
+                     * have AML description (i.e have get_dev_aml_func() != 0)
+                     */
+                    continue;
+                }
             }
         } else {
             /*
