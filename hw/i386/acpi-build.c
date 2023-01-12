@@ -388,7 +388,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
 {
     Aml *dev, *notify_method = NULL, *method;
     QObject *bsel;
-    PCIBus *sec;
     int devfn;
 
     bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
@@ -494,12 +493,35 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         aml_append(parent_scope, notify_method);
     }
 
+    qobject_unref(bsel);
+}
+
+static void build_append_notfication_callback(Aml *parent_scope,
+                                              const PCIBus *bus)
+{
+    Aml *method;
+    PCIBus *sec;
+    QObject *bsel;
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        Aml *br_scope = aml_scope("S%.02X", sec->parent_dev->devfn);
+        if (pci_bus_is_root(sec) ||
+            !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
+            continue;
+        }
+        build_append_notfication_callback(br_scope, sec);
+        aml_append(parent_scope, br_scope);
+    }
+
     /*
      * Append PCNT method to notify about events on local and child buses.
+     * ps: hostbridge might not have hotplug (bsel) enabled but might have
+     * child bridges that do have bsel.
      */
     method = aml_method("PCNT", 0, AML_NOTSERIALIZED);
 
     /* If bus supports hotplug select it and notify about local events */
+    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
     if (bsel) {
         uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
 
@@ -521,7 +543,6 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     }
 
     aml_append(parent_scope, method);
-
     qobject_unref(bsel);
 }
 
@@ -1721,6 +1742,13 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     aml_append(dsdt, sb_scope);
 
     if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
+        Object *pci_host = acpi_get_i386_pci_host();
+        PCIBus *bus = PCI_HOST_BRIDGE(pci_host)->bus;
+
+        scope = aml_scope("\\_SB.PCI0");
+        build_append_notfication_callback(scope, bus);
+        aml_append(dsdt, scope);
+
         scope =  aml_scope("_GPE");
         {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
