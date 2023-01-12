@@ -812,7 +812,7 @@ static void test_vm_prepare(const char *params, test_data *data)
     g_free(args);
 }
 
-static void process_acpi_tables(test_data *data)
+static void process_acpi_tables_noexit(test_data *data)
 {
     test_acpi_load_tables(data);
 
@@ -831,7 +831,11 @@ static void process_acpi_tables(test_data *data)
         SmbiosEntryPointType ep_type = test_smbios_entry_point(data);
         test_smbios_structs(data, ep_type);
     }
+}
 
+static void process_acpi_tables(test_data *data)
+{
+    process_acpi_tables_noexit(data);
     qtest_quit(data->qts);
 }
 
@@ -883,6 +887,11 @@ static void test_acpi_piix4_tcg_bridge(void)
     qtest_qmp_send(data.qts, "{'execute':'cont' }");
     qtest_qmp_eventwait(data.qts, "RESUME");
 
+    process_acpi_tables_noexit(&data);
+    free_test_data(&data);
+
+    /* check that reboot/reset doesn't change any ACPI tables  */
+    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
     process_acpi_tables(&data);
     free_test_data(&data);
 }
@@ -1005,6 +1014,11 @@ static void test_acpi_q35_multif_bridge(void)
     qtest_qmp_send(data.qts, "{'execute':'cont' }");
     qtest_qmp_eventwait(data.qts, "RESUME");
 
+    process_acpi_tables_noexit(&data);
+    free_test_data(&data);
+
+    /* check that reboot/reset doesn't change any ACPI tables  */
+    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
     process_acpi_tables(&data);
     free_test_data(&data);
 }
