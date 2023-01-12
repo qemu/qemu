@@ -45,6 +45,7 @@ void helper_set_pstate_sm(CPUARMState *env, uint32_t i)
     }
     env->svcr ^= R_SVCR_SM_MASK;
     arm_reset_sve_state(env);
+    arm_rebuild_hflags(env);
 }
 
 void helper_set_pstate_za(CPUARMState *env, uint32_t i)
@@ -65,6 +66,7 @@ void helper_set_pstate_za(CPUARMState *env, uint32_t i)
     if (i) {
         memset(env->zarray, 0, sizeof(env->zarray));
     }
+    arm_rebuild_hflags(env);
 }
 
 void helper_sme_zero(CPUARMState *env, uint32_t imm, uint32_t svl)

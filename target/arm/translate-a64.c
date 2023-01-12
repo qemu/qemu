@@ -1855,7 +1855,6 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
                 if ((crm & 4) && i != s->pstate_za) {
                     gen_helper_set_pstate_za(cpu_env, tcg_constant_i32(i));
                 }
-                gen_rebuild_hflags(s);
             } else {
                 s->base.is_jmp = DISAS_NEXT;
             }
