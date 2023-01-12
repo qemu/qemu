@@ -85,31 +85,40 @@ static int acpi_pcihp_get_bsel(PCIBus *bus)
     }
 }
 
-/* Assign BSEL property to all buses.  In the future, this can be changed
- * to only assign to buses that support hotplug.
- */
+typedef struct {
+    unsigned bsel_alloc;
+    bool has_bridge_hotplug;
+} BSELInfo;
+
+/* Assign BSEL property only to buses that support hotplug. */
 static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 {
-    unsigned *bsel_alloc = opaque;
+    BSELInfo *info = opaque;
     unsigned *bus_bsel;
+    DeviceState *br = bus->qbus.parent;
+    bool is_bridge = IS_PCI_BRIDGE(br);
 
+    /* hotplugged bridges can't be described in ACPI ignore them */
     if (qbus_is_hotpluggable(BUS(bus))) {
-        bus_bsel = g_malloc(sizeof *bus_bsel);
+        if (!is_bridge || (!br->hotplugged && info->has_bridge_hotplug)) {
+            bus_bsel = g_malloc(sizeof *bus_bsel);
 
-        *bus_bsel = (*bsel_alloc)++;
-        object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
-                                       bus_bsel, OBJ_PROP_FLAG_READ);
+            *bus_bsel = info->bsel_alloc++;
+            object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
+                                           bus_bsel, OBJ_PROP_FLAG_READ);
+        }
     }
 
-    return bsel_alloc;
+    return info;
 }
 
-static void acpi_set_pci_info(void)
+static void acpi_set_pci_info(bool has_bridge_hotplug)
 {
     static bool bsel_is_set;
     Object *host = acpi_get_i386_pci_host();
     PCIBus *bus;
-    unsigned bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT;
+    BSELInfo info = { .bsel_alloc = ACPI_PCIHP_BSEL_DEFAULT,
+                      .has_bridge_hotplug = has_bridge_hotplug };
 
     if (bsel_is_set) {
         return;
@@ -123,7 +132,7 @@ static void acpi_set_pci_info(void)
     bus = PCI_HOST_BRIDGE(host)->bus;
     if (bus) {
         /* Scan all PCI buses. Set property to enable acpi based hotplug. */
-        pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &bsel_alloc);
+        pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &info);
     }
 }
 
@@ -287,7 +296,7 @@ void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
     if (acpihp_root_off) {
         acpi_pcihp_disable_root_bus();
     }
-    acpi_set_pci_info();
+    acpi_set_pci_info(!s->legacy_piix);
     acpi_pcihp_update(s);
 }
 
