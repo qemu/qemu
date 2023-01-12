@@ -87,12 +87,6 @@ as short-form boolean values, and passed to plugins as ``arg_name=on``.
 However, short-form booleans are deprecated and full explicit ``arg_name=on``
 form is preferred.
 
-``-drive if=none`` for the sifive_u OTP device (since 6.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Using ``-drive if=none`` to configure the OTP device of the sifive_u
-RISC-V machine is deprecated. Use ``-drive if=pflash`` instead.
-
 ``-no-hpet`` (since 8.0)
 ''''''''''''''''''''''''
 
