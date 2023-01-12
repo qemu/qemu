@@ -951,8 +951,7 @@ static void test_acpi_q35_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1",
-                  &data);
+    test_acpi_one("-device pci-bridge,chassis_nr=1", &data);
     free_test_data(&data);
 }
 
@@ -962,14 +961,12 @@ static void test_acpi_q35_multif_bridge(void)
         .machine = MACHINE_Q35,
         .variant = ".multi-bridge",
     };
-    test_acpi_one("-device pcie-root-port,id=pcie-root-port-0,"
-                  "multifunction=on,"
-                  "port=0x0,chassis=1,addr=0x2,bus=pcie.0 "
-                  "-device pcie-root-port,id=pcie-root-port-1,"
-                  "port=0x1,chassis=2,addr=0x3.0x1,bus=pcie.0 "
-                  "-device virtio-balloon,id=balloon0,"
-                  "bus=pcie.0,addr=0x4.0x2",
-                  &data);
+    test_acpi_one(
+        " -device virtio-balloon,id=balloon0,addr=0x4.0x2"
+        " -device pcie-root-port,id=rp0,multifunction=on,"
+                  "port=0x0,chassis=1,addr=0x2"
+        " -device pcie-root-port,id=rp1,port=0x1,chassis=2,addr=0x3.0x1",
+        &data);
     free_test_data(&data);
 }
 
