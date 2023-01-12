@@ -875,7 +875,9 @@ static void test_acpi_piix4_tcg_bridge(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_vm_prepare("-S"
         " -device pci-bridge,chassis_nr=1"
-        " -device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2", &data);
+        " -device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2"
+        " -device pci-testdev,bus=pci.0,addr=5.0"
+        " -device pci-testdev,bus=pci.1", &data);
 
     /* hotplugged bridges section */
     qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr",
@@ -884,6 +886,10 @@ static void test_acpi_piix4_tcg_bridge(void)
         "{'bus': 'pci.1', 'addr': '0xf.1', 'chassis_nr': 4 }");
     qtest_qmp_device_add(data.qts, "pci-bridge", "hpbrhost",
         "{'bus': 'pci.0', 'addr': '4.0', 'chassis_nr': 5 }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d1", "{'bus': 'pci.0' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d2", "{'bus': 'pci.1' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d3", "{'bus': 'hpbr', "
+                                   "'addr': '1.0' }");
     qtest_qmp_send(data.qts, "{'execute':'cont' }");
     qtest_qmp_eventwait(data.qts, "RESUME");
 
@@ -907,7 +913,9 @@ static void test_acpi_piix4_no_root_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
                   "-device pci-bridge,chassis_nr=1 "
-                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 ", &data);
+                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1", &data);
     free_test_data(&data);
 }
 
@@ -922,7 +930,9 @@ static void test_acpi_piix4_no_bridge_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
                   "-device pci-bridge,chassis_nr=1 "
-                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 ", &data);
+                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1,addr=2.0", &data);
     free_test_data(&data);
 }
 
@@ -937,7 +947,9 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
                   "-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
-                  "-device pci-bridge,chassis_nr=1", &data);
+                  "-device pci-bridge,chassis_nr=1 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1", &data);
     free_test_data(&data);
 }
 
@@ -982,7 +994,9 @@ static void test_acpi_q35_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1", &data);
+    test_acpi_one("-device pci-bridge,chassis_nr=1,id=br1"
+                  " -device pci-testdev,bus=pcie.0"
+                  " -device pci-testdev,bus=br1", &data);
     free_test_data(&data);
 }
 
@@ -1001,8 +1015,11 @@ static void test_acpi_q35_multif_bridge(void)
         " -device pci-bridge,bus=rp2,chassis_nr=4,id=br1"
         " -device pcie-root-port,id=rphptgt1,port=0x0,chassis=5,addr=2.1"
         " -device pcie-root-port,id=rphptgt2,port=0x0,chassis=6,addr=2.2"
-        " -device pcie-root-port,id=rphptgt3,port=0x0,chassis=7,addr=2.3",
-        &data);
+        " -device pcie-root-port,id=rphptgt3,port=0x0,chassis=7,addr=2.3"
+        " -device pci-testdev,bus=pcie.0,addr=2.4"
+        " -device pci-testdev,bus=pcie.0,addr=5.0"
+        " -device pci-testdev,bus=rp0,addr=0.0"
+        " -device pci-testdev,bus=br1", &data);
 
     /* hotplugged bridges section */
     qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr1",
@@ -1010,7 +1027,11 @@ static void test_acpi_q35_multif_bridge(void)
     qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr2-multiif",
         "{ 'bus': 'br1', 'addr': '2.2', 'chassis_nr': 129 }");
     qtest_qmp_device_add(data.qts, "pcie-pci-bridge", "hpbr3",
-        "{'bus': 'rp0', 'addr': '0.0' }");
+        "{'bus': 'rphptgt1', 'addr': '0.0' }");
+    qtest_qmp_device_add(data.qts, "pcie-root-port", "hprp",
+        "{'bus': 'rphptgt2', 'addr': '0.0' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "hpnic",
+        "{'bus': 'rphptgt3', 'addr': '0.0' }");
     qtest_qmp_send(data.qts, "{'execute':'cont' }");
     qtest_qmp_eventwait(data.qts, "RESUME");
 
