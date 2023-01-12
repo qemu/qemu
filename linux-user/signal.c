@@ -695,7 +695,7 @@ void cpu_loop_exit_sigbus(CPUState *cpu, target_ulong addr,
 
 /* abort execution with signal */
 static G_NORETURN
-void dump_core_and_abort(int target_sig)
+void dump_core_and_abort(CPUArchState *cpu_env, int target_sig)
 {
     CPUState *cpu = thread_cpu;
     CPUArchState *env = cpu->env_ptr;
@@ -723,6 +723,8 @@ void dump_core_and_abort(int target_sig)
         (void) fprintf(stderr, "qemu: uncaught target signal %d (%s) - %s\n",
             target_sig, strsignal(host_sig), "core dumped" );
     }
+
+    preexit_cleanup(cpu_env, 128 + target_sig);
 
     /* The proper exit code for dying from an uncaught signal is
      * -<signal>.  The kernel doesn't allow exit() or _exit() to pass
@@ -1058,12 +1060,12 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
                    sig != TARGET_SIGURG &&
                    sig != TARGET_SIGWINCH &&
                    sig != TARGET_SIGCONT) {
-            dump_core_and_abort(sig);
+            dump_core_and_abort(cpu_env, sig);
         }
     } else if (handler == TARGET_SIG_IGN) {
         /* ignore sig */
     } else if (handler == TARGET_SIG_ERR) {
-        dump_core_and_abort(sig);
+        dump_core_and_abort(cpu_env, sig);
     } else {
         /* compute the blocked signals during the handler execution */
         sigset_t *blocked_set;
