@@ -496,12 +496,13 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_unref(bsel);
 }
 
-static void build_append_notfication_callback(Aml *parent_scope,
+static bool build_append_notfication_callback(Aml *parent_scope,
                                               const PCIBus *bus)
 {
     Aml *method;
     PCIBus *sec;
     QObject *bsel;
+    int nr_notifiers = 0;
 
     QLIST_FOREACH(sec, &bus->child, sibling) {
         Aml *br_scope = aml_scope("S%.02X", sec->parent_dev->devfn);
@@ -509,7 +510,8 @@ static void build_append_notfication_callback(Aml *parent_scope,
             !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
             continue;
         }
-        build_append_notfication_callback(br_scope, sec);
+        nr_notifiers = nr_notifiers +
+                       build_append_notfication_callback(br_scope, sec);
         aml_append(parent_scope, br_scope);
     }
 
@@ -530,6 +532,7 @@ static void build_append_notfication_callback(Aml *parent_scope,
                                      aml_int(1))); /* Device Check */
         aml_append(method, aml_call2("DVNT", aml_name("PCID"),
                                      aml_int(3))); /* Eject Request */
+        nr_notifiers++;
     }
 
     /* Notify about child bus events in any case */
@@ -544,6 +547,7 @@ static void build_append_notfication_callback(Aml *parent_scope,
 
     aml_append(parent_scope, method);
     qobject_unref(bsel);
+    return !!nr_notifiers;
 }
 
 static Aml *aml_pci_pdsm(void)
@@ -1742,20 +1746,26 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     aml_append(dsdt, sb_scope);
 
     if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
+        bool has_pcnt;
+
         Object *pci_host = acpi_get_i386_pci_host();
         PCIBus *bus = PCI_HOST_BRIDGE(pci_host)->bus;
 
         scope = aml_scope("\\_SB.PCI0");
-        build_append_notfication_callback(scope, bus);
-        aml_append(dsdt, scope);
+        has_pcnt = build_append_notfication_callback(scope, bus);
+        if (has_pcnt) {
+            aml_append(dsdt, scope);
+        }
 
         scope =  aml_scope("_GPE");
         {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
-            aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
-            aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
+            if (has_pcnt) {
+                aml_append(method,
+                    aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
+                aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
+                aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
+            }
             aml_append(scope, method);
         }
         aml_append(dsdt, scope);
