@@ -153,6 +153,8 @@ void boot_sector_test(QTestState *qts)
         signature_high = qtest_readb(qts, SIGNATURE_ADDR + 1);
         signature = (signature_high << 8) | signature_low;
         if (signature == SIGNATURE) {
+            /* wipe signature */
+            qtest_writeb(qts, SIGNATURE_ADDR, 0x00);
             break;
         }
 
