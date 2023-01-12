@@ -1841,18 +1841,20 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
             goto do_unallocated;
         }
         if (sme_access_check(s)) {
-            bool i = crm & 1;
-            bool changed = false;
+            int old = s->pstate_sm | (s->pstate_za << 1);
+            int new = (crm & 1) * 3;
+            int msk = (crm >> 1) & 3;
 
-            if ((crm & 2) && i != s->pstate_sm) {
-                gen_helper_set_pstate_sm(cpu_env, tcg_constant_i32(i));
-                changed = true;
-            }
-            if ((crm & 4) && i != s->pstate_za) {
-                gen_helper_set_pstate_za(cpu_env, tcg_constant_i32(i));
-                changed = true;
-            }
-            if (changed) {
+            if ((old ^ new) & msk) {
+                /* At least one bit changes. */
+                bool i = crm & 1;
+
+                if ((crm & 2) && i != s->pstate_sm) {
+                    gen_helper_set_pstate_sm(cpu_env, tcg_constant_i32(i));
+                }
+                if ((crm & 4) && i != s->pstate_za) {
+                    gen_helper_set_pstate_za(cpu_env, tcg_constant_i32(i));
+                }
                 gen_rebuild_hflags(s);
             } else {
                 s->base.is_jmp = DISAS_NEXT;
