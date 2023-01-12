@@ -96,7 +96,6 @@ void cpu_loop(CPUARMState *env)
             aarch64_set_svcr(env, 0, R_SVCR_SM_MASK);
             if (FIELD_EX64(env->svcr, SVCR, SM)) {
                 arm_rebuild_hflags(env);
-                arm_reset_sve_state(env);
             }
             ret = do_syscall(env,
                              env->xregs[8],
