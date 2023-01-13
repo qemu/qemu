@@ -59,7 +59,9 @@ bool coroutine_fn blk_co_is_inserted(BlockBackend *blk);
 bool co_wrapper_mixed blk_is_inserted(BlockBackend *blk);
 
 bool blk_is_available(BlockBackend *blk);
-void blk_lock_medium(BlockBackend *blk, bool locked);
+
+void coroutine_fn blk_co_lock_medium(BlockBackend *blk, bool locked);
+void co_wrapper blk_lock_medium(BlockBackend *blk, bool locked);
 
 void coroutine_fn blk_co_eject(BlockBackend *blk, bool eject_flag);
 void co_wrapper blk_eject(BlockBackend *blk, bool eject_flag);

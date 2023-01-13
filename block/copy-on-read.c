@@ -223,9 +223,9 @@ static void coroutine_fn cor_co_eject(BlockDriverState *bs, bool eject_flag)
 }
 
 
-static void cor_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn cor_co_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_lock_medium(bs->file->bs, locked);
+    bdrv_co_lock_medium(bs->file->bs, locked);
 }
 
 
@@ -259,7 +259,7 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_co_pwritev_compressed         = cor_co_pwritev_compressed,
 
     .bdrv_co_eject                      = cor_co_eject,
-    .bdrv_lock_medium                   = cor_lock_medium,
+    .bdrv_co_lock_medium                = cor_co_lock_medium,
 
     .has_variable_length                = true,
     .is_filter                          = true,

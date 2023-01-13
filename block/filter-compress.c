@@ -124,9 +124,10 @@ compress_co_eject(BlockDriverState *bs, bool eject_flag)
 }
 
 
-static void compress_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn
+compress_co_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_lock_medium(bs->file->bs, locked);
+    bdrv_co_lock_medium(bs->file->bs, locked);
 }
 
 
@@ -145,7 +146,7 @@ static BlockDriver bdrv_compress = {
     .bdrv_refresh_limits                = compress_refresh_limits,
 
     .bdrv_co_eject                      = compress_co_eject,
-    .bdrv_lock_medium                   = compress_lock_medium,
+    .bdrv_co_lock_medium                = compress_co_lock_medium,
 
     .has_variable_length                = true,
     .is_filter                          = true,

@@ -410,9 +410,9 @@ static void coroutine_fn raw_co_eject(BlockDriverState *bs, bool eject_flag)
     bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
-static void raw_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn raw_co_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_lock_medium(bs->file->bs, locked);
+    bdrv_co_lock_medium(bs->file->bs, locked);
 }
 
 static int coroutine_fn raw_co_ioctl(BlockDriverState *bs,
@@ -632,7 +632,7 @@ BlockDriver bdrv_raw = {
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
     .bdrv_co_eject        = &raw_co_eject,
-    .bdrv_lock_medium     = &raw_lock_medium,
+    .bdrv_co_lock_medium  = &raw_co_lock_medium,
     .bdrv_co_ioctl        = &raw_co_ioctl,
     .create_opts          = &raw_create_opts,
     .bdrv_has_zero_init   = &raw_has_zero_init,

@@ -709,7 +709,7 @@ struct BlockDriver {
     /* removable device specific */
     bool coroutine_fn (*bdrv_co_is_inserted)(BlockDriverState *bs);
     void coroutine_fn (*bdrv_co_eject)(BlockDriverState *bs, bool eject_flag);
-    void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
+    void coroutine_fn (*bdrv_co_lock_medium)(BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
