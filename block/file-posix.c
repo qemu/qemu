@@ -3765,7 +3765,7 @@ static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
     return ret == CDS_DISC_OK;
 }
 
-static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cdrom_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3823,7 +3823,7 @@ static BlockDriver bdrv_host_cdrom = {
 
     /* removable device support */
     .bdrv_co_is_inserted    = cdrom_co_is_inserted,
-    .bdrv_eject         = cdrom_eject,
+    .bdrv_co_eject          = cdrom_co_eject,
     .bdrv_lock_medium   = cdrom_lock_medium,
 
     /* generic scsi device */
@@ -3886,7 +3886,7 @@ static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
     return raw_co_getlength(bs) > 0;
 }
 
-static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cdrom_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3952,7 +3952,7 @@ static BlockDriver bdrv_host_cdrom = {
 
     /* removable device support */
     .bdrv_co_is_inserted     = cdrom_co_is_inserted,
-    .bdrv_eject         = cdrom_eject,
+    .bdrv_co_eject           = cdrom_co_eject,
     .bdrv_lock_medium   = cdrom_lock_medium,
 };
 #endif /* __FreeBSD__ */

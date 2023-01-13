@@ -217,9 +217,9 @@ static int coroutine_fn cor_co_pwritev_compressed(BlockDriverState *bs,
 }
 
 
-static void cor_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cor_co_eject(BlockDriverState *bs, bool eject_flag)
 {
-    bdrv_eject(bs->file->bs, eject_flag);
+    bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
 
@@ -258,7 +258,7 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_co_pdiscard                   = cor_co_pdiscard,
     .bdrv_co_pwritev_compressed         = cor_co_pwritev_compressed,
 
-    .bdrv_eject                         = cor_eject,
+    .bdrv_co_eject                      = cor_co_eject,
     .bdrv_lock_medium                   = cor_lock_medium,
 
     .has_variable_length                = true,
