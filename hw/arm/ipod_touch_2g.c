@@ -81,6 +81,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 {
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
 
+    allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "tvout", TVOUT_MEM_BASE, 0x1000);

@@ -47,6 +47,7 @@
 
 // memory addresses
 #define VROM_MEM_BASE   0x0
+#define IBOOT_MEM_BASE 0xFF00000
 #define SRAM1_MEM_BASE  0x22020000
 #define SHA1_MEM_BASE 0x38000000
 #define DMAC0_MEM_BASE 0x38200000
