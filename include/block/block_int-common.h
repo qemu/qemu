@@ -700,10 +700,10 @@ struct BlockDriver {
                                                  Error **errp);
     BlockStatsSpecific *(*bdrv_get_specific_stats)(BlockDriverState *bs);
 
-    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_save_vmstate)(
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_save_vmstate)(
         BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
-    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_load_vmstate)(
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_load_vmstate)(
         BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
     /* removable device specific */
