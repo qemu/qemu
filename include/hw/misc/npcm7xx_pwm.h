@@ -101,7 +101,6 @@ struct NPCM7xxPWMState {
 };
 
 #define TYPE_NPCM7XX_PWM "npcm7xx-pwm"
-#define NPCM7XX_PWM(obj) \
-    OBJECT_CHECK(NPCM7xxPWMState, (obj), TYPE_NPCM7XX_PWM)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxPWMState, NPCM7XX_PWM)
 
 #endif /* NPCM7XX_PWM_H */

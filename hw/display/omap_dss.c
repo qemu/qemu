@@ -175,7 +175,7 @@ void omap_dss_reset(struct omap_dss_s *s)
 static uint64_t omap_diss_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -213,7 +213,7 @@ static uint64_t omap_diss_read(void *opaque, hwaddr addr,
 static void omap_diss_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -254,7 +254,7 @@ static const MemoryRegionOps omap_diss_ops = {
 static uint64_t omap_disc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -379,7 +379,7 @@ static uint64_t omap_disc_read(void *opaque, hwaddr addr,
 static void omap_disc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -669,10 +669,9 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     omap_dispc_interrupt_update(s);
 }
 
-static uint64_t omap_rfbi_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static uint64_t omap_rfbi_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -739,7 +738,7 @@ static uint64_t omap_rfbi_read(void *opaque, hwaddr addr,
 static void omap_rfbi_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *) opaque;
+    struct omap_dss_s *s = opaque;
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);

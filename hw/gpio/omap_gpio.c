@@ -41,7 +41,7 @@ struct omap_gpio_s {
     uint16_t pins;
 };
 
-struct omap_gpif_s {
+struct Omap1GpioState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -53,7 +53,8 @@ struct omap_gpif_s {
 /* General-Purpose I/O of OMAP1 */
 static void omap_gpio_set(void *opaque, int line, int level)
 {
-    struct omap_gpio_s *s = &((struct omap_gpif_s *) opaque)->omap1;
+    Omap1GpioState *p = opaque;
+    struct omap_gpio_s *s = &p->omap1;
     uint16_t prev = s->inputs;
 
     if (level)
@@ -71,7 +72,7 @@ static void omap_gpio_set(void *opaque, int line, int level)
 static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
+    struct omap_gpio_s *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 2) {
@@ -109,7 +110,7 @@ static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
 static void omap_gpio_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
+    struct omap_gpio_s *s = opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
@@ -209,7 +210,7 @@ struct omap2_gpio_s {
     uint8_t delay;
 };
 
-struct omap2_gpif_s {
+struct Omap2GpioState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -273,7 +274,7 @@ static inline void omap2_gpio_module_int(struct omap2_gpio_s *s, int line)
 
 static void omap2_gpio_set(void *opaque, int line, int level)
 {
-    struct omap2_gpif_s *p = opaque;
+    Omap2GpioState *p = opaque;
     struct omap2_gpio_s *s = &p->modules[line >> 5];
 
     line &= 31;
@@ -308,7 +309,7 @@ static void omap2_gpio_module_reset(struct omap2_gpio_s *s)
 
 static uint32_t omap2_gpio_module_read(void *opaque, hwaddr addr)
 {
-    struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
+    struct omap2_gpio_s *s = opaque;
 
     switch (addr) {
     case 0x00:	/* GPIO_REVISION */
@@ -381,7 +382,7 @@ static uint32_t omap2_gpio_module_read(void *opaque, hwaddr addr)
 static void omap2_gpio_module_write(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    struct omap2_gpio_s *s = (struct omap2_gpio_s *) opaque;
+    struct omap2_gpio_s *s = opaque;
     uint32_t diff;
     int ln;
 
@@ -593,14 +594,14 @@ static const MemoryRegionOps omap2_gpio_module_ops = {
 
 static void omap_gpif_reset(DeviceState *dev)
 {
-    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = OMAP1_GPIO(dev);
 
     omap_gpio_reset(&s->omap1);
 }
 
 static void omap2_gpif_reset(DeviceState *dev)
 {
-    struct omap2_gpif_s *s = OMAP2_GPIO(dev);
+    Omap2GpioState *s = OMAP2_GPIO(dev);
     int i;
 
     for (i = 0; i < s->modulecount; i++) {
@@ -610,10 +611,9 @@ static void omap2_gpif_reset(DeviceState *dev)
     s->gpo = 0;
 }
 
-static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr,
-                                    unsigned size)
+static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
+    Omap2GpioState *s = opaque;
 
     switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */
@@ -642,7 +642,7 @@ static uint64_t omap2_gpif_top_read(void *opaque, hwaddr addr,
 static void omap2_gpif_top_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
+    Omap2GpioState *s = opaque;
 
     switch (addr) {
     case 0x00:	/* IPGENERICOCPSPL_REVISION */
@@ -677,7 +677,7 @@ static const MemoryRegionOps omap2_gpif_top_ops = {
 static void omap_gpio_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    struct omap_gpif_s *s = OMAP1_GPIO(obj);
+    Omap1GpioState *s = OMAP1_GPIO(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     qdev_init_gpio_in(dev, omap_gpio_set, 16);
@@ -690,7 +690,7 @@ static void omap_gpio_init(Object *obj)
 
 static void omap_gpio_realize(DeviceState *dev, Error **errp)
 {
-    struct omap_gpif_s *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = OMAP1_GPIO(dev);
 
     if (!s->clk) {
         error_setg(errp, "omap-gpio: clk not connected");
@@ -699,7 +699,7 @@ static void omap_gpio_realize(DeviceState *dev, Error **errp)
 
 static void omap2_gpio_realize(DeviceState *dev, Error **errp)
 {
-    struct omap2_gpif_s *s = OMAP2_GPIO(dev);
+    Omap2GpioState *s = OMAP2_GPIO(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     int i;
 
@@ -742,13 +742,13 @@ static void omap2_gpio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-void omap_gpio_set_clk(omap_gpif *gpio, omap_clk clk)
+void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk)
 {
     gpio->clk = clk;
 }
 
 static Property omap_gpio_properties[] = {
-    DEFINE_PROP_INT32("mpu_model", struct omap_gpif_s, mpu_model, 0),
+    DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -766,24 +766,24 @@ static void omap_gpio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo omap_gpio_info = {
     .name          = TYPE_OMAP1_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct omap_gpif_s),
+    .instance_size = sizeof(Omap1GpioState),
     .instance_init = omap_gpio_init,
     .class_init    = omap_gpio_class_init,
 };
 
-void omap2_gpio_set_iclk(omap2_gpif *gpio, omap_clk clk)
+void omap2_gpio_set_iclk(Omap2GpioState *gpio, omap_clk clk)
 {
     gpio->iclk = clk;
 }
 
-void omap2_gpio_set_fclk(omap2_gpif *gpio, uint8_t i, omap_clk clk)
+void omap2_gpio_set_fclk(Omap2GpioState *gpio, uint8_t i, omap_clk clk)
 {
     assert(i <= 5);
     gpio->fclk[i] = clk;
 }
 
 static Property omap2_gpio_properties[] = {
-    DEFINE_PROP_INT32("mpu_model", struct omap2_gpif_s, mpu_model, 0),
+    DEFINE_PROP_INT32("mpu_model", Omap2GpioState, mpu_model, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -801,7 +801,7 @@ static void omap2_gpio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo omap2_gpio_info = {
     .name          = TYPE_OMAP2_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct omap2_gpif_s),
+    .instance_size = sizeof(Omap2GpioState),
     .class_init    = omap2_gpio_class_init,
 };
 

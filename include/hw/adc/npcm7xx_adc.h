@@ -42,7 +42,7 @@
  * @iref: The internal reference voltage, initialized at launch time.
  * @rv: The calibrated output values of 0.5V and 1.5V for the ADC.
  */
-typedef struct {
+struct NPCM7xxADCState {
     SysBusDevice parent;
 
     MemoryRegion iomem;
@@ -60,10 +60,9 @@ typedef struct {
     uint32_t     iref;
 
     uint16_t     calibration_r_values[NPCM7XX_ADC_NUM_CALIB];
-} NPCM7xxADCState;
+};
 
 #define TYPE_NPCM7XX_ADC "npcm7xx-adc"
-#define NPCM7XX_ADC(obj) \
-    OBJECT_CHECK(NPCM7xxADCState, (obj), TYPE_NPCM7XX_ADC)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxADCState, NPCM7XX_ADC)
 
 #endif /* NPCM7XX_ADC_H */

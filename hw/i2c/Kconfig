@@ -34,6 +34,10 @@ config MPC_I2C
     bool
     select I2C
 
+config ALLWINNER_I2C
+    bool
+    select I2C
+
 config PCA954X
     bool
     select I2C

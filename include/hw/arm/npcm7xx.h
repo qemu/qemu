@@ -52,7 +52,7 @@
 
 #define NPCM7XX_NR_PWM_MODULES 2
 
-typedef struct NPCM7xxMachine {
+struct NPCM7xxMachine {
     MachineState        parent;
     /*
      * PWM fan splitter. each splitter connects to one PWM output and
@@ -60,11 +60,10 @@ typedef struct NPCM7xxMachine {
      */
     SplitIRQ            fan_splitter[NPCM7XX_NR_PWM_MODULES *
                                      NPCM7XX_PWM_PER_MODULE];
-} NPCM7xxMachine;
+};
 
 #define TYPE_NPCM7XX_MACHINE MACHINE_TYPE_NAME("npcm7xx")
-#define NPCM7XX_MACHINE(obj)                                            \
-    OBJECT_CHECK(NPCM7xxMachine, (obj), TYPE_NPCM7XX_MACHINE)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxMachine, NPCM7XX_MACHINE)
 
 typedef struct NPCM7xxMachineClass {
     MachineClass        parent;
@@ -77,7 +76,7 @@ typedef struct NPCM7xxMachineClass {
 #define NPCM7XX_MACHINE_GET_CLASS(obj)                                  \
     OBJECT_GET_CLASS(NPCM7xxMachineClass, (obj), TYPE_NPCM7XX_MACHINE)
 
-typedef struct NPCM7xxState {
+struct NPCM7xxState {
     DeviceState         parent;
 
     ARMCPU              cpu[NPCM7XX_MAX_NUM_CPUS];
@@ -105,10 +104,10 @@ typedef struct NPCM7xxState {
     NPCM7xxFIUState     fiu[2];
     NPCM7xxEMCState     emc[2];
     NPCM7xxSDHCIState   mmc;
-} NPCM7xxState;
+};
 
 #define TYPE_NPCM7XX    "npcm7xx"
-#define NPCM7XX(obj)    OBJECT_CHECK(NPCM7xxState, (obj), TYPE_NPCM7XX)
+OBJECT_DECLARE_TYPE(NPCM7xxState, NPCM7xxClass, NPCM7XX)
 
 #define TYPE_NPCM730    "npcm730"
 #define TYPE_NPCM750    "npcm750"
@@ -121,11 +120,6 @@ typedef struct NPCM7xxClass {
     /* Number of CPU cores enabled in this SoC class (may be 1 or 2). */
     uint32_t            num_cpus;
 } NPCM7xxClass;
-
-#define NPCM7XX_CLASS(klass)                                            \
-    OBJECT_CLASS_CHECK(NPCM7xxClass, (klass), TYPE_NPCM7XX)
-#define NPCM7XX_GET_CLASS(obj)                                          \
-    OBJECT_GET_CLASS(NPCM7xxClass, (obj), TYPE_NPCM7XX)
 
 /**
  * npcm7xx_load_kernel - Loads memory with everything needed to boot

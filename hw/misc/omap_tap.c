@@ -23,10 +23,9 @@
 #include "hw/arm/omap.h"
 
 /* TEST-Chip-level TAP */
-static uint64_t omap_tap_read(void *opaque, hwaddr addr,
-                              unsigned size)
+static uint64_t omap_tap_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_mpu_state_s *s = opaque;
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);

@@ -20,6 +20,10 @@
 #include "cpu.h"
 #include "qom/object.h"
 
+#define RAM_SIZE            (512 * MiB)
+#define FLASH_SIZE          (32 * MiB)
+#define FLASH_SECTOR_SIZE   (64 * KiB)
+
 struct CollieMachineState {
     MachineState parent;
 
@@ -31,12 +35,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(CollieMachineState, COLLIE_MACHINE)
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,
-    .ram_size = 0x20000000,
+    .ram_size = RAM_SIZE,
 };
 
 static void collie_init(MachineState *machine)
 {
-    DriveInfo *dinfo;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     CollieMachineState *cms = COLLIE_MACHINE(machine);
 
@@ -51,15 +54,13 @@ static void collie_init(MachineState *machine)
 
     memory_region_add_subregion(get_system_memory(), SA_SDCS0, machine->ram);
 
-    dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(SA_CS0, "collie.fl1", 0x02000000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
-
-    dinfo = drive_get(IF_PFLASH, 0, 1);
-    pflash_cfi01_register(SA_CS1, "collie.fl2", 0x02000000,
-                    dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                    64 * KiB, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    for (unsigned i = 0; i < 2; i++) {
+        DriveInfo *dinfo = drive_get(IF_PFLASH, 0, i);
+        pflash_cfi01_register(i ? SA_CS1 : SA_CS0,
+                              i ? "collie.fl2" : "collie.fl1", FLASH_SIZE,
+                              dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                              FLASH_SECTOR_SIZE, 4, 0x00, 0x00, 0x00, 0x00, 0);
+    }
 
     sysbus_create_simple("scoop", 0x40800000, NULL);
 
@@ -75,7 +76,7 @@ static void collie_machine_class_init(ObjectClass *oc, void *data)
     mc->init = collie_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("sa1110");
-    mc->default_ram_size = 0x20000000;
+    mc->default_ram_size = RAM_SIZE;
     mc->default_ram_id = "strongarm.sdram";
 }
 

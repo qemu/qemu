@@ -5354,15 +5354,10 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
 #ifdef CONFIG_USER_ONLY
     flags = probe_access_flags(env, addr, access_type, mmu_idx, nofault,
                                &info->host, retaddr);
-    memset(&info->attrs, 0, sizeof(info->attrs));
-    /* Require both ANON and MTE; see allocation_tag_mem(). */
-    info->tagged = (flags & PAGE_ANON) && (flags & PAGE_MTE);
 #else
     CPUTLBEntryFull *full;
     flags = probe_access_full(env, addr, access_type, mmu_idx, nofault,
                               &info->host, &full, retaddr);
-    info->attrs = full->attrs;
-    info->tagged = full->pte_attrs == 0xf0;
 #endif
     info->flags = flags;
 
@@ -5370,6 +5365,15 @@ bool sve_probe_page(SVEHostPage *info, bool nofault, CPUARMState *env,
         g_assert(nofault);
         return false;
     }
+
+#ifdef CONFIG_USER_ONLY
+    memset(&info->attrs, 0, sizeof(info->attrs));
+    /* Require both ANON and MTE; see allocation_tag_mem(). */
+    info->tagged = (flags & PAGE_ANON) && (flags & PAGE_MTE);
+#else
+    info->attrs = full->attrs;
+    info->tagged = full->pte_attrs == 0xf0;
+#endif
 
     /* Ensure that info->host[] is relative to addr, not addr + mem_off. */
     info->host -= mem_off;

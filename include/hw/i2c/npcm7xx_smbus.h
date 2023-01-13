@@ -68,7 +68,7 @@ typedef enum NPCM7xxSMBusStatus {
  * @rx_cur: The current position of rx_fifo.
  * @status: The current status of the SMBus.
  */
-typedef struct NPCM7xxSMBusState {
+struct NPCM7xxSMBusState {
     SysBusDevice parent;
 
     MemoryRegion iomem;
@@ -104,10 +104,9 @@ typedef struct NPCM7xxSMBusState {
     uint8_t      rx_cur;
 
     NPCM7xxSMBusStatus status;
-} NPCM7xxSMBusState;
+};
 
 #define TYPE_NPCM7XX_SMBUS "npcm7xx-smbus"
-#define NPCM7XX_SMBUS(obj) OBJECT_CHECK(NPCM7xxSMBusState, (obj), \
-                                        TYPE_NPCM7XX_SMBUS)
+OBJECT_DECLARE_SIMPLE_TYPE(NPCM7xxSMBusState, NPCM7XX_SMBUS)
 
 #endif /* NPCM7XX_SMBUS_H */

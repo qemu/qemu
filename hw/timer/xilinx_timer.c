@@ -62,10 +62,10 @@ struct xlx_timer
 };
 
 #define TYPE_XILINX_TIMER "xlnx.xps-timer"
-DECLARE_INSTANCE_CHECKER(struct timerblock, XILINX_TIMER,
-                         TYPE_XILINX_TIMER)
+typedef struct XpsTimerState XpsTimerState;
+DECLARE_INSTANCE_CHECKER(XpsTimerState, XILINX_TIMER, TYPE_XILINX_TIMER)
 
-struct timerblock
+struct XpsTimerState
 {
     SysBusDevice parent_obj;
 
@@ -76,7 +76,7 @@ struct timerblock
     struct xlx_timer *timers;
 };
 
-static inline unsigned int num_timers(struct timerblock *t)
+static inline unsigned int num_timers(XpsTimerState *t)
 {
     return 2 - t->one_timer_only;
 }
@@ -87,7 +87,7 @@ static inline unsigned int timer_from_addr(hwaddr addr)
     return addr >> 2;
 }
 
-static void timer_update_irq(struct timerblock *t)
+static void timer_update_irq(XpsTimerState *t)
 {
     unsigned int i, irq = 0;
     uint32_t csr;
@@ -104,7 +104,7 @@ static void timer_update_irq(struct timerblock *t)
 static uint64_t
 timer_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct timerblock *t = opaque;
+    XpsTimerState *t = opaque;
     struct xlx_timer *xt;
     uint32_t r = 0;
     unsigned int timer;
@@ -155,7 +155,7 @@ static void
 timer_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
-    struct timerblock *t = opaque;
+    XpsTimerState *t = opaque;
     struct xlx_timer *xt;
     unsigned int timer;
     uint32_t value = val64;
@@ -202,7 +202,7 @@ static const MemoryRegionOps timer_ops = {
 static void timer_hit(void *opaque)
 {
     struct xlx_timer *xt = opaque;
-    struct timerblock *t = xt->parent;
+    XpsTimerState *t = xt->parent;
     D(fprintf(stderr, "%s %d\n", __func__, xt->nr));
     xt->regs[R_TCSR] |= TCSR_TINT;
 
@@ -213,7 +213,7 @@ static void timer_hit(void *opaque)
 
 static void xilinx_timer_realize(DeviceState *dev, Error **errp)
 {
-    struct timerblock *t = XILINX_TIMER(dev);
+    XpsTimerState *t = XILINX_TIMER(dev);
     unsigned int i;
 
     /* Init all the ptimers.  */
@@ -236,16 +236,15 @@ static void xilinx_timer_realize(DeviceState *dev, Error **errp)
 
 static void xilinx_timer_init(Object *obj)
 {
-    struct timerblock *t = XILINX_TIMER(obj);
+    XpsTimerState *t = XILINX_TIMER(obj);
 
     /* All timers share a single irq line.  */
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &t->irq);
 }
 
 static Property xilinx_timer_properties[] = {
-    DEFINE_PROP_UINT32("clock-frequency", struct timerblock, freq_hz,
-                                                                62 * 1000000),
-    DEFINE_PROP_UINT8("one-timer-only", struct timerblock, one_timer_only, 0),
+    DEFINE_PROP_UINT32("clock-frequency", XpsTimerState, freq_hz, 62 * 1000000),
+    DEFINE_PROP_UINT8("one-timer-only", XpsTimerState, one_timer_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -260,7 +259,7 @@ static void xilinx_timer_class_init(ObjectClass *klass, void *data)
 static const TypeInfo xilinx_timer_info = {
     .name          = TYPE_XILINX_TIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct timerblock),
+    .instance_size = sizeof(XpsTimerState),
     .instance_init = xilinx_timer_init,
     .class_init    = xilinx_timer_class_init,
 };

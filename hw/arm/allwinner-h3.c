@@ -53,6 +53,7 @@ const hwaddr allwinner_h3_memmap[] = {
     [AW_H3_DEV_UART1]      = 0x01c28400,
     [AW_H3_DEV_UART2]      = 0x01c28800,
     [AW_H3_DEV_UART3]      = 0x01c28c00,
+    [AW_H3_DEV_TWI0]       = 0x01c2ac00,
     [AW_H3_DEV_EMAC]       = 0x01c30000,
     [AW_H3_DEV_DRAMCOM]    = 0x01c62000,
     [AW_H3_DEV_DRAMCTL]    = 0x01c63000,
@@ -106,7 +107,6 @@ struct AwH3Unimplemented {
     { "uart1",     0x01c28400, 1 * KiB },
     { "uart2",     0x01c28800, 1 * KiB },
     { "uart3",     0x01c28c00, 1 * KiB },
-    { "twi0",      0x01c2ac00, 1 * KiB },
     { "twi1",      0x01c2b000, 1 * KiB },
     { "twi2",      0x01c2b400, 1 * KiB },
     { "scr",       0x01c2c400, 1 * KiB },
@@ -150,6 +150,7 @@ enum {
     AW_H3_GIC_SPI_UART1     =  1,
     AW_H3_GIC_SPI_UART2     =  2,
     AW_H3_GIC_SPI_UART3     =  3,
+    AW_H3_GIC_SPI_TWI0      =  6,
     AW_H3_GIC_SPI_TIMER0    = 18,
     AW_H3_GIC_SPI_TIMER1    = 19,
     AW_H3_GIC_SPI_MMC0      = 60,
@@ -225,6 +226,8 @@ static void allwinner_h3_init(Object *obj)
                               "ram-size");
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_AW_RTC_SUN6I);
+
+    object_initialize_child(obj, "twi0", &s->i2c0, TYPE_AW_I2C);
 }
 
 static void allwinner_h3_realize(DeviceState *dev, Error **errp)
@@ -422,6 +425,12 @@ static void allwinner_h3_realize(DeviceState *dev, Error **errp)
     /* RTC */
     sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, s->memmap[AW_H3_DEV_RTC]);
+
+    /* I2C */
+    sysbus_realize(SYS_BUS_DEVICE(&s->i2c0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c0), 0, s->memmap[AW_H3_DEV_TWI0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c0), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_TWI0));
 
     /* Unimplemented devices */
     for (i = 0; i < ARRAY_SIZE(unimplemented); i++) {

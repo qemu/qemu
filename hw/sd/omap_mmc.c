@@ -321,11 +321,10 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     device_cold_reset(DEVICE(host->card));
 }
 
-static uint64_t omap_mmc_read(void *opaque, hwaddr offset,
-                              unsigned size)
+static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint16_t i;
-    struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
+    struct omap_mmc_s *s = opaque;
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, offset);
@@ -418,7 +417,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     int i;
-    struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
+    struct omap_mmc_s *s = opaque;
 
     if (size != 2) {
         omap_badwidth_write16(opaque, offset, value);
@@ -576,7 +575,7 @@ static const MemoryRegionOps omap_mmc_ops = {
 
 static void omap_mmc_cover_cb(void *opaque, int line, int level)
 {
-    struct omap_mmc_s *host = (struct omap_mmc_s *) opaque;
+    struct omap_mmc_s *host = opaque;
 
     if (!host->cdet_state && level) {
         host->status |= 0x0002;

@@ -986,18 +986,16 @@ static void spitz_common_init(MachineState *machine)
     SpitzMachineState *sms = SPITZ_MACHINE(machine);
     enum spitz_model_e model = smc->model;
     PXA2xxState *mpu;
-    MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
 
     /* Setup CPU & memory */
-    mpu = pxa270_init(address_space_mem, spitz_binfo.ram_size,
-                      machine->cpu_type);
+    mpu = pxa270_init(spitz_binfo.ram_size, machine->cpu_type);
     sms->mpu = mpu;
 
     sl_flash_register(mpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 
     memory_region_init_rom(rom, NULL, "spitz.rom", SPITZ_ROM, &error_fatal);
-    memory_region_add_subregion(address_space_mem, 0, rom);
+    memory_region_add_subregion(get_system_memory(), 0, rom);
 
     /* Setup peripherals */
     spitz_keyboard_register(mpu);

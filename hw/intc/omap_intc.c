@@ -38,7 +38,7 @@ struct omap_intr_handler_bank_s {
     unsigned char priority[32];
 };
 
-struct omap_intr_handler_s {
+struct OMAPIntcState {
     SysBusDevice parent_obj;
 
     qemu_irq *pins;
@@ -60,7 +60,7 @@ struct omap_intr_handler_s {
     struct omap_intr_handler_bank_s bank[3];
 };
 
-static void omap_inth_sir_update(struct omap_intr_handler_s *s, int is_fiq)
+static void omap_inth_sir_update(OMAPIntcState *s, int is_fiq)
 {
     int i, j, sir_intr, p_intr, p;
     uint32_t level;
@@ -88,7 +88,7 @@ static void omap_inth_sir_update(struct omap_intr_handler_s *s, int is_fiq)
     s->sir_intr[is_fiq] = sir_intr;
 }
 
-static inline void omap_inth_update(struct omap_intr_handler_s *s, int is_fiq)
+static inline void omap_inth_update(OMAPIntcState *s, int is_fiq)
 {
     int i;
     uint32_t has_intr = 0;
@@ -109,7 +109,7 @@ static inline void omap_inth_update(struct omap_intr_handler_s *s, int is_fiq)
 
 static void omap_set_intr(void *opaque, int irq, int req)
 {
-    struct omap_intr_handler_s *ih = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *ih = opaque;
     uint32_t rise;
 
     struct omap_intr_handler_bank_s *bank = &ih->bank[irq >> 5];
@@ -136,7 +136,7 @@ static void omap_set_intr(void *opaque, int irq, int req)
 /* Simplified version with no edge detection */
 static void omap_set_intr_noedge(void *opaque, int irq, int req)
 {
-    struct omap_intr_handler_s *ih = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *ih = opaque;
     uint32_t rise;
 
     struct omap_intr_handler_bank_s *bank = &ih->bank[irq >> 5];
@@ -156,7 +156,7 @@ static void omap_set_intr_noedge(void *opaque, int irq, int req)
 static uint64_t omap_inth_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *s = opaque;
     int i, offset = addr;
     int bank_no = offset >> 8;
     int line_no;
@@ -234,7 +234,7 @@ static uint64_t omap_inth_read(void *opaque, hwaddr addr,
 static void omap_inth_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *s = opaque;
     int i, offset = addr;
     int bank_no = offset >> 8;
     struct omap_intr_handler_bank_s *bank = &s->bank[bank_no];
@@ -336,7 +336,7 @@ static const MemoryRegionOps omap_inth_mem_ops = {
 
 static void omap_inth_reset(DeviceState *dev)
 {
-    struct omap_intr_handler_s *s = OMAP_INTC(dev);
+    OMAPIntcState *s = OMAP_INTC(dev);
     int i;
 
     for (i = 0; i < s->nbanks; ++i){
@@ -366,7 +366,7 @@ static void omap_inth_reset(DeviceState *dev)
 static void omap_intc_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    struct omap_intr_handler_s *s = OMAP_INTC(obj);
+    OMAPIntcState *s = OMAP_INTC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->nbanks = 1;
@@ -380,25 +380,25 @@ static void omap_intc_init(Object *obj)
 
 static void omap_intc_realize(DeviceState *dev, Error **errp)
 {
-    struct omap_intr_handler_s *s = OMAP_INTC(dev);
+    OMAPIntcState *s = OMAP_INTC(dev);
 
     if (!s->iclk) {
         error_setg(errp, "omap-intc: clk not connected");
     }
 }
 
-void omap_intc_set_iclk(omap_intr_handler *intc, omap_clk clk)
+void omap_intc_set_iclk(OMAPIntcState *intc, omap_clk clk)
 {
     intc->iclk = clk;
 }
 
-void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk)
+void omap_intc_set_fclk(OMAPIntcState *intc, omap_clk clk)
 {
     intc->fclk = clk;
 }
 
 static Property omap_intc_properties[] = {
-    DEFINE_PROP_UINT32("size", struct omap_intr_handler_s, size, 0x100),
+    DEFINE_PROP_UINT32("size", OMAPIntcState, size, 0x100),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -423,7 +423,7 @@ static const TypeInfo omap_intc_info = {
 static uint64_t omap2_inth_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *s = opaque;
     int offset = addr;
     int bank_no, line_no;
     struct omap_intr_handler_bank_s *bank = NULL;
@@ -504,7 +504,7 @@ static uint64_t omap2_inth_read(void *opaque, hwaddr addr,
 static void omap2_inth_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
+    OMAPIntcState *s = opaque;
     int offset = addr;
     int bank_no, line_no;
     struct omap_intr_handler_bank_s *bank = NULL;
@@ -622,7 +622,7 @@ static const MemoryRegionOps omap2_inth_mem_ops = {
 static void omap2_intc_init(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
-    struct omap_intr_handler_s *s = OMAP_INTC(obj);
+    OMAPIntcState *s = OMAP_INTC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
     s->level_only = 1;
@@ -637,7 +637,7 @@ static void omap2_intc_init(Object *obj)
 
 static void omap2_intc_realize(DeviceState *dev, Error **errp)
 {
-    struct omap_intr_handler_s *s = OMAP_INTC(dev);
+    OMAPIntcState *s = OMAP_INTC(dev);
 
     if (!s->iclk) {
         error_setg(errp, "omap2-intc: iclk not connected");
@@ -650,7 +650,7 @@ static void omap2_intc_realize(DeviceState *dev, Error **errp)
 }
 
 static Property omap2_intc_properties[] = {
-    DEFINE_PROP_UINT8("revision", struct omap_intr_handler_s,
+    DEFINE_PROP_UINT8("revision", OMAPIntcState,
     revision, 0x21),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -676,7 +676,7 @@ static const TypeInfo omap2_intc_info = {
 static const TypeInfo omap_intc_type_info = {
     .name          = TYPE_OMAP_INTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(omap_intr_handler),
+    .instance_size = sizeof(OMAPIntcState),
     .abstract      = true,
 };
 

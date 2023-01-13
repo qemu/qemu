@@ -70,9 +70,8 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 
 /* omap_intc.c */
 #define TYPE_OMAP_INTC "common-omap-intc"
-typedef struct omap_intr_handler_s omap_intr_handler;
-DECLARE_INSTANCE_CHECKER(omap_intr_handler, OMAP_INTC,
-                         TYPE_OMAP_INTC)
+typedef struct OMAPIntcState OMAPIntcState;
+DECLARE_INSTANCE_CHECKER(OMAPIntcState, OMAP_INTC, TYPE_OMAP_INTC)
 
 
 /*
@@ -89,8 +88,8 @@ DECLARE_INSTANCE_CHECKER(omap_intr_handler, OMAP_INTC,
  * (ie the struct omap_mpu_state_s*) to do the clockname to pointer
  * translation.)
  */
-void omap_intc_set_iclk(omap_intr_handler *intc, omap_clk clk);
-void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk);
+void omap_intc_set_iclk(OMAPIntcState *intc, omap_clk clk);
+void omap_intc_set_fclk(OMAPIntcState *intc, omap_clk clk);
 
 /* omap_i2c.c */
 #define TYPE_OMAP_I2C "omap_i2c"
@@ -103,21 +102,20 @@ void omap_i2c_set_fclk(OMAPI2CState *i2c, omap_clk clk);
 
 /* omap_gpio.c */
 #define TYPE_OMAP1_GPIO "omap-gpio"
-DECLARE_INSTANCE_CHECKER(struct omap_gpif_s, OMAP1_GPIO,
+typedef struct Omap1GpioState Omap1GpioState;
+DECLARE_INSTANCE_CHECKER(Omap1GpioState, OMAP1_GPIO,
                          TYPE_OMAP1_GPIO)
 
 #define TYPE_OMAP2_GPIO "omap2-gpio"
-DECLARE_INSTANCE_CHECKER(struct omap2_gpif_s, OMAP2_GPIO,
+typedef struct Omap2GpioState Omap2GpioState;
+DECLARE_INSTANCE_CHECKER(Omap2GpioState, OMAP2_GPIO,
                          TYPE_OMAP2_GPIO)
 
-typedef struct omap_gpif_s omap_gpif;
-typedef struct omap2_gpif_s omap2_gpif;
-
 /* TODO: clock framework (see above) */
-void omap_gpio_set_clk(omap_gpif *gpio, omap_clk clk);
+void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk);
 
-void omap2_gpio_set_iclk(omap2_gpif *gpio, omap_clk clk);
-void omap2_gpio_set_fclk(omap2_gpif *gpio, uint8_t i, omap_clk clk);
+void omap2_gpio_set_iclk(Omap2GpioState *gpio, omap_clk clk);
+void omap2_gpio_set_fclk(Omap2GpioState *gpio, uint8_t i, omap_clk clk);
 
 /* OMAP2 l4 Interconnect */
 struct omap_l4_s;

@@ -67,10 +67,9 @@ struct omap_uart_s *omap_uart_init(hwaddr base,
     return s;
 }
 
-static uint64_t omap_uart_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static uint64_t omap_uart_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_uart_s *s = (struct omap_uart_s *) opaque;
+    struct omap_uart_s *s = opaque;
 
     if (size == 4) {
         return omap_badwidth_read8(opaque, addr);
@@ -108,7 +107,7 @@ static uint64_t omap_uart_read(void *opaque, hwaddr addr,
 static void omap_uart_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_uart_s *s = (struct omap_uart_s *) opaque;
+    struct omap_uart_s *s = opaque;
 
     if (size == 4) {
         omap_badwidth_write8(opaque, addr, value);

@@ -174,4 +174,14 @@ config VIRT_CTRL
 config LASI
     bool
 
+config ALLWINNER_A10_CCM
+    bool
+
+config ALLWINNER_A10_DRAMC
+    bool
+
+config AXP209_PMU
+    bool
+    depends on I2C
+
 source macio/Kconfig
