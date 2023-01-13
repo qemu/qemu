@@ -155,11 +155,11 @@ static void blkverify_close(BlockDriverState *bs)
     s->test_file = NULL;
 }
 
-static int64_t blkverify_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn blkverify_co_getlength(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    return bdrv_getlength(s->test_file->bs);
+    return bdrv_co_getlength(s->test_file->bs);
 }
 
 static void coroutine_fn blkverify_do_test_req(void *opaque)
@@ -314,7 +314,7 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_file_open                   = blkverify_open,
     .bdrv_close                       = blkverify_close,
     .bdrv_child_perm                  = bdrv_default_perms,
-    .bdrv_getlength                   = blkverify_getlength,
+    .bdrv_co_getlength                = blkverify_co_getlength,
     .bdrv_refresh_filename            = blkverify_refresh_filename,
     .bdrv_dirname                     = blkverify_dirname,
 

@@ -442,7 +442,7 @@ static int coroutine_fn preallocate_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(bs->file->bs);
 }
 
-static int64_t preallocate_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn preallocate_co_getlength(BlockDriverState *bs)
 {
     int64_t ret;
     BDRVPreallocateState *s = bs->opaque;
@@ -451,7 +451,7 @@ static int64_t preallocate_getlength(BlockDriverState *bs)
         return s->data_end;
     }
 
-    ret = bdrv_getlength(bs->file->bs);
+    ret = bdrv_co_getlength(bs->file->bs);
 
     if (has_prealloc_perms(bs)) {
         s->file_end = s->zero_start = s->data_end = ret;
@@ -537,9 +537,9 @@ BlockDriver bdrv_preallocate_filter = {
     .format_name = "preallocate",
     .instance_size = sizeof(BDRVPreallocateState),
 
-    .bdrv_getlength = preallocate_getlength,
-    .bdrv_open = preallocate_open,
-    .bdrv_close = preallocate_close,
+    .bdrv_co_getlength    = preallocate_co_getlength,
+    .bdrv_open            = preallocate_open,
+    .bdrv_close           = preallocate_close,
 
     .bdrv_reopen_prepare  = preallocate_reopen_prepare,
     .bdrv_reopen_commit   = preallocate_reopen_commit,

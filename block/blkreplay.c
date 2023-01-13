@@ -40,9 +40,9 @@ fail:
     return ret;
 }
 
-static int64_t blkreplay_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn blkreplay_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 /* This bh is used for synchronization of return from coroutines.
@@ -136,7 +136,7 @@ static BlockDriver bdrv_blkreplay = {
 
     .bdrv_open              = blkreplay_open,
     .bdrv_child_perm        = bdrv_default_perms,
-    .bdrv_getlength         = blkreplay_getlength,
+    .bdrv_co_getlength      = blkreplay_co_getlength,
 
     .bdrv_co_preadv         = blkreplay_co_preadv,
     .bdrv_co_pwritev        = blkreplay_co_pwritev,

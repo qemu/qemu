@@ -1430,7 +1430,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
     return status;
 }
 
-static int64_t qemu_rbd_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn qemu_rbd_co_getlength(BlockDriverState *bs)
 {
     BDRVRBDState *s = bs->opaque;
     int r;
@@ -1654,7 +1654,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_get_info          = qemu_rbd_getinfo,
     .bdrv_get_specific_info = qemu_rbd_get_specific_info,
     .create_opts            = &qemu_rbd_create_opts,
-    .bdrv_getlength         = qemu_rbd_getlength,
+    .bdrv_co_getlength      = qemu_rbd_co_getlength,
     .bdrv_co_truncate       = qemu_rbd_co_truncate,
     .protocol_name          = "rbd",
 

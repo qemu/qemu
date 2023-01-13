@@ -55,9 +55,9 @@ static int compress_open(BlockDriverState *bs, QDict *options, int flags,
 }
 
 
-static int64_t compress_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn compress_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 
@@ -135,7 +135,7 @@ static BlockDriver bdrv_compress = {
     .bdrv_open                          = compress_open,
     .bdrv_child_perm                    = bdrv_default_perms,
 
-    .bdrv_getlength                     = compress_getlength,
+    .bdrv_co_getlength                  = compress_co_getlength,
 
     .bdrv_co_preadv_part                = compress_co_preadv_part,
     .bdrv_co_pwritev_part               = compress_co_pwritev_part,

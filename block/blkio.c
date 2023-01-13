@@ -839,7 +839,7 @@ static void blkio_close(BlockDriverState *bs)
     }
 }
 
-static int64_t blkio_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn blkio_co_getlength(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
     uint64_t capacity;
@@ -867,7 +867,7 @@ static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
         return -ENOTSUP;
     }
 
-    current_length = blkio_getlength(bs);
+    current_length = blkio_co_getlength(bs);
 
     if (offset > current_length) {
         error_setg(errp, "Cannot grow device");
@@ -998,7 +998,7 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .instance_size           = sizeof(BDRVBlkioState), \
         .bdrv_file_open          = blkio_file_open, \
         .bdrv_close              = blkio_close, \
-        .bdrv_getlength          = blkio_getlength, \
+        .bdrv_co_getlength       = blkio_co_getlength, \
         .bdrv_co_truncate        = blkio_truncate, \
         .bdrv_get_info           = blkio_get_info, \
         .bdrv_attach_aio_context = blkio_attach_aio_context, \

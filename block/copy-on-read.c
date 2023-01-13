@@ -121,9 +121,9 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
 }
 
 
-static int64_t cor_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn cor_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 
@@ -250,7 +250,7 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_close                         = cor_close,
     .bdrv_child_perm                    = cor_child_perm,
 
-    .bdrv_getlength                     = cor_getlength,
+    .bdrv_co_getlength                  = cor_co_getlength,
 
     .bdrv_co_preadv_part                = cor_co_preadv_part,
     .bdrv_co_pwritev_part               = cor_co_pwritev_part,

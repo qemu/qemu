@@ -61,9 +61,15 @@ bool co_wrapper_mixed blk_is_inserted(BlockBackend *blk);
 bool blk_is_available(BlockBackend *blk);
 void blk_lock_medium(BlockBackend *blk, bool locked);
 void blk_eject(BlockBackend *blk, bool eject_flag);
-int64_t blk_getlength(BlockBackend *blk);
+
+int64_t coroutine_fn blk_co_getlength(BlockBackend *blk);
+int64_t co_wrapper_mixed blk_getlength(BlockBackend *blk);
+
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
-int64_t blk_nb_sectors(BlockBackend *blk);
+
+int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk);
+int64_t co_wrapper_mixed blk_nb_sectors(BlockBackend *blk);
+
 void *blk_try_blockalign(BlockBackend *blk, size_t size);
 void *blk_blockalign(BlockBackend *blk, size_t size);
 bool blk_is_writable(BlockBackend *blk);
