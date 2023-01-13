@@ -44,6 +44,7 @@
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"
 #include "hw/i386/x86.h"
+#include "hw/i386/kvm/xen_evtchn.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
@@ -5654,6 +5655,20 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
         }
     }
 
+#ifdef CONFIG_XEN_EMU
+    if (xen_mode == XEN_EMULATE) {
+        int handled = xen_evtchn_translate_pirq_msi(route, address, data);
+
+        /*
+         * If it was a PIRQ and successfully routed (handled == 0) or it was
+         * an error (handled < 0), return. If it wasn't a PIRQ, keep going.
+         */
+        if (handled <= 0) {
+            return handled;
+        }
+    }
+#endif
+
     address = kvm_swizzle_msi_ext_dest_id(address);
     route->u.msi.address_hi = address >> VTD_MSI_ADDR_HI_SHIFT;
     route->u.msi.address_lo = address & VTD_MSI_ADDR_LO_MASK;
@@ -5673,8 +5688,8 @@ struct MSIRouteEntry {
 static QLIST_HEAD(, MSIRouteEntry) msi_route_list = \
     QLIST_HEAD_INITIALIZER(msi_route_list);
 
-static void kvm_update_msi_routes_all(void *private, bool global,
-                                      uint32_t index, uint32_t mask)
+void kvm_update_msi_routes_all(void *private, bool global,
+                               uint32_t index, uint32_t mask)
 {
     int cnt = 0, vector;
     MSIRouteEntry *entry;

@@ -267,7 +267,8 @@ static bool kvm_xen_hcall_xen_version(struct kvm_xen_exit *exit, X86CPU *cpu,
                          1 << XENFEAT_auto_translated_physmap |
                          1 << XENFEAT_supervisor_mode_kernel |
                          1 << XENFEAT_hvm_callback_vector |
-                         1 << XENFEAT_hvm_safe_pvclock;
+                         1 << XENFEAT_hvm_safe_pvclock |
+                         1 << XENFEAT_hvm_pirqs;
         }
 
         err = kvm_copy_to_gva(CPU(cpu), arg, &fi, sizeof(fi));

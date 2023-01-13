@@ -25,6 +25,14 @@ void xen_evtchn_set_callback_level(int level);
 int xen_evtchn_set_port(uint16_t port);
 
 bool xen_evtchn_set_gsi(int gsi, int level);
+void xen_evtchn_snoop_msi(PCIDevice *dev, bool is_msix, unsigned int vector,
+                          uint64_t addr, uint32_t data, bool is_masked);
+void xen_evtchn_remove_pci_device(PCIDevice *dev);
+struct kvm_irq_routing_entry;
+int xen_evtchn_translate_pirq_msi(struct kvm_irq_routing_entry *route,
+                                  uint64_t address, uint32_t data);
+bool xen_evtchn_deliver_pirq_msi(uint64_t address, uint32_t data);
+
 
 /*
  * These functions mirror the libxenevtchn library API, providing the QEMU
