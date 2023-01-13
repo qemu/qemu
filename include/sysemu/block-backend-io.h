@@ -74,7 +74,9 @@ void blk_iostatus_set_err(BlockBackend *blk, int error);
 int blk_get_max_iov(BlockBackend *blk);
 int blk_get_max_hw_iov(BlockBackend *blk);
 
-void blk_io_plug(BlockBackend *blk);
+void coroutine_fn blk_co_io_plug(BlockBackend *blk);
+void co_wrapper blk_io_plug(BlockBackend *blk);
+
 void blk_io_unplug(BlockBackend *blk);
 AioContext *blk_get_aio_context(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);

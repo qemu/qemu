@@ -725,7 +725,7 @@ struct BlockDriver {
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkdebugEvent event);
 
     /* io queue for linux-aio */
-    void (*bdrv_io_plug)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_io_plug)(BlockDriverState *bs);
     void (*bdrv_io_unplug)(BlockDriverState *bs);
 
     /**
