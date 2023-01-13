@@ -96,8 +96,8 @@ struct Exynos4210State {
     MemoryRegion boot_secondary;
     MemoryRegion bootreg_mem;
     I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
-    qemu_or_irq pl330_irq_orgate[EXYNOS4210_NUM_DMA];
-    qemu_or_irq cpu_irq_orgate[EXYNOS4210_NCPUS];
+    OrIRQState pl330_irq_orgate[EXYNOS4210_NUM_DMA];
+    OrIRQState cpu_irq_orgate[EXYNOS4210_NCPUS];
     A9MPPrivState a9mpcore;
     Exynos4210GicState ext_gic;
     Exynos4210CombinerState int_combiner;

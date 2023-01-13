@@ -155,12 +155,12 @@ struct ARMSSE {
     TZPPC apb_ppc[NUM_INTERNAL_PPCS];
     TZMPC mpc[IOTS_NUM_MPC];
     CMSDKAPBTimer timer[3];
-    qemu_or_irq ppc_irq_orgate;
+    OrIRQState ppc_irq_orgate;
     SplitIRQ sec_resp_splitter;
     SplitIRQ ppc_irq_splitter[NUM_PPCS];
     SplitIRQ mpc_irq_splitter[IOTS_NUM_EXP_MPC + IOTS_NUM_MPC];
-    qemu_or_irq mpc_irq_orgate;
-    qemu_or_irq nmi_orgate;
+    OrIRQState mpc_irq_orgate;
+    OrIRQState nmi_orgate;
 
     SplitIRQ cpu_irq_splitter[NUM_SSE_IRQS];
 

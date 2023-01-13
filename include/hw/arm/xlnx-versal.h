@@ -85,7 +85,7 @@ struct Versal {
         } rpu;
 
         struct {
-            qemu_or_irq irq_orgate;
+            OrIRQState irq_orgate;
             XlnxXramCtrl ctrl[XLNX_VERSAL_NR_XRAM];
         } xram;
 
@@ -103,7 +103,7 @@ struct Versal {
                 XlnxCSUDMA dma_src;
                 XlnxCSUDMA dma_dst;
                 MemoryRegion linear_mr;
-                qemu_or_irq irq_orgate;
+                OrIRQState irq_orgate;
             } ospi;
         } iou;
 
@@ -113,7 +113,7 @@ struct Versal {
         XlnxVersalEFuseCtrl efuse_ctrl;
         XlnxVersalEFuseCache efuse_cache;
 
-        qemu_or_irq apb_irq_orgate;
+        OrIRQState apb_irq_orgate;
     } pmc;
 
     struct {

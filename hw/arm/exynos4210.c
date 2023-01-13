@@ -507,7 +507,7 @@ static uint64_t exynos4210_calc_affinity(int cpu)
     return (0x9 << ARM_AFF1_SHIFT) | cpu;
 }
 
-static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
+static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
                                  qemu_irq irq, int nreq, int nevents, int width)
 {
     SysBusDevice *busdev;
@@ -806,7 +806,7 @@ static void exynos4210_init(Object *obj)
 
     for (i = 0; i < ARRAY_SIZE(s->pl330_irq_orgate); i++) {
         char *name = g_strdup_printf("pl330-irq-orgate%d", i);
-        qemu_or_irq *orgate = &s->pl330_irq_orgate[i];
+        OrIRQState *orgate = &s->pl330_irq_orgate[i];
 
         object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
         g_free(name);

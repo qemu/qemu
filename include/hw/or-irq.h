@@ -35,8 +35,6 @@
  */
 #define MAX_OR_LINES      48
 
-typedef struct OrIRQState qemu_or_irq;
-
 OBJECT_DECLARE_SIMPLE_TYPE(OrIRQState, OR_IRQ)
 
 struct OrIRQState {
