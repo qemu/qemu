@@ -6301,7 +6301,7 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
     pstrcpy(filename, filename_size, bs->backing_file);
 }
 
-int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+int coroutine_fn bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     int ret;
     BlockDriver *drv = bs->drv;
@@ -6310,15 +6310,15 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (!drv->bdrv_get_info) {
+    if (!drv->bdrv_co_get_info) {
         BlockDriverState *filtered = bdrv_filter_bs(bs);
         if (filtered) {
-            return bdrv_get_info(filtered, bdi);
+            return bdrv_co_get_info(filtered, bdi);
         }
         return -ENOTSUP;
     }
     memset(bdi, 0, sizeof(*bdi));
-    ret = drv->bdrv_get_info(bs, bdi);
+    ret = drv->bdrv_co_get_info(bs, bdi);
     if (ret < 0) {
         return ret;
     }

@@ -3012,7 +3012,8 @@ static bool vmdk_extents_type_eq(const VmdkExtent *a, const VmdkExtent *b)
            (a->flat || a->cluster_sectors == b->cluster_sectors);
 }
 
-static int vmdk_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+vmdk_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     int i;
     BDRVVmdkState *s = bs->opaque;
@@ -3129,7 +3130,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_has_zero_init           = vmdk_has_zero_init,
     .bdrv_get_specific_info       = vmdk_get_specific_info,
     .bdrv_refresh_limits          = vmdk_refresh_limits,
-    .bdrv_get_info                = vmdk_get_info,
+    .bdrv_co_get_info             = vmdk_co_get_info,
     .bdrv_gather_child_options    = vmdk_gather_child_options,
 
     .is_format                    = true,

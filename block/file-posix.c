@@ -3086,7 +3086,8 @@ static int coroutine_fn raw_co_pwrite_zeroes(
     return raw_do_pwrite_zeroes(bs, offset, bytes, flags, false);
 }
 
-static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+raw_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
 }
@@ -3323,7 +3324,7 @@ BlockDriver bdrv_file = {
 
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
-    .bdrv_get_info = raw_get_info,
+    .bdrv_co_get_info                   = raw_co_get_info,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = raw_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,
@@ -3694,7 +3695,7 @@ static BlockDriver bdrv_host_device = {
 
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
-    .bdrv_get_info = raw_get_info,
+    .bdrv_co_get_info                   = raw_co_get_info,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = hdev_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,

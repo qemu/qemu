@@ -880,7 +880,8 @@ static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int blkio_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+blkio_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
 }
@@ -1000,7 +1001,7 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .bdrv_close              = blkio_close, \
         .bdrv_co_getlength       = blkio_co_getlength, \
         .bdrv_co_truncate        = blkio_truncate, \
-        .bdrv_get_info           = blkio_get_info, \
+        .bdrv_co_get_info        = blkio_co_get_info, \
         .bdrv_attach_aio_context = blkio_attach_aio_context, \
         .bdrv_detach_aio_context = blkio_detach_aio_context, \
         .bdrv_co_pdiscard        = blkio_co_pdiscard, \

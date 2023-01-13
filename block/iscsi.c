@@ -2171,7 +2171,8 @@ static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int iscsi_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+iscsi_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     IscsiLun *iscsilun = bs->opaque;
     bdi->cluster_size = iscsilun->cluster_size;
@@ -2435,7 +2436,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_invalidate_cache = iscsi_co_invalidate_cache,
 
     .bdrv_co_getlength   = iscsi_co_getlength,
-    .bdrv_get_info   = iscsi_get_info,
+    .bdrv_co_get_info    = iscsi_co_get_info,
     .bdrv_co_truncate    = iscsi_co_truncate,
     .bdrv_refresh_limits = iscsi_refresh_limits,
 
@@ -2474,7 +2475,7 @@ static BlockDriver bdrv_iser = {
     .bdrv_co_invalidate_cache  = iscsi_co_invalidate_cache,
 
     .bdrv_co_getlength   = iscsi_co_getlength,
-    .bdrv_get_info   = iscsi_get_info,
+    .bdrv_co_get_info    = iscsi_co_get_info,
     .bdrv_co_truncate    = iscsi_co_truncate,
     .bdrv_refresh_limits = iscsi_refresh_limits,
 

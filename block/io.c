@@ -722,14 +722,14 @@ BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs)
 /**
  * Round a region to cluster boundaries
  */
-void bdrv_round_to_clusters(BlockDriverState *bs,
+void coroutine_fn bdrv_round_to_clusters(BlockDriverState *bs,
                             int64_t offset, int64_t bytes,
                             int64_t *cluster_offset,
                             int64_t *cluster_bytes)
 {
     BlockDriverInfo bdi;
     IO_CODE();
-    if (bdrv_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
+    if (bdrv_co_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
         *cluster_offset = offset;
         *cluster_bytes = bytes;
     } else {
@@ -739,12 +739,12 @@ void bdrv_round_to_clusters(BlockDriverState *bs,
     }
 }
 
-static int bdrv_get_cluster_size(BlockDriverState *bs)
+static coroutine_fn int bdrv_get_cluster_size(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
     int ret;
 
-    ret = bdrv_get_info(bs, &bdi);
+    ret = bdrv_co_get_info(bs, &bdi);
     if (ret < 0 || bdi.cluster_size == 0) {
         return bs->bl.request_alignment;
     } else {

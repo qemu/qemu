@@ -5143,7 +5143,8 @@ err:
     return NULL;
 }
 
-static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+qcow2_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BDRVQcow2State *s = bs->opaque;
     bdi->cluster_size = s->cluster_size;
@@ -6077,7 +6078,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_snapshot_list     = qcow2_snapshot_list,
     .bdrv_snapshot_load_tmp = qcow2_snapshot_load_tmp,
     .bdrv_measure           = qcow2_measure,
-    .bdrv_get_info          = qcow2_get_info,
+    .bdrv_co_get_info       = qcow2_co_get_info,
     .bdrv_get_specific_info = qcow2_get_specific_info,
 
     .bdrv_save_vmstate    = qcow2_save_vmstate,

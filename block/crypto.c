@@ -737,13 +737,13 @@ fail:
     return ret;
 }
 
-static int block_crypto_get_info_luks(BlockDriverState *bs,
-                                      BlockDriverInfo *bdi)
+static int coroutine_fn
+block_crypto_co_get_info_luks(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BlockDriverInfo subbdi;
     int ret;
 
-    ret = bdrv_get_info(bs->file->bs, &subbdi);
+    ret = bdrv_co_get_info(bs->file->bs, &subbdi);
     if (ret != 0) {
         return ret;
     }
@@ -955,7 +955,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_co_pwritev    = block_crypto_co_pwritev,
     .bdrv_co_getlength  = block_crypto_co_getlength,
     .bdrv_measure       = block_crypto_measure,
-    .bdrv_get_info      = block_crypto_get_info_luks,
+    .bdrv_co_get_info   = block_crypto_co_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
     .bdrv_amend_options = block_crypto_amend_options_luks,
     .bdrv_co_amend      = block_crypto_co_amend_luks,
