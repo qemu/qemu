@@ -726,7 +726,7 @@ struct BlockDriver {
 
     /* io queue for linux-aio */
     void coroutine_fn (*bdrv_co_io_plug)(BlockDriverState *bs);
-    void (*bdrv_io_unplug)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_io_unplug)(BlockDriverState *bs);
 
     /**
      * bdrv_drain_begin is called if implemented in the beginning of a

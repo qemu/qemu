@@ -216,8 +216,7 @@ void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx);
 AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c);
 
 void coroutine_fn bdrv_co_io_plug(BlockDriverState *bs);
-
-void bdrv_io_unplug(BlockDriverState *bs);
+void coroutine_fn bdrv_co_io_unplug(BlockDriverState *bs);
 
 bool coroutine_fn bdrv_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                                      const char *name,

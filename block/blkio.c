@@ -479,7 +479,7 @@ static int coroutine_fn blkio_co_pwrite_zeroes(BlockDriverState *bs,
     return cod.ret;
 }
 
-static void blkio_io_unplug(BlockDriverState *bs)
+static void coroutine_fn blkio_co_io_unplug(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
 
@@ -1008,7 +1008,7 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .bdrv_co_pwritev         = blkio_co_pwritev, \
         .bdrv_co_flush_to_disk   = blkio_co_flush, \
         .bdrv_co_pwrite_zeroes   = blkio_co_pwrite_zeroes, \
-        .bdrv_io_unplug          = blkio_io_unplug, \
+        .bdrv_co_io_unplug       = blkio_co_io_unplug, \
         .bdrv_refresh_limits     = blkio_refresh_limits, \
         .bdrv_register_buf       = blkio_register_buf, \
         .bdrv_unregister_buf     = blkio_unregister_buf, \
