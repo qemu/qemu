@@ -1539,6 +1539,121 @@ static bool kvm_xen_hcall_gnttab_op(struct kvm_xen_exit *exit, X86CPU *cpu,
     return true;
 }
 
+static bool kvm_xen_hcall_physdev_op(struct kvm_xen_exit *exit, X86CPU *cpu,
+                                     int cmd, uint64_t arg)
+{
+    CPUState *cs = CPU(cpu);
+    int err;
+
+    switch (cmd) {
+    case PHYSDEVOP_map_pirq: {
+        struct physdev_map_pirq map;
+
+        if (hypercall_compat32(exit->u.hcall.longmode)) {
+            struct compat_physdev_map_pirq *map32 = (void *)&map;
+
+            if (kvm_copy_from_gva(cs, arg, map32, sizeof(*map32))) {
+                return -EFAULT;
+            }
+
+            /*
+             * The only thing that's different is the alignment of the
+             * uint64_t table_base at the end, which gets padding to make
+             * it 64-bit aligned in the 64-bit version.
+             */
+            qemu_build_assert(sizeof(*map32) == 36);
+            qemu_build_assert(offsetof(struct physdev_map_pirq, entry_nr) ==
+                              offsetof(struct compat_physdev_map_pirq, entry_nr));
+            memmove(&map.table_base, &map32->table_base, sizeof(map.table_base));
+        } else {
+            if (kvm_copy_from_gva(cs, arg, &map, sizeof(map))) {
+                err = -EFAULT;
+                break;
+            }
+        }
+        err = xen_physdev_map_pirq(&map);
+        /*
+         * Since table_base is an IN parameter and won't be changed, just
+         * copy the size of the compat structure back to the guest.
+         */
+        if (!err && kvm_copy_to_gva(cs, arg, &map,
+                                    sizeof(struct compat_physdev_map_pirq))) {
+            err = -EFAULT;
+        }
+        break;
+    }
+    case PHYSDEVOP_unmap_pirq: {
+        struct physdev_unmap_pirq unmap;
+
+        qemu_build_assert(sizeof(unmap) == 8);
+        if (kvm_copy_from_gva(cs, arg, &unmap, sizeof(unmap))) {
+            err = -EFAULT;
+            break;
+        }
+
+        err = xen_physdev_unmap_pirq(&unmap);
+        if (!err && kvm_copy_to_gva(cs, arg, &unmap, sizeof(unmap))) {
+            err = -EFAULT;
+        }
+        break;
+    }
+    case PHYSDEVOP_eoi: {
+        struct physdev_eoi eoi;
+
+        qemu_build_assert(sizeof(eoi) == 4);
+        if (kvm_copy_from_gva(cs, arg, &eoi, sizeof(eoi))) {
+            err = -EFAULT;
+            break;
+        }
+
+        err = xen_physdev_eoi_pirq(&eoi);
+        if (!err && kvm_copy_to_gva(cs, arg, &eoi, sizeof(eoi))) {
+            err = -EFAULT;
+        }
+        break;
+    }
+    case PHYSDEVOP_irq_status_query: {
+        struct physdev_irq_status_query query;
+
+        qemu_build_assert(sizeof(query) == 8);
+        if (kvm_copy_from_gva(cs, arg, &query, sizeof(query))) {
+            err = -EFAULT;
+            break;
+        }
+
+        err = xen_physdev_query_pirq(&query);
+        if (!err && kvm_copy_to_gva(cs, arg, &query, sizeof(query))) {
+            err = -EFAULT;
+        }
+        break;
+    }
+    case PHYSDEVOP_get_free_pirq: {
+        struct physdev_get_free_pirq get;
+
+        qemu_build_assert(sizeof(get) == 8);
+        if (kvm_copy_from_gva(cs, arg, &get, sizeof(get))) {
+            err = -EFAULT;
+            break;
+        }
+
+        err = xen_physdev_get_free_pirq(&get);
+        if (!err && kvm_copy_to_gva(cs, arg, &get, sizeof(get))) {
+            err = -EFAULT;
+        }
+        break;
+    }
+    case PHYSDEVOP_pirq_eoi_gmfn_v2: /* FreeBSD 13 makes this hypercall */
+        err = -ENOSYS;
+        break;
+
+    default:
+        return false;
+    }
+
+    exit->u.hcall.result = err;
+    return true;
+}
+
 static bool do_kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
 {
     uint16_t code = exit->u.hcall.input;
@@ -1580,6 +1695,9 @@ static bool do_kvm_xen_handle_exit(X86CPU *cpu, struct kvm_xen_exit *exit)
     case __HYPERVISOR_memory_op:
         return kvm_xen_hcall_memory_op(exit, cpu, exit->u.hcall.params[0],
                                        exit->u.hcall.params[1]);
+    case __HYPERVISOR_physdev_op:
+        return kvm_xen_hcall_physdev_op(exit, cpu, exit->u.hcall.params[0],
+                                        exit->u.hcall.params[1]);
     case __HYPERVISOR_xen_version:
         return kvm_xen_hcall_xen_version(exit, cpu, exit->u.hcall.params[0],
                                          exit->u.hcall.params[1]);

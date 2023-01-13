@@ -62,4 +62,15 @@ int xen_evtchn_bind_interdomain_op(struct evtchn_bind_interdomain *interdomain);
 int xen_evtchn_bind_vcpu_op(struct evtchn_bind_vcpu *vcpu);
 int xen_evtchn_reset_op(struct evtchn_reset *reset);
 
+struct physdev_map_pirq;
+struct physdev_unmap_pirq;
+struct physdev_eoi;
+struct physdev_irq_status_query;
+struct physdev_get_free_pirq;
+int xen_physdev_map_pirq(struct physdev_map_pirq *map);
+int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap);
+int xen_physdev_eoi_pirq(struct physdev_eoi *eoi);
+int xen_physdev_query_pirq(struct physdev_irq_status_query *query);
+int xen_physdev_get_free_pirq(struct physdev_get_free_pirq *get);
+
 #endif /* QEMU_XEN_EVTCHN_H */

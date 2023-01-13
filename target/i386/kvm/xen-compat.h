@@ -48,4 +48,23 @@ struct compat_xen_add_to_physmap_batch {
     COMPAT_HANDLE(int) errs;
 };
 
+struct compat_physdev_map_pirq {
+    domid_t domid;
+    uint16_t pad;
+    /* IN */
+    int type;
+    /* IN (ignored for ..._MULTI_MSI) */
+    int index;
+    /* IN or OUT */
+    int pirq;
+    /* IN - high 16 bits hold segment for ..._MSI_SEG and ..._MULTI_MSI */
+    int bus;
+    /* IN */
+    int devfn;
+    /* IN (also OUT for ..._MULTI_MSI) */
+    int entry_nr;
+    /* IN */
+    uint64_t table_base;
+} __attribute__((packed));
+
 #endif /* QEMU_I386_XEN_COMPAT_H */

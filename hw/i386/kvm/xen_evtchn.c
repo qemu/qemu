@@ -1349,6 +1349,31 @@ int xen_evtchn_set_port(uint16_t port)
     return ret;
 }
 
+int xen_physdev_map_pirq(struct physdev_map_pirq *map)
+{
+    return -ENOTSUP;
+}
+
+int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap)
+{
+    return -ENOTSUP;
+}
+
+int xen_physdev_eoi_pirq(struct physdev_eoi *eoi)
+{
+    return -ENOTSUP;
+}
+
+int xen_physdev_query_pirq(struct physdev_irq_status_query *query)
+{
+    return -ENOTSUP;
+}
+
+int xen_physdev_get_free_pirq(struct physdev_get_free_pirq *get)
+{
+    return -ENOTSUP;
+}
+
 struct xenevtchn_handle *xen_be_evtchn_open(void)
 {
     struct xenevtchn_handle *xc = g_new0(struct xenevtchn_handle, 1);
