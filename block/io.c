@@ -3474,15 +3474,17 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         goto out;
     }
 
-    ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
+    ret = bdrv_refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
     } else {
         offset = bs->total_sectors * BDRV_SECTOR_SIZE;
     }
-    /* It's possible that truncation succeeded but refresh_total_sectors
+    /*
+     * It's possible that truncation succeeded but bdrv_refresh_total_sectors
      * failed, but the latter doesn't affect how we should finish the request.
-     * Pass 0 as the last parameter so that dirty bitmaps etc. are handled. */
+     * Pass 0 as the last parameter so that dirty bitmaps etc. are handled.
+     */
     bdrv_co_write_req_finish(child, offset - new_bytes, new_bytes, &req, 0);
 
 out:
