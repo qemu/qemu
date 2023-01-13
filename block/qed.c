@@ -424,7 +424,7 @@ static int coroutine_fn bdrv_qed_do_open(BlockDriverState *bs, QDict *options,
     }
 
     /* Round down file size to the last cluster */
-    file_size = bdrv_getlength(bs->file->bs);
+    file_size = bdrv_co_getlength(bs->file->bs);
     if (file_size < 0) {
         error_setg(errp, "Failed to get file length");
         return file_size;
