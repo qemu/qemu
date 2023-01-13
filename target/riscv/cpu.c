@@ -256,6 +256,7 @@ static void rv64_sifive_u_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_10_0);
 }
 
@@ -265,6 +266,7 @@ static void rv64_sifive_e_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVC | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_10_0);
     cpu->cfg.mmu = false;
 }
@@ -299,6 +301,7 @@ static void rv32_sifive_u_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_10_0);
 }
 
@@ -308,6 +311,7 @@ static void rv32_sifive_e_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVC | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_10_0);
     cpu->cfg.mmu = false;
 }
@@ -318,6 +322,7 @@ static void rv32_ibex_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     set_misa(env, MXL_RV32, RVI | RVM | RVC | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_11_0);
     cpu->cfg.mmu = false;
     cpu->cfg.epmp = true;
@@ -329,6 +334,7 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
     RISCVCPU *cpu = RISCV_CPU(obj);
 
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVC | RVU);
+    register_cpu_props(DEVICE(obj));
     set_priv_version(env, PRIV_VERSION_1_10_0);
     cpu->cfg.mmu = false;
 }
@@ -1083,9 +1089,43 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+/*
+ * Register CPU props based on env.misa_ext. If a non-zero
+ * value was set, register only the required cpu->cfg.ext_*
+ * properties and leave. env.misa_ext = 0 means that we want
+ * all the default properties to be registered.
+ */
 static void register_cpu_props(DeviceState *dev)
 {
+    RISCVCPU *cpu = RISCV_CPU(OBJECT(dev));
+    uint32_t misa_ext = cpu->env.misa_ext;
     Property *prop;
+
+    /*
+     * If misa_ext is not zero, set cfg properties now to
+     * allow them to be read during riscv_cpu_realize()
+     * later on.
+     */
+    if (cpu->env.misa_ext != 0) {
+        cpu->cfg.ext_i = misa_ext & RVI;
+        cpu->cfg.ext_e = misa_ext & RVE;
+        cpu->cfg.ext_m = misa_ext & RVM;
+        cpu->cfg.ext_a = misa_ext & RVA;
+        cpu->cfg.ext_f = misa_ext & RVF;
+        cpu->cfg.ext_d = misa_ext & RVD;
+        cpu->cfg.ext_v = misa_ext & RVV;
+        cpu->cfg.ext_c = misa_ext & RVC;
+        cpu->cfg.ext_s = misa_ext & RVS;
+        cpu->cfg.ext_u = misa_ext & RVU;
+        cpu->cfg.ext_h = misa_ext & RVH;
+        cpu->cfg.ext_j = misa_ext & RVJ;
+
+        /*
+         * We don't want to set the default riscv_cpu_extensions
+         * in this case.
+         */
+        return;
+    }
 
     for (prop = riscv_cpu_extensions; prop && prop->name; prop++) {
         qdev_property_add_static(dev, prop);
