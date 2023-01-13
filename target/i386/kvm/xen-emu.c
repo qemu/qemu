@@ -1267,6 +1267,21 @@ static bool kvm_xen_hcall_evtchn_op(struct kvm_xen_exit *exit, X86CPU *cpu,
         }
         break;
     }
+    case EVTCHNOP_bind_pirq: {
+        struct evtchn_bind_pirq pirq;
+
+        qemu_build_assert(sizeof(pirq) == 12);
+        if (kvm_copy_from_gva(cs, arg, &pirq, sizeof(pirq))) {
+            err = -EFAULT;
+            break;
+        }
+
+        err = xen_evtchn_bind_pirq_op(&pirq);
+        if (!err && kvm_copy_to_gva(cs, arg, &pirq, sizeof(pirq))) {
+            err = -EFAULT;
+        }
+        break;
+    }
     case EVTCHNOP_bind_ipi: {
         struct evtchn_bind_ipi ipi;
 

@@ -1,0 +1,4 @@
+kvm_xen_map_pirq(int pirq, int gsi) "pirq %d gsi %d"
+kvm_xen_unmap_pirq(int pirq, int gsi) "pirq %d gsi %d"
+kvm_xen_get_free_pirq(int pirq, int type) "pirq %d type %d"
+kvm_xen_bind_pirq(int pirq, int port) "pirq %d port %d"

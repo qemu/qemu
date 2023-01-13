@@ -24,6 +24,7 @@
 #include "exec/target_page.h"
 #include "exec/address-spaces.h"
 #include "migration/vmstate.h"
+#include "trace.h"
 
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
@@ -105,6 +106,21 @@ struct xenevtchn_handle {
 #define PORT_INFO_TYPEVAL_REMOTE_QEMU           0x8000
 #define PORT_INFO_TYPEVAL_REMOTE_PORT_MASK      0x7FFF
 
+/*
+ * These 'emuirq' values are used by Xen in the LM stream... and yes, I am
+ * insane enough to think about guest-transparent live migration from actual
+ * Xen to QEMU, and ensuring that we can convert/consume the stream.
+ */
+#define IRQ_UNBOUND -1
+#define IRQ_PT -2
+#define IRQ_MSI_EMU -3
+
+
+struct pirq_info {
+    int gsi;
+    uint16_t port;
+};
+
 struct XenEvtchnState {
     /*< private >*/
     SysBusDevice busdev;
@@ -122,7 +138,24 @@ struct XenEvtchnState {
     qemu_irq gsis[IOAPIC_NUM_PINS];
 
     struct xenevtchn_handle *be_handles[EVTCHN_2L_NR_CHANNELS];
+
+    uint32_t nr_pirqs;
+
+    /* Bitmap of allocated PIRQs (serialized) */
+    uint16_t nr_pirq_inuse_words;
+    uint64_t *pirq_inuse_bitmap;
+
+    /* GSI → PIRQ mapping (serialized) */
+    uint16_t gsi_pirq[IOAPIC_NUM_PINS];
+
+    /* Per-PIRQ information (rebuilt on migration) */
+    struct pirq_info *pirq;
 };
+
+#define pirq_inuse_word(s, pirq) (s->pirq_inuse_bitmap[((pirq) / 64)])
+#define pirq_inuse_bit(pirq) (1ULL << ((pirq) & 63))
+
+#define pirq_inuse(s, pirq) (pirq_inuse_word(s, pirq) & pirq_inuse_bit(pirq))
 
 struct XenEvtchnState *xen_evtchn_singleton;
 
@@ -138,17 +171,45 @@ static int xen_evtchn_pre_load(void *opaque)
     /* Unbind all the backend-side ports; they need to rebind */
     unbind_backend_ports(s);
 
+    /* It'll be leaked otherwise. */
+    g_free(s->pirq_inuse_bitmap);
+    s->pirq_inuse_bitmap = NULL;
+
     return 0;
 }
 
 static int xen_evtchn_post_load(void *opaque, int version_id)
 {
     XenEvtchnState *s = opaque;
+    uint32_t i;
 
     if (s->callback_param) {
         xen_evtchn_set_callback_param(s->callback_param);
     }
 
+    /* Rebuild s->pirq[].port mapping */
+    for (i = 0; i < s->nr_ports; i++) {
+        XenEvtchnPort *p = &s->port_table[i];
+
+        if (p->type == EVTCHNSTAT_pirq) {
+            assert(p->type_val);
+            assert(p->type_val < s->nr_pirqs);
+
+            /*
+             * Set the gsi to IRQ_UNBOUND; it may be changed to an actual
+             * GSI# below, or to IRQ_MSI_EMU when the MSI table snooping
+             * catches up with it.
+             */
+            s->pirq[p->type_val].gsi = IRQ_UNBOUND;
+            s->pirq[p->type_val].port = i;
+        }
+    }
+    /* Rebuild s->pirq[].gsi mapping */
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        if (s->gsi_pirq[i]) {
+            s->pirq[s->gsi_pirq[i]].gsi = i;
+        }
+    }
     return 0;
 }
 
@@ -181,6 +242,10 @@ static const VMStateDescription xen_evtchn_vmstate = {
         VMSTATE_UINT32(nr_ports, XenEvtchnState),
         VMSTATE_STRUCT_VARRAY_UINT32(port_table, XenEvtchnState, nr_ports, 1,
                                      xen_evtchn_port_vmstate, XenEvtchnPort),
+        VMSTATE_UINT16_ARRAY(gsi_pirq, XenEvtchnState, IOAPIC_NUM_PINS),
+        VMSTATE_VARRAY_UINT16_ALLOC(pirq_inuse_bitmap, XenEvtchnState,
+                                    nr_pirq_inuse_words, 0,
+                                    vmstate_info_uint64, uint64_t),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -221,6 +286,23 @@ void xen_evtchn_create(void)
     for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(s), &s->gsis[i]);
     }
+
+    /*
+     * We could parameterise the number of PIRQs available if needed,
+     * but for now limit it to 256. The Xen scheme for encoding PIRQ#
+     * into an MSI message is not compatible with 32-bit MSI, as it
+     * puts the high bits of the PIRQ# into the high bits of the MSI
+     * message address, instead of using the Extended Destination ID
+     * in address bits 4-11 which perhaps would have been a better
+     * choice. So to keep life simple, just stick with 256 as the
+     * default, which conveniently doesn't need to set anything
+     * outside the low 32 bits of the address.
+     */
+    s->nr_pirqs = 256;
+
+    s->nr_pirq_inuse_words = DIV_ROUND_UP(s->nr_pirqs, 64);
+    s->pirq_inuse_bitmap = g_new0(uint64_t, s->nr_pirq_inuse_words);
+    s->pirq = g_new0(struct pirq_info, s->nr_pirqs);
 }
 
 void xen_evtchn_connect_gsis(qemu_irq *system_gsis)
@@ -929,6 +1011,10 @@ static int close_port(XenEvtchnState *s, evtchn_port_t port)
     case EVTCHNSTAT_closed:
         return -ENOENT;
 
+    case EVTCHNSTAT_pirq:
+        s->pirq[p->type_val].port = 0;
+        break;
+
     case EVTCHNSTAT_virq:
         kvm_xen_set_vcpu_virq(virq_is_global(p->type_val) ? 0 : p->vcpu,
                               p->type_val, 0);
@@ -1119,6 +1205,37 @@ int xen_evtchn_bind_virq_op(struct evtchn_bind_virq *virq)
     }
 
     qemu_mutex_unlock(&s->port_lock);
+
+    return ret;
+}
+
+int xen_evtchn_bind_pirq_op(struct evtchn_bind_pirq *pirq)
+{
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int ret;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (pirq->pirq >= s->nr_pirqs) {
+        return -EINVAL;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    if (s->pirq[pirq->pirq].port) {
+        return -EBUSY;
+    }
+
+    ret = allocate_port(s, 0, EVTCHNSTAT_pirq, pirq->pirq,
+                        &pirq->port);
+    if (ret) {
+        return ret;
+    }
+
+    s->pirq[pirq->pirq].port = pirq->port;
+    trace_kvm_xen_bind_pirq(pirq->pirq, pirq->port);
 
     return ret;
 }
@@ -1349,29 +1466,208 @@ int xen_evtchn_set_port(uint16_t port)
     return ret;
 }
 
+static int allocate_pirq(XenEvtchnState *s, int type, int gsi)
+{
+    uint16_t pirq;
+
+    /*
+     * Preserve the allocation strategy that Xen has. It looks like
+     * we *never* give out PIRQ 0-15, we give out 16-nr_irqs_gsi only
+     * to GSIs (counting up from 16), and then we count backwards from
+     * the top for MSIs or when the GSI space is exhausted.
+     */
+    if (type == MAP_PIRQ_TYPE_GSI) {
+        for (pirq = 16 ; pirq < IOAPIC_NUM_PINS; pirq++) {
+            if (pirq_inuse(s, pirq)) {
+                continue;
+            }
+
+            /* Found it */
+            goto found;
+        }
+    }
+    for (pirq = s->nr_pirqs - 1; pirq >= IOAPIC_NUM_PINS; pirq--) {
+        /* Skip whole words at a time when they're full */
+        if (pirq_inuse_word(s, pirq) == UINT64_MAX) {
+            pirq &= ~63ULL;
+            continue;
+        }
+        if (pirq_inuse(s, pirq)) {
+            continue;
+        }
+
+        goto found;
+    }
+    return -ENOSPC;
+
+ found:
+    pirq_inuse_word(s, pirq) |= pirq_inuse_bit(pirq);
+    if (gsi >= 0) {
+        assert(gsi <= IOAPIC_NUM_PINS);
+        s->gsi_pirq[gsi] = pirq;
+    }
+    s->pirq[pirq].gsi = gsi;
+    return pirq;
+}
+
 int xen_physdev_map_pirq(struct physdev_map_pirq *map)
 {
-    return -ENOTSUP;
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int pirq = map->pirq;
+    int gsi = map->index;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    if (map->domid != DOMID_SELF && map->domid != xen_domid) {
+        return -EPERM;
+    }
+    if (map->type != MAP_PIRQ_TYPE_GSI) {
+        return -EINVAL;
+    }
+    if (gsi < 0 || gsi >= IOAPIC_NUM_PINS) {
+        return -EINVAL;
+    }
+
+    if (pirq < 0) {
+        pirq = allocate_pirq(s, map->type, gsi);
+        if (pirq < 0) {
+            return pirq;
+        }
+        map->pirq = pirq;
+    } else if (pirq > s->nr_pirqs) {
+        return -EINVAL;
+    } else {
+        /*
+         * User specified a valid-looking PIRQ#. Allow it if it is
+         * allocated and not yet bound, or if it is unallocated
+         */
+        if (pirq_inuse(s, pirq)) {
+            if (s->pirq[pirq].gsi != IRQ_UNBOUND) {
+                return -EBUSY;
+            }
+        } else {
+            /* If it was unused, mark it used now. */
+            pirq_inuse_word(s, pirq) |= pirq_inuse_bit(pirq);
+        }
+        /* Set the mapping in both directions. */
+        s->pirq[pirq].gsi = gsi;
+        s->gsi_pirq[gsi] = pirq;
+    }
+
+    trace_kvm_xen_map_pirq(pirq, gsi);
+    return 0;
 }
 
 int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap)
 {
-    return -ENOTSUP;
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int pirq = unmap->pirq;
+    int gsi;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    if (unmap->domid != DOMID_SELF && unmap->domid != xen_domid) {
+        return -EPERM;
+    }
+    if (pirq < 0 || pirq >= s->nr_pirqs) {
+        return -EINVAL;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    if (!pirq_inuse(s, pirq)) {
+        return -ENOENT;
+    }
+
+    gsi = s->pirq[pirq].gsi;
+
+    /* We can only unmap GSI PIRQs */
+    if (gsi < 0) {
+        return -EINVAL;
+    }
+
+    s->gsi_pirq[gsi] = 0;
+    s->pirq[pirq].gsi = IRQ_UNBOUND; /* Doesn't actually matter because: */
+    pirq_inuse_word(s, pirq) &= ~pirq_inuse_bit(pirq);
+
+    trace_kvm_xen_unmap_pirq(pirq, gsi);
+    return 0;
 }
 
 int xen_physdev_eoi_pirq(struct physdev_eoi *eoi)
 {
-    return -ENOTSUP;
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int pirq = eoi->irq;
+    int gsi;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    if (!pirq_inuse(s, pirq)) {
+        return -ENOENT;
+    }
+
+    gsi = s->pirq[pirq].gsi;
+    if (gsi < 0) {
+        return -EINVAL;
+    }
+
+    /* XX: Reassert a level IRQ if needed */
+    return 0;
 }
 
 int xen_physdev_query_pirq(struct physdev_irq_status_query *query)
 {
-    return -ENOTSUP;
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int pirq = query->irq;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    if (!pirq_inuse(s, pirq)) {
+        return -ENOENT;
+    }
+
+    if (s->pirq[pirq].gsi >= 0) {
+        query->flags = XENIRQSTAT_needs_eoi;
+    } else {
+        query->flags = 0;
+    }
+
+    return 0;
 }
 
 int xen_physdev_get_free_pirq(struct physdev_get_free_pirq *get)
 {
-    return -ENOTSUP;
+    XenEvtchnState *s = xen_evtchn_singleton;
+    int pirq;
+
+    if (!s) {
+        return -ENOTSUP;
+    }
+
+    QEMU_LOCK_GUARD(&s->port_lock);
+
+    pirq = allocate_pirq(s, get->type, IRQ_UNBOUND);
+    if (pirq < 0) {
+        return pirq;
+    }
+
+    get->pirq = pirq;
+    trace_kvm_xen_get_free_pirq(pirq, get->type);
+    return 0;
 }
 
 struct xenevtchn_handle *xen_be_evtchn_open(void)
