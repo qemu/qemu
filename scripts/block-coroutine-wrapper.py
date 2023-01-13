@@ -86,6 +86,16 @@ class FuncDecl:
             ctx = 'qemu_get_aio_context()'
         self.ctx = ctx
 
+        self.get_result = 's->ret = '
+        self.ret = 'return s.ret;'
+        self.co_ret = 'return '
+        self.return_field = self.return_type + " ret;"
+        if self.return_type == 'void':
+            self.get_result = ''
+            self.ret = ''
+            self.co_ret = ''
+            self.return_field = ''
+
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
 
@@ -132,7 +142,7 @@ def create_mixed_wrapper(func: FuncDecl) -> str:
 {{
     if (qemu_in_coroutine()) {{
         {graph_assume_lock}
-        return {name}({ func.gen_list('{name}') });
+        {func.co_ret}{name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
             .poll_state.ctx = {func.ctx},
@@ -144,7 +154,7 @@ def create_mixed_wrapper(func: FuncDecl) -> str:
         s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
 
         bdrv_poll_co(&s.poll_state);
-        return s.ret;
+        {func.ret}
     }}
 }}"""
 
@@ -169,7 +179,7 @@ def create_co_wrapper(func: FuncDecl) -> str:
     s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
 
     bdrv_poll_co(&s.poll_state);
-    return s.ret;
+    {func.ret}
 }}"""
 
 
@@ -196,7 +206,7 @@ def gen_wrapper(func: FuncDecl) -> str:
 
 typedef struct {struct_name} {{
     BdrvPollCo poll_state;
-    {func.return_type} ret;
+    {func.return_field}
 { func.gen_block('    {decl};') }
 }} {struct_name};
 
@@ -205,7 +215,7 @@ static void coroutine_fn {name}_entry(void *opaque)
     {struct_name} *s = opaque;
 
 {graph_lock}
-    s->ret = {name}({ func.gen_list('s->{name}') });
+    {func.get_result}{name}({ func.gen_list('s->{name}') });
 {graph_unlock}
     s->poll_state.in_progress = false;
 
