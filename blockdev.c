@@ -1024,6 +1024,7 @@ fail:
 static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
 {
     BlockDriverState *bs;
+    AioContext *aio_context;
 
     bs = bdrv_lookup_bs(name, name, errp);
     if (bs == NULL) {
@@ -1035,10 +1036,15 @@ static BlockDriverState *qmp_get_root_bs(const char *name, Error **errp)
         return NULL;
     }
 
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
     if (!bdrv_is_inserted(bs)) {
         error_setg(errp, "Device has no medium");
-        return NULL;
+        bs = NULL;
     }
+
+    aio_context_release(aio_context);
 
     return bs;
 }

@@ -3757,7 +3757,7 @@ out:
     return prio;
 }
 
-static bool cdrom_is_inserted(BlockDriverState *bs)
+static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -3824,7 +3824,7 @@ static BlockDriver bdrv_host_cdrom = {
                         = raw_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_is_inserted   = cdrom_is_inserted,
+    .bdrv_co_is_inserted    = cdrom_co_is_inserted,
     .bdrv_eject         = cdrom_eject,
     .bdrv_lock_medium   = cdrom_lock_medium,
 
@@ -3883,7 +3883,7 @@ static int cdrom_reopen(BlockDriverState *bs)
     return 0;
 }
 
-static bool cdrom_is_inserted(BlockDriverState *bs)
+static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
 {
     return raw_getlength(bs) > 0;
 }
@@ -3954,7 +3954,7 @@ static BlockDriver bdrv_host_cdrom = {
                         = raw_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_is_inserted   = cdrom_is_inserted,
+    .bdrv_co_is_inserted     = cdrom_co_is_inserted,
     .bdrv_eject         = cdrom_eject,
     .bdrv_lock_medium   = cdrom_lock_medium,
 };

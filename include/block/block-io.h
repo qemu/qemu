@@ -136,7 +136,10 @@ bool bdrv_is_read_only(BlockDriverState *bs);
 bool bdrv_is_writable(BlockDriverState *bs);
 bool bdrv_is_sg(BlockDriverState *bs);
 int bdrv_get_flags(BlockDriverState *bs);
-bool bdrv_is_inserted(BlockDriverState *bs);
+
+bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs);
+bool co_wrapper bdrv_is_inserted(BlockDriverState *bs);
+
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
 void bdrv_eject(BlockDriverState *bs, bool eject_flag);
 const char *bdrv_get_format_name(BlockDriverState *bs);

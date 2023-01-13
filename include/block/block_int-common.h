@@ -704,7 +704,7 @@ struct BlockDriver {
         BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
     /* removable device specific */
-    bool (*bdrv_is_inserted)(BlockDriverState *bs);
+    bool coroutine_fn (*bdrv_co_is_inserted)(BlockDriverState *bs);
     void (*bdrv_eject)(BlockDriverState *bs, bool eject_flag);
     void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
 

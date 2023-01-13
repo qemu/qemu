@@ -6782,7 +6782,7 @@ out:
 /**
  * Return TRUE if the media is present
  */
-bool bdrv_is_inserted(BlockDriverState *bs)
+bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     BdrvChild *child;
@@ -6791,11 +6791,11 @@ bool bdrv_is_inserted(BlockDriverState *bs)
     if (!drv) {
         return false;
     }
-    if (drv->bdrv_is_inserted) {
-        return drv->bdrv_is_inserted(bs);
+    if (drv->bdrv_co_is_inserted) {
+        return drv->bdrv_co_is_inserted(bs);
     }
     QLIST_FOREACH(child, &bs->children, next) {
-        if (!bdrv_is_inserted(child->bs)) {
+        if (!bdrv_co_is_inserted(child->bs)) {
             return false;
         }
     }
