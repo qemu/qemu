@@ -142,7 +142,7 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
      * Remember these values across the second lookup below,
      * which may invalidate this pointer via tlb resize.
      */
-    ptr_paddr = full->phys_addr;
+    ptr_paddr = full->phys_addr | (ptr & ~TARGET_PAGE_MASK);
     attrs = full->attrs;
     full = NULL;
 
