@@ -1078,30 +1078,30 @@ static void gen_ANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 static void gen_BEXTR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
-    TCGv bound, zero;
+    TCGv bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
+    TCGv zero = tcg_constant_tl(0);
+    TCGv mone = tcg_constant_tl(-1);
 
     /*
      * Extract START, and shift the operand.
      * Shifts larger than operand size get zeros.
      */
     tcg_gen_ext8u_tl(s->A0, s->T1);
+    if (TARGET_LONG_BITS == 64 && ot == MO_32) {
+        tcg_gen_ext32u_tl(s->T0, s->T0);
+    }
     tcg_gen_shr_tl(s->T0, s->T0, s->A0);
 
-    bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
-    zero = tcg_constant_tl(0);
     tcg_gen_movcond_tl(TCG_COND_LEU, s->T0, s->A0, bound, s->T0, zero);
 
     /*
-     * Extract the LEN into a mask.  Lengths larger than
-     * operand size get all ones.
+     * Extract the LEN into an inverse mask.  Lengths larger than
+     * operand size get all zeros, length 0 gets all ones.
      */
     tcg_gen_extract_tl(s->A0, s->T1, 8, 8);
-    tcg_gen_movcond_tl(TCG_COND_LEU, s->A0, s->A0, bound, s->A0, bound);
-
-    tcg_gen_movi_tl(s->T1, 1);
-    tcg_gen_shl_tl(s->T1, s->T1, s->A0);
-    tcg_gen_subi_tl(s->T1, s->T1, 1);
-    tcg_gen_and_tl(s->T0, s->T0, s->T1);
+    tcg_gen_shl_tl(s->T1, mone, s->A0);
+    tcg_gen_movcond_tl(TCG_COND_LEU, s->T1, s->A0, bound, s->T1, zero);
+    tcg_gen_andc_tl(s->T0, s->T0, s->T1);
 
     gen_op_update1_cc(s);
     set_cc_op(s, CC_OP_LOGICB + ot);

@@ -99,6 +99,9 @@ int main(int argc, char *argv[]) {
     result = bextrq(mask, 0x10f8);
     assert(result == 0);
 
+    result = bextrq(0xfedcba9876543210ull, 0x7f00);
+    assert(result == 0xfedcba9876543210ull);
+
     result = blsiq(0x30);
     assert(result == 0x10);
 
@@ -162,6 +165,15 @@ int main(int argc, char *argv[]) {
     assert(result == 0x4f);
 
     result = bextrl(mask, 0x1038);
+    assert(result == 0);
+
+    result = bextrl((reg_t)0x8f635a775ad3b9b4ull, 0x3018);
+    assert(result == 0x5a);
+
+    result = bextrl((reg_t)0xfedcba9876543210ull, 0x7f00);
+    assert(result == 0x76543210u);
+
+    result = bextrl(-1, 0);
     assert(result == 0);
 
     result = blsil(0xffff);
