@@ -123,6 +123,9 @@ int main(int argc, char *argv[]) {
     result = bzhiq(mask, 0x1f);
     assert(result == (mask & ~(-1 << 30)));
 
+    result = bzhiq(mask, 0x40);
+    assert(result == mask);
+
     result = rorxq(0x2132435465768798, 8);
     assert(result == 0x9821324354657687);
 
