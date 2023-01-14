@@ -222,8 +222,10 @@ static void e1000e_register_nodes(void)
         .device_id = E1000_DEV_ID_82574L,
     };
 
-    /* FIXME: every test using this node needs to setup a -netdev socket,id=hs0
-     * otherwise QEMU is not going to start */
+    /*
+     * FIXME: every test using this node needs to setup a -netdev socket,id=hs0
+     * otherwise QEMU is not going to start
+     */
     QOSGraphEdgeOptions opts = {
         .extra_device_opts = "netdev=hs0",
     };
