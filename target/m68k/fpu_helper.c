@@ -515,39 +515,42 @@ uint32_t HELPER(fmovemd_ld_postinc)(CPUM68KState *env, uint32_t addr,
     return fmovem_postinc(env, addr, mask, cpu_ld_float64_ra);
 }
 
-static void make_quotient(CPUM68KState *env, int32_t quotient)
+static void make_quotient(CPUM68KState *env, int sign, uint32_t quotient)
 {
-    int sign;
-
-    sign = quotient < 0;
-    if (sign) {
-        quotient = -quotient;
-    }
-
     quotient = (sign << 7) | (quotient & 0x7f);
     env->fpsr = (env->fpsr & ~FPSR_QT_MASK) | (quotient << FPSR_QT_SHIFT);
 }
 
 void HELPER(fmod)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
+    uint32_t quotient;
+    int sign;
+
     res->d = floatx80_mod(val1->d, val0->d, &env->fp_status);
 
     if (floatx80_is_any_nan(res->d)) {
         return;
     }
 
-    make_quotient(env, floatx80_to_int32(res->d, &env->fp_status));
+    sign = extractFloatx80Sign(res->d);
+    quotient = floatx80_to_int32(floatx80_abs(res->d), &env->fp_status);
+    make_quotient(env, sign, quotient);
 }
 
 void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
+    uint32_t quotient;
+    int sign;
+
     res->d = floatx80_rem(val1->d, val0->d, &env->fp_status);
 
     if (floatx80_is_any_nan(res->d)) {
         return;
     }
 
-    make_quotient(env, floatx80_to_int32(res->d, &env->fp_status));
+    sign = extractFloatx80Sign(res->d);
+    quotient = floatx80_to_int32(floatx80_abs(res->d), &env->fp_status);
+    make_quotient(env, sign, quotient);
 }
 
 void HELPER(fgetexp)(CPUM68KState *env, FPReg *res, FPReg *val)
