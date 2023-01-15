@@ -86,6 +86,9 @@
 { TARGET_NR_clock_getres, "clock_getres" , NULL, print_clock_getres,
                           print_syscall_ret_clock_getres },
 #endif
+#ifdef TARGET_NR_clock_getres_time64
+{ TARGET_NR_clock_getres_time64, "clock_getres_time64" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_clock_gettime
 { TARGET_NR_clock_gettime, "clock_gettime" , NULL, print_clock_gettime,
                            print_syscall_ret_clock_gettime },
@@ -274,6 +277,9 @@
 #endif
 #ifdef TARGET_NR_futex
 { TARGET_NR_futex, "futex" , NULL, print_futex, NULL },
+#endif
+#ifdef TARGET_NR_futex_time64
+{ TARGET_NR_futex_time64, "futex_time64" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_futimesat
 { TARGET_NR_futimesat, "futimesat" , NULL, print_futimesat, NULL },
