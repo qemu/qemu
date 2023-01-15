@@ -1037,6 +1037,8 @@ static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
 #ifdef TARGET_X86_64
     case MO_32:
         /* If TL is 64-bit just do everything in 64-bit arithmetic.  */
+        tcg_gen_ext32u_tl(s->T0, s->T0);
+        tcg_gen_ext32u_tl(s->T1, s->T1);
         tcg_gen_add_i64(s->T0, s->T0, s->T1);
         tcg_gen_add_i64(s->T0, s->T0, carry_in);
         tcg_gen_shri_i64(carry_out, s->T0, 32);
