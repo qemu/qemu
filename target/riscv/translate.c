@@ -672,10 +672,6 @@ static void gen_set_rm(DisasContext *ctx, int rm)
     }
     ctx->frm = rm;
 
-    if (rm == RISCV_FRM_ROD) {
-        gen_helper_set_rod_rounding_mode(cpu_env);
-        return;
-    }
     if (rm == RISCV_FRM_DYN) {
         /* The helper will return only if frm valid. */
         ctx->frm_valid = true;
