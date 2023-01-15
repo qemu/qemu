@@ -114,6 +114,8 @@ typedef struct DisasContext {
     bool pm_base_enabled;
     /* Use icount trigger for native debug */
     bool itrigger;
+    /* FRM is known to contain a valid value. */
+    bool frm_valid;
     /* TCG of the current insn_start */
     TCGOp *insn_start;
 } DisasContext;
@@ -674,10 +676,27 @@ static void gen_set_rm(DisasContext *ctx, int rm)
         gen_helper_set_rod_rounding_mode(cpu_env);
         return;
     }
+    if (rm == RISCV_FRM_DYN) {
+        /* The helper will return only if frm valid. */
+        ctx->frm_valid = true;
+    }
 
     /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
     decode_save_opc(ctx);
     gen_helper_set_rounding_mode(cpu_env, tcg_constant_i32(rm));
+}
+
+static void gen_set_rm_chkfrm(DisasContext *ctx, int rm)
+{
+    if (ctx->frm == rm && ctx->frm_valid) {
+        return;
+    }
+    ctx->frm = rm;
+    ctx->frm_valid = true;
+
+    /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
+    decode_save_opc(ctx);
+    gen_helper_set_rounding_mode_chkfrm(cpu_env, tcg_constant_i32(rm));
 }
 
 static int ex_plus_1(DisasContext *ctx, int nf)
