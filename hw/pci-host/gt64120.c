@@ -26,8 +26,11 @@
 #include "qapi/error.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
+#include "hw/qdev-properties.h"
+#include "hw/registerfields.h"
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_host.h"
+#include "hw/misc/empty_slot.h"
 #include "migration/vmstate.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
@@ -39,6 +42,9 @@
 /* CPU Configuration */
 #define GT_CPU                  (0x000 >> 2)
 #define GT_MULTI                (0x120 >> 2)
+
+REG32(GT_CPU,                   0x000)
+FIELD(GT_CPU,                   Endianness,     12, 1)
 
 /* CPU Address Decode */
 #define GT_SCS10LD              (0x008 >> 2)
@@ -209,6 +215,17 @@
 #define GT_PCI0_CFGADDR         (0xcf8 >> 2)
 #define GT_PCI0_CFGDATA         (0xcfc >> 2)
 
+REG32(GT_PCI0_CMD,              0xc00)
+FIELD(GT_PCI0_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI0_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI0_CMD_ByteSwap_MASK \
+        (R_GT_PCI0_CMD_MByteSwap_MASK | R_GT_PCI0_CMD_SByteSwap_MASK)
+REG32(GT_PCI1_CMD,              0xc80)
+FIELD(GT_PCI1_CMD,              MByteSwap,      0,  1)
+FIELD(GT_PCI1_CMD,              SByteSwap,      16, 1)
+#define  R_GT_PCI1_CMD_ByteSwap_MASK \
+        (R_GT_PCI1_CMD_MByteSwap_MASK | R_GT_PCI1_CMD_SByteSwap_MASK)
+
 /* Interrupts */
 #define GT_INTRCAUSE            (0xc18 >> 2)
 #define GT_INTRMASK             (0xc1c >> 2)
@@ -240,6 +257,9 @@ struct GT64120State {
     PCI_MAPPING_ENTRY(ISD);
     MemoryRegion pci0_mem;
     AddressSpace pci0_mem_as;
+
+    /* properties */
+    bool cpu_little_endian;
 };
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -282,6 +302,8 @@ static void gt64120_isd_mapping(GT64120State *s)
     hwaddr start = ((hwaddr)s->regs[GT_ISD] << 21) & 0xFFFE00000ull;
     hwaddr length = 0x1000;
 
+    memory_region_transaction_begin();
+
     if (s->ISD_length) {
         memory_region_del_subregion(get_system_memory(), &s->ISD_mem);
     }
@@ -292,10 +314,58 @@ static void gt64120_isd_mapping(GT64120State *s)
     s->ISD_start = start;
     s->ISD_length = length;
     memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
+
+    memory_region_transaction_commit();
+}
+
+static void gt64120_update_pci_cfgdata_mapping(GT64120State *s)
+{
+    /* Indexed on MByteSwap bit, see Table 158: PCI_0 Command, Offset: 0xc00 */
+    static const MemoryRegionOps *pci_host_conf_ops[] = {
+        &pci_host_conf_be_ops, &pci_host_conf_le_ops
+    };
+    static const MemoryRegionOps *pci_host_data_ops[] = {
+        &pci_host_data_be_ops, &pci_host_data_le_ops
+    };
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+
+    memory_region_transaction_begin();
+
+    /*
+     * The setting of the MByteSwap bit and MWordSwap bit in the PCI Internal
+     * Command Register determines how data transactions from the CPU to/from
+     * PCI are handled along with the setting of the Endianess bit in the CPU
+     * Configuration Register. See:
+     * - Table 16: 32-bit PCI Transaction Endianess
+     * - Table 158: PCI_0 Command, Offset: 0xc00
+     */
+    if (memory_region_is_mapped(&phb->conf_mem)) {
+        memory_region_del_subregion(&s->ISD_mem, &phb->conf_mem);
+        object_unparent(OBJECT(&phb->conf_mem));
+    }
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+                          pci_host_conf_ops[s->regs[GT_PCI0_CMD] & 1],
+                          s, "pci-conf-idx", 4);
+    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGADDR << 2,
+                                        &phb->conf_mem, 1);
+
+    if (memory_region_is_mapped(&phb->data_mem)) {
+        memory_region_del_subregion(&s->ISD_mem, &phb->data_mem);
+        object_unparent(OBJECT(&phb->data_mem));
+    }
+    memory_region_init_io(&phb->data_mem, OBJECT(phb),
+                          pci_host_data_ops[s->regs[GT_PCI0_CMD] & 1],
+                          s, "pci-conf-data", 4);
+    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGDATA << 2,
+                                        &phb->data_mem, 1);
+
+    memory_region_transaction_commit();
 }
 
 static void gt64120_pci_mapping(GT64120State *s)
 {
+    memory_region_transaction_begin();
+
     /* Update PCI0IO mapping */
     if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD]) {
         /* Unmap old IO address */
@@ -354,6 +424,8 @@ static void gt64120_pci_mapping(GT64120State *s)
                                         &s->PCI0M1_mem);
         }
     }
+
+    memory_region_transaction_commit();
 }
 
 static int gt64120_post_load(void *opaque, int version_id)
@@ -381,7 +453,6 @@ static void gt64120_writel(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     GT64120State *s = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t saddr = addr >> 2;
 
     trace_gt64120_write(addr, val);
@@ -584,6 +655,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_PCI0_CMD:
     case GT_PCI1_CMD:
         s->regs[saddr] = val & 0x0401fc0f;
+        gt64120_update_pci_cfgdata_mapping(s);
         break;
     case GT_PCI0_TOR:
     case GT_PCI0_BS_SCS10:
@@ -624,15 +696,9 @@ static void gt64120_writel(void *opaque, hwaddr addr,
                       saddr << 2, size, size << 1, val);
         break;
     case GT_PCI0_CFGADDR:
-        phb->config_reg = val & 0x80fffffc;
-        break;
     case GT_PCI0_CFGDATA:
-        if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
-            val = bswap32(val);
-        }
-        if (phb->config_reg & (1u << 31)) {
-            pci_data_write(phb->bus, phb->config_reg, val, 4);
-        }
+        /* Mapped via in gt64120_pci_mapping() */
+        g_assert_not_reached();
         break;
 
     /* Interrupts */
@@ -690,7 +756,6 @@ static uint64_t gt64120_readl(void *opaque,
                               hwaddr addr, unsigned size)
 {
     GT64120State *s = opaque;
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t val;
     uint32_t saddr = addr >> 2;
 
@@ -875,17 +940,9 @@ static uint64_t gt64120_readl(void *opaque,
 
     /* PCI Internal */
     case GT_PCI0_CFGADDR:
-        val = phb->config_reg;
-        break;
     case GT_PCI0_CFGDATA:
-        if (!(phb->config_reg & (1 << 31))) {
-            val = 0xffffffff;
-        } else {
-            val = pci_data_read(phb->bus, phb->config_reg, 4);
-        }
-        if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
-            val = bswap32(val);
-        }
+        /* Mapped via in gt64120_pci_mapping() */
+        g_assert_not_reached();
         break;
 
     case GT_PCI0_CMD:
@@ -986,11 +1043,7 @@ static void gt64120_reset(DeviceState *dev)
     /* FIXME: Malta specific hw assumptions ahead */
 
     /* CPU Configuration */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_CPU]           = 0x00000000;
-#else
-    s->regs[GT_CPU]           = 0x00001000;
-#endif
+    s->regs[GT_CPU] = s->cpu_little_endian ? R_GT_CPU_Endianness_MASK : 0;
     s->regs[GT_MULTI]         = 0x00000003;
 
     /* CPU Address decode */
@@ -1097,11 +1150,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD] = s->cpu_little_endian ? R_GT_PCI0_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
@@ -1118,11 +1167,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
     s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
     s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-#if TARGET_BIG_ENDIAN
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI1_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI1_CMD] = s->cpu_little_endian ? R_GT_PCI1_CMD_ByteSwap_MASK : 0;
     s->regs[GT_PCI1_TOR]      = 0x0000070f;
     s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
@@ -1145,6 +1190,7 @@ static void gt64120_reset(DeviceState *dev)
 
     gt64120_isd_mapping(s);
     gt64120_pci_mapping(s);
+    gt64120_update_pci_cfgdata_mapping(s);
 }
 
 static void gt64120_realize(DeviceState *dev, Error **errp)
@@ -1162,6 +1208,13 @@ static void gt64120_realize(DeviceState *dev, Error **errp)
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
+
+    /*
+     * The whole address space decoded by the GT-64120A doesn't generate
+     * exception when accessing invalid memory. Create an empty slot to
+     * emulate this feature.
+     */
+    empty_slot_init("GT64120", 0, 0x20000000);
 }
 
 static void gt64120_pci_realize(PCIDevice *d, Error **errp)
@@ -1208,11 +1261,18 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
+static Property gt64120_properties[] = {
+    DEFINE_PROP_BOOL("cpu-little-endian", GT64120State,
+                     cpu_little_endian, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    device_class_set_props(dc, gt64120_properties);
     dc->realize = gt64120_realize;
     dc->reset = gt64120_reset;
     dc->vmsd = &vmstate_gt64120;

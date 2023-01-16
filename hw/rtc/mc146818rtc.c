@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "qemu/bcd.h"
 #include "hw/acpi/acpi_aml_interface.h"
+#include "hw/intc/kvm_irqcount.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -43,11 +44,6 @@
 #include "qapi/qapi-events-misc.h"
 #include "qapi/visitor.h"
 #include "hw/rtc/mc146818rtc_regs.h"
-
-#ifdef TARGET_I386
-#include "qapi/qapi-commands-misc-target.h"
-#include "hw/i386/apic.h"
-#endif
 
 //#define DEBUG_CMOS
 //#define DEBUG_COALESCED
@@ -112,7 +108,6 @@ static void rtc_coalesced_timer_update(RTCState *s)
 static QLIST_HEAD(, RTCState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
-#ifdef TARGET_I386
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     RTCState *s;
@@ -124,9 +119,9 @@ void qmp_rtc_reset_reinjection(Error **errp)
 
 static bool rtc_policy_slew_deliver_irq(RTCState *s)
 {
-    apic_reset_irq_delivered();
+    kvm_reset_irq_delivered();
     qemu_irq_raise(s->irq);
-    return apic_get_irq_delivered();
+    return kvm_get_irq_delivered();
 }
 
 static void rtc_coalesced_timer(void *opaque)
@@ -145,13 +140,6 @@ static void rtc_coalesced_timer(void *opaque)
 
     rtc_coalesced_timer_update(s);
 }
-#else
-static bool rtc_policy_slew_deliver_irq(RTCState *s)
-{
-    assert(0);
-    return false;
-}
-#endif
 
 static uint32_t rtc_periodic_clock_ticks(RTCState *s)
 {
@@ -922,12 +910,10 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     rtc_set_date_from_host(isadev);
 
     switch (s->lost_tick_policy) {
-#ifdef TARGET_I386
     case LOST_TICK_POLICY_SLEW:
         s->coalesced_timer =
             timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
         break;
-#endif
     case LOST_TICK_POLICY_DISCARD:
         break;
     default:

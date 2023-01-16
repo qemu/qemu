@@ -33,6 +33,7 @@
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 
 static enum {
     RTC_BASE_UTC,
@@ -177,10 +178,13 @@ void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            object_register_sugar_prop("mc146818rtc",
+            object_register_sugar_prop(TYPE_MC146818_RTC,
                                        "lost_tick_policy",
                                        "slew",
                                        false);
+            if (!object_class_by_name(TYPE_MC146818_RTC)) {
+                warn_report("driftfix 'slew' is not available with this machine");
+            }
         } else if (!strcmp(value, "none")) {
             /* discard is default */
         } else {

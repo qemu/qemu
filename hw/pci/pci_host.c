@@ -118,6 +118,9 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, unsigned len)
     uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
 
     if (!pci_dev) {
+        trace_pci_cfg_write("empty", extract32(addr, 16, 8),
+                            extract32(addr, 11, 5), extract32(addr, 8, 3),
+                            config_addr, val);
         return;
     }
 
@@ -131,6 +134,9 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, unsigned len)
     uint32_t config_addr = addr & (PCI_CONFIG_SPACE_SIZE - 1);
 
     if (!pci_dev) {
+        trace_pci_cfg_read("empty", extract32(addr, 16, 8),
+                           extract32(addr, 11, 5), extract32(addr, 8, 3),
+                           config_addr, ~0x0);
         return ~0x0;
     }
 

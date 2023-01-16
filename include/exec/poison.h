@@ -74,7 +74,6 @@
 #pragma GCC poison CONFIG_M68K_DIS
 #pragma GCC poison CONFIG_MICROBLAZE_DIS
 #pragma GCC poison CONFIG_MIPS_DIS
-#pragma GCC poison CONFIG_NANOMIPS_DIS
 #pragma GCC poison CONFIG_NIOS2_DIS
 #pragma GCC poison CONFIG_PPC_DIS
 #pragma GCC poison CONFIG_RISCV_DIS

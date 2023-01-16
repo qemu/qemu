@@ -11,11 +11,13 @@ import os
 import gzip
 import logging
 
-from avocado import skipUnless
-from avocado_qemu import QemuSystemTest
-from avocado_qemu import wait_for_console_pattern
-from avocado.utils import archive
 from avocado import skipIf
+from avocado import skipUnless
+from avocado.utils import archive
+from avocado_qemu import QemuSystemTest
+from avocado_qemu import exec_command_and_wait_for_pattern
+from avocado_qemu import interrupt_interactive_console_until_pattern
+from avocado_qemu import wait_for_console_pattern
 
 
 NUMPY_AVAILABLE = True
@@ -118,3 +120,40 @@ class MaltaMachineFramebuffer(QemuSystemTest):
         :avocado: tags=mips:smp
         """
         self.do_test_i6400_framebuffer_logo(8)
+
+class MaltaMachine(QemuSystemTest):
+
+    def do_test_yamon(self):
+        rom_url = ('http://www.imgtec.com/tools/mips-tools/downloads/'
+                   'yamon/yamon-bin-02.22.zip')
+        rom_hash = '8da7ecddbc5312704b8b324341ee238189bde480'
+        zip_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
+
+        archive.extract(zip_path, self.workdir)
+        yamon_path = os.path.join(self.workdir, 'yamon-02.22.bin')
+
+        self.vm.set_console()
+        self.vm.add_args('-bios', yamon_path)
+        self.vm.launch()
+
+        prompt =  'YAMON>'
+        pattern = 'YAMON ROM Monitor'
+        interrupt_interactive_console_until_pattern(self, pattern, prompt)
+        wait_for_console_pattern(self, prompt)
+        self.vm.shutdown()
+
+    def test_mipsel_malta_yamon(self):
+        """
+        :avocado: tags=arch:mipsel
+        :avocado: tags=machine:malta
+        :avocado: tags=endian:little
+        """
+        self.do_test_yamon()
+
+    def test_mips64el_malta_yamon(self):
+        """
+        :avocado: tags=arch:mips64el
+        :avocado: tags=machine:malta
+        :avocado: tags=endian:little
+        """
+        self.do_test_yamon()

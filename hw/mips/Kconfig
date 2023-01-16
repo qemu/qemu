@@ -1,6 +1,8 @@
 config MALTA
     bool
+    select GT64120
     select ISA_SUPERIO
+    select PIIX4
 
 config MIPSSIM
     bool
