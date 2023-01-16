@@ -515,37 +515,50 @@ uint32_t HELPER(fmovemd_ld_postinc)(CPUM68KState *env, uint32_t addr,
     return fmovem_postinc(env, addr, mask, cpu_ld_float64_ra);
 }
 
-static void make_quotient(CPUM68KState *env, floatx80 val)
+static void make_quotient(CPUM68KState *env, int sign, uint32_t quotient)
 {
-    int32_t quotient;
-    int sign;
-
-    if (floatx80_is_any_nan(val)) {
-        return;
-    }
-
-    quotient = floatx80_to_int32(val, &env->fp_status);
-    sign = quotient < 0;
-    if (sign) {
-        quotient = -quotient;
-    }
-
     quotient = (sign << 7) | (quotient & 0x7f);
     env->fpsr = (env->fpsr & ~FPSR_QT_MASK) | (quotient << FPSR_QT_SHIFT);
 }
 
 void HELPER(fmod)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    res->d = floatx80_mod(val1->d, val0->d, &env->fp_status);
+    uint64_t quotient;
+    int sign = extractFloatx80Sign(val1->d) ^ extractFloatx80Sign(val0->d);
 
-    make_quotient(env, res->d);
+    res->d = floatx80_modrem(val1->d, val0->d, true, &quotient,
+                             &env->fp_status);
+
+    if (floatx80_is_any_nan(res->d)) {
+        return;
+    }
+
+    make_quotient(env, sign, quotient);
 }
 
 void HELPER(frem)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
 {
-    res->d = floatx80_rem(val1->d, val0->d, &env->fp_status);
+    FPReg fp_quot;
+    floatx80 fp_rem;
 
-    make_quotient(env, res->d);
+    fp_rem = floatx80_rem(val1->d, val0->d, &env->fp_status);
+    if (!floatx80_is_any_nan(fp_rem)) {
+        float_status fp_status = { };
+        uint32_t quotient;
+        int sign;
+
+        /* Calculate quotient directly using round to nearest mode */
+        set_float_rounding_mode(float_round_nearest_even, &fp_status);
+        set_floatx80_rounding_precision(
+            get_floatx80_rounding_precision(&env->fp_status), &fp_status);
+        fp_quot.d = floatx80_div(val1->d, val0->d, &fp_status);
+
+        sign = extractFloatx80Sign(fp_quot.d);
+        quotient = floatx80_to_int32(floatx80_abs(fp_quot.d), &env->fp_status);
+        make_quotient(env, sign, quotient);
+    }
+
+    res->d = fp_rem;
 }
 
 void HELPER(fgetexp)(CPUM68KState *env, FPReg *res, FPReg *val)
