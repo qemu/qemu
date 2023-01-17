@@ -152,7 +152,7 @@ typedef struct QEMUCursor {
 
 QEMUCursor *cursor_alloc(int width, int height);
 void cursor_get(QEMUCursor *c);
-void cursor_put(QEMUCursor *c);
+void cursor_unref(QEMUCursor *c);
 QEMUCursor *cursor_builtin_hidden(void);
 QEMUCursor *cursor_builtin_left_ptr(void);
 void cursor_print_ascii_art(QEMUCursor *c, const char *prefix);

@@ -345,7 +345,7 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
         c->data,
         c->width * c->height * 4,
         TRUE,
-        (GDestroyNotify)cursor_put,
+        (GDestroyNotify)cursor_unref,
         c);
 
     qemu_dbus_display1_listener_call_cursor_define(

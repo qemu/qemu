@@ -290,7 +290,7 @@ static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor,
     return c;
 
 fail:
-    cursor_put(c);
+    cursor_unref(c);
     return NULL;
 }
 
@@ -336,7 +336,7 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         }
         qemu_mutex_lock(&qxl->ssd.lock);
         if (qxl->ssd.cursor) {
-            cursor_put(qxl->ssd.cursor);
+            cursor_unref(qxl->ssd.cursor);
         }
         qxl->ssd.cursor = c;
         qxl->ssd.mouse_x = cmd->u.set.position.x;

@@ -111,7 +111,7 @@ void cursor_get(QEMUCursor *c)
     c->refcount++;
 }
 
-void cursor_put(QEMUCursor *c)
+void cursor_unref(QEMUCursor *c)
 {
     if (c == NULL)
         return;

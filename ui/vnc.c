@@ -1029,7 +1029,7 @@ static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     VncState *vs;
 
-    cursor_put(vd->cursor);
+    cursor_unref(vd->cursor);
     g_free(vd->cursor_mask);
 
     vd->cursor = c;
