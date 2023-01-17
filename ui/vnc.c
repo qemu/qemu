@@ -1032,8 +1032,7 @@ static void vnc_dpy_cursor_define(DisplayChangeListener *dcl,
     cursor_unref(vd->cursor);
     g_free(vd->cursor_mask);
 
-    vd->cursor = c;
-    cursor_get(vd->cursor);
+    vd->cursor = cursor_ref(vd->cursor);
     vd->cursor_msize = cursor_get_mono_bpl(c) * c->height;
     vd->cursor_mask = g_malloc0(vd->cursor_msize);
     cursor_get_mono_mask(c, 0, vd->cursor_mask);

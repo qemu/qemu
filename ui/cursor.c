@@ -106,9 +106,10 @@ QEMUCursor *cursor_alloc(int width, int height)
     return c;
 }
 
-void cursor_get(QEMUCursor *c)
+QEMUCursor *cursor_ref(QEMUCursor *c)
 {
     c->refcount++;
+    return c;
 }
 
 void cursor_unref(QEMUCursor *c)
