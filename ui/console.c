@@ -94,6 +94,7 @@ struct QemuConsole {
     uint32_t head;
     QemuUIInfo ui_info;
     QEMUTimer *ui_timer;
+    QEMUCursor *cursor;
     const GraphicHwOps *hw_ops;
     void *hw;
 
@@ -1923,6 +1924,8 @@ void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor)
     DisplayState *s = con->ds;
     DisplayChangeListener *dcl;
 
+    cursor_unref(con->cursor);
+    con->cursor = cursor_ref(cursor);
     if (!qemu_console_is_visible(con)) {
         return;
     }
@@ -2286,6 +2289,11 @@ QemuConsole *qemu_console_lookup_unused(void)
         return con;
     }
     return NULL;
+}
+
+QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
+{
+    return con->cursor;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)
