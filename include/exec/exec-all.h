@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #endif
 #include "qemu/interval-tree.h"
+#include "qemu/clang-tsa.h"
 
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
@@ -759,8 +760,8 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env,
 }
 
 #if defined(CONFIG_USER_ONLY)
-void mmap_lock(void);
-void mmap_unlock(void);
+void TSA_NO_TSA mmap_lock(void);
+void TSA_NO_TSA mmap_unlock(void);
 bool have_mmap_lock(void);
 
 /**
