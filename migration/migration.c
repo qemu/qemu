@@ -1933,6 +1933,8 @@ static void migrate_fd_cleanup(MigrationState *s)
 
     g_free(s->hostname);
     s->hostname = NULL;
+    json_writer_free(s->vmdesc);
+    s->vmdesc = NULL;
 
     qemu_savevm_state_cleanup();
 
