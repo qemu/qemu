@@ -204,6 +204,30 @@ static int virtio_mem_for_each_unplugged_range(const VirtIOMEM *vmem, void *arg,
     return ret;
 }
 
+static int virtio_mem_for_each_plugged_range(const VirtIOMEM *vmem, void *arg,
+                                             virtio_mem_range_cb cb)
+{
+    unsigned long first_bit, last_bit;
+    uint64_t offset, size;
+    int ret = 0;
+
+    first_bit = find_first_bit(vmem->bitmap, vmem->bitmap_size);
+    while (first_bit < vmem->bitmap_size) {
+        offset = first_bit * vmem->block_size;
+        last_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
+                                      first_bit + 1) - 1;
+        size = (last_bit - first_bit + 1) * vmem->block_size;
+
+        ret = cb(vmem, arg, offset, size);
+        if (ret) {
+            break;
+        }
+        first_bit = find_next_bit(vmem->bitmap, vmem->bitmap_size,
+                                  last_bit + 2);
+    }
+    return ret;
+}
+
 /*
  * Adjust the memory section to cover the intersection with the given range.
  *
@@ -938,6 +962,10 @@ static int virtio_mem_post_load(void *opaque, int version_id)
     RamDiscardListener *rdl;
     int ret;
 
+    if (vmem->prealloc && !vmem->early_migration) {
+        warn_report("Proper preallocation with migration requires a newer QEMU machine");
+    }
+
     /*
      * We started out with all memory discarded and our memory region is mapped
      * into an address space. Replay, now that we updated the bitmap.
@@ -955,6 +983,64 @@ static int virtio_mem_post_load(void *opaque, int version_id)
     }
 
     return virtio_mem_restore_unplugged(vmem);
+}
+
+static int virtio_mem_prealloc_range_cb(const VirtIOMEM *vmem, void *arg,
+                                        uint64_t offset, uint64_t size)
+{
+    void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
+    int fd = memory_region_get_fd(&vmem->memdev->mr);
+    Error *local_err = NULL;
+
+    qemu_prealloc_mem(fd, area, size, 1, NULL, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -ENOMEM;
+    }
+    return 0;
+}
+
+static int virtio_mem_post_load_early(void *opaque, int version_id)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(opaque);
+    RAMBlock *rb = vmem->memdev->mr.ram_block;
+    int ret;
+
+    if (!vmem->prealloc) {
+        return 0;
+    }
+
+    /*
+     * We restored the bitmap and verified that the basic properties
+     * match on source and destination, so we can go ahead and preallocate
+     * memory for all plugged memory blocks, before actual RAM migration starts
+     * touching this memory.
+     */
+    ret = virtio_mem_for_each_plugged_range(vmem, NULL,
+                                            virtio_mem_prealloc_range_cb);
+    if (ret) {
+        return ret;
+    }
+
+    /*
+     * This is tricky: postcopy wants to start with a clean slate. On
+     * POSTCOPY_INCOMING_ADVISE, postcopy code discards all (ordinarily
+     * preallocated) RAM such that postcopy will work as expected later.
+     *
+     * However, we run after POSTCOPY_INCOMING_ADVISE -- but before actual
+     * RAM migration. So let's discard all memory again. This looks like an
+     * expensive NOP, but actually serves a purpose: we made sure that we
+     * were able to allocate all required backend memory once. We cannot
+     * guarantee that the backend memory we will free will remain free
+     * until we need it during postcopy, but at least we can catch the
+     * obvious setup issues this way.
+     */
+    if (migration_incoming_postcopy_advised()) {
+        if (ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb))) {
+            return -EBUSY;
+        }
+    }
+    return 0;
 }
 
 typedef struct VirtIOMEMMigSanityChecks {
@@ -1068,6 +1154,7 @@ static const VMStateDescription vmstate_virtio_mem_device_early = {
     .minimum_version_id = 1,
     .version_id = 1,
     .early_setup = true,
+    .post_load = virtio_mem_post_load_early,
     .fields = (VMStateField[]) {
         VMSTATE_WITH_TMP(VirtIOMEM, VirtIOMEMMigSanityChecks,
                          vmstate_virtio_mem_sanity_checks),
