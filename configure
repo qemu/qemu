@@ -218,6 +218,7 @@ fi
 
 # default parameters
 cpu=""
+dynamic="no"
 static="no"
 cross_compile="no"
 cross_prefix=""
@@ -752,6 +753,9 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
+  --dynamic)
+    dynamic="yes"
+  ;;
   --static)
     static="yes"
     QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
@@ -986,6 +990,7 @@ Advanced options (experts only):
   --with-git-submodules=update   update git submodules (default if .git dir exists)
   --with-git-submodules=validate fail if git submodules are not up to date
   --with-git-submodules=ignore   do not update or check git submodules (default if no .git dir)
+  --dynamic                enable dynamic build (as dynamic library .dll/.so) [$dynamic]
   --static                 enable static build [$static]
   --bindir=PATH            install binaries in PATH
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
@@ -1303,9 +1308,15 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
+if test "$dynamic" = "yes"; then
+  QEMU_CFLAGS="-fPIC  $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-fPIC -shared $QEMU_LDFLAGS"
+  CONFIGURE_CFLAGS="-fPIC $CONFIGURE_CFLAGS"
+  CONFIGURE_LDFLAGS="-fPIC -shared $CONFIGURE_LDFLAGS"
+  pie="no"
 # Meson currently only handles pie as a boolean for now so if we have
 # explicitly disabled PIE we need to extend our cflags because it wont.
-if test "$static" = "yes"; then
+elif test "$static" = "yes"; then
   if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
     CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
     pie="yes"
