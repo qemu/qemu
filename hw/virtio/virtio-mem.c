@@ -772,6 +772,12 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'%s' property specifies an unsupported memdev",
                    VIRTIO_MEM_MEMDEV_PROP);
         return;
+    } else if (vmem->memdev->prealloc) {
+        error_setg(errp, "'%s' property specifies a memdev with preallocation"
+                   " enabled: %s. Instead, specify 'prealloc=on' for the"
+                   " virtio-mem device. ", VIRTIO_MEM_MEMDEV_PROP,
+                   object_get_canonical_path_component(OBJECT(vmem->memdev)));
+        return;
     }
 
     if ((nb_numa_nodes && vmem->node >= nb_numa_nodes) ||
