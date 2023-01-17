@@ -1184,6 +1184,7 @@ add_to warn_flags -Wendif-labels
 add_to warn_flags -Wexpansion-to-defined
 add_to warn_flags -Wimplicit-fallthrough=2
 add_to warn_flags -Wmissing-format-attribute
+add_to warn_flags -Wthread-safety
 
 nowarn_flags=
 add_to nowarn_flags -Wno-initializer-overrides
