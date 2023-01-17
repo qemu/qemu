@@ -1662,6 +1662,9 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
         con = active_console;
     }
     displaychangelistener_display_console(dcl, con, dcl->con ? &error_fatal : NULL);
+    if (con && con->cursor && dcl->ops->dpy_cursor_define) {
+        dcl->ops->dpy_cursor_define(dcl, con->cursor);
+    }
     text_console_update_cursor(NULL);
 }
 
