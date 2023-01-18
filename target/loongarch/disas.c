@@ -519,10 +519,6 @@ INSN(fsel,         fffc)
 INSN(addu16i_d,    rr_i)
 INSN(lu12i_w,      r_i)
 INSN(lu32i_d,      r_i)
-INSN(pcaddi,       r_i)
-INSN(pcalau12i,    r_i)
-INSN(pcaddu12i,    r_i)
-INSN(pcaddu18i,    r_i)
 INSN(ll_w,         rr_i)
 INSN(sc_w,         rr_i)
 INSN(ll_d,         rr_i)
@@ -755,3 +751,36 @@ static bool trans_fcmp_cond_##suffix(DisasContext *ctx, \
 
 FCMP_INSN(s)
 FCMP_INSN(d)
+
+#define PCADD_INSN(name)                                        \
+static bool trans_##name(DisasContext *ctx, arg_##name *a)      \
+{                                                               \
+    output(ctx, #name, "r%d, %d # 0x%" PRIx64,                  \
+           a->rd, a->imm, gen_##name(ctx->pc, a->imm));         \
+    return true;                                                \
+}
+
+static uint64_t gen_pcaddi(uint64_t pc, int imm)
+{
+    return pc + (imm << 2);
+}
+
+static uint64_t gen_pcalau12i(uint64_t pc, int imm)
+{
+    return (pc + (imm << 12)) & ~0xfff;
+}
+
+static uint64_t gen_pcaddu12i(uint64_t pc, int imm)
+{
+    return pc + (imm << 12);
+}
+
+static uint64_t gen_pcaddu18i(uint64_t pc, int imm)
+{
+    return pc + ((uint64_t)(imm) << 18);
+}
+
+PCADD_INSN(pcaddi)
+PCADD_INSN(pcalau12i)
+PCADD_INSN(pcaddu12i)
+PCADD_INSN(pcaddu18i)
