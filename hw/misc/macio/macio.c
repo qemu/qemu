@@ -53,10 +53,8 @@
  */
 static void macio_escc_legacy_setup(MacIOState *s)
 {
-    ESCCState *escc = ESCC(&s->escc);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(escc);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&s->escc);
     MemoryRegion *escc_legacy = g_new(MemoryRegion, 1);
-    MemoryRegion *bar = &s->bar;
     int i;
     static const int maps[] = {
         0x00, 0x00, /* Command B */
@@ -80,16 +78,15 @@ static void macio_escc_legacy_setup(MacIOState *s)
         memory_region_add_subregion(escc_legacy, maps[i], port);
     }
 
-    memory_region_add_subregion(bar, 0x12000, escc_legacy);
+    memory_region_add_subregion(&s->bar, 0x12000, escc_legacy);
 }
 
 static void macio_bar_setup(MacIOState *s)
 {
-    ESCCState *escc = ESCC(&s->escc);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(escc);
-    MemoryRegion *bar = &s->bar;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&s->escc);
+    MemoryRegion *bar = sysbus_mmio_get_region(sbd, 0);
 
-    memory_region_add_subregion(bar, 0x13000, sysbus_mmio_get_region(sbd, 0));
+    memory_region_add_subregion(&s->bar, 0x13000, bar);
     macio_escc_legacy_setup(s);
 }
 
