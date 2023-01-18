@@ -90,13 +90,13 @@ static void macio_bar_setup(MacIOState *s)
     macio_escc_legacy_setup(s);
 }
 
-static void macio_common_realize(PCIDevice *d, Error **errp)
+static bool macio_common_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
     SysBusDevice *sbd;
 
     if (!qdev_realize(DEVICE(&s->dbdma), BUS(&s->macio_bus), errp)) {
-        return;
+        return false;
     }
     sbd = SYS_BUS_DEVICE(&s->dbdma);
     memory_region_add_subregion(&s->bar, 0x08000,
@@ -108,14 +108,16 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnBtype", escc_serial);
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnAtype", escc_serial);
     if (!qdev_realize(DEVICE(&s->escc), BUS(&s->macio_bus), errp)) {
-        return;
+        return false;
     }
 
     macio_bar_setup(s);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
+
+    return true;
 }
 
-static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
+static bool macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
                               qemu_irq irq0, qemu_irq irq1, int dmaid,
                               Error **errp)
 {
@@ -128,7 +130,7 @@ static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
                              &error_abort);
     macio_ide_register_dma(ide);
 
-    qdev_realize(DEVICE(ide), BUS(&s->macio_bus), errp);
+    return qdev_realize(DEVICE(ide), BUS(&s->macio_bus), errp);
 }
 
 static void macio_oldworld_realize(PCIDevice *d, Error **errp)
@@ -136,12 +138,9 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     MacIOState *s = MACIO(d);
     OldWorldMacIOState *os = OLDWORLD_MACIO(d);
     DeviceState *pic_dev = DEVICE(&os->pic);
-    Error *err = NULL;
     SysBusDevice *sbd;
 
-    macio_common_realize(d, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_common_realize(d, errp)) {
         return;
     }
 
@@ -176,21 +175,17 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     pmac_format_nvram_partition(&os->nvram, os->nvram.size);
 
     /* IDE buses */
-    macio_realize_ide(s, &os->ide[0],
-                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_IRQ),
-                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_DMA_IRQ),
-                      0x16, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_realize_ide(s, &os->ide[0],
+                           qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_IRQ),
+                           qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_DMA_IRQ),
+                           0x16, errp)) {
         return;
     }
 
-    macio_realize_ide(s, &os->ide[1],
-                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_IRQ),
-                      qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_DMA_IRQ),
-                      0x1a, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_realize_ide(s, &os->ide[1],
+                           qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_IRQ),
+                           qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_DMA_IRQ),
+                           0x1a, errp)) {
         return;
     }
 }
@@ -266,13 +261,10 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
     DeviceState *pic_dev = DEVICE(&ns->pic);
-    Error *err = NULL;
     SysBusDevice *sbd;
     MemoryRegion *timer_memory = NULL;
 
-    macio_common_realize(d, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_common_realize(d, errp)) {
         return;
     }
 
@@ -288,21 +280,17 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(pic_dev, NEWWORLD_ESCCA_IRQ));
 
     /* IDE buses */
-    macio_realize_ide(s, &ns->ide[0],
-                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_IRQ),
-                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_DMA_IRQ),
-                      0x16, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_realize_ide(s, &ns->ide[0],
+                           qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_IRQ),
+                           qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_DMA_IRQ),
+                           0x16, errp)) {
         return;
     }
 
-    macio_realize_ide(s, &ns->ide[1],
-                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_IRQ),
-                      qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_DMA_IRQ),
-                      0x1a, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!macio_realize_ide(s, &ns->ide[1],
+                           qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_IRQ),
+                           qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_DMA_IRQ),
+                           0x1a, errp)) {
         return;
     }
 
