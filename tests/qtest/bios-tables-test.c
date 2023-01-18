@@ -24,7 +24,7 @@
  * You will also notice that tests/qtest/bios-tables-test-allowed-diff.h lists
  * a bunch of files. This is your hint that you need to do the below:
  * 4. Run
- *      make check V=1
+ *      make check V=2
  * this will produce a bunch of warnings about differences
  * beween actual and expected ACPI tables. If you have IASL installed,
  * they will also be disassembled so you can look at the disassembled
@@ -107,6 +107,8 @@ static const char *iasl = CONFIG_IASL;
 #else
 static const char *iasl;
 #endif
+
+static int verbosity_level;
 
 static bool compare_signature(const AcpiSdtTable *sdt, const char *signature)
 {
@@ -368,7 +370,7 @@ static GArray *load_expected_aml(test_data *data)
     gsize aml_len;
 
     GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
-    if (getenv("V")) {
+    if (verbosity_level >= 2) {
         fputc('\n', stderr);
     }
     for (i = 0; i < data->tables->len; ++i) {
@@ -383,7 +385,7 @@ static GArray *load_expected_aml(test_data *data)
 try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
                                    sdt->aml, ext);
-        if (getenv("V")) {
+        if (verbosity_level >= 2) {
             fprintf(stderr, "Looking for expected file '%s'\n", aml_file);
         }
         if (g_file_test(aml_file, G_FILE_TEST_EXISTS)) {
@@ -395,7 +397,7 @@ try_again:
             goto try_again;
         }
         g_assert(exp_sdt.aml_file);
-        if (getenv("V")) {
+        if (verbosity_level >= 2) {
             fprintf(stderr, "Using expected file '%s'\n", aml_file);
         }
         ret = g_file_get_contents(aml_file, (gchar **)&exp_sdt.aml,
@@ -503,7 +505,7 @@ static void test_acpi_asl(test_data *data)
                         exp_sdt->aml, sdt->asl_file, sdt->aml_file,
                         exp_sdt->asl_file, exp_sdt->aml_file);
                 fflush(stderr);
-                if (getenv("V")) {
+                if (verbosity_level >= 1) {
                     const char *diff_env = getenv("DIFF");
                     const char *diff_cmd = diff_env ? diff_env : "diff -U 16";
                     char *diff = g_strdup_printf("%s %s %s", diff_cmd,
@@ -1974,7 +1976,12 @@ int main(int argc, char *argv[])
     const char *arch = qtest_get_arch();
     const bool has_kvm = qtest_has_accel("kvm");
     const bool has_tcg = qtest_has_accel("tcg");
+    char *v_env = getenv("V");
     int ret;
+
+    if (v_env) {
+        verbosity_level = atoi(v_env);
+    }
 
     g_test_init(&argc, &argv, NULL);
 
