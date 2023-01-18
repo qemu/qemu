@@ -220,11 +220,11 @@ static void macio_oldworld_init(Object *obj)
     DeviceState *dev;
     int i;
 
-    object_initialize_child(OBJECT(s), "pic", &os->pic, TYPE_HEATHROW);
+    object_initialize_child(obj, "pic", &os->pic, TYPE_HEATHROW);
 
-    object_initialize_child(OBJECT(s), "cuda", &s->cuda, TYPE_CUDA);
+    object_initialize_child(obj, "cuda", &s->cuda, TYPE_CUDA);
 
-    object_initialize_child(OBJECT(s), "nvram", &os->nvram, TYPE_MACIO_NVRAM);
+    object_initialize_child(obj, "nvram", &os->nvram, TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);
     qdev_prop_set_uint32(dev, "size", MACIO_NVRAM_SIZE);
     qdev_prop_set_uint32(dev, "it_shift", 4);
@@ -372,9 +372,9 @@ static void macio_newworld_init(Object *obj)
     NewWorldMacIOState *ns = NEWWORLD_MACIO(obj);
     int i;
 
-    object_initialize_child(OBJECT(s), "pic", &ns->pic, TYPE_OPENPIC);
+    object_initialize_child(obj, "pic", &ns->pic, TYPE_OPENPIC);
 
-    object_initialize_child(OBJECT(s), "gpio", &ns->gpio, TYPE_MACIO_GPIO);
+    object_initialize_child(obj, "gpio", &ns->gpio, TYPE_MACIO_GPIO);
 
     for (i = 0; i < 2; i++) {
         macio_init_ide(s, &ns->ide[i], i);
@@ -390,9 +390,9 @@ static void macio_instance_init(Object *obj)
     qbus_init(&s->macio_bus, sizeof(s->macio_bus), TYPE_MACIO_BUS,
               DEVICE(obj), "macio.0");
 
-    object_initialize_child(OBJECT(s), "dbdma", &s->dbdma, TYPE_MAC_DBDMA);
+    object_initialize_child(obj, "dbdma", &s->dbdma, TYPE_MAC_DBDMA);
 
-    object_initialize_child(OBJECT(s), "escc", &s->escc, TYPE_ESCC);
+    object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
