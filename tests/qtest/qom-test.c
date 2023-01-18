@@ -14,7 +14,7 @@
 #include "qemu/cutils.h"
 #include "libqtest.h"
 
-static bool verbose;
+static int verbosity_level;
 
 static void test_properties(QTestState *qts, const char *path, bool recurse)
 {
@@ -24,7 +24,9 @@ static void test_properties(QTestState *qts, const char *path, bool recurse)
     QListEntry *entry;
     GSList *children = NULL, *links = NULL;
 
-    g_test_message("Obtaining properties of %s", path);
+    if (verbosity_level >= 2) {
+        g_test_message("Obtaining properties of %s", path);
+    }
     response = qtest_qmp(qts, "{ 'execute': 'qom-list',"
                               "  'arguments': { 'path': %s } }", path);
     g_assert(response);
@@ -51,7 +53,7 @@ static void test_properties(QTestState *qts, const char *path, bool recurse)
             }
         } else {
             const char *prop = qdict_get_str(tuple, "name");
-            if (verbose) {
+            if (verbosity_level >= 3) {
                 g_test_message("-> %s", prop);
             }
             tmp = qtest_qmp(qts,
@@ -109,8 +111,8 @@ int main(int argc, char **argv)
 {
     char *v_env = getenv("V");
 
-    if (v_env && atoi(v_env) >= 2) {
-        verbose = true;
+    if (v_env) {
+        verbosity_level = atoi(v_env);
     }
 
     g_test_init(&argc, &argv, NULL);
