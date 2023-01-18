@@ -10,7 +10,7 @@
 
 typedef uint64_t hwaddr;
 #define HWADDR_MAX UINT64_MAX
-#define TARGET_FMT_plx "%016" PRIx64
+#define HWADDR_FMT_plx "%016" PRIx64
 #define HWADDR_PRId PRId64
 #define HWADDR_PRIi PRIi64
 #define HWADDR_PRIo PRIo64

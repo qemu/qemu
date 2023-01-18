@@ -815,7 +815,7 @@ static void rocker_io_writel(void *opaque, hwaddr addr, uint32_t val)
             }
             break;
         default:
-            DPRINTF("not implemented dma reg write(l) addr=0x" TARGET_FMT_plx
+            DPRINTF("not implemented dma reg write(l) addr=0x" HWADDR_FMT_plx
                     " val=0x%08x (ring %d, addr=0x%02x)\n",
                     addr, val, index, offset);
             break;
@@ -857,7 +857,7 @@ static void rocker_io_writel(void *opaque, hwaddr addr, uint32_t val)
         r->lower32 = 0;
         break;
     default:
-        DPRINTF("not implemented write(l) addr=0x" TARGET_FMT_plx
+        DPRINTF("not implemented write(l) addr=0x" HWADDR_FMT_plx
                 " val=0x%08x\n", addr, val);
         break;
     }
@@ -876,8 +876,8 @@ static void rocker_io_writeq(void *opaque, hwaddr addr, uint64_t val)
             desc_ring_set_base_addr(r->rings[index], val);
             break;
         default:
-            DPRINTF("not implemented dma reg write(q) addr=0x" TARGET_FMT_plx
-                    " val=0x" TARGET_FMT_plx " (ring %d, offset=0x%02x)\n",
+            DPRINTF("not implemented dma reg write(q) addr=0x" HWADDR_FMT_plx
+                    " val=0x" HWADDR_FMT_plx " (ring %d, offset=0x%02x)\n",
                     addr, val, index, offset);
             break;
         }
@@ -895,8 +895,8 @@ static void rocker_io_writeq(void *opaque, hwaddr addr, uint64_t val)
         rocker_port_phys_enable_write(r, val);
         break;
     default:
-        DPRINTF("not implemented write(q) addr=0x" TARGET_FMT_plx
-                " val=0x" TARGET_FMT_plx "\n", addr, val);
+        DPRINTF("not implemented write(q) addr=0x" HWADDR_FMT_plx
+                " val=0x" HWADDR_FMT_plx "\n", addr, val);
         break;
     }
 }
@@ -987,8 +987,8 @@ static const char *rocker_reg_name(void *opaque, hwaddr addr)
 static void rocker_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    DPRINTF("Write %s addr " TARGET_FMT_plx
-            ", size %u, val " TARGET_FMT_plx "\n",
+    DPRINTF("Write %s addr " HWADDR_FMT_plx
+            ", size %u, val " HWADDR_FMT_plx "\n",
             rocker_reg_name(opaque, addr), addr, size, val);
 
     switch (size) {
@@ -1060,7 +1060,7 @@ static uint32_t rocker_io_readl(void *opaque, hwaddr addr)
             ret = desc_ring_get_credits(r->rings[index]);
             break;
         default:
-            DPRINTF("not implemented dma reg read(l) addr=0x" TARGET_FMT_plx
+            DPRINTF("not implemented dma reg read(l) addr=0x" HWADDR_FMT_plx
                     " (ring %d, addr=0x%02x)\n", addr, index, offset);
             ret = 0;
             break;
@@ -1115,7 +1115,7 @@ static uint32_t rocker_io_readl(void *opaque, hwaddr addr)
         ret = (uint32_t)(r->switch_id >> 32);
         break;
     default:
-        DPRINTF("not implemented read(l) addr=0x" TARGET_FMT_plx "\n", addr);
+        DPRINTF("not implemented read(l) addr=0x" HWADDR_FMT_plx "\n", addr);
         ret = 0;
         break;
     }
@@ -1136,7 +1136,7 @@ static uint64_t rocker_io_readq(void *opaque, hwaddr addr)
             ret = desc_ring_get_base_addr(r->rings[index]);
             break;
         default:
-            DPRINTF("not implemented dma reg read(q) addr=0x" TARGET_FMT_plx
+            DPRINTF("not implemented dma reg read(q) addr=0x" HWADDR_FMT_plx
                     " (ring %d, addr=0x%02x)\n", addr, index, offset);
             ret = 0;
             break;
@@ -1165,7 +1165,7 @@ static uint64_t rocker_io_readq(void *opaque, hwaddr addr)
         ret = r->switch_id;
         break;
     default:
-        DPRINTF("not implemented read(q) addr=0x" TARGET_FMT_plx "\n", addr);
+        DPRINTF("not implemented read(q) addr=0x" HWADDR_FMT_plx "\n", addr);
         ret = 0;
         break;
     }
@@ -1174,7 +1174,7 @@ static uint64_t rocker_io_readq(void *opaque, hwaddr addr)
 
 static uint64_t rocker_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    DPRINTF("Read %s addr " TARGET_FMT_plx ", size %u\n",
+    DPRINTF("Read %s addr " HWADDR_FMT_plx ", size %u\n",
             rocker_reg_name(opaque, addr), addr, size);
 
     switch (size) {

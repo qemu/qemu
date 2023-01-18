@@ -241,8 +241,8 @@ static void guest_phys_block_add_section(GuestPhysListener *g,
     }
 
 #ifdef DEBUG_GUEST_PHYS_REGION_ADD
-    fprintf(stderr, "%s: target_start=" TARGET_FMT_plx " target_end="
-            TARGET_FMT_plx ": %s (count: %u)\n", __func__, target_start,
+    fprintf(stderr, "%s: target_start=" HWADDR_FMT_plx " target_end="
+            HWADDR_FMT_plx ": %s (count: %u)\n", __func__, target_start,
             target_end, predecessor ? "joined" : "added", g->list->num);
 #endif
 }

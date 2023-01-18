@@ -104,7 +104,7 @@ static bool desc_ring_empty(DescRing *ring)
 bool desc_ring_set_base_addr(DescRing *ring, uint64_t base_addr)
 {
     if (base_addr & 0x7) {
-        DPRINTF("ERROR: ring[%d] desc base addr (0x" TARGET_FMT_plx
+        DPRINTF("ERROR: ring[%d] desc base addr (0x" HWADDR_FMT_plx
                 ") not 8-byte aligned\n", ring->index, base_addr);
         return false;
     }

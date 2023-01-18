@@ -445,7 +445,7 @@ static uint64_t platform_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     DPRINTF("Warning: attempted read from physical address "
-            "0x" TARGET_FMT_plx " in xen platform mmio space\n", addr);
+            "0x" HWADDR_FMT_plx " in xen platform mmio space\n", addr);
 
     return 0;
 }
@@ -454,7 +454,7 @@ static void platform_mmio_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     DPRINTF("Warning: attempted write of 0x%"PRIx64" to physical "
-            "address 0x" TARGET_FMT_plx " in xen platform mmio space\n",
+            "address 0x" HWADDR_FMT_plx " in xen platform mmio space\n",
             val, addr);
 }
 

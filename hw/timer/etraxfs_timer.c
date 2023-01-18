@@ -324,8 +324,7 @@ timer_write(void *opaque, hwaddr addr,
             t->rw_ack_intr = 0;
             break;
         default:
-            printf ("%s " TARGET_FMT_plx " %x\n",
-                __func__, addr, value);
+            printf("%s " HWADDR_FMT_plx " %x\n", __func__, addr, value);
             break;
     }
 }

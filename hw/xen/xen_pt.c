@@ -434,7 +434,7 @@ static uint64_t xen_pt_bar_read(void *o, hwaddr addr,
     PCIDevice *d = o;
     /* if this function is called, that probably means that there is a
      * misconfiguration of the IOMMU. */
-    XEN_PT_ERR(d, "Should not read BAR through QEMU. @0x"TARGET_FMT_plx"\n",
+    XEN_PT_ERR(d, "Should not read BAR through QEMU. @0x"HWADDR_FMT_plx"\n",
                addr);
     return 0;
 }
@@ -443,7 +443,7 @@ static void xen_pt_bar_write(void *o, hwaddr addr, uint64_t val,
 {
     PCIDevice *d = o;
     /* Same comment as xen_pt_bar_read function */
-    XEN_PT_ERR(d, "Should not write BAR through QEMU. @0x"TARGET_FMT_plx"\n",
+    XEN_PT_ERR(d, "Should not write BAR through QEMU. @0x"HWADDR_FMT_plx"\n",
                addr);
 }
 

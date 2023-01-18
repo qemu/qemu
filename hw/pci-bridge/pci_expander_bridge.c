@@ -155,7 +155,7 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     main_host_sbd = SYS_BUS_DEVICE(main_host);
 
     if (main_host_sbd->num_mmio > 0) {
-        return g_strdup_printf(TARGET_FMT_plx ",%x",
+        return g_strdup_printf(HWADDR_FMT_plx ",%x",
                                main_host_sbd->mmio[0].addr, position + 1);
     }
     if (main_host_sbd->num_pio > 0) {

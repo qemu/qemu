@@ -1445,7 +1445,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
     case L0_ICNTO: case L1_ICNTO:
     case L0_FRCNTO: case L1_FRCNTO:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "exynos4210.mct: write to RO register " TARGET_FMT_plx,
+                      "exynos4210.mct: write to RO register " HWADDR_FMT_plx,
                       offset);
         break;
 

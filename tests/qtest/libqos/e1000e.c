@@ -51,13 +51,13 @@ static uint32_t e1000e_macreg_read(QE1000E *d, uint32_t reg)
 void e1000e_tx_ring_push(QE1000E *d, void *descr)
 {
     QE1000E_PCI *d_pci = container_of(d, QE1000E_PCI, e1000e);
-    uint32_t tail = e1000e_macreg_read(d, E1000E_TDT);
-    uint32_t len = e1000e_macreg_read(d, E1000E_TDLEN) / E1000_RING_DESC_LEN;
+    uint32_t tail = e1000e_macreg_read(d, E1000_TDT);
+    uint32_t len = e1000e_macreg_read(d, E1000_TDLEN) / E1000_RING_DESC_LEN;
 
     qtest_memwrite(d_pci->pci_dev.bus->qts,
                    d->tx_ring + tail * E1000_RING_DESC_LEN,
                    descr, E1000_RING_DESC_LEN);
-    e1000e_macreg_write(d, E1000E_TDT, (tail + 1) % len);
+    e1000e_macreg_write(d, E1000_TDT, (tail + 1) % len);
 
     /* Read WB data for the packet transmitted */
     qtest_memread(d_pci->pci_dev.bus->qts,
@@ -68,13 +68,13 @@ void e1000e_tx_ring_push(QE1000E *d, void *descr)
 void e1000e_rx_ring_push(QE1000E *d, void *descr)
 {
     QE1000E_PCI *d_pci = container_of(d, QE1000E_PCI, e1000e);
-    uint32_t tail = e1000e_macreg_read(d, E1000E_RDT);
-    uint32_t len = e1000e_macreg_read(d, E1000E_RDLEN) / E1000_RING_DESC_LEN;
+    uint32_t tail = e1000e_macreg_read(d, E1000_RDT);
+    uint32_t len = e1000e_macreg_read(d, E1000_RDLEN) / E1000_RING_DESC_LEN;
 
     qtest_memwrite(d_pci->pci_dev.bus->qts,
                    d->rx_ring + tail * E1000_RING_DESC_LEN,
                    descr, E1000_RING_DESC_LEN);
-    e1000e_macreg_write(d, E1000E_RDT, (tail + 1) % len);
+    e1000e_macreg_write(d, E1000_RDT, (tail + 1) % len);
 
     /* Read WB data for the packet received */
     qtest_memread(d_pci->pci_dev.bus->qts,
@@ -145,8 +145,8 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
                            (uint32_t) d->e1000e.tx_ring);
     e1000e_macreg_write(&d->e1000e, E1000_TDBAH,
                            (uint32_t) (d->e1000e.tx_ring >> 32));
-    e1000e_macreg_write(&d->e1000e, E1000E_TDLEN, E1000E_RING_LEN);
-    e1000e_macreg_write(&d->e1000e, E1000E_TDT, 0);
+    e1000e_macreg_write(&d->e1000e, E1000_TDLEN, E1000E_RING_LEN);
+    e1000e_macreg_write(&d->e1000e, E1000_TDT, 0);
     e1000e_macreg_write(&d->e1000e, E1000_TDH, 0);
 
     /* Enable transmit */
@@ -156,8 +156,8 @@ static void e1000e_pci_start_hw(QOSGraphObject *obj)
                            (uint32_t)d->e1000e.rx_ring);
     e1000e_macreg_write(&d->e1000e, E1000_RDBAH,
                            (uint32_t)(d->e1000e.rx_ring >> 32));
-    e1000e_macreg_write(&d->e1000e, E1000E_RDLEN, E1000E_RING_LEN);
-    e1000e_macreg_write(&d->e1000e, E1000E_RDT, 0);
+    e1000e_macreg_write(&d->e1000e, E1000_RDLEN, E1000E_RING_LEN);
+    e1000e_macreg_write(&d->e1000e, E1000_RDT, 0);
     e1000e_macreg_write(&d->e1000e, E1000_RDH, 0);
 
     /* Enable receive */
@@ -222,8 +222,10 @@ static void e1000e_register_nodes(void)
         .device_id = E1000_DEV_ID_82574L,
     };
 
-    /* FIXME: every test using this node needs to setup a -netdev socket,id=hs0
-     * otherwise QEMU is not going to start */
+    /*
+     * FIXME: every test using this node needs to setup a -netdev socket,id=hs0
+     * otherwise QEMU is not going to start
+     */
     QOSGraphEdgeOptions opts = {
         .extra_device_opts = "netdev=hs0",
     };

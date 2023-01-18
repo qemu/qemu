@@ -663,7 +663,7 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "allwinner-h3-emac: read access to unknown "
-                                 "EMAC register 0x" TARGET_FMT_plx "\n",
+                                 "EMAC register 0x" HWADDR_FMT_plx "\n",
                                   offset);
     }
 
@@ -760,7 +760,7 @@ static void allwinner_sun8i_emac_write(void *opaque, hwaddr offset,
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "allwinner-h3-emac: write access to unknown "
-                                 "EMAC register 0x" TARGET_FMT_plx "\n",
+                                 "EMAC register 0x" HWADDR_FMT_plx "\n",
                                   offset);
     }
 }

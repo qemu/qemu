@@ -48,8 +48,8 @@ class HaikuVM(basevm.BaseVM):
     name = "haiku"
     arch = "x86_64"
 
-    link = "https://app.vagrantup.com/haiku-os/boxes/r1beta3-x86_64/versions/20220216/providers/libvirt.box"
-    csum = "e67d4aacbcc687013d5cc91990ddd86cc5d70a5d28432ae2691944f8ce5d5041"
+    link = "https://app.vagrantup.com/haiku-os/boxes/r1beta4-x86_64/versions/20230114/providers/libvirt.box"
+    csum = "6e72a2a470e03dbc3c5e808664e057bb4022b390dca88e4c7da6188f26f6a3c9"
 
     poweroff = "shutdown"
 
@@ -80,13 +80,12 @@ class HaikuVM(basevm.BaseVM):
         "ninja",
     ]
 
-    # https://dev.haiku-os.org/ticket/16512 virtio disk1 shows up as 0 (reversed order)
     BUILD_SCRIPT = """
         set -e;
         rm -rf /tmp/qemu-test.*
         cd $(mktemp -d /tmp/qemu-test.XXXXXX);
         mkdir src build; cd src;
-        tar -xf /dev/disk/virtual/virtio_block/0/raw;
+        tar -xf /dev/disk/virtual/virtio_block/1/raw;
         mkdir -p /usr/bin
         ln -s /boot/system/bin/env /usr/bin/env
         cd ../build

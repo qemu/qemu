@@ -2041,7 +2041,7 @@ static uint64_t cirrus_vga_mem_read(void *opaque,
     } else {
         val = 0xff;
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "cirrus: mem_readb 0x" TARGET_FMT_plx "\n", addr);
+                      "cirrus: mem_readb 0x" HWADDR_FMT_plx "\n", addr);
     }
     return val;
 }
@@ -2105,7 +2105,7 @@ static void cirrus_vga_mem_write(void *opaque,
         }
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "cirrus: mem_writeb 0x" TARGET_FMT_plx " "
+                      "cirrus: mem_writeb 0x" HWADDR_FMT_plx " "
                       "value 0x%02" PRIx64 "\n", addr, mem_value);
     }
 }

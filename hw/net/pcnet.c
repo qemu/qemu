@@ -908,11 +908,11 @@ static void pcnet_rdte_poll(PCNetState *s)
             s->csr[37] = nnrd >> 16;
 #ifdef PCNET_DEBUG
             if (bad) {
-                printf("pcnet: BAD RMD RECORDS AFTER 0x" TARGET_FMT_plx "\n",
+                printf("pcnet: BAD RMD RECORDS AFTER 0x" HWADDR_FMT_plx "\n",
                        crda);
             }
         } else {
-            printf("pcnet: BAD RMD RDA=0x" TARGET_FMT_plx "\n", crda);
+            printf("pcnet: BAD RMD RDA=0x" HWADDR_FMT_plx "\n", crda);
 #endif
         }
     }

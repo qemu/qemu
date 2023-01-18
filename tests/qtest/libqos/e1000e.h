@@ -25,11 +25,6 @@
 #define E1000E_RX0_MSG_ID           (0)
 #define E1000E_TX0_MSG_ID           (1)
 
-#define E1000E_TDLEN    (0x3808)
-#define E1000E_TDT      (0x3818)
-#define E1000E_RDLEN    (0x2808)
-#define E1000E_RDT      (0x2818)
-
 typedef struct QE1000E QE1000E;
 typedef struct QE1000E_PCI QE1000E_PCI;
 
