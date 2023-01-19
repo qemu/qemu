@@ -19,6 +19,8 @@ typedef struct Test {
     GMainLoop *loop;
 } Test;
 
+#if !defined(WIN32)
+
 static void on_vnc_error(VncConnection* self,
                          const char* msg)
 {
@@ -30,6 +32,8 @@ static void on_vnc_auth_failure(VncConnection *self,
 {
     g_error("vnc-auth-failure: %s", msg);
 }
+
+#endif
 
 static bool
 test_setup(Test *test)
