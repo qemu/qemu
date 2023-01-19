@@ -500,10 +500,7 @@ F: stubs/xen-hw-stub.c
 Guest CPU Cores (HAXM)
 ---------------------
 X86 HAXM CPUs
-M: Wenchao Wang <wenchao.wang@intel.com>
-L: haxm-team@intel.com
-W: https://github.com/intel/haxm/issues
-S: Maintained
+S: Orphan
 F: accel/stubs/hax-stub.c
 F: include/sysemu/hax.h
 F: target/i386/hax/
