@@ -517,13 +517,6 @@ static void interface_set_compression_level(QXLInstance *sin, int level)
     /* nothing to do */
 }
 
-#if SPICE_NEEDS_SET_MM_TIME
-static void interface_set_mm_time(QXLInstance *sin, uint32_t mm_time)
-{
-    /* nothing to do */
-}
-#endif
-
 static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
 {
     SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
@@ -715,9 +708,6 @@ static const QXLInterface dpy_interface = {
     .attache_worker          = interface_attach_worker,
 #endif
     .set_compression_level   = interface_set_compression_level,
-#if SPICE_NEEDS_SET_MM_TIME
-    .set_mm_time             = interface_set_mm_time,
-#endif
     .get_init_info           = interface_get_init_info,
 
     /* the callbacks below are called from spice server thread context */

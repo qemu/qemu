@@ -14,6 +14,8 @@ softmmu_ss.add(files(
   'kbd-state.c',
   'keymaps.c',
   'qemu-pixman.c',
+  'ui-hmp-cmds.c',
+  'ui-qmp-cmds.c',
   'util.c',
 ))
 if dbus_display
