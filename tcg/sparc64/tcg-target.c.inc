@@ -92,7 +92,6 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 #define TCG_REG_TB  TCG_REG_I1
-#define USE_REG_TB  (sizeof(void *) > 4)
 
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L0,
@@ -439,7 +438,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     }
 
     /* A 13-bit constant relative to the TB.  */
-    if (!in_prologue && USE_REG_TB) {
+    if (!in_prologue) {
         test = tcg_tbrel_diff(s, (void *)arg);
         if (check_fit_ptr(test, 13)) {
             tcg_out_arithi(s, ret, TCG_REG_TB, test, ARITH_ADD);
@@ -468,7 +467,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     }
 
     /* Use the constant pool, if possible. */
-    if (!in_prologue && USE_REG_TB) {
+    if (!in_prologue) {
         new_pool_label(s, arg, R_SPARC_13, s->code_ptr,
                        tcg_tbrel_diff(s, NULL));
         tcg_out32(s, LDX | INSN_RD(ret) | INSN_RS1(TCG_REG_TB));
@@ -535,17 +534,6 @@ static bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
         return true;
     }
     return false;
-}
-
-static void tcg_out_ld_ptr(TCGContext *s, TCGReg ret, const void *arg)
-{
-    intptr_t diff = tcg_tbrel_diff(s, arg);
-    if (USE_REG_TB && check_fit_ptr(diff, 13)) {
-        tcg_out_ld(s, TCG_TYPE_PTR, ret, TCG_REG_TB, diff);
-        return;
-    }
-    tcg_out_movi(s, TCG_TYPE_PTR, ret, (uintptr_t)arg & ~0x3ff);
-    tcg_out_ld(s, TCG_TYPE_PTR, ret, ret, (uintptr_t)arg & 0x3ff);
 }
 
 static void tcg_out_sety(TCGContext *s, TCGReg rs)
@@ -1026,10 +1014,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 #endif
 
     /* We choose TCG_REG_TB such that no move is required.  */
-    if (USE_REG_TB) {
-        QEMU_BUILD_BUG_ON(TCG_REG_TB != TCG_REG_I1);
-        tcg_regset_set_reg(s->reserved_regs, TCG_REG_TB);
-    }
+    QEMU_BUILD_BUG_ON(TCG_REG_TB != TCG_REG_I1);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_TB);
 
     tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I1, 0, JMPL);
     /* delay slot */
@@ -1428,6 +1414,78 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 #endif /* CONFIG_SOFTMMU */
 }
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    if (check_fit_ptr(a0, 13)) {
+        tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+        tcg_out_movi_imm13(s, TCG_REG_O0, a0);
+        return;
+    } else {
+        intptr_t tb_diff = tcg_tbrel_diff(s, (void *)a0);
+        if (check_fit_ptr(tb_diff, 13)) {
+            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+            /* Note that TCG_REG_TB has been unwound to O1.  */
+            tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O1, tb_diff, ARITH_ADD);
+            return;
+        }
+    }
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, a0 & ~0x3ff);
+    tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
+    tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, a0 & 0x3ff, ARITH_OR);
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    ptrdiff_t off = tcg_tbrel_diff(s, (void *)get_jmp_target_addr(s, which));
+
+    /* Direct branch will be patched by tb_target_set_jmp_target. */
+    set_jmp_insn_offset(s, which);
+    tcg_out32(s, CALL);
+    /* delay slot */
+    tcg_debug_assert(check_fit_ptr(off, 13));
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TB, TCG_REG_TB, off);
+    set_jmp_reset_offset(s, which);
+
+    /*
+     * For the unlinked path of goto_tb, we need to reset TCG_REG_TB
+     * to the beginning of this TB.
+     */
+    off = -tcg_current_code_size(s);
+    if (check_fit_i32(off, 13)) {
+        tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, off, ARITH_ADD);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, off);
+        tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
+    }
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    uintptr_t addr = tb->jmp_target_addr[n];
+    intptr_t br_disp = (intptr_t)(addr - jmp_rx) >> 2;
+    tcg_insn_unit insn;
+
+    br_disp >>= 2;
+    if (check_fit_ptr(br_disp, 19)) {
+        /* ba,pt %icc, addr */
+        insn = deposit32(INSN_OP(0) | INSN_OP2(1) | INSN_COND(COND_A)
+                         | BPCC_ICC | BPCC_PT, 0, 19, br_disp);
+    } else if (check_fit_ptr(br_disp, 22)) {
+        /* ba addr */
+        insn = deposit32(INSN_OP(0) | INSN_OP2(2) | INSN_COND(COND_A),
+                         0, 22, br_disp);
+    } else {
+        /* The code_gen_buffer can't be larger than 2GB.  */
+        tcg_debug_assert(check_fit_ptr(br_disp, 30));
+        /* call addr */
+        insn = deposit32(CALL, 0, 30, br_disp);
+    }
+
+    qatomic_set((uint32_t *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1442,70 +1500,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     c2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        if (check_fit_ptr(a0, 13)) {
-            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-            tcg_out_movi_imm13(s, TCG_REG_O0, a0);
-            break;
-        } else if (USE_REG_TB) {
-            intptr_t tb_diff = tcg_tbrel_diff(s, (void *)a0);
-            if (check_fit_ptr(tb_diff, 13)) {
-                tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-                /* Note that TCG_REG_TB has been unwound to O1.  */
-                tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O1, tb_diff, ARITH_ADD);
-                break;
-            }
-        }
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_I0, a0 & ~0x3ff);
-        tcg_out_arithi(s, TCG_REG_G0, TCG_REG_I7, 8, RETURN);
-        tcg_out_arithi(s, TCG_REG_O0, TCG_REG_O0, a0 & 0x3ff, ARITH_OR);
-        break;
-    case INDEX_op_goto_tb:
-        if (s->tb_jmp_insn_offset) {
-            /* direct jump method */
-            if (USE_REG_TB) {
-                /* make sure the patch is 8-byte aligned.  */
-                if ((intptr_t)s->code_ptr & 4) {
-                    tcg_out_nop(s);
-                }
-                s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-                tcg_out_sethi(s, TCG_REG_T1, 0);
-                tcg_out_arithi(s, TCG_REG_T1, TCG_REG_T1, 0, ARITH_OR);
-                tcg_out_arith(s, TCG_REG_G0, TCG_REG_TB, TCG_REG_T1, JMPL);
-                tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB, TCG_REG_T1, ARITH_ADD);
-            } else {
-                s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-                tcg_out32(s, CALL);
-                tcg_out_nop(s);
-            }
-        } else {
-            /* indirect jump method */
-            tcg_out_ld_ptr(s, TCG_REG_TB, s->tb_jmp_target_addr + a0);
-            tcg_out_arithi(s, TCG_REG_G0, TCG_REG_TB, 0, JMPL);
-            tcg_out_nop(s);
-        }
-        set_jmp_reset_offset(s, a0);
-
-        /* For the unlinked path of goto_tb, we need to reset
-           TCG_REG_TB to the beginning of this TB.  */
-        if (USE_REG_TB) {
-            c = -tcg_current_code_size(s);
-            if (check_fit_i32(c, 13)) {
-                tcg_out_arithi(s, TCG_REG_TB, TCG_REG_TB, c, ARITH_ADD);
-            } else {
-                tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_T1, c);
-                tcg_out_arith(s, TCG_REG_TB, TCG_REG_TB,
-                              TCG_REG_T1, ARITH_ADD);
-            }
-        }
-        break;
     case INDEX_op_goto_ptr:
         tcg_out_arithi(s, TCG_REG_G0, a0, 0, JMPL);
-        if (USE_REG_TB) {
-            tcg_out_mov_delay(s, TCG_REG_TB, a0);
-        } else {
-            tcg_out_nop(s);
-        }
+        tcg_out_mov_delay(s, TCG_REG_TB, a0);
         break;
     case INDEX_op_br:
         tcg_out_bpcc(s, COND_A, BPCC_PT, arg_label(a0));
@@ -1716,6 +1713,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }
@@ -1894,46 +1893,4 @@ static const DebugFrame debug_frame = {
 void tcg_register_jit(const void *buf, size_t buf_size)
 {
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
-}
-
-void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
-                              uintptr_t jmp_rw, uintptr_t addr)
-{
-    intptr_t tb_disp = addr - tc_ptr;
-    intptr_t br_disp = addr - jmp_rx;
-    tcg_insn_unit i1, i2;
-
-    /* We can reach the entire address space for ILP32.
-       For LP64, the code_gen_buffer can't be larger than 2GB.  */
-    tcg_debug_assert(tb_disp == (int32_t)tb_disp);
-    tcg_debug_assert(br_disp == (int32_t)br_disp);
-
-    if (!USE_REG_TB) {
-        qatomic_set((uint32_t *)jmp_rw,
-		    deposit32(CALL, 0, 30, br_disp >> 2));
-        flush_idcache_range(jmp_rx, jmp_rw, 4);
-        return;
-    }
-
-    /* This does not exercise the range of the branch, but we do
-       still need to be able to load the new value of TCG_REG_TB.
-       But this does still happen quite often.  */
-    if (check_fit_ptr(tb_disp, 13)) {
-        /* ba,pt %icc, addr */
-        i1 = (INSN_OP(0) | INSN_OP2(1) | INSN_COND(COND_A)
-              | BPCC_ICC | BPCC_PT | INSN_OFF19(br_disp));
-        i2 = (ARITH_ADD | INSN_RD(TCG_REG_TB) | INSN_RS1(TCG_REG_TB)
-              | INSN_IMM13(tb_disp));
-    } else if (tb_disp >= 0) {
-        i1 = SETHI | INSN_RD(TCG_REG_T1) | ((tb_disp & 0xfffffc00) >> 10);
-        i2 = (ARITH_OR | INSN_RD(TCG_REG_T1) | INSN_RS1(TCG_REG_T1)
-              | INSN_IMM13(tb_disp & 0x3ff));
-    } else {
-        i1 = SETHI | INSN_RD(TCG_REG_T1) | ((~tb_disp & 0xfffffc00) >> 10);
-        i2 = (ARITH_XOR | INSN_RD(TCG_REG_T1) | INSN_RS1(TCG_REG_T1)
-              | INSN_IMM13((tb_disp & 0x3ff) | -0x400));
-    }
-
-    qatomic_set((uint64_t *)jmp_rw, deposit64(i2, 32, 32, i1));
-    flush_idcache_range(jmp_rx, jmp_rw, 8);
 }

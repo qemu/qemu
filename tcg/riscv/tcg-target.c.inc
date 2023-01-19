@@ -267,6 +267,7 @@ typedef enum {
 #endif
 
     OPC_FENCE = 0x0000000f,
+    OPC_NOP   = OPC_ADDI,   /* nop = addi r0,r0,0 */
 } RISCVInsn;
 
 /*
@@ -403,7 +404,7 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        p[i] = encode_i(OPC_ADDI, TCG_REG_ZERO, TCG_REG_ZERO, 0);
+        p[i] = OPC_NOP;
     }
 }
 
@@ -1289,6 +1290,47 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 
 static const tcg_insn_unit *tb_ret_addr;
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    /* Reuse the zeroing that exists for goto_ptr.  */
+    if (a0 == 0) {
+        tcg_out_call_int(s, tcg_code_gen_epilogue, true);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, a0);
+        tcg_out_call_int(s, tb_ret_addr, true);
+    }
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /* Direct branch will be patched by tb_target_set_jmp_target. */
+    set_jmp_insn_offset(s, which);
+    tcg_out32(s, OPC_JAL);
+
+    /* When branch is out of range, fall through to indirect. */
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
+               get_jmp_target_addr(s, which));
+    tcg_out_opc_imm(s, OPC_JALR, TCG_REG_ZERO, TCG_REG_TMP0, 0);
+    set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    uintptr_t addr = tb->jmp_target_addr[n];
+    ptrdiff_t offset = addr - jmp_rx;
+    tcg_insn_unit insn;
+
+    /* Either directly branch, or fall through to indirect branch. */
+    if (offset == sextreg(offset, 0, 20)) {
+        insn = encode_uj(OPC_JAL, TCG_REG_ZERO, offset);
+    } else {
+        insn = OPC_NOP;
+    }
+    qatomic_set((uint32_t *)jmp_rw, insn);
+    flush_idcache_range(jmp_rx, jmp_rw, 4);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1299,25 +1341,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     int c2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        /* Reuse the zeroing that exists for goto_ptr.  */
-        if (a0 == 0) {
-            tcg_out_call_int(s, tcg_code_gen_epilogue, true);
-        } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, a0);
-            tcg_out_call_int(s, tb_ret_addr, true);
-        }
-        break;
-
-    case INDEX_op_goto_tb:
-        assert(s->tb_jmp_insn_offset == 0);
-        /* indirect jump method */
-        tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, TCG_REG_ZERO,
-                   (uintptr_t)(s->tb_jmp_target_addr + a0));
-        tcg_out_opc_imm(s, OPC_JALR, TCG_REG_ZERO, TCG_REG_TMP0, 0);
-        set_jmp_reset_offset(s, a0);
-        break;
-
     case INDEX_op_goto_ptr:
         tcg_out_opc_imm(s, OPC_JALR, TCG_REG_ZERO, a0, 0);
         break;
@@ -1617,6 +1640,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         g_assert_not_reached();
     }

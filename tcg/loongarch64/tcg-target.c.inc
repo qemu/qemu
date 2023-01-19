@@ -1039,11 +1039,12 @@ static void tcg_out_nop(TCGContext *s)
     tcg_out32(s, NOP);
 }
 
-void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
-                              uintptr_t jmp_rw, uintptr_t addr)
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
     tcg_insn_unit i1, i2;
     ptrdiff_t upper, lower;
+    uintptr_t addr = tb->jmp_target_addr[n];
     ptrdiff_t offset = (ptrdiff_t)(addr - jmp_rx) >> 2;
 
     if (offset == sextreg(offset, 0, 26)) {
@@ -1068,6 +1069,36 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_rx,
 
 static const tcg_insn_unit *tb_ret_addr;
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    /* Reuse the zeroing that exists for goto_ptr.  */
+    if (a0 == 0) {
+        tcg_out_call_int(s, tcg_code_gen_epilogue, true);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, a0);
+        tcg_out_call_int(s, tb_ret_addr, true);
+    }
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /*
+     * Ensure that patch area is 8-byte aligned so that an
+     * atomic write can be used to patch the target address.
+     */
+    if ((uintptr_t)s->code_ptr & 7) {
+        tcg_out_nop(s);
+    }
+    set_jmp_insn_offset(s, which);
+    /*
+     * actual branch destination will be patched by
+     * tb_target_set_jmp_target later
+     */
+    tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, 0);
+    tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
+    set_jmp_reset_offset(s, which);
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -1078,35 +1109,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     int c2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        /* Reuse the zeroing that exists for goto_ptr.  */
-        if (a0 == 0) {
-            tcg_out_call_int(s, tcg_code_gen_epilogue, true);
-        } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_A0, a0);
-            tcg_out_call_int(s, tb_ret_addr, true);
-        }
-        break;
-
-    case INDEX_op_goto_tb:
-        tcg_debug_assert(s->tb_jmp_insn_offset != NULL);
-        /*
-         * Ensure that patch area is 8-byte aligned so that an
-         * atomic write can be used to patch the target address.
-         */
-        if ((uintptr_t)s->code_ptr & 7) {
-            tcg_out_nop(s);
-        }
-        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-        /*
-         * actual branch destination will be patched by
-         * tb_target_set_jmp_target later
-         */
-        tcg_out_opc_pcaddu18i(s, TCG_REG_TMP0, 0);
-        tcg_out_opc_jirl(s, TCG_REG_ZERO, TCG_REG_TMP0, 0);
-        set_jmp_reset_offset(s, a0);
-        break;
-
     case INDEX_op_mb:
         tcg_out_mb(s, a0);
         break;
@@ -1500,6 +1502,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         g_assert_not_reached();
     }

@@ -1944,6 +1944,45 @@ static void tcg_out_qemu_st(TCGContext* s, TCGReg data_reg, TCGReg addr_reg,
 #endif
 }
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    /* Reuse the zeroing that exists for goto_ptr.  */
+    if (a0 == 0) {
+        tgen_gotoi(s, S390_CC_ALWAYS, tcg_code_gen_epilogue);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, a0);
+        tgen_gotoi(s, S390_CC_ALWAYS, tb_ret_addr);
+    }
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /*
+     * Branch displacement must be aligned for atomic patching;
+     * see if we need to add extra nop before branch
+     */
+    if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
+        tcg_out16(s, NOP);
+    }
+    tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
+    set_jmp_insn_offset(s, which);
+    s->code_ptr += 2;
+    set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    if (!HAVE_FACILITY(GEN_INST_EXT)) {
+        return;
+    }
+    /* patch the branch destination */
+    uintptr_t addr = tb->jmp_target_addr[n];
+    intptr_t disp = addr - (jmp_rx - 2);
+    qatomic_set((int32_t *)jmp_rw, disp / 2);
+    /* no need to flush icache explicitly */
+}
+
 # define OP_32_64(x) \
         case glue(glue(INDEX_op_,x),_i32): \
         case glue(glue(INDEX_op_,x),_i64)
@@ -1956,32 +1995,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGArg a0, a1, a2;
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        /* Reuse the zeroing that exists for goto_ptr.  */
-        a0 = args[0];
-        if (a0 == 0) {
-            tgen_gotoi(s, S390_CC_ALWAYS, tcg_code_gen_epilogue);
-        } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R2, a0);
-            tgen_gotoi(s, S390_CC_ALWAYS, tb_ret_addr);
-        }
-        break;
-
-    case INDEX_op_goto_tb:
-        a0 = args[0];
-        /*
-         * branch displacement must be aligned for atomic patching;
-         * see if we need to add extra nop before branch
-         */
-        if (!QEMU_PTR_IS_ALIGNED(s->code_ptr + 1, 4)) {
-            tcg_out16(s, NOP);
-        }
-        tcg_out16(s, RIL_BRCL | (S390_CC_ALWAYS << 4));
-        s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-        s->code_ptr += 2;
-        set_jmp_reset_offset(s, a0);
-        break;
-
     case INDEX_op_goto_ptr:
         a0 = args[0];
         tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, a0);
@@ -2619,6 +2632,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }

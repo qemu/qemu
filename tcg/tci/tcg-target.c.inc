@@ -590,6 +590,24 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *func,
 # define CASE_64(x)
 #endif
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg)
+{
+    tcg_out_op_p(s, INDEX_op_exit_tb, (void *)arg);
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /* indirect jump method. */
+    tcg_out_op_p(s, INDEX_op_goto_tb, (void *)get_jmp_target_addr(s, which));
+    set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    /* Always indirect, nothing to do */
+}
+
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS])
@@ -597,17 +615,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     TCGOpcode exts;
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        tcg_out_op_p(s, opc, (void *)args[0]);
-        break;
-
-    case INDEX_op_goto_tb:
-        tcg_debug_assert(s->tb_jmp_insn_offset == 0);
-        /* indirect jump method. */
-        tcg_out_op_p(s, opc, s->tb_jmp_target_addr + args[0]);
-        set_jmp_reset_offset(s, args[0]);
-        break;
-
     case INDEX_op_goto_ptr:
         tcg_out_op_r(s, opc, args[0]);
         break;
@@ -779,6 +786,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }

@@ -2347,6 +2347,42 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 #endif
 }
 
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t a0)
+{
+    /* Reuse the zeroing that exists for goto_ptr.  */
+    if (a0 == 0) {
+        tcg_out_jmp(s, tcg_code_gen_epilogue);
+    } else {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_EAX, a0);
+        tcg_out_jmp(s, tb_ret_addr);
+    }
+}
+
+static void tcg_out_goto_tb(TCGContext *s, int which)
+{
+    /*
+     * Jump displacement must be aligned for atomic patching;
+     * see if we need to add extra nops before jump
+     */
+    int gap = QEMU_ALIGN_PTR_UP(s->code_ptr + 1, 4) - s->code_ptr;
+    if (gap != 1) {
+        tcg_out_nopn(s, gap - 1);
+    }
+    tcg_out8(s, OPC_JMP_long); /* jmp im */
+    set_jmp_insn_offset(s, which);
+    tcg_out32(s, 0);
+    set_jmp_reset_offset(s, which);
+}
+
+void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
+                              uintptr_t jmp_rx, uintptr_t jmp_rw)
+{
+    /* patch the branch destination */
+    uintptr_t addr = tb->jmp_target_addr[n];
+    qatomic_set((int32_t *)jmp_rw, addr - (jmp_rx + 4));
+    /* no need to flush icache explicitly */
+}
+
 static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
                               const TCGArg args[TCG_MAX_OP_ARGS],
                               const int const_args[TCG_MAX_OP_ARGS])
@@ -2371,36 +2407,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     const_a2 = const_args[2];
 
     switch (opc) {
-    case INDEX_op_exit_tb:
-        /* Reuse the zeroing that exists for goto_ptr.  */
-        if (a0 == 0) {
-            tcg_out_jmp(s, tcg_code_gen_epilogue);
-        } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_EAX, a0);
-            tcg_out_jmp(s, tb_ret_addr);
-        }
-        break;
-    case INDEX_op_goto_tb:
-        if (s->tb_jmp_insn_offset) {
-            /* direct jump method */
-            int gap;
-            /* jump displacement must be aligned for atomic patching;
-             * see if we need to add extra nops before jump
-             */
-            gap = QEMU_ALIGN_PTR_UP(s->code_ptr + 1, 4) - s->code_ptr;
-            if (gap != 1) {
-                tcg_out_nopn(s, gap - 1);
-            }
-            tcg_out8(s, OPC_JMP_long); /* jmp im */
-            s->tb_jmp_insn_offset[a0] = tcg_current_code_size(s);
-            tcg_out32(s, 0);
-        } else {
-            /* indirect jump method */
-            tcg_out_modrm_offset(s, OPC_GRP5, EXT5_JMPN_Ev, -1,
-                                 (intptr_t)(s->tb_jmp_target_addr + a0));
-        }
-        set_jmp_reset_offset(s, a0);
-        break;
     case INDEX_op_goto_ptr:
         /* jmp to the given host address (could be epilogue) */
         tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, a0);
@@ -2794,6 +2800,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
+    case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
+    case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
     default:
         tcg_abort();
     }

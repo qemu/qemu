@@ -572,15 +572,18 @@ void cpu_exec_step_atomic(CPUState *cpu)
 
 void tb_set_jmp_target(TranslationBlock *tb, int n, uintptr_t addr)
 {
-    if (TCG_TARGET_HAS_direct_jump) {
-        uintptr_t offset = tb->jmp_target_arg[n];
-        uintptr_t tc_ptr = (uintptr_t)tb->tc.ptr;
-        uintptr_t jmp_rx = tc_ptr + offset;
-        uintptr_t jmp_rw = jmp_rx - tcg_splitwx_diff;
-        tb_target_set_jmp_target(tc_ptr, jmp_rx, jmp_rw, addr);
-    } else {
-        tb->jmp_target_arg[n] = addr;
-    }
+    /*
+     * Get the rx view of the structure, from which we find the
+     * executable code address, and tb_target_set_jmp_target can
+     * produce a pc-relative displacement to jmp_target_addr[n].
+     */
+    const TranslationBlock *c_tb = tcg_splitwx_to_rx(tb);
+    uintptr_t offset = tb->jmp_insn_offset[n];
+    uintptr_t jmp_rx = (uintptr_t)tb->tc.ptr + offset;
+    uintptr_t jmp_rw = jmp_rx - tcg_splitwx_diff;
+
+    tb->jmp_target_addr[n] = addr;
+    tb_target_set_jmp_target(c_tb, n, jmp_rx, jmp_rw);
 }
 
 static inline void tb_add_jump(TranslationBlock *tb, int n,

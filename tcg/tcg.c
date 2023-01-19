@@ -104,6 +104,8 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
+static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
+static void tcg_out_goto_tb(TCGContext *s, int which);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
                        const TCGArg args[TCG_MAX_OP_ARGS],
                        const int const_args[TCG_MAX_OP_ARGS]);
@@ -309,7 +311,25 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
      * We will check for overflow at the end of the opcode loop in
      * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
      */
-    s->tb_jmp_reset_offset[which] = tcg_current_code_size(s);
+    s->gen_tb->jmp_reset_offset[which] = tcg_current_code_size(s);
+}
+
+static void G_GNUC_UNUSED set_jmp_insn_offset(TCGContext *s, int which)
+{
+    /*
+     * We will check for overflow at the end of the opcode loop in
+     * tcg_gen_code, where we bound tcg_current_code_size to UINT16_MAX.
+     */
+    s->gen_tb->jmp_insn_offset[which] = tcg_current_code_size(s);
+}
+
+static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
+{
+    /*
+     * Return the read-execute version of the pointer, for the benefit
+     * of any pc-relative addressing mode.
+     */
+    return (uintptr_t)tcg_splitwx_to_rx(&s->gen_tb->jmp_target_addr[which]);
 }
 
 /* Signal overflow, starting over with fewer guest insns. */
@@ -4645,16 +4665,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
 #endif
 
     /* Initialize goto_tb jump offsets. */
-    tb->jmp_reset_offset[0] = TB_JMP_RESET_OFFSET_INVALID;
-    tb->jmp_reset_offset[1] = TB_JMP_RESET_OFFSET_INVALID;
-    tcg_ctx->tb_jmp_reset_offset = tb->jmp_reset_offset;
-    if (TCG_TARGET_HAS_direct_jump) {
-        tcg_ctx->tb_jmp_insn_offset = tb->jmp_target_arg;
-        tcg_ctx->tb_jmp_target_addr = NULL;
-    } else {
-        tcg_ctx->tb_jmp_insn_offset = NULL;
-        tcg_ctx->tb_jmp_target_addr = tb->jmp_target_arg;
-    }
+    tb->jmp_reset_offset[0] = TB_JMP_OFFSET_INVALID;
+    tb->jmp_reset_offset[1] = TB_JMP_OFFSET_INVALID;
+    tb->jmp_insn_offset[0] = TB_JMP_OFFSET_INVALID;
+    tb->jmp_insn_offset[1] = TB_JMP_OFFSET_INVALID;
 
     tcg_reg_alloc_start(s);
 
@@ -4717,6 +4731,12 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
             break;
         case INDEX_op_call:
             tcg_reg_alloc_call(s, op);
+            break;
+        case INDEX_op_exit_tb:
+            tcg_out_exit_tb(s, op->args[0]);
+            break;
+        case INDEX_op_goto_tb:
+            tcg_out_goto_tb(s, op->args[0]);
             break;
         case INDEX_op_dup2_vec:
             if (tcg_reg_alloc_dup2(s, op)) {
