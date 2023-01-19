@@ -248,7 +248,7 @@ static void *handle_apdu_thread(void* arg)
         WITH_QEMU_LOCK_GUARD(&card->vreader_mutex) {
             while (!QSIMPLEQ_EMPTY(&card->guest_apdu_list)) {
                 event = QSIMPLEQ_FIRST(&card->guest_apdu_list);
-                assert((unsigned long)event > 1000);
+                assert(event != NULL);
                 QSIMPLEQ_REMOVE_HEAD(&card->guest_apdu_list, entry);
                 if (event->p.data.type != EMUL_GUEST_APDU) {
                     DPRINTF(card, 1, "unexpected message in handle_apdu_thread\n");

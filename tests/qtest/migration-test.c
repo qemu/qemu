@@ -1661,7 +1661,7 @@ static void *test_migrate_fd_start_hook(QTestState *from,
     int pair[2];
 
     /* Create two connected sockets for migration */
-    ret = socketpair(PF_LOCAL, SOCK_STREAM, 0, pair);
+    ret = qemu_socketpair(PF_LOCAL, SOCK_STREAM, 0, pair);
     g_assert_cmpint(ret, ==, 0);
 
     /* Send the 1st socket to the target */
