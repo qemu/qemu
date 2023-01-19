@@ -3088,6 +3088,7 @@ S: Maintained
 F: hw/core/vmstate-if.c
 F: include/hw/vmstate-if.h
 F: include/migration/
+F: include/qemu/userfaultfd.h
 F: migration/
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
@@ -3095,6 +3096,7 @@ F: tests/qtest/migration-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
 F: tests/migration/
+F: util/userfaultfd.c
 
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
