@@ -65,7 +65,7 @@
           - nmap-ncat
           - numactl-devel
           - pixman-devel
-          - python36
+          - python38
           - python3-sphinx
           - rdma-core-devel
           - redhat-rpm-config

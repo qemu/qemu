@@ -191,7 +191,7 @@
           - nmap-ncat
           - numactl-devel
           - pixman-devel
-          - python36
+          - python38
           - python3-sphinx
           - rdma-core-devel
           - redhat-rpm-config
@@ -217,3 +217,15 @@
         - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
         - ansible_facts['distribution_version'] == '8'
         - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
+
+    - name: Check whether the Python runtime version is managed by alternatives
+      stat:
+        path: /etc/alternatives/python3
+      register: python3
+
+    - name: Set default Python runtime to 3.8 on EL8
+      command: alternatives --set python3 /usr/bin/python3.8
+      when:
+        - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
+        - ansible_facts['distribution_version'] == '8'
+        - python3.stat.islnk and python3.stat.lnk_target != '/usr/bin/python3.8'
