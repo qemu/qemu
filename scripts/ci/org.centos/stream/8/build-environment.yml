@@ -30,13 +30,26 @@
     - name: Install basic packages to build QEMU on CentOS Stream 8
       dnf:
         name:
+          - bzip2
+          - bzip2-devel
           - capstone-devel
+          - dbus-daemon
           - device-mapper-multipath-devel
+          - diffutils
+          - gcc
+          - gcc-c++
+          - genisoimage
+          - gettext
+          - git
+          - glib2-devel
           - glusterfs-api-devel
           - gnutls-devel
+          - libaio-devel
           - libcap-ng-devel
           - libcurl-devel
+          - libepoxy-devel
           - libfdt-devel
+          - libgcrypt-devel
           - libiscsi-devel
           - libpmem-devel
           - librados-devel
@@ -44,13 +57,25 @@
           - libseccomp-devel
           - libssh-devel
           - libxkbcommon-devel
+          - lzo-devel
+          - make
+          - mesa-libEGL-devel
+          - nettle-devel
           - ninja-build
+          - nmap-ncat
           - numactl-devel
+          - pixman-devel
+          - python36
           - python3-sphinx
+          - rdma-core-devel
           - redhat-rpm-config
           - snappy-devel
+          - spice-glib-devel
           - spice-server-devel
           - systemd-devel
+          - systemtap-sdt-devel
+          - tar
+          - zlib-devel
         state: present
       when:
         - centos_stream_8
