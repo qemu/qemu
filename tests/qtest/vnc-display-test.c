@@ -44,7 +44,7 @@ test_setup(Test *test)
 #else
     int pair[2];
 
-    test->qts = qtest_init("-vnc none -name vnc-test");
+    test->qts = qtest_init("-M none -vnc none -name vnc-test");
 
     g_assert_cmpint(qemu_socketpair(AF_UNIX, SOCK_STREAM, 0, pair), ==, 0);
 
