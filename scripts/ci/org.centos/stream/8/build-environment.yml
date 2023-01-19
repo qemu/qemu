@@ -17,8 +17,6 @@
         option: enabled
         value: "1"
       when:
-        - ansible_facts['distribution'] == 'CentOS'
-        - ansible_facts['distribution_major_version'] == '8'
         - centos_stream_8
 
     - name: Install basic packages to build QEMU on CentOS Stream 8
@@ -46,6 +44,4 @@
           - systemd-devel
         state: present
       when:
-        - ansible_facts['distribution'] == 'CentOS'
-        - ansible_facts['distribution_major_version'] == '8'
         - centos_stream_8
