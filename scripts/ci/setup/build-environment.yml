@@ -46,6 +46,7 @@
           - libbrlapi-dev
           - libbz2-dev
           - libcacard-dev
+          - libcapstone-dev
           - libcap-ng-dev
           - libcurl4-gnutls-dev
           - libdrm-dev
@@ -130,6 +131,15 @@
         - ansible_facts['distribution_version'] == '20.04'
         - ansible_facts['architecture'] == 'aarch64'
 
+    - name: Enable EPEL repo on EL8
+      dnf:
+        name:
+          - epel-release
+        state: present
+      when:
+        - ansible_facts['distribution_file_variety'] in ['RedHat', 'CentOS']
+        - ansible_facts['distribution_major_version'] == '8'
+
     - name: Enable PowerTools repo on CentOS 8
       ini_file:
         path: /etc/yum.repos.d/CentOS-Stream-PowerTools.repo
@@ -148,6 +158,7 @@
         name:
           - bzip2
           - bzip2-devel
+          - capstone-devel
           - dbus-daemon
           - diffutils
           - gcc

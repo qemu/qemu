@@ -10,6 +10,14 @@
       check_mode: yes
       register: centos_stream_8
 
+    - name: Enable EPEL repo on CentOS Stream 8
+      dnf:
+        name:
+          - epel-release
+        state: present
+      when:
+        - centos_stream_8
+
     - name: Enable PowerTools repo on CentOS Stream 8
       ini_file:
         path: /etc/yum.repos.d/CentOS-Stream-PowerTools.repo
@@ -22,6 +30,7 @@
     - name: Install basic packages to build QEMU on CentOS Stream 8
       dnf:
         name:
+          - capstone-devel
           - device-mapper-multipath-devel
           - glusterfs-api-devel
           - gnutls-devel
