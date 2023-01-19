@@ -16,43 +16,6 @@ cache:
   - $HOME/avocado/data/cache
 
 
-addons:
-  apt:
-    packages:
-      # Build dependencies
-      - libaio-dev
-      - libattr1-dev
-      - libbrlapi-dev
-      - libcap-ng-dev
-      - libcacard-dev
-      - libgcc-7-dev
-      - libgnutls28-dev
-      - libgtk-3-dev
-      - libiscsi-dev
-      - liblttng-ust-dev
-      - libncurses5-dev
-      - libnfs-dev
-      - libpixman-1-dev
-      - libpng-dev
-      - librados-dev
-      - libsdl2-dev
-      - libsdl2-image-dev
-      - libseccomp-dev
-      - libspice-protocol-dev
-      - libspice-server-dev
-      - libssh-dev
-      - liburcu-dev
-      - libusb-1.0-0-dev
-      - libvdeplug-dev
-      - libvte-2.91-dev
-      - libzstd-dev
-      - ninja-build
-      - sparse
-      - uuid-dev
-      # Tests dependencies
-      - genisoimage
-
-
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
 # to prevent IRC notifications from forks. This was created using:
 # $ travis encrypt -r "qemu/qemu" "irc.oftc.net#qemu"
