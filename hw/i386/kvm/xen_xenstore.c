@@ -49,7 +49,7 @@ struct XenXenstoreState {
     /*< public >*/
 
     XenstoreImplState *impl;
-    GList *watch_events;
+    GList *watch_events; /* for the guest */
 
     MemoryRegion xenstore_page;
     struct xenstore_domain_interface *xs;
@@ -72,6 +72,8 @@ struct XenXenstoreState *xen_xenstore_singleton;
 
 static void xen_xenstore_event(void *opaque);
 static void fire_watch_cb(void *opaque, const char *path, const char *token);
+
+static struct xenstore_backend_ops emu_xenstore_backend_ops;
 
 static void G_GNUC_PRINTF (4, 5) relpath_printf(XenXenstoreState *s,
                                                 GList *perms,
@@ -169,6 +171,8 @@ static void xen_xenstore_realize(DeviceState *dev, Error **errp)
     relpath_printf(s, perms, "feature", "%s", "");
 
     g_list_free_full(perms, g_free);
+
+    xen_xenstore_ops = &emu_xenstore_backend_ops;
 }
 
 static bool xen_xenstore_is_needed(void *opaque)
@@ -1306,6 +1310,15 @@ struct watch_event {
     char *token;
 };
 
+static void free_watch_event(struct watch_event *ev)
+{
+    if (ev) {
+        g_free(ev->path);
+        g_free(ev->token);
+        g_free(ev);
+    }
+}
+
 static void queue_watch(XenXenstoreState *s, const char *path,
                         const char *token)
 {
@@ -1352,9 +1365,7 @@ static void process_watch_events(XenXenstoreState *s)
     deliver_watch(s, ev->path, ev->token);
 
     s->watch_events = g_list_remove(s->watch_events, ev);
-    g_free(ev->path);
-    g_free(ev->token);
-    g_free(ev);
+    free_watch_event(ev);
 }
 
 static void xen_xenstore_event(void *opaque)
@@ -1444,3 +1455,257 @@ int xen_xenstore_reset(void)
 
     return 0;
 }
+
+struct qemu_xs_handle {
+    XenstoreImplState *impl;
+    GList *watches;
+    QEMUBH *watch_bh;
+};
+
+struct qemu_xs_watch {
+    struct qemu_xs_handle *h;
+    char *path;
+    xs_watch_fn fn;
+    void *opaque;
+    GList *events;
+};
+
+static char *xs_be_get_domain_path(struct qemu_xs_handle *h, unsigned int domid)
+{
+    return g_strdup_printf("/local/domain/%u", domid);
+}
+
+static char **xs_be_directory(struct qemu_xs_handle *h, xs_transaction_t t,
+                              const char *path, unsigned int *num)
+{
+    GList *items = NULL, *l;
+    unsigned int i = 0;
+    char **items_ret;
+    int err;
+
+    err = xs_impl_directory(h->impl, DOMID_QEMU, t, path, NULL, &items);
+    if (err) {
+        errno = err;
+        return NULL;
+    }
+
+    items_ret = g_new0(char *, g_list_length(items) + 1);
+    *num = 0;
+    for (l = items; l; l = l->next) {
+        items_ret[i++] = l->data;
+        (*num)++;
+    }
+    g_list_free(items);
+    return items_ret;
+}
+
+static void *xs_be_read(struct qemu_xs_handle *h, xs_transaction_t t,
+                        const char *path, unsigned int *len)
+{
+    GByteArray *data = g_byte_array_new();
+    bool free_segment = false;
+    int err;
+
+    err = xs_impl_read(h->impl, DOMID_QEMU, t, path, data);
+    if (err) {
+        free_segment = true;
+        errno = err;
+    } else {
+        if (len) {
+            *len = data->len;
+        }
+        /* The xen-bus-helper code expects to get NUL terminated string! */
+        g_byte_array_append(data, (void *)"", 1);
+    }
+
+    return g_byte_array_free(data, free_segment);
+}
+
+static bool xs_be_write(struct qemu_xs_handle *h, xs_transaction_t t,
+                        const char *path, const void *data, unsigned int len)
+{
+    GByteArray *gdata = g_byte_array_new();
+    int err;
+
+    g_byte_array_append(gdata, data, len);
+    err = xs_impl_write(h->impl, DOMID_QEMU, t, path, gdata);
+    g_byte_array_unref(gdata);
+    if (err) {
+        errno = err;
+        return false;
+    }
+    return true;
+}
+
+static bool xs_be_create(struct qemu_xs_handle *h, xs_transaction_t t,
+                         unsigned int owner, unsigned int domid,
+                         unsigned int perms, const char *path)
+{
+    g_autoptr(GByteArray) data = g_byte_array_new();
+    GList *perms_list = NULL;
+    int err;
+
+    /* mkdir does this */
+    err = xs_impl_read(h->impl, DOMID_QEMU, t, path, data);
+    if (err == ENOENT) {
+        err = xs_impl_write(h->impl, DOMID_QEMU, t, path, data);
+    }
+    if (err) {
+        errno = err;
+        return false;
+    }
+
+    perms_list = g_list_append(perms_list,
+                               xs_perm_as_string(XS_PERM_NONE, owner));
+    perms_list = g_list_append(perms_list,
+                               xs_perm_as_string(perms, domid));
+
+    err = xs_impl_set_perms(h->impl, DOMID_QEMU, t, path, perms_list);
+    g_list_free_full(perms_list, g_free);
+    if (err) {
+        errno = err;
+        return false;
+    }
+    return true;
+}
+
+static bool xs_be_destroy(struct qemu_xs_handle *h, xs_transaction_t t,
+                          const char *path)
+{
+    int err = xs_impl_rm(h->impl, DOMID_QEMU, t, path);
+    if (err) {
+        errno = err;
+        return false;
+    }
+    return true;
+}
+
+static void be_watch_bh(void *_h)
+{
+    struct qemu_xs_handle *h = _h;
+    GList *l;
+
+    for (l = h->watches; l; l = l->next) {
+        struct qemu_xs_watch *w = l->data;
+
+        while (w->events) {
+            struct watch_event *ev = w->events->data;
+
+            w->fn(w->opaque, ev->path);
+
+            w->events = g_list_remove(w->events, ev);
+            free_watch_event(ev);
+        }
+    }
+}
+
+static void xs_be_watch_cb(void *opaque, const char *path, const char *token)
+{
+    struct watch_event *ev = g_new0(struct watch_event, 1);
+    struct qemu_xs_watch *w = opaque;
+
+    /* We don't care about the token */
+    ev->path = g_strdup(path);
+    w->events = g_list_append(w->events, ev);
+
+    qemu_bh_schedule(w->h->watch_bh);
+}
+
+static struct qemu_xs_watch *xs_be_watch(struct qemu_xs_handle *h,
+                                         const char *path, xs_watch_fn fn,
+                                         void *opaque)
+{
+    struct qemu_xs_watch *w = g_new0(struct qemu_xs_watch, 1);
+    int err;
+
+    w->h = h;
+    w->fn = fn;
+    w->opaque = opaque;
+
+    err = xs_impl_watch(h->impl, DOMID_QEMU, path, NULL, xs_be_watch_cb, w);
+    if (err) {
+        errno = err;
+        g_free(w);
+        return NULL;
+    }
+
+    w->path = g_strdup(path);
+    h->watches = g_list_append(h->watches, w);
+    return w;
+}
+
+static void xs_be_unwatch(struct qemu_xs_handle *h, struct qemu_xs_watch *w)
+{
+    xs_impl_unwatch(h->impl, DOMID_QEMU, w->path, NULL, xs_be_watch_cb, w);
+
+    h->watches = g_list_remove(h->watches, w);
+    g_list_free_full(w->events, (GDestroyNotify)free_watch_event);
+    g_free(w->path);
+    g_free(w);
+}
+
+static xs_transaction_t xs_be_transaction_start(struct qemu_xs_handle *h)
+{
+    unsigned int new_tx = XBT_NULL;
+    int err = xs_impl_transaction_start(h->impl, DOMID_QEMU, &new_tx);
+    if (err) {
+        errno = err;
+        return XBT_NULL;
+    }
+    return new_tx;
+}
+
+static bool xs_be_transaction_end(struct qemu_xs_handle *h, xs_transaction_t t,
+                                  bool abort)
+{
+    int err = xs_impl_transaction_end(h->impl, DOMID_QEMU, t, !abort);
+    if (err) {
+        errno = err;
+        return false;
+    }
+    return true;
+}
+
+static struct qemu_xs_handle *xs_be_open(void)
+{
+    XenXenstoreState *s = xen_xenstore_singleton;
+    struct qemu_xs_handle *h;
+
+    if (!s && !s->impl) {
+        errno = -ENOSYS;
+        return NULL;
+    }
+
+    h = g_new0(struct qemu_xs_handle, 1);
+    h->impl = s->impl;
+
+    h->watch_bh = aio_bh_new(qemu_get_aio_context(), be_watch_bh, h);
+
+    return h;
+}
+
+static void xs_be_close(struct qemu_xs_handle *h)
+{
+    while (h->watches) {
+        struct qemu_xs_watch *w = h->watches->data;
+        xs_be_unwatch(h, w);
+    }
+
+    qemu_bh_delete(h->watch_bh);
+    g_free(h);
+}
+
+static struct xenstore_backend_ops emu_xenstore_backend_ops = {
+    .open = xs_be_open,
+    .close = xs_be_close,
+    .get_domain_path = xs_be_get_domain_path,
+    .directory = xs_be_directory,
+    .read = xs_be_read,
+    .write = xs_be_write,
+    .create = xs_be_create,
+    .destroy = xs_be_destroy,
+    .watch = xs_be_watch,
+    .unwatch = xs_be_unwatch,
+    .transaction_start = xs_be_transaction_start,
+    .transaction_end = xs_be_transaction_end,
+};
