@@ -47,6 +47,7 @@ tests = {
   'ptimer-test': ['ptimer-test-stubs.c', meson.project_source_root() / 'hw/core/ptimer.c'],
   'test-qapi-util': [],
   'test-interval-tree': [],
+  'test-xs-node': [qom],
 }
 
 if have_system or have_tools
