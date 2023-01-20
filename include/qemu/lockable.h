@@ -13,7 +13,7 @@
 #ifndef QEMU_LOCKABLE_H
 #define QEMU_LOCKABLE_H
 
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "qemu/thread.h"
 
 typedef void QemuLockUnlockFunc(void *);

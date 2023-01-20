@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "scsi/constants.h"

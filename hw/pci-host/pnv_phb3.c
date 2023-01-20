@@ -16,6 +16,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_chip.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"

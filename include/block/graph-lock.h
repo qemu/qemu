@@ -23,8 +23,6 @@
 #include "qemu/osdep.h"
 #include "qemu/clang-tsa.h"
 
-#include "qemu/coroutine.h"
-
 /**
  * Graph Lock API
  * This API provides a rwlock used to protect block layer

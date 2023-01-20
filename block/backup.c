@@ -20,6 +20,7 @@
 #include "block/blockjob_int.h"
 #include "block/block_backup.h"
 #include "block/block-copy.h"
+#include "block/dirty-bitmap.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"

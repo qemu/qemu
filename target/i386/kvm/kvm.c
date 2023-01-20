@@ -37,6 +37,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
 #include "qemu/main-loop.h"
+#include "qemu/ratelimit.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/memalign.h"

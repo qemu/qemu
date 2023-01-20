@@ -22,7 +22,7 @@
 #define QIO_CHANNEL_H
 
 #include "qom/object.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "block/aio.h"
 
 #define TYPE_QIO_CHANNEL "qio-channel"

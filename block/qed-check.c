@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-io.h"
 #include "qed.h"
 
 typedef struct {

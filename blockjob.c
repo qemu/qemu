@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/aio-wait.h"
 #include "block/block.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
@@ -32,7 +33,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-block-core.h"
 #include "qapi/qmp/qerror.h"
-#include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 

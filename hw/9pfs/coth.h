@@ -16,7 +16,7 @@
 #define QEMU_9P_COTH_H
 
 #include "qemu/thread.h"
-#include "qemu/coroutine.h"
+#include "qemu/coroutine-core.h"
 #include "9p.h"
 
 /*

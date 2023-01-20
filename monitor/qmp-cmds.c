@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/blockjob.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "monitor/monitor.h"

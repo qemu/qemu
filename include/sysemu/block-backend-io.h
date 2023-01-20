@@ -14,6 +14,7 @@
 #define BLOCK_BACKEND_IO_H
 
 #include "block-backend-common.h"
+#include "block/accounting.h"
 
 /*
  * I/O API functions. These functions are thread-safe.

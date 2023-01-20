@@ -43,6 +43,7 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "crypto.h"
 #include "block/aio_task.h"
+#include "block/dirty-bitmap.h"
 
 /*
   Differences with QCOW:

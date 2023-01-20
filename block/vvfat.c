@@ -27,6 +27,7 @@
 #include <dirent.h>
 #include <glib/gstdio.h>
 #include "qapi/error.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "qemu/module.h"

@@ -15,8 +15,8 @@
 #ifndef BLOCK_COPY_H
 #define BLOCK_COPY_H
 
-#include "block/block.h"
-#include "qemu/co-shared-resource.h"
+#include "block/block-common.h"
+#include "qemu/progress_meter.h"
 
 /* All APIs are thread-safe */
 

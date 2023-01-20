@@ -23,6 +23,7 @@
 
 #include "qemu/cutils.h"
 #include "qemu/cacheflush.h"
+#include "qemu/hbitmap.h"
 #include "qemu/madvise.h"
 
 #ifdef CONFIG_TCG

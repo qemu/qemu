@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/memalign.h"
 #include "qemu/vfio-helpers.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "sysemu/replay.h"
 #include "trace.h"

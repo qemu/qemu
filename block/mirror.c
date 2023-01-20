@@ -18,6 +18,7 @@
 #include "trace.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
+#include "block/dirty-bitmap.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"

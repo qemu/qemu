@@ -24,7 +24,10 @@
 #ifndef BLOCK_IO_H
 #define BLOCK_IO_H
 
-#include "block-common.h"
+#include "block/aio-wait.h"
+#include "block/block-common.h"
+#include "qemu/coroutine.h"
+#include "qemu/iov.h"
 
 /*
  * I/O API functions. These functions are thread-safe, and therefore

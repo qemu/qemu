@@ -20,6 +20,7 @@
 #include "qemu/cutils.h"
 #include "qemu/queue.h"
 #include "block.h"
+#include "block/dirty-bitmap.h"
 #include "migration/misc.h"
 #include "migration.h"
 #include "migration/register.h"

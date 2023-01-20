@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "sysemu/replay.h"
 #include "qapi/error.h"

@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
+#include "block/block-io.h"
 #include "block/block_int.h"
 #include "block/aio.h"
 #include "block/raw-aio.h"

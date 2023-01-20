@@ -24,7 +24,9 @@
 #ifndef BLOCK_GLOBAL_STATE_H
 #define BLOCK_GLOBAL_STATE_H
 
-#include "block-common.h"
+#include "block/block-common.h"
+#include "qemu/coroutine.h"
+#include "qemu/transactions.h"
 
 /*
  * Global state (GS) API. These functions run under the BQL.
