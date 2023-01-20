@@ -1037,6 +1037,9 @@ static RISCVException write_stimecmp(CPURISCVState *env, int csrno,
     RISCVCPU *cpu = env_archcpu(env);
 
     if (riscv_cpu_virt_enabled(env)) {
+        if (env->hvictl & HVICTL_VTI) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
         return write_vstimecmp(env, csrno, val);
     }
 
@@ -1057,6 +1060,9 @@ static RISCVException write_stimecmph(CPURISCVState *env, int csrno,
     RISCVCPU *cpu = env_archcpu(env);
 
     if (riscv_cpu_virt_enabled(env)) {
+        if (env->hvictl & HVICTL_VTI) {
+            return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
+        }
         return write_vstimecmph(env, csrno, val);
     }
 
@@ -2305,22 +2311,15 @@ static RISCVException rmw_vsie64(CPURISCVState *env, int csrno,
                                  uint64_t new_val, uint64_t wr_mask)
 {
     RISCVException ret;
-    uint64_t rval, vsbits, mask = env->hideleg & VS_MODE_INTERRUPTS;
+    uint64_t rval, mask = env->hideleg & VS_MODE_INTERRUPTS;
 
     /* Bring VS-level bits to correct position */
-    vsbits = new_val & (VS_MODE_INTERRUPTS >> 1);
-    new_val &= ~(VS_MODE_INTERRUPTS >> 1);
-    new_val |= vsbits << 1;
-    vsbits = wr_mask & (VS_MODE_INTERRUPTS >> 1);
-    wr_mask &= ~(VS_MODE_INTERRUPTS >> 1);
-    wr_mask |= vsbits << 1;
+    new_val = (new_val & (VS_MODE_INTERRUPTS >> 1)) << 1;
+    wr_mask = (wr_mask & (VS_MODE_INTERRUPTS >> 1)) << 1;
 
     ret = rmw_mie64(env, csrno, &rval, new_val, wr_mask & mask);
     if (ret_val) {
-        rval &= mask;
-        vsbits = rval & VS_MODE_INTERRUPTS;
-        rval &= ~VS_MODE_INTERRUPTS;
-        *ret_val = rval | (vsbits >> 1);
+        *ret_val = (rval & mask) >> 1;
     }
 
     return ret;
@@ -2521,22 +2520,16 @@ static RISCVException rmw_vsip64(CPURISCVState *env, int csrno,
                                  uint64_t new_val, uint64_t wr_mask)
 {
     RISCVException ret;
-    uint64_t rval, vsbits, mask = env->hideleg & vsip_writable_mask;
+    uint64_t rval, mask = env->hideleg & VS_MODE_INTERRUPTS;
 
     /* Bring VS-level bits to correct position */
-    vsbits = new_val & (VS_MODE_INTERRUPTS >> 1);
-    new_val &= ~(VS_MODE_INTERRUPTS >> 1);
-    new_val |= vsbits << 1;
-    vsbits = wr_mask & (VS_MODE_INTERRUPTS >> 1);
-    wr_mask &= ~(VS_MODE_INTERRUPTS >> 1);
-    wr_mask |= vsbits << 1;
+    new_val = (new_val & (VS_MODE_INTERRUPTS >> 1)) << 1;
+    wr_mask = (wr_mask & (VS_MODE_INTERRUPTS >> 1)) << 1;
 
-    ret = rmw_mip64(env, csrno, &rval, new_val, wr_mask & mask);
+    ret = rmw_mip64(env, csrno, &rval, new_val,
+                    wr_mask & mask & vsip_writable_mask);
     if (ret_val) {
-        rval &= mask;
-        vsbits = rval & VS_MODE_INTERRUPTS;
-        rval &= ~VS_MODE_INTERRUPTS;
-        *ret_val = rval | (vsbits >> 1);
+        *ret_val = (rval & mask) >> 1;
     }
 
     return ret;

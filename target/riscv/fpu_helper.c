@@ -81,9 +81,41 @@ void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
     set_float_rounding_mode(softrm, &env->fp_status);
 }
 
-void helper_set_rod_rounding_mode(CPURISCVState *env)
+void helper_set_rounding_mode_chkfrm(CPURISCVState *env, uint32_t rm)
 {
-    set_float_rounding_mode(float_round_to_odd, &env->fp_status);
+    int softrm;
+
+    /* Always validate frm, even if rm != DYN. */
+    if (unlikely(env->frm >= 5)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    }
+    if (rm == RISCV_FRM_DYN) {
+        rm = env->frm;
+    }
+    switch (rm) {
+    case RISCV_FRM_RNE:
+        softrm = float_round_nearest_even;
+        break;
+    case RISCV_FRM_RTZ:
+        softrm = float_round_to_zero;
+        break;
+    case RISCV_FRM_RDN:
+        softrm = float_round_down;
+        break;
+    case RISCV_FRM_RUP:
+        softrm = float_round_up;
+        break;
+    case RISCV_FRM_RMM:
+        softrm = float_round_ties_away;
+        break;
+    case RISCV_FRM_ROD:
+        softrm = float_round_to_odd;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    set_float_rounding_mode(softrm, &env->fp_status);
 }
 
 static uint64_t do_fmadd_h(CPURISCVState *env, uint64_t rs1, uint64_t rs2,

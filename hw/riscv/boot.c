@@ -75,24 +75,66 @@ target_ulong riscv_calc_kernel_start_addr(RISCVHartArrayState *harts,
     }
 }
 
-target_ulong riscv_find_and_load_firmware(MachineState *machine,
-                                          const char *default_machine_firmware,
-                                          hwaddr firmware_load_addr,
-                                          symbol_fn_t sym_cb)
+const char *riscv_default_firmware_name(RISCVHartArrayState *harts)
 {
-    char *firmware_filename = NULL;
-    target_ulong firmware_end_addr = firmware_load_addr;
+    if (riscv_is_32bit(harts)) {
+        return RISCV32_BIOS_BIN;
+    }
 
-    if ((!machine->firmware) || (!strcmp(machine->firmware, "default"))) {
+    return RISCV64_BIOS_BIN;
+}
+
+static char *riscv_find_bios(const char *bios_filename)
+{
+    char *filename;
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_filename);
+    if (filename == NULL) {
+        if (!qtest_enabled()) {
+            /*
+             * We only ship OpenSBI binary bios images in the QEMU source.
+             * For machines that use images other than the default bios,
+             * running QEMU test will complain hence let's suppress the error
+             * report for QEMU testing.
+             */
+            error_report("Unable to find the RISC-V BIOS \"%s\"",
+                         bios_filename);
+            exit(1);
+        }
+    }
+
+    return filename;
+}
+
+char *riscv_find_firmware(const char *firmware_filename,
+                          const char *default_machine_firmware)
+{
+    char *filename = NULL;
+
+    if ((!firmware_filename) || (!strcmp(firmware_filename, "default"))) {
         /*
          * The user didn't specify -bios, or has specified "-bios default".
          * That means we are going to load the OpenSBI binary included in
          * the QEMU source.
          */
-        firmware_filename = riscv_find_firmware(default_machine_firmware);
-    } else if (strcmp(machine->firmware, "none")) {
-        firmware_filename = riscv_find_firmware(machine->firmware);
+        filename = riscv_find_bios(default_machine_firmware);
+    } else if (strcmp(firmware_filename, "none")) {
+        filename = riscv_find_bios(firmware_filename);
     }
+
+    return filename;
+}
+
+target_ulong riscv_find_and_load_firmware(MachineState *machine,
+                                          const char *default_machine_firmware,
+                                          hwaddr firmware_load_addr,
+                                          symbol_fn_t sym_cb)
+{
+    char *firmware_filename;
+    target_ulong firmware_end_addr = firmware_load_addr;
+
+    firmware_filename = riscv_find_firmware(machine->firmware,
+                                            default_machine_firmware);
 
     if (firmware_filename) {
         /* If not "none" load the firmware */
@@ -104,34 +146,14 @@ target_ulong riscv_find_and_load_firmware(MachineState *machine,
     return firmware_end_addr;
 }
 
-char *riscv_find_firmware(const char *firmware_filename)
-{
-    char *filename;
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, firmware_filename);
-    if (filename == NULL) {
-        if (!qtest_enabled()) {
-            /*
-             * We only ship OpenSBI binary bios images in the QEMU source.
-             * For machines that use images other than the default bios,
-             * running QEMU test will complain hence let's suppress the error
-             * report for QEMU testing.
-             */
-            error_report("Unable to load the RISC-V firmware \"%s\"",
-                         firmware_filename);
-            exit(1);
-        }
-    }
-
-    return filename;
-}
-
 target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr,
                                  symbol_fn_t sym_cb)
 {
     uint64_t firmware_entry, firmware_end;
     ssize_t firmware_size;
+
+    g_assert(firmware_filename != NULL);
 
     if (load_elf_ram_sym(firmware_filename, NULL, NULL, NULL,
                          &firmware_entry, NULL, &firmware_end, NULL,
@@ -151,11 +173,14 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     exit(1);
 }
 
-target_ulong riscv_load_kernel(const char *kernel_filename,
+target_ulong riscv_load_kernel(MachineState *machine,
                                target_ulong kernel_start_addr,
                                symbol_fn_t sym_cb)
 {
+    const char *kernel_filename = machine->kernel_filename;
     uint64_t kernel_load_base, kernel_entry;
+
+    g_assert(kernel_filename != NULL);
 
     /*
      * NB: Use low address not ELF entry point to ensure that the fw_dynamic
@@ -184,10 +209,15 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
     exit(1);
 }
 
-hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
-                         uint64_t kernel_entry, hwaddr *start)
+void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
 {
+    const char *filename = machine->initrd_filename;
+    uint64_t mem_size = machine->ram_size;
+    void *fdt = machine->fdt;
+    hwaddr start, end;
     ssize_t size;
+
+    g_assert(filename != NULL);
 
     /*
      * We want to put the initrd far enough into RAM that when the
@@ -200,18 +230,23 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
      * halfway into RAM, and for boards with 256MB of RAM or more we put
      * the initrd at 128MB.
      */
-    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
+    start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
 
-    size = load_ramdisk(filename, *start, mem_size - *start);
+    size = load_ramdisk(filename, start, mem_size - start);
     if (size == -1) {
-        size = load_image_targphys(filename, *start, mem_size - *start);
+        size = load_image_targphys(filename, start, mem_size - start);
         if (size == -1) {
             error_report("could not load ramdisk '%s'", filename);
             exit(1);
         }
     }
 
-    return *start + size;
+    /* Some RISC-V machines (e.g. opentitan) don't have a fdt. */
+    if (fdt) {
+        end = start + size;
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", start);
+        qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end", end);
+    }
 }
 
 uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)

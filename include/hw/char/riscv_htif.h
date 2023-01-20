@@ -23,7 +23,6 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "exec/memory.h"
-#include "target/riscv/cpu.h"
 
 #define TYPE_HTIF_UART "riscv.htif.uart"
 
@@ -31,32 +30,22 @@ typedef struct HTIFState {
     int allow_tohost;
     int fromhost_inprogress;
 
+    uint64_t tohost;
+    uint64_t fromhost;
     hwaddr tohost_offset;
     hwaddr fromhost_offset;
-    uint64_t tohost_size;
-    uint64_t fromhost_size;
     MemoryRegion mmio;
-    MemoryRegion *address_space;
-    MemoryRegion *main_mem;
-    void *main_mem_ram_ptr;
 
-    CPURISCVState *env;
     CharBackend chr;
     uint64_t pending_read;
 } HTIFState;
-
-extern const VMStateDescription vmstate_htif;
-extern const MemoryRegionOps htif_io_ops;
 
 /* HTIF symbol callback */
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
     uint64_t st_size);
 
-/* Check if HTIF uses ELF symbols */
-bool htif_uses_elf_symbols(void);
-
 /* legacy pre qom */
-HTIFState *htif_mm_init(MemoryRegion *address_space, MemoryRegion *main_mem,
-    CPURISCVState *env, Chardev *chr, uint64_t nonelf_base);
+HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
+                        uint64_t nonelf_base, bool custom_base);
 
 #endif

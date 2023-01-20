@@ -63,6 +63,10 @@
 
 #define RV(x) ((target_ulong)1 << (x - 'A'))
 
+/*
+ * Consider updating register_cpu_props() when adding
+ * new MISA bits here.
+ */
 #define RVI RV('I')
 #define RVE RV('E') /* E and I are mutually exclusive */
 #define RVM RV('M')
@@ -308,10 +312,6 @@ struct CPUArchState {
 
     target_ulong sscratch;
     target_ulong mscratch;
-
-    /* temporary htif regs */
-    uint64_t mfromhost;
-    uint64_t mtohost;
 
     /* Sstc CSRs */
     uint64_t stimecmp;

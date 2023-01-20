@@ -90,19 +90,19 @@ bool riscv_socket_check_hartids(const MachineState *ms, int socket_id);
  * @ms: pointer to machine state
  * @socket_id: socket index
  *
- * Write NUMA node-id FDT property for given FDT node
+ * Write NUMA node-id FDT property in MachineState->fdt
  */
-void riscv_socket_fdt_write_id(const MachineState *ms, void *fdt,
-                               const char *node_name, int socket_id);
+void riscv_socket_fdt_write_id(const MachineState *ms, const char *node_name,
+                               int socket_id);
 
 /**
  * riscv_socket_fdt_write_distance_matrix:
  * @ms: pointer to machine state
  * @socket_id: socket index
  *
- * Write NUMA distance matrix in FDT for given machine
+ * Write NUMA distance matrix in MachineState->fdt
  */
-void riscv_socket_fdt_write_distance_matrix(const MachineState *ms, void *fdt);
+void riscv_socket_fdt_write_distance_matrix(const MachineState *ms);
 
 CpuInstanceProperties
 riscv_numa_cpu_index_to_props(MachineState *ms, unsigned cpu_index);
