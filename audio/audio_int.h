@@ -294,9 +294,6 @@ static inline size_t audio_ring_posb(size_t pos, size_t dist, size_t len)
 #define ldebug(fmt, ...) (void)0
 #endif
 
-#define AUDIO_STRINGIFY_(n) #n
-#define AUDIO_STRINGIFY(n) AUDIO_STRINGIFY_(n)
-
 typedef struct AudiodevListEntry {
     Audiodev *dev;
     QSIMPLEQ_ENTRY(AudiodevListEntry) next;
