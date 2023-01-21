@@ -1768,7 +1768,8 @@ static const GraphicHwOps sm501_ops = {
 static void sm501_reset(SM501State *s)
 {
     s->system_control = 0x00100000; /* 2D engine FIFO empty */
-    /* Bits 17 (SH), 7 (CDR), 6:5 (Test), 2:0 (Bus) are all supposed
+    /*
+     * Bits 17 (SH), 7 (CDR), 6:5 (Test), 2:0 (Bus) are all supposed
      * to be determined at reset by GPIO lines which set config bits.
      * We hardwire them:
      *  SH = 0 : Hitachi Ready Polarity == Active Low
