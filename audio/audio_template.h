@@ -529,8 +529,8 @@ SW *glue (AUD_open_, TYPE) (
         HW *hw = sw->hw;
 
         if (!hw) {
-            dolog ("Internal logic error voice `%s' has no hardware store\n",
-                   SW_NAME (sw));
+            dolog("Internal logic error: voice `%s' has no backend\n",
+                  SW_NAME(sw));
             goto fail;
         }
 
