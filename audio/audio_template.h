@@ -441,6 +441,7 @@ static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
 
     hw = glue(audio_pcm_hw_add_, TYPE)(s, &hw_as);
     if (!hw) {
+        dolog("Could not create a backend for voice `%s'\n", sw_name);
         goto err2;
     }
 
@@ -540,7 +541,6 @@ SW *glue (AUD_open_, TYPE) (
     } else {
         sw = glue(audio_pcm_create_voice_pair_, TYPE)(s, name, as);
         if (!sw) {
-            dolog ("Failed to create voice `%s'\n", name);
             return NULL;
         }
     }
