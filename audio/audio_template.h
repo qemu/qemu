@@ -115,6 +115,19 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 #else
     samples = (int64_t)sw->HWBUF->size * sw->ratio >> 32;
 #endif
+    if (samples == 0) {
+        HW *hw = sw->hw;
+        size_t f_fe_min;
+
+        /* f_fe_min = ceil(1 [frames] * f_be [Hz] / size_be [frames]) */
+        f_fe_min = (hw->info.freq + HWBUF->size - 1) / HWBUF->size;
+        qemu_log_mask(LOG_UNIMP,
+                      AUDIO_CAP ": The guest selected a " NAME " sample rate"
+                      " of %d Hz for %s. Only sample rates >= %zu Hz are"
+                      " supported.\n",
+                      sw->info.freq, sw->name, f_fe_min);
+        return -1;
+    }
 
     sw->buf = audio_calloc(__func__, samples, sizeof(struct st_sample));
     if (!sw->buf) {
