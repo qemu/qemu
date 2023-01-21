@@ -115,6 +115,12 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 #else
     samples = (int64_t)sw->HWBUF->size * sw->ratio >> 32;
 #endif
+    if (audio_bug(__func__, samples < 0)) {
+        dolog("Can not allocate buffer for `%s' (%d samples)\n",
+              SW_NAME(sw), samples);
+        return -1;
+    }
+
     if (samples == 0) {
         HW *hw = sw->hw;
         size_t f_fe_min;
@@ -129,12 +135,7 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
         return -1;
     }
 
-    sw->buf = audio_calloc(__func__, samples, sizeof(struct st_sample));
-    if (!sw->buf) {
-        dolog ("Could not allocate buffer for `%s' (%d samples)\n",
-               SW_NAME (sw), samples);
-        return -1;
-    }
+    sw->buf = g_new0(st_sample, samples);
 
 #ifdef DAC
     sw->rate = st_rate_start (sw->info.freq, sw->hw->info.freq);
@@ -425,34 +426,28 @@ static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
         hw_as = *as;
     }
 
-    sw = audio_calloc(__func__, 1, sizeof(*sw));
-    if (!sw) {
-        dolog ("Could not allocate soft voice `%s' (%zu bytes)\n",
-               sw_name ? sw_name : "unknown", sizeof (*sw));
-        goto err1;
-    }
+    sw = g_new0(SW, 1);
     sw->s = s;
 
     hw = glue(audio_pcm_hw_add_, TYPE)(s, &hw_as);
     if (!hw) {
         dolog("Could not create a backend for voice `%s'\n", sw_name);
-        goto err2;
+        goto err1;
     }
 
     glue (audio_pcm_hw_add_sw_, TYPE) (hw, sw);
 
     if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as)) {
-        goto err3;
+        goto err2;
     }
 
     return sw;
 
-err3:
+err2:
     glue (audio_pcm_hw_del_sw_, TYPE) (sw);
     glue (audio_pcm_hw_gc_, TYPE) (&hw);
-err2:
-    g_free (sw);
 err1:
+    g_free(sw);
     return NULL;
 }
 
