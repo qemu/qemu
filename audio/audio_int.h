@@ -151,8 +151,8 @@ struct audio_driver {
     int can_be_default;
     int max_voices_out;
     int max_voices_in;
-    int voice_size_out;
-    int voice_size_in;
+    size_t voice_size_out;
+    size_t voice_size_in;
     QLIST_ENTRY(audio_driver) next;
 };
 
