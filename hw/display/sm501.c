@@ -868,7 +868,7 @@ static void sm501_2d_operation(SM501State *s)
 static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
                                          unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
     uint32_t ret = 0;
 
     switch (addr) {
@@ -928,7 +928,7 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
 static void sm501_system_config_write(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_system_config_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -996,7 +996,7 @@ static const MemoryRegionOps sm501_system_config_ops = {
 
 static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
     uint8_t ret = 0;
 
     switch (addr) {
@@ -1023,7 +1023,7 @@ static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
 static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
                             unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_i2c_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1092,7 +1092,7 @@ static const MemoryRegionOps sm501_i2c_ops = {
 
 static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_palette_read((uint32_t)addr);
 
@@ -1106,7 +1106,7 @@ static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 static void sm501_palette_write(void *opaque, hwaddr addr,
                                 uint32_t value)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_palette_write((uint32_t)addr, value);
 
@@ -1121,7 +1121,7 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
 static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
     uint32_t ret = 0;
 
     switch (addr) {
@@ -1234,7 +1234,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
 static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_disp_ctrl_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1379,7 +1379,7 @@ static const MemoryRegionOps sm501_disp_ctrl_ops = {
 static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
     uint32_t ret = 0;
 
     switch (addr) {
@@ -1457,7 +1457,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
 static void sm501_2d_engine_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
 
     trace_sm501_2d_engine_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1644,7 +1644,7 @@ static void draw_hwc_line_32(uint8_t *d, const uint8_t *s, int width,
 
 static void sm501_update_display(void *opaque)
 {
-    SM501State *s = (SM501State *)opaque;
+    SM501State *s = opaque;
     DisplaySurface *surface = qemu_console_surface(s->con);
     DirtyBitmapSnapshot *snap;
     int y, c_x = 0, c_y = 0;
