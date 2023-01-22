@@ -37,9 +37,20 @@ typedef struct XsNode {
 #endif
 } XsNode;
 
+typedef struct XsWatch {
+    struct XsWatch *next;
+    xs_impl_watch_fn *cb;
+    void *cb_opaque;
+    char *token;
+    unsigned int dom_id;
+    int rel_prefix;
+} XsWatch;
+
 struct XenstoreImplState {
     XsNode *root;
     unsigned int nr_nodes;
+    GHashTable *watches;
+    unsigned int nr_domu_watches;
 };
 
 static inline XsNode *xs_node_new(void)
@@ -146,6 +157,7 @@ struct walk_op {
     void *op_opaque;
     void *op_opaque2;
 
+    GList *watches;
     unsigned int dom_id;
 
     /* The number of nodes which will exist in the tree if this op succeeds. */
@@ -165,6 +177,35 @@ struct walk_op {
     bool mutating;
     bool create_dirs;
 };
+
+static void fire_watches(struct walk_op *op, bool parents)
+{
+    GList *l = NULL;
+    XsWatch *w;
+
+    if (!op->mutating) {
+        return;
+    }
+
+    if (parents) {
+        l = op->watches;
+    }
+
+    w = g_hash_table_lookup(op->s->watches, op->path);
+    while (w || l) {
+        if (!w) {
+            /* Fire the parent nodes from 'op' if asked to */
+            w = l->data;
+            l = l->next;
+            continue;
+        }
+
+        assert(strlen(op->path) > w->rel_prefix);
+        w->cb(w->cb_opaque, op->path + w->rel_prefix, w->token);
+
+        w = w->next;
+    }
+}
 
 static int xs_node_add_content(XsNode **n, struct walk_op *op)
 {
@@ -213,6 +254,8 @@ static int xs_node_get_content(XsNode **n, struct walk_op *op)
 static int node_rm_recurse(gpointer key, gpointer value, gpointer user_data)
 {
     struct walk_op *op = user_data;
+    int path_len = strlen(op->path);
+    int key_len = strlen(key);
     XsNode *n = value;
     bool this_inplace = op->inplace;
 
@@ -220,10 +263,21 @@ static int node_rm_recurse(gpointer key, gpointer value, gpointer user_data)
         op->inplace = 0;
     }
 
+    assert(key_len + path_len + 2 <= sizeof(op->path));
+    op->path[path_len] = '/';
+    memcpy(op->path + path_len + 1, key, key_len + 1);
+
     if (n->children) {
         g_hash_table_foreach_remove(n->children, node_rm_recurse, op);
     }
     op->new_nr_nodes--;
+
+    /*
+     * Fire watches on *this* node but not the parents because they are
+     * going to be deleted too, so the watch will fire for them anyway.
+     */
+    fire_watches(op, false);
+    op->path[path_len] = '\0';
 
     /*
      * Actually deleting the child here is just an optimisation; if we
@@ -238,7 +292,7 @@ static int xs_node_rm(XsNode **n, struct walk_op *op)
 {
     bool this_inplace = op->inplace;
 
-    /* Keep count of the nodes in the subtree which gets deleted. */
+    /* Fire watches for, and count, nodes in the subtree which get deleted */
     if ((*n)->children) {
         g_hash_table_foreach_remove((*n)->children, node_rm_recurse, op);
     }
@@ -269,9 +323,11 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     XsNode *old = *n, *child = NULL;
     bool stole_child = false;
     bool this_inplace;
+    XsWatch *watch;
     int err;
 
     namelen = strlen(op->path);
+    watch = g_hash_table_lookup(op->s->watches, op->path);
 
     /* Is there a child, or do we hit the double-NUL termination? */
     if (op->path[namelen + 1]) {
@@ -292,6 +348,9 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     if (!child_name) {
         /* This is the actual node on which the operation shall be performed */
         err = op->op_fn(n, op);
+        if (!err) {
+            fire_watches(op, true);
+        }
         goto out;
     }
 
@@ -334,10 +393,23 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     }
 
     /*
+     * If there's a watch on this node, add it to the list to be fired
+     * (with the correct full pathname for the modified node) at the end.
+     */
+    if (watch) {
+        op->watches = g_list_append(op->watches, watch);
+    }
+
+    /*
      * Except for the temporary child-stealing as noted, our node has not
      * changed yet. We don't yet know the overall operation will complete.
      */
     err = xs_node_walk(&child, op);
+
+    if (watch) {
+        op->watches = g_list_remove(op->watches, watch);
+    }
+
     if (err || !op->mutating) {
         if (stole_child) {
             /* Put it back as it was. */
@@ -375,6 +447,7 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
  out:
     op->path[namelen] = '\0';
     if (!namelen) {
+        assert(!op->watches);
         /*
          * On completing the recursion back up the path walk and reaching the
          * top, assign the new node count if the operation was successful.
@@ -457,6 +530,7 @@ static int init_walk_op(XenstoreImplState *s, struct walk_op *op,
      * path element for the lookup.
      */
     op->path[strlen(op->path) + 1] = '\0';
+    op->watches = NULL;
     op->path[0] = '\0';
     op->inplace = true;
     op->mutating = false;
@@ -589,38 +663,187 @@ int xs_impl_set_perms(XenstoreImplState *s, unsigned int dom_id,
 int xs_impl_watch(XenstoreImplState *s, unsigned int dom_id, const char *path,
                   const char *token, xs_impl_watch_fn fn, void *opaque)
 {
-    /*
-     * When calling the callback @fn, note that the path should
-     * precisely match the relative path that the guest provided, even
-     * if it was a relative path which needed to be prefixed with
-     * /local/domain/${domid}/
-     */
-    return ENOSYS;
+    char abspath[XENSTORE_ABS_PATH_MAX + 1];
+    XsWatch *w, *l;
+    int ret;
+
+    ret = validate_path(abspath, path, dom_id);
+    if (ret) {
+        return ret;
+    }
+
+    /* Check for duplicates */
+    l = w = g_hash_table_lookup(s->watches, abspath);
+    while (w) {
+        if (!g_strcmp0(token, w->token) &&  opaque == w->cb_opaque &&
+            fn == w->cb && dom_id == w->dom_id) {
+            return EEXIST;
+        }
+        w = w->next;
+    }
+
+    if (dom_id && s->nr_domu_watches >= XS_MAX_WATCHES) {
+        return E2BIG;
+    }
+
+    w = g_new0(XsWatch, 1);
+    w->token = g_strdup(token);
+    w->cb = fn;
+    w->cb_opaque = opaque;
+    w->dom_id = dom_id;
+    w->rel_prefix = strlen(abspath) - strlen(path);
+
+    /* l was looked up above when checking for duplicates */
+    if (l) {
+        w->next = l->next;
+        l->next = w;
+    } else {
+        g_hash_table_insert(s->watches, g_strdup(abspath), w);
+    }
+    if (dom_id) {
+        s->nr_domu_watches++;
+    }
+
+    /* A new watch should fire immediately */
+    fn(opaque, path, token);
+
+    return 0;
+}
+
+static XsWatch *free_watch(XenstoreImplState *s, XsWatch *w)
+{
+    XsWatch *next = w->next;
+
+    if (w->dom_id) {
+        assert(s->nr_domu_watches);
+        s->nr_domu_watches--;
+    }
+
+    g_free(w->token);
+    g_free(w);
+
+    return next;
 }
 
 int xs_impl_unwatch(XenstoreImplState *s, unsigned int dom_id,
                     const char *path, const char *token,
                     xs_impl_watch_fn fn, void *opaque)
 {
+    char abspath[XENSTORE_ABS_PATH_MAX + 1];
+    XsWatch *w, **l;
+    int ret;
+
+    ret = validate_path(abspath, path, dom_id);
+    if (ret) {
+        return ret;
+    }
+
+    w = g_hash_table_lookup(s->watches, abspath);
+    if (!w) {
+        return ENOENT;
+    }
+
     /*
-     * When calling the callback @fn, note that the path should
-     * precisely match the relative path that the guest provided, even
-     * if it was a relative path which needed to be prefixed with
-     * /local/domain/${domid}/
+     * The hash table contains the first element of a list of
+     * watches. Removing the first element in the list is a
+     * special case because we have to update the hash table to
+     * point to the next (or remove it if there's nothing left).
      */
-    return ENOSYS;
+    if (!g_strcmp0(token, w->token) && fn == w->cb && opaque == w->cb_opaque &&
+        dom_id == w->dom_id) {
+        if (w->next) {
+            /* Insert the previous 'next' into the hash table */
+            g_hash_table_insert(s->watches, g_strdup(abspath), w->next);
+        } else {
+            /* Nothing left; remove from hash table */
+            g_hash_table_remove(s->watches, abspath);
+        }
+        free_watch(s, w);
+        return 0;
+    }
+
+    /*
+     * We're all done messing with the hash table because the element
+     * it points to has survived the cull. Now it's just a simple
+     * linked list removal operation.
+     */
+    for (l = &w->next; *l; l = &w->next) {
+        w = *l;
+
+        if (!g_strcmp0(token, w->token) && fn == w->cb &&
+            opaque != w->cb_opaque && dom_id == w->dom_id) {
+            *l = free_watch(s, w);
+            return 0;
+        }
+    }
+
+    return ENOENT;
 }
 
 int xs_impl_reset_watches(XenstoreImplState *s, unsigned int dom_id)
 {
-    /* Remove the watch that matches all four criteria */
-    return ENOSYS;
+    char **watch_paths;
+    guint nr_watch_paths;
+    guint i;
+
+    watch_paths = (char **)g_hash_table_get_keys_as_array(s->watches,
+                                                          &nr_watch_paths);
+
+    for (i = 0; i < nr_watch_paths; i++) {
+        XsWatch *w1 = g_hash_table_lookup(s->watches, watch_paths[i]);
+        XsWatch *w2, *w, **l;
+
+        /*
+         * w1 is the original list. The hash table has this pointer.
+         * w2 is the head of our newly-filtered list.
+         * w and l are temporary for processing. w is somewhat redundant
+         * with *l but makes my eyes bleed less.
+         */
+
+        w = w2 = w1;
+        l = &w;
+        while (w) {
+            if (w->dom_id == dom_id) {
+                /* If we're freeing the head of the list, bump w2 */
+                if (w2 == w) {
+                    w2 = w->next;
+                }
+                *l = free_watch(s, w);
+            } else {
+                l = &w->next;
+            }
+            w = *l;
+        }
+        /*
+         * If the head of the list survived the cull, we don't need to
+         * touch the hash table and we're done with this path. Else...
+         */
+        if (w1 != w2) {
+            g_hash_table_steal(s->watches, watch_paths[i]);
+
+            /*
+             * It was already freed. (Don't worry, this whole thing is
+             * single-threaded and nobody saw it in the meantime). And
+             * having *stolen* it, we now own the watch_paths[i] string
+             * so if we don't give it back to the hash table, we need
+             * to free it.
+             */
+            if (w2) {
+                g_hash_table_insert(s->watches, watch_paths[i], w2);
+            } else {
+                g_free(watch_paths[i]);
+            }
+        }
+    }
+    g_free(watch_paths);
+    return 0;
 }
 
 XenstoreImplState *xs_impl_create(void)
 {
     XenstoreImplState *s = g_new0(XenstoreImplState, 1);
 
+    s->watches = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
     s->nr_nodes = 1;
     s->root = xs_node_new();
 #ifdef XS_NODE_UNIT_TEST
