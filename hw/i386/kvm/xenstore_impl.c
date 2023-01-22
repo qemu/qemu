@@ -46,12 +46,55 @@ typedef struct XsWatch {
     int rel_prefix;
 } XsWatch;
 
+typedef struct XsTransaction {
+    XsNode *root;
+    unsigned int nr_nodes;
+    unsigned int base_tx;
+    unsigned int tx_id;
+    unsigned int dom_id;
+} XsTransaction;
+
 struct XenstoreImplState {
     XsNode *root;
     unsigned int nr_nodes;
     GHashTable *watches;
     unsigned int nr_domu_watches;
+    GHashTable *transactions;
+    unsigned int nr_domu_transactions;
+    unsigned int root_tx;
+    unsigned int last_tx;
 };
+
+
+static void nobble_tx(gpointer key, gpointer value, gpointer user_data)
+{
+    unsigned int *new_tx_id = user_data;
+    XsTransaction *tx = value;
+
+    if (tx->base_tx == *new_tx_id) {
+        /* Transactions based on XBT_NULL will always fail */
+        tx->base_tx = XBT_NULL;
+    }
+}
+
+static inline unsigned int next_tx(struct XenstoreImplState *s)
+{
+    unsigned int tx_id;
+
+    /* Find the next TX id which isn't either XBT_NULL or in use. */
+    do {
+        tx_id = ++s->last_tx;
+    } while (tx_id == XBT_NULL || tx_id == s->root_tx ||
+             g_hash_table_lookup(s->transactions, GINT_TO_POINTER(tx_id)));
+
+    /*
+     * It is vanishingly unlikely, but ensure that no outstanding transaction
+     * is based on the (previous incarnation of the) newly-allocated TX id.
+     */
+    g_hash_table_foreach(s->transactions, nobble_tx, &tx_id);
+
+    return tx_id;
+}
 
 static inline XsNode *xs_node_new(void)
 {
@@ -159,6 +202,7 @@ struct walk_op {
 
     GList *watches;
     unsigned int dom_id;
+    unsigned int tx_id;
 
     /* The number of nodes which will exist in the tree if this op succeeds. */
     unsigned int new_nr_nodes;
@@ -176,6 +220,7 @@ struct walk_op {
     bool inplace;
     bool mutating;
     bool create_dirs;
+    bool in_transaction;
 };
 
 static void fire_watches(struct walk_op *op, bool parents)
@@ -183,7 +228,7 @@ static void fire_watches(struct walk_op *op, bool parents)
     GList *l = NULL;
     XsWatch *w;
 
-    if (!op->mutating) {
+    if (!op->mutating || op->in_transaction) {
         return;
     }
 
@@ -450,10 +495,23 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
         assert(!op->watches);
         /*
          * On completing the recursion back up the path walk and reaching the
-         * top, assign the new node count if the operation was successful.
+         * top, assign the new node count if the operation was successful. If
+         * the main tree was changed, bump its tx ID so that outstanding
+         * transactions correctly fail. But don't bump it every time; only
+         * if it makes a difference.
          */
         if (!err && op->mutating) {
-            op->s->nr_nodes = op->new_nr_nodes;
+            if (!op->in_transaction) {
+                if (op->s->root_tx != op->s->last_tx) {
+                    op->s->root_tx = next_tx(op->s);
+                }
+                op->s->nr_nodes = op->new_nr_nodes;
+            } else {
+                XsTransaction *tx = g_hash_table_lookup(op->s->transactions,
+                                                        GINT_TO_POINTER(op->tx_id));
+                assert(tx);
+                tx->nr_nodes = op->new_nr_nodes;
+            }
         }
     }
     return err;
@@ -535,14 +593,23 @@ static int init_walk_op(XenstoreImplState *s, struct walk_op *op,
     op->inplace = true;
     op->mutating = false;
     op->create_dirs = false;
+    op->in_transaction = false;
     op->dom_id = dom_id;
+    op->tx_id = tx_id;
     op->s = s;
 
     if (tx_id == XBT_NULL) {
         *rootp = &s->root;
         op->new_nr_nodes = s->nr_nodes;
     } else {
-        return ENOENT;
+        XsTransaction *tx = g_hash_table_lookup(s->transactions,
+                                                GINT_TO_POINTER(tx_id));
+        if (!tx) {
+            return ENOENT;
+        }
+        *rootp = &tx->root;
+        op->new_nr_nodes = tx->nr_nodes;
+        op->in_transaction = true;
     }
 
     return 0;
@@ -616,13 +683,71 @@ int xs_impl_directory(XenstoreImplState *s, unsigned int dom_id,
 int xs_impl_transaction_start(XenstoreImplState *s, unsigned int dom_id,
                               xs_transaction_t *tx_id)
 {
-    return ENOSYS;
+    XsTransaction *tx;
+
+    if (*tx_id != XBT_NULL) {
+        return EINVAL;
+    }
+
+    if (dom_id && s->nr_domu_transactions >= XS_MAX_TRANSACTIONS) {
+        return ENOSPC;
+    }
+
+    tx = g_new0(XsTransaction, 1);
+
+    tx->nr_nodes = s->nr_nodes;
+    tx->tx_id = next_tx(s);
+    tx->base_tx = s->root_tx;
+    tx->root = xs_node_ref(s->root);
+    tx->dom_id = dom_id;
+
+    g_hash_table_insert(s->transactions, GINT_TO_POINTER(tx->tx_id), tx);
+    if (dom_id) {
+        s->nr_domu_transactions++;
+    }
+    *tx_id = tx->tx_id;
+    return 0;
+}
+
+static int transaction_commit(XenstoreImplState *s, XsTransaction *tx)
+{
+    if (s->root_tx != tx->base_tx) {
+        return EAGAIN;
+    }
+    xs_node_unref(s->root);
+    s->root = tx->root;
+    tx->root = NULL;
+    s->root_tx = tx->tx_id;
+    s->nr_nodes = tx->nr_nodes;
+
+    /*
+     * XX: Walk the new root and fire watches on any node which has a
+     * refcount of one (which is therefore unique to this transaction).
+     */
+    return 0;
 }
 
 int xs_impl_transaction_end(XenstoreImplState *s, unsigned int dom_id,
                             xs_transaction_t tx_id, bool commit)
 {
-    return ENOSYS;
+    int ret = 0;
+    XsTransaction *tx = g_hash_table_lookup(s->transactions,
+                                            GINT_TO_POINTER(tx_id));
+
+    if (!tx || tx->dom_id != dom_id) {
+        return ENOENT;
+    }
+
+    if (commit) {
+        ret = transaction_commit(s, tx);
+    }
+
+    g_hash_table_remove(s->transactions, GINT_TO_POINTER(tx_id));
+    if (dom_id) {
+        assert(s->nr_domu_transactions);
+        s->nr_domu_transactions--;
+    }
+    return ret;
 }
 
 int xs_impl_rm(XenstoreImplState *s, unsigned int dom_id,
@@ -839,15 +964,28 @@ int xs_impl_reset_watches(XenstoreImplState *s, unsigned int dom_id)
     return 0;
 }
 
+static void xs_tx_free(void *_tx)
+{
+    XsTransaction *tx = _tx;
+    if (tx->root) {
+        xs_node_unref(tx->root);
+    }
+    g_free(tx);
+}
+
 XenstoreImplState *xs_impl_create(void)
 {
     XenstoreImplState *s = g_new0(XenstoreImplState, 1);
 
     s->watches = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    s->transactions = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                            NULL, xs_tx_free);
     s->nr_nodes = 1;
     s->root = xs_node_new();
 #ifdef XS_NODE_UNIT_TEST
     s->root->name = g_strdup("/");
 #endif
+
+    s->root_tx = s->last_tx = 1;
     return s;
 }
