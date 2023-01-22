@@ -32,6 +32,8 @@ typedef struct XsNode {
     GByteArray *content;
     GHashTable *children;
     uint64_t gencnt;
+    bool deleted_in_tx;
+    bool modified_in_tx;
 #ifdef XS_NODE_UNIT_TEST
     gchar *name; /* debug only */
 #endif
@@ -153,6 +155,13 @@ static XsNode *xs_node_copy(XsNode *old)
     XsNode *n = xs_node_new();
 
     n->gencnt = old->gencnt;
+
+#ifdef XS_NODE_UNIT_TEST
+    if (n->name) {
+        n->name = g_strdup(old->name);
+    }
+#endif
+
     if (old->children) {
         n->children = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
                                             (GDestroyNotify)xs_node_unref);
@@ -221,6 +230,9 @@ struct walk_op {
     bool mutating;
     bool create_dirs;
     bool in_transaction;
+
+    /* Tracking during recursion so we know which is first. */
+    bool deleted_in_tx;
 };
 
 static void fire_watches(struct walk_op *op, bool parents)
@@ -277,6 +289,9 @@ static int xs_node_add_content(XsNode **n, struct walk_op *op)
         g_byte_array_unref((*n)->content);
     }
     (*n)->content = g_byte_array_ref(data);
+    if (op->tx_id != XBT_NULL) {
+        (*n)->modified_in_tx = true;
+    }
     return 0;
 }
 
@@ -333,9 +348,61 @@ static int node_rm_recurse(gpointer key, gpointer value, gpointer user_data)
     return this_inplace;
 }
 
+static XsNode *xs_node_copy_deleted(XsNode *old, struct walk_op *op);
+static void copy_deleted_recurse(gpointer key, gpointer value,
+                                 gpointer user_data)
+{
+    struct walk_op *op = user_data;
+    GHashTable *siblings = op->op_opaque2;
+    XsNode *n = xs_node_copy_deleted(value, op);
+
+    /*
+     * Reinsert the deleted_in_tx copy of the node into the parent's
+     * 'children' hash table. Having stashed it from op->op_opaque2
+     * before the recursive call to xs_node_copy_deleted() scribbled
+     * over it.
+     */
+    g_hash_table_insert(siblings, g_strdup(key), n);
+}
+
+static XsNode *xs_node_copy_deleted(XsNode *old, struct walk_op *op)
+{
+    XsNode *n = xs_node_new();
+
+    n->gencnt = old->gencnt;
+
+#ifdef XS_NODE_UNIT_TEST
+    if (old->name) {
+        n->name = g_strdup(old->name);
+    }
+#endif
+
+    if (old->children) {
+        n->children = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+                                            (GDestroyNotify)xs_node_unref);
+        op->op_opaque2 = n->children;
+        g_hash_table_foreach(old->children, copy_deleted_recurse, op);
+    }
+    n->deleted_in_tx = true;
+    /* If it gets resurrected we only fire a watch if it lost its content */
+    if (old->content) {
+        n->modified_in_tx = true;
+    }
+    op->new_nr_nodes--;
+    return n;
+}
+
 static int xs_node_rm(XsNode **n, struct walk_op *op)
 {
     bool this_inplace = op->inplace;
+
+    if (op->tx_id != XBT_NULL) {
+        /* It's not trivial to do inplace handling for this one */
+        XsNode *old = *n;
+        *n = xs_node_copy_deleted(old, op);
+        xs_node_unref(old);
+        return 0;
+    }
 
     /* Fire watches for, and count, nodes in the subtree which get deleted */
     if ((*n)->children) {
@@ -408,6 +475,10 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     }
 
     if (child) {
+        if (child->deleted_in_tx) {
+            assert(child->ref == 1);
+            /* Cannot actually set child->deleted_in_tx = false until later */
+        }
         xs_node_ref(child);
         /*
          * Now we own it too. But if we can modify inplace, that's going to
@@ -473,6 +544,15 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     if (!this_inplace) {
         *n = xs_node_copy(old);
         xs_node_unref(old);
+    }
+
+    /*
+     * If we resurrected a deleted_in_tx node, we can mark it as no longer
+     * deleted now that we know the overall operation has succeeded.
+     */
+    if (op->create_dirs && child && child->deleted_in_tx) {
+        op->new_nr_nodes++;
+        child->deleted_in_tx = false;
     }
 
     /*
@@ -709,8 +789,69 @@ int xs_impl_transaction_start(XenstoreImplState *s, unsigned int dom_id,
     return 0;
 }
 
+static gboolean tx_commit_walk(gpointer key, gpointer value,
+                               gpointer user_data)
+{
+    struct walk_op *op = user_data;
+    int path_len = strlen(op->path);
+    int key_len = strlen(key);
+    bool fire_parents = true;
+    XsWatch *watch;
+    XsNode *n = value;
+
+    if (n->ref != 1) {
+        return false;
+    }
+
+    if (n->deleted_in_tx) {
+        /*
+         * We fire watches on our parents if we are the *first* node
+         * to be deleted (the topmost one). This matches the behaviour
+         * when deleting in the live tree.
+         */
+        fire_parents = !op->deleted_in_tx;
+
+        /* Only used on the way down so no need to clear it later */
+        op->deleted_in_tx = true;
+    }
+
+    assert(key_len + path_len + 2 <= sizeof(op->path));
+    op->path[path_len] = '/';
+    memcpy(op->path + path_len + 1, key, key_len + 1);
+
+    watch = g_hash_table_lookup(op->s->watches, op->path);
+    if (watch) {
+        op->watches = g_list_append(op->watches, watch);
+    }
+
+    if (n->children) {
+        g_hash_table_foreach_remove(n->children, tx_commit_walk, op);
+    }
+
+    if (watch) {
+        op->watches = g_list_remove(op->watches, watch);
+    }
+
+    /*
+     * Don't fire watches if this node was only copied because a
+     * descendent was changed. The modified_in_tx flag indicates the
+     * ones which were really changed.
+     */
+    if (n->modified_in_tx || n->deleted_in_tx) {
+        fire_watches(op, fire_parents);
+        n->modified_in_tx = false;
+    }
+    op->path[path_len] = '\0';
+
+    /* Deleted nodes really do get expunged when we commit */
+    return n->deleted_in_tx;
+}
+
 static int transaction_commit(XenstoreImplState *s, XsTransaction *tx)
 {
+    struct walk_op op;
+    XsNode **n;
+
     if (s->root_tx != tx->base_tx) {
         return EAGAIN;
     }
@@ -720,10 +861,18 @@ static int transaction_commit(XenstoreImplState *s, XsTransaction *tx)
     s->root_tx = tx->tx_id;
     s->nr_nodes = tx->nr_nodes;
 
+    init_walk_op(s, &op, XBT_NULL, tx->dom_id, "/", &n);
+    op.deleted_in_tx = false;
+    op.mutating = true;
+
     /*
-     * XX: Walk the new root and fire watches on any node which has a
+     * Walk the new root and fire watches on any node which has a
      * refcount of one (which is therefore unique to this transaction).
      */
+    if (s->root->children) {
+        g_hash_table_foreach_remove(s->root->children, tx_commit_walk, &op);
+    }
+
     return 0;
 }
 

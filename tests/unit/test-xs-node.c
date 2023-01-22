@@ -347,7 +347,13 @@ static void do_test_xs_node_tx(bool fail, bool commit)
     } else {
         g_assert(!err);
     }
-    g_assert(!watches->len);
+    if (commit && !fail) {
+        g_assert(!strcmp(watches->str,
+                         "some/relative/pathwatch"));
+        g_string_truncate(watches, 0);
+    } else {
+       g_assert(!watches->len);
+    }
     g_assert(s->nr_nodes == 7);
 
     err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
@@ -386,6 +392,226 @@ static void test_xs_node_tx_succeed(void)
     do_test_xs_node_tx(false, true);
 }
 
+static void test_xs_node_tx_rm(void)
+{
+    XenstoreImplState *s = setup();
+    GString *watches = g_string_new(NULL);
+    GByteArray *data = g_byte_array_new();
+    unsigned int tx_id = XBT_NULL;
+    int err;
+
+    g_assert(s);
+
+    /* Set a watch */
+    err = xs_impl_watch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+    g_assert(watches->len == strlen("somewatch"));
+    g_assert(!strcmp(watches->str, "somewatch"));
+    g_string_truncate(watches, 0);
+
+    /* Write something */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                    "something");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+    g_assert(!strcmp(watches->str,
+                     "some/deep/dark/relative/pathwatch"));
+    g_string_truncate(watches, 0);
+
+    /* Create a transaction */
+    err = xs_impl_transaction_start(s, DOMID_GUEST, &tx_id);
+    g_assert(!err);
+
+    /* Delete the tree in the transaction */
+    err = xs_impl_rm(s, DOMID_GUEST, tx_id, "some/deep/dark");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+    g_assert(!watches->len);
+
+    err = xs_impl_read(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                       data);
+    g_assert(!err);
+    g_assert(data->len == strlen("something"));
+    g_assert(!memcmp(data->data, "something", data->len));
+    g_byte_array_set_size(data, 0);
+
+    /* Commit the transaction */
+    err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
+    g_assert(!err);
+    g_assert(s->nr_nodes == 6);
+
+    g_assert(!strcmp(watches->str, "some/deep/darkwatch"));
+    g_string_truncate(watches, 0);
+
+    /* Now the node is gone */
+    err = xs_impl_read(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                       data);
+    g_assert(err == ENOENT);
+    g_byte_array_unref(data);
+
+    err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+
+    g_string_free(watches, true);
+    xs_impl_delete(s);
+}
+
+static void test_xs_node_tx_resurrect(void)
+{
+    XenstoreImplState *s = setup();
+    GString *watches = g_string_new(NULL);
+    GByteArray *data = g_byte_array_new();
+    unsigned int tx_id = XBT_NULL;
+    int err;
+
+    g_assert(s);
+
+    /* Write something */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                    "something");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+
+    /* This node will be wiped and resurrected */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark",
+                    "foo");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+
+    /* Set a watch */
+    err = xs_impl_watch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+    g_assert(watches->len == strlen("somewatch"));
+    g_assert(!strcmp(watches->str, "somewatch"));
+    g_string_truncate(watches, 0);
+
+    /* Create a transaction */
+    err = xs_impl_transaction_start(s, DOMID_GUEST, &tx_id);
+    g_assert(!err);
+
+    /* Delete the tree in the transaction */
+    err = xs_impl_rm(s, DOMID_GUEST, tx_id, "some/deep");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+    g_assert(!watches->len);
+
+    /* Resurrect part of it */
+    err = write_str(s, DOMID_GUEST, tx_id, "some/deep/dark/different/path",
+                    "something");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+
+    /* Commit the transaction */
+    err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+
+    /* lost data */
+    g_assert(strstr(watches->str, "some/deep/dark/different/pathwatch"));
+    /* topmost deleted */
+    g_assert(strstr(watches->str, "some/deep/dark/relativewatch"));
+    /* lost data */
+    g_assert(strstr(watches->str, "some/deep/darkwatch"));
+
+    g_string_truncate(watches, 0);
+
+    /* Now the node is gone */
+    err = xs_impl_read(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                       data);
+    g_assert(err == ENOENT);
+    g_byte_array_unref(data);
+
+    err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+
+    g_string_free(watches, true);
+    xs_impl_delete(s);
+}
+
+static void test_xs_node_tx_resurrect2(void)
+{
+    XenstoreImplState *s = setup();
+    GString *watches = g_string_new(NULL);
+    GByteArray *data = g_byte_array_new();
+    unsigned int tx_id = XBT_NULL;
+    int err;
+
+    g_assert(s);
+
+    /* Write something */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                    "something");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 9);
+
+    /* Another node to remain shared */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/place/safe", "keepme");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+
+    /* This node will be wiped and resurrected */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark",
+                    "foo");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+
+    /* Set a watch */
+    err = xs_impl_watch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+    g_assert(watches->len == strlen("somewatch"));
+    g_assert(!strcmp(watches->str, "somewatch"));
+    g_string_truncate(watches, 0);
+
+    /* Create a transaction */
+    err = xs_impl_transaction_start(s, DOMID_GUEST, &tx_id);
+    g_assert(!err);
+
+    /* Delete the tree in the transaction */
+    err = xs_impl_rm(s, DOMID_GUEST, tx_id, "some/deep");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+    g_assert(!watches->len);
+
+    /* Resurrect part of it */
+    err = write_str(s, DOMID_GUEST, tx_id, "some/deep/dark/relative/path",
+                    "something");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+
+    /* Commit the transaction */
+    err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+
+    /* lost data */
+    g_assert(strstr(watches->str, "some/deep/dark/relative/pathwatch"));
+    /* lost data */
+    g_assert(strstr(watches->str, "some/deep/darkwatch"));
+
+    g_string_truncate(watches, 0);
+
+    /* Now the node is gone */
+    err = xs_impl_read(s, DOMID_GUEST, XBT_NULL, "some/deep/dark/relative/path",
+                       data);
+    g_assert(!err);
+    g_assert(data->len == strlen("something"));
+    g_assert(!memcmp(data->data, "something", data->len));
+
+    g_byte_array_unref(data);
+
+    err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
+                        watch_cb, watches);
+    g_assert(!err);
+
+    g_string_free(watches, true);
+    xs_impl_delete(s);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -395,6 +621,9 @@ int main(int argc, char **argv)
     g_test_add_func("/xs_node/tx_abort", test_xs_node_tx_abort);
     g_test_add_func("/xs_node/tx_fail", test_xs_node_tx_fail);
     g_test_add_func("/xs_node/tx_succeed", test_xs_node_tx_succeed);
+    g_test_add_func("/xs_node/tx_rm", test_xs_node_tx_rm);
+    g_test_add_func("/xs_node/tx_resurrect", test_xs_node_tx_resurrect);
+    g_test_add_func("/xs_node/tx_resurrect2", test_xs_node_tx_resurrect2);
 
     return g_test_run();
 }
