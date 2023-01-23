@@ -89,15 +89,8 @@ void cpu_loop(CPUARMState *env)
 
         switch (trapnr) {
         case EXCP_SWI:
-            /*
-             * On syscall, PSTATE.ZA is preserved, along with the ZA matrix.
-             * PSTATE.SM is cleared, per SMSTOP, which does ResetSVEState.
-             */
-            if (FIELD_EX64(env->svcr, SVCR, SM)) {
-                env->svcr = FIELD_DP64(env->svcr, SVCR, SM, 0);
-                arm_rebuild_hflags(env);
-                arm_reset_sve_state(env);
-            }
+            /* On syscall, PSTATE.ZA is preserved, PSTATE.SM is cleared. */
+            aarch64_set_svcr(env, 0, R_SVCR_SM_MASK);
             ret = do_syscall(env,
                              env->xregs[8],
                              env->xregs[0],

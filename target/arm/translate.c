@@ -4714,221 +4714,237 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                            int opc1, int crn, int crm, int opc2,
                            bool isread, int rt, int rt2)
 {
-    const ARMCPRegInfo *ri;
+    uint32_t key = ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2);
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
+    TCGv_ptr tcg_ri = NULL;
+    bool need_exit_tb;
 
-    ri = get_arm_cp_reginfo(s->cp_regs,
-            ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2));
-    if (ri) {
-        bool need_exit_tb;
-
-        /* Check access permissions */
-        if (!cp_access_ok(s->current_el, ri, isread)) {
-            unallocated_encoding(s);
-            return;
-        }
-
-        if (s->hstr_active || ri->accessfn ||
-            (arm_dc_feature(s, ARM_FEATURE_XSCALE) && cpnum < 14)) {
-            /* Emit code to perform further access permissions checks at
-             * runtime; this may result in an exception.
-             * Note that on XScale all cp0..c13 registers do an access check
-             * call in order to handle c15_cpar.
-             */
-            uint32_t syndrome;
-
-            /* Note that since we are an implementation which takes an
-             * exception on a trapped conditional instruction only if the
-             * instruction passes its condition code check, we can take
-             * advantage of the clause in the ARM ARM that allows us to set
-             * the COND field in the instruction to 0xE in all cases.
-             * We could fish the actual condition out of the insn (ARM)
-             * or the condexec bits (Thumb) but it isn't necessary.
-             */
-            switch (cpnum) {
-            case 14:
-                if (is64) {
-                    syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, false);
-                } else {
-                    syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, false);
-                }
-                break;
-            case 15:
-                if (is64) {
-                    syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
-                                                 isread, false);
-                } else {
-                    syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
-                                                rt, isread, false);
-                }
-                break;
-            default:
-                /* ARMv8 defines that only coprocessors 14 and 15 exist,
-                 * so this can only happen if this is an ARMv7 or earlier CPU,
-                 * in which case the syndrome information won't actually be
-                 * guest visible.
-                 */
-                assert(!arm_dc_feature(s, ARM_FEATURE_V8));
-                syndrome = syn_uncategorized();
-                break;
-            }
-
-            gen_set_condexec(s);
-            gen_update_pc(s, 0);
-            gen_helper_access_check_cp_reg(cpu_env,
-                                           tcg_constant_ptr(ri),
-                                           tcg_constant_i32(syndrome),
-                                           tcg_constant_i32(isread));
-        } else if (ri->type & ARM_CP_RAISES_EXC) {
-            /*
-             * The readfn or writefn might raise an exception;
-             * synchronize the CPU state in case it does.
-             */
-            gen_set_condexec(s);
-            gen_update_pc(s, 0);
-        }
-
-        /* Handle special cases first */
-        switch (ri->type & ARM_CP_SPECIAL_MASK) {
-        case 0:
-            break;
-        case ARM_CP_NOP:
-            return;
-        case ARM_CP_WFI:
-            if (isread) {
-                unallocated_encoding(s);
-                return;
-            }
-            gen_update_pc(s, curr_insn_len(s));
-            s->base.is_jmp = DISAS_WFI;
-            return;
-        default:
-            g_assert_not_reached();
-        }
-
-        if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
-            gen_io_start();
-        }
-
-        if (isread) {
-            /* Read */
-            if (is64) {
-                TCGv_i64 tmp64;
-                TCGv_i32 tmp;
-                if (ri->type & ARM_CP_CONST) {
-                    tmp64 = tcg_constant_i64(ri->resetvalue);
-                } else if (ri->readfn) {
-                    tmp64 = tcg_temp_new_i64();
-                    gen_helper_get_cp_reg64(tmp64, cpu_env,
-                                            tcg_constant_ptr(ri));
-                } else {
-                    tmp64 = tcg_temp_new_i64();
-                    tcg_gen_ld_i64(tmp64, cpu_env, ri->fieldoffset);
-                }
-                tmp = tcg_temp_new_i32();
-                tcg_gen_extrl_i64_i32(tmp, tmp64);
-                store_reg(s, rt, tmp);
-                tmp = tcg_temp_new_i32();
-                tcg_gen_extrh_i64_i32(tmp, tmp64);
-                tcg_temp_free_i64(tmp64);
-                store_reg(s, rt2, tmp);
-            } else {
-                TCGv_i32 tmp;
-                if (ri->type & ARM_CP_CONST) {
-                    tmp = tcg_constant_i32(ri->resetvalue);
-                } else if (ri->readfn) {
-                    tmp = tcg_temp_new_i32();
-                    gen_helper_get_cp_reg(tmp, cpu_env, tcg_constant_ptr(ri));
-                } else {
-                    tmp = load_cpu_offset(ri->fieldoffset);
-                }
-                if (rt == 15) {
-                    /* Destination register of r15 for 32 bit loads sets
-                     * the condition codes from the high 4 bits of the value
-                     */
-                    gen_set_nzcv(tmp);
-                    tcg_temp_free_i32(tmp);
-                } else {
-                    store_reg(s, rt, tmp);
-                }
-            }
+    if (!ri) {
+        /*
+         * Unknown register; this might be a guest error or a QEMU
+         * unimplemented feature.
+         */
+        if (is64) {
+            qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                          "64 bit system register cp:%d opc1: %d crm:%d "
+                          "(%s)\n",
+                          isread ? "read" : "write", cpnum, opc1, crm,
+                          s->ns ? "non-secure" : "secure");
         } else {
-            /* Write */
-            if (ri->type & ARM_CP_CONST) {
-                /* If not forbidden by access permissions, treat as WI */
-                return;
-            }
-
-            if (is64) {
-                TCGv_i32 tmplo, tmphi;
-                TCGv_i64 tmp64 = tcg_temp_new_i64();
-                tmplo = load_reg(s, rt);
-                tmphi = load_reg(s, rt2);
-                tcg_gen_concat_i32_i64(tmp64, tmplo, tmphi);
-                tcg_temp_free_i32(tmplo);
-                tcg_temp_free_i32(tmphi);
-                if (ri->writefn) {
-                    gen_helper_set_cp_reg64(cpu_env, tcg_constant_ptr(ri),
-                                            tmp64);
-                } else {
-                    tcg_gen_st_i64(tmp64, cpu_env, ri->fieldoffset);
-                }
-                tcg_temp_free_i64(tmp64);
-            } else {
-                TCGv_i32 tmp = load_reg(s, rt);
-                if (ri->writefn) {
-                    gen_helper_set_cp_reg(cpu_env, tcg_constant_ptr(ri), tmp);
-                    tcg_temp_free_i32(tmp);
-                } else {
-                    store_cpu_offset(tmp, ri->fieldoffset, 4);
-                }
-            }
+            qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
+                          "system register cp:%d opc1:%d crn:%d crm:%d "
+                          "opc2:%d (%s)\n",
+                          isread ? "read" : "write", cpnum, opc1, crn,
+                          crm, opc2, s->ns ? "non-secure" : "secure");
         }
-
-        /* I/O operations must end the TB here (whether read or write) */
-        need_exit_tb = ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) &&
-                        (ri->type & ARM_CP_IO));
-
-        if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
-            /*
-             * A write to any coprocessor register that ends a TB
-             * must rebuild the hflags for the next TB.
-             */
-            gen_rebuild_hflags(s, ri->type & ARM_CP_NEWEL);
-            /*
-             * We default to ending the TB on a coprocessor register write,
-             * but allow this to be suppressed by the register definition
-             * (usually only necessary to work around guest bugs).
-             */
-            need_exit_tb = true;
-        }
-        if (need_exit_tb) {
-            gen_lookup_tb(s);
-        }
-
+        unallocated_encoding(s);
         return;
     }
 
-    /* Unknown register; this might be a guest error or a QEMU
-     * unimplemented feature.
-     */
-    if (is64) {
-        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
-                      "64 bit system register cp:%d opc1: %d crm:%d "
-                      "(%s)\n",
-                      isread ? "read" : "write", cpnum, opc1, crm,
-                      s->ns ? "non-secure" : "secure");
-    } else {
-        qemu_log_mask(LOG_UNIMP, "%s access to unsupported AArch32 "
-                      "system register cp:%d opc1:%d crn:%d crm:%d opc2:%d "
-                      "(%s)\n",
-                      isread ? "read" : "write", cpnum, opc1, crn, crm, opc2,
-                      s->ns ? "non-secure" : "secure");
+    /* Check access permissions */
+    if (!cp_access_ok(s->current_el, ri, isread)) {
+        unallocated_encoding(s);
+        return;
     }
 
-    unallocated_encoding(s);
-    return;
+    if (s->hstr_active || ri->accessfn ||
+        (arm_dc_feature(s, ARM_FEATURE_XSCALE) && cpnum < 14)) {
+        /*
+         * Emit code to perform further access permissions checks at
+         * runtime; this may result in an exception.
+         * Note that on XScale all cp0..c13 registers do an access check
+         * call in order to handle c15_cpar.
+         */
+        uint32_t syndrome;
+
+        /*
+         * Note that since we are an implementation which takes an
+         * exception on a trapped conditional instruction only if the
+         * instruction passes its condition code check, we can take
+         * advantage of the clause in the ARM ARM that allows us to set
+         * the COND field in the instruction to 0xE in all cases.
+         * We could fish the actual condition out of the insn (ARM)
+         * or the condexec bits (Thumb) but it isn't necessary.
+         */
+        switch (cpnum) {
+        case 14:
+            if (is64) {
+                syndrome = syn_cp14_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                             isread, false);
+            } else {
+                syndrome = syn_cp14_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                            rt, isread, false);
+            }
+            break;
+        case 15:
+            if (is64) {
+                syndrome = syn_cp15_rrt_trap(1, 0xe, opc1, crm, rt, rt2,
+                                             isread, false);
+            } else {
+                syndrome = syn_cp15_rt_trap(1, 0xe, opc1, opc2, crn, crm,
+                                            rt, isread, false);
+            }
+            break;
+        default:
+            /*
+             * ARMv8 defines that only coprocessors 14 and 15 exist,
+             * so this can only happen if this is an ARMv7 or earlier CPU,
+             * in which case the syndrome information won't actually be
+             * guest visible.
+             */
+            assert(!arm_dc_feature(s, ARM_FEATURE_V8));
+            syndrome = syn_uncategorized();
+            break;
+        }
+
+        gen_set_condexec(s);
+        gen_update_pc(s, 0);
+        tcg_ri = tcg_temp_new_ptr();
+        gen_helper_access_check_cp_reg(tcg_ri, cpu_env,
+                                       tcg_constant_i32(key),
+                                       tcg_constant_i32(syndrome),
+                                       tcg_constant_i32(isread));
+    } else if (ri->type & ARM_CP_RAISES_EXC) {
+        /*
+         * The readfn or writefn might raise an exception;
+         * synchronize the CPU state in case it does.
+         */
+        gen_set_condexec(s);
+        gen_update_pc(s, 0);
+    }
+
+    /* Handle special cases first */
+    switch (ri->type & ARM_CP_SPECIAL_MASK) {
+    case 0:
+        break;
+    case ARM_CP_NOP:
+        goto exit;
+    case ARM_CP_WFI:
+        if (isread) {
+            unallocated_encoding(s);
+        } else {
+            gen_update_pc(s, curr_insn_len(s));
+            s->base.is_jmp = DISAS_WFI;
+        }
+        goto exit;
+    default:
+        g_assert_not_reached();
+    }
+
+    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
+        gen_io_start();
+    }
+
+    if (isread) {
+        /* Read */
+        if (is64) {
+            TCGv_i64 tmp64;
+            TCGv_i32 tmp;
+            if (ri->type & ARM_CP_CONST) {
+                tmp64 = tcg_constant_i64(ri->resetvalue);
+            } else if (ri->readfn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                tmp64 = tcg_temp_new_i64();
+                gen_helper_get_cp_reg64(tmp64, cpu_env, tcg_ri);
+            } else {
+                tmp64 = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp64, cpu_env, ri->fieldoffset);
+            }
+            tmp = tcg_temp_new_i32();
+            tcg_gen_extrl_i64_i32(tmp, tmp64);
+            store_reg(s, rt, tmp);
+            tmp = tcg_temp_new_i32();
+            tcg_gen_extrh_i64_i32(tmp, tmp64);
+            tcg_temp_free_i64(tmp64);
+            store_reg(s, rt2, tmp);
+        } else {
+            TCGv_i32 tmp;
+            if (ri->type & ARM_CP_CONST) {
+                tmp = tcg_constant_i32(ri->resetvalue);
+            } else if (ri->readfn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                tmp = tcg_temp_new_i32();
+                gen_helper_get_cp_reg(tmp, cpu_env, tcg_ri);
+            } else {
+                tmp = load_cpu_offset(ri->fieldoffset);
+            }
+            if (rt == 15) {
+                /* Destination register of r15 for 32 bit loads sets
+                 * the condition codes from the high 4 bits of the value
+                 */
+                gen_set_nzcv(tmp);
+                tcg_temp_free_i32(tmp);
+            } else {
+                store_reg(s, rt, tmp);
+            }
+        }
+    } else {
+        /* Write */
+        if (ri->type & ARM_CP_CONST) {
+            /* If not forbidden by access permissions, treat as WI */
+            goto exit;
+        }
+
+        if (is64) {
+            TCGv_i32 tmplo, tmphi;
+            TCGv_i64 tmp64 = tcg_temp_new_i64();
+            tmplo = load_reg(s, rt);
+            tmphi = load_reg(s, rt2);
+            tcg_gen_concat_i32_i64(tmp64, tmplo, tmphi);
+            tcg_temp_free_i32(tmplo);
+            tcg_temp_free_i32(tmphi);
+            if (ri->writefn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg64(cpu_env, tcg_ri, tmp64);
+            } else {
+                tcg_gen_st_i64(tmp64, cpu_env, ri->fieldoffset);
+            }
+            tcg_temp_free_i64(tmp64);
+        } else {
+            TCGv_i32 tmp = load_reg(s, rt);
+            if (ri->writefn) {
+                if (!tcg_ri) {
+                    tcg_ri = gen_lookup_cp_reg(key);
+                }
+                gen_helper_set_cp_reg(cpu_env, tcg_ri, tmp);
+                tcg_temp_free_i32(tmp);
+            } else {
+                store_cpu_offset(tmp, ri->fieldoffset, 4);
+            }
+        }
+    }
+
+    /* I/O operations must end the TB here (whether read or write) */
+    need_exit_tb = ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) &&
+                    (ri->type & ARM_CP_IO));
+
+    if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
+        /*
+         * A write to any coprocessor register that ends a TB
+         * must rebuild the hflags for the next TB.
+         */
+        gen_rebuild_hflags(s, ri->type & ARM_CP_NEWEL);
+        /*
+         * We default to ending the TB on a coprocessor register write,
+         * but allow this to be suppressed by the register definition
+         * (usually only necessary to work around guest bugs).
+         */
+        need_exit_tb = true;
+    }
+    if (need_exit_tb) {
+        gen_lookup_tb(s);
+    }
+
+ exit:
+    if (tcg_ri) {
+        tcg_temp_free_ptr(tcg_ri);
+    }
 }
 
 /* Decode XScale DSP or iWMMXt insn (in the copro space, cp=0 or 1) */

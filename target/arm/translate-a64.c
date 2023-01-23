@@ -1841,19 +1841,14 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
             goto do_unallocated;
         }
         if (sme_access_check(s)) {
-            bool i = crm & 1;
-            bool changed = false;
+            int old = s->pstate_sm | (s->pstate_za << 1);
+            int new = (crm & 1) * 3;
+            int msk = (crm >> 1) & 3;
 
-            if ((crm & 2) && i != s->pstate_sm) {
-                gen_helper_set_pstate_sm(cpu_env, tcg_constant_i32(i));
-                changed = true;
-            }
-            if ((crm & 4) && i != s->pstate_za) {
-                gen_helper_set_pstate_za(cpu_env, tcg_constant_i32(i));
-                changed = true;
-            }
-            if (changed) {
-                gen_rebuild_hflags(s);
+            if ((old ^ new) & msk) {
+                /* At least one bit changes. */
+                gen_helper_set_svcr(cpu_env, tcg_constant_i32(new),
+                                    tcg_constant_i32(msk));
             } else {
                 s->base.is_jmp = DISAS_NEXT;
             }
@@ -1944,12 +1939,11 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
                        unsigned int op0, unsigned int op1, unsigned int op2,
                        unsigned int crn, unsigned int crm, unsigned int rt)
 {
-    const ARMCPRegInfo *ri;
+    uint32_t key = ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP,
+                                      crn, crm, op0, op1, op2);
+    const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
+    TCGv_ptr tcg_ri = NULL;
     TCGv_i64 tcg_rt;
-
-    ri = get_arm_cp_reginfo(s->cp_regs,
-                            ENCODE_AA64_CP_REG(CP_REG_ARM64_SYSREG_CP,
-                                               crn, crm, op0, op1, op2));
 
     if (!ri) {
         /* Unknown register; this might be a guest error or a QEMU
@@ -1976,8 +1970,9 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
 
         syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
         gen_a64_update_pc(s, 0);
-        gen_helper_access_check_cp_reg(cpu_env,
-                                       tcg_constant_ptr(ri),
+        tcg_ri = tcg_temp_new_ptr();
+        gen_helper_access_check_cp_reg(tcg_ri, cpu_env,
+                                       tcg_constant_i32(key),
                                        tcg_constant_i32(syndrome),
                                        tcg_constant_i32(isread));
     } else if (ri->type & ARM_CP_RAISES_EXC) {
@@ -1993,7 +1988,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
     case 0:
         break;
     case ARM_CP_NOP:
-        return;
+        goto exit;
     case ARM_CP_NZCV:
         tcg_rt = cpu_reg(s, rt);
         if (isread) {
@@ -2001,14 +1996,14 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         } else {
             gen_set_nzcv(tcg_rt);
         }
-        return;
+        goto exit;
     case ARM_CP_CURRENTEL:
         /* Reads as current EL value from pstate, which is
          * guaranteed to be constant by the tb flags.
          */
         tcg_rt = cpu_reg(s, rt);
         tcg_gen_movi_i64(tcg_rt, s->current_el << 2);
-        return;
+        goto exit;
     case ARM_CP_DC_ZVA:
         /* Writes clear the aligned block of memory which rt points into. */
         if (s->mte_active[0]) {
@@ -2025,7 +2020,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
             tcg_rt = clean_data_tbi(s, cpu_reg(s, rt));
         }
         gen_helper_dc_zva(cpu_env, tcg_rt);
-        return;
+        goto exit;
     case ARM_CP_DC_GVA:
         {
             TCGv_i64 clean_addr, tag;
@@ -2046,7 +2041,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
                 tcg_temp_free_i64(tag);
             }
         }
-        return;
+        goto exit;
     case ARM_CP_DC_GZVA:
         {
             TCGv_i64 clean_addr, tag;
@@ -2064,16 +2059,16 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
                 tcg_temp_free_i64(tag);
             }
         }
-        return;
+        goto exit;
     default:
         g_assert_not_reached();
     }
     if ((ri->type & ARM_CP_FPU) && !fp_access_check_only(s)) {
-        return;
+        goto exit;
     } else if ((ri->type & ARM_CP_SVE) && !sve_access_check(s)) {
-        return;
+        goto exit;
     } else if ((ri->type & ARM_CP_SME) && !sme_access_check(s)) {
-        return;
+        goto exit;
     }
 
     if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
@@ -2086,16 +2081,22 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         if (ri->type & ARM_CP_CONST) {
             tcg_gen_movi_i64(tcg_rt, ri->resetvalue);
         } else if (ri->readfn) {
-            gen_helper_get_cp_reg64(tcg_rt, cpu_env, tcg_constant_ptr(ri));
+            if (!tcg_ri) {
+                tcg_ri = gen_lookup_cp_reg(key);
+            }
+            gen_helper_get_cp_reg64(tcg_rt, cpu_env, tcg_ri);
         } else {
             tcg_gen_ld_i64(tcg_rt, cpu_env, ri->fieldoffset);
         }
     } else {
         if (ri->type & ARM_CP_CONST) {
             /* If not forbidden by access permissions, treat as WI */
-            return;
+            goto exit;
         } else if (ri->writefn) {
-            gen_helper_set_cp_reg64(cpu_env, tcg_constant_ptr(ri), tcg_rt);
+            if (!tcg_ri) {
+                tcg_ri = gen_lookup_cp_reg(key);
+            }
+            gen_helper_set_cp_reg64(cpu_env, tcg_ri, tcg_rt);
         } else {
             tcg_gen_st_i64(tcg_rt, cpu_env, ri->fieldoffset);
         }
@@ -2117,6 +2118,11 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
          * (usually only necessary to work around guest bugs).
          */
         s->base.is_jmp = DISAS_UPDATE_EXIT;
+    }
+
+ exit:
+    if (tcg_ri) {
+        tcg_temp_free_ptr(tcg_ri);
     }
 }
 

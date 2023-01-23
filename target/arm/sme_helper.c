@@ -29,42 +29,9 @@
 #include "vec_internal.h"
 #include "sve_ldst_internal.h"
 
-/* ResetSVEState */
-void arm_reset_sve_state(CPUARMState *env)
+void helper_set_svcr(CPUARMState *env, uint32_t val, uint32_t mask)
 {
-    memset(env->vfp.zregs, 0, sizeof(env->vfp.zregs));
-    /* Recall that FFR is stored as pregs[16]. */
-    memset(env->vfp.pregs, 0, sizeof(env->vfp.pregs));
-    vfp_set_fpcr(env, 0x0800009f);
-}
-
-void helper_set_pstate_sm(CPUARMState *env, uint32_t i)
-{
-    if (i == FIELD_EX64(env->svcr, SVCR, SM)) {
-        return;
-    }
-    env->svcr ^= R_SVCR_SM_MASK;
-    arm_reset_sve_state(env);
-}
-
-void helper_set_pstate_za(CPUARMState *env, uint32_t i)
-{
-    if (i == FIELD_EX64(env->svcr, SVCR, ZA)) {
-        return;
-    }
-    env->svcr ^= R_SVCR_ZA_MASK;
-
-    /*
-     * ResetSMEState.
-     *
-     * SetPSTATE_ZA zeros on enable and disable.  We can zero this only
-     * on enable: while disabled, the storage is inaccessible and the
-     * value does not matter.  We're not saving the storage in vmstate
-     * when disabled either.
-     */
-    if (i) {
-        memset(env->zarray, 0, sizeof(env->zarray));
-    }
+    aarch64_set_svcr(env, val, mask);
 }
 
 void helper_sme_zero(CPUARMState *env, uint32_t imm, uint32_t svl)
