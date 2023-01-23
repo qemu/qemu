@@ -16,9 +16,15 @@ typedef uint32_t xs_transaction_t;
 
 #define XBT_NULL 0
 
+#define XS_PERM_NONE  0x00
+#define XS_PERM_READ  0x01
+#define XS_PERM_WRITE 0x02
+
 typedef struct XenstoreImplState XenstoreImplState;
 
-XenstoreImplState *xs_impl_create(void);
+XenstoreImplState *xs_impl_create(unsigned int dom_id);
+
+char *xs_perm_as_string(unsigned int perm, unsigned int domid);
 
 /*
  * These functions return *positive* error numbers. This is a little

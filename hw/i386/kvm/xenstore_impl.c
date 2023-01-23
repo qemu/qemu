@@ -12,6 +12,8 @@
 #include "qemu/osdep.h"
 #include "qom/object.h"
 
+#include "hw/xen/xen.h"
+
 #include "xen_xenstore.h"
 #include "xenstore_impl.h"
 
@@ -30,6 +32,7 @@
 typedef struct XsNode {
     uint32_t ref;
     GByteArray *content;
+    GList *perms;
     GHashTable *children;
     uint64_t gencnt;
     bool deleted_in_tx;
@@ -133,6 +136,9 @@ static inline void xs_node_unref(XsNode *n)
     if (n->content) {
         g_byte_array_unref(n->content);
     }
+    if (n->perms) {
+        g_list_free_full(n->perms, g_free);
+    }
     if (n->children) {
         g_hash_table_unref(n->children);
     }
@@ -144,8 +150,51 @@ static inline void xs_node_unref(XsNode *n)
     g_free(n);
 }
 
+char *xs_perm_as_string(unsigned int perm, unsigned int domid)
+{
+    char letter;
+
+    switch (perm) {
+    case XS_PERM_READ | XS_PERM_WRITE:
+        letter = 'b';
+        break;
+    case XS_PERM_READ:
+        letter = 'r';
+        break;
+    case XS_PERM_WRITE:
+        letter = 'w';
+        break;
+    case XS_PERM_NONE:
+    default:
+        letter = 'n';
+        break;
+    }
+
+    return g_strdup_printf("%c%u", letter, domid);
+}
+
+static gpointer do_perm_copy(gconstpointer src, gpointer user_data)
+{
+    return g_strdup(src);
+}
+
+static XsNode *xs_node_create(const char *name, GList *perms)
+{
+    XsNode *n = xs_node_new();
+
+#ifdef XS_NODE_UNIT_TEST
+    if (name) {
+        n->name = g_strdup(name);
+    }
+#endif
+
+    n->perms = g_list_copy_deep(perms, do_perm_copy, NULL);
+
+    return n;
+}
+
 /* For copying from one hash table to another using g_hash_table_foreach() */
-static void do_insert(gpointer key, gpointer value, gpointer user_data)
+static void do_child_insert(gpointer key, gpointer value, gpointer user_data)
 {
     g_hash_table_insert(user_data, g_strdup(key), xs_node_ref(value));
 }
@@ -162,12 +211,16 @@ static XsNode *xs_node_copy(XsNode *old)
     }
 #endif
 
+    assert(old);
     if (old->children) {
         n->children = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
                                             (GDestroyNotify)xs_node_unref);
-        g_hash_table_foreach(old->children, do_insert, n->children);
+        g_hash_table_foreach(old->children, do_child_insert, n->children);
     }
-    if (old && old->content) {
+    if (old->perms) {
+        n->perms = g_list_copy_deep(old->perms, do_perm_copy, NULL);
+    }
+    if (old->content) {
         n->content = g_byte_array_ref(old->content);
     }
     return n;
@@ -383,6 +436,9 @@ static XsNode *xs_node_copy_deleted(XsNode *old, struct walk_op *op)
         op->op_opaque2 = n->children;
         g_hash_table_foreach(old->children, copy_deleted_recurse, op);
     }
+    if (old->perms) {
+        n->perms = g_list_copy_deep(old->perms, do_perm_copy, NULL);
+    }
     n->deleted_in_tx = true;
     /* If it gets resurrected we only fire a watch if it lost its content */
     if (old->content) {
@@ -414,6 +470,104 @@ static int xs_node_rm(XsNode **n, struct walk_op *op)
         xs_node_unref(*n);
     }
     *n = NULL;
+    return 0;
+}
+
+static int xs_node_get_perms(XsNode **n, struct walk_op *op)
+{
+    GList **perms = op->op_opaque;
+
+    assert(op->inplace);
+    assert(*n);
+
+    *perms = g_list_copy_deep((*n)->perms, do_perm_copy, NULL);
+    return 0;
+}
+
+static void parse_perm(const char *perm, char *letter, unsigned int *dom_id)
+{
+    unsigned int n = sscanf(perm, "%c%u", letter, dom_id);
+
+    assert(n == 2);
+}
+
+static bool can_access(unsigned int dom_id, GList *perms, const char *letters)
+{
+    unsigned int i, n;
+    char perm_letter;
+    unsigned int perm_dom_id;
+    bool access;
+
+    if (dom_id == 0) {
+        return true;
+    }
+
+    n = g_list_length(perms);
+    assert(n >= 1);
+
+    /*
+     * The dom_id of the first perm is the owner, and the owner always has
+     * read-write access.
+     */
+    parse_perm(g_list_nth_data(perms, 0), &perm_letter, &perm_dom_id);
+    if (dom_id == perm_dom_id) {
+        return true;
+    }
+
+    /*
+     * The letter of the first perm specified the default access for all other
+     * domains.
+     */
+    access = !!strchr(letters, perm_letter);
+    for (i = 1; i < n; i++) {
+        parse_perm(g_list_nth_data(perms, i), &perm_letter, &perm_dom_id);
+        if (dom_id != perm_dom_id) {
+            continue;
+        }
+        access = !!strchr(letters, perm_letter);
+    }
+
+    return access;
+}
+
+static int xs_node_set_perms(XsNode **n, struct walk_op *op)
+{
+    GList *perms = op->op_opaque;
+
+    if (op->dom_id) {
+        unsigned int perm_dom_id;
+        char perm_letter;
+
+        /* A guest may not change permissions on nodes it does not own */
+        if (!can_access(op->dom_id, (*n)->perms, "")) {
+            return EPERM;
+        }
+
+        /* A guest may not change the owner of a node it owns. */
+        parse_perm(perms->data, &perm_letter, &perm_dom_id);
+        if (perm_dom_id != op->dom_id) {
+            return EPERM;
+        }
+
+        if (g_list_length(perms) > XS_MAX_PERMS_PER_NODE) {
+            return ENOSPC;
+        }
+    }
+
+    /* We *are* the node to be written. Either this or a copy. */
+    if (!op->inplace) {
+        XsNode *old = *n;
+        *n = xs_node_copy(old);
+        xs_node_unref(old);
+    }
+
+    if ((*n)->perms) {
+        g_list_free_full((*n)->perms, g_free);
+    }
+    (*n)->perms = g_list_copy_deep(perms, do_perm_copy, NULL);
+    if (op->tx_id != XBT_NULL) {
+        (*n)->modified_in_tx = true;
+    }
     return 0;
 }
 
@@ -458,6 +612,13 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
     }
 
     if (!child_name) {
+        const char *letters = op->mutating ? "wb" : "rb";
+
+        if (!can_access(op->dom_id, old->perms, letters)) {
+            err = EACCES;
+            goto out;
+        }
+
         /* This is the actual node on which the operation shall be performed */
         err = op->op_fn(n, op);
         if (!err) {
@@ -491,12 +652,20 @@ static int xs_node_walk(XsNode **n, struct walk_op *op)
             stole_child = true;
         }
     } else if (op->create_dirs) {
+        assert(op->mutating);
+
+        if (!can_access(op->dom_id, old->perms, "wb")) {
+            err = EACCES;
+            goto out;
+        }
+
         if (op->dom_id && op->new_nr_nodes >= XS_MAX_DOMAIN_NODES) {
             err = ENOSPC;
             goto out;
         }
+
+        child = xs_node_create(child_name, old->perms);
         op->new_nr_nodes++;
-        child = xs_node_new();
 
         /*
          * If we're creating a new child, we can clearly modify it (and its
@@ -918,20 +1087,73 @@ int xs_impl_rm(XenstoreImplState *s, unsigned int dom_id,
 int xs_impl_get_perms(XenstoreImplState *s, unsigned int dom_id,
                       xs_transaction_t tx_id, const char *path, GList **perms)
 {
-    /*
-     * The perms are (char *) in the <perm-as-string> wire format to be
-     * freed by the caller.
-     */
-    return ENOSYS;
+    struct walk_op op;
+    XsNode **n;
+    int ret;
+
+    ret = init_walk_op(s, &op, tx_id, dom_id, path, &n);
+    if (ret) {
+        return ret;
+    }
+    op.op_fn = xs_node_get_perms;
+    op.op_opaque = perms;
+    return xs_node_walk(n, &op);
+}
+
+static void is_valid_perm(gpointer data, gpointer user_data)
+{
+    char *perm = data;
+    bool *valid = user_data;
+    char letter;
+    unsigned int dom_id;
+
+    if (!*valid) {
+        return;
+    }
+
+    if (sscanf(perm, "%c%u", &letter, &dom_id) != 2) {
+        *valid = false;
+        return;
+    }
+
+    switch (letter) {
+    case 'n':
+    case 'r':
+    case 'w':
+    case 'b':
+        break;
+
+    default:
+        *valid = false;
+        break;
+    }
 }
 
 int xs_impl_set_perms(XenstoreImplState *s, unsigned int dom_id,
                       xs_transaction_t tx_id, const char *path, GList *perms)
 {
-    /*
-     * The perms are (const char *) in the <perm-as-string> wire format.
-     */
-    return ENOSYS;
+    struct walk_op op;
+    XsNode **n;
+    bool valid = true;
+    int ret;
+
+    if (!g_list_length(perms)) {
+        return EINVAL;
+    }
+
+    g_list_foreach(perms, is_valid_perm, &valid);
+    if (!valid) {
+        return EINVAL;
+    }
+
+    ret = init_walk_op(s, &op, tx_id, dom_id, path, &n);
+    if (ret) {
+        return ret;
+    }
+    op.op_fn = xs_node_set_perms;
+    op.op_opaque = perms;
+    op.mutating = true;
+    return xs_node_walk(n, &op);
 }
 
 int xs_impl_watch(XenstoreImplState *s, unsigned int dom_id, const char *path,
@@ -1122,18 +1344,19 @@ static void xs_tx_free(void *_tx)
     g_free(tx);
 }
 
-XenstoreImplState *xs_impl_create(void)
+XenstoreImplState *xs_impl_create(unsigned int dom_id)
 {
     XenstoreImplState *s = g_new0(XenstoreImplState, 1);
+    GList *perms;
 
     s->watches = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
     s->transactions = g_hash_table_new_full(g_direct_hash, g_direct_equal,
                                             NULL, xs_tx_free);
+
+    perms = g_list_append(NULL, xs_perm_as_string(XS_PERM_NONE, 0));
+    s->root = xs_node_create("/", perms);
+    g_list_free_full(perms, g_free);
     s->nr_nodes = 1;
-    s->root = xs_node_new();
-#ifdef XS_NODE_UNIT_TEST
-    s->root->name = g_strdup("/");
-#endif
 
     s->root_tx = s->last_tx = 1;
     return s;

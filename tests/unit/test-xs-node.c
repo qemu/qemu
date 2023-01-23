@@ -80,8 +80,9 @@ static void watch_cb(void *_str, const char *path, const char *token)
 
 static XenstoreImplState *setup(void)
 {
-   XenstoreImplState *s = xs_impl_create();
+   XenstoreImplState *s = xs_impl_create(DOMID_GUEST);
    char *abspath;
+   GList *perms;
    int err;
 
    abspath = g_strdup_printf("/local/domain/%u", DOMID_GUEST);
@@ -90,6 +91,13 @@ static XenstoreImplState *setup(void)
    g_assert(!err);
    g_assert(s->nr_nodes == 4);
 
+   perms = g_list_append(NULL, g_strdup_printf("n%u", DOMID_QEMU));
+   perms = g_list_append(perms, g_strdup_printf("r%u", DOMID_GUEST));
+
+   err = xs_impl_set_perms(s, DOMID_QEMU, XBT_NULL, abspath, perms);
+   g_assert(!err);
+
+   g_list_free_full(perms, g_free);
    g_free(abspath);
 
    abspath = g_strdup_printf("/local/domain/%u/some", DOMID_GUEST);
@@ -98,6 +106,12 @@ static XenstoreImplState *setup(void)
    g_assert(!err);
    g_assert(s->nr_nodes == 5);
 
+   perms = g_list_append(NULL, g_strdup_printf("n%u", DOMID_GUEST));
+
+   err = xs_impl_set_perms(s, DOMID_QEMU, XBT_NULL, abspath, perms);
+   g_assert(!err);
+
+   g_list_free_full(perms, g_free);
    g_free(abspath);
 
    return s;
@@ -166,6 +180,12 @@ static void test_xs_node_simple(void)
     /* Keep a copy, to force COW mode */
     old_root = xs_node_ref(s->root);
 
+    /* Write somewhere we aren't allowed, in COW mode */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "/local/domain/badplace",
+                    "moredata");
+    g_assert(err == EACCES);
+    g_assert(s->nr_nodes == 7);
+
     /* Write works again */
     err = write_str(s, DOMID_GUEST, XBT_NULL,
                     "/local/domain/1/some/relative/path2",
@@ -225,6 +245,11 @@ static void test_xs_node_simple(void)
     err = write_str(s, DOMID_GUEST, XBT_NULL, "some/relative", "moredata");
     g_assert(!err);
     g_assert(s->nr_nodes == 8);
+
+    /* Write somewhere we aren't allowed */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "/local/domain/badplace",
+                    "moredata");
+    g_assert(err == EACCES);
 
     g_assert(!strcmp(guest_watches->str,
                      "/local/domain/1/some/relativewatchrel"));

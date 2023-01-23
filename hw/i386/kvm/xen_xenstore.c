@@ -98,7 +98,7 @@ static void xen_xenstore_realize(DeviceState *dev, Error **errp)
     aio_set_fd_handler(qemu_get_aio_context(), xen_be_evtchn_fd(s->eh), true,
                        xen_xenstore_event, NULL, NULL, NULL, s);
 
-    s->impl = xs_impl_create();
+    s->impl = xs_impl_create(xen_domid);
 }
 
 static bool xen_xenstore_is_needed(void *opaque)
