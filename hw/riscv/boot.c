@@ -356,6 +356,15 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
         reset_vec[4] = 0x0182b283;   /*     ld     t0, 24(t0) */
     }
 
+    if (!harts->harts[0].cfg.ext_icsr) {
+        /*
+         * The Zicsr extension has been disabled, so let's ensure we don't
+         * run the CSR instruction. Let's fill the address with a non
+         * compressed nop.
+         */
+        reset_vec[2] = 0x00000013;   /*     addi   x0, x0, 0 */
+    }
+
     /* copy in the reset vector in little_endian byte order */
     for (i = 0; i < ARRAY_SIZE(reset_vec); i++) {
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
