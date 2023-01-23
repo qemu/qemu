@@ -28,8 +28,10 @@
 #include "monitor/monitor.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-audio.h"
+#include "qapi/qapi-commands-audio.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "qemu/help_option.h"
@@ -2310,4 +2312,14 @@ size_t audio_rate_get_bytes(RateCtl *rate, struct audio_pcm_info *info,
     audio_rate_add_bytes(rate, bytes);
 
     return bytes;
+}
+
+AudiodevList *qmp_query_audiodevs(Error **errp)
+{
+    AudiodevList *ret = NULL;
+    AudiodevListEntry *e;
+    QSIMPLEQ_FOREACH(e, &audiodevs, next) {
+        QAPI_LIST_PREPEND(ret, QAPI_CLONE(Audiodev, e->dev));
+    }
+    return ret;
 }
