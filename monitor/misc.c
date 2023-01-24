@@ -49,7 +49,6 @@
 #include "exec/ioport.h"
 #include "block/qapi.h"
 #include "block/block-hmp-cmds.h"
-#include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -1362,29 +1361,6 @@ static void add_completion_option(ReadLineState *rs, const char *str,
     }
 }
 
-void chardev_add_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-    ChardevBackendInfoList *list, *start;
-
-    if (nb_args != 2) {
-        return;
-    }
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-
-    start = list = qmp_query_chardev_backends(NULL);
-    while (list) {
-        const char *chr_name = list->value->name;
-
-        if (!strncmp(chr_name, str, len)) {
-            readline_add_completion(rs, chr_name);
-        }
-        list = list->next;
-    }
-    qapi_free_ChardevBackendInfoList(start);
-}
-
 void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
@@ -1496,60 +1472,6 @@ static void peripheral_device_del_completion(ReadLineState *rs,
     }
 
     g_slist_free(list);
-}
-
-void chardev_remove_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-    ChardevInfoList *list, *start;
-
-    if (nb_args != 2) {
-        return;
-    }
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-
-    start = list = qmp_query_chardev(NULL);
-    while (list) {
-        ChardevInfo *chr = list->value;
-
-        if (!strncmp(chr->label, str, len)) {
-            readline_add_completion(rs, chr->label);
-        }
-        list = list->next;
-    }
-    qapi_free_ChardevInfoList(start);
-}
-
-static void ringbuf_completion(ReadLineState *rs, const char *str)
-{
-    size_t len;
-    ChardevInfoList *list, *start;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-
-    start = list = qmp_query_chardev(NULL);
-    while (list) {
-        ChardevInfo *chr_info = list->value;
-
-        if (!strncmp(chr_info->label, str, len)) {
-            Chardev *chr = qemu_chr_find(chr_info->label);
-            if (chr && CHARDEV_IS_RINGBUF(chr)) {
-                readline_add_completion(rs, chr_info->label);
-            }
-        }
-        list = list->next;
-    }
-    qapi_free_ChardevInfoList(start);
-}
-
-void ringbuf_write_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    if (nb_args != 2) {
-        return;
-    }
-    ringbuf_completion(rs, str);
 }
 
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
