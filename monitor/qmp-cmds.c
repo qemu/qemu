@@ -24,7 +24,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-acpi.h"
 #include "qapi/qapi-commands-control.h"
-#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-stats.h"
 #include "qapi/type-helpers.h"
@@ -39,24 +38,6 @@ NameInfo *qmp_query_name(Error **errp)
     NameInfo *info = g_malloc0(sizeof(*info));
 
     info->name = g_strdup(qemu_name);
-    return info;
-}
-
-KvmInfo *qmp_query_kvm(Error **errp)
-{
-    KvmInfo *info = g_malloc0(sizeof(*info));
-
-    info->enabled = kvm_enabled();
-    info->present = accel_find("kvm");
-
-    return info;
-}
-
-UuidInfo *qmp_query_uuid(Error **errp)
-{
-    UuidInfo *info = g_malloc0(sizeof(*info));
-
-    info->UUID = qemu_uuid_unparse_strdup(&qemu_uuid);
     return info;
 }
 
@@ -80,16 +61,6 @@ void qmp_stop(Error **errp)
     } else {
         vm_stop(RUN_STATE_PAUSED);
     }
-}
-
-void qmp_system_reset(Error **errp)
-{
-    qemu_system_reset_request(SHUTDOWN_CAUSE_HOST_QMP_SYSTEM_RESET);
-}
-
-void qmp_system_powerdown(Error **errp)
-{
-    qemu_system_powerdown_request();
 }
 
 void qmp_cont(Error **errp)
@@ -145,17 +116,6 @@ void qmp_cont(Error **errp)
     }
 }
 
-void qmp_system_wakeup(Error **errp)
-{
-    if (!qemu_wakeup_suspend_enabled()) {
-        error_setg(errp,
-                   "wake-up from suspend is not supported by this guest");
-        return;
-    }
-
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, errp);
-}
-
 void qmp_add_client(const char *protocol, const char *fdname,
                     bool has_skipauth, bool skipauth, bool has_tls, bool tls,
                     Error **errp)
@@ -196,11 +156,6 @@ void qmp_add_client(const char *protocol, const char *fdname,
     }
 }
 
-MemoryDeviceInfoList *qmp_query_memory_devices(Error **errp)
-{
-    return qmp_memory_device_list();
-}
-
 ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
 {
     bool ambig;
@@ -218,101 +173,6 @@ ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
     }
 
     return head;
-}
-
-MemoryInfo *qmp_query_memory_size_summary(Error **errp)
-{
-    MemoryInfo *mem_info = g_new0(MemoryInfo, 1);
-    MachineState *ms = MACHINE(qdev_get_machine());
-
-    mem_info->base_memory = ms->ram_size;
-
-    mem_info->plugged_memory = get_plugged_memory_size();
-    mem_info->has_plugged_memory =
-        mem_info->plugged_memory != (uint64_t)-1;
-
-    return mem_info;
-}
-
-static int qmp_x_query_rdma_foreach(Object *obj, void *opaque)
-{
-    RdmaProvider *rdma;
-    RdmaProviderClass *k;
-    GString *buf = opaque;
-
-    if (object_dynamic_cast(obj, INTERFACE_RDMA_PROVIDER)) {
-        rdma = RDMA_PROVIDER(obj);
-        k = RDMA_PROVIDER_GET_CLASS(obj);
-        if (k->format_statistics) {
-            k->format_statistics(rdma, buf);
-        } else {
-            g_string_append_printf(buf,
-                                   "RDMA statistics not available for %s.\n",
-                                   object_get_typename(obj));
-        }
-    }
-
-    return 0;
-}
-
-HumanReadableText *qmp_x_query_rdma(Error **errp)
-{
-    g_autoptr(GString) buf = g_string_new("");
-
-    object_child_foreach_recursive(object_get_root(),
-                                   qmp_x_query_rdma_foreach, buf);
-
-    return human_readable_text_from_str(buf);
-}
-
-HumanReadableText *qmp_x_query_ramblock(Error **errp)
-{
-    g_autoptr(GString) buf = ram_block_format();
-
-    return human_readable_text_from_str(buf);
-}
-
-static int qmp_x_query_irq_foreach(Object *obj, void *opaque)
-{
-    InterruptStatsProvider *intc;
-    InterruptStatsProviderClass *k;
-    GString *buf = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
-        intc = INTERRUPT_STATS_PROVIDER(obj);
-        k = INTERRUPT_STATS_PROVIDER_GET_CLASS(obj);
-        uint64_t *irq_counts;
-        unsigned int nb_irqs, i;
-        if (k->get_statistics &&
-            k->get_statistics(intc, &irq_counts, &nb_irqs)) {
-            if (nb_irqs > 0) {
-                g_string_append_printf(buf, "IRQ statistics for %s:\n",
-                                       object_get_typename(obj));
-                for (i = 0; i < nb_irqs; i++) {
-                    if (irq_counts[i] > 0) {
-                        g_string_append_printf(buf, "%2d: %" PRId64 "\n", i,
-                                               irq_counts[i]);
-                    }
-                }
-            }
-        } else {
-            g_string_append_printf(buf,
-                                   "IRQ statistics not available for %s.\n",
-                                   object_get_typename(obj));
-        }
-    }
-
-    return 0;
-}
-
-HumanReadableText *qmp_x_query_irq(Error **errp)
-{
-    g_autoptr(GString) buf = g_string_new("");
-
-    object_child_foreach_recursive(object_get_root(),
-                                   qmp_x_query_irq_foreach, buf);
-
-    return human_readable_text_from_str(buf);
 }
 
 typedef struct StatsCallbacks {
