@@ -27,14 +27,12 @@
 #include "monitor/qdev.h"
 #include "net/slirp.h"
 #include "sysemu/device_tree.h"
-#include "qapi/qmp/qerror.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-machine.h"
-#include "qapi/qapi-init-commands.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 
@@ -47,34 +45,6 @@
 #include CONFIG_DEVICES
 
 static HMPCommand hmp_info_cmds[];
-
-char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
-                                int64_t cpu_index, Error **errp)
-{
-    char *output = NULL;
-    MonitorHMP hmp = {};
-
-    monitor_data_init(&hmp.common, false, true, false);
-
-    if (has_cpu_index) {
-        int ret = monitor_set_cpu(&hmp.common, cpu_index);
-        if (ret < 0) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                       "a CPU number");
-            goto out;
-        }
-    }
-
-    handle_hmp_command(&hmp, command_line);
-
-    WITH_QEMU_LOCK_GUARD(&hmp.common.mon_lock) {
-        output = g_strdup(hmp.common.outbuf->str);
-    }
-
-out:
-    monitor_data_destroy(&hmp.common);
-    return output;
-}
 
 /**
  * Is @name in the '|' separated list of names @list?
@@ -97,26 +67,6 @@ int hmp_compare_cmd(const char *name, const char *list)
         p++;
     }
     return 0;
-}
-
-static void monitor_init_qmp_commands(void)
-{
-    /*
-     * Two command lists:
-     * - qmp_commands contains all QMP commands
-     * - qmp_cap_negotiation_commands contains just
-     *   "qmp_capabilities", to enforce capability negotiation
-     */
-
-    qmp_init_marshal(&qmp_commands);
-
-    qmp_register_command(&qmp_commands, "device_add",
-                         qmp_device_add, 0, 0);
-
-    QTAILQ_INIT(&qmp_cap_negotiation_commands);
-    qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
-                         qmp_marshal_qmp_capabilities,
-                         QCO_ALLOW_PRECONFIG, 0);
 }
 
 /* Please update hmp-commands.hx when adding or changing commands */
@@ -230,6 +180,5 @@ void monitor_register_hmp_info_hrt(const char *name,
 void monitor_init_globals(void)
 {
     monitor_init_globals_core();
-    monitor_init_qmp_commands();
     sortcmdlist();
 }

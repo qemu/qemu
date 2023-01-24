@@ -14,7 +14,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "monitor/monitor.h"
+#include "monitor-internal.h"
+#include "monitor/qdev.h"
 #include "monitor/qmp-helpers.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
@@ -22,8 +23,10 @@
 #include "sysemu/runstate-action.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qapi/qapi-init-commands.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/type-helpers.h"
 #include "hw/mem/memory-device.h"
 #include "hw/intc/intc.h"
@@ -150,4 +153,52 @@ void qmp_add_client(const char *protocol, const char *fdname,
                              protocol, errp)) {
         close(fd);
     }
+}
+
+char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
+                                int64_t cpu_index, Error **errp)
+{
+    char *output = NULL;
+    MonitorHMP hmp = {};
+
+    monitor_data_init(&hmp.common, false, true, false);
+
+    if (has_cpu_index) {
+        int ret = monitor_set_cpu(&hmp.common, cpu_index);
+        if (ret < 0) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                       "a CPU number");
+            goto out;
+        }
+    }
+
+    handle_hmp_command(&hmp, command_line);
+
+    WITH_QEMU_LOCK_GUARD(&hmp.common.mon_lock) {
+        output = g_strdup(hmp.common.outbuf->str);
+    }
+
+out:
+    monitor_data_destroy(&hmp.common);
+    return output;
+}
+
+static void __attribute__((__constructor__)) monitor_init_qmp_commands(void)
+{
+    /*
+     * Two command lists:
+     * - qmp_commands contains all QMP commands
+     * - qmp_cap_negotiation_commands contains just
+     *   "qmp_capabilities", to enforce capability negotiation
+     */
+
+    qmp_init_marshal(&qmp_commands);
+
+    qmp_register_command(&qmp_commands, "device_add",
+                         qmp_device_add, 0, 0);
+
+    QTAILQ_INIT(&qmp_cap_negotiation_commands);
+    qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
+                         qmp_marshal_qmp_capabilities,
+                         QCO_ALLOW_PRECONFIG, 0);
 }
