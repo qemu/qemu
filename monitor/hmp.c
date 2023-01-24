@@ -272,7 +272,7 @@ static void help_cmd_dump(Monitor *mon, const HMPCommand *cmds,
     }
 }
 
-void help_cmd(Monitor *mon, const char *name)
+void hmp_help_cmd(Monitor *mon, const char *name)
 {
     char *args[MAX_ARGS];
     int nb_args = 0;

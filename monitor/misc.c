@@ -153,7 +153,7 @@ int hmp_compare_cmd(const char *name, const char *list)
 
 static void do_help_cmd(Monitor *mon, const QDict *qdict)
 {
-    help_cmd(mon, qdict_get_try_str(qdict, "name"));
+    hmp_help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
 
 static void hmp_trace_event(Monitor *mon, const QDict *qdict)
@@ -195,14 +195,14 @@ static void hmp_trace_file(Monitor *mon, const QDict *qdict)
         }
     } else {
         monitor_printf(mon, "unexpected argument \"%s\"\n", op);
-        help_cmd(mon, "trace-file");
+        hmp_help_cmd(mon, "trace-file");
     }
 }
 #endif
 
 static void hmp_info_help(Monitor *mon, const QDict *qdict)
 {
-    help_cmd(mon, "info");
+    hmp_help_cmd(mon, "info");
 }
 
 static void monitor_init_qmp_commands(void)
@@ -424,7 +424,7 @@ static void hmp_log(Monitor *mon, const QDict *qdict)
     } else {
         mask = qemu_str_to_log_mask(items);
         if (!mask) {
-            help_cmd(mon, "log");
+            hmp_help_cmd(mon, "log");
             return;
         }
     }
