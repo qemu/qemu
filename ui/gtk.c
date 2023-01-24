@@ -1358,9 +1358,9 @@ static void gd_menu_show_menubar(GtkMenuItem *item, void *opaque)
 
     if (gtk_check_menu_item_get_active(
                 GTK_CHECK_MENU_ITEM(s->show_menubar_item))) {
-        gtk_widget_show(s->menu_bar);
+        gtk_widget_set_visible(s->menu_bar, TRUE);
     } else {
-        gtk_widget_hide(s->menu_bar);
+        gtk_widget_set_visible(s->menu_bar, FALSE);
     }
     gd_update_windowsize(vc);
 }
@@ -1378,7 +1378,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
 
     if (!s->full_screen) {
         gtk_notebook_set_show_tabs(GTK_NOTEBOOK(s->notebook), FALSE);
-        gtk_widget_hide(s->menu_bar);
+        gtk_widget_set_visible(s->menu_bar, FALSE);
         if (vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
         }
@@ -1389,7 +1389,7 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         gd_menu_show_tabs(GTK_MENU_ITEM(s->show_tabs_item), s);
         if (gtk_check_menu_item_get_active(
                     GTK_CHECK_MENU_ITEM(s->show_menubar_item))) {
-            gtk_widget_show(s->menu_bar);
+            gtk_widget_set_visible(s->menu_bar, TRUE);
         }
         s->full_screen = FALSE;
         if (vc->type == GD_VC_GFX) {
@@ -1712,9 +1712,9 @@ static void gd_vc_adjustment_changed(GtkAdjustment *adjustment, void *opaque)
 
     if (gtk_adjustment_get_upper(adjustment) >
         gtk_adjustment_get_page_size(adjustment)) {
-        gtk_widget_show(vc->vte.scrollbar);
+        gtk_widget_set_visible(vc->vte.scrollbar, TRUE);
     } else {
-        gtk_widget_hide(vc->vte.scrollbar);
+        gtk_widget_set_visible(vc->vte.scrollbar, FALSE);
     }
 }
 
@@ -2350,7 +2350,7 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     gtk_widget_show_all(s->window);
     if (opts->u.gtk.has_show_menubar &&
         !opts->u.gtk.show_menubar) {
-        gtk_widget_hide(s->menu_bar);
+        gtk_widget_set_visible(s->menu_bar, FALSE);
     }
 
     vc = gd_vc_find_current(s);
