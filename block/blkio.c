@@ -19,6 +19,8 @@
 #include "qemu/module.h"
 #include "exec/memory.h" /* for ram_block_discard_disable() */
 
+#include "block/block-io.h"
+
 /*
  * Keep the QEMU BlockDriver names identical to the libblkio driver names.
  * Using macros instead of typing out the string literals avoids typos.
