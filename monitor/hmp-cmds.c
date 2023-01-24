@@ -21,17 +21,14 @@
 #include "qemu/help_option.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
-#include "qapi/clone-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-commands-net.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-stats.h"
 #include "qapi/qapi-commands-tpm.h"
 #include "qapi/qapi-commands-virtio.h"
-#include "qapi/qapi-visit-net.h"
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
@@ -575,16 +572,6 @@ void hmp_cont(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_set_link(Monitor *mon, const QDict *qdict)
-{
-    const char *name = qdict_get_str(qdict, "name");
-    bool up = qdict_get_bool(qdict, "up");
-    Error *err = NULL;
-
-    qmp_set_link(name, up, &err);
-    hmp_handle_error(mon, err);
-}
-
 void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
     int saved_vm_running  = runstate_is_running();
@@ -615,21 +602,6 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
 
     delete_snapshot(name, false, NULL, &err);
     hmp_handle_error(mon, err);
-}
-
-void hmp_announce_self(Monitor *mon, const QDict *qdict)
-{
-    const char *interfaces_str = qdict_get_try_str(qdict, "interfaces");
-    const char *id = qdict_get_try_str(qdict, "id");
-    AnnounceParameters *params = QAPI_CLONE(AnnounceParameters,
-                                            migrate_announce_params());
-
-    qapi_free_strList(params->interfaces);
-    params->interfaces = hmp_split_at_comma(interfaces_str);
-    params->has_interfaces = params->interfaces != NULL;
-    params->id = g_strdup(id);
-    qmp_announce_self(params, NULL);
-    qapi_free_AnnounceParameters(params);
 }
 
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
@@ -994,39 +966,6 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
                                           status);
         timer_mod(status->timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     }
-}
-
-void hmp_netdev_add(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    QemuOpts *opts;
-    const char *type = qdict_get_try_str(qdict, "type");
-
-    if (type && is_help_option(type)) {
-        show_netdevs();
-        return;
-    }
-    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
-    if (err) {
-        goto out;
-    }
-
-    netdev_add(opts, &err);
-    if (err) {
-        qemu_opts_del(opts);
-    }
-
-out:
-    hmp_handle_error(mon, err);
-}
-
-void hmp_netdev_del(Monitor *mon, const QDict *qdict)
-{
-    const char *id = qdict_get_str(qdict, "id");
-    Error *err = NULL;
-
-    qmp_netdev_del(id, &err);
-    hmp_handle_error(mon, err);
 }
 
 void hmp_getfd(Monitor *mon, const QDict *qdict)

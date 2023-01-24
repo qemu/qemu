@@ -1268,21 +1268,6 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
     return ret;
 }
 
-void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-    int i;
-
-    if (nb_args != 2) {
-        return;
-    }
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    for (i = 0; i < NET_CLIENT_DRIVER__MAX; i++) {
-        readline_add_completion_of(rs, str, NetClientDriver_str(i));
-    }
-}
-
 void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     GSList *list, *elt;
@@ -1363,47 +1348,6 @@ void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     readline_set_completion_index(rs, strlen(str));
     peripheral_device_del_completion(rs, str);
-}
-
-void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    if (nb_args == 2) {
-        NetClientState *ncs[MAX_QUEUE_NUM];
-        int count, i;
-        count = qemu_find_net_clients_except(NULL, ncs,
-                                             NET_CLIENT_DRIVER_NONE,
-                                             MAX_QUEUE_NUM);
-        for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
-            readline_add_completion_of(rs, str, ncs[i]->name);
-        }
-    } else if (nb_args == 3) {
-        readline_add_completion_of(rs, str, "on");
-        readline_add_completion_of(rs, str, "off");
-    }
-}
-
-void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    int len, count, i;
-    NetClientState *ncs[MAX_QUEUE_NUM];
-
-    if (nb_args != 2) {
-        return;
-    }
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_DRIVER_NIC,
-                                         MAX_QUEUE_NUM);
-    for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
-        if (ncs[i]->is_netdev) {
-            readline_add_completion_of(rs, str, ncs[i]->name);
-        }
-    }
 }
 
 void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
