@@ -101,3 +101,90 @@ depending on the guest architecture.
 
 A number of features are are only available when running under
 emulation including :ref:`Record/Replay<replay>` and :ref:`TCG Plugins`.
+
+.. _Semihosting:
+
+Semihosting
+-----------
+
+Semihosting is a feature defined by the owner of the architecture to
+allow programs to interact with a debugging host system. On real
+hardware this is usually provided by an In-circuit emulator (ICE)
+hooked directly to the board. QEMU's implementation allows for
+semihosting calls to be passed to the host system or via the
+``gdbstub``.
+
+Generally semihosting makes it easier to bring up low level code before a
+more fully functional operating system has been enabled. On QEMU it
+also allows for embedded micro-controller code which typically doesn't
+have a full libc to be run as "bare-metal" code under QEMU's user-mode
+emulation. It is also useful for writing test cases and indeed a
+number of compiler suites as well as QEMU itself use semihosting calls
+to exit test code while reporting the success state.
+
+Semihosting is only available using TCG emulation. This is because the
+instructions to trigger a semihosting call are typically reserved
+causing most hypervisors to trap and fault on them.
+
+.. warning::
+   Semihosting inherently bypasses any isolation there may be between
+   the guest and the host. As a result a program using semihosting can
+   happily trash your host system. You should only ever run trusted
+   code with semihosting enabled.
+
+Redirection
+~~~~~~~~~~~
+
+Semihosting calls can be re-directed to a (potentially remote) gdb
+during debugging via the :ref:`gdbstub<GDB usage>`. Output to the
+semihosting console is configured as a ``chardev`` so can be
+redirected to a file, pipe or socket like any other ``chardev``
+device.
+
+Supported Targets
+~~~~~~~~~~~~~~~~~
+
+Most targets offer similar semihosting implementations with some
+minor changes to define the appropriate instruction to encode the
+semihosting call and which registers hold the parameters. They tend to
+presents a simple POSIX-like API which allows your program to read and
+write files, access the console and some other basic interactions.
+
+For full details of the ABI for a particular target, and the set of
+calls it provides, you should consult the semihosting specification
+for that architecture.
+
+.. note::
+   QEMU makes an implementation decision to implement all file
+   access in ``O_BINARY`` mode. The user-visible effect of this is
+   regardless of the text/binary mode the program sets QEMU will
+   always select a binary mode ensuring no line-terminator conversion
+   is performed on input or output. This is because gdb semihosting
+   support doesn't make the distinction between the modes and
+   magically processing line endings can be confusing.
+
+.. list-table:: Guest Architectures supporting Semihosting
+  :widths: 10 10 80
+  :header-rows: 1
+
+  * - Architecture
+    - Modes
+    - Specification
+  * - Arm
+    - System and User-mode
+    - https://github.com/ARM-software/abi-aa/blob/main/semihosting/semihosting.rst
+  * - m68k
+    - System
+    - https://sourceware.org/git/?p=newlib-cygwin.git;a=blob;f=libgloss/m68k/m68k-semi.txt;hb=HEAD
+  * - MIPS
+    - System
+    - Unified Hosting Interface (MD01069)
+  * - Nios II
+    - System
+    - https://sourceware.org/git/gitweb.cgi?p=newlib-cygwin.git;a=blob;f=libgloss/nios2/nios2-semi.txt;hb=HEAD
+  * - RISC-V
+    - System and User-mode
+    - https://github.com/riscv/riscv-semihosting-spec/blob/main/riscv-semihosting-spec.adoc
+  * - Xtensa
+    - System
+    - Tensilica ISS SIMCALL
