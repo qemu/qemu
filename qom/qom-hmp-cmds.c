@@ -13,7 +13,9 @@
 #include "qapi/qapi-commands-qom.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "qemu/readline.h"
 #include "qom/object.h"
+#include "qom/object_interfaces.h"
 
 void hmp_qom_list(Monitor *mon, const QDict *qdict)
 {
@@ -149,4 +151,69 @@ void hmp_info_qom_tree(Monitor *mon, const QDict *dict)
         obj = qdev_get_machine();
     }
     print_qom_composition(mon, obj, 0);
+}
+
+void hmp_object_add(Monitor *mon, const QDict *qdict)
+{
+    const char *options = qdict_get_str(qdict, "object");
+    Error *err = NULL;
+
+    user_creatable_add_from_str(options, &err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_object_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    Error *err = NULL;
+
+    user_creatable_del(id, &err);
+    hmp_handle_error(mon, err);
+}
+
+void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    GSList *list, *elt;
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    list = elt = object_class_get_list(TYPE_USER_CREATABLE, false);
+    while (elt) {
+        const char *name;
+
+        name = object_class_get_name(OBJECT_CLASS(elt->data));
+        if (strcmp(name, TYPE_USER_CREATABLE)) {
+            readline_add_completion_of(rs, str, name);
+        }
+        elt = elt->next;
+    }
+    g_slist_free(list);
+}
+
+void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    ObjectPropertyInfoList *list, *start;
+    size_t len;
+
+    if (nb_args != 2) {
+        return;
+    }
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+
+    start = list = qmp_qom_list("/objects", NULL);
+    while (list) {
+        ObjectPropertyInfo *info = list->value;
+
+        if (!strncmp(info->type, "child<", 5)) {
+            readline_add_completion_of(rs, str, info->name);
+        }
+        list = list->next;
+    }
+    qapi_free_ObjectPropertyInfoList(start);
 }

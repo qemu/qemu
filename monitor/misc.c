@@ -38,7 +38,6 @@
 #include "sysemu/device_tree.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
-#include "qom/object_interfaces.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 #include "exec/address-spaces.h"
@@ -48,7 +47,6 @@
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-commands-qom.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-init-commands.h"
@@ -1310,30 +1308,6 @@ void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
     g_slist_free(list);
 }
 
-void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    GSList *list, *elt;
-    size_t len;
-
-    if (nb_args != 2) {
-        return;
-    }
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    list = elt = object_class_get_list(TYPE_USER_CREATABLE, false);
-    while (elt) {
-        const char *name;
-
-        name = object_class_get_name(OBJECT_CLASS(elt->data));
-        if (strcmp(name, TYPE_USER_CREATABLE)) {
-            readline_add_completion_of(rs, str, name);
-        }
-        elt = elt->next;
-    }
-    g_slist_free(list);
-}
-
 static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
 {
     GSList **list = opaque;
@@ -1389,29 +1363,6 @@ void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     readline_set_completion_index(rs, strlen(str));
     peripheral_device_del_completion(rs, str);
-}
-
-void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    ObjectPropertyInfoList *list, *start;
-    size_t len;
-
-    if (nb_args != 2) {
-        return;
-    }
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-
-    start = list = qmp_qom_list("/objects", NULL);
-    while (list) {
-        ObjectPropertyInfo *info = list->value;
-
-        if (!strncmp(info->type, "child<", 5)) {
-            readline_add_completion_of(rs, str, info->name);
-        }
-        list = list->next;
-    }
-    qapi_free_ObjectPropertyInfoList(start);
 }
 
 void set_link_completion(ReadLineState *rs, int nb_args, const char *str)

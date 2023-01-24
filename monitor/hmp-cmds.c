@@ -40,7 +40,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
-#include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "hw/core/cpu.h"
@@ -1054,15 +1053,6 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
-void hmp_object_add(Monitor *mon, const QDict *qdict)
-{
-    const char *options = qdict_get_str(qdict, "object");
-    Error *err = NULL;
-
-    user_creatable_add_from_str(options, &err);
-    hmp_handle_error(mon, err);
-}
-
 void hmp_getfd(Monitor *mon, const QDict *qdict)
 {
     const char *fdname = qdict_get_str(qdict, "fdname");
@@ -1078,15 +1068,6 @@ void hmp_closefd(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_closefd(fdname, &err);
-    hmp_handle_error(mon, err);
-}
-
-void hmp_object_del(Monitor *mon, const QDict *qdict)
-{
-    const char *id = qdict_get_str(qdict, "id");
-    Error *err = NULL;
-
-    user_creatable_del(id, &err);
     hmp_handle_error(mon, err);
 }
 
