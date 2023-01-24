@@ -78,6 +78,9 @@ void hmp_change_vnc(Monitor *mon, const char *device, const char *target,
                     const char *arg, const char *read_only, bool force,
                     Error **errp);
 #endif
+void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+                       const char *arg, const char *read_only, bool force,
+                       Error **errp);
 void hmp_migrate(Monitor *mon, const QDict *qdict);
 void hmp_device_add(Monitor *mon, const QDict *qdict);
 void hmp_device_del(Monitor *mon, const QDict *qdict);

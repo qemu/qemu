@@ -24,7 +24,6 @@
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
-#include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -916,7 +915,6 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     const char *arg = qdict_get_try_str(qdict, "arg");
     const char *read_only = qdict_get_try_str(qdict, "read-only-mode");
     bool force = qdict_get_try_bool(qdict, "force", false);
-    BlockdevChangeReadOnlyMode read_only_mode = 0;
     Error *err = NULL;
 
 #ifdef CONFIG_VNC
@@ -925,22 +923,9 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     } else
 #endif
     {
-        if (read_only) {
-            read_only_mode =
-                qapi_enum_parse(&BlockdevChangeReadOnlyMode_lookup,
-                                read_only,
-                                BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN, &err);
-            if (err) {
-                goto end;
-            }
-        }
-
-        qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
-                                   !!read_only, read_only_mode,
-                                   &err);
+        hmp_change_medium(mon, device, target, arg, read_only, force, &err);
     }
 
-end:
     hmp_handle_error(mon, err);
 }
 
