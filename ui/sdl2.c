@@ -101,7 +101,7 @@ void sdl2_window_create(struct sdl2_console *scon)
                                          flags);
     scon->real_renderer = SDL_CreateRenderer(scon->real_window, -1, 0);
     if (scon->opengl) {
-        scon->winctx = SDL_GL_GetCurrentContext();
+        scon->winctx = SDL_GL_CreateContext(scon->real_window);
     }
     sdl_update_caption(scon);
 }
@@ -112,6 +112,8 @@ void sdl2_window_destroy(struct sdl2_console *scon)
         return;
     }
 
+    SDL_GL_DeleteContext(scon->winctx);
+    scon->winctx = NULL;
     SDL_DestroyRenderer(scon->real_renderer);
     scon->real_renderer = NULL;
     SDL_DestroyWindow(scon->real_window);
