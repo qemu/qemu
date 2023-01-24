@@ -50,7 +50,7 @@
 #include "qemu/range.h"
 
 #include "hw/boards.h"
-#include "monitor/stats.h"
+#include "sysemu/stats.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
