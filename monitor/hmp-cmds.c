@@ -54,28 +54,21 @@ bool hmp_handle_error(Monitor *mon, Error *err)
 }
 
 /*
- * Produce a strList from a comma separated list.
- * A NULL or empty input string return NULL.
+ * Split @str at comma.
+ * A null @str defaults to "".
  */
-static strList *strList_from_comma_list(const char *in)
+strList *hmp_split_at_comma(const char *str)
 {
+    char **split = g_strsplit(str ?: "", ",", -1);
     strList *res = NULL;
     strList **tail = &res;
+    int i;
 
-    while (in && in[0]) {
-        char *comma = strchr(in, ',');
-        char *value;
-
-        if (comma) {
-            value = g_strndup(in, comma - in);
-            in = comma + 1; /* skip the , */
-        } else {
-            value = g_strdup(in);
-            in = NULL;
-        }
-        QAPI_LIST_APPEND(tail, value);
+    for (i = 0; split[i]; i++) {
+        QAPI_LIST_APPEND(tail, split[i]);
     }
 
+    g_free(split);
     return res;
 }
 
@@ -632,7 +625,7 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
                                             migrate_announce_params());
 
     qapi_free_strList(params->interfaces);
-    params->interfaces = strList_from_comma_list(interfaces_str);
+    params->interfaces = hmp_split_at_comma(interfaces_str);
     params->has_interfaces = params->interfaces != NULL;
     params->id = g_strdup(id);
     qmp_announce_self(params, NULL);
@@ -1234,7 +1227,7 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
             request->provider = provider_idx;
             if (names && !g_str_equal(names, "*")) {
                 request->has_names = true;
-                request->names = strList_from_comma_list(names);
+                request->names = hmp_split_at_comma(names);
             }
             QAPI_LIST_PREPEND(request_list, request);
         }
