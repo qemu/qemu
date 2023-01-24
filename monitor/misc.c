@@ -43,7 +43,6 @@
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-init-commands.h"
 #include "qapi/error.h"
@@ -319,18 +318,6 @@ static void hmp_log(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void hmp_singlestep(Monitor *mon, const QDict *qdict)
-{
-    const char *option = qdict_get_try_str(qdict, "option");
-    if (!option || !strcmp(option, "on")) {
-        singlestep = 1;
-    } else if (!strcmp(option, "off")) {
-        singlestep = 0;
-    } else {
-        monitor_printf(mon, "unexpected option %s\n", option);
-    }
-}
-
 static void hmp_gdbserver(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_try_str(qdict, "device");
@@ -347,22 +334,6 @@ static void hmp_gdbserver(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Waiting for gdb connection on device '%s'\n",
                        device);
     }
-}
-
-static void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    WatchdogAction action;
-    char *qapi_value;
-
-    qapi_value = g_ascii_strdown(qdict_get_str(qdict, "action"), -1);
-    action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, &err);
-    g_free(qapi_value);
-    if (err) {
-        hmp_handle_error(mon, err);
-        return;
-    }
-    qmp_watchdog_set_action(action, &error_abort);
 }
 
 static void monitor_printc(Monitor *mon, int c)
@@ -1315,19 +1286,6 @@ void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 
     readline_set_completion_index(rs, strlen(str));
     peripheral_device_del_completion(rs, str);
-}
-
-void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    int i;
-
-    if (nb_args != 2) {
-        return;
-    }
-    readline_set_completion_index(rs, strlen(str));
-    for (i = 0; i < WATCHDOG_ACTION__MAX; i++) {
-        readline_add_completion_of(rs, str, WatchdogAction_str(i));
-    }
 }
 
 static int

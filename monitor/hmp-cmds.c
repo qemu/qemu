@@ -20,7 +20,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-stats.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
@@ -78,25 +77,6 @@ void hmp_info_version(Monitor *mon, const QDict *qdict)
                    info->package);
 
     qapi_free_VersionInfo(info);
-}
-
-void hmp_info_status(Monitor *mon, const QDict *qdict)
-{
-    StatusInfo *info;
-
-    info = qmp_query_status(NULL);
-
-    monitor_printf(mon, "VM status: %s%s",
-                   info->running ? "running" : "paused",
-                   info->singlestep ? " (single step mode)" : "");
-
-    if (!info->running && info->status != RUN_STATE_PAUSED) {
-        monitor_printf(mon, " (%s)", RunState_str(info->status));
-    }
-
-    monitor_printf(mon, "\n");
-
-    qapi_free_StatusInfo(info);
 }
 
 static int hmp_info_pic_foreach(Object *obj, void *opaque)
