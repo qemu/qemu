@@ -1916,8 +1916,10 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     scrollbar = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, vadjustment);
 
-    gtk_box_pack_end(GTK_BOX(box), scrollbar, FALSE, FALSE, 0);
-    gtk_box_pack_end(GTK_BOX(box), vc->vte.terminal, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(box), scrollbar);
+    gtk_widget_set_hexpand(vc->vte.terminal, TRUE);
+    gtk_widget_set_vexpand(vc->vte.terminal, TRUE);
+    gtk_container_add(GTK_CONTAINER(box), vc->vte.terminal);
 
     vc->vte.box = box;
     vc->vte.scrollbar = scrollbar;
@@ -2373,8 +2375,9 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
 
     gd_update_caption(s);
 
-    gtk_box_pack_start(GTK_BOX(s->vbox), s->menu_bar, FALSE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(s->vbox), s->notebook, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(s->vbox), s->menu_bar);
+    gtk_widget_set_vexpand(s->vbox, TRUE);
+    gtk_container_add(GTK_CONTAINER(s->vbox), s->notebook);
 
     gtk_container_add(GTK_CONTAINER(s->window), s->vbox);
 
