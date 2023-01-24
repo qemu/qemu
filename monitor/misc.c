@@ -39,12 +39,8 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qom/object_interfaces.h"
-#include "trace/control.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
-#ifdef CONFIG_TRACE_SIMPLE
-#include "trace/simple.h"
-#endif
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
 #include "block/qapi.h"
@@ -54,7 +50,6 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-qom.h"
 #include "qapi/qapi-commands-run-state.h"
-#include "qapi/qapi-commands-trace.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-init-commands.h"
 #include "qapi/error.h"
@@ -155,50 +150,6 @@ static void do_help_cmd(Monitor *mon, const QDict *qdict)
 {
     hmp_help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
-
-static void hmp_trace_event(Monitor *mon, const QDict *qdict)
-{
-    const char *tp_name = qdict_get_str(qdict, "name");
-    bool new_state = qdict_get_bool(qdict, "option");
-    bool has_vcpu = qdict_haskey(qdict, "vcpu");
-    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
-    Error *local_err = NULL;
-
-    if (vcpu < 0) {
-        monitor_printf(mon, "argument vcpu must be positive");
-        return;
-    }
-
-    qmp_trace_event_set_state(tp_name, new_state, true, true, has_vcpu, vcpu, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-    }
-}
-
-#ifdef CONFIG_TRACE_SIMPLE
-static void hmp_trace_file(Monitor *mon, const QDict *qdict)
-{
-    const char *op = qdict_get_try_str(qdict, "op");
-    const char *arg = qdict_get_try_str(qdict, "arg");
-
-    if (!op) {
-        st_print_trace_file_status();
-    } else if (!strcmp(op, "on")) {
-        st_set_trace_file_enabled(true);
-    } else if (!strcmp(op, "off")) {
-        st_set_trace_file_enabled(false);
-    } else if (!strcmp(op, "flush")) {
-        st_flush_trace_buffer();
-    } else if (!strcmp(op, "set")) {
-        if (arg) {
-            st_set_trace_file(arg);
-        }
-    } else {
-        monitor_printf(mon, "unexpected argument \"%s\"\n", op);
-        hmp_help_cmd(mon, "trace-file");
-    }
-}
-#endif
 
 static void hmp_info_help(Monitor *mon, const QDict *qdict)
 {
@@ -342,37 +293,6 @@ static void hmp_info_history(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%d: '%s'\n", i, str);
         i++;
     }
-}
-
-static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)
-{
-    const char *name = qdict_get_try_str(qdict, "name");
-    bool has_vcpu = qdict_haskey(qdict, "vcpu");
-    int vcpu = qdict_get_try_int(qdict, "vcpu", 0);
-    TraceEventInfoList *events;
-    TraceEventInfoList *elem;
-    Error *local_err = NULL;
-
-    if (name == NULL) {
-        name = "*";
-    }
-    if (vcpu < 0) {
-        monitor_printf(mon, "argument vcpu must be positive");
-        return;
-    }
-
-    events = qmp_trace_event_get_state(name, has_vcpu, vcpu, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        return;
-    }
-
-    for (elem = events; elem != NULL; elem = elem->next) {
-        monitor_printf(mon, "%s : state %u\n",
-                       elem->value->name,
-                       elem->value->state == TRACE_EVENT_STATE_ENABLED ? 1 : 0);
-    }
-    qapi_free_TraceEventInfoList(events);
 }
 
 void qmp_client_migrate_info(const char *protocol, const char *hostname,
@@ -1532,45 +1452,6 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
         if (ncs[i]->is_netdev) {
             readline_add_completion_of(rs, str, ncs[i]->name);
         }
-    }
-}
-
-void info_trace_events_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    if (nb_args == 2) {
-        TraceEventIter iter;
-        TraceEvent *ev;
-        char *pattern = g_strdup_printf("%s*", str);
-        trace_event_iter_init_pattern(&iter, pattern);
-        while ((ev = trace_event_iter_next(&iter)) != NULL) {
-            readline_add_completion(rs, trace_event_get_name(ev));
-        }
-        g_free(pattern);
-    }
-}
-
-void trace_event_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    size_t len;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    if (nb_args == 2) {
-        TraceEventIter iter;
-        TraceEvent *ev;
-        char *pattern = g_strdup_printf("%s*", str);
-        trace_event_iter_init_pattern(&iter, pattern);
-        while ((ev = trace_event_iter_next(&iter)) != NULL) {
-            readline_add_completion(rs, trace_event_get_name(ev));
-        }
-        g_free(pattern);
-    } else if (nb_args == 3) {
-        readline_add_completion_of(rs, str, "on");
-        readline_add_completion_of(rs, str, "off");
     }
 }
 
