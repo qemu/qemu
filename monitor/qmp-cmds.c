@@ -17,7 +17,6 @@
 #include "monitor/monitor.h"
 #include "monitor/qmp-helpers.h"
 #include "sysemu/sysemu.h"
-#include "chardev/char.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
@@ -174,7 +173,6 @@ void qmp_add_client(const char *protocol, const char *fdname,
         { "@dbus-display", qmp_add_client_dbus_display },
 #endif
     };
-    Chardev *s;
     int fd, i;
 
     fd = monitor_get_fd(monitor_cur(), fdname, errp);
@@ -192,16 +190,9 @@ void qmp_add_client(const char *protocol, const char *fdname,
         }
     }
 
-    s = qemu_chr_find(protocol);
-    if (!s) {
-        error_setg(errp, "protocol '%s' is invalid", protocol);
+    if (!qmp_add_client_char(fd, has_skipauth, skipauth, has_tls, tls,
+                             protocol, errp)) {
         close(fd);
-        return;
-    }
-    if (qemu_chr_add_client(s, fd) < 0) {
-        error_setg(errp, "failed to add client");
-        close(fd);
-        return;
     }
 }
 
