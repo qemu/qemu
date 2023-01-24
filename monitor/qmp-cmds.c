@@ -22,12 +22,10 @@
 #include "sysemu/runstate-action.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-acpi.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/type-helpers.h"
 #include "hw/mem/memory-device.h"
-#include "hw/acpi/acpi_dev_interface.h"
 #include "hw/intc/intc.h"
 #include "hw/rdma/rdma.h"
 
@@ -152,23 +150,4 @@ void qmp_add_client(const char *protocol, const char *fdname,
                              protocol, errp)) {
         close(fd);
     }
-}
-
-ACPIOSTInfoList *qmp_query_acpi_ospm_status(Error **errp)
-{
-    bool ambig;
-    ACPIOSTInfoList *head = NULL;
-    ACPIOSTInfoList **prev = &head;
-    Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, &ambig);
-
-    if (obj) {
-        AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
-        AcpiDeviceIf *adev = ACPI_DEVICE_IF(obj);
-
-        adevc->ospm_status(adev, &prev);
-    } else {
-        error_setg(errp, "command is not supported, missing ACPI device");
-    }
-
-    return head;
 }
