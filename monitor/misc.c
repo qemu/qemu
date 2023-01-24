@@ -41,7 +41,6 @@
 #include "monitor/hmp.h"
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
-#include "block/qapi.h"
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-migration.h"
@@ -1359,87 +1358,6 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
     readline_set_completion_index(rs, strlen(str));
     for (i = 0; i < WATCHDOG_ACTION__MAX; i++) {
         readline_add_completion_of(rs, str, WatchdogAction_str(i));
-    }
-}
-
-void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
-                                       const char *str)
-{
-    size_t len;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    if (nb_args == 2) {
-        int i;
-        for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-            readline_add_completion_of(rs, str, MigrationCapability_str(i));
-        }
-    } else if (nb_args == 3) {
-        readline_add_completion_of(rs, str, "on");
-        readline_add_completion_of(rs, str, "off");
-    }
-}
-
-void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
-                                      const char *str)
-{
-    size_t len;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    if (nb_args == 2) {
-        int i;
-        for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
-            readline_add_completion_of(rs, str, MigrationParameter_str(i));
-        }
-    }
-}
-
-static void vm_completion(ReadLineState *rs, const char *str)
-{
-    size_t len;
-    BlockDriverState *bs;
-    BdrvNextIterator it;
-
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        SnapshotInfoList *snapshots, *snapshot;
-        AioContext *ctx = bdrv_get_aio_context(bs);
-        bool ok = false;
-
-        aio_context_acquire(ctx);
-        if (bdrv_can_snapshot(bs)) {
-            ok = bdrv_query_snapshot_info_list(bs, &snapshots, NULL) == 0;
-        }
-        aio_context_release(ctx);
-        if (!ok) {
-            continue;
-        }
-
-        snapshot = snapshots;
-        while (snapshot) {
-            readline_add_completion_of(rs, str, snapshot->value->name);
-            readline_add_completion_of(rs, str, snapshot->value->id);
-            snapshot = snapshot->next;
-        }
-        qapi_free_SnapshotInfoList(snapshots);
-    }
-
-}
-
-void delvm_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    if (nb_args == 2) {
-        vm_completion(rs, str);
-    }
-}
-
-void loadvm_completion(ReadLineState *rs, int nb_args, const char *str)
-{
-    if (nb_args == 2) {
-        vm_completion(rs, str);
     }
 }
 
