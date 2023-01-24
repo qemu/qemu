@@ -70,45 +70,11 @@
 
 #ifdef GDK_WINDOWING_X11
 #include "x_keymap.h"
-
-/* Gtk2 compat */
-#ifndef GDK_IS_X11_DISPLAY
-#define GDK_IS_X11_DISPLAY(dpy) (dpy != NULL)
 #endif
-#endif
-
-
-#ifdef GDK_WINDOWING_WAYLAND
-/* Gtk2 compat */
-#ifndef GDK_IS_WAYLAND_DISPLAY
-#define GDK_IS_WAYLAND_DISPLAY(dpy) (dpy != NULL)
-#endif
-#endif
-
-
-#ifdef GDK_WINDOWING_WIN32
-/* Gtk2 compat */
-#ifndef GDK_IS_WIN32_DISPLAY
-#define GDK_IS_WIN32_DISPLAY(dpy) (dpy != NULL)
-#endif
-#endif
-
 
 #ifdef GDK_WINDOWING_BROADWAY
-/* Gtk2 compat */
-#ifndef GDK_IS_BROADWAY_DISPLAY
-#define GDK_IS_BROADWAY_DISPLAY(dpy) (dpy != NULL)
+#include <gdk/gdkbroadway.h>
 #endif
-#endif
-
-
-#ifdef GDK_WINDOWING_QUARTZ
-/* Gtk2 compat */
-#ifndef GDK_IS_QUARTZ_DISPLAY
-#define GDK_IS_QUARTZ_DISPLAY(dpy) (dpy != NULL)
-#endif
-#endif
-
 
 #if !defined(CONFIG_VTE)
 # define VTE_CHECK_VERSION(a, b, c) 0
