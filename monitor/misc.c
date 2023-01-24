@@ -1353,9 +1353,6 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
 static void add_completion_option(ReadLineState *rs, const char *str,
                                   const char *option)
 {
-    if (!str || !option) {
-        return;
-    }
     if (!strncmp(option, str, strlen(str))) {
         readline_add_completion(rs, option);
     }
