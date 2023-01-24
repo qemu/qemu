@@ -21,7 +21,6 @@ RUN apt update && \
         libmpc-dev \
         libmpfr-dev \
         rsync \
-        texinfo \
         wget && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt build-dep -yy --arch-only gcc glibc
