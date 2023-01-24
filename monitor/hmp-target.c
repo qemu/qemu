@@ -1,5 +1,5 @@
 /*
- * QEMU monitor
+ * QEMU monitor, target-dependent part
  *
  * Copyright (c) 2003-2004 Fabrice Bellard
  *
