@@ -25,17 +25,11 @@
 #include "qemu/osdep.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
-#include "exec/gdbstub.h"
 #include "net/slirp.h"
-#include "qemu/log.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/device_tree.h"
-#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
-#include "exec/address-spaces.h"
-#include "exec/ioport.h"
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-control.h"
 #include "qapi/qapi-commands-misc.h"
@@ -105,16 +99,6 @@ int hmp_compare_cmd(const char *name, const char *list)
     return 0;
 }
 
-static void do_help_cmd(Monitor *mon, const QDict *qdict)
-{
-    hmp_help_cmd(mon, qdict_get_try_str(qdict, "name"));
-}
-
-static void hmp_info_help(Monitor *mon, const QDict *qdict)
-{
-    hmp_help_cmd(mon, "info");
-}
-
 static void monitor_init_qmp_commands(void)
 {
     /*
@@ -133,208 +117,6 @@ static void monitor_init_qmp_commands(void)
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
                          qmp_marshal_qmp_capabilities,
                          QCO_ALLOW_PRECONFIG, 0);
-}
-
-static void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
-{
-    int64_t max = qdict_get_try_int(qdict, "max", 10);
-    bool mean = qdict_get_try_bool(qdict, "mean", false);
-    bool coalesce = !qdict_get_try_bool(qdict, "no_coalesce", false);
-    enum QSPSortBy sort_by;
-
-    sort_by = mean ? QSP_SORT_BY_AVG_WAIT_TIME : QSP_SORT_BY_TOTAL_WAIT_TIME;
-    qsp_report(max, sort_by, coalesce);
-}
-
-static void hmp_info_history(Monitor *mon, const QDict *qdict)
-{
-    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
-    int i;
-    const char *str;
-
-    if (!hmp_mon->rs) {
-        return;
-    }
-    i = 0;
-    for(;;) {
-        str = readline_get_history(hmp_mon->rs, i);
-        if (!str) {
-            break;
-        }
-        monitor_printf(mon, "%d: '%s'\n", i, str);
-        i++;
-    }
-}
-
-static void hmp_logfile(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-
-    if (!qemu_set_log_filename(qdict_get_str(qdict, "filename"), &err)) {
-        error_report_err(err);
-    }
-}
-
-static void hmp_log(Monitor *mon, const QDict *qdict)
-{
-    int mask;
-    const char *items = qdict_get_str(qdict, "items");
-    Error *err = NULL;
-
-    if (!strcmp(items, "none")) {
-        mask = 0;
-    } else {
-        mask = qemu_str_to_log_mask(items);
-        if (!mask) {
-            hmp_help_cmd(mon, "log");
-            return;
-        }
-    }
-
-    if (!qemu_set_log(mask, &err)) {
-        error_report_err(err);
-    }
-}
-
-static void hmp_gdbserver(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_try_str(qdict, "device");
-    if (!device) {
-        device = "tcp::" DEFAULT_GDBSTUB_PORT;
-    }
-
-    if (gdbserver_start(device) < 0) {
-        monitor_printf(mon, "Could not open gdbserver on device '%s'\n",
-                       device);
-    } else if (strcmp(device, "none") == 0) {
-        monitor_printf(mon, "Disabled gdbserver\n");
-    } else {
-        monitor_printf(mon, "Waiting for gdb connection on device '%s'\n",
-                       device);
-    }
-}
-
-static void do_print(Monitor *mon, const QDict *qdict)
-{
-    int format = qdict_get_int(qdict, "format");
-    hwaddr val = qdict_get_int(qdict, "val");
-
-    switch(format) {
-    case 'o':
-        monitor_printf(mon, "%#" HWADDR_PRIo, val);
-        break;
-    case 'x':
-        monitor_printf(mon, "%#" HWADDR_PRIx, val);
-        break;
-    case 'u':
-        monitor_printf(mon, "%" HWADDR_PRIu, val);
-        break;
-    default:
-    case 'd':
-        monitor_printf(mon, "%" HWADDR_PRId, val);
-        break;
-    case 'c':
-        monitor_printc(mon, val);
-        break;
-    }
-    monitor_printf(mon, "\n");
-}
-
-static void hmp_sum(Monitor *mon, const QDict *qdict)
-{
-    uint32_t addr;
-    uint16_t sum;
-    uint32_t start = qdict_get_int(qdict, "start");
-    uint32_t size = qdict_get_int(qdict, "size");
-
-    sum = 0;
-    for(addr = start; addr < (start + size); addr++) {
-        uint8_t val = address_space_ldub(&address_space_memory, addr,
-                                         MEMTXATTRS_UNSPECIFIED, NULL);
-        /* BSD sum algorithm ('sum' Unix command) */
-        sum = (sum >> 1) | (sum << 15);
-        sum += val;
-    }
-    monitor_printf(mon, "%05d\n", sum);
-}
-
-static void hmp_ioport_read(Monitor *mon, const QDict *qdict)
-{
-    int size = qdict_get_int(qdict, "size");
-    int addr = qdict_get_int(qdict, "addr");
-    int has_index = qdict_haskey(qdict, "index");
-    uint32_t val;
-    int suffix;
-
-    if (has_index) {
-        int index = qdict_get_int(qdict, "index");
-        cpu_outb(addr & IOPORTS_MASK, index & 0xff);
-        addr++;
-    }
-    addr &= 0xffff;
-
-    switch(size) {
-    default:
-    case 1:
-        val = cpu_inb(addr);
-        suffix = 'b';
-        break;
-    case 2:
-        val = cpu_inw(addr);
-        suffix = 'w';
-        break;
-    case 4:
-        val = cpu_inl(addr);
-        suffix = 'l';
-        break;
-    }
-    monitor_printf(mon, "port%c[0x%04x] = 0x%0*x\n",
-                   suffix, addr, size * 2, val);
-}
-
-static void hmp_ioport_write(Monitor *mon, const QDict *qdict)
-{
-    int size = qdict_get_int(qdict, "size");
-    int addr = qdict_get_int(qdict, "addr");
-    int val = qdict_get_int(qdict, "val");
-
-    addr &= IOPORTS_MASK;
-
-    switch (size) {
-    default:
-    case 1:
-        cpu_outb(addr, val);
-        break;
-    case 2:
-        cpu_outw(addr, val);
-        break;
-    case 4:
-        cpu_outl(addr, val);
-        break;
-    }
-}
-
-static void hmp_boot_set(Monitor *mon, const QDict *qdict)
-{
-    Error *local_err = NULL;
-    const char *bootdevice = qdict_get_str(qdict, "bootdevice");
-
-    qemu_boot_set(bootdevice, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-    } else {
-        monitor_printf(mon, "boot device list now set to %s\n", bootdevice);
-    }
-}
-
-static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
-{
-    bool flatview = qdict_get_try_bool(qdict, "flatview", false);
-    bool dispatch_tree = qdict_get_try_bool(qdict, "dispatch_tree", false);
-    bool owner = qdict_get_try_bool(qdict, "owner", false);
-    bool disabled = qdict_get_try_bool(qdict, "disabled", false);
-
-    mtree_info(flatview, dispatch_tree, owner, disabled);
 }
 
 /* Please update hmp-commands.hx when adding or changing commands */
