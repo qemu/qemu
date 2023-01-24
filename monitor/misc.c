@@ -135,7 +135,7 @@ compare_mon_cmd(const void *a, const void *b)
             ((const HMPCommand *)b)->name);
 }
 
-static void sortcmdlist(void)
+static void __attribute__((__constructor__)) sortcmdlist(void)
 {
     qsort(hmp_cmds, ARRAY_SIZE(hmp_cmds) - 1,
           sizeof(*hmp_cmds),
@@ -175,10 +175,4 @@ void monitor_register_hmp_info_hrt(const char *name,
         table++;
     }
     g_assert_not_reached();
-}
-
-void monitor_init_globals(void)
-{
-    monitor_init_globals_core();
-    sortcmdlist();
 }

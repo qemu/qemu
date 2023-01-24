@@ -720,7 +720,7 @@ static void monitor_qapi_event_init(void)
                                                 qapi_event_throttle_equal);
 }
 
-void monitor_init_globals_core(void)
+void monitor_init_globals(void)
 {
     monitor_qapi_event_init();
     qemu_mutex_init(&monitor_lock);
