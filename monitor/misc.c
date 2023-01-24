@@ -1350,14 +1350,6 @@ int get_monitor_def(Monitor *mon, int64_t *pval, const char *name)
     return ret;
 }
 
-static void add_completion_option(ReadLineState *rs, const char *str,
-                                  const char *option)
-{
-    if (!strncmp(option, str, strlen(str))) {
-        readline_add_completion(rs, option);
-    }
-}
-
 void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     size_t len;
@@ -1369,7 +1361,7 @@ void netdev_add_completion(ReadLineState *rs, int nb_args, const char *str)
     len = strlen(str);
     readline_set_completion_index(rs, len);
     for (i = 0; i < NET_CLIENT_DRIVER__MAX; i++) {
-        add_completion_option(rs, str, NetClientDriver_str(i));
+        readline_add_completion_of(rs, str, NetClientDriver_str(i));
     }
 }
 
@@ -1386,14 +1378,12 @@ void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
     readline_set_completion_index(rs, len);
     list = elt = object_class_get_list(TYPE_DEVICE, false);
     while (elt) {
-        const char *name;
         DeviceClass *dc = OBJECT_CLASS_CHECK(DeviceClass, elt->data,
                                              TYPE_DEVICE);
-        name = object_class_get_name(OBJECT_CLASS(dc));
 
-        if (dc->user_creatable
-            && !strncmp(name, str, len)) {
-            readline_add_completion(rs, name);
+        if (dc->user_creatable) {
+            readline_add_completion_of(rs, str,
+                                object_class_get_name(OBJECT_CLASS(dc)));
         }
         elt = elt->next;
     }
@@ -1416,8 +1406,8 @@ void object_add_completion(ReadLineState *rs, int nb_args, const char *str)
         const char *name;
 
         name = object_class_get_name(OBJECT_CLASS(elt->data));
-        if (!strncmp(name, str, len) && strcmp(name, TYPE_USER_CREATABLE)) {
-            readline_add_completion(rs, name);
+        if (strcmp(name, TYPE_USER_CREATABLE)) {
+            readline_add_completion_of(rs, str, name);
         }
         elt = elt->next;
     }
@@ -1450,7 +1440,7 @@ static GSList *qdev_build_hotpluggable_device_list(Object *peripheral)
 }
 
 static void peripheral_device_del_completion(ReadLineState *rs,
-                                             const char *str, size_t len)
+                                             const char *str)
 {
     Object *peripheral = container_get(qdev_get_machine(), "/peripheral");
     GSList *list, *item;
@@ -1463,8 +1453,8 @@ static void peripheral_device_del_completion(ReadLineState *rs,
     for (item = list; item; item = g_slist_next(item)) {
         DeviceState *dev = item->data;
 
-        if (dev->id && !strncmp(str, dev->id, len)) {
-            readline_add_completion(rs, dev->id);
+        if (dev->id) {
+            readline_add_completion_of(rs, str, dev->id);
         }
     }
 
@@ -1473,15 +1463,12 @@ static void peripheral_device_del_completion(ReadLineState *rs,
 
 void device_del_completion(ReadLineState *rs, int nb_args, const char *str)
 {
-    size_t len;
-
     if (nb_args != 2) {
         return;
     }
 
-    len = strlen(str);
-    readline_set_completion_index(rs, len);
-    peripheral_device_del_completion(rs, str, len);
+    readline_set_completion_index(rs, strlen(str));
+    peripheral_device_del_completion(rs, str);
 }
 
 void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
@@ -1499,9 +1486,8 @@ void object_del_completion(ReadLineState *rs, int nb_args, const char *str)
     while (list) {
         ObjectPropertyInfo *info = list->value;
 
-        if (!strncmp(info->type, "child<", 5)
-            && !strncmp(info->name, str, len)) {
-            readline_add_completion(rs, info->name);
+        if (!strncmp(info->type, "child<", 5)) {
+            readline_add_completion_of(rs, str, info->name);
         }
         list = list->next;
     }
@@ -1521,14 +1507,11 @@ void set_link_completion(ReadLineState *rs, int nb_args, const char *str)
                                              NET_CLIENT_DRIVER_NONE,
                                              MAX_QUEUE_NUM);
         for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
-            const char *name = ncs[i]->name;
-            if (!strncmp(str, name, len)) {
-                readline_add_completion(rs, name);
-            }
+            readline_add_completion_of(rs, str, ncs[i]->name);
         }
     } else if (nb_args == 3) {
-        add_completion_option(rs, str, "on");
-        add_completion_option(rs, str, "off");
+        readline_add_completion_of(rs, str, "on");
+        readline_add_completion_of(rs, str, "off");
     }
 }
 
@@ -1546,12 +1529,8 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
     count = qemu_find_net_clients_except(NULL, ncs, NET_CLIENT_DRIVER_NIC,
                                          MAX_QUEUE_NUM);
     for (i = 0; i < MIN(count, MAX_QUEUE_NUM); i++) {
-        const char *name = ncs[i]->name;
-        if (strncmp(str, name, len)) {
-            continue;
-        }
         if (ncs[i]->is_netdev) {
-            readline_add_completion(rs, name);
+            readline_add_completion_of(rs, str, ncs[i]->name);
         }
     }
 }
@@ -1590,8 +1569,8 @@ void trace_event_completion(ReadLineState *rs, int nb_args, const char *str)
         }
         g_free(pattern);
     } else if (nb_args == 3) {
-        add_completion_option(rs, str, "on");
-        add_completion_option(rs, str, "off");
+        readline_add_completion_of(rs, str, "on");
+        readline_add_completion_of(rs, str, "off");
     }
 }
 
@@ -1604,7 +1583,7 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
     }
     readline_set_completion_index(rs, strlen(str));
     for (i = 0; i < WATCHDOG_ACTION__MAX; i++) {
-        add_completion_option(rs, str, WatchdogAction_str(i));
+        readline_add_completion_of(rs, str, WatchdogAction_str(i));
     }
 }
 
@@ -1618,14 +1597,11 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
     if (nb_args == 2) {
         int i;
         for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-            const char *name = MigrationCapability_str(i);
-            if (!strncmp(str, name, len)) {
-                readline_add_completion(rs, name);
-            }
+            readline_add_completion_of(rs, str, MigrationCapability_str(i));
         }
     } else if (nb_args == 3) {
-        add_completion_option(rs, str, "on");
-        add_completion_option(rs, str, "off");
+        readline_add_completion_of(rs, str, "on");
+        readline_add_completion_of(rs, str, "off");
     }
 }
 
@@ -1639,10 +1615,7 @@ void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
     if (nb_args == 2) {
         int i;
         for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
-            const char *name = MigrationParameter_str(i);
-            if (!strncmp(str, name, len)) {
-                readline_add_completion(rs, name);
-            }
+            readline_add_completion_of(rs, str, MigrationParameter_str(i));
         }
     }
 }
@@ -1672,14 +1645,8 @@ static void vm_completion(ReadLineState *rs, const char *str)
 
         snapshot = snapshots;
         while (snapshot) {
-            char *completion = snapshot->value->name;
-            if (!strncmp(str, completion, len)) {
-                readline_add_completion(rs, completion);
-            }
-            completion = snapshot->value->id;
-            if (!strncmp(str, completion, len)) {
-                readline_add_completion(rs, completion);
-            }
+            readline_add_completion_of(rs, str, snapshot->value->name);
+            readline_add_completion_of(rs, str, snapshot->value->id);
             snapshot = snapshot->next;
         }
         qapi_free_SnapshotInfoList(snapshots);
