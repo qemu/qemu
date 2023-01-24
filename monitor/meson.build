@@ -1,6 +1,7 @@
 qmp_ss.add(files('monitor.c', 'qmp.c', 'qmp-cmds-control.c'))
 
 softmmu_ss.add(files(
+  'fds.c',
   'hmp-cmds.c',
   'hmp.c',
 ))
