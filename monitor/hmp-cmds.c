@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 #include "monitor/hmp.h"
-#include "net/net.h"
 #include "sysemu/runstate.h"
 #include "qemu/sockets.h"
 #include "qemu/help_option.h"

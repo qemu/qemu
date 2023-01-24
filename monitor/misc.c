@@ -26,7 +26,6 @@
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "exec/gdbstub.h"
-#include "net/net.h"
 #include "net/slirp.h"
 #include "ui/qemu-spice.h"
 #include "qemu/ctype.h"
