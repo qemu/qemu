@@ -30,7 +30,6 @@
 #include "net/slirp.h"
 #include "ui/qemu-spice.h"
 #include "qemu/ctype.h"
-#include "audio/audio.h"
 #include "disas/disas.h"
 #include "qemu/log.h"
 #include "sysemu/hw_accel.h"
@@ -890,61 +889,6 @@ static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
     bool disabled = qdict_get_try_bool(qdict, "disabled", false);
 
     mtree_info(flatview, dispatch_tree, owner, disabled);
-}
-
-/* Capture support */
-static QLIST_HEAD (capture_list_head, CaptureState) capture_head;
-
-static void hmp_info_capture(Monitor *mon, const QDict *qdict)
-{
-    int i;
-    CaptureState *s;
-
-    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
-        monitor_printf(mon, "[%d]: ", i);
-        s->ops.info (s->opaque);
-    }
-}
-
-static void hmp_stopcapture(Monitor *mon, const QDict *qdict)
-{
-    int i;
-    int n = qdict_get_int(qdict, "n");
-    CaptureState *s;
-
-    for (s = capture_head.lh_first, i = 0; s; s = s->entries.le_next, ++i) {
-        if (i == n) {
-            s->ops.destroy (s->opaque);
-            QLIST_REMOVE (s, entries);
-            g_free (s);
-            return;
-        }
-    }
-}
-
-static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
-{
-    const char *path = qdict_get_str(qdict, "path");
-    int freq = qdict_get_try_int(qdict, "freq", 44100);
-    int bits = qdict_get_try_int(qdict, "bits", 16);
-    int nchannels = qdict_get_try_int(qdict, "nchannels", 2);
-    const char *audiodev = qdict_get_str(qdict, "audiodev");
-    CaptureState *s;
-    AudioState *as = audio_state_by_name(audiodev);
-
-    if (!as) {
-        monitor_printf(mon, "Audiodev '%s' not found\n", audiodev);
-        return;
-    }
-
-    s = g_malloc0 (sizeof (*s));
-
-    if (wav_start_capture(as, s, path, freq, bits, nchannels)) {
-        monitor_printf(mon, "Failed to add wave capture\n");
-        g_free (s);
-        return;
-    }
-    QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
 
 void qmp_getfd(const char *fdname, Error **errp)
