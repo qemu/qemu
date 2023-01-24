@@ -22,7 +22,6 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-stats.h"
-#include "qapi/qapi-commands-tpm.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
@@ -124,59 +123,6 @@ void hmp_info_pic(Monitor *mon, const QDict *qdict)
 {
     object_child_foreach_recursive(object_get_root(),
                                    hmp_info_pic_foreach, mon);
-}
-
-void hmp_info_tpm(Monitor *mon, const QDict *qdict)
-{
-#ifdef CONFIG_TPM
-    TPMInfoList *info_list, *info;
-    Error *err = NULL;
-    unsigned int c = 0;
-    TPMPassthroughOptions *tpo;
-    TPMEmulatorOptions *teo;
-
-    info_list = qmp_query_tpm(&err);
-    if (err) {
-        monitor_printf(mon, "TPM device not supported\n");
-        error_free(err);
-        return;
-    }
-
-    if (info_list) {
-        monitor_printf(mon, "TPM device:\n");
-    }
-
-    for (info = info_list; info; info = info->next) {
-        TPMInfo *ti = info->value;
-        monitor_printf(mon, " tpm%d: model=%s\n",
-                       c, TpmModel_str(ti->model));
-
-        monitor_printf(mon, "  \\ %s: type=%s",
-                       ti->id, TpmType_str(ti->options->type));
-
-        switch (ti->options->type) {
-        case TPM_TYPE_PASSTHROUGH:
-            tpo = ti->options->u.passthrough.data;
-            monitor_printf(mon, "%s%s%s%s",
-                           tpo->path ? ",path=" : "",
-                           tpo->path ?: "",
-                           tpo->cancel_path ? ",cancel-path=" : "",
-                           tpo->cancel_path ?: "");
-            break;
-        case TPM_TYPE_EMULATOR:
-            teo = ti->options->u.emulator.data;
-            monitor_printf(mon, ",chardev=%s", teo->chardev);
-            break;
-        case TPM_TYPE__MAX:
-            break;
-        }
-        monitor_printf(mon, "\n");
-        c++;
-    }
-    qapi_free_TPMInfoList(info_list);
-#else
-    monitor_printf(mon, "TPM device not supported\n");
-#endif /* CONFIG_TPM */
 }
 
 void hmp_quit(Monitor *mon, const QDict *qdict)
