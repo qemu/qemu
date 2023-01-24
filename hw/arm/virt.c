@@ -1343,7 +1343,7 @@ static void create_smmu(const VirtMachineState *vms,
         return;
     }
 
-    dev = qdev_new("arm-smmuv3");
+    dev = qdev_new(TYPE_ARM_SMMUV3);
 
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
