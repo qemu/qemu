@@ -724,7 +724,6 @@ static void gd_resize_event(GtkGLArea *area,
 
 void gd_update_monitor_refresh_rate(VirtualConsole *vc, GtkWidget *widget)
 {
-#ifdef GDK_VERSION_3_22
     GdkWindow *win = gtk_widget_get_window(widget);
     int refresh_rate;
 
@@ -742,7 +741,6 @@ void gd_update_monitor_refresh_rate(VirtualConsole *vc, GtkWidget *widget)
     vc->gfx.dcl.update_interval = refresh_rate ?
         MIN(1000 * 1000 / refresh_rate, GUI_REFRESH_INTERVAL_DEFAULT) :
         GUI_REFRESH_INTERVAL_DEFAULT;
-#endif
 }
 
 static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
