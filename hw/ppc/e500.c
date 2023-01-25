@@ -643,9 +643,8 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
     }
     g_free(soc);
 
-    if (pms->pbus_dev) {
-        platform_bus_create_devtree(pms, fdt, mpic);
-    }
+    platform_bus_create_devtree(pms, fdt, mpic);
+
     g_free(mpic);
 
     pmc->fixup_devtree(fdt);
