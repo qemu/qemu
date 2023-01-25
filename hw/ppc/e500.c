@@ -659,9 +659,14 @@ done:
     if (!dry_run) {
         qemu_fdt_dumpdtb(fdt, fdt_size);
         cpu_physical_memory_write(addr, fdt, fdt_size);
+
+        /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+        g_free(machine->fdt);
+        machine->fdt = fdt;
+    } else {
+        g_free(fdt);
     }
     ret = fdt_size;
-    g_free(fdt);
 
 out:
     g_free(pci_map);
