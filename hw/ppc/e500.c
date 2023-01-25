@@ -241,7 +241,7 @@ static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
     int irq0 = platform_bus_get_irqn(pbus, sbdev, 0);
     int irq1 = platform_bus_get_irqn(pbus, sbdev, 1);
     int irq2 = platform_bus_get_irqn(pbus, sbdev, 2);
-    gchar *node = g_strdup_printf("/platform/ethernet@%"PRIx64, mmio0);
+    gchar *node = g_strdup_printf("%s/ethernet@%"PRIx64, data->node, mmio0);
     gchar *group = g_strdup_printf("%s/queue-group", node);
     void *fdt = data->fdt;
 
