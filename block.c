@@ -3807,13 +3807,11 @@ out:
  * function eventually calls bdrv_refresh_total_sectors() which polls
  * when called from non-coroutine context.
  */
-static BlockDriverState *bdrv_open_inherit(const char *filename,
-                                           const char *reference,
-                                           QDict *options, int flags,
-                                           BlockDriverState *parent,
-                                           const BdrvChildClass *child_class,
-                                           BdrvChildRole child_role,
-                                           Error **errp)
+static BlockDriverState * no_coroutine_fn
+bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
+                  int flags, BlockDriverState *parent,
+                  const BdrvChildClass *child_class, BdrvChildRole child_role,
+                  Error **errp)
 {
     int ret;
     BlockBackend *file = NULL;
@@ -3829,6 +3827,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
     assert(!child_class || !flags);
     assert(!child_class == !parent);
     GLOBAL_STATE_CODE();
+    assert(!qemu_in_coroutine());
 
     if (reference) {
         bool options_non_empty = options ? qdict_size(options) : false;
