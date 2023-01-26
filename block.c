@@ -657,8 +657,8 @@ int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
     options = qdict_new();
     qdict_put_str(options, "driver", drv->format_name);
 
-    blk = blk_new_open(filename, NULL, options,
-                       BDRV_O_RDWR | BDRV_O_RESIZE, errp);
+    blk = blk_co_new_open(filename, NULL, options,
+                          BDRV_O_RDWR | BDRV_O_RESIZE, errp);
     if (!blk) {
         error_prepend(errp, "Protocol driver '%s' does not support image "
                       "creation, and opening the image failed: ",
