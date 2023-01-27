@@ -173,8 +173,6 @@ struct PnvPhb4PecState {
     uint32_t index;
     uint32_t chip_id;
 
-    MemoryRegion *system_memory;
-
     /* Nest registers, excuding per-stack */
 #define PHB4_PEC_NEST_REGS_COUNT    0xf
     uint64_t nest_regs[PHB4_PEC_NEST_REGS_COUNT];
