@@ -1864,7 +1864,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
         case TCG_CALL_ARG_EXTEND_U:
         case TCG_CALL_ARG_EXTEND_S:
             {
-                TCGv_i64 temp = tcg_temp_new_i64();
+                TCGv_i64 temp = tcg_temp_ebb_new_i64();
                 TCGv_i32 orig = temp_tcgv_i32(ts);
 
                 if (loc->kind == TCG_CALL_ARG_EXTEND_S) {
