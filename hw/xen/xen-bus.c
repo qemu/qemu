@@ -1034,13 +1034,6 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
         goto unrealize;
     }
 
-    if (xendev_class->realize) {
-        xendev_class->realize(xendev, errp);
-        if (*errp) {
-            goto unrealize;
-        }
-    }
-
     xen_device_backend_printf(xendev, "frontend", "%s",
                               xendev->frontend_path);
     xen_device_backend_printf(xendev, "frontend-id", "%u",
@@ -1057,6 +1050,13 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
                                    xenbus->backend_id);
 
         xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
+    }
+
+    if (xendev_class->realize) {
+        xendev_class->realize(xendev, errp);
+        if (*errp) {
+            goto unrealize;
+        }
     }
 
     xendev->exit.notify = xen_device_exit;
