@@ -47,14 +47,23 @@ static void ipod_touch_aes_write(void *opaque, hwaddr offset, uint64_t value, un
                 // Unfortunately, we don't have access to the GID key.
                 // However, we know that when the AES engine is invoked with the GID key type, it's for the decryption of the IMG file.
                 // Instead, we provide an hard-coded key as result and copy it to the output buffer.
-                // source: https://www.theiphonewiki.com/wiki/Sugar_Bowl_5F138_(iPod2,1) (LLB)
-                char key[] = { 
-                    0xce, 0x97, 0xa7, 0xc8, 0x2e, 0xf8, 0x64, 0x67, 0x5e, 0xd3, 0x68, 0x05, 0x97, 0xec, 0x2a, 0xef, // IV
-                    0x27, 0x73, 0x2a, 0x6b, 0xbf, 0xb1, 0x4a, 0x07, 0x25, 0x0a, 0x2e, 0x46, 0x82, 0xbf, 0x3c, 0xba, // key
-                               };
-                for(int i = 0; i < aesop->insize; i++) {
-                    buf[i] = key[i];
+                // source: https://www.theiphonewiki.com/wiki/Sugar_Bowl_5F138_(iPod2,1)
+                if(aesop->gid_encryption_count == 0) { // LLB
+                    char key[] = { 
+                        0xce, 0x97, 0xa7, 0xc8, 0x2e, 0xf8, 0x64, 0x67, 0x5e, 0xd3, 0x68, 0x05, 0x97, 0xec, 0x2a, 0xef, // IV
+                        0x27, 0x73, 0x2a, 0x6b, 0xbf, 0xb1, 0x4a, 0x07, 0x25, 0x0a, 0x2e, 0x46, 0x82, 0xbf, 0x3c, 0xba, // key
+                    };
+                    for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
                 }
+                else if(aesop->gid_encryption_count == 1) { // iBoot
+                    char key[] = { 
+                        0xb3, 0x63, 0x3a, 0xfb, 0xe0, 0x2e, 0x0e, 0x9b, 0xa4, 0xd7, 0x36, 0x6c, 0x47, 0xab, 0xe5, 0xa8, // IV
+                        0x2d, 0x91, 0x6d, 0xab, 0xb6, 0xdf, 0xd4, 0x59, 0x4d, 0xbe, 0x36, 0x35, 0xb4, 0xc7, 0x16, 0x62, // key
+                    };
+                    for(int i = 0; i < aesop->insize; i++) { buf[i] = key[i]; }
+                }
+
+                aesop->gid_encryption_count++;
             }
             else {
                 AES_cbc_encrypt(inbuf, buf, aesop->insize, &aesop->decryptKey, (uint8_t *)aesop->ivec, AES_DECRYPT);
@@ -125,6 +134,8 @@ static void ipod_touch_aes_init(Object *obj)
 
     memset(&s->custkey, 0, 8 * sizeof(uint32_t));
     memset(&s->ivec, 0, 4 * sizeof(uint32_t));
+
+    s->gid_encryption_count = 0;
 }
 
 static void ipod_touch_aes_class_init(ObjectClass *klass, void *data)

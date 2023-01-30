@@ -63,7 +63,8 @@ typedef struct IPodTouchAESState
 	uint32_t unkreg1;
 	uint32_t operation;
 	uint32_t keylen;
-	uint32_t custkey[8]; 
+	uint32_t custkey[8];
+	uint8_t gid_encryption_count;
 } IPodTouchAESState;
 
 #endif
