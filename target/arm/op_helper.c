@@ -640,10 +640,24 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         goto fail;
     }
 
+    if (ri->accessfn) {
+        res = ri->accessfn(env, ri, isread);
+    }
+
     /*
-     * Check for an EL2 trap due to HSTR_EL2. We expect EL0 accesses
-     * to sysregs non accessible at EL0 to have UNDEF-ed already.
+     * If the access function indicates a trap from EL0 to EL1 then
+     * that always takes priority over the HSTR_EL2 trap. (If it indicates
+     * a trap to EL3, then the HSTR_EL2 trap takes priority; if it indicates
+     * a trap to EL2, then the syndrome is the same either way so we don't
+     * care whether technically the architecture says that HSTR_EL2 trap or
+     * the other trap takes priority. So we take the "check HSTR_EL2" path
+     * for all of those cases.)
      */
+    if (res != CP_ACCESS_OK && ((res & CP_ACCESS_EL_MASK) == 0) &&
+        arm_current_el(env) == 0) {
+        goto fail;
+    }
+
     if (!is_a64(env) && arm_current_el(env) < 2 && ri->cp == 15 &&
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         uint32_t mask = 1 << ri->crn;
@@ -661,9 +675,6 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         }
     }
 
-    if (ri->accessfn) {
-        res = ri->accessfn(env, ri, isread);
-    }
     if (likely(res == CP_ACCESS_OK)) {
         return ri;
     }
