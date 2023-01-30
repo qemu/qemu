@@ -23,7 +23,7 @@ struct VHostUserGPIO {
     VirtIODevice parent_obj;
     CharBackend chardev;
     struct virtio_gpio_config config;
-    struct vhost_virtqueue *vhost_vq;
+    struct vhost_virtqueue *vhost_vqs;
     struct vhost_dev vhost_dev;
     VhostUserState vhost_user;
     VirtQueue *command_vq;
