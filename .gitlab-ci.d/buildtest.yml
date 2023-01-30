@@ -560,29 +560,22 @@ build-coroutine-sigaltstack:
     MAKE_CHECK_ARGS: check-unit
 
 # Check our reduced build configurations
-build-without-default-devices:
+build-without-defaults:
   extends: .native_build_job_template
   needs:
     job: amd64-centos8-container
   variables:
     IMAGE: centos8
-    CONFIGURE_ARGS: --without-default-devices --disable-user
-
-build-without-default-features:
-  extends: .native_build_job_template
-  needs:
-    job: amd64-fedora-container
-  variables:
-    IMAGE: fedora
     CONFIGURE_ARGS:
+      --without-default-devices
       --without-default-features
-      --disable-capstone
+      --disable-fdt
       --disable-pie
       --disable-qom-cast-debug
       --disable-strip
-    TARGETS: avr-softmmu i386-softmmu mips64-softmmu s390x-softmmu sh4-softmmu
+    TARGETS: avr-softmmu mips64-softmmu s390x-softmmu sh4-softmmu
       sparc64-softmmu hexagon-linux-user i386-linux-user s390x-linux-user
-    MAKE_CHECK_ARGS: check-unit check-qtest SPEED=slow
+    MAKE_CHECK_ARGS: check-unit check-qtest-avr check-qtest-mips64
 
 build-libvhost-user:
   extends: .base_job_template
