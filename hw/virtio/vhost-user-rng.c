@@ -229,6 +229,7 @@ static void vu_rng_device_realize(DeviceState *dev, Error **errp)
     return;
 
 vhost_dev_init_failed:
+    g_free(rng->vhost_dev.vqs);
     virtio_delete_queue(rng->req_vq);
 virtio_add_queue_failed:
     virtio_cleanup(vdev);
@@ -239,12 +240,12 @@ static void vu_rng_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserRNG *rng = VHOST_USER_RNG(dev);
+    struct vhost_virtqueue *vhost_vqs = rng->vhost_dev.vqs;
 
     vu_rng_set_status(vdev, 0);
 
     vhost_dev_cleanup(&rng->vhost_dev);
-    g_free(rng->vhost_dev.vqs);
-    rng->vhost_dev.vqs = NULL;
+    g_free(vhost_vqs);
     virtio_delete_queue(rng->req_vq);
     virtio_cleanup(vdev);
     vhost_user_cleanup(&rng->vhost_user);
