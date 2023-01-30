@@ -48,6 +48,7 @@ enum arm_exception_class {
     EC_AA64_SMC               = 0x17,
     EC_SYSTEMREGISTERTRAP     = 0x18,
     EC_SVEACCESSTRAP          = 0x19,
+    EC_ERETTRAP               = 0x1a,
     EC_SMETRAP                = 0x1d,
     EC_INSNABORT              = 0x20,
     EC_INSNABORT_SAME_EL      = 0x21,
@@ -213,6 +214,15 @@ static inline uint32_t syn_simd_access_trap(int cv, int cond, bool is_16bit)
 static inline uint32_t syn_sve_access_trap(void)
 {
     return EC_SVEACCESSTRAP << ARM_EL_EC_SHIFT;
+}
+
+/*
+ * eret_op is bits [1:0] of the ERET instruction, so:
+ * 0 for ERET, 2 for ERETAA, 3 for ERETAB.
+ */
+static inline uint32_t syn_erettrap(int eret_op)
+{
+    return (EC_ERETTRAP << ARM_EL_EC_SHIFT) | ARM_EL_IL | eret_op;
 }
 
 static inline uint32_t syn_smetrap(SMEExceptionType etype, bool is_16bit)
