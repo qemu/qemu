@@ -658,7 +658,11 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         goto fail;
     }
 
-    if (!is_a64(env) && arm_current_el(env) < 2 && ri->cp == 15 &&
+    /*
+     * HSTR_EL2 traps from EL1 are checked earlier, in generated code;
+     * we only need to check here for traps from EL0.
+     */
+    if (!is_a64(env) && arm_current_el(env) == 0 && ri->cp == 15 &&
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         uint32_t mask = 1 << ri->crn;
 
