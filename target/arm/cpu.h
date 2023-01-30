@@ -529,6 +529,16 @@ typedef struct CPUArchState {
         uint64_t disr_el1;
         uint64_t vdisr_el2;
         uint64_t vsesr_el2;
+
+        /*
+         * Fine-Grained Trap registers. We store these as arrays so the
+         * access checking code doesn't have to manually select
+         * HFGRTR_EL2 vs HFDFGRTR_EL2 etc when looking up the bit to test.
+         * FEAT_FGT2 will add more elements to these arrays.
+         */
+        uint64_t fgt_read[2]; /* HFGRTR, HDFGRTR */
+        uint64_t fgt_write[2]; /* HFGWTR, HDFGWTR */
+        uint64_t fgt_exec[1]; /* HFGITR */
     } cp15;
 
     struct {
@@ -4162,6 +4172,11 @@ static inline bool isar_feature_aa64_tgran64_2(const ARMISARegisters *id)
 {
     unsigned t = FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, TGRAN64_2);
     return t >= 2 || (t == 0 && isar_feature_aa64_tgran64(id));
+}
+
+static inline bool isar_feature_aa64_fgt(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64mmfr0, ID_AA64MMFR0, FGT) != 0;
 }
 
 static inline bool isar_feature_aa64_ccidx(const ARMISARegisters *id)
