@@ -143,8 +143,6 @@ static void do_vhost_user_cleanup(VirtIODevice *vdev, VHostUserI2C *i2c)
     vhost_user_cleanup(&i2c->vhost_user);
     virtio_delete_queue(i2c->vq);
     virtio_cleanup(vdev);
-    g_free(i2c->vhost_dev.vqs);
-    i2c->vhost_dev.vqs = NULL;
 }
 
 static int vu_i2c_connect(DeviceState *dev)
@@ -228,6 +226,7 @@ static void vu_i2c_device_realize(DeviceState *dev, Error **errp)
     ret = vhost_dev_init(&i2c->vhost_dev, &i2c->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
     if (ret < 0) {
+        g_free(i2c->vhost_dev.vqs);
         do_vhost_user_cleanup(vdev, i2c);
     }
 
@@ -239,10 +238,12 @@ static void vu_i2c_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserI2C *i2c = VHOST_USER_I2C(dev);
+    struct vhost_virtqueue *vhost_vqs = i2c->vhost_dev.vqs;
 
     /* This will stop vhost backend if appropriate. */
     vu_i2c_set_status(vdev, 0);
     vhost_dev_cleanup(&i2c->vhost_dev);
+    g_free(vhost_vqs);
     do_vhost_user_cleanup(vdev, i2c);
 }
 
