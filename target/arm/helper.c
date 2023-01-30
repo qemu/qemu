@@ -11689,6 +11689,7 @@ static CPUARMTBFlags rebuild_hflags_common(CPUARMState *env, int fp_el,
     if (arm_singlestep_active(env)) {
         DP_TBFLAG_ANY(flags, SS_ACTIVE, 1);
     }
+
     return flags;
 }
 
@@ -11759,6 +11760,10 @@ static CPUARMTBFlags rebuild_hflags_a32(CPUARMState *env, int fp_el,
     if (el < 2 && env->cp15.hstr_el2 && arm_is_el2_enabled(env) &&
         (arm_hcr_el2_eff(env) & (HCR_E2H | HCR_TGE)) != (HCR_E2H | HCR_TGE)) {
         DP_TBFLAG_A32(flags, HSTR_ACTIVE, 1);
+    }
+
+    if (arm_fgt_active(env, el)) {
+        DP_TBFLAG_ANY(flags, FGT_ACTIVE, 1);
     }
 
     if (env->uncached_cpsr & CPSR_IL) {
@@ -11893,6 +11898,10 @@ static CPUARMTBFlags rebuild_hflags_a64(CPUARMState *env, int el, int fp_el,
 
     if (env->pstate & PSTATE_IL) {
         DP_TBFLAG_ANY(flags, PSTATE__IL, 1);
+    }
+
+    if (arm_fgt_active(env, el)) {
+        DP_TBFLAG_ANY(flags, FGT_ACTIVE, 1);
     }
 
     if (cpu_isar_feature(aa64_mte, env_archcpu(env))) {

@@ -680,6 +680,36 @@ const void *HELPER(access_check_cp_reg)(CPUARMState *env, uint32_t key,
         }
     }
 
+    /*
+     * Fine-grained traps also are lower priority than undef-to-EL1,
+     * higher priority than trap-to-EL3, and we don't care about priority
+     * order with other EL2 traps because the syndrome value is the same.
+     */
+    if (arm_fgt_active(env, arm_current_el(env))) {
+        uint64_t trapword = 0;
+        unsigned int idx = FIELD_EX32(ri->fgt, FGT, IDX);
+        unsigned int bitpos = FIELD_EX32(ri->fgt, FGT, BITPOS);
+        bool rev = FIELD_EX32(ri->fgt, FGT, REV);
+        bool trapbit;
+
+        if (ri->fgt & FGT_EXEC) {
+            assert(idx < ARRAY_SIZE(env->cp15.fgt_exec));
+            trapword = env->cp15.fgt_exec[idx];
+        } else if (isread && (ri->fgt & FGT_R)) {
+            assert(idx < ARRAY_SIZE(env->cp15.fgt_read));
+            trapword = env->cp15.fgt_read[idx];
+        } else if (!isread && (ri->fgt & FGT_W)) {
+            assert(idx < ARRAY_SIZE(env->cp15.fgt_write));
+            trapword = env->cp15.fgt_write[idx];
+        }
+
+        trapbit = extract64(trapword, bitpos, 1);
+        if (trapbit != rev) {
+            res = CP_ACCESS_TRAP_EL2;
+            goto fail;
+        }
+    }
+
     if (likely(res == CP_ACCESS_OK)) {
         return ri;
     }

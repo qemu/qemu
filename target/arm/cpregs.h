@@ -515,6 +515,73 @@ FIELD(HDFGWTR_EL2, NBRBCTL, 60, 1)
 FIELD(HDFGWTR_EL2, NBRBDATA, 61, 1)
 FIELD(HDFGWTR_EL2, NPMSNEVFR_EL1, 62, 1)
 
+/* Which fine-grained trap bit register to check, if any */
+FIELD(FGT, TYPE, 10, 3)
+FIELD(FGT, REV, 9, 1) /* Is bit sense reversed? */
+FIELD(FGT, IDX, 6, 3) /* Index within a uint64_t[] array */
+FIELD(FGT, BITPOS, 0, 6) /* Bit position within the uint64_t */
+
+/*
+ * Macros to define FGT_##bitname enum constants to use in ARMCPRegInfo::fgt
+ * fields. We assume for brevity's sake that there are no duplicated
+ * bit names across the various FGT registers.
+ */
+#define DO_BIT(REG, BITNAME)                                    \
+    FGT_##BITNAME = FGT_##REG | R_##REG##_EL2_##BITNAME##_SHIFT
+
+/* Some bits have reversed sense, so 0 means trap and 1 means not */
+#define DO_REV_BIT(REG, BITNAME)                                        \
+    FGT_##BITNAME = FGT_##REG | FGT_REV | R_##REG##_EL2_##BITNAME##_SHIFT
+
+typedef enum FGTBit {
+    /*
+     * These bits tell us which register arrays to use:
+     * if FGT_R is set then reads are checked against fgt_read[];
+     * if FGT_W is set then writes are checked against fgt_write[];
+     * if FGT_EXEC is set then all accesses are checked against fgt_exec[].
+     *
+     * For almost all bits in the R/W register pairs, the bit exists in
+     * both registers for a RW register, in HFGRTR/HDFGRTR for a RO register
+     * with the corresponding HFGWTR/HDFGTWTR bit being RES0, and vice-versa
+     * for a WO register. There are unfortunately a couple of exceptions
+     * (PMCR_EL0, TRFCR_EL1) where the register being trapped is RW but
+     * the FGT system only allows trapping of writes, not reads.
+     *
+     * Note that we arrange these bits so that a 0 FGTBit means "no trap".
+     */
+    FGT_R = 1 << R_FGT_TYPE_SHIFT,
+    FGT_W = 2 << R_FGT_TYPE_SHIFT,
+    FGT_EXEC = 4 << R_FGT_TYPE_SHIFT,
+    FGT_RW = FGT_R | FGT_W,
+    /* Bit to identify whether trap bit is reversed sense */
+    FGT_REV = R_FGT_REV_MASK,
+
+    /*
+     * If a bit exists in HFGRTR/HDFGRTR then either the register being
+     * trapped is RO or the bit also exists in HFGWTR/HDFGWTR, so we either
+     * want to trap for both reads and writes or else it's harmless to mark
+     * it as trap-on-writes.
+     * If a bit exists only in HFGWTR/HDFGWTR then either the register being
+     * trapped is WO, or else it is one of the two oddball special cases
+     * which are RW but have only a write trap. We mark these as only
+     * FGT_W so we get the right behaviour for those special cases.
+     * (If a bit was added in future that provided only a read trap for an
+     * RW register we'd need to do something special to get the FGT_R bit
+     * only. But this seems unlikely to happen.)
+     *
+     * So for the DO_BIT/DO_REV_BIT macros: use FGT_HFGRTR/FGT_HDFGRTR if
+     * the bit exists in that register. Otherwise use FGT_HFGWTR/FGT_HDFGWTR.
+     */
+    FGT_HFGRTR = FGT_RW | (FGTREG_HFGRTR << R_FGT_IDX_SHIFT),
+    FGT_HFGWTR = FGT_W | (FGTREG_HFGWTR << R_FGT_IDX_SHIFT),
+    FGT_HDFGRTR = FGT_RW | (FGTREG_HDFGRTR << R_FGT_IDX_SHIFT),
+    FGT_HDFGWTR = FGT_W | (FGTREG_HDFGWTR << R_FGT_IDX_SHIFT),
+    FGT_HFGITR = FGT_EXEC | (FGTREG_HFGITR << R_FGT_IDX_SHIFT),
+} FGTBit;
+
+#undef DO_BIT
+#undef DO_REV_BIT
+
 typedef struct ARMCPRegInfo ARMCPRegInfo;
 
 /*
@@ -569,6 +636,11 @@ struct ARMCPRegInfo {
     CPAccessRights access;
     /* Security state: ARM_CP_SECSTATE_* bits/values */
     CPSecureState secure;
+    /*
+     * Which fine-grained trap register bit to check, if any. This
+     * value encodes both the trap register and bit within it.
+     */
+    FGTBit fgt;
     /*
      * The opaque pointer passed to define_arm_cp_regs_with_opaque() when
      * this register was defined: can be used to hand data through to the
