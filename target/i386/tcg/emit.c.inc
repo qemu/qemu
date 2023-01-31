@@ -1015,6 +1015,7 @@ VSIB_AVX(VPGATHERQ, vpgatherq)
 
 static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
 {
+    int opposite_cc_op;
     TCGv carry_in = NULL;
     TCGv carry_out = (cc_op == CC_OP_ADCX ? cpu_cc_dst : cpu_cc_src2);
     TCGv zero;
@@ -1022,14 +1023,8 @@ static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
     if (cc_op == s->cc_op || s->cc_op == CC_OP_ADCOX) {
         /* Re-use the carry-out from a previous round.  */
         carry_in = carry_out;
-        cc_op = s->cc_op;
-    } else if (s->cc_op == CC_OP_ADCX || s->cc_op == CC_OP_ADOX) {
-        /* Merge with the carry-out from the opposite instruction.  */
-        cc_op = CC_OP_ADCOX;
-    }
-
-    /* If we don't have a carry-in, get it out of EFLAGS.  */
-    if (!carry_in) {
+    } else {
+        /* We don't have a carry-in, get it out of EFLAGS.  */
         if (s->cc_op != CC_OP_ADCX && s->cc_op != CC_OP_ADOX) {
             gen_compute_eflags(s);
         }
@@ -1053,7 +1048,14 @@ static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
         tcg_gen_add2_tl(s->T0, carry_out, s->T0, carry_out, s->T1, zero);
         break;
     }
-    set_cc_op(s, cc_op);
+
+    opposite_cc_op = cc_op == CC_OP_ADCX ? CC_OP_ADOX : CC_OP_ADCX;
+    if (s->cc_op == CC_OP_ADCOX || s->cc_op == opposite_cc_op) {
+        /* Merge with the carry-out from the opposite instruction.  */
+        set_cc_op(s, CC_OP_ADCOX);
+    } else {
+        set_cc_op(s, cc_op);
+    }
 }
 
 static void gen_ADCX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
