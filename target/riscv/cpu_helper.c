@@ -1639,6 +1639,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         case RISCV_EXCP_VIRT_INSTRUCTION_FAULT:
             tval = env->bins;
             break;
+        case RISCV_EXCP_BREAKPOINT:
+            if (cs->watchpoint_hit) {
+                tval = cs->watchpoint_hit->hitaddr;
+                cs->watchpoint_hit = NULL;
+            }
+            break;
         default:
             break;
         }
