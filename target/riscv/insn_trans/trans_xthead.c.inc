@@ -52,6 +52,12 @@
     }                                            \
 } while (0)
 
+#define REQUIRE_XTHEADMEMPAIR(ctx) do {          \
+    if (!ctx->cfg_ptr->ext_xtheadmempair) {      \
+        return false;                            \
+    }                                            \
+} while (0)
+
 #define REQUIRE_XTHEADSYNC(ctx) do {             \
     if (!ctx->cfg_ptr->ext_xtheadsync) {         \
         return false;                            \
@@ -380,6 +386,92 @@ static bool trans_th_mulsw(DisasContext *ctx, arg_th_mulsw *a)
     REQUIRE_64BIT(ctx);
     ctx->ol = MXL_RV32;
     return gen_th_mac(ctx, a, tcg_gen_sub_tl, NULL);
+}
+
+/* XTheadMemPair */
+
+static bool gen_loadpair_tl(DisasContext *ctx, arg_th_pair *a, MemOp memop,
+                            int shamt)
+{
+    if (a->rs == a->rd1 || a->rs == a->rd2 || a->rd1 == a->rd2) {
+        return false;
+    }
+
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv addr1 = tcg_temp_new();
+    TCGv addr2 = tcg_temp_new();
+    int imm = a->sh2 << shamt;
+
+    addr1 = get_address(ctx, a->rs, imm);
+    addr2 = get_address(ctx, a->rs, memop_size(memop) + imm);
+
+    tcg_gen_qemu_ld_tl(t1, addr1, ctx->mem_idx, memop);
+    tcg_gen_qemu_ld_tl(t2, addr2, ctx->mem_idx, memop);
+    gen_set_gpr(ctx, a->rd1, t1);
+    gen_set_gpr(ctx, a->rd2, t2);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(addr1);
+    tcg_temp_free(addr2);
+    return true;
+}
+
+static bool trans_th_ldd(DisasContext *ctx, arg_th_pair *a)
+{
+    REQUIRE_XTHEADMEMPAIR(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_loadpair_tl(ctx, a, MO_TESQ, 4);
+}
+
+static bool trans_th_lwd(DisasContext *ctx, arg_th_pair *a)
+{
+    REQUIRE_XTHEADMEMPAIR(ctx);
+    return gen_loadpair_tl(ctx, a, MO_TESL, 3);
+}
+
+static bool trans_th_lwud(DisasContext *ctx, arg_th_pair *a)
+{
+    REQUIRE_XTHEADMEMPAIR(ctx);
+    return gen_loadpair_tl(ctx, a, MO_TEUL, 3);
+}
+
+static bool gen_storepair_tl(DisasContext *ctx, arg_th_pair *a, MemOp memop,
+                             int shamt)
+{
+    if (a->rs == a->rd1 || a->rs == a->rd2 || a->rd1 == a->rd2) {
+        return false;
+    }
+
+    TCGv data1 = get_gpr(ctx, a->rd1, EXT_NONE);
+    TCGv data2 = get_gpr(ctx, a->rd2, EXT_NONE);
+    TCGv addr1 = tcg_temp_new();
+    TCGv addr2 = tcg_temp_new();
+    int imm = a->sh2 << shamt;
+
+    addr1 = get_address(ctx, a->rs, imm);
+    addr2 = get_address(ctx, a->rs, memop_size(memop) + imm);
+
+    tcg_gen_qemu_st_tl(data1, addr1, ctx->mem_idx, memop);
+    tcg_gen_qemu_st_tl(data2, addr2, ctx->mem_idx, memop);
+
+    tcg_temp_free(addr1);
+    tcg_temp_free(addr2);
+    return true;
+}
+
+static bool trans_th_sdd(DisasContext *ctx, arg_th_pair *a)
+{
+    REQUIRE_XTHEADMEMPAIR(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_storepair_tl(ctx, a, MO_TESQ, 4);
+}
+
+static bool trans_th_swd(DisasContext *ctx, arg_th_pair *a)
+{
+    REQUIRE_XTHEADMEMPAIR(ctx);
+    return gen_storepair_tl(ctx, a, MO_TESL, 3);
 }
 
 /* XTheadSync */
