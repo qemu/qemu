@@ -85,6 +85,7 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "tvout", TVOUT_MEM_BASE, 0x1000);
+    allocate_ram(sysmem, "framebuffer", FRAMEBUFFER_MEM_BASE, 0x400000);
 
     // load the bootrom (vrom)
     uint8_t *file_data = NULL;
@@ -179,6 +180,7 @@ static void ipod_touch_machine_init(MachineState *machine)
     memory_region_add_subregion(sysmem, TIMER1_MEM_BASE, &timer_state->iomem);
     SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_TIMER1_IRQ));
+    //sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_TIMER1_IRQ - 1));
     timer_state->sysclk = nms->sysclk;
 
     // init sysic
@@ -304,6 +306,20 @@ static void ipod_touch_machine_init(MachineState *machine)
     memory_region_add_subregion(sysmem, USBPHYS_MEM_BASE, &usb_phys_state->iomem);
 
     ipod_touch_memory_setup(machine, sysmem, nsas);
+
+    // init the MIPI SDI controller
+    dev = qdev_new("ipodtouch.mipidsi");
+    IPodTouchLCDState *mipi_dsi_state = IPOD_TOUCH_MIPI_DSI(dev);
+    nms->mipi_dsi_state = mipi_dsi_state;
+    memory_region_add_subregion(sysmem, MIPI_DSI_MEM_BASE, &mipi_dsi_state->iomem);
+
+    // init LCD
+    dev = qdev_new("ipodtouch.lcd");
+    IPodTouchLCDState *lcd_state = IPOD_TOUCH_LCD(dev);
+    nms->lcd_state = lcd_state;
+    sysbus_connect_irq(busdev, 0, s5l8900_get_irq(nms, S5L8720_LCD_IRQ));
+    memory_region_add_subregion(sysmem, DISPLAY_MEM_BASE, &lcd_state->iomem);
+    sysbus_realize(busdev, &error_fatal);
 
     // init SHA1 engine
     dev = qdev_new("ipodtouch.sha1");

@@ -20,17 +20,20 @@
 #include "hw/arm/ipod_touch_aes.h"
 #include "hw/arm/ipod_touch_pke.h"
 #include "hw/arm/ipod_touch_unknown1.h"
+#include "hw/arm/ipod_touch_lcd.h"
+#include "hw/arm/ipod_touch_mipi_dsi.h"
 
 #define TYPE_IPOD_TOUCH "iPod-Touch"
 
 #define S5L8720_VIC_N	  2
 #define S5L8720_VIC_SIZE  32
 
-#define S5L8720_TIMER1_IRQ 0x8
+#define S5L8720_TIMER1_IRQ 0x7
 #define S5L8720_USB_OTG_IRQ 0x13
 #define S5L8720_SPI0_IRQ 0x9
 #define S5L8720_SPI1_IRQ 0xA
 #define S5L8720_SPI2_IRQ 0xB
+#define S5L8720_LCD_IRQ 0xD
 #define S5L8720_DMAC0_IRQ 0x10
 #define S5L8720_DMAC1_IRQ 0x11
 #define S5L8720_I2C0_IRQ 0x15
@@ -47,11 +50,13 @@
 
 // memory addresses
 #define VROM_MEM_BASE   0x0
+#define FRAMEBUFFER_MEM_BASE 0xFB00000
 #define IBOOT_MEM_BASE 0xFF00000
 #define SRAM1_MEM_BASE  0x22020000
 #define SHA1_MEM_BASE 0x38000000
 #define DMAC0_MEM_BASE 0x38200000
 #define USBOTG_MEM_BASE 0x38400000
+#define DISPLAY_MEM_BASE 0x38900000
 #define AES_MEM_BASE 0x38C00000
 #define VIC0_MEM_BASE 0x38E00000
 #define VIC1_MEM_BASE 0x38E01000
@@ -70,7 +75,8 @@
 #define PKE_MEM_BASE 0x3D000000
 #define CHIPID_MEM_BASE 0x3D100000
 #define SPI2_MEM_BASE 0x3D200000
-#define UNKNOWN1_MEM_BASE 0x3d700000
+#define UNKNOWN1_MEM_BASE 0x3D700000
+#define MIPI_DSI_MEM_BASE 0x3D800000
 #define SPI3_MEM_BASE 0x3DA00000
 #define UART1_MEM_BASE 0x3DB00000
 #define UART2_MEM_BASE 0x3DC00000
@@ -102,6 +108,8 @@ typedef struct {
 	IPodTouchPKEState *pke_state;
 	IPodTouchI2CState *i2c0_state;
 	IPodTouchI2CState *i2c1_state;
+	IPodTouchLCDState *lcd_state;
+	IPodTouchMIPIDSIState *mipi_dsi_state;
 	Clock *sysclk;
 	char nor_path[1024];
 	IT2G_CPREG_VAR_DEF(REG0);
