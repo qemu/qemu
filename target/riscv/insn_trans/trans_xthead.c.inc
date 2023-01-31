@@ -52,6 +52,12 @@
     }                                            \
 } while (0)
 
+#define REQUIRE_XTHEADMEMIDX(ctx) do {           \
+    if (!ctx->cfg_ptr->ext_xtheadmemidx) {       \
+        return false;                            \
+    }                                            \
+} while (0)
+
 #define REQUIRE_XTHEADMEMPAIR(ctx) do {          \
     if (!ctx->cfg_ptr->ext_xtheadmempair) {      \
         return false;                            \
@@ -63,6 +69,30 @@
         return false;                            \
     }                                            \
 } while (0)
+
+/*
+ * Calculate and return the address for indexed mem operations:
+ * If !zext_offs, then the address is rs1 + (rs2 << imm2).
+ * If  zext_offs, then the address is rs1 + (zext(rs2[31:0]) << imm2).
+ */
+static TCGv get_th_address_indexed(DisasContext *ctx, int rs1, int rs2,
+                                   int imm2, bool zext_offs)
+{
+    TCGv src2 = get_gpr(ctx, rs2, EXT_NONE);
+    TCGv offs = tcg_temp_new();
+
+    if (zext_offs) {
+        tcg_gen_extract_tl(offs, src2, 0, 32);
+        tcg_gen_shli_tl(offs, offs, imm2);
+    } else {
+        tcg_gen_shli_tl(offs, src2, imm2);
+    }
+
+    TCGv addr = get_address_indexed(ctx, rs1, offs);
+
+    tcg_temp_free(offs);
+    return addr;
+}
 
 /* XTheadBa */
 
@@ -386,6 +416,363 @@ static bool trans_th_mulsw(DisasContext *ctx, arg_th_mulsw *a)
     REQUIRE_64BIT(ctx);
     ctx->ol = MXL_RV32;
     return gen_th_mac(ctx, a, tcg_gen_sub_tl, NULL);
+}
+
+/* XTheadMemIdx */
+
+/*
+ * Load with memop from indexed address and add (imm5 << imm2) to rs1.
+ * If !preinc, then the load address is rs1.
+ * If  preinc, then the load address is rs1 + (imm5) << imm2).
+ */
+static bool gen_load_inc(DisasContext *ctx, arg_th_meminc *a, MemOp memop,
+                         bool preinc)
+{
+    if (a->rs1 == a->rd) {
+        return false;
+    }
+
+    int imm = a->imm5 << a->imm2;
+    TCGv addr = get_address(ctx, a->rs1, preinc ? imm : 0);
+    TCGv rd = dest_gpr(ctx, a->rd);
+    TCGv rs1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    tcg_gen_qemu_ld_tl(rd, addr, ctx->mem_idx, memop);
+    tcg_gen_addi_tl(rs1, rs1, imm);
+    gen_set_gpr(ctx, a->rd, rd);
+    gen_set_gpr(ctx, a->rs1, rs1);
+
+    tcg_temp_free(addr);
+    return true;
+}
+
+/*
+ * Store with memop to indexed address and add (imm5 << imm2) to rs1.
+ * If !preinc, then the store address is rs1.
+ * If  preinc, then the store address is rs1 + (imm5) << imm2).
+ */
+static bool gen_store_inc(DisasContext *ctx, arg_th_meminc *a, MemOp memop,
+                          bool preinc)
+{
+    int imm = a->imm5 << a->imm2;
+    TCGv addr = get_address(ctx, a->rs1, preinc ? imm : 0);
+    TCGv data = get_gpr(ctx, a->rd, EXT_NONE);
+    TCGv rs1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
+    tcg_gen_addi_tl(rs1, rs1, imm);
+    gen_set_gpr(ctx, a->rs1, rs1);
+
+    tcg_temp_free(addr);
+    return true;
+}
+
+static bool trans_th_ldia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_inc(ctx, a, MO_TESQ, false);
+}
+
+static bool trans_th_ldib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_inc(ctx, a, MO_TESQ, true);
+}
+
+static bool trans_th_lwia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TESL, false);
+}
+
+static bool trans_th_lwib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TESL, true);
+}
+
+static bool trans_th_lwuia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_inc(ctx, a, MO_TEUL, false);
+}
+
+static bool trans_th_lwuib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_inc(ctx, a, MO_TEUL, true);
+}
+
+static bool trans_th_lhia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TESW, false);
+}
+
+static bool trans_th_lhib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TESW, true);
+}
+
+static bool trans_th_lhuia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TEUW, false);
+}
+
+static bool trans_th_lhuib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_TEUW, true);
+}
+
+static bool trans_th_lbia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_SB, false);
+}
+
+static bool trans_th_lbib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_SB, true);
+}
+
+static bool trans_th_lbuia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_UB, false);
+}
+
+static bool trans_th_lbuib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_inc(ctx, a, MO_UB, true);
+}
+
+static bool trans_th_sdia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_store_inc(ctx, a, MO_TESQ, false);
+}
+
+static bool trans_th_sdib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_store_inc(ctx, a, MO_TESQ, true);
+}
+
+static bool trans_th_swia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_TESL, false);
+}
+
+static bool trans_th_swib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_TESL, true);
+}
+
+static bool trans_th_shia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_TESW, false);
+}
+
+static bool trans_th_shib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_TESW, true);
+}
+
+static bool trans_th_sbia(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_SB, false);
+}
+
+static bool trans_th_sbib(DisasContext *ctx, arg_th_meminc *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_inc(ctx, a, MO_SB, true);
+}
+
+/*
+ * Load with memop from indexed address.
+ * If !zext_offs, then address is rs1 + (rs2 << imm2).
+ * If  zext_offs, then address is rs1 + (zext(rs2[31:0]) << imm2).
+ */
+static bool gen_load_idx(DisasContext *ctx, arg_th_memidx *a, MemOp memop,
+                         bool zext_offs)
+{
+    TCGv rd = dest_gpr(ctx, a->rd);
+    TCGv addr = get_th_address_indexed(ctx, a->rs1, a->rs2, a->imm2, zext_offs);
+
+    tcg_gen_qemu_ld_tl(rd, addr, ctx->mem_idx, memop);
+    gen_set_gpr(ctx, a->rd, rd);
+
+    return true;
+}
+
+/*
+ * Store with memop to indexed address.
+ * If !zext_offs, then address is rs1 + (rs2 << imm2).
+ * If  zext_offs, then address is rs1 + (zext(rs2[31:0]) << imm2).
+ */
+static bool gen_store_idx(DisasContext *ctx, arg_th_memidx *a, MemOp memop,
+                          bool zext_offs)
+{
+    TCGv data = get_gpr(ctx, a->rd, EXT_NONE);
+    TCGv addr = get_th_address_indexed(ctx, a->rs1, a->rs2, a->imm2, zext_offs);
+
+    tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
+
+    return true;
+}
+
+static bool trans_th_lrd(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_idx(ctx, a, MO_TESQ, false);
+}
+
+static bool trans_th_lrw(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TESL, false);
+}
+
+static bool trans_th_lrwu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_idx(ctx, a, MO_TEUL, false);
+}
+
+static bool trans_th_lrh(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TESW, false);
+}
+
+static bool trans_th_lrhu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TEUW, false);
+}
+
+static bool trans_th_lrb(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_SB, false);
+}
+
+static bool trans_th_lrbu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_UB, false);
+}
+
+static bool trans_th_srd(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_store_idx(ctx, a, MO_TESQ, false);
+}
+
+static bool trans_th_srw(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_TESL, false);
+}
+
+static bool trans_th_srh(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_TESW, false);
+}
+
+static bool trans_th_srb(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_SB, false);
+}
+static bool trans_th_lurd(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_idx(ctx, a, MO_TESQ, true);
+}
+
+static bool trans_th_lurw(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TESL, true);
+}
+
+static bool trans_th_lurwu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_load_idx(ctx, a, MO_TEUL, true);
+}
+
+static bool trans_th_lurh(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TESW, true);
+}
+
+static bool trans_th_lurhu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_TEUW, true);
+}
+
+static bool trans_th_lurb(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_SB, true);
+}
+
+static bool trans_th_lurbu(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_load_idx(ctx, a, MO_UB, true);
+}
+
+static bool trans_th_surd(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    REQUIRE_64BIT(ctx);
+    return gen_store_idx(ctx, a, MO_TESQ, true);
+}
+
+static bool trans_th_surw(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_TESL, true);
+}
+
+static bool trans_th_surh(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_TESW, true);
+}
+
+static bool trans_th_surb(DisasContext *ctx, arg_th_memidx *a)
+{
+    REQUIRE_XTHEADMEMIDX(ctx);
+    return gen_store_idx(ctx, a, MO_SB, true);
 }
 
 /* XTheadMemPair */
