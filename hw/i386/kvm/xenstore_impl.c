@@ -37,6 +37,7 @@ typedef struct XsNode {
     uint64_t gencnt;
     bool deleted_in_tx;
     bool modified_in_tx;
+    unsigned int serialized_tx;
 #ifdef XS_NODE_UNIT_TEST
     gchar *name; /* debug only */
 #endif
@@ -68,6 +69,7 @@ struct XenstoreImplState {
     unsigned int nr_domu_transactions;
     unsigned int root_tx;
     unsigned int last_tx;
+    bool serialized;
 };
 
 
@@ -1156,8 +1158,10 @@ int xs_impl_set_perms(XenstoreImplState *s, unsigned int dom_id,
     return xs_node_walk(n, &op);
 }
 
-int xs_impl_watch(XenstoreImplState *s, unsigned int dom_id, const char *path,
-                  const char *token, xs_impl_watch_fn fn, void *opaque)
+static int do_xs_impl_watch(XenstoreImplState *s, unsigned int dom_id,
+                            const char *path, const char *token,
+                            xs_impl_watch_fn fn, void *opaque)
+
 {
     char abspath[XENSTORE_ABS_PATH_MAX + 1];
     XsWatch *w, *l;
@@ -1200,10 +1204,20 @@ int xs_impl_watch(XenstoreImplState *s, unsigned int dom_id, const char *path,
         s->nr_domu_watches++;
     }
 
-    /* A new watch should fire immediately */
-    fn(opaque, path, token);
-
     return 0;
+}
+
+int xs_impl_watch(XenstoreImplState *s, unsigned int dom_id, const char *path,
+                  const char *token, xs_impl_watch_fn fn, void *opaque)
+{
+    int ret = do_xs_impl_watch(s, dom_id, path, token, fn, opaque);
+
+    if (!ret) {
+        /* A new watch should fire immediately */
+        fn(opaque, path, token);
+    }
+
+    return ret;
 }
 
 static XsWatch *free_watch(XenstoreImplState *s, XsWatch *w)
@@ -1360,4 +1374,554 @@ XenstoreImplState *xs_impl_create(unsigned int dom_id)
 
     s->root_tx = s->last_tx = 1;
     return s;
+}
+
+
+static void clear_serialized_tx(gpointer key, gpointer value, gpointer opaque)
+{
+    XsNode *n = value;
+
+    n->serialized_tx = XBT_NULL;
+    if (n->children) {
+        g_hash_table_foreach(n->children, clear_serialized_tx, NULL);
+    }
+}
+
+static void clear_tx_serialized_tx(gpointer key, gpointer value,
+                                   gpointer opaque)
+{
+    XsTransaction *t = value;
+
+    clear_serialized_tx(NULL, t->root, NULL);
+}
+
+static void write_be32(GByteArray *save, uint32_t val)
+{
+    uint32_t be = htonl(val);
+    g_byte_array_append(save, (void *)&be, sizeof(be));
+}
+
+
+struct save_state {
+    GByteArray *bytes;
+    unsigned int tx_id;
+};
+
+#define MODIFIED_IN_TX  (1U << 0)
+#define DELETED_IN_TX   (1U << 1)
+#define NODE_REF        (1U << 2)
+
+static void save_node(gpointer key, gpointer value, gpointer opaque)
+{
+    struct save_state *ss = opaque;
+    XsNode *n = value;
+    char *name = key;
+    uint8_t flag = 0;
+
+    /* Child nodes (i.e. anything but the root) have a name */
+    if (name) {
+        g_byte_array_append(ss->bytes, key, strlen(key) + 1);
+    }
+
+    /*
+     * If we already wrote this node, refer to the previous copy.
+     * There's no rename/move in XenStore, so all we need to find
+     * it is the tx_id of the transation in which it exists. Which
+     * may be the root tx.
+     */
+    if (n->serialized_tx != XBT_NULL) {
+        flag = NODE_REF;
+        g_byte_array_append(ss->bytes, &flag, 1);
+        write_be32(ss->bytes, n->serialized_tx);
+    } else {
+        GList *l;
+        n->serialized_tx = ss->tx_id;
+
+        if (n->modified_in_tx) {
+            flag |= MODIFIED_IN_TX;
+        }
+        if (n->deleted_in_tx) {
+            flag |= DELETED_IN_TX;
+        }
+        g_byte_array_append(ss->bytes, &flag, 1);
+
+        if (n->content) {
+            write_be32(ss->bytes, n->content->len);
+            g_byte_array_append(ss->bytes, n->content->data, n->content->len);
+        } else {
+            write_be32(ss->bytes, 0);
+        }
+
+        for (l = n->perms; l; l = l->next) {
+            g_byte_array_append(ss->bytes, l->data, strlen(l->data) + 1);
+        }
+        /* NUL termination after perms */
+        g_byte_array_append(ss->bytes, (void *)"", 1);
+
+        if (n->children) {
+            g_hash_table_foreach(n->children, save_node, ss);
+        }
+        /* NUL termination after children (child name is NUL) */
+        g_byte_array_append(ss->bytes, (void *)"", 1);
+    }
+}
+
+static void save_tree(struct save_state *ss, uint32_t tx_id, XsNode *root)
+{
+    write_be32(ss->bytes, tx_id);
+    ss->tx_id = tx_id;
+    save_node(NULL, root, ss);
+}
+
+static void save_tx(gpointer key, gpointer value, gpointer opaque)
+{
+    uint32_t tx_id = GPOINTER_TO_INT(key);
+    struct save_state *ss = opaque;
+    XsTransaction *n = value;
+
+    write_be32(ss->bytes, n->base_tx);
+    write_be32(ss->bytes, n->dom_id);
+
+    save_tree(ss, tx_id, n->root);
+}
+
+static void save_watch(gpointer key, gpointer value, gpointer opaque)
+{
+    struct save_state *ss = opaque;
+    XsWatch *w = value;
+
+    /* We only save the *guest* watches. */
+    if (w->dom_id) {
+        gpointer relpath = key + w->rel_prefix;
+        g_byte_array_append(ss->bytes, relpath, strlen(relpath) + 1);
+        g_byte_array_append(ss->bytes, (void *)w->token, strlen(w->token) + 1);
+    }
+}
+
+GByteArray *xs_impl_serialize(XenstoreImplState *s)
+{
+    struct save_state ss;
+
+    ss.bytes = g_byte_array_new();
+
+    /*
+     * node = flags [ real_node / node_ref ]
+     *   flags = uint8_t (MODIFIED_IN_TX | DELETED_IN_TX | NODE_REF)
+     *   node_ref = tx_id (in which the original version of this node exists)
+     *   real_node = content perms child* NUL
+     *     content = len data
+     *       len = uint32_t
+     *       data = uint8_t{len}
+     *     perms = perm* NUL
+     *       perm = asciiz
+     *   child = name node
+     *     name = asciiz
+     *
+     * tree = tx_id node
+     *   tx_id = uint32_t
+     *
+     * transaction = base_tx_id dom_id tree
+     *   base_tx_id = uint32_t
+     *   dom_id = uint32_t
+     *
+     * tx_list = tree transaction* XBT_NULL
+     *
+     * watch = path token
+     *   path = asciiz
+     *   token = asciiz
+     *
+     * watch_list = watch* NUL
+     *
+     * xs_serialize_stream = last_tx tx_list watch_list
+     *   last_tx = uint32_t
+     */
+
+    /* Clear serialized_tx in every node. */
+    if (s->serialized) {
+        clear_serialized_tx(NULL, s->root, NULL);
+        g_hash_table_foreach(s->transactions, clear_tx_serialized_tx, NULL);
+    }
+
+    s->serialized = true;
+
+    write_be32(ss.bytes, s->last_tx);
+    save_tree(&ss, s->root_tx, s->root);
+    g_hash_table_foreach(s->transactions, save_tx, &ss);
+
+    write_be32(ss.bytes, XBT_NULL);
+
+    g_hash_table_foreach(s->watches, save_watch, &ss);
+    g_byte_array_append(ss.bytes, (void *)"", 1);
+
+    return ss.bytes;
+}
+
+struct unsave_state {
+    char path[XENSTORE_ABS_PATH_MAX + 1];
+    XenstoreImplState *s;
+    GByteArray *bytes;
+    uint8_t *d;
+    size_t l;
+    bool root_walk;
+};
+
+static int consume_be32(struct unsave_state *us, unsigned int *val)
+{
+    uint32_t d;
+
+    if (us->l < sizeof(d)) {
+        return -EINVAL;
+    }
+    memcpy(&d, us->d, sizeof(d));
+    *val = ntohl(d);
+    us->d += sizeof(d);
+    us->l -= sizeof(d);
+    return 0;
+}
+
+static int consume_string(struct unsave_state *us, char **str, size_t *len)
+{
+    size_t l;
+
+    if (!us->l) {
+        return -EINVAL;
+    }
+
+    l = strnlen((void *)us->d, us->l);
+    if (l == us->l) {
+        return -EINVAL;
+    }
+
+    if (str) {
+        *str = (void *)us->d;
+    }
+    if (len) {
+        *len = l;
+    }
+
+    us->d += l + 1;
+    us->l -= l + 1;
+    return 0;
+}
+
+static XsNode *lookup_node(XsNode *n, char *path)
+{
+    char *slash = strchr(path, '/');
+    XsNode *child;
+
+    if (path[0] == '\0') {
+        return n;
+    }
+
+    if (slash) {
+        *slash = '\0';
+    }
+
+    if (!n->children) {
+        return NULL;
+    }
+    child = g_hash_table_lookup(n->children, path);
+    if (!slash) {
+        return child;
+    }
+
+    *slash = '/';
+    if (!child) {
+        return NULL;
+    }
+    return lookup_node(child, slash + 1);
+}
+
+static XsNode *lookup_tx_node(struct unsave_state *us, unsigned int tx_id)
+{
+    XsTransaction *t;
+    if (tx_id == us->s->root_tx) {
+        return lookup_node(us->s->root, us->path + 1);
+    }
+
+    t = g_hash_table_lookup(us->s->transactions, GINT_TO_POINTER(tx_id));
+    if (!t) {
+        return NULL;
+    }
+    g_assert(t->root);
+    return lookup_node(t->root, us->path + 1);
+}
+
+static void count_child_nodes(gpointer key, gpointer value, gpointer user_data)
+{
+    unsigned int *nr_nodes = user_data;
+    XsNode *n = value;
+
+    (*nr_nodes)++;
+
+    if (n->children) {
+        g_hash_table_foreach(n->children, count_child_nodes, nr_nodes);
+    }
+}
+
+static int consume_node(struct unsave_state *us, XsNode **nodep,
+                        unsigned int *nr_nodes)
+{
+    XsNode *n = NULL;
+    uint8_t flags;
+    int ret;
+
+    if (us->l < 1) {
+        return -EINVAL;
+    }
+    flags = us->d[0];
+    us->d++;
+    us->l--;
+
+    if (flags == NODE_REF) {
+        unsigned int tx;
+
+        ret = consume_be32(us, &tx);
+        if (ret) {
+            return ret;
+        }
+
+        n = lookup_tx_node(us, tx);
+        if (!n) {
+            return -EINVAL;
+        }
+        n->ref++;
+        if (n->children) {
+            g_hash_table_foreach(n->children, count_child_nodes, nr_nodes);
+        }
+    } else {
+        uint32_t datalen;
+
+        if (flags & ~(DELETED_IN_TX | MODIFIED_IN_TX)) {
+            return -EINVAL;
+        }
+        n = xs_node_new();
+
+        if (flags & DELETED_IN_TX) {
+            n->deleted_in_tx = true;
+        }
+        if (flags & MODIFIED_IN_TX) {
+            n->modified_in_tx = true;
+        }
+        ret = consume_be32(us, &datalen);
+        if (ret) {
+            xs_node_unref(n);
+            return -EINVAL;
+        }
+        if (datalen) {
+            if (datalen > us->l) {
+                xs_node_unref(n);
+                return -EINVAL;
+            }
+
+            GByteArray *node_data = g_byte_array_new();
+            g_byte_array_append(node_data, us->d, datalen);
+            us->d += datalen;
+            us->l -= datalen;
+            n->content = node_data;
+
+            if (us->root_walk) {
+                n->modified_in_tx = true;
+            }
+        }
+        while (1) {
+            char *perm = NULL;
+            size_t permlen = 0;
+
+            ret = consume_string(us, &perm, &permlen);
+            if (ret) {
+                xs_node_unref(n);
+                return ret;
+            }
+
+            if (!permlen) {
+                break;
+            }
+
+            n->perms = g_list_append(n->perms, g_strdup(perm));
+        }
+
+        /* Now children */
+        while (1) {
+            size_t childlen;
+            char *childname;
+            char *pathend;
+            XsNode *child = NULL;
+
+            ret = consume_string(us, &childname, &childlen);
+            if (ret) {
+                xs_node_unref(n);
+                return ret;
+            }
+
+            if (!childlen) {
+                break;
+            }
+
+            pathend = us->path + strlen(us->path);
+            strncat(us->path, "/", sizeof(us->path) - 1);
+            strncat(us->path, childname, sizeof(us->path) - 1);
+
+            ret = consume_node(us, &child, nr_nodes);
+            *pathend = '\0';
+            if (ret) {
+                xs_node_unref(n);
+                return ret;
+            }
+            g_assert(child);
+            xs_node_add_child(n, childname, child);
+        }
+
+        /*
+         * If the node has no data and no children we still want to fire
+         * a watch on it.
+         */
+        if (us->root_walk && !n->children) {
+            n->modified_in_tx = true;
+        }
+    }
+
+    if (!n->deleted_in_tx) {
+        (*nr_nodes)++;
+    }
+
+    *nodep = n;
+    return 0;
+}
+
+static int consume_tree(struct unsave_state *us, XsTransaction *t)
+{
+    int ret;
+
+    ret = consume_be32(us, &t->tx_id);
+    if (ret) {
+        return ret;
+    }
+
+    if (t->tx_id > us->s->last_tx) {
+        return -EINVAL;
+    }
+
+    us->path[0] = '\0';
+
+    return consume_node(us, &t->root, &t->nr_nodes);
+}
+
+int xs_impl_deserialize(XenstoreImplState *s, GByteArray *bytes,
+                        unsigned int dom_id, xs_impl_watch_fn watch_fn,
+                        void *watch_opaque)
+{
+    struct unsave_state us;
+    XsTransaction base_t = { 0 };
+    int ret;
+
+    us.s = s;
+    us.bytes = bytes;
+    us.d = bytes->data;
+    us.l = bytes->len;
+
+    xs_impl_reset_watches(s, dom_id);
+    g_hash_table_remove_all(s->transactions);
+
+    xs_node_unref(s->root);
+    s->root = NULL;
+    s->root_tx = s->last_tx = XBT_NULL;
+
+    ret = consume_be32(&us, &s->last_tx);
+    if (ret) {
+        return ret;
+    }
+
+    /*
+     * Consume the base tree into a transaction so that watches can be
+     * fired as we commit it. By setting us.root_walk we cause the nodes
+     * to be marked as 'modified_in_tx' as they are created, so that the
+     * watches are triggered on them.
+     */
+    base_t.dom_id = dom_id;
+    base_t.base_tx = XBT_NULL;
+    us.root_walk = true;
+    ret = consume_tree(&us, &base_t);
+    if (ret) {
+        return ret;
+    }
+    us.root_walk = false;
+
+    /*
+     * Commit the transaction now while the refcount on all nodes is 1.
+     * Note that we haven't yet reinstated the *guest* watches but that's
+     * OK because we don't want the guest to see any changes. Even any
+     * backend nodes which get recreated should be *precisely* as they
+     * were before the migration. Back ends may have been instantiated
+     * already, and will see the frontend magically blink into existence
+     * now (well, from the aio_bh which fires the watches). It's their
+     * responsibility to rebuild everything precisely as it was before.
+     */
+    ret = transaction_commit(s, &base_t);
+    if (ret) {
+        return ret;
+    }
+
+    while (1) {
+        unsigned int base_tx;
+        XsTransaction *t;
+
+        ret = consume_be32(&us, &base_tx);
+        if (ret) {
+            return ret;
+        }
+        if (base_tx == XBT_NULL) {
+            break;
+        }
+
+        t = g_new0(XsTransaction, 1);
+        t->base_tx = base_tx;
+
+        ret = consume_be32(&us, &t->dom_id);
+        if (!ret) {
+            ret = consume_tree(&us, t);
+        }
+        if (ret) {
+            g_free(t);
+            return ret;
+        }
+        g_assert(t->root);
+        if (t->dom_id) {
+            s->nr_domu_transactions++;
+        }
+        g_hash_table_insert(s->transactions, GINT_TO_POINTER(t->tx_id), t);
+    }
+
+    while (1) {
+        char *path, *token;
+        size_t pathlen, toklen;
+
+        ret = consume_string(&us, &path, &pathlen);
+        if (ret) {
+            return ret;
+        }
+        if (!pathlen) {
+            break;
+        }
+
+        ret = consume_string(&us, &token, &toklen);
+        if (ret) {
+            return ret;
+        }
+
+        if (!watch_fn) {
+            continue;
+        }
+
+        ret = do_xs_impl_watch(s, dom_id, path, token, watch_fn, watch_opaque);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (us.l) {
+        return -EINVAL;
+    }
+
+    return 0;
 }

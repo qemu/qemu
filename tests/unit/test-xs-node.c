@@ -29,8 +29,32 @@ static GList *xs_node_list;
 #define DOMID_QEMU 0
 #define DOMID_GUEST 1
 
+static void dump_ref(const char *name, XsNode *n, int indent)
+{
+    int i;
+
+    if (!indent && name) {
+        printf("%s:\n", name);
+    }
+
+    for (i = 0; i < indent; i++) {
+        printf(" ");
+    }
+
+    printf("->%p(%d, '%s'): '%.*s'%s%s\n", n, n->ref, n->name,
+           (int)(n->content ? n->content->len : strlen("<empty>")),
+           n->content ? (char *)n->content->data : "<empty>",
+           n->modified_in_tx ? " MODIFIED" : "",
+           n->deleted_in_tx ? " DELETED" : "");
+
+    if (n->children) {
+        g_hash_table_foreach(n->children, (void *)dump_ref,
+                             GINT_TO_POINTER(indent + 2));
+    }
+}
+
 /* This doesn't happen in qemu but we want to make valgrind happy */
-static void xs_impl_delete(XenstoreImplState *s)
+static void xs_impl_delete(XenstoreImplState *s, bool last)
 {
     int err;
 
@@ -46,6 +70,10 @@ static void xs_impl_delete(XenstoreImplState *s)
     xs_node_unref(s->root);
     g_free(s);
 
+    if (!last) {
+        return;
+    }
+
     if (xs_node_list) {
         GList *l;
         for (l = xs_node_list; l; l = l->next) {
@@ -55,6 +83,137 @@ static void xs_impl_delete(XenstoreImplState *s)
         }
     }
     g_assert(!nr_xs_nodes);
+}
+
+struct compare_walk {
+    char path[XENSTORE_ABS_PATH_MAX + 1];
+    XsNode *parent_2;
+    bool compare_ok;
+};
+
+
+static bool compare_perms(GList *p1, GList *p2)
+{
+    while (p1) {
+        if (!p2 || g_strcmp0(p1->data, p2->data)) {
+            return false;
+        }
+        p1 = p1->next;
+        p2 = p2->next;
+    }
+    return (p2 == NULL);
+}
+
+static bool compare_content(GByteArray *c1, GByteArray *c2)
+{
+    size_t len1 = 0, len2 = 0;
+
+    if (c1) {
+        len1 = c1->len;
+    }
+    if (c2) {
+        len2 = c2->len;
+    }
+    if (len1 != len2) {
+        return false;
+    }
+
+    if (!len1) {
+        return true;
+    }
+
+    return !memcmp(c1->data, c2->data, len1);
+}
+
+static void compare_child(gpointer, gpointer, gpointer);
+
+static void compare_nodes(struct compare_walk *cw, XsNode *n1, XsNode *n2)
+{
+    int nr_children1 = 0, nr_children2 = 0;
+
+    if (n1->children) {
+        nr_children1 = g_hash_table_size(n1->children);
+    }
+    if (n2->children) {
+        nr_children2 = g_hash_table_size(n2->children);
+    }
+
+    if (n1->ref != n2->ref ||
+        n1->deleted_in_tx != n2->deleted_in_tx ||
+        n1->modified_in_tx != n2->modified_in_tx ||
+        !compare_perms(n1->perms, n2->perms) ||
+        !compare_content(n1->content, n2->content) ||
+        nr_children1 != nr_children2) {
+        cw->compare_ok = false;
+        printf("Compare failure on '%s'\n", cw->path);
+    }
+
+    if (nr_children1) {
+        XsNode *oldparent = cw->parent_2;
+        cw->parent_2 = n2;
+        g_hash_table_foreach(n1->children, compare_child, cw);
+
+        cw->parent_2 = oldparent;
+    }
+}
+
+static void compare_child(gpointer key, gpointer val, gpointer opaque)
+{
+    struct compare_walk *cw = opaque;
+    char *childname = key;
+    XsNode *child1 = val;
+    XsNode *child2 = g_hash_table_lookup(cw->parent_2->children, childname);
+    int pathlen = strlen(cw->path);
+
+    if (!child2) {
+        cw->compare_ok = false;
+        printf("Child '%s' does not exist under '%s'\n", childname, cw->path);
+        return;
+    }
+
+    strncat(cw->path, "/", sizeof(cw->path) - 1);
+    strncat(cw->path, childname, sizeof(cw->path) - 1);
+
+    compare_nodes(cw, child1, child2);
+    cw->path[pathlen] = '\0';
+}
+
+static bool compare_trees(XsNode *n1, XsNode *n2)
+{
+    struct compare_walk cw;
+
+    cw.path[0] = '\0';
+    cw.parent_2 = n2;
+    cw.compare_ok = true;
+
+    if (!n1 || !n2) {
+        return false;
+    }
+
+    compare_nodes(&cw, n1, n2);
+    return cw.compare_ok;
+}
+
+static void compare_tx(gpointer key, gpointer val, gpointer opaque)
+{
+    XenstoreImplState *s2 = opaque;
+    XsTransaction *t1 = val, *t2;
+    unsigned int tx_id = GPOINTER_TO_INT(key);
+
+    t2 = g_hash_table_lookup(s2->transactions, key);
+    g_assert(t2);
+
+    g_assert(t1->tx_id == tx_id);
+    g_assert(t2->tx_id == tx_id);
+    g_assert(t1->base_tx == t2->base_tx);
+    g_assert(t1->dom_id == t2->dom_id);
+    if (!compare_trees(t1->root, t2->root)) {
+        printf("Comparison failure in TX %u after serdes:\n", tx_id);
+        dump_ref("Original", t1->root, 0);
+        dump_ref("Deserialised", t2->root, 0);
+        g_assert(0);
+    }
+    g_assert(t1->nr_nodes == t2->nr_nodes);
 }
 
 static int write_str(XenstoreImplState *s, unsigned int dom_id,
@@ -76,6 +235,40 @@ static void watch_cb(void *_str, const char *path, const char *token)
 
     g_string_append(str, path);
     g_string_append(str, token);
+}
+
+static void check_serdes(XenstoreImplState *s)
+{
+    XenstoreImplState *s2 = xs_impl_create(DOMID_GUEST);
+    GByteArray *bytes = xs_impl_serialize(s);
+    int nr_transactions1, nr_transactions2;
+    int ret;
+
+    ret = xs_impl_deserialize(s2, bytes, DOMID_GUEST, watch_cb, NULL);
+    g_assert(!ret);
+
+    g_byte_array_unref(bytes);
+
+    g_assert(s->last_tx == s2->last_tx);
+    g_assert(s->root_tx == s2->root_tx);
+
+    if (!compare_trees(s->root, s2->root)) {
+        printf("Comparison failure in main tree after serdes:\n");
+        dump_ref("Original", s->root, 0);
+        dump_ref("Deserialised", s2->root, 0);
+        g_assert(0);
+    }
+
+    nr_transactions1 = g_hash_table_size(s->transactions);
+    nr_transactions2 = g_hash_table_size(s2->transactions);
+    g_assert(nr_transactions1 == nr_transactions2);
+
+    g_hash_table_foreach(s->transactions, compare_tx, s2);
+
+    g_assert(s->nr_domu_watches == s2->nr_domu_watches);
+    g_assert(s->nr_domu_transactions == s2->nr_domu_transactions);
+    g_assert(s->nr_nodes == s2->nr_nodes);
+    xs_impl_delete(s2, false);
 }
 
 static XenstoreImplState *setup(void)
@@ -293,7 +486,7 @@ static void test_xs_node_simple(void)
     g_string_free(qemu_watches, true);
     g_string_free(guest_watches, true);
     xs_node_unref(old_root);
-    xs_impl_delete(s);
+    xs_impl_delete(s, true);
 }
 
 
@@ -365,6 +558,8 @@ static void do_test_xs_node_tx(bool fail, bool commit)
     g_assert(!memcmp(data->data, "something else", data->len));
     g_byte_array_set_size(data, 0);
 
+    check_serdes(s);
+
     /* Attempt to commit the transaction */
     err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, commit);
     if (commit && fail) {
@@ -380,6 +575,8 @@ static void do_test_xs_node_tx(bool fail, bool commit)
        g_assert(!watches->len);
     }
     g_assert(s->nr_nodes == 7);
+
+    check_serdes(s);
 
     err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
                         watch_cb, watches);
@@ -399,7 +596,7 @@ static void do_test_xs_node_tx(bool fail, bool commit)
     }
     g_byte_array_unref(data);
     g_string_free(watches, true);
-    xs_impl_delete(s);
+    xs_impl_delete(s, true);
 }
 
 static void test_xs_node_tx_fail(void)
@@ -461,6 +658,8 @@ static void test_xs_node_tx_rm(void)
     g_assert(!memcmp(data->data, "something", data->len));
     g_byte_array_set_size(data, 0);
 
+    check_serdes(s);
+
     /* Commit the transaction */
     err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
     g_assert(!err);
@@ -480,7 +679,7 @@ static void test_xs_node_tx_rm(void)
     g_assert(!err);
 
     g_string_free(watches, true);
-    xs_impl_delete(s);
+    xs_impl_delete(s, true);
 }
 
 static void test_xs_node_tx_resurrect(void)
@@ -499,11 +698,16 @@ static void test_xs_node_tx_resurrect(void)
     g_assert(!err);
     g_assert(s->nr_nodes == 9);
 
+    /* Another node to remain shared */
+    err = write_str(s, DOMID_GUEST, XBT_NULL, "some/place/safe", "keepme");
+    g_assert(!err);
+    g_assert(s->nr_nodes == 11);
+
     /* This node will be wiped and resurrected */
     err = write_str(s, DOMID_GUEST, XBT_NULL, "some/deep/dark",
                     "foo");
     g_assert(!err);
-    g_assert(s->nr_nodes == 9);
+    g_assert(s->nr_nodes == 11);
 
     /* Set a watch */
     err = xs_impl_watch(s, DOMID_GUEST, "some", "watch",
@@ -520,19 +724,23 @@ static void test_xs_node_tx_resurrect(void)
     /* Delete the tree in the transaction */
     err = xs_impl_rm(s, DOMID_GUEST, tx_id, "some/deep");
     g_assert(!err);
-    g_assert(s->nr_nodes == 9);
+    g_assert(s->nr_nodes == 11);
     g_assert(!watches->len);
 
     /* Resurrect part of it */
     err = write_str(s, DOMID_GUEST, tx_id, "some/deep/dark/different/path",
                     "something");
     g_assert(!err);
-    g_assert(s->nr_nodes == 9);
+    g_assert(s->nr_nodes == 11);
+
+    check_serdes(s);
 
     /* Commit the transaction */
     err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
     g_assert(!err);
-    g_assert(s->nr_nodes == 9);
+    g_assert(s->nr_nodes == 11);
+
+    check_serdes(s);
 
     /* lost data */
     g_assert(strstr(watches->str, "some/deep/dark/different/pathwatch"));
@@ -549,12 +757,14 @@ static void test_xs_node_tx_resurrect(void)
     g_assert(err == ENOENT);
     g_byte_array_unref(data);
 
+    check_serdes(s);
+
     err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
                         watch_cb, watches);
     g_assert(!err);
 
     g_string_free(watches, true);
-    xs_impl_delete(s);
+    xs_impl_delete(s, true);
 }
 
 static void test_xs_node_tx_resurrect2(void)
@@ -608,10 +818,14 @@ static void test_xs_node_tx_resurrect2(void)
     g_assert(!err);
     g_assert(s->nr_nodes == 11);
 
+    check_serdes(s);
+
     /* Commit the transaction */
     err = xs_impl_transaction_end(s, DOMID_GUEST, tx_id, true);
     g_assert(!err);
     g_assert(s->nr_nodes == 11);
+
+    check_serdes(s);
 
     /* lost data */
     g_assert(strstr(watches->str, "some/deep/dark/relative/pathwatch"));
@@ -629,12 +843,14 @@ static void test_xs_node_tx_resurrect2(void)
 
     g_byte_array_unref(data);
 
+    check_serdes(s);
+
     err = xs_impl_unwatch(s, DOMID_GUEST, "some", "watch",
                         watch_cb, watches);
     g_assert(!err);
 
     g_string_free(watches, true);
-    xs_impl_delete(s);
+    xs_impl_delete(s, true);
 }
 
 int main(int argc, char **argv)

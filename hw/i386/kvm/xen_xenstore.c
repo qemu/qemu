@@ -66,6 +66,9 @@ struct XenXenstoreState {
     evtchn_port_t guest_port;
     evtchn_port_t be_port;
     struct xenevtchn_handle *eh;
+
+    uint8_t *impl_state;
+    uint32_t impl_state_size;
 };
 
 struct XenXenstoreState *xen_xenstore_singleton;
@@ -109,16 +112,26 @@ static bool xen_xenstore_is_needed(void *opaque)
 static int xen_xenstore_pre_save(void *opaque)
 {
     XenXenstoreState *s = opaque;
+    GByteArray *save;
 
     if (s->eh) {
         s->guest_port = xen_be_evtchn_get_guest_port(s->eh);
     }
+
+    g_free(s->impl_state);
+    save = xs_impl_serialize(s->impl);
+    s->impl_state = save->data;
+    s->impl_state_size = save->len;
+    g_byte_array_free(save, false);
+
     return 0;
 }
 
 static int xen_xenstore_post_load(void *opaque, int ver)
 {
     XenXenstoreState *s = opaque;
+    GByteArray *save;
+    int ret;
 
     /*
      * As qemu/dom0, rebind to the guest's port. The Windows drivers may
@@ -135,11 +148,18 @@ static int xen_xenstore_post_load(void *opaque, int ver)
         }
         s->be_port = be_port;
     }
-    return 0;
+
+    save = g_byte_array_new_take(s->impl_state, s->impl_state_size);
+    s->impl_state = NULL;
+    s->impl_state_size = 0;
+
+    ret = xs_impl_deserialize(s->impl, save, xen_domid, fire_watch_cb, s);
+    return ret;
 }
 
 static const VMStateDescription xen_xenstore_vmstate = {
     .name = "xen_xenstore",
+    .unmigratable = 1, /* The PV back ends don't migrate yet */
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = xen_xenstore_is_needed,
@@ -155,6 +175,10 @@ static const VMStateDescription xen_xenstore_vmstate = {
         VMSTATE_BOOL(rsp_pending, XenXenstoreState),
         VMSTATE_UINT32(guest_port, XenXenstoreState),
         VMSTATE_BOOL(fatal_error, XenXenstoreState),
+        VMSTATE_UINT32(impl_state_size, XenXenstoreState),
+        VMSTATE_VARRAY_UINT32_ALLOC(impl_state, XenXenstoreState,
+                                    impl_state_size, 0,
+                                    vmstate_info_uint8, uint8_t),
         VMSTATE_END_OF_LIST()
     }
 };

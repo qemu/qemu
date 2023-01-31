@@ -61,4 +61,9 @@ int xs_impl_unwatch(XenstoreImplState *s, unsigned int dom_id,
                     void *opaque);
 int xs_impl_reset_watches(XenstoreImplState *s, unsigned int dom_id);
 
+GByteArray *xs_impl_serialize(XenstoreImplState *s);
+int xs_impl_deserialize(XenstoreImplState *s, GByteArray *bytes,
+                        unsigned int dom_id, xs_impl_watch_fn watch_fn,
+                        void *watch_opaque);
+
 #endif /* QEMU_XENSTORE_IMPL_H */
