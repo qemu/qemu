@@ -19,6 +19,15 @@
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 
+int uffd_open(int flags)
+{
+#if defined(__NR_userfaultfd)
+    return syscall(__NR_userfaultfd, flags);
+#else
+    return -EINVAL;
+#endif
+}
+
 /**
  * uffd_query_features: query UFFD features
  *
@@ -32,7 +41,7 @@ int uffd_query_features(uint64_t *features)
     struct uffdio_api api_struct = { 0 };
     int ret = -1;
 
-    uffd_fd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    uffd_fd = uffd_open(O_CLOEXEC);
     if (uffd_fd < 0) {
         trace_uffd_query_features_nosys(errno);
         return -1;
@@ -69,7 +78,7 @@ int uffd_create_fd(uint64_t features, bool non_blocking)
     uint64_t ioctl_mask = BIT(_UFFDIO_REGISTER) | BIT(_UFFDIO_UNREGISTER);
 
     flags = O_CLOEXEC | (non_blocking ? O_NONBLOCK : 0);
-    uffd_fd = syscall(__NR_userfaultfd, flags);
+    uffd_fd = uffd_open(flags);
     if (uffd_fd < 0) {
         trace_uffd_create_fd_nosys(errno);
         return -1;

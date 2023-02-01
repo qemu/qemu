@@ -61,14 +61,14 @@ static bool uffd_feature_thread_id;
 #if defined(__linux__) && defined(__NR_userfaultfd) && defined(CONFIG_EVENTFD)
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
-#include <linux/userfaultfd.h>
+#include "qemu/userfaultfd.h"
 
 static bool ufd_version_check(void)
 {
     struct uffdio_api api_struct;
     uint64_t ioctl_mask;
 
-    int ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    int ufd = uffd_open(O_CLOEXEC);
 
     if (ufd == -1) {
         g_test_message("Skipping test: userfaultfd not available");
