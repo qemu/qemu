@@ -617,7 +617,8 @@ static void sifive_u_machine_init(MachineState *machine)
     }
 
     fdt_load_addr = riscv_compute_fdt_addr(memmap[SIFIVE_U_DEV_DRAM].base,
-                                           machine->ram_size, machine->fdt);
+                                           memmap[SIFIVE_U_DEV_DRAM].size,
+                                           machine);
     riscv_load_fdt(fdt_load_addr, machine->fdt);
 
     if (!riscv_is_32bit(&s->soc.u_cpus)) {

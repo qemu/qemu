@@ -642,7 +642,8 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
 
         /* Compute the fdt load address in dram */
         fdt_load_addr = riscv_compute_fdt_addr(memmap[MICROCHIP_PFSOC_DRAM_LO].base,
-                                               machine->ram_size, machine->fdt);
+                                               memmap[MICROCHIP_PFSOC_DRAM_LO].size,
+                                               machine);
         riscv_load_fdt(fdt_load_addr, machine->fdt);
 
         /* Load the reset vector */

@@ -325,7 +325,8 @@ static void spike_board_init(MachineState *machine)
     }
 
     fdt_load_addr = riscv_compute_fdt_addr(memmap[SPIKE_DRAM].base,
-                                           machine->ram_size, machine->fdt);
+                                           memmap[SPIKE_DRAM].size,
+                                           machine);
     riscv_load_fdt(fdt_load_addr, machine->fdt);
 
     /* load the reset vector */

@@ -250,32 +250,43 @@ void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
 }
 
 /*
- * The FDT should be put at the farthest point possible to
- * avoid overwriting it with the kernel/initrd.
+ * This function makes an assumption that the DRAM interval
+ * 'dram_base' + 'dram_size' is contiguous.
  *
- * This function makes an assumption that the DRAM is
- * contiguous. It also cares about 32-bit systems and
- * will limit fdt_addr to be addressable by them even for
- * 64-bit CPUs.
+ * Considering that 'dram_end' is the lowest value between
+ * the end of the DRAM block and MachineState->ram_size, the
+ * FDT location will vary according to 'dram_base':
+ *
+ * - if 'dram_base' is less that 3072 MiB, the FDT will be
+ * put at the lowest value between 3072 MiB and 'dram_end';
+ *
+ * - if 'dram_base' is higher than 3072 MiB, the FDT will be
+ * put at 'dram_end'.
  *
  * The FDT is fdt_packed() during the calculation.
  */
-uint64_t riscv_compute_fdt_addr(hwaddr dram_base, uint64_t mem_size,
-                                void *fdt)
+uint64_t riscv_compute_fdt_addr(hwaddr dram_base, hwaddr dram_size,
+                                MachineState *ms)
 {
-    uint64_t temp;
-    hwaddr dram_end = dram_base + mem_size;
-    int ret = fdt_pack(fdt);
+    int ret = fdt_pack(ms->fdt);
+    hwaddr dram_end, temp;
     int fdtsize;
 
     /* Should only fail if we've built a corrupted tree */
     g_assert(ret == 0);
 
-    fdtsize = fdt_totalsize(fdt);
+    fdtsize = fdt_totalsize(ms->fdt);
     if (fdtsize <= 0) {
         error_report("invalid device-tree");
         exit(1);
     }
+
+    /*
+     * A dram_size == 0, usually from a MemMapEntry[].size element,
+     * means that the DRAM block goes all the way to ms->ram_size.
+     */
+    dram_end = dram_base;
+    dram_end += dram_size ? MIN(ms->ram_size, dram_size) : ms->ram_size;
 
     /*
      * We should put fdt as far as possible to avoid kernel/initrd overwriting
