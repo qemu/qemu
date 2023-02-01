@@ -248,6 +248,14 @@ void cpu_loop (CPUSPARCState *env)
             cpu_exec_step_atomic(cs);
             break;
         default:
+            /*
+             * Most software trap numbers vector to BAD_TRAP.
+             * Handle anything not explicitly matched above.
+             */
+            if (trapnr >= TT_TRAP && trapnr <= TT_TRAP + 0x7f) {
+                force_sig_fault(TARGET_SIGILL, ILL_ILLTRP, env->pc);
+                break;
+            }
             fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, 0);
             exit(EXIT_FAILURE);
