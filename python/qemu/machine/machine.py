@@ -131,7 +131,7 @@ class QEMUMachine:
                  drain_console: bool = False,
                  console_log: Optional[str] = None,
                  log_dir: Optional[str] = None,
-                 qmp_timer: Optional[float] = None):
+                 qmp_timer: Optional[float] = 30):
         '''
         Initialize a QEMUMachine
 
@@ -157,18 +157,14 @@ class QEMUMachine:
         self._wrapper = wrapper
         self._qmp_timer = qmp_timer
 
-        self._name = name or f"qemu-{os.getpid()}-{id(self):02x}"
+        self._name = name or f"{id(self):x}"
+        self._sock_pair: Optional[Tuple[socket.socket, socket.socket]] = None
         self._temp_dir: Optional[str] = None
         self._base_temp_dir = base_temp_dir
         self._sock_dir = sock_dir
         self._log_dir = log_dir
 
-        if monitor_address is not None:
-            self._monitor_address = monitor_address
-        else:
-            self._monitor_address = os.path.join(
-                self.sock_dir, f"{self._name}-monitor.sock"
-            )
+        self._monitor_address = monitor_address
 
         self._console_log_path = console_log
         if self._console_log_path:
@@ -192,7 +188,7 @@ class QEMUMachine:
         self._console_set = False
         self._console_device_type: Optional[str] = None
         self._console_address = os.path.join(
-            self.sock_dir, f"{self._name}-console.sock"
+            self.sock_dir, f"{self._name}.con"
         )
         self._console_socket: Optional[socket.socket] = None
         self._remove_files: List[str] = []
@@ -303,7 +299,11 @@ class QEMUMachine:
         args = ['-display', 'none', '-vga', 'none']
 
         if self._qmp_set:
-            if isinstance(self._monitor_address, tuple):
+            if self._sock_pair:
+                fd = self._sock_pair[0].fileno()
+                os.set_inheritable(fd, True)
+                moncdev = f"socket,id=mon,fd={fd}"
+            elif isinstance(self._monitor_address, tuple):
                 moncdev = "socket,id=mon,host={},port={}".format(
                     *self._monitor_address
                 )
@@ -337,10 +337,17 @@ class QEMUMachine:
             self._remove_files.append(self._console_address)
 
         if self._qmp_set:
+            monitor_address = None
+            sock = None
+            if self._monitor_address is None:
+                self._sock_pair = socket.socketpair()
+                sock = self._sock_pair[1]
             if isinstance(self._monitor_address, str):
                 self._remove_files.append(self._monitor_address)
+                monitor_address = self._monitor_address
             self._qmp_connection = QEMUMonitorProtocol(
-                self._monitor_address,
+                address=monitor_address,
+                sock=sock,
                 server=True,
                 nickname=self._name
             )
@@ -360,6 +367,8 @@ class QEMUMachine:
         ))
 
     def _post_launch(self) -> None:
+        if self._sock_pair:
+            self._sock_pair[0].close()
         if self._qmp_connection:
             self._qmp.accept(self._qmp_timer)
 

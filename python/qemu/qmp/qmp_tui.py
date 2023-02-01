@@ -71,7 +71,7 @@ def format_json(msg: str) -> str:
     due to an decoding error then a simple string manipulation is done to
     achieve a single line JSON string.
 
-    Converting into single line is more asthetically pleasing when looking
+    Converting into single line is more aesthetically pleasing when looking
     along with error messages.
 
     Eg:
@@ -91,7 +91,7 @@ def format_json(msg: str) -> str:
 
         [1, true, 3]: QMP message is not a JSON object.
 
-    The single line mode is more asthetically pleasing.
+    The single line mode is more aesthetically pleasing.
 
     :param msg:
         The message to formatted into single line.
@@ -498,7 +498,7 @@ class EditorWidget(urwid.Filler):
 class HistoryBox(urwid.ListBox):
     """
     This widget is modelled using the ListBox widget, contains the list of
-    all messages both QMP messages and log messsages to be shown in the TUI.
+    all messages both QMP messages and log messages to be shown in the TUI.
 
     The messages are urwid.Text widgets. On every append of a message, the
     focus is shifted to the last appended message.
