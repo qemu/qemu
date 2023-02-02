@@ -568,6 +568,13 @@ void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 
     state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
     led = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
+
+    if (led == SHPC_LED_BLINK) {
+        error_setg(errp, "Hot-unplug failed: "
+                   "guest is busy (power indicator blinking)");
+        return;
+    }
+
     if (state == SHPC_STATE_DISABLED && led == SHPC_LED_OFF) {
         shpc_free_devices_in_slot(shpc, slot);
         shpc_set_status(shpc, slot, 1, SHPC_SLOT_STATUS_MRL_OPEN);

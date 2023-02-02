@@ -483,7 +483,7 @@ static void pci_bus_uninit(PCIBus *bus)
     pci_host_bus_unregister(BUS(bus)->parent);
 }
 
-bool pci_bus_is_express(PCIBus *bus)
+bool pci_bus_is_express(const PCIBus *bus)
 {
     return object_dynamic_cast(OBJECT(bus), TYPE_PCIE_BUS);
 }

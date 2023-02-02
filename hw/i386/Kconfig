@@ -58,6 +58,7 @@ config PC_ACPI
     select ACPI_X86
     select ACPI_CPU_HOTPLUG
     select ACPI_MEMORY_HOTPLUG
+    select ACPI_PCI_BRIDGE
     select ACPI_VIOT
     select SMBUS_EEPROM
     select PFLASH_CFI01

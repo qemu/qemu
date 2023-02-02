@@ -270,7 +270,7 @@ typedef void (*pci_bus_dev_fn)(PCIBus *b, PCIDevice *d, void *opaque);
 typedef void (*pci_bus_fn)(PCIBus *b, void *opaque);
 typedef void *(*pci_bus_ret_fn)(PCIBus *b, void *opaque);
 
-bool pci_bus_is_express(PCIBus *bus);
+bool pci_bus_is_express(const PCIBus *bus);
 
 void pci_root_bus_init(PCIBus *bus, size_t bus_size, DeviceState *parent,
                        const char *name,

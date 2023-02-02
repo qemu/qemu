@@ -117,8 +117,6 @@ typedef struct AcpiMiscInfo {
 #ifdef CONFIG_TPM
     TPMVersion tpm_version;
 #endif
-    const unsigned char *dsdt_code;
-    unsigned dsdt_size;
 } AcpiMiscInfo;
 
 typedef struct FwCfgTPMConfig {
@@ -385,151 +383,185 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     aml_append(method, if_ctx);
 }
 
-static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
-                                         bool pcihp_bridge_en)
+static bool is_devfn_ignored_generic(const int devfn, const PCIBus *bus)
 {
-    Aml *dev, *notify_method = NULL, *method;
-    QObject *bsel;
-    PCIBus *sec;
-    int devfn;
+    const PCIDevice *pdev = bus->devices[devfn];
 
-    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
-    if (bsel) {
-        uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
-
-        aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
-        notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
+    if (PCI_FUNC(devfn)) {
+        if (IS_PCI_BRIDGE(pdev)) {
+            /*
+             * Ignore only hotplugged PCI bridges on !0 functions, but
+             * allow describing cold plugged bridges on all functions
+             */
+            if (DEVICE(pdev)->hotplugged) {
+                return true;
+            }
+        } else if (!get_dev_aml_func(DEVICE(pdev))) {
+            /*
+             * Ignore all other devices on !0 functions unless they
+             * have AML description (i.e have get_dev_aml_func() != 0)
+             */
+            return true;
+        }
     }
+    return false;
+}
+
+static bool is_devfn_ignored_hotplug(const int devfn, const PCIBus *bus)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    if (pdev) {
+        return is_devfn_ignored_generic(devfn, bus) ||
+               !DEVICE_GET_CLASS(pdev)->hotpluggable ||
+               /* Cold plugged bridges aren't themselves hot-pluggable */
+               (IS_PCI_BRIDGE(pdev) && !DEVICE(pdev)->hotplugged);
+    } else { /* non populated slots */
+         /*
+         * hotplug is supported only for non-multifunction device
+         * so generate device description only for function 0
+         */
+        if (PCI_FUNC(devfn) ||
+            (pci_bus_is_express(bus) && PCI_SLOT(devfn) > 0)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus,
+                                     QObject *bsel)
+{
+    int devfn;
+    Aml *dev, *notify_method = NULL, *method;
+    uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
+
+    aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
+    notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
 
     for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
-        DeviceClass *dc;
-        PCIDevice *pdev = bus->devices[devfn];
         int slot = PCI_SLOT(devfn);
-        int func = PCI_FUNC(devfn);
-        /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
-        int adr = slot << 16 | func;
-        bool hotpluggbale_slot = false;
-        bool bridge_in_acpi = false;
-        bool cold_plugged_bridge = false;
+        int adr = slot << 16 | PCI_FUNC(devfn);
 
-        if (pdev) {
-            dc = DEVICE_GET_CLASS(pdev);
+        if (is_devfn_ignored_hotplug(devfn, bus)) {
+            continue;
+        }
 
-            /*
-             * Cold plugged bridges aren't themselves hot-pluggable.
-             * Hotplugged bridges *are* hot-pluggable.
-             */
-            cold_plugged_bridge = IS_PCI_BRIDGE(pdev) &&
-                                  !DEVICE(pdev)->hotplugged;
-            bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
-
-            hotpluggbale_slot = bsel && dc->hotpluggable &&
-                                !cold_plugged_bridge;
-
-            /*
-             * allow describing coldplugged bridges in ACPI even if they are not
-             * on function 0, as they are not unpluggable, for all other devices
-             * generate description only for function 0 per slot, and for other
-             * functions if device on function provides its own AML
-             */
-            if (func && !bridge_in_acpi && !get_dev_aml_func(DEVICE(pdev))) {
-                continue;
-            }
+        if (bus->devices[devfn]) {
+            dev = aml_scope("S%.02X", devfn);
         } else {
-            /*
-             * hotplug is supported only for non-multifunction device
-             * so generate device description only for function 0
-             */
-            if (bsel && !func) {
-                if (pci_bus_is_express(bus) && slot > 0) {
-                    break;
-                }
-                /* mark it as empty hotpluggable slot */
-                hotpluggbale_slot = true;
-            } else {
-                continue;
-            }
+            dev = aml_device("S%.02X", devfn);
+            aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
+        }
+
+        /*
+         * Can't declare _SUN here for every device as it changes 'slot'
+         * enumeration order in linux kernel, so use another variable for it
+         */
+        aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
+        aml_append(dev, aml_pci_device_dsm());
+
+        aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
+        /* add _EJ0 to make slot hotpluggable  */
+        method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
+        aml_append(method,
+            aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
+        );
+        aml_append(dev, method);
+
+        build_append_pcihp_notify_entry(notify_method, slot);
+
+        /* device descriptor has been composed, add it into parent context */
+        aml_append(parent_scope, dev);
+    }
+    aml_append(parent_scope, notify_method);
+}
+
+void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
+{
+    QObject *bsel;
+    int devfn;
+    Aml *dev;
+
+    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
+
+    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+        /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
+        int adr = PCI_SLOT(devfn) << 16 | PCI_FUNC(devfn);
+        PCIDevice *pdev = bus->devices[devfn];
+
+        if (!pdev || is_devfn_ignored_generic(devfn, bus)) {
+            continue;
         }
 
         /* start to compose PCI device descriptor */
         dev = aml_device("S%.02X", devfn);
         aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
 
-        if (bsel) {
-            /*
-             * Can't declare _SUN here for every device as it changes 'slot'
-             * enumeration order in linux kernel, so use another variable for it
-             */
-            aml_append(dev, aml_name_decl("ASUN", aml_int(slot)));
-            aml_append(dev, aml_pci_device_dsm());
-        }
-
-        call_dev_aml_func(DEVICE(pdev), dev);
-
-        bridge_in_acpi =  cold_plugged_bridge && pcihp_bridge_en;
-        if (bridge_in_acpi) {
-            /*
-             * device is coldplugged bridge,
-             * add child device descriptions into its scope
-             */
-            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
-
-            build_append_pci_bus_devices(dev, sec_bus, pcihp_bridge_en);
-        }
-
-        if (hotpluggbale_slot) {
-            aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-            /* add _EJ0 to make slot hotpluggable  */
-            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
-            );
-            aml_append(dev, method);
-
-            build_append_pcihp_notify_entry(notify_method, slot);
-        }
+        call_dev_aml_func(DEVICE(bus->devices[devfn]), dev);
 
         /* device descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
     }
 
     if (bsel) {
-        aml_append(parent_scope, notify_method);
+        build_append_pcihp_slots(parent_scope, bus, bsel);
     }
 
-    /* Append PCNT method to notify about events on local and child buses.
-     * Add this method for root bus only when hotplug is enabled since DSDT
-     * expects it.
-     */
-    if (bsel || pcihp_bridge_en) {
-        method = aml_method("PCNT", 0, AML_NOTSERIALIZED);
-
-        /* If bus supports hotplug select it and notify about local events */
-        if (bsel) {
-            uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
-
-            aml_append(method, aml_store(aml_int(bsel_val), aml_name("BNUM")));
-            aml_append(method, aml_call2("DVNT", aml_name("PCIU"),
-                                         aml_int(1))); /* Device Check */
-            aml_append(method, aml_call2("DVNT", aml_name("PCID"),
-                                         aml_int(3))); /* Eject Request */
-        }
-
-        /* Notify about child bus events in any case */
-        if (pcihp_bridge_en) {
-            QLIST_FOREACH(sec, &bus->child, sibling) {
-                if (pci_bus_is_root(sec)) {
-                    continue;
-                }
-
-                aml_append(method, aml_name("^S%.02X.PCNT",
-                                            sec->parent_dev->devfn));
-            }
-        }
-
-        aml_append(parent_scope, method);
-    }
     qobject_unref(bsel);
+}
+
+static bool build_append_notfication_callback(Aml *parent_scope,
+                                              const PCIBus *bus)
+{
+    Aml *method;
+    PCIBus *sec;
+    QObject *bsel;
+    int nr_notifiers = 0;
+
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        Aml *br_scope = aml_scope("S%.02X", sec->parent_dev->devfn);
+        if (pci_bus_is_root(sec) ||
+            !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
+            continue;
+        }
+        nr_notifiers = nr_notifiers +
+                       build_append_notfication_callback(br_scope, sec);
+        aml_append(parent_scope, br_scope);
+    }
+
+    /*
+     * Append PCNT method to notify about events on local and child buses.
+     * ps: hostbridge might not have hotplug (bsel) enabled but might have
+     * child bridges that do have bsel.
+     */
+    method = aml_method("PCNT", 0, AML_NOTSERIALIZED);
+
+    /* If bus supports hotplug select it and notify about local events */
+    bsel = object_property_get_qobject(OBJECT(bus), ACPI_PCIHP_PROP_BSEL, NULL);
+    if (bsel) {
+        uint64_t bsel_val = qnum_get_uint(qobject_to(QNum, bsel));
+
+        aml_append(method, aml_store(aml_int(bsel_val), aml_name("BNUM")));
+        aml_append(method, aml_call2("DVNT", aml_name("PCIU"),
+                                     aml_int(1))); /* Device Check */
+        aml_append(method, aml_call2("DVNT", aml_name("PCID"),
+                                     aml_int(3))); /* Eject Request */
+        nr_notifiers++;
+    }
+
+    /* Notify about child bus events in any case */
+    QLIST_FOREACH(sec, &bus->child, sibling) {
+        if (pci_bus_is_root(sec) ||
+            !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
+            continue;
+        }
+
+        aml_append(method, aml_name("^S%.02X.PCNT", sec->parent_dev->devfn));
+    }
+
+    aml_append(parent_scope, method);
+    qobject_unref(bsel);
+    return !!nr_notifiers;
 }
 
 static Aml *aml_pci_pdsm(void)
@@ -1678,7 +1710,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             PCIBus *bus = PCI_HOST_BRIDGE(pci_host)->bus;
             Aml *scope = aml_scope("PCI0");
             /* Scan all PCI buses. Generate tables to support hotplug. */
-            build_append_pci_bus_devices(scope, bus, pm->pcihp_bridge_en);
+            build_append_pci_bus_devices(scope, bus);
             aml_append(sb_scope, scope);
         }
     }
@@ -1728,13 +1760,26 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     aml_append(dsdt, sb_scope);
 
     if (pm->pcihp_bridge_en || pm->pcihp_root_en) {
+        bool has_pcnt;
+
+        Object *pci_host = acpi_get_i386_pci_host();
+        PCIBus *bus = PCI_HOST_BRIDGE(pci_host)->bus;
+
+        scope = aml_scope("\\_SB.PCI0");
+        has_pcnt = build_append_notfication_callback(scope, bus);
+        if (has_pcnt) {
+            aml_append(dsdt, scope);
+        }
+
         scope =  aml_scope("_GPE");
         {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
-            aml_append(method,
-                aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
-            aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
-            aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
+            if (has_pcnt) {
+                aml_append(method,
+                    aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
+                aml_append(method, aml_call0("\\_SB.PCI0.PCNT"));
+                aml_append(method, aml_release(aml_name("\\_SB.PCI0.BLCK")));
+            }
             aml_append(scope, method);
         }
         aml_append(dsdt, scope);

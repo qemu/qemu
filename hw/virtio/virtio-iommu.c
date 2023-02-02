@@ -1366,7 +1366,8 @@ static const VMStateDescription vmstate_virtio_iommu = {
 };
 
 static Property virtio_iommu_properties[] = {
-    DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus, "PCI", PCIBus *),
+    DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus,
+                     TYPE_PCI_BUS, PCIBus *),
     DEFINE_PROP_BOOL("boot-bypass", VirtIOIOMMU, boot_bypass, true),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -36,6 +36,8 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
+#include "hw/acpi/acpi_aml_interface.h"
+#include "hw/acpi/pci.h"
 
 /* PCI bridge subsystem vendor ID helper functions */
 #define PCI_SSVID_SIZEOF        8
@@ -467,11 +469,23 @@ int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
     return 0;
 }
 
+static void pci_bridge_class_init(ObjectClass *klass, void *data)
+{
+    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+
+    adevc->build_dev_aml = build_pci_bridge_aml;
+}
+
 static const TypeInfo pci_bridge_type_info = {
     .name = TYPE_PCI_BRIDGE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
+    .class_init = pci_bridge_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_ACPI_DEV_AML_IF },
+        { },
+    },
 };
 
 static void pci_bridge_register_types(void)

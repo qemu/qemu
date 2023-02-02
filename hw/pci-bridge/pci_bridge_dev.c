@@ -186,7 +186,6 @@ static Property pci_bridge_dev_properties[] = {
                      res_reserve.mem_pref_32, -1),
     DEFINE_PROP_SIZE("pref64-reserve", PCIBridgeDev,
                      res_reserve.mem_pref_64, -1),
-
     DEFINE_PROP_END_OF_LIST(),
 };
 

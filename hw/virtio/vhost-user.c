@@ -48,7 +48,7 @@
  * hardware plaform.
  */
 #if defined(TARGET_X86) || defined(TARGET_X86_64) || \
-    defined(TARGET_ARM) || defined(TARGET_ARM_64)
+    defined(TARGET_ARM) || defined(TARGET_AARCH64)
 #include "hw/acpi/acpi.h"
 #define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
 
@@ -305,19 +305,8 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
     return 0;
 }
 
-struct vhost_user_read_cb_data {
-    struct vhost_dev *dev;
-    VhostUserMsg *msg;
-    GMainLoop *loop;
-    int ret;
-};
-
-static gboolean vhost_user_read_cb(void *do_not_use, GIOCondition condition,
-                                   gpointer opaque)
+static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
-    struct vhost_user_read_cb_data *data = opaque;
-    struct vhost_dev *dev = data->dev;
-    VhostUserMsg *msg = data->msg;
     struct vhost_user *u = dev->opaque;
     CharBackend *chr = u->user->chr;
     uint8_t *p = (uint8_t *) msg;
@@ -325,8 +314,7 @@ static gboolean vhost_user_read_cb(void *do_not_use, GIOCondition condition,
 
     r = vhost_user_read_header(dev, msg);
     if (r < 0) {
-        data->ret = r;
-        goto end;
+        return r;
     }
 
     /* validate message size is sane */
@@ -334,8 +322,7 @@ static gboolean vhost_user_read_cb(void *do_not_use, GIOCondition condition,
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", msg->hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
-        data->ret = -EPROTO;
-        goto end;
+        return -EPROTO;
     }
 
     if (msg->hdr.size) {
@@ -346,84 +333,11 @@ static gboolean vhost_user_read_cb(void *do_not_use, GIOCondition condition,
             int saved_errno = errno;
             error_report("Failed to read msg payload."
                          " Read %d instead of %d.", r, msg->hdr.size);
-            data->ret = r < 0 ? -saved_errno : -EIO;
-            goto end;
+            return r < 0 ? -saved_errno : -EIO;
         }
     }
 
-end:
-    g_main_loop_quit(data->loop);
-    return G_SOURCE_REMOVE;
-}
-
-static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
-                           gpointer opaque);
-
-/*
- * This updates the read handler to use a new event loop context.
- * Event sources are removed from the previous context : this ensures
- * that events detected in the previous context are purged. They will
- * be re-detected and processed in the new context.
- */
-static void slave_update_read_handler(struct vhost_dev *dev,
-                                      GMainContext *ctxt)
-{
-    struct vhost_user *u = dev->opaque;
-
-    if (!u->slave_ioc) {
-        return;
-    }
-
-    if (u->slave_src) {
-        g_source_destroy(u->slave_src);
-        g_source_unref(u->slave_src);
-    }
-
-    u->slave_src = qio_channel_add_watch_source(u->slave_ioc,
-                                                G_IO_IN | G_IO_HUP,
-                                                slave_read, dev, NULL,
-                                                ctxt);
-}
-
-static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
-{
-    struct vhost_user *u = dev->opaque;
-    CharBackend *chr = u->user->chr;
-    GMainContext *prev_ctxt = chr->chr->gcontext;
-    GMainContext *ctxt = g_main_context_new();
-    GMainLoop *loop = g_main_loop_new(ctxt, FALSE);
-    struct vhost_user_read_cb_data data = {
-        .dev = dev,
-        .loop = loop,
-        .msg = msg,
-        .ret = 0
-    };
-
-    /*
-     * We want to be able to monitor the slave channel fd while waiting
-     * for chr I/O. This requires an event loop, but we can't nest the
-     * one to which chr is currently attached : its fd handlers might not
-     * be prepared for re-entrancy. So we create a new one and switch chr
-     * to use it.
-     */
-    slave_update_read_handler(dev, ctxt);
-    qemu_chr_be_update_read_handlers(chr->chr, ctxt);
-    qemu_chr_fe_add_watch(chr, G_IO_IN | G_IO_HUP, vhost_user_read_cb, &data);
-
-    g_main_loop_run(loop);
-
-    /*
-     * Restore the previous event loop context. This also destroys/recreates
-     * event sources : this guarantees that all pending events in the original
-     * context that have been processed by the nested loop are purged.
-     */
-    qemu_chr_be_update_read_handlers(chr->chr, prev_ctxt);
-    slave_update_read_handler(dev, NULL);
-
-    g_main_loop_unref(loop);
-    g_main_context_unref(ctxt);
-
-    return data.ret;
+    return 0;
 }
 
 static int process_message_reply(struct vhost_dev *dev,
@@ -459,6 +373,8 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
     case VHOST_USER_NET_SET_MTU:
+    case VHOST_USER_ADD_MEM_REG:
+    case VHOST_USER_REM_MEM_REG:
         return true;
     default:
         return false;
@@ -1807,7 +1723,9 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
         return -ECONNREFUSED;
     }
     u->slave_ioc = ioc;
-    slave_update_read_handler(dev, NULL);
+    u->slave_src = qio_channel_add_watch_source(u->slave_ioc,
+                                                G_IO_IN | G_IO_HUP,
+                                                slave_read, dev, NULL, NULL);
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;

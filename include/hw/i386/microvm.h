@@ -50,8 +50,9 @@
  */
 
 /* Platform virtio definitions */
-#define VIRTIO_MMIO_BASE      0xfeb00000
-#define VIRTIO_CMDLINE_MAXLEN 64
+#define VIRTIO_MMIO_BASE                0xfeb00000
+#define VIRTIO_CMDLINE_MAXLEN           64
+#define VIRTIO_CMDLINE_TOTAL_MAX_LEN    ((VIRTIO_CMDLINE_MAXLEN + 1) * 16)
 
 #define GED_MMIO_BASE         0xfea00000
 #define GED_MMIO_BASE_MEMHP   (GED_MMIO_BASE + 0x100)

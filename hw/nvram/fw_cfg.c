@@ -741,6 +741,15 @@ void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
     fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
 }
 
+void *fw_cfg_read_bytes_ptr(FWCfgState *s, uint16_t key)
+{
+    int arch = !!(key & FW_CFG_ARCH_LOCAL);
+
+    key &= FW_CFG_ENTRY_MASK;
+    assert(key < fw_cfg_max_entry(s));
+    return s->entries[arch][key].data;
+}
+
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;

@@ -24,7 +24,7 @@
  * You will also notice that tests/qtest/bios-tables-test-allowed-diff.h lists
  * a bunch of files. This is your hint that you need to do the below:
  * 4. Run
- *      make check V=1
+ *      make check V=2
  * this will produce a bunch of warnings about differences
  * beween actual and expected ACPI tables. If you have IASL installed,
  * they will also be disassembled so you can look at the disassembled
@@ -107,6 +107,8 @@ static const char *iasl = CONFIG_IASL;
 #else
 static const char *iasl;
 #endif
+
+static int verbosity_level;
 
 static bool compare_signature(const AcpiSdtTable *sdt, const char *signature)
 {
@@ -368,7 +370,7 @@ static GArray *load_expected_aml(test_data *data)
     gsize aml_len;
 
     GArray *exp_tables = g_array_new(false, true, sizeof(AcpiSdtTable));
-    if (getenv("V")) {
+    if (verbosity_level >= 2) {
         fputc('\n', stderr);
     }
     for (i = 0; i < data->tables->len; ++i) {
@@ -383,7 +385,7 @@ static GArray *load_expected_aml(test_data *data)
 try_again:
         aml_file = g_strdup_printf("%s/%s/%.4s%s", data_dir, data->machine,
                                    sdt->aml, ext);
-        if (getenv("V")) {
+        if (verbosity_level >= 2) {
             fprintf(stderr, "Looking for expected file '%s'\n", aml_file);
         }
         if (g_file_test(aml_file, G_FILE_TEST_EXISTS)) {
@@ -395,7 +397,7 @@ try_again:
             goto try_again;
         }
         g_assert(exp_sdt.aml_file);
-        if (getenv("V")) {
+        if (verbosity_level >= 2) {
             fprintf(stderr, "Using expected file '%s'\n", aml_file);
         }
         ret = g_file_get_contents(aml_file, (gchar **)&exp_sdt.aml,
@@ -503,7 +505,7 @@ static void test_acpi_asl(test_data *data)
                         exp_sdt->aml, sdt->asl_file, sdt->aml_file,
                         exp_sdt->asl_file, exp_sdt->aml_file);
                 fflush(stderr);
-                if (getenv("V")) {
+                if (verbosity_level >= 1) {
                     const char *diff_env = getenv("DIFF");
                     const char *diff_cmd = diff_env ? diff_env : "diff -U 16";
                     char *diff = g_strdup_printf("%s %s %s", diff_cmd,
@@ -748,9 +750,9 @@ static void test_smbios_structs(test_data *data, SmbiosEntryPointType ep_type)
     }
 }
 
-static void test_acpi_load_tables(test_data *data, bool use_uefi)
+static void test_acpi_load_tables(test_data *data)
 {
-    if (use_uefi) {
+    if (data->uefi_fl1 && data->uefi_fl2) { /* use UEFI */
         g_assert(data->scan_len);
         data->rsdp_addr = acpi_find_rsdp_address_uefi(data->qts,
             data->ram_start, data->scan_len);
@@ -766,12 +768,11 @@ static void test_acpi_load_tables(test_data *data, bool use_uefi)
     test_acpi_fadt_table(data);
 }
 
-static char *test_acpi_create_args(test_data *data, const char *params,
-                                   bool use_uefi)
+static char *test_acpi_create_args(test_data *data, const char *params)
 {
     char *args;
 
-    if (use_uefi) {
+    if (data->uefi_fl1 && data->uefi_fl2) { /* use UEFI */
         /*
          * TODO: convert '-drive if=pflash' to new syntax (see e33763be7cd3)
          * when arm/virt boad starts to support it.
@@ -806,14 +807,16 @@ static char *test_acpi_create_args(test_data *data, const char *params,
     return args;
 }
 
-static void test_acpi_one(const char *params, test_data *data)
+static void test_vm_prepare(const char *params, test_data *data)
 {
-    char *args;
-    bool use_uefi = data->uefi_fl1 && data->uefi_fl2;
-
-    args = test_acpi_create_args(data, params, use_uefi);
+    char *args = test_acpi_create_args(data, params);
     data->qts = qtest_init(args);
-    test_acpi_load_tables(data, use_uefi);
+    g_free(args);
+}
+
+static void process_acpi_tables_noexit(test_data *data)
+{
+    test_acpi_load_tables(data);
 
     if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
         dump_aml_files(data, true);
@@ -826,13 +829,22 @@ static void test_acpi_one(const char *params, test_data *data)
      * Bug on uefi-test-tools to provide entry point:
      * https://bugs.launchpad.net/qemu/+bug/1821884
      */
-    if (!use_uefi) {
+    if (!(data->uefi_fl1 && data->uefi_fl2)) {
         SmbiosEntryPointType ep_type = test_smbios_entry_point(data);
         test_smbios_structs(data, ep_type);
     }
+}
 
+static void process_acpi_tables(test_data *data)
+{
+    process_acpi_tables_noexit(data);
     qtest_quit(data->qts);
-    g_free(args);
+}
+
+static void test_acpi_one(const char *params, test_data *data)
+{
+    test_vm_prepare(params, data);
+    process_acpi_tables(data);
 }
 
 static uint8_t base_required_struct_types[] = {
@@ -863,7 +875,32 @@ static void test_acpi_piix4_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1", &data);
+    test_vm_prepare("-S"
+        " -device pci-bridge,chassis_nr=1"
+        " -device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2"
+        " -device pci-testdev,bus=pci.0,addr=5.0"
+        " -device pci-testdev,bus=pci.1", &data);
+
+    /* hotplugged bridges section */
+    qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr",
+        "{'bus': 'pci.1', 'addr': '2.0', 'chassis_nr': 3 }");
+    qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr_multifunc",
+        "{'bus': 'pci.1', 'addr': '0xf.1', 'chassis_nr': 4 }");
+    qtest_qmp_device_add(data.qts, "pci-bridge", "hpbrhost",
+        "{'bus': 'pci.0', 'addr': '4.0', 'chassis_nr': 5 }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d1", "{'bus': 'pci.0' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d2", "{'bus': 'pci.1' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "d3", "{'bus': 'hpbr', "
+                                   "'addr': '1.0' }");
+    qtest_qmp_send(data.qts, "{'execute':'cont' }");
+    qtest_qmp_eventwait(data.qts, "RESUME");
+
+    process_acpi_tables_noexit(&data);
+    free_test_data(&data);
+
+    /* check that reboot/reset doesn't change any ACPI tables  */
+    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
+    process_acpi_tables(&data);
     free_test_data(&data);
 }
 
@@ -877,7 +914,10 @@ static void test_acpi_piix4_no_root_hotplug(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
-                  "-device pci-bridge,chassis_nr=1", &data);
+                  "-device pci-bridge,chassis_nr=1 "
+                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1", &data);
     free_test_data(&data);
 }
 
@@ -891,7 +931,10 @@ static void test_acpi_piix4_no_bridge_hotplug(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
-                  "-device pci-bridge,chassis_nr=1", &data);
+                  "-device pci-bridge,chassis_nr=1 "
+                  "-device pci-bridge,bus=pci.1,addr=1.0,chassis_nr=2 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1,addr=2.0", &data);
     free_test_data(&data);
 }
 
@@ -906,7 +949,9 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
                   "-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
-                  "-device pci-bridge,chassis_nr=1", &data);
+                  "-device pci-bridge,chassis_nr=1 "
+                  "-device pci-testdev,bus=pci.0 "
+                  "-device pci-testdev,bus=pci.1", &data);
     free_test_data(&data);
 }
 
@@ -951,8 +996,9 @@ static void test_acpi_q35_tcg_bridge(void)
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
-    test_acpi_one("-device pci-bridge,chassis_nr=1",
-                  &data);
+    test_acpi_one("-device pci-bridge,chassis_nr=1,id=br1"
+                  " -device pci-testdev,bus=pcie.0"
+                  " -device pci-testdev,bus=br1", &data);
     free_test_data(&data);
 }
 
@@ -962,14 +1008,41 @@ static void test_acpi_q35_multif_bridge(void)
         .machine = MACHINE_Q35,
         .variant = ".multi-bridge",
     };
-    test_acpi_one("-device pcie-root-port,id=pcie-root-port-0,"
-                  "multifunction=on,"
-                  "port=0x0,chassis=1,addr=0x2,bus=pcie.0 "
-                  "-device pcie-root-port,id=pcie-root-port-1,"
-                  "port=0x1,chassis=2,addr=0x3.0x1,bus=pcie.0 "
-                  "-device virtio-balloon,id=balloon0,"
-                  "bus=pcie.0,addr=0x4.0x2",
-                  &data);
+    test_vm_prepare("-S"
+        " -device virtio-balloon,id=balloon0,addr=0x4.0x2"
+        " -device pcie-root-port,id=rp0,multifunction=on,"
+                  "port=0x0,chassis=1,addr=0x2"
+        " -device pcie-root-port,id=rp1,port=0x1,chassis=2,addr=0x3.0x1"
+        " -device pcie-root-port,id=rp2,port=0x0,chassis=3,bus=rp1,addr=0.0"
+        " -device pci-bridge,bus=rp2,chassis_nr=4,id=br1"
+        " -device pcie-root-port,id=rphptgt1,port=0x0,chassis=5,addr=2.1"
+        " -device pcie-root-port,id=rphptgt2,port=0x0,chassis=6,addr=2.2"
+        " -device pcie-root-port,id=rphptgt3,port=0x0,chassis=7,addr=2.3"
+        " -device pci-testdev,bus=pcie.0,addr=2.4"
+        " -device pci-testdev,bus=pcie.0,addr=5.0"
+        " -device pci-testdev,bus=rp0,addr=0.0"
+        " -device pci-testdev,bus=br1", &data);
+
+    /* hotplugged bridges section */
+    qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr1",
+        "{'bus': 'br1', 'addr': '6.0', 'chassis_nr': 128 }");
+    qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr2-multiif",
+        "{ 'bus': 'br1', 'addr': '2.2', 'chassis_nr': 129 }");
+    qtest_qmp_device_add(data.qts, "pcie-pci-bridge", "hpbr3",
+        "{'bus': 'rphptgt1', 'addr': '0.0' }");
+    qtest_qmp_device_add(data.qts, "pcie-root-port", "hprp",
+        "{'bus': 'rphptgt2', 'addr': '0.0' }");
+    qtest_qmp_device_add(data.qts, "pci-testdev", "hpnic",
+        "{'bus': 'rphptgt3', 'addr': '0.0' }");
+    qtest_qmp_send(data.qts, "{'execute':'cont' }");
+    qtest_qmp_eventwait(data.qts, "RESUME");
+
+    process_acpi_tables_noexit(&data);
+    free_test_data(&data);
+
+    /* check that reboot/reset doesn't change any ACPI tables  */
+    qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
+    process_acpi_tables(&data);
     free_test_data(&data);
 }
 
@@ -1898,10 +1971,9 @@ static void test_acpi_piix4_oem_fields(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
 
-    args = test_acpi_create_args(&data,
-                                 OEM_TEST_ARGS, false);
+    args = test_acpi_create_args(&data, OEM_TEST_ARGS);
     data.qts = qtest_init(args);
-    test_acpi_load_tables(&data, false);
+    test_acpi_load_tables(&data);
     test_oem_fields(&data);
     qtest_quit(data.qts);
     free_test_data(&data);
@@ -1918,10 +1990,9 @@ static void test_acpi_q35_oem_fields(void)
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
 
-    args = test_acpi_create_args(&data,
-                                 OEM_TEST_ARGS, false);
+    args = test_acpi_create_args(&data, OEM_TEST_ARGS);
     data.qts = qtest_init(args);
-    test_acpi_load_tables(&data, false);
+    test_acpi_load_tables(&data);
     test_oem_fields(&data);
     qtest_quit(data.qts);
     free_test_data(&data);
@@ -1936,9 +2007,9 @@ static void test_acpi_microvm_oem_fields(void)
     test_acpi_microvm_prepare(&data);
 
     args = test_acpi_create_args(&data,
-                                 OEM_TEST_ARGS",acpi=on", false);
+                                 OEM_TEST_ARGS",acpi=on");
     data.qts = qtest_init(args);
-    test_acpi_load_tables(&data, false);
+    test_acpi_load_tables(&data);
     test_oem_fields(&data);
     qtest_quit(data.qts);
     free_test_data(&data);
@@ -1958,10 +2029,9 @@ static void test_acpi_virt_oem_fields(void)
     };
     char *args;
 
-    args = test_acpi_create_args(&data,
-                                 "-cpu cortex-a57 "OEM_TEST_ARGS, true);
+    args = test_acpi_create_args(&data, "-cpu cortex-a57 "OEM_TEST_ARGS);
     data.qts = qtest_init(args);
-    test_acpi_load_tables(&data, true);
+    test_acpi_load_tables(&data);
     test_oem_fields(&data);
     qtest_quit(data.qts);
     free_test_data(&data);
@@ -1974,7 +2044,12 @@ int main(int argc, char *argv[])
     const char *arch = qtest_get_arch();
     const bool has_kvm = qtest_has_accel("kvm");
     const bool has_tcg = qtest_has_accel("tcg");
+    char *v_env = getenv("V");
     int ret;
+
+    if (v_env) {
+        verbosity_level = atoi(v_env);
+    }
 
     g_test_init(&argc, &argv, NULL);
 

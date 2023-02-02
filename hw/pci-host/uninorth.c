@@ -276,12 +276,9 @@ static void pci_unin_internal_init(Object *obj)
 
 static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    /* cache_line_size */
-    d->config[0x0C] = 0x08;
-    /* latency_timer */
-    d->config[0x0D] = 0x10;
-    /* capabilities_pointer */
-    d->config[0x34] = 0x00;
+    d->config[PCI_CACHE_LINE_SIZE] = 0x08;
+    d->config[PCI_LATENCY_TIMER] = 0x10;
+    d->config[PCI_CAPABILITY_LIST] = 0x00;
 
     /*
      * Set kMacRISCPCIAddressSelect (0x48) register to indicate PCI
@@ -296,30 +293,22 @@ static void unin_main_pci_host_realize(PCIDevice *d, Error **errp)
 
 static void unin_agp_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    /* cache_line_size */
-    d->config[0x0C] = 0x08;
-    /* latency_timer */
-    d->config[0x0D] = 0x10;
-    /* capabilities_pointer
-    d->config[0x34] = 0x80; */
+    d->config[PCI_CACHE_LINE_SIZE] = 0x08;
+    d->config[PCI_LATENCY_TIMER] = 0x10;
+    /* d->config[PCI_CAPABILITY_LIST] = 0x80; */
 }
 
 static void u3_agp_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    /* cache line size */
-    d->config[0x0C] = 0x08;
-    /* latency timer */
-    d->config[0x0D] = 0x10;
+    d->config[PCI_CACHE_LINE_SIZE] = 0x08;
+    d->config[PCI_LATENCY_TIMER] = 0x10;
 }
 
 static void unin_internal_pci_host_realize(PCIDevice *d, Error **errp)
 {
-    /* cache_line_size */
-    d->config[0x0C] = 0x08;
-    /* latency_timer */
-    d->config[0x0D] = 0x10;
-    /* capabilities_pointer */
-    d->config[0x34] = 0x00;
+    d->config[PCI_CACHE_LINE_SIZE] = 0x08;
+    d->config[PCI_LATENCY_TIMER] = 0x10;
+    d->config[PCI_CAPABILITY_LIST] = 0x00;
 }
 
 static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)

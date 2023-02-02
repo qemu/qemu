@@ -140,6 +140,15 @@ void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
                                bool read_only);
 
 /**
+ * fw_cfg_read_bytes_ptr:
+ * @s: fw_cfg device being modified
+ * @key: selector key value for new fw_cfg item
+ *
+ * Reads an existing fw_cfg data pointer.
+ */
+void *fw_cfg_read_bytes_ptr(FWCfgState *s, uint16_t key);
+
+/**
  * fw_cfg_add_string:
  * @s: fw_cfg device being modified
  * @key: selector key value for new fw_cfg item
