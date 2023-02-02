@@ -20,11 +20,7 @@
 #ifndef BSD_PROC_H_
 #define BSD_PROC_H_
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/resource.h>
-#include <unistd.h>
 
 /* exit(2) */
 static inline abi_long do_bsd_exit(void *cpu_env, abi_long arg1)
