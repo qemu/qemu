@@ -187,7 +187,9 @@ cross-win64-system:
     job: win64-fedora-cross-container
   variables:
     IMAGE: fedora-win64-cross
-    CROSS_SKIP_TARGETS: or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
+    CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu
+                        m68k-softmmu microblazeel-softmmu nios2-softmmu
+                        or1k-softmmu rx-softmmu sh4eb-softmmu sparc64-softmmu
                         tricore-softmmu xtensaeb-softmmu
   artifacts:
     paths:
