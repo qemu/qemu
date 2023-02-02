@@ -95,6 +95,14 @@ test_ ## num:                                                      \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3;      \
     )
 
+#define TEST_D_DDI(insn, num, result, rs1, rs2, imm) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,         \
+    LI(DREG_RS1, rs1);                               \
+    LI(DREG_RS2, rs2);                               \
+    rstv;                                            \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;  \
+    )
+
 #define TEST_D_DDI_PSW(insn, num, result, psw, rs1, rs2, imm) \
     TEST_CASE_PSW(num, DREG_CALC_RESULT, result, psw,         \
     LI(DREG_RS1, rs1);                                        \
