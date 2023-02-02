@@ -9,10 +9,10 @@
 /* Register definitions */
 #define DREG_RS1 %d0
 #define DREG_RS2 %d1
-#define DREG_RS3 %d4
-#define DREG_CALC_RESULT %d1
-#define DREG_CALC_PSW %d2
-#define DREG_CORRECT_PSW %d3
+#define DREG_RS3 %d2
+#define DREG_CALC_RESULT %d3
+#define DREG_CALC_PSW %d4
+#define DREG_CORRECT_PSW %d5
 #define DREG_TEMP_LI %d10
 #define DREG_TEMP %d11
 #define DREG_TEST_NUM %d14
@@ -101,6 +101,14 @@ test_ ## num:                                                      \
     LI(DREG_RS2, rs2);                                        \
     rstv;                                                     \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;           \
+    )
+
+#define TEST_D_DIDI(insn, num, result, rs1, imm1, rs2, imm2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                 \
+    LI(DREG_RS1, rs1);                                       \
+    LI(DREG_RS2, rs1);                                       \
+    rstv;                                                    \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1, DREG_RS2, imm2;   \
     )
 
 #define TEST_E_ED(insn, num, res_hi, res_lo, rs1_hi, rs1_lo, rs2) \
