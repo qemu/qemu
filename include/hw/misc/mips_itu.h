@@ -72,9 +72,8 @@ struct MIPSITUState {
     uint64_t icr0;
 
     /* SAAR */
-    bool saar_present;
-    void *saar;
-
+    uint64_t *saar;
+    MIPSCPU *cpu0;
 };
 
 /* Get ITC Configuration Tag memory region. */
