@@ -15,9 +15,7 @@
 #define CXL2_COMPONENT_CM_REGION_SIZE 0x1000
 #define CXL2_COMPONENT_BLOCK_SIZE 0x10000
 
-#include "qemu/compiler.h"
 #include "qemu/range.h"
-#include "qemu/typedefs.h"
 #include "hw/cxl/cxl_cdat.h"
 #include "hw/register.h"
 #include "qapi/error.h"

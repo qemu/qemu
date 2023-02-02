@@ -10,7 +10,6 @@
 #ifndef CXL_PCI_H
 #define CXL_PCI_H
 
-#include "qemu/compiler.h"
 
 #define CXL_VENDOR_ID 0x1e98
 
