@@ -8245,10 +8245,19 @@ static void decode_rrrr_extract_insert(DisasContext *ctx)
         if (r1 == r2) {
             tcg_gen_rotl_tl(cpu_gpr_d[r4], cpu_gpr_d[r1], tmp_pos);
         } else {
+            TCGv msw = tcg_temp_new();
+            TCGv zero = tcg_constant_tl(0);
             tcg_gen_shl_tl(tmp_width, cpu_gpr_d[r1], tmp_pos);
-            tcg_gen_subfi_tl(tmp_pos, 32, tmp_pos);
-            tcg_gen_shr_tl(tmp_pos, cpu_gpr_d[r2], tmp_pos);
-            tcg_gen_or_tl(cpu_gpr_d[r4], tmp_width, tmp_pos);
+            tcg_gen_subfi_tl(msw, 32, tmp_pos);
+            tcg_gen_shr_tl(msw, cpu_gpr_d[r2], msw);
+            /*
+             * if pos == 0, then we do cpu_gpr_d[r2] << 32, which is undefined
+             * behaviour. So check that case here and set the low bits to zero
+             * which effectivly returns cpu_gpr_d[r1]
+             */
+            tcg_gen_movcond_tl(TCG_COND_EQ, msw, tmp_pos, zero, zero, msw);
+            tcg_gen_or_tl(cpu_gpr_d[r4], tmp_width, msw);
+            tcg_temp_free(msw);
         }
         break;
     case OPC2_32_RRRR_EXTR:
