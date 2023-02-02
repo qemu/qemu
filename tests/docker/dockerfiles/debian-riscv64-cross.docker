@@ -42,6 +42,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
          gcc-riscv64-linux-gnu \
          libc6-dev-riscv64-cross \
+         libfdt-dev:riscv64 \
          libffi-dev:riscv64 \
          libglib2.0-dev:riscv64 \
          libpixman-1-dev:riscv64

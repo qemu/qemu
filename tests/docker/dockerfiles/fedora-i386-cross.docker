@@ -9,6 +9,7 @@ ENV PACKAGES \
     findutils \
     gcc \
     git \
+    libfdt-devel.i686 \
     libffi-devel.i686 \
     libselinux-devel.i686 \
     libtasn1-devel.i686 \

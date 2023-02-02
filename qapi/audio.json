@@ -408,8 +408,18 @@
 # Since: 4.0
 ##
 { 'enum': 'AudiodevDriver',
-  'data': [ 'none', 'alsa', 'coreaudio', 'dbus', 'dsound', 'jack', 'oss', 'pa',
-            'sdl', 'sndio', 'spice', 'wav' ] }
+  'data': [ 'none',
+            { 'name': 'alsa', 'if': 'CONFIG_AUDIO_ALSA' },
+            { 'name': 'coreaudio', 'if': 'CONFIG_AUDIO_COREAUDIO' },
+            { 'name': 'dbus', 'if': 'CONFIG_DBUS_DISPLAY' },
+            { 'name': 'dsound', 'if': 'CONFIG_AUDIO_DSOUND' },
+            { 'name': 'jack', 'if': 'CONFIG_AUDIO_JACK' },
+            { 'name': 'oss', 'if': 'CONFIG_AUDIO_OSS' },
+            { 'name': 'pa', 'if': 'CONFIG_AUDIO_PA' },
+            { 'name': 'sdl', 'if': 'CONFIG_AUDIO_SDL' },
+            { 'name': 'sndio', 'if': 'CONFIG_AUDIO_SNDIO' },
+            { 'name': 'spice', 'if': 'CONFIG_SPICE' },
+            'wav' ] }
 
 ##
 # @Audiodev:
@@ -432,14 +442,37 @@
   'discriminator': 'driver',
   'data': {
     'none':      'AudiodevGenericOptions',
-    'alsa':      'AudiodevAlsaOptions',
-    'coreaudio': 'AudiodevCoreaudioOptions',
-    'dbus':      'AudiodevGenericOptions',
-    'dsound':    'AudiodevDsoundOptions',
-    'jack':      'AudiodevJackOptions',
-    'oss':       'AudiodevOssOptions',
-    'pa':        'AudiodevPaOptions',
-    'sdl':       'AudiodevSdlOptions',
-    'sndio':     'AudiodevSndioOptions',
-    'spice':     'AudiodevGenericOptions',
+    'alsa':      { 'type': 'AudiodevAlsaOptions',
+                   'if': 'CONFIG_AUDIO_ALSA' },
+    'coreaudio': { 'type': 'AudiodevCoreaudioOptions',
+                   'if': 'CONFIG_AUDIO_COREAUDIO' },
+    'dbus':      { 'type': 'AudiodevGenericOptions',
+                   'if': 'CONFIG_DBUS_DISPLAY' },
+    'dsound':    { 'type': 'AudiodevDsoundOptions',
+                   'if': 'CONFIG_AUDIO_DSOUND' },
+    'jack':      { 'type': 'AudiodevJackOptions',
+                   'if': 'CONFIG_AUDIO_JACK' },
+    'oss':       { 'type': 'AudiodevOssOptions',
+                   'if': 'CONFIG_AUDIO_OSS' },
+    'pa':        { 'type': 'AudiodevPaOptions',
+                   'if': 'CONFIG_AUDIO_PA' },
+    'sdl':       { 'type': 'AudiodevSdlOptions',
+                   'if': 'CONFIG_AUDIO_SDL' },
+    'sndio':     { 'type': 'AudiodevSndioOptions',
+                   'if': 'CONFIG_AUDIO_SNDIO' },
+    'spice':     { 'type': 'AudiodevGenericOptions',
+                   'if': 'CONFIG_SPICE' },
     'wav':       'AudiodevWavOptions' } }
+
+##
+# @query-audiodevs:
+#
+# Returns information about audiodev configuration
+#
+# Returns: array of @Audiodev
+#
+# Since: 8.0
+#
+##
+{ 'command': 'query-audiodevs',
+  'returns': ['Audiodev'] }
