@@ -24,9 +24,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/nvram/mac_nvram.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
+#include "sysemu/block-backend.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
@@ -44,6 +47,9 @@ static void macio_nvram_writeb(void *opaque, hwaddr addr,
     addr = (addr >> s->it_shift) & (s->size - 1);
     trace_macio_nvram_write(addr, value);
     s->data[addr] = value;
+    if (s->blk) {
+        blk_pwrite(s->blk, addr, 1, &s->data[addr], 0);
+    }
 }
 
 static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
@@ -91,6 +97,27 @@ static void macio_nvram_realizefn(DeviceState *dev, Error **errp)
 
     s->data = g_malloc0(s->size);
 
+    if (s->blk) {
+        int64_t len = blk_getlength(s->blk);
+        if (len < 0) {
+            error_setg_errno(errp, -len,
+                             "could not get length of nvram backing image");
+            return;
+        } else if (len != s->size) {
+            error_setg_errno(errp, -len,
+                             "invalid size nvram backing image");
+            return;
+        }
+        if (blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                         BLK_PERM_ALL, errp) < 0) {
+            return;
+        }
+        if (blk_pread(s->blk, 0, s->size, s->data, 0) < 0) {
+            error_setg(errp, "can't read-nvram contents");
+            return;
+        }
+    }
+
     memory_region_init_io(&s->mem, OBJECT(s), &macio_nvram_ops, s,
                           "macio-nvram", s->size << s->it_shift);
     sysbus_init_mmio(d, &s->mem);
@@ -106,6 +133,7 @@ static void macio_nvram_unrealizefn(DeviceState *dev)
 static Property macio_nvram_properties[] = {
     DEFINE_PROP_UINT32("size", MacIONVRAMState, size, 0),
     DEFINE_PROP_UINT32("it_shift", MacIONVRAMState, it_shift, 0),
+    DEFINE_PROP_DRIVE("drive", MacIONVRAMState, blk),
     DEFINE_PROP_END_OF_LIST()
 };
 
