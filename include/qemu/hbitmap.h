@@ -330,7 +330,7 @@ bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t start, int64_t end,
                              int64_t *dirty_start, int64_t *dirty_count);
 
 /*
- * bdrv_dirty_bitmap_status:
+ * hbitmap_status:
  * @hb: The HBitmap to operate on
  * @start: The bit to start from
  * @count: Number of bits to proceed
