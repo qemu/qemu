@@ -1,3 +1,5 @@
+.. _System Emulation:
+
 ----------------
 System Emulation
 ----------------
@@ -10,7 +12,7 @@ or Hypervisor.Framework.
 .. toctree::
    :maxdepth: 3
 
-   quickstart
+   introduction
    invocation
    device-emulation
    keys
