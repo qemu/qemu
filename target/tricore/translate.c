@@ -5805,8 +5805,8 @@ static void decode_rcrw_insert(DisasContext *ctx)
 
         tcg_gen_movi_tl(temp, width);
         tcg_gen_movi_tl(temp2, const4);
-        tcg_gen_andi_tl(temp3, cpu_gpr_d[r4], 0x1f);
-        gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], temp2, temp, temp3);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r3], 0x1f);
+        gen_insert(cpu_gpr_d[r4], cpu_gpr_d[r1], temp2, temp, temp3);
 
         tcg_temp_free(temp3);
         break;
