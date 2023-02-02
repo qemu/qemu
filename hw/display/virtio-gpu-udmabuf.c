@@ -21,7 +21,6 @@
 #include "exec/ramblock.h"
 #include "sysemu/hostmem.h"
 #include <sys/ioctl.h>
-#include <fcntl.h>
 #include <linux/memfd.h>
 #include "qemu/memfd.h"
 #include "standard-headers/linux/udmabuf.h"

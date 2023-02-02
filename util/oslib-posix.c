@@ -40,7 +40,6 @@
 #include "qemu/thread.h"
 #include <libgen.h>
 #include "qemu/cutils.h"
-#include "qemu/compiler.h"
 #include "qemu/units.h"
 #include "qemu/thread-context.h"
 
@@ -50,7 +49,6 @@
 
 #ifdef __FreeBSD__
 #include <sys/thr.h>
-#include <sys/types.h>
 #include <sys/user.h>
 #include <libutil.h>
 #endif

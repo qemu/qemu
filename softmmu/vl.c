@@ -136,8 +136,6 @@
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
 
-#include "config-host.h"
-
 #define MAX_VIRTIO_CONSOLES 1
 
 typedef struct BlockdevOptionsQueueEntry {

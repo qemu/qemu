@@ -11,7 +11,6 @@
 #define PCIE_DOE_H
 
 #include "qemu/range.h"
-#include "qemu/typedefs.h"
 #include "hw/register.h"
 
 /*

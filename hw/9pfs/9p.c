@@ -19,8 +19,6 @@
 #include "qemu/osdep.h"
 #ifdef CONFIG_LINUX
 #include <linux/limits.h>
-#else
-#include <limits.h>
 #endif
 #include <glib/gprintf.h>
 #include "hw/virtio/virtio.h"

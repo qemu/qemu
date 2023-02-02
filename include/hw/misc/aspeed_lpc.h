@@ -12,8 +12,6 @@
 
 #include "hw/sysbus.h"
 
-#include <stdint.h>
-
 #define TYPE_ASPEED_LPC "aspeed.lpc"
 #define ASPEED_LPC(obj) OBJECT_CHECK(AspeedLPCState, (obj), TYPE_ASPEED_LPC)
 

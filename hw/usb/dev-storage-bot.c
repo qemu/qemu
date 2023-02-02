@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/typedefs.h"
 #include "qapi/error.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"

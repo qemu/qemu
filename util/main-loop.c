@@ -33,7 +33,6 @@
 #include "block/thread-pool.h"
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
-#include "qemu/compiler.h"
 #include "qom/object.h"
 
 #ifndef _WIN32
