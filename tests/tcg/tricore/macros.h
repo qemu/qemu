@@ -4,6 +4,10 @@
     movh DREG_TEMP_LI, up:val; \
     or reg, reg, DREG_TEMP_LI; \
 
+#define LIA(reg, val)        \
+    LI(DREG_TEMP, val)       \
+    mov.a reg, DREG_TEMP;
+
 /* Address definitions */
 #define TESTDEV_ADDR 0xf0000000
 /* Register definitions */
@@ -17,6 +21,10 @@
 #define DREG_TEMP %d11
 #define DREG_TEST_NUM %d14
 #define DREG_CORRECT_RESULT %d15
+
+#define AREG_ADDR %a0
+#define AREG_CORRECT_RESULT %a3
+#define MEM_BASE_ADDR 0xd0000000
 
 #define DREG_DEV_ADDR %a15
 
@@ -60,11 +68,24 @@ test_ ## num:                                                      \
     mov DREG_TEST_NUM, num;                                        \
     jne DREG_CALC_PSW, DREG_CORRECT_PSW, fail;
 
+#define TEST_LD(insn, num, result, addr_result, ld_pattern) \
+test_ ## num:                                               \
+    LIA(AREG_ADDR, test_data)                               \
+    insn DREG_CALC_RESULT, ld_pattern;                      \
+    LI(DREG_CORRECT_RESULT, result)                         \
+    mov DREG_TEST_NUM, num;                                 \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;        \
+    mov.d DREG_CALC_RESULT, AREG_ADDR;                      \
+    LI(DREG_CORRECT_RESULT, addr_result)                    \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;
+
 /* Actual test case type
  * e.g inst %dX, %dY      -> TEST_D_D
  *     inst %dX, %dY, %dZ -> TEST_D_DD
  *     inst %eX, %dY, %dZ -> TEST_E_DD
  */
+
+
 #define TEST_D_D(insn, num, result, rs1)      \
     TEST_CASE(num, DREG_CALC_RESULT, result,  \
     LI(DREG_RS1, rs1);                        \
@@ -142,6 +163,8 @@ test_ ## num:                                                      \
     rstv;                                                      \
     insn EREG_CALC_RESULT, imm1, DREG_RS1, imm2);              \
     )
+
+
 
 /* Pass/Fail handling part */
 #define TEST_PASSFAIL                       \
