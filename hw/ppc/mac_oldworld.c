@@ -102,7 +102,7 @@ static void ppc_heathrow_init(MachineState *machine)
     DeviceState *dev, *pic_dev, *grackle_dev;
     BusState *adb_bus;
     uint16_t ppc_boot_device;
-    DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    DriveInfo *dinfo, *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
 
@@ -244,6 +244,12 @@ static void ppc_heathrow_init(MachineState *machine)
     dev = DEVICE(object_resolve_path_component(macio, "escc"));
     qdev_prop_set_chr(dev, "chrA", serial_hd(0));
     qdev_prop_set_chr(dev, "chrB", serial_hd(1));
+
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        dev = DEVICE(object_resolve_path_component(macio, "nvram"));
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
 
     pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
 
