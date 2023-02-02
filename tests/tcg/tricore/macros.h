@@ -78,6 +78,15 @@ test_ ## num:                                                      \
     insn DREG_CORRECT_RESULT, DREG_RS1;               \
     )
 
+#define TEST_D_DDD(insn, num, result, rs1, rs2, rs3)        \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                \
+    LI(DREG_RS1, rs1);                                      \
+    LI(DREG_RS2, rs2);                                      \
+    LI(DREG_RS3, rs3);                                      \
+    rstv;                                                   \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3; \
+    )
+
 #define TEST_D_DD_PSW(insn, num, result, psw, rs1, rs2) \
     TEST_CASE_PSW(num, DREG_CALC_RESULT, result, psw,   \
     LI(DREG_RS1, rs1);                                  \
