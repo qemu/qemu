@@ -59,10 +59,6 @@
 
 #include "qemu/mmap-alloc.h"
 
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#include "qemu/error-report.h"
-#endif
-
 #define MAX_MEM_PREALLOC_THREAD_COUNT 16
 
 struct MemsetThread;

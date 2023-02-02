@@ -938,8 +938,6 @@ static const char * const cr_regnames[NUM_CR_REGS] = {
 };
 #endif
 
-#include "exec/gen-icount.h"
-
 /* generate intermediate code for basic block 'tb'.  */
 static void nios2_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {

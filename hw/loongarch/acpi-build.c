@@ -22,7 +22,6 @@
 /* Supported chipsets: */
 #include "hw/pci-host/ls7a.h"
 #include "hw/loongarch/virt.h"
-#include "hw/acpi/aml-build.h"
 
 #include "hw/acpi/utils.h"
 #include "hw/acpi/pci.h"

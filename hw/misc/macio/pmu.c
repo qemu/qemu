@@ -33,7 +33,6 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/misc/macio/pmu.h"
-#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 #include "sysemu/rtc.h"
