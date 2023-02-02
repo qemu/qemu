@@ -15,7 +15,6 @@
 
 #ifdef CONFIG_LINUX
 
-#include "qemu/osdep.h"
 #include "exec/hwaddr.h"
 #include <linux/userfaultfd.h>
 
