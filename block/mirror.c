@@ -896,6 +896,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *bs = s->mirror_top_bs->backing->bs;
+    MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
     BlockDeviceIoStatus iostatus;
@@ -984,6 +985,12 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             goto immediate_exit;
         }
     }
+
+    /*
+     * Only now the job is fully initialised and mirror_top_bs should start
+     * accessing it.
+     */
+    mirror_top_opaque->job = s;
 
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
@@ -1704,7 +1711,6 @@ static BlockJob *mirror_start_job(
     if (!s) {
         goto fail;
     }
-    bs_opaque->job = s;
 
     /* The block job now has a reference to this node */
     bdrv_unref(mirror_top_bs);
