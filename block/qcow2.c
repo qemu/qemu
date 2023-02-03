@@ -2450,7 +2450,8 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
  * Return 1 if the COW regions read as zeroes, 0 if not, < 0 on error.
  * Note that returning 0 does not guarantee non-zero data.
  */
-static int coroutine_fn is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
+static int coroutine_fn GRAPH_RDLOCK
+is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
 {
     /*
      * This check is designed for optimization shortcut so it must be
@@ -2468,8 +2469,8 @@ static int coroutine_fn is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
                                 m->cow_end.nb_bytes);
 }
 
-static int coroutine_fn handle_alloc_space(BlockDriverState *bs,
-                                           QCowL2Meta *l2meta)
+static int coroutine_fn GRAPH_RDLOCK
+handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowL2Meta *m;
@@ -2532,12 +2533,10 @@ static int coroutine_fn handle_alloc_space(BlockDriverState *bs,
  * l2meta  - if not NULL, qcow2_co_pwritev_task() will consume it. Caller must
  *           not use it somehow after qcow2_co_pwritev_task() call
  */
-static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
-                                              uint64_t host_offset,
-                                              uint64_t offset, uint64_t bytes,
-                                              QEMUIOVector *qiov,
-                                              uint64_t qiov_offset,
-                                              QCowL2Meta *l2meta)
+static coroutine_fn GRAPH_RDLOCK
+int qcow2_co_pwritev_task(BlockDriverState *bs, uint64_t host_offset,
+                          uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
+                          uint64_t qiov_offset, QCowL2Meta *l2meta)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -2603,7 +2602,11 @@ out_locked:
     return ret;
 }
 
-static coroutine_fn int qcow2_co_pwritev_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because qcow2_co_pwritev_part() holds
+ * the graph lock and keeps it until this coroutine has terminated.
+ */
+static coroutine_fn GRAPH_RDLOCK int qcow2_co_pwritev_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -2625,6 +2628,8 @@ static coroutine_fn int qcow2_co_pwritev_part(
     uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
     AioTaskPool *aio = NULL;
+
+    assume_graph_lock(); /* FIXME */
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), offset, bytes);
 
@@ -3974,8 +3979,9 @@ static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return res >= 0 && (res & BDRV_BLOCK_ZERO) && bytes == 0;
 }
 
-static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       BdrvRequestFlags flags)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;

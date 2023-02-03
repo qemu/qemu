@@ -69,8 +69,9 @@ int coroutine_fn bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset,
  * function is not suitable for zeroing the entire image in a single request
  * because it may allocate memory for the entire region.
  */
-int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
-                                       int64_t bytes, BdrvRequestFlags flags);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset, int64_t bytes,
+                      BdrvRequestFlags flags);
 
 int coroutine_fn GRAPH_RDLOCK
 bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
@@ -133,8 +134,8 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             bool include_base, int64_t offset, int64_t bytes,
                             int64_t *pnum);
 
-int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
-                                      int64_t bytes);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset, int64_t bytes);
 
 int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
                               Error **errp);

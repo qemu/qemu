@@ -269,8 +269,9 @@ static bool has_prealloc_perms(BlockDriverState *bs)
  * want_merge_zero is used to merge write-zero request with preallocation in
  * one bdrv_co_pwrite_zeroes() call.
  */
-static bool coroutine_fn handle_write(BlockDriverState *bs, int64_t offset,
-                                      int64_t bytes, bool want_merge_zero)
+static bool coroutine_fn GRAPH_RDLOCK
+handle_write(BlockDriverState *bs, int64_t offset, int64_t bytes,
+             bool want_merge_zero)
 {
     BDRVPreallocateState *s = bs->opaque;
     int64_t end = offset + bytes;
@@ -345,8 +346,9 @@ static bool coroutine_fn handle_write(BlockDriverState *bs, int64_t offset,
     return want_merge_zero;
 }
 
-static int coroutine_fn preallocate_co_pwrite_zeroes(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                             int64_t bytes, BdrvRequestFlags flags)
 {
     bool want_merge_zero =
         !(flags & ~(BDRV_REQ_ZERO_WRITE | BDRV_REQ_NO_FALLBACK));
@@ -364,6 +366,7 @@ static coroutine_fn int preallocate_co_pwritev_part(BlockDriverState *bs,
                                                     size_t qiov_offset,
                                                     BdrvRequestFlags flags)
 {
+    assume_graph_lock(); /* FIXME */
     handle_write(bs, offset, bytes, false);
 
     return bdrv_co_pwritev_part(bs->file, offset, bytes, qiov, qiov_offset,

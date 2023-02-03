@@ -1172,6 +1172,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     int64_t progress = 0;
     bool skip_write;
 
+    assume_graph_lock(); /* FIXME */
+
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
     if (!drv) {
@@ -1692,6 +1694,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
                         bs->bl.request_alignment);
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
 
+    assert_bdrv_graph_readable();
     bdrv_check_request(offset, bytes, &error_abort);
 
     if (!drv) {
@@ -1906,6 +1909,8 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
 
     int64_t bytes_remaining = bytes;
     int max_transfer;
+
+    assume_graph_lock(); /* FIXME */
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -2159,6 +2164,7 @@ int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
 {
     IO_CODE();
     trace_bdrv_co_pwrite_zeroes(child->bs, offset, bytes, flags);
+    assert_bdrv_graph_readable();
 
     if (!(child->bs->open_flags & BDRV_O_UNMAP)) {
         flags &= ~BDRV_REQ_MAY_UNMAP;
@@ -2601,8 +2607,6 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
     int ret;
     int64_t pnum = bytes;
     IO_CODE();
-
-    assume_graph_lock(); /* FIXME */
 
     if (!bytes) {
         return 1;
@@ -3241,7 +3245,7 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host, size_t size)
     }
 }
 
-static int coroutine_fn bdrv_co_copy_range_internal(
+static int coroutine_fn GRAPH_RDLOCK bdrv_co_copy_range_internal(
         BdrvChild *src, int64_t src_offset, BdrvChild *dst,
         int64_t dst_offset, int64_t bytes,
         BdrvRequestFlags read_flags, BdrvRequestFlags write_flags,
@@ -3330,6 +3334,7 @@ int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, int64_t src_offset,
                                          BdrvRequestFlags write_flags)
 {
     IO_CODE();
+    assume_graph_lock(); /* FIXME */
     trace_bdrv_co_copy_range_from(src, src_offset, dst, dst_offset, bytes,
                                   read_flags, write_flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,
@@ -3347,6 +3352,7 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, int64_t src_offset,
                                        BdrvRequestFlags write_flags)
 {
     IO_CODE();
+    assume_graph_lock(); /* FIXME */
     trace_bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes,
                                 read_flags, write_flags);
     return bdrv_co_copy_range_internal(src, src_offset, dst, dst_offset,

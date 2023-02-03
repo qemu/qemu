@@ -469,10 +469,9 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
  * value of @method should be used for subsequent tasks.
  * Returns 0 on success.
  */
-static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
-                                           int64_t offset, int64_t bytes,
-                                           BlockCopyMethod *method,
-                                           bool *error_is_read)
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_do_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
+                   BlockCopyMethod *method, bool *error_is_read)
 {
     int ret;
     int64_t nbytes = MIN(offset + bytes, s->len) - offset;
@@ -558,8 +557,10 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     BlockCopyMethod method = t->method;
     int ret;
 
-    ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
-                             &error_is_read);
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
+                                 &error_is_read);
+    }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         if (s->method == t->method) {

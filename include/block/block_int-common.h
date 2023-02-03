@@ -542,8 +542,9 @@ struct BlockDriver {
      * function pointer may be NULL or return -ENOSUP and .bdrv_co_writev()
      * will be called instead.
      */
-    int coroutine_fn (*bdrv_co_pwrite_zeroes)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, BdrvRequestFlags flags);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwrite_zeroes)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        BdrvRequestFlags flags);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pdiscard)(
         BlockDriverState *bs, int64_t offset, int64_t bytes);

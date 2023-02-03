@@ -1420,14 +1420,11 @@ static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
     return qed_co_request(bs, sector_num, qiov, nb_sectors, QED_AIOCB_WRITE);
 }
 
-static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset,
-                                                  int64_t bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
-
-    assume_graph_lock(); /* FIXME */
 
     /*
      * Zero writes start without an I/O buffer.  If a buffer becomes necessary

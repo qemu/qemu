@@ -683,7 +683,11 @@ static int coroutine_fn quorum_co_preadv(BlockDriverState *bs,
     return ret;
 }
 
-static void coroutine_fn write_quorum_entry(void *opaque)
+/*
+ * This function can count as GRAPH_RDLOCK because quorum_co_pwritev() holds the
+ * graph lock and keeps it until this coroutine has terminated.
+ */
+static void coroutine_fn GRAPH_RDLOCK write_quorum_entry(void *opaque)
 {
     QuorumCo *co = opaque;
     QuorumAIOCB *acb = co->acb;
@@ -722,6 +726,8 @@ static int coroutine_fn quorum_co_pwritev(BlockDriverState *bs, int64_t offset,
     QuorumAIOCB *acb = quorum_aio_get(bs, qiov, offset, bytes, flags);
     int i, ret;
 
+    assume_graph_lock(); /* FIXME */
+
     for (i = 0; i < s->num_children; i++) {
         Coroutine *co;
         QuorumCo data = {
@@ -745,10 +751,9 @@ static int coroutine_fn quorum_co_pwritev(BlockDriverState *bs, int64_t offset,
     return ret;
 }
 
-static int coroutine_fn quorum_co_pwrite_zeroes(BlockDriverState *bs,
-                                                int64_t offset, int64_t bytes,
-                                                BdrvRequestFlags flags)
-
+static int coroutine_fn GRAPH_RDLOCK
+quorum_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        BdrvRequestFlags flags)
 {
     return quorum_co_pwritev(bs, offset, bytes, NULL,
                              flags | BDRV_REQ_ZERO_WRITE);

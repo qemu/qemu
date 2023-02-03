@@ -437,7 +437,7 @@ blk_log_writes_co_do_file_pwritev(BlkLogWritesFileReq *fr)
                            fr->qiov, fr->file_flags);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pwrite_zeroes(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pwrite_zeroes(fr->bs->file, fr->offset, fr->bytes,
@@ -465,11 +465,10 @@ blk_log_writes_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                                  blk_log_writes_co_do_file_pwritev, 0, false);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                                 int64_t bytes, BdrvRequestFlags flags)
 {
-    assume_graph_lock(); /* FIXME */
     return blk_log_writes_co_log(bs, offset, bytes, NULL, flags,
                                  blk_log_writes_co_do_file_pwrite_zeroes, 0,
                                  true);
