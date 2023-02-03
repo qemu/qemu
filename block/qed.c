@@ -282,11 +282,12 @@ static void coroutine_fn qed_unplug_allocating_write_reqs(BDRVQEDState *s)
     qemu_co_mutex_unlock(&s->table_lock);
 }
 
-static void coroutine_fn qed_need_check_timer(BDRVQEDState *s)
+static void coroutine_fn GRAPH_RDLOCK qed_need_check_timer(BDRVQEDState *s)
 {
     int ret;
 
     trace_qed_need_check_timer_cb(s);
+    assert_bdrv_graph_readable();
 
     if (!qed_plug_allocating_write_reqs(s)) {
         return;
@@ -312,6 +313,7 @@ static void coroutine_fn qed_need_check_timer(BDRVQEDState *s)
 static void coroutine_fn qed_need_check_timer_entry(void *opaque)
 {
     BDRVQEDState *s = opaque;
+    GRAPH_RDLOCK_GUARD();
 
     qed_need_check_timer(opaque);
     bdrv_dec_in_flight(s->bs);
