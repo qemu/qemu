@@ -2089,9 +2089,8 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
         type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_IO_URING
     } else if (s->use_linux_io_uring) {
-        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
         assert(qiov->size == bytes);
-        return luring_co_submit(bs, aio, s->fd, offset, qiov, type);
+        return luring_co_submit(bs, s->fd, offset, qiov, type);
 #endif
 #ifdef CONFIG_LINUX_AIO
     } else if (s->use_linux_aio) {
@@ -2140,8 +2139,7 @@ static void coroutine_fn raw_co_io_plug(BlockDriverState *bs)
 #endif
 #ifdef CONFIG_LINUX_IO_URING
     if (s->use_linux_io_uring) {
-        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
-        luring_io_plug(bs, aio);
+        luring_io_plug();
     }
 #endif
 }
@@ -2156,8 +2154,7 @@ static void coroutine_fn raw_co_io_unplug(BlockDriverState *bs)
 #endif
 #ifdef CONFIG_LINUX_IO_URING
     if (s->use_linux_io_uring) {
-        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
-        luring_io_unplug(bs, aio);
+        luring_io_unplug();
     }
 #endif
 }
@@ -2181,8 +2178,7 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 
 #ifdef CONFIG_LINUX_IO_URING
     if (s->use_linux_io_uring) {
-        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
-        return luring_co_submit(bs, aio, s->fd, 0, NULL, QEMU_AIO_FLUSH);
+        return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH);
     }
 #endif
     return raw_thread_pool_submit(bs, handle_aiocb_flush, &acb);
