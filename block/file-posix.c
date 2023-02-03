@@ -2095,10 +2095,8 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
 #endif
 #ifdef CONFIG_LINUX_AIO
     } else if (s->use_linux_aio) {
-        LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         assert(qiov->size == bytes);
-        return laio_co_submit(bs, aio, s->fd, offset, qiov, type,
-                              s->aio_max_batch);
+        return laio_co_submit(s->fd, offset, qiov, type, s->aio_max_batch);
 #endif
     }
 
@@ -2137,8 +2135,7 @@ static void coroutine_fn raw_co_io_plug(BlockDriverState *bs)
     BDRVRawState __attribute__((unused)) *s = bs->opaque;
 #ifdef CONFIG_LINUX_AIO
     if (s->use_linux_aio) {
-        LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
-        laio_io_plug(bs, aio);
+        laio_io_plug();
     }
 #endif
 #ifdef CONFIG_LINUX_IO_URING
@@ -2154,8 +2151,7 @@ static void coroutine_fn raw_co_io_unplug(BlockDriverState *bs)
     BDRVRawState __attribute__((unused)) *s = bs->opaque;
 #ifdef CONFIG_LINUX_AIO
     if (s->use_linux_aio) {
-        LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
-        laio_io_unplug(bs, aio, s->aio_max_batch);
+        laio_io_unplug(s->aio_max_batch);
     }
 #endif
 #ifdef CONFIG_LINUX_IO_URING
