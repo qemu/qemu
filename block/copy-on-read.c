@@ -213,13 +213,15 @@ cor_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
 }
 
 
-static void coroutine_fn cor_co_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn GRAPH_RDLOCK
+cor_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
 
-static void coroutine_fn cor_co_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn GRAPH_RDLOCK
+cor_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     bdrv_co_lock_medium(bs->file->bs, locked);
 }

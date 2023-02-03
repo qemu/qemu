@@ -714,8 +714,10 @@ struct BlockDriver {
     /* removable device specific */
     bool coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_is_inserted)(
         BlockDriverState *bs);
-    void coroutine_fn (*bdrv_co_eject)(BlockDriverState *bs, bool eject_flag);
-    void coroutine_fn (*bdrv_co_lock_medium)(BlockDriverState *bs, bool locked);
+    void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_eject)(
+        BlockDriverState *bs, bool eject_flag);
+    void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_lock_medium)(
+        BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
     BlockAIOCB *coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_aio_ioctl)(
