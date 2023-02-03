@@ -256,15 +256,13 @@ cbw_snapshot_read_unlock(BlockDriverState *bs, BlockReq *req)
     g_free(req);
 }
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 cbw_co_preadv_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes,
                        QEMUIOVector *qiov, size_t qiov_offset)
 {
     BlockReq *req;
     BdrvChild *file;
     int ret;
-
-    assume_graph_lock(); /* FIXME */
 
     /* TODO: upgrade to async loop using AioTask */
     while (bytes) {
@@ -290,7 +288,7 @@ cbw_co_preadv_snapshot(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return 0;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 cbw_co_snapshot_block_status(BlockDriverState *bs,
                              bool want_zero, int64_t offset, int64_t bytes,
                              int64_t *pnum, int64_t *map,
