@@ -100,9 +100,14 @@ static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns,
 
 static void tb_jmp_cache_clear_page(CPUState *cpu, target_ulong page_addr)
 {
-    int i, i0 = tb_jmp_cache_hash_page(page_addr);
     CPUJumpCache *jc = cpu->tb_jmp_cache;
+    int i, i0;
 
+    if (unlikely(!jc)) {
+        return;
+    }
+
+    i0 = tb_jmp_cache_hash_page(page_addr);
     for (i = 0; i < TB_JMP_PAGE_SIZE; i++) {
         qatomic_set(&jc->array[i0 + i].tb, NULL);
     }
