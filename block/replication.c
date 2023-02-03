@@ -220,10 +220,9 @@ static int replication_return_value(BDRVReplicationState *s, int ret)
     return ret;
 }
 
-static coroutine_fn int replication_co_readv(BlockDriverState *bs,
-                                             int64_t sector_num,
-                                             int remaining_sectors,
-                                             QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+replication_co_readv(BlockDriverState *bs, int64_t sector_num,
+                     int remaining_sectors, QEMUIOVector *qiov)
 {
     BDRVReplicationState *s = bs->opaque;
     int ret;
@@ -244,11 +243,9 @@ static coroutine_fn int replication_co_readv(BlockDriverState *bs,
     return replication_return_value(s, ret);
 }
 
-static coroutine_fn int replication_co_writev(BlockDriverState *bs,
-                                              int64_t sector_num,
-                                              int remaining_sectors,
-                                              QEMUIOVector *qiov,
-                                              int flags)
+static int coroutine_fn GRAPH_RDLOCK
+replication_co_writev(BlockDriverState *bs, int64_t sector_num,
+                      int remaining_sectors, QEMUIOVector *qiov, int flags)
 {
     BDRVReplicationState *s = bs->opaque;
     QEMUIOVector hd_qiov;

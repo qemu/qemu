@@ -390,8 +390,10 @@ static void coroutine_fn mirror_co_read(void *opaque)
     op->is_in_flight = true;
     trace_mirror_one_iteration(s, op->offset, op->bytes);
 
-    ret = bdrv_co_preadv(s->mirror_top_bs->backing, op->offset, op->bytes,
-                         &op->qiov, 0);
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = bdrv_co_preadv(s->mirror_top_bs->backing, op->offset, op->bytes,
+                             &op->qiov, 0);
+    }
     mirror_read_complete(op, ret);
 }
 
@@ -1437,8 +1439,9 @@ static void coroutine_fn active_write_settle(MirrorOp *op)
     g_free(op);
 }
 
-static int coroutine_fn bdrv_mirror_top_preadv(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
@@ -1495,16 +1498,15 @@ out:
     return ret;
 }
 
-static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     MirrorBDSOpaque *s = bs->opaque;
     QEMUIOVector bounce_qiov;
     void *bounce_buf;
     int ret = 0;
     bool copy_to_target = false;
-
-    assume_graph_lock(); /* FIXME */
 
     if (s->job) {
         copy_to_target = s->job->ret >= 0 &&

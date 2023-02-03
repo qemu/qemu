@@ -100,7 +100,7 @@ int qed_write_header_sync(BDRVQEDState *s)
  *
  * No new allocating reqs can start while this function runs.
  */
-static int coroutine_fn qed_write_header(BDRVQEDState *s)
+static int coroutine_fn GRAPH_RDLOCK qed_write_header(BDRVQEDState *s)
 {
     /* We must write full sectors for O_DIRECT but cannot necessarily generate
      * the data following the header if an unrecognized compat feature is
@@ -826,11 +826,10 @@ fail:
     return ret;
 }
 
-static int coroutine_fn bdrv_qed_co_block_status(BlockDriverState *bs,
-                                                 bool want_zero,
-                                                 int64_t pos, int64_t bytes,
-                                                 int64_t *pnum, int64_t *map,
-                                                 BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_block_status(BlockDriverState *bs, bool want_zero, int64_t pos,
+                         int64_t bytes, int64_t *pnum, int64_t *map,
+                         BlockDriverState **file)
 {
     BDRVQEDState *s = bs->opaque;
     size_t len = MIN(bytes, SIZE_MAX);
@@ -883,8 +882,8 @@ static BDRVQEDState *acb_to_s(QEDAIOCB *acb)
  * This function reads qiov->size bytes starting at pos from the backing file.
  * If there is no backing file then zeroes are read.
  */
-static int coroutine_fn qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
-                                              QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+qed_read_backing_file(BDRVQEDState *s, uint64_t pos, QEMUIOVector *qiov)
 {
     if (s->bs->backing) {
         BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
@@ -902,9 +901,9 @@ static int coroutine_fn qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
  * @len:        Number of bytes
  * @offset:     Byte offset in image file
  */
-static int coroutine_fn qed_copy_from_backing_file(BDRVQEDState *s,
-                                                   uint64_t pos, uint64_t len,
-                                                   uint64_t offset)
+static int coroutine_fn GRAPH_RDLOCK
+qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos, uint64_t len,
+                           uint64_t offset)
 {
     QEMUIOVector qiov;
     int ret;
@@ -1066,7 +1065,7 @@ qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
  *
  * Called with table_lock *not* held.
  */
-static int coroutine_fn qed_aio_write_main(QEDAIOCB *acb)
+static int coroutine_fn GRAPH_RDLOCK qed_aio_write_main(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset = acb->cur_cluster +
@@ -1226,8 +1225,8 @@ qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset,
-                                              size_t len)
+static int coroutine_fn GRAPH_RDLOCK
+qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
 {
     BDRVQEDState *s = acb_to_s(acb);
     int r;
@@ -1302,8 +1301,8 @@ qed_aio_write_data(void *opaque, int ret, uint64_t offset, size_t len)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_read_data(void *opaque, int ret,
-                                          uint64_t offset, size_t len)
+static int coroutine_fn GRAPH_RDLOCK
+qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);

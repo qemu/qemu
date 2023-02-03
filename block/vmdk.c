@@ -1403,13 +1403,11 @@ static void vmdk_refresh_limits(BlockDriverState *bs, Error **errp)
  * [@skip_start_sector, @skip_end_sector) is not copied or written, and leave
  * it for call to write user data in the request.
  */
-static int coroutine_fn get_whole_cluster(BlockDriverState *bs,
-                                          VmdkExtent *extent,
-                                          uint64_t cluster_offset,
-                                          uint64_t offset,
-                                          uint64_t skip_start_bytes,
-                                          uint64_t skip_end_bytes,
-                                          bool zeroed)
+static int coroutine_fn GRAPH_RDLOCK
+get_whole_cluster(BlockDriverState *bs, VmdkExtent *extent,
+                  uint64_t cluster_offset, uint64_t offset,
+                  uint64_t skip_start_bytes, uint64_t skip_end_bytes,
+                  bool zeroed)
 {
     int ret = VMDK_OK;
     int64_t cluster_bytes;
@@ -1536,14 +1534,11 @@ vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data, uint32_t offset)
  *          VMDK_UNALLOC if cluster is not mapped and @allocate is false.
  *          VMDK_ERROR if failed.
  */
-static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
-                                           VmdkExtent *extent,
-                                           VmdkMetaData *m_data,
-                                           uint64_t offset,
-                                           bool allocate,
-                                           uint64_t *cluster_offset,
-                                           uint64_t skip_start_bytes,
-                                           uint64_t skip_end_bytes)
+static int coroutine_fn GRAPH_RDLOCK
+get_cluster_offset(BlockDriverState *bs, VmdkExtent *extent,
+                   VmdkMetaData *m_data, uint64_t offset, bool allocate,
+                   uint64_t *cluster_offset, uint64_t skip_start_bytes,
+                   uint64_t skip_end_bytes)
 {
     unsigned int l1_index, l2_offset, l2_index;
     int min_index, i, j;
@@ -1736,11 +1731,10 @@ static inline uint64_t vmdk_find_offset_in_cluster(VmdkExtent *extent,
     return extent_relative_offset % cluster_size;
 }
 
-static int coroutine_fn vmdk_co_block_status(BlockDriverState *bs,
-                                             bool want_zero,
-                                             int64_t offset, int64_t bytes,
-                                             int64_t *pnum, int64_t *map,
-                                             BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_co_block_status(BlockDriverState *bs, bool want_zero,
+                     int64_t offset, int64_t bytes, int64_t *pnum,
+                     int64_t *map, BlockDriverState **file)
 {
     BDRVVmdkState *s = bs->opaque;
     int64_t index_in_cluster, n, ret;
@@ -1785,7 +1779,7 @@ static int coroutine_fn vmdk_co_block_status(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
                   int64_t offset_in_cluster, QEMUIOVector *qiov,
                   uint64_t qiov_offset, uint64_t n_bytes,
@@ -1867,10 +1861,9 @@ vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
-                 int64_t offset_in_cluster, QEMUIOVector *qiov,
-                 int bytes)
+                 int64_t offset_in_cluster, QEMUIOVector *qiov, int bytes)
 {
     int ret;
     int cluster_bytes, buf_bytes;
@@ -1934,7 +1927,7 @@ vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vmdk_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -2016,9 +2009,9 @@ fail:
  *
  * Returns: error code with 0 for success.
  */
-static int coroutine_fn vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
-                                     uint64_t bytes, QEMUIOVector *qiov,
-                                     bool zeroed, bool zero_dry_run)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+             QEMUIOVector *qiov, bool zeroed, bool zero_dry_run)
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
@@ -2027,8 +2020,6 @@ static int coroutine_fn vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
     uint64_t cluster_offset;
     uint64_t bytes_done = 0;
     VmdkMetaData m_data;
-
-    assume_graph_lock(); /* FIXME */
 
     if (DIV_ROUND_UP(offset, BDRV_SECTOR_SIZE) > bs->total_sectors) {
         error_report("Wrong offset: offset=0x%" PRIx64
@@ -2116,7 +2107,7 @@ static int coroutine_fn vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
     return 0;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vmdk_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                 QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -2156,10 +2147,9 @@ vmdk_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return vmdk_co_pwritev(bs, offset, bytes, qiov, 0);
 }
 
-static int coroutine_fn vmdk_co_pwrite_zeroes(BlockDriverState *bs,
-                                              int64_t offset,
-                                              int64_t bytes,
-                                              BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                      BdrvRequestFlags flags)
 {
     int ret;
     BDRVVmdkState *s = bs->opaque;
@@ -2920,9 +2910,8 @@ static VmdkExtentInfo *vmdk_get_extent_info(VmdkExtent *extent)
     return info;
 }
 
-static int coroutine_fn vmdk_co_check(BlockDriverState *bs,
-                                      BdrvCheckResult *result,
-                                      BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_co_check(BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix)
 {
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;

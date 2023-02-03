@@ -294,7 +294,7 @@ static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = s->sectorsize;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                          QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -430,7 +430,7 @@ blk_log_writes_co_log(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return fr.file_ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pwritev(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pwritev(fr->bs->file, fr->offset, fr->bytes,
@@ -456,11 +456,10 @@ blk_log_writes_co_do_file_pdiscard(BlkLogWritesFileReq *fr)
     return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                           QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
-    assume_graph_lock(); /* FIXME */
     return blk_log_writes_co_log(bs, offset, bytes, qiov, flags,
                                  blk_log_writes_co_do_file_pwritev, 0, false);
 }

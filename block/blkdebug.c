@@ -626,7 +626,7 @@ static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return -error;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blkdebug_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                    QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -647,7 +647,7 @@ blkdebug_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blkdebug_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                     QEMUIOVector *qiov, BdrvRequestFlags flags)
 {

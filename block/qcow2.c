@@ -601,9 +601,9 @@ static void qcow2_add_check_result(BdrvCheckResult *out,
     }
 }
 
-static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
-                                              BdrvCheckResult *result,
-                                              BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_check_locked(BlockDriverState *bs, BdrvCheckResult *result,
+                      BdrvCheckMode fix)
 {
     BdrvCheckResult snapshot_res = {};
     BdrvCheckResult refcount_res = {};
@@ -640,9 +640,9 @@ static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn qcow2_co_check(BlockDriverState *bs,
-                                       BdrvCheckResult *result,
-                                       BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_check(BlockDriverState *bs, BdrvCheckResult *result,
+               BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -1294,9 +1294,9 @@ static int validate_compression_type(BDRVQcow2State *s, Error **errp)
 }
 
 /* Called with s->lock held.  */
-static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
-                                      int flags, bool open_data_file,
-                                      Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
+              bool open_data_file, Error **errp)
 {
     ERRP_GUARD();
     BDRVQcow2State *s = bs->opaque;
@@ -1890,6 +1890,8 @@ static void coroutine_fn qcow2_open_entry(void *opaque)
     QCow2OpenCo *qoc = opaque;
     BDRVQcow2State *s = qoc->bs->opaque;
 
+    assume_graph_lock(); /* FIXME */
+
     qemu_co_mutex_lock(&s->lock);
     qoc->ret = qcow2_do_open(qoc->bs, qoc->options, qoc->flags, true,
                              qoc->errp);
@@ -2169,7 +2171,7 @@ out:
     return ret;
 }
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_preadv_encrypted(BlockDriverState *bs,
                            uint64_t host_offset,
                            uint64_t offset,
@@ -2270,12 +2272,10 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
     return 0;
 }
 
-static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
-                                             QCow2SubclusterType subc_type,
-                                             uint64_t host_offset,
-                                             uint64_t offset, uint64_t bytes,
-                                             QEMUIOVector *qiov,
-                                             size_t qiov_offset)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_preadv_task(BlockDriverState *bs, QCow2SubclusterType subc_type,
+                     uint64_t host_offset, uint64_t offset, uint64_t bytes,
+                     QEMUIOVector *qiov, size_t qiov_offset)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -2314,7 +2314,11 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
     g_assert_not_reached();
 }
 
-static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because qcow2_co_preadv_part() holds
+ * the graph lock and keeps it until this coroutine has terminated.
+ */
+static int coroutine_fn GRAPH_RDLOCK qcow2_co_preadv_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -2325,11 +2329,10 @@ static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
                                 t->qiov, t->qiov_offset);
 }
 
-static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes,
-                                             QEMUIOVector *qiov,
-                                             size_t qiov_offset,
-                                             BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                     QEMUIOVector *qiov, size_t qiov_offset,
+                     BdrvRequestFlags flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret = 0;
@@ -2774,8 +2777,8 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_do_close(bs, true);
 }
 
-static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
-                                                   Error **errp)
+static void coroutine_fn GRAPH_RDLOCK
+qcow2_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     ERRP_GUARD();
     BDRVQcow2State *s = bs->opaque;
@@ -4737,7 +4740,7 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t l2_entry,
                            uint64_t offset,

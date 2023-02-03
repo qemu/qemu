@@ -534,10 +534,9 @@ do_perform_cow_read(BlockDriverState *bs, uint64_t src_cluster_offset,
     return 0;
 }
 
-static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
-                                             uint64_t cluster_offset,
-                                             unsigned offset_in_cluster,
-                                             QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+do_perform_cow_write(BlockDriverState *bs, uint64_t cluster_offset,
+                     unsigned offset_in_cluster, QEMUIOVector *qiov)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;

@@ -226,9 +226,10 @@ static void preallocate_reopen_abort(BDRVReopenState *state)
     state->opaque = NULL;
 }
 
-static coroutine_fn int preallocate_co_preadv_part(
-        BlockDriverState *bs, int64_t offset, int64_t bytes,
-        QEMUIOVector *qiov, size_t qiov_offset, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                           QEMUIOVector *qiov, size_t qiov_offset,
+                           BdrvRequestFlags flags)
 {
     return bdrv_co_preadv_part(bs->file, offset, bytes, qiov, qiov_offset,
                                flags);
@@ -359,14 +360,11 @@ preallocate_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
-static coroutine_fn int preallocate_co_pwritev_part(BlockDriverState *bs,
-                                                    int64_t offset,
-                                                    int64_t bytes,
-                                                    QEMUIOVector *qiov,
-                                                    size_t qiov_offset,
-                                                    BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co_pwritev_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                            QEMUIOVector *qiov, size_t qiov_offset,
+                            BdrvRequestFlags flags)
 {
-    assume_graph_lock(); /* FIXME */
     handle_write(bs, offset, bytes, false);
 
     return bdrv_co_pwritev_part(bs->file, offset, bytes, qiov, qiov_offset,

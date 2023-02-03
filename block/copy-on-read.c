@@ -127,11 +127,10 @@ static int64_t coroutine_fn cor_co_getlength(BlockDriverState *bs)
 }
 
 
-static int coroutine_fn cor_co_preadv_part(BlockDriverState *bs,
-                                           int64_t offset, int64_t bytes,
-                                           QEMUIOVector *qiov,
-                                           size_t qiov_offset,
-                                           BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+cor_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                   QEMUIOVector *qiov, size_t qiov_offset,
+                   BdrvRequestFlags flags)
 {
     int64_t n;
     int local_flags;
@@ -180,12 +179,10 @@ static int coroutine_fn cor_co_preadv_part(BlockDriverState *bs,
 }
 
 
-static int coroutine_fn cor_co_pwritev_part(BlockDriverState *bs,
-                                            int64_t offset,
-                                            int64_t bytes,
-                                            QEMUIOVector *qiov,
-                                            size_t qiov_offset,
-                                            BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+cor_co_pwritev_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, size_t qiov_offset,
+                    BdrvRequestFlags flags)
 {
     return bdrv_co_pwritev_part(bs->file, offset, bytes, qiov, qiov_offset,
                                 flags);
@@ -207,10 +204,9 @@ cor_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 }
 
 
-static int coroutine_fn cor_co_pwritev_compressed(BlockDriverState *bs,
-                                                  int64_t offset,
-                                                  int64_t bytes,
-                                                  QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+cor_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          QEMUIOVector *qiov)
 {
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov,
                            BDRV_REQ_WRITE_COMPRESSED);

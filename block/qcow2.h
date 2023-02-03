@@ -846,7 +846,7 @@ int qcow2_validate_table(BlockDriverState *bs, uint64_t offset,
                          Error **errp);
 
 /* qcow2-refcount.c functions */
-int coroutine_fn qcow2_refcount_init(BlockDriverState *bs);
+int coroutine_fn GRAPH_RDLOCK qcow2_refcount_init(BlockDriverState *bs);
 void qcow2_refcount_close(BlockDriverState *bs);
 
 int qcow2_get_refcount(BlockDriverState *bs, int64_t cluster_index,
@@ -954,9 +954,10 @@ void qcow2_free_snapshots(BlockDriverState *bs);
 int qcow2_read_snapshots(BlockDriverState *bs, Error **errp);
 int qcow2_write_snapshots(BlockDriverState *bs);
 
-int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
-                                                 BdrvCheckResult *result,
-                                                 BdrvCheckMode fix);
+int coroutine_fn GRAPH_RDLOCK
+qcow2_check_read_snapshot_table(BlockDriverState *bs, BdrvCheckResult *result,
+                                BdrvCheckMode fix);
+
 int coroutine_fn qcow2_check_fix_snapshot_table(BlockDriverState *bs,
                                                 BdrvCheckResult *result,
                                                 BdrvCheckMode fix);

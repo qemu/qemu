@@ -971,6 +971,7 @@ bdrv_driver_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     unsigned int nb_sectors;
     QEMUIOVector local_qiov;
     int ret;
+    assert_bdrv_graph_readable();
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
     assert(!(flags & ~bs->supported_read_flags));
@@ -1041,6 +1042,7 @@ bdrv_driver_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
     unsigned int nb_sectors;
     QEMUIOVector local_qiov;
     int ret;
+    assert_bdrv_graph_readable();
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1119,6 +1121,7 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, int64_t offset,
     BlockDriver *drv = bs->drv;
     QEMUIOVector local_qiov;
     int ret;
+    assert_bdrv_graph_readable();
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1621,8 +1624,6 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
     int ret;
     IO_CODE();
 
-    assume_graph_lock(); /* FIXME */
-
     trace_bdrv_co_preadv_part(bs, offset, bytes, flags);
 
     if (!bdrv_co_is_inserted(bs)) {
@@ -2072,8 +2073,6 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     int ret;
     bool padded = false;
     IO_CODE();
-
-    assume_graph_lock(); /* FIXME */
 
     trace_bdrv_co_pwritev_part(child->bs, offset, bytes, flags);
 
