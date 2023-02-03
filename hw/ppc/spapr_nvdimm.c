@@ -496,7 +496,6 @@ static int spapr_nvdimm_flush_post_load(void *opaque, int version_id)
 {
     SpaprNVDIMMDevice *s_nvdimm = (SpaprNVDIMMDevice *)opaque;
     SpaprNVDIMMDeviceFlushState *state;
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     HostMemoryBackend *backend = MEMORY_BACKEND(PC_DIMM(s_nvdimm)->hostmem);
     bool is_pmem = object_property_get_bool(OBJECT(backend), "pmem", NULL);
     bool pmem_override = object_property_get_bool(OBJECT(s_nvdimm),
@@ -517,7 +516,7 @@ static int spapr_nvdimm_flush_post_load(void *opaque, int version_id)
     }
 
     QLIST_FOREACH(state, &s_nvdimm->pending_nvdimm_flush_states, node) {
-        thread_pool_submit_aio(pool, flush_worker_cb, state,
+        thread_pool_submit_aio(flush_worker_cb, state,
                                spapr_nvdimm_flush_completion_cb, state);
     }
 
@@ -664,7 +663,6 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     PCDIMMDevice *dimm;
     HostMemoryBackend *backend = NULL;
     SpaprNVDIMMDeviceFlushState *state;
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     int fd;
 
     if (!drc || !drc->dev ||
@@ -699,7 +697,7 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
         state->drcidx = drc_index;
 
-        thread_pool_submit_aio(pool, flush_worker_cb, state,
+        thread_pool_submit_aio(flush_worker_cb, state,
                                spapr_nvdimm_flush_completion_cb, state);
 
         continue_token = state->continue_token;

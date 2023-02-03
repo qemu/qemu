@@ -180,7 +180,6 @@ static int do_sgio_worker(void *opaque)
 static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
                     uint8_t *buf, int *sz, int dir)
 {
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     int r;
 
     PRHelperSGIOData data = {
@@ -192,7 +191,7 @@ static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
         .dir = dir,
     };
 
-    r = thread_pool_submit_co(pool, do_sgio_worker, &data);
+    r = thread_pool_submit_co(do_sgio_worker, &data);
     *sz = data.sz;
     return r;
 }

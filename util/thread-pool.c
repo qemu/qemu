@@ -241,11 +241,12 @@ static const AIOCBInfo thread_pool_aiocb_info = {
     .get_aio_context    = thread_pool_get_aio_context,
 };
 
-BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
-        ThreadPoolFunc *func, void *arg,
-        BlockCompletionFunc *cb, void *opaque)
+BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
+                                   BlockCompletionFunc *cb, void *opaque)
 {
     ThreadPoolElement *req;
+    AioContext *ctx = qemu_get_current_aio_context();
+    ThreadPool *pool = aio_get_thread_pool(ctx);
 
     /* Assert that the thread submitting work is the same running the pool */
     assert(pool->ctx == qemu_get_current_aio_context());
@@ -283,19 +284,18 @@ static void thread_pool_co_cb(void *opaque, int ret)
     aio_co_wake(co->co);
 }
 
-int coroutine_fn thread_pool_submit_co(ThreadPool *pool, ThreadPoolFunc *func,
-                                       void *arg)
+int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg)
 {
     ThreadPoolCo tpc = { .co = qemu_coroutine_self(), .ret = -EINPROGRESS };
     assert(qemu_in_coroutine());
-    thread_pool_submit_aio(pool, func, arg, thread_pool_co_cb, &tpc);
+    thread_pool_submit_aio(func, arg, thread_pool_co_cb, &tpc);
     qemu_coroutine_yield();
     return tpc.ret;
 }
 
-void thread_pool_submit(ThreadPool *pool, ThreadPoolFunc *func, void *arg)
+void thread_pool_submit(ThreadPoolFunc *func, void *arg)
 {
-    thread_pool_submit_aio(pool, func, arg, NULL, NULL);
+    thread_pool_submit_aio(func, arg, NULL, NULL);
 }
 
 void thread_pool_update_params(ThreadPool *pool, AioContext *ctx)

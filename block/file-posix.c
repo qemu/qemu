@@ -2042,9 +2042,7 @@ out:
 
 static int coroutine_fn raw_thread_pool_submit(ThreadPoolFunc func, void *arg)
 {
-    /* @bs can be NULL, bdrv_get_aio_context() returns the main context then */
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_current_aio_context());
-    return thread_pool_submit_co(pool, func, arg);
+    return thread_pool_submit_co(func, arg);
 }
 
 /*
