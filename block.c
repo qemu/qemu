@@ -277,8 +277,8 @@ bool bdrv_is_read_only(BlockDriverState *bs)
     return !(bs->open_flags & BDRV_O_RDWR);
 }
 
-int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
-                           bool ignore_allow_rdw, Error **errp)
+static int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                                  bool ignore_allow_rdw, Error **errp)
 {
     IO_CODE();
 

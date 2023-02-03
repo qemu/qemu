@@ -134,8 +134,6 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
 int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes);
 
-int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
-                           bool ignore_allow_rdw, Error **errp);
 int bdrv_apply_auto_read_only(BlockDriverState *bs, const char *errmsg,
                               Error **errp);
 bool bdrv_is_read_only(BlockDriverState *bs);
