@@ -2920,8 +2920,8 @@ static void coroutine_fn check_cache_dropped(BlockDriverState *bs, Error **errp)
 }
 #endif /* __linux__ */
 
-static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
-                                                 Error **errp)
+static void coroutine_fn GRAPH_RDLOCK
+raw_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;

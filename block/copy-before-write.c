@@ -185,7 +185,7 @@ static coroutine_fn int cbw_co_pwritev(BlockDriverState *bs,
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn cbw_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK cbw_co_flush(BlockDriverState *bs)
 {
     if (!bs->file) {
         return 0;

@@ -1484,8 +1484,8 @@ exit:
     return ret;
 }
 
-static int coroutine_fn vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data,
-                                      uint32_t offset)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data, uint32_t offset)
 {
     offset = cpu_to_le32(offset);
     /* update L2 table */
@@ -2027,6 +2027,8 @@ static int coroutine_fn vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
     uint64_t cluster_offset;
     uint64_t bytes_done = 0;
     VmdkMetaData m_data;
+
+    assume_graph_lock(); /* FIXME */
 
     if (DIV_ROUND_UP(offset, BDRV_SECTOR_SIZE) > bs->total_sectors) {
         error_report("Wrong offset: offset=0x%" PRIx64

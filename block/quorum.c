@@ -778,7 +778,7 @@ static int64_t coroutine_fn quorum_co_getlength(BlockDriverState *bs)
     return result;
 }
 
-static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
+static coroutine_fn GRAPH_RDLOCK int quorum_co_flush(BlockDriverState *bs)
 {
     BDRVQuorumState *s = bs->opaque;
     QuorumVoteVersion *winner = NULL;

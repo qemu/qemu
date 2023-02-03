@@ -101,7 +101,7 @@ int coroutine_fn GRAPH_RDLOCK
 bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
 
 /* Ensure contents are flushed to disk.  */
-int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
+int coroutine_fn GRAPH_RDLOCK bdrv_co_flush(BlockDriverState *bs);
 
 int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
                                   int64_t bytes);

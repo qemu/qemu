@@ -933,6 +933,8 @@ int coroutine_fn bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset,
     int ret;
     IO_CODE();
 
+    assume_graph_lock(); /* FIXME */
+
     ret = bdrv_co_pwrite(child, offset, bytes, buf, flags);
     if (ret < 0) {
         return ret;
@@ -1040,6 +1042,8 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     unsigned int nb_sectors;
     QEMUIOVector local_qiov;
     int ret;
+
+    assume_graph_lock(); /* FIXME */
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1679,6 +1683,8 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     bool need_flush = false;
     int head = 0;
     int tail = 0;
+
+    assume_graph_lock(); /* FIXME */
 
     int64_t max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes,
                                             INT64_MAX);
@@ -2839,6 +2845,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     int ret = 0;
     IO_CODE();
 
+    assert_bdrv_graph_readable();
     bdrv_inc_in_flight(bs);
 
     if (!bdrv_co_is_inserted(bs) || bdrv_is_read_only(bs) ||

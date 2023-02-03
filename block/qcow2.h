@@ -900,7 +900,10 @@ int coroutine_fn qcow2_detect_metadata_preallocation(BlockDriverState *bs);
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
-int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size);
+
+int coroutine_fn GRAPH_RDLOCK
+qcow2_shrink_l1_table(BlockDriverState *bs, uint64_t max_size);
+
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
 int qcow2_encrypt_sectors(BDRVQcow2State *s, int64_t sector_num,
                           uint8_t *buf, int nb_sectors, bool enc, Error **errp);

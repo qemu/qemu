@@ -113,7 +113,7 @@ static int coroutine_fn blkreplay_co_pdiscard(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn blkreplay_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK blkreplay_co_flush(BlockDriverState *bs)
 {
     uint64_t reqid = blkreplay_next_id();
     int ret = bdrv_co_flush(bs->file->bs);

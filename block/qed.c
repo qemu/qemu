@@ -395,8 +395,8 @@ static void bdrv_qed_init_state(BlockDriverState *bs)
 }
 
 /* Called with table_lock held.  */
-static int coroutine_fn bdrv_qed_do_open(BlockDriverState *bs, QDict *options,
-                                         int flags, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_do_open(BlockDriverState *bs, QDict *options, int flags, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     QEDHeader le_header;
@@ -557,7 +557,7 @@ typedef struct QEDOpenCo {
     int ret;
 } QEDOpenCo;
 
-static void coroutine_fn bdrv_qed_open_entry(void *opaque)
+static void coroutine_fn GRAPH_RDLOCK bdrv_qed_open_entry(void *opaque)
 {
     QEDOpenCo *qoc = opaque;
     BDRVQEDState *s = qoc->bs->opaque;
@@ -578,6 +578,8 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         .ret = -EINPROGRESS
     };
     int ret;
+
+    assume_graph_lock(); /* FIXME */
 
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
@@ -995,7 +997,7 @@ static void coroutine_fn qed_aio_complete(QEDAIOCB *acb)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_l1_update(QEDAIOCB *acb)
+static int coroutine_fn GRAPH_RDLOCK qed_aio_write_l1_update(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     CachedL2Table *l2_table = acb->request.l2_table;
@@ -1025,7 +1027,8 @@ static int coroutine_fn qed_aio_write_l1_update(QEDAIOCB *acb)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
+static int coroutine_fn GRAPH_RDLOCK
+qed_aio_write_l2_update(QEDAIOCB *acb, uint64_t offset)
 {
     BDRVQEDState *s = acb_to_s(acb);
     bool need_alloc = acb->find_cluster_ret == QED_CLUSTER_L1;
@@ -1081,7 +1084,7 @@ static int coroutine_fn qed_aio_write_main(QEDAIOCB *acb)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_cow(QEDAIOCB *acb)
+static int coroutine_fn GRAPH_RDLOCK qed_aio_write_cow(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t start, len, offset;
@@ -1159,7 +1162,8 @@ static bool qed_should_set_need_check(BDRVQEDState *s)
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
+static int coroutine_fn GRAPH_RDLOCK
+qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 {
     BDRVQEDState *s = acb_to_s(acb);
     int ret;
@@ -1265,8 +1269,8 @@ out:
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_aio_write_data(void *opaque, int ret,
-                                           uint64_t offset, size_t len)
+static int coroutine_fn GRAPH_RDLOCK
+qed_aio_write_data(void *opaque, int ret, uint64_t offset, size_t len)
 {
     QEDAIOCB *acb = opaque;
 
@@ -1336,7 +1340,7 @@ static int coroutine_fn qed_aio_read_data(void *opaque, int ret,
 /**
  * Begin next I/O or complete the request
  */
-static int coroutine_fn qed_aio_next_io(QEDAIOCB *acb)
+static int coroutine_fn GRAPH_RDLOCK qed_aio_next_io(QEDAIOCB *acb)
 {
     BDRVQEDState *s = acb_to_s(acb);
     uint64_t offset;
@@ -1381,9 +1385,9 @@ static int coroutine_fn qed_aio_next_io(QEDAIOCB *acb)
     return ret;
 }
 
-static int coroutine_fn qed_co_request(BlockDriverState *bs, int64_t sector_num,
-                                       QEMUIOVector *qiov, int nb_sectors,
-                                       int flags)
+static int coroutine_fn GRAPH_RDLOCK
+qed_co_request(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov,
+               int nb_sectors, int flags)
 {
     QEDAIOCB acb = {
         .bs         = bs,
@@ -1404,6 +1408,7 @@ static int coroutine_fn bdrv_qed_co_readv(BlockDriverState *bs,
                                           int64_t sector_num, int nb_sectors,
                                           QEMUIOVector *qiov)
 {
+    assume_graph_lock(); /* FIXME */
     return qed_co_request(bs, sector_num, qiov, nb_sectors, 0);
 }
 
@@ -1411,6 +1416,7 @@ static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
                                            int64_t sector_num, int nb_sectors,
                                            QEMUIOVector *qiov, int flags)
 {
+    assume_graph_lock(); /* FIXME */
     return qed_co_request(bs, sector_num, qiov, nb_sectors, QED_AIOCB_WRITE);
 }
 
@@ -1420,6 +1426,8 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
                                                   BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
+
+    assume_graph_lock(); /* FIXME */
 
     /*
      * Zero writes start without an I/O buffer.  If a buffer becomes necessary
@@ -1571,8 +1579,8 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     return ret;
 }
 
-static void coroutine_fn bdrv_qed_co_invalidate_cache(BlockDriverState *bs,
-                                                      Error **errp)
+static void coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQEDState *s = bs->opaque;
     int ret;
@@ -1588,9 +1596,9 @@ static void coroutine_fn bdrv_qed_co_invalidate_cache(BlockDriverState *bs,
     }
 }
 
-static int coroutine_fn bdrv_qed_co_check(BlockDriverState *bs,
-                                          BdrvCheckResult *result,
-                                          BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_check(BlockDriverState *bs, BdrvCheckResult *result,
+                  BdrvCheckMode fix)
 {
     BDRVQEDState *s = bs->opaque;
     int ret;

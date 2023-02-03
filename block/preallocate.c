@@ -437,7 +437,7 @@ preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int coroutine_fn preallocate_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK preallocate_co_flush(BlockDriverState *bs)
 {
     return bdrv_co_flush(bs->file->bs);
 }

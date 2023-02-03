@@ -477,8 +477,8 @@ struct BlockDriver {
     BlockAIOCB *(*bdrv_aio_pwritev)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         BdrvRequestFlags flags, BlockCompletionFunc *cb, void *opaque);
-    BlockAIOCB *(*bdrv_aio_flush)(BlockDriverState *bs,
-        BlockCompletionFunc *cb, void *opaque);
+    BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_flush)(
+        BlockDriverState *bs, BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB *(*bdrv_aio_pdiscard)(BlockDriverState *bs,
         int64_t offset, int bytes,
         BlockCompletionFunc *cb, void *opaque);
@@ -646,7 +646,7 @@ struct BlockDriver {
      * layers, if needed. This function is needed for deterministic
      * synchronization of the flush finishing callback.
      */
-    int coroutine_fn (*bdrv_co_flush)(BlockDriverState *bs);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_flush)(BlockDriverState *bs);
 
     /* Delete a created file. */
     int coroutine_fn (*bdrv_co_delete_file)(BlockDriverState *bs,
@@ -656,14 +656,16 @@ struct BlockDriver {
      * Flushes all data that was already written to the OS all the way down to
      * the disk (for example file-posix.c calls fsync()).
      */
-    int coroutine_fn (*bdrv_co_flush_to_disk)(BlockDriverState *bs);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_flush_to_disk)(
+        BlockDriverState *bs);
 
     /*
      * Flushes all internal caches to the OS. The data may still sit in a
      * writeback cache of the host OS, but it will survive a crash of the qemu
      * process.
      */
-    int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_flush_to_os)(
+        BlockDriverState *bs);
 
     /*
      * Truncate @bs to @offset bytes using the given @prealloc mode
