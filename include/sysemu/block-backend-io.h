@@ -55,10 +55,11 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
 void blk_inc_in_flight(BlockBackend *blk);
 void blk_dec_in_flight(BlockBackend *blk);
 
-bool coroutine_fn blk_co_is_inserted(BlockBackend *blk);
-bool co_wrapper_mixed blk_is_inserted(BlockBackend *blk);
+bool coroutine_fn GRAPH_RDLOCK blk_co_is_inserted(BlockBackend *blk);
+bool co_wrapper_mixed_bdrv_rdlock blk_is_inserted(BlockBackend *blk);
 
-bool blk_is_available(BlockBackend *blk);
+bool coroutine_fn GRAPH_RDLOCK blk_co_is_available(BlockBackend *blk);
+bool co_wrapper_mixed_bdrv_rdlock blk_is_available(BlockBackend *blk);
 
 void coroutine_fn blk_co_lock_medium(BlockBackend *blk, bool locked);
 void co_wrapper blk_lock_medium(BlockBackend *blk, bool locked);

@@ -6826,6 +6826,7 @@ bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs)
     BlockDriver *drv = bs->drv;
     BdrvChild *child;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         return false;

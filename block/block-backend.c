@@ -1235,8 +1235,8 @@ void blk_set_disable_request_queuing(BlockBackend *blk, bool disable)
     blk->disable_request_queuing = disable;
 }
 
-static coroutine_fn int blk_check_byte_request(BlockBackend *blk,
-                                               int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+blk_check_byte_request(BlockBackend *blk, int64_t offset, int64_t bytes)
 {
     int64_t len;
 
@@ -1244,7 +1244,7 @@ static coroutine_fn int blk_check_byte_request(BlockBackend *blk,
         return -EIO;
     }
 
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1606,8 +1606,9 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
 int64_t coroutine_fn blk_co_getlength(BlockBackend *blk)
 {
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
 
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1627,8 +1628,9 @@ void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
 int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk)
 {
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
 
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1676,7 +1678,7 @@ blk_co_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
     blk_wait_while_drained(blk);
     GRAPH_RDLOCK_GUARD();
 
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1769,7 +1771,7 @@ static int coroutine_fn blk_co_do_flush(BlockBackend *blk)
     blk_wait_while_drained(blk);
     GRAPH_RDLOCK_GUARD();
 
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -1996,14 +1998,15 @@ bool coroutine_fn blk_co_is_inserted(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     return bs && bdrv_co_is_inserted(bs);
 }
 
-bool blk_is_available(BlockBackend *blk)
+bool coroutine_fn blk_co_is_available(BlockBackend *blk)
 {
     IO_CODE();
-    return blk_is_inserted(blk) && !blk_dev_is_tray_open(blk);
+    return blk_co_is_inserted(blk) && !blk_dev_is_tray_open(blk);
 }
 
 void coroutine_fn blk_co_lock_medium(BlockBackend *blk, bool locked)
@@ -2382,7 +2385,7 @@ int coroutine_fn blk_co_truncate(BlockBackend *blk, int64_t offset, bool exact,
 {
     IO_OR_GS_CODE();
     GRAPH_RDLOCK_GUARD();
-    if (!blk_is_available(blk)) {
+    if (!blk_co_is_available(blk)) {
         error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
     }
@@ -2637,6 +2640,7 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
 {
     int r;
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
 
     r = blk_check_byte_request(blk_in, off_in, bytes);
     if (r) {
@@ -2647,7 +2651,6 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
         return r;
     }
 
-    GRAPH_RDLOCK_GUARD();
     return bdrv_co_copy_range(blk_in->root, off_in,
                               blk_out->root, off_out,
                               bytes, read_flags, write_flags);

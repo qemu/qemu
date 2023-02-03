@@ -145,8 +145,8 @@ bool bdrv_is_writable(BlockDriverState *bs);
 bool bdrv_is_sg(BlockDriverState *bs);
 int bdrv_get_flags(BlockDriverState *bs);
 
-bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs);
-bool co_wrapper bdrv_is_inserted(BlockDriverState *bs);
+bool coroutine_fn GRAPH_RDLOCK bdrv_co_is_inserted(BlockDriverState *bs);
+bool co_wrapper_bdrv_rdlock bdrv_is_inserted(BlockDriverState *bs);
 
 void coroutine_fn bdrv_co_lock_medium(BlockDriverState *bs, bool locked);
 void coroutine_fn bdrv_co_eject(BlockDriverState *bs, bool eject_flag);
