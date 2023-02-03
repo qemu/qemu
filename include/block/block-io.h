@@ -60,9 +60,10 @@ int co_wrapper_mixed_bdrv_rdlock
 bdrv_pwrite_sync(BdrvChild *child, int64_t offset, int64_t bytes,
                  const void *buf, BdrvRequestFlags flags);
 
-int coroutine_fn bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset,
-                                     int64_t bytes, const void *buf,
-                                     BdrvRequestFlags flags);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset, int64_t bytes,
+                    const void *buf, BdrvRequestFlags flags);
+
 /*
  * Efficiently zero a region of the disk image.  Note that this is a regular
  * I/O request like read or write and should have a reasonable size.  This

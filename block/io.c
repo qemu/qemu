@@ -933,8 +933,7 @@ int coroutine_fn bdrv_co_pwrite_sync(BdrvChild *child, int64_t offset,
 {
     int ret;
     IO_CODE();
-
-    assume_graph_lock(); /* FIXME */
+    assert_bdrv_graph_readable();
 
     ret = bdrv_co_pwrite(child, offset, bytes, buf, flags);
     if (ret < 0) {
