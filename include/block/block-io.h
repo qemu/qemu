@@ -97,7 +97,8 @@ void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 /* sg packet commands */
-int coroutine_fn bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf);
 
 /* Ensure contents are flushed to disk.  */
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
