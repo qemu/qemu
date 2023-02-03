@@ -1404,19 +1404,17 @@ qed_co_request(BlockDriverState *bs, int64_t sector_num, QEMUIOVector *qiov,
     return qed_aio_next_io(&acb);
 }
 
-static int coroutine_fn bdrv_qed_co_readv(BlockDriverState *bs,
-                                          int64_t sector_num, int nb_sectors,
-                                          QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                  QEMUIOVector *qiov)
 {
-    assume_graph_lock(); /* FIXME */
     return qed_co_request(bs, sector_num, qiov, nb_sectors, 0);
 }
 
-static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
-                                           int64_t sector_num, int nb_sectors,
-                                           QEMUIOVector *qiov, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_qed_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                   QEMUIOVector *qiov, int flags)
 {
-    assume_graph_lock(); /* FIXME */
     return qed_co_request(bs, sector_num, qiov, nb_sectors, QED_AIOCB_WRITE);
 }
 

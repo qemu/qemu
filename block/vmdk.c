@@ -2128,12 +2128,10 @@ vmdk_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vmdk_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
                            QEMUIOVector *qiov)
 {
-    assume_graph_lock(); /* FIXME */
-
     if (bytes == 0) {
         /* The caller will write bytes 0 to signal EOF.
          * When receive it, we align EOF to a sector boundary. */

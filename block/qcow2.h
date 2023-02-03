@@ -921,8 +921,9 @@ int coroutine_fn qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
 void qcow2_parse_compressed_l2_entry(BlockDriverState *bs, uint64_t l2_entry,
                                      uint64_t *coffset, int *csize);
 
-int coroutine_fn qcow2_alloc_cluster_link_l2(BlockDriverState *bs,
-                                             QCowL2Meta *m);
+int coroutine_fn GRAPH_RDLOCK
+qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
+
 void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, enum qcow2_discard_type type,

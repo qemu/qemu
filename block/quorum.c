@@ -718,15 +718,13 @@ static void coroutine_fn GRAPH_RDLOCK write_quorum_entry(void *opaque)
     }
 }
 
-static int coroutine_fn quorum_co_pwritev(BlockDriverState *bs, int64_t offset,
-                                          int64_t bytes, QEMUIOVector *qiov,
-                                          BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+quorum_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                  QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVQuorumState *s = bs->opaque;
     QuorumAIOCB *acb = quorum_aio_get(bs, qiov, offset, bytes, flags);
     int i, ret;
-
-    assume_graph_lock(); /* FIXME */
 
     for (i = 0; i < s->num_children; i++) {
         Coroutine *co;

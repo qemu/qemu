@@ -2137,9 +2137,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
     return status;
 }
 
-static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
-                                            QCowL2Meta **pl2meta,
-                                            bool link_l2)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_handle_l2meta(BlockDriverState *bs, QCowL2Meta **pl2meta, bool link_l2)
 {
     int ret = 0;
     QCowL2Meta *l2meta = *pl2meta;
@@ -2617,9 +2616,10 @@ static coroutine_fn GRAPH_RDLOCK int qcow2_co_pwritev_task_entry(AioTask *task)
                                  t->l2meta);
 }
 
-static coroutine_fn int qcow2_co_pwritev_part(
-        BlockDriverState *bs, int64_t offset, int64_t bytes,
-        QEMUIOVector *qiov, size_t qiov_offset, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwritev_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                      QEMUIOVector *qiov, size_t qiov_offset,
+                      BdrvRequestFlags flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int offset_in_cluster;
@@ -2628,8 +2628,6 @@ static coroutine_fn int qcow2_co_pwritev_part(
     uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
     AioTaskPool *aio = NULL;
-
-    assume_graph_lock(); /* FIXME */
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), offset, bytes);
 
@@ -4160,6 +4158,7 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
     uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
 
+    assume_graph_lock(); /* FIXME */
     assert(!bs->encrypted);
 
     qemu_co_mutex_lock(&s->lock);
@@ -4591,7 +4590,7 @@ fail:
     return ret;
 }
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
                                  uint64_t offset, uint64_t bytes,
                                  QEMUIOVector *qiov, size_t qiov_offset)
@@ -4655,7 +4654,13 @@ fail:
     return ret;
 }
 
-static coroutine_fn int qcow2_co_pwritev_compressed_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because
+ * qcow2_co_pwritev_compressed_part() holds the graph lock and keeps it until
+ * this coroutine has terminated.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwritev_compressed_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -4669,7 +4674,7 @@ static coroutine_fn int qcow2_co_pwritev_compressed_task_entry(AioTask *task)
  * XXX: put compressed sectors first, then all the cluster aligned
  * tables to avoid losing bytes in alignment
  */
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
                                  int64_t offset, int64_t bytes,
                                  QEMUIOVector *qiov, size_t qiov_offset)
@@ -4677,8 +4682,6 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     AioTaskPool *aio = NULL;
     int ret = 0;
-
-    assume_graph_lock(); /* FIXME */
 
     if (has_data_file(bs)) {
         return -ENOTSUP;
@@ -5296,8 +5299,8 @@ static int64_t qcow2_check_vmstate_request(BlockDriverState *bs,
     return pos;
 }
 
-static coroutine_fn int qcow2_co_save_vmstate(BlockDriverState *bs,
-                                              QEMUIOVector *qiov, int64_t pos)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {
@@ -5308,8 +5311,8 @@ static coroutine_fn int qcow2_co_save_vmstate(BlockDriverState *bs,
     return bs->drv->bdrv_co_pwritev_part(bs, offset, qiov->size, qiov, 0, 0);
 }
 
-static coroutine_fn int qcow2_co_load_vmstate(BlockDriverState *bs,
-                                              QEMUIOVector *qiov, int64_t pos)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {

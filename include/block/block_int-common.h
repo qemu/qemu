@@ -471,12 +471,14 @@ struct BlockDriver {
                                       Error **errp);
 
     /* aio */
-    BlockAIOCB *(*bdrv_aio_preadv)(BlockDriverState *bs,
+    BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_preadv)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         BdrvRequestFlags flags, BlockCompletionFunc *cb, void *opaque);
-    BlockAIOCB *(*bdrv_aio_pwritev)(BlockDriverState *bs,
+
+    BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_pwritev)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         BdrvRequestFlags flags, BlockCompletionFunc *cb, void *opaque);
+
     BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_flush)(
         BlockDriverState *bs, BlockCompletionFunc *cb, void *opaque);
 
@@ -484,7 +486,7 @@ struct BlockDriver {
         BlockDriverState *bs, int64_t offset, int bytes,
         BlockCompletionFunc *cb, void *opaque);
 
-    int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_readv)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
 
     /**
@@ -502,16 +504,16 @@ struct BlockDriver {
      *
      * The buffer in @qiov may point directly to guest memory.
      */
-    int coroutine_fn (*bdrv_co_preadv)(BlockDriverState *bs,
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_preadv)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         BdrvRequestFlags flags);
 
-    int coroutine_fn (*bdrv_co_preadv_part)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes,
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_preadv_part)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
         QEMUIOVector *qiov, size_t qiov_offset,
         BdrvRequestFlags flags);
 
-    int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
         int flags);
     /**
@@ -529,12 +531,12 @@ struct BlockDriver {
      *
      * The buffer in @qiov may point directly to guest memory.
      */
-    int coroutine_fn (*bdrv_co_pwritev)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, QEMUIOVector *qiov,
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwritev)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         BdrvRequestFlags flags);
-    int coroutine_fn (*bdrv_co_pwritev_part)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset,
-        BdrvRequestFlags flags);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwritev_part)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes, QEMUIOVector *qiov,
+        size_t qiov_offset, BdrvRequestFlags flags);
 
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
@@ -695,11 +697,13 @@ struct BlockDriver {
     BlockMeasureInfo *(*bdrv_measure)(QemuOpts *opts, BlockDriverState *in_bs,
                                       Error **errp);
 
-    int coroutine_fn (*bdrv_co_pwritev_compressed)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, QEMUIOVector *qiov);
-    int coroutine_fn (*bdrv_co_pwritev_compressed_part)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes, QEMUIOVector *qiov,
-        size_t qiov_offset);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwritev_compressed)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        QEMUIOVector *qiov);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pwritev_compressed_part)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
+        QEMUIOVector *qiov, size_t qiov_offset);
 
     int coroutine_fn (*bdrv_co_get_info)(BlockDriverState *bs,
                                          BlockDriverInfo *bdi);
@@ -764,7 +768,7 @@ struct BlockDriver {
         BlockDriverState *bs, const char *name, Error **errp);
 };
 
-static inline bool block_driver_can_compress(BlockDriver *drv)
+static inline bool TSA_NO_TSA block_driver_can_compress(BlockDriver *drv)
 {
     return drv->bdrv_co_pwritev_compressed ||
            drv->bdrv_co_pwritev_compressed_part;

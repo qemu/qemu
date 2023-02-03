@@ -160,6 +160,7 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
     bool have_limits;
 
     GLOBAL_STATE_CODE();
+    assume_graph_lock(); /* FIXME */
 
     if (tran) {
         BdrvRefreshLimitsState *s = g_new(BdrvRefreshLimitsState, 1);
@@ -961,10 +962,9 @@ static void bdrv_co_io_em_complete(void *opaque, int ret)
     aio_co_wake(co->coroutine);
 }
 
-static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
-                                           int64_t offset, int64_t bytes,
-                                           QEMUIOVector *qiov,
-                                           size_t qiov_offset, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_driver_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                   QEMUIOVector *qiov, size_t qiov_offset, int flags)
 {
     BlockDriver *drv = bs->drv;
     int64_t sector_num;
@@ -1030,11 +1030,10 @@ out:
     return ret;
 }
 
-static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
-                                            int64_t offset, int64_t bytes,
-                                            QEMUIOVector *qiov,
-                                            size_t qiov_offset,
-                                            BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_driver_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, size_t qiov_offset,
+                    BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
     bool emulate_fua = false;
@@ -1042,8 +1041,6 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     unsigned int nb_sectors;
     QEMUIOVector local_qiov;
     int ret;
-
-    assume_graph_lock(); /* FIXME */
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1114,7 +1111,7 @@ emulate_flags:
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 bdrv_driver_pwritev_compressed(BlockDriverState *bs, int64_t offset,
                                int64_t bytes, QEMUIOVector *qiov,
                                size_t qiov_offset)
@@ -1149,9 +1146,9 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, int64_t offset,
     return ret;
 }
 
-static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
-        int64_t offset, int64_t bytes, QEMUIOVector *qiov,
-        size_t qiov_offset, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_co_do_copy_on_readv(BdrvChild *child, int64_t offset, int64_t bytes,
+                         QEMUIOVector *qiov, size_t qiov_offset, int flags)
 {
     BlockDriverState *bs = child->bs;
 
@@ -1171,8 +1168,6 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
                                     BDRV_REQUEST_MAX_BYTES);
     int64_t progress = 0;
     bool skip_write;
-
-    assume_graph_lock(); /* FIXME */
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1315,9 +1310,10 @@ err:
  * handles copy on read, zeroing after EOF, and fragmentation of large
  * reads; any other features must be implemented by the caller.
  */
-static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
-    BdrvTrackedRequest *req, int64_t offset, int64_t bytes,
-    int64_t align, QEMUIOVector *qiov, size_t qiov_offset, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_aligned_preadv(BdrvChild *child, BdrvTrackedRequest *req,
+                    int64_t offset, int64_t bytes, int64_t align,
+                    QEMUIOVector *qiov, size_t qiov_offset, int flags)
 {
     BlockDriverState *bs = child->bs;
     int64_t total_bytes, max_bytes;
@@ -1484,10 +1480,9 @@ static bool bdrv_init_padding(BlockDriverState *bs,
     return true;
 }
 
-static coroutine_fn int bdrv_padding_rmw_read(BdrvChild *child,
-                                              BdrvTrackedRequest *req,
-                                              BdrvRequestPadding *pad,
-                                              bool zero_middle)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_padding_rmw_read(BdrvChild *child, BdrvTrackedRequest *req,
+                      BdrvRequestPadding *pad, bool zero_middle)
 {
     QEMUIOVector local_qiov;
     BlockDriverState *bs = child->bs;
@@ -1625,6 +1620,8 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
     BdrvRequestPadding pad;
     int ret;
     IO_CODE();
+
+    assume_graph_lock(); /* FIXME */
 
     trace_bdrv_co_preadv_part(bs, offset, bytes, flags);
 
@@ -1898,10 +1895,11 @@ bdrv_co_write_req_finish(BdrvChild *child, int64_t offset, int64_t bytes,
  * Forwards an already correctly aligned write request to the BlockDriver,
  * after possibly fragmenting it.
  */
-static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
-    BdrvTrackedRequest *req, int64_t offset, int64_t bytes,
-    int64_t align, QEMUIOVector *qiov, size_t qiov_offset,
-    BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_aligned_pwritev(BdrvChild *child, BdrvTrackedRequest *req,
+                     int64_t offset, int64_t bytes, int64_t align,
+                     QEMUIOVector *qiov, size_t qiov_offset,
+                     BdrvRequestFlags flags)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -1909,8 +1907,6 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
 
     int64_t bytes_remaining = bytes;
     int max_transfer;
-
-    assume_graph_lock(); /* FIXME */
 
     bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, &error_abort);
 
@@ -1987,11 +1983,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     return ret;
 }
 
-static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
-                                                int64_t offset,
-                                                int64_t bytes,
-                                                BdrvRequestFlags flags,
-                                                BdrvTrackedRequest *req)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_co_do_zero_pwritev(BdrvChild *child, int64_t offset, int64_t bytes,
+                        BdrvRequestFlags flags, BdrvTrackedRequest *req)
 {
     BlockDriverState *bs = child->bs;
     QEMUIOVector local_qiov;
@@ -2078,6 +2072,8 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     int ret;
     bool padded = false;
     IO_CODE();
+
+    assume_graph_lock(); /* FIXME */
 
     trace_bdrv_co_pwritev_part(child->bs, offset, bytes, flags);
 

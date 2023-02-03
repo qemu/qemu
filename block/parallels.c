@@ -320,16 +320,14 @@ static int coroutine_fn parallels_co_block_status(BlockDriverState *bs,
     return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
 }
 
-static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
-                                            int64_t sector_num, int nb_sectors,
-                                            QEMUIOVector *qiov, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                    QEMUIOVector *qiov, int flags)
 {
     BDRVParallelsState *s = bs->opaque;
     uint64_t bytes_done = 0;
     QEMUIOVector hd_qiov;
     int ret = 0;
-
-    assume_graph_lock(); /* FIXME */
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
