@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/usb/hcd-ohci.h"
 #include "hw/char/serial.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
@@ -1945,13 +1946,13 @@ struct SM501SysBusState {
     uint32_t vram_size;
     uint32_t base;
     SerialMM serial;
+    OHCISysBusState ohci;
 };
 
 static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
 {
     SM501SysBusState *s = SYSBUS_SM501(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    DeviceState *usb_dev;
     MemoryRegion *mr;
 
     sm501_init(&s->state, dev, s->vram_size);
@@ -1964,13 +1965,11 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    usb_dev = qdev_new("sysbus-ohci");
-    qdev_prop_set_uint32(usb_dev, "num-ports", 2);
-    qdev_prop_set_uint64(usb_dev, "dma-offset", s->base);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(usb_dev), &error_fatal);
+    qdev_prop_set_uint64(DEVICE(&s->ohci), "dma-offset", s->base);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->ohci), &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
-                       sysbus_mmio_get_region(SYS_BUS_DEVICE(usb_dev), 0));
-    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(usb_dev));
+                       sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ohci), 0));
+    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->ohci));
 
     /* bridge to serial emulation module */
     sysbus_realize(SYS_BUS_DEVICE(&s->serial), &error_fatal);
@@ -2017,7 +2016,11 @@ static void sm501_sysbus_class_init(ObjectClass *klass, void *data)
 static void sm501_sysbus_init(Object *o)
 {
     SM501SysBusState *sm501 = SYSBUS_SM501(o);
+    OHCISysBusState *ohci = &sm501->ohci;
     SerialMM *smm = &sm501->serial;
+
+    object_initialize_child(o, "ohci", ohci, TYPE_SYSBUS_OHCI);
+    qdev_prop_set_uint32(DEVICE(ohci), "num-ports", 2);
 
     object_initialize_child(o, "serial", smm, TYPE_SERIAL_MM);
     qdev_set_legacy_instance_id(DEVICE(smm), SM501_UART0, 2);
