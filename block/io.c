@@ -3187,12 +3187,14 @@ void coroutine_fn bdrv_co_io_unplug(BlockDriverState *bs)
 }
 
 /* Helper that undoes bdrv_register_buf() when it fails partway through */
-static void bdrv_register_buf_rollback(BlockDriverState *bs,
-                                       void *host,
-                                       size_t size,
-                                       BdrvChild *final_child)
+static void GRAPH_RDLOCK
+bdrv_register_buf_rollback(BlockDriverState *bs, void *host, size_t size,
+                           BdrvChild *final_child)
 {
     BdrvChild *child;
+
+    GLOBAL_STATE_CODE();
+    assert_bdrv_graph_readable();
 
     QLIST_FOREACH(child, &bs->children, next) {
         if (child == final_child) {
@@ -3213,6 +3215,8 @@ bool bdrv_register_buf(BlockDriverState *bs, void *host, size_t size,
     BdrvChild *child;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (bs->drv && bs->drv->bdrv_register_buf) {
         if (!bs->drv->bdrv_register_buf(bs, host, size, errp)) {
             return false;
@@ -3232,6 +3236,8 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host, size_t size)
     BdrvChild *child;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (bs->drv && bs->drv->bdrv_unregister_buf) {
         bs->drv->bdrv_unregister_buf(bs, host, size);
     }

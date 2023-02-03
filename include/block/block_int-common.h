@@ -445,9 +445,10 @@ struct BlockDriver {
      *
      * Returns: true on success, false on failure
      */
-    bool (*bdrv_register_buf)(BlockDriverState *bs, void *host, size_t size,
-                              Error **errp);
-    void (*bdrv_unregister_buf)(BlockDriverState *bs, void *host, size_t size);
+    bool GRAPH_RDLOCK_PTR (*bdrv_register_buf)(
+        BlockDriverState *bs, void *host, size_t size, Error **errp);
+    void GRAPH_RDLOCK_PTR (*bdrv_unregister_buf)(
+        BlockDriverState *bs, void *host, size_t size);
 
     /*
      * This field is modified only under the BQL, and is part of
