@@ -141,9 +141,11 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         return 0;
     }
 
-    len = bdrv_getlength(s->target_bs);
-    if (len < 0) {
-        return len;
+    WITH_GRAPH_RDLOCK_GUARD() {
+        len = bdrv_co_getlength(s->target_bs);
+        if (len < 0) {
+            return len;
+        }
     }
     job_progress_set_remaining(&s->common.job, len);
 

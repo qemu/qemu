@@ -155,7 +155,8 @@ static void blkverify_close(BlockDriverState *bs)
     s->test_file = NULL;
 }
 
-static int64_t coroutine_fn blkverify_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blkverify_co_getlength(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 

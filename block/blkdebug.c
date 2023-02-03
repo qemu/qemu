@@ -967,7 +967,8 @@ static bool blkdebug_debug_is_suspended(BlockDriverState *bs, const char *tag)
     return false;
 }
 
-static int64_t coroutine_fn blkdebug_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blkdebug_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }

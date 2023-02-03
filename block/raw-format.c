@@ -317,7 +317,8 @@ raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+raw_co_getlength(BlockDriverState *bs)
 {
     int64_t len;
     BDRVRawState *s = bs->opaque;

@@ -530,7 +530,8 @@ static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static int64_t coroutine_fn block_crypto_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+block_crypto_co_getlength(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
     int64_t len = bdrv_co_getlength(bs->file->bs);

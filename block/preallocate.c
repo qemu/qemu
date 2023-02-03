@@ -443,7 +443,8 @@ static int coroutine_fn GRAPH_RDLOCK preallocate_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(bs->file->bs);
 }
 
-static int64_t coroutine_fn preallocate_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+preallocate_co_getlength(BlockDriverState *bs)
 {
     int64_t ret;
     BDRVPreallocateState *s = bs->opaque;

@@ -684,7 +684,9 @@ struct BlockDriver {
         BlockDriverState *bs, int64_t offset, bool exact,
         PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
 
-    int64_t coroutine_fn (*bdrv_co_getlength)(BlockDriverState *bs);
+    int64_t coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_getlength)(
+        BlockDriverState *bs);
+
     int64_t coroutine_fn (*bdrv_co_get_allocated_file_size)(
         BlockDriverState *bs);
 

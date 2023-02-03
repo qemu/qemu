@@ -1042,6 +1042,7 @@ int coroutine_fn bdrv_co_refresh_total_sectors(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -5843,6 +5844,7 @@ int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv)
         return -ENOMEDIUM;
@@ -5864,6 +5866,7 @@ int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
 {
     int64_t ret;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     ret = bdrv_co_nb_sectors(bs);
     if (ret < 0) {

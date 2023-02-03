@@ -917,7 +917,10 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         goto immediate_exit;
     }
 
+    bdrv_graph_co_rdlock();
     s->bdev_length = bdrv_co_getlength(bs);
+    bdrv_graph_co_rdunlock();
+
     if (s->bdev_length < 0) {
         ret = s->bdev_length;
         goto immediate_exit;

@@ -764,7 +764,8 @@ quorum_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
                              flags | BDRV_REQ_ZERO_WRITE);
 }
 
-static int64_t coroutine_fn quorum_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+quorum_co_getlength(BlockDriverState *bs)
 {
     BDRVQuorumState *s = bs->opaque;
     int64_t result;

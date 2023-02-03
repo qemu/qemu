@@ -106,7 +106,8 @@ static void throttle_close(BlockDriverState *bs)
 }
 
 
-static int64_t coroutine_fn throttle_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+throttle_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }

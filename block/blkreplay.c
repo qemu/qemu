@@ -40,7 +40,8 @@ fail:
     return ret;
 }
 
-static int64_t coroutine_fn blkreplay_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blkreplay_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }

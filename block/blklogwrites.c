@@ -267,7 +267,8 @@ static void blk_log_writes_close(BlockDriverState *bs)
     s->log_file = NULL;
 }
 
-static int64_t coroutine_fn blk_log_writes_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }

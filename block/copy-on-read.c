@@ -121,7 +121,7 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
 }
 
 
-static int64_t coroutine_fn cor_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK cor_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }
