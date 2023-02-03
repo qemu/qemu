@@ -559,14 +559,10 @@ struct BlockDriver {
      * See the comment of bdrv_co_copy_range for the parameter and return value
      * semantics.
      */
-    int coroutine_fn (*bdrv_co_copy_range_from)(BlockDriverState *bs,
-                                                BdrvChild *src,
-                                                int64_t offset,
-                                                BdrvChild *dst,
-                                                int64_t dst_offset,
-                                                int64_t bytes,
-                                                BdrvRequestFlags read_flags,
-                                                BdrvRequestFlags write_flags);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_copy_range_from)(
+        BlockDriverState *bs, BdrvChild *src, int64_t offset,
+        BdrvChild *dst, int64_t dst_offset, int64_t bytes,
+        BdrvRequestFlags read_flags, BdrvRequestFlags write_flags);
 
     /*
      * Map [offset, offset + nbytes) range onto a child of bs to copy data to,
@@ -577,14 +573,10 @@ struct BlockDriver {
      * See the comment of bdrv_co_copy_range for the parameter and return value
      * semantics.
      */
-    int coroutine_fn (*bdrv_co_copy_range_to)(BlockDriverState *bs,
-                                              BdrvChild *src,
-                                              int64_t src_offset,
-                                              BdrvChild *dst,
-                                              int64_t dst_offset,
-                                              int64_t bytes,
-                                              BdrvRequestFlags read_flags,
-                                              BdrvRequestFlags write_flags);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_copy_range_to)(
+        BlockDriverState *bs, BdrvChild *src, int64_t src_offset,
+        BdrvChild *dst, int64_t dst_offset, int64_t bytes,
+        BdrvRequestFlags read_flags, BdrvRequestFlags write_flags);
 
     /*
      * Building block for bdrv_block_status[_above] and

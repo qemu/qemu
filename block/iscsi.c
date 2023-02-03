@@ -2190,14 +2190,12 @@ static void coroutine_fn iscsi_co_invalidate_cache(BlockDriverState *bs,
     iscsi_allocmap_invalidate(iscsilun);
 }
 
-static int coroutine_fn iscsi_co_copy_range_from(BlockDriverState *bs,
-                                                 BdrvChild *src,
-                                                 int64_t src_offset,
-                                                 BdrvChild *dst,
-                                                 int64_t dst_offset,
-                                                 int64_t bytes,
-                                                 BdrvRequestFlags read_flags,
-                                                 BdrvRequestFlags write_flags)
+static int coroutine_fn GRAPH_RDLOCK
+iscsi_co_copy_range_from(BlockDriverState *bs,
+                         BdrvChild *src, int64_t src_offset,
+                         BdrvChild *dst, int64_t dst_offset,
+                         int64_t bytes, BdrvRequestFlags read_flags,
+                         BdrvRequestFlags write_flags)
 {
     return bdrv_co_copy_range_to(src, src_offset, dst, dst_offset, bytes,
                                  read_flags, write_flags);
@@ -2331,14 +2329,12 @@ static void iscsi_xcopy_data(struct iscsi_data *data,
                               src_lba, dst_lba);
 }
 
-static int coroutine_fn iscsi_co_copy_range_to(BlockDriverState *bs,
-                                               BdrvChild *src,
-                                               int64_t src_offset,
-                                               BdrvChild *dst,
-                                               int64_t dst_offset,
-                                               int64_t bytes,
-                                               BdrvRequestFlags read_flags,
-                                               BdrvRequestFlags write_flags)
+static int coroutine_fn GRAPH_RDLOCK
+iscsi_co_copy_range_to(BlockDriverState *bs,
+                       BdrvChild *src, int64_t src_offset,
+                       BdrvChild *dst, int64_t dst_offset,
+                       int64_t bytes, BdrvRequestFlags read_flags,
+                       BdrvRequestFlags write_flags)
 {
     IscsiLun *dst_lun = dst->bs->opaque;
     IscsiLun *src_lun;

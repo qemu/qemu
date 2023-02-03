@@ -4065,7 +4065,7 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_copy_range_from(BlockDriverState *bs,
                          BdrvChild *src, int64_t src_offset,
                          BdrvChild *dst, int64_t dst_offset,
@@ -4148,7 +4148,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_copy_range_to(BlockDriverState *bs,
                        BdrvChild *src, int64_t src_offset,
                        BdrvChild *dst, int64_t dst_offset,
@@ -4161,7 +4161,6 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
     uint64_t host_offset;
     QCowL2Meta *l2meta = NULL;
 
-    assume_graph_lock(); /* FIXME */
     assert(!bs->encrypted);
 
     qemu_co_mutex_lock(&s->lock);

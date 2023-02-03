@@ -274,10 +274,11 @@ bool co_wrapper bdrv_can_store_new_dirty_bitmap(BlockDriverState *bs,
  *
  * Returns: 0 if succeeded; negative error code if failed.
  **/
-int coroutine_fn bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
-                                    BdrvChild *dst, int64_t dst_offset,
-                                    int64_t bytes, BdrvRequestFlags read_flags,
-                                    BdrvRequestFlags write_flags);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_copy_range(BdrvChild *src, int64_t src_offset,
+                   BdrvChild *dst, int64_t dst_offset,
+                   int64_t bytes, BdrvRequestFlags read_flags,
+                   BdrvRequestFlags write_flags);
 
 /*
  * "I/O or GS" API functions. These functions can run without

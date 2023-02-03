@@ -113,16 +113,16 @@ void bdrv_dirty_bitmap_merge_internal(BdrvDirtyBitmap *dest,
 void bdrv_inc_in_flight(BlockDriverState *bs);
 void bdrv_dec_in_flight(BlockDriverState *bs);
 
-int coroutine_fn bdrv_co_copy_range_from(BdrvChild *src, int64_t src_offset,
-                                         BdrvChild *dst, int64_t dst_offset,
-                                         int64_t bytes,
-                                         BdrvRequestFlags read_flags,
-                                         BdrvRequestFlags write_flags);
-int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, int64_t src_offset,
-                                       BdrvChild *dst, int64_t dst_offset,
-                                       int64_t bytes,
-                                       BdrvRequestFlags read_flags,
-                                       BdrvRequestFlags write_flags);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_copy_range_from(BdrvChild *src, int64_t src_offset,
+                        BdrvChild *dst, int64_t dst_offset,
+                        int64_t bytes, BdrvRequestFlags read_flags,
+                        BdrvRequestFlags write_flags);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_copy_range_to(BdrvChild *src, int64_t src_offset,
+                      BdrvChild *dst, int64_t dst_offset,
+                      int64_t bytes, BdrvRequestFlags read_flags,
+                      BdrvRequestFlags write_flags);
 
 int coroutine_fn bdrv_co_refresh_total_sectors(BlockDriverState *bs,
                                                int64_t hint);
