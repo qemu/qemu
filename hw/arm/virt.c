@@ -2133,21 +2133,21 @@ static void machvirt_init(MachineState *machine)
     if (vms->secure && (kvm_enabled() || hvf_enabled())) {
         error_report("mach-virt: %s does not support providing "
                      "Security extensions (TrustZone) to the guest CPU",
-                     kvm_enabled() ? "KVM" : "HVF");
+                     current_accel_name());
         exit(1);
     }
 
     if (vms->virt && (kvm_enabled() || hvf_enabled())) {
         error_report("mach-virt: %s does not support providing "
                      "Virtualization extensions to the guest CPU",
-                     kvm_enabled() ? "KVM" : "HVF");
+                     current_accel_name());
         exit(1);
     }
 
     if (vms->mte && (kvm_enabled() || hvf_enabled())) {
         error_report("mach-virt: %s does not support providing "
                      "MTE to the guest CPU",
-                     kvm_enabled() ? "KVM" : "HVF");
+                     current_accel_name());
         exit(1);
     }
 
