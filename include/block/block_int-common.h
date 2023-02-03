@@ -479,8 +479,9 @@ struct BlockDriver {
         BdrvRequestFlags flags, BlockCompletionFunc *cb, void *opaque);
     BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_flush)(
         BlockDriverState *bs, BlockCompletionFunc *cb, void *opaque);
-    BlockAIOCB *(*bdrv_aio_pdiscard)(BlockDriverState *bs,
-        int64_t offset, int bytes,
+
+    BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_pdiscard)(
+        BlockDriverState *bs, int64_t offset, int bytes,
         BlockCompletionFunc *cb, void *opaque);
 
     int coroutine_fn (*bdrv_co_readv)(BlockDriverState *bs,
@@ -543,8 +544,9 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_pwrite_zeroes)(BlockDriverState *bs,
         int64_t offset, int64_t bytes, BdrvRequestFlags flags);
-    int coroutine_fn (*bdrv_co_pdiscard)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pdiscard)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes);
 
     /*
      * Map [offset, offset + nbytes) range onto a child of @bs to copy from,
@@ -632,8 +634,9 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_snapshot_block_status)(BlockDriverState *bs,
         bool want_zero, int64_t offset, int64_t bytes, int64_t *pnum,
         int64_t *map, BlockDriverState **file);
-    int coroutine_fn (*bdrv_co_pdiscard_snapshot)(BlockDriverState *bs,
-        int64_t offset, int64_t bytes);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_pdiscard_snapshot)(
+        BlockDriverState *bs, int64_t offset, int64_t bytes);
 
     /*
      * Invalidate any cached meta-data.

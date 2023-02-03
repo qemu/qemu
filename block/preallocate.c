@@ -234,8 +234,8 @@ static coroutine_fn int preallocate_co_preadv_part(
                                flags);
 }
 
-static int coroutine_fn preallocate_co_pdiscard(BlockDriverState *bs,
-                                               int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }

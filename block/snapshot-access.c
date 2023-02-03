@@ -49,8 +49,8 @@ snapshot_access_co_block_status(BlockDriverState *bs,
                                          bytes, pnum, map, file);
 }
 
-static int coroutine_fn snapshot_access_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+snapshot_access_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard_snapshot(bs->file->bs, offset, bytes);
 }

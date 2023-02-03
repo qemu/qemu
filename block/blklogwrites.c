@@ -450,7 +450,7 @@ blk_log_writes_co_do_file_flush(BlkLogWritesFileReq *fr)
     return bdrv_co_flush(fr->bs->file->bs);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pdiscard(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes);
@@ -483,10 +483,9 @@ blk_log_writes_co_flush_to_disk(BlockDriverState *bs)
                                  LOG_FLUSH_FLAG, false);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
-    assume_graph_lock(); /* FIXME */
     return blk_log_writes_co_log(bs, offset, bytes, NULL, 0,
                                  blk_log_writes_co_do_file_pdiscard,
                                  LOG_DISCARD_FLAG, false);

@@ -305,8 +305,8 @@ static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
-static int coroutine_fn raw_co_pdiscard(BlockDriverState *bs,
-                                        int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     int ret;
 

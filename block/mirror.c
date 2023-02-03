@@ -1443,9 +1443,10 @@ static int coroutine_fn bdrv_mirror_top_preadv(BlockDriverState *bs,
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
-    MirrorMethod method, uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
-    int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
+                         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
+                         int flags)
 {
     MirrorOp *op = NULL;
     MirrorBDSOpaque *s = bs->opaque;
@@ -1503,6 +1504,8 @@ static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
     int ret = 0;
     bool copy_to_target = false;
 
+    assume_graph_lock(); /* FIXME */
+
     if (s->job) {
         copy_to_target = s->job->ret >= 0 &&
                          !job_is_cancelled(&s->job->common.job) &&
@@ -1547,12 +1550,13 @@ static int coroutine_fn GRAPH_RDLOCK bdrv_mirror_top_flush(BlockDriverState *bs)
 static int coroutine_fn bdrv_mirror_top_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int64_t bytes, BdrvRequestFlags flags)
 {
+    assume_graph_lock(); /* FIXME */
     return bdrv_mirror_top_do_write(bs, MIRROR_METHOD_ZERO, offset, bytes, NULL,
                                     flags);
 }
 
-static int coroutine_fn bdrv_mirror_top_pdiscard(BlockDriverState *bs,
-    int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_mirror_top_do_write(bs, MIRROR_METHOD_DISCARD, offset, bytes,
                                     NULL, 0);
