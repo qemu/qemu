@@ -564,7 +564,7 @@ static void dt_isa(PCIBus *bus, PCIDevice *d, FDTInfo *fi)
     qemu_fdt_setprop_string(fi->fdt, fi->path, "device_type", "isa");
     qemu_fdt_setprop_string(fi->fdt, fi->path, "name", "isa");
 
-    /* addional devices */
+    /* additional devices */
     g_string_printf(name, "%s/lpt@i3bc", fi->path);
     qemu_fdt_add_subnode(fi->fdt, name->str);
     qemu_fdt_setprop_cell(fi->fdt, name->str, "clock-frequency", 0);
