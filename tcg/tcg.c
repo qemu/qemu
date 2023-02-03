@@ -3063,6 +3063,7 @@ static bool liveness_pass_2(TCGContext *s)
             TCGTemp *dts = tcg_temp_alloc(s);
             dts->type = its->type;
             dts->base_type = its->base_type;
+            dts->temp_subindex = its->temp_subindex;
             dts->kind = TEMP_EBB;
             its->state_ptr = dts;
         } else {
