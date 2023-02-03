@@ -524,18 +524,15 @@ get_cluster_offset(BlockDriverState *bs, uint64_t offset, int allocate,
     return 1;
 }
 
-static int coroutine_fn qcow_co_block_status(BlockDriverState *bs,
-                                             bool want_zero,
-                                             int64_t offset, int64_t bytes,
-                                             int64_t *pnum, int64_t *map,
-                                             BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+qcow_co_block_status(BlockDriverState *bs, bool want_zero,
+                     int64_t offset, int64_t bytes, int64_t *pnum,
+                     int64_t *map, BlockDriverState **file)
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster, ret;
     int64_t n;
     uint64_t cluster_offset;
-
-    assume_graph_lock(); /* FIXME */
 
     qemu_co_mutex_lock(&s->lock);
     ret = get_cluster_offset(bs, offset, 0, 0, 0, 0, &cluster_offset);

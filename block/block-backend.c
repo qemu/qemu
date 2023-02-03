@@ -1431,6 +1431,7 @@ int coroutine_fn blk_co_block_status_above(BlockBackend *blk,
                                            BlockDriverState **file)
 {
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
     return bdrv_co_block_status_above(blk_bs(blk), base, offset, bytes, pnum,
                                       map, file);
 }
@@ -1441,6 +1442,7 @@ int coroutine_fn blk_co_is_allocated_above(BlockBackend *blk,
                                            int64_t bytes, int64_t *pnum)
 {
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
     return bdrv_co_is_allocated_above(blk_bs(blk), base, include_base, offset,
                                       bytes, pnum);
 }

@@ -2224,11 +2224,10 @@ int bdrv_flush_all(void)
  * BDRV_BLOCK_OFFSET_VALID bit is set, 'map' and 'file' (if non-NULL) are
  * set to the host mapping and BDS corresponding to the guest offset.
  */
-static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
-                                             bool want_zero,
-                                             int64_t offset, int64_t bytes,
-                                             int64_t *pnum, int64_t *map,
-                                             BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_co_block_status(BlockDriverState *bs, bool want_zero,
+                     int64_t offset, int64_t bytes,
+                     int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     int64_t total_size;
     int64_t n; /* bytes */
@@ -2240,6 +2239,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     bool has_filtered_child;
 
     assert(pnum);
+    assert_bdrv_graph_readable();
     *pnum = 0;
     total_size = bdrv_getlength(bs);
     if (total_size < 0) {
@@ -2470,6 +2470,7 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     IO_CODE();
 
     assert(!include_base || base); /* Can't include NULL base */
+    assert_bdrv_graph_readable();
 
     if (!depth) {
         depth = &dummy;
@@ -2594,6 +2595,8 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
     int ret;
     int64_t pnum = bytes;
     IO_CODE();
+
+    assume_graph_lock(); /* FIXME */
 
     if (!bytes) {
         return 1;

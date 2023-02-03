@@ -1217,11 +1217,10 @@ static void quorum_child_perm(BlockDriverState *bs, BdrvChild *c,
  * return BDRV_BLOCK_ZERO if *all* children agree that a certain
  * region contains zeroes, and BDRV_BLOCK_DATA otherwise.
  */
-static int coroutine_fn quorum_co_block_status(BlockDriverState *bs,
-                                               bool want_zero,
-                                               int64_t offset, int64_t count,
-                                               int64_t *pnum, int64_t *map,
-                                               BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+quorum_co_block_status(BlockDriverState *bs, bool want_zero,
+                       int64_t offset, int64_t count,
+                       int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
     BDRVQuorumState *s = bs->opaque;
     int i, ret;
