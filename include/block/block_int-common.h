@@ -680,8 +680,10 @@ struct BlockDriver {
     int coroutine_fn (*bdrv_co_truncate)(BlockDriverState *bs, int64_t offset,
                                          bool exact, PreallocMode prealloc,
                                          BdrvRequestFlags flags, Error **errp);
-    int64_t (*bdrv_getlength)(BlockDriverState *bs);
-    int64_t (*bdrv_get_allocated_file_size)(BlockDriverState *bs);
+    int64_t coroutine_fn (*bdrv_co_getlength)(BlockDriverState *bs);
+    int64_t coroutine_fn (*bdrv_co_get_allocated_file_size)(
+        BlockDriverState *bs);
+
     BlockMeasureInfo *(*bdrv_measure)(QemuOpts *opts, BlockDriverState *in_bs,
                                       Error **errp);
 
@@ -691,22 +693,23 @@ struct BlockDriver {
         int64_t offset, int64_t bytes, QEMUIOVector *qiov,
         size_t qiov_offset);
 
-    int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+    int coroutine_fn (*bdrv_co_get_info)(BlockDriverState *bs,
+                                         BlockDriverInfo *bdi);
 
     ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs,
                                                  Error **errp);
     BlockStatsSpecific *(*bdrv_get_specific_stats)(BlockDriverState *bs);
 
-    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_save_vmstate)(
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_save_vmstate)(
         BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
-    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_load_vmstate)(
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_load_vmstate)(
         BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos);
 
     /* removable device specific */
-    bool (*bdrv_is_inserted)(BlockDriverState *bs);
-    void (*bdrv_eject)(BlockDriverState *bs, bool eject_flag);
-    void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
+    bool coroutine_fn (*bdrv_co_is_inserted)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_eject)(BlockDriverState *bs, bool eject_flag);
+    void coroutine_fn (*bdrv_co_lock_medium)(BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
@@ -722,11 +725,12 @@ struct BlockDriver {
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_check)(
         BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix);
 
-    void (*bdrv_debug_event)(BlockDriverState *bs, BlkdebugEvent event);
+    void coroutine_fn (*bdrv_co_debug_event)(BlockDriverState *bs,
+                                             BlkdebugEvent event);
 
     /* io queue for linux-aio */
-    void (*bdrv_io_plug)(BlockDriverState *bs);
-    void (*bdrv_io_unplug)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_io_plug)(BlockDriverState *bs);
+    void coroutine_fn (*bdrv_co_io_unplug)(BlockDriverState *bs);
 
     /**
      * bdrv_drain_begin is called if implemented in the beginning of a

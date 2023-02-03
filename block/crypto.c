@@ -531,10 +531,10 @@ static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static int64_t block_crypto_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn block_crypto_co_getlength(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
-    int64_t len = bdrv_getlength(bs->file->bs);
+    int64_t len = bdrv_co_getlength(bs->file->bs);
 
     uint64_t offset = qcrypto_block_get_payload_offset(crypto->block);
     assert(offset < INT64_MAX);
@@ -737,13 +737,13 @@ fail:
     return ret;
 }
 
-static int block_crypto_get_info_luks(BlockDriverState *bs,
-                                      BlockDriverInfo *bdi)
+static int coroutine_fn
+block_crypto_co_get_info_luks(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BlockDriverInfo subbdi;
     int ret;
 
-    ret = bdrv_get_info(bs->file->bs, &subbdi);
+    ret = bdrv_co_get_info(bs->file->bs, &subbdi);
     if (ret != 0) {
         return ret;
     }
@@ -953,9 +953,9 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_refresh_limits = block_crypto_refresh_limits,
     .bdrv_co_preadv     = block_crypto_co_preadv,
     .bdrv_co_pwritev    = block_crypto_co_pwritev,
-    .bdrv_getlength     = block_crypto_getlength,
+    .bdrv_co_getlength  = block_crypto_co_getlength,
     .bdrv_measure       = block_crypto_measure,
-    .bdrv_get_info      = block_crypto_get_info_luks,
+    .bdrv_co_get_info   = block_crypto_co_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
     .bdrv_amend_options = block_crypto_amend_options_luks,
     .bdrv_co_amend      = block_crypto_co_amend_luks,

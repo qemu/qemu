@@ -329,7 +329,7 @@ def qemu_img_log(*args: str, check: bool = True
 
 def img_info_log(filename: str, filter_path: Optional[str] = None,
                  use_image_opts: bool = False, extra_args: Sequence[str] = (),
-                 check: bool = True,
+                 check: bool = True, drop_child_info: bool = True,
                  ) -> None:
     args = ['info']
     if use_image_opts:
@@ -342,7 +342,7 @@ def img_info_log(filename: str, filter_path: Optional[str] = None,
     output = qemu_img(*args, check=check).stdout
     if not filter_path:
         filter_path = filename
-    log(filter_img_info(output, filter_path))
+    log(filter_img_info(output, filter_path, drop_child_info))
 
 def qemu_io_wrap_args(args: Sequence[str]) -> List[str]:
     if '-f' in args or '--image-opts' in args:
@@ -642,11 +642,23 @@ def filter_qmp_virtio_scsi(qmsg):
 def filter_generated_node_ids(msg):
     return re.sub("#block[0-9]+", "NODE_NAME", msg)
 
-def filter_img_info(output, filename):
+def filter_img_info(output: str, filename: str,
+                    drop_child_info: bool = True) -> str:
     lines = []
+    drop_indented = False
     for line in output.split('\n'):
         if 'disk size' in line or 'actual-size' in line:
             continue
+
+        # Drop child node info
+        if drop_indented:
+            if line.startswith(' '):
+                continue
+            drop_indented = False
+        if drop_child_info and "Child node '/" in line:
+            drop_indented = True
+            continue
+
         line = line.replace(filename, 'TEST_IMG')
         line = filter_testfiles(line)
         line = line.replace(imgfmt, 'IMGFMT')

@@ -124,7 +124,33 @@
       'create-type': 'str',
       'cid': 'int',
       'parent-cid': 'int',
-      'extents': ['ImageInfo']
+      'extents': ['VmdkExtentInfo']
+  } }
+
+##
+# @VmdkExtentInfo:
+#
+# Information about a VMDK extent file
+#
+# @filename: Name of the extent file
+#
+# @format: Extent type (e.g. FLAT or SPARSE)
+#
+# @virtual-size: Number of bytes covered by this extent
+#
+# @cluster-size: Cluster size in bytes (for non-flat extents)
+#
+# @compressed: Whether this extent contains compressed data
+#
+# Since: 8.0
+##
+{ 'struct': 'VmdkExtentInfo',
+  'data': {
+      'filename': 'str',
+      'format': 'str',
+      'virtual-size': 'int',
+      '*cluster-size': 'int',
+      '*compressed': 'bool'
   } }
 
 ##
@@ -140,15 +166,28 @@
   } }
 
 ##
+# @ImageInfoSpecificFile:
+#
+# @extent-size-hint: Extent size hint (if available)
+#
+# Since: 8.0
+##
+{ 'struct': 'ImageInfoSpecificFile',
+  'data': {
+      '*extent-size-hint': 'size'
+  } }
+
+##
 # @ImageInfoSpecificKind:
 #
 # @luks: Since 2.7
 # @rbd: Since 6.1
+# @file: Since 8.0
 #
 # Since: 1.7
 ##
 { 'enum': 'ImageInfoSpecificKind',
-  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd' ] }
+  'data': [ 'qcow2', 'vmdk', 'luks', 'rbd', 'file' ] }
 
 ##
 # @ImageInfoSpecificQCow2Wrapper:
@@ -186,6 +225,14 @@
   'data': { 'data': 'ImageInfoSpecificRbd' } }
 
 ##
+# @ImageInfoSpecificFileWrapper:
+#
+# Since: 8.0
+##
+{ 'struct': 'ImageInfoSpecificFileWrapper',
+  'data': { 'data': 'ImageInfoSpecificFile' } }
+
+##
 # @ImageInfoSpecific:
 #
 # A discriminated record of image format specific information structures.
@@ -199,11 +246,12 @@
       'qcow2': 'ImageInfoSpecificQCow2Wrapper',
       'vmdk': 'ImageInfoSpecificVmdkWrapper',
       'luks': 'ImageInfoSpecificLUKSWrapper',
-      'rbd': 'ImageInfoSpecificRbdWrapper'
+      'rbd': 'ImageInfoSpecificRbdWrapper',
+      'file': 'ImageInfoSpecificFileWrapper'
   } }
 
 ##
-# @ImageInfo:
+# @BlockNodeInfo:
 #
 # Information about a QEMU image file
 #
@@ -231,21 +279,68 @@
 #
 # @snapshots: list of VM snapshots
 #
-# @backing-image: info of the backing image (since 1.6)
-#
 # @format-specific: structure supplying additional format-specific
 #                   information (since 1.7)
 #
-# Since: 1.3
+# Since: 8.0
 ##
-{ 'struct': 'ImageInfo',
+{ 'struct': 'BlockNodeInfo',
   'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
            '*actual-size': 'int', 'virtual-size': 'int',
            '*cluster-size': 'int', '*encrypted': 'bool', '*compressed': 'bool',
            '*backing-filename': 'str', '*full-backing-filename': 'str',
            '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'],
-           '*backing-image': 'ImageInfo',
            '*format-specific': 'ImageInfoSpecific' } }
+
+##
+# @ImageInfo:
+#
+# Information about a QEMU image file, and potentially its backing image
+#
+# @backing-image: info of the backing image
+#
+# Since: 1.3
+##
+{ 'struct': 'ImageInfo',
+  'base': 'BlockNodeInfo',
+  'data': {
+      '*backing-image': 'ImageInfo'
+  } }
+
+##
+# @BlockChildInfo:
+#
+# Information about all nodes in the block graph starting at some node,
+# annotated with information about that node in relation to its parent.
+#
+# @name: Child name of the root node in the BlockGraphInfo struct, in its role
+#        as the child of some undescribed parent node
+#
+# @info: Block graph information starting at this node
+#
+# Since: 8.0
+##
+{ 'struct': 'BlockChildInfo',
+  'data': {
+      'name': 'str',
+      'info': 'BlockGraphInfo'
+  } }
+
+##
+# @BlockGraphInfo:
+#
+# Information about all nodes in a block (sub)graph in the form of BlockNodeInfo
+# data.
+# The base BlockNodeInfo struct contains the information for the (sub)graph's
+# root node.
+#
+# @children: Array of links to this node's child nodes' information
+#
+# Since: 8.0
+##
+{ 'struct': 'BlockGraphInfo',
+  'base': 'BlockNodeInfo',
+  'data': { 'children': ['BlockChildInfo'] } }
 
 ##
 # @ImageCheck:
@@ -5732,3 +5827,13 @@
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
   'returns': 'SnapshotInfo',
   'allow-preconfig': true }
+
+##
+# @DummyBlockCoreForceArrays:
+#
+# Not used by QMP; hack to let us use BlockGraphInfoList internally
+#
+# Since: 8.0
+##
+{ 'struct': 'DummyBlockCoreForceArrays',
+  'data': { 'unused-block-graph-info': ['BlockGraphInfo'] } }

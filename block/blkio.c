@@ -479,7 +479,7 @@ static int coroutine_fn blkio_co_pwrite_zeroes(BlockDriverState *bs,
     return cod.ret;
 }
 
-static void blkio_io_unplug(BlockDriverState *bs)
+static void coroutine_fn blkio_co_io_unplug(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
 
@@ -839,7 +839,7 @@ static void blkio_close(BlockDriverState *bs)
     }
 }
 
-static int64_t blkio_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn blkio_co_getlength(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
     uint64_t capacity;
@@ -867,7 +867,7 @@ static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
         return -ENOTSUP;
     }
 
-    current_length = blkio_getlength(bs);
+    current_length = blkio_co_getlength(bs);
 
     if (offset > current_length) {
         error_setg(errp, "Cannot grow device");
@@ -880,7 +880,8 @@ static int coroutine_fn blkio_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int blkio_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+blkio_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
 }
@@ -998,9 +999,9 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .instance_size           = sizeof(BDRVBlkioState), \
         .bdrv_file_open          = blkio_file_open, \
         .bdrv_close              = blkio_close, \
-        .bdrv_getlength          = blkio_getlength, \
+        .bdrv_co_getlength       = blkio_co_getlength, \
         .bdrv_co_truncate        = blkio_truncate, \
-        .bdrv_get_info           = blkio_get_info, \
+        .bdrv_co_get_info        = blkio_co_get_info, \
         .bdrv_attach_aio_context = blkio_attach_aio_context, \
         .bdrv_detach_aio_context = blkio_detach_aio_context, \
         .bdrv_co_pdiscard        = blkio_co_pdiscard, \
@@ -1008,7 +1009,7 @@ static void blkio_refresh_limits(BlockDriverState *bs, Error **errp)
         .bdrv_co_pwritev         = blkio_co_pwritev, \
         .bdrv_co_flush_to_disk   = blkio_co_flush, \
         .bdrv_co_pwrite_zeroes   = blkio_co_pwrite_zeroes, \
-        .bdrv_io_unplug          = blkio_io_unplug, \
+        .bdrv_co_io_unplug       = blkio_co_io_unplug, \
         .bdrv_refresh_limits     = blkio_refresh_limits, \
         .bdrv_register_buf       = blkio_register_buf, \
         .bdrv_unregister_buf     = blkio_unregister_buf, \

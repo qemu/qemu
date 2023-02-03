@@ -317,14 +317,14 @@ static int coroutine_fn raw_co_pdiscard(BlockDriverState *bs,
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     int64_t len;
     BDRVRawState *s = bs->opaque;
 
     /* Update size. It should not change unless the file was externally
      * modified. */
-    len = bdrv_getlength(bs->file->bs);
+    len = bdrv_co_getlength(bs->file->bs);
     if (len < 0) {
         return len;
     }
@@ -368,9 +368,10 @@ static BlockMeasureInfo *raw_measure(QemuOpts *opts, BlockDriverState *in_bs,
     return info;
 }
 
-static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+raw_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
-    return bdrv_get_info(bs->file->bs, bdi);
+    return bdrv_co_get_info(bs->file->bs, bdi);
 }
 
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
@@ -404,14 +405,14 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     return bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
 }
 
-static void raw_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn raw_co_eject(BlockDriverState *bs, bool eject_flag)
 {
-    bdrv_eject(bs->file->bs, eject_flag);
+    bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
-static void raw_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn raw_co_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_lock_medium(bs->file->bs, locked);
+    bdrv_co_lock_medium(bs->file->bs, locked);
 }
 
 static int coroutine_fn raw_co_ioctl(BlockDriverState *bs,
@@ -622,16 +623,16 @@ BlockDriver bdrv_raw = {
     .bdrv_co_copy_range_from = &raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = &raw_co_copy_range_to,
     .bdrv_co_truncate     = &raw_co_truncate,
-    .bdrv_getlength       = &raw_getlength,
+    .bdrv_co_getlength    = &raw_co_getlength,
     .is_format            = true,
     .has_variable_length  = true,
     .bdrv_measure         = &raw_measure,
-    .bdrv_get_info        = &raw_get_info,
+    .bdrv_co_get_info     = &raw_co_get_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
-    .bdrv_eject           = &raw_eject,
-    .bdrv_lock_medium     = &raw_lock_medium,
+    .bdrv_co_eject        = &raw_co_eject,
+    .bdrv_co_lock_medium  = &raw_co_lock_medium,
     .bdrv_co_ioctl        = &raw_co_ioctl,
     .create_opts          = &raw_create_opts,
     .bdrv_has_zero_init   = &raw_has_zero_init,

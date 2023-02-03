@@ -179,9 +179,9 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
     return;
 }
 
-static int64_t replication_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn replication_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 static int replication_get_io_status(BDRVReplicationState *s)
@@ -758,7 +758,7 @@ static BlockDriver bdrv_replication = {
     .bdrv_close                 = replication_close,
     .bdrv_child_perm            = replication_child_perm,
 
-    .bdrv_getlength             = replication_getlength,
+    .bdrv_co_getlength          = replication_co_getlength,
     .bdrv_co_readv              = replication_co_readv,
     .bdrv_co_writev             = replication_co_writev,
 

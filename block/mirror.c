@@ -910,13 +910,13 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         goto immediate_exit;
     }
 
-    s->bdev_length = bdrv_getlength(bs);
+    s->bdev_length = bdrv_co_getlength(bs);
     if (s->bdev_length < 0) {
         ret = s->bdev_length;
         goto immediate_exit;
     }
 
-    target_length = blk_getlength(s->target);
+    target_length = blk_co_getlength(s->target);
     if (target_length < 0) {
         ret = target_length;
         goto immediate_exit;
@@ -957,7 +957,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
      */
     bdrv_get_backing_filename(target_bs, backing_filename,
                               sizeof(backing_filename));
-    if (!bdrv_get_info(target_bs, &bdi) && bdi.cluster_size) {
+    if (!bdrv_co_get_info(target_bs, &bdi) && bdi.cluster_size) {
         s->target_cluster_size = bdi.cluster_size;
     } else {
         s->target_cluster_size = BDRV_SECTOR_SIZE;

@@ -48,8 +48,10 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         Error **errp)
 {
     ImageInfo **p_image_info;
+    ImageInfo *backing_info;
     BlockDriverState *bs0, *backing;
     BlockDeviceInfo *info;
+    ERRP_GUARD();
 
     if (!bs->drv) {
         error_setg(errp, "Block device %s is ejected", bs->node_name);
@@ -147,37 +149,21 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     bs0 = bs;
     p_image_info = &info->image;
     info->backing_file_depth = 0;
-    while (1) {
-        Error *local_err = NULL;
-        bdrv_query_image_info(bs0, p_image_info, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            qapi_free_BlockDeviceInfo(info);
-            return NULL;
-        }
 
-        /* stop gathering data for flat output */
-        if (flat) {
-            break;
-        }
+    /*
+     * Skip automatically inserted nodes that the user isn't aware of for
+     * query-block (blk != NULL), but not for query-named-block-nodes
+     */
+    bdrv_query_image_info(bs0, p_image_info, flat, blk != NULL, errp);
+    if (*errp) {
+        qapi_free_BlockDeviceInfo(info);
+        return NULL;
+    }
 
-        if (bs0->drv && bdrv_filter_or_cow_child(bs0)) {
-            /*
-             * Put any filtered child here (for backwards compatibility to when
-             * we put bs0->backing here, which might be any filtered child).
-             */
-            info->backing_file_depth++;
-            bs0 = bdrv_filter_or_cow_bs(bs0);
-            p_image_info = &((*p_image_info)->backing_image);
-        } else {
-            break;
-        }
-
-        /* Skip automatically inserted nodes that the user isn't aware of for
-         * query-block (blk != NULL), but not for query-named-block-nodes */
-        if (blk) {
-            bs0 = bdrv_skip_implicit_filters(bs0);
-        }
+    backing_info = info->image->backing_image;
+    while (backing_info) {
+        info->backing_file_depth++;
+        backing_info = backing_info->backing_image;
     }
 
     return info;
@@ -238,30 +224,18 @@ int bdrv_query_snapshot_info_list(BlockDriverState *bs,
 }
 
 /**
- * bdrv_query_image_info:
- * @bs: block device to examine
- * @p_info: location to store image information
- * @errp: location to store error information
- *
- * Store "flat" image information in @p_info.
- *
- * "Flat" means it does *not* query backing image information,
- * i.e. (*pinfo)->has_backing_image will be set to false and
- * (*pinfo)->backing_image to NULL even when the image does in fact have
- * a backing image.
- *
- * @p_info will be set only on success. On error, store error in @errp.
+ * Helper function for other query info functions.  Store information about @bs
+ * in @info, setting @errp on error.
  */
-void bdrv_query_image_info(BlockDriverState *bs,
-                           ImageInfo **p_info,
-                           Error **errp)
+static void bdrv_do_query_node_info(BlockDriverState *bs,
+                                    BlockNodeInfo *info,
+                                    Error **errp)
 {
     int64_t size;
     const char *backing_filename;
     BlockDriverInfo bdi;
     int ret;
     Error *err = NULL;
-    ImageInfo *info;
 
     aio_context_acquire(bdrv_get_aio_context(bs));
 
@@ -274,7 +248,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
 
     bdrv_refresh_filename(bs);
 
-    info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
     info->format          = g_strdup(bdrv_get_format_name(bs));
     info->virtual_size    = size;
@@ -295,7 +268,6 @@ void bdrv_query_image_info(BlockDriverState *bs,
     info->format_specific = bdrv_get_specific_info(bs, &err);
     if (err) {
         error_propagate(errp, err);
-        qapi_free_ImageInfo(info);
         goto out;
     }
     backing_filename = bs->backing_file;
@@ -331,14 +303,152 @@ void bdrv_query_image_info(BlockDriverState *bs,
         break;
     default:
         error_propagate(errp, err);
-        qapi_free_ImageInfo(info);
         goto out;
     }
 
-    *p_info = info;
-
 out:
     aio_context_release(bdrv_get_aio_context(bs));
+}
+
+/**
+ * bdrv_query_block_node_info:
+ * @bs: block node to examine
+ * @p_info: location to store node information
+ * @errp: location to store error information
+ *
+ * Store image information about @bs in @p_info.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_block_node_info(BlockDriverState *bs,
+                                BlockNodeInfo **p_info,
+                                Error **errp)
+{
+    BlockNodeInfo *info;
+    ERRP_GUARD();
+
+    info = g_new0(BlockNodeInfo, 1);
+    bdrv_do_query_node_info(bs, info, errp);
+    if (*errp) {
+        qapi_free_BlockNodeInfo(info);
+        return;
+    }
+
+    *p_info = info;
+}
+
+/**
+ * bdrv_query_image_info:
+ * @bs: block node to examine
+ * @p_info: location to store image information
+ * @flat: skip backing node information
+ * @skip_implicit_filters: skip implicit filters in the backing chain
+ * @errp: location to store error information
+ *
+ * Store image information in @p_info, potentially recursively covering the
+ * backing chain.
+ *
+ * If @flat is true, do not query backing image information, i.e.
+ * (*p_info)->has_backing_image will be set to false and
+ * (*p_info)->backing_image to NULL even when the image does in fact have a
+ * backing image.
+ *
+ * If @skip_implicit_filters is true, implicit filter nodes in the backing chain
+ * will be skipped when querying backing image information.
+ * (@skip_implicit_filters is ignored when @flat is true.)
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_image_info(BlockDriverState *bs,
+                           ImageInfo **p_info,
+                           bool flat,
+                           bool skip_implicit_filters,
+                           Error **errp)
+{
+    ImageInfo *info;
+    ERRP_GUARD();
+
+    info = g_new0(ImageInfo, 1);
+    bdrv_do_query_node_info(bs, qapi_ImageInfo_base(info), errp);
+    if (*errp) {
+        goto fail;
+    }
+
+    if (!flat) {
+        BlockDriverState *backing;
+
+        /*
+         * Use any filtered child here (for backwards compatibility to when
+         * we always took bs->backing, which might be any filtered child).
+         */
+        backing = bdrv_filter_or_cow_bs(bs);
+        if (skip_implicit_filters) {
+            backing = bdrv_skip_implicit_filters(backing);
+        }
+
+        if (backing) {
+            bdrv_query_image_info(backing, &info->backing_image, false,
+                                  skip_implicit_filters, errp);
+            if (*errp) {
+                goto fail;
+            }
+        }
+    }
+
+    *p_info = info;
+    return;
+
+fail:
+    assert(*errp);
+    qapi_free_ImageInfo(info);
+}
+
+/**
+ * bdrv_query_block_graph_info:
+ * @bs: root node to start from
+ * @p_info: location to store image information
+ * @errp: location to store error information
+ *
+ * Store image information about the graph starting from @bs in @p_info.
+ *
+ * @p_info will be set only on success. On error, store error in @errp.
+ */
+void bdrv_query_block_graph_info(BlockDriverState *bs,
+                                 BlockGraphInfo **p_info,
+                                 Error **errp)
+{
+    BlockGraphInfo *info;
+    BlockChildInfoList **children_list_tail;
+    BdrvChild *c;
+    ERRP_GUARD();
+
+    info = g_new0(BlockGraphInfo, 1);
+    bdrv_do_query_node_info(bs, qapi_BlockGraphInfo_base(info), errp);
+    if (*errp) {
+        goto fail;
+    }
+
+    children_list_tail = &info->children;
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        BlockChildInfo *c_info;
+
+        c_info = g_new0(BlockChildInfo, 1);
+        QAPI_LIST_APPEND(children_list_tail, c_info);
+
+        c_info->name = g_strdup(c->name);
+        bdrv_query_block_graph_info(c->bs, &c_info->info, errp);
+        if (*errp) {
+            goto fail;
+        }
+    }
+
+    *p_info = info;
+    return;
+
+fail:
+    assert(*errp != NULL);
+    qapi_free_BlockGraphInfo(info);
 }
 
 /* @p_info will be set only on success. */
@@ -760,7 +870,36 @@ static void dump_qdict(int indentation, QDict *dict)
     }
 }
 
-void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
+/*
+ * Return whether dumping the given QObject with dump_qobject() would
+ * yield an empty dump, i.e. not print anything.
+ */
+static bool qobject_is_empty_dump(const QObject *obj)
+{
+    switch (qobject_type(obj)) {
+    case QTYPE_QNUM:
+    case QTYPE_QSTRING:
+    case QTYPE_QBOOL:
+        return false;
+
+    case QTYPE_QDICT:
+        return qdict_size(qobject_to(QDict, obj)) == 0;
+
+    case QTYPE_QLIST:
+        return qlist_empty(qobject_to(QList, obj));
+
+    default:
+        abort();
+    }
+}
+
+/**
+ * Dumps the given ImageInfoSpecific object in a human-readable form,
+ * prepending an optional prefix if the dump is not empty.
+ */
+void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
+                                   const char *prefix,
+                                   int indentation)
 {
     QObject *obj, *data;
     Visitor *v = qobject_output_visitor_new(&obj);
@@ -768,45 +907,78 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
     visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
     visit_complete(v, &obj);
     data = qdict_get(qobject_to(QDict, obj), "data");
-    dump_qobject(1, data);
+    if (!qobject_is_empty_dump(data)) {
+        if (prefix) {
+            qemu_printf("%*s%s", indentation * 4, "", prefix);
+        }
+        dump_qobject(indentation + 1, data);
+    }
     qobject_unref(obj);
     visit_free(v);
 }
 
-void bdrv_image_info_dump(ImageInfo *info)
+/**
+ * Print the given @info object in human-readable form.  Every field is indented
+ * using the given @indentation (four spaces per indentation level).
+ *
+ * When using this to print a whole block graph, @protocol can be set to true to
+ * signify that the given information is associated with a protocol node, i.e.
+ * just data storage for an image, such that the data it presents is not really
+ * a full VM disk.  If so, several fields change name: For example, "virtual
+ * size" is printed as "file length".
+ * (Consider a qcow2 image, which is represented by a qcow2 node and a file
+ * node.  Printing a "virtual size" for the file node does not make sense,
+ * because without the qcow2 node, it is not really a guest disk, so it does not
+ * have a "virtual size".  Therefore, we call it "file length" instead.)
+ *
+ * @protocol is ignored when @indentation is 0, because we take that to mean
+ * that the associated node is the root node in the queried block graph, and
+ * thus is always to be interpreted as a standalone guest disk.
+ */
+void bdrv_node_info_dump(BlockNodeInfo *info, int indentation, bool protocol)
 {
     char *size_buf, *dsize_buf;
+    g_autofree char *ind_s = g_strdup_printf("%*s", indentation * 4, "");
+
+    if (indentation == 0) {
+        /* Top level, consider this a normal image */
+        protocol = false;
+    }
+
     if (!info->has_actual_size) {
         dsize_buf = g_strdup("unavailable");
     } else {
         dsize_buf = size_to_str(info->actual_size);
     }
     size_buf = size_to_str(info->virtual_size);
-    qemu_printf("image: %s\n"
-                "file format: %s\n"
-                "virtual size: %s (%" PRId64 " bytes)\n"
-                "disk size: %s\n",
-                info->filename, info->format, size_buf,
-                info->virtual_size,
-                dsize_buf);
+    qemu_printf("%s%s: %s\n"
+                "%s%s: %s\n"
+                "%s%s: %s (%" PRId64 " bytes)\n"
+                "%sdisk size: %s\n",
+                ind_s, protocol ? "filename" : "image", info->filename,
+                ind_s, protocol ? "protocol type" : "file format",
+                info->format,
+                ind_s, protocol ? "file length" : "virtual size",
+                size_buf, info->virtual_size,
+                ind_s, dsize_buf);
     g_free(size_buf);
     g_free(dsize_buf);
 
     if (info->has_encrypted && info->encrypted) {
-        qemu_printf("encrypted: yes\n");
+        qemu_printf("%sencrypted: yes\n", ind_s);
     }
 
     if (info->has_cluster_size) {
-        qemu_printf("cluster_size: %" PRId64 "\n",
-                    info->cluster_size);
+        qemu_printf("%scluster_size: %" PRId64 "\n",
+                    ind_s, info->cluster_size);
     }
 
     if (info->has_dirty_flag && info->dirty_flag) {
-        qemu_printf("cleanly shut down: no\n");
+        qemu_printf("%scleanly shut down: no\n", ind_s);
     }
 
     if (info->backing_filename) {
-        qemu_printf("backing file: %s", info->backing_filename);
+        qemu_printf("%sbacking file: %s", ind_s, info->backing_filename);
         if (!info->full_backing_filename) {
             qemu_printf(" (cannot determine actual path)");
         } else if (strcmp(info->backing_filename,
@@ -815,15 +987,16 @@ void bdrv_image_info_dump(ImageInfo *info)
         }
         qemu_printf("\n");
         if (info->backing_filename_format) {
-            qemu_printf("backing file format: %s\n",
-                        info->backing_filename_format);
+            qemu_printf("%sbacking file format: %s\n",
+                        ind_s, info->backing_filename_format);
         }
     }
 
     if (info->has_snapshots) {
         SnapshotInfoList *elem;
 
-        qemu_printf("Snapshot list:\n");
+        qemu_printf("%sSnapshot list:\n", ind_s);
+        qemu_printf("%s", ind_s);
         bdrv_snapshot_dump(NULL);
         qemu_printf("\n");
 
@@ -843,13 +1016,15 @@ void bdrv_image_info_dump(ImageInfo *info)
 
             pstrcpy(sn.id_str, sizeof(sn.id_str), elem->value->id);
             pstrcpy(sn.name, sizeof(sn.name), elem->value->name);
+            qemu_printf("%s", ind_s);
             bdrv_snapshot_dump(&sn);
             qemu_printf("\n");
         }
     }
 
     if (info->format_specific) {
-        qemu_printf("Format specific information:\n");
-        bdrv_image_info_specific_dump(info->format_specific);
+        bdrv_image_info_specific_dump(info->format_specific,
+                                      "Format specific information:\n",
+                                      indentation);
     }
 }

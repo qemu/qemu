@@ -526,7 +526,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     LARGE_INTEGER l;
@@ -559,7 +559,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return l.QuadPart;
 }
 
-static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_get_allocated_file_size(BlockDriverState *bs)
 {
     typedef DWORD (WINAPI * get_compressed_t)(const char *filename,
                                               DWORD * high);
@@ -764,9 +764,9 @@ BlockDriver bdrv_file = {
     .bdrv_aio_flush     = raw_aio_flush,
 
     .bdrv_co_truncate   = raw_co_truncate,
-    .bdrv_getlength	= raw_getlength,
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_getlength  = raw_co_getlength,
+    .bdrv_co_get_allocated_file_size
+                        = raw_co_get_allocated_file_size,
 
     .create_opts        = &raw_create_opts,
 };
@@ -933,11 +933,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_detach_aio_context = raw_detach_aio_context,
     .bdrv_attach_aio_context = raw_attach_aio_context,
 
-    .bdrv_getlength      = raw_getlength,
-    .has_variable_length = true,
-
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_getlength                = raw_co_getlength,
+    .has_variable_length              = true,
+    .bdrv_co_get_allocated_file_size  = raw_co_get_allocated_file_size,
 };
 
 static void bdrv_file_init(void)

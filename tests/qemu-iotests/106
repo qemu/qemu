@@ -66,7 +66,7 @@ for create_mode in off falloc full; do
             expected_size=$((expected_size + $GROWTH_SIZE))
         fi
 
-        actual_size=$($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep 'disk size')
+        actual_size=$($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep 'disk size' | head -n 1)
         actual_size=$(echo "$actual_size" | sed -e 's/^[^0-9]*\([0-9]\+\).*$/\1/')
 
         # The actual size may exceed the expected size, depending on the file
@@ -105,7 +105,7 @@ for growth_mode in falloc full; do
     _make_test_img -o "extent_size_hint=0" 2G
     $QEMU_IMG resize -f "$IMGFMT" --preallocation=$growth_mode "$TEST_IMG" +${GROWTH_SIZE}K
 
-    actual_size=$($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep 'disk size')
+    actual_size=$($QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep 'disk size' | head -n 1)
     actual_size=$(echo "$actual_size" | sed -e 's/^[^0-9]*\([0-9]\+\).*$/\1/')
 
     if [ $actual_size -lt $GROWTH_SIZE ]; then

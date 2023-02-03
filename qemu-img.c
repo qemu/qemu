@@ -450,6 +450,11 @@ static BlockBackend *img_open(bool image_opts,
         blk = img_open_file(filename, NULL, fmt, flags, writethrough, quiet,
                             force_share);
     }
+
+    if (blk) {
+        blk_set_force_allow_inactivate(blk);
+    }
+
     return blk;
 }
 
@@ -1120,6 +1125,14 @@ unref_backing:
 done:
     qemu_progress_end();
 
+    /*
+     * Manually inactivate the image first because this way we can know whether
+     * an error occurred. blk_unref() doesn't tell us about failures.
+     */
+    ret = bdrv_inactivate_all();
+    if (ret < 0 && !local_err) {
+        error_setg_errno(&local_err, -ret, "Error while closing the image");
+    }
     blk_unref(blk);
 
     if (local_err) {
@@ -2804,13 +2817,13 @@ static void dump_snapshots(BlockDriverState *bs)
     g_free(sn_tab);
 }
 
-static void dump_json_image_info_list(ImageInfoList *list)
+static void dump_json_block_graph_info_list(BlockGraphInfoList *list)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_ImageInfoList(v, NULL, &list, &error_abort);
+    visit_type_BlockGraphInfoList(v, NULL, &list, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2820,13 +2833,13 @@ static void dump_json_image_info_list(ImageInfoList *list)
     g_string_free(str, true);
 }
 
-static void dump_json_image_info(ImageInfo *info)
+static void dump_json_block_graph_info(BlockGraphInfo *info)
 {
     GString *str;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
 
-    visit_type_ImageInfo(v, NULL, &info, &error_abort);
+    visit_type_BlockGraphInfo(v, NULL, &info, &error_abort);
     visit_complete(v, &obj);
     str = qobject_to_json_pretty(obj, true);
     assert(str != NULL);
@@ -2836,9 +2849,30 @@ static void dump_json_image_info(ImageInfo *info)
     g_string_free(str, true);
 }
 
-static void dump_human_image_info_list(ImageInfoList *list)
+static void dump_human_image_info(BlockGraphInfo *info, int indentation,
+                                  const char *path)
 {
-    ImageInfoList *elem;
+    BlockChildInfoList *children_list;
+
+    bdrv_node_info_dump(qapi_BlockGraphInfo_base(info), indentation,
+                        info->children == NULL);
+
+    for (children_list = info->children; children_list;
+         children_list = children_list->next)
+    {
+        BlockChildInfo *child = children_list->value;
+        g_autofree char *child_path = NULL;
+
+        printf("%*sChild node '%s%s':\n",
+               indentation * 4, "", path, child->name);
+        child_path = g_strdup_printf("%s%s/", path, child->name);
+        dump_human_image_info(child->info, indentation + 1, child_path);
+    }
+}
+
+static void dump_human_image_info_list(BlockGraphInfoList *list)
+{
+    BlockGraphInfoList *elem;
     bool delim = false;
 
     for (elem = list; elem; elem = elem->next) {
@@ -2847,7 +2881,7 @@ static void dump_human_image_info_list(ImageInfoList *list)
         }
         delim = true;
 
-        bdrv_image_info_dump(elem->value);
+        dump_human_image_info(elem->value, 0, "/");
     }
 }
 
@@ -2857,24 +2891,24 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 }
 
 /**
- * Open an image file chain and return an ImageInfoList
+ * Open an image file chain and return an BlockGraphInfoList
  *
  * @filename: topmost image filename
  * @fmt: topmost image format (may be NULL to autodetect)
  * @chain: true  - enumerate entire backing file chain
  *         false - only topmost image file
  *
- * Returns a list of ImageInfo objects or NULL if there was an error opening an
- * image file.  If there was an error a message will have been printed to
- * stderr.
+ * Returns a list of BlockNodeInfo objects or NULL if there was an error
+ * opening an image file.  If there was an error a message will have been
+ * printed to stderr.
  */
-static ImageInfoList *collect_image_info_list(bool image_opts,
-                                              const char *filename,
-                                              const char *fmt,
-                                              bool chain, bool force_share)
+static BlockGraphInfoList *collect_image_info_list(bool image_opts,
+                                                   const char *filename,
+                                                   const char *fmt,
+                                                   bool chain, bool force_share)
 {
-    ImageInfoList *head = NULL;
-    ImageInfoList **tail = &head;
+    BlockGraphInfoList *head = NULL;
+    BlockGraphInfoList **tail = &head;
     GHashTable *filenames;
     Error *err = NULL;
 
@@ -2883,7 +2917,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
     while (filename) {
         BlockBackend *blk;
         BlockDriverState *bs;
-        ImageInfo *info;
+        BlockGraphInfo *info;
 
         if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
             error_report("Backing file '%s' creates an infinite loop.",
@@ -2900,7 +2934,14 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         }
         bs = blk_bs(blk);
 
-        bdrv_query_image_info(bs, &info, &err);
+        /*
+         * Note that the returned BlockGraphInfo object will not have
+         * information about this image's backing node, because we have opened
+         * it with BDRV_O_NO_BACKING.  Printing this object will therefore not
+         * duplicate the backing chain information that we obtain by walking
+         * the chain manually here.
+         */
+        bdrv_query_block_graph_info(bs, &info, &err);
         if (err) {
             error_report_err(err);
             blk_unref(blk);
@@ -2933,7 +2974,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
     return head;
 
 err:
-    qapi_free_ImageInfoList(head);
+    qapi_free_BlockGraphInfoList(head);
     g_hash_table_destroy(filenames);
     return NULL;
 }
@@ -2944,7 +2985,7 @@ static int img_info(int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
     const char *filename, *fmt, *output;
-    ImageInfoList *list;
+    BlockGraphInfoList *list;
     bool image_opts = false;
     bool force_share = false;
 
@@ -3023,14 +3064,14 @@ static int img_info(int argc, char **argv)
         break;
     case OFORMAT_JSON:
         if (chain) {
-            dump_json_image_info_list(list);
+            dump_json_block_graph_info_list(list);
         } else {
-            dump_json_image_info(list->value);
+            dump_json_block_graph_info(list->value);
         }
         break;
     }
 
-    qapi_free_ImageInfoList(list);
+    qapi_free_BlockGraphInfoList(list);
     return 0;
 }
 
@@ -4633,6 +4674,7 @@ static int img_bitmap(int argc, char **argv)
     QSIMPLEQ_HEAD(, ImgBitmapAction) actions;
     ImgBitmapAction *act, *act_next;
     const char *op;
+    int inactivate_ret;
 
     QSIMPLEQ_INIT(&actions);
 
@@ -4817,6 +4859,16 @@ static int img_bitmap(int argc, char **argv)
     ret = 0;
 
  out:
+    /*
+     * Manually inactivate the images first because this way we can know whether
+     * an error occurred. blk_unref() doesn't tell us about failures.
+     */
+    inactivate_ret = bdrv_inactivate_all();
+    if (inactivate_ret < 0) {
+        error_report("Error while closing the image: %s", strerror(-inactivate_ret));
+        ret = 1;
+    }
+
     blk_unref(src);
     blk_unref(blk);
     qemu_opts_del(opts);

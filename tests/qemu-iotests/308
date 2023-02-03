@@ -217,12 +217,12 @@ echo
 echo '=== Remove export ==='
 
 # Double-check that $EXT_MP appears as a non-empty file (the raw image)
-$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size'
+$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size' | head -n 1
 
 fuse_export_del 'export-mp'
 
 # See that the file appears empty again
-$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size'
+$QEMU_IMG info -f raw "$EXT_MP" | grep 'virtual size' | head -n 1
 
 echo
 echo '=== Writable export ==='

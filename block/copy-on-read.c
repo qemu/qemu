@@ -121,9 +121,9 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
 }
 
 
-static int64_t cor_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn cor_co_getlength(BlockDriverState *bs)
 {
-    return bdrv_getlength(bs->file->bs);
+    return bdrv_co_getlength(bs->file->bs);
 }
 
 
@@ -217,15 +217,15 @@ static int coroutine_fn cor_co_pwritev_compressed(BlockDriverState *bs,
 }
 
 
-static void cor_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cor_co_eject(BlockDriverState *bs, bool eject_flag)
 {
-    bdrv_eject(bs->file->bs, eject_flag);
+    bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
 
-static void cor_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn cor_co_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_lock_medium(bs->file->bs, locked);
+    bdrv_co_lock_medium(bs->file->bs, locked);
 }
 
 
@@ -250,7 +250,7 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_close                         = cor_close,
     .bdrv_child_perm                    = cor_child_perm,
 
-    .bdrv_getlength                     = cor_getlength,
+    .bdrv_co_getlength                  = cor_co_getlength,
 
     .bdrv_co_preadv_part                = cor_co_preadv_part,
     .bdrv_co_pwritev_part               = cor_co_pwritev_part,
@@ -258,8 +258,8 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_co_pdiscard                   = cor_co_pdiscard,
     .bdrv_co_pwritev_compressed         = cor_co_pwritev_compressed,
 
-    .bdrv_eject                         = cor_eject,
-    .bdrv_lock_medium                   = cor_lock_medium,
+    .bdrv_co_eject                      = cor_co_eject,
+    .bdrv_co_lock_medium                = cor_co_lock_medium,
 
     .has_variable_length                = true,
     .is_filter                          = true,

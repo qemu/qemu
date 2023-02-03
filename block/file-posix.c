@@ -189,7 +189,7 @@ static int fd_open(BlockDriverState *bs)
     return -EIO;
 }
 
-static int64_t raw_getlength(BlockDriverState *bs);
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -2132,7 +2132,7 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, int64_t offset,
     return raw_co_prw(bs, offset, bytes, qiov, QEMU_AIO_WRITE);
 }
 
-static void raw_aio_plug(BlockDriverState *bs)
+static void coroutine_fn raw_co_io_plug(BlockDriverState *bs)
 {
     BDRVRawState __attribute__((unused)) *s = bs->opaque;
 #ifdef CONFIG_LINUX_AIO
@@ -2149,7 +2149,7 @@ static void raw_aio_plug(BlockDriverState *bs)
 #endif
 }
 
-static void raw_aio_unplug(BlockDriverState *bs)
+static void coroutine_fn raw_co_io_unplug(BlockDriverState *bs)
 {
     BDRVRawState __attribute__((unused)) *s = bs->opaque;
 #ifdef CONFIG_LINUX_AIO
@@ -2280,7 +2280,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-        int64_t cur_length = raw_getlength(bs);
+        int64_t cur_length = raw_co_getlength(bs);
 
         if (offset != cur_length && exact) {
             error_setg(errp, "Cannot resize device files");
@@ -2298,7 +2298,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
 }
 
 #ifdef __OpenBSD__
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2317,7 +2317,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__NetBSD__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2342,7 +2342,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__sun__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     struct dk_minfo minfo;
@@ -2373,7 +2373,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
     return size;
 }
 #elif defined(CONFIG_BSD)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2445,7 +2445,7 @@ again:
     return size;
 }
 #else
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -2464,7 +2464,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
 }
 #endif
 
-static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
+static int64_t coroutine_fn raw_co_get_allocated_file_size(BlockDriverState *bs)
 {
     struct stat st;
     BDRVRawState *s = bs->opaque;
@@ -2830,7 +2830,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
          * round up if necessary.
          */
         if (!QEMU_IS_ALIGNED(*pnum, bs->bl.request_alignment)) {
-            int64_t file_length = raw_getlength(bs);
+            int64_t file_length = raw_co_getlength(bs);
             if (file_length > 0) {
                 /* Ignore errors, this is just a safeguard */
                 assert(hole == file_length);
@@ -2852,7 +2852,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
 
 #if defined(__linux__)
 /* Verify that the file is not in the page cache */
-static void check_cache_dropped(BlockDriverState *bs, Error **errp)
+static void coroutine_fn check_cache_dropped(BlockDriverState *bs, Error **errp)
 {
     const size_t window_size = 128 * 1024 * 1024;
     BDRVRawState *s = bs->opaque;
@@ -2867,7 +2867,7 @@ static void check_cache_dropped(BlockDriverState *bs, Error **errp)
     page_size = sysconf(_SC_PAGESIZE);
     vec = g_malloc(DIV_ROUND_UP(window_size, page_size));
 
-    end = raw_getlength(bs);
+    end = raw_co_getlength(bs);
 
     for (offset = 0; offset < end; offset += window_size) {
         void *new_window;
@@ -3086,9 +3086,38 @@ static int coroutine_fn raw_co_pwrite_zeroes(
     return raw_do_pwrite_zeroes(bs, offset, bytes, flags, false);
 }
 
-static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+static int coroutine_fn
+raw_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     return 0;
+}
+
+static ImageInfoSpecific *raw_get_specific_info(BlockDriverState *bs,
+                                                Error **errp)
+{
+    ImageInfoSpecificFile *file_info = g_new0(ImageInfoSpecificFile, 1);
+    ImageInfoSpecific *spec_info = g_new(ImageInfoSpecific, 1);
+
+    *spec_info = (ImageInfoSpecific){
+        .type = IMAGE_INFO_SPECIFIC_KIND_FILE,
+        .u.file.data = file_info,
+    };
+
+#ifdef FS_IOC_FSGETXATTR
+    {
+        BDRVRawState *s = bs->opaque;
+        struct fsxattr attr;
+        int ret;
+
+        ret = ioctl(s->fd, FS_IOC_FSGETXATTR, &attr);
+        if (!ret && attr.fsx_extsize != 0) {
+            file_info->has_extent_size_hint = true;
+            file_info->extent_size_hint = attr.fsx_extsize;
+        }
+    }
+#endif
+
+    return spec_info;
 }
 
 static BlockStatsSpecificFile get_blockstats_specific_file(BlockDriverState *bs)
@@ -3317,15 +3346,15 @@ BlockDriver bdrv_file = {
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_io_plug = raw_aio_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_plug        = raw_co_io_plug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate = raw_co_truncate,
-    .bdrv_getlength = raw_getlength,
-    .bdrv_get_info = raw_get_info,
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_truncate                   = raw_co_truncate,
+    .bdrv_co_getlength                  = raw_co_getlength,
+    .bdrv_co_get_info                   = raw_co_get_info,
+    .bdrv_get_specific_info             = raw_get_specific_info,
+    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = raw_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,
     .bdrv_set_perm   = raw_set_perm,
@@ -3689,15 +3718,15 @@ static BlockDriver bdrv_host_device = {
     .bdrv_co_copy_range_from = raw_co_copy_range_from,
     .bdrv_co_copy_range_to  = raw_co_copy_range_to,
     .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_io_plug = raw_aio_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_plug        = raw_co_io_plug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate       = raw_co_truncate,
-    .bdrv_getlength	= raw_getlength,
-    .bdrv_get_info = raw_get_info,
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_truncate                   = raw_co_truncate,
+    .bdrv_co_getlength                  = raw_co_getlength,
+    .bdrv_co_get_info                   = raw_co_get_info,
+    .bdrv_get_specific_info             = raw_get_specific_info,
+    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
     .bdrv_get_specific_stats = hdev_get_specific_stats,
     .bdrv_check_perm = raw_check_perm,
     .bdrv_set_perm   = raw_set_perm,
@@ -3757,7 +3786,7 @@ out:
     return prio;
 }
 
-static bool cdrom_is_inserted(BlockDriverState *bs)
+static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -3766,7 +3795,7 @@ static bool cdrom_is_inserted(BlockDriverState *bs)
     return ret == CDS_DISC_OK;
 }
 
-static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cdrom_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3779,7 +3808,7 @@ static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
     }
 }
 
-static void cdrom_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3813,20 +3842,19 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
     .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_io_plug = raw_aio_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_plug        = raw_co_io_plug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate    = raw_co_truncate,
-    .bdrv_getlength      = raw_getlength,
-    .has_variable_length = true,
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_truncate                   = raw_co_truncate,
+    .bdrv_co_getlength                  = raw_co_getlength,
+    .has_variable_length                = true,
+    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_is_inserted   = cdrom_is_inserted,
-    .bdrv_eject         = cdrom_eject,
-    .bdrv_lock_medium   = cdrom_lock_medium,
+    .bdrv_co_is_inserted    = cdrom_co_is_inserted,
+    .bdrv_co_eject          = cdrom_co_eject,
+    .bdrv_co_lock_medium    = cdrom_co_lock_medium,
 
     /* generic scsi device */
     .bdrv_co_ioctl      = hdev_co_ioctl,
@@ -3883,12 +3911,12 @@ static int cdrom_reopen(BlockDriverState *bs)
     return 0;
 }
 
-static bool cdrom_is_inserted(BlockDriverState *bs)
+static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
 {
-    return raw_getlength(bs) > 0;
+    return raw_co_getlength(bs) > 0;
 }
 
-static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
+static void coroutine_fn cdrom_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3908,7 +3936,7 @@ static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
     cdrom_reopen(bs);
 }
 
-static void cdrom_lock_medium(BlockDriverState *bs, bool locked)
+static void coroutine_fn cdrom_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     BDRVRawState *s = bs->opaque;
 
@@ -3943,20 +3971,19 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
     .bdrv_refresh_limits = raw_refresh_limits,
-    .bdrv_io_plug = raw_aio_plug,
-    .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_co_io_plug        = raw_co_io_plug,
+    .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate    = raw_co_truncate,
-    .bdrv_getlength      = raw_getlength,
-    .has_variable_length = true,
-    .bdrv_get_allocated_file_size
-                        = raw_get_allocated_file_size,
+    .bdrv_co_truncate                   = raw_co_truncate,
+    .bdrv_co_getlength                  = raw_co_getlength,
+    .has_variable_length                = true,
+    .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
 
     /* removable device support */
-    .bdrv_is_inserted   = cdrom_is_inserted,
-    .bdrv_eject         = cdrom_eject,
-    .bdrv_lock_medium   = cdrom_lock_medium,
+    .bdrv_co_is_inserted     = cdrom_co_is_inserted,
+    .bdrv_co_eject           = cdrom_co_eject,
+    .bdrv_co_lock_medium     = cdrom_co_lock_medium,
 };
 #endif /* __FreeBSD__ */
 

@@ -1002,7 +1002,7 @@ fail:
     return ret;
 }
 
-static int64_t nvme_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn nvme_co_getlength(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
     return s->nsze << s->blkshift;
@@ -1486,7 +1486,7 @@ static int coroutine_fn nvme_co_truncate(BlockDriverState *bs, int64_t offset,
         return -ENOTSUP;
     }
 
-    cur_length = nvme_getlength(bs);
+    cur_length = nvme_co_getlength(bs);
     if (offset != cur_length && exact) {
         error_setg(errp, "Cannot resize NVMe devices");
         return -ENOTSUP;
@@ -1567,14 +1567,14 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void nvme_aio_plug(BlockDriverState *bs)
+static void coroutine_fn nvme_co_io_plug(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
     assert(!s->plugged);
     s->plugged = true;
 }
 
-static void nvme_aio_unplug(BlockDriverState *bs)
+static void coroutine_fn nvme_co_io_unplug(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
     assert(s->plugged);
@@ -1643,7 +1643,7 @@ static BlockDriver bdrv_nvme = {
     .bdrv_parse_filename      = nvme_parse_filename,
     .bdrv_file_open           = nvme_file_open,
     .bdrv_close               = nvme_close,
-    .bdrv_getlength           = nvme_getlength,
+    .bdrv_co_getlength        = nvme_co_getlength,
     .bdrv_probe_blocksizes    = nvme_probe_blocksizes,
     .bdrv_co_truncate         = nvme_co_truncate,
 
@@ -1664,8 +1664,8 @@ static BlockDriver bdrv_nvme = {
     .bdrv_detach_aio_context  = nvme_detach_aio_context,
     .bdrv_attach_aio_context  = nvme_attach_aio_context,
 
-    .bdrv_io_plug             = nvme_aio_plug,
-    .bdrv_io_unplug           = nvme_aio_unplug,
+    .bdrv_co_io_plug          = nvme_co_io_plug,
+    .bdrv_co_io_unplug        = nvme_co_io_unplug,
 
     .bdrv_register_buf        = nvme_register_buf,
     .bdrv_unregister_buf      = nvme_unregister_buf,

@@ -45,11 +45,14 @@
  * - co_wrapper_mixed_bdrv_rdlock are co_wrapper_mixed functions but
  *   automatically take and release the graph rdlock when creating a new
  *   coroutine.
+ *
+ * These functions should not be called from a coroutine_fn; instead,
+ * call the wrapped function directly.
  */
-#define co_wrapper
-#define co_wrapper_mixed
-#define co_wrapper_bdrv_rdlock
-#define co_wrapper_mixed_bdrv_rdlock
+#define co_wrapper                     no_coroutine_fn
+#define co_wrapper_mixed               no_coroutine_fn coroutine_mixed_fn
+#define co_wrapper_bdrv_rdlock         no_coroutine_fn
+#define co_wrapper_mixed_bdrv_rdlock   no_coroutine_fn coroutine_mixed_fn
 
 #include "block/blockjob.h"
 

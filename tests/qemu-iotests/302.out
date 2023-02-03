@@ -4,6 +4,11 @@ image: nbd+unix:///exp?socket=SOCK_DIR/PID-nbd-sock
 file format: raw
 virtual size: 448 KiB (458752 bytes)
 disk size: unavailable
+Child node '/file':
+    filename: nbd+unix:///exp?socket=SOCK_DIR/PID-nbd-sock
+    protocol type: nbd
+    file length: 448 KiB (458752 bytes)
+    disk size: unavailable
 
 === Converted image info ===
 image: TEST_IMG

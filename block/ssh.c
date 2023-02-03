@@ -1253,7 +1253,7 @@ static coroutine_fn int ssh_co_flush(BlockDriverState *bs)
     return ret;
 }
 
-static int64_t ssh_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn ssh_co_getlength(BlockDriverState *bs)
 {
     BDRVSSHState *s = bs->opaque;
     int64_t length;
@@ -1364,7 +1364,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_has_zero_init           = ssh_has_zero_init,
     .bdrv_co_readv                = ssh_co_readv,
     .bdrv_co_writev               = ssh_co_writev,
-    .bdrv_getlength               = ssh_getlength,
+    .bdrv_co_getlength            = ssh_co_getlength,
     .bdrv_co_truncate             = ssh_co_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .bdrv_refresh_filename        = ssh_refresh_filename,

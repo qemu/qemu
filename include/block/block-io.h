@@ -76,9 +76,15 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
                                   PreallocMode prealloc, BdrvRequestFlags flags,
                                   Error **errp);
 
-int64_t bdrv_nb_sectors(BlockDriverState *bs);
-int64_t bdrv_getlength(BlockDriverState *bs);
-int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
+int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs);
+int64_t co_wrapper_mixed bdrv_nb_sectors(BlockDriverState *bs);
+
+int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs);
+int64_t co_wrapper_mixed bdrv_getlength(BlockDriverState *bs);
+
+int64_t coroutine_fn bdrv_co_get_allocated_file_size(BlockDriverState *bs);
+int64_t co_wrapper bdrv_get_allocated_file_size(BlockDriverState *bs);
+
 BlockMeasureInfo *bdrv_measure(BlockDriver *drv, QemuOpts *opts,
                                BlockDriverState *in_bs, Error **errp);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
@@ -136,16 +142,23 @@ bool bdrv_is_read_only(BlockDriverState *bs);
 bool bdrv_is_writable(BlockDriverState *bs);
 bool bdrv_is_sg(BlockDriverState *bs);
 int bdrv_get_flags(BlockDriverState *bs);
-bool bdrv_is_inserted(BlockDriverState *bs);
-void bdrv_lock_medium(BlockDriverState *bs, bool locked);
-void bdrv_eject(BlockDriverState *bs, bool eject_flag);
+
+bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs);
+bool co_wrapper bdrv_is_inserted(BlockDriverState *bs);
+
+void coroutine_fn bdrv_co_lock_medium(BlockDriverState *bs, bool locked);
+void coroutine_fn bdrv_co_eject(BlockDriverState *bs, bool eject_flag);
+
 const char *bdrv_get_format_name(BlockDriverState *bs);
 
 bool bdrv_supports_compressed_writes(BlockDriverState *bs);
 const char *bdrv_get_node_name(const BlockDriverState *bs);
 const char *bdrv_get_device_name(const BlockDriverState *bs);
 const char *bdrv_get_device_or_node_name(const BlockDriverState *bs);
-int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+
+int coroutine_fn bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+int co_wrapper_mixed bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+
 ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs,
                                           Error **errp);
 BlockStatsSpecific *bdrv_get_specific_stats(BlockDriverState *bs);
@@ -178,7 +191,10 @@ void *qemu_try_blockalign0(BlockDriverState *bs, size_t size);
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
-void bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event);
+void coroutine_fn bdrv_co_debug_event(BlockDriverState *bs,
+                                      BlkdebugEvent event);
+void co_wrapper_mixed bdrv_debug_event(BlockDriverState *bs,
+                                       BlkdebugEvent event);
 
 #define BLKDBG_EVENT(child, evt) \
     do { \
@@ -213,15 +229,10 @@ AioContext *coroutine_fn bdrv_co_enter(BlockDriverState *bs);
  */
 void coroutine_fn bdrv_co_leave(BlockDriverState *bs, AioContext *old_ctx);
 
-/**
- * Transfer control to @co in the aio context of @bs
- */
-void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
-
 AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c);
 
-void bdrv_io_plug(BlockDriverState *bs);
-void bdrv_io_unplug(BlockDriverState *bs);
+void coroutine_fn bdrv_co_io_plug(BlockDriverState *bs);
+void coroutine_fn bdrv_co_io_unplug(BlockDriverState *bs);
 
 bool coroutine_fn bdrv_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                                      const char *name,

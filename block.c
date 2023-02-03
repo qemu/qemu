@@ -1035,7 +1035,8 @@ static int find_image_format(BlockBackend *file, const char *filename,
  * Set the current 'total_sectors' value
  * Return 0 on success, -errno on error.
  */
-int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
+int coroutine_fn bdrv_co_refresh_total_sectors(BlockDriverState *bs,
+                                               int64_t hint)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
@@ -1044,13 +1045,13 @@ int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
         return -ENOMEDIUM;
     }
 
-    /* Do not attempt drv->bdrv_getlength() on scsi-generic devices */
+    /* Do not attempt drv->bdrv_co_getlength() on scsi-generic devices */
     if (bdrv_is_sg(bs))
         return 0;
 
     /* query actual device if possible, otherwise just trust the hint */
-    if (drv->bdrv_getlength) {
-        int64_t length = drv->bdrv_getlength(bs);
+    if (drv->bdrv_co_getlength) {
+        int64_t length = drv->bdrv_co_getlength(bs);
         if (length < 0) {
             return length;
         }
@@ -1601,6 +1602,11 @@ out:
     g_free(gen_node_name);
 }
 
+/*
+ * The caller must always hold @bs AioContext lock, because this function calls
+ * bdrv_refresh_total_sectors() which polls when called from non-coroutine
+ * context.
+ */
 static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
                             const char *node_name, QDict *options,
                             int open_flags, Error **errp)
@@ -1652,7 +1658,7 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     bs->supported_read_flags |= BDRV_REQ_REGISTERED_BUF;
     bs->supported_write_flags |= BDRV_REQ_REGISTERED_BUF;
 
-    ret = refresh_total_sectors(bs, bs->total_sectors);
+    ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return ret;
@@ -3796,6 +3802,10 @@ out:
  * The reference parameter may be used to specify an existing block device which
  * should be opened. If specified, neither options nor a filename may be given,
  * nor can an existing BDS be reused (that is, *pbs has to be NULL).
+ *
+ * The caller must always hold @filename AioContext lock, because this
+ * function eventually calls bdrv_refresh_total_sectors() which polls
+ * when called from non-coroutine context.
  */
 static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            const char *reference,
@@ -4084,6 +4094,11 @@ close_and_fail:
     return NULL;
 }
 
+/*
+ * The caller must always hold @filename AioContext lock, because this
+ * function eventually calls bdrv_refresh_total_sectors() which polls
+ * when called from non-coroutine context.
+ */
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
                             QDict *options, int flags, Error **errp)
 {
@@ -5705,7 +5720,7 @@ exit:
 }
 
 /**
- * Implementation of BlockDriver.bdrv_get_allocated_file_size() that
+ * Implementation of BlockDriver.bdrv_co_get_allocated_file_size() that
  * sums the size of all data-bearing children.  (This excludes backing
  * children.)
  */
@@ -5718,7 +5733,7 @@ static int64_t bdrv_sum_allocated_file_size(BlockDriverState *bs)
         if (child->role & (BDRV_CHILD_DATA | BDRV_CHILD_METADATA |
                            BDRV_CHILD_FILTERED))
         {
-            child_size = bdrv_get_allocated_file_size(child->bs);
+            child_size = bdrv_co_get_allocated_file_size(child->bs);
             if (child_size < 0) {
                 return child_size;
             }
@@ -5733,7 +5748,7 @@ static int64_t bdrv_sum_allocated_file_size(BlockDriverState *bs)
  * Length of a allocated file in bytes. Sparse files are counted by actual
  * allocated space. Return < 0 if error or unknown.
  */
-int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
+int64_t coroutine_fn bdrv_co_get_allocated_file_size(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
@@ -5741,8 +5756,8 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (drv->bdrv_get_allocated_file_size) {
-        return drv->bdrv_get_allocated_file_size(bs);
+    if (drv->bdrv_co_get_allocated_file_size) {
+        return drv->bdrv_co_get_allocated_file_size(bs);
     }
 
     if (drv->bdrv_file_open) {
@@ -5754,7 +5769,7 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
         return -ENOTSUP;
     } else if (drv->is_filter) {
         /* Filter drivers default to the size of their filtered child */
-        return bdrv_get_allocated_file_size(bdrv_filter_bs(bs));
+        return bdrv_co_get_allocated_file_size(bdrv_filter_bs(bs));
     } else {
         /* Other drivers default to summing their children's sizes */
         return bdrv_sum_allocated_file_size(bs);
@@ -5800,7 +5815,7 @@ BlockMeasureInfo *bdrv_measure(BlockDriver *drv, QemuOpts *opts,
 /**
  * Return number of sectors on success, -errno on error.
  */
-int64_t bdrv_nb_sectors(BlockDriverState *bs)
+int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
@@ -5809,7 +5824,7 @@ int64_t bdrv_nb_sectors(BlockDriverState *bs)
         return -ENOMEDIUM;
 
     if (drv->has_variable_length) {
-        int ret = refresh_total_sectors(bs, bs->total_sectors);
+        int ret = bdrv_co_refresh_total_sectors(bs, bs->total_sectors);
         if (ret < 0) {
             return ret;
         }
@@ -5821,11 +5836,12 @@ int64_t bdrv_nb_sectors(BlockDriverState *bs)
  * Return length in bytes on success, -errno on error.
  * The length is always a multiple of BDRV_SECTOR_SIZE.
  */
-int64_t bdrv_getlength(BlockDriverState *bs)
+int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
 {
-    int64_t ret = bdrv_nb_sectors(bs);
+    int64_t ret;
     IO_CODE();
 
+    ret = bdrv_co_nb_sectors(bs);
     if (ret < 0) {
         return ret;
     }
@@ -6285,7 +6301,7 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
     pstrcpy(filename, filename_size, bs->backing_file);
 }
 
-int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
+int coroutine_fn bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     int ret;
     BlockDriver *drv = bs->drv;
@@ -6294,15 +6310,15 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     if (!drv) {
         return -ENOMEDIUM;
     }
-    if (!drv->bdrv_get_info) {
+    if (!drv->bdrv_co_get_info) {
         BlockDriverState *filtered = bdrv_filter_bs(bs);
         if (filtered) {
-            return bdrv_get_info(filtered, bdi);
+            return bdrv_co_get_info(filtered, bdi);
         }
         return -ENOTSUP;
     }
     memset(bdi, 0, sizeof(*bdi));
-    ret = drv->bdrv_get_info(bs, bdi);
+    ret = drv->bdrv_co_get_info(bs, bdi);
     if (ret < 0) {
         return ret;
     }
@@ -6335,14 +6351,14 @@ BlockStatsSpecific *bdrv_get_specific_stats(BlockDriverState *bs)
     return drv->bdrv_get_specific_stats(bs);
 }
 
-void bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event)
+void coroutine_fn bdrv_co_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     IO_CODE();
-    if (!bs || !bs->drv || !bs->drv->bdrv_debug_event) {
+    if (!bs || !bs->drv || !bs->drv->bdrv_co_debug_event) {
         return;
     }
 
-    bs->drv->bdrv_debug_event(bs, event);
+    bs->drv->bdrv_co_debug_event(bs, event);
 }
 
 static BlockDriverState *bdrv_find_debug_node(BlockDriverState *bs)
@@ -6591,7 +6607,7 @@ int bdrv_activate(BlockDriverState *bs, Error **errp)
             bdrv_dirty_bitmap_skip_store(bm, false);
         }
 
-        ret = refresh_total_sectors(bs, bs->total_sectors);
+        ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
         if (ret < 0) {
             bs->open_flags |= BDRV_O_INACTIVE;
             error_setg_errno(errp, -ret, "Could not refresh total sector count");
@@ -6782,7 +6798,7 @@ out:
 /**
  * Return TRUE if the media is present
  */
-bool bdrv_is_inserted(BlockDriverState *bs)
+bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     BdrvChild *child;
@@ -6791,11 +6807,11 @@ bool bdrv_is_inserted(BlockDriverState *bs)
     if (!drv) {
         return false;
     }
-    if (drv->bdrv_is_inserted) {
-        return drv->bdrv_is_inserted(bs);
+    if (drv->bdrv_co_is_inserted) {
+        return drv->bdrv_co_is_inserted(bs);
     }
     QLIST_FOREACH(child, &bs->children, next) {
-        if (!bdrv_is_inserted(child->bs)) {
+        if (!bdrv_co_is_inserted(child->bs)) {
             return false;
         }
     }
@@ -6805,13 +6821,13 @@ bool bdrv_is_inserted(BlockDriverState *bs)
 /**
  * If eject_flag is TRUE, eject the media. Otherwise, close the tray
  */
-void bdrv_eject(BlockDriverState *bs, bool eject_flag)
+void coroutine_fn bdrv_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
 
-    if (drv && drv->bdrv_eject) {
-        drv->bdrv_eject(bs, eject_flag);
+    if (drv && drv->bdrv_co_eject) {
+        drv->bdrv_co_eject(bs, eject_flag);
     }
 }
 
@@ -6819,14 +6835,14 @@ void bdrv_eject(BlockDriverState *bs, bool eject_flag)
  * Lock or unlock the media (if it is locked, the user won't be able
  * to eject it manually).
  */
-void bdrv_lock_medium(BlockDriverState *bs, bool locked)
+void coroutine_fn bdrv_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
     trace_bdrv_lock_medium(bs, locked);
 
-    if (drv && drv->bdrv_lock_medium) {
-        drv->bdrv_lock_medium(bs, locked);
+    if (drv && drv->bdrv_co_lock_medium) {
+        drv->bdrv_co_lock_medium(bs, locked);
     }
 }
 
@@ -7176,12 +7192,6 @@ void coroutine_fn bdrv_co_unlock(BlockDriverState *bs)
     if (ctx != qemu_get_aio_context()) {
         aio_context_release(ctx);
     }
-}
-
-void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co)
-{
-    IO_CODE();
-    aio_co_enter(bdrv_get_aio_context(bs), co);
 }
 
 static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)

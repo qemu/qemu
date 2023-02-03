@@ -54,13 +54,26 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
 
 void blk_inc_in_flight(BlockBackend *blk);
 void blk_dec_in_flight(BlockBackend *blk);
-bool blk_is_inserted(BlockBackend *blk);
+
+bool coroutine_fn blk_co_is_inserted(BlockBackend *blk);
+bool co_wrapper_mixed blk_is_inserted(BlockBackend *blk);
+
 bool blk_is_available(BlockBackend *blk);
-void blk_lock_medium(BlockBackend *blk, bool locked);
-void blk_eject(BlockBackend *blk, bool eject_flag);
-int64_t blk_getlength(BlockBackend *blk);
+
+void coroutine_fn blk_co_lock_medium(BlockBackend *blk, bool locked);
+void co_wrapper blk_lock_medium(BlockBackend *blk, bool locked);
+
+void coroutine_fn blk_co_eject(BlockBackend *blk, bool eject_flag);
+void co_wrapper blk_eject(BlockBackend *blk, bool eject_flag);
+
+int64_t coroutine_fn blk_co_getlength(BlockBackend *blk);
+int64_t co_wrapper_mixed blk_getlength(BlockBackend *blk);
+
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
-int64_t blk_nb_sectors(BlockBackend *blk);
+
+int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk);
+int64_t co_wrapper_mixed blk_nb_sectors(BlockBackend *blk);
+
 void *blk_try_blockalign(BlockBackend *blk, size_t size);
 void *blk_blockalign(BlockBackend *blk, size_t size);
 bool blk_is_writable(BlockBackend *blk);
@@ -74,8 +87,12 @@ void blk_iostatus_set_err(BlockBackend *blk, int error);
 int blk_get_max_iov(BlockBackend *blk);
 int blk_get_max_hw_iov(BlockBackend *blk);
 
-void blk_io_plug(BlockBackend *blk);
-void blk_io_unplug(BlockBackend *blk);
+void coroutine_fn blk_co_io_plug(BlockBackend *blk);
+void co_wrapper blk_io_plug(BlockBackend *blk);
+
+void coroutine_fn blk_co_io_unplug(BlockBackend *blk);
+void co_wrapper blk_io_unplug(BlockBackend *blk);
+
 AioContext *blk_get_aio_context(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,

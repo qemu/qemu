@@ -171,7 +171,51 @@ extern "C" {
  *       ....
  *   }
  */
+#ifdef __clang__
+#define coroutine_fn __attribute__((__annotate__("coroutine_fn")))
+#else
 #define coroutine_fn
+#endif
+
+/**
+ * Mark a function that can suspend when executed in coroutine context,
+ * but can handle running in non-coroutine context too.
+ */
+#ifdef __clang__
+#define coroutine_mixed_fn __attribute__((__annotate__("coroutine_mixed_fn")))
+#else
+#define coroutine_mixed_fn
+#endif
+
+/**
+ * Mark a function that should not be called from a coroutine context.
+ * Usually there will be an analogous, coroutine_fn function that should
+ * be used instead.
+ *
+ * When the function is also marked as coroutine_mixed_fn, the function should
+ * only be called if the caller does not know whether it is in coroutine
+ * context.
+ *
+ * Functions that are only no_coroutine_fn, on the other hand, should not
+ * be called from within coroutines at all.  This for example includes
+ * functions that block.
+ *
+ * In the future it would be nice to enable compiler or static checker
+ * support for catching such errors.  This annotation is the first step
+ * towards this, and in the meantime it serves as documentation.
+ *
+ * For example:
+ *
+ *   static void no_coroutine_fn foo(void) {
+ *       ....
+ *   }
+ */
+#ifdef __clang__
+#define no_coroutine_fn __attribute__((__annotate__("no_coroutine_fn")))
+#else
+#define no_coroutine_fn
+#endif
+
 
 /*
  * For mingw, as of v6.0.0, the function implementing the assert macro is
