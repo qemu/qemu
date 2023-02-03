@@ -1944,7 +1944,6 @@ struct SM501SysBusState {
     /*< public >*/
     SM501State state;
     uint32_t vram_size;
-    uint32_t base;
     SerialMM serial;
     OHCISysBusState ohci;
 };
@@ -1965,7 +1964,6 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    qdev_prop_set_uint64(DEVICE(&s->ohci), "dma-offset", s->base);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->ohci), &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
                        sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ohci), 0));
@@ -1980,7 +1978,6 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
 
 static Property sm501_sysbus_properties[] = {
     DEFINE_PROP_UINT32("vram-size", SM501SysBusState, vram_size, 0),
-    DEFINE_PROP_UINT32("base", SM501SysBusState, base, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2020,6 +2017,7 @@ static void sm501_sysbus_init(Object *o)
     SerialMM *smm = &sm501->serial;
 
     object_initialize_child(o, "ohci", ohci, TYPE_SYSBUS_OHCI);
+    object_property_add_alias(o, "dma-offset", OBJECT(ohci), "dma-offset");
     qdev_prop_set_uint32(DEVICE(ohci), "num-ports", 2);
 
     object_initialize_child(o, "serial", smm, TYPE_SERIAL_MM);
@@ -2027,8 +2025,7 @@ static void sm501_sysbus_init(Object *o)
     qdev_prop_set_uint8(DEVICE(smm), "regshift", 2);
     qdev_prop_set_uint8(DEVICE(smm), "endianness", DEVICE_LITTLE_ENDIAN);
 
-    object_property_add_alias(o, "chardev",
-                              OBJECT(smm), "chardev");
+    object_property_add_alias(o, "chardev", OBJECT(smm), "chardev");
 }
 
 static const TypeInfo sm501_sysbus_info = {
