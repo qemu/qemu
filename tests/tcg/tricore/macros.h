@@ -21,6 +21,7 @@
 #define DREG_TEMP %d11
 #define DREG_TEST_NUM %d14
 #define DREG_CORRECT_RESULT %d15
+#define DREG_CORRECT_RESULT_2 %d13
 
 #define AREG_ADDR %a0
 #define AREG_CORRECT_RESULT %a3
@@ -78,6 +79,18 @@ test_ ## num:                                               \
     mov.d DREG_CALC_RESULT, AREG_ADDR;                      \
     LI(DREG_CORRECT_RESULT, addr_result)                    \
     jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;
+
+#define TEST_LD_SRO(insn, num, result, addr_result, ld_pattern)  \
+test_ ## num:                                                    \
+    LIA(AREG_ADDR, test_data)                                    \
+    insn %d15, ld_pattern;                                       \
+    LI(DREG_CORRECT_RESULT_2, result)                            \
+    mov DREG_TEST_NUM, num;                                      \
+    jne %d15, DREG_CORRECT_RESULT_2, fail;                       \
+    mov.d DREG_CALC_RESULT, AREG_ADDR;                           \
+    LI(DREG_CORRECT_RESULT, addr_result)                         \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;
+
 
 /* Actual test case type
  * e.g inst %dX, %dY      -> TEST_D_D
