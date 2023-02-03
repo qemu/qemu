@@ -47,8 +47,10 @@
 #include "sysemu/numa.h"
 #include "sysemu/runstate.h"
 #include "sysemu/tpm.h"
+#include "sysemu/tcg.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hvf.h"
+#include "sysemu/qtest.h"
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"
@@ -1343,7 +1345,7 @@ static void create_smmu(const VirtMachineState *vms,
         return;
     }
 
-    dev = qdev_new("arm-smmuv3");
+    dev = qdev_new(TYPE_ARM_SMMUV3);
 
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
@@ -1820,6 +1822,84 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
     }
 }
 
+static VirtGICType finalize_gic_version_do(const char *accel_name,
+                                           VirtGICType gic_version,
+                                           int gics_supported,
+                                           unsigned int max_cpus)
+{
+    /* Convert host/max/nosel to GIC version number */
+    switch (gic_version) {
+    case VIRT_GIC_VERSION_HOST:
+        if (!kvm_enabled()) {
+            error_report("gic-version=host requires KVM");
+            exit(1);
+        }
+
+        /* For KVM, gic-version=host means gic-version=max */
+        return finalize_gic_version_do(accel_name, VIRT_GIC_VERSION_MAX,
+                                       gics_supported, max_cpus);
+    case VIRT_GIC_VERSION_MAX:
+        if (gics_supported & VIRT_GIC_VERSION_4_MASK) {
+            gic_version = VIRT_GIC_VERSION_4;
+        } else if (gics_supported & VIRT_GIC_VERSION_3_MASK) {
+            gic_version = VIRT_GIC_VERSION_3;
+        } else {
+            gic_version = VIRT_GIC_VERSION_2;
+        }
+        break;
+    case VIRT_GIC_VERSION_NOSEL:
+        if ((gics_supported & VIRT_GIC_VERSION_2_MASK) &&
+            max_cpus <= GIC_NCPU) {
+            gic_version = VIRT_GIC_VERSION_2;
+        } else if (gics_supported & VIRT_GIC_VERSION_3_MASK) {
+            /*
+             * in case the host does not support v2 emulation or
+             * the end-user requested more than 8 VCPUs we now default
+             * to v3. In any case defaulting to v2 would be broken.
+             */
+            gic_version = VIRT_GIC_VERSION_3;
+        } else if (max_cpus > GIC_NCPU) {
+            error_report("%s only supports GICv2 emulation but more than 8 "
+                         "vcpus are requested", accel_name);
+            exit(1);
+        }
+        break;
+    case VIRT_GIC_VERSION_2:
+    case VIRT_GIC_VERSION_3:
+    case VIRT_GIC_VERSION_4:
+        break;
+    }
+
+    /* Check chosen version is effectively supported */
+    switch (gic_version) {
+    case VIRT_GIC_VERSION_2:
+        if (!(gics_supported & VIRT_GIC_VERSION_2_MASK)) {
+            error_report("%s does not support GICv2 emulation", accel_name);
+            exit(1);
+        }
+        break;
+    case VIRT_GIC_VERSION_3:
+        if (!(gics_supported & VIRT_GIC_VERSION_3_MASK)) {
+            error_report("%s does not support GICv3 emulation", accel_name);
+            exit(1);
+        }
+        break;
+    case VIRT_GIC_VERSION_4:
+        if (!(gics_supported & VIRT_GIC_VERSION_4_MASK)) {
+            error_report("%s does not support GICv4 emulation, is virtualization=on?",
+                         accel_name);
+            exit(1);
+        }
+        break;
+    default:
+        error_report("logic error in finalize_gic_version");
+        exit(1);
+        break;
+    }
+
+    return gic_version;
+}
+
 /*
  * finalize_gic_version - Determines the final gic_version
  * according to the gic-version property
@@ -1828,118 +1908,49 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
  */
 static void finalize_gic_version(VirtMachineState *vms)
 {
+    const char *accel_name = current_accel_name();
     unsigned int max_cpus = MACHINE(vms)->smp.max_cpus;
+    int gics_supported = 0;
 
-    if (kvm_enabled()) {
-        int probe_bitmap;
+    /* Determine which GIC versions the current environment supports */
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+        int probe_bitmap = kvm_arm_vgic_probe();
 
-        if (!kvm_irqchip_in_kernel()) {
-            switch (vms->gic_version) {
-            case VIRT_GIC_VERSION_HOST:
-                warn_report(
-                    "gic-version=host not relevant with kernel-irqchip=off "
-                     "as only userspace GICv2 is supported. Using v2 ...");
-                return;
-            case VIRT_GIC_VERSION_MAX:
-            case VIRT_GIC_VERSION_NOSEL:
-                vms->gic_version = VIRT_GIC_VERSION_2;
-                return;
-            case VIRT_GIC_VERSION_2:
-                return;
-            case VIRT_GIC_VERSION_3:
-                error_report(
-                    "gic-version=3 is not supported with kernel-irqchip=off");
-                exit(1);
-            case VIRT_GIC_VERSION_4:
-                error_report(
-                    "gic-version=4 is not supported with kernel-irqchip=off");
-                exit(1);
-            }
-        }
-
-        probe_bitmap = kvm_arm_vgic_probe();
         if (!probe_bitmap) {
             error_report("Unable to determine GIC version supported by host");
             exit(1);
         }
 
-        switch (vms->gic_version) {
-        case VIRT_GIC_VERSION_HOST:
-        case VIRT_GIC_VERSION_MAX:
-            if (probe_bitmap & KVM_ARM_VGIC_V3) {
-                vms->gic_version = VIRT_GIC_VERSION_3;
-            } else {
-                vms->gic_version = VIRT_GIC_VERSION_2;
-            }
-            return;
-        case VIRT_GIC_VERSION_NOSEL:
-            if ((probe_bitmap & KVM_ARM_VGIC_V2) && max_cpus <= GIC_NCPU) {
-                vms->gic_version = VIRT_GIC_VERSION_2;
-            } else if (probe_bitmap & KVM_ARM_VGIC_V3) {
-                /*
-                 * in case the host does not support v2 in-kernel emulation or
-                 * the end-user requested more than 8 VCPUs we now default
-                 * to v3. In any case defaulting to v2 would be broken.
-                 */
-                vms->gic_version = VIRT_GIC_VERSION_3;
-            } else if (max_cpus > GIC_NCPU) {
-                error_report("host only supports in-kernel GICv2 emulation "
-                             "but more than 8 vcpus are requested");
-                exit(1);
-            }
-            break;
-        case VIRT_GIC_VERSION_2:
-        case VIRT_GIC_VERSION_3:
-            break;
-        case VIRT_GIC_VERSION_4:
-            error_report("gic-version=4 is not supported with KVM");
-            exit(1);
+        if (probe_bitmap & KVM_ARM_VGIC_V2) {
+            gics_supported |= VIRT_GIC_VERSION_2_MASK;
         }
-
-        /* Check chosen version is effectively supported by the host */
-        if (vms->gic_version == VIRT_GIC_VERSION_2 &&
-            !(probe_bitmap & KVM_ARM_VGIC_V2)) {
-            error_report("host does not support in-kernel GICv2 emulation");
-            exit(1);
-        } else if (vms->gic_version == VIRT_GIC_VERSION_3 &&
-                   !(probe_bitmap & KVM_ARM_VGIC_V3)) {
-            error_report("host does not support in-kernel GICv3 emulation");
-            exit(1);
+        if (probe_bitmap & KVM_ARM_VGIC_V3) {
+            gics_supported |= VIRT_GIC_VERSION_3_MASK;
         }
-        return;
-    }
-
-    /* TCG mode */
-    switch (vms->gic_version) {
-    case VIRT_GIC_VERSION_NOSEL:
-        vms->gic_version = VIRT_GIC_VERSION_2;
-        break;
-    case VIRT_GIC_VERSION_MAX:
+    } else if (kvm_enabled() && !kvm_irqchip_in_kernel()) {
+        /* KVM w/o kernel irqchip can only deal with GICv2 */
+        gics_supported |= VIRT_GIC_VERSION_2_MASK;
+        accel_name = "KVM with kernel-irqchip=off";
+    } else if (tcg_enabled() || hvf_enabled() || qtest_enabled())  {
+        gics_supported |= VIRT_GIC_VERSION_2_MASK;
         if (module_object_class_by_name("arm-gicv3")) {
-            /* CONFIG_ARM_GICV3_TCG was set */
+            gics_supported |= VIRT_GIC_VERSION_3_MASK;
             if (vms->virt) {
                 /* GICv4 only makes sense if CPU has EL2 */
-                vms->gic_version = VIRT_GIC_VERSION_4;
-            } else {
-                vms->gic_version = VIRT_GIC_VERSION_3;
+                gics_supported |= VIRT_GIC_VERSION_4_MASK;
             }
-        } else {
-            vms->gic_version = VIRT_GIC_VERSION_2;
         }
-        break;
-    case VIRT_GIC_VERSION_HOST:
-        error_report("gic-version=host requires KVM");
+    } else {
+        error_report("Unsupported accelerator, can not determine GIC support");
         exit(1);
-    case VIRT_GIC_VERSION_4:
-        if (!vms->virt) {
-            error_report("gic-version=4 requires virtualization enabled");
-            exit(1);
-        }
-        break;
-    case VIRT_GIC_VERSION_2:
-    case VIRT_GIC_VERSION_3:
-        break;
     }
+
+    /*
+     * Then convert helpers like host/max to concrete GIC versions and ensure
+     * the desired version is supported
+     */
+    vms->gic_version = finalize_gic_version_do(accel_name, vms->gic_version,
+                                               gics_supported, max_cpus);
 }
 
 /*

@@ -1962,7 +1962,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         return;
     }
 
-    if (ri->accessfn) {
+    if (ri->accessfn || (ri->fgt && s->fgt_active)) {
         /* Emit code to perform further access permissions checks at
          * runtime; this may result in an exception.
          */
@@ -2179,6 +2179,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
     int opc = extract32(insn, 21, 3);
     int op2_ll = extract32(insn, 0, 5);
     int imm16 = extract32(insn, 5, 16);
+    uint32_t syndrome;
 
     switch (opc) {
     case 0:
@@ -2189,8 +2190,13 @@ static void disas_exc(DisasContext *s, uint32_t insn)
          */
         switch (op2_ll) {
         case 1:                                                     /* SVC */
+            syndrome = syn_aa64_svc(imm16);
+            if (s->fgt_svc) {
+                gen_exception_insn_el(s, 0, EXCP_UDEF, syndrome, 2);
+                break;
+            }
             gen_ss_advance(s);
-            gen_exception_insn(s, 4, EXCP_SWI, syn_aa64_svc(imm16));
+            gen_exception_insn(s, 4, EXCP_SWI, syndrome);
             break;
         case 2:                                                     /* HVC */
             if (s->current_el == 0) {
@@ -2385,6 +2391,10 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             if (op4 != 0) {
                 goto do_unallocated;
             }
+            if (s->fgt_eret) {
+                gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(op3), 2);
+                return;
+            }
             dst = tcg_temp_new_i64();
             tcg_gen_ld_i64(dst, cpu_env,
                            offsetof(CPUARMState, elr_el[s->current_el]));
@@ -2397,6 +2407,11 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
             }
             if (rn != 0x1f || op4 != 0x1f) {
                 goto do_unallocated;
+            }
+            /* The FGT trap takes precedence over an auth trap. */
+            if (s->fgt_eret) {
+                gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(op3), 2);
+                return;
             }
             dst = tcg_temp_new_i64();
             tcg_gen_ld_i64(dst, cpu_env,
@@ -14741,6 +14756,9 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->fp_excp_el = EX_TBFLAG_ANY(tb_flags, FPEXC_EL);
     dc->align_mem = EX_TBFLAG_ANY(tb_flags, ALIGN_MEM);
     dc->pstate_il = EX_TBFLAG_ANY(tb_flags, PSTATE__IL);
+    dc->fgt_active = EX_TBFLAG_ANY(tb_flags, FGT_ACTIVE);
+    dc->fgt_svc = EX_TBFLAG_ANY(tb_flags, FGT_SVC);
+    dc->fgt_eret = EX_TBFLAG_A64(tb_flags, FGT_ERET);
     dc->sve_excp_el = EX_TBFLAG_A64(tb_flags, SVEEXC_EL);
     dc->sme_excp_el = EX_TBFLAG_A64(tb_flags, SMEEXC_EL);
     dc->vl = (EX_TBFLAG_A64(tb_flags, VL) + 1) * 16;

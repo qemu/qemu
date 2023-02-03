@@ -21,6 +21,8 @@
 #include "hw/irq.h"
 #include "cpu.h"
 #include "target/arm/cpregs.h"
+#include "sysemu/tcg.h"
+#include "sysemu/qtest.h"
 
 /*
  * Special case return value from hppvi_index(); must be larger than
@@ -2376,6 +2378,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 12, .opc2 = 6,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = gicv3_fiq_access,
+      .fgt = FGT_ICC_IGRPENN_EL1,
       .readfn = icc_igrpen_read,
       .writefn = icc_igrpen_write,
     },
@@ -2384,6 +2387,7 @@ static const ARMCPRegInfo gicv3_cpuif_reginfo[] = {
       .opc0 = 3, .opc1 = 0, .crn = 12, .crm = 12, .opc2 = 7,
       .type = ARM_CP_IO | ARM_CP_NO_RAW,
       .access = PL1_RW, .accessfn = gicv3_irq_access,
+      .fgt = FGT_ICC_IGRPENN_EL1,
       .readfn = icc_igrpen_read,
       .writefn = icc_igrpen_write,
     },
@@ -2810,6 +2814,8 @@ void gicv3_init_cpuif(GICv3State *s)
          * which case we'd get the wrong value.
          * So instead we define the regs with no ri->opaque info, and
          * get back to the GICv3CPUState from the CPUARMState.
+         *
+         * These CP regs callbacks can be called from either TCG or HVF code.
          */
         define_arm_cp_regs(cpu, gicv3_cpuif_reginfo);
 
@@ -2905,6 +2911,16 @@ void gicv3_init_cpuif(GICv3State *s)
                 define_arm_cp_regs(cpu, gicv3_cpuif_ich_apxr23_reginfo);
             }
         }
-        arm_register_el_change_hook(cpu, gicv3_cpuif_el_change_hook, cs);
+        if (tcg_enabled() || qtest_enabled()) {
+            /*
+             * We can only trap EL changes with TCG. However the GIC interrupt
+             * state only changes on EL changes involving EL2 or EL3, so for
+             * the non-TCG case this is OK, as EL2 and EL3 can't exist.
+             */
+            arm_register_el_change_hook(cpu, gicv3_cpuif_el_change_hook, cs);
+        } else {
+            assert(!arm_feature(&cpu->env, ARM_FEATURE_EL2));
+            assert(!arm_feature(&cpu->env, ARM_FEATURE_EL3));
+        }
     }
 }
