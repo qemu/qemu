@@ -350,11 +350,10 @@ static int qcow_reopen_prepare(BDRVReopenState *state,
  * return 0 if not allocated, 1 if *result is assigned, and negative
  * errno on failure.
  */
-static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
-                                           uint64_t offset, int allocate,
-                                           int compressed_size,
-                                           int n_start, int n_end,
-                                           uint64_t *result)
+static int coroutine_fn GRAPH_RDLOCK
+get_cluster_offset(BlockDriverState *bs, uint64_t offset, int allocate,
+                   int compressed_size, int n_start, int n_end,
+                   uint64_t *result)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index, i, j, l1_index, l2_index, ret;
@@ -536,6 +535,8 @@ static int coroutine_fn qcow_co_block_status(BlockDriverState *bs,
     int64_t n;
     uint64_t cluster_offset;
 
+    assume_graph_lock(); /* FIXME */
+
     qemu_co_mutex_lock(&s->lock);
     ret = get_cluster_offset(bs, offset, 0, 0, 0, 0, &cluster_offset);
     qemu_co_mutex_unlock(&s->lock);
@@ -629,6 +630,8 @@ static coroutine_fn int qcow_co_preadv(BlockDriverState *bs, int64_t offset,
     uint64_t cluster_offset;
     uint8_t *buf;
     void *orig_buf;
+
+    assume_graph_lock(); /* FIXME */
 
     if (qiov->niov > 1) {
         buf = orig_buf = qemu_try_blockalign(bs, qiov->size);
@@ -725,6 +728,8 @@ static coroutine_fn int qcow_co_pwritev(BlockDriverState *bs, int64_t offset,
     int ret = 0, n;
     uint8_t *buf;
     void *orig_buf;
+
+    assume_graph_lock(); /* FIXME */
 
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
@@ -1055,6 +1060,8 @@ qcow_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
     int ret, out_len;
     uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
+
+    assume_graph_lock(); /* FIXME */
 
     buf = qemu_blockalign(bs, s->cluster_size);
     if (bytes != s->cluster_size) {

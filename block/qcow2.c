@@ -3183,9 +3183,9 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
  *
  * Returns: 0 on success, -errno on failure.
  */
-static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
-                                       uint64_t new_length, PreallocMode mode,
-                                       Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co(BlockDriverState *bs, uint64_t offset, uint64_t new_length,
+               PreallocMode mode, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
@@ -4209,9 +4209,9 @@ fail:
     return ret;
 }
 
-static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
-                                          bool exact, PreallocMode prealloc,
-                                          BdrvRequestFlags flags, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
+                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
@@ -4671,6 +4671,8 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     AioTaskPool *aio = NULL;
     int ret = 0;
+
+    assume_graph_lock(); /* FIXME */
 
     if (has_data_file(bs)) {
         return -ENOTSUP;

@@ -370,7 +370,7 @@ static coroutine_fn int preallocate_co_pwritev_part(BlockDriverState *bs,
                                 flags);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 preallocate_co_truncate(BlockDriverState *bs, int64_t offset,
                         bool exact, PreallocMode prealloc,
                         BdrvRequestFlags flags, Error **errp)

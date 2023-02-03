@@ -359,7 +359,7 @@ block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
                          PreallocMode prealloc, BdrvRequestFlags flags,
                          Error **errp)

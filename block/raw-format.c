@@ -384,9 +384,9 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
-static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
-                                        bool exact, PreallocMode prealloc,
-                                        BdrvRequestFlags flags, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
+                PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
 

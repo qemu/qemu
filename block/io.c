@@ -3380,6 +3380,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     int64_t old_size, new_bytes;
     int ret;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     /* if bs->drv == NULL, bs is closed, so there's nothing to do here */
     if (!drv) {
