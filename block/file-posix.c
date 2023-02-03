@@ -2607,10 +2607,9 @@ out:
     return result;
 }
 
-static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
-                                           const char *filename,
-                                           QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_create_opts(BlockDriver *drv, const char *filename,
+                   QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions options;
     int64_t total_size = 0;

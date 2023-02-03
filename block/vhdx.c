@@ -2059,10 +2059,9 @@ delete_and_exit:
     return ret;
 }
 
-static int coroutine_fn vhdx_co_create_opts(BlockDriver *drv,
-                                            const char *filename,
-                                            QemuOpts *opts,
-                                            Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_create_opts(BlockDriver *drv, const char *filename,
+                    QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;

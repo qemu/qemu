@@ -246,12 +246,11 @@ struct BlockDriver {
                           Error **errp);
     void (*bdrv_close)(BlockDriverState *bs);
 
-    int coroutine_fn (*bdrv_co_create)(BlockdevCreateOptions *opts,
-                                       Error **errp);
-    int coroutine_fn (*bdrv_co_create_opts)(BlockDriver *drv,
-                                            const char *filename,
-                                            QemuOpts *opts,
-                                            Error **errp);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_create)(
+        BlockdevCreateOptions *opts, Error **errp);
+
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_create_opts)(
+        BlockDriver *drv, const char *filename, QemuOpts *opts, Error **errp);
 
     int (*bdrv_amend_options)(BlockDriverState *bs,
                               QemuOpts *opts,

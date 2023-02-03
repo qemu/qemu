@@ -3816,10 +3816,9 @@ out:
     return ret;
 }
 
-static int coroutine_fn qcow2_co_create_opts(BlockDriver *drv,
-                                             const char *filename,
-                                             QemuOpts *opts,
-                                             Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
+                     Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;

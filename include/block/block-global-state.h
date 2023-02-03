@@ -58,13 +58,15 @@ BlockDriver *bdrv_find_protocol(const char *filename,
                                 Error **errp);
 BlockDriver *bdrv_find_format(const char *format_name);
 
-int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
-                                QemuOpts *opts, Error **errp);
-int co_wrapper bdrv_create(BlockDriver *drv, const char *filename,
-                           QemuOpts *opts, Error **errp);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_create(BlockDriver *drv, const char *filename, QemuOpts *opts,
+               Error **errp);
 
-int coroutine_fn bdrv_co_create_file(const char *filename, QemuOpts *opts,
-                                     Error **errp);
+int co_wrapper_bdrv_rdlock bdrv_create(BlockDriver *drv, const char *filename,
+                                       QemuOpts *opts, Error **errp);
+
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_create_file(const char *filename, QemuOpts *opts, Error **errp);
 
 BlockDriverState *bdrv_new(void);
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
