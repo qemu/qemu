@@ -34,7 +34,7 @@
     C(0xe318, AGF,     RXY_a, Z,   r1, m2_32s, r1, 0, add, adds64)
     F(0xb30a, AEBR,    RRE,   Z,   e1, e2, new, e1, aeb, f32, IF_BFP)
     F(0xb31a, ADBR,    RRE,   Z,   f1, f2, new, f1, adb, f64, IF_BFP)
-    F(0xb34a, AXBR,    RRE,   Z,   x2h, x2l, x1, x1, axb, f128, IF_BFP)
+    F(0xb34a, AXBR,    RRE,   Z,   x1, x2, new_x, x1, axb, f128, IF_BFP)
     F(0xed0a, AEB,     RXE,   Z,   e1, m2_32u, new, e1, aeb, f32, IF_BFP)
     F(0xed1a, ADB,     RXE,   Z,   f1, m2_64, new, f1, adb, f64, IF_BFP)
 /* ADD HIGH */
@@ -172,13 +172,13 @@
     C(0xe330, CGF,     RXY_a, Z,   r1_o, m2_32s, 0, 0, 0, cmps64)
     F(0xb309, CEBR,    RRE,   Z,   e1, e2, 0, 0, ceb, 0, IF_BFP)
     F(0xb319, CDBR,    RRE,   Z,   f1, f2, 0, 0, cdb, 0, IF_BFP)
-    F(0xb349, CXBR,    RRE,   Z,   x2h, x2l, x1, 0, cxb, 0, IF_BFP)
+    F(0xb349, CXBR,    RRE,   Z,   x1, x2, 0, 0, cxb, 0, IF_BFP)
     F(0xed09, CEB,     RXE,   Z,   e1, m2_32u, 0, 0, ceb, 0, IF_BFP)
     F(0xed19, CDB,     RXE,   Z,   f1, m2_64, 0, 0, cdb, 0, IF_BFP)
 /* COMPARE AND SIGNAL */
     F(0xb308, KEBR,    RRE,   Z,   e1, e2, 0, 0, keb, 0, IF_BFP)
     F(0xb318, KDBR,    RRE,   Z,   f1, f2, 0, 0, kdb, 0, IF_BFP)
-    F(0xb348, KXBR,    RRE,   Z,   x2h, x2l, x1, 0, kxb, 0, IF_BFP)
+    F(0xb348, KXBR,    RRE,   Z,   x1, x2, 0, 0, kxb, 0, IF_BFP)
     F(0xed08, KEB,     RXE,   Z,   e1, m2_32u, 0, 0, keb, 0, IF_BFP)
     F(0xed18, KDB,     RXE,   Z,   f1, m2_64, 0, 0, kdb, 0, IF_BFP)
 /* COMPARE IMMEDIATE */
@@ -276,7 +276,7 @@
 /* COMPARE DOUBLE AND SWAP */
     D(0xbb00, CDS,     RS_a,  Z,   r3_D32, r1_D32, new, r1_D32, cs, 0, MO_TEUQ)
     D(0xeb31, CDSY,    RSY_a, LD,  r3_D32, r1_D32, new, r1_D32, cs, 0, MO_TEUQ)
-    C(0xeb3e, CDSG,    RSY_a, Z,   0, 0, 0, 0, cdsg, 0)
+    C(0xeb3e, CDSG,    RSY_a, Z,   la2, r3_D64, 0, r1_D64, cdsg, 0)
 /* COMPARE AND SWAP AND STORE */
     C(0xc802, CSST,    SSF,   CASS, la1, a2, 0, 0, csst, 0)
 
@@ -299,31 +299,31 @@
 /* CONVERT TO FIXED */
     F(0xb398, CFEBR,   RRF_e, Z,   0, e2, new, r1_32, cfeb, 0, IF_BFP)
     F(0xb399, CFDBR,   RRF_e, Z,   0, f2, new, r1_32, cfdb, 0, IF_BFP)
-    F(0xb39a, CFXBR,   RRF_e, Z,   x2h, x2l, new, r1_32, cfxb, 0, IF_BFP)
+    F(0xb39a, CFXBR,   RRF_e, Z,   0, x2, new, r1_32, cfxb, 0, IF_BFP)
     F(0xb3a8, CGEBR,   RRF_e, Z,   0, e2, r1, 0, cgeb, 0, IF_BFP)
     F(0xb3a9, CGDBR,   RRF_e, Z,   0, f2, r1, 0, cgdb, 0, IF_BFP)
-    F(0xb3aa, CGXBR,   RRF_e, Z,   x2h, x2l, r1, 0, cgxb, 0, IF_BFP)
+    F(0xb3aa, CGXBR,   RRF_e, Z,   0, x2, r1, 0, cgxb, 0, IF_BFP)
 /* CONVERT FROM FIXED */
     F(0xb394, CEFBR,   RRF_e, Z,   0, r2_32s, new, e1, cegb, 0, IF_BFP)
     F(0xb395, CDFBR,   RRF_e, Z,   0, r2_32s, new, f1, cdgb, 0, IF_BFP)
-    F(0xb396, CXFBR,   RRF_e, Z,   0, r2_32s, new_P, x1, cxgb, 0, IF_BFP)
+    F(0xb396, CXFBR,   RRF_e, Z,   0, r2_32s, new_x, x1, cxgb, 0, IF_BFP)
     F(0xb3a4, CEGBR,   RRF_e, Z,   0, r2_o, new, e1, cegb, 0, IF_BFP)
     F(0xb3a5, CDGBR,   RRF_e, Z,   0, r2_o, new, f1, cdgb, 0, IF_BFP)
-    F(0xb3a6, CXGBR,   RRF_e, Z,   0, r2_o, new_P, x1, cxgb, 0, IF_BFP)
+    F(0xb3a6, CXGBR,   RRF_e, Z,   0, r2_o, new_x, x1, cxgb, 0, IF_BFP)
 /* CONVERT TO LOGICAL */
     F(0xb39c, CLFEBR,  RRF_e, FPE, 0, e2, new, r1_32, clfeb, 0, IF_BFP)
     F(0xb39d, CLFDBR,  RRF_e, FPE, 0, f2, new, r1_32, clfdb, 0, IF_BFP)
-    F(0xb39e, CLFXBR,  RRF_e, FPE, x2h, x2l, new, r1_32, clfxb, 0, IF_BFP)
+    F(0xb39e, CLFXBR,  RRF_e, FPE, 0, x2, new, r1_32, clfxb, 0, IF_BFP)
     F(0xb3ac, CLGEBR,  RRF_e, FPE, 0, e2, r1, 0, clgeb, 0, IF_BFP)
     F(0xb3ad, CLGDBR,  RRF_e, FPE, 0, f2, r1, 0, clgdb, 0, IF_BFP)
-    F(0xb3ae, CLGXBR,  RRF_e, FPE, x2h, x2l, r1, 0, clgxb, 0, IF_BFP)
+    F(0xb3ae, CLGXBR,  RRF_e, FPE, 0, x2, r1, 0, clgxb, 0, IF_BFP)
 /* CONVERT FROM LOGICAL */
     F(0xb390, CELFBR,  RRF_e, FPE, 0, r2_32u, new, e1, celgb, 0, IF_BFP)
     F(0xb391, CDLFBR,  RRF_e, FPE, 0, r2_32u, new, f1, cdlgb, 0, IF_BFP)
-    F(0xb392, CXLFBR,  RRF_e, FPE, 0, r2_32u, new_P, x1, cxlgb, 0, IF_BFP)
+    F(0xb392, CXLFBR,  RRF_e, FPE, 0, r2_32u, new_x, x1, cxlgb, 0, IF_BFP)
     F(0xb3a0, CELGBR,  RRF_e, FPE, 0, r2_o, new, e1, celgb, 0, IF_BFP)
     F(0xb3a1, CDLGBR,  RRF_e, FPE, 0, r2_o, new, f1, cdlgb, 0, IF_BFP)
-    F(0xb3a2, CXLGBR,  RRF_e, FPE, 0, r2_o, new_P, x1, cxlgb, 0, IF_BFP)
+    F(0xb3a2, CXLGBR,  RRF_e, FPE, 0, r2_o, new_x, x1, cxlgb, 0, IF_BFP)
 
 /* CONVERT UTF-8 TO UTF-16 */
     D(0xb2a7, CU12,    RRF_c, Z,   0, 0, 0, 0, cuXX, 0, 12)
@@ -343,7 +343,7 @@
     C(0x5d00, D,       RX_a,  Z,   r1_D32, m2_32s, new_P, r1_P32, divs32, 0)
     F(0xb30d, DEBR,    RRE,   Z,   e1, e2, new, e1, deb, 0, IF_BFP)
     F(0xb31d, DDBR,    RRE,   Z,   f1, f2, new, f1, ddb, 0, IF_BFP)
-    F(0xb34d, DXBR,    RRE,   Z,   x2h, x2l, x1, x1, dxb, 0, IF_BFP)
+    F(0xb34d, DXBR,    RRE,   Z,   x1, x2, new_x, x1, dxb, 0, IF_BFP)
     F(0xed0d, DEB,     RXE,   Z,   e1, m2_32u, new, e1, deb, 0, IF_BFP)
     F(0xed1d, DDB,     RXE,   Z,   f1, m2_64, new, f1, ddb, 0, IF_BFP)
 /* DIVIDE LOGICAL */
@@ -422,7 +422,7 @@
     F(0x3800, LER,     RR_a,  Z,   0, e2, 0, cond_e1e2, mov2, 0, IF_AFP1 | IF_AFP2)
     F(0x7800, LE,      RX_a,  Z,   0, m2_32u, 0, e1, mov2, 0, IF_AFP1)
     F(0xed64, LEY,     RXY_a, LD,  0, m2_32u, 0, e1, mov2, 0, IF_AFP1)
-    F(0xb365, LXR,     RRE,   Z,   x2h, x2l, 0, x1, movx, 0, IF_AFP1)
+    F(0xb365, LXR,     RRE,   Z,   x2h, x2l, 0, x1_P, movx, 0, IF_AFP1)
 /* LOAD IMMEDIATE */
     C(0xc001, LGFI,    RIL_a, EI,  0, i2, 0, r1, mov2, 0)
 /* LOAD RELATIVE LONG */
@@ -461,7 +461,7 @@
     C(0xe332, LTGF,    RXY_a, GIE, 0, a2, r1, 0, ld32s, s64)
     F(0xb302, LTEBR,   RRE,   Z,   0, e2, 0, cond_e1e2, mov2, f32, IF_BFP)
     F(0xb312, LTDBR,   RRE,   Z,   0, f2, 0, f1, mov2, f64, IF_BFP)
-    F(0xb342, LTXBR,   RRE,   Z,   x2h, x2l, 0, x1, movx, f128, IF_BFP)
+    F(0xb342, LTXBR,   RRE,   Z,   x2h, x2l, 0, x1_P, movx, f128, IF_BFP)
 /* LOAD AND TRAP */
     C(0xe39f, LAT,     RXY_a, LAT, 0, m2_32u, r1, 0, lat, 0)
     C(0xe385, LGAT,    RXY_a, LAT, 0, a2, r1, 0, lgat, 0)
@@ -483,7 +483,7 @@
     C(0xb913, LCGFR,   RRE,   Z,   0, r2_32s, r1, 0, neg, neg64)
     F(0xb303, LCEBR,   RRE,   Z,   0, e2, new, e1, negf32, f32, IF_BFP)
     F(0xb313, LCDBR,   RRE,   Z,   0, f2, new, f1, negf64, f64, IF_BFP)
-    F(0xb343, LCXBR,   RRE,   Z,   x2h, x2l, new_P, x1, negf128, f128, IF_BFP)
+    F(0xb343, LCXBR,   RRE,   Z,   x2h, x2l, new_P, x1_P, negf128, f128, IF_BFP)
     F(0xb373, LCDFR,   RRE,   FPSSH, 0, f2, new, f1, negf64, 0, IF_AFP1 | IF_AFP2)
 /* LOAD COUNT TO BLOCK BOUNDARY */
     C(0xe727, LCBB,    RXE,   V,   la2, 0, r1, 0, lcbb, 0)
@@ -552,7 +552,7 @@
     C(0xb911, LNGFR,   RRE,   Z,   0, r2_32s, r1, 0, nabs, nabs64)
     F(0xb301, LNEBR,   RRE,   Z,   0, e2, new, e1, nabsf32, f32, IF_BFP)
     F(0xb311, LNDBR,   RRE,   Z,   0, f2, new, f1, nabsf64, f64, IF_BFP)
-    F(0xb341, LNXBR,   RRE,   Z,   x2h, x2l, new_P, x1, nabsf128, f128, IF_BFP)
+    F(0xb341, LNXBR,   RRE,   Z,   x2h, x2l, new_P, x1_P, nabsf128, f128, IF_BFP)
     F(0xb371, LNDFR,   RRE,   FPSSH, 0, f2, new, f1, nabsf64, 0, IF_AFP1 | IF_AFP2)
 /* LOAD ON CONDITION */
     C(0xb9f2, LOCR,    RRF_c, LOC, r1, r2, new, r1_32, loc, 0)
@@ -577,7 +577,7 @@
     C(0xb910, LPGFR,   RRE,   Z,   0, r2_32s, r1, 0, abs, abs64)
     F(0xb300, LPEBR,   RRE,   Z,   0, e2, new, e1, absf32, f32, IF_BFP)
     F(0xb310, LPDBR,   RRE,   Z,   0, f2, new, f1, absf64, f64, IF_BFP)
-    F(0xb340, LPXBR,   RRE,   Z,   x2h, x2l, new_P, x1, absf128, f128, IF_BFP)
+    F(0xb340, LPXBR,   RRE,   Z,   x2h, x2l, new_P, x1_P, absf128, f128, IF_BFP)
     F(0xb370, LPDFR,   RRE,   FPSSH, 0, f2, new, f1, absf64, 0, IF_AFP1 | IF_AFP2)
 /* LOAD REVERSED */
     C(0xb91f, LRVR,    RRE,   Z,   0, r2_32u, new, r1_32, rev32, 0)
@@ -588,7 +588,7 @@
 /* LOAD ZERO */
     F(0xb374, LZER,    RRE,   Z,   0, 0, 0, e1, zero, 0, IF_AFP1)
     F(0xb375, LZDR,    RRE,   Z,   0, 0, 0, f1, zero, 0, IF_AFP1)
-    F(0xb376, LZXR,    RRE,   Z,   0, 0, 0, x1, zero2, 0, IF_AFP1)
+    F(0xb376, LZXR,    RRE,   Z,   0, 0, 0, x1_P, zero2, 0, IF_AFP1)
 
 /* LOAD FPC */
     F(0xb29d, LFPC,    S,     Z,   0, m2_32u, 0, 0, sfpc, 0, IF_BFP)
@@ -597,21 +597,21 @@
 /* LOAD FP INTEGER */
     F(0xb357, FIEBR,   RRF_e, Z,   0, e2, new, e1, fieb, 0, IF_BFP)
     F(0xb35f, FIDBR,   RRF_e, Z,   0, f2, new, f1, fidb, 0, IF_BFP)
-    F(0xb347, FIXBR,   RRF_e, Z,   x2h, x2l, new_P, x1, fixb, 0, IF_BFP)
+    F(0xb347, FIXBR,   RRF_e, Z,   0, x2, new_x, x1, fixb, 0, IF_BFP)
 
 /* LOAD LENGTHENED */
     F(0xb304, LDEBR,   RRE,   Z,   0, e2, new, f1, ldeb, 0, IF_BFP)
-    F(0xb305, LXDBR,   RRE,   Z,   0, f2, new_P, x1, lxdb, 0, IF_BFP)
-    F(0xb306, LXEBR,   RRE,   Z,   0, e2, new_P, x1, lxeb, 0, IF_BFP)
+    F(0xb305, LXDBR,   RRE,   Z,   0, f2, new_x, x1, lxdb, 0, IF_BFP)
+    F(0xb306, LXEBR,   RRE,   Z,   0, e2, new_x, x1, lxeb, 0, IF_BFP)
     F(0xed04, LDEB,    RXE,   Z,   0, m2_32u, new, f1, ldeb, 0, IF_BFP)
-    F(0xed05, LXDB,    RXE,   Z,   0, m2_64, new_P, x1, lxdb, 0, IF_BFP)
-    F(0xed06, LXEB,    RXE,   Z,   0, m2_32u, new_P, x1, lxeb, 0, IF_BFP)
+    F(0xed05, LXDB,    RXE,   Z,   0, m2_64, new_x, x1, lxdb, 0, IF_BFP)
+    F(0xed06, LXEB,    RXE,   Z,   0, m2_32u, new_x, x1, lxeb, 0, IF_BFP)
     F(0xb324, LDER,    RXE,   Z,   0, e2, new, f1, lde, 0, IF_AFP1)
     F(0xed24, LDE,     RXE,   Z,   0, m2_32u, new, f1, lde, 0, IF_AFP1)
 /* LOAD ROUNDED */
     F(0xb344, LEDBR,   RRF_e, Z,   0, f2, new, e1, ledb, 0, IF_BFP)
-    F(0xb345, LDXBR,   RRF_e, Z,   x2h, x2l, new, f1, ldxb, 0, IF_BFP)
-    F(0xb346, LEXBR,   RRF_e, Z,   x2h, x2l, new, e1, lexb, 0, IF_BFP)
+    F(0xb345, LDXBR,   RRF_e, Z,   0, x2, new, f1, ldxb, 0, IF_BFP)
+    F(0xb346, LEXBR,   RRF_e, Z,   0, x2, new, e1, lexb, 0, IF_BFP)
 
 /* LOAD MULTIPLE */
     C(0x9800, LM,      RS_a,  Z,   0, a2, 0, 0, lm32, 0)
@@ -666,7 +666,7 @@
     C(0xe384, MG,      RXY_a, MIE2,r1p1_o, m2_64, r1_P, 0, muls128, 0)
     F(0xb317, MEEBR,   RRE,   Z,   e1, e2, new, e1, meeb, 0, IF_BFP)
     F(0xb31c, MDBR,    RRE,   Z,   f1, f2, new, f1, mdb, 0, IF_BFP)
-    F(0xb34c, MXBR,    RRE,   Z,   x2h, x2l, x1, x1, mxb, 0, IF_BFP)
+    F(0xb34c, MXBR,    RRE,   Z,   x1, x2, new_x, x1, mxb, 0, IF_BFP)
     F(0xb30c, MDEBR,   RRE,   Z,   f1, e2, new, f1, mdeb, 0, IF_BFP)
     F(0xb307, MXDBR,   RRE,   Z,   0, f2, x1, x1, mxdb, 0, IF_BFP)
     F(0xed17, MEEB,    RXE,   Z,   e1, m2_32u, new, e1, meeb, 0, IF_BFP)
@@ -835,7 +835,7 @@
 /* SQUARE ROOT */
     F(0xb314, SQEBR,   RRE,   Z,   0, e2, new, e1, sqeb, 0, IF_BFP)
     F(0xb315, SQDBR,   RRE,   Z,   0, f2, new, f1, sqdb, 0, IF_BFP)
-    F(0xb316, SQXBR,   RRE,   Z,   x2h, x2l, new_P, x1, sqxb, 0, IF_BFP)
+    F(0xb316, SQXBR,   RRE,   Z,   0, x2, new_x, x1, sqxb, 0, IF_BFP)
     F(0xed14, SQEB,    RXE,   Z,   0, m2_32u, new, e1, sqeb, 0, IF_BFP)
     F(0xed15, SQDB,    RXE,   Z,   0, m2_64, new, f1, sqdb, 0, IF_BFP)
 
@@ -913,7 +913,7 @@
     C(0xe319, SGF,     RXY_a, Z,   r1, m2_32s, r1, 0, sub, subs64)
     F(0xb30b, SEBR,    RRE,   Z,   e1, e2, new, e1, seb, f32, IF_BFP)
     F(0xb31b, SDBR,    RRE,   Z,   f1, f2, new, f1, sdb, f64, IF_BFP)
-    F(0xb34b, SXBR,    RRE,   Z,   x2h, x2l, x1, x1, sxb, f128, IF_BFP)
+    F(0xb34b, SXBR,    RRE,   Z,   x1, x2, new_x, x1, sxb, f128, IF_BFP)
     F(0xed0b, SEB,     RXE,   Z,   e1, m2_32u, new, e1, seb, f32, IF_BFP)
     F(0xed1b, SDB,     RXE,   Z,   f1, m2_64, new, f1, sdb, f64, IF_BFP)
 /* SUBTRACT HALFWORD */
@@ -957,7 +957,7 @@
 /* TEST DATA CLASS */
     F(0xed10, TCEB,    RXE,   Z,   e1, a2, 0, 0, tceb, 0, IF_BFP)
     F(0xed11, TCDB,    RXE,   Z,   f1, a2, 0, 0, tcdb, 0, IF_BFP)
-    F(0xed12, TCXB,    RXE,   Z,   0, a2, x1, 0, tcxb, 0, IF_BFP)
+    F(0xed12, TCXB,    RXE,   Z,   x1, a2, 0, 0, tcxb, 0, IF_BFP)
 
 /* TEST DECIMAL */
     C(0xebc0, TP,      RSL,   E2,  la1, 0, 0, 0, tp, 0)

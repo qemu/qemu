@@ -24,6 +24,13 @@ TESTS+=trap
 TESTS+=signals-s390x
 TESTS+=branch-relative-long
 TESTS+=noexec
+TESTS+=div
+TESTS+=clst
+TESTS+=long-double
+TESTS+=cdsg
+
+cdsg: CFLAGS+=-pthread
+cdsg: LDFLAGS+=-pthread
 
 Z13_TESTS=vistr
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
