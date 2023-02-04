@@ -86,6 +86,9 @@
 { TARGET_NR_clock_getres, "clock_getres" , NULL, print_clock_getres,
                           print_syscall_ret_clock_getres },
 #endif
+#ifdef TARGET_NR_clock_getres_time64
+{ TARGET_NR_clock_getres_time64, "clock_getres_time64" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_clock_gettime
 { TARGET_NR_clock_gettime, "clock_gettime" , NULL, print_clock_gettime,
                            print_syscall_ret_clock_gettime },
@@ -164,7 +167,7 @@
 { TARGET_NR_execve, "execve" , NULL, print_execve, NULL },
 #endif
 #ifdef TARGET_NR_execveat
-{ TARGET_NR_execveat, "execveat" , NULL, NULL, NULL },
+{ TARGET_NR_execveat, "execveat" , NULL, print_execveat, NULL },
 #endif
 #ifdef TARGET_NR_exec_with_loader
 { TARGET_NR_exec_with_loader, "exec_with_loader" , NULL, NULL, NULL },
@@ -275,6 +278,9 @@
 #ifdef TARGET_NR_futex
 { TARGET_NR_futex, "futex" , NULL, print_futex, NULL },
 #endif
+#ifdef TARGET_NR_futex_time64
+{ TARGET_NR_futex_time64, "futex_time64" , NULL, NULL, NULL },
+#endif
 #ifdef TARGET_NR_futimesat
 { TARGET_NR_futimesat, "futimesat" , NULL, print_futimesat, NULL },
 #endif
@@ -315,10 +321,10 @@
 { TARGET_NR_getgid32, "getgid32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getgroups
-{ TARGET_NR_getgroups, "getgroups" , NULL, NULL, NULL },
+{ TARGET_NR_getgroups, "getgroups" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getgroups32
-{ TARGET_NR_getgroups32, "getgroups32" , NULL, NULL, NULL },
+{ TARGET_NR_getgroups32, "getgroups32" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_gethostname
 { TARGET_NR_gethostname, "gethostname" , NULL, NULL, NULL },
@@ -337,7 +343,7 @@
 { TARGET_NR_getpagesize, "getpagesize" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpeername
-{ TARGET_NR_getpeername, "getpeername" , NULL, NULL, NULL },
+{ TARGET_NR_getpeername, "getpeername" , "%s(%d,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpgid
 { TARGET_NR_getpgid, "getpgid" , "%s(%u)", NULL, NULL },
@@ -361,19 +367,19 @@
 { TARGET_NR_getrandom, "getrandom", "%s(%p,%u,%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getresgid
-{ TARGET_NR_getresgid, "getresgid" , NULL, NULL, NULL },
+{ TARGET_NR_getresgid, "getresgid" , "%s(%p,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getresgid32
 { TARGET_NR_getresgid32, "getresgid32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getresuid
-{ TARGET_NR_getresuid, "getresuid" , NULL, NULL, NULL },
+{ TARGET_NR_getresuid, "getresuid" , "%s(%p,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getresuid32
 { TARGET_NR_getresuid32, "getresuid32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getrlimit
-{ TARGET_NR_getrlimit, "getrlimit" , NULL, NULL, NULL },
+{ TARGET_NR_getrlimit, "getrlimit" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_get_robust_list
 { TARGET_NR_get_robust_list, "get_robust_list" , NULL, NULL, NULL },
@@ -385,10 +391,10 @@
 { TARGET_NR_getsid, "getsid" , "%s(%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getsockname
-{ TARGET_NR_getsockname, "getsockname" , NULL, NULL, NULL },
+{ TARGET_NR_getsockname, "getsockname" , "%s(%d,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getsockopt
-{ TARGET_NR_getsockopt, "getsockopt" , NULL, NULL, NULL },
+{ TARGET_NR_getsockopt, "getsockopt" , "%s(%d,%d,%d,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_get_thread_area
 #if defined(TARGET_I386) && defined(TARGET_ABI32)
@@ -1043,7 +1049,8 @@
 { TARGET_NR_perfctr, "perfctr" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_personality
-{ TARGET_NR_personality, "personality" , NULL, NULL, NULL },
+{ TARGET_NR_personality, "personality" , "%s(0x"TARGET_ABI_FMT_lx")", NULL,
+  print_syscall_ret_addr },
 #endif
 #ifdef TARGET_NR_pipe
 { TARGET_NR_pipe, "pipe" , NULL, NULL, NULL },
@@ -1052,10 +1059,10 @@
 { TARGET_NR_pivot_root, "pivot_root" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_poll
-{ TARGET_NR_poll, "poll" , NULL, NULL, NULL },
+{ TARGET_NR_poll, "poll" , "%s(%p,%u,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_ppoll
-{ TARGET_NR_ppoll, "ppoll" , NULL, NULL, NULL },
+{ TARGET_NR_ppoll, "ppoll" , "%s(%p,%u,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_prctl
 { TARGET_NR_prctl, "prctl" , NULL, NULL, NULL },
@@ -1124,7 +1131,7 @@
 { TARGET_NR_reboot, "reboot" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_recv
-{ TARGET_NR_recv, "recv" , NULL, NULL, NULL },
+{ TARGET_NR_recv, "recv" , "%s(%d,%p,%u,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_recvfrom
 { TARGET_NR_recvfrom, "recvfrom" , NULL, NULL, NULL },
@@ -1184,7 +1191,7 @@
 { TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, print_rt_sigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigreturn
-{ TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
+{ TARGET_NR_rt_sigreturn, "rt_sigreturn" , "%s(%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_rt_sigsuspend
 { TARGET_NR_rt_sigsuspend, "rt_sigsuspend" , NULL, NULL, NULL },
@@ -1196,16 +1203,19 @@
 { TARGET_NR_rt_tgsigqueueinfo, "rt_tgsigqueueinfo" , NULL, print_rt_tgsigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_sched_getaffinity
-{ TARGET_NR_sched_getaffinity, "sched_getaffinity" , NULL, NULL, NULL },
+{ TARGET_NR_sched_getaffinity, "sched_getaffinity" , "%s(%d,%u,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_get_affinity
 { TARGET_NR_sched_get_affinity, "sched_get_affinity" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_getattr
-{ TARGET_NR_sched_getattr, "sched_getattr" , NULL, NULL, NULL },
+{ TARGET_NR_sched_getattr, "sched_getattr" , "%s(%d,%p,%u,%u)", NULL, NULL },
+#endif
+#ifdef TARGET_NR_sched_setattr
+{ TARGET_NR_sched_setattr, "sched_setattr" , "%s(%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_getparam
-{ TARGET_NR_sched_getparam, "sched_getparam" , NULL, NULL, NULL },
+{ TARGET_NR_sched_getparam, "sched_getparam" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_get_priority_max
 { TARGET_NR_sched_get_priority_max, "sched_get_priority_max" , NULL, NULL, NULL },
@@ -1220,7 +1230,7 @@
 { TARGET_NR_sched_rr_get_interval, "sched_rr_get_interval" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_setaffinity
-{ TARGET_NR_sched_setaffinity, "sched_setaffinity" , NULL, NULL, NULL },
+{ TARGET_NR_sched_setaffinity, "sched_setaffinity" , "%s(%d,%u,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sched_setatt
 { TARGET_NR_sched_setatt, "sched_setatt" , NULL, NULL, NULL },
@@ -1298,10 +1308,10 @@
 { TARGET_NR_setgid32, "setgid32" , "%s(%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_setgroups
-{ TARGET_NR_setgroups, "setgroups" , NULL, NULL, NULL },
+{ TARGET_NR_setgroups, "setgroups" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_setgroups32
-{ TARGET_NR_setgroups32, "setgroups32" , NULL, NULL, NULL },
+{ TARGET_NR_setgroups32, "setgroups32" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sethae
 { TARGET_NR_sethae, "sethae" , NULL, NULL, NULL },
@@ -1353,23 +1363,23 @@
 { TARGET_NR_setreuid32, "setreuid32" , "%s(%u,%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_setrlimit
-{ TARGET_NR_setrlimit, "setrlimit" , NULL, NULL, NULL },
+{ TARGET_NR_setrlimit, "setrlimit" , "%s(%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_robust_list
-{ TARGET_NR_set_robust_list, "set_robust_list" , NULL, NULL, NULL },
+{ TARGET_NR_set_robust_list, "set_robust_list" , "%s(%p,%u)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_setsid
 { TARGET_NR_setsid, "setsid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_setsockopt
-{ TARGET_NR_setsockopt, "setsockopt" , NULL, NULL, NULL },
+{ TARGET_NR_setsockopt, "setsockopt" , "%s(%d,%d,%d,%p,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_thread_area
 { TARGET_NR_set_thread_area, "set_thread_area", "%s(0x"TARGET_ABI_FMT_lx")",
   NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_tid_address
-{ TARGET_NR_set_tid_address, "set_tid_address" , NULL, NULL, NULL },
+{ TARGET_NR_set_tid_address, "set_tid_address" , "%s(%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_settimeofday
 { TARGET_NR_settimeofday, "settimeofday" , NULL, print_settimeofday, NULL },
@@ -1498,7 +1508,7 @@
 { TARGET_NR_sysfs, "sysfs" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sysinfo
-{ TARGET_NR_sysinfo, "sysinfo" , NULL, NULL, NULL },
+{ TARGET_NR_sysinfo, "sysinfo" , "%s(%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_sys_kexec_load
 { TARGET_NR_sys_kexec_load, "sys_kexec_load" , NULL, NULL, NULL },
@@ -1648,7 +1658,7 @@
 { TARGET_NR_vserver, "vserver" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_wait4
-{ TARGET_NR_wait4, "wait4" , NULL, NULL, NULL },
+{ TARGET_NR_wait4, "wait4" , "%s(%d,%p,%d,%p)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_waitid
 { TARGET_NR_waitid, "waitid" , "%s(%#x,%d,%p,%#x)", NULL, NULL },
@@ -1672,7 +1682,7 @@
 { TARGET_NR_sync_file_range2, "sync_file_range2", NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_pipe2
-{ TARGET_NR_pipe2, "pipe2", NULL, NULL, NULL },
+{ TARGET_NR_pipe2, "pipe2", "%s(%p,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_pidfd_open
 { TARGET_NR_pidfd_open, "pidfd_open", "%s(%d,%u)", NULL, NULL },
