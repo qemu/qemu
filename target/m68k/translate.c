@@ -2774,7 +2774,11 @@ DISAS_INSN(swap)
 
 DISAS_INSN(bkpt)
 {
+#if defined(CONFIG_SOFTMMU)
+    gen_exception(s, s->base.pc_next, EXCP_ILLEGAL);
+#else
     gen_exception(s, s->base.pc_next, EXCP_DEBUG);
+#endif
 }
 
 DISAS_INSN(pea)
