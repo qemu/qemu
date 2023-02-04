@@ -18,6 +18,7 @@ softmmu_ss.add(files(
   'exec.c',
   'fd.c',
   'global_state.c',
+  'migration-hmp-cmds.c',
   'migration.c',
   'multifd.c',
   'multifd-zlib.c',

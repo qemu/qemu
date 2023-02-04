@@ -44,6 +44,8 @@ typedef struct ReadLineState {
 } ReadLineState;
 
 void readline_add_completion(ReadLineState *rs, const char *str);
+void readline_add_completion_of(ReadLineState *rs,
+                                const char *pfx, const char *str);
 void readline_set_completion_index(ReadLineState *rs, int completion_index);
 
 const char *readline_get_history(ReadLineState *rs, unsigned int index);

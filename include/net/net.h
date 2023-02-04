@@ -115,6 +115,8 @@ struct NetClientState {
     QTAILQ_HEAD(, NetFilterState) filters;
 };
 
+typedef QTAILQ_HEAD(NetClientStateList, NetClientState) NetClientStateList;
+
 typedef struct NICState {
     NetClientState *ncs;
     NICConf *conf;
@@ -196,7 +198,6 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
 void print_net_client(Monitor *mon, NetClientState *nc);
-void hmp_info_network(Monitor *mon, const QDict *qdict);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
                         bool vnet_hdr);
@@ -222,6 +223,7 @@ extern NICInfo nd_table[MAX_NICS];
 extern const char *host_net_devices[];
 
 /* from net.c */
+extern NetClientStateList net_clients;
 bool netdev_is_modern(const char *optarg);
 void netdev_parse_modern(const char *optarg);
 void net_client_parse(QemuOptsList *opts_list, const char *str);

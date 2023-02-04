@@ -68,5 +68,6 @@ softmmu_ss.add(when: 'CONFIG_ROCKER', if_true: files(
   'rocker/rocker_world.c',
 ), if_false: files('rocker/qmp-norocker.c'))
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('rocker/qmp-norocker.c'))
+softmmu_ss.add(files('rocker/rocker-hmp-cmds.c'))
 
 subdir('can')

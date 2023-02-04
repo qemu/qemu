@@ -38,3 +38,4 @@ softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c', 'aml-build-stub
                                                   'acpi-mem-hotplug-stub.c', 'acpi-cpu-hotplug-stub.c',
                                                   'acpi-pci-hotplug-stub.c', 'acpi-nvdimm-stub.c',
                                                   'cxl-stub.c', 'pci-bridge-stub.c'))
+softmmu_ss.add(files('acpi-qmp-cmds.c'))
