@@ -72,11 +72,6 @@ struct MV64361PCIState {
     uint64_t remap[5];
 };
 
-static int mv64361_pcihost_map_irq(PCIDevice *pci_dev, int n)
-{
-    return (n + PCI_SLOT(pci_dev->devfn)) % PCI_NUM_PINS;
-}
-
 static void mv64361_pcihost_set_irq(void *opaque, int n, int level)
 {
     MV64361PCIState *s = opaque;
@@ -97,7 +92,7 @@ static void mv64361_pcihost_realize(DeviceState *dev, Error **errp)
     g_free(name);
     name = g_strdup_printf("pci.%d", s->index);
     h->bus = pci_register_root_bus(dev, name, mv64361_pcihost_set_irq,
-                                   mv64361_pcihost_map_irq, dev,
+                                   pci_swizzle_map_irq_fn, dev,
                                    &s->mem, &s->io, 0, 4, TYPE_PCI_BUS);
     g_free(name);
     pci_create_simple(h->bus, 0, TYPE_MV64361_PCI_BRIDGE);

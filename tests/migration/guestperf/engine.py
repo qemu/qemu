@@ -281,6 +281,26 @@ class Engine(object):
                 resp = src.command("stop")
                 paused = True
 
+    def _is_ppc64le(self):
+        _, _, _, _, machine = os.uname()
+        if machine == "ppc64le":
+            return True
+        return False
+
+    def _get_guest_console_args(self):
+        if self._is_ppc64le():
+            return "console=hvc0"
+        else:
+            return "console=ttyS0"
+
+    def _get_qemu_serial_args(self):
+        if self._is_ppc64le():
+            return ["-chardev", "stdio,id=cdev0",
+                    "-device", "spapr-vty,chardev=cdev0"]
+        else:
+            return ["-chardev", "stdio,id=cdev0",
+                    "-device", "isa-serial,chardev=cdev0"]
+
     def _get_common_args(self, hardware, tunnelled=False):
         args = [
             "noapic",
@@ -289,8 +309,10 @@ class Engine(object):
             "noreplace-smp",
             "cgroup_disable=memory",
             "pci=noearly",
-            "console=ttyS0",
         ]
+
+        args.append(self._get_guest_console_args())
+
         if self._debug:
             args.append("debug")
         else:
@@ -308,11 +330,11 @@ class Engine(object):
             "-kernel", self._kernel,
             "-initrd", self._initrd,
             "-append", cmdline,
-            "-chardev", "stdio,id=cdev0",
-            "-device", "isa-serial,chardev=cdev0",
             "-m", str((hardware._mem * 1024) + 512),
             "-smp", str(hardware._cpus),
         ]
+
+        argv.extend(self._get_qemu_serial_args())
 
         if self._debug:
             argv.extend(["-device", "sga"])

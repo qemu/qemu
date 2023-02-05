@@ -241,7 +241,7 @@ static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
     int irq0 = platform_bus_get_irqn(pbus, sbdev, 0);
     int irq1 = platform_bus_get_irqn(pbus, sbdev, 1);
     int irq2 = platform_bus_get_irqn(pbus, sbdev, 2);
-    gchar *node = g_strdup_printf("/platform/ethernet@%"PRIx64, mmio0);
+    gchar *node = g_strdup_printf("%s/ethernet@%"PRIx64, data->node, mmio0);
     gchar *group = g_strdup_printf("%s/queue-group", node);
     void *fdt = data->fdt;
 
@@ -643,9 +643,8 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
     }
     g_free(soc);
 
-    if (pms->pbus_dev) {
-        platform_bus_create_devtree(pms, fdt, mpic);
-    }
+    platform_bus_create_devtree(pms, fdt, mpic);
+
     g_free(mpic);
 
     pmc->fixup_devtree(fdt);
@@ -659,9 +658,14 @@ done:
     if (!dry_run) {
         qemu_fdt_dumpdtb(fdt, fdt_size);
         cpu_physical_memory_write(addr, fdt, fdt_size);
+
+        /* Set machine->fdt for 'dumpdtb' QMP/HMP command */
+        g_free(machine->fdt);
+        machine->fdt = fdt;
+    } else {
+        g_free(fdt);
     }
     ret = fdt_size;
-    g_free(fdt);
 
 out:
     g_free(pci_map);
@@ -1018,9 +1022,13 @@ void ppce500_init(MachineState *machine)
 
     /* eSDHC */
     if (pmc->has_esdhc) {
-        create_unimplemented_device("esdhc",
-                                    pmc->ccsrbar_base + MPC85XX_ESDHC_REGS_OFFSET,
-                                    MPC85XX_ESDHC_REGS_SIZE);
+        dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+        qdev_prop_set_string(dev, "name", "esdhc");
+        qdev_prop_set_uint64(dev, "size", MPC85XX_ESDHC_REGS_SIZE);
+        s = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(s, &error_fatal);
+        memory_region_add_subregion(ccsr_addr_space, MPC85XX_ESDHC_REGS_OFFSET,
+                                    sysbus_mmio_get_region(s, 0));
 
         /*
          * Compatible with:
