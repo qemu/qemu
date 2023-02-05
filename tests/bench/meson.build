@@ -9,6 +9,10 @@ xbzrle_bench = executable('xbzrle-bench',
                        dependencies: [qemuutil,migration])
 endif
 
+qtree_bench = executable('qtree-bench',
+                         sources: 'qtree-bench.c',
+                         dependencies: [qemuutil])
+
 executable('atomic_add-bench',
            sources: files('atomic_add-bench.c'),
            dependencies: [qemuutil],
