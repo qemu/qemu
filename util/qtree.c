@@ -310,7 +310,7 @@ q_tree_node_next(QTreeNode *node)
  *
  * Since: 2.70 in GLib. Internal in Qtree, i.e. not in the public API.
  */
-static void
+static void QEMU_DISABLE_CFI
 q_tree_remove_all(QTree *tree)
 {
     QTreeNode *node;
@@ -532,7 +532,7 @@ q_tree_replace(QTree    *tree,
 }
 
 /* internal insert routine */
-static QTreeNode *
+static QTreeNode * QEMU_DISABLE_CFI
 q_tree_insert_internal(QTree    *tree,
                        gpointer  key,
                        gpointer  value,
@@ -721,7 +721,7 @@ q_tree_steal(QTree         *tree,
 }
 
 /* internal remove routine */
-static gboolean
+static gboolean QEMU_DISABLE_CFI
 q_tree_remove_internal(QTree         *tree,
                        gconstpointer  key,
                        gboolean       steal)
@@ -1182,7 +1182,7 @@ q_tree_node_balance(QTreeNode *node)
     return node;
 }
 
-static QTreeNode *
+static QTreeNode * QEMU_DISABLE_CFI
 q_tree_find_node(QTree        *tree,
                  gconstpointer key)
 {
