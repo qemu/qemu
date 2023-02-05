@@ -51,6 +51,7 @@ enum cmds {
 #define USEC_IN_SEC 1000000000
 
 #define MAX_DMA_FILL_SIZE 0x10000
+#define MAX_TOTAL_DMA_SIZE 0x10000000
 
 #define PCI_HOST_BRIDGE_CFG 0xcf8
 #define PCI_HOST_BRIDGE_DATA 0xcfc
@@ -61,6 +62,7 @@ typedef struct {
 } address_range;
 
 static bool qtest_log_enabled;
+size_t dma_bytes_written;
 
 MemoryRegion *sparse_mem_mr;
 
@@ -194,6 +196,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
      */
     if (dma_patterns->len == 0
         || len == 0
+        || dma_bytes_written + len > MAX_TOTAL_DMA_SIZE
         || (mr != current_machine->ram && mr != sparse_mem_mr)) {
         return;
     }
@@ -266,6 +269,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
                 fflush(stderr);
             }
             qtest_memwrite(qts_global, addr, buf, l);
+            dma_bytes_written += l;
         }
         len -= l;
         buf += l;
@@ -645,6 +649,7 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
 
     op_clear_dma_patterns(s, NULL, 0);
     pci_disabled = false;
+    dma_bytes_written = 0;
 
     QPCIBus *pcibus = qpci_new_pc(s, NULL);
     g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
