@@ -20,7 +20,6 @@
 #include "standard-headers/linux/virtio_pci.h"
 #include "standard-headers/linux/virtio_scsi.h"
 #include "fuzz.h"
-#include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
 #define PCI_SLOT                0x02
@@ -132,48 +131,24 @@ static void virtio_scsi_fuzz(QTestState *s, QVirtioSCSIQueues* queues,
     }
 }
 
-static void virtio_scsi_fork_fuzz(QTestState *s,
-        const unsigned char *Data, size_t Size)
-{
-    QVirtioSCSI *scsi = fuzz_qos_obj;
-    static QVirtioSCSIQueues *queues;
-    if (!queues) {
-        queues = qvirtio_scsi_init(scsi->vdev, 0);
-    }
-    if (fork() == 0) {
-        virtio_scsi_fuzz(s, queues, Data, Size);
-        flush_events(s);
-        _Exit(0);
-    } else {
-        flush_events(s);
-        wait(NULL);
-    }
-}
-
 static void virtio_scsi_with_flag_fuzz(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
     QVirtioSCSI *scsi = fuzz_qos_obj;
     static QVirtioSCSIQueues *queues;
 
-    if (fork() == 0) {
-        if (Size >= sizeof(uint64_t)) {
-            queues = qvirtio_scsi_init(scsi->vdev, *(uint64_t *)Data);
-            virtio_scsi_fuzz(s, queues,
-                             Data + sizeof(uint64_t), Size - sizeof(uint64_t));
-            flush_events(s);
-        }
-        _Exit(0);
-    } else {
+    if (Size >= sizeof(uint64_t)) {
+        queues = qvirtio_scsi_init(scsi->vdev, *(uint64_t *)Data);
+        virtio_scsi_fuzz(s, queues,
+                Data + sizeof(uint64_t), Size - sizeof(uint64_t));
         flush_events(s);
-        wait(NULL);
     }
+    fuzz_reset(s);
 }
 
 static void virtio_scsi_pre_fuzz(QTestState *s)
 {
     qos_init_path(s);
-    counter_shm_init();
 }
 
 static void *virtio_scsi_test_setup(GString *cmd_line, void *arg)
@@ -190,21 +165,9 @@ static void *virtio_scsi_test_setup(GString *cmd_line, void *arg)
 static void register_virtio_scsi_fuzz_targets(void)
 {
     fuzz_add_qos_target(&(FuzzTarget){
-                .name = "virtio-scsi-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking "
-                                "for each fuzz run",
-                .pre_vm_init = &counter_shm_init,
-                .pre_fuzz = &virtio_scsi_pre_fuzz,
-                .fuzz = virtio_scsi_fork_fuzz,},
-                "virtio-scsi",
-                &(QOSGraphTestOptions){.before = virtio_scsi_test_setup}
-                );
-
-    fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-scsi-flags-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking "
-                "for each fuzz run (also fuzzes the virtio flags)",
-                .pre_vm_init = &counter_shm_init,
+                .description = "Fuzz the virtio-scsi virtual queues. "
+                "Also fuzzes the virtio flags",
                 .pre_fuzz = &virtio_scsi_pre_fuzz,
                 .fuzz = virtio_scsi_with_flag_fuzz,},
                 "virtio-scsi",
