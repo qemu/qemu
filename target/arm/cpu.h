@@ -769,9 +769,10 @@ typedef struct CPUArchState {
 
     void *nvic;
     const struct arm_boot_info *boot_info;
+#if !defined(CONFIG_USER_ONLY)
     /* Store GICv3CPUState to access from this struct */
     void *gicv3state;
-#if defined(CONFIG_USER_ONLY)
+#else /* CONFIG_USER_ONLY */
     /* For usermode syscall translation.  */
     bool eabi;
 #endif /* CONFIG_USER_ONLY */
