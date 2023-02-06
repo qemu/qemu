@@ -1015,7 +1015,7 @@ static void v7m_update_fpccr(CPUARMState *env, uint32_t frameptr,
      * that we will need later in order to do lazy FP reg stacking.
      */
     bool is_secure = env->v7m.secure;
-    void *nvic = env->nvic;
+    NVICState *nvic = env->nvic;
     /*
      * Some bits are unbanked and live always in fpccr[M_REG_S]; some bits
      * are banked and we want to update the bit in the bank for the

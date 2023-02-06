@@ -227,6 +227,8 @@ typedef struct CPUARMTBFlags {
 
 typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
 
+typedef struct NVICState NVICState;
+
 typedef struct CPUArchState {
     /* Regs for current mode.  */
     uint32_t regs[16];
@@ -768,7 +770,7 @@ typedef struct CPUArchState {
     } sau;
 
 #if !defined(CONFIG_USER_ONLY)
-    void *nvic;
+    NVICState *nvic;
     const struct arm_boot_info *boot_info;
     /* Store GICv3CPUState to access from this struct */
     void *gicv3state;
@@ -2559,16 +2561,16 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
 
 /* Interface between CPU and Interrupt controller.  */
 #ifndef CONFIG_USER_ONLY
-bool armv7m_nvic_can_take_pending_exception(void *opaque);
+bool armv7m_nvic_can_take_pending_exception(NVICState *s);
 #else
-static inline bool armv7m_nvic_can_take_pending_exception(void *opaque)
+static inline bool armv7m_nvic_can_take_pending_exception(NVICState *s)
 {
     return true;
 }
 #endif
 /**
  * armv7m_nvic_set_pending: mark the specified exception as pending
- * @opaque: the NVIC
+ * @s: the NVIC
  * @irq: the exception number to mark pending
  * @secure: false for non-banked exceptions or for the nonsecure
  * version of a banked exception, true for the secure version of a banked
@@ -2578,10 +2580,10 @@ static inline bool armv7m_nvic_can_take_pending_exception(void *opaque)
  * if @secure is true and @irq does not specify one of the fixed set
  * of architecturally banked exceptions.
  */
-void armv7m_nvic_set_pending(void *opaque, int irq, bool secure);
+void armv7m_nvic_set_pending(NVICState *s, int irq, bool secure);
 /**
  * armv7m_nvic_set_pending_derived: mark this derived exception as pending
- * @opaque: the NVIC
+ * @s: the NVIC
  * @irq: the exception number to mark pending
  * @secure: false for non-banked exceptions or for the nonsecure
  * version of a banked exception, true for the secure version of a banked
@@ -2591,10 +2593,10 @@ void armv7m_nvic_set_pending(void *opaque, int irq, bool secure);
  * exceptions (exceptions generated in the course of trying to take
  * a different exception).
  */
-void armv7m_nvic_set_pending_derived(void *opaque, int irq, bool secure);
+void armv7m_nvic_set_pending_derived(NVICState *s, int irq, bool secure);
 /**
  * armv7m_nvic_set_pending_lazyfp: mark this lazy FP exception as pending
- * @opaque: the NVIC
+ * @s: the NVIC
  * @irq: the exception number to mark pending
  * @secure: false for non-banked exceptions or for the nonsecure
  * version of a banked exception, true for the secure version of a banked
@@ -2603,11 +2605,11 @@ void armv7m_nvic_set_pending_derived(void *opaque, int irq, bool secure);
  * Similar to armv7m_nvic_set_pending(), but specifically for exceptions
  * generated in the course of lazy stacking of FP registers.
  */
-void armv7m_nvic_set_pending_lazyfp(void *opaque, int irq, bool secure);
+void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure);
 /**
  * armv7m_nvic_get_pending_irq_info: return highest priority pending
  *    exception, and whether it targets Secure state
- * @opaque: the NVIC
+ * @s: the NVIC
  * @pirq: set to pending exception number
  * @ptargets_secure: set to whether pending exception targets Secure
  *
@@ -2617,20 +2619,20 @@ void armv7m_nvic_set_pending_lazyfp(void *opaque, int irq, bool secure);
  * to true if the current highest priority pending exception should
  * be taken to Secure state, false for NS.
  */
-void armv7m_nvic_get_pending_irq_info(void *opaque, int *pirq,
+void armv7m_nvic_get_pending_irq_info(NVICState *s, int *pirq,
                                       bool *ptargets_secure);
 /**
  * armv7m_nvic_acknowledge_irq: make highest priority pending exception active
- * @opaque: the NVIC
+ * @s: the NVIC
  *
  * Move the current highest priority pending exception from the pending
  * state to the active state, and update v7m.exception to indicate that
  * it is the exception currently being handled.
  */
-void armv7m_nvic_acknowledge_irq(void *opaque);
+void armv7m_nvic_acknowledge_irq(NVICState *s);
 /**
  * armv7m_nvic_complete_irq: complete specified interrupt or exception
- * @opaque: the NVIC
+ * @s: the NVIC
  * @irq: the exception number to complete
  * @secure: true if this exception was secure
  *
@@ -2639,10 +2641,10 @@ void armv7m_nvic_acknowledge_irq(void *opaque);
  *           0 if there is still an irq active after this one was completed
  * (Ignoring -1, this is the same as the RETTOBASE value before completion.)
  */
-int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure);
+int armv7m_nvic_complete_irq(NVICState *s, int irq, bool secure);
 /**
  * armv7m_nvic_get_ready_status(void *opaque, int irq, bool secure)
- * @opaque: the NVIC
+ * @s: the NVIC
  * @irq: the exception number to mark pending
  * @secure: false for non-banked exceptions or for the nonsecure
  * version of a banked exception, true for the secure version of a banked
@@ -2653,28 +2655,28 @@ int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure);
  * interrupt the current execution priority. This controls whether the
  * RDY bit for it in the FPCCR is set.
  */
-bool armv7m_nvic_get_ready_status(void *opaque, int irq, bool secure);
+bool armv7m_nvic_get_ready_status(NVICState *s, int irq, bool secure);
 /**
  * armv7m_nvic_raw_execution_priority: return the raw execution priority
- * @opaque: the NVIC
+ * @s: the NVIC
  *
  * Returns: the raw execution priority as defined by the v8M architecture.
  * This is the execution priority minus the effects of AIRCR.PRIS,
  * and minus any PRIMASK/FAULTMASK/BASEPRI priority boosting.
  * (v8M ARM ARM I_PKLD.)
  */
-int armv7m_nvic_raw_execution_priority(void *opaque);
+int armv7m_nvic_raw_execution_priority(NVICState *s);
 /**
  * armv7m_nvic_neg_prio_requested: return true if the requested execution
  * priority is negative for the specified security state.
- * @opaque: the NVIC
+ * @s: the NVIC
  * @secure: the security state to test
  * This corresponds to the pseudocode IsReqExecPriNeg().
  */
 #ifndef CONFIG_USER_ONLY
-bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure);
+bool armv7m_nvic_neg_prio_requested(NVICState *s, bool secure);
 #else
-static inline bool armv7m_nvic_neg_prio_requested(void *opaque, bool secure)
+static inline bool armv7m_nvic_neg_prio_requested(NVICState *s, bool secure)
 {
     return false;
 }

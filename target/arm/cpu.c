@@ -36,6 +36,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #include "hw/boards.h"
+#include "hw/intc/armv7m_nvic.h"
 #endif
 #include "sysemu/tcg.h"
 #include "sysemu/qtest.h"
