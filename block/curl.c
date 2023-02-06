@@ -850,8 +850,10 @@ out_noclean:
     g_free(s->username);
     g_free(s->proxyusername);
     g_free(s->proxypassword);
-    curl_drop_all_sockets(s->sockets);
-    g_hash_table_destroy(s->sockets);
+    if (s->sockets) {
+        curl_drop_all_sockets(s->sockets);
+        g_hash_table_destroy(s->sockets);
+    }
     qemu_opts_del(opts);
     return -EINVAL;
 }
