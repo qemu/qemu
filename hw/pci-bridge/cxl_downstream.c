@@ -15,7 +15,7 @@
 #include "hw/pci/pcie_port.h"
 #include "qapi/error.h"
 
-typedef struct CXLDownStreamPort {
+typedef struct CXLDownstreamPort {
     /*< private >*/
     PCIESlot parent_obj;
 
