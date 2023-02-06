@@ -768,8 +768,8 @@ typedef struct CPUArchState {
     } sau;
 
     void *nvic;
-    const struct arm_boot_info *boot_info;
 #if !defined(CONFIG_USER_ONLY)
+    const struct arm_boot_info *boot_info;
     /* Store GICv3CPUState to access from this struct */
     void *gicv3state;
 #else /* CONFIG_USER_ONLY */
