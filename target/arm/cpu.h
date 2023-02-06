@@ -723,7 +723,7 @@ typedef struct CPUArchState {
 
 #if defined(CONFIG_USER_ONLY)
     /* For usermode syscall translation.  */
-    int eabi;
+    bool eabi;
 #endif
 
     struct CPUBreakpoint *cpu_breakpoint[16];
