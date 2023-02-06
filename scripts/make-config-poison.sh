@@ -13,4 +13,4 @@ exec sed -n \
   -e    's///' \
   -e    's/ .*//' \
   -e    's/^/#pragma GCC poison /p' \
-  -e '}' "$@"
+  -e '}' "$@" | sort -u
