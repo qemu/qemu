@@ -24,7 +24,6 @@
 #include "qapi/qmp/qjson.h"
 #include "guest-agent-core.h"
 #include "qga-qapi-init-commands.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "channel.h"
 #include "qemu/cutils.h"
