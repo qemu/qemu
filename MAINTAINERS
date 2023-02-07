@@ -2490,6 +2490,7 @@ Subsystems
 ----------
 Overall Audio backends
 M: Gerd Hoffmann <kraxel@redhat.com>
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Odd Fixes
 F: audio/
 X: audio/alsaaudio.c
@@ -2785,6 +2786,7 @@ F: docs/spice-port-fqdn.txt
 
 Graphics
 M: Gerd Hoffmann <kraxel@redhat.com>
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Odd Fixes
 F: ui/
 F: include/ui/
