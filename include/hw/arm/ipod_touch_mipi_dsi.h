@@ -11,6 +11,11 @@
 #define TYPE_IPOD_TOUCH_MIPI_DSI                "ipodtouch.mipidsi"
 OBJECT_DECLARE_SIMPLE_TYPE(IPodTouchMIPIDSIState, IPOD_TOUCH_MIPI_DSI)
 
+#define REG_FIFOCTRL 0x44
+
+#define rDSIM_FIFOCTRL_EmptyHSfr 0x400000
+#define rDSIM_STATUS_TxReadyHsClk 0x400
+
 typedef struct IPodTouchMIPIDSIState
 {
     SysBusDevice parent_obj;

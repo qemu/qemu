@@ -44,7 +44,8 @@ static void ipod_touch_usb_phys_write(void *opaque, hwaddr addr, uint64_t val, u
         return;
 
     default:
-        hw_error("%s: write invalid location 0x%08x.\n", __func__, addr);
+        //hw_error("%s: write invalid location 0x%08x.\n", __func__, addr);
+        return;
     }
 }
 
@@ -59,7 +60,7 @@ static void ipod_touch_usb_phys_init(Object *obj)
     IPodTouchUSBPhysState *s = IPOD_TOUCH_USB_PHYS(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, obj, &ipod_touch_usb_phys_ops, s, TYPE_IPOD_TOUCH_USB_PHYS, 0x40);
+    memory_region_init_io(&s->iomem, obj, &ipod_touch_usb_phys_ops, s, TYPE_IPOD_TOUCH_USB_PHYS, 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 

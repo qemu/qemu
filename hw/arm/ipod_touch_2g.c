@@ -81,6 +81,8 @@ static void ipod_touch_memory_setup(MachineState *machine, MemoryRegion *sysmem,
 {
     IPodTouchMachineState *nms = IPOD_TOUCH_MACHINE(machine);
 
+    allocate_ram(sysmem, "insecure_ram", INSECURE_RAM_MEM_BASE, 0x3000000);
+    allocate_ram(sysmem, "secure_ram", SECURE_RAM_MEM_BASE, 0x4B04000);
     allocate_ram(sysmem, "iboot", IBOOT_MEM_BASE, 0x100000);
     allocate_ram(sysmem, "llb", 0x22000000, 0x100000);
     allocate_ram(sysmem, "sram1", SRAM1_MEM_BASE, 0x100000);
@@ -292,6 +294,12 @@ static void ipod_touch_machine_init(MachineState *machine)
     // init the PMU
     i2c_slave_create_simple(i2c_state->bus, "pcf50633", 0x73);
 
+    // init the FMSS flash controller
+    dev = qdev_new("ipodtouch.fmss");
+    IPodTouchFMSSState *fmss_state = IPOD_TOUCH_FMSS(dev);
+    nms->fmss_state = fmss_state;
+    memory_region_add_subregion(sysmem, FMSS_MEM_BASE, &fmss_state->iomem);
+
     dev = qdev_new("ipodtouch.i2c");
     i2c_state = IPOD_TOUCH_I2C(dev);
     nms->i2c1_state = i2c_state;
@@ -309,7 +317,7 @@ static void ipod_touch_machine_init(MachineState *machine)
 
     // init the MIPI SDI controller
     dev = qdev_new("ipodtouch.mipidsi");
-    IPodTouchLCDState *mipi_dsi_state = IPOD_TOUCH_MIPI_DSI(dev);
+    IPodTouchMIPIDSIState *mipi_dsi_state = IPOD_TOUCH_MIPI_DSI(dev);
     nms->mipi_dsi_state = mipi_dsi_state;
     memory_region_add_subregion(sysmem, MIPI_DSI_MEM_BASE, &mipi_dsi_state->iomem);
 

@@ -8,7 +8,9 @@ static uint64_t ipod_touch_mipi_dsi_read(void *opaque, hwaddr addr, unsigned siz
     switch(addr)
     {
         case 0x0:
-            return 0x103;
+            return 0x103 | rDSIM_STATUS_TxReadyHsClk;
+        case REG_FIFOCTRL:
+            return rDSIM_FIFOCTRL_EmptyHSfr;
         default:
             // hw_error("%s: read invalid location 0x%08x.\n", __func__, addr);
             break;
