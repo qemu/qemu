@@ -10,6 +10,14 @@
       check_mode: yes
       register: centos_stream_8
 
+    - name: Enable EPEL repo on CentOS Stream 8
+      dnf:
+        name:
+          - epel-release
+        state: present
+      when:
+        - centos_stream_8
+
     - name: Enable PowerTools repo on CentOS Stream 8
       ini_file:
         path: /etc/yum.repos.d/CentOS-Stream-PowerTools.repo
@@ -17,19 +25,31 @@
         option: enabled
         value: "1"
       when:
-        - ansible_facts['distribution'] == 'CentOS'
-        - ansible_facts['distribution_major_version'] == '8'
         - centos_stream_8
 
     - name: Install basic packages to build QEMU on CentOS Stream 8
       dnf:
         name:
+          - bzip2
+          - bzip2-devel
+          - capstone-devel
+          - dbus-daemon
           - device-mapper-multipath-devel
+          - diffutils
+          - gcc
+          - gcc-c++
+          - genisoimage
+          - gettext
+          - git
+          - glib2-devel
           - glusterfs-api-devel
           - gnutls-devel
+          - libaio-devel
           - libcap-ng-devel
           - libcurl-devel
+          - libepoxy-devel
           - libfdt-devel
+          - libgcrypt-devel
           - libiscsi-devel
           - libpmem-devel
           - librados-devel
@@ -37,15 +57,25 @@
           - libseccomp-devel
           - libssh-devel
           - libxkbcommon-devel
+          - lzo-devel
+          - make
+          - mesa-libEGL-devel
+          - nettle-devel
           - ninja-build
+          - nmap-ncat
           - numactl-devel
+          - pixman-devel
+          - python38
           - python3-sphinx
+          - rdma-core-devel
           - redhat-rpm-config
           - snappy-devel
+          - spice-glib-devel
           - spice-server-devel
           - systemd-devel
+          - systemtap-sdt-devel
+          - tar
+          - zlib-devel
         state: present
       when:
-        - ansible_facts['distribution'] == 'CentOS'
-        - ansible_facts['distribution_major_version'] == '8'
         - centos_stream_8

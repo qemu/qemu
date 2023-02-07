@@ -16,6 +16,7 @@
 # that patches adding downstream specific devices are not available.
 #
 ../configure \
+--python=/usr/bin/python3.8 \
 --prefix="/usr" \
 --libdir="/usr/lib64" \
 --datadir="/usr/share" \
