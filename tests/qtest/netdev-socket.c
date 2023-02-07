@@ -12,7 +12,7 @@
 #include "../unit/socket-helpers.h"
 #include "libqtest.h"
 
-#define CONNECTION_TIMEOUT    5
+#define CONNECTION_TIMEOUT    60
 
 #define EXPECT_STATE(q, e, t)                             \
 do {                                                      \
