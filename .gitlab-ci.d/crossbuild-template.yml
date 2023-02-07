@@ -6,8 +6,9 @@
   script:
     - mkdir build
     - cd build
-    - ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
-        --disable-user --target-list-exclude="arm-softmmu cris-softmmu
+    - ../configure --enable-werror --disable-docs --enable-fdt=system
+        --disable-user $QEMU_CONFIGURE_OPTS $EXTRA_CONFIGURE_OPTS
+        --target-list-exclude="arm-softmmu cris-softmmu
           i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
           mips64-softmmu ppc-softmmu riscv32-softmmu sh4-softmmu
           sparc-softmmu xtensa-softmmu $CROSS_SKIP_TARGETS"

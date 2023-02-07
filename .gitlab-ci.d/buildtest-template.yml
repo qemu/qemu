@@ -11,7 +11,7 @@
       fi
     - mkdir build
     - cd build
-    - ../configure --enable-werror --disable-docs
+    - ../configure --enable-werror --disable-docs --enable-fdt=system
           ${LD_JOBS:+--meson=git} ${TARGETS:+--target-list="$TARGETS"}
           $CONFIGURE_ARGS ||
       { cat config.log meson-logs/meson-log.txt && exit 1; }
