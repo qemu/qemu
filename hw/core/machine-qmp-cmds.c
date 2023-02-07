@@ -16,7 +16,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-machine.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/type-helpers.h"
@@ -141,7 +140,7 @@ HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     if (!mc->has_hotpluggable_cpus) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "query-hotpluggable-cpus");
+        error_setg(errp, "machine does not support hot-plugging CPUs");
         return NULL;
     }
 
