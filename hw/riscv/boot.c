@@ -249,16 +249,44 @@ void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
     }
 }
 
-uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
+/*
+ * This function makes an assumption that the DRAM interval
+ * 'dram_base' + 'dram_size' is contiguous.
+ *
+ * Considering that 'dram_end' is the lowest value between
+ * the end of the DRAM block and MachineState->ram_size, the
+ * FDT location will vary according to 'dram_base':
+ *
+ * - if 'dram_base' is less that 3072 MiB, the FDT will be
+ * put at the lowest value between 3072 MiB and 'dram_end';
+ *
+ * - if 'dram_base' is higher than 3072 MiB, the FDT will be
+ * put at 'dram_end'.
+ *
+ * The FDT is fdt_packed() during the calculation.
+ */
+uint64_t riscv_compute_fdt_addr(hwaddr dram_base, hwaddr dram_size,
+                                MachineState *ms)
 {
-    uint64_t temp, fdt_addr;
-    hwaddr dram_end = dram_base + mem_size;
-    int ret, fdtsize = fdt_totalsize(fdt);
+    int ret = fdt_pack(ms->fdt);
+    hwaddr dram_end, temp;
+    int fdtsize;
 
+    /* Should only fail if we've built a corrupted tree */
+    g_assert(ret == 0);
+
+    fdtsize = fdt_totalsize(ms->fdt);
     if (fdtsize <= 0) {
         error_report("invalid device-tree");
         exit(1);
     }
+
+    /*
+     * A dram_size == 0, usually from a MemMapEntry[].size element,
+     * means that the DRAM block goes all the way to ms->ram_size.
+     */
+    dram_end = dram_base;
+    dram_end += dram_size ? MIN(ms->ram_size, dram_size) : ms->ram_size;
 
     /*
      * We should put fdt as far as possible to avoid kernel/initrd overwriting
@@ -267,11 +295,18 @@ uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
      * end of dram or 3GB whichever is lesser.
      */
     temp = (dram_base < 3072 * MiB) ? MIN(dram_end, 3072 * MiB) : dram_end;
-    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
 
-    ret = fdt_pack(fdt);
-    /* Should only fail if we've built a corrupted tree */
-    g_assert(ret == 0);
+    return QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
+}
+
+/*
+ * 'fdt_addr' is received as hwaddr because boards might put
+ * the FDT beyond 32-bit addressing boundary.
+ */
+void riscv_load_fdt(hwaddr fdt_addr, void *fdt)
+{
+    uint32_t fdtsize = fdt_totalsize(fdt);
+
     /* copy in the device tree */
     qemu_fdt_dumpdtb(fdt, fdtsize);
 
@@ -279,8 +314,6 @@ uint64_t riscv_load_fdt(hwaddr dram_base, uint64_t mem_size, void *fdt)
                           &address_space_memory);
     qemu_register_reset_nosnapshotload(qemu_fdt_randomize_seeds,
                         rom_ptr_for_as(&address_space_memory, fdt_addr, fdtsize));
-
-    return fdt_addr;
 }
 
 void riscv_rom_copy_firmware_info(MachineState *machine, hwaddr rom_base,
@@ -354,6 +387,15 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
     } else {
         reset_vec[3] = 0x0202b583;   /*     ld     a1, 32(t0) */
         reset_vec[4] = 0x0182b283;   /*     ld     t0, 24(t0) */
+    }
+
+    if (!harts->harts[0].cfg.ext_icsr) {
+        /*
+         * The Zicsr extension has been disabled, so let's ensure we don't
+         * run the CSR instruction. Let's fill the address with a non
+         * compressed nop.
+         */
+        reset_vec[2] = 0x00000013;   /*     addi   x0, x0, 0 */
     }
 
     /* copy in the reset vector in little_endian byte order */

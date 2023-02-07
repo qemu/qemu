@@ -467,10 +467,11 @@ static int kvm_riscv_handle_sbi(CPUState *cs, struct kvm_run *run)
     case SBI_EXT_0_1_CONSOLE_GETCHAR:
         ret = qemu_chr_fe_read_all(serial_hd(0)->be, &ch, sizeof(ch));
         if (ret == sizeof(ch)) {
-            run->riscv_sbi.args[0] = ch;
+            run->riscv_sbi.ret[0] = ch;
         } else {
-            run->riscv_sbi.args[0] = -1;
+            run->riscv_sbi.ret[0] = -1;
         }
+        ret = 0;
         break;
     default:
         qemu_log_mask(LOG_UNIMP,

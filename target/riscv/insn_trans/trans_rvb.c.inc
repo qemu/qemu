@@ -401,6 +401,7 @@ static bool trans_ctzw(DisasContext *ctx, arg_ctzw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_ZBB(ctx);
+    ctx->ol = MXL_RV32;
     return gen_unary(ctx, a, EXT_ZERO, gen_ctzw);
 }
 
