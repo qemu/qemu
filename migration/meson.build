@@ -26,6 +26,7 @@ softmmu_ss.add(files(
   'savevm.c',
   'socket.c',
   'tls.c',
+  'threadinfo.c',
 ), gnutls)
 
 softmmu_ss.add(when: rdma, if_true: files('rdma.c'))

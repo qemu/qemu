@@ -2785,7 +2785,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     rdma = qatomic_rcu_read(&rioc->rdmaout);
 
     if (!rdma) {
-        return -EIO;
+        error_setg(errp, "RDMA control channel output is not set");
+        return -1;
     }
 
     CHECK_ERROR_STATE();
@@ -2797,7 +2798,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     ret = qemu_rdma_write_flush(f, rdma);
     if (ret < 0) {
         rdma->error_state = ret;
-        return ret;
+        error_setg(errp, "qemu_rdma_write_flush returned %d", ret);
+        return -1;
     }
 
     for (i = 0; i < niov; i++) {
@@ -2816,7 +2818,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
 
             if (ret < 0) {
                 rdma->error_state = ret;
-                return ret;
+                error_setg(errp, "qemu_rdma_exchange_send returned %d", ret);
+                return -1;
             }
 
             data += len;
@@ -2854,6 +2857,7 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
                                       size_t niov,
                                       int **fds,
                                       size_t *nfds,
+                                      int flags,
                                       Error **errp)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
@@ -2867,7 +2871,8 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
     rdma = qatomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        return -EIO;
+        error_setg(errp, "RDMA control channel input is not set");
+        return -1;
     }
 
     CHECK_ERROR_STATE();
@@ -2903,7 +2908,8 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
 
         if (ret < 0) {
             rdma->error_state = ret;
-            return ret;
+            error_setg(errp, "qemu_rdma_exchange_recv returned %d", ret);
+            return -1;
         }
 
         /*
