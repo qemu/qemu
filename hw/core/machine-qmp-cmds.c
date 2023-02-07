@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/acpi/vmgenid.h"
 #include "hw/boards.h"
 #include "hw/intc/intc.h"
 #include "hw/mem/memory-device.h"
@@ -382,4 +383,21 @@ HumanReadableText *qmp_x_query_irq(Error **errp)
                                    qmp_x_query_irq_foreach, buf);
 
     return human_readable_text_from_str(buf);
+}
+
+GuidInfo *qmp_query_vm_generation_id(Error **errp)
+{
+    GuidInfo *info;
+    VmGenIdState *vms;
+    Object *obj = find_vmgenid_dev();
+
+    if (!obj) {
+        error_setg(errp, "VM Generation ID device not found");
+        return NULL;
+    }
+    vms = VMGENID(obj);
+
+    info = g_malloc0(sizeof(*info));
+    info->guid = qemu_uuid_unparse_strdup(&vms->guid);
+    return info;
 }

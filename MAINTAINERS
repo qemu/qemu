@@ -2273,7 +2273,6 @@ F: hw/acpi/vmgenid.c
 F: include/hw/acpi/vmgenid.h
 F: docs/specs/vmgenid.txt
 F: tests/qtest/vmgenid-test.c
-F: stubs/vmgenid.c
 
 LED
 M: Philippe Mathieu-Daudé <philmd@linaro.org>
