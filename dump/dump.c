@@ -1865,10 +1865,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
-    if (s->note_size < 0) {
-        error_setg(errp, QERR_UNSUPPORTED);
-        goto cleanup;
-    }
+    assert(s->note_size >= 0);
 
     /*
      * The goal of this block is to (a) update the previously guessed
