@@ -164,6 +164,11 @@ bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp)
     return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
 }
 
+ISABus *isa_bus_from_device(ISADevice *dev)
+{
+    return ISA_BUS(qdev_get_parent_bus(DEVICE(dev)));
+}
+
 ISADevice *isa_vga_init(ISABus *bus)
 {
     vga_interface_created = true;
