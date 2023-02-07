@@ -251,9 +251,6 @@ void pstrcpy_targphys(const char *name,
                       hwaddr dest, int buf_size,
                       const char *source);
 
-extern bool option_rom_has_mr;
-extern bool rom_file_has_mr;
-
 ssize_t rom_add_file(const char *file, const char *fw_dir,
                      hwaddr addr, int32_t bootindex,
                      bool option_rom, MemoryRegion *mr, AddressSpace *as);

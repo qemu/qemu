@@ -22,10 +22,11 @@ class AST1030Machine(QemuSystemTest):
 
     timeout = 10
 
-    def test_ast1030_zephyros(self):
+    def test_ast1030_zephyros_1_04(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:ast1030-evb
+        :avocado: tags=os:zephyr
         """
         tar_url = ('https://github.com/AspeedTech-BMC'
                    '/zephyr/releases/download/v00.01.04/ast1030-evb-demo.zip')
@@ -40,6 +41,44 @@ class AST1030Machine(QemuSystemTest):
         wait_for_console_pattern(self, "Booting Zephyr OS")
         exec_command_and_wait_for_pattern(self, "help",
                                           "Available commands")
+
+    def test_ast1030_zephyros_1_07(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:ast1030-evb
+        :avocado: tags=os:zephyr
+        """
+        tar_url = ('https://github.com/AspeedTech-BMC'
+                   '/zephyr/releases/download/v00.01.07/ast1030-evb-demo.zip')
+        tar_hash = '40ac87eabdcd3b3454ce5aad11fedc72a33ecda2'
+        tar_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        archive.extract(tar_path, self.workdir)
+        kernel_file = self.workdir + "/ast1030-evb-demo/zephyr.bin"
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_file,
+                         '-nographic')
+        self.vm.launch()
+        wait_for_console_pattern(self, "Booting Zephyr OS")
+        for shell_cmd in [
+                'kernel stacks',
+                'otp info conf',
+                'otp info scu',
+                'hwinfo devid',
+                'crypto aes256_cbc_vault',
+                'random get',
+                'jtag JTAG1 sw_xfer high TMS',
+                'adc ADC0 resolution 12',
+                'adc ADC0 read 42',
+                'adc ADC1 read 69',
+                'i2c scan I2C_0',
+                'i3c attach I3C_0',
+                'hash test',
+                'kernel uptime',
+                'kernel reboot warm',
+                'kernel uptime',
+                'kernel reboot cold',
+                'kernel uptime',
+        ]: exec_command_and_wait_for_pattern(self, shell_cmd, "uart:~$")
 
 class AST2x00Machine(QemuSystemTest):
 
@@ -123,8 +162,8 @@ class AST2x00Machine(QemuSystemTest):
         """
 
         image_url = ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
-                     'images/ast2500-evb/buildroot-2022.05/flash.img')
-        image_hash = ('549db6e9d8cdaf4367af21c36385a68bb465779c18b5e37094fc7343decccd3f')
+                     'images/ast2500-evb/buildroot-2022.11-2-g15d3648df9/flash.img')
+        image_hash = ('f96d11db521fe7a2787745e9e391225deeeec3318ee0fc07c8b799b8833dd474')
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
 
@@ -151,8 +190,8 @@ class AST2x00Machine(QemuSystemTest):
         """
 
         image_url = ('https://github.com/legoater/qemu-aspeed-boot/raw/master/'
-                     'images/ast2600-evb/buildroot-2022.05/flash.img')
-        image_hash = ('6cc9e7d128fd4fa1fd01c883af67593cae8072c3239a0b8b6ace857f3538a92d')
+                     'images/ast2600-evb/buildroot-2022.11-2-g15d3648df9/flash.img')
+        image_hash = ('e598d86e5ea79671ca8b59212a326c911bc8bea728dec1a1f5390d717a28bb8b')
         image_path = self.fetch_asset(image_url, asset_hash=image_hash,
                                       algorithm='sha256')
 
@@ -183,7 +222,14 @@ class AST2x00Machine(QemuSystemTest):
 
 class AST2x00MachineSDK(QemuSystemTest):
 
-    EXTRA_BOOTARGS = ' quiet'
+    EXTRA_BOOTARGS = (
+        'quiet '
+        'systemd.mask=org.openbmc.HostIpmi.service '
+        'systemd.mask=xyz.openbmc_project.Chassis.Control.Power@0.service '
+        'systemd.mask=modprobe@fuse.service '
+        'systemd.mask=rngd.service '
+        'systemd.mask=obmc-console@ttyS2.service '
+    )
 
     # FIXME: Although these tests boot a whole distro they are still
     # slower than comparable machine models. There may be some
@@ -208,7 +254,7 @@ class AST2x00MachineSDK(QemuSystemTest):
         interrupt_interactive_console_until_pattern(
             self, 'Hit any key to stop autoboot:', 'ast#')
         exec_command_and_wait_for_pattern(
-            self, 'setenv bootargs ${bootargs}' + self.EXTRA_BOOTARGS, 'ast#')
+            self, 'setenv bootargs ${bootargs} ' + self.EXTRA_BOOTARGS, 'ast#')
         exec_command_and_wait_for_pattern(
             self, 'boot', '## Loading kernel from FIT Image')
         self.wait_for_console_pattern('Starting kernel ...')
