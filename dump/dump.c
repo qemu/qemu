@@ -1854,7 +1854,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      */
     ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
     if (ret < 0) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp,
+                   "dumping guest memory is not supported on this target");
         goto cleanup;
     }
 
