@@ -86,6 +86,8 @@ enum NPCM7xxInterrupt {
     NPCM7XX_EMC1RX_IRQ          = 15,
     NPCM7XX_EMC1TX_IRQ,
     NPCM7XX_MMC_IRQ             = 26,
+    NPCM7XX_PSPI2_IRQ           = 28,
+    NPCM7XX_PSPI1_IRQ           = 31,
     NPCM7XX_TIMER0_IRQ          = 32,   /* Timer Module 0 */
     NPCM7XX_TIMER1_IRQ,
     NPCM7XX_TIMER2_IRQ,
@@ -218,6 +220,12 @@ static const hwaddr npcm7xx_smbus_addr[] = {
 static const hwaddr npcm7xx_emc_addr[] = {
     0xf0825000,
     0xf0826000,
+};
+
+/* Register base address for each PSPI Module */
+static const hwaddr npcm7xx_pspi_addr[] = {
+    0xf0200000,
+    0xf0201000,
 };
 
 static const struct {
@@ -442,6 +450,10 @@ static void npcm7xx_init(Object *obj)
 
     for (i = 0; i < ARRAY_SIZE(s->emc); i++) {
         object_initialize_child(obj, "emc[*]", &s->emc[i], TYPE_NPCM7XX_EMC);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(s->pspi); i++) {
+        object_initialize_child(obj, "pspi[*]", &s->pspi[i], TYPE_NPCM_PSPI);
     }
 
     object_initialize_child(obj, "mmc", &s->mmc, TYPE_NPCM7XX_SDHCI);
@@ -715,6 +727,17 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc), 0,
             npcm7xx_irq(s, NPCM7XX_MMC_IRQ));
 
+    /* PSPI */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_pspi_addr) != ARRAY_SIZE(s->pspi));
+    for (i = 0; i < ARRAY_SIZE(s->pspi); i++) {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(&s->pspi[i]);
+        int irq = (i == 0) ? NPCM7XX_PSPI1_IRQ : NPCM7XX_PSPI2_IRQ;
+
+        sysbus_realize(sbd, &error_abort);
+        sysbus_mmio_map(sbd, 0, npcm7xx_pspi_addr[i]);
+        sysbus_connect_irq(sbd, 0, npcm7xx_irq(s, irq));
+    }
+
     create_unimplemented_device("npcm7xx.shm",          0xc0001000,   4 * KiB);
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
     create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
@@ -724,8 +747,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.peci",         0xf0100000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[1]",      0xf0101000,   4 * KiB);
     create_unimplemented_device("npcm7xx.siox[2]",      0xf0102000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pspi1",        0xf0200000,   4 * KiB);
-    create_unimplemented_device("npcm7xx.pspi2",        0xf0201000,   4 * KiB);
     create_unimplemented_device("npcm7xx.ahbpci",       0xf0400000,   1 * MiB);
     create_unimplemented_device("npcm7xx.mcphy",        0xf05f0000,  64 * KiB);
     create_unimplemented_device("npcm7xx.gmac1",        0xf0802000,   8 * KiB);
