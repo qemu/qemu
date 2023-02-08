@@ -78,7 +78,9 @@ qtests_i386 = \
    config_all_devices.has_key('CONFIG_Q35') and                                             \
    config_all_devices.has_key('CONFIG_VIRTIO_PCI') and                                      \
    slirp.found() ? ['virtio-net-failover'] : []) +                                          \
-  (unpack_edk2_blobs ? ['bios-tables-test'] : []) +                                         \
+  (unpack_edk2_blobs and                                                                    \
+   config_all_devices.has_key('CONFIG_HPET') and                                            \
+   config_all_devices.has_key('CONFIG_PARALLEL') ? ['bios-tables-test'] : []) +             \
   qtests_pci +                                                                              \
   qtests_cxl +                                                                              \
   ['fdc-test',
