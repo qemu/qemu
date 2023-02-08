@@ -1648,7 +1648,7 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
  * 9.1: Interrupt routing. Table 9-1
  *
  * the PCI Express Base Specification, Revision 2.1
- * 2.2.8.1: INTx interrutp signaling - Rules
+ * 2.2.8.1: INTx interrupt signaling - Rules
  *          the Implementation Note
  *          Table 2-20
  */
