@@ -315,7 +315,7 @@ in the ancillary data:
 * ``VHOST_USER_SET_VRING_KICK``
 * ``VHOST_USER_SET_VRING_CALL``
 * ``VHOST_USER_SET_VRING_ERR``
-* ``VHOST_USER_SET_SLAVE_REQ_FD``
+* ``VHOST_USER_SET_BACKEND_REQ_FD`` (previous name ``VHOST_USER_SET_SLAVE_REQ_FD``)
 * ``VHOST_USER_SET_INFLIGHT_FD`` (if ``VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD``)
 
 If *front-end* is unable to send the full message or receives a wrong
@@ -516,7 +516,7 @@ expected to reply with a zero payload, non-zero otherwise.
 
 The back-end relies on the back-end communication channel (see :ref:`Back-end
 communication <backend_communication>` section below) to send IOTLB miss
-and access failure events, by sending ``VHOST_USER_SLAVE_IOTLB_MSG``
+and access failure events, by sending ``VHOST_USER_BACKEND_IOTLB_MSG``
 requests to the front-end with a ``struct vhost_iotlb_msg`` as
 payload. For miss events, the iotlb payload has to be filled with the
 miss message type (1), the I/O virtual address and the permissions
@@ -540,15 +540,15 @@ Back-end communication
 ----------------------
 
 An optional communication channel is provided if the back-end declares
-``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` protocol feature, to allow the
+``VHOST_USER_PROTOCOL_F_BACKEND_REQ`` protocol feature, to allow the
 back-end to make requests to the front-end.
 
-The fd is provided via ``VHOST_USER_SET_SLAVE_REQ_FD`` ancillary data.
+The fd is provided via ``VHOST_USER_SET_BACKEND_REQ_FD`` ancillary data.
 
-A back-end may then send ``VHOST_USER_SLAVE_*`` messages to the front-end
+A back-end may then send ``VHOST_USER_BACKEND_*`` messages to the front-end
 using this fd communication channel.
 
-If ``VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD`` protocol feature is
+If ``VHOST_USER_PROTOCOL_F_BACKEND_SEND_FD`` protocol feature is
 negotiated, back-end can send file descriptors (at most 8 descriptors in
 each message) to front-end via ancillary data using this fd communication
 channel.
@@ -835,7 +835,7 @@ Note that due to the fact that too many messages on the sockets can
 cause the sending application(s) to block, it is not advised to use
 this feature unless absolutely necessary. It is also considered an
 error to negotiate this feature without also negotiating
-``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` and ``VHOST_USER_PROTOCOL_F_REPLY_ACK``,
+``VHOST_USER_PROTOCOL_F_BACKEND_REQ`` and ``VHOST_USER_PROTOCOL_F_REPLY_ACK``,
 the former is necessary for getting a message channel from the back-end
 to the front-end, while the latter needs to be used with the in-band
 notification messages to block until they are processed, both to avoid
@@ -855,12 +855,12 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_RARP                  2
   #define VHOST_USER_PROTOCOL_F_REPLY_ACK             3
   #define VHOST_USER_PROTOCOL_F_MTU                   4
-  #define VHOST_USER_PROTOCOL_F_SLAVE_REQ             5
+  #define VHOST_USER_PROTOCOL_F_BACKEND_REQ           5
   #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN          6
   #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION        7
   #define VHOST_USER_PROTOCOL_F_PAGEFAULT             8
   #define VHOST_USER_PROTOCOL_F_CONFIG                9
-  #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD        10
+  #define VHOST_USER_PROTOCOL_F_BACKEND_SEND_FD      10
   #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER        11
   #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD       12
   #define VHOST_USER_PROTOCOL_F_RESET_DEVICE         13
@@ -1059,8 +1059,8 @@ Front-end message types
   in the ancillary data. This signals that polling will be used
   instead of waiting for the call. Note that if the protocol features
   ``VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS`` and
-  ``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` have been negotiated this message
-  isn't necessary as the ``VHOST_USER_SLAVE_VRING_CALL`` message can be
+  ``VHOST_USER_PROTOCOL_F_BACKEND_REQ`` have been negotiated this message
+  isn't necessary as the ``VHOST_USER_BACKEND_VRING_CALL`` message can be
   used, it may however still be used to set an event file descriptor
   or to enable polling.
 
@@ -1077,8 +1077,8 @@ Front-end message types
   invalid FD flag. This flag is set when there is no file descriptor
   in the ancillary data. Note that if the protocol features
   ``VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS`` and
-  ``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` have been negotiated this message
-  isn't necessary as the ``VHOST_USER_SLAVE_VRING_ERR`` message can be
+  ``VHOST_USER_PROTOCOL_F_BACKEND_REQ`` have been negotiated this message
+  isn't necessary as the ``VHOST_USER_BACKEND_VRING_ERR`` message can be
   used, it may however still be used to set an event file descriptor
   (which will be preferred over the message).
 
@@ -1139,7 +1139,7 @@ Front-end message types
   respond with zero in case the specified MTU is valid, or non-zero
   otherwise.
 
-``VHOST_USER_SET_SLAVE_REQ_FD``
+``VHOST_USER_SET_BACKEND_REQ_FD`` (previous name ``VHOST_USER_SET_SLAVE_REQ_FD``)
   :id: 21
   :equivalent ioctl: N/A
   :request payload: N/A
@@ -1150,7 +1150,7 @@ Front-end message types
 
   This request should be sent only when
   ``VHOST_USER_F_PROTOCOL_FEATURES`` has been negotiated, and protocol
-  feature bit ``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` bit is present in
+  feature bit ``VHOST_USER_PROTOCOL_F_BACKEND_REQ`` bit is present in
   ``VHOST_USER_GET_PROTOCOL_FEATURES``.  If
   ``VHOST_USER_PROTOCOL_F_REPLY_ACK`` is negotiated, the back-end must
   respond with zero for success, non-zero otherwise.
@@ -1429,7 +1429,7 @@ Back-end message types
 For this type of message, the request is sent by the back-end and the reply
 is sent by the front-end.
 
-``VHOST_USER_SLAVE_IOTLB_MSG``
+``VHOST_USER_BACKEND_IOTLB_MSG`` (previous name ``VHOST_USER_SLAVE_IOTLB_MSG``)
   :id: 1
   :equivalent ioctl: N/A (equivalent to ``VHOST_IOTLB_MSG`` message type)
   :request payload: ``struct vhost_iotlb_msg``
@@ -1444,7 +1444,7 @@ is sent by the front-end.
   ``VIRTIO_F_IOMMU_PLATFORM`` feature has been successfully
   negotiated.
 
-``VHOST_USER_SLAVE_CONFIG_CHANGE_MSG``
+``VHOST_USER_BACKEND_CONFIG_CHANGE_MSG`` (previous name ``VHOST_USER_SLAVE_CONFIG_CHANGE_MSG``)
   :id: 2
   :equivalent ioctl: N/A
   :request payload: N/A
@@ -1459,7 +1459,7 @@ is sent by the front-end.
   ``VHOST_USER_NEED_REPLY`` flag, the front-end must respond with zero when
   operation is successfully completed, or non-zero otherwise.
 
-``VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG``
+``VHOST_USER_BACKEND_VRING_HOST_NOTIFIER_MSG`` (previous name ``VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG``)
   :id: 3
   :equivalent ioctl: N/A
   :request payload: vring area description
@@ -1482,7 +1482,7 @@ is sent by the front-end.
   ``VHOST_USER_PROTOCOL_F_HOST_NOTIFIER`` protocol feature has been
   successfully negotiated.
 
-``VHOST_USER_SLAVE_VRING_CALL``
+``VHOST_USER_BACKEND_VRING_CALL`` (previous name ``VHOST_USER_SLAVE_VRING_CALL``)
   :id: 4
   :equivalent ioctl: N/A
   :request payload: vring state description
@@ -1496,7 +1496,7 @@ is sent by the front-end.
 
   The state.num field is currently reserved and must be set to 0.
 
-``VHOST_USER_SLAVE_VRING_ERR``
+``VHOST_USER_BACKEND_VRING_ERR`` (previous name ``VHOST_USER_SLAVE_VRING_ERR``)
   :id: 5
   :equivalent ioctl: N/A
   :request payload: vring state description
