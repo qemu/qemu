@@ -3878,7 +3878,7 @@ static void decode_sro_opc(DisasContext *ctx, int op1)
         gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address, MO_UB);
         break;
     case OPC1_16_SRO_LD_H:
-        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address, MO_LESW);
+        gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address * 2, MO_LESW);
         break;
     case OPC1_16_SRO_LD_W:
         gen_offset_ld(ctx, cpu_gpr_d[15], cpu_gpr_a[r2], address * 4, MO_LESL);
@@ -4964,7 +4964,7 @@ static void decode_bo_addrmode_ld_post_pre_base(DisasContext *ctx)
         tcg_gen_addi_tl(cpu_gpr_a[r2], cpu_gpr_a[r2], off10);
         break;
     case OPC2_32_BO_LD_BU_PREINC:
-        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_SB);
+        gen_ld_preincr(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], off10, MO_UB);
         break;
     case OPC2_32_BO_LD_D_SHORTOFF:
         CHECK_REG_PAIR(r1);
@@ -5794,19 +5794,19 @@ static void decode_rcrw_insert(DisasContext *ctx)
 
     switch (op2) {
     case OPC2_32_RCRW_IMASK:
-        tcg_gen_andi_tl(temp, cpu_gpr_d[r4], 0x1f);
+        tcg_gen_andi_tl(temp, cpu_gpr_d[r3], 0x1f);
         tcg_gen_movi_tl(temp2, (1 << width) - 1);
-        tcg_gen_shl_tl(cpu_gpr_d[r3 + 1], temp2, temp);
+        tcg_gen_shl_tl(cpu_gpr_d[r4 + 1], temp2, temp);
         tcg_gen_movi_tl(temp2, const4);
-        tcg_gen_shl_tl(cpu_gpr_d[r3], temp2, temp);
+        tcg_gen_shl_tl(cpu_gpr_d[r4], temp2, temp);
         break;
     case OPC2_32_RCRW_INSERT:
         temp3 = tcg_temp_new();
 
         tcg_gen_movi_tl(temp, width);
         tcg_gen_movi_tl(temp2, const4);
-        tcg_gen_andi_tl(temp3, cpu_gpr_d[r4], 0x1f);
-        gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], temp2, temp, temp3);
+        tcg_gen_andi_tl(temp3, cpu_gpr_d[r3], 0x1f);
+        gen_insert(cpu_gpr_d[r4], cpu_gpr_d[r1], temp2, temp, temp3);
 
         tcg_temp_free(temp3);
         break;
@@ -8245,10 +8245,19 @@ static void decode_rrrr_extract_insert(DisasContext *ctx)
         if (r1 == r2) {
             tcg_gen_rotl_tl(cpu_gpr_d[r4], cpu_gpr_d[r1], tmp_pos);
         } else {
+            TCGv msw = tcg_temp_new();
+            TCGv zero = tcg_constant_tl(0);
             tcg_gen_shl_tl(tmp_width, cpu_gpr_d[r1], tmp_pos);
-            tcg_gen_subfi_tl(tmp_pos, 32, tmp_pos);
-            tcg_gen_shr_tl(tmp_pos, cpu_gpr_d[r2], tmp_pos);
-            tcg_gen_or_tl(cpu_gpr_d[r4], tmp_width, tmp_pos);
+            tcg_gen_subfi_tl(msw, 32, tmp_pos);
+            tcg_gen_shr_tl(msw, cpu_gpr_d[r2], msw);
+            /*
+             * if pos == 0, then we do cpu_gpr_d[r2] << 32, which is undefined
+             * behaviour. So check that case here and set the low bits to zero
+             * which effectivly returns cpu_gpr_d[r1]
+             */
+            tcg_gen_movcond_tl(TCG_COND_EQ, msw, tmp_pos, zero, zero, msw);
+            tcg_gen_or_tl(cpu_gpr_d[r4], tmp_width, msw);
+            tcg_temp_free(msw);
         }
         break;
     case OPC2_32_RRRR_EXTR:
@@ -8706,15 +8715,9 @@ static void decode_32Bit_opc(DisasContext *ctx)
         r2 = MASK_OP_RRPW_S2(ctx->opcode);
         r3 = MASK_OP_RRPW_D(ctx->opcode);
         const16 = MASK_OP_RRPW_POS(ctx->opcode);
-        if (r1 == r2) {
-            tcg_gen_rotli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], const16);
-        } else {
-            temp = tcg_temp_new();
-            tcg_gen_shli_tl(temp, cpu_gpr_d[r1], const16);
-            tcg_gen_shri_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], 32 - const16);
-            tcg_gen_or_tl(cpu_gpr_d[r3], cpu_gpr_d[r3], temp);
-            tcg_temp_free(temp);
-        }
+
+        tcg_gen_extract2_tl(cpu_gpr_d[r3], cpu_gpr_d[r2], cpu_gpr_d[r1],
+                            32 - const16);
         break;
 /* RRR Format */
     case OPCM_32_RRR_COND_SELECT:

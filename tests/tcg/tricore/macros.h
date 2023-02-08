@@ -4,19 +4,28 @@
     movh DREG_TEMP_LI, up:val; \
     or reg, reg, DREG_TEMP_LI; \
 
+#define LIA(reg, val)        \
+    LI(DREG_TEMP, val)       \
+    mov.a reg, DREG_TEMP;
+
 /* Address definitions */
 #define TESTDEV_ADDR 0xf0000000
 /* Register definitions */
 #define DREG_RS1 %d0
 #define DREG_RS2 %d1
-#define DREG_RS3 %d4
-#define DREG_CALC_RESULT %d1
-#define DREG_CALC_PSW %d2
-#define DREG_CORRECT_PSW %d3
+#define DREG_RS3 %d2
+#define DREG_CALC_RESULT %d3
+#define DREG_CALC_PSW %d4
+#define DREG_CORRECT_PSW %d5
 #define DREG_TEMP_LI %d10
 #define DREG_TEMP %d11
 #define DREG_TEST_NUM %d14
 #define DREG_CORRECT_RESULT %d15
+#define DREG_CORRECT_RESULT_2 %d13
+
+#define AREG_ADDR %a0
+#define AREG_CORRECT_RESULT %a3
+#define MEM_BASE_ADDR 0xd0000000
 
 #define DREG_DEV_ADDR %a15
 
@@ -60,11 +69,36 @@ test_ ## num:                                                      \
     mov DREG_TEST_NUM, num;                                        \
     jne DREG_CALC_PSW, DREG_CORRECT_PSW, fail;
 
+#define TEST_LD(insn, num, result, addr_result, ld_pattern) \
+test_ ## num:                                               \
+    LIA(AREG_ADDR, test_data)                               \
+    insn DREG_CALC_RESULT, ld_pattern;                      \
+    LI(DREG_CORRECT_RESULT, result)                         \
+    mov DREG_TEST_NUM, num;                                 \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;        \
+    mov.d DREG_CALC_RESULT, AREG_ADDR;                      \
+    LI(DREG_CORRECT_RESULT, addr_result)                    \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;
+
+#define TEST_LD_SRO(insn, num, result, addr_result, ld_pattern)  \
+test_ ## num:                                                    \
+    LIA(AREG_ADDR, test_data)                                    \
+    insn %d15, ld_pattern;                                       \
+    LI(DREG_CORRECT_RESULT_2, result)                            \
+    mov DREG_TEST_NUM, num;                                      \
+    jne %d15, DREG_CORRECT_RESULT_2, fail;                       \
+    mov.d DREG_CALC_RESULT, AREG_ADDR;                           \
+    LI(DREG_CORRECT_RESULT, addr_result)                         \
+    jne DREG_CALC_RESULT, DREG_CORRECT_RESULT, fail;
+
+
 /* Actual test case type
  * e.g inst %dX, %dY      -> TEST_D_D
  *     inst %dX, %dY, %dZ -> TEST_D_DD
  *     inst %eX, %dY, %dZ -> TEST_E_DD
  */
+
+
 #define TEST_D_D(insn, num, result, rs1)      \
     TEST_CASE(num, DREG_CALC_RESULT, result,  \
     LI(DREG_RS1, rs1);                        \
@@ -76,6 +110,15 @@ test_ ## num:                                                      \
     LI(DREG_RS1, rs1);                                \
     rstv;                                             \
     insn DREG_CORRECT_RESULT, DREG_RS1;               \
+    )
+
+#define TEST_D_DDD(insn, num, result, rs1, rs2, rs3)        \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                \
+    LI(DREG_RS1, rs1);                                      \
+    LI(DREG_RS2, rs2);                                      \
+    LI(DREG_RS3, rs3);                                      \
+    rstv;                                                   \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3; \
     )
 
 #define TEST_D_DD_PSW(insn, num, result, psw, rs1, rs2) \
@@ -95,12 +138,28 @@ test_ ## num:                                                      \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, DREG_RS3;      \
     )
 
+#define TEST_D_DDI(insn, num, result, rs1, rs2, imm) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,         \
+    LI(DREG_RS1, rs1);                               \
+    LI(DREG_RS2, rs2);                               \
+    rstv;                                            \
+    insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;  \
+    )
+
 #define TEST_D_DDI_PSW(insn, num, result, psw, rs1, rs2, imm) \
     TEST_CASE_PSW(num, DREG_CALC_RESULT, result, psw,         \
     LI(DREG_RS1, rs1);                                        \
     LI(DREG_RS2, rs2);                                        \
     rstv;                                                     \
     insn DREG_CALC_RESULT, DREG_RS1, DREG_RS2, imm;           \
+    )
+
+#define TEST_D_DIDI(insn, num, result, rs1, imm1, rs2, imm2) \
+    TEST_CASE(num, DREG_CALC_RESULT, result,                 \
+    LI(DREG_RS1, rs1);                                       \
+    LI(DREG_RS2, rs1);                                       \
+    rstv;                                                    \
+    insn DREG_CALC_RESULT, DREG_RS1, imm1, DREG_RS2, imm2;   \
     )
 
 #define TEST_E_ED(insn, num, res_hi, res_lo, rs1_hi, rs1_lo, rs2) \
@@ -110,6 +169,15 @@ test_ ## num:                                                      \
     LI(DREG_RS2, rs2);                                            \
     insn EREG_CALC_RESULT, EREG_RS1, DREG_RS2;                    \
     )
+
+#define TEST_E_IDI(insn, num, res_hi, res_lo, imm1, rs1, imm2) \
+    TEST_CASE_E(num, res_lo, res_hi,                           \
+    LI(DREG_RS1, rs1);                                         \
+    rstv;                                                      \
+    insn EREG_CALC_RESULT, imm1, DREG_RS1, imm2);              \
+    )
+
+
 
 /* Pass/Fail handling part */
 #define TEST_PASSFAIL                       \
