@@ -108,6 +108,10 @@ static void test_batch(const testdef_t *tests, bool ipv6)
         const testdef_t *test = &tests[i];
         char *testname;
 
+        if (!qtest_has_device(test->model)) {
+            continue;
+        }
+
         testname = g_strdup_printf("pxe/ipv4/%s/%s",
                                    test->machine, test->model);
         qtest_add_data_func(testname, test, test_pxe_ipv4);
