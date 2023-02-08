@@ -184,7 +184,6 @@ static int cmma_save_setup(QEMUFile *f, void *opaque)
 
 static void cmma_state_pending(void *opaque,
                                uint64_t *res_precopy_only,
-                               uint64_t *res_compatible,
                                uint64_t *res_postcopy_only)
 {
     S390StAttribState *sas = S390_STATTRIB(opaque);

@@ -3491,7 +3491,6 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
 static void ram_state_pending_estimate(void *opaque,
                                        uint64_t *res_precopy_only,
-                                       uint64_t *res_compatible,
                                        uint64_t *res_postcopy_only)
 {
     RAMState **temp = opaque;
@@ -3509,7 +3508,6 @@ static void ram_state_pending_estimate(void *opaque,
 
 static void ram_state_pending_exact(void *opaque,
                                     uint64_t *res_precopy_only,
-                                    uint64_t *res_compatible,
                                     uint64_t *res_postcopy_only)
 {
     RAMState **temp = opaque;

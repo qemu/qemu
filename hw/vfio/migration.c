@@ -458,7 +458,6 @@ static void vfio_save_cleanup(void *opaque)
 
 static void vfio_state_pending(void *opaque,
                                uint64_t *res_precopy_only,
-                               uint64_t *res_compatible,
                                uint64_t *res_postcopy_only)
 {
     VFIODevice *vbasedev = opaque;
@@ -473,7 +472,7 @@ static void vfio_state_pending(void *opaque,
     *res_precopy_only += migration->pending_bytes;
 
     trace_vfio_state_pending(vbasedev->name, *res_precopy_only,
-                            *res_postcopy_only, *res_compatible);
+                            *res_postcopy_only);
 }
 
 static int vfio_save_iterate(QEMUFile *f, void *opaque)
