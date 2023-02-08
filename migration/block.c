@@ -853,9 +853,8 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void block_state_pending(void *opaque,
-                                uint64_t *res_precopy_only,
-                                uint64_t *res_postcopy_only)
+static void block_state_pending(void *opaque, uint64_t *must_precopy,
+                                uint64_t *can_postcopy)
 {
     /* Estimate pending number of bytes to send */
     uint64_t pending;
@@ -876,7 +875,7 @@ static void block_state_pending(void *opaque,
 
     trace_migration_block_state_pending(pending);
     /* We don't do postcopy */
-    *res_precopy_only += pending;
+    *must_precopy += pending;
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
