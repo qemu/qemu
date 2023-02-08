@@ -64,6 +64,7 @@ static void process_device_remove(QTestState *qtest, const char *id)
 
 static void test_pci_unplug_request(void)
 {
+    QTestState *qtest;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
@@ -71,8 +72,8 @@ static void test_pci_unplug_request(void)
         machine_addition = "-machine pc";
     }
 
-    QTestState *qtest = qtest_initf("%s -device virtio-mouse-pci,id=dev0",
-                                    machine_addition);
+    qtest = qtest_initf("%s -device virtio-mouse-pci,id=dev0",
+                        machine_addition);
 
     process_device_remove(qtest, "dev0");
 
@@ -94,6 +95,7 @@ static void test_q35_pci_unplug_request(void)
 
 static void test_pci_unplug_json_request(void)
 {
+    QTestState *qtest;
     const char *arch = qtest_get_arch();
     const char *machine_addition = "";
 
@@ -101,7 +103,7 @@ static void test_pci_unplug_json_request(void)
         machine_addition = "-machine pc";
     }
 
-    QTestState *qtest = qtest_initf(
+    qtest = qtest_initf(
         "%s -device \"{'driver': 'virtio-mouse-pci', 'id': 'dev0'}\"",
         machine_addition);
 
