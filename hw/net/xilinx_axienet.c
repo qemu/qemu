@@ -31,7 +31,6 @@
 #include "net/net.h"
 #include "net/checksum.h"
 
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/stream.h"

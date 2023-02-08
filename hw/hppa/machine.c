@@ -28,7 +28,6 @@
 #include "qapi/error.h"
 #include "net/net.h"
 #include "qemu/log.h"
-#include "net/net.h"
 
 #define MIN_SEABIOS_HPPA_VERSION 6 /* require at least this fw version */
 

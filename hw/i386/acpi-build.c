@@ -76,7 +76,6 @@
 
 #include "hw/acpi/hmat.h"
 #include "hw/acpi/viot.h"
-#include "hw/acpi/cxl.h"
 
 #include CONFIG_DEVICES
 

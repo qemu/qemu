@@ -12,7 +12,6 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
-#include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 #include "fpu/softfloat.h"

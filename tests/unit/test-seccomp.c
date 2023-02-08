@@ -25,7 +25,6 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 
-#include <unistd.h>
 #include <sys/syscall.h>
 
 static void test_seccomp_helper(const char *args, bool killed,

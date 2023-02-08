@@ -21,7 +21,6 @@
 #include "exec/cpu_ldst.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-ldst.h"
-#include "qemu/compiler.h"
 #include <ffi.h>
 
 

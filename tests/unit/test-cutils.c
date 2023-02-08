@@ -26,7 +26,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 

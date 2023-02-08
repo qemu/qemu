@@ -12,8 +12,6 @@
 # define __USE_LINUX_IOCTL_DEFS
 #endif
 
-#include <stdint.h>
-#include <sys/types.h>
 #ifndef _WIN32
 #include <sys/uio.h>
 #include <sys/ioctl.h>

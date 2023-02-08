@@ -43,7 +43,6 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-misc.h"
 #include "qapi/visitor.h"
-#include "hw/rtc/mc146818rtc_regs.h"
 
 //#define DEBUG_CMOS
 //#define DEBUG_COALESCED

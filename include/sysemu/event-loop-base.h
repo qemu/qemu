@@ -14,7 +14,6 @@
 
 #include "qom/object.h"
 #include "block/aio.h"
-#include "qemu/typedefs.h"
 
 #define TYPE_EVENT_LOOP_BASE         "event-loop-base"
 OBJECT_DECLARE_TYPE(EventLoopBase, EventLoopBaseClass,

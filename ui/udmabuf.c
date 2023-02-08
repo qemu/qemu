@@ -8,7 +8,6 @@
 #include "qapi/error.h"
 #include "ui/console.h"
 
-#include <fcntl.h>
 #include <sys/ioctl.h>
 
 int udmabuf_fd(void)

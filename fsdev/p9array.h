@@ -27,8 +27,6 @@
 #ifndef QEMU_P9ARRAY_H
 #define QEMU_P9ARRAY_H
 
-#include "qemu/compiler.h"
-
 /**
  * P9Array provides a mechanism to access arrays in common C-style (e.g. by
  * square bracket [] operator) in conjunction with reference variables that

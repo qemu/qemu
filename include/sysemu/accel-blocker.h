@@ -14,7 +14,6 @@
 #ifndef ACCEL_BLOCKER_H
 #define ACCEL_BLOCKER_H
 
-#include "qemu/osdep.h"
 #include "sysemu/cpus.h"
 
 extern void accel_blocker_init(void);
