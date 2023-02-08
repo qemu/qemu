@@ -3528,7 +3528,7 @@ static void ram_state_pending_exact(void *opaque,
 
     if (migrate_postcopy_ram()) {
         /* We can do postcopy, and all the data is postcopiable */
-        *res_compatible += remaining_size;
+        *res_postcopy_only += remaining_size;
     } else {
         *res_precopy_only += remaining_size;
     }
