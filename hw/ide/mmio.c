@@ -29,18 +29,15 @@
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 
+#include "hw/ide/mmio.h"
 #include "hw/ide/internal.h"
 #include "hw/qdev-properties.h"
-#include "qom/object.h"
 
 /***********************************************************/
 /* MMIO based ide port
  * This emulates IDE device connected directly to the CPU bus without
  * dedicated ide controller, which is often seen on embedded boards.
  */
-
-#define TYPE_MMIO_IDE "mmio-ide"
-OBJECT_DECLARE_SIMPLE_TYPE(MMIOIDEState, MMIO_IDE)
 
 struct MMIOIDEState {
     /*< private >*/

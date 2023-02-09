@@ -38,7 +38,7 @@
 #include "hw/qdev-properties.h"
 #include "net/net.h"
 #include "sh7750_regs.h"
-#include "hw/ide.h"
+#include "hw/ide/mmio.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/usb.h"
