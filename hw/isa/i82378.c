@@ -32,7 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(I82378State, I82378)
 struct I82378State {
     PCIDevice parent_obj;
 
-    qemu_irq out[2];
+    qemu_irq cpu_intr;
     qemu_irq *i8259;
     MemoryRegion io;
 };
@@ -50,7 +50,7 @@ static const VMStateDescription vmstate_i82378 = {
 static void i82378_request_out0_irq(void *opaque, int irq, int level)
 {
     I82378State *s = opaque;
-    qemu_set_irq(s->out[0], level);
+    qemu_set_irq(s->cpu_intr, level);
 }
 
 static void i82378_request_pic_irq(void *opaque, int irq, int level)
@@ -113,7 +113,7 @@ static void i82378_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     I82378State *s = I82378(obj);
 
-    qdev_init_gpio_out(dev, s->out, 1);
+    qdev_init_gpio_out(dev, &s->cpu_intr, 1);
     qdev_init_gpio_in(dev, i82378_request_pic_irq, 16);
 }
 
