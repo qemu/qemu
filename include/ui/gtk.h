@@ -1,11 +1,7 @@
 #ifndef UI_GTK_H
 #define UI_GTK_H
 
-/* Work around an -Wstrict-prototypes warning in GTK headers */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include <gtk/gtk.h>
-#pragma GCC diagnostic pop
 
 #include <gdk/gdkkeysyms.h>
 
@@ -80,7 +76,6 @@ typedef struct VirtualConsole {
     GtkDisplayState *s;
     char *label;
     GtkWidget *window;
-    GtkWidget *menu_item;
     GtkWidget *tab_item;
     GtkWidget *focus;
     VirtualConsoleType type;
@@ -93,36 +88,27 @@ typedef struct VirtualConsole {
 } VirtualConsole;
 
 struct GtkDisplayState {
+    GtkApplication *app;
     GtkWidget *window;
 
     GtkWidget *menu_bar;
 
-    GtkAccelGroup *accel_group;
+    GMenu *vc_menu;
 
-    GtkWidget *machine_menu_item;
-    GtkWidget *machine_menu;
-    GtkWidget *pause_item;
-    GtkWidget *reset_item;
-    GtkWidget *powerdown_item;
-    GtkWidget *quit_item;
+    GSimpleAction *pause_action;
 
-    GtkWidget *view_menu_item;
-    GtkWidget *view_menu;
-    GtkWidget *full_screen_item;
-    GtkWidget *copy_item;
-    GtkWidget *zoom_in_item;
-    GtkWidget *zoom_out_item;
-    GtkWidget *zoom_fixed_item;
-    GtkWidget *zoom_fit_item;
-    GtkWidget *grab_item;
-    GtkWidget *grab_on_hover_item;
+    GMenuItem *view_menu_item;
+    GSimpleAction *full_screen_action;
+    GSimpleAction *copy_action;
+    GSimpleAction *zoom_fit_action;
+    GSimpleAction *grab_action;
+    GSimpleAction *grab_on_hover_action;
 
     int nb_vcs;
     VirtualConsole vc[MAX_VCS];
 
-    GtkWidget *show_tabs_item;
-    GtkWidget *untabify_item;
-    GtkWidget *show_menubar_item;
+    GSimpleAction *show_tabs_action;
+    GSimpleAction *show_menubar_action;
 
     GtkWidget *vbox;
     GtkWidget *notebook;
