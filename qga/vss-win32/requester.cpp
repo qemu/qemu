@@ -23,6 +23,8 @@
 /* Call QueryStatus every 10 ms while waiting for frozen event */
 #define VSS_TIMEOUT_EVENT_MSEC 10
 
+#define DEFAULT_VSS_BACKUP_TYPE VSS_BT_FULL
+
 #define err_set(e, err, fmt, ...)                                           \
     ((e)->error_setg_win32_wrapper((e)->errp, __FILE__, __LINE__, __func__, \
                                    err, fmt, ## __VA_ARGS__))
@@ -232,6 +234,42 @@ out:
     if (pComponent && info) {
         pComponent->FreeComponentInfo(info);
     }
+}
+
+DWORD get_reg_dword_value(HKEY baseKey, LPCSTR subKey, LPCSTR valueName,
+                          DWORD defaultData)
+{
+    DWORD regGetValueError;
+    DWORD dwordData;
+    DWORD dataSize = sizeof(DWORD);
+
+    regGetValueError = RegGetValue(baseKey, subKey, valueName, RRF_RT_DWORD,
+                                   NULL, &dwordData, &dataSize);
+    if (regGetValueError  != ERROR_SUCCESS) {
+        return defaultData;
+    }
+    return dwordData;
+}
+
+bool is_valid_vss_backup_type(VSS_BACKUP_TYPE vssBT)
+{
+    return (vssBT > VSS_BT_UNDEFINED && vssBT < VSS_BT_OTHER);
+}
+
+VSS_BACKUP_TYPE get_vss_backup_type(
+    VSS_BACKUP_TYPE defaultVssBT = DEFAULT_VSS_BACKUP_TYPE)
+{
+    VSS_BACKUP_TYPE vssBackupType;
+
+    vssBackupType = static_cast<VSS_BACKUP_TYPE>(
+                            get_reg_dword_value(HKEY_LOCAL_MACHINE,
+                                                QGA_PROVIDER_REGISTRY_ADDRESS,
+                                                "VssOption",
+                                                defaultVssBT));
+    if (!is_valid_vss_backup_type(vssBackupType)) {
+        return defaultVssBT;
+    }
+    return vssBackupType;
 }
 
 void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
