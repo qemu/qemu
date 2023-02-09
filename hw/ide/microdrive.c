@@ -29,6 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
+#include "hw/irq.h"
 
 #include "hw/ide/internal.h"
 #include "qom/object.h"

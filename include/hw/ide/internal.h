@@ -8,7 +8,6 @@
  */
 
 #include "hw/ide.h"
-#include "hw/irq.h"
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
 #include "exec/ioport.h"
@@ -572,13 +571,6 @@ static inline IDEState *idebus_active_if(IDEBus *bus)
     return bus->ifs + bus->unit;
 }
 
-static inline void ide_set_irq(IDEBus *bus)
-{
-    if (!(bus->cmd & IDE_CTRL_DISABLE_IRQ)) {
-        qemu_irq_raise(bus->irq);
-    }
-}
-
 /* hw/ide/core.c */
 extern const VMStateDescription vmstate_ide_bus;
 
@@ -627,6 +619,7 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
 void ide_init2(IDEBus *bus, qemu_irq irq);
 void ide_exit(IDEState *s);
 int ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);
+void ide_set_irq(IDEBus *bus);
 void ide_register_restart_cb(IDEBus *bus);
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val);

@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
@@ -2780,6 +2781,13 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
     }
     bus->irq = irq;
     bus->dma = &ide_dma_nop;
+}
+
+void ide_set_irq(IDEBus *bus)
+{
+    if (!(bus->cmd & IDE_CTRL_DISABLE_IRQ)) {
+        qemu_irq_raise(bus->irq);
+    }
 }
 
 void ide_exit(IDEState *s)
