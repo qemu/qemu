@@ -122,7 +122,7 @@ static void mmio_ide_realizefn(DeviceState *dev, Error **errp)
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
     MMIOIDEState *s = MMIO_IDE(dev);
 
-    ide_init2(&s->bus, s->irq);
+    ide_bus_init_output_irq(&s->bus, s->irq);
 
     memory_region_init_io(&s->iomem1, OBJECT(s), &mmio_ide_ops, s,
                           "ide-mmio.1", 16 << s->shift);

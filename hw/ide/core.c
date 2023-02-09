@@ -2771,7 +2771,7 @@ static IDEDMA ide_dma_nop = {
     .aiocb = NULL,
 };
 
-void ide_init2(IDEBus *bus, qemu_irq irq)
+void ide_bus_init_output_irq(IDEBus *bus, qemu_irq irq_out)
 {
     int i;
 
@@ -2779,7 +2779,7 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
         ide_init1(bus, i);
         ide_reset(&bus->ifs[i]);
     }
-    bus->irq = irq;
+    bus->irq = irq_out;
     bus->dma = &ide_dma_nop;
 }
 

@@ -599,7 +599,7 @@ static void microdrive_realize(DeviceState *dev, Error **errp)
 {
     MicroDriveState *md = MICRODRIVE(dev);
 
-    ide_init2(&md->bus, qemu_allocate_irq(md_set_irq, md, 0));
+    ide_bus_init_output_irq(&md->bus, qemu_allocate_irq(md_set_irq, md, 0));
 }
 
 static void microdrive_init(Object *obj)

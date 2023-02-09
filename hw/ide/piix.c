@@ -145,7 +145,8 @@ static int pci_piix_init_ports(PCIIDEState *d)
         if (ret) {
             return ret;
         }
-        ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+        ide_bus_init_output_irq(&d->bus[i],
+                                isa_get_irq(NULL, port_info[i].isairq));
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
