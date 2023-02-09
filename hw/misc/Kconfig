@@ -15,10 +15,6 @@ config ISA_DEBUG
     bool
     depends on ISA_BUS
 
-config SGA
-    bool
-    depends on ISA_BUS
-
 config ISA_TESTDEV
     bool
     default y if TEST_DEVICES

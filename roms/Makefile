@@ -57,7 +57,6 @@ default help:
 	@echo "available build targets:"
 	@echo "  bios               -- update bios.bin (seabios)"
 	@echo "  vgabios            -- update vgabios binaries (seabios)"
-	@echo "  sgabios            -- update sgabios binaries"
 	@echo "  pxerom             -- update nic roms (bios only)"
 	@echo "  efirom             -- update nic roms (bios+efi)"
 	@echo "  slof               -- update slof.bin"
@@ -102,11 +101,7 @@ build-seabios-config-%: config.%
 		OUT=$(CURDIR)/seabios/builds/$*/ all
 
 
-.PHONY: sgabios skiboot qboot
-sgabios:
-	$(MAKE) -C sgabios
-	cp sgabios/sgabios.bin ../pc-bios
-
+.PHONY: skiboot qboot
 
 pxerom: $(patsubst %,pxe-rom-%,$(pxerom_variants))
 
@@ -199,8 +194,6 @@ npcm7xx_bootrom:
 
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
-	$(MAKE) -C sgabios clean
-	rm -f sgabios/.depend
 	$(MAKE) -C ipxe/src veryclean
 	$(MAKE) -C edk2/BaseTools clean
 	$(MAKE) -C SLOF clean

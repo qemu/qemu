@@ -1676,7 +1676,6 @@ F: hw/acpi/piix4.c
 F: hw/acpi/ich9*.c
 F: include/hw/acpi/ich9*.h
 F: include/hw/southbridge/piix.h
-F: hw/misc/sga.c
 F: hw/isa/apm.c
 F: include/hw/isa/apm.h
 F: tests/unit/test-x86-cpuid.c
