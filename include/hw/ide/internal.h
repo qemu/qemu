@@ -13,7 +13,6 @@
 #include "hw/isa/isa.h"
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
-#include "scsi/constants.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
