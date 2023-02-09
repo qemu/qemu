@@ -9,9 +9,9 @@
 
 #include "hw/ide.h"
 #include "hw/irq.h"
-#include "hw/isa/isa.h"
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
+#include "exec/ioport.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
