@@ -67,13 +67,13 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
     return isabus;
 }
 
-void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
+void isa_bus_register_input_irqs(ISABus *bus, qemu_irq *irqs_in)
 {
-    bus->irqs = irqs;
+    bus->irqs_in = irqs_in;
 }
 
 /*
- * isa_get_irq() returns the corresponding qemu_irq entry for the i8259.
+ * isa_get_irq() returns the corresponding input qemu_irq entry for the i8259.
  *
  * This function is only for special cases such as the 'ferr', and
  * temporary use for normal devices until they are converted to qdev.
@@ -82,7 +82,7 @@ qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
 {
     assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
     assert(isairq < ISA_NUM_IRQS);
-    return isabus->irqs[isairq];
+    return isabus->irqs_in[isairq];
 }
 
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq)

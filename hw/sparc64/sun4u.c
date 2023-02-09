@@ -316,7 +316,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
 
     /* ISA bus */
     s->isa_irqs_in = qemu_allocate_irqs(ebus_isa_irq_handler, s, ISA_NUM_IRQS);
-    isa_bus_irqs(s->isa_bus, s->isa_irqs_in);
+    isa_bus_register_input_irqs(s->isa_bus, s->isa_irqs_in);
     qdev_init_gpio_out_named(DEVICE(s), s->isa_irqs_out, "isa-irq",
                              ISA_NUM_IRQS);
 

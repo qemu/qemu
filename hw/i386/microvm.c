@@ -174,7 +174,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     isa_bus = isa_bus_new(NULL, get_system_memory(), get_system_io(),
                           &error_abort);
-    isa_bus_irqs(isa_bus, x86ms->gsi);
+    isa_bus_register_input_irqs(isa_bus, x86ms->gsi);
 
     ioapic_init_gsi(gsi_state, "machine");
     if (ioapics > 1) {

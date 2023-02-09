@@ -55,7 +55,7 @@ struct ISABus {
 
     MemoryRegion *address_space;
     MemoryRegion *address_space_io;
-    qemu_irq *irqs;
+    qemu_irq *irqs_in;
     IsaDma *dma[2];
 };
 
@@ -69,7 +69,7 @@ struct ISADevice {
 
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space,
                     MemoryRegion *address_space_io, Error **errp);
-void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
+void isa_bus_register_input_irqs(ISABus *bus, qemu_irq *irqs_in);
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16);
 IsaDma *isa_get_dma(ISABus *bus, int nchan);
 ISADevice *isa_new(const char *name);

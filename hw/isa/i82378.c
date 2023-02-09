@@ -89,7 +89,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
 
     /* 2 82C59 (irq) */
     s->isa_irqs_in = i8259_init(isabus, s->cpu_intr);
-    isa_bus_irqs(isabus, s->isa_irqs_in);
+    isa_bus_register_input_irqs(isabus, s->isa_irqs_in);
 
     /* 1 82C54 (pit) */
     pit = i8254_pit_init(isabus, 0x40, 0, NULL);

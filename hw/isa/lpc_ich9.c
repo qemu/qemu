@@ -719,7 +719,7 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 
     qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, IOAPIC_NUM_PINS);
 
-    isa_bus_irqs(isa_bus, lpc->gsi);
+    isa_bus_register_input_irqs(isa_bus, lpc->gsi);
 
     i8257_dma_init(isa_bus, 0);
 
