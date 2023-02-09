@@ -566,7 +566,7 @@ static inline uint8_t ide_dma_cmd_to_retry(uint8_t dma_cmd)
     return 0;
 }
 
-static inline IDEState *idebus_active_if(IDEBus *bus)
+static inline IDEState *ide_bus_active_if(IDEBus *bus)
 {
     return bus->ifs + bus->unit;
 }
