@@ -28,14 +28,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
-#include "sysemu/block-backend.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/dma.h"
-
+#include "hw/pci/pci.h"
 #include "hw/ide/piix.h"
 #include "hw/ide/pci.h"
 #include "trace.h"
