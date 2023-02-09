@@ -93,10 +93,10 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
 
     s = ISA_IDE(dev);
     if (hd0) {
-        ide_create_drive(&s->bus, 0, hd0);
+        ide_bus_create_drive(&s->bus, 0, hd0);
     }
     if (hd1) {
-        ide_create_drive(&s->bus, 1, hd1);
+        ide_bus_create_drive(&s->bus, 1, hd1);
     }
     return isadev;
 }
