@@ -51,10 +51,10 @@ struct MC146818RtcState {
 
 #define RTC_ISA_IRQ 8
 
-ISADevice *mc146818_rtc_init(ISABus *bus, int base_year,
-                             qemu_irq intercept_irq);
-void rtc_set_memory(ISADevice *dev, int addr, int val);
-int rtc_get_memory(ISADevice *dev, int addr);
+MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
+                                    qemu_irq intercept_irq);
+void rtc_set_memory(MC146818RtcState *s, int addr, int val);
+int rtc_get_memory(MC146818RtcState *s, int addr);
 void qmp_rtc_reset_reinjection(Error **errp);
 
 #endif /* HW_RTC_MC146818RTC_H */

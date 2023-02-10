@@ -57,7 +57,7 @@
 #define MICROVM_QBOOT_FILENAME "qboot.rom"
 #define MICROVM_BIOS_FILENAME  "bios-microvm.bin"
 
-static void microvm_set_rtc(MicrovmMachineState *mms, ISADevice *s)
+static void microvm_set_rtc(MicrovmMachineState *mms, MC146818RtcState *s)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
     int val;
@@ -161,7 +161,6 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     const char *default_firmware;
     X86MachineState *x86ms = X86_MACHINE(mms);
     ISABus *isa_bus;
-    ISADevice *rtc_state;
     GSIState *gsi_state;
     int ioapics;
     int i;
@@ -267,8 +266,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     if (mms->rtc == ON_OFF_AUTO_ON ||
         (mms->rtc == ON_OFF_AUTO_AUTO && !kvm_enabled())) {
-        rtc_state = mc146818_rtc_init(isa_bus, 2000, NULL);
-        microvm_set_rtc(mms, rtc_state);
+        microvm_set_rtc(mms, mc146818_rtc_init(isa_bus, 2000, NULL));
     }
 
     if (mms->isa_serial) {

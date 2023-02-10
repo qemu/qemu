@@ -438,7 +438,7 @@ static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 
 #define REG_EQUIPMENT_BYTE          0x14
 
-static void cmos_init_hd(ISADevice *s, int type_ofs, int info_ofs,
+static void cmos_init_hd(MC146818RtcState *s, int type_ofs, int info_ofs,
                          int16_t cylinders, int8_t heads, int8_t sectors)
 {
     rtc_set_memory(s, type_ofs, 47);
@@ -470,7 +470,8 @@ static int boot_device2nibble(char boot_device)
     return 0;
 }
 
-static void set_boot_dev(ISADevice *s, const char *boot_device, Error **errp)
+static void set_boot_dev(MC146818RtcState *s, const char *boot_device,
+                         Error **errp)
 {
 #define PC_MAX_BOOT_DEVICES 3
     int nbds, bds[3] = { 0, };
@@ -498,7 +499,7 @@ static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
     set_boot_dev(opaque, boot_device, errp);
 }
 
-static void pc_cmos_init_floppy(ISADevice *rtc_state, ISADevice *floppy)
+static void pc_cmos_init_floppy(MC146818RtcState *rtc_state, ISADevice *floppy)
 {
     int val, nb, i;
     FloppyDriveType fd_type[2] = { FLOPPY_DRIVE_TYPE_NONE,
@@ -536,7 +537,7 @@ static void pc_cmos_init_floppy(ISADevice *rtc_state, ISADevice *floppy)
 }
 
 typedef struct pc_cmos_init_late_arg {
-    ISADevice *rtc_state;
+    MC146818RtcState *rtc_state;
     BusState *idebus[2];
 } pc_cmos_init_late_arg;
 
@@ -603,7 +604,7 @@ static ISADevice *pc_find_fdc0(void)
 static void pc_cmos_init_late(void *opaque)
 {
     pc_cmos_init_late_arg *arg = opaque;
-    ISADevice *s = arg->rtc_state;
+    MC146818RtcState *s = arg->rtc_state;
     int16_t cylinders;
     int8_t heads, sectors;
     int val;
@@ -645,11 +646,12 @@ static void pc_cmos_init_late(void *opaque)
 
 void pc_cmos_init(PCMachineState *pcms,
                   BusState *idebus0, BusState *idebus1,
-                  ISADevice *s)
+                  ISADevice *rtc)
 {
     int val;
     static pc_cmos_init_late_arg arg;
     X86MachineState *x86ms = X86_MACHINE(pcms);
+    MC146818RtcState *s = MC146818_RTC(rtc);
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -1303,7 +1305,7 @@ void pc_basic_device_init(struct PCMachineState *pcms,
         pit_alt_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_PIT_INT);
         rtc_irq = qdev_get_gpio_in(hpet, HPET_LEGACY_RTC_INT);
     }
-    *rtc_state = mc146818_rtc_init(isa_bus, 2000, rtc_irq);
+    *rtc_state = ISA_DEVICE(mc146818_rtc_init(isa_bus, 2000, rtc_irq));
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 

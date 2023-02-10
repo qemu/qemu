@@ -739,16 +739,14 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
     }
 }
 
-void rtc_set_memory(ISADevice *dev, int addr, int val)
+void rtc_set_memory(MC146818RtcState *s, int addr, int val)
 {
-    MC146818RtcState *s = MC146818_RTC(dev);
     if (addr >= 0 && addr <= 127)
         s->cmos_data[addr] = val;
 }
 
-int rtc_get_memory(ISADevice *dev, int addr)
+int rtc_get_memory(MC146818RtcState *s, int addr)
 {
-    MC146818RtcState *s = MC146818_RTC(dev);
     assert(addr >= 0 && addr <= 127);
     return s->cmos_data[addr];
 }
@@ -859,7 +857,7 @@ static void rtc_notify_suspend(Notifier *notifier, void *data)
 {
     MC146818RtcState *s = container_of(notifier, MC146818RtcState,
                                        suspend_notifier);
-    rtc_set_memory(ISA_DEVICE(s), 0xF, 0xFE);
+    rtc_set_memory(s, 0xF, 0xFE);
 }
 
 static const MemoryRegionOps cmos_ops = {
@@ -946,7 +944,8 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
 }
 
-ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
+MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
+                                    qemu_irq intercept_irq)
 {
     DeviceState *dev;
     ISADevice *isadev;
@@ -966,7 +965,7 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(isadev),
                               "date");
 
-    return isadev;
+    return s;
 }
 
 static Property mc146818rtc_properties[] = {
