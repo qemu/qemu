@@ -47,7 +47,7 @@ struct PIIX4State {
     qemu_irq cpu_intr;
     qemu_irq *isa;
 
-    RTCState rtc;
+    MC146818RtcState rtc;
     PCIIDEState ide;
     UHCIState uhci;
     PIIX4PMState pm;

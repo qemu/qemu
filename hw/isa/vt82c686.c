@@ -550,7 +550,7 @@ struct ViaISAState {
     qemu_irq cpu_intr;
     qemu_irq *isa_irqs_in;
     ViaSuperIOState via_sio;
-    RTCState rtc;
+    MC146818RtcState rtc;
     PCIIDEState ide;
     UHCIState uhci[2];
     ViaPMState pm;
