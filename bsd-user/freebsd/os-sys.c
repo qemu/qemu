@@ -67,13 +67,13 @@ static const int host_ctl_size[CTLTYPE + 1] = {
  */
 static const abi_ulong guest_max_mem = UINT32_MAX - 0x100c000 + 1;
 
-static abi_ulong G_GNUC_UNUSED cap_memory(uint64_t mem)
+static abi_ulong cap_memory(uint64_t mem)
 {
     return MIN(guest_max_mem, mem);
 }
 #endif
 
-static abi_ulong G_GNUC_UNUSED scale_to_guest_pages(uint64_t pages)
+static abi_ulong scale_to_guest_pages(uint64_t pages)
 {
     /* Scale pages from host to guest */
     pages = muldiv64(pages, qemu_real_host_page_size(), TARGET_PAGE_SIZE);
@@ -263,6 +263,146 @@ static abi_long G_GNUC_UNUSED do_freebsd_sysctl_oid(CPUArchState *env, int32_t *
     oidfmt(snamep, namelen, NULL, &kind);
 
     /* Handle some arch/emulator dependent sysctl()'s here. */
+    switch (snamep[0]) {
+    case CTL_KERN:
+        switch (snamep[1]) {
+        case KERN_USRSTACK:
+            if (oldlen) {
+                (*(abi_ulong *)holdp) = tswapal(TARGET_USRSTACK);
+            }
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+            goto out;
+
+        case KERN_PS_STRINGS:
+            if (oldlen) {
+                (*(abi_ulong *)holdp) = tswapal(TARGET_PS_STRINGS);
+            }
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+            goto out;
+
+        default:
+            break;
+        }
+        break;
+
+    case CTL_HW:
+        switch (snamep[1]) {
+        case HW_MACHINE:
+            holdlen = sizeof(TARGET_HW_MACHINE);
+            if (holdp) {
+                strlcpy(holdp, TARGET_HW_MACHINE, oldlen);
+            }
+            ret = 0;
+            goto out;
+
+        case HW_MACHINE_ARCH:
+        {
+            holdlen = sizeof(TARGET_HW_MACHINE_ARCH);
+            if (holdp) {
+                strlcpy(holdp, TARGET_HW_MACHINE_ARCH, oldlen);
+            }
+            ret = 0;
+            goto out;
+        }
+        case HW_NCPU:
+            if (oldlen) {
+                (*(abi_int *)holdp) = tswap32(bsd_get_ncpu());
+            }
+            holdlen = sizeof(int32_t);
+            ret = 0;
+            goto out;
+#if defined(TARGET_ARM)
+        case HW_FLOATINGPT:
+            if (oldlen) {
+                ARMCPU *cpu = env_archcpu(env);
+                *(abi_int *)holdp = cpu_isar_feature(aa32_vfp, cpu);
+            }
+            holdlen = sizeof(abi_int);
+            ret = 0;
+            goto out;
+#endif
+
+
+#ifdef TARGET_ABI32
+        case HW_PHYSMEM:
+        case HW_USERMEM:
+        case HW_REALMEM:
+            holdlen = sizeof(abi_ulong);
+            ret = 0;
+
+            if (oldlen) {
+                int mib[2] = {snamep[0], snamep[1]};
+                unsigned long lvalue;
+                size_t len = sizeof(lvalue);
+
+                if (sysctl(mib, 2, &lvalue, &len, NULL, 0) == -1) {
+                    ret = -1;
+                } else {
+                    lvalue = cap_memory(lvalue);
+                    (*(abi_ulong *)holdp) = tswapal((abi_ulong)lvalue);
+                }
+            }
+            goto out;
+#endif
+
+        default:
+        {
+            static int oid_hw_availpages;
+            static int oid_hw_pagesizes;
+
+            if (!oid_hw_availpages) {
+                int real_oid[CTL_MAXNAME + 2];
+                size_t len = sizeof(real_oid) / sizeof(int);
+
+                if (sysctlnametomib("hw.availpages", real_oid, &len) >= 0) {
+                    oid_hw_availpages = real_oid[1];
+                }
+            }
+            if (!oid_hw_pagesizes) {
+                int real_oid[CTL_MAXNAME + 2];
+                size_t len = sizeof(real_oid) / sizeof(int);
+
+                if (sysctlnametomib("hw.pagesizes", real_oid, &len) >= 0) {
+                    oid_hw_pagesizes = real_oid[1];
+                }
+            }
+
+            if (oid_hw_availpages && snamep[1] == oid_hw_availpages) {
+                long lvalue;
+                size_t len = sizeof(lvalue);
+
+                if (sysctlbyname("hw.availpages", &lvalue, &len, NULL, 0) == -1) {
+                    ret = -1;
+                } else {
+                    if (oldlen) {
+                        lvalue = scale_to_guest_pages(lvalue);
+                        (*(abi_ulong *)holdp) = tswapal((abi_ulong)lvalue);
+                    }
+                    holdlen = sizeof(abi_ulong);
+                    ret = 0;
+                }
+                goto out;
+            }
+
+            if (oid_hw_pagesizes && snamep[1] == oid_hw_pagesizes) {
+                if (oldlen) {
+                    (*(abi_ulong *)holdp) = tswapal((abi_ulong)TARGET_PAGE_SIZE);
+                    ((abi_ulong *)holdp)[1] = 0;
+                }
+                holdlen = sizeof(abi_ulong) * 2;
+                ret = 0;
+                goto out;
+            }
+            break;
+        }
+        }
+        break;
+
+    default:
+        break;
+    }
 
 #ifdef TARGET_ABI32
     /*
@@ -326,6 +466,7 @@ static abi_long G_GNUC_UNUSED do_freebsd_sysctl_oid(CPUArchState *env, int32_t *
         }
     }
 
+out:
     *holdlenp = holdlen;
     return ret;
 }
