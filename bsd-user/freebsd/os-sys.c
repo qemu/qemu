@@ -112,7 +112,7 @@ static abi_ulong h2g_ulong_sat(u_long ul)
  * sysctl, see /sys/kern/kern_sysctl.c:sysctl_sysctl_oidfmt() (compare to
  * src/sbin/sysctl/sysctl.c)
  */
-static int G_GNUC_UNUSED oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
+static int oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
 {
     int qoid[CTL_MAXNAME + 2];
     uint8_t buf[BUFSIZ];
@@ -154,7 +154,7 @@ static int G_GNUC_UNUSED oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
  *
  * For opaque data, per sysctl OID converts take care of it.
  */
-static void G_GNUC_UNUSED h2g_old_sysctl(void *holdp, size_t *holdlen, uint32_t kind)
+static void h2g_old_sysctl(void *holdp, size_t *holdlen, uint32_t kind)
 {
     size_t len;
     int hlen, glen;
@@ -233,7 +233,7 @@ static void G_GNUC_UNUSED h2g_old_sysctl(void *holdp, size_t *holdlen, uint32_t 
 /*
  * Convert the undocmented name2oid sysctl data for the target.
  */
-static inline void G_GNUC_UNUSED sysctl_name2oid(uint32_t *holdp, size_t holdlen)
+static inline void sysctl_name2oid(uint32_t *holdp, size_t holdlen)
 {
     size_t i, num = holdlen / sizeof(uint32_t);
 
@@ -242,10 +242,92 @@ static inline void G_GNUC_UNUSED sysctl_name2oid(uint32_t *holdp, size_t holdlen
     }
 }
 
-static inline void G_GNUC_UNUSED sysctl_oidfmt(uint32_t *holdp)
+static inline void sysctl_oidfmt(uint32_t *holdp)
 {
     /* byte swap the kind */
     holdp[0] = tswap32(holdp[0]);
+}
+
+static abi_long G_GNUC_UNUSED do_freebsd_sysctl_oid(CPUArchState *env, int32_t *snamep,
+        int32_t namelen, void *holdp, size_t *holdlenp, void *hnewp,
+        size_t newlen)
+{
+    uint32_t kind = 0;
+    abi_long ret;
+    size_t holdlen, oldlen;
+#ifdef TARGET_ABI32
+    void *old_holdp;
+#endif
+
+    holdlen = oldlen = *holdlenp;
+    oidfmt(snamep, namelen, NULL, &kind);
+
+    /* Handle some arch/emulator dependent sysctl()'s here. */
+
+#ifdef TARGET_ABI32
+    /*
+     * For long and ulong with a 64-bit host and a 32-bit target we have to do
+     * special things. holdlen here is the length provided by the target to the
+     * system call. So we allocate a buffer twice as large because longs are
+     * twice as big on the host which will be writing them. In h2g_old_sysctl
+     * we'll adjust them and adjust the length.
+     */
+    if (kind == CTLTYPE_LONG || kind == CTLTYPE_ULONG) {
+        old_holdp = holdp;
+        holdlen = holdlen * 2;
+        holdp = g_malloc(holdlen);
+    }
+#endif
+
+    ret = get_errno(sysctl(snamep, namelen, holdp, &holdlen, hnewp, newlen));
+    if (!ret && (holdp != 0)) {
+
+        if (snamep[0] == CTL_SYSCTL) {
+            switch (snamep[1]) {
+            case CTL_SYSCTL_NEXT:
+            case CTL_SYSCTL_NAME2OID:
+            case CTL_SYSCTL_NEXTNOSKIP:
+                /*
+                 * All of these return an OID array, so we need to convert to
+                 * target.
+                 */
+                sysctl_name2oid(holdp, holdlen);
+                break;
+
+            case CTL_SYSCTL_OIDFMT:
+                /* Handle oidfmt */
+                sysctl_oidfmt(holdp);
+                break;
+            case CTL_SYSCTL_OIDDESCR:
+            case CTL_SYSCTL_OIDLABEL:
+            default:
+                /* Handle it based on the type */
+                h2g_old_sysctl(holdp, &holdlen, kind);
+                /* NB: None of these are LONG or ULONG */
+                break;
+            }
+        } else {
+            /*
+             * Need to convert from host to target. All the weird special cases
+             * are handled above.
+             */
+            h2g_old_sysctl(holdp, &holdlen, kind);
+#ifdef TARGET_ABI32
+            /*
+             * For the 32-bit on 64-bit case, for longs we need to copy the
+             * now-converted buffer to the target and free the buffer.
+             */
+            if (kind == CTLTYPE_LONG || kind == CTLTYPE_ULONG) {
+                memcpy(old_holdp, holdp, holdlen);
+                g_free(holdp);
+                holdp = old_holdp;
+            }
+#endif
+        }
+    }
+
+    *holdlenp = holdlen;
+    return ret;
 }
 
 /* sysarch() is architecture dependent. */
