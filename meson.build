@@ -1649,10 +1649,13 @@ if libbpf.found() and not cc.links('''
 endif
 
 # libdw
-libdw = dependency('libdw',
-                   method: 'pkg-config',
-                   kwargs: static_kwargs,
-                   required: false)
+libdw = not_found
+if not get_option('libdw').auto() or have_system or have_user
+    libdw = dependency('libdw',
+                       method: 'pkg-config',
+                       kwargs: static_kwargs,
+                       required: get_option('libdw'))
+endif
 
 #################
 # config-host.h #
