@@ -23,12 +23,12 @@ check-dco:
   before_script:
     - apk -U add git
 
-check-python-pipenv:
+check-python-minreqs:
   extends: .base_job_template
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/python:latest
   script:
-    - make -C python check-pipenv
+    - make -C python check-minreqs
   variables:
     GIT_DEPTH: 1
   needs:

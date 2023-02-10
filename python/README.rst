@@ -77,9 +77,6 @@ Files in this directory
 - ``MANIFEST.in`` is read by python setuptools, it specifies additional files
   that should be included by a source distribution.
 - ``PACKAGE.rst`` is used as the README file that is visible on PyPI.org.
-- ``Pipfile`` is used by Pipenv to generate ``Pipfile.lock``.
-- ``Pipfile.lock`` is a set of pinned package dependencies that this package
-  is tested under in our CI suite. It is used by ``make check-pipenv``.
 - ``README.rst`` you are here!
 - ``VERSION`` contains the PEP-440 compliant version used to describe
   this package; it is referenced by ``setup.cfg``.

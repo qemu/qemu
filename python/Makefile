@@ -1,15 +1,16 @@
 QEMU_VENV_DIR=.dev-venv
+QEMU_MINVENV_DIR=.min-venv
 QEMU_TOX_EXTRA_ARGS ?=
 
 .PHONY: help
 help:
 	@echo "python packaging help:"
 	@echo ""
-	@echo "make check-pipenv:"
-	@echo "    Run tests in pipenv's virtual environment."
+	@echo "make check-minreqs:"
+	@echo "    Run tests in the minreqs virtual environment."
 	@echo "    These tests use the oldest dependencies."
-	@echo "    Requires: Python 3.6 and pipenv."
-	@echo "    Hint (Fedora): 'sudo dnf install python3.6 pipenv'"
+	@echo "    Requires: Python 3.6"
+	@echo "    Hint (Fedora): 'sudo dnf install python3.6'"
 	@echo ""
 	@echo "make check-tox:"
 	@echo "    Run tests against multiple python versions."
@@ -33,8 +34,8 @@ help:
 	@echo "    and install the qemu package in editable mode."
 	@echo "    (Can be used in or outside of a venv.)"
 	@echo ""
-	@echo "make pipenv"
-	@echo "    Creates pipenv's virtual environment (.venv)"
+	@echo "make min-venv"
+	@echo "    Creates the minreqs virtual environment ($(QEMU_MINVENV_DIR))"
 	@echo ""
 	@echo "make dev-venv"
 	@echo "    Creates a simple venv for check-dev. ($(QEMU_VENV_DIR))"
@@ -43,21 +44,38 @@ help:
 	@echo "    Remove package build output."
 	@echo ""
 	@echo "make distclean:"
-	@echo "    remove pipenv/venv files, qemu package forwarder,"
+	@echo "    remove venv files, qemu package forwarder,"
 	@echo "    built distribution files, and everything from 'make clean'."
 	@echo ""
 	@echo -e "Have a nice day ^_^\n"
 
-.PHONY: pipenv
-pipenv: .venv
-.venv: Pipfile.lock
-	@PIPENV_VENV_IN_PROJECT=1 pipenv sync --dev --keep-outdated
-	rm -f pyproject.toml
-	@touch .venv
+.PHONY: pipenv check-pipenv
+pipenv check-pipenv:
+	@echo "pipenv was dropped; try 'make check-minreqs' or 'make min-venv'"
+	@exit 1
 
-.PHONY: check-pipenv
-check-pipenv: pipenv
-	@pipenv run make check
+.PHONY: min-venv
+min-venv: $(QEMU_MINVENV_DIR) $(QEMU_MINVENV_DIR)/bin/activate
+$(QEMU_MINVENV_DIR) $(QEMU_MINVENV_DIR)/bin/activate: setup.cfg tests/minreqs.txt
+	@echo "VENV $(QEMU_MINVENV_DIR)"
+	@python3.6 -m venv $(QEMU_MINVENV_DIR)
+	@(								\
+		echo "ACTIVATE $(QEMU_MINVENV_DIR)";			\
+		. $(QEMU_MINVENV_DIR)/bin/activate;			\
+		echo "INSTALL -r tests/minreqs.txt $(QEMU_MINVENV_DIR)";\
+		pip install -r tests/minreqs.txt 1>/dev/null;		\
+		echo "INSTALL -e qemu $(QEMU_MINVENV_DIR)";		\
+		pip install -e . 1>/dev/null;				\
+	)
+	@touch $(QEMU_MINVENV_DIR)
+
+.PHONY: check-minreqs
+check-minreqs: min-venv
+	@(							\
+		echo "ACTIVATE $(QEMU_MINVENV_DIR)";		\
+		. $(QEMU_MINVENV_DIR)/bin/activate;		\
+		make check;					\
+	)
 
 .PHONY: dev-venv
 dev-venv: $(QEMU_VENV_DIR) $(QEMU_VENV_DIR)/bin/activate
@@ -106,6 +124,7 @@ clean:
 
 .PHONY: distclean
 distclean: clean
-	rm -rf qemu.egg-info/ .venv/ .tox/ $(QEMU_VENV_DIR) dist/
+	rm -rf qemu.egg-info/ .eggs/ dist/
+	rm -rf $(QEMU_VENV_DIR) $(QEMU_MINVENV_DIR) .tox/
 	rm -f .coverage .coverage.*
 	rm -rf htmlcov/
