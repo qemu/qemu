@@ -1650,7 +1650,8 @@ endif
 
 # libdw
 libdw = not_found
-if not get_option('libdw').auto() or have_system or have_user
+if not get_option('libdw').auto() or \
+        (not enable_static and (have_system or have_user))
     libdw = dependency('libdw',
                        method: 'pkg-config',
                        kwargs: static_kwargs,
