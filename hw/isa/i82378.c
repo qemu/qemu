@@ -33,7 +33,7 @@ struct I82378State {
     PCIDevice parent_obj;
 
     qemu_irq cpu_intr;
-    qemu_irq *i8259;
+    qemu_irq *isa_irqs_in;
     MemoryRegion io;
 };
 
@@ -47,18 +47,12 @@ static const VMStateDescription vmstate_i82378 = {
     },
 };
 
-static void i82378_request_out0_irq(void *opaque, int irq, int level)
-{
-    I82378State *s = opaque;
-    qemu_set_irq(s->cpu_intr, level);
-}
-
 static void i82378_request_pic_irq(void *opaque, int irq, int level)
 {
     DeviceState *dev = opaque;
     I82378State *s = I82378(dev);
 
-    qemu_set_irq(s->i8259[irq], level);
+    qemu_set_irq(s->isa_irqs_in[irq], level);
 }
 
 static void i82378_realize(PCIDevice *pci, Error **errp)
@@ -94,9 +88,8 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
      */
 
     /* 2 82C59 (irq) */
-    s->i8259 = i8259_init(isabus,
-                          qemu_allocate_irq(i82378_request_out0_irq, s, 0));
-    isa_bus_irqs(isabus, s->i8259);
+    s->isa_irqs_in = i8259_init(isabus, s->cpu_intr);
+    isa_bus_irqs(isabus, s->isa_irqs_in);
 
     /* 1 82C54 (pit) */
     pit = i8254_pit_init(isabus, 0x40, 0, NULL);
