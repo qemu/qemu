@@ -63,8 +63,8 @@ static void microvm_set_rtc(MicrovmMachineState *mms, MC146818RtcState *s)
     int val;
 
     val = MIN(x86ms->below_4g_mem_size / KiB, 640);
-    rtc_set_memory(s, 0x15, val);
-    rtc_set_memory(s, 0x16, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x15, val);
+    mc146818rtc_set_cmos_data(s, 0x16, val >> 8);
     /* extended memory (next 64MiB) */
     if (x86ms->below_4g_mem_size > 1 * MiB) {
         val = (x86ms->below_4g_mem_size - 1 * MiB) / KiB;
@@ -74,10 +74,10 @@ static void microvm_set_rtc(MicrovmMachineState *mms, MC146818RtcState *s)
     if (val > 65535) {
         val = 65535;
     }
-    rtc_set_memory(s, 0x17, val);
-    rtc_set_memory(s, 0x18, val >> 8);
-    rtc_set_memory(s, 0x30, val);
-    rtc_set_memory(s, 0x31, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x17, val);
+    mc146818rtc_set_cmos_data(s, 0x18, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x30, val);
+    mc146818rtc_set_cmos_data(s, 0x31, val >> 8);
     /* memory between 16MiB and 4GiB */
     if (x86ms->below_4g_mem_size > 16 * MiB) {
         val = (x86ms->below_4g_mem_size - 16 * MiB) / (64 * KiB);
@@ -87,13 +87,13 @@ static void microvm_set_rtc(MicrovmMachineState *mms, MC146818RtcState *s)
     if (val > 65535) {
         val = 65535;
     }
-    rtc_set_memory(s, 0x34, val);
-    rtc_set_memory(s, 0x35, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x34, val);
+    mc146818rtc_set_cmos_data(s, 0x35, val >> 8);
     /* memory above 4GiB */
     val = x86ms->above_4g_mem_size / 65536;
-    rtc_set_memory(s, 0x5b, val);
-    rtc_set_memory(s, 0x5c, val >> 8);
-    rtc_set_memory(s, 0x5d, val >> 16);
+    mc146818rtc_set_cmos_data(s, 0x5b, val);
+    mc146818rtc_set_cmos_data(s, 0x5c, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x5d, val >> 16);
 }
 
 static void create_gpex(MicrovmMachineState *mms)

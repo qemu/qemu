@@ -739,13 +739,13 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
     }
 }
 
-void rtc_set_memory(MC146818RtcState *s, int addr, int val)
+void mc146818rtc_set_cmos_data(MC146818RtcState *s, int addr, int val)
 {
     if (addr >= 0 && addr <= 127)
         s->cmos_data[addr] = val;
 }
 
-int rtc_get_memory(MC146818RtcState *s, int addr)
+int mc146818rtc_get_cmos_data(MC146818RtcState *s, int addr)
 {
     assert(addr >= 0 && addr <= 127);
     return s->cmos_data[addr];
@@ -857,7 +857,7 @@ static void rtc_notify_suspend(Notifier *notifier, void *data)
 {
     MC146818RtcState *s = container_of(notifier, MC146818RtcState,
                                        suspend_notifier);
-    rtc_set_memory(s, 0xF, 0xFE);
+    mc146818rtc_set_cmos_data(s, 0xF, 0xFE);
 }
 
 static const MemoryRegionOps cmos_ops = {

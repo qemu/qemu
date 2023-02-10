@@ -160,9 +160,9 @@ void x86_rtc_set_cpus_count(ISADevice *s, uint16_t cpus_count)
          * BIOS must use "FW_CFG_NB_CPUS". Set RTC field to 0 just
          * to make old BIOSes fail more predictably.
          */
-        rtc_set_memory(rtc, 0x5f, 0);
+        mc146818rtc_set_cmos_data(rtc, 0x5f, 0);
     } else {
-        rtc_set_memory(rtc, 0x5f, cpus_count - 1);
+        mc146818rtc_set_cmos_data(rtc, 0x5f, cpus_count - 1);
     }
 }
 

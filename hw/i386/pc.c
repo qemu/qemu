@@ -441,16 +441,16 @@ static uint64_t ioportF0_read(void *opaque, hwaddr addr, unsigned size)
 static void cmos_init_hd(MC146818RtcState *s, int type_ofs, int info_ofs,
                          int16_t cylinders, int8_t heads, int8_t sectors)
 {
-    rtc_set_memory(s, type_ofs, 47);
-    rtc_set_memory(s, info_ofs, cylinders);
-    rtc_set_memory(s, info_ofs + 1, cylinders >> 8);
-    rtc_set_memory(s, info_ofs + 2, heads);
-    rtc_set_memory(s, info_ofs + 3, 0xff);
-    rtc_set_memory(s, info_ofs + 4, 0xff);
-    rtc_set_memory(s, info_ofs + 5, 0xc0 | ((heads > 8) << 3));
-    rtc_set_memory(s, info_ofs + 6, cylinders);
-    rtc_set_memory(s, info_ofs + 7, cylinders >> 8);
-    rtc_set_memory(s, info_ofs + 8, sectors);
+    mc146818rtc_set_cmos_data(s, type_ofs, 47);
+    mc146818rtc_set_cmos_data(s, info_ofs, cylinders);
+    mc146818rtc_set_cmos_data(s, info_ofs + 1, cylinders >> 8);
+    mc146818rtc_set_cmos_data(s, info_ofs + 2, heads);
+    mc146818rtc_set_cmos_data(s, info_ofs + 3, 0xff);
+    mc146818rtc_set_cmos_data(s, info_ofs + 4, 0xff);
+    mc146818rtc_set_cmos_data(s, info_ofs + 5, 0xc0 | ((heads > 8) << 3));
+    mc146818rtc_set_cmos_data(s, info_ofs + 6, cylinders);
+    mc146818rtc_set_cmos_data(s, info_ofs + 7, cylinders >> 8);
+    mc146818rtc_set_cmos_data(s, info_ofs + 8, sectors);
 }
 
 /* convert boot_device letter to something recognizable by the bios */
@@ -490,8 +490,8 @@ static void set_boot_dev(MC146818RtcState *s, const char *boot_device,
             return;
         }
     }
-    rtc_set_memory(s, 0x3d, (bds[1] << 4) | bds[0]);
-    rtc_set_memory(s, 0x38, (bds[2] << 4) | (fd_bootchk ? 0x0 : 0x1));
+    mc146818rtc_set_cmos_data(s, 0x3d, (bds[1] << 4) | bds[0]);
+    mc146818rtc_set_cmos_data(s, 0x38, (bds[2] << 4) | (fd_bootchk ? 0x0 : 0x1));
 }
 
 static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
@@ -513,9 +513,9 @@ static void pc_cmos_init_floppy(MC146818RtcState *rtc_state, ISADevice *floppy)
     }
     val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
         cmos_get_fd_drive_type(fd_type[1]);
-    rtc_set_memory(rtc_state, 0x10, val);
+    mc146818rtc_set_cmos_data(rtc_state, 0x10, val);
 
-    val = rtc_get_memory(rtc_state, REG_EQUIPMENT_BYTE);
+    val = mc146818rtc_get_cmos_data(rtc_state, REG_EQUIPMENT_BYTE);
     nb = 0;
     if (fd_type[0] != FLOPPY_DRIVE_TYPE_NONE) {
         nb++;
@@ -533,7 +533,7 @@ static void pc_cmos_init_floppy(MC146818RtcState *rtc_state, ISADevice *floppy)
         val |= 0x41; /* 2 drives, ready for boot */
         break;
     }
-    rtc_set_memory(rtc_state, REG_EQUIPMENT_BYTE, val);
+    mc146818rtc_set_cmos_data(rtc_state, REG_EQUIPMENT_BYTE, val);
 }
 
 typedef struct pc_cmos_init_late_arg {
@@ -621,7 +621,7 @@ static void pc_cmos_init_late(void *opaque)
         cmos_init_hd(s, 0x1a, 0x24, cylinders, heads, sectors);
         val |= 0x0f;
     }
-    rtc_set_memory(s, 0x12, val);
+    mc146818rtc_set_cmos_data(s, 0x12, val);
 
     val = 0;
     for (i = 0; i < 4; i++) {
@@ -637,7 +637,7 @@ static void pc_cmos_init_late(void *opaque)
             val |= trans << (i * 2);
         }
     }
-    rtc_set_memory(s, 0x39, val);
+    mc146818rtc_set_cmos_data(s, 0x39, val);
 
     pc_cmos_init_floppy(s, pc_find_fdc0());
 
@@ -658,8 +658,8 @@ void pc_cmos_init(PCMachineState *pcms,
     /* memory size */
     /* base memory (first MiB) */
     val = MIN(x86ms->below_4g_mem_size / KiB, 640);
-    rtc_set_memory(s, 0x15, val);
-    rtc_set_memory(s, 0x16, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x15, val);
+    mc146818rtc_set_cmos_data(s, 0x16, val >> 8);
     /* extended memory (next 64MiB) */
     if (x86ms->below_4g_mem_size > 1 * MiB) {
         val = (x86ms->below_4g_mem_size - 1 * MiB) / KiB;
@@ -668,10 +668,10 @@ void pc_cmos_init(PCMachineState *pcms,
     }
     if (val > 65535)
         val = 65535;
-    rtc_set_memory(s, 0x17, val);
-    rtc_set_memory(s, 0x18, val >> 8);
-    rtc_set_memory(s, 0x30, val);
-    rtc_set_memory(s, 0x31, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x17, val);
+    mc146818rtc_set_cmos_data(s, 0x18, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x30, val);
+    mc146818rtc_set_cmos_data(s, 0x31, val >> 8);
     /* memory between 16MiB and 4GiB */
     if (x86ms->below_4g_mem_size > 16 * MiB) {
         val = (x86ms->below_4g_mem_size - 16 * MiB) / (64 * KiB);
@@ -680,13 +680,13 @@ void pc_cmos_init(PCMachineState *pcms,
     }
     if (val > 65535)
         val = 65535;
-    rtc_set_memory(s, 0x34, val);
-    rtc_set_memory(s, 0x35, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x34, val);
+    mc146818rtc_set_cmos_data(s, 0x35, val >> 8);
     /* memory above 4GiB */
     val = x86ms->above_4g_mem_size / 65536;
-    rtc_set_memory(s, 0x5b, val);
-    rtc_set_memory(s, 0x5c, val >> 8);
-    rtc_set_memory(s, 0x5d, val >> 16);
+    mc146818rtc_set_cmos_data(s, 0x5b, val);
+    mc146818rtc_set_cmos_data(s, 0x5c, val >> 8);
+    mc146818rtc_set_cmos_data(s, 0x5d, val >> 16);
 
     object_property_add_link(OBJECT(pcms), "rtc_state",
                              TYPE_ISA_DEVICE,
@@ -701,7 +701,7 @@ void pc_cmos_init(PCMachineState *pcms,
     val = 0;
     val |= 0x02; /* FPU is there */
     val |= 0x04; /* PS/2 mouse installed */
-    rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
+    mc146818rtc_set_cmos_data(s, REG_EQUIPMENT_BYTE, val);
 
     /* hard drives and FDC */
     arg.rtc_state = s;
