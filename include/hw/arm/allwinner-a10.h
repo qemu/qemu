@@ -1,7 +1,6 @@
 #ifndef HW_ARM_ALLWINNER_A10_H
 #define HW_ARM_ALLWINNER_A10_H
 
-#include "qemu/error-report.h"
 #include "hw/char/serial.h"
 #include "hw/arm/boot.h"
 #include "hw/pci/pci_device.h"

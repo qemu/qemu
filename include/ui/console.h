@@ -4,7 +4,6 @@
 #include "ui/qemu-pixman.h"
 #include "qom/object.h"
 #include "qemu/notify.h"
-#include "qemu/error-report.h"
 #include "qapi/qapi-types-ui.h"
 
 #ifdef CONFIG_OPENGL

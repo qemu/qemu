@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "ui/qemu-spice.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/lockable.h"
 #include "qemu/main-loop.h"

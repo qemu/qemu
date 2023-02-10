@@ -23,6 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/dbus.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
