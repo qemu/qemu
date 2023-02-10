@@ -1044,11 +1044,24 @@ if ! $python -c 'import sys; sys.exit(sys.version_info < (3,6))'; then
       "Use --python=/path/to/python to specify a supported Python."
 fi
 
-# Suppress writing compiled files
-python="$python -B"
+# Resolve PATH + suppress writing compiled files
+python="$(command -v "$python") -B"
+
+has_meson() {
+  local python_dir=$(dirname "$python")
+  # PEP405: pyvenv.cfg is either adjacent to the Python executable
+  # or one directory above
+  if test -f $python_dir/pyvenv.cfg || test -f $python_dir/../pyvenv.cfg; then
+    # Ensure that Meson and Python come from the same virtual environment
+    test -x "$python_dir/meson" &&
+      test "$(command -v meson)" -ef "$python_dir/meson"
+  else
+    has meson
+  fi
+}
 
 if test -z "$meson"; then
-    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.61.5; then
+    if test "$explicit_python" = no && has_meson && version_ge "$(meson --version)" 0.61.5; then
         meson=meson
     elif test "$git_submodules_action" != 'ignore' ; then
         meson=git
