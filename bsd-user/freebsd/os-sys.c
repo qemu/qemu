@@ -471,6 +471,73 @@ out:
     return ret;
 }
 
+/*
+ * This syscall was created to make sysctlbyname(3) more efficient, but we can't
+ * really provide it in bsd-user.  Notably, we must always translate the names
+ * independently since some sysctl values have to be faked for the target
+ * environment, so it still has to break down to two syscalls for the underlying
+ * implementation.
+ */
+abi_long do_freebsd_sysctlbyname(CPUArchState *env, abi_ulong namep,
+        int32_t namelen, abi_ulong oldp, abi_ulong oldlenp, abi_ulong newp,
+        abi_ulong newlen)
+{
+    abi_long ret = -TARGET_EFAULT;
+    void *holdp = NULL, *hnewp = NULL;
+    char *snamep = NULL;
+    int oid[CTL_MAXNAME + 2];
+    size_t holdlen, oidplen;
+    abi_ulong oldlen = 0;
+
+    /* oldlenp is read/write, pre-check here for write */
+    if (oldlenp) {
+        if (!access_ok(VERIFY_WRITE, oldlenp, sizeof(abi_ulong)) ||
+            get_user_ual(oldlen, oldlenp)) {
+            goto out;
+        }
+    }
+    snamep = lock_user_string(namep);
+    if (snamep == NULL) {
+        goto out;
+    }
+    if (newp) {
+        hnewp = lock_user(VERIFY_READ, newp, newlen, 1);
+        if (hnewp == NULL) {
+            goto out;
+        }
+    }
+    if (oldp) {
+        holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0);
+        if (holdp == NULL) {
+            goto out;
+        }
+    }
+    holdlen = oldlen;
+
+    oidplen = ARRAY_SIZE(oid);
+    if (sysctlnametomib(snamep, oid, &oidplen) != 0) {
+        ret = -TARGET_EINVAL;
+        goto out;
+    }
+
+    ret = do_freebsd_sysctl_oid(env, oid, oidplen, holdp, &holdlen, hnewp,
+        newlen);
+
+    /*
+     * writeability pre-checked above. __sysctl(2) returns ENOMEM and updates
+     * oldlenp for the proper size to use.
+     */
+    if (oldlenp && (ret == 0 || ret == -TARGET_ENOMEM)) {
+        put_user_ual(holdlen, oldlenp);
+    }
+out:
+    unlock_user(snamep, namep, 0);
+    unlock_user(holdp, oldp, ret == 0 ? holdlen : 0);
+    unlock_user(hnewp, newp, 0);
+
+    return ret;
+}
+
 abi_long do_freebsd_sysctl(CPUArchState *env, abi_ulong namep, int32_t namelen,
         abi_ulong oldp, abi_ulong oldlenp, abi_ulong newp, abi_ulong newlen)
 {
