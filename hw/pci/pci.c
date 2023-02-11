@@ -279,9 +279,13 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
 {
     PCIBus *bus;
     for (;;) {
+        int dev_irq = irq_num;
         bus = pci_get_bus(pci_dev);
         assert(bus->map_irq);
         irq_num = bus->map_irq(pci_dev, irq_num);
+        trace_pci_route_irq(dev_irq, DEVICE(pci_dev)->canonical_path, irq_num,
+                            pci_bus_is_root(bus) ? "root-complex"
+                                    : DEVICE(bus->parent_dev)->canonical_path);
         if (bus->set_irq)
             break;
         pci_dev = bus->parent_dev;
@@ -1600,8 +1604,12 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
     PCIBus *bus;
 
     do {
+        int dev_irq = pin;
         bus = pci_get_bus(dev);
         pin = bus->map_irq(dev, pin);
+        trace_pci_route_irq(dev_irq, DEVICE(dev)->canonical_path, pin,
+                            pci_bus_is_root(bus) ? "root-complex"
+                                    : DEVICE(bus->parent_dev)->canonical_path);
         dev = bus->parent_dev;
     } while (dev);
 
