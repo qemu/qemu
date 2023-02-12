@@ -3,7 +3,46 @@
 static void write_chip_info(IPodTouchFMSSState *s)
 {
     uint32_t chipid[] = { 0xb614d5ad, 0xb614d5ad, 0xb614d5ad, 0xb614d5ad };
-    cpu_physical_memory_write(s->reg_target_addr, &chipid, 0x10);
+    cpu_physical_memory_write(s->reg_cinfo_target_addr, &chipid, 0x10);
+}
+
+static void read_nand_pages(IPodTouchFMSSState *s)
+{
+    for(int page_ind = 0; page_ind < s->reg_num_pages; page_ind++) {
+        uint32_t page_nr = 0;
+        uint32_t page_out_addr = 0;
+        uint32_t page_spare_out_addr = 0;
+        cpu_physical_memory_read(s->reg_pages_in_addr + page_ind, &page_nr, 0x4);
+        cpu_physical_memory_read(s->reg_pages_out_addr + page_ind, &page_out_addr, 0x4);
+        if(page_nr == 524160) {
+            // NAND signature page
+            uint8_t *page = calloc(0x100, sizeof(uint8_t));
+            char *magic = "NANDDRIVERSIGN";
+            memcpy(page, magic, strlen(magic));
+            page[0x34] = 0x4; // length of the info
+
+            // signature (0x43313131)
+            page[0x38] = 0x31;
+            page[0x39] = 0x31;
+            page[0x3A] = 0x31;
+            page[0x3B] = 0x43;
+            printf("Will read page %d into address 0x%08x\n", page_nr, page_out_addr);
+            cpu_physical_memory_write(page_out_addr, page, 0x100);
+        }
+        else if(page_nr == 524161) {
+            // BBT page
+            uint8_t *page = calloc(0x100, sizeof(uint8_t));
+            char *magic = "DEVICEINFOBBT";
+            memcpy(page, magic, strlen(magic));
+            cpu_physical_memory_write(page_out_addr, page, 0x100);
+        }
+
+        // write the spare
+        printf("Writing spare to 0x%08x\n", s->reg_page_spare_out_addr);
+        uint8_t *spare = calloc(0x10, sizeof(uint8_t));
+        spare[9] = 0x80;
+        cpu_physical_memory_write(s->reg_page_spare_out_addr, spare, 0x10);
+    }
 }
 
 static uint64_t ipod_touch_fmss_read(void *opaque, hwaddr addr, unsigned size)
@@ -38,12 +77,24 @@ static void ipod_touch_fmss_write(void *opaque, hwaddr addr, uint64_t val, unsig
         case FMSS__CS_IRQ:
             if(val == 0xD) { s->reg_cs_irq_bit = 0; } // clear interrupt bit
             break;
-        case FMSS_TARGET_ADDR:
-            s->reg_target_addr = val;
+        case FMSS_CINFO_TARGET_ADDR:
+            s->reg_cinfo_target_addr = val;
+            write_chip_info(s);
             break;
-        case FMSS_CMD: // I assume this is a CMD register??
-            if(val == 0x8) { write_chip_info(s); }
+        case FMSS_PAGES_IN_ADDR:
+            s->reg_pages_in_addr = val;
             break;
+        case FMSS_NUM_PAGES:
+            s->reg_num_pages = val;
+            break;
+        case FMSS_PAGE_SPARE_OUT_ADDR:
+            s->reg_page_spare_out_addr = val;
+            break;
+        case FMSS_PAGES_OUT_ADDR:
+            s->reg_pages_out_addr = val;
+            break;
+        case 0xD38:
+            read_nand_pages(s);
     }
 }
 
