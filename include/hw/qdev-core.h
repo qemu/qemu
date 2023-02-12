@@ -715,7 +715,7 @@ static inline void qdev_init_gpio_in_named(DeviceState *dev,
 void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
                      const char *name);
 
-BusState *qdev_get_parent_bus(DeviceState *dev);
+BusState *qdev_get_parent_bus(const DeviceState *dev);
 
 /*** BUS API. ***/
 
