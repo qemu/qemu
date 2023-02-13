@@ -24,9 +24,9 @@
 #include "qemu/module.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
-#include "hw/i386/ioapic.h"
-#include "hw/i386/ioapic_internal.h"
 #include "hw/intc/intc.h"
+#include "hw/intc/ioapic.h"
+#include "hw/intc/ioapic_internal.h"
 #include "hw/sysbus.h"
 
 /* ioapic_no count start from 0 to MAX_IOAPICS,

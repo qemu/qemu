@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_IOAPIC_H
-#define HW_IOAPIC_H
+#ifndef HW_INTC_IOAPIC_H
+#define HW_INTC_IOAPIC_H
 
 #define IOAPIC_NUM_PINS 24
 #define IO_APIC_DEFAULT_ADDRESS 0xfec00000
@@ -30,4 +30,4 @@
 
 void ioapic_eoi_broadcast(int vector);
 
-#endif /* HW_IOAPIC_H */
+#endif /* HW_INTC_IOAPIC_H */
