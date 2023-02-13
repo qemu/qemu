@@ -8,8 +8,6 @@
 #include "hw/acpi/ich9.h"
 #include "qom/object.h"
 
-void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled);
-
 void ich9_generate_smi(void);
 
 #define ICH9_CC_SIZE (16 * 1024) /* 16KB. Chipset configuration registers */
