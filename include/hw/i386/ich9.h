@@ -9,7 +9,6 @@
 #include "qom/object.h"
 
 void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled);
-I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 void ich9_generate_smi(void);
 
