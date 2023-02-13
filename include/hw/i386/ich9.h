@@ -1,11 +1,13 @@
 #ifndef HW_ICH9_H
 #define HW_ICH9_H
 
-#include "hw/sysbus.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/apm.h"
-#include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
+#include "hw/intc/ioapic.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
+#include "exec/memory.h"
+#include "qemu/notify.h"
 #include "qom/object.h"
 
 void ich9_generate_smi(void);
