@@ -55,10 +55,10 @@
 #include "hw/hyperv/vmbus-bridge.h"
 
 /* Supported chipsets: */
+#include "hw/southbridge/ich9.h"
 #include "hw/southbridge/piix.h"
 #include "hw/acpi/pcihp.h"
 #include "hw/i386/fw_cfg.h"
-#include "hw/i386/ich9.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/i440fx.h"

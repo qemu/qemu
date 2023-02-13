@@ -1,5 +1,5 @@
-#ifndef HW_ICH9_H
-#define HW_ICH9_H
+#ifndef HW_SOUTHBRIDGE_ICH9_H
+#define HW_SOUTHBRIDGE_ICH9_H
 
 #include "hw/isa/apm.h"
 #include "hw/acpi/ich9.h"
@@ -242,4 +242,4 @@ struct ICH9LPCState {
 #define ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT          1
 #define ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT       2
 
-#endif /* HW_ICH9_H */
+#endif /* HW_SOUTHBRIDGE_ICH9_H */

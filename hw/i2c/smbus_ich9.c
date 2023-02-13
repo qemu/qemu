@@ -27,7 +27,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 
-#include "hw/i386/ich9.h"
+#include "hw/southbridge/ich9.h"
 #include "qom/object.h"
 #include "hw/acpi/acpi_aml_interface.h"
 

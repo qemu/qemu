@@ -36,7 +36,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9_tco.h"
 
-#include "hw/i386/ich9.h"
+#include "hw/southbridge/ich9.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 
