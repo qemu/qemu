@@ -818,8 +818,8 @@ member 'bar' ::
 
 A union's discriminator may not be conditional.
 
-Likewise, individual enumeration values be conditional.  This requires
-the longhand form of ENUM-VALUE_.
+Likewise, individual enumeration values may be conditional.  This
+requires the longhand form of ENUM-VALUE_.
 
 Example: an enum type with unconditional value 'foo' and conditional
 value 'bar' ::
@@ -1158,9 +1158,8 @@ Example: the SchemaInfo for EVENT_C from section Events_ ::
     Type "q_obj-EVENT_C-arg" is an implicitly defined object type with
     the two members from the event's definition.
 
-The SchemaInfo for struct and union types has meta-type "object".
-
-The SchemaInfo for a struct type has variant member "members".
+The SchemaInfo for struct and union types has meta-type "object" and
+variant member "members".
 
 The SchemaInfo for a union type additionally has variant members "tag"
 and "variants".
