@@ -1,7 +1,6 @@
 #ifndef HW_ICH9_H
 #define HW_ICH9_H
 
-#include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/apm.h"
@@ -64,8 +63,6 @@ struct ICH9LPCState {
                                        * triggers feature lockdown */
     uint64_t smi_negotiated_features; /* guest-invisible, host endian */
 
-    /* isa bus */
-    ISABus *isa_bus;
     MemoryRegion rcrb_mem; /* root complex register block */
     Notifier machine_ready;
 
