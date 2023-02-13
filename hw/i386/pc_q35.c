@@ -235,9 +235,9 @@ static void pc_q35_init(MachineState *machine)
     phb = PCI_HOST_BRIDGE(q35_host);
     host_bus = phb->bus;
     /* create ISA bus */
-    lpc = pci_create_simple_multifunction(host_bus, PCI_DEVFN(ICH9_LPC_DEV,
-                                          ICH9_LPC_FUNC), true,
-                                          TYPE_ICH9_LPC_DEVICE);
+    lpc = pci_new_multifunction(PCI_DEVFN(ICH9_LPC_DEV, ICH9_LPC_FUNC), true,
+                                TYPE_ICH9_LPC_DEVICE);
+    pci_realize_and_unref(lpc, host_bus, &error_fatal);
 
     object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              TYPE_HOTPLUG_HANDLER,
