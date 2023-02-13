@@ -259,7 +259,7 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
     qemu_set_irq(lpc->gsi[gsi], level);
 }
 
-void ich9_lpc_set_irq(void *opaque, int pirq, int level)
+static void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 {
     ICH9LPCState *lpc = opaque;
     int pic_irq, pic_dis;
@@ -275,7 +275,7 @@ void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 /* return the pirq number (PIRQ[A-H]:0-7) corresponding to
  * a given device irq pin.
  */
-int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
+static int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
 {
     BusState *bus = qdev_get_parent_bus(&pci_dev->qdev);
     PCIBus *pci_bus = PCI_BUS(bus);
@@ -286,7 +286,7 @@ int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
     return lpc->irr[PCI_SLOT(pci_dev->devfn)][intx];
 }
 
-PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
+static PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
 {
     ICH9LPCState *lpc = opaque;
     PCIINTxRoute route;
@@ -680,6 +680,7 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
     DeviceState *dev = DEVICE(d);
+    PCIBus *pci_bus = pci_get_bus(d);
     ISABus *isa_bus;
 
     if ((lpc->smi_host_features & BIT_ULL(ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT)) &&
@@ -728,6 +729,10 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     isa_bus_irqs(isa_bus, lpc->gsi);
 
     i8257_dma_init(isa_bus, 0);
+
+    pci_bus_irqs(pci_bus, ich9_lpc_set_irq, d, ICH9_LPC_NB_PIRQS);
+    pci_bus_map_irqs(pci_bus, ich9_lpc_map_irq);
+    pci_bus_set_route_irq_fn(pci_bus, ich9_route_intx_pin_to_irq);
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
