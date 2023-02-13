@@ -191,7 +191,7 @@ enum PostcopyChannels {
 };
 
 void postcopy_preempt_new_channel(MigrationIncomingState *mis, QEMUFile *file);
-int postcopy_preempt_setup(MigrationState *s, Error **errp);
-int postcopy_preempt_wait_channel(MigrationState *s);
+void postcopy_preempt_setup(MigrationState *s);
+int postcopy_preempt_establish_channel(MigrationState *s);
 
 #endif

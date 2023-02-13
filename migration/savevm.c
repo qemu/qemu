@@ -1552,7 +1552,7 @@ void qemu_savevm_state_pending_estimate(uint64_t *res_precopy_only,
     *res_postcopy_only = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->state_pending_exact) {
+        if (!se->ops || !se->ops->state_pending_estimate) {
             continue;
         }
         if (se->ops->is_active) {
@@ -1560,9 +1560,9 @@ void qemu_savevm_state_pending_estimate(uint64_t *res_precopy_only,
                 continue;
             }
         }
-        se->ops->state_pending_exact(se->opaque,
-                                     res_precopy_only, res_compatible,
-                                     res_postcopy_only);
+        se->ops->state_pending_estimate(se->opaque,
+                                        res_precopy_only, res_compatible,
+                                        res_postcopy_only);
     }
 }
 
@@ -1577,7 +1577,7 @@ void qemu_savevm_state_pending_exact(uint64_t *res_precopy_only,
     *res_postcopy_only = 0;
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->state_pending_estimate) {
+        if (!se->ops || !se->ops->state_pending_exact) {
             continue;
         }
         if (se->ops->is_active) {
@@ -1585,9 +1585,9 @@ void qemu_savevm_state_pending_exact(uint64_t *res_precopy_only,
                 continue;
             }
         }
-        se->ops->state_pending_estimate(se->opaque,
-                                        res_precopy_only, res_compatible,
-                                        res_postcopy_only);
+        se->ops->state_pending_exact(se->opaque,
+                                     res_precopy_only, res_compatible,
+                                     res_postcopy_only);
     }
 }
 
@@ -2200,7 +2200,11 @@ static int loadvm_postcopy_handle_resume(MigrationIncomingState *mis)
     qemu_sem_post(&mis->postcopy_pause_sem_fault);
 
     if (migrate_postcopy_preempt()) {
-        /* The channel should already be setup again; make sure of it */
+        /*
+         * The preempt channel will be created in async manner, now let's
+         * wait for it and make sure it's created.
+         */
+        qemu_sem_wait(&mis->postcopy_qemufile_dst_done);
         assert(mis->postcopy_qemufile_dst);
         /* Kick the fast ram load thread too */
         qemu_sem_post(&mis->postcopy_pause_sem_fast_load);
