@@ -57,8 +57,6 @@
 /*****************************************************************************/
 /* ICH9 LPC PCI to ISA bridge */
 
-static void ich9_lpc_reset(DeviceState *qdev);
-
 /* chipset configuration register
  * to access chipset configuration registers, pci_[sg]et_{byte, word, long}
  * are used.
@@ -439,8 +437,6 @@ static void ich9_lpc_pm_init(ICH9LPCState *lpc)
                                  sizeof lpc->smi_features_ok,
                                  true);
     }
-
-    ich9_lpc_reset(DEVICE(lpc));
 }
 
 /* APM */
