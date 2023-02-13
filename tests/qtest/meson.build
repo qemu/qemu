@@ -257,10 +257,14 @@ qos_test_ss.add(
   'virtio-net-test.c',
   'virtio-rng-test.c',
   'virtio-scsi-test.c',
-  'virtio-serial-test.c',
   'virtio-iommu-test.c',
   'vmxnet3-test.c',
 )
+
+if config_all_devices.has_key('CONFIG_VIRTIO_SERIAL')
+  qos_test_ss.add(files('virtio-serial-test.c'))
+endif
+
 if config_host.has_key('CONFIG_POSIX')
   qos_test_ss.add(files('e1000e-test.c'))
 endif
