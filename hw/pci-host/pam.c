@@ -30,24 +30,24 @@
 #include "qemu/osdep.h"
 #include "hw/pci-host/pam.h"
 
-void init_pam(DeviceState *dev, MemoryRegion *ram_memory,
+void init_pam(PAMMemoryRegion *mem, Object *owner, MemoryRegion *ram_memory,
               MemoryRegion *system_memory, MemoryRegion *pci_address_space,
-              PAMMemoryRegion *mem, uint32_t start, uint32_t size)
+              uint32_t start, uint32_t size)
 {
     int i;
 
     /* RAM */
-    memory_region_init_alias(&mem->alias[3], OBJECT(dev), "pam-ram", ram_memory,
+    memory_region_init_alias(&mem->alias[3], owner, "pam-ram", ram_memory,
                              start, size);
     /* ROM (XXX: not quite correct) */
-    memory_region_init_alias(&mem->alias[1], OBJECT(dev), "pam-rom", ram_memory,
+    memory_region_init_alias(&mem->alias[1], owner, "pam-rom", ram_memory,
                              start, size);
     memory_region_set_readonly(&mem->alias[1], true);
 
     /* XXX: should distinguish read/write cases */
-    memory_region_init_alias(&mem->alias[0], OBJECT(dev), "pam-pci", pci_address_space,
+    memory_region_init_alias(&mem->alias[0], owner, "pam-pci", pci_address_space,
                              start, size);
-    memory_region_init_alias(&mem->alias[2], OBJECT(dev), "pam-pci", ram_memory,
+    memory_region_init_alias(&mem->alias[2], owner, "pam-pci", ram_memory,
                              start, size);
 
     memory_region_transaction_begin();
