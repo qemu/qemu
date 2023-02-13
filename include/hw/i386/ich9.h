@@ -63,7 +63,7 @@ struct ICH9LPCState {
     MemoryRegion rcrb_mem; /* root complex register block */
     Notifier machine_ready;
 
-    qemu_irq gsi[GSI_NUM_PINS];
+    qemu_irq gsi[IOAPIC_NUM_PINS];
 };
 
 #define ICH9_MASK(bit, ms_bit, ls_bit) \

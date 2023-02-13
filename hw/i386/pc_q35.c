@@ -43,6 +43,7 @@
 #include "hw/i386/ich9.h"
 #include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
+#include "hw/i386/ioapic.h"
 #include "hw/display/ramfb.h"
 #include "hw/firmware/smbios.h"
 #include "hw/ide/pci.h"
@@ -267,7 +268,7 @@ static void pc_q35_init(MachineState *machine)
     gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
 
     lpc_dev = DEVICE(lpc);
-    for (i = 0; i < GSI_NUM_PINS; i++) {
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
         qdev_connect_gpio_out_named(lpc_dev, ICH9_GPIO_GSI, i, x86ms->gsi[i]);
     }
     isa_bus = ISA_BUS(qdev_get_child_bus(lpc_dev, "isa.0"));
