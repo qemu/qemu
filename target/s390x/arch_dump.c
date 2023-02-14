@@ -248,7 +248,7 @@ static int s390x_write_elf64_notes(const char *note_name,
             notep = g_malloc(note_size);
         }
 
-        memset(notep, 0, sizeof(note));
+        memset(notep, 0, note_size);
 
         /* Setup note header data */
         notep->hdr.n_descsz = cpu_to_be32(content_size);
