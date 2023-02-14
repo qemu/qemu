@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "sysemu/cpus.h"
 #include "qom/object_interfaces.h"
 #include "exec/confidential-guest-support.h"
 #include "hw/s390x/ipl.h"
@@ -106,6 +107,33 @@ int s390_pv_vm_enable(void)
 void s390_pv_vm_disable(void)
 {
      s390_pv_cmd_exit(KVM_PV_DISABLE, NULL);
+}
+
+static void *s390_pv_do_unprot_async_fn(void *p)
+{
+     s390_pv_cmd_exit(KVM_PV_ASYNC_CLEANUP_PERFORM, NULL);
+     return NULL;
+}
+
+bool s390_pv_vm_try_disable_async(void)
+{
+    /*
+     * t is only needed to create the thread; once qemu_thread_create
+     * returns, it can safely be discarded.
+     */
+    QemuThread t;
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_PROTECTED_ASYNC_DISABLE)) {
+        return false;
+    }
+    if (s390_pv_cmd(KVM_PV_ASYNC_CLEANUP_PREPARE, NULL) != 0) {
+        return false;
+    }
+
+    qemu_thread_create(&t, "async_cleanup", s390_pv_do_unprot_async_fn, NULL,
+                       QEMU_THREAD_DETACHED);
+
+    return true;
 }
 
 int s390_pv_set_sec_parms(uint64_t origin, uint64_t length)
