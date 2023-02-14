@@ -288,7 +288,7 @@ static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
 
         bmdma_init(&s->bus[i], &s->bmdma[i], s);
         s->bmdma[i].bus = &s->bus[i];
-        ide_register_restart_cb(&s->bus[i]);
+        ide_bus_register_restart_cb(&s->bus[i]);
     }
 }
 

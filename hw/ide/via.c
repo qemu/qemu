@@ -195,7 +195,7 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
 
         bmdma_init(&d->bus[i], &d->bmdma[i], d);
         d->bmdma[i].bus = &d->bus[i];
-        ide_register_restart_cb(&d->bus[i]);
+        ide_bus_register_restart_cb(&d->bus[i]);
     }
 }
 
