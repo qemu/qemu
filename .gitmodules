@@ -13,9 +13,6 @@
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
 	url = https://gitlab.com/qemu-project/qemu-palcode.git
-[submodule "roms/sgabios"]
-	path = roms/sgabios
-	url = https://gitlab.com/qemu-project/sgabios.git
 [submodule "dtc"]
 	path = dtc
 	url = https://gitlab.com/qemu-project/dtc.git

@@ -15,7 +15,6 @@
 #include "io/channel-socket.h"
 #include "io/channel-file.h"
 #include "io/net-listener.h"
-#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_blk.h"
 

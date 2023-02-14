@@ -3,7 +3,7 @@ VPATH+=$(S390X_SRC)
 QEMU_OPTS=-action panic=exit-failure -kernel
 
 %: %.S
-	$(CC) -march=z13 -m64 -nostartfiles -static -Wl,-Ttext=0 \
+	$(CC) -march=z13 -m64 -nostdlib -static -Wl,-Ttext=0 \
 		-Wl,--build-id=none $< -o $@
 
 TESTS += unaligned-lowcore

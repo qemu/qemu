@@ -337,7 +337,7 @@ class Engine(object):
         argv.extend(self._get_qemu_serial_args())
 
         if self._debug:
-            argv.extend(["-device", "sga"])
+            argv.extend(["-machine", "graphics=off"])
 
         if hardware._prealloc_pages:
             argv_source += ["-mem-path", "/dev/shm",

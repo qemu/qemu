@@ -2,6 +2,7 @@
 #include "qapi/error.h"
 #include "chardev/char.h"
 #include "qemu/buffer.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "hw/qdev-core.h"

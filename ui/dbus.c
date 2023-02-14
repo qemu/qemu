@@ -23,6 +23,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qemu/dbus.h"
 #include "qemu/main-loop.h"
 #include "qemu/option.h"

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
 #include <gio/gunixfdlist.h>

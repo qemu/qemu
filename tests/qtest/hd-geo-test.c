@@ -1090,30 +1090,42 @@ int main(int argc, char **argv)
         qtest_add_func("hd-geo/override/ide", test_override_ide);
         if (qtest_has_device("lsi53c895a")) {
             qtest_add_func("hd-geo/override/scsi", test_override_scsi);
-            qtest_add_func("hd-geo/override/scsi_2_controllers",
-                           test_override_scsi_2_controllers);
+            if (qtest_has_device("virtio-scsi-pci")) {
+                qtest_add_func("hd-geo/override/scsi_2_controllers",
+                               test_override_scsi_2_controllers);
+            }
         }
-        qtest_add_func("hd-geo/override/virtio_blk", test_override_virtio_blk);
         qtest_add_func("hd-geo/override/zero_chs", test_override_zero_chs);
-        qtest_add_func("hd-geo/override/scsi_hot_unplug",
-                       test_override_scsi_hot_unplug);
-        qtest_add_func("hd-geo/override/virtio_hot_unplug",
-                       test_override_virtio_hot_unplug);
+        if (qtest_has_device("virtio-scsi-pci")) {
+            qtest_add_func("hd-geo/override/scsi_hot_unplug",
+                           test_override_scsi_hot_unplug);
+        }
+        if (qtest_has_device("virtio-blk-pci")) {
+            qtest_add_func("hd-geo/override/virtio_hot_unplug",
+                           test_override_virtio_hot_unplug);
+            qtest_add_func("hd-geo/override/virtio_blk",
+                           test_override_virtio_blk);
+        }
 
         if (qtest_has_machine("q35")) {
             qtest_add_func("hd-geo/override/sata", test_override_sata);
-            qtest_add_func("hd-geo/override/virtio_blk_q35",
-                           test_override_virtio_blk_q35);
             qtest_add_func("hd-geo/override/zero_chs_q35",
                            test_override_zero_chs_q35);
             if (qtest_has_device("lsi53c895a")) {
                 qtest_add_func("hd-geo/override/scsi_q35",
                                test_override_scsi_q35);
             }
-            qtest_add_func("hd-geo/override/scsi_hot_unplug_q35",
-                           test_override_scsi_hot_unplug_q35);
-            qtest_add_func("hd-geo/override/virtio_hot_unplug_q35",
-                           test_override_virtio_hot_unplug_q35);
+            if (qtest_has_device("virtio-scsi-pci")) {
+                qtest_add_func("hd-geo/override/scsi_hot_unplug_q35",
+                               test_override_scsi_hot_unplug_q35);
+            }
+            if (qtest_has_device("virtio-blk-pci")) {
+                qtest_add_func("hd-geo/override/virtio_hot_unplug_q35",
+                               test_override_virtio_hot_unplug_q35);
+                qtest_add_func("hd-geo/override/virtio_blk_q35",
+                               test_override_virtio_blk_q35);
+            }
+
         }
     } else {
         g_test_message("QTEST_QEMU_IMG not set or qemu-img missing; "

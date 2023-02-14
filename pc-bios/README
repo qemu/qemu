@@ -20,12 +20,6 @@
   -machine pseries,x-vof=on. When enabled, the firmware acts as a slim shim and
   QEMU implements parts of the IEEE 1275 Open Firmware interface.
 
-- sgabios (the Serial Graphics Adapter option ROM) provides a means for
-  legacy x86 software to communicate with an attached serial console as
-  if a video card were attached.  The master sources reside in a subversion
-  repository at http://sgabios.googlecode.com/svn/trunk.  A git mirror is
-  available at https://gitlab.com/qemu-project/sgabios.git.
-
 - The PXE roms come from the iPXE project. Built with BANNER_TIME 0.
   Sources available at http://ipxe.org.  Vendor:Device ID -> ROM mapping:
 

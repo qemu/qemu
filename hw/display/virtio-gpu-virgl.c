@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "trace.h"
 #include "hw/virtio/virtio.h"
