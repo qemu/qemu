@@ -1251,19 +1251,19 @@ vte = not_found
 have_gtk_clipboard = get_option('gtk_clipboard').enabled()
 
 if not get_option('gtk').auto() or have_system
-  gtk = dependency('gtk+-3.0', version: '>=3.22.0',
+  gtk = dependency('gtk4',
                    method: 'pkg-config',
                    required: get_option('gtk'),
                    kwargs: static_kwargs)
   if gtk.found()
-    gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
+    gtkx11 = dependency('gtk4-x11',
                         method: 'pkg-config',
                         required: false,
                         kwargs: static_kwargs)
     gtk = declare_dependency(dependencies: [gtk, gtkx11])
 
     if not get_option('vte').auto() or have_system
-      vte = dependency('vte-2.91',
+      vte = dependency('vte-2.91-gtk4',
                        method: 'pkg-config',
                        required: get_option('vte'),
                        kwargs: static_kwargs)

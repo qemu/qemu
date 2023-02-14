@@ -24,7 +24,7 @@
 #include "ui/gtk.h"
 
 static QemuClipboardSelection gd_find_selection(GtkDisplayState *gd,
-                                                GtkClipboard *clipboard)
+                                                GdkClipboard *clipboard)
 {
     QemuClipboardSelection s;
 
@@ -36,7 +36,7 @@ static QemuClipboardSelection gd_find_selection(GtkDisplayState *gd,
     return QEMU_CLIPBOARD_SELECTION_CLIPBOARD;
 }
 
-static void gd_clipboard_get_data(GtkClipboard     *clipboard,
+static void gd_clipboard_get_data(GdkClipboard     *clipboard,
                                   GtkSelectionData *selection_data,
                                   guint             selection_info,
                                   gpointer          data)
@@ -64,7 +64,7 @@ static void gd_clipboard_get_data(GtkClipboard     *clipboard,
     }
 }
 
-static void gd_clipboard_clear(GtkClipboard *clipboard,
+static void gd_clipboard_clear(GdkClipboard *clipboard,
                                gpointer data)
 {
     GtkDisplayState *gd = data;
@@ -153,7 +153,7 @@ static void gd_clipboard_request(QemuClipboardInfo *info,
     }
 }
 
-static void gd_owner_change(GtkClipboard *clipboard,
+static void gd_owner_change(GdkClipboard *clipboard,
                             GdkEvent *event,
                             gpointer data)
 {

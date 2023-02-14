@@ -43,12 +43,13 @@ static void gtk_egl_set_scanout_mode(VirtualConsole *vc, bool scanout)
 
 void gd_egl_init(VirtualConsole *vc)
 {
-    GdkWindow *gdk_window = gtk_widget_get_window(vc->gfx.drawing_area);
-    if (!gdk_window) {
+    GtkNative *native = gtk_widget_get_native(vc->gfx.drawing_area);
+    GdkSurface *surface = gtk_native_get_surface(native);
+    if (!surface) {
         return;
     }
 
-    Window x11_window = gdk_x11_window_get_xid(gdk_window);
+    Window x11_window = gdk_x11_surface_get_xid(surface);
     if (!x11_window) {
         return;
     }
@@ -62,7 +63,8 @@ void gd_egl_init(VirtualConsole *vc)
 
 void gd_egl_draw(VirtualConsole *vc)
 {
-    GdkWindow *window;
+    GtkNative *native;
+    GdkSurface *surface;
 #ifdef CONFIG_GBM
     QemuDmaBuf *dmabuf = vc->gfx.guest_fb.dmabuf;
 #endif
@@ -72,10 +74,10 @@ void gd_egl_draw(VirtualConsole *vc)
         return;
     }
 
-    window = gtk_widget_get_window(vc->gfx.drawing_area);
-    ww = gdk_window_get_width(window);
-    wh = gdk_window_get_height(window);
-
+    native = gtk_widget_get_native(vc->gfx.drawing_area);
+    surface = gtk_native_get_surface(native);
+    ww = gdk_surface_get_width(surface);
+    wh = gdk_surface_get_height(surface);
     if (vc->gfx.scanout_mode) {
 #ifdef CONFIG_GBM
         if (dmabuf) {
@@ -298,7 +300,8 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
                           uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
     VirtualConsole *vc = container_of(dcl, VirtualConsole, gfx.dcl);
-    GdkWindow *window;
+    GtkNative *native;
+    GdkSurface *surface;
     int ww, wh;
 
     if (!vc->gfx.scanout_mode) {
@@ -310,10 +313,10 @@ void gd_egl_scanout_flush(DisplayChangeListener *dcl,
 
     eglMakeCurrent(qemu_egl_display, vc->gfx.esurface,
                    vc->gfx.esurface, vc->gfx.ectx);
-
-    window = gtk_widget_get_window(vc->gfx.drawing_area);
-    ww = gdk_window_get_width(window);
-    wh = gdk_window_get_height(window);
+    native = gtk_widget_get_native(vc->gfx.drawing_area);
+    surface = gtk_native_get_surface(native);
+    ww = gdk_surface_get_width(surface);
+    wh = gdk_surface_get_height(surface);
     egl_fb_setup_default(&vc->gfx.win_fb, ww, wh);
     if (vc->gfx.cursor_fb.texture) {
         egl_texture_blit(vc->gfx.gls, &vc->gfx.win_fb, &vc->gfx.guest_fb,
@@ -344,7 +347,7 @@ void gd_egl_flush(DisplayChangeListener *dcl,
     if (vc->gfx.guest_fb.dmabuf && !vc->gfx.guest_fb.dmabuf->draw_submitted) {
         graphic_hw_gl_block(vc->gfx.dcl.con, true);
         vc->gfx.guest_fb.dmabuf->draw_submitted = true;
-        gtk_widget_queue_draw_area(area, x, y, w, h);
+        gtk_widget_queue_draw(area);
         return;
     }
 

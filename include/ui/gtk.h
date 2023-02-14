@@ -6,12 +6,12 @@
 #include <gdk/gdkkeysyms.h>
 
 #ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
+#include <gdk/x11/gdkx.h>
 #include <X11/XKBlib.h>
 #endif
 
 #ifdef GDK_WINDOWING_WAYLAND
-#include <gdk/gdkwayland.h>
+#include <gdk/wayland/gdkwayland.h>
 #endif
 
 #include "ui/clipboard.h"
@@ -91,8 +91,6 @@ struct GtkDisplayState {
     GtkApplication *app;
     GtkWidget *window;
 
-    GtkWidget *menu_bar;
-
     GMenu *vc_menu;
 
     GSimpleAction *pause_action;
@@ -131,7 +129,7 @@ struct GtkDisplayState {
 
     QemuClipboardPeer cbpeer;
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
-    GtkClipboard *gtkcb[QEMU_CLIPBOARD_SELECTION__COUNT];
+    GdkClipboard *gtkcb[QEMU_CLIPBOARD_SELECTION__COUNT];
     bool cbowner[QEMU_CLIPBOARD_SELECTION__COUNT];
 
     DisplayOptions *opts;
