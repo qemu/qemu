@@ -65,4 +65,6 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode);
 EGLContext qemu_egl_init_ctx(void);
 bool qemu_egl_has_dmabuf(void);
 
+bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp);
+
 #endif /* EGL_HELPERS_H */

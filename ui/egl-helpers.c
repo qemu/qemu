@@ -19,6 +19,8 @@
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"
+#include "sysemu/sysemu.h"
+#include "qapi/error.h"
 
 EGLDisplay *qemu_egl_display;
 EGLConfig qemu_egl_config;
@@ -568,4 +570,26 @@ EGLContext qemu_egl_init_ctx(void)
     }
 
     return ectx;
+}
+
+bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (mode == DISPLAYGL_MODE_OFF) {
+        error_setg(errp, "egl: turning off GL doesn't make sense");
+        return false;
+    }
+
+#ifdef CONFIG_GBM
+    if (egl_rendernode_init(rendernode, mode) < 0) {
+        error_setg(errp, "egl: render node init failed");
+        return false;
+    }
+    display_opengl = 1;
+    return true;
+#else
+    error_setg(errp, "egl: not available on this platform");
+    return false;
+#endif
 }

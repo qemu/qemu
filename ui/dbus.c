@@ -451,12 +451,7 @@ early_dbus_init(DisplayOptions *opts)
     DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_OFF;
 
     if (mode != DISPLAYGL_MODE_OFF) {
-        if (egl_rendernode_init(opts->u.dbus.rendernode, mode) < 0) {
-            error_report("dbus: render node init failed");
-            exit(1);
-        }
-
-        display_opengl = 1;
+        egl_init(opts->u.dbus.rendernode, mode, &error_fatal);
     }
 
     type_register(&dbus_vc_type_info);
