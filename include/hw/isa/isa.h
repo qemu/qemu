@@ -11,7 +11,7 @@
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
-OBJECT_DECLARE_TYPE(ISADevice, ISADeviceClass, ISA_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADevice, ISA_DEVICE)
 
 #define TYPE_ISA_BUS "ISA"
 OBJECT_DECLARE_SIMPLE_TYPE(ISABus, ISA_BUS)
@@ -46,10 +46,6 @@ struct IsaDmaClass {
     void (*register_channel)(IsaDma *obj, int nchan,
                              IsaDmaTransferHandler transfer_handler,
                              void *opaque);
-};
-
-struct ISADeviceClass {
-    DeviceClass parent_class;
 };
 
 struct ISABus {

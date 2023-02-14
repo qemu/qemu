@@ -35,7 +35,7 @@
 OBJECT_DECLARE_TYPE(PICCommonState, PICCommonClass, PIC_COMMON)
 
 struct PICCommonClass {
-    ISADeviceClass parent_class;
+    DeviceClass parent_class;
 
     void (*pre_save)(PICCommonState *s);
     void (*post_load)(PICCommonState *s);

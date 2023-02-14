@@ -213,7 +213,6 @@ static const TypeInfo isa_device_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ISADevice),
     .abstract = true,
-    .class_size = sizeof(ISADeviceClass),
     .class_init = isa_device_class_init,
 };
 
