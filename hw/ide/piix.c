@@ -121,7 +121,7 @@ static void piix_ide_reset(DeviceState *dev)
     pci_set_byte(pci_conf + 0x20, 0x01);  /* BMIBA: 20-23h */
 }
 
-static bool pci_piix_init_ports(PCIIDEState *d, Error **errp)
+static bool pci_piix_init_bus(PCIIDEState *d, unsigned i, Error **errp)
 {
     static const struct {
         int iobase;
@@ -131,24 +131,21 @@ static bool pci_piix_init_ports(PCIIDEState *d, Error **errp)
         {0x1f0, 0x3f6, 14},
         {0x170, 0x376, 15},
     };
-    int i, ret;
+    int ret;
 
-    for (i = 0; i < 2; i++) {
-        ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
-        ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
-                              port_info[i].iobase2);
-        if (ret) {
-            error_setg_errno(errp, -ret, "Failed to realize %s port %u",
-                             object_get_typename(OBJECT(d)), i);
-            return false;
-        }
-        ide_bus_init_output_irq(&d->bus[i],
-                                isa_get_irq(NULL, port_info[i].isairq));
-
-        bmdma_init(&d->bus[i], &d->bmdma[i], d);
-        d->bmdma[i].bus = &d->bus[i];
-        ide_bus_register_restart_cb(&d->bus[i]);
+    ide_bus_init(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
+    ret = ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
+                          port_info[i].iobase2);
+    if (ret) {
+        error_setg_errno(errp, -ret, "Failed to realize %s port %u",
+                         object_get_typename(OBJECT(d)), i);
+        return false;
     }
+    ide_bus_init_output_irq(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
+
+    bmdma_init(&d->bus[i], &d->bmdma[i], d);
+    d->bmdma[i].bus = &d->bus[i];
+    ide_bus_register_restart_cb(&d->bus[i]);
 
     return true;
 }
@@ -165,8 +162,10 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
 
-    if (!pci_piix_init_ports(d, errp)) {
-        return;
+    for (unsigned i = 0; i < 2; i++) {
+        if (!pci_piix_init_bus(d, i, errp)) {
+            return;
+        }
     }
 }
 
