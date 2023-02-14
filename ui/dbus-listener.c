@@ -149,7 +149,7 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     DisplaySurface *ds;
     GVariant *v_data = NULL;
-    egl_fb cursor_fb;
+    egl_fb cursor_fb = EGL_FB_INIT;
 
     if (!dmabuf) {
         qemu_dbus_display1_listener_call_mouse_set(

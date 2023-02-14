@@ -22,6 +22,8 @@ typedef struct egl_fb {
     QemuDmaBuf *dmabuf;
 } egl_fb;
 
+#define EGL_FB_INIT { 0, }
+
 void egl_fb_destroy(egl_fb *fb);
 void egl_fb_setup_default(egl_fb *fb, int width, int height);
 void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
