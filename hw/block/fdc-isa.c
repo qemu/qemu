@@ -98,7 +98,7 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
     fdctrl->dma_chann = isa->dma;
     if (fdctrl->dma_chann != -1) {
         IsaDmaClass *k;
-        fdctrl->dma = isa_get_dma(isa_bus_from_device(isadev), isa->dma);
+        fdctrl->dma = isa_bus_get_dma(isa_bus_from_device(isadev), isa->dma);
         if (!fdctrl->dma) {
             error_setg(errp, "ISA controller does not support DMA");
             return;

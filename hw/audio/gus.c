@@ -240,7 +240,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     IsaDmaClass *k;
     struct audsettings as;
 
-    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->emu.gusdma);
+    s->isa_dma = isa_bus_get_dma(isa_bus_from_device(d), s->emu.gusdma);
     if (!s->isa_dma) {
         error_setg(errp, "ISA controller does not support DMA");
         return;

@@ -99,7 +99,7 @@ void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
     bus->dma[1] = dma16;
 }
 
-IsaDma *isa_get_dma(ISABus *bus, int nchan)
+IsaDma *isa_bus_get_dma(ISABus *bus, int nchan)
 {
     assert(bus);
     return bus->dma[nchan > 3 ? 1 : 0];
