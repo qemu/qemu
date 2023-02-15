@@ -754,7 +754,7 @@ static void sm501_2d_operation(SM501State *s)
         }
 
         if ((rop_mode && rop == 0x5) || (!rop_mode && rop == 0x55)) {
-            /* Invert dest, is there a way to do this with pixman? */
+            /* DSTINVERT, is there a way to do this with pixman? */
             unsigned int x, y, i;
             uint8_t *d = s->local_mem + dst_base;
 
@@ -762,6 +762,34 @@ static void sm501_2d_operation(SM501State *s)
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                 for (x = 0; x < width; x++, i += bypp) {
                     stn_he_p(&d[i], bypp, ~ldn_he_p(&d[i], bypp));
+                }
+            }
+        } else if (!rop_mode && rop == 0x99) {
+            /* DSxn, is there a way to do this with pixman? */
+            unsigned int x, y, i, j;
+            uint8_t *sp = s->local_mem + src_base;
+            uint8_t *d = s->local_mem + dst_base;
+
+            for (y = 0; y < height; y++) {
+                i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
+                j = (src_x + (src_y + y) * src_pitch) * bypp;
+                for (x = 0; x < width; x++, i += bypp, j += bypp) {
+                    stn_he_p(&d[i], bypp,
+                             ~(ldn_he_p(&sp[j], bypp) ^ ldn_he_p(&d[i], bypp)));
+                }
+            }
+        } else if (!rop_mode && rop == 0xee) {
+            /* SRCPAINT, is there a way to do this with pixman? */
+            unsigned int x, y, i, j;
+            uint8_t *sp = s->local_mem + src_base;
+            uint8_t *d = s->local_mem + dst_base;
+
+            for (y = 0; y < height; y++) {
+                i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
+                j = (src_x + (src_y + y) * src_pitch) * bypp;
+                for (x = 0; x < width; x++, i += bypp, j += bypp) {
+                    stn_he_p(&d[i], bypp,
+                             ldn_he_p(&sp[j], bypp) | ldn_he_p(&d[i], bypp));
                 }
             }
         } else {
