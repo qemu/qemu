@@ -843,6 +843,10 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     }
 #endif
 
+    if (SDL_GetHintBoolean("QEMU_ENABLE_SDL_LOGGING", SDL_FALSE)) {
+        SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "Could not initialize SDL(%s) - exiting\n",
                 SDL_GetError());
