@@ -287,13 +287,12 @@ static bool vext_check_st_index(DisasContext *s, int vd, int vs2, int nf,
                require_nf(vd, nf, s->lmul);
 
     /*
-     * All Zve* extensions support all vector load and store instructions,
-     * except Zve64* extensions do not support EEW=64 for index values
-     * when XLEN=32. (Section 18.2)
+     * V extension supports all vector load and store instructions,
+     * except V extension does not support EEW=64 for index values
+     * when XLEN=32. (Section 18.3)
      */
     if (get_xl(s) == MXL_RV32) {
-        ret &= (!has_ext(s, RVV) &&
-                s->cfg_ptr->ext_zve64f ? eew != MO_64 : true);
+        ret &= (eew != MO_64);
     }
 
     return ret;
