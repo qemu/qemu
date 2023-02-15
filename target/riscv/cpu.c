@@ -743,12 +743,27 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (cpu->cfg.ext_v && !cpu->cfg.ext_d) {
-        error_setg(errp, "V extension requires D extension");
+    /* The V vector extension depends on the Zve64d extension */
+    if (cpu->cfg.ext_v) {
+        cpu->cfg.ext_zve64d = true;
+    }
+
+    /* The Zve64d extension depends on the Zve64f extension */
+    if (cpu->cfg.ext_zve64d) {
+        cpu->cfg.ext_zve64f = true;
+    }
+
+    /* The Zve64f extension depends on the Zve32f extension */
+    if (cpu->cfg.ext_zve64f) {
+        cpu->cfg.ext_zve32f = true;
+    }
+
+    if (cpu->cfg.ext_zve64d && !cpu->cfg.ext_d) {
+        error_setg(errp, "Zve64d/V extensions require D extension");
         return;
     }
 
-    if ((cpu->cfg.ext_zve32f || cpu->cfg.ext_zve64f) && !cpu->cfg.ext_f) {
+    if (cpu->cfg.ext_zve32f && !cpu->cfg.ext_f) {
         error_setg(errp, "Zve32f/Zve64f extensions require F extension");
         return;
     }
