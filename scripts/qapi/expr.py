@@ -33,7 +33,6 @@ structures and contextual semantic validation.
 
 import re
 from typing import (
-    Collection,
     Dict,
     Iterable,
     List,
@@ -195,8 +194,8 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
 def check_keys(value: _JSONObject,
                info: QAPISourceInfo,
                source: str,
-               required: Collection[str],
-               optional: Collection[str]) -> None:
+               required: List[str],
+               optional: List[str]) -> None:
     """
     Ensure that a dict has a specific set of keys.
 
