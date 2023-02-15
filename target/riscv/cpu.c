@@ -754,8 +754,11 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
     }
 
     /* Set the ISA extensions, checks should have happened above */
-    if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx ||
-        cpu->cfg.ext_zhinxmin) {
+    if (cpu->cfg.ext_zhinx) {
+        cpu->cfg.ext_zhinxmin = true;
+    }
+
+    if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinxmin) {
         cpu->cfg.ext_zfinx = true;
     }
 
