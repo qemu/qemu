@@ -41,9 +41,9 @@ static bool require_rvf(DisasContext *s)
     switch (s->sew) {
     case MO_16:
     case MO_32:
-        return has_ext(s, RVF);
+        return s->cfg_ptr->ext_zve32f;
     case MO_64:
-        return has_ext(s, RVD);
+        return s->cfg_ptr->ext_zve64d;
     default:
         return false;
     }
@@ -58,9 +58,9 @@ static bool require_scale_rvf(DisasContext *s)
     switch (s->sew) {
     case MO_8:
     case MO_16:
-        return has_ext(s, RVF);
+        return s->cfg_ptr->ext_zve32f;
     case MO_32:
-        return has_ext(s, RVD);
+        return s->cfg_ptr->ext_zve64d;
     default:
         return false;
     }
