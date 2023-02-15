@@ -42,10 +42,6 @@ if TYPE_CHECKING:
 _ExprValue = Union[List[object], Dict[str, object], str, bool]
 
 
-# FIXME: Consolidate and centralize definitions for _ExprValue and
-# JSONValue; currently scattered across several modules.
-
-
 class QAPIExpression(Dict[str, object]):
     # pylint: disable=too-few-public-methods
     def __init__(self,
