@@ -729,7 +729,11 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if ((cpu->cfg.ext_zfh || cpu->cfg.ext_zfhmin) && !cpu->cfg.ext_f) {
+    if (cpu->cfg.ext_zfh) {
+        cpu->cfg.ext_zfhmin = true;
+    }
+
+    if (cpu->cfg.ext_zfhmin && !cpu->cfg.ext_f) {
         error_setg(errp, "Zfh/Zfhmin extensions require F extension");
         return;
     }
