@@ -1121,18 +1121,45 @@ uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr addr,
     return cpu_to_le64(ret);
 }
 
-Int128 cpu_ld16_be_mmu(CPUArchState *env, abi_ptr addr,
-                       MemOpIdx oi, uintptr_t ra)
+static Int128 do_ld16_he_mmu(CPUArchState *env, abi_ptr addr,
+                             MemOp mop, uintptr_t ra)
 {
     void *haddr;
     Int128 ret;
 
-    tcg_debug_assert((get_memop(oi) & (MO_BSWAP | MO_SIZE)) == (MO_128 | MO_BE));
-    haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    memcpy(&ret, haddr, 16);
+    tcg_debug_assert((mop & MO_SIZE) == MO_128);
+    haddr = cpu_mmu_lookup(env, addr, mop, ra, MMU_DATA_LOAD);
+    ret = load_atom_16(env, ra, haddr, mop);
     clear_helper_retaddr();
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
+    return ret;
+}
 
+Int128 helper_ld16_mmu(CPUArchState *env, target_ulong addr,
+                       MemOpIdx oi, uintptr_t ra)
+{
+    MemOp mop = get_memop(oi);
+    Int128 ret = do_ld16_he_mmu(env, addr, mop, ra);
+
+    if (mop & MO_BSWAP) {
+        ret = bswap128(ret);
+    }
+    return ret;
+}
+
+Int128 helper_ld_i128(CPUArchState *env, target_ulong addr, MemOpIdx oi)
+{
+    return helper_ld16_mmu(env, addr, oi, GETPC());
+}
+
+Int128 cpu_ld16_be_mmu(CPUArchState *env, abi_ptr addr,
+                       MemOpIdx oi, uintptr_t ra)
+{
+    MemOp mop = get_memop(oi);
+    Int128 ret;
+
+    tcg_debug_assert((mop & MO_BSWAP) == MO_BE);
+    ret = do_ld16_he_mmu(env, addr, mop, ra);
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
     if (!HOST_BIG_ENDIAN) {
         ret = bswap128(ret);
     }
@@ -1142,15 +1169,12 @@ Int128 cpu_ld16_be_mmu(CPUArchState *env, abi_ptr addr,
 Int128 cpu_ld16_le_mmu(CPUArchState *env, abi_ptr addr,
                        MemOpIdx oi, uintptr_t ra)
 {
-    void *haddr;
+    MemOp mop = get_memop(oi);
     Int128 ret;
 
-    tcg_debug_assert((get_memop(oi) & (MO_BSWAP | MO_SIZE)) == (MO_128 | MO_LE));
-    haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_LOAD);
-    memcpy(&ret, haddr, 16);
-    clear_helper_retaddr();
+    tcg_debug_assert((mop & MO_BSWAP) == MO_LE);
+    ret = do_ld16_he_mmu(env, addr, mop, ra);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-
     if (HOST_BIG_ENDIAN) {
         ret = bswap128(ret);
     }
@@ -1307,33 +1331,57 @@ void cpu_stq_le_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 
-void cpu_st16_be_mmu(CPUArchState *env, abi_ptr addr,
-                     Int128 val, MemOpIdx oi, uintptr_t ra)
+static void do_st16_he_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
+                           MemOp mop, uintptr_t ra)
 {
     void *haddr;
 
-    tcg_debug_assert((get_memop(oi) & (MO_BSWAP | MO_SIZE)) == (MO_128 | MO_BE));
-    haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    tcg_debug_assert((mop & MO_SIZE) == MO_128);
+    haddr = cpu_mmu_lookup(env, addr, mop, ra, MMU_DATA_STORE);
+    store_atom_16(env, ra, haddr, mop, val);
+    clear_helper_retaddr();
+}
+
+void helper_st16_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+                     MemOpIdx oi, uintptr_t ra)
+{
+    MemOp mop = get_memop(oi);
+
+    if (mop & MO_BSWAP) {
+        val = bswap128(val);
+    }
+    do_st16_he_mmu(env, addr, val, mop, ra);
+}
+
+void helper_st_i128(CPUArchState *env, target_ulong addr,
+                    Int128 val, MemOpIdx oi)
+{
+    helper_st16_mmu(env, addr, val, oi, GETPC());
+}
+
+void cpu_st16_be_mmu(CPUArchState *env, abi_ptr addr,
+                     Int128 val, MemOpIdx oi, uintptr_t ra)
+{
+    MemOp mop = get_memop(oi);
+
+    tcg_debug_assert((mop & MO_BSWAP) == MO_BE);
     if (!HOST_BIG_ENDIAN) {
         val = bswap128(val);
     }
-    memcpy(haddr, &val, 16);
-    clear_helper_retaddr();
+    do_st16_he_mmu(env, addr, val, mop, ra);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 
 void cpu_st16_le_mmu(CPUArchState *env, abi_ptr addr,
                      Int128 val, MemOpIdx oi, uintptr_t ra)
 {
-    void *haddr;
+    MemOp mop = get_memop(oi);
 
-    tcg_debug_assert((get_memop(oi) & (MO_BSWAP | MO_SIZE)) == (MO_128 | MO_LE));
-    haddr = cpu_mmu_lookup(env, addr, oi, ra, MMU_DATA_STORE);
+    tcg_debug_assert((mop & MO_BSWAP) == MO_LE);
     if (HOST_BIG_ENDIAN) {
         val = bswap128(val);
     }
-    memcpy(haddr, &val, 16);
-    clear_helper_retaddr();
+    do_st16_he_mmu(env, addr, val, mop, ra);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
 }
 

@@ -440,6 +440,21 @@ static inline uint64_t load_atom_8_by_4(void *pv)
 }
 
 /**
+ * load_atom_8_by_8_or_4:
+ * @pv: host address
+ *
+ * Load 8 bytes from aligned @pv, with at least 4-byte atomicity.
+ */
+static inline uint64_t load_atom_8_by_8_or_4(void *pv)
+{
+    if (HAVE_al8_fast) {
+        return load_atomic8(pv);
+    } else {
+        return load_atom_8_by_4(pv);
+    }
+}
+
+/**
  * load_atom_2:
  * @p: host address
  * @memop: the full memory op
@@ -572,6 +587,64 @@ static uint64_t load_atom_8(CPUArchState *env, uintptr_t ra,
 }
 
 /**
+ * load_atom_16:
+ * @p: host address
+ * @memop: the full memory op
+ *
+ * Load 16 bytes from @p, honoring the atomicity of @memop.
+ */
+static Int128 load_atom_16(CPUArchState *env, uintptr_t ra,
+                           void *pv, MemOp memop)
+{
+    uintptr_t pi = (uintptr_t)pv;
+    int atmax;
+    Int128 r;
+    uint64_t a, b;
+
+    /*
+     * If the host does not support 16-byte atomics, wait until we have
+     * examined the atomicity parameters below.
+     */
+    if (HAVE_al16_fast && likely((pi & 15) == 0)) {
+        return load_atomic16(pv);
+    }
+
+    atmax = required_atomicity(env, pi, memop);
+    switch (atmax) {
+    case MO_8:
+        memcpy(&r, pv, 16);
+        return r;
+    case MO_16:
+        a = load_atom_8_by_2(pv);
+        b = load_atom_8_by_2(pv + 8);
+        break;
+    case MO_32:
+        a = load_atom_8_by_4(pv);
+        b = load_atom_8_by_4(pv + 8);
+        break;
+    case MO_64:
+        if (!HAVE_al8) {
+            cpu_loop_exit_atomic(env_cpu(env), ra);
+        }
+        a = load_atomic8(pv);
+        b = load_atomic8(pv + 8);
+        break;
+    case -MO_64:
+        if (!HAVE_al8) {
+            cpu_loop_exit_atomic(env_cpu(env), ra);
+        }
+        a = load_atom_extract_al8x2(pv);
+        b = load_atom_extract_al8x2(pv + 8);
+        break;
+    case MO_128:
+        return load_atomic16_or_exit(env, ra, pv);
+    default:
+        g_assert_not_reached();
+    }
+    return int128_make128(HOST_BIG_ENDIAN ? b : a, HOST_BIG_ENDIAN ? a : b);
+}
+
+/**
  * store_atomic2:
  * @pv: host address
  * @val: value to store
@@ -610,6 +683,35 @@ static inline void store_atomic8(void *pv, uint64_t val)
 
     qemu_build_assert(HAVE_al8);
     qatomic_set__nocheck(p, val);
+}
+
+/**
+ * store_atomic16:
+ * @pv: host address
+ * @val: value to store
+ *
+ * Atomically store 16 aligned bytes to @pv.
+ */
+static inline void store_atomic16(void *pv, Int128Alias val)
+{
+#if defined(CONFIG_ATOMIC128)
+    __uint128_t *pu = __builtin_assume_aligned(pv, 16);
+    qatomic_set__nocheck(pu, val.u);
+#elif defined(CONFIG_CMPXCHG128)
+    __uint128_t *pu = __builtin_assume_aligned(pv, 16);
+    __uint128_t o;
+
+    /*
+     * Without CONFIG_ATOMIC128, __atomic_compare_exchange_n will always
+     * defer to libatomic, so we must use __sync_*_compare_and_swap_16
+     * and accept the sequential consistency that comes with it.
+     */
+    do {
+        o = *pu;
+    } while (!__sync_bool_compare_and_swap_16(pu, o, val.u));
+#else
+    qemu_build_not_reached();
+#endif
 }
 
 /**
@@ -1047,6 +1149,88 @@ static void store_atom_8(CPUArchState *env, uintptr_t ra,
     case MO_64:
         if (HAVE_al16) {
             store_whole_le16(pv, 8, int128_make64(cpu_to_le64(val)));
+            return;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    cpu_loop_exit_atomic(env_cpu(env), ra);
+}
+
+/**
+ * store_atom_16:
+ * @p: host address
+ * @val: the value to store
+ * @memop: the full memory op
+ *
+ * Store 16 bytes to @p, honoring the atomicity of @memop.
+ */
+static void store_atom_16(CPUArchState *env, uintptr_t ra,
+                          void *pv, MemOp memop, Int128 val)
+{
+    uintptr_t pi = (uintptr_t)pv;
+    uint64_t a, b;
+    int atmax;
+
+    if (HAVE_al16_fast && likely((pi & 15) == 0)) {
+        store_atomic16(pv, val);
+        return;
+    }
+
+    atmax = required_atomicity(env, pi, memop);
+
+    a = HOST_BIG_ENDIAN ? int128_gethi(val) : int128_getlo(val);
+    b = HOST_BIG_ENDIAN ? int128_getlo(val) : int128_gethi(val);
+    switch (atmax) {
+    case MO_8:
+        memcpy(pv, &val, 16);
+        return;
+    case MO_16:
+        store_atom_8_by_2(pv, a);
+        store_atom_8_by_2(pv + 8, b);
+        return;
+    case MO_32:
+        store_atom_8_by_4(pv, a);
+        store_atom_8_by_4(pv + 8, b);
+        return;
+    case MO_64:
+        if (HAVE_al8) {
+            store_atomic8(pv, a);
+            store_atomic8(pv + 8, b);
+            return;
+        }
+        break;
+    case -MO_64:
+        if (HAVE_al16) {
+            uint64_t val_le;
+            int s2 = pi & 15;
+            int s1 = 16 - s2;
+
+            if (HOST_BIG_ENDIAN) {
+                val = bswap128(val);
+            }
+            switch (s2) {
+            case 1 ... 7:
+                val_le = store_whole_le16(pv, s1, val);
+                store_bytes_leN(pv + s1, s2, val_le);
+                break;
+            case 9 ... 15:
+                store_bytes_leN(pv, s1, int128_getlo(val));
+                val = int128_urshift(val, s1 * 8);
+                store_whole_le16(pv + s1, s2, val);
+                break;
+            case 0: /* aligned */
+            case 8: /* atmax MO_64 */
+            default:
+                g_assert_not_reached();
+            }
+            return;
+        }
+        break;
+    case MO_128:
+        if (HAVE_al16) {
+            store_atomic16(pv, val);
             return;
         }
         break;
