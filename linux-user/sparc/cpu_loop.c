@@ -149,6 +149,51 @@ static void flush_windows(CPUSPARCState *env)
 #endif
 }
 
+static void next_instruction(CPUSPARCState *env)
+{
+    env->pc = env->npc;
+    env->npc = env->npc + 4;
+}
+
+static uint32_t do_getcc(CPUSPARCState *env)
+{
+#ifdef TARGET_SPARC64
+    return cpu_get_ccr(env) & 0xf;
+#else
+    return extract32(cpu_get_psr(env), 20, 4);
+#endif
+}
+
+static void do_setcc(CPUSPARCState *env, uint32_t icc)
+{
+#ifdef TARGET_SPARC64
+    cpu_put_ccr(env, (cpu_get_ccr(env) & 0xf0) | (icc & 0xf));
+#else
+    cpu_put_psr(env, deposit32(cpu_get_psr(env), 20, 4, icc));
+#endif
+}
+
+static uint32_t do_getpsr(CPUSPARCState *env)
+{
+#ifdef TARGET_SPARC64
+    const uint64_t TSTATE_CWP = 0x1f;
+    const uint64_t TSTATE_ICC = 0xfull << 32;
+    const uint64_t TSTATE_XCC = 0xfull << 36;
+    const uint32_t PSR_S      = 0x00000080u;
+    const uint32_t PSR_V8PLUS = 0xff000000u;
+    uint64_t tstate = sparc64_tstate(env);
+
+    /* See <asm/psrcompat.h>, tstate_to_psr. */
+    return ((tstate & TSTATE_CWP)                   |
+            PSR_S                                   |
+            ((tstate & TSTATE_ICC) >> 12)           |
+            ((tstate & TSTATE_XCC) >> 20)           |
+            PSR_V8PLUS);
+#else
+    return (cpu_get_psr(env) & (PSR_ICC | PSR_CWP)) | PSR_S;
+#endif
+}
+
 /* Avoid ifdefs below for the abi32 and abi64 paths. */
 #ifdef TARGET_ABI32
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x10) /* t_linux */
@@ -218,9 +263,20 @@ void cpu_loop (CPUSPARCState *env)
 
         case TT_TRAP + 0x03: /* flush windows */
             flush_windows(env);
-            /* next instruction */
-            env->pc = env->npc;
-            env->npc = env->npc + 4;
+            next_instruction(env);
+            break;
+
+        case TT_TRAP + 0x20: /* getcc */
+            env->gregs[1] = do_getcc(env);
+            next_instruction(env);
+            break;
+        case TT_TRAP + 0x21: /* setcc */
+            do_setcc(env, env->gregs[1]);
+            next_instruction(env);
+            break;
+        case TT_TRAP + 0x22: /* getpsr */
+            env->gregs[1] = do_getpsr(env);
+            next_instruction(env);
             break;
 
 #ifdef TARGET_SPARC64
