@@ -303,6 +303,9 @@ void cpu_loop (CPUSPARCState *env)
         case TT_ILL_INSN:
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_ILLOPC, env->pc);
             break;
+        case TT_PRIV_INSN:
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVOPC, env->pc);
+            break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
             break;
