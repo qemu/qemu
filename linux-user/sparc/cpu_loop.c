@@ -315,6 +315,9 @@ void cpu_loop (CPUSPARCState *env)
         case TT_NCP_INSN:
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_COPROC, env->pc);
             break;
+        case TT_UNIMP_FLUSH:
+            next_instruction(env);
+            break;
 #endif
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
