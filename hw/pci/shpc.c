@@ -258,49 +258,59 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
     }
 }
 
+static bool shpc_slot_is_off(uint8_t state, uint8_t power, uint8_t attn)
+{
+    return state == SHPC_STATE_DISABLED && power == SHPC_LED_OFF;
+}
+
 static void shpc_slot_command(SHPCDevice *shpc, uint8_t target,
                               uint8_t state, uint8_t power, uint8_t attn)
 {
-    uint8_t current_state;
     int slot = SHPC_LOGICAL_TO_IDX(target);
+    uint8_t old_state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
+    uint8_t old_power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
+    uint8_t old_attn = shpc_get_status(shpc, slot, SHPC_SLOT_ATTN_LED_MASK);
+
     if (target < SHPC_CMD_TRGT_MIN || slot >= shpc->nslots) {
         shpc_invalid_command(shpc);
         return;
     }
-    current_state = shpc_get_status(shpc, slot, SHPC_SLOT_STATE_MASK);
-    if (current_state == SHPC_STATE_ENABLED && state == SHPC_STATE_PWRONLY) {
+
+    if (old_state == SHPC_STATE_ENABLED && state == SHPC_STATE_PWRONLY) {
         shpc_invalid_command(shpc);
         return;
     }
 
-    if (power != SHPC_LED_NO) {
+    if (power == SHPC_LED_NO) {
+        power = old_power;
+    } else {
         /* TODO: send event to monitor */
         shpc_set_status(shpc, slot, power, SHPC_SLOT_PWR_LED_MASK);
     }
-    if (attn != SHPC_LED_NO) {
+
+    if (attn == SHPC_LED_NO) {
+        attn = old_attn;
+    } else {
         /* TODO: send event to monitor */
         shpc_set_status(shpc, slot, attn, SHPC_SLOT_ATTN_LED_MASK);
     }
-    if (state != SHPC_STATE_NO) {
+
+    if (state == SHPC_STATE_NO) {
+        state = old_state;
+    } else {
         shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
     }
 
-    if ((current_state == SHPC_STATE_ENABLED ||
-         current_state == SHPC_STATE_PWRONLY) &&
-        state == SHPC_STATE_DISABLED)
+    if (!shpc_slot_is_off(old_state, old_power, old_attn) &&
+        shpc_slot_is_off(state, power, attn))
     {
-        power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
-        /* TODO: track what monitor requested. */
-        /* Look at LED to figure out whether it's ok to remove the device. */
-        if (power == SHPC_LED_OFF) {
-            shpc_free_devices_in_slot(shpc, slot);
-            shpc_set_status(shpc, slot, 1, SHPC_SLOT_STATUS_MRL_OPEN);
-            shpc_set_status(shpc, slot, SHPC_SLOT_STATUS_PRSNT_EMPTY,
-                            SHPC_SLOT_STATUS_PRSNT_MASK);
-            shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
-                SHPC_SLOT_EVENT_MRL |
-                SHPC_SLOT_EVENT_PRESENCE;
-        }
+        shpc_free_devices_in_slot(shpc, slot);
+        shpc_set_status(shpc, slot, 1, SHPC_SLOT_STATUS_MRL_OPEN);
+        shpc_set_status(shpc, slot, SHPC_SLOT_STATUS_PRSNT_EMPTY,
+                        SHPC_SLOT_STATUS_PRSNT_MASK);
+        shpc->config[SHPC_SLOT_EVENT_LATCH(slot)] |=
+            SHPC_SLOT_EVENT_MRL |
+            SHPC_SLOT_EVENT_PRESENCE;
     }
 }
 
