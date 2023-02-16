@@ -717,6 +717,11 @@ typedef struct target_siginfo {
 #define TARGET_TRAP_HWBKPT      (4)     /* hardware breakpoint/watchpoint */
 #define TARGET_TRAP_UNK         (5)     /* undiagnosed trap */
 
+/*
+ * SIGEMT si_codes
+ */
+#define TARGET_EMT_TAGOVF      1       /* tag overflow */
+
 #include "target_resource.h"
 
 struct target_pollfd {
