@@ -3863,20 +3863,18 @@ typedef enum {
  */
 static MigIterateState migration_iteration_run(MigrationState *s)
 {
-    uint64_t pend_pre, pend_compat, pend_post;
+    uint64_t must_precopy, can_postcopy;
     bool in_postcopy = s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE;
 
-    qemu_savevm_state_pending_estimate(&pend_pre, &pend_compat, &pend_post);
-    uint64_t pending_size = pend_pre + pend_compat + pend_post;
+    qemu_savevm_state_pending_estimate(&must_precopy, &can_postcopy);
+    uint64_t pending_size = must_precopy + can_postcopy;
 
-    trace_migrate_pending_estimate(pending_size,
-                                   pend_pre, pend_compat, pend_post);
+    trace_migrate_pending_estimate(pending_size, must_precopy, can_postcopy);
 
-    if (pend_pre + pend_compat <= s->threshold_size) {
-        qemu_savevm_state_pending_exact(&pend_pre, &pend_compat, &pend_post);
-        pending_size = pend_pre + pend_compat + pend_post;
-        trace_migrate_pending_exact(pending_size,
-                                    pend_pre, pend_compat, pend_post);
+    if (must_precopy <= s->threshold_size) {
+        qemu_savevm_state_pending_exact(&must_precopy, &can_postcopy);
+        pending_size = must_precopy + can_postcopy;
+        trace_migrate_pending_exact(pending_size, must_precopy, can_postcopy);
     }
 
     if (!pending_size || pending_size < s->threshold_size) {
@@ -3886,7 +3884,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
     }
 
     /* Still a significant amount to transfer */
-    if (!in_postcopy && pend_pre <= s->threshold_size &&
+    if (!in_postcopy && must_precopy <= s->threshold_size &&
         qatomic_read(&s->start_postcopy)) {
         if (postcopy_start(s)) {
             error_report("%s: postcopy failed to start", __func__);

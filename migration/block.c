@@ -42,16 +42,6 @@
 #define MAX_IO_BUFFERS 512
 #define MAX_PARALLEL_IO 16
 
-/* #define DEBUG_BLK_MIGRATION */
-
-#ifdef DEBUG_BLK_MIGRATION
-#define DPRINTF(fmt, ...) \
-    do { printf("blk_migration: " fmt, ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) \
-    do { } while (0)
-#endif
-
 typedef struct BlkMigDevState {
     /* Written during setup phase.  Can be read without a lock.  */
     BlockBackend *blk;
@@ -502,7 +492,7 @@ static int blk_mig_save_bulked_block(QEMUFile *f)
         block_mig_state.prev_progress = progress;
         qemu_put_be64(f, (progress << BDRV_SECTOR_BITS)
                          | BLK_MIG_FLAG_PROGRESS);
-        DPRINTF("Completed %d %%\r", progress);
+        trace_migration_block_progression(progress);
     }
 
     return ret;
@@ -863,10 +853,8 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static void block_state_pending(void *opaque,
-                                uint64_t *res_precopy_only,
-                                uint64_t *res_compatible,
-                                uint64_t *res_postcopy_only)
+static void block_state_pending(void *opaque, uint64_t *must_precopy,
+                                uint64_t *can_postcopy)
 {
     /* Estimate pending number of bytes to send */
     uint64_t pending;
@@ -887,7 +875,7 @@ static void block_state_pending(void *opaque,
 
     trace_migration_block_state_pending(pending);
     /* We don't do postcopy */
-    *res_precopy_only += pending;
+    *must_precopy += pending;
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
