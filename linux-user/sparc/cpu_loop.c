@@ -196,15 +196,14 @@ void cpu_loop (CPUSPARCState *env)
             env->pc = env->npc;
             env->npc = env->npc + 4;
             break;
-        case 0x83: /* flush windows */
-#ifdef TARGET_ABI32
-        case 0x103:
-#endif
+
+        case TT_TRAP + 0x03: /* flush windows */
             flush_windows(env);
             /* next instruction */
             env->pc = env->npc;
             env->npc = env->npc + 4;
             break;
+
 #ifndef TARGET_SPARC64
         case TT_WIN_OVF: /* window overflow */
             save_window(env);
