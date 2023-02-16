@@ -306,6 +306,12 @@ void cpu_loop (CPUSPARCState *env)
         case TT_PRIV_INSN:
             force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVOPC, env->pc);
             break;
+#ifdef TARGET_SPARC64
+        case TT_PRIV_ACT:
+            /* Note do_privact defers to do_privop. */
+            force_sig_fault(TARGET_SIGILL, TARGET_ILL_PRVOPC, env->pc);
+            break;
+#endif
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
             break;
