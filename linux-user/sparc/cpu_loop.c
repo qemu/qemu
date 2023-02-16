@@ -149,10 +149,13 @@ static void flush_windows(CPUSPARCState *env)
 #endif
 }
 
+/* Avoid ifdefs below for the abi32 and abi64 paths. */
 #ifdef TARGET_ABI32
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x10) /* t_linux */
+#define syscall_cc         psr
 #else
 #define TARGET_TT_SYSCALL  (TT_TRAP + 0x6d) /* tl0_linux64 */
+#define syscall_cc         xcc
 #endif
 
 void cpu_loop (CPUSPARCState *env)
@@ -183,18 +186,10 @@ void cpu_loop (CPUSPARCState *env)
                 break;
             }
             if ((abi_ulong)ret >= (abi_ulong)(-515)) {
-#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-                env->xcc |= PSR_CARRY;
-#else
-                env->psr |= PSR_CARRY;
-#endif
+                env->syscall_cc |= PSR_CARRY;
                 ret = -ret;
             } else {
-#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-                env->xcc &= ~PSR_CARRY;
-#else
-                env->psr &= ~PSR_CARRY;
-#endif
+                env->syscall_cc &= ~PSR_CARRY;
             }
             env->regwptr[0] = ret;
             /* next instruction */
