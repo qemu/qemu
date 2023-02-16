@@ -149,6 +149,12 @@ static void flush_windows(CPUSPARCState *env)
 #endif
 }
 
+#ifdef TARGET_ABI32
+#define TARGET_TT_SYSCALL  (TT_TRAP + 0x10) /* t_linux */
+#else
+#define TARGET_TT_SYSCALL  (TT_TRAP + 0x6d) /* tl0_linux64 */
+#endif
+
 void cpu_loop (CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -167,13 +173,7 @@ void cpu_loop (CPUSPARCState *env)
         }
 
         switch (trapnr) {
-#ifndef TARGET_SPARC64
-        case 0x88:
-        case 0x90:
-#else
-        case 0x110:
-        case 0x16d:
-#endif
+        case TARGET_TT_SYSCALL:
             ret = do_syscall (env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1],
                               env->regwptr[2], env->regwptr[3],
