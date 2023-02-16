@@ -27,8 +27,6 @@
 #define SMMU_PCI_DEVFN_MAX    256
 #define SMMU_PCI_DEVFN(sid)   (sid & 0xFF)
 
-#define SMMU_MAX_VA_BITS      48
-
 /*
  * Page table walk error types
  */
