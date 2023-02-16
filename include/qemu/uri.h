@@ -53,10 +53,6 @@
 #ifndef QEMU_URI_H
 #define QEMU_URI_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * URI:
  *
@@ -105,7 +101,4 @@ struct QueryParams *query_params_new (int init_alloc);
 extern QueryParams *query_params_parse (const char *query);
 extern void query_params_free (QueryParams *ps);
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* QEMU_URI_H */

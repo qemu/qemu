@@ -1015,6 +1015,7 @@ VSIB_AVX(VPGATHERQ, vpgatherq)
 
 static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
 {
+    int opposite_cc_op;
     TCGv carry_in = NULL;
     TCGv carry_out = (cc_op == CC_OP_ADCX ? cpu_cc_dst : cpu_cc_src2);
     TCGv zero;
@@ -1022,14 +1023,8 @@ static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
     if (cc_op == s->cc_op || s->cc_op == CC_OP_ADCOX) {
         /* Re-use the carry-out from a previous round.  */
         carry_in = carry_out;
-        cc_op = s->cc_op;
-    } else if (s->cc_op == CC_OP_ADCX || s->cc_op == CC_OP_ADOX) {
-        /* Merge with the carry-out from the opposite instruction.  */
-        cc_op = CC_OP_ADCOX;
-    }
-
-    /* If we don't have a carry-in, get it out of EFLAGS.  */
-    if (!carry_in) {
+    } else {
+        /* We don't have a carry-in, get it out of EFLAGS.  */
         if (s->cc_op != CC_OP_ADCX && s->cc_op != CC_OP_ADOX) {
             gen_compute_eflags(s);
         }
@@ -1053,7 +1048,14 @@ static void gen_ADCOX(DisasContext *s, CPUX86State *env, MemOp ot, int cc_op)
         tcg_gen_add2_tl(s->T0, carry_out, s->T0, carry_out, s->T1, zero);
         break;
     }
-    set_cc_op(s, cc_op);
+
+    opposite_cc_op = cc_op == CC_OP_ADCX ? CC_OP_ADOX : CC_OP_ADCX;
+    if (s->cc_op == CC_OP_ADCOX || s->cc_op == opposite_cc_op) {
+        /* Merge with the carry-out from the opposite instruction.  */
+        set_cc_op(s, CC_OP_ADCOX);
+    } else {
+        set_cc_op(s, cc_op);
+    }
 }
 
 static void gen_ADCX(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
@@ -1078,30 +1080,30 @@ static void gen_ANDN(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 static void gen_BEXTR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
-    TCGv bound, zero;
+    TCGv bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
+    TCGv zero = tcg_constant_tl(0);
+    TCGv mone = tcg_constant_tl(-1);
 
     /*
      * Extract START, and shift the operand.
      * Shifts larger than operand size get zeros.
      */
     tcg_gen_ext8u_tl(s->A0, s->T1);
+    if (TARGET_LONG_BITS == 64 && ot == MO_32) {
+        tcg_gen_ext32u_tl(s->T0, s->T0);
+    }
     tcg_gen_shr_tl(s->T0, s->T0, s->A0);
 
-    bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
-    zero = tcg_constant_tl(0);
     tcg_gen_movcond_tl(TCG_COND_LEU, s->T0, s->A0, bound, s->T0, zero);
 
     /*
-     * Extract the LEN into a mask.  Lengths larger than
-     * operand size get all ones.
+     * Extract the LEN into an inverse mask.  Lengths larger than
+     * operand size get all zeros, length 0 gets all ones.
      */
     tcg_gen_extract_tl(s->A0, s->T1, 8, 8);
-    tcg_gen_movcond_tl(TCG_COND_LEU, s->A0, s->A0, bound, s->A0, bound);
-
-    tcg_gen_movi_tl(s->T1, 1);
-    tcg_gen_shl_tl(s->T1, s->T1, s->A0);
-    tcg_gen_subi_tl(s->T1, s->T1, 1);
-    tcg_gen_and_tl(s->T0, s->T0, s->T1);
+    tcg_gen_shl_tl(s->T1, mone, s->A0);
+    tcg_gen_movcond_tl(TCG_COND_LEU, s->T1, s->A0, bound, s->T1, zero);
+    tcg_gen_andc_tl(s->T0, s->T0, s->T1);
 
     gen_op_update1_cc(s);
     set_cc_op(s, CC_OP_LOGICB + ot);
@@ -1111,6 +1113,7 @@ static void gen_BLSI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
 
+    tcg_gen_mov_tl(cpu_cc_src, s->T0);
     tcg_gen_neg_tl(s->T1, s->T0);
     tcg_gen_and_tl(s->T0, s->T0, s->T1);
     tcg_gen_mov_tl(cpu_cc_dst, s->T0);
@@ -1121,6 +1124,7 @@ static void gen_BLSMSK(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode
 {
     MemOp ot = decode->op[0].ot;
 
+    tcg_gen_mov_tl(cpu_cc_src, s->T0);
     tcg_gen_subi_tl(s->T1, s->T0, 1);
     tcg_gen_xor_tl(s->T0, s->T0, s->T1);
     tcg_gen_mov_tl(cpu_cc_dst, s->T0);
@@ -1131,6 +1135,7 @@ static void gen_BLSR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
 {
     MemOp ot = decode->op[0].ot;
 
+    tcg_gen_mov_tl(cpu_cc_src, s->T0);
     tcg_gen_subi_tl(s->T1, s->T0, 1);
     tcg_gen_and_tl(s->T0, s->T0, s->T1);
     tcg_gen_mov_tl(cpu_cc_dst, s->T0);

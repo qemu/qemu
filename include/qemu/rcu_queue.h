@@ -28,11 +28,6 @@
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 /*
  * List access methods.
  */
@@ -311,7 +306,4 @@ extern "C" {
          (var) && ((next) = qatomic_rcu_read(&(var)->field.sle_next), 1); \
          (var) = (next))
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* QEMU_RCU_QUEUE_H */
