@@ -123,10 +123,13 @@
 #define SHPC_PCI_TO_IDX(pci_slot) ((pci_slot) - 1)
 #define SHPC_IDX_TO_PHYSICAL(slot) ((slot) + 1)
 
-static uint16_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
+static uint8_t shpc_get_status(SHPCDevice *shpc, int slot, uint16_t msk)
 {
     uint8_t *status = shpc->config + SHPC_SLOT_STATUS(slot);
-    return (pci_get_word(status) & msk) >> ctz32(msk);
+    uint16_t result = (pci_get_word(status) & msk) >> ctz32(msk);
+
+    assert(result <= UINT8_MAX);
+    return result;
 }
 
 static void shpc_set_status(SHPCDevice *shpc,
