@@ -980,6 +980,7 @@ typedef struct CPUArchState {
 #define CP0C6_DATAPREF        0
     int32_t CP0_Config7;
     int64_t CP0_Config7_rw_bitmask;
+#define CP0C7_WII          31
 #define CP0C7_NAPCGEN       2
 #define CP0C7_UNIMUEN       1
 #define CP0C7_VFPUCGEN      0
