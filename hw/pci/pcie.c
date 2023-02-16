@@ -373,8 +373,8 @@ void pcie_cap_slot_enable_power(PCIDevice *dev)
     uint32_t sltcap = pci_get_long(exp_cap + PCI_EXP_SLTCAP);
 
     if (sltcap & PCI_EXP_SLTCAP_PCP) {
-        pci_set_word_by_mask(exp_cap + PCI_EXP_SLTCTL,
-                             PCI_EXP_SLTCTL_PCC, PCI_EXP_SLTCTL_PWR_ON);
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTCTL,
+                                     PCI_EXP_SLTCTL_PCC);
     }
 }
 
