@@ -389,6 +389,7 @@ config XLNX_ZYNQMP_ARM
     select XLNX_CSU_DMA
     select XLNX_ZYNQMP
     select XLNX_ZDMA
+    select USB_DWC3
 
 config XLNX_VERSAL
     bool
