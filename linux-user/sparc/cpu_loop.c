@@ -158,6 +158,15 @@ static void flush_windows(CPUSPARCState *env)
 #define syscall_cc         xcc
 #endif
 
+/* Avoid ifdefs below for the v9 and pre-v9 hw traps. */
+#ifdef TARGET_SPARC64
+#define TARGET_TT_SPILL  TT_SPILL
+#define TARGET_TT_FILL   TT_FILL
+#else
+#define TARGET_TT_SPILL  TT_WIN_OVF
+#define TARGET_TT_FILL   TT_WIN_UNF
+#endif
+
 void cpu_loop (CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -204,20 +213,14 @@ void cpu_loop (CPUSPARCState *env)
             env->npc = env->npc + 4;
             break;
 
-#ifndef TARGET_SPARC64
-        case TT_WIN_OVF: /* window overflow */
+        case TARGET_TT_SPILL: /* window overflow */
             save_window(env);
             break;
-        case TT_WIN_UNF: /* window underflow */
+        case TARGET_TT_FILL:  /* window underflow */
             restore_window(env);
             break;
-#else
-        case TT_SPILL: /* window overflow */
-            save_window(env);
-            break;
-        case TT_FILL: /* window underflow */
-            restore_window(env);
-            break;
+
+#ifdef TARGET_SPARC64
 #ifndef TARGET_ABI32
         case 0x16e:
             flush_windows(env);
