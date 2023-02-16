@@ -273,28 +273,22 @@ static void shpc_slot_command(SHPCDevice *shpc, uint8_t target,
         return;
     }
 
-    switch (power) {
-    case SHPC_LED_NO:
-        break;
-    default:
+    if (power != SHPC_LED_NO) {
         /* TODO: send event to monitor */
         shpc_set_status(shpc, slot, power, SHPC_SLOT_PWR_LED_MASK);
     }
-    switch (attn) {
-    case SHPC_LED_NO:
-        break;
-    default:
+    if (attn != SHPC_LED_NO) {
         /* TODO: send event to monitor */
         shpc_set_status(shpc, slot, attn, SHPC_SLOT_ATTN_LED_MASK);
     }
+    if (state != SHPC_STATE_NO) {
+        shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
+    }
 
-    if ((current_state == SHPC_STATE_DISABLED && state == SHPC_STATE_PWRONLY) ||
-        (current_state == SHPC_STATE_DISABLED && state == SHPC_STATE_ENABLED)) {
-        shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
-    } else if ((current_state == SHPC_STATE_ENABLED ||
-                current_state == SHPC_STATE_PWRONLY) &&
-               state == SHPC_STATE_DISABLED) {
-        shpc_set_status(shpc, slot, state, SHPC_SLOT_STATE_MASK);
+    if ((current_state == SHPC_STATE_ENABLED ||
+         current_state == SHPC_STATE_PWRONLY) &&
+        state == SHPC_STATE_DISABLED)
+    {
         power = shpc_get_status(shpc, slot, SHPC_SLOT_PWR_LED_MASK);
         /* TODO: track what monitor requested. */
         /* Look at LED to figure out whether it's ok to remove the device. */
