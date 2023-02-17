@@ -15,6 +15,7 @@ from avocado_qemu import QemuSystemTest
 class Version(QemuSystemTest):
     """
     :avocado: tags=quick
+    :avocado: tags=machine:none
     """
     def test_qmp_human_info_version(self):
         self.vm.add_args('-nodefaults')
