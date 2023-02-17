@@ -27,14 +27,16 @@
 
 #include "hcd-xhci-pci.h"
 
-typedef struct XHCINecState {
+OBJECT_DECLARE_SIMPLE_TYPE(XHCINecState, NEC_XHCI)
+
+struct XHCINecState {
     /*< private >*/
     XHCIPciState parent_obj;
     /*< public >*/
     uint32_t flags;
     uint32_t intrs;
     uint32_t slots;
-} XHCINecState;
+};
 
 static Property nec_xhci_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("msi", XHCIPciState, msi, ON_OFF_AUTO_AUTO),
