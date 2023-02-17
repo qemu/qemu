@@ -21,3 +21,7 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
 {
     g_assert_not_reached();
 }
+/* Temporarily while cpu_get_tb_cpu_state() is still in common code */
+void assert_hflags_rebuild_correctly(CPUARMState *env)
+{
+}
