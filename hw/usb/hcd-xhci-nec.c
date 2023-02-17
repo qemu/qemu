@@ -53,7 +53,7 @@ static Property nec_xhci_properties[] = {
 static void nec_xhci_instance_init(Object *obj)
 {
     XHCIPciState *pci = XHCI_PCI(obj);
-    XHCINecState *nec = container_of(pci, XHCINecState, parent_obj);
+    XHCINecState *nec = NEC_XHCI(obj);
 
     pci->xhci.flags    = nec->flags;
     pci->xhci.numintrs = nec->intrs;
