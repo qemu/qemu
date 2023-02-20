@@ -1410,6 +1410,18 @@ static void ohci_set_hub_status(OHCIState *ohci, uint32_t val)
     }
 }
 
+/* This is the one state transition the controller can do by itself */
+static bool ohci_resume(OHCIState *s)
+{
+    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
+        trace_usb_ohci_remote_wakeup(s->name);
+        s->ctl &= ~OHCI_CTL_HCFS;
+        s->ctl |= OHCI_USB_RESUME;
+        return true;
+    }
+    return false;
+}
+
 /*
  * Sets a flag in a port status reg but only set it if the port is connected.
  * If not set ConnectStatusChange flag. If flag is enabled return 1.
@@ -1426,7 +1438,10 @@ static int ohci_port_set_if_connected(OHCIState *ohci, int i, uint32_t val)
     if (!(ohci->rhport[i].ctrl & OHCI_PORT_CCS)) {
         ohci->rhport[i].ctrl |= OHCI_PORT_CSC;
         if (ohci->rhstatus & OHCI_RHS_DRWE) {
-            /* TODO: CSC is a wakeup event */
+            /* CSC is a wakeup event */
+            if (ohci_resume(ohci)) {
+                ohci_set_interrupt(ohci, OHCI_INTR_RD);
+            }
         }
         return 0;
     }
@@ -1828,11 +1843,7 @@ static void ohci_wakeup(USBPort *port1)
         intr = OHCI_INTR_RHSC;
     }
     /* Note that the controller can be suspended even if this port is not */
-    if ((s->ctl & OHCI_CTL_HCFS) == OHCI_USB_SUSPEND) {
-        trace_usb_ohci_remote_wakeup(s->name);
-        /* This is the one state transition the controller can do by itself */
-        s->ctl &= ~OHCI_CTL_HCFS;
-        s->ctl |= OHCI_USB_RESUME;
+    if (ohci_resume(s)) {
         /*
          * In suspend mode only ResumeDetected is possible, not RHSC:
          * see the OHCI spec 5.1.2.3.
