@@ -61,11 +61,11 @@ typedef struct VFIORegion {
 typedef struct VFIOMigration {
     struct VFIODevice *vbasedev;
     VMChangeStateEntry *vm_state;
-    VFIORegion region;
-    uint32_t device_state;
-    int vm_running;
     Notifier migration_state;
-    uint64_t pending_bytes;
+    uint32_t device_state;
+    int data_fd;
+    void *data_buffer;
+    size_t data_buffer_size;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
@@ -218,6 +218,8 @@ typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
 extern VFIOGroupList vfio_group_list;
 
 bool vfio_mig_active(void);
+int vfio_block_multiple_devices_migration(Error **errp);
+void vfio_unblock_multiple_devices_migration(void);
 int64_t vfio_mig_bytes_transferred(void);
 
 #ifdef CONFIG_LINUX
