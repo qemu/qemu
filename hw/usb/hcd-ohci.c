@@ -235,6 +235,24 @@ struct ohci_iso_td {
 
 #define OHCI_HRESET_FSBIR       (1 << 0)
 
+static const char *ohci_reg_names[] = {
+    "HcRevision", "HcControl", "HcCommandStatus", "HcInterruptStatus",
+    "HcInterruptEnable", "HcInterruptDisable", "HcHCCA", "HcPeriodCurrentED",
+    "HcControlHeadED", "HcControlCurrentED", "HcBulkHeadED", "HcBulkCurrentED",
+    "HcDoneHead", "HcFmInterval", "HcFmRemaining", "HcFmNumber",
+    "HcPeriodicStart", "HcLSThreshold", "HcRhDescriptorA", "HcRhDescriptorB",
+    "HcRhStatus"
+};
+
+static const char *ohci_reg_name(hwaddr addr)
+{
+    if (addr >> 2 < ARRAY_SIZE(ohci_reg_names)) {
+        return ohci_reg_names[addr >> 2];
+    } else {
+        return "<unknown>";
+    }
+}
+
 static void ohci_die(OHCIState *ohci)
 {
     ohci->ohci_die(ohci);
@@ -1478,6 +1496,8 @@ static uint64_t ohci_mem_read(void *opaque,
     } else if (addr >= 0x54 && addr < 0x54 + ohci->num_ports * 4) {
         /* HcRhPortStatus */
         retval = ohci->rhport[(addr - 0x54) >> 2].ctrl | OHCI_PORT_PPS;
+        trace_usb_ohci_mem_port_read(size, "HcRhPortStatus", (addr - 0x50) >> 2,
+                                     addr, addr >> 2, retval);
     } else {
         switch (addr >> 2) {
         case 0: /* HcRevision */
@@ -1582,6 +1602,10 @@ static uint64_t ohci_mem_read(void *opaque,
             trace_usb_ohci_mem_read_bad_offset(addr);
             retval = 0xffffffff;
         }
+        if (addr != 0xc || retval) {
+            trace_usb_ohci_mem_read(size, ohci_reg_name(addr), addr, addr >> 2,
+                                    retval);
+        }
     }
 
     return retval;
@@ -1602,10 +1626,13 @@ static void ohci_mem_write(void *opaque,
 
     if (addr >= 0x54 && addr < 0x54 + ohci->num_ports * 4) {
         /* HcRhPortStatus */
+        trace_usb_ohci_mem_port_write(size, "HcRhPortStatus",
+                                      (addr - 0x50) >> 2, addr, addr >> 2, val);
         ohci_port_set_status(ohci, (addr - 0x54) >> 2, val);
         return;
     }
 
+    trace_usb_ohci_mem_write(size, ohci_reg_name(addr), addr, addr >> 2, val);
     switch (addr >> 2) {
     case 1: /* HcControl */
         ohci_set_ctl(ohci, val);
