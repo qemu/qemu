@@ -1146,9 +1146,14 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (1 << i)) {
-            pl011_luminary_create(0x4000c000 + i * 0x1000,
-                                  qdev_get_gpio_in(nvic, uart_irq[i]),
-                                  serial_hd(i));
+            SysBusDevice *sbd;
+
+            dev = qdev_new("pl011_luminary");
+            sbd = SYS_BUS_DEVICE(dev);
+            qdev_prop_set_chr(dev, "chardev", serial_hd(i));
+            sysbus_realize_and_unref(sbd, &error_fatal);
+            sysbus_mmio_map(sbd, 0, 0x4000c000 + i * 0x1000);
+            sysbus_connect_irq(sbd, 0, qdev_get_gpio_in(nvic, uart_irq[i]));
         }
     }
     if (board->dc2 & (1 << 4)) {
