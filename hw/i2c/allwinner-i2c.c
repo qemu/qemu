@@ -357,10 +357,16 @@ static void allwinner_i2c_write(void *opaque, hwaddr offset,
                 s->stat = STAT_FROM_STA(STAT_IDLE);
                 s->cntr &= ~TWI_CNTR_M_STP;
             }
-            if ((s->cntr & TWI_CNTR_INT_FLAG) == 0) {
-                /* Interrupt flag cleared */
+
+            if (!s->irq_clear_inverted && !(s->cntr & TWI_CNTR_INT_FLAG)) {
+                /* Write 0 to clear this flag */
+                qemu_irq_lower(s->irq);
+            } else if (s->irq_clear_inverted && (s->cntr & TWI_CNTR_INT_FLAG)) {
+                /* Write 1 to clear this flag */
+                s->cntr &= ~TWI_CNTR_INT_FLAG;
                 qemu_irq_lower(s->irq);
             }
+
             if ((s->cntr & TWI_CNTR_A_ACK) == 0) {
                 if (STAT_TO_STA(s->stat) == STAT_M_DATA_RX_ACK) {
                     s->stat = STAT_FROM_STA(STAT_M_DATA_RX_NACK);
@@ -451,9 +457,25 @@ static const TypeInfo allwinner_i2c_type_info = {
     .class_init = allwinner_i2c_class_init,
 };
 
+static void allwinner_i2c_sun6i_init(Object *obj)
+{
+    AWI2CState *s = AW_I2C(obj);
+
+    s->irq_clear_inverted = true;
+}
+
+static const TypeInfo allwinner_i2c_sun6i_type_info = {
+    .name = TYPE_AW_I2C_SUN6I,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(AWI2CState),
+    .instance_init = allwinner_i2c_sun6i_init,
+    .class_init = allwinner_i2c_class_init,
+};
+
 static void allwinner_i2c_register_types(void)
 {
     type_register_static(&allwinner_i2c_type_info);
+    type_register_static(&allwinner_i2c_sun6i_type_info);
 }
 
 type_init(allwinner_i2c_register_types)
