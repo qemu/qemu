@@ -1,6 +1,8 @@
 #ifndef BLOCK_NVME_H
 #define BLOCK_NVME_H
 
+#include "hw/registerfields.h"
+
 typedef struct QEMU_PACKED NvmeBar {
     uint64_t    cap;
     uint32_t    vs;
@@ -631,7 +633,9 @@ enum NvmeIoCommands {
     NVME_CMD_WRITE_ZEROES       = 0x08,
     NVME_CMD_DSM                = 0x09,
     NVME_CMD_VERIFY             = 0x0c,
+    NVME_CMD_IO_MGMT_RECV       = 0x12,
     NVME_CMD_COPY               = 0x19,
+    NVME_CMD_IO_MGMT_SEND       = 0x1d,
     NVME_CMD_ZONE_MGMT_SEND     = 0x79,
     NVME_CMD_ZONE_MGMT_RECV     = 0x7a,
     NVME_CMD_ZONE_APPEND        = 0x7d,
@@ -724,7 +728,9 @@ typedef struct QEMU_PACKED NvmeRwCmd {
     uint64_t    slba;
     uint16_t    nlb;
     uint16_t    control;
-    uint32_t    dsmgmt;
+    uint8_t     dsmgmt;
+    uint8_t     rsvd;
+    uint16_t    dspec;
     uint32_t    reftag;
     uint16_t    apptag;
     uint16_t    appmask;
@@ -895,6 +901,8 @@ enum NvmeStatusCodes {
     NVME_INVALID_PRP_OFFSET     = 0x0013,
     NVME_CMD_SET_CMB_REJECTED   = 0x002b,
     NVME_INVALID_CMD_SET        = 0x002c,
+    NVME_FDP_DISABLED           = 0x0029,
+    NVME_INVALID_PHID_LIST      = 0x002a,
     NVME_LBA_RANGE              = 0x0080,
     NVME_CAP_EXCEEDED           = 0x0081,
     NVME_NS_NOT_READY           = 0x0082,
@@ -1031,6 +1039,10 @@ enum NvmeLogIdentifier {
     NVME_LOG_CHANGED_NSLIST             = 0x04,
     NVME_LOG_CMD_EFFECTS                = 0x05,
     NVME_LOG_ENDGRP                     = 0x09,
+    NVME_LOG_FDP_CONFS                  = 0x20,
+    NVME_LOG_FDP_RUH_USAGE              = 0x21,
+    NVME_LOG_FDP_STATS                  = 0x22,
+    NVME_LOG_FDP_EVENTS                 = 0x23,
 };
 
 typedef struct QEMU_PACKED NvmePSD {
@@ -1160,6 +1172,7 @@ enum NvmeIdCtrlOaes {
 enum NvmeIdCtrlCtratt {
     NVME_CTRATT_ENDGRPS = 1 <<  4,
     NVME_CTRATT_ELBAS   = 1 << 15,
+    NVME_CTRATT_FDPS    = 1 << 19,
 };
 
 enum NvmeIdCtrlOacs {
@@ -1273,6 +1286,8 @@ enum NvmeFeatureIds {
     NVME_TIMESTAMP                  = 0xe,
     NVME_HOST_BEHAVIOR_SUPPORT      = 0x16,
     NVME_COMMAND_SET_PROFILE        = 0x19,
+    NVME_FDP_MODE                   = 0x1d,
+    NVME_FDP_EVENTS                 = 0x1e,
     NVME_SOFTWARE_PROGRESS_MARKER   = 0x80,
     NVME_FID_MAX                    = 0x100,
 };
@@ -1652,20 +1667,162 @@ typedef struct NvmeDirectiveIdentify {
     uint8_t unused1[31];
     uint8_t enabled;
     uint8_t unused33[31];
-    uint8_t rsvd64[4032];
+    uint8_t persistent;
+    uint8_t unused65[31];
+    uint8_t rsvd64[4000];
 } NvmeDirectiveIdentify;
 
-enum NvmeDirective {
-    NVME_DIRECTIVE_SUPPORTED = 0x0,
-    NVME_DIRECTIVE_ENABLED   = 0x1,
-};
-
 enum NvmeDirectiveTypes {
-    NVME_DIRECTIVE_IDENTIFY = 0x0,
+    NVME_DIRECTIVE_IDENTIFY       = 0x0,
+    NVME_DIRECTIVE_DATA_PLACEMENT = 0x2,
 };
 
 enum NvmeDirectiveOperations {
     NVME_DIRECTIVE_RETURN_PARAMS = 0x1,
+};
+
+typedef struct QEMU_PACKED NvmeFdpConfsHdr {
+    uint16_t num_confs;
+    uint8_t  version;
+    uint8_t  rsvd3;
+    uint32_t size;
+    uint8_t  rsvd8[8];
+} NvmeFdpConfsHdr;
+
+REG8(FDPA, 0x0)
+    FIELD(FDPA, RGIF, 0, 4)
+    FIELD(FDPA, VWC, 4, 1)
+    FIELD(FDPA, VALID, 7, 1);
+
+typedef struct QEMU_PACKED NvmeFdpDescrHdr {
+    uint16_t descr_size;
+    uint8_t  fdpa;
+    uint8_t  vss;
+    uint32_t nrg;
+    uint16_t nruh;
+    uint16_t maxpids;
+    uint32_t nnss;
+    uint64_t runs;
+    uint32_t erutl;
+    uint8_t  rsvd28[36];
+} NvmeFdpDescrHdr;
+
+enum NvmeRuhType {
+    NVME_RUHT_INITIALLY_ISOLATED = 1,
+    NVME_RUHT_PERSISTENTLY_ISOLATED = 2,
+};
+
+typedef struct QEMU_PACKED NvmeRuhDescr {
+    uint8_t ruht;
+    uint8_t rsvd1[3];
+} NvmeRuhDescr;
+
+typedef struct QEMU_PACKED NvmeRuhuLog {
+    uint16_t nruh;
+    uint8_t  rsvd2[6];
+} NvmeRuhuLog;
+
+enum NvmeRuhAttributes {
+    NVME_RUHA_UNUSED = 0,
+    NVME_RUHA_HOST = 1,
+    NVME_RUHA_CTRL = 2,
+};
+
+typedef struct QEMU_PACKED NvmeRuhuDescr {
+    uint8_t ruha;
+    uint8_t rsvd1[7];
+} NvmeRuhuDescr;
+
+typedef struct QEMU_PACKED NvmeFdpStatsLog {
+    uint64_t hbmw[2];
+    uint64_t mbmw[2];
+    uint64_t mbe[2];
+    uint8_t  rsvd48[16];
+} NvmeFdpStatsLog;
+
+typedef struct QEMU_PACKED NvmeFdpEventsLog {
+    uint32_t num_events;
+    uint8_t  rsvd4[60];
+} NvmeFdpEventsLog;
+
+enum NvmeFdpEventType {
+    FDP_EVT_RU_NOT_FULLY_WRITTEN = 0x0,
+    FDP_EVT_RU_ATL_EXCEEDED = 0x1,
+    FDP_EVT_CTRL_RESET_RUH = 0x2,
+    FDP_EVT_INVALID_PID = 0x3,
+    FDP_EVT_MEDIA_REALLOC = 0x80,
+    FDP_EVT_RUH_IMPLICIT_RU_CHANGE = 0x81,
+};
+
+enum NvmeFdpEventFlags {
+    FDPEF_PIV = 1 << 0,
+    FDPEF_NSIDV = 1 << 1,
+    FDPEF_LV = 1 << 2,
+};
+
+typedef struct QEMU_PACKED NvmeFdpEvent {
+    uint8_t  type;
+    uint8_t  flags;
+    uint16_t pid;
+    uint64_t timestamp;
+    uint32_t nsid;
+    uint64_t type_specific[2];
+    uint16_t rgid;
+    uint8_t  ruhid;
+    uint8_t  rsvd35[5];
+    uint64_t vendor[3];
+} NvmeFdpEvent;
+
+typedef struct QEMU_PACKED NvmePhidList {
+    uint16_t nnruhd;
+    uint8_t  rsvd2[6];
+} NvmePhidList;
+
+typedef struct QEMU_PACKED NvmePhidDescr {
+    uint8_t  ruht;
+    uint8_t  rsvd1;
+    uint16_t ruhid;
+} NvmePhidDescr;
+
+REG32(FEAT_FDP, 0x0)
+    FIELD(FEAT_FDP, FDPE, 0, 1)
+    FIELD(FEAT_FDP, CONF_NDX, 8, 8);
+
+typedef struct QEMU_PACKED NvmeFdpEventDescr {
+    uint8_t evt;
+    uint8_t evta;
+} NvmeFdpEventDescr;
+
+REG32(NVME_IOMR, 0x0)
+    FIELD(NVME_IOMR, MO, 0, 8)
+    FIELD(NVME_IOMR, MOS, 16, 16);
+
+enum NvmeIomr2Mo {
+    NVME_IOMR_MO_NOP = 0x0,
+    NVME_IOMR_MO_RUH_STATUS = 0x1,
+    NVME_IOMR_MO_VENDOR_SPECIFIC = 0x255,
+};
+
+typedef struct QEMU_PACKED NvmeRuhStatus {
+    uint8_t  rsvd0[14];
+    uint16_t nruhsd;
+} NvmeRuhStatus;
+
+typedef struct QEMU_PACKED NvmeRuhStatusDescr {
+    uint16_t pid;
+    uint16_t ruhid;
+    uint32_t earutr;
+    uint64_t ruamw;
+    uint8_t  rsvd16[16];
+} NvmeRuhStatusDescr;
+
+REG32(NVME_IOMS, 0x0)
+    FIELD(NVME_IOMS, MO, 0, 8)
+    FIELD(NVME_IOMS, MOS, 16, 16);
+
+enum NvmeIoms2Mo {
+    NVME_IOMS_MO_NOP = 0x0,
+    NVME_IOMS_MO_RUH_UPDATE = 0x1,
 };
 
 static inline void _nvme_check_size(void)

@@ -7,9 +7,12 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 
 #include "nvme.h"
+
+#define NVME_DEFAULT_RU_SIZE (96 * MiB)
 
 static int nvme_subsys_reserve_cntlids(NvmeCtrl *n, int start, int num)
 {
@@ -109,13 +112,95 @@ void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n)
     n->cntlid = -1;
 }
 
-static void nvme_subsys_setup(NvmeSubsystem *subsys)
+static bool nvme_calc_rgif(uint16_t nruh, uint16_t nrg, uint8_t *rgif)
+{
+    uint16_t val;
+    unsigned int i;
+
+    if (unlikely(nrg == 1)) {
+        /* PIDRG_NORGI scenario, all of pid is used for PHID */
+        *rgif = 0;
+        return true;
+    }
+
+    val = nrg;
+    i = 0;
+    while (val) {
+        val >>= 1;
+        i++;
+    }
+    *rgif = i;
+
+    /* ensure remaining bits suffice to represent number of phids in a RG */
+    if (unlikely((UINT16_MAX >> i) < nruh)) {
+        *rgif = 0;
+        return false;
+    }
+
+    return true;
+}
+
+static bool nvme_subsys_setup_fdp(NvmeSubsystem *subsys, Error **errp)
+{
+    NvmeEnduranceGroup *endgrp = &subsys->endgrp;
+
+    if (!subsys->params.fdp.runs) {
+        error_setg(errp, "fdp.runs must be non-zero");
+        return false;
+    }
+
+    endgrp->fdp.runs = subsys->params.fdp.runs;
+
+    if (!subsys->params.fdp.nrg) {
+        error_setg(errp, "fdp.nrg must be non-zero");
+        return false;
+    }
+
+    endgrp->fdp.nrg = subsys->params.fdp.nrg;
+
+    if (!subsys->params.fdp.nruh) {
+        error_setg(errp, "fdp.nruh must be non-zero");
+        return false;
+    }
+
+    endgrp->fdp.nruh = subsys->params.fdp.nruh;
+
+    if (!nvme_calc_rgif(endgrp->fdp.nruh, endgrp->fdp.nrg, &endgrp->fdp.rgif)) {
+        error_setg(errp,
+                   "cannot derive a valid rgif (nruh %"PRIu16" nrg %"PRIu32")",
+                   endgrp->fdp.nruh, endgrp->fdp.nrg);
+        return false;
+    }
+
+    endgrp->fdp.ruhs = g_new(NvmeRuHandle, endgrp->fdp.nruh);
+
+    for (uint16_t ruhid = 0; ruhid < endgrp->fdp.nruh; ruhid++) {
+        endgrp->fdp.ruhs[ruhid] = (NvmeRuHandle) {
+            .ruht = NVME_RUHT_INITIALLY_ISOLATED,
+            .ruha = NVME_RUHA_UNUSED,
+        };
+
+        endgrp->fdp.ruhs[ruhid].rus = g_new(NvmeReclaimUnit, endgrp->fdp.nrg);
+    }
+
+    endgrp->fdp.enabled = true;
+
+    return true;
+}
+
+static bool nvme_subsys_setup(NvmeSubsystem *subsys, Error **errp)
 {
     const char *nqn = subsys->params.nqn ?
         subsys->params.nqn : subsys->parent_obj.id;
 
     snprintf((char *)subsys->subnqn, sizeof(subsys->subnqn),
              "nqn.2019-08.org.qemu:%s", nqn);
+
+    if (subsys->params.fdp.enabled && !nvme_subsys_setup_fdp(subsys, errp)) {
+        return false;
+    }
+
+    return true;
 }
 
 static void nvme_subsys_realize(DeviceState *dev, Error **errp)
@@ -124,11 +209,16 @@ static void nvme_subsys_realize(DeviceState *dev, Error **errp)
 
     qbus_init(&subsys->bus, sizeof(NvmeBus), TYPE_NVME_BUS, dev, dev->id);
 
-    nvme_subsys_setup(subsys);
+    nvme_subsys_setup(subsys, errp);
 }
 
 static Property nvme_subsystem_props[] = {
     DEFINE_PROP_STRING("nqn", NvmeSubsystem, params.nqn),
+    DEFINE_PROP_BOOL("fdp", NvmeSubsystem, params.fdp.enabled, false),
+    DEFINE_PROP_SIZE("fdp.runs", NvmeSubsystem, params.fdp.runs,
+                     NVME_DEFAULT_RU_SIZE),
+    DEFINE_PROP_UINT32("fdp.nrg", NvmeSubsystem, params.fdp.nrg, 1),
+    DEFINE_PROP_UINT16("fdp.nruh", NvmeSubsystem, params.fdp.nruh, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
