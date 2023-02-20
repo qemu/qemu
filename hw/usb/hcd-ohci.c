@@ -1827,7 +1827,7 @@ static USBBusOps ohci_bus_ops = {
 void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
                    dma_addr_t localmem_base, char *masterbus,
                    uint32_t firstport, AddressSpace *as,
-                   void (*ohci_die_fn)(struct OHCIState *), Error **errp)
+                   void (*ohci_die_fn)(OHCIState *), Error **errp)
 {
     Error *err = NULL;
     int i;
