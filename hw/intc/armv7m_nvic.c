@@ -578,7 +578,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
              * which saves having to have an extra argument is_terminal
              * that we'd only use in one place.
              */
-            cpu_abort(&s->cpu->parent_obj,
+            cpu_abort(CPU(s->cpu),
                       "Lockup: can't take terminal derived exception "
                       "(original exception priority %d)\n",
                       s->vectpending_prio);
@@ -644,7 +644,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
                  * Lockup condition due to a guest bug. We don't model
                  * Lockup, so report via cpu_abort() instead.
                  */
-                cpu_abort(&s->cpu->parent_obj,
+                cpu_abort(CPU(s->cpu),
                           "Lockup: can't escalate %d to HardFault "
                           "(current priority %d)\n", irq, running);
             }
@@ -742,7 +742,7 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
              * We want to escalate to HardFault but the context the
              * FP state belongs to prevents the exception pre-empting.
              */
-            cpu_abort(&s->cpu->parent_obj,
+            cpu_abort(CPU(s->cpu),
                       "Lockup: can't escalate to HardFault during "
                       "lazy FP register stacking\n");
         }
