@@ -499,9 +499,9 @@ static int ohci_copy_td(OHCIState *ohci, struct ohci_td *td,
 
     ptr = td->cbp;
     n = 0x1000 - (ptr & 0xfff);
-    if (n > len)
+    if (n > len) {
         n = len;
-
+    }
     if (dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf,
                       n, dir, MEMTXATTRS_UNSPECIFIED)) {
         return -1;
@@ -527,9 +527,9 @@ static int ohci_copy_iso_td(OHCIState *ohci,
 
     ptr = start_addr;
     n = 0x1000 - (ptr & 0xfff);
-    if (n > len)
+    if (n > len) {
         n = len;
-
+    }
     if (dma_memory_rw(ohci->as, ptr + ohci->localmem_base, buf,
                       n, dir, MEMTXATTRS_UNSPECIFIED)) {
         return -1;
@@ -617,8 +617,9 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
         iso_td.next = ohci->done;
         ohci->done = addr;
         i = OHCI_BM(iso_td.flags, TD_DI);
-        if (i < ohci->done_count)
+        if (i < ohci->done_count) {
             ohci->done_count = i;
+        }
         if (ohci_put_iso_td(ohci, addr, &iso_td)) {
             ohci_die(ohci);
             return 1;
@@ -803,8 +804,9 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed)
         iso_td.next = ohci->done;
         ohci->done = addr;
         i = OHCI_BM(iso_td.flags, TD_DI);
-        if (i < ohci->done_count)
+        if (i < ohci->done_count) {
             ohci->done_count = i;
+        }
     }
     if (ohci_put_iso_td(ohci, addr, &iso_td)) {
         ohci_die(ohci);
@@ -1022,8 +1024,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 
         /* Setting ED_C is part of the TD retirement process */
         ed->head &= ~OHCI_ED_C;
-        if (td.flags & OHCI_TD_T0)
+        if (td.flags & OHCI_TD_T0) {
             ed->head |= OHCI_ED_C;
+        }
     } else {
         if (ret >= 0) {
             trace_usb_ohci_td_underrun();
@@ -1067,8 +1070,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     td.next = ohci->done;
     ohci->done = addr;
     i = OHCI_BM(td.flags, TD_DI);
-    if (i < ohci->done_count)
+    if (i < ohci->done_count) {
         ohci->done_count = i;
+    }
 exit_no_retire:
     if (ohci_put_td(ohci, addr, &td)) {
         ohci_die(ohci);
@@ -1087,9 +1091,9 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head)
     uint32_t link_cnt = 0;
     active = 0;
 
-    if (head == 0)
+    if (head == 0) {
         return 0;
-
+    }
     for (cur = head; cur && link_cnt++ < ED_LINK_LIMIT; cur = next_ed) {
         if (ohci_read_ed(ohci, cur, &ed)) {
             trace_usb_ohci_ed_read_error(cur);
@@ -1125,8 +1129,9 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head)
             active = 1;
 
             if ((ed.flags & OHCI_ED_F) == 0) {
-                if (ohci_service_td(ohci, &ed))
+                if (ohci_service_td(ohci, &ed)) {
                     break;
+                }
             } else {
                 /* Handle isochronous endpoints */
                 if (ohci_service_iso_td(ohci, &ed)) {
@@ -1218,19 +1223,21 @@ static void ohci_frame_boundary(void *opaque)
     hcca.frame = cpu_to_le16(ohci->frame_number);
 
     if (ohci->done_count == 0 && !(ohci->intr_status & OHCI_INTR_WD)) {
-        if (!ohci->done)
+        if (!ohci->done) {
             abort();
-        if (ohci->intr & ohci->intr_status)
+        }
+        if (ohci->intr & ohci->intr_status) {
             ohci->done |= 1;
+        }
         hcca.done = cpu_to_le32(ohci->done);
         ohci->done = 0;
         ohci->done_count = 7;
         ohci_set_interrupt(ohci, OHCI_INTR_WD);
     }
 
-    if (ohci->done_count != 7 && ohci->done_count != 0)
+    if (ohci->done_count != 7 && ohci->done_count != 0) {
         ohci->done_count--;
-
+    }
     /* Do SOF stuff here */
     ohci_sof(ohci);
 
@@ -1273,9 +1280,9 @@ static int ohci_port_set_if_connected(OHCIState *ohci, int i, uint32_t val)
     int ret = 1;
 
     /* writing a 0 has no effect */
-    if (val == 0)
+    if (val == 0) {
         return 0;
-
+    }
     /* If CurrentConnectStatus is cleared we set ConnectStatusChange */
     if (!(ohci->rhport[i].ctrl & OHCI_PORT_CCS)) {
         ohci->rhport[i].ctrl |= OHCI_PORT_CSC;
@@ -1285,9 +1292,9 @@ static int ohci_port_set_if_connected(OHCIState *ohci, int i, uint32_t val)
         return 0;
     }
 
-    if (ohci->rhport[i].ctrl & val)
+    if (ohci->rhport[i].ctrl & val) {
         ret = 0;
-
+    }
     /* set the bit */
     ohci->rhport[i].ctrl |= val;
 
@@ -1327,9 +1334,9 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
     new_state = ohci->ctl & OHCI_CTL_HCFS;
 
     /* no state change */
-    if (old_state == new_state)
+    if (old_state == new_state) {
         return;
-
+    }
     trace_usb_ohci_set_ctl(ohci->name, new_state);
     switch (new_state) {
     case OHCI_USB_OPERATIONAL:
@@ -1355,9 +1362,9 @@ static uint32_t ohci_get_frame_remaining(OHCIState *ohci)
     uint16_t fr;
     int64_t tks;
 
-    if ((ohci->ctl & OHCI_CTL_HCFS) != OHCI_USB_OPERATIONAL)
-        return (ohci->frt << 31);
-
+    if ((ohci->ctl & OHCI_CTL_HCFS) != OHCI_USB_OPERATIONAL) {
+        return ohci->frt << 31;
+    }
     /* Being in USB operational state guarnatees sof_time was set already. */
     tks = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ohci->sof_time;
     if (tks < 0) {
@@ -1365,9 +1372,9 @@ static uint32_t ohci_get_frame_remaining(OHCIState *ohci)
     }
 
     /* avoid muldiv if possible */
-    if (tks >= usb_frame_time)
-        return (ohci->frt << 31);
-
+    if (tks >= usb_frame_time) {
+        return ohci->frt << 31;
+    }
     tks = tks / usb_bit_time;
     fr = (uint16_t)(ohci->fi - tks);
 
@@ -1383,33 +1390,36 @@ static void ohci_set_hub_status(OHCIState *ohci, uint32_t val)
     old_state = ohci->rhstatus;
 
     /* write 1 to clear OCIC */
-    if (val & OHCI_RHS_OCIC)
+    if (val & OHCI_RHS_OCIC) {
         ohci->rhstatus &= ~OHCI_RHS_OCIC;
-
+    }
     if (val & OHCI_RHS_LPS) {
         int i;
 
-        for (i = 0; i < ohci->num_ports; i++)
+        for (i = 0; i < ohci->num_ports; i++) {
             ohci_port_power(ohci, i, 0);
+        }
         trace_usb_ohci_hub_power_down();
     }
 
     if (val & OHCI_RHS_LPSC) {
         int i;
 
-        for (i = 0; i < ohci->num_ports; i++)
+        for (i = 0; i < ohci->num_ports; i++) {
             ohci_port_power(ohci, i, 1);
+        }
         trace_usb_ohci_hub_power_up();
     }
 
-    if (val & OHCI_RHS_DRWE)
+    if (val & OHCI_RHS_DRWE) {
         ohci->rhstatus |= OHCI_RHS_DRWE;
-
-    if (val & OHCI_RHS_CRWE)
+    }
+    if (val & OHCI_RHS_CRWE) {
         ohci->rhstatus &= ~OHCI_RHS_DRWE;
-
-    if (old_state != ohci->rhstatus)
+    }
+    if (old_state != ohci->rhstatus) {
         ohci_set_interrupt(ohci, OHCI_INTR_RHSC);
+    }
 }
 
 /* Set root hub port status */
@@ -1422,12 +1432,12 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
     old_state = port->ctrl;
 
     /* Write to clear CSC, PESC, PSSC, OCIC, PRSC */
-    if (val & OHCI_PORT_WTC)
+    if (val & OHCI_PORT_WTC) {
         port->ctrl &= ~(val & OHCI_PORT_WTC);
-
-    if (val & OHCI_PORT_CCS)
+    }
+    if (val & OHCI_PORT_CCS) {
         port->ctrl &= ~OHCI_PORT_PES;
-
+    }
     ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PES);
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PSS)) {
@@ -1443,13 +1453,15 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
     }
 
     /* Invert order here to ensure in ambiguous case, device is powered up. */
-    if (val & OHCI_PORT_LSDA)
+    if (val & OHCI_PORT_LSDA) {
         ohci_port_power(ohci, portnum, 0);
-    if (val & OHCI_PORT_PPS)
+    }
+    if (val & OHCI_PORT_PPS) {
         ohci_port_power(ohci, portnum, 1);
-
-    if (old_state != port->ctrl)
+    }
+    if (old_state != port->ctrl) {
         ohci_set_interrupt(ohci, OHCI_INTR_RHSC);
+    }
 }
 
 static uint64_t ohci_mem_read(void *opaque,
@@ -1606,8 +1618,9 @@ static void ohci_mem_write(void *opaque,
         /* Bits written as '0' remain unchanged in the register */
         ohci->status |= val;
 
-        if (ohci->status & OHCI_STATUS_HCR)
+        if (ohci->status & OHCI_STATUS_HCR) {
             ohci_soft_reset(ohci);
+        }
         break;
 
     case 3: /* HcInterruptStatus */
@@ -1685,8 +1698,9 @@ static void ohci_mem_write(void *opaque,
 
     case 25: /* HcHReset */
         ohci->hreset = val & ~OHCI_HRESET_FSBIR;
-        if (val & OHCI_HRESET_FSBIR)
+        if (val & OHCI_HRESET_FSBIR) {
             ohci_hard_reset(ohci);
+        }
         break;
 
     case 26: /* HcHInterruptEnable */
