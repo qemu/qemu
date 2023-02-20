@@ -35,6 +35,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/unimp.h"
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/timer/cmsdk-apb-timer.h"
@@ -282,6 +283,9 @@ static void mps2_common_init(MachineState *machine)
         qdev_connect_gpio_out(orgate_dev, 0, qdev_get_gpio_in(armv7m, 12));
 
         for (i = 0; i < 5; i++) {
+            DeviceState *dev;
+            SysBusDevice *s;
+
             static const hwaddr uartbase[] = {0x40004000, 0x40005000,
                                               0x40006000, 0x40007000,
                                               0x40009000};
@@ -294,12 +298,16 @@ static void mps2_common_init(MachineState *machine)
                 rxovrint = qdev_get_gpio_in(orgate_dev, i * 2 + 1);
             }
 
-            cmsdk_apb_uart_create(uartbase[i],
-                                  qdev_get_gpio_in(armv7m, uartirq[i] + 1),
-                                  qdev_get_gpio_in(armv7m, uartirq[i]),
-                                  txovrint, rxovrint,
-                                  NULL,
-                                  serial_hd(i), SYSCLK_FRQ);
+            dev = qdev_new(TYPE_CMSDK_APB_UART);
+            s = SYS_BUS_DEVICE(dev);
+            qdev_prop_set_chr(dev, "chardev", serial_hd(i));
+            qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);
+            sysbus_realize_and_unref(s, &error_fatal);
+            sysbus_mmio_map(s, 0, uartbase[i]);
+            sysbus_connect_irq(s, 0, qdev_get_gpio_in(armv7m, uartirq[i] + 1));
+            sysbus_connect_irq(s, 1, qdev_get_gpio_in(armv7m, uartirq[i]));
+            sysbus_connect_irq(s, 2, txovrint);
+            sysbus_connect_irq(s, 3, rxovrint);
         }
         break;
     }
@@ -324,7 +332,8 @@ static void mps2_common_init(MachineState *machine)
                                               0x4002c000, 0x4002d000,
                                               0x4002e000};
             Object *txrx_orgate;
-            DeviceState *txrx_orgate_dev;
+            DeviceState *txrx_orgate_dev, *dev;
+            SysBusDevice *s;
 
             txrx_orgate = object_new(TYPE_OR_IRQ);
             object_property_set_int(txrx_orgate, "num-lines", 2, &error_fatal);
@@ -332,13 +341,17 @@ static void mps2_common_init(MachineState *machine)
             txrx_orgate_dev = DEVICE(txrx_orgate);
             qdev_connect_gpio_out(txrx_orgate_dev, 0,
                                   qdev_get_gpio_in(armv7m, uart_txrx_irqno[i]));
-            cmsdk_apb_uart_create(uartbase[i],
-                                  qdev_get_gpio_in(txrx_orgate_dev, 0),
-                                  qdev_get_gpio_in(txrx_orgate_dev, 1),
-                                  qdev_get_gpio_in(orgate_dev, i * 2),
-                                  qdev_get_gpio_in(orgate_dev, i * 2 + 1),
-                                  NULL,
-                                  serial_hd(i), SYSCLK_FRQ);
+
+            dev = qdev_new(TYPE_CMSDK_APB_UART);
+            s = SYS_BUS_DEVICE(dev);
+            qdev_prop_set_chr(dev, "chardev", serial_hd(i));
+            qdev_prop_set_uint32(dev, "pclk-frq", SYSCLK_FRQ);
+            sysbus_realize_and_unref(s, &error_fatal);
+            sysbus_mmio_map(s, 0, uartbase[i]);
+            sysbus_connect_irq(s, 0, qdev_get_gpio_in(txrx_orgate_dev, 0));
+            sysbus_connect_irq(s, 1, qdev_get_gpio_in(txrx_orgate_dev, 1));
+            sysbus_connect_irq(s, 2, qdev_get_gpio_in(orgate_dev, i * 2));
+            sysbus_connect_irq(s, 3, qdev_get_gpio_in(orgate_dev, i * 2 + 1));
         }
         break;
     }
