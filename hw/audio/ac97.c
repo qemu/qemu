@@ -1295,7 +1295,7 @@ static const MemoryRegionOps ac97_io_nabm_ops = {
 
 static void ac97_on_reset(DeviceState *dev)
 {
-    AC97LinkState *s = container_of(dev, AC97LinkState, dev.qdev);
+    AC97LinkState *s = AC97(dev);
 
     reset_bm_regs(s, &s->bm_regs[0]);
     reset_bm_regs(s, &s->bm_regs[1]);
