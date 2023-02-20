@@ -1271,36 +1271,6 @@ void ohci_bus_stop(OHCIState *ohci)
     timer_del(ohci->eof_timer);
 }
 
-/*
- * Sets a flag in a port status reg but only set it if the port is connected.
- * If not set ConnectStatusChange flag. If flag is enabled return 1.
- */
-static int ohci_port_set_if_connected(OHCIState *ohci, int i, uint32_t val)
-{
-    int ret = 1;
-
-    /* writing a 0 has no effect */
-    if (val == 0) {
-        return 0;
-    }
-    /* If CurrentConnectStatus is cleared we set ConnectStatusChange */
-    if (!(ohci->rhport[i].ctrl & OHCI_PORT_CCS)) {
-        ohci->rhport[i].ctrl |= OHCI_PORT_CSC;
-        if (ohci->rhstatus & OHCI_RHS_DRWE) {
-            /* TODO: CSC is a wakeup event */
-        }
-        return 0;
-    }
-
-    if (ohci->rhport[i].ctrl & val) {
-        ret = 0;
-    }
-    /* set the bit */
-    ohci->rhport[i].ctrl |= val;
-
-    return ret;
-}
-
 /* Frame interval toggle is manipulated by the hcd only */
 static void ohci_set_frame_interval(OHCIState *ohci, uint16_t val)
 {
@@ -1420,6 +1390,36 @@ static void ohci_set_hub_status(OHCIState *ohci, uint32_t val)
     if (old_state != ohci->rhstatus) {
         ohci_set_interrupt(ohci, OHCI_INTR_RHSC);
     }
+}
+
+/*
+ * Sets a flag in a port status reg but only set it if the port is connected.
+ * If not set ConnectStatusChange flag. If flag is enabled return 1.
+ */
+static int ohci_port_set_if_connected(OHCIState *ohci, int i, uint32_t val)
+{
+    int ret = 1;
+
+    /* writing a 0 has no effect */
+    if (val == 0) {
+        return 0;
+    }
+    /* If CurrentConnectStatus is cleared we set ConnectStatusChange */
+    if (!(ohci->rhport[i].ctrl & OHCI_PORT_CCS)) {
+        ohci->rhport[i].ctrl |= OHCI_PORT_CSC;
+        if (ohci->rhstatus & OHCI_RHS_DRWE) {
+            /* TODO: CSC is a wakeup event */
+        }
+        return 0;
+    }
+
+    if (ohci->rhport[i].ctrl & val) {
+        ret = 0;
+    }
+    /* set the bit */
+    ohci->rhport[i].ctrl |= val;
+
+    return ret;
 }
 
 /* Set root hub port status */
