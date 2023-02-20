@@ -3418,6 +3418,12 @@ M: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
 S: Maintained
 F: contrib/elf2dmp/
 
+Overall sensors
+M: Philippe Mathieu-Daudé <philmd@linaro.org>
+S: Odd Fixes
+F: hw/sensor
+F: include/hw/sensor
+
 I2C and SMBus
 M: Corey Minyard <cminyard@mvista.com>
 S: Maintained
