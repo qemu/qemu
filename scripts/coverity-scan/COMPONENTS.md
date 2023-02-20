@@ -132,9 +132,6 @@ util
 xen
   ~ (/qemu)?(.*/xen.*)
 
-virtiofsd
-  ~ (/qemu)?(/tools/virtiofsd/.*)
-
 (headers)
   ~ (/qemu)?(/include/.*)
 

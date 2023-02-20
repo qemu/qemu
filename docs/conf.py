@@ -290,10 +290,6 @@ man_pages = [
     ('tools/virtfs-proxy-helper', 'virtfs-proxy-helper',
      'QEMU 9p virtfs proxy filesystem helper',
      ['M. Mohan Kumar'], 1),
-    ('tools/virtiofsd', 'virtiofsd',
-     'QEMU virtio-fs shared file system daemon',
-     ['Stefan Hajnoczi <stefanha@redhat.com>',
-      'Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>'], 1),
 ]
 man_make_section_directory = False
 

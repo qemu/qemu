@@ -14,13 +14,6 @@
 # * Require machine type "x-remote":
 #   - tests/avocado/multiprocess.py:Multiprocess.test_multiprocess_x86_64
 #
-# * Needs superuser privileges:
-#   - tests/avocado/virtiofs_submounts.py:VirtiofsSubmountsTest.test_pre_virtiofsd_set_up
-#   - tests/avocado/virtiofs_submounts.py:VirtiofsSubmountsTest.test_pre_launch_set_up
-#   - tests/avocado/virtiofs_submounts.py:VirtiofsSubmountsTest.test_post_launch_set_up
-#   - tests/avocado/virtiofs_submounts.py:VirtiofsSubmountsTest.test_post_mount_set_up
-#   - tests/avocado/virtiofs_submounts.py:VirtiofsSubmountsTest.test_two_runs
-#
 # * Requires display type "egl-headless":
 #   - tests/avocado/virtio-gpu.py:VirtioGPUx86.test_virtio_vga_virgl
 #   - tests/avocado/virtio-gpu.py:VirtioGPUx86.test_vhost_user_vga_virgl
