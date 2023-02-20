@@ -2299,9 +2299,9 @@ static int coroutine_fn vmdk_create_extent(const char *filename,
         goto exit;
     }
 
-    blk = blk_new_open(filename, NULL, NULL,
-                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       errp);
+    blk = blk_co_new_open(filename, NULL, NULL,
+                          BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
+                          errp);
     if (blk == NULL) {
         ret = -EIO;
         goto exit;
@@ -2518,8 +2518,8 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
         }
         assert(full_backing);
 
-        backing = blk_new_open(full_backing, NULL, NULL,
-                               BDRV_O_NO_BACKING, errp);
+        backing = blk_co_new_open(full_backing, NULL, NULL,
+                                  BDRV_O_NO_BACKING, errp);
         g_free(full_backing);
         if (backing == NULL) {
             ret = -EIO;
@@ -2781,7 +2781,7 @@ static BlockBackend * coroutine_fn vmdk_co_create_cb(int64_t size, int idx,
     BlockdevCreateOptionsVmdk *opts = opaque;
 
     if (idx == 0) {
-        bs = bdrv_open_blockdev_ref(opts->file, errp);
+        bs = bdrv_co_open_blockdev_ref(opts->file, errp);
     } else {
         int i;
         BlockdevRefList *list = opts->extents;
@@ -2796,14 +2796,16 @@ static BlockBackend * coroutine_fn vmdk_co_create_cb(int64_t size, int idx,
             error_setg(errp, "Extent [%d] not specified", idx - 1);
             return NULL;
         }
-        bs = bdrv_open_blockdev_ref(list->value, errp);
+        bs = bdrv_co_open_blockdev_ref(list->value, errp);
     }
     if (!bs) {
         return NULL;
     }
-    blk = blk_new_with_bs(bs,
-                          BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
-                          BLK_PERM_ALL, errp);
+    blk = blk_co_new_with_bs(bs,
+                             BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
+                                BLK_PERM_RESIZE,
+                             BLK_PERM_ALL,
+                             errp);
     if (!blk) {
         return NULL;
     }

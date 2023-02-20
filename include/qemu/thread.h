@@ -3,6 +3,7 @@
 
 #include "qemu/processor.h"
 #include "qemu/atomic.h"
+#include "qemu/clang-tsa.h"
 
 typedef struct QemuCond QemuCond;
 typedef struct QemuSemaphore QemuSemaphore;
@@ -24,9 +25,12 @@ typedef struct QemuThread QemuThread;
 
 void qemu_mutex_init(QemuMutex *mutex);
 void qemu_mutex_destroy(QemuMutex *mutex);
-int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line);
-void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line);
-void qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file, const int line);
+int TSA_NO_TSA qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file,
+                                       const int line);
+void TSA_NO_TSA qemu_mutex_lock_impl(QemuMutex *mutex, const char *file,
+                                     const int line);
+void TSA_NO_TSA qemu_mutex_unlock_impl(QemuMutex *mutex, const char *file,
+                                       const int line);
 
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
 void qemu_rec_mutex_destroy(QemuRecMutex *mutex);
@@ -153,8 +157,8 @@ void qemu_cond_destroy(QemuCond *cond);
  */
 void qemu_cond_signal(QemuCond *cond);
 void qemu_cond_broadcast(QemuCond *cond);
-void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex,
-                         const char *file, const int line);
+void TSA_NO_TSA qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex,
+                                    const char *file, const int line);
 bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
                               const char *file, const int line);
 

@@ -23,10 +23,23 @@
  */
 
 BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm);
-BlockBackend *blk_new_with_bs(BlockDriverState *bs, uint64_t perm,
-                              uint64_t shared_perm, Error **errp);
-BlockBackend *blk_new_open(const char *filename, const char *reference,
-                           QDict *options, int flags, Error **errp);
+
+BlockBackend * no_coroutine_fn
+blk_new_with_bs(BlockDriverState *bs, uint64_t perm, uint64_t shared_perm,
+                Error **errp);
+
+BlockBackend * coroutine_fn no_co_wrapper
+blk_co_new_with_bs(BlockDriverState *bs, uint64_t perm, uint64_t shared_perm,
+                   Error **errp);
+
+BlockBackend * no_coroutine_fn
+blk_new_open(const char *filename, const char *reference, QDict *options,
+             int flags, Error **errp);
+
+BlockBackend * coroutine_fn no_co_wrapper
+blk_co_new_open(const char *filename, const char *reference, QDict *options,
+                int flags, Error **errp);
+
 int blk_get_refcnt(BlockBackend *blk);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
