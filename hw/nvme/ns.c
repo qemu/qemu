@@ -592,6 +592,8 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     if (subsys) {
         subsys->namespaces[nsid] = ns;
 
+        ns->id_ns.endgid = cpu_to_le16(0x1);
+
         if (ns->params.detached) {
             return;
         }
@@ -607,6 +609,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
             return;
         }
+
     }
 
     nvme_attach_ns(n, ns);
