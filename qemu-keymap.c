@@ -226,6 +226,8 @@ int main(int argc, char *argv[])
 
     state = xkb_state_new(map);
     xkb_keymap_key_for_each(map, walk_map, state);
+    xkb_state_unref(state);
+    state = NULL;
 
     /* add quirks */
     fprintf(outfile,
