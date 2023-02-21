@@ -45,6 +45,8 @@ typedef struct VmnetState {
     int packets_send_end_pos;
 
     struct iovec iov_buf[VMNET_PACKETS_LIMIT];
+
+    VMChangeStateEntry *change;
 } VmnetState;
 
 const char *vmnet_status_map_str(vmnet_return_t status);
