@@ -107,7 +107,7 @@ static void test_nrf51_uart(void)
     g_assert_true(recv(sock_fd, s, 10, 0) == 5);
     g_assert_true(memcmp(s, "world", 5) == 0);
 
-    closesocket(sock_fd);
+    close(sock_fd);
 
     qtest_quit(qts);
 }

@@ -117,13 +117,13 @@ static int socket_can_bind_connect(const char *hostname, int family)
 
  cleanup:
     if (afd != -1) {
-        closesocket(afd);
+        close(afd);
     }
     if (cfd != -1) {
-        closesocket(cfd);
+        close(cfd);
     }
     if (lfd != -1) {
-        closesocket(lfd);
+        close(lfd);
     }
     if (res) {
         freeaddrinfo(res);
@@ -160,7 +160,7 @@ void socket_check_afunix_support(bool *has_afunix)
     int fd;
 
     fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    closesocket(fd);
+    close(fd);
 
 #ifdef _WIN32
     *has_afunix = (fd != (int)INVALID_SOCKET);

@@ -51,8 +51,6 @@ void os_daemonize(void);
 void os_setup_post(void);
 int os_mlock(void);
 
-#define closesocket(s) close(s)
-
 int os_set_daemonize(bool d);
 bool is_daemonized(void);
 
