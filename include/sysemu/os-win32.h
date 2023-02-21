@@ -166,10 +166,10 @@ static inline void qemu_funlockfile(FILE *f)
 }
 
 /* Helper for WSAEventSelect, to report errors */
-bool qemu_socket_select(SOCKET s, WSAEVENT hEventObject,
+bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
                         long lNetworkEvents, Error **errp);
 
-bool qemu_socket_unselect(SOCKET s, Error **errp);
+bool qemu_socket_unselect(int sockfd, Error **errp);
 
 /* We wrap all the sockets functions so that we can
  * set errno based on WSAGetLastError()
