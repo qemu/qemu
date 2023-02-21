@@ -19,7 +19,6 @@
 #include "standard-headers/linux/virtio_pci.h"
 #include "standard-headers/linux/virtio_blk.h"
 #include "fuzz.h"
-#include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
 #define TEST_IMAGE_SIZE         (64 * 1024 * 1024)
@@ -128,48 +127,24 @@ static void virtio_blk_fuzz(QTestState *s, QVirtioBlkQueues* queues,
     }
 }
 
-static void virtio_blk_fork_fuzz(QTestState *s,
-        const unsigned char *Data, size_t Size)
-{
-    QVirtioBlk *blk = fuzz_qos_obj;
-    static QVirtioBlkQueues *queues;
-    if (!queues) {
-        queues = qvirtio_blk_init(blk->vdev, 0);
-    }
-    if (fork() == 0) {
-        virtio_blk_fuzz(s, queues, Data, Size);
-        flush_events(s);
-        _Exit(0);
-    } else {
-        flush_events(s);
-        wait(NULL);
-    }
-}
-
 static void virtio_blk_with_flag_fuzz(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
     QVirtioBlk *blk = fuzz_qos_obj;
     static QVirtioBlkQueues *queues;
 
-    if (fork() == 0) {
-        if (Size >= sizeof(uint64_t)) {
-            queues = qvirtio_blk_init(blk->vdev, *(uint64_t *)Data);
-            virtio_blk_fuzz(s, queues,
-                             Data + sizeof(uint64_t), Size - sizeof(uint64_t));
-            flush_events(s);
-        }
-        _Exit(0);
-    } else {
+    if (Size >= sizeof(uint64_t)) {
+        queues = qvirtio_blk_init(blk->vdev, *(uint64_t *)Data);
+        virtio_blk_fuzz(s, queues,
+                Data + sizeof(uint64_t), Size - sizeof(uint64_t));
         flush_events(s);
-        wait(NULL);
     }
+    fuzz_reset(s);
 }
 
 static void virtio_blk_pre_fuzz(QTestState *s)
 {
     qos_init_path(s);
-    counter_shm_init();
 }
 
 static void drive_destroy(void *path)
@@ -209,21 +184,9 @@ static void *virtio_blk_test_setup(GString *cmd_line, void *arg)
 static void register_virtio_blk_fuzz_targets(void)
 {
     fuzz_add_qos_target(&(FuzzTarget){
-                .name = "virtio-blk-fuzz",
-                .description = "Fuzz the virtio-blk virtual queues, forking "
-                                "for each fuzz run",
-                .pre_vm_init = &counter_shm_init,
-                .pre_fuzz = &virtio_blk_pre_fuzz,
-                .fuzz = virtio_blk_fork_fuzz,},
-                "virtio-blk",
-                &(QOSGraphTestOptions){.before = virtio_blk_test_setup}
-                );
-
-    fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-blk-flags-fuzz",
-                .description = "Fuzz the virtio-blk virtual queues, forking "
-                "for each fuzz run (also fuzzes the virtio flags)",
-                .pre_vm_init = &counter_shm_init,
+                .description = "Fuzz the virtio-blk virtual queues. "
+                "Also fuzzes the virtio flags)",
                 .pre_fuzz = &virtio_blk_pre_fuzz,
                 .fuzz = virtio_blk_with_flag_fuzz,},
                 "virtio-blk",

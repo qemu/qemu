@@ -19,11 +19,6 @@ responsibility to ensure that state is reset between fuzzing-runs.
 Building the fuzzers
 --------------------
 
-*NOTE*: If possible, build a 32-bit binary. When forking, the 32-bit fuzzer is
-much faster, since the page-map has a smaller size. This is due to the fact that
-AddressSanitizer maps ~20TB of memory, as part of its detection. This results
-in a large page-map, and a much slower ``fork()``.
-
 To build the fuzzers, install a recent version of clang:
 Configure with (substitute the clang binaries with the version you installed).
 Here, enable-sanitizers, is optional but it allows us to reliably detect bugs
@@ -296,10 +291,9 @@ input. It is also responsible for manually calling ``main_loop_wait`` to ensure
 that bottom halves are executed and any cleanup required before the next input.
 
 Since the same process is reused for many fuzzing runs, QEMU state needs to
-be reset at the end of each run. There are currently two implemented
-options for resetting state:
+be reset at the end of each run. For example, this can be done by rebooting the
+VM, after each run.
 
-- Reboot the guest between runs.
   - *Pros*: Straightforward and fast for simple fuzz targets.
 
   - *Cons*: Depending on the device, does not reset all device state. If the
@@ -308,15 +302,3 @@ options for resetting state:
     reboot.
 
   - *Example target*: ``i440fx-qtest-reboot-fuzz``
-
-- Run each test case in a separate forked process and copy the coverage
-   information back to the parent. This is fairly similar to AFL's "deferred"
-   fork-server mode [3]
-
-  - *Pros*: Relatively fast. Devices only need to be initialized once. No need to
-    do slow reboots or vmloads.
-
-  - *Cons*: Not officially supported by libfuzzer. Does not work well for
-     devices that rely on dedicated threads.
-
-  - *Example target*: ``virtio-net-fork-fuzz``

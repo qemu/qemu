@@ -18,7 +18,6 @@
 #include "tests/qtest/libqtest.h"
 #include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"
-#include "fork_fuzz.h"
 #include "string.h"
 #include "exec/memory.h"
 #include "exec/ramblock.h"
@@ -28,6 +27,8 @@
 #include "hw/boards.h"
 #include "generic_fuzz_configs.h"
 #include "hw/mem/sparse-mem.h"
+
+static void pci_enum(gpointer pcidev, gpointer bus);
 
 /*
  * SEPARATOR is used to separate "operations" in the fuzz input
@@ -47,10 +48,10 @@ enum cmds {
     OP_CLOCK_STEP,
 };
 
-#define DEFAULT_TIMEOUT_US 100000
 #define USEC_IN_SEC 1000000000
 
 #define MAX_DMA_FILL_SIZE 0x10000
+#define MAX_TOTAL_DMA_SIZE 0x10000000
 
 #define PCI_HOST_BRIDGE_CFG 0xcf8
 #define PCI_HOST_BRIDGE_DATA 0xcfc
@@ -60,9 +61,8 @@ typedef struct {
     ram_addr_t size; /* The number of bytes until the end of the I/O region */
 } address_range;
 
-static useconds_t timeout = DEFAULT_TIMEOUT_US;
-
 static bool qtest_log_enabled;
+size_t dma_bytes_written;
 
 MemoryRegion *sparse_mem_mr;
 
@@ -196,6 +196,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
      */
     if (dma_patterns->len == 0
         || len == 0
+        || dma_bytes_written + len > MAX_TOTAL_DMA_SIZE
         || (mr != current_machine->ram && mr != sparse_mem_mr)) {
         return;
     }
@@ -268,6 +269,7 @@ void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
                 fflush(stderr);
             }
             qtest_memwrite(qts_global, addr, buf, l);
+            dma_bytes_written += l;
         }
         len -= l;
         buf += l;
@@ -589,30 +591,6 @@ static void op_disable_pci(QTestState *s, const unsigned char *data, size_t len)
     pci_disabled = true;
 }
 
-static void handle_timeout(int sig)
-{
-    if (qtest_log_enabled) {
-        fprintf(stderr, "[Timeout]\n");
-        fflush(stderr);
-    }
-
-    /*
-     * If there is a crash, libfuzzer/ASAN forks a child to run an
-     * "llvm-symbolizer" process for printing out a pretty stacktrace. It
-     * communicates with this child using a pipe.  If we timeout+Exit, while
-     * libfuzzer is still communicating with the llvm-symbolizer child, we will
-     * be left with an orphan llvm-symbolizer process. Sometimes, this appears
-     * to lead to a deadlock in the forkserver. Use waitpid to check if there
-     * are any waitable children. If so, exit out of the signal-handler, and
-     * let libfuzzer finish communicating with the child, and exit, on its own.
-     */
-    if (waitpid(-1, NULL, WNOHANG) == 0) {
-        return;
-    }
-
-    _Exit(0);
-}
-
 /*
  * Here, we interpret random bytes from the fuzzer, as a sequence of commands.
  * Some commands can be variable-width, so we use a separator, SEPARATOR, to
@@ -669,64 +647,33 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
     size_t cmd_len;
     uint8_t op;
 
-    if (fork() == 0) {
-        struct sigaction sact;
-        struct itimerval timer;
-        sigset_t set;
-        /*
-         * Sometimes the fuzzer will find inputs that take quite a long time to
-         * process. Often times, these inputs do not result in new coverage.
-         * Even if these inputs might be interesting, they can slow down the
-         * fuzzer, overall. Set a timeout for each command to avoid hurting
-         * performance, too much
-         */
-        if (timeout) {
+    op_clear_dma_patterns(s, NULL, 0);
+    pci_disabled = false;
+    dma_bytes_written = 0;
 
-            sigemptyset(&sact.sa_mask);
-            sact.sa_flags   = SA_NODEFER;
-            sact.sa_handler = handle_timeout;
-            sigaction(SIGALRM, &sact, NULL);
+    QPCIBus *pcibus = qpci_new_pc(s, NULL);
+    g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
+    qpci_free_pc(pcibus);
 
-            sigemptyset(&set);
-            sigaddset(&set, SIGALRM);
-            pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+    while (cmd && Size) {
+        /* Get the length until the next command or end of input */
+        nextcmd = memmem(cmd, Size, SEPARATOR, strlen(SEPARATOR));
+        cmd_len = nextcmd ? nextcmd - cmd : Size;
 
-            memset(&timer, 0, sizeof(timer));
-            timer.it_value.tv_sec = timeout / USEC_IN_SEC;
-            timer.it_value.tv_usec = timeout % USEC_IN_SEC;
+        if (cmd_len > 0) {
+            /* Interpret the first byte of the command as an opcode */
+            op = *cmd % (sizeof(ops) / sizeof((ops)[0]));
+            ops[op](s, cmd + 1, cmd_len - 1);
+
+            /* Run the main loop */
+            flush_events(s);
         }
-
-        op_clear_dma_patterns(s, NULL, 0);
-        pci_disabled = false;
-
-        while (cmd && Size) {
-            /* Reset the timeout, each time we run a new command */
-            if (timeout) {
-                setitimer(ITIMER_REAL, &timer, NULL);
-            }
-
-            /* Get the length until the next command or end of input */
-            nextcmd = memmem(cmd, Size, SEPARATOR, strlen(SEPARATOR));
-            cmd_len = nextcmd ? nextcmd - cmd : Size;
-
-            if (cmd_len > 0) {
-                /* Interpret the first byte of the command as an opcode */
-                op = *cmd % (sizeof(ops) / sizeof((ops)[0]));
-                ops[op](s, cmd + 1, cmd_len - 1);
-
-                /* Run the main loop */
-                flush_events(s);
-            }
-            /* Advance to the next command */
-            cmd = nextcmd ? nextcmd + sizeof(SEPARATOR) - 1 : nextcmd;
-            Size = Size - (cmd_len + sizeof(SEPARATOR) - 1);
-            g_array_set_size(dma_regions, 0);
-        }
-        _Exit(0);
-    } else {
-        flush_events(s);
-        wait(0);
+        /* Advance to the next command */
+        cmd = nextcmd ? nextcmd + sizeof(SEPARATOR) - 1 : nextcmd;
+        Size = Size - (cmd_len + sizeof(SEPARATOR) - 1);
+        g_array_set_size(dma_regions, 0);
     }
+    fuzz_reset(s);
 }
 
 static void usage(void)
@@ -738,8 +685,6 @@ static void usage(void)
     printf("Optionally: QEMU_AVOID_DOUBLE_FETCH= "
             "Try to avoid racy DMA double fetch bugs? %d by default\n",
             avoid_double_fetches);
-    printf("Optionally: QEMU_FUZZ_TIMEOUT= Specify a custom timeout (us). "
-            "0 to disable. %d by default\n", timeout);
     exit(0);
 }
 
@@ -825,7 +770,6 @@ static void generic_pre_fuzz(QTestState *s)
 {
     GHashTableIter iter;
     MemoryRegion *mr;
-    QPCIBus *pcibus;
     char **result;
     GString *name_pattern;
 
@@ -837,9 +781,6 @@ static void generic_pre_fuzz(QTestState *s)
     }
     if (getenv("QEMU_AVOID_DOUBLE_FETCH")) {
         avoid_double_fetches = 1;
-    }
-    if (getenv("QEMU_FUZZ_TIMEOUT")) {
-        timeout = g_ascii_strtoll(getenv("QEMU_FUZZ_TIMEOUT"), NULL, 0);
     }
     qts_global = s;
 
@@ -883,12 +824,6 @@ static void generic_pre_fuzz(QTestState *s)
         printf("No fuzzable memory regions found...\n");
         exit(1);
     }
-
-    pcibus = qpci_new_pc(s, NULL);
-    g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
-    qpci_free_pc(pcibus);
-
-    counter_shm_init();
 }
 
 /*

@@ -51,6 +51,12 @@ void flush_events(QTestState *s)
     }
 }
 
+void fuzz_reset(QTestState *s)
+{
+    qemu_system_reset(SHUTDOWN_CAUSE_GUEST_RESET);
+    main_loop_wait(true);
+}
+
 static QTestState *qtest_setup(void)
 {
     qtest_server_set_send_handler(&qtest_client_inproc_recv, &fuzz_qts);

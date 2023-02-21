@@ -77,6 +77,13 @@ static void sparse_mem_write(void *opaque, hwaddr addr, uint64_t v,
 
 }
 
+static void sparse_mem_enter_reset(Object *obj, ResetType type)
+{
+    SparseMemState *s = SPARSE_MEM(obj);
+    g_hash_table_remove_all(s->mapped);
+    return;
+}
+
 static const MemoryRegionOps sparse_mem_ops = {
     .read = sparse_mem_read,
     .write = sparse_mem_write,
@@ -123,7 +130,8 @@ static void sparse_mem_realize(DeviceState *dev, Error **errp)
 
     assert(s->baseaddr + s->length > s->baseaddr);
 
-    s->mapped = g_hash_table_new(NULL, NULL);
+    s->mapped = g_hash_table_new_full(NULL, NULL, NULL,
+                                      (GDestroyNotify)g_free);
     memory_region_init_io(&s->mmio, OBJECT(s), &sparse_mem_ops, s,
                           "sparse-mem", s->length);
     sysbus_init_mmio(sbd, &s->mmio);
@@ -131,12 +139,15 @@ static void sparse_mem_realize(DeviceState *dev, Error **errp)
 
 static void sparse_mem_class_init(ObjectClass *klass, void *data)
 {
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, sparse_mem_properties);
 
     dc->desc = "Sparse Memory Device";
     dc->realize = sparse_mem_realize;
+
+    rc->phases.enter = sparse_mem_enter_reset;
 }
 
 static const TypeInfo sparse_mem_types[] = {
