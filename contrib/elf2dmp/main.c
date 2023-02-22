@@ -17,6 +17,7 @@
 
 #define SYM_URL_BASE    "https://msdl.microsoft.com/download/symbols/"
 #define PDB_NAME    "ntkrnlmp.pdb"
+#define PE_NAME     "ntoskrnl.exe"
 
 #define INITIAL_MXCSR   0x1f80
 
@@ -405,6 +406,25 @@ static int write_dump(struct pa_space *ps,
     return fclose(dmp_file);
 }
 
+static bool pe_check_export_name(uint64_t base, void *start_addr,
+        struct va_space *vs)
+{
+    IMAGE_EXPORT_DIRECTORY export_dir;
+    const char *pe_name;
+
+    if (pe_get_data_dir_entry(base, start_addr, IMAGE_FILE_EXPORT_DIRECTORY,
+                &export_dir, sizeof(export_dir), vs)) {
+        return false;
+    }
+
+    pe_name = va_space_resolve(vs, base + export_dir.Name);
+    if (!pe_name) {
+        return false;
+    }
+
+    return !strcmp(pe_name, PE_NAME);
+}
+
 static int pe_get_pdb_symstore_hash(uint64_t base, void *start_addr,
         char *hash, struct va_space *vs)
 {
@@ -489,6 +509,7 @@ int main(int argc, char *argv[])
     uint64_t KdDebuggerDataBlock;
     KDDEBUGGER_DATA64 *kdbg;
     uint64_t KdVersionBlock;
+    bool kernel_found = false;
 
     if (argc != 3) {
         eprintf("usage:\n\t%s elf_file dmp_file\n", argv[0]);
@@ -536,11 +557,14 @@ int main(int argc, char *argv[])
         }
 
         if (*(uint16_t *)nt_start_addr == 0x5a4d) { /* MZ */
-            break;
+            if (pe_check_export_name(KernBase, nt_start_addr, &vs)) {
+                kernel_found = true;
+                break;
+            }
         }
     }
 
-    if (!nt_start_addr) {
+    if (!kernel_found) {
         eprintf("Failed to find NT kernel image\n");
         err = 1;
         goto out_ps;
