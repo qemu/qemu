@@ -35,25 +35,27 @@
 #include "qemu/stats64.h"
 
 /*
- * These are the migration statistic counters that need to be updated using
- * atomic ops (can be accessed by more than one thread).  Here since we
- * cannot modify MigrationStats directly to use Stat64 as it was defined in
- * the QAPI scheme, we define an internal structure to hold them, and we
- * propagate the real values when QMP queries happen.
- *
- * IOW, the corresponding fields within ram_counters on these specific
- * fields will be always zero and not being used at all; they're just
- * placeholders to make it QAPI-compatible.
+ * These are the ram migration statistic counters.  It is loosely
+ * based on MigrationStats.  We change to Stat64 any counter that
+ * needs to be updated using atomic ops (can be accessed by more than
+ * one thread).
  */
 typedef struct {
-    Stat64 transferred;
+    int64_t dirty_pages_rate;
+    int64_t dirty_sync_count;
+    uint64_t dirty_sync_missed_zero_copy;
+    uint64_t downtime_bytes;
     Stat64 duplicate;
+    uint64_t multifd_bytes;
     Stat64 normal;
     Stat64 postcopy_bytes;
-} MigrationAtomicStats;
+    int64_t postcopy_requests;
+    uint64_t precopy_bytes;
+    int64_t remaining;
+    Stat64 transferred;
+} RAMStats;
 
-extern MigrationAtomicStats ram_atomic_counters;
-extern MigrationStats ram_counters;
+extern RAMStats ram_counters;
 extern XBZRLECacheStats xbzrle_counters;
 extern CompressionStats compression_counters;
 
