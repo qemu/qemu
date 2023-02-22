@@ -175,8 +175,6 @@ struct CPUArchState {
     /* 128-bit helpers upper part return value */
     target_ulong retxh;
 
-    uint32_t features;
-
 #ifdef CONFIG_USER_ONLY
     uint32_t elf_flags;
 #endif
@@ -523,16 +521,6 @@ struct ArchCPU {
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 {
     return (env->misa_ext & ext) != 0;
-}
-
-static inline bool riscv_feature(CPURISCVState *env, int feature)
-{
-    return env->features & (1ULL << feature);
-}
-
-static inline void riscv_set_feature(CPURISCVState *env, int feature)
-{
-    env->features |= (1ULL << feature);
 }
 
 #include "cpu_user.h"
