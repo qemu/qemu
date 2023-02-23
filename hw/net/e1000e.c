@@ -42,6 +42,7 @@
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
 #include "hw/hw.h"
+#include "hw/net/mii.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/qdev-properties.h"

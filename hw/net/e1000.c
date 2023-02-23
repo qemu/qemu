@@ -26,6 +26,7 @@
 
 
 #include "qemu/osdep.h"
+#include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -181,67 +182,67 @@ e1000_autoneg_done(E1000State *s)
 static bool
 have_autoneg(E1000State *s)
 {
-    return chkflag(AUTONEG) && (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
+    return chkflag(AUTONEG) && (s->phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
 }
 
 static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
-    /* bits 0-5 reserved; MII_CR_[RESTART_AUTO_NEG,RESET] are self clearing */
-    s->phy_reg[PHY_CTRL] = val & ~(0x3f |
-                                   MII_CR_RESET |
-                                   MII_CR_RESTART_AUTO_NEG);
+    /* bits 0-5 reserved; MII_BMCR_[ANRESTART,RESET] are self clearing */
+    s->phy_reg[MII_BMCR] = val & ~(0x3f |
+                                   MII_BMCR_RESET |
+                                   MII_BMCR_ANRESTART);
 
     /*
      * QEMU 1.3 does not support link auto-negotiation emulation, so if we
      * migrate during auto negotiation, after migration the link will be
      * down.
      */
-    if (have_autoneg(s) && (val & MII_CR_RESTART_AUTO_NEG)) {
+    if (have_autoneg(s) && (val & MII_BMCR_ANRESTART)) {
         e1000x_restart_autoneg(s->mac_reg, s->phy_reg, s->autoneg_timer);
     }
 }
 
 static void (*phyreg_writeops[])(E1000State *, int, uint16_t) = {
-    [PHY_CTRL] = set_phy_ctrl,
+    [MII_BMCR] = set_phy_ctrl,
 };
 
 enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
-    [PHY_STATUS]      = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_ID1]         = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
-    [PHY_CTRL]        = PHY_RW,    [PHY_1000T_CTRL]             = PHY_RW,
-    [PHY_LP_ABILITY]  = PHY_R,     [PHY_1000T_STATUS]           = PHY_R,
-    [PHY_AUTONEG_ADV] = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
-    [PHY_ID2]         = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
-    [PHY_AUTONEG_EXP] = PHY_R,
+    [MII_BMSR]   = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+    [MII_PHYID1] = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+    [MII_BMCR]   = PHY_RW,    [MII_CTRL1000]               = PHY_RW,
+    [MII_ANLPAR] = PHY_R,     [MII_STAT1000]               = PHY_R,
+    [MII_ANAR]   = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
+    [MII_PHYID2] = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
+    [MII_ANER]   = PHY_R,
 };
 
-/* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
+/* MII_PHYID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL]   = MII_CR_SPEED_SELECT_MSB |
-                   MII_CR_FULL_DUPLEX |
-                   MII_CR_AUTO_NEG_EN,
+    [MII_BMCR] = MII_BMCR_SPEED1000 |
+                 MII_BMCR_FD |
+                 MII_BMCR_AUTOEN,
 
-    [PHY_STATUS] = MII_SR_EXTENDED_CAPS |
-                   MII_SR_LINK_STATUS |   /* link initially up */
-                   MII_SR_AUTONEG_CAPS |
-                   /* MII_SR_AUTONEG_COMPLETE: initially NOT completed */
-                   MII_SR_PREAMBLE_SUPPRESS |
-                   MII_SR_EXTENDED_STATUS |
-                   MII_SR_10T_HD_CAPS |
-                   MII_SR_10T_FD_CAPS |
-                   MII_SR_100X_HD_CAPS |
-                   MII_SR_100X_FD_CAPS,
+    [MII_BMSR] = MII_BMSR_EXTCAP |
+                 MII_BMSR_LINK_ST |   /* link initially up */
+                 MII_BMSR_AUTONEG |
+                 /* MII_BMSR_AN_COMP: initially NOT completed */
+                 MII_BMSR_MFPS |
+                 MII_BMSR_EXTSTAT |
+                 MII_BMSR_10T_HD |
+                 MII_BMSR_10T_FD |
+                 MII_BMSR_100TX_HD |
+                 MII_BMSR_100TX_FD,
 
-    [PHY_ID1] = 0x141,
-    /* [PHY_ID2] configured per DevId, from e1000_reset() */
-    [PHY_AUTONEG_ADV] = 0xde1,
-    [PHY_LP_ABILITY] = 0x1e0,
-    [PHY_1000T_CTRL] = 0x0e00,
-    [PHY_1000T_STATUS] = 0x3c00,
+    [MII_PHYID1] = 0x141,
+    /* [MII_PHYID2] configured per DevId, from e1000_reset() */
+    [MII_ANAR] = 0xde1,
+    [MII_ANLPAR] = 0x1e0,
+    [MII_CTRL1000] = 0x0e00,
+    [MII_STAT1000] = 0x3c00,
     [M88E1000_PHY_SPEC_CTRL] = 0x360,
     [M88E1000_PHY_SPEC_STATUS] = 0xac00,
     [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,
@@ -387,7 +388,7 @@ static void e1000_reset(void *opaque)
     d->mit_ide = 0;
     memset(d->phy_reg, 0, sizeof d->phy_reg);
     memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
-    d->phy_reg[PHY_ID2] = edc->phy_id2;
+    d->phy_reg[MII_PHYID2] = edc->phy_id2;
     memset(d->mac_reg, 0, sizeof d->mac_reg);
     memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
     d->rxbuf_min_shift = 1;
@@ -561,7 +562,7 @@ e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
                                     PTC1023, PTC1522 };
 
     NetClientState *nc = qemu_get_queue(s->nic);
-    if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
+    if (s->phy_reg[MII_BMCR] & MII_BMCR_LOOPBACK) {
         qemu_receive_packet(nc, buf, size);
     } else {
         qemu_send_packet(nc, buf, size);
@@ -842,7 +843,7 @@ e1000_set_link_status(NetClientState *nc)
         e1000x_update_regs_on_link_down(s->mac_reg, s->phy_reg);
     } else {
         if (have_autoneg(s) &&
-            !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+            !(s->phy_reg[MII_BMSR] & MII_BMSR_AN_COMP)) {
             e1000x_restart_autoneg(s->mac_reg, s->phy_reg, s->autoneg_timer);
         } else {
             e1000_link_up(s);
@@ -1416,10 +1417,10 @@ static int e1000_pre_save(void *opaque)
     /*
      * If link is down and auto-negotiation is supported and ongoing,
      * complete auto-negotiation immediately. This allows us to look
-     * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     * at MII_BMSR_AN_COMP to infer link status on load.
      */
     if (nc->link_down && have_autoneg(s)) {
-        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+        s->phy_reg[MII_BMSR] |= MII_BMSR_AN_COMP;
     }
 
     /* Decide which set of props to migrate in the main structure */
@@ -1458,8 +1459,7 @@ static int e1000_post_load(void *opaque, int version_id)
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
 
-    if (have_autoneg(s) &&
-        !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+    if (have_autoneg(s) && !(s->phy_reg[MII_BMSR] & MII_BMSR_AN_COMP)) {
         nc->link_down = false;
         timer_mod(s->autoneg_timer,
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);

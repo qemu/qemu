@@ -152,16 +152,16 @@ static inline void
 e1000x_update_regs_on_link_down(uint32_t *mac, uint16_t *phy)
 {
     mac[STATUS] &= ~E1000_STATUS_LU;
-    phy[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
-    phy[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
-    phy[PHY_LP_ABILITY] &= ~MII_LPAR_LPACK;
+    phy[MII_BMSR] &= ~MII_BMSR_LINK_ST;
+    phy[MII_BMSR] &= ~MII_BMSR_AN_COMP;
+    phy[MII_ANLPAR] &= ~MII_ANLPAR_ACK;
 }
 
 static inline void
 e1000x_update_regs_on_link_up(uint32_t *mac, uint16_t *phy)
 {
     mac[STATUS] |= E1000_STATUS_LU;
-    phy[PHY_STATUS] |= MII_SR_LINK_STATUS;
+    phy[MII_BMSR] |= MII_BMSR_LINK_ST;
 }
 
 void e1000x_update_rx_total_stats(uint32_t *mac,

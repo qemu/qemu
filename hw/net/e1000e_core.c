@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/tap.h"
+#include "hw/net/mii.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "sysemu/runstate.h"
@@ -659,7 +660,7 @@ e1000e_tx_pkt_send(E1000ECore *core, struct e1000e_tx *tx, int queue_index)
 
     net_tx_pkt_dump(tx->tx_pkt);
 
-    if ((core->phy[0][PHY_CTRL] & MII_CR_LOOPBACK) ||
+    if ((core->phy[0][MII_BMCR] & MII_BMCR_LOOPBACK) ||
         ((core->mac[RCTL] & E1000_RCTL_LBM_MAC) == E1000_RCTL_LBM_MAC)) {
         return net_tx_pkt_send_loopback(tx->tx_pkt, queue);
     } else {
@@ -1797,13 +1798,13 @@ e1000e_receive_iov(E1000ECore *core, const struct iovec *iov, int iovcnt)
 static inline bool
 e1000e_have_autoneg(E1000ECore *core)
 {
-    return core->phy[0][PHY_CTRL] & MII_CR_AUTO_NEG_EN;
+    return core->phy[0][MII_BMCR] & MII_BMCR_AUTOEN;
 }
 
 static void e1000e_update_flowctl_status(E1000ECore *core)
 {
     if (e1000e_have_autoneg(core) &&
-        core->phy[0][PHY_STATUS] & MII_SR_AUTONEG_COMPLETE) {
+        core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP) {
         trace_e1000e_link_autoneg_flowctl(true);
         core->mac[CTRL] |= E1000_CTRL_TFCE | E1000_CTRL_RFCE;
     } else {
@@ -1821,12 +1822,12 @@ e1000e_link_down(E1000ECore *core)
 static inline void
 e1000e_set_phy_ctrl(E1000ECore *core, int index, uint16_t val)
 {
-    /* bits 0-5 reserved; MII_CR_[RESTART_AUTO_NEG,RESET] are self clearing */
-    core->phy[0][PHY_CTRL] = val & ~(0x3f |
-                                     MII_CR_RESET |
-                                     MII_CR_RESTART_AUTO_NEG);
+    /* bits 0-5 reserved; MII_BMCR_[ANRESTART,RESET] are self clearing */
+    core->phy[0][MII_BMCR] = val & ~(0x3f |
+                                     MII_BMCR_RESET |
+                                     MII_BMCR_ANRESTART);
 
-    if ((val & MII_CR_RESTART_AUTO_NEG) &&
+    if ((val & MII_BMCR_ANRESTART) &&
         e1000e_have_autoneg(core)) {
         e1000x_restart_autoneg(core->mac, core->phy[0], core->autoneg_timer);
     }
@@ -1860,7 +1861,7 @@ e1000e_core_set_link_status(E1000ECore *core)
         e1000x_update_regs_on_link_down(core->mac, core->phy[0]);
     } else {
         if (e1000e_have_autoneg(core) &&
-            !(core->phy[0][PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+            !(core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP)) {
             e1000x_restart_autoneg(core->mac, core->phy[0],
                                    core->autoneg_timer);
         } else {
@@ -2002,7 +2003,7 @@ static
 void(*e1000e_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
 (E1000ECore *, int, uint16_t) = {
     [0] = {
-        [PHY_CTRL]     = e1000e_set_phy_ctrl,
+        [MII_BMCR]     = e1000e_set_phy_ctrl,
         [PHY_PAGE]     = e1000e_set_phy_page,
         [PHY_OEM_BITS] = e1000e_set_phy_oem_bits
     }
@@ -2274,19 +2275,19 @@ e1000e_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
 
 static const char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20] = {
     [0] = {
-        [PHY_CTRL]          = PHY_ANYPAGE | PHY_RW,
-        [PHY_STATUS]        = PHY_ANYPAGE | PHY_R,
-        [PHY_ID1]           = PHY_ANYPAGE | PHY_R,
-        [PHY_ID2]           = PHY_ANYPAGE | PHY_R,
-        [PHY_AUTONEG_ADV]   = PHY_ANYPAGE | PHY_RW,
-        [PHY_LP_ABILITY]    = PHY_ANYPAGE | PHY_R,
-        [PHY_AUTONEG_EXP]   = PHY_ANYPAGE | PHY_R,
-        [PHY_NEXT_PAGE_TX]  = PHY_ANYPAGE | PHY_RW,
-        [PHY_LP_NEXT_PAGE]  = PHY_ANYPAGE | PHY_R,
-        [PHY_1000T_CTRL]    = PHY_ANYPAGE | PHY_RW,
-        [PHY_1000T_STATUS]  = PHY_ANYPAGE | PHY_R,
-        [PHY_EXT_STATUS]    = PHY_ANYPAGE | PHY_R,
-        [PHY_PAGE]          = PHY_ANYPAGE | PHY_RW,
+        [MII_BMCR]              = PHY_ANYPAGE | PHY_RW,
+        [MII_BMSR]              = PHY_ANYPAGE | PHY_R,
+        [MII_PHYID1]            = PHY_ANYPAGE | PHY_R,
+        [MII_PHYID2]            = PHY_ANYPAGE | PHY_R,
+        [MII_ANAR]              = PHY_ANYPAGE | PHY_RW,
+        [MII_ANLPAR]            = PHY_ANYPAGE | PHY_R,
+        [MII_ANER]              = PHY_ANYPAGE | PHY_R,
+        [MII_ANNP]              = PHY_ANYPAGE | PHY_RW,
+        [MII_ANLPRNP]           = PHY_ANYPAGE | PHY_R,
+        [MII_CTRL1000]          = PHY_ANYPAGE | PHY_RW,
+        [MII_STAT1000]          = PHY_ANYPAGE | PHY_R,
+        [MII_EXTSTAT]           = PHY_ANYPAGE | PHY_R,
+        [PHY_PAGE]              = PHY_ANYPAGE | PHY_RW,
 
         [PHY_COPPER_CTRL1]      = PHY_RW,
         [PHY_COPPER_STAT1]      = PHY_R,
@@ -3355,7 +3356,7 @@ static void
 e1000e_autoneg_resume(E1000ECore *core)
 {
     if (e1000e_have_autoneg(core) &&
-        !(core->phy[0][PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+        !(core->phy[0][MII_BMSR] & MII_BMSR_AN_COMP)) {
         qemu_get_queue(core->owner_nic)->link_down = false;
         timer_mod(core->autoneg_timer,
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
@@ -3430,29 +3431,29 @@ e1000e_core_pci_uninit(E1000ECore *core)
 static const uint16_t
 e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
     [0] = {
-        [PHY_CTRL] =   MII_CR_SPEED_SELECT_MSB  |
-                       MII_CR_FULL_DUPLEX       |
-                       MII_CR_AUTO_NEG_EN,
+        [MII_BMCR] = MII_BMCR_SPEED1000 |
+                     MII_BMCR_FD        |
+                     MII_BMCR_AUTOEN,
 
-        [PHY_STATUS] = MII_SR_EXTENDED_CAPS     |
-                       MII_SR_LINK_STATUS       |
-                       MII_SR_AUTONEG_CAPS      |
-                       MII_SR_PREAMBLE_SUPPRESS |
-                       MII_SR_EXTENDED_STATUS   |
-                       MII_SR_10T_HD_CAPS       |
-                       MII_SR_10T_FD_CAPS       |
-                       MII_SR_100X_HD_CAPS      |
-                       MII_SR_100X_FD_CAPS,
+        [MII_BMSR] = MII_BMSR_EXTCAP    |
+                     MII_BMSR_LINK_ST   |
+                     MII_BMSR_AUTONEG   |
+                     MII_BMSR_MFPS      |
+                     MII_BMSR_EXTSTAT   |
+                     MII_BMSR_10T_HD    |
+                     MII_BMSR_10T_FD    |
+                     MII_BMSR_100TX_HD  |
+                     MII_BMSR_100TX_FD,
 
-        [PHY_ID1]               = 0x141,
-        [PHY_ID2]               = E1000_PHY_ID2_82574x,
-        [PHY_AUTONEG_ADV]       = 0xde1,
-        [PHY_LP_ABILITY]        = 0x7e0,
-        [PHY_AUTONEG_EXP]       = BIT(2),
-        [PHY_NEXT_PAGE_TX]      = BIT(0) | BIT(13),
-        [PHY_1000T_CTRL]        = BIT(8) | BIT(9) | BIT(10) | BIT(11),
-        [PHY_1000T_STATUS]      = 0x3c00,
-        [PHY_EXT_STATUS]        = BIT(12) | BIT(13),
+        [MII_PHYID1]            = 0x141,
+        [MII_PHYID2]            = E1000_PHY_ID2_82574x,
+        [MII_ANAR]              = 0xde1,
+        [MII_ANLPAR]            = 0x7e0,
+        [MII_ANER]              = BIT(2),
+        [MII_ANNP]              = BIT(0) | BIT(13),
+        [MII_CTRL1000]          = BIT(8) | BIT(9) | BIT(10) | BIT(11),
+        [MII_STAT1000]          = 0x3c00,
+        [MII_EXTSTAT]           = BIT(12) | BIT(13),
 
         [PHY_COPPER_CTRL1]      = BIT(5) | BIT(6) | BIT(8) | BIT(9) |
                                   BIT(12) | BIT(13),
@@ -3546,10 +3547,10 @@ void e1000e_core_pre_save(E1000ECore *core)
     /*
      * If link is down and auto-negotiation is supported and ongoing,
      * complete auto-negotiation immediately. This allows us to look
-     * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     * at MII_BMSR_AN_COMP to infer link status on load.
      */
     if (nc->link_down && e1000e_have_autoneg(core)) {
-        core->phy[0][PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+        core->phy[0][MII_BMSR] |= MII_BMSR_AN_COMP;
         e1000e_update_flowctl_status(core);
     }
 
