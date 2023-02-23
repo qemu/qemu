@@ -2902,6 +2902,35 @@ e1000e_set_gcr(E1000ECore *core, int index, uint32_t val)
     core->mac[GCR] = (val & ~E1000_GCR_RO_BITS) | ro_bits;
 }
 
+static uint32_t e1000e_get_systiml(E1000ECore *core, int index)
+{
+    e1000x_timestamp(core->mac, core->timadj, SYSTIML, SYSTIMH);
+    return core->mac[SYSTIML];
+}
+
+static uint32_t e1000e_get_rxsatrh(E1000ECore *core, int index)
+{
+    core->mac[TSYNCRXCTL] &= ~E1000_TSYNCRXCTL_VALID;
+    return core->mac[RXSATRH];
+}
+
+static uint32_t e1000e_get_txstmph(E1000ECore *core, int index)
+{
+    core->mac[TSYNCTXCTL] &= ~E1000_TSYNCTXCTL_VALID;
+    return core->mac[TXSTMPH];
+}
+
+static void e1000e_set_timinca(E1000ECore *core, int index, uint32_t val)
+{
+    e1000x_set_timinca(core->mac, &core->timadj, val);
+}
+
+static void e1000e_set_timadjh(E1000ECore *core, int index, uint32_t val)
+{
+    core->mac[TIMADJH] = val;
+    core->timadj += core->mac[TIMADJL] | ((int64_t)core->mac[TIMADJH] << 32);
+}
+
 #define e1000e_getreg(x)    [x] = e1000e_mac_readreg
 typedef uint32_t (*readops)(E1000ECore *, int);
 static const readops e1000e_macreg_readops[] = {
@@ -2957,7 +2986,6 @@ static const readops e1000e_macreg_readops[] = {
     e1000e_getreg(GSCL_2),
     e1000e_getreg(RDBAH1),
     e1000e_getreg(FLSWDATA),
-    e1000e_getreg(RXSATRH),
     e1000e_getreg(TIPG),
     e1000e_getreg(FLMNGCTL),
     e1000e_getreg(FLMNGCNT),
@@ -2998,7 +3026,6 @@ static const readops e1000e_macreg_readops[] = {
     e1000e_getreg(FLSWCTL),
     e1000e_getreg(RXDCTL1),
     e1000e_getreg(RXSATRL),
-    e1000e_getreg(SYSTIML),
     e1000e_getreg(RXUDP),
     e1000e_getreg(TORL),
     e1000e_getreg(TDLEN1),
@@ -3038,7 +3065,6 @@ static const readops e1000e_macreg_readops[] = {
     e1000e_getreg(FLOL),
     e1000e_getreg(RXDCTL),
     e1000e_getreg(RXSTMPL),
-    e1000e_getreg(TXSTMPH),
     e1000e_getreg(TIMADJH),
     e1000e_getreg(FCRTL),
     e1000e_getreg(TDBAH),
@@ -3087,6 +3113,9 @@ static const readops e1000e_macreg_readops[] = {
     [TARC1]   = e1000e_get_tarc,
     [SWSM]    = e1000e_mac_swsm_read,
     [IMS]     = e1000e_mac_ims_read,
+    [SYSTIML] = e1000e_get_systiml,
+    [RXSATRH] = e1000e_get_rxsatrh,
+    [TXSTMPH] = e1000e_get_txstmph,
 
     [CRCERRS ... MPC]      = e1000e_mac_readreg,
     [IP6AT ... IP6AT + 3]  = e1000e_mac_readreg,
@@ -3125,7 +3154,6 @@ static const writeops e1000e_macreg_writeops[] = {
     e1000e_putreg(WUS),
     e1000e_putreg(IPAV),
     e1000e_putreg(TDBAH1),
-    e1000e_putreg(TIMINCA),
     e1000e_putreg(IAM),
     e1000e_putreg(EIAC),
     e1000e_putreg(IVAR),
@@ -3168,7 +3196,6 @@ static const writeops e1000e_macreg_writeops[] = {
     e1000e_putreg(SYSTIML),
     e1000e_putreg(SYSTIMH),
     e1000e_putreg(TIMADJL),
-    e1000e_putreg(TIMADJH),
     e1000e_putreg(RXUDP),
     e1000e_putreg(RXCFGL),
     e1000e_putreg(TSYNCRXCTL),
@@ -3241,6 +3268,8 @@ static const writeops e1000e_macreg_writeops[] = {
     [CTRL_DUP] = e1000e_set_ctrl,
     [RFCTL]    = e1000e_set_rfctl,
     [RA + 1]   = e1000e_mac_setmacaddr,
+    [TIMINCA]  = e1000e_set_timinca,
+    [TIMADJH]  = e1000e_set_timadjh,
 
     [IP6AT ... IP6AT + 3]    = e1000e_mac_writereg,
     [IP4AT ... IP4AT + 6]    = e1000e_mac_writereg,

@@ -40,6 +40,7 @@
 #include "hw/virtio/virtio-pci.h"
 
 GlobalProperty hw_compat_7_2[] = {
+    { "e1000e", "migrate-timadj", "off" },
     { "virtio-mem", "x-early-migration", "false" },
 };
 const size_t hw_compat_7_2_len = G_N_ELEMENTS(hw_compat_7_2);

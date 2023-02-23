@@ -112,6 +112,8 @@ struct E1000Core {
     void (*owner_start_recv)(PCIDevice *d);
 
     uint32_t msi_causes_pending;
+
+    int64_t timadj;
 };
 
 void

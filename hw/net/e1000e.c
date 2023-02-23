@@ -82,6 +82,7 @@ struct E1000EState {
 
     E1000ECore core;
     bool init_vet;
+    bool timadj;
 };
 
 #define E1000E_MMIO_IDX     0
@@ -554,6 +555,12 @@ static int e1000e_post_load(void *opaque, int version_id)
     return e1000e_core_post_load(&s->core);
 }
 
+static bool e1000e_migrate_timadj(void *opaque, int version_id)
+{
+    E1000EState *s = opaque;
+    return s->timadj;
+}
+
 static const VMStateDescription e1000e_vmstate_tx = {
     .name = "e1000e-tx",
     .version_id = 1,
@@ -645,6 +652,9 @@ static const VMStateDescription e1000e_vmstate = {
 
         VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
                              e1000e_vmstate_tx, struct e1000e_tx),
+
+        VMSTATE_INT64_TEST(core.timadj, E1000EState, e1000e_migrate_timadj),
+
         VMSTATE_END_OF_LIST()
     }
 };
@@ -663,6 +673,7 @@ static Property e1000e_properties[] = {
     DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, 0,
                         e1000e_prop_subsys, uint16_t),
     DEFINE_PROP_BOOL("init-vet", E1000EState, init_vet, true),
+    DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

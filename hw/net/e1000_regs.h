@@ -908,6 +908,33 @@
 #define E1000_EEPROM_CFG_DONE         0x00040000   /* MNG config cycle done */
 #define E1000_EEPROM_CFG_DONE_PORT_1  0x00080000   /* ...for second port */
 
+/* HH Time Sync */
+#define E1000_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK 0x0000F000 /* max delay */
+#define E1000_TSYNCTXCTL_SYNC_COMP            0x40000000 /* sync complete */
+#define E1000_TSYNCTXCTL_START_SYNC           0x80000000 /* initiate sync */
+
+#define E1000_TSYNCTXCTL_VALID                0x00000001 /* Tx timestamp valid */
+#define E1000_TSYNCTXCTL_ENABLED              0x00000010 /* enable Tx timestamping */
+
+#define E1000_TSYNCRXCTL_VALID                0x00000001 /* Rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK            0x0000000E /* Rx type mask */
+#define E1000_TSYNCRXCTL_TYPE_L2_V2           0x00
+#define E1000_TSYNCRXCTL_TYPE_L4_V1           0x02
+#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2        0x04
+#define E1000_TSYNCRXCTL_TYPE_ALL             0x08
+#define E1000_TSYNCRXCTL_TYPE_EVENT_V2        0x0A
+#define E1000_TSYNCRXCTL_ENABLED              0x00000010 /* enable Rx timestamping */
+#define E1000_TSYNCRXCTL_SYSCFI               0x00000020 /* Sys clock frequency */
+
+#define E1000_RXMTRL_PTP_V1_SYNC_MESSAGE      0x00000000
+#define E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE 0x00010000
+
+#define E1000_RXMTRL_PTP_V2_SYNC_MESSAGE      0x00000000
+#define E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE 0x01000000
+
+#define E1000_TIMINCA_INCPERIOD_SHIFT         24
+#define E1000_TIMINCA_INCVALUE_MASK           0x00FFFFFF
+
 /* PCI Express Control */
 /* 3GIO Control Register - GCR (0x05B00; RW) */
 #define E1000_L0S_ADJUST              (1 << 9)

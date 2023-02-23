@@ -213,4 +213,7 @@ typedef struct e1000x_txd_props {
 void e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
                               e1000x_txd_props *props);
 
+void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi);
+void e1000x_set_timinca(uint32_t *mac, int64_t *timadj, uint32_t val);
+
 #endif
