@@ -1530,13 +1530,17 @@ static int vtd_sync_shadow_page_table_range(VTDAddressSpace *vtd_as,
     return vtd_page_walk(s, ce, addr, addr + size, &info, vtd_as->pasid);
 }
 
-static int vtd_sync_shadow_page_table(VTDAddressSpace *vtd_as)
+static int vtd_address_space_sync(VTDAddressSpace *vtd_as)
 {
     int ret;
     VTDContextEntry ce;
     IOMMUNotifier *n;
 
-    if (!(vtd_as->iommu.iommu_notify_flags & IOMMU_NOTIFIER_IOTLB_EVENTS)) {
+    /* If no MAP notifier registered, we simply invalidate all the cache */
+    if (!vtd_as_has_map_notifier(vtd_as)) {
+        IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
+            memory_region_unmap_iommu_notifier_range(n);
+        }
         return 0;
     }
 
@@ -2000,7 +2004,7 @@ static void vtd_iommu_replay_all(IntelIOMMUState *s)
     VTDAddressSpace *vtd_as;
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
-        vtd_sync_shadow_page_table(vtd_as);
+        vtd_address_space_sync(vtd_as);
     }
 }
 
@@ -2082,7 +2086,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
              * framework will skip MAP notifications if that
              * happened.
              */
-            vtd_sync_shadow_page_table(vtd_as);
+            vtd_address_space_sync(vtd_as);
         }
     }
 }
@@ -2140,7 +2144,7 @@ static void vtd_iotlb_domain_invalidate(IntelIOMMUState *s, uint16_t domain_id)
         if (!vtd_dev_to_context_entry(s, pci_bus_num(vtd_as->bus),
                                       vtd_as->devfn, &ce) &&
             domain_id == vtd_get_domain_id(s, &ce, vtd_as->pasid)) {
-            vtd_sync_shadow_page_table(vtd_as);
+            vtd_address_space_sync(vtd_as);
         }
     }
 }
