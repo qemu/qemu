@@ -18,6 +18,13 @@
 #include "win_dump.h"
 #include "cpu.h"
 
+#if defined(TARGET_X86_64)
+
+bool win_dump_available(Error **errp)
+{
+    return true;
+}
+
 static size_t win_dump_ptr_size(bool x64)
 {
     return x64 ? sizeof(uint64_t) : sizeof(uint32_t);
@@ -470,3 +477,14 @@ out_cr3:
 
     return;
 }
+
+#else /* !TARGET_X86_64 */
+
+bool win_dump_available(Error **errp)
+{
+    error_setg(errp, "Windows dump is only available for x86-64");
+
+    return false;
+}
+
+#endif
