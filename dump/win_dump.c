@@ -487,4 +487,9 @@ bool win_dump_available(Error **errp)
     return false;
 }
 
+void create_win_dump(DumpState *s, Error **errp)
+{
+    win_dump_available(errp);
+}
+
 #endif
