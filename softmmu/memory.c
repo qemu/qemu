@@ -1996,6 +1996,19 @@ void memory_region_notify_iommu_one(IOMMUNotifier *notifier,
     }
 }
 
+void memory_region_unmap_iommu_notifier_range(IOMMUNotifier *n)
+{
+    IOMMUTLBEvent event;
+
+    event.type = IOMMU_NOTIFIER_UNMAP;
+    event.entry.target_as = &address_space_memory;
+    event.entry.iova = n->start;
+    event.entry.perm = IOMMU_NONE;
+    event.entry.addr_mask = n->end - n->start;
+
+    memory_region_notify_iommu_one(n, &event);
+}
+
 void memory_region_notify_iommu(IOMMUMemoryRegion *iommu_mr,
                                 int iommu_idx,
                                 IOMMUTLBEvent event)

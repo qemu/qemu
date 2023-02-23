@@ -1732,6 +1732,16 @@ void memory_region_notify_iommu_one(IOMMUNotifier *notifier,
                                     IOMMUTLBEvent *event);
 
 /**
+ * memory_region_unmap_iommu_notifier_range: notify a unmap for an IOMMU
+ *                                           translation that covers the
+ *                                           range of a notifier
+ *
+ * @notifier: the notifier to be notified
+ */
+void memory_region_unmap_iommu_notifier_range(IOMMUNotifier *n);
+
+
+/**
  * memory_region_register_iommu_notifier: register a notifier for changes to
  * IOMMU translation entries.
  *
