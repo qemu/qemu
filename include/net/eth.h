@@ -400,11 +400,6 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
                        eth_ip4_hdr_info *ip4hdr_info,
                        eth_l4_hdr_info  *l4hdr_info);
 
-void eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
-                                 void *l3hdr, size_t l3hdr_len,
-                                 size_t l3payload_len,
-                                 size_t frag_offset, bool more_frags);
-
 void
 eth_fix_ip4_checksum(void *l3hdr, size_t l3hdr_len);
 
