@@ -162,8 +162,6 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
 {
     E1000IntrDelayTimer *timer = opaque;
 
-    assert(!msix_enabled(timer->core->owner));
-
     timer->running = false;
 
     if (msi_enabled(timer->core->owner)) {
@@ -182,8 +180,6 @@ e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
 {
     E1000IntrDelayTimer *timer = opaque;
     int idx = timer - &timer->core->eitr[0];
-
-    assert(msix_enabled(timer->core->owner));
 
     timer->running = false;
 
