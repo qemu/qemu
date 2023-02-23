@@ -29,6 +29,7 @@
 #include "net/eth.h"
 #include "net/net.h"
 
+#include "e1000_common.h"
 #include "e1000x_common.h"
 
 #include "trace.h"

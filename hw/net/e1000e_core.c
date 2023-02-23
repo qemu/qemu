@@ -45,6 +45,7 @@
 #include "net_tx_pkt.h"
 #include "net_rx_pkt.h"
 
+#include "e1000_common.h"
 #include "e1000x_common.h"
 #include "e1000e_core.h"
 
