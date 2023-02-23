@@ -1,37 +1,37 @@
 /*
-* Core code for QEMU e1000e emulation
-*
-* Software developer's manuals:
-* http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
-*
-* Copyright (c) 2015 Ravello Systems LTD (http://ravellosystems.com)
-* Developed by Daynix Computing LTD (http://www.daynix.com)
-*
-* Authors:
-* Dmitry Fleytman <dmitry@daynix.com>
-* Leonid Bloch <leonid@daynix.com>
-* Yan Vugenfirer <yan@daynix.com>
-*
-* Based on work done by:
-* Nir Peleg, Tutis Systems Ltd. for Qumranet Inc.
-* Copyright (c) 2008 Qumranet
-* Based on work done by:
-* Copyright (c) 2007 Dan Aloni
-* Copyright (c) 2004 Antony T Curtis
-*
-* This library is free software; you can redistribute it and/or
-* modify it under the terms of the GNU Lesser General Public
-* License as published by the Free Software Foundation; either
-* version 2.1 of the License, or (at your option) any later version.
-*
-* This library is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License along with this library; if not, see <http://www.gnu.org/licenses/>.
-*/
+ * Core code for QEMU e1000e emulation
+ *
+ * Software developer's manuals:
+ * http://www.intel.com/content/dam/doc/datasheet/82574l-gbe-controller-datasheet.pdf
+ *
+ * Copyright (c) 2015 Ravello Systems LTD (http://ravellosystems.com)
+ * Developed by Daynix Computing LTD (http://www.daynix.com)
+ *
+ * Authors:
+ * Dmitry Fleytman <dmitry@daynix.com>
+ * Leonid Bloch <leonid@daynix.com>
+ * Yan Vugenfirer <yan@daynix.com>
+ *
+ * Based on work done by:
+ * Nir Peleg, Tutis Systems Ltd. for Qumranet Inc.
+ * Copyright (c) 2008 Qumranet
+ * Based on work done by:
+ * Copyright (c) 2007 Dan Aloni
+ * Copyright (c) 2004 Antony T Curtis
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
@@ -49,8 +49,9 @@
 
 #include "trace.h"
 
-#define E1000E_MIN_XITR     (500) /* No more then 7813 interrupts per
-                                     second according to spec 10.2.4.2 */
+/* No more then 7813 interrupts per second according to spec 10.2.4.2 */
+#define E1000E_MIN_XITR     (500)
+
 #define E1000E_MAX_TX_FRAGS (64)
 
 static inline void
@@ -282,14 +283,18 @@ e1000e_intrmgr_delay_rx_causes(E1000ECore *core, uint32_t *causes)
     core->delayed_causes |= *causes & delayable_causes;
     *causes &= ~delayable_causes;
 
-    /* Check if delayed RX interrupts disabled by client
-       or if there are causes that cannot be delayed */
+    /*
+     * Check if delayed RX interrupts disabled by client
+     * or if there are causes that cannot be delayed
+     */
     if ((rdtr == 0) || (*causes != 0)) {
         return false;
     }
 
-    /* Check if delayed RX ACK interrupts disabled by client
-       and there is an ACK packet received */
+    /*
+     * Check if delayed RX ACK interrupts disabled by client
+     * and there is an ACK packet received
+     */
     if ((raid == 0) && (core->delayed_causes & E1000_ICR_ACK)) {
         return false;
     }
@@ -2515,7 +2520,8 @@ e1000e_set_icr(E1000ECore *core, int index, uint32_t val)
     }
 
     icr = core->mac[ICR] & ~val;
-    /* Windows driver expects that the "receive overrun" bit and other
+    /*
+     * Windows driver expects that the "receive overrun" bit and other
      * ones to be cleared when the "Other" bit (#24) is cleared.
      */
     icr = (val & E1000_ICR_OTHER) ? (icr & ~E1000_ICR_OTHER_CAUSES) : icr;
@@ -3269,10 +3275,12 @@ enum { E1000E_NWRITEOPS = ARRAY_SIZE(e1000e_macreg_writeops) };
 
 enum { MAC_ACCESS_PARTIAL = 1 };
 
-/* The array below combines alias offsets of the index values for the
+/*
+ * The array below combines alias offsets of the index values for the
  * MAC registers that have aliases, with the indication of not fully
  * implemented registers (lowest bit). This combination is possible
- * because all of the offsets are even. */
+ * because all of the offsets are even.
+ */
 static const uint16_t mac_reg_access[E1000E_MAC_SIZE] = {
     /* Alias index offsets */
     [FCRTL_A] = 0x07fe, [FCRTH_A] = 0x0802,
@@ -3536,10 +3544,10 @@ void e1000e_core_pre_save(E1000ECore *core)
     NetClientState *nc = qemu_get_queue(core->owner_nic);
 
     /*
-    * If link is down and auto-negotiation is supported and ongoing,
-    * complete auto-negotiation immediately. This allows us to look
-    * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
-    */
+     * If link is down and auto-negotiation is supported and ongoing,
+     * complete auto-negotiation immediately. This allows us to look
+     * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     */
     if (nc->link_down && e1000e_have_autoneg(core)) {
         core->phy[0][PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
         e1000e_update_flowctl_status(core);
@@ -3557,7 +3565,8 @@ e1000e_core_post_load(E1000ECore *core)
 {
     NetClientState *nc = qemu_get_queue(core->owner_nic);
 
-    /* nc.link_down can't be migrated, so infer link_down according
+    /*
+     * nc.link_down can't be migrated, so infer link_down according
      * to link status bit in core.mac[STATUS].
      */
     nc->link_down = (core->mac[STATUS] & E1000_STATUS_LU) == 0;
