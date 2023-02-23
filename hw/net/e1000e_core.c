@@ -1240,12 +1240,6 @@ e1000e_build_rx_metadata(E1000ECore *core,
         goto func_exit;
     }
 
-    if (!net_rx_pkt_has_virt_hdr(pkt)) {
-        trace_e1000e_rx_metadata_no_virthdr();
-        e1000e_verify_csum_in_sw(core, pkt, status_flags, istcp, isudp);
-        goto func_exit;
-    }
-
     vhdr = net_rx_pkt_get_vhdr(pkt);
 
     if (!(vhdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) &&
@@ -1671,12 +1665,10 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
 static inline void
 e1000e_rx_fix_l4_csum(E1000ECore *core, struct NetRxPkt *pkt)
 {
-    if (net_rx_pkt_has_virt_hdr(pkt)) {
-        struct virtio_net_hdr *vhdr = net_rx_pkt_get_vhdr(pkt);
+    struct virtio_net_hdr *vhdr = net_rx_pkt_get_vhdr(pkt);
 
-        if (vhdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
-            net_rx_pkt_fix_l4_csum(pkt);
-        }
+    if (vhdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+        net_rx_pkt_fix_l4_csum(pkt);
     }
 }
 
@@ -3379,7 +3371,7 @@ e1000e_core_pci_realize(E1000ECore     *core,
         net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner, E1000E_MAX_TX_FRAGS);
     }
 
-    net_rx_pkt_init(&core->rx_pkt, core->has_vnet);
+    net_rx_pkt_init(&core->rx_pkt);
 
     e1000x_core_prepare_eeprom(core->eeprom,
                                eeprom_templ,

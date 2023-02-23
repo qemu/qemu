@@ -851,10 +851,6 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
     uint8_t *data;
     int len;
 
-    if (!net_rx_pkt_has_virt_hdr(pkt)) {
-        return;
-    }
-
     vhdr = net_rx_pkt_get_vhdr(pkt);
     if (!VMXNET_FLAG_IS_SET(vhdr->flags, VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
         return;
@@ -896,10 +892,6 @@ static void vmxnet3_rx_update_descr(struct NetRxPkt *pkt,
     if (net_rx_pkt_is_vlan_stripped(pkt)) {
         rxcd->ts = 1;
         rxcd->tci = net_rx_pkt_get_vlan_tag(pkt);
-    }
-
-    if (!net_rx_pkt_has_virt_hdr(pkt)) {
-        goto nocsum;
     }
 
     vhdr = net_rx_pkt_get_vhdr(pkt);
@@ -1522,7 +1514,7 @@ static void vmxnet3_activate_device(VMXNET3State *s)
     /* Preallocate TX packet wrapper */
     VMW_CFPRN("Max TX fragments is %u", s->max_tx_frags);
     net_tx_pkt_init(&s->tx_pkt, PCI_DEVICE(s), s->max_tx_frags);
-    net_rx_pkt_init(&s->rx_pkt, s->peer_has_vhdr);
+    net_rx_pkt_init(&s->rx_pkt);
 
     /* Read rings memory locations for RX queues */
     for (i = 0; i < s->rxq_num; i++) {
@@ -2402,7 +2394,7 @@ static int vmxnet3_post_load(void *opaque, int version_id)
     VMXNET3State *s = opaque;
 
     net_tx_pkt_init(&s->tx_pkt, PCI_DEVICE(s), s->max_tx_frags);
-    net_rx_pkt_init(&s->rx_pkt, s->peer_has_vhdr);
+    net_rx_pkt_init(&s->rx_pkt);
 
     if (s->msix_used) {
         vmxnet3_use_msix_vectors(s, VMXNET3_MAX_INTRS);
