@@ -1759,8 +1759,6 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
     e1000e_rss_parse_packet(core, core->rx_pkt, &rss_info);
     e1000e_rx_ring_init(core, &rxr, rss_info.queue);
 
-    trace_e1000e_rx_rss_dispatched_to_queue(rxr.i->idx);
-
     total_size = net_rx_pkt_get_total_len(core->rx_pkt) +
         e1000x_fcs_len(core->mac);
 
@@ -1786,12 +1784,12 @@ e1000e_receive_internal(E1000ECore *core, const struct iovec *iov, int iovcnt,
         rdmts_hit = e1000e_rx_descr_threshold_hit(core, rxr.i);
         n |= e1000e_rx_wb_interrupt_cause(core, rxr.i->idx, rdmts_hit);
 
-        trace_e1000e_rx_written_to_guest(n);
+        trace_e1000e_rx_written_to_guest(rxr.i->idx);
     } else {
         n |= E1000_ICS_RXO;
         retval = 0;
 
-        trace_e1000e_rx_not_written_to_guest(n);
+        trace_e1000e_rx_not_written_to_guest(rxr.i->idx);
     }
 
     if (!e1000e_intrmgr_delay_rx_causes(core, &n)) {
