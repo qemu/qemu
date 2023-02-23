@@ -1746,32 +1746,32 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static uint8_t virtio_net_get_hash_type(bool isip4,
-                                        bool isip6,
-                                        bool isudp,
-                                        bool istcp,
+static uint8_t virtio_net_get_hash_type(bool hasip4,
+                                        bool hasip6,
+                                        bool hasudp,
+                                        bool hastcp,
                                         uint32_t types)
 {
-    if (isip4) {
-        if (istcp && (types & VIRTIO_NET_RSS_HASH_TYPE_TCPv4)) {
+    if (hasip4) {
+        if (hastcp && (types & VIRTIO_NET_RSS_HASH_TYPE_TCPv4)) {
             return NetPktRssIpV4Tcp;
         }
-        if (isudp && (types & VIRTIO_NET_RSS_HASH_TYPE_UDPv4)) {
+        if (hasudp && (types & VIRTIO_NET_RSS_HASH_TYPE_UDPv4)) {
             return NetPktRssIpV4Udp;
         }
         if (types & VIRTIO_NET_RSS_HASH_TYPE_IPv4) {
             return NetPktRssIpV4;
         }
-    } else if (isip6) {
+    } else if (hasip6) {
         uint32_t mask = VIRTIO_NET_RSS_HASH_TYPE_TCP_EX |
                         VIRTIO_NET_RSS_HASH_TYPE_TCPv6;
 
-        if (istcp && (types & mask)) {
+        if (hastcp && (types & mask)) {
             return (types & VIRTIO_NET_RSS_HASH_TYPE_TCP_EX) ?
                 NetPktRssIpV6TcpEx : NetPktRssIpV6Tcp;
         }
         mask = VIRTIO_NET_RSS_HASH_TYPE_UDP_EX | VIRTIO_NET_RSS_HASH_TYPE_UDPv6;
-        if (isudp && (types & mask)) {
+        if (hasudp && (types & mask)) {
             return (types & VIRTIO_NET_RSS_HASH_TYPE_UDP_EX) ?
                 NetPktRssIpV6UdpEx : NetPktRssIpV6Udp;
         }
@@ -1800,7 +1800,7 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
     struct NetRxPkt *pkt = n->rx_pkt;
     uint8_t net_hash_type;
     uint32_t hash;
-    bool isip4, isip6, isudp, istcp;
+    bool hasip4, hasip6, hasudp, hastcp;
     static const uint8_t reports[NetPktRssIpV6UdpEx + 1] = {
         VIRTIO_NET_HASH_REPORT_IPv4,
         VIRTIO_NET_HASH_REPORT_TCPv4,
@@ -1815,14 +1815,8 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
 
     net_rx_pkt_set_protocols(pkt, buf + n->host_hdr_len,
                              size - n->host_hdr_len);
-    net_rx_pkt_get_protocols(pkt, &isip4, &isip6, &isudp, &istcp);
-    if (isip4 && (net_rx_pkt_get_ip4_info(pkt)->fragment)) {
-        istcp = isudp = false;
-    }
-    if (isip6 && (net_rx_pkt_get_ip6_info(pkt)->fragment)) {
-        istcp = isudp = false;
-    }
-    net_hash_type = virtio_net_get_hash_type(isip4, isip6, isudp, istcp,
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
+    net_hash_type = virtio_net_get_hash_type(hasip4, hasip6, hasudp, hastcp,
                                              n->rss_data.hash_types);
     if (net_hash_type > NetPktRssIpV6UdpEx) {
         if (n->rss_data.populate_hash) {

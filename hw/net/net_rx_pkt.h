@@ -66,15 +66,15 @@ void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
  * fetches packet analysis results
  *
  * @pkt:            packet
- * @isip4:          whether the packet given is IPv4
- * @isip6:          whether the packet given is IPv6
- * @isudp:          whether the packet given is UDP
- * @istcp:          whether the packet given is TCP
+ * @hasip4:          whether the packet has an IPv4 header
+ * @hasip6:          whether the packet has an IPv6 header
+ * @hasudp:          whether the packet has a UDP header
+ * @hastcp:          whether the packet has a TCP header
  *
  */
 void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
-                                 bool *isip4, bool *isip6,
-                                 bool *isudp, bool *istcp);
+                                 bool *hasip4, bool *hasip6,
+                                 bool *hasudp, bool *hastcp);
 
 /**
 * fetches L3 header offset

@@ -391,8 +391,8 @@ typedef struct eth_l4_hdr_info_st {
 } eth_l4_hdr_info;
 
 void eth_get_protocols(const struct iovec *iov, int iovcnt,
-                       bool *isip4, bool *isip6,
-                       bool *isudp, bool *istcp,
+                       bool *hasip4, bool *hasip6,
+                       bool *hasudp, bool *hastcp,
                        size_t *l3hdr_off,
                        size_t *l4hdr_off,
                        size_t *l5hdr_off,
