@@ -35,8 +35,6 @@ struct NetRxPkt {
     /* Analysis results */
     bool hasip4;
     bool hasip6;
-    bool hasudp;
-    bool hastcp;
 
     size_t l3hdr_off;
     size_t l4hdr_off;
@@ -106,11 +104,10 @@ net_rx_pkt_pull_data(struct NetRxPkt *pkt,
     }
 
     eth_get_protocols(pkt->vec, pkt->vec_len, &pkt->hasip4, &pkt->hasip6,
-                      &pkt->hasudp, &pkt->hastcp,
                       &pkt->l3hdr_off, &pkt->l4hdr_off, &pkt->l5hdr_off,
                       &pkt->ip6hdr_info, &pkt->ip4hdr_info, &pkt->l4hdr_info);
 
-    trace_net_rx_pkt_parsed(pkt->hasip4, pkt->hasip6, pkt->hasudp, pkt->hastcp,
+    trace_net_rx_pkt_parsed(pkt->hasip4, pkt->hasip6, pkt->l4hdr_info.proto,
                             pkt->l3hdr_off, pkt->l4hdr_off, pkt->l5hdr_off);
 }
 
@@ -200,21 +197,19 @@ void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
     assert(pkt);
 
     eth_get_protocols(&iov, 1, &pkt->hasip4, &pkt->hasip6,
-                      &pkt->hasudp, &pkt->hastcp,
                       &pkt->l3hdr_off, &pkt->l4hdr_off, &pkt->l5hdr_off,
                       &pkt->ip6hdr_info, &pkt->ip4hdr_info, &pkt->l4hdr_info);
 }
 
 void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
                               bool *hasip4, bool *hasip6,
-                              bool *hasudp, bool *hastcp)
+                              EthL4HdrProto *l4hdr_proto)
 {
     assert(pkt);
 
     *hasip4 = pkt->hasip4;
     *hasip6 = pkt->hasip6;
-    *hasudp = pkt->hasudp;
-    *hastcp = pkt->hastcp;
+    *l4hdr_proto = pkt->l4hdr_info.proto;
 }
 
 size_t net_rx_pkt_get_l3_hdr_offset(struct NetRxPkt *pkt)
@@ -337,14 +332,14 @@ net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
         break;
     case NetPktRssIpV4Tcp:
         assert(pkt->hasip4);
-        assert(pkt->hastcp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_TCP);
         trace_net_rx_pkt_rss_ip4_tcp();
         _net_rx_rss_prepare_ip4(&rss_input[0], pkt, &rss_length);
         _net_rx_rss_prepare_tcp(&rss_input[0], pkt, &rss_length);
         break;
     case NetPktRssIpV6Tcp:
         assert(pkt->hasip6);
-        assert(pkt->hastcp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_TCP);
         trace_net_rx_pkt_rss_ip6_tcp();
         _net_rx_rss_prepare_ip6(&rss_input[0], pkt, false, &rss_length);
         _net_rx_rss_prepare_tcp(&rss_input[0], pkt, &rss_length);
@@ -361,28 +356,28 @@ net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
         break;
     case NetPktRssIpV6TcpEx:
         assert(pkt->hasip6);
-        assert(pkt->hastcp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_TCP);
         trace_net_rx_pkt_rss_ip6_ex_tcp();
         _net_rx_rss_prepare_ip6(&rss_input[0], pkt, true, &rss_length);
         _net_rx_rss_prepare_tcp(&rss_input[0], pkt, &rss_length);
         break;
     case NetPktRssIpV4Udp:
         assert(pkt->hasip4);
-        assert(pkt->hasudp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP);
         trace_net_rx_pkt_rss_ip4_udp();
         _net_rx_rss_prepare_ip4(&rss_input[0], pkt, &rss_length);
         _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
         break;
     case NetPktRssIpV6Udp:
         assert(pkt->hasip6);
-        assert(pkt->hasudp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP);
         trace_net_rx_pkt_rss_ip6_udp();
         _net_rx_rss_prepare_ip6(&rss_input[0], pkt, false, &rss_length);
         _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
         break;
     case NetPktRssIpV6UdpEx:
         assert(pkt->hasip6);
-        assert(pkt->hasudp);
+        assert(pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP);
         trace_net_rx_pkt_rss_ip6_ex_udp();
         _net_rx_rss_prepare_ip6(&rss_input[0], pkt, true, &rss_length);
         _net_rx_rss_prepare_udp(&rss_input[0], pkt, &rss_length);
@@ -415,7 +410,7 @@ bool net_rx_pkt_is_tcp_ack(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
-    if (pkt->hastcp) {
+    if (pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_TCP) {
         return TCP_HEADER_FLAGS(&pkt->l4hdr_info.hdr.tcp) & TCP_FLAG_ACK;
     }
 
@@ -426,7 +421,7 @@ bool net_rx_pkt_has_tcp_data(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
-    if (pkt->hastcp) {
+    if (pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_TCP) {
         return pkt->l4hdr_info.has_tcp_data;
     }
 
@@ -524,7 +519,7 @@ _net_rx_pkt_calc_l4_csum(struct NetRxPkt *pkt)
     trace_net_rx_pkt_l4_csum_calc_entry();
 
     if (pkt->hasip4) {
-        if (pkt->hasudp) {
+        if (pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP) {
             csl = be16_to_cpu(pkt->l4hdr_info.hdr.udp.uh_ulen);
             trace_net_rx_pkt_l4_csum_calc_ip4_udp();
         } else {
@@ -537,7 +532,7 @@ _net_rx_pkt_calc_l4_csum(struct NetRxPkt *pkt)
                                             csl, &cso);
         trace_net_rx_pkt_l4_csum_calc_ph_csum(cntr, csl);
     } else {
-        if (pkt->hasudp) {
+        if (pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP) {
             csl = be16_to_cpu(pkt->l4hdr_info.hdr.udp.uh_ulen);
             trace_net_rx_pkt_l4_csum_calc_ip6_udp();
         } else {
@@ -571,12 +566,14 @@ bool net_rx_pkt_validate_l4_csum(struct NetRxPkt *pkt, bool *csum_valid)
 
     trace_net_rx_pkt_l4_csum_validate_entry();
 
-    if (!pkt->hastcp && !pkt->hasudp) {
+    if (pkt->l4hdr_info.proto != ETH_L4_HDR_PROTO_TCP &&
+        pkt->l4hdr_info.proto != ETH_L4_HDR_PROTO_UDP) {
         trace_net_rx_pkt_l4_csum_validate_not_xxp();
         return false;
     }
 
-    if (pkt->hasudp && (pkt->l4hdr_info.hdr.udp.uh_sum == 0)) {
+    if (pkt->l4hdr_info.proto == ETH_L4_HDR_PROTO_UDP &&
+        pkt->l4hdr_info.hdr.udp.uh_sum == 0) {
         trace_net_rx_pkt_l4_csum_validate_udp_with_no_checksum();
         return false;
     }
@@ -602,17 +599,22 @@ bool net_rx_pkt_fix_l4_csum(struct NetRxPkt *pkt)
 
     trace_net_rx_pkt_l4_csum_fix_entry();
 
-    if (pkt->hastcp) {
+    switch (pkt->l4hdr_info.proto) {
+    case ETH_L4_HDR_PROTO_TCP:
         l4_cso = offsetof(struct tcp_header, th_sum);
         trace_net_rx_pkt_l4_csum_fix_tcp(l4_cso);
-    } else if (pkt->hasudp) {
+        break;
+
+    case ETH_L4_HDR_PROTO_UDP:
         if (pkt->l4hdr_info.hdr.udp.uh_sum == 0) {
             trace_net_rx_pkt_l4_csum_fix_udp_with_no_checksum();
             return false;
         }
         l4_cso = offsetof(struct udp_header, uh_sum);
         trace_net_rx_pkt_l4_csum_fix_udp(l4_cso);
-    } else {
+        break;
+
+    default:
         trace_net_rx_pkt_l4_csum_fix_not_xxp();
         return false;
     }

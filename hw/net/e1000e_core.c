@@ -497,18 +497,20 @@ typedef struct E1000E_RSSInfo_st {
 static uint32_t
 e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
 {
-    bool hasip4, hasip6, hasudp, hastcp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
 
     assert(e1000e_rss_enabled(core));
 
-    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
 
     if (hasip4) {
-        trace_e1000e_rx_rss_ip4(hastcp, core->mac[MRQC],
+        trace_e1000e_rx_rss_ip4(l4hdr_proto, core->mac[MRQC],
                                 E1000_MRQC_EN_TCPIPV4(core->mac[MRQC]),
                                 E1000_MRQC_EN_IPV4(core->mac[MRQC]));
 
-        if (hastcp && E1000_MRQC_EN_TCPIPV4(core->mac[MRQC])) {
+        if (l4hdr_proto == ETH_L4_HDR_PROTO_TCP &&
+            E1000_MRQC_EN_TCPIPV4(core->mac[MRQC])) {
             return E1000_MRQ_RSS_TYPE_IPV4TCP;
         }
 
@@ -529,7 +531,7 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
          * backends like these.
          */
         trace_e1000e_rx_rss_ip6_rfctl(core->mac[RFCTL]);
-        trace_e1000e_rx_rss_ip6(ex_dis, new_ex_dis, hastcp,
+        trace_e1000e_rx_rss_ip6(ex_dis, new_ex_dis, l4hdr_proto,
                                 ip6info->has_ext_hdrs,
                                 ip6info->rss_ex_dst_valid,
                                 ip6info->rss_ex_src_valid,
@@ -542,7 +544,8 @@ e1000e_rss_get_hash_type(E1000ECore *core, struct NetRxPkt *pkt)
             (!new_ex_dis || !(ip6info->rss_ex_dst_valid ||
                               ip6info->rss_ex_src_valid))) {
 
-            if (hastcp && E1000_MRQC_EN_TCPIPV6(core->mac[MRQC])) {
+            if (l4hdr_proto == ETH_L4_HDR_PROTO_TCP &&
+                E1000_MRQC_EN_TCPIPV6(core->mac[MRQC])) {
                 return E1000_MRQ_RSS_TYPE_IPV6TCP;
             }
 
@@ -1124,7 +1127,7 @@ static void
 e1000e_verify_csum_in_sw(E1000ECore *core,
                          struct NetRxPkt *pkt,
                          uint32_t *status_flags,
-                         bool hastcp, bool hasudp)
+                         EthL4HdrProto l4hdr_proto)
 {
     bool csum_valid;
     uint32_t csum_error;
@@ -1151,14 +1154,10 @@ e1000e_verify_csum_in_sw(E1000ECore *core,
     }
 
     csum_error = csum_valid ? 0 : E1000_RXDEXT_STATERR_TCPE;
+    *status_flags |= E1000_RXD_STAT_TCPCS | csum_error;
 
-    if (hastcp) {
-        *status_flags |= E1000_RXD_STAT_TCPCS |
-                         csum_error;
-    } else if (hasudp) {
-        *status_flags |= E1000_RXD_STAT_TCPCS |
-                         E1000_RXD_STAT_UDPCS |
-                         csum_error;
+    if (l4hdr_proto == ETH_L4_HDR_PROTO_UDP) {
+        *status_flags |= E1000_RXD_STAT_UDPCS;
     }
 }
 
@@ -1187,7 +1186,8 @@ e1000e_build_rx_metadata(E1000ECore *core,
                          uint16_t *vlan_tag)
 {
     struct virtio_net_hdr *vhdr;
-    bool hasip4, hasip6, hastcp, hasudp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
     uint32_t pkt_type;
 
     *status_flags = E1000_RXD_STAT_DD;
@@ -1199,8 +1199,8 @@ e1000e_build_rx_metadata(E1000ECore *core,
 
     *status_flags |= E1000_RXD_STAT_EOP;
 
-    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
-    trace_e1000e_rx_metadata_protocols(hasip4, hasip6, hasudp, hastcp);
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
+    trace_e1000e_rx_metadata_protocols(hasip4, hasip6, l4hdr_proto);
 
     /* VLAN state */
     if (net_rx_pkt_is_vlan_stripped(pkt)) {
@@ -1222,7 +1222,7 @@ e1000e_build_rx_metadata(E1000ECore *core,
             trace_e1000e_rx_metadata_ip_id(*ip_id);
     }
 
-    if (hastcp && e1000e_is_tcp_ack(core, pkt)) {
+    if (l4hdr_proto == ETH_L4_HDR_PROTO_TCP && e1000e_is_tcp_ack(core, pkt)) {
         *status_flags |= E1000_RXD_STAT_ACK;
         trace_e1000e_rx_metadata_ack();
     }
@@ -1230,7 +1230,8 @@ e1000e_build_rx_metadata(E1000ECore *core,
     if (hasip6 && (core->mac[RFCTL] & E1000_RFCTL_IPV6_DIS)) {
         trace_e1000e_rx_metadata_ipv6_filtering_disabled();
         pkt_type = E1000_RXD_PKT_MAC;
-    } else if (hastcp || hasudp) {
+    } else if (l4hdr_proto == ETH_L4_HDR_PROTO_TCP ||
+               l4hdr_proto == ETH_L4_HDR_PROTO_UDP) {
         pkt_type = hasip4 ? E1000_RXD_PKT_IP4_XDP : E1000_RXD_PKT_IP6_XDP;
     } else if (hasip4 || hasip6) {
         pkt_type = hasip4 ? E1000_RXD_PKT_IP4 : E1000_RXD_PKT_IP6;
@@ -1252,7 +1253,7 @@ e1000e_build_rx_metadata(E1000ECore *core,
     if (!(vhdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) &&
         !(vhdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
         trace_e1000e_rx_metadata_virthdr_no_csum_info();
-        e1000e_verify_csum_in_sw(core, pkt, status_flags, hastcp, hasudp);
+        e1000e_verify_csum_in_sw(core, pkt, status_flags, l4hdr_proto);
         goto func_exit;
     }
 
@@ -1263,10 +1264,17 @@ e1000e_build_rx_metadata(E1000ECore *core,
     }
 
     if (e1000e_rx_l4_cso_enabled(core)) {
-        if (hastcp) {
+        switch (l4hdr_proto) {
+        case ETH_L4_HDR_PROTO_TCP:
             *status_flags |= E1000_RXD_STAT_TCPCS;
-        } else if (hasudp) {
+            break;
+
+        case ETH_L4_HDR_PROTO_UDP:
             *status_flags |= E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS;
+            break;
+
+        default:
+            break;
         }
     } else {
         trace_e1000e_rx_metadata_l4_cso_disabled();
@@ -1509,14 +1517,15 @@ e1000e_rx_descr_threshold_hit(E1000ECore *core, const E1000E_RingInfo *rxi)
 static bool
 e1000e_do_ps(E1000ECore *core, struct NetRxPkt *pkt, size_t *hdr_len)
 {
-    bool hasip4, hasip6, hasudp, hastcp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
     bool fragment;
 
     if (!e1000e_rx_use_ps_descriptor(core)) {
         return false;
     }
 
-    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
 
     if (hasip4) {
         fragment = net_rx_pkt_get_ip4_info(pkt)->fragment;
@@ -1530,7 +1539,8 @@ e1000e_do_ps(E1000ECore *core, struct NetRxPkt *pkt, size_t *hdr_len)
         return false;
     }
 
-    if (hasudp || hastcp) {
+    if (l4hdr_proto == ETH_L4_HDR_PROTO_TCP ||
+        l4hdr_proto == ETH_L4_HDR_PROTO_UDP) {
         *hdr_len = net_rx_pkt_get_l5_hdr_offset(pkt);
     } else {
         *hdr_len = net_rx_pkt_get_l4_hdr_offset(pkt);

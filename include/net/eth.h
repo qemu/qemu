@@ -381,18 +381,24 @@ typedef struct eth_ip4_hdr_info_st {
     bool   fragment;
 } eth_ip4_hdr_info;
 
+typedef enum EthL4HdrProto {
+    ETH_L4_HDR_PROTO_INVALID,
+    ETH_L4_HDR_PROTO_TCP,
+    ETH_L4_HDR_PROTO_UDP
+} EthL4HdrProto;
+
 typedef struct eth_l4_hdr_info_st {
     union {
         struct tcp_header tcp;
         struct udp_header udp;
     } hdr;
 
+    EthL4HdrProto proto;
     bool has_tcp_data;
 } eth_l4_hdr_info;
 
 void eth_get_protocols(const struct iovec *iov, int iovcnt,
                        bool *hasip4, bool *hasip6,
-                       bool *hasudp, bool *hastcp,
                        size_t *l3hdr_off,
                        size_t *l4hdr_off,
                        size_t *l5hdr_off,

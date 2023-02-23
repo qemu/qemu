@@ -138,7 +138,6 @@ _eth_tcp_has_data(bool is_ip4,
 
 void eth_get_protocols(const struct iovec *iov, int iovcnt,
                        bool *hasip4, bool *hasip6,
-                       bool *hasudp, bool *hastcp,
                        size_t *l3hdr_off,
                        size_t *l4hdr_off,
                        size_t *l5hdr_off,
@@ -153,7 +152,8 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
     size_t copied;
     uint8_t ip_p;
 
-    *hasip4 = *hasip6 = *hasudp = *hastcp = false;
+    *hasip4 = *hasip6 = false;
+    l4hdr_info->proto = ETH_L4_HDR_PROTO_INVALID;
 
     proto = eth_get_l3_proto(iov, iovcnt, l2hdr_len);
 
@@ -197,11 +197,11 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
 
     switch (ip_p) {
     case IP_PROTO_TCP:
-        *hastcp = _eth_copy_chunk(input_size,
-                                  iov, iovcnt,
-                                  *l4hdr_off, sizeof(l4hdr_info->hdr.tcp),
-                                  &l4hdr_info->hdr.tcp);
-        if (*hastcp) {
+        if (_eth_copy_chunk(input_size,
+                            iov, iovcnt,
+                            *l4hdr_off, sizeof(l4hdr_info->hdr.tcp),
+                            &l4hdr_info->hdr.tcp)) {
+            l4hdr_info->proto = ETH_L4_HDR_PROTO_TCP;
             *l5hdr_off = *l4hdr_off +
                 TCP_HEADER_DATA_OFFSET(&l4hdr_info->hdr.tcp);
 
@@ -215,11 +215,13 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
         break;
 
     case IP_PROTO_UDP:
-        *hasudp = _eth_copy_chunk(input_size,
-                                  iov, iovcnt,
-                                  *l4hdr_off, sizeof(l4hdr_info->hdr.udp),
-                                  &l4hdr_info->hdr.udp);
-        *l5hdr_off = *l4hdr_off + sizeof(l4hdr_info->hdr.udp);
+        if (_eth_copy_chunk(input_size,
+                            iov, iovcnt,
+                            *l4hdr_off, sizeof(l4hdr_info->hdr.udp),
+                            &l4hdr_info->hdr.udp)) {
+            l4hdr_info->proto = ETH_L4_HDR_PROTO_UDP;
+            *l5hdr_off = *l4hdr_off + sizeof(l4hdr_info->hdr.udp);
+        }
         break;
     }
 }

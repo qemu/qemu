@@ -68,13 +68,12 @@ void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
  * @pkt:            packet
  * @hasip4:          whether the packet has an IPv4 header
  * @hasip6:          whether the packet has an IPv6 header
- * @hasudp:          whether the packet has a UDP header
- * @hastcp:          whether the packet has a TCP header
+ * @l4hdr_proto:     protocol of L4 header
  *
  */
 void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
                                  bool *hasip4, bool *hasip6,
-                                 bool *hasudp, bool *hastcp);
+                                 EthL4HdrProto *l4hdr_proto);
 
 /**
 * fetches L3 header offset

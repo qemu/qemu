@@ -847,7 +847,8 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
                                            size_t pkt_len)
 {
     struct virtio_net_hdr *vhdr;
-    bool hasip4, hasip6, hastcp, hasudp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
     uint8_t *data;
     int len;
 
@@ -856,8 +857,10 @@ static void vmxnet3_rx_need_csum_calculate(struct NetRxPkt *pkt,
         return;
     }
 
-    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
-    if (!(hasip4 || hasip6) || !(hastcp || hasudp)) {
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
+    if (!(hasip4 || hasip6) ||
+        (l4hdr_proto != ETH_L4_HDR_PROTO_TCP &&
+         l4hdr_proto != ETH_L4_HDR_PROTO_UDP)) {
         return;
     }
 
@@ -885,7 +888,8 @@ static void vmxnet3_rx_update_descr(struct NetRxPkt *pkt,
     struct Vmxnet3_RxCompDesc *rxcd)
 {
     int csum_ok, is_gso;
-    bool hasip4, hasip6, hastcp, hasudp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
     struct virtio_net_hdr *vhdr;
     uint8_t offload_type;
 
@@ -911,16 +915,18 @@ static void vmxnet3_rx_update_descr(struct NetRxPkt *pkt,
         goto nocsum;
     }
 
-    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &hasudp, &hastcp);
-    if ((!hastcp && !hasudp) || (!hasip4 && !hasip6)) {
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
+    if ((l4hdr_proto != ETH_L4_HDR_PROTO_TCP &&
+         l4hdr_proto != ETH_L4_HDR_PROTO_UDP) ||
+        (!hasip4 && !hasip6)) {
         goto nocsum;
     }
 
     rxcd->cnc = 0;
     rxcd->v4 = hasip4 ? 1 : 0;
     rxcd->v6 = hasip6 ? 1 : 0;
-    rxcd->tcp = hastcp ? 1 : 0;
-    rxcd->udp = hasudp ? 1 : 0;
+    rxcd->tcp = l4hdr_proto == ETH_L4_HDR_PROTO_TCP;
+    rxcd->udp = l4hdr_proto == ETH_L4_HDR_PROTO_UDP;
     rxcd->fcs = rxcd->tuc = rxcd->ipc = 1;
     return;
 
