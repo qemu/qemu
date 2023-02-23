@@ -125,6 +125,12 @@ typedef struct CPUTLBEntryFull {
     uint8_t lg_page_size;
 
     /*
+     * Additional tlb flags for use by the slow path. If non-zero,
+     * the corresponding CPUTLBEntry comparator must have TLB_FORCE_SLOW.
+     */
+    uint8_t slow_flags[MMU_ACCESS_COUNT];
+
+    /*
      * Allow target-specific additions to this structure.
      * This may be used to cache items from the guest cpu
      * page tables for later use by the implementation.
