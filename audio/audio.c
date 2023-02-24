@@ -712,10 +712,6 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
     size_t hw_free;
     size_t ret, total;
 
-    if (!sw) {
-        return size;
-    }
-
     hwsamples = sw->hw->mix_buf.size;
 
     live = sw->total_hw_samples_mixed;
