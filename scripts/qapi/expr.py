@@ -33,7 +33,6 @@ structures and contextual semantic validation.
 
 import re
 from typing import (
-    Collection,
     Dict,
     Iterable,
     List,
@@ -44,16 +43,8 @@ from typing import (
 
 from .common import c_name
 from .error import QAPISemError
-from .parser import QAPIDoc
+from .parser import QAPIExpression
 from .source import QAPISourceInfo
-
-
-# Deserialized JSON objects as returned by the parser.
-# The values of this mapping are not necessary to exhaustively type
-# here (and also not practical as long as mypy lacks recursive
-# types), because the purpose of this module is to interrogate that
-# type.
-_JSONObject = Dict[str, object]
 
 
 # See check_name_str(), below.
@@ -192,11 +183,11 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
                 info, "%s name should not end in 'List'" % meta)
 
 
-def check_keys(value: _JSONObject,
+def check_keys(value: Dict[str, object],
                info: QAPISourceInfo,
                source: str,
-               required: Collection[str],
-               optional: Collection[str]) -> None:
+               required: List[str],
+               optional: List[str]) -> None:
     """
     Ensure that a dict has a specific set of keys.
 
@@ -229,12 +220,11 @@ def check_keys(value: _JSONObject,
                pprint(unknown), pprint(allowed)))
 
 
-def check_flags(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_flags(expr: QAPIExpression) -> None:
     """
     Ensure flag members (if present) have valid values.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError:
         When certain flags have an invalid value, or when
@@ -243,21 +233,22 @@ def check_flags(expr: _JSONObject, info: QAPISourceInfo) -> None:
     for key in ('gen', 'success-response'):
         if key in expr and expr[key] is not False:
             raise QAPISemError(
-                info, "flag '%s' may only use false value" % key)
+                expr.info, "flag '%s' may only use false value" % key)
     for key in ('boxed', 'allow-oob', 'allow-preconfig', 'coroutine'):
         if key in expr and expr[key] is not True:
             raise QAPISemError(
-                info, "flag '%s' may only use true value" % key)
+                expr.info, "flag '%s' may only use true value" % key)
     if 'allow-oob' in expr and 'coroutine' in expr:
         # This is not necessarily a fundamental incompatibility, but
         # we don't have a use case and the desired semantics isn't
         # obvious.  The simplest solution is to forbid it until we get
         # a use case for it.
-        raise QAPISemError(info, "flags 'allow-oob' and 'coroutine' "
-                                 "are incompatible")
+        raise QAPISemError(
+            expr.info, "flags 'allow-oob' and 'coroutine' are incompatible")
 
 
-def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
+def check_if(expr: Dict[str, object],
+             info: QAPISourceInfo, source: str) -> None:
     """
     Validate the ``if`` member of an object.
 
@@ -447,12 +438,11 @@ def check_features(features: Optional[object],
         check_if(feat, info, source)
 
 
-def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_enum(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as an ``enum`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: When ``expr`` is not a valid ``enum``.
     :return: None, ``expr`` is normalized in-place as needed.
@@ -460,6 +450,7 @@ def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
     name = expr['enum']
     members = expr['data']
     prefix = expr.get('prefix')
+    info = expr.info
 
     if not isinstance(members, list):
         raise QAPISemError(info, "'data' must be an array")
@@ -486,12 +477,11 @@ def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_features(member.get('features'), info)
 
 
-def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_struct(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as a ``struct`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: When ``expr`` is not a valid ``struct``.
     :return: None, ``expr`` is normalized in-place as needed.
@@ -499,16 +489,15 @@ def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:
     name = cast(str, expr['struct'])  # Checked in check_exprs
     members = expr['data']
 
-    check_type(members, info, "'data'", allow_dict=name)
-    check_type(expr.get('base'), info, "'base'")
+    check_type(members, expr.info, "'data'", allow_dict=name)
+    check_type(expr.get('base'), expr.info, "'base'")
 
 
-def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_union(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as a ``union`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: when ``expr`` is not a valid ``union``.
     :return: None, ``expr`` is normalized in-place as needed.
@@ -517,6 +506,7 @@ def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
     base = expr['base']
     discriminator = expr['discriminator']
     members = expr['data']
+    info = expr.info
 
     check_type(base, info, "'base'", allow_dict=name)
     check_name_is_str(discriminator, info, "'discriminator'")
@@ -531,17 +521,17 @@ def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_type(value['type'], info, source, allow_array=not base)
 
 
-def check_alternate(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_alternate(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as an ``alternate`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: When ``expr`` is not a valid ``alternate``.
     :return: None, ``expr`` is normalized in-place as needed.
     """
     members = expr['data']
+    info = expr.info
 
     if not members:
         raise QAPISemError(info, "'data' must not be empty")
@@ -557,12 +547,11 @@ def check_alternate(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_type(value['type'], info, source, allow_array=True)
 
 
-def check_command(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_command(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as a ``command`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: When ``expr`` is not a valid ``command``.
     :return: None, ``expr`` is normalized in-place as needed.
@@ -572,17 +561,16 @@ def check_command(expr: _JSONObject, info: QAPISourceInfo) -> None:
     boxed = expr.get('boxed', False)
 
     if boxed and args is None:
-        raise QAPISemError(info, "'boxed': true requires 'data'")
-    check_type(args, info, "'data'", allow_dict=not boxed)
-    check_type(rets, info, "'returns'", allow_array=True)
+        raise QAPISemError(expr.info, "'boxed': true requires 'data'")
+    check_type(args, expr.info, "'data'", allow_dict=not boxed)
+    check_type(rets, expr.info, "'returns'", allow_array=True)
 
 
-def check_event(expr: _JSONObject, info: QAPISourceInfo) -> None:
+def check_event(expr: QAPIExpression) -> None:
     """
     Normalize and validate this expression as an ``event`` definition.
 
     :param expr: The expression to validate.
-    :param info: QAPI schema source file information.
 
     :raise QAPISemError: When ``expr`` is not a valid ``event``.
     :return: None, ``expr`` is normalized in-place as needed.
@@ -591,11 +579,11 @@ def check_event(expr: _JSONObject, info: QAPISourceInfo) -> None:
     boxed = expr.get('boxed', False)
 
     if boxed and args is None:
-        raise QAPISemError(info, "'boxed': true requires 'data'")
-    check_type(args, info, "'data'", allow_dict=not boxed)
+        raise QAPISemError(expr.info, "'boxed': true requires 'data'")
+    check_type(args, expr.info, "'data'", allow_dict=not boxed)
 
 
-def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
+def check_exprs(exprs: List[QAPIExpression]) -> List[QAPIExpression]:
     """
     Validate and normalize a list of parsed QAPI schema expressions.
 
@@ -607,21 +595,9 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
     :raise QAPISemError: When any expression fails validation.
     :return: The same list of expressions (now modified).
     """
-    for expr_elem in exprs:
-        # Expression
-        assert isinstance(expr_elem['expr'], dict)
-        for key in expr_elem['expr'].keys():
-            assert isinstance(key, str)
-        expr: _JSONObject = expr_elem['expr']
-
-        # QAPISourceInfo
-        assert isinstance(expr_elem['info'], QAPISourceInfo)
-        info: QAPISourceInfo = expr_elem['info']
-
-        # Optional[QAPIDoc]
-        tmp = expr_elem.get('doc')
-        assert tmp is None or isinstance(tmp, QAPIDoc)
-        doc: Optional[QAPIDoc] = tmp
+    for expr in exprs:
+        info = expr.info
+        doc = expr.doc
 
         if 'include' in expr:
             continue
@@ -653,24 +629,24 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
         if meta == 'enum':
             check_keys(expr, info, meta,
                        ['enum', 'data'], ['if', 'features', 'prefix'])
-            check_enum(expr, info)
+            check_enum(expr)
         elif meta == 'union':
             check_keys(expr, info, meta,
                        ['union', 'base', 'discriminator', 'data'],
                        ['if', 'features'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
-            check_union(expr, info)
+            check_union(expr)
         elif meta == 'alternate':
             check_keys(expr, info, meta,
                        ['alternate', 'data'], ['if', 'features'])
             normalize_members(expr['data'])
-            check_alternate(expr, info)
+            check_alternate(expr)
         elif meta == 'struct':
             check_keys(expr, info, meta,
                        ['struct', 'data'], ['base', 'if', 'features'])
             normalize_members(expr['data'])
-            check_struct(expr, info)
+            check_struct(expr)
         elif meta == 'command':
             check_keys(expr, info, meta,
                        ['command'],
@@ -678,17 +654,17 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
                         'gen', 'success-response', 'allow-oob',
                         'allow-preconfig', 'coroutine'])
             normalize_members(expr.get('data'))
-            check_command(expr, info)
+            check_command(expr)
         elif meta == 'event':
             check_keys(expr, info, meta,
                        ['event'], ['data', 'boxed', 'if', 'features'])
             normalize_members(expr.get('data'))
-            check_event(expr, info)
+            check_event(expr)
         else:
             assert False, 'unexpected meta type'
 
         check_if(expr, info, meta)
         check_features(expr.get('features'), info)
-        check_flags(expr, info)
+        check_flags(expr)
 
     return exprs
