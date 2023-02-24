@@ -937,9 +937,11 @@ restart:
         }
 
         bool pbmte = env->menvcfg & MENVCFG_PBMTE;
+        bool hade = env->menvcfg & MENVCFG_HADE;
 
         if (first_stage && two_stage && riscv_cpu_virt_enabled(env)) {
             pbmte = pbmte && (env->henvcfg & HENVCFG_PBMTE);
+            hade = hade && (env->henvcfg & HENVCFG_HADE);
         }
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
@@ -998,6 +1000,10 @@ restart:
 
             /* Page table updates need to be atomic with MTTCG enabled */
             if (updated_pte != pte) {
+                if (!hade) {
+                    return TRANSLATE_FAIL;
+                }
+
                 /*
                  * - if accessed or dirty bits need updating, and the PTE is
                  *   in RAM, then we do so atomically with a compare and swap.
