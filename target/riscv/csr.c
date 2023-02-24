@@ -1885,10 +1885,12 @@ static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
 static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
+    RISCVCPUConfig *cfg = &env_archcpu(env)->cfg;
     uint64_t mask = MENVCFG_FIOM | MENVCFG_CBIE | MENVCFG_CBCFE | MENVCFG_CBZE;
 
     if (riscv_cpu_mxl(env) == MXL_RV64) {
-        mask |= MENVCFG_PBMTE | MENVCFG_STCE;
+        mask |= (cfg->ext_svpbmt ? MENVCFG_PBMTE : 0) |
+                (cfg->ext_sstc ? MENVCFG_STCE : 0);
     }
     env->menvcfg = (env->menvcfg & ~mask) | (val & mask);
 
@@ -1905,7 +1907,9 @@ static RISCVException read_menvcfgh(CPURISCVState *env, int csrno,
 static RISCVException write_menvcfgh(CPURISCVState *env, int csrno,
                                   target_ulong val)
 {
-    uint64_t mask = MENVCFG_PBMTE | MENVCFG_STCE;
+    RISCVCPUConfig *cfg = &env_archcpu(env)->cfg;
+    uint64_t mask = (cfg->ext_svpbmt ? MENVCFG_PBMTE : 0) |
+                    (cfg->ext_sstc ? MENVCFG_STCE : 0);
     uint64_t valh = (uint64_t)val << 32;
 
     env->menvcfg = (env->menvcfg & ~mask) | (valh & mask);
