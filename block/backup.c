@@ -22,7 +22,6 @@
 #include "block/block-copy.h"
 #include "block/dirty-bitmap.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/cutils.h"
 #include "sysemu/block-backend.h"
 #include "qemu/bitmap.h"

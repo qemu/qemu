@@ -1854,7 +1854,8 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      */
     ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
     if (ret < 0) {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp,
+                   "dumping guest memory is not supported on this target");
         goto cleanup;
     }
 
@@ -1864,10 +1865,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
-    if (s->note_size < 0) {
-        error_setg(errp, QERR_UNSUPPORTED);
-        goto cleanup;
-    }
+    assert(s->note_size >= 0);
 
     /*
      * The goal of this block is to (a) update the previously guessed

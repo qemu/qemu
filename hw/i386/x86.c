@@ -28,7 +28,6 @@
 #include "qemu/datadir.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qapi-visit-common.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-machine.h"

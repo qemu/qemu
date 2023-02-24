@@ -28,7 +28,6 @@
 
 #ifdef CONFIG_VHOST_CRYPTO
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-crypto.h"
 #include "sysemu/cryptodev-vhost-user.h"

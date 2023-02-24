@@ -12,7 +12,7 @@ void replay_input_sync_event(void)
     qemu_input_event_sync_impl();
 }
 
-void replay_add_blocker(Error *reason)
+void replay_add_blocker(const char *feature)
 {
 }
 void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size)

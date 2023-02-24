@@ -72,7 +72,7 @@ void replay_start(void);
 /*! Closes replay log file and frees other resources. */
 void replay_finish(void);
 /*! Adds replay blocker with the specified error description */
-void replay_add_blocker(Error *reason);
+void replay_add_blocker(const char *feature);
 /* Returns name of the replay log file */
 const char *replay_get_filename(void);
 /*

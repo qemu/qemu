@@ -29,9 +29,6 @@
 #define QERR_DEVICE_NO_HOTPLUG \
     "Device '%s' does not support hotplugging"
 
-#define QERR_FEATURE_DISABLED \
-    "The feature '%s' is not enabled"
-
 #define QERR_INVALID_PARAMETER \
     "Invalid parameter '%s'"
 
@@ -58,9 +55,6 @@
 
 #define QERR_QGA_COMMAND_FAILED \
     "Guest agent command failed, error was '%s'"
-
-#define QERR_REPLAY_NOT_SUPPORTED \
-    "Record/replay feature is not supported for '%s'"
 
 #define QERR_UNSUPPORTED \
     "this feature or command is not currently supported"
