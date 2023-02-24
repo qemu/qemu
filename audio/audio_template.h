@@ -71,8 +71,9 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioState *s,
 static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
 {
     g_free(hw->buf_emul);
-    g_free (HWBUF);
-    HWBUF = NULL;
+    g_free(HWBUF.buffer);
+    HWBUF.buffer = NULL;
+    HWBUF.size = 0;
 }
 
 static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
@@ -83,10 +84,12 @@ static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
             dolog("Attempted to allocate empty buffer\n");
         }
 
-        HWBUF = g_malloc0(sizeof(STSampleBuffer) + sizeof(st_sample) * samples);
-        HWBUF->size = samples;
+        HWBUF.buffer = g_new0(st_sample, samples);
+        HWBUF.size = samples;
+        HWBUF.pos = 0;
     } else {
-        HWBUF = NULL;
+        HWBUF.buffer = NULL;
+        HWBUF.size = 0;
     }
 }
 
@@ -111,9 +114,9 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
     }
 
 #ifdef DAC
-    samples = ((int64_t) sw->HWBUF->size << 32) / sw->ratio;
+    samples = ((int64_t)sw->HWBUF.size << 32) / sw->ratio;
 #else
-    samples = (int64_t)sw->HWBUF->size * sw->ratio >> 32;
+    samples = (int64_t)sw->HWBUF.size * sw->ratio >> 32;
 #endif
     if (audio_bug(__func__, samples < 0)) {
         dolog("Can not allocate buffer for `%s' (%d samples)\n",
@@ -126,7 +129,7 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
         size_t f_fe_min;
 
         /* f_fe_min = ceil(1 [frames] * f_be [Hz] / size_be [frames]) */
-        f_fe_min = (hw->info.freq + HWBUF->size - 1) / HWBUF->size;
+        f_fe_min = (hw->info.freq + HWBUF.size - 1) / HWBUF.size;
         qemu_log_mask(LOG_UNIMP,
                       AUDIO_CAP ": The guest selected a " NAME " sample rate"
                       " of %d Hz for %s. Only sample rates >= %zu Hz are"

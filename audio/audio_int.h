@@ -58,7 +58,7 @@ typedef struct SWVoiceCap SWVoiceCap;
 
 typedef struct STSampleBuffer {
     size_t pos, size;
-    st_sample samples[];
+    st_sample *buffer;
 } STSampleBuffer;
 
 typedef struct HWVoiceOut {
@@ -71,7 +71,7 @@ typedef struct HWVoiceOut {
     f_sample *clip;
     uint64_t ts_helper;
 
-    STSampleBuffer *mix_buf;
+    STSampleBuffer mix_buf;
     void *buf_emul;
     size_t pos_emul, pending_emul, size_emul;
 
@@ -93,7 +93,7 @@ typedef struct HWVoiceIn {
     size_t total_samples_captured;
     uint64_t ts_helper;
 
-    STSampleBuffer *conv_buf;
+    STSampleBuffer conv_buf;
     void *buf_emul;
     size_t pos_emul, pending_emul, size_emul;
 
