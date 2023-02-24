@@ -86,6 +86,38 @@ respective ports repository, while NetBSD will use the pkgsrc repository.
 For macOS, `Homebrew`_ will be used, although `MacPorts`_ is expected to carry
 similar versions.
 
+Some build dependencies may follow less conservative rules:
+
+Python runtime
+  Distributions with long-term support often provide multiple versions
+  of the Python runtime.  While QEMU will initially aim to support the
+  distribution's default runtime, it may later increase its minimum version
+  to any newer python that is available as an option from the vendor.
+  In this case, it will be necessary to use the ``--python`` command line
+  option of the ``configure`` script to point QEMU to a supported
+  version of the Python runtime.
+
+  As of QEMU |version|, the minimum supported version of Python is 3.6.
+
+Python build dependencies
+  Some of QEMU's build dependencies are written in Python.  Usually these
+  are only packaged by distributions for the default Python runtime.
+  If QEMU bumps its minimum Python version and a non-default runtime is
+  required, it may be necessary to fetch python modules from the Python
+  Package Index (PyPI) via ``pip``, in order to build QEMU.
+
+Optional build dependencies
+  Build components whose absence does not affect the ability to build
+  QEMU may not be available in distros, or may be too old for QEMU's
+  requirements.  Many of these, such as the Avocado testing framework
+  or various linters, are written in Python and therefore can also
+  be installed using ``pip``.  Cross compilers are another example
+  of optional build-time dependency; in this case it is possible to
+  download them from repositories such as EPEL, to use container-based
+  cross compilation using ``docker`` or ``podman``, or to use pre-built
+  binaries distributed with QEMU.
+
+
 Windows
 -------
 
