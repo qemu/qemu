@@ -555,7 +555,7 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
 {
     HWVoiceIn *hw = sw->hw;
     size_t samples, live, ret = 0, swlim, isamp, osamp, rpos, total = 0;
-    struct st_sample *src, *dst = sw->buf;
+    struct st_sample *src, *dst = sw->resample_buf.buffer;
 
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
     if (!live) {
@@ -595,10 +595,10 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
     }
 
     if (!hw->pcm_ops->volume_in) {
-        mixeng_volume (sw->buf, ret, &sw->vol);
+        mixeng_volume(sw->resample_buf.buffer, ret, &sw->vol);
     }
 
-    sw->clip (buf, sw->buf, ret);
+    sw->clip(buf, sw->resample_buf.buffer, ret);
     sw->total_hw_samples_acquired += total;
     return ret * sw->info.bytes_per_frame;
 }
@@ -706,10 +706,10 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
     samples = ((int64_t)MIN(dead, hw_free) << 32) / sw->ratio;
     samples = MIN(samples, size / sw->info.bytes_per_frame);
     if (samples) {
-        sw->conv(sw->buf, buf, samples);
+        sw->conv(sw->resample_buf.buffer, buf, samples);
 
         if (!sw->hw->pcm_ops->volume_out) {
-            mixeng_volume(sw->buf, samples, &sw->vol);
+            mixeng_volume(sw->resample_buf.buffer, samples, &sw->vol);
         }
     }
 
@@ -724,7 +724,7 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
         osamp = blck;
         st_rate_flow_mix (
             sw->rate,
-            sw->buf + pos,
+            sw->resample_buf.buffer + pos,
             sw->hw->mix_buf.buffer + wpos,
             &isamp,
             &osamp
@@ -1061,7 +1061,8 @@ static void audio_capture_mix_and_clear(HWVoiceOut *hw, size_t rpos,
                 size_t bytes = to_write * hw->info.bytes_per_frame;
                 size_t written;
 
-                sw->buf = hw->mix_buf.buffer + rpos2;
+                sw->resample_buf.buffer = hw->mix_buf.buffer + rpos2;
+                sw->resample_buf.size = to_write;
                 written = audio_pcm_sw_write (sw, NULL, bytes);
                 if (written - bytes) {
                     dolog("Could not mix %zu bytes into a capture "
