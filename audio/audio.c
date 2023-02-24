@@ -706,56 +706,55 @@ static void audio_pcm_sw_resample_out(SWVoiceOut *sw,
     }
 }
 
-static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
+static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
 {
-    size_t hwsamples, samples, live, dead;
-    size_t hw_free;
-    size_t ret, total;
-
-    hwsamples = sw->hw->mix_buf.size;
+    HWVoiceOut *hw = sw->hw;
+    size_t live, dead, hw_free;
+    size_t frames_in_max, total_in, total_out;
 
     live = sw->total_hw_samples_mixed;
-    if (audio_bug(__func__, live > hwsamples)) {
-        dolog("live=%zu hw->mix_buf.size=%zu\n", live, hwsamples);
+    if (audio_bug(__func__, live > hw->mix_buf.size)) {
+        dolog("live=%zu hw->mix_buf.size=%zu\n", live, hw->mix_buf.size);
         return 0;
     }
 
-    if (live == hwsamples) {
+    if (live == hw->mix_buf.size) {
 #ifdef DEBUG_OUT
         dolog ("%s is full %zu\n", sw->name, live);
 #endif
         return 0;
     }
 
-    dead = hwsamples - live;
-    hw_free = audio_pcm_hw_get_free(sw->hw);
+    dead = hw->mix_buf.size - live;
+    hw_free = audio_pcm_hw_get_free(hw);
     hw_free = hw_free > live ? hw_free - live : 0;
-    samples = ((int64_t)MIN(dead, hw_free) << 32) / sw->ratio;
-    samples = MIN(samples, size / sw->info.bytes_per_frame);
-    if (samples) {
-        sw->conv(sw->resample_buf.buffer, buf, samples);
+    frames_in_max = ((int64_t)MIN(dead, hw_free) << 32) / sw->ratio;
+    frames_in_max = MIN(frames_in_max, buf_len / sw->info.bytes_per_frame);
+    if (frames_in_max) {
+        sw->conv(sw->resample_buf.buffer, buf, frames_in_max);
 
         if (!sw->hw->pcm_ops->volume_out) {
-            mixeng_volume(sw->resample_buf.buffer, samples, &sw->vol);
+            mixeng_volume(sw->resample_buf.buffer, frames_in_max, &sw->vol);
         }
     }
 
-    audio_pcm_sw_resample_out(sw, samples, MIN(dead, hw_free), &ret, &total);
+    audio_pcm_sw_resample_out(sw, frames_in_max, MIN(dead, hw_free),
+                              &total_in, &total_out);
 
-    sw->total_hw_samples_mixed += total;
+    sw->total_hw_samples_mixed += total_out;
     sw->empty = sw->total_hw_samples_mixed == 0;
 
 #ifdef DEBUG_OUT
     dolog (
-        "%s: write size %zu ret %zu total sw %zu\n",
-        SW_NAME (sw),
-        size / sw->info.bytes_per_frame,
-        ret,
+        "%s: write size %zu written %zu total mixed %zu\n",
+        SW_NAME(sw),
+        buf_len / sw->info.bytes_per_frame,
+        total_in,
         sw->total_hw_samples_mixed
         );
 #endif
 
-    return ret * sw->info.bytes_per_frame;
+    return total_in * sw->info.bytes_per_frame;
 }
 
 #ifdef DEBUG_AUDIO
