@@ -39,8 +39,11 @@ enum {
     GDB_PVR0  = 32 + 6,
     GDB_PVR11 = 32 + 17,
     GDB_EDR   = 32 + 18,
-    GDB_SLR   = 32 + 25,
-    GDB_SHR   = 32 + 26,
+};
+
+enum {
+    GDB_SP_SHL,
+    GDB_SP_SHR,
 };
 
 int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
@@ -83,16 +86,27 @@ int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case GDB_EDR:
         val = env->edr;
         break;
-    case GDB_SLR:
-        val = env->slr;
-        break;
-    case GDB_SHR:
-        val = env->shr;
-        break;
     default:
         /* Other SRegs aren't modeled, so report a value of 0 */
         val = 0;
         break;
+    }
+    return gdb_get_reg32(mem_buf, val);
+}
+
+int mb_cpu_gdb_read_stack_protect(CPUMBState *env, GByteArray *mem_buf, int n)
+{
+    uint32_t val;
+
+    switch (n) {
+    case GDB_SP_SHL:
+        val = env->slr;
+        break;
+    case GDB_SP_SHR:
+        val = env->shr;
+        break;
+    default:
+        return 0;
     }
     return gdb_get_reg32(mem_buf, val);
 }
@@ -135,12 +149,21 @@ int mb_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case GDB_EDR:
         env->edr = tmp;
         break;
-    case GDB_SLR:
-        env->slr = tmp;
+    }
+    return 4;
+}
+
+int mb_cpu_gdb_write_stack_protect(CPUMBState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case GDB_SP_SHL:
+        env->slr = ldl_p(mem_buf);
         break;
-    case GDB_SHR:
-        env->shr = tmp;
+    case GDB_SP_SHR:
+        env->shr = ldl_p(mem_buf);
         break;
+    default:
+        return 0;
     }
     return 4;
 }
