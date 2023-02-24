@@ -12,8 +12,8 @@ struct target_rlimit {
 };
 
 struct target_rlimit64 {
-    uint64_t rlim_cur;
-    uint64_t rlim_max;
+    abi_ullong rlim_cur;
+    abi_ullong rlim_max;
 };
 
 #define TARGET_RLIM_INFINITY    ((abi_ulong)-1)
