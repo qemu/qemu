@@ -701,8 +701,8 @@ static void audio_pcm_sw_resample_out(SWVoiceOut *sw,
 static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
 {
     HWVoiceOut *hw = sw->hw;
-    size_t live, dead, hw_free;
-    size_t frames_in_max, total_in, total_out;
+    size_t live, dead, hw_free, sw_max, fe_max;
+    size_t frames_in_max, frames_out_max, total_in, total_out;
 
     live = sw->total_hw_samples_mixed;
     if (audio_bug(__func__, live > hw->mix_buf.size)) {
@@ -720,17 +720,21 @@ static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t buf_len)
     dead = hw->mix_buf.size - live;
     hw_free = audio_pcm_hw_get_free(hw);
     hw_free = hw_free > live ? hw_free - live : 0;
-    frames_in_max = ((int64_t)MIN(dead, hw_free) << 32) / sw->ratio;
-    frames_in_max = MIN(frames_in_max, buf_len / sw->info.bytes_per_frame);
-    if (frames_in_max) {
-        sw->conv(sw->resample_buf.buffer, buf, frames_in_max);
+    frames_out_max = MIN(dead, hw_free);
+    sw_max = st_rate_frames_in(sw->rate, frames_out_max);
+    fe_max = MIN(buf_len / sw->info.bytes_per_frame, sw->resample_buf.size);
+    frames_in_max = MIN(sw_max, fe_max);
 
-        if (!sw->hw->pcm_ops->volume_out) {
-            mixeng_volume(sw->resample_buf.buffer, frames_in_max, &sw->vol);
-        }
+    if (!frames_in_max) {
+        return 0;
     }
 
-    audio_pcm_sw_resample_out(sw, frames_in_max, MIN(dead, hw_free),
+    sw->conv(sw->resample_buf.buffer, buf, frames_in_max);
+    if (!sw->hw->pcm_ops->volume_out) {
+        mixeng_volume(sw->resample_buf.buffer, frames_in_max, &sw->vol);
+    }
+
+    audio_pcm_sw_resample_out(sw, frames_in_max, frames_out_max,
                               &total_in, &total_out);
 
     sw->total_hw_samples_mixed += total_out;
@@ -1000,18 +1004,6 @@ static size_t audio_get_avail (SWVoiceIn *sw)
     return live;
 }
 
-/**
- * audio_frontend_frames_out() - returns the number of frames needed to
- * get frames_out frames after resampling
- *
- * @sw: audio playback frontend
- * @frames_out: number of frames
- */
-static size_t audio_frontend_frames_out(SWVoiceOut *sw, size_t frames_out)
-{
-    return ((int64_t)frames_out << 32) / sw->ratio;
-}
-
 static size_t audio_get_free(SWVoiceOut *sw)
 {
     size_t live, dead;
@@ -1031,8 +1023,8 @@ static size_t audio_get_free(SWVoiceOut *sw)
     dead = sw->hw->mix_buf.size - live;
 
 #ifdef DEBUG_OUT
-    dolog("%s: get_free live %zu dead %zu frontend frames %zu\n",
-          SW_NAME(sw), live, dead, audio_frontend_frames_out(sw, dead));
+    dolog("%s: get_free live %zu dead %zu frontend frames %u\n",
+          SW_NAME(sw), live, dead, st_rate_frames_in(sw->rate, dead));
 #endif
 
     return dead;
@@ -1161,12 +1153,13 @@ static void audio_run_out (AudioState *s)
                 size_t free;
 
                 if (hw_free > sw->total_hw_samples_mixed) {
-                    free = audio_frontend_frames_out(sw,
+                    free = st_rate_frames_in(sw->rate,
                         MIN(sw_free, hw_free - sw->total_hw_samples_mixed));
                 } else {
                     free = 0;
                 }
                 if (free > 0) {
+                    free = MIN(free, sw->resample_buf.size);
                     sw->callback.fn(sw->callback.opaque,
                                     free * sw->info.bytes_per_frame);
                 }
