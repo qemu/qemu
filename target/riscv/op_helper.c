@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
  * Copyright (c) 2017-2018 SiFive, Inc.
+ * Copyright (c) 2022      VRULL GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -121,6 +122,73 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
 
     env->retxh = int128_gethi(rv);
     return int128_getlo(rv);
+}
+
+
+/*
+ * check_zicbo_envcfg
+ *
+ * Raise virtual exceptions and illegal instruction exceptions for
+ * Zicbo[mz] instructions based on the settings of [mhs]envcfg as
+ * specified in section 2.5.1 of the CMO specification.
+ */
+static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
+                                uintptr_t ra)
+{
+#ifndef CONFIG_USER_ONLY
+    if ((env->priv < PRV_M) && !get_field(env->menvcfg, envbits)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+
+    if (riscv_cpu_virt_enabled(env) &&
+        (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
+         ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
+    }
+
+    if ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+#endif
+}
+
+void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    uint16_t cbozlen = cpu->cfg.cboz_blocksize;
+    int mmu_idx = cpu_mmu_index(env, false);
+    uintptr_t ra = GETPC();
+    void *mem;
+
+    check_zicbo_envcfg(env, MENVCFG_CBZE, ra);
+
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbozlen - 1);
+
+    /*
+     * cbo.zero requires MMU_DATA_STORE access. Do a probe_write()
+     * to raise any exceptions, including PMP.
+     */
+    mem = probe_write(env, address, cbozlen, mmu_idx, ra);
+
+    if (likely(mem)) {
+        memset(mem, 0, cbozlen);
+    } else {
+        /*
+         * This means that we're dealing with an I/O page. Section 4.2
+         * of cmobase v1.0.1 says:
+         *
+         * "Cache-block zero instructions store zeros independently
+         * of whether data from the underlying memory locations are
+         * cacheable."
+         *
+         * Write zeros in address + cbozlen regardless of not being
+         * a RAM page.
+         */
+        for (int i = 0; i < cbozlen; i++) {
+            cpu_stb_mmuidx_ra(env, address + i, 0, mmu_idx, ra);
+        }
+    }
 }
 
 #ifndef CONFIG_USER_ONLY
