@@ -579,7 +579,7 @@ static void audio_pcm_sw_resample_in(SWVoiceIn *sw,
 static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t buf_len)
 {
     HWVoiceIn *hw = sw->hw;
-    size_t live, frames_out_max, swlim, total_in, total_out;
+    size_t live, frames_out_max, total_in, total_out;
 
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
     if (!live) {
@@ -590,12 +590,10 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t buf_len)
         return 0;
     }
 
-    frames_out_max = buf_len / sw->info.bytes_per_frame;
+    frames_out_max = MIN(buf_len / sw->info.bytes_per_frame,
+                         sw->resample_buf.size);
 
-    swlim = (live * sw->ratio) >> 32;
-    swlim = MIN(swlim, frames_out_max);
-
-    audio_pcm_sw_resample_in(sw, live, swlim, &total_in, &total_out);
+    audio_pcm_sw_resample_in(sw, live, frames_out_max, &total_in, &total_out);
 
     if (!hw->pcm_ops->volume_in) {
         mixeng_volume(sw->resample_buf.buffer, total_out, &sw->vol);
@@ -979,18 +977,6 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
     }
 }
 
-/**
- * audio_frontend_frames_in() - returns the number of frames the resampling
- * code generates from frames_in frames
- *
- * @sw: audio recording frontend
- * @frames_in: number of frames
- */
-static size_t audio_frontend_frames_in(SWVoiceIn *sw, size_t frames_in)
-{
-    return (int64_t)frames_in * sw->ratio >> 32;
-}
-
 static size_t audio_get_avail (SWVoiceIn *sw)
 {
     size_t live;
@@ -1007,9 +993,9 @@ static size_t audio_get_avail (SWVoiceIn *sw)
     }
 
     ldebug (
-        "%s: get_avail live %zu frontend frames %zu\n",
+        "%s: get_avail live %zu frontend frames %u\n",
         SW_NAME (sw),
-        live, audio_frontend_frames_in(sw, live)
+        live, st_rate_frames_out(sw->rate, live)
         );
 
     return live;
@@ -1314,8 +1300,9 @@ static void audio_run_in (AudioState *s)
                 size_t sw_avail = audio_get_avail(sw);
                 size_t avail;
 
-                avail = audio_frontend_frames_in(sw, sw_avail);
+                avail = st_rate_frames_out(sw->rate, sw_avail);
                 if (avail > 0) {
+                    avail = MIN(avail, sw->resample_buf.size);
                     sw->callback.fn(sw->callback.opaque,
                                     avail * sw->info.bytes_per_frame);
                 }
