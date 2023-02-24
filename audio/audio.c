@@ -576,10 +576,10 @@ static void audio_pcm_sw_resample_in(SWVoiceIn *sw,
     }
 }
 
-static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
+static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t buf_len)
 {
     HWVoiceIn *hw = sw->hw;
-    size_t samples, live, ret, swlim, total;
+    size_t live, frames_out_max, swlim, total_in, total_out;
 
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
     if (!live) {
@@ -590,20 +590,20 @@ static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
         return 0;
     }
 
-    samples = size / sw->info.bytes_per_frame;
+    frames_out_max = buf_len / sw->info.bytes_per_frame;
 
     swlim = (live * sw->ratio) >> 32;
-    swlim = MIN (swlim, samples);
+    swlim = MIN(swlim, frames_out_max);
 
-    audio_pcm_sw_resample_in(sw, live, swlim, &total, &ret);
+    audio_pcm_sw_resample_in(sw, live, swlim, &total_in, &total_out);
 
     if (!hw->pcm_ops->volume_in) {
-        mixeng_volume(sw->resample_buf.buffer, ret, &sw->vol);
+        mixeng_volume(sw->resample_buf.buffer, total_out, &sw->vol);
     }
+    sw->clip(buf, sw->resample_buf.buffer, total_out);
 
-    sw->clip(buf, sw->resample_buf.buffer, ret);
-    sw->total_hw_samples_acquired += total;
-    return ret * sw->info.bytes_per_frame;
+    sw->total_hw_samples_acquired += total_in;
+    return total_out * sw->info.bytes_per_frame;
 }
 
 /*
