@@ -14651,7 +14651,7 @@ static bool is_guarded_page(CPUARMState *env, DisasContext *s)
      * that the TLB entry must be present and valid, and thus this
      * access will never raise an exception.
      */
-    flags = probe_access_full(env, addr, MMU_INST_FETCH, mmu_idx,
+    flags = probe_access_full(env, addr, 0, MMU_INST_FETCH, mmu_idx,
                               false, &host, &full, 0);
     assert(!(flags & TLB_INVALID_MASK));
 

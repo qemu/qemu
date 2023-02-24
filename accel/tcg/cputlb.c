@@ -1589,12 +1589,12 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     return flags;
 }
 
-int probe_access_full(CPUArchState *env, target_ulong addr,
+int probe_access_full(CPUArchState *env, target_ulong addr, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool nonfault, void **phost, CPUTLBEntryFull **pfull,
                       uintptr_t retaddr)
 {
-    int flags = probe_access_internal(env, addr, 0, access_type, mmu_idx,
+    int flags = probe_access_internal(env, addr, size, access_type, mmu_idx,
                                       nonfault, phost, pfull, retaddr);
 
     /* Handle clean RAM pages.  */

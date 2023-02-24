@@ -259,7 +259,7 @@ static bool S1_ptw_translate(CPUARMState *env, S1Translate *ptw,
         int flags;
 
         env->tlb_fi = fi;
-        flags = probe_access_full(env, addr, MMU_DATA_LOAD,
+        flags = probe_access_full(env, addr, 0, MMU_DATA_LOAD,
                                   arm_to_core_mmu_idx(s2_mmu_idx),
                                   true, &ptw->out_host, &full, 0);
         env->tlb_fi = NULL;
