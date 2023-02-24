@@ -1,0 +1,45 @@
+# This file lists the ***oldest possible dependencies*** needed to run
+# "make check" successfully under ***Python 3.6***. It is used primarily
+# by GitLab CI to ensure that our stated minimum versions in setup.cfg
+# are truthful and regularly validated.
+#
+# This file should not contain any dependencies that are not expressed
+# by the [devel] section of setup.cfg, except for transitive
+# dependencies which must be enumerated here explicitly to eliminate
+# dependency resolution ambiguity.
+#
+# When adding new dependencies, pin the very oldest non-yanked version
+# on PyPI that allows the test suite to pass.
+
+# Dependencies for the TUI addon (Required for successful linting)
+urwid==2.1.2
+urwid-readline==0.13
+Pygments==2.9.0
+
+# Dependencies for FUSE support for qom-fuse
+fusepy==2.0.4
+
+# Test-runners, utilities, etc.
+avocado-framework==90.0
+
+# Linters
+flake8==3.6.0
+isort==5.1.2
+mypy==0.780
+pylint==2.8.0
+
+# Transitive flake8 dependencies
+mccabe==0.6.0
+pycodestyle==2.4.0
+pyflakes==2.0.0
+
+# Transitive mypy dependencies
+mypy-extensions==0.4.3
+typed-ast==1.4.0
+typing-extensions==3.7.4
+
+# Transitive pylint dependencies
+astroid==2.5.4
+lazy-object-proxy==1.4.0
+toml==0.10.0
+wrapt==1.12.1

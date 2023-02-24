@@ -198,7 +198,7 @@ class QMPClient(AsyncProtocol[Message], Events):
     logger = logging.getLogger(__name__)
 
     # Read buffer limit; 10MB like libvirt default
-    _limit = (10 * 1024 * 1024)
+    _limit = 10 * 1024 * 1024
 
     # Type alias for pending execute() result items
     _PendingT = Union[Message, ExecInterruptedError]
