@@ -111,10 +111,11 @@ static void scsi_command_complete(void *opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
     scsi_command_complete_noio(r, ret);
     aio_context_release(blk_get_aio_context(s->conf.blk));
 }
@@ -269,10 +270,10 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIDevice *s = r->req.dev;
     int len;
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
 
     if (ret || r->req.io_canceled) {
         scsi_command_complete_noio(r, ret);
@@ -386,10 +387,10 @@ static void scsi_write_complete(void * opaque, int ret)
 
     trace_scsi_generic_write_complete(ret);
 
+    aio_context_acquire(blk_get_aio_context(s->conf.blk));
+
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
 
     if (ret || r->req.io_canceled) {
         scsi_command_complete_noio(r, ret);

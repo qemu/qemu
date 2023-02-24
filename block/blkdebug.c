@@ -626,7 +626,7 @@ static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return -error;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blkdebug_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                    QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -647,7 +647,7 @@ blkdebug_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blkdebug_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                     QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -668,7 +668,7 @@ blkdebug_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn blkdebug_co_flush(BlockDriverState *bs)
+static int GRAPH_RDLOCK coroutine_fn blkdebug_co_flush(BlockDriverState *bs)
 {
     int err = rule_check(bs, 0, 0, BLKDEBUG_IO_TYPE_FLUSH);
 
@@ -679,9 +679,9 @@ static int coroutine_fn blkdebug_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(bs->file->bs);
 }
 
-static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset, int64_t bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+blkdebug_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          BdrvRequestFlags flags)
 {
     uint32_t align = MAX(bs->bl.request_alignment,
                          bs->bl.pwrite_zeroes_alignment);
@@ -712,8 +712,8 @@ static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
-static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+blkdebug_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     uint32_t align = bs->bl.pdiscard_alignment;
     int err;
@@ -967,7 +967,8 @@ static bool blkdebug_debug_is_suspended(BlockDriverState *bs, const char *tag)
     return false;
 }
 
-static int64_t coroutine_fn blkdebug_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blkdebug_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }

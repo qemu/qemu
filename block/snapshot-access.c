@@ -26,7 +26,7 @@
 #include "qemu/cutils.h"
 #include "block/block_int.h"
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_preadv_part(BlockDriverState *bs,
                                int64_t offset, int64_t bytes,
                                QEMUIOVector *qiov, size_t qiov_offset,
@@ -39,7 +39,7 @@ snapshot_access_co_preadv_part(BlockDriverState *bs,
     return bdrv_co_preadv_snapshot(bs->file, offset, bytes, qiov, qiov_offset);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 snapshot_access_co_block_status(BlockDriverState *bs,
                                 bool want_zero, int64_t offset,
                                 int64_t bytes, int64_t *pnum,
@@ -49,8 +49,8 @@ snapshot_access_co_block_status(BlockDriverState *bs,
                                          bytes, pnum, map, file);
 }
 
-static int coroutine_fn snapshot_access_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+snapshot_access_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard_snapshot(bs->file->bs, offset, bytes);
 }

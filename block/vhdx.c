@@ -1172,8 +1172,9 @@ vhdx_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 }
 
 
-static coroutine_fn int vhdx_co_readv(BlockDriverState *bs, int64_t sector_num,
-                                      int nb_sectors, QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+              QEMUIOVector *qiov)
 {
     BDRVVHDXState *s = bs->opaque;
     int ret = 0;
@@ -1324,9 +1325,9 @@ int vhdx_user_visible_write(BlockDriverState *bs, BDRVVHDXState *s)
     return ret;
 }
 
-static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
-                                       int nb_sectors, QEMUIOVector *qiov,
-                                       int flags)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+               QEMUIOVector *qiov, int flags)
 {
     int ret = -ENOTSUP;
     BDRVVHDXState *s = bs->opaque;
@@ -2058,10 +2059,9 @@ delete_and_exit:
     return ret;
 }
 
-static int coroutine_fn vhdx_co_create_opts(BlockDriver *drv,
-                                            const char *filename,
-                                            QemuOpts *opts,
-                                            Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_create_opts(BlockDriver *drv, const char *filename,
+                    QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;

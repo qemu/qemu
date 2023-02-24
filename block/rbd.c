@@ -72,6 +72,16 @@ static const char rbd_luks2_header_verification[
     'L', 'U', 'K', 'S', 0xBA, 0xBE, 0, 2
 };
 
+static const char rbd_layered_luks_header_verification[
+        RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN] = {
+    'R', 'B', 'D', 'L', 0xBA, 0xBE, 0, 1
+};
+
+static const char rbd_layered_luks2_header_verification[
+        RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN] = {
+    'R', 'B', 'D', 'L', 0xBA, 0xBE, 0, 2
+};
+
 typedef enum {
     RBD_AIO_READ,
     RBD_AIO_WRITE,
@@ -386,7 +396,6 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
 {
     int r = 0;
     g_autofree char *passphrase = NULL;
-    size_t passphrase_len;
     rbd_encryption_format_t format;
     rbd_encryption_options_t opts;
     rbd_encryption_luks1_format_options_t luks_opts;
@@ -408,12 +417,12 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
             opts_size = sizeof(luks_opts);
             r = qemu_rbd_convert_luks_create_options(
                     qapi_RbdEncryptionCreateOptionsLUKS_base(&encrypt->u.luks),
-                    &luks_opts.alg, &passphrase, &passphrase_len, errp);
+                    &luks_opts.alg, &passphrase, &luks_opts.passphrase_size,
+                    errp);
             if (r < 0) {
                 return r;
             }
             luks_opts.passphrase = passphrase;
-            luks_opts.passphrase_size = passphrase_len;
             break;
         }
         case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
@@ -424,12 +433,12 @@ static int qemu_rbd_encryption_format(rbd_image_t image,
             r = qemu_rbd_convert_luks_create_options(
                     qapi_RbdEncryptionCreateOptionsLUKS2_base(
                             &encrypt->u.luks2),
-                    &luks2_opts.alg, &passphrase, &passphrase_len, errp);
+                    &luks2_opts.alg, &passphrase, &luks2_opts.passphrase_size,
+                    errp);
             if (r < 0) {
                 return r;
             }
             luks2_opts.passphrase = passphrase;
-            luks2_opts.passphrase_size = passphrase_len;
             break;
         }
         default: {
@@ -468,9 +477,11 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
 {
     int r = 0;
     g_autofree char *passphrase = NULL;
-    size_t passphrase_len;
     rbd_encryption_luks1_format_options_t luks_opts;
     rbd_encryption_luks2_format_options_t luks2_opts;
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
+    rbd_encryption_luks_format_options_t luks_any_opts;
+#endif
     rbd_encryption_format_t format;
     rbd_encryption_options_t opts;
     size_t opts_size;
@@ -483,12 +494,11 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
             opts_size = sizeof(luks_opts);
             r = qemu_rbd_convert_luks_options(
                     qapi_RbdEncryptionOptionsLUKS_base(&encrypt->u.luks),
-                    &passphrase, &passphrase_len, errp);
+                    &passphrase, &luks_opts.passphrase_size, errp);
             if (r < 0) {
                 return r;
             }
             luks_opts.passphrase = passphrase;
-            luks_opts.passphrase_size = passphrase_len;
             break;
         }
         case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
@@ -498,14 +508,29 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
             opts_size = sizeof(luks2_opts);
             r = qemu_rbd_convert_luks_options(
                     qapi_RbdEncryptionOptionsLUKS2_base(&encrypt->u.luks2),
-                    &passphrase, &passphrase_len, errp);
+                    &passphrase, &luks2_opts.passphrase_size, errp);
             if (r < 0) {
                 return r;
             }
             luks2_opts.passphrase = passphrase;
-            luks2_opts.passphrase_size = passphrase_len;
             break;
         }
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
+        case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS_ANY: {
+            memset(&luks_any_opts, 0, sizeof(luks_any_opts));
+            format = RBD_ENCRYPTION_FORMAT_LUKS;
+            opts = &luks_any_opts;
+            opts_size = sizeof(luks_any_opts);
+            r = qemu_rbd_convert_luks_options(
+                    qapi_RbdEncryptionOptionsLUKSAny_base(&encrypt->u.luks_any),
+                    &passphrase, &luks_any_opts.passphrase_size, errp);
+            if (r < 0) {
+                return r;
+            }
+            luks_any_opts.passphrase = passphrase;
+            break;
+        }
+#endif
         default: {
             r = -ENOTSUP;
             error_setg_errno(
@@ -523,6 +548,128 @@ static int qemu_rbd_encryption_load(rbd_image_t image,
 
     return 0;
 }
+
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
+static int qemu_rbd_encryption_load2(rbd_image_t image,
+                                     RbdEncryptionOptions *encrypt,
+                                     Error **errp)
+{
+    int r = 0;
+    int encrypt_count = 1;
+    int i;
+    RbdEncryptionOptions *curr_encrypt;
+    rbd_encryption_spec_t *specs;
+    rbd_encryption_luks1_format_options_t *luks_opts;
+    rbd_encryption_luks2_format_options_t *luks2_opts;
+    rbd_encryption_luks_format_options_t *luks_any_opts;
+
+    /* count encryption options */
+    for (curr_encrypt = encrypt->parent; curr_encrypt;
+         curr_encrypt = curr_encrypt->parent) {
+        ++encrypt_count;
+    }
+
+    specs = g_new0(rbd_encryption_spec_t, encrypt_count);
+
+    curr_encrypt = encrypt;
+    for (i = 0; i < encrypt_count; ++i) {
+        switch (curr_encrypt->format) {
+            case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS: {
+                specs[i].format = RBD_ENCRYPTION_FORMAT_LUKS1;
+
+                luks_opts = g_new0(rbd_encryption_luks1_format_options_t, 1);
+                specs[i].opts = luks_opts;
+                specs[i].opts_size = sizeof(*luks_opts);
+
+                r = qemu_rbd_convert_luks_options(
+                        qapi_RbdEncryptionOptionsLUKS_base(
+                                &curr_encrypt->u.luks),
+                        (char **)&luks_opts->passphrase,
+                        &luks_opts->passphrase_size,
+                        errp);
+                break;
+            }
+            case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
+                specs[i].format = RBD_ENCRYPTION_FORMAT_LUKS2;
+
+                luks2_opts = g_new0(rbd_encryption_luks2_format_options_t, 1);
+                specs[i].opts = luks2_opts;
+                specs[i].opts_size = sizeof(*luks2_opts);
+
+                r = qemu_rbd_convert_luks_options(
+                        qapi_RbdEncryptionOptionsLUKS2_base(
+                                &curr_encrypt->u.luks2),
+                        (char **)&luks2_opts->passphrase,
+                        &luks2_opts->passphrase_size,
+                        errp);
+                break;
+            }
+            case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS_ANY: {
+                specs[i].format = RBD_ENCRYPTION_FORMAT_LUKS;
+
+                luks_any_opts = g_new0(rbd_encryption_luks_format_options_t, 1);
+                specs[i].opts = luks_any_opts;
+                specs[i].opts_size = sizeof(*luks_any_opts);
+
+                r = qemu_rbd_convert_luks_options(
+                        qapi_RbdEncryptionOptionsLUKSAny_base(
+                                &curr_encrypt->u.luks_any),
+                        (char **)&luks_any_opts->passphrase,
+                        &luks_any_opts->passphrase_size,
+                        errp);
+                break;
+            }
+            default: {
+                r = -ENOTSUP;
+                error_setg_errno(
+                        errp, -r, "unknown image encryption format: %u",
+                        curr_encrypt->format);
+            }
+        }
+
+        if (r < 0) {
+            goto exit;
+        }
+
+        curr_encrypt = curr_encrypt->parent;
+    }
+
+    r = rbd_encryption_load2(image, specs, encrypt_count);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "layered encryption load fail");
+        goto exit;
+    }
+
+exit:
+    for (i = 0; i < encrypt_count; ++i) {
+        if (!specs[i].opts) {
+            break;
+        }
+
+        switch (specs[i].format) {
+            case RBD_ENCRYPTION_FORMAT_LUKS1: {
+                luks_opts = specs[i].opts;
+                g_free((void *)luks_opts->passphrase);
+                break;
+            }
+            case RBD_ENCRYPTION_FORMAT_LUKS2: {
+                luks2_opts = specs[i].opts;
+                g_free((void *)luks2_opts->passphrase);
+                break;
+            }
+            case RBD_ENCRYPTION_FORMAT_LUKS: {
+                luks_any_opts = specs[i].opts;
+                g_free((void *)luks_any_opts->passphrase);
+                break;
+            }
+        }
+
+        g_free(specs[i].opts);
+    }
+    g_free(specs);
+    return r;
+}
+#endif
 #endif
 
 /* FIXME Deprecate and remove keypairs or make it available in QMP. */
@@ -989,7 +1136,16 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (opts->encrypt) {
 #ifdef LIBRBD_SUPPORTS_ENCRYPTION
-        r = qemu_rbd_encryption_load(s->image, opts->encrypt, errp);
+        if (opts->encrypt->parent) {
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION_LOAD2
+            r = qemu_rbd_encryption_load2(s->image, opts->encrypt, errp);
+#else
+            r = -ENOTSUP;
+            error_setg(errp, "RBD library does not support layered encryption");
+#endif
+        } else {
+            r = qemu_rbd_encryption_load(s->image, opts->encrypt, errp);
+        }
         if (r < 0) {
             goto failed_post_open;
         }
@@ -1277,6 +1433,16 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
                 RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
         spec_info->u.rbd.data->has_encryption_format = true;
     } else if (memcmp(buf, rbd_luks2_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        spec_info->u.rbd.data->encryption_format =
+                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;
+        spec_info->u.rbd.data->has_encryption_format = true;
+    } else if (memcmp(buf, rbd_layered_luks_header_verification,
+               RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
+        spec_info->u.rbd.data->encryption_format =
+                RBD_IMAGE_ENCRYPTION_FORMAT_LUKS;
+        spec_info->u.rbd.data->has_encryption_format = true;
+    } else if (memcmp(buf, rbd_layered_luks2_header_verification,
                RBD_ENCRYPTION_LUKS_HEADER_VERIFICATION_LEN) == 0) {
         spec_info->u.rbd.data->encryption_format =
                 RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2;

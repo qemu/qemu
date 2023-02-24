@@ -544,7 +544,7 @@ static int coroutine_fn vdi_co_block_status(BlockDriverState *bs,
         (s->header.image_type == VDI_TYPE_STATIC ? BDRV_BLOCK_RECURSE : 0);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vdi_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -600,7 +600,7 @@ vdi_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 vdi_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -898,10 +898,9 @@ static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
     return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
 }
 
-static int coroutine_fn vdi_co_create_opts(BlockDriver *drv,
-                                           const char *filename,
-                                           QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+vdi_co_create_opts(BlockDriver *drv, const char *filename,
+                   QemuOpts *opts, Error **errp)
 {
     QDict *qdict = NULL;
     BlockdevCreateOptions *create_options = NULL;

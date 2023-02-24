@@ -92,8 +92,8 @@ typedef struct BDRVQcowState {
 
 static QemuOptsList qcow_create_opts;
 
-static int coroutine_fn decompress_cluster(BlockDriverState *bs,
-                                           uint64_t cluster_offset);
+static int coroutine_fn GRAPH_RDLOCK
+decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
 
 static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -350,11 +350,10 @@ static int qcow_reopen_prepare(BDRVReopenState *state,
  * return 0 if not allocated, 1 if *result is assigned, and negative
  * errno on failure.
  */
-static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
-                                           uint64_t offset, int allocate,
-                                           int compressed_size,
-                                           int n_start, int n_end,
-                                           uint64_t *result)
+static int coroutine_fn GRAPH_RDLOCK
+get_cluster_offset(BlockDriverState *bs, uint64_t offset, int allocate,
+                   int compressed_size, int n_start, int n_end,
+                   uint64_t *result)
 {
     BDRVQcowState *s = bs->opaque;
     int min_index, i, j, l1_index, l2_index, ret;
@@ -525,11 +524,10 @@ static int coroutine_fn get_cluster_offset(BlockDriverState *bs,
     return 1;
 }
 
-static int coroutine_fn qcow_co_block_status(BlockDriverState *bs,
-                                             bool want_zero,
-                                             int64_t offset, int64_t bytes,
-                                             int64_t *pnum, int64_t *map,
-                                             BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+qcow_co_block_status(BlockDriverState *bs, bool want_zero,
+                     int64_t offset, int64_t bytes, int64_t *pnum,
+                     int64_t *map, BlockDriverState **file)
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster, ret;
@@ -586,8 +584,8 @@ static int decompress_buffer(uint8_t *out_buf, int out_buf_size,
     return 0;
 }
 
-static int coroutine_fn decompress_cluster(BlockDriverState *bs,
-                                           uint64_t cluster_offset)
+static int coroutine_fn GRAPH_RDLOCK
+decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
 {
     BDRVQcowState *s = bs->opaque;
     int ret, csize;
@@ -619,9 +617,9 @@ static void qcow_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = BDRV_SECTOR_SIZE;
 }
 
-static coroutine_fn int qcow_co_preadv(BlockDriverState *bs, int64_t offset,
-                                       int64_t bytes, QEMUIOVector *qiov,
-                                       BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+               QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVQcowState *s = bs->opaque;
     int offset_in_cluster;
@@ -715,9 +713,9 @@ static coroutine_fn int qcow_co_preadv(BlockDriverState *bs, int64_t offset,
     return ret;
 }
 
-static coroutine_fn int qcow_co_pwritev(BlockDriverState *bs, int64_t offset,
-                                        int64_t bytes, QEMUIOVector *qiov,
-                                        BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVQcowState *s = bs->opaque;
     int offset_in_cluster;
@@ -923,9 +921,9 @@ exit:
     return ret;
 }
 
-static int coroutine_fn qcow_co_create_opts(BlockDriver *drv,
-                                            const char *filename,
-                                            QemuOpts *opts, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow_co_create_opts(BlockDriver *drv, const char *filename,
+                    QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs = NULL;
@@ -1046,7 +1044,7 @@ static int qcow_make_empty(BlockDriverState *bs)
 
 /* XXX: put compressed sectors first, then all the cluster aligned
    tables to avoid losing bytes in alignment */
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
                            QEMUIOVector *qiov)
 {

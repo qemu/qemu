@@ -165,9 +165,9 @@ static int64_t block_status(BDRVParallelsState *s, int64_t sector_num,
     return start_off;
 }
 
-static coroutine_fn int64_t allocate_clusters(BlockDriverState *bs,
-                                              int64_t sector_num,
-                                              int nb_sectors, int *pnum)
+static int64_t coroutine_fn GRAPH_RDLOCK
+allocate_clusters(BlockDriverState *bs, int64_t sector_num,
+                  int nb_sectors, int *pnum)
 {
     int ret = 0;
     BDRVParallelsState *s = bs->opaque;
@@ -261,7 +261,8 @@ static coroutine_fn int64_t allocate_clusters(BlockDriverState *bs,
 }
 
 
-static coroutine_fn int parallels_co_flush_to_os(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
     unsigned long size = DIV_ROUND_UP(s->header_size, s->bat_dirty_block);
@@ -320,9 +321,9 @@ static int coroutine_fn parallels_co_block_status(BlockDriverState *bs,
     return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
 }
 
-static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
-                                            int64_t sector_num, int nb_sectors,
-                                            QEMUIOVector *qiov, int flags)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                    QEMUIOVector *qiov, int flags)
 {
     BDRVParallelsState *s = bs->opaque;
     uint64_t bytes_done = 0;
@@ -363,8 +364,9 @@ static coroutine_fn int parallels_co_writev(BlockDriverState *bs,
     return ret;
 }
 
-static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_readv(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                   QEMUIOVector *qiov)
 {
     BDRVParallelsState *s = bs->opaque;
     uint64_t bytes_done = 0;
@@ -414,9 +416,9 @@ static coroutine_fn int parallels_co_readv(BlockDriverState *bs,
 }
 
 
-static int coroutine_fn parallels_co_check(BlockDriverState *bs,
-                                           BdrvCheckResult *res,
-                                           BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
+                   BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
     int64_t size, prev_off, high_off;
@@ -620,10 +622,9 @@ exit:
     goto out;
 }
 
-static int coroutine_fn parallels_co_create_opts(BlockDriver *drv,
-                                                 const char *filename,
-                                                 QemuOpts *opts,
-                                                 Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+parallels_co_create_opts(BlockDriver *drv, const char *filename,
+                         QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs = NULL;

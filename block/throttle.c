@@ -106,15 +106,15 @@ static void throttle_close(BlockDriverState *bs)
 }
 
 
-static int64_t coroutine_fn throttle_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+throttle_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }
 
-static int coroutine_fn throttle_co_preadv(BlockDriverState *bs,
-                                           int64_t offset, int64_t bytes,
-                                           QEMUIOVector *qiov,
-                                           BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                   QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
 
     ThrottleGroupMember *tgm = bs->opaque;
@@ -123,10 +123,9 @@ static int coroutine_fn throttle_co_preadv(BlockDriverState *bs,
     return bdrv_co_preadv(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn throttle_co_pwritev(BlockDriverState *bs,
-                                            int64_t offset, int64_t bytes,
-                                            QEMUIOVector *qiov,
-                                            BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                    QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     throttle_group_co_io_limits_intercept(tgm, bytes, true);
@@ -134,9 +133,9 @@ static int coroutine_fn throttle_co_pwritev(BlockDriverState *bs,
     return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn throttle_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset, int64_t bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          BdrvRequestFlags flags)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     throttle_group_co_io_limits_intercept(tgm, bytes, true);
@@ -144,8 +143,8 @@ static int coroutine_fn throttle_co_pwrite_zeroes(BlockDriverState *bs,
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
-static int coroutine_fn throttle_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     throttle_group_co_io_limits_intercept(tgm, bytes, true);
@@ -153,16 +152,15 @@ static int coroutine_fn throttle_co_pdiscard(BlockDriverState *bs,
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
 
-static int coroutine_fn throttle_co_pwritev_compressed(BlockDriverState *bs,
-                                                       int64_t offset,
-                                                       int64_t bytes,
-                                                       QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+throttle_co_pwritev_compressed(BlockDriverState *bs, int64_t offset,
+                               int64_t bytes, QEMUIOVector *qiov)
 {
     return throttle_co_pwritev(bs, offset, bytes, qiov,
                                BDRV_REQ_WRITE_COMPRESSED);
 }
 
-static int coroutine_fn throttle_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK throttle_co_flush(BlockDriverState *bs)
 {
     return bdrv_co_flush(bs->file->bs);
 }

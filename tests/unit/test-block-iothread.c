@@ -312,7 +312,8 @@ static void test_sync_op_blk_truncate(BlockBackend *blk)
     g_assert_cmpint(ret, ==, -EINVAL);
 }
 
-static void test_sync_op_block_status(BdrvChild *c)
+/* Disable TSA to make bdrv_test.bdrv_co_block_status writable */
+static void TSA_NO_TSA test_sync_op_block_status(BdrvChild *c)
 {
     int ret;
     int64_t n;

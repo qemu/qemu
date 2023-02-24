@@ -601,9 +601,9 @@ static void qcow2_add_check_result(BdrvCheckResult *out,
     }
 }
 
-static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
-                                              BdrvCheckResult *result,
-                                              BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_check_locked(BlockDriverState *bs, BdrvCheckResult *result,
+                      BdrvCheckMode fix)
 {
     BdrvCheckResult snapshot_res = {};
     BdrvCheckResult refcount_res = {};
@@ -640,9 +640,9 @@ static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn qcow2_co_check(BlockDriverState *bs,
-                                       BdrvCheckResult *result,
-                                       BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_check(BlockDriverState *bs, BdrvCheckResult *result,
+               BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -1294,9 +1294,9 @@ static int validate_compression_type(BDRVQcow2State *s, Error **errp)
 }
 
 /* Called with s->lock held.  */
-static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
-                                      int flags, bool open_data_file,
-                                      Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
+              bool open_data_file, Error **errp)
 {
     ERRP_GUARD();
     BDRVQcow2State *s = bs->opaque;
@@ -1890,6 +1890,8 @@ static void coroutine_fn qcow2_open_entry(void *opaque)
     QCow2OpenCo *qoc = opaque;
     BDRVQcow2State *s = qoc->bs->opaque;
 
+    assume_graph_lock(); /* FIXME */
+
     qemu_co_mutex_lock(&s->lock);
     qoc->ret = qcow2_do_open(qoc->bs, qoc->options, qoc->flags, true,
                              qoc->errp);
@@ -2137,9 +2139,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
     return status;
 }
 
-static coroutine_fn int qcow2_handle_l2meta(BlockDriverState *bs,
-                                            QCowL2Meta **pl2meta,
-                                            bool link_l2)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_handle_l2meta(BlockDriverState *bs, QCowL2Meta **pl2meta, bool link_l2)
 {
     int ret = 0;
     QCowL2Meta *l2meta = *pl2meta;
@@ -2170,7 +2171,7 @@ out:
     return ret;
 }
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_preadv_encrypted(BlockDriverState *bs,
                            uint64_t host_offset,
                            uint64_t offset,
@@ -2271,12 +2272,10 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
     return 0;
 }
 
-static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
-                                             QCow2SubclusterType subc_type,
-                                             uint64_t host_offset,
-                                             uint64_t offset, uint64_t bytes,
-                                             QEMUIOVector *qiov,
-                                             size_t qiov_offset)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_preadv_task(BlockDriverState *bs, QCow2SubclusterType subc_type,
+                     uint64_t host_offset, uint64_t offset, uint64_t bytes,
+                     QEMUIOVector *qiov, size_t qiov_offset)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -2315,7 +2314,11 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
     g_assert_not_reached();
 }
 
-static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because qcow2_co_preadv_part() holds
+ * the graph lock and keeps it until this coroutine has terminated.
+ */
+static int coroutine_fn GRAPH_RDLOCK qcow2_co_preadv_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -2326,11 +2329,10 @@ static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
                                 t->qiov, t->qiov_offset);
 }
 
-static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes,
-                                             QEMUIOVector *qiov,
-                                             size_t qiov_offset,
-                                             BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                     QEMUIOVector *qiov, size_t qiov_offset,
+                     BdrvRequestFlags flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret = 0;
@@ -2450,7 +2452,8 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
  * Return 1 if the COW regions read as zeroes, 0 if not, < 0 on error.
  * Note that returning 0 does not guarantee non-zero data.
  */
-static int coroutine_fn is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
+static int coroutine_fn GRAPH_RDLOCK
+is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
 {
     /*
      * This check is designed for optimization shortcut so it must be
@@ -2468,8 +2471,8 @@ static int coroutine_fn is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
                                 m->cow_end.nb_bytes);
 }
 
-static int coroutine_fn handle_alloc_space(BlockDriverState *bs,
-                                           QCowL2Meta *l2meta)
+static int coroutine_fn GRAPH_RDLOCK
+handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowL2Meta *m;
@@ -2532,12 +2535,10 @@ static int coroutine_fn handle_alloc_space(BlockDriverState *bs,
  * l2meta  - if not NULL, qcow2_co_pwritev_task() will consume it. Caller must
  *           not use it somehow after qcow2_co_pwritev_task() call
  */
-static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
-                                              uint64_t host_offset,
-                                              uint64_t offset, uint64_t bytes,
-                                              QEMUIOVector *qiov,
-                                              uint64_t qiov_offset,
-                                              QCowL2Meta *l2meta)
+static coroutine_fn GRAPH_RDLOCK
+int qcow2_co_pwritev_task(BlockDriverState *bs, uint64_t host_offset,
+                          uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
+                          uint64_t qiov_offset, QCowL2Meta *l2meta)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -2603,7 +2604,11 @@ out_locked:
     return ret;
 }
 
-static coroutine_fn int qcow2_co_pwritev_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because qcow2_co_pwritev_part() holds
+ * the graph lock and keeps it until this coroutine has terminated.
+ */
+static coroutine_fn GRAPH_RDLOCK int qcow2_co_pwritev_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -2614,9 +2619,10 @@ static coroutine_fn int qcow2_co_pwritev_task_entry(AioTask *task)
                                  t->l2meta);
 }
 
-static coroutine_fn int qcow2_co_pwritev_part(
-        BlockDriverState *bs, int64_t offset, int64_t bytes,
-        QEMUIOVector *qiov, size_t qiov_offset, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwritev_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                      QEMUIOVector *qiov, size_t qiov_offset,
+                      BdrvRequestFlags flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int offset_in_cluster;
@@ -2771,8 +2777,8 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_do_close(bs, true);
 }
 
-static void coroutine_fn qcow2_co_invalidate_cache(BlockDriverState *bs,
-                                                   Error **errp)
+static void coroutine_fn GRAPH_RDLOCK
+qcow2_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     ERRP_GUARD();
     BDRVQcow2State *s = bs->opaque;
@@ -3183,9 +3189,9 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
  *
  * Returns: 0 on success, -errno on failure.
  */
-static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
-                                       uint64_t new_length, PreallocMode mode,
-                                       Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+preallocate_co(BlockDriverState *bs, uint64_t offset, uint64_t new_length,
+               PreallocMode mode, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
@@ -3810,10 +3816,9 @@ out:
     return ret;
 }
 
-static int coroutine_fn qcow2_co_create_opts(BlockDriver *drv,
-                                             const char *filename,
-                                             QemuOpts *opts,
-                                             Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
+                     Error **errp)
 {
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;
@@ -3974,8 +3979,9 @@ static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return res >= 0 && (res & BDRV_BLOCK_ZERO) && bytes == 0;
 }
 
-static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       BdrvRequestFlags flags)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
@@ -4058,7 +4064,7 @@ static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_copy_range_from(BlockDriverState *bs,
                          BdrvChild *src, int64_t src_offset,
                          BdrvChild *dst, int64_t dst_offset,
@@ -4141,7 +4147,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_copy_range_to(BlockDriverState *bs,
                        BdrvChild *src, int64_t src_offset,
                        BdrvChild *dst, int64_t dst_offset,
@@ -4209,9 +4215,9 @@ fail:
     return ret;
 }
 
-static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
-                                          bool exact, PreallocMode prealloc,
-                                          BdrvRequestFlags flags, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
+                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
@@ -4585,7 +4591,7 @@ fail:
     return ret;
 }
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
                                  uint64_t offset, uint64_t bytes,
                                  QEMUIOVector *qiov, size_t qiov_offset)
@@ -4649,7 +4655,13 @@ fail:
     return ret;
 }
 
-static coroutine_fn int qcow2_co_pwritev_compressed_task_entry(AioTask *task)
+/*
+ * This function can count as GRAPH_RDLOCK because
+ * qcow2_co_pwritev_compressed_part() holds the graph lock and keeps it until
+ * this coroutine has terminated.
+ */
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_pwritev_compressed_task_entry(AioTask *task)
 {
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
@@ -4663,7 +4675,7 @@ static coroutine_fn int qcow2_co_pwritev_compressed_task_entry(AioTask *task)
  * XXX: put compressed sectors first, then all the cluster aligned
  * tables to avoid losing bytes in alignment
  */
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
                                  int64_t offset, int64_t bytes,
                                  QEMUIOVector *qiov, size_t qiov_offset)
@@ -4726,7 +4738,7 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t l2_entry,
                            uint64_t offset,
@@ -5288,8 +5300,8 @@ static int64_t qcow2_check_vmstate_request(BlockDriverState *bs,
     return pos;
 }
 
-static coroutine_fn int qcow2_co_save_vmstate(BlockDriverState *bs,
-                                              QEMUIOVector *qiov, int64_t pos)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {
@@ -5300,8 +5312,8 @@ static coroutine_fn int qcow2_co_save_vmstate(BlockDriverState *bs,
     return bs->drv->bdrv_co_pwritev_part(bs, offset, qiov->size, qiov, 0, 0);
 }
 
-static coroutine_fn int qcow2_co_load_vmstate(BlockDriverState *bs,
-                                              QEMUIOVector *qiov, int64_t pos)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_co_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 {
     int64_t offset = qcow2_check_vmstate_request(bs, qiov, pos);
     if (offset < 0) {

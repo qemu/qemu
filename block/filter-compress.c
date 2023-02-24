@@ -55,45 +55,43 @@ static int compress_open(BlockDriverState *bs, QDict *options, int flags,
 }
 
 
-static int64_t coroutine_fn compress_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+compress_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }
 
 
-static int coroutine_fn compress_co_preadv_part(BlockDriverState *bs,
-                                                int64_t offset, int64_t bytes,
-                                                QEMUIOVector *qiov,
-                                                size_t qiov_offset,
-                                                BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+compress_co_preadv_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, size_t qiov_offset,
+                        BdrvRequestFlags flags)
 {
     return bdrv_co_preadv_part(bs->file, offset, bytes, qiov, qiov_offset,
                                flags);
 }
 
 
-static int coroutine_fn compress_co_pwritev_part(BlockDriverState *bs,
-                                                 int64_t offset,
-                                                 int64_t bytes,
-                                                 QEMUIOVector *qiov,
-                                                 size_t qiov_offset,
-                                                 BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+compress_co_pwritev_part(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                         QEMUIOVector *qiov, size_t qiov_offset,
+                         BdrvRequestFlags flags)
 {
     return bdrv_co_pwritev_part(bs->file, offset, bytes, qiov, qiov_offset,
                                 flags | BDRV_REQ_WRITE_COMPRESSED);
 }
 
 
-static int coroutine_fn compress_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset, int64_t bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+compress_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                          BdrvRequestFlags flags)
 {
     return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 }
 
 
-static int coroutine_fn compress_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+compress_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_co_pdiscard(bs->file, offset, bytes);
 }
@@ -117,14 +115,14 @@ static void compress_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static void coroutine_fn
+static void coroutine_fn GRAPH_RDLOCK
 compress_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     bdrv_co_eject(bs->file->bs, eject_flag);
 }
 
 
-static void coroutine_fn
+static void coroutine_fn GRAPH_RDLOCK
 compress_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     bdrv_co_lock_medium(bs->file->bs, locked);

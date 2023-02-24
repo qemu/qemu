@@ -389,8 +389,10 @@ static void coroutine_fn mirror_co_read(void *opaque)
     op->is_in_flight = true;
     trace_mirror_one_iteration(s, op->offset, op->bytes);
 
-    ret = bdrv_co_preadv(s->mirror_top_bs->backing, op->offset, op->bytes,
-                         &op->qiov, 0);
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = bdrv_co_preadv(s->mirror_top_bs->backing, op->offset, op->bytes,
+                             &op->qiov, 0);
+    }
     mirror_read_complete(op, ret);
 }
 
@@ -557,9 +559,11 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         MirrorMethod mirror_method = MIRROR_METHOD_COPY;
 
         assert(!(offset % s->granularity));
-        ret = bdrv_block_status_above(source, NULL, offset,
-                                      nb_chunks * s->granularity,
-                                      &io_bytes, NULL, NULL);
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_block_status_above(source, NULL, offset,
+                                        nb_chunks * s->granularity,
+                                        &io_bytes, NULL, NULL);
+        }
         if (ret < 0) {
             io_bytes = MIN(nb_chunks * s->granularity, max_io_bytes);
         } else if (ret & BDRV_BLOCK_DATA) {
@@ -862,8 +866,10 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             return 0;
         }
 
-        ret = bdrv_is_allocated_above(bs, s->base_overlay, true, offset, bytes,
-                                      &count);
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_is_allocated_above(bs, s->base_overlay, true, offset,
+                                          bytes, &count);
+        }
         if (ret < 0) {
             return ret;
         }
@@ -895,6 +901,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *bs = s->mirror_top_bs->backing->bs;
+    MirrorBDSOpaque *mirror_top_opaque = s->mirror_top_bs->opaque;
     BlockDriverState *target_bs = blk_bs(s->target);
     bool need_drain = true;
     BlockDeviceIoStatus iostatus;
@@ -909,7 +916,10 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         goto immediate_exit;
     }
 
+    bdrv_graph_co_rdlock();
     s->bdev_length = bdrv_co_getlength(bs);
+    bdrv_graph_co_rdunlock();
+
     if (s->bdev_length < 0) {
         ret = s->bdev_length;
         goto immediate_exit;
@@ -983,6 +993,12 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             goto immediate_exit;
         }
     }
+
+    /*
+     * Only now the job is fully initialised and mirror_top_bs should start
+     * accessing it.
+     */
+    mirror_top_opaque->job = s;
 
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
@@ -1425,15 +1441,17 @@ static void coroutine_fn active_write_settle(MirrorOp *op)
     g_free(op);
 }
 
-static int coroutine_fn bdrv_mirror_top_preadv(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
 }
 
-static int coroutine_fn bdrv_mirror_top_do_write(BlockDriverState *bs,
-    MirrorMethod method, uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
-    int flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
+                         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
+                         int flags)
 {
     MirrorOp *op = NULL;
     MirrorBDSOpaque *s = bs->opaque;
@@ -1482,8 +1500,9 @@ out:
     return ret;
 }
 
-static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     MirrorBDSOpaque *s = bs->opaque;
     QEMUIOVector bounce_qiov;
@@ -1523,7 +1542,7 @@ static int coroutine_fn bdrv_mirror_top_pwritev(BlockDriverState *bs,
     return ret;
 }
 
-static int coroutine_fn bdrv_mirror_top_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK bdrv_mirror_top_flush(BlockDriverState *bs)
 {
     if (bs->backing == NULL) {
         /* we can be here after failed bdrv_append in mirror_start_job */
@@ -1532,15 +1551,16 @@ static int coroutine_fn bdrv_mirror_top_flush(BlockDriverState *bs)
     return bdrv_co_flush(bs->backing->bs);
 }
 
-static int coroutine_fn bdrv_mirror_top_pwrite_zeroes(BlockDriverState *bs,
-    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                              int64_t bytes, BdrvRequestFlags flags)
 {
     return bdrv_mirror_top_do_write(bs, MIRROR_METHOD_ZERO, offset, bytes, NULL,
                                     flags);
 }
 
-static int coroutine_fn bdrv_mirror_top_pdiscard(BlockDriverState *bs,
-    int64_t offset, int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_mirror_top_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return bdrv_mirror_top_do_write(bs, MIRROR_METHOD_DISCARD, offset, bytes,
                                     NULL, 0);
@@ -1703,7 +1723,6 @@ static BlockJob *mirror_start_job(
     if (!s) {
         goto fail;
     }
-    bs_opaque->job = s;
 
     /* The block job now has a reference to this node */
     bdrv_unref(mirror_top_bs);

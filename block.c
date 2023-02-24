@@ -277,8 +277,8 @@ bool bdrv_is_read_only(BlockDriverState *bs)
     return !(bs->open_flags & BDRV_O_RDWR);
 }
 
-int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
-                           bool ignore_allow_rdw, Error **errp)
+static int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only,
+                                  bool ignore_allow_rdw, Error **errp)
 {
     IO_CODE();
 
@@ -533,6 +533,7 @@ int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
     int ret;
     GLOBAL_STATE_CODE();
     ERRP_GUARD();
+    assert_bdrv_graph_readable();
 
     if (!drv->bdrv_co_create_opts) {
         error_setg(errp, "Driver '%s' does not support image creation",
@@ -739,6 +740,7 @@ int coroutine_fn bdrv_co_delete_file(BlockDriverState *bs, Error **errp)
 
     IO_CODE();
     assert(bs != NULL);
+    assert_bdrv_graph_readable();
 
     if (!bs->drv) {
         error_setg(errp, "Block node '%s' is not opened", bs->filename);
@@ -1040,6 +1042,7 @@ int coroutine_fn bdrv_co_refresh_total_sectors(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -5841,6 +5844,7 @@ int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv)
         return -ENOMEDIUM;
@@ -5862,6 +5866,7 @@ int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
 {
     int64_t ret;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     ret = bdrv_co_nb_sectors(bs);
     if (ret < 0) {
@@ -6825,6 +6830,7 @@ bool coroutine_fn bdrv_co_is_inserted(BlockDriverState *bs)
     BlockDriver *drv = bs->drv;
     BdrvChild *child;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         return false;
@@ -6847,6 +6853,7 @@ void coroutine_fn bdrv_co_eject(BlockDriverState *bs, bool eject_flag)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (drv && drv->bdrv_co_eject) {
         drv->bdrv_co_eject(bs, eject_flag);
@@ -6861,6 +6868,7 @@ void coroutine_fn bdrv_co_lock_medium(BlockDriverState *bs, bool locked)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
     trace_bdrv_lock_medium(bs, locked);
 
     if (drv && drv->bdrv_co_lock_medium) {

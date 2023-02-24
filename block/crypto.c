@@ -359,7 +359,7 @@ block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
     return ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
                          PreallocMode prealloc, BdrvRequestFlags flags,
                          Error **errp)
@@ -397,7 +397,7 @@ static int block_crypto_reopen_prepare(BDRVReopenState *state,
  */
 #define BLOCK_CRYPTO_MAX_IO_SIZE (1024 * 1024)
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -459,7 +459,7 @@ block_crypto_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
 }
 
 
-static coroutine_fn int
+static int coroutine_fn GRAPH_RDLOCK
 block_crypto_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                         QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -530,7 +530,8 @@ static void block_crypto_refresh_limits(BlockDriverState *bs, Error **errp)
 }
 
 
-static int64_t coroutine_fn block_crypto_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+block_crypto_co_getlength(BlockDriverState *bs)
 {
     BlockCrypto *crypto = bs->opaque;
     int64_t len = bdrv_co_getlength(bs->file->bs);
@@ -664,10 +665,9 @@ fail:
     return ret;
 }
 
-static int coroutine_fn block_crypto_co_create_opts_luks(BlockDriver *drv,
-                                                         const char *filename,
-                                                         QemuOpts *opts,
-                                                         Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
+                                 QemuOpts *opts, Error **errp)
 {
     QCryptoBlockCreateOptions *create_opts = NULL;
     BlockDriverState *bs = NULL;

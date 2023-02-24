@@ -113,17 +113,19 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
 static void dma_blk_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
+    AioContext *ctx = dbs->ctx;
     dma_addr_t cur_addr, cur_len;
     void *mem;
 
     trace_dma_blk_cb(dbs, ret);
 
+    aio_context_acquire(ctx);
     dbs->acb = NULL;
     dbs->offset += dbs->iov.size;
 
     if (dbs->sg_cur_index == dbs->sg->nsg || ret < 0) {
         dma_complete(dbs, ret);
-        return;
+        goto out;
     }
     dma_blk_unmap(dbs);
 
@@ -164,9 +166,9 @@ static void dma_blk_cb(void *opaque, int ret)
 
     if (dbs->iov.size == 0) {
         trace_dma_map_wait(dbs);
-        dbs->bh = aio_bh_new(dbs->ctx, reschedule_dma, dbs);
+        dbs->bh = aio_bh_new(ctx, reschedule_dma, dbs);
         cpu_register_map_client(dbs->bh);
-        return;
+        goto out;
     }
 
     if (!QEMU_IS_ALIGNED(dbs->iov.size, dbs->align)) {
@@ -174,11 +176,11 @@ static void dma_blk_cb(void *opaque, int ret)
                                 QEMU_ALIGN_DOWN(dbs->iov.size, dbs->align));
     }
 
-    aio_context_acquire(dbs->ctx);
     dbs->acb = dbs->io_func(dbs->offset, &dbs->iov,
                             dma_blk_cb, dbs, dbs->io_func_opaque);
-    aio_context_release(dbs->ctx);
     assert(dbs->acb);
+out:
+    aio_context_release(ctx);
 }
 
 static void dma_aio_cancel(BlockAIOCB *acb)

@@ -394,6 +394,7 @@ int coroutine_fn
 bdrv_co_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
                                        Error **errp)
 {
+    assert_bdrv_graph_readable();
     if (bs->drv && bs->drv->bdrv_co_remove_persistent_dirty_bitmap) {
         return bs->drv->bdrv_co_remove_persistent_dirty_bitmap(bs, name, errp);
     }
@@ -415,6 +416,7 @@ bdrv_co_can_store_new_dirty_bitmap(BlockDriverState *bs, const char *name,
                                    uint32_t granularity, Error **errp)
 {
     BlockDriver *drv = bs->drv;
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         error_setg_errno(errp, ENOMEDIUM,

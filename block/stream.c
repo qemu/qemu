@@ -140,9 +140,11 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         return 0;
     }
 
-    len = bdrv_getlength(s->target_bs);
-    if (len < 0) {
-        return len;
+    WITH_GRAPH_RDLOCK_GUARD() {
+        len = bdrv_co_getlength(s->target_bs);
+        if (len < 0) {
+            return len;
+        }
     }
     job_progress_set_remaining(&s->common.job, len);
 
@@ -160,21 +162,25 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
 
         copy = false;
 
-        ret = bdrv_is_allocated(unfiltered_bs, offset, STREAM_CHUNK, &n);
-        if (ret == 1) {
-            /* Allocated in the top, no need to copy.  */
-        } else if (ret >= 0) {
-            /* Copy if allocated in the intermediate images.  Limit to the
-             * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).  */
-            ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
-                                          s->base_overlay, true,
-                                          offset, n, &n);
-            /* Finish early if end of backing file has been reached */
-            if (ret == 0 && n == 0) {
-                n = len - offset;
-            }
+        WITH_GRAPH_RDLOCK_GUARD() {
+            ret = bdrv_is_allocated(unfiltered_bs, offset, STREAM_CHUNK, &n);
+            if (ret == 1) {
+                /* Allocated in the top, no need to copy.  */
+            } else if (ret >= 0) {
+                /*
+                 * Copy if allocated in the intermediate images.  Limit to the
+                 * known-unallocated area [offset, offset+n*BDRV_SECTOR_SIZE).
+                 */
+                ret = bdrv_is_allocated_above(bdrv_cow_bs(unfiltered_bs),
+                                            s->base_overlay, true,
+                                            offset, n, &n);
+                /* Finish early if end of backing file has been reached */
+                if (ret == 0 && n == 0) {
+                    n = len - offset;
+                }
 
-            copy = (ret > 0);
+                copy = (ret > 0);
+            }
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {

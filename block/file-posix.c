@@ -2607,10 +2607,9 @@ out:
     return result;
 }
 
-static int coroutine_fn raw_co_create_opts(BlockDriver *drv,
-                                           const char *filename,
-                                           QemuOpts *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_create_opts(BlockDriver *drv, const char *filename,
+                   QemuOpts *opts, Error **errp)
 {
     BlockdevCreateOptions options;
     int64_t total_size = 0;
@@ -2920,8 +2919,8 @@ static void coroutine_fn check_cache_dropped(BlockDriverState *bs, Error **errp)
 }
 #endif /* __linux__ */
 
-static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
-                                                 Error **errp)
+static void coroutine_fn GRAPH_RDLOCK
+raw_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -3272,7 +3271,7 @@ static void raw_abort_perm_update(BlockDriverState *bs)
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
-static int coroutine_fn raw_co_copy_range_from(
+static int coroutine_fn GRAPH_RDLOCK raw_co_copy_range_from(
         BlockDriverState *bs, BdrvChild *src, int64_t src_offset,
         BdrvChild *dst, int64_t dst_offset, int64_t bytes,
         BdrvRequestFlags read_flags, BdrvRequestFlags write_flags)
@@ -3281,14 +3280,12 @@ static int coroutine_fn raw_co_copy_range_from(
                                  read_flags, write_flags);
 }
 
-static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
-                                             BdrvChild *src,
-                                             int64_t src_offset,
-                                             BdrvChild *dst,
-                                             int64_t dst_offset,
-                                             int64_t bytes,
-                                             BdrvRequestFlags read_flags,
-                                             BdrvRequestFlags write_flags)
+static int coroutine_fn GRAPH_RDLOCK
+raw_co_copy_range_to(BlockDriverState *bs,
+                     BdrvChild *src, int64_t src_offset,
+                     BdrvChild *dst, int64_t dst_offset,
+                     int64_t bytes, BdrvRequestFlags read_flags,
+                     BdrvRequestFlags write_flags)
 {
     RawPosixAIOData acb;
     BDRVRawState *s = bs->opaque;

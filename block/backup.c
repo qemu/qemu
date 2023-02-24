@@ -269,7 +269,10 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
                 return -ECANCELED;
             }
 
+            /* rdlock protects the subsequent call to bdrv_is_allocated() */
+            bdrv_graph_co_rdlock();
             ret = block_copy_reset_unallocated(s->bcs, offset, &count);
+            bdrv_graph_co_rdunlock();
             if (ret < 0) {
                 return ret;
             }

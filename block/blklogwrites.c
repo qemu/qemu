@@ -267,7 +267,8 @@ static void blk_log_writes_close(BlockDriverState *bs)
     s->log_file = NULL;
 }
 
-static int64_t coroutine_fn blk_log_writes_co_getlength(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_getlength(BlockDriverState *bs)
 {
     return bdrv_co_getlength(bs->file->bs);
 }
@@ -294,7 +295,7 @@ static void blk_log_writes_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = s->sectorsize;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                          QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -307,7 +308,7 @@ typedef struct BlkLogWritesFileReq {
     uint64_t bytes;
     int file_flags;
     QEMUIOVector *qiov;
-    int (*func)(struct BlkLogWritesFileReq *r);
+    int GRAPH_RDLOCK_PTR (*func)(struct BlkLogWritesFileReq *r);
     int file_ret;
 } BlkLogWritesFileReq;
 
@@ -319,7 +320,8 @@ typedef struct {
     int log_ret;
 } BlkLogWritesLogReq;
 
-static void coroutine_fn blk_log_writes_co_do_log(BlkLogWritesLogReq *lr)
+static void coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_do_log(BlkLogWritesLogReq *lr)
 {
     BDRVBlkLogWritesState *s = lr->bs->opaque;
     uint64_t cur_log_offset = s->cur_log_sector << s->sectorbits;
@@ -368,15 +370,16 @@ static void coroutine_fn blk_log_writes_co_do_log(BlkLogWritesLogReq *lr)
     }
 }
 
-static void coroutine_fn blk_log_writes_co_do_file(BlkLogWritesFileReq *fr)
+static void coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_do_file(BlkLogWritesFileReq *fr)
 {
     fr->file_ret = fr->func(fr);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_log(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
                       QEMUIOVector *qiov, int flags,
-                      int (*file_func)(BlkLogWritesFileReq *r),
+                      int /*GRAPH_RDLOCK*/ (*file_func)(BlkLogWritesFileReq *r),
                       uint64_t entry_flags, bool is_zero_write)
 {
     QEMUIOVector log_qiov;
@@ -428,32 +431,33 @@ blk_log_writes_co_log(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     return fr.file_ret;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pwritev(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pwritev(fr->bs->file, fr->offset, fr->bytes,
                            fr->qiov, fr->file_flags);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pwrite_zeroes(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pwrite_zeroes(fr->bs->file, fr->offset, fr->bytes,
                                  fr->file_flags);
 }
 
-static int coroutine_fn blk_log_writes_co_do_file_flush(BlkLogWritesFileReq *fr)
+static int coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_do_file_flush(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_flush(fr->bs->file->bs);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_do_file_pdiscard(BlkLogWritesFileReq *fr)
 {
     return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                           QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
@@ -461,7 +465,7 @@ blk_log_writes_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                                  blk_log_writes_co_do_file_pwritev, 0, false);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                                 int64_t bytes, BdrvRequestFlags flags)
 {
@@ -470,14 +474,15 @@ blk_log_writes_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
                                  true);
 }
 
-static int coroutine_fn blk_log_writes_co_flush_to_disk(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK
+blk_log_writes_co_flush_to_disk(BlockDriverState *bs)
 {
     return blk_log_writes_co_log(bs, 0, 0, NULL, 0,
                                  blk_log_writes_co_do_file_flush,
                                  LOG_FLUSH_FLAG, false);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 blk_log_writes_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     return blk_log_writes_co_log(bs, offset, bytes, NULL, 0,

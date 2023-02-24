@@ -21,8 +21,8 @@
 #include "qemu/memalign.h"
 
 /* Called with table_lock held.  */
-static int coroutine_fn qed_read_table(BDRVQEDState *s, uint64_t offset,
-                                       QEDTable *table)
+static int coroutine_fn GRAPH_RDLOCK
+qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
 {
     unsigned int bytes = s->header.cluster_size * s->header.table_size;
 
@@ -63,9 +63,9 @@ out:
  *
  * Called with table_lock held.
  */
-static int coroutine_fn qed_write_table(BDRVQEDState *s, uint64_t offset,
-                                        QEDTable *table, unsigned int index,
-                                        unsigned int n, bool flush)
+static int coroutine_fn GRAPH_RDLOCK
+qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
+                unsigned int index, unsigned int n, bool flush)
 {
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;

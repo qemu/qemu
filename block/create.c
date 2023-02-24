@@ -43,6 +43,7 @@ static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
     int ret;
 
     GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD();
 
     job_progress_set_remaining(&s->common, 1);
     ret = s->drv->bdrv_co_create(s->opts, errp);
@@ -58,6 +59,12 @@ static const JobDriver blockdev_create_job_driver = {
     .job_type      = JOB_TYPE_CREATE,
     .run           = blockdev_create_run,
 };
+
+/* Checking whether the function is present doesn't require the graph lock */
+static inline bool TSA_NO_TSA has_bdrv_co_create(BlockDriver *drv)
+{
+    return drv->bdrv_co_create;
+}
 
 void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
                          Error **errp)
@@ -79,7 +86,7 @@ void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
     }
 
     /* Error out if the driver doesn't support .bdrv_co_create */
-    if (!drv->bdrv_co_create) {
+    if (!has_bdrv_co_create(drv)) {
         error_setg(errp, "Driver does not support blockdev-create");
         return;
     }

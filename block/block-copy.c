@@ -469,10 +469,9 @@ static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
  * value of @method should be used for subsequent tasks.
  * Returns 0 on success.
  */
-static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
-                                           int64_t offset, int64_t bytes,
-                                           BlockCopyMethod *method,
-                                           bool *error_is_read)
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_do_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
+                   BlockCopyMethod *method, bool *error_is_read)
 {
     int ret;
     int64_t nbytes = MIN(offset + bytes, s->len) - offset;
@@ -558,8 +557,10 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     BlockCopyMethod method = t->method;
     int ret;
 
-    ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
-                             &error_is_read);
+    WITH_GRAPH_RDLOCK_GUARD() {
+        ret = block_copy_do_copy(s, t->req.offset, t->req.bytes, &method,
+                                 &error_is_read);
+    }
 
     WITH_QEMU_LOCK_GUARD(&s->lock) {
         if (s->method == t->method) {
@@ -581,9 +582,9 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
     return ret;
 }
 
-static coroutine_fn int block_copy_block_status(BlockCopyState *s,
-                                                int64_t offset,
-                                                int64_t bytes, int64_t *pnum)
+static coroutine_fn GRAPH_RDLOCK
+int block_copy_block_status(BlockCopyState *s, int64_t offset, int64_t bytes,
+                            int64_t *pnum)
 {
     int64_t num;
     BlockDriverState *base;
@@ -618,9 +619,9 @@ static coroutine_fn int block_copy_block_status(BlockCopyState *s,
  * Check if the cluster starting at offset is allocated or not.
  * return via pnum the number of contiguous clusters sharing this allocation.
  */
-static int coroutine_fn block_copy_is_cluster_allocated(BlockCopyState *s,
-                                                        int64_t offset,
-                                                        int64_t *pnum)
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
+                                int64_t *pnum)
 {
     BlockDriverState *bs = s->source->bs;
     int64_t count, total_count = 0;
@@ -630,6 +631,7 @@ static int coroutine_fn block_copy_is_cluster_allocated(BlockCopyState *s,
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
 
     while (true) {
+        /* protected in backup_run() */
         ret = bdrv_co_is_allocated(bs, offset, bytes, &count);
         if (ret < 0) {
             return ret;
@@ -704,7 +706,7 @@ int64_t coroutine_fn block_copy_reset_unallocated(BlockCopyState *s,
  * Returns 1 if dirty clusters found and successfully copied, 0 if no dirty
  * clusters found and -errno on failure.
  */
-static int coroutine_fn
+static int coroutine_fn GRAPH_RDLOCK
 block_copy_dirty_clusters(BlockCopyCallState *call_state)
 {
     BlockCopyState *s = call_state->s;
@@ -827,7 +829,8 @@ void block_copy_kick(BlockCopyCallState *call_state)
  * it means that some I/O operation failed in context of _this_ block_copy call,
  * not some parallel operation.
  */
-static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
+static int coroutine_fn GRAPH_RDLOCK
+block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
     BlockCopyState *s = call_state->s;
@@ -892,6 +895,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 
 static void coroutine_fn block_copy_async_co_entry(void *opaque)
 {
+    GRAPH_RDLOCK_GUARD();
     block_copy_common(opaque);
 }
 

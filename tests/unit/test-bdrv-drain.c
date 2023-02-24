@@ -933,10 +933,9 @@ static void bdrv_test_top_close(BlockDriverState *bs)
     }
 }
 
-static int coroutine_fn bdrv_test_top_co_preadv(BlockDriverState *bs,
-                                                int64_t offset, int64_t bytes,
-                                                QEMUIOVector *qiov,
-                                                BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_test_top_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                        QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVTestTopState *tts = bs->opaque;
     return bdrv_co_preadv(tts->wait_child, offset, bytes, qiov, flags);
@@ -966,6 +965,8 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     BDRVTestTopState *tts = bs->opaque;
     void *buffer = g_malloc(65536);
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buffer, 65536);
+
+    GRAPH_RDLOCK_GUARD();
 
     /* Pretend some internal write operation from parent to child.
      * Important: We have to read from the child, not from the parent!
@@ -1698,11 +1699,9 @@ static void bdrv_replace_test_close(BlockDriverState *bs)
  * Otherwise:
  *   Set .has_read to true and return success.
  */
-static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
-                                                    int64_t offset,
-                                                    int64_t bytes,
-                                                    QEMUIOVector *qiov,
-                                                    BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+bdrv_replace_test_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                            QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVReplaceTestState *s = bs->opaque;
 
@@ -1778,7 +1777,10 @@ static void coroutine_fn bdrv_replace_test_read_entry(void *opaque)
     int ret;
 
     /* Queue a read request post-drain */
+    bdrv_graph_co_rdlock();
     ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
+    bdrv_graph_co_rdunlock();
+
     g_assert(ret >= 0);
     bdrv_dec_in_flight(bs);
 }

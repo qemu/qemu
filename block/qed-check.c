@@ -107,7 +107,8 @@ static unsigned int qed_check_l2_table(QEDCheck *check, QEDTable *table)
 /**
  * Descend tables and check each cluster is referenced once only
  */
-static int coroutine_fn qed_check_l1_table(QEDCheck *check, QEDTable *table)
+static int coroutine_fn GRAPH_RDLOCK
+qed_check_l1_table(QEDCheck *check, QEDTable *table)
 {
     BDRVQEDState *s = check->s;
     unsigned int i, num_invalid_l1 = 0;
