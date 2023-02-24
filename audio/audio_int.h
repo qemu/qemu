@@ -108,7 +108,6 @@ struct SWVoiceOut {
     AudioState *s;
     struct audio_pcm_info info;
     t_sample *conv;
-    int64_t ratio;
     STSampleBuffer resample_buf;
     void *rate;
     size_t total_hw_samples_mixed;
@@ -126,7 +125,6 @@ struct SWVoiceIn {
     AudioState *s;
     int active;
     struct audio_pcm_info info;
-    int64_t ratio;
     void *rate;
     size_t total_hw_samples_acquired;
     STSampleBuffer resample_buf;

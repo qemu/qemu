@@ -108,32 +108,23 @@ static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
 static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 {
     HW *hw = sw->hw;
-    int samples;
+    uint64_t samples;
 
     if (!glue(audio_get_pdo_, TYPE)(sw->s->dev)->mixing_engine) {
         return 0;
     }
 
-#ifdef DAC
-    samples = ((int64_t)sw->HWBUF.size << 32) / sw->ratio;
-#else
-    samples = (int64_t)sw->HWBUF.size * sw->ratio >> 32;
-#endif
-    if (audio_bug(__func__, samples < 0)) {
-        dolog("Can not allocate buffer for `%s' (%d samples)\n",
-              SW_NAME(sw), samples);
-        return -1;
-    }
-
+    samples = muldiv64(HWBUF.size, sw->info.freq, hw->info.freq);
     if (samples == 0) {
-        size_t f_fe_min;
+        uint64_t f_fe_min;
+        uint64_t f_be = (uint32_t)hw->info.freq;
 
         /* f_fe_min = ceil(1 [frames] * f_be [Hz] / size_be [frames]) */
-        f_fe_min = (hw->info.freq + HWBUF.size - 1) / HWBUF.size;
+        f_fe_min = (f_be + HWBUF.size - 1) / HWBUF.size;
         qemu_log_mask(LOG_UNIMP,
                       AUDIO_CAP ": The guest selected a " NAME " sample rate"
-                      " of %d Hz for %s. Only sample rates >= %zu Hz are"
-                      " supported.\n",
+                      " of %d Hz for %s. Only sample rates >= %" PRIu64 " Hz"
+                      " are supported.\n",
                       sw->info.freq, sw->name, f_fe_min);
         return -1;
     }
@@ -141,9 +132,9 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
     /*
      * Allocate one additional audio frame that is needed for upsampling
      * if the resample buffer size is small. For large buffer sizes take
-     * care of overflows.
+     * care of overflows and truncation.
      */
-    samples = samples < INT_MAX ? samples + 1 : INT_MAX;
+    samples = samples < SIZE_MAX ? samples + 1 : SIZE_MAX;
     sw->resample_buf.buffer = g_new0(st_sample, samples);
     sw->resample_buf.size = samples;
     sw->resample_buf.pos = 0;
@@ -170,11 +161,8 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     sw->hw = hw;
     sw->active = 0;
 #ifdef DAC
-    sw->ratio = ((int64_t) sw->hw->info.freq << 32) / sw->info.freq;
     sw->total_hw_samples_mixed = 0;
     sw->empty = 1;
-#else
-    sw->ratio = ((int64_t) sw->info.freq << 32) / sw->hw->info.freq;
 #endif
 
     if (sw->info.is_float) {
