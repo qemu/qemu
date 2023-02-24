@@ -165,8 +165,7 @@ static RISCVException ctr32(CPURISCVState *env, int csrno)
 #if !defined(CONFIG_USER_ONLY)
 static RISCVException mctr(CPURISCVState *env, int csrno)
 {
-    CPUState *cs = env_cpu(env);
-    RISCVCPU *cpu = RISCV_CPU(cs);
+    int pmu_num = riscv_cpu_cfg(env)->pmu_num;
     int ctr_index;
     int base_csrno = CSR_MHPMCOUNTER3;
 
@@ -175,7 +174,7 @@ static RISCVException mctr(CPURISCVState *env, int csrno)
         base_csrno += 0x80;
     }
     ctr_index = csrno - base_csrno;
-    if (!cpu->cfg.pmu_num || ctr_index >= cpu->cfg.pmu_num) {
+    if (!pmu_num || ctr_index >= pmu_num) {
         /* The PMU is not enabled or counter is out of range*/
         return RISCV_EXCP_ILLEGAL_INST;
     }
