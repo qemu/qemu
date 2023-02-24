@@ -107,6 +107,7 @@ static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
 
 static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 {
+    HW *hw = sw->hw;
     int samples;
 
     if (!glue(audio_get_pdo_, TYPE)(sw->s->dev)->mixing_engine) {
@@ -125,7 +126,6 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
     }
 
     if (samples == 0) {
-        HW *hw = sw->hw;
         size_t f_fe_min;
 
         /* f_fe_min = ceil(1 [frames] * f_be [Hz] / size_be [frames]) */
@@ -149,9 +149,9 @@ static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
     sw->resample_buf.pos = 0;
 
 #ifdef DAC
-    sw->rate = st_rate_start (sw->info.freq, sw->hw->info.freq);
+    sw->rate = st_rate_start(sw->info.freq, hw->info.freq);
 #else
-    sw->rate = st_rate_start (sw->hw->info.freq, sw->info.freq);
+    sw->rate = st_rate_start(hw->info.freq, sw->info.freq);
 #endif
 
     return 0;
