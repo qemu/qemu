@@ -206,10 +206,8 @@ static void gen_add(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
     tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
     tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
-    tcg_temp_free(t0);
 
     tcg_gen_mov_tl(dest, res);
-    tcg_temp_free(res);
 
     gen_ove_cyov(dc);
 }
@@ -224,10 +222,8 @@ static void gen_addc(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
     tcg_gen_xor_tl(cpu_sr_ov, srca, srcb);
     tcg_gen_xor_tl(t0, res, srcb);
     tcg_gen_andc_tl(cpu_sr_ov, t0, cpu_sr_ov);
-    tcg_temp_free(t0);
 
     tcg_gen_mov_tl(dest, res);
-    tcg_temp_free(res);
 
     gen_ove_cyov(dc);
 }
@@ -243,7 +239,6 @@ static void gen_sub(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
     tcg_gen_setcond_tl(TCG_COND_LTU, cpu_sr_cy, srca, srcb);
 
     tcg_gen_mov_tl(dest, res);
-    tcg_temp_free(res);
 
     gen_ove_cyov(dc);
 }
@@ -255,7 +250,6 @@ static void gen_mul(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
     tcg_gen_muls2_tl(dest, cpu_sr_ov, srca, srcb);
     tcg_gen_sari_tl(t0, dest, TARGET_LONG_BITS - 1);
     tcg_gen_setcond_tl(TCG_COND_NE, cpu_sr_ov, cpu_sr_ov, t0);
-    tcg_temp_free(t0);
 
     tcg_gen_neg_tl(cpu_sr_ov, cpu_sr_ov);
     gen_ove_ov(dc);
@@ -278,7 +272,6 @@ static void gen_div(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
        Supress the host-side exception by dividing by 1.  */
     tcg_gen_or_tl(t0, srcb, cpu_sr_ov);
     tcg_gen_div_tl(dest, srca, t0);
-    tcg_temp_free(t0);
 
     tcg_gen_neg_tl(cpu_sr_ov, cpu_sr_ov);
     gen_ove_ov(dc);
@@ -293,7 +286,6 @@ static void gen_divu(DisasContext *dc, TCGv dest, TCGv srca, TCGv srcb)
        Supress the host-side exception by dividing by 1.  */
     tcg_gen_or_tl(t0, srcb, cpu_sr_cy);
     tcg_gen_divu_tl(dest, srca, t0);
-    tcg_temp_free(t0);
 
     gen_ove_cy(dc);
 }
@@ -314,14 +306,11 @@ static void gen_muld(DisasContext *dc, TCGv srca, TCGv srcb)
         tcg_gen_muls2_i64(cpu_mac, high, t1, t2);
         tcg_gen_sari_i64(t1, cpu_mac, 63);
         tcg_gen_setcond_i64(TCG_COND_NE, t1, t1, high);
-        tcg_temp_free_i64(high);
         tcg_gen_trunc_i64_tl(cpu_sr_ov, t1);
         tcg_gen_neg_tl(cpu_sr_ov, cpu_sr_ov);
 
         gen_ove_ov(dc);
     }
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(t2);
 }
 
 static void gen_muldu(DisasContext *dc, TCGv srca, TCGv srcb)
@@ -340,12 +329,9 @@ static void gen_muldu(DisasContext *dc, TCGv srca, TCGv srcb)
         tcg_gen_mulu2_i64(cpu_mac, high, t1, t2);
         tcg_gen_setcondi_i64(TCG_COND_NE, high, high, 0);
         tcg_gen_trunc_i64_tl(cpu_sr_cy, high);
-        tcg_temp_free_i64(high);
 
         gen_ove_cy(dc);
     }
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(t2);
 }
 
 static void gen_mac(DisasContext *dc, TCGv srca, TCGv srcb)
@@ -362,14 +348,12 @@ static void gen_mac(DisasContext *dc, TCGv srca, TCGv srcb)
     tcg_gen_add_i64(cpu_mac, cpu_mac, t1);
     tcg_gen_xor_i64(t1, t1, cpu_mac);
     tcg_gen_andc_i64(t1, t1, t2);
-    tcg_temp_free_i64(t2);
 
 #if TARGET_LONG_BITS == 32
     tcg_gen_extrh_i64_i32(cpu_sr_ov, t1);
 #else
     tcg_gen_mov_i64(cpu_sr_ov, t1);
 #endif
-    tcg_temp_free_i64(t1);
 
     gen_ove_ov(dc);
 }
@@ -382,13 +366,11 @@ static void gen_macu(DisasContext *dc, TCGv srca, TCGv srcb)
     tcg_gen_extu_tl_i64(t1, srca);
     tcg_gen_extu_tl_i64(t2, srcb);
     tcg_gen_mul_i64(t1, t1, t2);
-    tcg_temp_free_i64(t2);
 
     /* Note that overflow is only computed during addition stage.  */
     tcg_gen_add_i64(cpu_mac, cpu_mac, t1);
     tcg_gen_setcond_i64(TCG_COND_LTU, t1, cpu_mac, t1);
     tcg_gen_trunc_i64_tl(cpu_sr_cy, t1);
-    tcg_temp_free_i64(t1);
 
     gen_ove_cy(dc);
 }
@@ -407,14 +389,12 @@ static void gen_msb(DisasContext *dc, TCGv srca, TCGv srcb)
     tcg_gen_sub_i64(cpu_mac, cpu_mac, t1);
     tcg_gen_xor_i64(t1, t1, cpu_mac);
     tcg_gen_and_i64(t1, t1, t2);
-    tcg_temp_free_i64(t2);
 
 #if TARGET_LONG_BITS == 32
     tcg_gen_extrh_i64_i32(cpu_sr_ov, t1);
 #else
     tcg_gen_mov_i64(cpu_sr_ov, t1);
 #endif
-    tcg_temp_free_i64(t1);
 
     gen_ove_ov(dc);
 }
@@ -432,8 +412,6 @@ static void gen_msbu(DisasContext *dc, TCGv srca, TCGv srcb)
     tcg_gen_setcond_i64(TCG_COND_LTU, t2, cpu_mac, t1);
     tcg_gen_sub_i64(cpu_mac, cpu_mac, t1);
     tcg_gen_trunc_i64_tl(cpu_sr_cy, t2);
-    tcg_temp_free_i64(t2);
-    tcg_temp_free_i64(t1);
 
     gen_ove_cy(dc);
 }
@@ -672,7 +650,6 @@ static bool trans_l_lwa(DisasContext *dc, arg_load *a)
     tcg_gen_qemu_ld_tl(cpu_R(dc, a->d), ea, dc->mem_idx, MO_TEUL);
     tcg_gen_mov_tl(cpu_lock_addr, ea);
     tcg_gen_mov_tl(cpu_lock_value, cpu_R(dc, a->d));
-    tcg_temp_free(ea);
     return true;
 }
 
@@ -684,7 +661,6 @@ static void do_load(DisasContext *dc, arg_load *a, MemOp mop)
     ea = tcg_temp_new();
     tcg_gen_addi_tl(ea, cpu_R(dc, a->a), a->i);
     tcg_gen_qemu_ld_tl(cpu_R(dc, a->d), ea, dc->mem_idx, mop);
-    tcg_temp_free(ea);
 }
 
 static bool trans_l_lwz(DisasContext *dc, arg_load *a)
@@ -734,13 +710,11 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
     lab_fail = gen_new_label();
     lab_done = gen_new_label();
     tcg_gen_brcond_tl(TCG_COND_NE, ea, cpu_lock_addr, lab_fail);
-    tcg_temp_free(ea);
 
     val = tcg_temp_new();
     tcg_gen_atomic_cmpxchg_tl(val, cpu_lock_addr, cpu_lock_value,
                               cpu_R(dc, a->b), dc->mem_idx, MO_TEUL);
     tcg_gen_setcond_tl(TCG_COND_EQ, cpu_sr_f, val, cpu_lock_value);
-    tcg_temp_free(val);
 
     tcg_gen_br(lab_done);
 
@@ -757,7 +731,6 @@ static void do_store(DisasContext *dc, arg_store *a, MemOp mop)
     TCGv t0 = tcg_temp_new();
     tcg_gen_addi_tl(t0, cpu_R(dc, a->a), a->i);
     tcg_gen_qemu_st_tl(cpu_R(dc, a->b), t0, dc->mem_idx, mop);
-    tcg_temp_free(t0);
 }
 
 static bool trans_l_sw(DisasContext *dc, arg_store *a)
@@ -866,7 +839,6 @@ static bool trans_l_mfspr(DisasContext *dc, arg_l_mfspr *a)
 
         tcg_gen_ori_tl(spr, cpu_R(dc, a->a), a->k);
         gen_helper_mfspr(cpu_R(dc, a->d), cpu_env, cpu_R(dc, a->d), spr);
-        tcg_temp_free(spr);
     }
     return true;
 }
@@ -897,7 +869,6 @@ static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a)
         spr = tcg_temp_new();
         tcg_gen_ori_tl(spr, cpu_R(dc, a->a), a->k);
         gen_helper_mtspr(cpu_env, spr, cpu_R(dc, a->b));
-        tcg_temp_free(spr);
     }
     return true;
 }
@@ -1349,8 +1320,6 @@ static bool do_dp3(DisasContext *dc, arg_dab_pair *a,
     load_pair(dc, t1, a->b, a->bp);
     fn(t0, cpu_env, t0, t1);
     save_pair(dc, t0, a->d, a->dp);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
 
     gen_helper_update_fpcsr(cpu_env);
     return true;
@@ -1372,7 +1341,6 @@ static bool do_dp2(DisasContext *dc, arg_da_pair *a,
     load_pair(dc, t0, a->a, a->ap);
     fn(t0, cpu_env, t0);
     save_pair(dc, t0, a->d, a->dp);
-    tcg_temp_free_i64(t0);
 
     gen_helper_update_fpcsr(cpu_env);
     return true;
@@ -1399,8 +1367,6 @@ static bool do_dpcmp(DisasContext *dc, arg_ab_pair *a,
     } else {
         fn(cpu_sr_f, cpu_env, t0, t1);
     }
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
 
     if (inv) {
         tcg_gen_xori_tl(cpu_sr_f, cpu_sr_f, 1);
@@ -1457,7 +1423,6 @@ static bool trans_lf_stod_d(DisasContext *dc, arg_lf_stod_d *a)
     t0 = tcg_temp_new_i64();
     gen_helper_stod(t0, cpu_env, cpu_R(dc, a->a));
     save_pair(dc, t0, a->d, a->dp);
-    tcg_temp_free_i64(t0);
 
     gen_helper_update_fpcsr(cpu_env);
     return true;
@@ -1476,7 +1441,6 @@ static bool trans_lf_dtos_d(DisasContext *dc, arg_lf_dtos_d *a)
     t0 = tcg_temp_new_i64();
     load_pair(dc, t0, a->a, a->ap);
     gen_helper_dtos(cpu_R(dc, a->d), cpu_env, t0);
-    tcg_temp_free_i64(t0);
 
     gen_helper_update_fpcsr(cpu_env);
     return true;
@@ -1502,9 +1466,6 @@ static bool trans_lf_madd_d(DisasContext *dc, arg_dab_pair *a)
     load_pair(dc, t2, a->b, a->bp);
     gen_helper_float_madd_d(t0, cpu_env, t0, t1, t2);
     save_pair(dc, t0, a->d, a->dp);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(t2);
 
     gen_helper_update_fpcsr(cpu_env);
     return true;
