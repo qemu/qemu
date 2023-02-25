@@ -205,8 +205,6 @@ static void gen_check_nanbox_h(TCGv_i64 out, TCGv_i64 in)
     TCGv_i64 t_nan = tcg_const_i64(0xffffffffffff7e00ull);
 
     tcg_gen_movcond_i64(TCG_COND_GEU, out, in, t_max, in, t_nan);
-    tcg_temp_free_i64(t_max);
-    tcg_temp_free_i64(t_nan);
 }
 
 static void gen_check_nanbox_s(TCGv_i64 out, TCGv_i64 in)
@@ -621,7 +619,6 @@ static void mark_fs_dirty(DisasContext *ctx)
         tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
         tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS);
         tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
-        tcg_temp_free(tmp);
     }
 
     if (ctx->virt_enabled && ctx->mstatus_hs_fs != MSTATUS_FS) {
@@ -632,7 +629,6 @@ static void mark_fs_dirty(DisasContext *ctx)
         tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
         tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS);
         tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
-        tcg_temp_free(tmp);
     }
 }
 #else
@@ -657,7 +653,6 @@ static void mark_vs_dirty(DisasContext *ctx)
         tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
         tcg_gen_ori_tl(tmp, tmp, MSTATUS_VS);
         tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
-        tcg_temp_free(tmp);
     }
 
     if (ctx->virt_enabled && ctx->mstatus_hs_vs != MSTATUS_VS) {
@@ -668,7 +663,6 @@ static void mark_vs_dirty(DisasContext *ctx)
         tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
         tcg_gen_ori_tl(tmp, tmp, MSTATUS_VS);
         tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
-        tcg_temp_free(tmp);
     }
 }
 #else
@@ -1019,7 +1013,6 @@ static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
         f128(dest, desth, src1, src1h, ext2);
         gen_set_gpr128(ctx, a->rd, dest, desth);
     }
-    tcg_temp_free(ext2);
     return true;
 }
 

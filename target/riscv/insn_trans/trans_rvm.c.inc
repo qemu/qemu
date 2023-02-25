@@ -45,9 +45,6 @@ static void gen_mulhu_i128(TCGv r2, TCGv r3, TCGv al, TCGv ah, TCGv bl, TCGv bh)
 
     tcg_gen_mulu2_tl(tmpl, tmph, ah, bh);
     tcg_gen_add2_tl(r2, r3, r2, r3, tmpl, tmph);
-
-    tcg_temp_free(tmpl);
-    tcg_temp_free(tmph);
 }
 
 static void gen_mul_i128(TCGv rl, TCGv rh,
@@ -63,10 +60,6 @@ static void gen_mul_i128(TCGv rl, TCGv rh,
     tcg_gen_add2_tl(rh, tmpx, rh, zero, tmpl, tmph);
     tcg_gen_mulu2_tl(tmpl, tmph, rs1h, rs2l);
     tcg_gen_add2_tl(rh, tmph, rh, tmpx, tmpl, tmph);
-
-    tcg_temp_free(tmpl);
-    tcg_temp_free(tmph);
-    tcg_temp_free(tmpx);
 }
 
 static bool trans_mul(DisasContext *ctx, arg_mul *a)
@@ -92,11 +85,6 @@ static void gen_mulh_i128(TCGv rl, TCGv rh,
     tcg_gen_and_tl(t1h, t1h, rs1h);
     tcg_gen_sub2_tl(t0l, t0h, rl, rh, t0l, t0h);
     tcg_gen_sub2_tl(rl, rh, t0l, t0h, t1l, t1h);
-
-    tcg_temp_free(t0l);
-    tcg_temp_free(t0h);
-    tcg_temp_free(t1l);
-    tcg_temp_free(t1h);
 }
 
 static void gen_mulh(TCGv ret, TCGv s1, TCGv s2)
@@ -104,7 +92,6 @@ static void gen_mulh(TCGv ret, TCGv s1, TCGv s2)
     TCGv discard = tcg_temp_new();
 
     tcg_gen_muls2_tl(discard, ret, s1, s2);
-    tcg_temp_free(discard);
 }
 
 static void gen_mulh_w(TCGv ret, TCGv s1, TCGv s2)
@@ -132,9 +119,6 @@ static void gen_mulhsu_i128(TCGv rl, TCGv rh,
     tcg_gen_and_tl(t0l, t0h, rs2l);
     tcg_gen_and_tl(t0h, t0h, rs2h);
     tcg_gen_sub2_tl(rl, rh, rl, rh, t0l, t0h);
-
-    tcg_temp_free(t0l);
-    tcg_temp_free(t0h);
 }
 
 static void gen_mulhsu(TCGv ret, TCGv arg1, TCGv arg2)
@@ -147,9 +131,6 @@ static void gen_mulhsu(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_sari_tl(rl, arg1, TARGET_LONG_BITS - 1);
     tcg_gen_and_tl(rl, rl, arg2);
     tcg_gen_sub_tl(ret, rh, rl);
-
-    tcg_temp_free(rl);
-    tcg_temp_free(rh);
 }
 
 static void gen_mulhsu_w(TCGv ret, TCGv arg1, TCGv arg2)
@@ -160,8 +141,6 @@ static void gen_mulhsu_w(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_ext32s_tl(t1, arg1);
     tcg_gen_ext32u_tl(t2, arg2);
     tcg_gen_mul_tl(ret, t1, t2);
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
     tcg_gen_sari_tl(ret, ret, 32);
 }
 
@@ -177,7 +156,6 @@ static void gen_mulhu(TCGv ret, TCGv s1, TCGv s2)
     TCGv discard = tcg_temp_new();
 
     tcg_gen_mulu2_tl(discard, ret, s1, s2);
-    tcg_temp_free(discard);
 }
 
 static bool trans_mulhu(DisasContext *ctx, arg_mulhu *a)
@@ -223,9 +201,6 @@ static void gen_div(TCGv ret, TCGv source1, TCGv source2)
     tcg_gen_movcond_tl(TCG_COND_EQ, temp2, source2, zero, one, temp2);
 
     tcg_gen_div_tl(ret, temp1, temp2);
-
-    tcg_temp_free(temp1);
-    tcg_temp_free(temp2);
 }
 
 static bool trans_div(DisasContext *ctx, arg_div *a)
@@ -258,9 +233,6 @@ static void gen_divu(TCGv ret, TCGv source1, TCGv source2)
     tcg_gen_movcond_tl(TCG_COND_EQ, temp1, source2, zero, max, source1);
     tcg_gen_movcond_tl(TCG_COND_EQ, temp2, source2, zero, one, source2);
     tcg_gen_divu_tl(ret, temp1, temp2);
-
-    tcg_temp_free(temp1);
-    tcg_temp_free(temp2);
 }
 
 static bool trans_divu(DisasContext *ctx, arg_divu *a)
@@ -306,9 +278,6 @@ static void gen_rem(TCGv ret, TCGv source1, TCGv source2)
 
     /* If div by zero, the required result is the original dividend. */
     tcg_gen_movcond_tl(TCG_COND_EQ, ret, source2, zero, source1, temp1);
-
-    tcg_temp_free(temp1);
-    tcg_temp_free(temp2);
 }
 
 static bool trans_rem(DisasContext *ctx, arg_rem *a)
@@ -342,8 +311,6 @@ static void gen_remu(TCGv ret, TCGv source1, TCGv source2)
 
     /* If div by zero, the required result is the original dividend. */
     tcg_gen_movcond_tl(TCG_COND_EQ, ret, source2, zero, source1, temp);
-
-    tcg_temp_free(temp);
 }
 
 static bool trans_remu(DisasContext *ctx, arg_remu *a)
