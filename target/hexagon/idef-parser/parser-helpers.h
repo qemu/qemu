@@ -169,8 +169,6 @@ HexValue gen_imm_value(Context *c __attribute__((unused)),
 HexValue gen_imm_qemu_tmp(Context *c, YYLTYPE *locp, unsigned bit_width,
                           HexSignedness signedness);
 
-void gen_rvalue_free(Context *c, YYLTYPE *locp, HexValue *rvalue);
-
 HexValue rvalue_materialize(Context *c, YYLTYPE *locp, HexValue *rvalue);
 
 HexValue gen_rvalue_extend(Context *c, YYLTYPE *locp, HexValue *rvalue);
@@ -364,8 +362,6 @@ void emit_arg(Context *c, YYLTYPE *locp, HexValue *arg);
 void emit_footer(Context *c);
 
 void track_string(Context *c, GString *s);
-
-void free_variables(Context *c, YYLTYPE *locp);
 
 void free_instruction(Context *c);
 
