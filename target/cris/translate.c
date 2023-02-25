@@ -175,10 +175,7 @@ static const int preg_sizes[] = {
 #define t_gen_mov_env_TN(member, tn) \
     tcg_gen_st_tl(tn, cpu_env, offsetof(CPUCRISState, member))
 #define t_gen_movi_env_TN(member, c) \
-    do { \
-        TCGv tc = tcg_const_tl(c); \
-        t_gen_mov_env_TN(member, tc); \
-    } while (0)
+    t_gen_mov_env_TN(member, tcg_constant_tl(c))
 
 static inline void t_gen_mov_TN_preg(TCGv tn, int r)
 {
@@ -268,8 +265,7 @@ static void cris_lock_irq(DisasContext *dc)
 
 static inline void t_gen_raise_exception(uint32_t index)
 {
-        TCGv_i32 tmp = tcg_const_i32(index);
-        gen_helper_raise_exception(cpu_env, tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(index));
 }
 
 static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
@@ -277,7 +273,7 @@ static void t_gen_lsl(TCGv d, TCGv a, TCGv b)
     TCGv t0, t_31;
 
     t0 = tcg_temp_new();
-    t_31 = tcg_const_tl(31);
+    t_31 = tcg_constant_tl(31);
     tcg_gen_shl_tl(d, a, b);
 
     tcg_gen_sub_tl(t0, t_31, b);
@@ -1250,7 +1246,7 @@ static int dec_addq(CPUCRISState *env, DisasContext *dc)
 
     cris_cc_mask(dc, CC_MASK_NZVC);
 
-    c = tcg_const_tl(dc->op1);
+    c = tcg_constant_tl(dc->op1);
     cris_alu(dc, CC_OP_ADD,
             cpu_R[dc->op2], cpu_R[dc->op2], c, 4);
     return 2;
@@ -1274,7 +1270,7 @@ static int dec_subq(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("subq %u, $r%u\n", dc->op1, dc->op2);
 
     cris_cc_mask(dc, CC_MASK_NZVC);
-    c = tcg_const_tl(dc->op1);
+    c = tcg_constant_tl(dc->op1);
     cris_alu(dc, CC_OP_SUB,
             cpu_R[dc->op2], cpu_R[dc->op2], c, 4);
     return 2;
@@ -1289,7 +1285,7 @@ static int dec_cmpq(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("cmpq %d, $r%d\n", imm, dc->op2);
     cris_cc_mask(dc, CC_MASK_NZVC);
 
-    c = tcg_const_tl(imm);
+    c = tcg_constant_tl(imm);
     cris_alu(dc, CC_OP_CMP,
             cpu_R[dc->op2], cpu_R[dc->op2], c, 4);
     return 2;
@@ -1304,7 +1300,7 @@ static int dec_andq(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("andq %d, $r%d\n", imm, dc->op2);
     cris_cc_mask(dc, CC_MASK_NZ);
 
-    c = tcg_const_tl(imm);
+    c = tcg_constant_tl(imm);
     cris_alu(dc, CC_OP_AND,
             cpu_R[dc->op2], cpu_R[dc->op2], c, 4);
     return 2;
@@ -1318,7 +1314,7 @@ static int dec_orq(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("orq %d, $r%d\n", imm, dc->op2);
     cris_cc_mask(dc, CC_MASK_NZ);
 
-    c = tcg_const_tl(imm);
+    c = tcg_constant_tl(imm);
     cris_alu(dc, CC_OP_OR,
             cpu_R[dc->op2], cpu_R[dc->op2], c, 4);
     return 2;
@@ -1330,7 +1326,7 @@ static int dec_btstq(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("btstq %u, $r%d\n", dc->op1, dc->op2);
 
     cris_cc_mask(dc, CC_MASK_NZ);
-    c = tcg_const_tl(dc->op1);
+    c = tcg_constant_tl(dc->op1);
     cris_evaluate_flags(dc);
     gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->op2],
             c, cpu_PR[PR_CCS]);
@@ -1945,8 +1941,8 @@ static int dec_move_rs(CPUCRISState *env, DisasContext *dc)
 {
     TCGv c2, c1;
     LOG_DIS("move $r%u, $s%u\n", dc->op1, dc->op2);
-    c1 = tcg_const_tl(dc->op1);
-    c2 = tcg_const_tl(dc->op2);
+    c1 = tcg_constant_tl(dc->op1);
+    c2 = tcg_constant_tl(dc->op2);
     cris_cc_mask(dc, 0);
     gen_helper_movl_sreg_reg(cpu_env, c2, c1);
     return 2;
@@ -1955,8 +1951,8 @@ static int dec_move_sr(CPUCRISState *env, DisasContext *dc)
 {
     TCGv c2, c1;
     LOG_DIS("move $s%u, $r%u\n", dc->op2, dc->op1);
-    c1 = tcg_const_tl(dc->op1);
-    c2 = tcg_const_tl(dc->op2);
+    c1 = tcg_constant_tl(dc->op1);
+    c2 = tcg_constant_tl(dc->op2);
     cris_cc_mask(dc, 0);
     gen_helper_movl_reg_sreg(cpu_env, c1, c2);
     return 2;
@@ -2237,7 +2233,7 @@ static int dec_test_m(CPUCRISState *env, DisasContext *dc)
     cris_cc_mask(dc, CC_MASK_NZ);
     tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~3);
 
-    c = tcg_const_tl(0);
+    c = tcg_constant_tl(0);
     cris_alu(dc, CC_OP_CMP,
          cpu_R[dc->op2], t[1], c, memsize_zz(dc));
     do_postinc(dc, memsize);
@@ -2582,7 +2578,7 @@ static int dec_jas_r(CPUCRISState *env, DisasContext *dc)
     if (dc->op2 > 15) {
         abort();
     }
-    c = tcg_const_tl(dc->pc + 4);
+    c = tcg_constant_tl(dc->pc + 4);
     t_gen_mov_preg_TN(dc, dc->op2, c);
 
     cris_prepare_jmp(dc, JMP_INDIRECT);
@@ -2598,7 +2594,7 @@ static int dec_jas_im(CPUCRISState *env, DisasContext *dc)
 
     LOG_DIS("jas 0x%x\n", imm);
     cris_cc_mask(dc, 0);
-    c = tcg_const_tl(dc->pc + 8);
+    c = tcg_constant_tl(dc->pc + 8);
     /* Store the return address in Pd.  */
     t_gen_mov_preg_TN(dc, dc->op2, c);
 
@@ -2616,7 +2612,7 @@ static int dec_jasc_im(CPUCRISState *env, DisasContext *dc)
 
     LOG_DIS("jasc 0x%x\n", imm);
     cris_cc_mask(dc, 0);
-    c = tcg_const_tl(dc->pc + 8 + 4);
+    c = tcg_constant_tl(dc->pc + 8 + 4);
     /* Store the return address in Pd.  */
     t_gen_mov_preg_TN(dc, dc->op2, c);
 
@@ -2632,7 +2628,7 @@ static int dec_jasc_r(CPUCRISState *env, DisasContext *dc)
     cris_cc_mask(dc, 0);
     /* Store the return address in Pd.  */
     tcg_gen_mov_tl(env_btarget, cpu_R[dc->op1]);
-    c = tcg_const_tl(dc->pc + 4 + 4);
+    c = tcg_constant_tl(dc->pc + 4 + 4);
     t_gen_mov_preg_TN(dc, dc->op2, c);
     cris_prepare_jmp(dc, JMP_INDIRECT);
     return 2;
@@ -2664,7 +2660,7 @@ static int dec_bas_im(CPUCRISState *env, DisasContext *dc)
 
     LOG_DIS("bas 0x%x, $p%u\n", dc->pc + simm, dc->op2);
     cris_cc_mask(dc, 0);
-    c = tcg_const_tl(dc->pc + 8);
+    c = tcg_constant_tl(dc->pc + 8);
     /* Store the return address in Pd.  */
     t_gen_mov_preg_TN(dc, dc->op2, c);
 
@@ -2681,7 +2677,7 @@ static int dec_basc_im(CPUCRISState *env, DisasContext *dc)
 
     LOG_DIS("basc 0x%x, $p%u\n", dc->pc + simm, dc->op2);
     cris_cc_mask(dc, 0);
-    c = tcg_const_tl(dc->pc + 12);
+    c = tcg_constant_tl(dc->pc + 12);
     /* Store the return address in Pd.  */
     t_gen_mov_preg_TN(dc, dc->op2, c);
 
@@ -2695,7 +2691,7 @@ static int dec_rfe_etc(CPUCRISState *env, DisasContext *dc)
     cris_cc_mask(dc, 0);
 
     if (dc->op2 == 15) {
-        tcg_gen_st_i32(tcg_const_i32(1), cpu_env,
+        tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
                        -offsetof(CRISCPU, env) + offsetof(CPUState, halted));
         tcg_gen_movi_tl(env_pc, dc->pc + 2);
         t_gen_raise_exception(EXCP_HLT);

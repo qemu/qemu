@@ -251,7 +251,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("moveq %d, $r%d\n", simm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(simm);
+            c = tcg_constant_tl(simm);
             cris_alu(dc, CC_OP_MOVE, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -259,7 +259,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("cmpq %d, $r%d\n", simm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(simm);
+            c = tcg_constant_tl(simm);
             cris_alu(dc, CC_OP_CMP, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -267,7 +267,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("addq %d, $r%d\n", imm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(imm);
+            c = tcg_constant_tl(imm);
             cris_alu(dc, CC_OP_ADD, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -275,7 +275,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("andq %d, $r%d\n", simm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(simm);
+            c = tcg_constant_tl(simm);
             cris_alu(dc, CC_OP_AND, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -285,7 +285,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             cris_cc_mask(dc, CC_MASK_NZVC);
             op = imm & (1 << 5);
             imm &= 0x1f;
-            c = tcg_const_tl(imm);
+            c = tcg_constant_tl(imm);
             if (op) {
                 cris_alu(dc, CC_OP_ASR, cpu_R[dc->dst],
                           cpu_R[dc->dst], c, 4);
@@ -305,7 +305,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             }
             imm &= 0x1f;
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(imm);
+            c = tcg_constant_tl(imm);
             cris_alu(dc, op, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -313,7 +313,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("subq %d, $r%d\n", imm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(imm);
+            c = tcg_constant_tl(imm);
             cris_alu(dc, CC_OP_SUB, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -321,7 +321,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("andq %d, $r%d\n", simm, dc->dst);
 
             cris_cc_mask(dc, CC_MASK_NZVC);
-            c = tcg_const_tl(simm);
+            c = tcg_constant_tl(simm);
             cris_alu(dc, CC_OP_OR, cpu_R[dc->dst],
                      cpu_R[dc->dst], c, 4);
             break;
@@ -1014,7 +1014,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                 cris_alu_m_alloc_temps(t);
                 insn_len += dec10_prep_move_m(env, dc, 0, size, t[0]);
                 tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~3);
-                c = tcg_const_tl(0);
+                c = tcg_constant_tl(0);
                 cris_alu(dc, CC_OP_CMP, cpu_R[dc->dst],
                          t[0], c, size);
                 break;
@@ -1111,7 +1111,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                 if (dc->mode == CRISV10_MODE_AUTOINC)
                     insn_len += size;
 
-                c = tcg_const_tl(dc->pc + insn_len);
+                c = tcg_constant_tl(dc->pc + insn_len);
                 t_gen_mov_preg_TN(dc, dc->dst, c);
                 dc->jmp_pc = imm;
                 cris_prepare_jmp(dc, JMP_DIRECT);
@@ -1121,7 +1121,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                     LOG_DIS("break %d\n", dc->src);
                     cris_evaluate_flags(dc);
                     tcg_gen_movi_tl(env_pc, dc->pc + 2);
-                    c = tcg_const_tl(dc->src + 2);
+                    c = tcg_constant_tl(dc->src + 2);
                     t_gen_mov_env_TN(trap_vector, c);
                     t_gen_raise_exception(EXCP_BREAK);
                     dc->base.is_jmp = DISAS_NORETURN;
@@ -1130,7 +1130,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
                 LOG_DIS("%d: jump.%d %d r%d r%d\n", __LINE__, size,
                          dc->opcode, dc->src, dc->dst);
                 t[0] = tcg_temp_new();
-                c = tcg_const_tl(dc->pc + insn_len);
+                c = tcg_constant_tl(dc->pc + insn_len);
                 t_gen_mov_preg_TN(dc, dc->dst, c);
                 crisv10_prepare_memaddr(dc, t[0], size);
                 gen_load(dc, env_btarget, t[0], 4, 0);
@@ -1153,7 +1153,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
             LOG_DIS("jmp pc=%x opcode=%d r%d r%d\n",
                         dc->pc, dc->opcode, dc->dst, dc->src);
             tcg_gen_mov_tl(env_btarget, cpu_R[dc->src]);
-            c = tcg_const_tl(dc->pc + insn_len);
+            c = tcg_constant_tl(dc->pc + insn_len);
             t_gen_mov_preg_TN(dc, dc->dst, c);
             cris_prepare_jmp(dc, JMP_INDIRECT);
             dc->delayed_branch--; /* v10 has no dslot here.  */
