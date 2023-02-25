@@ -1288,12 +1288,13 @@ static bool trans_SBRS(DisasContext *ctx, arg_SBRS *a)
  */
 static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
 {
-    TCGv temp = tcg_const_i32(a->reg);
+    TCGv data = tcg_temp_new_i32();
+    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(temp, cpu_env, temp);
-    tcg_gen_andi_tl(temp, temp, 1 << a->bit);
+    gen_helper_inb(data, cpu_env, port);
+    tcg_gen_andi_tl(data, data, 1 << a->bit);
     ctx->skip_cond = TCG_COND_EQ;
-    ctx->skip_var0 = temp;
+    ctx->skip_var0 = data;
 
     return true;
 }
@@ -1305,12 +1306,13 @@ static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
  */
 static bool trans_SBIS(DisasContext *ctx, arg_SBIS *a)
 {
-    TCGv temp = tcg_const_i32(a->reg);
+    TCGv data = tcg_temp_new_i32();
+    TCGv port = tcg_constant_i32(a->reg);
 
-    gen_helper_inb(temp, cpu_env, temp);
-    tcg_gen_andi_tl(temp, temp, 1 << a->bit);
+    gen_helper_inb(data, cpu_env, port);
+    tcg_gen_andi_tl(data, data, 1 << a->bit);
     ctx->skip_cond = TCG_COND_NE;
-    ctx->skip_var0 = temp;
+    ctx->skip_var0 = data;
 
     return true;
 }
