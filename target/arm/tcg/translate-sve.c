@@ -4721,7 +4721,7 @@ static bool trans_LD_zprr(DisasContext *s, arg_rprr_load *a)
         return false;
     }
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_ld_zpa(s, a->rd, a->pg, addr, a->dtype, a->nreg);
@@ -4737,7 +4737,7 @@ static bool trans_LD_zpri(DisasContext *s, arg_rpri_load *a)
     if (sve_access_check(s)) {
         int vsz = vec_full_reg_size(s);
         int elements = vsz >> dtype_esz[a->dtype];
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
 
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn),
                          (a->imm * elements * (a->nreg + 1))
@@ -4840,7 +4840,7 @@ static bool trans_LDFF1_zprr(DisasContext *s, arg_rprr_load *a)
     }
     s->is_nonstreaming = true;
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_mem_zpa(s, a->rd, a->pg, addr, a->dtype, 1, false,
@@ -4945,7 +4945,7 @@ static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a)
         int vsz = vec_full_reg_size(s);
         int elements = vsz >> dtype_esz[a->dtype];
         int off = (a->imm * elements) << dtype_msz(a->dtype);
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
 
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), off);
         do_mem_zpa(s, a->rd, a->pg, addr, a->dtype, 1, false,
@@ -5003,7 +5003,7 @@ static bool trans_LD1RQ_zprr(DisasContext *s, arg_rprr_load *a)
     }
     if (sve_access_check(s)) {
         int msz = dtype_msz(a->dtype);
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), msz);
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_ldrq(s, a->rd, a->pg, addr, a->dtype);
@@ -5017,7 +5017,7 @@ static bool trans_LD1RQ_zpri(DisasContext *s, arg_rpri_load *a)
         return false;
     }
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), a->imm * 16);
         do_ldrq(s, a->rd, a->pg, addr, a->dtype);
     }
@@ -5097,7 +5097,7 @@ static bool trans_LD1RO_zprr(DisasContext *s, arg_rprr_load *a)
     }
     s->is_nonstreaming = true;
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), dtype_msz(a->dtype));
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_ldro(s, a->rd, a->pg, addr, a->dtype);
@@ -5112,7 +5112,7 @@ static bool trans_LD1RO_zpri(DisasContext *s, arg_rpri_load *a)
     }
     s->is_nonstreaming = true;
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), a->imm * 32);
         do_ldro(s, a->rd, a->pg, addr, a->dtype);
     }
@@ -5307,7 +5307,7 @@ static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a)
         return false;
     }
     if (sve_access_check(s)) {
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), a->msz);
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
         do_st_zpa(s, a->rd, a->pg, addr, a->msz, a->esz, a->nreg);
@@ -5326,7 +5326,7 @@ static bool trans_ST_zpri(DisasContext *s, arg_rpri_store *a)
     if (sve_access_check(s)) {
         int vsz = vec_full_reg_size(s);
         int elements = vsz >> a->esz;
-        TCGv_i64 addr = new_tmp_a64(s);
+        TCGv_i64 addr = tcg_temp_new_i64();
 
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn),
                          (a->imm * elements * (a->nreg + 1)) << a->msz);

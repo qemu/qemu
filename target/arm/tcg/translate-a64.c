@@ -224,7 +224,7 @@ static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
 
 TCGv_i64 clean_data_tbi(DisasContext *s, TCGv_i64 addr)
 {
-    TCGv_i64 clean = new_tmp_a64(s);
+    TCGv_i64 clean = tcg_temp_new_i64();
 #ifdef CONFIG_USER_ONLY
     gen_top_byte_ignore(s, clean, addr, s->tbid);
 #else
@@ -269,7 +269,7 @@ static TCGv_i64 gen_mte_check1_mmuidx(DisasContext *s, TCGv_i64 addr,
         desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
         desc = FIELD_DP32(desc, MTEDESC, SIZEM1, (1 << log2_size) - 1);
 
-        ret = new_tmp_a64(s);
+        ret = tcg_temp_new_i64();
         gen_helper_mte_check(ret, cpu_env, tcg_constant_i32(desc), addr);
 
         return ret;
@@ -300,7 +300,7 @@ TCGv_i64 gen_mte_checkN(DisasContext *s, TCGv_i64 addr, bool is_write,
         desc = FIELD_DP32(desc, MTEDESC, WRITE, is_write);
         desc = FIELD_DP32(desc, MTEDESC, SIZEM1, size - 1);
 
-        ret = new_tmp_a64(s);
+        ret = tcg_temp_new_i64();
         gen_helper_mte_check(ret, cpu_env, tcg_constant_i32(desc), addr);
 
         return ret;
@@ -408,14 +408,9 @@ static void gen_goto_tb(DisasContext *s, int n, int64_t diff)
     }
 }
 
-TCGv_i64 new_tmp_a64(DisasContext *s)
-{
-    return tcg_temp_new_i64();
-}
-
 TCGv_i64 new_tmp_a64_zero(DisasContext *s)
 {
-    TCGv_i64 t = new_tmp_a64(s);
+    TCGv_i64 t = tcg_temp_new_i64();
     tcg_gen_movi_i64(t, 0);
     return t;
 }
@@ -456,7 +451,7 @@ TCGv_i64 cpu_reg_sp(DisasContext *s, int reg)
  */
 TCGv_i64 read_cpu_reg(DisasContext *s, int reg, int sf)
 {
-    TCGv_i64 v = new_tmp_a64(s);
+    TCGv_i64 v = tcg_temp_new_i64();
     if (reg != 31) {
         if (sf) {
             tcg_gen_mov_i64(v, cpu_X[reg]);
@@ -471,7 +466,7 @@ TCGv_i64 read_cpu_reg(DisasContext *s, int reg, int sf)
 
 TCGv_i64 read_cpu_reg_sp(DisasContext *s, int reg, int sf)
 {
-    TCGv_i64 v = new_tmp_a64(s);
+    TCGv_i64 v = tcg_temp_new_i64();
     if (sf) {
         tcg_gen_mov_i64(v, cpu_X[reg]);
     } else {
@@ -1984,7 +1979,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
             desc = FIELD_DP32(desc, MTEDESC, TBI, s->tbid);
             desc = FIELD_DP32(desc, MTEDESC, TCMA, s->tcma);
 
-            tcg_rt = new_tmp_a64(s);
+            tcg_rt = tcg_temp_new_i64();
             gen_helper_mte_check_zva(tcg_rt, cpu_env,
                                      tcg_constant_i32(desc), cpu_reg(s, rt));
         } else {
@@ -2293,7 +2288,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
                 modifier = new_tmp_a64_zero(s);
             }
             if (s->pauth_active) {
-                dst = new_tmp_a64(s);
+                dst = tcg_temp_new_i64();
                 if (op3 == 2) {
                     gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
                 } else {
@@ -2311,7 +2306,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (opc == 1) {
             TCGv_i64 lr = cpu_reg(s, 30);
             if (dst == lr) {
-                TCGv_i64 tmp = new_tmp_a64(s);
+                TCGv_i64 tmp = tcg_temp_new_i64();
                 tcg_gen_mov_i64(tmp, dst);
                 dst = tmp;
             }
@@ -2330,7 +2325,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         }
         btype_mod = opc & 1;
         if (s->pauth_active) {
-            dst = new_tmp_a64(s);
+            dst = tcg_temp_new_i64();
             modifier = cpu_reg_sp(s, op4);
             if (op3 == 2) {
                 gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
@@ -2344,7 +2339,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (opc == 9) {
             TCGv_i64 lr = cpu_reg(s, 30);
             if (dst == lr) {
-                TCGv_i64 tmp = new_tmp_a64(s);
+                TCGv_i64 tmp = tcg_temp_new_i64();
                 tcg_gen_mov_i64(tmp, dst);
                 dst = tmp;
             }
@@ -2912,7 +2907,7 @@ static void disas_ld_lit(DisasContext *s, uint32_t insn)
 
     tcg_rt = cpu_reg(s, rt);
 
-    clean_addr = new_tmp_a64(s);
+    clean_addr = tcg_temp_new_i64();
     gen_pc_plus_diff(s, clean_addr, imm);
     if (is_vector) {
         do_fp_ld(s, rt, clean_addr, size);
@@ -5167,7 +5162,7 @@ static void disas_adc_sbc(DisasContext *s, uint32_t insn)
     tcg_rn = cpu_reg(s, rn);
 
     if (op) {
-        tcg_y = new_tmp_a64(s);
+        tcg_y = tcg_temp_new_i64();
         tcg_gen_not_i64(tcg_y, cpu_reg(s, rm));
     } else {
         tcg_y = cpu_reg(s, rm);
@@ -5295,7 +5290,7 @@ static void disas_cc(DisasContext *s, uint32_t insn)
 
     /* Load the arguments for the new comparison.  */
     if (is_imm) {
-        tcg_y = new_tmp_a64(s);
+        tcg_y = tcg_temp_new_i64();
         tcg_gen_movi_i64(tcg_y, y);
     } else {
         tcg_y = cpu_reg(s, y);
@@ -5724,8 +5719,8 @@ static void handle_div(DisasContext *s, bool is_signed, unsigned int sf,
     tcg_rd = cpu_reg(s, rd);
 
     if (!sf && is_signed) {
-        tcg_n = new_tmp_a64(s);
-        tcg_m = new_tmp_a64(s);
+        tcg_n = tcg_temp_new_i64();
+        tcg_m = tcg_temp_new_i64();
         tcg_gen_ext32s_i64(tcg_n, cpu_reg(s, rn));
         tcg_gen_ext32s_i64(tcg_m, cpu_reg(s, rm));
     } else {
@@ -5790,7 +5785,7 @@ static void handle_crc32(DisasContext *s,
         default:
             g_assert_not_reached();
         }
-        tcg_val = new_tmp_a64(s);
+        tcg_val = tcg_temp_new_i64();
         tcg_gen_andi_i64(tcg_val, cpu_reg(s, rm), mask);
     }
 
@@ -7062,7 +7057,7 @@ static void handle_fpfpcvt(DisasContext *s, int rd, int rn, int opcode,
     if (itof) {
         TCGv_i64 tcg_int = cpu_reg(s, rn);
         if (!sf) {
-            TCGv_i64 tcg_extend = new_tmp_a64(s);
+            TCGv_i64 tcg_extend = tcg_temp_new_i64();
 
             if (is_signed) {
                 tcg_gen_ext32s_i64(tcg_extend, tcg_int);
@@ -10707,8 +10702,8 @@ static void handle_vec_simd_wshli(DisasContext *s, bool is_q, bool is_u,
     int dsize = 64;
     int esize = 8 << size;
     int elements = dsize/esize;
-    TCGv_i64 tcg_rn = new_tmp_a64(s);
-    TCGv_i64 tcg_rd = new_tmp_a64(s);
+    TCGv_i64 tcg_rn = tcg_temp_new_i64();
+    TCGv_i64 tcg_rd = tcg_temp_new_i64();
     int i;
 
     if (size >= 3) {
