@@ -18,17 +18,8 @@
 #include "exec/plugin-gen.h"
 #include "exec/replay-core.h"
 
-/* Pairs with tcg_clear_temp_count.
-   To be called by #TranslatorOps.{translate_insn,tb_stop} if
-   (1) the target is sufficiently clean to support reporting,
-   (2) as and when all temporaries are known to be consumed.
-   For most targets, (2) is at the end of translate_insn.  */
 void translator_loop_temp_check(DisasContextBase *db)
 {
-    if (tcg_check_temp_count()) {
-        qemu_log("warning: TCG temporary leaks before "
-                 TARGET_FMT_lx "\n", db->pc_next);
-    }
 }
 
 bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
@@ -66,9 +57,6 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
 
     ops->init_disas_context(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
-
-    /* Reset the temp count so that we can identify leaks */
-    tcg_clear_temp_count();
 
     /* Start translating.  */
     gen_tb_start(db->tb);
