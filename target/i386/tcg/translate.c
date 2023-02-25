@@ -899,10 +899,6 @@ static void gen_compute_eflags(DisasContext *s)
     gen_update_cc_op(s);
     gen_helper_cc_compute_all(cpu_cc_src, dst, src1, src2, cpu_cc_op);
     set_cc_op(s, CC_OP_EFLAGS);
-
-    if (dead) {
-        tcg_temp_free(zero);
-    }
 }
 
 typedef struct CCPrepare {
@@ -1650,7 +1646,6 @@ static void gen_shift_flags(DisasContext *s, MemOp ot, TCGv result,
     } else {
         tcg_gen_mov_tl(cpu_cc_src, shm1);
     }
-    tcg_temp_free(z_tl);
 
     /* Get the two potential CC_OP values into temporaries.  */
     tcg_gen_movi_i32(s->tmp2_i32, (is_right ? CC_OP_SARB : CC_OP_SHLB) + ot);
@@ -1666,8 +1661,6 @@ static void gen_shift_flags(DisasContext *s, MemOp ot, TCGv result,
     s32 = tcg_temp_new_i32();
     tcg_gen_trunc_tl_i32(s32, count);
     tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, s32, z32, s->tmp2_i32, oldop);
-    tcg_temp_free_i32(z32);
-    tcg_temp_free_i32(s32);
 
     /* The CC_OP value is no longer predictable.  */
     set_cc_op(s, CC_OP_DYNAMIC);
@@ -1827,8 +1820,6 @@ static void gen_rot_rm_T1(DisasContext *s, MemOp ot, int op1, int is_right)
     tcg_gen_movi_i32(s->tmp3_i32, CC_OP_EFLAGS);
     tcg_gen_movcond_i32(TCG_COND_NE, cpu_cc_op, t1, t0,
                         s->tmp2_i32, s->tmp3_i32);
-    tcg_temp_free_i32(t0);
-    tcg_temp_free_i32(t1);
 
     /* The CC_OP value is no longer predictable.  */
     set_cc_op(s, CC_OP_DYNAMIC);
@@ -2049,7 +2040,6 @@ static void gen_shiftd_rm_T1(DisasContext *s, MemOp ot, int op1,
     gen_op_st_rm_T0_A0(s, ot, op1);
 
     gen_shift_flags(s, ot, s->T0, s->tmp0, count, is_right);
-    tcg_temp_free(count);
 }
 
 static void gen_shift(DisasContext *s1, int op, MemOp ot, int d, int s)
@@ -2513,13 +2503,6 @@ static void gen_cmovcc1(CPUX86State *env, DisasContext *s, MemOp ot, int b,
     tcg_gen_movcond_tl(cc.cond, s->T0, cc.reg, cc.reg2,
                        s->T0, cpu_regs[reg]);
     gen_op_mov_reg_v(s, ot, reg, s->T0);
-
-    if (cc.mask != -1) {
-        tcg_temp_free(cc.reg);
-    }
-    if (!cc.use_reg2) {
-        tcg_temp_free(cc.reg2);
-    }
 }
 
 static inline void gen_op_movl_T0_seg(DisasContext *s, X86Seg seg_reg)
@@ -2748,7 +2731,6 @@ static void gen_set_hflag(DisasContext *s, uint32_t mask)
         tcg_gen_ld_i32(t, cpu_env, offsetof(CPUX86State, hflags));
         tcg_gen_ori_i32(t, t, mask);
         tcg_gen_st_i32(t, cpu_env, offsetof(CPUX86State, hflags));
-        tcg_temp_free_i32(t);
         s->flags |= mask;
     }
 }
@@ -2760,7 +2742,6 @@ static void gen_reset_hflag(DisasContext *s, uint32_t mask)
         tcg_gen_ld_i32(t, cpu_env, offsetof(CPUX86State, hflags));
         tcg_gen_andi_i32(t, t, ~mask);
         tcg_gen_st_i32(t, cpu_env, offsetof(CPUX86State, hflags));
-        tcg_temp_free_i32(t);
         s->flags &= ~mask;
     }
 }
@@ -2772,7 +2753,6 @@ static void gen_set_eflags(DisasContext *s, target_ulong mask)
     tcg_gen_ld_tl(t, cpu_env, offsetof(CPUX86State, eflags));
     tcg_gen_ori_tl(t, t, mask);
     tcg_gen_st_tl(t, cpu_env, offsetof(CPUX86State, eflags));
-    tcg_temp_free(t);
 }
 
 static void gen_reset_eflags(DisasContext *s, target_ulong mask)
@@ -2782,7 +2762,6 @@ static void gen_reset_eflags(DisasContext *s, target_ulong mask)
     tcg_gen_ld_tl(t, cpu_env, offsetof(CPUX86State, eflags));
     tcg_gen_andi_tl(t, t, ~mask);
     tcg_gen_st_tl(t, cpu_env, offsetof(CPUX86State, eflags));
-    tcg_temp_free(t);
 }
 
 /* Clear BND registers during legacy branches.  */
@@ -3015,13 +2994,11 @@ static void gen_cmpxchg8b(DisasContext *s, CPUX86State *env, int modrm)
         tcg_gen_nonatomic_cmpxchg_i64(old, s->A0, cmp, val,
                                       s->mem_index, MO_TEUQ);
     }
-    tcg_temp_free_i64(val);
 
     /* Set tmp0 to match the required value of Z. */
     tcg_gen_setcond_i64(TCG_COND_EQ, cmp, old, cmp);
     Z = tcg_temp_new();
     tcg_gen_trunc_i64_tl(Z, cmp);
-    tcg_temp_free_i64(cmp);
 
     /*
      * Extract the result values for the register pair.
@@ -3042,12 +3019,10 @@ static void gen_cmpxchg8b(DisasContext *s, CPUX86State *env, int modrm)
         tcg_gen_movcond_tl(TCG_COND_EQ, cpu_regs[R_EDX], Z, zero,
                            s->T1, cpu_regs[R_EDX]);
     }
-    tcg_temp_free_i64(old);
 
     /* Update Z. */
     gen_compute_eflags(s);
     tcg_gen_deposit_tl(cpu_cc_src, cpu_cc_src, Z, ctz32(CC_Z), 1);
-    tcg_temp_free(Z);
 }
 
 #ifdef TARGET_X86_64
@@ -3072,8 +3047,6 @@ static void gen_cmpxchg16b(DisasContext *s, CPUX86State *env, int modrm)
     }
 
     tcg_gen_extr_i128_i64(s->T0, s->T1, val);
-    tcg_temp_free_i128(cmp);
-    tcg_temp_free_i128(val);
 
     /* Determine success after the fact. */
     t0 = tcg_temp_new_i64();
@@ -3081,13 +3054,11 @@ static void gen_cmpxchg16b(DisasContext *s, CPUX86State *env, int modrm)
     tcg_gen_xor_i64(t0, s->T0, cpu_regs[R_EAX]);
     tcg_gen_xor_i64(t1, s->T1, cpu_regs[R_EDX]);
     tcg_gen_or_i64(t0, t0, t1);
-    tcg_temp_free_i64(t1);
 
     /* Update Z. */
     gen_compute_eflags(s);
     tcg_gen_setcondi_i64(TCG_COND_EQ, t0, t0, 0);
     tcg_gen_deposit_tl(cpu_cc_src, cpu_cc_src, t0, ctz32(CC_Z), 1);
-    tcg_temp_free_i64(t0);
 
     /*
      * Extract the result values for the register pair.  We may do this
@@ -3437,10 +3408,8 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 tcg_gen_neg_tl(t1, t0);
                 tcg_gen_atomic_cmpxchg_tl(t0, a0, t0, t1,
                                           s->mem_index, ot | MO_LE);
-                tcg_temp_free(t1);
                 tcg_gen_brcond_tl(TCG_COND_NE, t0, t2, label1);
 
-                tcg_temp_free(t2);
                 tcg_gen_neg_tl(s->T0, t0);
             } else {
                 tcg_gen_neg_tl(s->T0, s->T0);
@@ -3927,9 +3896,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             tcg_gen_mov_tl(s->cc_srcT, cmpv);
             tcg_gen_sub_tl(cpu_cc_dst, cmpv, oldv);
             set_cc_op(s, CC_OP_SUBB + ot);
-            tcg_temp_free(oldv);
-            tcg_temp_free(newv);
-            tcg_temp_free(cmpv);
         }
         break;
     case 0x1c7: /* cmpxchg8b */
@@ -4380,7 +4346,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (shift) {
             TCGv imm = tcg_const_tl(x86_ldub_code(env, s));
             gen_shiftd_rm_T1(s, ot, opreg, op, imm);
-            tcg_temp_free(imm);
         } else {
             gen_shiftd_rm_T1(s, ot, opreg, op, cpu_regs[R_ECX]);
         }
@@ -4614,7 +4579,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                     tcg_gen_st_tl(last_addr, cpu_env,
                                   offsetof(CPUX86State, fpdp));
                 }
-                tcg_temp_free(last_addr);
             } else {
                 /* register float ops */
                 opreg = rm;
@@ -6279,9 +6243,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_compute_eflags(s);
             tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~CC_Z);
             tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t2);
-            tcg_temp_free(t0);
-            tcg_temp_free(t1);
-            tcg_temp_free(t2);
         }
         break;
     case 0x102: /* lar */
@@ -6308,7 +6269,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_op_mov_reg_v(s, ot, reg, t0);
             gen_set_label(label1);
             set_cc_op(s, CC_OP_EFLAGS);
-            tcg_temp_free(t0);
         }
         break;
     case 0x118:
@@ -6353,7 +6313,6 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 TCGv_i64 notu = tcg_temp_new_i64();
                 tcg_gen_not_i64(notu, cpu_bndu[reg]);
                 gen_bndck(env, s, modrm, TCG_COND_GTU, notu);
-                tcg_temp_free_i64(notu);
             } else if (prefixes & PREFIX_DATA) {
                 /* bndmov -- from reg/mem */
                 if (reg >= 4 || s->aflag == MO_16) {
