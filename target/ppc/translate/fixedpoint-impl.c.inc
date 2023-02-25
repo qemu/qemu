@@ -42,8 +42,6 @@ static bool do_ldst(DisasContext *ctx, int rt, int ra, TCGv displ, bool update,
     if (update) {
         tcg_gen_mov_tl(cpu_gpr[ra], ea);
     }
-    tcg_temp_free(ea);
-
     return true;
 }
 
@@ -149,7 +147,6 @@ static bool do_ldst_quad(DisasContext *ctx, arg_D *a, bool store, bool prefixed)
             tcg_gen_qemu_ld_i64(high_addr_gpr, ea, ctx->mem_idx, mop);
         }
     }
-    tcg_temp_free(ea);
 #else
     qemu_build_not_reached();
 #endif
@@ -389,8 +386,6 @@ static bool do_set_bool_cond(DisasContext *ctx, arg_X_bi *a, bool neg, bool rev)
     if (neg) {
         tcg_gen_neg_tl(cpu_gpr[a->rt], cpu_gpr[a->rt]);
     }
-    tcg_temp_free(temp);
-
     return true;
 }
 
@@ -437,9 +432,6 @@ static void do_cntzdm(TCGv_i64 dst, TCGv_i64 src, TCGv_i64 mask, int64_t trail)
     }
 
     tcg_gen_ctpop_i64(dst, t0);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
 }
 
 static bool trans_CNTLZDM(DisasContext *ctx, arg_X *a)
@@ -519,11 +511,6 @@ static bool trans_ADDG6S(DisasContext *ctx, arg_X *a)
 
     tcg_gen_xori_tl(carry, carry, (target_long)carry_bits);
     tcg_gen_muli_tl(cpu_gpr[a->rt], carry, 6);
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-    tcg_temp_free(carry);
-
     return true;
 }
 
@@ -564,9 +551,6 @@ static bool do_hash(DisasContext *ctx, arg_X *a, bool priv,
 
     ea = do_ea_calc(ctx, a->ra, tcg_constant_tl(a->rt));
     helper(cpu_env, ea, cpu_gpr[a->ra], cpu_gpr[a->rb]);
-
-    tcg_temp_free(ea);
-
     return true;
 }
 

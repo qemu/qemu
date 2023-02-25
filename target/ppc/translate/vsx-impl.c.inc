@@ -40,8 +40,6 @@ static void gen_##name(DisasContext *ctx)                     \
     gen_qemu_##operation(ctx, t0, EA);                        \
     set_cpu_vsr(xT(ctx->opcode), t0, true);                   \
     /* NOTE: cpu_vsrl is undefined */                         \
-    tcg_temp_free(EA);                                        \
-    tcg_temp_free_i64(t0);                                    \
 }
 
 VSX_LOAD_SCALAR(lxsdx, ld64_i64)
@@ -68,8 +66,6 @@ static void gen_lxvd2x(DisasContext *ctx)
     tcg_gen_addi_tl(EA, EA, 8);
     gen_qemu_ld64_i64(ctx, t0, EA);
     set_cpu_vsr(xT(ctx->opcode), t0, false);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_lxvw4x(DisasContext *ctx)
@@ -99,8 +95,6 @@ static void gen_lxvw4x(DisasContext *ctx)
         tcg_gen_qemu_ld_i64(t0, EA, ctx->mem_idx, MO_LEUQ);
         tcg_gen_shri_i64(t1, t0, 32);
         tcg_gen_deposit_i64(xtl, t1, t0, 32, 32);
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
     } else {
         tcg_gen_qemu_ld_i64(xth, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
@@ -108,9 +102,6 @@ static void gen_lxvw4x(DisasContext *ctx)
     }
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
 }
 
 static void gen_lxvwsx(DisasContext *ctx)
@@ -138,9 +129,6 @@ static void gen_lxvwsx(DisasContext *ctx)
     data = tcg_temp_new_i32();
     tcg_gen_qemu_ld_i32(data, EA, ctx->mem_idx, DEF_MEMOP(MO_UL));
     tcg_gen_gvec_dup_i32(MO_UL, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
-
-    tcg_temp_free(EA);
-    tcg_temp_free_i32(data);
 }
 
 static void gen_lxvdsx(DisasContext *ctx)
@@ -161,9 +149,6 @@ static void gen_lxvdsx(DisasContext *ctx)
     data = tcg_temp_new_i64();
     tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, DEF_MEMOP(MO_UQ));
     tcg_gen_gvec_dup_i64(MO_UQ, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
-
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(data);
 }
 
 static void gen_bswap16x8(TCGv_i64 outh, TCGv_i64 outl,
@@ -186,10 +171,6 @@ static void gen_bswap16x8(TCGv_i64 outh, TCGv_i64 outl,
     tcg_gen_shri_i64(t1, inl, 8);
     tcg_gen_and_i64(t1, t1, mask);
     tcg_gen_or_i64(outl, t0, t1);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(mask);
 }
 
 static void gen_bswap32x4(TCGv_i64 outh, TCGv_i64 outl,
@@ -204,10 +185,8 @@ static void gen_bswap32x4(TCGv_i64 outh, TCGv_i64 outl,
     tcg_gen_deposit_i64(outh, outh, hi, 32, 32);
     tcg_gen_shri_i64(outl, lo, 32);
     tcg_gen_deposit_i64(outl, outl, lo, 32, 32);
-
-    tcg_temp_free_i64(hi);
-    tcg_temp_free_i64(lo);
 }
+
 static void gen_lxvh8x(DisasContext *ctx)
 {
     TCGv EA;
@@ -232,9 +211,6 @@ static void gen_lxvh8x(DisasContext *ctx)
     }
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
 }
 
 static void gen_lxvb16x(DisasContext *ctx)
@@ -257,9 +233,6 @@ static void gen_lxvb16x(DisasContext *ctx)
     tcg_gen_qemu_ld_i64(xtl, EA, ctx->mem_idx, MO_BEUQ);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
 }
 
 #ifdef TARGET_PPC64
@@ -285,8 +258,6 @@ static void gen_##name(DisasContext *ctx)                          \
     gen_set_access_type(ctx, ACCESS_INT);                          \
     gen_addr_register(ctx, EA);                                    \
     gen_helper_##name(cpu_env, EA, xt, cpu_gpr[rB(ctx->opcode)]);  \
-    tcg_temp_free(EA);                                             \
-    tcg_temp_free_ptr(xt);                                         \
 }
 
 VSX_VECTOR_LOAD_STORE_LENGTH(lxvl)
@@ -310,8 +281,6 @@ static void gen_##name(DisasContext *ctx)                     \
     gen_addr_reg_index(ctx, EA);                              \
     get_cpu_vsr(t0, xS(ctx->opcode), true);                   \
     gen_qemu_##operation(ctx, t0, EA);                        \
-    tcg_temp_free(EA);                                        \
-    tcg_temp_free_i64(t0);                                    \
 }
 
 VSX_STORE_SCALAR(stxsdx, st64_i64)
@@ -338,8 +307,6 @@ static void gen_stxvd2x(DisasContext *ctx)
     tcg_gen_addi_tl(EA, EA, 8);
     get_cpu_vsr(t0, xS(ctx->opcode), false);
     gen_qemu_st64_i64(ctx, t0, EA);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_stxvw4x(DisasContext *ctx)
@@ -370,16 +337,11 @@ static void gen_stxvw4x(DisasContext *ctx)
         tcg_gen_shri_i64(t0, xsl, 32);
         tcg_gen_deposit_i64(t1, t0, xsl, 32, 32);
         tcg_gen_qemu_st_i64(t1, EA, ctx->mem_idx, MO_LEUQ);
-        tcg_temp_free_i64(t0);
-        tcg_temp_free_i64(t1);
     } else {
         tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
         tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
     }
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xsh);
-    tcg_temp_free_i64(xsl);
 }
 
 static void gen_stxvh8x(DisasContext *ctx)
@@ -407,16 +369,11 @@ static void gen_stxvh8x(DisasContext *ctx)
         tcg_gen_qemu_st_i64(outh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
         tcg_gen_qemu_st_i64(outl, EA, ctx->mem_idx, MO_BEUQ);
-        tcg_temp_free_i64(outh);
-        tcg_temp_free_i64(outl);
     } else {
         tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
         tcg_gen_addi_tl(EA, EA, 8);
         tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
     }
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xsh);
-    tcg_temp_free_i64(xsl);
 }
 
 static void gen_stxvb16x(DisasContext *ctx)
@@ -439,9 +396,6 @@ static void gen_stxvb16x(DisasContext *ctx)
     tcg_gen_qemu_st_i64(xsh, EA, ctx->mem_idx, MO_BEUQ);
     tcg_gen_addi_tl(EA, EA, 8);
     tcg_gen_qemu_st_i64(xsl, EA, ctx->mem_idx, MO_BEUQ);
-    tcg_temp_free(EA);
-    tcg_temp_free_i64(xsh);
-    tcg_temp_free_i64(xsl);
 }
 
 static void gen_mfvsrwz(DisasContext *ctx)
@@ -462,8 +416,6 @@ static void gen_mfvsrwz(DisasContext *ctx)
     get_cpu_vsr(xsh, xS(ctx->opcode), true);
     tcg_gen_ext32u_i64(tmp, xsh);
     tcg_gen_trunc_i64_tl(cpu_gpr[rA(ctx->opcode)], tmp);
-    tcg_temp_free_i64(tmp);
-    tcg_temp_free_i64(xsh);
 }
 
 static void gen_mtvsrwa(DisasContext *ctx)
@@ -484,8 +436,6 @@ static void gen_mtvsrwa(DisasContext *ctx)
     tcg_gen_extu_tl_i64(tmp, cpu_gpr[rA(ctx->opcode)]);
     tcg_gen_ext32s_i64(xsh, tmp);
     set_cpu_vsr(xT(ctx->opcode), xsh, true);
-    tcg_temp_free_i64(tmp);
-    tcg_temp_free_i64(xsh);
 }
 
 static void gen_mtvsrwz(DisasContext *ctx)
@@ -506,8 +456,6 @@ static void gen_mtvsrwz(DisasContext *ctx)
     tcg_gen_extu_tl_i64(tmp, cpu_gpr[rA(ctx->opcode)]);
     tcg_gen_ext32u_i64(xsh, tmp);
     set_cpu_vsr(xT(ctx->opcode), xsh, true);
-    tcg_temp_free_i64(tmp);
-    tcg_temp_free_i64(xsh);
 }
 
 #if defined(TARGET_PPC64)
@@ -528,7 +476,6 @@ static void gen_mfvsrd(DisasContext *ctx)
     t0 = tcg_temp_new_i64();
     get_cpu_vsr(t0, xS(ctx->opcode), true);
     tcg_gen_mov_i64(cpu_gpr[rA(ctx->opcode)], t0);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_mtvsrd(DisasContext *ctx)
@@ -548,7 +495,6 @@ static void gen_mtvsrd(DisasContext *ctx)
     t0 = tcg_temp_new_i64();
     tcg_gen_mov_i64(t0, cpu_gpr[rA(ctx->opcode)]);
     set_cpu_vsr(xT(ctx->opcode), t0, true);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_mfvsrld(DisasContext *ctx)
@@ -568,7 +514,6 @@ static void gen_mfvsrld(DisasContext *ctx)
     t0 = tcg_temp_new_i64();
     get_cpu_vsr(t0, xS(ctx->opcode), false);
     tcg_gen_mov_i64(cpu_gpr[rA(ctx->opcode)], t0);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_mtvsrdd(DisasContext *ctx)
@@ -596,7 +541,6 @@ static void gen_mtvsrdd(DisasContext *ctx)
 
     tcg_gen_mov_i64(t0, cpu_gpr[rB(ctx->opcode)]);
     set_cpu_vsr(xT(ctx->opcode), t0, false);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_mtvsrws(DisasContext *ctx)
@@ -619,7 +563,6 @@ static void gen_mtvsrws(DisasContext *ctx)
                         cpu_gpr[rA(ctx->opcode)], 32, 32);
     set_cpu_vsr(xT(ctx->opcode), t0, false);
     set_cpu_vsr(xT(ctx->opcode), t0, true);
-    tcg_temp_free_i64(t0);
 }
 
 #endif
@@ -666,14 +609,11 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
                 tcg_gen_and_i64(xa, xa, sgm);                     \
                 tcg_gen_andc_i64(xb, xb, sgm);                    \
                 tcg_gen_or_i64(xb, xb, xa);                       \
-                tcg_temp_free_i64(xa);                            \
                 break;                                            \
             }                                                     \
         }                                                         \
         set_cpu_vsr(xT(ctx->opcode), xb, true);                   \
         set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false); \
-        tcg_temp_free_i64(xb);                                    \
-        tcg_temp_free_i64(sgm);                                   \
     }
 
 VSX_SCALAR_MOVE(xsabsdp, OP_ABS, SGN_MASK_DP)
@@ -717,15 +657,10 @@ static void glue(gen_, name)(DisasContext *ctx)                   \
         tcg_gen_and_i64(xah, tmp, sgm);                           \
         tcg_gen_andc_i64(xbh, xbh, sgm);                          \
         tcg_gen_or_i64(xbh, xbh, xah);                            \
-        tcg_temp_free_i64(xah);                                   \
         break;                                                    \
     }                                                             \
     set_cpu_vsr(xt, xbh, true);                                   \
     set_cpu_vsr(xt, xbl, false);                                  \
-    tcg_temp_free_i64(xbl);                                       \
-    tcg_temp_free_i64(xbh);                                       \
-    tcg_temp_free_i64(sgm);                                       \
-    tcg_temp_free_i64(tmp);                                       \
 }
 
 VSX_SCALAR_MOVE_QP(xsabsqp, OP_ABS, SGN_MASK_DP)
@@ -870,11 +805,7 @@ static void gen_##name(DisasContext *ctx)                                     \
     } else {                                                                  \
         ignored = tcg_temp_new_i32();                                         \
         gen_helper_##name(ignored, cpu_env, xt, xa, xb);                      \
-        tcg_temp_free_i32(ignored);                                           \
     }                                                                         \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 VSX_CMP(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
@@ -899,10 +830,6 @@ static bool trans_XSCVQPDP(DisasContext *ctx, arg_X_tb_rc *a)
     xt = gen_avr_ptr(a->rt);
     xb = gen_avr_ptr(a->rb);
     gen_helper_XSCVQPDP(cpu_env, ro, xt, xb);
-    tcg_temp_free_i32(ro);
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -917,9 +844,6 @@ static bool do_helper_env_X_tb(DisasContext *ctx, arg_X_tb *a,
     xt = gen_avr_ptr(a->rt);
     xb = gen_avr_ptr(a->rb);
     gen_helper(cpu_env, xt, xb);
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -938,7 +862,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     }                                                                         \
     opc = tcg_const_i32(ctx->opcode);                                         \
     gen_helper_##name(cpu_env, opc);                                          \
-    tcg_temp_free_i32(opc);                                                   \
 }
 
 #define GEN_VSX_HELPER_X3(name, op1, op2, inval, type)                        \
@@ -953,9 +876,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
     xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
     gen_helper_##name(cpu_env, xt, xa, xb);                                   \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_X2(name, op1, op2, inval, type)                        \
@@ -969,8 +889,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
     xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
     gen_helper_##name(cpu_env, xt, xb);                                       \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_X2_AB(name, op1, op2, inval, type)                     \
@@ -986,9 +904,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
     xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
     gen_helper_##name(cpu_env, opc, xa, xb);                                  \
-    tcg_temp_free_i32(opc);                                                   \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_X1(name, op1, op2, inval, type)                        \
@@ -1003,8 +918,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     opc = tcg_const_i32(ctx->opcode);                                         \
     xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
     gen_helper_##name(cpu_env, opc, xb);                                      \
-    tcg_temp_free_i32(opc);                                                   \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_R3(name, op1, op2, inval, type)                        \
@@ -1021,10 +934,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xa = gen_vsr_ptr(rA(ctx->opcode) + 32);                                   \
     xb = gen_vsr_ptr(rB(ctx->opcode) + 32);                                   \
     gen_helper_##name(cpu_env, opc, xt, xa, xb);                              \
-    tcg_temp_free_i32(opc);                                                   \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_R2(name, op1, op2, inval, type)                        \
@@ -1040,9 +949,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xt = gen_vsr_ptr(rD(ctx->opcode) + 32);                                   \
     xb = gen_vsr_ptr(rB(ctx->opcode) + 32);                                   \
     gen_helper_##name(cpu_env, opc, xt, xb);                                  \
-    tcg_temp_free_i32(opc);                                                   \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_R2_AB(name, op1, op2, inval, type)                     \
@@ -1058,9 +964,6 @@ static void gen_##name(DisasContext *ctx)                                     \
     xa = gen_vsr_ptr(rA(ctx->opcode) + 32);                                   \
     xb = gen_vsr_ptr(rB(ctx->opcode) + 32);                                   \
     gen_helper_##name(cpu_env, opc, xa, xb);                                  \
-    tcg_temp_free_i32(opc);                                                   \
-    tcg_temp_free_ptr(xa);                                                    \
-    tcg_temp_free_ptr(xb);                                                    \
 }
 
 #define GEN_VSX_HELPER_XT_XB_ENV(name, op1, op2, inval, type) \
@@ -1078,8 +981,6 @@ static void gen_##name(DisasContext *ctx)                     \
     gen_helper_##name(t1, cpu_env, t0);                       \
     set_cpu_vsr(xT(ctx->opcode), t1, true);                   \
     set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false); \
-    tcg_temp_free_i64(t0);                                    \
-    tcg_temp_free_i64(t1);                                    \
 }
 
 GEN_VSX_HELPER_X3(xsadddp, 0x00, 0x04, 0, PPC2_VSX)
@@ -1291,8 +1192,6 @@ static bool do_XX2_bf_uim(DisasContext *ctx, arg_XX2_bf_uim *a, bool vsr,
     REQUIRE_VSX(ctx);
     xb = vsr ? gen_vsr_ptr(a->xb) : gen_avr_ptr(a->xb);
     gen_helper(cpu_env, tcg_constant_i32(a->bf), tcg_constant_i32(a->uim), xb);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -1314,9 +1213,6 @@ bool trans_XSCVSPDPN(DisasContext *ctx, arg_XX2 *a)
 
     set_cpu_vsr(a->xt, tmp, true);
     set_cpu_vsr(a->xt, tcg_constant_i64(0), false);
-
-    tcg_temp_free_i64(tmp);
-
     return true;
 }
 
@@ -1413,11 +1309,6 @@ static bool trans_XXPERM(DisasContext *ctx, arg_XX3 *a)
     xb = gen_vsr_ptr(a->xb);
 
     gen_helper_VPERM(xt, xa, xt, xb);
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xa);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -1433,11 +1324,6 @@ static bool trans_XXPERMR(DisasContext *ctx, arg_XX3 *a)
     xb = gen_vsr_ptr(a->xb);
 
     gen_helper_VPERMR(xt, xa, xt, xb);
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xa);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -1458,8 +1344,6 @@ static bool trans_XXPERMDI(DisasContext *ctx, arg_XX3_dm *a)
 
         set_cpu_vsr(a->xt, t0, true);
         set_cpu_vsr(a->xt, t1, false);
-
-        tcg_temp_free_i64(t1);
     } else {
         get_cpu_vsr(t0, a->xa, (a->dm & 2) == 0);
         set_cpu_vsr(a->xt, t0, true);
@@ -1467,9 +1351,6 @@ static bool trans_XXPERMDI(DisasContext *ctx, arg_XX3_dm *a)
         get_cpu_vsr(t0, a->xb, (a->dm & 1) == 0);
         set_cpu_vsr(a->xt, t0, false);
     }
-
-    tcg_temp_free_i64(t0);
-
     return true;
 }
 
@@ -1486,12 +1367,6 @@ static bool trans_XXPERMX(DisasContext *ctx, arg_8RR_XX4_uim3 *a)
     xc = gen_vsr_ptr(a->xc);
 
     gen_helper_XXPERMX(xt, xa, xb, xc, tcg_constant_tl(a->uim3));
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xa);
-    tcg_temp_free_ptr(xb);
-    tcg_temp_free_ptr(xc);
-
     return true;
 }
 
@@ -1514,10 +1389,6 @@ static bool do_xxgenpcv(DisasContext *ctx, arg_X_imm5 *a,
     vrb = gen_avr_ptr(a->vrb);
 
     fn[a->imm](xt, vrb);
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(vrb);
-
     return true;
 }
 
@@ -1550,12 +1421,6 @@ static bool do_xsmadd(DisasContext *ctx, int tgt, int src1, int src2, int src3,
     s3 = gen_vsr_ptr(src3);
 
     gen_helper(cpu_env, t, s1, s2, s3);
-
-    tcg_temp_free_ptr(t);
-    tcg_temp_free_ptr(s1);
-    tcg_temp_free_ptr(s2);
-    tcg_temp_free_ptr(s3);
-
     return true;
 }
 
@@ -1636,10 +1501,6 @@ static void gen_##name(DisasContext *ctx)                                     \
         s3 = gen_vsr_ptr(xB(ctx->opcode));                                    \
     }                                                                         \
     gen_helper_##name(cpu_env, xt, s1, s2, s3);                               \
-    tcg_temp_free_ptr(xt);                                                    \
-    tcg_temp_free_ptr(s1);                                                    \
-    tcg_temp_free_ptr(s2);                                                    \
-    tcg_temp_free_ptr(s3);                                                    \
 }
 
 GEN_VSX_HELPER_VSX_MADD(xvmadddp, 0x04, 0x0C, 0x0D, 0, PPC2_VSX)
@@ -1673,11 +1534,6 @@ static void gen_xxbrd(DisasContext *ctx)
     tcg_gen_bswap64_i64(xtl, xbl);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xxbrh(DisasContext *ctx)
@@ -1701,11 +1557,6 @@ static void gen_xxbrh(DisasContext *ctx)
     gen_bswap16x8(xth, xtl, xbh, xbl);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xxbrq(DisasContext *ctx)
@@ -1733,12 +1584,6 @@ static void gen_xxbrq(DisasContext *ctx)
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
     tcg_gen_mov_i64(xth, t0);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xxbrw(DisasContext *ctx)
@@ -1762,11 +1607,6 @@ static void gen_xxbrw(DisasContext *ctx)
     gen_bswap32x4(xth, xtl, xbh, xbl);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 #define VSX_LOGICAL(name, vece, tcg_op)                              \
@@ -1813,11 +1653,6 @@ static void glue(gen_, name)(DisasContext *ctx)             \
         set_cpu_vsr(xT(ctx->opcode), tmp, true);            \
         tcg_gen_deposit_i64(tmp, b1, a1, 32, 32);           \
         set_cpu_vsr(xT(ctx->opcode), tmp, false);           \
-        tcg_temp_free_i64(a0);                              \
-        tcg_temp_free_i64(a1);                              \
-        tcg_temp_free_i64(b0);                              \
-        tcg_temp_free_i64(b1);                              \
-        tcg_temp_free_i64(tmp);                             \
     }
 
 VSX_XXMRG(xxmrghw, 1)
@@ -1974,13 +1809,6 @@ static bool trans_XVTLSBB(DisasContext *ctx, arg_XX2_bf_xb *a)
 
     tcg_gen_or_i64(t0, all_false, all_true);
     tcg_gen_extrl_i64_i32(cpu_crf[a->bf], t0);
-
-    tcg_temp_free_i64(xb);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(all_true);
-    tcg_temp_free_i64(all_false);
-
     return true;
 }
 
@@ -2012,7 +1840,6 @@ static void gen_xxsldwi(DisasContext *ctx)
             get_cpu_vsr(t0, xB(ctx->opcode), true);
             tcg_gen_shri_i64(t0, t0, 32);
             tcg_gen_or_i64(xtl, xtl, t0);
-            tcg_temp_free_i64(t0);
             break;
         }
         case 2: {
@@ -2032,16 +1859,12 @@ static void gen_xxsldwi(DisasContext *ctx)
             get_cpu_vsr(t0, xB(ctx->opcode), false);
             tcg_gen_shri_i64(t0, t0, 32);
             tcg_gen_or_i64(xtl, xtl, t0);
-            tcg_temp_free_i64(t0);
             break;
         }
     }
 
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
 }
 
 static bool do_vsx_extract_insert(DisasContext *ctx, arg_XX2_uim *a,
@@ -2064,10 +1887,7 @@ static bool do_vsx_extract_insert(DisasContext *ctx, arg_XX2_uim *a,
         xt = gen_vsr_ptr(a->xt);
         xb = gen_vsr_ptr(a->xb);
         gen_helper(xt, xb, tcg_constant_i32(a->uim));
-        tcg_temp_free_ptr(xb);
-        tcg_temp_free_ptr(xt);
     }
-
     return true;
 }
 
@@ -2086,7 +1906,6 @@ static void gen_xsxexpdp(DisasContext *ctx)
     t0 = tcg_temp_new_i64();
     get_cpu_vsr(t0, xB(ctx->opcode), true);
     tcg_gen_extract_i64(rt, t0, 52, 11);
-    tcg_temp_free_i64(t0);
 }
 
 static void gen_xsxexpqp(DisasContext *ctx)
@@ -2108,10 +1927,6 @@ static void gen_xsxexpqp(DisasContext *ctx)
     set_cpu_vsr(rD(ctx->opcode) + 32, xth, true);
     tcg_gen_movi_i64(xtl, 0);
     set_cpu_vsr(rD(ctx->opcode) + 32, xtl, false);
-
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
 }
 
 static void gen_xsiexpdp(DisasContext *ctx)
@@ -2133,8 +1948,6 @@ static void gen_xsiexpdp(DisasContext *ctx)
     tcg_gen_or_i64(xth, xth, t0);
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     set_cpu_vsr(xT(ctx->opcode), tcg_constant_i64(0), false);
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(xth);
 }
 
 static void gen_xsiexpqp(DisasContext *ctx)
@@ -2167,13 +1980,6 @@ static void gen_xsiexpqp(DisasContext *ctx)
     set_cpu_vsr(rD(ctx->opcode) + 32, xth, true);
     tcg_gen_mov_i64(xtl, xal);
     set_cpu_vsr(rD(ctx->opcode) + 32, xtl, false);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xah);
-    tcg_temp_free_i64(xal);
-    tcg_temp_free_i64(xbh);
 }
 
 static void gen_xsxsigdp(DisasContext *ctx)
@@ -2198,12 +2004,6 @@ static void gen_xsxsigdp(DisasContext *ctx)
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
     get_cpu_vsr(t1, xB(ctx->opcode), true);
     tcg_gen_deposit_i64(rt, t0, t1, 0, 52);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
-    tcg_temp_free_i64(exp);
-    tcg_temp_free_i64(zr);
-    tcg_temp_free_i64(nan);
 }
 
 static void gen_xsxsigqp(DisasContext *ctx)
@@ -2237,15 +2037,6 @@ static void gen_xsxsigqp(DisasContext *ctx)
     set_cpu_vsr(rD(ctx->opcode) + 32, xth, true);
     tcg_gen_mov_i64(xtl, xbl);
     set_cpu_vsr(rD(ctx->opcode) + 32, xtl, false);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(exp);
-    tcg_temp_free_i64(zr);
-    tcg_temp_free_i64(nan);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 #endif
 
@@ -2285,14 +2076,6 @@ static void gen_xviexpsp(DisasContext *ctx)
     tcg_gen_shli_i64(t0, t0, 23);
     tcg_gen_or_i64(xtl, xtl, t0);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xah);
-    tcg_temp_free_i64(xal);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xviexpdp(DisasContext *ctx)
@@ -2324,13 +2107,6 @@ static void gen_xviexpdp(DisasContext *ctx)
 
     tcg_gen_deposit_i64(xtl, xal, xbl, 52, 11);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xah);
-    tcg_temp_free_i64(xal);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xvxexpsp(DisasContext *ctx)
@@ -2357,11 +2133,6 @@ static void gen_xvxexpsp(DisasContext *ctx)
     tcg_gen_shri_i64(xtl, xbl, 23);
     tcg_gen_andi_i64(xtl, xtl, 0xFF000000FF);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static void gen_xvxexpdp(DisasContext *ctx)
@@ -2386,11 +2157,6 @@ static void gen_xvxexpdp(DisasContext *ctx)
     set_cpu_vsr(xT(ctx->opcode), xth, true);
     tcg_gen_extract_i64(xtl, xbl, 52, 11);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static bool trans_XVXSIGSP(DisasContext *ctx, arg_XX2 *a)
@@ -2404,10 +2170,6 @@ static bool trans_XVXSIGSP(DisasContext *ctx, arg_XX2 *a)
     b = gen_vsr_ptr(a->xb);
 
     gen_helper_XVXSIGSP(t, b);
-
-    tcg_temp_free_ptr(t);
-    tcg_temp_free_ptr(b);
-
     return true;
 }
 
@@ -2447,15 +2209,6 @@ static void gen_xvxsigdp(DisasContext *ctx)
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
     tcg_gen_deposit_i64(xtl, t0, xbl, 0, 52);
     set_cpu_vsr(xT(ctx->opcode), xtl, false);
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(exp);
-    tcg_temp_free_i64(zr);
-    tcg_temp_free_i64(nan);
-    tcg_temp_free_i64(xth);
-    tcg_temp_free_i64(xtl);
-    tcg_temp_free_i64(xbh);
-    tcg_temp_free_i64(xbl);
 }
 
 static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
@@ -2510,9 +2263,6 @@ static bool do_lstxv(DisasContext *ctx, int ra, TCGv displ,
             set_cpu_vsr(rt2, xt, ctx->le_mode);
         }
     }
-
-    tcg_temp_free(ea);
-    tcg_temp_free_i64(xt);
     return true;
 }
 
@@ -2577,10 +2327,6 @@ static bool do_lstxsd(DisasContext *ctx, int rt, int ra, TCGv displ, bool store)
         set_cpu_vsr(rt + 32, xt, true);
         set_cpu_vsr(rt + 32, tcg_constant_i64(0), false);
     }
-
-    tcg_temp_free(ea);
-    tcg_temp_free_i64(xt);
-
     return true;
 }
 
@@ -2620,10 +2366,6 @@ static bool do_lstxssp(DisasContext *ctx, int rt, int ra, TCGv displ, bool store
         set_cpu_vsr(rt + 32, xt, true);
         set_cpu_vsr(rt + 32, tcg_constant_i64(0), false);
     }
-
-    tcg_temp_free(ea);
-    tcg_temp_free_i64(xt);
-
     return true;
 }
 
@@ -2684,9 +2426,6 @@ static bool do_lstrm(DisasContext *ctx, arg_X *a, MemOp mop, bool store)
         set_cpu_vsr(a->rt, xt, false);
         set_cpu_vsr(a->rt, tcg_constant_i64(0), true);
     }
-
-    tcg_temp_free(ea);
-    tcg_temp_free_i64(xt);
     return true;
 }
 
@@ -2741,9 +2480,6 @@ static void gen_xxeval_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c,
     }
 
     tcg_gen_mov_i64(t, disj);
-
-    tcg_temp_free_i64(conj);
-    tcg_temp_free_i64(disj);
 }
 
 static void gen_xxeval_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
@@ -2788,9 +2524,6 @@ static void gen_xxeval_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
     }
 
     tcg_gen_mov_vec(t, disj);
-
-    tcg_temp_free_vec(disj);
-    tcg_temp_free_vec(conj);
 }
 
 static bool trans_XXEVAL(DisasContext *ctx, arg_8RR_XX4_imm *a)
@@ -2925,7 +2658,6 @@ static void gen_xxblendv_vec(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b,
     TCGv_vec tmp = tcg_temp_new_vec_matching(c);
     tcg_gen_sari_vec(vece, tmp, c, (8 << vece) - 1);
     tcg_gen_bitsel_vec(vece, t, tmp, b, a);
-    tcg_temp_free_vec(tmp);
 }
 
 static bool do_xxblendv(DisasContext *ctx, arg_8RR_XX4 *a, unsigned vece)
@@ -2987,11 +2719,6 @@ static bool do_helper_XX3(DisasContext *ctx, arg_XX3 *a,
     xb = gen_vsr_ptr(a->xb);
 
     helper(cpu_env, xt, xa, xb);
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xa);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -3013,11 +2740,6 @@ static bool do_helper_X(arg_X *a,
     rb = gen_avr_ptr(a->rb);
 
     helper(cpu_env, rt, ra, rb);
-
-    tcg_temp_free_ptr(rt);
-    tcg_temp_free_ptr(ra);
-    tcg_temp_free_ptr(rb);
-
     return true;
 }
 
@@ -3047,10 +2769,6 @@ static bool trans_XVCVSPBF16(DisasContext *ctx, arg_XX2 *a)
     xb = gen_vsr_ptr(a->xb);
 
     gen_helper_XVCVSPBF16(cpu_env, xt, xb);
-
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xb);
-
     return true;
 }
 
@@ -3114,9 +2832,6 @@ static bool do_ger(DisasContext *ctx, arg_MMIRR_XX3 *a,
 
     mask = ger_pack_masks(a->pmsk, a->ymsk, a->xmsk);
     helper(cpu_env, xa, xb, xt, tcg_constant_i32(mask));
-    tcg_temp_free_ptr(xt);
-    tcg_temp_free_ptr(xa);
-    tcg_temp_free_ptr(xb);
     return true;
 }
 

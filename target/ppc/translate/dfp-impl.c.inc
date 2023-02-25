@@ -20,9 +20,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     if (unlikely(a->rc)) {                                   \
         gen_set_cr1_from_fpscr(ctx);                         \
     }                                                        \
-    tcg_temp_free_ptr(rt);                                   \
-    tcg_temp_free_ptr(ra);                                   \
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -36,8 +33,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     rb = gen_fprp_ptr(a->rb);                                \
     gen_helper_##NAME(cpu_crf[a->bf],                        \
                       cpu_env, ra, rb);                      \
-    tcg_temp_free_ptr(ra);                                   \
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -50,7 +45,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     rb = gen_fprp_ptr(a->rb);                                \
     gen_helper_##NAME(cpu_crf[a->bf],                        \
                       cpu_env, tcg_constant_i32(a->uim), rb);\
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -63,7 +57,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     ra = gen_fprp_ptr(a->fra);                               \
     gen_helper_##NAME(cpu_crf[a->bf],                        \
                       cpu_env, ra, tcg_constant_i32(a->dm)); \
-    tcg_temp_free_ptr(ra);                                   \
     return true;                                             \
 }
 
@@ -81,8 +74,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     if (unlikely(a->rc)) {                                   \
         gen_set_cr1_from_fpscr(ctx);                         \
     }                                                        \
-    tcg_temp_free_ptr(rt);                                   \
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -100,9 +91,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     if (unlikely(a->rc)) {                                   \
         gen_set_cr1_from_fpscr(ctx);                         \
     }                                                        \
-    tcg_temp_free_ptr(rt);                                   \
-    tcg_temp_free_ptr(ra);                                   \
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -118,8 +106,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     if (unlikely(a->rc)) {                                   \
         gen_set_cr1_from_fpscr(ctx);                         \
     }                                                        \
-    tcg_temp_free_ptr(rt);                                   \
-    tcg_temp_free_ptr(rb);                                   \
     return true;                                             \
 }
 
@@ -136,8 +122,6 @@ static bool trans_##NAME(DisasContext *ctx, arg_##NAME *a)   \
     if (unlikely(a->rc)) {                                   \
         gen_set_cr1_from_fpscr(ctx);                         \
     }                                                        \
-    tcg_temp_free_ptr(rt);                                   \
-    tcg_temp_free_ptr(rx);                                   \
     return true;                                             \
 }
 
@@ -205,8 +189,6 @@ static bool trans_DCFFIXQQ(DisasContext *ctx, arg_DCFFIXQQ *a)
     rt = gen_fprp_ptr(a->frtp);
     rb = gen_avr_ptr(a->vrb);
     gen_helper_DCFFIXQQ(cpu_env, rt, rb);
-    tcg_temp_free_ptr(rt);
-    tcg_temp_free_ptr(rb);
 
     return true;
 }
@@ -222,8 +204,6 @@ static bool trans_DCTFIXQQ(DisasContext *ctx, arg_DCTFIXQQ *a)
     rt = gen_avr_ptr(a->vrt);
     rb = gen_fprp_ptr(a->frbp);
     gen_helper_DCTFIXQQ(cpu_env, rt, rb);
-    tcg_temp_free_ptr(rt);
-    tcg_temp_free_ptr(rb);
 
     return true;
 }

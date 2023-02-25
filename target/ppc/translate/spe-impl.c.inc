@@ -23,7 +23,6 @@ static inline void gen_evmra(DisasContext *ctx)
 
     /* spe_acc := tmp */
     tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-    tcg_temp_free_i64(tmp);
 
     /* rD := rA */
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
@@ -96,8 +95,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t0, cpu_gprh[rA(ctx->opcode)]);                      \
     tcg_opi(t0, t0, rB(ctx->opcode));                                         \
     tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
 }
 GEN_SPEOP_TCG_LOGIC_IMM2(evslwi, tcg_gen_shli_i32);
 GEN_SPEOP_TCG_LOGIC_IMM2(evsrwiu, tcg_gen_shri_i32);
@@ -122,8 +119,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t0, cpu_gprh[rA(ctx->opcode)]);                      \
     tcg_op(t0, t0);                                                           \
     tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
 }
 
 GEN_SPEOP_ARITH1(evabs, tcg_gen_abs_i32);
@@ -159,9 +154,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t1, cpu_gprh[rB(ctx->opcode)]);                      \
     tcg_op(t0, t0, t1);                                                       \
     tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
 }
 
 static inline void gen_op_evsrwu(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -178,7 +170,6 @@ static inline void gen_op_evsrwu(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     gen_set_label(l1);
     tcg_gen_movi_i32(ret, 0);
     gen_set_label(l2);
-    tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evsrwu, gen_op_evsrwu);
 static inline void gen_op_evsrws(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -195,7 +186,6 @@ static inline void gen_op_evsrws(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     gen_set_label(l1);
     tcg_gen_movi_i32(ret, 0);
     gen_set_label(l2);
-    tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evsrws, gen_op_evsrws);
 static inline void gen_op_evslw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -212,7 +202,6 @@ static inline void gen_op_evslw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     gen_set_label(l1);
     tcg_gen_movi_i32(ret, 0);
     gen_set_label(l2);
-    tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evslw, gen_op_evslw);
 static inline void gen_op_evrlw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -220,7 +209,6 @@ static inline void gen_op_evrlw(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     TCGv_i32 t0 = tcg_temp_new_i32();
     tcg_gen_andi_i32(t0, arg2, 0x1F);
     tcg_gen_rotl_i32(ret, arg1, t0);
-    tcg_temp_free_i32(t0);
 }
 GEN_SPEOP_ARITH2(evrlw, gen_op_evrlw);
 static inline void gen_evmergehi(DisasContext *ctx)
@@ -257,8 +245,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t0, cpu_gprh[rB(ctx->opcode)]);                      \
     tcg_op(t0, t0, rA(ctx->opcode));                                          \
     tcg_gen_extu_i32_tl(cpu_gprh[rD(ctx->opcode)], t0);                       \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
 }
 GEN_SPEOP_ARITH_IMM2(evaddiw, tcg_gen_addi_i32);
 GEN_SPEOP_ARITH_IMM2(evsubifw, tcg_gen_subi_i32);
@@ -341,7 +327,6 @@ static inline void gen_evmergelohi(DisasContext *ctx)
         tcg_gen_mov_tl(tmp, cpu_gpr[rA(ctx->opcode)]);
         tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
         tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], tmp);
-        tcg_temp_free(tmp);
     } else {
         tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rB(ctx->opcode)]);
         tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
@@ -394,7 +379,6 @@ static inline void gen_evsel(DisasContext *ctx)
     gen_set_label(l3);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     gen_set_label(l4);
-    tcg_temp_free_i32(t0);
 }
 
 static void gen_evsel0(DisasContext *ctx)
@@ -456,9 +440,6 @@ static inline void gen_evmwumi(DisasContext *ctx)
     tcg_gen_mul_i64(t0, t0, t1);  /* t0 := rA * rB */
 
     gen_store_gpr64(rD(ctx->opcode), t0); /* rD := t0 */
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
 }
 
 static inline void gen_evmwumia(DisasContext *ctx)
@@ -477,7 +458,6 @@ static inline void gen_evmwumia(DisasContext *ctx)
     /* acc := rD */
     gen_load_gpr64(tmp, rD(ctx->opcode));
     tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-    tcg_temp_free_i64(tmp);
 }
 
 static inline void gen_evmwumiaa(DisasContext *ctx)
@@ -509,9 +489,6 @@ static inline void gen_evmwumiaa(DisasContext *ctx)
 
     /* rD := acc */
     gen_store_gpr64(rD(ctx->opcode), acc);
-
-    tcg_temp_free_i64(acc);
-    tcg_temp_free_i64(tmp);
 }
 
 static inline void gen_evmwsmi(DisasContext *ctx)
@@ -535,9 +512,6 @@ static inline void gen_evmwsmi(DisasContext *ctx)
     tcg_gen_mul_i64(t0, t0, t1);  /* t0 := rA * rB */
 
     gen_store_gpr64(rD(ctx->opcode), t0); /* rD := t0 */
-
-    tcg_temp_free_i64(t0);
-    tcg_temp_free_i64(t1);
 }
 
 static inline void gen_evmwsmia(DisasContext *ctx)
@@ -556,8 +530,6 @@ static inline void gen_evmwsmia(DisasContext *ctx)
     /* acc := rD */
     gen_load_gpr64(tmp, rD(ctx->opcode));
     tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
-
-    tcg_temp_free_i64(tmp);
 }
 
 static inline void gen_evmwsmiaa(DisasContext *ctx)
@@ -589,9 +561,6 @@ static inline void gen_evmwsmiaa(DisasContext *ctx)
 
     /* rD := acc */
     gen_store_gpr64(rD(ctx->opcode), acc);
-
-    tcg_temp_free_i64(acc);
-    tcg_temp_free_i64(tmp);
 }
 
 GEN_SPE(evaddw,      speundef,    0x00, 0x08, 0x00000000, 0xFFFFFFFF, PPC_SPE); ////
@@ -644,7 +613,6 @@ static inline void gen_op_evldd(DisasContext *ctx, TCGv addr)
     TCGv_i64 t0 = tcg_temp_new_i64();
     gen_qemu_ld64_i64(ctx, t0, addr);
     gen_store_gpr64(rD(ctx->opcode), t0);
-    tcg_temp_free_i64(t0);
 }
 
 static inline void gen_op_evldw(DisasContext *ctx, TCGv addr)
@@ -668,7 +636,6 @@ static inline void gen_op_evldh(DisasContext *ctx, TCGv addr)
     gen_addr_add(ctx, addr, addr, 2);
     gen_qemu_ld16u(ctx, t0, addr);
     tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlhhesplat(DisasContext *ctx, TCGv addr)
@@ -678,7 +645,6 @@ static inline void gen_op_evlhhesplat(DisasContext *ctx, TCGv addr)
     tcg_gen_shli_tl(t0, t0, 16);
     tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlhhousplat(DisasContext *ctx, TCGv addr)
@@ -687,7 +653,6 @@ static inline void gen_op_evlhhousplat(DisasContext *ctx, TCGv addr)
     gen_qemu_ld16u(ctx, t0, addr);
     tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlhhossplat(DisasContext *ctx, TCGv addr)
@@ -696,7 +661,6 @@ static inline void gen_op_evlhhossplat(DisasContext *ctx, TCGv addr)
     gen_qemu_ld16s(ctx, t0, addr);
     tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlwhe(DisasContext *ctx, TCGv addr)
@@ -707,7 +671,6 @@ static inline void gen_op_evlwhe(DisasContext *ctx, TCGv addr)
     gen_addr_add(ctx, addr, addr, 2);
     gen_qemu_ld16u(ctx, t0, addr);
     tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)], t0, 16);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlwhou(DisasContext *ctx, TCGv addr)
@@ -730,7 +693,6 @@ static inline void gen_op_evlwwsplat(DisasContext *ctx, TCGv addr)
     gen_qemu_ld32u(ctx, t0, addr);
     tcg_gen_mov_tl(cpu_gprh[rD(ctx->opcode)], t0);
     tcg_gen_mov_tl(cpu_gpr[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evlwhsplat(DisasContext *ctx, TCGv addr)
@@ -743,7 +705,6 @@ static inline void gen_op_evlwhsplat(DisasContext *ctx, TCGv addr)
     gen_qemu_ld16u(ctx, t0, addr);
     tcg_gen_shli_tl(cpu_gpr[rD(ctx->opcode)], t0, 16);
     tcg_gen_or_tl(cpu_gpr[rD(ctx->opcode)], cpu_gprh[rD(ctx->opcode)], t0);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evstdd(DisasContext *ctx, TCGv addr)
@@ -751,7 +712,6 @@ static inline void gen_op_evstdd(DisasContext *ctx, TCGv addr)
     TCGv_i64 t0 = tcg_temp_new_i64();
     gen_load_gpr64(t0, rS(ctx->opcode));
     gen_qemu_st64_i64(ctx, t0, addr);
-    tcg_temp_free_i64(t0);
 }
 
 static inline void gen_op_evstdw(DisasContext *ctx, TCGv addr)
@@ -771,7 +731,6 @@ static inline void gen_op_evstdh(DisasContext *ctx, TCGv addr)
     gen_addr_add(ctx, addr, addr, 2);
     tcg_gen_shri_tl(t0, cpu_gpr[rS(ctx->opcode)], 16);
     gen_qemu_st16(ctx, t0, addr);
-    tcg_temp_free(t0);
     gen_addr_add(ctx, addr, addr, 2);
     gen_qemu_st16(ctx, cpu_gpr[rS(ctx->opcode)], addr);
 }
@@ -784,7 +743,6 @@ static inline void gen_op_evstwhe(DisasContext *ctx, TCGv addr)
     gen_addr_add(ctx, addr, addr, 2);
     tcg_gen_shri_tl(t0, cpu_gpr[rS(ctx->opcode)], 16);
     gen_qemu_st16(ctx, t0, addr);
-    tcg_temp_free(t0);
 }
 
 static inline void gen_op_evstwho(DisasContext *ctx, TCGv addr)
@@ -820,7 +778,6 @@ static void glue(gen_, name)(DisasContext *ctx)                               \
         gen_addr_reg_index(ctx, t0);                                          \
     }                                                                         \
     gen_op_##name(ctx, t0);                                                   \
-    tcg_temp_free(t0);                                                        \
 }
 
 GEN_SPEOP_LDST(evldd, 0x00, 3);
@@ -923,7 +880,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rB(ctx->opcode)]);                       \
     gen_helper_##name(t0, cpu_env, t0);                                       \
     tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-    tcg_temp_free_i32(t0);                                                    \
 }
 #define GEN_SPEFPUOP_CONV_32_64(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -939,8 +895,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     gen_load_gpr64(t0, rB(ctx->opcode));                                      \
     gen_helper_##name(t1, cpu_env, t0);                                       \
     tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t1);                        \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
 }
 #define GEN_SPEFPUOP_CONV_64_32(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -956,8 +910,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
     gen_helper_##name(t0, cpu_env, t1);                                       \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
 }
 #define GEN_SPEFPUOP_CONV_64_64(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -971,7 +923,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     gen_load_gpr64(t0, rB(ctx->opcode));                                      \
     gen_helper_##name(t0, cpu_env, t0);                                       \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
 }
 #define GEN_SPEFPUOP_ARITH2_32_32(name)                                       \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -982,9 +933,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
     gen_helper_##name(t0, cpu_env, t0, t1);                                   \
     tcg_gen_extu_i32_tl(cpu_gpr[rD(ctx->opcode)], t0);                        \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
 }
 #define GEN_SPEFPUOP_ARITH2_64_64(name)                                       \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -1000,8 +948,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     gen_load_gpr64(t1, rB(ctx->opcode));                                      \
     gen_helper_##name(t0, cpu_env, t0, t1);                                   \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i64(t1);                                                    \
 }
 #define GEN_SPEFPUOP_COMP_32(name)                                            \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -1012,9 +958,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
-                                                                              \
-    tcg_temp_free_i32(t0);                                                    \
-    tcg_temp_free_i32(t1);                                                    \
 }
 #define GEN_SPEFPUOP_COMP_64(name)                                            \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -1029,8 +972,6 @@ static inline void gen_##name(DisasContext *ctx)                              \
     gen_load_gpr64(t0, rA(ctx->opcode));                                      \
     gen_load_gpr64(t1, rB(ctx->opcode));                                      \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
-    tcg_temp_free_i64(t0);                                                    \
-    tcg_temp_free_i64(t1);                                                    \
 }
 
 /* Single precision floating-point vectors operations */

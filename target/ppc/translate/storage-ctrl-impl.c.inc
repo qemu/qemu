@@ -212,7 +212,6 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext32u_tl(t0, cpu_gpr[rb]);
         gen_helper_tlbie(cpu_env, t0);
-        tcg_temp_free(t0);
 
 #if defined(TARGET_PPC64)
     /*
@@ -240,7 +239,6 @@ static bool do_tlbie(DisasContext *ctx, arg_X_tlbie *a, bool local)
     tcg_gen_ld_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
     tcg_gen_ori_i32(t1, t1, TLB_NEED_GLOBAL_FLUSH);
     tcg_gen_st_i32(t1, cpu_env, offsetof(CPUPPCState, tlb_need_flush));
-    tcg_temp_free_i32(t1);
 
     return true;
 #endif
