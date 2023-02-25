@@ -8,7 +8,6 @@ static void gen_sll_w(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x1f);
     tcg_gen_shl_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_srl_w(TCGv dest, TCGv src1, TCGv src2)
@@ -16,7 +15,6 @@ static void gen_srl_w(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x1f);
     tcg_gen_shr_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_sra_w(TCGv dest, TCGv src1, TCGv src2)
@@ -24,7 +22,6 @@ static void gen_sra_w(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x1f);
     tcg_gen_sar_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_sll_d(TCGv dest, TCGv src1, TCGv src2)
@@ -32,7 +29,6 @@ static void gen_sll_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x3f);
     tcg_gen_shl_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_srl_d(TCGv dest, TCGv src1, TCGv src2)
@@ -40,7 +36,6 @@ static void gen_srl_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x3f);
     tcg_gen_shr_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_sra_d(TCGv dest, TCGv src1, TCGv src2)
@@ -48,7 +43,6 @@ static void gen_sra_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x3f);
     tcg_gen_sar_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_rotr_w(TCGv dest, TCGv src1, TCGv src2)
@@ -64,10 +58,6 @@ static void gen_rotr_w(TCGv dest, TCGv src1, TCGv src2)
 
     tcg_gen_rotr_i32(t1, t1, t2);
     tcg_gen_ext_i32_tl(dest, t1);
-
-    tcg_temp_free_i32(t1);
-    tcg_temp_free_i32(t2);
-    tcg_temp_free(t0);
 }
 
 static void gen_rotr_d(TCGv dest, TCGv src1, TCGv src2)
@@ -75,7 +65,6 @@ static void gen_rotr_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, src2, 0x3f);
     tcg_gen_rotr_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static bool trans_srai_w(DisasContext *ctx, arg_srai_w *a)

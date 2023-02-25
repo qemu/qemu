@@ -7,21 +7,15 @@ static bool gen_load(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     gen_set_gpr(a->rd, dest, EXT_NONE);
-
-    if (temp) {
-        tcg_temp_free(temp);
-    }
-
     return true;
 }
 
@@ -29,20 +23,14 @@ static bool gen_store(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv data = gpr_src(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, mop);
-
-    if (temp) {
-        tcg_temp_free(temp);
-    }
-
     return true;
 }
 
@@ -56,7 +44,6 @@ static bool gen_loadx(DisasContext *ctx, arg_rrr *a, MemOp mop)
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     gen_set_gpr(a->rd, dest, EXT_NONE);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -70,7 +57,6 @@ static bool gen_storex(DisasContext *ctx, arg_rrr *a, MemOp mop)
 
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -146,21 +132,15 @@ static bool gen_ldptr(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv dest = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, mop);
     gen_set_gpr(a->rd, dest, EXT_NONE);
-
-    if (temp) {
-        tcg_temp_free(temp);
-    }
-
     return true;
 }
 
@@ -168,20 +148,14 @@ static bool gen_stptr(DisasContext *ctx, arg_rr_i *a, MemOp mop)
 {
     TCGv data = gpr_src(ctx, a->rd, EXT_NONE);
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, mop);
-
-    if (temp) {
-        tcg_temp_free(temp);
-    }
-
     return true;
 }
 

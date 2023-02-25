@@ -100,14 +100,12 @@ static void gen_mulh_d(TCGv dest, TCGv src1, TCGv src2)
 {
     TCGv discard = tcg_temp_new();
     tcg_gen_muls2_tl(discard, dest, src1, src2);
-    tcg_temp_free(discard);
 }
 
 static void gen_mulh_du(TCGv dest, TCGv src1, TCGv src2)
 {
     TCGv discard = tcg_temp_new();
     tcg_gen_mulu2_tl(discard, dest, src1, src2);
-    tcg_temp_free(discard);
 }
 
 static void prep_divisor_d(TCGv ret, TCGv src1, TCGv src2)
@@ -129,9 +127,6 @@ static void prep_divisor_d(TCGv ret, TCGv src1, TCGv src2)
     tcg_gen_and_tl(ret, ret, t0);
     tcg_gen_or_tl(ret, ret, t1);
     tcg_gen_movcond_tl(TCG_COND_NE, ret, ret, zero, ret, src2);
-
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
 }
 
 static void prep_divisor_du(TCGv ret, TCGv src2)
@@ -152,7 +147,6 @@ static void gen_div_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     prep_divisor_d(t0, src1, src2);
     tcg_gen_div_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_rem_d(TCGv dest, TCGv src1, TCGv src2)
@@ -160,7 +154,6 @@ static void gen_rem_d(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     prep_divisor_d(t0, src1, src2);
     tcg_gen_rem_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_div_du(TCGv dest, TCGv src1, TCGv src2)
@@ -168,7 +161,6 @@ static void gen_div_du(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     prep_divisor_du(t0, src2);
     tcg_gen_divu_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_rem_du(TCGv dest, TCGv src1, TCGv src2)
@@ -176,7 +168,6 @@ static void gen_rem_du(TCGv dest, TCGv src1, TCGv src2)
     TCGv t0 = tcg_temp_new();
     prep_divisor_du(t0, src2);
     tcg_gen_remu_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_div_w(TCGv dest, TCGv src1, TCGv src2)
@@ -185,7 +176,6 @@ static void gen_div_w(TCGv dest, TCGv src1, TCGv src2)
     /* We need not check for integer overflow for div_w. */
     prep_divisor_du(t0, src2);
     tcg_gen_div_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_rem_w(TCGv dest, TCGv src1, TCGv src2)
@@ -194,7 +184,6 @@ static void gen_rem_w(TCGv dest, TCGv src1, TCGv src2)
     /* We need not check for integer overflow for rem_w. */
     prep_divisor_du(t0, src2);
     tcg_gen_rem_tl(dest, src1, t0);
-    tcg_temp_free(t0);
 }
 
 static void gen_alsl(TCGv dest, TCGv src1, TCGv src2, target_long sa)
@@ -202,7 +191,6 @@ static void gen_alsl(TCGv dest, TCGv src1, TCGv src2, target_long sa)
     TCGv t0 = tcg_temp_new();
     tcg_gen_shli_tl(t0, src1, sa);
     tcg_gen_add_tl(dest, t0, src2);
-    tcg_temp_free(t0);
 }
 
 static bool trans_lu32i_d(DisasContext *ctx, arg_lu32i_d *a)
