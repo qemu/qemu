@@ -220,8 +220,6 @@ static inline void gen_pred_cancel(TCGv pred, uint32_t slot_num)
     tcg_gen_andi_tl(tmp, pred, 1);
     tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
                        slot_mask, hex_slot_cancelled);
-    tcg_temp_free(slot_mask);
-    tcg_temp_free(tmp);
 }
 #define PRED_LOAD_CANCEL(PRED, EA) \
     gen_pred_cancel(PRED, insn->is_endloop ? 4 : insn->slot)
@@ -376,10 +374,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     tcg_gen_deposit_tl(result, msb, lsb, 0, 7);
 
     tcg_gen_shli_tl(result, result, shift);
-
-    tcg_temp_free(msb);
-    tcg_temp_free(lsb);
-
     return result;
 }
 #define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
@@ -512,7 +506,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
         TCGv tmp = tcg_temp_new(); \
         tcg_gen_shli_tl(tmp, REG2, SCALE); \
         tcg_gen_add_tl(EA, REG, tmp); \
-        tcg_temp_free(tmp); \
     } while (0)
 #define fEA_IRs(IMM, REG, SCALE) \
     do { \

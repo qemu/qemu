@@ -88,7 +88,6 @@ tcg_funcs_generated.c.inc
         gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
         gen_log_reg_write(RdN, RdV);
         ctx_log_reg_write(ctx, RdN);
-        tcg_temp_free(RdV);
     }
 
 helper_funcs_generated.c.inc
@@ -160,12 +159,8 @@ istruction.
         tcg_gen_addi_ptr(VvV, cpu_env, VvV_off);
         TCGv slot = tcg_constant_tl(insn->slot);
         gen_helper_V6_vaddw(cpu_env, VdV, VuV, VvV, slot);
-        tcg_temp_free(slot);
         gen_log_vreg_write(ctx, VdV_off, VdN, EXT_DFL, insn->slot, false);
         ctx_log_vreg_write(ctx, VdN, EXT_DFL, false);
-        tcg_temp_free_ptr(VdV);
-        tcg_temp_free_ptr(VuV);
-        tcg_temp_free_ptr(VvV);
     }
 
 Notice that we also generate a variable named <operand>_off for each operand of
