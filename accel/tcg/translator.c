@@ -18,10 +18,6 @@
 #include "exec/plugin-gen.h"
 #include "exec/replay-core.h"
 
-void translator_loop_temp_check(DisasContextBase *db)
-{
-}
-
 bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
 {
     /* Suppress goto_tb if requested. */
