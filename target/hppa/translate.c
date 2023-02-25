@@ -3547,12 +3547,16 @@ static void gen_fcpy_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 
 static bool trans_fid_f(DisasContext *ctx, arg_fid_f *a)
 {
+    uint64_t ret;
+
+    if (TARGET_REGISTER_BITS == 64) {
+        ret = 0x13080000000000ULL; /* PA8700 (PCX-W2) */
+    } else {
+        ret = 0x0f080000000000ULL; /* PA7300LC (PCX-L2) */
+    }
+
     nullify_over(ctx);
-#if TARGET_REGISTER_BITS == 64
-    save_frd(0, tcg_const_i64(0x13080000000000ULL)); /* PA8700 (PCX-W2) */
-#else
-    save_frd(0, tcg_const_i64(0x0f080000000000ULL)); /* PA7300LC (PCX-L2) */
-#endif
+    save_frd(0, tcg_constant_i64(ret));
     return nullify_end(ctx);
 }
 
