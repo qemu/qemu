@@ -595,21 +595,22 @@ static inline void
 gen_madd_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
            TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -621,21 +622,22 @@ static inline void
 gen_maddsu_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
              TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -647,22 +649,22 @@ static inline void
 gen_maddsum_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
               TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     TCGv_i64 temp64_3 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_3, r1_low, r1_high);
@@ -682,23 +684,24 @@ static inline void
 gen_madds_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
            TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv temp3 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -718,23 +721,24 @@ static inline void
 gen_maddsus_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
               TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv temp3 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -752,22 +756,22 @@ static inline void
 gen_maddsums_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
                TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_sari_i64(temp64_2, temp64, 32); /* high */
@@ -785,22 +789,22 @@ static inline void
 gen_maddm_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
            TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     TCGv_i64 temp64_3 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mulm_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_2, r1_low, r1_high);
@@ -813,21 +817,21 @@ static inline void
 gen_maddms_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
            TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mulm_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_2, r1_low, r1_high);
@@ -839,20 +843,20 @@ static inline void
 gen_maddr64_h(TCGv ret, TCGv r1_low, TCGv r1_high, TCGv r2, TCGv r3, uint32_t n,
               uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     gen_helper_addr_h(ret, cpu_env, temp64, r1_low, r1_high);
@@ -872,21 +876,22 @@ gen_maddr32_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 static inline void
 gen_maddsur32_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_andi_tl(temp2, r1, 0xffff0000);
@@ -899,20 +904,20 @@ static inline void
 gen_maddr64s_h(TCGv ret, TCGv r1_low, TCGv r1_high, TCGv r2, TCGv r3,
                uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     gen_helper_addr_h_ssov(ret, cpu_env, temp64, r1_low, r1_high);
@@ -932,21 +937,22 @@ gen_maddr32s_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 static inline void
 gen_maddsur32s_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_andi_tl(temp2, r1, 0xffff0000);
@@ -957,15 +963,15 @@ gen_maddsur32s_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 static inline void
 gen_maddr_q(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n)
 {
-    TCGv temp = tcg_const_i32(n);
-    gen_helper_maddr_q(ret, cpu_env, r1, r2, r3, temp);
+    TCGv t_n = tcg_constant_i32(n);
+    gen_helper_maddr_q(ret, cpu_env, r1, r2, r3, t_n);
 }
 
 static inline void
 gen_maddrs_q(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n)
 {
-    TCGv temp = tcg_const_i32(n);
-    gen_helper_maddr_q_ssov(ret, cpu_env, r1, r2, r3, temp);
+    TCGv t_n = tcg_constant_i32(n);
+    gen_helper_maddr_q_ssov(ret, cpu_env, r1, r2, r3, t_n);
 }
 
 static inline void
@@ -1176,10 +1182,10 @@ gen_madds64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
              TCGv arg3, uint32_t n)
 {
     TCGv_i64 r1 = tcg_temp_new_i64();
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
 
     tcg_gen_concat_i32_i64(r1, arg1_low, arg1_high);
-    gen_helper_madd64_q_ssov(r1, cpu_env, r1, arg2, arg3, temp);
+    gen_helper_madd64_q_ssov(r1, cpu_env, r1, arg2, arg3, t_n);
     tcg_gen_extr_i64_i32(rl, rh, r1);
 }
 
@@ -1516,21 +1522,22 @@ static inline void
 gen_msub_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
            TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -1542,23 +1549,24 @@ static inline void
 gen_msubs_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
             TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv temp3 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -1576,22 +1584,22 @@ static inline void
 gen_msubm_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
             TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     TCGv_i64 temp64_3 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mulm_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_2, r1_low, r1_high);
@@ -1604,21 +1612,21 @@ static inline void
 gen_msubms_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
              TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mulm_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mulm_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mulm_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_2, r1_low, r1_high);
@@ -1630,20 +1638,20 @@ static inline void
 gen_msubr64_h(TCGv ret, TCGv r1_low, TCGv r1_high, TCGv r2, TCGv r3, uint32_t n,
               uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     gen_helper_subr_h(ret, cpu_env, temp64, r1_low, r1_high);
@@ -1664,20 +1672,20 @@ static inline void
 gen_msubr64s_h(TCGv ret, TCGv r1_low, TCGv r1_high, TCGv r2, TCGv r3,
                uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     gen_helper_subr_h_ssov(ret, cpu_env, temp64, r1_low, r1_high);
@@ -1912,10 +1920,10 @@ gen_msubs64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
              TCGv arg3, uint32_t n)
 {
     TCGv_i64 r1 = tcg_temp_new_i64();
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
 
     tcg_gen_concat_i32_i64(r1, arg1_low, arg1_high);
-    gen_helper_msub64_q_ssov(r1, cpu_env, r1, arg2, arg3, temp);
+    gen_helper_msub64_q_ssov(r1, cpu_env, r1, arg2, arg3, t_n);
     tcg_gen_extr_i64_i32(rl, rh, r1);
 }
 
@@ -1923,21 +1931,22 @@ static inline void
 gen_msubad_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
              TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -1949,22 +1958,22 @@ static inline void
 gen_msubadm_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
               TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
     TCGv_i64 temp64_3 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_concat_i32_i64(temp64_3, r1_low, r1_high);
@@ -1981,21 +1990,22 @@ gen_msubadm_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
 static inline void
 gen_msubadr32_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_andi_tl(temp2, r1, 0xffff0000);
@@ -2007,23 +2017,24 @@ static inline void
 gen_msubads_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
               TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv temp3 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_extr_i64_i32(temp, temp2, temp64);
@@ -2041,22 +2052,22 @@ static inline void
 gen_msubadms_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
                TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
     TCGv_i64 temp64 = tcg_temp_new_i64();
     TCGv_i64 temp64_2 = tcg_temp_new_i64();
 
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_sari_i64(temp64_2, temp64, 32); /* high */
@@ -2072,21 +2083,22 @@ gen_msubadms_h(TCGv ret_low, TCGv ret_high, TCGv r1_low, TCGv r1_high, TCGv r2,
 static inline void
 gen_msubadr32s_h(TCGv ret, TCGv r1, TCGv r2, TCGv r3, uint32_t n, uint32_t mode)
 {
-    TCGv temp = tcg_const_i32(n);
+    TCGv t_n = tcg_constant_i32(n);
+    TCGv temp = tcg_temp_new();
     TCGv temp2 = tcg_temp_new();
     TCGv_i64 temp64 = tcg_temp_new_i64();
     switch (mode) {
     case MODE_LL:
-        GEN_HELPER_LL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_LU:
-        GEN_HELPER_LU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_LU(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UL:
-        GEN_HELPER_UL(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UL(mul_h, temp64, r2, r3, t_n);
         break;
     case MODE_UU:
-        GEN_HELPER_UU(mul_h, temp64, r2, r3, temp);
+        GEN_HELPER_UU(mul_h, temp64, r2, r3, t_n);
         break;
     }
     tcg_gen_andi_tl(temp2, r1, 0xffff0000);
