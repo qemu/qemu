@@ -1514,11 +1514,11 @@ static void translate_callxw(DisasContext *dc, const OpcodeArg arg[],
 static void translate_clamps(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
-    TCGv_i32 tmp1 = tcg_const_i32(-1u << arg[2].imm);
-    TCGv_i32 tmp2 = tcg_const_i32((1 << arg[2].imm) - 1);
+    TCGv_i32 tmp1 = tcg_constant_i32(-1u << arg[2].imm);
+    TCGv_i32 tmp2 = tcg_constant_i32((1 << arg[2].imm) - 1);
 
-    tcg_gen_smax_i32(tmp1, tmp1, arg[1].in);
-    tcg_gen_smin_i32(arg[0].out, tmp1, tmp2);
+    tcg_gen_smax_i32(arg[0].out, tmp1, arg[1].in);
+    tcg_gen_smin_i32(arg[0].out, arg[0].out, tmp2);
 }
 
 static void translate_clrb_expstate(DisasContext *dc, const OpcodeArg arg[],
