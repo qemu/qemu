@@ -101,9 +101,7 @@ static void t_sync_flags(DisasContext *dc)
 
 static void gen_raise_exception(DisasContext *dc, uint32_t index)
 {
-    TCGv_i32 tmp = tcg_const_i32(index);
-
-    gen_helper_raise_exception(cpu_env, tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(index));
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -116,7 +114,7 @@ static void gen_raise_exception_sync(DisasContext *dc, uint32_t index)
 
 static void gen_raise_hw_excp(DisasContext *dc, uint32_t esr_ec)
 {
-    TCGv_i32 tmp = tcg_const_i32(esr_ec);
+    TCGv_i32 tmp = tcg_constant_i32(esr_ec);
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUMBState, esr));
 
     gen_raise_exception_sync(dc, EXCP_HW_EXCP);
@@ -260,7 +258,7 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 
     rd = reg_for_write(dc, arg->rd);
     ra = reg_for_read(dc, arg->ra);
-    imm = tcg_const_i32(arg->imm);
+    imm = tcg_constant_i32(arg->imm);
 
     fn(rd, ra, imm);
     return true;
@@ -305,7 +303,7 @@ static bool do_typeb_val(DisasContext *dc, arg_typeb *arg, bool side_effects,
 /* No input carry, but output carry. */
 static void gen_add(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
 
     tcg_gen_add2_i32(out, cpu_msr_c, ina, zero, inb, zero);
 }
@@ -313,7 +311,7 @@ static void gen_add(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 /* Input and output carry. */
 static void gen_addc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     tcg_gen_add2_i32(tmp, cpu_msr_c, ina, zero, cpu_msr_c, zero);
@@ -546,7 +544,7 @@ static void gen_rsub(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 /* Input and output carry. */
 static void gen_rsubc(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 {
-    TCGv_i32 zero = tcg_const_i32(0);
+    TCGv_i32 zero = tcg_constant_i32(0);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
     tcg_gen_not_i32(tmp, ina);
@@ -1117,8 +1115,8 @@ static bool do_bcc(DisasContext *dc, int dest_rb, int dest_imm,
     }
 
     /* Compute the final destination into btarget.  */
-    zero = tcg_const_i32(0);
-    next = tcg_const_i32(dc->base.pc_next + (delay + 1) * 4);
+    zero = tcg_constant_i32(0);
+    next = tcg_constant_i32(dc->base.pc_next + (delay + 1) * 4);
     tcg_gen_movcond_i32(dc->jmp_cond, cpu_btarget,
                         reg_for_read(dc, ra), zero,
                         cpu_btarget, next);
@@ -1226,8 +1224,6 @@ static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
 
     /* Sleep. */
     if (mbar_imm & 16) {
-        TCGv_i32 tmp_1;
-
         if (trap_userspace(dc, true)) {
             /* Sleep is a privileged instruction.  */
             return true;
@@ -1235,8 +1231,7 @@ static bool trans_mbar(DisasContext *dc, arg_mbar *arg)
 
         t_sync_flags(dc);
 
-        tmp_1 = tcg_const_i32(1);
-        tcg_gen_st_i32(tmp_1, cpu_env,
+        tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
                        -offsetof(MicroBlazeCPU, env)
                        +offsetof(CPUState, halted));
 
@@ -1401,8 +1396,8 @@ static bool trans_mts(DisasContext *dc, arg_mts *arg)
     case 0x1004: /* TLBHI */
     case 0x1005: /* TLBSX */
         {
-            TCGv_i32 tmp_ext = tcg_const_i32(arg->e);
-            TCGv_i32 tmp_reg = tcg_const_i32(arg->rs & 7);
+            TCGv_i32 tmp_ext = tcg_constant_i32(arg->e);
+            TCGv_i32 tmp_reg = tcg_constant_i32(arg->rs & 7);
 
             gen_helper_mmu_write(cpu_env, tmp_ext, tmp_reg, src);
         }
@@ -1487,8 +1482,8 @@ static bool trans_mfs(DisasContext *dc, arg_mfs *arg)
     case 0x1004: /* TLBHI */
     case 0x1005: /* TLBSX */
         {
-            TCGv_i32 tmp_ext = tcg_const_i32(arg->e);
-            TCGv_i32 tmp_reg = tcg_const_i32(arg->rs & 7);
+            TCGv_i32 tmp_ext = tcg_constant_i32(arg->e);
+            TCGv_i32 tmp_reg = tcg_constant_i32(arg->rs & 7);
 
             gen_helper_mmu_read(dest, cpu_env, tmp_ext, tmp_reg);
         }
@@ -1555,7 +1550,7 @@ static bool do_get(DisasContext *dc, int rd, int rb, int imm, int ctrl)
         tcg_gen_movi_i32(t_id, imm);
     }
 
-    t_ctrl = tcg_const_i32(ctrl);
+    t_ctrl = tcg_constant_i32(ctrl);
     gen_helper_get(reg_for_write(dc, rd), t_id, t_ctrl);
     return true;
 }
@@ -1585,7 +1580,7 @@ static bool do_put(DisasContext *dc, int ra, int rb, int imm, int ctrl)
         tcg_gen_movi_i32(t_id, imm);
     }
 
-    t_ctrl = tcg_const_i32(ctrl);
+    t_ctrl = tcg_constant_i32(ctrl);
     gen_helper_put(t_id, t_ctrl, reg_for_read(dc, ra));
     return true;
 }
