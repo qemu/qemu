@@ -2324,8 +2324,8 @@ static void translate_sll(DisasContext *dc, const OpcodeArg arg[],
         tcg_gen_shl_i32(arg[0].out, arg[1].in, dc->sar_m32);
     } else {
         TCGv_i64 v = tcg_temp_new_i64();
-        TCGv_i32 s = tcg_const_i32(32);
-        tcg_gen_sub_i32(s, s, cpu_SR[SAR]);
+        TCGv_i32 s = tcg_temp_new();
+        tcg_gen_subfi_i32(s, 32, cpu_SR[SAR]);
         tcg_gen_andi_i32(s, s, 0x3f);
         tcg_gen_extu_i32_i64(v, arg[1].in);
         gen_shift_reg(shl, s);
