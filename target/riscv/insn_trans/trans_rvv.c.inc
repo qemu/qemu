@@ -209,8 +209,8 @@ static bool trans_vsetvli(DisasContext *s, arg_vsetvli *a)
 
 static bool trans_vsetivli(DisasContext *s, arg_vsetivli *a)
 {
-    TCGv s1 = tcg_const_tl(a->rs1);
-    TCGv s2 = tcg_const_tl(a->zimm);
+    TCGv s1 = tcg_constant_tl(a->rs1);
+    TCGv s2 = tcg_constant_tl(a->zimm);
     return do_vsetivli(s, a->rd, s1, s2);
 }
 
