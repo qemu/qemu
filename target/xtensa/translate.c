@@ -1406,19 +1406,15 @@ static void translate_b(DisasContext *dc, const OpcodeArg arg[],
 static void translate_bb(DisasContext *dc, const OpcodeArg arg[],
                          const uint32_t par[])
 {
-#if TARGET_BIG_ENDIAN
-    TCGv_i32 bit = tcg_const_i32(0x80000000u);
-#else
-    TCGv_i32 bit = tcg_const_i32(0x00000001u);
-#endif
     TCGv_i32 tmp = tcg_temp_new_i32();
+
     tcg_gen_andi_i32(tmp, arg[1].in, 0x1f);
-#if TARGET_BIG_ENDIAN
-    tcg_gen_shr_i32(bit, bit, tmp);
-#else
-    tcg_gen_shl_i32(bit, bit, tmp);
-#endif
-    tcg_gen_and_i32(tmp, arg[0].in, bit);
+    if (TARGET_BIG_ENDIAN) {
+        tcg_gen_shr_i32(tmp, tcg_constant_i32(0x80000000u), tmp);
+    } else {
+        tcg_gen_shl_i32(tmp, tcg_constant_i32(0x00000001u), tmp);
+    }
+    tcg_gen_and_i32(tmp, arg[0].in, tmp);
     gen_brcondi(dc, par[0], tmp, 0, arg[2].imm);
 }
 
