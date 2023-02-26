@@ -173,43 +173,7 @@ target_ulong riscv_load_firmware(const char *firmware_filename,
     exit(1);
 }
 
-target_ulong riscv_load_kernel(MachineState *machine,
-                               target_ulong kernel_start_addr,
-                               symbol_fn_t sym_cb)
-{
-    const char *kernel_filename = machine->kernel_filename;
-    uint64_t kernel_load_base, kernel_entry;
-
-    g_assert(kernel_filename != NULL);
-
-    /*
-     * NB: Use low address not ELF entry point to ensure that the fw_dynamic
-     * behaviour when loading an ELF matches the fw_payload, fw_jump and BBL
-     * behaviour, as well as fw_dynamic with a raw binary, all of which jump to
-     * the (expected) load address load address. This allows kernels to have
-     * separate SBI and ELF entry points (used by FreeBSD, for example).
-     */
-    if (load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
-                         NULL, &kernel_load_base, NULL, NULL, 0,
-                         EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
-        return kernel_load_base;
-    }
-
-    if (load_uimage_as(kernel_filename, &kernel_entry, NULL, NULL,
-                       NULL, NULL, NULL) > 0) {
-        return kernel_entry;
-    }
-
-    if (load_image_targphys_as(kernel_filename, kernel_start_addr,
-                               current_machine->ram_size, NULL) > 0) {
-        return kernel_start_addr;
-    }
-
-    error_report("could not load kernel '%s'", kernel_filename);
-    exit(1);
-}
-
-void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
+static void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
 {
     const char *filename = machine->initrd_filename;
     uint64_t mem_size = machine->ram_size;
@@ -247,6 +211,67 @@ void riscv_load_initrd(MachineState *machine, uint64_t kernel_entry)
         qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-start", start);
         qemu_fdt_setprop_cell(fdt, "/chosen", "linux,initrd-end", end);
     }
+}
+
+target_ulong riscv_load_kernel(MachineState *machine,
+                               RISCVHartArrayState *harts,
+                               target_ulong kernel_start_addr,
+                               bool load_initrd,
+                               symbol_fn_t sym_cb)
+{
+    const char *kernel_filename = machine->kernel_filename;
+    uint64_t kernel_load_base, kernel_entry;
+    void *fdt = machine->fdt;
+
+    g_assert(kernel_filename != NULL);
+
+    /*
+     * NB: Use low address not ELF entry point to ensure that the fw_dynamic
+     * behaviour when loading an ELF matches the fw_payload, fw_jump and BBL
+     * behaviour, as well as fw_dynamic with a raw binary, all of which jump to
+     * the (expected) load address load address. This allows kernels to have
+     * separate SBI and ELF entry points (used by FreeBSD, for example).
+     */
+    if (load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
+                         NULL, &kernel_load_base, NULL, NULL, 0,
+                         EM_RISCV, 1, 0, NULL, true, sym_cb) > 0) {
+        kernel_entry = kernel_load_base;
+        goto out;
+    }
+
+    if (load_uimage_as(kernel_filename, &kernel_entry, NULL, NULL,
+                       NULL, NULL, NULL) > 0) {
+        goto out;
+    }
+
+    if (load_image_targphys_as(kernel_filename, kernel_start_addr,
+                               current_machine->ram_size, NULL) > 0) {
+        kernel_entry = kernel_start_addr;
+        goto out;
+    }
+
+    error_report("could not load kernel '%s'", kernel_filename);
+    exit(1);
+
+out:
+    /*
+     * For 32 bit CPUs 'kernel_entry' can be sign-extended by
+     * load_elf_ram_sym().
+     */
+    if (riscv_is_32bit(harts)) {
+        kernel_entry = extract64(kernel_entry, 0, 32);
+    }
+
+    if (load_initrd && machine->initrd_filename) {
+        riscv_load_initrd(machine, kernel_entry);
+    }
+
+    if (fdt && machine->kernel_cmdline && *machine->kernel_cmdline) {
+        qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
+                                machine->kernel_cmdline);
+    }
+
+    return kernel_entry;
 }
 
 /*
