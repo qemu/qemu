@@ -2838,7 +2838,7 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_env cpu_env)
 static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
                      int width, bool cc, bool left)
 {
-    TCGv lo1, lo2, t1, t2;
+    TCGv lo1, lo2;
     uint64_t amask, tabl, tabr;
     int shift, imask, omask;
 
@@ -2905,10 +2905,8 @@ static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
     tcg_gen_shli_tl(lo1, lo1, shift);
     tcg_gen_shli_tl(lo2, lo2, shift);
 
-    t1 = tcg_const_tl(tabl);
-    t2 = tcg_const_tl(tabr);
-    tcg_gen_shr_tl(lo1, t1, lo1);
-    tcg_gen_shr_tl(lo2, t2, lo2);
+    tcg_gen_shr_tl(lo1, tcg_constant_tl(tabl), lo1);
+    tcg_gen_shr_tl(lo2, tcg_constant_tl(tabr), lo2);
     tcg_gen_andi_tl(dst, lo1, omask);
     tcg_gen_andi_tl(lo2, lo2, omask);
 
@@ -2927,9 +2925,9 @@ static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
         lo2 |= -(s1 == s2)
         dst &= lo2
     */
-    tcg_gen_setcond_tl(TCG_COND_EQ, t1, s1, s2);
-    tcg_gen_neg_tl(t1, t1);
-    tcg_gen_or_tl(lo2, lo2, t1);
+    tcg_gen_setcond_tl(TCG_COND_EQ, lo1, s1, s2);
+    tcg_gen_neg_tl(lo1, lo1);
+    tcg_gen_or_tl(lo2, lo2, lo1);
     tcg_gen_and_tl(dst, dst, lo2);
 }
 
