@@ -526,13 +526,13 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x9000:		/* mov.w @(disp,PC),Rn */
 	{
-            TCGv addr = tcg_const_i32(ctx->base.pc_next + 4 + B7_0 * 2);
+            TCGv addr = tcg_constant_i32(ctx->base.pc_next + 4 + B7_0 * 2);
             tcg_gen_qemu_ld_i32(REG(B11_8), addr, ctx->memidx, MO_TESW);
 	}
 	return;
     case 0xd000:		/* mov.l @(disp,PC),Rn */
 	{
-            TCGv addr = tcg_const_i32((ctx->base.pc_next + 4 + B7_0 * 4) & ~3);
+            TCGv addr = tcg_constant_i32((ctx->base.pc_next + 4 + B7_0 * 4) & ~3);
             tcg_gen_qemu_ld_i32(REG(B11_8), addr, ctx->memidx, MO_TESL);
 	}
 	return;
@@ -694,7 +694,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0x300e:		/* addc Rm,Rn */
         {
             TCGv t0, t1;
-            t0 = tcg_const_tl(0);
+            t0 = tcg_constant_tl(0);
             t1 = tcg_temp_new();
             tcg_gen_add2_i32(t1, cpu_sr_t, cpu_sr_t, t0, REG(B7_4), t0);
             tcg_gen_add2_i32(REG(B11_8), cpu_sr_t,
@@ -754,7 +754,7 @@ static void _decode_opc(DisasContext * ctx)
             TCGv t0 = tcg_temp_new();
             TCGv t1 = tcg_temp_new();
             TCGv t2 = tcg_temp_new();
-            TCGv zero = tcg_const_i32(0);
+            TCGv zero = tcg_constant_i32(0);
 
             /* shift left arg1, saving the bit being pushed out and inserting
                T on the right */
@@ -849,7 +849,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x600a:		/* negc Rm,Rn */
         {
-            TCGv t0 = tcg_const_i32(0);
+            TCGv t0 = tcg_constant_i32(0);
             tcg_gen_add2_i32(REG(B11_8), cpu_sr_t,
                              REG(B7_4), t0, cpu_sr_t, t0);
             tcg_gen_sub2_i32(REG(B11_8), cpu_sr_t,
@@ -913,7 +913,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0x300a:		/* subc Rm,Rn */
         {
             TCGv t0, t1;
-            t0 = tcg_const_tl(0);
+            t0 = tcg_constant_tl(0);
             t1 = tcg_temp_new();
             tcg_gen_add2_i32(t1, cpu_sr_t, cpu_sr_t, t0, REG(B7_4), t0);
             tcg_gen_sub2_i32(REG(B11_8), cpu_sr_t,
@@ -1242,7 +1242,7 @@ static void _decode_opc(DisasContext * ctx)
 	    TCGv imm;
 	    CHECK_NOT_DELAY_SLOT
             gen_save_cpu_state(ctx, true);
-	    imm = tcg_const_i32(B7_0);
+	    imm = tcg_constant_i32(B7_0);
             gen_helper_trapa(cpu_env, imm);
             ctx->base.is_jmp = DISAS_NORETURN;
 	}
@@ -1709,8 +1709,8 @@ static void _decode_opc(DisasContext * ctx)
         CHECK_FPU_ENABLED
         CHECK_FPSCR_PR_1
         {
-            TCGv m = tcg_const_i32((ctx->opcode >> 8) & 3);
-            TCGv n = tcg_const_i32((ctx->opcode >> 10) & 3);
+            TCGv m = tcg_constant_i32((ctx->opcode >> 8) & 3);
+            TCGv n = tcg_constant_i32((ctx->opcode >> 10) & 3);
             gen_helper_fipr(cpu_env, m, n);
             return;
         }
@@ -1722,7 +1722,7 @@ static void _decode_opc(DisasContext * ctx)
             if ((ctx->opcode & 0x0300) != 0x0100) {
                 goto do_illegal;
             }
-            TCGv n = tcg_const_i32((ctx->opcode >> 10) & 3);
+            TCGv n = tcg_constant_i32((ctx->opcode >> 10) & 3);
             gen_helper_ftrv(cpu_env, n);
             return;
         }
@@ -1926,7 +1926,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
         }
         op_dst = B11_8;
         op_opc = INDEX_op_xor_i32;
-        op_arg = tcg_const_i32(-1);
+        op_arg = tcg_constant_i32(-1);
         break;
 
     case 0x7000 ... 0x700f: /* add #imm,Rn */
@@ -1934,7 +1934,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         op_opc = INDEX_op_add_i32;
-        op_arg = tcg_const_i32(B7_0s);
+        op_arg = tcg_constant_i32(B7_0s);
         break;
 
     case 0x3000: /* cmp/eq Rm,Rn */
@@ -1980,7 +1980,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
             goto fail;
         }
         op_opc = INDEX_op_setcond_i32;
-        op_arg = tcg_const_i32(0);
+        op_arg = tcg_constant_i32(0);
 
         NEXT_INSN;
         if ((ctx->opcode & 0xff00) != 0x8900 /* bt label */
