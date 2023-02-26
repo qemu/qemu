@@ -1721,10 +1721,10 @@ static void translate_l32r(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 tmp;
 
     if (dc->base.tb->flags & XTENSA_TBFLAG_LITBASE) {
-        tmp = tcg_const_i32(arg[1].raw_imm - 1);
-        tcg_gen_add_i32(tmp, cpu_SR[LITBASE], tmp);
+        tmp = tcg_temp_new();
+        tcg_gen_addi_i32(tmp, cpu_SR[LITBASE], arg[1].raw_imm - 1);
     } else {
-        tmp = tcg_const_i32(arg[1].imm);
+        tmp = tcg_constant_i32(arg[1].imm);
     }
     tcg_gen_qemu_ld32u(arg[0].out, tmp, dc->cring);
 }
