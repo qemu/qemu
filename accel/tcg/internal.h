@@ -57,11 +57,11 @@ void cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
 /* Return the current PC from CPU, which may be cached in TB. */
 static inline target_ulong log_pc(CPUState *cpu, const TranslationBlock *tb)
 {
-#if TARGET_TB_PCREL
-    return cpu->cc->get_pc(cpu);
-#else
-    return tb_pc(tb);
-#endif
+    if (tb_cflags(tb) & CF_PCREL) {
+        return cpu->cc->get_pc(cpu);
+    } else {
+        return tb_pc(tb);
+    }
 }
 
 extern int64_t max_delay;

@@ -134,7 +134,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
 
         for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
             if (i == 0) {
-                prev = (!TARGET_TB_PCREL && j == 0 ? tb_pc(tb) : 0);
+                prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb_pc(tb) : 0);
             } else {
                 prev = tcg_ctx->gen_insn_data[i - 1][j];
             }
@@ -169,7 +169,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
     }
 
     memset(data, 0, sizeof(uint64_t) * TARGET_INSN_START_WORDS);
-    if (!TARGET_TB_PCREL) {
+    if (!(tb_cflags(tb) & CF_PCREL)) {
         data[0] = tb_pc(tb);
     }
 
@@ -340,9 +340,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = tcg_splitwx_to_rx(gen_code_buf);
-#if !TARGET_TB_PCREL
-    tb->pc = pc;
-#endif
+    if (!(cflags & CF_PCREL)) {
+        tb->pc = pc;
+    }
     tb->cs_base = cs_base;
     tb->flags = flags;
     tb->cflags = cflags;
@@ -407,8 +407,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->tc.size = gen_code_size;
 
     /*
-     * For TARGET_TB_PCREL, attribute all executions of the generated
-     * code to its first mapping.
+     * For CF_PCREL, attribute all executions of the generated code
+     * to its first mapping.
      */
     perf_report_code(pc, tb, tcg_splitwx_to_rx(gen_code_buf));
 
