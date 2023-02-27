@@ -900,6 +900,13 @@ uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
 #define CPUID_7_1_EAX_AVX_VNNI          (1U << 4)
 /* AVX512 BFloat16 Instruction */
 #define CPUID_7_1_EAX_AVX512_BF16       (1U << 5)
+/* Fast Zero REP MOVS */
+#define CPUID_7_1_EAX_FZRM              (1U << 10)
+/* Fast Short REP STOS */
+#define CPUID_7_1_EAX_FSRS              (1U << 11)
+/* Fast Short REP CMPS/SCAS */
+#define CPUID_7_1_EAX_FSRC              (1U << 12)
+
 /* XFD Extend Feature Disabled */
 #define CPUID_D_1_EAX_XFD               (1U << 4)
 
