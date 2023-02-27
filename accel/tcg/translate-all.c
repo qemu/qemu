@@ -134,7 +134,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
 
         for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
             if (i == 0) {
-                prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb_pc(tb) : 0);
+                prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb->pc : 0);
             } else {
                 prev = tcg_ctx->gen_insn_data[i - 1][j];
             }
@@ -170,7 +170,7 @@ static int cpu_unwind_data_from_tb(TranslationBlock *tb, uintptr_t host_pc,
 
     memset(data, 0, sizeof(uint64_t) * TARGET_INSN_START_WORDS);
     if (!(tb_cflags(tb) & CF_PCREL)) {
-        data[0] = tb_pc(tb);
+        data[0] = tb->pc;
     }
 
     /*

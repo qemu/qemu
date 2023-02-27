@@ -183,7 +183,7 @@ static bool tb_lookup_cmp(const void *p, const void *d)
     const TranslationBlock *tb = p;
     const struct tb_desc *desc = d;
 
-    if ((tb_cflags(tb) & CF_PCREL || tb_pc(tb) == desc->pc) &&
+    if ((tb_cflags(tb) & CF_PCREL || tb->pc == desc->pc) &&
         tb_page_addr0(tb) == desc->page_addr0 &&
         tb->cs_base == desc->cs_base &&
         tb->flags == desc->flags &&
@@ -279,7 +279,7 @@ static inline TranslationBlock *tb_lookup(CPUState *cpu, target_ulong pc,
         tb = qatomic_rcu_read(&jc->array[hash].tb);
 
         if (likely(tb &&
-                   tb_pc(tb) == pc &&
+                   tb->pc == pc &&
                    tb->cs_base == cs_base &&
                    tb->flags == flags &&
                    tb->trace_vcpu_dstate == *cpu->trace_dstate &&
@@ -484,7 +484,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
         } else {
             tcg_debug_assert(!(tb_cflags(last_tb) & CF_PCREL));
             assert(cc->set_pc);
-            cc->set_pc(cpu, tb_pc(last_tb));
+            cc->set_pc(cpu, last_tb->pc);
         }
         if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
             target_ulong pc = log_pc(cpu, last_tb);

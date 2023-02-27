@@ -60,7 +60,7 @@ static inline target_ulong log_pc(CPUState *cpu, const TranslationBlock *tb)
     if (tb_cflags(tb) & CF_PCREL) {
         return cpu->cc->get_pc(cpu);
     } else {
-        return tb_pc(tb);
+        return tb->pc;
     }
 }
 
