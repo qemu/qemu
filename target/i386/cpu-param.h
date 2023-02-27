@@ -25,8 +25,4 @@
 #define TARGET_PAGE_BITS 12
 #define NB_MMU_MODES 5
 
-#ifndef CONFIG_USER_ONLY
-# define TARGET_TB_PCREL 1
-#endif
-
 #endif
