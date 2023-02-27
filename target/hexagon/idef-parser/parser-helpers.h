@@ -154,12 +154,6 @@ HexValue gen_tmp(Context *c,
                  unsigned bit_width,
                  HexSignedness signedness);
 
-HexValue gen_tmp_value(Context *c,
-                       YYLTYPE *locp,
-                       const char *value,
-                       unsigned bit_width,
-                       HexSignedness signedness);
-
 HexValue gen_imm_value(Context *c __attribute__((unused)),
                        YYLTYPE *locp,
                        int value,

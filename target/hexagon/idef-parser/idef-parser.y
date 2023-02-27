@@ -783,7 +783,7 @@ rvalue : FAIL
          }
        | LPCFG
          {
-             $$ = gen_tmp_value(c, &@1, "0", 32, UNSIGNED);
+             $$ = gen_tmp(c, &@1, 32, UNSIGNED);
              OUT(c, &@1, "GET_USR_FIELD(USR_LPCFG, ", &$$, ");\n");
          }
        | EXTRACT '(' rvalue ',' rvalue ')'

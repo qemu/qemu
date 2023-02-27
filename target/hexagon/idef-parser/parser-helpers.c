@@ -305,7 +305,7 @@ HexValue gen_tmp(Context *c,
     return rvalue;
 }
 
-HexValue gen_tmp_value(Context *c,
+static HexValue gen_tmp_value(Context *c,
                        YYLTYPE *locp,
                        const char *value,
                        unsigned bit_width,
