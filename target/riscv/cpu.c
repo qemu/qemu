@@ -34,6 +34,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "sysemu/kvm.h"
 #include "kvm_riscv.h"
+#include "tcg/tcg.h"
 
 /* RISC-V CPU definitions */
 
@@ -533,10 +534,12 @@ static void riscv_cpu_synchronize_from_tb(CPUState *cs,
     CPURISCVState *env = &cpu->env;
     RISCVMXL xl = FIELD_EX32(tb->flags, TB_FLAGS, XL);
 
+    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+
     if (xl == MXL_RV32) {
-        env->pc = (int32_t)tb_pc(tb);
+        env->pc = (int32_t) tb->pc;
     } else {
-        env->pc = tb_pc(tb);
+        env->pc = tb->pc;
     }
 }
 
