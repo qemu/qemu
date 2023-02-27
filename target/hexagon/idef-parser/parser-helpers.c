@@ -307,26 +307,6 @@ HexValue gen_tmp(Context *c,
     return rvalue;
 }
 
-HexValue gen_tmp_local(Context *c,
-                       YYLTYPE *locp,
-                       unsigned bit_width,
-                       HexSignedness signedness)
-{
-    HexValue rvalue;
-    assert(bit_width == 32 || bit_width == 64);
-    memset(&rvalue, 0, sizeof(HexValue));
-    rvalue.type = TEMP;
-    rvalue.bit_width = bit_width;
-    rvalue.signedness = signedness;
-    rvalue.is_dotnew = false;
-    rvalue.is_manual = false;
-    rvalue.tmp.index = c->inst.tmp_count;
-    OUT(c, locp, "TCGv_i", &bit_width, " tmp_", &c->inst.tmp_count,
-        " = tcg_temp_new_i", &bit_width, "();\n");
-    c->inst.tmp_count++;
-    return rvalue;
-}
-
 HexValue gen_tmp_value(Context *c,
                        YYLTYPE *locp,
                        const char *value,
@@ -2161,8 +2141,8 @@ HexValue gen_rvalue_sat(Context *c, YYLTYPE *locp, HexSat *sat,
     assert_signedness(c, locp, sat->signedness);
 
     unsigned_str = (sat->signedness == UNSIGNED) ? "u" : "";
-    res = gen_tmp_local(c, locp, value->bit_width, sat->signedness);
-    ovfl = gen_tmp_local(c, locp, 32, sat->signedness);
+    res = gen_tmp(c, locp, value->bit_width, sat->signedness);
+    ovfl = gen_tmp(c, locp, 32, sat->signedness);
     OUT(c, locp, "gen_sat", unsigned_str, "_", bit_suffix, "_ovfl(");
     OUT(c, locp, &ovfl, ", ", &res, ", ", value, ", ", &width->imm.value,
         ");\n");
