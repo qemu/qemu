@@ -619,13 +619,6 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
     return qatomic_read(&tb->cflags);
 }
 
-/* Hide the read to avoid ifdefs for CF_PCREL. */
-static inline target_ulong tb_pc(const TranslationBlock *tb)
-{
-    assert(!(tb_cflags(tb) & CF_PCREL));
-    return tb->pc;
-}
-
 static inline tb_page_addr_t tb_page_addr0(const TranslationBlock *tb)
 {
 #ifdef CONFIG_USER_ONLY
