@@ -325,9 +325,9 @@ HexValue gen_tmp_value(Context *c,
     return rvalue;
 }
 
-static HexValue gen_tmp_value_from_imm(Context *c,
-                                       YYLTYPE *locp,
-                                       HexValue *value)
+static HexValue gen_constant_from_imm(Context *c,
+                                      YYLTYPE *locp,
+                                      HexValue *value)
 {
     HexValue rvalue;
     assert(value->type == IMMEDIATE);
@@ -338,11 +338,11 @@ static HexValue gen_tmp_value_from_imm(Context *c,
     rvalue.is_dotnew = false;
     rvalue.tmp.index = c->inst.tmp_count;
     /*
-     * Here we output the call to `tcg_const_i<width>` in
+     * Here we output the call to `tcg_constant_i<width>` in
      * order to create the temporary value. Note, that we
      * add a cast
      *
-     *   `tcg_const_i<width>`((int<width>_t) ...)`
+     *   `tcg_constant_i<width>`((int<width>_t) ...)`
      *
      * This cast is required to avoid implicit integer
      * conversion warnings since all immediates are
@@ -350,7 +350,7 @@ static HexValue gen_tmp_value_from_imm(Context *c,
      * integer is 32-bit.
      */
     OUT(c, locp, "TCGv_i", &rvalue.bit_width, " tmp_", &c->inst.tmp_count);
-    OUT(c, locp, " = tcg_const_i", &rvalue.bit_width,
+    OUT(c, locp, " = tcg_constant_i", &rvalue.bit_width,
         "((int", &rvalue.bit_width, "_t) (", value, "));\n");
 
     c->inst.tmp_count++;
@@ -395,8 +395,7 @@ HexValue gen_imm_qemu_tmp(Context *c, YYLTYPE *locp, unsigned bit_width,
 HexValue rvalue_materialize(Context *c, YYLTYPE *locp, HexValue *rvalue)
 {
     if (rvalue->type == IMMEDIATE) {
-        HexValue res = gen_tmp_value_from_imm(c, locp, rvalue);
-        return res;
+        return gen_constant_from_imm(c, locp, rvalue);
     }
     return *rvalue;
 }
