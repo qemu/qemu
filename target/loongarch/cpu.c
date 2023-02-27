@@ -18,6 +18,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "cpu-csr.h"
 #include "sysemu/reset.h"
+#include "tcg/tcg.h"
 
 const char * const regnames[32] = {
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
@@ -321,7 +322,8 @@ static void loongarch_cpu_synchronize_from_tb(CPUState *cs,
     LoongArchCPU *cpu = LOONGARCH_CPU(cs);
     CPULoongArchState *env = &cpu->env;
 
-    env->pc = tb_pc(tb);
+    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+    env->pc = tb->pc;
 }
 
 static void loongarch_restore_state_to_opc(CPUState *cs,
@@ -599,7 +601,7 @@ static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
 
     oc = object_class_by_name(cpu_model);
     if (!oc) {
-        g_autofree char *typename 
+        g_autofree char *typename
             = g_strdup_printf(LOONGARCH_CPU_TYPE_NAME("%s"), cpu_model);
         oc = object_class_by_name(typename);
         if (!oc) {
