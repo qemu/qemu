@@ -506,22 +506,20 @@ struct tb_tc {
 };
 
 struct TranslationBlock {
-#if !TARGET_TB_PCREL
     /*
      * Guest PC corresponding to this block.  This must be the true
      * virtual address.  Therefore e.g. x86 stores EIP + CS_BASE, and
      * targets like Arm, MIPS, HP-PA, which reuse low bits for ISA or
      * privilege, must store those bits elsewhere.
      *
-     * If TARGET_TB_PCREL, the opcodes for the TranslationBlock are
-     * written such that the TB is associated only with the physical
-     * page and may be run in any virtual address context.  In this case,
-     * PC must always be taken from ENV in a target-specific manner.
+     * If CF_PCREL, the opcodes for the TranslationBlock are written
+     * such that the TB is associated only with the physical page and
+     * may be run in any virtual address context.  In this case, PC
+     * must always be taken from ENV in a target-specific manner.
      * Unwind information is taken as offsets from the page, to be
      * deposited into the "current" PC.
      */
     target_ulong pc;
-#endif
 
     /*
      * Target-specific data associated with the TranslationBlock, e.g.:
@@ -615,20 +613,17 @@ struct TranslationBlock {
     uintptr_t jmp_dest[2];
 };
 
-/* Hide the read to avoid ifdefs for TARGET_TB_PCREL. */
-static inline target_ulong tb_pc(const TranslationBlock *tb)
-{
-#if TARGET_TB_PCREL
-    qemu_build_not_reached();
-#else
-    return tb->pc;
-#endif
-}
-
 /* Hide the qatomic_read to make code a little easier on the eyes */
 static inline uint32_t tb_cflags(const TranslationBlock *tb)
 {
     return qatomic_read(&tb->cflags);
+}
+
+/* Hide the read to avoid ifdefs for CF_PCREL. */
+static inline target_ulong tb_pc(const TranslationBlock *tb)
+{
+    assert(!(tb_cflags(tb) & CF_PCREL));
+    return tb->pc;
 }
 
 static inline tb_page_addr_t tb_page_addr0(const TranslationBlock *tb)
