@@ -305,26 +305,6 @@ HexValue gen_tmp(Context *c,
     return rvalue;
 }
 
-static HexValue gen_tmp_value(Context *c,
-                       YYLTYPE *locp,
-                       const char *value,
-                       unsigned bit_width,
-                       HexSignedness signedness)
-{
-    HexValue rvalue;
-    assert(bit_width == 32 || bit_width == 64);
-    memset(&rvalue, 0, sizeof(HexValue));
-    rvalue.type = TEMP;
-    rvalue.bit_width = bit_width;
-    rvalue.signedness = signedness;
-    rvalue.is_dotnew = false;
-    rvalue.tmp.index = c->inst.tmp_count;
-    OUT(c, locp, "TCGv_i", &bit_width, " tmp_", &c->inst.tmp_count,
-        " = tcg_const_i", &bit_width, "(", value, ");\n");
-    c->inst.tmp_count++;
-    return rvalue;
-}
-
 static HexValue gen_constant_from_imm(Context *c,
                                       YYLTYPE *locp,
                                       HexValue *value)
@@ -1120,15 +1100,11 @@ static HexValue gen_extend_tcg_width_op(Context *c,
     OUT(c, locp, "tcg_gen_subfi_i", &dst_width);
     OUT(c, locp, "(", &shift, ", ", &dst_width, ", ", &src_width_m, ");\n");
     if (signedness == UNSIGNED) {
-        const char *mask_str = (dst_width == 32)
-            ? "0xffffffff"
-            : "0xffffffffffffffff";
-        HexValue mask = gen_tmp_value(c, locp, mask_str,
-                                     dst_width, UNSIGNED);
+        HexValue mask = gen_constant(c, locp, "-1", dst_width, UNSIGNED);
         OUT(c, locp, "tcg_gen_shr_i", &dst_width, "(",
-            &mask, ", ", &mask, ", ", &shift, ");\n");
+            &res, ", ", &mask, ", ", &shift, ");\n");
         OUT(c, locp, "tcg_gen_and_i", &dst_width, "(",
-            &res, ", ", value, ", ", &mask, ");\n");
+            &res, ", ", &res, ", ", value, ");\n");
     } else {
         OUT(c, locp, "tcg_gen_shl_i", &dst_width, "(",
             &res, ", ", value, ", ", &shift, ");\n");
