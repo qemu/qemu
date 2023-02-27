@@ -1647,7 +1647,7 @@ const rv_opcode_data opcode_data[] = {
     { "clzw", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     { "ctzw", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
     { "cpopw", rv_codec_r, rv_fmt_rd_rs1, NULL, 0, 0, 0 },
-    { "slli.uw", rv_codec_i_sh5, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
+    { "slli.uw", rv_codec_i_sh6, rv_fmt_rd_rs1_imm, NULL, 0, 0, 0 },
     { "add.uw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
     { "rolw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
     { "rorw", rv_codec_r, rv_fmt_rd_rs1_rs2, NULL, 0, 0, 0 },
@@ -2617,10 +2617,10 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
             switch (((inst >> 12) & 0b111)) {
             case 0: op = rv_op_addiw; break;
             case 1:
-                switch (((inst >> 25) & 0b1111111)) {
+                switch (((inst >> 26) & 0b111111)) {
                 case 0: op = rv_op_slliw; break;
-                case 4: op = rv_op_slli_uw; break;
-                case 48:
+                case 2: op = rv_op_slli_uw; break;
+                case 24:
                     switch ((inst >> 20) & 0b11111) {
                     case 0b00000: op = rv_op_clzw; break;
                     case 0b00001: op = rv_op_ctzw; break;
