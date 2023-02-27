@@ -61,7 +61,7 @@ RUN apk update && \
         liburing-dev \
         libusb-dev \
         linux-pam-dev \
-        llvm11 \
+        llvm \
         lttng-ust-dev \
         lzo-dev \
         make \

@@ -596,20 +596,43 @@ esac
 
 : ${make=${MAKE-make}}
 
-# We prefer python 3.x. A bare 'python' is traditionally
-# python 2.x, but some distros have it as python 3.x, so
-# we check that too
-python=
-explicit_python=no
-for binary in "${PYTHON-python3}" python
-do
-    if has "$binary"
-    then
-        python=$(command -v "$binary")
-        break
-    fi
-done
 
+check_py_version() {
+    # We require python >= 3.6.
+    # NB: a True python conditional creates a non-zero return code (Failure)
+    "$1" -c 'import sys; sys.exit(sys.version_info < (3,6))'
+}
+
+python=
+first_python=
+if test -z "${PYTHON}"; then
+    explicit_python=no
+    # A bare 'python' is traditionally python 2.x, but some distros
+    # have it as python 3.x, so check in both places.
+    for binary in python3 python python3.11 python3.10 python3.9 python3.8 python3.7 python3.6; do
+        if has "$binary"; then
+            python=$(command -v "$binary")
+            if check_py_version "$python"; then
+                # This one is good.
+                first_python=
+                break
+            else
+                first_python=$python
+            fi
+        fi
+    done
+else
+    # Same as above, but only check the environment variable.
+    has "${PYTHON}" || error_exit "The PYTHON environment variable does not point to an executable"
+    python=$(command -v "$PYTHON")
+    explicit_python=yes
+    if check_py_version "$python"; then
+        # This one is good.
+        first_python=
+    else
+        first_python=$first_python
+    fi
+fi
 
 # Check for ancillary tools used in testing
 genisoimage=
@@ -1034,25 +1057,44 @@ rm -f ./*/config-devices.mak.d
 
 if test -z "$python"
 then
-    error_exit "Python not found. Use --python=/path/to/python"
+    # If first_python is set, there was a binary somewhere even though
+    # it was not suitable.  Use it for the error message.
+    if test -n "$first_python"; then
+        error_exit "Cannot use '$first_python', Python >= 3.6 is required." \
+            "Use --python=/path/to/python to specify a supported Python."
+    else
+        error_exit "Python not found. Use --python=/path/to/python"
+    fi
 fi
+
 if ! has "$make"
 then
     error_exit "GNU make ($make) not found"
 fi
 
-# Note that if the Python conditional here evaluates True we will exit
-# with status 1 which is a shell 'false' value.
-if ! $python -c 'import sys; sys.exit(sys.version_info < (3,6))'; then
+if ! check_py_version "$python"; then
   error_exit "Cannot use '$python', Python >= 3.6 is required." \
       "Use --python=/path/to/python to specify a supported Python."
 fi
 
-# Suppress writing compiled files
-python="$python -B"
+# Resolve PATH + suppress writing compiled files
+python="$(command -v "$python") -B"
+
+has_meson() {
+  local python_dir=$(dirname "$python")
+  # PEP405: pyvenv.cfg is either adjacent to the Python executable
+  # or one directory above
+  if test -f $python_dir/pyvenv.cfg || test -f $python_dir/../pyvenv.cfg; then
+    # Ensure that Meson and Python come from the same virtual environment
+    test -x "$python_dir/meson" &&
+      test "$(command -v meson)" -ef "$python_dir/meson"
+  else
+    has meson
+  fi
+}
 
 if test -z "$meson"; then
-    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.61.5; then
+    if test "$explicit_python" = no && has_meson && version_ge "$(meson --version)" 0.61.5; then
         meson=meson
     elif test "$git_submodules_action" != 'ignore' ; then
         meson=git

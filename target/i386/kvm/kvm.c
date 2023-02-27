@@ -352,7 +352,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
 {
     struct kvm_cpuid2 *cpuid;
     uint32_t ret = 0;
-    uint32_t cpuid_1_edx;
+    uint32_t cpuid_1_edx, unused;
     uint64_t bitmask;
 
     cpuid = get_supported_cpuid(s);
@@ -399,10 +399,20 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     } else if (function == 6 && reg == R_EAX) {
         ret |= CPUID_6_EAX_ARAT; /* safe to allow because of emulated APIC */
     } else if (function == 7 && index == 0 && reg == R_EBX) {
+        /* Not new instructions, just an optimization.  */
+        uint32_t ebx;
+        host_cpuid(7, 0, &unused, &ebx, &unused, &unused);
+        ret |= ebx & CPUID_7_0_EBX_ERMS;
+
         if (host_tsx_broken()) {
             ret &= ~(CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_HLE);
         }
     } else if (function == 7 && index == 0 && reg == R_EDX) {
+        /* Not new instructions, just an optimization.  */
+        uint32_t edx;
+        host_cpuid(7, 0, &unused, &unused, &unused, &edx);
+        ret |= edx & CPUID_7_0_EDX_FSRM;
+
         /*
          * Linux v4.17-v4.20 incorrectly return ARCH_CAPABILITIES on SVM hosts.
          * We can detect the bug by checking if MSR_IA32_ARCH_CAPABILITIES is
@@ -411,6 +421,11 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (!has_msr_arch_capabs) {
             ret &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
         }
+    } else if (function == 7 && index == 1 && reg == R_EAX) {
+        /* Not new instructions, just an optimization.  */
+        uint32_t eax;
+        host_cpuid(7, 1, &eax, &unused, &unused, &unused);
+        ret |= eax & (CPUID_7_1_EAX_FZRM | CPUID_7_1_EAX_FSRS | CPUID_7_1_EAX_FSRC);
     } else if (function == 0xd && index == 0 &&
                (reg == R_EAX || reg == R_EDX)) {
         /*
