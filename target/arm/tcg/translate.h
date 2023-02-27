@@ -23,7 +23,7 @@ typedef struct DisasContext {
     /* The address of the current instruction being translated. */
     target_ulong pc_curr;
     /*
-     * For TARGET_TB_PCREL, the full value of cpu_pc is not known
+     * For CF_PCREL, the full value of cpu_pc is not known
      * (although the page offset is known).  For convenience, the
      * translation loop uses the full virtual address that triggered
      * the translation, from base.pc_start through pc_curr.
