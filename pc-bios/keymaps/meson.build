@@ -33,7 +33,7 @@ keymaps = {
   'tr': '-l tr',
 }
 
-if meson.is_cross_build() or 'CONFIG_XKBCOMMON' not in config_host
+if meson.is_cross_build() or not xkbcommon.found()
   native_qemu_keymap = find_program('qemu-keymap', required: false, disabler: true)
 else
   native_qemu_keymap = qemu_keymap

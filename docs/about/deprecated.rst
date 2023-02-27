@@ -99,6 +99,12 @@ form is preferred.
 The HPET setting has been turned into a machine property.
 Use ``-machine hpet=off`` instead.
 
+``-no-acpi`` (since 8.0)
+''''''''''''''''''''''''
+
+The ``-no-acpi`` setting has been turned into a machine property.
+Use ``-machine acpi=off`` instead.
+
 ``-accel hax`` (since 8.0)
 ''''''''''''''''''''''''''
 

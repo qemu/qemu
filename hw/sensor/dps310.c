@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

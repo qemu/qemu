@@ -19,7 +19,6 @@
 #define HW_TRICORE_TESTDEVICE_H
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 
 #define TYPE_TRICORE_TESTDEVICE "tricore_testdevice"
 #define TRICORE_TESTDEVICE(obj) \

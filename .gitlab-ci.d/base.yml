@@ -11,6 +11,8 @@
     # and show the duration of each line.
     FF_SCRIPT_SECTIONS: 1
 
+  interruptible: true
+
   rules:
     #############################################################
     # Stage 1: exclude scenarios where we definitely don't

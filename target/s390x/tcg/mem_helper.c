@@ -35,6 +35,12 @@
 #include "hw/boards.h"
 #endif
 
+#ifdef CONFIG_USER_ONLY
+# define user_or_likely(X)    true
+#else
+# define user_or_likely(X)    likely(X)
+#endif
+
 /*****************************************************************************/
 /* Softmmu support */
 
@@ -114,19 +120,15 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
 typedef struct S390Access {
     target_ulong vaddr1;
     target_ulong vaddr2;
-    char *haddr1;
-    char *haddr2;
+    void *haddr1;
+    void *haddr2;
     uint16_t size1;
     uint16_t size2;
     /*
      * If we can't access the host page directly, we'll have to do I/O access
      * via ld/st helpers. These are internal details, so we store the
      * mmu idx to do the access here instead of passing it around in the
-     * helpers. Maybe, one day we can get rid of ld/st access - once we can
-     * handle TLB_NOTDIRTY differently. We don't expect these special accesses
-     * to trigger exceptions - only if we would have TLB_NOTDIRTY on LAP
-     * pages, we might trigger a new MMU translation - very unlikely that
-     * the mapping changes in between and we would trigger a fault.
+     * helpers.
      */
     int mmu_idx;
 } S390Access;
@@ -138,23 +140,27 @@ typedef struct S390Access {
  * For !CONFIG_USER_ONLY, the TEC is stored stored to env->tlb_fill_tec.
  * For CONFIG_USER_ONLY, the faulting address is stored to env->__excp_addr.
  */
-static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
-                             MMUAccessType access_type, int mmu_idx,
-                             bool nonfault, void **phost, uintptr_t ra)
+static inline int s390_probe_access(CPUArchState *env, target_ulong addr,
+                                    int size, MMUAccessType access_type,
+                                    int mmu_idx, bool nonfault,
+                                    void **phost, uintptr_t ra)
 {
-#if defined(CONFIG_USER_ONLY)
-    return probe_access_flags(env, addr, access_type, mmu_idx,
-                              nonfault, phost, ra);
-#else
-    int flags;
+    int flags = probe_access_flags(env, addr, access_type, mmu_idx,
+                                   nonfault, phost, ra);
 
-    env->tlb_fill_exc = 0;
-    flags = probe_access_flags(env, addr, access_type, mmu_idx, nonfault, phost,
-                               ra);
-    if (env->tlb_fill_exc) {
+    if (unlikely(flags & TLB_INVALID_MASK)) {
+        assert(!nonfault);
+#ifdef CONFIG_USER_ONLY
+        /* Address is in TEC in system mode; see s390_cpu_record_sigsegv. */
+        env->__excp_addr = addr & TARGET_PAGE_MASK;
+        return (page_get_flags(addr) & PAGE_VALID
+                ? PGM_PROTECTION : PGM_ADDRESSING);
+#else
         return env->tlb_fill_exc;
+#endif
     }
 
+#ifndef CONFIG_USER_ONLY
     if (unlikely(flags & TLB_WATCHPOINT)) {
         /* S390 does not presently use transaction attributes. */
         cpu_check_watchpoint(env_cpu(env), addr, size,
@@ -162,8 +168,9 @@ static int s390_probe_access(CPUArchState *env, target_ulong addr, int size,
                              (access_type == MMU_DATA_STORE
                               ? BP_MEM_WRITE : BP_MEM_READ), ra);
     }
-    return 0;
 #endif
+
+    return 0;
 }
 
 static int access_prepare_nf(S390Access *access, CPUS390XState *env,
@@ -171,51 +178,46 @@ static int access_prepare_nf(S390Access *access, CPUS390XState *env,
                              MMUAccessType access_type,
                              int mmu_idx, uintptr_t ra)
 {
-    void *haddr1, *haddr2 = NULL;
     int size1, size2, exc;
-    vaddr vaddr2 = 0;
 
     assert(size > 0 && size <= 4096);
 
     size1 = MIN(size, -(vaddr1 | TARGET_PAGE_MASK)),
     size2 = size - size1;
 
+    memset(access, 0, sizeof(*access));
+    access->vaddr1 = vaddr1;
+    access->size1 = size1;
+    access->size2 = size2;
+    access->mmu_idx = mmu_idx;
+
     exc = s390_probe_access(env, vaddr1, size1, access_type, mmu_idx, nonfault,
-                            &haddr1, ra);
-    if (exc) {
+                            &access->haddr1, ra);
+    if (unlikely(exc)) {
         return exc;
     }
     if (unlikely(size2)) {
         /* The access crosses page boundaries. */
-        vaddr2 = wrap_address(env, vaddr1 + size1);
+        vaddr vaddr2 = wrap_address(env, vaddr1 + size1);
+
+        access->vaddr2 = vaddr2;
         exc = s390_probe_access(env, vaddr2, size2, access_type, mmu_idx,
-                                nonfault, &haddr2, ra);
-        if (exc) {
+                                nonfault, &access->haddr2, ra);
+        if (unlikely(exc)) {
             return exc;
         }
     }
-
-    *access = (S390Access) {
-        .vaddr1 = vaddr1,
-        .vaddr2 = vaddr2,
-        .haddr1 = haddr1,
-        .haddr2 = haddr2,
-        .size1 = size1,
-        .size2 = size2,
-        .mmu_idx = mmu_idx
-    };
     return 0;
 }
 
-static S390Access access_prepare(CPUS390XState *env, vaddr vaddr, int size,
-                                 MMUAccessType access_type, int mmu_idx,
-                                 uintptr_t ra)
+static inline void access_prepare(S390Access *ret, CPUS390XState *env,
+                                  vaddr vaddr, int size,
+                                  MMUAccessType access_type, int mmu_idx,
+                                  uintptr_t ra)
 {
-    S390Access ret;
-    int exc = access_prepare_nf(&ret, env, false, vaddr, size,
+    int exc = access_prepare_nf(ret, env, false, vaddr, size,
                                 access_type, mmu_idx, ra);
     assert(!exc);
-    return ret;
 }
 
 /* Helper to handle memset on a single page. */
@@ -224,28 +226,14 @@ static void do_access_memset(CPUS390XState *env, vaddr vaddr, char *haddr,
                              uintptr_t ra)
 {
 #ifdef CONFIG_USER_ONLY
-    g_assert(haddr);
     memset(haddr, byte, size);
 #else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-    int i;
-
     if (likely(haddr)) {
         memset(haddr, byte, size);
     } else {
-        /*
-         * Do a single access and test if we can then get access to the
-         * page. This is especially relevant to speed up TLB_NOTDIRTY.
-         */
-        g_assert(size > 0);
-        cpu_stb_mmu(env, vaddr, byte, oi, ra);
-        haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_STORE, mmu_idx);
-        if (likely(haddr)) {
-            memset(haddr + 1, byte, size - 1);
-        } else {
-            for (i = 1; i < size; i++) {
-                cpu_stb_mmu(env, vaddr + i, byte, oi, ra);
-            }
+        MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+        for (int i = 0; i < size; i++) {
+            cpu_stb_mmu(env, vaddr + i, byte, oi, ra);
         }
     }
 #endif
@@ -264,70 +252,43 @@ static void access_memset(CPUS390XState *env, S390Access *desta,
                      desta->mmu_idx, ra);
 }
 
-static uint8_t do_access_get_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
-                                  int offset, int mmu_idx, uintptr_t ra)
-{
-#ifdef CONFIG_USER_ONLY
-    return ldub_p(*haddr + offset);
-#else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-    uint8_t byte;
-
-    if (likely(*haddr)) {
-        return ldub_p(*haddr + offset);
-    }
-    /*
-     * Do a single access and test if we can then get access to the
-     * page. This is especially relevant to speed up TLB_NOTDIRTY.
-     */
-    byte = cpu_ldb_mmu(env, vaddr + offset, oi, ra);
-    *haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_LOAD, mmu_idx);
-    return byte;
-#endif
-}
-
 static uint8_t access_get_byte(CPUS390XState *env, S390Access *access,
                                int offset, uintptr_t ra)
 {
-    if (offset < access->size1) {
-        return do_access_get_byte(env, access->vaddr1, &access->haddr1,
-                                  offset, access->mmu_idx, ra);
-    }
-    return do_access_get_byte(env, access->vaddr2, &access->haddr2,
-                              offset - access->size1, access->mmu_idx, ra);
-}
+    target_ulong vaddr = access->vaddr1;
+    void *haddr = access->haddr1;
 
-static void do_access_set_byte(CPUS390XState *env, vaddr vaddr, char **haddr,
-                               int offset, uint8_t byte, int mmu_idx,
-                               uintptr_t ra)
-{
-#ifdef CONFIG_USER_ONLY
-    stb_p(*haddr + offset, byte);
-#else
-    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
-
-    if (likely(*haddr)) {
-        stb_p(*haddr + offset, byte);
-        return;
+    if (unlikely(offset >= access->size1)) {
+        offset -= access->size1;
+        vaddr = access->vaddr2;
+        haddr = access->haddr2;
     }
-    /*
-     * Do a single access and test if we can then get access to the
-     * page. This is especially relevant to speed up TLB_NOTDIRTY.
-     */
-    cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
-    *haddr = tlb_vaddr_to_host(env, vaddr, MMU_DATA_STORE, mmu_idx);
-#endif
+
+    if (user_or_likely(haddr)) {
+        return ldub_p(haddr + offset);
+    } else {
+        MemOpIdx oi = make_memop_idx(MO_UB, access->mmu_idx);
+        return cpu_ldb_mmu(env, vaddr + offset, oi, ra);
+    }
 }
 
 static void access_set_byte(CPUS390XState *env, S390Access *access,
                             int offset, uint8_t byte, uintptr_t ra)
 {
-    if (offset < access->size1) {
-        do_access_set_byte(env, access->vaddr1, &access->haddr1, offset, byte,
-                           access->mmu_idx, ra);
+    target_ulong vaddr = access->vaddr1;
+    void *haddr = access->haddr1;
+
+    if (unlikely(offset >= access->size1)) {
+        offset -= access->size1;
+        vaddr = access->vaddr2;
+        haddr = access->haddr2;
+    }
+
+    if (user_or_likely(haddr)) {
+        stb_p(haddr + offset, byte);
     } else {
-        do_access_set_byte(env, access->vaddr2, &access->haddr2,
-                           offset - access->size1, byte, access->mmu_idx, ra);
+        MemOpIdx oi = make_memop_idx(MO_UB, access->mmu_idx);
+        cpu_stb_mmu(env, vaddr + offset, byte, oi, ra);
     }
 }
 
@@ -338,16 +299,17 @@ static void access_set_byte(CPUS390XState *env, S390Access *access,
 static void access_memmove(CPUS390XState *env, S390Access *desta,
                            S390Access *srca, uintptr_t ra)
 {
+    int len = desta->size1 + desta->size2;
     int diff;
 
-    g_assert(desta->size1 + desta->size2 == srca->size1 + srca->size2);
+    assert(len == srca->size1 + srca->size2);
 
     /* Fallback to slow access in case we don't have access to all host pages */
     if (unlikely(!desta->haddr1 || (desta->size2 && !desta->haddr2) ||
                  !srca->haddr1 || (srca->size2 && !srca->haddr2))) {
         int i;
 
-        for (i = 0; i < desta->size1 + desta->size2; i++) {
+        for (i = 0; i < len; i++) {
             uint8_t byte = access_get_byte(env, srca, i, ra);
 
             access_set_byte(env, desta, i, byte, ra);
@@ -355,20 +317,20 @@ static void access_memmove(CPUS390XState *env, S390Access *desta,
         return;
     }
 
-    if (srca->size1 == desta->size1) {
+    diff = desta->size1 - srca->size1;
+    if (likely(diff == 0)) {
         memmove(desta->haddr1, srca->haddr1, srca->size1);
         if (unlikely(srca->size2)) {
             memmove(desta->haddr2, srca->haddr2, srca->size2);
         }
-    } else if (srca->size1 < desta->size1) {
-        diff = desta->size1 - srca->size1;
+    } else if (diff > 0) {
         memmove(desta->haddr1, srca->haddr1, srca->size1);
         memmove(desta->haddr1 + srca->size1, srca->haddr2, diff);
         if (likely(desta->size2)) {
             memmove(desta->haddr2, srca->haddr2 + diff, desta->size2);
         }
     } else {
-        diff = srca->size1 - desta->size1;
+        diff = -diff;
         memmove(desta->haddr1, srca->haddr1, desta->size1);
         memmove(desta->haddr2, srca->haddr1 + desta->size1, diff);
         if (likely(srca->size2)) {
@@ -407,9 +369,9 @@ static uint32_t do_helper_nc(CPUS390XState *env, uint32_t l, uint64_t dest,
     /* NC always processes one more byte than specified - maximum is 256 */
     l++;
 
-    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca1, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&srca2, env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < l; i++) {
         const uint8_t x = access_get_byte(env, &srca1, i, ra) &
                           access_get_byte(env, &srca2, i, ra);
@@ -441,9 +403,9 @@ static uint32_t do_helper_xc(CPUS390XState *env, uint32_t l, uint64_t dest,
     /* XC always processes one more byte than specified - maximum is 256 */
     l++;
 
-    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca1, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&srca2, env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
 
     /* xor with itself is the same as memset(0) */
     if (src == dest) {
@@ -482,9 +444,9 @@ static uint32_t do_helper_oc(CPUS390XState *env, uint32_t l, uint64_t dest,
     /* OC always processes one more byte than specified - maximum is 256 */
     l++;
 
-    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca1, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&srca2, env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < l; i++) {
         const uint8_t x = access_get_byte(env, &srca1, i, ra) |
                           access_get_byte(env, &srca2, i, ra);
@@ -515,8 +477,8 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
     /* MVC always copies one more byte than specified - maximum is 256 */
     l++;
 
-    srca = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
 
     /*
      * "When the operands overlap, the result is obtained as if the operands
@@ -554,8 +516,8 @@ void HELPER(mvcrl)(CPUS390XState *env, uint64_t l, uint64_t dest, uint64_t src)
     /* MVCRL always copies one more byte than specified - maximum is 256 */
     l++;
 
-    srca = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
 
     for (i = l - 1; i >= 0; i--) {
         uint8_t byte = access_get_byte(env, &srca, i, ra);
@@ -575,8 +537,8 @@ void HELPER(mvcin)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     l++;
 
     src = wrap_address(env, src - l + 1);
-    srca = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < l; i++) {
         const uint8_t x = access_get_byte(env, &srca, l - i - 1, ra);
 
@@ -595,9 +557,9 @@ void HELPER(mvn)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     /* MVN always copies one more byte than specified - maximum is 256 */
     l++;
 
-    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca1, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&srca2, env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < l; i++) {
         const uint8_t x = (access_get_byte(env, &srca1, i, ra) & 0x0f) |
                           (access_get_byte(env, &srca2, i, ra) & 0xf0);
@@ -618,8 +580,8 @@ void HELPER(mvo)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     S390Access srca, desta;
     int i, j;
 
-    srca = access_prepare(env, src, len_src, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, len_dest, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca, env, src, len_src, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, len_dest, MMU_DATA_STORE, mmu_idx, ra);
 
     /* Handle rightmost byte */
     byte_dest = cpu_ldub_data_ra(env, dest + len_dest - 1, ra);
@@ -651,9 +613,9 @@ void HELPER(mvz)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
     /* MVZ always copies one more byte than specified - maximum is 256 */
     l++;
 
-    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
-    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca1, env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&srca2, env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < l; i++) {
         const uint8_t x = (access_get_byte(env, &srca1, i, ra) & 0xf0) |
                           (access_get_byte(env, &srca2, i, ra) & 0x0f);
@@ -997,8 +959,8 @@ uint32_t HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
      * this point). We might over-indicate watchpoints within the pages
      * (if we ever care, we have to limit processing to a single byte).
      */
-    srca = access_prepare(env, s, len, MMU_DATA_LOAD, mmu_idx, ra);
-    desta = access_prepare(env, d, len, MMU_DATA_STORE, mmu_idx, ra);
+    access_prepare(&srca, env, s, len, MMU_DATA_LOAD, mmu_idx, ra);
+    access_prepare(&desta, env, d, len, MMU_DATA_STORE, mmu_idx, ra);
     for (i = 0; i < len; i++) {
         const uint8_t v = access_get_byte(env, &srca, i, ra);
 
@@ -1085,19 +1047,19 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
         len = MIN(MIN(*srclen, -(*src | TARGET_PAGE_MASK)), len);
         *destlen -= len;
         *srclen -= len;
-        srca = access_prepare(env, *src, len, MMU_DATA_LOAD, mmu_idx, ra);
-        desta = access_prepare(env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
+        access_prepare(&srca, env, *src, len, MMU_DATA_LOAD, mmu_idx, ra);
+        access_prepare(&desta, env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
         access_memmove(env, &desta, &srca, ra);
         *src = wrap_address(env, *src + len);
         *dest = wrap_address(env, *dest + len);
     } else if (wordsize == 1) {
         /* Pad the remaining area */
         *destlen -= len;
-        desta = access_prepare(env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
+        access_prepare(&desta, env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
         access_memset(env, &desta, pad, ra);
         *dest = wrap_address(env, *dest + len);
     } else {
-        desta = access_prepare(env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
+        access_prepare(&desta, env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
 
         /* The remaining length selects the padding byte. */
         for (i = 0; i < len; (*destlen)--, i++) {
@@ -1153,16 +1115,16 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     while (destlen) {
         cur_len = MIN(destlen, -(dest | TARGET_PAGE_MASK));
         if (!srclen) {
-            desta = access_prepare(env, dest, cur_len, MMU_DATA_STORE, mmu_idx,
-                                   ra);
+            access_prepare(&desta, env, dest, cur_len,
+                           MMU_DATA_STORE, mmu_idx, ra);
             access_memset(env, &desta, pad, ra);
         } else {
             cur_len = MIN(MIN(srclen, -(src | TARGET_PAGE_MASK)), cur_len);
 
-            srca = access_prepare(env, src, cur_len, MMU_DATA_LOAD, mmu_idx,
-                                  ra);
-            desta = access_prepare(env, dest, cur_len, MMU_DATA_STORE, mmu_idx,
-                                   ra);
+            access_prepare(&srca, env, src, cur_len,
+                           MMU_DATA_LOAD, mmu_idx, ra);
+            access_prepare(&desta, env, dest, cur_len,
+                           MMU_DATA_STORE, mmu_idx, ra);
             access_memmove(env, &desta, &srca, ra);
             src = wrap_address(env, src + cur_len);
             srclen -= cur_len;
@@ -2267,8 +2229,8 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2,
         return cc;
     }
 
-    srca = access_prepare(env, a2, l, MMU_DATA_LOAD, MMU_PRIMARY_IDX, ra);
-    desta = access_prepare(env, a1, l, MMU_DATA_STORE, MMU_SECONDARY_IDX, ra);
+    access_prepare(&srca, env, a2, l, MMU_DATA_LOAD, MMU_PRIMARY_IDX, ra);
+    access_prepare(&desta, env, a1, l, MMU_DATA_STORE, MMU_SECONDARY_IDX, ra);
     access_memmove(env, &desta, &srca, ra);
     return cc;
 }
@@ -2301,9 +2263,8 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2,
     } else if (!l) {
         return cc;
     }
-
-    srca = access_prepare(env, a2, l, MMU_DATA_LOAD, MMU_SECONDARY_IDX, ra);
-    desta = access_prepare(env, a1, l, MMU_DATA_STORE, MMU_PRIMARY_IDX, ra);
+    access_prepare(&srca, env, a2, l, MMU_DATA_LOAD, MMU_SECONDARY_IDX, ra);
+    access_prepare(&desta, env, a1, l, MMU_DATA_STORE, MMU_PRIMARY_IDX, ra);
     access_memmove(env, &desta, &srca, ra);
     return cc;
 }
@@ -2644,10 +2605,12 @@ uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
 
     /* FIXME: Access using correct keys and AR-mode */
     if (len) {
-        S390Access srca = access_prepare(env, src, len, MMU_DATA_LOAD,
-                                         mmu_idx_from_as(src_as), ra);
-        S390Access desta = access_prepare(env, dest, len, MMU_DATA_STORE,
-                                          mmu_idx_from_as(dest_as), ra);
+        S390Access srca, desta;
+
+        access_prepare(&srca, env, src, len, MMU_DATA_LOAD,
+                       mmu_idx_from_as(src_as), ra);
+        access_prepare(&desta, env, dest, len, MMU_DATA_STORE,
+                       mmu_idx_from_as(dest_as), ra);
 
         access_memmove(env, &desta, &srca, ra);
     }

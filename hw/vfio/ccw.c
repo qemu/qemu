@@ -76,8 +76,7 @@ struct VFIODeviceOps vfio_ccw_ops = {
 
 static IOInstEnding vfio_ccw_handle_request(SubchDev *sch)
 {
-    S390CCWDevice *cdev = sch->driver_data;
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(sch->driver_data);
     struct ccw_io_region *region = vcdev->io_region;
     int ret;
 
@@ -125,8 +124,7 @@ again:
 
 static IOInstEnding vfio_ccw_handle_store(SubchDev *sch)
 {
-    S390CCWDevice *cdev = sch->driver_data;
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(sch->driver_data);
     SCHIB *schib = &sch->curr_status;
     struct ccw_schib_region *region = vcdev->schib_region;
     SCHIB *s;
@@ -170,8 +168,7 @@ static IOInstEnding vfio_ccw_handle_store(SubchDev *sch)
 
 static int vfio_ccw_handle_clear(SubchDev *sch)
 {
-    S390CCWDevice *cdev = sch->driver_data;
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(sch->driver_data);
     struct ccw_cmd_region *region = vcdev->async_cmd_region;
     int ret;
 
@@ -210,8 +207,7 @@ again:
 
 static int vfio_ccw_handle_halt(SubchDev *sch)
 {
-    S390CCWDevice *cdev = sch->driver_data;
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(sch->driver_data);
     struct ccw_cmd_region *region = vcdev->async_cmd_region;
     int ret;
 
@@ -251,9 +247,7 @@ again:
 
 static void vfio_ccw_reset(DeviceState *dev)
 {
-    CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
-    S390CCWDevice *cdev = DO_UPCAST(S390CCWDevice, parent_obj, ccw_dev);
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(dev);
 
     ioctl(vcdev->vdev.fd, VFIO_DEVICE_RESET);
 }
@@ -315,8 +309,7 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
 {
     VFIOCCWDevice *vcdev = opaque;
     struct ccw_io_region *region = vcdev->io_region;
-    S390CCWDevice *cdev = S390_CCW_DEVICE(vcdev);
-    CcwDevice *ccw_dev = CCW_DEVICE(cdev);
+    CcwDevice *ccw_dev = CCW_DEVICE(vcdev);
     SubchDev *sch = ccw_dev->sch;
     SCHIB *schib = &sch->curr_status;
     SCSW s;
@@ -588,9 +581,10 @@ static void vfio_ccw_put_device(VFIOCCWDevice *vcdev)
 static void vfio_ccw_get_device(VFIOGroup *group, VFIOCCWDevice *vcdev,
                                 Error **errp)
 {
-    char *name = g_strdup_printf("%x.%x.%04x", vcdev->cdev.hostid.cssid,
-                                 vcdev->cdev.hostid.ssid,
-                                 vcdev->cdev.hostid.devid);
+    S390CCWDevice *cdev = S390_CCW_DEVICE(vcdev);
+    char *name = g_strdup_printf("%x.%x.%04x", cdev->hostid.cssid,
+                                 cdev->hostid.ssid,
+                                 cdev->hostid.devid);
     VFIODevice *vbasedev;
 
     QLIST_FOREACH(vbasedev, &group->device_list, next) {
@@ -611,14 +605,14 @@ static void vfio_ccw_get_device(VFIOGroup *group, VFIOCCWDevice *vcdev,
      */
     vcdev->vdev.ram_block_discard_allowed = true;
 
-    if (vfio_get_device(group, vcdev->cdev.mdevid, &vcdev->vdev, errp)) {
+    if (vfio_get_device(group, cdev->mdevid, &vcdev->vdev, errp)) {
         goto out_err;
     }
 
     vcdev->vdev.ops = &vfio_ccw_ops;
     vcdev->vdev.type = VFIO_DEVICE_TYPE_CCW;
     vcdev->vdev.name = name;
-    vcdev->vdev.dev = &vcdev->cdev.parent_obj.parent_obj;
+    vcdev->vdev.dev = DEVICE(vcdev);
 
     return;
 
@@ -656,9 +650,8 @@ static VFIOGroup *vfio_ccw_get_group(S390CCWDevice *cdev, Error **errp)
 static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 {
     VFIOGroup *group;
-    CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
-    S390CCWDevice *cdev = DO_UPCAST(S390CCWDevice, parent_obj, ccw_dev);
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    S390CCWDevice *cdev = S390_CCW_DEVICE(dev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(cdev);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     Error *err = NULL;
 
@@ -728,9 +721,8 @@ out_err_propagate:
 
 static void vfio_ccw_unrealize(DeviceState *dev)
 {
-    CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
-    S390CCWDevice *cdev = DO_UPCAST(S390CCWDevice, parent_obj, ccw_dev);
-    VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
+    S390CCWDevice *cdev = S390_CCW_DEVICE(dev);
+    VFIOCCWDevice *vcdev = VFIO_CCW(cdev);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     VFIOGroup *group = vcdev->vdev.group;
 

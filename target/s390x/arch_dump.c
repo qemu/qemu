@@ -227,28 +227,28 @@ static int s390x_write_elf64_notes(const char *note_name,
                                        DumpState *s,
                                        const NoteFuncDesc *funcs)
 {
-    Note note, *notep;
+    g_autofree Note *notep = NULL;
     const NoteFuncDesc *nf;
-    int note_size, content_size;
+    int note_size, prev_size = 0, content_size;
     int ret = -1;
 
-    assert(strlen(note_name) < sizeof(note.name));
+    assert(strlen(note_name) < sizeof(notep->name));
 
     for (nf = funcs; nf->note_contents_func; nf++) {
-        notep = &note;
         if (nf->pvonly && !s390_is_pv()) {
             continue;
         }
 
         content_size = nf->note_size_func ? nf->note_size_func() : nf->contents_size;
-        note_size = sizeof(note) - sizeof(notep->contents) + content_size;
+        note_size = sizeof(Note) - sizeof(notep->contents) + content_size;
 
-        /* Notes with dynamic sizes need to allocate a note */
-        if (nf->note_size_func) {
+        if (prev_size < note_size) {
+            g_free(notep);
             notep = g_malloc(note_size);
+            prev_size = note_size;
         }
 
-        memset(notep, 0, sizeof(note));
+        memset(notep, 0, note_size);
 
         /* Setup note header data */
         notep->hdr.n_descsz = cpu_to_be32(content_size);
@@ -258,15 +258,9 @@ static int s390x_write_elf64_notes(const char *note_name,
         /* Get contents and write them out */
         (*nf->note_contents_func)(notep, cpu, id);
         ret = f(notep, note_size, s);
-
-        if (nf->note_size_func) {
-            g_free(notep);
-        }
-
         if (ret < 0) {
             return -1;
         }
-
     }
 
     return 0;
