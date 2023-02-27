@@ -1743,7 +1743,7 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
              "Predicate assign not allowed in ternary!");
     /* Extract predicate TCGv */
     if (is_direct) {
-        *left_pred = gen_tmp_value(c, locp, "0", 32, UNSIGNED);
+        *left_pred = gen_tmp(c, locp, 32, UNSIGNED);
     }
     /* Extract first 8 bits, and store new predicate value */
     OUT(c, locp, "tcg_gen_mov_i32(", left_pred, ", ", &r, ");\n");
