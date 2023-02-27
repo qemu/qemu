@@ -25,10 +25,6 @@
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
 
-typedef ObjectClass IOThreadClass;
-
-DECLARE_CLASS_CHECKERS(IOThreadClass, IOTHREAD,
-                       TYPE_IOTHREAD)
 
 #ifdef CONFIG_POSIX
 /* Benchmark results from 2016 on NVMe SSD drives show max polling times around

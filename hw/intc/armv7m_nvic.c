@@ -18,6 +18,7 @@
 #include "hw/intc/armv7m_nvic.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/tcg.h"
 #include "sysemu/runstate.h"
 #include "target/arm/cpu.h"
 #include "exec/exec-all.h"
@@ -577,7 +578,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
              * which saves having to have an extra argument is_terminal
              * that we'd only use in one place.
              */
-            cpu_abort(&s->cpu->parent_obj,
+            cpu_abort(CPU(s->cpu),
                       "Lockup: can't take terminal derived exception "
                       "(original exception priority %d)\n",
                       s->vectpending_prio);
@@ -643,7 +644,7 @@ static void do_armv7m_nvic_set_pending(void *opaque, int irq, bool secure,
                  * Lockup condition due to a guest bug. We don't model
                  * Lockup, so report via cpu_abort() instead.
                  */
-                cpu_abort(&s->cpu->parent_obj,
+                cpu_abort(CPU(s->cpu),
                           "Lockup: can't escalate %d to HardFault "
                           "(current priority %d)\n", irq, running);
             }
@@ -741,7 +742,7 @@ void armv7m_nvic_set_pending_lazyfp(NVICState *s, int irq, bool secure)
              * We want to escalate to HardFault but the context the
              * FP state belongs to prevents the exception pre-empting.
              */
-            cpu_abort(&s->cpu->parent_obj,
+            cpu_abort(CPU(s->cpu),
                       "Lockup: can't escalate to HardFault during "
                       "lazy FP register stacking\n");
         }
@@ -2454,8 +2455,10 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
     /* This is UNPREDICTABLE; treat as RAZ/WI */
 
  exit_ok:
-    /* Ensure any changes made are reflected in the cached hflags.  */
-    arm_rebuild_hflags(&s->cpu->env);
+    if (tcg_enabled()) {
+        /* Ensure any changes made are reflected in the cached hflags. */
+        arm_rebuild_hflags(&s->cpu->env);
+    }
     return MEMTX_OK;
 }
 
@@ -2636,11 +2639,14 @@ static void armv7m_nvic_reset(DeviceState *dev)
         }
     }
 
-    /*
-     * We updated state that affects the CPU's MMUidx and thus its hflags;
-     * and we can't guarantee that we run before the CPU reset function.
-     */
-    arm_rebuild_hflags(&s->cpu->env);
+    if (tcg_enabled()) {
+        /*
+         * We updated state that affects the CPU's MMUidx and thus its
+         * hflags; and we can't guarantee that we run before the CPU
+         * reset function.
+         */
+        arm_rebuild_hflags(&s->cpu->env);
+    }
 }
 
 static void nvic_systick_trigger(void *opaque, int n, int level)

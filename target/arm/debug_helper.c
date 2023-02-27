@@ -12,8 +12,9 @@
 #include "cpregs.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "sysemu/tcg.h"
 
-
+#ifdef CONFIG_TCG
 /* Return the Exception Level targeted by debug exceptions. */
 static int arm_debug_target_el(CPUARMState *env)
 {
@@ -536,6 +537,243 @@ void HELPER(exception_swstep)(CPUARMState *env, uint32_t syndrome)
     raise_exception_debug(env, EXCP_UDEF, syndrome);
 }
 
+void hw_watchpoint_update(ARMCPU *cpu, int n)
+{
+    CPUARMState *env = &cpu->env;
+    vaddr len = 0;
+    vaddr wvr = env->cp15.dbgwvr[n];
+    uint64_t wcr = env->cp15.dbgwcr[n];
+    int mask;
+    int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
+
+    if (env->cpu_watchpoint[n]) {
+        cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[n]);
+        env->cpu_watchpoint[n] = NULL;
+    }
+
+    if (!FIELD_EX64(wcr, DBGWCR, E)) {
+        /* E bit clear : watchpoint disabled */
+        return;
+    }
+
+    switch (FIELD_EX64(wcr, DBGWCR, LSC)) {
+    case 0:
+        /* LSC 00 is reserved and must behave as if the wp is disabled */
+        return;
+    case 1:
+        flags |= BP_MEM_READ;
+        break;
+    case 2:
+        flags |= BP_MEM_WRITE;
+        break;
+    case 3:
+        flags |= BP_MEM_ACCESS;
+        break;
+    }
+
+    /*
+     * Attempts to use both MASK and BAS fields simultaneously are
+     * CONSTRAINED UNPREDICTABLE; we opt to ignore BAS in this case,
+     * thus generating a watchpoint for every byte in the masked region.
+     */
+    mask = FIELD_EX64(wcr, DBGWCR, MASK);
+    if (mask == 1 || mask == 2) {
+        /*
+         * Reserved values of MASK; we must act as if the mask value was
+         * some non-reserved value, or as if the watchpoint were disabled.
+         * We choose the latter.
+         */
+        return;
+    } else if (mask) {
+        /* Watchpoint covers an aligned area up to 2GB in size */
+        len = 1ULL << mask;
+        /*
+         * If masked bits in WVR are not zero it's CONSTRAINED UNPREDICTABLE
+         * whether the watchpoint fires when the unmasked bits match; we opt
+         * to generate the exceptions.
+         */
+        wvr &= ~(len - 1);
+    } else {
+        /* Watchpoint covers bytes defined by the byte address select bits */
+        int bas = FIELD_EX64(wcr, DBGWCR, BAS);
+        int basstart;
+
+        if (extract64(wvr, 2, 1)) {
+            /*
+             * Deprecated case of an only 4-aligned address. BAS[7:4] are
+             * ignored, and BAS[3:0] define which bytes to watch.
+             */
+            bas &= 0xf;
+        }
+
+        if (bas == 0) {
+            /* This must act as if the watchpoint is disabled */
+            return;
+        }
+
+        /*
+         * The BAS bits are supposed to be programmed to indicate a contiguous
+         * range of bytes. Otherwise it is CONSTRAINED UNPREDICTABLE whether
+         * we fire for each byte in the word/doubleword addressed by the WVR.
+         * We choose to ignore any non-zero bits after the first range of 1s.
+         */
+        basstart = ctz32(bas);
+        len = cto32(bas >> basstart);
+        wvr += basstart;
+    }
+
+    cpu_watchpoint_insert(CPU(cpu), wvr, len, flags,
+                          &env->cpu_watchpoint[n]);
+}
+
+void hw_watchpoint_update_all(ARMCPU *cpu)
+{
+    int i;
+    CPUARMState *env = &cpu->env;
+
+    /*
+     * Completely clear out existing QEMU watchpoints and our array, to
+     * avoid possible stale entries following migration load.
+     */
+    cpu_watchpoint_remove_all(CPU(cpu), BP_CPU);
+    memset(env->cpu_watchpoint, 0, sizeof(env->cpu_watchpoint));
+
+    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_watchpoint); i++) {
+        hw_watchpoint_update(cpu, i);
+    }
+}
+
+void hw_breakpoint_update(ARMCPU *cpu, int n)
+{
+    CPUARMState *env = &cpu->env;
+    uint64_t bvr = env->cp15.dbgbvr[n];
+    uint64_t bcr = env->cp15.dbgbcr[n];
+    vaddr addr;
+    int bt;
+    int flags = BP_CPU;
+
+    if (env->cpu_breakpoint[n]) {
+        cpu_breakpoint_remove_by_ref(CPU(cpu), env->cpu_breakpoint[n]);
+        env->cpu_breakpoint[n] = NULL;
+    }
+
+    if (!extract64(bcr, 0, 1)) {
+        /* E bit clear : watchpoint disabled */
+        return;
+    }
+
+    bt = extract64(bcr, 20, 4);
+
+    switch (bt) {
+    case 4: /* unlinked address mismatch (reserved if AArch64) */
+    case 5: /* linked address mismatch (reserved if AArch64) */
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: address mismatch breakpoint types not implemented\n");
+        return;
+    case 0: /* unlinked address match */
+    case 1: /* linked address match */
+    {
+        /*
+         * Bits [1:0] are RES0.
+         *
+         * It is IMPLEMENTATION DEFINED whether bits [63:49]
+         * ([63:53] for FEAT_LVA) are hardwired to a copy of the sign bit
+         * of the VA field ([48] or [52] for FEAT_LVA), or whether the
+         * value is read as written.  It is CONSTRAINED UNPREDICTABLE
+         * whether the RESS bits are ignored when comparing an address.
+         * Therefore we are allowed to compare the entire register, which
+         * lets us avoid considering whether FEAT_LVA is actually enabled.
+         *
+         * The BAS field is used to allow setting breakpoints on 16-bit
+         * wide instructions; it is CONSTRAINED UNPREDICTABLE whether
+         * a bp will fire if the addresses covered by the bp and the addresses
+         * covered by the insn overlap but the insn doesn't start at the
+         * start of the bp address range. We choose to require the insn and
+         * the bp to have the same address. The constraints on writing to
+         * BAS enforced in dbgbcr_write mean we have only four cases:
+         *  0b0000  => no breakpoint
+         *  0b0011  => breakpoint on addr
+         *  0b1100  => breakpoint on addr + 2
+         *  0b1111  => breakpoint on addr
+         * See also figure D2-3 in the v8 ARM ARM (DDI0487A.c).
+         */
+        int bas = extract64(bcr, 5, 4);
+        addr = bvr & ~3ULL;
+        if (bas == 0) {
+            return;
+        }
+        if (bas == 0xc) {
+            addr += 2;
+        }
+        break;
+    }
+    case 2: /* unlinked context ID match */
+    case 8: /* unlinked VMID match (reserved if no EL2) */
+    case 10: /* unlinked context ID and VMID match (reserved if no EL2) */
+        qemu_log_mask(LOG_UNIMP,
+                      "arm: unlinked context breakpoint types not implemented\n");
+        return;
+    case 9: /* linked VMID match (reserved if no EL2) */
+    case 11: /* linked context ID and VMID match (reserved if no EL2) */
+    case 3: /* linked context ID match */
+    default:
+        /*
+         * We must generate no events for Linked context matches (unless
+         * they are linked to by some other bp/wp, which is handled in
+         * updates for the linking bp/wp). We choose to also generate no events
+         * for reserved values.
+         */
+        return;
+    }
+
+    cpu_breakpoint_insert(CPU(cpu), addr, flags, &env->cpu_breakpoint[n]);
+}
+
+void hw_breakpoint_update_all(ARMCPU *cpu)
+{
+    int i;
+    CPUARMState *env = &cpu->env;
+
+    /*
+     * Completely clear out existing QEMU breakpoints and our array, to
+     * avoid possible stale entries following migration load.
+     */
+    cpu_breakpoint_remove_all(CPU(cpu), BP_CPU);
+    memset(env->cpu_breakpoint, 0, sizeof(env->cpu_breakpoint));
+
+    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_breakpoint); i++) {
+        hw_breakpoint_update(cpu, i);
+    }
+}
+
+#if !defined(CONFIG_USER_ONLY)
+
+vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
+    /*
+     * In BE32 system mode, target memory is stored byteswapped (on a
+     * little-endian host system), and by the time we reach here (via an
+     * opcode helper) the addresses of subword accesses have been adjusted
+     * to account for that, which means that watchpoints will not match.
+     * Undo the adjustment here.
+     */
+    if (arm_sctlr_b(env)) {
+        if (len == 1) {
+            addr ^= 3;
+        } else if (len == 2) {
+            addr ^= 2;
+        }
+    }
+
+    return addr;
+}
+
+#endif /* !CONFIG_USER_ONLY */
+#endif /* CONFIG_TCG */
+
 /*
  * Check for traps to "powerdown debug" registers, which are controlled
  * by MDCR.TDOSA
@@ -813,112 +1051,6 @@ static const ARMCPRegInfo debug_lpae_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST | ARM_CP_64BIT, .resetvalue = 0 },
 };
 
-void hw_watchpoint_update(ARMCPU *cpu, int n)
-{
-    CPUARMState *env = &cpu->env;
-    vaddr len = 0;
-    vaddr wvr = env->cp15.dbgwvr[n];
-    uint64_t wcr = env->cp15.dbgwcr[n];
-    int mask;
-    int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
-
-    if (env->cpu_watchpoint[n]) {
-        cpu_watchpoint_remove_by_ref(CPU(cpu), env->cpu_watchpoint[n]);
-        env->cpu_watchpoint[n] = NULL;
-    }
-
-    if (!FIELD_EX64(wcr, DBGWCR, E)) {
-        /* E bit clear : watchpoint disabled */
-        return;
-    }
-
-    switch (FIELD_EX64(wcr, DBGWCR, LSC)) {
-    case 0:
-        /* LSC 00 is reserved and must behave as if the wp is disabled */
-        return;
-    case 1:
-        flags |= BP_MEM_READ;
-        break;
-    case 2:
-        flags |= BP_MEM_WRITE;
-        break;
-    case 3:
-        flags |= BP_MEM_ACCESS;
-        break;
-    }
-
-    /*
-     * Attempts to use both MASK and BAS fields simultaneously are
-     * CONSTRAINED UNPREDICTABLE; we opt to ignore BAS in this case,
-     * thus generating a watchpoint for every byte in the masked region.
-     */
-    mask = FIELD_EX64(wcr, DBGWCR, MASK);
-    if (mask == 1 || mask == 2) {
-        /*
-         * Reserved values of MASK; we must act as if the mask value was
-         * some non-reserved value, or as if the watchpoint were disabled.
-         * We choose the latter.
-         */
-        return;
-    } else if (mask) {
-        /* Watchpoint covers an aligned area up to 2GB in size */
-        len = 1ULL << mask;
-        /*
-         * If masked bits in WVR are not zero it's CONSTRAINED UNPREDICTABLE
-         * whether the watchpoint fires when the unmasked bits match; we opt
-         * to generate the exceptions.
-         */
-        wvr &= ~(len - 1);
-    } else {
-        /* Watchpoint covers bytes defined by the byte address select bits */
-        int bas = FIELD_EX64(wcr, DBGWCR, BAS);
-        int basstart;
-
-        if (extract64(wvr, 2, 1)) {
-            /*
-             * Deprecated case of an only 4-aligned address. BAS[7:4] are
-             * ignored, and BAS[3:0] define which bytes to watch.
-             */
-            bas &= 0xf;
-        }
-
-        if (bas == 0) {
-            /* This must act as if the watchpoint is disabled */
-            return;
-        }
-
-        /*
-         * The BAS bits are supposed to be programmed to indicate a contiguous
-         * range of bytes. Otherwise it is CONSTRAINED UNPREDICTABLE whether
-         * we fire for each byte in the word/doubleword addressed by the WVR.
-         * We choose to ignore any non-zero bits after the first range of 1s.
-         */
-        basstart = ctz32(bas);
-        len = cto32(bas >> basstart);
-        wvr += basstart;
-    }
-
-    cpu_watchpoint_insert(CPU(cpu), wvr, len, flags,
-                          &env->cpu_watchpoint[n]);
-}
-
-void hw_watchpoint_update_all(ARMCPU *cpu)
-{
-    int i;
-    CPUARMState *env = &cpu->env;
-
-    /*
-     * Completely clear out existing QEMU watchpoints and our array, to
-     * avoid possible stale entries following migration load.
-     */
-    cpu_watchpoint_remove_all(CPU(cpu), BP_CPU);
-    memset(env->cpu_watchpoint, 0, sizeof(env->cpu_watchpoint));
-
-    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_watchpoint); i++) {
-        hw_watchpoint_update(cpu, i);
-    }
-}
-
 static void dbgwvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
@@ -939,7 +1071,9 @@ static void dbgwvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     value &= ~3ULL;
 
     raw_write(env, ri, value);
-    hw_watchpoint_update(cpu, i);
+    if (tcg_enabled()) {
+        hw_watchpoint_update(cpu, i);
+    }
 }
 
 static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -949,109 +1083,8 @@ static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int i = ri->crm;
 
     raw_write(env, ri, value);
-    hw_watchpoint_update(cpu, i);
-}
-
-void hw_breakpoint_update(ARMCPU *cpu, int n)
-{
-    CPUARMState *env = &cpu->env;
-    uint64_t bvr = env->cp15.dbgbvr[n];
-    uint64_t bcr = env->cp15.dbgbcr[n];
-    vaddr addr;
-    int bt;
-    int flags = BP_CPU;
-
-    if (env->cpu_breakpoint[n]) {
-        cpu_breakpoint_remove_by_ref(CPU(cpu), env->cpu_breakpoint[n]);
-        env->cpu_breakpoint[n] = NULL;
-    }
-
-    if (!extract64(bcr, 0, 1)) {
-        /* E bit clear : watchpoint disabled */
-        return;
-    }
-
-    bt = extract64(bcr, 20, 4);
-
-    switch (bt) {
-    case 4: /* unlinked address mismatch (reserved if AArch64) */
-    case 5: /* linked address mismatch (reserved if AArch64) */
-        qemu_log_mask(LOG_UNIMP,
-                      "arm: address mismatch breakpoint types not implemented\n");
-        return;
-    case 0: /* unlinked address match */
-    case 1: /* linked address match */
-    {
-        /*
-         * Bits [1:0] are RES0.
-         *
-         * It is IMPLEMENTATION DEFINED whether bits [63:49]
-         * ([63:53] for FEAT_LVA) are hardwired to a copy of the sign bit
-         * of the VA field ([48] or [52] for FEAT_LVA), or whether the
-         * value is read as written.  It is CONSTRAINED UNPREDICTABLE
-         * whether the RESS bits are ignored when comparing an address.
-         * Therefore we are allowed to compare the entire register, which
-         * lets us avoid considering whether FEAT_LVA is actually enabled.
-         *
-         * The BAS field is used to allow setting breakpoints on 16-bit
-         * wide instructions; it is CONSTRAINED UNPREDICTABLE whether
-         * a bp will fire if the addresses covered by the bp and the addresses
-         * covered by the insn overlap but the insn doesn't start at the
-         * start of the bp address range. We choose to require the insn and
-         * the bp to have the same address. The constraints on writing to
-         * BAS enforced in dbgbcr_write mean we have only four cases:
-         *  0b0000  => no breakpoint
-         *  0b0011  => breakpoint on addr
-         *  0b1100  => breakpoint on addr + 2
-         *  0b1111  => breakpoint on addr
-         * See also figure D2-3 in the v8 ARM ARM (DDI0487A.c).
-         */
-        int bas = extract64(bcr, 5, 4);
-        addr = bvr & ~3ULL;
-        if (bas == 0) {
-            return;
-        }
-        if (bas == 0xc) {
-            addr += 2;
-        }
-        break;
-    }
-    case 2: /* unlinked context ID match */
-    case 8: /* unlinked VMID match (reserved if no EL2) */
-    case 10: /* unlinked context ID and VMID match (reserved if no EL2) */
-        qemu_log_mask(LOG_UNIMP,
-                      "arm: unlinked context breakpoint types not implemented\n");
-        return;
-    case 9: /* linked VMID match (reserved if no EL2) */
-    case 11: /* linked context ID and VMID match (reserved if no EL2) */
-    case 3: /* linked context ID match */
-    default:
-        /*
-         * We must generate no events for Linked context matches (unless
-         * they are linked to by some other bp/wp, which is handled in
-         * updates for the linking bp/wp). We choose to also generate no events
-         * for reserved values.
-         */
-        return;
-    }
-
-    cpu_breakpoint_insert(CPU(cpu), addr, flags, &env->cpu_breakpoint[n]);
-}
-
-void hw_breakpoint_update_all(ARMCPU *cpu)
-{
-    int i;
-    CPUARMState *env = &cpu->env;
-
-    /*
-     * Completely clear out existing QEMU breakpoints and our array, to
-     * avoid possible stale entries following migration load.
-     */
-    cpu_breakpoint_remove_all(CPU(cpu), BP_CPU);
-    memset(env->cpu_breakpoint, 0, sizeof(env->cpu_breakpoint));
-
-    for (i = 0; i < ARRAY_SIZE(cpu->env.cpu_breakpoint); i++) {
-        hw_breakpoint_update(cpu, i);
+    if (tcg_enabled()) {
+        hw_watchpoint_update(cpu, i);
     }
 }
 
@@ -1062,7 +1095,9 @@ static void dbgbvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int i = ri->crm;
 
     raw_write(env, ri, value);
-    hw_breakpoint_update(cpu, i);
+    if (tcg_enabled()) {
+        hw_breakpoint_update(cpu, i);
+    }
 }
 
 static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -1079,7 +1114,9 @@ static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     value = deposit64(value, 8, 1, extract64(value, 7, 1));
 
     raw_write(env, ri, value);
-    hw_breakpoint_update(cpu, i);
+    if (tcg_enabled()) {
+        hw_breakpoint_update(cpu, i);
+    }
 }
 
 void define_debug_regs(ARMCPU *cpu)
@@ -1202,30 +1239,3 @@ void define_debug_regs(ARMCPU *cpu)
         g_free(dbgwcr_el1_name);
     }
 }
-
-#if !defined(CONFIG_USER_ONLY)
-
-vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    CPUARMState *env = &cpu->env;
-
-    /*
-     * In BE32 system mode, target memory is stored byteswapped (on a
-     * little-endian host system), and by the time we reach here (via an
-     * opcode helper) the addresses of subword accesses have been adjusted
-     * to account for that, which means that watchpoints will not match.
-     * Undo the adjustment here.
-     */
-    if (arm_sctlr_b(env)) {
-        if (len == 1) {
-            addr ^= 3;
-        } else if (len == 2) {
-            addr ^= 2;
-        }
-    }
-
-    return addr;
-}
-
-#endif

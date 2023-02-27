@@ -152,7 +152,7 @@ struct MPS2TZMachineState {
     TZMSC msc[4];
     CMSDKAPBUART uart[6];
     SplitIRQ sec_resp_splitter;
-    qemu_or_irq uart_irq_orgate;
+    OrIRQState uart_irq_orgate;
     DeviceState *lan9118;
     SplitIRQ cpu_irq_splitter[MPS2TZ_NUMIRQ_MAX];
     Clock *sysclk;
