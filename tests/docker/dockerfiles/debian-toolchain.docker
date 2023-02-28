@@ -34,3 +34,8 @@ RUN cd /root && ./build-toolchain.sh
 # then copying the built toolchain from stage 0.
 FROM docker.io/library/debian:11-slim
 COPY --from=0 /usr/local /usr/local
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

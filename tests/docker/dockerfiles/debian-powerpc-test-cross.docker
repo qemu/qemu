@@ -16,4 +16,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
         libc6-dev-ppc64-cross \
         gcc-10-powerpc64le-linux-gnu \
         libc6-dev-ppc64el-cross
-
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi
