@@ -155,6 +155,8 @@
 #
 # @default-ram-id: the default ID of initial RAM memory backend (since 5.2)
 #
+# @acpi: machine type supports ACPI (since 8.0)
+#
 # Since: 1.2
 ##
 { 'struct': 'MachineInfo',
@@ -162,7 +164,7 @@
             '*is-default': 'bool', 'cpu-max': 'int',
             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
             'deprecated': 'bool', '*default-cpu-type': 'str',
-            '*default-ram-id': 'str' } }
+            '*default-ram-id': 'str', 'acpi': 'bool' } }
 
 ##
 # @query-machines:
