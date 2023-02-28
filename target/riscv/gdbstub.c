@@ -280,6 +280,10 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     int bitsize = 16 << env->misa_mxl_max;
     int i;
 
+#if !defined(CONFIG_USER_ONLY)
+    env->debugger = true;
+#endif
+
     /* Until gdb knows about 128-bit registers */
     if (bitsize > 64) {
         bitsize = 64;
@@ -308,6 +312,11 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     g_string_append_printf(s, "</feature>");
 
     cpu->dyn_csr_xml = g_string_free(s, false);
+
+#if !defined(CONFIG_USER_ONLY)
+    env->debugger = false;
+#endif
+
     return CSR_TABLE_SIZE;
 }
 
