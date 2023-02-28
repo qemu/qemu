@@ -118,6 +118,7 @@ static void create_fdt(SiFiveUState *s, const MemMapEntry *memmap,
             error_report("load_device_tree() failed");
             exit(1);
         }
+        return;
     } else {
         fdt = ms->fdt = create_device_tree(&fdt_size);
         if (!fdt) {

@@ -1015,6 +1015,7 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap)
             error_report("load_device_tree() failed");
             exit(1);
         }
+        return;
     } else {
         ms->fdt = create_device_tree(&s->fdt_size);
         if (!ms->fdt) {
