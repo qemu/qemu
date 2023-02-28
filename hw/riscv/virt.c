@@ -1009,19 +1009,10 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap)
     uint32_t irq_pcie_phandle = 1, irq_virtio_phandle = 1;
     uint8_t rng_seed[32];
 
-    if (ms->dtb) {
-        ms->fdt = load_device_tree(ms->dtb, &s->fdt_size);
-        if (!ms->fdt) {
-            error_report("load_device_tree() failed");
-            exit(1);
-        }
-        return;
-    } else {
-        ms->fdt = create_device_tree(&s->fdt_size);
-        if (!ms->fdt) {
-            error_report("create_device_tree() failed");
-            exit(1);
-        }
+    ms->fdt = create_device_tree(&s->fdt_size);
+    if (!ms->fdt) {
+        error_report("create_device_tree() failed");
+        exit(1);
     }
 
     qemu_fdt_setprop_string(ms->fdt, "/", "model", "riscv-virtio,qemu");
@@ -1506,8 +1497,16 @@ static void virt_machine_init(MachineState *machine)
     }
     virt_flash_map(s, system_memory);
 
-    /* create device tree */
-    create_fdt(s, memmap);
+    /* load/create device tree */
+    if (machine->dtb) {
+        machine->fdt = load_device_tree(machine->dtb, &s->fdt_size);
+        if (!machine->fdt) {
+            error_report("load_device_tree() failed");
+            exit(1);
+        }
+    } else {
+        create_fdt(s, memmap);
+    }
 
     s->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&s->machine_done);
