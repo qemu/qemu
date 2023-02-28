@@ -1330,10 +1330,15 @@ static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type, CGEven
     return NO;
 }
 
-/* Called when QEMU goes into the background */
-- (void) applicationWillResignActive: (NSNotification *)aNotification
+/*
+ * Called when QEMU goes into the background. Note that
+ * [-NSWindowDelegate windowDidResignKey:] is used here instead of
+ * [-NSApplicationDelegate applicationWillResignActive:] because it cannot
+ * detect that the window loses focus when the deck is clicked on macOS 13.2.1.
+ */
+- (void) windowDidResignKey: (NSNotification *)aNotification
 {
-    COCOA_DEBUG("QemuCocoaAppController: applicationWillResignActive\n");
+    COCOA_DEBUG("%s\n", __func__);
     [cocoaView ungrabMouse];
     [cocoaView raiseAllKeys];
 }
