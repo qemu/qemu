@@ -2637,6 +2637,7 @@ T: git https://gitlab.com/vsementsov/qemu.git block
 Compute Express Link
 M: Ben Widawsky <ben.widawsky@intel.com>
 M: Jonathan Cameron <jonathan.cameron@huawei.com>
+R: Fan Ni <fan.ni@samsung.com>
 S: Supported
 F: hw/cxl/
 F: hw/mem/cxl_type3.c
