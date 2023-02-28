@@ -1,10 +1,10 @@
 # THIS FILE WAS AUTO-GENERATED
 #
-#  $ lcitool dockerfile --layers all ubuntu-2004 qemu
+#  $ lcitool dockerfile --layers all ubuntu-2204 qemu
 #
 # https://gitlab.com/libvirt/libvirt-ci
 
-FROM docker.io/library/ubuntu:20.04
+FROM docker.io/library/ubuntu:22.04
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
@@ -14,7 +14,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       bash \
                       bc \
                       bison \
-                      bsdmainutils \
+                      bsdextrautils \
                       bzip2 \
                       ca-certificates \
                       ccache \
@@ -36,6 +36,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libasan5 \
                       libasound2-dev \
                       libattr1-dev \
+                      libbpf-dev \
                       libbrlapi-dev \
                       libbz2-dev \
                       libc6-dev \
@@ -90,6 +91,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libtasn1-6-dev \
                       libubsan1 \
                       libudev-dev \
+                      liburing-dev \
                       libusb-1.0-0-dev \
                       libusbredirhost-dev \
                       libvdeplug-dev \
@@ -100,6 +102,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       llvm \
                       locales \
                       make \
+                      meson \
                       multipath-tools \
                       ncat \
                       nettle-dev \
@@ -111,11 +114,9 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       python3-opencv \
                       python3-pillow \
                       python3-pip \
-                      python3-setuptools \
                       python3-sphinx \
                       python3-sphinx-rtd-theme \
                       python3-venv \
-                      python3-wheel \
                       python3-yaml \
                       rpm2cpio \
                       sed \
@@ -138,8 +139,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/clang && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/g++ && \
     ln -s /usr/bin/ccache /usr/libexec/ccache-wrappers/gcc
-
-RUN /usr/bin/pip3 install meson==0.63.2
 
 ENV CCACHE_WRAPPERSDIR "/usr/libexec/ccache-wrappers"
 ENV LANG "en_US.UTF-8"
