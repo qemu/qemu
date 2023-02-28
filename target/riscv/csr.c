@@ -952,6 +952,19 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
+    if ((csrno == CSR_VSTIMECMP) || (csrno == CSR_VSTIMECMPH)) {
+        hmode_check = true;
+    }
+
+    RISCVException ret = hmode_check ? hmode(env, csrno) : smode(env, csrno);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    if (env->debugger) {
+        return RISCV_EXCP_NONE;
+    }
+
     if (env->priv == PRV_M) {
         return RISCV_EXCP_NONE;
     }
@@ -972,11 +985,7 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
         }
     }
 
-    if ((csrno == CSR_VSTIMECMP) || (csrno == CSR_VSTIMECMPH)) {
-        hmode_check = true;
-    }
-
-    return hmode_check ? hmode(env, csrno) : smode(env, csrno);
+    return RISCV_EXCP_NONE;
 }
 
 static RISCVException sstc_32(CPURISCVState *env, int csrno)
