@@ -44,7 +44,18 @@
 
 void tcg_cpu_init_cflags(CPUState *cpu, bool parallel)
 {
-    uint32_t cflags = cpu->cluster_index << CF_CLUSTER_SHIFT;
+    uint32_t cflags;
+
+    /*
+     * Include the cluster number in the hash we use to look up TBs.
+     * This is important because a TB that is valid for one cluster at
+     * a given physical address and set of CPU flags is not necessarily
+     * valid for another:
+     * the two clusters may have different views of physical memory, or
+     * may have different CPU features (eg FPU present or absent).
+     */
+    cflags = cpu->cluster_index << CF_CLUSTER_SHIFT;
+
     cflags |= parallel ? CF_PARALLEL : 0;
     cflags |= icount_enabled() ? CF_USE_ICOUNT : 0;
     cpu->tcg_cflags = cflags;
@@ -116,7 +127,7 @@ static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
     return cputype;
 }
 
-static int tcg_insert_breakpoint(CPUState *cs, int type, hwaddr addr, hwaddr len)
+static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
 {
     CPUState *cpu;
     int err = 0;
@@ -147,7 +158,7 @@ static int tcg_insert_breakpoint(CPUState *cs, int type, hwaddr addr, hwaddr len
     }
 }
 
-static int tcg_remove_breakpoint(CPUState *cs, int type, hwaddr addr, hwaddr len)
+static int tcg_remove_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
 {
     CPUState *cpu;
     int err = 0;

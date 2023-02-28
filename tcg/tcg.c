@@ -34,7 +34,6 @@
 #include "qemu/cutils.h"
 #include "qemu/host-utils.h"
 #include "qemu/qemu-print.h"
-#include "qemu/timer.h"
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
 

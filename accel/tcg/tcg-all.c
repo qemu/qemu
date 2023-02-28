@@ -25,7 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/tcg.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 #include "sysemu/cpu-timers.h"
 #include "tcg/tcg.h"
 #include "qapi/error.h"

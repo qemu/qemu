@@ -19,11 +19,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef QEMU_IOAPIC_INTERNAL_H
-#define QEMU_IOAPIC_INTERNAL_H
+#ifndef HW_INTC_IOAPIC_INTERNAL_H
+#define HW_INTC_IOAPIC_INTERNAL_H
 
 #include "exec/memory.h"
-#include "hw/i386/ioapic.h"
+#include "hw/intc/ioapic.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
@@ -115,4 +115,4 @@ void ioapic_reset_common(DeviceState *dev);
 
 void ioapic_stat_update_irq(IOAPICCommonState *s, int irq, int level);
 
-#endif /* QEMU_IOAPIC_INTERNAL_H */
+#endif /* HW_INTC_IOAPIC_INTERNAL_H */

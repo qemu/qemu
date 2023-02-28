@@ -1,8 +1,8 @@
-#ifndef REPLAY_H
-#define REPLAY_H
+#ifndef SYSEMU_REPLAY_H
+#define SYSEMU_REPLAY_H
 
 /*
- * replay.h
+ * QEMU replay (system interface)
  *
  * Copyright (c) 2010-2015 Institute for System Programming
  *                         of the Russian Academy of Sciences.
@@ -12,9 +12,9 @@
  *
  */
 
+#include "exec/replay-core.h"
 #include "qapi/qapi-types-misc.h"
 #include "qapi/qapi-types-run-state.h"
-#include "qapi/qapi-types-replay.h"
 #include "qapi/qapi-types-ui.h"
 #include "block/aio.h"
 
@@ -45,8 +45,6 @@ typedef enum ReplayCheckpoint ReplayCheckpoint;
 
 typedef struct ReplayNetState ReplayNetState;
 
-extern ReplayMode replay_mode;
-
 /* Name of the initial VM snapshot */
 extern char *replay_snapshot;
 
@@ -63,40 +61,6 @@ extern char *replay_snapshot;
 void replay_mutex_lock(void);
 void replay_mutex_unlock(void);
 
-/* Replay process control functions */
-
-/*! Enables recording or saving event log with specified parameters */
-void replay_configure(struct QemuOpts *opts);
-/*! Initializes timers used for snapshotting and enables events recording */
-void replay_start(void);
-/*! Closes replay log file and frees other resources. */
-void replay_finish(void);
-/*! Adds replay blocker with the specified error description */
-void replay_add_blocker(const char *feature);
-/* Returns name of the replay log file */
-const char *replay_get_filename(void);
-/*
- * Start making one step in backward direction.
- * Used by gdbstub for backwards debugging.
- * Returns true on success.
- */
-bool replay_reverse_step(void);
-/*
- * Start searching the last breakpoint/watchpoint.
- * Used by gdbstub for backwards debugging.
- * Returns true if the process successfully started.
- */
-bool replay_reverse_continue(void);
-/*
- * Returns true if replay module is processing
- * reverse_continue or reverse_step request
- */
-bool replay_running_debug(void);
-/* Called in reverse debugging mode to collect breakpoint information */
-void replay_breakpoint(void);
-/* Called when gdb is attached to gdbstub */
-void replay_gdb_attached(void);
-
 /* Processing the instructions */
 
 /*! Returns number of executed instructions. */
@@ -105,22 +69,6 @@ uint64_t replay_get_current_icount(void);
 int replay_get_instructions(void);
 /*! Updates instructions counter in replay mode. */
 void replay_account_executed_instructions(void);
-
-/* Interrupts and exceptions */
-
-/*! Called by exception handler to write or read
-    exception processing events. */
-bool replay_exception(void);
-/*! Used to determine that exception is pending.
-    Does not proceed to the next event in the log. */
-bool replay_has_exception(void);
-/*! Called by interrupt handlers to write or read
-    interrupt processing events.
-    \return true if interrupt should be processed */
-bool replay_interrupt(void);
-/*! Tries to read interrupt event from the file.
-    Returns true, when interrupt request is pending */
-bool replay_has_interrupt(void);
 
 /* Processing clocks and other time sources */
 
@@ -142,13 +90,6 @@ int64_t replay_read_clock(ReplayClockKind kind, int64_t raw_icount);
         : replay_mode == REPLAY_MODE_RECORD                             \
             ? replay_save_clock((clock), (value), icount_get_raw_locked()) \
             : (value))
-
-/* Processing data from random generators */
-
-/* Saves the values from the random number generator */
-void replay_save_random(int ret, void *buf, size_t len);
-/* Loads the saved values for the random number generator */
-int replay_read_random(void *buf, size_t len);
 
 /* Events */
 

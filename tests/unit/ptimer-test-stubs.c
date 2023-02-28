@@ -10,7 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 #include "migration/vmstate.h"
 
 #include "ptimer-test.h"

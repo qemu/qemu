@@ -1,5 +1,5 @@
 /*
- * Windows crashdump
+ * Windows crashdump (target specific implementations)
  *
  * Copyright (c) 2018 Virtuozzo International GmbH
  *
@@ -9,19 +9,21 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/cutils.h"
-#include "elf.h"
-#include "exec/hwaddr.h"
-#include "monitor/monitor.h"
-#include "sysemu/kvm.h"
 #include "sysemu/dump.h"
-#include "sysemu/memory_mapping.h"
-#include "sysemu/cpus.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
-#include "qemu/error-report.h"
-#include "hw/misc/vmcoreinfo.h"
+#include "exec/cpu-defs.h"
+#include "hw/core/cpu.h"
+#include "qemu/win_dump_defs.h"
 #include "win_dump.h"
+#include "cpu.h"
+
+#if defined(TARGET_X86_64)
+
+bool win_dump_available(Error **errp)
+{
+    return true;
+}
 
 static size_t win_dump_ptr_size(bool x64)
 {
@@ -475,3 +477,19 @@ out_cr3:
 
     return;
 }
+
+#else /* !TARGET_X86_64 */
+
+bool win_dump_available(Error **errp)
+{
+    error_setg(errp, "Windows dump is only available for x86-64");
+
+    return false;
+}
+
+void create_win_dump(DumpState *s, Error **errp)
+{
+    win_dump_available(errp);
+}
+
+#endif

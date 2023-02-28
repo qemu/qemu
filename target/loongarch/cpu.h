@@ -12,8 +12,9 @@
 #include "fpu/softfloat-types.h"
 #include "hw/registerfields.h"
 #include "qemu/timer.h"
+#ifndef CONFIG_USER_ONLY
 #include "exec/memory.h"
-#include "hw/sysbus.h"
+#endif
 #include "cpu-csr.h"
 
 #define IOCSRF_TEMP             0

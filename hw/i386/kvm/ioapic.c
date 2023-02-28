@@ -12,9 +12,8 @@
 
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
-#include "hw/i386/x86.h"
 #include "hw/qdev-properties.h"
-#include "hw/i386/ioapic_internal.h"
+#include "hw/intc/ioapic_internal.h"
 #include "hw/intc/kvm_irqcount.h"
 #include "sysemu/kvm.h"
 
