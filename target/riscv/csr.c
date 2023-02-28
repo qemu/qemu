@@ -337,13 +337,22 @@ static RISCVException hstateen_pred(CPURISCVState *env, int csrno, int base)
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
+    RISCVException ret = hmode(env, csrno);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    if (env->debugger) {
+        return RISCV_EXCP_NONE;
+    }
+
     if (env->priv < PRV_M) {
         if (!(env->mstateen[csrno - base] & SMSTATEEN_STATEEN)) {
             return RISCV_EXCP_ILLEGAL_INST;
         }
     }
 
-    return hmode(env, csrno);
+    return RISCV_EXCP_NONE;
 }
 
 static RISCVException hstateen(CPURISCVState *env, int csrno)
@@ -366,6 +375,15 @@ static RISCVException sstateen(CPURISCVState *env, int csrno)
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
+    RISCVException ret = smode(env, csrno);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    if (env->debugger) {
+        return RISCV_EXCP_NONE;
+    }
+
     if (env->priv < PRV_M) {
         if (!(env->mstateen[index] & SMSTATEEN_STATEEN)) {
             return RISCV_EXCP_ILLEGAL_INST;
@@ -378,7 +396,7 @@ static RISCVException sstateen(CPURISCVState *env, int csrno)
         }
     }
 
-    return smode(env, csrno);
+    return RISCV_EXCP_NONE;
 }
 
 /* Checks if PointerMasking registers could be accessed */
