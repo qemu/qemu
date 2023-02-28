@@ -113,7 +113,8 @@ RUN zypper update -y && \
            xen-devel \
            xfsprogs-devel \
            zlib-devel \
-           zlib-devel-static && \
+           zlib-devel-static \
+           zstd && \
     zypper clean --all && \
     rpm -qa | sort > /packages.txt && \
     mkdir -p /usr/libexec/ccache-wrappers && \

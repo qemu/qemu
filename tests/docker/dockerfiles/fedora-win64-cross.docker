@@ -59,7 +59,8 @@ exec "$@"' > /usr/bin/nosync && \
                tesseract \
                tesseract-langpack-eng \
                util-linux \
-               which && \
+               which \
+               zstd && \
     nosync dnf autoremove -y && \
     nosync dnf clean all -y
 

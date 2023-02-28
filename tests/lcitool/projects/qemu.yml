@@ -116,5 +116,6 @@ packages:
  - which
  - xen
  - xfsprogs
+ - zstdtools
  - zlib
  - zlib-static

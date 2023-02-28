@@ -116,7 +116,8 @@ RUN dnf distro-sync -y && \
         which \
         xfsprogs-devel \
         zlib-devel \
-        zlib-static && \
+        zlib-static \
+        zstd && \
     dnf autoremove -y && \
     dnf clean all -y && \
     rpm -qa | sort > /packages.txt && \
