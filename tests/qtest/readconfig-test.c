@@ -177,6 +177,26 @@ static void test_object_rng(void)
     qtest_quit(qts);
 }
 
+static void test_docs_config_ich9(void)
+{
+    QTestState *qts;
+    QDict *resp;
+    QObject *qobj;
+
+    qts = qtest_initf("-nodefaults -readconfig docs/config/ich9-ehci-uhci.cfg");
+
+    resp = qtest_qmp(qts, "{ 'execute': 'qom-list',"
+                          "  'arguments': {'path': '/machine/peripheral' }}");
+    qobj = qdict_get(resp, "return");
+    test_object_available(qobj, "ehci", "ich9-usb-ehci1");
+    test_object_available(qobj, "uhci-1", "ich9-usb-uhci1");
+    test_object_available(qobj, "uhci-2", "ich9-usb-uhci2");
+    test_object_available(qobj, "uhci-3", "ich9-usb-uhci3");
+    qobject_unref(resp);
+
+    qtest_quit(qts);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch;
@@ -187,6 +207,7 @@ int main(int argc, char *argv[])
     if (g_str_equal(arch, "i386") ||
         g_str_equal(arch, "x86_64")) {
         qtest_add_func("readconfig/x86/memdev", test_x86_memdev);
+        qtest_add_func("readconfig/x86/ich9-ehci-uhci", test_docs_config_ich9);
     }
 #ifdef CONFIG_SPICE
     qtest_add_func("readconfig/spice", test_spice);
