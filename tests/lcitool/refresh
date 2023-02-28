@@ -53,6 +53,15 @@ def generate(filename, cmd, trailer):
         content += trailer
     atomic_write(filename, content)
 
+# Optional user setting, this will always be the last thing added
+# so maximise the number of layers that are cached
+add_user_mapping = [
+    "# As a final step configure the user (if env is defined)",
+    "ARG USER",
+    "ARG UID",
+    "RUN if [ \"${USER}\" ]; then \\",
+    "  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi\n"
+]
 
 def generate_dockerfile(host, target, cross=None, trailer=None):
     filename = Path(src_dir, "tests", "docker", "dockerfiles", host + ".docker")
@@ -60,6 +69,12 @@ def generate_dockerfile(host, target, cross=None, trailer=None):
     if cross is not None:
         cmd.extend(["--cross", cross])
     cmd.extend([target, "qemu"])
+
+    if trailer is not None:
+        trailer += "\n".join(add_user_mapping)
+    else:
+        trailer = "\n".join(add_user_mapping)
+
     generate(filename, cmd, trailer)
 
 
