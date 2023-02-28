@@ -1073,7 +1073,6 @@ static gboolean diff_tree(gpointer key, gpointer value, gpointer data)
     struct match_node_data d = {tp->tree2, key, value};
 
     g_tree_foreach(tp->tree2, tp->match_node, &d);
-    g_tree_remove(tp->tree1, key);
     return false;
 }
 
@@ -1082,9 +1081,9 @@ static void compare_trees(GTree *tree1, GTree *tree2,
 {
     struct tree_cmp_data tp = {tree1, tree2, function};
 
+    assert(g_tree_nnodes(tree1) == g_tree_nnodes(tree2));
     g_tree_foreach(tree1, diff_tree, &tp);
-    assert(g_tree_nnodes(tree1) == 0);
-    assert(g_tree_nnodes(tree2) == 0);
+    g_tree_destroy(g_tree_ref(tree1));
 }
 
 static void diff_domain(TestGTreeDomain *d1, TestGTreeDomain *d2)
