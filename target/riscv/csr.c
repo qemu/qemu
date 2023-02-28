@@ -3775,7 +3775,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
                                                RISCVCPU *cpu)
 {
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
-    int read_only = get_field(csrno, 0xC00) == 3;
+    bool read_only = get_field(csrno, 0xC00) == 3;
     int csr_min_priv = csr_ops[csrno].min_priv_ver;
 
     /* ensure the CSR extension is enabled */
