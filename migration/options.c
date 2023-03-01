@@ -39,6 +39,15 @@ bool migrate_colo(void)
     return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
+bool migrate_compress(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
+}
+
 bool migrate_dirty_bitmaps(void)
 {
     MigrationState *s;
