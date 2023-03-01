@@ -413,3 +413,29 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 
     return head;
 }
+
+void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
+                                  Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    MigrationCapabilityStatusList *cap;
+    bool new_caps[MIGRATION_CAPABILITY__MAX];
+
+    if (migration_is_running(s->state)) {
+        error_setg(errp, QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    memcpy(new_caps, s->capabilities, sizeof(new_caps));
+    for (cap = params; cap; cap = cap->next) {
+        new_caps[cap->value->capability] = cap->value->state;
+    }
+
+    if (!migrate_caps_check(s->capabilities, new_caps, errp)) {
+        return;
+    }
+
+    for (cap = params; cap; cap = cap->next) {
+        s->capabilities[cap->value->capability] = cap->value->state;
+    }
+}
