@@ -19,6 +19,17 @@
   'data': ['sym', 'asym']}
 
 ##
+# @QCryptodevBackendServiceType:
+#
+# The supported service types of a crypto device.
+#
+# Since: 8.0
+##
+{ 'enum': 'QCryptodevBackendServiceType',
+  'prefix': 'QCRYPTODEV_BACKEND_SERVICE',
+  'data': ['cipher', 'hash', 'mac', 'aead', 'akcipher']}
+
+##
 # @QCryptodevBackendType:
 #
 # The crypto device backend type
