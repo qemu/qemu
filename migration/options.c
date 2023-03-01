@@ -33,6 +33,12 @@ bool migrate_background_snapshot(void)
     return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
+bool migrate_colo(void)
+{
+    MigrationState *s = migrate_get_current();
+    return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
+}
+
 bool migrate_dirty_bitmaps(void)
 {
     MigrationState *s;
