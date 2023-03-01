@@ -463,6 +463,15 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
 /* parameters */
 
+bool migrate_block_incremental(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.block_incremental;
+}
+
 int migrate_compress_level(void)
 {
     MigrationState *s;

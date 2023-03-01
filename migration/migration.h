@@ -451,7 +451,6 @@ bool migrate_postcopy(void);
 
 int migrate_use_tls(void);
 
-bool migrate_use_block_incremental(void);
 int migrate_max_cpu_throttle(void);
 
 uint64_t ram_get_total_transferred_pages(void);

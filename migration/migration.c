@@ -2157,7 +2157,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
             error_setg(errp, "No disk migration is required in COLO mode");
             return false;
         }
-        if (migrate_block() || migrate_use_block_incremental()) {
+        if (migrate_block() || migrate_block_incremental()) {
             error_setg(errp, "Command options are incompatible with "
                        "current migration capabilities");
             return false;
@@ -2271,15 +2271,6 @@ int migrate_use_tls(void)
     s = migrate_get_current();
 
     return s->parameters.tls_creds && *s->parameters.tls_creds;
-}
-
-bool migrate_use_block_incremental(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->parameters.block_incremental;
 }
 
 /* migration thread support */
