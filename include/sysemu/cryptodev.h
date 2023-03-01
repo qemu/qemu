@@ -246,6 +246,24 @@ struct CryptoDevBackendConf {
     uint64_t max_size;
 };
 
+typedef struct CryptodevBackendSymStat {
+    int64_t encrypt_ops;
+    int64_t decrypt_ops;
+    int64_t encrypt_bytes;
+    int64_t decrypt_bytes;
+} CryptodevBackendSymStat;
+
+typedef struct CryptodevBackendAsymStat {
+    int64_t encrypt_ops;
+    int64_t decrypt_ops;
+    int64_t sign_ops;
+    int64_t verify_ops;
+    int64_t encrypt_bytes;
+    int64_t decrypt_bytes;
+    int64_t sign_bytes;
+    int64_t verify_bytes;
+} CryptodevBackendAsymStat;
+
 struct CryptoDevBackend {
     Object parent_obj;
 
@@ -253,7 +271,38 @@ struct CryptoDevBackend {
     /* Tag the cryptodev backend is used by virtio-crypto or not */
     bool is_used;
     CryptoDevBackendConf conf;
+    CryptodevBackendSymStat *sym_stat;
+    CryptodevBackendAsymStat *asym_stat;
 };
+
+#define CryptodevSymStatInc(be, op, bytes) do { \
+   be->sym_stat->op##_bytes += (bytes); \
+   be->sym_stat->op##_ops += 1; \
+} while (/*CONSTCOND*/0)
+
+#define CryptodevSymStatIncEncrypt(be, bytes) \
+            CryptodevSymStatInc(be, encrypt, bytes)
+
+#define CryptodevSymStatIncDecrypt(be, bytes) \
+            CryptodevSymStatInc(be, decrypt, bytes)
+
+#define CryptodevAsymStatInc(be, op, bytes) do { \
+    be->asym_stat->op##_bytes += (bytes); \
+    be->asym_stat->op##_ops += 1; \
+} while (/*CONSTCOND*/0)
+
+#define CryptodevAsymStatIncEncrypt(be, bytes) \
+            CryptodevAsymStatInc(be, encrypt, bytes)
+
+#define CryptodevAsymStatIncDecrypt(be, bytes) \
+            CryptodevAsymStatInc(be, decrypt, bytes)
+
+#define CryptodevAsymStatIncSign(be, bytes) \
+            CryptodevAsymStatInc(be, sign, bytes)
+
+#define CryptodevAsymStatIncVerify(be, bytes) \
+            CryptodevAsymStatInc(be, verify, bytes)
+
 
 /**
  * cryptodev_backend_new_client:
