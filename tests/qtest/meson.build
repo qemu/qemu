@@ -309,10 +309,12 @@ qtests = {
   'netdev-socket': files('netdev-socket.c', '../unit/socket-helpers.c'),
 }
 
-gvnc = dependency('gvnc-1.0', required: false)
-if gvnc.found()
-  qtests += {'vnc-display-test': [gvnc]}
-  qtests_generic += [ 'vnc-display-test' ]
+if vnc.found()
+  gvnc = dependency('gvnc-1.0', required: false)
+  if gvnc.found()
+    qtests += {'vnc-display-test': [gvnc]}
+    qtests_generic += [ 'vnc-display-test' ]
+  endif
 endif
 
 if dbus_display
