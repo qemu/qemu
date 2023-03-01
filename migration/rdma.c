@@ -4179,7 +4179,7 @@ void rdma_start_outgoing_migration(void *opaque,
     }
 
     ret = qemu_rdma_source_init(rdma,
-        s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
+        s->capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
 
     if (ret) {
         goto err;
@@ -4201,7 +4201,7 @@ void rdma_start_outgoing_migration(void *opaque,
         }
 
         ret = qemu_rdma_source_init(rdma_return_path,
-            s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
+            s->capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
 
         if (ret) {
             goto return_path_err;

@@ -364,8 +364,7 @@ static bool migrate_late_block_activate(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[
-        MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
+    return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
 /*
@@ -944,7 +943,7 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 #endif
         caps = g_malloc0(sizeof(*caps));
         caps->capability = i;
-        caps->state = s->enabled_capabilities[i];
+        caps->state = s->capabilities[i];
         QAPI_LIST_APPEND(tail, caps);
     }
 
@@ -1494,13 +1493,13 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
         return;
     }
 
-    memcpy(cap_list, s->enabled_capabilities, sizeof(cap_list));
+    memcpy(cap_list, s->capabilities, sizeof(cap_list));
     if (!migrate_caps_check(cap_list, params, errp)) {
         return;
     }
 
     for (cap = params; cap; cap = cap->next) {
-        s->enabled_capabilities[cap->value->capability] = cap->value->state;
+        s->capabilities[cap->value->capability] = cap->value->state;
     }
 }
 
@@ -2569,7 +2568,7 @@ bool migrate_release_ram(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
+    return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
 bool migrate_postcopy_ram(void)
@@ -2578,7 +2577,7 @@ bool migrate_postcopy_ram(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
 
 bool migrate_postcopy(void)
@@ -2592,7 +2591,7 @@ bool migrate_auto_converge(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
+    return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
 }
 
 bool migrate_zero_blocks(void)
@@ -2601,7 +2600,7 @@ bool migrate_zero_blocks(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
+    return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
 }
 
 bool migrate_postcopy_blocktime(void)
@@ -2610,7 +2609,7 @@ bool migrate_postcopy_blocktime(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
 bool migrate_use_compression(void)
@@ -2619,7 +2618,7 @@ bool migrate_use_compression(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
+    return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 int migrate_compress_level(void)
@@ -2664,7 +2663,7 @@ bool migrate_dirty_bitmaps(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
+    return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
 bool migrate_ignore_shared(void)
@@ -2673,7 +2672,7 @@ bool migrate_ignore_shared(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
+    return s->capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
 }
 
 bool migrate_validate_uuid(void)
@@ -2682,7 +2681,7 @@ bool migrate_validate_uuid(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
+    return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
 }
 
 bool migrate_use_events(void)
@@ -2691,7 +2690,7 @@ bool migrate_use_events(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_EVENTS];
+    return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 bool migrate_use_multifd(void)
@@ -2700,7 +2699,7 @@ bool migrate_use_multifd(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
+    return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 bool migrate_pause_before_switchover(void)
@@ -2709,8 +2708,7 @@ bool migrate_pause_before_switchover(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[
-        MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
+    return s->capabilities[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
 }
 
 int migrate_multifd_channels(void)
@@ -2757,7 +2755,7 @@ bool migrate_use_zero_copy_send(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
+    return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
 }
 #endif
 
@@ -2776,7 +2774,7 @@ int migrate_use_xbzrle(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
+    return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
 uint64_t migrate_xbzrle_cache_size(void)
@@ -2803,7 +2801,7 @@ bool migrate_use_block(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+    return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
 
 bool migrate_use_return_path(void)
@@ -2812,7 +2810,7 @@ bool migrate_use_return_path(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
+    return s->capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
 }
 
 bool migrate_use_block_incremental(void)
@@ -2830,7 +2828,7 @@ bool migrate_background_snapshot(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
+    return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
 bool migrate_postcopy_preempt(void)
@@ -2839,7 +2837,7 @@ bool migrate_postcopy_preempt(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
 }
 
 /* migration thread support */
@@ -3581,7 +3579,7 @@ fail:
 bool migrate_colo_enabled(void)
 {
     MigrationState *s = migrate_get_current();
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO];
+    return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
 typedef enum MigThrError {
@@ -4444,7 +4442,7 @@ void migration_global_dump(Monitor *mon)
 }
 
 #define DEFINE_PROP_MIG_CAP(name, x)             \
-    DEFINE_PROP_BOOL(name, MigrationState, enabled_capabilities[x], false)
+    DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
 
 static Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
@@ -4643,7 +4641,7 @@ static bool migration_object_check(MigrationState *ms, Error **errp)
     }
 
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        if (ms->enabled_capabilities[i]) {
+        if (ms->capabilities[i]) {
             QAPI_LIST_PREPEND(head, migrate_cap_add(i, true));
         }
     }
