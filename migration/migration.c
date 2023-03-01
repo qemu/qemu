@@ -1912,25 +1912,24 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
-static MigrationCapabilityStatus *migrate_cap_add(MigrationCapability index,
-                                                  bool state)
+static bool migrate_cap_set(int cap, bool value, Error **errp)
 {
-    MigrationCapabilityStatus *cap;
+    MigrationState *s = migrate_get_current();
+    bool new_caps[MIGRATION_CAPABILITY__MAX];
 
-    cap = g_new0(MigrationCapabilityStatus, 1);
-    cap->capability = index;
-    cap->state = state;
+    if (migration_is_running(s->state)) {
+        error_setg(errp, QERR_MIGRATION_ACTIVE);
+        return false;
+    }
 
-    return cap;
-}
+    memcpy(new_caps, s->capabilities, sizeof(new_caps));
+    new_caps[cap] = value;
 
-void migrate_set_block_enabled(bool value, Error **errp)
-{
-    MigrationCapabilityStatusList *cap = NULL;
-
-    QAPI_LIST_PREPEND(cap, migrate_cap_add(MIGRATION_CAPABILITY_BLOCK, value));
-    qmp_migrate_set_capabilities(cap, errp);
-    qapi_free_MigrationCapabilityStatusList(cap);
+    if (!migrate_caps_check(s->capabilities, new_caps, errp)) {
+        return false;
+    }
+    s->capabilities[cap] = value;
+    return true;
 }
 
 static void migrate_set_block_incremental(MigrationState *s, bool value)
@@ -1942,7 +1941,7 @@ static void block_cleanup_parameters(MigrationState *s)
 {
     if (s->must_remove_block_options) {
         /* setting to false can never fail */
-        migrate_set_block_enabled(false, &error_abort);
+        migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
         migrate_set_block_incremental(s, false);
         s->must_remove_block_options = false;
     }
@@ -2429,8 +2428,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                        "current migration capabilities");
             return false;
         }
-        migrate_set_block_enabled(true, &local_err);
-        if (local_err) {
+        if (!migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, true, &local_err)) {
             error_propagate(errp, local_err);
             return false;
         }
