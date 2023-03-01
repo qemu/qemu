@@ -554,6 +554,15 @@ int migrate_multifd_zstd_level(void)
     return s->parameters.multifd_zstd_level;
 }
 
+uint8_t migrate_throttle_trigger_threshold(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.throttle_trigger_threshold;
+}
+
 uint64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s;
