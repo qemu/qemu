@@ -49,10 +49,10 @@ static void x86_cpu_exec_exit(CPUState *cs)
 static void x86_cpu_synchronize_from_tb(CPUState *cs,
                                         const TranslationBlock *tb)
 {
-    /* The instruction pointer is always up to date with TARGET_TB_PCREL. */
-    if (!TARGET_TB_PCREL) {
+    /* The instruction pointer is always up to date with CF_PCREL. */
+    if (!(tb_cflags(tb) & CF_PCREL)) {
         CPUX86State *env = cs->env_ptr;
-        env->eip = tb_pc(tb) - tb->cs_base;
+        env->eip = tb->pc - tb->cs_base;
     }
 }
 
@@ -64,7 +64,7 @@ static void x86_restore_state_to_opc(CPUState *cs,
     CPUX86State *env = &cpu->env;
     int cc_op = data[1];
 
-    if (TARGET_TB_PCREL) {
+    if (tb_cflags(tb) & CF_PCREL) {
         env->eip = (env->eip & TARGET_PAGE_MASK) | data[0];
     } else {
         env->eip = data[0] - tb->cs_base;

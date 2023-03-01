@@ -328,7 +328,7 @@ void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
     for (insn = 0; insn < tb->icount; insn++) {
         /* FIXME: This replicates the restore_state_to_opc() logic. */
         q[insn].address = tcg_ctx->gen_insn_data[insn][0];
-        if (TARGET_TB_PCREL) {
+        if (tb_cflags(tb) & CF_PCREL) {
             q[insn].address |= (guest_pc & TARGET_PAGE_MASK);
         } else {
 #if defined(TARGET_I386)

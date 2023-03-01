@@ -26,7 +26,7 @@
 #include "qemu/module.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat.h"
-
+#include "tcg/tcg.h"
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -48,8 +48,10 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
 {
     HPPACPU *cpu = HPPA_CPU(cs);
 
+    tcg_debug_assert(!(cs->tcg_cflags & CF_PCREL));
+
 #ifdef CONFIG_USER_ONLY
-    cpu->env.iaoq_f = tb_pc(tb);
+    cpu->env.iaoq_f = tb->pc;
     cpu->env.iaoq_b = tb->cs_base;
 #else
     /* Recover the IAOQ values from the GVA + PRIV.  */
@@ -59,7 +61,7 @@ static void hppa_cpu_synchronize_from_tb(CPUState *cs,
     int32_t diff = cs_base;
 
     cpu->env.iasq_f = iasq_f;
-    cpu->env.iaoq_f = (tb_pc(tb) & ~iasq_f) + priv;
+    cpu->env.iaoq_f = (tb->pc & ~iasq_f) + priv;
     if (diff) {
         cpu->env.iaoq_b = cpu->env.iaoq_f + diff;
     }
