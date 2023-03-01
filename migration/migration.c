@@ -186,7 +186,7 @@ static void migrate_fd_cancel(MigrationState *s);
 
 static bool migration_needs_multiple_sockets(void)
 {
-    return migrate_use_multifd() || migrate_postcopy_preempt();
+    return migrate_multifd() || migrate_postcopy_preempt();
 }
 
 static bool uri_supports_multi_channels(const char *uri)
@@ -732,7 +732,7 @@ void migration_fd_process_incoming(QEMUFile *f, Error **errp)
 static bool migration_should_start_incoming(bool main_channel)
 {
     /* Multifd doesn't start unless all channels are established */
-    if (migrate_use_multifd()) {
+    if (migrate_multifd()) {
         return migration_has_all_channels();
     }
 
@@ -759,7 +759,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     uint32_t channel_magic = 0;
     int ret = 0;
 
-    if (migrate_use_multifd() && !migrate_postcopy_ram() &&
+    if (migrate_multifd() && !migrate_postcopy_ram() &&
         qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_READ_MSG_PEEK)) {
         /*
          * With multiple channels, it is possible that we receive channels
@@ -798,7 +798,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
     } else {
         /* Multiple connections */
         assert(migration_needs_multiple_sockets());
-        if (migrate_use_multifd()) {
+        if (migrate_multifd()) {
             multifd_recv_new_channel(ioc, &local_err);
         } else {
             assert(migrate_postcopy_preempt());
@@ -834,7 +834,7 @@ bool migration_has_all_channels(void)
         return false;
     }
 
-    if (migrate_use_multifd()) {
+    if (migrate_multifd()) {
         return multifd_recv_all_channels_created();
     }
 
@@ -2556,15 +2556,6 @@ int migrate_decompress_threads(void)
     s = migrate_get_current();
 
     return s->parameters.decompress_threads;
-}
-
-bool migrate_use_multifd(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 int migrate_multifd_channels(void)

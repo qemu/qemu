@@ -84,6 +84,15 @@ bool migrate_late_block_activate(void)
     return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
+bool migrate_multifd(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
