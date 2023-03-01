@@ -11,7 +11,7 @@
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
-OBJECT_DECLARE_TYPE(ISADevice, ISADeviceClass, ISA_DEVICE)
+OBJECT_DECLARE_SIMPLE_TYPE(ISADevice, ISA_DEVICE)
 
 #define TYPE_ISA_BUS "ISA"
 OBJECT_DECLARE_SIMPLE_TYPE(ISABus, ISA_BUS)
@@ -48,10 +48,6 @@ struct IsaDmaClass {
                              void *opaque);
 };
 
-struct ISADeviceClass {
-    DeviceClass parent_class;
-};
-
 struct ISABus {
     /*< private >*/
     BusState parent_obj;
@@ -59,7 +55,7 @@ struct ISABus {
 
     MemoryRegion *address_space;
     MemoryRegion *address_space_io;
-    qemu_irq *irqs;
+    qemu_irq *irqs_in;
     IsaDma *dma[2];
 };
 
@@ -73,19 +69,29 @@ struct ISADevice {
 
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space,
                     MemoryRegion *address_space_io, Error **errp);
-void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
-qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq);
-void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq);
+void isa_bus_register_input_irqs(ISABus *bus, qemu_irq *irqs_in);
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16);
-IsaDma *isa_get_dma(ISABus *bus, int nchan);
-MemoryRegion *isa_address_space(ISADevice *dev);
-MemoryRegion *isa_address_space_io(ISADevice *dev);
+IsaDma *isa_bus_get_dma(ISABus *bus, int nchan);
+/**
+ * isa_bus_get_irq: Return input IRQ on ISA bus.
+ * @bus: the #ISABus to plug ISA devices on.
+ * @irqnum: the ISA IRQ number.
+ *
+ * Return IRQ @irqnum from the PIC associated on ISA @bus.
+ */
+qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum);
 ISADevice *isa_new(const char *name);
 ISADevice *isa_try_new(const char *name);
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp);
 ISADevice *isa_create_simple(ISABus *bus, const char *name);
 
 ISADevice *isa_vga_init(ISABus *bus);
+
+qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq);
+void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq);
+MemoryRegion *isa_address_space(ISADevice *dev);
+MemoryRegion *isa_address_space_io(ISADevice *dev);
+ISABus *isa_bus_from_device(ISADevice *dev);
 
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.
@@ -122,10 +128,5 @@ int isa_register_portio_list(ISADevice *dev,
                              uint16_t start,
                              const MemoryRegionPortio *portio,
                              void *opaque, const char *name);
-
-static inline ISABus *isa_bus_from_device(ISADevice *d)
-{
-    return ISA_BUS(qdev_get_parent_bus(DEVICE(d)));
-}
 
 #endif

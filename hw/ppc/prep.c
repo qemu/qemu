@@ -212,14 +212,13 @@ static int PPC_NVRAM_set_params (Nvram *nvram, uint16_t NVRAM_size,
 static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
 {
     uint16_t checksum = *(uint16_t *)opaque;
-    ISADevice *rtc;
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
-        rtc = ISA_DEVICE(dev);
-        rtc_set_memory(rtc, 0x2e, checksum & 0xff);
-        rtc_set_memory(rtc, 0x3e, checksum & 0xff);
-        rtc_set_memory(rtc, 0x2f, checksum >> 8);
-        rtc_set_memory(rtc, 0x3f, checksum >> 8);
+        MC146818RtcState *rtc = MC146818_RTC(dev);
+        mc146818rtc_set_cmos_data(rtc, 0x2e, checksum & 0xff);
+        mc146818rtc_set_cmos_data(rtc, 0x3e, checksum & 0xff);
+        mc146818rtc_set_cmos_data(rtc, 0x2f, checksum >> 8);
+        mc146818rtc_set_cmos_data(rtc, 0x3f, checksum >> 8);
 
         object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(rtc),
                                   "date");

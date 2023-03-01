@@ -564,3 +564,13 @@ struct xenkbd_page
 };
 
 #endif /* __XEN_PUBLIC_IO_KBDIF_H__ */
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

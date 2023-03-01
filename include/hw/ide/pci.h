@@ -49,17 +49,12 @@ struct PCIIDEState {
 
     IDEBus bus[2];
     BMDMAState bmdma[2];
+    qemu_irq isa_irq[2];
     uint32_t secondary; /* used only for cmd646 */
     MemoryRegion bmdma_bar;
     MemoryRegion cmd_bar[2];
     MemoryRegion data_bar[2];
 };
-
-static inline IDEState *bmdma_active_if(BMDMAState *bmdma)
-{
-    assert(bmdma->bus->retry_unit != (uint8_t)-1);
-    return bmdma->bus->ifs + bmdma->bus->retry_unit;
-}
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d);
 void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val);

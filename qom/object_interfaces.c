@@ -2,8 +2,8 @@
 
 #include "qemu/cutils.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-qom.h"
 #include "qapi/qapi-visit-qom.h"
+#include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"

@@ -58,7 +58,7 @@ struct PITCommonState {
 };
 
 struct PITCommonClass {
-    ISADeviceClass parent_class;
+    DeviceClass parent_class;
 
     void (*set_channel_gate)(PITCommonState *s, PITChannelState *sc, int val);
     void (*get_channel_info)(PITCommonState *s, PITChannelState *sc,

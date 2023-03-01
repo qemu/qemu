@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #include "crypto/random.h"
-#include "sysemu/replay.h"
+#include "exec/replay-core.h"
 
 
 static __thread GRand *thread_rand;

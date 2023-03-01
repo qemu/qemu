@@ -75,7 +75,7 @@ typedef struct UHCIState {
 } UHCIState;
 
 #define TYPE_UHCI "pci-uhci-usb"
-DECLARE_INSTANCE_CHECKER(UHCIState, UHCI, TYPE_UHCI)
+OBJECT_DECLARE_TYPE(UHCIState, UHCIPCIDeviceClass, UHCI)
 
 typedef struct UHCIInfo {
     const char *name;

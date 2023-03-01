@@ -7,13 +7,10 @@
  * non-internal declarations are in hw/ide.h
  */
 
-#include "qapi/qapi-types-run-state.h"
 #include "hw/ide.h"
-#include "hw/irq.h"
-#include "hw/isa/isa.h"
 #include "sysemu/dma.h"
 #include "hw/block/block.h"
-#include "scsi/constants.h"
+#include "exec/ioport.h"
 
 /* debug IDE devices */
 #define USE_DMA_CDROM
@@ -491,7 +488,7 @@ struct IDEBus {
     IDEDMA *dma;
     uint8_t unit;
     uint8_t cmd;
-    qemu_irq irq;
+    qemu_irq irq; /* bus output */
 
     int error_status;
     uint8_t retry_unit;
@@ -569,16 +566,9 @@ static inline uint8_t ide_dma_cmd_to_retry(uint8_t dma_cmd)
     return 0;
 }
 
-static inline IDEState *idebus_active_if(IDEBus *bus)
+static inline IDEState *ide_bus_active_if(IDEBus *bus)
 {
     return bus->ifs + bus->unit;
-}
-
-static inline void ide_set_irq(IDEBus *bus)
-{
-    if (!(bus->cmd & IDE_CTRL_DISABLE_IRQ)) {
-        qemu_irq_raise(bus->irq);
-    }
 }
 
 /* hw/ide/core.c */
@@ -626,12 +616,13 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    uint64_t wwn,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
                    int chs_trans, Error **errp);
-void ide_init2(IDEBus *bus, qemu_irq irq);
 void ide_exit(IDEState *s);
+void ide_bus_init_output_irq(IDEBus *bus, qemu_irq irq_out);
 int ide_init_ioport(IDEBus *bus, ISADevice *isa, int iobase, int iobase2);
-void ide_register_restart_cb(IDEBus *bus);
+void ide_bus_set_irq(IDEBus *bus);
+void ide_bus_register_restart_cb(IDEBus *bus);
 
-void ide_exec_cmd(IDEBus *bus, uint32_t val);
+void ide_bus_exec_cmd(IDEBus *bus, uint32_t val);
 
 void ide_transfer_start(IDEState *s, uint8_t *buf, int size,
                         EndTransferFunc *end_transfer_func);
@@ -654,7 +645,11 @@ void ide_atapi_cmd_reply_end(IDEState *s);
 /* hw/ide/qdev.c */
 void ide_bus_init(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                   int bus_id, int max_units);
-IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
+IDEDevice *ide_bus_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
+
+int ide_get_geometry(BusState *bus, int unit,
+                     int16_t *cyls, int8_t *heads, int8_t *secs);
+int ide_get_bios_chs_trans(BusState *bus, int unit);
 
 int ide_handle_rw_error(IDEState *s, int error, int op);
 

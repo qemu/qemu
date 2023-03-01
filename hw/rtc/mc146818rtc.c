@@ -71,19 +71,19 @@
 
 #define RTC_ISA_BASE 0x70
 
-static void rtc_set_time(RTCState *s);
-static void rtc_update_time(RTCState *s);
-static void rtc_set_cmos(RTCState *s, const struct tm *tm);
-static inline int rtc_from_bcd(RTCState *s, int a);
-static uint64_t get_next_alarm(RTCState *s);
+static void rtc_set_time(MC146818RtcState *s);
+static void rtc_update_time(MC146818RtcState *s);
+static void rtc_set_cmos(MC146818RtcState *s, const struct tm *tm);
+static inline int rtc_from_bcd(MC146818RtcState *s, int a);
+static uint64_t get_next_alarm(MC146818RtcState *s);
 
-static inline bool rtc_running(RTCState *s)
+static inline bool rtc_running(MC146818RtcState *s)
 {
     return (!(s->cmos_data[RTC_REG_B] & REG_B_SET) &&
             (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20);
 }
 
-static uint64_t get_guest_rtc_ns(RTCState *s)
+static uint64_t get_guest_rtc_ns(MC146818RtcState *s)
 {
     uint64_t guest_clock = qemu_clock_get_ns(rtc_clock);
 
@@ -91,7 +91,7 @@ static uint64_t get_guest_rtc_ns(RTCState *s)
         guest_clock - s->last_update + s->offset;
 }
 
-static void rtc_coalesced_timer_update(RTCState *s)
+static void rtc_coalesced_timer_update(MC146818RtcState *s)
 {
     if (s->irq_coalesced == 0) {
         timer_del(s->coalesced_timer);
@@ -104,19 +104,19 @@ static void rtc_coalesced_timer_update(RTCState *s)
     }
 }
 
-static QLIST_HEAD(, RTCState) rtc_devices =
+static QLIST_HEAD(, MC146818RtcState) rtc_devices =
     QLIST_HEAD_INITIALIZER(rtc_devices);
 
 void qmp_rtc_reset_reinjection(Error **errp)
 {
-    RTCState *s;
+    MC146818RtcState *s;
 
     QLIST_FOREACH(s, &rtc_devices, link) {
         s->irq_coalesced = 0;
     }
 }
 
-static bool rtc_policy_slew_deliver_irq(RTCState *s)
+static bool rtc_policy_slew_deliver_irq(MC146818RtcState *s)
 {
     kvm_reset_irq_delivered();
     qemu_irq_raise(s->irq);
@@ -125,7 +125,7 @@ static bool rtc_policy_slew_deliver_irq(RTCState *s)
 
 static void rtc_coalesced_timer(void *opaque)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
 
     if (s->irq_coalesced != 0) {
         s->cmos_data[RTC_REG_C] |= 0xc0;
@@ -140,7 +140,7 @@ static void rtc_coalesced_timer(void *opaque)
     rtc_coalesced_timer_update(s);
 }
 
-static uint32_t rtc_periodic_clock_ticks(RTCState *s)
+static uint32_t rtc_periodic_clock_ticks(MC146818RtcState *s)
 {
     int period_code;
 
@@ -157,8 +157,8 @@ static uint32_t rtc_periodic_clock_ticks(RTCState *s)
  * handle periodic timer. @old_period indicates the periodic timer update
  * is just due to period adjustment.
  */
-static void
-periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period, bool period_change)
+static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
+                                  uint32_t old_period, bool period_change)
 {
     uint32_t period;
     int64_t cur_clock, next_irq_clock, lost_clock = 0;
@@ -234,7 +234,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period, bo
 
 static void rtc_periodic_timer(void *opaque)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
 
     periodic_timer_update(s, s->next_periodic_time, s->period, false);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
@@ -255,7 +255,7 @@ static void rtc_periodic_timer(void *opaque)
 }
 
 /* handle update-ended timer */
-static void check_update_timer(RTCState *s)
+static void check_update_timer(MC146818RtcState *s)
 {
     uint64_t next_update_time;
     uint64_t guest_nsec;
@@ -306,7 +306,7 @@ static void check_update_timer(RTCState *s)
     }
 }
 
-static inline uint8_t convert_hour(RTCState *s, uint8_t hour)
+static inline uint8_t convert_hour(MC146818RtcState *s, uint8_t hour)
 {
     if (!(s->cmos_data[RTC_REG_B] & REG_B_24H)) {
         hour %= 12;
@@ -317,7 +317,7 @@ static inline uint8_t convert_hour(RTCState *s, uint8_t hour)
     return hour;
 }
 
-static uint64_t get_next_alarm(RTCState *s)
+static uint64_t get_next_alarm(MC146818RtcState *s)
 {
     int32_t alarm_sec, alarm_min, alarm_hour, cur_hour, cur_min, cur_sec;
     int32_t hour, min, sec;
@@ -410,7 +410,7 @@ static uint64_t get_next_alarm(RTCState *s)
 
 static void rtc_update_timer(void *opaque)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
     int32_t irqs = REG_C_UF;
     int32_t new_irqs;
 
@@ -439,7 +439,7 @@ static void rtc_update_timer(void *opaque)
 static void cmos_ioport_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
     uint32_t old_period;
     bool update_periodic_timer;
 
@@ -557,7 +557,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
     }
 }
 
-static inline int rtc_to_bcd(RTCState *s, int a)
+static inline int rtc_to_bcd(MC146818RtcState *s, int a)
 {
     if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
@@ -566,7 +566,7 @@ static inline int rtc_to_bcd(RTCState *s, int a)
     }
 }
 
-static inline int rtc_from_bcd(RTCState *s, int a)
+static inline int rtc_from_bcd(MC146818RtcState *s, int a)
 {
     if ((a & 0xc0) == 0xc0) {
         return -1;
@@ -578,7 +578,7 @@ static inline int rtc_from_bcd(RTCState *s, int a)
     }
 }
 
-static void rtc_get_time(RTCState *s, struct tm *tm)
+static void rtc_get_time(MC146818RtcState *s, struct tm *tm)
 {
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
@@ -597,7 +597,7 @@ static void rtc_get_time(RTCState *s, struct tm *tm)
         rtc_from_bcd(s, s->cmos_data[RTC_CENTURY]) * 100 - 1900;
 }
 
-static void rtc_set_time(RTCState *s)
+static void rtc_set_time(MC146818RtcState *s)
 {
     struct tm tm;
     g_autofree const char *qom_path = object_get_canonical_path(OBJECT(s));
@@ -609,7 +609,7 @@ static void rtc_set_time(RTCState *s)
     qapi_event_send_rtc_change(qemu_timedate_diff(&tm), qom_path);
 }
 
-static void rtc_set_cmos(RTCState *s, const struct tm *tm)
+static void rtc_set_cmos(MC146818RtcState *s, const struct tm *tm)
 {
     int year;
 
@@ -633,7 +633,7 @@ static void rtc_set_cmos(RTCState *s, const struct tm *tm)
     s->cmos_data[RTC_CENTURY] = rtc_to_bcd(s, year / 100);
 }
 
-static void rtc_update_time(RTCState *s)
+static void rtc_update_time(MC146818RtcState *s)
 {
     struct tm ret;
     time_t guest_sec;
@@ -649,7 +649,7 @@ static void rtc_update_time(RTCState *s)
     }
 }
 
-static int update_in_progress(RTCState *s)
+static int update_in_progress(MC146818RtcState *s)
 {
     int64_t guest_nsec;
 
@@ -678,7 +678,7 @@ static int update_in_progress(RTCState *s)
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
     int ret;
     if ((addr & 1) == 0) {
         return 0xff;
@@ -739,23 +739,21 @@ static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
     }
 }
 
-void rtc_set_memory(ISADevice *dev, int addr, int val)
+void mc146818rtc_set_cmos_data(MC146818RtcState *s, int addr, int val)
 {
-    RTCState *s = MC146818_RTC(dev);
     if (addr >= 0 && addr <= 127)
         s->cmos_data[addr] = val;
 }
 
-int rtc_get_memory(ISADevice *dev, int addr)
+int mc146818rtc_get_cmos_data(MC146818RtcState *s, int addr)
 {
-    RTCState *s = MC146818_RTC(dev);
     assert(addr >= 0 && addr <= 127);
     return s->cmos_data[addr];
 }
 
 static void rtc_set_date_from_host(ISADevice *dev)
 {
-    RTCState *s = MC146818_RTC(dev);
+    MC146818RtcState *s = MC146818_RTC(dev);
     struct tm tm;
 
     qemu_get_timedate(&tm, 0);
@@ -770,7 +768,7 @@ static void rtc_set_date_from_host(ISADevice *dev)
 
 static int rtc_pre_save(void *opaque)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
 
     rtc_update_time(s);
 
@@ -779,7 +777,7 @@ static int rtc_pre_save(void *opaque)
 
 static int rtc_post_load(void *opaque, int version_id)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
 
     if (version_id <= 2 || rtc_clock == QEMU_CLOCK_REALTIME) {
         rtc_set_time(s);
@@ -810,7 +808,7 @@ static int rtc_post_load(void *opaque, int version_id)
 
 static bool rtc_irq_reinject_on_ack_count_needed(void *opaque)
 {
-    RTCState *s = (RTCState *)opaque;
+    MC146818RtcState *s = (MC146818RtcState *)opaque;
     return s->irq_reinject_on_ack_count != 0;
 }
 
@@ -820,7 +818,7 @@ static const VMStateDescription vmstate_rtc_irq_reinject_on_ack_count = {
     .minimum_version_id = 1,
     .needed = rtc_irq_reinject_on_ack_count_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT16(irq_reinject_on_ack_count, RTCState),
+        VMSTATE_UINT16(irq_reinject_on_ack_count, MC146818RtcState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -832,19 +830,19 @@ static const VMStateDescription vmstate_rtc = {
     .pre_save = rtc_pre_save,
     .post_load = rtc_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_BUFFER(cmos_data, RTCState),
-        VMSTATE_UINT8(cmos_index, RTCState),
+        VMSTATE_BUFFER(cmos_data, MC146818RtcState),
+        VMSTATE_UINT8(cmos_index, MC146818RtcState),
         VMSTATE_UNUSED(7*4),
-        VMSTATE_TIMER_PTR(periodic_timer, RTCState),
-        VMSTATE_INT64(next_periodic_time, RTCState),
+        VMSTATE_TIMER_PTR(periodic_timer, MC146818RtcState),
+        VMSTATE_INT64(next_periodic_time, MC146818RtcState),
         VMSTATE_UNUSED(3*8),
-        VMSTATE_UINT32_V(irq_coalesced, RTCState, 2),
-        VMSTATE_UINT32_V(period, RTCState, 2),
-        VMSTATE_UINT64_V(base_rtc, RTCState, 3),
-        VMSTATE_UINT64_V(last_update, RTCState, 3),
-        VMSTATE_INT64_V(offset, RTCState, 3),
-        VMSTATE_TIMER_PTR_V(update_timer, RTCState, 3),
-        VMSTATE_UINT64_V(next_alarm_time, RTCState, 3),
+        VMSTATE_UINT32_V(irq_coalesced, MC146818RtcState, 2),
+        VMSTATE_UINT32_V(period, MC146818RtcState, 2),
+        VMSTATE_UINT64_V(base_rtc, MC146818RtcState, 3),
+        VMSTATE_UINT64_V(last_update, MC146818RtcState, 3),
+        VMSTATE_INT64_V(offset, MC146818RtcState, 3),
+        VMSTATE_TIMER_PTR_V(update_timer, MC146818RtcState, 3),
+        VMSTATE_UINT64_V(next_alarm_time, MC146818RtcState, 3),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
@@ -857,8 +855,9 @@ static const VMStateDescription vmstate_rtc = {
    BIOS will read it and start S3 resume at POST Entry */
 static void rtc_notify_suspend(Notifier *notifier, void *data)
 {
-    RTCState *s = container_of(notifier, RTCState, suspend_notifier);
-    rtc_set_memory(ISA_DEVICE(s), 0xF, 0xFE);
+    MC146818RtcState *s = container_of(notifier, MC146818RtcState,
+                                       suspend_notifier);
+    mc146818rtc_set_cmos_data(s, 0xF, 0xFE);
 }
 
 static const MemoryRegionOps cmos_ops = {
@@ -873,7 +872,7 @@ static const MemoryRegionOps cmos_ops = {
 
 static void rtc_get_date(Object *obj, struct tm *current_tm, Error **errp)
 {
-    RTCState *s = MC146818_RTC(obj);
+    MC146818RtcState *s = MC146818_RTC(obj);
 
     rtc_update_time(s);
     rtc_get_time(s, current_tm);
@@ -882,7 +881,7 @@ static void rtc_get_date(Object *obj, struct tm *current_tm, Error **errp)
 static void rtc_realizefn(DeviceState *dev, Error **errp)
 {
     ISADevice *isadev = ISA_DEVICE(dev);
-    RTCState *s = MC146818_RTC(dev);
+    MC146818RtcState *s = MC146818_RTC(dev);
 
     s->cmos_data[RTC_REG_A] = 0x26;
     s->cmos_data[RTC_REG_B] = 0x02;
@@ -945,11 +944,12 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     QLIST_INSERT_HEAD(&rtc_devices, s, link);
 }
 
-ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
+MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
+                                    qemu_irq intercept_irq)
 {
     DeviceState *dev;
     ISADevice *isadev;
-    RTCState *s;
+    MC146818RtcState *s;
 
     isadev = isa_new(TYPE_MC146818_RTC);
     dev = DEVICE(isadev);
@@ -965,21 +965,21 @@ ISADevice *mc146818_rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     object_property_add_alias(qdev_get_machine(), "rtc-time", OBJECT(isadev),
                               "date");
 
-    return isadev;
+    return s;
 }
 
 static Property mc146818rtc_properties[] = {
-    DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
-    DEFINE_PROP_UINT16("iobase", RTCState, io_base, RTC_ISA_BASE),
-    DEFINE_PROP_UINT8("irq", RTCState, isairq, RTC_ISA_IRQ),
-    DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
+    DEFINE_PROP_INT32("base_year", MC146818RtcState, base_year, 1980),
+    DEFINE_PROP_UINT16("iobase", MC146818RtcState, io_base, RTC_ISA_BASE),
+    DEFINE_PROP_UINT8("irq", MC146818RtcState, isairq, RTC_ISA_IRQ),
+    DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", MC146818RtcState,
                                lost_tick_policy, LOST_TICK_POLICY_DISCARD),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static void rtc_reset_enter(Object *obj, ResetType type)
 {
-    RTCState *s = MC146818_RTC(obj);
+    MC146818RtcState *s = MC146818_RTC(obj);
 
     /* Reason: VM do suspend self will set 0xfe
      * Reset any values other than 0xfe(Guest suspend case) */
@@ -1000,14 +1000,14 @@ static void rtc_reset_enter(Object *obj, ResetType type)
 
 static void rtc_reset_hold(Object *obj)
 {
-    RTCState *s = MC146818_RTC(obj);
+    MC146818RtcState *s = MC146818_RTC(obj);
 
     qemu_irq_lower(s->irq);
 }
 
 static void rtc_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    RTCState *s = MC146818_RTC(adev);
+    MC146818RtcState *s = MC146818_RTC(adev);
     Aml *dev;
     Aml *crs;
 
@@ -1045,7 +1045,7 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
 static const TypeInfo mc146818rtc_info = {
     .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(RTCState),
+    .instance_size = sizeof(MC146818RtcState),
     .class_init    = rtc_class_initfn,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },

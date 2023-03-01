@@ -25,16 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
-#include "qemu/error-report.h"
-#include "qemu/timer.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/dma.h"
-#include "hw/block/block.h"
-#include "sysemu/block-backend.h"
-#include "qapi/error.h"
-#include "qemu/cutils.h"
-#include "sysemu/replay.h"
-
 #include "hw/ide/internal.h"
 #include "trace.h"
 

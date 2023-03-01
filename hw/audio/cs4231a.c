@@ -668,16 +668,17 @@ static void cs4231a_initfn (Object *obj)
 static void cs4231a_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE (dev);
+    ISABus *bus = isa_bus_from_device(d);
     CSState *s = CS4231A (dev);
     IsaDmaClass *k;
 
-    s->isa_dma = isa_get_dma(isa_bus_from_device(d), s->dma);
+    s->isa_dma = isa_bus_get_dma(bus, s->dma);
     if (!s->isa_dma) {
         error_setg(errp, "ISA controller does not support DMA");
         return;
     }
 
-    s->pic = isa_get_irq(d, s->irq);
+    s->pic = isa_bus_get_irq(bus, s->irq);
     k = ISADMA_GET_CLASS(s->isa_dma);
     k->register_channel(s->isa_dma, s->dma, cs_dma_read, s);
 

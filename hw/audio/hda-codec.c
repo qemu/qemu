@@ -145,7 +145,9 @@ static const char *fmt2name[] = {
     [ AUDIO_FORMAT_S32 ] = "PCM-S32",
 };
 
-typedef struct HDAAudioState HDAAudioState;
+#define TYPE_HDA_AUDIO "hda-audio"
+OBJECT_DECLARE_SIMPLE_TYPE(HDAAudioState, HDA_AUDIO)
+
 typedef struct HDAAudioStream HDAAudioStream;
 
 struct HDAAudioStream {
@@ -170,9 +172,6 @@ struct HDAAudioStream {
     QEMUTimer *buft;
     int64_t buft_start;
 };
-
-#define TYPE_HDA_AUDIO "hda-audio"
-OBJECT_DECLARE_SIMPLE_TYPE(HDAAudioState, HDA_AUDIO)
 
 struct HDAAudioState {
     HDACodecDevice hda;

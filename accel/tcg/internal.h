@@ -64,4 +64,7 @@ static inline target_ulong log_pc(CPUState *cpu, const TranslationBlock *tb)
 #endif
 }
 
+extern int64_t max_delay;
+extern int64_t max_advance;
+
 #endif /* ACCEL_TCG_INTERNAL_H */

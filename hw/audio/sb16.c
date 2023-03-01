@@ -1398,17 +1398,18 @@ static void sb16_initfn (Object *obj)
 static void sb16_realizefn (DeviceState *dev, Error **errp)
 {
     ISADevice *isadev = ISA_DEVICE (dev);
+    ISABus *bus = isa_bus_from_device(isadev);
     SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
-    s->isa_hdma = isa_get_dma(isa_bus_from_device(isadev), s->hdma);
-    s->isa_dma = isa_get_dma(isa_bus_from_device(isadev), s->dma);
+    s->isa_hdma = isa_bus_get_dma(bus, s->hdma);
+    s->isa_dma = isa_bus_get_dma(bus, s->dma);
     if (!s->isa_dma || !s->isa_hdma) {
         error_setg(errp, "ISA controller does not support DMA");
         return;
     }
 
-    s->pic = isa_get_irq(isadev, s->irq);
+    s->pic = isa_bus_get_irq(bus, s->irq);
 
     s->mixer_regs[0x80] = magic_of_irq (s->irq);
     s->mixer_regs[0x81] = (1 << s->dma) | (1 << s->hdma);

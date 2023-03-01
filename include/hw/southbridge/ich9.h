@@ -1,19 +1,14 @@
-#ifndef HW_ICH9_H
-#define HW_ICH9_H
+#ifndef HW_SOUTHBRIDGE_ICH9_H
+#define HW_SOUTHBRIDGE_ICH9_H
 
-#include "hw/isa/isa.h"
-#include "hw/sysbus.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/apm.h"
-#include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
+#include "hw/intc/ioapic.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
+#include "exec/memory.h"
+#include "qemu/notify.h"
 #include "qom/object.h"
-
-void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
-int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);
-PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin);
-void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled);
-I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 void ich9_generate_smi(void);
 
@@ -67,15 +62,13 @@ struct ICH9LPCState {
                                        * triggers feature lockdown */
     uint64_t smi_negotiated_features; /* guest-invisible, host endian */
 
-    /* isa bus */
-    ISABus *isa_bus;
     MemoryRegion rcrb_mem; /* root complex register block */
     Notifier machine_ready;
 
-    qemu_irq gsi[GSI_NUM_PINS];
+    qemu_irq gsi[IOAPIC_NUM_PINS];
 };
 
-#define Q35_MASK(bit, ms_bit, ls_bit) \
+#define ICH9_MASK(bit, ms_bit, ls_bit) \
 ((uint##bit##_t)(((1ULL << ((ms_bit) + 1)) - 1) & ~((1ULL << ls_bit) - 1)))
 
 /* ICH9: Chipset Configuration Registers */
@@ -137,13 +130,13 @@ struct ICH9LPCState {
 #define ICH9_LPC_NB_PIRQS                       8       /* PCI A-H */
 
 #define ICH9_LPC_PMBASE                         0x40
-#define ICH9_LPC_PMBASE_BASE_ADDRESS_MASK       Q35_MASK(32, 15, 7)
+#define ICH9_LPC_PMBASE_BASE_ADDRESS_MASK       ICH9_MASK(32, 15, 7)
 #define ICH9_LPC_PMBASE_RTE                     0x1
 #define ICH9_LPC_PMBASE_DEFAULT                 0x1
 
 #define ICH9_LPC_ACPI_CTRL                      0x44
 #define ICH9_LPC_ACPI_CTRL_ACPI_EN              0x80
-#define ICH9_LPC_ACPI_CTRL_SCI_IRQ_SEL_MASK     Q35_MASK(8, 2, 0)
+#define ICH9_LPC_ACPI_CTRL_SCI_IRQ_SEL_MASK     ICH9_MASK(8, 2, 0)
 #define ICH9_LPC_ACPI_CTRL_9                    0x0
 #define ICH9_LPC_ACPI_CTRL_10                   0x1
 #define ICH9_LPC_ACPI_CTRL_11                   0x2
@@ -162,7 +155,7 @@ struct ICH9LPCState {
 #define ICH9_LPC_PIRQH_ROUT                     0x6b
 
 #define ICH9_LPC_PIRQ_ROUT_IRQEN                0x80
-#define ICH9_LPC_PIRQ_ROUT_MASK                 Q35_MASK(8, 3, 0)
+#define ICH9_LPC_PIRQ_ROUT_MASK                 ICH9_MASK(8, 3, 0)
 #define ICH9_LPC_PIRQ_ROUT_DEFAULT              0x80
 
 #define ICH9_LPC_GEN_PMCON_1                    0xa0
@@ -172,7 +165,7 @@ struct ICH9LPCState {
 #define ICH9_LPC_GEN_PMCON_LOCK                 0xa6
 
 #define ICH9_LPC_RCBA                           0xf0
-#define ICH9_LPC_RCBA_BA_MASK                   Q35_MASK(32, 31, 14)
+#define ICH9_LPC_RCBA_BA_MASK                   ICH9_MASK(32, 31, 14)
 #define ICH9_LPC_RCBA_EN                        0x1
 #define ICH9_LPC_RCBA_DEFAULT                   0x0
 
@@ -249,4 +242,4 @@ struct ICH9LPCState {
 #define ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT          1
 #define ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT       2
 
-#endif /* HW_ICH9_H */
+#endif /* HW_SOUTHBRIDGE_ICH9_H */

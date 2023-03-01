@@ -49,7 +49,6 @@
 #include "exec/translator.h"
 #include "qemu/bitmap.h"
 #include "qemu/qemu-print.h"
-#include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "qemu/cacheinfo.h"
 #include "exec/log.h"

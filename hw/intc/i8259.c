@@ -406,7 +406,7 @@ static void pic_realize(DeviceState *dev, Error **errp)
     pc->parent_realize(dev, errp);
 }
 
-qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
+qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq_in)
 {
     qemu_irq *irq_set;
     DeviceState *dev;
@@ -418,7 +418,7 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
     isadev = i8259_init_chip(TYPE_I8259, bus, true);
     dev = DEVICE(isadev);
 
-    qdev_connect_gpio_out(dev, 0, parent_irq);
+    qdev_connect_gpio_out(dev, 0, parent_irq_in);
     for (i = 0 ; i < 8; i++) {
         irq_set[i] = qdev_get_gpio_in(dev, i);
     }

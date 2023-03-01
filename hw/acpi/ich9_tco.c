@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/watchdog.h"
-#include "hw/i386/ich9.h"
+#include "hw/southbridge/ich9.h"
 #include "migration/vmstate.h"
 
 #include "hw/acpi/ich9_tco.h"

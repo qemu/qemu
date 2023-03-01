@@ -20,7 +20,7 @@
 #include "qemu/thread.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic.h"
-#include "hw/i386/ioapic.h"
+#include "hw/intc/ioapic.h"
 #include "hw/intc/i8259.h"
 #include "hw/intc/kvm_irqcount.h"
 #include "hw/pci/msi.h"
