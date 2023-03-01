@@ -81,17 +81,6 @@
 #define RVH RV('H')
 #define RVJ RV('J')
 
-/* S extension denotes that Supervisor mode exists, however it is possible
-   to have a core that support S mode but does not have an MMU and there
-   is currently no bit in misa to indicate whether an MMU exists or not
-   so a cpu features bitfield is required, likewise for optional PMP support */
-enum {
-    RISCV_FEATURE_MMU,
-    RISCV_FEATURE_PMP,
-    RISCV_FEATURE_EPMP,
-    RISCV_FEATURE_MISA,
-    RISCV_FEATURE_DEBUG
-};
 
 /* Privileged specification version */
 enum {
@@ -185,8 +174,6 @@ struct CPUArchState {
 
     /* 128-bit helpers upper part return value */
     target_ulong retxh;
-
-    uint32_t features;
 
 #ifdef CONFIG_USER_ONLY
     uint32_t elf_flags;
@@ -498,6 +485,7 @@ struct RISCVCPUConfig {
     bool pmp;
     bool epmp;
     bool debug;
+    bool misa_w;
 
     bool short_isa_string;
 };
@@ -533,16 +521,6 @@ struct ArchCPU {
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 {
     return (env->misa_ext & ext) != 0;
-}
-
-static inline bool riscv_feature(CPURISCVState *env, int feature)
-{
-    return env->features & (1ULL << feature);
-}
-
-static inline void riscv_set_feature(CPURISCVState *env, int feature)
-{
-    env->features |= (1ULL << feature);
 }
 
 #include "cpu_user.h"
@@ -653,6 +631,11 @@ static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
 }
 #endif
 #define riscv_cpu_mxl_bits(env) (1UL << (4 + riscv_cpu_mxl(env)))
+
+static inline const RISCVCPUConfig *riscv_cpu_cfg(CPURISCVState *env)
+{
+    return &env_archcpu(env)->cfg;
+}
 
 #if defined(TARGET_RISCV32)
 #define cpu_recompute_xl(env)  ((void)(env), MXL_RV32)
