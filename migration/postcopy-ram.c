@@ -37,6 +37,7 @@
 #include "tls.h"
 #include "qemu/userfaultfd.h"
 #include "qemu/mmap-alloc.h"
+#include "options.h"
 
 /* Arbitrary limit on size of each discard command,
  * keeps them around ~200 bytes

@@ -57,6 +57,7 @@
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
+#include "options.h"
 
 #include "hw/boards.h" /* for machine_dump_guest_core() */
 

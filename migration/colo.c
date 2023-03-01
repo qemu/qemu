@@ -36,6 +36,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/runstate.h"
 #include "net/filter.h"
+#include "options.h"
 
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;

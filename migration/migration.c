@@ -63,6 +63,7 @@
 #include "sysemu/cpus.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "options.h"
 
 #define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
 
@@ -355,15 +356,6 @@ static void migrate_generate_event(int new_state)
     if (migrate_use_events()) {
         qapi_event_send_migration(new_state);
     }
-}
-
-static bool migrate_late_block_activate(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
 /*
@@ -2525,54 +2517,9 @@ void qmp_migrate_continue(MigrationStatus state, Error **errp)
     qemu_sem_post(&s->pause_sem);
 }
 
-bool migrate_release_ram(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
-}
-
-bool migrate_postcopy_ram(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
-}
-
 bool migrate_postcopy(void)
 {
     return migrate_postcopy_ram() || migrate_dirty_bitmaps();
-}
-
-bool migrate_auto_converge(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
-}
-
-bool migrate_zero_blocks(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
-}
-
-bool migrate_postcopy_blocktime(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
 bool migrate_use_compression(void)
@@ -2620,33 +2567,6 @@ int migrate_decompress_threads(void)
     return s->parameters.decompress_threads;
 }
 
-bool migrate_dirty_bitmaps(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
-}
-
-bool migrate_ignore_shared(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
-}
-
-bool migrate_validate_uuid(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
-}
-
 bool migrate_use_events(void)
 {
     MigrationState *s;
@@ -2663,15 +2583,6 @@ bool migrate_use_multifd(void)
     s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
-}
-
-bool migrate_pause_before_switchover(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
 }
 
 int migrate_multifd_channels(void)
@@ -2783,24 +2694,6 @@ bool migrate_use_block_incremental(void)
     s = migrate_get_current();
 
     return s->parameters.block_incremental;
-}
-
-bool migrate_background_snapshot(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
-}
-
-bool migrate_postcopy_preempt(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
 }
 
 /* migration thread support */

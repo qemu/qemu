@@ -67,6 +67,7 @@
 #include "qemu/yank.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "options.h"
 
 const unsigned int postcopy_ram_discard_version;
 

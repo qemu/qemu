@@ -79,6 +79,7 @@
 #include "qapi/qapi-visit-migration.h"
 #include "qapi/clone-visitor.h"
 #include "trace.h"
+#include "options.h"
 
 #define CHUNK_SIZE     (1 << 10)
 

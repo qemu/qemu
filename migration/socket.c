@@ -27,6 +27,7 @@
 #include "io/net-listener.h"
 #include "trace.h"
 #include "postcopy-ram.h"
+#include "options.h"
 
 struct SocketOutgoingArgs {
     SocketAddress *saddr;

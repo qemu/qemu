@@ -28,6 +28,7 @@
 #include "migration/vmstate.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
+#include "options.h"
 
 #define BLK_MIG_BLOCK_SIZE           (1ULL << 20)
 #define BDRV_SECTORS_PER_DIRTY_CHUNK (BLK_MIG_BLOCK_SIZE >> BDRV_SECTOR_BITS)
