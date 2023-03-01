@@ -147,6 +147,15 @@ bool migrate_validate_uuid(void)
     return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
 }
 
+bool migrate_xbzrle(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
+}
+
 bool migrate_zero_blocks(void)
 {
     MigrationState *s;

@@ -1122,7 +1122,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->downtime_bytes = stat64_get(&ram_counters.downtime_bytes);
     info->ram->postcopy_bytes = stat64_get(&ram_counters.postcopy_bytes);
 
-    if (migrate_use_xbzrle()) {
+    if (migrate_xbzrle()) {
         info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
         info->xbzrle_cache->cache_size = migrate_xbzrle_cache_size();
         info->xbzrle_cache->bytes = xbzrle_counters.bytes;
@@ -2602,15 +2602,6 @@ int migrate_use_tls(void)
     s = migrate_get_current();
 
     return s->parameters.tls_creds && *s->parameters.tls_creds;
-}
-
-int migrate_use_xbzrle(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
 uint64_t migrate_xbzrle_cache_size(void)

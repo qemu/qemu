@@ -455,7 +455,6 @@ int migrate_multifd_zlib_level(void);
 int migrate_multifd_zstd_level(void);
 
 int migrate_use_tls(void);
-int migrate_use_xbzrle(void);
 uint64_t migrate_xbzrle_cache_size(void);
 
 bool migrate_use_block(void);
