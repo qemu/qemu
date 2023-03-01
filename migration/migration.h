@@ -457,7 +457,6 @@ int migrate_multifd_zstd_level(void);
 int migrate_use_tls(void);
 uint64_t migrate_xbzrle_cache_size(void);
 
-bool migrate_use_block(void);
 bool migrate_use_block_incremental(void);
 int migrate_max_cpu_throttle(void);
 bool migrate_use_return_path(void);

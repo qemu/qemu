@@ -33,6 +33,15 @@ bool migrate_background_snapshot(void)
     return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
+bool migrate_block(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
+}
+
 bool migrate_colo(void)
 {
     MigrationState *s = migrate_get_current();

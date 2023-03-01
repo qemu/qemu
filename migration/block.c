@@ -1001,7 +1001,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
 static bool block_is_active(void *opaque)
 {
-    return migrate_use_block();
+    return migrate_block();
 }
 
 static SaveVMHandlers savevm_block_handlers = {

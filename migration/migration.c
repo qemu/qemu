@@ -2415,7 +2415,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
             error_setg(errp, "No disk migration is required in COLO mode");
             return false;
         }
-        if (migrate_use_block() || migrate_use_block_incremental()) {
+        if (migrate_block() || migrate_use_block_incremental()) {
             error_setg(errp, "Command options are incompatible with "
                        "current migration capabilities");
             return false;
@@ -2620,15 +2620,6 @@ static int64_t migrate_max_postcopy_bandwidth(void)
     s = migrate_get_current();
 
     return s->parameters.max_postcopy_bandwidth;
-}
-
-bool migrate_use_block(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
 
 bool migrate_use_return_path(void)
