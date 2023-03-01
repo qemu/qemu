@@ -1246,7 +1246,7 @@ static void migration_bitmap_sync(RAMState *rs)
         rs->num_dirty_pages_period = 0;
         rs->bytes_xfer_prev = stat64_get(&ram_counters.transferred);
     }
-    if (migrate_use_events()) {
+    if (migrate_events()) {
         uint64_t generation = stat64_get(&ram_counters.dirty_sync_count);
         qapi_event_send_migration_pass(generation);
     }

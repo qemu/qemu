@@ -353,7 +353,7 @@ void migration_incoming_state_destroy(void)
 
 static void migrate_generate_event(int new_state)
 {
-    if (migrate_use_events()) {
+    if (migrate_events()) {
         qapi_event_send_migration(new_state);
     }
 }
@@ -2556,15 +2556,6 @@ int migrate_decompress_threads(void)
     s = migrate_get_current();
 
     return s->parameters.decompress_threads;
-}
-
-bool migrate_use_events(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 bool migrate_use_multifd(void)
