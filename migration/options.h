@@ -41,5 +41,6 @@ bool migrate_zero_copy_send(void);
 /* capabilities helpers */
 
 bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp);
+bool migrate_cap_set(int cap, bool value, Error **errp);
 
 #endif
