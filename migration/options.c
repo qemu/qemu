@@ -33,27 +33,21 @@
 
 bool migrate_auto_converge(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
 }
 
 bool migrate_background_snapshot(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
 bool migrate_block(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
@@ -61,95 +55,76 @@ bool migrate_block(void)
 bool migrate_colo(void)
 {
     MigrationState *s = migrate_get_current();
+
     return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
 bool migrate_compress(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 bool migrate_dirty_bitmaps(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
 bool migrate_events(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 bool migrate_ignore_shared(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
 }
 
 bool migrate_late_block_activate(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
 bool migrate_multifd(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 bool migrate_pause_before_switchover(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
 }
 
 bool migrate_postcopy_blocktime(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
 bool migrate_postcopy_preempt(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
 }
 
 bool migrate_postcopy_ram(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
@@ -163,54 +138,42 @@ bool migrate_rdma_pin_all(void)
 
 bool migrate_release_ram(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
 bool migrate_return_path(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
 }
 
 bool migrate_validate_uuid(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
 }
 
 bool migrate_xbzrle(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
 bool migrate_zero_blocks(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
 }
 
 bool migrate_zero_copy_send(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
 }
@@ -224,9 +187,7 @@ bool migrate_postcopy(void)
 
 bool migrate_tls(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.tls_creds && *s->parameters.tls_creds;
 }
@@ -496,126 +457,98 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
 bool migrate_block_incremental(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.block_incremental;
 }
 
 uint32_t migrate_checkpoint_delay(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.x_checkpoint_delay;
 }
 
 int migrate_compress_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_level;
 }
 
 int migrate_compress_threads(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_threads;
 }
 
 int migrate_compress_wait_thread(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_wait_thread;
 }
 
 uint8_t migrate_cpu_throttle_increment(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_increment;
 }
 
 uint8_t migrate_cpu_throttle_initial(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_initial;
 }
 
 bool migrate_cpu_throttle_tailslow(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_tailslow;
 }
 
 int migrate_decompress_threads(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.decompress_threads;
 }
 
 uint8_t migrate_max_cpu_throttle(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_cpu_throttle;
 }
 
 uint64_t migrate_max_bandwidth(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_bandwidth;
 }
 
 int64_t migrate_max_postcopy_bandwidth(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_postcopy_bandwidth;
 }
 
 int migrate_multifd_channels(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_channels;
 }
 
 MultiFDCompression migrate_multifd_compression(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     assert(s->parameters.multifd_compression < MULTIFD_COMPRESSION__MAX);
     return s->parameters.multifd_compression;
@@ -623,36 +556,28 @@ MultiFDCompression migrate_multifd_compression(void)
 
 int migrate_multifd_zlib_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_zlib_level;
 }
 
 int migrate_multifd_zstd_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_zstd_level;
 }
 
 uint8_t migrate_throttle_trigger_threshold(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.throttle_trigger_threshold;
 }
 
 uint64_t migrate_xbzrle_cache_size(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.xbzrle_cache_size;
 }
