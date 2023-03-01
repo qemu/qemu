@@ -5,6 +5,20 @@
 # See the COPYING file in the top-level directory.
 
 ##
+# @QCryptodevBackendAlgType:
+#
+# The supported algorithm types of a crypto device.
+#
+# @sym: symmetric encryption
+# @asym: asymmetric Encryption
+#
+# Since: 8.0
+##
+{ 'enum': 'QCryptodevBackendAlgType',
+  'prefix': 'QCRYPTODEV_BACKEND_ALG',
+  'data': ['sym', 'asym']}
+
+##
 # @QCryptodevBackendType:
 #
 # The crypto device backend type
