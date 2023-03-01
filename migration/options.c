@@ -155,3 +155,12 @@ bool migrate_zero_blocks(void)
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
 }
+
+bool migrate_zero_copy_send(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
+}

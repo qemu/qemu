@@ -1609,7 +1609,7 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
     }
 
 #ifdef CONFIG_LINUX
-    if (migrate_use_zero_copy_send() &&
+    if (migrate_zero_copy_send() &&
         ((params->has_multifd_compression && params->multifd_compression) ||
          (params->tls_creds && *params->tls_creds))) {
         error_setg(errp,
@@ -2594,17 +2594,6 @@ int migrate_multifd_zstd_level(void)
 
     return s->parameters.multifd_zstd_level;
 }
-
-#ifdef CONFIG_LINUX
-bool migrate_use_zero_copy_send(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
-}
-#endif
 
 int migrate_use_tls(void)
 {
