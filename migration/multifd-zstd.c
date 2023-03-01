@@ -18,6 +18,7 @@
 #include "qapi/error.h"
 #include "migration.h"
 #include "trace.h"
+#include "options.h"
 #include "multifd.h"
 
 struct zstd_data {

@@ -43,4 +43,17 @@ bool migrate_zero_copy_send(void);
 bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp);
 bool migrate_cap_set(int cap, bool value, Error **errp);
 
+/* parameters */
+
+int migrate_compress_level(void);
+int migrate_compress_threads(void);
+int migrate_compress_wait_thread(void);
+int migrate_decompress_threads(void);
+int64_t migrate_max_postcopy_bandwidth(void);
+int migrate_multifd_channels(void);
+MultiFDCompression migrate_multifd_compression(void);
+int migrate_multifd_zlib_level(void);
+int migrate_multifd_zstd_level(void);
+uint64_t migrate_xbzrle_cache_size(void);
+
 #endif
