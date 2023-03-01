@@ -64,6 +64,8 @@ static bool invoke_stats_cb(StatsCallbacks *entry,
             targets = filter->u.vcpu.vcpus;
         }
         break;
+    case STATS_TARGET_CRYPTODEV:
+        break;
     default:
         abort();
     }

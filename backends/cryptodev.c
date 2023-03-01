@@ -23,8 +23,10 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/cryptodev.h"
+#include "sysemu/stats.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-cryptodev.h"
+#include "qapi/qapi-types-stats.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
@@ -32,6 +34,28 @@
 #include "qom/object_interfaces.h"
 #include "hw/virtio/virtio-crypto.h"
 
+#define SYM_ENCRYPT_OPS_STR "sym-encrypt-ops"
+#define SYM_DECRYPT_OPS_STR "sym-decrypt-ops"
+#define SYM_ENCRYPT_BYTES_STR "sym-encrypt-bytes"
+#define SYM_DECRYPT_BYTES_STR "sym-decrypt-bytes"
+
+#define ASYM_ENCRYPT_OPS_STR "asym-encrypt-ops"
+#define ASYM_DECRYPT_OPS_STR "asym-decrypt-ops"
+#define ASYM_SIGN_OPS_STR "asym-sign-ops"
+#define ASYM_VERIFY_OPS_STR "asym-verify-ops"
+#define ASYM_ENCRYPT_BYTES_STR "asym-encrypt-bytes"
+#define ASYM_DECRYPT_BYTES_STR "asym-decrypt-bytes"
+#define ASYM_SIGN_BYTES_STR "asym-sign-bytes"
+#define ASYM_VERIFY_BYTES_STR "asym-verify-bytes"
+
+typedef struct StatsArgs {
+    union StatsResultsType {
+        StatsResultList **stats;
+        StatsSchemaList **schema;
+    } result;
+    strList *names;
+    Error **errp;
+} StatsArgs;
 
 static QTAILQ_HEAD(, CryptoDevBackendClient) crypto_clients;
 
@@ -435,6 +459,134 @@ static void cryptodev_backend_finalize(Object *obj)
     }
 }
 
+static StatsList *cryptodev_backend_stats_add(const char *name, int64_t *val,
+                                              StatsList *stats_list)
+{
+    Stats *stats = g_new0(Stats, 1);
+
+    stats->name = g_strdup(name);
+    stats->value = g_new0(StatsValue, 1);
+    stats->value->type = QTYPE_QNUM;
+    stats->value->u.scalar = *val;
+
+    QAPI_LIST_PREPEND(stats_list, stats);
+    return stats_list;
+}
+
+static int cryptodev_backend_stats_query(Object *obj, void *data)
+{
+    StatsArgs *stats_args = data;
+    StatsResultList **stats_results = stats_args->result.stats;
+    StatsList *stats_list = NULL;
+    StatsResult *entry;
+    CryptoDevBackend *backend;
+    CryptodevBackendSymStat *sym_stat;
+    CryptodevBackendAsymStat *asym_stat;
+
+    if (!object_dynamic_cast(obj, TYPE_CRYPTODEV_BACKEND)) {
+        return 0;
+    }
+
+    backend = CRYPTODEV_BACKEND(obj);
+    sym_stat = backend->sym_stat;
+    if (sym_stat) {
+        stats_list = cryptodev_backend_stats_add(SYM_ENCRYPT_OPS_STR,
+                         &sym_stat->encrypt_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(SYM_DECRYPT_OPS_STR,
+                         &sym_stat->decrypt_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(SYM_ENCRYPT_BYTES_STR,
+                         &sym_stat->encrypt_bytes, stats_list);
+        stats_list = cryptodev_backend_stats_add(SYM_DECRYPT_BYTES_STR,
+                         &sym_stat->decrypt_bytes, stats_list);
+    }
+
+    asym_stat = backend->asym_stat;
+    if (asym_stat) {
+        stats_list = cryptodev_backend_stats_add(ASYM_ENCRYPT_OPS_STR,
+                         &asym_stat->encrypt_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_DECRYPT_OPS_STR,
+                         &asym_stat->decrypt_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_SIGN_OPS_STR,
+                         &asym_stat->sign_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_VERIFY_OPS_STR,
+                         &asym_stat->verify_ops, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_ENCRYPT_BYTES_STR,
+                         &asym_stat->encrypt_bytes, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_DECRYPT_BYTES_STR,
+                         &asym_stat->decrypt_bytes, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_SIGN_BYTES_STR,
+                         &asym_stat->sign_bytes, stats_list);
+        stats_list = cryptodev_backend_stats_add(ASYM_VERIFY_BYTES_STR,
+                         &asym_stat->verify_bytes, stats_list);
+    }
+
+    entry = g_new0(StatsResult, 1);
+    entry->provider = STATS_PROVIDER_CRYPTODEV;
+    entry->qom_path = g_strdup(object_get_canonical_path(obj));
+    entry->stats = stats_list;
+    QAPI_LIST_PREPEND(*stats_results, entry);
+
+    return 0;
+}
+
+static void cryptodev_backend_stats_cb(StatsResultList **result,
+                                       StatsTarget target,
+                                       strList *names, strList *targets,
+                                       Error **errp)
+{
+    switch (target) {
+    case STATS_TARGET_CRYPTODEV:
+    {
+        Object *objs = container_get(object_get_root(), "/objects");
+        StatsArgs stats_args;
+        stats_args.result.stats = result;
+        stats_args.names = names;
+        stats_args.errp = errp;
+
+        object_child_foreach(objs, cryptodev_backend_stats_query, &stats_args);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+static StatsSchemaValueList *cryptodev_backend_schemas_add(const char *name,
+                                 StatsSchemaValueList *list)
+{
+    StatsSchemaValueList *schema_entry = g_new0(StatsSchemaValueList, 1);
+
+    schema_entry->value = g_new0(StatsSchemaValue, 1);
+    schema_entry->value->type = STATS_TYPE_CUMULATIVE;
+    schema_entry->value->name = g_strdup(name);
+    schema_entry->next = list;
+
+    return schema_entry;
+}
+
+static void cryptodev_backend_schemas_cb(StatsSchemaList **result,
+                                         Error **errp)
+{
+    StatsSchemaValueList *stats_list = NULL;
+    const char *sym_stats[] = { SYM_ENCRYPT_OPS_STR, SYM_DECRYPT_OPS_STR,
+                                SYM_ENCRYPT_BYTES_STR, SYM_DECRYPT_BYTES_STR };
+    const char *asym_stats[] = { ASYM_ENCRYPT_OPS_STR, ASYM_DECRYPT_OPS_STR,
+                                 ASYM_SIGN_OPS_STR, ASYM_VERIFY_OPS_STR,
+                                 ASYM_ENCRYPT_BYTES_STR, ASYM_DECRYPT_BYTES_STR,
+                                 ASYM_SIGN_BYTES_STR, ASYM_VERIFY_BYTES_STR };
+
+    for (int i = 0; i < ARRAY_SIZE(sym_stats); i++) {
+        stats_list = cryptodev_backend_schemas_add(sym_stats[i], stats_list);
+    }
+
+    for (int i = 0; i < ARRAY_SIZE(asym_stats); i++) {
+        stats_list = cryptodev_backend_schemas_add(asym_stats[i], stats_list);
+    }
+
+    add_stats_schema(result, STATS_PROVIDER_CRYPTODEV, STATS_TARGET_CRYPTODEV,
+                     stats_list);
+}
+
 static void
 cryptodev_backend_class_init(ObjectClass *oc, void *data)
 {
@@ -456,6 +608,9 @@ cryptodev_backend_class_init(ObjectClass *oc, void *data)
                               cryptodev_backend_get_ops,
                               cryptodev_backend_set_ops,
                               NULL, NULL);
+
+    add_stats_callbacks(STATS_PROVIDER_CRYPTODEV, cryptodev_backend_stats_cb,
+                        cryptodev_backend_schemas_cb);
 }
 
 static const TypeInfo cryptodev_backend_info = {
