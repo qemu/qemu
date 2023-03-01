@@ -3373,7 +3373,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
      * initialize the RDMAContext for return path for postcopy after first
      * connection request reached.
      */
-    if ((migrate_postcopy() || migrate_use_return_path())
+    if ((migrate_postcopy() || migrate_return_path())
         && !rdma->is_return_path) {
         rdma_return_path = qemu_rdma_data_init(rdma->host_port, NULL);
         if (rdma_return_path == NULL) {
@@ -3456,7 +3456,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     }
 
     /* Accept the second connection request for return path */
-    if ((migrate_postcopy() || migrate_use_return_path())
+    if ((migrate_postcopy() || migrate_return_path())
         && !rdma->is_return_path) {
         qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                             NULL,
@@ -4193,7 +4193,7 @@ void rdma_start_outgoing_migration(void *opaque,
     }
 
     /* RDMA postcopy need a separate queue pair for return path */
-    if (migrate_postcopy() || migrate_use_return_path()) {
+    if (migrate_postcopy() || migrate_return_path()) {
         rdma_return_path = qemu_rdma_data_init(host_port, errp);
 
         if (rdma_return_path == NULL) {

@@ -147,6 +147,15 @@ bool migrate_release_ram(void)
     return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
+bool migrate_return_path(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
+}
+
 bool migrate_validate_uuid(void)
 {
     MigrationState *s;

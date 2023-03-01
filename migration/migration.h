@@ -459,7 +459,6 @@ uint64_t migrate_xbzrle_cache_size(void);
 
 bool migrate_use_block_incremental(void);
 int migrate_max_cpu_throttle(void);
-bool migrate_use_return_path(void);
 
 uint64_t ram_get_total_transferred_pages(void);
 
