@@ -38,4 +38,8 @@ bool migrate_xbzrle(void);
 bool migrate_zero_blocks(void);
 bool migrate_zero_copy_send(void);
 
+/* capabilities helpers */
+
+bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp);
+
 #endif
