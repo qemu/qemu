@@ -886,28 +886,6 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
     migrate_send_rp_message(mis, MIG_RP_MSG_RESUME_ACK, sizeof(buf), &buf);
 }
 
-MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
-{
-    MigrationCapabilityStatusList *head = NULL, **tail = &head;
-    MigrationCapabilityStatus *caps;
-    MigrationState *s = migrate_get_current();
-    int i;
-
-    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-#ifndef CONFIG_LIVE_BLOCK_MIGRATION
-        if (i == MIGRATION_CAPABILITY_BLOCK) {
-            continue;
-        }
-#endif
-        caps = g_malloc0(sizeof(*caps));
-        caps->capability = i;
-        caps->state = s->capabilities[i];
-        QAPI_LIST_APPEND(tail, caps);
-    }
-
-    return head;
-}
-
 MigrationParameters *qmp_query_migrate_parameters(Error **errp)
 {
     MigrationParameters *params;

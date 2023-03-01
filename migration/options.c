@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-migration.h"
 #include "sysemu/runstate.h"
 #include "migration.h"
 #include "ram.h"
@@ -389,4 +390,26 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
     }
 
     return true;
+}
+
+MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
+{
+    MigrationCapabilityStatusList *head = NULL, **tail = &head;
+    MigrationCapabilityStatus *caps;
+    MigrationState *s = migrate_get_current();
+    int i;
+
+    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
+#ifndef CONFIG_LIVE_BLOCK_MIGRATION
+        if (i == MIGRATION_CAPABILITY_BLOCK) {
+            continue;
+        }
+#endif
+        caps = g_malloc0(sizeof(*caps));
+        caps->capability = i;
+        caps->state = s->capabilities[i];
+        QAPI_LIST_APPEND(tail, caps);
+    }
+
+    return head;
 }
