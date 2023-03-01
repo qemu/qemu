@@ -101,6 +101,9 @@ static const struct isa_ext_data isa_edata_arr[] = {
     ISA_EXT_DATA_ENTRY(zkt, true, PRIV_VERSION_1_12_0, ext_zkt),
     ISA_EXT_DATA_ENTRY(zve32f, true, PRIV_VERSION_1_12_0, ext_zve32f),
     ISA_EXT_DATA_ENTRY(zve64f, true, PRIV_VERSION_1_12_0, ext_zve64f),
+    ISA_EXT_DATA_ENTRY(zve64d, true, PRIV_VERSION_1_12_0, ext_zve64d),
+    ISA_EXT_DATA_ENTRY(zvfh, true, PRIV_VERSION_1_12_0, ext_zvfh),
+    ISA_EXT_DATA_ENTRY(zvfhmin, true, PRIV_VERSION_1_12_0, ext_zvfhmin),
     ISA_EXT_DATA_ENTRY(zhinx, true, PRIV_VERSION_1_12_0, ext_zhinx),
     ISA_EXT_DATA_ENTRY(zhinxmin, true, PRIV_VERSION_1_12_0, ext_zhinxmin),
     ISA_EXT_DATA_ENTRY(smaia, true, PRIV_VERSION_1_12_0, ext_smaia),
@@ -729,7 +732,11 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if ((cpu->cfg.ext_zfh || cpu->cfg.ext_zfhmin) && !cpu->cfg.ext_f) {
+    if (cpu->cfg.ext_zfh) {
+        cpu->cfg.ext_zfhmin = true;
+    }
+
+    if (cpu->cfg.ext_zfhmin && !cpu->cfg.ext_f) {
         error_setg(errp, "Zfh/Zfhmin extensions require F extension");
         return;
     }
@@ -739,19 +746,51 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         return;
     }
 
-    if (cpu->cfg.ext_v && !cpu->cfg.ext_d) {
-        error_setg(errp, "V extension requires D extension");
+    /* The V vector extension depends on the Zve64d extension */
+    if (cpu->cfg.ext_v) {
+        cpu->cfg.ext_zve64d = true;
+    }
+
+    /* The Zve64d extension depends on the Zve64f extension */
+    if (cpu->cfg.ext_zve64d) {
+        cpu->cfg.ext_zve64f = true;
+    }
+
+    /* The Zve64f extension depends on the Zve32f extension */
+    if (cpu->cfg.ext_zve64f) {
+        cpu->cfg.ext_zve32f = true;
+    }
+
+    if (cpu->cfg.ext_zve64d && !cpu->cfg.ext_d) {
+        error_setg(errp, "Zve64d/V extensions require D extension");
         return;
     }
 
-    if ((cpu->cfg.ext_zve32f || cpu->cfg.ext_zve64f) && !cpu->cfg.ext_f) {
+    if (cpu->cfg.ext_zve32f && !cpu->cfg.ext_f) {
         error_setg(errp, "Zve32f/Zve64f extensions require F extension");
         return;
     }
 
+    if (cpu->cfg.ext_zvfh) {
+        cpu->cfg.ext_zvfhmin = true;
+    }
+
+    if (cpu->cfg.ext_zvfhmin && !cpu->cfg.ext_zve32f) {
+        error_setg(errp, "Zvfh/Zvfhmin extensions require Zve32f extension");
+        return;
+    }
+
+    if (cpu->cfg.ext_zvfh && !cpu->cfg.ext_zfhmin) {
+        error_setg(errp, "Zvfh extensions requires Zfhmin extension");
+        return;
+    }
+
     /* Set the ISA extensions, checks should have happened above */
-    if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinx ||
-        cpu->cfg.ext_zhinxmin) {
+    if (cpu->cfg.ext_zhinx) {
+        cpu->cfg.ext_zhinxmin = true;
+    }
+
+    if (cpu->cfg.ext_zdinx || cpu->cfg.ext_zhinxmin) {
         cpu->cfg.ext_zfinx = true;
     }
 
@@ -762,7 +801,7 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         }
         if (cpu->cfg.ext_f) {
             error_setg(errp,
-                "Zfinx cannot be supported together with F extension");
+                       "Zfinx cannot be supported together with F extension");
             return;
         }
     }
@@ -825,40 +864,40 @@ static void riscv_cpu_validate_set_extensions(RISCVCPU *cpu, Error **errp)
         ext |= RVV;
         if (!is_power_of_2(cpu->cfg.vlen)) {
             error_setg(errp,
-                    "Vector extension VLEN must be power of 2");
+                       "Vector extension VLEN must be power of 2");
             return;
         }
         if (cpu->cfg.vlen > RV_VLEN_MAX || cpu->cfg.vlen < 128) {
             error_setg(errp,
-                    "Vector extension implementation only supports VLEN "
-                    "in the range [128, %d]", RV_VLEN_MAX);
+                       "Vector extension implementation only supports VLEN "
+                       "in the range [128, %d]", RV_VLEN_MAX);
             return;
         }
         if (!is_power_of_2(cpu->cfg.elen)) {
             error_setg(errp,
-                    "Vector extension ELEN must be power of 2");
+                       "Vector extension ELEN must be power of 2");
             return;
         }
-    if (cpu->cfg.elen > 64 || cpu->cfg.elen < 8) {
-        error_setg(errp,
-                "Vector extension implementation only supports ELEN "
-                "in the range [8, 64]");
-        return;
-    }
-    if (cpu->cfg.vext_spec) {
-        if (!g_strcmp0(cpu->cfg.vext_spec, "v1.0")) {
-            vext_version = VEXT_VERSION_1_00_0;
-        } else {
+        if (cpu->cfg.elen > 64 || cpu->cfg.elen < 8) {
             error_setg(errp,
-                   "Unsupported vector spec version '%s'",
-                   cpu->cfg.vext_spec);
+                       "Vector extension implementation only supports ELEN "
+                       "in the range [8, 64]");
             return;
         }
-    } else {
-        qemu_log("vector version is not specified, "
-                 "use the default value v1.0\n");
-    }
-    set_vext_version(env, vext_version);
+        if (cpu->cfg.vext_spec) {
+            if (!g_strcmp0(cpu->cfg.vext_spec, "v1.0")) {
+                vext_version = VEXT_VERSION_1_00_0;
+            } else {
+                error_setg(errp,
+                           "Unsupported vector spec version '%s'",
+                           cpu->cfg.vext_spec);
+                return;
+            }
+        } else {
+            qemu_log("vector version is not specified, "
+                     "use the default value v1.0\n");
+        }
+        set_vext_version(env, vext_version);
     }
     if (cpu->cfg.ext_j) {
         ext |= RVJ;
@@ -1079,6 +1118,7 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("Zfhmin", RISCVCPU, cfg.ext_zfhmin, false),
     DEFINE_PROP_BOOL("Zve32f", RISCVCPU, cfg.ext_zve32f, false),
     DEFINE_PROP_BOOL("Zve64f", RISCVCPU, cfg.ext_zve64f, false),
+    DEFINE_PROP_BOOL("Zve64d", RISCVCPU, cfg.ext_zve64d, false),
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
     DEFINE_PROP_BOOL("sstc", RISCVCPU, cfg.ext_sstc, true),
@@ -1137,6 +1177,9 @@ static Property riscv_cpu_extensions[] = {
     DEFINE_PROP_BOOL("x-epmp", RISCVCPU, cfg.epmp, false),
     DEFINE_PROP_BOOL("x-smaia", RISCVCPU, cfg.ext_smaia, false),
     DEFINE_PROP_BOOL("x-ssaia", RISCVCPU, cfg.ext_ssaia, false),
+
+    DEFINE_PROP_BOOL("x-zvfh", RISCVCPU, cfg.ext_zvfh, false),
+    DEFINE_PROP_BOOL("x-zvfhmin", RISCVCPU, cfg.ext_zvfhmin, false),
 
     DEFINE_PROP_END_OF_LIST(),
 };
