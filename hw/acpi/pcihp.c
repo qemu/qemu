@@ -54,21 +54,6 @@ typedef struct AcpiPciHpFind {
     PCIBus *bus;
 } AcpiPciHpFind;
 
-static gint g_cmp_uint32(gconstpointer a, gconstpointer b, gpointer user_data)
-{
-    return a - b;
-}
-
-static GSequence *pci_acpi_index_list(void)
-{
-    static GSequence *used_acpi_index_list;
-
-    if (!used_acpi_index_list) {
-        used_acpi_index_list = g_sequence_new(NULL);
-    }
-    return used_acpi_index_list;
-}
-
 static int acpi_pcihp_get_bsel(PCIBus *bus)
 {
     Error *local_err = NULL;
@@ -300,8 +285,6 @@ void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
     acpi_pcihp_update(s);
 }
 
-#define ONBOARD_INDEX_MAX (16 * 1024 - 1)
-
 void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp)
 {
@@ -313,34 +296,6 @@ void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
         error_setg(errp, "Unsupported bus. Bus doesn't have property '"
                    ACPI_PCIHP_PROP_BSEL "' set");
         return;
-    }
-
-    /*
-     * capped by systemd (see: udev-builtin-net_id.c)
-     * as it's the only known user honor it to avoid users
-     * misconfigure QEMU and then wonder why acpi-index doesn't work
-     */
-    if (pdev->acpi_index > ONBOARD_INDEX_MAX) {
-        error_setg(errp, "acpi-index should be less or equal to %u",
-                   ONBOARD_INDEX_MAX);
-        return;
-    }
-
-    /*
-     * make sure that acpi-index is unique across all present PCI devices
-     */
-    if (pdev->acpi_index) {
-        GSequence *used_indexes = pci_acpi_index_list();
-
-        if (g_sequence_lookup(used_indexes, GINT_TO_POINTER(pdev->acpi_index),
-                              g_cmp_uint32, NULL)) {
-            error_setg(errp, "a PCI device with acpi-index = %" PRIu32
-                       " already exist", pdev->acpi_index);
-            return;
-        }
-        g_sequence_insert_sorted(used_indexes,
-                                 GINT_TO_POINTER(pdev->acpi_index),
-                                 g_cmp_uint32, NULL);
     }
 }
 
@@ -400,17 +355,6 @@ void acpi_pcihp_device_unplug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
 
     trace_acpi_pci_unplug(PCI_SLOT(pdev->devfn),
                           acpi_pcihp_get_bsel(pci_get_bus(pdev)));
-
-    /*
-     * clean up acpi-index so it could reused by another device
-     */
-    if (pdev->acpi_index) {
-        GSequence *used_indexes = pci_acpi_index_list();
-
-        g_sequence_remove(g_sequence_lookup(used_indexes,
-                          GINT_TO_POINTER(pdev->acpi_index),
-                          g_cmp_uint32, NULL));
-    }
 
     qdev_unrealize(dev);
 }
