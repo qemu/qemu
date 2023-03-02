@@ -2615,6 +2615,10 @@ if test "$skip_meson" = no; then
 
   rm -rf meson-private meson-info meson-logs
 
+  # Prevent meson from automatically downloading wrapped subprojects when missing.
+  # You can use 'meson subprojects download' before running configure.
+  meson_option_add "--wrap-mode=nodownload"
+
   # Built-in options
   test "$bindir" != "bin" && meson_option_add "-Dbindir=$bindir"
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
