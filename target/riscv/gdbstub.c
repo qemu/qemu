@@ -127,40 +127,6 @@ static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-/*
- * Convert register index number passed by GDB to the correspond
- * vector CSR number. Vector CSRs are defined after vector registers
- * in dynamic generated riscv-vector.xml, thus the starting register index
- * of vector CSRs is 32.
- * Return 0 if register index number is out of range.
- */
-static int riscv_gdb_vector_csrno(int num_regs)
-{
-    /*
-     * The order of vector CSRs in the switch case
-     * should match with the order defined in csr_ops[].
-     */
-    switch (num_regs) {
-    case 32:
-        return CSR_VSTART;
-    case 33:
-        return CSR_VXSAT;
-    case 34:
-        return CSR_VXRM;
-    case 35:
-        return CSR_VCSR;
-    case 36:
-        return CSR_VL;
-    case 37:
-        return CSR_VTYPE;
-    case 38:
-        return CSR_VLENB;
-    default:
-        /* Unknown register. */
-        return 0;
-    }
-}
-
 static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
 {
     uint16_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
@@ -172,19 +138,6 @@ static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
                                  env->vreg[(n * vlenb + i) / 8]);
         }
         return cnt;
-    }
-
-    int csrno = riscv_gdb_vector_csrno(n);
-
-    if (!csrno) {
-        return 0;
-    }
-
-    target_ulong val = 0;
-    int result = riscv_csrrw_debug(env, csrno, &val, 0, 0);
-
-    if (result == RISCV_EXCP_NONE) {
-        return gdb_get_regl(buf, val);
     }
 
     return 0;
@@ -199,19 +152,6 @@ static int riscv_gdb_set_vector(CPURISCVState *env, uint8_t *mem_buf, int n)
             env->vreg[(n * vlenb + i) / 8] = ldq_p(mem_buf + i);
         }
         return vlenb;
-    }
-
-    int csrno = riscv_gdb_vector_csrno(n);
-
-    if (!csrno) {
-        return 0;
-    }
-
-    target_ulong val = ldtul_p(mem_buf);
-    int result = riscv_csrrw_debug(env, csrno, NULL, val, -1);
-
-    if (result == RISCV_EXCP_NONE) {
-        return sizeof(target_ulong);
     }
 
     return 0;
@@ -280,6 +220,10 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     int bitsize = 16 << env->misa_mxl_max;
     int i;
 
+#if !defined(CONFIG_USER_ONLY)
+    env->debugger = true;
+#endif
+
     /* Until gdb knows about 128-bit registers */
     if (bitsize > 64) {
         bitsize = 64;
@@ -290,6 +234,9 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     g_string_append_printf(s, "<feature name=\"org.gnu.gdb.riscv.csr\">");
 
     for (i = 0; i < CSR_TABLE_SIZE; i++) {
+        if (env->priv_ver < csr_ops[i].min_priv_ver) {
+            continue;
+        }
         predicate = csr_ops[i].predicate;
         if (predicate && (predicate(env, i) == RISCV_EXCP_NONE)) {
             if (csr_ops[i].name) {
@@ -305,6 +252,11 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     g_string_append_printf(s, "</feature>");
 
     cpu->dyn_csr_xml = g_string_free(s, false);
+
+#if !defined(CONFIG_USER_ONLY)
+    env->debugger = false;
+#endif
+
     return CSR_TABLE_SIZE;
 }
 
@@ -349,21 +301,6 @@ static int ricsv_gen_dynamic_vector_xml(CPUState *cs, int base_reg)
         num_regs++;
     }
 
-    /* Define vector CSRs */
-    const char *vector_csrs[7] = {
-        "vstart", "vxsat", "vxrm", "vcsr",
-        "vl", "vtype", "vlenb"
-    };
-
-    for (i = 0; i < 7; i++) {
-        g_string_append_printf(s,
-                               "<reg name=\"%s\" bitsize=\"%d\""
-                               " regnum=\"%d\" group=\"vector\""
-                               " type=\"int\"/>",
-                               vector_csrs[i], TARGET_LONG_BITS, base_reg++);
-        num_regs++;
-    }
-
     g_string_append_printf(s, "</feature>");
 
     cpu->dyn_vreg_xml = g_string_free(s, false);
@@ -382,9 +319,9 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
                                  32, "riscv-32bit-fpu.xml", 0);
     }
     if (env->misa_ext & RVV) {
+        int base_reg = cs->gdb_num_regs;
         gdb_register_coprocessor(cs, riscv_gdb_get_vector, riscv_gdb_set_vector,
-                                 ricsv_gen_dynamic_vector_xml(cs,
-                                                              cs->gdb_num_regs),
+                                 ricsv_gen_dynamic_vector_xml(cs, base_reg),
                                  "riscv-vector.xml", 0);
     }
     switch (env->misa_mxl_max) {
@@ -403,7 +340,10 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
         g_assert_not_reached();
     }
 
-    gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
-                             riscv_gen_dynamic_csr_xml(cs, cs->gdb_num_regs),
-                             "riscv-csr.xml", 0);
+    if (cpu->cfg.ext_icsr) {
+        int base_reg = cs->gdb_num_regs;
+        gdb_register_coprocessor(cs, riscv_gdb_get_csr, riscv_gdb_set_csr,
+                                 riscv_gen_dynamic_csr_xml(cs, base_reg),
+                                 "riscv-csr.xml", 0);
+    }
 }
