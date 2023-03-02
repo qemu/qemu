@@ -47,3 +47,8 @@ RUN apt update && \
 
 ENV QEMU_CONFIGURE_OPTS $QEMU_CONFIGURE_OPTS
 ENV DEF_TARGET_LIST "none"
+# As a final step configure the user (if env is defined)
+ARG USER
+ARG UID
+RUN if [ "${USER}" ]; then \
+  id ${USER} 2>/dev/null || useradd -u ${UID} -U ${USER}; fi

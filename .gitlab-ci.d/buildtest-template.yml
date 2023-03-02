@@ -25,6 +25,22 @@
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
+# We jump some hoops in common_test_job_template to avoid
+# rebuilding all the object files we skip in the artifacts
+.native_build_artifact_template:
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+      - .git-submodule-status
+    exclude:
+      - build/**/*.p
+      - build/**/*.a.p
+      - build/**/*.fa.p
+      - build/**/*.c.o
+      - build/**/*.c.o.d
+      - build/**/*.fa
+
 .common_test_job_template:
   extends: .base_job_template
   stage: test

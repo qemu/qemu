@@ -84,6 +84,8 @@ class BootLinuxAarch64(LinuxTest):
         self.launch_and_wait(set_up_ssh_connection=False)
 
 
+# See the tux_baseline.py tests for almost the same coverage in a lot
+# less time.
 class BootLinuxPPC64(LinuxTest):
     """
     :avocado: tags=arch:ppc64
@@ -91,6 +93,7 @@ class BootLinuxPPC64(LinuxTest):
 
     timeout = 360
 
+    @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_pseries_tcg(self):
         """
         :avocado: tags=machine:pseries

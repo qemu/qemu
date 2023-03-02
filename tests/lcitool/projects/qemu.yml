@@ -101,6 +101,7 @@ packages:
  - sed
  - snappy
  - sndio
+ - socat
  - sparse
  - spice-protocol
  - spice-server
@@ -115,5 +116,6 @@ packages:
  - which
  - xen
  - xfsprogs
+ - zstdtools
  - zlib
  - zlib-static
