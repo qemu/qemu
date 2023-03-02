@@ -600,6 +600,16 @@ void migrate_set_block_incremental(bool value)
 
 /* parameters helpers */
 
+void block_cleanup_parameters(MigrationState *s)
+{
+    if (s->must_remove_block_options) {
+        /* setting to false can never fail */
+        migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
+        migrate_set_block_incremental(false);
+        s->must_remove_block_options = false;
+    }
+}
+
 AnnounceParameters *migrate_announce_params(void)
 {
     static AnnounceParameters ap;

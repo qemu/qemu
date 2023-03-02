@@ -90,5 +90,6 @@ void migrate_set_block_incremental(bool value);
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
 void migrate_params_init(MigrationParameters *params);
+void block_cleanup_parameters(MigrationState *s);
 
 #endif
