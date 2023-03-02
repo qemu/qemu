@@ -3795,7 +3795,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
 
     if (resume) {
         /* This is a resumed migration */
-        rate_limit = s->parameters.max_postcopy_bandwidth /
+        rate_limit = migrate_max_postcopy_bandwidth() /
             XFER_LIMIT_RATIO;
     } else {
         /* This is a fresh new migration */
