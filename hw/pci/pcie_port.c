@@ -161,6 +161,13 @@ PCIDevice *pcie_find_port_by_pn(PCIBus *bus, uint8_t pn)
     return NULL;
 }
 
+static bool pcie_slot_is_hotpluggbale_bus(HotplugHandler *plug_handler,
+                                          BusState *bus)
+{
+    PCIESlot *s = PCIE_SLOT(bus->parent);
+    return s->hotplug;
+}
+
 static const TypeInfo pcie_port_type_info = {
     .name = TYPE_PCIE_PORT,
     .parent = TYPE_PCI_BRIDGE,
@@ -188,6 +195,7 @@ static void pcie_slot_class_init(ObjectClass *oc, void *data)
     hc->plug = pcie_cap_slot_plug_cb;
     hc->unplug = pcie_cap_slot_unplug_cb;
     hc->unplug_request = pcie_cap_slot_unplug_request_cb;
+    hc->is_hotpluggable_bus = pcie_slot_is_hotpluggbale_bus;
 }
 
 static const TypeInfo pcie_slot_type_info = {

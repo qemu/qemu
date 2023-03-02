@@ -812,7 +812,18 @@ void qbus_set_bus_hotplug_handler(BusState *bus);
 
 static inline bool qbus_is_hotpluggable(BusState *bus)
 {
-   return bus->hotplug_handler;
+    HotplugHandler *plug_handler = bus->hotplug_handler;
+    bool ret = !!plug_handler;
+
+    if (plug_handler) {
+        HotplugHandlerClass *hdc;
+
+        hdc = HOTPLUG_HANDLER_GET_CLASS(plug_handler);
+        if (hdc->is_hotpluggable_bus) {
+            ret = hdc->is_hotpluggable_bus(plug_handler, bus);
+        }
+    }
+    return ret;
 }
 
 /**
