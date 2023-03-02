@@ -14,6 +14,13 @@
 #ifndef QEMU_MIGRATION_OPTIONS_H
 #define QEMU_MIGRATION_OPTIONS_H
 
+/* constants */
+
+/* Amount of time to allocate to each "chunk" of bandwidth-throttled
+ * data. */
+#define BUFFER_DELAY     100
+#define XFER_LIMIT_RATIO (1000 / BUFFER_DELAY)
+
 /* capabilities */
 
 bool migrate_auto_converge(void);
@@ -73,5 +80,9 @@ int migrate_multifd_zlib_level(void);
 int migrate_multifd_zstd_level(void);
 uint8_t migrate_throttle_trigger_threshold(void);
 uint64_t migrate_xbzrle_cache_size(void);
+
+/* parameters helpers */
+
+bool migrate_params_check(MigrationParameters *params, Error **errp);
 
 #endif
