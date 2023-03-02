@@ -21,7 +21,7 @@ void build_pci_bridge_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
     PCIBridge *br = PCI_BRIDGE(adev);
 
-    if (object_property_find(OBJECT(&br->sec_bus), ACPI_PCIHP_PROP_BSEL)) {
+    if (!DEVICE(br)->hotplugged) {
         build_append_pci_bus_devices(scope, pci_bridge_get_sec_bus(br));
     }
 }
