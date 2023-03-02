@@ -517,16 +517,24 @@ static bool build_append_notfication_callback(Aml *parent_scope,
     PCIBus *sec;
     QObject *bsel;
     int nr_notifiers = 0;
+    GQueue *pcnt_bus_list = g_queue_new();
 
     QLIST_FOREACH(sec, &bus->child, sibling) {
         Aml *br_scope = aml_scope("S%.02X", sec->parent_dev->devfn);
-        if (pci_bus_is_root(sec) ||
-            !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
+        if (pci_bus_is_root(sec)) {
             continue;
         }
         nr_notifiers = nr_notifiers +
                        build_append_notfication_callback(br_scope, sec);
-        aml_append(parent_scope, br_scope);
+        /*
+         * add new child scope to parent
+         * and keep track of bus that have PCNT,
+         * bus list is used later to call children PCNTs from this level PCNT
+         */
+        if (nr_notifiers) {
+            g_queue_push_tail(pcnt_bus_list, sec);
+            aml_append(parent_scope, br_scope);
+        }
     }
 
     /*
@@ -550,17 +558,13 @@ static bool build_append_notfication_callback(Aml *parent_scope,
     }
 
     /* Notify about child bus events in any case */
-    QLIST_FOREACH(sec, &bus->child, sibling) {
-        if (pci_bus_is_root(sec) ||
-            !object_property_find(OBJECT(sec), ACPI_PCIHP_PROP_BSEL)) {
-            continue;
-        }
-
+    while ((sec = g_queue_pop_head(pcnt_bus_list))) {
         aml_append(method, aml_name("^S%.02X.PCNT", sec->parent_dev->devfn));
     }
 
     aml_append(parent_scope, method);
     qobject_unref(bsel);
+    g_queue_free(pcnt_bus_list);
     return !!nr_notifiers;
 }
 
