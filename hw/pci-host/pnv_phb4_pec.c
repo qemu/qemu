@@ -199,8 +199,11 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
                       pecc->compat_size)));
 
     for (i = 0; i < pec->num_phbs; i++) {
-        int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
         int stk_offset;
+
+        if (!pec->phbs[i]) {
+            continue;
+        }
 
         name = g_strdup_printf("stack@%x", i);
         stk_offset = fdt_add_subnode(fdt, offset, name);
@@ -209,7 +212,8 @@ static int pnv_pec_dt_xscom(PnvXScomInterface *dev, void *fdt,
         _FDT((fdt_setprop(fdt, stk_offset, "compatible", pecc->stk_compat,
                           pecc->stk_compat_size)));
         _FDT((fdt_setprop_cell(fdt, stk_offset, "reg", i)));
-        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index", phb_id)));
+        _FDT((fdt_setprop_cell(fdt, stk_offset, "ibm,phb-index",
+                               pec->phbs[i]->phb_id)));
     }
 
     return 0;
