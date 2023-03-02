@@ -276,12 +276,12 @@ static void acpi_pcihp_update(AcpiPciHpState *s)
     }
 }
 
-void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off)
+void acpi_pcihp_reset(AcpiPciHpState *s)
 {
-    if (acpihp_root_off) {
+    if (!s->use_acpi_root_pci_hotplug) {
         acpi_pcihp_disable_root_bus();
     }
-    acpi_set_pci_info(!s->legacy_piix);
+    acpi_set_pci_info(s->use_acpi_hotplug_bridge);
     acpi_pcihp_update(s);
 }
 
@@ -316,7 +316,7 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
          * Overwrite the default hotplug handler with the ACPI PCI one
          * for cold plugged bridges only.
          */
-        if (!s->legacy_piix &&
+        if (s->use_acpi_hotplug_bridge &&
             object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
             PCIBus *sec = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
 
@@ -398,7 +398,7 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
     switch (addr) {
     case PCI_UP_BASE:
         val = s->acpi_pcihp_pci_status[bsel].up;
-        if (!s->legacy_piix) {
+        if (s->use_acpi_hotplug_bridge) {
             s->acpi_pcihp_pci_status[bsel].up = 0;
         }
         trace_acpi_pci_up_read(val);
@@ -473,7 +473,8 @@ static void pci_write(void *opaque, hwaddr addr, uint64_t data,
         trace_acpi_pci_ej_write(addr, data);
         break;
     case PCI_SEL_BASE:
-        s->hotplug_select = s->legacy_piix ? ACPI_PCIHP_BSEL_DEFAULT : data;
+        s->hotplug_select = s->use_acpi_hotplug_bridge ? data :
+            ACPI_PCIHP_BSEL_DEFAULT;
         trace_acpi_pci_sel_write(addr, data);
     default:
         break;
@@ -491,14 +492,13 @@ static const MemoryRegionOps acpi_pcihp_io_ops = {
 };
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *s, PCIBus *root_bus,
-                     MemoryRegion *address_space_io, bool bridges_enabled,
+                     MemoryRegion *address_space_io,
                      uint16_t io_base)
 {
     s->io_len = ACPI_PCIHP_SIZE;
     s->io_base = io_base;
 
     s->root = root_bus;
-    s->legacy_piix = !bridges_enabled;
 
     memory_region_init_io(&s->io, owner, &acpi_pcihp_io_ops, s,
                           "acpi-pci-hotplug", s->io_len);

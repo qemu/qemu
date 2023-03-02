@@ -170,14 +170,14 @@ static const VMStateDescription vmstate_pci_status = {
 static bool vmstate_test_use_acpi_hotplug_bridge(void *opaque, int version_id)
 {
     PIIX4PMState *s = opaque;
-    return s->use_acpi_hotplug_bridge;
+    return s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static bool vmstate_test_no_use_acpi_hotplug_bridge(void *opaque,
                                                     int version_id)
 {
     PIIX4PMState *s = opaque;
-    return !s->use_acpi_hotplug_bridge;
+    return !s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static bool vmstate_test_use_memhp(void *opaque)
@@ -234,7 +234,8 @@ static bool piix4_vmstate_need_smbus(void *opaque, int version_id)
 static bool vmstate_test_migrate_acpi_index(void *opaque, int version_id)
 {
     PIIX4PMState *s = PIIX4_PM(opaque);
-    return s->use_acpi_hotplug_bridge && !s->not_migrate_acpi_index;
+    return s->acpi_pci_hotplug.use_acpi_hotplug_bridge &&
+           !s->not_migrate_acpi_index;
 }
 
 /* qemu-kvm 1.2 uses version 3 but advertised as 2
@@ -303,8 +304,9 @@ static void piix4_pm_reset(DeviceState *dev)
     acpi_update_sci(&s->ar, s->irq);
 
     pm_io_space_update(s);
-    if (s->use_acpi_hotplug_bridge || s->use_acpi_root_pci_hotplug) {
-        acpi_pcihp_reset(&s->acpi_pci_hotplug, !s->use_acpi_root_pci_hotplug);
+    if (s->acpi_pci_hotplug.use_acpi_hotplug_bridge ||
+        s->acpi_pci_hotplug.use_acpi_root_pci_hotplug) {
+        acpi_pcihp_reset(&s->acpi_pci_hotplug);
     }
 }
 
@@ -487,7 +489,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 
     if (xen_enabled()) {
-        s->use_acpi_hotplug_bridge = false;
+        s->acpi_pci_hotplug.use_acpi_hotplug_bridge = false;
     }
 
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
@@ -560,9 +562,10 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                           "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
 
-    if (s->use_acpi_hotplug_bridge || s->use_acpi_root_pci_hotplug) {
+    if (s->acpi_pci_hotplug.use_acpi_hotplug_bridge ||
+        s->acpi_pci_hotplug.use_acpi_root_pci_hotplug) {
         acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
-                        s->use_acpi_hotplug_bridge, ACPI_PCIHP_ADDR_PIIX4);
+                        ACPI_PCIHP_ADDR_PIIX4);
         qbus_set_hotplug_handler(BUS(pci_get_bus(PCI_DEVICE(s))), OBJECT(s));
     }
 
@@ -602,9 +605,9 @@ static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_DISABLED, PIIX4PMState, disable_s4, 0),
     DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
     DEFINE_PROP_BOOL(ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, PIIX4PMState,
-                     use_acpi_hotplug_bridge, true),
+                     acpi_pci_hotplug.use_acpi_hotplug_bridge, true),
     DEFINE_PROP_BOOL(ACPI_PM_PROP_ACPI_PCI_ROOTHP, PIIX4PMState,
-                     use_acpi_root_pci_hotplug, true),
+                     acpi_pci_hotplug.use_acpi_root_pci_hotplug, true),
     DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
                      acpi_memory_hotplug.is_enabled, true),
     DEFINE_PROP_BOOL("smm-compat", PIIX4PMState, smm_compat, false),

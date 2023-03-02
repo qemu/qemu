@@ -218,7 +218,7 @@ static bool vmstate_test_use_pcihp(void *opaque)
 {
     ICH9LPCPMRegs *s = opaque;
 
-    return s->use_acpi_hotplug_bridge;
+    return s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static const VMStateDescription vmstate_pcihp_state = {
@@ -277,8 +277,8 @@ static void pm_reset(void *opaque)
     }
     pm->smi_en_wmask = ~0;
 
-    if (pm->use_acpi_hotplug_bridge) {
-        acpi_pcihp_reset(&pm->acpi_pci_hotplug, true);
+    if (pm->acpi_pci_hotplug.use_acpi_hotplug_bridge) {
+        acpi_pcihp_reset(&pm->acpi_pci_hotplug);
     }
 
     acpi_update_sci(&pm->acpi_regs, pm->irq);
@@ -316,12 +316,11 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
         acpi_pm_tco_init(&pm->tco_regs, &pm->io);
     }
 
-    if (pm->use_acpi_hotplug_bridge) {
+    if (pm->acpi_pci_hotplug.use_acpi_hotplug_bridge) {
         acpi_pcihp_init(OBJECT(lpc_pci),
                         &pm->acpi_pci_hotplug,
                         pci_get_bus(lpc_pci),
                         pci_address_space_io(lpc_pci),
-                        true,
                         ACPI_PCIHP_ADDR_ICH9);
 
         qbus_set_hotplug_handler(BUS(pci_get_bus(lpc_pci)),
@@ -403,14 +402,14 @@ static bool ich9_pm_get_acpi_pci_hotplug(Object *obj, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
-    return s->pm.use_acpi_hotplug_bridge;
+    return s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static void ich9_pm_set_acpi_pci_hotplug(Object *obj, bool value, Error **errp)
 {
     ICH9LPCState *s = ICH9_LPC_DEVICE(obj);
 
-    s->pm.use_acpi_hotplug_bridge = value;
+    s->pm.acpi_pci_hotplug.use_acpi_hotplug_bridge = value;
 }
 
 static bool ich9_pm_get_keep_pci_slot_hpc(Object *obj, Error **errp)
@@ -435,7 +434,7 @@ void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm)
     pm->disable_s3 = 0;
     pm->disable_s4 = 0;
     pm->s4_val = 2;
-    pm->use_acpi_hotplug_bridge = true;
+    pm->acpi_pci_hotplug.use_acpi_hotplug_bridge = true;
     pm->keep_pci_slot_hpc = true;
     pm->enable_tco = true;
 
