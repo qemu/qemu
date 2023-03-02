@@ -591,7 +591,7 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
 
         call_dev_aml_func(DEVICE(bus->devices[devfn]), dev);
         /* add _DSM if device has acpi-index set */
-        if (pdev->acpi_index && !bsel &&
+        if (pdev->acpi_index &&
             !object_property_get_bool(OBJECT(pdev), "hotpluggable",
                                       &error_abort)) {
             aml_append(dev, aml_pci_static_endpoint_dsm(pdev));
