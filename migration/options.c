@@ -16,6 +16,7 @@
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/runstate.h"
+#include "migration/misc.h"
 #include "migration.h"
 #include "ram.h"
 #include "options.h"
@@ -588,4 +589,20 @@ uint64_t migrate_xbzrle_cache_size(void)
     s = migrate_get_current();
 
     return s->parameters.xbzrle_cache_size;
+}
+
+/* parameters helpers */
+
+AnnounceParameters *migrate_announce_params(void)
+{
+    static AnnounceParameters ap;
+
+    MigrationState *s = migrate_get_current();
+
+    ap.initial = s->parameters.announce_initial;
+    ap.max = s->parameters.announce_max;
+    ap.rounds = s->parameters.announce_rounds;
+    ap.step = s->parameters.announce_step;
+
+    return &ap;
 }
