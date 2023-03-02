@@ -589,6 +589,15 @@ uint64_t migrate_xbzrle_cache_size(void)
     return s->parameters.xbzrle_cache_size;
 }
 
+/* parameter setters */
+
+void migrate_set_block_incremental(bool value)
+{
+    MigrationState *s = migrate_get_current();
+
+    s->parameters.block_incremental = value;
+}
+
 /* parameters helpers */
 
 AnnounceParameters *migrate_announce_params(void)

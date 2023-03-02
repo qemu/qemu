@@ -1164,17 +1164,12 @@ void migrate_set_state(int *state, int old_state, int new_state)
     }
 }
 
-static void migrate_set_block_incremental(MigrationState *s, bool value)
-{
-    s->parameters.block_incremental = value;
-}
-
 static void block_cleanup_parameters(MigrationState *s)
 {
     if (s->must_remove_block_options) {
         /* setting to false can never fail */
         migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
-        migrate_set_block_incremental(s, false);
+        migrate_set_block_incremental(false);
         s->must_remove_block_options = false;
     }
 }
@@ -1668,7 +1663,7 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     if (blk_inc) {
-        migrate_set_block_incremental(s, true);
+        migrate_set_block_incremental(true);
     }
 
     migrate_init(s);
