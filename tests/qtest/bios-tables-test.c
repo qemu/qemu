@@ -1028,10 +1028,11 @@ static void test_acpi_q35_tcg_no_acpi_hotplug(void)
                                  "addr=7.0"
         " -device pci-testdev,bus=nohprp,acpi-index=501"
         " -device pcie-root-port,id=nohprpint,port=0x0,chassis=3,hotplug=off,"
-                                 "addr=8.0"
+                                 "multifunction=on,addr=8.0"
+        " -device pci-testdev,bus=nohprpint,acpi-index=601,addr=8.1"
         " -device pcie-root-port,id=hprp2,port=0x0,chassis=4,bus=nohprpint,"
                                  "addr=9.0"
-        " -device pci-testdev,bus=hprp2,acpi-index=601"
+        " -device pci-testdev,bus=hprp2,acpi-index=602"
         , &data);
     free_test_data(&data);
 }
@@ -1053,6 +1054,7 @@ static void test_acpi_q35_multif_bridge(void)
         " -device pcie-root-port,id=rphptgt2,port=0x0,chassis=6,addr=2.2"
         " -device pcie-root-port,id=rphptgt3,port=0x0,chassis=7,addr=2.3"
         " -device pci-testdev,bus=pcie.0,addr=2.4"
+        " -device pci-testdev,bus=pcie.0,addr=2.5,acpi-index=102"
         " -device pci-testdev,bus=pcie.0,addr=5.0"
         " -device pci-testdev,bus=pcie.0,addr=0xf.0,acpi-index=101"
         " -device pci-testdev,bus=rp0,addr=0.0"
