@@ -24,6 +24,8 @@
 #include "qemu/range.h"
 #include "qapi/error.h"
 
+#include "hw/i386/kvm/xen_evtchn.h"
+
 /* PCI_MSI_ADDRESS_LO */
 #define PCI_MSI_ADDRESS_LO_MASK         (~0x3)
 
@@ -413,6 +415,15 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
     }
     fprintf(stderr, "\n");
 #endif
+
+    if (xen_mode == XEN_EMULATE) {
+        for (vector = 0; vector < msi_nr_vectors(flags); vector++) {
+            MSIMessage msg = msi_prepare_message(dev, vector);
+
+            xen_evtchn_snoop_msi(dev, false, vector, msg.address, msg.data,
+                                 msi_is_masked(dev, vector));
+        }
+    }
 
     if (!(flags & PCI_MSI_FLAGS_ENABLE)) {
         return;

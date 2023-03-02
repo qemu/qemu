@@ -68,3 +68,13 @@ enum xenbus_state {
 typedef enum xenbus_state XenbusState;
 
 #endif /* _XEN_PUBLIC_IO_XENBUS_H */
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

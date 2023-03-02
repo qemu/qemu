@@ -26,6 +26,8 @@
 #include "qapi/error.h"
 #include "trace.h"
 
+#include "hw/i386/kvm/xen_evtchn.h"
+
 /* MSI enable bit and maskall bit are in byte 1 in FLAGS register */
 #define MSIX_CONTROL_OFFSET (PCI_MSIX_FLAGS + 1)
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
@@ -123,6 +125,13 @@ static void msix_fire_vector_notifier(PCIDevice *dev,
 static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
 {
     bool is_masked = msix_is_masked(dev, vector);
+
+    if (xen_mode == XEN_EMULATE) {
+        MSIMessage msg = msix_prepare_message(dev, vector);
+
+        xen_evtchn_snoop_msi(dev, true, vector, msg.address, msg.data,
+                             is_masked);
+    }
 
     if (is_masked == was_masked) {
         return;
