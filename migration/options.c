@@ -517,6 +517,15 @@ int migrate_decompress_threads(void)
     return s->parameters.decompress_threads;
 }
 
+uint8_t migrate_max_cpu_throttle(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.max_cpu_throttle;
+}
+
 int64_t migrate_max_postcopy_bandwidth(void)
 {
     MigrationState *s;

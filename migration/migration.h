@@ -451,8 +451,6 @@ bool migrate_postcopy(void);
 
 int migrate_use_tls(void);
 
-int migrate_max_cpu_throttle(void);
-
 uint64_t ram_get_total_transferred_pages(void);
 
 /* Sending on the return path - generic and then for each message type */
