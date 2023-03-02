@@ -600,8 +600,10 @@ void migrate_set_block_incremental(bool value)
 
 /* parameters helpers */
 
-void block_cleanup_parameters(MigrationState *s)
+void block_cleanup_parameters(void)
 {
+    MigrationState *s = migrate_get_current();
+
     if (s->must_remove_block_options) {
         /* setting to false can never fail */
         migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
