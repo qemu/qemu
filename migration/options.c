@@ -527,6 +527,15 @@ uint8_t migrate_cpu_throttle_initial(void)
     return s->parameters.cpu_throttle_initial;
 }
 
+bool migrate_cpu_throttle_tailslow(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.cpu_throttle_tailslow;
+}
+
 int migrate_decompress_threads(void)
 {
     MigrationState *s;
