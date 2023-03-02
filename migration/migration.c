@@ -886,74 +886,6 @@ void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value)
     migrate_send_rp_message(mis, MIG_RP_MSG_RESUME_ACK, sizeof(buf), &buf);
 }
 
-MigrationParameters *qmp_query_migrate_parameters(Error **errp)
-{
-    MigrationParameters *params;
-    MigrationState *s = migrate_get_current();
-
-    /* TODO use QAPI_CLONE() instead of duplicating it inline */
-    params = g_malloc0(sizeof(*params));
-    params->has_compress_level = true;
-    params->compress_level = s->parameters.compress_level;
-    params->has_compress_threads = true;
-    params->compress_threads = s->parameters.compress_threads;
-    params->has_compress_wait_thread = true;
-    params->compress_wait_thread = s->parameters.compress_wait_thread;
-    params->has_decompress_threads = true;
-    params->decompress_threads = s->parameters.decompress_threads;
-    params->has_throttle_trigger_threshold = true;
-    params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
-    params->has_cpu_throttle_initial = true;
-    params->cpu_throttle_initial = s->parameters.cpu_throttle_initial;
-    params->has_cpu_throttle_increment = true;
-    params->cpu_throttle_increment = s->parameters.cpu_throttle_increment;
-    params->has_cpu_throttle_tailslow = true;
-    params->cpu_throttle_tailslow = s->parameters.cpu_throttle_tailslow;
-    params->tls_creds = g_strdup(s->parameters.tls_creds);
-    params->tls_hostname = g_strdup(s->parameters.tls_hostname);
-    params->tls_authz = g_strdup(s->parameters.tls_authz ?
-                                 s->parameters.tls_authz : "");
-    params->has_max_bandwidth = true;
-    params->max_bandwidth = s->parameters.max_bandwidth;
-    params->has_downtime_limit = true;
-    params->downtime_limit = s->parameters.downtime_limit;
-    params->has_x_checkpoint_delay = true;
-    params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
-    params->has_block_incremental = true;
-    params->block_incremental = s->parameters.block_incremental;
-    params->has_multifd_channels = true;
-    params->multifd_channels = s->parameters.multifd_channels;
-    params->has_multifd_compression = true;
-    params->multifd_compression = s->parameters.multifd_compression;
-    params->has_multifd_zlib_level = true;
-    params->multifd_zlib_level = s->parameters.multifd_zlib_level;
-    params->has_multifd_zstd_level = true;
-    params->multifd_zstd_level = s->parameters.multifd_zstd_level;
-    params->has_xbzrle_cache_size = true;
-    params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
-    params->has_max_postcopy_bandwidth = true;
-    params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
-    params->has_max_cpu_throttle = true;
-    params->max_cpu_throttle = s->parameters.max_cpu_throttle;
-    params->has_announce_initial = true;
-    params->announce_initial = s->parameters.announce_initial;
-    params->has_announce_max = true;
-    params->announce_max = s->parameters.announce_max;
-    params->has_announce_rounds = true;
-    params->announce_rounds = s->parameters.announce_rounds;
-    params->has_announce_step = true;
-    params->announce_step = s->parameters.announce_step;
-
-    if (s->parameters.has_block_bitmap_mapping) {
-        params->has_block_bitmap_mapping = true;
-        params->block_bitmap_mapping =
-            QAPI_CLONE(BitmapMigrationNodeAliasList,
-                       s->parameters.block_bitmap_mapping);
-    }
-
-    return params;
-}
-
 /*
  * Return true if we're already in the middle of a migration
  * (i.e. any of the active or setup states)
@@ -3771,7 +3703,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
             XFER_LIMIT_RATIO;
     } else {
         /* This is a fresh new migration */
-        rate_limit = s->parameters.max_bandwidth / XFER_LIMIT_RATIO;
+        rate_limit = migrate_max_bandwidth() / XFER_LIMIT_RATIO;
 
         /* Notify before starting migration thread */
         notifier_list_notify(&migration_state_notifiers, s);
