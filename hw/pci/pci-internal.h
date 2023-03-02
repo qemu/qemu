@@ -20,6 +20,5 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 
 int pcie_aer_parse_error_string(const char *error_name,
                                 uint32_t *status, bool *correctable);
-int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err);
 
 #endif
