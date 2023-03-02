@@ -582,6 +582,13 @@ uint8_t migrate_throttle_trigger_threshold(void)
     return s->parameters.throttle_trigger_threshold;
 }
 
+const char *migrate_tls_creds(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_creds;
+}
+
 uint64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s = migrate_get_current();
