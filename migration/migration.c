@@ -2737,7 +2737,7 @@ static void migration_update_counters(MigrationState *s,
     transferred = current_bytes - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
-    s->threshold_size = bandwidth * s->parameters.downtime_limit;
+    s->threshold_size = bandwidth * migrate_downtime_limit();
 
     s->mbps = (((double) transferred * 8.0) /
                ((double) time_spent / 1000.0)) / 1000.0 / 1000.0;
@@ -3244,7 +3244,7 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
      */
     migrate_error_free(s);
 
-    s->expected_downtime = s->parameters.downtime_limit;
+    s->expected_downtime = migrate_downtime_limit();
     if (resume) {
         assert(s->cleanup_bh);
     } else {

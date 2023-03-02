@@ -518,6 +518,13 @@ int migrate_decompress_threads(void)
     return s->parameters.decompress_threads;
 }
 
+uint64_t migrate_downtime_limit(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.downtime_limit;
+}
+
 uint8_t migrate_max_cpu_throttle(void)
 {
     MigrationState *s = migrate_get_current();
