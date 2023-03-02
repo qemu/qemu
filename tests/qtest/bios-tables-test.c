@@ -949,9 +949,14 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
                   "-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
-                  "-device pci-bridge,chassis_nr=1 "
-                  "-device pci-testdev,bus=pci.0 "
-                  "-device pci-testdev,bus=pci.1", &data);
+                  "-device pci-bridge,chassis_nr=1,addr=4.0 "
+                  "-device pci-testdev,bus=pci.0,addr=5.0 "
+                  "-device pci-testdev,bus=pci.0,addr=6.0,acpi-index=101 "
+                  "-device pci-testdev,bus=pci.1,addr=1.0 "
+                  "-device pci-testdev,bus=pci.1,addr=2.0,acpi-index=201 "
+                  "-device pci-bridge,id=nhpbr,chassis_nr=2,shpc=off,addr=7.0 "
+                  "-device pci-testdev,bus=nhpbr,addr=1.0,acpi-index=301 "
+                  , &data);
     free_test_data(&data);
 }
 
@@ -999,6 +1004,35 @@ static void test_acpi_q35_tcg_bridge(void)
     test_acpi_one("-device pci-bridge,chassis_nr=1,id=br1"
                   " -device pci-testdev,bus=pcie.0"
                   " -device pci-testdev,bus=br1", &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_q35_tcg_no_acpi_hotplug(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".noacpihp";
+    data.required_struct_types = base_required_struct_types;
+    data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
+    test_acpi_one("-global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
+        " -device pci-testdev,bus=pcie.0,acpi-index=101,addr=3.0"
+        " -device pci-bridge,chassis_nr=1,id=shpcbr,addr=4.0"
+        " -device pci-testdev,bus=shpcbr,addr=1.0,acpi-index=201"
+        " -device pci-bridge,chassis_nr=2,shpc=off,id=noshpcbr,addr=5.0"
+        " -device pci-testdev,bus=noshpcbr,addr=1.0,acpi-index=301"
+        " -device pcie-root-port,id=hprp,port=0x0,chassis=1,addr=6.0"
+        " -device pci-testdev,bus=hprp,acpi-index=401"
+        " -device pcie-root-port,id=nohprp,port=0x0,chassis=2,hotplug=off,"
+                                 "addr=7.0"
+        " -device pci-testdev,bus=nohprp,acpi-index=501"
+        " -device pcie-root-port,id=nohprpint,port=0x0,chassis=3,hotplug=off,"
+                                 "addr=8.0"
+        " -device pcie-root-port,id=hprp2,port=0x0,chassis=4,bus=nohprpint,"
+                                 "addr=9.0"
+        " -device pci-testdev,bus=hprp2,acpi-index=601"
+        , &data);
     free_test_data(&data);
 }
 
@@ -2094,6 +2128,8 @@ int main(int argc, char *argv[])
                                test_acpi_q35_tcg_tpm12_tis);
             }
             qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+            qtest_add_func("acpi/q35/no-acpi-hotplug",
+                           test_acpi_q35_tcg_no_acpi_hotplug);
             qtest_add_func("acpi/q35/multif-bridge",
                            test_acpi_q35_multif_bridge);
             qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
