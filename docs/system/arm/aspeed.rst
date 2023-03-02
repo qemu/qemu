@@ -25,6 +25,7 @@ AST2500 SoC based machines :
 - ``fp5280g2-bmc``         Inspur FP5280G2 BMC
 - ``g220a-bmc``            Bytedance G220A BMC
 - ``yosemitev2-bmc``       Facebook YosemiteV2 BMC
+- ``tiogapass-bmc``        Facebook Tiogapass BMC
 
 AST2600 SoC based machines :
 
