@@ -447,8 +447,6 @@ bool migration_is_blocked(Error **errp);
 bool migration_in_postcopy(void);
 MigrationState *migrate_get_current(void);
 
-bool migrate_postcopy(void);
-
 int migrate_use_tls(void);
 
 uint64_t ram_get_total_transferred_pages(void);

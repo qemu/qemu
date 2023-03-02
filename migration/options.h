@@ -38,6 +38,15 @@ bool migrate_xbzrle(void);
 bool migrate_zero_blocks(void);
 bool migrate_zero_copy_send(void);
 
+/*
+ * pseudo capabilities
+ *
+ * These are functions that are used in a similar way to capabilities
+ * check, but they are not a capability.
+ */
+
+bool migrate_postcopy(void);
+
 /* capabilities helpers */
 
 bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp);

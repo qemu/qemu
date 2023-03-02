@@ -2245,11 +2245,6 @@ void qmp_migrate_continue(MigrationStatus state, Error **errp)
     qemu_sem_post(&s->pause_sem);
 }
 
-bool migrate_postcopy(void)
-{
-    return migrate_postcopy_ram() || migrate_dirty_bitmaps();
-}
-
 int migrate_use_tls(void)
 {
     MigrationState *s;

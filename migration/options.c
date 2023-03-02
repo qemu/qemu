@@ -204,6 +204,14 @@ bool migrate_zero_copy_send(void)
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
 }
+
+/* pseudo capabilities */
+
+bool migrate_postcopy(void)
+{
+    return migrate_postcopy_ram() || migrate_dirty_bitmaps();
+}
+
 typedef enum WriteTrackingSupport {
     WT_SUPPORT_UNKNOWN = 0,
     WT_SUPPORT_ABSENT,
