@@ -404,6 +404,13 @@ static void piix4_device_unplug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
+static bool piix4_is_hotpluggable_bus(HotplugHandler *hotplug_dev,
+                                      BusState *bus)
+{
+    PIIX4PMState *s = PIIX4_PM(hotplug_dev);
+    return acpi_pcihp_is_hotpluggbale_bus(&s->acpi_pci_hotplug, bus);
+}
+
 static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 {
     PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
@@ -644,6 +651,7 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     hc->plug = piix4_device_plug_cb;
     hc->unplug_request = piix4_device_unplug_request_cb;
     hc->unplug = piix4_device_unplug_cb;
+    hc->is_hotpluggable_bus = piix4_is_hotpluggable_bus;
     adevc->ospm_status = piix4_ospm_status;
     adevc->send_event = piix4_send_gpe;
     adevc->madt_cpu = pc_madt_cpu_entry;

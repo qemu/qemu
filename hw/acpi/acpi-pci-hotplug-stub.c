@@ -40,3 +40,7 @@ void acpi_pcihp_reset(AcpiPciHpState *s)
     return;
 }
 
+bool acpi_pcihp_is_hotpluggbale_bus(AcpiPciHpState *s, BusState *bus)
+{
+    return true;
+}

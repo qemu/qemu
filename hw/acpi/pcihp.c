@@ -121,20 +121,6 @@ static void acpi_set_pci_info(bool has_bridge_hotplug)
     }
 }
 
-static void acpi_pcihp_disable_root_bus(void)
-{
-    Object *host = acpi_get_i386_pci_host();
-    PCIBus *bus;
-
-    bus = PCI_HOST_BRIDGE(host)->bus;
-    if (bus && qbus_is_hotpluggable(BUS(bus))) {
-        /* setting the hotplug handler to NULL makes the bus non-hotpluggable */
-        qbus_set_hotplug_handler(BUS(bus), NULL);
-    }
-
-    return;
-}
-
 static void acpi_pcihp_test_hotplug_bus(PCIBus *bus, void *opaque)
 {
     AcpiPciHpFind *find = opaque;
@@ -278,9 +264,6 @@ static void acpi_pcihp_update(AcpiPciHpState *s)
 
 void acpi_pcihp_reset(AcpiPciHpState *s)
 {
-    if (!s->use_acpi_root_pci_hotplug) {
-        acpi_pcihp_disable_root_bus();
-    }
     acpi_set_pci_info(s->use_acpi_hotplug_bridge);
     acpi_pcihp_update(s);
 }
@@ -319,13 +302,6 @@ void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
         if (s->use_acpi_hotplug_bridge &&
             object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
             PCIBus *sec = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
-
-            /* Remove all hot-plug handlers if hot-plug is disabled on slot */
-            if (object_dynamic_cast(OBJECT(dev), TYPE_PCIE_SLOT) &&
-                !PCIE_SLOT(pdev)->hotplug) {
-                qbus_set_hotplug_handler(BUS(sec), NULL);
-                return;
-            }
 
             qbus_set_hotplug_handler(BUS(sec), OBJECT(hotplug_dev));
             /* We don't have to overwrite any other hotplug handler yet */
@@ -383,6 +359,24 @@ void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     pdev->qdev.pending_deleted_event = true;
     s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
     acpi_send_event(DEVICE(hotplug_dev), ACPI_PCI_HOTPLUG_STATUS);
+}
+
+bool acpi_pcihp_is_hotpluggbale_bus(AcpiPciHpState *s, BusState *bus)
+{
+    Object *o = OBJECT(bus->parent);
+
+    if (s->use_acpi_hotplug_bridge &&
+        object_dynamic_cast(o, TYPE_PCI_BRIDGE)) {
+        if (object_dynamic_cast(o, TYPE_PCIE_SLOT) && !PCIE_SLOT(o)->hotplug) {
+            return false;
+        }
+        return true;
+    }
+
+    if (s->use_acpi_root_pci_hotplug) {
+        return true;
+    }
+    return false;
 }
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
