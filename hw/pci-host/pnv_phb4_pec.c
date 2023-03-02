@@ -112,9 +112,9 @@ static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
-                                        int stack_no,
-                                        Error **errp)
+static PnvPHB *pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
+                                           int stack_no,
+                                           Error **errp)
 {
     PnvPHB *phb = PNV_PHB(qdev_new(TYPE_PNV_PHB));
     int phb_id = pnv_phb4_pec_get_phb_id(pec, stack_no);
@@ -128,8 +128,9 @@ static void pnv_pec_default_phb_realize(PnvPhb4PecState *pec,
                             &error_fatal);
 
     if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
-        return;
+        return NULL;
     }
+    return phb;
 }
 
 static void pnv_pec_realize(DeviceState *dev, Error **errp)
@@ -148,8 +149,9 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
 
     /* Create PHBs if running with defaults */
     if (defaults_enabled()) {
+        g_assert(pec->num_phbs <= MAX_PHBS_PER_PEC);
         for (i = 0; i < pec->num_phbs; i++) {
-            pnv_pec_default_phb_realize(pec, i, errp);
+            pec->phbs[i] = pnv_pec_default_phb_realize(pec, i, errp);
         }
     }
 
