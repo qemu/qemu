@@ -52,8 +52,6 @@
 #include "io/channel-tls.h"
 #include "migration/colo.h"
 #include "hw/boards.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
 #include "monitor/monitor.h"
 #include "net/announce.h"
 #include "qemu/queue.h"
@@ -64,51 +62,6 @@
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
 #include "options.h"
-
-#define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
-
-/* Time in milliseconds we are allowed to stop the source,
- * for sending the last part */
-#define DEFAULT_MIGRATE_SET_DOWNTIME 300
-
-/* Default compression thread count */
-#define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
-/* Default decompression thread count, usually decompression is at
- * least 4 times as fast as compression.*/
-#define DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT 2
-/*0: means nocompress, 1: best speed, ... 9: best compress ratio */
-#define DEFAULT_MIGRATE_COMPRESS_LEVEL 1
-/* Define default autoconverge cpu throttle migration parameters */
-#define DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD 50
-#define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
-#define DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT 10
-#define DEFAULT_MIGRATE_MAX_CPU_THROTTLE 99
-
-/* Migration XBZRLE default cache size */
-#define DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE (64 * 1024 * 1024)
-
-/* The delay time (in ms) between two COLO checkpoints */
-#define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY (200 * 100)
-#define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
-#define DEFAULT_MIGRATE_MULTIFD_COMPRESSION MULTIFD_COMPRESSION_NONE
-/* 0: means nocompress, 1: best speed, ... 9: best compress ratio */
-#define DEFAULT_MIGRATE_MULTIFD_ZLIB_LEVEL 1
-/* 0: means nocompress, 1: best speed, ... 20: best compress ratio */
-#define DEFAULT_MIGRATE_MULTIFD_ZSTD_LEVEL 1
-
-/* Background transfer rate for postcopy, 0 means unlimited, note
- * that page requests can still exceed this limit.
- */
-#define DEFAULT_MIGRATE_MAX_POSTCOPY_BANDWIDTH 0
-
-/*
- * Parameters for self_announce_delay giving a stream of RARP/ARP
- * packets after migration.
- */
-#define DEFAULT_MIGRATE_ANNOUNCE_INITIAL  50
-#define DEFAULT_MIGRATE_ANNOUNCE_MAX     550
-#define DEFAULT_MIGRATE_ANNOUNCE_ROUNDS    5
-#define DEFAULT_MIGRATE_ANNOUNCE_STEP    100
 
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
@@ -3316,116 +3269,6 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
     }
     s->migration_thread_running = true;
 }
-
-#define DEFINE_PROP_MIG_CAP(name, x)             \
-    DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
-
-static Property migration_properties[] = {
-    DEFINE_PROP_BOOL("store-global-state", MigrationState,
-                     store_global_state, true),
-    DEFINE_PROP_BOOL("send-configuration", MigrationState,
-                     send_configuration, true),
-    DEFINE_PROP_BOOL("send-section-footer", MigrationState,
-                     send_section_footer, true),
-    DEFINE_PROP_BOOL("decompress-error-check", MigrationState,
-                      decompress_error_check, true),
-    DEFINE_PROP_UINT8("x-clear-bitmap-shift", MigrationState,
-                      clear_bitmap_shift, CLEAR_BITMAP_SHIFT_DEFAULT),
-    DEFINE_PROP_BOOL("x-preempt-pre-7-2", MigrationState,
-                     preempt_pre_7_2, false),
-
-    /* Migration parameters */
-    DEFINE_PROP_UINT8("x-compress-level", MigrationState,
-                      parameters.compress_level,
-                      DEFAULT_MIGRATE_COMPRESS_LEVEL),
-    DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
-                      parameters.compress_threads,
-                      DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
-    DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
-                      parameters.compress_wait_thread, true),
-    DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
-                      parameters.decompress_threads,
-                      DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
-    DEFINE_PROP_UINT8("x-throttle-trigger-threshold", MigrationState,
-                      parameters.throttle_trigger_threshold,
-                      DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD),
-    DEFINE_PROP_UINT8("x-cpu-throttle-initial", MigrationState,
-                      parameters.cpu_throttle_initial,
-                      DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL),
-    DEFINE_PROP_UINT8("x-cpu-throttle-increment", MigrationState,
-                      parameters.cpu_throttle_increment,
-                      DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT),
-    DEFINE_PROP_BOOL("x-cpu-throttle-tailslow", MigrationState,
-                      parameters.cpu_throttle_tailslow, false),
-    DEFINE_PROP_SIZE("x-max-bandwidth", MigrationState,
-                      parameters.max_bandwidth, MAX_THROTTLE),
-    DEFINE_PROP_UINT64("x-downtime-limit", MigrationState,
-                      parameters.downtime_limit,
-                      DEFAULT_MIGRATE_SET_DOWNTIME),
-    DEFINE_PROP_UINT32("x-checkpoint-delay", MigrationState,
-                      parameters.x_checkpoint_delay,
-                      DEFAULT_MIGRATE_X_CHECKPOINT_DELAY),
-    DEFINE_PROP_UINT8("multifd-channels", MigrationState,
-                      parameters.multifd_channels,
-                      DEFAULT_MIGRATE_MULTIFD_CHANNELS),
-    DEFINE_PROP_MULTIFD_COMPRESSION("multifd-compression", MigrationState,
-                      parameters.multifd_compression,
-                      DEFAULT_MIGRATE_MULTIFD_COMPRESSION),
-    DEFINE_PROP_UINT8("multifd-zlib-level", MigrationState,
-                      parameters.multifd_zlib_level,
-                      DEFAULT_MIGRATE_MULTIFD_ZLIB_LEVEL),
-    DEFINE_PROP_UINT8("multifd-zstd-level", MigrationState,
-                      parameters.multifd_zstd_level,
-                      DEFAULT_MIGRATE_MULTIFD_ZSTD_LEVEL),
-    DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
-                      parameters.xbzrle_cache_size,
-                      DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
-    DEFINE_PROP_SIZE("max-postcopy-bandwidth", MigrationState,
-                      parameters.max_postcopy_bandwidth,
-                      DEFAULT_MIGRATE_MAX_POSTCOPY_BANDWIDTH),
-    DEFINE_PROP_UINT8("max-cpu-throttle", MigrationState,
-                      parameters.max_cpu_throttle,
-                      DEFAULT_MIGRATE_MAX_CPU_THROTTLE),
-    DEFINE_PROP_SIZE("announce-initial", MigrationState,
-                      parameters.announce_initial,
-                      DEFAULT_MIGRATE_ANNOUNCE_INITIAL),
-    DEFINE_PROP_SIZE("announce-max", MigrationState,
-                      parameters.announce_max,
-                      DEFAULT_MIGRATE_ANNOUNCE_MAX),
-    DEFINE_PROP_SIZE("announce-rounds", MigrationState,
-                      parameters.announce_rounds,
-                      DEFAULT_MIGRATE_ANNOUNCE_ROUNDS),
-    DEFINE_PROP_SIZE("announce-step", MigrationState,
-                      parameters.announce_step,
-                      DEFAULT_MIGRATE_ANNOUNCE_STEP),
-    DEFINE_PROP_STRING("tls-creds", MigrationState, parameters.tls_creds),
-    DEFINE_PROP_STRING("tls-hostname", MigrationState, parameters.tls_hostname),
-    DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
-
-    /* Migration capabilities */
-    DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
-    DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
-    DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
-    DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
-    DEFINE_PROP_MIG_CAP("x-compress", MIGRATION_CAPABILITY_COMPRESS),
-    DEFINE_PROP_MIG_CAP("x-events", MIGRATION_CAPABILITY_EVENTS),
-    DEFINE_PROP_MIG_CAP("x-postcopy-ram", MIGRATION_CAPABILITY_POSTCOPY_RAM),
-    DEFINE_PROP_MIG_CAP("x-postcopy-preempt",
-                        MIGRATION_CAPABILITY_POSTCOPY_PREEMPT),
-    DEFINE_PROP_MIG_CAP("x-colo", MIGRATION_CAPABILITY_X_COLO),
-    DEFINE_PROP_MIG_CAP("x-release-ram", MIGRATION_CAPABILITY_RELEASE_RAM),
-    DEFINE_PROP_MIG_CAP("x-block", MIGRATION_CAPABILITY_BLOCK),
-    DEFINE_PROP_MIG_CAP("x-return-path", MIGRATION_CAPABILITY_RETURN_PATH),
-    DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
-    DEFINE_PROP_MIG_CAP("x-background-snapshot",
-            MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT),
-#ifdef CONFIG_LINUX
-    DEFINE_PROP_MIG_CAP("x-zero-copy-send",
-            MIGRATION_CAPABILITY_ZERO_COPY_SEND),
-#endif
-
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void migration_class_init(ObjectClass *klass, void *data)
 {
