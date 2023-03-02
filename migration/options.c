@@ -596,6 +596,13 @@ const char *migrate_tls_creds(void)
     return s->parameters.tls_creds;
 }
 
+const char *migrate_tls_hostname(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_hostname;
+}
+
 uint64_t migrate_xbzrle_cache_size(void)
 {
     MigrationState *s = migrate_get_current();
