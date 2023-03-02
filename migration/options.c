@@ -472,6 +472,15 @@ bool migrate_block_incremental(void)
     return s->parameters.block_incremental;
 }
 
+uint32_t migrate_checkpoint_delay(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.x_checkpoint_delay;
+}
+
 int migrate_compress_level(void)
 {
     MigrationState *s;

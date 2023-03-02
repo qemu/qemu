@@ -46,6 +46,7 @@ bool migrate_cap_set(int cap, bool value, Error **errp);
 /* parameters */
 
 bool migrate_block_incremental(void);
+uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_compress_wait_thread(void);
