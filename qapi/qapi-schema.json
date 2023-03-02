@@ -96,3 +96,4 @@
 { 'include': 'stats.json' }
 { 'include': 'virtio.json' }
 { 'include': 'cryptodev.json' }
+{ 'include': 'cxl.json' }

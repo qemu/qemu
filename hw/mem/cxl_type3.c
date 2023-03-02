@@ -1,6 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
+#include "qapi/qapi-commands-cxl.h"
 #include "hw/mem/memory-device.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/pci/pci.h"
@@ -323,6 +324,66 @@ static void hdm_decoder_commit(CXLType3Dev *ct3d, int which)
     ARRAY_FIELD_DP32(cache_mem, CXL_HDM_DECODER0_CTRL, COMMITTED, 1);
 }
 
+static int ct3d_qmp_uncor_err_to_cxl(CxlUncorErrorType qmp_err)
+{
+    switch (qmp_err) {
+    case CXL_UNCOR_ERROR_TYPE_CACHE_DATA_PARITY:
+        return CXL_RAS_UNC_ERR_CACHE_DATA_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_CACHE_ADDRESS_PARITY:
+        return CXL_RAS_UNC_ERR_CACHE_ADDRESS_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_CACHE_BE_PARITY:
+        return CXL_RAS_UNC_ERR_CACHE_BE_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_CACHE_DATA_ECC:
+        return CXL_RAS_UNC_ERR_CACHE_DATA_ECC;
+    case CXL_UNCOR_ERROR_TYPE_MEM_DATA_PARITY:
+        return CXL_RAS_UNC_ERR_MEM_DATA_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_MEM_ADDRESS_PARITY:
+        return CXL_RAS_UNC_ERR_MEM_ADDRESS_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_MEM_BE_PARITY:
+        return CXL_RAS_UNC_ERR_MEM_BE_PARITY;
+    case CXL_UNCOR_ERROR_TYPE_MEM_DATA_ECC:
+        return CXL_RAS_UNC_ERR_MEM_DATA_ECC;
+    case CXL_UNCOR_ERROR_TYPE_REINIT_THRESHOLD:
+        return CXL_RAS_UNC_ERR_REINIT_THRESHOLD;
+    case CXL_UNCOR_ERROR_TYPE_RSVD_ENCODING:
+        return CXL_RAS_UNC_ERR_RSVD_ENCODING;
+    case CXL_UNCOR_ERROR_TYPE_POISON_RECEIVED:
+        return CXL_RAS_UNC_ERR_POISON_RECEIVED;
+    case CXL_UNCOR_ERROR_TYPE_RECEIVER_OVERFLOW:
+        return CXL_RAS_UNC_ERR_RECEIVER_OVERFLOW;
+    case CXL_UNCOR_ERROR_TYPE_INTERNAL:
+        return CXL_RAS_UNC_ERR_INTERNAL;
+    case CXL_UNCOR_ERROR_TYPE_CXL_IDE_TX:
+        return CXL_RAS_UNC_ERR_CXL_IDE_TX;
+    case CXL_UNCOR_ERROR_TYPE_CXL_IDE_RX:
+        return CXL_RAS_UNC_ERR_CXL_IDE_RX;
+    default:
+        return -EINVAL;
+    }
+}
+
+static int ct3d_qmp_cor_err_to_cxl(CxlCorErrorType qmp_err)
+{
+    switch (qmp_err) {
+    case CXL_COR_ERROR_TYPE_CACHE_DATA_ECC:
+        return CXL_RAS_COR_ERR_CACHE_DATA_ECC;
+    case CXL_COR_ERROR_TYPE_MEM_DATA_ECC:
+        return CXL_RAS_COR_ERR_MEM_DATA_ECC;
+    case CXL_COR_ERROR_TYPE_CRC_THRESHOLD:
+        return CXL_RAS_COR_ERR_CRC_THRESHOLD;
+    case CXL_COR_ERROR_TYPE_RETRY_THRESHOLD:
+        return CXL_RAS_COR_ERR_RETRY_THRESHOLD;
+    case CXL_COR_ERROR_TYPE_CACHE_POISON_RECEIVED:
+        return CXL_RAS_COR_ERR_CACHE_POISON_RECEIVED;
+    case CXL_COR_ERROR_TYPE_MEM_POISON_RECEIVED:
+        return CXL_RAS_COR_ERR_MEM_POISON_RECEIVED;
+    case CXL_COR_ERROR_TYPE_PHYSICAL:
+        return CXL_RAS_COR_ERR_PHYSICAL;
+    default:
+        return -EINVAL;
+    }
+}
+
 static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
@@ -341,6 +402,83 @@ static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
         should_commit = FIELD_EX32(value, CXL_HDM_DECODER0_CTRL, COMMIT);
         which_hdm = 0;
         break;
+    case A_CXL_RAS_UNC_ERR_STATUS:
+    {
+        uint32_t capctrl = ldl_le_p(cache_mem + R_CXL_RAS_ERR_CAP_CTRL);
+        uint32_t fe = FIELD_EX32(capctrl, CXL_RAS_ERR_CAP_CTRL, FIRST_ERROR_POINTER);
+        CXLError *cxl_err;
+        uint32_t unc_err;
+
+        /*
+         * If single bit written that corresponds to the first error
+         * pointer being cleared, update the status and header log.
+         */
+        if (!QTAILQ_EMPTY(&ct3d->error_list)) {
+            if ((1 << fe) ^ value) {
+                CXLError *cxl_next;
+                /*
+                 * Software is using wrong flow for multiple header recording
+                 * Following behavior in PCIe r6.0 and assuming multiple
+                 * header support. Implementation defined choice to clear all
+                 * matching records if more than one bit set - which corresponds
+                 * closest to behavior of hardware not capable of multiple
+                 * header recording.
+                 */
+                QTAILQ_FOREACH_SAFE(cxl_err, &ct3d->error_list, node, cxl_next) {
+                    if ((1 << cxl_err->type) & value) {
+                        QTAILQ_REMOVE(&ct3d->error_list, cxl_err, node);
+                        g_free(cxl_err);
+                    }
+                }
+            } else {
+                /* Done with previous FE, so drop from list */
+                cxl_err = QTAILQ_FIRST(&ct3d->error_list);
+                QTAILQ_REMOVE(&ct3d->error_list, cxl_err, node);
+                g_free(cxl_err);
+            }
+
+            /*
+             * If there is another FE, then put that in place and update
+             * the header log
+             */
+            if (!QTAILQ_EMPTY(&ct3d->error_list)) {
+                uint32_t *header_log = &cache_mem[R_CXL_RAS_ERR_HEADER0];
+                int i;
+
+                cxl_err = QTAILQ_FIRST(&ct3d->error_list);
+                for (i = 0; i < CXL_RAS_ERR_HEADER_NUM; i++) {
+                    stl_le_p(header_log + i, cxl_err->header[i]);
+                }
+                capctrl = FIELD_DP32(capctrl, CXL_RAS_ERR_CAP_CTRL,
+                                     FIRST_ERROR_POINTER, cxl_err->type);
+            } else {
+                /*
+                 * If no more errors, then follow recomendation of PCI spec
+                 * r6.0 6.2.4.2 to set the first error pointer to a status
+                 * bit that will never be used.
+                 */
+                capctrl = FIELD_DP32(capctrl, CXL_RAS_ERR_CAP_CTRL,
+                                     FIRST_ERROR_POINTER,
+                                     CXL_RAS_UNC_ERR_CXL_UNUSED);
+            }
+            stl_le_p((uint8_t *)cache_mem + A_CXL_RAS_ERR_CAP_CTRL, capctrl);
+        }
+        unc_err = 0;
+        QTAILQ_FOREACH(cxl_err, &ct3d->error_list, node) {
+            unc_err |= 1 << cxl_err->type;
+        }
+        stl_le_p((uint8_t *)cache_mem + offset, unc_err);
+
+        return;
+    }
+    case A_CXL_RAS_COR_ERR_STATUS:
+    {
+        uint32_t rw1c = value;
+        uint32_t temp = ldl_le_p((uint8_t *)cache_mem + offset);
+        temp &= ~rw1c;
+        stl_le_p((uint8_t *)cache_mem + offset, temp);
+        return;
+    }
     default:
         break;
     }
@@ -403,6 +541,8 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     uint8_t *pci_conf = pci_dev->config;
     unsigned short msix_num = 1;
     int i, rc;
+
+    QTAILQ_INIT(&ct3d->error_list);
 
     if (!cxl_setup_memory(ct3d, errp)) {
         return;
@@ -629,6 +769,147 @@ static void set_lsa(CXLType3Dev *ct3d, const void *buf, uint64_t size,
      * Just like the PMEM, if the guest is not allowed to exit gracefully, label
      * updates will get lost.
      */
+}
+
+/* For uncorrectable errors include support for multiple header recording */
+void qmp_cxl_inject_uncorrectable_errors(const char *path,
+                                         CXLUncorErrorRecordList *errors,
+                                         Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    static PCIEAERErr err = {};
+    CXLType3Dev *ct3d;
+    CXLError *cxl_err;
+    uint32_t *reg_state;
+    uint32_t unc_err;
+    bool first;
+
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path does not point to a CXL type 3 device");
+        return;
+    }
+
+    err.status = PCI_ERR_UNC_INTN;
+    err.source_id = pci_requester_id(PCI_DEVICE(obj));
+    err.flags = 0;
+
+    ct3d = CXL_TYPE3(obj);
+
+    first = QTAILQ_EMPTY(&ct3d->error_list);
+    reg_state = ct3d->cxl_cstate.crb.cache_mem_registers;
+    while (errors) {
+        uint32List *header = errors->value->header;
+        uint8_t header_count = 0;
+        int cxl_err_code;
+
+        cxl_err_code = ct3d_qmp_uncor_err_to_cxl(errors->value->type);
+        if (cxl_err_code < 0) {
+            error_setg(errp, "Unknown error code");
+            return;
+        }
+
+        /* If the error is masked, nothing to do here */
+        if (!((1 << cxl_err_code) &
+              ~ldl_le_p(reg_state + R_CXL_RAS_UNC_ERR_MASK))) {
+            errors = errors->next;
+            continue;
+        }
+
+        cxl_err = g_malloc0(sizeof(*cxl_err));
+        if (!cxl_err) {
+            return;
+        }
+
+        cxl_err->type = cxl_err_code;
+        while (header && header_count < 32) {
+            cxl_err->header[header_count++] = header->value;
+            header = header->next;
+        }
+        if (header_count > 32) {
+            error_setg(errp, "Header must be 32 DWORD or less");
+            return;
+        }
+        QTAILQ_INSERT_TAIL(&ct3d->error_list, cxl_err, node);
+
+        errors = errors->next;
+    }
+
+    if (first && !QTAILQ_EMPTY(&ct3d->error_list)) {
+        uint32_t *cache_mem = ct3d->cxl_cstate.crb.cache_mem_registers;
+        uint32_t capctrl = ldl_le_p(cache_mem + R_CXL_RAS_ERR_CAP_CTRL);
+        uint32_t *header_log = &cache_mem[R_CXL_RAS_ERR_HEADER0];
+        int i;
+
+        cxl_err = QTAILQ_FIRST(&ct3d->error_list);
+        for (i = 0; i < CXL_RAS_ERR_HEADER_NUM; i++) {
+            stl_le_p(header_log + i, cxl_err->header[i]);
+        }
+
+        capctrl = FIELD_DP32(capctrl, CXL_RAS_ERR_CAP_CTRL,
+                             FIRST_ERROR_POINTER, cxl_err->type);
+        stl_le_p(cache_mem + R_CXL_RAS_ERR_CAP_CTRL, capctrl);
+    }
+
+    unc_err = 0;
+    QTAILQ_FOREACH(cxl_err, &ct3d->error_list, node) {
+        unc_err |= (1 << cxl_err->type);
+    }
+    if (!unc_err) {
+        return;
+    }
+
+    stl_le_p(reg_state + R_CXL_RAS_UNC_ERR_STATUS, unc_err);
+    pcie_aer_inject_error(PCI_DEVICE(obj), &err);
+
+    return;
+}
+
+void qmp_cxl_inject_correctable_error(const char *path, CxlCorErrorType type,
+                                      Error **errp)
+{
+    static PCIEAERErr err = {};
+    Object *obj = object_resolve_path(path, NULL);
+    CXLType3Dev *ct3d;
+    uint32_t *reg_state;
+    uint32_t cor_err;
+    int cxl_err_type;
+
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path does not point to a CXL type 3 device");
+        return;
+    }
+
+    err.status = PCI_ERR_COR_INTERNAL;
+    err.source_id = pci_requester_id(PCI_DEVICE(obj));
+    err.flags = PCIE_AER_ERR_IS_CORRECTABLE;
+
+    ct3d = CXL_TYPE3(obj);
+    reg_state = ct3d->cxl_cstate.crb.cache_mem_registers;
+    cor_err = ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_STATUS);
+
+    cxl_err_type = ct3d_qmp_cor_err_to_cxl(type);
+    if (cxl_err_type < 0) {
+        error_setg(errp, "Invalid COR error");
+        return;
+    }
+    /* If the error is masked, nothting to do here */
+    if (!((1 << cxl_err_type) & ~ldl_le_p(reg_state + R_CXL_RAS_COR_ERR_MASK))) {
+        return;
+    }
+
+    cor_err |= (1 << cxl_err_type);
+    stl_le_p(reg_state + R_CXL_RAS_COR_ERR_STATUS, cor_err);
+
+    pcie_aer_inject_error(PCI_DEVICE(obj), &err);
 }
 
 static void ct3_class_init(ObjectClass *oc, void *data)

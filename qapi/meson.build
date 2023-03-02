@@ -31,6 +31,7 @@ qapi_all_modules = [
   'compat',
   'control',
   'crypto',
+  'cxl',
   'dump',
   'error',
   'introspect',
