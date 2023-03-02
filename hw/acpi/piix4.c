@@ -492,7 +492,6 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
                                    pci_get_bus(dev), s);
-    qbus_set_hotplug_handler(BUS(pci_get_bus(dev)), OBJECT(s));
 
     piix4_pm_add_properties(s);
 }
@@ -564,6 +563,7 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
     if (s->use_acpi_hotplug_bridge || s->use_acpi_root_pci_hotplug) {
         acpi_pcihp_init(OBJECT(s), &s->acpi_pci_hotplug, bus, parent,
                         s->use_acpi_hotplug_bridge, ACPI_PCIHP_ADDR_PIIX4);
+        qbus_set_hotplug_handler(BUS(pci_get_bus(PCI_DEVICE(s))), OBJECT(s));
     }
 
     s->cpu_hotplug_legacy = true;
