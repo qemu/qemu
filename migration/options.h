@@ -50,6 +50,7 @@ uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_compress_wait_thread(void);
+uint8_t migrate_cpu_throttle_initial(void);
 int migrate_decompress_threads(void);
 uint8_t migrate_max_cpu_throttle(void);
 int64_t migrate_max_postcopy_bandwidth(void);

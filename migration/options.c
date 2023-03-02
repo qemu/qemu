@@ -509,6 +509,15 @@ int migrate_compress_wait_thread(void)
     return s->parameters.compress_wait_thread;
 }
 
+uint8_t migrate_cpu_throttle_initial(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.cpu_throttle_initial;
+}
+
 int migrate_decompress_threads(void)
 {
     MigrationState *s;
