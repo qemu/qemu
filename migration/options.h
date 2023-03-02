@@ -84,5 +84,6 @@ uint64_t migrate_xbzrle_cache_size(void);
 /* parameters helpers */
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
+void migrate_params_init(MigrationParameters *params);
 
 #endif
