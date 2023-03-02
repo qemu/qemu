@@ -285,31 +285,18 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
 }
 
 /*
- * Adds a PnvPHB to the chip. Returns the parent obj of the
- * PHB which varies with each version (phb version 3 is parented
- * by the chip, version 4 and 5 are parented by the PEC
- * device).
- *
- * TODO: for version 3 we're still parenting the PHB with the
- * chip. We should parent with a (so far not implemented)
- * PHB3 PEC device.
+ * Adds a PnvPHB to the chip on P8.
+ * Implemented here, like for defaults PHBs
  */
-Object *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp)
+PnvChip *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb)
 {
-    if (phb->version == 3) {
-        Pnv8Chip *chip8 = PNV8_CHIP(chip);
+    Pnv8Chip *chip8 = PNV8_CHIP(chip);
 
-        phb->chip = chip;
+    phb->chip = chip;
 
-        chip8->phbs[chip8->num_phbs] = phb;
-        chip8->num_phbs++;
-
-        return OBJECT(chip);
-    }
-
-    phb->pec = pnv_phb4_get_pec(chip, phb, errp);
-
-    return OBJECT(phb->pec);
+    chip8->phbs[chip8->num_phbs] = phb;
+    chip8->num_phbs++;
+    return chip;
 }
 
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)

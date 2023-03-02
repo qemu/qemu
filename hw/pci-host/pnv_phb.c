@@ -62,6 +62,15 @@ static bool pnv_parent_fixup(Object *parent, BusState *parent_bus,
     return true;
 }
 
+static Object *pnv_phb_user_get_parent(PnvChip *chip, PnvPHB *phb, Error **errp)
+{
+    if (phb->version == 3) {
+        return OBJECT(pnv_chip_add_phb(chip, phb));
+    } else {
+        return OBJECT(pnv_pec_add_phb(chip, phb, errp));
+    }
+}
+
 /*
  * User created devices won't have the initial setup that default
  * devices have. This setup consists of assigning a parent device
@@ -79,7 +88,7 @@ static bool pnv_phb_user_device_init(PnvPHB *phb, Error **errp)
         return false;
     }
 
-    parent = pnv_chip_add_phb(chip, phb, errp);
+    parent = pnv_phb_user_get_parent(chip, phb, errp);
     if (!parent) {
         return false;
     }
