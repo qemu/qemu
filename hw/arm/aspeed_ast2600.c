@@ -21,6 +21,7 @@
 #define ASPEED_SOC_DPMCU_SIZE       0x00040000
 
 static const hwaddr aspeed_soc_ast2600_memmap[] = {
+    [ASPEED_DEV_SPI_BOOT]  = ASPEED_SOC_SPI_BOOT_ADDR,
     [ASPEED_DEV_SRAM]      = 0x10000000,
     [ASPEED_DEV_DPMCU]     = 0x18000000,
     /* 0x16000000     0x17FFFFFF : AHB BUS do LPC Bus bridge */
@@ -282,6 +283,12 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     qemu_irq irq;
     g_autofree char *sram_name = NULL;
 
+    /* Default boot region (SPI memory or ROMs) */
+    memory_region_init(&s->spi_boot_container, OBJECT(s),
+                       "aspeed.spi_boot_container", 0x10000000);
+    memory_region_add_subregion(s->memory, sc->memmap[ASPEED_DEV_SPI_BOOT],
+                                &s->spi_boot_container);
+
     /* IO space */
     aspeed_mmio_map_unimplemented(s, SYS_BUS_DEVICE(&s->iomem), "aspeed.io",
                                   sc->memmap[ASPEED_DEV_IOMEM],
@@ -430,6 +437,12 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
                     ASPEED_SMC_GET_CLASS(&s->fmc)->flash_window_base);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->fmc), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_FMC));
+
+    /* Set up an alias on the FMC CE0 region (boot default) */
+    MemoryRegion *fmc0_mmio = &s->fmc.flashes[0].mmio;
+    memory_region_init_alias(&s->spi_boot, OBJECT(s), "aspeed.spi_boot",
+                             fmc0_mmio, 0, memory_region_size(fmc0_mmio));
+    memory_region_add_subregion(&s->spi_boot_container, 0x0, &s->spi_boot);
 
     /* SPI */
     for (i = 0; i < sc->spis_num; i++) {
