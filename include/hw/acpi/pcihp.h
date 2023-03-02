@@ -71,6 +71,8 @@ void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
 /* Called on reset */
 void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off);
 
+void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus);
+
 extern const VMStateDescription vmstate_acpi_pcihp_pci_status;
 
 #define VMSTATE_PCI_HOTPLUG(pcihp, state, test_pcihp, test_acpi_index) \

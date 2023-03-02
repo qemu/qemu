@@ -520,7 +520,7 @@ static bool is_devfn_ignored_hotplug(const int devfn, const PCIBus *bus)
     return false;
 }
 
-static void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus)
+void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus)
 {
     int devfn;
     Aml *dev, *notify_method = NULL, *method;
@@ -598,10 +598,6 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus)
 
         /* device descriptor has been composed, add it into parent context */
         aml_append(parent_scope, dev);
-    }
-
-    if (object_property_find(OBJECT(bus), ACPI_PCIHP_PROP_BSEL)) {
-        build_append_pcihp_slots(parent_scope, bus);
     }
 }
 
@@ -1790,6 +1786,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             Aml *scope = aml_scope("PCI0");
             /* Scan all PCI buses. Generate tables to support hotplug. */
             build_append_pci_bus_devices(scope, bus);
+            if (object_property_find(OBJECT(bus), ACPI_PCIHP_PROP_BSEL)) {
+                build_append_pcihp_slots(scope, bus);
+            }
             aml_append(sb_scope, scope);
         }
     }

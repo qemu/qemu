@@ -22,6 +22,16 @@ void build_pci_bridge_aml(AcpiDevAmlIf *adev, Aml *scope)
     PCIBridge *br = PCI_BRIDGE(adev);
 
     if (!DEVICE(br)->hotplugged) {
-        build_append_pci_bus_devices(scope, pci_bridge_get_sec_bus(br));
+        PCIBus *sec_bus = pci_bridge_get_sec_bus(br);
+
+        build_append_pci_bus_devices(scope, sec_bus);
+
+        /*
+         * generate hotplug slots descriptors if
+         * bridge has ACPI PCI hotplug attached,
+         */
+        if (object_property_find(OBJECT(sec_bus), ACPI_PCIHP_PROP_BSEL)) {
+            build_append_pcihp_slots(scope, sec_bus);
+        }
     }
 }
