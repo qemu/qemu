@@ -189,8 +189,22 @@ static void enqueue(struct rcu_head *node)
     struct rcu_head **old_tail;
 
     node->next = NULL;
+
+    /*
+     * Make this node the tail of the list.  The node will be
+     * used by further enqueue operations, but it will not
+     * be dequeued yet...
+     */
     old_tail = qatomic_xchg(&tail, &node->next);
-    qatomic_mb_set(old_tail, node);
+
+    /*
+     * ... until it is pointed to from another item in the list.
+     * In the meantime, try_dequeue() will find a NULL next pointer
+     * and loop.
+     *
+     * Synchronizes with qatomic_load_acquire() in try_dequeue().
+     */
+    qatomic_store_release(old_tail, node);
 }
 
 static struct rcu_head *try_dequeue(void)
@@ -198,26 +212,31 @@ static struct rcu_head *try_dequeue(void)
     struct rcu_head *node, *next;
 
 retry:
-    /* Test for an empty list, which we do not expect.  Note that for
+    /* Head is only written by this thread, so no need for barriers.  */
+    node = head;
+
+    /*
+     * If the head node has NULL in its next pointer, the value is
+     * wrong and we need to wait until its enqueuer finishes the update.
+     */
+    next = qatomic_load_acquire(&node->next);
+    if (!next) {
+        return NULL;
+    }
+
+    /*
+     * Test for an empty list, which we do not expect.  Note that for
      * the consumer head and tail are always consistent.  The head
      * is consistent because only the consumer reads/writes it.
      * The tail, because it is the first step in the enqueuing.
      * It is only the next pointers that might be inconsistent.
      */
-    if (head == &dummy && qatomic_mb_read(&tail) == &dummy.next) {
+    if (head == &dummy && qatomic_read(&tail) == &dummy.next) {
         abort();
     }
 
-    /* If the head node has NULL in its next pointer, the value is
-     * wrong and we need to wait until its enqueuer finishes the update.
-     */
-    node = head;
-    next = qatomic_mb_read(&head->next);
-    if (!next) {
-        return NULL;
-    }
-
-    /* Since we are the sole consumer, and we excluded the empty case
+    /*
+     * Since we are the sole consumer, and we excluded the empty case
      * above, the queue will always have at least two nodes: the
      * dummy node, and the one being removed.  So we do not need to update
      * the tail pointer.
