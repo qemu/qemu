@@ -689,25 +689,10 @@ static int vhost_vdpa_get_device_id(struct vhost_dev *dev,
     return ret;
 }
 
-static void vhost_vdpa_reset_svq(struct vhost_vdpa *v)
-{
-    if (!v->shadow_vqs_enabled) {
-        return;
-    }
-
-    for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
-        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
-        vhost_svq_stop(svq);
-    }
-}
-
 static int vhost_vdpa_reset_device(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
     int ret;
     uint8_t status = 0;
-
-    vhost_vdpa_reset_svq(v);
 
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
     trace_vhost_vdpa_reset_device(dev, status);
@@ -1100,6 +1085,8 @@ static void vhost_vdpa_svqs_stop(struct vhost_dev *dev)
 
     for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
         VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
+
+        vhost_svq_stop(svq);
         vhost_vdpa_svq_unmap_rings(dev, svq);
 
         event_notifier_cleanup(&svq->hdev_kick);

@@ -693,12 +693,12 @@ static const VMStateDescription vmstate_fw_cfg = {
     }
 };
 
-void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
-                               FWCfgCallback select_cb,
-                               FWCfgWriteCallback write_cb,
-                               void *callback_opaque,
-                               void *data, size_t len,
-                               bool read_only)
+static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
+                                      FWCfgCallback select_cb,
+                                      FWCfgWriteCallback write_cb,
+                                      void *callback_opaque,
+                                      void *data, size_t len,
+                                      bool read_only)
 {
     int arch = !!(key & FW_CFG_ARCH_LOCAL);
 
@@ -739,15 +739,6 @@ void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
     trace_fw_cfg_add_bytes(key, trace_key_name(key), len);
     fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
-}
-
-void *fw_cfg_read_bytes_ptr(FWCfgState *s, uint16_t key)
-{
-    int arch = !!(key & FW_CFG_ARCH_LOCAL);
-
-    key &= FW_CFG_ENTRY_MASK;
-    assert(key < fw_cfg_max_entry(s));
-    return s->entries[arch][key].data;
 }
 
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)

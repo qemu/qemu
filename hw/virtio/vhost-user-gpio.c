@@ -16,6 +16,7 @@
 #include "trace.h"
 
 #define REALIZE_CONNECTION_RETRIES 3
+#define VHOST_NVQS 2
 
 /* Features required from VirtIO */
 static const int feature_bits[] = {
@@ -208,8 +209,7 @@ static void do_vhost_user_cleanup(VirtIODevice *vdev, VHostUserGPIO *gpio)
 {
     virtio_delete_queue(gpio->command_vq);
     virtio_delete_queue(gpio->interrupt_vq);
-    g_free(gpio->vhost_dev.vqs);
-    gpio->vhost_dev.vqs = NULL;
+    g_free(gpio->vhost_vqs);
     virtio_cleanup(vdev);
     vhost_user_cleanup(&gpio->vhost_user);
 }
@@ -228,6 +228,9 @@ static int vu_gpio_connect(DeviceState *dev, Error **errp)
 
     vhost_dev_set_config_notifier(vhost_dev, &gpio_ops);
     gpio->vhost_user.supports_config = true;
+
+    gpio->vhost_dev.nvqs = VHOST_NVQS;
+    gpio->vhost_dev.vqs = gpio->vhost_vqs;
 
     ret = vhost_dev_init(vhost_dev, &gpio->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
@@ -347,10 +350,9 @@ static void vu_gpio_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, VIRTIO_ID_GPIO, sizeof(gpio->config));
 
-    gpio->vhost_dev.nvqs = 2;
     gpio->command_vq = virtio_add_queue(vdev, 256, vu_gpio_handle_output);
     gpio->interrupt_vq = virtio_add_queue(vdev, 256, vu_gpio_handle_output);
-    gpio->vhost_dev.vqs = g_new0(struct vhost_virtqueue, gpio->vhost_dev.nvqs);
+    gpio->vhost_vqs = g_new0(struct vhost_virtqueue, VHOST_NVQS);
 
     gpio->connected = false;
 

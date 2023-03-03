@@ -118,37 +118,6 @@ struct FWCfgMemState {
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 
 /**
- * fw_cfg_add_bytes_callback:
- * @s: fw_cfg device being modified
- * @key: selector key value for new fw_cfg item
- * @select_cb: callback function when selecting
- * @write_cb: callback function after a write
- * @callback_opaque: argument to be passed into callback function
- * @data: pointer to start of item data
- * @len: size of item data
- * @read_only: is file read only
- *
- * Add a new fw_cfg item, available by selecting the given key, as a raw
- * "blob" of the given size. The data referenced by the starting pointer
- * is only linked, NOT copied, into the data structure of the fw_cfg device.
- */
-void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
-                               FWCfgCallback select_cb,
-                               FWCfgWriteCallback write_cb,
-                               void *callback_opaque,
-                               void *data, size_t len,
-                               bool read_only);
-
-/**
- * fw_cfg_read_bytes_ptr:
- * @s: fw_cfg device being modified
- * @key: selector key value for new fw_cfg item
- *
- * Reads an existing fw_cfg data pointer.
- */
-void *fw_cfg_read_bytes_ptr(FWCfgState *s, uint16_t key);
-
-/**
  * fw_cfg_add_string:
  * @s: fw_cfg device being modified
  * @key: selector key value for new fw_cfg item
