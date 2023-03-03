@@ -7,3 +7,6 @@
 specific_ss.add(files('gdbstub.c'))
 softmmu_ss.add(files('softmmu.c'))
 user_ss.add(files('user.c'))
+
+# The user-target is specialised by the guest
+specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))
