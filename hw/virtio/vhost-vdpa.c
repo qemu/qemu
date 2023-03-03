@@ -444,6 +444,21 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     }
 
     /*
+     * If dev->shadow_vqs_enabled at initialization that means the device has
+     * been started with x-svq=on, so don't block migration
+     */
+    if (dev->migration_blocker == NULL && !v->shadow_vqs_enabled) {
+        /* We don't have dev->features yet */
+        uint64_t features;
+        ret = vhost_vdpa_get_dev_features(dev, &features);
+        if (unlikely(ret)) {
+            error_setg_errno(errp, -ret, "Could not get device features");
+            return ret;
+        }
+        vhost_svq_valid_features(features, &dev->migration_blocker);
+    }
+
+    /*
      * Similar to VFIO, we end up pinning all guest memory and have to
      * disable discarding of RAM.
      */
