@@ -56,6 +56,14 @@ int gdb_get_cpu_index(CPUState *cpu)
 }
 
 /*
+ * We check the status of the last message in the chardev receive code
+ */
+bool gdb_got_immediate_ack(void)
+{
+    return true;
+}
+
+/*
  * GDB Connection management. For system emulation we do all of this
  * via our existing Chardev infrastructure which allows us to support
  * network and unix sockets.
