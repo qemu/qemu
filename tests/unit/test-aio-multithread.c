@@ -202,7 +202,7 @@ static CoMutex comutex;
 
 static void coroutine_fn test_multi_co_mutex_entry(void *opaque)
 {
-    while (!qatomic_mb_read(&now_stopping)) {
+    while (!qatomic_read(&now_stopping)) {
         qemu_co_mutex_lock(&comutex);
         counter++;
         qemu_co_mutex_unlock(&comutex);
@@ -236,7 +236,7 @@ static void test_multi_co_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    qatomic_mb_set(&now_stopping, true);
+    qatomic_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }
@@ -327,7 +327,7 @@ static void mcs_mutex_unlock(void)
 
 static void test_multi_fair_mutex_entry(void *opaque)
 {
-    while (!qatomic_mb_read(&now_stopping)) {
+    while (!qatomic_read(&now_stopping)) {
         mcs_mutex_lock();
         counter++;
         mcs_mutex_unlock();
@@ -355,7 +355,7 @@ static void test_multi_fair_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    qatomic_mb_set(&now_stopping, true);
+    qatomic_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }
@@ -383,7 +383,7 @@ static QemuMutex mutex;
 
 static void test_multi_mutex_entry(void *opaque)
 {
-    while (!qatomic_mb_read(&now_stopping)) {
+    while (!qatomic_read(&now_stopping)) {
         qemu_mutex_lock(&mutex);
         counter++;
         qemu_mutex_unlock(&mutex);
@@ -411,7 +411,7 @@ static void test_multi_mutex(int threads, int seconds)
 
     g_usleep(seconds * 1000000);
 
-    qatomic_mb_set(&now_stopping, true);
+    qatomic_set(&now_stopping, true);
     while (running > 0) {
         g_usleep(100000);
     }
