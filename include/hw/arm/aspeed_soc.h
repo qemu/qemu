@@ -58,6 +58,8 @@ struct AspeedSoCState {
     MemoryRegion *dram_mr;
     MemoryRegion dram_container;
     MemoryRegion sram;
+    MemoryRegion spi_boot_container;
+    MemoryRegion spi_boot;
     AspeedVICState vic;
     AspeedRtcState rtc;
     AspeedTimerCtrlState timerctrl;
@@ -120,6 +122,7 @@ struct AspeedSoCClass {
 
 
 enum {
+    ASPEED_DEV_SPI_BOOT,
     ASPEED_DEV_IOMEM,
     ASPEED_DEV_UART1,
     ASPEED_DEV_UART2,
@@ -189,6 +192,8 @@ enum {
     ASPEED_DEV_JTAG0,
     ASPEED_DEV_JTAG1,
 };
+
+#define ASPEED_SOC_SPI_BOOT_ADDR 0x0
 
 qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int dev);
 bool aspeed_soc_uart_realize(AspeedSoCState *s, Error **errp);

@@ -100,13 +100,7 @@ static void fby35_bmc_init(Fby35State *s)
         MemoryRegion *boot_rom = g_new(MemoryRegion, 1);
         uint64_t size = memory_region_size(&fl->mmio);
 
-        if (s->mmio_exec) {
-            memory_region_init_alias(boot_rom, NULL, "aspeed.boot_rom",
-                                     &fl->mmio, 0, size);
-            memory_region_add_subregion(&s->bmc_memory, FBY35_BMC_FIRMWARE_ADDR,
-                                        boot_rom);
-        } else {
-
+        if (!s->mmio_exec) {
             memory_region_init_rom(boot_rom, NULL, "aspeed.boot_rom",
                                    size, &error_abort);
             memory_region_add_subregion(&s->bmc_memory, FBY35_BMC_FIRMWARE_ADDR,
