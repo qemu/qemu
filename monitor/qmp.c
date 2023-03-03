@@ -226,13 +226,8 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
     return req_obj;
 }
 
-void coroutine_fn monitor_qmp_dispatcher_co(void *data)
+static QMPRequest *monitor_qmp_dispatcher_pop_any(void)
 {
-    QMPRequest *req_obj = NULL;
-    QDict *rsp;
-    bool oob_enabled;
-    MonitorQMP *mon;
-
     while (true) {
         /*
          * busy must be set to true again by whoever
@@ -248,24 +243,36 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         qatomic_mb_set(&qmp_dispatcher_co_busy, false);
 
         WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+            QMPRequest *req_obj;
+
             /* On shutdown, don't take any more requests from the queue */
             if (qmp_dispatcher_co_shutdown) {
                 return NULL;
             }
 
             req_obj = monitor_qmp_requests_pop_any_with_lock();
+            if (req_obj) {
+                return req_obj;
+            }
         }
 
-        if (!req_obj) {
-            /*
-             * No more requests to process.  Wait to be reentered from
-             * handle_qmp_command() when it pushes more requests, or
-             * from monitor_cleanup() when it requests shutdown.
-             */
-            qemu_coroutine_yield();
-            continue;
-        }
+        /*
+         * No more requests to process.  Wait to be reentered from
+         * handle_qmp_command() when it pushes more requests, or
+         * from monitor_cleanup() when it requests shutdown.
+         */
+        qemu_coroutine_yield();
+    }
+}
 
+void coroutine_fn monitor_qmp_dispatcher_co(void *data)
+{
+    QMPRequest *req_obj;
+    QDict *rsp;
+    bool oob_enabled;
+    MonitorQMP *mon;
+
+    while ((req_obj = monitor_qmp_dispatcher_pop_any()) != NULL) {
         trace_monitor_qmp_in_band_dequeue(req_obj,
                                           req_obj->mon->qmp_requests->length);
 
