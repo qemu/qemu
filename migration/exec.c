@@ -23,12 +23,31 @@
 #include "migration.h"
 #include "io/channel-command.h"
 #include "trace.h"
+#include "qemu/cutils.h"
 
+#ifdef WIN32
+const char *exec_get_cmd_path(void);
+const char *exec_get_cmd_path(void)
+{
+    g_autofree char *detected_path = g_new(char, MAX_PATH);
+    if (GetSystemDirectoryA(detected_path, MAX_PATH) == 0) {
+        warn_report("Could not detect cmd.exe path, using default.");
+        return "C:\\Windows\\System32\\cmd.exe";
+    }
+    pstrcat(detected_path, MAX_PATH, "\\cmd.exe");
+    return g_steal_pointer(&detected_path);
+}
+#endif
 
 void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
     QIOChannel *ioc;
+
+#ifdef WIN32
+    const char *argv[] = { exec_get_cmd_path(), "/c", command, NULL };
+#else
     const char *argv[] = { "/bin/sh", "-c", command, NULL };
+#endif
 
     trace_migration_exec_outgoing(command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
@@ -55,7 +74,12 @@ static gboolean exec_accept_incoming_migration(QIOChannel *ioc,
 void exec_start_incoming_migration(const char *command, Error **errp)
 {
     QIOChannel *ioc;
+
+#ifdef WIN32
+    const char *argv[] = { exec_get_cmd_path(), "/c", command, NULL };
+#else
     const char *argv[] = { "/bin/sh", "-c", command, NULL };
+#endif
 
     trace_migration_exec_incoming(command);
     ioc = QIO_CHANNEL(qio_channel_command_new_spawn(argv,
