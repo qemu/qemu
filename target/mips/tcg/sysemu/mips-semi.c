@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "qemu/log.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/helpers.h"
 #include "semihosting/softmmu-uaccess.h"
 #include "semihosting/semihost.h"
 #include "semihosting/console.h"

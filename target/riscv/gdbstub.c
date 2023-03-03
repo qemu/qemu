@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/helpers.h"
 #include "cpu.h"
 
 struct TypeSize {
