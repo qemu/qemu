@@ -110,14 +110,14 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     *(p++) = 'F';
     while (*fmt) {
         if (*fmt == '%') {
-            target_ulong addr;
             uint64_t i64;
+            uint32_t i32;
 
             fmt++;
             switch (*fmt++) {
             case 'x':
-                addr = va_arg(va, target_ulong);
-                p += snprintf(p, p_end - p, TARGET_FMT_lx, addr);
+                i32 = va_arg(va, uint32_t);
+                p += snprintf(p, p_end - p, "%" PRIx32, i32);
                 break;
             case 'l':
                 if (*(fmt++) != 'x') {
@@ -127,9 +127,9 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
                 p += snprintf(p, p_end - p, "%" PRIx64, i64);
                 break;
             case 's':
-                addr = va_arg(va, target_ulong);
-                p += snprintf(p, p_end - p, TARGET_FMT_lx "/%x",
-                              addr, va_arg(va, int));
+                i64 = va_arg(va, uint64_t);
+                i32 = va_arg(va, uint32_t);
+                p += snprintf(p, p_end - p, "%" PRIx64 "/%x" PRIx32, i64, i32);
                 break;
             default:
             bad_format:
