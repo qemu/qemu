@@ -47,6 +47,8 @@
 #include "semihosting/semihost.h"
 #include "exec/exec-all.h"
 #include "exec/replay-core.h"
+#include "exec/tb-flush.h"
+#include "exec/hwaddr.h"
 
 #include "internals.h"
 
