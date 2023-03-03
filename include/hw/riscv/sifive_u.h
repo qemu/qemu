@@ -68,6 +68,7 @@ typedef struct SiFiveUState {
 
     /*< public >*/
     SiFiveUSoCState soc;
+    int fdt_size;
 
     bool start_in_flash;
     uint32_t msel;

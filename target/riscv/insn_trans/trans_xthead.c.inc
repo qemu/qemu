@@ -980,10 +980,6 @@ static bool trans_th_lwud(DisasContext *ctx, arg_th_pair *a)
 static bool gen_storepair_tl(DisasContext *ctx, arg_th_pair *a, MemOp memop,
                              int shamt)
 {
-    if (a->rs == a->rd1 || a->rs == a->rd2 || a->rd1 == a->rd2) {
-        return false;
-    }
-
     TCGv data1 = get_gpr(ctx, a->rd1, EXT_NONE);
     TCGv data2 = get_gpr(ctx, a->rd2, EXT_NONE);
     TCGv addr1 = tcg_temp_new();
