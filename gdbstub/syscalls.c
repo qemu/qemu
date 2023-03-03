@@ -93,24 +93,26 @@ bool gdb_handled_syscall(void)
  *   %lx - 64-bit argument printed in hex.
  *   %s  - string pointer (target_ulong) and length (int) pair.
  */
-void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va)
+void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
 {
-    char *p;
-    char *p_end;
-    target_ulong addr;
-    uint64_t i64;
+    char *p, *p_end;
+    va_list va;
 
     if (!gdb_attached()) {
         return;
     }
 
     gdbserver_syscall_state.current_syscall_cb = cb;
+    va_start(va, fmt);
 
-    p = &gdbserver_syscall_state.syscall_buf[0];
-    p_end = &gdbserver_syscall_state.syscall_buf[sizeof(gdbserver_syscall_state.syscall_buf)];
+    p = gdbserver_syscall_state.syscall_buf;
+    p_end = p + sizeof(gdbserver_syscall_state.syscall_buf);
     *(p++) = 'F';
     while (*fmt) {
         if (*fmt == '%') {
+            target_ulong addr;
+            uint64_t i64;
+
             fmt++;
             switch (*fmt++) {
             case 'x':
@@ -141,16 +143,8 @@ void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va)
     }
     *p = 0;
 
-    gdb_syscall_handling(gdbserver_syscall_state.syscall_buf);
-}
-
-void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
-{
-    va_list va;
-
-    va_start(va, fmt);
-    gdb_do_syscallv(cb, fmt, va);
     va_end(va);
+    gdb_syscall_handling(gdbserver_syscall_state.syscall_buf);
 }
 
 /*

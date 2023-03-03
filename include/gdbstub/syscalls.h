@@ -92,17 +92,6 @@ typedef void (*gdb_syscall_complete_cb)(CPUState *cpu, uint64_t ret, int err);
 void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...);
 
 /**
- * gdb_do_syscallv:
- * @cb: function to call when the system call has completed
- * @fmt: gdb syscall format string
- * @va: arguments to interpolate into @fmt
- *
- * As gdb_do_syscall, but taking a va_list rather than a variable
- * argument list.
- */
-void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va);
-
-/**
  * use_gdb_syscalls() - report if GDB should be used for syscalls
  *
  * This is mostly driven by the semihosting mode the user configures
