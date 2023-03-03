@@ -61,8 +61,6 @@ typedef struct GDBState {
     bool multiprocess;
     GDBProcess *processes;
     int process_num;
-    char syscall_buf[256];
-    gdb_syscall_complete_cb current_syscall_cb;
     GString *str_buf;
     GByteArray *mem_buf;
     int sstep_flags;
@@ -190,6 +188,12 @@ void gdb_handle_query_attached(GArray *params, void *user_ctx); /* both */
 /* softmmu only */
 void gdb_handle_query_qemu_phy_mem_mode(GArray *params, void *user_ctx);
 void gdb_handle_set_qemu_phy_mem_mode(GArray *params, void *user_ctx);
+
+/* sycall handling */
+void gdb_handle_file_io(GArray *params, void *user_ctx);
+bool gdb_handled_syscall(void);
+void gdb_disable_syscalls(void);
+void gdb_syscall_reset(void);
 
 /*
  * Break/Watch point support - there is an implementation for softmmu

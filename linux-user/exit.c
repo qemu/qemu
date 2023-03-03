@@ -18,7 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "accel/tcg/perf.h"
-#include "exec/gdbstub.h"
+#include "gdbstub/syscalls.h"
 #include "qemu.h"
 #include "user-internals.h"
 #ifdef CONFIG_GPROF

@@ -15,6 +15,7 @@
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/syscalls.h"
 #include "exec/hwaddr.h"
 #include "exec/tb-flush.h"
 #include "sysemu/cpus.h"
@@ -113,9 +114,9 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
     if (running || gdbserver_state.state == RS_INACTIVE) {
         return;
     }
+
     /* Is there a GDB syscall waiting to be sent?  */
-    if (gdbserver_state.current_syscall_cb) {
-        gdb_put_packet(gdbserver_state.syscall_buf);
+    if (gdb_handled_syscall()) {
         return;
     }
 
@@ -384,7 +385,7 @@ int gdbserver_start(const char *device)
     }
     gdbserver_state.state = chr ? RS_IDLE : RS_INACTIVE;
     gdbserver_system_state.mon_chr = mon_chr;
-    gdbserver_state.current_syscall_cb = NULL;
+    gdb_syscall_reset();
 
     return 0;
 }

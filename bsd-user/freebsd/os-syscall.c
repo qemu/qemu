@@ -38,6 +38,8 @@
 #include <sys/sysctl.h>
 #include <utime.h>
 
+#include "include/gdbstub/syscalls.h"
+
 #include "qemu.h"
 #include "signal-common.h"
 #include "user/syscall-trace.h"
