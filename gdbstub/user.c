@@ -394,6 +394,23 @@ int gdb_target_memory_rw_debug(CPUState *cpu, hwaddr addr,
 }
 
 /*
+ * cpu helpers
+ */
+
+unsigned int gdb_get_max_cpus(void)
+{
+    CPUState *cpu;
+    unsigned int max_cpus = 1;
+
+    CPU_FOREACH(cpu) {
+        max_cpus = max_cpus <= cpu->cpu_index ? cpu->cpu_index + 1 : max_cpus;
+    }
+
+    return max_cpus;
+}
+
+
+/*
  * Break/Watch point helpers
  */
 
