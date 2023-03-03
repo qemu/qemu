@@ -2134,11 +2134,10 @@ static void acpi_build_update(void *build_opaque)
     AcpiBuildState *build_state = build_opaque;
     AcpiBuildTables tables;
 
-    /* No state to update or already patched? Nothing to do. */
-    if (!build_state || build_state->patched) {
+    /* No state? Nothing to do. */
+    if (!build_state) {
         return;
     }
-    build_state->patched = 1;
 
     acpi_build_tables_init(&tables);
 
@@ -2150,12 +2149,6 @@ static void acpi_build_update(void *build_opaque)
 
     acpi_ram_update(build_state->linker_mr, tables.linker->cmd_blob);
     acpi_build_tables_cleanup(&tables, true);
-}
-
-static void acpi_build_reset(void *build_opaque)
-{
-    AcpiBuildState *build_state = build_opaque;
-    build_state->patched = 0;
 }
 
 static const VMStateDescription vmstate_acpi_build = {
@@ -2236,8 +2229,6 @@ void acpi_setup(void)
                                              build_state, tables.rsdp,
                                              ACPI_BUILD_RSDP_FILE);
 
-    qemu_register_reset(acpi_build_reset, build_state);
-    acpi_build_reset(build_state);
     vmstate_register(NULL, 0, &vmstate_acpi_build, build_state);
 
     /* Cleanup tables but don't free the memory: we track it
