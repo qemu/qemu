@@ -87,7 +87,10 @@ static inline void rcu_read_lock(void)
     ctr = qatomic_read(&rcu_gp_ctr);
     qatomic_set(&p_rcu_reader->ctr, ctr);
 
-    /* Write p_rcu_reader->ctr before reading RCU-protected pointers.  */
+    /*
+     * Read rcu_gp_ptr and write p_rcu_reader->ctr before reading
+     * RCU-protected pointers.
+     */
     smp_mb_placeholder();
 }
 
