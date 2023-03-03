@@ -1229,7 +1229,7 @@ static void hvf_wait_for_ipi(CPUState *cpu, struct timespec *ts)
      * Use pselect to sleep so that other threads can IPI us while we're
      * sleeping.
      */
-    qatomic_mb_set(&cpu->thread_kicked, false);
+    qatomic_set_mb(&cpu->thread_kicked, false);
     qemu_mutex_unlock_iothread();
     pselect(0, 0, 0, 0, ts, &cpu->hvf->unblock_ipi_mask);
     qemu_mutex_lock_iothread();

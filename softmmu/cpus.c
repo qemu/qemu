@@ -405,7 +405,7 @@ static void qemu_cpu_stop(CPUState *cpu, bool exit)
 
 void qemu_wait_io_event_common(CPUState *cpu)
 {
-    qatomic_mb_set(&cpu->thread_kicked, false);
+    qatomic_set_mb(&cpu->thread_kicked, false);
     if (cpu->stop) {
         qemu_cpu_stop(cpu, false);
     }

@@ -244,7 +244,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
         while (cpu && cpu_work_list_empty(cpu) && !cpu->exit_request) {
             /* Store rr_current_cpu before evaluating cpu_can_run().  */
-            qatomic_mb_set(&rr_current_cpu, cpu);
+            qatomic_set_mb(&rr_current_cpu, cpu);
 
             current_cpu = cpu;
 
@@ -287,7 +287,7 @@ static void *rr_cpu_thread_fn(void *arg)
         qatomic_set(&rr_current_cpu, NULL);
 
         if (cpu && cpu->exit_request) {
-            qatomic_mb_set(&cpu->exit_request, 0);
+            qatomic_set_mb(&cpu->exit_request, 0);
         }
 
         if (icount_enabled() && all_cpu_threads_idle()) {
