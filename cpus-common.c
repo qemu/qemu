@@ -157,7 +157,7 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
     wi.exclusive = false;
 
     queue_work_on_cpu(cpu, &wi);
-    while (!qatomic_mb_read(&wi.done)) {
+    while (!qatomic_load_acquire(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
         qemu_cond_wait(&qemu_work_cond, mutex);
@@ -363,7 +363,7 @@ void process_queued_cpu_work(CPUState *cpu)
         if (wi->free) {
             g_free(wi);
         } else {
-            qatomic_mb_set(&wi->done, true);
+            qatomic_store_release(&wi->done, true);
         }
     }
     qemu_mutex_unlock(&cpu->work_mutex);
