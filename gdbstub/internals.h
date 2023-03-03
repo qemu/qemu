@@ -85,6 +85,31 @@ static inline int tohex(int v)
 }
 
 /*
+ * Connection helpers for both softmmu and user backends
+ */
+
+void gdb_put_strbuf(void);
+int gdb_put_packet(const char *buf);
+int gdb_put_packet_binary(const char *buf, int len, bool dump);
+void gdb_hextomem(GByteArray *mem, const char *buf, int len);
+void gdb_memtohex(GString *buf, const uint8_t *mem, int len);
+void gdb_memtox(GString *buf, const char *mem, int len);
+void gdb_read_byte(uint8_t ch);
+
+/* utility helpers */
+CPUState *gdb_first_attached_cpu(void);
+void gdb_append_thread_id(CPUState *cpu, GString *buf);
+int gdb_get_cpu_index(CPUState *cpu);
+
+void gdb_init_gdbserver_state(void);
+void gdb_create_default_process(GDBState *s);
+
+/*
+ * Helpers with separate softmmu and user implementations
+ */
+void gdb_put_buffer(const uint8_t *buf, int len);
+
+/*
  * Break/Watch point support - there is an implementation for softmmu
  * and user mode.
  */
