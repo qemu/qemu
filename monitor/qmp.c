@@ -178,8 +178,6 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
     Monitor *mon;
     MonitorQMP *qmp_mon;
 
-    QEMU_LOCK_GUARD(&monitor_lock);
-
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         if (!monitor_is_qmp(mon)) {
             continue;
@@ -215,6 +213,10 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
     MonitorQMP *mon;
 
     while (true) {
+        /*
+         * busy must be set to true again by whoever
+         * rescheduled us to avoid double scheduling
+         */
         assert(qatomic_mb_read(&qmp_dispatcher_co_busy) == true);
 
         /*
@@ -224,36 +226,23 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
          */
         qatomic_mb_set(&qmp_dispatcher_co_busy, false);
 
-        /* On shutdown, don't take any more requests from the queue */
-        if (qmp_dispatcher_co_shutdown) {
-            qatomic_set(&qmp_dispatcher_co, NULL);
-            return;
+        WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+            /* On shutdown, don't take any more requests from the queue */
+            if (qmp_dispatcher_co_shutdown) {
+                return NULL;
+            }
+
+            req_obj = monitor_qmp_requests_pop_any_with_lock();
         }
 
-        while (!(req_obj = monitor_qmp_requests_pop_any_with_lock())) {
+        if (!req_obj) {
             /*
              * No more requests to process.  Wait to be reentered from
              * handle_qmp_command() when it pushes more requests, or
              * from monitor_cleanup() when it requests shutdown.
              */
-            if (!qmp_dispatcher_co_shutdown) {
-                qemu_coroutine_yield();
-
-                /*
-                 * busy must be set to true again by whoever
-                 * rescheduled us to avoid double scheduling
-                 */
-                assert(qatomic_xchg(&qmp_dispatcher_co_busy, false) == true);
-            }
-
-            /*
-             * qmp_dispatcher_co_shutdown may have changed if we
-             * yielded and were reentered from monitor_cleanup()
-             */
-            if (qmp_dispatcher_co_shutdown) {
-                qatomic_set(&qmp_dispatcher_co, NULL);
-                return;
-            }
+            qemu_coroutine_yield();
+            continue;
         }
 
         trace_monitor_qmp_in_band_dequeue(req_obj,
@@ -342,6 +331,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
         qemu_coroutine_yield();
     }
+    qatomic_set(&qmp_dispatcher_co, NULL);
 }
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)

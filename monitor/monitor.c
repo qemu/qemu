@@ -56,7 +56,10 @@ IOThread *mon_iothread;
 /* Coroutine to dispatch the requests received from I/O thread */
 Coroutine *qmp_dispatcher_co;
 
-/* Set to true when the dispatcher coroutine should terminate */
+/*
+ * Set to true when the dispatcher coroutine should terminate.  Protected
+ * by monitor_lock.
+ */
 bool qmp_dispatcher_co_shutdown;
 
 /*
@@ -679,7 +682,9 @@ void monitor_cleanup(void)
      * we'll just leave them in the queue without sending a response
      * and monitor_data_destroy() will free them.
      */
-    qmp_dispatcher_co_shutdown = true;
+    WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+        qmp_dispatcher_co_shutdown = true;
+    }
     if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
         aio_co_wake(qmp_dispatcher_co);
     }
