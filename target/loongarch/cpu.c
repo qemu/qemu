@@ -546,6 +546,8 @@ static void loongarch_qemu_write(void *opaque, hwaddr addr,
 static uint64_t loongarch_qemu_read(void *opaque, hwaddr addr, unsigned size)
 {
     switch (addr) {
+    case VERSION_REG:
+        return 0x11ULL;
     case FEATURE_REG:
         return 1ULL << IOCSRF_MSI | 1ULL << IOCSRF_EXTIOI |
                1ULL << IOCSRF_CSRIPI;

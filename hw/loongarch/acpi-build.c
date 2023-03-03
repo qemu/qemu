@@ -260,6 +260,7 @@ build_la_ged_aml(Aml *dsdt, MachineState *machine)
                                  AML_SYSTEM_MEMORY,
                                  VIRT_GED_MEM_ADDR);
     }
+    acpi_dsdt_add_power_button(dsdt);
 }
 
 static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)
@@ -271,7 +272,7 @@ static void build_pci_device_aml(Aml *scope, LoongArchMachineState *lams)
         .pio.size    = VIRT_PCI_IO_SIZE,
         .ecam.base   = VIRT_PCI_CFG_BASE,
         .ecam.size   = VIRT_PCI_CFG_SIZE,
-        .irq         = PCH_PIC_IRQ_OFFSET + VIRT_DEVICE_IRQS,
+        .irq         = VIRT_GSI_BASE + VIRT_DEVICE_IRQS,
         .bus         = lams->pci_bus,
     };
 
