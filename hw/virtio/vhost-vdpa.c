@@ -1193,6 +1193,14 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
         return 0;
     }
 
+    if (!v->suspended) {
+        /*
+         * Cannot trust in value returned by device, let vhost recover used
+         * idx from guest.
+         */
+        return -1;
+    }
+
     ret = vhost_vdpa_call(dev, VHOST_GET_VRING_BASE, ring);
     trace_vhost_vdpa_get_vring_base(dev, ring->index, ring->num);
     return ret;
