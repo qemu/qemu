@@ -472,3 +472,17 @@ void gdb_breakpoint_remove_all(CPUState *cs)
 {
     cpu_breakpoint_remove_all(cs, BP_GDB);
 }
+
+/*
+ * For user-mode syscall support we send the system call immediately
+ * and then return control to gdb for it to process the syscall request.
+ * Since the protocol requires that gdb hands control back to us
+ * using a "here are the results" F packet, we don't need to check
+ * gdb_handlesig's return value (which is the signal to deliver if
+ * execution was resumed via a continue packet).
+ */
+void gdb_syscall_handling(const char *syscall_packet)
+{
+    gdb_put_packet(syscall_packet);
+    gdb_handlesig(gdbserver_state.c_cpu, 0);
+}
