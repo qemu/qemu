@@ -692,11 +692,13 @@ static int vhost_vdpa_get_device_id(struct vhost_dev *dev,
 
 static int vhost_vdpa_reset_device(struct vhost_dev *dev)
 {
+    struct vhost_vdpa *v = dev->opaque;
     int ret;
     uint8_t status = 0;
 
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
     trace_vhost_vdpa_reset_device(dev, status);
+    v->suspended = false;
     return ret;
 }
 
@@ -1095,6 +1097,29 @@ static void vhost_vdpa_svqs_stop(struct vhost_dev *dev)
     }
 }
 
+static void vhost_vdpa_suspend(struct vhost_dev *dev)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    int r;
+
+    if (!vhost_vdpa_first_dev(dev)) {
+        return;
+    }
+
+    if (dev->backend_cap & BIT_ULL(VHOST_BACKEND_F_SUSPEND)) {
+        trace_vhost_vdpa_suspend(dev);
+        r = ioctl(v->device_fd, VHOST_VDPA_SUSPEND);
+        if (unlikely(r)) {
+            error_report("Cannot suspend: %s(%d)", g_strerror(errno), errno);
+        } else {
+            v->suspended = true;
+            return;
+        }
+    }
+
+    vhost_vdpa_reset_device(dev);
+}
+
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
     struct vhost_vdpa *v = dev->opaque;
@@ -1109,6 +1134,7 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         }
         vhost_vdpa_set_vring_ready(dev);
     } else {
+        vhost_vdpa_suspend(dev);
         vhost_vdpa_svqs_stop(dev);
         vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     }
