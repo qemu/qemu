@@ -2628,6 +2628,31 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
     return new_op;
 }
 
+static void move_label_uses(TCGLabel *to, TCGLabel *from)
+{
+    TCGLabelUse *u;
+
+    QSIMPLEQ_FOREACH(u, &from->branches, next) {
+        TCGOp *op = u->op;
+        switch (op->opc) {
+        case INDEX_op_br:
+            op->args[0] = label_arg(to);
+            break;
+        case INDEX_op_brcond_i32:
+        case INDEX_op_brcond_i64:
+            op->args[3] = label_arg(to);
+            break;
+        case INDEX_op_brcond2_i32:
+            op->args[5] = label_arg(to);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    QSIMPLEQ_CONCAT(&to->branches, &from->branches);
+}
+
 /* Reachable analysis : remove unreachable code.  */
 static void __attribute__((noinline))
 reachable_code_pass(TCGContext *s)
@@ -2644,13 +2669,30 @@ reachable_code_pass(TCGContext *s)
             label = arg_label(op->args[0]);
 
             /*
+             * Note that the first op in the TB is always a load,
+             * so there is always something before a label.
+             */
+            op_prev = QTAILQ_PREV(op, link);
+
+            /*
+             * If we find two sequential labels, move all branches to
+             * reference the second label and remove the first label.
+             * Do this before branch to next optimization, so that the
+             * middle label is out of the way.
+             */
+            if (op_prev->opc == INDEX_op_set_label) {
+                move_label_uses(label, arg_label(op_prev->args[0]));
+                tcg_op_remove(s, op_prev);
+                op_prev = QTAILQ_PREV(op, link);
+            }
+
+            /*
              * Optimization can fold conditional branches to unconditional.
              * If we find a label which is preceded by an unconditional
              * branch to next, remove the branch.  We couldn't do this when
              * processing the branch because any dead code between the branch
              * and label had not yet been removed.
              */
-            op_prev = QTAILQ_PREV(op, link);
             if (op_prev->opc == INDEX_op_br &&
                 label == arg_label(op_prev->args[0])) {
                 tcg_op_remove(s, op_prev);
