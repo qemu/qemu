@@ -569,10 +569,15 @@ static void monitor_accept_input(void *opaque)
 {
     Monitor *mon = opaque;
 
-    if (!monitor_is_qmp(mon)) {
+    qemu_mutex_lock(&mon->mon_lock);
+    if (!monitor_is_qmp(mon) && mon->reset_seen) {
         MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
         assert(hmp_mon->rs);
+        readline_restart(hmp_mon->rs);
+        qemu_mutex_unlock(&mon->mon_lock);
         readline_show_prompt(hmp_mon->rs);
+    } else {
+        qemu_mutex_unlock(&mon->mon_lock);
     }
 
     qemu_chr_fe_accept_input(&mon->chr);
@@ -603,7 +608,7 @@ int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !qatomic_mb_read(&mon->suspend_cnt);
+    return !qatomic_read(&mon->suspend_cnt);
 }
 
 void monitor_list_append(Monitor *mon)

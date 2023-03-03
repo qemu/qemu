@@ -74,7 +74,7 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,node-name=foo#12: Invalid node-name: 'fo
 
 Testing: -device virtio-scsi -device scsi-hd
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -device scsi-hd: drive property not set
+QEMU_PROG: -device scsi-hd: drive property not set
 
 
 === Overriding backing file ===
@@ -134,7 +134,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
+QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
 
 
 === Attach to node in non-default iothread ===

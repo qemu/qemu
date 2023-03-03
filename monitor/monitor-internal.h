@@ -94,7 +94,6 @@ typedef struct HMPCommand {
 
 struct Monitor {
     CharBackend chr;
-    int reset_seen;
     int suspend_cnt;            /* Needs to be accessed atomically */
     bool is_qmp;
     bool skip_flush;
@@ -115,8 +114,8 @@ struct Monitor {
     QLIST_HEAD(, mon_fd_t) fds;
     GString *outbuf;
     guint out_watch;
-    /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
     int mux_out;
+    int reset_seen;
 };
 
 struct MonitorHMP {
