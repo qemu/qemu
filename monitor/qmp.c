@@ -226,6 +226,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 
         /* On shutdown, don't take any more requests from the queue */
         if (qmp_dispatcher_co_shutdown) {
+            qatomic_set(&qmp_dispatcher_co, NULL);
             return;
         }
 
@@ -250,6 +251,7 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
              * yielded and were reentered from monitor_cleanup()
              */
             if (qmp_dispatcher_co_shutdown) {
+                qatomic_set(&qmp_dispatcher_co, NULL);
                 return;
             }
         }
