@@ -31,8 +31,7 @@ user_ss.add(gdb_user)
 gdb_softmmu = declare_dependency(link_whole: libgdb_softmmu)
 softmmu_ss.add(gdb_softmmu)
 
-# These have to built to the target ABI
-specific_ss.add(files('syscalls.c'))
+common_ss.add(files('syscalls.c'))
 
 # The user-target is specialised by the guest
 specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))

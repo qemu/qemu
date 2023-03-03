@@ -2,9 +2,7 @@
  * GDB Syscall Handling
  *
  * GDB can execute syscalls on the guests behalf, currently used by
- * the various semihosting extensions. As this interfaces with a guest
- * ABI we need to build it per-guest (although in reality its a 32 or
- * 64 bit target_ulong that is the only difference).
+ * the various semihosting extensions.
  *
  * Copyright (c) 2003-2005 Fabrice Bellard
  * Copyright (c) 2023 Linaro Ltd
@@ -14,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "cpu.h"
 #include "semihosting/semihost.h"
 #include "sysemu/runstate.h"
 #include "gdbstub/user.h"
