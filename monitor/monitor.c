@@ -63,27 +63,6 @@ Coroutine *qmp_dispatcher_co;
 bool qmp_dispatcher_co_shutdown;
 
 /*
- * qmp_dispatcher_co_busy is used for synchronisation between the
- * monitor thread and the main thread to ensure that the dispatcher
- * coroutine never gets scheduled a second time when it's already
- * scheduled (scheduling the same coroutine twice is forbidden).
- *
- * It is true if the coroutine is active and processing requests.
- * Additional requests may then be pushed onto mon->qmp_requests,
- * and @qmp_dispatcher_co_shutdown may be set without further ado.
- * @qmp_dispatcher_co_busy must not be woken up in this case.
- *
- * If false, you also have to set @qmp_dispatcher_co_busy to true and
- * wake up @qmp_dispatcher_co after pushing the new requests.
- *
- * The coroutine will automatically change this variable back to false
- * before it yields.  Nobody else may set the variable to false.
- *
- * Access must be atomic for thread safety.
- */
-bool qmp_dispatcher_co_busy;
-
-/*
  * Protects mon_list, monitor_qapi_event_state, coroutine_mon,
  * monitor_destroyed.
  */
@@ -685,9 +664,7 @@ void monitor_cleanup(void)
     WITH_QEMU_LOCK_GUARD(&monitor_lock) {
         qmp_dispatcher_co_shutdown = true;
     }
-    if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
-        aio_co_wake(qmp_dispatcher_co);
-    }
+    qmp_dispatcher_co_wake();
 
     AIO_WAIT_WHILE_UNLOCKED(NULL,
                    (aio_poll(iohandler_get_aio_context(), false),
@@ -742,7 +719,6 @@ void monitor_init_globals(void)
      * rid of those assumptions.
      */
     qmp_dispatcher_co = qemu_coroutine_create(monitor_qmp_dispatcher_co, NULL);
-    qatomic_mb_set(&qmp_dispatcher_co_busy, true);
     aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
 }
 
