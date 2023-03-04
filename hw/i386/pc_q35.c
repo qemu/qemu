@@ -304,7 +304,7 @@ static void pc_q35_init(MachineState *machine)
         ahci = pci_create_simple_multifunction(host_bus,
                                                PCI_DEVFN(ICH9_SATA1_DEV,
                                                          ICH9_SATA1_FUNC),
-                                               true, "ich9-ahci");
+                                               "ich9-ahci");
         idebus[0] = qdev_get_child_bus(&ahci->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&ahci->qdev, "ide.1");
         g_assert(MAX_SATA_PORTS == ahci_get_num_ports(ahci));
@@ -326,7 +326,7 @@ static void pc_q35_init(MachineState *machine)
         smb = pci_create_simple_multifunction(host_bus,
                                               PCI_DEVFN(ICH9_SMB_DEV,
                                                         ICH9_SMB_FUNC),
-                                              true, TYPE_ICH9_SMB_DEVICE);
+                                              TYPE_ICH9_SMB_DEVICE);
         pcms->smbus = I2C_BUS(qdev_get_child_bus(DEVICE(smb), "i2c"));
 
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);

@@ -2186,17 +2186,18 @@ bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp)
 }
 
 PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
-                                           bool multifunction,
                                            const char *name)
 {
-    PCIDevice *dev = pci_new_multifunction(devfn, multifunction, name);
+    PCIDevice *dev = pci_new_multifunction(devfn, true, name);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
 
 PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
 {
-    return pci_create_simple_multifunction(bus, devfn, false, name);
+    PCIDevice *dev = pci_new(devfn, name);
+    pci_realize_and_unref(dev, bus, &error_fatal);
+    return dev;
 }
 
 static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size)

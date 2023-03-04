@@ -770,8 +770,7 @@ static void boston_mach_init(MachineState *machine)
                              boston_lcd_event, NULL, s, NULL, true);
 
     ahci = pci_create_simple_multifunction(&PCI_BRIDGE(&pcie2->root)->sec_bus,
-                                           PCI_DEVFN(0, 0),
-                                           true, TYPE_ICH9_AHCI);
+                                           PCI_DEVFN(0, 0), TYPE_ICH9_AHCI);
     g_assert(ARRAY_SIZE(hd) == ahci_get_num_ports(ahci));
     ide_drive_get(hd, ahci_get_num_ports(ahci));
     ahci_ide_create_devs(ahci, hd);
