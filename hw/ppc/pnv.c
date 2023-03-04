@@ -284,73 +284,19 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
     g_free(reg);
 }
 
-static PnvPhb4PecState *pnv_phb4_get_pec(PnvChip *chip, PnvPHB4 *phb,
-                                         Error **errp)
-{
-    PnvPHB *phb_base = phb->phb_base;
-    PnvPhb4PecState *pecs = NULL;
-    int chip_id = phb->chip_id;
-    int index = phb->phb_id;
-    int i, j;
-
-    if (phb_base->version == 4) {
-        Pnv9Chip *chip9 = PNV9_CHIP(chip);
-
-        pecs = chip9->pecs;
-    } else if (phb_base->version == 5) {
-        Pnv10Chip *chip10 = PNV10_CHIP(chip);
-
-        pecs = chip10->pecs;
-    } else {
-        g_assert_not_reached();
-    }
-
-    for (i = 0; i < chip->num_pecs; i++) {
-        /*
-         * For each PEC, check the amount of phbs it supports
-         * and see if the given phb4 index matches an index.
-         */
-        PnvPhb4PecState *pec = &pecs[i];
-
-        for (j = 0; j < pec->num_phbs; j++) {
-            if (index == pnv_phb4_pec_get_phb_id(pec, j)) {
-                return pec;
-            }
-        }
-    }
-    error_setg(errp,
-               "pnv-phb4 chip-id %d index %d didn't match any existing PEC",
-               chip_id, index);
-
-    return NULL;
-}
-
 /*
- * Adds a PnvPHB to the chip. Returns the parent obj of the
- * PHB which varies with each version (phb version 3 is parented
- * by the chip, version 4 and 5 are parented by the PEC
- * device).
- *
- * TODO: for version 3 we're still parenting the PHB with the
- * chip. We should parent with a (so far not implemented)
- * PHB3 PEC device.
+ * Adds a PnvPHB to the chip on P8.
+ * Implemented here, like for defaults PHBs
  */
-Object *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp)
+PnvChip *pnv_chip_add_phb(PnvChip *chip, PnvPHB *phb)
 {
-    if (phb->version == 3) {
-        Pnv8Chip *chip8 = PNV8_CHIP(chip);
+    Pnv8Chip *chip8 = PNV8_CHIP(chip);
 
-        phb->chip = chip;
+    phb->chip = chip;
 
-        chip8->phbs[chip8->num_phbs] = phb;
-        chip8->num_phbs++;
-
-        return OBJECT(chip);
-    }
-
-    phb->pec = pnv_phb4_get_pec(chip, PNV_PHB4(phb->backend), errp);
-
-    return OBJECT(phb->pec);
+    chip8->phbs[chip8->num_phbs] = phb;
+    chip8->num_phbs++;
+    return chip;
 }
 
 static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)

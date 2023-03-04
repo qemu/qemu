@@ -157,6 +157,7 @@ struct PnvPHB4 {
 
 void pnv_phb4_pic_print_info(PnvPHB4 *phb, Monitor *mon);
 int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index);
+PnvPhb4PecState *pnv_pec_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp);
 void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb);
 extern const MemoryRegionOps pnv_phb4_xscom_ops;
 
@@ -185,6 +186,8 @@ struct PnvPhb4PecState {
 
     /* PHBs */
     uint32_t num_phbs;
+#define MAX_PHBS_PER_PEC        3
+    PnvPHB *phbs[MAX_PHBS_PER_PEC];
 
     PnvChip *chip;
 };
