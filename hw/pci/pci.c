@@ -2164,8 +2164,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     pci_dev->msi_trigger = pci_msi_trigger;
 }
 
-PCIDevice *pci_new_multifunction(int devfn, bool multifunction,
-                                 const char *name)
+static PCIDevice *pci_new_internal(int devfn, bool multifunction,
+                                   const char *name)
 {
     DeviceState *dev;
 
@@ -2175,9 +2175,14 @@ PCIDevice *pci_new_multifunction(int devfn, bool multifunction,
     return PCI_DEVICE(dev);
 }
 
+PCIDevice *pci_new_multifunction(int devfn, const char *name)
+{
+    return pci_new_internal(devfn, true, name);
+}
+
 PCIDevice *pci_new(int devfn, const char *name)
 {
-    return pci_new_multifunction(devfn, false, name);
+    return pci_new_internal(devfn, false, name);
 }
 
 bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp)
@@ -2188,7 +2193,7 @@ bool pci_realize_and_unref(PCIDevice *dev, PCIBus *bus, Error **errp)
 PCIDevice *pci_create_simple_multifunction(PCIBus *bus, int devfn,
                                            const char *name)
 {
-    PCIDevice *dev = pci_new_multifunction(devfn, true, name);
+    PCIDevice *dev = pci_new_multifunction(devfn, name);
     pci_realize_and_unref(dev, bus, &error_fatal);
     return dev;
 }
