@@ -446,6 +446,7 @@ qio_channel_tls_read_watch(QIOChannelTLS *tioc, GSource *source)
     object_ref(OBJECT(tioc));
 
     g_source_add_child_source(source, child);
+    g_source_unref(child);
 }
 
 static GSource *qio_channel_tls_create_watch(QIOChannel *ioc,
