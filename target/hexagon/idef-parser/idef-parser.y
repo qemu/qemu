@@ -269,9 +269,6 @@ statements : statements statement
 statement : control_statement
           | var_decl ';'
           | rvalue ';'
-            {
-                gen_rvalue_free(c, &@1, &$1);
-            }
           | code_block
           | ';'
           ;
@@ -347,7 +344,6 @@ assign_statement : lvalue '=' rvalue
                        $3 = gen_rvalue_truncate(c, &@1, &$3);
                        $3 = rvalue_materialize(c, &@1, &$3);
                        OUT(c, &@1, "gen_write_new_pc(", &$3, ");\n");
-                       gen_rvalue_free(c, &@1, &$3); /* Free temporary value */
                    }
                  | LOAD '(' IMM ',' IMM ',' SIGN ',' var ',' lvalue ')'
                    {
@@ -376,7 +372,6 @@ assign_statement : lvalue '=' rvalue
                        $3 = gen_rvalue_truncate(c, &@1, &$3);
                        $3 = rvalue_materialize(c, &@1, &$3);
                        OUT(c, &@1, "SET_USR_FIELD(USR_LPCFG, ", &$3, ");\n");
-                       gen_rvalue_free(c, &@1, &$3);
                    }
                  | DEPOSIT '(' rvalue ',' rvalue ',' rvalue ')'
                    {
@@ -421,10 +416,6 @@ control_statement : frame_check
                   ;
 
 frame_check : FCHK '(' rvalue ',' rvalue ')' ';'
-              {
-                  gen_rvalue_free(c, &@1, &$3);
-                  gen_rvalue_free(c, &@1, &$5);
-              }
             ;
 
 cancel_statement : LOAD_CANCEL
@@ -543,7 +534,6 @@ rvalue : FAIL
              rvalue.imm.type = IMM_CONSTEXT;
              rvalue.signedness = UNSIGNED;
              rvalue.is_dotnew = false;
-             rvalue.is_manual = false;
              $$ = rvalue;
          }
        | var
@@ -702,7 +692,6 @@ rvalue : FAIL
          }
        | rvalue '?'
          {
-             $1.is_manual = true;
              Ternary t = { 0 };
              t.state = IN_LEFT;
              t.cond = $1;
@@ -774,7 +763,6 @@ rvalue : FAIL
              @1.last_column = @6.last_column;
              $$ = gen_tmp(c, &@1, 32, UNSIGNED);
              OUT(c, &@1, "gen_read_ireg(", &$$, ", ", &$3, ", ", &$6, ");\n");
-             gen_rvalue_free(c, &@1, &$3);
          }
        | CIRCADD '(' rvalue ',' rvalue ',' rvalue ')'
          {
@@ -795,7 +783,7 @@ rvalue : FAIL
          }
        | LPCFG
          {
-             $$ = gen_tmp_value(c, &@1, "0", 32, UNSIGNED);
+             $$ = gen_tmp(c, &@1, 32, UNSIGNED);
              OUT(c, &@1, "GET_USR_FIELD(USR_LPCFG, ", &$$, ");\n");
          }
        | EXTRACT '(' rvalue ',' rvalue ')'

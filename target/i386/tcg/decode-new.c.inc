@@ -1567,20 +1567,6 @@ illegal:
     return false;
 }
 
-static void decode_temp_free(X86DecodedOp *op)
-{
-    if (op->v_ptr) {
-        tcg_temp_free_ptr(op->v_ptr);
-    }
-}
-
-static void decode_temps_free(X86DecodedInsn *decode)
-{
-    decode_temp_free(&decode->op[0]);
-    decode_temp_free(&decode->op[1]);
-    decode_temp_free(&decode->op[2]);
-}
-
 /*
  * Convert one instruction. s->base.is_jmp is set if the translation must
  * be stopped.
@@ -1835,7 +1821,6 @@ static void disas_insn_new(DisasContext *s, CPUState *cpu, int b)
         decode.e.gen(s, env, &decode);
         gen_writeback(s, &decode, 0, s->T0);
     }
-    decode_temps_free(&decode);
     return;
  illegal_op:
     gen_illegal_opcode(s);

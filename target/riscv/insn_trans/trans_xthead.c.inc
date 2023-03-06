@@ -100,10 +100,7 @@ static TCGv get_th_address_indexed(DisasContext *ctx, int rs1, int rs2,
         tcg_gen_shli_tl(offs, src2, imm2);
     }
 
-    TCGv addr = get_address_indexed(ctx, rs1, offs);
-
-    tcg_temp_free(offs);
-    return addr;
+    return get_address_indexed(ctx, rs1, offs);
 }
 
 /* XTheadBa */
@@ -120,7 +117,6 @@ static void gen_th_addsl##SHAMT(TCGv ret, TCGv arg1, TCGv arg2) \
     TCGv t = tcg_temp_new();                                    \
     tcg_gen_shli_tl(t, arg2, SHAMT);                            \
     tcg_gen_add_tl(ret, t, arg1);                               \
-    tcg_temp_free(t);                                           \
 }
 
 GEN_TH_ADDSL(1)
@@ -204,7 +200,6 @@ static bool gen_th_ff0(DisasContext *ctx, arg_th_ff0 *a, DisasExtend ext)
         gen_clz(dest, t);
     }
 
-    tcg_temp_free(t);
     gen_set_gpr(ctx, a->rd, dest);
 
     return true;
@@ -469,7 +464,6 @@ static bool trans_th_fmv_hw_x(DisasContext *ctx, arg_th_fmv_hw_x *a)
 
     tcg_gen_extu_tl_i64(t1, src1);
     tcg_gen_deposit_i64(cpu_fpr[a->rd], cpu_fpr[a->rd], t1, 32, 32);
-    tcg_temp_free_i64(t1);
     mark_fs_dirty(ctx);
     return true;
 }
@@ -489,7 +483,6 @@ static bool trans_th_fmv_x_hw(DisasContext *ctx, arg_th_fmv_x_hw *a)
     tcg_gen_extract_i64(t1, cpu_fpr[a->rs1], 32, 32);
     tcg_gen_trunc_i64_tl(dst, t1);
     gen_set_gpr(ctx, a->rd, dst);
-    tcg_temp_free_i64(t1);
     mark_fs_dirty(ctx);
     return true;
 }
@@ -511,15 +504,12 @@ static bool gen_th_mac(DisasContext *ctx, arg_r *a,
         extend_operand_func(tmp, src1);
         extend_operand_func(tmp2, src2);
         tcg_gen_mul_tl(tmp, tmp, tmp2);
-        tcg_temp_free(tmp2);
     } else {
         tcg_gen_mul_tl(tmp, src1, src2);
     }
 
     accumulate_func(dest, src0, tmp);
     gen_set_gpr(ctx, a->rd, dest);
-    tcg_temp_free(tmp);
-
     return true;
 }
 
@@ -594,8 +584,6 @@ static bool gen_load_inc(DisasContext *ctx, arg_th_meminc *a, MemOp memop,
     tcg_gen_addi_tl(rs1, rs1, imm);
     gen_set_gpr(ctx, a->rd, rd);
     gen_set_gpr(ctx, a->rs1, rs1);
-
-    tcg_temp_free(addr);
     return true;
 }
 
@@ -615,8 +603,6 @@ static bool gen_store_inc(DisasContext *ctx, arg_th_meminc *a, MemOp memop,
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
     tcg_gen_addi_tl(rs1, rs1, imm);
     gen_set_gpr(ctx, a->rs1, rs1);
-
-    tcg_temp_free(addr);
     return true;
 }
 
@@ -950,11 +936,6 @@ static bool gen_loadpair_tl(DisasContext *ctx, arg_th_pair *a, MemOp memop,
     tcg_gen_qemu_ld_tl(t2, addr2, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd1, t1);
     gen_set_gpr(ctx, a->rd2, t2);
-
-    tcg_temp_free(t1);
-    tcg_temp_free(t2);
-    tcg_temp_free(addr1);
-    tcg_temp_free(addr2);
     return true;
 }
 
@@ -991,9 +972,6 @@ static bool gen_storepair_tl(DisasContext *ctx, arg_th_pair *a, MemOp memop,
 
     tcg_gen_qemu_st_tl(data1, addr1, ctx->mem_idx, memop);
     tcg_gen_qemu_st_tl(data2, addr2, ctx->mem_idx, memop);
-
-    tcg_temp_free(addr1);
-    tcg_temp_free(addr2);
     return true;
 }
 

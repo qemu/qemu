@@ -238,16 +238,23 @@ struct TCGRelocation {
     int type;
 };
 
+typedef struct TCGOp TCGOp;
+typedef struct TCGLabelUse TCGLabelUse;
+struct TCGLabelUse {
+    QSIMPLEQ_ENTRY(TCGLabelUse) next;
+    TCGOp *op;
+};
+
 typedef struct TCGLabel TCGLabel;
 struct TCGLabel {
-    unsigned present : 1;
-    unsigned has_value : 1;
-    unsigned id : 14;
-    unsigned refs : 16;
+    bool present;
+    bool has_value;
+    uint16_t id;
     union {
         uintptr_t value;
         const tcg_insn_unit *value_ptr;
     } u;
+    QSIMPLEQ_HEAD(, TCGLabelUse) branches;
     QSIMPLEQ_HEAD(, TCGRelocation) relocs;
     QSIMPLEQ_ENTRY(TCGLabel) next;
 };
@@ -487,7 +494,7 @@ typedef struct TCGTempSet {
 #define SYNC_ARG  (1 << 0)
 typedef uint32_t TCGLifeData;
 
-typedef struct TCGOp {
+struct TCGOp {
     TCGOpcode opc   : 8;
     unsigned nargs  : 8;
 
@@ -506,7 +513,7 @@ typedef struct TCGOp {
 
     /* Arguments for the opcode.  */
     TCGArg args[];
-} TCGOp;
+};
 
 #define TCGOP_CALLI(X)    (X)->param1
 #define TCGOP_CALLO(X)    (X)->param2
@@ -567,7 +574,6 @@ struct TCGContext {
 #endif
 
 #ifdef CONFIG_DEBUG_TCG
-    int temps_in_use;
     int goto_tb_issue_mask;
     const TCGOpcode *vecop_list;
 #endif
@@ -957,19 +963,6 @@ static inline TCGv_ptr tcg_temp_new_ptr(void)
     TCGTemp *t = tcg_temp_new_internal(TCG_TYPE_PTR, TEMP_TB);
     return temp_tcgv_ptr(t);
 }
-
-#if defined(CONFIG_DEBUG_TCG)
-/* If you call tcg_clear_temp_count() at the start of a section of
- * code which is not supposed to leak any TCG temporaries, then
- * calling tcg_check_temp_count() at the end of the section will
- * return 1 if the section did in fact leak a temporary.
- */
-void tcg_clear_temp_count(void);
-int tcg_check_temp_count(void);
-#else
-#define tcg_clear_temp_count() do { } while (0)
-#define tcg_check_temp_count() 0
-#endif
 
 int64_t tcg_cpu_exec_time(void);
 void tcg_dump_info(GString *buf);

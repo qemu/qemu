@@ -250,7 +250,6 @@ static bool trans_fsgnjn_d(DisasContext *ctx, arg_fsgnjn_d *a)
         TCGv_i64 t0 = tcg_temp_new_i64();
         tcg_gen_not_i64(t0, src2);
         tcg_gen_deposit_i64(dest, t0, src1, 0, 63);
-        tcg_temp_free_i64(t0);
     }
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);
@@ -273,7 +272,6 @@ static bool trans_fsgnjx_d(DisasContext *ctx, arg_fsgnjx_d *a)
         TCGv_i64 t0 = tcg_temp_new_i64();
         tcg_gen_andi_i64(t0, src2, INT64_MIN);
         tcg_gen_xor_i64(dest, src1, t0);
-        tcg_temp_free_i64(t0);
     }
     gen_set_fpr_d(ctx, a->rd, dest);
     mark_fs_dirty(ctx);

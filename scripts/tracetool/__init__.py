@@ -18,7 +18,6 @@ import weakref
 
 import tracetool.format
 import tracetool.backend
-import tracetool.transform
 
 
 def error_write(*lines):
@@ -190,18 +189,6 @@ class Arguments:
         """List of argument names casted to their type."""
         return ["(%s)%s" % (type_, name) for type_, name in self._args]
 
-    def transform(self, *trans):
-        """Return a new Arguments instance with transformed types.
-
-        The types in the resulting Arguments instance are transformed according
-        to tracetool.transform.transform_type.
-        """
-        res = []
-        for type_, name in self._args:
-            res.append((tracetool.transform.transform_type(type_, *trans),
-                        name))
-        return Arguments(res)
-
 
 class Event(object):
     """Event description.
@@ -357,16 +344,6 @@ class Event(object):
         if fmt is None:
             fmt = Event.QEMU_TRACE
         return fmt % {"name": self.name, "NAME": self.name.upper()}
-
-    def transform(self, *trans):
-        """Return a new Event with transformed Arguments."""
-        return Event(self.name,
-                     list(self.properties),
-                     self.fmt,
-                     self.args.transform(*trans),
-                     self.lineno,
-                     self.filename,
-                     self)
 
 
 def read_events(fobj, fname):

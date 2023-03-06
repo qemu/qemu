@@ -14,7 +14,6 @@ static bool gen_ll(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     tcg_gen_st_tl(t0, cpu_env, offsetof(CPULoongArchState, lladdr));
     tcg_gen_st_tl(dest, cpu_env, offsetof(CPULoongArchState, llval));
     gen_set_gpr(a->rd, dest, EXT_NONE);
-    tcg_temp_free(t0);
 
     return true;
 }
@@ -43,8 +42,6 @@ static bool gen_sc(DisasContext *ctx, arg_rr_i *a, MemOp mop)
     tcg_gen_setcond_tl(TCG_COND_EQ, dest, t0, cpu_llval);
     gen_set_label(done);
     gen_set_gpr(a->rd, dest, EXT_NONE);
-    tcg_temp_free(t0);
-    tcg_temp_free(val);
 
     return true;
 }

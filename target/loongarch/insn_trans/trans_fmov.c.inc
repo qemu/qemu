@@ -18,7 +18,6 @@ static bool trans_fsel(DisasContext *ctx, arg_fsel *a)
     tcg_gen_ld8u_tl(cond, cpu_env, offsetof(CPULoongArchState, cf[a->ca]));
     tcg_gen_movcond_tl(TCG_COND_EQ, cpu_fpr[a->fd], cond, zero,
                        cpu_fpr[a->fj], cpu_fpr[a->fk]);
-    tcg_temp_free(cond);
 
     return true;
 }
@@ -82,9 +81,6 @@ static bool trans_movgr2fcsr(DisasContext *ctx, arg_movgr2fcsr *a)
         tcg_gen_andi_i32(fcsr0, fcsr0, ~mask);
         tcg_gen_or_i32(fcsr0, fcsr0, temp);
         tcg_gen_st_i32(fcsr0, cpu_env, offsetof(CPULoongArchState, fcsr0));
-
-        tcg_temp_free_i32(temp);
-        tcg_temp_free_i32(fcsr0);
     }
 
     /*
@@ -134,7 +130,6 @@ static bool trans_movfr2cf(DisasContext *ctx, arg_movfr2cf *a)
     t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, cpu_fpr[a->fj], 0x1);
     tcg_gen_st8_tl(t0, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7]));
-    tcg_temp_free(t0);
 
     return true;
 }
@@ -157,7 +152,6 @@ static bool trans_movgr2cf(DisasContext *ctx, arg_movgr2cf *a)
     t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, gpr_src(ctx, a->rj, EXT_NONE), 0x1);
     tcg_gen_st8_tl(t0, cpu_env, offsetof(CPULoongArchState, cf[a->cd & 0x7]));
-    tcg_temp_free(t0);
 
     return true;
 }

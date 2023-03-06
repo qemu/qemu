@@ -31,6 +31,7 @@
 #include "sysemu/cpu-timers.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
+#include "qemu/timer.h"
 #include "exec/exec-all.h"
 #include "exec/hwaddr.h"
 #include "exec/gdbstub.h"

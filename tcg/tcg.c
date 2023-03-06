@@ -36,6 +36,7 @@
 #include "qemu/qemu-print.h"
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
+#include "qemu/timer.h"
 
 /* Note: the long term plan is to reduce the dependencies on the QEMU
    CPU definitions. Currently they are used for qemu_ld/st
@@ -282,6 +283,7 @@ TCGLabel *gen_new_label(void)
 
     memset(l, 0, sizeof(TCGLabel));
     l->id = s->nb_labels++;
+    QSIMPLEQ_INIT(&l->branches);
     QSIMPLEQ_INIT(&l->relocs);
 
     QSIMPLEQ_INSERT_TAIL(&s->labels, l, next);
@@ -1271,7 +1273,7 @@ TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
             ts->temp_allocated = 1;
             tcg_debug_assert(ts->base_type == type);
             tcg_debug_assert(ts->kind == kind);
-            goto done;
+            return ts;
         }
     } else {
         tcg_debug_assert(kind == TEMP_TB);
@@ -1315,11 +1317,6 @@ TCGTemp *tcg_temp_new_internal(TCGType type, TCGTempKind kind)
             ts2->kind = kind;
         }
     }
-
- done:
-#if defined(CONFIG_DEBUG_TCG)
-    s->temps_in_use++;
-#endif
     return ts;
 }
 
@@ -1364,29 +1361,17 @@ void tcg_temp_free_internal(TCGTemp *ts)
 
     switch (ts->kind) {
     case TEMP_CONST:
-        /*
-         * In order to simplify users of tcg_constant_*,
-         * silently ignore free.
-         */
-        return;
-    case TEMP_EBB:
     case TEMP_TB:
+        /* Silently ignore free. */
+        break;
+    case TEMP_EBB:
+        tcg_debug_assert(ts->temp_allocated != 0);
+        ts->temp_allocated = 0;
+        set_bit(temp_idx(ts), s->free_temps[ts->base_type].l);
         break;
     default:
+        /* It never made sense to free TEMP_FIXED or TEMP_GLOBAL. */
         g_assert_not_reached();
-    }
-
-    tcg_debug_assert(ts->temp_allocated != 0);
-    ts->temp_allocated = 0;
-
-#if defined(CONFIG_DEBUG_TCG)
-    assert(s->temps_in_use > 0);
-    s->temps_in_use--;
-#endif
-
-    if (ts->kind == TEMP_EBB) {
-        int idx = temp_idx(ts);
-        set_bit(idx, s->free_temps[ts->base_type].l);
     }
 }
 
@@ -1474,27 +1459,6 @@ TCGv_i64 tcg_const_i64(int64_t val)
     tcg_gen_movi_i64(t0, val);
     return t0;
 }
-
-#if defined(CONFIG_DEBUG_TCG)
-void tcg_clear_temp_count(void)
-{
-    TCGContext *s = tcg_ctx;
-    s->temps_in_use = 0;
-}
-
-int tcg_check_temp_count(void)
-{
-    TCGContext *s = tcg_ctx;
-    if (s->temps_in_use) {
-        /* Clear the count so that we don't give another
-         * warning immediately next time around.
-         */
-        s->temps_in_use = 0;
-        return 1;
-    }
-    return 0;
-}
-#endif
 
 /* Return true if OP may appear in the opcode stream.
    Test the runtime variable that controls each opcode.  */
@@ -2190,6 +2154,85 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                                   arg_label(op->args[k])->id);
                 i++, k++;
                 break;
+            case INDEX_op_mb:
+                {
+                    TCGBar membar = op->args[k];
+                    const char *b_op, *m_op;
+
+                    switch (membar & TCG_BAR_SC) {
+                    case 0:
+                        b_op = "none";
+                        break;
+                    case TCG_BAR_LDAQ:
+                        b_op = "acq";
+                        break;
+                    case TCG_BAR_STRL:
+                        b_op = "rel";
+                        break;
+                    case TCG_BAR_SC:
+                        b_op = "seq";
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+
+                    switch (membar & TCG_MO_ALL) {
+                    case 0:
+                        m_op = "none";
+                        break;
+                    case TCG_MO_LD_LD:
+                        m_op = "rr";
+                        break;
+                    case TCG_MO_LD_ST:
+                        m_op = "rw";
+                        break;
+                    case TCG_MO_ST_LD:
+                        m_op = "wr";
+                        break;
+                    case TCG_MO_ST_ST:
+                        m_op = "ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST:
+                        m_op = "rr+rw";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_LD:
+                        m_op = "rr+wr";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_ST:
+                        m_op = "rr+ww";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_LD:
+                        m_op = "rw+wr";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_ST:
+                        m_op = "rw+ww";
+                        break;
+                    case TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "wr+ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_LD:
+                        m_op = "rr+rw+wr";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_LD_ST | TCG_MO_ST_ST:
+                        m_op = "rr+rw+ww";
+                        break;
+                    case TCG_MO_LD_LD | TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "rr+wr+ww";
+                        break;
+                    case TCG_MO_LD_ST | TCG_MO_ST_LD | TCG_MO_ST_ST:
+                        m_op = "rw+wr+ww";
+                        break;
+                    case TCG_MO_ALL:
+                        m_op = "all";
+                        break;
+                    default:
+                        g_assert_not_reached();
+                    }
+
+                    col += ne_fprintf(f, "%s%s:%s", (k ? "," : ""), b_op, m_op);
+                    i++, k++;
+                }
+                break;
             default:
                 break;
             }
@@ -2519,23 +2562,32 @@ static void process_op_defs(TCGContext *s)
     }
 }
 
+static void remove_label_use(TCGOp *op, int idx)
+{
+    TCGLabel *label = arg_label(op->args[idx]);
+    TCGLabelUse *use;
+
+    QSIMPLEQ_FOREACH(use, &label->branches, next) {
+        if (use->op == op) {
+            QSIMPLEQ_REMOVE(&label->branches, use, TCGLabelUse, next);
+            return;
+        }
+    }
+    g_assert_not_reached();
+}
+
 void tcg_op_remove(TCGContext *s, TCGOp *op)
 {
-    TCGLabel *label;
-
     switch (op->opc) {
     case INDEX_op_br:
-        label = arg_label(op->args[0]);
-        label->refs--;
+        remove_label_use(op, 0);
         break;
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
-        label = arg_label(op->args[3]);
-        label->refs--;
+        remove_label_use(op, 3);
         break;
     case INDEX_op_brcond2_i32:
-        label = arg_label(op->args[5]);
-        label->refs--;
+        remove_label_use(op, 5);
         break;
     default:
         break;
@@ -2617,6 +2669,31 @@ TCGOp *tcg_op_insert_after(TCGContext *s, TCGOp *old_op,
     return new_op;
 }
 
+static void move_label_uses(TCGLabel *to, TCGLabel *from)
+{
+    TCGLabelUse *u;
+
+    QSIMPLEQ_FOREACH(u, &from->branches, next) {
+        TCGOp *op = u->op;
+        switch (op->opc) {
+        case INDEX_op_br:
+            op->args[0] = label_arg(to);
+            break;
+        case INDEX_op_brcond_i32:
+        case INDEX_op_brcond_i64:
+            op->args[3] = label_arg(to);
+            break;
+        case INDEX_op_brcond2_i32:
+            op->args[5] = label_arg(to);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    QSIMPLEQ_CONCAT(&to->branches, &from->branches);
+}
+
 /* Reachable analysis : remove unreachable code.  */
 static void __attribute__((noinline))
 reachable_code_pass(TCGContext *s)
@@ -2633,13 +2710,30 @@ reachable_code_pass(TCGContext *s)
             label = arg_label(op->args[0]);
 
             /*
+             * Note that the first op in the TB is always a load,
+             * so there is always something before a label.
+             */
+            op_prev = QTAILQ_PREV(op, link);
+
+            /*
+             * If we find two sequential labels, move all branches to
+             * reference the second label and remove the first label.
+             * Do this before branch to next optimization, so that the
+             * middle label is out of the way.
+             */
+            if (op_prev->opc == INDEX_op_set_label) {
+                move_label_uses(label, arg_label(op_prev->args[0]));
+                tcg_op_remove(s, op_prev);
+                op_prev = QTAILQ_PREV(op, link);
+            }
+
+            /*
              * Optimization can fold conditional branches to unconditional.
              * If we find a label which is preceded by an unconditional
              * branch to next, remove the branch.  We couldn't do this when
              * processing the branch because any dead code between the branch
              * and label had not yet been removed.
              */
-            op_prev = QTAILQ_PREV(op, link);
             if (op_prev->opc == INDEX_op_br &&
                 label == arg_label(op_prev->args[0])) {
                 tcg_op_remove(s, op_prev);
@@ -2647,7 +2741,7 @@ reachable_code_pass(TCGContext *s)
                 dead = false;
             }
 
-            if (label->refs == 0) {
+            if (QSIMPLEQ_EMPTY(&label->branches)) {
                 /*
                  * While there is an occasional backward branch, virtually
                  * all branches generated by the translators are forward.
@@ -4891,7 +4985,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, target_ulong pc_start)
         bool error = false;
 
         QSIMPLEQ_FOREACH(l, &s->labels, next) {
-            if (unlikely(!l->present) && l->refs) {
+            if (unlikely(!l->present) && !QSIMPLEQ_EMPTY(&l->branches)) {
                 qemu_log_mask(CPU_LOG_TB_OP,
                               "$L%d referenced but not present.\n", l->id);
                 error = true;

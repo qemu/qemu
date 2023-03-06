@@ -481,7 +481,6 @@ static void gen_pred_writes(DisasContext *ctx)
                                hex_new_pred_value[pred_num],
                                hex_pred[pred_num]);
         }
-        tcg_temp_free(pred_written);
     } else {
         for (i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
@@ -536,7 +535,6 @@ void process_store(DisasContext *ctx, int slot_num)
         /* Don't do anything if the slot was cancelled */
         tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
         tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
-        tcg_temp_free(cancelled);
     }
     {
         TCGv address = tcg_temp_new();
@@ -586,7 +584,6 @@ void process_store(DisasContext *ctx, int slot_num)
                 gen_helper_commit_store(cpu_env, slot);
             }
         }
-        tcg_temp_free(address);
     }
     if (is_predicated) {
         gen_set_label(label_end);
@@ -627,8 +624,6 @@ static void process_dczeroa(DisasContext *ctx)
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
-
-        tcg_temp_free(addr);
     }
 }
 
@@ -673,7 +668,6 @@ static void gen_commit_hvx(DisasContext *ctx)
 
             tcg_gen_andi_tl(cmp, hex_VRegs_updated, 1 << rnum);
             tcg_gen_brcondi_tl(TCG_COND_EQ, cmp, 0, label_skip);
-            tcg_temp_free(cmp);
             tcg_gen_gvec_mov(MO_64, dstoff, srcoff, size, size);
             gen_set_label(label_skip);
         } else {
@@ -706,7 +700,6 @@ static void gen_commit_hvx(DisasContext *ctx)
 
             tcg_gen_andi_tl(cmp, hex_QRegs_updated, 1 << rnum);
             tcg_gen_brcondi_tl(TCG_COND_EQ, cmp, 0, label_skip);
-            tcg_temp_free(cmp);
             tcg_gen_gvec_mov(MO_64, dstoff, srcoff, size, size);
             gen_set_label(label_skip);
         } else {

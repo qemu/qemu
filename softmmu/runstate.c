@@ -46,6 +46,7 @@
 #include "qemu/module.h"
 #include "qemu/plugin.h"
 #include "qemu/sockets.h"
+#include "qemu/timer.h"
 #include "qemu/thread.h"
 #include "qom/object.h"
 #include "qom/object_interfaces.h"

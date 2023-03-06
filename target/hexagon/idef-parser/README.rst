@@ -31,7 +31,6 @@ idef-parser will compile the above code into the following code:
        TCGv_i32 tmp_0 = tcg_temp_new_i32();
        tcg_gen_add_i32(tmp_0, RsV, RtV);
        tcg_gen_mov_i32(RdV, tmp_0);
-       tcg_temp_free_i32(tmp_0);
    }
 
 The output of the compilation process will be a function, containing the
@@ -101,12 +100,6 @@ registers, storing the result in the just declared temporary.
 The result of the addition is now stored in the temporary, we move it into the
 correct destination register. This code may seem inefficient, but QEMU will
 perform some optimizations on the tinycode, reducing the unnecessary copy.
-
-::
-
-   tcg_temp_free_i32(tmp_0);
-
-Finally, we free the temporary we used to hold the addition result.
 
 Parser Input
 ------------
@@ -524,7 +517,6 @@ instruction,
         TCGv_i32 tmp_0 = tcg_temp_new_i32();
         tcg_gen_add_i32(tmp_0, RsV, RsV);
         tcg_gen_mov_i32(RdV, tmp_0);
-        tcg_temp_free_i32(tmp_0);
     }
 
 Here the bug, albeit hard to spot, is in ``tcg_gen_add_i32(tmp_0, RsV, RsV);``

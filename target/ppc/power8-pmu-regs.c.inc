@@ -58,8 +58,6 @@ static bool spr_groupA_write_allowed(DisasContext *ctx)
 /*
  * Helper function to avoid code repetition between MMCR0 and
  * MMCR2 problem state write functions.
- *
- * 'ret' must be tcg_temp_freed() by the caller.
  */
 static TCGv masked_gprn_for_spr_write(int gprn, int sprn,
                                       uint64_t spr_mask)
@@ -76,8 +74,6 @@ static TCGv masked_gprn_for_spr_write(int gprn, int sprn,
 
     /* Add the masked gprn bits into 'ret' */
     tcg_gen_or_tl(ret, ret, t0);
-
-    tcg_temp_free(t0);
 
     return ret;
 }
@@ -100,8 +96,6 @@ void spr_read_MMCR0_ureg(DisasContext *ctx, int gprn, int sprn)
     gen_load_spr(t0, SPR_POWER_MMCR0);
     tcg_gen_andi_tl(t0, t0, MMCR0_UREG_MASK);
     tcg_gen_mov_tl(cpu_gpr[gprn], t0);
-
-    tcg_temp_free(t0);
 }
 
 static void write_MMCR0_common(DisasContext *ctx, TCGv val)
@@ -137,8 +131,6 @@ void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
     masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR0,
                                             MMCR0_UREG_MASK);
     write_MMCR0_common(ctx, masked_gprn);
-
-    tcg_temp_free(masked_gprn);
 }
 
 void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -164,8 +156,6 @@ void spr_read_MMCR2_ureg(DisasContext *ctx, int gprn, int sprn)
     gen_load_spr(t0, SPR_POWER_MMCR2);
     tcg_gen_andi_tl(t0, t0, MMCR2_UREG_MASK);
     tcg_gen_mov_tl(cpu_gpr[gprn], t0);
-
-    tcg_temp_free(t0);
 }
 
 void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
@@ -183,8 +173,6 @@ void spr_write_MMCR2_ureg(DisasContext *ctx, int sprn, int gprn)
     masked_gprn = masked_gprn_for_spr_write(gprn, SPR_POWER_MMCR2,
                                             MMCR2_UREG_MASK);
     gen_store_spr(SPR_POWER_MMCR2, masked_gprn);
-
-    tcg_temp_free(masked_gprn);
 }
 
 void spr_read_PMC(DisasContext *ctx, int gprn, int sprn)
@@ -193,8 +181,6 @@ void spr_read_PMC(DisasContext *ctx, int gprn, int sprn)
 
     gen_icount_io_start(ctx);
     gen_helper_read_pmc(cpu_gpr[gprn], cpu_env, t_sprn);
-
-    tcg_temp_free_i32(t_sprn);
 }
 
 void spr_read_PMC14_ureg(DisasContext *ctx, int gprn, int sprn)
@@ -228,8 +214,6 @@ void spr_write_PMC(DisasContext *ctx, int sprn, int gprn)
 
     gen_icount_io_start(ctx);
     gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
-
-    tcg_temp_free_i32(t_sprn);
 }
 
 void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn)

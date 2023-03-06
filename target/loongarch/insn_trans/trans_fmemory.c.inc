@@ -13,12 +13,11 @@ static void maybe_nanbox_load(TCGv freg, MemOp mop)
 static bool gen_fload_i(DisasContext *ctx, arg_fr_i *a, MemOp mop)
 {
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     CHECK_FPE;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
@@ -26,31 +25,22 @@ static bool gen_fload_i(DisasContext *ctx, arg_fr_i *a, MemOp mop)
     tcg_gen_qemu_ld_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
     maybe_nanbox_load(cpu_fpr[a->fd], mop);
 
-    if (temp) {
-        tcg_temp_free(temp);
-    }
-
     return true;
 }
 
 static bool gen_fstore_i(DisasContext *ctx, arg_fr_i *a, MemOp mop)
 {
     TCGv addr = gpr_src(ctx, a->rj, EXT_NONE);
-    TCGv temp = NULL;
 
     CHECK_FPE;
 
     if (a->imm) {
-        temp = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, addr, a->imm);
         addr = temp;
     }
 
     tcg_gen_qemu_st_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
-
-    if (temp) {
-        tcg_temp_free(temp);
-    }
     return true;
 }
 
@@ -66,7 +56,6 @@ static bool gen_floadx(DisasContext *ctx, arg_frr *a, MemOp mop)
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_ld_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
     maybe_nanbox_load(cpu_fpr[a->fd], mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -82,7 +71,6 @@ static bool gen_fstorex(DisasContext *ctx, arg_frr *a, MemOp mop)
     addr = tcg_temp_new();
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_st_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -100,7 +88,6 @@ static bool gen_fload_gt(DisasContext *ctx, arg_frr *a, MemOp mop)
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_ld_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
     maybe_nanbox_load(cpu_fpr[a->fd], mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -117,7 +104,6 @@ static bool gen_fstore_gt(DisasContext *ctx, arg_frr *a, MemOp mop)
     gen_helper_asrtgt_d(cpu_env, src1, src2);
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_st_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -135,7 +121,6 @@ static bool gen_fload_le(DisasContext *ctx, arg_frr *a, MemOp mop)
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_ld_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
     maybe_nanbox_load(cpu_fpr[a->fd], mop);
-    tcg_temp_free(addr);
 
     return true;
 }
@@ -152,7 +137,6 @@ static bool gen_fstore_le(DisasContext *ctx, arg_frr *a, MemOp mop)
     gen_helper_asrtle_d(cpu_env, src1, src2);
     tcg_gen_add_tl(addr, src1, src2);
     tcg_gen_qemu_st_tl(cpu_fpr[a->fd], addr, ctx->mem_idx, mop);
-    tcg_temp_free(addr);
 
     return true;
 }

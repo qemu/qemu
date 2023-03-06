@@ -51,7 +51,7 @@ static bool trans_flh(DisasContext *ctx, arg_flh *a)
     decode_save_opc(ctx);
     t0 = get_gpr(ctx, a->rs1, EXT_NONE);
     if (a->imm) {
-        TCGv temp = temp_new(ctx);
+        TCGv temp = tcg_temp_new();
         tcg_gen_addi_tl(temp, t0, a->imm);
         t0 = temp;
     }
@@ -256,9 +256,6 @@ static bool trans_fsgnj_h(DisasContext *ctx, arg_fsgnj_h *a)
 
             /* This formulation retains the nanboxing of rs2 in normal 'Zfh'. */
             tcg_gen_deposit_i64(dest, rs2, rs1, 0, 15);
-
-            tcg_temp_free_i64(rs1);
-            tcg_temp_free_i64(rs2);
         } else {
             tcg_gen_deposit_i64(dest, src2, src1, 0, 15);
             tcg_gen_ext16s_i64(dest, dest);
@@ -302,20 +299,16 @@ static bool trans_fsgnjn_h(DisasContext *ctx, arg_fsgnjn_h *a)
          * Replace bit 15 in rs1 with inverse in rs2.
          * This formulation retains the nanboxing of rs1.
          */
-        mask = tcg_const_i64(~MAKE_64BIT_MASK(15, 1));
+        mask = tcg_constant_i64(~MAKE_64BIT_MASK(15, 1));
         tcg_gen_not_i64(rs2, rs2);
         tcg_gen_andc_i64(rs2, rs2, mask);
         tcg_gen_and_i64(dest, mask, rs1);
         tcg_gen_or_i64(dest, dest, rs2);
-
-        tcg_temp_free_i64(mask);
-        tcg_temp_free_i64(rs2);
     }
     /* signed-extended intead of nanboxing for result if enable zfinx */
     if (ctx->cfg_ptr->ext_zfinx) {
         tcg_gen_ext16s_i64(dest, dest);
     }
-    tcg_temp_free_i64(rs1);
     mark_fs_dirty(ctx);
     return true;
 }
@@ -355,14 +348,11 @@ static bool trans_fsgnjx_h(DisasContext *ctx, arg_fsgnjx_h *a)
          */
         tcg_gen_andi_i64(dest, rs2, MAKE_64BIT_MASK(15, 1));
         tcg_gen_xor_i64(dest, rs1, dest);
-
-        tcg_temp_free_i64(rs2);
     }
     /* signed-extended intead of nanboxing for result if enable zfinx */
     if (ctx->cfg_ptr->ext_zfinx) {
         tcg_gen_ext16s_i64(dest, dest);
     }
-    tcg_temp_free_i64(rs1);
     mark_fs_dirty(ctx);
     return true;
 }

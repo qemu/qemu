@@ -923,9 +923,10 @@ void cpu_single_step(CPUState *cpu, int enabled);
 #define BP_GDB                0x10
 #define BP_CPU                0x20
 #define BP_ANY                (BP_GDB | BP_CPU)
-#define BP_WATCHPOINT_HIT_READ 0x40
-#define BP_WATCHPOINT_HIT_WRITE 0x80
-#define BP_WATCHPOINT_HIT (BP_WATCHPOINT_HIT_READ | BP_WATCHPOINT_HIT_WRITE)
+#define BP_HIT_SHIFT          6
+#define BP_WATCHPOINT_HIT_READ  (BP_MEM_READ << BP_HIT_SHIFT)
+#define BP_WATCHPOINT_HIT_WRITE (BP_MEM_WRITE << BP_HIT_SHIFT)
+#define BP_WATCHPOINT_HIT       (BP_MEM_ACCESS << BP_HIT_SHIFT)
 
 int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
                           CPUBreakpoint **breakpoint);
