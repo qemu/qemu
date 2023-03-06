@@ -58,9 +58,7 @@
  * Fix the number of mmu modes to 16, which is also the maximum
  * supported by the softmmu tlb api.
  */
-#ifndef NB_MMU_MODES
 #define NB_MMU_MODES 16
-#endif
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
 
