@@ -222,11 +222,7 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
         return -1;
     }
 
-    pfds = audio_calloc ("alsa_poll_helper", count, sizeof (*pfds));
-    if (!pfds) {
-        dolog ("Could not initialize poll mode\n");
-        return -1;
-    }
+    pfds = g_new0(struct pollfd, count);
 
     err = snd_pcm_poll_descriptors (handle, pfds, count);
     if (err < 0) {
@@ -917,28 +913,23 @@ static void *alsa_audio_init(Audiodev *dev)
     alsa_init_per_direction(aopts->in);
     alsa_init_per_direction(aopts->out);
 
-    /*
-     * need to define them, as otherwise alsa produces no sound
-     * doesn't set has_* so alsa_open can identify it wasn't set by the user
-     */
+    /* don't set has_* so alsa_open can identify it wasn't set by the user */
     if (!dev->u.alsa.out->has_period_length) {
-        /* 1024 frames assuming 44100Hz */
-        dev->u.alsa.out->period_length = 1024 * 1000000 / 44100;
+        /* 256 frames assuming 44100Hz */
+        dev->u.alsa.out->period_length = 5805;
     }
     if (!dev->u.alsa.out->has_buffer_length) {
         /* 4096 frames assuming 44100Hz */
-        dev->u.alsa.out->buffer_length = 4096ll * 1000000 / 44100;
+        dev->u.alsa.out->buffer_length = 92880;
     }
 
-    /*
-     * OptsVisitor sets unspecified optional fields to zero, but do not depend
-     * on it...
-     */
     if (!dev->u.alsa.in->has_period_length) {
-        dev->u.alsa.in->period_length = 0;
+        /* 256 frames assuming 44100Hz */
+        dev->u.alsa.in->period_length = 5805;
     }
     if (!dev->u.alsa.in->has_buffer_length) {
-        dev->u.alsa.in->buffer_length = 0;
+        /* 4096 frames assuming 44100Hz */
+        dev->u.alsa.in->buffer_length = 92880;
     }
 
     return dev;

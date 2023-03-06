@@ -414,12 +414,7 @@ struct rate {
  */
 void *st_rate_start (int inrate, int outrate)
 {
-    struct rate *rate = audio_calloc(__func__, 1, sizeof(*rate));
-
-    if (!rate) {
-        dolog ("Could not allocate resampler (%zu bytes)\n", sizeof (*rate));
-        return NULL;
-    }
+    struct rate *rate = g_new0(struct rate, 1);
 
     rate->opos = 0;
 
@@ -443,6 +438,86 @@ void *st_rate_start (int inrate, int outrate)
 void st_rate_stop (void *opaque)
 {
     g_free (opaque);
+}
+
+/**
+ * st_rate_frames_out() - returns the number of frames the resampling code
+ * generates from frames_in frames
+ *
+ * @opaque: pointer to struct rate
+ * @frames_in: number of frames
+ *
+ * When upsampling, there may be more than one correct result. In this case,
+ * the function returns the maximum number of output frames the resampling
+ * code can generate.
+ */
+uint32_t st_rate_frames_out(void *opaque, uint32_t frames_in)
+{
+    struct rate *rate = opaque;
+    uint64_t opos_end, opos_delta;
+    uint32_t ipos_end;
+    uint32_t frames_out;
+
+    if (rate->opos_inc == 1ULL << 32) {
+        return frames_in;
+    }
+
+    /* no output frame without at least one input frame */
+    if (!frames_in) {
+        return 0;
+    }
+
+    /* last frame read was at rate->ipos - 1 */
+    ipos_end = rate->ipos - 1 + frames_in;
+    opos_end = (uint64_t)ipos_end << 32;
+
+    /* last frame written was at rate->opos - rate->opos_inc */
+    if (opos_end + rate->opos_inc <= rate->opos) {
+        return 0;
+    }
+    opos_delta = opos_end - rate->opos + rate->opos_inc;
+    frames_out = opos_delta / rate->opos_inc;
+
+    return opos_delta % rate->opos_inc ? frames_out : frames_out - 1;
+}
+
+/**
+ * st_rate_frames_in() - returns the number of frames needed to
+ * get frames_out frames after resampling
+ *
+ * @opaque: pointer to struct rate
+ * @frames_out: number of frames
+ *
+ * When downsampling, there may be more than one correct result. In this
+ * case, the function returns the maximum number of input frames needed.
+ */
+uint32_t st_rate_frames_in(void *opaque, uint32_t frames_out)
+{
+    struct rate *rate = opaque;
+    uint64_t opos_start, opos_end;
+    uint32_t ipos_start, ipos_end;
+
+    if (rate->opos_inc == 1ULL << 32) {
+        return frames_out;
+    }
+
+    if (frames_out) {
+        opos_start = rate->opos;
+        ipos_start = rate->ipos;
+    } else {
+        uint64_t offset;
+
+        /* add offset = ceil(opos_inc) to opos and ipos to avoid an underflow */
+        offset = (rate->opos_inc + (1ULL << 32) - 1) & ~((1ULL << 32) - 1);
+        opos_start = rate->opos + offset;
+        ipos_start = rate->ipos + (offset >> 32);
+    }
+    /* last frame written was at opos_start - rate->opos_inc */
+    opos_end = opos_start - rate->opos_inc + rate->opos_inc * frames_out;
+    ipos_end = (opos_end >> 32) + 1;
+
+    /* last frame read was at ipos_start - 1 */
+    return ipos_end + 1 > ipos_start ? ipos_end + 1 - ipos_start : 0;
 }
 
 void mixeng_clear (struct st_sample *buf, int len)

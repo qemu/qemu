@@ -40,8 +40,6 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
     int64_t t;
 #endif
 
-    ilast = rate->ilast;
-
     istart = ibuf;
     iend = ibuf + *isamp;
 
@@ -59,15 +57,17 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
         return;
     }
 
-    while (obuf < oend) {
+    /* without input samples, there's nothing to do */
+    if (ibuf >= iend) {
+        *osamp = 0;
+        return;
+    }
 
-        /* Safety catch to make sure we have input samples.  */
-        if (ibuf >= iend) {
-            break;
-        }
+    ilast = rate->ilast;
+
+    while (true) {
 
         /* read as many input samples so that ipos > opos */
-
         while (rate->ipos <= (rate->opos >> 32)) {
             ilast = *ibuf++;
             rate->ipos++;
@@ -76,6 +76,11 @@ void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
             if (ibuf >= iend) {
                 goto the_end;
             }
+        }
+
+        /* make sure that the next output sample can be written */
+        if (obuf >= oend) {
+            break;
         }
 
         icur = *ibuf;

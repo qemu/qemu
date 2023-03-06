@@ -40,7 +40,7 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioState *s,
                                               struct audio_driver *drv)
 {
     int max_voices = glue (drv->max_voices_, TYPE);
-    int voice_size = glue (drv->voice_size_, TYPE);
+    size_t voice_size = glue(drv->voice_size_, TYPE);
 
     if (glue (s->nb_hw_voices_, TYPE) > max_voices) {
         if (!max_voices) {
@@ -63,16 +63,17 @@ static void glue(audio_init_nb_voices_, TYPE)(AudioState *s,
     }
 
     if (audio_bug(__func__, voice_size && !max_voices)) {
-        dolog ("drv=`%s' voice_size=%d max_voices=0\n",
-               drv->name, voice_size);
+        dolog("drv=`%s' voice_size=%zu max_voices=0\n",
+              drv->name, voice_size);
     }
 }
 
 static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
 {
     g_free(hw->buf_emul);
-    g_free (HWBUF);
-    HWBUF = NULL;
+    g_free(HWBUF.buffer);
+    HWBUF.buffer = NULL;
+    HWBUF.size = 0;
 }
 
 static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
@@ -83,56 +84,67 @@ static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
             dolog("Attempted to allocate empty buffer\n");
         }
 
-        HWBUF = g_malloc0(sizeof(STSampleBuffer) + sizeof(st_sample) * samples);
-        HWBUF->size = samples;
+        HWBUF.buffer = g_new0(st_sample, samples);
+        HWBUF.size = samples;
+        HWBUF.pos = 0;
     } else {
-        HWBUF = NULL;
+        HWBUF.buffer = NULL;
+        HWBUF.size = 0;
     }
 }
 
 static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
 {
-    g_free (sw->buf);
+    g_free(sw->resample_buf.buffer);
+    sw->resample_buf.buffer = NULL;
+    sw->resample_buf.size = 0;
 
     if (sw->rate) {
         st_rate_stop (sw->rate);
     }
-
-    sw->buf = NULL;
     sw->rate = NULL;
 }
 
 static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 {
-    int samples;
+    HW *hw = sw->hw;
+    uint64_t samples;
 
     if (!glue(audio_get_pdo_, TYPE)(sw->s->dev)->mixing_engine) {
         return 0;
     }
 
-#ifdef DAC
-    samples = ((int64_t) sw->HWBUF->size << 32) / sw->ratio;
-#else
-    samples = (int64_t)sw->HWBUF->size * sw->ratio >> 32;
-#endif
+    samples = muldiv64(HWBUF.size, sw->info.freq, hw->info.freq);
+    if (samples == 0) {
+        uint64_t f_fe_min;
+        uint64_t f_be = (uint32_t)hw->info.freq;
 
-    sw->buf = audio_calloc(__func__, samples, sizeof(struct st_sample));
-    if (!sw->buf) {
-        dolog ("Could not allocate buffer for `%s' (%d samples)\n",
-               SW_NAME (sw), samples);
+        /* f_fe_min = ceil(1 [frames] * f_be [Hz] / size_be [frames]) */
+        f_fe_min = (f_be + HWBUF.size - 1) / HWBUF.size;
+        qemu_log_mask(LOG_UNIMP,
+                      AUDIO_CAP ": The guest selected a " NAME " sample rate"
+                      " of %d Hz for %s. Only sample rates >= %" PRIu64 " Hz"
+                      " are supported.\n",
+                      sw->info.freq, sw->name, f_fe_min);
         return -1;
     }
 
+    /*
+     * Allocate one additional audio frame that is needed for upsampling
+     * if the resample buffer size is small. For large buffer sizes take
+     * care of overflows and truncation.
+     */
+    samples = samples < SIZE_MAX ? samples + 1 : SIZE_MAX;
+    sw->resample_buf.buffer = g_new0(st_sample, samples);
+    sw->resample_buf.size = samples;
+    sw->resample_buf.pos = 0;
+
 #ifdef DAC
-    sw->rate = st_rate_start (sw->info.freq, sw->hw->info.freq);
+    sw->rate = st_rate_start(sw->info.freq, hw->info.freq);
 #else
-    sw->rate = st_rate_start (sw->hw->info.freq, sw->info.freq);
+    sw->rate = st_rate_start(hw->info.freq, sw->info.freq);
 #endif
-    if (!sw->rate) {
-        g_free (sw->buf);
-        sw->buf = NULL;
-        return -1;
-    }
+
     return 0;
 }
 
@@ -149,11 +161,8 @@ static int glue (audio_pcm_sw_init_, TYPE) (
     sw->hw = hw;
     sw->active = 0;
 #ifdef DAC
-    sw->ratio = ((int64_t) sw->hw->info.freq << 32) / sw->info.freq;
     sw->total_hw_samples_mixed = 0;
     sw->empty = 1;
-#else
-    sw->ratio = ((int64_t) sw->info.freq << 32) / sw->hw->info.freq;
 #endif
 
     if (sw->info.is_float) {
@@ -264,13 +273,11 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
         return NULL;
     }
 
-    hw = audio_calloc(__func__, 1, glue(drv->voice_size_, TYPE));
-    if (!hw) {
-        dolog ("Can not allocate voice `%s' size %d\n",
-               drv->name, glue (drv->voice_size_, TYPE));
-        return NULL;
-    }
-
+    /*
+     * Since glue(s->nb_hw_voices_, TYPE) is != 0, glue(drv->voice_size_, TYPE)
+     * is guaranteed to be != 0. See the audio_init_nb_voices_* functions.
+     */
+    hw = g_malloc0(glue(drv->voice_size_, TYPE));
     hw->s = s;
     hw->pcm_ops = drv->pcm_ops;
 
@@ -418,33 +425,28 @@ static SW *glue(audio_pcm_create_voice_pair_, TYPE)(
         hw_as = *as;
     }
 
-    sw = audio_calloc(__func__, 1, sizeof(*sw));
-    if (!sw) {
-        dolog ("Could not allocate soft voice `%s' (%zu bytes)\n",
-               sw_name ? sw_name : "unknown", sizeof (*sw));
-        goto err1;
-    }
+    sw = g_new0(SW, 1);
     sw->s = s;
 
     hw = glue(audio_pcm_hw_add_, TYPE)(s, &hw_as);
     if (!hw) {
-        goto err2;
+        dolog("Could not create a backend for voice `%s'\n", sw_name);
+        goto err1;
     }
 
     glue (audio_pcm_hw_add_sw_, TYPE) (hw, sw);
 
     if (glue (audio_pcm_sw_init_, TYPE) (sw, hw, sw_name, as)) {
-        goto err3;
+        goto err2;
     }
 
     return sw;
 
-err3:
+err2:
     glue (audio_pcm_hw_del_sw_, TYPE) (sw);
     glue (audio_pcm_hw_gc_, TYPE) (&hw);
-err2:
-    g_free (sw);
 err1:
+    g_free(sw);
     return NULL;
 }
 
@@ -515,8 +517,8 @@ SW *glue (AUD_open_, TYPE) (
         HW *hw = sw->hw;
 
         if (!hw) {
-            dolog ("Internal logic error voice `%s' has no hardware store\n",
-                   SW_NAME (sw));
+            dolog("Internal logic error: voice `%s' has no backend\n",
+                  SW_NAME(sw));
             goto fail;
         }
 
@@ -527,7 +529,6 @@ SW *glue (AUD_open_, TYPE) (
     } else {
         sw = glue(audio_pcm_create_voice_pair_, TYPE)(s, name, as);
         if (!sw) {
-            dolog ("Failed to create voice `%s'\n", name);
             return NULL;
         }
     }
