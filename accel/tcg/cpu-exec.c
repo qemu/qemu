@@ -394,7 +394,14 @@ void afl_setup(void) {
       } else {
         n->start = strtoull(pt2, NULL, 16);
         n->end = strtoull(pt3, NULL, 16);
-        n->name = NULL;
+        if (n->start && n->end) {
+          n->name = NULL;
+        } else {
+          have_names = 1;
+          n->start = (target_ulong)-1;
+          n->end = 0;
+          n->name = strdup(pt1);
+        }
       }
       
       afl_instr_code = n;
@@ -428,7 +435,14 @@ void afl_setup(void) {
       } else {
         n->start = strtoull(pt2, NULL, 16);
         n->end = strtoull(pt3, NULL, 16);
-        n->name = NULL;
+        if (n->start && n->end) {
+          n->name = NULL;
+        } else {
+          have_names = 1;
+          n->start = (target_ulong)-1;
+          n->end = 0;
+          n->name = strdup(pt1);
+        }
       }
 
       afl_instr_code = n;
