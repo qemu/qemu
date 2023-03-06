@@ -276,6 +276,37 @@
 { 'command': 'getfd', 'data': {'fdname': 'str'} }
 
 ##
+# @get-win32-socket:
+#
+# Add a socket that was duplicated to QEMU process with
+# WSADuplicateSocketW() via WSASocket() & WSAPROTOCOL_INFOW structure
+# and assign it a name (the SOCKET is associated with a CRT file
+# descriptor)
+#
+# @info: the WSAPROTOCOL_INFOW structure (encoded in base64)
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#
+# Since: 8.0
+#
+# Notes: If @fdname already exists, the file descriptor assigned to
+#        it will be closed and replaced by the received file
+#        descriptor.
+#
+#        The 'closefd' command can be used to explicitly close the
+#        file descriptor when it is no longer needed.
+#
+# Example:
+#
+# -> { "execute": "get-win32-socket", "arguments": { "info": "abcd123..", fdname": "skclient" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
+
+##
 # @closefd:
 #
 # Close a file descriptor previously passed via SCM rights
