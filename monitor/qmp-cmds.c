@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/sockets.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
 #include "monitor/qmp-helpers.h"
@@ -136,6 +137,12 @@ void qmp_add_client(const char *protocol, const char *fdname,
 
     fd = monitor_get_fd(monitor_cur(), fdname, errp);
     if (fd < 0) {
+        return;
+    }
+
+    if (!fd_is_socket(fd)) {
+        error_setg(errp, "parameter @fdname must name a socket");
+        close(fd);
         return;
     }
 
