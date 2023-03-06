@@ -74,14 +74,21 @@ static void aio_bh_enqueue(QEMUBH *bh, unsigned new_flags)
     unsigned old_flags;
 
     /*
-     * The memory barrier implicit in qatomic_fetch_or makes sure that:
-     * 1. idle & any writes needed by the callback are done before the
-     *    locations are read in the aio_bh_poll.
-     * 2. ctx is loaded before the callback has a chance to execute and bh
-     *    could be freed.
+     * Synchronizes with atomic_fetch_and() in aio_bh_dequeue(), ensuring that
+     * insertion starts after BH_PENDING is set.
      */
     old_flags = qatomic_fetch_or(&bh->flags, BH_PENDING | new_flags);
+
     if (!(old_flags & BH_PENDING)) {
+        /*
+         * At this point the bottom half becomes visible to aio_bh_poll().
+         * This insertion thus synchronizes with QSLIST_MOVE_ATOMIC in
+         * aio_bh_poll(), ensuring that:
+         * 1. any writes needed by the callback are visible from the callback
+         *    after aio_bh_dequeue() returns bh.
+         * 2. ctx is loaded before the callback has a chance to execute and bh
+         *    could be freed.
+         */
         QSLIST_INSERT_HEAD_ATOMIC(&ctx->bh_list, bh, next);
     }
 
@@ -107,11 +114,8 @@ static QEMUBH *aio_bh_dequeue(BHList *head, unsigned *flags)
     QSLIST_REMOVE_HEAD(head, next);
 
     /*
-     * The qatomic_and is paired with aio_bh_enqueue().  The implicit memory
-     * barrier ensures that the callback sees all writes done by the scheduling
-     * thread.  It also ensures that the scheduling thread sees the cleared
-     * flag before bh->cb has run, and thus will call aio_notify again if
-     * necessary.
+     * Synchronizes with qatomic_fetch_or() in aio_bh_enqueue(), ensuring that
+     * the removal finishes before BH_PENDING is reset.
      */
     *flags = qatomic_fetch_and(&bh->flags,
                               ~(BH_PENDING | BH_SCHEDULED | BH_IDLE));
@@ -158,6 +162,7 @@ int aio_bh_poll(AioContext *ctx)
     BHListSlice *s;
     int ret = 0;
 
+    /* Synchronizes with QSLIST_INSERT_HEAD_ATOMIC in aio_bh_enqueue().  */
     QSLIST_MOVE_ATOMIC(&slice.bh_list, &ctx->bh_list);
     QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, &slice, next);
 
@@ -448,15 +453,15 @@ LuringState *aio_get_linux_io_uring(AioContext *ctx)
 void aio_notify(AioContext *ctx)
 {
     /*
-     * Write e.g. bh->flags before writing ctx->notified.  Pairs with smp_mb in
-     * aio_notify_accept.
+     * Write e.g. ctx->bh_list before writing ctx->notified.  Pairs with
+     * smp_mb() in aio_notify_accept().
      */
     smp_wmb();
     qatomic_set(&ctx->notified, true);
 
     /*
-     * Write ctx->notified before reading ctx->notify_me.  Pairs
-     * with smp_mb in aio_ctx_prepare or aio_poll.
+     * Write ctx->notified (and also ctx->bh_list) before reading ctx->notify_me.
+     * Pairs with smp_mb() in aio_ctx_prepare or aio_poll.
      */
     smp_mb();
     if (qatomic_read(&ctx->notify_me)) {
