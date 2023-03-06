@@ -474,8 +474,9 @@ void aio_notify_accept(AioContext *ctx)
     qatomic_set(&ctx->notified, false);
 
     /*
-     * Write ctx->notified before reading e.g. bh->flags.  Pairs with smp_wmb
-     * in aio_notify.
+     * Order reads of ctx->notified (in aio_context_notifier_poll()) and the
+     * above clearing of ctx->notified before reads of e.g. bh->flags.  Pairs
+     * with smp_wmb() in aio_notify.
      */
     smp_mb();
 }
@@ -498,6 +499,11 @@ static bool aio_context_notifier_poll(void *opaque)
     EventNotifier *e = opaque;
     AioContext *ctx = container_of(e, AioContext, notifier);
 
+    /*
+     * No need for load-acquire because we just want to kick the
+     * event loop.  aio_notify_accept() takes care of synchronizing
+     * the event loop with the producers.
+     */
     return qatomic_read(&ctx->notified);
 }
 
