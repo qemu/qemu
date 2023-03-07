@@ -27,6 +27,8 @@
 #define NVME_MAX_CONTROLLERS 256
 #define NVME_MAX_NAMESPACES  256
 #define NVME_EUI64_DEFAULT ((uint64_t)0x5254000000000000)
+#define NVME_FDP_MAX_EVENTS 63
+#define NVME_FDP_MAXPIDS 128
 
 QEMU_BUILD_BUG_ON(NVME_MAX_NAMESPACES > NVME_NSID_BROADCAST - 1);
 
@@ -45,17 +47,68 @@ typedef struct NvmeBus {
     OBJECT_CHECK(NvmeSubsystem, (obj), TYPE_NVME_SUBSYS)
 #define SUBSYS_SLOT_RSVD (void *)0xFFFF
 
+typedef struct NvmeReclaimUnit {
+    uint64_t ruamw;
+} NvmeReclaimUnit;
+
+typedef struct NvmeRuHandle {
+    uint8_t  ruht;
+    uint8_t  ruha;
+    uint64_t event_filter;
+    uint8_t  lbafi;
+    uint64_t ruamw;
+
+    /* reclaim units indexed by reclaim group */
+    NvmeReclaimUnit *rus;
+} NvmeRuHandle;
+
+typedef struct NvmeFdpEventBuffer {
+    NvmeFdpEvent     events[NVME_FDP_MAX_EVENTS];
+    unsigned int     nelems;
+    unsigned int     start;
+    unsigned int     next;
+} NvmeFdpEventBuffer;
+
+typedef struct NvmeEnduranceGroup {
+    uint8_t event_conf;
+
+    struct {
+        NvmeFdpEventBuffer host_events, ctrl_events;
+
+        uint16_t nruh;
+        uint16_t nrg;
+        uint8_t  rgif;
+        uint64_t runs;
+
+        uint64_t hbmw;
+        uint64_t mbmw;
+        uint64_t mbe;
+
+        bool enabled;
+
+        NvmeRuHandle *ruhs;
+    } fdp;
+} NvmeEnduranceGroup;
+
 typedef struct NvmeSubsystem {
     DeviceState parent_obj;
     NvmeBus     bus;
     uint8_t     subnqn[256];
     char        *serial;
 
-    NvmeCtrl      *ctrls[NVME_MAX_CONTROLLERS];
-    NvmeNamespace *namespaces[NVME_MAX_NAMESPACES + 1];
+    NvmeCtrl           *ctrls[NVME_MAX_CONTROLLERS];
+    NvmeNamespace      *namespaces[NVME_MAX_NAMESPACES + 1];
+    NvmeEnduranceGroup endgrp;
 
     struct {
         char *nqn;
+
+        struct {
+            bool     enabled;
+            uint64_t runs;
+            uint16_t nruh;
+            uint32_t nrg;
+        } fdp;
     } params;
 } NvmeSubsystem;
 
@@ -96,6 +149,21 @@ typedef struct NvmeZone {
     QTAILQ_ENTRY(NvmeZone) entry;
 } NvmeZone;
 
+#define FDP_EVT_MAX 0xff
+#define NVME_FDP_MAX_NS_RUHS 32u
+#define FDPVSS 0
+
+static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
+    /* Host events */
+    [FDP_EVT_RU_NOT_FULLY_WRITTEN]      = 0,
+    [FDP_EVT_RU_ATL_EXCEEDED]           = 1,
+    [FDP_EVT_CTRL_RESET_RUH]            = 2,
+    [FDP_EVT_INVALID_PID]               = 3,
+    /* CTRL events */
+    [FDP_EVT_MEDIA_REALLOC]             = 32,
+    [FDP_EVT_RUH_IMPLICIT_RU_CHANGE]    = 33,
+};
+
 typedef struct NvmeNamespaceParams {
     bool     detached;
     bool     shared;
@@ -125,6 +193,10 @@ typedef struct NvmeNamespaceParams {
     uint32_t numzrwa;
     uint64_t zrwas;
     uint64_t zrwafg;
+
+    struct {
+        char *ruhs;
+    } fdp;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
@@ -167,10 +239,18 @@ typedef struct NvmeNamespace {
     int32_t         nr_active_zones;
 
     NvmeNamespaceParams params;
+    NvmeSubsystem *subsys;
+    NvmeEnduranceGroup *endgrp;
 
     struct {
         uint32_t err_rec;
     } features;
+
+    struct {
+        uint16_t nphs;
+        /* reclaim unit handle identifiers indexed by placement handle */
+        uint16_t *phs;
+    } fdp;
 } NvmeNamespace;
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
@@ -274,6 +354,12 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
     assert(ns->nr_active_zones >= 0);
 }
 
+static inline void nvme_fdp_stat_inc(uint64_t *a, uint64_t b)
+{
+    uint64_t ret = *a + b;
+    *a = ret < *a ? UINT64_MAX : ret;
+}
+
 void nvme_ns_init_format(NvmeNamespace *ns);
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
@@ -340,7 +426,9 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_GET_FEATURES:     return "NVME_ADM_CMD_GET_FEATURES";
     case NVME_ADM_CMD_ASYNC_EV_REQ:     return "NVME_ADM_CMD_ASYNC_EV_REQ";
     case NVME_ADM_CMD_NS_ATTACHMENT:    return "NVME_ADM_CMD_NS_ATTACHMENT";
+    case NVME_ADM_CMD_DIRECTIVE_SEND:   return "NVME_ADM_CMD_DIRECTIVE_SEND";
     case NVME_ADM_CMD_VIRT_MNGMT:       return "NVME_ADM_CMD_VIRT_MNGMT";
+    case NVME_ADM_CMD_DIRECTIVE_RECV:   return "NVME_ADM_CMD_DIRECTIVE_RECV";
     case NVME_ADM_CMD_DBBUF_CONFIG:     return "NVME_ADM_CMD_DBBUF_CONFIG";
     case NVME_ADM_CMD_FORMAT_NVM:       return "NVME_ADM_CMD_FORMAT_NVM";
     default:                            return "NVME_ADM_CMD_UNKNOWN";
