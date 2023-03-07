@@ -450,6 +450,22 @@ static bool vfio_devices_all_dirty_tracking(VFIOContainer *container)
     return true;
 }
 
+static bool vfio_devices_all_device_dirty_tracking(VFIOContainer *container)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+
+    QLIST_FOREACH(group, &container->group_list, container_next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (!vbasedev->dirty_pages_supported) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 /*
  * Check if all VFIO devices are running and migration is active, which is
  * essentially equivalent to the migration being in pre-copy phase.
@@ -1407,16 +1423,156 @@ static void vfio_dirty_tracking_init(VFIOContainer *container,
     memory_listener_unregister(&dirty.listener);
 }
 
+static void vfio_devices_dma_logging_stop(VFIOContainer *container)
+{
+    uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
+                              sizeof(uint64_t))] = {};
+    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+    VFIODevice *vbasedev;
+    VFIOGroup *group;
+
+    feature->argsz = sizeof(buf);
+    feature->flags = VFIO_DEVICE_FEATURE_SET |
+                     VFIO_DEVICE_FEATURE_DMA_LOGGING_STOP;
+
+    QLIST_FOREACH(group, &container->group_list, container_next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (!vbasedev->dirty_tracking) {
+                continue;
+            }
+
+            if (ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature)) {
+                warn_report("%s: Failed to stop DMA logging, err %d (%s)",
+                             vbasedev->name, -errno, strerror(errno));
+            }
+            vbasedev->dirty_tracking = false;
+        }
+    }
+}
+
+static struct vfio_device_feature *
+vfio_device_feature_dma_logging_start_create(VFIOContainer *container,
+                                             VFIODirtyRanges *tracking)
+{
+    struct vfio_device_feature *feature;
+    size_t feature_size;
+    struct vfio_device_feature_dma_logging_control *control;
+    struct vfio_device_feature_dma_logging_range *ranges;
+
+    feature_size = sizeof(struct vfio_device_feature) +
+                   sizeof(struct vfio_device_feature_dma_logging_control);
+    feature = g_try_malloc0(feature_size);
+    if (!feature) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    feature->argsz = feature_size;
+    feature->flags = VFIO_DEVICE_FEATURE_SET |
+                     VFIO_DEVICE_FEATURE_DMA_LOGGING_START;
+
+    control = (struct vfio_device_feature_dma_logging_control *)feature->data;
+    control->page_size = qemu_real_host_page_size();
+
+    /*
+     * DMA logging uAPI guarantees to support at least a number of ranges that
+     * fits into a single host kernel base page.
+     */
+    control->num_ranges = !!tracking->max32 + !!tracking->max64;
+    ranges = g_try_new0(struct vfio_device_feature_dma_logging_range,
+                        control->num_ranges);
+    if (!ranges) {
+        g_free(feature);
+        errno = ENOMEM;
+
+        return NULL;
+    }
+
+    control->ranges = (__u64)(uintptr_t)ranges;
+    if (tracking->max32) {
+        ranges->iova = tracking->min32;
+        ranges->length = (tracking->max32 - tracking->min32) + 1;
+        ranges++;
+    }
+    if (tracking->max64) {
+        ranges->iova = tracking->min64;
+        ranges->length = (tracking->max64 - tracking->min64) + 1;
+    }
+
+    trace_vfio_device_dirty_tracking_start(control->num_ranges,
+                                           tracking->min32, tracking->max32,
+                                           tracking->min64, tracking->max64);
+
+    return feature;
+}
+
+static void vfio_device_feature_dma_logging_start_destroy(
+    struct vfio_device_feature *feature)
+{
+    struct vfio_device_feature_dma_logging_control *control =
+        (struct vfio_device_feature_dma_logging_control *)feature->data;
+    struct vfio_device_feature_dma_logging_range *ranges =
+        (struct vfio_device_feature_dma_logging_range *)(uintptr_t)control->ranges;
+
+    g_free(ranges);
+    g_free(feature);
+}
+
+static int vfio_devices_dma_logging_start(VFIOContainer *container)
+{
+    struct vfio_device_feature *feature;
+    VFIODirtyRanges ranges;
+    VFIODevice *vbasedev;
+    VFIOGroup *group;
+    int ret = 0;
+
+    vfio_dirty_tracking_init(container, &ranges);
+    feature = vfio_device_feature_dma_logging_start_create(container,
+                                                           &ranges);
+    if (!feature) {
+        return -errno;
+    }
+
+    QLIST_FOREACH(group, &container->group_list, container_next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if (vbasedev->dirty_tracking) {
+                continue;
+            }
+
+            ret = ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
+            if (ret) {
+                ret = -errno;
+                error_report("%s: Failed to start DMA logging, err %d (%s)",
+                             vbasedev->name, ret, strerror(errno));
+                goto out;
+            }
+            vbasedev->dirty_tracking = true;
+        }
+    }
+
+out:
+    if (ret) {
+        vfio_devices_dma_logging_stop(container);
+    }
+
+    vfio_device_feature_dma_logging_start_destroy(feature);
+
+    return ret;
+}
+
 static void vfio_listener_log_global_start(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
-    VFIODirtyRanges ranges;
     int ret;
 
-    vfio_dirty_tracking_init(container, &ranges);
+    if (vfio_devices_all_device_dirty_tracking(container)) {
+        ret = vfio_devices_dma_logging_start(container);
+    } else {
+        ret = vfio_set_dirty_page_tracking(container, true);
+    }
 
-    ret = vfio_set_dirty_page_tracking(container, true);
     if (ret) {
+        error_report("vfio: Could not start dirty page tracking, err: %d (%s)",
+                     ret, strerror(-ret));
         vfio_set_migration_error(ret);
     }
 }
@@ -1424,10 +1580,17 @@ static void vfio_listener_log_global_start(MemoryListener *listener)
 static void vfio_listener_log_global_stop(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
-    int ret;
+    int ret = 0;
 
-    ret = vfio_set_dirty_page_tracking(container, false);
+    if (vfio_devices_all_device_dirty_tracking(container)) {
+        vfio_devices_dma_logging_stop(container);
+    } else {
+        ret = vfio_set_dirty_page_tracking(container, false);
+    }
+
     if (ret) {
+        error_report("vfio: Could not stop dirty page tracking, err: %d (%s)",
+                     ret, strerror(-ret));
         vfio_set_migration_error(ret);
     }
 }
