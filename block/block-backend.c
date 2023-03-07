@@ -80,7 +80,7 @@ struct BlockBackend {
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
     QLIST_HEAD(, BlockBackendAioNotifier) aio_notifiers;
 
-    int quiesce_counter;
+    int quiesce_counter; /* atomic: written under BQL, read by other threads */
     CoQueue queued_requests;
     bool disable_request_queuing;
 
@@ -1057,7 +1057,7 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
     blk->dev_opaque = opaque;
 
     /* Are we currently quiesced? Should we enforce this right now? */
-    if (blk->quiesce_counter && ops && ops->drained_begin) {
+    if (qatomic_read(&blk->quiesce_counter) && ops && ops->drained_begin) {
         ops->drained_begin(opaque);
     }
 }
@@ -1271,7 +1271,7 @@ static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 {
     assert(blk->in_flight > 0);
 
-    if (blk->quiesce_counter && !blk->disable_request_queuing) {
+    if (qatomic_read(&blk->quiesce_counter) && !blk->disable_request_queuing) {
         blk_dec_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, NULL);
         blk_inc_in_flight(blk);
@@ -2595,7 +2595,7 @@ static void blk_root_drained_begin(BdrvChild *child)
     BlockBackend *blk = child->opaque;
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
 
-    if (++blk->quiesce_counter == 1) {
+    if (qatomic_fetch_inc(&blk->quiesce_counter) == 0) {
         if (blk->dev_ops && blk->dev_ops->drained_begin) {
             blk->dev_ops->drained_begin(blk->dev_opaque);
         }
@@ -2613,7 +2613,7 @@ static bool blk_root_drained_poll(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
     bool busy = false;
-    assert(blk->quiesce_counter);
+    assert(qatomic_read(&blk->quiesce_counter));
 
     if (blk->dev_ops && blk->dev_ops->drained_poll) {
         busy = blk->dev_ops->drained_poll(blk->dev_opaque);
@@ -2624,12 +2624,12 @@ static bool blk_root_drained_poll(BdrvChild *child)
 static void blk_root_drained_end(BdrvChild *child)
 {
     BlockBackend *blk = child->opaque;
-    assert(blk->quiesce_counter);
+    assert(qatomic_read(&blk->quiesce_counter));
 
     assert(blk->public.throttle_group_member.io_limits_disabled);
     qatomic_dec(&blk->public.throttle_group_member.io_limits_disabled);
 
-    if (--blk->quiesce_counter == 0) {
+    if (qatomic_fetch_dec(&blk->quiesce_counter) == 1) {
         if (blk->dev_ops && blk->dev_ops->drained_end) {
             blk->dev_ops->drained_end(blk->dev_opaque);
         }
