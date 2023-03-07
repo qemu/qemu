@@ -1335,6 +1335,7 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
 
     ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
     if (ret) {
+        ret = -errno;
         error_report("Failed to get dirty bitmap for iova: 0x%"PRIx64
                 " size: 0x%"PRIx64" err: %d", (uint64_t)range->iova,
                 (uint64_t)range->size, errno);
