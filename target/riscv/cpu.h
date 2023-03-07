@@ -443,6 +443,7 @@ struct RISCVCPUConfig {
     bool ext_zca;
     bool ext_zcb;
     bool ext_zcd;
+    bool ext_zce;
     bool ext_zcf;
     bool ext_zcmp;
     bool ext_zcmt;
