@@ -52,8 +52,8 @@
 %token IN INAME VAR
 %token ABS CROUND ROUND CIRCADD COUNTONES INC DEC ANDA ORA XORA PLUSPLUS ASL
 %token ASR LSR EQ NEQ LTE GTE MIN MAX ANDL FOR ICIRC IF MUN FSCR FCHK SXT
-%token ZXT CONSTEXT LOCNT BREV SIGN LOAD STORE PC NPC LPCFG
-%token LOAD_CANCEL CANCEL IDENTITY PART1 ROTL INSBITS SETBITS EXTRANGE
+%token ZXT CONSTEXT LOCNT BREV SIGN LOAD STORE PC LPCFG
+%token LOAD_CANCEL CANCEL IDENTITY ROTL INSBITS SETBITS EXTRANGE
 %token CAST4_8U FAIL CARRY_FROM_ADD ADDSAT64 LSBNEW
 %token TYPE_SIZE_T TYPE_INT TYPE_SIGNED TYPE_UNSIGNED TYPE_LONG
 
@@ -336,15 +336,6 @@ assign_statement : lvalue '=' rvalue
                        OUT(c, &@1, &$1, " = ", &$3, ";\n");
                        $$ = $1;
                    }
-                 | PC '=' rvalue
-                   {
-                       @1.last_column = @3.last_column;
-                       yyassert(c, &@1, !is_inside_ternary(c),
-                                "Assignment side-effect not modeled!");
-                       $3 = gen_rvalue_truncate(c, &@1, &$3);
-                       $3 = rvalue_materialize(c, &@1, &$3);
-                       OUT(c, &@1, "gen_write_new_pc(", &$3, ");\n");
-                   }
                  | LOAD '(' IMM ',' IMM ',' SIGN ',' var ',' lvalue ')'
                    {
                        @1.last_column = @12.last_column;
@@ -412,7 +403,6 @@ control_statement : frame_check
                   | cancel_statement
                   | if_statement
                   | for_statement
-                  | fpart1_statement
                   ;
 
 frame_check : FCHK '(' rvalue ',' rvalue ')' ';'
@@ -462,17 +452,6 @@ for_statement : FOR '(' IMM '=' IMM ';' IMM '<' IMM ';' IMM PLUSPLUS ')'
                 }
               ;
 
-fpart1_statement : PART1
-                   {
-                       OUT(c, &@1, "if (insn->part1) {\n");
-                   }
-                   '(' statements ')'
-                   {
-                       @1.last_column = @3.last_column;
-                       OUT(c, &@1, "return; }\n");
-                   }
-                 ;
-
 if_stmt : IF '(' rvalue ')'
           {
               @1.last_column = @3.last_column;
@@ -508,20 +487,6 @@ rvalue : FAIL
              memset(&rvalue, 0, sizeof(HexValue));
              rvalue.type = IMMEDIATE;
              rvalue.imm.type = IMM_PC;
-             rvalue.bit_width = 32;
-             rvalue.signedness = UNSIGNED;
-             $$ = rvalue;
-         }
-       | NPC
-         {
-             /*
-              * NPC is only read from CALLs, so we can hardcode it
-              * at translation time
-              */
-             HexValue rvalue;
-             memset(&rvalue, 0, sizeof(HexValue));
-             rvalue.type = IMMEDIATE;
-             rvalue.imm.type = IMM_NPC;
              rvalue.bit_width = 32;
              rvalue.signedness = UNSIGNED;
              $$ = rvalue;
@@ -780,11 +745,6 @@ rvalue : FAIL
              @1.last_column = @4.last_column;
              /* Ones count */
              $$ = gen_ctpop_op(c, &@1, &$3);
-         }
-       | LPCFG
-         {
-             $$ = gen_tmp(c, &@1, 32, UNSIGNED);
-             OUT(c, &@1, "GET_USR_FIELD(USR_LPCFG, ", &$$, ");\n");
          }
        | EXTRACT '(' rvalue ',' rvalue ')'
          {

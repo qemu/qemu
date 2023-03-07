@@ -185,9 +185,6 @@ void imm_print(Context *c, YYLTYPE *locp, HexImm *imm)
     case IMM_PC:
         EMIT(c, "ctx->base.pc_next");
         break;
-    case IMM_NPC:
-        EMIT(c, "ctx->npc");
-        break;
     case IMM_CONSTEXT:
         EMIT(c, "insn->extension_valid");
         break;

@@ -140,8 +140,6 @@ STRING_LIT               \"(\\.|[^"\\])*\"
                            yylval->rvalue.is_dotnew = true;
                            yylval->rvalue.signedness = SIGNED;
                            return PRED; }
-"IV1DEAD()"              |
-"fPAUSE(uiV);"           { return ';'; }
 "+="                     { return INC; }
 "-="                     { return DEC; }
 "++"                     { return PLUSPLUS; }
@@ -159,9 +157,8 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "else"                   { return ELSE; }
 "for"                    { return FOR; }
 "fREAD_IREG"             { return ICIRC; }
-"fPART1"                 { return PART1; }
 "if"                     { return IF; }
-"fFRAME_SCRAMBLE"        { return FSCR; }
+"fFRAME_SCRAMBLE"        |
 "fFRAME_UNSCRAMBLE"      { return FSCR; }
 "fFRAMECHECK"            { return FCHK; }
 "Constant_extended"      { return CONSTEXT; }
@@ -312,11 +309,7 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "(unsigned int)"         { yylval->cast.bit_width = 32;
                            yylval->cast.signedness = UNSIGNED;
                            return CAST; }
-"fREAD_PC()"             |
-"PC"                     { return PC; }
-"fREAD_NPC()"            |
-"NPC"                    { return NPC; }
-"fGET_LPCFG"             |
+"fREAD_PC()"             { return PC; }
 "USR.LPCFG"              { return LPCFG; }
 "LOAD_CANCEL(EA)"        { return LOAD_CANCEL; }
 "STORE_CANCEL(EA)"       |
@@ -360,26 +353,10 @@ STRING_LIT               \"(\\.|[^"\\])*\"
                            yylval->rvalue.bit_width = 32;
                            yylval->rvalue.signedness = UNSIGNED;
                            return REG; }
-"fREAD_LC"[01]           { yylval->rvalue.type = REGISTER;
-                           yylval->rvalue.reg.type = CONTROL;
-                           yylval->rvalue.reg.id = HEX_REG_LC0
-                                                 + (yytext[8] - '0') * 2;
-                           yylval->rvalue.reg.bit_width = 32;
-                           yylval->rvalue.bit_width = 32;
-                           yylval->rvalue.signedness = UNSIGNED;
-                           return REG; }
 "LC"[01]                 { yylval->rvalue.type = REGISTER;
                            yylval->rvalue.reg.type = CONTROL;
                            yylval->rvalue.reg.id = HEX_REG_LC0
                                                  + (yytext[2] - '0') * 2;
-                           yylval->rvalue.reg.bit_width = 32;
-                           yylval->rvalue.bit_width = 32;
-                           yylval->rvalue.signedness = UNSIGNED;
-                           return REG; }
-"fREAD_SA"[01]           { yylval->rvalue.type = REGISTER;
-                           yylval->rvalue.reg.type = CONTROL;
-                           yylval->rvalue.reg.id = HEX_REG_SA0
-                                                 + (yytext[8] - '0') * 2;
                            yylval->rvalue.reg.bit_width = 32;
                            yylval->rvalue.bit_width = 32;
                            yylval->rvalue.signedness = UNSIGNED;
