@@ -28,11 +28,6 @@ bool semihosting_enabled(bool is_user)
     return false;
 }
 
-SemihostingTarget semihosting_get_target(void)
-{
-    return SEMIHOSTING_TARGET_AUTO;
-}
-
 /*
  * All the rest are empty subs. We could g_assert_not_reached() but
  * that adds extra weight to the final binary. Waste not want not.
