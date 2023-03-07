@@ -1325,10 +1325,95 @@ static int vfio_set_dirty_page_tracking(VFIOContainer *container, bool start)
     return ret;
 }
 
+typedef struct VFIODirtyRanges {
+    hwaddr min32;
+    hwaddr max32;
+    hwaddr min64;
+    hwaddr max64;
+} VFIODirtyRanges;
+
+typedef struct VFIODirtyRangesListener {
+    VFIOContainer *container;
+    VFIODirtyRanges ranges;
+    MemoryListener listener;
+} VFIODirtyRangesListener;
+
+static void vfio_dirty_tracking_update(MemoryListener *listener,
+                                       MemoryRegionSection *section)
+{
+    VFIODirtyRangesListener *dirty = container_of(listener,
+                                                  VFIODirtyRangesListener,
+                                                  listener);
+    VFIODirtyRanges *range = &dirty->ranges;
+    hwaddr iova, end, *min, *max;
+
+    if (!vfio_listener_valid_section(section, "tracking_update") ||
+        !vfio_get_section_iova_range(dirty->container, section,
+                                     &iova, &end, NULL)) {
+        return;
+    }
+
+    /*
+     * The address space passed to the dirty tracker is reduced to two ranges:
+     * one for 32-bit DMA ranges, and another one for 64-bit DMA ranges.
+     * The underlying reports of dirty will query a sub-interval of each of
+     * these ranges.
+     *
+     * The purpose of the dual range handling is to handle known cases of big
+     * holes in the address space, like the x86 AMD 1T hole. The alternative
+     * would be an IOVATree but that has a much bigger runtime overhead and
+     * unnecessary complexity.
+     */
+    min = (end <= UINT32_MAX) ? &range->min32 : &range->min64;
+    max = (end <= UINT32_MAX) ? &range->max32 : &range->max64;
+
+    if (*min > iova) {
+        *min = iova;
+    }
+    if (*max < end) {
+        *max = end;
+    }
+
+    trace_vfio_device_dirty_tracking_update(iova, end, *min, *max);
+    return;
+}
+
+static const MemoryListener vfio_dirty_tracking_listener = {
+    .name = "vfio-tracking",
+    .region_add = vfio_dirty_tracking_update,
+};
+
+static void vfio_dirty_tracking_init(VFIOContainer *container,
+                                     VFIODirtyRanges *ranges)
+{
+    VFIODirtyRangesListener dirty;
+
+    memset(&dirty, 0, sizeof(dirty));
+    dirty.ranges.min32 = UINT32_MAX;
+    dirty.ranges.min64 = UINT64_MAX;
+    dirty.listener = vfio_dirty_tracking_listener;
+    dirty.container = container;
+
+    memory_listener_register(&dirty.listener,
+                             container->space->as);
+
+    *ranges = dirty.ranges;
+
+    /*
+     * The memory listener is synchronous, and used to calculate the range
+     * to dirty tracking. Unregister it after we are done as we are not
+     * interested in any follow-up updates.
+     */
+    memory_listener_unregister(&dirty.listener);
+}
+
 static void vfio_listener_log_global_start(MemoryListener *listener)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+    VFIODirtyRanges ranges;
     int ret;
+
+    vfio_dirty_tracking_init(container, &ranges);
 
     ret = vfio_set_dirty_page_tracking(container, true);
     if (ret) {
