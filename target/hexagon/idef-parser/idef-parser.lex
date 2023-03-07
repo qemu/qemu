@@ -5,7 +5,7 @@
 
 %{
 /*
- *  Copyright(c) 2019-2022 rev.ng Labs Srl. All Rights Reserved.
+ *  Copyright(c) 2019-2023 rev.ng Labs Srl. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -312,7 +312,7 @@ STRING_LIT               \"(\\.|[^"\\])*\"
 "fREAD_PC()"             { return PC; }
 "USR.LPCFG"              { return LPCFG; }
 "LOAD_CANCEL(EA)"        { return LOAD_CANCEL; }
-"STORE_CANCEL(EA)"       |
+"STORE_CANCEL(EA)"       { return STORE_CANCEL; }
 "CANCEL"                 { return CANCEL; }
 "N"{LOWER_ID}"N"         { yylval->rvalue.type = REGISTER_ARG;
                            yylval->rvalue.reg.type = DOTNEW;

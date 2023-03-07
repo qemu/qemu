@@ -1727,7 +1727,6 @@ void gen_cancel(Context *c, YYLTYPE *locp)
 
 void gen_load_cancel(Context *c, YYLTYPE *locp)
 {
-    gen_cancel(c, locp);
     OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");

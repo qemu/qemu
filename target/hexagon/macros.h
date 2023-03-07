@@ -205,7 +205,7 @@ static inline void gen_cancel(uint32_t slot)
 
 #define CANCEL gen_cancel(slot);
 #else
-#define CANCEL cancel_slot(env, slot)
+#define CANCEL do { } while (0)
 #endif
 
 #define LOAD_CANCEL(EA) do { CANCEL; } while (0)

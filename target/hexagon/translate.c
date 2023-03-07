@@ -248,7 +248,16 @@ static bool check_for_attrib(Packet *pkt, int attrib)
 
 static bool need_slot_cancelled(Packet *pkt)
 {
-    return check_for_attrib(pkt, A_CONDEXEC);
+    /* We only need slot_cancelled for conditional store and HVX instructions */
+    for (int i = 0; i < pkt->num_insns; i++) {
+        uint16_t opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CONDEXEC) &&
+            (GET_ATTRIB(opcode, A_STORE) ||
+             GET_ATTRIB(opcode, A_CVI))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool need_pred_written(Packet *pkt)
@@ -845,13 +854,27 @@ static void gen_commit_packet(DisasContext *ctx)
             TCGv mask_tcgv;
 
             if (has_store_s0) {
-                mask |= (1 << 0);
+                mask =
+                    FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0, 1);
             }
             if (has_store_s1) {
-                mask |= (1 << 1);
+                mask =
+                    FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST1, 1);
             }
             if (has_hvx_store) {
-                mask |= (1 << 2);
+                mask =
+                    FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES,
+                               HAS_HVX_STORES, 1);
+            }
+            if (has_store_s0 && slot_is_predicated(pkt, 0)) {
+                mask =
+                    FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES,
+                               S0_IS_PRED, 1);
+            }
+            if (has_store_s1 && slot_is_predicated(pkt, 1)) {
+                mask =
+                    FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES,
+                               S1_IS_PRED, 1);
             }
             mask_tcgv = tcg_constant_tl(mask);
             gen_helper_probe_pkt_scalar_hvx_stores(cpu_env, mask_tcgv, mem_idx);
@@ -861,8 +884,15 @@ static void gen_commit_packet(DisasContext *ctx)
          * process_store_log will execute the slot 1 store first,
          * so we only have to probe the store in slot 0
          */
-        TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
-        gen_helper_probe_pkt_scalar_store_s0(cpu_env, mem_idx);
+        int args = 0;
+        args =
+            FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX, ctx->mem_idx);
+        if (slot_is_predicated(pkt, 0)) {
+            args =
+                FIELD_DP32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED, 1);
+        }
+        TCGv args_tcgv = tcg_constant_tl(args);
+        gen_helper_probe_pkt_scalar_store_s0(cpu_env, args_tcgv);
     }
 
     process_store_log(ctx);

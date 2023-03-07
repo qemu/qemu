@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #define HEXAGON_OP_HELPER_H
 
 /* Misc functions */
-void cancel_slot(CPUHexagonState *env, uint32_t slot);
 void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof, target_ulong addr);
 
 uint8_t mem_load1(CPUHexagonState *env, uint32_t slot, target_ulong vaddr);

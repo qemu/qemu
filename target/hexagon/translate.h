@@ -172,4 +172,14 @@ extern TCGv hex_vstore_pending[VSTORES_MAX];
 
 bool is_gather_store_insn(DisasContext *ctx);
 void process_store(DisasContext *ctx, int slot_num);
+
+FIELD(PROBE_PKT_SCALAR_STORE_S0, MMU_IDX,       0, 2)
+FIELD(PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED, 2, 1)
+
+FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0,        0, 1)
+FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_ST1,        1, 1)
+FIELD(PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES, 2, 1)
+FIELD(PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED,     3, 1)
+FIELD(PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED,     4, 1)
+
 #endif

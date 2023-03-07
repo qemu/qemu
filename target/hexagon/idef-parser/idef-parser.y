@@ -1,6 +1,6 @@
 %{
 /*
- *  Copyright(c) 2019-2022 rev.ng Labs Srl. All Rights Reserved.
+ *  Copyright(c) 2019-2023 rev.ng Labs Srl. All Rights Reserved.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -53,7 +53,7 @@
 %token ABS CROUND ROUND CIRCADD COUNTONES INC DEC ANDA ORA XORA PLUSPLUS ASL
 %token ASR LSR EQ NEQ LTE GTE MIN MAX ANDL FOR ICIRC IF MUN FSCR FCHK SXT
 %token ZXT CONSTEXT LOCNT BREV SIGN LOAD STORE PC LPCFG
-%token LOAD_CANCEL CANCEL IDENTITY ROTL INSBITS SETBITS EXTRANGE
+%token LOAD_CANCEL STORE_CANCEL CANCEL IDENTITY ROTL INSBITS SETBITS EXTRANGE
 %token CAST4_8U FAIL CARRY_FROM_ADD ADDSAT64 LSBNEW
 %token TYPE_SIZE_T TYPE_INT TYPE_SIGNED TYPE_UNSIGNED TYPE_LONG
 
@@ -412,10 +412,11 @@ cancel_statement : LOAD_CANCEL
                    {
                        gen_load_cancel(c, &@1);
                    }
-                 | CANCEL
+                 | STORE_CANCEL
                    {
                        gen_cancel(c, &@1);
                    }
+                 | CANCEL
                  ;
 
 if_statement : if_stmt
