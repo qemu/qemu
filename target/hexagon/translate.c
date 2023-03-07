@@ -333,6 +333,7 @@ static void mark_implicit_pred_writes(DisasContext *ctx)
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
+    ctx->need_pkt_has_store_s1 = false;
     for (int i = 0; i < pkt->num_insns; i++) {
         Insn *insn = &pkt->insn[i];
         ctx->insn = insn;
@@ -367,11 +368,14 @@ static void gen_start_packet(DisasContext *ctx)
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
     }
-    tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
 
     analyze_packet(ctx);
+
+    if (ctx->need_pkt_has_store_s1) {
+        tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
+    }
 
     /*
      * pregs_written is used both in the analyze phase as well as the code

@@ -61,6 +61,7 @@ typedef struct DisasContext {
     TCGCond branch_cond;
     target_ulong branch_dest;
     bool is_tight_loop;
+    bool need_pkt_has_store_s1;
 } DisasContext;
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)

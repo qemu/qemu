@@ -200,6 +200,11 @@ def gen_analyze_func(f, tag, regs, imms):
         analyze_opn(f, tag, regtype, regid, toss, numregs, i)
         i += 1
 
+    has_generated_helper = (not hex_common.skip_qemu_helper(tag) and
+                            not hex_common.is_idef_parser_enabled(tag))
+    if (has_generated_helper and
+        'A_SCALAR_LOAD' in hex_common.attribdict[tag]):
+        f.write("    ctx->need_pkt_has_store_s1 = true;\n")
 
     f.write("}\n\n")
 
