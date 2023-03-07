@@ -176,8 +176,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
                 (regtype, regid, regno))
             f.write("    const intptr_t %s%sV_off =\n" % \
                 (regtype, regid))
-            f.write("        offsetof(CPUHexagonState,\n")
-            f.write("                 future_QRegs[%s%sN]);\n" % \
+            f.write("        get_result_qreg(ctx, %s%sN);\n" % \
                 (regtype, regid))
             if (not hex_common.skip_qemu_helper(tag)):
                 f.write("    TCGv_ptr %s%sV = tcg_temp_new_ptr();\n" % \
@@ -406,36 +405,18 @@ def genptr_dst_write(f, tag, regtype, regid):
 
 def genptr_dst_write_ext(f, tag, regtype, regid, newv="EXT_DFL"):
     if (regtype == "V"):
-        if (regid in {"dd", "xx", "yy"}):
-            if ('A_CONDEXEC' in hex_common.attribdict[tag]):
-                is_predicated = "true"
-            else:
-                is_predicated = "false"
+        if (regid in {"xx"}):
             f.write("    gen_log_vreg_write_pair(ctx, %s%sV_off, %s%sN, " % \
                 (regtype, regid, regtype, regid))
-            f.write("%s, insn->slot, %s);\n" % \
-                (newv, is_predicated))
-        elif (regid in {"d", "x", "y"}):
-            if ('A_CONDEXEC' in hex_common.attribdict[tag]):
-                is_predicated = "true"
-            else:
-                is_predicated = "false"
-            f.write("    gen_log_vreg_write(ctx, %s%sV_off, %s%sN, %s, " % \
+            f.write("%s);\n" % \
+                (newv))
+        elif (regid in {"y"}):
+            f.write("    gen_log_vreg_write(ctx, %s%sV_off, %s%sN, %s);\n" % \
                 (regtype, regid, regtype, regid, newv))
-            f.write("insn->slot, %s);\n" % \
-                (is_predicated))
-        else:
+        elif (regid not in {"dd", "d", "x"}):
             print("Bad register parse: ", regtype, regid)
     elif (regtype == "Q"):
-        if (regid in {"d", "e", "x"}):
-            if ('A_CONDEXEC' in hex_common.attribdict[tag]):
-                is_predicated = "true"
-            else:
-                is_predicated = "false"
-            f.write("    gen_log_qreg_write(%s%sV_off, %s%sN, %s, " % \
-                (regtype, regid, regtype, regid, newv))
-            f.write("insn->slot, %s);\n" % (is_predicated))
-        else:
+        if (regid not in {"d", "e", "x"}):
             print("Bad register parse: ", regtype, regid)
     else:
         print("Bad register parse: ", regtype, regid)

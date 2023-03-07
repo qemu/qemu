@@ -110,8 +110,7 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
         if (regid in {"d", "e", "x"}):
             f.write("    const int %s = insn->regno[%d];\n" % \
                 (regN, regno))
-            f.write("    ctx_log_qreg_write(ctx, %s, %s);\n" % \
-                (regN, predicated))
+            f.write("    ctx_log_qreg_write(ctx, %s);\n" % (regN))
         elif (regid in {"s", "t", "u", "v"}):
             f.write("//    const int %s = insn->regno[%d];\n" % \
                 (regN, regno))

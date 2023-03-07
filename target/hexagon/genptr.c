@@ -985,68 +985,32 @@ static intptr_t vreg_src_off(DisasContext *ctx, int num)
 }
 
 static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
-                               VRegWriteType type, int slot_num,
-                               bool is_predicated)
+                               VRegWriteType type)
 {
-    TCGLabel *label_end = NULL;
     intptr_t dstoff;
-
-    if (is_predicated) {
-        TCGv cancelled = tcg_temp_new();
-        label_end = gen_new_label();
-
-        /* Don't do anything if the slot was cancelled */
-        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
-        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
-    }
 
     if (type != EXT_TMP) {
         dstoff = ctx_future_vreg_off(ctx, num, 1, true);
         tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
                          sizeof(MMVector), sizeof(MMVector));
-        tcg_gen_ori_tl(hex_VRegs_updated, hex_VRegs_updated, 1 << num);
     } else {
         dstoff = ctx_tmp_vreg_off(ctx, num, 1, false);
         tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
                          sizeof(MMVector), sizeof(MMVector));
     }
-
-    if (is_predicated) {
-        gen_set_label(label_end);
-    }
 }
 
 static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
-                                    VRegWriteType type, int slot_num,
-                                    bool is_predicated)
+                                    VRegWriteType type)
 {
-    gen_log_vreg_write(ctx, srcoff, num ^ 0, type, slot_num, is_predicated);
+    gen_log_vreg_write(ctx, srcoff, num ^ 0, type);
     srcoff += sizeof(MMVector);
-    gen_log_vreg_write(ctx, srcoff, num ^ 1, type, slot_num, is_predicated);
+    gen_log_vreg_write(ctx, srcoff, num ^ 1, type);
 }
 
-static void gen_log_qreg_write(intptr_t srcoff, int num, int vnew,
-                               int slot_num, bool is_predicated)
+static intptr_t get_result_qreg(DisasContext *ctx, int qnum)
 {
-    TCGLabel *label_end = NULL;
-    intptr_t dstoff;
-
-    if (is_predicated) {
-        TCGv cancelled = tcg_temp_new();
-        label_end = gen_new_label();
-
-        /* Don't do anything if the slot was cancelled */
-        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
-        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
-    }
-
-    dstoff = offsetof(CPUHexagonState, future_QRegs[num]);
-    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMQReg), sizeof(MMQReg));
-
-    if (is_predicated) {
-        tcg_gen_ori_tl(hex_QRegs_updated, hex_QRegs_updated, 1 << num);
-        gen_set_label(label_end);
-    }
+    return  offsetof(CPUHexagonState, future_QRegs[qnum]);
 }
 
 static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
