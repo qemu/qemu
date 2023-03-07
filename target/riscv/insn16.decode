@@ -43,6 +43,8 @@
 %imm_addi16sp  12:s1 3:2 5:1 2:1 6:1 !function=ex_shift_4
 %imm_lui       12:s1 2:5             !function=ex_shift_12
 
+%uimm_cl_b  5:1 6:1
+%uimm_cl_h  5:1                      !function=ex_shift_1
 
 # Argument sets imported from insn32.decode:
 &empty                  !extern
@@ -53,6 +55,7 @@
 &b         imm rs2 rs1  !extern
 &u         imm rd       !extern
 &shift     shamt rs1 rd !extern
+&r2        rd rs1       !extern
 
 
 # Formats 16:
@@ -88,6 +91,12 @@
                 &shift rd=%rd rs1=%rd shamt=%shlimm_6bit
 
 @c_andi         ... . .. ... ..... .. &i imm=%imm_ci rs1=%rs1_3 rd=%rs1_3
+
+@cu           ... ...  ... .. ... ..  &r2                 rs1=%rs1_3 rd=%rs1_3
+@cl_b         ... . .. ... .. ... ..  &i  imm=%uimm_cl_b  rs1=%rs1_3 rd=%rs2_3
+@cl_h         ... . .. ... .. ... ..  &i  imm=%uimm_cl_h  rs1=%rs1_3 rd=%rs2_3
+@cs_b         ... . .. ... .. ... ..  &s  imm=%uimm_cl_b  rs1=%rs1_3 rs2=%rs2_3
+@cs_h         ... . .. ... .. ... ..  &s  imm=%uimm_cl_h  rs1=%rs1_3 rs2=%rs2_3
 
 # *** RV32/64C Standard Extension (Quadrant 0) ***
 {
@@ -180,3 +189,17 @@ sw                110 .  .....  ..... 10 @c_swsp
   sd              111 .  .....  ..... 10 @c_sdsp
   c_fsw           111 .  .....  ..... 10 @c_swsp
 }
+
+# *** RV64 and RV32 Zcb Extension ***
+c_zext_b          100 111  ... 11 000 01 @cu
+c_sext_b          100 111  ... 11 001 01 @cu
+c_zext_h          100 111  ... 11 010 01 @cu
+c_sext_h          100 111  ... 11 011 01 @cu
+c_zext_w          100 111  ... 11 100 01 @cu
+c_not             100 111  ... 11 101 01 @cu
+c_mul             100 111  ... 10 ... 01 @cs_2
+c_lbu             100 000  ... .. ... 00 @cl_b
+c_lhu             100 001  ... 0. ... 00 @cl_h
+c_lh              100 001  ... 1. ... 00 @cl_h
+c_sb              100 010  ... .. ... 00 @cs_b
+c_sh              100 011  ... 0. ... 00 @cs_h
