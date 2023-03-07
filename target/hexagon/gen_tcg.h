@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -985,6 +985,19 @@
 /* r0 = asl(r1, r2):sat */
 #define fGEN_TCG_S2_asl_r_r_sat(SHORTCODE) \
     gen_asl_r_r_sat(RdV, RsV, RtV)
+
+#define fGEN_TCG_SL2_jumpr31(SHORTCODE) \
+    gen_jumpr(ctx, hex_gpr[HEX_REG_LR])
+
+#define fGEN_TCG_SL2_jumpr31_t(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_EQ, hex_pred[0])
+#define fGEN_TCG_SL2_jumpr31_f(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_NE, hex_pred[0])
+
+#define fGEN_TCG_SL2_jumpr31_tnew(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+#define fGEN_TCG_SL2_jumpr31_fnew(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_NE, hex_new_pred_value[0])
 
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \

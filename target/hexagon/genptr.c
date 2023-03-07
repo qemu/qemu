@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -569,6 +569,13 @@ static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
                            TCGCond cond, TCGv pred)
 {
     gen_write_new_pc_addr(ctx, dst_pc, cond, pred);
+}
+
+static void gen_cond_jumpr31(DisasContext *ctx, TCGCond cond, TCGv pred)
+{
+    TCGv LSB = tcg_temp_new();
+    tcg_gen_andi_tl(LSB, pred, 1);
+    gen_cond_jumpr(ctx, hex_gpr[HEX_REG_LR], cond, LSB);
 }
 
 static void gen_cond_jump(DisasContext *ctx, TCGCond cond, TCGv pred,
