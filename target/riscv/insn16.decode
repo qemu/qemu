@@ -49,6 +49,7 @@
 %uimm_cl_h  5:1                      !function=ex_shift_1
 %spimm      2:2                      !function=ex_shift_4
 %urlist     4:4
+%index      2:8
 
 # Argument sets imported from insn32.decode:
 &empty                  !extern
@@ -63,6 +64,7 @@
 &r2_s      rs1 rs2      !extern
 
 &cmpp      urlist spimm
+&cmjt      index
 
 # Formats 16:
 @cr        ....  ..... .....  .. &r      rs2=%rs2_5       rs1=%rd     %rd
@@ -105,6 +107,7 @@
 @cs_h         ... . .. ... .. ... ..  &s  imm=%uimm_cl_h  rs1=%rs1_3 rs2=%rs2_3
 @cm_pp        ... ...  ........   ..  &cmpp  %urlist      %spimm
 @cm_mv        ... ...  ... .. ... ..  &r2_s  rs2=%r2s     rs1=%r1s
+@cm_jt        ... ...  ........   ..  &cmjt  %index
 
 # *** RV32/64C Standard Extension (Quadrant 0) ***
 {
@@ -185,7 +188,7 @@ slli              000 .  .....  ..... 10 @c_shift2
   sq              101  ... ... .. ... 10 @c_sqsp
   c_fsd           101   ......  ..... 10 @c_sdsp
 
-  # *** RV64 and RV32 Zcmp Extension ***
+  # *** RV64 and RV32 Zcmp/Zcmt Extension ***
   [
     cm_push         101  11000  .... .. 10 @cm_pp
     cm_pop          101  11010  .... .. 10 @cm_pp
@@ -193,6 +196,8 @@ slli              000 .  .....  ..... 10 @c_shift2
     cm_popretz      101  11100  .... .. 10 @cm_pp
     cm_mva01s       101  011 ... 11 ... 10 @cm_mv
     cm_mvsa01       101  011 ... 01 ... 10 @cm_mv
+
+    cm_jalt         101  000   ........ 10 @cm_jt
   ]
 }
 sw                110 .  .....  ..... 10 @c_swsp

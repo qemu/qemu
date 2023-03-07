@@ -1,5 +1,5 @@
 /*
- * RISC-V translation routines for the Zc[b,mp] Standard Extensions.
+ * RISC-V translation routines for the Zc[b,mp,mt] Standard Extensions.
  *
  * Copyright (c) 2021-2022 PLCT Lab
  *
@@ -23,6 +23,11 @@
 
 #define REQUIRE_ZCMP(ctx) do {   \
     if (!ctx->cfg_ptr->ext_zcmp) \
+        return false;            \
+} while (0)
+
+#define REQUIRE_ZCMT(ctx) do {   \
+    if (!ctx->cfg_ptr->ext_zcmt) \
         return false;            \
 } while (0)
 
@@ -281,5 +286,26 @@ static bool trans_cm_mvsa01(DisasContext *ctx, arg_cm_mvsa01 *a)
     gen_set_gpr(ctx, a->rs1, a0);
     gen_set_gpr(ctx, a->rs2, a1);
 
+    return true;
+}
+
+static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
+{
+    REQUIRE_ZCMT(ctx);
+
+    /*
+     * Update pc to current for the non-unwinding exception
+     * that might come from cpu_ld*_code() in the helper.
+     */
+    tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
+    gen_helper_cm_jalt(cpu_pc, cpu_env, tcg_constant_i32(a->index));
+
+    /* c.jt vs c.jalt depends on the index. */
+    if (a->index >= 32) {
+        gen_set_gpri(ctx, xRA, ctx->pc_succ_insn);
+    }
+
+    tcg_gen_lookup_and_goto_ptr();
+    ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
