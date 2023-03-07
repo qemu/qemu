@@ -3185,6 +3185,7 @@ static void vfio_instance_finalize(Object *obj)
      */
     vfio_put_device(vdev);
     vfio_put_group(group);
+    vfio_unblock_giommu_migration();
 }
 
 static void vfio_exitfn(PCIDevice *pdev)

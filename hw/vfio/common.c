@@ -362,6 +362,7 @@ bool vfio_mig_active(void)
 }
 
 static Error *multiple_devices_migration_blocker;
+static Error *giommu_migration_blocker;
 
 static unsigned int vfio_migratable_device_num(void)
 {
@@ -411,6 +412,51 @@ void vfio_unblock_multiple_devices_migration(void)
     migrate_del_blocker(multiple_devices_migration_blocker);
     error_free(multiple_devices_migration_blocker);
     multiple_devices_migration_blocker = NULL;
+}
+
+static bool vfio_viommu_preset(void)
+{
+    VFIOAddressSpace *space;
+
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        if (space->as != &address_space_memory) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+int vfio_block_giommu_migration(Error **errp)
+{
+    int ret;
+
+    if (giommu_migration_blocker ||
+        !vfio_viommu_preset()) {
+        return 0;
+    }
+
+    error_setg(&giommu_migration_blocker,
+               "Migration is currently not supported with vIOMMU enabled");
+    ret = migrate_add_blocker(giommu_migration_blocker, errp);
+    if (ret < 0) {
+        error_free(giommu_migration_blocker);
+        giommu_migration_blocker = NULL;
+    }
+
+    return ret;
+}
+
+void vfio_unblock_giommu_migration(void)
+{
+    if (!giommu_migration_blocker ||
+        vfio_viommu_preset()) {
+        return;
+    }
+
+    migrate_del_blocker(giommu_migration_blocker);
+    error_free(giommu_migration_blocker);
+    giommu_migration_blocker = NULL;
 }
 
 static void vfio_set_migration_error(int err)
