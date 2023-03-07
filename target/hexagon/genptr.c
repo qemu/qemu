@@ -682,6 +682,13 @@ static void gen_call(DisasContext *ctx, int pc_off)
     gen_write_new_pc_pcrel(ctx, pc_off, TCG_COND_ALWAYS, NULL);
 }
 
+static void gen_callr(DisasContext *ctx, TCGv new_pc)
+{
+    TCGv next_PC = tcg_constant_tl(ctx->next_PC);
+    gen_log_reg_write(HEX_REG_LR, next_PC);
+    gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
+}
+
 static void gen_cond_call(DisasContext *ctx, TCGv pred,
                           TCGCond cond, int pc_off)
 {
@@ -694,6 +701,17 @@ static void gen_cond_call(DisasContext *ctx, TCGv pred,
     next_PC =
         tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
     gen_log_reg_write(HEX_REG_LR, next_PC);
+    gen_set_label(skip);
+}
+
+static void gen_cond_callr(DisasContext *ctx,
+                           TCGCond cond, TCGv pred, TCGv new_pc)
+{
+    TCGv lsb = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+    tcg_gen_andi_tl(lsb, pred, 1);
+    tcg_gen_brcondi_tl(cond, lsb, 0, skip);
+    gen_callr(ctx, new_pc);
     gen_set_label(skip);
 }
 

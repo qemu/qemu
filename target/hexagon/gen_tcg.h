@@ -589,11 +589,17 @@
 
 #define fGEN_TCG_J2_call(SHORTCODE) \
     gen_call(ctx, riV)
+#define fGEN_TCG_J2_callr(SHORTCODE) \
+    gen_callr(ctx, RsV)
 
 #define fGEN_TCG_J2_callt(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_EQ, riV)
 #define fGEN_TCG_J2_callf(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_NE, riV)
+#define fGEN_TCG_J2_callrt(SHORTCODE) \
+    gen_cond_callr(ctx, TCG_COND_EQ, PuV, RsV)
+#define fGEN_TCG_J2_callrf(SHORTCODE) \
+    gen_cond_callr(ctx, TCG_COND_NE, PuV, RsV)
 
 #define fGEN_TCG_J2_endloop0(SHORTCODE) \
     gen_endloop0(ctx)
