@@ -521,7 +521,7 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     }
 }
 
-static void vfio_migration_exit(VFIODevice *vbasedev)
+static void vfio_migration_free(VFIODevice *vbasedev)
 {
     g_free(vbasedev->migration);
     vbasedev->migration = NULL;
@@ -631,7 +631,7 @@ int64_t vfio_mig_bytes_transferred(void)
     return bytes_transferred;
 }
 
-int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
+int vfio_migration_realize(VFIODevice *vbasedev, Error **errp)
 {
     int ret = -ENOTSUP;
 
@@ -669,7 +669,7 @@ add_blocker:
     return ret;
 }
 
-void vfio_migration_finalize(VFIODevice *vbasedev)
+void vfio_migration_exit(VFIODevice *vbasedev)
 {
     if (vbasedev->migration) {
         VFIOMigration *migration = vbasedev->migration;
@@ -677,7 +677,7 @@ void vfio_migration_finalize(VFIODevice *vbasedev)
         remove_migration_state_change_notifier(&migration->migration_state);
         qemu_del_vm_change_state_handler(migration->vm_state);
         unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
-        vfio_migration_exit(vbasedev);
+        vfio_migration_free(vbasedev);
         vfio_unblock_multiple_devices_migration();
     }
 

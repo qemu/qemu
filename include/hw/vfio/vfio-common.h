@@ -223,7 +223,6 @@ bool vfio_mig_active(void);
 int vfio_block_multiple_devices_migration(Error **errp);
 void vfio_unblock_multiple_devices_migration(void);
 int vfio_block_giommu_migration(Error **errp);
-void vfio_unblock_giommu_migration(void);
 int64_t vfio_mig_bytes_transferred(void);
 
 #ifdef CONFIG_LINUX
@@ -247,7 +246,8 @@ int vfio_spapr_create_window(VFIOContainer *container,
 int vfio_spapr_remove_window(VFIOContainer *container,
                              hwaddr offset_within_address_space);
 
-int vfio_migration_probe(VFIODevice *vbasedev, Error **errp);
-void vfio_migration_finalize(VFIODevice *vbasedev);
+int vfio_migration_realize(VFIODevice *vbasedev, Error **errp);
+void vfio_migration_exit(VFIODevice *vbasedev);
+void vfio_migration_finalize(void);
 
 #endif /* HW_VFIO_VFIO_COMMON_H */
