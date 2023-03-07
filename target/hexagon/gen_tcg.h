@@ -492,6 +492,59 @@
     fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, NtN))
 
 /*
+ * dealloc_return
+ * Assembler mapped to
+ * r31:30 = dealloc_return(r30):raw
+ */
+#define fGEN_TCG_L4_return(SHORTCODE) \
+    gen_return(ctx, RddV, RsV)
+
+/*
+ * sub-instruction version (no RddV, so handle it manually)
+ */
+#define fGEN_TCG_SL2_return(SHORTCODE) \
+    do { \
+        TCGv_i64 RddV = tcg_temp_new_i64(); \
+        gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
+        gen_log_reg_write_pair(HEX_REG_FP, RddV); \
+    } while (0)
+
+/*
+ * Conditional returns follow this naming convention
+ *     _t                 predicate true
+ *     _f                 predicate false
+ *     _tnew_pt           predicate.new true predict taken
+ *     _fnew_pt           predicate.new false predict taken
+ *     _tnew_pnt          predicate.new true predict not taken
+ *     _fnew_pnt          predicate.new false predict not taken
+ * Predictions are not modelled in QEMU
+ *
+ * Example:
+ *     if (p1) r31:30 = dealloc_return(r30):raw
+ */
+#define fGEN_TCG_L4_return_t(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvV, TCG_COND_EQ);
+#define fGEN_TCG_L4_return_f(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvV, TCG_COND_NE)
+#define fGEN_TCG_L4_return_tnew_pt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_EQ)
+#define fGEN_TCG_L4_return_fnew_pt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_NE)
+#define fGEN_TCG_L4_return_tnew_pnt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_EQ)
+#define fGEN_TCG_L4_return_fnew_pnt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_NE)
+
+#define fGEN_TCG_SL2_return_t(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_EQ, hex_pred[0])
+#define fGEN_TCG_SL2_return_f(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_pred[0])
+#define fGEN_TCG_SL2_return_tnew(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+#define fGEN_TCG_SL2_return_fnew(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_new_pred_value[0])
+
+/*
  * Mathematical operations with more than one definition require
  * special handling
  */

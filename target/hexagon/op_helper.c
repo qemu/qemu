@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -103,30 +103,6 @@ void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
-}
-
-void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
-                         target_ulong addr)
-{
-    HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
-
-    if (pkt_has_multi_cof) {
-        /*
-         * If more than one branch is taken in a packet, only the first one
-         * is actually done.
-         */
-        if (env->branch_taken) {
-            HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                          "ignoring the second one\n");
-        } else {
-            fCHECK_PCALIGN(addr);
-            env->gpr[HEX_REG_PC] = addr;
-            env->branch_taken = 1;
-        }
-    } else {
-        fCHECK_PCALIGN(addr);
-        env->gpr[HEX_REG_PC] = addr;
-    }
 }
 
 /* Handy place to set a breakpoint */

@@ -715,6 +715,83 @@ static void gen_cond_callr(DisasContext *ctx,
     gen_set_label(skip);
 }
 
+/* frame ^= (int64_t)FRAMEKEY << 32 */
+static void gen_frame_unscramble(TCGv_i64 frame)
+{
+    TCGv_i64 framekey = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(framekey, hex_gpr[HEX_REG_FRAMEKEY]);
+    tcg_gen_shli_i64(framekey, framekey, 32);
+    tcg_gen_xor_i64(frame, frame, framekey);
+}
+
+static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
+{
+    Insn *insn = ctx->insn;  /* Needed for CHECK_NOSHUF */
+    CHECK_NOSHUF(EA, 8);
+    tcg_gen_qemu_ld64(frame, EA, ctx->mem_idx);
+}
+
+static void gen_return_base(DisasContext *ctx, TCGv_i64 dst, TCGv src,
+                            TCGv r29)
+{
+    /*
+     * frame = *src
+     * dst = frame_unscramble(frame)
+     * SP = src + 8
+     * PC = dst.w[1]
+     */
+    TCGv_i64 frame = tcg_temp_new_i64();
+    TCGv r31 = tcg_temp_new();
+
+    gen_load_frame(ctx, frame, src);
+    gen_frame_unscramble(frame);
+    tcg_gen_mov_i64(dst, frame);
+    tcg_gen_addi_tl(r29, src, 8);
+    tcg_gen_extrh_i64_i32(r31, dst);
+    gen_jumpr(ctx, r31);
+}
+
+static void gen_return(DisasContext *ctx, TCGv_i64 dst, TCGv src)
+{
+    TCGv r29 = tcg_temp_new();
+    gen_return_base(ctx, dst, src, r29);
+    gen_log_reg_write(HEX_REG_SP, r29);
+}
+
+/* if (pred) dst = dealloc_return(src):raw */
+static void gen_cond_return(DisasContext *ctx, TCGv_i64 dst, TCGv src,
+                            TCGv pred, TCGCond cond)
+{
+    TCGv LSB = tcg_temp_new();
+    TCGv mask = tcg_temp_new();
+    TCGv r29 = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+    tcg_gen_andi_tl(LSB, pred, 1);
+
+    /* Initialize the results in case the predicate is false */
+    tcg_gen_movi_i64(dst, 0);
+    tcg_gen_movi_tl(r29, 0);
+
+    /* Set the bit in hex_slot_cancelled if the predicate is flase */
+    tcg_gen_movi_tl(mask, 1 << ctx->insn->slot);
+    tcg_gen_or_tl(mask, hex_slot_cancelled, mask);
+    tcg_gen_movcond_tl(cond, hex_slot_cancelled, LSB, tcg_constant_tl(0),
+                       mask, hex_slot_cancelled);
+
+    tcg_gen_brcondi_tl(cond, LSB, 0, skip);
+    gen_return_base(ctx, dst, src, r29);
+    gen_set_label(skip);
+    gen_log_predicated_reg_write(HEX_REG_SP, r29, ctx->insn->slot);
+}
+
+/* sub-instruction version (no RddV, so handle it manually) */
+static void gen_cond_return_subinsn(DisasContext *ctx, TCGCond cond, TCGv pred)
+{
+    TCGv_i64 RddV = tcg_temp_new_i64();
+    gen_cond_return(ctx, RddV, hex_gpr[HEX_REG_FP], pred, cond);
+    gen_log_predicated_reg_write_pair(HEX_REG_FP, RddV, ctx->insn->slot);
+}
+
 static void gen_endloop0(DisasContext *ctx)
 {
     TCGv lpcfg = tcg_temp_new();
