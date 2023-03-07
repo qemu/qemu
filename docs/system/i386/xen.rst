@@ -9,6 +9,8 @@ KVM has support for hosting Xen guests, intercepting Xen hypercalls and event
 channel (Xen PV interrupt) delivery. This allows guests which expect to be
 run under Xen to be hosted in QEMU under Linux/KVM instead.
 
+Using the split irqchip is mandatory for Xen support.
+
 Setup
 -----
 
@@ -17,14 +19,14 @@ accelerator, for example for Xen 4.10:
 
 .. parsed-literal::
 
-  |qemu_system| --accel kvm,xen-version=0x4000a
+  |qemu_system| --accel kvm,xen-version=0x4000a,kernel-irqchip=split
 
 Additionally, virtual APIC support can be advertised to the guest through the
 ``xen-vapic`` CPU flag:
 
 .. parsed-literal::
 
-  |qemu_system| --accel kvm,xen-version=0x4000a --cpu host,+xen_vapic
+  |qemu_system| --accel kvm,xen-version=0x4000a,kernel-irqchip=split --cpu host,+xen_vapic
 
 When Xen support is enabled, QEMU changes hypervisor identification (CPUID
 0x40000000..0x4000000A) to Xen. The KVM identification and features are not
@@ -33,11 +35,25 @@ moves to leaves 0x40000100..0x4000010A.
 
 The Xen platform device is enabled automatically for a Xen guest. This allows
 a guest to unplug all emulated devices, in order to use Xen PV block and network
-drivers instead. Note that until the Xen PV device back ends are enabled to work
-with Xen mode in QEMU, that is unlikely to cause significant joy. Linux guests
-can be dissuaded from this by adding 'xen_emul_unplug=never' on their command
-line, and it can also be noted that AHCI disk controllers are exempt from being
-unplugged, as are passthrough VFIO PCI devices.
+drivers instead. Under Xen, the boot disk is typically available both via IDE
+emulation, and as a PV block device. Guest bootloaders typically use IDE to load
+the guest kernel, which then unplugs the IDE and continues with the Xen PV block
+device.
+
+This configuration can be achieved as follows
+
+.. parsed-literal::
+
+  |qemu_system| -M pc --accel kvm,xen-version=0x4000a,kernel-irqchip=split \\
+       -drive file=${GUEST_IMAGE},if=none,id=disk,file.locking=off -device xen-disk,drive=disk,vdev=xvda \\
+       -drive file=${GUEST_IMAGE},index=2,media=disk,file.locking=off,if=ide
+
+It is necessary to use the pc machine type, as the q35 machine uses AHCI instead
+of legacy IDE, and AHCI disks are not unplugged through the Xen PV unplug
+mechanism.
+
+VirtIO devices can also be used; Linux guests may need to be dissuaded from
+umplugging them by adding 'xen_emul_unplug=never' on their command line.
 
 Properties
 ----------
