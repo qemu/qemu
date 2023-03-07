@@ -82,7 +82,7 @@ struct BlockBackend {
 
     int quiesce_counter; /* atomic: written under BQL, read by other threads */
     CoQueue queued_requests;
-    bool disable_request_queuing;
+    bool disable_request_queuing; /* atomic */
 
     VMChangeStateEntry *vmsh;
     bool force_allow_inactivate;
@@ -1232,7 +1232,7 @@ void blk_set_allow_aio_context_change(BlockBackend *blk, bool allow)
 void blk_set_disable_request_queuing(BlockBackend *blk, bool disable)
 {
     IO_CODE();
-    blk->disable_request_queuing = disable;
+    qatomic_set(&blk->disable_request_queuing, disable);
 }
 
 static int coroutine_fn GRAPH_RDLOCK
@@ -1271,7 +1271,8 @@ static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 {
     assert(blk->in_flight > 0);
 
-    if (qatomic_read(&blk->quiesce_counter) && !blk->disable_request_queuing) {
+    if (qatomic_read(&blk->quiesce_counter) &&
+        !qatomic_read(&blk->disable_request_queuing)) {
         blk_dec_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, NULL);
         blk_inc_in_flight(blk);
