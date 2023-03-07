@@ -945,7 +945,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     Error *err = NULL;
 
     if (vfio_listener_skipped_section(section)) {
-        trace_vfio_listener_region_add_skip(
+        trace_vfio_listener_region_skip("region_add",
                 section->offset_within_address_space,
                 section->offset_within_address_space +
                 int128_get64(int128_sub(section->size, int128_one())));
@@ -1183,7 +1183,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     bool try_unmap = true;
 
     if (vfio_listener_skipped_section(section)) {
-        trace_vfio_listener_region_del_skip(
+        trace_vfio_listener_region_skip("region_del",
                 section->offset_within_address_space,
                 section->offset_within_address_space +
                 int128_get64(int128_sub(section->size, int128_one())));
