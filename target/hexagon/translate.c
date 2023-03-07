@@ -364,6 +364,8 @@ static void gen_start_packet(DisasContext *ctx)
     bitmap_zero(ctx->vregs_updated_tmp, NUM_VREGS);
     bitmap_zero(ctx->vregs_updated, NUM_VREGS);
     bitmap_zero(ctx->vregs_select, NUM_VREGS);
+    bitmap_zero(ctx->predicated_future_vregs, NUM_VREGS);
+    bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;
@@ -412,6 +414,34 @@ static void gen_start_packet(DisasContext *ctx)
             tcg_gen_mov_tl(hex_new_value[i], hex_gpr[i]);
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
                               i + 1);
+        }
+    }
+
+    /* Preload the predicated HVX registers into future_VRegs and tmp_VRegs */
+    if (!bitmap_empty(ctx->predicated_future_vregs, NUM_VREGS)) {
+        int i = find_first_bit(ctx->predicated_future_vregs, NUM_VREGS);
+        while (i < NUM_VREGS) {
+            const intptr_t VdV_off =
+                ctx_future_vreg_off(ctx, i, 1, true);
+            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
+            tcg_gen_gvec_mov(MO_64, VdV_off,
+                             src_off,
+                             sizeof(MMVector),
+                             sizeof(MMVector));
+            i = find_next_bit(ctx->predicated_future_vregs, NUM_VREGS, i + 1);
+        }
+    }
+    if (!bitmap_empty(ctx->predicated_tmp_vregs, NUM_VREGS)) {
+        int i = find_first_bit(ctx->predicated_tmp_vregs, NUM_VREGS);
+        while (i < NUM_VREGS) {
+            const intptr_t VdV_off =
+                ctx_tmp_vreg_off(ctx, i, 1, true);
+            intptr_t src_off = offsetof(CPUHexagonState, VRegs[i]);
+            tcg_gen_gvec_mov(MO_64, VdV_off,
+                             src_off,
+                             sizeof(MMVector),
+                             sizeof(MMVector));
+            i = find_next_bit(ctx->predicated_tmp_vregs, NUM_VREGS, i + 1);
         }
     }
 
