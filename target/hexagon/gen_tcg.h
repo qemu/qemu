@@ -1058,6 +1058,30 @@
 #define fGEN_TCG_SL2_jumpr31_fnew(SHORTCODE) \
     gen_cond_jumpr31(ctx, TCG_COND_NE, hex_new_pred_value[0])
 
+/* Count trailing zeros/ones */
+#define fGEN_TCG_S2_ct0(SHORTCODE) \
+    do { \
+        tcg_gen_ctzi_tl(RdV, RsV, 32); \
+    } while (0)
+#define fGEN_TCG_S2_ct1(SHORTCODE) \
+    do { \
+        tcg_gen_not_tl(RdV, RsV); \
+        tcg_gen_ctzi_tl(RdV, RdV, 32); \
+    } while (0)
+#define fGEN_TCG_S2_ct0p(SHORTCODE) \
+    do { \
+        TCGv_i64 tmp = tcg_temp_new_i64(); \
+        tcg_gen_ctzi_i64(tmp, RssV, 64); \
+        tcg_gen_extrl_i64_i32(RdV, tmp); \
+    } while (0)
+#define fGEN_TCG_S2_ct1p(SHORTCODE) \
+    do { \
+        TCGv_i64 tmp = tcg_temp_new_i64(); \
+        tcg_gen_not_i64(tmp, RssV); \
+        tcg_gen_ctzi_i64(tmp, tmp, 64); \
+        tcg_gen_extrl_i64_i32(RdV, tmp); \
+    } while (0)
+
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
     gen_helper_conv_sf2df(RddV, cpu_env, RsV)

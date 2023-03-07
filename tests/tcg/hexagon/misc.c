@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
 
 
 static inline void S4_storerhnew_rr(void *p, int index, uint16_t v)
@@ -333,6 +334,57 @@ void test_l2fetch(void)
                   "l2fetch(r0, r3:2)\n\t");
 }
 
+static inline int ct0(uint32_t x)
+{
+    int res;
+    asm("%0 = ct0(%1)\n\t" : "=r"(res) : "r"(x));
+    return res;
+}
+
+static inline int ct1(uint32_t x)
+{
+    int res;
+    asm("%0 = ct1(%1)\n\t" : "=r"(res) : "r"(x));
+    return res;
+}
+
+static inline int ct0p(uint64_t x)
+{
+    int res;
+    asm("%0 = ct0(%1)\n\t" : "=r"(res) : "r"(x));
+    return res;
+}
+
+static inline int ct1p(uint64_t x)
+{
+    int res;
+    asm("%0 = ct1(%1)\n\t" : "=r"(res) : "r"(x));
+    return res;
+}
+
+void test_count_trailing_zeros_ones(void)
+{
+    check(ct0(0x0000000f), 0);
+    check(ct0(0x00000000), 32);
+    check(ct0(0x000000f0), 4);
+
+    check(ct1(0x000000f0), 0);
+    check(ct1(0x0000000f), 4);
+    check(ct1(0x00000000), 0);
+    check(ct1(0xffffffff), 32);
+
+    check(ct0p(0x000000000000000fULL), 0);
+    check(ct0p(0x0000000000000000ULL), 64);
+    check(ct0p(0x00000000000000f0ULL), 4);
+
+    check(ct1p(0x00000000000000f0ULL), 0);
+    check(ct1p(0x000000000000000fULL), 4);
+    check(ct1p(0x0000000000000000ULL), 0);
+    check(ct1p(0xffffffffffffffffULL), 64);
+    check(ct1p(0xffffffffff0fffffULL), 20);
+    check(ct1p(0xffffff0fffffffffULL), 36);
+}
+
 int main()
 {
     int res;
@@ -467,6 +519,8 @@ int main()
     test_lsbnew();
 
     test_l2fetch();
+
+    test_count_trailing_zeros_ones();
 
     puts(err ? "FAIL" : "PASS");
     return err;
