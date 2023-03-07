@@ -201,10 +201,16 @@ static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
     trace_qemu_co_mutex_lock_entry(mutex, self);
     push_waiter(mutex, &w);
 
+    /*
+     * Add waiter before reading mutex->handoff.  Pairs with qatomic_mb_set
+     * in qemu_co_mutex_unlock.
+     */
+    smp_mb__after_rmw();
+
     /* This is the "Responsibility Hand-Off" protocol; a lock() picks from
      * a concurrent unlock() the responsibility of waking somebody up.
      */
-    old_handoff = qatomic_mb_read(&mutex->handoff);
+    old_handoff = qatomic_read(&mutex->handoff);
     if (old_handoff &&
         has_waiters(mutex) &&
         qatomic_cmpxchg(&mutex->handoff, old_handoff, 0) == old_handoff) {
@@ -303,6 +309,7 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
         }
 
         our_handoff = mutex->sequence;
+        /* Set handoff before checking for waiters.  */
         qatomic_mb_set(&mutex->handoff, our_handoff);
         if (!has_waiters(mutex)) {
             /* The concurrent lock has not added itself yet, so it
