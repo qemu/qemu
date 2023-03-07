@@ -770,6 +770,84 @@ static void gen_endloop0(DisasContext *ctx)
     }
 }
 
+static void gen_endloop1(DisasContext *ctx)
+{
+    /*
+     *    if (hex_gpr[HEX_REG_LC1] > 1) {
+     *        PC = hex_gpr[HEX_REG_SA1];
+     *        hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *    }
+     */
+    TCGLabel *label = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC1], 1, label);
+    {
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA1]);
+        tcg_gen_subi_tl(hex_new_value[HEX_REG_LC1], hex_gpr[HEX_REG_LC1], 1);
+    }
+    gen_set_label(label);
+}
+
+static void gen_endloop01(DisasContext *ctx)
+{
+    TCGv lpcfg = tcg_temp_new();
+    TCGLabel *label1 = gen_new_label();
+    TCGLabel *label2 = gen_new_label();
+    TCGLabel *label3 = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    GET_USR_FIELD(USR_LPCFG, lpcfg);
+
+    /*
+     *    if (lpcfg == 1) {
+     *        hex_new_pred_value[3] = 0xff;
+     *        hex_pred_written |= 1 << 3;
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
+    {
+        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+    }
+    gen_set_label(label1);
+
+    /*
+     *    if (lpcfg) {
+     *        SET_USR_FIELD(USR_LPCFG, lpcfg - 1);
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
+    {
+        tcg_gen_subi_tl(lpcfg, lpcfg, 1);
+        SET_USR_FIELD(USR_LPCFG, lpcfg);
+    }
+    gen_set_label(label2);
+
+    /*
+     *    if (hex_gpr[HEX_REG_LC0] > 1) {
+     *        PC = hex_gpr[HEX_REG_SA0];
+     *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+     *    } else {
+     *        if (hex_gpr[HEX_REG_LC1] > 1) {
+     *            hex_next_pc = hex_gpr[HEX_REG_SA1];
+     *            hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *        }
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);
+    {
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA0]);
+        tcg_gen_subi_tl(hex_new_value[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
+        tcg_gen_br(done);
+    }
+    gen_set_label(label3);
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC1], 1, done);
+    {
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA1]);
+        tcg_gen_subi_tl(hex_new_value[HEX_REG_LC1], hex_gpr[HEX_REG_LC1], 1);
+    }
+    gen_set_label(done);
+}
+
 static void gen_cmp_jumpnv(DisasContext *ctx,
                            TCGCond cond, TCGv val, TCGv src, int pc_off)
 {

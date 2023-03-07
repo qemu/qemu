@@ -603,6 +603,10 @@
 
 #define fGEN_TCG_J2_endloop0(SHORTCODE) \
     gen_endloop0(ctx)
+#define fGEN_TCG_J2_endloop1(SHORTCODE) \
+    gen_endloop1(ctx)
+#define fGEN_TCG_J2_endloop01(SHORTCODE) \
+    gen_endloop01(ctx)
 
 /*
  * Compound compare and jump instructions
