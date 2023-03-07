@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,47 +40,6 @@ typedef long HVX_VectorPair   __attribute__((__vector_size__(256)))
 typedef long HVX_VectorPred   __attribute__((__vector_size__(128)))
                               __attribute__((aligned(128)));
 
-#define VSCATTER_16(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermh_128B((int)BASE, RGN, OFF, VALS)
-#define VSCATTER_16_MASKED(MASK, BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermhq_128B(MASK, (int)BASE, RGN, OFF, VALS)
-#define VSCATTER_32(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermw_128B((int)BASE, RGN, OFF, VALS)
-#define VSCATTER_32_MASKED(MASK, BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermwq_128B(MASK, (int)BASE, RGN, OFF, VALS)
-#define VSCATTER_16_32(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermhw_128B((int)BASE, RGN, OFF, VALS)
-#define VSCATTER_16_32_MASKED(MASK, BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermhwq_128B(MASK, (int)BASE, RGN, OFF, VALS)
-#define VSCATTER_16_ACC(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermh_add_128B((int)BASE, RGN, OFF, VALS)
-#define VSCATTER_32_ACC(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermw_add_128B((int)BASE, RGN, OFF, VALS)
-#define VSCATTER_16_32_ACC(BASE, RGN, OFF, VALS) \
-    __builtin_HEXAGON_V6_vscattermhw_add_128B((int)BASE, RGN, OFF, VALS)
-
-#define VGATHER_16(DSTADDR, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermh_128B(DSTADDR, (int)BASE, RGN, OFF)
-#define VGATHER_16_MASKED(DSTADDR, MASK, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermhq_128B(DSTADDR, MASK, (int)BASE, RGN, OFF)
-#define VGATHER_32(DSTADDR, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermw_128B(DSTADDR, (int)BASE, RGN, OFF)
-#define VGATHER_32_MASKED(DSTADDR, MASK, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermwq_128B(DSTADDR, MASK, (int)BASE, RGN, OFF)
-#define VGATHER_16_32(DSTADDR, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermhw_128B(DSTADDR, (int)BASE, RGN, OFF)
-#define VGATHER_16_32_MASKED(DSTADDR, MASK, BASE, RGN, OFF) \
-    __builtin_HEXAGON_V6_vgathermhwq_128B(DSTADDR, MASK, (int)BASE, RGN, OFF)
-
-#define VSHUFF_H(V) \
-    __builtin_HEXAGON_V6_vshuffh_128B(V)
-#define VSPLAT_H(X) \
-    __builtin_HEXAGON_V6_lvsplath_128B(X)
-#define VAND_VAL(PRED, VAL) \
-    __builtin_HEXAGON_V6_vandvrt_128B(PRED, VAL)
-#define VDEAL_H(V) \
-    __builtin_HEXAGON_V6_vdealh_128B(V)
-
 int err;
 
 /* define the number of rows/cols in a square matrix */
@@ -108,22 +67,22 @@ unsigned short vscatter16_32_ref[SCATTER_BUFFER_SIZE];
 unsigned short vgather16_32_ref[MATRIX_SIZE];
 
 /* declare the arrays of offsets */
-unsigned short half_offsets[MATRIX_SIZE];
-unsigned int   word_offsets[MATRIX_SIZE];
+unsigned short half_offsets[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   word_offsets[MATRIX_SIZE] __attribute__((aligned(128)));
 
 /* declare the arrays of values */
-unsigned short half_values[MATRIX_SIZE];
-unsigned short half_values_acc[MATRIX_SIZE];
-unsigned short half_values_masked[MATRIX_SIZE];
-unsigned int   word_values[MATRIX_SIZE];
-unsigned int   word_values_acc[MATRIX_SIZE];
-unsigned int   word_values_masked[MATRIX_SIZE];
+unsigned short half_values[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned short half_values_acc[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned short half_values_masked[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   word_values[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   word_values_acc[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   word_values_masked[MATRIX_SIZE] __attribute__((aligned(128)));
 
 /* declare the arrays of predicates */
-unsigned short half_predicates[MATRIX_SIZE];
-unsigned int   word_predicates[MATRIX_SIZE];
+unsigned short half_predicates[MATRIX_SIZE] __attribute__((aligned(128)));
+unsigned int   word_predicates[MATRIX_SIZE] __attribute__((aligned(128)));
 
-/* make this big enough for all the intrinsics */
+/* make this big enough for all the operations */
 const size_t region_len = sizeof(vtcm);
 
 /* optionally add sync instructions */
@@ -261,164 +220,201 @@ void create_offsets_values_preds_16_32(void)
     }
 }
 
-/* scatter the 16 bit elements using intrinsics */
+/* scatter the 16 bit elements using HVX */
 void vector_scatter_16(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsets = *(HVX_Vector *)half_offsets;
-    HVX_Vector values = *(HVX_Vector *)half_values;
-
-    VSCATTER_16(&vtcm.vscatter16, region_len, offsets, values);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.h).h = v1\n\t"
+         : : "r"(vtcm.vscatter16), "r"(region_len),
+             "r"(half_offsets), "r"(half_values)
+         : "m0", "v0", "v1", "memory");
 
     sync_scatter(vtcm.vscatter16);
 }
 
-/* scatter-accumulate the 16 bit elements using intrinsics */
+/* scatter-accumulate the 16 bit elements using HVX */
 void vector_scatter_16_acc(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsets = *(HVX_Vector *)half_offsets;
-    HVX_Vector values = *(HVX_Vector *)half_values_acc;
-
-    VSCATTER_16_ACC(&vtcm.vscatter16, region_len, offsets, values);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.h).h += v1\n\t"
+         : : "r"(vtcm.vscatter16), "r"(region_len),
+             "r"(half_offsets), "r"(half_values_acc)
+         : "m0", "v0", "v1", "memory");
 
     sync_scatter(vtcm.vscatter16);
 }
 
-/* scatter the 16 bit elements using intrinsics */
+/* masked scatter the 16 bit elements using HVX */
 void vector_scatter_16_masked(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsets = *(HVX_Vector *)half_offsets;
-    HVX_Vector values = *(HVX_Vector *)half_values_masked;
-    HVX_Vector pred_reg = *(HVX_Vector *)half_predicates;
-    HVX_VectorPred preds = VAND_VAL(pred_reg, ~0);
-
-    VSCATTER_16_MASKED(preds, &vtcm.vscatter16, region_len, offsets, values);
+    asm ("r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v1 = vmem(%4 + #0)\n\t"
+         "if (q0) vscatter(%1, m0, v0.h).h = v1\n\t"
+         : : "r"(half_predicates), "r"(vtcm.vscatter16), "r"(region_len),
+             "r"(half_offsets), "r"(half_values_masked)
+         : "r1", "q0", "m0", "q0", "v0", "v1", "memory");
 
     sync_scatter(vtcm.vscatter16);
 }
 
-/* scatter the 32 bit elements using intrinsics */
+/* scatter the 32 bit elements using HVX */
 void vector_scatter_32(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsetslo = *(HVX_Vector *)word_offsets;
-    HVX_Vector offsetshi = *(HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
-    HVX_Vector valueslo = *(HVX_Vector *)word_values;
-    HVX_Vector valueshi = *(HVX_Vector *)&word_values[MATRIX_SIZE / 2];
+    HVX_Vector *offsetslo = (HVX_Vector *)word_offsets;
+    HVX_Vector *offsetshi = (HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
+    HVX_Vector *valueslo = (HVX_Vector *)word_values;
+    HVX_Vector *valueshi = (HVX_Vector *)&word_values[MATRIX_SIZE / 2];
 
-    VSCATTER_32(&vtcm.vscatter32, region_len, offsetslo, valueslo);
-    VSCATTER_32(&vtcm.vscatter32, region_len, offsetshi, valueshi);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.w).w = v1\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetslo), "r"(valueslo)
+         : "m0", "v0", "v1", "memory");
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.w).w = v1\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetshi), "r"(valueshi)
+         : "m0", "v0", "v1", "memory");
 
     sync_scatter(vtcm.vscatter32);
 }
 
-/* scatter-acc the 32 bit elements using intrinsics */
+/* scatter-accumulate the 32 bit elements using HVX */
 void vector_scatter_32_acc(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsetslo = *(HVX_Vector *)word_offsets;
-    HVX_Vector offsetshi = *(HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
-    HVX_Vector valueslo = *(HVX_Vector *)word_values_acc;
-    HVX_Vector valueshi = *(HVX_Vector *)&word_values_acc[MATRIX_SIZE / 2];
+    HVX_Vector *offsetslo = (HVX_Vector *)word_offsets;
+    HVX_Vector *offsetshi = (HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
+    HVX_Vector *valueslo = (HVX_Vector *)word_values_acc;
+    HVX_Vector *valueshi = (HVX_Vector *)&word_values_acc[MATRIX_SIZE / 2];
 
-    VSCATTER_32_ACC(&vtcm.vscatter32, region_len, offsetslo, valueslo);
-    VSCATTER_32_ACC(&vtcm.vscatter32, region_len, offsetshi, valueshi);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.w).w += v1\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetslo), "r"(valueslo)
+         : "m0", "v0", "v1", "memory");
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%3 + #0)\n\t"
+         "vscatter(%0, m0, v0.w).w += v1\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetshi), "r"(valueshi)
+         : "m0", "v0", "v1", "memory");
 
     sync_scatter(vtcm.vscatter32);
 }
 
-/* scatter the 32 bit elements using intrinsics */
+/* masked scatter the 32 bit elements using HVX */
 void vector_scatter_32_masked(void)
 {
-    /* copy the offsets and values to vectors */
-    HVX_Vector offsetslo = *(HVX_Vector *)word_offsets;
-    HVX_Vector offsetshi = *(HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
-    HVX_Vector valueslo = *(HVX_Vector *)word_values_masked;
-    HVX_Vector valueshi = *(HVX_Vector *)&word_values_masked[MATRIX_SIZE / 2];
-    HVX_Vector pred_reglo = *(HVX_Vector *)word_predicates;
-    HVX_Vector pred_reghi = *(HVX_Vector *)&word_predicates[MATRIX_SIZE / 2];
-    HVX_VectorPred predslo = VAND_VAL(pred_reglo, ~0);
-    HVX_VectorPred predshi = VAND_VAL(pred_reghi, ~0);
+    HVX_Vector *offsetslo = (HVX_Vector *)word_offsets;
+    HVX_Vector *offsetshi = (HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
+    HVX_Vector *valueslo = (HVX_Vector *)word_values_masked;
+    HVX_Vector *valueshi = (HVX_Vector *)&word_values_masked[MATRIX_SIZE / 2];
+    HVX_Vector *predslo = (HVX_Vector *)word_predicates;
+    HVX_Vector *predshi = (HVX_Vector *)&word_predicates[MATRIX_SIZE / 2];
 
-    VSCATTER_32_MASKED(predslo, &vtcm.vscatter32, region_len, offsetslo,
-                       valueslo);
-    VSCATTER_32_MASKED(predshi, &vtcm.vscatter32, region_len, offsetshi,
-                       valueshi);
+    asm ("r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v1 = vmem(%4 + #0)\n\t"
+         "if (q0) vscatter(%1, m0, v0.w).w = v1\n\t"
+         : : "r"(predslo), "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetslo), "r"(valueslo)
+         : "r1", "q0", "m0", "q0", "v0", "v1", "memory");
+    asm ("r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v1 = vmem(%4 + #0)\n\t"
+         "if (q0) vscatter(%1, m0, v0.w).w = v1\n\t"
+         : : "r"(predshi), "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetshi), "r"(valueshi)
+         : "r1", "q0", "m0", "q0", "v0", "v1", "memory");
 
-    sync_scatter(vtcm.vscatter16);
+    sync_scatter(vtcm.vscatter32);
 }
 
-/* scatter the 16 bit elements with 32 bit offsets using intrinsics */
+/* scatter the 16 bit elements with 32 bit offsets using HVX */
 void vector_scatter_16_32(void)
 {
-    HVX_VectorPair offsets;
-    HVX_Vector values;
-
-    /* get the word offsets in a vector pair */
-    offsets = *(HVX_VectorPair *)word_offsets;
-
-    /* these values need to be shuffled for the scatter */
-    values = *(HVX_Vector *)half_values;
-    values = VSHUFF_H(values);
-
-    VSCATTER_16_32(&vtcm.vscatter16_32, region_len, offsets, values);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%2 + #1)\n\t"
+         "v2 = vmem(%3 + #0)\n\t"
+         "v2.h = vshuff(v2.h)\n\t"  /* shuffle the values for the scatter */
+         "vscatter(%0, m0, v1:0.w).h = v2\n\t"
+         : : "r"(vtcm.vscatter16_32), "r"(region_len),
+             "r"(word_offsets), "r"(half_values)
+         : "m0", "v0", "v1", "v2", "memory");
 
     sync_scatter(vtcm.vscatter16_32);
 }
 
-/* scatter-acc the 16 bit elements with 32 bit offsets using intrinsics */
+/* scatter-accumulate the 16 bit elements with 32 bit offsets using HVX */
 void vector_scatter_16_32_acc(void)
 {
-    HVX_VectorPair offsets;
-    HVX_Vector values;
-
-    /* get the word offsets in a vector pair */
-    offsets = *(HVX_VectorPair *)word_offsets;
-
-    /* these values need to be shuffled for the scatter */
-    values = *(HVX_Vector *)half_values_acc;
-    values = VSHUFF_H(values);
-
-    VSCATTER_16_32_ACC(&vtcm.vscatter16_32, region_len, offsets, values);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%2 + #1)\n\t"
+         "v2 = vmem(%3 + #0)\n\t" \
+         "v2.h = vshuff(v2.h)\n\t"  /* shuffle the values for the scatter */
+         "vscatter(%0, m0, v1:0.w).h += v2\n\t"
+         : : "r"(vtcm.vscatter16_32), "r"(region_len),
+             "r"(word_offsets), "r"(half_values_acc)
+         : "m0", "v0", "v1", "v2", "memory");
 
     sync_scatter(vtcm.vscatter16_32);
 }
 
-/* masked scatter the 16 bit elements with 32 bit offsets using intrinsics */
+/* masked scatter the 16 bit elements with 32 bit offsets using HVX */
 void vector_scatter_16_32_masked(void)
 {
-    HVX_VectorPair offsets;
-    HVX_Vector values;
-    HVX_Vector pred_reg;
-
-    /* get the word offsets in a vector pair */
-    offsets = *(HVX_VectorPair *)word_offsets;
-
-    /* these values need to be shuffled for the scatter */
-    values = *(HVX_Vector *)half_values_masked;
-    values = VSHUFF_H(values);
-
-    pred_reg = *(HVX_Vector *)half_predicates;
-    pred_reg = VSHUFF_H(pred_reg);
-    HVX_VectorPred preds = VAND_VAL(pred_reg, ~0);
-
-    VSCATTER_16_32_MASKED(preds, &vtcm.vscatter16_32, region_len, offsets,
-                          values);
+    asm ("r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "v0.h = vshuff(v0.h)\n\t"  /* shuffle the predicates */
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v1 = vmem(%3 + #1)\n\t"
+         "v2 = vmem(%4 + #0)\n\t" \
+         "v2.h = vshuff(v2.h)\n\t"  /* shuffle the values for the scatter */
+         "if (q0) vscatter(%1, m0, v1:0.w).h = v2\n\t"
+         : : "r"(half_predicates), "r"(vtcm.vscatter16_32), "r"(region_len),
+             "r"(word_offsets), "r"(half_values_masked)
+         : "r1", "q0", "m0", "v0", "v1", "v2", "memory");
 
     sync_scatter(vtcm.vscatter16_32);
 }
 
-/* gather the elements from the scatter16 buffer */
+/* gather the elements from the scatter16 buffer using HVX */
 void vector_gather_16(void)
 {
-    HVX_Vector *vgather = (HVX_Vector *)&vtcm.vgather16;
-    HVX_Vector offsets = *(HVX_Vector *)half_offsets;
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "{ vtmp.h = vgather(%0, m0, v0.h).h\n\t"
+         "  vmem(%3 + #0) = vtmp.new }\n\t"
+         : : "r"(vtcm.vscatter16), "r"(region_len),
+             "r"(half_offsets), "r"(vtcm.vgather16)
+         : "m0", "v0", "memory");
 
-    VGATHER_16(vgather, &vtcm.vscatter16, region_len, offsets);
-
-    sync_gather(vgather);
+    sync_gather(vtcm.vgather16);
 }
 
 static unsigned short gather_16_masked_init(void)
@@ -427,31 +423,51 @@ static unsigned short gather_16_masked_init(void)
     return letter | (letter << 8);
 }
 
+/* masked gather the elements from the scatter16 buffer using HVX */
 void vector_gather_16_masked(void)
 {
-    HVX_Vector *vgather = (HVX_Vector *)&vtcm.vgather16;
-    HVX_Vector offsets = *(HVX_Vector *)half_offsets;
-    HVX_Vector pred_reg = *(HVX_Vector *)half_predicates;
-    HVX_VectorPred preds = VAND_VAL(pred_reg, ~0);
+    unsigned short init = gather_16_masked_init();
 
-    *vgather = VSPLAT_H(gather_16_masked_init());
-    VGATHER_16_MASKED(vgather, preds, &vtcm.vscatter16, region_len, offsets);
+    asm ("v0.h = vsplat(%5)\n\t"
+         "vmem(%4 + #0) = v0\n\t"  /* initialize the write area */
+         "r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "{ if (q0) vtmp.h = vgather(%1, m0, v0.h).h\n\t"
+         "  vmem(%4 + #0) = vtmp.new }\n\t"
+         : : "r"(half_predicates), "r"(vtcm.vscatter16), "r"(region_len),
+             "r"(half_offsets), "r"(vtcm.vgather16), "r"(init)
+         : "r1", "q0", "m0", "v0", "memory");
 
-    sync_gather(vgather);
+    sync_gather(vtcm.vgather16);
 }
 
-/* gather the elements from the scatter32 buffer */
+/* gather the elements from the scatter32 buffer using HVX */
 void vector_gather_32(void)
 {
-    HVX_Vector *vgatherlo = (HVX_Vector *)&vtcm.vgather32;
-    HVX_Vector *vgatherhi =
-        (HVX_Vector *)((int)&vtcm.vgather32 + (MATRIX_SIZE * 2));
-    HVX_Vector offsetslo = *(HVX_Vector *)word_offsets;
-    HVX_Vector offsetshi = *(HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
+    HVX_Vector *vgatherlo = (HVX_Vector *)vtcm.vgather32;
+    HVX_Vector *vgatherhi = (HVX_Vector *)&vtcm.vgather32[MATRIX_SIZE / 2];
+    HVX_Vector *offsetslo = (HVX_Vector *)word_offsets;
+    HVX_Vector *offsetshi = (HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
 
-    VGATHER_32(vgatherlo, &vtcm.vscatter32, region_len, offsetslo);
-    VGATHER_32(vgatherhi, &vtcm.vscatter32, region_len, offsetshi);
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "{ vtmp.w = vgather(%0, m0, v0.w).w\n\t"
+         "  vmem(%3 + #0) = vtmp.new }\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetslo), "r"(vgatherlo)
+         : "m0", "v0", "memory");
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "{ vtmp.w = vgather(%0, m0, v0.w).w\n\t"
+         "  vmem(%3 + #0) = vtmp.new }\n\t"
+         : : "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetshi), "r"(vgatherhi)
+         : "m0", "v0", "memory");
 
+    sync_gather(vgatherlo);
     sync_gather(vgatherhi);
 }
 
@@ -461,79 +477,88 @@ static unsigned int gather_32_masked_init(void)
     return letter | (letter << 8) | (letter << 16) | (letter << 24);
 }
 
+/* masked gather the elements from the scatter32 buffer using HVX */
 void vector_gather_32_masked(void)
 {
-    HVX_Vector *vgatherlo = (HVX_Vector *)&vtcm.vgather32;
-    HVX_Vector *vgatherhi =
-        (HVX_Vector *)((int)&vtcm.vgather32 + (MATRIX_SIZE * 2));
-    HVX_Vector offsetslo = *(HVX_Vector *)word_offsets;
-    HVX_Vector offsetshi = *(HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
-    HVX_Vector pred_reglo = *(HVX_Vector *)word_predicates;
-    HVX_VectorPred predslo = VAND_VAL(pred_reglo, ~0);
-    HVX_Vector pred_reghi = *(HVX_Vector *)&word_predicates[MATRIX_SIZE / 2];
-    HVX_VectorPred predshi = VAND_VAL(pred_reghi, ~0);
+    unsigned int init = gather_32_masked_init();
+    HVX_Vector *vgatherlo = (HVX_Vector *)vtcm.vgather32;
+    HVX_Vector *vgatherhi = (HVX_Vector *)&vtcm.vgather32[MATRIX_SIZE / 2];
+    HVX_Vector *offsetslo = (HVX_Vector *)word_offsets;
+    HVX_Vector *offsetshi = (HVX_Vector *)&word_offsets[MATRIX_SIZE / 2];
+    HVX_Vector *predslo = (HVX_Vector *)word_predicates;
+    HVX_Vector *predshi = (HVX_Vector *)&word_predicates[MATRIX_SIZE / 2];
 
-    *vgatherlo = VSPLAT_H(gather_32_masked_init());
-    *vgatherhi = VSPLAT_H(gather_32_masked_init());
-    VGATHER_32_MASKED(vgatherlo, predslo, &vtcm.vscatter32, region_len,
-                      offsetslo);
-    VGATHER_32_MASKED(vgatherhi, predshi, &vtcm.vscatter32, region_len,
-                      offsetshi);
+    asm ("v0.h = vsplat(%5)\n\t"
+         "vmem(%4 + #0) = v0\n\t"  /* initialize the write area */
+         "r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "{ if (q0) vtmp.w = vgather(%1, m0, v0.w).w\n\t"
+         "  vmem(%4 + #0) = vtmp.new }\n\t"
+         : : "r"(predslo), "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetslo), "r"(vgatherlo), "r"(init)
+         : "r1", "q0", "m0", "v0", "memory");
+    asm ("v0.h = vsplat(%5)\n\t"
+         "vmem(%4 + #0) = v0\n\t"  /* initialize the write area */
+         "r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "{ if (q0) vtmp.w = vgather(%1, m0, v0.w).w\n\t"
+         "  vmem(%4 + #0) = vtmp.new }\n\t"
+         : : "r"(predshi), "r"(vtcm.vscatter32), "r"(region_len),
+             "r"(offsetshi), "r"(vgatherhi), "r"(init)
+         : "r1", "q0", "m0", "v0", "memory");
 
     sync_gather(vgatherlo);
     sync_gather(vgatherhi);
 }
 
-/* gather the elements from the scatter16_32 buffer */
+/* gather the elements from the scatter16_32 buffer using HVX */
 void vector_gather_16_32(void)
 {
-    HVX_Vector *vgather;
-    HVX_VectorPair offsets;
-    HVX_Vector values;
+    asm ("m0 = %1\n\t"
+         "v0 = vmem(%2 + #0)\n\t"
+         "v1 = vmem(%2 + #1)\n\t"
+         "{ vtmp.h = vgather(%0, m0, v1:0.w).h\n\t"
+         "  vmem(%3 + #0) = vtmp.new }\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v0.h = vdeal(v0.h)\n\t"  /* deal the elements to get the order back */
+         "vmem(%3 + #0) = v0\n\t"
+         : : "r"(vtcm.vscatter16_32), "r"(region_len),
+             "r"(word_offsets), "r"(vtcm.vgather16_32)
+         : "m0", "v0", "v1", "memory");
 
-    /* get the vtcm address to gather from */
-    vgather = (HVX_Vector *)&vtcm.vgather16_32;
-
-    /* get the word offsets in a vector pair */
-    offsets = *(HVX_VectorPair *)word_offsets;
-
-    VGATHER_16_32(vgather, &vtcm.vscatter16_32, region_len, offsets);
-
-    /* deal the elements to get the order back */
-    values = *(HVX_Vector *)vgather;
-    values = VDEAL_H(values);
-
-    /* write it back to vtcm address */
-    *(HVX_Vector *)vgather = values;
+    sync_gather(vtcm.vgather16_32);
 }
 
+/* masked gather the elements from the scatter16_32 buffer using HVX */
 void vector_gather_16_32_masked(void)
 {
-    HVX_Vector *vgather;
-    HVX_VectorPair offsets;
-    HVX_Vector pred_reg;
-    HVX_VectorPred preds;
-    HVX_Vector values;
+    unsigned short init = gather_16_masked_init();
 
-    /* get the vtcm address to gather from */
-    vgather = (HVX_Vector *)&vtcm.vgather16_32;
+    asm ("v0.h = vsplat(%5)\n\t"
+         "vmem(%4 + #0) = v0\n\t"  /* initialize the write area */
+         "r1 = #-1\n\t"
+         "v0 = vmem(%0 + #0)\n\t"
+         "v0.h = vshuff(v0.h)\n\t"  /* shuffle the predicates */
+         "q0 = vand(v0, r1)\n\t"
+         "m0 = %2\n\t"
+         "v0 = vmem(%3 + #0)\n\t"
+         "v1 = vmem(%3 + #1)\n\t"
+         "{ if (q0) vtmp.h = vgather(%1, m0, v1:0.w).h\n\t"
+         "  vmem(%4 + #0) = vtmp.new }\n\t"
+         "v0 = vmem(%4 + #0)\n\t"
+         "v0.h = vdeal(v0.h)\n\t"  /* deal the elements to get the order back */
+         "vmem(%4 + #0) = v0\n\t"
+         : : "r"(half_predicates), "r"(vtcm.vscatter16_32), "r"(region_len),
+             "r"(word_offsets), "r"(vtcm.vgather16_32), "r"(init)
+         : "r1", "q0", "m0", "v0", "v1", "memory");
 
-    /* get the word offsets in a vector pair */
-    offsets = *(HVX_VectorPair *)word_offsets;
-    pred_reg = *(HVX_Vector *)half_predicates;
-    pred_reg = VSHUFF_H(pred_reg);
-    preds = VAND_VAL(pred_reg, ~0);
-
-   *vgather = VSPLAT_H(gather_16_masked_init());
-   VGATHER_16_32_MASKED(vgather, preds, &vtcm.vscatter16_32, region_len,
-                        offsets);
-
-    /* deal the elements to get the order back */
-    values = *(HVX_Vector *)vgather;
-    values = VDEAL_H(values);
-
-    /* write it back to vtcm address */
-    *(HVX_Vector *)vgather = values;
+    sync_gather(vtcm.vgather16_32);
 }
 
 static void check_buffer(const char *name, void *c, void *r, size_t size)
@@ -579,6 +604,7 @@ void scalar_scatter_16_acc(unsigned short *vscatter16)
     }
 }
 
+/* scatter-accumulate the 16 bit elements using C */
 void check_scatter_16_acc()
 {
     memset(vscatter16_ref, FILL_CHAR,
@@ -589,7 +615,7 @@ void check_scatter_16_acc()
                  SCATTER_BUFFER_SIZE * sizeof(unsigned short));
 }
 
-/* scatter the 16 bit elements using C */
+/* masked scatter the 16 bit elements using C */
 void scalar_scatter_16_masked(unsigned short *vscatter16)
 {
     for (int i = 0; i < MATRIX_SIZE; i++) {
@@ -628,7 +654,7 @@ void check_scatter_32()
                  SCATTER_BUFFER_SIZE * sizeof(unsigned int));
 }
 
-/* scatter the 32 bit elements using C */
+/* scatter-accumulate the 32 bit elements using C */
 void scalar_scatter_32_acc(unsigned int *vscatter32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -646,7 +672,7 @@ void check_scatter_32_acc()
                  SCATTER_BUFFER_SIZE * sizeof(unsigned int));
 }
 
-/* scatter the 32 bit elements using C */
+/* masked scatter the 32 bit elements using C */
 void scalar_scatter_32_masked(unsigned int *vscatter32)
 {
     for (int i = 0; i < MATRIX_SIZE; i++) {
@@ -667,7 +693,7 @@ void check_scatter_32_masked()
                   SCATTER_BUFFER_SIZE * sizeof(unsigned int));
 }
 
-/* scatter the 32 bit elements using C */
+/* scatter the 16 bit elements with 32 bit offsets using C */
 void scalar_scatter_16_32(unsigned short *vscatter16_32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -684,7 +710,7 @@ void check_scatter_16_32()
                  SCATTER_BUFFER_SIZE * sizeof(unsigned short));
 }
 
-/* scatter the 32 bit elements using C */
+/* scatter-accumulate the 16 bit elements with 32 bit offsets using C */
 void scalar_scatter_16_32_acc(unsigned short *vscatter16_32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -702,6 +728,7 @@ void check_scatter_16_32_acc()
                  SCATTER_BUFFER_SIZE * sizeof(unsigned short));
 }
 
+/* masked scatter the 16 bit elements with 32 bit offsets using C */
 void scalar_scatter_16_32_masked(unsigned short *vscatter16_32)
 {
     for (int i = 0; i < MATRIX_SIZE; i++) {
@@ -738,6 +765,7 @@ void check_gather_16()
                    MATRIX_SIZE * sizeof(unsigned short));
 }
 
+/* masked gather the elements from the scatter buffer using C */
 void scalar_gather_16_masked(unsigned short *vgather16)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -756,7 +784,7 @@ void check_gather_16_masked()
                  MATRIX_SIZE * sizeof(unsigned short));
 }
 
-/* gather the elements from the scatter buffer using C */
+/* gather the elements from the scatter32 buffer using C */
 void scalar_gather_32(unsigned int *vgather32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -772,6 +800,7 @@ void check_gather_32(void)
                  MATRIX_SIZE * sizeof(unsigned int));
 }
 
+/* masked gather the elements from the scatter32 buffer using C */
 void scalar_gather_32_masked(unsigned int *vgather32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -780,7 +809,6 @@ void scalar_gather_32_masked(unsigned int *vgather32)
         }
     }
 }
-
 
 void check_gather_32_masked(void)
 {
@@ -791,7 +819,7 @@ void check_gather_32_masked(void)
                  vgather32_ref, MATRIX_SIZE * sizeof(unsigned int));
 }
 
-/* gather the elements from the scatter buffer using C */
+/* gather the elements from the scatter16_32 buffer using C */
 void scalar_gather_16_32(unsigned short *vgather16_32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
@@ -807,6 +835,7 @@ void check_gather_16_32(void)
                  MATRIX_SIZE * sizeof(unsigned short));
 }
 
+/* masked gather the elements from the scatter16_32 buffer using C */
 void scalar_gather_16_32_masked(unsigned short *vgather16_32)
 {
     for (int i = 0; i < MATRIX_SIZE; ++i) {
