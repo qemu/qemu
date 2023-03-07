@@ -210,21 +210,6 @@ static inline void gen_cancel(uint32_t slot)
 
 #define LOAD_CANCEL(EA) do { CANCEL; } while (0)
 
-#ifdef QEMU_GENERATE
-static inline void gen_pred_cancel(TCGv pred, uint32_t slot_num)
- {
-    TCGv slot_mask = tcg_temp_new();
-    TCGv tmp = tcg_temp_new();
-    TCGv zero = tcg_constant_tl(0);
-    tcg_gen_ori_tl(slot_mask, hex_slot_cancelled, 1 << slot_num);
-    tcg_gen_andi_tl(tmp, pred, 1);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
-                       slot_mask, hex_slot_cancelled);
-}
-#define PRED_LOAD_CANCEL(PRED, EA) \
-    gen_pred_cancel(PRED, insn->is_endloop ? 4 : insn->slot)
-#endif
-
 #define STORE_CANCEL(EA) { env->slot_cancelled |= (1 << slot); }
 
 #define fMAX(A, B) (((A) > (B)) ? (A) : (B))

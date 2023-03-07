@@ -1668,9 +1668,7 @@ void gen_inst_init_args(Context *c, YYLTYPE *locp)
     for (unsigned i = 0; i < c->inst.init_list->len; i++) {
         HexValue *val = &g_array_index(c->inst.init_list, HexValue, i);
         if (val->type == REGISTER_ARG) {
-            char reg_id[5];
-            reg_compose(c, locp, &val->reg, reg_id);
-            EMIT_HEAD(c, "tcg_gen_movi_i%u(%s, 0);\n", val->bit_width, reg_id);
+            /* Nothing to do here */
         } else if (val->type == PREDICATE) {
             char suffix = val->is_dotnew ? 'N' : 'V';
             EMIT_HEAD(c, "tcg_gen_movi_i%u(P%c%c, 0);\n", val->bit_width,

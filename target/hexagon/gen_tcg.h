@@ -332,8 +332,6 @@
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, SIZE, LSB); \
-        PRED_LOAD_CANCEL(LSB, EA); \
-        tcg_gen_movi_tl(RdV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, SIZE, SIGN, EA, RdV); \
         gen_set_label(label); \
@@ -391,8 +389,6 @@
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, 8, LSB); \
-        PRED_LOAD_CANCEL(LSB, EA); \
-        tcg_gen_movi_i64(RddV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, 8, u, EA, RddV); \
         gen_set_label(label); \
@@ -504,7 +500,7 @@
  */
 #define fGEN_TCG_SL2_return(SHORTCODE) \
     do { \
-        TCGv_i64 RddV = tcg_temp_new_i64(); \
+        TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP); \
         gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
         gen_log_reg_write_pair(HEX_REG_FP, RddV); \
     } while (0)
