@@ -833,7 +833,7 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
 
         /* Claim the CPU interrupt to be triggered by this APLIC */
         for (i = 0; i < aplic->num_harts; i++) {
-            RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(aplic->hartid_base + i));
+            RISCVCPU *cpu = RISCV_CPU(cpu_by_arch_id(aplic->hartid_base + i));
             if (riscv_cpu_claim_interrupts(cpu,
                 (aplic->mmode) ? MIP_MEIP : MIP_SEIP) < 0) {
                 error_report("%s already claimed",
@@ -966,7 +966,7 @@ DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
 
     if (!msimode) {
         for (i = 0; i < num_harts; i++) {
-            CPUState *cpu = qemu_get_cpu(hartid_base + i);
+            CPUState *cpu = cpu_by_arch_id(hartid_base + i);
 
             qdev_connect_gpio_out_named(dev, NULL, i,
                                         qdev_get_gpio_in(DEVICE(cpu),

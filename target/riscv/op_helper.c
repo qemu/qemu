@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
  * Copyright (c) 2017-2018 SiFive, Inc.
+ * Copyright (c) 2022      VRULL GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -121,6 +122,140 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
 
     env->retxh = int128_gethi(rv);
     return int128_getlo(rv);
+}
+
+
+/*
+ * check_zicbo_envcfg
+ *
+ * Raise virtual exceptions and illegal instruction exceptions for
+ * Zicbo[mz] instructions based on the settings of [mhs]envcfg as
+ * specified in section 2.5.1 of the CMO specification.
+ */
+static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
+                                uintptr_t ra)
+{
+#ifndef CONFIG_USER_ONLY
+    if ((env->priv < PRV_M) && !get_field(env->menvcfg, envbits)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+
+    if (riscv_cpu_virt_enabled(env) &&
+        (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
+         ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
+    }
+
+    if ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+#endif
+}
+
+void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    uint16_t cbozlen = cpu->cfg.cboz_blocksize;
+    int mmu_idx = cpu_mmu_index(env, false);
+    uintptr_t ra = GETPC();
+    void *mem;
+
+    check_zicbo_envcfg(env, MENVCFG_CBZE, ra);
+
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbozlen - 1);
+
+    /*
+     * cbo.zero requires MMU_DATA_STORE access. Do a probe_write()
+     * to raise any exceptions, including PMP.
+     */
+    mem = probe_write(env, address, cbozlen, mmu_idx, ra);
+
+    if (likely(mem)) {
+        memset(mem, 0, cbozlen);
+    } else {
+        /*
+         * This means that we're dealing with an I/O page. Section 4.2
+         * of cmobase v1.0.1 says:
+         *
+         * "Cache-block zero instructions store zeros independently
+         * of whether data from the underlying memory locations are
+         * cacheable."
+         *
+         * Write zeros in address + cbozlen regardless of not being
+         * a RAM page.
+         */
+        for (int i = 0; i < cbozlen; i++) {
+            cpu_stb_mmuidx_ra(env, address + i, 0, mmu_idx, ra);
+        }
+    }
+}
+
+/*
+ * check_zicbom_access
+ *
+ * Check access permissions (LOAD, STORE or FETCH as specified in
+ * section 2.5.2 of the CMO specification) for Zicbom, raising
+ * either store page-fault (non-virtualized) or store guest-page
+ * fault (virtualized).
+ */
+static void check_zicbom_access(CPURISCVState *env,
+                                target_ulong address,
+                                uintptr_t ra)
+{
+    RISCVCPU *cpu = env_archcpu(env);
+    int mmu_idx = cpu_mmu_index(env, false);
+    uint16_t cbomlen = cpu->cfg.cbom_blocksize;
+    void *phost;
+    int ret;
+
+    /* Mask off low-bits to align-down to the cache-block. */
+    address &= ~(cbomlen - 1);
+
+    /*
+     * Section 2.5.2 of cmobase v1.0.1:
+     *
+     * "A cache-block management instruction is permitted to
+     * access the specified cache block whenever a load instruction
+     * or store instruction is permitted to access the corresponding
+     * physical addresses. If neither a load instruction nor store
+     * instruction is permitted to access the physical addresses,
+     * but an instruction fetch is permitted to access the physical
+     * addresses, whether a cache-block management instruction is
+     * permitted to access the cache block is UNSPECIFIED."
+     */
+    ret = probe_access_flags(env, address, cbomlen, MMU_DATA_LOAD,
+                             mmu_idx, true, &phost, ra);
+    if (ret != TLB_INVALID_MASK) {
+        /* Success: readable */
+        return;
+    }
+
+    /*
+     * Since not readable, must be writable. On failure, store
+     * fault/store guest amo fault will be raised by
+     * riscv_cpu_tlb_fill(). PMP exceptions will be caught
+     * there as well.
+     */
+    probe_write(env, address, cbomlen, mmu_idx, ra);
+}
+
+void helper_cbo_clean_flush(CPURISCVState *env, target_ulong address)
+{
+    uintptr_t ra = GETPC();
+    check_zicbo_envcfg(env, MENVCFG_CBCFE, ra);
+    check_zicbom_access(env, address, ra);
+
+    /* We don't emulate the cache-hierarchy, so we're done. */
+}
+
+void helper_cbo_inval(CPURISCVState *env, target_ulong address)
+{
+    uintptr_t ra = GETPC();
+    check_zicbo_envcfg(env, MENVCFG_CBIE, ra);
+    check_zicbom_access(env, address, ra);
+
+    /* We don't emulate the cache-hierarchy, so we're done. */
 }
 
 #ifndef CONFIG_USER_ONLY

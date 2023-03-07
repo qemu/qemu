@@ -15,6 +15,7 @@ RUN apt update \
         ca-certificates \
         git \
         make \
+	python3 \
         wget \
     && \
     \
