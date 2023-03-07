@@ -52,6 +52,7 @@ header files in <BUILD_DIR>/target/hexagon
         gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
         gen_idef_parser_funcs.py        -> idef_parser_input.h
+        gen_analyze_funcs.py            -> analyze_funcs_generated.c.inc
 
 Qemu helper functions have 3 parts
     DEF_HELPER declaration indicates the signature of the helper
@@ -87,7 +88,6 @@ tcg_funcs_generated.c.inc
         TCGv RtV = hex_gpr[insn->regno[2]];
         gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
         gen_log_reg_write(RdN, RdV);
-        ctx_log_reg_write(ctx, RdN);
     }
 
 helper_funcs_generated.c.inc
@@ -160,7 +160,6 @@ istruction.
         TCGv slot = tcg_constant_tl(insn->slot);
         gen_helper_V6_vaddw(cpu_env, VdV, VuV, VvV, slot);
         gen_log_vreg_write(ctx, VdV_off, VdN, EXT_DFL, insn->slot, false);
-        ctx_log_vreg_write(ctx, VdN, EXT_DFL, false);
     }
 
 Notice that we also generate a variable named <operand>_off for each operand of
@@ -190,8 +189,13 @@ when the override is present.
             vreg_src_off(ctx, VvN);
         fGEN_TCG_V6_vaddw({ fHIDE(int i;) fVFOREACH(32, i) { VdV.w[i] = VuV.w[i] + VvV.w[i] ; } });
         gen_log_vreg_write(ctx, VdV_off, VdN, EXT_DFL, insn->slot, false);
-        ctx_log_vreg_write(ctx, VdN, EXT_DFL, false);
     }
+
+We also generate an analyze_<tag> function for each instruction.  Currently,
+these functions record the writes to registers by calling ctx_log_*.  During
+gen_start_packet, we invoke the analyze_<tag> function for each instruction in
+the packet, and we mark the implicit writes.  After the analysis is performed,
+we initialize hex_new_value for each of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is also a two step process.  The first step is to run
