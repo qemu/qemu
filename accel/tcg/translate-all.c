@@ -72,9 +72,11 @@ QEMU_BUILD_BUG_ON(CPU_TRACE_DSTATE_MAX_EVENTS >
 
 TBContext tb_ctx;
 
-/* Encode VAL as a signed leb128 sequence at P.
-   Return P incremented past the encoded value.  */
-static uint8_t *encode_sleb128(uint8_t *p, target_long val)
+/*
+ * Encode VAL as a signed leb128 sequence at P.
+ * Return P incremented past the encoded value.
+ */
+static uint8_t *encode_sleb128(uint8_t *p, int64_t val)
 {
     int more, byte;
 
@@ -92,21 +94,23 @@ static uint8_t *encode_sleb128(uint8_t *p, target_long val)
     return p;
 }
 
-/* Decode a signed leb128 sequence at *PP; increment *PP past the
-   decoded value.  Return the decoded value.  */
-static target_long decode_sleb128(const uint8_t **pp)
+/*
+ * Decode a signed leb128 sequence at *PP; increment *PP past the
+ * decoded value.  Return the decoded value.
+ */
+static int64_t decode_sleb128(const uint8_t **pp)
 {
     const uint8_t *p = *pp;
-    target_long val = 0;
+    int64_t val = 0;
     int byte, shift = 0;
 
     do {
         byte = *p++;
-        val |= (target_ulong)(byte & 0x7f) << shift;
+        val |= (int64_t)(byte & 0x7f) << shift;
         shift += 7;
     } while (byte & 0x80);
     if (shift < TARGET_LONG_BITS && (byte & 0x40)) {
-        val |= -(target_ulong)1 << shift;
+        val |= -(int64_t)1 << shift;
     }
 
     *pp = p;
@@ -132,7 +136,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
     int i, j, n;
 
     for (i = 0, n = tb->icount; i < n; ++i) {
-        target_ulong prev;
+        uint64_t prev;
 
         for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
             if (i == 0) {
@@ -444,7 +448,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             /* Dump header and the first instruction */
             fprintf(logfile, "OUT: [size=%d]\n", gen_code_size);
             fprintf(logfile,
-                    "  -- guest addr 0x" TARGET_FMT_lx " + tb prologue\n",
+                    "  -- guest addr 0x%016" PRIx64 " + tb prologue\n",
                     tcg_ctx->gen_insn_data[insn][0]);
             chunk_start = tcg_ctx->gen_insn_end_off[insn];
             disas(logfile, tb->tc.ptr, chunk_start);
@@ -457,7 +461,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             while (insn < tb->icount) {
                 size_t chunk_end = tcg_ctx->gen_insn_end_off[insn];
                 if (chunk_end > chunk_start) {
-                    fprintf(logfile, "  -- guest addr 0x" TARGET_FMT_lx "\n",
+                    fprintf(logfile, "  -- guest addr 0x%016" PRIx64 "\n",
                             tcg_ctx->gen_insn_data[insn][0]);
                     disas(logfile, tb->tc.ptr + chunk_start,
                           chunk_end - chunk_start);
