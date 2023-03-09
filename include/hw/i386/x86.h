@@ -18,10 +18,8 @@
 #define HW_I386_X86_H
 
 #include "exec/hwaddr.h"
-#include "qemu/notify.h"
 
 #include "hw/boards.h"
-#include "hw/nmi.h"
 #include "hw/intc/ioapic.h"
 #include "hw/isa/isa.h"
 #include "qom/object.h"
