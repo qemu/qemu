@@ -70,7 +70,7 @@ static void test_submit_aio(void)
     g_assert_cmpint(data.ret, ==, 0);
 }
 
-static void co_test_cb(void *opaque)
+static void coroutine_fn co_test_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
 
