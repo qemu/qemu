@@ -886,9 +886,9 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 /* Called when going out of the streaming phase to flush the bulk of the
  * data to the medium, or just before completing.
  */
-static int mirror_flush(MirrorBlockJob *s)
+static int coroutine_fn mirror_flush(MirrorBlockJob *s)
 {
-    int ret = blk_flush(s->target);
+    int ret = blk_co_flush(s->target);
     if (ret < 0) {
         if (mirror_error_action(s, false, -ret) == BLOCK_ERROR_ACTION_REPORT) {
             s->ret = ret;
