@@ -145,6 +145,26 @@ Memory region description
 
 :mmap offset: 64-bit offset where region starts in the mapped memory
 
+When the ``VHOST_USER_PROTOCOL_F_XEN_MMAP`` protocol feature has been
+successfully negotiated, the memory region description contains two extra
+fields at the end.
+
++---------------+------+--------------+-------------+----------------+-------+
+| guest address | size | user address | mmap offset | xen mmap flags | domid |
++---------------+------+--------------+-------------+----------------+-------+
+
+:xen mmap flags: 32-bit bit field
+
+- Bit 0 is set for Xen foreign memory mapping.
+- Bit 1 is set for Xen grant memory mapping.
+- Bit 8 is set if the memory region can not be mapped in advance, and memory
+  areas within this region must be mapped / unmapped only when required by the
+  back-end. The back-end shouldn't try to map the entire region at once, as the
+  front-end may not allow it. The back-end should rather map only the required
+  amount of memory at once and unmap it after it is used.
+
+:domid: a 32-bit Xen hypervisor specific domain id.
+
 Single memory region description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -864,6 +884,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
 
 Front-end message types
 -----------------------
