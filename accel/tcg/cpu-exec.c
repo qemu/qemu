@@ -371,7 +371,7 @@ void afl_setup(void) {
   int have_names = 0;
   if (getenv("AFL_QEMU_INST_RANGES")) {
     char *str = getenv("AFL_QEMU_INST_RANGES");
-    char *saveptr1, *saveptr2 = NULL;
+    char *saveptr1, *saveptr2 = NULL, save_pt1 = NULL;
     char *pt1, *pt2, *pt3 = NULL;
     
     while (1) {
@@ -379,6 +379,7 @@ void afl_setup(void) {
       pt1 = strtok_r(str, ",", &saveptr1);
       if (pt1 == NULL) break;
       str = NULL;
+      save_pt1 = strdup(pt1);
       
       pt2 = strtok_r(pt1, "-", &saveptr2);
       pt3 = strtok_r(NULL, "-", &saveptr2);
@@ -390,17 +391,18 @@ void afl_setup(void) {
         have_names = 1;
         n->start = (target_ulong)-1;
         n->end = 0;
-        n->name = strdup(pt1);
+        n->name = save_pt1;
       } else {
         n->start = strtoull(pt2, NULL, 16);
         n->end = strtoull(pt3, NULL, 16);
         if (n->start && n->end) {
           n->name = NULL;
+          free(save_pt1);
         } else {
           have_names = 1;
           n->start = (target_ulong)-1;
           n->end = 0;
-          n->name = strdup(pt1);
+          n->name = save_pt1;
         }
       }
       
@@ -411,7 +413,7 @@ void afl_setup(void) {
 
   if (getenv("AFL_QEMU_EXCLUDE_RANGES")) {
     char *str = getenv("AFL_QEMU_EXCLUDE_RANGES");
-    char *saveptr1, *saveptr2 = NULL;
+    char *saveptr1, *saveptr2 = NULL, save_pt1;
     char *pt1, *pt2, *pt3 = NULL;
 
     while (1) {
@@ -419,6 +421,7 @@ void afl_setup(void) {
       pt1 = strtok_r(str, ",", &saveptr1);
       if (pt1 == NULL) break;
       str = NULL;
+      save_pt1 = strdup(pt1);
 
       pt2 = strtok_r(pt1, "-", &saveptr2);
       pt3 = strtok_r(NULL, "-", &saveptr2);
@@ -431,17 +434,18 @@ void afl_setup(void) {
         have_names = 1;
         n->start = (target_ulong)-1;
         n->end = 0;
-        n->name = strdup(pt1);
+        n->name = save_pt1;
       } else {
         n->start = strtoull(pt2, NULL, 16);
         n->end = strtoull(pt3, NULL, 16);
         if (n->start && n->end) {
           n->name = NULL;
+          free(save_pt1);
         } else {
           have_names = 1;
           n->start = (target_ulong)-1;
           n->end = 0;
-          n->name = strdup(pt1);
+          n->name = save_pt1;
         }
       }
 
