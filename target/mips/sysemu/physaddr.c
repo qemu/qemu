@@ -70,8 +70,7 @@ static int is_seg_am_mapped(unsigned int am, bool eu, int mmu_idx)
         /* is this AM mapped in current execution mode */
         return ((adetlb_mask << am) < 0);
     default:
-        assert(0);
-        return TLBRET_BADADDR;
+        g_assert_not_reached();
     };
 }
 
