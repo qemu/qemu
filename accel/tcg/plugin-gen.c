@@ -92,27 +92,6 @@ void HELPER(plugin_vcpu_mem_cb)(unsigned int vcpu_index,
                                 void *userdata)
 { }
 
-static void do_gen_mem_cb(TCGv vaddr, uint32_t info)
-{
-    TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
-    TCGv_i32 meminfo = tcg_temp_ebb_new_i32();
-    TCGv_i64 vaddr64 = tcg_temp_ebb_new_i64();
-    TCGv_ptr udata = tcg_temp_ebb_new_ptr();
-
-    tcg_gen_movi_i32(meminfo, info);
-    tcg_gen_movi_ptr(udata, 0);
-    tcg_gen_ld_i32(cpu_index, cpu_env,
-                   -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
-    tcg_gen_extu_tl_i64(vaddr64, vaddr);
-
-    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, vaddr64, udata);
-
-    tcg_temp_free_ptr(udata);
-    tcg_temp_free_i64(vaddr64);
-    tcg_temp_free_i32(meminfo);
-    tcg_temp_free_i32(cpu_index);
-}
-
 static void gen_empty_udata_cb(void)
 {
     TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
@@ -147,7 +126,23 @@ static void gen_empty_inline_cb(void)
 
 static void gen_empty_mem_cb(TCGv addr, uint32_t info)
 {
-    do_gen_mem_cb(addr, info);
+    TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
+    TCGv_i32 meminfo = tcg_temp_ebb_new_i32();
+    TCGv_i64 addr64 = tcg_temp_ebb_new_i64();
+    TCGv_ptr udata = tcg_temp_ebb_new_ptr();
+
+    tcg_gen_movi_i32(meminfo, info);
+    tcg_gen_movi_ptr(udata, 0);
+    tcg_gen_ld_i32(cpu_index, cpu_env,
+                   -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
+    tcg_gen_extu_tl_i64(addr64, addr);
+
+    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr64, udata);
+
+    tcg_temp_free_ptr(udata);
+    tcg_temp_free_i64(addr64);
+    tcg_temp_free_i32(meminfo);
+    tcg_temp_free_i32(cpu_index);
 }
 
 /*
