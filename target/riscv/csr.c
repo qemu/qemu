@@ -3756,15 +3756,14 @@ static RISCVException rmw_seed(CPURISCVState *env, int csrno,
 
 static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
                                                int csrno,
-                                               bool write_mask,
-                                               RISCVCPU *cpu)
+                                               bool write_mask)
 {
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
     bool read_only = get_field(csrno, 0xC00) == 3;
     int csr_min_priv = csr_ops[csrno].min_priv_ver;
 
     /* ensure the CSR extension is enabled */
-    if (!cpu->cfg.ext_icsr) {
+    if (!riscv_cpu_cfg(env)->ext_icsr) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -3860,9 +3859,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
                            target_ulong *ret_value,
                            target_ulong new_value, target_ulong write_mask)
 {
-    RISCVCPU *cpu = env_archcpu(env);
-
-    RISCVException ret = riscv_csrrw_check(env, csrno, write_mask, cpu);
+    RISCVException ret = riscv_csrrw_check(env, csrno, write_mask);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
@@ -3915,9 +3912,8 @@ RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
                                 Int128 new_value, Int128 write_mask)
 {
     RISCVException ret;
-    RISCVCPU *cpu = env_archcpu(env);
 
-    ret = riscv_csrrw_check(env, csrno, int128_nz(write_mask), cpu);
+    ret = riscv_csrrw_check(env, csrno, int128_nz(write_mask));
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
