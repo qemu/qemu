@@ -314,7 +314,6 @@ static int riscv_cpu_pending_to_irq(CPURISCVState *env,
                                     int extirq, unsigned int extirq_def_prio,
                                     uint64_t pending, uint8_t *iprio)
 {
-    RISCVCPU *cpu = env_archcpu(env);
     int irq, best_irq = RISCV_EXCP_NONE;
     unsigned int prio, best_prio = UINT_MAX;
 
@@ -323,7 +322,8 @@ static int riscv_cpu_pending_to_irq(CPURISCVState *env,
     }
 
     irq = ctz64(pending);
-    if (!((extirq == IRQ_M_EXT) ? cpu->cfg.ext_smaia : cpu->cfg.ext_ssaia)) {
+    if (!((extirq == IRQ_M_EXT) ? riscv_cpu_cfg(env)->ext_smaia :
+                                  riscv_cpu_cfg(env)->ext_ssaia)) {
         return irq;
     }
 
@@ -765,7 +765,6 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     int mode = mmu_idx & TB_FLAGS_PRIV_MMU_MASK;
     bool use_background = false;
     hwaddr ppn;
-    RISCVCPU *cpu = env_archcpu(env);
     int napot_bits = 0;
     target_ulong napot_mask;
 
@@ -946,7 +945,7 @@ restart:
 
         if (riscv_cpu_sxl(env) == MXL_RV32) {
             ppn = pte >> PTE_PPN_SHIFT;
-        } else if (pbmte || cpu->cfg.ext_svnapot) {
+        } else if (pbmte || riscv_cpu_cfg(env)->ext_svnapot) {
             ppn = (pte & (target_ulong)PTE_PPN_MASK) >> PTE_PPN_SHIFT;
         } else {
             ppn = pte >> PTE_PPN_SHIFT;
@@ -1043,7 +1042,7 @@ restart:
                benefit. */
             target_ulong vpn = addr >> PGSHIFT;
 
-            if (cpu->cfg.ext_svnapot && (pte & PTE_N)) {
+            if (riscv_cpu_cfg(env)->ext_svnapot && (pte & PTE_N)) {
                 napot_bits = ctzl(ppn) + 1;
                 if ((i != (levels - 1)) || (napot_bits != 4)) {
                     return TRANSLATE_FAIL;
