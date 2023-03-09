@@ -666,7 +666,7 @@ void monitor_cleanup(void)
      * We need to poll both qemu_aio_context and iohandler_ctx to make
      * sure that the dispatcher coroutine keeps making progress and
      * eventually terminates.  qemu_aio_context is automatically
-     * polled by calling AIO_WAIT_WHILE on it, but we must poll
+     * polled by calling AIO_WAIT_WHILE_UNLOCKED on it, but we must poll
      * iohandler_ctx manually.
      *
      * Letting the iothread continue while shutting down the dispatcher
@@ -679,7 +679,7 @@ void monitor_cleanup(void)
         aio_co_wake(qmp_dispatcher_co);
     }
 
-    AIO_WAIT_WHILE(qemu_get_aio_context(),
+    AIO_WAIT_WHILE_UNLOCKED(NULL,
                    (aio_poll(iohandler_get_aio_context(), false),
                     qatomic_mb_read(&qmp_dispatcher_co_busy)));
 
