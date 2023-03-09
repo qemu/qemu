@@ -2249,6 +2249,11 @@ F: tests/qtest/fuzz-e1000e-test.c
 F: tests/qtest/e1000e-test.c
 F: tests/qtest/libqos/e1000e.*
 
+igb
+M: Akihiko Odaki <akihiko.odaki@daynix.com>
+S: Maintained
+F: hw/net/igb*
+
 eepro100
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained

@@ -270,6 +270,38 @@ e1000e_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vect
 e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
 
+# igb.c
+igb_write_config(uint32_t address, uint32_t val, int len) "CONFIG write 0x%"PRIx32", value: 0x%"PRIx32", len: %"PRId32
+igbvf_write_config(uint32_t address, uint32_t val, int len) "CONFIG write 0x%"PRIx32", value: 0x%"PRIx32", len: %"PRId32
+
+# igb_core.c
+igb_core_mdic_read(uint32_t addr, uint32_t data) "MDIC READ: PHY[%u] = 0x%x"
+igb_core_mdic_read_unhandled(uint32_t addr) "MDIC READ: PHY[%u] UNHANDLED"
+igb_core_mdic_write(uint32_t addr, uint32_t data) "MDIC WRITE: PHY[%u] = 0x%x"
+igb_core_mdic_write_unhandled(uint32_t addr) "MDIC WRITE: PHY[%u] UNHANDLED"
+
+igb_rx_desc_buff_size(uint32_t b) "buffer size: %u"
+igb_rx_desc_buff_write(uint64_t addr, uint16_t offset, const void* source, uint32_t len) "addr: 0x%"PRIx64", offset: %u, from: %p, length: %u"
+
+igb_rx_metadata_rss(uint32_t rss) "RSS data: 0x%X"
+
+igb_irq_icr_clear_gpie_nsicr(void) "Clearing ICR on read due to GPIE.NSICR enabled"
+igb_irq_icr_write(uint32_t bits, uint32_t old_icr, uint32_t new_icr) "Clearing ICR bits 0x%x: 0x%x --> 0x%x"
+igb_irq_set_iam(uint32_t icr) "Update IAM: 0x%x"
+igb_irq_read_iam(uint32_t icr) "Current IAM: 0x%x"
+igb_irq_write_eics(uint32_t val, bool msix) "Update EICS: 0x%x MSI-X: %d"
+igb_irq_write_eims(uint32_t val, bool msix) "Update EIMS: 0x%x MSI-X: %d"
+igb_irq_write_eimc(uint32_t val, uint32_t eims, bool msix) "Update EIMC: 0x%x EIMS: 0x%x MSI-X: %d"
+igb_irq_write_eiac(uint32_t val) "Update EIAC: 0x%x"
+igb_irq_write_eiam(uint32_t val, bool msix) "Update EIAM: 0x%x MSI-X: %d"
+igb_irq_write_eicr(uint32_t val, bool msix) "Update EICR: 0x%x MSI-X: %d"
+igb_irq_eitr_set(uint32_t eitr_num, uint32_t val) "EITR[%u] = 0x%x"
+igb_set_pfmailbox(uint32_t vf_num, uint32_t val) "PFMailbox[%d]: 0x%x"
+igb_set_vfmailbox(uint32_t vf_num, uint32_t val) "VFMailbox[%d]: 0x%x"
+
+# igbvf.c
+igbvf_wrn_io_addr_unknown(uint64_t addr) "IO unknown register 0x%"PRIx64
+
 # spapr_llan.c
 spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32
 spapr_vlan_get_rx_bd_from_page(int buf_ptr, uint64_t bd) "use_buf_ptr=%d bd=0x%016"PRIx64
