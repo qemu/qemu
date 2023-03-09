@@ -202,35 +202,17 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
     }
 }
 
-union mem_gen_fn {
-    void (*mem_fn)(TCGv, uint32_t);
-    void (*inline_fn)(void);
-};
-
-static void gen_mem_wrapped(enum plugin_gen_cb type,
-                            const union mem_gen_fn *f, TCGv addr,
-                            uint32_t info, bool is_mem)
+void plugin_gen_empty_mem_callback(TCGv addr, uint32_t info)
 {
     enum qemu_plugin_mem_rw rw = get_plugin_meminfo_rw(info);
 
-    gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, type, rw);
-    if (is_mem) {
-        f->mem_fn(addr, info);
-    } else {
-        f->inline_fn();
-    }
+    gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, PLUGIN_GEN_CB_MEM, rw);
+    gen_empty_mem_cb(addr, info);
     tcg_gen_plugin_cb_end();
-}
 
-void plugin_gen_empty_mem_callback(TCGv addr, uint32_t info)
-{
-    union mem_gen_fn fn;
-
-    fn.mem_fn = gen_empty_mem_cb;
-    gen_mem_wrapped(PLUGIN_GEN_CB_MEM, &fn, addr, info, true);
-
-    fn.inline_fn = gen_empty_inline_cb;
-    gen_mem_wrapped(PLUGIN_GEN_CB_INLINE, &fn, 0, info, false);
+    gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, PLUGIN_GEN_CB_INLINE, rw);
+    gen_empty_inline_cb();
+    tcg_gen_plugin_cb_end();
 }
 
 static TCGOp *find_op(TCGOp *op, TCGOpcode opc)
