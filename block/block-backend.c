@@ -1874,14 +1874,8 @@ void blk_drain_all(void)
     bdrv_drain_all_begin();
 
     while ((blk = blk_all_next(blk)) != NULL) {
-        AioContext *ctx = blk_get_aio_context(blk);
-
-        aio_context_acquire(ctx);
-
         /* We may have -ENOMEDIUM completions in flight */
-        AIO_WAIT_WHILE(ctx, qatomic_read(&blk->in_flight) > 0);
-
-        aio_context_release(ctx);
+        AIO_WAIT_WHILE_UNLOCKED(NULL, qatomic_read(&blk->in_flight) > 0);
     }
 
     bdrv_drain_all_end();
