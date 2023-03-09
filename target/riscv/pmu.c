@@ -223,7 +223,7 @@ bool riscv_pmu_ctr_monitor_instructions(CPURISCVState *env,
         return true;
     }
 
-    cpu = RISCV_CPU(env_cpu(env));
+    cpu = env_archcpu(env);
     if (!cpu->pmu_event_ctr_map) {
         return false;
     }
@@ -249,7 +249,7 @@ bool riscv_pmu_ctr_monitor_cycles(CPURISCVState *env, uint32_t target_ctr)
         return true;
     }
 
-    cpu = RISCV_CPU(env_cpu(env));
+    cpu = env_archcpu(env);
     if (!cpu->pmu_event_ctr_map) {
         return false;
     }
@@ -289,7 +289,7 @@ int riscv_pmu_update_event_map(CPURISCVState *env, uint64_t value,
                                uint32_t ctr_idx)
 {
     uint32_t event_idx;
-    RISCVCPU *cpu = RISCV_CPU(env_cpu(env));
+    RISCVCPU *cpu = env_archcpu(env);
 
     if (!riscv_pmu_counter_valid(cpu, ctr_idx) || !cpu->pmu_event_ctr_map) {
         return -1;
@@ -390,7 +390,7 @@ int riscv_pmu_setup_timer(CPURISCVState *env, uint64_t value, uint32_t ctr_idx)
 {
     uint64_t overflow_delta, overflow_at;
     int64_t overflow_ns, overflow_left = 0;
-    RISCVCPU *cpu = RISCV_CPU(env_cpu(env));
+    RISCVCPU *cpu = env_archcpu(env);
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
 
     if (!riscv_pmu_counter_valid(cpu, ctr_idx) || !cpu->cfg.ext_sscofpmf) {
