@@ -7,7 +7,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/gdbstub.h"
+#include "cpu.h"
+#include "gdbstub/syscalls.h"
 #include "semihosting/guestfd.h"
 #include "semihosting/syscalls.h"
 #include "semihosting/console.h"
@@ -138,46 +139,48 @@ static void gdb_open(CPUState *cs, gdb_syscall_complete_cb complete,
 
     gdb_open_complete = complete;
     gdb_do_syscall(gdb_open_cb, "open,%s,%x,%x",
-                   fname, len, (target_ulong)gdb_flags, (target_ulong)mode);
+                   (uint64_t)fname, (uint32_t)len,
+                   (uint32_t)gdb_flags, (uint32_t)mode);
 }
 
 static void gdb_close(CPUState *cs, gdb_syscall_complete_cb complete,
                       GuestFD *gf)
 {
-    gdb_do_syscall(complete, "close,%x", (target_ulong)gf->hostfd);
+    gdb_do_syscall(complete, "close,%x", (uint32_t)gf->hostfd);
 }
 
 static void gdb_read(CPUState *cs, gdb_syscall_complete_cb complete,
                      GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    gdb_do_syscall(complete, "read,%x,%x,%x",
-                   (target_ulong)gf->hostfd, buf, len);
+    gdb_do_syscall(complete, "read,%x,%lx,%lx",
+                   (uint32_t)gf->hostfd, (uint64_t)buf, (uint64_t)len);
 }
 
 static void gdb_write(CPUState *cs, gdb_syscall_complete_cb complete,
                       GuestFD *gf, target_ulong buf, target_ulong len)
 {
-    gdb_do_syscall(complete, "write,%x,%x,%x",
-                   (target_ulong)gf->hostfd, buf, len);
+    gdb_do_syscall(complete, "write,%x,%lx,%lx",
+                   (uint32_t)gf->hostfd, (uint64_t)buf, (uint64_t)len);
 }
 
 static void gdb_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
                       GuestFD *gf, int64_t off, int gdb_whence)
 {
     gdb_do_syscall(complete, "lseek,%x,%lx,%x",
-                   (target_ulong)gf->hostfd, off, (target_ulong)gdb_whence);
+                   (uint32_t)gf->hostfd, off, (uint32_t)gdb_whence);
 }
 
 static void gdb_isatty(CPUState *cs, gdb_syscall_complete_cb complete,
                        GuestFD *gf)
 {
-    gdb_do_syscall(complete, "isatty,%x", (target_ulong)gf->hostfd);
+    gdb_do_syscall(complete, "isatty,%x", (uint32_t)gf->hostfd);
 }
 
 static void gdb_fstat(CPUState *cs, gdb_syscall_complete_cb complete,
                       GuestFD *gf, target_ulong addr)
 {
-    gdb_do_syscall(complete, "fstat,%x,%x", (target_ulong)gf->hostfd, addr);
+    gdb_do_syscall(complete, "fstat,%x,%lx",
+                   (uint32_t)gf->hostfd, (uint64_t)addr);
 }
 
 static void gdb_stat(CPUState *cs, gdb_syscall_complete_cb complete,
@@ -190,7 +193,8 @@ static void gdb_stat(CPUState *cs, gdb_syscall_complete_cb complete,
         return;
     }
 
-    gdb_do_syscall(complete, "stat,%s,%x", fname, len, addr);
+    gdb_do_syscall(complete, "stat,%s,%lx",
+                   (uint64_t)fname, (uint32_t)len, (uint64_t)addr);
 }
 
 static void gdb_remove(CPUState *cs, gdb_syscall_complete_cb complete,
@@ -202,7 +206,7 @@ static void gdb_remove(CPUState *cs, gdb_syscall_complete_cb complete,
         return;
     }
 
-    gdb_do_syscall(complete, "unlink,%s", fname, len);
+    gdb_do_syscall(complete, "unlink,%s", (uint64_t)fname, (uint32_t)len);
 }
 
 static void gdb_rename(CPUState *cs, gdb_syscall_complete_cb complete,
@@ -222,7 +226,9 @@ static void gdb_rename(CPUState *cs, gdb_syscall_complete_cb complete,
         return;
     }
 
-    gdb_do_syscall(complete, "rename,%s,%s", oname, olen, nname, nlen);
+    gdb_do_syscall(complete, "rename,%s,%s",
+                   (uint64_t)oname, (uint32_t)olen,
+                   (uint64_t)nname, (uint32_t)nlen);
 }
 
 static void gdb_system(CPUState *cs, gdb_syscall_complete_cb complete,
@@ -234,13 +240,14 @@ static void gdb_system(CPUState *cs, gdb_syscall_complete_cb complete,
         return;
     }
 
-    gdb_do_syscall(complete, "system,%s", cmd, len);
+    gdb_do_syscall(complete, "system,%s", (uint64_t)cmd, (uint32_t)len);
 }
 
 static void gdb_gettimeofday(CPUState *cs, gdb_syscall_complete_cb complete,
                              target_ulong tv_addr, target_ulong tz_addr)
 {
-    gdb_do_syscall(complete, "gettimeofday,%x,%x", tv_addr, tz_addr);
+    gdb_do_syscall(complete, "gettimeofday,%lx,%lx",
+                   (uint64_t)tv_addr, (uint64_t)tz_addr);
 }
 
 /*

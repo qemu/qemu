@@ -44,6 +44,7 @@
 #include "trace/control.h"
 #include "crypto/init.h"
 #include "qemu/guest-random.h"
+#include "gdbstub/user.h"
 
 #include "host-os.h"
 #include "target_arch_cpu.h"

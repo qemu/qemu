@@ -10,6 +10,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/gdbstub.h"
+#include "gdbstub/helpers.h"
 
 uint64_t read_fcc(CPULoongArchState *env)
 {
