@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "hw/xen/xen_native.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pt.h"
 #include "chardev/char.h"
@@ -29,73 +30,15 @@ xc_interface *xen_xc;
 xenforeignmemory_handle *xen_fmem;
 xendevicemodel_handle *xen_dmod;
 
-static int store_dev_info(int domid, Chardev *cs, const char *string)
+static void xenstore_record_dm_state(const char *state)
 {
-    struct xs_handle *xs = NULL;
-    char *path = NULL;
-    char *newpath = NULL;
-    char *pts = NULL;
-    int ret = -1;
-
-    /* Only continue if we're talking to a pty. */
-    if (!CHARDEV_IS_PTY(cs)) {
-        return 0;
-    }
-    pts = cs->filename + 4;
+    struct xs_handle *xs;
+    char path[50];
 
     /* We now have everything we need to set the xenstore entry. */
     xs = xs_open(0);
     if (xs == NULL) {
         fprintf(stderr, "Could not contact XenStore\n");
-        goto out;
-    }
-
-    path = xs_get_domain_path(xs, domid);
-    if (path == NULL) {
-        fprintf(stderr, "xs_get_domain_path() error\n");
-        goto out;
-    }
-    newpath = realloc(path, (strlen(path) + strlen(string) +
-                strlen("/tty") + 1));
-    if (newpath == NULL) {
-        fprintf(stderr, "realloc error\n");
-        goto out;
-    }
-    path = newpath;
-
-    strcat(path, string);
-    strcat(path, "/tty");
-    if (!xs_write(xs, XBT_NULL, path, pts, strlen(pts))) {
-        fprintf(stderr, "xs_write for '%s' fail", string);
-        goto out;
-    }
-    ret = 0;
-
-out:
-    free(path);
-    xs_close(xs);
-
-    return ret;
-}
-
-void xenstore_store_pv_console_info(int i, Chardev *chr)
-{
-    if (i == 0) {
-        store_dev_info(xen_domid, chr, "/console");
-    } else {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "/device/console/%d", i);
-        store_dev_info(xen_domid, chr, buf);
-    }
-}
-
-
-static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
-{
-    char path[50];
-
-    if (xs == NULL) {
-        error_report("xenstore connection not initialized");
         exit(1);
     }
 
@@ -109,6 +52,8 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
         error_report("error recording dm state");
         exit(1);
     }
+
+    xs_close(xs);
 }
 
 
@@ -117,7 +62,7 @@ static void xen_change_state_handler(void *opaque, bool running,
 {
     if (running) {
         /* record state running */
-        xenstore_record_dm_state(xenstore, "running");
+        xenstore_record_dm_state("running");
     }
 }
 

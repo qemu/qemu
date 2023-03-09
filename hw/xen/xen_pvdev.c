@@ -54,31 +54,17 @@ void xen_config_cleanup(void)
     struct xs_dirs *d;
 
     QTAILQ_FOREACH(d, &xs_cleanup, list) {
-        xs_rm(xenstore, 0, d->xs_dir);
+        qemu_xen_xs_destroy(xenstore, 0, d->xs_dir);
     }
 }
 
 int xenstore_mkdir(char *path, int p)
 {
-    struct xs_permissions perms[2] = {
-        {
-            .id    = 0, /* set owner: dom0 */
-        }, {
-            .id    = xen_domid,
-            .perms = p,
-        }
-    };
-
-    if (!xs_mkdir(xenstore, 0, path)) {
+    if (!qemu_xen_xs_create(xenstore, 0, 0, xen_domid, p, path)) {
         xen_pv_printf(NULL, 0, "xs_mkdir %s: failed\n", path);
         return -1;
     }
     xenstore_cleanup_dir(g_strdup(path));
-
-    if (!xs_set_permissions(xenstore, 0, path, perms, 2)) {
-        xen_pv_printf(NULL, 0, "xs_set_permissions %s: failed\n", path);
-        return -1;
-    }
     return 0;
 }
 
@@ -87,7 +73,7 @@ int xenstore_write_str(const char *base, const char *node, const char *val)
     char abspath[XEN_BUFSIZE];
 
     snprintf(abspath, sizeof(abspath), "%s/%s", base, node);
-    if (!xs_write(xenstore, 0, abspath, val, strlen(val))) {
+    if (!qemu_xen_xs_write(xenstore, 0, abspath, val, strlen(val))) {
         return -1;
     }
     return 0;
@@ -100,7 +86,7 @@ char *xenstore_read_str(const char *base, const char *node)
     char *str, *ret = NULL;
 
     snprintf(abspath, sizeof(abspath), "%s/%s", base, node);
-    str = xs_read(xenstore, 0, abspath, &len);
+    str = qemu_xen_xs_read(xenstore, 0, abspath, &len);
     if (str != NULL) {
         /* move to qemu-allocated memory to make sure
          * callers can savely g_free() stuff. */
@@ -150,29 +136,6 @@ int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval)
     }
     g_free(val);
     return rc;
-}
-
-void xenstore_update(void *unused)
-{
-    char **vec = NULL;
-    intptr_t type, ops, ptr;
-    unsigned int dom, count;
-
-    vec = xs_read_watch(xenstore, &count);
-    if (vec == NULL) {
-        goto cleanup;
-    }
-
-    if (sscanf(vec[XS_WATCH_TOKEN], "be:%" PRIxPTR ":%d:%" PRIxPTR,
-               &type, &dom, &ops) == 3) {
-        xenstore_update_be(vec[XS_WATCH_PATH], (void *)type, dom, (void*)ops);
-    }
-    if (sscanf(vec[XS_WATCH_TOKEN], "fe:%" PRIxPTR, &ptr) == 1) {
-        xenstore_update_fe(vec[XS_WATCH_PATH], (void *)ptr);
-    }
-
-cleanup:
-    free(vec);
 }
 
 const char *xenbus_strstate(enum xenbus_state state)
@@ -238,14 +201,14 @@ void xen_pv_evtchn_event(void *opaque)
     struct XenLegacyDevice *xendev = opaque;
     evtchn_port_t port;
 
-    port = xenevtchn_pending(xendev->evtchndev);
+    port = qemu_xen_evtchn_pending(xendev->evtchndev);
     if (port != xendev->local_port) {
         xen_pv_printf(xendev, 0,
                       "xenevtchn_pending returned %d (expected %d)\n",
                       port, xendev->local_port);
         return;
     }
-    xenevtchn_unmask(xendev->evtchndev, port);
+    qemu_xen_evtchn_unmask(xendev->evtchndev, port);
 
     if (xendev->ops->event) {
         xendev->ops->event(xendev);
@@ -257,15 +220,15 @@ void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev)
     if (xendev->local_port == -1) {
         return;
     }
-    qemu_set_fd_handler(xenevtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
-    xenevtchn_unbind(xendev->evtchndev, xendev->local_port);
+    qemu_set_fd_handler(qemu_xen_evtchn_fd(xendev->evtchndev), NULL, NULL, NULL);
+    qemu_xen_evtchn_unbind(xendev->evtchndev, xendev->local_port);
     xen_pv_printf(xendev, 2, "unbind evtchn port %d\n", xendev->local_port);
     xendev->local_port = -1;
 }
 
 int xen_pv_send_notify(struct XenLegacyDevice *xendev)
 {
-    return xenevtchn_notify(xendev->evtchndev, xendev->local_port);
+    return qemu_xen_evtchn_notify(xendev->evtchndev, xendev->local_port);
 }
 
 /* ------------------------------------------------------------- */
@@ -299,17 +262,15 @@ void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
     }
 
     if (xendev->fe) {
-        char token[XEN_BUFSIZE];
-        snprintf(token, sizeof(token), "fe:%p", xendev);
-        xs_unwatch(xenstore, xendev->fe, token);
+        qemu_xen_xs_unwatch(xenstore, xendev->watch);
         g_free(xendev->fe);
     }
 
     if (xendev->evtchndev != NULL) {
-        xenevtchn_close(xendev->evtchndev);
+        qemu_xen_evtchn_close(xendev->evtchndev);
     }
     if (xendev->gnttabdev != NULL) {
-        xengnttab_close(xendev->gnttabdev);
+        qemu_xen_gnttab_close(xendev->gnttabdev);
     }
 
     QTAILQ_REMOVE(&xendevs, xendev, next);

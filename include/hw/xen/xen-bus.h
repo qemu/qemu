@@ -8,31 +8,25 @@
 #ifndef HW_XEN_BUS_H
 #define HW_XEN_BUS_H
 
-#include "hw/xen/xen_common.h"
+#include "hw/xen/xen_backend_ops.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
 
-typedef void (*XenWatchHandler)(void *opaque);
-
-typedef struct XenWatchList XenWatchList;
-typedef struct XenWatch XenWatch;
 typedef struct XenEventChannel XenEventChannel;
 
 struct XenDevice {
     DeviceState qdev;
     domid_t frontend_id;
     char *name;
-    struct xs_handle *xsh;
-    XenWatchList *watch_list;
+    struct qemu_xs_handle *xsh;
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;
-    XenWatch *backend_state_watch, *frontend_state_watch;
+    struct qemu_xs_watch *backend_state_watch, *frontend_state_watch;
     bool backend_online;
-    XenWatch *backend_online_watch;
+    struct qemu_xs_watch *backend_online_watch;
     xengnttab_handle *xgth;
-    bool feature_grant_copy;
     bool inactive;
     QLIST_HEAD(, XenEventChannel) event_channels;
     QLIST_ENTRY(XenDevice) list;
@@ -64,10 +58,9 @@ OBJECT_DECLARE_TYPE(XenDevice, XenDeviceClass, XEN_DEVICE)
 struct XenBus {
     BusState qbus;
     domid_t backend_id;
-    struct xs_handle *xsh;
-    XenWatchList *watch_list;
+    struct qemu_xs_handle *xsh;
     unsigned int backend_types;
-    XenWatch **backend_watch;
+    struct qemu_xs_watch **backend_watch;
     QLIST_HEAD(, XenDevice) inactive_devices;
 };
 
@@ -102,7 +95,7 @@ void xen_device_set_max_grant_refs(XenDevice *xendev, unsigned int nr_refs,
 void *xen_device_map_grant_refs(XenDevice *xendev, uint32_t *refs,
                                 unsigned int nr_refs, int prot,
                                 Error **errp);
-void xen_device_unmap_grant_refs(XenDevice *xendev, void *map,
+void xen_device_unmap_grant_refs(XenDevice *xendev, void *map, uint32_t *refs,
                                  unsigned int nr_refs, Error **errp);
 
 typedef struct XenDeviceGrantCopySegment {

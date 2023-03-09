@@ -145,7 +145,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
                 continue;
             }
 
-            if ((txreq.offset + txreq.size) > XC_PAGE_SIZE) {
+            if ((txreq.offset + txreq.size) > XEN_PAGE_SIZE) {
                 xen_pv_printf(&netdev->xendev, 0, "error: page crossing\n");
                 net_tx_error(netdev, &txreq, rc);
                 continue;
@@ -171,7 +171,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
             if (txreq.flags & NETTXF_csum_blank) {
                 /* have read-only mapping -> can't fill checksum in-place */
                 if (!tmpbuf) {
-                    tmpbuf = g_malloc(XC_PAGE_SIZE);
+                    tmpbuf = g_malloc(XEN_PAGE_SIZE);
                 }
                 memcpy(tmpbuf, page + txreq.offset, txreq.size);
                 net_checksum_calculate(tmpbuf, txreq.size, CSUM_ALL);
@@ -181,7 +181,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
                 qemu_send_packet(qemu_get_queue(netdev->nic),
                                  page + txreq.offset, txreq.size);
             }
-            xen_be_unmap_grant_ref(&netdev->xendev, page);
+            xen_be_unmap_grant_ref(&netdev->xendev, page, txreq.gref);
             net_tx_response(netdev, &txreq, NETIF_RSP_OKAY);
         }
         if (!netdev->tx_work) {
@@ -243,9 +243,9 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
     if (rc == rp || RING_REQUEST_CONS_OVERFLOW(&netdev->rx_ring, rc)) {
         return 0;
     }
-    if (size > XC_PAGE_SIZE - NET_IP_ALIGN) {
+    if (size > XEN_PAGE_SIZE - NET_IP_ALIGN) {
         xen_pv_printf(&netdev->xendev, 0, "packet too big (%lu > %ld)",
-                      (unsigned long)size, XC_PAGE_SIZE - NET_IP_ALIGN);
+                      (unsigned long)size, XEN_PAGE_SIZE - NET_IP_ALIGN);
         return -1;
     }
 
@@ -261,7 +261,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
         return -1;
     }
     memcpy(page + NET_IP_ALIGN, buf, size);
-    xen_be_unmap_grant_ref(&netdev->xendev, page);
+    xen_be_unmap_grant_ref(&netdev->xendev, page, rxreq.gref);
     net_rx_response(netdev, &rxreq, NETIF_RSP_OKAY, NET_IP_ALIGN, size, 0);
 
     return size;
@@ -343,12 +343,13 @@ static int net_connect(struct XenLegacyDevice *xendev)
                                        netdev->rx_ring_ref,
                                        PROT_READ | PROT_WRITE);
     if (!netdev->rxs) {
-        xen_be_unmap_grant_ref(&netdev->xendev, netdev->txs);
+        xen_be_unmap_grant_ref(&netdev->xendev, netdev->txs,
+                               netdev->tx_ring_ref);
         netdev->txs = NULL;
         return -1;
     }
-    BACK_RING_INIT(&netdev->tx_ring, netdev->txs, XC_PAGE_SIZE);
-    BACK_RING_INIT(&netdev->rx_ring, netdev->rxs, XC_PAGE_SIZE);
+    BACK_RING_INIT(&netdev->tx_ring, netdev->txs, XEN_PAGE_SIZE);
+    BACK_RING_INIT(&netdev->rx_ring, netdev->rxs, XEN_PAGE_SIZE);
 
     xen_be_bind_evtchn(&netdev->xendev);
 
@@ -368,11 +369,13 @@ static void net_disconnect(struct XenLegacyDevice *xendev)
     xen_pv_unbind_evtchn(&netdev->xendev);
 
     if (netdev->txs) {
-        xen_be_unmap_grant_ref(&netdev->xendev, netdev->txs);
+        xen_be_unmap_grant_ref(&netdev->xendev, netdev->txs,
+                               netdev->tx_ring_ref);
         netdev->txs = NULL;
     }
     if (netdev->rxs) {
-        xen_be_unmap_grant_ref(&netdev->xendev, netdev->rxs);
+        xen_be_unmap_grant_ref(&netdev->xendev, netdev->rxs,
+                               netdev->rx_ring_ref);
         netdev->rxs = NULL;
     }
 }
