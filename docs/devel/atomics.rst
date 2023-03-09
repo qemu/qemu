@@ -469,13 +469,19 @@ and memory barriers, and the equivalents in QEMU:
   In QEMU, the second kind is named ``atomic_OP_fetch``.
 
 - different atomic read-modify-write operations in Linux imply
-  a different set of memory barriers; in QEMU, all of them enforce
-  sequential consistency.
+  a different set of memory barriers. In QEMU, all of them enforce
+  sequential consistency: there is a single order in which the
+  program sees them happen.
 
-- in QEMU, ``qatomic_read()`` and ``qatomic_set()`` do not participate in
-  the ordering enforced by read-modify-write operations.
-  This is because QEMU uses the C11 memory model.  The following example
-  is correct in Linux but not in QEMU:
+- however, according to the C11 memory model that QEMU uses, this order
+  does not propagate to other memory accesses on either side of the
+  read-modify-write operation.  As far as those are concerned, the
+  operation consist of just a load-acquire followed by a store-release.
+  Stores that precede the RMW operation, and loads that follow it, can
+  still be reordered and will happen *in the middle* of the read-modify-write
+  operation!
+
+  Therefore, the following example is correct in Linux but not in QEMU:
 
       +----------------------------------+--------------------------------+
       | Linux (correct)                  | QEMU (incorrect)               |
