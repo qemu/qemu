@@ -590,7 +590,7 @@ void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable)
          *
          * To solve this, we check and inject interrupt after setting V=1.
          */
-        riscv_cpu_update_mip(env_archcpu(env), 0, 0);
+        riscv_cpu_update_mip(env, 0, 0);
     }
 }
 
@@ -610,10 +610,10 @@ int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint64_t interrupts)
     }
 }
 
-uint64_t riscv_cpu_update_mip(RISCVCPU *cpu, uint64_t mask, uint64_t value)
+uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask,
+                              uint64_t value)
 {
-    CPURISCVState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     uint64_t gein, vsgein = 0, vstip = 0, old = env->mip;
 
     if (riscv_cpu_virt_enabled(env)) {
