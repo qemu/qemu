@@ -862,9 +862,9 @@ int64_t qcow2_refcount_area(BlockDriverState *bs, uint64_t offset,
                             uint64_t new_refblock_offset);
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
-int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
-                                int64_t nb_clusters);
-int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size);
+int64_t coroutine_fn qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
+                                             int64_t nb_clusters);
+int64_t coroutine_fn qcow2_alloc_bytes(BlockDriverState *bs, int size);
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size,
                           enum qcow2_discard_type type);
@@ -894,7 +894,7 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 BlockDriverAmendStatusCB *status_cb,
                                 void *cb_opaque, Error **errp);
 int coroutine_fn GRAPH_RDLOCK qcow2_shrink_reftable(BlockDriverState *bs);
-int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size);
+int64_t coroutine_fn qcow2_get_last_cluster(BlockDriverState *bs, int64_t size);
 int coroutine_fn qcow2_detect_metadata_preallocation(BlockDriverState *bs);
 
 /* qcow2-cluster.c functions */
@@ -924,7 +924,7 @@ void qcow2_parse_compressed_l2_entry(BlockDriverState *bs, uint64_t l2_entry,
 int coroutine_fn GRAPH_RDLOCK
 qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 
-void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
+void coroutine_fn qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
                           uint64_t bytes, enum qcow2_discard_type type,
                           bool full_discard);
@@ -951,7 +951,8 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
                             Error **errp);
 
 void qcow2_free_snapshots(BlockDriverState *bs);
-int qcow2_read_snapshots(BlockDriverState *bs, Error **errp);
+int coroutine_fn GRAPH_RDLOCK
+qcow2_read_snapshots(BlockDriverState *bs, Error **errp);
 int qcow2_write_snapshots(BlockDriverState *bs);
 
 int coroutine_fn GRAPH_RDLOCK
@@ -994,7 +995,7 @@ bool coroutine_fn qcow2_load_dirty_bitmaps(BlockDriverState *bs,
 bool qcow2_get_bitmap_info_list(BlockDriverState *bs,
                                 Qcow2BitmapInfoList **info_list, Error **errp);
 int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp);
-int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp);
+int coroutine_fn qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp);
 bool qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs,
                                           bool release_stored, Error **errp);
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp);
