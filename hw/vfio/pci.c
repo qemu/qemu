@@ -3145,7 +3145,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     }
 
     if (!pdev->failover_pair_id) {
-        ret = vfio_migration_probe(vbasedev, errp);
+        ret = vfio_migration_realize(vbasedev, errp);
         if (ret) {
             error_report("%s: Migration disabled", vbasedev->name);
         }
@@ -3185,6 +3185,7 @@ static void vfio_instance_finalize(Object *obj)
      */
     vfio_put_device(vdev);
     vfio_put_group(group);
+    vfio_migration_finalize();
 }
 
 static void vfio_exitfn(PCIDevice *pdev)
@@ -3203,7 +3204,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     }
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
-    vfio_migration_finalize(&vdev->vbasedev);
+    vfio_migration_exit(&vdev->vbasedev);
 }
 
 static void vfio_pci_reset(DeviceState *dev)
