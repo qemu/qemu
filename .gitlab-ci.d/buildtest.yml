@@ -9,8 +9,7 @@ build-system-alpine:
     - job: amd64-alpine-container
   variables:
     IMAGE: alpine
-    TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
-      microblazeel-softmmu mips64el-softmmu
+    TARGETS: avr-softmmu loongarch64-softmmu mips64-softmmu mipsel-softmmu
     MAKE_CHECK_ARGS: check-build
     CONFIGURE_ARGS: --enable-docs --enable-trace-backends=log,simple,syslog
 
@@ -72,8 +71,8 @@ build-system-debian:
   variables:
     IMAGE: debian-amd64
     CONFIGURE_ARGS: --with-coroutine=sigaltstack
-    TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
-      riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
+    TARGETS: arm-softmmu i386-softmmu riscv64-softmmu sh4eb-softmmu
+      sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
 
 check-system-debian:
