@@ -558,6 +558,7 @@ struct TCGContext {
     int nb_temps;
     int nb_indirects;
     int nb_ops;
+    TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
 
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
