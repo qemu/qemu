@@ -1,6 +1,8 @@
 LIBRARY      "QGA-PROVIDER.DLL"
 
 EXPORTS
+	DLLCOMRegister
+	DLLCOMUnregister
 	COMRegister		PRIVATE
 	COMUnregister		PRIVATE
 	DllCanUnloadNow		PRIVATE
