@@ -82,7 +82,6 @@ enum ImmUnionTag {
     VALUE,
     QEMU_TMP,
     IMM_PC,
-    IMM_NPC,
     IMM_CONSTEXT,
 };
 

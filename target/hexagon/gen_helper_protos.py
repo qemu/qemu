@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -87,6 +87,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_slot(tag): def_helper_size += 1
             if hex_common.need_PC(tag): def_helper_size += 1
             if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
+            if hex_common.need_condexec_reg(tag, regs): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
             ## The return type is void
             f.write(', void' )
@@ -96,6 +97,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_part1(tag): def_helper_size += 1
             if hex_common.need_slot(tag): def_helper_size += 1
             if hex_common.need_PC(tag): def_helper_size += 1
+            if hex_common.need_condexec_reg(tag, regs): def_helper_size += 1
             if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
 
@@ -118,6 +120,14 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         for regtype,regid,toss,numregs in regs:
             if (hex_common.is_written(regid)):
                 if (hex_common.is_hvx_reg(regtype)):
+                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    i += 1
+
+        ## For conditional instructions, we pass in the destination register
+        if 'A_CONDEXEC' in hex_common.attribdict[tag]:
+            for regtype, regid, toss, numregs in regs:
+                if (hex_common.is_writeonly(regid) and
+                    not hex_common.is_hvx_reg(regtype)):
                     gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
                     i += 1
 

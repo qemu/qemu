@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 rev.ng Labs Srl. All Rights Reserved.
+ *  Copyright(c) 2019-2023 rev.ng Labs Srl. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -184,9 +184,6 @@ void imm_print(Context *c, YYLTYPE *locp, HexImm *imm)
         break;
     case IMM_PC:
         EMIT(c, "ctx->base.pc_next");
-        break;
-    case IMM_NPC:
-        EMIT(c, "ctx->npc");
         break;
     case IMM_CONSTEXT:
         EMIT(c, "insn->extension_valid");
@@ -1323,10 +1320,6 @@ void gen_write_reg(Context *c, YYLTYPE *locp, HexValue *reg, HexValue *value)
         locp,
         "gen_log_reg_write(", &reg->reg.id, ", ",
         &value_m, ");\n");
-    OUT(c,
-        locp,
-        "ctx_log_reg_write(ctx, ", &reg->reg.id,
-        ");\n");
 }
 
 void gen_assign(Context *c,
@@ -1675,9 +1668,7 @@ void gen_inst_init_args(Context *c, YYLTYPE *locp)
     for (unsigned i = 0; i < c->inst.init_list->len; i++) {
         HexValue *val = &g_array_index(c->inst.init_list, HexValue, i);
         if (val->type == REGISTER_ARG) {
-            char reg_id[5];
-            reg_compose(c, locp, &val->reg, reg_id);
-            EMIT_HEAD(c, "tcg_gen_movi_i%u(%s, 0);\n", val->bit_width, reg_id);
+            /* Nothing to do here */
         } else if (val->type == PREDICATE) {
             char suffix = val->is_dotnew ? 'N' : 'V';
             EMIT_HEAD(c, "tcg_gen_movi_i%u(P%c%c, 0);\n", val->bit_width,
@@ -1722,13 +1713,10 @@ void gen_pred_assign(Context *c, YYLTYPE *locp, HexValue *left_pred,
         *left_pred = gen_tmp(c, locp, 32, UNSIGNED);
     }
     /* Extract first 8 bits, and store new predicate value */
-    OUT(c, locp, "tcg_gen_mov_i32(", left_pred, ", ", &r, ");\n");
-    OUT(c, locp, "tcg_gen_andi_i32(", left_pred, ", ", left_pred,
-        ", 0xff);\n");
+    OUT(c, locp, "tcg_gen_andi_i32(", left_pred, ", ", &r, ", 0xff);\n");
     if (is_direct) {
         OUT(c, locp, "gen_log_pred_write(ctx, ", pred_id, ", ", left_pred,
             ");\n");
-        OUT(c, locp, "ctx_log_pred_write(ctx, ", pred_id, ");\n");
     }
 }
 
@@ -1739,7 +1727,6 @@ void gen_cancel(Context *c, YYLTYPE *locp)
 
 void gen_load_cancel(Context *c, YYLTYPE *locp)
 {
-    gen_cancel(c, locp);
     OUT(c, locp, "if (insn->slot == 0 && pkt->pkt_has_store_s1) {\n");
     OUT(c, locp, "ctx->s1_store_processed = false;\n");
     OUT(c, locp, "process_store(ctx, 1);\n");

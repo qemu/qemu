@@ -97,16 +97,8 @@
 #define fWRITE_LR(A) (LR = A)
 #define fWRITE_FP(A) (FP = A)
 #define fWRITE_SP(A) (SP = A)
-/*
- * Note: There is a rule in the parser that matches `PC = ...` and emits
- * a call to `gen_write_new_pc`. We need to call `gen_write_new_pc` to
- * get the correct semantics when there are multiple stores in a packet.
- */
-#define fBRANCH(LOC, TYPE) (PC = LOC)
-#define fJUMPR(REGNO, TARGET, TYPE) (PC = TARGET)
 #define fWRITE_LOOP_REGS0(START, COUNT) SA0 = START; (LC0 = COUNT)
 #define fWRITE_LOOP_REGS1(START, COUNT) SA1 = START; (LC1 = COUNT)
-#define fWRITE_LC0(VAL) (LC0 = VAL)
 #define fWRITE_LC1(VAL) (LC1 = VAL)
 #define fSET_LPCFG(VAL) (USR.LPCFG = VAL)
 #define fWRITE_P0(VAL) P0 = VAL;
@@ -121,7 +113,6 @@
 #define fEA_GPI(IMM) (EA = fREAD_GP() + IMM)
 #define fPM_I(REG, IMM) (REG = REG + IMM)
 #define fPM_M(REG, MVAL) (REG = REG + MVAL)
-#define fWRITE_NPC(VAL) (PC = VAL)
 
 /* Unary operators */
 #define fROUND(A) (A + 0x8000)

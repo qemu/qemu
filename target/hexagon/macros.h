@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -205,25 +205,10 @@ static inline void gen_cancel(uint32_t slot)
 
 #define CANCEL gen_cancel(slot);
 #else
-#define CANCEL cancel_slot(env, slot)
+#define CANCEL do { } while (0)
 #endif
 
 #define LOAD_CANCEL(EA) do { CANCEL; } while (0)
-
-#ifdef QEMU_GENERATE
-static inline void gen_pred_cancel(TCGv pred, uint32_t slot_num)
- {
-    TCGv slot_mask = tcg_temp_new();
-    TCGv tmp = tcg_temp_new();
-    TCGv zero = tcg_constant_tl(0);
-    tcg_gen_ori_tl(slot_mask, hex_slot_cancelled, 1 << slot_num);
-    tcg_gen_andi_tl(tmp, pred, 1);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, tmp, zero,
-                       slot_mask, hex_slot_cancelled);
-}
-#define PRED_LOAD_CANCEL(PRED, EA) \
-    gen_pred_cancel(PRED, insn->is_endloop ? 4 : insn->slot)
-#endif
 
 #define STORE_CANCEL(EA) { env->slot_cancelled |= (1 << slot); }
 
@@ -415,16 +400,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fBRANCH(LOC, TYPE)          fWRITE_NPC(LOC)
 #define fJUMPR(REGNO, TARGET, TYPE) fBRANCH(TARGET, COF_TYPE_JUMPR)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
-#define fCALL(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALL); \
-    } while (0)
-#define fCALLR(A) \
-    do { \
-        fWRITE_LR(fREAD_NPC()); \
-        fBRANCH(A, COF_TYPE_CALLR); \
-    } while (0)
 #define fWRITE_LOOP_REGS0(START, COUNT) \
     do { \
         WRITE_RREG(HEX_REG_LC0, COUNT);  \

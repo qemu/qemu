@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -68,26 +68,17 @@ static inline void gen_masked_reg_write(TCGv new_val, TCGv cur_val,
     }
 }
 
-static inline void gen_log_predicated_reg_write(int rnum, TCGv val,
-                                                uint32_t slot)
+static TCGv get_result_gpr(DisasContext *ctx, int rnum)
 {
-    TCGv zero = tcg_constant_tl(0);
-    TCGv slot_mask = tcg_temp_new();
+    return hex_new_value[rnum];
+}
 
-    tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum], slot_mask, zero,
-                           val, hex_new_value[rnum]);
-    if (HEX_DEBUG) {
-        /*
-         * Do this so HELPER(debug_commit_end) will know
-         *
-         * Note that slot_mask indicates the value is not written
-         * (i.e., slot was cancelled), so we create a true/false value before
-         * or'ing with hex_reg_written[rnum].
-         */
-        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
-        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
-    }
+static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
+{
+    TCGv_i64 result = tcg_temp_new_i64();
+    tcg_gen_concat_i32_i64(result, hex_new_value[rnum],
+                                   hex_new_value[rnum + 1]);
+    return result;
 }
 
 void gen_log_reg_write(int rnum, TCGv val)
@@ -99,39 +90,6 @@ void gen_log_reg_write(int rnum, TCGv val)
     if (HEX_DEBUG) {
         /* Do this so HELPER(debug_commit_end) will know */
         tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-    }
-}
-
-static void gen_log_predicated_reg_write_pair(int rnum, TCGv_i64 val,
-                                              uint32_t slot)
-{
-    TCGv val32 = tcg_temp_new();
-    TCGv zero = tcg_constant_tl(0);
-    TCGv slot_mask = tcg_temp_new();
-
-    tcg_gen_andi_tl(slot_mask, hex_slot_cancelled, 1 << slot);
-    /* Low word */
-    tcg_gen_extrl_i64_i32(val32, val);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum],
-                       slot_mask, zero,
-                       val32, hex_new_value[rnum]);
-    /* High word */
-    tcg_gen_extrh_i64_i32(val32, val);
-    tcg_gen_movcond_tl(TCG_COND_EQ, hex_new_value[rnum + 1],
-                       slot_mask, zero,
-                       val32, hex_new_value[rnum + 1]);
-    if (HEX_DEBUG) {
-        /*
-         * Do this so HELPER(debug_commit_end) will know
-         *
-         * Note that slot_mask indicates the value is not written
-         * (i.e., slot was cancelled), so we create a true/false value before
-         * or'ing with hex_reg_written[rnum].
-         */
-        tcg_gen_setcond_tl(TCG_COND_EQ, slot_mask, slot_mask, zero);
-        tcg_gen_or_tl(hex_reg_written[rnum], hex_reg_written[rnum], slot_mask);
-        tcg_gen_or_tl(hex_reg_written[rnum + 1], hex_reg_written[rnum + 1],
-                      slot_mask);
     }
 }
 
@@ -180,6 +138,7 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
                        hex_new_pred_value[pnum], base_val);
     }
     tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
+    set_bit(pnum, ctx->pregs_written);
 }
 
 static inline void gen_read_p3_0(TCGv control_reg)
@@ -256,7 +215,6 @@ static void gen_write_p3_0(DisasContext *ctx, TCGv control_reg)
     for (int i = 0; i < NUM_PREGS; i++) {
         tcg_gen_extract_tl(hex_p8, control_reg, i * 8, 8);
         gen_log_pred_write(ctx, i, hex_p8);
-        ctx_log_pred_write(ctx, i);
     }
 }
 
@@ -274,7 +232,6 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
         gen_write_p3_0(ctx, val);
     } else {
         gen_log_reg_write(reg_num, val);
-        ctx_log_reg_write(ctx, reg_num);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
         }
@@ -291,15 +248,14 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
                                            TCGv_i64 val)
 {
     if (reg_num == HEX_REG_P3_0_ALIASED) {
+        TCGv result = get_result_gpr(ctx, reg_num + 1);
         TCGv val32 = tcg_temp_new();
         tcg_gen_extrl_i64_i32(val32, val);
         gen_write_p3_0(ctx, val32);
         tcg_gen_extrh_i64_i32(val32, val);
-        gen_log_reg_write(reg_num + 1, val32);
-        ctx_log_reg_write(ctx, reg_num + 1);
+        tcg_gen_mov_tl(result, val32);
     } else {
         gen_log_reg_write_pair(reg_num, val);
-        ctx_log_reg_write_pair(ctx, reg_num);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
             ctx->num_insns = 0;
@@ -571,6 +527,13 @@ static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
     gen_write_new_pc_addr(ctx, dst_pc, cond, pred);
 }
 
+static void gen_cond_jumpr31(DisasContext *ctx, TCGCond cond, TCGv pred)
+{
+    TCGv LSB = tcg_temp_new();
+    tcg_gen_andi_tl(LSB, pred, 1);
+    gen_cond_jumpr(ctx, hex_gpr[HEX_REG_LR], cond, LSB);
+}
+
 static void gen_cond_jump(DisasContext *ctx, TCGCond cond, TCGv pred,
                           int pc_off)
 {
@@ -669,25 +632,97 @@ static void gen_jumpr(DisasContext *ctx, TCGv new_pc)
 
 static void gen_call(DisasContext *ctx, int pc_off)
 {
-    TCGv next_PC =
-        tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
-    gen_log_reg_write(HEX_REG_LR, next_PC);
+    TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
+    tcg_gen_movi_tl(lr, ctx->next_PC);
     gen_write_new_pc_pcrel(ctx, pc_off, TCG_COND_ALWAYS, NULL);
+}
+
+static void gen_callr(DisasContext *ctx, TCGv new_pc)
+{
+    TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
+    tcg_gen_movi_tl(lr, ctx->next_PC);
+    gen_write_new_pc_addr(ctx, new_pc, TCG_COND_ALWAYS, NULL);
 }
 
 static void gen_cond_call(DisasContext *ctx, TCGv pred,
                           TCGCond cond, int pc_off)
 {
-    TCGv next_PC;
+    TCGv lr = get_result_gpr(ctx, HEX_REG_LR);
     TCGv lsb = tcg_temp_new();
     TCGLabel *skip = gen_new_label();
     tcg_gen_andi_tl(lsb, pred, 1);
     gen_write_new_pc_pcrel(ctx, pc_off, cond, lsb);
     tcg_gen_brcondi_tl(cond, lsb, 0, skip);
-    next_PC =
-        tcg_constant_tl(ctx->pkt->pc + ctx->pkt->encod_pkt_size_in_bytes);
-    gen_log_reg_write(HEX_REG_LR, next_PC);
+    tcg_gen_movi_tl(lr, ctx->next_PC);
     gen_set_label(skip);
+}
+
+static void gen_cond_callr(DisasContext *ctx,
+                           TCGCond cond, TCGv pred, TCGv new_pc)
+{
+    TCGv lsb = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+    tcg_gen_andi_tl(lsb, pred, 1);
+    tcg_gen_brcondi_tl(cond, lsb, 0, skip);
+    gen_callr(ctx, new_pc);
+    gen_set_label(skip);
+}
+
+/* frame ^= (int64_t)FRAMEKEY << 32 */
+static void gen_frame_unscramble(TCGv_i64 frame)
+{
+    TCGv_i64 framekey = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(framekey, hex_gpr[HEX_REG_FRAMEKEY]);
+    tcg_gen_shli_i64(framekey, framekey, 32);
+    tcg_gen_xor_i64(frame, frame, framekey);
+}
+
+static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
+{
+    Insn *insn = ctx->insn;  /* Needed for CHECK_NOSHUF */
+    CHECK_NOSHUF(EA, 8);
+    tcg_gen_qemu_ld64(frame, EA, ctx->mem_idx);
+}
+
+static void gen_return(DisasContext *ctx, TCGv_i64 dst, TCGv src)
+{
+    /*
+     * frame = *src
+     * dst = frame_unscramble(frame)
+     * SP = src + 8
+     * PC = dst.w[1]
+     */
+    TCGv_i64 frame = tcg_temp_new_i64();
+    TCGv r31 = tcg_temp_new();
+    TCGv r29 = get_result_gpr(ctx, HEX_REG_SP);
+
+    gen_load_frame(ctx, frame, src);
+    gen_frame_unscramble(frame);
+    tcg_gen_mov_i64(dst, frame);
+    tcg_gen_addi_tl(r29, src, 8);
+    tcg_gen_extrh_i64_i32(r31, dst);
+    gen_jumpr(ctx, r31);
+}
+
+/* if (pred) dst = dealloc_return(src):raw */
+static void gen_cond_return(DisasContext *ctx, TCGv_i64 dst, TCGv src,
+                            TCGv pred, TCGCond cond)
+{
+    TCGv LSB = tcg_temp_new();
+    TCGLabel *skip = gen_new_label();
+    tcg_gen_andi_tl(LSB, pred, 1);
+
+    tcg_gen_brcondi_tl(cond, LSB, 0, skip);
+    gen_return(ctx, dst, src);
+    gen_set_label(skip);
+}
+
+/* sub-instruction version (no RddV, so handle it manually) */
+static void gen_cond_return_subinsn(DisasContext *ctx, TCGCond cond, TCGv pred)
+{
+    TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP);
+    gen_cond_return(ctx, RddV, hex_gpr[HEX_REG_FP], pred, cond);
+    gen_log_reg_write_pair(HEX_REG_FP, RddV);
 }
 
 static void gen_endloop0(DisasContext *ctx)
@@ -737,12 +772,93 @@ static void gen_endloop0(DisasContext *ctx)
         TCGLabel *label3 = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);
         {
+            TCGv lc0 = get_result_gpr(ctx, HEX_REG_LC0);
             gen_jumpr(ctx, hex_gpr[HEX_REG_SA0]);
-            tcg_gen_subi_tl(hex_new_value[HEX_REG_LC0],
-                            hex_gpr[HEX_REG_LC0], 1);
+            tcg_gen_subi_tl(lc0, hex_gpr[HEX_REG_LC0], 1);
         }
         gen_set_label(label3);
     }
+}
+
+static void gen_endloop1(DisasContext *ctx)
+{
+    /*
+     *    if (hex_gpr[HEX_REG_LC1] > 1) {
+     *        PC = hex_gpr[HEX_REG_SA1];
+     *        hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *    }
+     */
+    TCGLabel *label = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC1], 1, label);
+    {
+        TCGv lc1 = get_result_gpr(ctx, HEX_REG_LC1);
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA1]);
+        tcg_gen_subi_tl(lc1, hex_gpr[HEX_REG_LC1], 1);
+    }
+    gen_set_label(label);
+}
+
+static void gen_endloop01(DisasContext *ctx)
+{
+    TCGv lpcfg = tcg_temp_new();
+    TCGLabel *label1 = gen_new_label();
+    TCGLabel *label2 = gen_new_label();
+    TCGLabel *label3 = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    GET_USR_FIELD(USR_LPCFG, lpcfg);
+
+    /*
+     *    if (lpcfg == 1) {
+     *        hex_new_pred_value[3] = 0xff;
+     *        hex_pred_written |= 1 << 3;
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
+    {
+        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+    }
+    gen_set_label(label1);
+
+    /*
+     *    if (lpcfg) {
+     *        SET_USR_FIELD(USR_LPCFG, lpcfg - 1);
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
+    {
+        tcg_gen_subi_tl(lpcfg, lpcfg, 1);
+        SET_USR_FIELD(USR_LPCFG, lpcfg);
+    }
+    gen_set_label(label2);
+
+    /*
+     *    if (hex_gpr[HEX_REG_LC0] > 1) {
+     *        PC = hex_gpr[HEX_REG_SA0];
+     *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+     *    } else {
+     *        if (hex_gpr[HEX_REG_LC1] > 1) {
+     *            hex_next_pc = hex_gpr[HEX_REG_SA1];
+     *            hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *        }
+     *    }
+     */
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);
+    {
+        TCGv lc0 = get_result_gpr(ctx, HEX_REG_LC0);
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA0]);
+        tcg_gen_subi_tl(lc0, hex_gpr[HEX_REG_LC0], 1);
+        tcg_gen_br(done);
+    }
+    gen_set_label(label3);
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC1], 1, done);
+    {
+        TCGv lc1 = get_result_gpr(ctx, HEX_REG_LC1);
+        gen_jumpr(ctx, hex_gpr[HEX_REG_SA1]);
+        tcg_gen_subi_tl(lc1, hex_gpr[HEX_REG_LC1], 1);
+    }
+    gen_set_label(done);
 }
 
 static void gen_cmp_jumpnv(DisasContext *ctx,
@@ -869,68 +985,32 @@ static intptr_t vreg_src_off(DisasContext *ctx, int num)
 }
 
 static void gen_log_vreg_write(DisasContext *ctx, intptr_t srcoff, int num,
-                               VRegWriteType type, int slot_num,
-                               bool is_predicated)
+                               VRegWriteType type)
 {
-    TCGLabel *label_end = NULL;
     intptr_t dstoff;
-
-    if (is_predicated) {
-        TCGv cancelled = tcg_temp_new();
-        label_end = gen_new_label();
-
-        /* Don't do anything if the slot was cancelled */
-        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
-        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
-    }
 
     if (type != EXT_TMP) {
         dstoff = ctx_future_vreg_off(ctx, num, 1, true);
         tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
                          sizeof(MMVector), sizeof(MMVector));
-        tcg_gen_ori_tl(hex_VRegs_updated, hex_VRegs_updated, 1 << num);
     } else {
         dstoff = ctx_tmp_vreg_off(ctx, num, 1, false);
         tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
                          sizeof(MMVector), sizeof(MMVector));
     }
-
-    if (is_predicated) {
-        gen_set_label(label_end);
-    }
 }
 
 static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
-                                    VRegWriteType type, int slot_num,
-                                    bool is_predicated)
+                                    VRegWriteType type)
 {
-    gen_log_vreg_write(ctx, srcoff, num ^ 0, type, slot_num, is_predicated);
+    gen_log_vreg_write(ctx, srcoff, num ^ 0, type);
     srcoff += sizeof(MMVector);
-    gen_log_vreg_write(ctx, srcoff, num ^ 1, type, slot_num, is_predicated);
+    gen_log_vreg_write(ctx, srcoff, num ^ 1, type);
 }
 
-static void gen_log_qreg_write(intptr_t srcoff, int num, int vnew,
-                               int slot_num, bool is_predicated)
+static intptr_t get_result_qreg(DisasContext *ctx, int qnum)
 {
-    TCGLabel *label_end = NULL;
-    intptr_t dstoff;
-
-    if (is_predicated) {
-        TCGv cancelled = tcg_temp_new();
-        label_end = gen_new_label();
-
-        /* Don't do anything if the slot was cancelled */
-        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
-        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
-    }
-
-    dstoff = offsetof(CPUHexagonState, future_QRegs[num]);
-    tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMQReg), sizeof(MMQReg));
-
-    if (is_predicated) {
-        tcg_gen_ori_tl(hex_QRegs_updated, hex_QRegs_updated, 1 << num);
-        gen_set_label(label_end);
-    }
+    return  offsetof(CPUHexagonState, future_QRegs[qnum]);
 }
 
 static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,

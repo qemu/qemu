@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "mmvec/mmvec.h"
 #include "mmvec/macros.h"
 #include "op_helper.h"
+#include "translate.h"
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -103,30 +104,6 @@ void log_store64(CPUHexagonState *env, target_ulong addr,
     env->mem_log_stores[slot].va = addr;
     env->mem_log_stores[slot].width = width;
     env->mem_log_stores[slot].data64 = val;
-}
-
-void write_new_pc(CPUHexagonState *env, bool pkt_has_multi_cof,
-                         target_ulong addr)
-{
-    HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
-
-    if (pkt_has_multi_cof) {
-        /*
-         * If more than one branch is taken in a packet, only the first one
-         * is actually done.
-         */
-        if (env->branch_taken) {
-            HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                          "ignoring the second one\n");
-        } else {
-            fCHECK_PCALIGN(addr);
-            env->gpr[HEX_REG_PC] = addr;
-            env->branch_taken = 1;
-        }
-    } else {
-        fCHECK_PCALIGN(addr);
-        env->gpr[HEX_REG_PC] = addr;
-    }
 }
 
 /* Handy place to set a breakpoint */
@@ -439,9 +416,10 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     return PeV;
 }
 
-static void probe_store(CPUHexagonState *env, int slot, int mmu_idx)
+static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
+                        bool is_predicated)
 {
-    if (!(env->slot_cancelled & (1 << slot))) {
+    if (!is_predicated || !(env->slot_cancelled & (1 << slot))) {
         size1u_t width = env->mem_log_stores[slot].width;
         target_ulong va = env->mem_log_stores[slot].va;
         uintptr_t ra = GETPC();
@@ -461,9 +439,12 @@ void HELPER(probe_noshuf_load)(CPUHexagonState *env, target_ulong va,
 }
 
 /* Called during packet commit when there are two scalar stores */
-void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int mmu_idx)
+void HELPER(probe_pkt_scalar_store_s0)(CPUHexagonState *env, int args)
 {
-    probe_store(env, 0, mmu_idx);
+    int mmu_idx = FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, MMU_IDX);
+    bool is_predicated =
+        FIELD_EX32(args, PROBE_PKT_SCALAR_STORE_S0, IS_PREDICATED);
+    probe_store(env, 0, mmu_idx, is_predicated);
 }
 
 void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
@@ -510,15 +491,18 @@ void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
 void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
                                          int mmu_idx)
 {
-    bool has_st0        = (mask >> 0) & 1;
-    bool has_st1        = (mask >> 1) & 1;
-    bool has_hvx_stores = (mask >> 2) & 1;
+    bool has_st0 = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0);
+    bool has_st1 = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST1);
+    bool has_hvx_stores =
+        FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES);
+    bool s0_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED);
+    bool s1_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED);
 
     if (has_st0) {
-        probe_store(env, 0, mmu_idx);
+        probe_store(env, 0, mmu_idx, s0_is_pred);
     }
     if (has_st1) {
-        probe_store(env, 1, mmu_idx);
+        probe_store(env, 1, mmu_idx, s1_is_pred);
     }
     if (has_hvx_stores) {
         HELPER(probe_hvx_stores)(env, mmu_idx);
@@ -1193,7 +1177,7 @@ float32 HELPER(sffms)(CPUHexagonState *env, float32 RxV,
 {
     float32 neg_RsV;
     arch_fpop_start(env);
-    neg_RsV = float32_sub(float32_zero, RsV, &env->fp_status);
+    neg_RsV = float32_set_sign(RsV, float32_is_neg(RsV) ? 0 : 1);
     RxV = internal_fmafx(neg_RsV, RtV, RxV, 0, &env->fp_status);
     arch_fpop_end(env);
     return RxV;
@@ -1466,12 +1450,6 @@ void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
                 env->VRegs[vindex].uw[elindex] + weight;
         }
     }
-}
-
-void cancel_slot(CPUHexagonState *env, uint32_t slot)
-{
-    HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
-    env->slot_cancelled |= (1 << slot);
 }
 
 /* These macros can be referenced in the generated helper functions */

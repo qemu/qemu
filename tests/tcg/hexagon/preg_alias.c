@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static inline void creg_alias(int cval, PRegs *pregs)
       : "=r"(pregs->pregs.p0), "=r"(pregs->pregs.p1),
         "=r"(pregs->pregs.p2), "=r"(pregs->pregs.p3)
       : "r"(cval)
-      : "p0", "p1", "p2", "p3");
+      : "c4", "p0", "p1", "p2", "p3");
 }
 
 int err;
@@ -92,7 +92,7 @@ static inline void creg_alias_pair(unsigned int cval, PRegs *pregs)
        : "=r"(pregs->pregs.p0), "=r"(pregs->pregs.p1),
          "=r"(pregs->pregs.p2), "=r"(pregs->pregs.p3), "=r"(c5)
        : "r"(cval_pair)
-       : "p0", "p1", "p2", "p3");
+       : "c4", "c5", "p0", "p1", "p2", "p3");
 
   check(c5, 0xdeadbeef);
 }
@@ -117,7 +117,7 @@ static void test_packet(void)
          "}\n\t"
          : "+r"(result)
          : "r"(0xffffffff), "r"(0xff00ffff), "r"(0x837ed653)
-         : "p0", "p1", "p2", "p3");
+         : "c4", "p0", "p1", "p2", "p3");
     check(result, old_val);
 
     /* Test a predicated store */
@@ -129,7 +129,7 @@ static void test_packet(void)
          "}\n\t"
          :
          : "r"(0), "r"(0xffffffff), "r"(&result)
-         : "p0", "p1", "p2", "p3", "memory");
+         : "c4", "p0", "p1", "p2", "p3", "memory");
     check(result, 0x0);
 }
 

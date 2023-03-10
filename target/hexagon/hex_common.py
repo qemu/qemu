@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -89,6 +89,7 @@ def calculate_attribs():
     add_qemu_macro_attrib('fWRITE_P3', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fSET_OVERFLOW', 'A_IMPLICIT_WRITES_USR')
     add_qemu_macro_attrib('fSET_LPCFG', 'A_IMPLICIT_WRITES_USR')
+    add_qemu_macro_attrib('fLOAD', 'A_SCALAR_LOAD')
     add_qemu_macro_attrib('fSTORE', 'A_SCALAR_STORE')
 
     # Recurse down macros, find attributes from sub-macros
@@ -235,6 +236,13 @@ def helper_needs_next_PC(tag):
 
 def need_pkt_has_multi_cof(tag):
     return 'A_COF' in attribdict[tag]
+
+def need_condexec_reg(tag, regs):
+    if 'A_CONDEXEC' in attribdict[tag]:
+        for regtype, regid, toss, numregs in regs:
+            if is_writeonly(regid) and not is_hvx_reg(regtype):
+                return True
+    return False
 
 def skip_qemu_helper(tag):
     return tag in overrides.keys()

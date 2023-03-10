@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -332,8 +332,6 @@
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, SIZE, LSB); \
-        PRED_LOAD_CANCEL(LSB, EA); \
-        tcg_gen_movi_tl(RdV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, SIZE, SIGN, EA, RdV); \
         gen_set_label(label); \
@@ -391,8 +389,6 @@
         tcg_gen_movi_tl(EA, 0); \
         PRED;  \
         CHECK_NOSHUF_PRED(GET_EA, 8, LSB); \
-        PRED_LOAD_CANCEL(LSB, EA); \
-        tcg_gen_movi_i64(RddV, 0); \
         tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
         fLOAD(1, 8, u, EA, RddV); \
         gen_set_label(label); \
@@ -419,16 +415,16 @@
 
 #define fGEN_TCG_STORE(SHORTCODE) \
     do { \
-        TCGv HALF = tcg_temp_new(); \
-        TCGv BYTE = tcg_temp_new(); \
+        TCGv HALF G_GNUC_UNUSED = tcg_temp_new(); \
+        TCGv BYTE G_GNUC_UNUSED = tcg_temp_new(); \
         SHORTCODE; \
     } while (0)
 
 #define fGEN_TCG_STORE_pcr(SHIFT, STORE) \
     do { \
         TCGv ireg = tcg_temp_new(); \
-        TCGv HALF = tcg_temp_new(); \
-        TCGv BYTE = tcg_temp_new(); \
+        TCGv HALF G_GNUC_UNUSED = tcg_temp_new(); \
+        TCGv BYTE G_GNUC_UNUSED = tcg_temp_new(); \
         tcg_gen_mov_tl(EA, RxV); \
         gen_read_ireg(ireg, MuV, SHIFT); \
         gen_helper_fcircadd(RxV, RxV, ireg, MuV, hex_gpr[HEX_REG_CS0 + MuN]); \
@@ -490,6 +486,59 @@
     fGEN_TCG_STORE(SHORTCODE)
 #define fGEN_TCG_S2_storerinew_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, NtN))
+
+/*
+ * dealloc_return
+ * Assembler mapped to
+ * r31:30 = dealloc_return(r30):raw
+ */
+#define fGEN_TCG_L4_return(SHORTCODE) \
+    gen_return(ctx, RddV, RsV)
+
+/*
+ * sub-instruction version (no RddV, so handle it manually)
+ */
+#define fGEN_TCG_SL2_return(SHORTCODE) \
+    do { \
+        TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP); \
+        gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
+        gen_log_reg_write_pair(HEX_REG_FP, RddV); \
+    } while (0)
+
+/*
+ * Conditional returns follow this naming convention
+ *     _t                 predicate true
+ *     _f                 predicate false
+ *     _tnew_pt           predicate.new true predict taken
+ *     _fnew_pt           predicate.new false predict taken
+ *     _tnew_pnt          predicate.new true predict not taken
+ *     _fnew_pnt          predicate.new false predict not taken
+ * Predictions are not modelled in QEMU
+ *
+ * Example:
+ *     if (p1) r31:30 = dealloc_return(r30):raw
+ */
+#define fGEN_TCG_L4_return_t(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvV, TCG_COND_EQ);
+#define fGEN_TCG_L4_return_f(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvV, TCG_COND_NE)
+#define fGEN_TCG_L4_return_tnew_pt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_EQ)
+#define fGEN_TCG_L4_return_fnew_pt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_NE)
+#define fGEN_TCG_L4_return_tnew_pnt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_EQ)
+#define fGEN_TCG_L4_return_fnew_pnt(SHORTCODE) \
+    gen_cond_return(ctx, RddV, RsV, PvN, TCG_COND_NE)
+
+#define fGEN_TCG_SL2_return_t(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_EQ, hex_pred[0])
+#define fGEN_TCG_SL2_return_f(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_pred[0])
+#define fGEN_TCG_SL2_return_tnew(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+#define fGEN_TCG_SL2_return_fnew(SHORTCODE) \
+    gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_new_pred_value[0])
 
 /*
  * Mathematical operations with more than one definition require
@@ -589,14 +638,24 @@
 
 #define fGEN_TCG_J2_call(SHORTCODE) \
     gen_call(ctx, riV)
+#define fGEN_TCG_J2_callr(SHORTCODE) \
+    gen_callr(ctx, RsV)
 
 #define fGEN_TCG_J2_callt(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_EQ, riV)
 #define fGEN_TCG_J2_callf(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_NE, riV)
+#define fGEN_TCG_J2_callrt(SHORTCODE) \
+    gen_cond_callr(ctx, TCG_COND_EQ, PuV, RsV)
+#define fGEN_TCG_J2_callrf(SHORTCODE) \
+    gen_cond_callr(ctx, TCG_COND_NE, PuV, RsV)
 
 #define fGEN_TCG_J2_endloop0(SHORTCODE) \
     gen_endloop0(ctx)
+#define fGEN_TCG_J2_endloop1(SHORTCODE) \
+    gen_endloop1(ctx)
+#define fGEN_TCG_J2_endloop01(SHORTCODE) \
+    gen_endloop01(ctx)
 
 /*
  * Compound compare and jump instructions
@@ -985,6 +1044,19 @@
 /* r0 = asl(r1, r2):sat */
 #define fGEN_TCG_S2_asl_r_r_sat(SHORTCODE) \
     gen_asl_r_r_sat(RdV, RsV, RtV)
+
+#define fGEN_TCG_SL2_jumpr31(SHORTCODE) \
+    gen_jumpr(ctx, hex_gpr[HEX_REG_LR])
+
+#define fGEN_TCG_SL2_jumpr31_t(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_EQ, hex_pred[0])
+#define fGEN_TCG_SL2_jumpr31_f(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_NE, hex_pred[0])
+
+#define fGEN_TCG_SL2_jumpr31_tnew(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+#define fGEN_TCG_SL2_jumpr31_fnew(SHORTCODE) \
+    gen_cond_jumpr31(ctx, TCG_COND_NE, hex_new_pred_value[0])
 
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \

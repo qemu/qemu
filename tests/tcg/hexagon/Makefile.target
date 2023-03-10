@@ -1,5 +1,5 @@
 ##
-##  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -45,6 +45,10 @@ HEX_TESTS += fpstuff
 HEX_TESTS += overflow
 HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
+HEX_TESTS += vector_add_int
+HEX_TESTS += scatter_gather
+HEX_TESTS += hvx_misc
+HEX_TESTS += hvx_histogram
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
@@ -78,3 +82,10 @@ TESTS += $(HEX_TESTS)
 usr: usr.c
 	$(CC) $(CFLAGS) -mv67t -O2 -Wno-inline-asm -Wno-expansion-to-defined $< -o $@ $(LDFLAGS)
 
+scatter_gather: CFLAGS += -mhvx
+vector_add_int: CFLAGS += -mhvx -fvectorize
+hvx_misc: CFLAGS += -mhvx
+hvx_histogram: CFLAGS += -mhvx -Wno-gnu-folding-constant
+
+hvx_histogram: hvx_histogram.c hvx_histogram_row.S
+	$(CC) $(CFLAGS) $(CROSS_CC_GUEST_CFLAGS) $^ -o $@ $(LDFLAGS)

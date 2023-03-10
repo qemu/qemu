@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2020-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2020-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ const int SF_HEX_NAN =                    0xffffffff;
 const int SF_small_neg =                  0xab98fba8;
 const int SF_denorm =                     0x00000001;
 const int SF_random =                     0x346001d6;
+const int SF_neg_zero =                   0x80000000;
 
 const long long DF_QNaN =                 0x7ff8000000000000ULL;
 const long long DF_SNaN =                 0x7ff7000000000000ULL;
@@ -536,6 +537,33 @@ static void check_sffixupd(void)
     check32(result, 0x146001d6);
 }
 
+static void check_sffms(void)
+{
+    int result;
+
+    /* Check that sffms properly deals with -0 */
+    result = SF_neg_zero;
+    asm ("%0 -= sfmpy(%1 , %2)\n\t"
+        : "+r"(result)
+        : "r"(SF_ZERO), "r"(SF_ZERO)
+        : "r12", "r8");
+    check32(result, SF_neg_zero);
+
+    result = SF_ZERO;
+    asm ("%0 -= sfmpy(%1 , %2)\n\t"
+        : "+r"(result)
+        : "r"(SF_neg_zero), "r"(SF_ZERO)
+        : "r12", "r8");
+    check32(result, SF_ZERO);
+
+    result = SF_ZERO;
+    asm ("%0 -= sfmpy(%1 , %2)\n\t"
+        : "+r"(result)
+        : "r"(SF_ZERO), "r"(SF_neg_zero)
+        : "r12", "r8");
+    check32(result, SF_ZERO);
+}
+
 static void check_float2int_convs()
 {
     int res32;
@@ -688,6 +716,7 @@ int main()
     check_invsqrta();
     check_sffixupn();
     check_sffixupd();
+    check_sffms();
     check_float2int_convs();
 
     puts(err ? "FAIL" : "PASS");
