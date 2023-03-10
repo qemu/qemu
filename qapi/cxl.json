@@ -1,0 +1,128 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# = CXL devices
+##
+
+##
+# @CxlUncorErrorType:
+#
+# Type of uncorrectable CXL error to inject. These errors are reported via
+# an AER uncorrectable internal error with additional information logged at
+# the CXL device.
+#
+# @cache-data-parity: Data error such as data parity or data ECC error CXL.cache
+# @cache-address-parity: Address parity or other errors associated with the
+#                        address field on CXL.cache
+# @cache-be-parity: Byte enable parity or other byte enable errors on CXL.cache
+# @cache-data-ecc: ECC error on CXL.cache
+# @mem-data-parity: Data error such as data parity or data ECC error on CXL.mem
+# @mem-address-parity: Address parity or other errors associated with the
+#                      address field on CXL.mem
+# @mem-be-parity: Byte enable parity or other byte enable errors on CXL.mem.
+# @mem-data-ecc: Data ECC error on CXL.mem.
+# @reinit-threshold: REINIT threshold hit.
+# @rsvd-encoding: Received unrecognized encoding.
+# @poison-received: Received poison from the peer.
+# @receiver-overflow: Buffer overflows (first 3 bits of header log indicate which)
+# @internal: Component specific error
+# @cxl-ide-tx: Integrity and data encryption tx error.
+# @cxl-ide-rx: Integrity and data encryption rx error.
+#
+# Since: 8.0
+##
+
+{ 'enum': 'CxlUncorErrorType',
+  'data': ['cache-data-parity',
+           'cache-address-parity',
+           'cache-be-parity',
+           'cache-data-ecc',
+           'mem-data-parity',
+           'mem-address-parity',
+           'mem-be-parity',
+           'mem-data-ecc',
+           'reinit-threshold',
+           'rsvd-encoding',
+           'poison-received',
+           'receiver-overflow',
+           'internal',
+           'cxl-ide-tx',
+           'cxl-ide-rx'
+           ]
+ }
+
+##
+# @CXLUncorErrorRecord:
+#
+# Record of a single error including header log.
+#
+# @type: Type of error
+# @header: 16 DWORD of header.
+#
+# Since: 8.0
+##
+{ 'struct': 'CXLUncorErrorRecord',
+  'data': {
+      'type': 'CxlUncorErrorType',
+      'header': [ 'uint32' ]
+  }
+}
+
+##
+# @cxl-inject-uncorrectable-errors:
+#
+# Command to allow injection of multiple errors in one go. This allows testing
+# of multiple header log handling in the OS.
+#
+# @path: CXL Type 3 device canonical QOM path
+# @errors: Errors to inject
+#
+# Since: 8.0
+##
+{ 'command': 'cxl-inject-uncorrectable-errors',
+  'data': { 'path': 'str',
+             'errors': [ 'CXLUncorErrorRecord' ] }}
+
+##
+# @CxlCorErrorType:
+#
+# Type of CXL correctable error to inject
+#
+# @cache-data-ecc: Data ECC error on CXL.cache
+# @mem-data-ecc: Data ECC error on CXL.mem
+# @crc-threshold: Component specific and applicable to 68 byte Flit mode only.
+# @cache-poison-received: Received poison from a peer on CXL.cache.
+# @mem-poison-received: Received poison from a peer on CXL.mem
+# @physical: Received error indication from the physical layer.
+#
+# Since: 8.0
+##
+{ 'enum': 'CxlCorErrorType',
+  'data': ['cache-data-ecc',
+           'mem-data-ecc',
+           'crc-threshold',
+           'retry-threshold',
+           'cache-poison-received',
+           'mem-poison-received',
+           'physical']
+}
+
+##
+# @cxl-inject-correctable-error:
+#
+# Command to inject a single correctable error.  Multiple error injection
+# of this error type is not interesting as there is no associated header log.
+# These errors are reported via AER as a correctable internal error, with
+# additional detail available from the CXL device.
+#
+# @path: CXL Type 3 device canonical QOM path
+# @type: Type of error.
+#
+# Since: 8.0
+##
+{ 'command': 'cxl-inject-correctable-error',
+  'data': { 'path': 'str',
+            'type': 'CxlCorErrorType'
+  }
+}

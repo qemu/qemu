@@ -22,12 +22,17 @@
 #include "qemu/range.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/pci/msi.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "hw/cxl/cxl.h"
 
 #define CXL_ROOT_PORT_DID 0x7075
+
+#define CXL_RP_MSI_OFFSET               0x60
+#define CXL_RP_MSI_SUPPORTED_FLAGS      PCI_MSI_FLAGS_MASKBIT
+#define CXL_RP_MSI_NR_VECTOR            2
 
 /* Copied from the gen root port which we derive */
 #define GEN_PCIE_ROOT_PORT_AER_OFFSET 0x100
@@ -46,6 +51,49 @@ typedef struct CXLRootPort {
 
 #define TYPE_CXL_ROOT_PORT "cxl-rp"
 DECLARE_INSTANCE_CHECKER(CXLRootPort, CXL_ROOT_PORT, TYPE_CXL_ROOT_PORT)
+
+/*
+ * If two MSI vector are allocated, Advanced Error Interrupt Message Number
+ * is 1. otherwise 0.
+ * 17.12.5.10 RPERRSTS,  32:27 bit Advanced Error Interrupt Message Number.
+ */
+static uint8_t cxl_rp_aer_vector(const PCIDevice *d)
+{
+    switch (msi_nr_vectors_allocated(d)) {
+    case 1:
+        return 0;
+    case 2:
+        return 1;
+    case 4:
+    case 8:
+    case 16:
+    case 32:
+    default:
+        break;
+    }
+    abort();
+    return 0;
+}
+
+static int cxl_rp_interrupts_init(PCIDevice *d, Error **errp)
+{
+    int rc;
+
+    rc = msi_init(d, CXL_RP_MSI_OFFSET, CXL_RP_MSI_NR_VECTOR,
+                  CXL_RP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_64BIT,
+                  CXL_RP_MSI_SUPPORTED_FLAGS & PCI_MSI_FLAGS_MASKBIT,
+                  errp);
+    if (rc < 0) {
+        assert(rc == -ENOTSUP);
+    }
+
+    return rc;
+}
+
+static void cxl_rp_interrupts_uninit(PCIDevice *d)
+{
+    msi_uninit(d);
+}
 
 static void latch_registers(CXLRootPort *crp)
 {
@@ -183,16 +231,29 @@ static void cxl_rp_dvsec_write_config(PCIDevice *dev, uint32_t addr,
     }
 }
 
+static void cxl_rp_aer_vector_update(PCIDevice *d)
+{
+    PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
+
+    if (rpc->aer_vector) {
+        pcie_aer_root_set_vector(d, rpc->aer_vector(d));
+    }
+}
+
 static void cxl_rp_write_config(PCIDevice *d, uint32_t address, uint32_t val,
                                 int len)
 {
     uint16_t slt_ctl, slt_sta;
+    uint32_t root_cmd =
+        pci_get_long(d->config + d->exp.aer_cap + PCI_ERR_ROOT_COMMAND);
 
     pcie_cap_slot_get(d, &slt_ctl, &slt_sta);
     pci_bridge_write_config(d, address, val, len);
+    cxl_rp_aer_vector_update(d);
     pcie_cap_flr_write_config(d, address, val, len);
     pcie_cap_slot_write_config(d, slt_ctl, slt_sta, address, val, len);
     pcie_aer_write_config(d, address, val, len);
+    pcie_aer_root_write_config(d, address, val, len, root_cmd);
 
     cxl_rp_dvsec_write_config(d, address, val, len);
 }
@@ -217,6 +278,9 @@ static void cxl_root_port_class_init(ObjectClass *oc, void *data)
 
     rpc->aer_offset = GEN_PCIE_ROOT_PORT_AER_OFFSET;
     rpc->acs_offset = GEN_PCIE_ROOT_PORT_ACS_OFFSET;
+    rpc->aer_vector = cxl_rp_aer_vector;
+    rpc->interrupts_init = cxl_rp_interrupts_init;
+    rpc->interrupts_uninit = cxl_rp_interrupts_uninit;
 
     dc->hotpluggable = false;
 }

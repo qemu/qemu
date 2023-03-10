@@ -49,15 +49,16 @@ typedef struct AcpiPciHpState {
     uint32_t acpi_index;
     PCIBus *root;
     MemoryRegion io;
-    bool legacy_piix;
     uint16_t io_base;
     uint16_t io_len;
+    bool use_acpi_hotplug_bridge;
+    bool use_acpi_root_pci_hotplug;
 } AcpiPciHpState;
 
 void acpi_pcihp_init(Object *owner, AcpiPciHpState *, PCIBus *root,
-                     MemoryRegion *address_space_io, bool bridges_enabled,
-                     uint16_t io_base);
+                     MemoryRegion *address_space_io, uint16_t io_base);
 
+bool acpi_pcihp_is_hotpluggbale_bus(AcpiPciHpState *s, BusState *bus);
 void acpi_pcihp_device_pre_plug_cb(HotplugHandler *hotplug_dev,
                                    DeviceState *dev, Error **errp);
 void acpi_pcihp_device_plug_cb(HotplugHandler *hotplug_dev, AcpiPciHpState *s,
@@ -69,7 +70,9 @@ void acpi_pcihp_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                                          Error **errp);
 
 /* Called on reset */
-void acpi_pcihp_reset(AcpiPciHpState *s, bool acpihp_root_off);
+void acpi_pcihp_reset(AcpiPciHpState *s);
+
+void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus);
 
 extern const VMStateDescription vmstate_acpi_pcihp_pci_status;
 

@@ -57,8 +57,6 @@ struct PIIX4PMState {
     Notifier powerdown_notifier;
 
     AcpiPciHpState acpi_pci_hotplug;
-    bool use_acpi_hotplug_bridge;
-    bool use_acpi_root_pci_hotplug;
     bool not_migrate_acpi_index;
 
     uint8_t disable_s3;

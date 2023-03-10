@@ -949,9 +949,14 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
     test_acpi_one("-global PIIX4_PM.acpi-root-pci-hotplug=off "
                   "-global PIIX4_PM.acpi-pci-hotplug-with-bridge-support=off "
-                  "-device pci-bridge,chassis_nr=1 "
-                  "-device pci-testdev,bus=pci.0 "
-                  "-device pci-testdev,bus=pci.1", &data);
+                  "-device pci-bridge,chassis_nr=1,addr=4.0 "
+                  "-device pci-testdev,bus=pci.0,addr=5.0 "
+                  "-device pci-testdev,bus=pci.0,addr=6.0,acpi-index=101 "
+                  "-device pci-testdev,bus=pci.1,addr=1.0 "
+                  "-device pci-testdev,bus=pci.1,addr=2.0,acpi-index=201 "
+                  "-device pci-bridge,id=nhpbr,chassis_nr=2,shpc=off,addr=7.0 "
+                  "-device pci-testdev,bus=nhpbr,addr=1.0,acpi-index=301 "
+                  , &data);
     free_test_data(&data);
 }
 
@@ -1002,18 +1007,42 @@ static void test_acpi_q35_tcg_bridge(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_tcg_no_acpi_hotplug(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".noacpihp";
+    data.required_struct_types = base_required_struct_types;
+    data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
+    test_acpi_one("-global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
+        " -device pci-testdev,bus=pcie.0,acpi-index=101,addr=3.0"
+        " -device pci-bridge,chassis_nr=1,id=shpcbr,addr=4.0"
+        " -device pci-testdev,bus=shpcbr,addr=1.0,acpi-index=201"
+        " -device pci-bridge,chassis_nr=2,shpc=off,id=noshpcbr,addr=5.0"
+        " -device pci-testdev,bus=noshpcbr,addr=1.0,acpi-index=301"
+        " -device pcie-root-port,id=hprp,port=0x0,chassis=1,addr=6.0"
+        " -device pci-testdev,bus=hprp,acpi-index=401"
+        " -device pcie-root-port,id=nohprp,port=0x0,chassis=2,hotplug=off,"
+                                 "addr=7.0"
+        " -device pci-testdev,bus=nohprp,acpi-index=501"
+        " -device pcie-root-port,id=nohprpint,port=0x0,chassis=3,hotplug=off,"
+                                 "multifunction=on,addr=8.0"
+        " -device pci-testdev,bus=nohprpint,acpi-index=601,addr=8.1"
+        " -device pcie-root-port,id=hprp2,port=0x0,chassis=4,bus=nohprpint,"
+                                 "addr=9.0"
+        " -device pci-testdev,bus=hprp2,acpi-index=602"
+        , &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_q35_multif_bridge(void)
 {
     test_data data = {
         .machine = MACHINE_Q35,
         .variant = ".multi-bridge",
     };
-
-    if (!qtest_has_device("pcie-root-port")) {
-        g_test_skip("Device pcie-root-port is not available");
-        goto out;
-    }
-
     test_vm_prepare("-S"
         " -device virtio-balloon,id=balloon0,addr=0x4.0x2"
         " -device pcie-root-port,id=rp0,multifunction=on,"
@@ -1025,9 +1054,14 @@ static void test_acpi_q35_multif_bridge(void)
         " -device pcie-root-port,id=rphptgt2,port=0x0,chassis=6,addr=2.2"
         " -device pcie-root-port,id=rphptgt3,port=0x0,chassis=7,addr=2.3"
         " -device pci-testdev,bus=pcie.0,addr=2.4"
+        " -device pci-testdev,bus=pcie.0,addr=2.5,acpi-index=102"
         " -device pci-testdev,bus=pcie.0,addr=5.0"
+        " -device pci-testdev,bus=pcie.0,addr=0xf.0,acpi-index=101"
         " -device pci-testdev,bus=rp0,addr=0.0"
-        " -device pci-testdev,bus=br1", &data);
+        " -device pci-testdev,bus=br1"
+        " -device pcie-root-port,id=rpnohp,chassis=8,addr=0xA.0,hotplug=off"
+        " -device pcie-root-port,id=rp3,chassis=9,bus=rpnohp"
+        , &data);
 
     /* hotplugged bridges section */
     qtest_qmp_device_add(data.qts, "pci-bridge", "hpbr1",
@@ -1049,7 +1083,6 @@ static void test_acpi_q35_multif_bridge(void)
     /* check that reboot/reset doesn't change any ACPI tables  */
     qtest_qmp_send(data.qts, "{'execute':'system_reset' }");
     process_acpi_tables(&data);
-out:
     free_test_data(&data);
 }
 
@@ -1403,11 +1436,6 @@ static void test_acpi_tcg_dimm_pxm(const char *machine)
 {
     test_data data;
 
-    if (!qtest_has_device("nvdimm")) {
-        g_test_skip("Device nvdimm is not available");
-        return;
-    }
-
     memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = ".dimmpxm";
@@ -1456,11 +1484,6 @@ static void test_acpi_virt_tcg_memhp(void)
         .scan_len = 256ULL * 1024 * 1024,
     };
 
-    if (!qtest_has_device("nvdimm")) {
-        g_test_skip("Device nvdimm is not available");
-        goto out;
-    }
-
     data.variant = ".memhp";
     test_acpi_one(" -machine nvdimm=on"
                   " -cpu cortex-a57"
@@ -1474,7 +1497,7 @@ static void test_acpi_virt_tcg_memhp(void)
                   " -device pc-dimm,id=dimm0,memdev=ram2,node=0"
                   " -device nvdimm,id=dimm1,memdev=nvm0,node=1",
                   &data);
-out:
+
     free_test_data(&data);
 
 }
@@ -1492,11 +1515,6 @@ static void test_acpi_microvm_tcg(void)
 {
     test_data data;
 
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
-
     test_acpi_microvm_prepare(&data);
     test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=off",
                   &data);
@@ -1506,11 +1524,6 @@ static void test_acpi_microvm_tcg(void)
 static void test_acpi_microvm_usb_tcg(void)
 {
     test_data data;
-
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".usb";
@@ -1523,11 +1536,6 @@ static void test_acpi_microvm_rtc_tcg(void)
 {
     test_data data;
 
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
-
     test_acpi_microvm_prepare(&data);
     data.variant = ".rtc";
     test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=on",
@@ -1538,11 +1546,6 @@ static void test_acpi_microvm_rtc_tcg(void)
 static void test_acpi_microvm_pcie_tcg(void)
 {
     test_data data;
-
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".pcie";
@@ -1555,11 +1558,6 @@ static void test_acpi_microvm_pcie_tcg(void)
 static void test_acpi_microvm_ioapic2_tcg(void)
 {
     test_data data;
-
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".ioapic2";
@@ -1600,12 +1598,6 @@ static void test_acpi_virt_tcg_pxb(void)
         .ram_start = 0x40000000ULL,
         .scan_len = 128ULL * 1024 * 1024,
     };
-
-    if (!qtest_has_device("pcie-root-port")) {
-        g_test_skip("Device pcie-root-port is not available");
-        goto out;
-    }
-
     /*
      * While using -cdrom, the cdrom would auto plugged into pxb-pcie,
      * the reason is the bus of pxb-pcie is also root bus, it would lead
@@ -1624,7 +1616,7 @@ static void test_acpi_virt_tcg_pxb(void)
                   " -cpu cortex-a57"
                   " -device pxb-pcie,bus_nr=128",
                   &data);
-out:
+
     free_test_data(&data);
 }
 
@@ -1812,12 +1804,6 @@ static void test_acpi_microvm_acpi_erst(void)
     gchar *params;
     test_data data;
 
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        g_free(tmp_path);
-        return;
-    }
-
     test_acpi_microvm_prepare(&data);
     data.variant = ".pcie";
     data.tcg_only = true; /* need constant host-phys-bits */
@@ -1878,11 +1864,6 @@ static void test_acpi_q35_viot(void)
         .variant = ".viot",
     };
 
-    if (!qtest_has_device("virtio-iommu")) {
-        g_test_skip("Device virtio-iommu is not available");
-        goto out;
-    }
-
     /*
      * To keep things interesting, two buses bypass the IOMMU.
      * VIOT should only describes the other two buses.
@@ -1893,7 +1874,6 @@ static void test_acpi_q35_viot(void)
                   "-device pxb-pcie,bus_nr=0x20,id=pcie.200,bus=pcie.0,bypass_iommu=on "
                   "-device pxb-pcie,bus_nr=0x30,id=pcie.300,bus=pcie.0",
                   &data);
-out:
     free_test_data(&data);
 }
 
@@ -1954,10 +1934,8 @@ static void test_acpi_virt_viot(void)
         .scan_len = 128ULL * 1024 * 1024,
     };
 
-    if (qtest_has_device("virtio-iommu")) {
-        test_acpi_one("-cpu cortex-a57 "
-                       "-device virtio-iommu-pci", &data);
-    }
+    test_acpi_one("-cpu cortex-a57 "
+                  "-device virtio-iommu-pci", &data);
     free_test_data(&data);
 }
 
@@ -2066,11 +2044,6 @@ static void test_acpi_microvm_oem_fields(void)
     test_data data;
     char *args;
 
-    if (!qtest_has_device("virtio-blk-device")) {
-        g_test_skip("Device virtio-blk-device is not available");
-        return;
-    }
-
     test_acpi_microvm_prepare(&data);
 
     args = test_acpi_create_args(&data,
@@ -2161,6 +2134,8 @@ int main(int argc, char *argv[])
                                test_acpi_q35_tcg_tpm12_tis);
             }
             qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
+            qtest_add_func("acpi/q35/no-acpi-hotplug",
+                           test_acpi_q35_tcg_no_acpi_hotplug);
             qtest_add_func("acpi/q35/multif-bridge",
                            test_acpi_q35_multif_bridge);
             qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);

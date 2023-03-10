@@ -155,6 +155,8 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
         filter->u.vcpu.vcpus = vcpu_list;
         break;
     }
+    case STATS_TARGET_CRYPTODEV:
+        break;
     default:
         break;
     }
@@ -225,6 +227,9 @@ void hmp_info_stats(Monitor *mon, const QDict *qdict)
     case STATS_TARGET_VCPU: {}
         int cpu_index = monitor_get_cpu_index(mon);
         filter = stats_filter(target, names, cpu_index, provider);
+        break;
+    case STATS_TARGET_CRYPTODEV:
+        filter = stats_filter(target, names, -1, provider);
         break;
     default:
         abort();
