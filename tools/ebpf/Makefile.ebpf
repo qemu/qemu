@@ -1,9 +1,9 @@
 OBJS = rss.bpf.o
 
-LLC ?= llc
+LLVM_STRIP ?= llvm-strip
 CLANG ?= clang
 INC_FLAGS = `$(CLANG) -print-file-name=include`
-EXTRA_CFLAGS ?= -O2 -emit-llvm -fno-stack-protector
+EXTRA_CFLAGS ?= -O2 -g -target bpf
 
 all: $(OBJS)
 
@@ -11,11 +11,13 @@ all: $(OBJS)
 
 clean:
 	rm -f $(OBJS)
+	rm -f rss.bpf.skeleton.h
 
 $(OBJS):  %.o:%.c
 	$(CLANG) $(INC_FLAGS) \
                 -D__KERNEL__ -D__ASM_SYSREG_H \
                 -I../include $(LINUXINCLUDE) \
-                $(EXTRA_CFLAGS) -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@
+                $(EXTRA_CFLAGS) -c $< -o $@
+	$(LLVM_STRIP) -g $@
 	bpftool gen skeleton rss.bpf.o > rss.bpf.skeleton.h
 	cp rss.bpf.skeleton.h ../../ebpf/

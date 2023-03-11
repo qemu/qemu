@@ -37,10 +37,9 @@ void net_rx_pkt_uninit(struct NetRxPkt *pkt);
  * Init function for rx packet functionality
  *
  * @pkt:            packet pointer
- * @has_virt_hdr:   device uses virtio header
  *
  */
-void net_rx_pkt_init(struct NetRxPkt **pkt, bool has_virt_hdr);
+void net_rx_pkt_init(struct NetRxPkt **pkt);
 
 /**
  * returns total length of data attached to rx context
@@ -67,15 +66,14 @@ void net_rx_pkt_set_protocols(struct NetRxPkt *pkt, const void *data,
  * fetches packet analysis results
  *
  * @pkt:            packet
- * @isip4:          whether the packet given is IPv4
- * @isip6:          whether the packet given is IPv6
- * @isudp:          whether the packet given is UDP
- * @istcp:          whether the packet given is TCP
+ * @hasip4:          whether the packet has an IPv4 header
+ * @hasip6:          whether the packet has an IPv6 header
+ * @l4hdr_proto:     protocol of L4 header
  *
  */
 void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
-                                 bool *isip4, bool *isip6,
-                                 bool *isudp, bool *istcp);
+                                 bool *hasip4, bool *hasip6,
+                                 EthL4HdrProto *l4hdr_proto);
 
 /**
 * fetches L3 header offset
@@ -215,15 +213,6 @@ uint16_t net_rx_pkt_get_vlan_tag(struct NetRxPkt *pkt);
 bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt);
 
 /**
- * notifies caller if the packet has virtio header
- *
- * @pkt:            packet
- * @ret:            true if packet has virtio header, false otherwize
- *
- */
-bool net_rx_pkt_has_virt_hdr(struct NetRxPkt *pkt);
-
-/**
 * attach scatter-gather data to rx packet
 *
 * @pkt:            packet
@@ -321,6 +310,14 @@ void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
 */
 void net_rx_pkt_set_vhdr_iovec(struct NetRxPkt *pkt,
     const struct iovec *iov, int iovcnt);
+
+/**
+ * unset vhdr data from packet context
+ *
+ * @pkt:            packet
+ *
+ */
+void net_rx_pkt_unset_vhdr(struct NetRxPkt *pkt);
 
 /**
  * save packet type in packet context

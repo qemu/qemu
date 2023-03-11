@@ -24,9 +24,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
+#include "net/eth.h"
 #include "net/net.h"
 
+#include "e1000_common.h"
 #include "e1000x_common.h"
 
 #include "trace.h"
@@ -45,9 +48,9 @@ bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac)
     return true;
 }
 
-bool e1000x_is_vlan_packet(const uint8_t *buf, uint16_t vet)
+bool e1000x_is_vlan_packet(const void *buf, uint16_t vet)
 {
-    uint16_t eth_proto = lduw_be_p(buf + 12);
+    uint16_t eth_proto = lduw_be_p(&PKT_GET_ETH_HDR(buf)->h_proto);
     bool res = (eth_proto == vet);
 
     trace_e1000x_vlan_is_vlan_pkt(res, eth_proto, vet);
@@ -66,7 +69,7 @@ bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf)
         }
         ra[0] = cpu_to_le32(rp[0]);
         ra[1] = cpu_to_le32(rp[1]);
-        if (!memcmp(buf, (uint8_t *)ra, 6)) {
+        if (!memcmp(buf, (uint8_t *)ra, ETH_ALEN)) {
             trace_e1000x_rx_flt_ucast_match((int)(rp - mac - RA) / 2,
                                             MAC_ARG(buf));
             return true;
@@ -152,8 +155,8 @@ void e1000x_reset_mac_addr(NICState *nic, uint32_t *mac_regs,
 void e1000x_update_regs_on_autoneg_done(uint32_t *mac, uint16_t *phy)
 {
     e1000x_update_regs_on_link_up(mac, phy);
-    phy[PHY_LP_ABILITY] |= MII_LPAR_LPACK;
-    phy[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    phy[MII_ANLPAR] |= MII_ANLPAR_ACK;
+    phy[MII_BMSR] |= MII_BMSR_AN_COMP;
     trace_e1000x_link_negotiation_done();
 }
 
@@ -264,4 +267,29 @@ e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
     props->ip = (op & E1000_TXD_CMD_IP) ? 1 : 0;
     props->tcp = (op & E1000_TXD_CMD_TCP) ? 1 : 0;
     props->tse = (op & E1000_TXD_CMD_TSE) ? 1 : 0;
+}
+
+void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi)
+{
+    int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint32_t timinca = mac[TIMINCA];
+    uint32_t incvalue = timinca & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t incperiod = MAX(timinca >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+    int64_t timestamp = timadj + muldiv64(ns, incvalue, incperiod * 16);
+
+    mac[lo] = timestamp & 0xffffffff;
+    mac[hi] = timestamp >> 32;
+}
+
+void e1000x_set_timinca(uint32_t *mac, int64_t *timadj, uint32_t val)
+{
+    int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint32_t old_val = mac[TIMINCA];
+    uint32_t old_incvalue = old_val & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t old_incperiod = MAX(old_val >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+    uint32_t incvalue = val & E1000_TIMINCA_INCVALUE_MASK;
+    uint32_t incperiod = MAX(val >> E1000_TIMINCA_INCPERIOD_SHIFT, 1);
+
+    mac[TIMINCA] = val;
+    *timadj += (muldiv64(ns, incvalue, incperiod) - muldiv64(ns, old_incvalue, old_incperiod)) / 16;
 }

@@ -76,29 +76,26 @@ struct packet_hash_info_t {
     };
 };
 
-struct bpf_map_def SEC("maps")
-tap_rss_map_configurations = {
-        .type        = BPF_MAP_TYPE_ARRAY,
-        .key_size    = sizeof(__u32),
-        .value_size  = sizeof(struct rss_config_t),
-        .max_entries = 1,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(struct rss_config_t));
+    __uint(max_entries, 1);
+} tap_rss_map_configurations SEC(".maps");
 
-struct bpf_map_def SEC("maps")
-tap_rss_map_toeplitz_key = {
-        .type        = BPF_MAP_TYPE_ARRAY,
-        .key_size    = sizeof(__u32),
-        .value_size  = sizeof(struct toeplitz_key_data_t),
-        .max_entries = 1,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(struct toeplitz_key_data_t));
+    __uint(max_entries, 1);
+} tap_rss_map_toeplitz_key SEC(".maps");
 
-struct bpf_map_def SEC("maps")
-tap_rss_map_indirection_table = {
-        .type        = BPF_MAP_TYPE_ARRAY,
-        .key_size    = sizeof(__u32),
-        .value_size  = sizeof(__u16),
-        .max_entries = INDIRECTION_TABLE_SIZE,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(__u16));
+    __uint(max_entries, INDIRECTION_TABLE_SIZE);
+} tap_rss_map_indirection_table SEC(".maps");
 
 static inline void net_rx_rss_add_chunk(__u8 *rss_input, size_t *bytes_written,
                                         const void *ptr, size_t size) {

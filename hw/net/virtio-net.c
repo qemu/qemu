@@ -1746,39 +1746,61 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static uint8_t virtio_net_get_hash_type(bool isip4,
-                                        bool isip6,
-                                        bool isudp,
-                                        bool istcp,
+static uint8_t virtio_net_get_hash_type(bool hasip4,
+                                        bool hasip6,
+                                        EthL4HdrProto l4hdr_proto,
                                         uint32_t types)
 {
-    if (isip4) {
-        if (istcp && (types & VIRTIO_NET_RSS_HASH_TYPE_TCPv4)) {
-            return NetPktRssIpV4Tcp;
+    if (hasip4) {
+        switch (l4hdr_proto) {
+        case ETH_L4_HDR_PROTO_TCP:
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_TCPv4) {
+                return NetPktRssIpV4Tcp;
+            }
+            break;
+
+        case ETH_L4_HDR_PROTO_UDP:
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_UDPv4) {
+                return NetPktRssIpV4Udp;
+            }
+            break;
+
+        default:
+            break;
         }
-        if (isudp && (types & VIRTIO_NET_RSS_HASH_TYPE_UDPv4)) {
-            return NetPktRssIpV4Udp;
-        }
+
         if (types & VIRTIO_NET_RSS_HASH_TYPE_IPv4) {
             return NetPktRssIpV4;
         }
-    } else if (isip6) {
-        uint32_t mask = VIRTIO_NET_RSS_HASH_TYPE_TCP_EX |
-                        VIRTIO_NET_RSS_HASH_TYPE_TCPv6;
+    } else if (hasip6) {
+        switch (l4hdr_proto) {
+        case ETH_L4_HDR_PROTO_TCP:
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_TCP_EX) {
+                return NetPktRssIpV6TcpEx;
+            }
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_TCPv6) {
+                return NetPktRssIpV6Tcp;
+            }
+            break;
 
-        if (istcp && (types & mask)) {
-            return (types & VIRTIO_NET_RSS_HASH_TYPE_TCP_EX) ?
-                NetPktRssIpV6TcpEx : NetPktRssIpV6Tcp;
+        case ETH_L4_HDR_PROTO_UDP:
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_UDP_EX) {
+                return NetPktRssIpV6UdpEx;
+            }
+            if (types & VIRTIO_NET_RSS_HASH_TYPE_UDPv6) {
+                return NetPktRssIpV6Udp;
+            }
+            break;
+
+        default:
+            break;
         }
-        mask = VIRTIO_NET_RSS_HASH_TYPE_UDP_EX | VIRTIO_NET_RSS_HASH_TYPE_UDPv6;
-        if (isudp && (types & mask)) {
-            return (types & VIRTIO_NET_RSS_HASH_TYPE_UDP_EX) ?
-                NetPktRssIpV6UdpEx : NetPktRssIpV6Udp;
+
+        if (types & VIRTIO_NET_RSS_HASH_TYPE_IP_EX) {
+            return NetPktRssIpV6Ex;
         }
-        mask = VIRTIO_NET_RSS_HASH_TYPE_IP_EX | VIRTIO_NET_RSS_HASH_TYPE_IPv6;
-        if (types & mask) {
-            return (types & VIRTIO_NET_RSS_HASH_TYPE_IP_EX) ?
-                NetPktRssIpV6Ex : NetPktRssIpV6;
+        if (types & VIRTIO_NET_RSS_HASH_TYPE_IPv6) {
+            return NetPktRssIpV6;
         }
     }
     return 0xff;
@@ -1800,7 +1822,8 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
     struct NetRxPkt *pkt = n->rx_pkt;
     uint8_t net_hash_type;
     uint32_t hash;
-    bool isip4, isip6, isudp, istcp;
+    bool hasip4, hasip6;
+    EthL4HdrProto l4hdr_proto;
     static const uint8_t reports[NetPktRssIpV6UdpEx + 1] = {
         VIRTIO_NET_HASH_REPORT_IPv4,
         VIRTIO_NET_HASH_REPORT_TCPv4,
@@ -1815,14 +1838,8 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
 
     net_rx_pkt_set_protocols(pkt, buf + n->host_hdr_len,
                              size - n->host_hdr_len);
-    net_rx_pkt_get_protocols(pkt, &isip4, &isip6, &isudp, &istcp);
-    if (isip4 && (net_rx_pkt_get_ip4_info(pkt)->fragment)) {
-        istcp = isudp = false;
-    }
-    if (isip6 && (net_rx_pkt_get_ip6_info(pkt)->fragment)) {
-        istcp = isudp = false;
-    }
-    net_hash_type = virtio_net_get_hash_type(isip4, isip6, isudp, istcp,
+    net_rx_pkt_get_protocols(pkt, &hasip4, &hasip6, &l4hdr_proto);
+    net_hash_type = virtio_net_get_hash_type(hasip4, hasip6, l4hdr_proto,
                                              n->rss_data.hash_types);
     if (net_hash_type > NetPktRssIpV6UdpEx) {
         if (n->rss_data.populate_hash) {
@@ -3718,7 +3735,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;
 
-    net_rx_pkt_init(&n->rx_pkt, false);
+    net_rx_pkt_init(&n->rx_pkt);
 
     if (virtio_has_feature(n->host_features, VIRTIO_NET_F_RSS)) {
         virtio_net_load_ebpf(n);

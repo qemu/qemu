@@ -26,6 +26,7 @@
 
 
 #include "qemu/osdep.h"
+#include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -38,11 +39,10 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 
+#include "e1000_common.h"
 #include "e1000x_common.h"
 #include "trace.h"
 #include "qom/object.h"
-
-static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 /* #define E1000_DEBUG */
 
@@ -66,9 +66,8 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 
 #define IOPORT_SIZE       0x40
 #define PNPMMIO_SIZE      0x20000
-#define MIN_BUF_SIZE      60 /* Min. octets in an ethernet frame sans FCS */
 
-#define MAXIMUM_ETHERNET_HDR_LEN (14+4)
+#define MAXIMUM_ETHERNET_HDR_LEN (ETH_HLEN + 4)
 
 /*
  * HW models:
@@ -181,67 +180,73 @@ e1000_autoneg_done(E1000State *s)
 static bool
 have_autoneg(E1000State *s)
 {
-    return chkflag(AUTONEG) && (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
+    return chkflag(AUTONEG) && (s->phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
 }
 
 static void
 set_phy_ctrl(E1000State *s, int index, uint16_t val)
 {
-    /* bits 0-5 reserved; MII_CR_[RESTART_AUTO_NEG,RESET] are self clearing */
-    s->phy_reg[PHY_CTRL] = val & ~(0x3f |
-                                   MII_CR_RESET |
-                                   MII_CR_RESTART_AUTO_NEG);
+    /* bits 0-5 reserved; MII_BMCR_[ANRESTART,RESET] are self clearing */
+    s->phy_reg[MII_BMCR] = val & ~(0x3f |
+                                   MII_BMCR_RESET |
+                                   MII_BMCR_ANRESTART);
 
     /*
      * QEMU 1.3 does not support link auto-negotiation emulation, so if we
      * migrate during auto negotiation, after migration the link will be
      * down.
      */
-    if (have_autoneg(s) && (val & MII_CR_RESTART_AUTO_NEG)) {
+    if (have_autoneg(s) && (val & MII_BMCR_ANRESTART)) {
         e1000x_restart_autoneg(s->mac_reg, s->phy_reg, s->autoneg_timer);
     }
 }
 
 static void (*phyreg_writeops[])(E1000State *, int, uint16_t) = {
-    [PHY_CTRL] = set_phy_ctrl,
+    [MII_BMCR] = set_phy_ctrl,
 };
 
 enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
-    [PHY_STATUS]      = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_ID1]         = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
-    [PHY_CTRL]        = PHY_RW,    [PHY_1000T_CTRL]             = PHY_RW,
-    [PHY_LP_ABILITY]  = PHY_R,     [PHY_1000T_STATUS]           = PHY_R,
-    [PHY_AUTONEG_ADV] = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
-    [PHY_ID2]         = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
-    [PHY_AUTONEG_EXP] = PHY_R,
+    [MII_BMSR]   = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+    [MII_PHYID1] = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+    [MII_BMCR]   = PHY_RW,    [MII_CTRL1000]               = PHY_RW,
+    [MII_ANLPAR] = PHY_R,     [MII_STAT1000]               = PHY_R,
+    [MII_ANAR]   = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
+    [MII_PHYID2] = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
+    [MII_ANER]   = PHY_R,
 };
 
-/* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
+/* MII_PHYID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL]   = MII_CR_SPEED_SELECT_MSB |
-                   MII_CR_FULL_DUPLEX |
-                   MII_CR_AUTO_NEG_EN,
+    [MII_BMCR] = MII_BMCR_SPEED1000 |
+                 MII_BMCR_FD |
+                 MII_BMCR_AUTOEN,
 
-    [PHY_STATUS] = MII_SR_EXTENDED_CAPS |
-                   MII_SR_LINK_STATUS |   /* link initially up */
-                   MII_SR_AUTONEG_CAPS |
-                   /* MII_SR_AUTONEG_COMPLETE: initially NOT completed */
-                   MII_SR_PREAMBLE_SUPPRESS |
-                   MII_SR_EXTENDED_STATUS |
-                   MII_SR_10T_HD_CAPS |
-                   MII_SR_10T_FD_CAPS |
-                   MII_SR_100X_HD_CAPS |
-                   MII_SR_100X_FD_CAPS,
+    [MII_BMSR] = MII_BMSR_EXTCAP |
+                 MII_BMSR_LINK_ST |   /* link initially up */
+                 MII_BMSR_AUTONEG |
+                 /* MII_BMSR_AN_COMP: initially NOT completed */
+                 MII_BMSR_MFPS |
+                 MII_BMSR_EXTSTAT |
+                 MII_BMSR_10T_HD |
+                 MII_BMSR_10T_FD |
+                 MII_BMSR_100TX_HD |
+                 MII_BMSR_100TX_FD,
 
-    [PHY_ID1] = 0x141,
-    /* [PHY_ID2] configured per DevId, from e1000_reset() */
-    [PHY_AUTONEG_ADV] = 0xde1,
-    [PHY_LP_ABILITY] = 0x1e0,
-    [PHY_1000T_CTRL] = 0x0e00,
-    [PHY_1000T_STATUS] = 0x3c00,
+    [MII_PHYID1] = 0x141,
+    /* [MII_PHYID2] configured per DevId, from e1000_reset() */
+    [MII_ANAR] = MII_ANAR_CSMACD | MII_ANAR_10 |
+                 MII_ANAR_10FD | MII_ANAR_TX |
+                 MII_ANAR_TXFD | MII_ANAR_PAUSE |
+                 MII_ANAR_PAUSE_ASYM,
+    [MII_ANLPAR] = MII_ANLPAR_10 | MII_ANLPAR_10FD |
+                   MII_ANLPAR_TX | MII_ANLPAR_TXFD,
+    [MII_CTRL1000] = MII_CTRL1000_FULL | MII_CTRL1000_PORT |
+                     MII_CTRL1000_MASTER,
+    [MII_STAT1000] = MII_STAT1000_HALF | MII_STAT1000_FULL |
+                     MII_STAT1000_ROK | MII_STAT1000_LOK,
     [M88E1000_PHY_SPEC_CTRL] = 0x360,
     [M88E1000_PHY_SPEC_STATUS] = 0xac00,
     [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,
@@ -373,9 +378,9 @@ static bool e1000_vet_init_need(void *opaque)
     return chkflag(VET);
 }
 
-static void e1000_reset(void *opaque)
+static void e1000_reset_hold(Object *obj)
 {
-    E1000State *d = opaque;
+    E1000State *d = E1000(obj);
     E1000BaseClass *edc = E1000_GET_CLASS(d);
     uint8_t *macaddr = d->conf.macaddr.a;
 
@@ -386,10 +391,10 @@ static void e1000_reset(void *opaque)
     d->mit_irq_level = 0;
     d->mit_ide = 0;
     memset(d->phy_reg, 0, sizeof d->phy_reg);
-    memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
-    d->phy_reg[PHY_ID2] = edc->phy_id2;
+    memcpy(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
+    d->phy_reg[MII_PHYID2] = edc->phy_id2;
     memset(d->mac_reg, 0, sizeof d->mac_reg);
-    memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
+    memcpy(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
 
@@ -547,9 +552,9 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
 static inline void
 inc_tx_bcast_or_mcast_count(E1000State *s, const unsigned char *arr)
 {
-    if (!memcmp(arr, bcast, sizeof bcast)) {
+    if (is_broadcast_ether_addr(arr)) {
         e1000x_inc_reg_if_not_full(s->mac_reg, BPTC);
-    } else if (arr[0] & 1) {
+    } else if (is_multicast_ether_addr(arr)) {
         e1000x_inc_reg_if_not_full(s->mac_reg, MPTC);
     }
 }
@@ -561,13 +566,13 @@ e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
                                     PTC1023, PTC1522 };
 
     NetClientState *nc = qemu_get_queue(s->nic);
-    if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
+    if (s->phy_reg[MII_BMCR] & MII_BMCR_LOOPBACK) {
         qemu_receive_packet(nc, buf, size);
     } else {
         qemu_send_packet(nc, buf, size);
     }
     inc_tx_bcast_or_mcast_count(s, buf);
-    e1000x_increase_size_stats(s->mac_reg, PTCregs, size);
+    e1000x_increase_size_stats(s->mac_reg, PTCregs, size + 4);
 }
 
 static void
@@ -631,7 +636,7 @@ xmit_seg(E1000State *s)
     }
 
     e1000x_inc_reg_if_not_full(s->mac_reg, TPT);
-    e1000x_grow_8reg_if_not_full(s->mac_reg, TOTL, s->tx.size);
+    e1000x_grow_8reg_if_not_full(s->mac_reg, TOTL, s->tx.size + 4);
     s->mac_reg[GPTC] = s->mac_reg[TPT];
     s->mac_reg[GOTCL] = s->mac_reg[TOTL];
     s->mac_reg[GOTCH] = s->mac_reg[TOTH];
@@ -803,15 +808,18 @@ static int
 receive_filter(E1000State *s, const uint8_t *buf, int size)
 {
     uint32_t rctl = s->mac_reg[RCTL];
-    int isbcast = !memcmp(buf, bcast, sizeof bcast), ismcast = (buf[0] & 1);
+    int isbcast = is_broadcast_ether_addr(buf);
+    int ismcast = is_multicast_ether_addr(buf);
 
     if (e1000x_is_vlan_packet(buf, le16_to_cpu(s->mac_reg[VET])) &&
         e1000x_vlan_rx_filter_enabled(s->mac_reg)) {
-        uint16_t vid = lduw_be_p(buf + 14);
-        uint32_t vfta = ldl_le_p((uint32_t*)(s->mac_reg + VFTA) +
-                                 ((vid >> 5) & 0x7f));
-        if ((vfta & (1 << (vid & 0x1f))) == 0)
+        uint16_t vid = lduw_be_p(&PKT_GET_VLAN_HDR(buf)->h_tci);
+        uint32_t vfta =
+            ldl_le_p((uint32_t *)(s->mac_reg + VFTA) +
+                     ((vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK));
+        if ((vfta & (1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK))) == 0) {
             return 0;
+        }
     }
 
     if (!isbcast && !ismcast && (rctl & E1000_RCTL_UPE)) { /* promiscuous ucast */
@@ -841,7 +849,7 @@ e1000_set_link_status(NetClientState *nc)
         e1000x_update_regs_on_link_down(s->mac_reg, s->phy_reg);
     } else {
         if (have_autoneg(s) &&
-            !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+            !(s->phy_reg[MII_BMSR] & MII_BMSR_AN_COMP)) {
             e1000x_restart_autoneg(s->mac_reg, s->phy_reg, s->autoneg_timer);
         } else {
             e1000_link_up(s);
@@ -907,7 +915,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
     uint8_t vlan_status = 0;
-    uint8_t min_buf[MIN_BUF_SIZE];
+    uint8_t min_buf[ETH_ZLEN];
     struct iovec min_iov;
     uint8_t *filter_buf = iov->iov_base;
     size_t size = iov_size(iov, iovcnt);
@@ -1061,30 +1069,6 @@ mac_readreg(E1000State *s, int index)
 }
 
 static uint32_t
-mac_low4_read(E1000State *s, int index)
-{
-    return s->mac_reg[index] & 0xf;
-}
-
-static uint32_t
-mac_low11_read(E1000State *s, int index)
-{
-    return s->mac_reg[index] & 0x7ff;
-}
-
-static uint32_t
-mac_low13_read(E1000State *s, int index)
-{
-    return s->mac_reg[index] & 0x1fff;
-}
-
-static uint32_t
-mac_low16_read(E1000State *s, int index)
-{
-    return s->mac_reg[index] & 0xffff;
-}
-
-static uint32_t
 mac_icr_read(E1000State *s, int index)
 {
     uint32_t ret = s->mac_reg[ICR];
@@ -1136,11 +1120,17 @@ set_rdt(E1000State *s, int index, uint32_t val)
     }
 }
 
-static void
-set_16bit(E1000State *s, int index, uint32_t val)
-{
-    s->mac_reg[index] = val & 0xffff;
-}
+#define LOW_BITS_SET_FUNC(num)                             \
+    static void                                            \
+    set_##num##bit(E1000State *s, int index, uint32_t val) \
+    {                                                      \
+        s->mac_reg[index] = val & (BIT(num) - 1);          \
+    }
+
+LOW_BITS_SET_FUNC(4)
+LOW_BITS_SET_FUNC(11)
+LOW_BITS_SET_FUNC(13)
+LOW_BITS_SET_FUNC(16)
 
 static void
 set_dlen(E1000State *s, int index, uint32_t val)
@@ -1194,7 +1184,9 @@ static const readops macreg_readops[] = {
     getreg(XONRXC),   getreg(XONTXC),   getreg(XOFFRXC),  getreg(XOFFTXC),
     getreg(RFC),      getreg(RJC),      getreg(RNBC),     getreg(TSCTFC),
     getreg(MGTPRC),   getreg(MGTPDC),   getreg(MGTPTC),   getreg(GORCL),
-    getreg(GOTCL),
+    getreg(GOTCL),    getreg(RDFH),     getreg(RDFT),     getreg(RDFHS),
+    getreg(RDFTS),    getreg(RDFPC),    getreg(TDFH),     getreg(TDFT),
+    getreg(TDFHS),    getreg(TDFTS),    getreg(TDFPC),    getreg(AIT),
 
     [TOTH]    = mac_read_clr8,      [TORH]    = mac_read_clr8,
     [GOTCH]   = mac_read_clr8,      [GORCH]   = mac_read_clr8,
@@ -1212,24 +1204,17 @@ static const readops macreg_readops[] = {
     [MPTC]    = mac_read_clr4,
     [ICR]     = mac_icr_read,       [EECD]    = get_eecd,
     [EERD]    = flash_eerd_read,
-    [RDFH]    = mac_low13_read,     [RDFT]    = mac_low13_read,
-    [RDFHS]   = mac_low13_read,     [RDFTS]   = mac_low13_read,
-    [RDFPC]   = mac_low13_read,
-    [TDFH]    = mac_low11_read,     [TDFT]    = mac_low11_read,
-    [TDFHS]   = mac_low13_read,     [TDFTS]   = mac_low13_read,
-    [TDFPC]   = mac_low13_read,
-    [AIT]     = mac_low16_read,
 
-    [CRCERRS ... MPC]   = &mac_readreg,
-    [IP6AT ... IP6AT+3] = &mac_readreg,    [IP4AT ... IP4AT+6] = &mac_readreg,
-    [FFLT ... FFLT+6]   = &mac_low11_read,
-    [RA ... RA+31]      = &mac_readreg,
-    [WUPM ... WUPM+31]  = &mac_readreg,
-    [MTA ... MTA+127]   = &mac_readreg,
-    [VFTA ... VFTA+127] = &mac_readreg,
-    [FFMT ... FFMT+254] = &mac_low4_read,
-    [FFVT ... FFVT+254] = &mac_readreg,
-    [PBM ... PBM+16383] = &mac_readreg,
+    [CRCERRS ... MPC]     = &mac_readreg,
+    [IP6AT ... IP6AT + 3] = &mac_readreg,    [IP4AT ... IP4AT + 6] = &mac_readreg,
+    [FFLT ... FFLT + 6]   = &mac_readreg,
+    [RA ... RA + 31]      = &mac_readreg,
+    [WUPM ... WUPM + 31]  = &mac_readreg,
+    [MTA ... MTA + E1000_MC_TBL_SIZE - 1]   = &mac_readreg,
+    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1] = &mac_readreg,
+    [FFMT ... FFMT + 254] = &mac_readreg,
+    [FFVT ... FFVT + 254] = &mac_readreg,
+    [PBM ... PBM + 16383] = &mac_readreg,
 };
 enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 
@@ -1239,27 +1224,28 @@ static const writeops macreg_writeops[] = {
     putreg(PBA),      putreg(EERD),     putreg(SWSM),     putreg(WUFC),
     putreg(TDBAL),    putreg(TDBAH),    putreg(TXDCTL),   putreg(RDBAH),
     putreg(RDBAL),    putreg(LEDCTL),   putreg(VET),      putreg(FCRUC),
-    putreg(TDFH),     putreg(TDFT),     putreg(TDFHS),    putreg(TDFTS),
-    putreg(TDFPC),    putreg(RDFH),     putreg(RDFT),     putreg(RDFHS),
-    putreg(RDFTS),    putreg(RDFPC),    putreg(IPAV),     putreg(WUC),
-    putreg(WUS),      putreg(AIT),
+    putreg(IPAV),     putreg(WUC),
+    putreg(WUS),
 
-    [TDLEN]  = set_dlen,   [RDLEN]  = set_dlen,       [TCTL] = set_tctl,
-    [TDT]    = set_tctl,   [MDIC]   = set_mdic,       [ICS]  = set_ics,
-    [TDH]    = set_16bit,  [RDH]    = set_16bit,      [RDT]  = set_rdt,
-    [IMC]    = set_imc,    [IMS]    = set_ims,        [ICR]  = set_icr,
-    [EECD]   = set_eecd,   [RCTL]   = set_rx_control, [CTRL] = set_ctrl,
-    [RDTR]   = set_16bit,  [RADV]   = set_16bit,      [TADV] = set_16bit,
-    [ITR]    = set_16bit,
+    [TDLEN]  = set_dlen,   [RDLEN]  = set_dlen,       [TCTL]  = set_tctl,
+    [TDT]    = set_tctl,   [MDIC]   = set_mdic,       [ICS]   = set_ics,
+    [TDH]    = set_16bit,  [RDH]    = set_16bit,      [RDT]   = set_rdt,
+    [IMC]    = set_imc,    [IMS]    = set_ims,        [ICR]   = set_icr,
+    [EECD]   = set_eecd,   [RCTL]   = set_rx_control, [CTRL]  = set_ctrl,
+    [RDTR]   = set_16bit,  [RADV]   = set_16bit,      [TADV]  = set_16bit,
+    [ITR]    = set_16bit,  [TDFH]   = set_11bit,      [TDFT]  = set_11bit,
+    [TDFHS]  = set_13bit,  [TDFTS]  = set_13bit,      [TDFPC] = set_13bit,
+    [RDFH]   = set_13bit,  [RDFT]   = set_13bit,      [RDFHS] = set_13bit,
+    [RDFTS]  = set_13bit,  [RDFPC]  = set_13bit,      [AIT]   = set_16bit,
 
-    [IP6AT ... IP6AT+3] = &mac_writereg, [IP4AT ... IP4AT+6] = &mac_writereg,
-    [FFLT ... FFLT+6]   = &mac_writereg,
-    [RA ... RA+31]      = &mac_writereg,
-    [WUPM ... WUPM+31]  = &mac_writereg,
-    [MTA ... MTA+127]   = &mac_writereg,
-    [VFTA ... VFTA+127] = &mac_writereg,
-    [FFMT ... FFMT+254] = &mac_writereg, [FFVT ... FFVT+254] = &mac_writereg,
-    [PBM ... PBM+16383] = &mac_writereg,
+    [IP6AT ... IP6AT + 3] = &mac_writereg, [IP4AT ... IP4AT + 6] = &mac_writereg,
+    [FFLT ... FFLT + 6]   = &set_11bit,
+    [RA ... RA + 31]      = &mac_writereg,
+    [WUPM ... WUPM + 31]  = &mac_writereg,
+    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = &mac_writereg,
+    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1] = &mac_writereg,
+    [FFMT ... FFMT + 254] = &set_4bit,     [FFVT ... FFVT + 254] = &mac_writereg,
+    [PBM ... PBM + 16383] = &mac_writereg,
 };
 
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
@@ -1415,10 +1401,10 @@ static int e1000_pre_save(void *opaque)
     /*
      * If link is down and auto-negotiation is supported and ongoing,
      * complete auto-negotiation immediately. This allows us to look
-     * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
+     * at MII_BMSR_AN_COMP to infer link status on load.
      */
     if (nc->link_down && have_autoneg(s)) {
-        s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+        s->phy_reg[MII_BMSR] |= MII_BMSR_AN_COMP;
     }
 
     /* Decide which set of props to migrate in the main structure */
@@ -1457,8 +1443,7 @@ static int e1000_post_load(void *opaque, int version_id)
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
 
-    if (have_autoneg(s) &&
-        !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
+    if (have_autoneg(s) && !(s->phy_reg[MII_BMSR] & MII_BMSR_AN_COMP)) {
         nc->link_down = false;
         timer_mod(s->autoneg_timer,
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
@@ -1624,8 +1609,9 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32(mac_reg[WUFC], E1000State),
         VMSTATE_UINT32(mac_reg[VET], E1000State),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, RA, 32),
-        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
-        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, E1000_MC_TBL_SIZE),
+        VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA,
+                                 E1000_VLAN_FILTER_TBL_SIZE),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
@@ -1746,12 +1732,6 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
                                         e1000_flush_queue_timer, d);
 }
 
-static void qdev_e1000_reset(DeviceState *dev)
-{
-    E1000State *d = E1000(dev);
-    e1000_reset(d);
-}
-
 static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
     DEFINE_PROP_BIT("autonegotiation", E1000State,
@@ -1777,6 +1757,7 @@ typedef struct E1000Info {
 static void e1000_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     E1000BaseClass *e = E1000_CLASS(klass);
     const E1000Info *info = data;
@@ -1789,9 +1770,9 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     k->revision = info->revision;
     e->phy_id2 = info->phy_id2;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    rc->phases.hold = e1000_reset_hold;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Intel Gigabit Ethernet";
-    dc->reset = qdev_e1000_reset;
     dc->vmsd = &vmstate_e1000;
     device_class_set_props(dc, e1000_properties);
 }

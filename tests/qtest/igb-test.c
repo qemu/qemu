@@ -1,10 +1,12 @@
 /*
- * QTest testcase for e1000e NIC
+ * QTest testcase for igb NIC
  *
+ * Copyright (c) 2022-2023 Red Hat, Inc.
  * Copyright (c) 2015 Ravello Systems LTD (http://ravellosystems.com)
  * Developed by Daynix Computing LTD (http://www.daynix.com)
  *
  * Authors:
+ * Akihiko Odaki <akihiko.odaki@daynix.com>
  * Dmitry Fleytman <dmitry@daynix.com>
  * Leonid Bloch <leonid@daynix.com>
  * Yan Vugenfirer <yan@daynix.com>
@@ -34,16 +36,18 @@
 #include "qemu/bitops.h"
 #include "libqos/libqos-malloc.h"
 #include "libqos/e1000e.h"
-#include "hw/net/e1000_regs.h"
+#include "hw/net/igb_regs.h"
+
+#ifndef _WIN32
 
 static const struct eth_header packet = {
     .h_dest = E1000E_ADDRESS,
     .h_source = E1000E_ADDRESS,
 };
 
-static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
+static void igb_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
 {
-    struct e1000_tx_desc descr;
+    union e1000_adv_tx_desc descr;
     char buffer[64];
     int ret;
     uint32_t recv_len;
@@ -54,12 +58,11 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
 
     /* Prepare TX descriptor */
     memset(&descr, 0, sizeof(descr));
-    descr.buffer_addr = cpu_to_le64(data);
-    descr.lower.data = cpu_to_le32(E1000_TXD_CMD_RS   |
-                                   E1000_TXD_CMD_EOP  |
-                                   E1000_TXD_CMD_DEXT |
-                                   E1000_TXD_DTYP_D   |
-                                   sizeof(buffer));
+    descr.read.buffer_addr = cpu_to_le64(data);
+    descr.read.cmd_type_len = cpu_to_le32(E1000_TXD_CMD_RS   |
+                                          E1000_TXD_CMD_EOP  |
+                                          E1000_TXD_DTYP_D   |
+                                          sizeof(buffer));
 
     /* Put descriptor to the ring */
     e1000e_tx_ring_push(d, &descr);
@@ -68,7 +71,7 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
     e1000e_wait_isr(d, E1000E_TX0_MSG_ID);
 
     /* Check DD bit */
-    g_assert_cmphex(le32_to_cpu(descr.upper.data) & E1000_TXD_STAT_DD, ==,
+    g_assert_cmphex(le32_to_cpu(descr.wb.status) & E1000_TXD_STAT_DD, ==,
                     E1000_TXD_STAT_DD);
 
     /* Check data sent to the backend */
@@ -82,9 +85,9 @@ static void e1000e_send_verify(QE1000E *d, int *test_sockets, QGuestAllocator *a
     guest_free(alloc, data);
 }
 
-static void e1000e_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
+static void igb_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator *alloc)
 {
-    union e1000_rx_desc_extended descr;
+    union e1000_adv_rx_desc descr;
 
     struct eth_header test_iov = packet;
     int len = htonl(sizeof(packet));
@@ -110,7 +113,7 @@ static void e1000e_receive_verify(QE1000E *d, int *test_sockets, QGuestAllocator
 
     /* Prepare RX descriptor */
     memset(&descr, 0, sizeof(descr));
-    descr.read.buffer_addr = cpu_to_le64(data);
+    descr.read.pkt_addr = cpu_to_le64(data);
 
     /* Put descriptor to the ring */
     e1000e_rx_ring_push(d, &descr);
@@ -135,7 +138,7 @@ static void test_e1000e_init(void *obj, void *data, QGuestAllocator * alloc)
     /* init does nothing */
 }
 
-static void test_e1000e_tx(void *obj, void *data, QGuestAllocator * alloc)
+static void test_igb_tx(void *obj, void *data, QGuestAllocator * alloc)
 {
     QE1000E_PCI *e1000e = obj;
     QE1000E *d = &e1000e->e1000e;
@@ -147,10 +150,10 @@ static void test_e1000e_tx(void *obj, void *data, QGuestAllocator * alloc)
         return;
     }
 
-    e1000e_send_verify(d, data, alloc);
+    igb_send_verify(d, data, alloc);
 }
 
-static void test_e1000e_rx(void *obj, void *data, QGuestAllocator * alloc)
+static void test_igb_rx(void *obj, void *data, QGuestAllocator * alloc)
 {
     QE1000E_PCI *e1000e = obj;
     QE1000E *d = &e1000e->e1000e;
@@ -162,11 +165,11 @@ static void test_e1000e_rx(void *obj, void *data, QGuestAllocator * alloc)
         return;
     }
 
-    e1000e_receive_verify(d, data, alloc);
+    igb_receive_verify(d, data, alloc);
 }
 
-static void test_e1000e_multiple_transfers(void *obj, void *data,
-                                           QGuestAllocator *alloc)
+static void test_igb_multiple_transfers(void *obj, void *data,
+                                        QGuestAllocator *alloc)
 {
     static const long iterations = 4 * 1024;
     long i;
@@ -182,24 +185,10 @@ static void test_e1000e_multiple_transfers(void *obj, void *data,
     }
 
     for (i = 0; i < iterations; i++) {
-        e1000e_send_verify(d, data, alloc);
-        e1000e_receive_verify(d, data, alloc);
+        igb_send_verify(d, data, alloc);
+        igb_receive_verify(d, data, alloc);
     }
 
-}
-
-static void test_e1000e_hotplug(void *obj, void *data, QGuestAllocator * alloc)
-{
-    QTestState *qts = global_qtest;  /* TODO: get rid of global_qtest here */
-    QE1000E_PCI *dev = obj;
-
-    if (dev->pci_dev.bus->not_hotpluggable) {
-        g_test_skip("pci bus does not support hotplug");
-        return;
-    }
-
-    qtest_qmp_device_add(qts, "e1000e", "e1000e_net", "{'addr': '0x06'}");
-    qpci_unplug_acpi_device_test(qts, "e1000e_net", 0x06);
 }
 
 static void data_test_clear(void *sockets)
@@ -225,18 +214,43 @@ static void *data_test_init(GString *cmd_line, void *arg)
     return test_sockets;
 }
 
-static void register_e1000e_test(void)
-{
-    QOSGraphTestOptions opts = {
-        .before = data_test_init,
-    };
+#endif
 
-    qos_add_test("init", "e1000e", test_e1000e_init, &opts);
-    qos_add_test("tx", "e1000e", test_e1000e_tx, &opts);
-    qos_add_test("rx", "e1000e", test_e1000e_rx, &opts);
-    qos_add_test("multiple_transfers", "e1000e",
-                      test_e1000e_multiple_transfers, &opts);
-    qos_add_test("hotplug", "e1000e", test_e1000e_hotplug, &opts);
+static void *data_test_init_no_socket(GString *cmd_line, void *arg)
+{
+    g_string_append(cmd_line, " -netdev hubport,hubid=0,id=hs0 ");
+    return arg;
 }
 
-libqos_init(register_e1000e_test);
+static void test_igb_hotplug(void *obj, void *data, QGuestAllocator * alloc)
+{
+    QTestState *qts = global_qtest;  /* TODO: get rid of global_qtest here */
+    QE1000E_PCI *dev = obj;
+
+    if (dev->pci_dev.bus->not_hotpluggable) {
+        g_test_skip("pci bus does not support hotplug");
+        return;
+    }
+
+    qtest_qmp_device_add(qts, "igb", "igb_net", "{'addr': '0x06'}");
+    qpci_unplug_acpi_device_test(qts, "igb_net", 0x06);
+}
+
+static void register_igb_test(void)
+{
+    QOSGraphTestOptions opts = { 0 };
+
+#ifndef _WIN32
+    opts.before = data_test_init,
+    qos_add_test("init", "igb", test_e1000e_init, &opts);
+    qos_add_test("tx", "igb", test_igb_tx, &opts);
+    qos_add_test("rx", "igb", test_igb_rx, &opts);
+    qos_add_test("multiple_transfers", "igb",
+                 test_igb_multiple_transfers, &opts);
+#endif
+
+    opts.before = data_test_init_no_socket;
+    qos_add_test("hotplug", "igb", test_igb_hotplug, &opts);
+}
+
+libqos_init(register_igb_test);

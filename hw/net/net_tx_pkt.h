@@ -26,16 +26,17 @@
 
 struct NetTxPkt;
 
+typedef void (* NetTxPktCallback)(void *, const struct iovec *, int, const struct iovec *, int);
+
 /**
  * Init function for tx packet functionality
  *
  * @pkt:            packet pointer
  * @pci_dev:        PCI device processing this packet
  * @max_frags:      max tx ip fragments
- * @has_virt_hdr:   device uses virtio header.
  */
 void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
-    uint32_t max_frags, bool has_virt_hdr);
+    uint32_t max_frags);
 
 /**
  * Clean all tx packet resources.
@@ -59,9 +60,10 @@ struct virtio_net_hdr *net_tx_pkt_get_vhdr(struct NetTxPkt *pkt);
  * @tso_enable:     TSO enabled
  * @csum_enable:    CSO enabled
  * @gso_size:       MSS size for TSO
+ * @ret:            operation result
  *
  */
-void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
+bool net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
     bool csum_enable, uint32_t gso_size);
 
 /**
@@ -161,15 +163,16 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt);
 bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc);
 
 /**
-* Redirect packet directly to receive path (emulate loopback phy).
-* Handles sw offloads if vhdr is not supported.
-*
-* @pkt:            packet
-* @nc:             NetClientState
-* @ret:            operation result
-*
-*/
-bool net_tx_pkt_send_loopback(struct NetTxPkt *pkt, NetClientState *nc);
+ * Send packet with a custom function.
+ *
+ * @pkt:            packet
+ * @offload:        whether the callback implements offloading
+ * @callback:       a function to be called back for each transformed packet
+ * @context:        a pointer to be passed to the callback.
+ * @ret:            operation result
+ */
+bool net_tx_pkt_send_custom(struct NetTxPkt *pkt, bool offload,
+                            NetTxPktCallback callback, void *context);
 
 /**
  * parse raw packet data and analyze offload requirements.
