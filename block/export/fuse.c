@@ -673,7 +673,16 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
         do {
             int size = MIN(length, BDRV_REQUEST_MAX_BYTES);
 
-            ret = blk_pdiscard(exp->common.blk, offset, size);
+            ret = blk_pwrite_zeroes(exp->common.blk, offset, size,
+                                    BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK);
+            if (ret == -ENOTSUP) {
+                /*
+                 * fallocate() specifies to return EOPNOTSUPP for unsupported
+                 * operations
+                 */
+                ret = -EOPNOTSUPP;
+            }
+
             offset += size;
             length -= size;
         } while (ret == 0 && length > 0);

@@ -370,6 +370,49 @@ echo
 echo '=== Compare copy with original ==='
 
 $QEMU_IMG compare -f raw -F $IMGFMT "$COPIED_IMG" "$TEST_IMG"
+_cleanup_test_img
+
+echo
+echo '=== Writing zeroes while unmapping ==='
+# Regression test for https://gitlab.com/qemu-project/qemu/-/issues/1507
+_make_test_img 64M
+$QEMU_IO -c 'write -s /dev/urandom 0 64M' "$TEST_IMG" | _filter_qemu_io
+
+_launch_qemu
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'blockdev-add',
+      'arguments': {
+          'driver': '$IMGFMT',
+          'node-name': 'node-format',
+          'file': {
+              'driver': 'file',
+              'filename': '$TEST_IMG'
+          }
+      } }" \
+    'return'
+
+fuse_export_add 'export' "'mountpoint': '$EXT_MP', 'writable': true"
+
+# Try writing zeroes by unmapping
+$QEMU_IO -f raw -c 'write -zu 0 64M' "$EXT_MP" | _filter_qemu_io
+
+# Check the result
+$QEMU_IO -f raw -c 'read -P 0 0 64M' "$EXT_MP" | _filter_qemu_io
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'quit'}" \
+    'return'
+
+wait=yes _cleanup_qemu
+
+# Check the original image
+$QEMU_IO -c 'read -P 0 0 64M' "$TEST_IMG" | _filter_qemu_io
+
+_cleanup_test_img
 
 # success, all done
 echo "*** done"
