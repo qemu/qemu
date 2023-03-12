@@ -130,6 +130,7 @@ extern TargetFdTrans target_netlink_route_trans;
 extern TargetFdTrans target_netlink_audit_trans;
 extern TargetFdTrans target_signalfd_trans;
 extern TargetFdTrans target_eventfd_trans;
+extern TargetFdTrans target_timerfd_trans;
 #if (defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)) || \
     (defined(CONFIG_INOTIFY1) && defined(TARGET_NR_inotify_init1) && \
      defined(__NR_inotify_init1))

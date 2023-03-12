@@ -22,6 +22,7 @@
 #include "qemu/path.h"
 #include "qemu/memfd.h"
 #include "qemu/queue.h"
+#include "target_mman.h"
 #include <elf.h>
 #include <endian.h>
 #include <grp.h>
@@ -168,9 +169,13 @@
 #define CLONE_IGNORED_FLAGS                     \
     (CLONE_DETACHED | CLONE_IO)
 
+#ifndef CLONE_PIDFD
+# define CLONE_PIDFD 0x00001000
+#endif
+
 /* Flags for fork which we can implement within QEMU itself */
 #define CLONE_OPTIONAL_FORK_FLAGS               \
-    (CLONE_SETTLS | CLONE_PARENT_SETTID |       \
+    (CLONE_SETTLS | CLONE_PARENT_SETTID | CLONE_PIDFD | \
      CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID)
 
 /* Flags for thread creation which we can implement within QEMU itself */
@@ -795,49 +800,52 @@ static inline int host_to_target_sock_type(int host_type)
 }
 
 static abi_ulong target_brk;
-static abi_ulong target_original_brk;
 static abi_ulong brk_page;
 
 void target_set_brk(abi_ulong new_brk)
 {
-    target_original_brk = target_brk = HOST_PAGE_ALIGN(new_brk);
+    target_brk = new_brk;
     brk_page = HOST_PAGE_ALIGN(target_brk);
 }
 
-//#define DEBUGF_BRK(message, args...) do { fprintf(stderr, (message), ## args); } while (0)
-#define DEBUGF_BRK(message, args...)
-
 /* do_brk() must return target values and target errnos. */
-abi_long do_brk(abi_ulong new_brk)
+abi_long do_brk(abi_ulong brk_val)
 {
     abi_long mapped_addr;
     abi_ulong new_alloc_size;
+    abi_ulong new_brk, new_host_brk_page;
 
     /* brk pointers are always untagged */
 
-    DEBUGF_BRK("do_brk(" TARGET_ABI_FMT_lx ") -> ", new_brk);
-
-    if (!new_brk) {
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (!new_brk)\n", target_brk);
-        return target_brk;
-    }
-    if (new_brk < target_original_brk) {
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk < target_original_brk)\n",
-                   target_brk);
+    /* return old brk value if brk_val unchanged or zero */
+    if (!brk_val || brk_val == target_brk) {
         return target_brk;
     }
 
-    /* If the new brk is less than the highest page reserved to the
-     * target heap allocation, set it and we're almost done...  */
-    if (new_brk <= brk_page) {
-        /* Heap contents are initialized to zero, as for anonymous
-         * mapped pages.  */
-        if (new_brk > target_brk) {
-            memset(g2h_untagged(target_brk), 0, new_brk - target_brk);
+    new_brk = TARGET_PAGE_ALIGN(brk_val);
+    new_host_brk_page = HOST_PAGE_ALIGN(brk_val);
+
+    /* brk_val and old target_brk might be on the same page */
+    if (new_brk == TARGET_PAGE_ALIGN(target_brk)) {
+        if (brk_val > target_brk) {
+            /* empty remaining bytes in (possibly larger) host page */
+            memset(g2h_untagged(target_brk), 0, new_host_brk_page - target_brk);
         }
-	target_brk = new_brk;
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk <= brk_page)\n", target_brk);
-	return target_brk;
+        target_brk = brk_val;
+        return target_brk;
+    }
+
+    /* Release heap if necesary */
+    if (new_brk < target_brk) {
+        /* empty remaining bytes in (possibly larger) host page */
+        memset(g2h_untagged(brk_val), 0, new_host_brk_page - brk_val);
+
+        /* free unused host pages and set new brk_page */
+        target_munmap(new_host_brk_page, brk_page - new_host_brk_page);
+        brk_page = new_host_brk_page;
+
+        target_brk = brk_val;
+        return target_brk;
     }
 
     /* We need to allocate more memory after the brk... Note that
@@ -846,10 +854,14 @@ abi_long do_brk(abi_ulong new_brk)
      * itself); instead we treat "mapped but at wrong address" as
      * a failure and unmap again.
      */
-    new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page);
-    mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
+    new_alloc_size = new_host_brk_page - brk_page;
+    if (new_alloc_size) {
+        mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ|PROT_WRITE,
                                         MAP_ANON|MAP_PRIVATE, 0, 0));
+    } else {
+        mapped_addr = brk_page;
+    }
 
     if (mapped_addr == brk_page) {
         /* Heap contents are initialized to zero, as for anonymous
@@ -861,10 +873,8 @@ abi_long do_brk(abi_ulong new_brk)
          * then shrunken).  */
         memset(g2h_untagged(target_brk), 0, brk_page - target_brk);
 
-        target_brk = new_brk;
-        brk_page = HOST_PAGE_ALIGN(target_brk);
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (mapped_addr == brk_page)\n",
-            target_brk);
+        target_brk = brk_val;
+        brk_page = new_host_brk_page;
         return target_brk;
     } else if (mapped_addr != -1) {
         /* Mapped but at wrong address, meaning there wasn't actually
@@ -872,10 +882,6 @@ abi_long do_brk(abi_ulong new_brk)
          */
         target_munmap(mapped_addr, new_alloc_size);
         mapped_addr = -1;
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (mapped_addr != -1)\n", target_brk);
-    }
-    else {
-        DEBUGF_BRK(TARGET_ABI_FMT_lx " (otherwise)\n", target_brk);
     }
 
 #if defined(TARGET_ALPHA)
@@ -1713,6 +1719,11 @@ static inline abi_long target_to_host_sockaddr(int fd, struct sockaddr *addr,
 	lladdr = (struct target_sockaddr_ll *)addr;
 	lladdr->sll_ifindex = tswap32(lladdr->sll_ifindex);
 	lladdr->sll_hatype = tswap16(lladdr->sll_hatype);
+    } else if (sa_family == AF_INET6) {
+        struct sockaddr_in6 *in6addr;
+
+        in6addr = (struct sockaddr_in6 *)addr;
+        in6addr->sin6_scope_id = tswap32(in6addr->sin6_scope_id);
     }
     unlock_user(target_saddr, target_addr, 0);
 
@@ -6723,6 +6734,17 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
             return -TARGET_EINVAL;
         }
 
+#if !defined(__NR_pidfd_open) || !defined(TARGET_NR_pidfd_open)
+        if (flags & CLONE_PIDFD) {
+            return -TARGET_EINVAL;
+        }
+#endif
+
+        /* Can not allow CLONE_PIDFD with CLONE_PARENT_SETTID */
+        if ((flags & CLONE_PIDFD) && (flags & CLONE_PARENT_SETTID)) {
+            return -TARGET_EINVAL;
+        }
+
         if (block_signals()) {
             return -QEMU_ERESTARTSYS;
         }
@@ -6750,6 +6772,20 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
                 ts->child_tidptr = child_tidptr;
         } else {
             cpu_clone_regs_parent(env, flags);
+            if (flags & CLONE_PIDFD) {
+                int pid_fd = 0;
+#if defined(__NR_pidfd_open) && defined(TARGET_NR_pidfd_open)
+                int pid_child = ret;
+                pid_fd = pidfd_open(pid_child, 0);
+                if (pid_fd >= 0) {
+                        fcntl(pid_fd, F_SETFD, fcntl(pid_fd, F_GETFL)
+                                               | FD_CLOEXEC);
+                } else {
+                        pid_fd = 0;
+                }
+#endif
+                put_user_u32(pid_fd, parent_tidptr);
+                }
             fork_end(0);
         }
         g_assert(!cpu_in_exclusive_context(cpu));
@@ -7606,6 +7642,14 @@ static inline int target_to_host_mlockall_arg(int arg)
 }
 #endif
 
+static inline int target_to_host_msync_arg(abi_long arg)
+{
+    return ((arg & TARGET_MS_ASYNC) ? MS_ASYNC : 0) |
+           ((arg & TARGET_MS_INVALIDATE) ? MS_INVALIDATE : 0) |
+           ((arg & TARGET_MS_SYNC) ? MS_SYNC : 0) |
+           (arg & ~(TARGET_MS_ASYNC | TARGET_MS_INVALIDATE | TARGET_MS_SYNC));
+}
+
 #if (defined(TARGET_NR_stat64) || defined(TARGET_NR_lstat64) ||     \
      defined(TARGET_NR_fstat64) || defined(TARGET_NR_fstatat64) ||  \
      defined(TARGET_NR_newfstatat))
@@ -8079,6 +8123,9 @@ static int open_self_stat(CPUArchState *cpu_env, int fd)
             gchar *bin = g_strrstr(ts->bprm->argv[0], "/");
             bin = bin ? bin + 1 : ts->bprm->argv[0];
             g_string_printf(buf, "(%.15s) ", bin);
+        } else if (i == 2) {
+            /* task state */
+            g_string_assign(buf, "R "); /* we are running right now */
         } else if (i == 3) {
             /* ppid */
             g_string_printf(buf, FMT_pid " ", getppid());
@@ -9989,18 +10036,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 /* Short circuit this for the magic exe check. */
                 ret = -TARGET_EINVAL;
             } else if (is_proc_myself((const char *)p, "exe")) {
-                char real[PATH_MAX], *temp;
-                temp = realpath(exec_path, real);
-                /* Return value is # of bytes that we wrote to the buffer. */
-                if (temp == NULL) {
-                    ret = get_errno(-1);
-                } else {
-                    /* Don't worry about sign mismatch as earlier mapping
-                     * logic would have thrown a bad address error. */
-                    ret = MIN(strlen(real), arg3);
-                    /* We cannot NUL terminate the string. */
-                    memcpy(p2, real, ret);
-                }
+                /*
+                 * Don't worry about sign mismatch as earlier mapping
+                 * logic would have thrown a bad address error.
+                 */
+                ret = MIN(strlen(exec_path), arg3);
+                /* We cannot NUL terminate the string. */
+                memcpy(p2, exec_path, ret);
             } else {
                 ret = get_errno(readlink(path(p), p2, arg3));
             }
@@ -10021,18 +10063,13 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
                 /* Short circuit this for the magic exe check. */
                 ret = -TARGET_EINVAL;
             } else if (is_proc_myself((const char *)p, "exe")) {
-                char real[PATH_MAX], *temp;
-                temp = realpath(exec_path, real);
-                /* Return value is # of bytes that we wrote to the buffer. */
-                if (temp == NULL) {
-                    ret = get_errno(-1);
-                } else {
-                    /* Don't worry about sign mismatch as earlier mapping
-                     * logic would have thrown a bad address error. */
-                    ret = MIN(strlen(real), arg4);
-                    /* We cannot NUL terminate the string. */
-                    memcpy(p2, real, ret);
-                }
+                /*
+                 * Don't worry about sign mismatch as earlier mapping
+                 * logic would have thrown a bad address error.
+                 */
+                ret = MIN(strlen(exec_path), arg4);
+                /* We cannot NUL terminate the string. */
+                memcpy(p2, exec_path, ret);
             } else {
                 ret = get_errno(readlinkat(arg1, path(p), p2, arg4));
             }
@@ -10129,7 +10166,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
         /* ??? msync/mlock/munlock are broken for softmmu.  */
 #ifdef TARGET_NR_msync
     case TARGET_NR_msync:
-        return get_errno(msync(g2h(cpu, arg1), arg2, arg3));
+        return get_errno(msync(g2h(cpu, arg1), arg2,
+                               target_to_host_msync_arg(arg3)));
 #endif
 #ifdef TARGET_NR_mlock
     case TARGET_NR_mlock:
@@ -12886,8 +12924,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (!lock_user_struct(VERIFY_READ, target_rnew, arg3, 1)) {
                 return -TARGET_EFAULT;
             }
-            rnew.rlim_cur = tswap64(target_rnew->rlim_cur);
-            rnew.rlim_max = tswap64(target_rnew->rlim_max);
+            __get_user(rnew.rlim_cur, &target_rnew->rlim_cur);
+            __get_user(rnew.rlim_max, &target_rnew->rlim_max);
             unlock_user_struct(target_rnew, arg3, 0);
             rnewp = &rnew;
         }
@@ -12897,8 +12935,8 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
             if (!lock_user_struct(VERIFY_WRITE, target_rold, arg4, 1)) {
                 return -TARGET_EFAULT;
             }
-            target_rold->rlim_cur = tswap64(rold.rlim_cur);
-            target_rold->rlim_max = tswap64(rold.rlim_max);
+            __put_user(rold.rlim_cur, &target_rold->rlim_cur);
+            __put_user(rold.rlim_max, &target_rold->rlim_max);
             unlock_user_struct(target_rold, arg4, 1);
         }
         return ret;
@@ -13118,8 +13156,12 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
 #if defined(TARGET_NR_timerfd_create) && defined(CONFIG_TIMERFD)
     case TARGET_NR_timerfd_create:
-        return get_errno(timerfd_create(arg1,
-                          target_to_host_bitmask(arg2, fcntl_flags_tbl)));
+        ret = get_errno(timerfd_create(arg1,
+                        target_to_host_bitmask(arg2, fcntl_flags_tbl)));
+        if (ret >= 0) {
+            fd_trans_register(ret, &target_timerfd_trans);
+        }
+        return ret;
 #endif
 
 #if defined(TARGET_NR_timerfd_gettime) && defined(CONFIG_TIMERFD)

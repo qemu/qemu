@@ -10,6 +10,10 @@
 #define TARGET_MADV_WIPEONFORK 71
 #define TARGET_MADV_KEEPONFORK 72
 
+#define TARGET_MS_SYNC 1
+#define TARGET_MS_ASYNC 2
+#define TARGET_MS_INVALIDATE 4
+
 #include "../generic/target_mman.h"
 
 #endif

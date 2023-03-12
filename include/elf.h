@@ -1619,6 +1619,7 @@ typedef struct elf64_shdr {
 #define ELFOSABI_MODESTO        11      /* Novell Modesto.  */
 #define ELFOSABI_OPENBSD        12      /* OpenBSD.  */
 #define ELFOSABI_ARM_FDPIC      65      /* ARM FDPIC */
+#define ELFOSABI_XTENSA_FDPIC   65      /* Xtensa FDPIC */
 #define ELFOSABI_ARM            97      /* ARM */
 #define ELFOSABI_STANDALONE     255     /* Standalone (embedded) application */
 

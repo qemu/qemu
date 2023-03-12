@@ -89,4 +89,17 @@
 #define TARGET_MADV_DONTNEED_LOCKED 24
 #endif
 
+
+#ifndef TARGET_MS_ASYNC
+#define TARGET_MS_ASYNC 1
+#endif
+
+#ifndef TARGET_MS_INVALIDATE
+#define TARGET_MS_INVALIDATE 2
+#endif
+
+#ifndef TARGET_MS_SYNC
+#define TARGET_MS_SYNC 4
+#endif
+
 #endif

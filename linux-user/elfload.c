@@ -1748,6 +1748,15 @@ static inline void init_thread(struct target_pt_regs *regs,
     regs->windowstart = 1;
     regs->areg[1] = infop->start_stack;
     regs->pc = infop->entry;
+    if (info_is_fdpic(infop)) {
+        regs->areg[4] = infop->loadmap_addr;
+        regs->areg[5] = infop->interpreter_loadmap_addr;
+        if (infop->interpreter_loadmap_addr) {
+            regs->areg[6] = infop->interpreter_pt_dynamic_addr;
+        } else {
+            regs->areg[6] = infop->pt_dynamic_addr;
+        }
+    }
 }
 
 /* See linux kernel: arch/xtensa/include/asm/elf.h.  */
@@ -2207,10 +2216,15 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
     }
 }
 
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM)
 static int elf_is_fdpic(struct elfhdr *exec)
 {
     return exec->e_ident[EI_OSABI] == ELFOSABI_ARM_FDPIC;
+}
+#elif defined(TARGET_XTENSA)
+static int elf_is_fdpic(struct elfhdr *exec)
+{
+    return exec->e_ident[EI_OSABI] == ELFOSABI_XTENSA_FDPIC;
 }
 #else
 /* Default implementation, always false.  */

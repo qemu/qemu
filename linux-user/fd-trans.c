@@ -1284,6 +1284,49 @@ static inline abi_long host_to_target_nlmsg_route(struct nlmsghdr *nlh,
     return host_to_target_for_each_nlmsg(nlh, len, host_to_target_data_route);
 }
 
+static abi_long target_to_host_for_each_nlattr(struct nlattr *nlattr,
+                                               size_t len,
+                                               abi_long (*target_to_host_nlattr)
+                                                        (struct nlattr *))
+{
+    unsigned short aligned_nla_len;
+    abi_long ret;
+
+    while (len > sizeof(struct nlattr)) {
+        if (tswap16(nlattr->nla_len) < sizeof(struct rtattr) ||
+            tswap16(nlattr->nla_len) > len) {
+            break;
+        }
+        nlattr->nla_len = tswap16(nlattr->nla_len);
+        nlattr->nla_type = tswap16(nlattr->nla_type);
+        ret = target_to_host_nlattr(nlattr);
+        if (ret < 0) {
+            return ret;
+        }
+
+        aligned_nla_len = NLA_ALIGN(nlattr->nla_len);
+        if (aligned_nla_len >= len) {
+            break;
+        }
+        len -= aligned_nla_len;
+        nlattr = (struct nlattr *)(((char *)nlattr) + aligned_nla_len);
+    }
+    return 0;
+}
+
+static abi_long target_to_host_data_inet6_nlattr(struct nlattr *nlattr)
+{
+    switch (nlattr->nla_type) {
+    /* uint8_t */
+    case QEMU_IFLA_INET6_ADDR_GEN_MODE:
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "Unknown target AF_INET6 type: %d\n",
+                      nlattr->nla_type);
+    }
+    return 0;
+}
+
 static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
                                                size_t len,
                                                abi_long (*target_to_host_rtattr)
@@ -1314,16 +1357,35 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
     return 0;
 }
 
+static abi_long target_to_host_data_spec_nlattr(struct nlattr *nlattr)
+{
+    switch (nlattr->nla_type & NLA_TYPE_MASK) {
+    case AF_INET6:
+        return target_to_host_for_each_nlattr(NLA_DATA(nlattr), nlattr->nla_len,
+                                              target_to_host_data_inet6_nlattr);
+    default:
+        qemu_log_mask(LOG_UNIMP, "Unknown target AF_SPEC type: %d\n",
+                      nlattr->nla_type);
+        break;
+    }
+    return 0;
+}
+
 static abi_long target_to_host_data_link_rtattr(struct rtattr *rtattr)
 {
     uint32_t *u32;
 
-    switch (rtattr->rta_type) {
+    switch (rtattr->rta_type & NLA_TYPE_MASK) {
     /* uint32_t */
+    case QEMU_IFLA_MTU:
+    case QEMU_IFLA_TXQLEN:
     case QEMU_IFLA_EXT_MASK:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
+    case QEMU_IFLA_AF_SPEC:
+        return target_to_host_for_each_nlattr(RTA_DATA(rtattr), rtattr->rta_len,
+                                              target_to_host_data_spec_nlattr);
     default:
         qemu_log_mask(LOG_UNIMP, "Unknown target QEMU_IFLA type: %d\n",
                       rtattr->rta_type);
@@ -1622,7 +1684,7 @@ TargetFdTrans target_signalfd_trans = {
     .host_to_target_data = host_to_target_data_signalfd,
 };
 
-static abi_long swap_data_eventfd(void *buf, size_t len)
+static abi_long swap_data_u64(void *buf, size_t len)
 {
     uint64_t *counter = buf;
     int i;
@@ -1640,8 +1702,12 @@ static abi_long swap_data_eventfd(void *buf, size_t len)
 }
 
 TargetFdTrans target_eventfd_trans = {
-    .host_to_target_data = swap_data_eventfd,
-    .target_to_host_data = swap_data_eventfd,
+    .host_to_target_data = swap_data_u64,
+    .target_to_host_data = swap_data_u64,
+};
+
+TargetFdTrans target_timerfd_trans = {
+    .host_to_target_data = swap_data_u64,
 };
 
 #if defined(CONFIG_INOTIFY) && (defined(TARGET_NR_inotify_init) || \

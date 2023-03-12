@@ -656,7 +656,7 @@
 { TARGET_NR_msgsnd, "msgsnd" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_msync
-{ TARGET_NR_msync, "msync" , NULL, NULL, NULL },
+{ TARGET_NR_msync, "msync" , "%s(%p,%u,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_multiplexer
 { TARGET_NR_multiplexer, "multiplexer" , NULL, NULL, NULL },
@@ -1074,7 +1074,8 @@
 { TARGET_NR_preadv, "preadv" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_prlimit64
-{ TARGET_NR_prlimit64, "prlimit64" , NULL, NULL, NULL },
+{ TARGET_NR_prlimit64, "prlimit64" , NULL, print_prlimit64,
+                    print_syscall_ret_prlimit64 },
 #endif
 #ifdef TARGET_NR_process_vm_readv
 { TARGET_NR_process_vm_readv, "process_vm_readv" , NULL, NULL, NULL },

@@ -81,6 +81,7 @@ UNUSED static void print_syscall_epilogue(const struct syscallname *);
 UNUSED static void print_string(abi_long, int);
 UNUSED static void print_buf(abi_long addr, abi_long len, int last);
 UNUSED static void print_raw_param(const char *, abi_long, int);
+UNUSED static void print_raw_param64(const char *, long long, int last);
 UNUSED static void print_timeval(abi_ulong, int);
 UNUSED static void print_timespec(abi_ulong, int);
 UNUSED static void print_timespec64(abi_ulong, int);
@@ -1110,11 +1111,16 @@ UNUSED static const struct flags mmap_flags[] = {
     FLAG_END,
 };
 
+#ifndef CLONE_PIDFD
+# define CLONE_PIDFD 0x00001000
+#endif
+
 UNUSED static const struct flags clone_flags[] = {
     FLAG_GENERIC(CLONE_VM),
     FLAG_GENERIC(CLONE_FS),
     FLAG_GENERIC(CLONE_FILES),
     FLAG_GENERIC(CLONE_SIGHAND),
+    FLAG_GENERIC(CLONE_PIDFD),
     FLAG_GENERIC(CLONE_PTRACE),
     FLAG_GENERIC(CLONE_VFORK),
     FLAG_GENERIC(CLONE_PARENT),
@@ -1642,6 +1648,19 @@ print_raw_param(const char *fmt, abi_long param, int last)
     qemu_log(format, param);
 }
 
+/*
+ * Same as print_raw_param() but prints out raw 64-bit parameter.
+ */
+static void
+print_raw_param64(const char *fmt, long long param, int last)
+{
+    char format[64];
+
+    (void)snprintf(format, sizeof(format), "%s%s", fmt, get_comma(last));
+    qemu_log(format, param);
+}
+
+
 static void
 print_pointer(abi_long p, int last)
 {
@@ -1718,10 +1737,8 @@ print_timespec64(abi_ulong ts_addr, int last)
             print_pointer(ts_addr, last);
             return;
         }
-        qemu_log("{tv_sec = %lld"
-                 ",tv_nsec = %lld}%s",
-                 (long long)tswap64(ts->tv_sec), (long long)tswap64(ts->tv_nsec),
-                 get_comma(last));
+        print_raw_param64("{tv_sec=%" PRId64, tswap64(ts->tv_sec), 0);
+        print_raw_param64("tv_nsec=%" PRId64 "}", tswap64(ts->tv_nsec), last);
         unlock_user(ts, ts_addr, 0);
     } else {
         qemu_log("NULL%s", get_comma(last));
@@ -3851,6 +3868,94 @@ print_futex(CPUArchState *cpu_env, const struct syscallname *name,
     print_pointer(arg4, 0);
     print_raw_param("%d", arg4, 1);
     print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_prlimit64
+static const char *target_ressource_string(abi_ulong r)
+{
+    #define RET_RES_ENTRY(res) case TARGET_##res:  return #res;
+    switch (r) {
+    RET_RES_ENTRY(RLIMIT_AS);
+    RET_RES_ENTRY(RLIMIT_CORE);
+    RET_RES_ENTRY(RLIMIT_CPU);
+    RET_RES_ENTRY(RLIMIT_DATA);
+    RET_RES_ENTRY(RLIMIT_FSIZE);
+    RET_RES_ENTRY(RLIMIT_LOCKS);
+    RET_RES_ENTRY(RLIMIT_MEMLOCK);
+    RET_RES_ENTRY(RLIMIT_MSGQUEUE);
+    RET_RES_ENTRY(RLIMIT_NICE);
+    RET_RES_ENTRY(RLIMIT_NOFILE);
+    RET_RES_ENTRY(RLIMIT_NPROC);
+    RET_RES_ENTRY(RLIMIT_RSS);
+    RET_RES_ENTRY(RLIMIT_RTPRIO);
+#ifdef RLIMIT_RTTIME
+    RET_RES_ENTRY(RLIMIT_RTTIME);
+#endif
+    RET_RES_ENTRY(RLIMIT_SIGPENDING);
+    RET_RES_ENTRY(RLIMIT_STACK);
+    default:
+        return NULL;
+    }
+    #undef RET_RES_ENTRY
+}
+
+static void
+print_rlimit64(abi_ulong rlim_addr, int last)
+{
+    if (rlim_addr) {
+        struct target_rlimit64 *rl;
+
+        rl = lock_user(VERIFY_READ, rlim_addr, sizeof(*rl), 1);
+        if (!rl) {
+            print_pointer(rlim_addr, last);
+            return;
+        }
+        print_raw_param64("{rlim_cur=%" PRId64, tswap64(rl->rlim_cur), 0);
+        print_raw_param64("rlim_max=%" PRId64 "}", tswap64(rl->rlim_max),
+                            last);
+        unlock_user(rl, rlim_addr, 0);
+    } else {
+        qemu_log("NULL%s", get_comma(last));
+    }
+}
+
+static void
+print_prlimit64(CPUArchState *cpu_env, const struct syscallname *name,
+           abi_long arg0, abi_long arg1, abi_long arg2,
+           abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    const char *rlim_name;
+
+    print_syscall_prologue(name);
+    print_raw_param("%d", arg0, 0);
+    rlim_name = target_ressource_string(arg1);
+    if (rlim_name) {
+        qemu_log("%s,", rlim_name);
+    } else {
+        print_raw_param("%d", arg1, 0);
+    }
+    print_rlimit64(arg2, 0);
+    print_pointer(arg3, 1);
+    print_syscall_epilogue(name);
+}
+
+static void
+print_syscall_ret_prlimit64(CPUArchState *cpu_env,
+                       const struct syscallname *name,
+                       abi_long ret, abi_long arg0, abi_long arg1,
+                       abi_long arg2, abi_long arg3, abi_long arg4,
+                       abi_long arg5)
+{
+    if (!print_syscall_err(ret)) {
+        qemu_log(TARGET_ABI_FMT_ld, ret);
+        if (arg3) {
+            qemu_log(" (");
+            print_rlimit64(arg3, 1);
+            qemu_log(")");
+        }
+    }
+    qemu_log("\n");
 }
 #endif
 
