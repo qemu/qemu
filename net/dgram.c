@@ -230,7 +230,7 @@ static int net_dgram_mcast_create(struct sockaddr_in *mcastaddr,
     return fd;
 fail:
     if (fd >= 0) {
-        closesocket(fd);
+        close(fd);
     }
     return -1;
 }
@@ -352,7 +352,7 @@ static int net_dgram_mcast_init(NetClientState *peer,
             if (convert_host_port(saddr, local->u.inet.host, local->u.inet.port,
                                   errp) < 0) {
                 g_free(saddr);
-                closesocket(fd);
+                close(fd);
                 return -1;
             }
 
@@ -360,14 +360,14 @@ static int net_dgram_mcast_init(NetClientState *peer,
             if (saddr->sin_addr.s_addr == 0) {
                 error_setg(errp, "can't setup multicast destination address");
                 g_free(saddr);
-                closesocket(fd);
+                close(fd);
                 return -1;
             }
             /* clone dgram socket */
             newfd = net_dgram_mcast_create(saddr, NULL, errp);
             if (newfd < 0) {
                 g_free(saddr);
-                closesocket(fd);
+                close(fd);
                 return -1;
             }
             /* clone newfd to fd, close newfd */
@@ -494,14 +494,14 @@ int net_init_dgram(const Netdev *netdev, const char *name,
         if (ret < 0) {
             error_setg_errno(errp, errno,
                              "can't set socket option SO_REUSEADDR");
-            closesocket(fd);
+            close(fd);
             return -1;
         }
         ret = bind(fd, (struct sockaddr *)&laddr_in, sizeof(laddr_in));
         if (ret < 0) {
             error_setg_errno(errp, errno, "can't bind ip=%s to socket",
                              inet_ntoa(laddr_in.sin_addr));
-            closesocket(fd);
+            close(fd);
             return -1;
         }
         qemu_socket_set_nonblock(fd);
@@ -548,7 +548,7 @@ int net_init_dgram(const Netdev *netdev, const char *name,
         if (ret < 0) {
             error_setg_errno(errp, errno, "can't bind unix=%s to socket",
                              laddr_un.sun_path);
-            closesocket(fd);
+            close(fd);
             return -1;
         }
         qemu_socket_set_nonblock(fd);

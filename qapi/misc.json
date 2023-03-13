@@ -14,6 +14,9 @@
 # Allow client connections for VNC, Spice and socket based
 # character devices to be passed in to QEMU via SCM_RIGHTS.
 #
+# If the FD associated with @fdname is not a socket, the command will fail and
+# the FD will be closed.
+#
 # @protocol: protocol name. Valid names are "vnc", "spice", "@dbus-display" or
 #            the name of a character device (eg. from -chardev id=XXXX)
 #
@@ -270,7 +273,38 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'getfd', 'data': {'fdname': 'str'} }
+{ 'command': 'getfd', 'data': {'fdname': 'str'}, 'if': 'CONFIG_POSIX' }
+
+##
+# @get-win32-socket:
+#
+# Add a socket that was duplicated to QEMU process with
+# WSADuplicateSocketW() via WSASocket() & WSAPROTOCOL_INFOW structure
+# and assign it a name (the SOCKET is associated with a CRT file
+# descriptor)
+#
+# @info: the WSAPROTOCOL_INFOW structure (encoded in base64)
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#
+# Since: 8.0
+#
+# Notes: If @fdname already exists, the file descriptor assigned to
+#        it will be closed and replaced by the received file
+#        descriptor.
+#
+#        The 'closefd' command can be used to explicitly close the
+#        file descriptor when it is no longer needed.
+#
+# Example:
+#
+# -> { "execute": "get-win32-socket", "arguments": { "info": "abcd123..", fdname": "skclient" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
 
 ##
 # @closefd:

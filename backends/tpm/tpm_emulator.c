@@ -573,13 +573,13 @@ static int tpm_emulator_prepare_data_fd(TPMEmulator *tpm_emu)
         goto err_exit;
     }
 
-    closesocket(fds[1]);
+    close(fds[1]);
 
     return 0;
 
 err_exit:
-    closesocket(fds[0]);
-    closesocket(fds[1]);
+    close(fds[0]);
+    close(fds[1]);
     return -1;
 }
 

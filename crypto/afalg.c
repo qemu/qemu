@@ -59,7 +59,7 @@ qcrypto_afalg_socket_bind(const char *type, const char *name,
 
     if (bind(sbind, (const struct sockaddr *)&salg, sizeof(salg)) != 0) {
         error_setg_errno(errp, errno, "Failed to bind socket");
-        closesocket(sbind);
+        close(sbind);
         return -1;
     }
 
@@ -105,11 +105,11 @@ void qcrypto_afalg_comm_free(QCryptoAFAlg *afalg)
     }
 
     if (afalg->tfmfd != -1) {
-        closesocket(afalg->tfmfd);
+        close(afalg->tfmfd);
     }
 
     if (afalg->opfd != -1) {
-        closesocket(afalg->opfd);
+        close(afalg->opfd);
     }
 
     g_free(afalg);

@@ -1175,12 +1175,10 @@ bool qmp_add_client_char(int fd, bool has_skipauth, bool skipauth,
 
     if (!s) {
         error_setg(errp, "protocol '%s' is invalid", protocol);
-        close(fd);
         return false;
     }
     if (qemu_chr_add_client(s, fd) < 0) {
         error_setg(errp, "failed to add client");
-        close(fd);
         return false;
     }
     return true;

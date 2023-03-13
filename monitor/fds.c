@@ -61,11 +61,48 @@ struct MonFdset {
 static QemuMutex mon_fdsets_lock;
 static QLIST_HEAD(, MonFdset) mon_fdsets;
 
+static bool monitor_add_fd(Monitor *mon, int fd, const char *fdname, Error **errp)
+{
+    mon_fd_t *monfd;
+
+    if (qemu_isdigit(fdname[0])) {
+        close(fd);
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
+                   "a name not starting with a digit");
+        return false;
+    }
+
+    /* See close() call below. */
+    qemu_mutex_lock(&mon->mon_lock);
+    QLIST_FOREACH(monfd, &mon->fds, next) {
+        int tmp_fd;
+
+        if (strcmp(monfd->name, fdname) != 0) {
+            continue;
+        }
+
+        tmp_fd = monfd->fd;
+        monfd->fd = fd;
+        qemu_mutex_unlock(&mon->mon_lock);
+        /* Make sure close() is outside critical section */
+        close(tmp_fd);
+        return true;
+    }
+
+    monfd = g_new0(mon_fd_t, 1);
+    monfd->name = g_strdup(fdname);
+    monfd->fd = fd;
+
+    QLIST_INSERT_HEAD(&mon->fds, monfd, next);
+    qemu_mutex_unlock(&mon->mon_lock);
+    return true;
+}
+
+#ifdef CONFIG_POSIX
 void qmp_getfd(const char *fdname, Error **errp)
 {
     Monitor *cur_mon = monitor_cur();
-    mon_fd_t *monfd;
-    int fd, tmp_fd;
+    int fd;
 
     fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
     if (fd == -1) {
@@ -73,32 +110,9 @@ void qmp_getfd(const char *fdname, Error **errp)
         return;
     }
 
-    if (qemu_isdigit(fdname[0])) {
-        close(fd);
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
-                   "a name not starting with a digit");
-        return;
-    }
-
-    QEMU_LOCK_GUARD(&cur_mon->mon_lock);
-    QLIST_FOREACH(monfd, &cur_mon->fds, next) {
-        if (strcmp(monfd->name, fdname) != 0) {
-            continue;
-        }
-
-        tmp_fd = monfd->fd;
-        monfd->fd = fd;
-        /* Make sure close() is outside critical section */
-        close(tmp_fd);
-        return;
-    }
-
-    monfd = g_new0(mon_fd_t, 1);
-    monfd->name = g_strdup(fdname);
-    monfd->fd = fd;
-
-    QLIST_INSERT_HEAD(&cur_mon->fds, monfd, next);
+    monitor_add_fd(cur_mon, fd, fdname, errp);
 }
+#endif
 
 void qmp_closefd(const char *fdname, Error **errp)
 {
@@ -210,6 +224,41 @@ error:
     }
     return NULL;
 }
+
+#ifdef WIN32
+void qmp_get_win32_socket(const char *infos, const char *fdname, Error **errp)
+{
+    g_autofree WSAPROTOCOL_INFOW *info = NULL;
+    gsize len;
+    SOCKET sk;
+    int fd;
+
+    info = (void *)g_base64_decode(infos, &len);
+    if (len != sizeof(*info)) {
+        error_setg(errp, "Invalid WSAPROTOCOL_INFOW value");
+        return;
+    }
+
+    sk = WSASocketW(FROM_PROTOCOL_INFO,
+                    FROM_PROTOCOL_INFO,
+                    FROM_PROTOCOL_INFO,
+                    info, 0, 0);
+    if (sk == INVALID_SOCKET) {
+        error_setg_win32(errp, WSAGetLastError(), "Couldn't import socket");
+        return;
+    }
+
+    fd = _open_osfhandle(sk, _O_BINARY);
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "Failed to associate a FD with the SOCKET");
+        closesocket(sk);
+        return;
+    }
+
+    monitor_add_fd(monitor_cur(), fd, fdname, errp);
+}
+#endif
+
 
 void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
 {
