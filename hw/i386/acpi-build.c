@@ -2399,7 +2399,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
                               object_property_get_int(OBJECT(&s->pci), "addr",
                                                       &error_abort), 2);
     /* Capability offset */
-    build_append_int_noprefix(table_data, s->capab_offset, 2);
+    build_append_int_noprefix(table_data, s->pci.capab_offset, 2);
     /* IOMMU base address */
     build_append_int_noprefix(table_data, s->mmio.addr, 8);
     /* PCI Segment Group */

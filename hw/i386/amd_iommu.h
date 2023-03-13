@@ -308,6 +308,7 @@ typedef struct AMDVIAddressSpace AMDVIAddressSpace;
 /* functions to steal PCI config space */
 typedef struct AMDVIPCIState {
     PCIDevice dev;               /* The PCI device itself        */
+    uint32_t capab_offset;       /* capability offset pointer    */
 } AMDVIPCIState;
 
 struct AMDVIState {
@@ -315,7 +316,6 @@ struct AMDVIState {
     AMDVIPCIState pci;          /* IOMMU PCI device             */
 
     uint32_t version;
-    uint32_t capab_offset;       /* capability offset pointer    */
 
     uint64_t mmio_addr;
 
