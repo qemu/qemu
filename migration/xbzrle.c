@@ -12,6 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/host-utils.h"
 #include "xbzrle.h"
 
 /*
@@ -233,7 +234,7 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                     break;
                 }
                 never_same = false;
-                num = __builtin_ctzll(~comp);
+                num = ctz64(~comp);
                 num = (num < bytes_to_check) ? num : bytes_to_check;
                 zrun_len += num;
                 bytes_to_check -= num;
@@ -262,7 +263,7 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                 nzrun_len += 64;
                 break;
             }
-            num = __builtin_ctzll(comp);
+            num = ctz64(comp);
             num = (num < bytes_to_check) ? num : bytes_to_check;
             nzrun_len += num;
             bytes_to_check -= num;
