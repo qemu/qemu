@@ -3367,6 +3367,10 @@ F: hw/i386/intel_iommu.c
 F: hw/i386/intel_iommu_internal.h
 F: include/hw/i386/intel_iommu.h
 
+AMD-Vi Emulation
+S: Orphan
+F: hw/i386/amd_iommu.?
+
 OpenSBI Firmware
 M: Bin Meng <bmeng.cn@gmail.com>
 S: Supported
