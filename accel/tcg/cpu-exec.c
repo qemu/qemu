@@ -371,7 +371,7 @@ void afl_setup(void) {
   int have_names = 0;
   if (getenv("AFL_QEMU_INST_RANGES")) {
     char *str = getenv("AFL_QEMU_INST_RANGES");
-    char *saveptr1, *saveptr2 = NULL, save_pt1 = NULL;
+    char *saveptr1, *saveptr2 = NULL, *save_pt1 = NULL;
     char *pt1, *pt2, *pt3 = NULL;
     
     while (1) {
@@ -413,7 +413,7 @@ void afl_setup(void) {
 
   if (getenv("AFL_QEMU_EXCLUDE_RANGES")) {
     char *str = getenv("AFL_QEMU_EXCLUDE_RANGES");
-    char *saveptr1, *saveptr2 = NULL, save_pt1;
+    char *saveptr1, *saveptr2 = NULL, *save_pt1;
     char *pt1, *pt2, *pt3 = NULL;
 
     while (1) {
