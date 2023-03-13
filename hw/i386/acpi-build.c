@@ -2395,7 +2395,9 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
     /* IVHD length */
     build_append_int_noprefix(table_data, ivhd_table_len, 2);
     /* DeviceID */
-    build_append_int_noprefix(table_data, s->devid, 2);
+    build_append_int_noprefix(table_data,
+                              object_property_get_int(OBJECT(&s->pci), "addr",
+                                                      &error_abort), 2);
     /* Capability offset */
     build_append_int_noprefix(table_data, s->capab_offset, 2);
     /* IOMMU base address */

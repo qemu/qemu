@@ -319,8 +319,6 @@ struct AMDVIState {
 
     uint64_t mmio_addr;
 
-    uint32_t devid;              /* auto-assigned devid          */
-
     bool enabled;                /* IOMMU enabled                */
     bool ats_enabled;            /* address translation enabled  */
     bool cmdbuf_enabled;         /* command buffer enabled       */
