@@ -1511,9 +1511,7 @@ static void amdvi_init(AMDVIState *s)
     amdvi_set_quad(s, AMDVI_MMIO_STATUS, 0, 0x98, 0x67);
 
     /* reset device ident */
-    pci_config_set_vendor_id(s->pci.dev.config, PCI_VENDOR_ID_AMD);
     pci_config_set_prog_interface(s->pci.dev.config, 00);
-    pci_config_set_class(s->pci.dev.config, 0x0806);
 
     /* reset AMDVI specific capabilities, all r/o */
     pci_set_long(s->pci.dev.config + s->pci.capab_offset, AMDVI_CAPAB_FEATURES);
@@ -1623,6 +1621,10 @@ static const TypeInfo amdvi_sysbus = {
 static void amdvi_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_AMD;
+    k->class_id = 0x0806;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";
