@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "qapi/error.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
@@ -191,20 +191,20 @@ static const DisplayGLCtxOps eglctx_ops = {
 
 static void early_egl_headless_init(DisplayOptions *opts)
 {
-    display_opengl = 1;
+    DisplayGLMode mode = DISPLAYGL_MODE_ON;
+
+    if (opts->has_gl) {
+        mode = opts->gl;
+    }
+
+    egl_init(opts->u.egl_headless.rendernode, mode, &error_fatal);
 }
 
 static void egl_headless_init(DisplayState *ds, DisplayOptions *opts)
 {
-    DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_ON;
     QemuConsole *con;
     egl_dpy *edpy;
     int idx;
-
-    if (egl_rendernode_init(opts->u.egl_headless.rendernode, mode) < 0) {
-        error_report("egl: render node init failed");
-        exit(1);
-    }
 
     for (idx = 0;; idx++) {
         DisplayGLCtx *ctx;

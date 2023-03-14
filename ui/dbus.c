@@ -30,8 +30,10 @@
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
 #include "ui/dbus-module.h"
+#ifdef CONFIG_OPENGL
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
+#endif
 #include "audio/audio.h"
 #include "audio/audio_int.h"
 #include "qapi/error.h"
@@ -41,11 +43,14 @@
 
 static DBusDisplay *dbus_display;
 
+#ifdef CONFIG_OPENGL
 static QEMUGLContext dbus_create_context(DisplayGLCtx *dgc,
                                          QEMUGLParams *params)
 {
+#ifdef CONFIG_GBM
     eglMakeCurrent(qemu_egl_display, EGL_NO_SURFACE, EGL_NO_SURFACE,
                    qemu_egl_rn_ctx);
+#endif
     return qemu_egl_create_context(dgc, params);
 }
 
@@ -53,7 +58,11 @@ static bool
 dbus_is_compatible_dcl(DisplayGLCtx *dgc,
                        DisplayChangeListener *dcl)
 {
-    return dcl->ops == &dbus_gl_dcl_ops || dcl->ops == &dbus_console_dcl_ops;
+    return
+#ifdef CONFIG_GBM
+        dcl->ops == &dbus_gl_dcl_ops ||
+#endif
+        dcl->ops == &dbus_console_dcl_ops;
 }
 
 static void
@@ -84,6 +93,7 @@ static const DisplayGLCtxOps dbus_gl_ops = {
     .dpy_gl_ctx_destroy_texture = dbus_destroy_texture,
     .dpy_gl_ctx_update_texture = dbus_update_texture,
 };
+#endif
 
 static NotifierList dbus_display_notifiers =
     NOTIFIER_LIST_INITIALIZER(dbus_display_notifiers);
@@ -112,10 +122,12 @@ dbus_display_init(Object *o)
     DBusDisplay *dd = DBUS_DISPLAY(o);
     g_autoptr(GDBusObjectSkeleton) vm = NULL;
 
+#ifdef CONFIG_OPENGL
     dd->glctx.ops = &dbus_gl_ops;
     if (display_opengl) {
         dd->glctx.gls = qemu_gl_init_shader();
     }
+#endif
     dd->iface = qemu_dbus_display1_vm_skeleton_new();
     dd->consoles = g_ptr_array_new_with_free_func(g_object_unref);
 
@@ -152,7 +164,9 @@ dbus_display_finalize(Object *o)
     g_clear_object(&dd->iface);
     g_free(dd->dbus_addr);
     g_free(dd->audiodev);
+#ifdef CONFIG_OPENGL
     g_clear_pointer(&dd->glctx.gls, qemu_gl_fini_shader);
+#endif
     dbus_display = NULL;
 }
 
@@ -220,7 +234,7 @@ dbus_display_complete(UserCreatable *uc, Error **errp)
                        dd->audiodev);
             return;
         }
-        audio_state->drv->set_dbus_server(audio_state, dd->server);
+        audio_state->drv->set_dbus_server(audio_state, dd->server, dd->p2p);
     }
 
     consoles = g_array_new(FALSE, FALSE, sizeof(guint32));
@@ -451,12 +465,11 @@ early_dbus_init(DisplayOptions *opts)
     DisplayGLMode mode = opts->has_gl ? opts->gl : DISPLAYGL_MODE_OFF;
 
     if (mode != DISPLAYGL_MODE_OFF) {
-        if (egl_rendernode_init(opts->u.dbus.rendernode, mode) < 0) {
-            error_report("dbus: render node init failed");
-            exit(1);
-        }
-
-        display_opengl = 1;
+#ifdef CONFIG_OPENGL
+        egl_init(opts->u.dbus.rendernode, mode, &error_fatal);
+#else
+        error_report("dbus: GL rendering is not supported");
+#endif
     }
 
     type_register(&dbus_vc_type_info);

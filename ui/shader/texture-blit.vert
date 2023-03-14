@@ -1,4 +1,3 @@
-
 #version 300 es
 
 in vec2  in_position;

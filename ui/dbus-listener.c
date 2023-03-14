@@ -27,9 +27,11 @@
 #include "dbus.h"
 #include <gio/gunixfdlist.h>
 
+#ifdef CONFIG_OPENGL
 #include "ui/shader.h"
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
+#endif
 #include "trace.h"
 
 struct _DBusDisplayListener {
@@ -48,6 +50,7 @@ struct _DBusDisplayListener {
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
 
+#ifdef CONFIG_GBM
 static void dbus_update_gl_cb(GObject *source_object,
                            GAsyncResult *res,
                            gpointer user_data)
@@ -149,7 +152,7 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     DisplaySurface *ds;
     GVariant *v_data = NULL;
-    egl_fb cursor_fb;
+    egl_fb cursor_fb = EGL_FB_INIT;
 
     if (!dmabuf) {
         qemu_dbus_display1_listener_call_mouse_set(
@@ -229,12 +232,14 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
         ddl->gl_updates = 0;
     }
 }
+#endif
 
 static void dbus_refresh(DisplayChangeListener *dcl)
 {
     graphic_hw_update(dcl->con);
 }
 
+#ifdef CONFIG_GBM
 static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
                                int x, int y, int w, int h)
 {
@@ -242,6 +247,7 @@ static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
 
     ddl->gl_updates++;
 }
+#endif
 
 static void dbus_gfx_update(DisplayChangeListener *dcl,
                             int x, int y, int w, int h)
@@ -296,6 +302,7 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
         DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
+#ifdef CONFIG_GBM
 static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
                                struct DisplaySurface *new_surface)
 {
@@ -311,6 +318,7 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
                              width, height, 0, 0, width, height);
     }
 }
+#endif
 
 static void dbus_gfx_switch(DisplayChangeListener *dcl,
                             struct DisplaySurface *new_surface)
@@ -339,14 +347,13 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
     GVariant *v_data = NULL;
 
-    cursor_get(c);
     v_data = g_variant_new_from_data(
         G_VARIANT_TYPE("ay"),
         c->data,
         c->width * c->height * 4,
         TRUE,
-        (GDestroyNotify)cursor_put,
-        c);
+        (GDestroyNotify)cursor_unref,
+        cursor_ref(c));
 
     qemu_dbus_display1_listener_call_cursor_define(
         ddl->proxy,
@@ -362,6 +369,7 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
         NULL);
 }
 
+#ifdef CONFIG_GBM
 const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_name                = "dbus-gl",
     .dpy_gfx_update          = dbus_gl_gfx_update,
@@ -379,6 +387,7 @@ const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_gl_release_dmabuf   = dbus_release_dmabuf,
     .dpy_gl_update           = dbus_scanout_update,
 };
+#endif
 
 const DisplayChangeListenerOps dbus_dcl_ops = {
     .dpy_name                = "dbus",
@@ -407,11 +416,12 @@ dbus_display_listener_constructed(GObject *object)
 {
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(object);
 
+    ddl->dcl.ops = &dbus_dcl_ops;
+#ifdef CONFIG_GBM
     if (display_opengl) {
         ddl->dcl.ops = &dbus_gl_dcl_ops;
-    } else {
-        ddl->dcl.ops = &dbus_dcl_ops;
     }
+#endif
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->constructed(object);
 }

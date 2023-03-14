@@ -1746,8 +1746,8 @@ dbus_display = get_option('dbus_display') \
            error_message: '-display dbus requires glib>=2.64') \
   .require(gdbus_codegen.found(),
            error_message: gdbus_codegen_error.format('-display dbus')) \
-  .require(opengl.found() and gbm.found(),
-           error_message: '-display dbus requires epoxy/egl and gbm') \
+  .require(targetos != 'windows',
+           error_message: '-display dbus is not available on Windows') \
   .allowed()
 
 have_virtfs = get_option('virtfs') \

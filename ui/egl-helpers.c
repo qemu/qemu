@@ -19,12 +19,56 @@
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"
+#include "sysemu/sysemu.h"
+#include "qapi/error.h"
 
 EGLDisplay *qemu_egl_display;
 EGLConfig qemu_egl_config;
 DisplayGLMode qemu_egl_mode;
 
 /* ------------------------------------------------------------------ */
+
+#if defined(CONFIG_X11) || defined(CONFIG_GBM)
+static const char *egl_get_error_string(void)
+{
+    EGLint error = eglGetError();
+
+    switch (error) {
+    case EGL_SUCCESS:
+        return "EGL_SUCCESS";
+    case EGL_NOT_INITIALIZED:
+        return "EGL_NOT_INITIALIZED";
+    case EGL_BAD_ACCESS:
+        return "EGL_BAD_ACCESS";
+    case EGL_BAD_ALLOC:
+        return "EGL_BAD_ALLOC";
+    case EGL_BAD_ATTRIBUTE:
+        return "EGL_BAD_ATTRIBUTE";
+    case EGL_BAD_CONTEXT:
+        return "EGL_BAD_CONTEXT";
+    case EGL_BAD_CONFIG:
+        return "EGL_BAD_CONFIG";
+    case EGL_BAD_CURRENT_SURFACE:
+        return "EGL_BAD_CURRENT_SURFACE";
+    case EGL_BAD_DISPLAY:
+        return "EGL_BAD_DISPLAY";
+    case EGL_BAD_SURFACE:
+        return "EGL_BAD_SURFACE";
+    case EGL_BAD_MATCH:
+        return "EGL_BAD_MATCH";
+    case EGL_BAD_PARAMETER:
+        return "EGL_BAD_PARAMETER";
+    case EGL_BAD_NATIVE_PIXMAP:
+        return "EGL_BAD_NATIVE_PIXMAP";
+    case EGL_BAD_NATIVE_WINDOW:
+        return "EGL_BAD_NATIVE_WINDOW";
+    case EGL_CONTEXT_LOST:
+        return "EGL_CONTEXT_LOST";
+    default:
+        return "Unknown EGL error";
+    }
+}
+#endif
 
 static void egl_fb_delete_texture(egl_fb *fb)
 {
@@ -438,20 +482,20 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
 
     qemu_egl_display = qemu_egl_get_display(dpy, platform);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
-        error_report("egl: eglGetDisplay failed");
+        error_report("egl: eglGetDisplay failed: %s", egl_get_error_string());
         return -1;
     }
 
     b = eglInitialize(qemu_egl_display, &major, &minor);
     if (b == EGL_FALSE) {
-        error_report("egl: eglInitialize failed");
+        error_report("egl: eglInitialize failed: %s", egl_get_error_string());
         return -1;
     }
 
     b = eglBindAPI(gles ?  EGL_OPENGL_ES_API : EGL_OPENGL_API);
     if (b == EGL_FALSE) {
-        error_report("egl: eglBindAPI failed (%s mode)",
-                     gles ? "gles" : "core");
+        error_report("egl: eglBindAPI failed (%s mode): %s",
+                     gles ? "gles" : "core", egl_get_error_string());
         return -1;
     }
 
@@ -459,8 +503,8 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
                         gles ? conf_att_gles : conf_att_core,
                         &qemu_egl_config, 1, &n);
     if (b == EGL_FALSE || n != 1) {
-        error_report("egl: eglChooseConfig failed (%s mode)",
-                     gles ? "gles" : "core");
+        error_report("egl: eglChooseConfig failed (%s mode): %s",
+                     gles ? "gles" : "core", egl_get_error_string());
         return -1;
     }
 
@@ -526,4 +570,26 @@ EGLContext qemu_egl_init_ctx(void)
     }
 
     return ectx;
+}
+
+bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (mode == DISPLAYGL_MODE_OFF) {
+        error_setg(errp, "egl: turning off GL doesn't make sense");
+        return false;
+    }
+
+#ifdef CONFIG_GBM
+    if (egl_rendernode_init(rendernode, mode) < 0) {
+        error_setg(errp, "egl: render node init failed");
+        return false;
+    }
+    display_opengl = 1;
+    return true;
+#else
+    error_setg(errp, "egl: not available on this platform");
+    return false;
+#endif
 }
