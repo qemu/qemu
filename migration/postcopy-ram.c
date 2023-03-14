@@ -1198,11 +1198,6 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
 
     if (migrate_postcopy_preempt()) {
         /*
-         * The preempt channel is established in asynchronous way.  Wait
-         * for its completion.
-         */
-        qemu_sem_wait(&mis->postcopy_qemufile_dst_done);
-        /*
          * This thread needs to be created after the temp pages because
          * it'll fetch RAM_CHANNEL_POSTCOPY PostcopyTmpPage immediately.
          */
@@ -1667,6 +1662,12 @@ void *postcopy_preempt_thread(void *opaque)
     rcu_register_thread();
 
     qemu_sem_post(&mis->thread_sync_sem);
+
+    /*
+     * The preempt channel is established in asynchronous way.  Wait
+     * for its completion.
+     */
+    qemu_sem_wait(&mis->postcopy_qemufile_dst_done);
 
     /* Sending RAM_SAVE_FLAG_EOS to terminate this thread */
     qemu_mutex_lock(&mis->postcopy_prio_thread_mutex);
