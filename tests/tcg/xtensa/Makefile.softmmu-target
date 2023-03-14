@@ -26,6 +26,7 @@ ASFLAGS = -Wa,--no-absolute-literals
 LDFLAGS = -Tlinker.ld -nostartfiles -nostdlib
 
 CRT        = crt.o vectors.o
+CLEANFILES += linker.ld
 
 linker.ld: linker.ld.S
 	$(CC) $(XTENSA_INC) -E -P $< -o $@
