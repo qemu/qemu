@@ -394,7 +394,7 @@ void mb_tcg_init(void);
 #define MMU_NOMMU_IDX   0
 #define MMU_KERNEL_IDX  1
 #define MMU_USER_IDX    2
-/* See NB_MMU_MODES further up the file.  */
+/* See NB_MMU_MODES in cpu-defs.h. */
 
 #include "exec/cpu-all.h"
 

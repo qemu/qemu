@@ -4082,7 +4082,7 @@ TRANS_FEAT(FRINTX, aa64_sve, gen_gvec_fpst_arg_zpz, frintx_fns[a->esz],
            a, 0, a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
 
 static bool do_frint_mode(DisasContext *s, arg_rpr_esz *a,
-                          int mode, gen_helper_gvec_3_ptr *fn)
+                          ARMFPRounding mode, gen_helper_gvec_3_ptr *fn)
 {
     unsigned vsz;
     TCGv_i32 tmode;
@@ -4096,30 +4096,28 @@ static bool do_frint_mode(DisasContext *s, arg_rpr_esz *a,
     }
 
     vsz = vec_full_reg_size(s);
-    tmode = tcg_const_i32(mode);
     status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);
-
-    gen_helper_set_rmode(tmode, tmode, status);
+    tmode = gen_set_rmode(mode, status);
 
     tcg_gen_gvec_3_ptr(vec_full_reg_offset(s, a->rd),
                        vec_full_reg_offset(s, a->rn),
                        pred_full_reg_offset(s, a->pg),
                        status, vsz, vsz, 0, fn);
 
-    gen_helper_set_rmode(tmode, tmode, status);
+    gen_restore_rmode(tmode, status);
     return true;
 }
 
 TRANS_FEAT(FRINTN, aa64_sve, do_frint_mode, a,
-           float_round_nearest_even, frint_fns[a->esz])
+           FPROUNDING_TIEEVEN, frint_fns[a->esz])
 TRANS_FEAT(FRINTP, aa64_sve, do_frint_mode, a,
-           float_round_up, frint_fns[a->esz])
+           FPROUNDING_POSINF, frint_fns[a->esz])
 TRANS_FEAT(FRINTM, aa64_sve, do_frint_mode, a,
-           float_round_down, frint_fns[a->esz])
+           FPROUNDING_NEGINF, frint_fns[a->esz])
 TRANS_FEAT(FRINTZ, aa64_sve, do_frint_mode, a,
-           float_round_to_zero, frint_fns[a->esz])
+           FPROUNDING_ZERO, frint_fns[a->esz])
 TRANS_FEAT(FRINTA, aa64_sve, do_frint_mode, a,
-           float_round_ties_away, frint_fns[a->esz])
+           FPROUNDING_TIEAWAY, frint_fns[a->esz])
 
 static gen_helper_gvec_3_ptr * const frecpx_fns[] = {
     NULL,                    gen_helper_sve_frecpx_h,
@@ -4208,8 +4206,9 @@ void gen_sve_ldr(DisasContext *s, TCGv_ptr base, int vofs,
         }
     } else {
         TCGLabel *loop = gen_new_label();
-        TCGv_ptr tp, i = tcg_const_ptr(0);
+        TCGv_ptr tp, i = tcg_temp_new_ptr();
 
+        tcg_gen_movi_ptr(i, 0);
         gen_set_label(loop);
 
         t0 = tcg_temp_new_i64();
@@ -4286,8 +4285,9 @@ void gen_sve_str(DisasContext *s, TCGv_ptr base, int vofs,
         }
     } else {
         TCGLabel *loop = gen_new_label();
-        TCGv_ptr tp, i = tcg_const_ptr(0);
+        TCGv_ptr tp, i = tcg_temp_new_ptr();
 
+        tcg_gen_movi_ptr(i, 0);
         gen_set_label(loop);
 
         t0 = tcg_temp_new_i64();
@@ -7145,9 +7145,9 @@ TRANS_FEAT(FCVTLT_sd, aa64_sve2, gen_gvec_fpst_arg_zpz,
            gen_helper_sve2_fcvtlt_sd, a, 0, FPST_FPCR)
 
 TRANS_FEAT(FCVTX_ds, aa64_sve2, do_frint_mode, a,
-           float_round_to_odd, gen_helper_sve_fcvt_ds)
+           FPROUNDING_ODD, gen_helper_sve_fcvt_ds)
 TRANS_FEAT(FCVTXNT_ds, aa64_sve2, do_frint_mode, a,
-           float_round_to_odd, gen_helper_sve2_fcvtnt_ds)
+           FPROUNDING_ODD, gen_helper_sve2_fcvtnt_ds)
 
 static gen_helper_gvec_3_ptr * const flogb_fns[] = {
     NULL,               gen_helper_flogb_h,
