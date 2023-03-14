@@ -32,28 +32,13 @@ xendevicemodel_handle *xen_dmod;
 
 static void xenstore_record_dm_state(const char *state)
 {
-    struct xs_handle *xs;
     char path[50];
 
-    /* We now have everything we need to set the xenstore entry. */
-    xs = xs_open(0);
-    if (xs == NULL) {
-        fprintf(stderr, "Could not contact XenStore\n");
-        exit(1);
-    }
-
     snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
-    /*
-     * This call may fail when running restricted so don't make it fatal in
-     * that case. Toolstacks should instead use QMP to listen for state changes.
-     */
-    if (!xs_write(xs, XBT_NULL, path, state, strlen(state)) &&
-            !xen_domid_restrict) {
+    if (!qemu_xen_xs_write(xenstore, XBT_NULL, path, state, strlen(state))) {
         error_report("error recording dm state");
         exit(1);
     }
-
-    xs_close(xs);
 }
 
 
@@ -111,7 +96,15 @@ static int xen_init(MachineState *ms)
         xc_interface_close(xen_xc);
         return -1;
     }
-    qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
+
+    /*
+     * The XenStore write would fail when running restricted so don't attempt
+     * it in that case. Toolstacks should instead use QMP to listen for state
+     * changes.
+     */
+    if (!xen_domid_restrict) {
+        qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
+    }
     /*
      * opt out of system RAM being allocated by generic code
      */
