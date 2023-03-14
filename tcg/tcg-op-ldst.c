@@ -115,13 +115,13 @@ static void tcg_gen_req_mo(TCGBar type)
 }
 
 /* Only required for loads, where value might overlap addr. */
-static TCGv plugin_maybe_preserve_addr(TCGv vaddr)
+static TCGv_i64 plugin_maybe_preserve_addr(TCGv vaddr)
 {
 #ifdef CONFIG_PLUGIN
     if (tcg_ctx->plugin_insn != NULL) {
         /* Save a copy of the vaddr for use after a load.  */
-        TCGv temp = tcg_temp_new();
-        tcg_gen_mov_tl(temp, vaddr);
+        TCGv_i64 temp = tcg_temp_ebb_new_i64();
+        tcg_gen_extu_tl_i64(temp, vaddr);
         return temp;
     }
 #endif
@@ -129,16 +129,28 @@ static TCGv plugin_maybe_preserve_addr(TCGv vaddr)
 }
 
 static void
-plugin_gen_mem_callbacks(TCGv copy_addr, TCGv orig_addr, MemOpIdx oi,
+plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGv orig_addr, MemOpIdx oi,
                          enum qemu_plugin_mem_rw rw)
 {
 #ifdef CONFIG_PLUGIN
     if (tcg_ctx->plugin_insn != NULL) {
         qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
-        plugin_gen_empty_mem_callback(copy_addr ? : orig_addr, info);
+
+#if TARGET_LONG_BITS == 64
         if (copy_addr) {
-            tcg_temp_free(copy_addr);
+            plugin_gen_empty_mem_callback(copy_addr, info);
+            tcg_temp_free_i64(copy_addr);
+        } else {
+            plugin_gen_empty_mem_callback(orig_addr, info);
         }
+#else
+        if (!copy_addr) {
+            copy_addr = tcg_temp_ebb_new_i64();
+            tcg_gen_extu_tl_i64(copy_addr, orig_addr);
+        }
+        plugin_gen_empty_mem_callback(copy_addr, info);
+        tcg_temp_free_i64(copy_addr);
+#endif
     }
 #endif
 }
@@ -147,7 +159,7 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
     MemOpIdx oi;
-    TCGv copy_addr;
+    TCGv_i64 copy_addr;
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
@@ -223,7 +235,7 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     MemOp orig_memop;
     MemOpIdx oi;
-    TCGv copy_addr;
+    TCGv_i64 copy_addr;
 
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);

@@ -124,23 +124,20 @@ static void gen_empty_inline_cb(void)
     tcg_temp_free_i64(val);
 }
 
-static void gen_empty_mem_cb(TCGv addr, uint32_t info)
+static void gen_empty_mem_cb(TCGv_i64 addr, uint32_t info)
 {
     TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
     TCGv_i32 meminfo = tcg_temp_ebb_new_i32();
-    TCGv_i64 addr64 = tcg_temp_ebb_new_i64();
     TCGv_ptr udata = tcg_temp_ebb_new_ptr();
 
     tcg_gen_movi_i32(meminfo, info);
     tcg_gen_movi_ptr(udata, 0);
     tcg_gen_ld_i32(cpu_index, cpu_env,
                    -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
-    tcg_gen_extu_tl_i64(addr64, addr);
 
-    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr64, udata);
+    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr, udata);
 
     tcg_temp_free_ptr(udata);
-    tcg_temp_free_i64(addr64);
     tcg_temp_free_i32(meminfo);
     tcg_temp_free_i32(cpu_index);
 }
@@ -197,7 +194,7 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
     }
 }
 
-void plugin_gen_empty_mem_callback(TCGv addr, uint32_t info)
+void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info)
 {
     enum qemu_plugin_mem_rw rw = get_plugin_meminfo_rw(info);
 
