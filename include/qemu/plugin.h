@@ -59,8 +59,6 @@ get_plugin_meminfo_rw(qemu_plugin_meminfo_t i)
 #ifdef CONFIG_PLUGIN
 extern QemuOptsList qemu_plugin_opts;
 
-#define QEMU_PLUGIN_ASSERT(cond) g_assert(cond)
-
 static inline void qemu_plugin_add_opts(void)
 {
     qemu_add_opts(&qemu_plugin_opts);
@@ -251,8 +249,6 @@ void qemu_plugin_user_prefork_lock(void);
 void qemu_plugin_user_postfork(bool is_child);
 
 #else /* !CONFIG_PLUGIN */
-
-#define QEMU_PLUGIN_ASSERT(cond)
 
 static inline void qemu_plugin_add_opts(void)
 { }
