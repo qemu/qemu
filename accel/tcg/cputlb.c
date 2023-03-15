@@ -2551,7 +2551,7 @@ Int128 helper_ld16_mmu(CPUArchState *env, uint64_t addr,
     return do_ld16_mmu(env, addr, oi, retaddr);
 }
 
-Int128 helper_ld_i128(CPUArchState *env, target_ulong addr, uint32_t oi)
+Int128 helper_ld_i128(CPUArchState *env, uint64_t addr, uint32_t oi)
 {
     return helper_ld16_mmu(env, addr, oi, GETPC());
 }
@@ -3024,8 +3024,7 @@ void helper_st16_mmu(CPUArchState *env, uint64_t addr, Int128 val,
     do_st16_mmu(env, addr, val, oi, retaddr);
 }
 
-void helper_st_i128(CPUArchState *env, target_ulong addr, Int128 val,
-                    MemOpIdx oi)
+void helper_st_i128(CPUArchState *env, uint64_t addr, Int128 val, MemOpIdx oi)
 {
     helper_st16_mmu(env, addr, val, oi, GETPC());
 }
