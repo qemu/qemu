@@ -886,6 +886,19 @@
 # @lang1: since 6.1
 # @lang2: since 6.1
 #
+# @f13: since 8.0
+# @f14: since 8.0
+# @f15: since 8.0
+# @f16: since 8.0
+# @f17: since 8.0
+# @f18: since 8.0
+# @f19: since 8.0
+# @f20: since 8.0
+# @f21: since 8.0
+# @f22: since 8.0
+# @f23: since 8.0
+# @f24: since 8.0
+#
 # 'sysrq' was mistakenly added to hack around the fact that
 # the ps2 driver was not generating correct scancodes sequences
 # when 'alt+print' was pressed. This flaw is now fixed and the
@@ -918,7 +931,7 @@
             'volumeup', 'volumedown', 'mediaselect',
             'mail', 'calculator', 'computer',
             'ac_home', 'ac_back', 'ac_forward', 'ac_refresh', 'ac_bookmarks',
-            'lang1', 'lang2' ] }
+            'lang1', 'lang2','f13','f14','f15','f16','f17','f18','f19','f20','f21','f22','f23','f24' ] }
 
 ##
 # @KeyValueKind:
