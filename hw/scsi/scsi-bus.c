@@ -199,8 +199,8 @@ static void scsi_dma_restart_cb(void *opaque, bool running, RunState state)
 }
 
 static bool scsi_bus_is_address_free(SCSIBus *bus,
-				     int channel, int target, int lun,
-				     SCSIDevice **p_dev)
+                                     int channel, int target, int lun,
+                                     SCSIDevice **p_dev)
 {
     SCSIDevice *d;
 

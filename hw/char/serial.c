@@ -38,20 +38,20 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 
-#define UART_LCR_DLAB	0x80	/* Divisor latch access bit */
+#define UART_LCR_DLAB   0x80    /* Divisor latch access bit */
 
-#define UART_IER_MSI	0x08	/* Enable Modem status interrupt */
-#define UART_IER_RLSI	0x04	/* Enable receiver line status interrupt */
-#define UART_IER_THRI	0x02	/* Enable Transmitter holding register int. */
-#define UART_IER_RDI	0x01	/* Enable receiver data interrupt */
+#define UART_IER_MSI    0x08    /* Enable Modem status interrupt */
+#define UART_IER_RLSI   0x04    /* Enable receiver line status interrupt */
+#define UART_IER_THRI   0x02    /* Enable Transmitter holding register int. */
+#define UART_IER_RDI    0x01    /* Enable receiver data interrupt */
 
-#define UART_IIR_NO_INT	0x01	/* No interrupts pending */
-#define UART_IIR_ID	0x06	/* Mask for the interrupt ID */
+#define UART_IIR_NO_INT 0x01    /* No interrupts pending */
+#define UART_IIR_ID     0x06    /* Mask for the interrupt ID */
 
-#define UART_IIR_MSI	0x00	/* Modem status interrupt */
-#define UART_IIR_THRI	0x02	/* Transmitter holding register empty */
-#define UART_IIR_RDI	0x04	/* Receiver data interrupt */
-#define UART_IIR_RLSI	0x06	/* Receiver line status interrupt */
+#define UART_IIR_MSI    0x00    /* Modem status interrupt */
+#define UART_IIR_THRI   0x02    /* Transmitter holding register empty */
+#define UART_IIR_RDI    0x04    /* Receiver data interrupt */
+#define UART_IIR_RLSI   0x06    /* Receiver line status interrupt */
 #define UART_IIR_CTI    0x0C    /* Character Timeout Indication */
 
 #define UART_IIR_FENF   0x80    /* Fifo enabled, but not functionning */
@@ -60,33 +60,33 @@
 /*
  * These are the definitions for the Modem Control Register
  */
-#define UART_MCR_LOOP	0x10	/* Enable loopback test mode */
-#define UART_MCR_OUT2	0x08	/* Out2 complement */
-#define UART_MCR_OUT1	0x04	/* Out1 complement */
-#define UART_MCR_RTS	0x02	/* RTS complement */
-#define UART_MCR_DTR	0x01	/* DTR complement */
+#define UART_MCR_LOOP   0x10    /* Enable loopback test mode */
+#define UART_MCR_OUT2   0x08    /* Out2 complement */
+#define UART_MCR_OUT1   0x04    /* Out1 complement */
+#define UART_MCR_RTS    0x02    /* RTS complement */
+#define UART_MCR_DTR    0x01    /* DTR complement */
 
 /*
  * These are the definitions for the Modem Status Register
  */
-#define UART_MSR_DCD	0x80	/* Data Carrier Detect */
-#define UART_MSR_RI	0x40	/* Ring Indicator */
-#define UART_MSR_DSR	0x20	/* Data Set Ready */
-#define UART_MSR_CTS	0x10	/* Clear to Send */
-#define UART_MSR_DDCD	0x08	/* Delta DCD */
-#define UART_MSR_TERI	0x04	/* Trailing edge ring indicator */
-#define UART_MSR_DDSR	0x02	/* Delta DSR */
-#define UART_MSR_DCTS	0x01	/* Delta CTS */
-#define UART_MSR_ANY_DELTA 0x0F	/* Any of the delta bits! */
+#define UART_MSR_DCD        0x80    /* Data Carrier Detect */
+#define UART_MSR_RI         0x40    /* Ring Indicator */
+#define UART_MSR_DSR        0x20    /* Data Set Ready */
+#define UART_MSR_CTS        0x10    /* Clear to Send */
+#define UART_MSR_DDCD       0x08    /* Delta DCD */
+#define UART_MSR_TERI       0x04    /* Trailing edge ring indicator */
+#define UART_MSR_DDSR       0x02    /* Delta DSR */
+#define UART_MSR_DCTS       0x01    /* Delta CTS */
+#define UART_MSR_ANY_DELTA  0x0F    /* Any of the delta bits! */
 
-#define UART_LSR_TEMT	0x40	/* Transmitter empty */
-#define UART_LSR_THRE	0x20	/* Transmit-hold-register empty */
-#define UART_LSR_BI	0x10	/* Break interrupt indicator */
-#define UART_LSR_FE	0x08	/* Frame error indicator */
-#define UART_LSR_PE	0x04	/* Parity error indicator */
-#define UART_LSR_OE	0x02	/* Overrun error indicator */
-#define UART_LSR_DR	0x01	/* Receiver data ready */
-#define UART_LSR_INT_ANY 0x1E	/* Any of the lsr-interrupt-triggering status bits */
+#define UART_LSR_TEMT       0x40    /* Transmitter empty */
+#define UART_LSR_THRE       0x20    /* Transmit-hold-register empty */
+#define UART_LSR_BI         0x10    /* Break interrupt indicator */
+#define UART_LSR_FE         0x08    /* Frame error indicator */
+#define UART_LSR_PE         0x04    /* Parity error indicator */
+#define UART_LSR_OE         0x02    /* Overrun error indicator */
+#define UART_LSR_DR         0x01    /* Receiver data ready */
+#define UART_LSR_INT_ANY    0x1E    /* Any of the lsr-interrupt-triggering status bits */
 
 /* Interrupt trigger levels. The byte-counts are for 16550A - in newer UARTs the byte-count for each ITL is higher. */
 

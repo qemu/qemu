@@ -49,22 +49,22 @@ static uint8_t max7310_rx(I2CSlave *i2c)
     MAX7310State *s = MAX7310(i2c);
 
     switch (s->command) {
-    case 0x00:	/* Input port */
+    case 0x00:  /* Input port */
         return s->level ^ s->polarity;
 
-    case 0x01:	/* Output port */
+    case 0x01:  /* Output port */
         return s->level & ~s->direction;
 
-    case 0x02:	/* Polarity inversion */
+    case 0x02:  /* Polarity inversion */
         return s->polarity;
 
-    case 0x03:	/* Configuration */
+    case 0x03:  /* Configuration */
         return s->direction;
 
-    case 0x04:	/* Timeout */
+    case 0x04:  /* Timeout */
         return s->status;
 
-    case 0xff:	/* Reserved */
+    case 0xff:  /* Reserved */
         return 0xff;
 
     default:
@@ -95,7 +95,7 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
     }
 
     switch (s->command) {
-    case 0x01:	/* Output port */
+    case 0x01:  /* Output port */
         for (diff = (data ^ s->level) & ~s->direction; diff;
                         diff &= ~(1 << line)) {
             line = ctz32(diff);
@@ -105,20 +105,20 @@ static int max7310_tx(I2CSlave *i2c, uint8_t data)
         s->level = (s->level & s->direction) | (data & ~s->direction);
         break;
 
-    case 0x02:	/* Polarity inversion */
+    case 0x02:  /* Polarity inversion */
         s->polarity = data;
         break;
 
-    case 0x03:	/* Configuration */
+    case 0x03:  /* Configuration */
         s->level &= ~(s->direction ^ data);
         s->direction = data;
         break;
 
-    case 0x04:	/* Timeout */
+    case 0x04:  /* Timeout */
         s->status = data;
         break;
 
-    case 0x00:	/* Input port - ignore writes */
+    case 0x00:  /* Input port - ignore writes */
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unsupported register 0x02%" PRIx8 "\n",

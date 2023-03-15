@@ -15,30 +15,30 @@
 
 /* d3des.h -
  *
- *	Headers and defines for d3des.c
- *	Graven Imagery, 1992.
+ * Headers and defines for d3des.c
+ * Graven Imagery, 1992.
  *
  * Copyright (c) 1988,1989,1990,1991,1992 by Richard Outerbridge
- *	(GEnie : OUTER; CIS : [71755,204])
+ * (GEnie : OUTER; CIS : [71755,204])
  */
 
-#define EN0	0	/* MODE == encrypt */
-#define DE1	1	/* MODE == decrypt */
+#define EN0 0   /* MODE == encrypt */
+#define DE1 1   /* MODE == decrypt */
 
 void deskey(unsigned char *, int);
-/*		      hexkey[8]     MODE
+/*          hexkey[8]        MODE
  * Sets the internal key register according to the hexadecimal
  * key contained in the 8 bytes of hexkey, according to the DES,
  * for encryption or decryption according to MODE.
  */
 
 void usekey(unsigned long *);
-/*		    cookedkey[32]
+/*          cookedkey[32]
  * Loads the internal key register with the data in cookedkey.
  */
 
 void des(unsigned char *, unsigned char *);
-/*		    from[8]	      to[8]
+/*       from[8]          to[8]
  * Encrypts/Decrypts (according to the key currently loaded in the
  * internal key register) one block of eight bytes at address 'from'
  * into the block at address 'to'.  They can be the same.

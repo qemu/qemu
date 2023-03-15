@@ -59,16 +59,16 @@
  * as described in RFC 2396 but separated for further processing.
  */
 typedef struct URI {
-    char *scheme;	/* the URI scheme */
-    char *opaque;	/* opaque part */
-    char *authority;	/* the authority part */
-    char *server;	/* the server part */
-    char *user;		/* the user part */
-    int port;		/* the port number */
-    char *path;		/* the path string */
-    char *fragment;	/* the fragment identifier */
-    int  cleanup;	/* parsing potentially unclean URI */
-    char *query;	/* the query string (as it appears in the URI) */
+    char *scheme;      /* the URI scheme */
+    char *opaque;      /* opaque part */
+    char *authority;   /* the authority part */
+    char *server;      /* the server part */
+    char *user;        /* the user part */
+    int port;          /* the port number */
+    char *path;        /* the path string */
+    char *fragment;    /* the fragment identifier */
+    int cleanup;       /* parsing potentially unclean URI */
+    char *query;       /* the query string (as it appears in the URI) */
 } URI;
 
 URI *uri_new(void);
@@ -84,16 +84,16 @@ void uri_free(URI *uri);
 
 /* Single web service query parameter 'name=value'. */
 typedef struct QueryParam {
-  char *name;			/* Name (unescaped). */
-  char *value;			/* Value (unescaped). */
-  int ignore;			/* Ignore this field in qparam_get_query */
+  char *name;          /* Name (unescaped). */
+  char *value;         /* Value (unescaped). */
+  int ignore;          /* Ignore this field in qparam_get_query */
 } QueryParam;
 
 /* Set of parameters. */
 typedef struct QueryParams {
-  int n;			/* number of parameters used */
-  int alloc;			/* allocated space */
-  QueryParam *p;		/* array of parameters */
+  int n;               /* number of parameters used */
+  int alloc;           /* allocated space */
+  QueryParam *p;       /* array of parameters */
 } QueryParams;
 
 struct QueryParams *query_params_new (int init_alloc);

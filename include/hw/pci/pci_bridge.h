@@ -137,11 +137,11 @@ void pci_bridge_map_irq(PCIBridge *br, const char* bus_name,
                         pci_map_irq_fn map_irq);
 
 /* TODO: add this define to pci_regs.h in linux and then in qemu. */
-#define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
-#define  PCI_BRIDGE_CTL_DISCARD		0x100	/* Primary discard timer */
-#define  PCI_BRIDGE_CTL_SEC_DISCARD	0x200	/* Secondary discard timer */
-#define  PCI_BRIDGE_CTL_DISCARD_STATUS	0x400	/* Discard timer status */
-#define  PCI_BRIDGE_CTL_DISCARD_SERR	0x800	/* Discard timer SERR# enable */
+#define  PCI_BRIDGE_CTL_VGA_16BIT       0x10    /* VGA 16-bit decode */
+#define  PCI_BRIDGE_CTL_DISCARD         0x100   /* Primary discard timer */
+#define  PCI_BRIDGE_CTL_SEC_DISCARD     0x200   /* Secondary discard timer */
+#define  PCI_BRIDGE_CTL_DISCARD_STATUS  0x400   /* Discard timer status */
+#define  PCI_BRIDGE_CTL_DISCARD_SERR    0x800   /* Discard timer SERR# enable */
 
 typedef struct PCIBridgeQemuCap {
     uint8_t id;     /* Standard PCI capability header field */

@@ -29,7 +29,7 @@
  * vhost-user to advertise VHOST_USER_F_PROTOCOL_FEATURES between QEMU
  * and a vhost-user backend.
  */
-#define VIRTIO_F_BAD_FEATURE		30
+#define VIRTIO_F_BAD_FEATURE 30
 
 #define VIRTIO_LEGACY_FEATURES ((0x1ULL << VIRTIO_F_BAD_FEATURE) | \
                                 (0x1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) | \

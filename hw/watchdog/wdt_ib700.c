@@ -30,7 +30,7 @@
 /*#define IB700_DEBUG 1*/
 
 #ifdef IB700_DEBUG
-#define ib700_debug(fs,...)					\
+#define ib700_debug(fs,...)                                    \
     fprintf(stderr,"ib700: %s: "fs,__func__,##__VA_ARGS__)
 #else
 #define ib700_debug(fs,...)

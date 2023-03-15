@@ -35,7 +35,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -210,8 +210,8 @@ static void bswap_ahdr(struct exec *e)
 #define ZMAGIC 0413
 #define QMAGIC 0314
 #define _N_HDROFF(x) (1024 - sizeof (struct exec))
-#define N_TXTOFF(x)							\
-    (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) :	\
+#define N_TXTOFF(x)                                                 \
+    (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) : \
      (N_MAGIC(x) == QMAGIC ? 0 : sizeof (struct exec)))
 #define N_TXTADDR(x, target_page_size) (N_MAGIC(x) == QMAGIC ? target_page_size : 0)
 #define _N_SEGMENT_ROUND(x, target_page_size) (((x) + target_page_size - 1) & ~(target_page_size - 1))
@@ -300,10 +300,10 @@ static void *load_at(int fd, off_t offset, size_t size)
 #define ELF_CLASS   ELFCLASS32
 #include "elf.h"
 
-#define SZ		32
+#define SZ              32
 #define elf_word        uint32_t
-#define elf_sword        int32_t
-#define bswapSZs	bswap32s
+#define elf_sword       int32_t
+#define bswapSZs        bswap32s
 #include "hw/elf_ops.h"
 
 #undef elfhdr
@@ -316,16 +316,16 @@ static void *load_at(int fd, off_t offset, size_t size)
 #undef elf_sword
 #undef bswapSZs
 #undef SZ
-#define elfhdr		elf64_hdr
-#define elf_phdr	elf64_phdr
-#define elf_note	elf64_note
-#define elf_shdr	elf64_shdr
-#define elf_sym		elf64_sym
+#define elfhdr          elf64_hdr
+#define elf_phdr        elf64_phdr
+#define elf_note        elf64_note
+#define elf_shdr        elf64_shdr
+#define elf_sym         elf64_sym
 #define elf_rela        elf64_rela
 #define elf_word        uint64_t
-#define elf_sword        int64_t
-#define bswapSZs	bswap64s
-#define SZ		64
+#define elf_sword       int64_t
+#define bswapSZs        bswap64s
+#define SZ              64
 #include "hw/elf_ops.h"
 
 const char *load_elf_strerror(ssize_t error)
@@ -527,7 +527,7 @@ static void bswap_uboot_header(uboot_image_header_t *hdr)
 }
 
 
-#define ZALLOC_ALIGNMENT	16
+#define ZALLOC_ALIGNMENT    16
 
 static void *zalloc(void *x, unsigned items, unsigned size)
 {
@@ -547,13 +547,13 @@ static void zfree(void *x, void *addr)
 }
 
 
-#define HEAD_CRC	2
-#define EXTRA_FIELD	4
-#define ORIG_NAME	8
-#define COMMENT		0x10
-#define RESERVED	0xe0
+#define HEAD_CRC    2
+#define EXTRA_FIELD 4
+#define ORIG_NAME   8
+#define COMMENT     0x10
+#define RESERVED    0xe0
 
-#define DEFLATED	8
+#define DEFLATED    8
 
 ssize_t gunzip(void *dst, size_t dstlen, uint8_t *src, size_t srclen)
 {
