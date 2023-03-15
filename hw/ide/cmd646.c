@@ -36,20 +36,20 @@
 #include "trace.h"
 
 /* CMD646 specific */
-#define CFR		0x50
-#define   CFR_INTR_CH0	0x04
-#define CNTRL		0x51
-#define   CNTRL_EN_CH0	0x04
-#define   CNTRL_EN_CH1	0x08
-#define ARTTIM23	0x57
-#define    ARTTIM23_INTR_CH1	0x10
-#define MRDMODE		0x71
-#define   MRDMODE_INTR_CH0	0x04
-#define   MRDMODE_INTR_CH1	0x08
-#define   MRDMODE_BLK_CH0	0x10
-#define   MRDMODE_BLK_CH1	0x20
-#define UDIDETCR0	0x73
-#define UDIDETCR1	0x7B
+#define CFR                  0x50
+#define   CFR_INTR_CH0       0x04
+#define CNTRL                0x51
+#define   CNTRL_EN_CH0       0x04
+#define   CNTRL_EN_CH1       0x08
+#define ARTTIM23             0x57
+#define    ARTTIM23_INTR_CH1 0x10
+#define MRDMODE              0x71
+#define   MRDMODE_INTR_CH0   0x04
+#define   MRDMODE_INTR_CH1   0x08
+#define   MRDMODE_BLK_CH0    0x10
+#define   MRDMODE_BLK_CH1    0x20
+#define UDIDETCR0            0x73
+#define UDIDETCR1            0x7B
 
 static void cmd646_update_irq(PCIDevice *pd);
 
