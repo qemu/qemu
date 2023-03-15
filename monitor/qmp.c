@@ -39,13 +39,16 @@
  * coroutine never gets scheduled a second time when it's already
  * scheduled (scheduling the same coroutine twice is forbidden).
  *
- * It is true if the coroutine is active and processing requests.
- * Additional requests may then be pushed onto mon->qmp_requests,
- * and @qmp_dispatcher_co_shutdown may be set without further ado.
- * @qmp_dispatcher_co_busy must not be woken up in this case.
+ * It is true if the coroutine will process at least one more request
+ * before going to sleep.  Either it has been kicked already, or it
+ * is active and processing requests.  Additional requests may therefore
+ * be pushed onto mon->qmp_requests, and @qmp_dispatcher_co_shutdown may
+ * be set without further ado.  @qmp_dispatcher_co must not be woken up
+ * in this case.
  *
- * If false, you also have to set @qmp_dispatcher_co_busy to true and
- * wake up @qmp_dispatcher_co after pushing the new requests.
+ * If false, you have to wake up @qmp_dispatcher_co after pushing new
+ * requests. You also have to set @qmp_dispatcher_co_busy to true
+ * before waking up the coroutine.
  *
  * The coroutine will automatically change this variable back to false
  * before it yields.  Nobody else may set the variable to false.
@@ -230,15 +233,18 @@ static QMPRequest *monitor_qmp_dispatcher_pop_any(void)
 {
     while (true) {
         /*
-         * busy must be set to true again by whoever
-         * rescheduled us to avoid double scheduling
+         * To avoid double scheduling, busy is true on entry to
+         * monitor_qmp_dispatcher_co(), and must be set again before
+         * aio_co_wake()-ing it.
          */
-        assert(qatomic_mb_read(&qmp_dispatcher_co_busy) == true);
+        assert(qatomic_read(&qmp_dispatcher_co_busy) == true);
 
         /*
          * Mark the dispatcher as not busy already here so that we
          * don't miss any new requests coming in the middle of our
          * processing.
+         *
+         * Clear qmp_dispatcher_co_busy before reading request.
          */
         qatomic_mb_set(&qmp_dispatcher_co_busy, false);
 
@@ -364,6 +370,9 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
 
 void qmp_dispatcher_co_wake(void)
 {
+    /* Write request before reading qmp_dispatcher_co_busy.  */
+    smp_mb__before_rmw();
+
     if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
         aio_co_wake(qmp_dispatcher_co);
     }
