@@ -4068,9 +4068,23 @@ static DisasJumpType op_sske(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static void gen_check_psw_mask(DisasContext *s)
+{
+    TCGv_i64 reserved = tcg_temp_new_i64();
+    TCGLabel *ok = gen_new_label();
+
+    tcg_gen_andi_i64(reserved, psw_mask, PSW_MASK_RESERVED);
+    tcg_gen_brcondi_i64(TCG_COND_EQ, reserved, 0, ok);
+    gen_program_exception(s, PGM_SPECIFICATION);
+    gen_set_label(ok);
+}
+
 static DisasJumpType op_ssm(DisasContext *s, DisasOps *o)
 {
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+
+    gen_check_psw_mask(s);
+
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
     s->exit_to_mainloop = true;
     return DISAS_TOO_MANY;
@@ -4330,6 +4344,8 @@ static DisasJumpType op_stnosm(DisasContext *s, DisasOps *o)
     } else {
         tcg_gen_ori_i64(psw_mask, psw_mask, i2 << 56);
     }
+
+    gen_check_psw_mask(s);
 
     /* Exit to main loop to reevaluate s390_cpu_exec_interrupt.  */
     s->exit_to_mainloop = true;
