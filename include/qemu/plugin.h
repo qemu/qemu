@@ -14,6 +14,7 @@
 #include "qemu/option.h"
 #include "qemu/plugin-event.h"
 #include "exec/memopidx.h"
+#include "hw/core/cpu.h"
 
 /*
  * Option parsing/processing.
@@ -204,7 +205,10 @@ void qemu_plugin_atexit_cb(void);
 
 void qemu_plugin_add_dyn_cb_arr(GArray *arr);
 
-void qemu_plugin_disable_mem_helpers(CPUState *cpu);
+static inline void qemu_plugin_disable_mem_helpers(CPUState *cpu)
+{
+    cpu->plugin_mem_cbs = NULL;
+}
 
 /**
  * qemu_plugin_user_exit(): clean-up callbacks before calling exit callbacks
