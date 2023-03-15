@@ -22,6 +22,7 @@
 #include "qemu/path.h"
 #include "qemu/memfd.h"
 #include "qemu/queue.h"
+#include "qemu/plugin.h"
 #include "target_mman.h"
 #include <elf.h>
 #include <endian.h>
