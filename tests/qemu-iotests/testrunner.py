@@ -391,6 +391,7 @@ class TestRunner(ContextManager['TestRunner']):
         casenotrun = []
 
         if self.tap:
+            print('TAP version 13')
             self.env.print_env('# ')
             print('1..%d' % len(tests))
         else:
