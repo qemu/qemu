@@ -9,3 +9,8 @@ QEMU_OPTS=-action panic=exit-failure -kernel
 TESTS += unaligned-lowcore
 TESTS += bal
 TESTS += sam
+TESTS += lpsw
+TESTS += lpswe-early
+TESTS += ssm-early
+TESTS += stosm-early
+TESTS += exrl-ssm-early
