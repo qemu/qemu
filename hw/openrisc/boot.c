@@ -15,6 +15,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "qemu/error-report.h"
 
 #include <libfdt.h>
 

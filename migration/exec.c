@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "channel.h"
 #include "exec.h"
 #include "migration.h"

@@ -14,6 +14,7 @@
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 
+#include "qemu/error-report.h"
 #include "hw/display/edid.h"
 #include "ui/console.h"
 #include "qapi/error.h"

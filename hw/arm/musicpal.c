@@ -37,6 +37,8 @@
 #include "qemu/cutils.h"
 #include "qom/object.h"
 #include "hw/net/mv88w8618_eth.h"
+#include "qemu/error-report.h"
+
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000

@@ -23,6 +23,7 @@
 #include "qemu/base64.h"
 #include "qemu/module.h"
 #include "qemu/uuid.h"
+#include "qemu/error-report.h"
 #include "crypto/hash.h"
 #include "sysemu/kvm.h"
 #include "sev.h"

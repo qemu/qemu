@@ -32,6 +32,8 @@
 #include "cpu.h"
 #include "qemu/cutils.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
+
 
 static uint64_t static_read(void *opaque, hwaddr offset, unsigned size)
 {

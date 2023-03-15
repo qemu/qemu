@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
 #include "hw/boards.h"

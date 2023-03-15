@@ -15,6 +15,7 @@
 #include "qemu/lockable.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
 #include "qapi/error.h"

@@ -33,6 +33,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "exec/address-spaces.h" /* get_system_memory() */
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

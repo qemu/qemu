@@ -19,6 +19,8 @@
 #include "exec/address-spaces.h"
 #include "cpu.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
+
 
 #define RAM_SIZE            (512 * MiB)
 #define FLASH_SIZE          (32 * MiB)

@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include <zlib.h>
 #include "qapi/error.h"
 #include "cpu.h"
