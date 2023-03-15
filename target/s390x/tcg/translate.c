@@ -2910,19 +2910,21 @@ static DisasJumpType op_lpp(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lpsw(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 t1, t2;
+    TCGv_i64 mask, addr;
 
     per_breaking_event(s);
 
-    t1 = tcg_temp_new_i64();
-    t2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(t1, o->in2, get_mem_index(s),
-                        MO_TEUL | MO_ALIGN_8);
-    tcg_gen_addi_i64(o->in2, o->in2, 4);
-    tcg_gen_qemu_ld32u(t2, o->in2, get_mem_index(s));
-    /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
-    tcg_gen_shli_i64(t1, t1, 32);
-    gen_helper_load_psw(cpu_env, t1, t2);
+    /*
+     * Convert the short PSW into the normal PSW, similar to what
+     * s390_cpu_load_normal() does.
+     */
+    mask = tcg_temp_new_i64();
+    addr = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(mask, o->in2, get_mem_index(s), MO_TEUQ | MO_ALIGN_8);
+    tcg_gen_andi_i64(addr, mask, PSW_MASK_SHORT_ADDR);
+    tcg_gen_andi_i64(mask, mask, PSW_MASK_SHORT_CTRL);
+    tcg_gen_xori_i64(mask, mask, PSW_MASK_SHORTPSW);
+    gen_helper_load_psw(cpu_env, mask, addr);
     return DISAS_NORETURN;
 }
 
