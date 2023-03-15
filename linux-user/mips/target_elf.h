@@ -15,6 +15,9 @@ static inline const char *cpu_get_model(uint32_t eflags)
     if ((eflags & EF_MIPS_MACH) == EF_MIPS_MACH_5900) {
         return "R5900";
     }
+    if (eflags & EF_MIPS_NAN2008) {
+        return "P5600";
+    }
     return "24Kf";
 }
 #endif
