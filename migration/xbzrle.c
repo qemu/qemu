@@ -12,6 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/host-utils.h"
 #include "xbzrle.h"
 
 /*
@@ -196,10 +197,6 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
     __m512i r = _mm512_set1_epi32(0);
 
     while (count512s) {
-        if (d + 2 > dlen) {
-            return -1;
-        }
-
         int bytes_to_check = 64;
         uint64_t mask = 0xffffffffffffffff;
         if (count512s == 1) {
@@ -215,6 +212,9 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
 
         bool is_same = (comp & 0x1);
         while (bytes_to_check) {
+            if (d + 2 > dlen) {
+                return -1;
+            }
             if (is_same) {
                 if (nzrun_len) {
                     d += uleb128_encode_small(dst + d, nzrun_len);
@@ -233,7 +233,7 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                     break;
                 }
                 never_same = false;
-                num = __builtin_ctzll(~comp);
+                num = ctz64(~comp);
                 num = (num < bytes_to_check) ? num : bytes_to_check;
                 zrun_len += num;
                 bytes_to_check -= num;
@@ -262,7 +262,7 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                 nzrun_len += 64;
                 break;
             }
-            num = __builtin_ctzll(comp);
+            num = ctz64(comp);
             num = (num < bytes_to_check) ? num : bytes_to_check;
             nzrun_len += num;
             bytes_to_check -= num;
