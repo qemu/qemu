@@ -8,7 +8,7 @@
   'data': { 'integer': 'int' } }
 
 { 'union': 'TestUnion',
-  'base': { 'enum1': 'TestEnum' },
-  'discriminator': 'enum_wrong',
+  'base': { 'type-tag': 'TestEnum' },
+  'discriminator': 'type_tag',
   'data': { 'value1': 'TestTypeA',
             'value2': 'TestTypeB' } }
