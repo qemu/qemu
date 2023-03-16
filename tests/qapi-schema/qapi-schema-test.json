@@ -225,7 +225,7 @@
 
 { 'enum': 'TestIfEnum',
   'data': [ 'foo', { 'name' : 'bar', 'if': 'TEST_IF_ENUM_MEMBER' } ],
-  'if': 'TEST_IF_ENUM' }
+  'if': 'TEST_IF_UNION' }
 
 { 'union': 'TestIfUnion',
   'base': { 'type': 'TestIfEnum' },
@@ -250,7 +250,7 @@
 { 'command': 'test-if-cmd',
   'data': {
     'foo': 'TestIfStruct',
-    'bar': { 'type': 'TestIfEnum', 'if': 'TEST_IF_CMD_ARG' } },
+    'bar': { 'type': 'str', 'if': 'TEST_IF_CMD_ARG' } },
   'returns': 'UserDefThree',
   'if': { 'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT'] } }
 
@@ -258,7 +258,7 @@
 
 { 'event': 'TEST_IF_EVENT',
   'data': { 'foo': 'TestIfStruct',
-            'bar': { 'type': ['TestIfEnum'], 'if': 'TEST_IF_EVT_ARG' } },
+            'bar': { 'type': ['str'], 'if': 'TEST_IF_EVT_ARG' } },
   'if': { 'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT'] } }
 
 { 'event': 'TEST_IF_EVENT2', 'data': {},

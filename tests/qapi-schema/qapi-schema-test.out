@@ -252,7 +252,7 @@ enum TestIfEnum
     member foo
     member bar
         if TEST_IF_ENUM_MEMBER
-    if TEST_IF_ENUM
+    if TEST_IF_UNION
 object q_obj_TestIfUnion-base
     member type: TestIfEnum optional=False
     if {'all': ['TEST_IF_UNION', 'TEST_IF_STRUCT']}
@@ -283,7 +283,7 @@ command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
 object q_obj_test-if-cmd-arg
     member foo: TestIfStruct optional=False
-    member bar: TestIfEnum optional=False
+    member bar: str optional=False
         if TEST_IF_CMD_ARG
     if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-if-cmd q_obj_test-if-cmd-arg -> UserDefThree
@@ -291,11 +291,9 @@ command test-if-cmd q_obj_test-if-cmd-arg -> UserDefThree
     if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-cmd-return-def-three None -> UserDefThree
     gen=True success_response=True boxed=False oob=False preconfig=False
-array TestIfEnumList TestIfEnum
-    if TEST_IF_ENUM
 object q_obj_TEST_IF_EVENT-arg
     member foo: TestIfStruct optional=False
-    member bar: TestIfEnumList optional=False
+    member bar: strList optional=False
         if TEST_IF_EVT_ARG
     if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
 event TEST_IF_EVENT q_obj_TEST_IF_EVENT-arg
