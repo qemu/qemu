@@ -5769,7 +5769,18 @@ static void in2_a2(DisasContext *s, DisasOps *o)
 
 static TCGv gen_ri2(DisasContext *s)
 {
-    return tcg_constant_i64(s->base.pc_next + (int64_t)get_field(s, i2) * 2);
+    int64_t delta = (int64_t)get_field(s, i2) * 2;
+    TCGv ri2;
+
+    if (unlikely(s->ex_value)) {
+        ri2 = tcg_temp_new_i64();
+        tcg_gen_ld_i64(ri2, cpu_env, offsetof(CPUS390XState, ex_target));
+        tcg_gen_addi_i64(ri2, ri2, delta);
+    } else {
+        ri2 = tcg_constant_i64(s->base.pc_next + delta);
+    }
+
+    return ri2;
 }
 
 static void in2_ri2(DisasContext *s, DisasOps *o)
