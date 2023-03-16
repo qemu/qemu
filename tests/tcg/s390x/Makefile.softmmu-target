@@ -1,10 +1,14 @@
 S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
 VPATH+=$(S390X_SRC)
 QEMU_OPTS=-action panic=exit-failure -kernel
+LINK_SCRIPT=$(S390X_SRC)/softmmu.ld
+LDFLAGS=-nostdlib -static -Wl,-T$(LINK_SCRIPT) -Wl,--build-id=none
 
-%: %.S
-	$(CC) -march=z13 -m64 -nostdlib -static -Wl,-Ttext=0 \
-		-Wl,--build-id=none $< -o $@
+%.o: %.S
+	$(CC) -march=z13 -m64 -c $< -o $@
+
+%: %.o $(LINK_SCRIPT)
+	$(CC) $< -o $@ $(LDFLAGS)
 
 TESTS += unaligned-lowcore
 TESTS += bal
@@ -14,3 +18,8 @@ TESTS += lpswe-early
 TESTS += ssm-early
 TESTS += stosm-early
 TESTS += exrl-ssm-early
+
+include $(S390X_SRC)/pgm-specification.mak
+$(PGM_SPECIFICATION_TESTS): pgm-specification-softmmu.o
+$(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-softmmu.o
+TESTS += $(PGM_SPECIFICATION_TESTS)

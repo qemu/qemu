@@ -2,6 +2,9 @@ S390X_SRC=$(SRC_PATH)/tests/tcg/s390x
 VPATH+=$(S390X_SRC)
 CFLAGS+=-march=zEC12 -m64
 
+%.o: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
+
 config-cc.mak: Makefile
 	$(quiet-@)( \
 	    $(call cc-option,-march=z14, CROSS_CC_HAS_Z14); \
@@ -36,6 +39,11 @@ cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
 
 rxsbg: CFLAGS+=-O2
+
+include $(S390X_SRC)/pgm-specification.mak
+$(PGM_SPECIFICATION_TESTS): pgm-specification-user.o
+$(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-user.o
+TESTS += $(PGM_SPECIFICATION_TESTS)
 
 Z13_TESTS=vistr
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
