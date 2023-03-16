@@ -259,7 +259,7 @@ class QAPISchemaType(QAPISchemaEntity):
         return not self.c_type().endswith(POINTER_SUFFIX)
 
     def check(self, schema):
-        QAPISchemaEntity.check(self, schema)
+        super().check(schema)
         for feat in self.features:
             if feat.is_special():
                 raise QAPISemError(
