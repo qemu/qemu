@@ -177,39 +177,32 @@ are named with the prefix "kvm-".  KVM VCPU features may be probed,
 enabled, and disabled in the same way as other CPU features.  Below is
 the list of KVM VCPU features and their descriptions.
 
-  kvm-no-adjvtime          By default kvm-no-adjvtime is disabled.  This
-                           means that by default the virtual time
-                           adjustment is enabled (vtime is not *not*
-                           adjusted).
+``kvm-no-adjvtime``
+  By default kvm-no-adjvtime is disabled.  This means that by default
+  the virtual time adjustment is enabled (vtime is not *not* adjusted).
 
-                           When virtual time adjustment is enabled each
-                           time the VM transitions back to running state
-                           the VCPU's virtual counter is updated to ensure
-                           stopped time is not counted.  This avoids time
-                           jumps surprising guest OSes and applications,
-                           as long as they use the virtual counter for
-                           timekeeping.  However it has the side effect of
-                           the virtual and physical counters diverging.
-                           All timekeeping based on the virtual counter
-                           will appear to lag behind any timekeeping that
-                           does not subtract VM stopped time.  The guest
-                           may resynchronize its virtual counter with
-                           other time sources as needed.
+  When virtual time adjustment is enabled each time the VM transitions
+  back to running state the VCPU's virtual counter is updated to
+  ensure stopped time is not counted.  This avoids time jumps
+  surprising guest OSes and applications, as long as they use the
+  virtual counter for timekeeping.  However it has the side effect of
+  the virtual and physical counters diverging.  All timekeeping based
+  on the virtual counter will appear to lag behind any timekeeping
+  that does not subtract VM stopped time.  The guest may resynchronize
+  its virtual counter with other time sources as needed.
 
-                           Enable kvm-no-adjvtime to disable virtual time
-                           adjustment, also restoring the legacy (pre-5.0)
-                           behavior.
+  Enable kvm-no-adjvtime to disable virtual time adjustment, also
+  restoring the legacy (pre-5.0) behavior.
 
-  kvm-steal-time           Since v5.2, kvm-steal-time is enabled by
-                           default when KVM is enabled, the feature is
-                           supported, and the guest is 64-bit.
+``kvm-steal-time``
+  Since v5.2, kvm-steal-time is enabled by default when KVM is
+  enabled, the feature is supported, and the guest is 64-bit.
 
-                           When kvm-steal-time is enabled a 64-bit guest
-                           can account for time its CPUs were not running
-                           due to the host not scheduling the corresponding
-                           VCPU threads.  The accounting statistics may
-                           influence the guest scheduler behavior and/or be
-                           exposed to the guest userspace.
+  When kvm-steal-time is enabled a 64-bit guest can account for time
+  its CPUs were not running due to the host not scheduling the
+  corresponding VCPU threads.  The accounting statistics may influence
+  the guest scheduler behavior and/or be exposed to the guest
+  userspace.
 
 TCG VCPU Features
 =================
@@ -217,16 +210,15 @@ TCG VCPU Features
 TCG VCPU features are CPU features that are specific to TCG.
 Below is the list of TCG VCPU features and their descriptions.
 
-  pauth-impdef             When ``FEAT_Pauth`` is enabled, either the
-                           *impdef* (Implementation Defined) algorithm
-                           is enabled or the *architected* QARMA algorithm
-                           is enabled.  By default the impdef algorithm
-                           is disabled, and QARMA is enabled.
+``pauth-impdef``
+  When ``FEAT_Pauth`` is enabled, either the *impdef* (Implementation
+  Defined) algorithm is enabled or the *architected* QARMA algorithm
+  is enabled.  By default the impdef algorithm is disabled, and QARMA
+  is enabled.
 
-                           The architected QARMA algorithm has good
-                           cryptographic properties, but can be quite slow
-                           to emulate.  The impdef algorithm used by QEMU
-                           is non-cryptographic but significantly faster.
+  The architected QARMA algorithm has good cryptographic properties,
+  but can be quite slow to emulate.  The impdef algorithm used by QEMU
+  is non-cryptographic but significantly faster.
 
 SVE CPU Properties
 ==================
