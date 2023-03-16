@@ -119,6 +119,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
     elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:
+            assert not memb.ifcond.is_present()
             ret += sep
             sep = ', '
             if memb.need_has():

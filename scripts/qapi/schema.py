@@ -486,6 +486,10 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert self.members is not None
         return not self.members and not self.variants
 
+    def has_conditional_members(self):
+        assert self.members is not None
+        return any(m.ifcond.is_present() for m in self.members)
+
     def c_name(self):
         assert self.name != 'q_empty'
         return super().c_name()
@@ -817,6 +821,11 @@ class QAPISchemaCommand(QAPISchemaEntity):
                     self.info,
                     "command's 'data' can take %s only with 'boxed': true"
                     % self.arg_type.describe())
+            self.arg_type.check(schema)
+            if self.arg_type.has_conditional_members() and not self.boxed:
+                raise QAPISemError(
+                    self.info,
+                    "conditional command arguments require 'boxed': true")
         if self._ret_type_name:
             self.ret_type = schema.resolve_type(
                 self._ret_type_name, self.info, "command's 'returns'")
@@ -872,6 +881,11 @@ class QAPISchemaEvent(QAPISchemaEntity):
                     self.info,
                     "event's 'data' can take %s only with 'boxed': true"
                     % self.arg_type.describe())
+            self.arg_type.check(schema)
+            if self.arg_type.has_conditional_members() and not self.boxed:
+                raise QAPISemError(
+                    self.info,
+                    "conditional event arguments require 'boxed': true")
 
     def connect_doc(self, doc=None):
         super().connect_doc(doc)

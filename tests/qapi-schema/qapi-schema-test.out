@@ -283,23 +283,13 @@ object q_obj_test-if-alternate-cmd-arg
 command test-if-alternate-cmd q_obj_test-if-alternate-cmd-arg -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
     if {'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT']}
-object q_obj_test-if-cmd-arg
-    member foo: TestIfStruct optional=False
-    member bar: str optional=False
-        if TEST_IF_CMD_ARG
-    if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
-command test-if-cmd q_obj_test-if-cmd-arg -> UserDefThree
-    gen=True success_response=True boxed=False oob=False preconfig=False
+command test-if-cmd TestIfStruct -> UserDefThree
+    gen=True success_response=True boxed=True oob=False preconfig=False
     if {'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT']}
 command test-cmd-return-def-three None -> UserDefThree
     gen=True success_response=True boxed=False oob=False preconfig=False
-object q_obj_TEST_IF_EVENT-arg
-    member foo: TestIfStruct optional=False
-    member bar: strList optional=False
-        if TEST_IF_EVT_ARG
-    if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
-event TEST_IF_EVENT q_obj_TEST_IF_EVENT-arg
-    boxed=False
+event TEST_IF_EVENT TestIfStruct
+    boxed=True
     if {'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT']}
 event TEST_IF_EVENT2 None
     boxed=False

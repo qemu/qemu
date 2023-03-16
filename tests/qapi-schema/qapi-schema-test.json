@@ -249,17 +249,16 @@
   'if': { 'all': ['TEST_IF_ALT', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-if-cmd',
-  'data': {
-    'foo': 'TestIfStruct',
-    'bar': { 'type': 'str', 'if': 'TEST_IF_CMD_ARG' } },
+  'boxed': true,
+  'data': 'TestIfStruct',
   'returns': 'UserDefThree',
   'if': { 'all': ['TEST_IF_CMD', 'TEST_IF_STRUCT'] } }
 
 { 'command': 'test-cmd-return-def-three', 'returns': 'UserDefThree' }
 
 { 'event': 'TEST_IF_EVENT',
-  'data': { 'foo': 'TestIfStruct',
-            'bar': { 'type': ['str'], 'if': 'TEST_IF_EVT_ARG' } },
+  'boxed': true,
+  'data': 'TestIfStruct',
   'if': { 'all': ['TEST_IF_EVT', 'TEST_IF_STRUCT'] } }
 
 { 'event': 'TEST_IF_EVENT2', 'data': {},

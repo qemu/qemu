@@ -27,6 +27,8 @@ schemas = [
   'args-bad-boxed.json',
   'args-boxed-anon.json',
   'args-boxed-string.json',
+  'args-if-implicit.json',
+  'args-if-unboxed.json',
   'args-int.json',
   'args-invalid.json',
   'args-member-array-bad.json',
