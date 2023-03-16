@@ -344,15 +344,14 @@ def check_type_name_or_array(value: Optional[object],
     if value is None or isinstance(value, str):
         return
 
-    if isinstance(value, list):
-        if len(value) != 1 or not isinstance(value[0], str):
-            raise QAPISemError(info,
-                               "%s: array type must contain single type name" %
-                               source)
-        return
+    if not isinstance(value, list):
+        raise QAPISemError(info,
+                           "%s should be a type name or array" % source)
 
-    raise QAPISemError(info,
-                       "%s should be a type name" % source)
+    if len(value) != 1 or not isinstance(value[0], str):
+        raise QAPISemError(info,
+                           "%s: array type must contain single type name" %
+                           source)
 
 
 def check_type_name_or_implicit(value: Optional[object],
