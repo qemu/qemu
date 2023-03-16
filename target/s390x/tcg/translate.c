@@ -5899,7 +5899,8 @@ static void in2_mri2_32s(DisasContext *s, DisasOps *o)
 static void in2_mri2_32u(DisasContext *s, DisasOps *o)
 {
     o->in2 = tcg_temp_new_i64();
-    tcg_gen_qemu_ld32u(o->in2, gen_ri2(s), get_mem_index(s));
+    tcg_gen_qemu_ld_tl(o->in2, gen_ri2(s), get_mem_index(s),
+                       MO_TEUL | MO_ALIGN);
 }
 #define SPEC_in2_mri2_32u 0
 
