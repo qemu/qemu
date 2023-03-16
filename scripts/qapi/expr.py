@@ -341,9 +341,6 @@ def check_type_name(value: Optional[object],
     if isinstance(value, str):
         return
 
-    if isinstance(value, list):
-        raise QAPISemError(info, "%s cannot be an array" % source)
-
     raise QAPISemError(info, "%s should be a type name" % source)
 
 
@@ -391,9 +388,6 @@ def check_type_name_or_implicit(value: Optional[object],
 
     if isinstance(value, str):
         return
-
-    if isinstance(value, list):
-        raise QAPISemError(info, "%s cannot be an array" % source)
 
     if not isinstance(value, dict):
         raise QAPISemError(info,
