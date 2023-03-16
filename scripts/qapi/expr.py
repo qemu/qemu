@@ -335,21 +335,13 @@ def normalize_members(members: object) -> None:
 
 def check_type_name(value: Optional[object],
                     info: QAPISourceInfo, source: str) -> None:
-    if value is None:
-        return
-
-    if isinstance(value, str):
-        return
-
-    raise QAPISemError(info, "%s should be a type name" % source)
+    if value is not None and not isinstance(value, str):
+        raise QAPISemError(info, "%s should be a type name" % source)
 
 
 def check_type_name_or_array(value: Optional[object],
                              info: QAPISourceInfo, source: str) -> None:
-    if value is None:
-        return
-
-    if isinstance(value, str):
+    if value is None or isinstance(value, str):
         return
 
     if isinstance(value, list):
