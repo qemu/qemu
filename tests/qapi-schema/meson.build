@@ -164,6 +164,7 @@ schemas = [
   'struct-base-clash-deep.json',
   'struct-base-clash.json',
   'struct-data-invalid.json',
+  'struct-data-typename.json',
   'struct-member-if-invalid.json',
   'struct-member-invalid-dict.json',
   'struct-member-invalid.json',

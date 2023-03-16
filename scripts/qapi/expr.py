@@ -354,14 +354,14 @@ def check_type_name_or_array(value: Optional[object],
                            source)
 
 
-def check_type_name_or_implicit(value: Optional[object],
-                                info: QAPISourceInfo, source: str,
-                                parent_name: Optional[str]) -> None:
+def check_type_implicit(value: Optional[object],
+                        info: QAPISourceInfo, source: str,
+                        parent_name: Optional[str]) -> None:
     """
     Normalize and validate an optional implicit struct type.
 
-    Accept ``None``, ``str``, or a ``dict`` defining an implicit
-    struct type.  The latter is normalized in place.
+    Accept ``None`` or a ``dict`` defining an implicit struct type.
+    The latter is normalized in place.
 
     :param value: The value to check.
     :param info: QAPI schema source file information.
@@ -375,9 +375,6 @@ def check_type_name_or_implicit(value: Optional[object],
     :return: None
     """
     if value is None:
-        return
-
-    if isinstance(value, str):
         return
 
     if not isinstance(value, dict):
@@ -399,6 +396,15 @@ def check_type_name_or_implicit(value: Optional[object],
         check_if(arg, info, key_source)
         check_features(arg.get('features'), info)
         check_type_name_or_array(arg['type'], info, key_source)
+
+
+def check_type_name_or_implicit(value: Optional[object],
+                                info: QAPISourceInfo, source: str,
+                                parent_name: Optional[str]) -> None:
+    if value is None or isinstance(value, str):
+        return
+
+    check_type_implicit(value, info, source, parent_name)
 
 
 def check_features(features: Optional[object],
@@ -486,7 +492,7 @@ def check_struct(expr: QAPIExpression) -> None:
     name = cast(str, expr['struct'])  # Checked in check_exprs
     members = expr['data']
 
-    check_type_name_or_implicit(members, expr.info, "'data'", name)
+    check_type_implicit(members, expr.info, "'data'", name)
     check_type_name(expr.get('base'), expr.info, "'base'")
 
 
