@@ -518,7 +518,7 @@ def check_union(expr: QAPIExpression) -> None:
         source = "'data' member '%s'" % key
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        check_type(value['type'], info, source, allow_array=not base)
+        check_type(value['type'], info, source)
 
 
 def check_alternate(expr: QAPIExpression) -> None:
