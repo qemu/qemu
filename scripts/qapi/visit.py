@@ -74,11 +74,13 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
     sep = ''
     for memb in members:
         if memb.optional and not memb.need_has():
+            ret += memb.ifcond.gen_if()
             ret += mcgen('''
     bool has_%(c_name)s = !!obj->%(c_name)s;
 ''',
                          c_name=c_name(memb.name))
             sep = '\n'
+            ret += memb.ifcond.gen_endif()
     ret += sep
 
     if base:
