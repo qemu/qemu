@@ -247,6 +247,8 @@ object TestIfStruct
     member foo: int optional=False
     member bar: int optional=False
         if TEST_IF_STRUCT_MEMBER
+    member baz: str optional=True
+        if TEST_IF_STRUCT_MEMBER
     if TEST_IF_STRUCT
 enum TestIfEnum
     member foo

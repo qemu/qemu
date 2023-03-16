@@ -220,7 +220,8 @@
 
 { 'struct': 'TestIfStruct',
   'data': { 'foo': 'int',
-            'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_MEMBER'} },
+            'bar': { 'type': 'int', 'if': 'TEST_IF_STRUCT_MEMBER'},
+            '*baz': { 'type': 'str', 'if': 'TEST_IF_STRUCT_MEMBER'} },
   'if': 'TEST_IF_STRUCT' }
 
 { 'enum': 'TestIfEnum',
