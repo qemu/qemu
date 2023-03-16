@@ -4111,7 +4111,7 @@ static void rdma_accept_incoming_migration(void *opaque)
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
 {
     int ret;
-    RDMAContext *rdma, *rdma_return_path = NULL;
+    RDMAContext *rdma;
     Error *local_err = NULL;
 
     trace_rdma_start_incoming_migration();
@@ -4157,7 +4157,6 @@ err:
         g_free(rdma->host_port);
     }
     g_free(rdma);
-    g_free(rdma_return_path);
 }
 
 void rdma_start_outgoing_migration(void *opaque,
