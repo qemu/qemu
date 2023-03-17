@@ -2462,13 +2462,17 @@ static bool kvm_dirty_ring_supported(void)
 
 int main(int argc, char **argv)
 {
-    const bool has_kvm = qtest_has_accel("kvm");
-    const bool has_uffd = ufd_version_check();
-    const char *arch = qtest_get_arch();
+    bool has_kvm;
+    bool has_uffd;
+    const char *arch;
     g_autoptr(GError) err = NULL;
     int ret;
 
     g_test_init(&argc, &argv, NULL);
+
+    has_kvm = qtest_has_accel("kvm");
+    has_uffd = ufd_version_check();
+    arch = qtest_get_arch();
 
     /*
      * On ppc64, the test only works with kvm-hv, but not with kvm-pr and TCG
