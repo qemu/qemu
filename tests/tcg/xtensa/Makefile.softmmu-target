@@ -2,7 +2,8 @@
 # Xtensa softmmu tests
 #
 
-ifneq ($(TARGET_BIG_ENDIAN),y)
+CORE=dc232b
+ifneq ($(shell $(QEMU) -cpu help | grep -w $(CORE)),)
 
 XTENSA_SRC = $(SRC_PATH)/tests/tcg/xtensa
 XTENSA_ALL = $(filter-out $(XTENSA_SRC)/linker.ld.S,$(wildcard $(XTENSA_SRC)/*.S))
@@ -15,7 +16,6 @@ XTENSA_USABLE_TESTS = $(filter-out $(XTENSA_BROKEN_TESTS), $(XTENSA_TESTS))
 TESTS += $(XTENSA_USABLE_TESTS)
 VPATH += $(XTENSA_SRC)
 
-CORE=dc232b
 QEMU_OPTS+=-M sim -cpu $(CORE) -nographic -semihosting -icount 6 $(EXTFLAGS) -kernel
 
 INCLUDE_DIRS = $(SRC_PATH)/target/xtensa/core-$(CORE)
@@ -26,6 +26,7 @@ ASFLAGS = -Wa,--no-absolute-literals
 LDFLAGS = -Tlinker.ld -nostartfiles -nostdlib
 
 CRT        = crt.o vectors.o
+CLEANFILES += linker.ld
 
 linker.ld: linker.ld.S
 	$(CC) $(XTENSA_INC) -E -P $< -o $@
