@@ -149,7 +149,6 @@ static inline int s390_probe_access(CPUArchState *env, target_ulong addr,
                                    nonfault, phost, ra);
 
     if (unlikely(flags & TLB_INVALID_MASK)) {
-        assert(!nonfault);
 #ifdef CONFIG_USER_ONLY
         /* Address is in TEC in system mode; see s390_cpu_record_sigsegv. */
         env->__excp_addr = addr & TARGET_PAGE_MASK;
