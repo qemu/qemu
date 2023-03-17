@@ -354,6 +354,7 @@ static void virtio_mmio_write(void *opaque, hwaddr offset, uint64_t value,
         if (proxy->legacy) {
             virtio_queue_update_rings(vdev, vdev->queue_sel);
         } else {
+            virtio_init_region_cache(vdev, vdev->queue_sel);
             proxy->vqs[vdev->queue_sel].num = value;
         }
         break;
