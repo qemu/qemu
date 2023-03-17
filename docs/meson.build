@@ -7,7 +7,7 @@ if sphinx_build.found()
   SPHINX_ARGS = ['env', 'CONFDIR=' + qemu_confdir, sphinx_build, '-q']
   # If we're making warnings fatal, apply this to Sphinx runs as well
   if get_option('werror')
-    SPHINX_ARGS += [ '-W' ]
+    SPHINX_ARGS += [ '-W', '-Dkerneldoc_werror=1' ]
   endif
 
   # This is a bit awkward but works: create a trivial document and
