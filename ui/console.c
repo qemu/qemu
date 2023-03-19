@@ -2303,6 +2303,9 @@ QemuConsole *qemu_console_lookup_unused(void)
 
 QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
 {
+    if (con == NULL) {
+        con = active_console;
+    }
     return con->cursor;
 }
 
