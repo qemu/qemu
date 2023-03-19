@@ -2306,7 +2306,7 @@ QEMUCursor *qemu_console_get_cursor(QemuConsole *con)
     if (con == NULL) {
         con = active_console;
     }
-    return con->cursor;
+    return con ? con->cursor : NULL;
 }
 
 bool qemu_console_is_visible(QemuConsole *con)
