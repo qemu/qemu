@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ def main():
     ##
     with open(sys.argv[3], 'w') as f:
         for tag in hex_common.tags:
-            f.write('OP_ATTRIB(%s,ATTRIBS(%s))\n' % \
-                (tag, ','.join(sorted(hex_common.attribdict[tag]))))
+            f.write(f'OP_ATTRIB({tag},ATTRIBS('
+                    f'{",".join(sorted(hex_common.attribdict[tag]))}))\n')
 
 if __name__ == "__main__":
     main()

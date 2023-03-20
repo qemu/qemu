@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import string
 import hex_common
 
 def gen_shortcode(f, tag):
-    f.write('DEF_SHORTCODE(%s, %s)\n' % (tag, hex_common.semdict[tag]))
+    f.write(f'DEF_SHORTCODE({tag}, {hex_common.semdict[tag]})\n')
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])

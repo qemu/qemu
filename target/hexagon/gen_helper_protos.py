@@ -47,9 +47,9 @@ def_helper_types_pair = {
 
 def gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i):
     if (hex_common.is_pair(regid)):
-        f.write(", %s" % (def_helper_types_pair[regtype]))
+        f.write(f", {def_helper_types_pair[regtype]}")
     elif (hex_common.is_single(regid)):
-        f.write(", %s" % (def_helper_types[regtype]))
+        f.write(f", {def_helper_types[regtype]}")
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
@@ -77,7 +77,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
 
     if (numscalarresults > 1):
         ## The helper is bogus when there is more than one result
-        f.write('DEF_HELPER_1(%s, void, env)\n' % tag)
+        f.write(f'DEF_HELPER_1({tag}, void, env)\n')
     else:
         ## Figure out how many arguments the helper will take
         if (numscalarresults == 0):
@@ -88,7 +88,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_PC(tag): def_helper_size += 1
             if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
             if hex_common.need_condexec_reg(tag, regs): def_helper_size += 1
-            f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
+            f.write(f'DEF_HELPER_{def_helper_size}({tag}')
             ## The return type is void
             f.write(', void' )
         else:
@@ -99,7 +99,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             if hex_common.need_PC(tag): def_helper_size += 1
             if hex_common.need_condexec_reg(tag, regs): def_helper_size += 1
             if hex_common.helper_needs_next_PC(tag): def_helper_size += 1
-            f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
+            f.write(f'DEF_HELPER_{def_helper_size}({tag}')
 
         ## Generate the qemu DEF_HELPER type for each result
         ## Iterate over this list twice

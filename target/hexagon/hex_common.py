@@ -55,7 +55,7 @@ def expand_macro_attribs(macro,allmac_re):
         for submacro in l:
             if not submacro: continue
             if not macros[submacro]:
-                raise Exception("Couldn't find macro: <%s>" % l)
+                raise Exception(f"Couldn't find macro: <{l}>")
             macro.attribs |= expand_macro_attribs(
                 macros[submacro], allmac_re)
             finished_macros.add(macro.key)
@@ -258,7 +258,7 @@ def is_idef_parser_enabled(tag):
     return tag in idef_parser_enabled
 
 def imm_name(immlett):
-    return "%siV" % immlett
+    return f"{immlett}iV"
 
 def read_semantics_file(name):
     eval_line = ""

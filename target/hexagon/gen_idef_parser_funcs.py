@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2022 rev.ng Labs Srl. All Rights Reserved.
+##  Copyright(c) 2019-2023 rev.ng Labs Srl. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -110,20 +110,20 @@ def main():
                                  and hex_common.is_new_val(regtype, regid, tag))
 
                 if is_pair or is_single_old:
-                    arguments.append("%s%s%sV" % (prefix, regtype, regid))
+                    arguments.append(f"{prefix}{regtype}{regid}V")
                 elif is_single_new:
-                    arguments.append("%s%s%sN" % (prefix, regtype, regid))
+                    arguments.append(f"{prefix}{regtype}{regid}N")
                 else:
                     print("Bad register parse: ",regtype,regid,toss,numregs)
 
             for immlett,bits,immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))
 
-            f.write("%s(%s) {\n" % (tag, ", ".join(arguments)))
+            f.write(f"{tag}({', '.join(arguments)}) {{\n")
             f.write("    ");
             if hex_common.need_ea(tag):
                 f.write("size4u_t EA; ");
-            f.write("%s\n" % hex_common.semdict[tag])
+            f.write(f"{hex_common.semdict[tag]}\n")
             f.write("}\n\n")
 
 if __name__ == "__main__":

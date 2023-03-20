@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ def main():
             if ( tag == "Y6_diag1" ) :
                 continue
 
-            f.write("    [%s] = generate_%s,\n" % (tag, tag))
+            f.write(f"    [{tag}] = generate_{tag},\n")
         f.write("};\n\n")
 
         f.write("#endif    /* HEXAGON_FUNC_TABLE_H */\n")

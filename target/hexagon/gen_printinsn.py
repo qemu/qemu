@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ def main():
             if ("A_VECX" in hex_common.attribdict[tag]):
                 macname = "DEF_VECX_PRINTINFO"
             else: macname = "DEF_PRINTINFO"
-            f.write('%s(%s,"%s%%s"' % (macname,tag,beh))
+            f.write(f'{macname}({tag},"{beh}%s"')
             regs_or_imms = \
                 hex_common.reg_or_immre.findall(hex_common.behdict[tag])
             ri = 0
@@ -132,14 +132,14 @@ def main():
                     else:
                         regno = ri
                     if len(b) == 1:
-                        f.write(', insn->regno[%d]' % regno)
+                        f.write(f', insn->regno[{regno}]')
                         if 'S' in a:
-                            f.write(', sreg2str(insn->regno[%d])' % regno)
+                            f.write(f', sreg2str(insn->regno[{regno}])')
                         elif 'C' in a:
-                            f.write(', creg2str(insn->regno[%d])' % regno)
+                            f.write(f', creg2str(insn->regno[{regno}])')
                     elif len(b) == 2:
-                        f.write(', insn->regno[%d] + 1, insn->regno[%d]' % \
-                            (regno,regno))
+                        f.write(f', insn->regno[{regno}] + 1'
+                                f', insn->regno[{regno}]')
                     else:
                         print("Put some stuff to handle quads here")
                     if b not in seenregs:
@@ -165,7 +165,7 @@ def main():
                         else:
                             f.write(',""')
                         ii = 0
-                    f.write(', insn->immed[%d]' % ii)
+                    f.write(f', insn->immed[{ii}]')
             # append empty string so there is at least one more arg
             f.write(',"")\n')
 

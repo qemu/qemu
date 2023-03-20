@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 ##
-##  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+##  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
 ##
 ##  This program is free software; you can redistribute it and/or modify
 ##  it under the terms of the GNU General Public License as published by
@@ -85,25 +85,25 @@ def main():
                 if hex_common.attribinfo[attrib]['wreg']:
                     wregs.append(strip_reg_prefix(attribinfo[attrib]['wreg']))
             regids += calculate_regid_letters(tag)
-            f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")\n' % \
-                (tag,regids,",".join(rregs),",".join(wregs)))
+            f.write(f'REGINFO({tag},"{regids}",\t/*RD:*/\t"{",".join(rregs)}",'
+                    f'\t/*WR:*/\t"{",".join(wregs)}")\n')
 
         for tag in hex_common.tags:
             imms = tagimms[tag]
-            f.write( 'IMMINFO(%s' % tag)
+            f.write(f'IMMINFO({tag}')
             if not imms:
                 f.write(''','u',0,0,'U',0,0''')
             for sign,size,shamt in imms:
                 if sign == 'r': sign = 's'
                 if not shamt:
                     shamt = "0"
-                f.write(''','%s',%s,%s''' % (sign,size,shamt))
+                f.write(f''','{sign}',{size},{shamt}''')
             if len(imms) == 1:
                 if sign.isupper():
                     myu = 'u'
                 else:
                     myu = 'U'
-                f.write(''','%s',0,0''' % myu)
+                f.write(f''','{myu}',0,0''')
             f.write(')\n')
 
 if __name__ == "__main__":
