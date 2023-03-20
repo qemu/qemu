@@ -304,11 +304,20 @@ dbus_display_add_client(int csock, Error **errp)
         g_cancellable_cancel(dbus_display->add_client_cancellable);
     }
 
+#ifdef WIN32
+    socket = g_socket_new_from_fd(_get_osfhandle(csock), &err);
+#else
     socket = g_socket_new_from_fd(csock, &err);
+#endif
     if (!socket) {
         error_setg(errp, "Failed to setup D-Bus socket: %s", err->message);
+        close(csock);
         return false;
     }
+#ifdef WIN32
+    /* socket owns the SOCKET handle now, so release our osf handle */
+    qemu_close_socket_osfhandle(csock);
+#endif
 
     conn = g_socket_connection_factory_create_connection(socket);
 
