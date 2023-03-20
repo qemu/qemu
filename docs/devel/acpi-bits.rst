@@ -135,7 +135,7 @@ Under ``tests/avocado/`` as the root we have:
    (c) They need not be loaded by avocado framework when running tests.
 
 
-Author: Ani Sinha <ani@anisinha.ca>
+Author: Ani Sinha <anisinha@redhat.com>
 
 References:
 -----------
