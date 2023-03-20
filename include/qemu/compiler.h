@@ -33,8 +33,8 @@
 #ifndef glue
 #define xglue(x, y) x ## y
 #define glue(x, y) xglue(x, y)
-#define stringify(s)	tostring(s)
-#define tostring(s)	#s
+#define stringify(s) tostring(s)
+#define tostring(s) #s
 #endif
 
 #ifndef likely

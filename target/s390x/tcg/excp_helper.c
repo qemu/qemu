@@ -85,8 +85,8 @@ void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)
 
 /*
  * Unaligned accesses are only diagnosed with MO_ALIGN.  At the moment,
- * this is only for the atomic operations, for which we want to raise a
- * specification exception.
+ * this is only for the atomic and relative long operations, for which we want
+ * to raise a specification exception.
  */
 static G_NORETURN
 void do_unaligned_access(CPUState *cs, uintptr_t retaddr)
@@ -212,7 +212,8 @@ static void do_program_interrupt(CPUS390XState *env)
     LowCore *lowcore;
     int ilen = env->int_pgm_ilen;
 
-    assert(ilen == 2 || ilen == 4 || ilen == 6);
+    assert((env->int_pgm_code == PGM_SPECIFICATION && ilen == 0) ||
+           ilen == 2 || ilen == 4 || ilen == 6);
 
     switch (env->int_pgm_code) {
     case PGM_PER:

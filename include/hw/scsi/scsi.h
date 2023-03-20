@@ -8,7 +8,7 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 
-#define MAX_SCSI_DEVS	255
+#define MAX_SCSI_DEVS 255
 
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusInfo SCSIBusInfo;

@@ -151,7 +151,7 @@ static QSLIST_HEAD(, list_element) Q_list_head;
 
 #define TEST_NAME "qslist"
 #define TEST_LIST_REMOVE_RCU(el, f)                              \
-	 QSLIST_REMOVE_RCU(&Q_list_head, el, list_element, f)
+         QSLIST_REMOVE_RCU(&Q_list_head, el, list_element, f)
 
 #define TEST_LIST_INSERT_AFTER_RCU(list_el, el, f)               \
          QSLIST_INSERT_AFTER_RCU(&Q_list_head, list_el, el, f)

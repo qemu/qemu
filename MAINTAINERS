@@ -257,9 +257,9 @@ F: docs/system/cpu-models-mips.rst.inc
 F: tests/tcg/mips/
 
 NiosII TCG CPUs
-M: Chris Wulff <crwulff@gmail.com>
-M: Marek Vasut <marex@denx.de>
-S: Maintained
+R: Chris Wulff <crwulff@gmail.com>
+R: Marek Vasut <marex@denx.de>
+S: Orphan
 F: target/nios2/
 F: hw/nios2/
 F: disas/nios2.c

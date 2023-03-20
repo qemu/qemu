@@ -149,7 +149,6 @@ static inline int s390_probe_access(CPUArchState *env, target_ulong addr,
                                    nonfault, phost, ra);
 
     if (unlikely(flags & TLB_INVALID_MASK)) {
-        assert(!nonfault);
 #ifdef CONFIG_USER_ONLY
         /* Address is in TEC in system mode; see s390_cpu_record_sigsegv. */
         env->__excp_addr = addr & TARGET_PAGE_MASK;
@@ -2468,8 +2467,16 @@ void HELPER(stpq_parallel)(CPUS390XState *env, uint64_t addr,
 */
 void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
 {
-    uint64_t insn = cpu_lduw_code(env, addr);
-    uint8_t opc = insn >> 8;
+    uint64_t insn;
+    uint8_t opc;
+
+    /* EXECUTE targets must be at even addresses.  */
+    if (addr & 1) {
+        tcg_s390_program_interrupt(env, PGM_SPECIFICATION, GETPC());
+    }
+
+    insn = cpu_lduw_code(env, addr);
+    opc = insn >> 8;
 
     /* Or in the contents of R1[56:63].  */
     insn |= r1 & 0xff;
@@ -2530,6 +2537,7 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
        that ex_value is non-zero, which flags that we are in a state
        that requires such execution.  */
     env->ex_value = insn | ilen;
+    env->ex_target = addr;
 }
 
 uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,

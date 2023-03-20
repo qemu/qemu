@@ -531,6 +531,13 @@ int main(int argc, char **argv)
     g_test_add_func("/blockjob/cancel/standby", test_cancel_standby);
     g_test_add_func("/blockjob/cancel/pending", test_cancel_pending);
     g_test_add_func("/blockjob/cancel/concluded", test_cancel_concluded);
-    g_test_add_func("/blockjob/complete_in_standby", test_complete_in_standby);
+
+    /*
+     * This test is flaky and sometimes fails in CI and otherwise:
+     * don't run unless user opts in via environment variable.
+     */
+    if (getenv("QEMU_TEST_FLAKY_TESTS")) {
+        g_test_add_func("/blockjob/complete_in_standby", test_complete_in_standby);
+    }
     return g_test_run();
 }

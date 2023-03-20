@@ -34,28 +34,28 @@ struct ADS7846State {
 OBJECT_DECLARE_SIMPLE_TYPE(ADS7846State, ADS7846)
 
 /* Control-byte bitfields */
-#define CB_PD0		(1 << 0)
-#define CB_PD1		(1 << 1)
-#define CB_SER		(1 << 2)
-#define CB_MODE		(1 << 3)
-#define CB_A0		(1 << 4)
-#define CB_A1		(1 << 5)
-#define CB_A2		(1 << 6)
-#define CB_START	(1 << 7)
+#define CB_PD0          (1 << 0)
+#define CB_PD1          (1 << 1)
+#define CB_SER          (1 << 2)
+#define CB_MODE         (1 << 3)
+#define CB_A0           (1 << 4)
+#define CB_A1           (1 << 5)
+#define CB_A2           (1 << 6)
+#define CB_START        (1 << 7)
 
-#define X_AXIS_DMAX	3470
-#define X_AXIS_MIN	290
-#define Y_AXIS_DMAX	3450
-#define Y_AXIS_MIN	200
+#define X_AXIS_DMAX     3470
+#define X_AXIS_MIN      290
+#define Y_AXIS_DMAX     3450
+#define Y_AXIS_MIN      200
 
-#define ADS_VBAT	2000
-#define ADS_VAUX	2000
-#define ADS_TEMP0	2000
-#define ADS_TEMP1	3000
-#define ADS_XPOS(x, y)	(X_AXIS_MIN + ((X_AXIS_DMAX * (x)) >> 15))
-#define ADS_YPOS(x, y)	(Y_AXIS_MIN + ((Y_AXIS_DMAX * (y)) >> 15))
-#define ADS_Z1POS(x, y)	600
-#define ADS_Z2POS(x, y)	(600 + 6000 / ADS_XPOS(x, y))
+#define ADS_VBAT        2000
+#define ADS_VAUX        2000
+#define ADS_TEMP0       2000
+#define ADS_TEMP1       3000
+#define ADS_XPOS(x, y)  (X_AXIS_MIN + ((X_AXIS_DMAX * (x)) >> 15))
+#define ADS_YPOS(x, y)  (Y_AXIS_MIN + ((Y_AXIS_DMAX * (y)) >> 15))
+#define ADS_Z1POS(x, y) 600
+#define ADS_Z2POS(x, y) (600 + 6000 / ADS_XPOS(x, y))
 
 static void ads7846_int_update(ADS7846State *s)
 {
@@ -86,7 +86,7 @@ static uint32_t ads7846_transfer(SSIPeripheral *dev, uint32_t value)
         }
 
         if (value & CB_MODE)
-            s->output >>= 4;	/* 8 bits instead of 12 */
+            s->output >>= 4;    /* 8 bits instead of 12 */
 
         break;
     case 1:
@@ -147,10 +147,10 @@ static void ads7846_realize(SSIPeripheral *d, Error **errp)
 
     qdev_init_gpio_out(dev, &s->interrupt, 1);
 
-    s->input[0] = ADS_TEMP0;	/* TEMP0 */
-    s->input[2] = ADS_VBAT;	/* VBAT */
-    s->input[6] = ADS_VAUX;	/* VAUX */
-    s->input[7] = ADS_TEMP1;	/* TEMP1 */
+    s->input[0] = ADS_TEMP0;    /* TEMP0 */
+    s->input[2] = ADS_VBAT;     /* VBAT */
+    s->input[6] = ADS_VAUX;     /* VAUX */
+    s->input[7] = ADS_TEMP1;    /* TEMP1 */
 
     /* We want absolute coordinates */
     qemu_add_mouse_event_handler(ads7846_ts_event, s, 1,

@@ -3175,7 +3175,7 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
      * cache->xlat and the end of the section.
      */
     diff = int128_sub(cache->mrs.size,
-		      int128_make64(cache->xlat - cache->mrs.offset_within_region));
+                      int128_make64(cache->xlat - cache->mrs.offset_within_region));
     l = int128_get64(int128_min(diff, int128_make64(l)));
 
     mr = cache->mrs.mr;
