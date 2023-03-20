@@ -40,6 +40,8 @@
 #define TPM_TIS_REG_STS                   0x18
 #define TPM_TIS_REG_DATA_FIFO             0x24
 #define TPM_TIS_REG_INTERFACE_ID          0x30
+#define TPM_TIS_REG_DATA_CSUM_ENABLE      0x40
+#define TPM_TIS_REG_DATA_CSUM_GET         0x44
 #define TPM_TIS_REG_DATA_XFIFO            0x80
 #define TPM_TIS_REG_DATA_XFIFO_END        0xbc
 #define TPM_TIS_REG_DID_VID               0xf00
@@ -127,6 +129,7 @@
      TPM_TIS_IFACE_ID_CAP_TIS_SUPPORTED)
 
 #define TPM_TIS_TPM_DID       0x0001
+/* #define TPM_TIS_TPM_VID       0x1050   Nuvoton Technology */
 #define TPM_TIS_TPM_VID       PCI_VENDOR_ID_IBM
 #define TPM_TIS_TPM_RID       0x0001
 

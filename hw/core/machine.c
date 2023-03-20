@@ -662,6 +662,9 @@ bool device_type_is_dynamic_sysbus(MachineClass *mc, const char *type)
     strList *wl;
     ObjectClass *klass = object_class_by_name(type);
 
+    /* TODO: Find solution to not check this for i2c */
+    if (!mc->allowed_dynamic_sysbus_devices) return true;
+
     for (wl = mc->allowed_dynamic_sysbus_devices;
          !allowed && wl;
          wl = wl->next) {
