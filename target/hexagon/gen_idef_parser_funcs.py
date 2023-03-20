@@ -24,6 +24,7 @@ from io import StringIO
 
 import hex_common
 
+
 ##
 ## Generate code to be fed to the idef_parser
 ##
@@ -48,83 +49,99 @@ def main():
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[3], 'w') as f:
+    with open(sys.argv[3], "w") as f:
         f.write('#include "macros.inc"\n\n')
 
         for tag in hex_common.tags:
             ## Skip the priv instructions
-            if ( "A_PRIV" in hex_common.attribdict[tag] ) :
+            if "A_PRIV" in hex_common.attribdict[tag]:
                 continue
             ## Skip the guest instructions
-            if ( "A_GUEST" in hex_common.attribdict[tag] ) :
+            if "A_GUEST" in hex_common.attribdict[tag]:
                 continue
             ## Skip instructions that saturate in a ternary expression
-            if ( tag in {'S2_asr_r_r_sat', 'S2_asl_r_r_sat'} ) :
+            if tag in {"S2_asr_r_r_sat", "S2_asl_r_r_sat"}:
                 continue
             ## Skip instructions using switch
-            if ( tag in {'S4_vrcrotate_acc', 'S4_vrcrotate'} ) :
+            if tag in {"S4_vrcrotate_acc", "S4_vrcrotate"}:
                 continue
             ## Skip trap instructions
-            if ( tag in {'J2_trap0', 'J2_trap1'} ) :
+            if tag in {"J2_trap0", "J2_trap1"}:
                 continue
             ## Skip 128-bit instructions
-            if ( tag in {'A7_croundd_ri', 'A7_croundd_rr'} ) :
+            if tag in {"A7_croundd_ri", "A7_croundd_rr"}:
                 continue
-            if ( tag in {'M7_wcmpyrw', 'M7_wcmpyrwc',
-                         'M7_wcmpyiw', 'M7_wcmpyiwc',
-                         'M7_wcmpyrw_rnd', 'M7_wcmpyrwc_rnd',
-                         'M7_wcmpyiw_rnd', 'M7_wcmpyiwc_rnd'} ) :
+            if tag in {
+                "M7_wcmpyrw",
+                "M7_wcmpyrwc",
+                "M7_wcmpyiw",
+                "M7_wcmpyiwc",
+                "M7_wcmpyrw_rnd",
+                "M7_wcmpyrwc_rnd",
+                "M7_wcmpyiw_rnd",
+                "M7_wcmpyiwc_rnd",
+            }:
                 continue
             ## Skip interleave/deinterleave instructions
-            if ( tag in {'S2_interleave', 'S2_deinterleave'} ) :
+            if tag in {"S2_interleave", "S2_deinterleave"}:
                 continue
             ## Skip instructions using bit reverse
-            if ( tag in {'S2_brev', 'S2_brevp', 'S2_ct0', 'S2_ct1',
-                         'S2_ct0p', 'S2_ct1p', 'A4_tlbmatch'} ) :
+            if tag in {
+                "S2_brev",
+                "S2_brevp",
+                "S2_ct0",
+                "S2_ct1",
+                "S2_ct0p",
+                "S2_ct1p",
+                "A4_tlbmatch",
+            }:
                 continue
             ## Skip other unsupported instructions
-            if ( tag == 'S2_cabacdecbin' or tag == 'A5_ACS' ) :
+            if tag == "S2_cabacdecbin" or tag == "A5_ACS":
                 continue
-            if ( tag.startswith('Y') ) :
+            if tag.startswith("Y"):
                 continue
-            if ( tag.startswith('V6_') ) :
+            if tag.startswith("V6_"):
                 continue
-            if ( tag.startswith('F') ) :
+            if tag.startswith("F"):
                 continue
-            if ( tag.endswith('_locked') ) :
+            if tag.endswith("_locked"):
                 continue
-            if ( "A_COF" in hex_common.attribdict[tag] ) :
+            if "A_COF" in hex_common.attribdict[tag]:
                 continue
 
             regs = tagregs[tag]
             imms = tagimms[tag]
 
             arguments = []
-            for regtype,regid,toss,numregs in regs:
+            for regtype, regid, toss, numregs in regs:
                 prefix = "in " if hex_common.is_read(regid) else ""
 
                 is_pair = hex_common.is_pair(regid)
-                is_single_old = (hex_common.is_single(regid)
-                                 and hex_common.is_old_val(regtype, regid, tag))
-                is_single_new = (hex_common.is_single(regid)
-                                 and hex_common.is_new_val(regtype, regid, tag))
+                is_single_old = hex_common.is_single(regid) and hex_common.is_old_val(
+                    regtype, regid, tag
+                )
+                is_single_new = hex_common.is_single(regid) and hex_common.is_new_val(
+                    regtype, regid, tag
+                )
 
                 if is_pair or is_single_old:
                     arguments.append(f"{prefix}{regtype}{regid}V")
                 elif is_single_new:
                     arguments.append(f"{prefix}{regtype}{regid}N")
                 else:
-                    print("Bad register parse: ",regtype,regid,toss,numregs)
+                    print("Bad register parse: ", regtype, regid, toss, numregs)
 
-            for immlett,bits,immshift in imms:
+            for immlett, bits, immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))
 
             f.write(f"{tag}({', '.join(arguments)}) {{\n")
-            f.write("    ");
+            f.write("    ")
             if hex_common.need_ea(tag):
-                f.write("size4u_t EA; ");
+                f.write("size4u_t EA; ")
             f.write(f"{hex_common.semdict[tag]}\n")
             f.write("}\n\n")
+
 
 if __name__ == "__main__":
     main()

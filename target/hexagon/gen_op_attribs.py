@@ -22,6 +22,7 @@ import re
 import string
 import hex_common
 
+
 def main():
     hex_common.read_semantics_file(sys.argv[1])
     hex_common.read_attribs_file(sys.argv[2])
@@ -30,10 +31,13 @@ def main():
     ##
     ##     Generate all the attributes associated with each instruction
     ##
-    with open(sys.argv[3], 'w') as f:
+    with open(sys.argv[3], "w") as f:
         for tag in hex_common.tags:
-            f.write(f'OP_ATTRIB({tag},ATTRIBS('
-                    f'{",".join(sorted(hex_common.attribdict[tag]))}))\n')
+            f.write(
+                f"OP_ATTRIB({tag},ATTRIBS("
+                f'{",".join(sorted(hex_common.attribdict[tag]))}))\n'
+            )
+
 
 if __name__ == "__main__":
     main()

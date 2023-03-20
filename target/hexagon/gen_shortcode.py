@@ -22,8 +22,10 @@ import re
 import string
 import hex_common
 
+
 def gen_shortcode(f, tag):
-    f.write(f'DEF_SHORTCODE({tag}, {hex_common.semdict[tag]})\n')
+    f.write(f"DEF_SHORTCODE({tag}, {hex_common.semdict[tag]})\n")
+
 
 def main():
     hex_common.read_semantics_file(sys.argv[1])
@@ -32,29 +34,30 @@ def main():
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[3], 'w') as f:
+    with open(sys.argv[3], "w") as f:
         f.write("#ifndef DEF_SHORTCODE\n")
         f.write("#define DEF_SHORTCODE(TAG,SHORTCODE)    /* Nothing */\n")
         f.write("#endif\n")
 
         for tag in hex_common.tags:
             ## Skip the priv instructions
-            if ( "A_PRIV" in hex_common.attribdict[tag] ) :
+            if "A_PRIV" in hex_common.attribdict[tag]:
                 continue
             ## Skip the guest instructions
-            if ( "A_GUEST" in hex_common.attribdict[tag] ) :
+            if "A_GUEST" in hex_common.attribdict[tag]:
                 continue
             ## Skip the diag instructions
-            if ( tag == "Y6_diag" ) :
+            if tag == "Y6_diag":
                 continue
-            if ( tag == "Y6_diag0" ) :
+            if tag == "Y6_diag0":
                 continue
-            if ( tag == "Y6_diag1" ) :
+            if tag == "Y6_diag1":
                 continue
 
             gen_shortcode(f, tag)
 
         f.write("#undef DEF_SHORTCODE\n")
+
 
 if __name__ == "__main__":
     main()

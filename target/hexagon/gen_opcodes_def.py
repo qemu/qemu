@@ -22,15 +22,17 @@ import re
 import string
 import hex_common
 
+
 def main():
     hex_common.read_semantics_file(sys.argv[1])
 
     ##
     ##     Generate a list of all the opcodes
     ##
-    with open(sys.argv[3], 'w') as f:
+    with open(sys.argv[3], "w") as f:
         for tag in hex_common.tags:
             f.write(f"OPCODE({tag}),\n")
+
 
 if __name__ == "__main__":
     main()
