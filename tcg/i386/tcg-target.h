@@ -154,9 +154,9 @@ extern bool have_atomic16;
 #define TCG_TARGET_HAS_mulsh_i32        0
 
 #if TCG_TARGET_REG_BITS == 64
-/* Keep target addresses zero-extended in a register.  */
-#define TCG_TARGET_HAS_extrl_i64_i32    (TARGET_LONG_BITS == 32)
-#define TCG_TARGET_HAS_extrh_i64_i32    (TARGET_LONG_BITS == 32)
+/* Keep 32-bit values zero-extended in a register.  */
+#define TCG_TARGET_HAS_extrl_i64_i32    1
+#define TCG_TARGET_HAS_extrh_i64_i32    1
 #define TCG_TARGET_HAS_div2_i64         1
 #define TCG_TARGET_HAS_rot_i64          1
 #define TCG_TARGET_HAS_ext8s_i64        1
