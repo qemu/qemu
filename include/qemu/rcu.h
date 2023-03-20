@@ -118,19 +118,19 @@ static inline void rcu_read_unlock(void)
     }
 }
 
-extern void synchronize_rcu(void);
+void synchronize_rcu(void);
 
 /*
  * Reader thread registration.
  */
-extern void rcu_register_thread(void);
-extern void rcu_unregister_thread(void);
+void rcu_register_thread(void);
+void rcu_unregister_thread(void);
 
 /*
  * Support for fork().  fork() support is enabled at startup.
  */
-extern void rcu_enable_atfork(void);
-extern void rcu_disable_atfork(void);
+void rcu_enable_atfork(void);
+void rcu_disable_atfork(void);
 
 struct rcu_head;
 typedef void RCUCBFunc(struct rcu_head *head);
@@ -140,8 +140,8 @@ struct rcu_head {
     RCUCBFunc *func;
 };
 
-extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
-extern void drain_call_rcu(void);
+void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
+void drain_call_rcu(void);
 
 /* The operands of the minus operator must have the same type,
  * which must be the one that we specify in the cast.

@@ -73,7 +73,7 @@ typedef struct NPCM7xxOTPClass NPCM7xxOTPClass;
  * Each nibble of data is encoded into a byte, so the number of bytes written
  * to the array will be @len * 2.
  */
-extern void npcm7xx_otp_array_write(NPCM7xxOTPState *s, const void *data,
-                                    unsigned int offset, unsigned int len);
+void npcm7xx_otp_array_write(NPCM7xxOTPState *s, const void *data,
+                             unsigned int offset, unsigned int len);
 
 #endif /* NPCM7XX_OTP_H */

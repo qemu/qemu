@@ -66,8 +66,8 @@ extern "C" {
  * setjmp to _setjmpex instead. However, they are still defined in libmingwex.a,
  * which gets linked automatically.
  */
-extern int __mingw_setjmp(jmp_buf);
-extern void __attribute__((noreturn)) __mingw_longjmp(jmp_buf, int);
+int __mingw_setjmp(jmp_buf);
+void __attribute__((noreturn)) __mingw_longjmp(jmp_buf, int);
 #define setjmp(env) __mingw_setjmp(env)
 #define longjmp(env, val) __mingw_longjmp(env, val)
 #elif defined(_WIN64)

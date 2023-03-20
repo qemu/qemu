@@ -126,8 +126,8 @@
  */
 
 /* The core part of this function is implemented in assembly */
-extern long safe_syscall_base(int *pending, long number, ...);
-extern long safe_syscall_set_errno_tail(int value);
+long safe_syscall_base(int *pending, long number, ...);
+long safe_syscall_set_errno_tail(int value);
 
 /* These are defined by the safe-syscall.inc.S file */
 extern char safe_syscall_start[];
