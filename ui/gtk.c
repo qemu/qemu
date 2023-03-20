@@ -450,7 +450,8 @@ static void gd_mouse_set(DisplayChangeListener *dcl,
     GdkDisplay *dpy;
     gint x_root, y_root;
 
-    if (qemu_input_is_absolute()) {
+    if (!gtk_widget_get_realized(vc->gfx.drawing_area) ||
+        qemu_input_is_absolute()) {
         return;
     }
 
