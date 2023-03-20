@@ -90,13 +90,23 @@ struct SpiceWatch {
 static void watch_read(void *opaque)
 {
     SpiceWatch *watch = opaque;
-    watch->func(watch->fd, SPICE_WATCH_EVENT_READ, watch->opaque);
+    int fd = watch->fd;
+
+#ifdef WIN32
+    fd = _get_osfhandle(fd);
+#endif
+    watch->func(fd, SPICE_WATCH_EVENT_READ, watch->opaque);
 }
 
 static void watch_write(void *opaque)
 {
     SpiceWatch *watch = opaque;
-    watch->func(watch->fd, SPICE_WATCH_EVENT_WRITE, watch->opaque);
+    int fd = watch->fd;
+
+#ifdef WIN32
+    fd = _get_osfhandle(fd);
+#endif
+    watch->func(fd, SPICE_WATCH_EVENT_WRITE, watch->opaque);
 }
 
 static void watch_update_mask(SpiceWatch *watch, int event_mask)
@@ -117,6 +127,14 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 {
     SpiceWatch *watch;
 
+#ifdef WIN32
+    fd = _open_osfhandle(fd, _O_BINARY);
+    if (fd < 0) {
+        error_setg_win32(&error_warn, WSAGetLastError(), "Couldn't associate a FD with the SOCKET");
+        return NULL;
+    }
+#endif
+
     watch = g_malloc0(sizeof(*watch));
     watch->fd     = fd;
     watch->func   = func;
@@ -129,6 +147,10 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 static void watch_remove(SpiceWatch *watch)
 {
     qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
+#ifdef WIN32
+    /* SOCKET is owned by spice */
+    qemu_close_to_socket(watch->fd);
+#endif
     g_free(watch);
 }
 
@@ -908,6 +930,9 @@ static int qemu_spice_set_pw_expire(time_t expires)
 
 static int qemu_spice_display_add_client(int csock, int skipauth, int tls)
 {
+#ifdef WIN32
+    csock = qemu_close_socket_osfhandle(csock);
+#endif
     if (tls) {
         return spice_server_add_ssl_client(spice_server, csock, skipauth);
     } else {
