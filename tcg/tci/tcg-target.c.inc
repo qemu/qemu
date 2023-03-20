@@ -243,7 +243,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     return false;
 }
 
-static void stack_bounds_check(TCGReg base, target_long offset)
+static void stack_bounds_check(TCGReg base, intptr_t offset)
 {
     if (base == TCG_REG_CALL_STACK) {
         tcg_debug_assert(offset >= 0);
@@ -850,24 +850,23 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_qemu_ld_a32_i32:
-    case INDEX_op_qemu_ld_a64_i32:
     case INDEX_op_qemu_st_a32_i32:
+        tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
+        break;
+    case INDEX_op_qemu_ld_a64_i32:
     case INDEX_op_qemu_st_a64_i32:
-        if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
+    case INDEX_op_qemu_ld_a32_i64:
+    case INDEX_op_qemu_st_a32_i64:
+        if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
         } else {
             tcg_out_op_rrrm(s, opc, args[0], args[1], args[2], args[3]);
         }
         break;
-
-    case INDEX_op_qemu_ld_a32_i64:
     case INDEX_op_qemu_ld_a64_i64:
-    case INDEX_op_qemu_st_a32_i64:
     case INDEX_op_qemu_st_a64_i64:
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
-        } else if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-            tcg_out_op_rrrm(s, opc, args[0], args[1], args[2], args[3]);
         } else {
             tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[4]);
             tcg_out_op_rrrrr(s, opc, args[0], args[1],

@@ -286,7 +286,7 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
     return result;
 }
 
-static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
+static uint64_t tci_qemu_ld(CPUArchState *env, uint64_t taddr,
                             MemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi);
@@ -312,7 +312,7 @@ static uint64_t tci_qemu_ld(CPUArchState *env, target_ulong taddr,
     }
 }
 
-static void tci_qemu_st(CPUArchState *env, target_ulong taddr, uint64_t val,
+static void tci_qemu_st(CPUArchState *env, uint64_t taddr, uint64_t val,
                         MemOpIdx oi, const void *tb_ptr)
 {
     MemOp mop = get_memop(oi);
@@ -372,10 +372,9 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
         TCGReg r0, r1, r2, r3, r4, r5;
         tcg_target_ulong t1;
         TCGCond condition;
-        target_ulong taddr;
         uint8_t pos, len;
         uint32_t tmp32;
-        uint64_t tmp64;
+        uint64_t tmp64, taddr;
         uint64_t T1, T2;
         MemOpIdx oi;
         int32_t ofs;
@@ -923,31 +922,40 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             break;
 
         case INDEX_op_qemu_ld_a32_i32:
+            tci_args_rrm(insn, &r0, &r1, &oi);
+            taddr = (uint32_t)regs[r1];
+            goto do_ld_i32;
         case INDEX_op_qemu_ld_a64_i32:
-            if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
+            if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
                 taddr = regs[r1];
             } else {
                 tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
                 taddr = tci_uint64(regs[r2], regs[r1]);
             }
-            tmp32 = tci_qemu_ld(env, taddr, oi, tb_ptr);
-            regs[r0] = tmp32;
+        do_ld_i32:
+            regs[r0] = tci_qemu_ld(env, taddr, oi, tb_ptr);
             break;
 
         case INDEX_op_qemu_ld_a32_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                taddr = (uint32_t)regs[r1];
+            } else {
+                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
+                taddr = (uint32_t)regs[r2];
+            }
+            goto do_ld_i64;
         case INDEX_op_qemu_ld_a64_i64:
             if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
                 taddr = regs[r1];
-            } else if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                taddr = regs[r2];
             } else {
                 tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
                 taddr = tci_uint64(regs[r3], regs[r2]);
                 oi = regs[r4];
             }
+        do_ld_i64:
             tmp64 = tci_qemu_ld(env, taddr, oi, tb_ptr);
             if (TCG_TARGET_REG_BITS == 32) {
                 tci_write_reg64(regs, r1, r0, tmp64);
@@ -957,35 +965,44 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             break;
 
         case INDEX_op_qemu_st_a32_i32:
+            tci_args_rrm(insn, &r0, &r1, &oi);
+            taddr = (uint32_t)regs[r1];
+            goto do_st_i32;
         case INDEX_op_qemu_st_a64_i32:
-            if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
+            if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
                 taddr = regs[r1];
             } else {
                 tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
                 taddr = tci_uint64(regs[r2], regs[r1]);
             }
-            tmp32 = regs[r0];
-            tci_qemu_st(env, taddr, tmp32, oi, tb_ptr);
+        do_st_i32:
+            tci_qemu_st(env, taddr, regs[r0], oi, tb_ptr);
             break;
 
         case INDEX_op_qemu_st_a32_i64:
+            if (TCG_TARGET_REG_BITS == 64) {
+                tci_args_rrm(insn, &r0, &r1, &oi);
+                tmp64 = regs[r0];
+                taddr = (uint32_t)regs[r1];
+            } else {
+                tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
+                tmp64 = tci_uint64(regs[r1], regs[r0]);
+                taddr = (uint32_t)regs[r2];
+            }
+            goto do_st_i64;
         case INDEX_op_qemu_st_a64_i64:
             if (TCG_TARGET_REG_BITS == 64) {
                 tci_args_rrm(insn, &r0, &r1, &oi);
-                taddr = regs[r1];
                 tmp64 = regs[r0];
+                taddr = regs[r1];
             } else {
-                if (TARGET_LONG_BITS <= TCG_TARGET_REG_BITS) {
-                    tci_args_rrrm(insn, &r0, &r1, &r2, &oi);
-                    taddr = regs[r2];
-                } else {
-                    tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
-                    taddr = tci_uint64(regs[r3], regs[r2]);
-                    oi = regs[r4];
-                }
+                tci_args_rrrrr(insn, &r0, &r1, &r2, &r3, &r4);
                 tmp64 = tci_uint64(regs[r1], regs[r0]);
+                taddr = tci_uint64(regs[r3], regs[r2]);
+                oi = regs[r4];
             }
+        do_st_i64:
             tci_qemu_st(env, taddr, tmp64, oi, tb_ptr);
             break;
 
