@@ -171,9 +171,20 @@ bool qemu_socket_select(int sockfd, WSAEVENT hEventObject,
 
 bool qemu_socket_unselect(int sockfd, Error **errp);
 
-/* We wrap all the sockets functions so that we can
- * set errno based on WSAGetLastError()
+/* We wrap all the sockets functions so that we can set errno based on
+ * WSAGetLastError(), and use file-descriptors instead of SOCKET.
  */
+
+/*
+ * qemu_close_socket_osfhandle:
+ * @fd: a file descriptor associated with a SOCKET
+ *
+ * Close only the C run-time file descriptor, leave the SOCKET opened.
+ *
+ * Returns zero on success. On error, -1 is returned, and errno is set to
+ * indicate the error.
+ */
+int qemu_close_socket_osfhandle(int fd);
 
 #undef close
 #define close qemu_close_wrap
