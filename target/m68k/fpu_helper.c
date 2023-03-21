@@ -349,7 +349,7 @@ void HELPER(fsgldiv)(CPUM68KState *env, FPReg *res, FPReg *val0, FPReg *val1)
     PREC_END();
 }
 
-static int float_comp_to_cc(int float_compare)
+static int float_comp_to_cc(FloatRelation float_compare)
 {
     switch (float_compare) {
     case float_relation_equal:
@@ -367,7 +367,7 @@ static int float_comp_to_cc(int float_compare)
 
 void HELPER(fcmp)(CPUM68KState *env, FPReg *val0, FPReg *val1)
 {
-    int float_compare;
+    FloatRelation float_compare;
 
     float_compare = floatx80_compare(val1->d, val0->d, &env->fp_status);
     env->fpsr = (env->fpsr & ~FPSR_CC_MASK) | float_comp_to_cc(float_compare);
