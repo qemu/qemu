@@ -22,6 +22,7 @@ class Multiprocess(QemuSystemTest):
                 machine_type):
         """Main test method"""
         self.require_accelerator('kvm')
+        self.require_multiprocess()
 
         # Create socketpair to connect proxy and remote processes
         proxy_sock, remote_sock = socket.socketpair(socket.AF_UNIX,
