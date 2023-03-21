@@ -2622,7 +2622,7 @@ void helper_scv(CPUPPCState *env, uint32_t lev)
     }
 }
 
-void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
+void helper_pminsn(CPUPPCState *env, uint32_t insn)
 {
     CPUState *cs;
 
