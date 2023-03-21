@@ -10,6 +10,7 @@
  * later.  See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "block/block.h"
 #include "subprojects/libvhost-user/libvhost-user.h" /* only for the type definitions */
 #include "standard-headers/linux/virtio_blk.h"
@@ -251,6 +252,27 @@ static void vu_blk_exp_request_shutdown(BlockExport *exp)
     vhost_user_server_stop(&vexp->vu_server);
 }
 
+static void vu_blk_exp_resize(void *opaque)
+{
+    VuBlkExport *vexp = opaque;
+    BlockDriverState *bs = blk_bs(vexp->handler.blk);
+    int64_t new_size = bdrv_getlength(bs);
+
+    if (new_size < 0) {
+        error_printf("Failed to get length of block node '%s'",
+                     bdrv_get_node_name(bs));
+        return;
+    }
+
+    vexp->blkcfg.capacity = cpu_to_le64(new_size >> VIRTIO_BLK_SECTOR_BITS);
+
+    vu_config_change_msg(&vexp->vu_server.vu_dev);
+}
+
+static const BlockDevOps vu_blk_dev_ops = {
+    .resize_cb = vu_blk_exp_resize,
+};
+
 static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
                              Error **errp)
 {
@@ -291,6 +313,8 @@ static int vu_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
 
     blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
                                  vexp);
+
+    blk_set_dev_ops(exp->blk, &vu_blk_dev_ops, vexp);
 
     if (!vhost_user_server_start(&vexp->vu_server, vu_opts->addr, exp->ctx,
                                  num_queues, &vu_blk_iface, errp)) {

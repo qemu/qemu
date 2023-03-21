@@ -585,6 +585,8 @@ bool vu_queue_empty(VuDev *dev, VuVirtq *vq);
  */
 void vu_queue_notify(VuDev *dev, VuVirtq *vq);
 
+void vu_config_change_msg(VuDev *dev);
+
 /**
  * vu_queue_notify_sync:
  * @dev: a VuDev context
