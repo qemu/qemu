@@ -479,40 +479,27 @@ int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
     return ret;
 }
 
-
 #undef close
-int qemu_close_wrap(int fd)
+int qemu_close_socket_osfhandle(int fd)
 {
-    int ret;
+    SOCKET s = _get_osfhandle(fd);
     DWORD flags = 0;
-    SOCKET s = INVALID_SOCKET;
 
-    if (fd_is_socket(fd)) {
-        s = _get_osfhandle(fd);
-
-        /*
-         * If we were to just call _close on the descriptor, it would close the
-         * HANDLE, but it wouldn't free any of the resources associated to the
-         * SOCKET, and we can't call _close after calling closesocket, because
-         * closesocket has already closed the HANDLE, and _close would attempt to
-         * close the HANDLE again, resulting in a double free. We can however
-         * protect the HANDLE from actually being closed long enough to close the
-         * file descriptor, then close the socket itself.
-         */
-        if (!GetHandleInformation((HANDLE)s, &flags)) {
-            errno = EACCES;
-            return -1;
-        }
-
-        if (!SetHandleInformation((HANDLE)s, HANDLE_FLAG_PROTECT_FROM_CLOSE, HANDLE_FLAG_PROTECT_FROM_CLOSE)) {
-            errno = EACCES;
-            return -1;
-        }
+    /*
+     * If we were to just call _close on the descriptor, it would close the
+     * HANDLE, but it wouldn't free any of the resources associated to the
+     * SOCKET, and we can't call _close after calling closesocket, because
+     * closesocket has already closed the HANDLE, and _close would attempt to
+     * close the HANDLE again, resulting in a double free. We can however
+     * protect the HANDLE from actually being closed long enough to close the
+     * file descriptor, then close the socket itself.
+     */
+    if (!GetHandleInformation((HANDLE)s, &flags)) {
+        errno = EACCES;
+        return -1;
     }
 
-    ret = close(fd);
-
-    if (s != INVALID_SOCKET && !SetHandleInformation((HANDLE)s, flags, flags)) {
+    if (!SetHandleInformation((HANDLE)s, HANDLE_FLAG_PROTECT_FROM_CLOSE, HANDLE_FLAG_PROTECT_FROM_CLOSE)) {
         errno = EACCES;
         return -1;
     }
@@ -521,15 +508,33 @@ int qemu_close_wrap(int fd)
      * close() returns EBADF since we PROTECT_FROM_CLOSE the underlying handle,
      * but the FD is actually freed
      */
-    if (ret < 0 && (s == INVALID_SOCKET || errno != EBADF)) {
-        return ret;
+    if (close(fd) < 0 && errno != EBADF) {
+        return -1;
     }
 
-    if (s != INVALID_SOCKET) {
-        ret = closesocket(s);
-        if (ret < 0) {
-            errno = socket_error();
-        }
+    if (!SetHandleInformation((HANDLE)s, flags, flags)) {
+        errno = EACCES;
+        return -1;
+    }
+
+    return 0;
+}
+
+int qemu_close_wrap(int fd)
+{
+    SOCKET s = INVALID_SOCKET;
+    int ret = -1;
+
+    if (!fd_is_socket(fd)) {
+        return close(fd);
+    }
+
+    s = _get_osfhandle(fd);
+    qemu_close_socket_osfhandle(fd);
+
+    ret = closesocket(s);
+    if (ret < 0) {
+        errno = socket_error();
     }
 
     return ret;
