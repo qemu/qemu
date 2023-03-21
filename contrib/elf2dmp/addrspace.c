@@ -11,6 +11,7 @@
 static struct pa_block *pa_space_find_block(struct pa_space *ps, uint64_t pa)
 {
     size_t i;
+
     for (i = 0; i < ps->block_nr; i++) {
         if (ps->block[i].paddr <= pa &&
                 pa <= ps->block[i].paddr + ps->block[i].size) {
