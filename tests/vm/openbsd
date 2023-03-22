@@ -106,8 +106,7 @@ class OpenBSDVM(basevm.BaseVM):
         self.console_wait("Password for root account")
         self.console_send("%s\n" % self._config["root_pass"])
         self.console_wait_send("Start sshd(8)",           "yes\n")
-        self.console_wait_send("X Window System",         "\n")
-        self.console_wait_send("xenodm",                  "\n")
+        self.console_wait_send("X Window System",         "no\n")
         self.console_wait_send("console to com0",         "\n")
         self.console_wait_send("Which speed",             "\n")
 
@@ -124,7 +123,32 @@ class OpenBSDVM(basevm.BaseVM):
         self.console_wait_send("timezone",                "UTC\n")
         self.console_wait_send("root disk",               "\n")
         self.console_wait_send("(W)hole disk",            "\n")
-        self.console_wait_send("(A)uto layout",           "\n")
+        self.console_wait_send("(A)uto layout",           "c\n")
+
+        # 4000 MB / as /dev/sd0a, at start of disk
+        self.console_wait_send("sd0>", "a a\n")
+        self.console_wait_send("offset:", "\n")
+        self.console_wait_send("size:", "4000M\n")
+        self.console_wait_send("FS type", "4.2BSD\n")
+        self.console_wait_send("mount point:", "/\n")
+
+        # 256 MB swap as /dev/sd0b
+        self.console_wait_send("sd0*>", "a b\n")
+        self.console_wait_send("offset:", "\n")
+        self.console_wait_send("size:", "256M\n")
+        self.console_wait_send("FS type", "swap\n")
+
+        # All remaining space for /home as /dev/sd0d
+        # NB, 'c' isn't allowed to be used.
+        self.console_wait_send("sd0*>", "a d\n")
+        self.console_wait_send("offset:", "\n")
+        self.console_wait_send("size:", "\n")
+        self.console_wait_send("FS type", "4.2BSD\n")
+        self.console_wait_send("mount point:", "/home\n")
+
+        self.console_wait_send("sd0*>", "q\n")
+        self.console_wait_send("Write new label?:", "y\n")
+
         self.console_wait_send("Location of sets",        "cd0\n")
         self.console_wait_send("Pathname to the sets",    "\n")
         self.console_wait_send("Set name(s)",             "\n")

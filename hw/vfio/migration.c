@@ -11,6 +11,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
+#include "qemu/error-report.h"
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 

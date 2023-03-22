@@ -30,6 +30,8 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
+#include "qemu/error-report.h"
+
 
 #define NPCM7XX_POWER_ON_STRAPS_DEFAULT (           \
         NPCM7XX_PWRON_STRAP_SPI0F18 |               \

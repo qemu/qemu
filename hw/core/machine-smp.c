@@ -20,6 +20,8 @@
 #include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
+
 
 /*
  * Report information of a machine's supported CPU topology hierarchy.

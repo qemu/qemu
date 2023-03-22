@@ -29,6 +29,7 @@
 #include "kvm/kvm_i386.h"
 #include "sev.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/qmp/qerror.h"
 #include "standard-headers/asm-x86/kvm_para.h"

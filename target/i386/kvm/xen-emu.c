@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "hw/xen/xen.h"
 #include "sysemu/kvm_int.h"
 #include "sysemu/kvm_xen.h"

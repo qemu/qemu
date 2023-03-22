@@ -27,7 +27,7 @@
 #include "qemu/accel.h"
 #include "hw/boards.h"
 #include "sysemu/cpus.h"
-
+#include "qemu/error-report.h"
 #include "accel-softmmu.h"
 
 int accel_init_machine(AccelState *accel, MachineState *ms)

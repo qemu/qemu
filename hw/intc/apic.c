@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/thread.h"
+#include "qemu/error-report.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic.h"
 #include "hw/intc/ioapic.h"

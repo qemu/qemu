@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/dump.h"
 #include "qapi/error.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 #include "exec/cpu-defs.h"
 #include "hw/core/cpu.h"

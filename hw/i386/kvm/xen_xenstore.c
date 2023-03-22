@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "qemu/main-loop.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "migration/vmstate.h"
