@@ -423,12 +423,32 @@ enum {
 
 static bool init_guest_commpage(void)
 {
-    abi_ptr commpage = HI_COMMPAGE & -qemu_host_page_size;
-    void *want = g2h_untagged(commpage);
-    void *addr = mmap(want, qemu_host_page_size, PROT_READ | PROT_WRITE,
-                      MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
+    abi_ptr want = HI_COMMPAGE & TARGET_PAGE_MASK;
+    abi_ptr addr;
 
-    if (addr == MAP_FAILED) {
+    /*
+     * M-profile allocates maximum of 2GB address space, so can never
+     * allocate the commpage.  Skip it.
+     */
+    if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
+        return true;
+    }
+
+    /*
+     * If reserved_va does not cover the commpage, we get an assert
+     * in page_set_flags.  Produce an intelligent error instead.
+     */
+    if (reserved_va != 0 && want + TARGET_PAGE_SIZE - 1 > reserved_va) {
+        error_report("Allocating guest commpage: -R 0x%" PRIx64 " too small",
+                     (uint64_t)reserved_va + 1);
+        exit(EXIT_FAILURE);
+    }
+
+    addr = target_mmap(want, TARGET_PAGE_SIZE, PROT_READ | PROT_WRITE,
+                       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
+
+    if (addr == -1) {
         perror("Allocating guest commpage");
         exit(EXIT_FAILURE);
     }
@@ -437,15 +457,12 @@ static bool init_guest_commpage(void)
     }
 
     /* Set kernel helper versions; rest of page is 0.  */
-    __put_user(5, (uint32_t *)g2h_untagged(0xffff0ffcu));
+    put_user_u32(5, 0xffff0ffcu);
 
-    if (mprotect(addr, qemu_host_page_size, PROT_READ)) {
+    if (target_mprotect(addr, qemu_host_page_size, PROT_READ | PROT_EXEC)) {
         perror("Protecting guest commpage");
         exit(EXIT_FAILURE);
     }
-
-    page_set_flags(commpage, commpage | ~qemu_host_page_mask,
-                   PAGE_READ | PAGE_EXEC | PAGE_VALID);
     return true;
 }
 
