@@ -106,8 +106,7 @@ class OpenBSDVM(basevm.BaseVM):
         self.console_wait("Password for root account")
         self.console_send("%s\n" % self._config["root_pass"])
         self.console_wait_send("Start sshd(8)",           "yes\n")
-        self.console_wait_send("X Window System",         "\n")
-        self.console_wait_send("xenodm",                  "\n")
+        self.console_wait_send("X Window System",         "no\n")
         self.console_wait_send("console to com0",         "\n")
         self.console_wait_send("Which speed",             "\n")
 
