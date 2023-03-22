@@ -149,7 +149,7 @@ static void watch_remove(SpiceWatch *watch)
     qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
 #ifdef WIN32
     /* SOCKET is owned by spice */
-    qemu_close_to_socket(watch->fd);
+    qemu_close_socket_osfhandle(watch->fd);
 #endif
     g_free(watch);
 }
