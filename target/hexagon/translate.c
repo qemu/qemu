@@ -128,14 +128,19 @@ static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest, bool
+                        move_to_pc)
 {
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(idx);
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_exit_tb(ctx->base.tb, idx);
     } else {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -150,11 +155,11 @@ static void gen_end_tb(DisasContext *ctx)
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
             tcg_gen_brcondi_tl(ctx->branch_cond, hex_branch_taken, 0, skip);
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);
-            gen_goto_tb(ctx, 1, ctx->next_PC);
+            gen_goto_tb(ctx, 1, ctx->next_PC, false);
         } else {
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
         }
     } else if (ctx->is_tight_loop &&
                pkt->insn[pkt->num_insns - 1].opcode == J2_endloop0) {
@@ -165,9 +170,9 @@ static void gen_end_tb(DisasContext *ctx)
         TCGLabel *skip = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
         tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
-        gen_goto_tb(ctx, 0, ctx->base.tb->pc);
+        gen_goto_tb(ctx, 0, ctx->base.tb->pc, true);
         gen_set_label(skip);
-        gen_goto_tb(ctx, 1, ctx->next_PC);
+        gen_goto_tb(ctx, 1, ctx->next_PC, false);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
