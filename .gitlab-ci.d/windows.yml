@@ -59,6 +59,7 @@ msys2-64bit:
       mingw-w64-x86_64-SDL2
       mingw-w64-x86_64-SDL2_image
       mingw-w64-x86_64-snappy
+      mingw-w64-x86_64-spice
       mingw-w64-x86_64-usbredir
       mingw-w64-x86_64-zstd "
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
@@ -108,6 +109,7 @@ msys2-32bit:
       mingw-w64-i686-SDL2
       mingw-w64-i686-SDL2_image
       mingw-w64-i686-snappy
+      mingw-w64-i686-spice
       mingw-w64-i686-usbredir
       mingw-w64-i686-zstd "
   - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
