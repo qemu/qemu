@@ -84,11 +84,6 @@ bool have_lse2;
 #define TCG_VEC_TMP TCG_REG_V31
 
 #ifndef CONFIG_SOFTMMU
-/* Note that XZR cannot be encoded in the address base register slot,
-   as that actaully encodes SP.  So if we need to zero-extend the guest
-   address, via the address index register slot, we need to load even
-   a zero guest base into a register.  */
-#define USE_GUEST_BASE     (guest_base != 0 || TARGET_LONG_BITS == 32)
 #define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
@@ -1738,7 +1733,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
     }
 
-    if (USE_GUEST_BASE) {
+    if (guest_base || addr_type == TCG_TYPE_I32) {
         h->base = TCG_REG_GUEST_BASE;
         h->index = addr_reg;
         h->index_ext = addr_type;
@@ -2993,10 +2988,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
 #if !defined(CONFIG_SOFTMMU)
-    if (USE_GUEST_BASE) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
-        tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
-    }
+    /*
+     * Note that XZR cannot be encoded in the address base register slot,
+     * as that actaully encodes SP.  Depending on the guest, we may need
+     * to zero-extend the guest address via the address index register slot,
+     * therefore we need to load even a zero guest base into a register.
+     */
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
 #endif
 
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, tcg_target_call_iarg_regs[0]);
