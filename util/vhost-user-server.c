@@ -346,10 +346,9 @@ static void vu_accept(QIONetListener *listener, QIOChannelSocket *sioc,
     aio_context_release(server->ctx);
 }
 
+/* server->ctx acquired by caller */
 void vhost_user_server_stop(VuServer *server)
 {
-    aio_context_acquire(server->ctx);
-
     qemu_bh_delete(server->restart_listener_bh);
     server->restart_listener_bh = NULL;
 
@@ -365,8 +364,6 @@ void vhost_user_server_stop(VuServer *server)
 
         AIO_WAIT_WHILE(server->ctx, server->co_trip);
     }
-
-    aio_context_release(server->ctx);
 
     if (server->listener) {
         qio_net_listener_disconnect(server->listener);
