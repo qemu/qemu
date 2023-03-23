@@ -35,6 +35,8 @@ static void xen_init_pv(MachineState *machine)
     DriveInfo *dinfo;
     int i;
 
+    setup_xen_backend_ops();
+
     /* Initialize backend core & drivers */
     xen_be_init();
 
