@@ -127,6 +127,8 @@ static bool fdmon_epoll_try_enable(AioContext *ctx)
 
 bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
 {
+    bool ok;
+
     if (ctx->epollfd < 0) {
         return false;
     }
@@ -136,14 +138,23 @@ bool fdmon_epoll_try_upgrade(AioContext *ctx, unsigned npfd)
         return false;
     }
 
-    if (npfd >= EPOLL_ENABLE_THRESHOLD) {
-        if (fdmon_epoll_try_enable(ctx)) {
-            return true;
-        } else {
-            fdmon_epoll_disable(ctx);
-        }
+    if (npfd < EPOLL_ENABLE_THRESHOLD) {
+        return false;
     }
-    return false;
+
+    /* The list must not change while we add fds to epoll */
+    if (!qemu_lockcnt_dec_if_lock(&ctx->list_lock)) {
+        return false;
+    }
+
+    ok = fdmon_epoll_try_enable(ctx);
+
+    qemu_lockcnt_inc_and_unlock(&ctx->list_lock);
+
+    if (!ok) {
+        fdmon_epoll_disable(ctx);
+    }
+    return ok;
 }
 
 void fdmon_epoll_setup(AioContext *ctx)
