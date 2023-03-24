@@ -148,9 +148,10 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt);
  * reset tx packet private context (needed to be called between packets)
  *
  * @pkt:            packet
+ * @dev:            PCI device processing the next packet
  *
  */
-void net_tx_pkt_reset(struct NetTxPkt *pkt);
+void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *dev);
 
 /**
  * Send packet to qemu. handles sw offloads if vhdr is not supported.

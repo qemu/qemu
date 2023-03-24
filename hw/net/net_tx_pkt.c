@@ -443,7 +443,7 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt)
 #endif
 }
 
-void net_tx_pkt_reset(struct NetTxPkt *pkt)
+void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *pci_dev)
 {
     int i;
 
@@ -467,6 +467,7 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt)
                           pkt->raw[i].iov_len, DMA_DIRECTION_TO_DEVICE, 0);
         }
     }
+    pkt->pci_dev = pci_dev;
     pkt->raw_frags = 0;
 
     pkt->hdr_len = 0;
