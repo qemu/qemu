@@ -389,8 +389,10 @@ igb_rss_parse_packet(IGBCore *core, struct NetRxPkt *pkt, bool tx,
 static bool
 igb_setup_tx_offloads(IGBCore *core, struct igb_tx *tx)
 {
-    if (tx->tse) {
-        if (!net_tx_pkt_build_vheader(tx->tx_pkt, true, true, tx->mss)) {
+    if (tx->first_cmd_type_len & E1000_ADVTXD_DCMD_TSE) {
+        uint32_t idx = (tx->first_olinfo_status >> 4) & 1;
+        uint32_t mss = tx->ctx[idx].mss_l4len_idx >> 16;
+        if (!net_tx_pkt_build_vheader(tx->tx_pkt, true, true, mss)) {
             return false;
         }
 
@@ -399,13 +401,13 @@ igb_setup_tx_offloads(IGBCore *core, struct igb_tx *tx)
         return true;
     }
 
-    if (tx->txsm) {
+    if (tx->first_olinfo_status & E1000_ADVTXD_POTS_TXSM) {
         if (!net_tx_pkt_build_vheader(tx->tx_pkt, false, true, 0)) {
             return false;
         }
     }
 
-    if (tx->ixsm) {
+    if (tx->first_olinfo_status & E1000_ADVTXD_POTS_IXSM) {
         net_tx_pkt_update_ip_hdr_checksum(tx->tx_pkt);
     }
 
@@ -527,7 +529,7 @@ igb_process_tx_desc(IGBCore *core,
 {
     struct e1000_adv_tx_context_desc *tx_ctx_desc;
     uint32_t cmd_type_len;
-    uint32_t olinfo_status;
+    uint32_t idx;
     uint64_t buffer_addr;
     uint16_t length;
 
@@ -538,20 +540,19 @@ igb_process_tx_desc(IGBCore *core,
             E1000_ADVTXD_DTYP_DATA) {
             /* advanced transmit data descriptor */
             if (tx->first) {
-                olinfo_status = le32_to_cpu(tx_desc->read.olinfo_status);
-
-                tx->tse = !!(cmd_type_len & E1000_ADVTXD_DCMD_TSE);
-                tx->ixsm = !!(olinfo_status & E1000_ADVTXD_POTS_IXSM);
-                tx->txsm = !!(olinfo_status & E1000_ADVTXD_POTS_TXSM);
-
+                tx->first_cmd_type_len = cmd_type_len;
+                tx->first_olinfo_status = le32_to_cpu(tx_desc->read.olinfo_status);
                 tx->first = false;
             }
         } else if ((cmd_type_len & E1000_ADVTXD_DTYP_CTXT) ==
                    E1000_ADVTXD_DTYP_CTXT) {
             /* advanced transmit context descriptor */
             tx_ctx_desc = (struct e1000_adv_tx_context_desc *)tx_desc;
-            tx->vlan = le32_to_cpu(tx_ctx_desc->vlan_macip_lens) >> 16;
-            tx->mss = le32_to_cpu(tx_ctx_desc->mss_l4len_idx) >> 16;
+            idx = (le32_to_cpu(tx_ctx_desc->mss_l4len_idx) >> 4) & 1;
+            tx->ctx[idx].vlan_macip_lens = le32_to_cpu(tx_ctx_desc->vlan_macip_lens);
+            tx->ctx[idx].seqnum_seed = le32_to_cpu(tx_ctx_desc->seqnum_seed);
+            tx->ctx[idx].type_tucmd_mlhl = le32_to_cpu(tx_ctx_desc->type_tucmd_mlhl);
+            tx->ctx[idx].mss_l4len_idx = le32_to_cpu(tx_ctx_desc->mss_l4len_idx);
             return;
         } else {
             /* unknown descriptor type */
@@ -575,8 +576,10 @@ igb_process_tx_desc(IGBCore *core,
     if (cmd_type_len & E1000_TXD_CMD_EOP) {
         if (!tx->skip_cp && net_tx_pkt_parse(tx->tx_pkt)) {
             if (cmd_type_len & E1000_TXD_CMD_VLE) {
-                net_tx_pkt_setup_vlan_header_ex(tx->tx_pkt, tx->vlan,
-                    core->mac[VET] & 0xffff);
+                idx = (tx->first_olinfo_status >> 4) & 1;
+                uint16_t vlan = tx->ctx[idx].vlan_macip_lens >> 16;
+                uint16_t vet = core->mac[VET] & 0xffff;
+                net_tx_pkt_setup_vlan_header_ex(tx->tx_pkt, vlan, vet);
             }
             if (igb_tx_pkt_send(core, tx, queue_index)) {
                 igb_on_tx_done_update_stats(core, tx->tx_pkt);
@@ -4024,11 +4027,7 @@ static void igb_reset(IGBCore *core, bool sw)
     for (i = 0; i < ARRAY_SIZE(core->tx); i++) {
         tx = &core->tx[i];
         net_tx_pkt_reset(tx->tx_pkt);
-        tx->vlan = 0;
-        tx->mss = 0;
-        tx->tse = false;
-        tx->ixsm = false;
-        tx->txsm = false;
+        memset(tx->ctx, 0, sizeof(tx->ctx));
         tx->first = true;
         tx->skip_cp = false;
     }
