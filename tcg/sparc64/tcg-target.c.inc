@@ -1063,8 +1063,12 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     /* Add the tlb_table pointer, creating the CPUTLBEntry address into R2.  */
     tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_T3, ARITH_ADD);
 
-    /* Load the tlb comparator and the addend. */
-    tcg_out_ld(s, addr_type, TCG_REG_T2, TCG_REG_T1, cmp_off);
+    /*
+     * Load the tlb comparator and the addend.
+     * Always load the entire 64-bit comparator for simplicity.
+     * We will ignore the high bits via BPCC_ICC below.
+     */
+    tcg_out_ld(s, TCG_TYPE_I64, TCG_REG_T2, TCG_REG_T1, cmp_off);
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_T1, TCG_REG_T1, add_off);
     h->base = TCG_REG_T1;
 
