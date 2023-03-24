@@ -2077,10 +2077,10 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     /* Extract the page index, shifted into place for tlb index.  */
     if (TCG_TARGET_REG_BITS == 32) {
         tcg_out_shri32(s, TCG_REG_R0, addrlo,
-                       TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+                       s->page_bits - CPU_TLB_ENTRY_BITS);
     } else {
         tcg_out_shri64(s, TCG_REG_R0, addrlo,
-                       TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+                       s->page_bits - CPU_TLB_ENTRY_BITS);
     }
     tcg_out32(s, AND | SAB(TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_R0));
 
@@ -2119,7 +2119,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
             a_bits = s_bits;
         }
         tcg_out_rlw(s, RLWINM, TCG_REG_R0, addrlo, 0,
-                    (32 - a_bits) & 31, 31 - TARGET_PAGE_BITS);
+                    (32 - a_bits) & 31, 31 - s->page_bits);
     } else {
         TCGReg t = addrlo;
 
@@ -2140,13 +2140,13 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
         /* Mask the address for the requested alignment.  */
         if (TARGET_LONG_BITS == 32) {
             tcg_out_rlw(s, RLWINM, TCG_REG_R0, t, 0,
-                        (32 - a_bits) & 31, 31 - TARGET_PAGE_BITS);
+                        (32 - a_bits) & 31, 31 - s->page_bits);
         } else if (a_bits == 0) {
-            tcg_out_rld(s, RLDICR, TCG_REG_R0, t, 0, 63 - TARGET_PAGE_BITS);
+            tcg_out_rld(s, RLDICR, TCG_REG_R0, t, 0, 63 - s->page_bits);
         } else {
             tcg_out_rld(s, RLDICL, TCG_REG_R0, t,
-                        64 - TARGET_PAGE_BITS, TARGET_PAGE_BITS - a_bits);
-            tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, TARGET_PAGE_BITS, 0);
+                        64 - s->page_bits, s->page_bits - a_bits);
+            tcg_out_rld(s, RLDICL, TCG_REG_R0, TCG_REG_R0, s->page_bits, 0);
         }
     }
 

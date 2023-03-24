@@ -1189,10 +1189,10 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     /* Extract the TLB index from the address into TMP3.  */
     if (TCG_TARGET_REG_BITS == 32 || addr_type == TCG_TYPE_I32) {
         tcg_out_opc_sa(s, OPC_SRL, TCG_TMP3, addrlo,
-                       TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+                       s->page_bits - CPU_TLB_ENTRY_BITS);
     } else {
         tcg_out_dsrl(s, TCG_TMP3, addrlo,
-                     TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
+                     s->page_bits - CPU_TLB_ENTRY_BITS);
     }
     tcg_out_opc_reg(s, OPC_AND, TCG_TMP3, TCG_TMP3, TCG_TMP0);
 
@@ -1214,7 +1214,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
      * For unaligned accesses, compare against the end of the access to
      * verify that it does not cross a page boundary.
      */
-    tcg_out_movi(s, addr_type, TCG_TMP1, TARGET_PAGE_MASK | a_mask);
+    tcg_out_movi(s, addr_type, TCG_TMP1, s->page_mask | a_mask);
     if (a_mask < s_mask) {
         if (TCG_TARGET_REG_BITS == 32 || addr_type == TCG_TYPE_I32) {
             tcg_out_opc_imm(s, OPC_ADDIU, TCG_TMP2, addrlo, s_mask - a_mask);

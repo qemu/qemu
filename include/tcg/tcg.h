@@ -560,6 +560,11 @@ struct TCGContext {
     int nb_ops;
     TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
 
+#ifdef CONFIG_SOFTMMU
+    int page_mask;
+    uint8_t page_bits;
+#endif
+
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
     intptr_t frame_start;

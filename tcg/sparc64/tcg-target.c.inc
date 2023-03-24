@@ -1056,7 +1056,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
 
     /* Extract the page index, shifted into place for tlb index.  */
     tcg_out_arithi(s, TCG_REG_T1, addr_reg,
-                   TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS, SHIFT_SRL);
+                   s->page_bits - CPU_TLB_ENTRY_BITS, SHIFT_SRL);
     tcg_out_arith(s, TCG_REG_T1, TCG_REG_T1, TCG_REG_T2, ARITH_AND);
 
     /* Add the tlb_table pointer, creating the CPUTLBEntry address into R2.  */
@@ -1068,7 +1068,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     h->base = TCG_REG_T1;
 
     /* Mask out the page offset, except for the required alignment. */
-    compare_mask = TARGET_PAGE_MASK | a_mask;
+    compare_mask = s->page_mask | a_mask;
     if (check_fit_tl(compare_mask, 13)) {
         tcg_out_arithi(s, TCG_REG_T3, addr_reg, compare_mask, ARITH_AND);
     } else {

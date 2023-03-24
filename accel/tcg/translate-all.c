@@ -357,6 +357,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb_set_page_addr1(tb, -1);
     tcg_ctx->gen_tb = tb;
     tcg_ctx->addr_type = TCG_TYPE_TL;
+#ifdef CONFIG_SOFTMMU
+    tcg_ctx->page_bits = TARGET_PAGE_BITS;
+    tcg_ctx->page_mask = TARGET_PAGE_MASK;
+#endif
 
  tb_overflow:
 
