@@ -62,24 +62,24 @@ static void init_dev(tc58128_dev * dev, const char *filename)
     dev->flash_contents = g_malloc(FLASH_SIZE);
     memset(dev->flash_contents, 0xff, FLASH_SIZE);
     if (filename) {
-	/* Load flash image skipping the first block */
+        /* Load flash image skipping the first block */
         ret = load_image_size(filename, dev->flash_contents + 528 * 32,
                               FLASH_SIZE - 528 * 32);
-	if (ret < 0) {
+        if (ret < 0) {
             if (!qtest_enabled()) {
                 error_report("Could not load flash image %s", filename);
                 exit(1);
             }
-	} else {
-	    /* Build first block with number of blocks */
+        } else {
+            /* Build first block with number of blocks */
             blocks = DIV_ROUND_UP(ret, 528 * 32);
-	    dev->flash_contents[0] = blocks & 0xff;
-	    dev->flash_contents[1] = (blocks >> 8) & 0xff;
-	    dev->flash_contents[2] = (blocks >> 16) & 0xff;
-	    dev->flash_contents[3] = (blocks >> 24) & 0xff;
-	    fprintf(stderr, "loaded %d bytes for %s into flash\n", ret,
-		    filename);
-	}
+            dev->flash_contents[0] = blocks & 0xff;
+            dev->flash_contents[1] = (blocks >> 8) & 0xff;
+            dev->flash_contents[2] = (blocks >> 16) & 0xff;
+            dev->flash_contents[3] = (blocks >> 24) & 0xff;
+            fprintf(stderr, "loaded %d bytes for %s into flash\n", ret,
+                    filename);
+        }
     }
 }
 
@@ -87,26 +87,26 @@ static void handle_command(tc58128_dev * dev, uint8_t command)
 {
     switch (command) {
     case 0xff:
-	fprintf(stderr, "reset flash device\n");
-	dev->state = WAIT;
-	break;
+        fprintf(stderr, "reset flash device\n");
+        dev->state = WAIT;
+        break;
     case 0x00:
-	fprintf(stderr, "read mode 1\n");
-	dev->state = READ1;
-	dev->address_cycle = 0;
-	break;
+        fprintf(stderr, "read mode 1\n");
+        dev->state = READ1;
+        dev->address_cycle = 0;
+        break;
     case 0x01:
-	fprintf(stderr, "read mode 2\n");
-	dev->state = READ2;
-	dev->address_cycle = 0;
-	break;
+        fprintf(stderr, "read mode 2\n");
+        dev->state = READ2;
+        dev->address_cycle = 0;
+        break;
     case 0x50:
-	fprintf(stderr, "read mode 3\n");
-	dev->state = READ3;
-	dev->address_cycle = 0;
-	break;
+        fprintf(stderr, "read mode 3\n");
+        dev->state = READ3;
+        dev->address_cycle = 0;
+        break;
     default:
-	fprintf(stderr, "unknown flash command 0x%02x\n", command);
+        fprintf(stderr, "unknown flash command 0x%02x\n", command);
         abort();
     }
 }
@@ -117,28 +117,28 @@ static void handle_address(tc58128_dev * dev, uint8_t data)
     case READ1:
     case READ2:
     case READ3:
-	switch (dev->address_cycle) {
-	case 0:
-	    dev->address = data;
-	    if (dev->state == READ2)
-		dev->address |= 0x100;
-	    else if (dev->state == READ3)
-		dev->address |= 0x200;
-	    break;
-	case 1:
-	    dev->address += data * 528 * 0x100;
-	    break;
-	case 2:
-	    dev->address += data * 528;
-	    fprintf(stderr, "address pointer in flash: 0x%08x\n",
-		    dev->address);
-	    break;
-	default:
-	    /* Invalid data */
+        switch (dev->address_cycle) {
+        case 0:
+            dev->address = data;
+            if (dev->state == READ2)
+                dev->address |= 0x100;
+            else if (dev->state == READ3)
+                dev->address |= 0x200;
+            break;
+        case 1:
+            dev->address += data * 528 * 0x100;
+            break;
+        case 2:
+            dev->address += data * 528;
+            fprintf(stderr, "address pointer in flash: 0x%08x\n",
+                    dev->address);
+            break;
+        default:
+            /* Invalid data */
             abort();
-	}
-	dev->address_cycle++;
-	break;
+        }
+        dev->address_cycle++;
+        break;
     default:
         abort();
     }
@@ -148,7 +148,7 @@ static uint8_t handle_read(tc58128_dev * dev)
 {
 #if 0
     if (dev->address % 0x100000 == 0)
-	fprintf(stderr, "reading flash at address 0x%08x\n", dev->address);
+        fprintf(stderr, "reading flash at address 0x%08x\n", dev->address);
 #endif
     return dev->flash_contents[dev->address++];
 }
@@ -163,31 +163,31 @@ static int tc58128_cb(uint16_t porta, uint16_t portb,
     int dev;
 
     if ((porta & CE1) == 0)
-	dev = 0;
+        dev = 0;
     else if ((porta & CE2) == 0)
-	dev = 1;
+        dev = 1;
     else
-	return 0;		/* No device selected */
+        return 0;        /* No device selected */
 
     if ((porta & RE) && (porta & WE)) {
-	/* Nothing to do, assert ready and return to input state */
-	*periph_portadir &= 0xff00;
-	*periph_portadir |= RDY(dev);
-	*periph_pdtra |= RDY(dev);
-	return 1;
+        /* Nothing to do, assert ready and return to input state */
+        *periph_portadir &= 0xff00;
+        *periph_portadir |= RDY(dev);
+        *periph_pdtra |= RDY(dev);
+        return 1;
     }
 
     if (porta & CLE) {
-	/* Command */
-	assert((porta & WE) == 0);
-	handle_command(&tc58128_devs[dev], porta & 0x00ff);
+        /* Command */
+        assert((porta & WE) == 0);
+        handle_command(&tc58128_devs[dev], porta & 0x00ff);
     } else if (porta & ALE) {
-	assert((porta & WE) == 0);
-	handle_address(&tc58128_devs[dev], porta & 0x00ff);
+        assert((porta & WE) == 0);
+        handle_address(&tc58128_devs[dev], porta & 0x00ff);
     } else if ((porta & RE) == 0) {
-	*periph_portadir |= 0x00ff;
-	*periph_pdtra &= 0xff00;
-	*periph_pdtra |= handle_read(&tc58128_devs[dev]);
+        *periph_portadir |= 0x00ff;
+        *periph_pdtra &= 0xff00;
+        *periph_pdtra |= handle_read(&tc58128_devs[dev]);
     } else {
         abort();
     }
@@ -195,9 +195,9 @@ static int tc58128_cb(uint16_t porta, uint16_t portb,
 }
 
 static sh7750_io_device tc58128 = {
-    RE | WE,			/* Port A triggers */
-    0,				/* Port B triggers */
-    tc58128_cb			/* Callback */
+    RE | WE,            /* Port A triggers */
+    0,                  /* Port B triggers */
+    tc58128_cb          /* Callback */
 };
 
 int tc58128_init(struct SH7750State *s, const char *zone1, const char *zone2)

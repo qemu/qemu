@@ -206,15 +206,6 @@ be an effective use of its limited resources, and thus intends to discontinue
 it. Since all recent x86 hardware from the past >10 years is capable of the
 64-bit x86 extensions, a corresponding 64-bit OS should be used instead.
 
-System emulation on 32-bit arm hosts (since 8.0)
-''''''''''''''''''''''''''''''''''''''''''''''''
-
-Since QEMU needs a strong host machine for running full system emulation, and
-all recent powerful arm hosts support 64-bit, the QEMU project deprecates the
-support for running any system emulation on 32-bit arm hosts in general. Use
-64-bit arm hosts for system emulation instead. (Note: "user" mode emulation
-continues to be supported on 32-bit arm hosts, too)
-
 
 QEMU API (QAPI) events
 ----------------------

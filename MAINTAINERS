@@ -3818,8 +3818,7 @@ W: https://cirrus-ci.com/github/qemu/qemu
 Windows Hosted Continuous Integration
 M: Yonggang Luo <luoyonggang@gmail.com>
 S: Maintained
-F: .cirrus.yml
-W: https://cirrus-ci.com/github/qemu/qemu
+F: .gitlab-ci.d/windows.yml
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
