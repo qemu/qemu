@@ -4388,6 +4388,15 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         }
     }
 
+    /*
+     * This needs to be done before resuming a postcopy.  Note: for newer
+     * QEMUs we will delay the channel creation until postcopy_start(), to
+     * avoid disorder of channel creations.
+     */
+    if (migrate_postcopy_preempt() && s->preempt_pre_7_2) {
+        postcopy_preempt_setup(s);
+    }
+
     if (resume) {
         /* Wakeup the main migration thread to do the recovery */
         migrate_set_state(&s->state, MIGRATION_STATUS_POSTCOPY_PAUSED,

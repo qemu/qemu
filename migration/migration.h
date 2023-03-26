@@ -384,11 +384,18 @@ struct MigrationState {
      * - postcopy preempt src QEMU instance will generate an EOS message at
      *   the end of migration to shut the preempt channel on dest side.
      *
+     * - postcopy preempt channel will be created at the setup phase on src
+         QEMU.
+     *
      * When clear:
      *
      * - postcopy preempt src QEMU instance will _not_ generate an EOS
      *   message at the end of migration, the dest qemu will shutdown the
      *   channel itself.
+     *
+     * - postcopy preempt channel will be created at the switching phase
+     *   from precopy -> postcopy (to avoid race condtion of misordered
+     *   creation of channels).
      *
      * NOTE: See message-id <ZBoShWArKDPpX/D7@work-vm> on qemu-devel
      * mailing list for more information on the possible race.  Everyone

@@ -1630,8 +1630,14 @@ int postcopy_preempt_establish_channel(MigrationState *s)
         return 0;
     }
 
-    /* Kick off async task to establish preempt channel */
-    postcopy_preempt_setup(s);
+    /*
+     * Kick off async task to establish preempt channel.  Only do so with
+     * 8.0+ machines, because 7.1/7.2 require the channel to be created in
+     * setup phase of migration (even if racy in an unreliable network).
+     */
+    if (!s->preempt_pre_7_2) {
+        postcopy_preempt_setup(s);
+    }
 
     /*
      * We need the postcopy preempt channel to be established before
