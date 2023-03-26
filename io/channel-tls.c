@@ -74,6 +74,9 @@ qio_channel_tls_new_server(QIOChannel *master,
     ioc = QIO_CHANNEL_TLS(object_new(TYPE_QIO_CHANNEL_TLS));
 
     ioc->master = master;
+    if (qio_channel_has_feature(master, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
+        qio_channel_set_feature(QIO_CHANNEL(ioc), QIO_CHANNEL_FEATURE_SHUTDOWN);
+    }
     object_ref(OBJECT(master));
 
     ioc->session = qcrypto_tls_session_new(
