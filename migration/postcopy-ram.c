@@ -568,9 +568,14 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
 {
     trace_postcopy_ram_incoming_cleanup_entry();
 
-    if (mis->postcopy_prio_thread_created) {
+    if (mis->preempt_thread_status == PREEMPT_THREAD_CREATED) {
+        /* Notify the fast load thread to quit */
+        mis->preempt_thread_status = PREEMPT_THREAD_QUIT;
+        if (mis->postcopy_qemufile_dst) {
+            qemu_file_shutdown(mis->postcopy_qemufile_dst);
+        }
         qemu_thread_join(&mis->postcopy_prio_thread);
-        mis->postcopy_prio_thread_created = false;
+        mis->preempt_thread_status = PREEMPT_THREAD_NONE;
     }
 
     if (mis->have_fault_thread) {
@@ -1203,7 +1208,7 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
          */
         postcopy_thread_create(mis, &mis->postcopy_prio_thread, "fault-fast",
                                postcopy_preempt_thread, QEMU_THREAD_JOINABLE);
-        mis->postcopy_prio_thread_created = true;
+        mis->preempt_thread_status = PREEMPT_THREAD_CREATED;
     }
 
     trace_postcopy_ram_enable_notify();
@@ -1652,6 +1657,11 @@ static void postcopy_pause_ram_fast_load(MigrationIncomingState *mis)
     trace_postcopy_pause_fast_load_continued();
 }
 
+static bool preempt_thread_should_run(MigrationIncomingState *mis)
+{
+    return mis->preempt_thread_status != PREEMPT_THREAD_QUIT;
+}
+
 void *postcopy_preempt_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
@@ -1671,11 +1681,11 @@ void *postcopy_preempt_thread(void *opaque)
 
     /* Sending RAM_SAVE_FLAG_EOS to terminate this thread */
     qemu_mutex_lock(&mis->postcopy_prio_thread_mutex);
-    while (1) {
+    while (preempt_thread_should_run(mis)) {
         ret = ram_load_postcopy(mis->postcopy_qemufile_dst,
                                 RAM_CHANNEL_POSTCOPY);
         /* If error happened, go into recovery routine */
-        if (ret) {
+        if (ret && preempt_thread_should_run(mis)) {
             postcopy_pause_ram_fast_load(mis);
         } else {
             /* We're done */
