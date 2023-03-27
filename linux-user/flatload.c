@@ -448,7 +448,7 @@ static int load_flat_file(struct linux_binprm * bprm,
      * Allocate the address space.
      */
     probe_guest_base(bprm->filename, 0,
-                     text_len + data_len + extra + indx_len);
+                     text_len + data_len + extra + indx_len - 1);
 
     /*
      * there are a couple of cases here,  the separate code/data

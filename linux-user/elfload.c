@@ -2504,7 +2504,7 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
         if (guest_hiaddr > reserved_va) {
             error_report("%s: requires more than reserved virtual "
                          "address space (0x%" PRIx64 " > 0x%lx)",
-                         image_name, (uint64_t)guest_hiaddr, reserved_va);
+                         image_name, (uint64_t)guest_hiaddr + 1, reserved_va);
             exit(EXIT_FAILURE);
         }
     } else {
@@ -2512,7 +2512,7 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
         if ((guest_hiaddr - guest_base) > ~(uintptr_t)0) {
             error_report("%s: requires more virtual address space "
                          "than the host can provide (0x%" PRIx64 ")",
-                         image_name, (uint64_t)guest_hiaddr - guest_base);
+                         image_name, (uint64_t)guest_hiaddr + 1 - guest_base);
             exit(EXIT_FAILURE);
         }
 #endif
@@ -2525,18 +2525,18 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
     if (reserved_va) {
         guest_loaddr = (guest_base >= mmap_min_addr ? 0
                         : mmap_min_addr - guest_base);
-        guest_hiaddr = reserved_va;
+        guest_hiaddr = reserved_va - 1;
     }
 
     /* Reserve the address space for the binary, or reserved_va. */
     test = g2h_untagged(guest_loaddr);
-    addr = mmap(test, guest_hiaddr - guest_loaddr, PROT_NONE, flags, -1, 0);
+    addr = mmap(test, guest_hiaddr - guest_loaddr + 1, PROT_NONE, flags, -1, 0);
     if (test != addr) {
         pgb_fail_in_use(image_name);
     }
     qemu_log_mask(CPU_LOG_PAGE,
-                  "%s: base @ %p for " TARGET_ABI_FMT_ld " bytes\n",
-                  __func__, addr, guest_hiaddr - guest_loaddr);
+                  "%s: base @ %p for %" PRIu64 " bytes\n",
+                  __func__, addr, (uint64_t)guest_hiaddr - guest_loaddr + 1);
 }
 
 /**
@@ -2680,7 +2680,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
     if (hiaddr != orig_hiaddr) {
         error_report("%s: requires virtual address space that the "
                      "host cannot provide (0x%" PRIx64 ")",
-                     image_name, (uint64_t)orig_hiaddr);
+                     image_name, (uint64_t)orig_hiaddr + 1);
         exit(EXIT_FAILURE);
     }
 
@@ -2694,7 +2694,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
          * arithmetic wraps around.
          */
         if (sizeof(uintptr_t) == 8 || loaddr >= 0x80000000u) {
-            hiaddr = (uintptr_t) 4 << 30;
+            hiaddr = UINT32_MAX;
         } else {
             offset = -(HI_COMMPAGE & -align);
         }
@@ -2702,7 +2702,7 @@ static void pgb_static(const char *image_name, abi_ulong orig_loaddr,
         loaddr = MIN(loaddr, LO_COMMPAGE & -align);
     }
 
-    addr = pgb_find_hole(loaddr, hiaddr - loaddr, align, offset);
+    addr = pgb_find_hole(loaddr, hiaddr - loaddr + 1, align, offset);
     if (addr == -1) {
         /*
          * If HI_COMMPAGE, there *might* be a non-consecutive allocation
@@ -2755,7 +2755,7 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
     if (guest_hiaddr > reserved_va) {
         error_report("%s: requires more than reserved virtual "
                      "address space (0x%" PRIx64 " > 0x%lx)",
-                     image_name, (uint64_t)guest_hiaddr, reserved_va);
+                     image_name, (uint64_t)guest_hiaddr + 1, reserved_va);
         exit(EXIT_FAILURE);
     }
 
@@ -3021,7 +3021,7 @@ static void load_elf_image(const char *image_name, int image_fd,
             if (a < loaddr) {
                 loaddr = a;
             }
-            a = eppnt->p_vaddr + eppnt->p_memsz;
+            a = eppnt->p_vaddr + eppnt->p_memsz - 1;
             if (a > hiaddr) {
                 hiaddr = a;
             }
@@ -3112,7 +3112,7 @@ static void load_elf_image(const char *image_name, int image_fd,
      * In both cases, we will overwrite pages in this range with mappings
      * from the executable.
      */
-    load_addr = target_mmap(loaddr, hiaddr - loaddr, PROT_NONE,
+    load_addr = target_mmap(loaddr, (size_t)hiaddr - loaddr + 1, PROT_NONE,
                             MAP_PRIVATE | MAP_ANON | MAP_NORESERVE |
                             (ehdr->e_type == ET_EXEC ? MAP_FIXED : 0),
                             -1, 0);
