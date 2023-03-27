@@ -1706,9 +1706,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 riscv_cpu_swap_hypervisor_regs(env);
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPVP,
                                          env->priv);
-                env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
-                                         riscv_cpu_virt_enabled(env));
-
+                env->hstatus = set_field(env->hstatus, HSTATUS_SPV, true);
 
                 htval = env->guest_phys_fault_addr;
 
