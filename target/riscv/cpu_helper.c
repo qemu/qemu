@@ -560,10 +560,6 @@ void riscv_cpu_set_geilen(CPURISCVState *env, target_ulong geilen)
 
 bool riscv_cpu_virt_enabled(CPURISCVState *env)
 {
-    if (!riscv_has_ext(env, RVH)) {
-        return false;
-    }
-
     return get_field(env->virt, VIRT_ONOFF);
 }
 
