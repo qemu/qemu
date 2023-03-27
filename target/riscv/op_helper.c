@@ -278,8 +278,7 @@ target_ulong helper_sret(CPURISCVState *env)
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
-    if (riscv_has_ext(env, RVH) && riscv_cpu_virt_enabled(env) &&
-        get_field(env->hstatus, HSTATUS_VTSR)) {
+    if (riscv_cpu_virt_enabled(env) && get_field(env->hstatus, HSTATUS_VTSR)) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
