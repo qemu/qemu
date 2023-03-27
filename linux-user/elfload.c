@@ -2799,7 +2799,8 @@ static void pgb_reserved_va(const char *image_name, abi_ulong guest_loaddr,
         error_report("Unable to reserve 0x%lx bytes of virtual address "
                      "space at %p (%s) for use as guest address space (check your "
                      "virtual memory ulimit setting, mmap_min_addr or reserve less "
-                     "using -R option)", reserved_va + 1, test, strerror(errno));
+                     "using qemu-user's -R option)",
+                     reserved_va + 1, test, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
