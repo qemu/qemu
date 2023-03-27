@@ -70,7 +70,10 @@ void co_wrapper blk_eject(BlockBackend *blk, bool eject_flag);
 int64_t coroutine_fn blk_co_getlength(BlockBackend *blk);
 int64_t co_wrapper_mixed blk_getlength(BlockBackend *blk);
 
-void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
+void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
+                                      uint64_t *nb_sectors_ptr);
+void co_wrapper_mixed blk_get_geometry(BlockBackend *blk,
+                                       uint64_t *nb_sectors_ptr);
 
 int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk);
 int64_t co_wrapper_mixed blk_nb_sectors(BlockBackend *blk);

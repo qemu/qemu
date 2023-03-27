@@ -1615,13 +1615,16 @@ int64_t coroutine_fn blk_co_getlength(BlockBackend *blk)
     return bdrv_co_getlength(blk_bs(blk));
 }
 
-void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
+void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
+                                      uint64_t *nb_sectors_ptr)
 {
     IO_CODE();
+    GRAPH_RDLOCK_GUARD();
+
     if (!blk_bs(blk)) {
         *nb_sectors_ptr = 0;
     } else {
-        bdrv_get_geometry(blk_bs(blk), nb_sectors_ptr);
+        bdrv_co_get_geometry(blk_bs(blk), nb_sectors_ptr);
     }
 }
 
