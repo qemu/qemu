@@ -1051,7 +1051,7 @@ restart:
             if ((pte & PTE_R) || ((pte & PTE_X) && mxr)) {
                 *prot |= PAGE_READ;
             }
-            if ((pte & PTE_X)) {
+            if (pte & PTE_X) {
                 *prot |= PAGE_EXEC;
             }
             /* add write permission on stores or if the page is already dirty,
