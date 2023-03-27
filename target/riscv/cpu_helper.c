@@ -560,18 +560,18 @@ void riscv_cpu_set_geilen(CPURISCVState *env, target_ulong geilen)
 
 bool riscv_cpu_virt_enabled(CPURISCVState *env)
 {
-    return get_field(env->virt, VIRT_ONOFF);
+    return env->virt_enabled;
 }
 
 /* This function can only be called to set virt when RVH is enabled */
 void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable)
 {
     /* Flush the TLB on all virt mode changes. */
-    if (get_field(env->virt, VIRT_ONOFF) != enable) {
+    if (env->virt_enabled != enable) {
         tlb_flush(env_cpu(env));
     }
 
-    env->virt = set_field(env->virt, VIRT_ONOFF, enable);
+    env->virt_enabled = enable;
 
     if (enable) {
         /*

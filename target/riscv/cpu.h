@@ -185,7 +185,7 @@ struct CPUArchState {
 #ifndef CONFIG_USER_ONLY
     target_ulong priv;
     /* This contains QEMU specific information about the virt state. */
-    target_ulong virt;
+    bool virt_enabled;
     target_ulong geilen;
     uint64_t resetvec;
 
