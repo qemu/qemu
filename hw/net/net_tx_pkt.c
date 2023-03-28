@@ -43,7 +43,11 @@ struct NetTxPkt {
     struct iovec *vec;
 
     uint8_t l2_hdr[ETH_MAX_L2_HDR_LEN];
-    uint8_t l3_hdr[ETH_MAX_IP_DGRAM_LEN];
+    union {
+        struct ip_header ip;
+        struct ip6_header ip6;
+        uint8_t octets[ETH_MAX_IP_DGRAM_LEN];
+    } l3_hdr;
 
     uint32_t payload_len;
 
@@ -89,16 +93,14 @@ void net_tx_pkt_update_ip_hdr_checksum(struct NetTxPkt *pkt)
 {
     uint16_t csum;
     assert(pkt);
-    struct ip_header *ip_hdr;
-    ip_hdr = pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_base;
 
-    ip_hdr->ip_len = cpu_to_be16(pkt->payload_len +
+    pkt->l3_hdr.ip.ip_len = cpu_to_be16(pkt->payload_len +
         pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len);
 
-    ip_hdr->ip_sum = 0;
-    csum = net_raw_checksum((uint8_t *)ip_hdr,
+    pkt->l3_hdr.ip.ip_sum = 0;
+    csum = net_raw_checksum(pkt->l3_hdr.octets,
         pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len);
-    ip_hdr->ip_sum = cpu_to_be16(csum);
+    pkt->l3_hdr.ip.ip_sum = cpu_to_be16(csum);
 }
 
 void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt)
@@ -443,7 +445,7 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt)
 #endif
 }
 
-void net_tx_pkt_reset(struct NetTxPkt *pkt)
+void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *pci_dev)
 {
     int i;
 
@@ -467,6 +469,7 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt)
                           pkt->raw[i].iov_len, DMA_DIRECTION_TO_DEVICE, 0);
         }
     }
+    pkt->pci_dev = pci_dev;
     pkt->raw_frags = 0;
 
     pkt->hdr_len = 0;
@@ -795,11 +798,13 @@ bool net_tx_pkt_send_custom(struct NetTxPkt *pkt, bool offload,
 {
     assert(pkt);
 
+    uint8_t gso_type = pkt->virt_hdr.gso_type & ~VIRTIO_NET_HDR_GSO_ECN;
+
     /*
      * Since underlying infrastructure does not support IP datagrams longer
      * than 64K we should drop such packets and don't even try to send
      */
-    if (VIRTIO_NET_HDR_GSO_NONE != pkt->virt_hdr.gso_type) {
+    if (VIRTIO_NET_HDR_GSO_NONE != gso_type) {
         if (pkt->payload_len >
             ETH_MAX_IP_DGRAM_LEN -
             pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len) {
@@ -807,7 +812,7 @@ bool net_tx_pkt_send_custom(struct NetTxPkt *pkt, bool offload,
         }
     }
 
-    if (offload || pkt->virt_hdr.gso_type == VIRTIO_NET_HDR_GSO_NONE) {
+    if (offload || gso_type == VIRTIO_NET_HDR_GSO_NONE) {
         if (!offload && pkt->virt_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
             net_tx_pkt_do_sw_csum(pkt, &pkt->vec[NET_TX_PKT_L2HDR_FRAG],
                                   pkt->payload_frags + NET_TX_PKT_PL_START_FRAG - 1,
@@ -829,15 +834,14 @@ void net_tx_pkt_fix_ip6_payload_len(struct NetTxPkt *pkt)
 {
     struct iovec *l2 = &pkt->vec[NET_TX_PKT_L2HDR_FRAG];
     if (eth_get_l3_proto(l2, 1, l2->iov_len) == ETH_P_IPV6) {
-        struct ip6_header *ip6 = (struct ip6_header *) pkt->l3_hdr;
         /*
          * TODO: if qemu would support >64K packets - add jumbo option check
          * something like that:
          * 'if (ip6->ip6_plen == 0 && !has_jumbo_option(ip6)) {'
          */
-        if (ip6->ip6_plen == 0) {
+        if (pkt->l3_hdr.ip6.ip6_plen == 0) {
             if (pkt->payload_len <= ETH_MAX_IP_DGRAM_LEN) {
-                ip6->ip6_plen = htons(pkt->payload_len);
+                pkt->l3_hdr.ip6.ip6_plen = htons(pkt->payload_len);
             }
             /*
              * TODO: if qemu would support >64K packets
