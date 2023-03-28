@@ -22,16 +22,6 @@
 #include "hex_regs.h"
 #include "reg_fields.h"
 
-#ifdef QEMU_GENERATE
-#define READ_REG(dest, NUM)              gen_read_reg(dest, NUM)
-#else
-#define READ_REG(NUM)                    (env->gpr[(NUM)])
-#define READ_PREG(NUM)                   (env->pred[NUM])
-
-#define WRITE_RREG(NUM, VAL)             log_reg_write(env, NUM, VAL, slot)
-#define WRITE_PREG(NUM, VAL)             log_pred_write(env, NUM, VAL)
-#endif
-
 #define PCALIGN 4
 #define PCALIGN_MASK (PCALIGN - 1)
 
@@ -361,37 +351,30 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     tcg_gen_shli_tl(result, result, shift);
     return result;
 }
-#define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
-#else
-#define fREAD_IREG(VAL) \
-    (fSXTN(11, 64, (((VAL) & 0xf0000000) >> 21) | ((VAL >> 17) & 0x7f)))
 #endif
 
-#define fREAD_LR() (READ_REG(HEX_REG_LR))
+#define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fWRITE_LR(A) WRITE_RREG(HEX_REG_LR, A)
-#define fWRITE_FP(A) WRITE_RREG(HEX_REG_FP, A)
-#define fWRITE_SP(A) WRITE_RREG(HEX_REG_SP, A)
+#define fWRITE_LR(A) log_reg_write(env, HEX_REG_LR, A, slot)
+#define fWRITE_FP(A) log_reg_write(env, HEX_REG_FP, A, slot)
+#define fWRITE_SP(A) log_reg_write(env, HEX_REG_SP, A, slot)
 
-#define fREAD_SP() (READ_REG(HEX_REG_SP))
-#define fREAD_LC0 (READ_REG(HEX_REG_LC0))
-#define fREAD_LC1 (READ_REG(HEX_REG_LC1))
-#define fREAD_SA0 (READ_REG(HEX_REG_SA0))
-#define fREAD_SA1 (READ_REG(HEX_REG_SA1))
-#define fREAD_FP() (READ_REG(HEX_REG_FP))
+#define fREAD_SP() (env->gpr[HEX_REG_SP])
+#define fREAD_LC0 (env->gpr[HEX_REG_LC0])
+#define fREAD_LC1 (env->gpr[HEX_REG_LC1])
+#define fREAD_SA0 (env->gpr[HEX_REG_SA0])
+#define fREAD_SA1 (env->gpr[HEX_REG_SA1])
+#define fREAD_FP() (env->gpr[HEX_REG_FP])
 #ifdef FIXME
 /* Figure out how to get insn->extension_valid to helper */
 #define fREAD_GP() \
-    (insn->extension_valid ? 0 : READ_REG(HEX_REG_GP))
+    (insn->extension_valid ? 0 : env->gpr[HEX_REG_GP])
 #else
-#define fREAD_GP() READ_REG(HEX_REG_GP)
+#define fREAD_GP() (env->gpr[HEX_REG_GP])
 #endif
 #define fREAD_PC() (PC)
 
-#define fREAD_NPC() (next_PC & (0xfffffffe))
-
-#define fREAD_P0() (READ_PREG(0))
-#define fREAD_P3() (READ_PREG(3))
+#define fREAD_P0() (env->pred[0])
 
 #define fCHECK_PCALIGN(A)
 
@@ -402,24 +385,22 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
 #define fWRITE_LOOP_REGS0(START, COUNT) \
     do { \
-        WRITE_RREG(HEX_REG_LC0, COUNT);  \
-        WRITE_RREG(HEX_REG_SA0, START); \
+        log_reg_write(env, HEX_REG_LC0, COUNT, slot);  \
+        log_reg_write(env, HEX_REG_SA0, START, slot); \
     } while (0)
 #define fWRITE_LOOP_REGS1(START, COUNT) \
     do { \
-        WRITE_RREG(HEX_REG_LC1, COUNT);  \
-        WRITE_RREG(HEX_REG_SA1, START);\
+        log_reg_write(env, HEX_REG_LC1, COUNT, slot);  \
+        log_reg_write(env, HEX_REG_SA1, START, slot);\
     } while (0)
-#define fWRITE_LC0(VAL) WRITE_RREG(HEX_REG_LC0, VAL)
-#define fWRITE_LC1(VAL) WRITE_RREG(HEX_REG_LC1, VAL)
 
 #define fSET_OVERFLOW() SET_USR_FIELD(USR_OVF, 1)
 #define fSET_LPCFG(VAL) SET_USR_FIELD(USR_LPCFG, (VAL))
 #define fGET_LPCFG (GET_USR_FIELD(USR_LPCFG))
-#define fWRITE_P0(VAL) WRITE_PREG(0, VAL)
-#define fWRITE_P1(VAL) WRITE_PREG(1, VAL)
-#define fWRITE_P2(VAL) WRITE_PREG(2, VAL)
-#define fWRITE_P3(VAL) WRITE_PREG(3, VAL)
+#define fWRITE_P0(VAL) log_pred_write(env, 0, VAL)
+#define fWRITE_P1(VAL) log_pred_write(env, 1, VAL)
+#define fWRITE_P2(VAL) log_pred_write(env, 2, VAL)
+#define fWRITE_P3(VAL) log_pred_write(env, 3, VAL)
 #define fPART1(WORK) if (part1) { WORK; return; }
 #define fCAST4u(A) ((uint32_t)(A))
 #define fCAST4s(A) ((int32_t)(A))
@@ -576,7 +557,7 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fMEMOP(NUM, SIZE, SIGN, EA, FNTYPE, VALUE)
 
-#define fGET_FRAMEKEY() READ_REG(HEX_REG_FRAMEKEY)
+#define fGET_FRAMEKEY() (env->gpr[HEX_REG_FRAMEKEY])
 #define fFRAME_SCRAMBLE(VAL) ((VAL) ^ (fCAST8u(fGET_FRAMEKEY()) << 32))
 #define fFRAME_UNSCRAMBLE(VAL) fFRAME_SCRAMBLE(VAL)
 
@@ -686,8 +667,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     fEXTRACTU_BITS(env->gpr[HEX_REG_##REG], \
                    reg_field_info[FIELD].width, \
                    reg_field_info[FIELD].offset)
-#define fGET_FIELD(VAL, FIELD)
-#define fSET_FIELD(VAL, FIELD, NEWVAL)
 #define fBARRIER()
 #define fSYNCH()
 #define fISYNC()
