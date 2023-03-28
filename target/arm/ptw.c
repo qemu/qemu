@@ -14,6 +14,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "idau.h"
+#include "tcg/oversized-guest.h"
 
 
 typedef struct S1Translate {
