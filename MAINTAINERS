@@ -159,6 +159,7 @@ F: include/sysemu/tcg.h
 F: include/hw/core/tcg-cpu-ops.h
 F: host/include/*/host/cpuinfo.h
 F: util/cpuinfo-*.c
+F: include/tcg/
 
 FPU emulation
 M: Aurelien Jarno <aurelien@aurel32.net>
