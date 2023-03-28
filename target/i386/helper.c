@@ -28,6 +28,9 @@
 #include "monitor/monitor.h"
 #endif
 #include "qemu/log.h"
+#ifdef CONFIG_TCG
+#include "tcg/tcg.h"
+#endif
 
 void cpu_sync_avx_hflag(CPUX86State *env)
 {
