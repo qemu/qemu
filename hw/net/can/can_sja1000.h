@@ -30,12 +30,12 @@
 #include "exec/hwaddr.h"
 #include "net/can_emu.h"
 
-#define CAN_SJA_MEM_SIZE      128
+#define CAN_SJA_MEM_SIZE      512
 
 /* The max size for a message buffer, EFF and DLC=8, DS-p39 */
 #define SJA_MSG_MAX_LEN       13
 /* The receive buffer size. */
-#define SJA_RCV_BUF_LEN       64
+#define SJA_RCV_BUF_LEN       256
 
 typedef struct CanSJA1000State {
     /* PeliCAN state and registers sorted by address */

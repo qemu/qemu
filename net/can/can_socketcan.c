@@ -49,7 +49,7 @@
 #define TYPE_CAN_HOST_SOCKETCAN "can-host-socketcan"
 OBJECT_DECLARE_SIMPLE_TYPE(CanHostSocketCAN, CAN_HOST_SOCKETCAN)
 
-#define CAN_READ_BUF_LEN  5
+#define CAN_READ_BUF_LEN  256
 struct CanHostSocketCAN {
     CanHostState       parent;
     char               *ifname;
