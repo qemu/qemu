@@ -10,6 +10,7 @@
 
 #include "qemu/log.h"
 #include "exec/translator.h"
+#include "tcg/tcg-op.h"
 
 #define MIPS_DEBUG_DISAS 0
 
