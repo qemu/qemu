@@ -26,7 +26,6 @@
 #define S390_TCG_TARGET_H
 
 #define TCG_TARGET_INSN_UNIT_SIZE 2
-#define TCG_TARGET_TLB_DISPLACEMENT_BITS 19
 
 /* We have a +- 4GB range on the branches; leave some slop.  */
 #define MAX_CODE_GEN_BUFFER_SIZE  (3 * GiB)
