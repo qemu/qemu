@@ -1434,26 +1434,26 @@ uint16_t nvme_bounce_mdata(NvmeCtrl *n, void *ptr, uint32_t len,
 }
 
 static inline void nvme_blk_read(BlockBackend *blk, int64_t offset,
-                                 BlockCompletionFunc *cb, NvmeRequest *req)
+                                 uint32_t align, BlockCompletionFunc *cb,
+                                 NvmeRequest *req)
 {
     assert(req->sg.flags & NVME_SG_ALLOC);
 
     if (req->sg.flags & NVME_SG_DMA) {
-        req->aiocb = dma_blk_read(blk, &req->sg.qsg, offset, BDRV_SECTOR_SIZE,
-                                  cb, req);
+        req->aiocb = dma_blk_read(blk, &req->sg.qsg, offset, align, cb, req);
     } else {
         req->aiocb = blk_aio_preadv(blk, offset, &req->sg.iov, 0, cb, req);
     }
 }
 
 static inline void nvme_blk_write(BlockBackend *blk, int64_t offset,
-                                  BlockCompletionFunc *cb, NvmeRequest *req)
+                                  uint32_t align, BlockCompletionFunc *cb,
+                                  NvmeRequest *req)
 {
     assert(req->sg.flags & NVME_SG_ALLOC);
 
     if (req->sg.flags & NVME_SG_DMA) {
-        req->aiocb = dma_blk_write(blk, &req->sg.qsg, offset, BDRV_SECTOR_SIZE,
-                                   cb, req);
+        req->aiocb = dma_blk_write(blk, &req->sg.qsg, offset, align, cb, req);
     } else {
         req->aiocb = blk_aio_pwritev(blk, offset, &req->sg.iov, 0, cb, req);
     }
@@ -2207,10 +2207,10 @@ static void nvme_rw_cb(void *opaque, int ret)
             }
 
             if (req->cmd.opcode == NVME_CMD_READ) {
-                return nvme_blk_read(blk, offset, nvme_rw_complete_cb, req);
+                return nvme_blk_read(blk, offset, 1, nvme_rw_complete_cb, req);
             }
 
-            return nvme_blk_write(blk, offset, nvme_rw_complete_cb, req);
+            return nvme_blk_write(blk, offset, 1, nvme_rw_complete_cb, req);
         }
     }
 
@@ -2378,7 +2378,7 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
 
         for (bufp = buf; mbufp < end; bufp += ns->lbaf.ms, mbufp += ns->lbaf.ms) {
             if (memcmp(bufp + pil, mbufp + pil, ns->lbaf.ms - pil)) {
-                req->status = NVME_CMP_FAILURE;
+                req->status = NVME_CMP_FAILURE | NVME_DNR;
                 goto out;
             }
         }
@@ -2387,7 +2387,7 @@ static void nvme_compare_mdata_cb(void *opaque, int ret)
     }
 
     if (memcmp(buf, ctx->mdata.bounce, ctx->mdata.iov.size)) {
-        req->status = NVME_CMP_FAILURE;
+        req->status = NVME_CMP_FAILURE | NVME_DNR;
         goto out;
     }
 
@@ -2436,7 +2436,7 @@ static void nvme_compare_data_cb(void *opaque, int ret)
     }
 
     if (memcmp(buf, ctx->data.bounce, ctx->data.iov.size)) {
-        req->status = NVME_CMP_FAILURE;
+        req->status = NVME_CMP_FAILURE | NVME_DNR;
         goto out;
     }
 
@@ -3437,7 +3437,7 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
 
     block_acct_start(blk_get_stats(blk), &req->acct, data_size,
                      BLOCK_ACCT_READ);
-    nvme_blk_read(blk, data_offset, nvme_rw_cb, req);
+    nvme_blk_read(blk, data_offset, BDRV_SECTOR_SIZE, nvme_rw_cb, req);
     return NVME_NO_COMPLETE;
 
 invalid:
@@ -3607,7 +3607,7 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
 
         block_acct_start(blk_get_stats(blk), &req->acct, data_size,
                          BLOCK_ACCT_WRITE);
-        nvme_blk_write(blk, data_offset, nvme_rw_cb, req);
+        nvme_blk_write(blk, data_offset, BDRV_SECTOR_SIZE, nvme_rw_cb, req);
     } else {
         req->aiocb = blk_aio_pwrite_zeroes(blk, data_offset, data_size,
                                            BDRV_REQ_MAY_UNMAP, nvme_rw_cb,
