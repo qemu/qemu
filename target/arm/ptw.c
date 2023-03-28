@@ -418,6 +418,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
                              uint64_t new_val, S1Translate *ptw,
                              ARMMMUFaultInfo *fi)
 {
+#ifdef TARGET_AARCH64
     uint64_t cur_val;
     void *host = ptw->out_host;
 
@@ -473,7 +474,7 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
      * we know that TCG_OVERSIZED_GUEST is set, which means that we are
      * running in round-robin mode and could only race with dma i/o.
      */
-#ifndef TCG_OVERSIZED_GUEST
+#if !TCG_OVERSIZED_GUEST
 # error "Unexpected configuration"
 #endif
     bool locked = qemu_mutex_iothread_locked();
@@ -497,6 +498,10 @@ static uint64_t arm_casq_ptw(CPUARMState *env, uint64_t old_val,
 #endif
 
     return cur_val;
+#else
+    /* AArch32 does not have FEAT_HADFS. */
+    g_assert_not_reached();
+#endif
 }
 
 static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
