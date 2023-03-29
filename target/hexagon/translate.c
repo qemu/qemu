@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#include "exec/helper-gen.h"
 #include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "internal.h"
