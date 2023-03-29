@@ -732,7 +732,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
  * @env: CPURISCVState
  * @physical: This will be set to the calculated physical address
  * @prot: The returned protection attributes
- * @addr: The virtual address to be translated
+ * @addr: The virtual address or guest physical address to be translated
  * @fault_pte_addr: If not NULL, this will be set to fault pte address
  *                  when a error occurs on pte address translation.
  *                  This will already be shifted to match htval.
@@ -744,7 +744,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
  * @is_debug: Is this access from a debugger or the monitor?
  */
 static int get_physical_address(CPURISCVState *env, hwaddr *physical,
-                                int *prot, target_ulong addr,
+                                int *prot, vaddr addr,
                                 target_ulong *fault_pte_addr,
                                 int access_type, int mmu_idx,
                                 bool first_stage, bool two_stage,
