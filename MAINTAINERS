@@ -1894,7 +1894,7 @@ F: hw/pci/pcie_doe.c
 ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
-R: Ani Sinha <ani@anisinha.ca>
+R: Ani Sinha <anisinha@redhat.com>
 S: Supported
 F: include/hw/acpi/*
 F: include/hw/firmware/smbios.h
