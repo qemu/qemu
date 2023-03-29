@@ -23,7 +23,6 @@
 #include "tcg/tcg-op-gvec.h"
 #include "tcg/tcg-gvec-desc.h"
 #include "translate.h"
-#include "exec/helper-gen.h"
 #include "translate-a64.h"
 #include "fpu/softfloat.h"
 

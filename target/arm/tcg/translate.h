@@ -2,6 +2,7 @@
 #define TARGET_ARM_TRANSLATE_H
 
 #include "exec/translator.h"
+#include "exec/helper-gen.h"
 #include "internals.h"
 
 

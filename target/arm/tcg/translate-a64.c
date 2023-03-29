@@ -29,8 +29,6 @@
 #include "qemu/host-utils.h"
 #include "semihosting/semihost.h"
 #include "exec/gen-icount.h"
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
 #include "exec/log.h"
 #include "cpregs.h"
 #include "translate-a64.h"
