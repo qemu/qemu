@@ -231,6 +231,7 @@ safe_stack=""
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
+glib_has_gslice="no"
 
 if test -e "$source_path/.git"
 then
@@ -1494,6 +1495,17 @@ for i in $glib_modules; do
     fi
 done
 
+# Check whether glib has gslice, which we have to avoid for correctness.
+# TODO: remove this check and the corresponding workaround (qtree) when
+# the minimum supported glib is >= $glib_dropped_gslice_version.
+glib_dropped_gslice_version=2.75.3
+for i in $glib_modules; do
+    if ! $pkg_config --atleast-version=$glib_dropped_gslice_version $i; then
+        glib_has_gslice="yes"
+	break
+    fi
+done
+
 glib_bindir="$($pkg_config --variable=bindir glib-2.0)"
 if test -z "$glib_bindir" ; then
 	glib_bindir="$($pkg_config --variable=prefix glib-2.0)"/bin
@@ -2420,6 +2432,9 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
 echo "GLIB_BINDIR=$glib_bindir" >> $config_host_mak
 echo "GLIB_VERSION=$($pkg_config --modversion glib-2.0)" >> $config_host_mak
+if test "$glib_has_gslice" = "yes" ; then
+    echo "HAVE_GLIB_WITH_SLICE_ALLOCATOR=y" >> $config_host_mak
+fi
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 

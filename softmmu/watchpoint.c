@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qemu/error-report.h"
 #include "exec/exec-all.h"
 #include "exec/translate-all.h"
 #include "sysemu/tcg.h"
@@ -102,6 +103,8 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
         }
     }
 }
+
+#ifdef CONFIG_TCG
 
 /*
  * Return true if this watchpoint address matches the specified
@@ -219,3 +222,5 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
         }
     }
 }
+
+#endif /* CONFIG_TCG */

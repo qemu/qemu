@@ -36,6 +36,7 @@ tests = {
   'test-rcu-slist': [],
   'test-qdist': [],
   'test-qht': [],
+  'test-qtree': [],
   'test-bitops': [],
   'test-bitcnt': [],
   'test-qgraph': ['../qtest/libqos/qgraph.c'],

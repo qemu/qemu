@@ -508,6 +508,10 @@ glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
                           })
 # override glib dep with the configure results (for subprojects)
 meson.override_dependency('glib-2.0', glib)
+# pass down whether Glib has the slice allocator
+if config_host.has_key('HAVE_GLIB_WITH_SLICE_ALLOCATOR')
+  config_host_data.set('HAVE_GLIB_WITH_SLICE_ALLOCATOR', true)
+endif
 
 gio = not_found
 gdbus_codegen = not_found

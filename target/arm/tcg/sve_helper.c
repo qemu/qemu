@@ -27,6 +27,7 @@
 #include "tcg/tcg.h"
 #include "vec_internal.h"
 #include "sve_ldst_internal.h"
+#include "hw/core/tcg-cpu-ops.h"
 
 
 /* Return a value for NZCV as per the ARM PredTest pseudofunction.
