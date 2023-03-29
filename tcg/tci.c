@@ -18,8 +18,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/cpu_ldst.h"
-#include "tcg/tcg-op.h"
+#include "tcg/tcg.h"
 #include "tcg/tcg-ldst.h"
 #include <ffi.h>
 
