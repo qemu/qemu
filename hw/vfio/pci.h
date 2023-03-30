@@ -226,4 +226,5 @@ void vfio_display_reset(VFIOPCIDevice *vdev);
 int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
 void vfio_display_finalize(VFIOPCIDevice *vdev);
 
+bool vfio_has_cpu_coherent_devmem(VFIOPCIDevice *vdev);
 #endif /* HW_VFIO_VFIO_PCI_H */

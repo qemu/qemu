@@ -42,6 +42,8 @@
 #include "qapi/error.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file.h"
+#include "qapi/visitor.h"
+#include "include/hw/boards.h"
 
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 
@@ -2824,6 +2826,22 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
     }
 }
 
+static void vfio_pci_get_gpu_mem_pxm_start(Object *obj, Visitor *v,
+                                           const char *name,
+                                           void *opaque, Error **errp)
+{
+    uint64_t pxm_start = (uintptr_t) opaque;
+    visit_type_uint64(v, name, &pxm_start, errp);
+}
+
+static void vfio_pci_get_gpu_mem_pxm_count(Object *obj, Visitor *v,
+                                           const char *name,
+                                           void *opaque, Error **errp)
+{
+    uint64_t pxm_count = (uintptr_t) opaque;
+    visit_type_uint64(v, name, &pxm_count, errp);
+}
+
 static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
@@ -2841,6 +2859,53 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     event_notifier_cleanup(&vdev->req_notifier);
 
     vdev->req_enabled = false;
+}
+
+static int vfio_pci_nvidia_dev_mem_probe(VFIOPCIDevice *vPciDev,
+                                         Error **errp)
+{
+    unsigned int num_nodes;
+    MemoryRegion *nv2mr = g_malloc0(sizeof(*nv2mr));
+    Object *obj = NULL;
+    VFIODevice *vdev = &vPciDev->vbasedev;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (!vfio_has_cpu_coherent_devmem(vPciDev)) {
+        return -ENODEV;
+    }
+
+    if (vdev->type == VFIO_DEVICE_TYPE_PCI) {
+        obj = vfio_pci_get_object(vdev);
+    }
+
+    if (!obj) {
+        return -EINVAL;
+    }
+
+    /*
+     * This device has memory that is coherently accessible from the CPU.
+     * The memory can be represented by upto 8 seperate memory-only
+     * NUMA nodes.
+     */
+    vPciDev->pdev.has_coherent_memory = true;
+    num_nodes = 8;
+
+    /*
+     * To have 8 unique nodes in the VM, a series of PXM nodes are
+     * required to be added to VM's SRAT. Send the information about
+     * the starting PXM ID and the count to the ACPI builder code.
+     */
+    object_property_add(OBJECT(vPciDev), "gpu_mem_pxm_start", "uint64",
+                        vfio_pci_get_gpu_mem_pxm_start, NULL, NULL,
+                        (void *) (uintptr_t) ms->numa_state->num_nodes);
+
+    object_property_add(OBJECT(vPciDev), "gpu_mem_pxm_count", "uint64",
+                        vfio_pci_get_gpu_mem_pxm_count, NULL, NULL,
+                        (void *) (uintptr_t) num_nodes);
+
+    ms->numa_state->num_nodes += num_nodes;
+
+    return 0;
 }
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
@@ -3148,6 +3213,13 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         ret = vfio_migration_realize(vbasedev, errp);
         if (ret) {
             error_report("%s: Migration disabled", vbasedev->name);
+        }
+    }
+
+    if (vdev->vendor_id == PCI_VENDOR_ID_NVIDIA) {
+        ret = vfio_pci_nvidia_dev_mem_probe(vdev, errp);
+        if (ret && ret != -ENODEV) {
+            error_report("Failed to setup NVIDIA dev_mem with error %d", ret);
         }
     }
 

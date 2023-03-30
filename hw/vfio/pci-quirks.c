@@ -1751,3 +1751,16 @@ int vfio_add_virt_caps(VFIOPCIDevice *vdev, Error **errp)
 
     return 0;
 }
+
+bool vfio_has_cpu_coherent_devmem(VFIOPCIDevice *vdev)
+{
+    switch (vdev->device_id) {
+    /* Nvidia */
+    case 0x2342:
+    case 0x2343:
+    case 0x2345:
+        return true;
+    }
+
+    return false;
+}
