@@ -877,9 +877,9 @@ static void write_bootloader(uint8_t *base, uint64_t run_addr,
 
     /* Bus endianess is always reversed */
 #if TARGET_BIG_ENDIAN
-#define cpu_to_gt32 cpu_to_le32
+#define cpu_to_gt32(x) (x)
 #else
-#define cpu_to_gt32 cpu_to_be32
+#define cpu_to_gt32(x) bswap32(x)
 #endif
 
     /* move GT64120 registers from 0x14000000 to 0x1be00000 */
