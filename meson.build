@@ -2741,9 +2741,7 @@ if have_system and vfio_user_server_allowed
 
   libvfio_user_proj = subproject('libvfio-user')
 
-  libvfio_user_lib = libvfio_user_proj.get_variable('libvfio_user_dep')
-
-  libvfio_user_dep = declare_dependency(dependencies: [libvfio_user_lib])
+  libvfio_user_dep = libvfio_user_proj.get_variable('libvfio_user_dep')
 endif
 
 fdt = not_found
