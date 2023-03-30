@@ -45,6 +45,7 @@
 #include "hw/acpi/hmat.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
+#include "hw/vfio/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/arm/virt.h"
@@ -514,6 +515,57 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_table_end(linker, &table);
 }
 
+static int devmem_device_list(Object *obj, void *opaque)
+{
+    GSList **list = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_VFIO_PCI)) {
+        *list = g_slist_append(*list, DEVICE(obj));
+    }
+
+    object_child_foreach(obj, devmem_device_list, opaque);
+    return 0;
+}
+
+static GSList *devmem_get_device_list(void)
+{
+    GSList *list = NULL;
+
+    object_child_foreach(qdev_get_machine(), devmem_device_list, &list);
+    return list;
+}
+
+static void build_srat_devmem(GArray *table_data)
+{
+    GSList *device_list, *list = devmem_get_device_list();
+
+    for (device_list = list; device_list; device_list = device_list->next) {
+        DeviceState *dev = device_list->data;
+        Object *obj = OBJECT(dev);
+        VFIOPCIDevice *pcidev
+            = ((VFIOPCIDevice *)object_dynamic_cast(OBJECT(obj),
+               TYPE_VFIO_PCI));
+
+        if (pcidev->pdev.has_coherent_memory) {
+            uint64_t start_node = object_property_get_uint(obj,
+                                  "gpu_mem_pxm_start", &error_abort);
+            uint64_t node_count = object_property_get_uint(obj,
+                                  "gpu_mem_pxm_count", &error_abort);
+            uint64_t node_index;
+
+            /*
+             * Add the node_count PXM domains starting from start_node as
+             * hot pluggable. The VM kernel parse the PXM domains and
+             * creates NUMA nodes.
+             */
+            for (node_index = 0; node_index < node_count; node_index++)
+                build_srat_memory(table_data, 0, 0, start_node + node_index,
+                    MEM_AFFINITY_ENABLED | MEM_AFFINITY_HOTPLUGGABLE);
+        }
+    }
+    g_slist_free(list);
+}
+
 /*
  * ACPI spec, Revision 5.1
  * 5.2.16 System Resource Affinity Table (SRAT)
@@ -567,6 +619,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                           ms->numa_state->num_nodes - 1,
                           MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
+
+    build_srat_devmem(table_data);
 
     acpi_table_end(linker, &table);
 }
