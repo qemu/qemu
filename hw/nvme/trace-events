@@ -187,7 +187,7 @@ pci_nvme_err_startfail_asqent_sz_zero(void) "nvme_start_ctrl failed because the 
 pci_nvme_err_startfail_acqent_sz_zero(void) "nvme_start_ctrl failed because the admin completion queue size is zero"
 pci_nvme_err_startfail_zasl_too_small(uint32_t zasl, uint32_t pagesz) "nvme_start_ctrl failed because zone append size limit %"PRIu32" is too small, needs to be >= %"PRIu32""
 pci_nvme_err_startfail(void) "setting controller enable bit failed"
-pci_nvme_err_startfail_virt_state(uint16_t vq, uint16_t vi, const char *state) "nvme_start_ctrl failed due to ctrl state: vi=%u vq=%u %s"
+pci_nvme_err_startfail_virt_state(uint16_t vq, uint16_t vi) "nvme_start_ctrl failed due to ctrl state: vi=%u vq=%u"
 pci_nvme_err_invalid_mgmt_action(uint8_t action) "action=0x%"PRIx8""
 pci_nvme_err_ignored_mmio_vf_offline(uint64_t addr, unsigned size) "addr 0x%"PRIx64" size %d"
 

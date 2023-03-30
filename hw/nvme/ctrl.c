@@ -7158,9 +7158,7 @@ static int nvme_start_ctrl(NvmeCtrl *n)
 
     if (pci_is_vf(PCI_DEVICE(n)) && !sctrl->scs) {
         trace_pci_nvme_err_startfail_virt_state(le16_to_cpu(sctrl->nvi),
-                                                le16_to_cpu(sctrl->nvq),
-                                                sctrl->scs ? "ONLINE" :
-                                                             "OFFLINE");
+                                                le16_to_cpu(sctrl->nvq));
         return -1;
     }
     if (unlikely(n->cq[0])) {
