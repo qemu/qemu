@@ -3765,7 +3765,7 @@ static int vnc_display_get_address(const char *addrstr,
 
         addr->type = SOCKET_ADDRESS_TYPE_INET;
         inet = &addr->u.inet;
-        if (addrstr[0] == '[' && addrstr[hostlen - 1] == ']') {
+        if (hostlen && addrstr[0] == '[' && addrstr[hostlen - 1] == ']') {
             inet->host = g_strndup(addrstr + 1, hostlen - 2);
         } else {
             inet->host = g_strndup(addrstr, hostlen);
