@@ -321,9 +321,6 @@ static void gt64120_isd_mapping(GT64120State *s)
 static void gt64120_update_pci_cfgdata_mapping(GT64120State *s)
 {
     /* Indexed on MByteSwap bit, see Table 158: PCI_0 Command, Offset: 0xc00 */
-    static const MemoryRegionOps *pci_host_conf_ops[] = {
-        &pci_host_conf_be_ops, &pci_host_conf_le_ops
-    };
     static const MemoryRegionOps *pci_host_data_ops[] = {
         &pci_host_data_be_ops, &pci_host_data_le_ops
     };
@@ -339,15 +336,6 @@ static void gt64120_update_pci_cfgdata_mapping(GT64120State *s)
      * - Table 16: 32-bit PCI Transaction Endianess
      * - Table 158: PCI_0 Command, Offset: 0xc00
      */
-    if (memory_region_is_mapped(&phb->conf_mem)) {
-        memory_region_del_subregion(&s->ISD_mem, &phb->conf_mem);
-        object_unparent(OBJECT(&phb->conf_mem));
-    }
-    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
-                          pci_host_conf_ops[s->regs[GT_PCI0_CMD] & 1],
-                          s, "pci-conf-idx", 4);
-    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGADDR << 2,
-                                        &phb->conf_mem, 1);
 
     if (memory_region_is_mapped(&phb->data_mem)) {
         memory_region_del_subregion(&s->ISD_mem, &phb->data_mem);
@@ -1208,6 +1196,12 @@ static void gt64120_realize(DeviceState *dev, Error **errp)
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+                          &pci_host_conf_le_ops,
+                          s, "pci-conf-idx", 4);
+    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGADDR << 2,
+                                        &phb->conf_mem, 1);
+
 
     /*
      * The whole address space decoded by the GT-64120A doesn't generate

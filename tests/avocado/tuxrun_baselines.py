@@ -270,7 +270,6 @@ class TuxRunBaselineTest(QemuSystemTest):
         """
         self.common_tuxrun(drive="driver=ide-hd,bus=ide.0,unit=0")
 
-    @skip("QEMU currently broken") # regression against stable QEMU
     def test_mips64(self):
         """
         :avocado: tags=arch:mips64
