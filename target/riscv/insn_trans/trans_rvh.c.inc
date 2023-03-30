@@ -20,6 +20,8 @@
 static bool check_access(DisasContext *ctx)
 {
     if (!ctx->hlsx) {
+        tcg_gen_st_i32(tcg_constant_i32(ctx->opcode), cpu_env,
+                       offsetof(CPURISCVState, bins));
         if (ctx->virt_enabled) {
             generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
         } else {
