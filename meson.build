@@ -888,7 +888,8 @@ if have_system and get_option('curses').allowed()
   curses_compile_args = ['-DNCURSES_WIDECHAR=1']
   if curses.found()
     if cc.links(curses_test, args: curses_compile_args, dependencies: [curses])
-      curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses])
+      curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses],
+                                  version: curses.version())
     else
       msg = 'curses package not usable'
       curses = not_found
@@ -977,7 +978,8 @@ endif
 if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
-                           dependencies: sdl)
+                           dependencies: sdl,
+                           version: sdl.version())
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
                          method: 'pkg-config')
 else
@@ -1198,9 +1200,10 @@ if not gnutls_crypto.found()
     # as it "spreads unnecessary dependencies" which in
     # turn breaks static builds...
     if gcrypt.found() and get_option('prefer_static')
-      gcrypt = declare_dependency(dependencies: [
-        gcrypt,
-        cc.find_library('gpg-error', required: true)])
+      gcrypt = declare_dependency(dependencies:
+        [gcrypt,
+         cc.find_library('gpg-error', required: true)],
+        version: gcrypt.version())
     endif
   endif
   if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
@@ -1234,7 +1237,8 @@ if not get_option('gtk').auto() or have_system
     gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
                         method: 'pkg-config',
                         required: false)
-    gtk = declare_dependency(dependencies: [gtk, gtkx11])
+    gtk = declare_dependency(dependencies: [gtk, gtkx11],
+                             version: gtk.version())
 
     if not get_option('vte').auto() or have_system
       vte = dependency('vte-2.91',
