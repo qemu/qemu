@@ -49,6 +49,74 @@ static void acpi_dsdt_add_pci_route_table(Aml *dev, uint32_t irq)
     }
 }
 
+static void acpi_dsdt_add_gpu(Aml *dev, int32_t devfn,
+                             uint64_t gpu_mem_pxm_start,
+                             uint64_t gpu_mem_pxm_count)
+{
+    Aml *dev_gpu = aml_device("GPU%X", PCI_SLOT(devfn));
+    Aml *pkg = aml_package(2);
+    Aml *pkg1 = aml_package(2);
+    Aml *pkg2 = aml_package(2);
+    Aml *dev_pkg = aml_package(2);
+    Aml *UUID;
+
+    aml_append(dev_gpu, aml_name_decl("_ADR", aml_int(PCI_SLOT(devfn) << 16)));
+
+    aml_append(pkg1, aml_string("nvidia,gpu-mem-pxm-start"));
+    aml_append(pkg1, aml_int(gpu_mem_pxm_start));
+
+    aml_append(pkg2, aml_string("nvidia,gpu-mem-pxm-count"));
+    aml_append(pkg2, aml_int(gpu_mem_pxm_count));
+
+    aml_append(pkg, pkg1);
+    aml_append(pkg, pkg2);
+
+    UUID = aml_touuid("DAFFD814-6EBA-4D8C-8A91-BC9BBF4AA301");
+    aml_append(dev_pkg, UUID);
+    aml_append(dev_pkg, pkg);
+
+    aml_append(dev_gpu, aml_name_decl("_DSD", dev_pkg));
+    aml_append(dev, dev_gpu);
+}
+
+static void find_hbm_device(PCIBus *bus, PCIDevice *pdev,
+                            void *opaque)
+{
+    Aml *dev = (Aml *)opaque;
+    uint32_t vendor_id = pci_default_read_config(pdev, PCI_VENDOR_ID, 2);
+
+    if (bus == NULL) {
+        return;
+    }
+
+    if (vendor_id == PCI_VENDOR_ID_NVIDIA &&
+        pdev->has_coherent_memory) {
+        Object *po = OBJECT(pdev);
+
+        if (po == NULL) {
+            return;
+        }
+
+        uint64_t pxm_start
+           = object_property_get_uint(po, "gpu_mem_pxm_start", NULL);
+        uint64_t pxm_count
+           = object_property_get_uint(po, "gpu_mem_pxm_count", NULL);
+
+        acpi_dsdt_add_gpu(dev, pdev->devfn, pxm_start, pxm_count);
+    }
+}
+
+static void acpi_dsdt_find_and_add_gpu(PCIBus *bus, Aml *dev)
+{
+    if (bus == NULL) {
+        return;
+    }
+
+    pci_for_each_device_reverse(bus, pci_bus_num(bus),
+                                find_hbm_device, dev);
+
+}
+
 static void acpi_dsdt_add_pci_osc(Aml *dev)
 {
     Aml *method, *UUID, *ifctx, *ifctx1, *elsectx, *buf;
@@ -207,7 +275,10 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
 
     acpi_dsdt_add_pci_route_table(dev, cfg->irq);
 
+    acpi_dsdt_find_and_add_gpu(cfg->bus, dev);
+
     method = aml_method("_CBA", 0, AML_NOTSERIALIZED);
+
     aml_append(method, aml_return(aml_int(cfg->ecam.base)));
     aml_append(dev, method);
 
