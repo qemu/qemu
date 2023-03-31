@@ -2075,6 +2075,10 @@ F: backends/vhost-user.c
 F: include/sysemu/vhost-user-backend.h
 F: subprojects/libvhost-user/
 
+vhost-shadow-virtqueue
+R: Eugenio Pérez <eperezma@redhat.com>
+F: hw/virtio/vhost-shadow-virtqueue.*
+
 virtio
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
