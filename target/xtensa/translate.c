@@ -45,6 +45,10 @@
 
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 struct DisasContext {
     DisasContextBase base;

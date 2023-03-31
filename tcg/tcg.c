@@ -848,13 +848,6 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-#include "exec/helper-proto.h"
-
-static TCGHelperInfo all_helpers[] = {
-#include "exec/helper-tcg.h"
-};
-static GHashTable *helper_table;
-
 /*
  * Create TCGHelperInfo structures for "tcg/tcg-ldst.h" functions,
  * akin to what "exec/helper-tcg.h" does with DEF_HELPER_FLAGS_N.
@@ -964,57 +957,45 @@ static ffi_type *typecode_to_ffi(int argmask)
     g_assert_not_reached();
 }
 
-static void init_ffi_layouts(void)
+static ffi_cif *init_ffi_layout(TCGHelperInfo *info)
 {
-    /* g_direct_hash/equal for direct comparisons on uint32_t.  */
-    GHashTable *ffi_table = g_hash_table_new(NULL, NULL);
+    unsigned typemask = info->typemask;
+    struct {
+        ffi_cif cif;
+        ffi_type *args[];
+    } *ca;
+    ffi_status status;
+    int nargs;
 
-    for (int i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
-        TCGHelperInfo *info = &all_helpers[i];
-        unsigned typemask = info->typemask;
-        gpointer hash = (gpointer)(uintptr_t)typemask;
-        struct {
-            ffi_cif cif;
-            ffi_type *args[];
-        } *ca;
-        ffi_status status;
-        int nargs;
-        ffi_cif *cif;
+    /* Ignoring the return type, find the last non-zero field. */
+    nargs = 32 - clz32(typemask >> 3);
+    nargs = DIV_ROUND_UP(nargs, 3);
+    assert(nargs <= MAX_CALL_IARGS);
 
-        cif = g_hash_table_lookup(ffi_table, hash);
-        if (cif) {
-            info->cif = cif;
-            continue;
+    ca = g_malloc0(sizeof(*ca) + nargs * sizeof(ffi_type *));
+    ca->cif.rtype = typecode_to_ffi(typemask & 7);
+    ca->cif.nargs = nargs;
+
+    if (nargs != 0) {
+        ca->cif.arg_types = ca->args;
+        for (int j = 0; j < nargs; ++j) {
+            int typecode = extract32(typemask, (j + 1) * 3, 3);
+            ca->args[j] = typecode_to_ffi(typecode);
         }
-
-        /* Ignoring the return type, find the last non-zero field. */
-        nargs = 32 - clz32(typemask >> 3);
-        nargs = DIV_ROUND_UP(nargs, 3);
-        assert(nargs <= MAX_CALL_IARGS);
-
-        ca = g_malloc0(sizeof(*ca) + nargs * sizeof(ffi_type *));
-        ca->cif.rtype = typecode_to_ffi(typemask & 7);
-        ca->cif.nargs = nargs;
-
-        if (nargs != 0) {
-            ca->cif.arg_types = ca->args;
-            for (int j = 0; j < nargs; ++j) {
-                int typecode = extract32(typemask, (j + 1) * 3, 3);
-                ca->args[j] = typecode_to_ffi(typecode);
-            }
-        }
-
-        status = ffi_prep_cif(&ca->cif, FFI_DEFAULT_ABI, nargs,
-                              ca->cif.rtype, ca->cif.arg_types);
-        assert(status == FFI_OK);
-
-        cif = &ca->cif;
-        info->cif = cif;
-        g_hash_table_insert(ffi_table, hash, (gpointer)cif);
     }
 
-    g_hash_table_destroy(ffi_table);
+    status = ffi_prep_cif(&ca->cif, FFI_DEFAULT_ABI, nargs,
+                          ca->cif.rtype, ca->cif.arg_types);
+    assert(status == FFI_OK);
+
+    return &ca->cif;
 }
+
+#define HELPER_INFO_INIT(I)      (&(I)->cif)
+#define HELPER_INFO_INIT_VAL(I)  init_ffi_layout(I)
+#else
+#define HELPER_INFO_INIT(I)      (&(I)->init)
+#define HELPER_INFO_INIT_VAL(I)  1
 #endif /* CONFIG_TCG_INTERPRETER */
 
 static inline bool arg_slot_reg_p(unsigned arg_slot)
@@ -1327,26 +1308,12 @@ static void tcg_context_init(unsigned max_cpus)
         args_ct += n;
     }
 
-    /* Register helpers.  */
-    /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
-    helper_table = g_hash_table_new(NULL, NULL);
-
-    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
-        init_call_layout(&all_helpers[i]);
-        g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
-                            (gpointer)&all_helpers[i]);
-    }
-
     init_call_layout(&info_helper_ld32_mmu);
     init_call_layout(&info_helper_ld64_mmu);
     init_call_layout(&info_helper_ld128_mmu);
     init_call_layout(&info_helper_st32_mmu);
     init_call_layout(&info_helper_st64_mmu);
     init_call_layout(&info_helper_st128_mmu);
-
-#ifdef CONFIG_TCG_INTERPRETER
-    init_ffi_layouts();
-#endif
 
     tcg_target_init(s);
     process_op_defs(s);
@@ -2141,15 +2108,18 @@ bool tcg_op_supported(TCGOpcode op)
 
 static TCGOp *tcg_op_alloc(TCGOpcode opc, unsigned nargs);
 
-void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
+void tcg_gen_callN(TCGHelperInfo *info, TCGTemp *ret, int nargs, TCGTemp **args)
 {
-    const TCGHelperInfo *info;
     TCGv_i64 extend_free[MAX_CALL_IARGS];
     int n_extend = 0;
     TCGOp *op;
     int i, n, pi = 0, total_args;
 
-    info = g_hash_table_lookup(helper_table, (gpointer)func);
+    if (unlikely(g_once_init_enter(HELPER_INFO_INIT(info)))) {
+        init_call_layout(info);
+        g_once_init_leave(HELPER_INFO_INIT(info), HELPER_INFO_INIT_VAL(info));
+    }
+
     total_args = info->nr_out + info->nr_in + 2;
     op = tcg_op_alloc(INDEX_op_call, total_args);
 
@@ -2216,7 +2186,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
             g_assert_not_reached();
         }
     }
-    op->args[pi++] = (uintptr_t)func;
+    op->args[pi++] = (uintptr_t)info->func;
     op->args[pi++] = (uintptr_t)info;
     tcg_debug_assert(pi == total_args);
 

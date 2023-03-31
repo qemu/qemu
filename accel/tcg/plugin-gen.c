@@ -49,6 +49,11 @@
 #include "exec/exec-all.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
+#include "exec/helper-proto.h"
+
+#define HELPER_H  "accel/tcg/plugin-helpers.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #ifdef CONFIG_SOFTMMU
 # define CONFIG_SOFTMMU_GATE 1

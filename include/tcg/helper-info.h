@@ -40,12 +40,17 @@ typedef struct TCGCallArgumentLoc {
     unsigned tmp_subindex       : 2;
 } TCGCallArgumentLoc;
 
-typedef struct TCGHelperInfo {
+struct TCGHelperInfo {
     void *func;
     const char *name;
+
+    /* Used with g_once_init_enter. */
 #ifdef CONFIG_TCG_INTERPRETER
     ffi_cif *cif;
+#else
+    uintptr_t init;
 #endif
+
     unsigned typemask           : 32;
     unsigned flags              : 8;
     unsigned nr_in              : 8;
@@ -54,6 +59,6 @@ typedef struct TCGHelperInfo {
 
     /* Maximum physical arguments are constrained by TCG_TYPE_I128. */
     TCGCallArgumentLoc in[MAX_CALL_IARGS * (128 / TCG_TARGET_REG_BITS)];
-} TCGHelperInfo;
+};
 
 #endif /* TCG_HELPER_INFO_H */

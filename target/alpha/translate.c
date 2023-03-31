@@ -30,6 +30,9 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #undef ALPHA_DEBUG_DISAS
 #define CONFIG_SOFTFLOAT_INLINE

@@ -46,6 +46,10 @@
 #include "exec/log.h"
 #include "qemu/atomic128.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 /* Information that (most) every instruction needs to manipulate.  */
 typedef struct DisasContext DisasContext;

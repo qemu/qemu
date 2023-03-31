@@ -29,6 +29,11 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 /* Since we have a distinction between register size and address size,
    we need to redefine all of these.  */
 

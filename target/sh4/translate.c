@@ -29,6 +29,10 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 typedef struct DisasContext {
     DisasContextBase base;

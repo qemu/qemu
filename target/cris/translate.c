@@ -34,10 +34,12 @@
 #include "exec/translator.h"
 #include "crisv32-decode.h"
 #include "qemu/qemu-print.h"
-
 #include "exec/helper-gen.h"
-
 #include "exec/log.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 
 #define DISAS_CRIS 0

@@ -41,6 +41,10 @@
 #include "qemu/qemu-print.h"
 #include "qapi/error.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
 

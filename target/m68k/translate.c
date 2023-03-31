@@ -34,6 +34,9 @@
 #include "exec/log.h"
 #include "fpu/softfloat.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 //#define DEBUG_DISPATCH 1
 

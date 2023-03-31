@@ -35,6 +35,11 @@
 #include "exec/gen-icount.h"
 #include "semihosting/semihost.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 /* is_jmp field values */
 #define DISAS_UPDATE  DISAS_TARGET_1 /* cpu state was modified dynamically */
 
