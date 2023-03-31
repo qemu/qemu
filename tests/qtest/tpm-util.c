@@ -51,51 +51,6 @@ void tpm_util_crb_transfer(QTestState *s,
     qtest_memread(s, raddr, rsp, rsp_size);
 }
 
-void tpm_util_tis_transfer(QTestState *s,
-                           const unsigned char *req, size_t req_size,
-                           unsigned char *rsp, size_t rsp_size)
-{
-    uint32_t sts;
-    uint16_t bcount;
-    size_t i;
-
-    /* request use of locality 0 */
-    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_ACCESS), TPM_TIS_ACCESS_REQUEST_USE);
-    qtest_writel(s, TIS_REG(0, TPM_TIS_REG_STS), TPM_TIS_STS_COMMAND_READY);
-
-    sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
-    bcount = (sts >> 8) & 0xffff;
-    g_assert_cmpint(bcount, >=, req_size);
-
-    /* transmit command */
-    for (i = 0; i < req_size; i++) {
-        qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_DATA_FIFO), req[i]);
-    }
-
-    /* start processing */
-    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_STS), TPM_TIS_STS_TPM_GO);
-
-    uint64_t end_time = g_get_monotonic_time() + 50 * G_TIME_SPAN_SECOND;
-    do {
-        sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
-        if ((sts & TPM_TIS_STS_DATA_AVAILABLE) != 0) {
-            break;
-        }
-    } while (g_get_monotonic_time() < end_time);
-
-    sts = qtest_readl(s, TIS_REG(0, TPM_TIS_REG_STS));
-    bcount = (sts >> 8) & 0xffff;
-
-    memset(rsp, 0, rsp_size);
-    for (i = 0; i < bcount; i++) {
-        rsp[i] = qtest_readb(s, TIS_REG(0, TPM_TIS_REG_DATA_FIFO));
-    }
-
-    /* relinquish use of locality 0 */
-    qtest_writeb(s, TIS_REG(0, TPM_TIS_REG_ACCESS),
-                 TPM_TIS_ACCESS_ACTIVE_LOCALITY);
-}
-
 void tpm_util_startup(QTestState *s, tx_func *tx)
 {
     unsigned char buffer[1024];

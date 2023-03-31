@@ -19,9 +19,6 @@
 #include "tpm-tests.h"
 #include "hw/acpi/tpm.h"
 
-/* Not used but needed for linking */
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
-
 typedef struct TestState {
     char *src_tpm_path;
     char *dst_tpm_path;

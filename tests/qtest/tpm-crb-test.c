@@ -19,9 +19,6 @@
 #include "qemu/module.h"
 #include "tpm-emu.h"
 
-/* Not used but needed for linking */
-uint64_t tpm_tis_base_addr = TPM_TIS_ADDR_BASE;
-
 #define TPM_CMD "\x80\x01\x00\x00\x00\x0c\x00\x00\x01\x44\x00\x00"
 
 static void tpm_crb_test(const void *data)
