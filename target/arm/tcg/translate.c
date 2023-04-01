@@ -35,6 +35,7 @@
 #include "translate.h"
 #include "translate-a32.h"
 #include "exec/gen-icount.h"
+#include "exec/helper-proto.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"

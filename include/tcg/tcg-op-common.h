@@ -9,7 +9,7 @@
 #define TCG_TCG_OP_COMMON_H
 
 #include "tcg/tcg.h"
-#include "exec/helper-proto.h"
+#include "exec/helper-proto-common.h"
 #include "exec/helper-gen-common.h"
 
 /* Basic output routines.  Not for general consumption.  */
