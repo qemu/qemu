@@ -521,6 +521,7 @@ struct TCGContext {
     uint8_t tlb_dyn_max_bits;
 #endif
     uint8_t insn_start_words;
+    TCGBar guest_mo;
 
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
