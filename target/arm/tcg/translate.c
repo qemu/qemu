@@ -32,6 +32,9 @@
 #include "semihosting/semihost.h"
 #include "exec/log.h"
 #include "cpregs.h"
+#include "translate.h"
+#include "translate-a32.h"
+#include "exec/gen-icount.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -48,9 +51,6 @@
 #define ENABLE_ARCH_7     arm_dc_feature(s, ARM_FEATURE_V7)
 #define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
-#include "translate.h"
-#include "translate-a32.h"
-
 /* These are TCG temporaries used only by the legacy iwMMXt decoder */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 /* These are TCG globals which alias CPUARMState fields */
@@ -58,8 +58,6 @@ static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
 TCGv_i64 cpu_exclusive_val;
-
-#include "exec/gen-icount.h"
 
 static const char * const regnames[] =
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",

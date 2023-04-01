@@ -10,7 +10,7 @@
 
 #include "tcg/tcg.h"
 #include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
+#include "exec/helper-gen-common.h"
 
 /* Basic output routines.  Not for general consumption.  */
 
