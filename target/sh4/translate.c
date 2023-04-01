@@ -17,8 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define DEBUG_DISAS
-
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "disas/disas.h"

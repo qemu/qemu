@@ -27,9 +27,6 @@
 #include "qemu/interval-tree.h"
 #include "qemu/clang-tsa.h"
 
-/* allow to see translation results - the slowdown should be negligible, so we leave it */
-#define DEBUG_DISAS
-
 /* Page tracking code uses ram addresses in system mode, and virtual
    addresses in userspace mode.  Define tb_page_addr_t to be an appropriate
    type.  */
