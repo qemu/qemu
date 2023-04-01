@@ -32,10 +32,22 @@
 #include "tcg-internal.h"
 
 
-static inline MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
+static void check_max_alignment(unsigned a_bits)
 {
-    /* Trigger the asserts within as early as possible.  */
+#if defined(CONFIG_SOFTMMU)
+    /*
+     * The requested alignment cannot overlap the TLB flags.
+     * FIXME: Must keep the count up-to-date with "exec/cpu-all.h".
+     */
+    tcg_debug_assert(a_bits + 6 <= tcg_ctx->page_bits);
+#endif
+}
+
+static MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
+{
     unsigned a_bits = get_alignment_bits(op);
+
+    check_max_alignment(a_bits);
 
     /* Prefer MO_ALIGN+MO_XX over MO_ALIGN_XX+MO_XX */
     if (a_bits == (op & MO_SIZE)) {
@@ -491,6 +503,7 @@ static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
     TCGv_i64 ext_addr = NULL;
     TCGOpcode opc;
 
+    check_max_alignment(get_alignment_bits(memop));
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
 
     /* TODO: For now, force 32-bit hosts to use the helper. */
@@ -599,6 +612,7 @@ static void tcg_gen_qemu_st_i128_int(TCGv_i128 val, TCGTemp *addr,
     TCGv_i64 ext_addr = NULL;
     TCGOpcode opc;
 
+    check_max_alignment(get_alignment_bits(memop));
     tcg_gen_req_mo(TCG_MO_ST_LD | TCG_MO_ST_ST);
 
     /* TODO: For now, force 32-bit hosts to use the helper. */
