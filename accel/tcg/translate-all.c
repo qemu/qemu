@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 
-#define NO_CPU_IO_DEFS
 #include "trace.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"

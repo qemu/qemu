@@ -34,12 +34,6 @@
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/timer.h"
-
-/* Note: the long term plan is to reduce the dependencies on the QEMU
-   CPU definitions. Currently they are used for qemu_ld/st
-   instructions */
-#define NO_CPU_IO_DEFS
-
 #include "exec/exec-all.h"
 #include "exec/tlb-common.h"
 #include "tcg/tcg-op-common.h"
