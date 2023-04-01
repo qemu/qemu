@@ -21,7 +21,7 @@
 #include "tcg/tcg.h"
 #include "tcg/tcg-temp-internal.h"
 #include "tcg/tcg-op-common.h"
-#include "tcg/tcg-op-gvec.h"
+#include "tcg/tcg-op-gvec-common.h"
 #include "tcg/tcg-gvec-desc.h"
 
 #define MAX_UNROLL  4
