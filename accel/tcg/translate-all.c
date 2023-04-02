@@ -360,6 +360,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #ifdef CONFIG_SOFTMMU
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
+    tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
 #endif
 
  tb_overflow:

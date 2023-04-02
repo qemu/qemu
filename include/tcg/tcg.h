@@ -563,6 +563,7 @@ struct TCGContext {
 #ifdef CONFIG_SOFTMMU
     int page_mask;
     uint8_t page_bits;
+    uint8_t tlb_dyn_max_bits;
 #endif
 
     TCGRegSet reserved_regs;
