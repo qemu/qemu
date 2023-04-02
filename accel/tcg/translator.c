@@ -8,15 +8,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "tcg/tcg.h"
-#include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
-#include "exec/log.h"
 #include "exec/translator.h"
+#include "exec/translate-all.h"
 #include "exec/plugin-gen.h"
-#include "exec/replay-core.h"
-
+#include "tcg/tcg-op-common.h"
 
 static void gen_io_start(void)
 {
