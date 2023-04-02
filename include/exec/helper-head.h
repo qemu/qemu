@@ -22,6 +22,7 @@
 #define dh_alias_f64 i64
 #define dh_alias_ptr ptr
 #define dh_alias_cptr ptr
+#define dh_alias_env ptr
 #define dh_alias_void void
 #define dh_alias_noreturn noreturn
 #define dh_alias(t) glue(dh_alias_, t)
@@ -37,6 +38,7 @@
 #define dh_ctype_f64 float64
 #define dh_ctype_ptr void *
 #define dh_ctype_cptr const void *
+#define dh_ctype_env CPUArchState *
 #define dh_ctype_void void
 #define dh_ctype_noreturn G_NORETURN void
 #define dh_ctype(t) dh_ctype_##t
@@ -52,9 +54,6 @@
 #  endif
 # endif
 # define dh_ctype_tl target_ulong
-# define dh_alias_env ptr
-# define dh_ctype_env CPUArchState *
-# define dh_typecode_env dh_typecode_ptr
 #endif
 
 /* We can't use glue() here because it falls foul of C preprocessor
@@ -96,6 +95,7 @@
 #define dh_typecode_f32 dh_typecode_i32
 #define dh_typecode_f64 dh_typecode_i64
 #define dh_typecode_cptr dh_typecode_ptr
+#define dh_typecode_env dh_typecode_ptr
 #define dh_typecode(t) dh_typecode_##t
 
 #define dh_callflag_i32  0
