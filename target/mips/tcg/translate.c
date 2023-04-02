@@ -26,6 +26,7 @@
 #include "translate.h"
 #include "internal.h"
 #include "exec/helper-proto.h"
+#include "exec/translation-block.h"
 #include "semihosting/semihost.h"
 #include "trace.h"
 #include "disas/disas.h"
