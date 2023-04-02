@@ -12,8 +12,6 @@
 #ifndef QEMU_PLUGIN_GEN_H
 #define QEMU_PLUGIN_GEN_H
 
-#include "exec/cpu_ldst.h"
-#include "qemu/plugin.h"
 #include "tcg/tcg.h"
 
 struct DisasContextBase;
