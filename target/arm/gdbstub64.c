@@ -230,8 +230,11 @@ int aarch64_gdb_get_pauth_reg(CPUARMState *env, GByteArray *buf, int reg)
         {
             bool is_data = !(reg & 1);
             bool is_high = reg & 2;
-            uint64_t mask = pauth_ptr_mask(env, -is_high, is_data);
-            return gdb_get_reg64(buf, mask);
+            ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
+            ARMVAParameters param;
+
+            param = aa64_va_parameters(env, -is_high, mmu_idx, is_data);
+            return gdb_get_reg64(buf, pauth_ptr_mask(param));
         }
     default:
         return 0;

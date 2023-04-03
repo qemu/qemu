@@ -1391,13 +1391,18 @@ bool arm_generate_debug_exceptions(CPUARMState *env);
 
 /**
  * pauth_ptr_mask:
- * @env: cpu context
- * @ptr: selects between TTBR0 and TTBR1
- * @data: selects between TBI and TBID
+ * @param: parameters defining the MMU setup
  *
- * Return a mask of the bits of @ptr that contain the authentication code.
+ * Return a mask of the address bits that contain the authentication code,
+ * given the MMU config defined by @param.
  */
-uint64_t pauth_ptr_mask(CPUARMState *env, uint64_t ptr, bool data);
+static inline uint64_t pauth_ptr_mask(ARMVAParameters param)
+{
+    int bot_pac_bit = 64 - param.tsz;
+    int top_pac_bit = 64 - 8 * param.tbi;
+
+    return MAKE_64BIT_MASK(bot_pac_bit, top_pac_bit - bot_pac_bit);
+}
 
 /* Add the cpreg definitions for debug related system registers */
 void define_debug_regs(ARMCPU *cpu);
