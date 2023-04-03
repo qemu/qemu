@@ -473,6 +473,7 @@ static MemoryRegion *vhost_user_get_mr_data(uint64_t addr, ram_addr_t *offset,
     assert((uintptr_t)addr == addr);
     mr = memory_region_from_host((void *)(uintptr_t)addr, offset);
     *fd = memory_region_get_fd(mr);
+    *offset += mr->ram_block->fd_offset;
 
     return mr;
 }
