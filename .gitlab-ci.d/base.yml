@@ -75,5 +75,5 @@
     - if: '$QEMU_CI != "2" && $CI_PROJECT_NAMESPACE != "qemu-project"'
       when: manual
 
-    # Jobs can run if any jobs they depend on were successfull
+    # Jobs can run if any jobs they depend on were successful
     - when: on_success
