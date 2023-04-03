@@ -156,6 +156,7 @@ static void xlx_spi_do_reset(XilinxSPI *s)
     txfifo_reset(s);
 
     s->regs[R_SPISSR] = ~0;
+    s->regs[R_SPICR] = R_SPICR_MTI;
     xlx_spi_update_irq(s);
     xlx_spi_update_cs(s);
 }

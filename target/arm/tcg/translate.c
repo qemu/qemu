@@ -4623,6 +4623,12 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             tcg_gen_brcondi_i32(TCG_COND_EQ, t, 0, over.label);
 
             gen_exception_insn(s, 0, EXCP_UDEF, syndrome);
+            /*
+             * gen_exception_insn() will set is_jmp to DISAS_NORETURN,
+             * but since we're conditionally branching over it, we want
+             * to assume continue-to-next-instruction.
+             */
+            s->base.is_jmp = DISAS_NEXT;
             set_disas_label(s, over);
         }
     }
