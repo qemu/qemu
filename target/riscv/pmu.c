@@ -35,7 +35,7 @@
  */
 void riscv_pmu_generate_fdt_node(void *fdt, int num_ctrs, char *pmu_name)
 {
-    uint32_t fdt_event_ctr_map[20] = {};
+    uint32_t fdt_event_ctr_map[15] = {};
     uint32_t cmask;
 
     /* All the programmable counters can map to any event */
