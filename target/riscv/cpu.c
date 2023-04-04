@@ -584,7 +584,7 @@ static void riscv_host_cpu_init(Object *obj)
 #endif
     riscv_cpu_add_user_properties(obj);
 }
-#endif
+#endif /* CONFIG_KVM */
 
 static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 {
