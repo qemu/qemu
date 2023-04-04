@@ -1445,12 +1445,12 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
 {
     ptrdiff_t off = tcg_tbrel_diff(s, (void *)get_jmp_target_addr(s, which));
 
-    /* Direct branch will be patched by tb_target_set_jmp_target. */
+    /* Load link and indirect branch. */
     set_jmp_insn_offset(s, which);
-    tcg_out32(s, CALL);
-    /* delay slot */
-    tcg_debug_assert(check_fit_ptr(off, 13));
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TB, TCG_REG_TB, off);
+    tcg_out_arithi(s, TCG_REG_G0, TCG_REG_TB, 0, JMPL);
+    /* delay slot */
+    tcg_out_nop(s);
     set_jmp_reset_offset(s, which);
 
     /*
@@ -1469,28 +1469,6 @@ static void tcg_out_goto_tb(TCGContext *s, int which)
 void tb_target_set_jmp_target(const TranslationBlock *tb, int n,
                               uintptr_t jmp_rx, uintptr_t jmp_rw)
 {
-    uintptr_t addr = tb->jmp_target_addr[n];
-    intptr_t br_disp = (intptr_t)(addr - jmp_rx) >> 2;
-    tcg_insn_unit insn;
-
-    br_disp >>= 2;
-    if (check_fit_ptr(br_disp, 19)) {
-        /* ba,pt %icc, addr */
-        insn = deposit32(INSN_OP(0) | INSN_OP2(1) | INSN_COND(COND_A)
-                         | BPCC_ICC | BPCC_PT, 0, 19, br_disp);
-    } else if (check_fit_ptr(br_disp, 22)) {
-        /* ba addr */
-        insn = deposit32(INSN_OP(0) | INSN_OP2(2) | INSN_COND(COND_A),
-                         0, 22, br_disp);
-    } else {
-        /* The code_gen_buffer can't be larger than 2GB.  */
-        tcg_debug_assert(check_fit_ptr(br_disp, 30));
-        /* call addr */
-        insn = deposit32(CALL, 0, 30, br_disp);
-    }
-
-    qatomic_set((uint32_t *)jmp_rw, insn);
-    flush_idcache_range(jmp_rx, jmp_rw, 4);
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
