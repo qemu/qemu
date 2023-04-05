@@ -515,7 +515,7 @@ itrigger_set_count(CPURISCVState *env, int index, int value)
 static bool check_itrigger_priv(CPURISCVState *env, int index)
 {
     target_ulong tdata1 = env->tdata1[index];
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         /* check VU/VS bit against current privilege level */
         return (get_field(tdata1, ITRIGGER_VS) == env->priv) ||
                (get_field(tdata1, ITRIGGER_VU) == env->priv);
@@ -787,7 +787,7 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
             switch (trigger_type) {
             case TRIGGER_TYPE_AD_MATCH:
                 /* type 2 trigger cannot be fired in VU/VS mode */
-                if (riscv_cpu_virt_enabled(env)) {
+                if (env->virt_enabled) {
                     return false;
                 }
 
@@ -806,7 +806,7 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 pc = env->tdata2[i];
 
                 if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
-                    if (riscv_cpu_virt_enabled(env)) {
+                    if (env->virt_enabled) {
                         /* check VU/VS bit against current privilege level */
                         if ((ctrl >> 23) & BIT(env->priv)) {
                             return true;
@@ -845,7 +845,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
             /* type 2 trigger cannot be fired in VU/VS mode */
-            if (riscv_cpu_virt_enabled(env)) {
+            if (env->virt_enabled) {
                 return false;
             }
 
@@ -880,7 +880,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
-                if (riscv_cpu_virt_enabled(env)) {
+                if (env->virt_enabled) {
                     /* check VU/VS bit against current privilege level */
                     if ((ctrl >> 23) & BIT(env->priv)) {
                         return true;

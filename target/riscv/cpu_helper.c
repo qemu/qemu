@@ -93,8 +93,8 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
 
     if (riscv_has_ext(env, RVH)) {
         if (env->priv == PRV_M ||
-            (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
-            (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
+            (env->priv == PRV_S && !env->virt_enabled) ||
+            (env->priv == PRV_U && !env->virt_enabled &&
                 get_field(env->hstatus, HSTATUS_HU))) {
             flags = FIELD_DP32(flags, TB_FLAGS, HLSX, 1);
         }
@@ -391,7 +391,7 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
     uint64_t irqs, pending, mie, hsie, vsie;
 
     /* Determine interrupt enable state of all privilege modes */
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         mie = 1;
         hsie = 1;
         vsie = (env->priv < PRV_S) ||
@@ -452,7 +452,7 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 bool riscv_cpu_fp_enabled(CPURISCVState *env)
 {
     if (env->mstatus & MSTATUS_FS) {
-        if (riscv_cpu_virt_enabled(env) && !(env->mstatus_hs & MSTATUS_FS)) {
+        if (env->virt_enabled && !(env->mstatus_hs & MSTATUS_FS)) {
             return false;
         }
         return true;
@@ -465,7 +465,7 @@ bool riscv_cpu_fp_enabled(CPURISCVState *env)
 bool riscv_cpu_vector_enabled(CPURISCVState *env)
 {
     if (env->mstatus & MSTATUS_VS) {
-        if (riscv_cpu_virt_enabled(env) && !(env->mstatus_hs & MSTATUS_VS)) {
+        if (env->virt_enabled && !(env->mstatus_hs & MSTATUS_VS)) {
             return false;
         }
         return true;
@@ -483,7 +483,7 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
     if (riscv_has_ext(env, RVF)) {
         mstatus_mask |= MSTATUS_FS;
     }
-    bool current_virt = riscv_cpu_virt_enabled(env);
+    bool current_virt = env->virt_enabled;
 
     g_assert(riscv_has_ext(env, RVH));
 
@@ -558,11 +558,6 @@ void riscv_cpu_set_geilen(CPURISCVState *env, target_ulong geilen)
     env->geilen = geilen;
 }
 
-bool riscv_cpu_virt_enabled(CPURISCVState *env)
-{
-    return env->virt_enabled;
-}
-
 /* This function can only be called to set virt when RVH is enabled */
 void riscv_cpu_set_virt_enabled(CPURISCVState *env, bool enable)
 {
@@ -609,7 +604,7 @@ uint64_t riscv_cpu_update_mip(CPURISCVState *env, uint64_t mask,
     CPUState *cs = env_cpu(env);
     uint64_t gein, vsgein = 0, vstip = 0, old = env->mip;
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         gein = get_field(env->hstatus, HSTATUS_VGEIN);
         vsgein = (env->hgeip & (1ULL << gein)) ? MIP_VSEIP : 0;
     }
@@ -768,7 +763,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
      * was called. Background registers will be used if the guest has
      * forced a two stage translation to be on (in HS or M mode).
      */
-    if (!riscv_cpu_virt_enabled(env) && two_stage) {
+    if (!env->virt_enabled && two_stage) {
         use_background = true;
     }
 
@@ -931,7 +926,7 @@ restart:
         bool pbmte = env->menvcfg & MENVCFG_PBMTE;
         bool hade = env->menvcfg & MENVCFG_HADE;
 
-        if (first_stage && two_stage && riscv_cpu_virt_enabled(env)) {
+        if (first_stage && two_stage && env->virt_enabled) {
             pbmte = pbmte && (env->henvcfg & HENVCFG_PBMTE);
             hade = hade && (env->henvcfg & HENVCFG_HADE);
         }
@@ -1091,7 +1086,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
 
     switch (access_type) {
     case MMU_INST_FETCH:
-        if (riscv_cpu_virt_enabled(env) && !first_stage) {
+        if (env->virt_enabled && !first_stage) {
             cs->exception_index = RISCV_EXCP_INST_GUEST_PAGE_FAULT;
         } else {
             cs->exception_index = page_fault_exceptions ?
@@ -1131,11 +1126,11 @@ hwaddr riscv_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int mmu_idx = cpu_mmu_index(&cpu->env, false);
 
     if (get_physical_address(env, &phys_addr, &prot, addr, NULL, 0, mmu_idx,
-                             true, riscv_cpu_virt_enabled(env), true)) {
+                             true, env->virt_enabled, true)) {
         return -1;
     }
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (get_physical_address(env, &phys_addr, &prot, phys_addr, NULL,
                                  0, mmu_idx, false, true, true)) {
             return -1;
@@ -1163,7 +1158,7 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     }
 
     env->badaddr = addr;
-    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
+    env->two_stage_lookup = env->virt_enabled ||
                             riscv_cpu_two_stage_lookup(mmu_idx);
     env->two_stage_indirect_lookup = false;
     cpu_loop_exit_restore(cs, retaddr);
@@ -1189,7 +1184,7 @@ void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
         g_assert_not_reached();
     }
     env->badaddr = addr;
-    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
+    env->two_stage_lookup = env->virt_enabled ||
                             riscv_cpu_two_stage_lookup(mmu_idx);
     env->two_stage_indirect_lookup = false;
     cpu_loop_exit_restore(cs, retaddr);
@@ -1253,7 +1248,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     }
 
     pmu_tlb_fill_incr_ctr(cpu, access_type);
-    if (riscv_cpu_virt_enabled(env) ||
+    if (env->virt_enabled ||
         ((riscv_cpu_two_stage_lookup(mmu_idx) || two_stage_lookup) &&
          access_type != MMU_INST_FETCH)) {
         /* Two stage lookup */
@@ -1351,7 +1346,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     } else {
         raise_mmu_exception(env, address, access_type, pmp_violation,
                             first_stage_error,
-                            riscv_cpu_virt_enabled(env) ||
+                            env->virt_enabled ||
                                 riscv_cpu_two_stage_lookup(mmu_idx),
                             two_stage_indirect_error);
         cpu_loop_exit_restore(cs, retaddr);
@@ -1658,9 +1653,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
             if (env->priv == PRV_M) {
                 cause = RISCV_EXCP_M_ECALL;
-            } else if (env->priv == PRV_S && riscv_cpu_virt_enabled(env)) {
+            } else if (env->priv == PRV_S && env->virt_enabled) {
                 cause = RISCV_EXCP_VS_ECALL;
-            } else if (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) {
+            } else if (env->priv == PRV_S && !env->virt_enabled) {
                 cause = RISCV_EXCP_S_ECALL;
             } else if (env->priv == PRV_U) {
                 cause = RISCV_EXCP_U_ECALL;
@@ -1683,7 +1678,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         if (riscv_has_ext(env, RVH)) {
             uint64_t hdeleg = async ? env->hideleg : env->hedeleg;
 
-            if (riscv_cpu_virt_enabled(env) && ((hdeleg >> cause) & 1)) {
+            if (env->virt_enabled && ((hdeleg >> cause) & 1)) {
                 /* Trap to VS mode */
                 /*
                  * See if we need to adjust cause. Yes if its VS mode interrupt
@@ -1694,7 +1689,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                     cause = cause - 1;
                 }
                 write_gva = false;
-            } else if (riscv_cpu_virt_enabled(env)) {
+            } else if (env->virt_enabled) {
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env);
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPVP,
@@ -1728,12 +1723,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     } else {
         /* handle the trap in M-mode */
         if (riscv_has_ext(env, RVH)) {
-            if (riscv_cpu_virt_enabled(env)) {
+            if (env->virt_enabled) {
                 riscv_cpu_swap_hypervisor_regs(env);
             }
             env->mstatus = set_field(env->mstatus, MSTATUS_MPV,
-                                     riscv_cpu_virt_enabled(env));
-            if (riscv_cpu_virt_enabled(env) && tval) {
+                                     env->virt_enabled);
+            if (env->virt_enabled && tval) {
                 env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
             }
 

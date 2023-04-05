@@ -140,7 +140,7 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
     }
 
-    if (riscv_cpu_virt_enabled(env) &&
+    if (env->virt_enabled &&
         (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
          ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
@@ -278,7 +278,7 @@ target_ulong helper_sret(CPURISCVState *env)
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
-    if (riscv_cpu_virt_enabled(env) && get_field(env->hstatus, HSTATUS_VTSR)) {
+    if (env->virt_enabled && get_field(env->hstatus, HSTATUS_VTSR)) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
@@ -293,7 +293,7 @@ target_ulong helper_sret(CPURISCVState *env)
     }
     env->mstatus = mstatus;
 
-    if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
+    if (riscv_has_ext(env, RVH) && !env->virt_enabled) {
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
 
@@ -365,9 +365,9 @@ void helper_wfi(CPURISCVState *env)
     bool prv_s = env->priv == PRV_S;
 
     if (((prv_s || (!rvs && prv_u)) && get_field(env->mstatus, MSTATUS_TW)) ||
-        (rvs && prv_u && !riscv_cpu_virt_enabled(env))) {
+        (rvs && prv_u && !env->virt_enabled)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    } else if (riscv_cpu_virt_enabled(env) && (prv_u ||
+    } else if (env->virt_enabled && (prv_u ||
         (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
@@ -384,7 +384,7 @@ void helper_tlb_flush(CPURISCVState *env)
         (env->priv == PRV_S &&
          get_field(env->mstatus, MSTATUS_TVM))) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    } else if (riscv_has_ext(env, RVH) && riscv_cpu_virt_enabled(env) &&
+    } else if (riscv_has_ext(env, RVH) && env->virt_enabled &&
                get_field(env->hstatus, HSTATUS_VTVM)) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
@@ -402,12 +402,12 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
 
-    if (env->priv == PRV_S && riscv_cpu_virt_enabled(env)) {
+    if (env->priv == PRV_S && env->virt_enabled) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
     if (env->priv == PRV_M ||
-        (env->priv == PRV_S && !riscv_cpu_virt_enabled(env))) {
+        (env->priv == PRV_S && !env->virt_enabled)) {
         tlb_flush(cs);
         return;
     }
@@ -417,7 +417,7 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
 
 void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
 {
-    if (env->priv == PRV_S && !riscv_cpu_virt_enabled(env) &&
+    if (env->priv == PRV_S && !env->virt_enabled &&
         get_field(env->mstatus, MSTATUS_TVM)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }

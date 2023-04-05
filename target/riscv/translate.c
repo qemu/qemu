@@ -1169,7 +1169,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->priv_ver = env->priv_ver;
 #if !defined(CONFIG_USER_ONLY)
     if (riscv_has_ext(env, RVH)) {
-        ctx->virt_enabled = riscv_cpu_virt_enabled(env);
+        ctx->virt_enabled = env->virt_enabled;
     } else {
         ctx->virt_enabled = false;
     }

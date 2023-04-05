@@ -109,7 +109,7 @@ static int riscv_pmu_incr_ctr_rv32(RISCVCPU *cpu, uint32_t ctr_idx)
     CPURISCVState *env = &cpu->env;
     target_ulong max_val = UINT32_MAX;
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
-    bool virt_on = riscv_cpu_virt_enabled(env);
+    bool virt_on = env->virt_enabled;
 
     /* Privilege mode filtering */
     if ((env->priv == PRV_M &&
@@ -150,7 +150,7 @@ static int riscv_pmu_incr_ctr_rv64(RISCVCPU *cpu, uint32_t ctr_idx)
     CPURISCVState *env = &cpu->env;
     PMUCTRState *counter = &env->pmu_ctrs[ctr_idx];
     uint64_t max_val = UINT64_MAX;
-    bool virt_on = riscv_cpu_virt_enabled(env);
+    bool virt_on = env->virt_enabled;
 
     /* Privilege mode filtering */
     if ((env->priv == PRV_M &&

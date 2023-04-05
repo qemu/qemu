@@ -45,7 +45,7 @@ void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops)
 #if !defined(CONFIG_USER_ONLY)
 RISCVException smstateen_acc_ok(CPURISCVState *env, int index, uint64_t bit)
 {
-    bool virt = riscv_cpu_virt_enabled(env);
+    bool virt = env->virt_enabled;
 
     if (env->priv == PRV_M || !riscv_cpu_cfg(env)->ext_smstateen) {
         return RISCV_EXCP_NONE;
@@ -135,7 +135,7 @@ skip_ext_pmu_check:
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (!get_field(env->hcounteren, ctr_mask) ||
             (env->priv == PRV_U && !get_field(env->scounteren, ctr_mask))) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
@@ -365,7 +365,7 @@ static RISCVException hstateenh(CPURISCVState *env, int csrno)
 
 static RISCVException sstateen(CPURISCVState *env, int csrno)
 {
-    bool virt = riscv_cpu_virt_enabled(env);
+    bool virt = env->virt_enabled;
     int index = csrno - CSR_SSTATEEN0;
 
     if (!riscv_cpu_cfg(env)->ext_smstateen) {
@@ -430,7 +430,7 @@ static RISCVException sstc(CPURISCVState *env, int csrno)
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (!(get_field(env->hcounteren, COUNTEREN_TM) &&
               get_field(env->henvcfg, HENVCFG_STCE))) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
@@ -536,7 +536,7 @@ static RISCVException seed(CPURISCVState *env, int csrno)
      */
     if (env->priv == PRV_M) {
         return RISCV_EXCP_NONE;
-    } else if (riscv_cpu_virt_enabled(env)) {
+    } else if (env->virt_enabled) {
         if (env->mseccfg & MSECCFG_SSEED) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         } else {
@@ -964,7 +964,7 @@ static int read_scountovf(CPURISCVState *env, int csrno, target_ulong *val)
 static RISCVException read_time(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
-    uint64_t delta = riscv_cpu_virt_enabled(env) ? env->htimedelta : 0;
+    uint64_t delta = env->virt_enabled ? env->htimedelta : 0;
 
     if (!env->rdtime_fn) {
         return RISCV_EXCP_ILLEGAL_INST;
@@ -977,7 +977,7 @@ static RISCVException read_time(CPURISCVState *env, int csrno,
 static RISCVException read_timeh(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    uint64_t delta = riscv_cpu_virt_enabled(env) ? env->htimedelta : 0;
+    uint64_t delta = env->virt_enabled ? env->htimedelta : 0;
 
     if (!env->rdtime_fn) {
         return RISCV_EXCP_ILLEGAL_INST;
@@ -1031,7 +1031,7 @@ static RISCVException write_vstimecmph(CPURISCVState *env, int csrno,
 static RISCVException read_stimecmp(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         *val = env->vstimecmp;
     } else {
         *val = env->stimecmp;
@@ -1043,7 +1043,7 @@ static RISCVException read_stimecmp(CPURISCVState *env, int csrno,
 static RISCVException read_stimecmph(CPURISCVState *env, int csrno,
                                      target_ulong *val)
 {
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         *val = env->vstimecmp >> 32;
     } else {
         *val = env->stimecmp >> 32;
@@ -1055,7 +1055,7 @@ static RISCVException read_stimecmph(CPURISCVState *env, int csrno,
 static RISCVException write_stimecmp(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (env->hvictl & HVICTL_VTI) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
@@ -1076,7 +1076,7 @@ static RISCVException write_stimecmp(CPURISCVState *env, int csrno,
 static RISCVException write_stimecmph(CPURISCVState *env, int csrno,
                                       target_ulong val)
 {
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (env->hvictl & HVICTL_VTI) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
@@ -1530,7 +1530,7 @@ static int read_mtopi(CPURISCVState *env, int csrno, target_ulong *val)
 
 static int aia_xlate_vs_csrno(CPURISCVState *env, int csrno)
 {
-    if (!riscv_cpu_virt_enabled(env)) {
+    if (!env->virt_enabled) {
         return csrno;
     }
 
@@ -1687,7 +1687,7 @@ static int rmw_xireg(CPURISCVState *env, int csrno, target_ulong *val,
 
 done:
     if (ret) {
-        return (riscv_cpu_virt_enabled(env) && virt) ?
+        return (env->virt_enabled && virt) ?
                RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
     }
     return RISCV_EXCP_NONE;
@@ -1741,7 +1741,7 @@ static int rmw_xtopei(CPURISCVState *env, int csrno, target_ulong *val,
 
 done:
     if (ret) {
-        return (riscv_cpu_virt_enabled(env) && virt) ?
+        return (env->virt_enabled && virt) ?
                RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
     }
     return RISCV_EXCP_NONE;
@@ -2171,7 +2171,7 @@ static RISCVException write_hstateenh_1_3(CPURISCVState *env, int csrno,
 static RISCVException read_sstateen(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
-    bool virt = riscv_cpu_virt_enabled(env);
+    bool virt = env->virt_enabled;
     int index = csrno - CSR_SSTATEEN0;
 
     *val = env->sstateen[index] & env->mstateen[index];
@@ -2185,7 +2185,7 @@ static RISCVException read_sstateen(CPURISCVState *env, int csrno,
 static RISCVException write_sstateen(CPURISCVState *env, int csrno,
                                      uint64_t mask, target_ulong new_val)
 {
-    bool virt = riscv_cpu_virt_enabled(env);
+    bool virt = env->virt_enabled;
     int index = csrno - CSR_SSTATEEN0;
     uint64_t wr_mask;
     uint64_t *reg;
@@ -2380,7 +2380,7 @@ static RISCVException rmw_sie64(CPURISCVState *env, int csrno,
     RISCVException ret;
     uint64_t mask = env->mideleg & S_MODE_INTERRUPTS;
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (env->hvictl & HVICTL_VTI) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
@@ -2590,7 +2590,7 @@ static RISCVException rmw_sip64(CPURISCVState *env, int csrno,
     RISCVException ret;
     uint64_t mask = env->mideleg & sip_writable_mask;
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         if (env->hvictl & HVICTL_VTI) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
@@ -2783,7 +2783,7 @@ static int read_stopi(CPURISCVState *env, int csrno, target_ulong *val)
     int irq;
     uint8_t iprio;
 
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         return read_vstopi(env, CSR_VSTOPI, val);
     }
 
@@ -3128,7 +3128,7 @@ static int read_hvipriox(CPURISCVState *env, int first_index,
 
     /* First index has to be a multiple of number of irqs per register */
     if (first_index % num_irqs) {
-        return (riscv_cpu_virt_enabled(env)) ?
+        return (env->virt_enabled) ?
                RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -3154,7 +3154,7 @@ static int write_hvipriox(CPURISCVState *env, int first_index,
 
     /* First index has to be a multiple of number of irqs per register */
     if (first_index % num_irqs) {
-        return (riscv_cpu_virt_enabled(env)) ?
+        return (env->virt_enabled) ?
                RISCV_EXCP_VIRT_INSTRUCTION_FAULT : RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -3809,7 +3809,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
     int csr_priv, effective_priv = env->priv;
 
     if (riscv_has_ext(env, RVH) && env->priv == PRV_S &&
-        !riscv_cpu_virt_enabled(env)) {
+        !env->virt_enabled) {
         /*
          * We are in HS mode. Add 1 to the effective privledge level to
          * allow us to access the Hypervisor CSRs.
@@ -3819,7 +3819,7 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
 
     csr_priv = get_field(csrno, 0x300);
     if (!env->debugger && (effective_priv < csr_priv)) {
-        if (csr_priv == (PRV_S + 1) && riscv_cpu_virt_enabled(env)) {
+        if (csr_priv == (PRV_S + 1) && env->virt_enabled) {
             return RISCV_EXCP_VIRT_INSTRUCTION_FAULT;
         }
         return RISCV_EXCP_ILLEGAL_INST;
