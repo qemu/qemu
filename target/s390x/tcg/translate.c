@@ -418,7 +418,7 @@ static int get_mem_index(DisasContext *s)
     case PSW_ASC_HOME >> FLAG_MASK_PSW_SHIFT:
         return MMU_HOME_IDX;
     default:
-        tcg_abort();
+        g_assert_not_reached();
         break;
     }
 #endif
@@ -652,7 +652,7 @@ static void gen_op_calc_cc(DisasContext *s)
         gen_helper_calc_cc(cc_op, cpu_env, cc_op, cc_src, cc_dst, cc_vr);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 
     /* We now have cc in cc_op as constant */
