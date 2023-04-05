@@ -129,7 +129,8 @@ static void pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
     }
 }
 
-static void pmp_decode_napot(target_ulong a, target_ulong *sa, target_ulong *ea)
+static void pmp_decode_napot(target_ulong a, target_ulong *sa,
+                             target_ulong *ea)
 {
     /*
      * aaaa...aaa0   8-byte NAPOT range
@@ -217,7 +218,8 @@ static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index)
     pmp_update_rule_nums(env);
 }
 
-static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
+static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
+                           target_ulong addr)
 {
     int result = 0;
 

@@ -382,8 +382,8 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
 }
 
 /*
- * masked unit-stride load and store operation will be a special case of stride,
- * stride = NF * sizeof (MTYPE)
+ * masked unit-stride load and store operation will be a special case of
+ * stride, stride = NF * sizeof (MTYPE)
  */
 
 #define GEN_VEXT_LD_US(NAME, ETYPE, LOAD_FN)                            \
@@ -678,7 +678,8 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
         /* load/store rest of elements of current segment pointed by vstart */
         for (pos = off; pos < max_elems; pos++, env->vstart++) {
             target_ulong addr = base + ((pos + k * max_elems) << log2_esz);
-            ldst_elem(env, adjust_addr(env, addr), pos + k * max_elems, vd, ra);
+            ldst_elem(env, adjust_addr(env, addr), pos + k * max_elems, vd,
+                      ra);
         }
         k++;
     }
@@ -1306,7 +1307,9 @@ GEN_VEXT_SHIFT_VV(vsra_vv_h, uint16_t, int16_t, H2, H2, DO_SRL, 0xf)
 GEN_VEXT_SHIFT_VV(vsra_vv_w, uint32_t, int32_t, H4, H4, DO_SRL, 0x1f)
 GEN_VEXT_SHIFT_VV(vsra_vv_d, uint64_t, int64_t, H8, H8, DO_SRL, 0x3f)
 
-/* generate the helpers for shift instructions with one vector and one scalar */
+/*
+ * generate the helpers for shift instructions with one vector and one scalar
+ */
 #define GEN_VEXT_SHIFT_VX(NAME, TD, TS2, HD, HS2, OP, MASK) \
 void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
                   void *vs2, CPURISCVState *env,            \
@@ -2165,7 +2168,8 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,     \
                  do_##NAME, ESZ);                               \
 }
 
-static inline uint8_t saddu8(CPURISCVState *env, int vxrm, uint8_t a, uint8_t b)
+static inline uint8_t saddu8(CPURISCVState *env, int vxrm, uint8_t a,
+                             uint8_t b)
 {
     uint8_t res = a + b;
     if (res < a) {
@@ -2309,7 +2313,8 @@ static inline int8_t sadd8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     return res;
 }
 
-static inline int16_t sadd16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
+static inline int16_t sadd16(CPURISCVState *env, int vxrm, int16_t a,
+                             int16_t b)
 {
     int16_t res = a + b;
     if ((res ^ a) & (res ^ b) & INT16_MIN) {
@@ -2319,7 +2324,8 @@ static inline int16_t sadd16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
     return res;
 }
 
-static inline int32_t sadd32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+static inline int32_t sadd32(CPURISCVState *env, int vxrm, int32_t a,
+                             int32_t b)
 {
     int32_t res = a + b;
     if ((res ^ a) & (res ^ b) & INT32_MIN) {
@@ -2329,7 +2335,8 @@ static inline int32_t sadd32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     return res;
 }
 
-static inline int64_t sadd64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+static inline int64_t sadd64(CPURISCVState *env, int vxrm, int64_t a,
+                             int64_t b)
 {
     int64_t res = a + b;
     if ((res ^ a) & (res ^ b) & INT64_MIN) {
@@ -2357,7 +2364,8 @@ GEN_VEXT_VX_RM(vsadd_vx_h, 2)
 GEN_VEXT_VX_RM(vsadd_vx_w, 4)
 GEN_VEXT_VX_RM(vsadd_vx_d, 8)
 
-static inline uint8_t ssubu8(CPURISCVState *env, int vxrm, uint8_t a, uint8_t b)
+static inline uint8_t ssubu8(CPURISCVState *env, int vxrm, uint8_t a,
+                             uint8_t b)
 {
     uint8_t res = a - b;
     if (res > a) {
@@ -2428,7 +2436,8 @@ static inline int8_t ssub8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
     return res;
 }
 
-static inline int16_t ssub16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
+static inline int16_t ssub16(CPURISCVState *env, int vxrm, int16_t a,
+                             int16_t b)
 {
     int16_t res = a - b;
     if ((res ^ a) & (a ^ b) & INT16_MIN) {
@@ -2438,7 +2447,8 @@ static inline int16_t ssub16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
     return res;
 }
 
-static inline int32_t ssub32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+static inline int32_t ssub32(CPURISCVState *env, int vxrm, int32_t a,
+                             int32_t b)
 {
     int32_t res = a - b;
     if ((res ^ a) & (a ^ b) & INT32_MIN) {
@@ -2448,7 +2458,8 @@ static inline int32_t ssub32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     return res;
 }
 
-static inline int64_t ssub64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+static inline int64_t ssub64(CPURISCVState *env, int vxrm, int64_t a,
+                             int64_t b)
 {
     int64_t res = a - b;
     if ((res ^ a) & (a ^ b) & INT64_MIN) {
@@ -2504,7 +2515,8 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift)
     return 0; /* round-down (truncate) */
 }
 
-static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a,
+                             int32_t b)
 {
     int64_t res = (int64_t)a + b;
     uint8_t round = get_round(vxrm, res, 1);
@@ -2512,7 +2524,8 @@ static inline int32_t aadd32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     return (res >> 1) + round;
 }
 
-static inline int64_t aadd64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+static inline int64_t aadd64(CPURISCVState *env, int vxrm, int64_t a,
+                             int64_t b)
 {
     int64_t res = a + b;
     uint8_t round = get_round(vxrm, res, 1);
@@ -2577,7 +2590,8 @@ GEN_VEXT_VX_RM(vaaddu_vx_h, 2)
 GEN_VEXT_VX_RM(vaaddu_vx_w, 4)
 GEN_VEXT_VX_RM(vaaddu_vx_d, 8)
 
-static inline int32_t asub32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+static inline int32_t asub32(CPURISCVState *env, int vxrm, int32_t a,
+                             int32_t b)
 {
     int64_t res = (int64_t)a - b;
     uint8_t round = get_round(vxrm, res, 1);
@@ -2585,7 +2599,8 @@ static inline int32_t asub32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
     return (res >> 1) + round;
 }
 
-static inline int64_t asub64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+static inline int64_t asub64(CPURISCVState *env, int vxrm, int64_t a,
+                             int64_t b)
 {
     int64_t res = (int64_t)a - b;
     uint8_t round = get_round(vxrm, res, 1);
@@ -4498,7 +4513,9 @@ RVVCALL(OPFVV1, vfwcvt_x_f_v_w, WOP_UU_W, H8, H4, float32_to_int64)
 GEN_VEXT_V_ENV(vfwcvt_x_f_v_h, 4)
 GEN_VEXT_V_ENV(vfwcvt_x_f_v_w, 8)
 
-/* vfwcvt.f.xu.v vd, vs2, vm # Convert unsigned integer to double-width float */
+/*
+ * vfwcvt.f.xu.v vd, vs2, vm # Convert unsigned integer to double-width float.
+ */
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_b, WOP_UU_B, H2, H1, uint8_to_float16)
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_h, WOP_UU_H, H4, H2, uint16_to_float32)
 RVVCALL(OPFVV1, vfwcvt_f_xu_v_w, WOP_UU_W, H8, H4, uint32_to_float64)
@@ -4515,8 +4532,7 @@ GEN_VEXT_V_ENV(vfwcvt_f_x_v_h, 4)
 GEN_VEXT_V_ENV(vfwcvt_f_x_v_w, 8)
 
 /*
- * vfwcvt.f.f.v vd, vs2, vm
- * Convert single-width float to double-width float.
+ * vfwcvt.f.f.v vd, vs2, vm # Convert single-width float to double-width float.
  */
 static uint32_t vfwcvtffv16(uint16_t a, float_status *s)
 {
@@ -4549,7 +4565,9 @@ GEN_VEXT_V_ENV(vfncvt_x_f_w_b, 1)
 GEN_VEXT_V_ENV(vfncvt_x_f_w_h, 2)
 GEN_VEXT_V_ENV(vfncvt_x_f_w_w, 4)
 
-/* vfncvt.f.xu.v vd, vs2, vm # Convert double-width unsigned integer to float */
+/*
+ * vfncvt.f.xu.v vd, vs2, vm # Convert double-width unsigned integer to float.
+ */
 RVVCALL(OPFVV1, vfncvt_f_xu_w_h, NOP_UU_H, H2, H4, uint32_to_float16)
 RVVCALL(OPFVV1, vfncvt_f_xu_w_w, NOP_UU_W, H4, H8, uint64_to_float32)
 GEN_VEXT_V_ENV(vfncvt_f_xu_w_h, 2)
@@ -4699,14 +4717,20 @@ GEN_VEXT_FRED(vfredosum_vs_w, uint32_t, uint32_t, H4, H4, float32_add)
 GEN_VEXT_FRED(vfredosum_vs_d, uint64_t, uint64_t, H8, H8, float64_add)
 
 /* Maximum value */
-GEN_VEXT_FRED(vfredmax_vs_h, uint16_t, uint16_t, H2, H2, float16_maximum_number)
-GEN_VEXT_FRED(vfredmax_vs_w, uint32_t, uint32_t, H4, H4, float32_maximum_number)
-GEN_VEXT_FRED(vfredmax_vs_d, uint64_t, uint64_t, H8, H8, float64_maximum_number)
+GEN_VEXT_FRED(vfredmax_vs_h, uint16_t, uint16_t, H2, H2,
+              float16_maximum_number)
+GEN_VEXT_FRED(vfredmax_vs_w, uint32_t, uint32_t, H4, H4,
+              float32_maximum_number)
+GEN_VEXT_FRED(vfredmax_vs_d, uint64_t, uint64_t, H8, H8,
+              float64_maximum_number)
 
 /* Minimum value */
-GEN_VEXT_FRED(vfredmin_vs_h, uint16_t, uint16_t, H2, H2, float16_minimum_number)
-GEN_VEXT_FRED(vfredmin_vs_w, uint32_t, uint32_t, H4, H4, float32_minimum_number)
-GEN_VEXT_FRED(vfredmin_vs_d, uint64_t, uint64_t, H8, H8, float64_minimum_number)
+GEN_VEXT_FRED(vfredmin_vs_h, uint16_t, uint16_t, H2, H2,
+              float16_minimum_number)
+GEN_VEXT_FRED(vfredmin_vs_w, uint32_t, uint32_t, H4, H4,
+              float32_minimum_number)
+GEN_VEXT_FRED(vfredmin_vs_d, uint64_t, uint64_t, H8, H8,
+              float64_minimum_number)
 
 /* Vector Widening Floating-Point Add Instructions */
 static uint32_t fwadd16(uint32_t a, uint16_t b, float_status *s)

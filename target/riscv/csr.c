@@ -1137,7 +1137,8 @@ static const target_ulong sstatus_v1_10_mask = SSTATUS_SIE | SSTATUS_SPIE |
 static const target_ulong sip_writable_mask = SIP_SSIP | MIP_USIP | MIP_UEIP |
                                               SIP_LCOFIP;
 static const target_ulong hip_writable_mask = MIP_VSSIP;
-static const target_ulong hvip_writable_mask = MIP_VSSIP | MIP_VSTIP | MIP_VSEIP;
+static const target_ulong hvip_writable_mask = MIP_VSSIP | MIP_VSTIP |
+                                               MIP_VSEIP;
 static const target_ulong vsip_writable_mask = MIP_VSSIP;
 
 const bool valid_vm_1_10_32[16] = {
@@ -1298,7 +1299,8 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
 static RISCVException read_mstatus_i128(CPURISCVState *env, int csrno,
                                         Int128 *val)
 {
-    *val = int128_make128(env->mstatus, add_status_sd(MXL_RV128, env->mstatus));
+    *val = int128_make128(env->mstatus, add_status_sd(MXL_RV128,
+                                                      env->mstatus));
     return RISCV_EXCP_NONE;
 }
 
@@ -2823,7 +2825,8 @@ static RISCVException write_hstatus(CPURISCVState *env, int csrno,
 {
     env->hstatus = val;
     if (riscv_cpu_mxl(env) != MXL_RV32 && get_field(val, HSTATUS_VSXL) != 2) {
-        qemu_log_mask(LOG_UNIMP, "QEMU does not support mixed HSXLEN options.");
+        qemu_log_mask(LOG_UNIMP,
+                      "QEMU does not support mixed HSXLEN options.");
     }
     if (get_field(val, HSTATUS_VSBE) != 0) {
         qemu_log_mask(LOG_UNIMP, "QEMU does not support big endian guests.");
@@ -3490,9 +3493,9 @@ static RISCVException write_mmte(CPURISCVState *env, int csrno,
     target_ulong wpri_val = val & MMTE_MASK;
 
     if (val != wpri_val) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s" TARGET_FMT_lx "\n",
-                      "MMTE: WPRI violation written 0x", val,
-                      "vs expected 0x", wpri_val);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s"
+                      TARGET_FMT_lx "\n", "MMTE: WPRI violation written 0x",
+                      val, "vs expected 0x", wpri_val);
     }
     /* for machine mode pm.current is hardwired to 1 */
     wpri_val |= MMTE_M_PM_CURRENT;
@@ -3521,9 +3524,9 @@ static RISCVException write_smte(CPURISCVState *env, int csrno,
     target_ulong wpri_val = val & SMTE_MASK;
 
     if (val != wpri_val) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s" TARGET_FMT_lx "\n",
-                      "SMTE: WPRI violation written 0x", val,
-                      "vs expected 0x", wpri_val);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s"
+                      TARGET_FMT_lx "\n", "SMTE: WPRI violation written 0x",
+                      val, "vs expected 0x", wpri_val);
     }
 
     /* if pm.current==0 we can't modify current PM CSRs */
@@ -3549,9 +3552,9 @@ static RISCVException write_umte(CPURISCVState *env, int csrno,
     target_ulong wpri_val = val & UMTE_MASK;
 
     if (val != wpri_val) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s" TARGET_FMT_lx "\n",
-                      "UMTE: WPRI violation written 0x", val,
-                      "vs expected 0x", wpri_val);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s" TARGET_FMT_lx " %s"
+                      TARGET_FMT_lx "\n", "UMTE: WPRI violation written 0x",
+                      val, "vs expected 0x", wpri_val);
     }
 
     if (check_pm_current_disabled(env, csrno)) {
@@ -3941,7 +3944,8 @@ RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
      * Fall back to 64-bit version for now, if the 128-bit alternative isn't
      * at all defined.
      * Note, some CSRs don't need to extend to MXLEN (64 upper bits non
-     * significant), for those, this fallback is correctly handling the accesses
+     * significant), for those, this fallback is correctly handling the
+     * accesses
      */
     target_ulong old_value;
     ret = riscv_csrrw_do64(env, csrno, &old_value,
@@ -4154,11 +4158,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Supervisor Trap Setup */
     [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus,
-                         NULL,                read_sstatus_i128               },
-    [CSR_SIE]        = { "sie",        smode, NULL,   NULL,    rmw_sie        },
-    [CSR_STVEC]      = { "stvec",      smode, read_stvec,      write_stvec    },
+                         NULL,                read_sstatus_i128              },
+    [CSR_SIE]        = { "sie",        smode, NULL,   NULL,    rmw_sie       },
+    [CSR_STVEC]      = { "stvec",      smode, read_stvec,      write_stvec   },
     [CSR_SCOUNTEREN] = { "scounteren", smode, read_scounteren,
-                         write_scounteren                                     },
+                         write_scounteren                                    },
 
     /* Supervisor Trap Handling */
     [CSR_SSCRATCH] = { "sscratch", smode, read_sscratch, write_sscratch,

@@ -1121,7 +1121,8 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
             cs->exception_index = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
         } else {
             cs->exception_index = page_fault_exceptions ?
-                RISCV_EXCP_STORE_PAGE_FAULT : RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
+                RISCV_EXCP_STORE_PAGE_FAULT :
+                RISCV_EXCP_STORE_AMO_ACCESS_FAULT;
         }
         break;
     default:

@@ -282,8 +282,8 @@ static target_ulong type2_mcontrol_validate(CPURISCVState *env,
     /* validate size encoding */
     size = type2_breakpoint_size(env, ctrl);
     if (access_size[size] == -1) {
-        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using SIZE_ANY\n",
-                      size);
+        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using "
+                                 "SIZE_ANY\n", size);
     } else {
         val |= (ctrl & TYPE2_SIZELO);
         if (riscv_cpu_mxl(env) == MXL_RV64) {
@@ -411,8 +411,8 @@ static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
     /* validate size encoding */
     size = extract32(ctrl, 16, 4);
     if (access_size[size] == -1) {
-        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using SIZE_ANY\n",
-                      size);
+        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using "
+                                 "SIZE_ANY\n", size);
     } else {
         val |= (ctrl & TYPE6_SIZE);
     }
@@ -696,7 +696,8 @@ target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
     int trigger_type;
     switch (tdata_index) {
     case TDATA1:
-        trigger_type = extract_trigger_type(env, env->tdata1[env->trigger_cur]);
+        trigger_type = extract_trigger_type(env,
+                                            env->tdata1[env->trigger_cur]);
         if ((trigger_type == TRIGGER_TYPE_INST_CNT) && icount_enabled()) {
             return deposit64(env->tdata1[env->trigger_cur], 10, 14,
                              itrigger_get_adjust_count(env));
