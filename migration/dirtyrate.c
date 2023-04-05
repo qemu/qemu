@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include <zlib.h>
+#include "hw/core/cpu.h"
 #include "qapi/error.h"
 #include "exec/ramblock.h"
 #include "exec/target_page.h"
