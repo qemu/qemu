@@ -488,8 +488,7 @@ void HELPER(probe_hvx_stores)(CPUHexagonState *env, int mmu_idx)
     }
 }
 
-void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
-                                         int mmu_idx)
+void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
 {
     bool has_st0 = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST0);
     bool has_st1 = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_ST1);
@@ -497,6 +496,7 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask,
         FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, HAS_HVX_STORES);
     bool s0_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S0_IS_PRED);
     bool s1_is_pred = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, S1_IS_PRED);
+    int mmu_idx = FIELD_EX32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX);
 
     if (has_st0) {
         probe_store(env, 0, mmu_idx, s0_is_pred);

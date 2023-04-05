@@ -808,13 +808,11 @@ static void gen_commit_packet(DisasContext *ctx)
         g_assert(!has_store_s1 && !has_hvx_store);
         process_dczeroa(ctx);
     } else if (has_hvx_store) {
-        TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
-
         if (!has_store_s0 && !has_store_s1) {
+            TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
             gen_helper_probe_hvx_stores(cpu_env, mem_idx);
         } else {
             int mask = 0;
-            TCGv mask_tcgv;
 
             if (has_store_s0) {
                 mask =
@@ -839,8 +837,10 @@ static void gen_commit_packet(DisasContext *ctx)
                     FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES,
                                S1_IS_PRED, 1);
             }
-            mask_tcgv = tcg_constant_tl(mask);
-            gen_helper_probe_pkt_scalar_hvx_stores(cpu_env, mask_tcgv, mem_idx);
+            mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,
+                              ctx->mem_idx);
+            gen_helper_probe_pkt_scalar_hvx_stores(cpu_env,
+                                                   tcg_constant_tl(mask));
         }
     } else if (has_store_s0 && has_store_s1) {
         /*
