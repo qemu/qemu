@@ -1749,13 +1749,9 @@ if test "$sanitizers" = "yes" ; then
   # detect the static linking issue of ubsan, see also:
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
   cat > $TMPC << EOF
-#include <stdlib.h>
-int main(void) {
-    void *tmp = malloc(10);
-    if (tmp != NULL) {
-        return *(int *)(tmp + 2);
-    }
-    return 1;
+int main(int argc, char **argv)
+{
+    return argc + 1;
 }
 EOF
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
