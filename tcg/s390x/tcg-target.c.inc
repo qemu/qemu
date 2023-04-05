@@ -1102,7 +1102,7 @@ static void tcg_out_ext8u(TCGContext *s, TCGReg dest, TCGReg src)
     tcg_out_insn(s, RRE, LLGCR, dest, src);
 }
 
-static void tgen_ext16s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
+static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
     tcg_out_insn(s, RRE, LGHR, dest, src);
 }
@@ -1609,7 +1609,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg data,
     case MO_SW | MO_BSWAP:
         /* swapped sign-extended halfword load */
         tcg_out_insn(s, RXY, LRVH, data, base, index, disp);
-        tgen_ext16s(s, TCG_TYPE_I64, data, data);
+        tcg_out_ext16s(s, TCG_TYPE_REG, data, data);
         break;
     case MO_SW:
         tcg_out_insn(s, RXY, LGH, data, base, index, disp);
@@ -2233,9 +2233,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    case INDEX_op_ext16s_i32:
-        tgen_ext16s(s, TCG_TYPE_I32, args[0], args[1]);
-        break;
     case INDEX_op_ext16u_i32:
         tgen_ext16u(s, TCG_TYPE_I32, args[0], args[1]);
         break;
@@ -2531,9 +2528,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    case INDEX_op_ext16s_i64:
-        tgen_ext16s(s, TCG_TYPE_I64, args[0], args[1]);
-        break;
     case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tgen_ext32s(s, args[0], args[1]);
@@ -2636,6 +2630,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext8s_i64:
     case INDEX_op_ext8u_i32:
     case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16s_i64:
     default:
         g_assert_not_reached();
     }

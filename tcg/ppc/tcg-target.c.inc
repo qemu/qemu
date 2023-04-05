@@ -785,7 +785,7 @@ static void tcg_out_ext8u(TCGContext *s, TCGReg dst, TCGReg src)
     tcg_out32(s, ANDI | SAI(src, dst, 0xff));
 }
 
-static inline void tcg_out_ext16s(TCGContext *s, TCGReg dst, TCGReg src)
+static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
 {
     tcg_out32(s, EXTSH | RA(dst) | RS(src));
 }
@@ -843,7 +843,7 @@ static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
     if (have_isa_3_10) {
         tcg_out32(s, BRH | RA(dst) | RS(src));
         if (flags & TCG_BSWAP_OS) {
-            tcg_out_ext16s(s, dst, dst);
+            tcg_out_ext16s(s, TCG_TYPE_REG, dst, dst);
         } else if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
             tcg_out_ext16u(s, dst, dst);
         }
@@ -862,7 +862,7 @@ static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
     tcg_out_rlw(s, RLWIMI, tmp, src, 8, 16, 23);
 
     if (flags & TCG_BSWAP_OS) {
-        tcg_out_ext16s(s, dst, tmp);
+        tcg_out_ext16s(s, TCG_TYPE_REG, dst, tmp);
     } else {
         tcg_out_mov(s, TCG_TYPE_REG, dst, tmp);
     }
@@ -2979,10 +2979,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_st(s, args, true);
         break;
 
-    case INDEX_op_ext16s_i32:
-    case INDEX_op_ext16s_i64:
-        tcg_out_ext16s(s, args[0], args[1]);
-        break;
     case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_ext32s(s, args[0], args[1]);
@@ -3130,6 +3126,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext8s_i64:
     case INDEX_op_ext8u_i32:
     case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16s_i64:
     default:
         g_assert_not_reached();
     }
