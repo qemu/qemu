@@ -746,8 +746,8 @@ EX_SH(12)
 } while (0)
 
 #define REQUIRE_EITHER_EXT(ctx, A, B) do {       \
-    if (!ctx->cfg_ptr->ext_##A &&      \
-        !ctx->cfg_ptr->ext_##B) {      \
+    if (!ctx->cfg_ptr->ext_##A &&                \
+        !ctx->cfg_ptr->ext_##B) {                \
         return false;                            \
     }                                            \
 } while (0)

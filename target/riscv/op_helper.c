@@ -367,8 +367,8 @@ void helper_wfi(CPURISCVState *env)
     if (((prv_s || (!rvs && prv_u)) && get_field(env->mstatus, MSTATUS_TW)) ||
         (rvs && prv_u && !env->virt_enabled)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    } else if (env->virt_enabled && (prv_u ||
-        (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
+    } else if (env->virt_enabled &&
+               (prv_u || (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
         cs->halted = 1;

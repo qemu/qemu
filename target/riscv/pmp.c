@@ -27,7 +27,7 @@
 #include "exec/exec-all.h"
 
 static void pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
-    uint8_t val);
+                          uint8_t val);
 static uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
 static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index);
 
@@ -220,8 +220,8 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
 {
     int result = 0;
 
-    if ((addr >= env->pmp_state.addr[pmp_index].sa)
-        && (addr <= env->pmp_state.addr[pmp_index].ea)) {
+    if ((addr >= env->pmp_state.addr[pmp_index].sa) &&
+        (addr <= env->pmp_state.addr[pmp_index].ea)) {
         result = 1;
     } else {
         result = 0;
@@ -234,8 +234,9 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
  * Check if the address has required RWX privs when no PMP entry is matched.
  */
 static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
-    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
-    target_ulong mode)
+                                       target_ulong size, pmp_priv_t privs,
+                                       pmp_priv_t *allowed_privs,
+                                       target_ulong mode)
 {
     bool ret;
 
@@ -297,8 +298,8 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
  * Return negtive value if no match
  */
 int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
-    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
-    target_ulong mode)
+                       target_ulong size, pmp_priv_t privs,
+                       pmp_priv_t *allowed_privs, target_ulong mode)
 {
     int i = 0;
     int ret = -1;
@@ -466,7 +467,7 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
  * Handle a write to a pmpcfg CSR
  */
 void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
-    target_ulong val)
+                      target_ulong val)
 {
     int i;
     uint8_t cfg_val;
@@ -508,7 +509,7 @@ target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
  * Handle a write to a pmpaddr CSR
  */
 void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
-    target_ulong val)
+                       target_ulong val)
 {
     trace_pmpaddr_csr_write(env->mhartid, addr_index, val);
 

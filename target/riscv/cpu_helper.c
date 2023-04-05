@@ -68,12 +68,12 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
         flags = FIELD_DP32(flags, TB_FLAGS, VILL, env->vill);
         flags = FIELD_DP32(flags, TB_FLAGS, SEW, sew);
         flags = FIELD_DP32(flags, TB_FLAGS, LMUL,
-                    FIELD_EX64(env->vtype, VTYPE, VLMUL));
+                           FIELD_EX64(env->vtype, VTYPE, VLMUL));
         flags = FIELD_DP32(flags, TB_FLAGS, VL_EQ_VLMAX, vl_eq_vlmax);
         flags = FIELD_DP32(flags, TB_FLAGS, VTA,
-                    FIELD_EX64(env->vtype, VTYPE, VTA));
+                           FIELD_EX64(env->vtype, VTYPE, VTA));
         flags = FIELD_DP32(flags, TB_FLAGS, VMA,
-                    FIELD_EX64(env->vtype, VTYPE, VMA));
+                           FIELD_EX64(env->vtype, VTYPE, VMA));
     } else {
         flags = FIELD_DP32(flags, TB_FLAGS, VILL, 1);
     }
@@ -95,7 +95,7 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
         if (env->priv == PRV_M ||
             (env->priv == PRV_S && !env->virt_enabled) ||
             (env->priv == PRV_U && !env->virt_enabled &&
-                get_field(env->hstatus, HSTATUS_HU))) {
+             get_field(env->hstatus, HSTATUS_HU))) {
             flags = FIELD_DP32(flags, TB_FLAGS, HLSX, 1);
         }
 
@@ -230,75 +230,75 @@ int riscv_cpu_hviprio_index2irq(int index, int *out_irq, int *out_rdzero)
  * ----------------------------------------------------------------
  */
 static const uint8_t default_iprio[64] = {
- /* Custom interrupts 48 to 63 */
- [63] = IPRIO_MMAXIPRIO,
- [62] = IPRIO_MMAXIPRIO,
- [61] = IPRIO_MMAXIPRIO,
- [60] = IPRIO_MMAXIPRIO,
- [59] = IPRIO_MMAXIPRIO,
- [58] = IPRIO_MMAXIPRIO,
- [57] = IPRIO_MMAXIPRIO,
- [56] = IPRIO_MMAXIPRIO,
- [55] = IPRIO_MMAXIPRIO,
- [54] = IPRIO_MMAXIPRIO,
- [53] = IPRIO_MMAXIPRIO,
- [52] = IPRIO_MMAXIPRIO,
- [51] = IPRIO_MMAXIPRIO,
- [50] = IPRIO_MMAXIPRIO,
- [49] = IPRIO_MMAXIPRIO,
- [48] = IPRIO_MMAXIPRIO,
+    /* Custom interrupts 48 to 63 */
+    [63] = IPRIO_MMAXIPRIO,
+    [62] = IPRIO_MMAXIPRIO,
+    [61] = IPRIO_MMAXIPRIO,
+    [60] = IPRIO_MMAXIPRIO,
+    [59] = IPRIO_MMAXIPRIO,
+    [58] = IPRIO_MMAXIPRIO,
+    [57] = IPRIO_MMAXIPRIO,
+    [56] = IPRIO_MMAXIPRIO,
+    [55] = IPRIO_MMAXIPRIO,
+    [54] = IPRIO_MMAXIPRIO,
+    [53] = IPRIO_MMAXIPRIO,
+    [52] = IPRIO_MMAXIPRIO,
+    [51] = IPRIO_MMAXIPRIO,
+    [50] = IPRIO_MMAXIPRIO,
+    [49] = IPRIO_MMAXIPRIO,
+    [48] = IPRIO_MMAXIPRIO,
 
- /* Custom interrupts 24 to 31 */
- [31] = IPRIO_MMAXIPRIO,
- [30] = IPRIO_MMAXIPRIO,
- [29] = IPRIO_MMAXIPRIO,
- [28] = IPRIO_MMAXIPRIO,
- [27] = IPRIO_MMAXIPRIO,
- [26] = IPRIO_MMAXIPRIO,
- [25] = IPRIO_MMAXIPRIO,
- [24] = IPRIO_MMAXIPRIO,
+    /* Custom interrupts 24 to 31 */
+    [31] = IPRIO_MMAXIPRIO,
+    [30] = IPRIO_MMAXIPRIO,
+    [29] = IPRIO_MMAXIPRIO,
+    [28] = IPRIO_MMAXIPRIO,
+    [27] = IPRIO_MMAXIPRIO,
+    [26] = IPRIO_MMAXIPRIO,
+    [25] = IPRIO_MMAXIPRIO,
+    [24] = IPRIO_MMAXIPRIO,
 
- [47] = IPRIO_DEFAULT_UPPER,
- [23] = IPRIO_DEFAULT_UPPER + 1,
- [46] = IPRIO_DEFAULT_UPPER + 2,
- [45] = IPRIO_DEFAULT_UPPER + 3,
- [22] = IPRIO_DEFAULT_UPPER + 4,
- [44] = IPRIO_DEFAULT_UPPER + 5,
+    [47] = IPRIO_DEFAULT_UPPER,
+    [23] = IPRIO_DEFAULT_UPPER + 1,
+    [46] = IPRIO_DEFAULT_UPPER + 2,
+    [45] = IPRIO_DEFAULT_UPPER + 3,
+    [22] = IPRIO_DEFAULT_UPPER + 4,
+    [44] = IPRIO_DEFAULT_UPPER + 5,
 
- [43] = IPRIO_DEFAULT_UPPER + 6,
- [21] = IPRIO_DEFAULT_UPPER + 7,
- [42] = IPRIO_DEFAULT_UPPER + 8,
- [41] = IPRIO_DEFAULT_UPPER + 9,
- [20] = IPRIO_DEFAULT_UPPER + 10,
- [40] = IPRIO_DEFAULT_UPPER + 11,
+    [43] = IPRIO_DEFAULT_UPPER + 6,
+    [21] = IPRIO_DEFAULT_UPPER + 7,
+    [42] = IPRIO_DEFAULT_UPPER + 8,
+    [41] = IPRIO_DEFAULT_UPPER + 9,
+    [20] = IPRIO_DEFAULT_UPPER + 10,
+    [40] = IPRIO_DEFAULT_UPPER + 11,
 
- [11] = IPRIO_DEFAULT_M,
- [3]  = IPRIO_DEFAULT_M + 1,
- [7]  = IPRIO_DEFAULT_M + 2,
+    [11] = IPRIO_DEFAULT_M,
+    [3]  = IPRIO_DEFAULT_M + 1,
+    [7]  = IPRIO_DEFAULT_M + 2,
 
- [9]  = IPRIO_DEFAULT_S,
- [1]  = IPRIO_DEFAULT_S + 1,
- [5]  = IPRIO_DEFAULT_S + 2,
+    [9]  = IPRIO_DEFAULT_S,
+    [1]  = IPRIO_DEFAULT_S + 1,
+    [5]  = IPRIO_DEFAULT_S + 2,
 
- [12] = IPRIO_DEFAULT_SGEXT,
+    [12] = IPRIO_DEFAULT_SGEXT,
 
- [10] = IPRIO_DEFAULT_VS,
- [2]  = IPRIO_DEFAULT_VS + 1,
- [6]  = IPRIO_DEFAULT_VS + 2,
+    [10] = IPRIO_DEFAULT_VS,
+    [2]  = IPRIO_DEFAULT_VS + 1,
+    [6]  = IPRIO_DEFAULT_VS + 2,
 
- [39] = IPRIO_DEFAULT_LOWER,
- [19] = IPRIO_DEFAULT_LOWER + 1,
- [38] = IPRIO_DEFAULT_LOWER + 2,
- [37] = IPRIO_DEFAULT_LOWER + 3,
- [18] = IPRIO_DEFAULT_LOWER + 4,
- [36] = IPRIO_DEFAULT_LOWER + 5,
+    [39] = IPRIO_DEFAULT_LOWER,
+    [19] = IPRIO_DEFAULT_LOWER + 1,
+    [38] = IPRIO_DEFAULT_LOWER + 2,
+    [37] = IPRIO_DEFAULT_LOWER + 3,
+    [18] = IPRIO_DEFAULT_LOWER + 4,
+    [36] = IPRIO_DEFAULT_LOWER + 5,
 
- [35] = IPRIO_DEFAULT_LOWER + 6,
- [17] = IPRIO_DEFAULT_LOWER + 7,
- [34] = IPRIO_DEFAULT_LOWER + 8,
- [33] = IPRIO_DEFAULT_LOWER + 9,
- [16] = IPRIO_DEFAULT_LOWER + 10,
- [32] = IPRIO_DEFAULT_LOWER + 11,
+    [35] = IPRIO_DEFAULT_LOWER + 6,
+    [17] = IPRIO_DEFAULT_LOWER + 7,
+    [34] = IPRIO_DEFAULT_LOWER + 8,
+    [33] = IPRIO_DEFAULT_LOWER + 9,
+    [16] = IPRIO_DEFAULT_LOWER + 10,
+    [32] = IPRIO_DEFAULT_LOWER + 11,
 };
 
 uint8_t riscv_cpu_default_priority(int irq)
@@ -1001,8 +1001,8 @@ restart:
                  */
                 MemoryRegion *mr;
                 hwaddr l = sizeof(target_ulong), addr1;
-                mr = address_space_translate(cs->as, pte_addr,
-                    &addr1, &l, false, MEMTXATTRS_UNSPECIFIED);
+                mr = address_space_translate(cs->as, pte_addr, &addr1, &l,
+                                             false, MEMTXATTRS_UNSPECIFIED);
                 if (memory_region_is_ram(mr)) {
                     target_ulong *pte_pa =
                         qemu_map_ram_ptr(mr->ram_block, addr1);
@@ -1052,7 +1052,7 @@ restart:
             /* add write permission on stores or if the page is already dirty,
                so that we TLB miss on later writes to update the dirty bit */
             if ((pte & PTE_W) &&
-                    (access_type == MMU_DATA_STORE || (pte & PTE_D))) {
+                (access_type == MMU_DATA_STORE || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
             }
             return TRANSLATE_SUCCESS;
@@ -1281,9 +1281,10 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                                        false);
 
             qemu_log_mask(CPU_LOG_MMU,
-                    "%s 2nd-stage address=%" VADDR_PRIx " ret %d physical "
-                    HWADDR_FMT_plx " prot %d\n",
-                    __func__, im_address, ret, pa, prot2);
+                          "%s 2nd-stage address=%" VADDR_PRIx
+                          " ret %d physical "
+                          HWADDR_FMT_plx " prot %d\n",
+                          __func__, im_address, ret, pa, prot2);
 
             prot &= prot2;
 
@@ -1718,7 +1719,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->htval = htval;
         env->htinst = tinst;
         env->pc = (env->stvec >> 2 << 2) +
-            ((async && (env->stvec & 3) == 1) ? cause * 4 : 0);
+                  ((async && (env->stvec & 3) == 1) ? cause * 4 : 0);
         riscv_cpu_set_mode(env, PRV_S);
     } else {
         /* handle the trap in M-mode */
@@ -1749,7 +1750,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mtval2 = mtval2;
         env->mtinst = tinst;
         env->pc = (env->mtvec >> 2 << 2) +
-            ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
+                  ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
         riscv_cpu_set_mode(env, PRV_M);
     }
 
