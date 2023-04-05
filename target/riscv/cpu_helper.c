@@ -717,7 +717,8 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
     return TRANSLATE_SUCCESS;
 }
 
-/* get_physical_address - get the physical address for this virtual address
+/*
+ * get_physical_address - get the physical address for this virtual address
  *
  * Do a page table walk to obtain the physical address corresponding to a
  * virtual address. Returns 0 if the translation was successful
@@ -745,9 +746,11 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
                                 bool first_stage, bool two_stage,
                                 bool is_debug)
 {
-    /* NOTE: the env->pc value visible here will not be
+    /*
+     * NOTE: the env->pc value visible here will not be
      * correct, but the value visible to the exception handler
-     * (riscv_cpu_do_interrupt) is correct */
+     * (riscv_cpu_do_interrupt) is correct
+     */
     MemTxResult res;
     MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
     int mode = mmu_idx & TB_FLAGS_PRIV_MMU_MASK;
@@ -767,8 +770,10 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         use_background = true;
     }
 
-    /* MPRV does not affect the virtual-machine load/store
-       instructions, HLV, HLVX, and HSV. */
+    /*
+     * MPRV does not affect the virtual-machine load/store
+     * instructions, HLV, HLVX, and HSV.
+     */
     if (riscv_cpu_two_stage_lookup(mmu_idx)) {
         mode = get_field(env->hstatus, HSTATUS_SPVP);
     } else if (mode == PRV_M && access_type != MMU_INST_FETCH) {
@@ -778,8 +783,10 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     if (first_stage == false) {
-        /* We are in stage 2 translation, this is similar to stage 1. */
-        /* Stage 2 is always taken as U-mode */
+        /*
+         * We are in stage 2 translation, this is similar to stage 1.
+         * Stage 2 is always taken as U-mode
+         */
         mode = PRV_U;
     }
 
@@ -1007,8 +1014,10 @@ restart:
                     target_ulong *pte_pa =
                         qemu_map_ram_ptr(mr->ram_block, addr1);
 #if TCG_OVERSIZED_GUEST
-                    /* MTTCG is not enabled on oversized TCG guests so
-                     * page table updates do not need to be atomic */
+                    /*
+                     * MTTCG is not enabled on oversized TCG guests so
+                     * page table updates do not need to be atomic
+                     */
                     *pte_pa = pte = updated_pte;
 #else
                     target_ulong old_pte =
@@ -1020,14 +1029,18 @@ restart:
                     }
 #endif
                 } else {
-                    /* misconfigured PTE in ROM (AD bits are not preset) or
-                     * PTE is in IO space and can't be updated atomically */
+                    /*
+                     * misconfigured PTE in ROM (AD bits are not preset) or
+                     * PTE is in IO space and can't be updated atomically
+                     */
                     return TRANSLATE_FAIL;
                 }
             }
 
-            /* for superpage mappings, make a fake leaf PTE for the TLB's
-               benefit. */
+            /*
+             * for superpage mappings, make a fake leaf PTE for the TLB's
+             * benefit.
+             */
             target_ulong vpn = addr >> PGSHIFT;
 
             if (riscv_cpu_cfg(env)->ext_svnapot && (pte & PTE_N)) {
@@ -1049,8 +1062,10 @@ restart:
             if (pte & PTE_X) {
                 *prot |= PAGE_EXEC;
             }
-            /* add write permission on stores or if the page is already dirty,
-               so that we TLB miss on later writes to update the dirty bit */
+            /*
+             * add write permission on stores or if the page is already dirty,
+             * so that we TLB miss on later writes to update the dirty bit
+             */
             if ((pte & PTE_W) &&
                 (access_type == MMU_DATA_STORE || (pte & PTE_D))) {
                 *prot |= PAGE_WRITE;
@@ -1235,8 +1250,10 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     qemu_log_mask(CPU_LOG_MMU, "%s ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
                   __func__, address, access_type, mmu_idx);
 
-    /* MPRV does not affect the virtual-machine load/store
-       instructions, HLV, HLVX, and HSV. */
+    /*
+     * MPRV does not affect the virtual-machine load/store
+     * instructions, HLV, HLVX, and HSV.
+     */
     if (riscv_cpu_two_stage_lookup(mmu_idx)) {
         mode = get_field(env->hstatus, HSTATUS_SPVP);
     } else if (mode == PRV_M && access_type != MMU_INST_FETCH &&
@@ -1577,7 +1594,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     bool write_gva = false;
     uint64_t s;
 
-    /* cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
+    /*
+     * cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
      * so we mask off the MSB and separate into trap type and cause.
      */
     bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
@@ -1754,7 +1772,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_cpu_set_mode(env, PRV_M);
     }
 
-    /* NOTE: it is not necessary to yield load reservations here. It is only
+    /*
+     * NOTE: it is not necessary to yield load reservations here. It is only
      * necessary for an SC from "another hart" to cause a load reservation
      * to be yielded. Refer to the memory consistency model section of the
      * RISC-V ISA Specification.

@@ -287,7 +287,7 @@ static void vext_set_tail_elems_1s(CPURISCVState *env, target_ulong vl,
 }
 
 /*
- *** stride: access vector element from strided memory
+ * stride: access vector element from strided memory
  */
 static void
 vext_ldst_stride(void *vd, void *v0, target_ulong base,
@@ -353,10 +353,10 @@ GEN_VEXT_ST_STRIDE(vsse32_v, int32_t, ste_w)
 GEN_VEXT_ST_STRIDE(vsse64_v, int64_t, ste_d)
 
 /*
- *** unit-stride: access elements stored contiguously in memory
+ * unit-stride: access elements stored contiguously in memory
  */
 
-/* unmasked unit-stride load and store operation*/
+/* unmasked unit-stride load and store operation */
 static void
 vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
              vext_ldst_elem_fn *ldst_elem, uint32_t log2_esz, uint32_t evl,
@@ -429,7 +429,7 @@ GEN_VEXT_ST_US(vse32_v, int32_t, ste_w)
 GEN_VEXT_ST_US(vse64_v, int64_t, ste_d)
 
 /*
- *** unit stride mask load and store, EEW = 1
+ * unit stride mask load and store, EEW = 1
  */
 void HELPER(vlm_v)(void *vd, void *v0, target_ulong base,
                     CPURISCVState *env, uint32_t desc)
@@ -450,7 +450,7 @@ void HELPER(vsm_v)(void *vd, void *v0, target_ulong base,
 }
 
 /*
- *** index: access vector element from indexed memory
+ * index: access vector element from indexed memory
  */
 typedef target_ulong vext_get_index_addr(target_ulong base,
         uint32_t idx, void *vs2);
@@ -554,7 +554,7 @@ GEN_VEXT_ST_INDEX(vsxei64_32_v, int32_t, idx_d, ste_w)
 GEN_VEXT_ST_INDEX(vsxei64_64_v, int64_t, idx_d, ste_d)
 
 /*
- *** unit-stride fault-only-fisrt load instructions
+ * unit-stride fault-only-fisrt load instructions
  */
 static inline void
 vext_ldff(void *vd, void *v0, target_ulong base,
@@ -571,7 +571,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     uint32_t vma = vext_vma(desc);
     target_ulong addr, offset, remain;
 
-    /* probe every access*/
+    /* probe every access */
     for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -660,7 +660,7 @@ GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d)
 #define DO_MINU(N, M) DO_MIN((UMTYPE)N, (UMTYPE)M)
 
 /*
- *** load and store whole register instructions
+ * load and store whole register instructions
  */
 static void
 vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
@@ -733,7 +733,7 @@ GEN_VEXT_ST_WHOLE(vs4r_v, int8_t, ste_b)
 GEN_VEXT_ST_WHOLE(vs8r_v, int8_t, ste_b)
 
 /*
- *** Vector Integer Arithmetic Instructions
+ * Vector Integer Arithmetic Instructions
  */
 
 /* expand macro args before macro */
@@ -1149,8 +1149,10 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
         vext_set_elem_mask(vd, i, DO_OP(s2, s1, carry));      \
     }                                                         \
     env->vstart = 0;                                          \
-    /* mask destination register are always tail-agnostic */  \
-    /* set tail elements to 1s */                             \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                       \
     if (vta_all_1s) {                                         \
         for (; i < total_elems; i++) {                        \
             vext_set_elem_mask(vd, i, 1);                     \
@@ -1185,8 +1187,10 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,          \
                 DO_OP(s2, (ETYPE)(target_long)s1, carry));      \
     }                                                           \
     env->vstart = 0;                                            \
-    /* mask destination register are always tail-agnostic */    \
-    /* set tail elements to 1s */                               \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                         \
     if (vta_all_1s) {                                           \
         for (; i < total_elems; i++) {                          \
             vext_set_elem_mask(vd, i, 1);                       \
@@ -1392,8 +1396,10 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
         vext_set_elem_mask(vd, i, DO_OP(s2, s1));             \
     }                                                         \
     env->vstart = 0;                                          \
-    /* mask destination register are always tail-agnostic */  \
-    /* set tail elements to 1s */                             \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                       \
     if (vta_all_1s) {                                         \
         for (; i < total_elems; i++) {                        \
             vext_set_elem_mask(vd, i, 1);                     \
@@ -1455,8 +1461,10 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,   \
                 DO_OP(s2, (ETYPE)(target_long)s1));                 \
     }                                                               \
     env->vstart = 0;                                                \
-    /* mask destination register are always tail-agnostic */        \
-    /* set tail elements to 1s */                                   \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                             \
     if (vta_all_1s) {                                               \
         for (; i < total_elems; i++) {                              \
             vext_set_elem_mask(vd, i, 1);                           \
@@ -2075,7 +2083,7 @@ GEN_VEXT_VMERGE_VX(vmerge_vxm_w, int32_t, H4)
 GEN_VEXT_VMERGE_VX(vmerge_vxm_d, int64_t, H8)
 
 /*
- *** Vector Fixed-Point Arithmetic Instructions
+ * Vector Fixed-Point Arithmetic Instructions
  */
 
 /* Vector Single-Width Saturating Add and Subtract */
@@ -2988,7 +2996,7 @@ GEN_VEXT_VX_RM(vnclipu_wx_h, 2)
 GEN_VEXT_VX_RM(vnclipu_wx_w, 4)
 
 /*
- *** Vector Float Point Arithmetic Instructions
+ * Vector Float Point Arithmetic Instructions
  */
 /* Vector Single-Width Floating-Point Add/Subtract Instructions */
 #define OPFVV2(NAME, TD, T1, T2, TX1, TX2, HD, HS1, HS2, OP)   \
@@ -4171,8 +4179,10 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
                            DO_OP(s2, s1, &env->fp_status));   \
     }                                                         \
     env->vstart = 0;                                          \
-    /* mask destination register are always tail-agnostic */  \
-    /* set tail elements to 1s */                             \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                       \
     if (vta_all_1s) {                                         \
         for (; i < total_elems; i++) {                        \
             vext_set_elem_mask(vd, i, 1);                     \
@@ -4208,8 +4218,10 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
                            DO_OP(s2, (ETYPE)s1, &env->fp_status));  \
     }                                                               \
     env->vstart = 0;                                                \
-    /* mask destination register are always tail-agnostic */        \
-    /* set tail elements to 1s */                                   \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */                                                             \
     if (vta_all_1s) {                                               \
         for (; i < total_elems; i++) {                              \
             vext_set_elem_mask(vd, i, 1);                           \
@@ -4472,7 +4484,9 @@ GEN_VEXT_V_ENV(vfcvt_f_x_v_d, 8)
 #define WOP_UU_B uint16_t, uint8_t,  uint8_t
 #define WOP_UU_H uint32_t, uint16_t, uint16_t
 #define WOP_UU_W uint64_t, uint32_t, uint32_t
-/* vfwcvt.xu.f.v vd, vs2, vm # Convert float to double-width unsigned integer.*/
+/*
+ * vfwcvt.xu.f.v vd, vs2, vm # Convert float to double-width unsigned integer.
+ */
 RVVCALL(OPFVV1, vfwcvt_xu_f_v_h, WOP_UU_H, H4, H2, float16_to_uint32)
 RVVCALL(OPFVV1, vfwcvt_xu_f_v_w, WOP_UU_W, H8, H4, float32_to_uint64)
 GEN_VEXT_V_ENV(vfwcvt_xu_f_v_h, 4)
@@ -4559,7 +4573,7 @@ GEN_VEXT_V_ENV(vfncvt_f_f_w_h, 2)
 GEN_VEXT_V_ENV(vfncvt_f_f_w_w, 4)
 
 /*
- *** Vector Reduction Operations
+ * Vector Reduction Operations
  */
 /* Vector Single-Width Integer Reduction Instructions */
 #define GEN_VEXT_RED(NAME, TD, TS2, HD, HS2, OP)          \
@@ -4713,7 +4727,7 @@ GEN_VEXT_FRED(vfwredosum_vs_h, uint32_t, uint16_t, H4, H2, fwadd16)
 GEN_VEXT_FRED(vfwredosum_vs_w, uint64_t, uint32_t, H8, H4, fwadd32)
 
 /*
- *** Vector Mask Operations
+ * Vector Mask Operations
  */
 /* Vector Mask-Register Logical Instructions */
 #define GEN_VEXT_MASK_VV(NAME, OP)                        \
@@ -4733,10 +4747,10 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
         vext_set_elem_mask(vd, i, OP(b, a));              \
     }                                                     \
     env->vstart = 0;                                      \
-    /* mask destination register are always tail-         \
-     * agnostic                                           \
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
      */                                                   \
-    /* set tail elements to 1s */                         \
     if (vta_all_1s) {                                     \
         for (; i < total_elems; i++) {                    \
             vext_set_elem_mask(vd, i, 1);                 \
@@ -4779,7 +4793,7 @@ target_ulong HELPER(vcpop_m)(void *v0, void *vs2, CPURISCVState *env,
     return cnt;
 }
 
-/* vfirst find-first-set mask bit*/
+/* vfirst find-first-set mask bit */
 target_ulong HELPER(vfirst_m)(void *v0, void *vs2, CPURISCVState *env,
                               uint32_t desc)
 {
@@ -4844,8 +4858,10 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
         }
     }
     env->vstart = 0;
-    /* mask destination register are always tail-agnostic */
-    /* set tail elements to 1s */
+    /*
+     * mask destination register are always tail-agnostic
+     * set tail elements to 1s
+     */
     if (vta_all_1s) {
         for (; i < total_elems; i++) {
             vext_set_elem_mask(vd, i, 1);
@@ -4937,7 +4953,7 @@ GEN_VEXT_VID_V(vid_v_w, uint32_t, H4)
 GEN_VEXT_VID_V(vid_v_d, uint64_t, H8)
 
 /*
- *** Vector Permutation Instructions
+ * Vector Permutation Instructions
  */
 
 /* Vector Slide Instructions */

@@ -124,7 +124,7 @@ FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 typedef struct PMUCTRState {
     /* Current value of a counter */
     target_ulong mhpmcounter_val;
-    /* Current value of a counter in RV32*/
+    /* Current value of a counter in RV32 */
     target_ulong mhpmcounterh_val;
     /* Snapshot values of counter */
     target_ulong mhpmcounter_prev;
@@ -280,8 +280,10 @@ struct CPUArchState {
     target_ulong satp_hs;
     uint64_t mstatus_hs;
 
-    /* Signals whether the current exception occurred with two-stage address
-       translation active. */
+    /*
+     * Signals whether the current exception occurred with two-stage address
+     * translation active.
+     */
     bool two_stage_lookup;
     /*
      * Signals whether the current exception occurred while doing two-stage
@@ -297,10 +299,10 @@ struct CPUArchState {
     /* PMU counter state */
     PMUCTRState pmu_ctrs[RV_MAX_MHPMCOUNTERS];
 
-    /* PMU event selector configured values. First three are unused*/
+    /* PMU event selector configured values. First three are unused */
     target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
 
-    /* PMU event selector configured values for RV32*/
+    /* PMU event selector configured values for RV32 */
     target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
 
     target_ulong sscratch;
@@ -389,7 +391,7 @@ struct CPUArchState {
 
 OBJECT_DECLARE_CPU_TYPE(RISCVCPU, RISCVCPUClass, RISCV_CPU)
 
-/**
+/*
  * RISCVCPUClass:
  * @parent_realize: The parent class' realize handler.
  * @parent_phases: The parent class' reset phase handlers.
@@ -397,9 +399,9 @@ OBJECT_DECLARE_CPU_TYPE(RISCVCPU, RISCVCPUClass, RISCV_CPU)
  * A RISCV CPU model.
  */
 struct RISCVCPUClass {
-    /*< private >*/
+    /* < private > */
     CPUClass parent_class;
-    /*< public >*/
+    /* < public > */
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 };
@@ -530,16 +532,16 @@ struct RISCVCPUConfig {
 
 typedef struct RISCVCPUConfig RISCVCPUConfig;
 
-/**
+/*
  * RISCVCPU:
  * @env: #CPURISCVState
  *
  * A RISCV CPU.
  */
 struct ArchCPU {
-    /*< private >*/
+    /* < private > */
     CPUState parent_obj;
-    /*< public >*/
+    /* < public > */
     CPUNegativeOffsetState neg;
     CPURISCVState env;
 
@@ -813,7 +815,7 @@ enum {
     CSR_TABLE_SIZE = 0x1000
 };
 
-/**
+/*
  * The event id are encoded based on the encoding specified in the
  * SBI specification v0.3
  */

@@ -189,7 +189,7 @@ static RISCVException mctr(CPURISCVState *env, int csrno)
     }
     ctr_index = csrno - base_csrno;
     if (!pmu_num || ctr_index >= pmu_num) {
-        /* The PMU is not enabled or counter is out of range*/
+        /* The PMU is not enabled or counter is out of range */
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
@@ -877,7 +877,7 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                         counter.mhpmcounter_val;
 
     if (get_field(env->mcountinhibit, BIT(ctr_idx))) {
-        /**
+        /*
          * Counter should not increment if inhibit bit is set. We can't really
          * stop the icount counting. Just return the counter value written by
          * the supervisor to indicate that counter was not incremented.
@@ -891,7 +891,7 @@ static RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
         }
     }
 
-    /**
+    /*
      * The kernel computes the perf delta by subtracting the current value from
      * the value it initialized previously (ctr_val).
      */

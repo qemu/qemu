@@ -56,7 +56,7 @@ struct isa_ext_data {
 #define ISA_EXT_DATA_ENTRY(_name, _m_letter, _min_ver, _prop) \
     {#_name, _m_letter, _min_ver, offsetof(struct RISCVCPUConfig, _prop)}
 
-/**
+/*
  * Here are the ordering rules of extension naming defined by RISC-V
  * specification :
  * 1. All extensions should be separated from other multi-letter extensions

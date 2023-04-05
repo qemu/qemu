@@ -28,7 +28,7 @@
 #define SBI_EXT_RFENCE                  0x52464E43
 #define SBI_EXT_HSM                     0x48534D
 
-/* SBI function IDs for BASE extension*/
+/* SBI function IDs for BASE extension */
 #define SBI_EXT_BASE_GET_SPEC_VERSION   0x0
 #define SBI_EXT_BASE_GET_IMP_ID         0x1
 #define SBI_EXT_BASE_GET_IMP_VERSION    0x2
@@ -37,13 +37,13 @@
 #define SBI_EXT_BASE_GET_MARCHID        0x5
 #define SBI_EXT_BASE_GET_MIMPID         0x6
 
-/* SBI function IDs for TIME extension*/
+/* SBI function IDs for TIME extension */
 #define SBI_EXT_TIME_SET_TIMER          0x0
 
-/* SBI function IDs for IPI extension*/
+/* SBI function IDs for IPI extension */
 #define SBI_EXT_IPI_SEND_IPI            0x0
 
-/* SBI function IDs for RFENCE extension*/
+/* SBI function IDs for RFENCE extension */
 #define SBI_EXT_RFENCE_REMOTE_FENCE_I       0x0
 #define SBI_EXT_RFENCE_REMOTE_SFENCE_VMA    0x1
 #define SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID  0x2
