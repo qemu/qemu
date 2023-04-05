@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/kvm.h"
 #include "sysemu/numa.h"
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
