@@ -585,7 +585,7 @@ static void tcg_out_ext32u(TCGContext *s, TCGReg ret, TCGReg arg)
     tcg_out_opc_imm(s, OPC_SRLI, ret, ret, 32);
 }
 
-static void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 24);
     tcg_out_opc_imm(s, OPC_SRAIW, ret, ret, 24);
@@ -1612,11 +1612,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext32u(s, a0, a1);
         break;
 
-    case INDEX_op_ext8s_i32:
-    case INDEX_op_ext8s_i64:
-        tcg_out_ext8s(s, a0, a1);
-        break;
-
     case INDEX_op_ext16s_i32:
     case INDEX_op_ext16s_i64:
         tcg_out_ext16s(s, a0, a1);
@@ -1651,6 +1646,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
+    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
+    case INDEX_op_ext8s_i64:
     default:
         g_assert_not_reached();
     }

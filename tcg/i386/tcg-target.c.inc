@@ -1266,8 +1266,9 @@ static inline void tcg_out_ext8u(TCGContext *s, int dest, int src)
     tcg_out_modrm(s, OPC_MOVZBL + P_REXB_RM, dest, src);
 }
 
-static void tcg_out_ext8s(TCGContext *s, int dest, int src, int rexw)
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
 {
+    int rexw = type == TCG_TYPE_I32 ? 0 : P_REXW;
     /* movsbl */
     tcg_debug_assert(src < 4 || TCG_TARGET_REG_BITS == 64);
     tcg_out_modrm(s, OPC_MOVSBL + P_REXB_RM + rexw, dest, src);
@@ -1929,7 +1930,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     data_reg = l->datalo_reg;
     switch (opc & MO_SSIZE) {
     case MO_SB:
-        tcg_out_ext8s(s, data_reg, TCG_REG_EAX, rexw);
+        tcg_out_ext8s(s, l->type, data_reg, TCG_REG_EAX);
         break;
     case MO_SW:
         tcg_out_ext16s(s, data_reg, TCG_REG_EAX, rexw);
@@ -2669,9 +2670,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_modrm(s, OPC_GRP3_Ev + rexw, EXT3_NOT, a0);
         break;
 
-    OP_32_64(ext8s):
-        tcg_out_ext8s(s, a0, a1, rexw);
-        break;
     OP_32_64(ext16s):
         tcg_out_ext16s(s, a0, a1, rexw);
         break;
@@ -2840,6 +2838,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
+    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
+    case INDEX_op_ext8s_i64:
     default:
         g_assert_not_reached();
     }

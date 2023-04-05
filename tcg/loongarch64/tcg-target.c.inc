@@ -441,7 +441,7 @@ static void tcg_out_ext32u(TCGContext *s, TCGReg ret, TCGReg arg)
     tcg_out_opc_bstrpick_d(s, ret, arg, 0, 31);
 }
 
-static void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     tcg_out_opc_sext_b(s, ret, arg);
 }
@@ -893,7 +893,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     switch (opc & MO_SSIZE) {
     case MO_SB:
-        tcg_out_ext8s(s, l->datalo_reg, TCG_REG_A0);
+        tcg_out_ext8s(s, type, l->datalo_reg, TCG_REG_A0);
         break;
     case MO_SW:
         tcg_out_ext16s(s, l->datalo_reg, TCG_REG_A0);
@@ -1244,11 +1244,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
         tcg_out_brcond(s, a2, a0, a1, arg_label(args[3]));
-        break;
-
-    case INDEX_op_ext8s_i32:
-    case INDEX_op_ext8s_i64:
-        tcg_out_ext8s(s, a0, a1);
         break;
 
     case INDEX_op_ext8u_i32:
@@ -1627,6 +1622,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
+    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
+    case INDEX_op_ext8s_i64:
     default:
         g_assert_not_reached();
     }
