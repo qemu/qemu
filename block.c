@@ -7158,7 +7158,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             if (!backing_fmt) {
                 error_setg(&local_err,
                            "Backing file specified without backing format");
-                error_append_hint(&local_err, "Detected format of %s.",
+                error_append_hint(&local_err, "Detected format of %s.\n",
                                   bs->drv->format_name);
                 goto out;
             }
