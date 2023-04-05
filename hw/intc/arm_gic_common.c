@@ -21,10 +21,12 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "gic_internal.h"
 #include "hw/arm/linux-boot-if.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "sysemu/kvm.h"
 
 static int gic_pre_save(void *opaque)
 {
@@ -393,3 +395,8 @@ static void register_types(void)
 }
 
 type_init(register_types)
+
+const char *gic_class_name(void)
+{
+    return kvm_irqchip_in_kernel() ? "kvm-arm-gic" : "arm_gic";
+}

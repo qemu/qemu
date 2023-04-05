@@ -453,32 +453,6 @@ static inline uint32_t kvm_arm_sve_get_vls(CPUState *cs)
 
 #endif
 
-static inline const char *gic_class_name(void)
-{
-    return kvm_irqchip_in_kernel() ? "kvm-arm-gic" : "arm_gic";
-}
-
-/**
- * gicv3_class_name
- *
- * Return name of GICv3 class to use depending on whether KVM acceleration is
- * in use. May throw an error if the chosen implementation is not available.
- *
- * Returns: class name to use
- */
-static inline const char *gicv3_class_name(void)
-{
-    if (kvm_irqchip_in_kernel()) {
-        return "kvm-arm-gicv3";
-    } else {
-        if (kvm_enabled()) {
-            error_report("Userspace GICv3 is not supported with KVM");
-            exit(1);
-        }
-        return "arm-gicv3";
-    }
-}
-
 /**
  * kvm_arm_handle_debug:
  * @cs: CPUState
@@ -515,24 +489,5 @@ void kvm_arm_copy_hw_debug_data(struct kvm_guest_debug_arch *ptr);
  * Returns: true if the fault status code is as expected, false otherwise
  */
 bool kvm_arm_verify_ext_dabt_pending(CPUState *cs);
-
-/**
- * its_class_name:
- *
- * Return the ITS class name to use depending on whether KVM acceleration
- * and KVM CAP_SIGNAL_MSI are supported
- *
- * Returns: class name to use or NULL
- */
-static inline const char *its_class_name(void)
-{
-    if (kvm_irqchip_in_kernel()) {
-        /* KVM implementation requires this capability */
-        return kvm_direct_msi_enabled() ? "arm-its-kvm" : NULL;
-    } else {
-        /* Software emulation based model */
-        return "arm-gicv3-its";
-    }
-}
 
 #endif
