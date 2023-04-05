@@ -38,14 +38,6 @@
 #define TYPE_INT(X)          __builtin_types_compatible_p(typeof(X), int)
 #define TYPE_TCGV(X)         __builtin_types_compatible_p(typeof(X), TCGv)
 #define TYPE_TCGV_I64(X)     __builtin_types_compatible_p(typeof(X), TCGv_i64)
-
-#define SET_USR_FIELD_FUNC(X) \
-    __builtin_choose_expr(TYPE_INT(X), \
-        gen_set_usr_fieldi, \
-        __builtin_choose_expr(TYPE_TCGV(X), \
-            gen_set_usr_field, (void)0))
-#define SET_USR_FIELD(FIELD, VAL) \
-    SET_USR_FIELD_FUNC(VAL)(FIELD, VAL)
 #else
 #define GET_USR_FIELD(FIELD) \
     fEXTRACTU_BITS(env->gpr[HEX_REG_USR], reg_field_info[FIELD].width, \
