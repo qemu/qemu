@@ -270,8 +270,8 @@ static inline int64_t mirror_clip_bytes(MirrorBlockJob *s,
 
 /* Round offset and/or bytes to target cluster if COW is needed, and
  * return the offset of the adjusted tail against original. */
-static int mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
-                            uint64_t *bytes)
+static int coroutine_fn mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
+                                         uint64_t *bytes)
 {
     bool need_cow;
     int ret = 0;
