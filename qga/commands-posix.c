@@ -1925,10 +1925,10 @@ static void guest_suspend(SuspendMode mode, Error **errp)
     if (systemd_supports_mode(mode, &local_err)) {
         mode_supported = true;
         systemd_suspend(mode, &local_err);
-    }
 
-    if (!local_err) {
-        return;
+        if (!local_err) {
+            return;
+        }
     }
 
     error_free(local_err);
@@ -1937,10 +1937,10 @@ static void guest_suspend(SuspendMode mode, Error **errp)
     if (pmutils_supports_mode(mode, &local_err)) {
         mode_supported = true;
         pmutils_suspend(mode, &local_err);
-    }
 
-    if (!local_err) {
-        return;
+        if (!local_err) {
+            return;
+        }
     }
 
     error_free(local_err);
