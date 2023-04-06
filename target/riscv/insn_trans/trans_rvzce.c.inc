@@ -117,7 +117,7 @@ static uint32_t decode_push_pop_list(DisasContext *ctx, target_ulong rlist)
 {
     uint32_t reg_bitmap = 0;
 
-    if (ctx->cfg_ptr->ext_e && rlist > 6) {
+    if (has_ext(ctx, RVE) && rlist > 6) {
         return 0;
     }
 
