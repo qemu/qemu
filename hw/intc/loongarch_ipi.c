@@ -77,31 +77,42 @@ static void send_ipi_data(CPULoongArchState *env, uint64_t val, hwaddr addr)
 
 static void ipi_send(uint64_t val)
 {
-    int cpuid, data;
+    uint32_t cpuid;
+    uint8_t vector;
     CPULoongArchState *env;
     CPUState *cs;
     LoongArchCPU *cpu;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_IPI_SEND", cpuid);
+        return;
+    }
+
     /* IPI status vector */
-    data = 1 << (val & 0x1f);
+    vector = extract8(val, 0, 5);
+
     cs = qemu_get_cpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     address_space_stl(&env->address_space_iocsr, 0x1008,
-                      data, MEMTXATTRS_UNSPECIFIED, NULL);
-
+                      BIT(vector), MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void mail_send(uint64_t val)
 {
-    int cpuid;
+    uint32_t cpuid;
     hwaddr addr;
     CPULoongArchState *env;
     CPUState *cs;
     LoongArchCPU *cpu;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_MAIL_SEND", cpuid);
+        return;
+    }
+
     addr = 0x1020 + (val & 0x1c);
     cs = qemu_get_cpu(cpuid);
     cpu = LOONGARCH_CPU(cs);
@@ -111,14 +122,21 @@ static void mail_send(uint64_t val)
 
 static void any_send(uint64_t val)
 {
-    int cpuid;
+    uint32_t cpuid;
     hwaddr addr;
     CPULoongArchState *env;
+    CPUState *cs;
+    LoongArchCPU *cpu;
 
-    cpuid = (val >> 16) & 0x3ff;
+    cpuid = extract32(val, 16, 10);
+    if (cpuid >= LOONGARCH_MAX_CPUS) {
+        trace_loongarch_ipi_unsupported_cpuid("IOCSR_ANY_SEND", cpuid);
+        return;
+    }
+
     addr = val & 0xffff;
-    CPUState *cs = qemu_get_cpu(cpuid);
-    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
+    cs = qemu_get_cpu(cpuid);
+    cpu = LOONGARCH_CPU(cs);
     env = &cpu->env;
     send_ipi_data(env, val, addr);
 }
