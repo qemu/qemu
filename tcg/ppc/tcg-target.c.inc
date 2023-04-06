@@ -1971,10 +1971,6 @@ static const uint32_t qemu_stx_opc[(MO_SIZE + MO_BSWAP) + 1] = {
     [MO_BSWAP | MO_UQ] = STDBRX,
 };
 
-static const uint32_t qemu_exts_opc[4] = {
-    EXTSB, EXTSH, EXTSW, 0
-};
-
 #if defined (CONFIG_SOFTMMU)
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
  *                                 int mmu_idx, uintptr_t ra)
@@ -2168,11 +2164,9 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     if (TCG_TARGET_REG_BITS == 32 && (opc & MO_SIZE) == MO_64) {
         tcg_out_mov(s, TCG_TYPE_I32, lo, TCG_REG_R4);
         tcg_out_mov(s, TCG_TYPE_I32, hi, TCG_REG_R3);
-    } else if (opc & MO_SIGN) {
-        uint32_t insn = qemu_exts_opc[opc & MO_SIZE];
-        tcg_out32(s, insn | RA(lo) | RS(TCG_REG_R3));
     } else {
-        tcg_out_mov(s, TCG_TYPE_REG, lo, TCG_REG_R3);
+        tcg_out_movext(s, lb->type, lo,
+                       TCG_TYPE_REG, opc & MO_SSIZE, TCG_REG_R3);
     }
 
     tcg_out_b(s, 0, lb->raddr);
@@ -2206,25 +2200,13 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
     lo = lb->datalo_reg;
     hi = lb->datahi_reg;
-    if (TCG_TARGET_REG_BITS == 32) {
-        switch (s_bits) {
-        case MO_64:
-            arg |= (TCG_TARGET_CALL_ARG_I64 == TCG_CALL_ARG_EVEN);
-            tcg_out_mov(s, TCG_TYPE_I32, arg++, hi);
-            /* FALLTHRU */
-        case MO_32:
-            tcg_out_mov(s, TCG_TYPE_I32, arg++, lo);
-            break;
-        default:
-            tcg_out_rlw(s, RLWINM, arg++, lo, 0, 32 - (8 << s_bits), 31);
-            break;
-        }
+    if (TCG_TARGET_REG_BITS == 32 && s_bits == MO_64) {
+        arg |= (TCG_TARGET_CALL_ARG_I64 == TCG_CALL_ARG_EVEN);
+        tcg_out_mov(s, TCG_TYPE_I32, arg++, hi);
+        tcg_out_mov(s, TCG_TYPE_I32, arg++, lo);
     } else {
-        if (s_bits == MO_64) {
-            tcg_out_mov(s, TCG_TYPE_I64, arg++, lo);
-        } else {
-            tcg_out_rld(s, RLDICL, arg++, lo, 0, 64 - (8 << s_bits));
-        }
+        tcg_out_movext(s, s_bits == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                       arg++, lb->type, s_bits, lo);
     }
 
     tcg_out_movi(s, TCG_TYPE_I32, arg++, oi);
@@ -2371,8 +2353,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
         } else {
             insn = qemu_ldx_opc[opc & (MO_SIZE | MO_BSWAP)];
             tcg_out32(s, insn | TAB(datalo, rbase, addrlo));
-            insn = qemu_exts_opc[s_bits];
-            tcg_out32(s, insn | RA(datalo) | RS(datalo));
+            tcg_out_movext(s, TCG_TYPE_REG, datalo,
+                           TCG_TYPE_REG, opc & MO_SSIZE, datalo);
         }
     }
 

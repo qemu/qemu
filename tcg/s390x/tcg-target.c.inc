@@ -1809,6 +1809,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGReg data_reg = lb->datalo_reg;
     MemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
+    MemOp size = opc & MO_SIZE;
 
     if (!patch_reloc(lb->label_ptr[0], R_390_PC16DBL,
                      (intptr_t)tcg_splitwx_to_rx(s->code_ptr), 2)) {
@@ -1819,22 +1820,8 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     if (TARGET_LONG_BITS == 64) {
         tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R3, addr_reg);
     }
-    switch (opc & MO_SIZE) {
-    case MO_UB:
-        tcg_out_ext8u(s, TCG_REG_R4, data_reg);
-        break;
-    case MO_UW:
-        tcg_out_ext16u(s, TCG_REG_R4, data_reg);
-        break;
-    case MO_UL:
-        tcg_out_ext32u(s, TCG_REG_R4, data_reg);
-        break;
-    case MO_UQ:
-        tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R4, data_reg);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    tcg_out_movext(s, size == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                   TCG_REG_R4, lb->type, size, data_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R5, oi);
     tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R6, (uintptr_t)lb->raddr);
     tcg_out_call_int(s, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);

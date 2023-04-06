@@ -917,26 +917,6 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 static const tcg_insn_unit *qemu_ld_trampoline[(MO_SSIZE | MO_BSWAP) + 1];
 static const tcg_insn_unit *qemu_st_trampoline[(MO_SIZE | MO_BSWAP) + 1];
 
-static void emit_extend(TCGContext *s, TCGReg r, int op)
-{
-    /* Emit zero extend of 8, 16 or 32 bit data as
-     * required by the MO_* value op; do nothing for 64 bit.
-     */
-    switch (op & MO_SIZE) {
-    case MO_8:
-        tcg_out_ext8u(s, r, r);
-        break;
-    case MO_16:
-        tcg_out_ext16u(s, r, r);
-        break;
-    case MO_32:
-        tcg_out_ext32u(s, r, r);
-        break;
-    case MO_64:
-        break;
-    }
-}
-
 static void build_trampolines(TCGContext *s)
 {
     static void * const qemu_ld_helpers[] = {
@@ -992,8 +972,6 @@ static void build_trampolines(TCGContext *s)
             tcg_out_nop(s);
         }
         qemu_st_trampoline[i] = tcg_splitwx_to_rx(s->code_ptr);
-
-        emit_extend(s, TCG_REG_O2, i);
 
         /* Set the retaddr operand.  */
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O4, TCG_REG_O7);
@@ -1341,7 +1319,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
-                            MemOpIdx oi)
+                            MemOpIdx oi, TCGType data_type)
 {
     MemOp memop = get_memop(oi);
     tcg_insn_unit *label_ptr;
@@ -1367,7 +1345,8 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     /* TLB Miss.  */
 
     tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O1, addrz);
-    tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O2, data);
+    tcg_out_movext(s, (memop & MO_SIZE) == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                   TCG_REG_O2, data_type, memop & MO_SIZE, data);
 
     func = qemu_st_trampoline[memop & (MO_BSWAP | MO_SIZE)];
     tcg_debug_assert(func != NULL);
@@ -1658,8 +1637,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_ld(s, a0, a1, a2, true);
         break;
     case INDEX_op_qemu_st_i32:
+        tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I32);
+        break;
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, a0, a1, a2);
+        tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I64);
         break;
 
     case INDEX_op_ld32s_i64:

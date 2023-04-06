@@ -1567,17 +1567,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
     datalo = lb->datalo_reg;
     datahi = lb->datahi_reg;
-    switch (opc & MO_SSIZE) {
-    case MO_SB:
-        tcg_out_ext8s(s, TCG_TYPE_I32, datalo, TCG_REG_R0);
-        break;
-    case MO_SW:
-        tcg_out_ext16s(s, TCG_TYPE_I32, datalo, TCG_REG_R0);
-        break;
-    default:
-        tcg_out_mov_reg(s, COND_AL, datalo, TCG_REG_R0);
-        break;
-    case MO_UQ:
+    if ((opc & MO_SIZE) == MO_64) {
         if (datalo != TCG_REG_R1) {
             tcg_out_mov_reg(s, COND_AL, datalo, TCG_REG_R0);
             tcg_out_mov_reg(s, COND_AL, datahi, TCG_REG_R1);
@@ -1589,7 +1579,9 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
             tcg_out_mov_reg(s, COND_AL, datahi, TCG_REG_R1);
             tcg_out_mov_reg(s, COND_AL, datalo, TCG_REG_TMP);
         }
-        break;
+    } else {
+        tcg_out_movext(s, TCG_TYPE_I32, datalo,
+                       TCG_TYPE_I32, opc & MO_SSIZE, TCG_REG_R0);
     }
 
     tcg_out_goto(s, COND_AL, lb->raddr);
