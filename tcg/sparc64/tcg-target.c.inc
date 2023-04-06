@@ -522,6 +522,11 @@ static void tcg_out_ext32s(TCGContext *s, TCGReg rd, TCGReg rs)
     tcg_out_arithi(s, rd, rs, 0, SHIFT_SRA);
 }
 
+static void tcg_out_ext32u(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 0, SHIFT_SRL);
+}
+
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg rd, TCGReg rs,
                              tcg_target_long imm)
 {
@@ -910,7 +915,7 @@ static void emit_extend(TCGContext *s, TCGReg r, int op)
         tcg_out_ext16u(s, r, r);
         break;
     case MO_32:
-        tcg_out_arith(s, r, r, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, r, r);
         break;
     case MO_64:
         break;
@@ -1134,7 +1139,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
 
     /* If the guest address must be zero-extended, do so now.  */
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, r0, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, r0, addr);
         return r0;
     }
     return addr;
@@ -1231,7 +1236,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned t_bits;
 
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, TCG_REG_T1, addr);
         addr = TCG_REG_T1;
     }
 
@@ -1363,7 +1368,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned t_bits;
 
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, TCG_REG_T1, addr);
         addr = TCG_REG_T1;
     }
 
@@ -1676,8 +1681,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext32s(s, a0, a1);
         break;
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
-        tcg_out_arithi(s, a0, a1, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, a0, a1);
         break;
     case INDEX_op_extrl_i64_i32:
         tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
@@ -1733,6 +1737,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
     default:
         g_assert_not_reached();
     }

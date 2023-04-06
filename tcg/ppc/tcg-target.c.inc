@@ -801,8 +801,9 @@ static void tcg_out_ext32s(TCGContext *s, TCGReg dst, TCGReg src)
     tcg_out32(s, EXTSW | RA(dst) | RS(src));
 }
 
-static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
+static void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
 {
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     tcg_out_rld(s, RLDICL, dst, src, 0, 32);
 }
 
@@ -3131,6 +3132,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
     default:
         g_assert_not_reached();
     }

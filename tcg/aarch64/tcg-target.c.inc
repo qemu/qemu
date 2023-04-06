@@ -1452,6 +1452,11 @@ static void tcg_out_ext16u(TCGContext *s, TCGReg rd, TCGReg rn)
     tcg_out_uxt(s, MO_16, rd, rn);
 }
 
+static void tcg_out_ext32u(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_movr(s, TCG_TYPE_I32, rd, rn);
+}
+
 static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
                             TCGReg rn, int64_t aimm)
 {
@@ -2259,8 +2264,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_sxt(s, TCG_TYPE_I64, MO_32, a0, a1);
         break;
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
-        tcg_out_movr(s, TCG_TYPE_I32, a0, a1);
+        tcg_out_ext32u(s, a0, a1);
         break;
 
     case INDEX_op_deposit_i64:
@@ -2327,6 +2331,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
     default:
         g_assert_not_reached();
     }

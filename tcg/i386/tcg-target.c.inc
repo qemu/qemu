@@ -1287,7 +1287,7 @@ static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
     tcg_out_modrm(s, OPC_MOVSWL + rexw, dest, src);
 }
 
-static inline void tcg_out_ext32u(TCGContext *s, int dest, int src)
+static void tcg_out_ext32u(TCGContext *s, TCGReg dest, TCGReg src)
 {
     /* 32-bit mov zero extends.  */
     tcg_out_modrm(s, OPC_MOVL_GvEv, dest, src);
@@ -2754,7 +2754,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_bswap64(s, a0);
         break;
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
     case INDEX_op_extrl_i64_i32:
         tcg_out_ext32u(s, a0, a1);
         break;
@@ -2838,6 +2837,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
     default:
         g_assert_not_reached();
     }

@@ -1117,7 +1117,7 @@ static void tcg_out_ext32s(TCGContext *s, TCGReg dest, TCGReg src)
     tcg_out_insn(s, RRE, LGFR, dest, src);
 }
 
-static inline void tgen_ext32u(TCGContext *s, TCGReg dest, TCGReg src)
+static void tcg_out_ext32u(TCGContext *s, TCGReg dest, TCGReg src)
 {
     tcg_out_insn(s, RRE, LLGFR, dest, src);
 }
@@ -1149,7 +1149,7 @@ static void tgen_andi(TCGContext *s, TCGType type, TCGReg dest, uint64_t val)
 
     /* Look for the zero-extensions.  */
     if ((val & valid) == 0xffffffff) {
-        tgen_ext32u(s, dest, dest);
+        tcg_out_ext32u(s, dest, dest);
         return;
     }
     if ((val & valid) == 0xff) {
@@ -1440,7 +1440,7 @@ static void tgen_ctpop(TCGContext *s, TCGType type, TCGReg dest, TCGReg src)
     /* With MIE3, and bit 0 of m4 set, we get the complete result. */
     if (HAVE_FACILITY(MISC_INSN_EXT3)) {
         if (type == TCG_TYPE_I32) {
-            tgen_ext32u(s, dest, src);
+            tcg_out_ext32u(s, dest, src);
             src = dest;
         }
         tcg_out_insn(s, RRFc, POPCNT, dest, src, 8);
@@ -1618,7 +1618,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg data,
     case MO_UL | MO_BSWAP:
         /* swapped unsigned int load with upper bits zeroed */
         tcg_out_insn(s, RXY, LRV, data, base, index, disp);
-        tgen_ext32u(s, data, data);
+        tcg_out_ext32u(s, data, data);
         break;
     case MO_UL:
         tcg_out_insn(s, RXY, LLGF, data, base, index, disp);
@@ -1743,7 +1743,7 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, MemOp opc,
                  offsetof(CPUTLBEntry, addend));
 
     if (TARGET_LONG_BITS == 32) {
-        tgen_ext32u(s, TCG_REG_R3, addr_reg);
+        tcg_out_ext32u(s, TCG_REG_R3, addr_reg);
         return TCG_REG_R3;
     }
     return addr_reg;
@@ -1812,7 +1812,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
         tcg_out_ext16u(s, TCG_REG_R4, data_reg);
         break;
     case MO_UL:
-        tgen_ext32u(s, TCG_REG_R4, data_reg);
+        tcg_out_ext32u(s, TCG_REG_R4, data_reg);
         break;
     case MO_UQ:
         tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R4, data_reg);
@@ -1879,7 +1879,7 @@ static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
                                   TCGReg *index_reg, tcg_target_long *disp)
 {
     if (TARGET_LONG_BITS == 32) {
-        tgen_ext32u(s, TCG_TMP0, *addr_reg);
+        tcg_out_ext32u(s, TCG_TMP0, *addr_reg);
         *addr_reg = TCG_TMP0;
     }
     if (guest_base < 0x80000) {
@@ -2261,7 +2261,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (a2 & TCG_BSWAP_OS) {
             tcg_out_ext32s(s, a0, a0);
         } else if ((a2 & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
-            tgen_ext32u(s, a0, a0);
+            tcg_out_ext32u(s, a0, a0);
         }
         break;
 
@@ -2528,8 +2528,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext32s(s, args[0], args[1]);
         break;
     case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
-        tgen_ext32u(s, args[0], args[1]);
+        tcg_out_ext32u(s, args[0], args[1]);
         break;
 
     case INDEX_op_add2_i64:
@@ -2627,6 +2626,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
     case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
     default:
         g_assert_not_reached();
     }
