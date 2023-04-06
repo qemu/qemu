@@ -517,6 +517,11 @@ static void tcg_out_ext16u(TCGContext *s, TCGReg rd, TCGReg rs)
     tcg_out_arithi(s, rd, rd, 16, SHIFT_SRL);
 }
 
+static void tcg_out_ext32s(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 0, SHIFT_SRA);
+}
+
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg rd, TCGReg rs,
                              tcg_target_long imm)
 {
@@ -1213,7 +1218,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 
     /* We let the helper sign-extend SB and SW, but leave SL for here.  */
     if (is_64 && (memop & MO_SSIZE) == MO_SL) {
-        tcg_out_arithi(s, data, TCG_REG_O0, 0, SHIFT_SRA);
+        tcg_out_ext32s(s, data, TCG_REG_O0);
     } else {
         tcg_out_mov(s, TCG_TYPE_REG, data, TCG_REG_O0);
     }
@@ -1668,8 +1673,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         c = ARITH_UDIVX;
         goto gen_arith;
     case INDEX_op_ext_i32_i64:
-    case INDEX_op_ext32s_i64:
-        tcg_out_arithi(s, a0, a1, 0, SHIFT_SRA);
+        tcg_out_ext32s(s, a0, a1);
         break;
     case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
@@ -1728,6 +1732,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16s_i64:
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
+    case INDEX_op_ext32s_i64:
     default:
         g_assert_not_reached();
     }

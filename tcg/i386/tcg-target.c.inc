@@ -1293,8 +1293,9 @@ static inline void tcg_out_ext32u(TCGContext *s, int dest, int src)
     tcg_out_modrm(s, OPC_MOVL_GvEv, dest, src);
 }
 
-static inline void tcg_out_ext32s(TCGContext *s, int dest, int src)
+static void tcg_out_ext32s(TCGContext *s, TCGReg dest, TCGReg src)
 {
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
     tcg_out_modrm(s, OPC_MOVSLQ, dest, src);
 }
 
@@ -2758,7 +2759,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext32u(s, a0, a1);
         break;
     case INDEX_op_ext_i32_i64:
-    case INDEX_op_ext32s_i64:
         tcg_out_ext32s(s, a0, a1);
         break;
     case INDEX_op_extrh_i64_i32:
@@ -2837,6 +2837,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16s_i64:
     case INDEX_op_ext16u_i32:
     case INDEX_op_ext16u_i64:
+    case INDEX_op_ext32s_i64:
     default:
         g_assert_not_reached();
     }
