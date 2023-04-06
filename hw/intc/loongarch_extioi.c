@@ -254,7 +254,7 @@ static const VMStateDescription vmstate_loongarch_extioi = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(bounce, LoongArchExtIOI, EXTIOI_IRQS_GROUP_COUNT),
-        VMSTATE_UINT32_2DARRAY(coreisr, LoongArchExtIOI, LOONGARCH_MAX_VCPUS,
+        VMSTATE_UINT32_2DARRAY(coreisr, LoongArchExtIOI, EXTIOI_CPUS,
                                EXTIOI_IRQS_GROUP_COUNT),
         VMSTATE_UINT32_ARRAY(nodetype, LoongArchExtIOI,
                              EXTIOI_IRQS_NODETYPE_COUNT / 2),
@@ -281,7 +281,7 @@ static void loongarch_extioi_instance_init(Object *obj)
 
     qdev_init_gpio_in(DEVICE(obj), extioi_setirq, EXTIOI_IRQS);
 
-    for (cpu = 0; cpu < LOONGARCH_MAX_VCPUS; cpu++) {
+    for (cpu = 0; cpu < EXTIOI_CPUS; cpu++) {
         memory_region_init_io(&s->extioi_iocsr_mem[cpu], OBJECT(s), &extioi_ops,
                               s, "extioi_iocsr", 0x900);
         sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->extioi_iocsr_mem[cpu]);
