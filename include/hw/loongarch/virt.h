@@ -36,7 +36,6 @@ struct LoongArchMachineState {
     /*< private >*/
     MachineState parent_obj;
 
-    IPICore ipi_core[MAX_IPI_CORE_NUM];
     MemoryRegion lowmem;
     MemoryRegion highmem;
     MemoryRegion isa_io;
