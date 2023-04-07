@@ -1615,16 +1615,20 @@ int64_t coroutine_fn blk_co_getlength(BlockBackend *blk)
     return bdrv_co_getlength(blk_bs(blk));
 }
 
+/* return 0 as number of sectors if no device present or error */
 void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
                                       uint64_t *nb_sectors_ptr)
 {
+    BlockDriverState *bs = blk_bs(blk);
+
     IO_CODE();
     GRAPH_RDLOCK_GUARD();
 
-    if (!blk_bs(blk)) {
+    if (!bs) {
         *nb_sectors_ptr = 0;
     } else {
-        bdrv_co_get_geometry(blk_bs(blk), nb_sectors_ptr);
+        int64_t nb_sectors = bdrv_co_nb_sectors(bs);
+        *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
     }
 }
 

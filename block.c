@@ -5879,16 +5879,6 @@ int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
     return ret * BDRV_SECTOR_SIZE;
 }
 
-/* return 0 as number of sectors if no device present or error */
-void coroutine_fn bdrv_co_get_geometry(BlockDriverState *bs,
-                                       uint64_t *nb_sectors_ptr)
-{
-    int64_t nb_sectors = bdrv_co_nb_sectors(bs);
-    IO_CODE();
-
-    *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
-}
-
 bool bdrv_is_sg(BlockDriverState *bs)
 {
     IO_CODE();
