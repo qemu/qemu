@@ -5849,7 +5849,7 @@ int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (drv->has_variable_length) {
+    if (bs->bl.has_variable_length) {
         int ret = bdrv_co_refresh_total_sectors(bs, bs->total_sectors);
         if (ret < 0) {
             return ret;

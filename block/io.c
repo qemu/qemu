@@ -182,6 +182,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
                                 drv->bdrv_aio_preadv ||
                                 drv->bdrv_co_preadv_part) ? 1 : 512;
 
+    bs->bl.has_variable_length = drv->has_variable_length;
+
     /* Take some limits from the children as a default */
     have_limits = false;
     QLIST_FOREACH(c, &bs->children, next) {
@@ -189,6 +191,10 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
         {
             bdrv_merge_limits(&bs->bl, &c->bs->bl);
             have_limits = true;
+        }
+
+        if (c->role & BDRV_CHILD_FILTERED) {
+            bs->bl.has_variable_length |= c->bs->bl.has_variable_length;
         }
     }
 
