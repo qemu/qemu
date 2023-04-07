@@ -684,7 +684,7 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
         case PRV_U:
             xl = get_field(env->mstatus, MSTATUS64_UXL);
             break;
-        default: /* PRV_S | PRV_H */
+        default: /* PRV_S */
             xl = get_field(env->mstatus, MSTATUS64_SXL);
             break;
         }

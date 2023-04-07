@@ -141,7 +141,7 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
     }
 
     if (env->virt_enabled &&
-        (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
+        (((env->priv <= PRV_S) && !get_field(env->henvcfg, envbits)) ||
          ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
     }

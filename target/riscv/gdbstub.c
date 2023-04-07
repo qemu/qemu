@@ -203,7 +203,7 @@ static int riscv_gdb_set_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
     if (n == 0) {
 #ifndef CONFIG_USER_ONLY
         cs->priv = ldtul_p(mem_buf) & 0x3;
-        if (cs->priv == PRV_H) {
+        if (cs->priv == PRV_RESERVED) {
             cs->priv = PRV_S;
         }
 #endif

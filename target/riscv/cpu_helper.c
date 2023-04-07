@@ -650,7 +650,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
     if (newpriv > PRV_M) {
         g_assert_not_reached();
     }
-    if (newpriv == PRV_H) {
+    if (newpriv == PRV_RESERVED) {
         newpriv = PRV_U;
     }
     if (icount_enabled() && newpriv != env->priv) {
