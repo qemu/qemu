@@ -762,7 +762,6 @@ static BlockDriver bdrv_replication = {
 
     .is_filter                  = true,
 
-    .has_variable_length        = true,
     .strong_runtime_opts        = replication_strong_runtime_opts,
 };
 
