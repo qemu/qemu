@@ -79,7 +79,7 @@ bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
 
 int64_t coroutine_fn GRAPH_RDLOCK bdrv_co_nb_sectors(BlockDriverState *bs);
-int64_t co_wrapper_mixed_bdrv_rdlock bdrv_nb_sectors(BlockDriverState *bs);
+int64_t coroutine_mixed_fn bdrv_nb_sectors(BlockDriverState *bs);
 
 int64_t coroutine_fn GRAPH_RDLOCK bdrv_co_getlength(BlockDriverState *bs);
 int64_t co_wrapper_mixed_bdrv_rdlock bdrv_getlength(BlockDriverState *bs);

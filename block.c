@@ -5859,6 +5859,28 @@ int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
     return bs->total_sectors;
 }
 
+/*
+ * This wrapper is written by hand because this function is in the hot I/O path,
+ * via blk_get_geometry.
+ */
+int64_t coroutine_mixed_fn bdrv_nb_sectors(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    IO_CODE();
+
+    if (!drv)
+        return -ENOMEDIUM;
+
+    if (bs->bl.has_variable_length) {
+        int ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return bs->total_sectors;
+}
+
 /**
  * Return length in bytes on success, -errno on error.
  * The length is always a multiple of BDRV_SECTOR_SIZE.

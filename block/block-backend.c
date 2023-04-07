@@ -1629,11 +1629,38 @@ int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk)
     }
 }
 
+/*
+ * This wrapper is written by hand because this function is in the hot I/O path,
+ * via blk_get_geometry.
+ */
+int64_t coroutine_mixed_fn blk_nb_sectors(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+
+    IO_CODE();
+
+    if (!bs) {
+        return -ENOMEDIUM;
+    } else {
+        return bdrv_nb_sectors(bs);
+    }
+}
+
 /* return 0 as number of sectors if no device present or error */
 void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
                                       uint64_t *nb_sectors_ptr)
 {
     int64_t ret = blk_co_nb_sectors(blk);
+    *nb_sectors_ptr = ret < 0 ? 0 : ret;
+}
+
+/*
+ * This wrapper is written by hand because this function is in the hot I/O path.
+ */
+void coroutine_mixed_fn blk_get_geometry(BlockBackend *blk,
+                                         uint64_t *nb_sectors_ptr)
+{
+    int64_t ret = blk_nb_sectors(blk);
     *nb_sectors_ptr = ret < 0 ? 0 : ret;
 }
 
