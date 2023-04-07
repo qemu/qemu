@@ -980,7 +980,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
             sector_write = merged_sector;
         } else if (i == sectors - 1 && trailing_length) {
             /* partial sector at the end of the buffer */
-            ret = bdrv_pread(bs->file, file_offset,
+            ret = bdrv_pread(bs->file, file_offset + trailing_length,
                              VHDX_LOG_SECTOR_SIZE - trailing_length,
                              merged_sector + trailing_length, 0);
             if (ret < 0) {
