@@ -195,7 +195,7 @@ static int bmds_aio_inflight(BlkMigDevState *bmds, int64_t sector)
 {
     int64_t chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
 
-    if (sector < blk_nb_sectors(bmds->blk)) {
+    if (sector < bmds->total_sectors) {
         return !!(bmds->aio_bitmap[chunk / (sizeof(unsigned long) * 8)] &
             (1UL << (chunk % (sizeof(unsigned long) * 8))));
     } else {
@@ -229,10 +229,9 @@ static void bmds_set_aio_inflight(BlkMigDevState *bmds, int64_t sector_num,
 
 static void alloc_aio_bitmap(BlkMigDevState *bmds)
 {
-    BlockBackend *bb = bmds->blk;
     int64_t bitmap_size;
 
-    bitmap_size = blk_nb_sectors(bb) + BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
+    bitmap_size = bmds->total_sectors + BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
     bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK * 8;
 
     bmds->aio_bitmap = g_malloc0(bitmap_size);
