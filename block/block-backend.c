@@ -1615,9 +1615,7 @@ int64_t coroutine_fn blk_co_getlength(BlockBackend *blk)
     return bdrv_co_getlength(blk_bs(blk));
 }
 
-/* return 0 as number of sectors if no device present or error */
-void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
-                                      uint64_t *nb_sectors_ptr)
+int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
 
@@ -1625,23 +1623,18 @@ void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
     GRAPH_RDLOCK_GUARD();
 
     if (!bs) {
-        *nb_sectors_ptr = 0;
+        return -ENOMEDIUM;
     } else {
-        int64_t nb_sectors = bdrv_co_nb_sectors(bs);
-        *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
+        return bdrv_co_nb_sectors(bs);
     }
 }
 
-int64_t coroutine_fn blk_co_nb_sectors(BlockBackend *blk)
+/* return 0 as number of sectors if no device present or error */
+void coroutine_fn blk_co_get_geometry(BlockBackend *blk,
+                                      uint64_t *nb_sectors_ptr)
 {
-    IO_CODE();
-    GRAPH_RDLOCK_GUARD();
-
-    if (!blk_co_is_available(blk)) {
-        return -ENOMEDIUM;
-    }
-
-    return bdrv_co_nb_sectors(blk_bs(blk));
+    int64_t ret = blk_co_nb_sectors(blk);
+    *nb_sectors_ptr = ret < 0 ? 0 : ret;
 }
 
 BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
