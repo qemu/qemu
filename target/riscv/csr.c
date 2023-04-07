@@ -1230,12 +1230,44 @@ static bool validate_vm(CPURISCVState *env, target_ulong vm)
            satp_mode_max_from_map(riscv_cpu_cfg(env)->satp_mode.map);
 }
 
+static target_ulong legalize_mpp(CPURISCVState *env, target_ulong old_mpp,
+                                 target_ulong val)
+{
+    bool valid = false;
+    target_ulong new_mpp = get_field(val, MSTATUS_MPP);
+
+    switch (new_mpp) {
+    case PRV_M:
+        valid = true;
+        break;
+    case PRV_S:
+        valid = riscv_has_ext(env, RVS);
+        break;
+    case PRV_U:
+        valid = riscv_has_ext(env, RVU);
+        break;
+    }
+
+    /* Remain field unchanged if new_mpp value is invalid */
+    if (!valid) {
+        val = set_field(val, MSTATUS_MPP, old_mpp);
+    }
+
+    return val;
+}
+
 static RISCVException write_mstatus(CPURISCVState *env, int csrno,
                                     target_ulong val)
 {
     uint64_t mstatus = env->mstatus;
     uint64_t mask = 0;
     RISCVMXL xl = riscv_cpu_mxl(env);
+
+    /*
+     * MPP field have been made WARL since priv version 1.11. However,
+     * legalization for it will not break any software running on 1.10.
+     */
+    val = legalize_mpp(env, get_field(mstatus, MSTATUS_MPP), val);
 
     /* flush tlb on mstatus fields that affect VM */
     if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
