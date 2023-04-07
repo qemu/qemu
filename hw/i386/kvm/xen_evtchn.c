@@ -1587,7 +1587,7 @@ static int allocate_pirq(XenEvtchnState *s, int type, int gsi)
  found:
     pirq_inuse_word(s, pirq) |= pirq_inuse_bit(pirq);
     if (gsi >= 0) {
-        assert(gsi <= IOAPIC_NUM_PINS);
+        assert(gsi < IOAPIC_NUM_PINS);
         s->gsi_pirq[gsi] = pirq;
     }
     s->pirq[pirq].gsi = gsi;
@@ -1601,7 +1601,7 @@ bool xen_evtchn_set_gsi(int gsi, int level)
 
     assert(qemu_mutex_iothread_locked());
 
-    if (!s || gsi < 0 || gsi > IOAPIC_NUM_PINS) {
+    if (!s || gsi < 0 || gsi >= IOAPIC_NUM_PINS) {
         return false;
     }
 
