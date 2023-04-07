@@ -4918,6 +4918,7 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     qdict_del(bs->options, "backing");
 
     bdrv_refresh_limits(bs, NULL, NULL);
+    bdrv_refresh_total_sectors(bs, bs->total_sectors);
 }
 
 /*
