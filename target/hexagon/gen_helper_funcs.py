@@ -308,8 +308,6 @@ def gen_helper_function(f, tag, tagregs, tagimms):
                 f.write(", ")
             f.write("uint32_t part1")
         f.write(")\n{\n")
-        if not hex_common.need_slot(tag):
-            f.write("    uint32_t slot __attribute__((unused)) = 4;\n")
         if hex_common.need_ea(tag):
             gen_decl_ea(f)
         ## Declare the return variable

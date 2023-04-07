@@ -347,9 +347,9 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fWRITE_LR(A) log_reg_write(env, HEX_REG_LR, A, slot)
-#define fWRITE_FP(A) log_reg_write(env, HEX_REG_FP, A, slot)
-#define fWRITE_SP(A) log_reg_write(env, HEX_REG_SP, A, slot)
+#define fWRITE_LR(A) log_reg_write(env, HEX_REG_LR, A)
+#define fWRITE_FP(A) log_reg_write(env, HEX_REG_FP, A)
+#define fWRITE_SP(A) log_reg_write(env, HEX_REG_SP, A)
 
 #define fREAD_SP() (env->gpr[HEX_REG_SP])
 #define fREAD_LC0 (env->gpr[HEX_REG_LC0])
@@ -377,13 +377,13 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
 #define fWRITE_LOOP_REGS0(START, COUNT) \
     do { \
-        log_reg_write(env, HEX_REG_LC0, COUNT, slot);  \
-        log_reg_write(env, HEX_REG_SA0, START, slot); \
+        log_reg_write(env, HEX_REG_LC0, COUNT);  \
+        log_reg_write(env, HEX_REG_SA0, START); \
     } while (0)
 #define fWRITE_LOOP_REGS1(START, COUNT) \
     do { \
-        log_reg_write(env, HEX_REG_LC1, COUNT, slot);  \
-        log_reg_write(env, HEX_REG_SA1, START, slot);\
+        log_reg_write(env, HEX_REG_LC1, COUNT);  \
+        log_reg_write(env, HEX_REG_SA1, START);\
     } while (0)
 
 #define fSET_OVERFLOW() SET_USR_FIELD(USR_OVF, 1)
