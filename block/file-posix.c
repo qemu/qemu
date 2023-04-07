@@ -3743,6 +3743,12 @@ static void cdrom_parse_filename(const char *filename, QDict *options,
 {
     bdrv_parse_filename_strip_prefix(filename, "host_cdrom:", options);
 }
+
+static void cdrom_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->bl.has_variable_length = true;
+    raw_refresh_limits(bs, errp);
+}
 #endif
 
 #ifdef __linux__
@@ -3838,14 +3844,13 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
-    .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_refresh_limits    = cdrom_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
     .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
-    .has_variable_length                = true,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
 
     /* removable device support */
@@ -3967,14 +3972,13 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,
     .bdrv_co_flush_to_disk  = raw_co_flush_to_disk,
-    .bdrv_refresh_limits = raw_refresh_limits,
+    .bdrv_refresh_limits    = cdrom_refresh_limits,
     .bdrv_co_io_plug        = raw_co_io_plug,
     .bdrv_co_io_unplug      = raw_co_io_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate                   = raw_co_truncate,
     .bdrv_co_getlength                  = raw_co_getlength,
-    .has_variable_length                = true,
     .bdrv_co_get_allocated_file_size    = raw_co_get_allocated_file_size,
 
     /* removable device support */

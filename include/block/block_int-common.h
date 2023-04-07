@@ -158,8 +158,6 @@ struct BlockDriver {
      */
     bool supports_backing;
 
-    bool has_variable_length;
-
     /*
      * Drivers setting this field must be able to work with just a plain
      * filename with '<protocol_name>:' as a prefix, and no other options.

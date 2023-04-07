@@ -182,8 +182,6 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
                                 drv->bdrv_aio_preadv ||
                                 drv->bdrv_co_preadv_part) ? 1 : 512;
 
-    bs->bl.has_variable_length = drv->has_variable_length;
-
     /* Take some limits from the children as a default */
     have_limits = false;
     QLIST_FOREACH(c, &bs->children, next) {
