@@ -46,17 +46,18 @@
 
 #if TCG_TARGET_REG_BITS == 64
 # define TCG_TARGET_CALL_ARG_I32   TCG_CALL_ARG_EXTEND
+# define TCG_TARGET_CALL_RET_I128  TCG_CALL_RET_NORMAL
 #else
 # define TCG_TARGET_CALL_ARG_I32   TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_RET_I128  TCG_CALL_RET_BY_REF
 #endif
 #ifdef _CALL_SYSV
 # define TCG_TARGET_CALL_ARG_I64   TCG_CALL_ARG_EVEN
+# define TCG_TARGET_CALL_ARG_I128  TCG_CALL_ARG_BY_REF
 #else
 # define TCG_TARGET_CALL_ARG_I64   TCG_CALL_ARG_NORMAL
+# define TCG_TARGET_CALL_ARG_I128  TCG_CALL_ARG_NORMAL
 #endif
-/* Note sysv arg alignment applies only to 2-word types, not more. */
-#define TCG_TARGET_CALL_ARG_I128   TCG_CALL_ARG_NORMAL
-#define TCG_TARGET_CALL_RET_I128   TCG_CALL_RET_NORMAL
 
 /* For some memory operations, we need a scratch that isn't R0.  For the AIX
    calling convention, we can re-use the TOC register since we'll be reloading
