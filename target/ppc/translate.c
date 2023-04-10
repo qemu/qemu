@@ -1807,8 +1807,8 @@ static inline void gen_op_arith_modw(DisasContext *ctx, TCGv ret, TCGv arg1,
         TCGv_i32 t2 = tcg_constant_i32(1);
         TCGv_i32 t3 = tcg_constant_i32(0);
         tcg_gen_movcond_i32(TCG_COND_EQ, t1, t1, t3, t2, t1);
-        tcg_gen_remu_i32(t3, t0, t1);
-        tcg_gen_extu_i32_tl(ret, t3);
+        tcg_gen_remu_i32(t0, t0, t1);
+        tcg_gen_extu_i32_tl(ret, t0);
     }
 }
 
