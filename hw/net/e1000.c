@@ -637,9 +637,8 @@ xmit_seg(E1000State *s)
 
     e1000x_inc_reg_if_not_full(s->mac_reg, TPT);
     e1000x_grow_8reg_if_not_full(s->mac_reg, TOTL, s->tx.size + 4);
-    s->mac_reg[GPTC] = s->mac_reg[TPT];
-    s->mac_reg[GOTCL] = s->mac_reg[TOTL];
-    s->mac_reg[GOTCH] = s->mac_reg[TOTH];
+    e1000x_inc_reg_if_not_full(s->mac_reg, GPTC);
+    e1000x_grow_8reg_if_not_full(s->mac_reg, GOTCL, s->tx.size + 4);
 }
 
 static void

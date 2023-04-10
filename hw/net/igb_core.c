@@ -538,9 +538,8 @@ igb_on_tx_done_update_stats(IGBCore *core, struct NetTxPkt *tx_pkt, int qn)
         g_assert_not_reached();
     }
 
-    core->mac[GPTC] = core->mac[TPT];
-    core->mac[GOTCL] = core->mac[TOTL];
-    core->mac[GOTCH] = core->mac[TOTH];
+    e1000x_inc_reg_if_not_full(core->mac, GPTC);
+    e1000x_grow_8reg_if_not_full(core->mac, GOTCL, tot_len);
 
     if (core->mac[MRQC] & 1) {
         uint16_t pool = qn % IGB_NUM_VM_POOLS;
