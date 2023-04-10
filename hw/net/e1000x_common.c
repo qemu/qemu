@@ -217,15 +217,14 @@ e1000x_update_rx_total_stats(uint32_t *mac,
 
     e1000x_increase_size_stats(mac, PRCregs, data_fcs_size);
     e1000x_inc_reg_if_not_full(mac, TPR);
-    mac[GPRC] = mac[TPR];
+    e1000x_inc_reg_if_not_full(mac, GPRC);
     /* TOR - Total Octets Received:
     * This register includes bytes received in a packet from the <Destination
     * Address> field through the <CRC> field, inclusively.
     * Always include FCS length (4) in size.
     */
     e1000x_grow_8reg_if_not_full(mac, TORL, data_size + 4);
-    mac[GORCL] = mac[TORL];
-    mac[GORCH] = mac[TORH];
+    e1000x_grow_8reg_if_not_full(mac, GORCL, data_size + 4);
 }
 
 void
