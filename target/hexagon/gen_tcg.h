@@ -487,6 +487,19 @@
 #define fGEN_TCG_S2_storerinew_pcr(SHORTCODE) \
     fGEN_TCG_STORE_pcr(2, fSTORE(1, 4, EA, NtN))
 
+/* dczeroa clears the 32 byte cache line at the address given */
+#define fGEN_TCG_Y2_dczeroa(SHORTCODE) SHORTCODE
+
+/* In linux-user mode, these are not modelled, suppress compiler warning */
+#define fGEN_TCG_Y2_dcinva(SHORTCODE) \
+    do { RsV = RsV; } while (0)
+#define fGEN_TCG_Y2_dccleaninva(SHORTCODE) \
+    do { RsV = RsV; } while (0)
+#define fGEN_TCG_Y2_dccleana(SHORTCODE) \
+    do { RsV = RsV; } while (0)
+#define fGEN_TCG_Y2_icinva(SHORTCODE) \
+    do { RsV = RsV; } while (0)
+
 /*
  * dealloc_return
  * Assembler mapped to
@@ -1210,6 +1223,17 @@
 #define fGEN_TCG_Y5_l2fetch(SHORTCODE) \
     do { \
         RsV = RsV; \
+    } while (0)
+#define fGEN_TCG_Y2_isync(SHORTCODE) \
+    do { } while (0)
+#define fGEN_TCG_Y2_barrier(SHORTCODE) \
+    do { } while (0)
+#define fGEN_TCG_Y2_syncht(SHORTCODE) \
+    do { } while (0)
+#define fGEN_TCG_Y2_dcfetchbo(SHORTCODE) \
+    do { \
+        RsV = RsV; \
+        uiV = uiV; \
     } while (0)
 
 #define fGEN_TCG_J2_trap0(SHORTCODE) \

@@ -659,20 +659,10 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
     fEXTRACTU_BITS(env->gpr[HEX_REG_##REG], \
                    reg_field_info[FIELD].width, \
                    reg_field_info[FIELD].offset)
-#define fBARRIER()
-#define fSYNCH()
-#define fISYNC()
-#define fDCFETCH(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fICINVA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fL2FETCH(ADDR, HEIGHT, WIDTH, STRIDE, FLAGS)
-#define fDCCLEANA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
-#define fDCCLEANINVA(REG) \
-    do { (void)REG; } while (0) /* Nothing to do in qemu */
 
-#define fDCZEROA(REG) do { env->dczero_addr = (REG); } while (0)
+#ifdef QEMU_GENERATE
+#define fDCZEROA(REG) tcg_gen_mov_tl(hex_dczero_addr, (REG))
+#endif
 
 #define fBRANCH_SPECULATE_STALL(DOTNEWVAL, JUMP_COND, SPEC_DIR, HINTBITNUM, \
                                 STRBITNUM) /* Nothing */
