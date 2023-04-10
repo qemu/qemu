@@ -46,6 +46,10 @@ static void error_handle(Error **errp, Error *err)
     }
     if (errp == &error_warn) {
         warn_report_err(err);
+    } else if (errp && !*errp) {
+        *errp = err;
+    } else {
+        error_free(err);
     }
 }
 
@@ -76,7 +80,6 @@ static void error_setv(Error **errp,
     err->func = func;
 
     error_handle(errp, err);
-    *errp = err;
 
     errno = saved_errno;
 }
@@ -289,11 +292,6 @@ void error_propagate(Error **dst_errp, Error *local_err)
         return;
     }
     error_handle(dst_errp, local_err);
-    if (dst_errp && !*dst_errp) {
-        *dst_errp = local_err;
-    } else {
-        error_free(local_err);
-    }
 }
 
 void error_propagate_prepend(Error **dst_errp, Error *err,
