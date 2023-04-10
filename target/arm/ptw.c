@@ -1585,11 +1585,6 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         result->f.attrs.secure = false;
     }
 
-    /* When in aarch64 mode, and BTI is enabled, remember GP in the TLB.  */
-    if (aarch64 && cpu_isar_feature(aa64_bti, cpu)) {
-        result->f.guarded = extract64(attrs, 50, 1); /* GP */
-    }
-
     if (regime_is_stage2(mmu_idx)) {
         result->cacheattrs.is_s2_format = true;
         result->cacheattrs.attrs = extract32(attrs, 2, 4);
@@ -1600,6 +1595,11 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         assert(attrindx <= 7);
         result->cacheattrs.is_s2_format = false;
         result->cacheattrs.attrs = extract64(mair, attrindx * 8, 8);
+
+        /* When in aarch64 mode, and BTI is enabled, remember GP in the TLB. */
+        if (aarch64 && cpu_isar_feature(aa64_bti, cpu)) {
+            result->f.guarded = extract64(attrs, 50, 1); /* GP */
+        }
     }
 
     /*
@@ -2576,6 +2576,7 @@ static ARMCacheAttrs combine_cacheattrs(uint64_t hcr,
 
     assert(!s1.is_s2_format);
     ret.is_s2_format = false;
+    ret.guarded = s1.guarded;
 
     if (s1.attrs == 0xf0) {
         tagged = true;
