@@ -378,15 +378,15 @@ static struct iovec *iov_skip_offset(struct iovec *iov, size_t offset,
 }
 
 /*
- * qiov_slice
+ * qemu_iovec_slice
  *
  * Find subarray of iovec's, containing requested range. @head would
  * be offset in first iov (returned by the function), @tail would be
  * count of extra bytes in last iovec (returned iov + @niov - 1).
  */
-static struct iovec *qiov_slice(QEMUIOVector *qiov,
-                                size_t offset, size_t len,
-                                size_t *head, size_t *tail, int *niov)
+struct iovec *qemu_iovec_slice(QEMUIOVector *qiov,
+                               size_t offset, size_t len,
+                               size_t *head, size_t *tail, int *niov)
 {
     struct iovec *iov, *end_iov;
 
@@ -411,7 +411,7 @@ int qemu_iovec_subvec_niov(QEMUIOVector *qiov, size_t offset, size_t len)
     size_t head, tail;
     int niov;
 
-    qiov_slice(qiov, offset, len, &head, &tail, &niov);
+    qemu_iovec_slice(qiov, offset, len, &head, &tail, &niov);
 
     return niov;
 }
@@ -439,8 +439,8 @@ int qemu_iovec_init_extended(
     }
 
     if (mid_len) {
-        mid_iov = qiov_slice(mid_qiov, mid_offset, mid_len,
-                             &mid_head, &mid_tail, &mid_niov);
+        mid_iov = qemu_iovec_slice(mid_qiov, mid_offset, mid_len,
+                                   &mid_head, &mid_tail, &mid_niov);
     }
 
     total_niov = !!head_len + mid_niov + !!tail_len;
