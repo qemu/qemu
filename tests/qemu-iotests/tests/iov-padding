@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Check the interaction of request padding (to fit alignment restrictions) with
+# vectored I/O from the guest
+#
+# Copyright Red Hat
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+_supported_fmt raw
+_supported_proto file
+
+_make_test_img 1M
+
+IMGSPEC="driver=blkdebug,align=4096,image.driver=file,image.filename=$TEST_IMG"
+
+# Four combinations:
+# - Offset 4096, length 1023 * 512 + 512: Fully aligned to 4k
+# - Offset 4096, length 1023 * 512 + 4096: Head is aligned, tail is not
+# - Offset 512, length 1023 * 512 + 512: Neither head nor tail are aligned
+# - Offset 512, length 1023 * 512 + 4096: Tail is aligned, head is not
+for start_offset in 4096 512; do
+    for last_element_length in 512 4096; do
+        length=$((1023 * 512 + $last_element_length))
+
+        echo
+        echo "== performing 1024-element vectored requests to image (offset: $start_offset; length: $length) =="
+
+        # Fill with data for testing
+        $QEMU_IO -c 'write -P 1 0 1M' "$TEST_IMG" | _filter_qemu_io
+
+        # 1023 512-byte buffers, and then one with length $last_element_length
+        cmd_params="-P 2 $start_offset $(yes 512 | head -n 1023 | tr '\n' ' ') $last_element_length"
+        QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS_NO_FMT" $QEMU_IO \
+            -c "writev $cmd_params" \
+            --image-opts \
+            "$IMGSPEC" \
+            | _filter_qemu_io
+
+        # Read all patterns -- read the part we just wrote with writev twice,
+        # once "normally", and once with a readv, so we see that that works, too
+        QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS_NO_FMT" $QEMU_IO \
+            -c "read -P 1 0 $start_offset" \
+            -c "read -P 2 $start_offset $length" \
+            -c "readv $cmd_params" \
+            -c "read -P 1 $((start_offset + length)) $((1024 * 1024 - length - start_offset))" \
+            --image-opts \
+            "$IMGSPEC" \
+            | _filter_qemu_io
+    done
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
