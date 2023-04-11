@@ -1152,7 +1152,8 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
         stat64_get(&ram_counters.dirty_sync_count);
     info->ram->dirty_sync_missed_zero_copy =
         stat64_get(&ram_counters.dirty_sync_missed_zero_copy);
-    info->ram->postcopy_requests = ram_counters.postcopy_requests;
+    info->ram->postcopy_requests =
+        stat64_get(&ram_counters.postcopy_requests);
     info->ram->page_size = page_size;
     info->ram->multifd_bytes = stat64_get(&ram_counters.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;

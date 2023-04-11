@@ -2169,7 +2169,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     RAMBlock *ramblock;
     RAMState *rs = ram_state;
 
-    ram_counters.postcopy_requests++;
+    stat64_add(&ram_counters.postcopy_requests, 1);
     RCU_READ_LOCK_GUARD();
 
     if (!rbname) {
