@@ -472,11 +472,6 @@ void ram_transferred_add(uint64_t bytes)
     stat64_add(&ram_counters.transferred, bytes);
 }
 
-void dirty_sync_missed_zero_copy(void)
-{
-    ram_counters.dirty_sync_missed_zero_copy++;
-}
-
 struct MigrationOps {
     int (*ram_save_target_page)(RAMState *rs, PageSearchStatus *pss);
 };

@@ -576,7 +576,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
         return -1;
     }
     if (ret == 1) {
-        dirty_sync_missed_zero_copy();
+        stat64_add(&ram_counters.dirty_sync_missed_zero_copy, 1);
     }
 
     return ret;

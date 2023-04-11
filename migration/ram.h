@@ -43,7 +43,7 @@
 typedef struct {
     int64_t dirty_pages_rate;
     int64_t dirty_sync_count;
-    uint64_t dirty_sync_missed_zero_copy;
+    Stat64 dirty_sync_missed_zero_copy;
     uint64_t downtime_bytes;
     Stat64 duplicate;
     Stat64 multifd_bytes;
@@ -113,7 +113,5 @@ bool ram_write_tracking_compatible(void);
 void ram_write_tracking_prepare(void);
 int ram_write_tracking_start(void);
 void ram_write_tracking_stop(void);
-
-void dirty_sync_missed_zero_copy(void);
 
 #endif
