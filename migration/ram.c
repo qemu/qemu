@@ -467,7 +467,7 @@ void ram_transferred_add(uint64_t bytes)
     } else if (migration_in_postcopy()) {
         stat64_add(&ram_counters.postcopy_bytes, bytes);
     } else {
-        ram_counters.downtime_bytes += bytes;
+        stat64_add(&ram_counters.downtime_bytes, bytes);
     }
     stat64_add(&ram_counters.transferred, bytes);
 }

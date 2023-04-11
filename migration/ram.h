@@ -44,7 +44,7 @@ typedef struct {
     int64_t dirty_pages_rate;
     int64_t dirty_sync_count;
     Stat64 dirty_sync_missed_zero_copy;
-    uint64_t downtime_bytes;
+    Stat64 downtime_bytes;
     Stat64 duplicate;
     Stat64 multifd_bytes;
     Stat64 normal;
