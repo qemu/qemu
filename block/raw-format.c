@@ -377,6 +377,8 @@ raw_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
+    bs->bl.has_variable_length = bs->file->bs->bl.has_variable_length;
+
     if (bs->probed) {
         /* To make it easier to protect the first sector, any probed
          * image is restricted to read-modify-write on sub-sector
@@ -623,7 +625,6 @@ BlockDriver bdrv_raw = {
     .bdrv_co_truncate     = &raw_co_truncate,
     .bdrv_co_getlength    = &raw_co_getlength,
     .is_format            = true,
-    .has_variable_length  = true,
     .bdrv_measure         = &raw_measure,
     .bdrv_co_get_info     = &raw_co_get_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,

@@ -838,6 +838,7 @@ static void hdev_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     /* XXX Does Windows support AIO on less than 512-byte alignment? */
     bs->bl.request_alignment = 512;
+    bs->bl.has_variable_length = true;
 }
 
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
@@ -933,7 +934,6 @@ static BlockDriver bdrv_host_device = {
     .bdrv_attach_aio_context = raw_attach_aio_context,
 
     .bdrv_co_getlength                = raw_co_getlength,
-    .has_variable_length              = true,
     .bdrv_co_get_allocated_file_size  = raw_co_get_allocated_file_size,
 };
 

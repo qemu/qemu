@@ -190,6 +190,10 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
             bdrv_merge_limits(&bs->bl, &c->bs->bl);
             have_limits = true;
         }
+
+        if (c->role & BDRV_CHILD_FILTERED) {
+            bs->bl.has_variable_length |= c->bs->bl.has_variable_length;
+        }
     }
 
     if (!have_limits) {

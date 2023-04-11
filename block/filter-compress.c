@@ -146,7 +146,6 @@ static BlockDriver bdrv_compress = {
     .bdrv_co_eject                      = compress_co_eject,
     .bdrv_co_lock_medium                = compress_co_lock_medium,
 
-    .has_variable_length                = true,
     .is_filter                          = true,
 };
 

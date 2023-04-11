@@ -558,7 +558,6 @@ BlockDriver bdrv_preallocate_filter = {
     .bdrv_set_perm = preallocate_set_perm,
     .bdrv_child_perm = preallocate_child_perm,
 
-    .has_variable_length = true,
     .is_filter = true,
 };
 

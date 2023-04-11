@@ -4918,6 +4918,7 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     qdict_del(bs->options, "backing");
 
     bdrv_refresh_limits(bs, NULL, NULL);
+    bdrv_refresh_total_sectors(bs, bs->total_sectors);
 }
 
 /*
@@ -5849,12 +5850,34 @@ int64_t coroutine_fn bdrv_co_nb_sectors(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (drv->has_variable_length) {
+    if (bs->bl.has_variable_length) {
         int ret = bdrv_co_refresh_total_sectors(bs, bs->total_sectors);
         if (ret < 0) {
             return ret;
         }
     }
+    return bs->total_sectors;
+}
+
+/*
+ * This wrapper is written by hand because this function is in the hot I/O path,
+ * via blk_get_geometry.
+ */
+int64_t coroutine_mixed_fn bdrv_nb_sectors(BlockDriverState *bs)
+{
+    BlockDriver *drv = bs->drv;
+    IO_CODE();
+
+    if (!drv)
+        return -ENOMEDIUM;
+
+    if (bs->bl.has_variable_length) {
+        int ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     return bs->total_sectors;
 }
 
@@ -5876,16 +5899,6 @@ int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
         return -EFBIG;
     }
     return ret * BDRV_SECTOR_SIZE;
-}
-
-/* return 0 as number of sectors if no device present or error */
-void coroutine_fn bdrv_co_get_geometry(BlockDriverState *bs,
-                                       uint64_t *nb_sectors_ptr)
-{
-    int64_t nb_sectors = bdrv_co_nb_sectors(bs);
-    IO_CODE();
-
-    *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
 bool bdrv_is_sg(BlockDriverState *bs)
