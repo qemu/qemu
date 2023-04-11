@@ -466,10 +466,8 @@ static void allwinner_i2c_sun6i_init(Object *obj)
 
 static const TypeInfo allwinner_i2c_sun6i_type_info = {
     .name = TYPE_AW_I2C_SUN6I,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AWI2CState),
+    .parent = TYPE_AW_I2C,
     .instance_init = allwinner_i2c_sun6i_init,
-    .class_init = allwinner_i2c_class_init,
 };
 
 static void allwinner_i2c_register_types(void)
