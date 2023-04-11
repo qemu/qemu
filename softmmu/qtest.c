@@ -13,12 +13,12 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "chardev/char-fe.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
+#include "exec/tswap.h"
 #include "hw/qdev-core.h"
 #include "hw/irq.h"
 #include "qemu/accel.h"
@@ -717,11 +717,11 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "endianness") == 0) {
         qtest_send_prefix(chr);
-#if TARGET_BIG_ENDIAN
-        qtest_sendf(chr, "OK big\n");
-#else
-        qtest_sendf(chr, "OK little\n");
-#endif
+        if (target_words_bigendian()) {
+            qtest_sendf(chr, "OK big\n");
+        } else {
+            qtest_sendf(chr, "OK little\n");
+        }
     } else if (qtest_enabled() && strcmp(words[0], "clock_step") == 0) {
         int64_t ns;
 
