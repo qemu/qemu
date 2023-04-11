@@ -50,7 +50,7 @@ typedef struct {
     Stat64 normal;
     Stat64 postcopy_bytes;
     int64_t postcopy_requests;
-    uint64_t precopy_bytes;
+    Stat64 precopy_bytes;
     int64_t remaining;
     Stat64 transferred;
 } RAMStats;

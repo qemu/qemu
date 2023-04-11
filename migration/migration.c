@@ -1155,7 +1155,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->page_size = page_size;
     info->ram->multifd_bytes = stat64_get(&ram_counters.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;
-    info->ram->precopy_bytes = ram_counters.precopy_bytes;
+    info->ram->precopy_bytes = stat64_get(&ram_counters.precopy_bytes);
     info->ram->downtime_bytes = ram_counters.downtime_bytes;
     info->ram->postcopy_bytes = stat64_get(&ram_counters.postcopy_bytes);
 
