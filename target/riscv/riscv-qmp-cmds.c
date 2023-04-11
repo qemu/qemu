@@ -33,10 +33,14 @@ static void riscv_cpu_add_definition(gpointer data, gpointer user_data)
     CpuDefinitionInfoList **cpu_list = user_data;
     CpuDefinitionInfo *info = g_malloc0(sizeof(*info));
     const char *typename = object_class_get_name(oc);
+    ObjectClass *dyn_class;
 
     info->name = g_strndup(typename,
                            strlen(typename) - strlen("-" TYPE_RISCV_CPU));
     info->q_typename = g_strdup(typename);
+
+    dyn_class = object_class_dynamic_cast(oc, TYPE_RISCV_DYNAMIC_CPU);
+    info->q_static = dyn_class == NULL;
 
     QAPI_LIST_PREPEND(*cpu_list, info);
 }
