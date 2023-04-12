@@ -1332,7 +1332,10 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 
 #ifdef CONFIG_XEN_EMU
     if (xen_mode == XEN_EMULATE) {
-        xen_evtchn_connect_gsis(gsi);
+        xen_overlay_create();
+        xen_evtchn_create(IOAPIC_NUM_PINS, gsi);
+        xen_gnttab_create();
+        xen_xenstore_create();
         if (pcms->bus) {
             pci_create_simple(pcms->bus, -1, "xen-platform");
         }
@@ -1882,14 +1885,6 @@ static void pc_machine_initfn(Object *obj)
 
 int pc_machine_kvm_type(MachineState *machine, const char *kvm_type)
 {
-#ifdef CONFIG_XEN_EMU
-    if (xen_mode == XEN_EMULATE) {
-        xen_overlay_create();
-        xen_evtchn_create();
-        xen_gnttab_create();
-        xen_xenstore_create();
-    }
-#endif
     return 0;
 }
 
