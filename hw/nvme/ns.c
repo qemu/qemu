@@ -399,7 +399,8 @@ static bool nvme_ns_init_fdp(NvmeNamespace *ns, Error **errp)
     NvmeEnduranceGroup *endgrp = ns->endgrp;
     NvmeRuHandle *ruh;
     uint8_t lbafi = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
-    unsigned int *ruhid, *ruhids;
+    g_autofree unsigned int *ruhids = NULL;
+    unsigned int *ruhid;
     char *r, *p, *token;
     uint16_t *ph;
 

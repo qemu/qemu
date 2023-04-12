@@ -2619,6 +2619,9 @@ static uint16_t nvme_dsm(NvmeCtrl *n, NvmeRequest *req)
         status = nvme_h2c(n, (uint8_t *)iocb->range, sizeof(NvmeDsmRange) * nr,
                           req);
         if (status) {
+            g_free(iocb->range);
+            qemu_aio_unref(iocb);
+
             return status;
         }
 
