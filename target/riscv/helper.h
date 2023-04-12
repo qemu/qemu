@@ -123,8 +123,16 @@ DEF_HELPER_1(itrigger_match, void, env)
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_1(hyp_tlb_flush, void, env)
 DEF_HELPER_1(hyp_gvma_tlb_flush, void, env)
-DEF_HELPER_2(hyp_hlvx_hu, tl, env, tl)
-DEF_HELPER_2(hyp_hlvx_wu, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlv_bu, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlv_hu, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlv_wu, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlv_d, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlvx_hu, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_2(hyp_hlvx_wu, TCG_CALL_NO_WG, tl, env, tl)
+DEF_HELPER_FLAGS_3(hyp_hsv_b, TCG_CALL_NO_WG, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(hyp_hsv_h, TCG_CALL_NO_WG, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(hyp_hsv_w, TCG_CALL_NO_WG, void, env, tl, tl)
+DEF_HELPER_FLAGS_3(hyp_hsv_d, TCG_CALL_NO_WG, void, env, tl, tl)
 #endif
 
 /* Vector functions */

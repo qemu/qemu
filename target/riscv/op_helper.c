@@ -427,6 +427,91 @@ void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
     helper_hyp_tlb_flush(env);
 }
 
+static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
+{
+    if (env->priv == PRV_M) {
+        /* always allowed */
+    } else if (env->virt_enabled) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
+    } else if (env->priv == PRV_U && !get_field(env->hstatus, HSTATUS_HU)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+
+    return cpu_mmu_index(env, x) | MMU_HYP_ACCESS_BIT;
+}
+
+target_ulong helper_hyp_hlv_bu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+
+    return cpu_ldb_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_hu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
+
+    return cpu_ldw_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_wu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
+
+    return cpu_ldl_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_d(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUQ, mmu_idx);
+
+    return cpu_ldq_mmu(env, addr, oi, ra);
+}
+
+void helper_hyp_hsv_b(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+
+    cpu_stb_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_h(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
+
+    cpu_stw_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_w(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
+
+    cpu_stl_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_d(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUQ, mmu_idx);
+
+    cpu_stq_mmu(env, addr, val, oi, ra);
+}
+
 /*
  * TODO: These implementations are not quite correct.  They perform the
  * access using execute permission just fine, but the final PMP check
@@ -434,20 +519,22 @@ void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
  * a fair fraction of cputlb.c, fixing this requires adding new mmu_idx
  * which would imply that exact check in tlb_fill.
  */
-target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong address)
+target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong addr)
 {
-    int mmu_idx = cpu_mmu_index(env, true) | MMU_HYP_ACCESS_BIT;
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, true, ra);
     MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
 
-    return cpu_ldw_code_mmu(env, address, oi, GETPC());
+    return cpu_ldw_code_mmu(env, addr, oi, GETPC());
 }
 
-target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong address)
+target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong addr)
 {
-    int mmu_idx = cpu_mmu_index(env, true) | MMU_HYP_ACCESS_BIT;
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, true, ra);
     MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
 
-    return cpu_ldl_code_mmu(env, address, oi, GETPC());
+    return cpu_ldl_code_mmu(env, addr, oi, ra);
 }
 
 #endif /* !CONFIG_USER_ONLY */

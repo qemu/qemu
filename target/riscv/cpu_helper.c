@@ -102,24 +102,16 @@ void cpu_get_tb_cpu_state(CPURISCVState *env, target_ulong *pc,
     fs = get_field(env->mstatus, MSTATUS_FS);
     vs = get_field(env->mstatus, MSTATUS_VS);
 
-    if (riscv_has_ext(env, RVH)) {
-        if (env->priv == PRV_M ||
-            (env->priv == PRV_S && !env->virt_enabled) ||
-            (env->priv == PRV_U && !env->virt_enabled &&
-             get_field(env->hstatus, HSTATUS_HU))) {
-            flags = FIELD_DP32(flags, TB_FLAGS, HLSX, 1);
-        }
-
-        if (env->virt_enabled) {
-            flags = FIELD_DP32(flags, TB_FLAGS, VIRT_ENABLED, 1);
-            /*
-             * Merge DISABLED and !DIRTY states using MIN.
-             * We will set both fields when dirtying.
-             */
-            fs = MIN(fs, get_field(env->mstatus_hs, MSTATUS_FS));
-            vs = MIN(vs, get_field(env->mstatus_hs, MSTATUS_VS));
-        }
+    if (env->virt_enabled) {
+        flags = FIELD_DP32(flags, TB_FLAGS, VIRT_ENABLED, 1);
+        /*
+         * Merge DISABLED and !DIRTY states using MIN.
+         * We will set both fields when dirtying.
+         */
+        fs = MIN(fs, get_field(env->mstatus_hs, MSTATUS_FS));
+        vs = MIN(vs, get_field(env->mstatus_hs, MSTATUS_VS));
     }
+
     if (cpu->cfg.debug && !icount_enabled()) {
         flags = FIELD_DP32(flags, TB_FLAGS, ITRIGGER, env->itrigger_enabled);
     }
