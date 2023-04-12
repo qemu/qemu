@@ -287,7 +287,7 @@ static void watch_event(void *opaque)
 static struct qemu_xs_handle *libxenstore_open(void)
 {
     struct xs_handle *xsh = xs_open(0);
-    struct qemu_xs_handle *h = g_new0(struct qemu_xs_handle, 1);
+    struct qemu_xs_handle *h;
 
     if (!xsh) {
         return NULL;
