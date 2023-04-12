@@ -178,8 +178,7 @@ static int store_con_info(struct XenConsole *con)
     Chardev *cs = qemu_chr_fe_get_driver(&con->chr);
     char *pts = NULL;
     char *dom_path;
-    GString *path;
-    int ret = -1;
+    g_autoptr(GString) path = NULL;
 
     /* Only continue if we're talking to a pty. */
     if (!CHARDEV_IS_PTY(cs)) {
@@ -204,15 +203,9 @@ static int store_con_info(struct XenConsole *con)
 
     if (xenstore_write_str(con->console, path->str, pts)) {
         fprintf(stderr, "xenstore_write_str for '%s' fail", path->str);
-        goto out;
+        return -1;
     }
-    ret = 0;
-
-out:
-    g_string_free(path, true);
-    free(path);
-
-    return ret;
+    return 0;
 }
 
 static int con_init(struct XenLegacyDevice *xendev)
