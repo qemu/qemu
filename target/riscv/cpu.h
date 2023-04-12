@@ -97,6 +97,14 @@ enum {
     TRANSLATE_G_STAGE_FAIL
 };
 
+/* Extension context status */
+typedef enum {
+    EXT_STATUS_DISABLED = 0,
+    EXT_STATUS_INITIAL,
+    EXT_STATUS_CLEAN,
+    EXT_STATUS_DIRTY,
+} RISCVExtStatus;
+
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)
