@@ -44,6 +44,7 @@ softmmu_ss.add(files(
   'machine.c',
   'nmi.c',
   'null-machine.c',
+  'numa.c',
   'qdev-fw.c',
   'qdev-properties-system.c',
   'sysbus.c',
@@ -53,5 +54,4 @@ softmmu_ss.add(files(
 
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'machine-qmp-cmds.c',
-  'numa.c',
 ))
