@@ -3,7 +3,6 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'ioport.c',
   'memory.c',
   'physmem.c',
-  'dirtylimit.c',
   'watchpoint.c',
 )])
 
@@ -18,6 +17,7 @@ softmmu_ss.add(files(
   'cpu-throttle.c',
   'cpu-timers.c',
   'datadir.c',
+  'dirtylimit.c',
   'dma-helpers.c',
   'globals.c',
   'memory_mapping.c',
