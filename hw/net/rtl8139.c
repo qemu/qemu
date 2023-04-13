@@ -2154,6 +2154,9 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
                 int large_send_mss = (txdw0 >> CP_TC_LGSEN_MSS_SHIFT) &
                                      CP_TC_LGSEN_MSS_MASK;
+                if (large_send_mss == 0) {
+                    goto skip_offload;
+                }
 
                 DPRINTF("+++ C+ mode offloaded task TSO IP data %d "
                     "frame data %d specified MSS=%d\n",
