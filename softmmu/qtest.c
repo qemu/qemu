@@ -867,7 +867,7 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
     }
 
     qtest = object_new(TYPE_QTEST);
-    object_property_set_str(qtest, "chardev", "qtest", &error_abort);
+    object_property_set_str(qtest, "chardev", chr->label, &error_abort);
     if (qtest_log) {
         object_property_set_str(qtest, "log", qtest_log, &error_abort);
     }
