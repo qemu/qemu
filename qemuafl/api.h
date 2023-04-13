@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#if defined(TARGET_MIPS64) || defined(TARGET_AARCH64) || defined(TARGET_X86_64) || defined(TARGET_PPC64)
+#if defined(TARGET_MIPS64) || defined(TARGET_AARCH64) || defined(TARGET_X86_64) || defined(TARGET_PPC64) || defined(TARGET_RISCV64)
 # define TARGET_LONG_BITS 64
 #else
 # define TARGET_LONG_BITS 32
