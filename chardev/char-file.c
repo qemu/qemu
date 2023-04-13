@@ -100,6 +100,7 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
+    const char *inpath = qemu_opt_get(opts, "input-path");
     ChardevFile *file;
 
     backend->type = CHARDEV_BACKEND_KIND_FILE;
@@ -107,9 +108,16 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
         error_setg(errp, "chardev: file: no filename given");
         return;
     }
+#ifdef _WIN32
+    if (inpath) {
+        error_setg(errp, "chardev: file: input-path not supported on Windows");
+        return;
+    }
+#endif
     file = backend->u.file.data = g_new0(ChardevFile, 1);
     qemu_chr_parse_common(opts, qapi_ChardevFile_base(file));
     file->out = g_strdup(path);
+    file->in = g_strdup(inpath);
 
     file->has_append = true;
     file->append = qemu_opt_get_bool(opts, "append", false);
