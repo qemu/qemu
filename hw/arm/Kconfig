@@ -6,6 +6,7 @@ config ARM_VIRT
     imply VFIO_PLATFORM
     imply VFIO_XGMAC
     imply TPM_TIS_SYSBUS
+    imply TPM_TIS_I2C
     imply NVDIMM
     select ARM_GIC
     select ACPI
