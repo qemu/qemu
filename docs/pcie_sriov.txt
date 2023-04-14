@@ -9,10 +9,7 @@ virtual functions (VFs) for the main purpose of eliminating software
 overhead in I/O from virtual machines.
 
 QEMU now implements the basic common functionality to enable an emulated device
-to support SR/IOV. Yet no fully implemented devices exists in QEMU, but a
-proof-of-concept hack of the Intel igb can be found here:
-
-git://github.com/knuto/qemu.git sriov_patches_v5
+to support SR/IOV.
 
 Implementation
 ==============
