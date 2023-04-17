@@ -69,6 +69,7 @@ char *exec_path;
 char real_exec_path[PATH_MAX];
 
 int singlestep;
+static bool opt_one_insn_per_tb;
 static const char *argv0;
 static const char *gdbstub;
 static envlist_t *envlist;
@@ -411,7 +412,7 @@ static void handle_arg_reserved_va(const char *arg)
 
 static void handle_arg_singlestep(const char *arg)
 {
-    singlestep = 1;
+    opt_one_insn_per_tb = true;
 }
 
 static void handle_arg_strace(const char *arg)
@@ -777,9 +778,12 @@ int main(int argc, char **argv, char **envp)
 
     /* init tcg before creating CPUs and to get qemu_host_page_size */
     {
-        AccelClass *ac = ACCEL_GET_CLASS(current_accel());
+        AccelState *accel = current_accel();
+        AccelClass *ac = ACCEL_GET_CLASS(accel);
 
         accel_init_interfaces(ac);
+        object_property_set_bool(OBJECT(accel), "one-insn-per-tb",
+                                 opt_one_insn_per_tb, &error_abort);
         ac->init_machine(NULL);
     }
     cpu = cpu_create(cpu_type);
