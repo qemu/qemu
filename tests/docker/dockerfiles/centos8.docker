@@ -100,7 +100,6 @@ RUN dnf distro-sync -y && \
         python38-setuptools \
         python38-wheel \
         rdma-core-devel \
-        rpm \
         sed \
         snappy-devel \
         socat \

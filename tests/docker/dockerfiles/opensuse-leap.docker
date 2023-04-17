@@ -93,7 +93,6 @@ RUN zypper update -y && \
            python39-pip \
            python39-setuptools \
            rdma-core-devel \
-           rpm \
            sed \
            snappy-devel \
            sndio-devel \
