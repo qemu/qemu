@@ -409,7 +409,7 @@ static void handle_arg_reserved_va(const char *arg)
     reserved_va = val ? val - 1 : 0;
 }
 
-static void handle_arg_singlestep(const char *arg)
+static void handle_arg_one_insn_per_tb(const char *arg)
 {
     opt_one_insn_per_tb = true;
 }
@@ -500,8 +500,11 @@ static const struct qemu_argument arg_table[] = {
      "logfile",     "write logs to 'logfile' (default stderr)"},
     {"p",          "QEMU_PAGESIZE",    true,  handle_arg_pagesize,
      "pagesize",   "set the host page size to 'pagesize'"},
-    {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_singlestep,
-     "",           "run in singlestep mode"},
+    {"one-insn-per-tb",
+                   "QEMU_ONE_INSN_PER_TB",  false, handle_arg_one_insn_per_tb,
+     "",           "run with one guest instruction per emulated TB"},
+    {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_one_insn_per_tb,
+     "",           "deprecated synonym for -one-insn-per-tb"},
     {"strace",     "QEMU_STRACE",      false, handle_arg_strace,
      "",           "log system calls"},
     {"seed",       "QEMU_RAND_SEED",   true,  handle_arg_seed,
