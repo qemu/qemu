@@ -19,6 +19,7 @@ foreach m : [
   ['sdl', sdl, files('sdlaudio.c')],
   ['jack', jack, files('jackaudio.c')],
   ['sndio', sndio, files('sndioaudio.c')],
+  ['pipewire', pipewire, files('pwaudio.c')],
   ['spice', spice, files('spiceaudio.c')]
 ]
   if m[1].found()

@@ -325,6 +325,47 @@
     '*server': 'str' } }
 
 ##
+# @AudiodevPipewirePerDirectionOptions:
+#
+# Options of the Pipewire backend that are used for both playback and
+# recording.
+#
+# @name: name of the sink/source to use
+#
+# @stream-name: name of the Pipewire stream created by qemu.  Can be
+#               used to identify the stream in Pipewire when you
+#               create multiple Pipewire devices or run multiple qemu
+#               instances (default: audiodev's id)
+#
+# @latency: latency you want Pipewire to achieve in microseconds
+#           (default 46000)
+#
+# Since: 8.1
+##
+{ 'struct': 'AudiodevPipewirePerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*name': 'str',
+    '*stream-name': 'str',
+    '*latency': 'uint32' } }
+
+##
+# @AudiodevPipewireOptions:
+#
+# Options of the Pipewire audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# Since: 8.1
+##
+{ 'struct': 'AudiodevPipewireOptions',
+  'data': {
+    '*in':     'AudiodevPipewirePerDirectionOptions',
+    '*out':    'AudiodevPipewirePerDirectionOptions' } }
+
+##
 # @AudiodevSdlPerDirectionOptions:
 #
 # Options of the SDL audio backend that are used for both playback and
@@ -416,6 +457,7 @@
             { 'name': 'jack', 'if': 'CONFIG_AUDIO_JACK' },
             { 'name': 'oss', 'if': 'CONFIG_AUDIO_OSS' },
             { 'name': 'pa', 'if': 'CONFIG_AUDIO_PA' },
+            { 'name': 'pipewire', 'if': 'CONFIG_AUDIO_PIPEWIRE' },
             { 'name': 'sdl', 'if': 'CONFIG_AUDIO_SDL' },
             { 'name': 'sndio', 'if': 'CONFIG_AUDIO_SNDIO' },
             { 'name': 'spice', 'if': 'CONFIG_SPICE' },
@@ -456,6 +498,8 @@
                    'if': 'CONFIG_AUDIO_OSS' },
     'pa':        { 'type': 'AudiodevPaOptions',
                    'if': 'CONFIG_AUDIO_PA' },
+    'pipewire':  { 'type': 'AudiodevPipewireOptions',
+                   'if': 'CONFIG_AUDIO_PIPEWIRE' },
     'sdl':       { 'type': 'AudiodevSdlOptions',
                    'if': 'CONFIG_AUDIO_SDL' },
     'sndio':     { 'type': 'AudiodevSndioOptions',
