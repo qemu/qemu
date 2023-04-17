@@ -28,9 +28,8 @@ void hmp_info_status(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_status(NULL);
 
-    monitor_printf(mon, "VM status: %s%s",
-                   info->running ? "running" : "paused",
-                   info->singlestep ? " (single step mode)" : "");
+    monitor_printf(mon, "VM status: %s",
+                   info->running ? "running" : "paused");
 
     if (!info->running && info->status != RUN_STATE_PAUSED) {
         monitor_printf(mon, " (%s)", RunState_str(info->status));
