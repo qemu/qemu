@@ -40,7 +40,7 @@ void hmp_info_status(Monitor *mon, const QDict *qdict)
     qapi_free_StatusInfo(info);
 }
 
-void hmp_singlestep(Monitor *mon, const QDict *qdict)
+void hmp_one_insn_per_tb(Monitor *mon, const QDict *qdict)
 {
     const char *option = qdict_get_try_str(qdict, "option");
     AccelState *accel = current_accel();
