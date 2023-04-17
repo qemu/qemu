@@ -20,6 +20,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/accel.h"
 
 void hmp_info_status(Monitor *mon, const QDict *qdict)
 {
@@ -43,13 +44,26 @@ void hmp_info_status(Monitor *mon, const QDict *qdict)
 void hmp_singlestep(Monitor *mon, const QDict *qdict)
 {
     const char *option = qdict_get_try_str(qdict, "option");
+    AccelState *accel = current_accel();
+    bool newval;
+
+    if (!object_property_find(OBJECT(accel), "one-insn-per-tb")) {
+        monitor_printf(mon,
+                       "This accelerator does not support setting one-insn-per-tb\n");
+        return;
+    }
+
     if (!option || !strcmp(option, "on")) {
-        singlestep = 1;
+        newval = true;
     } else if (!strcmp(option, "off")) {
-        singlestep = 0;
+        newval = false;
     } else {
         monitor_printf(mon, "unexpected option %s\n", option);
+        return;
     }
+    /* If the property exists then setting it can never fail */
+    object_property_set_bool(OBJECT(accel), "one-insn-per-tb",
+                             newval, &error_abort);
 }
 
 void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
