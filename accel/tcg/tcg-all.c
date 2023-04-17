@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
+#include "qemu/atomic.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
 #if !defined(CONFIG_USER_ONLY)
@@ -110,6 +111,7 @@ static void tcg_accel_instance_init(Object *obj)
 }
 
 bool mttcg_enabled;
+bool one_insn_per_tb;
 
 static int tcg_init_machine(MachineState *ms)
 {
@@ -219,8 +221,8 @@ static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
 {
     TCGState *s = TCG_STATE(obj);
     s->one_insn_per_tb = value;
-    /* For the moment, set the global also: this changes the behaviour */
-    singlestep = value;
+    /* Set the global also: this changes the behaviour */
+    qatomic_set(&one_insn_per_tb, value);
 }
 
 static int tcg_gdbstub_supported_sstep_flags(void)

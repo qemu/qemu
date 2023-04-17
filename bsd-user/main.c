@@ -49,7 +49,6 @@
 #include "host-os.h"
 #include "target_arch_cpu.h"
 
-int singlestep;
 static bool opt_one_insn_per_tb;
 uintptr_t guest_base;
 bool have_guest_base;

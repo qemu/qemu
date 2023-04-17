@@ -68,7 +68,6 @@
 char *exec_path;
 char real_exec_path[PATH_MAX];
 
-int singlestep;
 static bool opt_one_insn_per_tb;
 static const char *argv0;
 static const char *gdbstub;

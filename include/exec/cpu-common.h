@@ -163,8 +163,6 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
                         void *ptr, size_t len, bool is_write);
 
 /* vl.c */
-extern int singlestep;
-
 void list_cpus(void);
 
 #endif /* CPU_COMMON_H */
