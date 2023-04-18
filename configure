@@ -316,6 +316,8 @@ for opt do
   ;;
   --cxx=*) CXX="$optarg"
   ;;
+  --objcc=*) objcc="$optarg"
+  ;;
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*)
@@ -359,6 +361,21 @@ if test -z "${CXX}${cross_prefix}"; then
   cxx="c++"
 else
   cxx="${CXX-${cross_prefix}g++}"
+fi
+
+# Preferred ObjC compiler:
+# $objcc (if set, i.e. via --objcc option)
+# ${cross_prefix}clang (if cross-prefix specified)
+# clang (if available)
+# $cc
+if test -z "${objcc}${cross_prefix}"; then
+  if has clang; then
+    objcc=clang
+  else
+    objcc="$cc"
+  fi
+else
+  objcc="${objcc-${cross_prefix}clang}"
 fi
 
 ar="${AR-${cross_prefix}ar}"
@@ -647,13 +664,6 @@ do
     fi
 done
 
-# Default objcc to clang if available, otherwise use CC
-if has clang; then
-  objcc=clang
-else
-  objcc="$cc"
-fi
-
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   # MinGW needs -mthreads for TLS and macro _MT.
@@ -713,7 +723,7 @@ for opt do
   ;;
   --cxx=*)
   ;;
-  --objcc=*) objcc="$optarg"
+  --objcc=*)
   ;;
   --make=*) make="$optarg"
   ;;
