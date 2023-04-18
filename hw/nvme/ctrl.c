@@ -43,7 +43,14 @@
  *              subsys=<subsys_id>
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
- *              subsys=<subsys_id>,detached=<true|false[optional]>
+ *              subsys=<subsys_id>,shared=<true|false[optional]>, \
+ *              detached=<true|false[optional]>, \
+ *              zoned.zone_size=<N[optional]>, \
+ *              zoned.zone_capacity=<N[optional]>, \
+ *              zoned.descr_ext_size=<N[optional]>, \
+ *              zoned.max_active=<N[optional]>, \
+ *              zoned.max_open=<N[optional]>, \
+ *              zoned.cross_read=<true|false[optional]>
  *
  * Note cmb_size_mb denotes size of CMB in MB. CMB is assumed to be at
  * offset 0 in BAR2 and supports only WDS, RDS and SQS for now. By default, the
