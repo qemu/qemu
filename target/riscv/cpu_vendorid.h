@@ -3,4 +3,8 @@
 
 #define THEAD_VENDOR_ID         0x5b7
 
+#define VEYRON_V1_MARCHID       0x8000000000010000
+#define VEYRON_V1_MIMPID        0x111
+#define VEYRON_V1_MVENDORID     0x61f
+
 #endif /*  TARGET_RISCV_CPU_VENDORID_H */
