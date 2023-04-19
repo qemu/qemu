@@ -1145,7 +1145,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->duplicate = stat64_get(&ram_counters.zero_pages);
     /* legacy value.  It is not used anymore */
     info->ram->skipped = 0;
-    info->ram->normal = stat64_get(&ram_counters.normal);
+    info->ram->normal = stat64_get(&ram_counters.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count =

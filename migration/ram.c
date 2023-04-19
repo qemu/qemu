@@ -1118,7 +1118,7 @@ uint64_t ram_pagesize_summary(void)
 
 uint64_t ram_get_total_transferred_pages(void)
 {
-    return stat64_get(&ram_counters.normal) +
+    return stat64_get(&ram_counters.normal_pages) +
         stat64_get(&ram_counters.zero_pages) +
         compression_counters.pages + xbzrle_counters.pages;
 }
@@ -1357,7 +1357,7 @@ static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
     }
 
     if (bytes_xmit > 0) {
-        stat64_add(&ram_counters.normal, 1);
+        stat64_add(&ram_counters.normal_pages, 1);
     } else if (bytes_xmit == 0) {
         stat64_add(&ram_counters.zero_pages, 1);
     }
@@ -1391,7 +1391,7 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
         qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
     }
     ram_transferred_add(TARGET_PAGE_SIZE);
-    stat64_add(&ram_counters.normal, 1);
+    stat64_add(&ram_counters.normal_pages, 1);
     return 1;
 }
 
@@ -1447,7 +1447,7 @@ static int ram_save_multifd_page(QEMUFile *file, RAMBlock *block,
     if (multifd_queue_page(file, block, offset) < 0) {
         return -1;
     }
-    stat64_add(&ram_counters.normal, 1);
+    stat64_add(&ram_counters.normal_pages, 1);
 
     return 1;
 }
@@ -2623,7 +2623,7 @@ void acct_update_position(QEMUFile *f, size_t size, bool zero)
     if (zero) {
         stat64_add(&ram_counters.zero_pages, pages);
     } else {
-        stat64_add(&ram_counters.normal, pages);
+        stat64_add(&ram_counters.normal_pages, pages);
         ram_transferred_add(size);
         qemu_file_credit_transfer(f, size);
     }

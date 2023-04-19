@@ -47,7 +47,7 @@ typedef struct {
     Stat64 downtime_bytes;
     Stat64 zero_pages;
     Stat64 multifd_bytes;
-    Stat64 normal;
+    Stat64 normal_pages;
     Stat64 postcopy_bytes;
     Stat64 postcopy_requests;
     Stat64 precopy_bytes;
