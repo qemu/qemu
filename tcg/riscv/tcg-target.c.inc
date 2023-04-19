@@ -910,8 +910,11 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, TCGReg *pbase,
 {
     TCGLabelQemuLdst *ldst = NULL;
     MemOp opc = get_memop(oi);
-    unsigned a_bits = get_alignment_bits(opc);
-    unsigned a_mask = (1u << a_bits) - 1;
+    TCGAtomAlign aa;
+    unsigned a_mask;
+
+    aa = atom_and_align_for_opc(s, opc, MO_ATOM_IFALIGN, false);
+    a_mask = (1u << aa.align) - 1;
 
 #ifdef CONFIG_SOFTMMU
     unsigned s_bits = opc & MO_SIZE;
@@ -944,7 +947,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, TCGReg *pbase,
      * cross pages using the address of the last byte of the access.
      */
     addr_adj = addr_reg;
-    if (a_bits < s_bits) {
+    if (a_mask < s_mask) {
         addr_adj = TCG_REG_TMP0;
         tcg_out_opc_imm(s, TARGET_LONG_BITS == 32 ? OPC_ADDIW : OPC_ADDI,
                         addr_adj, addr_reg, s_mask - a_mask);
@@ -983,8 +986,8 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, TCGReg *pbase,
         ldst->oi = oi;
         ldst->addrlo_reg = addr_reg;
 
-        /* We are expecting a_bits max 7, so we can always use andi. */
-        tcg_debug_assert(a_bits < 12);
+        /* We are expecting alignment max 7, so we can always use andi. */
+        tcg_debug_assert(a_mask == sextreg(a_mask, 0, 12));
         tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_TMP1, addr_reg, a_mask);
 
         ldst->label_ptr[0] = s->code_ptr;
