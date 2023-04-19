@@ -35,7 +35,7 @@
 typedef struct MemoryRegionPortioList {
     MemoryRegion mr;
     void *portio_opaque;
-    MemoryRegionPortio ports[];
+    MemoryRegionPortio *ports;
 } MemoryRegionPortioList;
 
 static uint64_t unassigned_io_read(void *opaque, hwaddr addr, unsigned size)
@@ -147,6 +147,7 @@ void portio_list_destroy(PortioList *piolist)
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         object_unparent(OBJECT(&mrpio->mr));
+        g_free(mrpio->ports);
         g_free(mrpio);
     }
     g_free(piolist->regions);
@@ -227,9 +228,9 @@ static void portio_list_add_1(PortioList *piolist,
     unsigned i;
 
     /* Copy the sub-list and null-terminate it.  */
-    mrpio = g_malloc0(sizeof(MemoryRegionPortioList) +
-                      sizeof(MemoryRegionPortio) * (count + 1));
+    mrpio = g_malloc0(sizeof(MemoryRegionPortioList));
     mrpio->portio_opaque = piolist->opaque;
+    mrpio->ports = g_malloc0(sizeof(MemoryRegionPortio) * (count + 1));
     memcpy(mrpio->ports, pio_init, sizeof(MemoryRegionPortio) * count);
     memset(mrpio->ports + count, 0, sizeof(MemoryRegionPortio));
 
