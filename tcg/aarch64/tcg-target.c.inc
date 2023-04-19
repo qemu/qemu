@@ -1595,6 +1595,11 @@ typedef struct {
     TCGType index_ext;
 } HostAddress;
 
+bool tcg_target_has_memory_bswap(MemOp memop)
+{
+    return false;
+}
+
 static const TCGLdstHelperParam ldst_helper_param = {
     .ntmp = 1, .tmp = { TCG_REG_TMP }
 };

@@ -853,6 +853,11 @@ static void tcg_out_goto(TCGContext *s, const tcg_insn_unit *target)
     tcg_debug_assert(ok);
 }
 
+bool tcg_target_has_memory_bswap(MemOp memop)
+{
+    return false;
+}
+
 /* We have three temps, we might as well expose them. */
 static const TCGLdstHelperParam ldst_helper_param = {
     .ntmp = 3, .tmp = { TCG_REG_TMP0, TCG_REG_TMP1, TCG_REG_TMP2 }

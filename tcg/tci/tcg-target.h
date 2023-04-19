@@ -176,6 +176,4 @@ typedef enum {
    We prefer consistency across hosts on this.  */
 #define TCG_TARGET_DEFAULT_MO  (0)
 
-#define TCG_TARGET_HAS_MEMORY_BSWAP     1
-
 #endif /* TCG_TARGET_H */

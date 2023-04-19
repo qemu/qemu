@@ -126,4 +126,6 @@ static inline TCGv_i64 TCGV128_HIGH(TCGv_i128 t)
     return temp_tcgv_i64(tcgv_i128_temp(t) + o);
 }
 
+bool tcg_target_has_memory_bswap(MemOp memop);
+
 #endif /* TCG_INTERNAL_H */

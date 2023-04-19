@@ -1574,6 +1574,11 @@ typedef struct {
     int disp;
 } HostAddress;
 
+bool tcg_target_has_memory_bswap(MemOp memop)
+{
+    return true;
+}
+
 static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg data,
                                    HostAddress h)
 {

@@ -168,6 +168,4 @@ typedef enum {
 #define TCG_TARGET_NEED_LDST_LABELS
 #define TCG_TARGET_NEED_POOL_LABELS
 
-#define TCG_TARGET_HAS_MEMORY_BSWAP 0
-
 #endif

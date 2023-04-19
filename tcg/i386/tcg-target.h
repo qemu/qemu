@@ -240,9 +240,6 @@ extern bool have_atomic16;
 #include "tcg/tcg-mo.h"
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
-
-#define TCG_TARGET_HAS_MEMORY_BSWAP  have_movbe
-
 #define TCG_TARGET_NEED_LDST_LABELS
 #define TCG_TARGET_NEED_POOL_LABELS
 
