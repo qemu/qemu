@@ -27,7 +27,35 @@
 
 #ifdef CONFIG_LINUX
 #include <sys/vfs.h>
+#include <linux/magic.h>
 #endif
+
+QemuFsType qemu_fd_getfs(int fd)
+{
+#ifdef CONFIG_LINUX
+    struct statfs fs;
+    int ret;
+
+    if (fd < 0) {
+        return QEMU_FS_TYPE_UNKNOWN;
+    }
+
+    do {
+        ret = fstatfs(fd, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    switch (fs.f_type) {
+    case TMPFS_MAGIC:
+        return QEMU_FS_TYPE_TMPFS;
+    case HUGETLBFS_MAGIC:
+        return QEMU_FS_TYPE_HUGETLBFS;
+    default:
+        return QEMU_FS_TYPE_UNKNOWN;
+    }
+#else
+    return QEMU_FS_TYPE_UNKNOWN;
+#endif
+}
 
 size_t qemu_fd_getpagesize(int fd)
 {
