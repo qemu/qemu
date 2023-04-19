@@ -36,6 +36,7 @@
 #include "yank_functions.h"
 #include "tls.h"
 #include "qemu/userfaultfd.h"
+#include "qemu/mmap-alloc.h"
 
 /* Arbitrary limit on size of each discard command,
  * keeps them around ~200 bytes
@@ -336,11 +337,12 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
 
 /* Callback from postcopy_ram_supported_by_host block iterator.
  */
-static int test_ramblock_postcopiable(RAMBlock *rb, void *opaque)
+static int test_ramblock_postcopiable(RAMBlock *rb)
 {
     const char *block_name = qemu_ram_get_idstr(rb);
     ram_addr_t length = qemu_ram_get_used_length(rb);
     size_t pagesize = qemu_ram_pagesize(rb);
+    QemuFsType fs;
 
     if (length % pagesize) {
         error_report("Postcopy requires RAM blocks to be a page size multiple,"
@@ -348,6 +350,15 @@ static int test_ramblock_postcopiable(RAMBlock *rb, void *opaque)
                      "page size of 0x%zx", block_name, length, pagesize);
         return 1;
     }
+
+    if (rb->fd >= 0) {
+        fs = qemu_fd_getfs(rb->fd);
+        if (fs != QEMU_FS_TYPE_TMPFS && fs != QEMU_FS_TYPE_HUGETLBFS) {
+            error_report("Host backend files need to be TMPFS or HUGETLBFS only");
+            return 1;
+        }
+    }
+
     return 0;
 }
 
@@ -366,6 +377,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     struct uffdio_range range_struct;
     uint64_t feature_mask;
     Error *local_err = NULL;
+    RAMBlock *block;
 
     if (qemu_target_page_size() > pagesize) {
         error_report("Target page size bigger than host page size");
@@ -390,9 +402,23 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
         goto out;
     }
 
-    /* We don't support postcopy with shared RAM yet */
-    if (foreach_not_ignored_block(test_ramblock_postcopiable, NULL)) {
-        goto out;
+    /*
+     * We don't support postcopy with some type of ramblocks.
+     *
+     * NOTE: we explicitly ignored ramblock_is_ignored() instead we checked
+     * all possible ramblocks.  This is because this function can be called
+     * when creating the migration object, during the phase RAM_MIGRATABLE
+     * is not even properly set for all the ramblocks.
+     *
+     * A side effect of this is we'll also check against RAM_SHARED
+     * ramblocks even if migrate_ignore_shared() is set (in which case
+     * we'll never migrate RAM_SHARED at all), but normally this shouldn't
+     * affect in reality, or we can revisit.
+     */
+    RAMBLOCK_FOREACH(block) {
+        if (test_ramblock_postcopiable(block)) {
+            goto out;
+        }
     }
 
     /*
