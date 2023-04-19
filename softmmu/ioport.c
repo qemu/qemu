@@ -32,11 +32,16 @@
 #include "exec/address-spaces.h"
 #include "trace.h"
 
-typedef struct MemoryRegionPortioList {
+struct MemoryRegionPortioList {
+    Object obj;
+
     MemoryRegion mr;
     void *portio_opaque;
     MemoryRegionPortio *ports;
-} MemoryRegionPortioList;
+};
+
+#define TYPE_MEMORY_REGION_PORTIO_LIST "memory-region-portio-list"
+OBJECT_DECLARE_SIMPLE_TYPE(MemoryRegionPortioList, MEMORY_REGION_PORTIO_LIST)
 
 static uint64_t unassigned_io_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -147,8 +152,7 @@ void portio_list_destroy(PortioList *piolist)
     for (i = 0; i < piolist->nr; ++i) {
         mrpio = container_of(piolist->regions[i], MemoryRegionPortioList, mr);
         object_unparent(OBJECT(&mrpio->mr));
-        g_free(mrpio->ports);
-        g_free(mrpio);
+        object_unref(mrpio);
     }
     g_free(piolist->regions);
 }
@@ -228,7 +232,8 @@ static void portio_list_add_1(PortioList *piolist,
     unsigned i;
 
     /* Copy the sub-list and null-terminate it.  */
-    mrpio = g_malloc0(sizeof(MemoryRegionPortioList));
+    mrpio = MEMORY_REGION_PORTIO_LIST(
+                object_new(TYPE_MEMORY_REGION_PORTIO_LIST));
     mrpio->portio_opaque = piolist->opaque;
     mrpio->ports = g_malloc0(sizeof(MemoryRegionPortio) * (count + 1));
     memcpy(mrpio->ports, pio_init, sizeof(MemoryRegionPortio) * count);
@@ -298,3 +303,24 @@ void portio_list_del(PortioList *piolist)
         memory_region_del_subregion(piolist->address_space, &mrpio->mr);
     }
 }
+
+static void memory_region_portio_list_finalize(Object *obj)
+{
+    MemoryRegionPortioList *mrpio = MEMORY_REGION_PORTIO_LIST(obj);
+
+    g_free(mrpio->ports);
+}
+
+static const TypeInfo memory_region_portio_list_info = {
+    .parent             = TYPE_OBJECT,
+    .name               = TYPE_MEMORY_REGION_PORTIO_LIST,
+    .instance_size      = sizeof(MemoryRegionPortioList),
+    .instance_finalize  = memory_region_portio_list_finalize,
+};
+
+static void ioport_register_types(void)
+{
+    type_register_static(&memory_region_portio_list_info);
+}
+
+type_init(ioport_register_types)
