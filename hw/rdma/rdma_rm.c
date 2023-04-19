@@ -23,10 +23,6 @@
 #include "rdma_backend.h"
 #include "rdma_rm.h"
 
-/* Page directory and page tables */
-#define PG_DIR_SZ { TARGET_PAGE_SIZE / sizeof(__u64) }
-#define PG_TBL_SZ { TARGET_PAGE_SIZE / sizeof(__u64) }
-
 void rdma_format_device_counters(RdmaDeviceResources *dev_res, GString *buf)
 {
     g_string_append_printf(buf, "\ttx               : %" PRId64 "\n",
