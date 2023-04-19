@@ -229,6 +229,8 @@ static void portio_list_add_1(PortioList *piolist,
                               unsigned off_low, unsigned off_high)
 {
     MemoryRegionPortioList *mrpio;
+    Object *owner;
+    char *name;
     unsigned i;
 
     /* Copy the sub-list and null-terminate it.  */
@@ -245,8 +247,25 @@ static void portio_list_add_1(PortioList *piolist,
         mrpio->ports[i].base = start + off_low;
     }
 
-    memory_region_init_io(&mrpio->mr, piolist->owner, &portio_ops, mrpio,
+    /*
+     * The MemoryRegion owner is the MemoryRegionPortioList since that manages
+     * the lifecycle via the refcount
+     */
+    memory_region_init_io(&mrpio->mr, OBJECT(mrpio), &portio_ops, mrpio,
                           piolist->name, off_high - off_low);
+
+    /* Reparent the MemoryRegion to the piolist owner */
+    object_ref(&mrpio->mr);
+    object_unparent(OBJECT(&mrpio->mr));
+    if (!piolist->owner) {
+        owner = container_get(qdev_get_machine(), "/unattached");
+    } else {
+        owner = piolist->owner;
+    }
+    name = g_strdup_printf("%s[*]", piolist->name);
+    object_property_add_child(owner, name, OBJECT(&mrpio->mr));
+    g_free(name);
+
     if (piolist->flush_coalesced_mmio) {
         memory_region_set_flush_coalesced(&mrpio->mr);
     }
@@ -308,6 +327,7 @@ static void memory_region_portio_list_finalize(Object *obj)
 {
     MemoryRegionPortioList *mrpio = MEMORY_REGION_PORTIO_LIST(obj);
 
+    object_unref(&mrpio->mr);
     g_free(mrpio->ports);
 }
 
