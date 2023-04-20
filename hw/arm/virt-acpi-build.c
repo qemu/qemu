@@ -694,7 +694,7 @@ static void build_append_gicr(GArray *table_data, uint64_t base, uint32_t size)
     build_append_int_noprefix(table_data, 0xE, 1);  /* Type */
     build_append_int_noprefix(table_data, 16, 1);   /* Length */
     build_append_int_noprefix(table_data, 0, 2);    /* Reserved */
-    /* Discovery Range Base Addres */
+    /* Discovery Range Base Address */
     build_append_int_noprefix(table_data, base, 8);
     build_append_int_noprefix(table_data, size, 4); /* Discovery Range Length */
 }
