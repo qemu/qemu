@@ -8,6 +8,7 @@ guest hardware that is specific to QEMU.
 .. toctree::
    :maxdepth: 2
 
+   pci-ids
    ppc-xive
    ppc-spapr-xive
    ppc-spapr-numa
