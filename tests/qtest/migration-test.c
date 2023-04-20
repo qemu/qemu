@@ -1127,6 +1127,36 @@ test_migrate_tls_x509_finish(QTestState *from,
 #endif /* CONFIG_TASN1 */
 #endif /* CONFIG_GNUTLS */
 
+static void *
+test_migrate_compress_start(QTestState *from,
+                            QTestState *to)
+{
+    migrate_set_parameter_int(from, "compress-level", 1);
+    migrate_set_parameter_int(from, "compress-threads", 4);
+    migrate_set_parameter_bool(from, "compress-wait-thread", true);
+    migrate_set_parameter_int(to, "decompress-threads", 4);
+
+    migrate_set_capability(from, "compress", true);
+    migrate_set_capability(to, "compress", true);
+
+    return NULL;
+}
+
+static void *
+test_migrate_compress_nowait_start(QTestState *from,
+                                   QTestState *to)
+{
+    migrate_set_parameter_int(from, "compress-level", 9);
+    migrate_set_parameter_int(from, "compress-threads", 1);
+    migrate_set_parameter_bool(from, "compress-wait-thread", false);
+    migrate_set_parameter_int(to, "decompress-threads", 1);
+
+    migrate_set_capability(from, "compress", true);
+    migrate_set_capability(to, "compress", true);
+
+    return NULL;
+}
+
 static int migrate_postcopy_prepare(QTestState **from_ptr,
                                     QTestState **to_ptr,
                                     MigrateCommon *args)
@@ -1200,6 +1230,15 @@ static void test_postcopy_common(MigrateCommon *args)
 static void test_postcopy(void)
 {
     MigrateCommon args = { };
+
+    test_postcopy_common(&args);
+}
+
+static void test_postcopy_compress(void)
+{
+    MigrateCommon args = {
+        .start_hook = test_migrate_compress_start
+    };
 
     test_postcopy_common(&args);
 }
@@ -1305,6 +1344,15 @@ static void test_postcopy_recovery(void)
     test_postcopy_recovery_common(&args);
 }
 
+static void test_postcopy_recovery_compress(void)
+{
+    MigrateCommon args = {
+        .start_hook = test_migrate_compress_start
+    };
+
+    test_postcopy_recovery_common(&args);
+}
+
 #ifdef CONFIG_GNUTLS
 static void test_postcopy_recovery_tls_psk(void)
 {
@@ -1338,6 +1386,7 @@ static void test_postcopy_preempt_all(void)
 
     test_postcopy_recovery_common(&args);
 }
+
 #endif
 
 static void test_baddest(void)
@@ -1559,21 +1608,6 @@ static void test_precopy_unix_xbzrle(void)
     test_precopy_common(&args);
 }
 
-static void *
-test_migrate_compress_start(QTestState *from,
-                            QTestState *to)
-{
-    migrate_set_parameter_int(from, "compress-level", 1);
-    migrate_set_parameter_int(from, "compress-threads", 4);
-    migrate_set_parameter_bool(from, "compress-wait-thread", true);
-    migrate_set_parameter_int(to, "decompress-threads", 4);
-
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
-
-    return NULL;
-}
-
 static void test_precopy_unix_compress(void)
 {
     g_autofree char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
@@ -1589,21 +1623,6 @@ static void test_precopy_unix_compress(void)
     };
 
     test_precopy_common(&args);
-}
-
-static void *
-test_migrate_compress_nowait_start(QTestState *from,
-                                   QTestState *to)
-{
-    migrate_set_parameter_int(from, "compress-level", 9);
-    migrate_set_parameter_int(from, "compress-threads", 1);
-    migrate_set_parameter_bool(from, "compress-wait-thread", false);
-    migrate_set_parameter_int(to, "decompress-threads", 1);
-
-    migrate_set_capability(from, "compress", true);
-    migrate_set_capability(to, "compress", true);
-
-    return NULL;
 }
 
 static void test_precopy_unix_compress_nowait(void)
@@ -2631,6 +2650,12 @@ int main(int argc, char **argv)
         qtest_add_func("/migration/postcopy/preempt/plain", test_postcopy_preempt);
         qtest_add_func("/migration/postcopy/preempt/recovery/plain",
                        test_postcopy_preempt_recovery);
+        if (getenv("QEMU_TEST_FLAKY_TESTS")) {
+            qtest_add_func("/migration/postcopy/compress/plain",
+                           test_postcopy_compress);
+            qtest_add_func("/migration/postcopy/recovery/compress/plain",
+                           test_postcopy_recovery_compress);
+        }
     }
 
     qtest_add_func("/migration/bad_dest", test_baddest);
