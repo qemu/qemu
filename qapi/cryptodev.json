@@ -75,7 +75,7 @@
 #
 # @service: supported service types of a crypto device
 #
-# @client: the additional infomation of the crypto device
+# @client: the additional information of the crypto device
 #
 # Since: 8.0
 ##
