@@ -38,4 +38,7 @@ endif
 softmmu_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
 
 specific_ss.add(when: 'CONFIG_SOFTMMU',
-                if_true: files('dirtyrate.c', 'ram.c', 'target.c'))
+                if_true: files('dirtyrate.c',
+                               'ram.c',
+                               'ram-compress.c',
+                               'target.c'))
