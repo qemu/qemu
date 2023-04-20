@@ -1545,13 +1545,10 @@ static int send_queued_data(CompressParam *param)
     return len;
 }
 
-static void flush_compressed_data(RAMState *rs)
+static void flush_compressed_data(int (send_queued_data(CompressParam *)))
 {
     int idx, thread_count;
 
-    if (!save_page_use_compression(rs)) {
-        return;
-    }
     thread_count = migrate_compress_threads();
 
     qemu_mutex_lock(&comp_done_lock);
@@ -1573,6 +1570,15 @@ static void flush_compressed_data(RAMState *rs)
     }
 }
 
+static void ram_flush_compressed_data(RAMState *rs)
+{
+    if (!save_page_use_compression(rs)) {
+        return;
+    }
+
+    flush_compressed_data(send_queued_data);
+}
+
 static inline void set_compress_params(CompressParam *param, RAMBlock *block,
                                        ram_addr_t offset)
 {
@@ -1581,7 +1587,8 @@ static inline void set_compress_params(CompressParam *param, RAMBlock *block,
     param->trigger = true;
 }
 
-static int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset)
+static int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset,
+                                int (send_queued_data(CompressParam *)))
 {
     int idx, thread_count, pages = -1;
     bool wait = migrate_compress_wait_thread();
@@ -1672,7 +1679,7 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
              * Also If xbzrle is on, stop using the data compression at this
              * point. In theory, xbzrle can do better than compression.
              */
-            flush_compressed_data(rs);
+            ram_flush_compressed_data(rs);
 
             /* Hit the end of the list */
             pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
@@ -2362,11 +2369,11 @@ static bool save_compress_page(RAMState *rs, PageSearchStatus *pss,
      * much CPU resource.
      */
     if (block != pss->last_sent_block) {
-        flush_compressed_data(rs);
+        ram_flush_compressed_data(rs);
         return false;
     }
 
-    if (compress_page_with_multi_thread(block, offset) > 0) {
+    if (compress_page_with_multi_thread(block, offset, send_queued_data) > 0) {
         return true;
     }
 
@@ -3412,7 +3419,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
              * page is sent in one chunk.
              */
             if (migrate_postcopy_ram()) {
-                flush_compressed_data(rs);
+                ram_flush_compressed_data(rs);
             }
 
             /*
@@ -3507,7 +3514,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         }
         qemu_mutex_unlock(&rs->bitmap_mutex);
 
-        flush_compressed_data(rs);
+        ram_flush_compressed_data(rs);
         ram_control_after_iterate(f, RAM_CONTROL_FINISH);
     }
 
