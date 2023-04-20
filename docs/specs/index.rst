@@ -9,6 +9,7 @@ guest hardware that is specific to QEMU.
    :maxdepth: 2
 
    pci-ids
+   pci-serial
    ppc-xive
    ppc-spapr-xive
    ppc-spapr-numa

@@ -63,11 +63,11 @@ PCI devices (other than virtio):
 1b36:0001
   PCI-PCI bridge
 1b36:0002
-  PCI serial port (16550A) adapter (``docs/specs/pci-serial.txt``)
+  PCI serial port (16550A) adapter (:doc:`pci-serial`)
 1b36:0003
-  PCI Dual-port 16550A adapter (``docs/specs/pci-serial.txt``)
+  PCI Dual-port 16550A adapter (:doc:`pci-serial`)
 1b36:0004
-  PCI Quad-port 16550A adapter (``docs/specs/pci-serial.txt``)
+  PCI Quad-port 16550A adapter (:doc:`pci-serial`)
 1b36:0005
   PCI test device (``docs/specs/pci-testdev.txt``)
 1b36:0006
