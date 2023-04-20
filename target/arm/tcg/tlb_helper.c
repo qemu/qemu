@@ -32,8 +32,9 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
     uint32_t syn;
 
     /*
-     * ISV is only set for data aborts routed to EL2 and
-     * never for stage-1 page table walks faulting on stage 2.
+     * ISV is only set for stage-2 data aborts routed to EL2 and
+     * never for stage-1 page table walks faulting on stage 2
+     * or for stage-1 faults.
      *
      * Furthermore, ISV is only set for certain kinds of load/stores.
      * If the template syndrome does not have ISV set, we should leave
@@ -42,8 +43,14 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
      * See ARMv8 specs, D7-1974:
      * ISS encoding for an exception from a Data Abort, the
      * ISV field.
+     *
+     * TODO: FEAT_LS64/FEAT_LS64_V/FEAT_SL64_ACCDATA: Translation,
+     * Access Flag, and Permission faults caused by LD64B, ST64B,
+     * ST64BV, or ST64BV0 insns report syndrome info even for stage-1
+     * faults and regardless of the target EL.
      */
-    if (!(template_syn & ARM_EL_ISV) || target_el != 2 || fi->s1ptw) {
+    if (!(template_syn & ARM_EL_ISV) || target_el != 2
+        || fi->s1ptw || !fi->stage2) {
         syn = syn_data_abort_no_iss(same_el, 0,
                                     fi->ea, 0, fi->s1ptw, is_write, fsc);
     } else {
