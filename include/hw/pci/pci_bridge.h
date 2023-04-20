@@ -84,7 +84,7 @@ struct PCIBridge {
 #define PCI_BRIDGE_DEV_PROP_SHPC       "shpc"
 typedef struct CXLHost CXLHost;
 
-struct PXBDev {
+typedef struct PXBDev {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
@@ -92,15 +92,27 @@ struct PXBDev {
     uint8_t bus_nr;
     uint16_t numa_node;
     bool bypass_iommu;
-    bool hdm_for_passthrough;
-    struct cxl_dev {
-        CXLHost *cxl_host_bridge; /* Pointer to a CXLHost */
-    } cxl;
-};
+} PXBDev;
 
-#define TYPE_PXB_CXL_DEVICE "pxb-cxl"
-DECLARE_INSTANCE_CHECKER(PXBDev, PXB_CXL_DEV,
-                         TYPE_PXB_CXL_DEVICE)
+typedef struct PXBPCIEDev {
+    /*< private >*/
+    PXBDev parent_obj;
+} PXBPCIEDev;
+
+#define TYPE_PXB_DEV "pxb"
+OBJECT_DECLARE_SIMPLE_TYPE(PXBDev, PXB_DEV)
+
+typedef struct PXBCXLDev {
+    /*< private >*/
+    PXBPCIEDev parent_obj;
+    /*< public >*/
+
+    bool hdm_for_passthrough;
+    CXLHost *cxl_host_bridge; /* Pointer to a CXLHost */
+} PXBCXLDev;
+
+#define TYPE_PXB_CXL_DEV "pxb-cxl"
+OBJECT_DECLARE_SIMPLE_TYPE(PXBCXLDev, PXB_CXL_DEV)
 
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
                           uint16_t svid, uint16_t ssid,

@@ -30,9 +30,10 @@
 #include "qapi/error.h"
 #include "qemu/uuid.h"
 
-static void cedt_build_chbs(GArray *table_data, PXBDev *cxl)
+static void cedt_build_chbs(GArray *table_data, PXBCXLDev *cxl)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(cxl->cxl.cxl_host_bridge);
+    PXBDev *pxb = PXB_DEV(cxl);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(cxl->cxl_host_bridge);
     struct MemoryRegion *mr = sbd->mmio[0].memory;
 
     /* Type */
@@ -45,7 +46,7 @@ static void cedt_build_chbs(GArray *table_data, PXBDev *cxl)
     build_append_int_noprefix(table_data, 32, 2);
 
     /* UID - currently equal to bus number */
-    build_append_int_noprefix(table_data, cxl->bus_nr, 4);
+    build_append_int_noprefix(table_data, pxb->bus_nr, 4);
 
     /* Version */
     build_append_int_noprefix(table_data, 1, 4);
@@ -112,7 +113,7 @@ static void cedt_build_cfmws(GArray *table_data, CXLState *cxls)
         /* Host Bridge List (list of UIDs - currently bus_nr) */
         for (i = 0; i < fw->num_targets; i++) {
             g_assert(fw->target_hbs[i]);
-            build_append_int_noprefix(table_data, fw->target_hbs[i]->bus_nr, 4);
+            build_append_int_noprefix(table_data, PXB_DEV(fw->target_hbs[i])->bus_nr, 4);
         }
     }
 }
@@ -121,7 +122,7 @@ static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
 {
     Aml *cedt = opaque;
 
-    if (object_dynamic_cast(obj, TYPE_PXB_CXL_DEVICE)) {
+    if (object_dynamic_cast(obj, TYPE_PXB_CXL_DEV)) {
         cedt_build_chbs(cedt->buf, PXB_CXL_DEV(obj));
     }
 
