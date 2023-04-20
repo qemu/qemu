@@ -26,6 +26,7 @@
 #include "sysemu/cpu-throttle.h"
 #include "rdma.h"
 #include "ram.h"
+#include "ram-compress.h"
 #include "migration/global_state.h"
 #include "migration/misc.h"
 #include "migration.h"
@@ -228,6 +229,7 @@ void migration_incoming_state_destroy(void)
     struct MigrationIncomingState *mis = migration_incoming_get_current();
 
     multifd_load_cleanup();
+    compress_threads_load_cleanup();
 
     if (mis->to_src_file) {
         /* Tell source that we are done */
@@ -500,6 +502,12 @@ process_incoming_migration_co(void *opaque)
     Error *local_err = NULL;
 
     assert(mis->from_src_file);
+
+    if (compress_threads_load_setup(mis->from_src_file)) {
+        error_report("Failed to setup decompress threads");
+        goto fail;
+    }
+
     mis->migration_incoming_co = qemu_coroutine_self();
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
@@ -565,6 +573,7 @@ fail:
     qemu_fclose(mis->from_src_file);
 
     multifd_load_cleanup();
+    compress_threads_load_cleanup();
 
     exit(EXIT_FAILURE);
 }
