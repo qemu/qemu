@@ -24,9 +24,9 @@ bool arm_s1_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
 }
 
 static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
+                                            ARMMMUFaultInfo *fi,
                                             unsigned int target_el,
-                                            bool same_el, bool ea,
-                                            bool s1ptw, bool is_write,
+                                            bool same_el, bool is_write,
                                             int fsc)
 {
     uint32_t syn;
@@ -43,9 +43,9 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
      * ISS encoding for an exception from a Data Abort, the
      * ISV field.
      */
-    if (!(template_syn & ARM_EL_ISV) || target_el != 2 || s1ptw) {
+    if (!(template_syn & ARM_EL_ISV) || target_el != 2 || fi->s1ptw) {
         syn = syn_data_abort_no_iss(same_el, 0,
-                                    ea, 0, s1ptw, is_write, fsc);
+                                    fi->ea, 0, fi->s1ptw, is_write, fsc);
     } else {
         /*
          * Fields: IL, ISV, SAS, SSE, SRT, SF and AR come from the template
@@ -54,7 +54,7 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
          */
         syn = syn_data_abort_with_iss(same_el,
                                       0, 0, 0, 0, 0,
-                                      ea, 0, s1ptw, is_write, fsc,
+                                      fi->ea, 0, fi->s1ptw, is_write, fsc,
                                       true);
         /* Merge the runtime syndrome with the template syndrome.  */
         syn |= template_syn;
@@ -117,9 +117,8 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr,
         syn = syn_insn_abort(same_el, fi->ea, fi->s1ptw, fsc);
         exc = EXCP_PREFETCH_ABORT;
     } else {
-        syn = merge_syn_data_abort(env->exception.syndrome, target_el,
-                                   same_el, fi->ea, fi->s1ptw,
-                                   access_type == MMU_DATA_STORE,
+        syn = merge_syn_data_abort(env->exception.syndrome, fi, target_el,
+                                   same_el, access_type == MMU_DATA_STORE,
                                    fsc);
         if (access_type == MMU_DATA_STORE
             && arm_feature(env, ARM_FEATURE_V6)) {
