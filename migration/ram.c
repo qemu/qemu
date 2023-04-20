@@ -1465,16 +1465,12 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
                                            RAMBlock *block, ram_addr_t offset,
                                            uint8_t *source_buf)
 {
-    RAMState *rs = ram_state;
-    PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
     uint8_t *p = block->host + offset;
     int ret;
 
-    if (save_zero_page_to_file(pss, f, block, offset)) {
+    if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
         return RES_ZEROPAGE;
     }
-
-    save_page_header(pss, f, block, offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
 
     /*
      * copy it to a internal buffer to avoid it being modified by VM
@@ -1515,9 +1511,40 @@ static inline void compress_reset_result(CompressParam *param)
     param->offset = 0;
 }
 
+static int send_queued_data(CompressParam *param)
+{
+    PageSearchStatus *pss = &ram_state->pss[RAM_CHANNEL_PRECOPY];
+    MigrationState *ms = migrate_get_current();
+    QEMUFile *file = ms->to_dst_file;
+    int len = 0;
+
+    RAMBlock *block = param->block;
+    ram_addr_t offset = param->offset;
+
+    if (param->result == RES_NONE) {
+        return 0;
+    }
+
+    assert(block == pss->last_sent_block);
+
+    if (param->result == RES_ZEROPAGE) {
+        len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
+        qemu_put_byte(file, 0);
+        len += 1;
+        ram_release_page(block->idstr, offset);
+    } else if (param->result == RES_COMPRESS) {
+        len += save_page_header(pss, file, block,
+                                offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
+        len += qemu_put_qemu_file(file, param->file);
+    } else {
+        abort();
+    }
+
+    return len;
+}
+
 static void flush_compressed_data(RAMState *rs)
 {
-    MigrationState *ms = migrate_get_current();
     int idx, len, thread_count;
 
     if (!save_page_use_compression(rs)) {
@@ -1537,7 +1564,7 @@ static void flush_compressed_data(RAMState *rs)
         qemu_mutex_lock(&comp_param[idx].mutex);
         if (!comp_param[idx].quit) {
             CompressParam *param = &comp_param[idx];
-            len = qemu_put_qemu_file(ms->to_dst_file, param->file);
+            len = send_queued_data(param);
             compress_reset_result(param);
 
             /*
@@ -1563,7 +1590,6 @@ static int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset)
 {
     int idx, thread_count, bytes_xmit = -1, pages = -1;
     bool wait = migrate_compress_wait_thread();
-    MigrationState *ms = migrate_get_current();
 
     thread_count = migrate_compress_threads();
     qemu_mutex_lock(&comp_done_lock);
@@ -1573,7 +1599,7 @@ retry:
             CompressParam *param = &comp_param[idx];
             qemu_mutex_lock(&param->mutex);
             param->done = false;
-            bytes_xmit = qemu_put_qemu_file(ms->to_dst_file, param->file);
+            bytes_xmit = send_queued_data(param);
             compress_reset_result(param);
             set_compress_params(param, block, offset);
 
