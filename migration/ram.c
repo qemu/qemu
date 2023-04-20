@@ -492,6 +492,7 @@ typedef enum CompressResult CompressResult;
 struct CompressParam {
     bool done;
     bool quit;
+    bool trigger;
     CompressResult result;
     QEMUFile *file;
     QemuMutex mutex;
@@ -565,10 +566,10 @@ static void *do_data_compress(void *opaque)
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
-        if (param->block) {
+        if (param->trigger) {
             block = param->block;
             offset = param->offset;
-            param->block = NULL;
+            param->trigger = false;
             qemu_mutex_unlock(&param->mutex);
 
             result = do_compress_ram_page(param->file, &param->stream,
@@ -1545,6 +1546,7 @@ static inline void set_compress_params(CompressParam *param, RAMBlock *block,
 {
     param->block = block;
     param->offset = offset;
+    param->trigger = true;
 }
 
 static int compress_page_with_multi_thread(RAMBlock *block, ram_addr_t offset)
