@@ -931,7 +931,7 @@
 ##
 # @GuestNVMeSmart:
 #
-# NVMe smart informations, based on NVMe specification, section
+# NVMe smart information, based on NVMe specification, section
 # <SMART / Health Information (Log Identifier 02h)>
 #
 # Since: 7.1
