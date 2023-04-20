@@ -35,7 +35,8 @@
 #include "migration.h"
 #include "options.h"
 #include "io/channel-null.h"
-#include "exec/ram_addr.h"
+#include "exec/target_page.h"
+#include "exec/ramblock.h"
 
 CompressionStats compression_counters;
 
@@ -156,7 +157,7 @@ int compress_threads_save_setup(void)
     qemu_cond_init(&comp_done_cond);
     qemu_mutex_init(&comp_done_lock);
     for (i = 0; i < thread_count; i++) {
-        comp_param[i].originbuf = g_try_malloc(TARGET_PAGE_SIZE);
+        comp_param[i].originbuf = g_try_malloc(qemu_target_page_size());
         if (!comp_param[i].originbuf) {
             goto exit;
         }
@@ -192,11 +193,12 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
                                            uint8_t *source_buf)
 {
     uint8_t *p = block->host + offset;
+    size_t page_size = qemu_target_page_size();
     int ret;
 
     assert(qemu_file_buffer_empty(f));
 
-    if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
+    if (buffer_is_zero(p, page_size)) {
         return RES_ZEROPAGE;
     }
 
@@ -205,8 +207,8 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
      * so that we can catch up the error during compression and
      * decompression
      */
-    memcpy(source_buf, p, TARGET_PAGE_SIZE);
-    ret = qemu_put_compression_data(f, stream, source_buf, TARGET_PAGE_SIZE);
+    memcpy(source_buf, p, page_size);
+    ret = qemu_put_compression_data(f, stream, source_buf, page_size);
     if (ret < 0) {
         qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
         error_report("compressed data failed!");
@@ -336,7 +338,7 @@ static void *do_data_decompress(void *opaque)
             param->des = 0;
             qemu_mutex_unlock(&param->mutex);
 
-            pagesize = TARGET_PAGE_SIZE;
+            pagesize = qemu_target_page_size();
 
             ret = qemu_uncompress_data(&param->stream, des, pagesize,
                                        param->compbuf, len);
@@ -439,7 +441,8 @@ int compress_threads_load_setup(QEMUFile *f)
             goto exit;
         }
 
-        decomp_param[i].compbuf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
+        size_t compbuf_size = compressBound(qemu_target_page_size());
+        decomp_param[i].compbuf = g_malloc0(compbuf_size);
         qemu_mutex_init(&decomp_param[i].mutex);
         qemu_cond_init(&decomp_param[i].cond);
         decomp_param[i].done = true;
