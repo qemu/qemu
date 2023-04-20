@@ -6,7 +6,7 @@
      notice and this notice are preserved.  -->
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.aarch64.pauth">
+<feature name="org.gnu.gdb.aarch64.pauth_v2">
   <reg name="pauth_dmask" bitsize="64"/>
   <reg name="pauth_cmask" bitsize="64"/>
   <reg name="pauth_dmask_high" bitsize="64"/>
