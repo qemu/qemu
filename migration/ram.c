@@ -1321,11 +1321,13 @@ static int send_queued_data(CompressParam *param)
     assert(block == pss->last_sent_block);
 
     if (param->result == RES_ZEROPAGE) {
+        assert(qemu_file_buffer_empty(param->file));
         len += save_page_header(pss, file, block, offset | RAM_SAVE_FLAG_ZERO);
         qemu_put_byte(file, 0);
         len += 1;
         ram_release_page(block->idstr, offset);
     } else if (param->result == RES_COMPRESS) {
+        assert(!qemu_file_buffer_empty(param->file));
         len += save_page_header(pss, file, block,
                                 offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
         len += qemu_put_qemu_file(file, param->file);

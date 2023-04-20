@@ -194,6 +194,8 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
     uint8_t *p = block->host + offset;
     int ret;
 
+    assert(qemu_file_buffer_empty(f));
+
     if (buffer_is_zero(p, TARGET_PAGE_SIZE)) {
         return RES_ZEROPAGE;
     }
@@ -208,6 +210,7 @@ static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
     if (ret < 0) {
         qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
         error_report("compressed data failed!");
+        qemu_fflush(f);
         return RES_NONE;
     }
     return RES_COMPRESS;
@@ -239,6 +242,7 @@ void flush_compressed_data(int (send_queued_data(CompressParam *)))
         if (!comp_param[idx].quit) {
             CompressParam *param = &comp_param[idx];
             send_queued_data(param);
+            assert(qemu_file_buffer_empty(param->file));
             compress_reset_result(param);
         }
         qemu_mutex_unlock(&comp_param[idx].mutex);
@@ -268,6 +272,7 @@ retry:
             qemu_mutex_lock(&param->mutex);
             param->done = false;
             send_queued_data(param);
+            assert(qemu_file_buffer_empty(param->file));
             compress_reset_result(param);
             set_compress_params(param, block, offset);
 
