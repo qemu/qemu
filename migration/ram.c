@@ -482,10 +482,17 @@ MigrationOps *migration_ops;
 
 CompressionStats compression_counters;
 
+enum CompressResult {
+    RES_NONE = 0,
+    RES_ZEROPAGE = 1,
+    RES_COMPRESS = 2
+};
+typedef enum CompressResult CompressResult;
+
 struct CompressParam {
     bool done;
     bool quit;
-    bool zero_page;
+    CompressResult result;
     QEMUFile *file;
     QemuMutex mutex;
     QemuCond cond;
@@ -527,8 +534,9 @@ static QemuCond decomp_done_cond;
 
 static int ram_save_host_page_urgent(PageSearchStatus *pss);
 
-static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
-                                 ram_addr_t offset, uint8_t *source_buf);
+static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
+                                           RAMBlock *block, ram_addr_t offset,
+                                           uint8_t *source_buf);
 
 /* NOTE: page is the PFN not real ram_addr_t. */
 static void pss_init(PageSearchStatus *pss, RAMBlock *rb, ram_addr_t page)
@@ -553,7 +561,7 @@ static void *do_data_compress(void *opaque)
     CompressParam *param = opaque;
     RAMBlock *block;
     ram_addr_t offset;
-    bool zero_page;
+    CompressResult result;
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
@@ -563,12 +571,12 @@ static void *do_data_compress(void *opaque)
             param->block = NULL;
             qemu_mutex_unlock(&param->mutex);
 
-            zero_page = do_compress_ram_page(param->file, &param->stream,
-                                             block, offset, param->originbuf);
+            result = do_compress_ram_page(param->file, &param->stream,
+                                          block, offset, param->originbuf);
 
             qemu_mutex_lock(&comp_done_lock);
             param->done = true;
-            param->zero_page = zero_page;
+            param->result = result;
             qemu_cond_signal(&comp_done_cond);
             qemu_mutex_unlock(&comp_done_lock);
 
@@ -1452,8 +1460,9 @@ static int ram_save_multifd_page(QEMUFile *file, RAMBlock *block,
     return 1;
 }
 
-static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
-                                 ram_addr_t offset, uint8_t *source_buf)
+static CompressResult do_compress_ram_page(QEMUFile *f, z_stream *stream,
+                                           RAMBlock *block, ram_addr_t offset,
+                                           uint8_t *source_buf)
 {
     RAMState *rs = ram_state;
     PageSearchStatus *pss = &rs->pss[RAM_CHANNEL_PRECOPY];
@@ -1461,7 +1470,7 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
     int ret;
 
     if (save_zero_page_to_file(pss, f, block, offset)) {
-        return true;
+        return RES_ZEROPAGE;
     }
 
     save_page_header(pss, f, block, offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
@@ -1476,8 +1485,9 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
     if (ret < 0) {
         qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
         error_report("compressed data failed!");
+        return RES_NONE;
     }
-    return false;
+    return RES_COMPRESS;
 }
 
 static void
@@ -1485,7 +1495,7 @@ update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
 {
     ram_transferred_add(bytes_xmit);
 
-    if (param->zero_page) {
+    if (param->result == RES_ZEROPAGE) {
         stat64_add(&mig_stats.zero_pages, 1);
         return;
     }
