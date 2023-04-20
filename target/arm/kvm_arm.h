@@ -19,6 +19,14 @@
 #define KVM_ARM_VGIC_V3   (1 << 1)
 
 /**
+ * kvm_arm_init_debug() - initialize guest debug capabilities
+ * @s: KVMState
+ *
+ * Should be called only once before using guest debug capabilities.
+ */
+void kvm_arm_init_debug(KVMState *s);
+
+/**
  * kvm_arm_vcpu_init:
  * @cs: CPUState
  *
