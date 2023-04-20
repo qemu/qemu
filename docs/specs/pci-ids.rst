@@ -69,7 +69,7 @@ PCI devices (other than virtio):
 1b36:0004
   PCI Quad-port 16550A adapter (:doc:`pci-serial`)
 1b36:0005
-  PCI test device (``docs/specs/pci-testdev.txt``)
+  PCI test device (:doc:`pci-testdev`)
 1b36:0006
   PCI Rocker Ethernet switch device
 1b36:0007
