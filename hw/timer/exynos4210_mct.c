@@ -480,11 +480,14 @@ static int32_t exynos4210_gcomp_find(Exynos4210MCTState *s)
         res = min_comp_i;
     }
 
-    DPRINTF("found comparator %d: comp 0x%llx distance 0x%llx, gfrc 0x%llx\n",
-            res,
-            s->g_timer.reg.comp[res],
-            distance_min,
-            gfrc);
+    if (res >= 0) {
+        DPRINTF("found comparator %d: "
+                "comp 0x%llx distance 0x%llx, gfrc 0x%llx\n",
+                res,
+                s->g_timer.reg.comp[res],
+                distance_min,
+                gfrc);
+    }
 
     return res;
 }
