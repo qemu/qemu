@@ -465,9 +465,10 @@ class QAPISchemaObjectType(QAPISchemaType):
     # on behalf of info, which is not necessarily self.info
     def check_clash(self, info, seen):
         assert self._checked
-        assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
+        if self.variants:
+            self.variants.check_clash(info, seen)
 
     def connect_doc(self, doc=None):
         super().connect_doc(doc)
@@ -656,8 +657,7 @@ class QAPISchemaVariants:
                         self.info,
                         "branch '%s' is not a value of %s"
                         % (v.name, self.tag_member.type.describe()))
-                if (not isinstance(v.type, QAPISchemaObjectType)
-                        or v.type.variants):
+                if not isinstance(v.type, QAPISchemaObjectType):
                     raise QAPISemError(
                         self.info,
                         "%s cannot use %s"

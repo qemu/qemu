@@ -352,6 +352,62 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     qapi_free_UserDefFlatUnion(tmp);
 }
 
+static void test_visitor_out_union_in_union(TestOutputVisitorData *data,
+                                            const void *unused)
+{
+    QDict *qdict;
+
+    TestUnionInUnion *tmp = g_new0(TestUnionInUnion, 1);
+    tmp->type = TEST_UNION_ENUM_VALUE_A;
+    tmp->u.value_a.type_a = TEST_UNION_ENUMA_VALUE_A1;
+    tmp->u.value_a.u.value_a1.integer = 42;
+    tmp->u.value_a.u.value_a1.name = g_strdup("fish");
+
+    visit_type_TestUnionInUnion(data->ov, NULL, &tmp, &error_abort);
+    qdict = qobject_to(QDict, visitor_get(data));
+    g_assert(qdict);
+    g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "value-a");
+    g_assert_cmpstr(qdict_get_str(qdict, "type-a"), ==, "value-a1");
+    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 42);
+    g_assert_cmpstr(qdict_get_str(qdict, "name"), ==, "fish");
+
+    qapi_free_TestUnionInUnion(tmp);
+
+
+    visitor_reset(data);
+    tmp = g_new0(TestUnionInUnion, 1);
+    tmp->type = TEST_UNION_ENUM_VALUE_A;
+    tmp->u.value_a.type_a = TEST_UNION_ENUMA_VALUE_A2;
+    tmp->u.value_a.u.value_a2.integer = 1729;
+    tmp->u.value_a.u.value_a2.size = 87539319;
+
+    visit_type_TestUnionInUnion(data->ov, NULL, &tmp, &error_abort);
+    qdict = qobject_to(QDict, visitor_get(data));
+    g_assert(qdict);
+    g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "value-a");
+    g_assert_cmpstr(qdict_get_str(qdict, "type-a"), ==, "value-a2");
+    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 1729);
+    g_assert_cmpint(qdict_get_int(qdict, "size"), ==, 87539319);
+
+    qapi_free_TestUnionInUnion(tmp);
+
+
+    visitor_reset(data);
+    tmp = g_new0(TestUnionInUnion, 1);
+    tmp->type = TEST_UNION_ENUM_VALUE_B;
+    tmp->u.value_b.integer = 1729;
+    tmp->u.value_b.onoff = true;
+
+    visit_type_TestUnionInUnion(data->ov, NULL, &tmp, &error_abort);
+    qdict = qobject_to(QDict, visitor_get(data));
+    g_assert(qdict);
+    g_assert_cmpstr(qdict_get_str(qdict, "type"), ==, "value-b");
+    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 1729);
+    g_assert_cmpint(qdict_get_bool(qdict, "onoff"), ==, true);
+
+    qapi_free_TestUnionInUnion(tmp);
+}
+
 static void test_visitor_out_alternate(TestOutputVisitorData *data,
                                        const void *unused)
 {
@@ -586,6 +642,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_list_qapi_free);
     output_visitor_test_add("/visitor/output/union-flat",
                             &out_visitor_data, test_visitor_out_union_flat);
+    output_visitor_test_add("/visitor/output/union-in-union",
+                            &out_visitor_data, test_visitor_out_union_in_union);
     output_visitor_test_add("/visitor/output/alternate",
                             &out_visitor_data, test_visitor_out_alternate);
     output_visitor_test_add("/visitor/output/null",

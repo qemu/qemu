@@ -114,6 +114,38 @@
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
+# this tests that unions can contain other unions in their branches
+{ 'enum': 'TestUnionEnum',
+  'data': [ 'value-a', 'value-b' ] }
+
+{ 'enum': 'TestUnionEnumA',
+  'data': [ 'value-a1', 'value-a2' ] }
+
+{ 'struct': 'TestUnionTypeA1',
+  'data': { 'integer': 'int',
+            'name': 'str'} }
+
+{ 'struct': 'TestUnionTypeA2',
+  'data': { 'integer': 'int',
+            'size': 'int' } }
+
+{ 'union': 'TestUnionTypeA',
+  'base': { 'type-a': 'TestUnionEnumA' },
+  'discriminator': 'type-a',
+  'data': { 'value-a1': 'TestUnionTypeA1',
+            'value-a2': 'TestUnionTypeA2' } }
+
+{ 'struct': 'TestUnionTypeB',
+  'data': { 'integer': 'int',
+            'onoff': 'bool' } }
+
+{ 'union': 'TestUnionInUnion',
+  'base': { 'type': 'TestUnionEnum' },
+  'discriminator': 'type',
+  'data': { 'value-a': 'TestUnionTypeA',
+            'value-b': 'TestUnionTypeB' } }
+
+
 # for testing use of 'number' within alternates
 { 'alternate': 'AltEnumBool', 'data': { 'e': 'EnumOne', 'b': 'bool' } }
 { 'alternate': 'AltEnumNum', 'data': { 'e': 'EnumOne', 'n': 'number' } }

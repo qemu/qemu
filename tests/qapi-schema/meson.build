@@ -197,6 +197,8 @@ schemas = [
   'union-invalid-data.json',
   'union-invalid-discriminator.json',
   'union-invalid-if-discriminator.json',
+  'union-invalid-union-subfield.json',
+  'union-invalid-union-subtype.json',
   'union-no-base.json',
   'union-optional-discriminator.json',
   'union-string-discriminator.json',

@@ -1,0 +1,29 @@
+# Clash between common member and union variant's common member
+# Base's member 'type' clashes with TestTypeA's
+
+{ 'enum': 'TestEnum',
+  'data': [ 'value-a', 'value-b' ] }
+
+{ 'enum': 'TestEnumA',
+  'data': [ 'value-a1', 'value-a2' ] }
+
+{ 'struct': 'TestTypeA1',
+  'data': { 'integer': 'int' } }
+
+{ 'struct': 'TestTypeA2',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'TestTypeA',
+  'base': { 'type': 'TestEnumA' },
+  'discriminator': 'type',
+  'data': { 'value-a1': 'TestTypeA1',
+            'value-a2': 'TestTypeA2' } }
+
+{ 'struct': 'TestTypeB',
+  'data': { 'integer': 'int' } }
+
+{ 'union': 'TestUnion',
+  'base': { 'type': 'TestEnum' },
+  'discriminator': 'type',
+  'data': { 'value-a': 'TestTypeA',
+            'value-b': 'TestTypeB' } }

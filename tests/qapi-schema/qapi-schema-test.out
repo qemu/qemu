@@ -105,6 +105,35 @@ alternate UserDefAlternate
 object UserDefC
     member string1: str optional=False
     member string2: str optional=False
+enum TestUnionEnum
+    member value-a
+    member value-b
+enum TestUnionEnumA
+    member value-a1
+    member value-a2
+object TestUnionTypeA1
+    member integer: int optional=False
+    member name: str optional=False
+object TestUnionTypeA2
+    member integer: int optional=False
+    member size: int optional=False
+object q_obj_TestUnionTypeA-base
+    member type-a: TestUnionEnumA optional=False
+object TestUnionTypeA
+    base q_obj_TestUnionTypeA-base
+    tag type-a
+    case value-a1: TestUnionTypeA1
+    case value-a2: TestUnionTypeA2
+object TestUnionTypeB
+    member integer: int optional=False
+    member onoff: bool optional=False
+object q_obj_TestUnionInUnion-base
+    member type: TestUnionEnum optional=False
+object TestUnionInUnion
+    base q_obj_TestUnionInUnion-base
+    tag type
+    case value-a: TestUnionTypeA
+    case value-b: TestUnionTypeB
 alternate AltEnumBool
     tag type
     case e: EnumOne
