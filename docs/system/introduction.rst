@@ -27,7 +27,7 @@ Tiny Code Generator (TCG) capable of emulating many CPUs.
   * - Hypervisor Framework (hvf)
     - MacOS
     - x86 (64 bit only), Arm (64 bit only)
-  * - Windows Hypervisor Platform (wphx)
+  * - Windows Hypervisor Platform (whpx)
     - Windows
     - x86
   * - NetBSD Virtual Machine Monitor (nvmm)

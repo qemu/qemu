@@ -20,6 +20,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "exec/memory.h"
+#include "exec/target_page.h"
 #include "hw/boards.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
@@ -236,7 +237,7 @@ static inline int64_t dirtylimit_dirty_ring_full_time(uint64_t dirtyrate)
     static uint64_t max_dirtyrate;
     uint32_t dirty_ring_size = kvm_dirty_ring_size();
     uint64_t dirty_ring_size_meory_MB =
-        dirty_ring_size * TARGET_PAGE_SIZE >> 20;
+        dirty_ring_size * qemu_target_page_size() >> 20;
 
     if (max_dirtyrate < dirtyrate) {
         max_dirtyrate = dirtyrate;

@@ -13,12 +13,12 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/runstate.h"
 #include "chardev/char-fe.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
+#include "exec/tswap.h"
 #include "hw/qdev-core.h"
 #include "hw/irq.h"
 #include "qemu/accel.h"
@@ -29,10 +29,6 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qom/object_interfaces.h"
-#include CONFIG_DEVICES
-#ifdef CONFIG_PSERIES
-#include "hw/ppc/spapr_rtas.h"
-#endif
 
 #define MAX_IRQ 256
 
@@ -263,7 +259,7 @@ static int hex2nib(char ch)
     }
 }
 
-static void qtest_send_prefix(CharBackend *chr)
+void qtest_send_prefix(CharBackend *chr)
 {
     if (!qtest_log_fp || !qtest_opened) {
         return;
@@ -302,8 +298,7 @@ static void qtest_send(CharBackend *chr, const char *str)
     qtest_server_send(qtest_server_send_opaque, str);
 }
 
-static void G_GNUC_PRINTF(2, 3) qtest_sendf(CharBackend *chr,
-                                           const char *fmt, ...)
+void qtest_sendf(CharBackend *chr, const char *fmt, ...)
 {
     va_list ap;
     gchar *buffer;
@@ -359,6 +354,15 @@ static void qtest_clock_warp(int64_t dest)
         clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
     qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+}
+
+static bool (*process_command_cb)(CharBackend *chr, gchar **words);
+
+void qtest_set_command_cb(bool (*pc_cb)(CharBackend *chr, gchar **words))
+{
+    assert(!process_command_cb);  /* Switch to a list if we need more than one */
+
+    process_command_cb = pc_cb;
 }
 
 static void qtest_process_command(CharBackend *chr, gchar **words)
@@ -713,30 +717,11 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         qtest_send(chr, "OK\n");
     } else if (strcmp(words[0], "endianness") == 0) {
         qtest_send_prefix(chr);
-#if TARGET_BIG_ENDIAN
-        qtest_sendf(chr, "OK big\n");
-#else
-        qtest_sendf(chr, "OK little\n");
-#endif
-#ifdef CONFIG_PSERIES
-    } else if (strcmp(words[0], "rtas") == 0) {
-        uint64_t res, args, ret;
-        unsigned long nargs, nret;
-        int rc;
-
-        rc = qemu_strtoul(words[2], NULL, 0, &nargs);
-        g_assert(rc == 0);
-        rc = qemu_strtou64(words[3], NULL, 0, &args);
-        g_assert(rc == 0);
-        rc = qemu_strtoul(words[4], NULL, 0, &nret);
-        g_assert(rc == 0);
-        rc = qemu_strtou64(words[5], NULL, 0, &ret);
-        g_assert(rc == 0);
-        res = qtest_rtas_call(words[1], nargs, args, nret, ret);
-
-        qtest_send_prefix(chr);
-        qtest_sendf(chr, "OK %"PRIu64"\n", res);
-#endif
+        if (target_words_bigendian()) {
+            qtest_sendf(chr, "OK big\n");
+        } else {
+            qtest_sendf(chr, "OK little\n");
+        }
     } else if (qtest_enabled() && strcmp(words[0], "clock_step") == 0) {
         int64_t ns;
 
@@ -777,6 +762,8 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         qtest_send_prefix(chr);
         qtest_sendf(chr, "OK %"PRIi64"\n",
                     (int64_t)qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+    } else if (process_command_cb && process_command_cb(chr, words)) {
+        /* Command got consumed by the callback handler */
     } else {
         qtest_send_prefix(chr);
         qtest_sendf(chr, "FAIL Unknown command '%s'\n", words[0]);
@@ -867,7 +854,7 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
     }
 
     qtest = object_new(TYPE_QTEST);
-    object_property_set_str(qtest, "chardev", "qtest", &error_abort);
+    object_property_set_str(qtest, "chardev", chr->label, &error_abort);
     if (qtest_log) {
         object_property_set_str(qtest, "log", qtest_log, &error_abort);
     }

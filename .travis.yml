@@ -237,13 +237,15 @@ jobs:
           - libglib2.0-dev
           - libgnutls28-dev
           - ninja-build
+          - flex
+          - bison
       env:
         - CONFIG="--disable-containers --disable-system"
 
     - name: "[s390x] Clang (disable-tcg)"
       arch: s390x
       dist: focal
-      compiler: clang
+      compiler: clang-10
       addons:
         apt_packages:
           - libaio-dev
@@ -269,6 +271,7 @@ jobs:
           - libvdeplug-dev
           - libvte-2.91-dev
           - ninja-build
+          - clang-10
       env:
         - TEST_CMD="make check-unit"
         - CONFIG="--disable-containers --disable-tcg --enable-kvm --disable-tools
