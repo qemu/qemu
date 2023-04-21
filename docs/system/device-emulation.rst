@@ -93,4 +93,5 @@ Emulated Devices
    devices/virtio-pmem.rst
    devices/vhost-user-rng.rst
    devices/canokey.rst
+   devices/usb-u2f.rst
    devices/igb.rst
