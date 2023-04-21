@@ -73,7 +73,7 @@ struct PCIBridge {
     MemoryRegion address_space_mem;
     MemoryRegion address_space_io;
 
-    PCIBridgeWindows *windows;
+    PCIBridgeWindows windows;
 
     pci_map_irq_fn map_irq;
     const char *bus_name;
