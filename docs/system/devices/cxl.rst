@@ -162,7 +162,7 @@ Example system Topology. x marks the match in each decoder level::
   |<------------------SYSTEM PHYSICAL ADDRESS MAP (1)----------------->|
   |    __________   __________________________________   __________    |
   |   |          | |                                  | |          |   |
-  |   | CFMW 0   | |  CXL Fixed Memory Window 1       | | CFMW 1   |   |
+  |   | CFMW 0   | |  CXL Fixed Memory Window 1       | | CFMW 2   |   |
   |   | HB0 only | |  Configured to interleave memory | | HB1 only |   |
   |   |          | |  memory accesses across HB0/HB1  | |          |   |
   |   |__________| |_____x____________________________| |__________|   |
@@ -208,8 +208,8 @@ Notes:
 (1) **3 CXL Fixed Memory Windows (CFMW)** corresponding to different
     ranges of the system physical address map.  Each CFMW has
     particular interleave setup across the CXL Host Bridges (HB)
-    CFMW0 provides uninterleaved access to HB0, CFW2 provides
-    uninterleaved access to HB1. CFW1 provides interleaved memory access
+    CFMW0 provides uninterleaved access to HB0, CFMW2 provides
+    uninterleaved access to HB1. CFMW1 provides interleaved memory access
     across HB0 and HB1.
 
 (2) **Two CXL Host Bridges**. Each of these has 2 CXL Root Ports and
@@ -247,7 +247,7 @@ Example topology involving a switch::
   |<------------------SYSTEM PHYSICAL ADDRESS MAP (1)----------------->|
   |    __________   __________________________________   __________    |
   |   |          | |                                  | |          |   |
-  |   | CFMW 0   | |  CXL Fixed Memory Window 1       | | CFMW 1   |   |
+  |   | CFMW 0   | |  CXL Fixed Memory Window 1       | | CFMW 2   |   |
   |   | HB0 only | |  Configured to interleave memory | | HB1 only |   |
   |   |          | |  memory accesses across HB0/HB1  | |          |   |
   |   |____x_____| |__________________________________| |__________|   |
