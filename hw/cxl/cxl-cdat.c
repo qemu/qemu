@@ -110,29 +110,18 @@ static void ct3_load_cdat(CDATObject *cdat, Error **errp)
     g_autofree CDATEntry *cdat_st = NULL;
     uint8_t sum = 0;
     int num_ent;
-    int i = 0, ent = 1, file_size = 0;
+    int i = 0, ent = 1;
+    gsize file_size = 0;
     CDATSubHeader *hdr;
-    FILE *fp = NULL;
+    GError *error = NULL;
 
     /* Read CDAT file and create its cache */
-    fp = fopen(cdat->filename, "r");
-    if (!fp) {
-        error_setg(errp, "CDAT: Unable to open file");
+    if (!g_file_get_contents(cdat->filename, (gchar **)&cdat->buf,
+                             &file_size, &error)) {
+        error_setg(errp, "CDAT: File read failed: %s", error->message);
+        g_error_free(error);
         return;
     }
-
-    fseek(fp, 0, SEEK_END);
-    file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    cdat->buf = g_malloc0(file_size);
-
-    if (fread(cdat->buf, file_size, 1, fp) == 0) {
-        error_setg(errp, "CDAT: File read failed");
-        return;
-    }
-
-    fclose(fp);
-
     if (file_size < sizeof(CDATTableHeader)) {
         error_setg(errp, "CDAT: File too short");
         return;
@@ -218,7 +207,5 @@ void cxl_doe_cdat_release(CXLComponentState *cxl_cstate)
         cdat->free_cdat_table(cdat->built_buf, cdat->built_buf_len,
                               cdat->private);
     }
-    if (cdat->buf) {
-        free(cdat->buf);
-    }
+    g_free(cdat->buf);
 }
