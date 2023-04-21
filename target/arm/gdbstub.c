@@ -521,18 +521,17 @@ void arm_cpu_register_gdb_regs_for_features(ARMCPU *cpu)
                                      aarch64_gdb_set_fpu_reg,
                                      34, "aarch64-fpu.xml", 0);
         }
-#if 0
         /*
-         * GDB versions 9 through 12 have a bug which means they will
-         * crash if they see this XML from QEMU; disable it for the 8.0
-         * release, pending a better solution.
+         * Note that we report pauth information via the feature name
+         * org.gnu.gdb.aarch64.pauth_v2, not org.gnu.gdb.aarch64.pauth.
+         * GDB versions 9 through 12 have a bug where they will crash
+         * if they see the latter XML from QEMU.
          */
         if (isar_feature_aa64_pauth(&cpu->isar)) {
             gdb_register_coprocessor(cs, aarch64_gdb_get_pauth_reg,
                                      aarch64_gdb_set_pauth_reg,
                                      4, "aarch64-pauth.xml", 0);
         }
-#endif
 #endif
     } else {
         if (arm_feature(env, ARM_FEATURE_NEON)) {

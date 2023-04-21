@@ -282,9 +282,17 @@ static uint32_t imx_phy_read(IMXFECState *s, int reg)
     uint32_t val;
     uint32_t phy = reg / 32;
 
-    if (phy != s->phy_num) {
-        trace_imx_phy_read_num(phy, s->phy_num);
+    if (!s->phy_connected) {
         return 0xffff;
+    }
+
+    if (phy != s->phy_num) {
+        if (s->phy_consumer && phy == s->phy_consumer->phy_num) {
+            s = s->phy_consumer;
+        } else {
+            trace_imx_phy_read_num(phy, s->phy_num);
+            return 0xffff;
+        }
     }
 
     reg %= 32;
@@ -343,9 +351,17 @@ static void imx_phy_write(IMXFECState *s, int reg, uint32_t val)
 {
     uint32_t phy = reg / 32;
 
-    if (phy != s->phy_num) {
-        trace_imx_phy_write_num(phy, s->phy_num);
+    if (!s->phy_connected) {
         return;
+    }
+
+    if (phy != s->phy_num) {
+        if (s->phy_consumer && phy == s->phy_consumer->phy_num) {
+            s = s->phy_consumer;
+        } else {
+            trace_imx_phy_write_num(phy, s->phy_num);
+            return;
+        }
     }
 
     reg %= 32;
@@ -1327,6 +1343,9 @@ static Property imx_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(IMXFECState, conf),
     DEFINE_PROP_UINT32("tx-ring-num", IMXFECState, tx_ring_num, 1),
     DEFINE_PROP_UINT32("phy-num", IMXFECState, phy_num, 0),
+    DEFINE_PROP_BOOL("phy-connected", IMXFECState, phy_connected, true),
+    DEFINE_PROP_LINK("phy-consumer", IMXFECState, phy_consumer, TYPE_IMX_FEC,
+                     IMXFECState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

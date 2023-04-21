@@ -947,6 +947,7 @@ static int get_S2prot(CPUARMState *env, int s2ap, int xn, bool s1_is_el0)
 static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
                       int ap, int ns, int xn, int pxn)
 {
+    ARMCPU *cpu = env_archcpu(env);
     bool is_user = regime_is_user(env, mmu_idx);
     int prot_rw, user_rw;
     bool have_wxn;
@@ -958,8 +959,19 @@ static int get_S1prot(CPUARMState *env, ARMMMUIdx mmu_idx, bool is_aa64,
     if (is_user) {
         prot_rw = user_rw;
     } else {
+        /*
+         * PAN controls can forbid data accesses but don't affect insn fetch.
+         * Plain PAN forbids data accesses if EL0 has data permissions;
+         * PAN3 forbids data accesses if EL0 has either data or exec perms.
+         * Note that for AArch64 the 'user can exec' case is exactly !xn.
+         * We make the IMPDEF choices that SCR_EL3.SIF and Realm EL2&0
+         * do not affect EPAN.
+         */
         if (user_rw && regime_is_pan(env, mmu_idx)) {
-            /* PAN forbids data accesses but doesn't affect insn fetch */
+            prot_rw = 0;
+        } else if (cpu_isar_feature(aa64_pan3, cpu) && is_aa64 &&
+                   regime_is_pan(env, mmu_idx) &&
+                   (regime_sctlr(env, mmu_idx) & SCTLR_EPAN) && !xn) {
             prot_rw = 0;
         } else {
             prot_rw = simple_ap_to_rw_prot_is_user(ap, false);

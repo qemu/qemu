@@ -82,6 +82,7 @@ struct FslIMX7State {
     ChipideaState      usb[FSL_IMX7_NUM_USBS];
     DesignwarePCIEHost pcie;
     uint32_t           phy_num[FSL_IMX7_NUM_ETHS];
+    bool               phy_connected[FSL_IMX7_NUM_ETHS];
 };
 
 enum FslIMX7MemoryMap {

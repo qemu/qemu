@@ -89,6 +89,7 @@ struct FslIMX6ULState {
     MemoryRegion       ocram_alias;
 
     uint32_t           phy_num[FSL_IMX6UL_NUM_ETHS];
+    bool               phy_connected[FSL_IMX6UL_NUM_ETHS];
 };
 
 enum FslIMX6ULMemoryMap {

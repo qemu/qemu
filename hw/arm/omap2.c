@@ -2523,7 +2523,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sdram,
                     omap_findclk(s, "func_96m_clk"),
                     omap_findclk(s, "core_l4_iclk"));
 
-    /* All register mappings (includin those not currenlty implemented):
+    /* All register mappings (including those not currently implemented):
      * SystemControlMod	48000000 - 48000fff
      * SystemControlL4	48001000 - 48001fff
      * 32kHz Timer Mod	48004000 - 48004fff

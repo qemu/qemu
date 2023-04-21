@@ -326,7 +326,7 @@ static int mapline_size(const int *mapline)
 
 /*
  * Initialize board IRQs.
- * These IRQs contain splitted Int/External Combiner and External Gic IRQs.
+ * These IRQs contain split Int/External Combiner and External Gic IRQs.
  */
 static void exynos4210_init_board_irqs(Exynos4210State *s)
 {
@@ -744,7 +744,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
          * - SDMA
          * - ADMA2
          *
-         * As this part of the Exynos4210 is not publically available,
+         * As this part of the Exynos4210 is not publicly available,
          * we used the "HS-MMC Controller S3C2416X RISC Microprocessor"
          * public datasheet which is very similar (implementing
          * MMC Specification Version 4.0 being the only difference noted)

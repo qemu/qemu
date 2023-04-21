@@ -659,7 +659,7 @@ static void versal_virt_init(MachineState *machine)
     fdt_add_clk_node(s, "/clk25", 25000000, s->phandle.clk_25Mhz);
 
     /* Make the APU cpu address space visible to virtio and other
-     * modules unaware of muliple address-spaces.  */
+     * modules unaware of multiple address-spaces.  */
     memory_region_add_subregion_overlap(get_system_memory(),
                                         0, &s->soc.fpd.apu.mr, 0);
 

@@ -126,7 +126,7 @@ config OLIMEX_STM32_H405
 config NSERIES
     bool
     select OMAP
-    select TMP105   # tempature sensor
+    select TMP105   # temperature sensor
     select BLIZZARD # LCD/TV controller
     select ONENAND
     select TSC210X  # touchscreen/sensors/audio
@@ -325,6 +325,7 @@ config ALLWINNER_A10
     select ALLWINNER_A10_PIC
     select ALLWINNER_A10_CCM
     select ALLWINNER_A10_DRAMC
+    select ALLWINNER_WDT
     select ALLWINNER_EMAC
     select ALLWINNER_I2C
     select AXP209_PMU
@@ -336,6 +337,7 @@ config ALLWINNER_H3
     select ALLWINNER_A10_PIT
     select ALLWINNER_SUN8I_EMAC
     select ALLWINNER_I2C
+    select ALLWINNER_WDT
     select SERIAL
     select ARM_TIMER
     select ARM_GIC
