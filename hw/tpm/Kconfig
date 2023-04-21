@@ -1,3 +1,10 @@
+config TPM_TIS_I2C
+    bool
+    depends on TPM
+    select TPM_BACKEND
+    select I2C
+    select TPM_TIS
+
 config TPM_TIS_ISA
     bool
     depends on TPM && ISA_BUS
