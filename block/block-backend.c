@@ -1845,7 +1845,7 @@ void blk_drain(BlockBackend *blk)
 
     /* We may have -ENOMEDIUM completions in flight */
     AIO_WAIT_WHILE(blk_get_aio_context(blk),
-                   qatomic_mb_read(&blk->in_flight) > 0);
+                   qatomic_read(&blk->in_flight) > 0);
 
     if (bs) {
         bdrv_drained_end(bs);
@@ -1867,7 +1867,7 @@ void blk_drain_all(void)
         aio_context_acquire(ctx);
 
         /* We may have -ENOMEDIUM completions in flight */
-        AIO_WAIT_WHILE(ctx, qatomic_mb_read(&blk->in_flight) > 0);
+        AIO_WAIT_WHILE(ctx, qatomic_read(&blk->in_flight) > 0);
 
         aio_context_release(ctx);
     }

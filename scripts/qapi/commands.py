@@ -41,11 +41,13 @@ from .source import QAPISourceInfo
 def gen_command_decl(name: str,
                      arg_type: Optional[QAPISchemaObjectType],
                      boxed: bool,
-                     ret_type: Optional[QAPISchemaType]) -> str:
+                     ret_type: Optional[QAPISchemaType],
+                     coroutine: bool) -> str:
     return mcgen('''
-%(c_type)s qmp_%(c_name)s(%(params)s);
+%(c_type)s %(coroutine_fn)sqmp_%(c_name)s(%(params)s);
 ''',
                  c_type=(ret_type and ret_type.c_type()) or 'void',
+                 coroutine_fn='coroutine_fn ' if coroutine else '',
                  c_name=c_name(name),
                  params=build_params(arg_type, boxed, 'Error **errp'))
 
@@ -157,16 +159,21 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
-def build_marshal_proto(name: str) -> str:
-    return ('void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)'
-            % c_name(name))
+def build_marshal_proto(name: str,
+                        coroutine: bool) -> str:
+    return ('void %(coroutine_fn)sqmp_marshal_%(c_name)s(%(params)s)' % {
+        'coroutine_fn': 'coroutine_fn ' if coroutine else '',
+        'c_name': c_name(name),
+        'params': 'QDict *args, QObject **ret, Error **errp',
+    })
 
 
-def gen_marshal_decl(name: str) -> str:
+def gen_marshal_decl(name: str,
+                     coroutine: bool) -> str:
     return mcgen('''
 %(proto)s;
 ''',
-                 proto=build_marshal_proto(name))
+                 proto=build_marshal_proto(name, coroutine))
 
 
 def gen_trace(name: str) -> str:
@@ -181,7 +188,8 @@ def gen_marshal(name: str,
                 arg_type: Optional[QAPISchemaObjectType],
                 boxed: bool,
                 ret_type: Optional[QAPISchemaType],
-                gen_tracing: bool) -> str:
+                gen_tracing: bool,
+                coroutine: bool) -> str:
     have_args = boxed or (arg_type and not arg_type.is_empty())
     if have_args:
         assert arg_type is not None
@@ -195,7 +203,7 @@ def gen_marshal(name: str,
     bool ok = false;
     Visitor *v;
 ''',
-                proto=build_marshal_proto(name))
+                proto=build_marshal_proto(name, coroutine))
 
     if ret_type:
         ret += mcgen('''
@@ -387,10 +395,11 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
                            self._genh, self._genc):
                 self._genc.add(gen_marshal_output(ret_type))
         with ifcontext(ifcond, self._genh, self._genc):
-            self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
-            self._genh.add(gen_marshal_decl(name))
+            self._genh.add(gen_command_decl(name, arg_type, boxed,
+                                            ret_type, coroutine))
+            self._genh.add(gen_marshal_decl(name, coroutine))
             self._genc.add(gen_marshal(name, arg_type, boxed, ret_type,
-                                       self._gen_tracing))
+                                       self._gen_tracing, coroutine))
             if self._gen_tracing:
                 self._gen_trace_events.add(gen_trace(name))
         with self._temp_module('./init'):

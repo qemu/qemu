@@ -220,10 +220,9 @@ They come in six kinds:
   retrieves the address to which the second load will be directed),
   the processor will guarantee that the first LOAD will appear to happen
   before the second with respect to the other components of the system.
-  However, this is not always true---for example, it was not true on
-  Alpha processors.  Whenever this kind of access happens to shared
-  memory (that is not protected by a lock), a read barrier is needed,
-  and ``smp_read_barrier_depends()`` can be used instead of ``smp_rmb()``.
+  Therefore, unlike ``smp_rmb()`` or ``qatomic_load_acquire()``,
+  ``smp_read_barrier_depends()`` can be just a compiler barrier on
+  weakly-ordered architectures such as Arm or PPC[#]_.
 
   Note that the first load really has to have a _data_ dependency and not
   a control dependency.  If the address for the second load is dependent
@@ -231,6 +230,10 @@ They come in six kinds:
   than actually loading the address itself, then it's a _control_
   dependency and a full read barrier or better is required.
 
+.. [#] The DEC Alpha is an exception, because ``smp_read_barrier_depends()``
+   needs a processor barrier.  On strongly-ordered architectures such
+   as x86 or s390, ``smp_rmb()`` and ``qatomic_load_acquire()`` can
+   also be compiler barriers only.
 
 Memory barriers and ``qatomic_load_acquire``/``qatomic_store_release`` are
 mostly used when a data structure has one thread that is always a writer

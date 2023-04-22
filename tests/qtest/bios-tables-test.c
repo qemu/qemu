@@ -438,10 +438,9 @@ static void test_acpi_asl(test_data *data)
 {
     int i;
     AcpiSdtTable *sdt, *exp_sdt;
-    test_data exp_data;
+    test_data exp_data = {};
     gboolean exp_err, err, all_tables_match = true;
 
-    memset(&exp_data, 0, sizeof(exp_data));
     exp_data.tables = load_expected_aml(data);
     dump_aml_files(data, false);
     for (i = 0; i < data->tables->len; ++i) {
@@ -853,12 +852,11 @@ static uint8_t base_required_struct_types[] = {
 
 static void test_acpi_piix4_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     /* Supplying -machine accel argument overrides the default (qtest).
      * This is to make guest actually run.
      */
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
@@ -868,9 +866,8 @@ static void test_acpi_piix4_tcg(void)
 
 static void test_acpi_piix4_tcg_bridge(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
@@ -906,9 +903,8 @@ static void test_acpi_piix4_tcg_bridge(void)
 
 static void test_acpi_piix4_no_root_hotplug(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".roothp";
     data.required_struct_types = base_required_struct_types;
@@ -923,9 +919,8 @@ static void test_acpi_piix4_no_root_hotplug(void)
 
 static void test_acpi_piix4_no_bridge_hotplug(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".hpbridge";
     data.required_struct_types = base_required_struct_types;
@@ -940,9 +935,8 @@ static void test_acpi_piix4_no_bridge_hotplug(void)
 
 static void test_acpi_piix4_no_acpi_pci_hotplug(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".hpbrroot";
     data.required_struct_types = base_required_struct_types;
@@ -962,9 +956,8 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
 
 static void test_acpi_q35_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
@@ -994,9 +987,8 @@ static void test_acpi_q35_tcg_core_count2(void)
 
 static void test_acpi_q35_tcg_bridge(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".bridge";
     data.required_struct_types = base_required_struct_types;
@@ -1009,9 +1001,8 @@ static void test_acpi_q35_tcg_bridge(void)
 
 static void test_acpi_q35_tcg_no_acpi_hotplug(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".noacpihp";
     data.required_struct_types = base_required_struct_types;
@@ -1105,9 +1096,8 @@ static void test_acpi_q35_tcg_mmio64(void)
 
 static void test_acpi_piix4_tcg_cphp(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
     test_acpi_one("-smp 2,cores=3,sockets=2,maxcpus=6"
@@ -1121,9 +1111,8 @@ static void test_acpi_piix4_tcg_cphp(void)
 
 static void test_acpi_q35_tcg_cphp(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".cphp";
     test_acpi_one(" -smp 2,cores=3,sockets=2,maxcpus=6"
@@ -1141,9 +1130,8 @@ static uint8_t ipmi_required_struct_types[] = {
 
 static void test_acpi_q35_tcg_ipmi(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".ipmibt";
     data.required_struct_types = ipmi_required_struct_types;
@@ -1156,9 +1144,8 @@ static void test_acpi_q35_tcg_ipmi(void)
 
 static void test_acpi_q35_tcg_smbus_ipmi(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".ipmismbus";
     data.required_struct_types = ipmi_required_struct_types;
@@ -1171,12 +1158,11 @@ static void test_acpi_q35_tcg_smbus_ipmi(void)
 
 static void test_acpi_piix4_tcg_ipmi(void)
 {
-    test_data data;
+    test_data data = {};
 
     /* Supplying -machine accel argument overrides the default (qtest).
      * This is to make guest actually run.
      */
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".ipmikcs";
     data.required_struct_types = ipmi_required_struct_types;
@@ -1189,9 +1175,8 @@ static void test_acpi_piix4_tcg_ipmi(void)
 
 static void test_acpi_q35_tcg_memhp(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".memhp";
     test_acpi_one(" -m 128,slots=3,maxmem=1G"
@@ -1205,9 +1190,8 @@ static void test_acpi_q35_tcg_memhp(void)
 
 static void test_acpi_piix4_tcg_memhp(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".memhp";
     test_acpi_one(" -m 128,slots=3,maxmem=1G"
@@ -1221,9 +1205,8 @@ static void test_acpi_piix4_tcg_memhp(void)
 
 static void test_acpi_piix4_tcg_nosmm(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".nosmm";
     test_acpi_one("-machine smm=off", &data);
@@ -1232,9 +1215,8 @@ static void test_acpi_piix4_tcg_nosmm(void)
 
 static void test_acpi_piix4_tcg_smm_compat(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".smm-compat";
     test_acpi_one("-global PIIX4_PM.smm-compat=on", &data);
@@ -1243,9 +1225,8 @@ static void test_acpi_piix4_tcg_smm_compat(void)
 
 static void test_acpi_piix4_tcg_smm_compat_nosmm(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".smm-compat-nosmm";
     test_acpi_one("-global PIIX4_PM.smm-compat=on -machine smm=off", &data);
@@ -1254,9 +1235,8 @@ static void test_acpi_piix4_tcg_smm_compat_nosmm(void)
 
 static void test_acpi_piix4_tcg_nohpet(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.machine_param = ",hpet=off";
     data.variant = ".nohpet";
@@ -1266,9 +1246,8 @@ static void test_acpi_piix4_tcg_nohpet(void)
 
 static void test_acpi_q35_tcg_numamem(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".numamem";
     test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
@@ -1278,9 +1257,8 @@ static void test_acpi_q35_tcg_numamem(void)
 
 static void test_acpi_q35_kvm_xapic(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".xapic";
     test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
@@ -1291,9 +1269,8 @@ static void test_acpi_q35_kvm_xapic(void)
 
 static void test_acpi_q35_tcg_nosmm(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".nosmm";
     test_acpi_one("-machine smm=off", &data);
@@ -1302,9 +1279,8 @@ static void test_acpi_q35_tcg_nosmm(void)
 
 static void test_acpi_q35_tcg_smm_compat(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".smm-compat";
     test_acpi_one("-global ICH9-LPC.smm-compat=on", &data);
@@ -1313,9 +1289,8 @@ static void test_acpi_q35_tcg_smm_compat(void)
 
 static void test_acpi_q35_tcg_smm_compat_nosmm(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".smm-compat-nosmm";
     test_acpi_one("-global ICH9-LPC.smm-compat=on -machine smm=off", &data);
@@ -1324,9 +1299,8 @@ static void test_acpi_q35_tcg_smm_compat_nosmm(void)
 
 static void test_acpi_q35_tcg_nohpet(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.machine_param = ",hpet=off";
     data.variant = ".nohpet";
@@ -1336,9 +1310,8 @@ static void test_acpi_q35_tcg_nohpet(void)
 
 static void test_acpi_q35_kvm_dmar(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".dmar";
     test_acpi_one("-machine kernel-irqchip=split -accel kvm"
@@ -1348,9 +1321,8 @@ static void test_acpi_q35_kvm_dmar(void)
 
 static void test_acpi_q35_tcg_ivrs(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".ivrs";
     data.tcg_only = true,
@@ -1360,9 +1332,8 @@ static void test_acpi_q35_tcg_ivrs(void)
 
 static void test_acpi_piix4_tcg_numamem(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".numamem";
     test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
@@ -1379,7 +1350,7 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
                                           machine, tpm_if);
     char *tmp_path = g_dir_make_tmp(tmp_dir_name, NULL);
     TPMTestState test;
-    test_data data;
+    test_data data = {};
     GThread *thread;
     const char *suffix = tpm_version == TPM_VERSION_2_0 ? "tpm2" : "tpm12";
     char *args, *variant = g_strdup_printf(".%s.%s", tpm_if, suffix);
@@ -1399,7 +1370,6 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
     thread = g_thread_new(NULL, tpm_emu_ctrl_thread, &test);
     tpm_emu_test_wait_cond(&test);
 
-    memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = variant;
 
@@ -1434,9 +1404,8 @@ static void test_acpi_q35_tcg_tpm12_tis(void)
 
 static void test_acpi_tcg_dimm_pxm(const char *machine)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = ".dimmpxm";
     test_acpi_one(" -machine nvdimm=on,nvdimm-persistence=cpu"
@@ -1504,7 +1473,6 @@ static void test_acpi_virt_tcg_memhp(void)
 
 static void test_acpi_microvm_prepare(test_data *data)
 {
-    memset(data, 0, sizeof(*data));
     data->machine = "microvm";
     data->required_struct_types = NULL; /* no smbios */
     data->required_struct_types_len = 0;
@@ -1513,7 +1481,7 @@ static void test_acpi_microvm_prepare(test_data *data)
 
 static void test_acpi_microvm_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=off",
@@ -1523,7 +1491,7 @@ static void test_acpi_microvm_tcg(void)
 
 static void test_acpi_microvm_usb_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".usb";
@@ -1534,7 +1502,7 @@ static void test_acpi_microvm_usb_tcg(void)
 
 static void test_acpi_microvm_rtc_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".rtc";
@@ -1545,7 +1513,7 @@ static void test_acpi_microvm_rtc_tcg(void)
 
 static void test_acpi_microvm_pcie_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".pcie";
@@ -1557,7 +1525,7 @@ static void test_acpi_microvm_pcie_tcg(void)
 
 static void test_acpi_microvm_ioapic2_tcg(void)
 {
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".ioapic2";
@@ -1622,9 +1590,8 @@ static void test_acpi_virt_tcg_pxb(void)
 
 static void test_acpi_tcg_acpi_hmat(const char *machine)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = ".acpihmat";
     test_acpi_one(" -machine hmat=on"
@@ -1721,9 +1688,8 @@ static void test_acpi_virt_tcg_acpi_hmat(void)
 
 static void test_acpi_q35_tcg_acpi_hmat_noinitiator(void)
 {
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".acpihmat-noinitiator";
     test_acpi_one(" -machine hmat=on"
@@ -1772,9 +1738,8 @@ static void test_acpi_erst(const char *machine)
 {
     gchar *tmp_path = g_dir_make_tmp("qemu-test-erst.XXXXXX", NULL);
     gchar *params;
-    test_data data;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = machine;
     data.variant = ".acpierst";
     params = g_strdup_printf(
@@ -1802,7 +1767,7 @@ static void test_acpi_microvm_acpi_erst(void)
 {
     gchar *tmp_path = g_dir_make_tmp("qemu-test-erst.XXXXXX", NULL);
     gchar *params;
-    test_data data;
+    test_data data = {};
 
     test_acpi_microvm_prepare(&data);
     data.variant = ".pcie";
@@ -2003,10 +1968,9 @@ static void test_oem_fields(test_data *data)
 
 static void test_acpi_piix4_oem_fields(void)
 {
-    test_data data;
     char *args;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
@@ -2022,10 +1986,9 @@ static void test_acpi_piix4_oem_fields(void)
 
 static void test_acpi_q35_oem_fields(void)
 {
-    test_data data;
     char *args;
+    test_data data = {};
 
-    memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.required_struct_types = base_required_struct_types;
     data.required_struct_types_len = ARRAY_SIZE(base_required_struct_types);
@@ -2041,7 +2004,7 @@ static void test_acpi_q35_oem_fields(void)
 
 static void test_acpi_microvm_oem_fields(void)
 {
-    test_data data;
+    test_data data = {};
     char *args;
 
     test_acpi_microvm_prepare(&data);

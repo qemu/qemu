@@ -1223,6 +1223,7 @@ static const char regnames_LO[][4] = {
 /* General purpose registers moves. */
 void gen_load_gpr(TCGv t, int reg)
 {
+    assert(reg >= 0 && reg <= ARRAY_SIZE(cpu_gpr));
     if (reg == 0) {
         tcg_gen_movi_tl(t, 0);
     } else {
@@ -1232,6 +1233,7 @@ void gen_load_gpr(TCGv t, int reg)
 
 void gen_store_gpr(TCGv t, int reg)
 {
+    assert(reg >= 0 && reg <= ARRAY_SIZE(cpu_gpr));
     if (reg != 0) {
         tcg_gen_mov_tl(cpu_gpr[reg], t);
     }
@@ -1240,6 +1242,7 @@ void gen_store_gpr(TCGv t, int reg)
 #if defined(TARGET_MIPS64)
 void gen_load_gpr_hi(TCGv_i64 t, int reg)
 {
+    assert(reg >= 0 && reg <= ARRAY_SIZE(cpu_gpr_hi));
     if (reg == 0) {
         tcg_gen_movi_i64(t, 0);
     } else {
@@ -1249,6 +1252,7 @@ void gen_load_gpr_hi(TCGv_i64 t, int reg)
 
 void gen_store_gpr_hi(TCGv_i64 t, int reg)
 {
+    assert(reg >= 0 && reg <= ARRAY_SIZE(cpu_gpr_hi));
     if (reg != 0) {
         tcg_gen_mov_i64(cpu_gpr_hi[reg], t);
     }

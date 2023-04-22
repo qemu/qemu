@@ -108,8 +108,8 @@ bool qemu_file_is_writable(QEMUFile *f);
 
 #include "migration/qemu-file-types.h"
 
-size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
-size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size);
+size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
+size_t coroutine_mixed_fn qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size);
 ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
                                   const uint8_t *p, size_t size);
 int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
@@ -119,7 +119,7 @@ int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
  * is; you aren't guaranteed to be able to peak to +n bytes unless you've
  * previously peeked +n-1.
  */
-int qemu_peek_byte(QEMUFile *f, int offset);
+int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset);
 void qemu_file_skip(QEMUFile *f, int size);
 /*
  * qemu_file_credit_transfer:

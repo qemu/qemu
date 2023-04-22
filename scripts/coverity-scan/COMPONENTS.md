@@ -12,6 +12,9 @@ avr
 cris
   ~ (/qemu)?((/include)?/hw/cris/.*|/target/cris/.*)
 
+hexagon-gen (component should be ignored in analysis)
+  ~ (/qemu)?(/target/hexagon/.*generated.*)
+
 hexagon
   ~ (/qemu)?(/target/hexagon/.*)
 
@@ -64,13 +67,10 @@ audio
   ~ (/qemu)?((/include)?/(audio|hw/audio)/.*)
 
 block
-  ~ (/qemu)?(/block.*|(/include?)(/hw)?/(block|storage-daemon)/.*|(/include)?/hw/ide/.*|/qemu-(img|io).*|/util/(aio|async|thread-pool).*)
+  ~ (/qemu)?(/block.*|(/include?)/(block|storage-daemon)/.*|(/include)?/hw/(block|ide|nvme)/.*|/qemu-(img|io).*|/util/(aio|async|thread-pool).*)
 
 char
   ~ (/qemu)?(/qemu-char\.c|/include/sysemu/char\.h|(/include)?/hw/char/.*)
-
-capstone
-  ~ (/qemu)?(/capstone/.*)
 
 crypto
   ~ (/qemu)?((/include)?/crypto/.*|/hw/.*/crypto.*)
@@ -107,9 +107,6 @@ qemu-ga
 
 scsi
   ~ (/qemu)?(/scsi/.*|/hw/scsi/.*|/include/hw/scsi/.*)
-
-slirp (component should be ignored in analysis)
-  ~ (/qemu)?(/slirp/.*)
 
 tcg
   ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)

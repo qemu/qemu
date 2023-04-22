@@ -134,8 +134,8 @@ static void do_qmp_dispatch_bh(void *opaque)
  * Runs outside of coroutine context for OOB commands, but in coroutine
  * context for everything else.
  */
-QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
-                    bool allow_oob, Monitor *cur_mon)
+QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *request,
+                                       bool allow_oob, Monitor *cur_mon)
 {
     Error *err = NULL;
     bool oob;

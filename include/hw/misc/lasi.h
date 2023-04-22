@@ -69,8 +69,7 @@ struct LasiState {
 
     uint32_t errlog;
     uint32_t amr;
-    uint32_t rtc;
-    time_t rtc_ref;
+    uint32_t rtc_ref;
 
     MemoryRegion this_mem;
 };

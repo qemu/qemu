@@ -1500,7 +1500,7 @@ static PostcopyState incoming_postcopy_state;
 
 PostcopyState  postcopy_state_get(void)
 {
-    return qatomic_mb_read(&incoming_postcopy_state);
+    return qatomic_load_acquire(&incoming_postcopy_state);
 }
 
 /* Set the state and return the old state */

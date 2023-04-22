@@ -392,7 +392,7 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
  * case if the underlying file descriptor gives a short read, and that can
  * happen even on a blocking fd.
  */
-static ssize_t qemu_fill_buffer(QEMUFile *f)
+static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
 {
     int len;
     int pending;
@@ -585,7 +585,7 @@ void qemu_file_skip(QEMUFile *f, int size)
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
+size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
 {
     ssize_t pending;
     size_t index;
@@ -633,7 +633,7 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
+size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
 {
     size_t pending = size;
     size_t done = 0;
@@ -674,7 +674,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
  * Note: Since **buf may get changed, the caller should take care to
  *       keep a pointer to the original buffer if it needs to deallocate it.
  */
-size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
+size_t coroutine_mixed_fn qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
 {
     if (size < IO_BUF_SIZE) {
         size_t res;
@@ -696,7 +696,7 @@ size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
  * Peeks a single byte from the buffer; this isn't guaranteed to work if
  * offset leaves a gap after the previous read/peeked data.
  */
-int qemu_peek_byte(QEMUFile *f, int offset)
+int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
 {
     int index = f->buf_index + offset;
 
@@ -713,7 +713,7 @@ int qemu_peek_byte(QEMUFile *f, int offset)
     return f->buf[index];
 }
 
-int qemu_get_byte(QEMUFile *f)
+int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
 {
     int result;
 
@@ -894,7 +894,7 @@ int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src)
  *          else 0
  *          (Note a 0 length string will return 0 either way)
  */
-size_t qemu_get_counted_string(QEMUFile *f, char buf[256])
+size_t coroutine_fn qemu_get_counted_string(QEMUFile *f, char buf[256])
 {
     size_t len = qemu_get_byte(f);
     size_t res = qemu_get_buffer(f, (uint8_t *)buf, len);
