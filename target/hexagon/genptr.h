@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,9 +37,9 @@ TCGv gen_read_reg(TCGv result, int num);
 TCGv gen_read_preg(TCGv pred, uint8_t num);
 void gen_log_reg_write(int rnum, TCGv val);
 void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val);
-void gen_set_usr_field(int field, TCGv val);
-void gen_set_usr_fieldi(int field, int x);
-void gen_set_usr_field_if(int field, TCGv val);
+void gen_set_usr_field(DisasContext *ctx, int field, TCGv val);
+void gen_set_usr_fieldi(DisasContext *ctx, int field, int x);
+void gen_set_usr_field_if(DisasContext *ctx, int field, TCGv val);
 void gen_sat_i32(TCGv dest, TCGv source, int width);
 void gen_sat_i32_ovfl(TCGv ovfl, TCGv dest, TCGv source, int width);
 void gen_satu_i32(TCGv dest, TCGv source, int width);
@@ -48,7 +48,7 @@ void gen_sat_i64(TCGv_i64 dest, TCGv_i64 source, int width);
 void gen_sat_i64_ovfl(TCGv ovfl, TCGv_i64 dest, TCGv_i64 source, int width);
 void gen_satu_i64(TCGv_i64 dest, TCGv_i64 source, int width);
 void gen_satu_i64_ovfl(TCGv ovfl, TCGv_i64 dest, TCGv_i64 source, int width);
-void gen_add_sat_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b);
+void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b);
 TCGv gen_8bitsof(TCGv result, TCGv value);
 void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src);
 TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign);

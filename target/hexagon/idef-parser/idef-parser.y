@@ -362,7 +362,7 @@ assign_statement : lvalue '=' rvalue
                                 "Assignment side-effect not modeled!");
                        $3 = gen_rvalue_truncate(c, &@1, &$3);
                        $3 = rvalue_materialize(c, &@1, &$3);
-                       OUT(c, &@1, "SET_USR_FIELD(USR_LPCFG, ", &$3, ");\n");
+                       OUT(c, &@1, "gen_set_usr_field(ctx, USR_LPCFG, ", &$3, ");\n");
                    }
                  | DEPOSIT '(' rvalue ',' rvalue ',' rvalue ')'
                    {

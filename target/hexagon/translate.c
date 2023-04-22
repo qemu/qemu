@@ -128,14 +128,19 @@ static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest)
+static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest, bool
+                        move_to_pc)
 {
     if (use_goto_tb(ctx, dest)) {
         tcg_gen_goto_tb(idx);
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_exit_tb(ctx->base.tb, idx);
     } else {
-        tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        if (move_to_pc) {
+            tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
+        }
         tcg_gen_lookup_and_goto_ptr();
     }
 }
@@ -150,11 +155,11 @@ static void gen_end_tb(DisasContext *ctx)
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
             tcg_gen_brcondi_tl(ctx->branch_cond, hex_branch_taken, 0, skip);
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);
-            gen_goto_tb(ctx, 1, ctx->next_PC);
+            gen_goto_tb(ctx, 1, ctx->next_PC, false);
         } else {
-            gen_goto_tb(ctx, 0, ctx->branch_dest);
+            gen_goto_tb(ctx, 0, ctx->branch_dest, true);
         }
     } else if (ctx->is_tight_loop &&
                pkt->insn[pkt->num_insns - 1].opcode == J2_endloop0) {
@@ -165,9 +170,9 @@ static void gen_end_tb(DisasContext *ctx)
         TCGLabel *skip = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, skip);
         tcg_gen_subi_tl(hex_gpr[HEX_REG_LC0], hex_gpr[HEX_REG_LC0], 1);
-        gen_goto_tb(ctx, 0, ctx->base.tb->pc);
+        gen_goto_tb(ctx, 0, ctx->base.tb->pc, true);
         gen_set_label(skip);
-        gen_goto_tb(ctx, 1, ctx->next_PC);
+        gen_goto_tb(ctx, 1, ctx->next_PC, false);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
@@ -803,13 +808,11 @@ static void gen_commit_packet(DisasContext *ctx)
         g_assert(!has_store_s1 && !has_hvx_store);
         process_dczeroa(ctx);
     } else if (has_hvx_store) {
-        TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
-
         if (!has_store_s0 && !has_store_s1) {
+            TCGv mem_idx = tcg_constant_tl(ctx->mem_idx);
             gen_helper_probe_hvx_stores(cpu_env, mem_idx);
         } else {
             int mask = 0;
-            TCGv mask_tcgv;
 
             if (has_store_s0) {
                 mask =
@@ -834,8 +837,10 @@ static void gen_commit_packet(DisasContext *ctx)
                     FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES,
                                S1_IS_PRED, 1);
             }
-            mask_tcgv = tcg_constant_tl(mask);
-            gen_helper_probe_pkt_scalar_hvx_stores(cpu_env, mask_tcgv, mem_idx);
+            mask = FIELD_DP32(mask, PROBE_PKT_SCALAR_HVX_STORES, MMU_IDX,
+                              ctx->mem_idx);
+            gen_helper_probe_pkt_scalar_hvx_stores(cpu_env,
+                                                   tcg_constant_tl(mask));
         }
     } else if (has_store_s0 && has_store_s1) {
         /*

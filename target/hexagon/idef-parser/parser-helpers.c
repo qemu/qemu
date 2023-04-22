@@ -1640,7 +1640,8 @@ void gen_addsat64(Context *c,
 {
     HexValue op1_m = rvalue_materialize(c, locp, op1);
     HexValue op2_m = rvalue_materialize(c, locp, op2);
-    OUT(c, locp, "gen_add_sat_i64(", dst, ", ", &op1_m, ", ", &op2_m, ");\n");
+    OUT(c, locp, "gen_add_sat_i64(ctx, ", dst, ", ", &op1_m, ", ",
+                                  &op2_m, ");\n");
 }
 
 void gen_inst(Context *c, GString *iname)
@@ -1971,7 +1972,7 @@ HexValue gen_rvalue_sat(Context *c, YYLTYPE *locp, HexSat *sat,
     OUT(c, locp, "gen_sat", unsigned_str, "_", bit_suffix, "_ovfl(");
     OUT(c, locp, &ovfl, ", ", &res, ", ", value, ", ", &width->imm.value,
         ");\n");
-    OUT(c, locp, "gen_set_usr_field_if(USR_OVF,", &ovfl, ");\n");
+    OUT(c, locp, "gen_set_usr_field_if(ctx, USR_OVF,", &ovfl, ");\n");
 
     return res;
 }

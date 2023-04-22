@@ -486,30 +486,27 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
     }
 }
 
-void gen_set_usr_field(int field, TCGv val)
+void gen_set_usr_field(DisasContext *ctx, int field, TCGv val)
 {
-    tcg_gen_deposit_tl(hex_new_value[HEX_REG_USR], hex_new_value[HEX_REG_USR],
-                       val,
+    TCGv usr = get_result_gpr(ctx, HEX_REG_USR);
+    tcg_gen_deposit_tl(usr, usr, val,
                        reg_field_info[field].offset,
                        reg_field_info[field].width);
 }
 
-void gen_set_usr_fieldi(int field, int x)
+void gen_set_usr_fieldi(DisasContext *ctx, int field, int x)
 {
     if (reg_field_info[field].width == 1) {
+        TCGv usr = get_result_gpr(ctx, HEX_REG_USR);
         target_ulong bit = 1 << reg_field_info[field].offset;
         if ((x & 1) == 1) {
-            tcg_gen_ori_tl(hex_new_value[HEX_REG_USR],
-                           hex_new_value[HEX_REG_USR],
-                           bit);
+            tcg_gen_ori_tl(usr, usr, bit);
         } else {
-            tcg_gen_andi_tl(hex_new_value[HEX_REG_USR],
-                            hex_new_value[HEX_REG_USR],
-                            ~bit);
+            tcg_gen_andi_tl(usr, usr, ~bit);
         }
     } else {
         TCGv val = tcg_constant_tl(x);
-        gen_set_usr_field(field, val);
+        gen_set_usr_field(ctx, field, val);
     }
 }
 
@@ -754,7 +751,7 @@ static void gen_endloop0(DisasContext *ctx)
     tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
     {
         tcg_gen_subi_tl(lpcfg, lpcfg, 1);
-        SET_USR_FIELD(USR_LPCFG, lpcfg);
+        gen_set_usr_field(ctx, USR_LPCFG, lpcfg);
     }
     gen_set_label(label2);
 
@@ -829,7 +826,7 @@ static void gen_endloop01(DisasContext *ctx)
     tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
     {
         tcg_gen_subi_tl(lpcfg, lpcfg, 1);
-        SET_USR_FIELD(USR_LPCFG, lpcfg);
+        gen_set_usr_field(ctx, USR_LPCFG, lpcfg);
     }
     gen_set_label(label2);
 
@@ -878,8 +875,9 @@ static void gen_cmpi_jumpnv(DisasContext *ctx,
 }
 
 /* Shift left with saturation */
-static void gen_shl_sat(TCGv dst, TCGv src, TCGv shift_amt)
+static void gen_shl_sat(DisasContext *ctx, TCGv dst, TCGv src, TCGv shift_amt)
 {
+    TCGv usr = get_result_gpr(ctx, HEX_REG_USR);
     TCGv sh32 = tcg_temp_new();
     TCGv dst_sar = tcg_temp_new();
     TCGv ovf = tcg_temp_new();
@@ -911,7 +909,7 @@ static void gen_shl_sat(TCGv dst, TCGv src, TCGv shift_amt)
 
     tcg_gen_setcond_tl(TCG_COND_NE, ovf, dst_sar, src);
     tcg_gen_shli_tl(ovf, ovf, reg_field_info[USR_OVF].offset);
-    tcg_gen_or_tl(hex_new_value[HEX_REG_USR], hex_new_value[HEX_REG_USR], ovf);
+    tcg_gen_or_tl(usr, usr, ovf);
 
     tcg_gen_movcond_tl(TCG_COND_EQ, dst, dst_sar, src, dst, satval);
 }
@@ -928,7 +926,7 @@ static void gen_sar(TCGv dst, TCGv src, TCGv shift_amt)
 }
 
 /* Bidirectional shift right with saturation */
-static void gen_asr_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
+static void gen_asr_r_r_sat(DisasContext *ctx, TCGv RdV, TCGv RsV, TCGv RtV)
 {
     TCGv shift_amt = tcg_temp_new();
     TCGLabel *positive = gen_new_label();
@@ -939,7 +937,7 @@ static void gen_asr_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
 
     /* Negative shift amount => shift left */
     tcg_gen_neg_tl(shift_amt, shift_amt);
-    gen_shl_sat(RdV, RsV, shift_amt);
+    gen_shl_sat(ctx, RdV, RsV, shift_amt);
     tcg_gen_br(done);
 
     gen_set_label(positive);
@@ -950,7 +948,7 @@ static void gen_asr_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
 }
 
 /* Bidirectional shift left with saturation */
-static void gen_asl_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
+static void gen_asl_r_r_sat(DisasContext *ctx, TCGv RdV, TCGv RsV, TCGv RtV)
 {
     TCGv shift_amt = tcg_temp_new();
     TCGLabel *positive = gen_new_label();
@@ -966,7 +964,7 @@ static void gen_asl_r_r_sat(TCGv RdV, TCGv RsV, TCGv RtV)
 
     gen_set_label(positive);
     /* Positive shift amount => shift left */
-    gen_shl_sat(RdV, RsV, shift_amt);
+    gen_shl_sat(ctx, RdV, RsV, shift_amt);
 
     gen_set_label(done);
 }
@@ -1109,20 +1107,19 @@ void probe_noshuf_load(TCGv va, int s, int mi)
  * Note: Since this function might branch, `val` is
  * required to be a `tcg_temp_local`.
  */
-void gen_set_usr_field_if(int field, TCGv val)
+void gen_set_usr_field_if(DisasContext *ctx, int field, TCGv val)
 {
     /* Sets the USR field if `val` is non-zero */
     if (reg_field_info[field].width == 1) {
+        TCGv usr = get_result_gpr(ctx, HEX_REG_USR);
         TCGv tmp = tcg_temp_new();
         tcg_gen_extract_tl(tmp, val, 0, reg_field_info[field].width);
         tcg_gen_shli_tl(tmp, tmp, reg_field_info[field].offset);
-        tcg_gen_or_tl(hex_new_value[HEX_REG_USR],
-                      hex_new_value[HEX_REG_USR],
-                      tmp);
+        tcg_gen_or_tl(usr, usr, tmp);
     } else {
         TCGLabel *skip_label = gen_new_label();
         tcg_gen_brcondi_tl(TCG_COND_EQ, val, 0, skip_label);
-        gen_set_usr_field(field, val);
+        gen_set_usr_field(ctx, field, val);
         gen_set_label(skip_label);
     }
 }
@@ -1190,7 +1187,7 @@ void gen_satu_i64_ovfl(TCGv ovfl, TCGv_i64 dest, TCGv_i64 source, int width)
 }
 
 /* Implements the fADDSAT64 macro in TCG */
-void gen_add_sat_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
+void gen_add_sat_i64(DisasContext *ctx, TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
 {
     TCGv_i64 sum = tcg_temp_new_i64();
     TCGv_i64 xor = tcg_temp_new_i64();
@@ -1227,7 +1224,7 @@ void gen_add_sat_i64(TCGv_i64 ret, TCGv_i64 a, TCGv_i64 b)
     gen_set_label(ovfl_label);
     tcg_gen_and_i64(cond3, sum, mask);
     tcg_gen_movcond_i64(TCG_COND_NE, ret, cond3, zero, max_pos, max_neg);
-    SET_USR_FIELD(USR_OVF, 1);
+    gen_set_usr_fieldi(ctx, USR_OVF, 1);
 
     gen_set_label(ret_label);
 }

@@ -84,6 +84,7 @@ usr: usr.c
 
 scatter_gather: CFLAGS += -mhvx
 vector_add_int: CFLAGS += -mhvx -fvectorize
+hvx_misc: hvx_misc.c hvx_misc.h
 hvx_misc: CFLAGS += -mhvx
 hvx_histogram: CFLAGS += -mhvx -Wno-gnu-folding-constant
 
