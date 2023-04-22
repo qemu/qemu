@@ -1337,6 +1337,13 @@ static void tcg_out_vldst(TCGContext *s, ARMInsn insn,
     tcg_out32(s, insn | (rn << 16) | encode_vd(rd) | 0xf);
 }
 
+typedef struct {
+    ARMCond cond;
+    TCGReg base;
+    int index;
+    bool index_scratch;
+} HostAddress;
+
 #ifdef CONFIG_SOFTMMU
 /* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
  *                                     int mmu_idx, uintptr_t ra)
@@ -1696,29 +1703,49 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 }
 #endif /* SOFTMMU */
 
-static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
-                                  TCGReg datalo, TCGReg datahi,
-                                  TCGReg addrlo, TCGReg addend,
-                                  bool scratch_addend)
+static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
+                                   TCGReg datahi, HostAddress h)
 {
+    TCGReg base;
+
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
 
     switch (opc & MO_SSIZE) {
     case MO_UB:
-        tcg_out_ld8_r(s, COND_AL, datalo, addrlo, addend);
+        if (h.index < 0) {
+            tcg_out_ld8_12(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_ld8_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_SB:
-        tcg_out_ld8s_r(s, COND_AL, datalo, addrlo, addend);
+        if (h.index < 0) {
+            tcg_out_ld8s_8(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_ld8s_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_UW:
-        tcg_out_ld16u_r(s, COND_AL, datalo, addrlo, addend);
+        if (h.index < 0) {
+            tcg_out_ld16u_8(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_ld16u_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_SW:
-        tcg_out_ld16s_r(s, COND_AL, datalo, addrlo, addend);
+        if (h.index < 0) {
+            tcg_out_ld16s_8(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_ld16s_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_UL:
-        tcg_out_ld32_r(s, COND_AL, datalo, addrlo, addend);
+        if (h.index < 0) {
+            tcg_out_ld32_12(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_ld32_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_UQ:
         /* We used pair allocation for datalo, so already should be aligned. */
@@ -1726,87 +1753,59 @@ static void tcg_out_qemu_ld_index(TCGContext *s, MemOp opc,
         tcg_debug_assert(datahi == datalo + 1);
         /* LDRD requires alignment; double-check that. */
         if (get_alignment_bits(opc) >= MO_64) {
+            if (h.index < 0) {
+                tcg_out_ldrd_8(s, h.cond, datalo, h.base, 0);
+                break;
+            }
             /*
              * Rm (the second address op) must not overlap Rt or Rt + 1.
              * Since datalo is aligned, we can simplify the test via alignment.
              * Flip the two address arguments if that works.
              */
-            if ((addend & ~1) != datalo) {
-                tcg_out_ldrd_r(s, COND_AL, datalo, addrlo, addend);
+            if ((h.index & ~1) != datalo) {
+                tcg_out_ldrd_r(s, h.cond, datalo, h.base, h.index);
                 break;
             }
-            if ((addrlo & ~1) != datalo) {
-                tcg_out_ldrd_r(s, COND_AL, datalo, addend, addrlo);
+            if ((h.base & ~1) != datalo) {
+                tcg_out_ldrd_r(s, h.cond, datalo, h.index, h.base);
                 break;
             }
         }
-        if (scratch_addend) {
-            tcg_out_ld32_rwb(s, COND_AL, datalo, addend, addrlo);
-            tcg_out_ld32_12(s, COND_AL, datahi, addend, 4);
+        if (h.index < 0) {
+            base = h.base;
+            if (datalo == h.base) {
+                tcg_out_mov_reg(s, h.cond, TCG_REG_TMP, base);
+                base = TCG_REG_TMP;
+            }
+        } else if (h.index_scratch) {
+            tcg_out_ld32_rwb(s, h.cond, datalo, h.index, h.base);
+            tcg_out_ld32_12(s, h.cond, datahi, h.index, 4);
+            break;
         } else {
-            tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_TMP,
-                            addend, addrlo, SHIFT_IMM_LSL(0));
-            tcg_out_ld32_12(s, COND_AL, datalo, TCG_REG_TMP, 0);
-            tcg_out_ld32_12(s, COND_AL, datahi, TCG_REG_TMP, 4);
+            tcg_out_dat_reg(s, h.cond, ARITH_ADD, TCG_REG_TMP,
+                            h.base, h.index, SHIFT_IMM_LSL(0));
+            base = TCG_REG_TMP;
         }
+        tcg_out_ld32_12(s, h.cond, datalo, base, 0);
+        tcg_out_ld32_12(s, h.cond, datahi, base, 4);
         break;
     default:
         g_assert_not_reached();
     }
 }
-
-#ifndef CONFIG_SOFTMMU
-static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg datalo,
-                                   TCGReg datahi, TCGReg addrlo)
-{
-    /* Byte swapping is left to middle-end expansion. */
-    tcg_debug_assert((opc & MO_BSWAP) == 0);
-
-    switch (opc & MO_SSIZE) {
-    case MO_UB:
-        tcg_out_ld8_12(s, COND_AL, datalo, addrlo, 0);
-        break;
-    case MO_SB:
-        tcg_out_ld8s_8(s, COND_AL, datalo, addrlo, 0);
-        break;
-    case MO_UW:
-        tcg_out_ld16u_8(s, COND_AL, datalo, addrlo, 0);
-        break;
-    case MO_SW:
-        tcg_out_ld16s_8(s, COND_AL, datalo, addrlo, 0);
-        break;
-    case MO_UL:
-        tcg_out_ld32_12(s, COND_AL, datalo, addrlo, 0);
-        break;
-    case MO_UQ:
-        /* We used pair allocation for datalo, so already should be aligned. */
-        tcg_debug_assert((datalo & 1) == 0);
-        tcg_debug_assert(datahi == datalo + 1);
-        /* LDRD requires alignment; double-check that. */
-        if (get_alignment_bits(opc) >= MO_64) {
-            tcg_out_ldrd_8(s, COND_AL, datalo, addrlo, 0);
-        } else if (datalo == addrlo) {
-            tcg_out_ld32_12(s, COND_AL, datahi, addrlo, 4);
-            tcg_out_ld32_12(s, COND_AL, datalo, addrlo, 0);
-        } else {
-            tcg_out_ld32_12(s, COND_AL, datalo, addrlo, 0);
-            tcg_out_ld32_12(s, COND_AL, datahi, addrlo, 4);
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-#endif
 
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg datalo, TCGReg datahi,
                             TCGReg addrlo, TCGReg addrhi,
                             MemOpIdx oi, TCGType data_type)
 {
     MemOp opc = get_memop(oi);
+    HostAddress h;
 
 #ifdef CONFIG_SOFTMMU
-    TCGReg addend= tcg_out_tlb_read(s, addrlo, addrhi, opc, get_mmuidx(oi), 1);
+    h.cond = COND_AL;
+    h.base = addrlo;
+    h.index_scratch = true;
+    h.index = tcg_out_tlb_read(s, addrlo, addrhi, opc, get_mmuidx(oi), 1);
 
     /*
      * This a conditional BL only to load a pointer within this opcode into
@@ -1815,80 +1814,51 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg datalo, TCGReg datahi,
     tcg_insn_unit *label_ptr = s->code_ptr;
     tcg_out_bl_imm(s, COND_NE, 0);
 
-    tcg_out_qemu_ld_index(s, opc, datalo, datahi, addrlo, addend, true);
+    tcg_out_qemu_ld_direct(s, opc, datalo, datahi, h);
 
     add_qemu_ldst_label(s, true, oi, data_type, datalo, datahi,
                         addrlo, addrhi, s->code_ptr, label_ptr);
-#else /* !CONFIG_SOFTMMU */
+#else
     unsigned a_bits = get_alignment_bits(opc);
     if (a_bits) {
         tcg_out_test_alignment(s, true, addrlo, addrhi, a_bits);
     }
-    if (guest_base) {
-        tcg_out_qemu_ld_index(s, opc, datalo, datahi,
-                              addrlo, TCG_REG_GUEST_BASE, false);
-    } else {
-        tcg_out_qemu_ld_direct(s, opc, datalo, datahi, addrlo);
-    }
+
+    h.cond = COND_AL;
+    h.base = addrlo;
+    h.index = guest_base ? TCG_REG_GUEST_BASE : -1;
+    h.index_scratch = false;
+    tcg_out_qemu_ld_direct(s, opc, datalo, datahi, h);
 #endif
 }
 
-static void tcg_out_qemu_st_index(TCGContext *s, ARMCond cond, MemOp opc,
-                                  TCGReg datalo, TCGReg datahi,
-                                  TCGReg addrlo, TCGReg addend,
-                                  bool scratch_addend)
-{
-    /* Byte swapping is left to middle-end expansion. */
-    tcg_debug_assert((opc & MO_BSWAP) == 0);
-
-    switch (opc & MO_SIZE) {
-    case MO_8:
-        tcg_out_st8_r(s, cond, datalo, addrlo, addend);
-        break;
-    case MO_16:
-        tcg_out_st16_r(s, cond, datalo, addrlo, addend);
-        break;
-    case MO_32:
-        tcg_out_st32_r(s, cond, datalo, addrlo, addend);
-        break;
-    case MO_64:
-        /* We used pair allocation for datalo, so already should be aligned. */
-        tcg_debug_assert((datalo & 1) == 0);
-        tcg_debug_assert(datahi == datalo + 1);
-        /* STRD requires alignment; double-check that. */
-        if (get_alignment_bits(opc) >= MO_64) {
-            tcg_out_strd_r(s, cond, datalo, addrlo, addend);
-        } else if (scratch_addend) {
-            tcg_out_st32_rwb(s, cond, datalo, addend, addrlo);
-            tcg_out_st32_12(s, cond, datahi, addend, 4);
-        } else {
-            tcg_out_dat_reg(s, cond, ARITH_ADD, TCG_REG_TMP,
-                            addend, addrlo, SHIFT_IMM_LSL(0));
-            tcg_out_st32_12(s, cond, datalo, TCG_REG_TMP, 0);
-            tcg_out_st32_12(s, cond, datahi, TCG_REG_TMP, 4);
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-#ifndef CONFIG_SOFTMMU
 static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
-                                   TCGReg datahi, TCGReg addrlo)
+                                   TCGReg datahi, HostAddress h)
 {
     /* Byte swapping is left to middle-end expansion. */
     tcg_debug_assert((opc & MO_BSWAP) == 0);
 
     switch (opc & MO_SIZE) {
     case MO_8:
-        tcg_out_st8_12(s, COND_AL, datalo, addrlo, 0);
+        if (h.index < 0) {
+            tcg_out_st8_12(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_st8_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_16:
-        tcg_out_st16_8(s, COND_AL, datalo, addrlo, 0);
+        if (h.index < 0) {
+            tcg_out_st16_8(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_st16_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_32:
-        tcg_out_st32_12(s, COND_AL, datalo, addrlo, 0);
+        if (h.index < 0) {
+            tcg_out_st32_12(s, h.cond, datalo, h.base, 0);
+        } else {
+            tcg_out_st32_r(s, h.cond, datalo, h.base, h.index);
+        }
         break;
     case MO_64:
         /* We used pair allocation for datalo, so already should be aligned. */
@@ -1896,29 +1866,39 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg datalo,
         tcg_debug_assert(datahi == datalo + 1);
         /* STRD requires alignment; double-check that. */
         if (get_alignment_bits(opc) >= MO_64) {
-            tcg_out_strd_8(s, COND_AL, datalo, addrlo, 0);
+            if (h.index < 0) {
+                tcg_out_strd_8(s, h.cond, datalo, h.base, 0);
+            } else {
+                tcg_out_strd_r(s, h.cond, datalo, h.base, h.index);
+            }
+        } else if (h.index_scratch) {
+            tcg_out_st32_rwb(s, h.cond, datalo, h.index, h.base);
+            tcg_out_st32_12(s, h.cond, datahi, h.index, 4);
         } else {
-            tcg_out_st32_12(s, COND_AL, datalo, addrlo, 0);
-            tcg_out_st32_12(s, COND_AL, datahi, addrlo, 4);
+            tcg_out_dat_reg(s, h.cond, ARITH_ADD, TCG_REG_TMP,
+                            h.base, h.index, SHIFT_IMM_LSL(0));
+            tcg_out_st32_12(s, h.cond, datalo, TCG_REG_TMP, 0);
+            tcg_out_st32_12(s, h.cond, datahi, TCG_REG_TMP, 4);
         }
         break;
     default:
         g_assert_not_reached();
     }
 }
-#endif
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg datalo, TCGReg datahi,
                             TCGReg addrlo, TCGReg addrhi,
                             MemOpIdx oi, TCGType data_type)
 {
     MemOp opc = get_memop(oi);
+    HostAddress h;
 
 #ifdef CONFIG_SOFTMMU
-    TCGReg addend = tcg_out_tlb_read(s, addrlo, addrhi, opc, get_mmuidx(oi), 0);
-
-    tcg_out_qemu_st_index(s, COND_EQ, opc, datalo, datahi,
-                          addrlo, addend, true);
+    h.cond = COND_EQ;
+    h.base = addrlo;
+    h.index_scratch = true;
+    h.index = tcg_out_tlb_read(s, addrlo, addrhi, opc, get_mmuidx(oi), 0);
+    tcg_out_qemu_st_direct(s, opc, datalo, datahi, h);
 
     /* The conditional call must come last, as we're going to return here.  */
     tcg_insn_unit *label_ptr = s->code_ptr;
@@ -1926,17 +1906,19 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg datalo, TCGReg datahi,
 
     add_qemu_ldst_label(s, false, oi, data_type, datalo, datahi,
                         addrlo, addrhi, s->code_ptr, label_ptr);
-#else /* !CONFIG_SOFTMMU */
+#else
     unsigned a_bits = get_alignment_bits(opc);
+
+    h.cond = COND_AL;
     if (a_bits) {
         tcg_out_test_alignment(s, false, addrlo, addrhi, a_bits);
+        h.cond = COND_EQ;
     }
-    if (guest_base) {
-        tcg_out_qemu_st_index(s, COND_AL, opc, datalo, datahi,
-                              addrlo, TCG_REG_GUEST_BASE, false);
-    } else {
-        tcg_out_qemu_st_direct(s, opc, datalo, datahi, addrlo);
-    }
+
+    h.base = addrlo;
+    h.index = guest_base ? TCG_REG_GUEST_BASE : -1;
+    h.index_scratch = false;
+    tcg_out_qemu_st_direct(s, opc, datalo, datahi, h);
 #endif
 }
 
