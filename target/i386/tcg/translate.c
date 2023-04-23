@@ -476,7 +476,7 @@ static TCGv gen_op_deposit_reg_v(DisasContext *s, MemOp ot, int reg, TCGv dest, 
         break;
 #endif
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
     return cpu_regs[reg];
 }
@@ -660,7 +660,7 @@ static void gen_lea_v_seg(DisasContext *s, MemOp aflag, TCGv a0,
         }
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 
     if (ovr_seg >= 0) {
@@ -765,7 +765,7 @@ static void gen_helper_in_func(MemOp ot, TCGv v, TCGv_i32 n)
         gen_helper_inl(v, cpu_env, n);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 
@@ -782,7 +782,7 @@ static void gen_helper_out_func(MemOp ot, TCGv_i32 v, TCGv_i32 n)
         gen_helper_outl(cpu_env, v, n);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 
@@ -1932,7 +1932,7 @@ static void gen_rotc_rm_T1(DisasContext *s, MemOp ot, int op1,
             break;
 #endif
         default:
-            tcg_abort();
+            g_assert_not_reached();
         }
     } else {
         switch (ot) {
@@ -1951,7 +1951,7 @@ static void gen_rotc_rm_T1(DisasContext *s, MemOp ot, int op1,
             break;
 #endif
         default:
-            tcg_abort();
+            g_assert_not_reached();
         }
     }
     /* store */
@@ -2282,7 +2282,7 @@ static AddressParts gen_lea_modrm_0(CPUX86State *env, DisasContext *s,
         break;
 
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 
  done:
@@ -2434,7 +2434,7 @@ static inline uint32_t insn_get(CPUX86State *env, DisasContext *s, MemOp ot)
         ret = x86_ldl_code(env, s);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
     return ret;
 }
@@ -3723,7 +3723,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_op_mov_reg_v(s, MO_16, R_EAX, s->T0);
             break;
         default:
-            tcg_abort();
+            g_assert_not_reached();
         }
         break;
     case 0x99: /* CDQ/CWD */
@@ -3748,7 +3748,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             gen_op_mov_reg_v(s, MO_16, R_EDX, s->T0);
             break;
         default:
-            tcg_abort();
+            g_assert_not_reached();
         }
         break;
     case 0x1af: /* imul Gv, Ev */

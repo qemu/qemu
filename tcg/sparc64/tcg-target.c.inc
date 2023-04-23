@@ -496,6 +496,57 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
     tcg_out_movi_int(s, type, ret, arg, false, TCG_REG_T2);
 }
 
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
+{
+    g_assert_not_reached();
+}
+
+static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rs)
+{
+    g_assert_not_reached();
+}
+
+static void tcg_out_ext8u(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 0xff, ARITH_AND);
+}
+
+static void tcg_out_ext16u(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 16, SHIFT_SLL);
+    tcg_out_arithi(s, rd, rd, 16, SHIFT_SRL);
+}
+
+static void tcg_out_ext32s(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 0, SHIFT_SRA);
+}
+
+static void tcg_out_ext32u(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_arithi(s, rd, rs, 0, SHIFT_SRL);
+}
+
+static void tcg_out_exts_i32_i64(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_ext32s(s, rd, rs);
+}
+
+static void tcg_out_extu_i32_i64(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_ext32u(s, rd, rs);
+}
+
+static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg rd, TCGReg rs)
+{
+    tcg_out_mov(s, TCG_TYPE_I32, rd, rs);
+}
+
+static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2)
+{
+    return false;
+}
+
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg rd, TCGReg rs,
                              tcg_target_long imm)
 {
@@ -871,27 +922,6 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 static const tcg_insn_unit *qemu_ld_trampoline[(MO_SSIZE | MO_BSWAP) + 1];
 static const tcg_insn_unit *qemu_st_trampoline[(MO_SIZE | MO_BSWAP) + 1];
 
-static void emit_extend(TCGContext *s, TCGReg r, int op)
-{
-    /* Emit zero extend of 8, 16 or 32 bit data as
-     * required by the MO_* value op; do nothing for 64 bit.
-     */
-    switch (op & MO_SIZE) {
-    case MO_8:
-        tcg_out_arithi(s, r, r, 0xff, ARITH_AND);
-        break;
-    case MO_16:
-        tcg_out_arithi(s, r, r, 16, SHIFT_SLL);
-        tcg_out_arithi(s, r, r, 16, SHIFT_SRL);
-        break;
-    case MO_32:
-        tcg_out_arith(s, r, r, 0, SHIFT_SRL);
-        break;
-    case MO_64:
-        break;
-    }
-}
-
 static void build_trampolines(TCGContext *s)
 {
     static void * const qemu_ld_helpers[] = {
@@ -947,8 +977,6 @@ static void build_trampolines(TCGContext *s)
             tcg_out_nop(s);
         }
         qemu_st_trampoline[i] = tcg_splitwx_to_rx(s->code_ptr);
-
-        emit_extend(s, TCG_REG_O2, i);
 
         /* Set the retaddr operand.  */
         tcg_out_mov(s, TCG_TYPE_PTR, TCG_REG_O4, TCG_REG_O7);
@@ -1109,7 +1137,7 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
 
     /* If the guest address must be zero-extended, do so now.  */
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, r0, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, r0, addr);
         return r0;
     }
     return addr;
@@ -1193,7 +1221,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 
     /* We let the helper sign-extend SB and SW, but leave SL for here.  */
     if (is_64 && (memop & MO_SSIZE) == MO_SL) {
-        tcg_out_arithi(s, data, TCG_REG_O0, 0, SHIFT_SRA);
+        tcg_out_ext32s(s, data, TCG_REG_O0);
     } else {
         tcg_out_mov(s, TCG_TYPE_REG, data, TCG_REG_O0);
     }
@@ -1206,7 +1234,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned t_bits;
 
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, TCG_REG_T1, addr);
         addr = TCG_REG_T1;
     }
 
@@ -1296,7 +1324,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
 }
 
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
-                            MemOpIdx oi)
+                            MemOpIdx oi, TCGType data_type)
 {
     MemOp memop = get_memop(oi);
     tcg_insn_unit *label_ptr;
@@ -1322,7 +1350,8 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     /* TLB Miss.  */
 
     tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O1, addrz);
-    tcg_out_mov(s, TCG_TYPE_REG, TCG_REG_O2, data);
+    tcg_out_movext(s, (memop & MO_SIZE) == MO_64 ? TCG_TYPE_I64 : TCG_TYPE_I32,
+                   TCG_REG_O2, data_type, memop & MO_SIZE, data);
 
     func = qemu_st_trampoline[memop & (MO_BSWAP | MO_SIZE)];
     tcg_debug_assert(func != NULL);
@@ -1338,7 +1367,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
     unsigned t_bits;
 
     if (TARGET_LONG_BITS == 32) {
-        tcg_out_arithi(s, TCG_REG_T1, addr, 0, SHIFT_SRL);
+        tcg_out_ext32u(s, TCG_REG_T1, addr);
         addr = TCG_REG_T1;
     }
 
@@ -1613,8 +1642,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_qemu_ld(s, a0, a1, a2, true);
         break;
     case INDEX_op_qemu_st_i32:
+        tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I32);
+        break;
     case INDEX_op_qemu_st_i64:
-        tcg_out_qemu_st(s, a0, a1, a2);
+        tcg_out_qemu_st(s, a0, a1, a2, TCG_TYPE_I64);
         break;
 
     case INDEX_op_ld32s_i64:
@@ -1647,17 +1678,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
-    case INDEX_op_ext_i32_i64:
-    case INDEX_op_ext32s_i64:
-        tcg_out_arithi(s, a0, a1, 0, SHIFT_SRA);
-        break;
-    case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
-        tcg_out_arithi(s, a0, a1, 0, SHIFT_SRL);
-        break;
-    case INDEX_op_extrl_i64_i32:
-        tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
-        break;
     case INDEX_op_extrh_i64_i32:
         tcg_out_arithi(s, a0, a1, 32, SHIFT_SRLX);
         break;
@@ -1700,8 +1720,21 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
+    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
+    case INDEX_op_ext8s_i64:
+    case INDEX_op_ext8u_i32:
+    case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16s_i64:
+    case INDEX_op_ext16u_i32:
+    case INDEX_op_ext16u_i64:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 

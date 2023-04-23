@@ -1106,6 +1106,11 @@ static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
     tcg_out_insn(s, 3305, LDR, 0, rd);
 }
 
+static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2)
+{
+    return false;
+}
+
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg rd, TCGReg rs,
                              tcg_target_long imm)
 {
@@ -1419,12 +1424,57 @@ static inline void tcg_out_sxt(TCGContext *s, TCGType ext, MemOp s_bits,
     tcg_out_sbfm(s, ext, rd, rn, 0, bits);
 }
 
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rn)
+{
+    tcg_out_sxt(s, type, MO_8, rd, rn);
+}
+
+static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg rd, TCGReg rn)
+{
+    tcg_out_sxt(s, type, MO_16, rd, rn);
+}
+
+static void tcg_out_ext32s(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_sxt(s, TCG_TYPE_I64, MO_32, rd, rn);
+}
+
+static void tcg_out_exts_i32_i64(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_ext32s(s, rd, rn);
+}
+
 static inline void tcg_out_uxt(TCGContext *s, MemOp s_bits,
                                TCGReg rd, TCGReg rn)
 {
     /* Using ALIASes UXTB, UXTH of UBFM Wd, Wn, #0, #7|15 */
     int bits = (8 << s_bits) - 1;
     tcg_out_ubfm(s, 0, rd, rn, 0, bits);
+}
+
+static void tcg_out_ext8u(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_uxt(s, MO_8, rd, rn);
+}
+
+static void tcg_out_ext16u(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_uxt(s, MO_16, rd, rn);
+}
+
+static void tcg_out_ext32u(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_movr(s, TCG_TYPE_I32, rd, rn);
+}
+
+static void tcg_out_extu_i32_i64(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_ext32u(s, rd, rn);
+}
+
+static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg rd, TCGReg rn)
+{
+    tcg_out_mov(s, TCG_TYPE_I32, rd, rn);
 }
 
 static void tcg_out_addsubi(TCGContext *s, int ext, TCGReg rd,
@@ -1575,7 +1625,6 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     MemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
-    MemOp size = opc & MO_SIZE;
 
     if (!reloc_pc19(lb->label_ptr[0], tcg_splitwx_to_rx(s->code_ptr))) {
         return false;
@@ -1586,12 +1635,9 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, oi);
     tcg_out_adr(s, TCG_REG_X3, lb->raddr);
     tcg_out_call_int(s, qemu_ld_helpers[opc & MO_SIZE]);
-    if (opc & MO_SIGN) {
-        tcg_out_sxt(s, lb->type, size, lb->datalo_reg, TCG_REG_X0);
-    } else {
-        tcg_out_mov(s, size == MO_64, lb->datalo_reg, TCG_REG_X0);
-    }
 
+    tcg_out_movext(s, lb->type, lb->datalo_reg,
+                   TCG_TYPE_REG, opc & MO_SSIZE, TCG_REG_X0);
     tcg_out_goto(s, lb->raddr);
     return true;
 }
@@ -1778,7 +1824,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
         tcg_out_ldst_r(s, I3312_LDRX, data_r, addr_r, otype, off_r);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 
@@ -1800,7 +1846,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
         tcg_out_ldst_r(s, I3312_STRX, data_r, addr_r, otype, off_r);
         break;
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
 }
 
@@ -2212,7 +2258,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_bswap32_i64:
         tcg_out_rev(s, TCG_TYPE_I32, MO_32, a0, a1);
         if (a2 & TCG_BSWAP_OS) {
-            tcg_out_sxt(s, TCG_TYPE_I64, MO_32, a0, a0);
+            tcg_out_ext32s(s, a0, a0);
         }
         break;
     case INDEX_op_bswap32_i32:
@@ -2223,36 +2269,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_rev(s, TCG_TYPE_I32, MO_16, a0, a1);
         if (a2 & TCG_BSWAP_OS) {
             /* Output must be sign-extended. */
-            tcg_out_sxt(s, ext, MO_16, a0, a0);
+            tcg_out_ext16s(s, ext, a0, a0);
         } else if ((a2 & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
             /* Output must be zero-extended, but input isn't. */
-            tcg_out_uxt(s, MO_16, a0, a0);
+            tcg_out_ext16u(s, a0, a0);
         }
-        break;
-
-    case INDEX_op_ext8s_i64:
-    case INDEX_op_ext8s_i32:
-        tcg_out_sxt(s, ext, MO_8, a0, a1);
-        break;
-    case INDEX_op_ext16s_i64:
-    case INDEX_op_ext16s_i32:
-        tcg_out_sxt(s, ext, MO_16, a0, a1);
-        break;
-    case INDEX_op_ext_i32_i64:
-    case INDEX_op_ext32s_i64:
-        tcg_out_sxt(s, TCG_TYPE_I64, MO_32, a0, a1);
-        break;
-    case INDEX_op_ext8u_i64:
-    case INDEX_op_ext8u_i32:
-        tcg_out_uxt(s, MO_8, a0, a1);
-        break;
-    case INDEX_op_ext16u_i64:
-    case INDEX_op_ext16u_i32:
-        tcg_out_uxt(s, MO_16, a0, a1);
-        break;
-    case INDEX_op_extu_i32_i64:
-    case INDEX_op_ext32u_i64:
-        tcg_out_movr(s, TCG_TYPE_I32, a0, a1);
         break;
 
     case INDEX_op_deposit_i64:
@@ -2310,6 +2331,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     case INDEX_op_exit_tb:  /* Always emitted via tcg_out_exit_tb.  */
     case INDEX_op_goto_tb:  /* Always emitted via tcg_out_goto_tb.  */
+    case INDEX_op_ext8s_i32:  /* Always emitted via tcg_reg_alloc_op.  */
+    case INDEX_op_ext8s_i64:
+    case INDEX_op_ext8u_i32:
+    case INDEX_op_ext8u_i64:
+    case INDEX_op_ext16s_i64:
+    case INDEX_op_ext16s_i32:
+    case INDEX_op_ext16u_i64:
+    case INDEX_op_ext16u_i32:
+    case INDEX_op_ext32s_i64:
+    case INDEX_op_ext32u_i64:
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
+    case INDEX_op_extrl_i64_i32:
     default:
         g_assert_not_reached();
     }

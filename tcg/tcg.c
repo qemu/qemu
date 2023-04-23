@@ -105,7 +105,18 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
 static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
+static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
+static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
+static void tcg_out_ext8u(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_ext16u(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_ext32s(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_ext32u(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_exts_i32_i64(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_extu_i32_i64(TCGContext *s, TCGReg ret, TCGReg arg);
+static void tcg_out_extrl_i64_i32(TCGContext *s, TCGReg ret, TCGReg arg);
 static void tcg_out_addi_ptr(TCGContext *s, TCGReg, TCGReg, tcg_target_long);
+static bool tcg_out_xchg(TCGContext *s, TCGType type, TCGReg r1, TCGReg r2)
+    __attribute__((unused));
 static void tcg_out_exit_tb(TCGContext *s, uintptr_t arg);
 static void tcg_out_goto_tb(TCGContext *s, int which);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
@@ -341,6 +352,69 @@ static G_NORETURN
 void tcg_raise_tb_overflow(TCGContext *s)
 {
     siglongjmp(s->jmp_trans, -2);
+}
+
+/**
+ * tcg_out_movext -- move and extend
+ * @s: tcg context
+ * @dst_type: integral type for destination
+ * @dst: destination register
+ * @src_type: integral type for source
+ * @src_ext: extension to apply to source
+ * @src: source register
+ *
+ * Move or extend @src into @dst, depending on @src_ext and the types.
+ */
+static void __attribute__((unused))
+tcg_out_movext(TCGContext *s, TCGType dst_type, TCGReg dst,
+               TCGType src_type, MemOp src_ext, TCGReg src)
+{
+    switch (src_ext) {
+    case MO_UB:
+        tcg_out_ext8u(s, dst, src);
+        break;
+    case MO_SB:
+        tcg_out_ext8s(s, dst_type, dst, src);
+        break;
+    case MO_UW:
+        tcg_out_ext16u(s, dst, src);
+        break;
+    case MO_SW:
+        tcg_out_ext16s(s, dst_type, dst, src);
+        break;
+    case MO_UL:
+    case MO_SL:
+        if (dst_type == TCG_TYPE_I32) {
+            if (src_type == TCG_TYPE_I32) {
+                tcg_out_mov(s, TCG_TYPE_I32, dst, src);
+            } else {
+                tcg_out_extrl_i64_i32(s, dst, src);
+            }
+        } else if (src_type == TCG_TYPE_I32) {
+            if (src_ext & MO_SIGN) {
+                tcg_out_exts_i32_i64(s, dst, src);
+            } else {
+                tcg_out_extu_i32_i64(s, dst, src);
+            }
+        } else {
+            if (src_ext & MO_SIGN) {
+                tcg_out_ext32s(s, dst, src);
+            } else {
+                tcg_out_ext32u(s, dst, src);
+            }
+        }
+        break;
+    case MO_UQ:
+        tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
+        if (dst_type == TCG_TYPE_I32) {
+            tcg_out_extrl_i64_i32(s, dst, src);
+        } else {
+            tcg_out_mov(s, TCG_TYPE_I64, dst, src);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 #define C_PFX1(P, A)                    P##A
@@ -1174,9 +1248,7 @@ static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
 {
     TCGTemp *ts;
 
-    if (TCG_TARGET_REG_BITS == 32 && type != TCG_TYPE_I32) {
-        tcg_abort();
-    }
+    tcg_debug_assert(TCG_TARGET_REG_BITS == 64 || type == TCG_TYPE_I32);
 
     ts = tcg_global_alloc(s);
     ts->base_type = type;
@@ -3682,7 +3754,7 @@ static void temp_sync(TCGContext *s, TCGTemp *ts, TCGRegSet allocated_regs,
 
         case TEMP_VAL_DEAD:
         default:
-            tcg_abort();
+            g_assert_not_reached();
         }
         ts->mem_coherent = 1;
     }
@@ -3769,7 +3841,7 @@ static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet required_regs,
         }
     }
 
-    tcg_abort();
+    g_assert_not_reached();
 }
 
 static TCGReg tcg_reg_alloc_pair(TCGContext *s, TCGRegSet required_regs,
@@ -3815,7 +3887,7 @@ static TCGReg tcg_reg_alloc_pair(TCGContext *s, TCGRegSet required_regs,
             }
         }
     }
-    tcg_abort();
+    g_assert_not_reached();
 }
 
 /* Make sure the temporary is in a register.  If needed, allocate the register
@@ -3862,7 +3934,7 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
         break;
     case TEMP_VAL_DEAD:
     default:
-        tcg_abort();
+        g_assert_not_reached();
     }
     set_temp_val_reg(s, ts, reg);
 }
@@ -4498,11 +4570,50 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     }
 
     /* emit instruction */
-    if (def->flags & TCG_OPF_VECTOR) {
-        tcg_out_vec_op(s, op->opc, TCGOP_VECL(op), TCGOP_VECE(op),
-                       new_args, const_args);
-    } else {
-        tcg_out_op(s, op->opc, new_args, const_args);
+    switch (op->opc) {
+    case INDEX_op_ext8s_i32:
+        tcg_out_ext8s(s, TCG_TYPE_I32, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext8s_i64:
+        tcg_out_ext8s(s, TCG_TYPE_I64, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext8u_i32:
+    case INDEX_op_ext8u_i64:
+        tcg_out_ext8u(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext16s_i32:
+        tcg_out_ext16s(s, TCG_TYPE_I32, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext16s_i64:
+        tcg_out_ext16s(s, TCG_TYPE_I64, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext16u_i32:
+    case INDEX_op_ext16u_i64:
+        tcg_out_ext16u(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext32s_i64:
+        tcg_out_ext32s(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext32u_i64:
+        tcg_out_ext32u(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_ext_i32_i64:
+        tcg_out_exts_i32_i64(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_extu_i32_i64:
+        tcg_out_extu_i32_i64(s, new_args[0], new_args[1]);
+        break;
+    case INDEX_op_extrl_i64_i32:
+        tcg_out_extrl_i64_i32(s, new_args[0], new_args[1]);
+        break;
+    default:
+        if (def->flags & TCG_OPF_VECTOR) {
+            tcg_out_vec_op(s, op->opc, TCGOP_VECL(op), TCGOP_VECE(op),
+                           new_args, const_args);
+        } else {
+            tcg_out_op(s, op->opc, new_args, const_args);
+        }
+        break;
     }
 
     /* move the outputs in the correct register if needed */
