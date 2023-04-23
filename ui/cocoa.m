@@ -1934,7 +1934,7 @@ static void *call_qemu_main(void *opaque)
     exit(status);
 }
 
-static int cocoa_main()
+static int cocoa_main(void)
 {
     QemuThread thread;
 
