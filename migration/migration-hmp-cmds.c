@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 #include "block/qapi.h"
-#include "migration/misc.h"
 #include "migration/snapshot.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -30,6 +29,27 @@
 #include "qemu/sockets.h"
 #include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
+#include "sysemu/sysemu.h"
+#include "migration.h"
+
+static void migration_global_dump(Monitor *mon)
+{
+    MigrationState *ms = migrate_get_current();
+
+    monitor_printf(mon, "globals:\n");
+    monitor_printf(mon, "store-global-state: %s\n",
+                   ms->store_global_state ? "on" : "off");
+    monitor_printf(mon, "only-migratable: %s\n",
+                   only_migratable ? "on" : "off");
+    monitor_printf(mon, "send-configuration: %s\n",
+                   ms->send_configuration ? "on" : "off");
+    monitor_printf(mon, "send-section-footer: %s\n",
+                   ms->send_section_footer ? "on" : "off");
+    monitor_printf(mon, "decompress-error-check: %s\n",
+                   ms->decompress_error_check ? "on" : "off");
+    monitor_printf(mon, "clear-bitmap-shift: %u\n",
+                   ms->clear_bitmap_shift);
+}
 
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
@@ -613,23 +633,6 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
  cleanup:
     qapi_free_MigrateSetParameters(p);
     visit_free(v);
-    hmp_handle_error(mon, err);
-}
-
-void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    const char *protocol = qdict_get_str(qdict, "protocol");
-    const char *hostname = qdict_get_str(qdict, "hostname");
-    bool has_port        = qdict_haskey(qdict, "port");
-    int port             = qdict_get_try_int(qdict, "port", -1);
-    bool has_tls_port    = qdict_haskey(qdict, "tls-port");
-    int tls_port         = qdict_get_try_int(qdict, "tls-port", -1);
-    const char *cert_subject = qdict_get_try_str(qdict, "cert-subject");
-
-    qmp_client_migrate_info(protocol, hostname,
-                            has_port, port, has_tls_port, tls_port,
-                            cert_subject, &err);
     hmp_handle_error(mon, err);
 }
 

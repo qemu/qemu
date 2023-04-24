@@ -67,6 +67,7 @@
 #include "qemu/yank.h"
 #include "yank_functions.h"
 #include "sysemu/qtest.h"
+#include "options.h"
 
 const unsigned int postcopy_ram_discard_version;
 
@@ -1611,7 +1612,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         return -EINVAL;
     }
 
-    if (migrate_use_block()) {
+    if (migrate_block()) {
         error_setg(errp, "Block migration and snapshots are incompatible");
         return -EINVAL;
     }

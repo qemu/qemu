@@ -447,49 +447,9 @@ bool migration_is_blocked(Error **errp);
 bool migration_in_postcopy(void);
 MigrationState *migrate_get_current(void);
 
-bool migrate_postcopy(void);
-
-bool migrate_release_ram(void);
-bool migrate_postcopy_ram(void);
-bool migrate_zero_blocks(void);
-bool migrate_dirty_bitmaps(void);
-bool migrate_ignore_shared(void);
-bool migrate_validate_uuid(void);
-
-bool migrate_auto_converge(void);
-bool migrate_use_multifd(void);
-bool migrate_pause_before_switchover(void);
-int migrate_multifd_channels(void);
-MultiFDCompression migrate_multifd_compression(void);
-int migrate_multifd_zlib_level(void);
-int migrate_multifd_zstd_level(void);
-
-#ifdef CONFIG_LINUX
-bool migrate_use_zero_copy_send(void);
-#else
-#define migrate_use_zero_copy_send() (false)
-#endif
 int migrate_use_tls(void);
-int migrate_use_xbzrle(void);
-uint64_t migrate_xbzrle_cache_size(void);
-bool migrate_colo_enabled(void);
-
-bool migrate_use_block(void);
-bool migrate_use_block_incremental(void);
-int migrate_max_cpu_throttle(void);
-bool migrate_use_return_path(void);
 
 uint64_t ram_get_total_transferred_pages(void);
-
-bool migrate_use_compression(void);
-int migrate_compress_level(void);
-int migrate_compress_threads(void);
-int migrate_compress_wait_thread(void);
-int migrate_decompress_threads(void);
-bool migrate_use_events(void);
-bool migrate_postcopy_blocktime(void);
-bool migrate_background_snapshot(void);
-bool migrate_postcopy_preempt(void);
 
 /* Sending on the return path - generic and then for each message type */
 void migrate_send_rp_shut(MigrationIncomingState *mis,

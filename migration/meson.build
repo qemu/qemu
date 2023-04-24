@@ -22,6 +22,7 @@ softmmu_ss.add(files(
   'migration.c',
   'multifd.c',
   'multifd-zlib.c',
+  'options.c',
   'postcopy-ram.c',
   'savevm.c',
   'socket.c',

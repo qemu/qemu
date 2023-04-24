@@ -27,6 +27,7 @@
 #include "io/net-listener.h"
 #include "trace.h"
 #include "postcopy-ram.h"
+#include "options.h"
 
 struct SocketOutgoingArgs {
     SocketAddress *saddr;
@@ -97,7 +98,7 @@ static void socket_outgoing_migration(QIOTask *task,
 
     trace_migration_socket_outgoing_connected(data->hostname);
 
-    if (migrate_use_zero_copy_send() &&
+    if (migrate_zero_copy_send() &&
         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
         error_setg(&err, "Zero copy send feature not detected in host kernel");
     }
@@ -182,7 +183,7 @@ socket_start_incoming_migration_internal(SocketAddress *saddr,
 
     qio_net_listener_set_name(listener, "migration-socket-listener");
 
-    if (migrate_use_multifd()) {
+    if (migrate_multifd()) {
         num = migrate_multifd_channels();
     } else if (migrate_postcopy_preempt()) {
         num = RAM_CHANNEL_MAX;

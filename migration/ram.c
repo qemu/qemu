@@ -57,6 +57,7 @@
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
+#include "options.h"
 
 #include "hw/boards.h" /* for machine_dump_guest_core() */
 
@@ -155,14 +156,14 @@ static struct {
 
 static void XBZRLE_cache_lock(void)
 {
-    if (migrate_use_xbzrle()) {
+    if (migrate_xbzrle()) {
         qemu_mutex_lock(&XBZRLE.lock);
     }
 }
 
 static void XBZRLE_cache_unlock(void)
 {
-    if (migrate_use_xbzrle()) {
+    if (migrate_xbzrle()) {
         qemu_mutex_unlock(&XBZRLE.lock);
     }
 }
@@ -585,7 +586,7 @@ static void compress_threads_save_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression() || !comp_param) {
+    if (!migrate_compress() || !comp_param) {
         return;
     }
 
@@ -624,7 +625,7 @@ static int compress_threads_save_setup(void)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         return 0;
     }
     thread_count = migrate_compress_threads();
@@ -710,11 +711,10 @@ static size_t save_page_header(PageSearchStatus *pss, QEMUFile *f,
 static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
                                     uint64_t bytes_dirty_threshold)
 {
-    MigrationState *s = migrate_get_current();
-    uint64_t pct_initial = s->parameters.cpu_throttle_initial;
-    uint64_t pct_increment = s->parameters.cpu_throttle_increment;
-    bool pct_tailslow = s->parameters.cpu_throttle_tailslow;
-    int pct_max = s->parameters.max_cpu_throttle;
+    uint64_t pct_initial = migrate_cpu_throttle_initial();
+    uint64_t pct_increment = migrate_cpu_throttle_increment();
+    bool pct_tailslow = migrate_cpu_throttle_tailslow();
+    int pct_max = migrate_max_cpu_throttle();
 
     uint64_t throttle_now = cpu_throttle_get_percentage();
     uint64_t cpu_now, cpu_ideal, throttle_inc;
@@ -1136,7 +1136,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
         return;
     }
 
-    if (migrate_use_xbzrle()) {
+    if (migrate_xbzrle()) {
         double encoded_size, unencoded_size;
 
         xbzrle_counters.cache_miss_rate = (double)(xbzrle_counters.cache_miss -
@@ -1154,7 +1154,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
         rs->xbzrle_bytes_prev = xbzrle_counters.bytes;
     }
 
-    if (migrate_use_compression()) {
+    if (migrate_compress()) {
         compression_counters.busy_rate = (double)(compression_counters.busy -
             rs->compress_thread_busy_prev) / page_count;
         rs->compress_thread_busy_prev = compression_counters.busy;
@@ -1177,8 +1177,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
 
 static void migration_trigger_throttle(RAMState *rs)
 {
-    MigrationState *s = migrate_get_current();
-    uint64_t threshold = s->parameters.throttle_trigger_threshold;
+    uint64_t threshold = migrate_throttle_trigger_threshold();
     uint64_t bytes_xfer_period =
         stat64_get(&ram_counters.transferred) - rs->bytes_xfer_prev;
     uint64_t bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
@@ -1245,7 +1244,7 @@ static void migration_bitmap_sync(RAMState *rs)
         rs->num_dirty_pages_period = 0;
         rs->bytes_xfer_prev = stat64_get(&ram_counters.transferred);
     }
-    if (migrate_use_events()) {
+    if (migrate_events()) {
         uint64_t generation = stat64_get(&ram_counters.dirty_sync_count);
         qapi_event_send_migration_pass(generation);
     }
@@ -1625,7 +1624,7 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
             /* Flag that we've looped */
             pss->complete_round = true;
             /* After the first round, enable XBZRLE. */
-            if (migrate_use_xbzrle()) {
+            if (migrate_xbzrle()) {
                 rs->xbzrle_enabled = true;
             }
         }
@@ -2269,7 +2268,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
 
 static bool save_page_use_compression(RAMState *rs)
 {
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         return false;
     }
 
@@ -2361,7 +2360,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
      * if host page size == guest page size the dest guest during run may
      * still see partially copied pages which is data corruption.
      */
-    if (migrate_use_multifd() && !migration_in_postcopy()) {
+    if (migrate_multifd() && !migration_in_postcopy()) {
         return ram_save_multifd_page(pss->pss_channel, block, offset);
     }
 
@@ -2978,7 +2977,7 @@ static int xbzrle_init(void)
 {
     Error *local_err = NULL;
 
-    if (!migrate_use_xbzrle()) {
+    if (!migrate_xbzrle()) {
         return 0;
     }
 
@@ -3733,7 +3732,7 @@ static int wait_for_decompress_done(void)
 {
     int idx, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         return 0;
     }
 
@@ -3752,7 +3751,7 @@ static void compress_threads_load_cleanup(void)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         return;
     }
     thread_count = migrate_decompress_threads();
@@ -3793,7 +3792,7 @@ static int compress_threads_load_setup(QEMUFile *f)
 {
     int i, thread_count;
 
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         return 0;
     }
 
@@ -4259,7 +4258,7 @@ static int ram_load_precopy(QEMUFile *f)
     int flags = 0, ret = 0, invalid_flags = 0, len = 0, i = 0;
     /* ADVISE is earlier, it shows the source has the postcopy capability on */
     bool postcopy_advised = migration_incoming_postcopy_advised();
-    if (!migrate_use_compression()) {
+    if (!migrate_compress()) {
         invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
     }
 

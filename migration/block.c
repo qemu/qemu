@@ -28,6 +28,7 @@
 #include "migration/vmstate.h"
 #include "sysemu/block-backend.h"
 #include "trace.h"
+#include "options.h"
 
 #define BLK_MIG_BLOCK_SIZE           (1ULL << 20)
 #define BDRV_SECTORS_PER_DIRTY_CHUNK (BLK_MIG_BLOCK_SIZE >> BDRV_SECTOR_BITS)
@@ -416,7 +417,7 @@ static int init_blk_migration(QEMUFile *f)
         bmds->bulk_completed = 0;
         bmds->total_sectors = sectors;
         bmds->completed_sectors = 0;
-        bmds->shared_base = migrate_use_block_incremental();
+        bmds->shared_base = migrate_block_incremental();
 
         assert(i < num_bs);
         bmds_bs[i].bmds = bmds;
@@ -1000,7 +1001,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
 
 static bool block_is_active(void *opaque)
 {
-    return migrate_use_block();
+    return migrate_block();
 }
 
 static SaveVMHandlers savevm_block_handlers = {

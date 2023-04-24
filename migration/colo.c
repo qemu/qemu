@@ -36,6 +36,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/runstate.h"
 #include "net/filter.h"
+#include "options.h"
 
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
@@ -575,7 +576,7 @@ static void colo_process_checkpoint(MigrationState *s)
     trace_colo_vm_state_change("stop", "run");
 
     timer_mod(s->colo_delay_timer, qemu_clock_get_ms(QEMU_CLOCK_HOST) +
-              s->parameters.x_checkpoint_delay);
+              migrate_checkpoint_delay());
 
     while (s->state == MIGRATION_STATUS_COLO) {
         if (failover_get_state() != FAILOVER_STATUS_NONE) {
@@ -650,8 +651,7 @@ void colo_checkpoint_notify(void *opaque)
 
     qemu_event_set(&s->colo_checkpoint_event);
     s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-    next_notify_time = s->colo_checkpoint_time +
-                    s->parameters.x_checkpoint_delay;
+    next_notify_time = s->colo_checkpoint_time + migrate_checkpoint_delay();
     timer_mod(s->colo_delay_timer, next_notify_time);
 }
 
