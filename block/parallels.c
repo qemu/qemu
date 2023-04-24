@@ -733,6 +733,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, size, i;
+    int64_t file_nb_sectors;
     QemuOpts *opts = NULL;
     Error *local_err = NULL;
     char *buf;
@@ -740,6 +741,11 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
+    }
+
+    file_nb_sectors = bdrv_nb_sectors(bs->file->bs);
+    if (file_nb_sectors < 0) {
+        return -EINVAL;
     }
 
     ret = bdrv_pread(bs->file, 0, sizeof(ph), &ph, 0);
@@ -806,6 +812,17 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
 
     for (i = 0; i < s->bat_size; i++) {
         int64_t off = bat2sect(s, i);
+        if (off >= file_nb_sectors) {
+            if (flags & BDRV_O_CHECK) {
+                continue;
+            }
+            error_setg(errp, "parallels: Offset %" PRIi64 " in BAT[%d] entry "
+                       "is larger than file size (%" PRIi64 ")",
+                       off << BDRV_SECTOR_BITS, i,
+                       file_nb_sectors << BDRV_SECTOR_BITS);
+            ret = -EINVAL;
+            goto fail;
+        }
         if (off >= s->data_end) {
             s->data_end = off + s->tracks;
         }
