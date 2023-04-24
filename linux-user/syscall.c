@@ -8776,6 +8776,12 @@ static int do_getdents64(abi_long dirfd, abi_long arg2, abi_long count)
 _syscall2(int, pivot_root, const char *, new_root, const char *, put_old)
 #endif
 
+#if defined(TARGET_NR_open_tree) && defined(__NR_open_tree)
+#define __NR_sys_open_tree __NR_open_tree
+_syscall3(int, sys_open_tree, int, __dfd, const char *, __filename,
+          unsigned int, __flags)
+#endif
+
 #if defined(TARGET_NR_move_mount) && defined(__NR_move_mount)
 #define __NR_sys_move_mount __NR_move_mount
 _syscall5(int, sys_move_mount, int, __from_dfd, const char *, __from_pathname,
@@ -9198,6 +9204,33 @@ static abi_long do_syscall1(CPUArchState *cpu_env, int num, abi_long arg1,
 
             unlock_user(p2, arg2, 0);
             unlock_user(p4, arg4, 0);
+
+            return ret;
+        }
+#endif
+#if defined(TARGET_NR_open_tree) && defined(__NR_open_tree)
+    case TARGET_NR_open_tree:
+        {
+            void *p2;
+            int host_flags;
+
+            if (!arg2) {
+                return -TARGET_EFAULT;
+            }
+
+            p2 = lock_user_string(arg2);
+            if (!p2) {
+                return -TARGET_EFAULT;
+            }
+
+            host_flags = arg3 & ~TARGET_O_CLOEXEC;
+            if (arg3 & TARGET_O_CLOEXEC) {
+                host_flags |= O_CLOEXEC;
+            }
+
+            ret = get_errno(sys_open_tree(arg1, p2, host_flags));
+
+            unlock_user(p2, arg2, 0);
 
             return ret;
         }
