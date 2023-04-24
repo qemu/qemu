@@ -59,7 +59,12 @@ static inline TCGv_i32 load_cpu_offset(int offset)
     return tmp;
 }
 
-#define load_cpu_field(name) load_cpu_offset(offsetof(CPUARMState, name))
+/* Load from a 32-bit field to a TCGv_i32 */
+#define load_cpu_field(name)                                            \
+    ({                                                                  \
+        QEMU_BUILD_BUG_ON(sizeof_field(CPUARMState, name) != 4);        \
+        load_cpu_offset(offsetof(CPUARMState, name));                   \
+    })
 
 /* Load from the low half of a 64-bit field to a TCGv_i32 */
 #define load_cpu_field_low32(name)                                      \
@@ -70,9 +75,13 @@ static inline TCGv_i32 load_cpu_offset(int offset)
 
 void store_cpu_offset(TCGv_i32 var, int offset, int size);
 
-#define store_cpu_field(var, name)                              \
-    store_cpu_offset(var, offsetof(CPUARMState, name),          \
-                     sizeof_field(CPUARMState, name))
+#define store_cpu_field(val, name)                                      \
+    ({                                                                  \
+        QEMU_BUILD_BUG_ON(sizeof_field(CPUARMState, name) != 4          \
+                          && sizeof_field(CPUARMState, name) != 1);     \
+        store_cpu_offset(val, offsetof(CPUARMState, name),              \
+                         sizeof_field(CPUARMState, name));              \
+    })
 
 #define store_cpu_field_constant(val, name) \
     store_cpu_field(tcg_constant_i32(val), name)
