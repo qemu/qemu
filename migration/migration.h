@@ -310,7 +310,7 @@ struct MigrationState {
     int64_t downtime_start;
     int64_t downtime;
     int64_t expected_downtime;
-    bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
+    bool capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
     /*
      * Whether guest was running when we enter the completion stage.

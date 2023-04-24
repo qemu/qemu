@@ -364,8 +364,7 @@ static bool migrate_late_block_activate(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[
-        MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
+    return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
 /*
@@ -944,7 +943,7 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
 #endif
         caps = g_malloc0(sizeof(*caps));
         caps->capability = i;
-        caps->state = s->enabled_capabilities[i];
+        caps->state = s->capabilities[i];
         QAPI_LIST_APPEND(tail, caps);
     }
 
@@ -1140,24 +1139,26 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     size_t page_size = qemu_target_page_size();
 
     info->ram = g_malloc0(sizeof(*info->ram));
-    info->ram->transferred = stat64_get(&ram_atomic_counters.transferred);
+    info->ram->transferred = stat64_get(&ram_counters.transferred);
     info->ram->total = ram_bytes_total();
-    info->ram->duplicate = stat64_get(&ram_atomic_counters.duplicate);
+    info->ram->duplicate = stat64_get(&ram_counters.zero_pages);
     /* legacy value.  It is not used anymore */
     info->ram->skipped = 0;
-    info->ram->normal = stat64_get(&ram_atomic_counters.normal);
+    info->ram->normal = stat64_get(&ram_counters.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
     info->ram->mbps = s->mbps;
-    info->ram->dirty_sync_count = ram_counters.dirty_sync_count;
+    info->ram->dirty_sync_count =
+        stat64_get(&ram_counters.dirty_sync_count);
     info->ram->dirty_sync_missed_zero_copy =
-            ram_counters.dirty_sync_missed_zero_copy;
-    info->ram->postcopy_requests = ram_counters.postcopy_requests;
+        stat64_get(&ram_counters.dirty_sync_missed_zero_copy);
+    info->ram->postcopy_requests =
+        stat64_get(&ram_counters.postcopy_requests);
     info->ram->page_size = page_size;
-    info->ram->multifd_bytes = ram_counters.multifd_bytes;
+    info->ram->multifd_bytes = stat64_get(&ram_counters.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;
-    info->ram->precopy_bytes = ram_counters.precopy_bytes;
-    info->ram->downtime_bytes = ram_counters.downtime_bytes;
-    info->ram->postcopy_bytes = stat64_get(&ram_atomic_counters.postcopy_bytes);
+    info->ram->precopy_bytes = stat64_get(&ram_counters.precopy_bytes);
+    info->ram->downtime_bytes = stat64_get(&ram_counters.downtime_bytes);
+    info->ram->postcopy_bytes = stat64_get(&ram_counters.postcopy_bytes);
 
     if (migrate_use_xbzrle()) {
         info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
@@ -1298,30 +1299,20 @@ WriteTrackingSupport migrate_query_write_tracking(void)
 }
 
 /**
- * @migration_caps_check - check capability validity
+ * @migration_caps_check - check capability compatibility
  *
- * @cap_list: old capability list, array of bool
- * @params: new capabilities to be applied soon
+ * @old_caps: old capability list
+ * @new_caps: new capability list
  * @errp: set *errp if the check failed, with reason
  *
  * Returns true if check passed, otherwise false.
  */
-static bool migrate_caps_check(bool *cap_list,
-                               MigrationCapabilityStatusList *params,
-                               Error **errp)
+static bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
-    MigrationCapabilityStatusList *cap;
-    bool old_postcopy_cap;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
-    old_postcopy_cap = cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM];
-
-    for (cap = params; cap; cap = cap->next) {
-        cap_list[cap->value->capability] = cap->value->state;
-    }
-
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
-    if (cap_list[MIGRATION_CAPABILITY_BLOCK]) {
+    if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
         error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
                    "block migration");
         error_append_hint(errp, "Use drive_mirror+NBD instead.\n");
@@ -1330,7 +1321,7 @@ static bool migrate_caps_check(bool *cap_list,
 #endif
 
 #ifndef CONFIG_REPLICATION
-    if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
+    if (new_caps[MIGRATION_CAPABILITY_X_COLO]) {
         error_setg(errp, "QEMU compiled without replication module"
                    " can't enable COLO");
         error_append_hint(errp, "Please enable replication before COLO.\n");
@@ -1338,12 +1329,13 @@ static bool migrate_caps_check(bool *cap_list,
     }
 #endif
 
-    if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+    if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
         /* This check is reasonably expensive, so only when it's being
          * set the first time, also it's only the destination that needs
          * special support.
          */
-        if (!old_postcopy_cap && runstate_check(RUN_STATE_INMIGRATE) &&
+        if (!old_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] &&
+            runstate_check(RUN_STATE_INMIGRATE) &&
             !postcopy_ram_supported_by_host(mis)) {
             /* postcopy_ram_supported_by_host will have emitted a more
              * detailed message
@@ -1352,13 +1344,13 @@ static bool migrate_caps_check(bool *cap_list,
             return false;
         }
 
-        if (cap_list[MIGRATION_CAPABILITY_X_IGNORE_SHARED]) {
+        if (new_caps[MIGRATION_CAPABILITY_X_IGNORE_SHARED]) {
             error_setg(errp, "Postcopy is not compatible with ignore-shared");
             return false;
         }
     }
 
-    if (cap_list[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT]) {
+    if (new_caps[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT]) {
         WriteTrackingSupport wt_support;
         int idx;
         /*
@@ -1382,7 +1374,7 @@ static bool migrate_caps_check(bool *cap_list,
          */
         for (idx = 0; idx < check_caps_background_snapshot.size; idx++) {
             int incomp_cap = check_caps_background_snapshot.caps[idx];
-            if (cap_list[incomp_cap]) {
+            if (new_caps[incomp_cap]) {
                 error_setg(errp,
                         "Background-snapshot is not compatible with %s",
                         MigrationCapability_str(incomp_cap));
@@ -1392,10 +1384,10 @@ static bool migrate_caps_check(bool *cap_list,
     }
 
 #ifdef CONFIG_LINUX
-    if (cap_list[MIGRATION_CAPABILITY_ZERO_COPY_SEND] &&
-        (!cap_list[MIGRATION_CAPABILITY_MULTIFD] ||
-         cap_list[MIGRATION_CAPABILITY_COMPRESS] ||
-         cap_list[MIGRATION_CAPABILITY_XBZRLE] ||
+    if (new_caps[MIGRATION_CAPABILITY_ZERO_COPY_SEND] &&
+        (!new_caps[MIGRATION_CAPABILITY_MULTIFD] ||
+         new_caps[MIGRATION_CAPABILITY_COMPRESS] ||
+         new_caps[MIGRATION_CAPABILITY_XBZRLE] ||
          migrate_multifd_compression() ||
          migrate_use_tls())) {
         error_setg(errp,
@@ -1403,15 +1395,15 @@ static bool migrate_caps_check(bool *cap_list,
         return false;
     }
 #else
-    if (cap_list[MIGRATION_CAPABILITY_ZERO_COPY_SEND]) {
+    if (new_caps[MIGRATION_CAPABILITY_ZERO_COPY_SEND]) {
         error_setg(errp,
                    "Zero copy currently only available on Linux");
         return false;
     }
 #endif
 
-    if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT]) {
-        if (!cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+    if (new_caps[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT]) {
+        if (!new_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
             error_setg(errp, "Postcopy preempt requires postcopy-ram");
             return false;
         }
@@ -1422,14 +1414,14 @@ static bool migrate_caps_check(bool *cap_list,
          * different compression channels, which is not compatible with the
          * preempt assumptions on channel assignments.
          */
-        if (cap_list[MIGRATION_CAPABILITY_COMPRESS]) {
+        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
             error_setg(errp, "Postcopy preempt not compatible with compress");
             return false;
         }
     }
 
-    if (cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
-        if (cap_list[MIGRATION_CAPABILITY_COMPRESS]) {
+    if (new_caps[MIGRATION_CAPABILITY_MULTIFD]) {
+        if (new_caps[MIGRATION_CAPABILITY_COMPRESS]) {
             error_setg(errp, "Multifd is not compatible with compress");
             return false;
         }
@@ -1485,20 +1477,24 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 {
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
-    bool cap_list[MIGRATION_CAPABILITY__MAX];
+    bool new_caps[MIGRATION_CAPABILITY__MAX];
 
     if (migration_is_running(s->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
 
-    memcpy(cap_list, s->enabled_capabilities, sizeof(cap_list));
-    if (!migrate_caps_check(cap_list, params, errp)) {
+    memcpy(new_caps, s->capabilities, sizeof(new_caps));
+    for (cap = params; cap; cap = cap->next) {
+        new_caps[cap->value->capability] = cap->value->state;
+    }
+
+    if (!migrate_caps_check(s->capabilities, new_caps, errp)) {
         return;
     }
 
     for (cap = params; cap; cap = cap->next) {
-        s->enabled_capabilities[cap->value->capability] = cap->value->state;
+        s->capabilities[cap->value->capability] = cap->value->state;
     }
 }
 
@@ -2567,7 +2563,7 @@ bool migrate_release_ram(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
+    return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
 bool migrate_postcopy_ram(void)
@@ -2576,7 +2572,7 @@ bool migrate_postcopy_ram(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
 
 bool migrate_postcopy(void)
@@ -2590,7 +2586,7 @@ bool migrate_auto_converge(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
+    return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
 }
 
 bool migrate_zero_blocks(void)
@@ -2599,7 +2595,7 @@ bool migrate_zero_blocks(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
+    return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
 }
 
 bool migrate_postcopy_blocktime(void)
@@ -2608,7 +2604,7 @@ bool migrate_postcopy_blocktime(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
 bool migrate_use_compression(void)
@@ -2617,7 +2613,7 @@ bool migrate_use_compression(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
+    return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 int migrate_compress_level(void)
@@ -2662,7 +2658,7 @@ bool migrate_dirty_bitmaps(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
+    return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
 bool migrate_ignore_shared(void)
@@ -2671,7 +2667,7 @@ bool migrate_ignore_shared(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
+    return s->capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
 }
 
 bool migrate_validate_uuid(void)
@@ -2680,7 +2676,7 @@ bool migrate_validate_uuid(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
+    return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
 }
 
 bool migrate_use_events(void)
@@ -2689,7 +2685,7 @@ bool migrate_use_events(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_EVENTS];
+    return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 bool migrate_use_multifd(void)
@@ -2698,7 +2694,7 @@ bool migrate_use_multifd(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
+    return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 bool migrate_pause_before_switchover(void)
@@ -2707,8 +2703,7 @@ bool migrate_pause_before_switchover(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[
-        MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
+    return s->capabilities[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
 }
 
 int migrate_multifd_channels(void)
@@ -2755,7 +2750,7 @@ bool migrate_use_zero_copy_send(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
+    return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
 }
 #endif
 
@@ -2774,7 +2769,7 @@ int migrate_use_xbzrle(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
+    return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
 uint64_t migrate_xbzrle_cache_size(void)
@@ -2801,7 +2796,7 @@ bool migrate_use_block(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_BLOCK];
+    return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
 
 bool migrate_use_return_path(void)
@@ -2810,7 +2805,7 @@ bool migrate_use_return_path(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
+    return s->capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
 }
 
 bool migrate_use_block_incremental(void)
@@ -2828,7 +2823,7 @@ bool migrate_background_snapshot(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
+    return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
 bool migrate_postcopy_preempt(void)
@@ -2837,7 +2832,7 @@ bool migrate_postcopy_preempt(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
+    return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
 }
 
 /* migration thread support */
@@ -3444,12 +3439,10 @@ static void migration_completion(MigrationState *s)
                                             MIGRATION_STATUS_DEVICE);
             }
             if (ret >= 0) {
+                s->block_inactive = inactivate;
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
                                                          inactivate);
-            }
-            if (inactivate && ret >= 0) {
-                s->block_inactive = true;
             }
         }
         qemu_mutex_unlock_iothread();
@@ -3522,6 +3515,7 @@ fail_invalidate:
         bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
+            s->block_inactive = true;
         } else {
             s->block_inactive = false;
         }
@@ -3580,7 +3574,7 @@ fail:
 bool migrate_colo_enabled(void)
 {
     MigrationState *s = migrate_get_current();
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_COLO];
+    return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
 typedef enum MigThrError {
@@ -3778,7 +3772,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 static uint64_t migration_total_bytes(MigrationState *s)
 {
     return qemu_file_total_transferred(s->to_dst_file) +
-        ram_counters.multifd_bytes;
+        stat64_get(&ram_counters.multifd_bytes);
 }
 
 static void migration_calculate_complete(MigrationState *s)
@@ -4443,7 +4437,7 @@ void migration_global_dump(Monitor *mon)
 }
 
 #define DEFINE_PROP_MIG_CAP(name, x)             \
-    DEFINE_PROP_BOOL(name, MigrationState, enabled_capabilities[x], false)
+    DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
 
 static Property migration_properties[] = {
     DEFINE_PROP_BOOL("store-global-state", MigrationState,
@@ -4632,27 +4626,14 @@ static void migration_instance_init(Object *obj)
  */
 static bool migration_object_check(MigrationState *ms, Error **errp)
 {
-    MigrationCapabilityStatusList *head = NULL;
     /* Assuming all off */
-    bool cap_list[MIGRATION_CAPABILITY__MAX] = { 0 }, ret;
-    int i;
+    bool old_caps[MIGRATION_CAPABILITY__MAX] = { 0 };
 
     if (!migrate_params_check(&ms->parameters, errp)) {
         return false;
     }
 
-    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        if (ms->enabled_capabilities[i]) {
-            QAPI_LIST_PREPEND(head, migrate_cap_add(i, true));
-        }
-    }
-
-    ret = migrate_caps_check(cap_list, head, errp);
-
-    /* It works with head == NULL */
-    qapi_free_MigrationCapabilityStatusList(head);
-
-    return ret;
+    return migrate_caps_check(old_caps, ms->capabilities, errp);
 }
 
 static const TypeInfo migration_type = {
