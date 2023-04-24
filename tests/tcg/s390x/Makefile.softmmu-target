@@ -23,3 +23,6 @@ include $(S390X_SRC)/pgm-specification.mak
 $(PGM_SPECIFICATION_TESTS): pgm-specification-softmmu.o
 $(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-softmmu.o
 TESTS += $(PGM_SPECIFICATION_TESTS)
+
+# We don't currently support the multiarch system tests
+undefine MULTIARCH_TESTS

@@ -152,13 +152,17 @@ PLUGINS=$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c)))
 
 # We need to ensure expand the run-plugin-TEST-with-PLUGIN
 # pre-requistes manually here as we can't use stems to handle it. We
-# also add some special helpers the run-plugin- rules can use bellow.
+# only expand MULTIARCH_TESTS which are common on most of our targets
+# to avoid an exponential explosion as new tests are added. We also
+# add some special helpers the run-plugin- rules can use bellow.
 
+ifneq ($(MULTIARCH_TESTS),)
 $(foreach p,$(PLUGINS), \
-	$(foreach t,$(TESTS),\
+	$(foreach t,$(MULTIARCH_TESTS),\
 		$(eval run-plugin-$(t)-with-$(p): $t $p) \
 		$(eval RUN_TESTS+=run-plugin-$(t)-with-$(p))))
-endif
+endif # MULTIARCH_TESTS
+endif # CONFIG_PLUGIN
 
 strip-plugin = $(wordlist 1, 1, $(subst -with-, ,$1))
 extract-plugin = $(wordlist 2, 2, $(subst -with-, ,$1))

@@ -29,3 +29,6 @@ QEMU_OPTS += -M tricore_testboard -cpu tc27x -nographic -kernel
 
 %.tst: %.o
 	$(LD) $(LDFLAGS) $< -o $@
+
+# We don't currently support the multiarch system tests
+undefine MULTIARCH_TESTS

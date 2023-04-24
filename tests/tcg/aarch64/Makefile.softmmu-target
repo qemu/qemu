@@ -81,6 +81,4 @@ pauth-3:
 	$(call skip-test, "BUILD of $@", "missing compiler support")
 run-pauth-3:
 	$(call skip-test, "RUN of pauth-3", "not built")
-run-plugin-pauth-3-with-%:
-	$(call skip-test, "RUN of pauth-3 ($*)", "not built")
 endif

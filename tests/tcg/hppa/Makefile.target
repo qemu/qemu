@@ -10,8 +10,6 @@ EXTRA_RUNS+=run-test-mmap-4096 # run-test-mmap-16384 run-test-mmap-65536
 # it requires the full vdso with dwarf2 unwind info.
 run-signals: signals
 	$(call skip-test, $<, "BROKEN awaiting vdso support")
-run-plugin-signals-with-%:
-	$(call skip-test, $<, "BROKEN awaiting vdso support")
 
 VPATH += $(SRC_PATH)/tests/tcg/hppa
 TESTS += stby
