@@ -524,14 +524,43 @@ parallels_check_leak(BlockDriverState *bs, BdrvCheckResult *res,
     return 0;
 }
 
+static void parallels_collect_statistics(BlockDriverState *bs,
+                                         BdrvCheckResult *res,
+                                         BdrvCheckMode fix)
+{
+    BDRVParallelsState *s = bs->opaque;
+    int64_t off, prev_off;
+    uint32_t i;
+
+    res->bfi.total_clusters = s->bat_size;
+    res->bfi.compressed_clusters = 0; /* compression is not supported */
+
+    prev_off = 0;
+    for (i = 0; i < s->bat_size; i++) {
+        off = bat2sect(s, i) << BDRV_SECTOR_BITS;
+        /*
+         * If BDRV_FIX_ERRORS is not set, out-of-image BAT entries were not
+         * fixed. Skip not allocated and out-of-image BAT entries.
+         */
+        if (off == 0 || off + s->cluster_size > res->image_end_offset) {
+            prev_off = 0;
+            continue;
+        }
+
+        if (prev_off != 0 && (prev_off + s->cluster_size) != off) {
+            res->bfi.fragmented_clusters++;
+        }
+        prev_off = off;
+        res->bfi.allocated_clusters++;
+    }
+}
+
 static int coroutine_fn GRAPH_RDLOCK
 parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
                    BdrvCheckMode fix)
 {
     BDRVParallelsState *s = bs->opaque;
-    int64_t prev_off;
     int ret;
-    uint32_t i;
 
     qemu_co_mutex_lock(&s->lock);
 
@@ -547,28 +576,7 @@ parallels_co_check(BlockDriverState *bs, BdrvCheckResult *res,
         goto out;
     }
 
-    res->bfi.total_clusters = s->bat_size;
-    res->bfi.compressed_clusters = 0; /* compression is not supported */
-
-    prev_off = 0;
-    for (i = 0; i < s->bat_size; i++) {
-        int64_t off = bat2sect(s, i) << BDRV_SECTOR_BITS;
-        /*
-         * If BDRV_FIX_ERRORS is not set, out-of-image BAT entries were not
-         * fixed. Skip not allocated and out-of-image BAT entries.
-         */
-        if (off == 0 || off + s->cluster_size > res->image_end_offset) {
-            prev_off = 0;
-            continue;
-        }
-
-        res->bfi.allocated_clusters++;
-
-        if (prev_off != 0 && (prev_off + s->cluster_size) != off) {
-            res->bfi.fragmented_clusters++;
-        }
-        prev_off = off;
-    }
+    parallels_collect_statistics(bs, res, fix);
 
 out:
     qemu_co_mutex_unlock(&s->lock);
