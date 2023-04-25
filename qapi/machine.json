@@ -517,7 +517,7 @@
 # @targets: Target root bridge IDs from -device ...,id=<ID> for each root
 #           bridge.
 #
-# Since 7.1
+# Since: 7.1
 ##
 { 'struct': 'CXLFixedMemoryWindowOptions',
   'data': {
@@ -532,7 +532,7 @@
 #
 # @cxl-fmw: List of CXLFixedMemoryWindowOptions
 #
-# Since 7.1
+# Since: 7.1
 ##
 { 'struct' : 'CXLFMWProperties',
   'data': { 'cxl-fmw': ['CXLFixedMemoryWindowOptions'] }

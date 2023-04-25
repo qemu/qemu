@@ -1963,7 +1963,7 @@
 #
 # data: migration thread name
 #
-# returns: information about migration threads
+# Returns: information about migration threads
 #
 # Since: 7.2
 ##
