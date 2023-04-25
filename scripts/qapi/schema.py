@@ -701,6 +701,7 @@ class QAPISchemaMember:
 
     def describe(self, info):
         role = self.role
+        meta = 'type'
         defined_in = self.defined_in
         assert defined_in
 
@@ -712,13 +713,17 @@ class QAPISchemaMember:
                 # Implicit type created for a command's dict 'data'
                 assert role == 'member'
                 role = 'parameter'
+                meta = 'command'
+                defined_in = defined_in[:-4]
             elif defined_in.endswith('-base'):
                 # Implicit type created for a union's dict 'base'
                 role = 'base ' + role
+                defined_in = defined_in[:-5]
             else:
                 assert False
-        elif defined_in != info.defn_name:
-            return "%s '%s' of type '%s'" % (role, self.name, defined_in)
+
+        if defined_in != info.defn_name:
+            return "%s '%s' of %s '%s'" % (role, self.name, meta, defined_in)
         return "%s '%s'" % (role, self.name)
 
 
