@@ -5155,7 +5155,7 @@
 # Driver specific image amend options for qcow2.
 # For now, only encryption options can be amended
 #
-# @encrypt          Encryption options to be amended
+# @encrypt: Encryption options to be amended
 #
 # Since: 5.1
 ##

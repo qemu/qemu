@@ -17,7 +17,7 @@
 #
 # @subnet-prefix: Subnet Prefix
 #
-# @interface-id : Interface ID
+# @interface-id: Interface ID
 #
 # Since: 4.0
 #
