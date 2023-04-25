@@ -637,7 +637,7 @@
 #
 # Since: 1.4
 #
-# Example:
+# Examples:
 #
 # -> { "execute" : "chardev-add",
 #      "arguments" : { "id" : "foo",
@@ -673,7 +673,7 @@
 #
 # Since: 2.10
 #
-# Example:
+# Examples:
 #
 # -> { "execute" : "chardev-change",
 #      "arguments" : { "id" : "baz",

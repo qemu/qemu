@@ -954,7 +954,7 @@
 #
 # Since: 2.7
 #
-# Example:
+# Examples:
 #
 # For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu POWER8:
 #
@@ -1677,8 +1677,9 @@
 # Since: 7.2
 #
 # Example:
-#   {"execute": "dumpdtb"}
-#    "arguments": { "filename": "fdt.dtb" } }
+# -> { "execute": "dumpdtb" }
+#      "arguments": { "filename": "fdt.dtb" } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'dumpdtb',

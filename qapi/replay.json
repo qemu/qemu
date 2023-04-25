@@ -81,6 +81,7 @@
 # Example:
 #
 # -> { "execute": "replay-break", "arguments": { "icount": 220414 } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'replay-break', 'data': { 'icount': 'int' } }
@@ -96,6 +97,7 @@
 # Example:
 #
 # -> { "execute": "replay-delete-break" }
+# <- { "return": {} }
 #
 ##
 { 'command': 'replay-delete-break' }
@@ -117,5 +119,6 @@
 # Example:
 #
 # -> { "execute": "replay-seek", "arguments": { "icount": 220414 } }
+# <- { "return": {} }
 ##
 { 'command': 'replay-seek', 'data': { 'icount': 'int' } }

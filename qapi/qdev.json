@@ -100,7 +100,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# Examples:
 #
 # -> { "execute": "device_del",
 #      "arguments": { "id": "net1" } }

@@ -580,10 +580,9 @@
 #
 # Example:
 #
-# <-   { "event": "RTC_CHANGE",
-#        "data": { "offset": 78 },
-#        "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-#
+# <- { "event": "RTC_CHANGE",
+#      "data": { "offset": 78 },
+#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int', 'qom-path': 'str' } }

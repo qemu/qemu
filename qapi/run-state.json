@@ -258,9 +258,8 @@
 #
 # Example:
 #
-# <-   { "event": "SUSPEND_DISK",
-#        "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
-#
+# <- { "event": "SUSPEND_DISK",
+#      "timestamp": { "seconds": 1344456160, "microseconds": 309119 } }
 ##
 { 'event': 'SUSPEND_DISK' }
 

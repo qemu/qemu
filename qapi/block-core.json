@@ -4574,9 +4574,8 @@
 #
 # Since: 2.9
 #
-# Example:
+# Examples:
 #
-# 1.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
 #           "driver": "qcow2",
@@ -4589,7 +4588,6 @@
 #     }
 # <- { "return": {} }
 #
-# 2.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
 #           "driver": "qcow2",
@@ -5596,7 +5594,7 @@
 #
 # Since: 2.7
 #
-# Example:
+# Examples:
 #
 # 1. Add a new node to a quorum
 # -> { "execute": "blockdev-add",
@@ -5646,7 +5644,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# Examples:
 #
 # 1. Move a node into an IOThread
 # -> { "execute": "x-blockdev-set-iothread",
@@ -5731,18 +5729,18 @@
 #
 # Since: 2.0
 #
-# Example:
+# Examples:
 #
 # 1. Read operation
 #
-# { "event": "QUORUM_REPORT_BAD",
+# <- { "event": "QUORUM_REPORT_BAD",
 #      "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
 #                "type": "read" },
 #      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 #
 # 2. Flush operation
 #
-# { "event": "QUORUM_REPORT_BAD",
+# <- { "event": "QUORUM_REPORT_BAD",
 #      "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
 #                "type": "flush", "error": "Broken pipe" },
 #      "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }

@@ -914,15 +914,13 @@
 #
 # Since: 7.2
 #
-# Example:
+# Examples:
 #
 # <- { "event": "NETDEV_STREAM_CONNECTED",
 #      "data": { "netdev-id": "netdev0",
 #                "addr": { "port": "47666", "ipv6": true,
 #                          "host": "::1", "type": "inet" } },
 #      "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
-#
-# or
 #
 # <- { "event": "NETDEV_STREAM_CONNECTED",
 #      "data": { "netdev-id": "netdev0",
