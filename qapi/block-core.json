@@ -5784,7 +5784,7 @@
 #          - If any snapshot matching @name exists, or @name is empty,
 #            GenericError
 #          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
+#            GenericError
 #
 # Since: 1.7
 #
@@ -5820,7 +5820,7 @@
 #          - If @device is not a valid block device, GenericError
 #          - If snapshot not found, GenericError
 #          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
+#            GenericError
 #          - If @id and @name are both not specified, GenericError
 #
 # Since: 1.7

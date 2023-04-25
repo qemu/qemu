@@ -985,7 +985,7 @@
 #             to 100
 #
 # Returns: - Nothing on success
-#          - If key is unknown or redundant, InvalidParameter
+#          - If key is unknown or redundant, GenericError
 #
 # Since: 1.3
 #
