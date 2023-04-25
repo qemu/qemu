@@ -1029,7 +1029,7 @@
 #
 # Returns: - Nothing on success
 #          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KvmMissingCap
+#            kernel module cannot support it, KVMMissingCap
 #          - If no balloon device is present, DeviceNotActive
 #
 # Notes: This command just issues a request to the guest.  When it returns,
@@ -1067,7 +1067,7 @@
 #
 # Returns: - @BalloonInfo on success
 #          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KvmMissingCap
+#            kernel module cannot support it, KVMMissingCap
 #          - If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14
