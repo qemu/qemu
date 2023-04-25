@@ -195,7 +195,7 @@
 # @id: Name of the monitor
 #
 # @mode: Selects the monitor mode (default: readline in the system
-#           emulator, control in qemu-storage-daemon)
+#        emulator, control in qemu-storage-daemon)
 #
 # @pretty: Enables pretty printing (QMP only)
 #

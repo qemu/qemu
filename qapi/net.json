@@ -533,7 +533,7 @@
 #               Must be specified along with @start-address and @subnet-mask.
 #
 # @subnet-mask: The IPv4 subnet mask to use on the interface. Must
-#                be specified along with @start-address and @subnet-mask.
+#               be specified along with @start-address and @subnet-mask.
 #
 # @isolated: Enable isolation for this interface. Interface isolation
 #            ensures that vmnet interface is not able to communicate

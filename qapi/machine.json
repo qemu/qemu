@@ -457,7 +457,7 @@
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
 # @cpus: VCPUs belonging to this node (assign VCPUS round-robin
-#         if omitted)
+#        if omitted)
 #
 # @mem: memory size of this node; mutually exclusive with @memdev.
 #       Equally divide total memory among nodes if both @mem and @memdev are
@@ -690,7 +690,7 @@
 # 5.2.27.5: Table 5-147 of ACPI 6.3 spec.
 #
 # @none: None (no memory side cache in this proximity domain,
-#              or cache associativity unknown)
+#        or cache associativity unknown)
 #
 # @direct: Direct Mapped
 #
