@@ -420,7 +420,7 @@
 ##
 # @guest-fsfreeze-status:
 #
-# Get guest fsfreeze state. error state indicates
+# Get guest fsfreeze state.
 #
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
 #
