@@ -44,8 +44,7 @@
 # An enumeration of TPM types
 #
 # @passthrough: TPM passthrough type
-# @emulator: Software Emulator TPM type
-#            Since: 2.11
+# @emulator: Software Emulator TPM type (since 2.11)
 #
 # Since: 1.5
 ##

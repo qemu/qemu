@@ -1207,13 +1207,13 @@
 #               window resizes (virtio-gpu) this will default to "on",
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
-#               Since 3.1
+#               (Since 3.1)
 # @show-tabs:   Display the tab bar for switching between the various graphical
 #               interfaces (e.g. VGA and virtual console character devices)
 #               by default.
-#               Since 7.1
+#               (Since 7.1)
 # @show-menubar: Display the main window menubar. Defaults to "on".
-#                Since 8.0
+#                (Since 8.0)
 #
 # Since: 2.12
 ##

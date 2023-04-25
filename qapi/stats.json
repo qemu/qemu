@@ -69,7 +69,7 @@
 #
 # @vcpu: statistics that apply to a single virtual CPU.
 #
-# @cryptodev: statistics that apply to a crypto device. since 8.0
+# @cryptodev: statistics that apply to a crypto device (since 8.0)
 #
 # Since: 7.1
 ##

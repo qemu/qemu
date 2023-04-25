@@ -1318,10 +1318,10 @@
 #          value is monotonically increasing.
 #
 # @busy: false if the job is known to be in a quiescent state, with
-#        no pending I/O.  Since 1.3.
+#        no pending I/O.  (Since 1.3)
 #
 # @paused: whether the job is paused or, if @busy is true, will
-#          pause itself as soon as possible.  Since 1.3.
+#          pause itself as soon as possible.  (Since 1.3)
 #
 # @speed: the rate limit, bytes per second
 #
@@ -2741,7 +2741,7 @@
 #
 # @on-error: the action to take on an error (default report).
 #            'stop' and 'enospc' can only be used if the block device
-#            supports io-status (see BlockInfo).  Since 1.3.
+#            supports io-status (see BlockInfo).  (Since 1.3)
 #
 # @filter-node-name: the node name that should be assigned to the
 #                    filter driver that the stream job inserts into the graph
