@@ -934,6 +934,7 @@ Example::
 
  ##
  # Some text foo with **bold** and *emphasis*
+ #
  # 1. with a list
  # 2. like that
  #

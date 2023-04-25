@@ -275,9 +275,10 @@
 # @deprecated: This command is deprecated. Use @block-export-del instead.
 #
 # Returns: error if
-#            - the server is not running
-#            - export is not found
-#            - mode is 'safe' and there are existing connections
+#
+#          - the server is not running
+#          - export is not found
+#          - mode is 'safe' and there are existing connections
 #
 # Since: 2.12
 ##
