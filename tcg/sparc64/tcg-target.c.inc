@@ -1009,6 +1009,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 typedef struct {
     TCGReg base;
     TCGReg index;
+    TCGAtomAlign aa;
 } HostAddress;
 
 bool tcg_target_has_memory_bswap(MemOp memop)
@@ -1028,13 +1029,13 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
 {
     TCGLabelQemuLdst *ldst = NULL;
     MemOp opc = get_memop(oi);
-    unsigned a_bits = get_alignment_bits(opc);
-    unsigned s_bits = opc & MO_SIZE;
+    MemOp s_bits = opc & MO_SIZE;
     unsigned a_mask;
 
     /* We don't support unaligned accesses. */
-    a_bits = MAX(a_bits, s_bits);
-    a_mask = (1u << a_bits) - 1;
+    h->aa = atom_and_align_for_opc(s, opc, MO_ATOM_IFALIGN, false);
+    h->aa.align = MAX(h->aa.align, s_bits);
+    a_mask = (1u << h->aa.align) - 1;
 
 #ifdef CONFIG_SOFTMMU
     int mem_index = get_mmuidx(oi);
@@ -1086,11 +1087,13 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     cc = TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC;
     tcg_out_bpcc0(s, COND_NE, BPCC_PN | cc, 0);
 #else
-    if (a_bits != s_bits) {
-        /*
-         * Test for at least natural alignment, and defer
-         * everything else to the helper functions.
-         */
+    /*
+     * If the size equals the required alignment, we can skip the test
+     * and allow host SIGBUS to deliver SIGBUS to the guest.
+     * Otherwise, test for at least natural alignment and defer
+     * everything else to the helper functions.
+     */
+    if (s_bits != get_alignment_bits(opc)) {
         tcg_debug_assert(check_fit_tl(a_mask, 13));
         tcg_out_arithi(s, TCG_REG_G0, addr_reg, a_mask, ARITH_ANDCC);
 
