@@ -90,6 +90,12 @@ typedef enum {
 #define TCG_TARGET_CALL_ARG_I128        TCG_CALL_ARG_NORMAL
 #define TCG_TARGET_CALL_RET_I128        TCG_CALL_RET_NORMAL
 
+#if defined(__riscv_arch_test) && defined(__riscv_zbb)
+# define have_zbb true
+#else
+extern bool have_zbb;
+#endif
+
 /* optional instructions */
 #define TCG_TARGET_HAS_movcond_i32      0
 #define TCG_TARGET_HAS_div_i32          1

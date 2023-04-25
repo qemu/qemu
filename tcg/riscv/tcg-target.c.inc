@@ -113,6 +113,20 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_A7,
 };
 
+#ifndef have_zbb
+bool have_zbb;
+#endif
+#if defined(__riscv_arch_test) && defined(__riscv_zba)
+# define have_zba true
+#else
+static bool have_zba;
+#endif
+#if defined(__riscv_arch_test) && defined(__riscv_zicond)
+# define have_zicond true
+#else
+static bool have_zicond;
+#endif
+
 static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 {
     tcg_debug_assert(kind == TCG_CALL_RET_NORMAL);
@@ -234,6 +248,34 @@ typedef enum {
 
     OPC_FENCE = 0x0000000f,
     OPC_NOP   = OPC_ADDI,   /* nop = addi r0,r0,0 */
+
+    /* Zba: Bit manipulation extension, address generation */
+    OPC_ADD_UW = 0x0800003b,
+
+    /* Zbb: Bit manipulation extension, basic bit manipulaton */
+    OPC_ANDN   = 0x40007033,
+    OPC_CLZ    = 0x60001013,
+    OPC_CLZW   = 0x6000101b,
+    OPC_CPOP   = 0x60201013,
+    OPC_CPOPW  = 0x6020101b,
+    OPC_CTZ    = 0x60101013,
+    OPC_CTZW   = 0x6010101b,
+    OPC_ORN    = 0x40006033,
+    OPC_REV8   = 0x6b805013,
+    OPC_ROL    = 0x60001033,
+    OPC_ROLW   = 0x6000103b,
+    OPC_ROR    = 0x60005033,
+    OPC_RORW   = 0x6000503b,
+    OPC_RORI   = 0x60005013,
+    OPC_RORIW  = 0x6000501b,
+    OPC_SEXT_B = 0x60401013,
+    OPC_SEXT_H = 0x60501013,
+    OPC_XNOR   = 0x40004033,
+    OPC_ZEXT_H = 0x0800403b,
+
+    /* Zicond: integer conditional operations */
+    OPC_CZERO_EQZ = 0x0e005033,
+    OPC_CZERO_NEZ = 0x0e007033,
 } RISCVInsn;
 
 /*
@@ -1619,8 +1661,62 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_opc_imm(s, OPC_JALR, TCG_REG_ZERO, TCG_REG_RA, 0);
 }
 
+static volatile sig_atomic_t got_sigill;
+
+static void sigill_handler(int signo, siginfo_t *si, void *data)
+{
+    /* Skip the faulty instruction */
+    ucontext_t *uc = (ucontext_t *)data;
+    uc->uc_mcontext.__gregs[REG_PC] += 4;
+
+    got_sigill = 1;
+}
+
+static void tcg_target_detect_isa(void)
+{
+#if !defined(have_zba) || !defined(have_zbb) || !defined(have_zicond)
+    /*
+     * TODO: It is expected that this will be determinable via
+     * linux riscv_hwprobe syscall, not yet merged.
+     * In the meantime, test via sigill.
+     */
+
+    struct sigaction sa_old, sa_new;
+
+    memset(&sa_new, 0, sizeof(sa_new));
+    sa_new.sa_flags = SA_SIGINFO;
+    sa_new.sa_sigaction = sigill_handler;
+    sigaction(SIGILL, &sa_new, &sa_old);
+
+#ifndef have_zba
+    /* Probe for Zba: add.uw zero,zero,zero. */
+    got_sigill = 0;
+    asm volatile(".insn r 0x3b, 0, 0x04, zero, zero, zero" : : : "memory");
+    have_zba = !got_sigill;
+#endif
+
+#ifndef have_zbb
+    /* Probe for Zba: andn zero,zero,zero. */
+    got_sigill = 0;
+    asm volatile(".insn r 0x33, 7, 0x20, zero, zero, zero" : : : "memory");
+    have_zbb = !got_sigill;
+#endif
+
+#ifndef have_zicond
+    /* Probe for Zicond: czero.eqz zero,zero,zero. */
+    got_sigill = 0;
+    asm volatile(".insn r 0x33, 5, 0x07, zero, zero, zero" : : : "memory");
+    have_zicond = !got_sigill;
+#endif
+
+    sigaction(SIGILL, &sa_old, NULL);
+#endif
+}
+
 static void tcg_target_init(TCGContext *s)
 {
+    tcg_target_detect_isa();
+
     tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
     tcg_target_available_regs[TCG_TYPE_I64] = 0xffffffff;
 
