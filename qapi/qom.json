@@ -637,7 +637,7 @@
 #
 # @discard-data: if true, the file contents can be destroyed when QEMU exits,
 #                to avoid unnecessarily flushing data to the backing file. Note
-#                that ``discard-data`` is only an optimization, and QEMU might
+#                that @discard-data is only an optimization, and QEMU might
 #                not discard file contents if it aborts unexpectedly or is
 #                terminated using SIGKILL. (default: false)
 #

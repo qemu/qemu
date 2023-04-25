@@ -1247,7 +1247,7 @@
 #              available node on the host.
 #
 # @p2p: Whether to use peer-to-peer connections (accepted through
-#       ``add_client``).
+#       @add_client).
 #
 # @audiodev: Use the specified DBus audiodev to export audio.
 #
