@@ -138,6 +138,7 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 #define TCG_CT_CONST_S12   0x200
 #define TCG_CT_CONST_N12   0x400
 #define TCG_CT_CONST_M12   0x800
+#define TCG_CT_CONST_J12  0x1000
 
 #define ALL_GENERAL_REGS   MAKE_64BIT_MASK(0, 32)
 
@@ -172,6 +173,13 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
      * and requires the modified constant to be representable.
      */
     if ((ct & TCG_CT_CONST_M12) && val >= -0x7ff && val <= 0x7ff) {
+        return 1;
+    }
+    /*
+     * Inverse of sign extended from 12 bits: ~[-0x800, 0x7ff].
+     * Used to map ANDN back to ANDI, etc.
+     */
+    if ((ct & TCG_CT_CONST_J12) && ~val >= -0x800 && ~val <= 0x7ff) {
         return 1;
     }
     return 0;
@@ -1305,6 +1313,31 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
+        if (c2) {
+            tcg_out_opc_imm(s, OPC_ANDI, a0, a1, ~a2);
+        } else {
+            tcg_out_opc_reg(s, OPC_ANDN, a0, a1, a2);
+        }
+        break;
+    case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
+        if (c2) {
+            tcg_out_opc_imm(s, OPC_ORI, a0, a1, ~a2);
+        } else {
+            tcg_out_opc_reg(s, OPC_ORN, a0, a1, a2);
+        }
+        break;
+    case INDEX_op_eqv_i32:
+    case INDEX_op_eqv_i64:
+        if (c2) {
+            tcg_out_opc_imm(s, OPC_XORI, a0, a1, ~a2);
+        } else {
+            tcg_out_opc_reg(s, OPC_XNOR, a0, a1, a2);
+        }
+        break;
+
     case INDEX_op_not_i32:
     case INDEX_op_not_i64:
         tcg_out_opc_imm(s, OPC_XORI, a0, a1, -1);
@@ -1538,6 +1571,14 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_or_i64:
     case INDEX_op_xor_i64:
         return C_O1_I2(r, r, rI);
+
+    case INDEX_op_andc_i32:
+    case INDEX_op_andc_i64:
+    case INDEX_op_orc_i32:
+    case INDEX_op_orc_i64:
+    case INDEX_op_eqv_i32:
+    case INDEX_op_eqv_i64:
+        return C_O1_I2(r, r, rJ);
 
     case INDEX_op_sub_i32:
     case INDEX_op_sub_i64:
