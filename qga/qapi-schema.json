@@ -722,7 +722,7 @@
 # Get list of guest IP addresses, MAC addresses
 # and netmasks.
 #
-# Returns: List of GuestNetworkInfo on success.
+# Returns: List of GuestNetworkInterface on success.
 #
 # Since: 1.1
 ##
