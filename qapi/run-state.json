@@ -467,7 +467,11 @@
 #
 # @pause: system pauses
 #
-# Since: 2.1 (poweroff since 2.8, run since 5.0)
+# @poweroff: system powers off (since 2.8)
+#
+# @run: system continues to run (since 5.0)
+#
+# Since: 2.1
 ##
 { 'enum': 'GuestPanicAction',
   'data': [ 'pause', 'poweroff', 'run' ] }

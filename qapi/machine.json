@@ -1260,6 +1260,14 @@
 ##
 # @MemoryDeviceInfoKind:
 #
+# @nvdimm: since 2.12
+#
+# @virtio-pmem: since 4.1
+#
+# @virtio-mem: since 5.1
+#
+# @sgx-epc: since 6.2.
+#
 # Since: 2.1
 ##
 { 'enum': 'MemoryDeviceInfoKind',
@@ -1301,9 +1309,6 @@
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
-#
-# nvdimm is included since 2.12. virtio-pmem is included since 4.1.
-# virtio-mem is included since 5.1. sgx-epc is included since 6.2.
 #
 # Since: 2.1
 ##

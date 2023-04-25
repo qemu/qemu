@@ -641,14 +641,15 @@
 #
 # Available netdev drivers.
 #
-# Since: 2.7
+# @l2tpv3: since 2.1
+# @vhost-vdpa: since 5.1
+# @vmnet-host: since 7.1
+# @vmnet-shared: since 7.1
+# @vmnet-bridged: since 7.1
+# @stream: since 7.2
+# @dgram: since 7.2
 #
-#        @vhost-vdpa since 5.1
-#        @vmnet-host since 7.1
-#        @vmnet-shared since 7.1
-#        @vmnet-bridged since 7.1
-#        @stream since 7.2
-#        @dgram since 7.2
+# Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
@@ -669,12 +670,6 @@
 #
 # Since: 1.2
 #
-#        'l2tpv3' - since 2.1
-#        'vmnet-host' - since 7.1
-#        'vmnet-shared' - since 7.1
-#        'vmnet-bridged' - since 7.1
-#        'stream' since 7.2
-#        'dgram' since 7.2
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
