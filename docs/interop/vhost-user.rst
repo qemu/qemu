@@ -130,18 +130,8 @@ A vring address description
 Note that a ring address is an IOVA if ``VIRTIO_F_IOMMU_PLATFORM`` has
 been negotiated. Otherwise it is a user address.
 
-Memory regions description
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-+-------------+---------+---------+-----+---------+
-| num regions | padding | region0 | ... | region7 |
-+-------------+---------+---------+-----+---------+
-
-:num regions: a 32-bit number of regions
-
-:padding: 32-bit
-
-A region is:
+Memory region description
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 +---------------+------+--------------+-------------+
 | guest address | size | user address | mmap offset |
@@ -155,22 +145,49 @@ A region is:
 
 :mmap offset: 64-bit offset where region starts in the mapped memory
 
+When the ``VHOST_USER_PROTOCOL_F_XEN_MMAP`` protocol feature has been
+successfully negotiated, the memory region description contains two extra
+fields at the end.
+
++---------------+------+--------------+-------------+----------------+-------+
+| guest address | size | user address | mmap offset | xen mmap flags | domid |
++---------------+------+--------------+-------------+----------------+-------+
+
+:xen mmap flags: 32-bit bit field
+
+- Bit 0 is set for Xen foreign memory mapping.
+- Bit 1 is set for Xen grant memory mapping.
+- Bit 8 is set if the memory region can not be mapped in advance, and memory
+  areas within this region must be mapped / unmapped only when required by the
+  back-end. The back-end shouldn't try to map the entire region at once, as the
+  front-end may not allow it. The back-end should rather map only the required
+  amount of memory at once and unmap it after it is used.
+
+:domid: a 32-bit Xen hypervisor specific domain id.
+
 Single memory region description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-+---------+---------------+------+--------------+-------------+
-| padding | guest address | size | user address | mmap offset |
-+---------+---------------+------+--------------+-------------+
++---------+--------+
+| padding | region |
++---------+--------+
 
 :padding: 64-bit
 
-:guest address: a 64-bit guest address of the region
+A region is represented by Memory region description.
 
-:size: a 64-bit size
+Multiple Memory regions description
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:user address: a 64-bit user address
++-------------+---------+---------+-----+---------+
+| num regions | padding | region0 | ... | region7 |
++-------------+---------+---------+-----+---------+
 
-:mmap offset: 64-bit offset where region starts in the mapped memory
+:num regions: a 32-bit number of regions
+
+:padding: 32-bit
+
+A region is represented by Memory region description.
 
 Log description
 ^^^^^^^^^^^^^^^
@@ -867,6 +884,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_XEN_MMAP             17
 
 Front-end message types
 -----------------------
@@ -952,8 +970,8 @@ Front-end message types
 ``VHOST_USER_SET_MEM_TABLE``
   :id: 5
   :equivalent ioctl: ``VHOST_SET_MEM_TABLE``
-  :request payload: memory regions description
-  :reply payload: (postcopy only) memory regions description
+  :request payload: multiple memory regions description
+  :reply payload: (postcopy only) multiple memory regions description
 
   Sets the memory map regions on the back-end so it can translate the
   vring addresses. In the ancillary data there is an array of file

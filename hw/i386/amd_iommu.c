@@ -1509,23 +1509,48 @@ static void amdvi_init(AMDVIState *s)
     amdvi_set_quad(s, AMDVI_MMIO_EXT_FEATURES, AMDVI_EXT_FEATURES,
             0xffffffffffffffef, 0);
     amdvi_set_quad(s, AMDVI_MMIO_STATUS, 0, 0x98, 0x67);
+}
+
+static void amdvi_pci_realize(PCIDevice *pdev, Error **errp)
+{
+    AMDVIPCIState *s = AMD_IOMMU_PCI(pdev);
+    int ret;
+
+    ret = pci_add_capability(pdev, AMDVI_CAPAB_ID_SEC, 0,
+                             AMDVI_CAPAB_SIZE, errp);
+    if (ret < 0) {
+        return;
+    }
+    s->capab_offset = ret;
+
+    ret = pci_add_capability(pdev, PCI_CAP_ID_MSI, 0,
+                             AMDVI_CAPAB_REG_SIZE, errp);
+    if (ret < 0) {
+        return;
+    }
+    ret = pci_add_capability(pdev, PCI_CAP_ID_HT, 0,
+                             AMDVI_CAPAB_REG_SIZE, errp);
+    if (ret < 0) {
+        return;
+    }
+
+    if (msi_init(pdev, 0, 1, true, false, errp) < 0) {
+        return;
+    }
 
     /* reset device ident */
-    pci_config_set_vendor_id(s->pci.dev.config, PCI_VENDOR_ID_AMD);
-    pci_config_set_prog_interface(s->pci.dev.config, 00);
-    pci_config_set_device_id(s->pci.dev.config, s->devid);
-    pci_config_set_class(s->pci.dev.config, 0x0806);
+    pci_config_set_prog_interface(pdev->config, 0);
 
     /* reset AMDVI specific capabilities, all r/o */
-    pci_set_long(s->pci.dev.config + s->capab_offset, AMDVI_CAPAB_FEATURES);
-    pci_set_long(s->pci.dev.config + s->capab_offset + AMDVI_CAPAB_BAR_LOW,
-                 s->mmio.addr & ~(0xffff0000));
-    pci_set_long(s->pci.dev.config + s->capab_offset + AMDVI_CAPAB_BAR_HIGH,
-                (s->mmio.addr & ~(0xffff)) >> 16);
-    pci_set_long(s->pci.dev.config + s->capab_offset + AMDVI_CAPAB_RANGE,
+    pci_set_long(pdev->config + s->capab_offset, AMDVI_CAPAB_FEATURES);
+    pci_set_long(pdev->config + s->capab_offset + AMDVI_CAPAB_BAR_LOW,
+                 AMDVI_BASE_ADDR & ~(0xffff0000));
+    pci_set_long(pdev->config + s->capab_offset + AMDVI_CAPAB_BAR_HIGH,
+                (AMDVI_BASE_ADDR & ~(0xffff)) >> 16);
+    pci_set_long(pdev->config + s->capab_offset + AMDVI_CAPAB_RANGE,
                  0xff000000);
-    pci_set_long(s->pci.dev.config + s->capab_offset + AMDVI_CAPAB_MISC, 0);
-    pci_set_long(s->pci.dev.config + s->capab_offset + AMDVI_CAPAB_MISC,
+    pci_set_long(pdev->config + s->capab_offset + AMDVI_CAPAB_MISC, 0);
+    pci_set_long(pdev->config + s->capab_offset + AMDVI_CAPAB_MISC,
             AMDVI_MAX_PH_ADDR | AMDVI_MAX_GVA_ADDR | AMDVI_MAX_VA_ADDR);
 }
 
@@ -1539,7 +1564,6 @@ static void amdvi_sysbus_reset(DeviceState *dev)
 
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
 {
-    int ret = 0;
     AMDVIState *s = AMD_IOMMU_DEVICE(dev);
     MachineState *ms = MACHINE(qdev_get_machine());
     PCMachineState *pcms = PC_MACHINE(ms);
@@ -1553,23 +1577,6 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     if (!qdev_realize(DEVICE(&s->pci), &bus->qbus, errp)) {
         return;
     }
-    ret = pci_add_capability(&s->pci.dev, AMDVI_CAPAB_ID_SEC, 0,
-                                         AMDVI_CAPAB_SIZE, errp);
-    if (ret < 0) {
-        return;
-    }
-    s->capab_offset = ret;
-
-    ret = pci_add_capability(&s->pci.dev, PCI_CAP_ID_MSI, 0,
-                             AMDVI_CAPAB_REG_SIZE, errp);
-    if (ret < 0) {
-        return;
-    }
-    ret = pci_add_capability(&s->pci.dev, PCI_CAP_ID_HT, 0,
-                             AMDVI_CAPAB_REG_SIZE, errp);
-    if (ret < 0) {
-        return;
-    }
 
     /* Pseudo address space under root PCI bus. */
     x86ms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
@@ -1581,8 +1588,6 @@ static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->mmio);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, AMDVI_BASE_ADDR);
     pci_setup_iommu(bus, amdvi_host_dma_iommu, s);
-    s->devid = object_property_get_int(OBJECT(&s->pci), "addr", &error_abort);
-    msi_init(&s->pci.dev, 0, 1, true, false, errp);
     amdvi_init(s);
 }
 
@@ -1625,6 +1630,11 @@ static const TypeInfo amdvi_sysbus = {
 static void amdvi_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_AMD;
+    k->class_id = 0x0806;
+    k->realize = amdvi_pci_realize;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";

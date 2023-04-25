@@ -84,7 +84,7 @@ void cxl_fmws_link_targets(CXLState *cxl_state, Error **errp)
                 bool ambig;
 
                 o = object_resolve_path_type(fw->targets[i],
-                                             TYPE_PXB_CXL_DEVICE,
+                                             TYPE_PXB_CXL_DEV,
                                              &ambig);
                 if (!o) {
                     error_setg(errp, "Could not resolve CXLFM target %s",
@@ -141,7 +141,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
     addr += fw->base;
 
     rb_index = (addr / cxl_decode_ig(fw->enc_int_gran)) % fw->num_targets;
-    hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl.cxl_host_bridge);
+    hb = PCI_HOST_BRIDGE(fw->target_hbs[rb_index]->cxl_host_bridge);
     if (!hb || !hb->bus || !pci_bus_is_cxl(hb->bus)) {
         return NULL;
     }

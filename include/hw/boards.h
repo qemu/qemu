@@ -292,10 +292,12 @@ struct MachineClass {
  * @base: address in guest physical address space where the memory
  * address space for memory devices starts
  * @mr: address space container for memory devices
+ * @dimm_size: the sum of plugged DIMMs' sizes
  */
 typedef struct DeviceMemoryState {
     hwaddr base;
     MemoryRegion mr;
+    uint64_t dimm_size;
 } DeviceMemoryState;
 
 /**

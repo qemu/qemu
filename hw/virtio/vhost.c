@@ -1291,18 +1291,6 @@ void vhost_virtqueue_stop(struct vhost_dev *dev,
                        0, virtio_queue_get_desc_size(vdev, idx));
 }
 
-static void vhost_eventfd_add(MemoryListener *listener,
-                              MemoryRegionSection *section,
-                              bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
-static void vhost_eventfd_del(MemoryListener *listener,
-                              MemoryRegionSection *section,
-                              bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
 static int vhost_virtqueue_set_busyloop_timeout(struct vhost_dev *dev,
                                                 int n, uint32_t timeout)
 {
@@ -1457,8 +1445,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .log_sync = vhost_log_sync,
         .log_global_start = vhost_log_global_start,
         .log_global_stop = vhost_log_global_stop,
-        .eventfd_add = vhost_eventfd_add,
-        .eventfd_del = vhost_eventfd_del,
         .priority = 10
     };
 

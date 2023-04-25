@@ -1895,7 +1895,7 @@ F: hw/pci/pcie_doe.c
 ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
-R: Ani Sinha <ani@anisinha.ca>
+R: Ani Sinha <anisinha@redhat.com>
 S: Supported
 F: include/hw/acpi/*
 F: include/hw/firmware/smbios.h
@@ -1932,7 +1932,7 @@ F: hw/acpi/viot.c
 F: hw/acpi/viot.h
 
 ACPI/AVOCADO/BIOSBITS
-M: Ani Sinha <ani@anisinha.ca>
+M: Ani Sinha <anisinha@redhat.com>
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: tests/avocado/acpi-bits/*
@@ -2075,6 +2075,10 @@ F: contrib/vhost-user-*/
 F: backends/vhost-user.c
 F: include/sysemu/vhost-user-backend.h
 F: subprojects/libvhost-user/
+
+vhost-shadow-virtqueue
+R: Eugenio Pérez <eperezma@redhat.com>
+F: hw/virtio/vhost-shadow-virtqueue.*
 
 virtio
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -3367,6 +3371,10 @@ S: Supported
 F: hw/i386/intel_iommu.c
 F: hw/i386/intel_iommu_internal.h
 F: include/hw/i386/intel_iommu.h
+
+AMD-Vi Emulation
+S: Orphan
+F: hw/i386/amd_iommu.?
 
 OpenSBI Firmware
 M: Bin Meng <bmeng.cn@gmail.com>

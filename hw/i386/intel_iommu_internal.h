@@ -114,9 +114,9 @@
                                      VTD_INTERRUPT_ADDR_FIRST + 1)
 
 /* The shift of source_id in the key of IOTLB hash table */
-#define VTD_IOTLB_SID_SHIFT         20
-#define VTD_IOTLB_LVL_SHIFT         28
-#define VTD_IOTLB_PASID_SHIFT       30
+#define VTD_IOTLB_SID_SHIFT         26
+#define VTD_IOTLB_LVL_SHIFT         42
+#define VTD_IOTLB_PASID_SHIFT       44
 #define VTD_IOTLB_MAX_SIZE          1024    /* Max size of the hash table */
 
 /* IOTLB_REG */
