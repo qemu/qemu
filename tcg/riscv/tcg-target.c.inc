@@ -593,26 +593,42 @@ static void tcg_out_ext8u(TCGContext *s, TCGReg ret, TCGReg arg)
 
 static void tcg_out_ext16u(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-    tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 16);
-    tcg_out_opc_imm(s, OPC_SRLIW, ret, ret, 16);
+    if (have_zbb) {
+        tcg_out_opc_reg(s, OPC_ZEXT_H, ret, arg, TCG_REG_ZERO);
+    } else {
+        tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 16);
+        tcg_out_opc_imm(s, OPC_SRLIW, ret, ret, 16);
+    }
 }
 
 static void tcg_out_ext32u(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-    tcg_out_opc_imm(s, OPC_SLLI, ret, arg, 32);
-    tcg_out_opc_imm(s, OPC_SRLI, ret, ret, 32);
+    if (have_zba) {
+        tcg_out_opc_reg(s, OPC_ADD_UW, ret, arg, TCG_REG_ZERO);
+    } else {
+        tcg_out_opc_imm(s, OPC_SLLI, ret, arg, 32);
+        tcg_out_opc_imm(s, OPC_SRLI, ret, ret, 32);
+    }
 }
 
 static void tcg_out_ext8s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
-    tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 24);
-    tcg_out_opc_imm(s, OPC_SRAIW, ret, ret, 24);
+    if (have_zbb) {
+        tcg_out_opc_imm(s, OPC_SEXT_B, ret, arg, 0);
+    } else {
+        tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 24);
+        tcg_out_opc_imm(s, OPC_SRAIW, ret, ret, 24);
+    }
 }
 
 static void tcg_out_ext16s(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
-    tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 16);
-    tcg_out_opc_imm(s, OPC_SRAIW, ret, ret, 16);
+    if (have_zbb) {
+        tcg_out_opc_imm(s, OPC_SEXT_H, ret, arg, 0);
+    } else {
+        tcg_out_opc_imm(s, OPC_SLLIW, ret, arg, 16);
+        tcg_out_opc_imm(s, OPC_SRAIW, ret, ret, 16);
+    }
 }
 
 static void tcg_out_ext32s(TCGContext *s, TCGReg ret, TCGReg arg)
