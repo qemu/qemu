@@ -1038,14 +1038,18 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, TCGReg *pbase,
     tcg_out_opc_branch(s, OPC_BNE, TCG_REG_TMP0, TCG_REG_TMP1, 0);
 
     /* TLB Hit - translate address using addend.  */
-    addr_adj = addr_reg;
-    if (TARGET_LONG_BITS == 32) {
-        addr_adj = TCG_REG_TMP0;
-        tcg_out_ext32u(s, addr_adj, addr_reg);
+    if (TARGET_LONG_BITS == 64) {
+        tcg_out_opc_reg(s, OPC_ADD, TCG_REG_TMP0, addr_reg, TCG_REG_TMP2);
+    } else if (have_zba) {
+        tcg_out_opc_reg(s, OPC_ADD_UW, TCG_REG_TMP0, addr_reg, TCG_REG_TMP2);
+    } else {
+        tcg_out_ext32u(s, TCG_REG_TMP0, addr_reg);
+        tcg_out_opc_reg(s, OPC_ADD, TCG_REG_TMP0, TCG_REG_TMP0, TCG_REG_TMP2);
     }
-    tcg_out_opc_reg(s, OPC_ADD, TCG_REG_TMP0, TCG_REG_TMP2, addr_adj);
     *pbase = TCG_REG_TMP0;
 #else
+    TCGReg base;
+
     if (a_mask) {
         ldst = new_ldst_label(s);
         ldst->is_ld = is_ld;
@@ -1060,14 +1064,21 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, TCGReg *pbase,
         tcg_out_opc_branch(s, OPC_BNE, TCG_REG_TMP1, TCG_REG_ZERO, 0);
     }
 
-    TCGReg base = addr_reg;
-    if (TARGET_LONG_BITS == 32) {
-        tcg_out_ext32u(s, TCG_REG_TMP0, base);
-        base = TCG_REG_TMP0;
-    }
     if (guest_base != 0) {
-        tcg_out_opc_reg(s, OPC_ADD, TCG_REG_TMP0, TCG_GUEST_BASE_REG, base);
         base = TCG_REG_TMP0;
+        if (TARGET_LONG_BITS == 64) {
+            tcg_out_opc_reg(s, OPC_ADD, base, addr_reg, TCG_GUEST_BASE_REG);
+        } else if (have_zba) {
+            tcg_out_opc_reg(s, OPC_ADD_UW, base, addr_reg, TCG_GUEST_BASE_REG);
+        } else {
+            tcg_out_ext32u(s, base, addr_reg);
+            tcg_out_opc_reg(s, OPC_ADD, base, base, TCG_GUEST_BASE_REG);
+        }
+    } else if (TARGET_LONG_BITS == 64) {
+        base = addr_reg;
+    } else {
+        base = TCG_REG_TMP0;
+        tcg_out_ext32u(s, base, addr_reg);
     }
     *pbase = base;
 #endif
