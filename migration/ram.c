@@ -36,6 +36,7 @@
 #include "xbzrle.h"
 #include "ram.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
@@ -459,8 +460,6 @@ uint64_t ram_bytes_remaining(void)
     return ram_state ? (ram_state->migration_dirty_pages * TARGET_PAGE_SIZE) :
                        0;
 }
-
-RAMStats ram_counters;
 
 void ram_transferred_add(uint64_t bytes)
 {

@@ -29,6 +29,7 @@
 #include "migration/global_state.h"
 #include "migration/misc.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "savevm.h"
 #include "qemu-file.h"
 #include "channel.h"
