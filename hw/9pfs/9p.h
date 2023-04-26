@@ -203,7 +203,7 @@ typedef struct V9fsDir {
     QemuMutex readdir_mutex_L;
 } V9fsDir;
 
-static inline void v9fs_readdir_lock(V9fsDir *dir)
+static inline void coroutine_fn v9fs_readdir_lock(V9fsDir *dir)
 {
     if (dir->proto_version == V9FS_PROTO_2000U) {
         qemu_co_mutex_lock(&dir->readdir_mutex_u);
@@ -212,7 +212,7 @@ static inline void v9fs_readdir_lock(V9fsDir *dir)
     }
 }
 
-static inline void v9fs_readdir_unlock(V9fsDir *dir)
+static inline void coroutine_fn v9fs_readdir_unlock(V9fsDir *dir)
 {
     if (dir->proto_version == V9FS_PROTO_2000U) {
         qemu_co_mutex_unlock(&dir->readdir_mutex_u);

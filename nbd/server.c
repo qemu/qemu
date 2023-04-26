@@ -1409,8 +1409,8 @@ nbd_read_eof(NBDClient *client, void *buffer, size_t size, Error **errp)
     return 1;
 }
 
-static int nbd_receive_request(NBDClient *client, NBDRequest *request,
-                               Error **errp)
+static int coroutine_fn nbd_receive_request(NBDClient *client, NBDRequest *request,
+                                            Error **errp)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
     uint32_t magic;
@@ -1893,12 +1893,12 @@ static inline void set_be_simple_reply(NBDSimpleReply *reply, uint64_t error,
     stq_be_p(&reply->handle, handle);
 }
 
-static int nbd_co_send_simple_reply(NBDClient *client,
-                                    uint64_t handle,
-                                    uint32_t error,
-                                    void *data,
-                                    size_t len,
-                                    Error **errp)
+static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
+                                                 uint64_t handle,
+                                                 uint32_t error,
+                                                 void *data,
+                                                 size_t len,
+                                                 Error **errp)
 {
     NBDSimpleReply reply;
     int nbd_err = system_errno_to_nbd_errno(error);
@@ -2036,8 +2036,8 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             stl_be_p(&chunk.length, pnum);
             ret = nbd_co_send_iov(client, iov, 1, errp);
         } else {
-            ret = blk_pread(exp->common.blk, offset + progress, pnum,
-                            data + progress, 0);
+            ret = blk_co_pread(exp->common.blk, offset + progress, pnum,
+                               data + progress, 0);
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "reading from file failed");
                 break;
@@ -2196,9 +2196,9 @@ static int coroutine_fn blockalloc_to_extents(BlockBackend *blk,
  * @ea is converted to BE by the function
  * @last controls whether NBD_REPLY_FLAG_DONE is sent.
  */
-static int nbd_co_send_extents(NBDClient *client, uint64_t handle,
-                               NBDExtentArray *ea,
-                               bool last, uint32_t context_id, Error **errp)
+static int coroutine_fn
+nbd_co_send_extents(NBDClient *client, uint64_t handle, NBDExtentArray *ea,
+                    bool last, uint32_t context_id, Error **errp)
 {
     NBDStructuredMeta chunk;
     struct iovec iov[] = {
@@ -2275,10 +2275,10 @@ static void bitmap_to_extents(BdrvDirtyBitmap *bitmap,
     bdrv_dirty_bitmap_unlock(bitmap);
 }
 
-static int nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
-                              BdrvDirtyBitmap *bitmap, uint64_t offset,
-                              uint32_t length, bool dont_fragment, bool last,
-                              uint32_t context_id, Error **errp)
+static int coroutine_fn nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
+                                           BdrvDirtyBitmap *bitmap, uint64_t offset,
+                                           uint32_t length, bool dont_fragment, bool last,
+                                           uint32_t context_id, Error **errp)
 {
     unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
     g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
@@ -2295,8 +2295,8 @@ static int nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
  * to the client (although the caller may still need to disconnect after
  * reporting the error).
  */
-static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
-                                  Error **errp)
+static int coroutine_fn nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
+                                               Error **errp)
 {
     NBDClient *client = req->client;
     int valid_flags;
@@ -2444,7 +2444,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                        data, request->len, errp);
     }
 
-    ret = blk_pread(exp->common.blk, request->from, request->len, data, 0);
+    ret = blk_co_pread(exp->common.blk, request->from, request->len, data, 0);
     if (ret < 0) {
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "reading from file failed", errp);
@@ -2511,8 +2511,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
         }
-        ret = blk_pwrite(exp->common.blk, request->from, request->len, data,
-                         flags);
+        ret = blk_co_pwrite(exp->common.blk, request->from, request->len, data,
+                            flags);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "writing to file failed", errp);
 
@@ -2527,8 +2527,8 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         if (request->flags & NBD_CMD_FLAG_FAST_ZERO) {
             flags |= BDRV_REQ_NO_FALLBACK;
         }
-        ret = blk_pwrite_zeroes(exp->common.blk, request->from, request->len,
-                                flags);
+        ret = blk_co_pwrite_zeroes(exp->common.blk, request->from, request->len,
+                                   flags);
         return nbd_send_generic_reply(client, request->handle, ret,
                                       "writing to file failed", errp);
 

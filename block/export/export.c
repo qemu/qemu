@@ -306,7 +306,7 @@ void blk_exp_close_all_type(BlockExportType type)
         blk_exp_request_shutdown(exp);
     }
 
-    AIO_WAIT_WHILE(NULL, blk_exp_has_type(type));
+    AIO_WAIT_WHILE_UNLOCKED(NULL, blk_exp_has_type(type));
 }
 
 void blk_exp_close_all(void)

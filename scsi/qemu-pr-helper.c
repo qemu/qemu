@@ -177,10 +177,9 @@ static int do_sgio_worker(void *opaque)
     return status;
 }
 
-static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
-                    uint8_t *buf, int *sz, int dir)
+static int coroutine_fn do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
+                                uint8_t *buf, int *sz, int dir)
 {
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
     int r;
 
     PRHelperSGIOData data = {
@@ -192,7 +191,7 @@ static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
         .dir = dir,
     };
 
-    r = thread_pool_submit_co(pool, do_sgio_worker, &data);
+    r = thread_pool_submit_co(do_sgio_worker, &data);
     *sz = data.sz;
     return r;
 }
@@ -320,7 +319,7 @@ static SCSISense mpath_generic_sense(int r)
     }
 }
 
-static int mpath_reconstruct_sense(int fd, int r, uint8_t *sense)
+static int coroutine_fn mpath_reconstruct_sense(int fd, int r, uint8_t *sense)
 {
     switch (r) {
     case MPATH_PR_SUCCESS:
@@ -372,8 +371,8 @@ static int mpath_reconstruct_sense(int fd, int r, uint8_t *sense)
     }
 }
 
-static int multipath_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
-                           uint8_t *data, int sz)
+static int coroutine_fn multipath_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
+                                        uint8_t *data, int sz)
 {
     int rq_servact = cdb[1];
     struct prin_resp resp;
@@ -427,8 +426,8 @@ static int multipath_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
     return mpath_reconstruct_sense(fd, r, sense);
 }
 
-static int multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
-                            const uint8_t *param, int sz)
+static int coroutine_fn multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
+                                         const uint8_t *param, int sz)
 {
     int rq_servact = cdb[1];
     int rq_scope = cdb[2] >> 4;
@@ -545,8 +544,8 @@ static int multipath_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
 }
 #endif
 
-static int do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
-                    uint8_t *data, int *resp_sz)
+static int coroutine_fn do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
+                                 uint8_t *data, int *resp_sz)
 {
 #ifdef CONFIG_MPATH
     if (is_mpath(fd)) {
@@ -563,8 +562,8 @@ static int do_pr_in(int fd, const uint8_t *cdb, uint8_t *sense,
                    SG_DXFER_FROM_DEV);
 }
 
-static int do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
-                     const uint8_t *param, int sz)
+static int coroutine_fn do_pr_out(int fd, const uint8_t *cdb, uint8_t *sense,
+                                  const uint8_t *param, int sz)
 {
     int resp_sz;
 

@@ -1126,7 +1126,7 @@ err:
  * Frees the allocated clusters because the request failed and they won't
  * actually be linked.
  */
-void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m)
+void coroutine_fn qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m)
 {
     BDRVQcow2State *s = bs->opaque;
     if (!has_data_file(bs) && !m->keep_old_clusters) {
@@ -1156,9 +1156,11 @@ void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m)
  *
  * Returns 0 on success, -errno on failure.
  */
-static int calculate_l2_meta(BlockDriverState *bs, uint64_t host_cluster_offset,
-                             uint64_t guest_offset, unsigned bytes,
-                             uint64_t *l2_slice, QCowL2Meta **m, bool keep_old)
+static int coroutine_fn calculate_l2_meta(BlockDriverState *bs,
+                                          uint64_t host_cluster_offset,
+                                          uint64_t guest_offset, unsigned bytes,
+                                          uint64_t *l2_slice, QCowL2Meta **m,
+                                          bool keep_old)
 {
     BDRVQcow2State *s = bs->opaque;
     int sc_index, l2_index = offset_to_l2_slice_index(s, guest_offset);
@@ -1599,8 +1601,10 @@ out:
  * function has been waiting for another request and the allocation must be
  * restarted, but the whole request should not be failed.
  */
-static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
-                                   uint64_t *host_offset, uint64_t *nb_clusters)
+static int coroutine_fn do_alloc_cluster_offset(BlockDriverState *bs,
+                                                uint64_t guest_offset,
+                                                uint64_t *host_offset,
+                                                uint64_t *nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
 
@@ -2065,8 +2069,9 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
     return nb_clusters;
 }
 
-static int zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
-                               unsigned nb_subclusters)
+static int coroutine_fn
+zero_l2_subclusters(BlockDriverState *bs, uint64_t offset,
+                    unsigned nb_subclusters)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_slice;

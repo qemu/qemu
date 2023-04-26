@@ -1167,7 +1167,7 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
         Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
         monitor_set_cur(co, &mon->common);
         aio_co_enter(qemu_get_aio_context(), co);
-        AIO_WAIT_WHILE(qemu_get_aio_context(), !data.done);
+        AIO_WAIT_WHILE_UNLOCKED(NULL, !data.done);
     }
 
     qobject_unref(qdict);

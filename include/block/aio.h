@@ -208,17 +208,9 @@ struct AioContext {
     struct ThreadPool *thread_pool;
 
 #ifdef CONFIG_LINUX_AIO
-    /*
-     * State for native Linux AIO.  Uses aio_context_acquire/release for
-     * locking.
-     */
     struct LinuxAioState *linux_aio;
 #endif
 #ifdef CONFIG_LINUX_IO_URING
-    /*
-     * State for Linux io_uring.  Uses aio_context_acquire/release for
-     * locking.
-     */
     struct LuringState *linux_io_uring;
 
     /* State for file descriptor monitoring using Linux io_uring */

@@ -70,7 +70,6 @@ static void virtio_pmem_flush(VirtIODevice *vdev, VirtQueue *vq)
     VirtIODeviceRequest *req_data;
     VirtIOPMEM *pmem = VIRTIO_PMEM(vdev);
     HostMemoryBackend *backend = MEMORY_BACKEND(pmem->memdev);
-    ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
 
     trace_virtio_pmem_flush_request();
     req_data = virtqueue_pop(vq, sizeof(VirtIODeviceRequest));
@@ -88,7 +87,7 @@ static void virtio_pmem_flush(VirtIODevice *vdev, VirtQueue *vq)
     req_data->fd   = memory_region_get_fd(&backend->mr);
     req_data->pmem = pmem;
     req_data->vdev = vdev;
-    thread_pool_submit_aio(pool, worker_cb, req_data, done_cb, req_data);
+    thread_pool_submit_aio(worker_cb, req_data, done_cb, req_data);
 }
 
 static void virtio_pmem_get_config(VirtIODevice *vdev, uint8_t *config)

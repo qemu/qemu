@@ -63,7 +63,7 @@ extern AioWait global_aio_wait;
  * @ctx: the aio context, or NULL if multiple aio contexts (for which the
  *       caller does not hold a lock) are involved in the polling condition.
  * @cond: wait while this conditional expression is true
- * @unlock: whether to unlock and then lock again @ctx. This apples
+ * @unlock: whether to unlock and then lock again @ctx. This applies
  * only when waiting for another AioContext from the main loop.
  * Otherwise it's ignored.
  *

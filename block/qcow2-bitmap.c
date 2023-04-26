@@ -1221,7 +1221,7 @@ out:
 }
 
 /* Checks to see if it's safe to resize bitmaps */
-int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
+int coroutine_fn qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;

@@ -18,6 +18,9 @@
 #include "qapi/error.h"
 #include "trace.h"
 
+/* Only used for assertions.  */
+#include "qemu/coroutine_int.h"
+
 /* io_uring ring size */
 #define MAX_ENTRIES 128
 
@@ -50,10 +53,9 @@ typedef struct LuringState {
 
     struct io_uring ring;
 
-    /* io queue for submit at batch.  Protected by AioContext lock. */
+    /* No locking required, only accessed from AioContext home thread */
     LuringQueue io_q;
 
-    /* I/O completion processing.  Only runs in I/O thread.  */
     QEMUBH *completion_bh;
 } LuringState;
 
@@ -209,6 +211,7 @@ end:
          * eventually runs later. Coroutines cannot be entered recursively
          * so avoid doing that!
          */
+        assert(luringcb->co->ctx == s->aio_context);
         if (!qemu_coroutine_entered(luringcb->co)) {
             aio_co_wake(luringcb->co);
         }
@@ -262,13 +265,11 @@ static int ioq_submit(LuringState *s)
 
 static void luring_process_completions_and_submit(LuringState *s)
 {
-    aio_context_acquire(s->aio_context);
     luring_process_completions(s);
 
     if (!s->io_q.plugged && s->io_q.in_queue > 0) {
         ioq_submit(s);
     }
-    aio_context_release(s->aio_context);
 }
 
 static void qemu_luring_completion_bh(void *opaque)
@@ -306,14 +307,18 @@ static void ioq_init(LuringQueue *io_q)
     io_q->blocked = false;
 }
 
-void luring_io_plug(BlockDriverState *bs, LuringState *s)
+void luring_io_plug(void)
 {
+    AioContext *ctx = qemu_get_current_aio_context();
+    LuringState *s = aio_get_linux_io_uring(ctx);
     trace_luring_io_plug(s);
     s->io_q.plugged++;
 }
 
-void luring_io_unplug(BlockDriverState *bs, LuringState *s)
+void luring_io_unplug(void)
 {
+    AioContext *ctx = qemu_get_current_aio_context();
+    LuringState *s = aio_get_linux_io_uring(ctx);
     assert(s->io_q.plugged);
     trace_luring_io_unplug(s, s->io_q.blocked, s->io_q.plugged,
                            s->io_q.in_queue, s->io_q.in_flight);
@@ -373,10 +378,12 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
     return 0;
 }
 
-int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
-                                  uint64_t offset, QEMUIOVector *qiov, int type)
+int coroutine_fn luring_co_submit(BlockDriverState *bs, int fd, uint64_t offset,
+                                  QEMUIOVector *qiov, int type)
 {
     int ret;
+    AioContext *ctx = qemu_get_current_aio_context();
+    LuringState *s = aio_get_linux_io_uring(ctx);
     LuringAIOCB luringcb = {
         .co         = qemu_coroutine_self(),
         .ret        = -EINPROGRESS,

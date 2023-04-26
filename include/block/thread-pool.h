@@ -29,12 +29,15 @@ typedef struct ThreadPool ThreadPool;
 ThreadPool *thread_pool_new(struct AioContext *ctx);
 void thread_pool_free(ThreadPool *pool);
 
-BlockAIOCB *thread_pool_submit_aio(ThreadPool *pool,
-        ThreadPoolFunc *func, void *arg,
-        BlockCompletionFunc *cb, void *opaque);
-int coroutine_fn thread_pool_submit_co(ThreadPool *pool,
-        ThreadPoolFunc *func, void *arg);
-void thread_pool_submit(ThreadPool *pool, ThreadPoolFunc *func, void *arg);
+/*
+ * thread_pool_submit* API: submit I/O requests in the thread's
+ * current AioContext.
+ */
+BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
+                                   BlockCompletionFunc *cb, void *opaque);
+int coroutine_fn thread_pool_submit_co(ThreadPoolFunc *func, void *arg);
+void thread_pool_submit(ThreadPoolFunc *func, void *arg);
+
 void thread_pool_update_params(ThreadPool *pool, struct AioContext *ctx);
 
 #endif

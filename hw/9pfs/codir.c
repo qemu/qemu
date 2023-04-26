@@ -68,9 +68,9 @@ int coroutine_fn v9fs_co_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
  *
  * See v9fs_co_readdir_many() (as its only user) below for details.
  */
-static int do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp,
-                           struct V9fsDirEnt **entries, off_t offset,
-                           int32_t maxsize, bool dostat)
+static int coroutine_fn
+do_readdir_many(V9fsPDU *pdu, V9fsFidState *fidp, struct V9fsDirEnt **entries,
+                off_t offset, int32_t maxsize, bool dostat)
 {
     V9fsState *s = pdu->s;
     V9fsString name;

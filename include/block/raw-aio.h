@@ -49,26 +49,39 @@
 typedef struct LinuxAioState LinuxAioState;
 LinuxAioState *laio_init(Error **errp);
 void laio_cleanup(LinuxAioState *s);
-int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
-                                uint64_t offset, QEMUIOVector *qiov, int type,
-                                uint64_t dev_max_batch);
+
+/* laio_co_submit: submit I/O requests in the thread's current AioContext. */
+int coroutine_fn laio_co_submit(int fd, uint64_t offset, QEMUIOVector *qiov,
+                                int type, uint64_t dev_max_batch);
+
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context);
 void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context);
-void laio_io_plug(BlockDriverState *bs, LinuxAioState *s);
-void laio_io_unplug(BlockDriverState *bs, LinuxAioState *s,
-                    uint64_t dev_max_batch);
+
+/*
+ * laio_io_plug/unplug work in the thread's current AioContext, therefore the
+ * caller must ensure that they are paired in the same IOThread.
+ */
+void laio_io_plug(void);
+void laio_io_unplug(uint64_t dev_max_batch);
 #endif
 /* io_uring.c - Linux io_uring implementation */
 #ifdef CONFIG_LINUX_IO_URING
 typedef struct LuringState LuringState;
 LuringState *luring_init(Error **errp);
 void luring_cleanup(LuringState *s);
-int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
-                                uint64_t offset, QEMUIOVector *qiov, int type);
+
+/* luring_co_submit: submit I/O requests in the thread's current AioContext. */
+int coroutine_fn luring_co_submit(BlockDriverState *bs, int fd, uint64_t offset,
+                                  QEMUIOVector *qiov, int type);
 void luring_detach_aio_context(LuringState *s, AioContext *old_context);
 void luring_attach_aio_context(LuringState *s, AioContext *new_context);
-void luring_io_plug(BlockDriverState *bs, LuringState *s);
-void luring_io_unplug(BlockDriverState *bs, LuringState *s);
+
+/*
+ * luring_io_plug/unplug work in the thread's current AioContext, therefore the
+ * caller must ensure that they are paired in the same IOThread.
+ */
+void luring_io_plug(void);
+void luring_io_unplug(void);
 #endif
 
 #ifdef _WIN32
