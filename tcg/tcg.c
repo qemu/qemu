@@ -865,7 +865,7 @@ static TCGHelperInfo info_helper_ld32_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(ttl, 0)  /* return tcg_target_ulong */
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i32, 3)  /* unsigned oi */
               | dh_typemask(ptr, 4)  /* uintptr_t ra */
 };
@@ -874,7 +874,7 @@ static TCGHelperInfo info_helper_ld64_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(i64, 0)  /* return uint64_t */
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i32, 3)  /* unsigned oi */
               | dh_typemask(ptr, 4)  /* uintptr_t ra */
 };
@@ -883,7 +883,7 @@ static TCGHelperInfo info_helper_ld128_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(i128, 0) /* return Int128 */
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i32, 3)  /* unsigned oi */
               | dh_typemask(ptr, 4)  /* uintptr_t ra */
 };
@@ -892,7 +892,7 @@ static TCGHelperInfo info_helper_st32_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(void, 0)
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i32, 3)  /* uint32_t data */
               | dh_typemask(i32, 4)  /* unsigned oi */
               | dh_typemask(ptr, 5)  /* uintptr_t ra */
@@ -902,7 +902,7 @@ static TCGHelperInfo info_helper_st64_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(void, 0)
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i64, 3)  /* uint64_t data */
               | dh_typemask(i32, 4)  /* unsigned oi */
               | dh_typemask(ptr, 5)  /* uintptr_t ra */
@@ -912,7 +912,7 @@ static TCGHelperInfo info_helper_st128_mmu = {
     .flags = TCG_CALL_NO_WG,
     .typemask = dh_typemask(void, 0)
               | dh_typemask(env, 1)
-              | dh_typemask(tl, 2)   /* target_ulong addr */
+              | dh_typemask(i64, 2)  /* uint64_t addr */
               | dh_typemask(i128, 3) /* Int128 data */
               | dh_typemask(i32, 4)  /* unsigned oi */
               | dh_typemask(ptr, 5)  /* uintptr_t ra */
@@ -5597,11 +5597,26 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
     next_arg = 1;
 
     loc = &info->in[next_arg];
-    nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_TL, TCG_TYPE_TL,
-                                  ldst->addrlo_reg, ldst->addrhi_reg);
-    next_arg += nmov;
+    if (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 64) {
+        nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, TCG_TYPE_TL,
+                                      ldst->addrlo_reg, ldst->addrhi_reg);
+        tcg_out_helper_load_slots(s, nmov, mov, parm);
+        next_arg += nmov;
+    } else {
+        /*
+         * 32-bit host with 32-bit guest: zero-extend the guest address
+         * to 64-bits for the helper by storing the low part, then
+         * load a zero for the high part.
+         */
+        tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
+                               TCG_TYPE_I32, TCG_TYPE_I32,
+                               ldst->addrlo_reg, -1);
+        tcg_out_helper_load_slots(s, 1, mov, parm);
 
-    tcg_out_helper_load_slots(s, nmov, mov, parm);
+        tcg_out_helper_load_imm(s, loc[!HOST_BIG_ENDIAN].arg_slot,
+                                TCG_TYPE_I32, 0, parm);
+        next_arg += 2;
+    }
 
     switch (info->out_kind) {
     case TCG_CALL_RET_NORMAL:
@@ -5755,10 +5770,24 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
     /* Handle addr argument. */
     loc = &info->in[next_arg];
-    n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_TL, TCG_TYPE_TL,
-                               ldst->addrlo_reg, ldst->addrhi_reg);
-    next_arg += n;
-    nmov += n;
+    if (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 64) {
+        n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, TCG_TYPE_TL,
+                                   ldst->addrlo_reg, ldst->addrhi_reg);
+        next_arg += n;
+        nmov += n;
+    } else {
+        /*
+         * 32-bit host with 32-bit guest: zero-extend the guest address
+         * to 64-bits for the helper by storing the low part.  Later,
+         * after we have processed the register inputs, we will load a
+         * zero for the high part.
+         */
+        tcg_out_helper_add_mov(mov, loc + HOST_BIG_ENDIAN,
+                               TCG_TYPE_I32, TCG_TYPE_I32,
+                               ldst->addrlo_reg, -1);
+        next_arg += 2;
+        nmov += 1;
+    }
 
     /* Handle data argument. */
     loc = &info->in[next_arg];
@@ -5801,6 +5830,11 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
     default:
         g_assert_not_reached();
+    }
+
+    if (TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32) {
+        loc = &info->in[1 + !HOST_BIG_ENDIAN];
+        tcg_out_helper_load_imm(s, loc->arg_slot, TCG_TYPE_I32, 0, parm);
     }
 
     tcg_out_helper_load_common_args(s, ldst, parm, info, next_arg);

@@ -26,38 +26,38 @@
 #define TCG_LDST_H
 
 /* Value zero-extended to tcg register size.  */
-tcg_target_ulong helper_ldub_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldub_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
-tcg_target_ulong helper_lduw_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_lduw_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
-tcg_target_ulong helper_ldul_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldul_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
-uint64_t helper_ldq_mmu(CPUArchState *env, target_ulong addr,
+uint64_t helper_ldq_mmu(CPUArchState *env, uint64_t addr,
                         MemOpIdx oi, uintptr_t retaddr);
-Int128 helper_ld16_mmu(CPUArchState *env, target_ulong addr,
+Int128 helper_ld16_mmu(CPUArchState *env, uint64_t addr,
                        MemOpIdx oi, uintptr_t retaddr);
 
 /* Value sign-extended to tcg register size.  */
-tcg_target_ulong helper_ldsb_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsb_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
-tcg_target_ulong helper_ldsw_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsw_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
-tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t retaddr);
 
 /*
  * Value extended to at least uint32_t, so that some ABIs do not require
  * zero-extension from uint8_t or uint16_t.
  */
-void helper_stb_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t retaddr);
-void helper_stw_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stw_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t retaddr);
-void helper_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stl_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t retaddr);
-void helper_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+void helper_stq_mmu(CPUArchState *env, uint64_t addr, uint64_t val,
                     MemOpIdx oi, uintptr_t retaddr);
-void helper_st16_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+void helper_st16_mmu(CPUArchState *env, uint64_t addr, Int128 val,
                      MemOpIdx oi, uintptr_t retaddr);
 
 #endif /* TCG_LDST_H */

@@ -920,13 +920,13 @@ static uint8_t do_ld1_mmu(CPUArchState *env, abi_ptr addr,
     return ret;
 }
 
-tcg_target_ulong helper_ldub_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldub_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     return do_ld1_mmu(env, addr, get_memop(oi), ra);
 }
 
-tcg_target_ulong helper_ldsb_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsb_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     return (int8_t)do_ld1_mmu(env, addr, get_memop(oi), ra);
@@ -953,7 +953,7 @@ static uint16_t do_ld2_he_mmu(CPUArchState *env, abi_ptr addr,
     return ret;
 }
 
-tcg_target_ulong helper_lduw_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_lduw_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -965,7 +965,7 @@ tcg_target_ulong helper_lduw_mmu(CPUArchState *env, target_ulong addr,
     return ret;
 }
 
-tcg_target_ulong helper_ldsw_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsw_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1014,7 +1014,7 @@ static uint32_t do_ld4_he_mmu(CPUArchState *env, abi_ptr addr,
     return ret;
 }
 
-tcg_target_ulong helper_ldul_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldul_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1026,7 +1026,7 @@ tcg_target_ulong helper_ldul_mmu(CPUArchState *env, target_ulong addr,
     return ret;
 }
 
-tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, target_ulong addr,
+tcg_target_ulong helper_ldsl_mmu(CPUArchState *env, uint64_t addr,
                                  MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1075,7 +1075,7 @@ static uint64_t do_ld8_he_mmu(CPUArchState *env, abi_ptr addr,
     return ret;
 }
 
-uint64_t helper_ldq_mmu(CPUArchState *env, target_ulong addr,
+uint64_t helper_ldq_mmu(CPUArchState *env, uint64_t addr,
                         MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1124,7 +1124,7 @@ static Int128 do_ld16_he_mmu(CPUArchState *env, abi_ptr addr,
     return ret;
 }
 
-Int128 helper_ld16_mmu(CPUArchState *env, target_ulong addr,
+Int128 helper_ld16_mmu(CPUArchState *env, uint64_t addr,
                        MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1182,7 +1182,7 @@ static void do_st1_mmu(CPUArchState *env, abi_ptr addr, uint8_t val,
     clear_helper_retaddr();
 }
 
-void helper_stb_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stb_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t ra)
 {
     do_st1_mmu(env, addr, val, get_memop(oi), ra);
@@ -1206,7 +1206,7 @@ static void do_st2_he_mmu(CPUArchState *env, abi_ptr addr, uint16_t val,
     clear_helper_retaddr();
 }
 
-void helper_stw_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stw_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1248,7 +1248,7 @@ static void do_st4_he_mmu(CPUArchState *env, abi_ptr addr, uint32_t val,
     clear_helper_retaddr();
 }
 
-void helper_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+void helper_stl_mmu(CPUArchState *env, uint64_t addr, uint32_t val,
                     MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1290,7 +1290,7 @@ static void do_st8_he_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
     clear_helper_retaddr();
 }
 
-void helper_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+void helper_stq_mmu(CPUArchState *env, uint64_t addr, uint64_t val,
                     MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
@@ -1332,7 +1332,7 @@ static void do_st16_he_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
     clear_helper_retaddr();
 }
 
-void helper_st16_mmu(CPUArchState *env, target_ulong addr, Int128 val,
+void helper_st16_mmu(CPUArchState *env, uint64_t addr, Int128 val,
                      MemOpIdx oi, uintptr_t ra)
 {
     MemOp mop = get_memop(oi);
