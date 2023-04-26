@@ -29,9 +29,7 @@
 #include "trace.h"
 
 static QCryptoTLSCreds *
-migration_tls_get_creds(MigrationState *s,
-                        QCryptoTLSCredsEndpoint endpoint,
-                        Error **errp)
+migration_tls_get_creds(QCryptoTLSCredsEndpoint endpoint, Error **errp)
 {
     Object *creds;
     const char *tls_creds = migrate_tls_creds();
@@ -80,8 +78,7 @@ void migration_tls_channel_process_incoming(MigrationState *s,
     QCryptoTLSCreds *creds;
     QIOChannelTLS *tioc;
 
-    creds = migration_tls_get_creds(
-        s, QCRYPTO_TLS_CREDS_ENDPOINT_SERVER, errp);
+    creds = migration_tls_get_creds(QCRYPTO_TLS_CREDS_ENDPOINT_SERVER, errp);
     if (!creds) {
         return;
     }
@@ -124,8 +121,7 @@ QIOChannelTLS *migration_tls_client_create(MigrationState *s,
 {
     QCryptoTLSCreds *creds;
 
-    creds = migration_tls_get_creds(
-        s, QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT, errp);
+    creds = migration_tls_get_creds(QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT, errp);
     if (!creds) {
         return NULL;
     }
