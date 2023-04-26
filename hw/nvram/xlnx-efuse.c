@@ -143,6 +143,8 @@ static bool efuse_ro_bits_find(XlnxEFuse *s, uint32_t k)
 
 bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
 {
+    uint32_t set, *row;
+
     if (efuse_ro_bits_find(s, bit)) {
         g_autofree char *path = object_get_canonical_path(OBJECT(s));
 
@@ -152,8 +154,13 @@ bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
         return false;
     }
 
-    s->fuse32[bit / 32] |= 1 << (bit % 32);
-    efuse_bdrv_sync(s, bit);
+    /* Avoid back-end write unless there is a real update */
+    row = &s->fuse32[bit / 32];
+    set = 1 << (bit % 32);
+    if (!(set & *row)) {
+        *row |= set;
+        efuse_bdrv_sync(s, bit);
+    }
     return true;
 }
 
