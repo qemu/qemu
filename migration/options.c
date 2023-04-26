@@ -302,6 +302,7 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
 
+    ERRP_GUARD();
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
     if (new_caps[MIGRATION_CAPABILITY_BLOCK]) {
         error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
@@ -327,11 +328,8 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
          */
         if (!old_caps[MIGRATION_CAPABILITY_POSTCOPY_RAM] &&
             runstate_check(RUN_STATE_INMIGRATE) &&
-            !postcopy_ram_supported_by_host(mis)) {
-            /* postcopy_ram_supported_by_host will have emitted a more
-             * detailed message
-             */
-            error_setg(errp, "Postcopy is not supported");
+            !postcopy_ram_supported_by_host(mis, errp)) {
+            error_prepend(errp, "Postcopy is not supported: ");
             return false;
         }
 
