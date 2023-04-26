@@ -114,8 +114,7 @@ static void migration_tls_outgoing_handshake(QIOTask *task,
     object_unref(OBJECT(ioc));
 }
 
-QIOChannelTLS *migration_tls_client_create(MigrationState *s,
-                                           QIOChannel *ioc,
+QIOChannelTLS *migration_tls_client_create(QIOChannel *ioc,
                                            const char *hostname,
                                            Error **errp)
 {
@@ -141,7 +140,7 @@ void migration_tls_channel_connect(MigrationState *s,
 {
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(s, ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, hostname, errp);
     if (!tioc) {
         return;
     }

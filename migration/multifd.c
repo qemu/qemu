@@ -821,7 +821,7 @@ static void multifd_tls_channel_connect(MultiFDSendParams *p,
     const char *hostname = s->hostname;
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(s, ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, hostname, errp);
     if (!tioc) {
         return;
     }
