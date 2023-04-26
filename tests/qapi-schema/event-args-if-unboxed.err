@@ -1,0 +1,2 @@
+tests/qapi-schema/event-args-if-unboxed.json: In event 'TEST_IF_EVENT':
+tests/qapi-schema/event-args-if-unboxed.json:1: event's 'data' members may have 'if' conditions only with 'boxed': true

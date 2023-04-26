@@ -1,2 +1,2 @@
 bad-data.json: In command 'oops':
-bad-data.json:2: 'data' cannot be an array
+bad-data.json:2: 'data' should be an object or type name

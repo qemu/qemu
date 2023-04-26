@@ -1,0 +1,2 @@
+union-invalid-union-subtype.json: In union 'TestUnion':
+union-invalid-union-subtype.json:25: base member 'type' of type 'TestTypeA' collides with base member 'type'

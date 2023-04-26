@@ -333,62 +333,56 @@ def normalize_members(members: object) -> None:
             members[key] = {'type': arg}
 
 
-def check_type(value: Optional[object],
-               info: QAPISourceInfo,
-               source: str,
-               allow_array: bool = False,
-               allow_dict: Union[bool, str] = False) -> None:
-    """
-    Normalize and validate the QAPI type of ``value``.
+def check_type_name(value: Optional[object],
+                    info: QAPISourceInfo, source: str) -> None:
+    if value is not None and not isinstance(value, str):
+        raise QAPISemError(info, "%s should be a type name" % source)
 
-    Python types of ``str`` or ``None`` are always allowed.
+
+def check_type_name_or_array(value: Optional[object],
+                             info: QAPISourceInfo, source: str) -> None:
+    if value is None or isinstance(value, str):
+        return
+
+    if not isinstance(value, list):
+        raise QAPISemError(info,
+                           "%s should be a type name or array" % source)
+
+    if len(value) != 1 or not isinstance(value[0], str):
+        raise QAPISemError(info,
+                           "%s: array type must contain single type name" %
+                           source)
+
+
+def check_type_implicit(value: Optional[object],
+                        info: QAPISourceInfo, source: str,
+                        parent_name: Optional[str]) -> None:
+    """
+    Normalize and validate an optional implicit struct type.
+
+    Accept ``None`` or a ``dict`` defining an implicit struct type.
+    The latter is normalized in place.
 
     :param value: The value to check.
     :param info: QAPI schema source file information.
     :param source: Error string describing this ``value``.
-    :param allow_array:
-        Allow a ``List[str]`` of length 1, which indicates an array of
-        the type named by the list element.
-    :param allow_dict:
-        Allow a dict.  Its members can be struct type members or union
-        branches.  When the value of ``allow_dict`` is in pragma
-        ``member-name-exceptions``, the dict's keys may violate the
-        member naming rules.  The dict members are normalized in place.
+    :param parent_name:
+        When the value of ``parent_name`` is in pragma
+        ``member-name-exceptions``, an implicit struct type may
+        violate the member naming rules.
 
     :raise QAPISemError: When ``value`` fails validation.
-    :return: None, ``value`` is normalized in-place as needed.
+    :return: None
     """
     if value is None:
         return
-
-    # Type name
-    if isinstance(value, str):
-        return
-
-    # Array type
-    if isinstance(value, list):
-        if not allow_array:
-            raise QAPISemError(info, "%s cannot be an array" % source)
-        if len(value) != 1 or not isinstance(value[0], str):
-            raise QAPISemError(info,
-                               "%s: array type must contain single type name" %
-                               source)
-        return
-
-    # Anonymous type
-
-    if not allow_dict:
-        raise QAPISemError(info, "%s should be a type name" % source)
 
     if not isinstance(value, dict):
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permissive = False
-    if isinstance(allow_dict, str):
-        permissive = allow_dict in info.pragma.member_name_exceptions
+    permissive = parent_name in info.pragma.member_name_exceptions
 
-    # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         key_source = "%s member '%s'" % (source, key)
         if key.startswith('*'):
@@ -401,7 +395,16 @@ def check_type(value: Optional[object],
         check_keys(arg, info, key_source, ['type'], ['if', 'features'])
         check_if(arg, info, key_source)
         check_features(arg.get('features'), info)
-        check_type(arg['type'], info, key_source, allow_array=True)
+        check_type_name_or_array(arg['type'], info, key_source)
+
+
+def check_type_name_or_implicit(value: Optional[object],
+                                info: QAPISourceInfo, source: str,
+                                parent_name: Optional[str]) -> None:
+    if value is None or isinstance(value, str):
+        return
+
+    check_type_implicit(value, info, source, parent_name)
 
 
 def check_features(features: Optional[object],
@@ -489,8 +492,8 @@ def check_struct(expr: QAPIExpression) -> None:
     name = cast(str, expr['struct'])  # Checked in check_exprs
     members = expr['data']
 
-    check_type(members, expr.info, "'data'", allow_dict=name)
-    check_type(expr.get('base'), expr.info, "'base'")
+    check_type_implicit(members, expr.info, "'data'", name)
+    check_type_name(expr.get('base'), expr.info, "'base'")
 
 
 def check_union(expr: QAPIExpression) -> None:
@@ -508,7 +511,7 @@ def check_union(expr: QAPIExpression) -> None:
     members = expr['data']
     info = expr.info
 
-    check_type(base, info, "'base'", allow_dict=name)
+    check_type_name_or_implicit(base, info, "'base'", name)
     check_name_is_str(discriminator, info, "'discriminator'")
 
     if not isinstance(members, dict):
@@ -518,7 +521,7 @@ def check_union(expr: QAPIExpression) -> None:
         source = "'data' member '%s'" % key
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        check_type(value['type'], info, source, allow_array=not base)
+        check_type_name(value['type'], info, source)
 
 
 def check_alternate(expr: QAPIExpression) -> None:
@@ -544,7 +547,7 @@ def check_alternate(expr: QAPIExpression) -> None:
         check_name_lower(key, info, source)
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        check_type(value['type'], info, source, allow_array=True)
+        check_type_name_or_array(value['type'], info, source)
 
 
 def check_command(expr: QAPIExpression) -> None:
@@ -560,10 +563,13 @@ def check_command(expr: QAPIExpression) -> None:
     rets = expr.get('returns')
     boxed = expr.get('boxed', False)
 
-    if boxed and args is None:
-        raise QAPISemError(expr.info, "'boxed': true requires 'data'")
-    check_type(args, expr.info, "'data'", allow_dict=not boxed)
-    check_type(rets, expr.info, "'returns'", allow_array=True)
+    if boxed:
+        if args is None:
+            raise QAPISemError(expr.info, "'boxed': true requires 'data'")
+        check_type_name(args, expr.info, "'data'")
+    else:
+        check_type_name_or_implicit(args, expr.info, "'data'", None)
+    check_type_name_or_array(rets, expr.info, "'returns'")
 
 
 def check_event(expr: QAPIExpression) -> None:
@@ -578,9 +584,12 @@ def check_event(expr: QAPIExpression) -> None:
     args = expr.get('data')
     boxed = expr.get('boxed', False)
 
-    if boxed and args is None:
-        raise QAPISemError(expr.info, "'boxed': true requires 'data'")
-    check_type(args, expr.info, "'data'", allow_dict=not boxed)
+    if boxed:
+        if args is None:
+            raise QAPISemError(expr.info, "'boxed': true requires 'data'")
+        check_type_name(args, expr.info, "'data'")
+    else:
+        check_type_name_or_implicit(args, expr.info, "'data'", None)
 
 
 def check_exprs(exprs: List[QAPIExpression]) -> List[QAPIExpression]:

@@ -805,9 +805,8 @@ gets its generated code guarded like this::
  ... generated code ...
  #endif /* defined(HAVE_BAR) && defined(CONFIG_FOO) */
 
-Individual members of complex types, commands arguments, and
-event-specific data can also be made conditional.  This requires the
-longhand form of MEMBER.
+Individual members of complex types can also be made conditional.
+This requires the longhand form of MEMBER.
 
 Example: a struct type with unconditional member 'foo' and conditional
 member 'bar' ::

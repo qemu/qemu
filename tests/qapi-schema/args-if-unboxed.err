@@ -1,0 +1,2 @@
+args-if-unboxed.json: In command 'test-if-cmd':
+args-if-unboxed.json:5: conditional command arguments require 'boxed': true

@@ -1,0 +1,2 @@
+args-if-implicit.json: In command 'test-if-cmd':
+args-if-implicit.json:1: conditional command arguments require 'boxed': true
