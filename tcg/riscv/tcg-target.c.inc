@@ -1063,6 +1063,22 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
     }
 }
 
+static void tcg_out_cltz(TCGContext *s, TCGType type, RISCVInsn insn,
+                         TCGReg ret, TCGReg src1, int src2, bool c_src2)
+{
+    tcg_out_opc_imm(s, insn, ret, src1, 0);
+
+    if (!c_src2 || src2 != (type == TCG_TYPE_I32 ? 32 : 64)) {
+        /*
+         * The requested zero result does not match the insn, so adjust.
+         * Note that constraints put 'ret' in a new register, so the
+         * computation above did not clobber either 'src1' or 'src2'.
+         */
+        tcg_out_movcond(s, TCG_COND_EQ, ret, src1, 0, true,
+                        src2, c_src2, ret, false);
+    }
+}
+
 static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
 {
     TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
@@ -1723,6 +1739,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_imm(s, OPC_CPOP, a0, a1, 0);
         break;
 
+    case INDEX_op_clz_i32:
+        tcg_out_cltz(s, TCG_TYPE_I32, OPC_CLZW, a0, a1, a2, c2);
+        break;
+    case INDEX_op_clz_i64:
+        tcg_out_cltz(s, TCG_TYPE_I64, OPC_CLZ, a0, a1, a2, c2);
+        break;
+    case INDEX_op_ctz_i32:
+        tcg_out_cltz(s, TCG_TYPE_I32, OPC_CTZW, a0, a1, a2, c2);
+        break;
+    case INDEX_op_ctz_i64:
+        tcg_out_cltz(s, TCG_TYPE_I64, OPC_CTZ, a0, a1, a2, c2);
+        break;
+
     case INDEX_op_add2_i32:
         tcg_out_addsub2(s, a0, a1, a2, args[3], args[4], args[5],
                         const_args[4], const_args[5], false, true);
@@ -1919,6 +1948,12 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
         return C_O1_I2(r, r, ri);
+
+    case INDEX_op_clz_i32:
+    case INDEX_op_clz_i64:
+    case INDEX_op_ctz_i32:
+    case INDEX_op_ctz_i64:
+        return C_N1_I2(r, r, rM);
 
     case INDEX_op_brcond_i32:
     case INDEX_op_brcond_i64:
