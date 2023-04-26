@@ -391,6 +391,39 @@ void test_count_trailing_zeros_ones(void)
     check(ct1p(0xffffff0fffffffffULL), 36);
 }
 
+static inline int dpmpyss_rnd_s0(int x, int y)
+{
+    int res;
+    asm("%0 = mpy(%1, %2):rnd\n\t" : "=r"(res) : "r"(x), "r"(y));
+    return res;
+}
+
+void test_dpmpyss_rnd_s0(void)
+{
+    check(dpmpyss_rnd_s0(-1, 0x80000000), 1);
+    check(dpmpyss_rnd_s0(0, 0x80000000), 0);
+    check(dpmpyss_rnd_s0(1, 0x80000000), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 0x80000000), 0xc0000001);
+    check(dpmpyss_rnd_s0(0x80000000, -1), 1);
+    check(dpmpyss_rnd_s0(-1, -1), 0);
+    check(dpmpyss_rnd_s0(0, -1), 0);
+    check(dpmpyss_rnd_s0(1, -1), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, -1), 0);
+    check(dpmpyss_rnd_s0(0x80000000, 0), 0);
+    check(dpmpyss_rnd_s0(-1, 0), 0);
+    check(dpmpyss_rnd_s0(0, 0), 0);
+    check(dpmpyss_rnd_s0(1, 0), 0);
+    check(dpmpyss_rnd_s0(-1, -1), 0);
+    check(dpmpyss_rnd_s0(0, -1), 0);
+    check(dpmpyss_rnd_s0(1, -1), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 1), 0);
+    check(dpmpyss_rnd_s0(0x80000000, 0x7fffffff), 0xc0000001);
+    check(dpmpyss_rnd_s0(-1, 0x7fffffff), 0);
+    check(dpmpyss_rnd_s0(0, 0x7fffffff),  0);
+    check(dpmpyss_rnd_s0(1, 0x7fffffff),  0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 0x7fffffff), 0x3fffffff);
+}
+
 int main()
 {
     int res;
@@ -533,6 +566,8 @@ int main()
     test_l2fetch();
 
     test_count_trailing_zeros_ones();
+
+    test_dpmpyss_rnd_s0();
 
     puts(err ? "FAIL" : "PASS");
     return err;

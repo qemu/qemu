@@ -594,8 +594,6 @@ rvalue : FAIL
        | CAST rvalue
          {
              @1.last_column = @2.last_column;
-             /* Assign target signedness */
-             $2.signedness = $1.signedness;
              $$ = gen_cast_op(c, &@1, &$2, $1.bit_width, $1.signedness);
          }
        | rvalue EQ rvalue

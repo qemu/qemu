@@ -80,7 +80,7 @@ void reg_compose(Context *c, YYLTYPE *locp, HexReg *reg, char reg_id[5]);
 
 void reg_print(Context *c, YYLTYPE *locp, HexReg *reg);
 
-void imm_print(Context *c, YYLTYPE *locp, HexImm *imm);
+void imm_print(Context *c, YYLTYPE *locp, HexValue *rvalue);
 
 void var_print(Context *c, YYLTYPE *locp, HexVar *var);
 

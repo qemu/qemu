@@ -103,7 +103,15 @@ def main():
                 continue
             if tag.startswith("V6_"):
                 continue
-            if tag.startswith("F"):
+            if ( tag.startswith("F") and
+                 tag not in {
+                     "F2_sfimm_p",
+                     "F2_sfimm_n",
+                     "F2_dfimm_p",
+                     "F2_dfimm_n",
+                     "F2_dfmpyll",
+                     "F2_dfmpylh"
+                 }):
                 continue
             if tag.endswith("_locked"):
                 continue

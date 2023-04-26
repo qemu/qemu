@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <float.h>
 
 const int FPINVF_BIT = 1;                 /* Invalid */
 const int FPINVF = 1 << FPINVF_BIT;
@@ -706,6 +707,57 @@ static void check_float2int_convs()
     check_fpstatus(usr, FPINVF);
 }
 
+static void check_float_consts(void)
+{
+    int res32;
+    unsigned long long res64;
+
+    asm("%0 = sfmake(#%1):neg\n\t" : "=r"(res32) : "i"(0xf));
+    check32(res32, 0xbc9e0000);
+
+    asm("%0 = sfmake(#%1):pos\n\t" : "=r"(res32) : "i"(0xf));
+    check32(res32, 0x3c9e0000);
+
+    asm("%0 = dfmake(#%1):neg\n\t" : "=r"(res64) : "i"(0xf));
+    check64(res64, 0xbf93c00000000000ULL);
+
+    asm("%0 = dfmake(#%1):pos\n\t" : "=r"(res64) : "i"(0xf));
+    check64(res64, 0x3f93c00000000000ULL);
+}
+
+static inline unsigned long long dfmpyll(double x, double y)
+{
+    unsigned long long res64;
+    asm("%0 = dfmpyll(%1, %2)" : "=r"(res64) : "r"(x), "r"(y));
+    return res64;
+}
+
+static inline unsigned long long dfmpylh(double acc, double x, double y)
+{
+    unsigned long long res64 = *(unsigned long long *)&acc;
+    asm("%0 += dfmpylh(%1, %2)" : "+r"(res64) : "r"(x), "r"(y));
+    return res64;
+}
+
+static void check_dfmpyxx(void)
+{
+    unsigned long long res64;
+
+    res64 = dfmpyll(DBL_MIN, DBL_MIN);
+    check64(res64, 0ULL);
+    res64 = dfmpyll(-1.0, DBL_MIN);
+    check64(res64, 0ULL);
+    res64 = dfmpyll(DBL_MAX, DBL_MAX);
+    check64(res64, 0x1fffffffdULL);
+
+    res64 = dfmpylh(DBL_MIN, DBL_MIN, DBL_MIN);
+    check64(res64, 0x10000000000000ULL);
+    res64 = dfmpylh(-1.0, DBL_MAX, DBL_MIN);
+    check64(res64, 0xc00fffffffe00000ULL);
+    res64 = dfmpylh(DBL_MAX, 0.0, -1.0);
+    check64(res64, 0x7fefffffffffffffULL);
+}
+
 int main()
 {
     check_compare_exception();
@@ -718,6 +770,8 @@ int main()
     check_sffixupd();
     check_sffms();
     check_float2int_convs();
+    check_float_consts();
+    check_dfmpyxx();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;

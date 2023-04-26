@@ -167,8 +167,9 @@ void reg_print(Context *c, YYLTYPE *locp, HexReg *reg)
     EMIT(c, "hex_gpr[%u]", reg->id);
 }
 
-void imm_print(Context *c, YYLTYPE *locp, HexImm *imm)
+void imm_print(Context *c, YYLTYPE *locp, HexValue *rvalue)
 {
+    HexImm *imm = &rvalue->imm;
     switch (imm->type) {
     case I:
         EMIT(c, "i");
@@ -177,7 +178,21 @@ void imm_print(Context *c, YYLTYPE *locp, HexImm *imm)
         EMIT(c, "%ciV", imm->id);
         break;
     case VALUE:
-        EMIT(c, "((int64_t) %" PRIu64 "ULL)", (int64_t) imm->value);
+        if (rvalue->bit_width == 32) {
+            if (rvalue->signedness == UNSIGNED) {
+                EMIT(c, "((uint32_t) 0x%" PRIx32 ")", (uint32_t) imm->value);
+            }  else {
+                EMIT(c, "((int32_t) 0x%" PRIx32 ")", (int32_t) imm->value);
+            }
+        } else if (rvalue->bit_width == 64) {
+            if (rvalue->signedness == UNSIGNED) {
+                EMIT(c, "((uint64_t) 0x%" PRIx64 "ULL)", (uint64_t) imm->value);
+            } else {
+                EMIT(c, "((int64_t) 0x%" PRIx64 "LL)", (int64_t) imm->value);
+            }
+        } else {
+            g_assert_not_reached();
+        }
         break;
     case QEMU_TMP:
         EMIT(c, "qemu_tmp_%" PRIu64, imm->index);
@@ -213,7 +228,7 @@ void rvalue_print(Context *c, YYLTYPE *locp, void *pointer)
       tmp_print(c, locp, &rvalue->tmp);
       break;
   case IMMEDIATE:
-      imm_print(c, locp, &rvalue->imm);
+      imm_print(c, locp, rvalue);
       break;
   case VARID:
       var_print(c, locp, &rvalue->var);
@@ -386,13 +401,10 @@ HexValue gen_rvalue_extend(Context *c, YYLTYPE *locp, HexValue *rvalue)
 
     if (rvalue->type == IMMEDIATE) {
         HexValue res = gen_imm_qemu_tmp(c, locp, 64, rvalue->signedness);
-        bool is_unsigned = (rvalue->signedness == UNSIGNED);
-        const char *sign_suffix = is_unsigned ? "u" : "";
         gen_c_int_type(c, locp, 64, rvalue->signedness);
-        OUT(c, locp, " ", &res, " = ");
-        OUT(c, locp, "(", sign_suffix, "int64_t) ");
-        OUT(c, locp, "(", sign_suffix, "int32_t) ");
-        OUT(c, locp, rvalue, ";\n");
+        OUT(c, locp, " ", &res, " = (");
+        gen_c_int_type(c, locp, 64, rvalue->signedness);
+        OUT(c, locp, ")", rvalue, ";\n");
         return res;
     } else {
         HexValue res = gen_tmp(c, locp, 64, rvalue->signedness);
@@ -959,33 +971,18 @@ HexValue gen_cast_op(Context *c,
                      unsigned target_width,
                      HexSignedness signedness)
 {
+    HexValue res;
     assert_signedness(c, locp, src->signedness);
     if (src->bit_width == target_width) {
-        return *src;
-    } else if (src->type == IMMEDIATE) {
-        HexValue res = *src;
-        res.bit_width = target_width;
-        res.signedness = signedness;
-        return res;
+        res = *src;
+    } else if (src->bit_width < target_width) {
+        res = gen_rvalue_extend(c, locp, src);
     } else {
-        HexValue res = gen_tmp(c, locp, target_width, signedness);
-        /* Truncate */
-        if (src->bit_width > target_width) {
-            OUT(c, locp, "tcg_gen_trunc_i64_tl(", &res, ", ", src, ");\n");
-        } else {
-            assert_signedness(c, locp, src->signedness);
-            if (src->signedness == UNSIGNED) {
-                /* Extend unsigned */
-                OUT(c, locp, "tcg_gen_extu_i32_i64(",
-                    &res, ", ", src, ");\n");
-            } else {
-                /* Extend signed */
-                OUT(c, locp, "tcg_gen_ext_i32_i64(",
-                    &res, ", ", src, ");\n");
-            }
-        }
-        return res;
+        /* src->bit_width > target_width */
+        res = gen_rvalue_truncate(c, locp, src);
     }
+    res.signedness = signedness;
+    return res;
 }
 
 
