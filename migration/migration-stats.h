@@ -36,6 +36,6 @@ typedef struct {
     Stat64 transferred;
 } RAMStats;
 
-extern RAMStats ram_counters;
+extern RAMStats mig_stats;
 
 #endif

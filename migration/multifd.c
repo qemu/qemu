@@ -434,8 +434,8 @@ static int multifd_send_pages(QEMUFile *f)
     transferred = ((uint64_t) pages->num) * p->page_size + p->packet_len;
     qemu_file_acct_rate_limit(f, transferred);
     qemu_mutex_unlock(&p->mutex);
-    stat64_add(&ram_counters.transferred, transferred);
-    stat64_add(&ram_counters.multifd_bytes, transferred);
+    stat64_add(&mig_stats.transferred, transferred);
+    stat64_add(&mig_stats.multifd_bytes, transferred);
     qemu_sem_post(&p->sem);
 
     return 1;
@@ -577,7 +577,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
         return -1;
     }
     if (ret == 1) {
-        stat64_add(&ram_counters.dirty_sync_missed_zero_copy, 1);
+        stat64_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
     }
 
     return ret;

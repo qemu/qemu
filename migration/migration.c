@@ -909,26 +909,26 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     size_t page_size = qemu_target_page_size();
 
     info->ram = g_malloc0(sizeof(*info->ram));
-    info->ram->transferred = stat64_get(&ram_counters.transferred);
+    info->ram->transferred = stat64_get(&mig_stats.transferred);
     info->ram->total = ram_bytes_total();
-    info->ram->duplicate = stat64_get(&ram_counters.zero_pages);
+    info->ram->duplicate = stat64_get(&mig_stats.zero_pages);
     /* legacy value.  It is not used anymore */
     info->ram->skipped = 0;
-    info->ram->normal = stat64_get(&ram_counters.normal_pages);
+    info->ram->normal = stat64_get(&mig_stats.normal_pages);
     info->ram->normal_bytes = info->ram->normal * page_size;
     info->ram->mbps = s->mbps;
     info->ram->dirty_sync_count =
-        stat64_get(&ram_counters.dirty_sync_count);
+        stat64_get(&mig_stats.dirty_sync_count);
     info->ram->dirty_sync_missed_zero_copy =
-        stat64_get(&ram_counters.dirty_sync_missed_zero_copy);
+        stat64_get(&mig_stats.dirty_sync_missed_zero_copy);
     info->ram->postcopy_requests =
-        stat64_get(&ram_counters.postcopy_requests);
+        stat64_get(&mig_stats.postcopy_requests);
     info->ram->page_size = page_size;
-    info->ram->multifd_bytes = stat64_get(&ram_counters.multifd_bytes);
+    info->ram->multifd_bytes = stat64_get(&mig_stats.multifd_bytes);
     info->ram->pages_per_second = s->pages_per_second;
-    info->ram->precopy_bytes = stat64_get(&ram_counters.precopy_bytes);
-    info->ram->downtime_bytes = stat64_get(&ram_counters.downtime_bytes);
-    info->ram->postcopy_bytes = stat64_get(&ram_counters.postcopy_bytes);
+    info->ram->precopy_bytes = stat64_get(&mig_stats.precopy_bytes);
+    info->ram->downtime_bytes = stat64_get(&mig_stats.downtime_bytes);
+    info->ram->postcopy_bytes = stat64_get(&mig_stats.postcopy_bytes);
 
     if (migrate_xbzrle()) {
         info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
@@ -960,7 +960,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     if (s->state != MIGRATION_STATUS_COMPLETED) {
         info->ram->remaining = ram_bytes_remaining();
         info->ram->dirty_pages_rate =
-           stat64_get(&ram_counters.dirty_pages_rate);
+           stat64_get(&mig_stats.dirty_pages_rate);
     }
 }
 
@@ -1613,10 +1613,10 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
     migrate_init(s);
     /*
-     * set ram_counters compression_counters memory to zero for a
+     * set mig_stats compression_counters memory to zero for a
      * new migration
      */
-    memset(&ram_counters, 0, sizeof(ram_counters));
+    memset(&mig_stats, 0, sizeof(mig_stats));
     memset(&compression_counters, 0, sizeof(compression_counters));
 
     return true;
@@ -2627,7 +2627,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 static uint64_t migration_total_bytes(MigrationState *s)
 {
     return qemu_file_total_transferred(s->to_dst_file) +
-        stat64_get(&ram_counters.multifd_bytes);
+        stat64_get(&mig_stats.multifd_bytes);
 }
 
 static void migration_calculate_complete(MigrationState *s)
@@ -2691,10 +2691,10 @@ static void migration_update_counters(MigrationState *s,
      * if we haven't sent anything, we don't want to
      * recalculate. 10000 is a small enough number for our purposes
      */
-    if (stat64_get(&ram_counters.dirty_pages_rate) &&
+    if (stat64_get(&mig_stats.dirty_pages_rate) &&
         transferred > 10000) {
         s->expected_downtime =
-            stat64_get(&ram_counters.dirty_bytes_last_sync) / bandwidth;
+            stat64_get(&mig_stats.dirty_bytes_last_sync) / bandwidth;
     }
 
     qemu_file_reset_rate_limit(s->to_dst_file);
