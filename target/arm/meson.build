@@ -21,6 +21,7 @@ arm_softmmu_ss.add(files(
   'arch_dump.c',
   'arm-powerctl.c',
   'arm-qmp-cmds.c',
+  'cortex-regs.c',
   'machine.c',
   'ptw.c',
 ))
