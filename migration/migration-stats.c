@@ -14,4 +14,4 @@
 #include "qemu/stats64.h"
 #include "migration-stats.h"
 
-RAMStats mig_stats;
+MigrationAtomicStats mig_stats;

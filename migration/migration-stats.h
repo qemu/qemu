@@ -34,8 +34,8 @@ typedef struct {
     Stat64 postcopy_requests;
     Stat64 precopy_bytes;
     Stat64 transferred;
-} RAMStats;
+} MigrationAtomicStats;
 
-extern RAMStats mig_stats;
+extern MigrationAtomicStats mig_stats;
 
 #endif
