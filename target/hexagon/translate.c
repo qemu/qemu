@@ -239,7 +239,7 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
     return nwords;
 }
 
-static bool check_for_attrib(Packet *pkt, int attrib)
+static G_GNUC_UNUSED bool check_for_attrib(Packet *pkt, int attrib)
 {
     for (int i = 0; i < pkt->num_insns; i++) {
         if (GET_ATTRIB(pkt->insn[i].opcode, attrib)) {
@@ -260,11 +260,6 @@ static bool need_slot_cancelled(Packet *pkt)
         }
     }
     return false;
-}
-
-static bool need_pred_written(Packet *pkt)
-{
-    return check_for_attrib(pkt, A_WRITES_PRED_REG);
 }
 
 static bool need_next_PC(DisasContext *ctx)
@@ -414,7 +409,7 @@ static void gen_start_packet(DisasContext *ctx)
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
         }
     }
-    if (need_pred_written(pkt)) {
+    if (HEX_DEBUG) {
         tcg_gen_movi_tl(hex_pred_written, 0);
     }
 
@@ -425,6 +420,17 @@ static void gen_start_packet(DisasContext *ctx)
             tcg_gen_mov_tl(hex_new_value[i], hex_gpr[i]);
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
                               i + 1);
+        }
+    }
+
+    /*
+     * Preload the predicated pred registers into hex_new_pred_value[pred_num]
+     * Only endloop instructions conditionally write to pred registers
+     */
+    if (pkt->pkt_has_endloop) {
+        for (int i = 0; i < ctx->preg_log_idx; i++) {
+            int pred_num = ctx->preg_log[i];
+            tcg_gen_mov_tl(hex_new_pred_value[pred_num], hex_pred[pred_num]);
         }
     }
 
@@ -535,41 +541,14 @@ static void gen_reg_writes(DisasContext *ctx)
 
 static void gen_pred_writes(DisasContext *ctx)
 {
-    int i;
-
     /* Early exit if the log is empty */
     if (!ctx->preg_log_idx) {
         return;
     }
 
-    /*
-     * Only endloop instructions will conditionally
-     * write a predicate.  If there are no endloop
-     * instructions, we can use the non-conditional
-     * write of the predicates.
-     */
-    if (ctx->pkt->pkt_has_endloop) {
-        TCGv zero = tcg_constant_tl(0);
-        TCGv pred_written = tcg_temp_new();
-        for (i = 0; i < ctx->preg_log_idx; i++) {
-            int pred_num = ctx->preg_log[i];
-
-            tcg_gen_andi_tl(pred_written, hex_pred_written, 1 << pred_num);
-            tcg_gen_movcond_tl(TCG_COND_NE, hex_pred[pred_num],
-                               pred_written, zero,
-                               hex_new_pred_value[pred_num],
-                               hex_pred[pred_num]);
-        }
-    } else {
-        for (i = 0; i < ctx->preg_log_idx; i++) {
-            int pred_num = ctx->preg_log[i];
-            tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
-            if (HEX_DEBUG) {
-                /* Do this so HELPER(debug_commit_end) will know */
-                tcg_gen_ori_tl(hex_pred_written, hex_pred_written,
-                               1 << pred_num);
-            }
-        }
+    for (int i = 0; i < ctx->preg_log_idx; i++) {
+        int pred_num = ctx->preg_log[i];
+        tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
     }
 }
 

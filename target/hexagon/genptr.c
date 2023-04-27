@@ -137,7 +137,9 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
         tcg_gen_and_tl(hex_new_pred_value[pnum],
                        hex_new_pred_value[pnum], base_val);
     }
-    tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
+    if (HEX_DEBUG) {
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
+    }
     set_bit(pnum, ctx->pregs_written);
 }
 
@@ -826,15 +828,13 @@ static void gen_endloop0(DisasContext *ctx)
 
     /*
      *    if (lpcfg == 1) {
-     *        hex_new_pred_value[3] = 0xff;
-     *        hex_pred_written |= 1 << 3;
+     *        p3 = 0xff;
      *    }
      */
     TCGLabel *label1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
-        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
@@ -903,14 +903,12 @@ static void gen_endloop01(DisasContext *ctx)
 
     /*
      *    if (lpcfg == 1) {
-     *        hex_new_pred_value[3] = 0xff;
-     *        hex_pred_written |= 1 << 3;
+     *        p3 = 0xff;
      *    }
      */
     tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
     {
-        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
-        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+        gen_log_pred_write(ctx, 3, tcg_constant_tl(0xff));
     }
     gen_set_label(label1);
 
