@@ -268,11 +268,16 @@ static void vext_set_tail_elems_1s(CPURISCVState *env, target_ulong vl,
                                    void *vd, uint32_t desc, uint32_t nf,
                                    uint32_t esz, uint32_t max_elems)
 {
-    uint32_t total_elems = vext_get_total_elems(env, desc, esz);
-    uint32_t vlenb = riscv_cpu_cfg(env)->vlen >> 3;
+    uint32_t total_elems, vlenb, registers_used;
     uint32_t vta = vext_vta(desc);
-    uint32_t registers_used;
     int k;
+
+    if (vta == 0) {
+        return;
+    }
+
+    total_elems = vext_get_total_elems(env, desc, esz);
+    vlenb = riscv_cpu_cfg(env)->vlen >> 3;
 
     for (k = 0; k < nf; ++k) {
         vext_set_elems_1s(vd, vta, (k * max_elems + vl) * esz,
