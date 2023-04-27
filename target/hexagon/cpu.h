@@ -150,6 +150,7 @@ struct ArchCPU {
 
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
+    bool short_circuit;
 };
 
 #include "cpu_bits.h"

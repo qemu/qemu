@@ -111,6 +111,13 @@ def main():
                 continue
             if ( tag.startswith('R6_release_') ):
                 continue
+            ## Skip instructions that are incompatible with short-circuit
+            ## packet register writes
+            if ( tag == 'S2_insert' or
+                 tag == 'S2_insert_rp' or
+                 tag == 'S2_asr_r_svw_trun' or
+                 tag == 'A2_swiz' ):
+                continue
 
             regs = tagregs[tag]
             imms = tagimms[tag]

@@ -62,10 +62,12 @@ typedef struct DisasContext {
     int qreg_log_idx;
     DECLARE_BITMAP(qregs_read, NUM_QREGS);
     bool pre_commit;
+    bool need_commit;
     TCGCond branch_cond;
     target_ulong branch_dest;
     bool is_tight_loop;
     bool need_pkt_has_store_s1;
+    bool short_circuit;
 } DisasContext;
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)

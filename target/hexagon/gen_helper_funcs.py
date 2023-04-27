@@ -287,6 +287,8 @@ def gen_helper_function(f, tag, tagregs, tagimms):
 
         if hex_common.need_pkt_has_multi_cof(tag):
             f.write(", uint32_t pkt_has_multi_cof")
+        if (hex_common.need_pkt_need_commit(tag)):
+            f.write(", uint32_t pkt_need_commit")
 
         if hex_common.need_PC(tag):
             if i > 0:

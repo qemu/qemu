@@ -45,7 +45,7 @@ TCGv gen_read_preg(TCGv pred, uint8_t num)
 
 #define IMMUTABLE (~0)
 
-static const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {
+const target_ulong reg_immut_masks[TOTAL_PER_THREAD_REGS] = {
     [HEX_REG_USR] = 0xc13000c0,
     [HEX_REG_PC] = IMMUTABLE,
     [HEX_REG_GP] = 0x3f,
@@ -70,14 +70,18 @@ static inline void gen_masked_reg_write(TCGv new_val, TCGv cur_val,
 
 static TCGv get_result_gpr(DisasContext *ctx, int rnum)
 {
-    return hex_new_value[rnum];
+    if (ctx->need_commit) {
+        return hex_new_value[rnum];
+    } else {
+        return hex_gpr[rnum];
+    }
 }
 
 static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
 {
     TCGv_i64 result = tcg_temp_new_i64();
-    tcg_gen_concat_i32_i64(result, hex_new_value[rnum],
-                                   hex_new_value[rnum + 1]);
+    tcg_gen_concat_i32_i64(result, get_result_gpr(ctx, rnum),
+                                   get_result_gpr(ctx, rnum + 1));
     return result;
 }
 
@@ -86,7 +90,7 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
     const target_ulong reg_mask = reg_immut_masks[rnum];
 
     gen_masked_reg_write(val, hex_gpr[rnum], reg_mask);
-    tcg_gen_mov_tl(hex_new_value[rnum], val);
+    tcg_gen_mov_tl(get_result_gpr(ctx, rnum), val);
     if (HEX_DEBUG) {
         /* Do this so HELPER(debug_commit_end) will know */
         tcg_gen_movi_tl(hex_reg_written[rnum], 1);
@@ -95,27 +99,15 @@ void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
 
 static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 {
-    const target_ulong reg_mask_low = reg_immut_masks[rnum];
-    const target_ulong reg_mask_high = reg_immut_masks[rnum + 1];
     TCGv val32 = tcg_temp_new();
 
     /* Low word */
     tcg_gen_extrl_i64_i32(val32, val);
-    gen_masked_reg_write(val32, hex_gpr[rnum], reg_mask_low);
-    tcg_gen_mov_tl(hex_new_value[rnum], val32);
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        tcg_gen_movi_tl(hex_reg_written[rnum], 1);
-    }
+    gen_log_reg_write(ctx, rnum, val32);
 
     /* High word */
     tcg_gen_extrh_i64_i32(val32, val);
-    gen_masked_reg_write(val32, hex_gpr[rnum + 1], reg_mask_high);
-    tcg_gen_mov_tl(hex_new_value[rnum + 1], val32);
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        tcg_gen_movi_tl(hex_reg_written[rnum + 1], 1);
-    }
+    gen_log_reg_write(ctx, rnum + 1, val32);
 }
 
 void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)

@@ -86,6 +86,8 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
             def_helper_size = len(regs) + len(imms) + numscalarreadwrite + 1
             if hex_common.need_pkt_has_multi_cof(tag):
                 def_helper_size += 1
+            if hex_common.need_pkt_need_commit(tag):
+                def_helper_size += 1
             if hex_common.need_part1(tag):
                 def_helper_size += 1
             if hex_common.need_slot(tag):
@@ -102,6 +104,8 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         else:
             def_helper_size = len(regs) + len(imms) + numscalarreadwrite
             if hex_common.need_pkt_has_multi_cof(tag):
+                def_helper_size += 1
+            if hex_common.need_pkt_need_commit(tag):
                 def_helper_size += 1
             if hex_common.need_part1(tag):
                 def_helper_size += 1
@@ -156,10 +160,12 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         for immlett, bits, immshift in imms:
             f.write(", s32")
 
-        ## Add the arguments for the instruction pkt_has_multi_cof, slot and
-        ## part1 (if needed)
+        ## Add the arguments for the instruction pkt_has_multi_cof,
+        ## pkt_needs_commit, PC, next_PC, slot, and part1 (if needed)
         if hex_common.need_pkt_has_multi_cof(tag):
             f.write(", i32")
+        if hex_common.need_pkt_need_commit(tag):
+            f.write(', i32')
         if hex_common.need_PC(tag):
             f.write(", i32")
         if hex_common.helper_needs_next_PC(tag):

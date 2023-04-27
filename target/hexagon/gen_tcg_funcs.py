@@ -550,6 +550,9 @@ def gen_tcg_func(f, tag, regs, imms):
         if hex_common.need_pkt_has_multi_cof(tag):
             f.write("    TCGv pkt_has_multi_cof = ")
             f.write("tcg_constant_tl(ctx->pkt->pkt_has_multi_cof);\n")
+        if hex_common.need_pkt_need_commit(tag):
+            f.write("    TCGv pkt_need_commit = ")
+            f.write("tcg_constant_tl(ctx->need_commit);\n")
         if hex_common.need_part1(tag):
             f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
@@ -596,6 +599,8 @@ def gen_tcg_func(f, tag, regs, imms):
 
         if hex_common.need_pkt_has_multi_cof(tag):
             f.write(", pkt_has_multi_cof")
+        if hex_common.need_pkt_need_commit(tag):
+            f.write(", pkt_need_commit")
         if hex_common.need_PC(tag):
             f.write(", PC")
         if hex_common.helper_needs_next_PC(tag):

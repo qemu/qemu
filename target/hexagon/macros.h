@@ -44,8 +44,17 @@
                    reg_field_info[FIELD].offset)
 
 #define SET_USR_FIELD(FIELD, VAL) \
-    fINSERT_BITS(env->new_value[HEX_REG_USR], reg_field_info[FIELD].width, \
-                 reg_field_info[FIELD].offset, (VAL))
+    do { \
+        if (pkt_need_commit) { \
+            fINSERT_BITS(env->new_value[HEX_REG_USR], \
+                        reg_field_info[FIELD].width, \
+                        reg_field_info[FIELD].offset, (VAL)); \
+        } else { \
+            fINSERT_BITS(env->gpr[HEX_REG_USR], \
+                        reg_field_info[FIELD].width, \
+                        reg_field_info[FIELD].offset, (VAL)); \
+        } \
+    } while (0)
 #endif
 
 #ifdef QEMU_GENERATE

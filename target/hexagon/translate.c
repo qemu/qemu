@@ -27,6 +27,7 @@
 #include "insn.h"
 #include "decode.h"
 #include "translate.h"
+#include "genptr.h"
 #include "printinsn.h"
 
 #include "analyze_funcs_generated.c.inc"
@@ -239,7 +240,7 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
     return nwords;
 }
 
-static G_GNUC_UNUSED bool check_for_attrib(Packet *pkt, int attrib)
+static bool check_for_attrib(Packet *pkt, int attrib)
 {
     for (int i = 0; i < pkt->num_insns; i++) {
         if (GET_ATTRIB(pkt->insn[i].opcode, attrib)) {
@@ -336,6 +337,58 @@ static void mark_implicit_pred_writes(DisasContext *ctx)
     mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P3, 3);
 }
 
+static bool pkt_raises_exception(Packet *pkt)
+{
+    if (check_for_attrib(pkt, A_LOAD) ||
+        check_for_attrib(pkt, A_STORE)) {
+        return true;
+    }
+    return false;
+}
+
+static bool need_commit(DisasContext *ctx)
+{
+    Packet *pkt = ctx->pkt;
+
+    /*
+     * If the short-circuit property is set to false, we'll always do the commit
+     */
+    if (!ctx->short_circuit) {
+        return true;
+    }
+
+    if (pkt_raises_exception(pkt)) {
+        return true;
+    }
+
+    /* Registers with immutability flags require new_value */
+    for (int i = 0; i < ctx->reg_log_idx; i++) {
+        int rnum = ctx->reg_log[i];
+        if (reg_immut_masks[rnum]) {
+            return true;
+        }
+    }
+
+    /* Floating point instructions are hard-coded to use new_value */
+    if (check_for_attrib(pkt, A_FPOP)) {
+        return true;
+    }
+
+    if (pkt->num_insns == 1) {
+        return false;
+    }
+
+    /* Check for overlap between register reads and writes */
+    for (int i = 0; i < ctx->reg_log_idx; i++) {
+        int rnum = ctx->reg_log[i];
+        if (test_bit(rnum, ctx->regs_read)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void mark_implicit_pred_read(DisasContext *ctx, int attrib, int pnum)
 {
     if (GET_ATTRIB(ctx->insn->opcode, attrib)) {
@@ -365,6 +418,8 @@ static void analyze_packet(DisasContext *ctx)
         mark_implicit_pred_writes(ctx);
         mark_implicit_pred_reads(ctx);
     }
+
+    ctx->need_commit = need_commit(ctx);
 }
 
 static void gen_start_packet(DisasContext *ctx)
@@ -434,7 +489,8 @@ static void gen_start_packet(DisasContext *ctx)
     }
 
     /* Preload the predicated registers into hex_new_value[i] */
-    if (!bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
+    if (ctx->need_commit &&
+        !bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
         int i = find_first_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
         while (i < TOTAL_PER_THREAD_REGS) {
             tcg_gen_mov_tl(hex_new_value[i], hex_gpr[i]);
@@ -543,6 +599,11 @@ static void gen_insn(DisasContext *ctx)
 static void gen_reg_writes(DisasContext *ctx)
 {
     int i;
+
+    /* Early exit if not needed */
+    if (!ctx->need_commit) {
+        return;
+    }
 
     for (i = 0; i < ctx->reg_log_idx; i++) {
         int reg_num = ctx->reg_log[i];
@@ -922,6 +983,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
                                           CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    HexagonCPU *hex_cpu = env_archcpu(cs->env_ptr);
     uint32_t hex_flags = dcbase->tb->flags;
 
     ctx->mem_idx = MMU_USER_IDX;
@@ -930,6 +992,7 @@ static void hexagon_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->num_hvx_insns = 0;
     ctx->branch_cond = TCG_COND_NEVER;
     ctx->is_tight_loop = FIELD_EX32(hex_flags, TB_FLAGS, IS_TIGHT_LOOP);
+    ctx->short_circuit = hex_cpu->short_circuit;
 }
 
 static void hexagon_tr_tb_start(DisasContextBase *db, CPUState *cpu)

@@ -276,6 +276,9 @@ def need_pkt_has_multi_cof(tag):
     return "A_COF" in attribdict[tag]
 
 
+def need_pkt_need_commit(tag):
+    return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
+
 def need_condexec_reg(tag, regs):
     if "A_CONDEXEC" in attribdict[tag]:
         for regtype, regid, toss, numregs in regs:

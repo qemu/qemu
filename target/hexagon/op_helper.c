@@ -220,7 +220,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 reg_printed = true;
             }
             HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")\n",
-                          i, env->new_value[i], env->new_value[i]);
+                          i, env->gpr[i], env->gpr[i]);
         }
     }
 
@@ -352,7 +352,8 @@ uint64_t HELPER(sfinvsqrta)(CPUHexagonState *env, float32 RsV)
 }
 
 int64_t HELPER(vacsh_val)(CPUHexagonState *env,
-                           int64_t RxxV, int64_t RssV, int64_t RttV)
+                           int64_t RxxV, int64_t RssV, int64_t RttV,
+                           uint32_t pkt_need_commit)
 {
     for (int i = 0; i < 4; i++) {
         int xv = sextract64(RxxV, i * 16, 16);
