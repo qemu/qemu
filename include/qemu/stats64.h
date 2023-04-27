@@ -40,6 +40,11 @@ static inline uint64_t stat64_get(const Stat64 *s)
     return qatomic_read__nocheck(&s->value);
 }
 
+static inline void stat64_set(Stat64 *s, uint64_t value)
+{
+    qatomic_set__nocheck(&s->value, value);
+}
+
 static inline void stat64_add(Stat64 *s, uint64_t value)
 {
     qatomic_add(&s->value, value);
@@ -62,6 +67,7 @@ static inline void stat64_max(Stat64 *s, uint64_t value)
 }
 #else
 uint64_t stat64_get(const Stat64 *s);
+void stat64_set(Stat64 *s, uint64_t value);
 bool stat64_min_slow(Stat64 *s, uint64_t value);
 bool stat64_max_slow(Stat64 *s, uint64_t value);
 bool stat64_add32_carry(Stat64 *s, uint32_t low, uint32_t high);
