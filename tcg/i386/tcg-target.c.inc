@@ -1929,10 +1929,8 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     ldst->addrhi_reg = addrhi;
 
     if (TCG_TARGET_REG_BITS == 64) {
-        if (TARGET_LONG_BITS == 64) {
-            ttype = TCG_TYPE_I64;
-            trexw = P_REXW;
-        }
+        ttype = s->addr_type;
+        trexw = (ttype == TCG_TYPE_I32 ? 0 : P_REXW);
         if (TCG_TYPE_PTR == TCG_TYPE_I64) {
             hrexw = P_REXW;
             if (TARGET_PAGE_BITS + CPU_TLB_DYN_MAX_BITS > 32) {
@@ -1977,7 +1975,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     ldst->label_ptr[0] = s->code_ptr;
     s->code_ptr += 4;
 
-    if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
+    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I64) {
         /* cmp 4(TCG_REG_L0), addrhi */
         tcg_out_modrm_offset(s, OPC_CMP_GvEv, addrhi, TCG_REG_L0, cmp_ofs + 4);
 
