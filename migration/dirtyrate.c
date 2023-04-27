@@ -29,6 +29,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "exec/memory.h"
+#include "qemu/xxhash.h"
 
 /*
  * total_dirty_pages is procted by BQL and is used
@@ -309,19 +310,45 @@ static void update_dirtyrate(uint64_t msec)
 }
 
 /*
+ * Compute hash of a single page of size TARGET_PAGE_SIZE.
+ */
+static uint32_t compute_page_hash(void *ptr)
+{
+    uint32_t i;
+    uint64_t v1, v2, v3, v4;
+    uint64_t res;
+    const uint64_t *p = ptr;
+
+    v1 = QEMU_XXHASH_SEED + XXH_PRIME64_1 + XXH_PRIME64_2;
+    v2 = QEMU_XXHASH_SEED + XXH_PRIME64_2;
+    v3 = QEMU_XXHASH_SEED + 0;
+    v4 = QEMU_XXHASH_SEED - XXH_PRIME64_1;
+    for (i = 0; i < TARGET_PAGE_SIZE / 8; i += 4) {
+        v1 = XXH64_round(v1, p[i + 0]);
+        v2 = XXH64_round(v2, p[i + 1]);
+        v3 = XXH64_round(v3, p[i + 2]);
+        v4 = XXH64_round(v4, p[i + 3]);
+    }
+    res = XXH64_mergerounds(v1, v2, v3, v4);
+    res += TARGET_PAGE_SIZE;
+    res = XXH64_avalanche(res);
+    return (uint32_t)(res & UINT32_MAX);
+}
+
+
+/*
  * get hash result for the sampled memory with length of TARGET_PAGE_SIZE
  * in ramblock, which starts from ramblock base address.
  */
 static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
                                       uint64_t vfn)
 {
-    uint32_t crc;
+    uint32_t hash;
 
-    crc = crc32(0, (info->ramblock_addr +
-                vfn * TARGET_PAGE_SIZE), TARGET_PAGE_SIZE);
+    hash = compute_page_hash(info->ramblock_addr + vfn * TARGET_PAGE_SIZE);
 
-    trace_get_ramblock_vfn_hash(info->idstr, vfn, crc);
-    return crc;
+    trace_get_ramblock_vfn_hash(info->idstr, vfn, hash);
+    return hash;
 }
 
 static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
@@ -454,13 +481,13 @@ out:
 
 static void calc_page_dirty_rate(struct RamblockDirtyInfo *info)
 {
-    uint32_t crc;
+    uint32_t hash;
     int i;
 
     for (i = 0; i < info->sample_pages_count; i++) {
-        crc = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
-        if (crc != info->hash_result[i]) {
-            trace_calc_page_dirty_rate(info->idstr, crc, info->hash_result[i]);
+        hash = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
+        if (hash != info->hash_result[i]) {
+            trace_calc_page_dirty_rate(info->idstr, hash, info->hash_result[i]);
             info->sample_dirty_count++;
         }
     }
