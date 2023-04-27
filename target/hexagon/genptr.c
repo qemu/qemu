@@ -971,6 +971,7 @@ static void gen_cmpi_jumpnv(DisasContext *ctx,
 /* Shift left with saturation */
 static void gen_shl_sat(DisasContext *ctx, TCGv dst, TCGv src, TCGv shift_amt)
 {
+    TCGv tmp = tcg_temp_new();    /* In case dst == src */
     TCGv usr = get_result_gpr(ctx, HEX_REG_USR);
     TCGv sh32 = tcg_temp_new();
     TCGv dst_sar = tcg_temp_new();
@@ -995,17 +996,17 @@ static void gen_shl_sat(DisasContext *ctx, TCGv dst, TCGv src, TCGv shift_amt)
      */
 
     tcg_gen_andi_tl(sh32, shift_amt, 31);
-    tcg_gen_movcond_tl(TCG_COND_EQ, dst, sh32, shift_amt,
+    tcg_gen_movcond_tl(TCG_COND_EQ, tmp, sh32, shift_amt,
                        src, tcg_constant_tl(0));
-    tcg_gen_shl_tl(dst, dst, sh32);
-    tcg_gen_sar_tl(dst_sar, dst, sh32);
+    tcg_gen_shl_tl(tmp, tmp, sh32);
+    tcg_gen_sar_tl(dst_sar, tmp, sh32);
     tcg_gen_movcond_tl(TCG_COND_LT, satval, src, tcg_constant_tl(0), min, max);
 
     tcg_gen_setcond_tl(TCG_COND_NE, ovf, dst_sar, src);
     tcg_gen_shli_tl(ovf, ovf, reg_field_info[USR_OVF].offset);
     tcg_gen_or_tl(usr, usr, ovf);
 
-    tcg_gen_movcond_tl(TCG_COND_EQ, dst, dst_sar, src, dst, satval);
+    tcg_gen_movcond_tl(TCG_COND_EQ, dst, dst_sar, src, tmp, satval);
 }
 
 static void gen_sar(TCGv dst, TCGv src, TCGv shift_amt)
@@ -1228,22 +1229,28 @@ void gen_sat_i32(TCGv dest, TCGv source, int width)
 
 void gen_sat_i32_ovfl(TCGv ovfl, TCGv dest, TCGv source, int width)
 {
-    gen_sat_i32(dest, source, width);
-    tcg_gen_setcond_tl(TCG_COND_NE, ovfl, source, dest);
+    TCGv tmp = tcg_temp_new();    /* In case dest == source */
+    gen_sat_i32(tmp, source, width);
+    tcg_gen_setcond_tl(TCG_COND_NE, ovfl, source, tmp);
+    tcg_gen_mov_tl(dest, tmp);
 }
 
 void gen_satu_i32(TCGv dest, TCGv source, int width)
 {
+    TCGv tmp = tcg_temp_new();    /* In case dest == source */
     TCGv max_val = tcg_constant_tl((1 << width) - 1);
     TCGv zero = tcg_constant_tl(0);
-    tcg_gen_movcond_tl(TCG_COND_GTU, dest, source, max_val, max_val, source);
-    tcg_gen_movcond_tl(TCG_COND_LT, dest, source, zero, zero, dest);
+    tcg_gen_movcond_tl(TCG_COND_GTU, tmp, source, max_val, max_val, source);
+    tcg_gen_movcond_tl(TCG_COND_LT, tmp, source, zero, zero, tmp);
+    tcg_gen_mov_tl(dest, tmp);
 }
 
 void gen_satu_i32_ovfl(TCGv ovfl, TCGv dest, TCGv source, int width)
 {
-    gen_satu_i32(dest, source, width);
-    tcg_gen_setcond_tl(TCG_COND_NE, ovfl, source, dest);
+    TCGv tmp = tcg_temp_new();    /* In case dest == source */
+    gen_satu_i32(tmp, source, width);
+    tcg_gen_setcond_tl(TCG_COND_NE, ovfl, source, tmp);
+    tcg_gen_mov_tl(dest, tmp);
 }
 
 void gen_sat_i64(TCGv_i64 dest, TCGv_i64 source, int width)
@@ -1256,27 +1263,33 @@ void gen_sat_i64(TCGv_i64 dest, TCGv_i64 source, int width)
 
 void gen_sat_i64_ovfl(TCGv ovfl, TCGv_i64 dest, TCGv_i64 source, int width)
 {
+    TCGv_i64 tmp = tcg_temp_new_i64(); /* In case dest == source */
     TCGv_i64 ovfl_64;
-    gen_sat_i64(dest, source, width);
+    gen_sat_i64(tmp, source, width);
     ovfl_64 = tcg_temp_new_i64();
-    tcg_gen_setcond_i64(TCG_COND_NE, ovfl_64, dest, source);
+    tcg_gen_setcond_i64(TCG_COND_NE, ovfl_64, tmp, source);
+    tcg_gen_mov_i64(dest, tmp);
     tcg_gen_trunc_i64_tl(ovfl, ovfl_64);
 }
 
 void gen_satu_i64(TCGv_i64 dest, TCGv_i64 source, int width)
 {
+    TCGv_i64 tmp = tcg_temp_new_i64();    /* In case dest == source */
     TCGv_i64 max_val = tcg_constant_i64((1LL << width) - 1LL);
     TCGv_i64 zero = tcg_constant_i64(0);
-    tcg_gen_movcond_i64(TCG_COND_GTU, dest, source, max_val, max_val, source);
-    tcg_gen_movcond_i64(TCG_COND_LT, dest, source, zero, zero, dest);
+    tcg_gen_movcond_i64(TCG_COND_GTU, tmp, source, max_val, max_val, source);
+    tcg_gen_movcond_i64(TCG_COND_LT, tmp, source, zero, zero, tmp);
+    tcg_gen_mov_i64(dest, tmp);
 }
 
 void gen_satu_i64_ovfl(TCGv ovfl, TCGv_i64 dest, TCGv_i64 source, int width)
 {
+    TCGv_i64 tmp = tcg_temp_new_i64();    /* In case dest == source */
     TCGv_i64 ovfl_64;
-    gen_satu_i64(dest, source, width);
+    gen_satu_i64(tmp, source, width);
     ovfl_64 = tcg_temp_new_i64();
-    tcg_gen_setcond_i64(TCG_COND_NE, ovfl_64, dest, source);
+    tcg_gen_setcond_i64(TCG_COND_NE, ovfl_64, tmp, source);
+    tcg_gen_mov_i64(dest, tmp);
     tcg_gen_trunc_i64_tl(ovfl, ovfl_64);
 }
 
