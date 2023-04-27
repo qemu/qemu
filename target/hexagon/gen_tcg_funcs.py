@@ -190,7 +190,7 @@ def genptr_decl_new(f, tag, regtype, regid, regno):
         if regid in {"s", "t"}:
             f.write(
                 f"    TCGv {regtype}{regid}N = "
-                f"hex_new_value[insn->regno[{regno}]];\n"
+                f"get_result_gpr(ctx, insn->regno[{regno}]);\n"
             )
         else:
             print("Bad register parse: ", regtype, regid)

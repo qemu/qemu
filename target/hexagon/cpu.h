@@ -90,6 +90,7 @@ typedef struct CPUArchState {
 
     uint8_t slot_cancelled;
     target_ulong new_value[TOTAL_PER_THREAD_REGS];
+    target_ulong new_value_usr;
 
     /*
      * Only used when HEX_DEBUG is on, but unconditionally included

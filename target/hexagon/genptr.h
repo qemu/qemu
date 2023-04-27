@@ -35,6 +35,7 @@ void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src, uint32_t slot);
 void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src, uint32_t slot);
 TCGv gen_read_reg(TCGv result, int num);
 TCGv gen_read_preg(TCGv pred, uint8_t num);
+TCGv get_result_gpr(DisasContext *ctx, int rnum);
 TCGv get_result_pred(DisasContext *ctx, int pnum);
 void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val);
 void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val);

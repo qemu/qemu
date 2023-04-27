@@ -68,10 +68,14 @@ static inline void gen_masked_reg_write(TCGv new_val, TCGv cur_val,
     }
 }
 
-static TCGv get_result_gpr(DisasContext *ctx, int rnum)
+TCGv get_result_gpr(DisasContext *ctx, int rnum)
 {
     if (ctx->need_commit) {
-        return hex_new_value[rnum];
+        if (rnum == HEX_REG_USR) {
+            return hex_new_value_usr;
+        } else {
+            return hex_new_value[rnum];
+        }
     } else {
         return hex_gpr[rnum];
     }

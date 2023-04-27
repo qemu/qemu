@@ -46,7 +46,7 @@
 #define SET_USR_FIELD(FIELD, VAL) \
     do { \
         if (pkt_need_commit) { \
-            fINSERT_BITS(env->new_value[HEX_REG_USR], \
+            fINSERT_BITS(env->new_value_usr, \
                         reg_field_info[FIELD].width, \
                         reg_field_info[FIELD].offset, (VAL)); \
         } else { \

@@ -45,6 +45,7 @@ TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
+TCGv hex_new_value_usr;
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 TCGv hex_new_pred_value[NUM_PREGS];
 TCGv hex_pred_written;
@@ -547,12 +548,12 @@ static void gen_start_packet(DisasContext *ctx)
         tcg_gen_movi_tl(hex_pred_written, 0);
     }
 
-    /* Preload the predicated registers into hex_new_value[i] */
+    /* Preload the predicated registers into get_result_gpr(ctx, i) */
     if (ctx->need_commit &&
         !bitmap_empty(ctx->predicated_regs, TOTAL_PER_THREAD_REGS)) {
         int i = find_first_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
         while (i < TOTAL_PER_THREAD_REGS) {
-            tcg_gen_mov_tl(hex_new_value[i], hex_gpr[i]);
+            tcg_gen_mov_tl(get_result_gpr(ctx, i), hex_gpr[i]);
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
                               i + 1);
         }
@@ -667,7 +668,7 @@ static void gen_reg_writes(DisasContext *ctx)
     for (i = 0; i < ctx->reg_log_idx; i++) {
         int reg_num = ctx->reg_log[i];
 
-        tcg_gen_mov_tl(hex_gpr[reg_num], hex_new_value[reg_num]);
+        tcg_gen_mov_tl(hex_gpr[reg_num], get_result_gpr(ctx, reg_num));
 
         /*
          * ctx->is_tight_loop is set when SA0 points to the beginning of the TB.
@@ -1180,10 +1181,14 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, gpr[i]),
             hexagon_regnames[i]);
 
-        snprintf(new_value_names[i], NAME_LEN, "new_%s", hexagon_regnames[i]);
-        hex_new_value[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, new_value[i]),
-            new_value_names[i]);
+        if (i == HEX_REG_USR) {
+            hex_new_value[i] = NULL;
+        } else {
+            snprintf(new_value_names[i], NAME_LEN, "new_%s", hexagon_regnames[i]);
+            hex_new_value[i] = tcg_global_mem_new(cpu_env,
+                offsetof(CPUHexagonState, new_value[i]),
+                new_value_names[i]);
+        }
 
         if (HEX_DEBUG) {
             snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",
@@ -1193,6 +1198,9 @@ void hexagon_translate_init(void)
                 reg_written_names[i]);
         }
     }
+    hex_new_value_usr = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, new_value_usr), "new_value_usr");
+
     for (i = 0; i < NUM_PREGS; i++) {
         hex_pred[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, pred[i]),

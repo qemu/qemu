@@ -186,7 +186,7 @@ We also generate an analyze_<tag> function for each instruction.  Currently,
 these functions record the writes to registers by calling ctx_log_*.  During
 gen_start_packet, we invoke the analyze_<tag> function for each instruction in
 the packet, and we mark the implicit writes.  After the analysis is performed,
-we initialize hex_new_value for each of the predicated assignments.
+we initialize the result register for each of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is also a two step process.  The first step is to run
