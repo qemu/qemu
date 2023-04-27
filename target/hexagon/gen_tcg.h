@@ -501,6 +501,38 @@
     do { RsV = RsV; } while (0)
 
 /*
+ * allocframe(#uiV)
+ *     RxV == r29
+ */
+#define fGEN_TCG_S2_allocframe(SHORTCODE) \
+    gen_allocframe(ctx, RxV, uiV)
+
+/* sub-instruction version (no RxV, so handle it manually) */
+#define fGEN_TCG_SS2_allocframe(SHORTCODE) \
+    do { \
+        TCGv r29 = tcg_temp_new(); \
+        tcg_gen_mov_tl(r29, hex_gpr[HEX_REG_SP]); \
+        gen_allocframe(ctx, r29, uiV); \
+        gen_log_reg_write(ctx, HEX_REG_SP, r29); \
+    } while (0)
+
+/*
+ * Rdd32 = deallocframe(Rs32):raw
+ *     RddV == r31:30
+ *     RsV  == r30
+ */
+#define fGEN_TCG_L2_deallocframe(SHORTCODE) \
+    gen_deallocframe(ctx, RddV, RsV)
+
+/* sub-instruction version (no RddV/RsV, so handle it manually) */
+#define fGEN_TCG_SL2_deallocframe(SHORTCODE) \
+    do { \
+        TCGv_i64 r31_30 = tcg_temp_new_i64(); \
+        gen_deallocframe(ctx, r31_30, hex_gpr[HEX_REG_FP]); \
+        gen_log_reg_write_pair(ctx, HEX_REG_FP, r31_30); \
+    } while (0)
+
+/*
  * dealloc_return
  * Assembler mapped to
  * r31:30 = dealloc_return(r30):raw

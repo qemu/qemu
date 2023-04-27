@@ -709,6 +709,18 @@ static void gen_cond_callr(DisasContext *ctx,
     gen_set_label(skip);
 }
 
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
+/* frame = ((LR << 32) | FP) ^ (FRAMEKEY << 32)) */
+static TCGv_i64 gen_frame_scramble(void)
+{
+    TCGv_i64 frame = tcg_temp_new_i64();
+    TCGv tmp = tcg_temp_new();
+    tcg_gen_xor_tl(tmp, hex_gpr[HEX_REG_LR], hex_gpr[HEX_REG_FRAMEKEY]);
+    tcg_gen_concat_i32_i64(frame, hex_gpr[HEX_REG_FP], tmp);
+    return frame;
+}
+#endif
+
 /* frame ^= (int64_t)FRAMEKEY << 32 */
 static void gen_frame_unscramble(TCGv_i64 frame)
 {
@@ -724,6 +736,41 @@ static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
     CHECK_NOSHUF(EA, 8);
     tcg_gen_qemu_ld_i64(frame, EA, ctx->mem_idx, MO_TEUQ);
 }
+
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
+/* Stack overflow check */
+static void gen_framecheck(TCGv EA, int framesize)
+{
+    /* Not modelled in linux-user mode */
+    /* Placeholder for system mode */
+#ifndef CONFIG_USER_ONLY
+    g_assert_not_reached();
+#endif
+}
+
+static void gen_allocframe(DisasContext *ctx, TCGv r29, int framesize)
+{
+    TCGv r30 = tcg_temp_new();
+    TCGv_i64 frame;
+    tcg_gen_addi_tl(r30, r29, -8);
+    frame = gen_frame_scramble();
+    gen_store8(cpu_env, r30, frame, ctx->insn->slot);
+    gen_log_reg_write(ctx, HEX_REG_FP, r30);
+    gen_framecheck(r30, framesize);
+    tcg_gen_subi_tl(r29, r30, framesize);
+}
+
+static void gen_deallocframe(DisasContext *ctx, TCGv_i64 r31_30, TCGv r30)
+{
+    TCGv r29 = tcg_temp_new();
+    TCGv_i64 frame = tcg_temp_new_i64();
+    gen_load_frame(ctx, frame, r30);
+    gen_frame_unscramble(frame);
+    tcg_gen_mov_i64(r31_30, frame);
+    tcg_gen_addi_tl(r29, r30, 8);
+    gen_log_reg_write(ctx, HEX_REG_SP, r29);
+}
+#endif
 
 static void gen_return(DisasContext *ctx, TCGv_i64 dst, TCGv src)
 {
