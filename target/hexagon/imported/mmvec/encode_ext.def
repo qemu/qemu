@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -730,6 +730,8 @@ DEF_ENC(V6_vmaxb,         ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 101 ddddd") //
 DEF_ENC(V6_vsatuwuh,    ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 110 ddddd") //
 DEF_ENC(V6_vdealb4w,     ICLASS_CJ" 1 111 001 vvvvv PP 0 uuuuu 111 ddddd") //
 
+DEF_ENC(V6_v6mpyvubs10_vxx, 	ICLASS_CJ" 1 111 001 vvvvv PP 1 uuuuu 0ii xxxxx")
+DEF_ENC(V6_v6mpyhubs10_vxx, 	ICLASS_CJ" 1 111 001 vvvvv PP 1 uuuuu 1ii xxxxx")
 
 DEF_ENC(V6_vmpyowh_rnd,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 000 ddddd") //
 DEF_ENC(V6_vshuffeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 001 ddddd") //
@@ -739,6 +741,10 @@ DEF_ENC(V6_vshufoh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 100 ddddd") //
 DEF_ENC(V6_vshufoeh,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 101 ddddd") //
 DEF_ENC(V6_vshufoeb,      ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 110 ddddd") //
 DEF_ENC(V6_vcombine,     ICLASS_CJ" 1 111 010 vvvvv PP 0 uuuuu 111 ddddd") //
+
+DEF_ENC(V6_v6mpyvubs10,  ICLASS_CJ" 1 111 010 vvvvv PP 1 uuuuu 0ii ddddd")
+DEF_ENC(V6_v6mpyhubs10,  ICLASS_CJ" 1 111 010 vvvvv PP 1 uuuuu 1ii ddddd")
+
 
 DEF_ENC(V6_vmpyieoh,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 000 ddddd") //
 DEF_ENC(V6_vadduwsat,     ICLASS_CJ" 1 111 011 vvvvv PP 0 uuuuu 001 ddddd") //
