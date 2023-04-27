@@ -665,6 +665,27 @@
 #define fGEN_TCG_J2_callrf(SHORTCODE) \
     gen_cond_callr(ctx, TCG_COND_NE, PuV, RsV)
 
+#define fGEN_TCG_J2_loop0r(SHORTCODE) \
+    gen_loop0r(ctx, RsV, riV)
+#define fGEN_TCG_J2_loop1r(SHORTCODE) \
+    gen_loop1r(ctx, RsV, riV)
+#define fGEN_TCG_J2_loop0i(SHORTCODE) \
+    gen_loop0i(ctx, UiV, riV)
+#define fGEN_TCG_J2_loop1i(SHORTCODE) \
+    gen_loop1i(ctx, UiV, riV)
+#define fGEN_TCG_J2_ploop1sr(SHORTCODE) \
+    gen_ploopNsr(ctx, 1, RsV, riV)
+#define fGEN_TCG_J2_ploop1si(SHORTCODE) \
+    gen_ploopNsi(ctx, 1, UiV, riV)
+#define fGEN_TCG_J2_ploop2sr(SHORTCODE) \
+    gen_ploopNsr(ctx, 2, RsV, riV)
+#define fGEN_TCG_J2_ploop2si(SHORTCODE) \
+    gen_ploopNsi(ctx, 2, UiV, riV)
+#define fGEN_TCG_J2_ploop3sr(SHORTCODE) \
+    gen_ploopNsr(ctx, 3, RsV, riV)
+#define fGEN_TCG_J2_ploop3si(SHORTCODE) \
+    gen_ploopNsi(ctx, 3, UiV, riV)
+
 #define fGEN_TCG_J2_endloop0(SHORTCODE) \
     gen_endloop0(ctx)
 #define fGEN_TCG_J2_endloop1(SHORTCODE) \

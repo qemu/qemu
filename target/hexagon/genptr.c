@@ -518,6 +518,50 @@ static void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
     tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
 }
 
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
+static inline void gen_loop0r(DisasContext *ctx, TCGv RsV, int riV)
+{
+    fIMMEXT(riV);
+    fPCALIGN(riV);
+    gen_log_reg_write(ctx, HEX_REG_LC0, RsV);
+    gen_log_reg_write(ctx, HEX_REG_SA0, tcg_constant_tl(ctx->pkt->pc + riV));
+    gen_set_usr_fieldi(ctx, USR_LPCFG, 0);
+}
+
+static void gen_loop0i(DisasContext *ctx, int count, int riV)
+{
+    gen_loop0r(ctx, tcg_constant_tl(count), riV);
+}
+
+static inline void gen_loop1r(DisasContext *ctx, TCGv RsV, int riV)
+{
+    fIMMEXT(riV);
+    fPCALIGN(riV);
+    gen_log_reg_write(ctx, HEX_REG_LC1, RsV);
+    gen_log_reg_write(ctx, HEX_REG_SA1, tcg_constant_tl(ctx->pkt->pc + riV));
+}
+
+static void gen_loop1i(DisasContext *ctx, int count, int riV)
+{
+    gen_loop1r(ctx, tcg_constant_tl(count), riV);
+}
+
+static void gen_ploopNsr(DisasContext *ctx, int N, TCGv RsV, int riV)
+{
+    fIMMEXT(riV);
+    fPCALIGN(riV);
+    gen_log_reg_write(ctx, HEX_REG_LC0, RsV);
+    gen_log_reg_write(ctx, HEX_REG_SA0, tcg_constant_tl(ctx->pkt->pc + riV));
+    gen_set_usr_fieldi(ctx, USR_LPCFG, N);
+    gen_log_pred_write(ctx, 3, tcg_constant_tl(0));
+}
+
+static void gen_ploopNsi(DisasContext *ctx, int N, int count, int riV)
+{
+    gen_ploopNsr(ctx, N, tcg_constant_tl(count), riV);
+}
+#endif
+
 static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
                            TCGCond cond, TCGv pred)
 {
