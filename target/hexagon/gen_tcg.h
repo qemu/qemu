@@ -595,6 +595,14 @@
         gen_helper_vacsh_val(RxxV, cpu_env, RxxV, RssV, RttV); \
     } while (0)
 
+#define fGEN_TCG_S2_cabacdecbin(SHORTCODE) \
+    do { \
+        TCGv p0 = tcg_temp_new(); \
+        gen_helper_cabacdecbin_pred(p0, RssV, RttV); \
+        gen_helper_cabacdecbin_val(RddV, RssV, RttV); \
+        gen_log_pred_write(ctx, 0, p0); \
+    } while (0)
+
 /*
  * Approximate reciprocal
  * r3,p1 = sfrecipa(r0, r1)
@@ -901,6 +909,14 @@
     gen_cmpnd_tstbit0_jmp(ctx, 1, RsV, TCG_COND_NE, riV)
 #define fGEN_TCG_J4_tstbit0_fp1_jump_t(SHORTCODE) \
     gen_cmpnd_tstbit0_jmp(ctx, 1, RsV, TCG_COND_NE, riV)
+
+/* p0 = cmp.eq(r0, #7) */
+#define fGEN_TCG_SA1_cmpeqi(SHORTCODE) \
+    do { \
+        TCGv p0 = tcg_temp_new(); \
+        gen_comparei(TCG_COND_EQ, p0, RsV, uiV); \
+        gen_log_pred_write(ctx, 0, p0); \
+    } while (0)
 
 #define fGEN_TCG_J2_jump(SHORTCODE) \
     gen_jump(ctx, riV)

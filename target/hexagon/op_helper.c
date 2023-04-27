@@ -52,21 +52,6 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
-static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
-{
-    HEX_DEBUG_LOG("log_pred_write[%d] = " TARGET_FMT_ld
-                  " (0x" TARGET_FMT_lx ")\n",
-                  pnum, val, val);
-
-    /* Multiple writes to the same preg are and'ed together */
-    if (env->pred_written & (1 << pnum)) {
-        env->new_pred_value[pnum] &= val & 0xff;
-    } else {
-        env->new_pred_value[pnum] = val & 0xff;
-        env->pred_written |= 1 << pnum;
-    }
-}
-
 void log_store32(CPUHexagonState *env, target_ulong addr,
                  target_ulong val, int width, int slot)
 {
@@ -397,6 +382,87 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
         PeV = deposit32(PeV, i * 2 + 1, 1, (xv > sv));
     }
     return PeV;
+}
+
+int64_t HELPER(cabacdecbin_val)(int64_t RssV, int64_t RttV)
+{
+    int64_t RddV = 0;
+    size4u_t state;
+    size4u_t valMPS;
+    size4u_t bitpos;
+    size4u_t range;
+    size4u_t offset;
+    size4u_t rLPS;
+    size4u_t rMPS;
+
+    state =  fEXTRACTU_RANGE(fGETWORD(1, RttV), 5, 0);
+    valMPS = fEXTRACTU_RANGE(fGETWORD(1, RttV), 8, 8);
+    bitpos = fEXTRACTU_RANGE(fGETWORD(0, RttV), 4, 0);
+    range =  fGETWORD(0, RssV);
+    offset = fGETWORD(1, RssV);
+
+    /* calculate rLPS */
+    range <<= bitpos;
+    offset <<= bitpos;
+    rLPS = rLPS_table_64x4[state][(range >> 29) & 3];
+    rLPS  = rLPS << 23;   /* left aligned */
+
+    /* calculate rMPS */
+    rMPS = (range & 0xff800000) - rLPS;
+
+    /* most probable region */
+    if (offset < rMPS) {
+        RddV = AC_next_state_MPS_64[state];
+        fINSERT_RANGE(RddV, 8, 8, valMPS);
+        fINSERT_RANGE(RddV, 31, 23, (rMPS >> 23));
+        fSETWORD(1, RddV, offset);
+    }
+    /* least probable region */
+    else {
+        RddV = AC_next_state_LPS_64[state];
+        fINSERT_RANGE(RddV, 8, 8, ((!state) ? (1 - valMPS) : (valMPS)));
+        fINSERT_RANGE(RddV, 31, 23, (rLPS >> 23));
+        fSETWORD(1, RddV, (offset - rMPS));
+    }
+    return RddV;
+}
+
+int32_t HELPER(cabacdecbin_pred)(int64_t RssV, int64_t RttV)
+{
+    int32_t p0 = 0;
+    size4u_t state;
+    size4u_t valMPS;
+    size4u_t bitpos;
+    size4u_t range;
+    size4u_t offset;
+    size4u_t rLPS;
+    size4u_t rMPS;
+
+    state =  fEXTRACTU_RANGE(fGETWORD(1, RttV), 5, 0);
+    valMPS = fEXTRACTU_RANGE(fGETWORD(1, RttV), 8, 8);
+    bitpos = fEXTRACTU_RANGE(fGETWORD(0, RttV), 4, 0);
+    range =  fGETWORD(0, RssV);
+    offset = fGETWORD(1, RssV);
+
+    /* calculate rLPS */
+    range <<= bitpos;
+    offset <<= bitpos;
+    rLPS = rLPS_table_64x4[state][(range >> 29) & 3];
+    rLPS  = rLPS << 23;   /* left aligned */
+
+    /* calculate rMPS */
+    rMPS = (range & 0xff800000) - rLPS;
+
+    /* most probable region */
+    if (offset < rMPS) {
+        p0 = valMPS;
+
+    }
+    /* least probable region */
+    else {
+        p0 = valMPS ^ 1;
+    }
+    return p0;
 }
 
 static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,

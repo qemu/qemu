@@ -560,6 +560,11 @@ static void gen_ploopNsi(DisasContext *ctx, int N, int count, int riV)
 {
     gen_ploopNsr(ctx, N, tcg_constant_tl(count), riV);
 }
+
+static inline void gen_comparei(TCGCond cond, TCGv res, TCGv arg1, int arg2)
+{
+    gen_compare(cond, res, arg1, tcg_constant_tl(arg2));
+}
 #endif
 
 static void gen_cond_jumpr(DisasContext *ctx, TCGv dst_pc,
