@@ -581,9 +581,9 @@
 #define fGEN_TCG_SL2_return_f(SHORTCODE) \
     gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_pred[0])
 #define fGEN_TCG_SL2_return_tnew(SHORTCODE) \
-    gen_cond_return_subinsn(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+    gen_cond_return_subinsn(ctx, TCG_COND_EQ, ctx->new_pred_value[0])
 #define fGEN_TCG_SL2_return_fnew(SHORTCODE) \
-    gen_cond_return_subinsn(ctx, TCG_COND_NE, hex_new_pred_value[0])
+    gen_cond_return_subinsn(ctx, TCG_COND_NE, ctx->new_pred_value[0])
 
 /*
  * Mathematical operations with more than one definition require
@@ -1122,7 +1122,7 @@
 #define fGEN_TCG_SA1_clrtnew(SHORTCODE) \
     do { \
         tcg_gen_movcond_tl(TCG_COND_EQ, RdV, \
-                           hex_new_pred_value[0], tcg_constant_tl(0), \
+                           ctx->new_pred_value[0], tcg_constant_tl(0), \
                            RdV, tcg_constant_tl(0)); \
     } while (0)
 
@@ -1130,7 +1130,7 @@
 #define fGEN_TCG_SA1_clrfnew(SHORTCODE) \
     do { \
         tcg_gen_movcond_tl(TCG_COND_NE, RdV, \
-                           hex_new_pred_value[0], tcg_constant_tl(0), \
+                           ctx->new_pred_value[0], tcg_constant_tl(0), \
                            RdV, tcg_constant_tl(0)); \
     } while (0)
 
@@ -1157,9 +1157,9 @@
     gen_cond_jumpr31(ctx, TCG_COND_NE, hex_pred[0])
 
 #define fGEN_TCG_SL2_jumpr31_tnew(SHORTCODE) \
-    gen_cond_jumpr31(ctx, TCG_COND_EQ, hex_new_pred_value[0])
+    gen_cond_jumpr31(ctx, TCG_COND_EQ, ctx->new_pred_value[0])
 #define fGEN_TCG_SL2_jumpr31_fnew(SHORTCODE) \
-    gen_cond_jumpr31(ctx, TCG_COND_NE, hex_new_pred_value[0])
+    gen_cond_jumpr31(ctx, TCG_COND_NE, ctx->new_pred_value[0])
 
 /* Count trailing zeros/ones */
 #define fGEN_TCG_S2_ct0(SHORTCODE) \

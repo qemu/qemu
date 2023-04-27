@@ -98,7 +98,6 @@ typedef struct CPUArchState {
     target_ulong this_PC;
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 
-    target_ulong new_pred_value[NUM_PREGS];
     target_ulong pred_written;
 
     MemLog mem_log_stores[STORES_MAX];

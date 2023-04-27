@@ -121,7 +121,11 @@ static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 TCGv get_result_pred(DisasContext *ctx, int pnum)
 {
     if (ctx->need_commit) {
-        return hex_new_pred_value[pnum];
+        if (ctx->new_pred_value[pnum] == NULL) {
+            ctx->new_pred_value[pnum] = tcg_temp_new();
+            tcg_gen_movi_tl(ctx->new_pred_value[pnum], 0);
+        }
+        return ctx->new_pred_value[pnum];
     } else {
         return hex_pred[pnum];
     }
@@ -607,7 +611,7 @@ static void gen_cmpnd_cmp_jmp(DisasContext *ctx,
         gen_log_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
-        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
         gen_cond_jump(ctx, cond2, pred, pc_off);
     }
 }
@@ -664,7 +668,7 @@ static void gen_cmpnd_tstbit0_jmp(DisasContext *ctx,
         gen_log_pred_write(ctx, pnum, pred);
     } else {
         TCGv pred = tcg_temp_new();
-        tcg_gen_mov_tl(pred, hex_new_pred_value[pnum]);
+        tcg_gen_mov_tl(pred, ctx->new_pred_value[pnum]);
         gen_cond_jump(ctx, cond, pred, pc_off);
     }
 }

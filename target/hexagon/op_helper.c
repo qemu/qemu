@@ -231,7 +231,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 pred_printed = true;
             }
             HEX_DEBUG_LOG("\tp%d = 0x" TARGET_FMT_lx "\n",
-                          i, env->new_pred_value[i]);
+                          i, env->pred[i]);
         }
     }
 

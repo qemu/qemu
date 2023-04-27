@@ -46,7 +46,6 @@ TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value_usr;
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
-TCGv hex_new_pred_value[NUM_PREGS];
 TCGv hex_pred_written;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
@@ -515,6 +514,9 @@ static void gen_start_packet(DisasContext *ctx)
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         ctx->new_value[i] = NULL;
     }
+    for (i = 0; i < NUM_PREGS; i++) {
+        ctx->new_pred_value[i] = NULL;
+    }
 
     analyze_packet(ctx);
 
@@ -568,7 +570,8 @@ static void gen_start_packet(DisasContext *ctx)
     if (ctx->need_commit && pkt->pkt_has_endloop) {
         for (int i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
-            tcg_gen_mov_tl(hex_new_pred_value[pred_num], hex_pred[pred_num]);
+            ctx->new_pred_value[pred_num] = tcg_temp_new();
+            tcg_gen_mov_tl(ctx->new_pred_value[pred_num], hex_pred[pred_num]);
         }
     }
 
@@ -691,7 +694,7 @@ static void gen_pred_writes(DisasContext *ctx)
 
     for (int i = 0; i < ctx->preg_log_idx; i++) {
         int pred_num = ctx->preg_log[i];
-        tcg_gen_mov_tl(hex_pred[pred_num], hex_new_pred_value[pred_num]);
+        tcg_gen_mov_tl(hex_pred[pred_num], ctx->new_pred_value[pred_num]);
     }
 }
 
@@ -1162,7 +1165,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 
 #define NAME_LEN               64
 static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
-static char new_pred_value_names[NUM_PREGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
 static char store_width_names[STORES_MAX][NAME_LEN];
 static char store_val32_names[STORES_MAX][NAME_LEN];
@@ -1197,12 +1199,6 @@ void hexagon_translate_init(void)
         hex_pred[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, pred[i]),
             hexagon_prednames[i]);
-
-        snprintf(new_pred_value_names[i], NAME_LEN, "new_pred_%s",
-                 hexagon_prednames[i]);
-        hex_new_pred_value[i] = tcg_global_mem_new(cpu_env,
-            offsetof(CPUHexagonState, new_pred_value[i]),
-            new_pred_value_names[i]);
     }
     hex_pred_written = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, pred_written), "pred_written");

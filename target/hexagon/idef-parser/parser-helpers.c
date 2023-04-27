@@ -1854,7 +1854,7 @@ HexValue gen_rvalue_pred(Context *c, YYLTYPE *locp, HexValue *pred)
         *pred = gen_tmp(c, locp, 32, UNSIGNED);
         if (is_dotnew) {
             OUT(c, locp, "tcg_gen_mov_i32(", pred,
-                ", hex_new_pred_value[");
+                ", ctx->new_pred_value[");
             OUT(c, locp, pred_str, "]);\n");
         } else {
             OUT(c, locp, "gen_read_preg(", pred, ", ", pred_str, ");\n");
