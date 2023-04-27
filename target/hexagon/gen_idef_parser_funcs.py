@@ -109,6 +109,8 @@ def main():
                 continue
             if "A_COF" in hex_common.attribdict[tag]:
                 continue
+            if ( tag.startswith('R6_release_') ):
+                continue
 
             regs = tagregs[tag]
             imms = tagimms[tag]

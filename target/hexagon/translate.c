@@ -481,6 +481,9 @@ static void mark_store_width(DisasContext *ctx)
     uint8_t width = 0;
 
     if (GET_ATTRIB(opcode, A_SCALAR_STORE)) {
+        if (GET_ATTRIB(opcode, A_MEMSIZE_0B)) {
+            return;
+        }
         if (GET_ATTRIB(opcode, A_MEMSIZE_1B)) {
             width |= 1;
         }

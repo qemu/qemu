@@ -52,6 +52,12 @@ DEF_ATTRIB(REGWRSIZE_4B, "Memory width is 4 bytes", "", "")
 DEF_ATTRIB(REGWRSIZE_8B, "Memory width is 8 bytes", "", "")
 DEF_ATTRIB(MEMLIKE, "Memory-like instruction", "", "")
 DEF_ATTRIB(MEMLIKE_PACKET_RULES, "follows Memory-like packet rules", "", "")
+DEF_ATTRIB(RELEASE, "Releases a lock", "", "")
+DEF_ATTRIB(ACQUIRE, "Acquires a lock", "", "")
+
+DEF_ATTRIB(RLS_INNER, "Store release inner visibility", "", "")
+DEF_ATTRIB(RLS_ALL_THREAD, "Store release among all threads", "", "")
+DEF_ATTRIB(RLS_SAME_THREAD, "Store release with the same thread", "", "")
 
 /* V6 Vector attributes */
 DEF_ATTRIB(CVI, "Executes on the HVX extension", "", "")
@@ -74,6 +80,7 @@ DEF_ATTRIB(CVI_SCATTER_RELEASE, "CVI Store Release for scatter", "", "")
 DEF_ATTRIB(CVI_TMP_DST, "CVI instruction that doesn't write a register", "", "")
 DEF_ATTRIB(CVI_SLOT23, "Can execute in slot 2 or slot 3 (HVX)", "", "")
 
+DEF_ATTRIB(VTCM_ALLBANK_ACCESS, "Allocates in all VTCM schedulers.", "", "")
 
 /* Change-of-flow attributes */
 DEF_ATTRIB(JUMP, "Jump-type instruction", "", "")
