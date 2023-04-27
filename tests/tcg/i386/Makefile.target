@@ -18,19 +18,15 @@ X86_64_TESTS:=$(filter test-i386-adcox test-i386-bmi2 $(SKIP_I386_TESTS), $(ALL_
 
 test-i386-sse-exceptions: CFLAGS += -msse4.1 -mfpmath=sse
 run-test-i386-sse-exceptions: QEMU_OPTS += -cpu max
-run-plugin-test-i386-sse-exceptions-%: QEMU_OPTS += -cpu max
 
 test-i386-pcmpistri: CFLAGS += -msse4.2
 run-test-i386-pcmpistri: QEMU_OPTS += -cpu max
-run-plugin-test-i386-pcmpistri-%: QEMU_OPTS += -cpu max
 
 test-i386-bmi2: CFLAGS=-O2
 run-test-i386-bmi2: QEMU_OPTS += -cpu max
-run-plugin-test-i386-bmi2-%: QEMU_OPTS += -cpu max
 
 test-i386-adcox: CFLAGS=-O2
 run-test-i386-adcox: QEMU_OPTS += -cpu max
-run-plugin-test-i386-adcox-%: QEMU_OPTS += -cpu max
 
 #
 # hello-i386 is a barebones app
@@ -52,8 +48,6 @@ test-i386:
 	$(call skip-test, "BUILD of $@", "missing -no-pie compiler support")
 run-test-i386:
 	$(call skip-test, "RUN of test-i386", "not built")
-run-plugin-test-i386-with-%:
-	$(call skip-test, "RUN of test-i386 ($*)", "not built")
 endif
 
 ifeq ($(SPEED), slow)
@@ -87,7 +81,6 @@ sha512-sse: sha512.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
 run-sha512-sse: QEMU_OPTS+=-cpu max
-run-plugin-sha512-sse-with-%: QEMU_OPTS+=-cpu max
 
 TESTS+=sha512-sse
 
@@ -103,15 +96,12 @@ test-avx.h: test-avx.py x86.csv
 
 test-3dnow: CFLAGS += -masm=intel -O -I.
 run-test-3dnow: QEMU_OPTS += -cpu max
-run-plugin-test-3dnow: QEMU_OPTS += -cpu max
 test-3dnow: test-3dnow.h
 
 test-mmx: CFLAGS += -masm=intel -O -I.
 run-test-mmx: QEMU_OPTS += -cpu max
-run-plugin-test-mmx: QEMU_OPTS += -cpu max
 test-mmx: test-mmx.h
 
 test-avx: CFLAGS += -mavx -masm=intel -O -I.
 run-test-avx: QEMU_OPTS += -cpu max
-run-plugin-test-avx: QEMU_OPTS += -cpu max
 test-avx: test-avx.h

@@ -9,4 +9,3 @@ TESTS += noexec
 TESTS += test-noc
 test-noc: LDFLAGS = -nostdlib -static
 run-test-noc: QEMU_OPTS += -cpu rv64,c=false
-run-plugin-test-noc-%: QEMU_OPTS += -cpu rv64,c=false
