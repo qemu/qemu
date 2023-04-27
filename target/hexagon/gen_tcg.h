@@ -1101,6 +1101,22 @@
         gen_jump(ctx, riV); \
     } while (0)
 
+/* if (p0.new) r0 = #0 */
+#define fGEN_TCG_SA1_clrtnew(SHORTCODE) \
+    do { \
+        tcg_gen_movcond_tl(TCG_COND_EQ, RdV, \
+                           hex_new_pred_value[0], tcg_constant_tl(0), \
+                           RdV, tcg_constant_tl(0)); \
+    } while (0)
+
+/* if (!p0.new) r0 = #0 */
+#define fGEN_TCG_SA1_clrfnew(SHORTCODE) \
+    do { \
+        tcg_gen_movcond_tl(TCG_COND_NE, RdV, \
+                           hex_new_pred_value[0], tcg_constant_tl(0), \
+                           RdV, tcg_constant_tl(0)); \
+    } while (0)
+
 #define fGEN_TCG_J2_pause(SHORTCODE) \
     do { \
         uiV = uiV; \

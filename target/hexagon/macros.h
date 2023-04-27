@@ -227,12 +227,8 @@ static inline void gen_cancel(uint32_t slot)
 
 #ifdef QEMU_GENERATE
 #define fLSBNEW(PVAL)   tcg_gen_andi_tl(LSB, (PVAL), 1)
-#define fLSBNEW0        tcg_gen_andi_tl(LSB, hex_new_pred_value[0], 1)
-#define fLSBNEW1        tcg_gen_andi_tl(LSB, hex_new_pred_value[1], 1)
 #else
 #define fLSBNEW(PVAL)   ((PVAL) & 1)
-#define fLSBNEW0        (env->new_pred_value[0] & 1)
-#define fLSBNEW1        (env->new_pred_value[1] & 1)
 #endif
 
 #ifdef QEMU_GENERATE
