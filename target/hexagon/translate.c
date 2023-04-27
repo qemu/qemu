@@ -46,7 +46,6 @@ TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
 TCGv hex_new_value_usr;
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
-TCGv hex_pred_written;
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
@@ -549,7 +548,8 @@ static void gen_start_packet(DisasContext *ctx)
         }
     }
     if (HEX_DEBUG) {
-        tcg_gen_movi_tl(hex_pred_written, 0);
+        ctx->pred_written = tcg_temp_new();
+        tcg_gen_movi_tl(ctx->pred_written, 0);
     }
 
     /* Preload the predicated registers into get_result_gpr(ctx, i) */
@@ -1007,7 +1007,8 @@ static void gen_commit_packet(DisasContext *ctx)
             tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
 
         /* Handy place to set a breakpoint at the end of execution */
-        gen_helper_debug_commit_end(cpu_env, has_st0, has_st1);
+        gen_helper_debug_commit_end(cpu_env, ctx->pred_written,
+                                    has_st0, has_st1);
     }
 
     if (pkt->vhist_insn != NULL) {
@@ -1200,8 +1201,6 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, pred[i]),
             hexagon_prednames[i]);
     }
-    hex_pred_written = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, pred_written), "pred_written");
     hex_this_PC = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, this_PC), "this_PC");
     hex_slot_cancelled = tcg_global_mem_new(cpu_env,

@@ -151,7 +151,7 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
         tcg_gen_and_tl(pred, pred, base_val);
     }
     if (HEX_DEBUG) {
-        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);
+        tcg_gen_ori_tl(ctx->pred_written, ctx->pred_written, 1 << pnum);
     }
     set_bit(pnum, ctx->pregs_written);
 }

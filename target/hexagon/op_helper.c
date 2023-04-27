@@ -203,7 +203,8 @@ static void print_store(CPUHexagonState *env, int slot)
 }
 
 /* This function is a handy place to set a breakpoint */
-void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
+void HELPER(debug_commit_end)(CPUHexagonState *env,
+                              int pred_written, int has_st0, int has_st1)
 {
     bool reg_printed = false;
     bool pred_printed = false;
@@ -225,7 +226,7 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     }
 
     for (i = 0; i < NUM_PREGS; i++) {
-        if (env->pred_written & (1 << i)) {
+        if (pred_written & (1 << i)) {
             if (!pred_printed) {
                 HEX_DEBUG_LOG("Predicates written\n");
                 pred_printed = true;
