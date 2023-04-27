@@ -128,6 +128,18 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_mov(MO_64, VdV_off, VuV_off, \
                      sizeof(MMVector), sizeof(MMVector))
 
+#define fGEN_TCG_V6_vassign_tmp(SHORTCODE) \
+    tcg_gen_gvec_mov(MO_64, VdV_off, VuV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vcombine_tmp(SHORTCODE) \
+    do { \
+        tcg_gen_gvec_mov(MO_64, VddV_off, VvV_off, \
+                         sizeof(MMVector), sizeof(MMVector)); \
+        tcg_gen_gvec_mov(MO_64, VddV_off + sizeof(MMVector), VuV_off, \
+                         sizeof(MMVector), sizeof(MMVector)); \
+    } while (0)
+
 /* Vector conditional move */
 #define fGEN_TCG_VEC_CMOV(PRED) \
     do { \

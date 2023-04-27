@@ -62,6 +62,9 @@ EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS),  \
 DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
 
+#define ITERATOR_INSN_SHIFT3_SLOT(WIDTH,TAG,SYNTAX,DESCR,CODE) \
+EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_CVI_VS_3SRC,A_NOTE_SHIFT_RESOURCE,A_NOTE_NOVP,A_NOTE_VA_UNARY),  \
+DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
 #define ITERATOR_INSN_SHIFT_SLOT_VV_LATE(WIDTH,TAG,SYNTAX,DESCR,CODE) \
 EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS),  \
@@ -980,6 +983,22 @@ NARROWING_SHIFT(16,vasrhubrndsat,fSETBYTE,ub,h,:rnd:sat,fVSATUB,fVROUND,0x7)
 NARROWING_SHIFT(16,vasrhbsat,fSETBYTE,b,h,:sat,fVSATB,fVNOROUND,0x7)
 NARROWING_SHIFT(16,vasrhbrndsat,fSETBYTE,b,h,:rnd:sat,fVSATB,fVROUND,0x7)
 
+#define NARROWING_VECTOR_SHIFT(ITERSIZE,TAG,DSTM,DSTTYPE,SRCTYPE,SRCTYPE2,SYNOPTS,SATFUNC,RNDFUNC,SHAMTMASK) \
+ITERATOR_INSN_SHIFT3_SLOT(ITERSIZE,TAG, \
+"Vd32." #DSTTYPE "=vasr(Vuu32." #SRCTYPE ",Vv32." #SRCTYPE2 ")" #SYNOPTS, \
+"Vector shift by vector right and shuffle", \
+    fHIDE(int )shamt = VvV.SRCTYPE2[2*i+0] & SHAMTMASK; \
+    DSTM(0,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuuV.v[0].SRCTYPE[i],shamt) >> shamt)); \
+    shamt = VvV.SRCTYPE2[2*i+1] & SHAMTMASK; \
+    DSTM(1,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuuV.v[1].SRCTYPE[i],shamt) >> shamt)))
+
+/* WORD TO HALF*/
+NARROWING_VECTOR_SHIFT(32,vasrvwuhsat,fSETHALF,uh,w,uh,:sat,fVSATUH,fVNOROUND,0xF)
+NARROWING_VECTOR_SHIFT(32,vasrvwuhrndsat,fSETHALF,uh,w,uh,:rnd:sat,fVSATUH,fVROUND,0xF)
+/* HALF TO BYTE*/
+NARROWING_VECTOR_SHIFT(16,vasrvuhubsat,fSETBYTE,ub,uh,ub,:sat,fVSATUB,fVNOROUND,0x7)
+NARROWING_VECTOR_SHIFT(16,vasrvuhubrndsat,fSETBYTE,ub,uh,ub,:rnd:sat,fVSATUB,fVROUND,0x7)
+
 NARROWING_SHIFT_NOV1(16,vasruhubsat,fSETBYTE,ub,uh,:sat,fVSATUB,fVNOROUND,0x7)
 NARROWING_SHIFT_NOV1(16,vasruhubrndsat,fSETBYTE,ub,uh,:rnd:sat,fVSATUB,fVROUND,0x7)
 
@@ -1364,6 +1383,9 @@ ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(16,vmpyhvsrs,"Vd32=vmpyh(Vu32,Vv32):<<1:rnd:s
 
 
 
+ITERATOR_INSN_MPY_SLOT(16,vmpyuhvs, "Vd32.uh=vmpy(Vu32.uh,Vv32.uh):>>16",
+"Vector by Vector Unsigned Halfword Multiply with 16 bit rightshift",
+    VdV.uh[i] = fGETUHALF(1,fMPY16UU(VuV.uh[i],VvV.uh[i])))
 
 
 ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(32,vmpyhus, "Vdd32=vmpyhus(Vu32,Vv32)","Vdd32.w=vmpy(Vu32.h,Vv32.uh)",
@@ -2042,6 +2064,24 @@ ITERATOR_INSN_ANY_SLOT_DOUBLE_VEC(8,vcombine,"Vdd32=vcombine(Vu32,Vv32)",
 
 ///////////////////////////////////////////////////////////////////////////
 
+EXTINSN(V6_vcombine_tmp, "Vdd32.tmp=vcombine(Vu32,Vv32)",    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_REMAP,A_CVI_TMP,A_NO_INTRINSIC),
+"Vector assign tmp, Any two to Vector Pair ",
+{
+   fHIDE(int i;)
+    fVFOREACH(8, i) {
+           VddV.v[0].ub[i] = VvV.ub[i];
+           VddV.v[1].ub[i] = VuV.ub[i];
+    }
+})
+
+EXTINSN(V6_vassign_tmp, "Vd32.tmp=Vu32",    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_REMAP,A_CVI_TMP,A_NO_INTRINSIC),
+"Vector assign tmp, Any two to Vector Pair ",
+{
+   fHIDE(int i;)
+    fVFOREACH(32, i) {
+           VdV.w[i]=VuV.w[i];
+    }
+})
 
 /*********************************************************
 * GENERAL PERMUTE NETWORKS
