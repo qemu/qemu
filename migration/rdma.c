@@ -17,8 +17,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "exec/target_page.h"
 #include "rdma.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "qemu-file.h"
 #include "ram.h"
 #include "qemu/error-report.h"
@@ -2120,7 +2122,8 @@ retry:
                     return -EIO;
                 }
 
-                acct_update_position(f, sge.length, true);
+                stat64_add(&mig_stats.zero_pages,
+                           sge.length / qemu_target_page_size());
 
                 return 1;
             }
@@ -2228,7 +2231,7 @@ retry:
     }
 
     set_bit(chunk, block->transit_bitmap);
-    acct_update_position(f, sge.length, false);
+    acct_update_position(f, sge.length);
     rdma->total_writes++;
 
     return 0;
