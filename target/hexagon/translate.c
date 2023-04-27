@@ -70,6 +70,10 @@ intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
 {
     intptr_t offset;
 
+    if (!ctx->need_commit) {
+        return offsetof(CPUHexagonState, VRegs[regnum]);
+    }
+
     /* See if it is already allocated */
     for (int i = 0; i < ctx->future_vregs_idx; i++) {
         if (ctx->future_vregs_num[i] == regnum) {
@@ -374,7 +378,7 @@ static bool need_commit(DisasContext *ctx)
         return true;
     }
 
-    if (pkt->num_insns == 1) {
+    if (pkt->num_insns == 1 && !pkt->pkt_has_hvx) {
         return false;
     }
 
@@ -390,6 +394,40 @@ static bool need_commit(DisasContext *ctx)
     for (int i = 0; i < ctx->preg_log_idx; i++) {
         int pnum = ctx->preg_log[i];
         if (test_bit(pnum, ctx->pregs_read)) {
+            return true;
+        }
+    }
+
+    /* Check for overlap between HVX reads and writes */
+    for (int i = 0; i < ctx->vreg_log_idx; i++) {
+        int vnum = ctx->vreg_log[i];
+        if (test_bit(vnum, ctx->vregs_read)) {
+            return true;
+        }
+    }
+    if (!bitmap_empty(ctx->vregs_updated_tmp, NUM_VREGS)) {
+        int i = find_first_bit(ctx->vregs_updated_tmp, NUM_VREGS);
+        while (i < NUM_VREGS) {
+            if (test_bit(i, ctx->vregs_read)) {
+                return true;
+            }
+            i = find_next_bit(ctx->vregs_updated_tmp, NUM_VREGS, i + 1);
+        }
+    }
+    if (!bitmap_empty(ctx->vregs_select, NUM_VREGS)) {
+        int i = find_first_bit(ctx->vregs_select, NUM_VREGS);
+        while (i < NUM_VREGS) {
+            if (test_bit(i, ctx->vregs_read)) {
+                return true;
+            }
+            i = find_next_bit(ctx->vregs_select, NUM_VREGS, i + 1);
+        }
+    }
+
+    /* Check for overlap between HVX predicate reads and writes */
+    for (int i = 0; i < ctx->qreg_log_idx; i++) {
+        int qnum = ctx->qreg_log[i];
+        if (test_bit(qnum, ctx->qregs_read)) {
             return true;
         }
     }
@@ -789,6 +827,12 @@ static bool pkt_has_hvx_store(Packet *pkt)
 static void gen_commit_hvx(DisasContext *ctx)
 {
     int i;
+
+    /* Early exit if not needed */
+    if (!ctx->need_commit) {
+        g_assert(!pkt_has_hvx_store(ctx->pkt));
+        return;
+    }
 
     /*
      *    for (i = 0; i < ctx->vreg_log_idx; i++) {

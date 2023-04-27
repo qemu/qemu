@@ -1104,7 +1104,11 @@ static void gen_log_vreg_write_pair(DisasContext *ctx, intptr_t srcoff, int num,
 
 static intptr_t get_result_qreg(DisasContext *ctx, int qnum)
 {
-    return  offsetof(CPUHexagonState, future_QRegs[qnum]);
+    if (ctx->need_commit) {
+        return  offsetof(CPUHexagonState, future_QRegs[qnum]);
+    } else {
+        return  offsetof(CPUHexagonState, QRegs[qnum]);
+    }
 }
 
 static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
