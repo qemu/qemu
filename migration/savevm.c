@@ -536,6 +536,9 @@ static void dump_vmstate_vmsf(FILE *out_file, const VMStateField *field,
             field->version_id);
     fprintf(out_file, "%*s\"field_exists\": %s,\n", indent, "",
             field->field_exists ? "true" : "false");
+    if (field->flags & VMS_ARRAY) {
+        fprintf(out_file, "%*s\"num\": %d,\n", indent, "", field->num);
+    }
     fprintf(out_file, "%*s\"size\": %zu", indent, "", field->size);
     if (field->vmsd != NULL) {
         fprintf(out_file, ",\n");
@@ -1753,7 +1756,8 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
         return -EINVAL;
     }
 
-    if (!postcopy_ram_supported_by_host(mis)) {
+    if (!postcopy_ram_supported_by_host(mis, &local_err)) {
+        error_report_err(local_err);
         postcopy_state_set(POSTCOPY_INCOMING_NONE);
         return -1;
     }

@@ -14,7 +14,8 @@
 #define QEMU_POSTCOPY_RAM_H
 
 /* Return true if the host supports everything we need to do postcopy-ram */
-bool postcopy_ram_supported_by_host(MigrationIncomingState *mis);
+bool postcopy_ram_supported_by_host(MigrationIncomingState *mis,
+                                    Error **errp);
 
 /*
  * Make all of RAM sensitive to accesses to areas that haven't yet been written

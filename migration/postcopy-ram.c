@@ -283,11 +283,13 @@ static bool request_ufd_features(int ufd, uint64_t features)
     return true;
 }
 
-static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
+static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis,
+                                Error **errp)
 {
     uint64_t asked_features = 0;
     static uint64_t supported_features;
 
+    ERRP_GUARD();
     /*
      * it's not possible to
      * request UFFD_API twice per one fd
@@ -295,7 +297,7 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
      */
     if (!supported_features) {
         if (!receive_ufd_features(&supported_features)) {
-            error_report("%s failed", __func__);
+            error_setg(errp, "Userfault feature detection failed");
             return false;
         }
     }
@@ -317,8 +319,7 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
      * userfault file descriptor
      */
     if (!request_ufd_features(ufd, asked_features)) {
-        error_report("%s failed: features %" PRIu64, __func__,
-                     asked_features);
+        error_setg(errp, "Failed features %" PRIu64, asked_features);
         return false;
     }
 
@@ -329,7 +330,8 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
         have_hp = supported_features & UFFD_FEATURE_MISSING_HUGETLBFS;
 #endif
         if (!have_hp) {
-            error_report("Userfault on this host does not support huge pages");
+            error_setg(errp,
+                       "Userfault on this host does not support huge pages");
             return false;
         }
     }
@@ -338,7 +340,7 @@ static bool ufd_check_and_apply(int ufd, MigrationIncomingState *mis)
 
 /* Callback from postcopy_ram_supported_by_host block iterator.
  */
-static int test_ramblock_postcopiable(RAMBlock *rb)
+static int test_ramblock_postcopiable(RAMBlock *rb, Error **errp)
 {
     const char *block_name = qemu_ram_get_idstr(rb);
     ram_addr_t length = qemu_ram_get_used_length(rb);
@@ -346,16 +348,18 @@ static int test_ramblock_postcopiable(RAMBlock *rb)
     QemuFsType fs;
 
     if (length % pagesize) {
-        error_report("Postcopy requires RAM blocks to be a page size multiple,"
-                     " block %s is 0x" RAM_ADDR_FMT " bytes with a "
-                     "page size of 0x%zx", block_name, length, pagesize);
+        error_setg(errp,
+                   "Postcopy requires RAM blocks to be a page size multiple,"
+                   " block %s is 0x" RAM_ADDR_FMT " bytes with a "
+                   "page size of 0x%zx", block_name, length, pagesize);
         return 1;
     }
 
     if (rb->fd >= 0) {
         fs = qemu_fd_getfs(rb->fd);
         if (fs != QEMU_FS_TYPE_TMPFS && fs != QEMU_FS_TYPE_HUGETLBFS) {
-            error_report("Host backend files need to be TMPFS or HUGETLBFS only");
+            error_setg(errp,
+                       "Host backend files need to be TMPFS or HUGETLBFS only");
             return 1;
         }
     }
@@ -368,7 +372,7 @@ static int test_ramblock_postcopiable(RAMBlock *rb)
  * normally fine since if the postcopy succeeds it gets turned back on at the
  * end.
  */
-bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
+bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
 {
     long pagesize = qemu_real_host_page_size();
     int ufd = -1;
@@ -377,29 +381,27 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     struct uffdio_register reg_struct;
     struct uffdio_range range_struct;
     uint64_t feature_mask;
-    Error *local_err = NULL;
     RAMBlock *block;
 
+    ERRP_GUARD();
     if (qemu_target_page_size() > pagesize) {
-        error_report("Target page size bigger than host page size");
+        error_setg(errp, "Target page size bigger than host page size");
         goto out;
     }
 
     ufd = uffd_open(O_CLOEXEC);
     if (ufd == -1) {
-        error_report("%s: userfaultfd not available: %s", __func__,
-                     strerror(errno));
+        error_setg(errp, "Userfaultfd not available: %s", strerror(errno));
         goto out;
     }
 
     /* Give devices a chance to object */
-    if (postcopy_notify(POSTCOPY_NOTIFY_PROBE, &local_err)) {
-        error_report_err(local_err);
+    if (postcopy_notify(POSTCOPY_NOTIFY_PROBE, errp)) {
         goto out;
     }
 
     /* Version and features check */
-    if (!ufd_check_and_apply(ufd, mis)) {
+    if (!ufd_check_and_apply(ufd, mis, errp)) {
         goto out;
     }
 
@@ -417,7 +419,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
      * affect in reality, or we can revisit.
      */
     RAMBLOCK_FOREACH(block) {
-        if (test_ramblock_postcopiable(block)) {
+        if (test_ramblock_postcopiable(block, errp)) {
             goto out;
         }
     }
@@ -427,7 +429,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
      * it was enabled.
      */
     if (munlockall()) {
-        error_report("%s: munlockall: %s", __func__,  strerror(errno));
+        error_setg(errp, "munlockall() failed: %s", strerror(errno));
         goto out;
     }
 
@@ -439,8 +441,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     testarea = mmap(NULL, pagesize, PROT_READ | PROT_WRITE, MAP_PRIVATE |
                                     MAP_ANONYMOUS, -1, 0);
     if (testarea == MAP_FAILED) {
-        error_report("%s: Failed to map test area: %s", __func__,
-                     strerror(errno));
+        error_setg(errp, "Failed to map test area: %s", strerror(errno));
         goto out;
     }
     g_assert(QEMU_PTR_IS_ALIGNED(testarea, pagesize));
@@ -450,14 +451,14 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
 
     if (ioctl(ufd, UFFDIO_REGISTER, &reg_struct)) {
-        error_report("%s userfault register: %s", __func__, strerror(errno));
+        error_setg(errp, "UFFDIO_REGISTER failed: %s", strerror(errno));
         goto out;
     }
 
     range_struct.start = (uintptr_t)testarea;
     range_struct.len = pagesize;
     if (ioctl(ufd, UFFDIO_UNREGISTER, &range_struct)) {
-        error_report("%s userfault unregister: %s", __func__, strerror(errno));
+        error_setg(errp, "UFFDIO_UNREGISTER failed: %s", strerror(errno));
         goto out;
     }
 
@@ -465,8 +466,8 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
                    (__u64)1 << _UFFDIO_COPY |
                    (__u64)1 << _UFFDIO_ZEROPAGE;
     if ((reg_struct.ioctls & feature_mask) != feature_mask) {
-        error_report("Missing userfault map features: %" PRIx64,
-                     (uint64_t)(~reg_struct.ioctls & feature_mask));
+        error_setg(errp, "Missing userfault map features: %" PRIx64,
+                   (uint64_t)(~reg_struct.ioctls & feature_mask));
         goto out;
     }
 
@@ -1188,6 +1189,8 @@ static int postcopy_temp_pages_setup(MigrationIncomingState *mis)
 
 int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
 {
+    Error *local_err = NULL;
+
     /* Open the fd for the kernel to give us userfaults */
     mis->userfault_fd = uffd_open(O_CLOEXEC | O_NONBLOCK);
     if (mis->userfault_fd == -1) {
@@ -1200,7 +1203,8 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
      * Although the host check already tested the API, we need to
      * do the check again as an ABI handshake on the new fd.
      */
-    if (!ufd_check_and_apply(mis->userfault_fd, mis)) {
+    if (!ufd_check_and_apply(mis->userfault_fd, mis, &local_err)) {
+        error_report_err(local_err);
         return -1;
     }
 
@@ -1360,7 +1364,7 @@ void fill_destination_postcopy_migration_info(MigrationInfo *info)
 {
 }
 
-bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
+bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
 {
     error_report("%s: No OS support", __func__);
     return false;
