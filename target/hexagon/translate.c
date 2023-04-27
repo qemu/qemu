@@ -378,8 +378,20 @@ static bool need_commit(DisasContext *ctx)
         return true;
     }
 
-    if (pkt->num_insns == 1 && !pkt->pkt_has_hvx) {
-        return false;
+    if (pkt->num_insns == 1) {
+        if (pkt->pkt_has_hvx) {
+            /*
+             * The HVX instructions with generated helpers use
+             * pass-by-reference, so they need the read/write overlap
+             * check below.
+             * The HVX instructions with overrides are OK.
+             */
+            if (!ctx->has_hvx_helper) {
+                return false;
+            }
+        } else {
+            return false;
+        }
     }
 
     /* Check for overlap between register reads and writes */
@@ -454,6 +466,7 @@ static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
     ctx->need_pkt_has_store_s1 = false;
+    ctx->has_hvx_helper = false;
     for (int i = 0; i < pkt->num_insns; i++) {
         Insn *insn = &pkt->insn[i];
         ctx->insn = insn;

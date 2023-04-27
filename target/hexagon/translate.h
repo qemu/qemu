@@ -68,6 +68,7 @@ typedef struct DisasContext {
     bool is_tight_loop;
     bool need_pkt_has_store_s1;
     bool short_circuit;
+    bool has_hvx_helper;
 } DisasContext;
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)

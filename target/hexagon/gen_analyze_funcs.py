@@ -212,6 +212,11 @@ def gen_analyze_func(f, tag, regs, imms):
     if has_generated_helper and "A_SCALAR_LOAD" in hex_common.attribdict[tag]:
         f.write("    ctx->need_pkt_has_store_s1 = true;\n")
 
+    ## Mark HVX instructions with generated helpers
+    if (has_generated_helper and
+        "A_CVI" in hex_common.attribdict[tag]):
+        f.write("    ctx->has_hvx_helper = true;\n")
+
     f.write("}\n\n")
 
 

@@ -454,6 +454,25 @@ static void test_load_cur_predicated(void)
     check_output_w(__LINE__, BUFSIZE);
 }
 
+static void test_vcombine(void)
+{
+    for (int i = 0; i < BUFSIZE / 2; i++) {
+        asm volatile("v2 = vsplat(%0)\n\t"
+                     "v3 = vsplat(%1)\n\t"
+                     "v3:2 = vcombine(v2, v3)\n\t"
+                     "vmem(%2+#0) = v2\n\t"
+                     "vmem(%2+#1) = v3\n\t"
+                     :
+                     : "r"(2 * i), "r"(2 * i + 1), "r"(&output[2 * i])
+                     : "v2", "v3", "memory");
+        for (int j = 0; j < MAX_VEC_SIZE_BYTES / 4; j++) {
+            expect[2 * i].w[j] = 2 * i + 1;
+            expect[2 * i + 1].w[j] = 2 * i;
+        }
+    }
+    check_output_w(__LINE__, BUFSIZE);
+}
+
 int main()
 {
     init_buffers();
@@ -493,6 +512,8 @@ int main()
 
     test_load_tmp_predicated();
     test_load_cur_predicated();
+
+    test_vcombine();
 
     puts(err ? "FAIL" : "PASS");
     return err ? 1 : 0;
