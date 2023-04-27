@@ -1120,7 +1120,7 @@ HexValue gen_extend_op(Context *c,
                        HexValue *value,
                        HexSignedness signedness)
 {
-    unsigned bit_width = (dst_width = 64) ? 64 : 32;
+    unsigned bit_width = (dst_width == 64) ? 64 : 32;
     HexValue value_m = *value;
     HexValue src_width_m = *src_width;
 

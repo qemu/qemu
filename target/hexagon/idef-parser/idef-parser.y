@@ -683,7 +683,7 @@ rvalue : FAIL
              yyassert(c, &@1, $5.type == IMMEDIATE &&
                       $5.imm.type == VALUE,
                       "SXT expects immediate values\n");
-             $$ = gen_extend_op(c, &@1, &$3, $5.imm.value, &$7, SIGNED);
+             $$ = gen_extend_op(c, &@1, &$3, 64, &$7, SIGNED);
          }
        | ZXT '(' rvalue ',' IMM ',' rvalue ')'
          {
@@ -691,7 +691,7 @@ rvalue : FAIL
              yyassert(c, &@1, $5.type == IMMEDIATE &&
                       $5.imm.type == VALUE,
                       "ZXT expects immediate values\n");
-             $$ = gen_extend_op(c, &@1, &$3, $5.imm.value, &$7, UNSIGNED);
+             $$ = gen_extend_op(c, &@1, &$3, 64, &$7, UNSIGNED);
          }
        | '(' rvalue ')'
          {
