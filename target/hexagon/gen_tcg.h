@@ -653,6 +653,8 @@
     gen_call(ctx, riV)
 #define fGEN_TCG_J2_callr(SHORTCODE) \
     gen_callr(ctx, RsV)
+#define fGEN_TCG_J2_callrh(SHORTCODE) \
+    gen_callr(ctx, RsV)
 
 #define fGEN_TCG_J2_callt(SHORTCODE) \
     gen_cond_call(ctx, PuV, TCG_COND_EQ, riV)
@@ -850,6 +852,8 @@
 #define fGEN_TCG_J2_jump(SHORTCODE) \
     gen_jump(ctx, riV)
 #define fGEN_TCG_J2_jumpr(SHORTCODE) \
+    gen_jumpr(ctx, RsV)
+#define fGEN_TCG_J2_jumprh(SHORTCODE) \
     gen_jumpr(ctx, RsV)
 #define fGEN_TCG_J4_jumpseti(SHORTCODE) \
     do { \

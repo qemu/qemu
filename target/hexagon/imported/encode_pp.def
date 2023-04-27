@@ -524,6 +524,7 @@ DEF_FIELD32(ICLASS_J" 110- -------- PP-!---- --------",J_PT,"Predict-taken")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0000 -------- PP------ --------","[#0] PC=(Rs), R31=return")
 DEF_ENC32(J2_callr,     ICLASS_J" 0000  101sssss  PP------  --------")
+DEF_ENC32(J2_callrh,    ICLASS_J" 0000  110sssss  PP------  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0001 -------- PP------ --------","[#1] if (Pu) PC=(Rs), R31=return")
 DEF_ENC32(J2_callrt,    ICLASS_J" 0001  000sssss  PP----uu  --------")
@@ -531,6 +532,7 @@ DEF_ENC32(J2_callrf,    ICLASS_J" 0001  001sssss  PP----uu  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0010 -------- PP------ --------","[#2] PC=(Rs); ")
 DEF_ENC32(J2_jumpr,      ICLASS_J" 0010  100sssss  PP------  --------")
+DEF_ENC32(J2_jumprh,     ICLASS_J" 0010  110sssss  PP------  --------")
 DEF_ENC32(J4_hintjumpr,  ICLASS_J" 0010  101sssss  PP------  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0011 -------- PP------ --------","[#3] if (Pu) PC=(Rs) ")
