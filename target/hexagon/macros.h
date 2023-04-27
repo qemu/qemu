@@ -343,10 +343,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 
 #define fREAD_LR() (env->gpr[HEX_REG_LR])
 
-#define fWRITE_LR(A) log_reg_write(env, HEX_REG_LR, A)
-#define fWRITE_FP(A) log_reg_write(env, HEX_REG_FP, A)
-#define fWRITE_SP(A) log_reg_write(env, HEX_REG_SP, A)
-
 #define fREAD_SP() (env->gpr[HEX_REG_SP])
 #define fREAD_LC0 (env->gpr[HEX_REG_LC0])
 #define fREAD_LC1 (env->gpr[HEX_REG_LC1])
@@ -371,16 +367,6 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
 #define fBRANCH(LOC, TYPE)          fWRITE_NPC(LOC)
 #define fJUMPR(REGNO, TARGET, TYPE) fBRANCH(TARGET, COF_TYPE_JUMPR)
 #define fHINTJR(TARGET) { /* Not modelled in qemu */}
-#define fWRITE_LOOP_REGS0(START, COUNT) \
-    do { \
-        log_reg_write(env, HEX_REG_LC0, COUNT);  \
-        log_reg_write(env, HEX_REG_SA0, START); \
-    } while (0)
-#define fWRITE_LOOP_REGS1(START, COUNT) \
-    do { \
-        log_reg_write(env, HEX_REG_LC1, COUNT);  \
-        log_reg_write(env, HEX_REG_SA1, START);\
-    } while (0)
 
 #define fSET_OVERFLOW() SET_USR_FIELD(USR_OVF, 1)
 #define fSET_LPCFG(VAL) SET_USR_FIELD(USR_LPCFG, (VAL))
