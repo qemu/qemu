@@ -2629,15 +2629,6 @@ static int ram_find_and_save_block(RAMState *rs)
     return pages;
 }
 
-void acct_update_position(QEMUFile *f, size_t size)
-{
-    uint64_t pages = size / TARGET_PAGE_SIZE;
-
-    stat64_add(&mig_stats.normal_pages, pages);
-    ram_transferred_add(size);
-    qemu_file_credit_transfer(f, size);
-}
-
 static uint64_t ram_bytes_total_with_ignored(void)
 {
     RAMBlock *block;

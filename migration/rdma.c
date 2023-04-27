@@ -2231,7 +2231,9 @@ retry:
     }
 
     set_bit(chunk, block->transit_bitmap);
-    acct_update_position(f, sge.length);
+    stat64_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
+    ram_transferred_add(sge.length);
+    qemu_file_credit_transfer(f, sge.length);
     rdma->total_writes++;
 
     return 0;
