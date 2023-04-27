@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -112,6 +112,10 @@ DEF_ATTRIB(IMPLICIT_WRITES_P1, "Writes Predicate 1", "", "UREG.P1")
 DEF_ATTRIB(IMPLICIT_WRITES_P2, "Writes Predicate 1", "", "UREG.P2")
 DEF_ATTRIB(IMPLICIT_WRITES_P3, "May write Predicate 3", "", "UREG.P3")
 DEF_ATTRIB(IMPLICIT_READS_PC, "Reads the PC register", "", "")
+DEF_ATTRIB(IMPLICIT_READS_P0, "Reads the P0 register", "", "")
+DEF_ATTRIB(IMPLICIT_READS_P1, "Reads the P1 register", "", "")
+DEF_ATTRIB(IMPLICIT_READS_P2, "Reads the P2 register", "", "")
+DEF_ATTRIB(IMPLICIT_READS_P3, "Reads the P3 register", "", "")
 DEF_ATTRIB(IMPLICIT_WRITES_USR, "May write USR", "", "")
 DEF_ATTRIB(WRITES_PRED_REG, "Writes a predicate register", "", "")
 DEF_ATTRIB(COMMUTES, "The operation is communitive", "", "")

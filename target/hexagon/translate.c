@@ -336,6 +336,21 @@ static void mark_implicit_pred_writes(DisasContext *ctx)
     mark_implicit_pred_write(ctx, A_IMPLICIT_WRITES_P3, 3);
 }
 
+static void mark_implicit_pred_read(DisasContext *ctx, int attrib, int pnum)
+{
+    if (GET_ATTRIB(ctx->insn->opcode, attrib)) {
+        ctx_log_pred_read(ctx, pnum);
+    }
+}
+
+static void mark_implicit_pred_reads(DisasContext *ctx)
+{
+    mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P0, 0);
+    mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P1, 1);
+    mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P3, 2);
+    mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P3, 3);
+}
+
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -348,6 +363,7 @@ static void analyze_packet(DisasContext *ctx)
         }
         mark_implicit_reg_writes(ctx);
         mark_implicit_pred_writes(ctx);
+        mark_implicit_pred_reads(ctx);
     }
 }
 
@@ -361,9 +377,11 @@ static void gen_start_packet(DisasContext *ctx)
     ctx->next_PC = next_PC;
     ctx->reg_log_idx = 0;
     bitmap_zero(ctx->regs_written, TOTAL_PER_THREAD_REGS);
+    bitmap_zero(ctx->regs_read, TOTAL_PER_THREAD_REGS);
     bitmap_zero(ctx->predicated_regs, TOTAL_PER_THREAD_REGS);
     ctx->preg_log_idx = 0;
     bitmap_zero(ctx->pregs_written, NUM_PREGS);
+    bitmap_zero(ctx->pregs_read, NUM_PREGS);
     ctx->future_vregs_idx = 0;
     ctx->tmp_vregs_idx = 0;
     ctx->vreg_log_idx = 0;
@@ -372,6 +390,8 @@ static void gen_start_packet(DisasContext *ctx)
     bitmap_zero(ctx->vregs_select, NUM_VREGS);
     bitmap_zero(ctx->predicated_future_vregs, NUM_VREGS);
     bitmap_zero(ctx->predicated_tmp_vregs, NUM_VREGS);
+    bitmap_zero(ctx->vregs_read, NUM_VREGS);
+    bitmap_zero(ctx->qregs_read, NUM_QREGS);
     ctx->qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->store_width[i] = 0;

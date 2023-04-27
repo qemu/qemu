@@ -97,6 +97,12 @@ def calculate_attribs():
     add_qemu_macro_attrib("fSET_LPCFG", "A_IMPLICIT_WRITES_USR")
     add_qemu_macro_attrib("fLOAD", "A_SCALAR_LOAD")
     add_qemu_macro_attrib("fSTORE", "A_SCALAR_STORE")
+    add_qemu_macro_attrib('fLSBNEW0', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fLSBNEW0NOT', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fREAD_P0', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fLSBNEW1', 'A_IMPLICIT_READS_P1')
+    add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
+    add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())

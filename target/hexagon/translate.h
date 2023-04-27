@@ -38,10 +38,12 @@ typedef struct DisasContext {
     int reg_log[REG_WRITES_MAX];
     int reg_log_idx;
     DECLARE_BITMAP(regs_written, TOTAL_PER_THREAD_REGS);
+    DECLARE_BITMAP(regs_read, TOTAL_PER_THREAD_REGS);
     DECLARE_BITMAP(predicated_regs, TOTAL_PER_THREAD_REGS);
     int preg_log[PRED_WRITES_MAX];
     int preg_log_idx;
     DECLARE_BITMAP(pregs_written, NUM_PREGS);
+    DECLARE_BITMAP(pregs_read, NUM_PREGS);
     uint8_t store_width[STORES_MAX];
     bool s1_store_processed;
     int future_vregs_idx;
@@ -55,8 +57,10 @@ typedef struct DisasContext {
     DECLARE_BITMAP(vregs_select, NUM_VREGS);
     DECLARE_BITMAP(predicated_future_vregs, NUM_VREGS);
     DECLARE_BITMAP(predicated_tmp_vregs, NUM_VREGS);
+    DECLARE_BITMAP(vregs_read, NUM_VREGS);
     int qreg_log[NUM_QREGS];
     int qreg_log_idx;
+    DECLARE_BITMAP(qregs_read, NUM_QREGS);
     bool pre_commit;
     TCGCond branch_cond;
     target_ulong branch_dest;
@@ -71,6 +75,11 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
         ctx->preg_log_idx++;
         set_bit(pnum, ctx->pregs_written);
     }
+}
+
+static inline void ctx_log_pred_read(DisasContext *ctx, int pnum)
+{
+    set_bit(pnum, ctx->pregs_read);
 }
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum,
@@ -97,6 +106,17 @@ static inline void ctx_log_reg_write_pair(DisasContext *ctx, int rnum,
 {
     ctx_log_reg_write(ctx, rnum, is_predicated);
     ctx_log_reg_write(ctx, rnum + 1, is_predicated);
+}
+
+static inline void ctx_log_reg_read(DisasContext *ctx, int rnum)
+{
+    set_bit(rnum, ctx->regs_read);
+}
+
+static inline void ctx_log_reg_read_pair(DisasContext *ctx, int rnum)
+{
+    ctx_log_reg_read(ctx, rnum);
+    ctx_log_reg_read(ctx, rnum + 1);
 }
 
 intptr_t ctx_future_vreg_off(DisasContext *ctx, int regnum,
@@ -139,11 +159,27 @@ static inline void ctx_log_vreg_write_pair(DisasContext *ctx,
     ctx_log_vreg_write(ctx, rnum ^ 1, type, is_predicated);
 }
 
+static inline void ctx_log_vreg_read(DisasContext *ctx, int rnum)
+{
+    set_bit(rnum, ctx->vregs_read);
+}
+
+static inline void ctx_log_vreg_read_pair(DisasContext *ctx, int rnum)
+{
+    ctx_log_vreg_read(ctx, rnum ^ 0);
+    ctx_log_vreg_read(ctx, rnum ^ 1);
+}
+
 static inline void ctx_log_qreg_write(DisasContext *ctx,
                                       int rnum)
 {
     ctx->qreg_log[ctx->qreg_log_idx] = rnum;
     ctx->qreg_log_idx++;
+}
+
+static inline void ctx_log_qreg_read(DisasContext *ctx, int qnum)
+{
+    set_bit(qnum, ctx->qregs_read);
 }
 
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
