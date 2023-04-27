@@ -303,7 +303,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
         if hex_common.need_slot(tag):
             if i > 0:
                 f.write(", ")
-            f.write("uint32_t slot")
+            f.write("uint32_t slotval")
             i += 1
         if hex_common.need_part1(tag):
             if i > 0:
@@ -330,6 +330,11 @@ def gen_helper_function(f, tag, tagregs, tagimms):
                         gen_helper_src_var_ext(f, regtype, regid)
                 else:
                     print("Bad register parse: ", regtype, regid, toss, numregs)
+
+        if hex_common.need_slot(tag):
+            if "A_LOAD" in hex_common.attribdict[tag]:
+                f.write("    bool pkt_has_store_s1 = slotval & 0x1;\n")
+            f.write("    uint32_t slot = slotval >> 1;\n")
 
         if "A_FPOP" in hex_common.attribdict[tag]:
             f.write("    arch_fpop_start(env);\n")

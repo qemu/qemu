@@ -173,14 +173,14 @@
 #define MEM_STORE8(VA, DATA, SLOT) \
     MEM_STORE8_FUNC(DATA)(cpu_env, VA, DATA, SLOT)
 #else
-#define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, slot, VA))
-#define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, slot, VA))
-#define MEM_LOAD2s(VA) ((int16_t)mem_load2(env, slot, VA))
-#define MEM_LOAD2u(VA) ((uint16_t)mem_load2(env, slot, VA))
-#define MEM_LOAD4s(VA) ((int32_t)mem_load4(env, slot, VA))
-#define MEM_LOAD4u(VA) ((uint32_t)mem_load4(env, slot, VA))
-#define MEM_LOAD8s(VA) ((int64_t)mem_load8(env, slot, VA))
-#define MEM_LOAD8u(VA) ((uint64_t)mem_load8(env, slot, VA))
+#define MEM_LOAD1s(VA) ((int8_t)mem_load1(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD1u(VA) ((uint8_t)mem_load1(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD2s(VA) ((int16_t)mem_load2(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD2u(VA) ((uint16_t)mem_load2(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD4s(VA) ((int32_t)mem_load4(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD4u(VA) ((uint32_t)mem_load4(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD8s(VA) ((int64_t)mem_load8(env, pkt_has_store_s1, slot, VA))
+#define MEM_LOAD8u(VA) ((uint64_t)mem_load8(env, pkt_has_store_s1, slot, VA))
 
 #define MEM_STORE1(VA, DATA, SLOT) log_store32(env, VA, DATA, 1, SLOT)
 #define MEM_STORE2(VA, DATA, SLOT) log_store32(env, VA, DATA, 2, SLOT)

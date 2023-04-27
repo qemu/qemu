@@ -66,7 +66,6 @@ typedef struct DisasContext {
     TCGCond branch_cond;
     target_ulong branch_dest;
     bool is_tight_loop;
-    bool need_pkt_has_store_s1;
     bool short_circuit;
     bool has_hvx_helper;
     TCGv new_value[TOTAL_PER_THREAD_REGS];

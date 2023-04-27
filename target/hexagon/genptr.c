@@ -398,6 +398,14 @@ static inline void gen_store_conditional8(DisasContext *ctx,
     tcg_gen_movi_tl(hex_llsc_addr, ~0);
 }
 
+#ifndef CONFIG_HEXAGON_IDEF_PARSER
+static TCGv gen_slotval(DisasContext *ctx)
+{
+    int slotval = (ctx->pkt->pkt_has_store_s1 & 1) | (ctx->insn->slot << 1);
+    return tcg_constant_tl(slotval);
+}
+#endif
+
 void gen_store32(TCGv vaddr, TCGv src, int width, uint32_t slot)
 {
     tcg_gen_mov_tl(hex_store_addr[slot], vaddr);

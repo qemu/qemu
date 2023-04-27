@@ -556,7 +556,7 @@ def gen_tcg_func(f, tag, regs, imms):
         if hex_common.need_part1(tag):
             f.write("    TCGv part1 = tcg_constant_tl(insn->part1);\n")
         if hex_common.need_slot(tag):
-            f.write("    TCGv slot = tcg_constant_tl(insn->slot);\n")
+            f.write("    TCGv slotval = gen_slotval(ctx);\n")
         if hex_common.need_PC(tag):
             f.write("    TCGv PC = tcg_constant_tl(ctx->pkt->pc);\n")
         if hex_common.helper_needs_next_PC(tag):
@@ -606,7 +606,7 @@ def gen_tcg_func(f, tag, regs, imms):
         if hex_common.helper_needs_next_PC(tag):
             f.write(", next_PC")
         if hex_common.need_slot(tag):
-            f.write(", slot")
+            f.write(", slotval")
         if hex_common.need_part1(tag):
             f.write(", part1")
         f.write(");\n")

@@ -463,7 +463,6 @@ static void mark_implicit_pred_reads(DisasContext *ctx)
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
-    ctx->need_pkt_has_store_s1 = false;
     ctx->has_hvx_helper = false;
     for (int i = 0; i < pkt->num_insns; i++) {
         Insn *insn = &pkt->insn[i];
@@ -518,10 +517,6 @@ static void gen_start_packet(DisasContext *ctx)
     }
 
     analyze_packet(ctx);
-
-    if (ctx->need_pkt_has_store_s1) {
-        tcg_gen_movi_tl(hex_pkt_has_store_s1, pkt->pkt_has_store_s1);
-    }
 
     /*
      * pregs_written is used both in the analyze phase as well as the code
@@ -1207,8 +1202,6 @@ void hexagon_translate_init(void)
         offsetof(CPUHexagonState, slot_cancelled), "slot_cancelled");
     hex_branch_taken = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, branch_taken), "branch_taken");
-    hex_pkt_has_store_s1 = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, pkt_has_store_s1), "pkt_has_store_s1");
     hex_dczero_addr = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, dczero_addr), "dczero_addr");
     hex_llsc_addr = tcg_global_mem_new(cpu_env,
