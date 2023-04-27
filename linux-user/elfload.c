@@ -17,6 +17,7 @@
 #include "qemu/guest-random.h"
 #include "qemu/units.h"
 #include "qemu/selfmap.h"
+#include "qemu/lockable.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "target_signal.h"
@@ -4238,14 +4239,14 @@ static int fill_note_info(struct elf_note_info *info,
         info->notes_size += note_size(&info->notes[i]);
 
     /* read and fill status of all threads */
-    cpu_list_lock();
-    CPU_FOREACH(cpu) {
-        if (cpu == thread_cpu) {
-            continue;
+    WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
+        CPU_FOREACH(cpu) {
+            if (cpu == thread_cpu) {
+                continue;
+            }
+            fill_thread_info(info, cpu->env_ptr);
         }
-        fill_thread_info(info, cpu->env_ptr);
     }
-    cpu_list_unlock();
 
     return (0);
 }

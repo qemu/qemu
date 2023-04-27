@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/lockable.h"
 #include "cpu.h"
 #include "trace/trace-root.h"
 #include "trace/control.h"
@@ -116,11 +117,9 @@ static bool adding_first_cpu1(void)
 
 static bool adding_first_cpu(void)
 {
-    bool res;
-    cpu_list_lock();
-    res = adding_first_cpu1();
-    cpu_list_unlock();
-    return res;
+    QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
+
+    return adding_first_cpu1();
 }
 
 void trace_init_vcpu(CPUState *vcpu)

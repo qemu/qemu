@@ -150,25 +150,25 @@ int64_t vcpu_calculate_dirtyrate(int64_t calc_time_ms,
 retry:
     init_time_ms = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
-    cpu_list_lock();
-    gen_id = cpu_list_generation_id_get();
-    records = vcpu_dirty_stat_alloc(stat);
-    vcpu_dirty_stat_collect(stat, records, true);
-    cpu_list_unlock();
+    WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
+        gen_id = cpu_list_generation_id_get();
+        records = vcpu_dirty_stat_alloc(stat);
+        vcpu_dirty_stat_collect(stat, records, true);
+    }
 
     duration = dirty_stat_wait(calc_time_ms, init_time_ms);
 
     global_dirty_log_sync(flag, one_shot);
 
-    cpu_list_lock();
-    if (gen_id != cpu_list_generation_id_get()) {
-        g_free(records);
-        g_free(stat->rates);
-        cpu_list_unlock();
-        goto retry;
+    WITH_QEMU_LOCK_GUARD(&qemu_cpu_list_lock) {
+        if (gen_id != cpu_list_generation_id_get()) {
+            g_free(records);
+            g_free(stat->rates);
+            cpu_list_unlock();
+            goto retry;
+        }
+        vcpu_dirty_stat_collect(stat, records, false);
     }
-    vcpu_dirty_stat_collect(stat, records, false);
-    cpu_list_unlock();
 
     for (i = 0; i < stat->nvcpu; i++) {
         dirtyrate = do_calculate_dirtyrate(records[i], duration);
