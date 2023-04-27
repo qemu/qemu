@@ -515,7 +515,7 @@
     do { \
         TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP); \
         gen_return(ctx, RddV, hex_gpr[HEX_REG_FP]); \
-        gen_log_reg_write_pair(HEX_REG_FP, RddV); \
+        gen_log_reg_write_pair(ctx, HEX_REG_FP, RddV); \
     } while (0)
 
 /*

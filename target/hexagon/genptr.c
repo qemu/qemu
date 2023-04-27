@@ -81,7 +81,7 @@ static TCGv_i64 get_result_gpr_pair(DisasContext *ctx, int rnum)
     return result;
 }
 
-void gen_log_reg_write(int rnum, TCGv val)
+void gen_log_reg_write(DisasContext *ctx, int rnum, TCGv val)
 {
     const target_ulong reg_mask = reg_immut_masks[rnum];
 
@@ -93,7 +93,7 @@ void gen_log_reg_write(int rnum, TCGv val)
     }
 }
 
-static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
+static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
 {
     const target_ulong reg_mask_low = reg_immut_masks[rnum];
     const target_ulong reg_mask_high = reg_immut_masks[rnum + 1];
@@ -231,7 +231,7 @@ static inline void gen_write_ctrl_reg(DisasContext *ctx, int reg_num,
     if (reg_num == HEX_REG_P3_0_ALIASED) {
         gen_write_p3_0(ctx, val);
     } else {
-        gen_log_reg_write(reg_num, val);
+        gen_log_reg_write(ctx, reg_num, val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
         }
@@ -255,7 +255,7 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
         tcg_gen_extrh_i64_i32(val32, val);
         tcg_gen_mov_tl(result, val32);
     } else {
-        gen_log_reg_write_pair(reg_num, val);
+        gen_log_reg_write_pair(ctx, reg_num, val);
         if (reg_num == HEX_REG_QEMU_PKT_CNT) {
             ctx->num_packets = 0;
             ctx->num_insns = 0;
@@ -719,7 +719,7 @@ static void gen_cond_return_subinsn(DisasContext *ctx, TCGCond cond, TCGv pred)
 {
     TCGv_i64 RddV = get_result_gpr_pair(ctx, HEX_REG_FP);
     gen_cond_return(ctx, RddV, hex_gpr[HEX_REG_FP], pred, cond);
-    gen_log_reg_write_pair(HEX_REG_FP, RddV);
+    gen_log_reg_write_pair(ctx, HEX_REG_FP, RddV);
 }
 
 static void gen_endloop0(DisasContext *ctx)

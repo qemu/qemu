@@ -87,7 +87,7 @@ tcg_funcs_generated.c.inc
         TCGv RsV = hex_gpr[insn->regno[1]];
         TCGv RtV = hex_gpr[insn->regno[2]];
         gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
-        gen_log_reg_write(RdN, RdV);
+        gen_log_reg_write(ctx, RdN, RdV);
     }
 
 helper_funcs_generated.c.inc

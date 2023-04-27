@@ -387,7 +387,8 @@ def gen_helper_call_imm(f, immlett):
 
 
 def genptr_dst_write_pair(f, tag, regtype, regid):
-    f.write(f"    gen_log_reg_write_pair({regtype}{regid}N, " f"{regtype}{regid}V);\n")
+    f.write(f"    gen_log_reg_write_pair(ctx, {regtype}{regid}N, "
+            f"{regtype}{regid}V);\n")
 
 
 def genptr_dst_write(f, tag, regtype, regid):
@@ -396,7 +397,8 @@ def genptr_dst_write(f, tag, regtype, regid):
             genptr_dst_write_pair(f, tag, regtype, regid)
         elif regid in {"d", "e", "x", "y"}:
             f.write(
-                f"    gen_log_reg_write({regtype}{regid}N, " f"{regtype}{regid}V);\n"
+                f"    gen_log_reg_write(ctx, {regtype}{regid}N, "
+                f"{regtype}{regid}V);\n"
             )
         else:
             print("Bad register parse: ", regtype, regid)
@@ -481,7 +483,7 @@ def genptr_dst_write_opn(f, regtype, regid, tag):
 ##        TCGv RsV = hex_gpr[insn->regno[1]];
 ##        TCGv RtV = hex_gpr[insn->regno[2]];
 ##        <GEN>
-##        gen_log_reg_write(RdN, RdV);
+##        gen_log_reg_write(ctx, RdN, RdV);
 ##    }
 ##
 ##       where <GEN> depends on hex_common.skip_qemu_helper(tag)
