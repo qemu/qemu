@@ -1065,6 +1065,105 @@ static void gen_asl_r_r_sat(DisasContext *ctx, TCGv RdV, TCGv RsV, TCGv RtV)
     gen_set_label(done);
 }
 
+static void gen_insert_rp(DisasContext *ctx, TCGv RxV, TCGv RsV, TCGv_i64 RttV)
+{
+    /*
+     * int width = fZXTN(6, 32, (fGETWORD(1, RttV)));
+     * int offset = fSXTN(7, 32, (fGETWORD(0, RttV)));
+     * size8u_t mask = ((fCONSTLL(1) << width) - 1);
+     * if (offset < 0) {
+     *     RxV = 0;
+     * } else {
+     *     RxV &= ~(mask << offset);
+     *     RxV |= ((RsV & mask) << offset);
+     * }
+     */
+
+    TCGv width = tcg_temp_new();
+    TCGv offset = tcg_temp_new();
+    TCGv_i64 mask = tcg_temp_new_i64();
+    TCGv_i64 result = tcg_temp_new_i64();
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 offset64 = tcg_temp_new_i64();
+    TCGLabel *label = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    tcg_gen_extrh_i64_i32(width, RttV);
+    tcg_gen_extract_tl(width, width, 0, 6);
+    tcg_gen_extrl_i64_i32(offset, RttV);
+    tcg_gen_sextract_tl(offset, offset, 0, 7);
+    /* Possible values for offset are -64 .. 63 */
+    tcg_gen_brcondi_tl(TCG_COND_GE, offset, 0, label);
+    /* For negative offsets, zero out the result */
+    tcg_gen_movi_tl(RxV, 0);
+    tcg_gen_br(done);
+    gen_set_label(label);
+    /* At this point, possible values of offset are 0 .. 63 */
+    tcg_gen_ext_i32_i64(mask, width);
+    tcg_gen_shl_i64(mask, tcg_constant_i64(1), mask);
+    tcg_gen_subi_i64(mask, mask, 1);
+    tcg_gen_extu_i32_i64(result, RxV);
+    tcg_gen_ext_i32_i64(tmp, offset);
+    tcg_gen_shl_i64(tmp, mask, tmp);
+    tcg_gen_andc_i64(result, result, tmp);
+    tcg_gen_extu_i32_i64(tmp, RsV);
+    tcg_gen_and_i64(tmp, tmp, mask);
+    tcg_gen_extu_i32_i64(offset64, offset);
+    tcg_gen_shl_i64(tmp, tmp, offset64);
+    tcg_gen_or_i64(result, result, tmp);
+    tcg_gen_extrl_i64_i32(RxV, result);
+    gen_set_label(done);
+}
+
+static void gen_asr_r_svw_trun(DisasContext *ctx, TCGv RdV,
+                               TCGv_i64 RssV, TCGv RtV)
+{
+    /*
+     * for (int i = 0; i < 2; i++) {
+     *     fSETHALF(i, RdV, fGETHALF(0, ((fSXTN(7, 32, RtV) > 0) ?
+     *         (fCAST4_8s(fGETWORD(i, RssV)) >> fSXTN(7, 32, RtV)) :
+     *         (fCAST4_8s(fGETWORD(i, RssV)) << -fSXTN(7, 32, RtV)))));
+     * }
+     */
+    TCGv shift_amt32 = tcg_temp_new();
+    TCGv_i64 shift_amt64 = tcg_temp_new_i64();
+    TCGv_i64 tmp64 = tcg_temp_new_i64();
+    TCGv tmp32 = tcg_temp_new();
+    TCGLabel *label = gen_new_label();
+    TCGLabel *zero = gen_new_label();
+    TCGLabel *done =  gen_new_label();
+
+    tcg_gen_sextract_tl(shift_amt32, RtV, 0, 7);
+    /* Possible values of shift_amt32 are -64 .. 63 */
+    tcg_gen_brcondi_tl(TCG_COND_LE, shift_amt32, 0, label);
+    /* After branch, possible values of shift_amt32 are 1 .. 63 */
+    tcg_gen_ext_i32_i64(shift_amt64, shift_amt32);
+    for (int i = 0; i < 2; i++) {
+        tcg_gen_sextract_i64(tmp64, RssV, i * 32, 32);
+        tcg_gen_sar_i64(tmp64, tmp64, shift_amt64);
+        tcg_gen_extrl_i64_i32(tmp32, tmp64);
+        tcg_gen_deposit_tl(RdV, RdV, tmp32, i * 16, 16);
+    }
+    tcg_gen_br(done);
+    gen_set_label(label);
+    tcg_gen_neg_tl(shift_amt32, shift_amt32);
+    /*At this point, possible values of shift_amt32 are 0 .. 64 */
+    tcg_gen_brcondi_tl(TCG_COND_GT, shift_amt32, 63, zero);
+    /*At this point, possible values of shift_amt32 are 0 .. 63 */
+    tcg_gen_ext_i32_i64(shift_amt64, shift_amt32);
+    for (int i = 0; i < 2; i++) {
+        tcg_gen_sextract_i64(tmp64, RssV, i * 32, 32);
+        tcg_gen_shl_i64(tmp64, tmp64, shift_amt64);
+        tcg_gen_extrl_i64_i32(tmp32, tmp64);
+        tcg_gen_deposit_tl(RdV, RdV, tmp32, i * 16, 16);
+    }
+    tcg_gen_br(done);
+    gen_set_label(zero);
+    /* When the shift_amt is 64, zero out the result */
+    tcg_gen_movi_tl(RdV, 0);
+    gen_set_label(done);
+}
+
 static intptr_t vreg_src_off(DisasContext *ctx, int num)
 {
     intptr_t offset = offsetof(CPUHexagonState, VRegs[num]);

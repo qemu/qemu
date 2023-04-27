@@ -45,6 +45,7 @@ HEX_TESTS += fpstuff
 HEX_TESTS += overflow
 HEX_TESTS += signal_context
 HEX_TESTS += reg_mut
+HEX_TESTS += read_write_overlap
 HEX_TESTS += vector_add_int
 HEX_TESTS += scatter_gather
 HEX_TESTS += hvx_misc

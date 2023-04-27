@@ -1185,6 +1185,24 @@
         tcg_gen_extrl_i64_i32(RdV, tmp); \
     } while (0)
 
+#define fGEN_TCG_S2_insert(SHORTCODE) \
+    do { \
+        int width = uiV; \
+        int offset = UiV; \
+        if (width != 0) { \
+            if (offset + width > 32) { \
+                width = 32 - offset; \
+            } \
+            tcg_gen_deposit_tl(RxV, RxV, RsV, offset, width); \
+        } \
+    } while (0)
+#define fGEN_TCG_S2_insert_rp(SHORTCODE) \
+    gen_insert_rp(ctx, RxV, RsV, RttV)
+#define fGEN_TCG_S2_asr_r_svw_trun(SHORTCODE) \
+    gen_asr_r_svw_trun(ctx, RdV, RssV, RtV)
+#define fGEN_TCG_A2_swiz(SHORTCODE) \
+    tcg_gen_bswap_tl(RdV, RsV)
+
 /* Floating point */
 #define fGEN_TCG_F2_conv_sf2df(SHORTCODE) \
     gen_helper_conv_sf2df(RddV, cpu_env, RsV)
