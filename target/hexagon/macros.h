@@ -648,7 +648,11 @@ static inline TCGv gen_read_ireg(TCGv result, TCGv val, int shift)
                    reg_field_info[FIELD].offset)
 
 #ifdef QEMU_GENERATE
-#define fDCZEROA(REG) tcg_gen_mov_tl(hex_dczero_addr, (REG))
+#define fDCZEROA(REG) \
+    do { \
+        ctx->dczero_addr = tcg_temp_new(); \
+        tcg_gen_mov_tl(ctx->dczero_addr, (REG)); \
+    } while (0)
 #endif
 
 #define fBRANCH_SPECULATE_STALL(DOTNEWVAL, JUMP_COND, SPEC_DIR, HINTBITNUM, \

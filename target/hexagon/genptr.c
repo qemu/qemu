@@ -480,9 +480,9 @@ static void gen_write_new_pc_addr(DisasContext *ctx, TCGv addr,
     if (ctx->pkt->pkt_has_multi_cof) {
         /* If there are multiple branches in a packet, ignore the second one */
         tcg_gen_movcond_tl(TCG_COND_NE, hex_gpr[HEX_REG_PC],
-                           hex_branch_taken, tcg_constant_tl(0),
+                           ctx->branch_taken, tcg_constant_tl(0),
                            hex_gpr[HEX_REG_PC], addr);
-        tcg_gen_movi_tl(hex_branch_taken, 1);
+        tcg_gen_movi_tl(ctx->branch_taken, 1);
     } else {
         tcg_gen_mov_tl(hex_gpr[HEX_REG_PC], addr);
     }
@@ -503,7 +503,7 @@ static void gen_write_new_pc_pcrel(DisasContext *ctx, int pc_off,
         ctx->branch_cond = TCG_COND_ALWAYS;
         if (pred != NULL) {
             ctx->branch_cond = cond;
-            tcg_gen_mov_tl(hex_branch_taken, pred);
+            tcg_gen_mov_tl(ctx->branch_taken, pred);
         }
         ctx->branch_dest = dest;
     }

@@ -304,4 +304,4 @@ Here are some handy places to set breakpoints
         At the start of execution of a packet for a given PC
             br helper_debug_start_packet if env->gpr[41] == 0xdeadbeef
         At the end of execution of a packet for a given PC
-            br helper_debug_commit_end if env->this_PC == 0xdeadbeef
+            br helper_debug_commit_end if this_PC == 0xdeadbeef

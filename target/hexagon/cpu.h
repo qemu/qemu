@@ -82,7 +82,6 @@ typedef struct {
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
-    target_ulong branch_taken;
 
     /* For comparing with LLDB on target - see adjust_stack_ptrs function */
     target_ulong last_pc_dumped;
@@ -95,11 +94,9 @@ typedef struct CPUArchState {
      * Only used when HEX_DEBUG is on, but unconditionally included
      * to reduce recompile time when turning HEX_DEBUG on/off.
      */
-    target_ulong this_PC;
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 
     MemLog mem_log_stores[STORES_MAX];
-    target_ulong dczero_addr;
 
     float_status fp_status;
 

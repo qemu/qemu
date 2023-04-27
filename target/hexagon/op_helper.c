@@ -203,15 +203,14 @@ static void print_store(CPUHexagonState *env, int slot)
 }
 
 /* This function is a handy place to set a breakpoint */
-void HELPER(debug_commit_end)(CPUHexagonState *env,
+void HELPER(debug_commit_end)(CPUHexagonState *env, uint32_t this_PC,
                               int pred_written, int has_st0, int has_st1)
 {
     bool reg_printed = false;
     bool pred_printed = false;
     int i;
 
-    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n",
-                  env->this_PC);
+    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n", this_PC);
     HEX_DEBUG_LOG("slot_cancelled = %d\n", env->slot_cancelled);
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {

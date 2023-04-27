@@ -41,17 +41,13 @@ static const AnalyzeInsn opcode_analyze[XX_LAST_OPCODE] = {
 
 TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 TCGv hex_pred[NUM_PREGS];
-TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
-TCGv hex_branch_taken;
 TCGv hex_new_value_usr;
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 TCGv hex_store_addr[STORES_MAX];
 TCGv hex_store_width[STORES_MAX];
 TCGv hex_store_val32[STORES_MAX];
 TCGv_i64 hex_store_val64[STORES_MAX];
-TCGv hex_pkt_has_store_s1;
-TCGv hex_dczero_addr;
 TCGv hex_llsc_addr;
 TCGv hex_llsc_val;
 TCGv_i64 hex_llsc_val_i64;
@@ -157,7 +153,7 @@ static void gen_end_tb(DisasContext *ctx)
     if (ctx->branch_cond != TCG_COND_NEVER) {
         if (ctx->branch_cond != TCG_COND_ALWAYS) {
             TCGLabel *skip = gen_new_label();
-            tcg_gen_brcondi_tl(ctx->branch_cond, hex_branch_taken, 0, skip);
+            tcg_gen_brcondi_tl(ctx->branch_cond, ctx->branch_taken, 0, skip);
             gen_goto_tb(ctx, 0, ctx->branch_dest, true);
             gen_set_label(skip);
             gen_goto_tb(ctx, 1, ctx->next_PC, false);
@@ -527,16 +523,17 @@ static void gen_start_packet(DisasContext *ctx)
     if (HEX_DEBUG) {
         /* Handy place to set a breakpoint before the packet executes */
         gen_helper_debug_start_packet(cpu_env);
-        tcg_gen_movi_tl(hex_this_PC, ctx->base.pc_next);
     }
 
     /* Initialize the runtime state for packet semantics */
     if (need_slot_cancelled(pkt)) {
         tcg_gen_movi_tl(hex_slot_cancelled, 0);
     }
+    ctx->branch_taken = NULL;
     if (pkt->pkt_has_cof) {
+        ctx->branch_taken = tcg_temp_new();
         if (pkt->pkt_has_multi_cof) {
-            tcg_gen_movi_tl(hex_branch_taken, 0);
+            tcg_gen_movi_tl(ctx->branch_taken, 0);
         }
         if (need_next_PC(ctx)) {
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], next_PC);
@@ -815,7 +812,7 @@ static void process_dczeroa(DisasContext *ctx)
         TCGv addr = tcg_temp_new();
         TCGv_i64 zero = tcg_constant_i64(0);
 
-        tcg_gen_andi_tl(addr, hex_dczero_addr, ~0x1f);
+        tcg_gen_andi_tl(addr, ctx->dczero_addr, ~0x1f);
         tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
         tcg_gen_addi_tl(addr, addr, 8);
         tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
@@ -1002,8 +999,8 @@ static void gen_commit_packet(DisasContext *ctx)
             tcg_constant_tl(pkt->pkt_has_store_s1 && !pkt->pkt_has_dczeroa);
 
         /* Handy place to set a breakpoint at the end of execution */
-        gen_helper_debug_commit_end(cpu_env, ctx->pred_written,
-                                    has_st0, has_st1);
+        gen_helper_debug_commit_end(cpu_env, tcg_constant_tl(ctx->pkt->pc),
+                                    ctx->pred_written, has_st0, has_st1);
     }
 
     if (pkt->vhist_insn != NULL) {
@@ -1196,14 +1193,8 @@ void hexagon_translate_init(void)
             offsetof(CPUHexagonState, pred[i]),
             hexagon_prednames[i]);
     }
-    hex_this_PC = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, this_PC), "this_PC");
     hex_slot_cancelled = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, slot_cancelled), "slot_cancelled");
-    hex_branch_taken = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, branch_taken), "branch_taken");
-    hex_dczero_addr = tcg_global_mem_new(cpu_env,
-        offsetof(CPUHexagonState, dczero_addr), "dczero_addr");
     hex_llsc_addr = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, llsc_addr), "llsc_addr");
     hex_llsc_val = tcg_global_mem_new(cpu_env,
