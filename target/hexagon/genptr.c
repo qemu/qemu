@@ -110,8 +110,18 @@ static void gen_log_reg_write_pair(DisasContext *ctx, int rnum, TCGv_i64 val)
     gen_log_reg_write(ctx, rnum + 1, val32);
 }
 
+TCGv get_result_pred(DisasContext *ctx, int pnum)
+{
+    if (ctx->need_commit) {
+        return hex_new_pred_value[pnum];
+    } else {
+        return hex_pred[pnum];
+    }
+}
+
 void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
 {
+    TCGv pred = get_result_pred(ctx, pnum);
     TCGv base_val = tcg_temp_new();
 
     tcg_gen_andi_tl(base_val, val, 0xff);
@@ -124,10 +134,9 @@ void gen_log_pred_write(DisasContext *ctx, int pnum, TCGv val)
      * straight assignment.  Otherwise, do an and.
      */
     if (!test_bit(pnum, ctx->pregs_written)) {
-        tcg_gen_mov_tl(hex_new_pred_value[pnum], base_val);
+        tcg_gen_mov_tl(pred, base_val);
     } else {
-        tcg_gen_and_tl(hex_new_pred_value[pnum],
-                       hex_new_pred_value[pnum], base_val);
+        tcg_gen_and_tl(pred, pred, base_val);
     }
     if (HEX_DEBUG) {
         tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << pnum);

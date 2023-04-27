@@ -386,6 +386,14 @@ static bool need_commit(DisasContext *ctx)
         }
     }
 
+    /* Check for overlap between predicate reads and writes */
+    for (int i = 0; i < ctx->preg_log_idx; i++) {
+        int pnum = ctx->preg_log[i];
+        if (test_bit(pnum, ctx->pregs_read)) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -503,7 +511,7 @@ static void gen_start_packet(DisasContext *ctx)
      * Preload the predicated pred registers into hex_new_pred_value[pred_num]
      * Only endloop instructions conditionally write to pred registers
      */
-    if (pkt->pkt_has_endloop) {
+    if (ctx->need_commit && pkt->pkt_has_endloop) {
         for (int i = 0; i < ctx->preg_log_idx; i++) {
             int pred_num = ctx->preg_log[i];
             tcg_gen_mov_tl(hex_new_pred_value[pred_num], hex_pred[pred_num]);
@@ -622,8 +630,8 @@ static void gen_reg_writes(DisasContext *ctx)
 
 static void gen_pred_writes(DisasContext *ctx)
 {
-    /* Early exit if the log is empty */
-    if (!ctx->preg_log_idx) {
+    /* Early exit if not needed or the log is empty */
+    if (!ctx->need_commit || !ctx->preg_log_idx) {
         return;
     }
 
