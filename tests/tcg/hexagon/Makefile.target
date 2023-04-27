@@ -77,6 +77,7 @@ HEX_TESTS += test_vpmpyh
 HEX_TESTS += test_vspliceb
 
 HEX_TESTS += v68_scalar
+HEX_TESTS += v68_hvx
 
 TESTS += $(HEX_TESTS)
 
@@ -92,6 +93,8 @@ vector_add_int: CFLAGS += -mhvx -fvectorize
 hvx_misc: hvx_misc.c hvx_misc.h
 hvx_misc: CFLAGS += -mhvx
 hvx_histogram: CFLAGS += -mhvx -Wno-gnu-folding-constant
+v68_hvx: v68_hvx.c hvx_misc.h v6mpy_ref.c.inc
+v68_hvx: CFLAGS += -mhvx -Wno-unused-function
 
 hvx_histogram: hvx_histogram.c hvx_histogram_row.S
 	$(CC) $(CFLAGS) $(CROSS_CC_GUEST_CFLAGS) $^ -o $@ $(LDFLAGS)
