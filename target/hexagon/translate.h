@@ -69,6 +69,7 @@ typedef struct DisasContext {
     bool need_pkt_has_store_s1;
     bool short_circuit;
     bool has_hvx_helper;
+    TCGv new_value[TOTAL_PER_THREAD_REGS];
 } DisasContext;
 
 static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
@@ -190,7 +191,6 @@ extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_this_PC;
 extern TCGv hex_slot_cancelled;
 extern TCGv hex_branch_taken;
-extern TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_new_value_usr;
 extern TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_new_pred_value[NUM_PREGS];

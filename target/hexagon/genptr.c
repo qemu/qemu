@@ -74,7 +74,11 @@ TCGv get_result_gpr(DisasContext *ctx, int rnum)
         if (rnum == HEX_REG_USR) {
             return hex_new_value_usr;
         } else {
-            return hex_new_value[rnum];
+            if (ctx->new_value[rnum] == NULL) {
+                ctx->new_value[rnum] = tcg_temp_new();
+                tcg_gen_movi_tl(ctx->new_value[rnum], 0);
+            }
+            return ctx->new_value[rnum];
         }
     } else {
         return hex_gpr[rnum];

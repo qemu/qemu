@@ -44,7 +44,6 @@ TCGv hex_pred[NUM_PREGS];
 TCGv hex_this_PC;
 TCGv hex_slot_cancelled;
 TCGv hex_branch_taken;
-TCGv hex_new_value[TOTAL_PER_THREAD_REGS];
 TCGv hex_new_value_usr;
 TCGv hex_reg_written[TOTAL_PER_THREAD_REGS];
 TCGv hex_new_pred_value[NUM_PREGS];
@@ -513,6 +512,9 @@ static void gen_start_packet(DisasContext *ctx)
     }
     ctx->s1_store_processed = false;
     ctx->pre_commit = true;
+    for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
+        ctx->new_value[i] = NULL;
+    }
 
     analyze_packet(ctx);
 
@@ -1159,7 +1161,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int *max_insns,
 }
 
 #define NAME_LEN               64
-static char new_value_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 static char reg_written_names[TOTAL_PER_THREAD_REGS][NAME_LEN];
 static char new_pred_value_names[NUM_PREGS][NAME_LEN];
 static char store_addr_names[STORES_MAX][NAME_LEN];
@@ -1180,15 +1181,6 @@ void hexagon_translate_init(void)
         hex_gpr[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPUHexagonState, gpr[i]),
             hexagon_regnames[i]);
-
-        if (i == HEX_REG_USR) {
-            hex_new_value[i] = NULL;
-        } else {
-            snprintf(new_value_names[i], NAME_LEN, "new_%s", hexagon_regnames[i]);
-            hex_new_value[i] = tcg_global_mem_new(cpu_env,
-                offsetof(CPUHexagonState, new_value[i]),
-                new_value_names[i]);
-        }
 
         if (HEX_DEBUG) {
             snprintf(reg_written_names[i], NAME_LEN, "reg_written_%s",

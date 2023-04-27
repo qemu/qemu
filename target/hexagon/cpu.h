@@ -89,7 +89,6 @@ typedef struct CPUArchState {
     target_ulong stack_start;
 
     uint8_t slot_cancelled;
-    target_ulong new_value[TOTAL_PER_THREAD_REGS];
     target_ulong new_value_usr;
 
     /*
