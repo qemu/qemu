@@ -76,6 +76,8 @@ HEX_TESTS += test_vminh
 HEX_TESTS += test_vpmpyh
 HEX_TESTS += test_vspliceb
 
+HEX_TESTS += v68_scalar
+
 TESTS += $(HEX_TESTS)
 
 # This test has to be compiled for the -mv67t target
