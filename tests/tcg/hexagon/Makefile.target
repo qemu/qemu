@@ -82,6 +82,9 @@ TESTS += $(HEX_TESTS)
 usr: usr.c
 	$(CC) $(CFLAGS) -mv67t -O2 -Wno-inline-asm -Wno-expansion-to-defined $< -o $@ $(LDFLAGS)
 
+# Build this test with -mv71 to exercise the CABAC instruction
+misc: misc.c
+	$(CC) $(CFLAGS) -mv71 -O2 $< -o $@ $(LDFLAGS)
 scatter_gather: CFLAGS += -mhvx
 vector_add_int: CFLAGS += -mhvx -fvectorize
 hvx_misc: hvx_misc.c hvx_misc.h

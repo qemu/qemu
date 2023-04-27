@@ -4,10 +4,10 @@ is a wide vector coprocessor designed for high performance computer vision,
 image processing, machine learning, and other workloads.
 
 The following versions of the Hexagon core are supported
-    Scalar core: v67
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v67-programmer-s-reference-manual
-    HVX extension: v66
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v66-hvx-programmer-s-reference-manual
+    Scalar core: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-programmers-reference-manual-rev-aa
+    HVX extension: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-hvx-programmers-reference-manual-rev-aa
 
 We presented an overview of the project at the 2019 KVM Forum.
     https://kvmforum2019.sched.com/event/Tmwc/qemu-hexagon-automatic-translation-of-the-isa-manual-pseudcode-to-tiny-code-instructions-of-a-vliw-architecture-niccolo-izzo-revng-taylor-simpson-qualcomm-innovation-center
