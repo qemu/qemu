@@ -1480,6 +1480,7 @@ void arm_cpu_post_init(Object *obj)
                                      qdev_prop_allow_set_link_before_realize,
                                      OBJ_PROP_LINK_STRONG);
         }
+        cpu->has_mte = true;
     }
 #endif
 }
@@ -1616,7 +1617,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         }
         if (cpu->tag_memory) {
             error_setg(errp,
-                       "Cannot enable %s when guest CPUs has MTE enabled",
+                       "Cannot enable %s when guest CPUs has tag memory enabled",
                        current_accel_name());
             return;
         }
@@ -1996,10 +1997,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 #ifndef CONFIG_USER_ONLY
-    if (cpu->tag_memory == NULL && cpu_isar_feature(aa64_mte, cpu)) {
+    if (!cpu->has_mte && cpu_isar_feature(aa64_mte, cpu)) {
         /*
-         * Disable the MTE feature bits if we do not have tag-memory
-         * provided by the machine.
+         * Disable the MTE feature bits if we do not have the feature
+         * setup by the machine.
          */
         cpu->isar.id_aa64pfr1 =
             FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
