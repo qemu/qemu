@@ -989,7 +989,7 @@ The number of spaces between the ':' and the text is not significant.
    union branches should be described, too.
 
 Extensions added after the definition was first released carry a
-'(since x.y.z)' comment.
+"(since x.y.z)" comment.
 
 The feature descriptions must be preceded by a line "Features:", like
 this::
@@ -1003,17 +1003,17 @@ The section ends with the start of a new section.
 
 The text of a section can start on a new line, in
 which case it must not be indented at all.  It can also start
-on the same line as the 'Note:', 'Returns:', etc tag.  In this
+on the same line as the "Note:", "Returns:", etc tag.  In this
 case if it spans multiple lines then second and subsequent
 lines must be indented to match the first, in the same way as
 multiline argument descriptions.
 
-A 'Since: x.y.z' tagged section lists the release that introduced the
+A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
-An 'Example' or 'Examples' section is automatically rendered
-entirely as literal fixed-width text.  In other sections,
-the text is formatted, and rST markup can be used.
+An "Example" or "Examples" section is automatically rendered entirely
+as literal fixed-width text.  In other sections, the text is
+formatted, and rST markup can be used.
 
 For example::
 
