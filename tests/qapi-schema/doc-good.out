@@ -123,6 +123,8 @@ doc symbol=Variant1
 A paragraph
 
 Another paragraph (but no @var: line)
+
+@var1 is undocumented
     arg=var1
 
     feature=variant1-feat
