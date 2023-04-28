@@ -483,7 +483,9 @@ class QAPIDoc:
             # Blank lines are always OK.
             if line:
                 indent = must_match(r'\s*', line).end()
-                if indent < self._indent:
+                if self._indent < 0:
+                    self._indent = indent
+                elif indent < self._indent:
                     raise QAPIParseError(
                         self._parser,
                         "unexpected de-indent (expected at least %d spaces)" %
@@ -631,9 +633,9 @@ class QAPIDoc:
             indent = must_match(r'@\S*:\s*', line).end()
             line = line[indent:]
             if not line:
-                # Line was just the "@arg:" header; following lines
-                # are not indented
-                indent = 0
+                # Line was just the "@arg:" header
+                # The next non-blank line determines expected indent
+                indent = -1
             else:
                 line = ' ' * indent + line
             self._start_args_section(name[1:-1], indent)
@@ -666,9 +668,9 @@ class QAPIDoc:
             indent = must_match(r'@\S*:\s*', line).end()
             line = line[indent:]
             if not line:
-                # Line was just the "@arg:" header; following lines
-                # are not indented
-                indent = 0
+                # Line was just the "@arg:" header
+                # The next non-blank line determines expected indent
+                indent = -1
             else:
                 line = ' ' * indent + line
             self._start_features_section(name[1:-1], indent)
@@ -712,8 +714,8 @@ class QAPIDoc:
             indent = must_match(r'\S*:\s*', line).end()
             line = line[indent:]
             if not line:
-                # Line was just the "Section:" header; following lines
-                # are not indented
+                # Line was just the "Section:" header
+                # The next non-blank line determines expected indent
                 indent = 0
             else:
                 line = ' ' * indent + line

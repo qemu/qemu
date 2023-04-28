@@ -159,7 +159,7 @@ doc symbol=cmd
 
     arg=arg1
 description starts on a new line,
-    indented
+indented
     arg=arg2
 the second argument
     arg=arg3
