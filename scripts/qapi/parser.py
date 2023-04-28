@@ -346,7 +346,7 @@ class QAPISchemaParser:
             elif not self.tok.isspace():
                 # Show up to next structural, whitespace or quote
                 # character
-                match = must_match('[^[\\]{}:,\\s\'"]+',
+                match = must_match('[^[\\]{}:,\\s\']+',
                                    self.src[self.cursor-1:])
                 raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
