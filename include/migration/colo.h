@@ -36,6 +36,13 @@ COLOMode get_colo_mode(void);
 /* failover */
 void colo_do_failover(void);
 
-void colo_checkpoint_notify(void *opaque);
+/*
+ * colo_checkpoint_delay_set
+ *
+ * Handles change of x-checkpoint-delay migration parameter, called from
+ * migrate_params_apply() to notify COLO module about the change.
+ */
+void colo_checkpoint_delay_set(void);
+
 void colo_shutdown(void);
 #endif

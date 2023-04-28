@@ -1253,9 +1253,7 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_x_checkpoint_delay) {
         s->parameters.x_checkpoint_delay = params->x_checkpoint_delay;
-        if (migration_in_colo_state()) {
-            colo_checkpoint_notify(s);
-        }
+        colo_checkpoint_delay_set();
     }
 
     if (params->has_block_incremental) {

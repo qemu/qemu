@@ -65,6 +65,24 @@ static bool colo_runstate_is_stopped(void)
     return runstate_check(RUN_STATE_COLO) || !runstate_is_running();
 }
 
+static void colo_checkpoint_notify(void *opaque)
+{
+    MigrationState *s = opaque;
+    int64_t next_notify_time;
+
+    qemu_event_set(&s->colo_checkpoint_event);
+    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    next_notify_time = s->colo_checkpoint_time + migrate_checkpoint_delay();
+    timer_mod(s->colo_delay_timer, next_notify_time);
+}
+
+void colo_checkpoint_delay_set(void)
+{
+    if (migration_in_colo_state()) {
+        colo_checkpoint_notify(migrate_get_current());
+    }
+}
+
 static void secondary_vm_do_failover(void)
 {
 /* COLO needs enable block-replication */
@@ -642,17 +660,6 @@ out:
         qemu_fclose(s->rp_state.from_dst_file);
         s->rp_state.from_dst_file = NULL;
     }
-}
-
-void colo_checkpoint_notify(void *opaque)
-{
-    MigrationState *s = opaque;
-    int64_t next_notify_time;
-
-    qemu_event_set(&s->colo_checkpoint_event);
-    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-    next_notify_time = s->colo_checkpoint_time + migrate_checkpoint_delay();
-    timer_mod(s->colo_delay_timer, next_notify_time);
 }
 
 void migrate_start_colo_process(MigrationState *s)
