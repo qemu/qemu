@@ -533,7 +533,7 @@
 #               Must be specified along with @start-address and @subnet-mask.
 #
 # @subnet-mask: The IPv4 subnet mask to use on the interface. Must
-#                be specified along with @start-address and @subnet-mask.
+#               be specified along with @start-address and @subnet-mask.
 #
 # @isolated: Enable isolation for this interface. Interface isolation
 #            ensures that vmnet interface is not able to communicate
@@ -641,14 +641,15 @@
 #
 # Available netdev drivers.
 #
-# Since: 2.7
+# @l2tpv3: since 2.1
+# @vhost-vdpa: since 5.1
+# @vmnet-host: since 7.1
+# @vmnet-shared: since 7.1
+# @vmnet-bridged: since 7.1
+# @stream: since 7.2
+# @dgram: since 7.2
 #
-#        @vhost-vdpa since 5.1
-#        @vmnet-host since 7.1
-#        @vmnet-shared since 7.1
-#        @vmnet-bridged since 7.1
-#        @stream since 7.2
-#        @dgram since 7.2
+# Since: 2.7
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'stream',
@@ -669,12 +670,6 @@
 #
 # Since: 1.2
 #
-#        'l2tpv3' - since 2.1
-#        'vmnet-host' - since 7.1
-#        'vmnet-shared' - since 7.1
-#        'vmnet-bridged' - since 7.1
-#        'stream' since 7.2
-#        'dgram' since 7.2
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -914,15 +909,13 @@
 #
 # Since: 7.2
 #
-# Example:
+# Examples:
 #
 # <- { "event": "NETDEV_STREAM_CONNECTED",
 #      "data": { "netdev-id": "netdev0",
 #                "addr": { "port": "47666", "ipv6": true,
 #                          "host": "::1", "type": "inet" } },
 #      "timestamp": { "seconds": 1666269863, "microseconds": 311222 } }
-#
-# or
 #
 # <- { "event": "NETDEV_STREAM_CONNECTED",
 #      "data": { "netdev-id": "netdev0",

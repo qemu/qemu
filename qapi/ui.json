@@ -985,7 +985,7 @@
 #             to 100
 #
 # Returns: - Nothing on success
-#          - If key is unknown or redundant, InvalidParameter
+#          - If key is unknown or redundant, GenericError
 #
 # Since: 1.3
 #
@@ -1153,7 +1153,7 @@
 #       so it is possible to map which console belongs to which device and
 #       display.
 #
-# Example:
+# Examples:
 #
 # 1. Press left mouse button.
 #
@@ -1207,13 +1207,13 @@
 #               window resizes (virtio-gpu) this will default to "on",
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
-#               Since 3.1
+#               (Since 3.1)
 # @show-tabs:   Display the tab bar for switching between the various graphical
 #               interfaces (e.g. VGA and virtual console character devices)
 #               by default.
-#               Since 7.1
+#               (Since 7.1)
 # @show-menubar: Display the main window menubar. Defaults to "on".
-#                Since 8.0
+#                (Since 8.0)
 #
 # Since: 2.12
 ##
@@ -1247,7 +1247,7 @@
 #              available node on the host.
 #
 # @p2p: Whether to use peer-to-peer connections (accepted through
-#       ``add_client``).
+#       @add_client).
 #
 # @audiodev: Use the specified DBus audiodev to export audio.
 #

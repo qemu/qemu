@@ -331,7 +331,7 @@
 #
 # Return a list of supported virtual CPU definitions
 #
-# Returns: a list of CpuDefInfo
+# Returns: a list of CpuDefinitionInfo
 #
 # Since: 1.2
 ##

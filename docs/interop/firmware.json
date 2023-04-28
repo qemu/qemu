@@ -258,7 +258,7 @@
 #
 # @mode: Describes how the firmware build handles code versus variable
 #        storage. If not present, it must be treated as if it was
-#        configured with value ``split``. Since: 7.0.0
+#        configured with value @split. Since: 7.0.0
 #
 # @executable: Identifies the firmware executable. The @mode
 #              indicates whether there will be an associated
@@ -267,13 +267,13 @@
 #                  -drive if=none,id=pflash0,readonly=on,file=@executable.@filename,format=@executable.@format
 #                  -machine pflash0=pflash0
 #              or equivalent -blockdev instead of -drive. When
-#              @mode is ``combined`` the executable must be
+#              @mode is @combined the executable must be
 #              cloned before use and configured with readonly=off.
 #              With QEMU versions older than 4.0, you have to use
 #                  -drive if=pflash,unit=0,readonly=on,file=@executable.@filename,format=@executable.@format
 #
 # @nvram-template: Identifies the NVRAM template compatible with
-#                  @executable, when @mode is set to ``split``,
+#                  @executable, when @mode is set to @split,
 #                  otherwise it should not be present.
 #                  Management software instantiates an
 #                  individual copy -- a specific NVRAM file -- from

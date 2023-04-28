@@ -349,8 +349,8 @@
 # @opaque: A free-form string that can be used to describe the fd.
 #
 # Returns: - @AddfdInfo on success
-#          - If file descriptor was not received, FdNotSupplied
-#          - If @fdset-id is a negative value, InvalidParameterValue
+#          - If file descriptor was not received, GenericError
+#          - If @fdset-id is a negative value, GenericError
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
@@ -379,7 +379,7 @@
 # @fd: The file descriptor that is to be removed.
 #
 # Returns: - Nothing on success
-#          - If @fdset-id or @fd is not found, FdNotFound
+#          - If @fdset-id or @fd is not found, GenericError
 #
 # Since: 1.2
 #
@@ -580,10 +580,9 @@
 #
 # Example:
 #
-# <-   { "event": "RTC_CHANGE",
-#        "data": { "offset": 78 },
-#        "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-#
+# <- { "event": "RTC_CHANGE",
+#      "data": { "offset": 78 },
+#      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 ##
 { 'event': 'RTC_CHANGE',
   'data': { 'offset': 'int', 'qom-path': 'str' } }

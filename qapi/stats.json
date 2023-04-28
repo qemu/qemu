@@ -69,7 +69,7 @@
 #
 # @vcpu: statistics that apply to a single virtual CPU.
 #
-# @cryptodev: statistics that apply to a crypto device. since 8.0
+# @cryptodev: statistics that apply to a crypto device (since 8.0)
 #
 # Since: 7.1
 ##
@@ -107,6 +107,7 @@
 # The arguments to the query-stats command; specifies a target for which to
 # request statistics and optionally the required subset of information for
 # that target:
+#
 # - which vCPUs to request statistics for
 # - which providers to request statistics from
 # - which named values to return within each provider

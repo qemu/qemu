@@ -273,7 +273,7 @@
 #
 # Since: 0.14
 #
-# Example:
+# Examples:
 #
 # 1. Before the first migration
 #
@@ -521,6 +521,7 @@
 #
 # -> { "execute": "migrate-set-capabilities" , "arguments":
 #      { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'migrate-set-capabilities',
@@ -531,7 +532,7 @@
 #
 # Returns information about the current migration capabilities status
 #
-# Returns: @MigrationCapabilitiesStatus
+# Returns: @MigrationCapabilityStatus
 #
 # Since: 1.2
 #
@@ -989,6 +990,7 @@
 #
 # -> { "execute": "migrate-set-parameters" ,
 #      "arguments": { "compress-level": 1 } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'migrate-set-parameters', 'boxed': true,
@@ -1251,8 +1253,8 @@
 #
 # Example:
 #
-# { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
-#   "event": "MIGRATION_PASS", "data": {"pass": 2} }
+# <- { "timestamp": {"seconds": 1449669631, "microseconds": 239225},
+#       "event": "MIGRATION_PASS", "data": {"pass": 2} }
 #
 ##
 { 'event': 'MIGRATION_PASS',
@@ -1833,8 +1835,9 @@
 #
 # Example:
 #
-#   {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
-#                                                'sample-pages': 512} }
+# -> {"execute": "calc-dirty-rate", "arguments": {"calc-time": 1,
+#                                                 'sample-pages': 512} }
+# <- { "return": {} }
 #
 ##
 { 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64',
@@ -1886,9 +1889,11 @@
 # Since: 7.1
 #
 # Example:
-#   {"execute": "set-vcpu-dirty-limit"}
-#    "arguments": { "dirty-rate": 200,
-#                   "cpu-index": 1 } }
+#
+# -> {"execute": "set-vcpu-dirty-limit"}
+#     "arguments": { "dirty-rate": 200,
+#                    "cpu-index": 1 } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'set-vcpu-dirty-limit',
@@ -1909,8 +1914,10 @@
 # Since: 7.1
 #
 # Example:
-#   {"execute": "cancel-vcpu-dirty-limit"}
-#    "arguments": { "cpu-index": 1 } }
+#
+# -> {"execute": "cancel-vcpu-dirty-limit"},
+#     "arguments": { "cpu-index": 1 } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'cancel-vcpu-dirty-limit',
@@ -1924,7 +1931,11 @@
 # Since: 7.1
 #
 # Example:
-#   {"execute": "query-vcpu-dirty-limit"}
+#
+# -> {"execute": "query-vcpu-dirty-limit"}
+# <- {"return": [
+#        { "limit-rate": 60, "current-rate": 3, "cpu-index": 0},
+#        { "limit-rate": 60, "current-rate": 3, "cpu-index": 1}]}
 #
 ##
 { 'command': 'query-vcpu-dirty-limit',
@@ -1952,7 +1963,7 @@
 #
 # data: migration thread name
 #
-# returns: information about migration threads
+# Returns: information about migration threads
 #
 # Since: 7.2
 ##

@@ -15,18 +15,26 @@
 
 { 'include': '../../qapi/pragma.json' }
 
+# Documentation generated with qapi-gen.py is in source order, with
+# included sub-schemas inserted at the first include directive
+# (subsequent include directives have no effect).  To get a sane and
+# stable order, it's best to include each sub-schema just once, or
+# include it first right here.
+
+{ 'include': '../../qapi/common.json' }
+{ 'include': '../../qapi/sockets.json' }
+{ 'include': '../../qapi/crypto.json' }
+{ 'include': '../../qapi/job.json' }
+
 ##
 # = Block devices
 ##
 { 'include': '../../qapi/block-core.json' }
 { 'include': '../../qapi/block-export.json' }
+
 { 'include': '../../qapi/char.json' }
-{ 'include': '../../qapi/common.json' }
-{ 'include': '../../qapi/control.json' }
-{ 'include': '../../qapi/crypto.json' }
-{ 'include': '../../qapi/introspect.json' }
-{ 'include': '../../qapi/job.json' }
 { 'include': '../../qapi/authz.json' }
-{ 'include': '../../qapi/qom.json' }
-{ 'include': '../../qapi/sockets.json' }
 { 'include': '../../qapi/transaction.json' }
+{ 'include': '../../qapi/control.json' }
+{ 'include': '../../qapi/introspect.json' }
+{ 'include': '../../qapi/qom.json' }

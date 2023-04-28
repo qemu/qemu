@@ -87,6 +87,7 @@
 # @vcpu: The vCPU to act upon (all by default; since 2.7).
 #
 # An event's state is modified if:
+#
 # - its name matches the @name pattern, and
 # - if @vcpu is given, the event has the "vcpu" property.
 #

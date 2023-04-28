@@ -420,7 +420,7 @@
 ##
 # @guest-fsfreeze-status:
 #
-# Get guest fsfreeze state. error state indicates
+# Get guest fsfreeze state.
 #
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
 #
@@ -722,7 +722,7 @@
 # Get list of guest IP addresses, MAC addresses
 # and netmasks.
 #
-# Returns: List of GuestNetworkInfo on success.
+# Returns: List of GuestNetworkInterface on success.
 #
 # Since: 1.1
 ##
@@ -1553,11 +1553,11 @@
 ##
 # @GuestDiskStatsInfo:
 #
-# @name disk name
+# @name: disk name
 #
-# @major major device number of disk
+# @major: major device number of disk
 #
-# @minor minor device number of disk
+# @minor: minor device number of disk
 ##
 { 'struct': 'GuestDiskStatsInfo',
   'data': {'name': 'str',

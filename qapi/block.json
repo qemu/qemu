@@ -457,7 +457,7 @@
 #
 # Since: 1.1
 #
-# Example:
+# Examples:
 #
 # -> { "execute": "block_set_io_throttle",
 #      "arguments": { "id": "virtio-blk-pci0/virtio-backend",

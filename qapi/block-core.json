@@ -488,41 +488,41 @@
 #
 # @image: the info of image used (since: 1.6)
 #
-# @bps_max: total throughput limit during bursts,
-#                     in bytes (Since 1.7)
+# @bps_max: total throughput limit during bursts, in bytes
+#           (Since 1.7)
 #
-# @bps_rd_max: read throughput limit during bursts,
-#                        in bytes (Since 1.7)
+# @bps_rd_max: read throughput limit during bursts, in bytes
+#              (Since 1.7)
 #
-# @bps_wr_max: write throughput limit during bursts,
-#                        in bytes (Since 1.7)
+# @bps_wr_max: write throughput limit during bursts, in bytes
+#              (Since 1.7)
 #
-# @iops_max: total I/O operations per second during bursts,
-#                      in bytes (Since 1.7)
+# @iops_max: total I/O operations per second during bursts, in bytes
+#            (Since 1.7)
 #
-# @iops_rd_max: read I/O operations per second during bursts,
-#                         in bytes (Since 1.7)
+# @iops_rd_max: read I/O operations per second during bursts, in bytes
+#               (Since 1.7)
 #
-# @iops_wr_max: write I/O operations per second during bursts,
-#                         in bytes (Since 1.7)
+# @iops_wr_max: write I/O operations per second during bursts, in
+#               bytes (Since 1.7)
 #
-# @bps_max_length: maximum length of the @bps_max burst
-#                            period, in seconds. (Since 2.6)
+# @bps_max_length: maximum length of the @bps_max burst period, in
+#                  seconds. (Since 2.6)
 #
-# @bps_rd_max_length: maximum length of the @bps_rd_max
-#                               burst period, in seconds. (Since 2.6)
+# @bps_rd_max_length: maximum length of the @bps_rd_max burst period,
+#                     in seconds. (Since 2.6)
 #
-# @bps_wr_max_length: maximum length of the @bps_wr_max
-#                               burst period, in seconds. (Since 2.6)
+# @bps_wr_max_length: maximum length of the @bps_wr_max burst period,
+#                     in seconds. (Since 2.6)
 #
-# @iops_max_length: maximum length of the @iops burst
-#                             period, in seconds. (Since 2.6)
+# @iops_max_length: maximum length of the @iops burst period, in
+#                   seconds. (Since 2.6)
 #
-# @iops_rd_max_length: maximum length of the @iops_rd_max
-#                                burst period, in seconds. (Since 2.6)
+# @iops_rd_max_length: maximum length of the @iops_rd_max burst
+#                      period, in seconds. (Since 2.6)
 #
-# @iops_wr_max_length: maximum length of the @iops_wr_max
-#                                burst period, in seconds. (Since 2.6)
+# @iops_wr_max_length: maximum length of the @iops_wr_max burst
+#                      period, in seconds. (Since 2.6)
 #
 # @iops_size: an I/O size in bytes (Since 1.7)
 #
@@ -582,11 +582,11 @@
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
 # @recording: true if the bitmap is recording new writes from the guest.
-#             Replaces ``active`` and ``disabled`` statuses. (since 4.0)
+#             (since 4.0)
 #
 # @busy: true if the bitmap is in-use by some operation (NBD or jobs)
 #        and cannot be modified via QMP or used by another operation.
-#        Replaces ``locked`` and ``frozen`` statuses. (since 4.0)
+#        (since 4.0)
 #
 # @persistent: true if the bitmap was stored on disk, is scheduled to be stored
 #              on disk, or both. (since 4.0)
@@ -948,7 +948,7 @@
 #                           by the device (Since 4.2)
 #
 # @invalid_rd_operations: The number of invalid read operations
-#                          performed by the device (Since 2.5)
+#                         performed by the device (Since 2.5)
 #
 # @invalid_wr_operations: The number of invalid write operations
 #                         performed by the device (Since 2.5)
@@ -1318,10 +1318,10 @@
 #          value is monotonically increasing.
 #
 # @busy: false if the job is known to be in a quiescent state, with
-#        no pending I/O.  Since 1.3.
+#        no pending I/O.  (Since 1.3)
 #
 # @paused: whether the job is paused or, if @busy is true, will
-#          pause itself as soon as possible.  Since 1.3.
+#          pause itself as soon as possible.  (Since 1.3)
 #
 # @speed: the rate limit, bytes per second
 #
@@ -2741,7 +2741,7 @@
 #
 # @on-error: the action to take on an error (default report).
 #            'stop' and 'enospc' can only be used if the block device
-#            supports io-status (see BlockInfo).  Since 1.3.
+#            supports io-status (see BlockInfo).  (Since 1.3)
 #
 # @filter-node-name: the node name that should be assigned to the
 #                    filter driver that the stream job inserts into the graph
@@ -3735,7 +3735,7 @@
 # Driver specific block device options for Quorum
 #
 # @blkverify: true if the driver must print content mismatch
-#                  set to false by default
+#             set to false by default
 #
 # @children: the children block devices to use
 #
@@ -4574,9 +4574,8 @@
 #
 # Since: 2.9
 #
-# Example:
+# Examples:
 #
-# 1.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
 #           "driver": "qcow2",
@@ -4589,7 +4588,6 @@
 #     }
 # <- { "return": {} }
 #
-# 2.
 # -> { "execute": "blockdev-add",
 #      "arguments": {
 #           "driver": "qcow2",
@@ -5157,7 +5155,7 @@
 # Driver specific image amend options for qcow2.
 # For now, only encryption options can be amended
 #
-# @encrypt          Encryption options to be amended
+# @encrypt: Encryption options to be amended
 #
 # Since: 5.1
 ##
@@ -5596,7 +5594,7 @@
 #
 # Since: 2.7
 #
-# Example:
+# Examples:
 #
 # 1. Add a new node to a quorum
 # -> { "execute": "blockdev-add",
@@ -5646,7 +5644,7 @@
 #
 # Since: 2.12
 #
-# Example:
+# Examples:
 #
 # 1. Move a node into an IOThread
 # -> { "execute": "x-blockdev-set-iothread",
@@ -5731,18 +5729,18 @@
 #
 # Since: 2.0
 #
-# Example:
+# Examples:
 #
 # 1. Read operation
 #
-# { "event": "QUORUM_REPORT_BAD",
+# <- { "event": "QUORUM_REPORT_BAD",
 #      "data": { "node-name": "node0", "sector-num": 345435, "sectors-count": 5,
 #                "type": "read" },
 #      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 #
 # 2. Flush operation
 #
-# { "event": "QUORUM_REPORT_BAD",
+# <- { "event": "QUORUM_REPORT_BAD",
 #      "data": { "node-name": "node0", "sector-num": 0, "sectors-count": 2097120,
 #                "type": "flush", "error": "Broken pipe" },
 #      "timestamp": { "seconds": 1456406829, "microseconds": 291763 } }
@@ -5784,7 +5782,7 @@
 #          - If any snapshot matching @name exists, or @name is empty,
 #            GenericError
 #          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
+#            GenericError
 #
 # Since: 1.7
 #
@@ -5820,7 +5818,7 @@
 #          - If @device is not a valid block device, GenericError
 #          - If snapshot not found, GenericError
 #          - If the format of the image used does not support it,
-#            BlockFormatFeatureNotSupported
+#            GenericError
 #          - If @id and @name are both not specified, GenericError
 #
 # Since: 1.7

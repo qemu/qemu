@@ -28,28 +28,6 @@
 #
 # Please, refer to the QMP specification (docs/interop/qmp-spec.txt) for
 # detailed information on the Server command and response formats.
-#
-# = Stability Considerations
-#
-# The current QMP command set (described in this file) may be useful for a
-# number of use cases, however it's limited and several commands have bad
-# defined semantics, specially with regard to command completion.
-#
-# These problems are going to be solved incrementally in the next QEMU releases
-# and we're going to establish a deprecation policy for badly defined commands.
-#
-# If you're planning to adopt QMP, please observe the following:
-#
-#     1. The deprecation policy will take effect and be documented soon, please
-#        check the documentation of each used command as soon as a new release of
-#        QEMU is available
-#
-#     2. DO NOT rely on anything which is not explicit documented
-#
-#     3. Errors, in special, are not documented. Applications should NOT check
-#        for specific errors classes or data (it's strongly recommended to only
-#        check for the "error" key)
-#
 ##
 
 { 'include': 'pragma.json' }
@@ -65,11 +43,11 @@
 { 'include': 'sockets.json' }
 { 'include': 'run-state.json' }
 { 'include': 'crypto.json' }
+{ 'include': 'job.json' }
 { 'include': 'block.json' }
 { 'include': 'block-export.json' }
 { 'include': 'char.json' }
 { 'include': 'dump.json' }
-{ 'include': 'job.json' }
 { 'include': 'net.json' }
 { 'include': 'rdma.json' }
 { 'include': 'rocker.json' }

@@ -2,7 +2,7 @@
 # vim: filetype=python
 
 ##
-# == Background jobs
+# = Background jobs
 ##
 
 ##
@@ -148,7 +148,7 @@
 # This command returns immediately after resuming a paused job. Resuming an
 # already running job is an error.
 #
-# @id : The job identifier.
+# @id: The job identifier.
 #
 # Since: 3.0
 ##

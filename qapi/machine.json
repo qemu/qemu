@@ -457,7 +457,7 @@
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
 # @cpus: VCPUs belonging to this node (assign VCPUS round-robin
-#         if omitted)
+#        if omitted)
 #
 # @mem: memory size of this node; mutually exclusive with @memdev.
 #       Equally divide total memory among nodes if both @mem and @memdev are
@@ -517,7 +517,7 @@
 # @targets: Target root bridge IDs from -device ...,id=<ID> for each root
 #           bridge.
 #
-# Since 7.1
+# Since: 7.1
 ##
 { 'struct': 'CXLFixedMemoryWindowOptions',
   'data': {
@@ -532,7 +532,7 @@
 #
 # @cxl-fmw: List of CXLFixedMemoryWindowOptions
 #
-# Since 7.1
+# Since: 7.1
 ##
 { 'struct' : 'CXLFMWProperties',
   'data': { 'cxl-fmw': ['CXLFixedMemoryWindowOptions'] }
@@ -690,7 +690,7 @@
 # 5.2.27.5: Table 5-147 of ACPI 6.3 spec.
 #
 # @none: None (no memory side cache in this proximity domain,
-#              or cache associativity unknown)
+#        or cache associativity unknown)
 #
 # @direct: Direct Mapped
 #
@@ -954,7 +954,7 @@
 #
 # Since: 2.7
 #
-# Example:
+# Examples:
 #
 # For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu POWER8:
 #
@@ -1029,7 +1029,7 @@
 #
 # Returns: - Nothing on success
 #          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KvmMissingCap
+#            kernel module cannot support it, KVMMissingCap
 #          - If no balloon device is present, DeviceNotActive
 #
 # Notes: This command just issues a request to the guest.  When it returns,
@@ -1067,7 +1067,7 @@
 #
 # Returns: - @BalloonInfo on success
 #          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KvmMissingCap
+#            kernel module cannot support it, KVMMissingCap
 #          - If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14
@@ -1260,6 +1260,14 @@
 ##
 # @MemoryDeviceInfoKind:
 #
+# @nvdimm: since 2.12
+#
+# @virtio-pmem: since 4.1
+#
+# @virtio-mem: since 5.1
+#
+# @sgx-epc: since 6.2.
+#
 # Since: 2.1
 ##
 { 'enum': 'MemoryDeviceInfoKind',
@@ -1301,9 +1309,6 @@
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
-#
-# nvdimm is included since 2.12. virtio-pmem is included since 4.1.
-# virtio-mem is included since 5.1. sgx-epc is included since 6.2.
 #
 # Since: 2.1
 ##
@@ -1677,8 +1682,9 @@
 # Since: 7.2
 #
 # Example:
-#   {"execute": "dumpdtb"}
-#    "arguments": { "filename": "fdt.dtb" } }
+# -> { "execute": "dumpdtb" }
+#      "arguments": { "filename": "fdt.dtb" } }
+# <- { "return": {} }
 #
 ##
 { 'command': 'dumpdtb',
