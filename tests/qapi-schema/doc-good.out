@@ -161,7 +161,8 @@ doc symbol=cmd
 description starts on a new line,
 indented
     arg=arg2
-the second argument
+description starts on the same line
+remainder indented differently
     arg=arg3
 
     feature=cmd-feat1

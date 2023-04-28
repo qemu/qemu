@@ -1074,10 +1074,14 @@ Indentation matters.  Bad example::
 
  # @none: None (no memory side cache in this proximity domain,
  #              or cache associativity unknown)
+ #     (since 5.0)
 
-The description is parsed as a definition list with term "None (no
-memory side cache in this proximity domain," and definition "or cache
-associativity unknown)".
+The last line's de-indent is wrong.  The second and subsequent lines
+need to line up with each other, like this::
+
+ # @none: None (no memory side cache in this proximity domain,
+ #     or cache associativity unknown)
+ #     (since 5.0)
 
 Section tags are case-sensitive and end with a colon.  Good example::
 

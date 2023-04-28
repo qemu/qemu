@@ -144,7 +144,8 @@
 #     description starts on a new line,
 #     indented
 #
-# @arg2: the second argument
+# @arg2: description starts on the same line
+#     remainder indented differently
 #
 # Features:
 # @cmd-feat1: a feature
