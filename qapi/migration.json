@@ -945,10 +945,11 @@
 # Features:
 # @unstable: Member @x-checkpoint-delay is experimental.
 #
+# TODO: either fuse back into MigrationParameters, or make
+#       MigrationParameters members mandatory
+#
 # Since: 2.4
 ##
-# TODO either fuse back into MigrationParameters, or make
-# MigrationParameters members mandatory
 { 'struct': 'MigrateSetParameters',
   'data': { '*announce-initial': 'size',
             '*announce-max': 'size',
