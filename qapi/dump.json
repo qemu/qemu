@@ -44,12 +44,12 @@
 #
 #          Also, paging=true has the following limitations:
 #
-#             1. The guest may be in a catastrophic state or can have corrupted
-#                memory, which cannot be trusted
-#             2. The guest can be in real-mode even if paging is enabled. For
-#                example, the guest uses ACPI to sleep, and ACPI sleep state
-#                goes in real-mode
-#             3. Currently only supported on i386 and x86_64.
+#          1. The guest may be in a catastrophic state or can have corrupted
+#             memory, which cannot be trusted
+#          2. The guest can be in real-mode even if paging is enabled. For
+#             example, the guest uses ACPI to sleep, and ACPI sleep state
+#             goes in real-mode
+#          3. Currently only supported on i386 and x86_64.
 #
 # @protocol: the filename or file descriptor of the vmcore. The supported
 #            protocols are:
