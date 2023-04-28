@@ -560,12 +560,12 @@ class QAPIDoc:
         self._switch_section(QAPIDoc.NullSection(self._parser))
 
     @staticmethod
-    def _is_section_tag(name: str) -> bool:
-        return name in ('Returns:', 'Since:',
-                        # those are often singular or plural
-                        'Note:', 'Notes:',
-                        'Example:', 'Examples:',
-                        'TODO:')
+    def _match_at_name_colon(string: str) -> re.Match:
+        return re.match(r'@([^:]*): *', string)
+
+    @staticmethod
+    def _match_section_tag(string: str) -> re.Match:
+        return re.match(r'(Returns|Since|Notes?|Examples?|TODO): *', string)
 
     def _append_body_line(self, line: str) -> None:
         """
@@ -581,7 +581,6 @@ class QAPIDoc:
 
         Else, append the line to the current section.
         """
-        name = line.split(' ', 1)[0]
         # FIXME not nice: things like '#  @foo:' and '# @foo: ' aren't
         # recognized, and get silently treated as ordinary text
         if not self.symbol and not self.body.text and line.startswith('@'):
@@ -595,12 +594,12 @@ class QAPIDoc:
                     self._parser, "name required after '@'")
         elif self.symbol:
             # This is a definition documentation block
-            if name.startswith('@') and name.endswith(':'):
+            if self._match_at_name_colon(line):
                 self._append_line = self._append_args_line
                 self._append_args_line(line)
             elif line == 'Features:':
                 self._append_line = self._append_features_line
-            elif self._is_section_tag(name):
+            elif self._match_section_tag(line):
                 self._append_line = self._append_various_line
                 self._append_various_line(line)
             else:
@@ -621,16 +620,16 @@ class QAPIDoc:
         Else, append the line to the current section.
 
         """
-        name = line.split(' ', 1)[0]
-
-        if name.startswith('@') and name.endswith(':'):
+        match = self._match_at_name_colon(line)
+        if match:
             # If line is "@arg:   first line of description", find
             # the index of 'f', which is the indent we expect for any
             # following lines.  We then remove the leading "@arg:"
             # from line and replace it with spaces so that 'f' has the
             # same index as it did in the original line and can be
             # handled the same way we will handle following lines.
-            indent = must_match(r'@\S*:\s*', line).end()
+            name = match.group(1)
+            indent = match.end()
             line = line[indent:]
             if not line:
                 # Line was just the "@arg:" header
@@ -638,8 +637,8 @@ class QAPIDoc:
                 indent = -1
             else:
                 line = ' ' * indent + line
-            self._start_args_section(name[1:-1], indent)
-        elif self._is_section_tag(name):
+            self._start_args_section(name, indent)
+        elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
             return
@@ -656,16 +655,16 @@ class QAPIDoc:
         self._append_freeform(line)
 
     def _append_features_line(self, line: str) -> None:
-        name = line.split(' ', 1)[0]
-
-        if name.startswith('@') and name.endswith(':'):
+        match = self._match_at_name_colon(line)
+        if match:
             # If line is "@arg:   first line of description", find
             # the index of 'f', which is the indent we expect for any
             # following lines.  We then remove the leading "@arg:"
             # from line and replace it with spaces so that 'f' has the
             # same index as it did in the original line and can be
             # handled the same way we will handle following lines.
-            indent = must_match(r'@\S*:\s*', line).end()
+            name = match.group(1)
+            indent = match.end()
             line = line[indent:]
             if not line:
                 # Line was just the "@arg:" header
@@ -673,8 +672,8 @@ class QAPIDoc:
                 indent = -1
             else:
                 line = ' ' * indent + line
-            self._start_features_section(name[1:-1], indent)
-        elif self._is_section_tag(name):
+            self._start_features_section(name, indent)
+        elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
             return
@@ -698,13 +697,13 @@ class QAPIDoc:
 
         Else, append the line to the current section.
         """
-        name = line.split(' ', 1)[0]
-
-        if name.startswith('@') and name.endswith(':'):
+        match = self._match_at_name_colon(line)
+        if match:
             raise QAPIParseError(self._parser,
-                                 "'%s' can't follow '%s' section"
-                                 % (name, self.sections[0].name))
-        if self._is_section_tag(name):
+                                 "'@%s:' can't follow '%s' section"
+                                 % (match.group(1), self.sections[0].name))
+        match = self._match_section_tag(line)
+        if match:
             # If line is "Section:   first line of description", find
             # the index of 'f', which is the indent we expect for any
             # following lines.  We then remove the leading "Section:"
@@ -719,7 +718,7 @@ class QAPIDoc:
                 indent = 0
             else:
                 line = ' ' * indent + line
-            self._start_section(name[:-1], indent)
+            self._start_section(match.group(1), indent)
 
         self._append_freeform(line)
 
