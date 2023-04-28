@@ -468,8 +468,7 @@ class QAPIDoc:
     class Section:
         # pylint: disable=too-few-public-methods
         def __init__(self, parser: QAPISchemaParser,
-                     name: Optional[str] = None, indent: int = 0):
-
+                     name: Optional[str] = None):
             # parser, for error messages about indentation
             self._parser = parser
             # optional section name (argument/member or section name)
@@ -500,8 +499,8 @@ class QAPIDoc:
 
     class ArgSection(Section):
         def __init__(self, parser: QAPISchemaParser,
-                     name: str, indent: int = 0):
-            super().__init__(parser, name, indent)
+                     name: str):
+            super().__init__(parser, name)
             self.member: Optional['QAPISchemaMember'] = None
 
         def connect(self, member: 'QAPISchemaMember') -> None:
@@ -627,7 +626,7 @@ class QAPIDoc:
         match = self._match_at_name_colon(line)
         if match:
             line = line[match.end():]
-            self._start_args_section(match.group(1), 0)
+            self._start_args_section(match.group(1))
         elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -648,7 +647,7 @@ class QAPIDoc:
         match = self._match_at_name_colon(line)
         if match:
             line = line[match.end():]
-            self._start_features_section(match.group(1), 0)
+            self._start_features_section(match.group(1))
         elif self._match_section_tag(line):
             self._append_line = self._append_various_line
             self._append_various_line(line)
@@ -681,15 +680,14 @@ class QAPIDoc:
         match = self._match_section_tag(line)
         if match:
             line = line[match.end():]
-            self._start_section(match.group(1), 0)
+            self._start_section(match.group(1))
 
         self._append_freeform(line)
 
     def _start_symbol_section(
             self,
             symbols_dict: Dict[str, 'QAPIDoc.ArgSection'],
-            name: str,
-            indent: int) -> None:
+            name: str) -> None:
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
             raise QAPIParseError(self._parser, "invalid parameter name")
@@ -697,22 +695,21 @@ class QAPIDoc:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
         assert not self.sections
-        new_section = QAPIDoc.ArgSection(self._parser, name, indent)
+        new_section = QAPIDoc.ArgSection(self._parser, name)
         self._switch_section(new_section)
         symbols_dict[name] = new_section
 
-    def _start_args_section(self, name: str, indent: int) -> None:
-        self._start_symbol_section(self.args, name, indent)
+    def _start_args_section(self, name: str) -> None:
+        self._start_symbol_section(self.args, name)
 
-    def _start_features_section(self, name: str, indent: int) -> None:
-        self._start_symbol_section(self.features, name, indent)
+    def _start_features_section(self, name: str) -> None:
+        self._start_symbol_section(self.features, name)
 
-    def _start_section(self, name: Optional[str] = None,
-                       indent: int = 0) -> None:
+    def _start_section(self, name: Optional[str] = None) -> None:
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self._parser,
                                  "duplicated '%s' section" % name)
-        new_section = QAPIDoc.Section(self._parser, name, indent)
+        new_section = QAPIDoc.Section(self._parser, name)
         self._switch_section(new_section)
         self.sections.append(new_section)
 
