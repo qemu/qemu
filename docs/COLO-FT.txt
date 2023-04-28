@@ -210,6 +210,7 @@ children.0=childs0 \
 
 3. On Secondary VM's QEMU monitor, issue command
 {"execute":"qmp_capabilities"}
+{"execute": "migrate-set-capabilities", "arguments": {"capabilities": [ {"capability": "x-colo", "state": true } ] } }
 {"execute": "nbd-server-start", "arguments": {"addr": {"type": "inet", "data": {"host": "0.0.0.0", "port": "9999"} } } }
 {"execute": "nbd-server-add", "arguments": {"device": "parent0", "writable": true } }
 

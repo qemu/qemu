@@ -398,6 +398,12 @@ int migration_incoming_enable_colo(void)
     return -ENOTSUP;
 #endif
 
+    if (!migrate_colo()) {
+        error_report("ENABLE_COLO command come in migration stream, but c-colo "
+                     "capability is not set");
+        return -EINVAL;
+    }
+
     if (ram_block_discard_disable(true)) {
         error_report("COLO: cannot disable RAM discard");
         return -EBUSY;
