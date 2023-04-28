@@ -1007,8 +1007,9 @@ A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
 An "Example" or "Examples" section is automatically rendered entirely
-as literal fixed-width text.  In other sections, the text is
-formatted, and rST markup can be used.
+as literal fixed-width text.  "TODO" sections are not rendered at all
+(they are for developers, not users of QMP).  In other sections, the
+text is formatted, and rST markup can be used.
 
 For example::
 

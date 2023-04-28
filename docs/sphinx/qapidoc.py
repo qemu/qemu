@@ -268,6 +268,9 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
         """Return list of doctree nodes for additional sections"""
         nodelist = []
         for section in doc.sections:
+            if section.name and section.name == 'TODO':
+                # Hide TODO: sections
+                continue
             snode = self._make_section(section.name)
             if section.name and section.name.startswith('Example'):
                 snode += self._nodes_for_example(section.text)
