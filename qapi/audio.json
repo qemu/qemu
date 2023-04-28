@@ -16,24 +16,24 @@
 # General audio backend options that are used for both playback and
 # recording.
 #
-# @mixing-engine: use QEMU's mixing engine to mix all streams inside QEMU and
-#                 convert audio formats when not supported by the backend. When
-#                 set to off, fixed-settings must be also off (default on,
-#                 since 4.2)
+# @mixing-engine: use QEMU's mixing engine to mix all streams inside
+#     QEMU and convert audio formats when not supported by the
+#     backend.  When set to off, fixed-settings must be also off
+#     (default on, since 4.2)
 #
-# @fixed-settings: use fixed settings for host input/output. When off,
-#                  frequency, channels and format must not be
-#                  specified (default true)
+# @fixed-settings: use fixed settings for host input/output.  When
+#     off, frequency, channels and format must not be specified
+#     (default true)
 #
-# @frequency: frequency to use when using fixed settings
-#             (default 44100)
+# @frequency: frequency to use when using fixed settings (default
+#     44100)
 #
 # @channels: number of channels when using fixed settings (default 2)
 #
 # @voices: number of voices to use (default 1)
 #
-# @format: sample format to use when using fixed settings
-#          (default s16)
+# @format: sample format to use when using fixed settings (default
+#     s16)
 #
 # @buffer-length: the buffer length in microseconds
 #
@@ -76,7 +76,7 @@
 # @period-length: the period length in microseconds
 #
 # @try-poll: attempt to use poll mode, falling back to non-polling
-#            access on failure (default true)
+#     access on failure (default true)
 #
 # Since: 4.0
 ##
@@ -131,8 +131,8 @@
 ##
 # @AudiodevCoreaudioPerDirectionOptions:
 #
-# Options of the Core Audio backend that are used for both playback and
-# recording.
+# Options of the Core Audio backend that are used for both playback
+# and recording.
 #
 # @buffer-count: number of buffers
 #
@@ -168,8 +168,8 @@
 #
 # @out: options of the playback stream
 #
-# @latency: add extra latency to playback in microseconds
-#           (default 10000)
+# @latency: add extra latency to playback in microseconds (default
+#     10000)
 #
 # Since: 4.0
 ##
@@ -185,21 +185,22 @@
 # Options of the JACK backend that are used for both playback and
 # recording.
 #
-# @server-name: select from among several possible concurrent server instances
-#               (default: environment variable $JACK_DEFAULT_SERVER if set, else "default")
+# @server-name: select from among several possible concurrent server
+#     instances (default: environment variable $JACK_DEFAULT_SERVER if
+#     set, else "default")
 #
-# @client-name: the client name to use. The server will modify this name to
-#               create a unique variant, if needed unless @exact-name is true (default: the
-#               guest's name)
+# @client-name: the client name to use.  The server will modify this
+#     name to create a unique variant, if needed unless @exact-name is
+#     true (default: the guest's name)
 #
-# @connect-ports: if set, a regular expression of JACK client port name(s) to
-#                 monitor for and automatically connect to
+# @connect-ports: if set, a regular expression of JACK client port
+#     name(s) to monitor for and automatically connect to
 #
-# @start-server: start a jack server process if one is not already present
-#                (default: false)
+# @start-server: start a jack server process if one is not already
+#     present (default: false)
 #
-# @exact-name: use the exact name requested otherwise JACK automatically
-#              generates a unique one, if needed (default: false)
+# @exact-name: use the exact name requested otherwise JACK
+#     automatically generates a unique one, if needed (default: false)
 #
 # Since: 5.1
 ##
@@ -239,7 +240,7 @@
 # @buffer-count: number of buffers
 #
 # @try-poll: attempt to use poll mode, falling back to non-polling
-#            access on failure (default true)
+#     access on failure (default true)
 #
 # Since: 4.0
 ##
@@ -260,15 +261,15 @@
 # @out: options of the playback stream
 #
 # @try-mmap: try using memory-mapped access, falling back to
-#            non-memory-mapped access on failure (default true)
+#     non-memory-mapped access on failure (default true)
 #
-# @exclusive: open device in exclusive mode (vmix won't work)
-#             (default false)
+# @exclusive: open device in exclusive mode (vmix won't work) (default
+#     false)
 #
 # @dsp-policy: set the timing policy of the device (between 0 and 10,
-#              where smaller number means smaller latency but higher
-#              CPU usage) or -1 to use fragment mode (option ignored
-#              on some platforms) (default 5)
+#     where smaller number means smaller latency but higher CPU usage)
+#     or -1 to use fragment mode (option ignored on some platforms)
+#     (default 5)
 #
 # Since: 4.0
 ##
@@ -283,18 +284,18 @@
 ##
 # @AudiodevPaPerDirectionOptions:
 #
-# Options of the Pulseaudio backend that are used for both playback and
-# recording.
+# Options of the Pulseaudio backend that are used for both playback
+# and recording.
 #
 # @name: name of the sink/source to use
 #
 # @stream-name: name of the PulseAudio stream created by qemu.  Can be
-#               used to identify the stream in PulseAudio when you
-#               create multiple PulseAudio devices or run multiple qemu
-#               instances (default: audiodev's id, since 4.2)
+#     used to identify the stream in PulseAudio when you create
+#     multiple PulseAudio devices or run multiple qemu instances
+#     (default: audiodev's id, since 4.2)
 #
 # @latency: latency you want PulseAudio to achieve in microseconds
-#           (default 15000)
+#     (default 15000)
 #
 # Since: 4.0
 ##
@@ -333,12 +334,12 @@
 # @name: name of the sink/source to use
 #
 # @stream-name: name of the Pipewire stream created by qemu.  Can be
-#               used to identify the stream in Pipewire when you
-#               create multiple Pipewire devices or run multiple qemu
-#               instances (default: audiodev's id)
+#     used to identify the stream in Pipewire when you create multiple
+#     Pipewire devices or run multiple qemu instances (default:
+#     audiodev's id)
 #
 # @latency: latency you want Pipewire to achieve in microseconds
-#           (default 46000)
+#     (default 46000)
 #
 # Since: 8.1
 ##
@@ -472,7 +473,8 @@
 #
 # @driver: the backend driver to use
 #
-# @timer-period: timer period (in microseconds, 0: use lowest possible)
+# @timer-period: timer period (in microseconds, 0: use lowest
+#     possible)
 #
 # Since: 4.0
 ##
@@ -516,7 +518,6 @@
 # Returns: array of @Audiodev
 #
 # Since: 8.0
-#
 ##
 { 'command': 'query-audiodevs',
   'returns': ['Audiodev'] }

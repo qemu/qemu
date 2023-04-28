@@ -11,7 +11,9 @@
 # Policy for handling "funny" input.
 #
 # @accept: Accept silently
+#
 # @reject: Reject with an error
+#
 # @crash: abort() the process
 #
 # Since: 6.0
@@ -25,6 +27,7 @@
 # Policy for handling "funny" output.
 #
 # @accept: Pass on unchanged
+#
 # @hide: Filter out
 #
 # Since: 6.0
@@ -47,11 +50,15 @@
 # enumeration values.  They behave the same as with policy @accept.
 #
 # @deprecated-input: how to handle deprecated input (default 'accept')
-# @deprecated-output: how to handle deprecated output (default 'accept')
+#
+# @deprecated-output: how to handle deprecated output (default
+#     'accept')
+#
 # @unstable-input: how to handle unstable input (default 'accept')
-#                  (since 6.2)
+#     (since 6.2)
+#
 # @unstable-output: how to handle unstable output (default 'accept')
-#                   (since 6.2)
+#     (since 6.2)
 #
 # Since: 6.0
 ##

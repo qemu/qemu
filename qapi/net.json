@@ -18,21 +18,20 @@
 #
 # @up: true to set the link status to be up
 #
-# Returns: Nothing on success
-#          If @name is not a valid network device, DeviceNotFound
+# Returns: Nothing on success If @name is not a valid network device,
+#     DeviceNotFound
 #
 # Since: 0.14
 #
-# Notes: Not all network adapters support setting link status.  This command
-#        will succeed even if the network adapter does not support link status
-#        notification.
+# Notes: Not all network adapters support setting link status.  This
+#     command will succeed even if the network adapter does not
+#     support link status notification.
 #
 # Example:
 #
 # -> { "execute": "set_link",
 #      "arguments": { "name": "e1000.0", "up": false } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
 
@@ -45,8 +44,8 @@
 #
 # Since: 0.14
 #
-# Returns: Nothing on success
-#          If @type is not a valid network backend, DeviceNotFound
+# Returns: Nothing on success If @type is not a valid network backend,
+#     DeviceNotFound
 #
 # Example:
 #
@@ -54,7 +53,6 @@
 #      "arguments": { "type": "user", "id": "netdev1",
 #                     "dnssearch": [ { "str": "example.org" } ] } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'netdev_add', 'data': 'Netdev', 'boxed': true,
   'allow-preconfig': true }
@@ -66,8 +64,8 @@
 #
 # @id: the name of the network backend to remove
 #
-# Returns: Nothing on success
-#          If @id is not a valid network backend, DeviceNotFound
+# Returns: Nothing on success If @id is not a valid network backend,
+#     DeviceNotFound
 #
 # Since: 0.14
 #
@@ -75,7 +73,6 @@
 #
 # -> { "execute": "netdev_del", "arguments": { "id": "netdev1" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'},
   'allow-preconfig': true }
@@ -108,25 +105,23 @@
 ##
 # @NetdevUserOptions:
 #
-# Use the user mode network stack which requires no administrator privilege to
-# run.
+# Use the user mode network stack which requires no administrator
+# privilege to run.
 #
 # @hostname: client hostname reported by the builtin DHCP server
 #
 # @restrict: isolate the guest from the host
 #
-# @ipv4: whether to support IPv4, default true for enabled
-#        (since 2.6)
+# @ipv4: whether to support IPv4, default true for enabled (since 2.6)
 #
-# @ipv6: whether to support IPv6, default true for enabled
-#        (since 2.6)
+# @ipv6: whether to support IPv6, default true for enabled (since 2.6)
 #
 # @ip: legacy parameter, use net= instead
 #
-# @net: IP network address that the guest will see, in the
-#       form addr[/netmask] The netmask is optional, and can be
-#       either in the form a.b.c.d or as a number of valid top-most
-#       bits. Default is 10.0.2.0/24.
+# @net: IP network address that the guest will see, in the form
+#     addr[/netmask] The netmask is optional, and can be either in the
+#     form a.b.c.d or as a number of valid top-most bits.  Default is
+#     10.0.2.0/24.
 #
 # @host: guest-visible address of the host
 #
@@ -135,34 +130,34 @@
 # @bootfile: BOOTP filename, for use with tftp=
 #
 # @dhcpstart: the first of the 16 IPs the built-in DHCP server can
-#             assign
+#     assign
 #
 # @dns: guest-visible address of the virtual nameserver
 #
-# @dnssearch: list of DNS suffixes to search, passed as DHCP option
-#             to the guest
+# @dnssearch: list of DNS suffixes to search, passed as DHCP option to
+#     the guest
 #
 # @domainname: guest-visible domain name of the virtual nameserver
-#              (since 3.0)
+#     (since 3.0)
 #
-# @ipv6-prefix: IPv6 network prefix (default is fec0::) (since
-#               2.6). The network prefix is given in the usual
-#               hexadecimal IPv6 address notation.
+# @ipv6-prefix: IPv6 network prefix (default is fec0::) (since 2.6).
+#     The network prefix is given in the usual hexadecimal IPv6
+#     address notation.
 #
-# @ipv6-prefixlen: IPv6 network prefix length (default is 64)
-#                  (since 2.6)
+# @ipv6-prefixlen: IPv6 network prefix length (default is 64) (since
+#     2.6)
 #
 # @ipv6-host: guest-visible IPv6 address of the host (since 2.6)
 #
-# @ipv6-dns: guest-visible IPv6 address of the virtual
-#            nameserver (since 2.6)
+# @ipv6-dns: guest-visible IPv6 address of the virtual nameserver
+#     (since 2.6)
 #
 # @smb: root directory of the built-in SMB server
 #
 # @smbserver: IP address of the built-in SMB server
 #
 # @hostfwd: redirect incoming TCP or UDP host connections to guest
-#           endpoints
+#     endpoints
 #
 # @guestfwd: forward guest TCP connections
 #
@@ -205,7 +200,7 @@
 # @fd: file descriptor of an already opened tap
 #
 # @fds: multiple file descriptors of already opened multiqueue capable
-#       tap
+#     tap
 #
 # @script: script to initialize the interface
 #
@@ -215,7 +210,7 @@
 #
 # @helper: command to execute to configure bridge
 #
-# @sndbuf: send buffer limit. Understands [TGMKkb] suffixes.
+# @sndbuf: send buffer limit.  Understands [TGMKkb] suffixes.
 #
 # @vnet_hdr: enable the IFF_VNET_HDR flag on the tap interface
 #
@@ -224,14 +219,14 @@
 # @vhostfd: file descriptor of an already opened vhost net device
 #
 # @vhostfds: file descriptors of multiple already opened vhost net
-#            devices
+#     devices
 #
 # @vhostforce: vhost on for non-MSIX virtio guests
 #
 # @queues: number of queues to be created for multiqueue capable tap
 #
-# @poll-us: maximum number of microseconds that could
-#           be spent on busy polling for tap (since 2.7)
+# @poll-us: maximum number of microseconds that could be spent on busy
+#     polling for tap (since 2.7)
 #
 # Since: 1.2
 ##
@@ -303,9 +298,8 @@
 #
 # @counter: have sequence counter
 #
-# @pincounter: pin sequence counter to zero -
-#              workaround for buggy implementations or
-#              networks with packet reorder
+# @pincounter: pin sequence counter to zero - workaround for buggy
+#     implementations or networks with packet reorder
 #
 # @txcookie: 32 or 64 bit transmit cookie
 #
@@ -313,11 +307,11 @@
 #
 # @txsession: 32 bit transmit session
 #
-# @rxsession: 32 bit receive session - if not specified
-#             set to the same value as transmit
+# @rxsession: 32 bit receive session - if not specified set to the
+#     same value as transmit
 #
-# @offset: additional offset - allows the insertion of
-#          additional application-specific data before the packet payload
+# @offset: additional offset - allows the insertion of additional
+#     application-specific data before the packet payload
 #
 # Since: 2.1
 ##
@@ -382,7 +376,9 @@
 # Connect two or more net clients through a software hub.
 #
 # @hubid: hub identifier number
-# @netdev: used to connect hub to a netdev instead of a device (since 2.12)
+#
+# @netdev: used to connect hub to a netdev instead of a device (since
+#     2.12)
 #
 # Since: 1.2
 ##
@@ -396,12 +392,12 @@
 #
 # Connect a client to a netmap-enabled NIC or to a VALE switch port
 #
-# @ifname: Either the name of an existing network interface supported by
-#          netmap, or the name of a VALE port (created on the fly).
-#          A VALE port name is in the form 'valeXXX:YYY', where XXX and
-#          YYY are non-negative integers. XXX identifies a switch and
-#          YYY identifies a port of the switch. VALE ports having the
-#          same XXX are therefore connected to the same switch.
+# @ifname: Either the name of an existing network interface supported
+#     by netmap, or the name of a VALE port (created on the fly). A
+#     VALE port name is in the form 'valeXXX:YYY', where XXX and YYY
+#     are non-negative integers.  XXX identifies a switch and YYY
+#     identifies a port of the switch.  VALE ports having the same XXX
+#     are therefore connected to the same switch.
 #
 # @devname: path of the netmap device (default: '/dev/netmap').
 #
@@ -422,7 +418,7 @@
 # @vhostforce: vhost on for non-MSIX virtio guests (default: false).
 #
 # @queues: number of queues to be created for multiqueue vhost-user
-#          (default: 1) (Since 2.5)
+#     (default: 1) (Since 2.5)
 #
 # Since: 2.1
 ##
@@ -437,21 +433,21 @@
 #
 # Vhost-vdpa network backend
 #
-# vDPA device is a device that uses a datapath which complies with the virtio
-# specifications with a vendor specific control path.
+# vDPA device is a device that uses a datapath which complies with the
+# virtio specifications with a vendor specific control path.
 #
-# @vhostdev: path of vhost-vdpa device
-#            (default:'/dev/vhost-vdpa-0')
+# @vhostdev: path of vhost-vdpa device (default:'/dev/vhost-vdpa-0')
 #
 # @vhostfd: file descriptor of an already opened vhost vdpa device
 #
 # @queues: number of queues to be created for multiqueue vhost-vdpa
-#          (default: 1)
+#     (default: 1)
 #
-# @x-svq: Start device with (experimental) shadow virtqueue. (Since 7.1)
-#         (default: false)
+# @x-svq: Start device with (experimental) shadow virtqueue.  (Since
+#     7.1) (default: false)
 #
 # Features:
+#
 # @unstable: Member @x-svq is experimental.
 #
 # Since: 5.1
@@ -472,31 +468,28 @@
 # interfaces that are in host mode and also with the host.
 #
 # @start-address: The starting IPv4 address to use for the interface.
-#                 Must be in the private IP range (RFC 1918). Must be
-#                 specified along with @end-address and @subnet-mask.
-#                 This address is used as the gateway address. The
-#                 subsequent address up to and including end-address are
-#                 placed in the DHCP pool.
+#     Must be in the private IP range (RFC 1918). Must be specified
+#     along with @end-address and @subnet-mask.  This address is used
+#     as the gateway address.  The subsequent address up to and
+#     including end-address are placed in the DHCP pool.
 #
 # @end-address: The DHCP IPv4 range end address to use for the
-#               interface. Must be in the private IP range (RFC 1918).
-#               Must be specified along with @start-address and
-#               @subnet-mask.
+#     interface.  Must be in the private IP range (RFC 1918). Must be
+#     specified along with @start-address and @subnet-mask.
 #
-# @subnet-mask: The IPv4 subnet mask to use on the interface. Must
-#               be specified along with @start-address and @subnet-mask.
+# @subnet-mask: The IPv4 subnet mask to use on the interface.  Must be
+#     specified along with @start-address and @subnet-mask.
 #
-# @isolated: Enable isolation for this interface. Interface isolation
-#            ensures that vmnet interface is not able to communicate
-#            with any other vmnet interfaces. Only communication with
-#            host is allowed. Requires at least macOS Big Sur 11.0.
+# @isolated: Enable isolation for this interface.  Interface isolation
+#     ensures that vmnet interface is not able to communicate with any
+#     other vmnet interfaces.  Only communication with host is
+#     allowed.  Requires at least macOS Big Sur 11.0.
 #
 # @net-uuid: The identifier (UUID) to uniquely identify the isolated
-#            network vmnet interface should be added to. If
-#            set, no DHCP service is provided for this interface and
-#            network communication is allowed only with other interfaces
-#            added to this network identified by the UUID. Requires
-#            at least macOS Big Sur 11.0.
+#     network vmnet interface should be added to.  If set, no DHCP
+#     service is provided for this interface and network communication
+#     is allowed only with other interfaces added to this network
+#     identified by the UUID. Requires at least macOS Big Sur 11.0.
 #
 # Since: 7.1
 ##
@@ -515,34 +508,33 @@
 # vmnet (shared mode) network backend.
 #
 # Allows traffic originating from the vmnet interface to reach the
-# Internet through a network address translator (NAT).
-# The vmnet interface can communicate with the host and with
-# other shared mode interfaces on the same subnet. If no DHCP
-# settings, subnet mask and IPv6 prefix specified, the interface can
-# communicate with any of other interfaces in shared mode.
+# Internet through a network address translator (NAT). The vmnet
+# interface can communicate with the host and with other shared mode
+# interfaces on the same subnet.  If no DHCP settings, subnet mask and
+# IPv6 prefix specified, the interface can communicate with any of
+# other interfaces in shared mode.
 #
 # @start-address: The starting IPv4 address to use for the interface.
-#                 Must be in the private IP range (RFC 1918). Must be
-#                 specified along with @end-address and @subnet-mask.
-#                 This address is used as the gateway address. The
-#                 subsequent address up to and including end-address are
-#                 placed in the DHCP pool.
+#     Must be in the private IP range (RFC 1918). Must be specified
+#     along with @end-address and @subnet-mask.  This address is used
+#     as the gateway address.  The subsequent address up to and
+#     including end-address are placed in the DHCP pool.
 #
 # @end-address: The DHCP IPv4 range end address to use for the
-#               interface. Must be in the private IP range (RFC 1918).
-#               Must be specified along with @start-address and @subnet-mask.
+#     interface.  Must be in the private IP range (RFC 1918). Must be
+#     specified along with @start-address and @subnet-mask.
 #
-# @subnet-mask: The IPv4 subnet mask to use on the interface. Must
-#               be specified along with @start-address and @subnet-mask.
+# @subnet-mask: The IPv4 subnet mask to use on the interface.  Must be
+#     specified along with @start-address and @subnet-mask.
 #
-# @isolated: Enable isolation for this interface. Interface isolation
-#            ensures that vmnet interface is not able to communicate
-#            with any other vmnet interfaces. Only communication with
-#            host is allowed. Requires at least macOS Big Sur 11.0.
+# @isolated: Enable isolation for this interface.  Interface isolation
+#     ensures that vmnet interface is not able to communicate with any
+#     other vmnet interfaces.  Only communication with host is
+#     allowed.  Requires at least macOS Big Sur 11.0.
 #
-# @nat66-prefix: The IPv6 prefix to use into guest network. Must be a
-#                unique local address i.e. start with fd00::/8 and have
-#                length of 64.
+# @nat66-prefix: The IPv6 prefix to use into guest network.  Must be a
+#     unique local address i.e. start with fd00::/8 and have length of
+#     64.
 #
 # Since: 7.1
 ##
@@ -564,10 +556,10 @@
 #
 # @ifname: The name of the physical interface to be bridged.
 #
-# @isolated: Enable isolation for this interface. Interface isolation
-#            ensures that vmnet interface is not able to communicate
-#            with any other vmnet interfaces. Only communication with
-#            host is allowed. Requires at least macOS Big Sur 11.0.
+# @isolated: Enable isolation for this interface.  Interface isolation
+#     ensures that vmnet interface is not able to communicate with any
+#     other vmnet interfaces.  Only communication with host is
+#     allowed.  Requires at least macOS Big Sur 11.0.
 #
 # Since: 7.1
 ##
@@ -582,13 +574,14 @@
 #
 # Configuration info for stream socket netdev
 #
-# @addr: socket address to listen on (server=true)
-#        or connect to (server=false)
+# @addr: socket address to listen on (server=true) or connect to
+#     (server=false)
+#
 # @server: create server socket (default: false)
-# @reconnect: For a client socket, if a socket is disconnected,
-#             then attempt a reconnect after the given number of seconds.
-#             Setting this to zero disables this function. (default: 0)
-#             (since 8.0)
+#
+# @reconnect: For a client socket, if a socket is disconnected, then
+#     attempt a reconnect after the given number of seconds.  Setting
+#     this to zero disables this function.  (default: 0) (since 8.0)
 #
 # Only SocketAddress types 'unix', 'inet' and 'fd' are supported.
 #
@@ -606,13 +599,14 @@
 # Configuration info for datagram socket netdev.
 #
 # @remote: remote address
+#
 # @local: local address
 #
 # Only SocketAddress types 'unix', 'inet' and 'fd' are supported.
 #
-# If remote address is present and it's a multicast address, local address
-# is optional. Otherwise local address is required and remote address is
-# optional.
+# If remote address is present and it's a multicast address, local
+# address is optional.  Otherwise local address is required and remote
+# address is optional.
 #
 # .. table:: Valid parameters combination table
 #    :widths: auto
@@ -764,9 +758,9 @@
 # @name: net client name
 #
 # Returns: list of @RxFilterInfo for all NICs (or for the given NIC).
-#          Returns an error if the given @name doesn't exist, or given
-#          NIC doesn't support rx-filter querying, or given net client
-#          isn't a NIC.
+#     Returns an error if the given @name doesn't exist, or given NIC
+#     doesn't support rx-filter querying, or given net client isn't a
+#     NIC.
 #
 # Since: 1.6
 #
@@ -798,7 +792,6 @@
 #         }
 #       ]
 #    }
-#
 ##
 { 'command': 'query-rx-filter',
   'data': { '*name': 'str' },
@@ -807,8 +800,8 @@
 ##
 # @NIC_RX_FILTER_CHANGED:
 #
-# Emitted once until the 'query-rx-filter' command is executed, the first event
-# will always be emitted
+# Emitted once until the 'query-rx-filter' command is executed, the
+# first event will always be emitted
 #
 # @name: net client name
 #
@@ -822,7 +815,6 @@
 #      "data": { "name": "vnet0",
 #                "path": "/machine/peripheral/vnet0/virtio-backend" },
 #      "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
-#
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
@@ -833,7 +825,7 @@
 # Parameters for self-announce timers
 #
 # @initial: Initial delay (in ms) before sending the first GARP/RARP
-#           announcement
+#     announcement
 #
 # @max: Maximum delay (in ms) between GARP/RARP announcement packets
 #
@@ -841,12 +833,12 @@
 #
 # @step: Delay increase (in ms) after each self-announcement attempt
 #
-# @interfaces: An optional list of interface names, which restricts the
-#              announcement to the listed interfaces. (Since 4.1)
+# @interfaces: An optional list of interface names, which restricts
+#     the announcement to the listed interfaces.  (Since 4.1)
 #
 # @id: A name to be used to identify an instance of announce-timers
-#      and to allow it to modified later.  Not for use as
-#      part of the migration parameters. (Since 4.1)
+#     and to allow it to modified later.  Not for use as part of the
+#     migration parameters.  (Since 4.1)
 #
 # Since: 4.0
 ##
@@ -862,8 +854,9 @@
 ##
 # @announce-self:
 #
-# Trigger generation of broadcast RARP frames to update network switches.
-# This can be useful when network bonds fail-over the active slave.
+# Trigger generation of broadcast RARP frames to update network
+# switches.  This can be useful when network bonds fail-over the
+# active slave.
 #
 # Example:
 #
@@ -881,9 +874,10 @@
 ##
 # @FAILOVER_NEGOTIATED:
 #
-# Emitted when VIRTIO_NET_F_STANDBY was enabled during feature negotiation.
-# Failover primary devices which were hidden (not hotplugged when requested)
-# before will now be hotplugged by the virtio-net standby device.
+# Emitted when VIRTIO_NET_F_STANDBY was enabled during feature
+# negotiation.  Failover primary devices which were hidden (not
+# hotplugged when requested) before will now be hotplugged by the
+# virtio-net standby device.
 #
 # @device-id: QEMU device id of the unplugged device
 #
@@ -894,7 +888,6 @@
 # <- { "event": "FAILOVER_NEGOTIATED",
 #      "data": { "device-id": "net1" },
 #      "timestamp": { "seconds": 1368697518, "microseconds": 326866 } }
-#
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
@@ -905,6 +898,7 @@
 # Emitted when the netdev stream backend is connected
 #
 # @netdev-id: QEMU netdev id that is connected
+#
 # @addr: The destination address
 #
 # Since: 7.2
@@ -921,7 +915,6 @@
 #      "data": { "netdev-id": "netdev0",
 #                "addr": { "path": "/tmp/qemu0", "type": "unix" } },
 #      "timestamp": { "seconds": 1666269706, "microseconds": 413651 } }
-#
 ##
 { 'event': 'NETDEV_STREAM_CONNECTED',
   'data': { 'netdev-id': 'str',
@@ -941,7 +934,6 @@
 # <- { 'event': 'NETDEV_STREAM_DISCONNECTED',
 #      'data': {'netdev-id': 'netdev0'},
 #      'timestamp': {'seconds': 1663330937, 'microseconds': 526695} }
-#
 ##
 { 'event': 'NETDEV_STREAM_DISCONNECTED',
   'data': { 'netdev-id': 'str' } }

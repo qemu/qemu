@@ -35,15 +35,15 @@
 # alternate that includes the original type alongside something else.
 #
 # Returns: array of @SchemaInfo, where each element describes an
-#          entity in the ABI: command, event, type, ...
+#     entity in the ABI: command, event, type, ...
 #
-#          The order of the various SchemaInfo is unspecified; however, all
-#          names are guaranteed to be unique (no name will be duplicated with
-#          different meta-types).
+#     The order of the various SchemaInfo is unspecified; however, all
+#     names are guaranteed to be unique (no name will be duplicated
+#     with different meta-types).
 #
 # Note: the QAPI schema is also used to help define *internal*
-#       interfaces, by defining QAPI types.  These are not part of the QMP
-#       wire ABI, and therefore not returned by this command.
+#     interfaces, by defining QAPI types.  These are not part of the
+#     QMP wire ABI, and therefore not returned by this command.
 #
 # Since: 2.5
 ##
@@ -80,20 +80,18 @@
 ##
 # @SchemaInfo:
 #
-# @name: the entity's name, inherited from @base.
-#        The SchemaInfo is always referenced by this name.
-#        Commands and events have the name defined in the QAPI schema.
-#        Unlike command and event names, type names are not part of
-#        the wire ABI.  Consequently, type names are meaningless
-#        strings here, although they are still guaranteed unique
-#        regardless of @meta-type.
+# @name: the entity's name, inherited from @base.  The SchemaInfo is
+#     always referenced by this name.  Commands and events have the
+#     name defined in the QAPI schema.  Unlike command and event
+#     names, type names are not part of the wire ABI.  Consequently,
+#     type names are meaningless strings here, although they are still
+#     guaranteed unique regardless of @meta-type.
 #
 # @meta-type: the entity's meta type, inherited from @base.
 #
 # @features: names of features associated with the entity, in no
-#            particular order.
-#            (since 4.1 for object types, 4.2 for commands, 5.0 for
-#            the rest)
+#     particular order.  (since 4.1 for object types, 4.2 for
+#     commands, 5.0 for the rest)
 #
 # Additional members depend on the value of @meta-type.
 #
@@ -142,13 +140,15 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @members: the enum type's members, in no particular order
-#           (since 6.2).
+# @members: the enum type's members, in no particular order (since
+#     6.2).
 #
-# @values: the enumeration type's member names, in no particular order.
-#          Redundant with @members.  Just for backward compatibility.
+# @values: the enumeration type's member names, in no particular
+#     order.  Redundant with @members.  Just for backward
+#     compatibility.
 #
 # Features:
+#
 # @deprecated: Member @values is deprecated.  Use @members instead.
 #
 # Values of this type are JSON string on the wire.
@@ -168,7 +168,7 @@
 # @name: the member's name, as defined in the QAPI schema.
 #
 # @features: names of features associated with the member, in no
-#            particular order.
+#     particular order.
 #
 # Since: 6.2
 ##
@@ -194,16 +194,16 @@
 #
 # Additional SchemaInfo members for meta-type 'object'.
 #
-# @members: the object type's (non-variant) members, in no particular order.
+# @members: the object type's (non-variant) members, in no particular
+#     order.
 #
-# @tag: the name of the member serving as type tag.
-#       An element of @members with this name must exist.
+# @tag: the name of the member serving as type tag.  An element of
+#     @members with this name must exist.
 #
-# @variants: variant members, i.e. additional members that
-#            depend on the type tag's value.  Present exactly when
-#            @tag is present.  The variants are in no particular order,
-#            and may even differ from the order of the values of the
-#            enum type of the @tag.
+# @variants: variant members, i.e. additional members that depend on
+#     the type tag's value.  Present exactly when @tag is present.
+#     The variants are in no particular order, and may even differ
+#     from the order of the values of the enum type of the @tag.
 #
 # Values of this type are JSON object on the wire.
 #
@@ -223,16 +223,14 @@
 #
 # @type: the name of the member's type.
 #
-# @default: default when used as command parameter.
-#           If absent, the parameter is mandatory.
-#           If present, the value must be null.  The parameter is
-#           optional, and behavior when it's missing is not specified
-#           here.
-#           Future extension: if present and non-null, the parameter
-#           is optional, and defaults to this value.
+# @default: default when used as command parameter.  If absent, the
+#     parameter is mandatory.  If present, the value must be null.
+#     The parameter is optional, and behavior when it's missing is not
+#     specified here.  Future extension: if present and non-null, the
+#     parameter is optional, and defaults to this value.
 #
 # @features: names of features associated with the member, in no
-#            particular order.  (since 5.0)
+#     particular order.  (since 5.0)
 #
 # Since: 2.5
 ##
@@ -249,7 +247,7 @@
 # @case: a value of the type tag.
 #
 # @type: the name of the object type that provides the variant members
-#        when the type tag has value @case.
+#     when the type tag has value @case.
 #
 # Since: 2.5
 ##
@@ -261,9 +259,9 @@
 #
 # Additional SchemaInfo members for meta-type 'alternate'.
 #
-# @members: the alternate type's members, in no particular order.
-#           The members' wire encoding is distinct, see
-#           docs/devel/qapi-code-gen.txt section Alternate types.
+# @members: the alternate type's members, in no particular order.  The
+#     members' wire encoding is distinct, see
+#     docs/devel/qapi-code-gen.txt section Alternate types.
 #
 # On the wire, this can be any of the members.
 #
@@ -290,14 +288,15 @@
 # Additional SchemaInfo members for meta-type 'command'.
 #
 # @arg-type: the name of the object type that provides the command's
-#            parameters.
+#     parameters.
 #
 # @ret-type: the name of the command's result type.
 #
 # @allow-oob: whether the command allows out-of-band execution,
-#             defaults to false (Since: 2.12)
+#     defaults to false (Since: 2.12)
 #
-# TODO: @success-response (currently irrelevant, because it's QGA, not QMP)
+# TODO: @success-response (currently irrelevant, because it's QGA, not
+#     QMP)
 #
 # Since: 2.5
 ##
@@ -311,7 +310,7 @@
 # Additional SchemaInfo members for meta-type 'event'.
 #
 # @arg-type: the name of the object type that provides the event's
-#            parameters.
+#     parameters.
 #
 # Since: 2.5
 ##

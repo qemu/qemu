@@ -14,17 +14,18 @@
 # @SysEmuTarget:
 #
 # The comprehensive enumeration of QEMU system emulation ("softmmu")
-# targets. Run "./configure --help" in the project root directory, and
-# look for the \*-softmmu targets near the "--target-list" option. The
-# individual target constants are not documented here, for the time
-# being.
+# targets.  Run "./configure --help" in the project root directory,
+# and look for the \*-softmmu targets near the "--target-list" option.
+# The individual target constants are not documented here, for the
+# time being.
 #
 # @rx: since 5.0
+#
 # @avr: since 5.1
 #
-# Notes: The resulting QMP strings can be appended to the "qemu-system-"
-#        prefix to produce the corresponding QEMU executable name. This
-#        is true even for "qemu-system-x86_64".
+# Notes: The resulting QMP strings can be appended to the
+#     "qemu-system-" prefix to produce the corresponding QEMU
+#     executable name.  This is true even for "qemu-system-x86_64".
 #
 # Since: 3.0
 ##
@@ -39,8 +40,8 @@
 ##
 # @CpuS390State:
 #
-# An enumeration of cpu states that can be assumed by a virtual
-# S390 CPU
+# An enumeration of cpu states that can be assumed by a virtual S390
+# CPU
 #
 # Since: 2.12
 ##
@@ -71,10 +72,10 @@
 # @thread-id: ID of the underlying host thread
 #
 # @props: properties describing to which node/socket/core/thread
-#         virtual CPU belongs to, provided if supported by board
+#     virtual CPU belongs to, provided if supported by board
 #
 # @target: the QEMU system emulation target, which determines which
-#          additional fields will be listed (since 3.0)
+#     additional fields will be listed (since 3.0)
 #
 # Since: 2.12
 ##
@@ -139,21 +140,22 @@
 # @is-default: whether the machine is default
 #
 # @cpu-max: maximum number of CPUs supported by the machine type
-#           (since 1.5)
+#     (since 1.5)
 #
 # @hotpluggable-cpus: cpu hotplug via -device is supported (since 2.7)
 #
 # @numa-mem-supported: true if '-numa node,mem' option is supported by
-#                      the machine type and false otherwise (since 4.1)
+#     the machine type and false otherwise (since 4.1)
 #
-# @deprecated: if true, the machine type is deprecated and may be removed
-#              in future versions of QEMU according to the QEMU deprecation
-#              policy (since 4.1)
+# @deprecated: if true, the machine type is deprecated and may be
+#     removed in future versions of QEMU according to the QEMU
+#     deprecation policy (since 4.1)
 #
-# @default-cpu-type: default CPU model typename if none is requested via
-#                    the -cpu argument. (since 4.2)
+# @default-cpu-type: default CPU model typename if none is requested
+#     via the -cpu argument.  (since 4.2)
 #
-# @default-ram-id: the default ID of initial RAM memory backend (since 5.2)
+# @default-ram-id: the default ID of initial RAM memory backend (since
+#     5.2)
 #
 # @acpi: machine type supports ACPI (since 8.0)
 #
@@ -183,7 +185,7 @@
 # Information describing the running machine parameters.
 #
 # @wakeup-suspend-support: true if the machine supports wake up from
-#                          suspend
+#     suspend
 #
 # Since: 4.0
 ##
@@ -233,7 +235,8 @@
 #
 # Since: 0.14
 #
-# Notes: If no UUID was specified for the guest, a null UUID is returned.
+# Notes: If no UUID was specified for the guest, a null UUID is
+#     returned.
 ##
 { 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 
@@ -250,7 +253,6 @@
 #
 # -> { "execute": "query-uuid" }
 # <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
-#
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo', 'allow-preconfig': true }
 
@@ -285,7 +287,6 @@
 #
 # -> { "execute": "system_reset" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'system_reset' }
 
@@ -297,67 +298,65 @@
 # Since: 0.14
 #
 # Notes: A guest may or may not respond to this command.  This command
-#        returning does not indicate that a guest has accepted the request or
-#        that it has shut down.  Many guests will respond to this command by
-#        prompting the user in some way.
+#     returning does not indicate that a guest has accepted the
+#     request or that it has shut down.  Many guests will respond to
+#     this command by prompting the user in some way.
 #
 # Example:
 #
 # -> { "execute": "system_powerdown" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'system_powerdown' }
 
 ##
 # @system_wakeup:
 #
-# Wake up guest from suspend. If the guest has wake-up from suspend
+# Wake up guest from suspend.  If the guest has wake-up from suspend
 # support enabled (wakeup-suspend-support flag from
 # query-current-machine), wake-up guest from suspend if the guest is
-# in SUSPENDED state. Return an error otherwise.
+# in SUSPENDED state.  Return an error otherwise.
 #
 # Since: 1.1
 #
 # Returns: nothing.
 #
 # Note: prior to 4.0, this command does nothing in case the guest
-#       isn't suspended.
+#     isn't suspended.
 #
 # Example:
 #
 # -> { "execute": "system_wakeup" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'system_wakeup' }
 
 ##
 # @LostTickPolicy:
 #
-# Policy for handling lost ticks in timer devices.  Ticks end up getting
-# lost when, for example, the guest is paused.
+# Policy for handling lost ticks in timer devices.  Ticks end up
+# getting lost when, for example, the guest is paused.
 #
-# @discard: throw away the missed ticks and continue with future injection
-#           normally.  The guest OS will see the timer jump ahead by a
-#           potentially quite significant amount all at once, as if the
-#           intervening chunk of time had simply not existed; needless to
-#           say, such a sudden jump can easily confuse a guest OS which is
-#           not specifically prepared to deal with it.  Assuming the guest
-#           OS can deal correctly with the time jump, the time in the guest
-#           and in the host should now match.
+# @discard: throw away the missed ticks and continue with future
+#     injection normally.  The guest OS will see the timer jump ahead
+#     by a potentially quite significant amount all at once, as if the
+#     intervening chunk of time had simply not existed; needless to
+#     say, such a sudden jump can easily confuse a guest OS which is
+#     not specifically prepared to deal with it.  Assuming the guest
+#     OS can deal correctly with the time jump, the time in the guest
+#     and in the host should now match.
 #
-# @delay: continue to deliver ticks at the normal rate.  The guest OS will
-#         not notice anything is amiss, as from its point of view time will
-#         have continued to flow normally.  The time in the guest should now
-#         be behind the time in the host by exactly the amount of time during
-#         which ticks have been missed.
+# @delay: continue to deliver ticks at the normal rate.  The guest OS
+#     will not notice anything is amiss, as from its point of view
+#     time will have continued to flow normally.  The time in the
+#     guest should now be behind the time in the host by exactly the
+#     amount of time during which ticks have been missed.
 #
-# @slew: deliver ticks at a higher rate to catch up with the missed ticks.
-#        The guest OS will not notice anything is amiss, as from its point
-#        of view time will have continued to flow normally.  Once the timer
-#        has managed to catch up with all the missing ticks, the time in
-#        the guest and in the host should match.
+# @slew: deliver ticks at a higher rate to catch up with the missed
+#     ticks.  The guest OS will not notice anything is amiss, as from
+#     its point of view time will have continued to flow normally.
+#     Once the timer has managed to catch up with all the missing
+#     ticks, the time in the guest and in the host should match.
 #
 # Since: 2.0
 ##
@@ -367,20 +366,21 @@
 ##
 # @inject-nmi:
 #
-# Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or all CPUs (ppc64).
-# The command fails when the guest doesn't support injecting.
+# Injects a Non-Maskable Interrupt into the default CPU (x86/s390) or
+# all CPUs (ppc64). The command fails when the guest doesn't support
+# injecting.
 #
 # Returns: If successful, nothing
 #
 # Since: 0.14
 #
-# Note: prior to 2.1, this command was only supported for x86 and s390 VMs
+# Note: prior to 2.1, this command was only supported for x86 and s390
+#     VMs
 #
 # Example:
 #
 # -> { "execute": "inject-nmi" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'inject-nmi' }
 
@@ -410,7 +410,6 @@
 #
 # -> { "execute": "query-kvm" }
 # <- { "return": { "enabled": true, "present": true } }
-#
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
@@ -435,7 +434,7 @@
 ##
 # @NumaOptions:
 #
-# A discriminated record of NUMA options. (for OptsVisitor)
+# A discriminated record of NUMA options.  (for OptsVisitor)
 #
 # Since: 2.1
 ##
@@ -452,26 +451,25 @@
 ##
 # @NumaNodeOptions:
 #
-# Create a guest NUMA node. (for OptsVisitor)
+# Create a guest NUMA node.  (for OptsVisitor)
 #
 # @nodeid: NUMA node ID (increase by 1 from 0 if omitted)
 #
-# @cpus: VCPUs belonging to this node (assign VCPUS round-robin
-#        if omitted)
+# @cpus: VCPUs belonging to this node (assign VCPUS round-robin if
+#     omitted)
 #
 # @mem: memory size of this node; mutually exclusive with @memdev.
-#       Equally divide total memory among nodes if both @mem and @memdev are
-#       omitted.
+#     Equally divide total memory among nodes if both @mem and @memdev
+#     are omitted.
 #
-# @memdev: memory backend object.  If specified for one node,
-#          it must be specified for all nodes.
+# @memdev: memory backend object.  If specified for one node, it must
+#     be specified for all nodes.
 #
-# @initiator: defined in ACPI 6.3 Chapter 5.2.27.3 Table 5-145,
-#             points to the nodeid which has the memory controller
-#             responsible for this NUMA node. This field provides
-#             additional information as to the initiator node that
-#             is closest (as in directly attached) to this node, and
-#             therefore has the best performance (since 5.0)
+# @initiator: defined in ACPI 6.3 Chapter 5.2.27.3 Table 5-145, points
+#     to the nodeid which has the memory controller responsible for
+#     this NUMA node.  This field provides additional information as
+#     to the initiator node that is closest (as in directly attached)
+#     to this node, and therefore has the best performance (since 5.0)
 #
 # Since: 2.1
 ##
@@ -492,9 +490,9 @@
 #
 # @dst: destination NUMA node.
 #
-# @val: NUMA distance from source node to destination node.
-#       When a node is unreachable from another node, set the distance
-#       between them to 255.
+# @val: NUMA distance from source node to destination node.  When a
+#     node is unreachable from another node, set the distance between
+#     them to 255.
 #
 # Since: 2.10
 ##
@@ -509,13 +507,15 @@
 #
 # Create a CXL Fixed Memory Window
 #
-# @size: Size of the Fixed Memory Window in bytes. Must be a multiple
-#        of 256MiB.
+# @size: Size of the Fixed Memory Window in bytes.  Must be a multiple
+#     of 256MiB.
+#
 # @interleave-granularity: Number of contiguous bytes for which
-#                          accesses will go to a given interleave target.
-#                          Accepted values [256, 512, 1k, 2k, 4k, 8k, 16k]
-# @targets: Target root bridge IDs from -device ...,id=<ID> for each root
-#           bridge.
+#     accesses will go to a given interleave target.  Accepted values
+#     [256, 512, 1k, 2k, 4k, 8k, 16k]
+#
+# @targets: Target root bridge IDs from -device ...,id=<ID> for each
+#     root bridge.
 #
 # Since: 7.1
 ##
@@ -553,10 +553,11 @@
 #
 # Information about a X86 CPU feature word
 #
-# @cpuid-input-eax: Input EAX value for CPUID instruction for that feature word
+# @cpuid-input-eax: Input EAX value for CPUID instruction for that
+#     feature word
 #
 # @cpuid-input-ecx: Input ECX value for CPUID instruction for that
-#                   feature word
+#     feature word
 #
 # @cpuid-register: Output register containing the feature bits
 #
@@ -573,7 +574,8 @@
 ##
 # @DummyForceArrays:
 #
-# Not used by QMP; hack to let us use X86CPUFeatureWordInfoList internally
+# Not used by QMP; hack to let us use X86CPUFeatureWordInfoList
+# internally
 #
 # Since: 2.5
 ##
@@ -583,8 +585,8 @@
 ##
 # @NumaCpuOptions:
 #
-# Option "-numa cpu" overrides default cpu to node mapping.
-# It accepts the same set of cpu properties as returned by
+# Option "-numa cpu" overrides default cpu to node mapping.  It
+# accepts the same set of cpu properties as returned by
 # query-hotpluggable-cpus[].props, where node-id could be used to
 # override default node mapping.
 #
@@ -619,11 +621,11 @@
 ##
 # @HmatLBDataType:
 #
-# Data type in the System Locality Latency and Bandwidth
-# Information Structure of HMAT (Heterogeneous Memory Attribute Table)
+# Data type in the System Locality Latency and Bandwidth Information
+# Structure of HMAT (Heterogeneous Memory Attribute Table)
 #
-# For more information about @HmatLBDataType, see chapter
-# 5.2.27.4: Table 5-146:  Field "Data Type" of ACPI 6.3 spec.
+# For more information about @HmatLBDataType, see chapter 5.2.27.4:
+# Table 5-146:  Field "Data Type" of ACPI 6.3 spec.
 #
 # @access-latency: access latency (nanoseconds)
 #
@@ -646,28 +648,27 @@
 ##
 # @NumaHmatLBOptions:
 #
-# Set the system locality latency and bandwidth information
-# between Initiator and Target proximity Domains.
+# Set the system locality latency and bandwidth information between
+# Initiator and Target proximity Domains.
 #
-# For more information about @NumaHmatLBOptions, see chapter
-# 5.2.27.4: Table 5-146 of ACPI 6.3 spec.
+# For more information about @NumaHmatLBOptions, see chapter 5.2.27.4:
+# Table 5-146 of ACPI 6.3 spec.
 #
 # @initiator: the Initiator Proximity Domain.
 #
 # @target: the Target Proximity Domain.
 #
-# @hierarchy: the Memory Hierarchy. Indicates the performance
-#             of memory or side cache.
+# @hierarchy: the Memory Hierarchy.  Indicates the performance of
+#     memory or side cache.
 #
-# @data-type: presents the type of data, access/read/write
-#             latency or hit latency.
+# @data-type: presents the type of data, access/read/write latency or
+#     hit latency.
 #
-# @latency: the value of latency from @initiator to @target
-#           proximity domain, the latency unit is "ns(nanosecond)".
+# @latency: the value of latency from @initiator to @target proximity
+#     domain, the latency unit is "ns(nanosecond)".
 #
 # @bandwidth: the value of bandwidth between @initiator and @target
-#             proximity domain, the bandwidth unit is
-#             "Bytes per second".
+#     proximity domain, the bandwidth unit is "Bytes per second".
 #
 # Since: 5.0
 ##
@@ -689,8 +690,8 @@
 # For more information of @HmatCacheAssociativity, see chapter
 # 5.2.27.5: Table 5-147 of ACPI 6.3 spec.
 #
-# @none: None (no memory side cache in this proximity domain,
-#        or cache associativity unknown)
+# @none: None (no memory side cache in this proximity domain, or cache
+#     associativity unknown)
 #
 # @direct: Direct Mapped
 #
@@ -704,14 +705,14 @@
 ##
 # @HmatCacheWritePolicy:
 #
-# Cache write policy in the Memory Side Cache Information Structure
-# of HMAT
+# Cache write policy in the Memory Side Cache Information Structure of
+# HMAT
 #
-# For more information of @HmatCacheWritePolicy, see chapter
-# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+# For more information of @HmatCacheWritePolicy, see chapter 5.2.27.5:
+# Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
-# @none: None (no memory side cache in this proximity domain,
-#        or cache write policy unknown)
+# @none: None (no memory side cache in this proximity domain, or cache
+#     write policy unknown)
 #
 # @write-back: Write Back (WB)
 #
@@ -727,8 +728,8 @@
 #
 # Set the memory side cache information for a given memory domain.
 #
-# For more information of @NumaHmatCacheOptions, see chapter
-# 5.2.27.5: Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
+# For more information of @NumaHmatCacheOptions, see chapter 5.2.27.5:
+# Table 5-147: Field "Cache Attributes" of ACPI 6.3 spec.
 #
 # @node-id: the memory proximity domain to which the memory belongs.
 #
@@ -737,7 +738,7 @@
 # @level: the cache level described in this structure.
 #
 # @associativity: the cache associativity,
-#                 none/direct-mapped/complex(complex cache indexing).
+#     none/direct-mapped/complex(complex cache indexing).
 #
 # @policy: the write policy, none/write-back/write-through.
 #
@@ -766,7 +767,7 @@
 # @filename: the file to save the memory to as binary data
 #
 # @cpu-index: the index of the virtual CPU to use for translating the
-#             virtual address (defaults to CPU 0)
+#     virtual address (defaults to CPU 0)
 #
 # Returns: Nothing on success
 #
@@ -781,7 +782,6 @@
 #                     "size": 100,
 #                     "filename": "/tmp/virtual-mem-dump" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'memsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
@@ -810,7 +810,6 @@
 #                     "size": 100,
 #                     "filename": "/tmp/physical-mem-dump" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'pmemsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
@@ -832,11 +831,11 @@
 #
 # @share: whether memory is private to QEMU or shared (since 6.1)
 #
-# @reserve: whether swap space (or huge pages) was reserved if applicable.
-#           This corresponds to the user configuration and not the actual
-#           behavior implemented in the OS to perform the reservation.
-#           For example, Linux will never reserve swap space for shared
-#           file mappings. (since 6.1)
+# @reserve: whether swap space (or huge pages) was reserved if
+#     applicable.  This corresponds to the user configuration and not
+#     the actual behavior implemented in the OS to perform the
+#     reservation.  For example, Linux will never reserve swap space
+#     for shared file mappings.  (since 6.1)
 #
 # @host-nodes: host nodes for its memory policy
 #
@@ -890,29 +889,34 @@
 #        }
 #      ]
 #    }
-#
 ##
 { 'command': 'query-memdev', 'returns': ['Memdev'], 'allow-preconfig': true }
 
 ##
 # @CpuInstanceProperties:
 #
-# List of properties to be used for hotplugging a CPU instance,
-# it should be passed by management with device_add command when
-# a CPU is being hotplugged.
+# List of properties to be used for hotplugging a CPU instance, it
+# should be passed by management with device_add command when a CPU is
+# being hotplugged.
 #
 # @node-id: NUMA node ID the CPU belongs to
+#
 # @socket-id: socket number within node/board the CPU belongs to
+#
 # @die-id: die number within socket the CPU belongs to (since 4.1)
-# @cluster-id: cluster number within die the CPU belongs to (since 7.1)
+#
+# @cluster-id: cluster number within die the CPU belongs to (since
+#     7.1)
+#
 # @core-id: core number within cluster the CPU belongs to
+#
 # @thread-id: thread number within core the CPU belongs to
 #
-# Note: currently there are 6 properties that could be present
-#       but management should be prepared to pass through other
-#       properties with device_add command to allow for future
-#       interface extension. This also requires the filed names to be kept in
-#       sync with the properties passed to -device/device_add.
+# Note: currently there are 6 properties that could be present but
+#     management should be prepared to pass through other properties
+#     with device_add command to allow for future interface extension.
+#     This also requires the filed names to be kept in sync with the
+#     properties passed to -device/device_add.
 #
 # Since: 2.7
 ##
@@ -930,10 +934,14 @@
 # @HotpluggableCPU:
 #
 # @type: CPU object type for usage with device_add command
+#
 # @props: list of properties to be used for hotplugging CPU
-# @vcpus-count: number of logical VCPU threads @HotpluggableCPU provides
-# @qom-path: link to existing CPU object if CPU is present or
-#            omitted if CPU is not present.
+#
+# @vcpus-count: number of logical VCPU threads @HotpluggableCPU
+#     provides
+#
+# @qom-path: link to existing CPU object if CPU is present or omitted
+#     if CPU is not present.
 #
 # Since: 2.7
 ##
@@ -956,7 +964,8 @@
 #
 # Examples:
 #
-# For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu POWER8:
+# For pseries machine type started with -smp 2,cores=2,maxcpus=4 -cpu
+# POWER8:
 #
 # -> { "execute": "query-hotpluggable-cpus" }
 # <- {"return": [
@@ -981,8 +990,8 @@
 #      }
 #    ]}
 #
-# For s390x-virtio-ccw machine type started with -smp 1,maxcpus=2 -cpu qemu
-# (Since: 2.11):
+# For s390x-virtio-ccw machine type started with -smp 1,maxcpus=2 -cpu
+# qemu (Since: 2.11):
 #
 # -> { "execute": "query-hotpluggable-cpus" }
 # <- {"return": [
@@ -996,7 +1005,6 @@
 #         "props": { "core-id": 0 }
 #      }
 #    ]}
-#
 ##
 { 'command': 'query-hotpluggable-cpus', 'returns': ['HotpluggableCPU'],
              'allow-preconfig': true }
@@ -1004,9 +1012,8 @@
 ##
 # @set-numa-node:
 #
-# Runtime equivalent of '-numa' CLI option, available at
-# preconfigure stage to configure numa mapping before initializing
-# machine.
+# Runtime equivalent of '-numa' CLI option, available at preconfigure
+# stage to configure numa mapping before initializing machine.
 #
 # Since: 3.0
 ##
@@ -1020,21 +1027,22 @@
 #
 # Request the balloon driver to change its balloon size.
 #
-# @value: the target logical size of the VM in bytes.
-#         We can deduce the size of the balloon using this formula:
+# @value: the target logical size of the VM in bytes.  We can deduce
+#     the size of the balloon using this formula:
 #
-#            logical_vm_size = vm_ram_size - balloon_size
+#        logical_vm_size = vm_ram_size - balloon_size
 #
-#         From it we have: balloon_size = vm_ram_size - @value
+#     From it we have: balloon_size = vm_ram_size - @value
 #
-# Returns: - Nothing on success
-#          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KVMMissingCap
-#          - If no balloon device is present, DeviceNotActive
+# Returns:
+# - Nothing on success
+# - If the balloon driver is enabled but not functional because the
+#   KVM kernel module cannot support it, KVMMissingCap
+# - If no balloon device is present, DeviceNotActive
 #
-# Notes: This command just issues a request to the guest.  When it returns,
-#        the balloon size may not have changed.  A guest can change the balloon
-#        size independent of this command.
+# Notes: This command just issues a request to the guest.  When it
+#     returns, the balloon size may not have changed.  A guest can
+#     change the balloon size independent of this command.
 #
 # Since: 0.14
 #
@@ -1044,7 +1052,6 @@
 # <- { "return": {} }
 #
 # With a 2.5GiB guest this command inflated the ballon to 3GiB.
-#
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
 
@@ -1053,8 +1060,8 @@
 #
 # Information about the guest balloon device.
 #
-# @actual: the logical size of the VM in bytes
-#          Formula used: logical_vm_size = vm_ram_size - balloon_size
+# @actual: the logical size of the VM in bytes Formula used:
+#     logical_vm_size = vm_ram_size - balloon_size
 #
 # Since: 0.14
 ##
@@ -1065,10 +1072,11 @@
 #
 # Return information about the balloon device.
 #
-# Returns: - @BalloonInfo on success
-#          - If the balloon driver is enabled but not functional because the KVM
-#            kernel module cannot support it, KVMMissingCap
-#          - If no balloon device is present, DeviceNotActive
+# Returns:
+# - @BalloonInfo on success
+# - If the balloon driver is enabled but not functional because the
+#   KVM kernel module cannot support it, KVMMissingCap
+# - If no balloon device is present, DeviceNotActive
 #
 # Since: 0.14
 #
@@ -1079,18 +1087,18 @@
 #          "actual": 1073741824
 #       }
 #    }
-#
 ##
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 
 ##
 # @BALLOON_CHANGE:
 #
-# Emitted when the guest changes the actual BALLOON level. This value is
-# equivalent to the @actual field return by the 'query-balloon' command
+# Emitted when the guest changes the actual BALLOON level.  This value
+# is equivalent to the @actual field return by the 'query-balloon'
+# command
 #
-# @actual: the logical size of the VM in bytes
-#          Formula used: logical_vm_size = vm_ram_size - balloon_size
+# @actual: the logical size of the VM in bytes Formula used:
+#     logical_vm_size = vm_ram_size - balloon_size
 #
 # Note: this event is rate-limited.
 #
@@ -1101,7 +1109,6 @@
 # <- { "event": "BALLOON_CHANGE",
 #      "data": { "actual": 944766976 },
 #      "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
-#
 ##
 { 'event': 'BALLOON_CHANGE',
   'data': { 'actual': 'int' } }
@@ -1112,11 +1119,11 @@
 # Actual memory information in bytes.
 #
 # @base-memory: size of "base" memory specified with command line
-#               option -m.
+#     option -m.
 #
-# @plugged-memory: size of memory that can be hot-unplugged. This field
-#                  is omitted if target doesn't support memory hotplug
-#                  (i.e. CONFIG_MEM_DEVICE not defined at build time).
+# @plugged-memory: size of memory that can be hot-unplugged.  This
+#     field is omitted if target doesn't support memory hotplug (i.e.
+#     CONFIG_MEM_DEVICE not defined at build time).
 #
 # Since: 2.11
 ##
@@ -1126,8 +1133,8 @@
 ##
 # @query-memory-size-summary:
 #
-# Return the amount of initially allocated and present hotpluggable (if
-# enabled) memory in bytes.
+# Return the amount of initially allocated and present hotpluggable
+# (if enabled) memory in bytes.
 #
 # Example:
 #
@@ -1157,7 +1164,8 @@
 #
 # @hotplugged: true if device was hotplugged
 #
-# @hotpluggable: true if device if could be added/removed while machine is running
+# @hotpluggable: true if device if could be added/removed while
+#     machine is running
 #
 # Since: 2.1
 ##
@@ -1374,16 +1382,15 @@
 #                         "slot": 0},
 #                    "type": "dimm"
 #                  } ] }
-#
 ##
 { 'command': 'query-memory-devices', 'returns': ['MemoryDeviceInfo'] }
 
 ##
 # @MEMORY_DEVICE_SIZE_CHANGE:
 #
-# Emitted when the size of a memory device changes. Only emitted for memory
-# devices that can actually change the size (e.g., virtio-mem due to guest
-# action).
+# Emitted when the size of a memory device changes.  Only emitted for
+# memory devices that can actually change the size (e.g., virtio-mem
+# due to guest action).
 #
 # @id: device's ID
 #
@@ -1401,7 +1408,6 @@
 #      "data": { "id": "vm0", "size": 1073741824,
 #                "qom-path": "/machine/unattached/device[2]" },
 #      "timestamp": { "seconds": 1588168529, "microseconds": 201316 } }
-#
 ##
 { 'event': 'MEMORY_DEVICE_SIZE_CHANGE',
   'data': { '*id': 'str', 'size': 'size', 'qom-path' : 'str'} }
@@ -1416,8 +1422,9 @@
 # @msg: Informative message
 #
 # Features:
-# @deprecated: This event is deprecated. Use @DEVICE_UNPLUG_GUEST_ERROR
-#              instead.
+#
+# @deprecated: This event is deprecated.  Use
+#     @DEVICE_UNPLUG_GUEST_ERROR instead.
 #
 # Since: 2.4
 #
@@ -1428,7 +1435,6 @@
 #                "msg": "acpi: device unplug for unsupported device"
 #      },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-#
 ##
 { 'event': 'MEM_UNPLUG_ERROR',
   'data': { 'device': 'str', 'msg': 'str' },
@@ -1445,13 +1451,15 @@
 #
 # @menu: Whether to show a boot menu
 #
-# @splash: The name of the file to be passed to the firmware as logo picture, if @menu is true.
+# @splash: The name of the file to be passed to the firmware as logo
+#     picture, if @menu is true.
 #
 # @splash-time: How long to show the logo picture, in milliseconds
 #
 # @reboot-timeout: Timeout before guest reboots after boot fails
 #
-# @strict: Whether to attempt booting from devices not included in the boot order
+# @strict: Whether to attempt booting from devices not included in the
+#     boot order
 #
 # Since: 7.1
 ##
@@ -1467,8 +1475,8 @@
 ##
 # @SMPConfiguration:
 #
-# Schema for CPU topology configuration.  A missing value lets
-# QEMU figure out a suitable value based on the ones that are provided.
+# Schema for CPU topology configuration.  A missing value lets QEMU
+# figure out a suitable value based on the ones that are provided.
 #
 # @cpus: number of virtual CPUs in the virtual machine
 #
@@ -1476,13 +1484,15 @@
 #
 # @dies: number of dies per socket in the CPU topology
 #
-# @clusters: number of clusters per die in the CPU topology (since 7.0)
+# @clusters: number of clusters per die in the CPU topology (since
+#     7.0)
 #
 # @cores: number of cores per cluster in the CPU topology
 #
 # @threads: number of threads per core in the CPU topology
 #
-# @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual machine
+# @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual
+#     machine
 #
 # Since: 6.1
 ##
@@ -1501,6 +1511,7 @@
 # Query interrupt statistics
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: interrupt statistics
@@ -1517,6 +1528,7 @@
 # Query TCG compiler statistics
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: TCG compiler statistics
@@ -1534,6 +1546,7 @@
 # Query NUMA topology information
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: topology information
@@ -1550,6 +1563,7 @@
 # Query TCG opcode counters
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: TCG opcode counters
@@ -1567,6 +1581,7 @@
 # Query TCG profiling information
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: profile information
@@ -1584,6 +1599,7 @@
 # Query system ramblock information
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: system ramblock information
@@ -1600,6 +1616,7 @@
 # Query RDMA state
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: RDMA state
@@ -1616,6 +1633,7 @@
 # Query information on the registered ROMS
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: registered ROMs
@@ -1632,6 +1650,7 @@
 # Query information on the USB devices
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: USB device information
@@ -1682,10 +1701,10 @@
 # Since: 7.2
 #
 # Example:
+#
 # -> { "execute": "dumpdtb" }
 #      "arguments": { "filename": "fdt.dtb" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'dumpdtb',
   'data': { 'filename': 'str' },

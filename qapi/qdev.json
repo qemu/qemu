@@ -17,11 +17,12 @@
 #
 # @typename: the type name of a device
 #
-# Returns: a list of ObjectPropertyInfo describing a devices properties
+# Returns: a list of ObjectPropertyInfo describing a devices
+#     properties
 #
-# Note: objects can create properties at runtime, for example to describe
-#       links between different devices and/or objects. These properties
-#       are not included in the output of this command.
+# Note: objects can create properties at runtime, for example to
+#     describe links between different devices and/or objects.  These
+#     properties are not included in the output of this command.
 #
 # Since: 1.2
 ##
@@ -41,12 +42,14 @@
 # @id: the device's ID, must be unique
 #
 # Features:
-# @json-cli: If present, the "-device" command line option supports JSON
-#            syntax with a structure identical to the arguments of this
-#            command.
-# @json-cli-hotplug: If present, the "-device" command line option supports JSON
-#                    syntax without the reference counting leak that broke
-#                    hot-unplug
+#
+# @json-cli: If present, the "-device" command line option supports
+#     JSON syntax with a structure identical to the arguments of this
+#     command.
+#
+# @json-cli-hotplug: If present, the "-device" command line option
+#     supports JSON syntax without the reference counting leak that
+#     broke hot-unplug
 #
 # Notes:
 #
@@ -68,9 +71,9 @@
 # <- { "return": {} }
 #
 # TODO: This command effectively bypasses QAPI completely due to its
-#       "additional arguments" business.  It shouldn't have been added to
-#       the schema in this form.  It should be qapified properly, or
-#       replaced by a properly qapified command.
+#     "additional arguments" business.  It shouldn't have been added
+#     to the schema in this form.  It should be qapified properly, or
+#     replaced by a properly qapified command.
 #
 # Since: 0.13
 ##
@@ -86,17 +89,18 @@
 #
 # @id: the device's ID or QOM path
 #
-# Returns: Nothing on success
-#          If @id is not a valid device, DeviceNotFound
+# Returns: Nothing on success If @id is not a valid device,
+#     DeviceNotFound
 #
-# Notes: When this command completes, the device may not be removed from the
-#        guest.  Hot removal is an operation that requires guest cooperation.
-#        This command merely requests that the guest begin the hot removal
-#        process.  Completion of the device removal process is signaled with a
-#        DEVICE_DELETED event. Guest reset will automatically complete removal
-#        for all devices.  If a guest-side error in the hot removal process is
-#        detected, the device will not be removed and a DEVICE_UNPLUG_GUEST_ERROR
-#        event is sent.  Some errors cannot be detected.
+# Notes: When this command completes, the device may not be removed
+#     from the guest.  Hot removal is an operation that requires guest
+#     cooperation.  This command merely requests that the guest begin
+#     the hot removal process.  Completion of the device removal
+#     process is signaled with a DEVICE_DELETED event.  Guest reset
+#     will automatically complete removal for all devices.  If a
+#     guest-side error in the hot removal process is detected, the
+#     device will not be removed and a DEVICE_UNPLUG_GUEST_ERROR event
+#     is sent.  Some errors cannot be detected.
 #
 # Since: 0.14
 #
@@ -109,16 +113,16 @@
 # -> { "execute": "device_del",
 #      "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'device_del', 'data': {'id': 'str'} }
 
 ##
 # @DEVICE_DELETED:
 #
-# Emitted whenever the device removal completion is acknowledged by the guest.
-# At this point, it's safe to reuse the specified device ID. Device removal can
-# be initiated by the guest or by HMP/QMP commands.
+# Emitted whenever the device removal completion is acknowledged by
+# the guest.  At this point, it's safe to reuse the specified device
+# ID. Device removal can be initiated by the guest or by HMP/QMP
+# commands.
 #
 # @device: the device's ID if it has one
 #
@@ -132,7 +136,6 @@
 #      "data": { "device": "virtio-net-pci-0",
 #                "path": "/machine/peripheral/virtio-net-pci-0" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-#
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
@@ -140,7 +143,8 @@
 ##
 # @DEVICE_UNPLUG_GUEST_ERROR:
 #
-# Emitted when a device hot unplug fails due to a guest reported error.
+# Emitted when a device hot unplug fails due to a guest reported
+# error.
 #
 # @device: the device's ID if it has one
 #
@@ -154,7 +158,6 @@
 #      "data": { "device": "core1",
 #                "path": "/machine/peripheral/core1" },
 #      "timestamp": { "seconds": 1615570772, "microseconds": 202844 } }
-#
 ##
 { 'event': 'DEVICE_UNPLUG_GUEST_ERROR',
   'data': { '*device': 'str', 'path': 'str' } }
