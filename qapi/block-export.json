@@ -249,13 +249,13 @@
 #
 # @hard: Drop all connections immediately and remove export.
 #
-# TODO: Potential additional modes to be added in the future:
+# Potential additional modes to be added in the future:
 #
-#       hide: Just hide export from new clients, leave existing connections as is.
-#       Remove export after all clients are disconnected.
+# hide: Just hide export from new clients, leave existing connections as is.
+# Remove export after all clients are disconnected.
 #
-#       soft: Hide export from new clients, answer with ESHUTDOWN for all further
-#       requests from existing clients.
+# soft: Hide export from new clients, answer with ESHUTDOWN for all further
+# requests from existing clients.
 #
 # Since: 2.12
 ##
