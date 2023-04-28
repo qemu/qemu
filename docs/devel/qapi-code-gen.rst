@@ -979,14 +979,9 @@ description::
  #          in the second style.
 
 The number of spaces between the ':' and the text is not significant.
+.. FIXME The parser accepts these things in almost any order.
 
-.. admonition:: FIXME
-
-   The parser accepts these things in almost any order.
-
-.. admonition:: FIXME
-
-   union branches should be described, too.
+.. FIXME union branches should be described, too.
 
 Extensions added after the definition was first released carry a
 "(since x.y.z)" comment.
