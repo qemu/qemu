@@ -14,12 +14,19 @@
 #ifndef QEMU_MIGRATION_OPTIONS_H
 #define QEMU_MIGRATION_OPTIONS_H
 
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
+
 /* constants */
 
 /* Amount of time to allocate to each "chunk" of bandwidth-throttled
  * data. */
 #define BUFFER_DELAY     100
 #define XFER_LIMIT_RATIO (1000 / BUFFER_DELAY)
+
+/* migration properties */
+
+extern Property migration_properties[];
 
 /* capabilities */
 
@@ -52,6 +59,7 @@ bool migrate_zero_copy_send(void);
  * check, but they are not a capability.
  */
 
+bool migrate_multifd_flush_after_each_section(void);
 bool migrate_postcopy(void);
 bool migrate_tls(void);
 
@@ -62,6 +70,7 @@ bool migrate_cap_set(int cap, bool value, Error **errp);
 
 /* parameters */
 
+const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void);
 bool migrate_block_incremental(void);
 uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
@@ -71,6 +80,7 @@ uint8_t migrate_cpu_throttle_increment(void);
 uint8_t migrate_cpu_throttle_initial(void);
 bool migrate_cpu_throttle_tailslow(void);
 int migrate_decompress_threads(void);
+uint64_t migrate_downtime_limit(void);
 uint8_t migrate_max_cpu_throttle(void);
 uint64_t migrate_max_bandwidth(void);
 int64_t migrate_max_postcopy_bandwidth(void);
@@ -79,10 +89,19 @@ MultiFDCompression migrate_multifd_compression(void);
 int migrate_multifd_zlib_level(void);
 int migrate_multifd_zstd_level(void);
 uint8_t migrate_throttle_trigger_threshold(void);
+const char *migrate_tls_authz(void);
+const char *migrate_tls_creds(void);
+const char *migrate_tls_hostname(void);
 uint64_t migrate_xbzrle_cache_size(void);
+
+/* parameters setters */
+
+void migrate_set_block_incremental(bool value);
 
 /* parameters helpers */
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
+void migrate_params_init(MigrationParameters *params);
+void block_cleanup_parameters(void);
 
 #endif

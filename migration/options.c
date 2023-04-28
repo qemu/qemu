@@ -31,29 +31,180 @@
 #define MAX_MIGRATE_DOWNTIME_SECONDS 2000
 #define MAX_MIGRATE_DOWNTIME (MAX_MIGRATE_DOWNTIME_SECONDS * 1000)
 
+#define MAX_THROTTLE  (128 << 20)      /* Migration transfer speed throttling */
+
+/* Time in milliseconds we are allowed to stop the source,
+ * for sending the last part */
+#define DEFAULT_MIGRATE_SET_DOWNTIME 300
+
+/* Default compression thread count */
+#define DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT 8
+/* Default decompression thread count, usually decompression is at
+ * least 4 times as fast as compression.*/
+#define DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT 2
+/*0: means nocompress, 1: best speed, ... 9: best compress ratio */
+#define DEFAULT_MIGRATE_COMPRESS_LEVEL 1
+/* Define default autoconverge cpu throttle migration parameters */
+#define DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD 50
+#define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
+#define DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT 10
+#define DEFAULT_MIGRATE_MAX_CPU_THROTTLE 99
+
+/* Migration XBZRLE default cache size */
+#define DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE (64 * 1024 * 1024)
+
+/* The delay time (in ms) between two COLO checkpoints */
+#define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY (200 * 100)
+#define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
+#define DEFAULT_MIGRATE_MULTIFD_COMPRESSION MULTIFD_COMPRESSION_NONE
+/* 0: means nocompress, 1: best speed, ... 9: best compress ratio */
+#define DEFAULT_MIGRATE_MULTIFD_ZLIB_LEVEL 1
+/* 0: means nocompress, 1: best speed, ... 20: best compress ratio */
+#define DEFAULT_MIGRATE_MULTIFD_ZSTD_LEVEL 1
+
+/* Background transfer rate for postcopy, 0 means unlimited, note
+ * that page requests can still exceed this limit.
+ */
+#define DEFAULT_MIGRATE_MAX_POSTCOPY_BANDWIDTH 0
+
+/*
+ * Parameters for self_announce_delay giving a stream of RARP/ARP
+ * packets after migration.
+ */
+#define DEFAULT_MIGRATE_ANNOUNCE_INITIAL  50
+#define DEFAULT_MIGRATE_ANNOUNCE_MAX     550
+#define DEFAULT_MIGRATE_ANNOUNCE_ROUNDS    5
+#define DEFAULT_MIGRATE_ANNOUNCE_STEP    100
+
+#define DEFINE_PROP_MIG_CAP(name, x)             \
+    DEFINE_PROP_BOOL(name, MigrationState, capabilities[x], false)
+
+Property migration_properties[] = {
+    DEFINE_PROP_BOOL("store-global-state", MigrationState,
+                     store_global_state, true),
+    DEFINE_PROP_BOOL("send-configuration", MigrationState,
+                     send_configuration, true),
+    DEFINE_PROP_BOOL("send-section-footer", MigrationState,
+                     send_section_footer, true),
+    DEFINE_PROP_BOOL("decompress-error-check", MigrationState,
+                      decompress_error_check, true),
+    DEFINE_PROP_BOOL("multifd-flush-after-each-section", MigrationState,
+                      multifd_flush_after_each_section, false),
+    DEFINE_PROP_UINT8("x-clear-bitmap-shift", MigrationState,
+                      clear_bitmap_shift, CLEAR_BITMAP_SHIFT_DEFAULT),
+    DEFINE_PROP_BOOL("x-preempt-pre-7-2", MigrationState,
+                     preempt_pre_7_2, false),
+
+    /* Migration parameters */
+    DEFINE_PROP_UINT8("x-compress-level", MigrationState,
+                      parameters.compress_level,
+                      DEFAULT_MIGRATE_COMPRESS_LEVEL),
+    DEFINE_PROP_UINT8("x-compress-threads", MigrationState,
+                      parameters.compress_threads,
+                      DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT),
+    DEFINE_PROP_BOOL("x-compress-wait-thread", MigrationState,
+                      parameters.compress_wait_thread, true),
+    DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
+                      parameters.decompress_threads,
+                      DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
+    DEFINE_PROP_UINT8("x-throttle-trigger-threshold", MigrationState,
+                      parameters.throttle_trigger_threshold,
+                      DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD),
+    DEFINE_PROP_UINT8("x-cpu-throttle-initial", MigrationState,
+                      parameters.cpu_throttle_initial,
+                      DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL),
+    DEFINE_PROP_UINT8("x-cpu-throttle-increment", MigrationState,
+                      parameters.cpu_throttle_increment,
+                      DEFAULT_MIGRATE_CPU_THROTTLE_INCREMENT),
+    DEFINE_PROP_BOOL("x-cpu-throttle-tailslow", MigrationState,
+                      parameters.cpu_throttle_tailslow, false),
+    DEFINE_PROP_SIZE("x-max-bandwidth", MigrationState,
+                      parameters.max_bandwidth, MAX_THROTTLE),
+    DEFINE_PROP_UINT64("x-downtime-limit", MigrationState,
+                      parameters.downtime_limit,
+                      DEFAULT_MIGRATE_SET_DOWNTIME),
+    DEFINE_PROP_UINT32("x-checkpoint-delay", MigrationState,
+                      parameters.x_checkpoint_delay,
+                      DEFAULT_MIGRATE_X_CHECKPOINT_DELAY),
+    DEFINE_PROP_UINT8("multifd-channels", MigrationState,
+                      parameters.multifd_channels,
+                      DEFAULT_MIGRATE_MULTIFD_CHANNELS),
+    DEFINE_PROP_MULTIFD_COMPRESSION("multifd-compression", MigrationState,
+                      parameters.multifd_compression,
+                      DEFAULT_MIGRATE_MULTIFD_COMPRESSION),
+    DEFINE_PROP_UINT8("multifd-zlib-level", MigrationState,
+                      parameters.multifd_zlib_level,
+                      DEFAULT_MIGRATE_MULTIFD_ZLIB_LEVEL),
+    DEFINE_PROP_UINT8("multifd-zstd-level", MigrationState,
+                      parameters.multifd_zstd_level,
+                      DEFAULT_MIGRATE_MULTIFD_ZSTD_LEVEL),
+    DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
+                      parameters.xbzrle_cache_size,
+                      DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
+    DEFINE_PROP_SIZE("max-postcopy-bandwidth", MigrationState,
+                      parameters.max_postcopy_bandwidth,
+                      DEFAULT_MIGRATE_MAX_POSTCOPY_BANDWIDTH),
+    DEFINE_PROP_UINT8("max-cpu-throttle", MigrationState,
+                      parameters.max_cpu_throttle,
+                      DEFAULT_MIGRATE_MAX_CPU_THROTTLE),
+    DEFINE_PROP_SIZE("announce-initial", MigrationState,
+                      parameters.announce_initial,
+                      DEFAULT_MIGRATE_ANNOUNCE_INITIAL),
+    DEFINE_PROP_SIZE("announce-max", MigrationState,
+                      parameters.announce_max,
+                      DEFAULT_MIGRATE_ANNOUNCE_MAX),
+    DEFINE_PROP_SIZE("announce-rounds", MigrationState,
+                      parameters.announce_rounds,
+                      DEFAULT_MIGRATE_ANNOUNCE_ROUNDS),
+    DEFINE_PROP_SIZE("announce-step", MigrationState,
+                      parameters.announce_step,
+                      DEFAULT_MIGRATE_ANNOUNCE_STEP),
+    DEFINE_PROP_STRING("tls-creds", MigrationState, parameters.tls_creds),
+    DEFINE_PROP_STRING("tls-hostname", MigrationState, parameters.tls_hostname),
+    DEFINE_PROP_STRING("tls-authz", MigrationState, parameters.tls_authz),
+
+    /* Migration capabilities */
+    DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
+    DEFINE_PROP_MIG_CAP("x-rdma-pin-all", MIGRATION_CAPABILITY_RDMA_PIN_ALL),
+    DEFINE_PROP_MIG_CAP("x-auto-converge", MIGRATION_CAPABILITY_AUTO_CONVERGE),
+    DEFINE_PROP_MIG_CAP("x-zero-blocks", MIGRATION_CAPABILITY_ZERO_BLOCKS),
+    DEFINE_PROP_MIG_CAP("x-compress", MIGRATION_CAPABILITY_COMPRESS),
+    DEFINE_PROP_MIG_CAP("x-events", MIGRATION_CAPABILITY_EVENTS),
+    DEFINE_PROP_MIG_CAP("x-postcopy-ram", MIGRATION_CAPABILITY_POSTCOPY_RAM),
+    DEFINE_PROP_MIG_CAP("x-postcopy-preempt",
+                        MIGRATION_CAPABILITY_POSTCOPY_PREEMPT),
+    DEFINE_PROP_MIG_CAP("x-colo", MIGRATION_CAPABILITY_X_COLO),
+    DEFINE_PROP_MIG_CAP("x-release-ram", MIGRATION_CAPABILITY_RELEASE_RAM),
+    DEFINE_PROP_MIG_CAP("x-block", MIGRATION_CAPABILITY_BLOCK),
+    DEFINE_PROP_MIG_CAP("x-return-path", MIGRATION_CAPABILITY_RETURN_PATH),
+    DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
+    DEFINE_PROP_MIG_CAP("x-background-snapshot",
+            MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT),
+#ifdef CONFIG_LINUX
+    DEFINE_PROP_MIG_CAP("x-zero-copy-send",
+            MIGRATION_CAPABILITY_ZERO_COPY_SEND),
+#endif
+
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 bool migrate_auto_converge(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_AUTO_CONVERGE];
 }
 
 bool migrate_background_snapshot(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
 bool migrate_block(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_BLOCK];
 }
@@ -61,95 +212,76 @@ bool migrate_block(void)
 bool migrate_colo(void)
 {
     MigrationState *s = migrate_get_current();
+
     return s->capabilities[MIGRATION_CAPABILITY_X_COLO];
 }
 
 bool migrate_compress(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
 bool migrate_dirty_bitmaps(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
 bool migrate_events(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 bool migrate_ignore_shared(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
 }
 
 bool migrate_late_block_activate(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE];
 }
 
 bool migrate_multifd(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 bool migrate_pause_before_switchover(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER];
 }
 
 bool migrate_postcopy_blocktime(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
 bool migrate_postcopy_preempt(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_PREEMPT];
 }
 
 bool migrate_postcopy_ram(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_POSTCOPY_RAM];
 }
@@ -163,59 +295,54 @@ bool migrate_rdma_pin_all(void)
 
 bool migrate_release_ram(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_RELEASE_RAM];
 }
 
 bool migrate_return_path(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_RETURN_PATH];
 }
 
 bool migrate_validate_uuid(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
 }
 
 bool migrate_xbzrle(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_XBZRLE];
 }
 
 bool migrate_zero_blocks(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_BLOCKS];
 }
 
 bool migrate_zero_copy_send(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_ZERO_COPY_SEND];
 }
 
 /* pseudo capabilities */
+
+bool migrate_multifd_flush_after_each_section(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->multifd_flush_after_each_section;
+}
 
 bool migrate_postcopy(void)
 {
@@ -224,9 +351,7 @@ bool migrate_postcopy(void)
 
 bool migrate_tls(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.tls_creds && *s->parameters.tls_creds;
 }
@@ -494,128 +619,114 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
 
 /* parameters */
 
+const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.block_bitmap_mapping;
+}
+
 bool migrate_block_incremental(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.block_incremental;
 }
 
 uint32_t migrate_checkpoint_delay(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.x_checkpoint_delay;
 }
 
 int migrate_compress_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_level;
 }
 
 int migrate_compress_threads(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_threads;
 }
 
 int migrate_compress_wait_thread(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.compress_wait_thread;
 }
 
 uint8_t migrate_cpu_throttle_increment(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_increment;
 }
 
 uint8_t migrate_cpu_throttle_initial(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_initial;
 }
 
 bool migrate_cpu_throttle_tailslow(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.cpu_throttle_tailslow;
 }
 
 int migrate_decompress_threads(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.decompress_threads;
 }
 
+uint64_t migrate_downtime_limit(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.downtime_limit;
+}
+
 uint8_t migrate_max_cpu_throttle(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_cpu_throttle;
 }
 
 uint64_t migrate_max_bandwidth(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_bandwidth;
 }
 
 int64_t migrate_max_postcopy_bandwidth(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.max_postcopy_bandwidth;
 }
 
 int migrate_multifd_channels(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_channels;
 }
 
 MultiFDCompression migrate_multifd_compression(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     assert(s->parameters.multifd_compression < MULTIFD_COMPRESSION__MAX);
     return s->parameters.multifd_compression;
@@ -623,41 +734,75 @@ MultiFDCompression migrate_multifd_compression(void)
 
 int migrate_multifd_zlib_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_zlib_level;
 }
 
 int migrate_multifd_zstd_level(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.multifd_zstd_level;
 }
 
 uint8_t migrate_throttle_trigger_threshold(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.throttle_trigger_threshold;
 }
 
+const char *migrate_tls_authz(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_authz;
+}
+
+const char *migrate_tls_creds(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_creds;
+}
+
+const char *migrate_tls_hostname(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.tls_hostname;
+}
+
 uint64_t migrate_xbzrle_cache_size(void)
 {
-    MigrationState *s;
-
-    s = migrate_get_current();
+    MigrationState *s = migrate_get_current();
 
     return s->parameters.xbzrle_cache_size;
 }
 
+/* parameter setters */
+
+void migrate_set_block_incremental(bool value)
+{
+    MigrationState *s = migrate_get_current();
+
+    s->parameters.block_incremental = value;
+}
+
 /* parameters helpers */
+
+void block_cleanup_parameters(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (s->must_remove_block_options) {
+        /* setting to false can never fail */
+        migrate_cap_set(MIGRATION_CAPABILITY_BLOCK, false, &error_abort);
+        migrate_set_block_incremental(false);
+        s->must_remove_block_options = false;
+    }
+}
 
 AnnounceParameters *migrate_announce_params(void)
 {
@@ -739,6 +884,37 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     }
 
     return params;
+}
+
+void migrate_params_init(MigrationParameters *params)
+{
+    params->tls_hostname = g_strdup("");
+    params->tls_creds = g_strdup("");
+
+    /* Set has_* up only for parameter checks */
+    params->has_compress_level = true;
+    params->has_compress_threads = true;
+    params->has_compress_wait_thread = true;
+    params->has_decompress_threads = true;
+    params->has_throttle_trigger_threshold = true;
+    params->has_cpu_throttle_initial = true;
+    params->has_cpu_throttle_increment = true;
+    params->has_cpu_throttle_tailslow = true;
+    params->has_max_bandwidth = true;
+    params->has_downtime_limit = true;
+    params->has_x_checkpoint_delay = true;
+    params->has_block_incremental = true;
+    params->has_multifd_channels = true;
+    params->has_multifd_compression = true;
+    params->has_multifd_zlib_level = true;
+    params->has_multifd_zstd_level = true;
+    params->has_xbzrle_cache_size = true;
+    params->has_max_postcopy_bandwidth = true;
+    params->has_max_cpu_throttle = true;
+    params->has_announce_initial = true;
+    params->has_announce_max = true;
+    params->has_announce_rounds = true;
+    params->has_announce_step = true;
 }
 
 /*

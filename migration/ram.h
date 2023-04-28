@@ -41,7 +41,8 @@
  * one thread).
  */
 typedef struct {
-    int64_t dirty_pages_rate;
+    Stat64 dirty_bytes_last_sync;
+    Stat64 dirty_pages_rate;
     Stat64 dirty_sync_count;
     Stat64 dirty_sync_missed_zero_copy;
     Stat64 downtime_bytes;
@@ -51,7 +52,6 @@ typedef struct {
     Stat64 postcopy_bytes;
     Stat64 postcopy_requests;
     Stat64 precopy_bytes;
-    int64_t remaining;
     Stat64 transferred;
 } RAMStats;
 
