@@ -5614,12 +5614,7 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
     next_arg = 1;
 
     loc = &info->in[next_arg];
-    if (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 64) {
-        nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, TCG_TYPE_TL,
-                                      ldst->addrlo_reg, ldst->addrhi_reg);
-        tcg_out_helper_load_slots(s, nmov, mov, parm);
-        next_arg += nmov;
-    } else {
+    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
         /*
          * 32-bit host with 32-bit guest: zero-extend the guest address
          * to 64-bits for the helper by storing the low part, then
@@ -5633,6 +5628,11 @@ static void tcg_out_ld_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         tcg_out_helper_load_imm(s, loc[!HOST_BIG_ENDIAN].arg_slot,
                                 TCG_TYPE_I32, 0, parm);
         next_arg += 2;
+    } else {
+        nmov = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
+                                      ldst->addrlo_reg, ldst->addrhi_reg);
+        tcg_out_helper_load_slots(s, nmov, mov, parm);
+        next_arg += nmov;
     }
 
     switch (info->out_kind) {
@@ -5787,12 +5787,7 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
 
     /* Handle addr argument. */
     loc = &info->in[next_arg];
-    if (TCG_TARGET_REG_BITS == 64 || TARGET_LONG_BITS == 64) {
-        n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, TCG_TYPE_TL,
-                                   ldst->addrlo_reg, ldst->addrhi_reg);
-        next_arg += n;
-        nmov += n;
-    } else {
+    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
         /*
          * 32-bit host with 32-bit guest: zero-extend the guest address
          * to 64-bits for the helper by storing the low part.  Later,
@@ -5804,6 +5799,11 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
                                ldst->addrlo_reg, -1);
         next_arg += 2;
         nmov += 1;
+    } else {
+        n = tcg_out_helper_add_mov(mov, loc, TCG_TYPE_I64, s->addr_type,
+                                   ldst->addrlo_reg, ldst->addrhi_reg);
+        next_arg += n;
+        nmov += n;
     }
 
     /* Handle data argument. */
@@ -5849,7 +5849,8 @@ static void tcg_out_st_helper_args(TCGContext *s, const TCGLabelQemuLdst *ldst,
         g_assert_not_reached();
     }
 
-    if (TCG_TARGET_REG_BITS == 32 && TARGET_LONG_BITS == 32) {
+    if (TCG_TARGET_REG_BITS == 32 && s->addr_type == TCG_TYPE_I32) {
+        /* Zero extend the address by loading a zero for the high part. */
         loc = &info->in[1 + !HOST_BIG_ENDIAN];
         tcg_out_helper_load_imm(s, loc->arg_slot, TCG_TYPE_I32, 0, parm);
     }
