@@ -1366,7 +1366,8 @@
 # <- { "return": {} }
 ##
 { 'command': 'x-colo-lost-heartbeat',
-  'features': [ 'unstable' ] }
+  'features': [ 'unstable' ],
+  'if': 'CONFIG_REPLICATION' }
 
 ##
 # @migrate_cancel:
@@ -1638,7 +1639,8 @@
 ##
 { 'struct': 'COLOStatus',
   'data': { 'mode': 'COLOMode', 'last-mode': 'COLOMode',
-            'reason': 'COLOExitReason' } }
+            'reason': 'COLOExitReason' },
+  'if': 'CONFIG_REPLICATION' }
 
 ##
 # @query-colo-status:
@@ -1655,7 +1657,8 @@
 # Since: 3.1
 ##
 { 'command': 'query-colo-status',
-  'returns': 'COLOStatus' }
+  'returns': 'COLOStatus',
+  'if': 'CONFIG_REPLICATION' }
 
 ##
 # @migrate-recover:
