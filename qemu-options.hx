@@ -5438,7 +5438,7 @@ SRST
         physical address space. The ``reduced-phys-bits`` is used to
         provide the number of bits we loose in physical address space.
         Similar to C-bit, the value is Host family dependent. On EPYC,
-        the value should be 5.
+        a guest will lose a maximum of 1 bit, so the value should be 1.
 
         The ``sev-device`` provides the device file to use for
         communicating with the SEV firmware running inside AMD Secure
@@ -5473,7 +5473,7 @@ SRST
 
              # |qemu_system_x86| \\
                  ...... \\
-                 -object sev-guest,id=sev0,cbitpos=47,reduced-phys-bits=5 \\
+                 -object sev-guest,id=sev0,cbitpos=47,reduced-phys-bits=1 \\
                  -machine ...,memory-encryption=sev0 \\
                  .....
 
