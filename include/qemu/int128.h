@@ -483,9 +483,9 @@ static inline void bswap128s(Int128 *s)
  */
 #ifdef CONFIG_INT128
 typedef union {
-    Int128 s;
-    __int128_t i;
     __uint128_t u;
+    __int128_t i;
+    Int128 s;
 } Int128Alias __attribute__((transparent_union));
 #else
 typedef Int128 Int128Alias;
