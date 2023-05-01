@@ -156,18 +156,20 @@ void aio_bh_call(QEMUBH *bh)
 {
     bool last_engaged_in_io = false;
 
-    if (bh->reentrancy_guard) {
-        last_engaged_in_io = bh->reentrancy_guard->engaged_in_io;
-        if (bh->reentrancy_guard->engaged_in_io) {
+    /* Make a copy of the guard-pointer as cb may free the bh */
+    MemReentrancyGuard *reentrancy_guard = bh->reentrancy_guard;
+    if (reentrancy_guard) {
+        last_engaged_in_io = reentrancy_guard->engaged_in_io;
+        if (reentrancy_guard->engaged_in_io) {
             trace_reentrant_aio(bh->ctx, bh->name);
         }
-        bh->reentrancy_guard->engaged_in_io = true;
+        reentrancy_guard->engaged_in_io = true;
     }
 
     bh->cb(bh->opaque);
 
-    if (bh->reentrancy_guard) {
-        bh->reentrancy_guard->engaged_in_io = last_engaged_in_io;
+    if (reentrancy_guard) {
+        reentrancy_guard->engaged_in_io = last_engaged_in_io;
     }
 }
 
