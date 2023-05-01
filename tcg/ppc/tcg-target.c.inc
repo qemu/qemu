@@ -83,7 +83,6 @@
 #define SZR  (TCG_TARGET_REG_BITS / 8)
 
 #define TCG_CT_CONST_S16  0x100
-#define TCG_CT_CONST_U16  0x200
 #define TCG_CT_CONST_S32  0x400
 #define TCG_CT_CONST_U32  0x800
 #define TCG_CT_CONST_ZERO 0x1000
@@ -269,8 +268,6 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     }
 
     if ((ct & TCG_CT_CONST_S16) && val == (int16_t)val) {
-        return 1;
-    } else if ((ct & TCG_CT_CONST_U16) && val == (uint16_t)val) {
         return 1;
     } else if ((ct & TCG_CT_CONST_S32) && val == (int32_t)val) {
         return 1;
