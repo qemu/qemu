@@ -177,11 +177,11 @@ int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen)
 }
 
 #if defined(CONFIG_AVX512BW_OPT)
-#pragma GCC push_options
-#pragma GCC target("avx512bw")
 #include <immintrin.h>
-int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
-                             uint8_t *dst, int dlen)
+
+int __attribute__((target("avx512bw")))
+xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
+                            uint8_t *dst, int dlen)
 {
     uint32_t zrun_len = 0, nzrun_len = 0;
     int d = 0, i = 0, num = 0;
@@ -296,5 +296,4 @@ int xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
     }
     return d;
 }
-#pragma GCC pop_options
 #endif
