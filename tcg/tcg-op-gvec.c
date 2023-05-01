@@ -3353,6 +3353,17 @@ void tcg_gen_gvec_rotls(unsigned vece, uint32_t dofs, uint32_t aofs,
     do_gvec_shifts(vece, dofs, aofs, shift, oprsz, maxsz, &g);
 }
 
+void tcg_gen_gvec_rotrs(unsigned vece, uint32_t dofs, uint32_t aofs,
+                        TCGv_i32 shift, uint32_t oprsz, uint32_t maxsz)
+{
+    TCGv_i32 tmp = tcg_temp_ebb_new_i32();
+
+    tcg_gen_neg_i32(tmp, shift);
+    tcg_gen_andi_i32(tmp, tmp, (8 << vece) - 1);
+    tcg_gen_gvec_rotls(vece, dofs, aofs, tmp, oprsz, maxsz);
+    tcg_temp_free_i32(tmp);
+}
+
 /*
  * Expand D = A << (B % element bits)
  *
