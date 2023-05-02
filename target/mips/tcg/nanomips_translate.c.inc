@@ -4305,7 +4305,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     TCGv va = tcg_temp_new();
                     TCGv t1 = tcg_temp_new();
                     MemOp memop = (extract32(ctx->opcode, 8, 3)) ==
-                                      NM_P_LS_UAWM ? MO_UNALN : 0;
+                                      NM_P_LS_UAWM ? MO_UNALN : MO_ALIGN;
 
                     count = (count == 0) ? 8 : count;
                     while (counter != count) {
