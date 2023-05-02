@@ -114,7 +114,10 @@ if have_block
     tests += {'test-crypto-xts': [crypto, io]}
   endif
   if 'CONFIG_POSIX' in config_host
-    tests += {'test-image-locking': [testblock]}
+    tests += {
+      'test-image-locking': [testblock],
+      'test-nested-aio-poll': [testblock],
+    }
   endif
   if config_host_data.get('CONFIG_REPLICATION')
     tests += {'test-replication': [testblock]}
