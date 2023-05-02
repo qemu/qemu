@@ -232,18 +232,23 @@ bool dirtylimit_vcpu_index_valid(int cpu_index)
              cpu_index >= ms->smp.max_cpus);
 }
 
-static inline int64_t dirtylimit_dirty_ring_full_time(uint64_t dirtyrate)
+static uint64_t dirtylimit_dirty_ring_full_time(uint64_t dirtyrate)
 {
     static uint64_t max_dirtyrate;
-    uint32_t dirty_ring_size = kvm_dirty_ring_size();
-    uint64_t dirty_ring_size_meory_MB =
-        dirty_ring_size * qemu_target_page_size() >> 20;
+    unsigned target_page_bits = qemu_target_page_bits();
+    uint64_t dirty_ring_size_MB;
+
+    /* So far, the largest (non-huge) page size is 64k, i.e. 16 bits. */
+    assert(target_page_bits < 20);
+
+    /* Convert ring size (pages) to MiB (2**20). */
+    dirty_ring_size_MB = kvm_dirty_ring_size() >> (20 - target_page_bits);
 
     if (max_dirtyrate < dirtyrate) {
         max_dirtyrate = dirtyrate;
     }
 
-    return dirty_ring_size_meory_MB * 1000000 / max_dirtyrate;
+    return dirty_ring_size_MB * 1000000 / max_dirtyrate;
 }
 
 static inline bool dirtylimit_done(uint64_t quota,
