@@ -80,13 +80,9 @@ static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
     /* Store only if F flag isn't set */
     tcg_gen_andi_tl(t1, cpu_PR[PR_CCS], F_FLAG_V10);
     tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
-    if (size == 1) {
-        tcg_gen_qemu_st8(tval, taddr, mem_index);
-    } else if (size == 2) {
-        tcg_gen_qemu_st16(tval, taddr, mem_index);
-    } else {
-        tcg_gen_qemu_st32(tval, taddr, mem_index);
-    }
+
+    tcg_gen_qemu_st_tl(tval, taddr, mem_index, ctz32(size) | MO_TE);
+
     gen_set_label(l1);
     tcg_gen_shri_tl(t1, t1, 1);  /* shift F to P position */
     tcg_gen_or_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], t1); /*P=F*/
@@ -109,13 +105,7 @@ static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
         return;
     }
 
-    if (size == 1) {
-        tcg_gen_qemu_st8(val, addr, mem_index);
-    } else if (size == 2) {
-        tcg_gen_qemu_st16(val, addr, mem_index);
-    } else {
-        tcg_gen_qemu_st32(val, addr, mem_index);
-    }
+    tcg_gen_qemu_st_tl(val, addr, mem_index, ctz32(size) | MO_TE);
 }
 
 
