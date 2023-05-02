@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/accel.h"
+#include "qemu/atomic.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qemu/units.h"
 #if !defined(CONFIG_USER_ONLY)
@@ -42,6 +43,7 @@ struct TCGState {
     AccelState parent_obj;
 
     bool mttcg_enabled;
+    bool one_insn_per_tb;
     int splitwx_enabled;
     unsigned long tb_size;
 };
@@ -109,6 +111,7 @@ static void tcg_accel_instance_init(Object *obj)
 }
 
 bool mttcg_enabled;
+bool one_insn_per_tb;
 
 static int tcg_init_machine(MachineState *ms)
 {
@@ -208,6 +211,20 @@ static void tcg_set_splitwx(Object *obj, bool value, Error **errp)
     s->splitwx_enabled = value;
 }
 
+static bool tcg_get_one_insn_per_tb(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+    return s->one_insn_per_tb;
+}
+
+static void tcg_set_one_insn_per_tb(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+    s->one_insn_per_tb = value;
+    /* Set the global also: this changes the behaviour */
+    qatomic_set(&one_insn_per_tb, value);
+}
+
 static int tcg_gdbstub_supported_sstep_flags(void)
 {
     /*
@@ -245,6 +262,12 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
         tcg_get_splitwx, tcg_set_splitwx);
     object_class_property_set_description(oc, "split-wx",
         "Map jit pages into separate RW and RX regions");
+
+    object_class_property_add_bool(oc, "one-insn-per-tb",
+                                   tcg_get_one_insn_per_tb,
+                                   tcg_set_one_insn_per_tb);
+    object_class_property_set_description(oc, "one-insn-per-tb",
+        "Only put one guest insn in each translation block");
 }
 
 static const TypeInfo tcg_accel_type = {

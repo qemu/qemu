@@ -2477,7 +2477,7 @@ static bool kvm_dirty_ring_supported(void)
 
 int main(int argc, char **argv)
 {
-    bool has_kvm;
+    bool has_kvm, has_tcg;
     bool has_uffd;
     const char *arch;
     g_autoptr(GError) err = NULL;
@@ -2486,6 +2486,13 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     has_kvm = qtest_has_accel("kvm");
+    has_tcg = qtest_has_accel("tcg");
+
+    if (!has_tcg && !has_kvm) {
+        g_test_skip("No KVM or TCG accelerator available");
+        return 0;
+    }
+
     has_uffd = ufd_version_check();
     arch = qtest_get_arch();
 

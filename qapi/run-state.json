@@ -104,16 +104,24 @@
 #
 # @running: true if all VCPUs are runnable, false if not runnable
 #
-# @singlestep: true if VCPUs are in single-step mode
+# @singlestep: true if using TCG with one guest instruction
+#              per translation block
 #
 # @status: the virtual machine @RunState
 #
+# Features:
+# @deprecated: Member 'singlestep' is deprecated (with no replacement).
+#
 # Since: 0.14
 #
-# Notes: @singlestep is enabled through the GDB stub
+# Notes: @singlestep is enabled on the command line with
+#        '-accel tcg,one-insn-per-tb=on', or with the HMP
+#        'one-insn-per-tb' command.
 ##
 { 'struct': 'StatusInfo',
-  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
+  'data': {'running': 'bool',
+           'singlestep': { 'type': 'bool', 'features': [ 'deprecated' ]},
+           'status': 'RunState'} }
 
 ##
 # @query-status:

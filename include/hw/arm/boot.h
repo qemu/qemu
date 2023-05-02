@@ -183,4 +183,53 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
                                             hwaddr mvbar_addr);
 
+typedef enum {
+    FIXUP_NONE = 0,     /* do nothing */
+    FIXUP_TERMINATOR,   /* end of insns */
+    FIXUP_BOARDID,      /* overwrite with board ID number */
+    FIXUP_BOARD_SETUP,  /* overwrite with board specific setup code address */
+    FIXUP_ARGPTR_LO,    /* overwrite with pointer to kernel args */
+    FIXUP_ARGPTR_HI,    /* overwrite with pointer to kernel args (high half) */
+    FIXUP_ENTRYPOINT_LO, /* overwrite with kernel entry point */
+    FIXUP_ENTRYPOINT_HI, /* overwrite with kernel entry point (high half) */
+    FIXUP_GIC_CPU_IF,   /* overwrite with GIC CPU interface address */
+    FIXUP_BOOTREG,      /* overwrite with boot register address */
+    FIXUP_DSB,          /* overwrite with correct DSB insn for cpu */
+    FIXUP_MAX,
+} FixupType;
+
+typedef struct ARMInsnFixup {
+    uint32_t insn;
+    FixupType fixup;
+} ARMInsnFixup;
+
+/**
+ * arm_write_bootloader - write a bootloader to guest memory
+ * @name: name of the bootloader blob
+ * @as: AddressSpace to write the bootloader
+ * @addr: guest address to write it
+ * @insns: the blob to be loaded
+ * @fixupcontext: context to be used for any fixups in @insns
+ *
+ * Write a bootloader to guest memory at address @addr in the address
+ * space @as. @name is the name to use for the resulting ROM blob, so
+ * it should be unique in the system and reasonably identifiable for debugging.
+ *
+ * @insns must be an array of ARMInsnFixup structs, each of which has
+ * one 32-bit value to be written to the guest memory, and a fixup to be
+ * applied to the value. FIXUP_NONE (do nothing) is value 0, so effectively
+ * the fixup is optional when writing a struct initializer.
+ * The final entry in the array must be { 0, FIXUP_TERMINATOR }.
+ *
+ * All other supported fixup types have the semantics "ignore insn
+ * and instead use the value from the array element @fixupcontext[fixup]".
+ * The caller should therefore provide @fixupcontext as an array of
+ * size FIXUP_MAX whose elements have been initialized for at least
+ * the entries that @insns refers to.
+ */
+void arm_write_bootloader(const char *name,
+                          AddressSpace *as, hwaddr addr,
+                          const ARMInsnFixup *insns,
+                          const uint32_t *fixupcontext);
+
 #endif /* HW_ARM_BOOT_H */
