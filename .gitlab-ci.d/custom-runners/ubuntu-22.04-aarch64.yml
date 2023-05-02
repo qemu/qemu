@@ -145,7 +145,7 @@ ubuntu-22.04-aarch64-notcg:
  script:
  - mkdir build
  - cd build
- - ../configure --disable-tcg
+ - ../configure --disable-tcg --with-devices-aarch64=minimal
    || { cat config.log meson-logs/meson-log.txt; exit 1; }
  - make --output-sync -j`nproc --ignore=40`
  - make --output-sync -j`nproc --ignore=40` check
