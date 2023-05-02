@@ -47,8 +47,6 @@ typedef enum MemOp {
      * MO_UNALN accesses are never checked for alignment.
      * MO_ALIGN accesses will result in a call to the CPU's
      * do_unaligned_access hook if the guest address is not aligned.
-     * The default depends on whether the target CPU defines
-     * TARGET_ALIGNED_ONLY.
      *
      * Some architectures (e.g. ARMv8) need the address which is aligned
      * to a size more than the size of the memory access.
@@ -65,21 +63,14 @@ typedef enum MemOp {
      */
     MO_ASHIFT = 5,
     MO_AMASK = 0x7 << MO_ASHIFT,
-#ifdef NEED_CPU_H
-#ifdef TARGET_ALIGNED_ONLY
-    MO_ALIGN = 0,
-    MO_UNALN = MO_AMASK,
-#else
-    MO_ALIGN = MO_AMASK,
-    MO_UNALN = 0,
-#endif
-#endif
+    MO_UNALN    = 0,
     MO_ALIGN_2  = 1 << MO_ASHIFT,
     MO_ALIGN_4  = 2 << MO_ASHIFT,
     MO_ALIGN_8  = 3 << MO_ASHIFT,
     MO_ALIGN_16 = 4 << MO_ASHIFT,
     MO_ALIGN_32 = 5 << MO_ASHIFT,
     MO_ALIGN_64 = 6 << MO_ASHIFT,
+    MO_ALIGN    = MO_AMASK,
 
     /* Combinations of the above, for ease of use.  */
     MO_UB    = MO_8,
