@@ -320,14 +320,14 @@ void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
 
 static inline void gen_load_locked4u(TCGv dest, TCGv vaddr, int mem_index)
 {
-    tcg_gen_qemu_ld32u(dest, vaddr, mem_index);
+    tcg_gen_qemu_ld_tl(dest, vaddr, mem_index, MO_TEUL);
     tcg_gen_mov_tl(hex_llsc_addr, vaddr);
     tcg_gen_mov_tl(hex_llsc_val, dest);
 }
 
 static inline void gen_load_locked8u(TCGv_i64 dest, TCGv vaddr, int mem_index)
 {
-    tcg_gen_qemu_ld64(dest, vaddr, mem_index);
+    tcg_gen_qemu_ld_i64(dest, vaddr, mem_index, MO_TEUQ);
     tcg_gen_mov_tl(hex_llsc_addr, vaddr);
     tcg_gen_mov_i64(hex_llsc_val_i64, dest);
 }
@@ -678,7 +678,7 @@ static void gen_load_frame(DisasContext *ctx, TCGv_i64 frame, TCGv EA)
 {
     Insn *insn = ctx->insn;  /* Needed for CHECK_NOSHUF */
     CHECK_NOSHUF(EA, 8);
-    tcg_gen_qemu_ld64(frame, EA, ctx->mem_idx);
+    tcg_gen_qemu_ld_i64(frame, EA, ctx->mem_idx, MO_TEUQ);
 }
 
 static void gen_return(DisasContext *ctx, TCGv_i64 dst, TCGv src)
@@ -1019,7 +1019,7 @@ static void gen_vreg_load(DisasContext *ctx, intptr_t dstoff, TCGv src,
         tcg_gen_andi_tl(src, src, ~((int32_t)sizeof(MMVector) - 1));
     }
     for (int i = 0; i < sizeof(MMVector) / 8; i++) {
-        tcg_gen_qemu_ld64(tmp, src, ctx->mem_idx);
+        tcg_gen_qemu_ld_i64(tmp, src, ctx->mem_idx, MO_TEUQ);
         tcg_gen_addi_tl(src, src, 8);
         tcg_gen_st_i64(tmp, cpu_env, dstoff + i * 8);
     }
