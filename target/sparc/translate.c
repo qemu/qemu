@@ -5179,15 +5179,18 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 switch (xop) {
                 case 0x0:       /* ld, V9 lduw, load unsigned word */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld32u(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUL);
                     break;
                 case 0x1:       /* ldub, load unsigned byte */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld8u(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_UB);
                     break;
                 case 0x2:       /* lduh, load unsigned halfword */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld16u(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUW);
                     break;
                 case 0x3:       /* ldd, load double word */
                     if (rd & 1)
@@ -5197,7 +5200,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
                         gen_address_mask(dc, cpu_addr);
                         t64 = tcg_temp_new_i64();
-                        tcg_gen_qemu_ld64(t64, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_ld_i64(t64, cpu_addr,
+                                            dc->mem_idx, MO_TEUQ);
                         tcg_gen_trunc_i64_tl(cpu_val, t64);
                         tcg_gen_ext32u_tl(cpu_val, cpu_val);
                         gen_store_gpr(dc, rd + 1, cpu_val);
@@ -5208,11 +5212,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x9:       /* ldsb, load signed byte */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld8s(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr, dc->mem_idx, MO_SB);
                     break;
                 case 0xa:       /* ldsh, load signed halfword */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld16s(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TESW);
                     break;
                 case 0xd:       /* ldstub */
                     gen_ldstub(dc, cpu_val, cpu_addr, dc->mem_idx);
@@ -5266,11 +5271,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #ifdef TARGET_SPARC64
                 case 0x08: /* V9 ldsw */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld32s(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TESL);
                     break;
                 case 0x0b: /* V9 ldx */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_ld64(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_ld_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUQ);
                     break;
                 case 0x18: /* V9 ldswa */
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TESL);
@@ -5369,15 +5376,17 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 switch (xop) {
                 case 0x4: /* st, store word */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_st32(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUL);
                     break;
                 case 0x5: /* stb, store byte */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_st8(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st_tl(cpu_val, cpu_addr, dc->mem_idx, MO_UB);
                     break;
                 case 0x6: /* sth, store halfword */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_st16(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUW);
                     break;
                 case 0x7: /* std, store double word */
                     if (rd & 1)
@@ -5390,7 +5399,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         lo = gen_load_gpr(dc, rd + 1);
                         t64 = tcg_temp_new_i64();
                         tcg_gen_concat_tl_i64(t64, lo, cpu_val);
-                        tcg_gen_qemu_st64(t64, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_st_i64(t64, cpu_addr,
+                                            dc->mem_idx, MO_TEUQ);
                     }
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
@@ -5413,7 +5423,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #ifdef TARGET_SPARC64
                 case 0x0e: /* V9 stx */
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_qemu_st64(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st_tl(cpu_val, cpu_addr,
+                                       dc->mem_idx, MO_TEUQ);
                     break;
                 case 0x1e: /* V9 stxa */
                     gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEUQ);
@@ -5438,11 +5449,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #ifdef TARGET_SPARC64
                         gen_address_mask(dc, cpu_addr);
                         if (rd == 1) {
-                            tcg_gen_qemu_st64(cpu_fsr, cpu_addr, dc->mem_idx);
+                            tcg_gen_qemu_st_tl(cpu_fsr, cpu_addr,
+                                               dc->mem_idx, MO_TEUQ);
                             break;
                         }
 #endif
-                        tcg_gen_qemu_st32(cpu_fsr, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_st_tl(cpu_fsr, cpu_addr,
+                                           dc->mem_idx, MO_TEUL);
                     }
                     break;
                 case 0x26:
