@@ -46,6 +46,28 @@ Here are some useful tips in order to use gdb on system code:
 3. Use ``set architecture i8086`` to dump 16 bit code. Then use
    ``x/10i $cs*16+$eip`` to dump the code at the PC position.
 
+Breakpoint and Watchpoint support
+=================================
+
+While GDB can always fall back to inserting breakpoints into memory
+(if writable) other features are very much dependent on support of the
+accelerator. For TCG system emulation we advertise an infinite number
+of hardware assisted breakpoints and watchpoints. For other
+accelerators it will depend on if support has been added (see
+supports_guest_debug and related hooks in AccelOpsClass).
+
+As TCG cannot track all memory accesses in user-mode there is no
+support for watchpoints.
+
+Relocating code
+---------------
+
+On modern kernels confusion can be caused by code being relocated by
+features such as address space layout randomisation. To avoid
+confusion when debugging such things you either need to update gdb's
+view of where things are in memory or perhaps more trivially disable
+ASLR when booting the system.
+
 Debugging multicore machines
 ============================
 
