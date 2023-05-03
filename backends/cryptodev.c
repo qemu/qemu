@@ -522,7 +522,7 @@ static int cryptodev_backend_stats_query(Object *obj, void *data)
 
     entry = g_new0(StatsResult, 1);
     entry->provider = STATS_PROVIDER_CRYPTODEV;
-    entry->qom_path = g_strdup(object_get_canonical_path(obj));
+    entry->qom_path = object_get_canonical_path(obj);
     entry->stats = stats_list;
     QAPI_LIST_PREPEND(*stats_results, entry);
 
