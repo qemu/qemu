@@ -204,10 +204,9 @@ static void initialize_debug_host(CPUDebug *s)
 }
 
 /* Disassemble this for me please... (debugging).  */
-void target_disas(FILE *out, CPUState *cpu, target_ulong code,
-                  target_ulong size)
+void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size)
 {
-    target_ulong pc;
+    uint64_t pc;
     int count;
     CPUDebug s;
 
@@ -226,7 +225,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 
     for (pc = code; size > 0; pc += count, size -= count) {
-        fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
+        fprintf(out, "0x%08" PRIx64 ":  ", pc);
         count = s.info.print_insn(pc, &s.info);
         fprintf(out, "\n");
         if (count < 0) {
@@ -293,7 +292,7 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
 }
 
 /* Disassemble this for me please... (debugging). */
-void disas(FILE *out, const void *code, unsigned long size)
+void disas(FILE *out, const void *code, size_t size)
 {
     uintptr_t pc;
     int count;
@@ -325,7 +324,7 @@ void disas(FILE *out, const void *code, unsigned long size)
 }
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
-const char *lookup_symbol(target_ulong orig_addr)
+const char *lookup_symbol(uint64_t orig_addr)
 {
     const char *symbol = "";
     struct syminfo *s;
@@ -357,8 +356,8 @@ physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
 }
 
 /* Disassembler for the monitor.  */
-void monitor_disas(Monitor *mon, CPUState *cpu,
-                   target_ulong pc, int nb_insn, int is_physical)
+void monitor_disas(Monitor *mon, CPUState *cpu, uint64_t pc,
+                   int nb_insn, bool is_physical)
 {
     int count, i;
     CPUDebug s;
@@ -379,13 +378,13 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     }
 
     if (!s.info.print_insn) {
-        monitor_printf(mon, "0x" TARGET_FMT_lx
+        monitor_printf(mon, "0x%08" PRIx64
                        ": Asm output not supported on this arch\n", pc);
         return;
     }
 
     for (i = 0; i < nb_insn; i++) {
-        g_string_append_printf(ds, "0x" TARGET_FMT_lx ":  ", pc);
+        g_string_append_printf(ds, "0x%08" PRIx64 ":  ", pc);
         count = s.info.print_insn(pc, &s.info);
         g_string_append_c(ds, '\n');
         if (count < 0) {
