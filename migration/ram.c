@@ -36,6 +36,7 @@
 #include "xbzrle.h"
 #include "ram.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "migration/register.h"
 #include "migration/misc.h"
 #include "qemu-file.h"
@@ -460,18 +461,16 @@ uint64_t ram_bytes_remaining(void)
                        0;
 }
 
-RAMStats ram_counters;
-
 void ram_transferred_add(uint64_t bytes)
 {
     if (runstate_is_running()) {
-        stat64_add(&ram_counters.precopy_bytes, bytes);
+        stat64_add(&mig_stats.precopy_bytes, bytes);
     } else if (migration_in_postcopy()) {
-        stat64_add(&ram_counters.postcopy_bytes, bytes);
+        stat64_add(&mig_stats.postcopy_bytes, bytes);
     } else {
-        stat64_add(&ram_counters.downtime_bytes, bytes);
+        stat64_add(&mig_stats.downtime_bytes, bytes);
     }
-    stat64_add(&ram_counters.transferred, bytes);
+    stat64_add(&mig_stats.transferred, bytes);
 }
 
 struct MigrationOps {
@@ -745,7 +744,7 @@ void mig_throttle_counter_reset(void)
 
     rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     rs->num_dirty_pages_period = 0;
-    rs->bytes_xfer_prev = stat64_get(&ram_counters.transferred);
+    rs->bytes_xfer_prev = stat64_get(&mig_stats.transferred);
 }
 
 /**
@@ -765,7 +764,7 @@ static void xbzrle_cache_zero_page(RAMState *rs, ram_addr_t current_addr)
     /* We don't care if this fails to allocate a new cache page
      * as long as it updated an old one */
     cache_insert(XBZRLE.cache, current_addr, XBZRLE.zero_target_page,
-                 stat64_get(&ram_counters.dirty_sync_count));
+                 stat64_get(&mig_stats.dirty_sync_count));
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -791,7 +790,7 @@ static int save_xbzrle_page(RAMState *rs, PageSearchStatus *pss,
     int encoded_len = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
     QEMUFile *file = pss->pss_channel;
-    uint64_t generation = stat64_get(&ram_counters.dirty_sync_count);
+    uint64_t generation = stat64_get(&mig_stats.dirty_sync_count);
 
     if (!cache_is_cached(XBZRLE.cache, current_addr, generation)) {
         xbzrle_counters.cache_miss++;
@@ -1119,8 +1118,8 @@ uint64_t ram_pagesize_summary(void)
 
 uint64_t ram_get_total_transferred_pages(void)
 {
-    return stat64_get(&ram_counters.normal_pages) +
-        stat64_get(&ram_counters.zero_pages) +
+    return stat64_get(&mig_stats.normal_pages) +
+        stat64_get(&mig_stats.zero_pages) +
         compression_counters.pages + xbzrle_counters.pages;
 }
 
@@ -1130,7 +1129,7 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
     double compressed_size;
 
     /* calculate period counters */
-    stat64_set(&ram_counters.dirty_pages_rate,
+    stat64_set(&mig_stats.dirty_pages_rate,
                rs->num_dirty_pages_period * 1000 /
                (end_time - rs->time_last_bitmap_sync));
 
@@ -1181,7 +1180,7 @@ static void migration_trigger_throttle(RAMState *rs)
 {
     uint64_t threshold = migrate_throttle_trigger_threshold();
     uint64_t bytes_xfer_period =
-        stat64_get(&ram_counters.transferred) - rs->bytes_xfer_prev;
+        stat64_get(&mig_stats.transferred) - rs->bytes_xfer_prev;
     uint64_t bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
     uint64_t bytes_dirty_threshold = bytes_xfer_period * threshold / 100;
 
@@ -1210,7 +1209,7 @@ static void migration_bitmap_sync(RAMState *rs)
     RAMBlock *block;
     int64_t end_time;
 
-    stat64_add(&ram_counters.dirty_sync_count, 1);
+    stat64_add(&mig_stats.dirty_sync_count, 1);
 
     if (!rs->time_last_bitmap_sync) {
         rs->time_last_bitmap_sync = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -1224,7 +1223,7 @@ static void migration_bitmap_sync(RAMState *rs)
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             ramblock_sync_dirty_bitmap(rs, block);
         }
-        stat64_set(&ram_counters.dirty_bytes_last_sync, ram_bytes_remaining());
+        stat64_set(&mig_stats.dirty_bytes_last_sync, ram_bytes_remaining());
     }
     qemu_mutex_unlock(&rs->bitmap_mutex);
 
@@ -1244,10 +1243,10 @@ static void migration_bitmap_sync(RAMState *rs)
         /* reset period counters */
         rs->time_last_bitmap_sync = end_time;
         rs->num_dirty_pages_period = 0;
-        rs->bytes_xfer_prev = stat64_get(&ram_counters.transferred);
+        rs->bytes_xfer_prev = stat64_get(&mig_stats.transferred);
     }
     if (migrate_events()) {
-        uint64_t generation = stat64_get(&ram_counters.dirty_sync_count);
+        uint64_t generation = stat64_get(&mig_stats.dirty_sync_count);
         qapi_event_send_migration_pass(generation);
     }
 }
@@ -1321,7 +1320,7 @@ static int save_zero_page(PageSearchStatus *pss, QEMUFile *f, RAMBlock *block,
     int len = save_zero_page_to_file(pss, f, block, offset);
 
     if (len) {
-        stat64_add(&ram_counters.zero_pages, 1);
+        stat64_add(&mig_stats.zero_pages, 1);
         ram_transferred_add(len);
         return 1;
     }
@@ -1358,9 +1357,9 @@ static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
     }
 
     if (bytes_xmit > 0) {
-        stat64_add(&ram_counters.normal_pages, 1);
+        stat64_add(&mig_stats.normal_pages, 1);
     } else if (bytes_xmit == 0) {
-        stat64_add(&ram_counters.zero_pages, 1);
+        stat64_add(&mig_stats.zero_pages, 1);
     }
 
     return true;
@@ -1392,7 +1391,7 @@ static int save_normal_page(PageSearchStatus *pss, RAMBlock *block,
         qemu_put_buffer(file, buf, TARGET_PAGE_SIZE);
     }
     ram_transferred_add(TARGET_PAGE_SIZE);
-    stat64_add(&ram_counters.normal_pages, 1);
+    stat64_add(&mig_stats.normal_pages, 1);
     return 1;
 }
 
@@ -1448,7 +1447,7 @@ static int ram_save_multifd_page(QEMUFile *file, RAMBlock *block,
     if (multifd_queue_page(file, block, offset) < 0) {
         return -1;
     }
-    stat64_add(&ram_counters.normal_pages, 1);
+    stat64_add(&mig_stats.normal_pages, 1);
 
     return 1;
 }
@@ -1487,7 +1486,7 @@ update_compress_thread_counts(const CompressParam *param, int bytes_xmit)
     ram_transferred_add(bytes_xmit);
 
     if (param->zero_page) {
-        stat64_add(&ram_counters.zero_pages, 1);
+        stat64_add(&mig_stats.zero_pages, 1);
         return;
     }
 
@@ -2180,7 +2179,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     RAMBlock *ramblock;
     RAMState *rs = ram_state;
 
-    stat64_add(&ram_counters.postcopy_requests, 1);
+    stat64_add(&mig_stats.postcopy_requests, 1);
     RCU_READ_LOCK_GUARD();
 
     if (!rbname) {
@@ -2628,19 +2627,6 @@ static int ram_find_and_save_block(RAMState *rs)
     rs->last_page = pss->page;
 
     return pages;
-}
-
-void acct_update_position(QEMUFile *f, size_t size, bool zero)
-{
-    uint64_t pages = size / TARGET_PAGE_SIZE;
-
-    if (zero) {
-        stat64_add(&ram_counters.zero_pages, pages);
-    } else {
-        stat64_add(&ram_counters.normal_pages, pages);
-        ram_transferred_add(size);
-        qemu_file_credit_transfer(f, size);
-    }
 }
 
 static uint64_t ram_bytes_total_with_ignored(void)
