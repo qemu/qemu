@@ -282,9 +282,19 @@ want to change some lines in the first group, for example like this::
    CONFIG_PCI_DEVICES=y
    #CONFIG_TEST_DEVICES=n
 
-and/or pick a subset of the devices in those device groups.  Right now
-there is no single place that lists all the optional devices for
-``CONFIG_PCI_DEVICES`` and ``CONFIG_TEST_DEVICES``.  In the future,
+and/or pick a subset of the devices in those device groups.  Without
+further modifications to ``configs/devices/``, a system emulator built
+without default devices might not do much more than start an empty
+machine, and even then only if ``--nodefaults`` is specified on the
+command line.  Starting a VM *without* ``--nodefaults`` is allowed to
+fail, but should never abort.  Failures in ``make check`` with
+``--without-default-devices`` are considered bugs in the test code:
+the tests should either use ``--nodefaults``, and should be skipped
+if a necessary device is not present in the build.  Such failures
+should not be worked around with ``select`` directives.
+
+Right now there is no single place that lists all the optional devices
+for ``CONFIG_PCI_DEVICES`` and ``CONFIG_TEST_DEVICES``.  In the future,
 we expect that ``.mak`` files will be automatically generated, so that
 they will include all these symbols and some help text on what they do.
 
