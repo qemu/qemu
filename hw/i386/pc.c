@@ -116,7 +116,9 @@
     { "qemu64-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },\
     { "athlon-" TYPE_X86_CPU, "model-id", "QEMU Virtual CPU version " v, },
 
-GlobalProperty pc_compat_8_0[] = {};
+GlobalProperty pc_compat_8_0[] = {
+    { "virtio-mem", "unplugged-inaccessible", "auto" },
+};
 const size_t pc_compat_8_0_len = G_N_ELEMENTS(pc_compat_8_0);
 
 GlobalProperty pc_compat_7_2[] = {
