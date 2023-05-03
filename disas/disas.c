@@ -3,9 +3,10 @@
 #include "disas/dis-asm.h"
 #include "elf.h"
 #include "qemu/qemu-print.h"
-
 #include "disas/disas.h"
 #include "disas/capstone.h"
+#include "hw/core/cpu.h"
+#include "exec/memory.h"
 
 typedef struct CPUDebug {
     struct disassemble_info info;
