@@ -42,17 +42,7 @@
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_BACKEND_MAX_FDS     8
 
-/*
- * Set maximum number of RAM slots supported to
- * the maximum number supported by the target
- * hardware plaform.
- */
-#if defined(TARGET_X86) || defined(TARGET_X86_64) || \
-    defined(TARGET_ARM) || defined(TARGET_AARCH64)
-#include "hw/acpi/acpi.h"
-#define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
-
-#elif defined(TARGET_PPC) || defined(TARGET_PPC64)
+#if defined(TARGET_PPC) || defined(TARGET_PPC64)
 #include "hw/ppc/spapr.h"
 #define VHOST_USER_MAX_RAM_SLOTS SPAPR_MAX_RAM_SLOTS
 
