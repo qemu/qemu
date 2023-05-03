@@ -3910,6 +3910,16 @@ F: configure
 F: scripts/mtest2make.py
 F: tests/Makefile.include
 
+Kconfig
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Maintained
+F: scripts/minikconf.py
+F: docs/devel/kconfig.rst
+F: Kconfig*
+F: */Kconfig*
+F: hw/*/Kconfig*
+F: target/*/Kconfig*
+
 GIT submodules
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
