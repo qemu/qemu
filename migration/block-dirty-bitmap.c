@@ -606,11 +606,9 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
     GHashTable *handled_by_blk = g_hash_table_new(NULL, NULL);
     BlockBackend *blk;
     GHashTable *alias_map = NULL;
-    const BitmapMigrationNodeAliasList *block_bitmap_mapping =
-        migrate_block_bitmap_mapping();
 
-    if (block_bitmap_mapping) {
-        alias_map = construct_alias_map(block_bitmap_mapping, true,
+    if (migrate_has_block_bitmap_mapping()) {
+        alias_map = construct_alias_map(migrate_block_bitmap_mapping(), true,
                                         &error_abort);
     }
 
@@ -1159,8 +1157,6 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
 static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
 {
     GHashTable *alias_map = NULL;
-    const BitmapMigrationNodeAliasList *block_bitmap_mapping =
-        migrate_block_bitmap_mapping();
     DBMLoadState *s = &((DBMState *)opaque)->load;
     int ret = 0;
 
@@ -1172,9 +1168,9 @@ static int dirty_bitmap_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
 
-    if (block_bitmap_mapping) {
-        alias_map = construct_alias_map(block_bitmap_mapping,
-                                        false, &error_abort);
+    if (migrate_has_block_bitmap_mapping()) {
+        alias_map = construct_alias_map(migrate_block_bitmap_mapping(), false,
+                                        &error_abort);
     }
 
     do {

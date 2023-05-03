@@ -71,6 +71,8 @@ bool migrate_cap_set(int cap, bool value, Error **errp);
 /* parameters */
 
 const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void);
+bool migrate_has_block_bitmap_mapping(void);
+
 bool migrate_block_incremental(void);
 uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
