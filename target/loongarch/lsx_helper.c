@@ -938,3 +938,117 @@ VSRARI(vsrari_b, 8, B)
 VSRARI(vsrari_h, 16, H)
 VSRARI(vsrari_w, 32, W)
 VSRARI(vsrari_d, 64, D)
+
+#define R_SHIFT(a, b) (a >> b)
+
+#define VSRLN(NAME, BIT, T, E1, E2)                             \
+void HELPER(NAME)(CPULoongArchState *env,                       \
+                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                            \
+    VReg *Vj = &(env->fpr[vj].vreg);                            \
+    VReg *Vk = &(env->fpr[vk].vreg);                            \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E1(i) = R_SHIFT((T)Vj->E2(i),((T)Vk->E2(i)) % BIT); \
+    }                                                           \
+    Vd->D(1) = 0;                                               \
+}
+
+VSRLN(vsrln_b_h, 16, uint16_t, B, H)
+VSRLN(vsrln_h_w, 32, uint32_t, H, W)
+VSRLN(vsrln_w_d, 64, uint64_t, W, D)
+
+#define VSRAN(NAME, BIT, T, E1, E2)                           \
+void HELPER(NAME)(CPULoongArchState *env,                     \
+                  uint32_t vd, uint32_t vj, uint32_t vk)      \
+{                                                             \
+    int i;                                                    \
+    VReg *Vd = &(env->fpr[vd].vreg);                          \
+    VReg *Vj = &(env->fpr[vj].vreg);                          \
+    VReg *Vk = &(env->fpr[vk].vreg);                          \
+                                                              \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                       \
+        Vd->E1(i) = R_SHIFT(Vj->E2(i), ((T)Vk->E2(i)) % BIT); \
+    }                                                         \
+    Vd->D(1) = 0;                                             \
+}
+
+VSRAN(vsran_b_h, 16, uint16_t, B, H)
+VSRAN(vsran_h_w, 32, uint32_t, H, W)
+VSRAN(vsran_w_d, 64, uint64_t, W, D)
+
+#define VSRLNI(NAME, BIT, T, E1, E2)                         \
+void HELPER(NAME)(CPULoongArchState *env,                    \
+                  uint32_t vd, uint32_t vj, uint32_t imm)    \
+{                                                            \
+    int i, max;                                              \
+    VReg temp;                                               \
+    VReg *Vd = &(env->fpr[vd].vreg);                         \
+    VReg *Vj = &(env->fpr[vj].vreg);                         \
+                                                             \
+    temp.D(0) = 0;                                           \
+    temp.D(1) = 0;                                           \
+    max = LSX_LEN/BIT;                                       \
+    for (i = 0; i < max; i++) {                              \
+        temp.E1(i) = R_SHIFT((T)Vj->E2(i), imm);             \
+        temp.E1(i + max) = R_SHIFT((T)Vd->E2(i), imm);       \
+    }                                                        \
+    *Vd = temp;                                              \
+}
+
+void HELPER(vsrlni_d_q)(CPULoongArchState *env,
+                        uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    temp.D(0) = 0;
+    temp.D(1) = 0;
+    temp.D(0) = int128_getlo(int128_urshift(Vj->Q(0), imm % 128));
+    temp.D(1) = int128_getlo(int128_urshift(Vd->Q(0), imm % 128));
+    *Vd = temp;
+}
+
+VSRLNI(vsrlni_b_h, 16, uint16_t, B, H)
+VSRLNI(vsrlni_h_w, 32, uint32_t, H, W)
+VSRLNI(vsrlni_w_d, 64, uint64_t, W, D)
+
+#define VSRANI(NAME, BIT, E1, E2)                         \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i, max;                                           \
+    VReg temp;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    temp.D(0) = 0;                                        \
+    temp.D(1) = 0;                                        \
+    max = LSX_LEN/BIT;                                    \
+    for (i = 0; i < max; i++) {                           \
+        temp.E1(i) = R_SHIFT(Vj->E2(i), imm);             \
+        temp.E1(i + max) = R_SHIFT(Vd->E2(i), imm);       \
+    }                                                     \
+    *Vd = temp;                                           \
+}
+
+void HELPER(vsrani_d_q)(CPULoongArchState *env,
+                        uint32_t vd, uint32_t vj, uint32_t imm)
+{
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    temp.D(0) = 0;
+    temp.D(1) = 0;
+    temp.D(0) = int128_getlo(int128_rshift(Vj->Q(0), imm % 128));
+    temp.D(1) = int128_getlo(int128_rshift(Vd->Q(0), imm % 128));
+    *Vd = temp;
+}
+
+VSRANI(vsrani_b_h, 16, B, H)
+VSRANI(vsrani_h_w, 32, H, W)
+VSRANI(vsrani_w_d, 64, W, D)
