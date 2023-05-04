@@ -1667,7 +1667,10 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
         return ret;
     }
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, &local_err);
+    bdrv_graph_rdunlock_main_loop();
+
     if (local_err) {
         error_propagate(errp, local_err);
         return -EINVAL;
@@ -3419,7 +3422,9 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
     }
 
 out:
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(parent_bs, tran, NULL);
+    bdrv_graph_rdunlock_main_loop();
 
     return 0;
 }
@@ -4917,7 +4922,9 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     qdict_del(bs->explicit_options, "backing");
     qdict_del(bs->options, "backing");
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, NULL);
+    bdrv_graph_rdunlock_main_loop();
     bdrv_refresh_total_sectors(bs, bs->total_sectors);
 }
 
@@ -5316,7 +5323,9 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 out:
     tran_finalize(tran, ret);
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs_top, NULL, NULL);
+    bdrv_graph_rdunlock_main_loop();
 
     if (new_context && old_context != new_context) {
         aio_context_release(new_context);

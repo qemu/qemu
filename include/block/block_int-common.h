@@ -334,7 +334,8 @@ struct BlockDriver {
     int (*bdrv_debug_resume)(BlockDriverState *bs, const char *tag);
     bool (*bdrv_debug_is_suspended)(BlockDriverState *bs, const char *tag);
 
-    void (*bdrv_refresh_limits)(BlockDriverState *bs, Error **errp);
+    void GRAPH_RDLOCK_PTR (*bdrv_refresh_limits)(
+        BlockDriverState *bs, Error **errp);
 
     /*
      * Returns 1 if newly created images are guaranteed to contain only

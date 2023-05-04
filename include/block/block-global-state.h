@@ -133,7 +133,10 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
                                           const char *backing_file);
 void bdrv_refresh_filename(BlockDriverState *bs);
-void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
+
+void GRAPH_RDLOCK
+bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp);
+
 int bdrv_commit(BlockDriverState *bs);
 int bdrv_make_empty(BdrvChild *c, Error **errp);
 int bdrv_change_backing_file(BlockDriverState *bs, const char *backing_file,
