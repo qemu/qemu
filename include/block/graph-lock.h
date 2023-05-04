@@ -73,6 +73,7 @@ extern BdrvGraphLock graph_lock;
  */
 #define GRAPH_WRLOCK TSA_REQUIRES(graph_lock)
 #define GRAPH_RDLOCK TSA_REQUIRES_SHARED(graph_lock)
+#define GRAPH_UNLOCKED TSA_EXCLUDES(graph_lock)
 
 /*
  * TSA annotations are not part of function types, so checks are defeated when
@@ -83,6 +84,7 @@ extern BdrvGraphLock graph_lock;
  */
 #define GRAPH_RDLOCK_PTR TSA_GUARDED_BY(graph_lock)
 #define GRAPH_WRLOCK_PTR TSA_GUARDED_BY(graph_lock)
+#define GRAPH_UNLOCKED_PTR
 
 /*
  * register_aiocontext:
