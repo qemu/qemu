@@ -2622,3 +2622,41 @@ void HELPER(vffint_s_l)(CPULoongArchState *env,
     }
     *Vd = temp;
 }
+
+#define VSEQ(a, b) (a == b ? -1 : 0)
+#define VSLE(a, b) (a <= b ? -1 : 0)
+#define VSLT(a, b) (a < b ? -1 : 0)
+
+#define VCMPI(NAME, BIT, E, DO_OP)                              \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    typedef __typeof(Vd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = DO_OP(Vj->E(i), (TD)imm);                    \
+    }                                                           \
+}
+
+VCMPI(vseqi_b, 8, B, VSEQ)
+VCMPI(vseqi_h, 16, H, VSEQ)
+VCMPI(vseqi_w, 32, W, VSEQ)
+VCMPI(vseqi_d, 64, D, VSEQ)
+VCMPI(vslei_b, 8, B, VSLE)
+VCMPI(vslei_h, 16, H, VSLE)
+VCMPI(vslei_w, 32, W, VSLE)
+VCMPI(vslei_d, 64, D, VSLE)
+VCMPI(vslei_bu, 8, UB, VSLE)
+VCMPI(vslei_hu, 16, UH, VSLE)
+VCMPI(vslei_wu, 32, UW, VSLE)
+VCMPI(vslei_du, 64, UD, VSLE)
+VCMPI(vslti_b, 8, B, VSLT)
+VCMPI(vslti_h, 16, H, VSLT)
+VCMPI(vslti_w, 32, W, VSLT)
+VCMPI(vslti_d, 64, D, VSLT)
+VCMPI(vslti_bu, 8, UB, VSLT)
+VCMPI(vslti_hu, 16, UH, VSLT)
+VCMPI(vslti_wu, 32, UW, VSLT)
+VCMPI(vslti_du, 64, UD, VSLT)
