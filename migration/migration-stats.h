@@ -22,17 +22,60 @@
  * one thread).
  */
 typedef struct {
+    /*
+     * Number of bytes that were dirty last time that we synced with
+     * the guest memory.  We use that to calculate the downtime.  As
+     * the remaining dirty amounts to what we know that is still dirty
+     * since last iteration, not counting what the guest has dirtied
+     * since we synchronized bitmaps.
+     */
     Stat64 dirty_bytes_last_sync;
+    /*
+     * Number of pages dirtied per second.
+     */
     Stat64 dirty_pages_rate;
+    /*
+     * Number of times we have synchronized guest bitmaps.
+     */
     Stat64 dirty_sync_count;
+    /*
+     * Number of times zero copy failed to send any page using zero
+     * copy.
+     */
     Stat64 dirty_sync_missed_zero_copy;
+    /*
+     * Number of bytes sent at migration completion stage while the
+     * guest is stopped.
+     */
     Stat64 downtime_bytes;
+    /*
+     * Number of pages transferred that were full of zeros.
+     */
     Stat64 zero_pages;
+    /*
+     * Number of bytes sent through multifd channels.
+     */
     Stat64 multifd_bytes;
+    /*
+     * Number of pages transferred that were not full of zeros.
+     */
     Stat64 normal_pages;
+    /*
+     * Number of bytes sent during postcopy.
+     */
     Stat64 postcopy_bytes;
+    /*
+     * Number of postcopy page faults that we have handled during
+     * postcopy stage.
+     */
     Stat64 postcopy_requests;
+    /*
+     * Number of bytes sent during precopy stage.
+     */
     Stat64 precopy_bytes;
+    /*
+     * Total number of bytes transferred.
+     */
     Stat64 transferred;
 } MigrationAtomicStats;
 
