@@ -446,3 +446,110 @@ DO_EVEN_U_S(vmulwev_d_wu_w, 64, D, UD, W, UW, DO_MUL)
 DO_ODD_U_S(vmulwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
 DO_ODD_U_S(vmulwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
 DO_ODD_U_S(vmulwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
+
+#define DO_MADD(a, b, c)  (a + b * c)
+#define DO_MSUB(a, b, c)  (a - b * c)
+
+#define VMADDSUB(NAME, BIT, E, DO_OP)                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vd->E(i), Vj->E(i) ,Vk->E(i));     \
+    }                                                       \
+}
+
+VMADDSUB(vmadd_b, 8, B, DO_MADD)
+VMADDSUB(vmadd_h, 16, H, DO_MADD)
+VMADDSUB(vmadd_w, 32, W, DO_MADD)
+VMADDSUB(vmadd_d, 64, D, DO_MADD)
+VMADDSUB(vmsub_b, 8, B, DO_MSUB)
+VMADDSUB(vmsub_h, 16, H, DO_MSUB)
+VMADDSUB(vmsub_w, 32, W, DO_MSUB)
+VMADDSUB(vmsub_d, 64, D, DO_MSUB)
+
+#define VMADDWEV(NAME, BIT, E1, E2, DO_OP)                        \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v)       \
+{                                                                 \
+    int i;                                                        \
+    VReg *Vd = (VReg *)vd;                                        \
+    VReg *Vj = (VReg *)vj;                                        \
+    VReg *Vk = (VReg *)vk;                                        \
+    typedef __typeof(Vd->E1(0)) TD;                               \
+                                                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                           \
+        Vd->E1(i) += DO_OP((TD)Vj->E2(2 * i), (TD)Vk->E2(2 * i)); \
+    }                                                             \
+}
+
+VMADDWEV(vmaddwev_h_b, 16, H, B, DO_MUL)
+VMADDWEV(vmaddwev_w_h, 32, W, H, DO_MUL)
+VMADDWEV(vmaddwev_d_w, 64, D, W, DO_MUL)
+VMADDWEV(vmaddwev_h_bu, 16, UH, UB, DO_MUL)
+VMADDWEV(vmaddwev_w_hu, 32, UW, UH, DO_MUL)
+VMADDWEV(vmaddwev_d_wu, 64, UD, UW, DO_MUL)
+
+#define VMADDWOD(NAME, BIT, E1, E2, DO_OP)                  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    typedef __typeof(Vd->E1(0)) TD;                         \
+                                                            \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E1(i) += DO_OP((TD)Vj->E2(2 * i + 1),           \
+                           (TD)Vk->E2(2 * i + 1));          \
+    }                                                       \
+}
+
+VMADDWOD(vmaddwod_h_b, 16, H, B, DO_MUL)
+VMADDWOD(vmaddwod_w_h, 32, W, H, DO_MUL)
+VMADDWOD(vmaddwod_d_w, 64, D, W, DO_MUL)
+VMADDWOD(vmaddwod_h_bu, 16,  UH, UB, DO_MUL)
+VMADDWOD(vmaddwod_w_hu, 32,  UW, UH, DO_MUL)
+VMADDWOD(vmaddwod_d_wu, 64,  UD, UW, DO_MUL)
+
+#define VMADDWEV_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP)  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    typedef __typeof(Vd->ES1(0)) TS1;                       \
+    typedef __typeof(Vd->EU1(0)) TU1;                       \
+                                                            \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->ES1(i) += DO_OP((TU1)Vj->EU2(2 * i),            \
+                            (TS1)Vk->ES2(2 * i));           \
+    }                                                       \
+}
+
+VMADDWEV_U_S(vmaddwev_h_bu_b, 16, H, UH, B, UB, DO_MUL)
+VMADDWEV_U_S(vmaddwev_w_hu_h, 32, W, UW, H, UH, DO_MUL)
+VMADDWEV_U_S(vmaddwev_d_wu_w, 64, D, UD, W, UW, DO_MUL)
+
+#define VMADDWOD_U_S(NAME, BIT, ES1, EU1, ES2, EU2, DO_OP)  \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    typedef __typeof(Vd->ES1(0)) TS1;                       \
+    typedef __typeof(Vd->EU1(0)) TU1;                       \
+                                                            \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->ES1(i) += DO_OP((TU1)Vj->EU2(2 * i + 1),         \
+                            (TS1)Vk->ES2(2 * i + 1));        \
+    }                                                       \
+}
+
+VMADDWOD_U_S(vmaddwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
+VMADDWOD_U_S(vmaddwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
+VMADDWOD_U_S(vmaddwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
