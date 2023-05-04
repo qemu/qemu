@@ -275,3 +275,35 @@ void HELPER(vaddwod_q_du_d)(void *vd, void *vj, void *vk, uint32_t v)
 DO_ODD_U_S(vaddwod_h_bu_b, 16, H, UH, B, UB, DO_ADD)
 DO_ODD_U_S(vaddwod_w_hu_h, 32, W, UW, H, UH, DO_ADD)
 DO_ODD_U_S(vaddwod_d_wu_w, 64, D, UD, W, UW, DO_ADD)
+
+#define DO_VAVG(a, b)  ((a >> 1) + (b >> 1) + (a & b & 1))
+#define DO_VAVGR(a, b) ((a >> 1) + (b >> 1) + ((a | b) & 1))
+
+#define DO_3OP(NAME, BIT, E, DO_OP)                         \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
+    }                                                       \
+}
+
+DO_3OP(vavg_b, 8, B, DO_VAVG)
+DO_3OP(vavg_h, 16, H, DO_VAVG)
+DO_3OP(vavg_w, 32, W, DO_VAVG)
+DO_3OP(vavg_d, 64, D, DO_VAVG)
+DO_3OP(vavgr_b, 8, B, DO_VAVGR)
+DO_3OP(vavgr_h, 16, H, DO_VAVGR)
+DO_3OP(vavgr_w, 32, W, DO_VAVGR)
+DO_3OP(vavgr_d, 64, D, DO_VAVGR)
+DO_3OP(vavg_bu, 8, UB, DO_VAVG)
+DO_3OP(vavg_hu, 16, UH, DO_VAVG)
+DO_3OP(vavg_wu, 32, UW, DO_VAVG)
+DO_3OP(vavg_du, 64, UD, DO_VAVG)
+DO_3OP(vavgr_bu, 8, UB, DO_VAVGR)
+DO_3OP(vavgr_hu, 16, UH, DO_VAVGR)
+DO_3OP(vavgr_wu, 32, UW, DO_VAVGR)
+DO_3OP(vavgr_du, 64, UD, DO_VAVGR)
