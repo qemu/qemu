@@ -833,6 +833,11 @@ static void output_vr(DisasContext *ctx, arg_vr *a, const char *mnemonic)
     output(ctx, mnemonic, "v%d, r%d", a->vd, a->rj);
 }
 
+static void output_vvr(DisasContext *ctx, arg_vvr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, r%d", a->vd, a->vj, a->rk);
+}
+
 INSN_LSX(vadd_b,           vvv)
 INSN_LSX(vadd_h,           vvv)
 INSN_LSX(vadd_w,           vvv)
@@ -1594,3 +1599,33 @@ INSN_LSX(vreplgr2vr_b,     vr)
 INSN_LSX(vreplgr2vr_h,     vr)
 INSN_LSX(vreplgr2vr_w,     vr)
 INSN_LSX(vreplgr2vr_d,     vr)
+
+INSN_LSX(vreplve_b,        vvr)
+INSN_LSX(vreplve_h,        vvr)
+INSN_LSX(vreplve_w,        vvr)
+INSN_LSX(vreplve_d,        vvr)
+INSN_LSX(vreplvei_b,       vv_i)
+INSN_LSX(vreplvei_h,       vv_i)
+INSN_LSX(vreplvei_w,       vv_i)
+INSN_LSX(vreplvei_d,       vv_i)
+
+INSN_LSX(vbsll_v,          vv_i)
+INSN_LSX(vbsrl_v,          vv_i)
+
+INSN_LSX(vpackev_b,        vvv)
+INSN_LSX(vpackev_h,        vvv)
+INSN_LSX(vpackev_w,        vvv)
+INSN_LSX(vpackev_d,        vvv)
+INSN_LSX(vpackod_b,        vvv)
+INSN_LSX(vpackod_h,        vvv)
+INSN_LSX(vpackod_w,        vvv)
+INSN_LSX(vpackod_d,        vvv)
+
+INSN_LSX(vpickev_b,        vvv)
+INSN_LSX(vpickev_h,        vvv)
+INSN_LSX(vpickev_w,        vvv)
+INSN_LSX(vpickev_d,        vvv)
+INSN_LSX(vpickod_b,        vvv)
+INSN_LSX(vpickod_h,        vvv)
+INSN_LSX(vpickod_w,        vvv)
+INSN_LSX(vpickod_d,        vvv)

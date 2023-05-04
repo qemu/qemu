@@ -2766,3 +2766,91 @@ SETALLNEZ(vsetallnez_b, MO_8)
 SETALLNEZ(vsetallnez_h, MO_16)
 SETALLNEZ(vsetallnez_w, MO_32)
 SETALLNEZ(vsetallnez_d, MO_64)
+
+#define VPACKEV(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        temp.E(2 * i + 1) = Vj->E(2 * i);                \
+        temp.E(2 *i) = Vk->E(2 * i);                     \
+    }                                                    \
+    *Vd = temp;                                          \
+}
+
+VPACKEV(vpackev_b, 16, B)
+VPACKEV(vpackev_h, 32, H)
+VPACKEV(vpackev_w, 64, W)
+VPACKEV(vpackev_d, 128, D)
+
+#define VPACKOD(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        temp.E(2 * i + 1) = Vj->E(2 * i + 1);            \
+        temp.E(2 * i) = Vk->E(2 * i + 1);                \
+    }                                                    \
+    *Vd = temp;                                          \
+}
+
+VPACKOD(vpackod_b, 16, B)
+VPACKOD(vpackod_h, 32, H)
+VPACKOD(vpackod_w, 64, W)
+VPACKOD(vpackod_d, 128, D)
+
+#define VPICKEV(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i);          \
+        temp.E(i) = Vk->E(2 * i);                        \
+    }                                                    \
+    *Vd = temp;                                          \
+}
+
+VPICKEV(vpickev_b, 16, B)
+VPICKEV(vpickev_h, 32, H)
+VPICKEV(vpickev_w, 64, W)
+VPICKEV(vpickev_d, 128, D)
+
+#define VPICKOD(NAME, BIT, E)                            \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        temp.E(i + LSX_LEN/BIT) = Vj->E(2 * i + 1);      \
+        temp.E(i) = Vk->E(2 * i + 1);                    \
+    }                                                    \
+    *Vd = temp;                                          \
+}
+
+VPICKOD(vpickod_b, 16, B)
+VPICKOD(vpickod_h, 32, H)
+VPICKOD(vpickod_w, 64, W)
+VPICKOD(vpickod_d, 128, D)

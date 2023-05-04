@@ -3933,3 +3933,147 @@ TRANS(vreplgr2vr_b, gvec_dup, MO_8)
 TRANS(vreplgr2vr_h, gvec_dup, MO_16)
 TRANS(vreplgr2vr_w, gvec_dup, MO_32)
 TRANS(vreplgr2vr_d, gvec_dup, MO_64)
+
+static bool trans_vreplvei_b(DisasContext *ctx, arg_vv_i *a)
+{
+    CHECK_SXE;
+    tcg_gen_gvec_dup_mem(MO_8,vec_full_offset(a->vd),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.B((a->imm))),
+                         16, ctx->vl/8);
+    return true;
+}
+
+static bool trans_vreplvei_h(DisasContext *ctx, arg_vv_i *a)
+{
+    CHECK_SXE;
+    tcg_gen_gvec_dup_mem(MO_16, vec_full_offset(a->vd),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.H((a->imm))),
+                         16, ctx->vl/8);
+    return true;
+}
+static bool trans_vreplvei_w(DisasContext *ctx, arg_vv_i *a)
+{
+    CHECK_SXE;
+    tcg_gen_gvec_dup_mem(MO_32, vec_full_offset(a->vd),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.W((a->imm))),
+                        16, ctx->vl/8);
+    return true;
+}
+static bool trans_vreplvei_d(DisasContext *ctx, arg_vv_i *a)
+{
+    CHECK_SXE;
+    tcg_gen_gvec_dup_mem(MO_64, vec_full_offset(a->vd),
+                         offsetof(CPULoongArchState,
+                                  fpr[a->vj].vreg.D((a->imm))),
+                         16, ctx->vl/8);
+    return true;
+}
+
+static bool gen_vreplve(DisasContext *ctx, arg_vvr *a, int vece, int bit,
+                        void (*func)(TCGv_i64, TCGv_ptr, tcg_target_long))
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_ptr t1 = tcg_temp_new_ptr();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    CHECK_SXE;
+
+    tcg_gen_andi_i64(t0, gpr_src(ctx, a->rk, EXT_NONE), (LSX_LEN/bit) -1);
+    tcg_gen_shli_i64(t0, t0, vece);
+    if (HOST_BIG_ENDIAN) {
+        tcg_gen_xori_i64(t0, t0, vece << ((LSX_LEN/bit) -1));
+    }
+
+    tcg_gen_trunc_i64_ptr(t1, t0);
+    tcg_gen_add_ptr(t1, t1, cpu_env);
+    func(t2, t1, vec_full_offset(a->vj));
+    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), 16, ctx->vl/8, t2);
+
+    return true;
+}
+
+TRANS(vreplve_b, gen_vreplve, MO_8,  8, tcg_gen_ld8u_i64)
+TRANS(vreplve_h, gen_vreplve, MO_16, 16, tcg_gen_ld16u_i64)
+TRANS(vreplve_w, gen_vreplve, MO_32, 32, tcg_gen_ld32u_i64)
+TRANS(vreplve_d, gen_vreplve, MO_64, 64, tcg_gen_ld_i64)
+
+static bool trans_vbsll_v(DisasContext *ctx, arg_vv_i *a)
+{
+    int ofs;
+    TCGv_i64 desthigh, destlow, high, low;
+
+    CHECK_SXE;
+
+    desthigh = tcg_temp_new_i64();
+    destlow = tcg_temp_new_i64();
+    high = tcg_temp_new_i64();
+    low = tcg_temp_new_i64();
+
+    get_vreg64(low, a->vj, 0);
+
+    ofs = ((a->imm) & 0xf) * 8;
+    if (ofs < 64) {
+        get_vreg64(high, a->vj, 1);
+        tcg_gen_extract2_i64(desthigh, low, high, 64 - ofs);
+        tcg_gen_shli_i64(destlow, low, ofs);
+    } else {
+        tcg_gen_shli_i64(desthigh, low, ofs - 64);
+        destlow = tcg_constant_i64(0);
+    }
+
+    set_vreg64(desthigh, a->vd, 1);
+    set_vreg64(destlow, a->vd, 0);
+
+    return true;
+}
+
+static bool trans_vbsrl_v(DisasContext *ctx, arg_vv_i *a)
+{
+    TCGv_i64 desthigh, destlow, high, low;
+    int ofs;
+
+    CHECK_SXE;
+
+    desthigh = tcg_temp_new_i64();
+    destlow = tcg_temp_new_i64();
+    high = tcg_temp_new_i64();
+    low = tcg_temp_new_i64();
+
+    get_vreg64(high, a->vj, 1);
+
+    ofs = ((a->imm) & 0xf) * 8;
+    if (ofs < 64) {
+        get_vreg64(low, a->vj, 0);
+        tcg_gen_extract2_i64(destlow, low, high, ofs);
+        tcg_gen_shri_i64(desthigh, high, ofs);
+    } else {
+        tcg_gen_shri_i64(destlow, high, ofs - 64);
+        desthigh = tcg_constant_i64(0);
+    }
+
+    set_vreg64(desthigh, a->vd, 1);
+    set_vreg64(destlow, a->vd, 0);
+
+    return true;
+}
+
+TRANS(vpackev_b, gen_vvv, gen_helper_vpackev_b)
+TRANS(vpackev_h, gen_vvv, gen_helper_vpackev_h)
+TRANS(vpackev_w, gen_vvv, gen_helper_vpackev_w)
+TRANS(vpackev_d, gen_vvv, gen_helper_vpackev_d)
+TRANS(vpackod_b, gen_vvv, gen_helper_vpackod_b)
+TRANS(vpackod_h, gen_vvv, gen_helper_vpackod_h)
+TRANS(vpackod_w, gen_vvv, gen_helper_vpackod_w)
+TRANS(vpackod_d, gen_vvv, gen_helper_vpackod_d)
+
+TRANS(vpickev_b, gen_vvv, gen_helper_vpickev_b)
+TRANS(vpickev_h, gen_vvv, gen_helper_vpickev_h)
+TRANS(vpickev_w, gen_vvv, gen_helper_vpickev_w)
+TRANS(vpickev_d, gen_vvv, gen_helper_vpickev_d)
+TRANS(vpickod_b, gen_vvv, gen_helper_vpickod_b)
+TRANS(vpickod_h, gen_vvv, gen_helper_vpickod_h)
+TRANS(vpickod_w, gen_vvv, gen_helper_vpickod_w)
+TRANS(vpickod_d, gen_vvv, gen_helper_vpickod_d)
