@@ -25,6 +25,14 @@ int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
 
+    if (n == HEX_REG_P3_0_ALIASED) {
+        uint32_t p3_0 = 0;
+        for (int i = 0; i < NUM_PREGS; i++) {
+            p3_0 = deposit32(p3_0, i * 8, 8, env->pred[i]);
+        }
+        return gdb_get_regl(mem_buf, p3_0);
+    }
+
     if (n < TOTAL_PER_THREAD_REGS) {
         return gdb_get_regl(mem_buf, env->gpr[n]);
     }
@@ -36,6 +44,14 @@ int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
     CPUHexagonState *env = &cpu->env;
+
+    if (n == HEX_REG_P3_0_ALIASED) {
+        uint32_t p3_0 = ldtul_p(mem_buf);
+        for (int i = 0; i < NUM_PREGS; i++) {
+            env->pred[i] = extract32(p3_0, i * 8, 8);
+        }
+        return sizeof(target_ulong);
+    }
 
     if (n < TOTAL_PER_THREAD_REGS) {
         env->gpr[n] = ldtul_p(mem_buf);
