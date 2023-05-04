@@ -65,6 +65,11 @@ typedef struct GDBState {
     GByteArray *mem_buf;
     int sstep_flags;
     int supported_sstep_flags;
+    /*
+     * Whether we are allowed to send a stop reply packet at this moment.
+     * Must be set off after sending the stop reply itself.
+     */
+    bool allow_stop_reply;
 } GDBState;
 
 /* lives in main gdbstub.c */
