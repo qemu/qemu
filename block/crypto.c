@@ -355,7 +355,7 @@ block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
     ret = 0;
  cleanup:
     qcrypto_block_free(crypto);
-    blk_unref(blk);
+    blk_co_unref(blk);
     return ret;
 }
 
@@ -661,7 +661,7 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
 
     ret = 0;
 fail:
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     return ret;
 }
 
@@ -730,7 +730,7 @@ fail:
         bdrv_co_delete_file_noerr(bs);
     }
 
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_QCryptoBlockCreateOptions(create_opts);
     qobject_unref(cryptoopts);
     return ret;
