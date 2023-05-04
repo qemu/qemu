@@ -1416,7 +1416,7 @@ static MirrorOp *coroutine_fn active_write_prepare(MirrorBlockJob *s,
     return op;
 }
 
-static void coroutine_fn active_write_settle(MirrorOp *op)
+static void coroutine_fn GRAPH_RDLOCK active_write_settle(MirrorOp *op)
 {
     uint64_t start_chunk = op->offset / op->s->granularity;
     uint64_t end_chunk = DIV_ROUND_UP(op->offset + op->bytes,
