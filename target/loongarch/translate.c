@@ -23,7 +23,6 @@
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval;
-TCGv_i64 cpu_fpr[32];
 
 #include "exec/gen-icount.h"
 
@@ -191,6 +190,20 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
     }
 }
 
+static TCGv get_fpr(DisasContext *ctx, int reg_num)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_ld_i64(t, cpu_env,
+                   offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
+    return  t;
+}
+
+static void set_fpr(int reg_num, TCGv val)
+{
+    tcg_gen_st_i64(val, cpu_env,
+                   offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
+}
+
 #include "decode-insns.c.inc"
 #include "insn_trans/trans_arith.c.inc"
 #include "insn_trans/trans_shift.c.inc"
@@ -283,11 +296,6 @@ void loongarch_translate_init(void)
         cpu_gpr[i] = tcg_global_mem_new(cpu_env,
                                         offsetof(CPULoongArchState, gpr[i]),
                                         regnames[i]);
-    }
-
-    for (i = 0; i < 32; i++) {
-        int off = offsetof(CPULoongArchState, fpr[i]);
-        cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env, off, fregnames[i]);
     }
 
     cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPULoongArchState, pc), "pc");
