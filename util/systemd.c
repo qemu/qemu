@@ -51,6 +51,7 @@ unsigned int check_socket_activation(void)
     /* So these are not passed to any child processes we might start. */
     unsetenv("LISTEN_FDS");
     unsetenv("LISTEN_PID");
+    unsetenv("LISTEN_FDNAMES");
 
     /* So the file descriptors don't leak into child processes. */
     for (i = 0; i < nr_fds; ++i) {

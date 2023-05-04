@@ -346,7 +346,6 @@ static void vduse_blk_exp_delete(BlockExport *exp)
 
     blk_remove_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,
                                     vblk_exp);
-    blk_set_dev_ops(exp->blk, NULL, NULL);
     ret = vduse_dev_destroy(vblk_exp->dev);
     if (ret != -EBUSY) {
         unlink(vblk_exp->recon_file);
