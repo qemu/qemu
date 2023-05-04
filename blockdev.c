@@ -2440,7 +2440,7 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
         return;
     }
 
-    blk = blk_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
+    blk = blk_co_new_with_bs(bs, BLK_PERM_RESIZE, BLK_PERM_ALL, errp);
     if (!blk) {
         return;
     }
@@ -2455,7 +2455,7 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
 
     bdrv_co_lock(bs);
     bdrv_drained_end(bs);
-    blk_unref(blk);
+    blk_co_unref(blk);
     bdrv_co_unlock(bs);
 }
 
