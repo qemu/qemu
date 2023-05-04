@@ -1261,3 +1261,56 @@ TRANS(vabsd_bu, gvec_vvv, MO_8, do_vabsd_u)
 TRANS(vabsd_hu, gvec_vvv, MO_16, do_vabsd_u)
 TRANS(vabsd_wu, gvec_vvv, MO_32, do_vabsd_u)
 TRANS(vabsd_du, gvec_vvv, MO_64, do_vabsd_u)
+
+static void gen_vadda(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+
+    tcg_gen_abs_vec(vece, t1, a);
+    tcg_gen_abs_vec(vece, t2, b);
+    tcg_gen_add_vec(vece, t, t1, t2);
+}
+
+static void do_vadda(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                     uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_abs_vec, INDEX_op_add_vec, 0
+        };
+    static const GVecGen3 op[4] = {
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_vadda_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_vadda_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_vadda_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vadda,
+            .fno = gen_helper_vadda_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vadda_b, gvec_vvv, MO_8, do_vadda)
+TRANS(vadda_h, gvec_vvv, MO_16, do_vadda)
+TRANS(vadda_w, gvec_vvv, MO_32, do_vadda)
+TRANS(vadda_d, gvec_vvv, MO_64, do_vadda)

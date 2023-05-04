@@ -318,3 +318,22 @@ DO_3OP(vabsd_bu, 8, UB, DO_VABSD)
 DO_3OP(vabsd_hu, 16, UH, DO_VABSD)
 DO_3OP(vabsd_wu, 32, UW, DO_VABSD)
 DO_3OP(vabsd_du, 64, UD, DO_VABSD)
+
+#define DO_VABS(a)  ((a < 0) ? (-a) : (a))
+
+#define DO_VADDA(NAME, BIT, E, DO_OP)                       \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i)) + DO_OP(Vk->E(i));       \
+    }                                                       \
+}
+
+DO_VADDA(vadda_b, 8, B, DO_VABS)
+DO_VADDA(vadda_h, 16, H, DO_VABS)
+DO_VADDA(vadda_w, 32, W, DO_VABS)
+DO_VADDA(vadda_d, 64, D, DO_VABS)
