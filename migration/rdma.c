@@ -3234,6 +3234,10 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     RDMAContext *rdma;
     int ret;
 
+    if (migration_in_postcopy()) {
+        return RAM_SAVE_CONTROL_NOT_SUPP;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
 
@@ -3242,10 +3246,6 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return RAM_SAVE_CONTROL_NOT_SUPP;
-    }
 
     qemu_fflush(f);
 
@@ -3866,6 +3866,10 @@ static int qemu_rdma_registration_start(QEMUFile *f,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3873,10 +3877,6 @@ static int qemu_rdma_registration_start(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     trace_qemu_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
@@ -3897,6 +3897,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     RDMAControlHeader head = { .len = 0, .repeat = 1 };
     int ret = 0;
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3904,10 +3908,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     qemu_fflush(f);
     ret = qemu_rdma_drain_cq(f, rdma);
