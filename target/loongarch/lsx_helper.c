@@ -2246,3 +2246,379 @@ DO_2OP_F(vfrecip_s, 32, UW, do_frecip_32)
 DO_2OP_F(vfrecip_d, 64, UD, do_frecip_64)
 DO_2OP_F(vfrsqrt_s, 32, UW, do_frsqrt_32)
 DO_2OP_F(vfrsqrt_d, 64, UD, do_frsqrt_64)
+
+static uint32_t float16_cvt_float32(uint16_t h, float_status *status)
+{
+    return float16_to_float32(h, true, status);
+}
+static uint64_t float32_cvt_float64(uint32_t s, float_status *status)
+{
+    return float32_to_float64(s, status);
+}
+
+static uint16_t float32_cvt_float16(uint32_t s, float_status *status)
+{
+    return float32_to_float16(s, true, status);
+}
+static uint32_t float64_cvt_float32(uint64_t d, float_status *status)
+{
+    return float64_to_float32(d, status);
+}
+
+void HELPER(vfcvtl_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LSX_LEN/32; i++) {
+        temp.UW(i) = float16_cvt_float32(Vj->UH(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfcvtl_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LSX_LEN/64; i++) {
+        temp.UD(i) = float32_cvt_float64(Vj->UW(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfcvth_s_h)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LSX_LEN/32; i++) {
+        temp.UW(i) = float16_cvt_float32(Vj->UH(i + 4), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfcvth_d_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < LSX_LEN/64; i++) {
+        temp.UD(i) = float32_cvt_float64(Vj->UW(i + 2), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfcvt_h_s)(CPULoongArchState *env,
+                       uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vk = &(env->fpr[vk].vreg);
+
+    vec_clear_cause(env);
+    for(i = 0; i < LSX_LEN/32; i++) {
+        temp.UH(i + 4) = float32_cvt_float16(Vj->UW(i), &env->fp_status);
+        temp.UH(i)  = float32_cvt_float16(Vk->UW(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfcvt_s_d)(CPULoongArchState *env,
+                       uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vk = &(env->fpr[vk].vreg);
+
+    vec_clear_cause(env);
+    for(i = 0; i < LSX_LEN/64; i++) {
+        temp.UW(i + 2) = float64_cvt_float32(Vj->UD(i), &env->fp_status);
+        temp.UW(i)  = float64_cvt_float32(Vk->UD(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vfrint_s)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < 4; i++) {
+        Vd->W(i) = float32_round_to_int(Vj->UW(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+}
+
+void HELPER(vfrint_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < 2; i++) {
+        Vd->D(i) = float64_round_to_int(Vj->UD(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+}
+
+#define FCVT_2OP(NAME, BIT, E, MODE)                                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj)         \
+{                                                                           \
+    int i;                                                                  \
+    VReg *Vd = &(env->fpr[vd].vreg);                                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                                        \
+                                                                            \
+    vec_clear_cause(env);                                                   \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                                     \
+        FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
+        set_float_rounding_mode(MODE, &env->fp_status);                     \
+        Vd->E(i) = float## BIT ## _round_to_int(Vj->E(i), &env->fp_status); \
+        set_float_rounding_mode(old_mode, &env->fp_status);                 \
+        vec_update_fcsr0(env, GETPC());                                     \
+    }                                                                       \
+}
+
+FCVT_2OP(vfrintrne_s, 32, UW, float_round_nearest_even)
+FCVT_2OP(vfrintrne_d, 64, UD, float_round_nearest_even)
+FCVT_2OP(vfrintrz_s, 32, UW, float_round_to_zero)
+FCVT_2OP(vfrintrz_d, 64, UD, float_round_to_zero)
+FCVT_2OP(vfrintrp_s, 32, UW, float_round_up)
+FCVT_2OP(vfrintrp_d, 64, UD, float_round_up)
+FCVT_2OP(vfrintrm_s, 32, UW, float_round_down)
+FCVT_2OP(vfrintrm_d, 64, UD, float_round_down)
+
+#define FTINT(NAME, FMT1, FMT2, T1, T2,  MODE)                          \
+static T2 do_ftint ## NAME(CPULoongArchState *env, T1 fj)               \
+{                                                                       \
+    T2 fd;                                                              \
+    FloatRoundMode old_mode = get_float_rounding_mode(&env->fp_status); \
+                                                                        \
+    set_float_rounding_mode(MODE, &env->fp_status);                     \
+    fd = do_## FMT1 ##_to_## FMT2(env, fj);                             \
+    set_float_rounding_mode(old_mode, &env->fp_status);                 \
+    return fd;                                                          \
+}
+
+#define DO_FTINT(FMT1, FMT2, T1, T2)                                         \
+static T2 do_## FMT1 ##_to_## FMT2(CPULoongArchState *env, T1 fj)            \
+{                                                                            \
+    T2 fd;                                                                   \
+                                                                             \
+    fd = FMT1 ##_to_## FMT2(fj, &env->fp_status);                            \
+    if (get_float_exception_flags(&env->fp_status) & (float_flag_invalid)) { \
+        if (FMT1 ##_is_any_nan(fj)) {                                        \
+            fd = 0;                                                          \
+        }                                                                    \
+    }                                                                        \
+    vec_update_fcsr0(env, GETPC());                                          \
+    return fd;                                                               \
+}
+
+DO_FTINT(float32, int32, uint32_t, uint32_t)
+DO_FTINT(float64, int64, uint64_t, uint64_t)
+DO_FTINT(float32, uint32, uint32_t, uint32_t)
+DO_FTINT(float64, uint64, uint64_t, uint64_t)
+DO_FTINT(float64, int32, uint64_t, uint32_t)
+DO_FTINT(float32, int64, uint32_t, uint64_t)
+
+FTINT(rne_w_s, float32, int32, uint32_t, uint32_t, float_round_nearest_even)
+FTINT(rne_l_d, float64, int64, uint64_t, uint64_t, float_round_nearest_even)
+FTINT(rp_w_s, float32, int32, uint32_t, uint32_t, float_round_up)
+FTINT(rp_l_d, float64, int64, uint64_t, uint64_t, float_round_up)
+FTINT(rz_w_s, float32, int32, uint32_t, uint32_t, float_round_to_zero)
+FTINT(rz_l_d, float64, int64, uint64_t, uint64_t, float_round_to_zero)
+FTINT(rm_w_s, float32, int32, uint32_t, uint32_t, float_round_down)
+FTINT(rm_l_d, float64, int64, uint64_t, uint64_t, float_round_down)
+
+DO_2OP_F(vftintrne_w_s, 32, UW, do_ftintrne_w_s)
+DO_2OP_F(vftintrne_l_d, 64, UD, do_ftintrne_l_d)
+DO_2OP_F(vftintrp_w_s, 32, UW, do_ftintrp_w_s)
+DO_2OP_F(vftintrp_l_d, 64, UD, do_ftintrp_l_d)
+DO_2OP_F(vftintrz_w_s, 32, UW, do_ftintrz_w_s)
+DO_2OP_F(vftintrz_l_d, 64, UD, do_ftintrz_l_d)
+DO_2OP_F(vftintrm_w_s, 32, UW, do_ftintrm_w_s)
+DO_2OP_F(vftintrm_l_d, 64, UD, do_ftintrm_l_d)
+DO_2OP_F(vftint_w_s, 32, UW, do_float32_to_int32)
+DO_2OP_F(vftint_l_d, 64, UD, do_float64_to_int64)
+
+FTINT(rz_wu_s, float32, uint32, uint32_t, uint32_t, float_round_to_zero)
+FTINT(rz_lu_d, float64, uint64, uint64_t, uint64_t, float_round_to_zero)
+
+DO_2OP_F(vftintrz_wu_s, 32, UW, do_ftintrz_wu_s)
+DO_2OP_F(vftintrz_lu_d, 64, UD, do_ftintrz_lu_d)
+DO_2OP_F(vftint_wu_s, 32, UW, do_float32_to_uint32)
+DO_2OP_F(vftint_lu_d, 64, UD, do_float64_to_uint64)
+
+FTINT(rm_w_d, float64, int32, uint64_t, uint32_t, float_round_down)
+FTINT(rp_w_d, float64, int32, uint64_t, uint32_t, float_round_up)
+FTINT(rz_w_d, float64, int32, uint64_t, uint32_t, float_round_to_zero)
+FTINT(rne_w_d, float64, int32, uint64_t, uint32_t, float_round_nearest_even)
+
+#define FTINT_W_D(NAME, FN)                              \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i;                                               \
+    VReg temp;                                           \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    vec_clear_cause(env);                                \
+    for (i = 0; i < 2; i++) {                            \
+        temp.W(i + 2) = FN(env, Vj->UD(i));              \
+        temp.W(i) = FN(env, Vk->UD(i));                  \
+    }                                                    \
+    *Vd = temp;                                          \
+}
+
+FTINT_W_D(vftint_w_d, do_float64_to_int32)
+FTINT_W_D(vftintrm_w_d, do_ftintrm_w_d)
+FTINT_W_D(vftintrp_w_d, do_ftintrp_w_d)
+FTINT_W_D(vftintrz_w_d, do_ftintrz_w_d)
+FTINT_W_D(vftintrne_w_d, do_ftintrne_w_d)
+
+FTINT(rml_l_s, float32, int64, uint32_t, uint64_t, float_round_down)
+FTINT(rpl_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
+FTINT(rzl_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
+FTINT(rnel_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
+FTINT(rmh_l_s, float32, int64, uint32_t, uint64_t, float_round_down)
+FTINT(rph_l_s, float32, int64, uint32_t, uint64_t, float_round_up)
+FTINT(rzh_l_s, float32, int64, uint32_t, uint64_t, float_round_to_zero)
+FTINT(rneh_l_s, float32, int64, uint32_t, uint64_t, float_round_nearest_even)
+
+#define FTINTL_L_S(NAME, FN)                                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg temp;                                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < 2; i++) {                                       \
+        temp.D(i) = FN(env, Vj->UW(i));                             \
+    }                                                               \
+    *Vd = temp;                                                     \
+}
+
+FTINTL_L_S(vftintl_l_s, do_float32_to_int64)
+FTINTL_L_S(vftintrml_l_s, do_ftintrml_l_s)
+FTINTL_L_S(vftintrpl_l_s, do_ftintrpl_l_s)
+FTINTL_L_S(vftintrzl_l_s, do_ftintrzl_l_s)
+FTINTL_L_S(vftintrnel_l_s, do_ftintrnel_l_s)
+
+#define FTINTH_L_S(NAME, FN)                                        \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg temp;                                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < 2; i++) {                                       \
+        temp.D(i) = FN(env, Vj->UW(i + 2));                         \
+    }                                                               \
+    *Vd = temp;                                                     \
+}
+
+FTINTH_L_S(vftinth_l_s, do_float32_to_int64)
+FTINTH_L_S(vftintrmh_l_s, do_ftintrmh_l_s)
+FTINTH_L_S(vftintrph_l_s, do_ftintrph_l_s)
+FTINTH_L_S(vftintrzh_l_s, do_ftintrzh_l_s)
+FTINTH_L_S(vftintrneh_l_s, do_ftintrneh_l_s)
+
+#define FFINT(NAME, FMT1, FMT2, T1, T2)                    \
+static T2 do_ffint_ ## NAME(CPULoongArchState *env, T1 fj) \
+{                                                          \
+    T2 fd;                                                 \
+                                                           \
+    fd = FMT1 ##_to_## FMT2(fj, &env->fp_status);          \
+    vec_update_fcsr0(env, GETPC());                        \
+    return fd;                                             \
+}
+
+FFINT(s_w, int32, float32, int32_t, uint32_t)
+FFINT(d_l, int64, float64, int64_t, uint64_t)
+FFINT(s_wu, uint32, float32, uint32_t, uint32_t)
+FFINT(d_lu, uint64, float64, uint64_t, uint64_t)
+
+DO_2OP_F(vffint_s_w, 32, W, do_ffint_s_w)
+DO_2OP_F(vffint_d_l, 64, D, do_ffint_d_l)
+DO_2OP_F(vffint_s_wu, 32, UW, do_ffint_s_wu)
+DO_2OP_F(vffint_d_lu, 64, UD, do_ffint_d_lu)
+
+void HELPER(vffintl_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < 2; i++) {
+        temp.D(i) = int32_to_float64(Vj->W(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vffinth_d_w)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < 2; i++) {
+        temp.D(i) = int32_to_float64(Vj->W(i + 2), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
+
+void HELPER(vffint_s_l)(CPULoongArchState *env,
+                        uint32_t vd, uint32_t vj, uint32_t vk)
+{
+    int i;
+    VReg temp;
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+    VReg *Vk = &(env->fpr[vk].vreg);
+
+    vec_clear_cause(env);
+    for (i = 0; i < 2; i++) {
+        temp.W(i + 2) = int64_to_float32(Vj->D(i), &env->fp_status);
+        temp.W(i) = int64_to_float32(Vk->D(i), &env->fp_status);
+        vec_update_fcsr0(env, GETPC());
+    }
+    *Vd = temp;
+}
