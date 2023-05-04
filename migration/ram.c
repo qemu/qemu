@@ -4445,14 +4445,12 @@ static int ram_load_precopy(QEMUFile *f)
                 multifd_recv_sync_main();
             }
             break;
+        case RAM_SAVE_FLAG_HOOK:
+            ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
+            break;
         default:
-            if (flags & RAM_SAVE_FLAG_HOOK) {
-                ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
-            } else {
-                error_report("Unknown combination of migration flags: 0x%x",
-                             flags);
-                ret = -EINVAL;
-            }
+            error_report("Unknown combination of migration flags: 0x%x", flags);
+            ret = -EINVAL;
         }
         if (!ret) {
             ret = qemu_file_get_error(f);
