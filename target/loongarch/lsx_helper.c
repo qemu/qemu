@@ -1946,3 +1946,21 @@ DO_2OP(vclz_b, 8, UB, DO_CLZ_B)
 DO_2OP(vclz_h, 16, UH, DO_CLZ_H)
 DO_2OP(vclz_w, 32, UW, DO_CLZ_W)
 DO_2OP(vclz_d, 64, UD, DO_CLZ_D)
+
+#define VPCNT(NAME, BIT, E, FN)                                     \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++)                               \
+    {                                                               \
+        Vd->E(i) = FN(Vj->E(i));                                    \
+    }                                                               \
+}
+
+VPCNT(vpcnt_b, 8, UB, ctpop8)
+VPCNT(vpcnt_h, 16, UH, ctpop16)
+VPCNT(vpcnt_w, 32, UW, ctpop32)
+VPCNT(vpcnt_d, 64, UD, ctpop64)

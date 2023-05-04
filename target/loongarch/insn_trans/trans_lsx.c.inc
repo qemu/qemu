@@ -3106,3 +3106,8 @@ TRANS(vclz_b, gen_vv, gen_helper_vclz_b)
 TRANS(vclz_h, gen_vv, gen_helper_vclz_h)
 TRANS(vclz_w, gen_vv, gen_helper_vclz_w)
 TRANS(vclz_d, gen_vv, gen_helper_vclz_d)
+
+TRANS(vpcnt_b, gen_vv, gen_helper_vpcnt_b)
+TRANS(vpcnt_h, gen_vv, gen_helper_vpcnt_h)
+TRANS(vpcnt_w, gen_vv, gen_helper_vpcnt_w)
+TRANS(vpcnt_d, gen_vv, gen_helper_vpcnt_d)

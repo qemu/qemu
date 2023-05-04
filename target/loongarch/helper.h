@@ -480,3 +480,8 @@ DEF_HELPER_3(vclz_b, void, env, i32, i32)
 DEF_HELPER_3(vclz_h, void, env, i32, i32)
 DEF_HELPER_3(vclz_w, void, env, i32, i32)
 DEF_HELPER_3(vclz_d, void, env, i32, i32)
+
+DEF_HELPER_3(vpcnt_b, void, env, i32, i32)
+DEF_HELPER_3(vpcnt_h, void, env, i32, i32)
+DEF_HELPER_3(vpcnt_w, void, env, i32, i32)
+DEF_HELPER_3(vpcnt_d, void, env, i32, i32)

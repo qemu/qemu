@@ -1267,3 +1267,8 @@ INSN_LSX(vclz_b,           vv)
 INSN_LSX(vclz_h,           vv)
 INSN_LSX(vclz_w,           vv)
 INSN_LSX(vclz_d,           vv)
+
+INSN_LSX(vpcnt_b,          vv)
+INSN_LSX(vpcnt_h,          vv)
+INSN_LSX(vpcnt_w,          vv)
+INSN_LSX(vpcnt_d,          vv)
