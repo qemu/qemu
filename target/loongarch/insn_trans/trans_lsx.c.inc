@@ -15,6 +15,20 @@
 #define CHECK_SXE
 #endif
 
+static bool gen_vvvv(DisasContext *ctx, arg_vvvv *a,
+                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32,
+                                  TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 vk = tcg_constant_i32(a->vk);
+    TCGv_i32 va = tcg_constant_i32(a->va);
+
+    CHECK_SXE;
+    func(cpu_env, vd, vj, vk, va);
+    return true;
+}
+
 static bool gen_vvv(DisasContext *ctx, arg_vvv *a,
                     void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32, TCGv_i32))
 {
@@ -3421,3 +3435,44 @@ TRANS(vfrstp_b, gen_vvv, gen_helper_vfrstp_b)
 TRANS(vfrstp_h, gen_vvv, gen_helper_vfrstp_h)
 TRANS(vfrstpi_b, gen_vv_i, gen_helper_vfrstpi_b)
 TRANS(vfrstpi_h, gen_vv_i, gen_helper_vfrstpi_h)
+
+TRANS(vfadd_s, gen_vvv, gen_helper_vfadd_s)
+TRANS(vfadd_d, gen_vvv, gen_helper_vfadd_d)
+TRANS(vfsub_s, gen_vvv, gen_helper_vfsub_s)
+TRANS(vfsub_d, gen_vvv, gen_helper_vfsub_d)
+TRANS(vfmul_s, gen_vvv, gen_helper_vfmul_s)
+TRANS(vfmul_d, gen_vvv, gen_helper_vfmul_d)
+TRANS(vfdiv_s, gen_vvv, gen_helper_vfdiv_s)
+TRANS(vfdiv_d, gen_vvv, gen_helper_vfdiv_d)
+
+TRANS(vfmadd_s, gen_vvvv, gen_helper_vfmadd_s)
+TRANS(vfmadd_d, gen_vvvv, gen_helper_vfmadd_d)
+TRANS(vfmsub_s, gen_vvvv, gen_helper_vfmsub_s)
+TRANS(vfmsub_d, gen_vvvv, gen_helper_vfmsub_d)
+TRANS(vfnmadd_s, gen_vvvv, gen_helper_vfnmadd_s)
+TRANS(vfnmadd_d, gen_vvvv, gen_helper_vfnmadd_d)
+TRANS(vfnmsub_s, gen_vvvv, gen_helper_vfnmsub_s)
+TRANS(vfnmsub_d, gen_vvvv, gen_helper_vfnmsub_d)
+
+TRANS(vfmax_s, gen_vvv, gen_helper_vfmax_s)
+TRANS(vfmax_d, gen_vvv, gen_helper_vfmax_d)
+TRANS(vfmin_s, gen_vvv, gen_helper_vfmin_s)
+TRANS(vfmin_d, gen_vvv, gen_helper_vfmin_d)
+
+TRANS(vfmaxa_s, gen_vvv, gen_helper_vfmaxa_s)
+TRANS(vfmaxa_d, gen_vvv, gen_helper_vfmaxa_d)
+TRANS(vfmina_s, gen_vvv, gen_helper_vfmina_s)
+TRANS(vfmina_d, gen_vvv, gen_helper_vfmina_d)
+
+TRANS(vflogb_s, gen_vv, gen_helper_vflogb_s)
+TRANS(vflogb_d, gen_vv, gen_helper_vflogb_d)
+
+TRANS(vfclass_s, gen_vv, gen_helper_vfclass_s)
+TRANS(vfclass_d, gen_vv, gen_helper_vfclass_d)
+
+TRANS(vfsqrt_s, gen_vv, gen_helper_vfsqrt_s)
+TRANS(vfsqrt_d, gen_vv, gen_helper_vfsqrt_d)
+TRANS(vfrecip_s, gen_vv, gen_helper_vfrecip_s)
+TRANS(vfrecip_d, gen_vv, gen_helper_vfrecip_d)
+TRANS(vfrsqrt_s, gen_vv, gen_helper_vfrsqrt_s)
+TRANS(vfrsqrt_d, gen_vv, gen_helper_vfrsqrt_d)

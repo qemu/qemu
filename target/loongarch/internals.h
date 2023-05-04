@@ -53,6 +53,7 @@ void G_NORETURN do_raise_exception(CPULoongArchState *env,
 
 const char *loongarch_exception_name(int32_t exception);
 
+int ieee_ex_to_loongarch(int xcpt);
 void restore_fp_status(CPULoongArchState *env);
 
 #ifndef CONFIG_USER_ONLY

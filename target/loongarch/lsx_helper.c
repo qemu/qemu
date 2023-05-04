@@ -9,6 +9,8 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "fpu/softfloat.h"
+#include "internals.h"
 
 #define DO_ADD(a, b)  (a + b)
 #define DO_SUB(a, b)  (a - b)
@@ -2060,3 +2062,187 @@ void HELPER(NAME)(CPULoongArchState *env,                 \
 
 VFRSTPI(vfrstpi_b, 8,  B)
 VFRSTPI(vfrstpi_h, 16, H)
+
+static void vec_update_fcsr0_mask(CPULoongArchState *env,
+                                  uintptr_t pc, int mask)
+{
+    int flags = get_float_exception_flags(&env->fp_status);
+
+    set_float_exception_flags(0, &env->fp_status);
+
+    flags &= ~mask;
+
+    if (flags) {
+        flags = ieee_ex_to_loongarch(flags);
+        UPDATE_FP_CAUSE(env->fcsr0, flags);
+    }
+
+    if (GET_FP_ENABLES(env->fcsr0) & flags) {
+        do_raise_exception(env, EXCCODE_FPE, pc);
+    } else {
+        UPDATE_FP_FLAGS(env->fcsr0, flags);
+    }
+}
+
+static void vec_update_fcsr0(CPULoongArchState *env, uintptr_t pc)
+{
+    vec_update_fcsr0_mask(env, pc, 0);
+}
+
+static inline void vec_clear_cause(CPULoongArchState *env)
+{
+    SET_FP_CAUSE(env->fcsr0, 0);
+}
+
+#define DO_3OP_F(NAME, BIT, E, FN)                          \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t vd, uint32_t vj, uint32_t vk)    \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+    VReg *Vk = &(env->fpr[vk].vreg);                        \
+                                                            \
+    vec_clear_cause(env);                                   \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = FN(Vj->E(i), Vk->E(i), &env->fp_status); \
+        vec_update_fcsr0(env, GETPC());                     \
+    }                                                       \
+}
+
+DO_3OP_F(vfadd_s, 32, UW, float32_add)
+DO_3OP_F(vfadd_d, 64, UD, float64_add)
+DO_3OP_F(vfsub_s, 32, UW, float32_sub)
+DO_3OP_F(vfsub_d, 64, UD, float64_sub)
+DO_3OP_F(vfmul_s, 32, UW, float32_mul)
+DO_3OP_F(vfmul_d, 64, UD, float64_mul)
+DO_3OP_F(vfdiv_s, 32, UW, float32_div)
+DO_3OP_F(vfdiv_d, 64, UD, float64_div)
+DO_3OP_F(vfmax_s, 32, UW, float32_maxnum)
+DO_3OP_F(vfmax_d, 64, UD, float64_maxnum)
+DO_3OP_F(vfmin_s, 32, UW, float32_minnum)
+DO_3OP_F(vfmin_d, 64, UD, float64_minnum)
+DO_3OP_F(vfmaxa_s, 32, UW, float32_maxnummag)
+DO_3OP_F(vfmaxa_d, 64, UD, float64_maxnummag)
+DO_3OP_F(vfmina_s, 32, UW, float32_minnummag)
+DO_3OP_F(vfmina_d, 64, UD, float64_minnummag)
+
+#define DO_4OP_F(NAME, BIT, E, FN, flags)                                    \
+void HELPER(NAME)(CPULoongArchState *env,                                    \
+                  uint32_t vd, uint32_t vj, uint32_t vk, uint32_t va)        \
+{                                                                            \
+    int i;                                                                   \
+    VReg *Vd = &(env->fpr[vd].vreg);                                         \
+    VReg *Vj = &(env->fpr[vj].vreg);                                         \
+    VReg *Vk = &(env->fpr[vk].vreg);                                         \
+    VReg *Va = &(env->fpr[va].vreg);                                         \
+                                                                             \
+    vec_clear_cause(env);                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                                      \
+        Vd->E(i) = FN(Vj->E(i), Vk->E(i), Va->E(i), flags, &env->fp_status); \
+        vec_update_fcsr0(env, GETPC());                                      \
+    }                                                                        \
+}
+
+DO_4OP_F(vfmadd_s, 32, UW, float32_muladd, 0)
+DO_4OP_F(vfmadd_d, 64, UD, float64_muladd, 0)
+DO_4OP_F(vfmsub_s, 32, UW, float32_muladd, float_muladd_negate_c)
+DO_4OP_F(vfmsub_d, 64, UD, float64_muladd, float_muladd_negate_c)
+DO_4OP_F(vfnmadd_s, 32, UW, float32_muladd, float_muladd_negate_result)
+DO_4OP_F(vfnmadd_d, 64, UD, float64_muladd, float_muladd_negate_result)
+DO_4OP_F(vfnmsub_s, 32, UW, float32_muladd,
+         float_muladd_negate_c | float_muladd_negate_result)
+DO_4OP_F(vfnmsub_d, 64, UD, float64_muladd,
+         float_muladd_negate_c | float_muladd_negate_result)
+
+#define DO_2OP_F(NAME, BIT, E, FN)                                  \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    vec_clear_cause(env);                                           \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
+        Vd->E(i) = FN(env, Vj->E(i));                               \
+    }                                                               \
+}
+
+#define FLOGB(BIT, T)                                            \
+static T do_flogb_## BIT(CPULoongArchState *env, T fj)           \
+{                                                                \
+    T fp, fd;                                                    \
+    float_status *status = &env->fp_status;                      \
+    FloatRoundMode old_mode = get_float_rounding_mode(status);   \
+                                                                 \
+    set_float_rounding_mode(float_round_down, status);           \
+    fp = float ## BIT ##_log2(fj, status);                       \
+    fd = float ## BIT ##_round_to_int(fp, status);               \
+    set_float_rounding_mode(old_mode, status);                   \
+    vec_update_fcsr0_mask(env, GETPC(), float_flag_inexact);     \
+    return fd;                                                   \
+}
+
+FLOGB(32, uint32_t)
+FLOGB(64, uint64_t)
+
+#define FCLASS(NAME, BIT, E, FN)                                    \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
+        Vd->E(i) = FN(env, Vj->E(i));                               \
+    }                                                               \
+}
+
+FCLASS(vfclass_s, 32, UW, helper_fclass_s)
+FCLASS(vfclass_d, 64, UD, helper_fclass_d)
+
+#define FSQRT(BIT, T)                                  \
+static T do_fsqrt_## BIT(CPULoongArchState *env, T fj) \
+{                                                      \
+    T fd;                                              \
+    fd = float ## BIT ##_sqrt(fj, &env->fp_status);    \
+    vec_update_fcsr0(env, GETPC());                    \
+    return fd;                                         \
+}
+
+FSQRT(32, uint32_t)
+FSQRT(64, uint64_t)
+
+#define FRECIP(BIT, T)                                                  \
+static T do_frecip_## BIT(CPULoongArchState *env, T fj)                 \
+{                                                                       \
+    T fd;                                                               \
+    fd = float ## BIT ##_div(float ## BIT ##_one, fj, &env->fp_status); \
+    vec_update_fcsr0(env, GETPC());                                     \
+    return fd;                                                          \
+}
+
+FRECIP(32, uint32_t)
+FRECIP(64, uint64_t)
+
+#define FRSQRT(BIT, T)                                                  \
+static T do_frsqrt_## BIT(CPULoongArchState *env, T fj)                 \
+{                                                                       \
+    T fd, fp;                                                           \
+    fp = float ## BIT ##_sqrt(fj, &env->fp_status);                     \
+    fd = float ## BIT ##_div(float ## BIT ##_one, fp, &env->fp_status); \
+    vec_update_fcsr0(env, GETPC());                                     \
+    return fd;                                                          \
+}
+
+FRSQRT(32, uint32_t)
+FRSQRT(64, uint64_t)
+
+DO_2OP_F(vflogb_s, 32, UW, do_flogb_32)
+DO_2OP_F(vflogb_d, 64, UD, do_flogb_64)
+DO_2OP_F(vfsqrt_s, 32, UW, do_fsqrt_32)
+DO_2OP_F(vfsqrt_d, 64, UD, do_fsqrt_64)
+DO_2OP_F(vfrecip_s, 32, UW, do_frecip_32)
+DO_2OP_F(vfrecip_d, 64, UD, do_frecip_64)
+DO_2OP_F(vfrsqrt_s, 32, UW, do_frsqrt_32)
+DO_2OP_F(vfrsqrt_d, 64, UD, do_frsqrt_64)

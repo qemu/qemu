@@ -807,6 +807,11 @@ static void output_vv(DisasContext *ctx, arg_vv *a, const char *mnemonic)
     output(ctx, mnemonic, "v%d, v%d", a->vd, a->vj);
 }
 
+static void output_vvvv(DisasContext *ctx, arg_vvvv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, v%d, v%d", a->vd, a->vj, a->vk, a->va);
+}
+
 INSN_LSX(vadd_b,           vvv)
 INSN_LSX(vadd_h,           vvv)
 INSN_LSX(vadd_w,           vvv)
@@ -1302,3 +1307,44 @@ INSN_LSX(vfrstp_b,         vvv)
 INSN_LSX(vfrstp_h,         vvv)
 INSN_LSX(vfrstpi_b,        vv_i)
 INSN_LSX(vfrstpi_h,        vv_i)
+
+INSN_LSX(vfadd_s,          vvv)
+INSN_LSX(vfadd_d,          vvv)
+INSN_LSX(vfsub_s,          vvv)
+INSN_LSX(vfsub_d,          vvv)
+INSN_LSX(vfmul_s,          vvv)
+INSN_LSX(vfmul_d,          vvv)
+INSN_LSX(vfdiv_s,          vvv)
+INSN_LSX(vfdiv_d,          vvv)
+
+INSN_LSX(vfmadd_s,         vvvv)
+INSN_LSX(vfmadd_d,         vvvv)
+INSN_LSX(vfmsub_s,         vvvv)
+INSN_LSX(vfmsub_d,         vvvv)
+INSN_LSX(vfnmadd_s,        vvvv)
+INSN_LSX(vfnmadd_d,        vvvv)
+INSN_LSX(vfnmsub_s,        vvvv)
+INSN_LSX(vfnmsub_d,        vvvv)
+
+INSN_LSX(vfmax_s,          vvv)
+INSN_LSX(vfmax_d,          vvv)
+INSN_LSX(vfmin_s,          vvv)
+INSN_LSX(vfmin_d,          vvv)
+
+INSN_LSX(vfmaxa_s,         vvv)
+INSN_LSX(vfmaxa_d,         vvv)
+INSN_LSX(vfmina_s,         vvv)
+INSN_LSX(vfmina_d,         vvv)
+
+INSN_LSX(vflogb_s,         vv)
+INSN_LSX(vflogb_d,         vv)
+
+INSN_LSX(vfclass_s,        vv)
+INSN_LSX(vfclass_d,        vv)
+
+INSN_LSX(vfsqrt_s,         vv)
+INSN_LSX(vfsqrt_d,         vv)
+INSN_LSX(vfrecip_s,        vv)
+INSN_LSX(vfrecip_d,        vv)
+INSN_LSX(vfrsqrt_s,        vv)
+INSN_LSX(vfrsqrt_d,        vv)

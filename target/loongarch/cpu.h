@@ -55,6 +55,10 @@ FIELD(FCSR0, CAUSE, 24, 5)
     do { \
         (REG) = FIELD_DP32(REG, FCSR0, CAUSE, V); \
     } while (0)
+#define UPDATE_FP_CAUSE(REG, V) \
+    do { \
+        (REG) |= FIELD_DP32(0, FCSR0, CAUSE, V); \
+    } while (0)
 
 #define GET_FP_ENABLES(REG)    FIELD_EX32(REG, FCSR0, ENABLES)
 #define SET_FP_ENABLES(REG, V) \
