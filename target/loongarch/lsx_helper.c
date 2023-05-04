@@ -627,3 +627,38 @@ VSAT_U(vsat_bu, 8, UB)
 VSAT_U(vsat_hu, 16, UH)
 VSAT_U(vsat_wu, 32, UW)
 VSAT_U(vsat_du, 64, UD)
+
+#define VEXTH(NAME, BIT, E1, E2)                                    \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t vd, uint32_t vj) \
+{                                                                   \
+    int i;                                                          \
+    VReg *Vd = &(env->fpr[vd].vreg);                                \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                             \
+        Vd->E1(i) = Vj->E2(i + LSX_LEN/BIT);                        \
+    }                                                               \
+}
+
+void HELPER(vexth_q_d)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    Vd->Q(0) = int128_makes64(Vj->D(1));
+}
+
+void HELPER(vexth_qu_du)(CPULoongArchState *env, uint32_t vd, uint32_t vj)
+{
+    VReg *Vd = &(env->fpr[vd].vreg);
+    VReg *Vj = &(env->fpr[vj].vreg);
+
+    Vd->Q(0) = int128_make64((uint64_t)Vj->D(1));
+}
+
+VEXTH(vexth_h_b, 16, H, B)
+VEXTH(vexth_w_h, 32, W, H)
+VEXTH(vexth_d_w, 64, D, W)
+VEXTH(vexth_hu_bu, 16, UH, UB)
+VEXTH(vexth_wu_hu, 32, UW, UH)
+VEXTH(vexth_du_wu, 64, UD, UW)

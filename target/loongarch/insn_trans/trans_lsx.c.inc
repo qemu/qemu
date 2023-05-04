@@ -28,6 +28,17 @@ static bool gen_vvv(DisasContext *ctx, arg_vvv *a,
     return true;
 }
 
+static bool gen_vv(DisasContext *ctx, arg_vv *a,
+                   void (*func)(TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+
+    CHECK_SXE;
+    func(cpu_env, vd, vj);
+    return true;
+}
+
 static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
                      void (*func)(unsigned, uint32_t, uint32_t,
                                   uint32_t, uint32_t, uint32_t))
@@ -2794,3 +2805,12 @@ TRANS(vsat_bu, gvec_vv_i, MO_8, do_vsat_u)
 TRANS(vsat_hu, gvec_vv_i, MO_16, do_vsat_u)
 TRANS(vsat_wu, gvec_vv_i, MO_32, do_vsat_u)
 TRANS(vsat_du, gvec_vv_i, MO_64, do_vsat_u)
+
+TRANS(vexth_h_b, gen_vv, gen_helper_vexth_h_b)
+TRANS(vexth_w_h, gen_vv, gen_helper_vexth_w_h)
+TRANS(vexth_d_w, gen_vv, gen_helper_vexth_d_w)
+TRANS(vexth_q_d, gen_vv, gen_helper_vexth_q_d)
+TRANS(vexth_hu_bu, gen_vv, gen_helper_vexth_hu_bu)
+TRANS(vexth_wu_hu, gen_vv, gen_helper_vexth_wu_hu)
+TRANS(vexth_du_wu, gen_vv, gen_helper_vexth_du_wu)
+TRANS(vexth_qu_du, gen_vv, gen_helper_vexth_qu_du)
