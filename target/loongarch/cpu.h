@@ -8,6 +8,7 @@
 #ifndef LOONGARCH_CPU_H
 #define LOONGARCH_CPU_H
 
+#include "qemu/int128.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 #include "hw/registerfields.h"
@@ -241,6 +242,24 @@ FIELD(TLB_MISC, ASID, 1, 10)
 FIELD(TLB_MISC, VPPN, 13, 35)
 FIELD(TLB_MISC, PS, 48, 6)
 
+#define LSX_LEN   (128)
+typedef union VReg {
+    int8_t   B[LSX_LEN / 8];
+    int16_t  H[LSX_LEN / 16];
+    int32_t  W[LSX_LEN / 32];
+    int64_t  D[LSX_LEN / 64];
+    uint8_t  UB[LSX_LEN / 8];
+    uint16_t UH[LSX_LEN / 16];
+    uint32_t UW[LSX_LEN / 32];
+    uint64_t UD[LSX_LEN / 64];
+    Int128   Q[LSX_LEN / 128];
+}VReg;
+
+typedef union fpr_t fpr_t;
+union fpr_t {
+    VReg  vreg;
+};
+
 struct LoongArchTLB {
     uint64_t tlb_misc;
     /* Fields corresponding to CSR_TLBELO0/1 */
@@ -253,7 +272,7 @@ typedef struct CPUArchState {
     uint64_t gpr[32];
     uint64_t pc;
 
-    uint64_t fpr[32];
+    fpr_t fpr[32];
     float_status fp_status;
     bool cf[8];
 
