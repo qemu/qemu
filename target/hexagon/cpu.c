@@ -31,6 +31,26 @@ static void hexagon_v69_cpu_init(Object *obj) { }
 static void hexagon_v71_cpu_init(Object *obj) { }
 static void hexagon_v73_cpu_init(Object *obj) { }
 
+static void hexagon_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    char *name = g_strdup(object_class_get_name(oc));
+    if (g_str_has_suffix(name, HEXAGON_CPU_TYPE_SUFFIX)) {
+        name[strlen(name) - strlen(HEXAGON_CPU_TYPE_SUFFIX)] = '\0';
+    }
+    qemu_printf("  %s\n", name);
+    g_free(name);
+}
+
+void hexagon_cpu_list(void)
+{
+    GSList *list;
+    list = object_class_get_list_sorted(TYPE_HEXAGON_CPU, false);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, hexagon_cpu_list_entry, NULL);
+    g_slist_free(list);
+}
+
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
