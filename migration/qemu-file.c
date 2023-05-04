@@ -51,7 +51,7 @@ struct QEMUFile {
     int64_t rate_limit_used;
 
     /* The sum of bytes transferred on the wire */
-    int64_t total_transferred;
+    uint64_t total_transferred;
 
     int buf_index;
     int buf_size; /* 0 when writing */
@@ -708,9 +708,9 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-int64_t qemu_file_total_transferred_fast(QEMUFile *f)
+uint64_t qemu_file_total_transferred_fast(QEMUFile *f)
 {
-    int64_t ret = f->total_transferred;
+    uint64_t ret = f->total_transferred;
     int i;
 
     for (i = 0; i < f->iovcnt; i++) {
@@ -720,7 +720,7 @@ int64_t qemu_file_total_transferred_fast(QEMUFile *f)
     return ret;
 }
 
-int64_t qemu_file_total_transferred(QEMUFile *f)
+uint64_t qemu_file_total_transferred(QEMUFile *f)
 {
     qemu_fflush(f);
     return f->total_transferred;
