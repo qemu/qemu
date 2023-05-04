@@ -590,3 +590,40 @@ VDIV(vmod_bu, 8, UB, DO_REMU)
 VDIV(vmod_hu, 16, UH, DO_REMU)
 VDIV(vmod_wu, 32, UW, DO_REMU)
 VDIV(vmod_du, 64, UD, DO_REMU)
+
+#define VSAT_S(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, uint64_t max, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    typedef __typeof(Vd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = Vj->E(i) > (TD)max ? (TD)max :               \
+                   Vj->E(i) < (TD)~max ? (TD)~max: Vj->E(i);    \
+    }                                                           \
+}
+
+VSAT_S(vsat_b, 8, B)
+VSAT_S(vsat_h, 16, H)
+VSAT_S(vsat_w, 32, W)
+VSAT_S(vsat_d, 64, D)
+
+#define VSAT_U(NAME, BIT, E)                                    \
+void HELPER(NAME)(void *vd, void *vj, uint64_t max, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    typedef __typeof(Vd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = Vj->E(i) > (TD)max ? (TD)max : Vj->E(i);     \
+    }                                                           \
+}
+
+VSAT_U(vsat_bu, 8, UB)
+VSAT_U(vsat_hu, 16, UH)
+VSAT_U(vsat_wu, 32, UW)
+VSAT_U(vsat_du, 64, UD)
