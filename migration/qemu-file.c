@@ -63,8 +63,6 @@ struct QEMUFile {
 
     int last_error;
     Error *last_error_obj;
-    /* has the file has been shutdown */
-    bool shutdown;
 };
 
 /*
@@ -77,8 +75,6 @@ struct QEMUFile {
 int qemu_file_shutdown(QEMUFile *f)
 {
     int ret = 0;
-
-    f->shutdown = true;
 
     /*
      * We must set qemufile error before the real shutdown(), otherwise
@@ -294,7 +290,7 @@ void qemu_fflush(QEMUFile *f)
         return;
     }
 
-    if (f->shutdown) {
+    if (qemu_file_get_error(f)) {
         return;
     }
     if (f->iovcnt > 0) {
@@ -397,7 +393,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     f->buf_index = 0;
     f->buf_size = pending;
 
-    if (f->shutdown) {
+    if (qemu_file_get_error(f)) {
         return 0;
     }
 
@@ -486,7 +482,7 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
     } else {
         if (f->iovcnt >= MAX_IOV_SIZE) {
             /* Should only happen if a previous fflush failed */
-            assert(f->shutdown || !qemu_file_is_writable(f));
+            assert(qemu_file_get_error(f) || !qemu_file_is_writable(f));
             return 1;
         }
         if (may_free) {
