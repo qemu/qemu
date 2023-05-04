@@ -553,3 +553,40 @@ void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
 VMADDWOD_U_S(vmaddwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
 VMADDWOD_U_S(vmaddwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
 VMADDWOD_U_S(vmaddwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
+
+#define DO_DIVU(N, M) (unlikely(M == 0) ? 0 : N / M)
+#define DO_REMU(N, M) (unlikely(M == 0) ? 0 : N % M)
+#define DO_DIV(N, M)  (unlikely(M == 0) ? 0 :\
+        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? N : N / M)
+#define DO_REM(N, M)  (unlikely(M == 0) ? 0 :\
+        unlikely((N == -N) && (M == (__typeof(N))(-1))) ? 0 : N % M)
+
+#define VDIV(NAME, BIT, E, DO_OP)                           \
+void HELPER(NAME)(CPULoongArchState *env,                   \
+                  uint32_t vd, uint32_t vj, uint32_t vk)    \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = &(env->fpr[vd].vreg);                        \
+    VReg *Vj = &(env->fpr[vj].vreg);                        \
+    VReg *Vk = &(env->fpr[vk].vreg);                        \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E(i) = DO_OP(Vj->E(i), Vk->E(i));               \
+    }                                                       \
+}
+
+VDIV(vdiv_b, 8, B, DO_DIV)
+VDIV(vdiv_h, 16, H, DO_DIV)
+VDIV(vdiv_w, 32, W, DO_DIV)
+VDIV(vdiv_d, 64, D, DO_DIV)
+VDIV(vdiv_bu, 8, UB, DO_DIVU)
+VDIV(vdiv_hu, 16, UH, DO_DIVU)
+VDIV(vdiv_wu, 32, UW, DO_DIVU)
+VDIV(vdiv_du, 64, UD, DO_DIVU)
+VDIV(vmod_b, 8, B, DO_REM)
+VDIV(vmod_h, 16, H, DO_REM)
+VDIV(vmod_w, 32, W, DO_REM)
+VDIV(vmod_d, 64, D, DO_REM)
+VDIV(vmod_bu, 8, UB, DO_REMU)
+VDIV(vmod_hu, 16, UH, DO_REMU)
+VDIV(vmod_wu, 32, UW, DO_REMU)
+VDIV(vmod_du, 64, UD, DO_REMU)
