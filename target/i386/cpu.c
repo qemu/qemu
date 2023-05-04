@@ -809,7 +809,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "pfthreshold", "avic", NULL, "v-vmsave-vmload",
             "vgif", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            NULL, "vnmi", NULL, NULL,
             "svme-addr-chk", NULL, NULL, NULL,
         },
         .cpuid = { .eax = 0x8000000A, .reg = R_EDX, },
@@ -947,7 +947,7 @@ FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .feat_names = {
             "no-nested-data-bp", NULL, "lfence-always-serializing", NULL,
             NULL, NULL, "null-sel-clr-base", NULL,
-            NULL, NULL, NULL, NULL,
+            "auto-ibrs", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
