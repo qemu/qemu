@@ -717,7 +717,7 @@ uint64_t migrate_max_bandwidth(void)
     return s->parameters.max_bandwidth;
 }
 
-int64_t migrate_max_postcopy_bandwidth(void)
+uint64_t migrate_max_postcopy_bandwidth(void)
 {
     MigrationState *s = migrate_get_current();
 
