@@ -662,3 +662,10 @@ VEXTH(vexth_d_w, 64, D, W)
 VEXTH(vexth_hu_bu, 16, UH, UB)
 VEXTH(vexth_wu_hu, 32, UW, UH)
 VEXTH(vexth_du_wu, 64, UD, UW)
+
+#define DO_SIGNCOV(a, b)  (a == 0 ? 0 : a < 0 ? -b : b)
+
+DO_3OP(vsigncov_b, 8, B, DO_SIGNCOV)
+DO_3OP(vsigncov_h, 16, H, DO_SIGNCOV)
+DO_3OP(vsigncov_w, 32, W, DO_SIGNCOV)
+DO_3OP(vsigncov_d, 64, D, DO_SIGNCOV)
