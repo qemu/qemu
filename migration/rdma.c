@@ -3811,9 +3811,10 @@ out:
  * the source.
  */
 static int
-rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
+rdma_block_notification_handle(QEMUFile *f, const char *name)
 {
     RDMAContext *rdma;
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     int curr;
     int found = -1;
 
@@ -3846,10 +3847,9 @@ rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
 
 static int rdma_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     switch (flags) {
     case RAM_CONTROL_BLOCK_REG:
-        return rdma_block_notification_handle(rioc, data);
+        return rdma_block_notification_handle(f, data);
 
     case RAM_CONTROL_HOOK:
         return qemu_rdma_registration_handle(f);
