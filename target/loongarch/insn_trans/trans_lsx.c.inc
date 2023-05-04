@@ -1514,3 +1514,553 @@ TRANS(vmaxi_bu, gvec_vv_i, MO_8, do_vmaxi_u)
 TRANS(vmaxi_hu, gvec_vv_i, MO_16, do_vmaxi_u)
 TRANS(vmaxi_wu, gvec_vv_i, MO_32, do_vmaxi_u)
 TRANS(vmaxi_du, gvec_vv_i, MO_64, do_vmaxi_u)
+
+TRANS(vmul_b, gvec_vvv, MO_8, tcg_gen_gvec_mul)
+TRANS(vmul_h, gvec_vvv, MO_16, tcg_gen_gvec_mul)
+TRANS(vmul_w, gvec_vvv, MO_32, tcg_gen_gvec_mul)
+TRANS(vmul_d, gvec_vvv, MO_64, tcg_gen_gvec_mul)
+
+static void gen_vmuh_w(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 discard = tcg_temp_new_i32();
+    tcg_gen_muls2_i32(discard, t, a, b);
+}
+
+static void gen_vmuh_d(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 discard = tcg_temp_new_i64();
+    tcg_gen_muls2_i64(discard, t, a, b);
+}
+
+static void do_vmuh_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                      uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 op[4] = {
+        {
+            .fno = gen_helper_vmuh_b,
+            .vece = MO_8
+        },
+        {
+            .fno = gen_helper_vmuh_h,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmuh_w,
+            .fno = gen_helper_vmuh_w,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmuh_d,
+            .fno = gen_helper_vmuh_d,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmuh_b, gvec_vvv, MO_8, do_vmuh_s)
+TRANS(vmuh_h, gvec_vvv, MO_16, do_vmuh_s)
+TRANS(vmuh_w, gvec_vvv, MO_32, do_vmuh_s)
+TRANS(vmuh_d, gvec_vvv, MO_64, do_vmuh_s)
+
+static void gen_vmuh_wu(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 discard = tcg_temp_new_i32();
+    tcg_gen_mulu2_i32(discard, t, a, b);
+}
+
+static void gen_vmuh_du(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 discard = tcg_temp_new_i64();
+    tcg_gen_mulu2_i64(discard, t, a, b);
+}
+
+static void do_vmuh_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                      uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 op[4] = {
+        {
+            .fno = gen_helper_vmuh_bu,
+            .vece = MO_8
+        },
+        {
+            .fno = gen_helper_vmuh_hu,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmuh_wu,
+            .fno = gen_helper_vmuh_wu,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmuh_du,
+            .fno = gen_helper_vmuh_du,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmuh_bu, gvec_vvv, MO_8,  do_vmuh_u)
+TRANS(vmuh_hu, gvec_vvv, MO_16, do_vmuh_u)
+TRANS(vmuh_wu, gvec_vvv, MO_32, do_vmuh_u)
+TRANS(vmuh_du, gvec_vvv, MO_64, do_vmuh_u)
+
+static void gen_vmulwev_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2;
+    int halfbits = 4 << vece;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    tcg_gen_shli_vec(vece, t1, a, halfbits);
+    tcg_gen_sari_vec(vece, t1, t1, halfbits);
+    tcg_gen_shli_vec(vece, t2, b, halfbits);
+    tcg_gen_sari_vec(vece, t2, t2, halfbits);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwev_w_h(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_ext16s_i32(t1, a);
+    tcg_gen_ext16s_i32(t2, b);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+
+static void gen_vmulwev_d_w(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_ext32s_i64(t1, a);
+    tcg_gen_ext32s_i64(t2, b);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwev_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                         uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, INDEX_op_sari_vec, INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwev_s,
+            .fno = gen_helper_vmulwev_h_b,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwev_w_h,
+            .fniv = gen_vmulwev_s,
+            .fno = gen_helper_vmulwev_w_h,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwev_d_w,
+            .fniv = gen_vmulwev_s,
+            .fno = gen_helper_vmulwev_d_w,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwev_h_b, gvec_vvv, MO_8, do_vmulwev_s)
+TRANS(vmulwev_w_h, gvec_vvv, MO_16, do_vmulwev_s)
+TRANS(vmulwev_d_w, gvec_vvv, MO_32, do_vmulwev_s)
+
+static void tcg_gen_mulus2_i64(TCGv_i64 rl, TCGv_i64 rh,
+                               TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    tcg_gen_mulsu2_i64(rl, rh, arg2, arg1);
+}
+
+#define VMUL_Q(NAME, FN, idx1, idx2)                      \
+static bool trans_## NAME (DisasContext *ctx, arg_vvv *a) \
+{                                                         \
+    TCGv_i64 rh, rl, arg1, arg2;                          \
+                                                          \
+    rh = tcg_temp_new_i64();                              \
+    rl = tcg_temp_new_i64();                              \
+    arg1 = tcg_temp_new_i64();                            \
+    arg2 = tcg_temp_new_i64();                            \
+                                                          \
+    get_vreg64(arg1, a->vj, idx1);                        \
+    get_vreg64(arg2, a->vk, idx2);                        \
+                                                          \
+    tcg_gen_## FN ##_i64(rl, rh, arg1, arg2);             \
+                                                          \
+    set_vreg64(rh, a->vd, 1);                             \
+    set_vreg64(rl, a->vd, 0);                             \
+                                                          \
+    return true;                                          \
+}
+
+VMUL_Q(vmulwev_q_d, muls2, 0, 0)
+VMUL_Q(vmulwod_q_d, muls2, 1, 1)
+VMUL_Q(vmulwev_q_du, mulu2, 0, 0)
+VMUL_Q(vmulwod_q_du, mulu2, 1, 1)
+VMUL_Q(vmulwev_q_du_d, mulus2, 0, 0)
+VMUL_Q(vmulwod_q_du_d, mulus2, 1, 1)
+
+static void gen_vmulwod_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2;
+    int halfbits = 4 << vece;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    tcg_gen_sari_vec(vece, t1, a, halfbits);
+    tcg_gen_sari_vec(vece, t2, b, halfbits);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwod_w_h(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_sari_i32(t1, a, 16);
+    tcg_gen_sari_i32(t2, b, 16);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+
+static void gen_vmulwod_d_w(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_sari_i64(t1, a, 32);
+    tcg_gen_sari_i64(t2, b, 32);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwod_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                         uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_sari_vec, INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwod_s,
+            .fno = gen_helper_vmulwod_h_b,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwod_w_h,
+            .fniv = gen_vmulwod_s,
+            .fno = gen_helper_vmulwod_w_h,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwod_d_w,
+            .fniv = gen_vmulwod_s,
+            .fno = gen_helper_vmulwod_d_w,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwod_h_b, gvec_vvv, MO_8, do_vmulwod_s)
+TRANS(vmulwod_w_h, gvec_vvv, MO_16, do_vmulwod_s)
+TRANS(vmulwod_d_w, gvec_vvv, MO_32, do_vmulwod_s)
+
+static void gen_vmulwev_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2, mask;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    mask = tcg_constant_vec_matching(t, vece, MAKE_64BIT_MASK(0, 4 << vece));
+    tcg_gen_and_vec(vece, t1, a, mask);
+    tcg_gen_and_vec(vece, t2, b, mask);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwev_w_hu(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_ext16u_i32(t1, a);
+    tcg_gen_ext16u_i32(t2, b);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+
+static void gen_vmulwev_d_wu(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(t1, a);
+    tcg_gen_ext32u_i64(t2, b);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwev_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                         uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwev_u,
+            .fno = gen_helper_vmulwev_h_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwev_w_hu,
+            .fniv = gen_vmulwev_u,
+            .fno = gen_helper_vmulwev_w_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwev_d_wu,
+            .fniv = gen_vmulwev_u,
+            .fno = gen_helper_vmulwev_d_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwev_h_bu, gvec_vvv, MO_8, do_vmulwev_u)
+TRANS(vmulwev_w_hu, gvec_vvv, MO_16, do_vmulwev_u)
+TRANS(vmulwev_d_wu, gvec_vvv, MO_32, do_vmulwev_u)
+
+static void gen_vmulwod_u(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2;
+    int halfbits = 4 << vece;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    tcg_gen_shri_vec(vece, t1, a, halfbits);
+    tcg_gen_shri_vec(vece, t2, b, halfbits);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwod_w_hu(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_shri_i32(t1, a, 16);
+    tcg_gen_shri_i32(t2, b, 16);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+
+static void gen_vmulwod_d_wu(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t1, a, 32);
+    tcg_gen_shri_i64(t2, b, 32);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwod_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                         uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shri_vec, INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwod_u,
+            .fno = gen_helper_vmulwod_h_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwod_w_hu,
+            .fniv = gen_vmulwod_u,
+            .fno = gen_helper_vmulwod_w_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwod_d_wu,
+            .fniv = gen_vmulwod_u,
+            .fno = gen_helper_vmulwod_d_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwod_h_bu, gvec_vvv, MO_8, do_vmulwod_u)
+TRANS(vmulwod_w_hu, gvec_vvv, MO_16, do_vmulwod_u)
+TRANS(vmulwod_d_wu, gvec_vvv, MO_32, do_vmulwod_u)
+
+static void gen_vmulwev_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2, mask;
+    int halfbits = 4 << vece;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    mask = tcg_constant_vec_matching(t, vece, MAKE_64BIT_MASK(0, 4 << vece));
+    tcg_gen_and_vec(vece, t1, a, mask);
+    tcg_gen_shli_vec(vece, t2, b, halfbits);
+    tcg_gen_sari_vec(vece, t2, t2, halfbits);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwev_w_hu_h(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_ext16u_i32(t1, a);
+    tcg_gen_ext16s_i32(t2, b);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+
+static void gen_vmulwev_d_wu_w(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(t1, a);
+    tcg_gen_ext32s_i64(t2, b);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwev_u_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                           uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shli_vec, INDEX_op_sari_vec, INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwev_u_s,
+            .fno = gen_helper_vmulwev_h_bu_b,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwev_w_hu_h,
+            .fniv = gen_vmulwev_u_s,
+            .fno = gen_helper_vmulwev_w_hu_h,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwev_d_wu_w,
+            .fniv = gen_vmulwev_u_s,
+            .fno = gen_helper_vmulwev_d_wu_w,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwev_h_bu_b, gvec_vvv, MO_8, do_vmulwev_u_s)
+TRANS(vmulwev_w_hu_h, gvec_vvv, MO_16, do_vmulwev_u_s)
+TRANS(vmulwev_d_wu_w, gvec_vvv, MO_32, do_vmulwev_u_s)
+
+static void gen_vmulwod_u_s(unsigned vece, TCGv_vec t, TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec t1, t2;
+    int halfbits = 4 << vece;
+
+    t1 = tcg_temp_new_vec_matching(a);
+    t2 = tcg_temp_new_vec_matching(b);
+    tcg_gen_shri_vec(vece, t1, a, halfbits);
+    tcg_gen_sari_vec(vece, t2, b, halfbits);
+    tcg_gen_mul_vec(vece, t, t1, t2);
+}
+
+static void gen_vmulwod_w_hu_h(TCGv_i32 t, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t1, t2;
+
+    t1 = tcg_temp_new_i32();
+    t2 = tcg_temp_new_i32();
+    tcg_gen_shri_i32(t1, a, 16);
+    tcg_gen_sari_i32(t2, b, 16);
+    tcg_gen_mul_i32(t, t1, t2);
+}
+static void gen_vmulwod_d_wu_w(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1, t2;
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t1, a, 32);
+    tcg_gen_sari_i64(t2, b, 32);
+    tcg_gen_mul_i64(t, t1, t2);
+}
+
+static void do_vmulwod_u_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                           uint32_t vk_ofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_shri_vec, INDEX_op_sari_vec, INDEX_op_mul_vec, 0
+        };
+    static const GVecGen3 op[3] = {
+        {
+            .fniv = gen_vmulwod_u_s,
+            .fno = gen_helper_vmulwod_h_bu_b,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fni4 = gen_vmulwod_w_hu_h,
+            .fniv = gen_vmulwod_u_s,
+            .fno = gen_helper_vmulwod_w_hu_h,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fni8 = gen_vmulwod_d_wu_w,
+            .fniv = gen_vmulwod_u_s,
+            .fno = gen_helper_vmulwod_d_wu_w,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_3(vd_ofs, vj_ofs, vk_ofs, oprsz, maxsz, &op[vece]);
+}
+
+TRANS(vmulwod_h_bu_b, gvec_vvv, MO_8, do_vmulwod_u_s)
+TRANS(vmulwod_w_hu_h, gvec_vvv, MO_16, do_vmulwod_u_s)
+TRANS(vmulwod_d_wu_w, gvec_vvv, MO_32, do_vmulwod_u_s)

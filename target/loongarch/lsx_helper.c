@@ -370,3 +370,79 @@ VMINMAXI(vmaxi_bu, 8, UB, DO_MAX)
 VMINMAXI(vmaxi_hu, 16, UH, DO_MAX)
 VMINMAXI(vmaxi_wu, 32, UW, DO_MAX)
 VMINMAXI(vmaxi_du, 64, UD, DO_MAX)
+
+#define DO_VMUH(NAME, BIT, E1, E2, DO_OP)                   \
+void HELPER(NAME)(void *vd, void *vj, void *vk, uint32_t v) \
+{                                                           \
+    int i;                                                  \
+    VReg *Vd = (VReg *)vd;                                  \
+    VReg *Vj = (VReg *)vj;                                  \
+    VReg *Vk = (VReg *)vk;                                  \
+    typedef __typeof(Vd->E1(0)) T;                          \
+                                                            \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                     \
+        Vd->E2(i) = ((T)Vj->E2(i)) * ((T)Vk->E2(i)) >> BIT; \
+    }                                                       \
+}
+
+void HELPER(vmuh_d)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    uint64_t l, h1, h2;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    muls64(&l, &h1, Vj->D(0), Vk->D(0));
+    muls64(&l, &h2, Vj->D(1), Vk->D(1));
+
+    Vd->D(0) = h1;
+    Vd->D(1) = h2;
+}
+
+DO_VMUH(vmuh_b, 8, H, B, DO_MUH)
+DO_VMUH(vmuh_h, 16, W, H, DO_MUH)
+DO_VMUH(vmuh_w, 32, D, W, DO_MUH)
+
+void HELPER(vmuh_du)(void *vd, void *vj, void *vk, uint32_t v)
+{
+    uint64_t l, h1, h2;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+    VReg *Vk = (VReg *)vk;
+
+    mulu64(&l, &h1, Vj->D(0), Vk->D(0));
+    mulu64(&l, &h2, Vj->D(1), Vk->D(1));
+
+    Vd->D(0) = h1;
+    Vd->D(1) = h2;
+}
+
+DO_VMUH(vmuh_bu, 8, UH, UB, DO_MUH)
+DO_VMUH(vmuh_hu, 16, UW, UH, DO_MUH)
+DO_VMUH(vmuh_wu, 32, UD, UW, DO_MUH)
+
+#define DO_MUL(a, b) (a * b)
+
+DO_EVEN(vmulwev_h_b, 16, H, B, DO_MUL)
+DO_EVEN(vmulwev_w_h, 32, W, H, DO_MUL)
+DO_EVEN(vmulwev_d_w, 64, D, W, DO_MUL)
+
+DO_ODD(vmulwod_h_b, 16, H, B, DO_MUL)
+DO_ODD(vmulwod_w_h, 32, W, H, DO_MUL)
+DO_ODD(vmulwod_d_w, 64, D, W, DO_MUL)
+
+DO_EVEN(vmulwev_h_bu, 16, UH, UB, DO_MUL)
+DO_EVEN(vmulwev_w_hu, 32, UW, UH, DO_MUL)
+DO_EVEN(vmulwev_d_wu, 64, UD, UW, DO_MUL)
+
+DO_ODD(vmulwod_h_bu, 16, UH, UB, DO_MUL)
+DO_ODD(vmulwod_w_hu, 32, UW, UH, DO_MUL)
+DO_ODD(vmulwod_d_wu, 64, UD, UW, DO_MUL)
+
+DO_EVEN_U_S(vmulwev_h_bu_b, 16, H, UH, B, UB, DO_MUL)
+DO_EVEN_U_S(vmulwev_w_hu_h, 32, W, UW, H, UH, DO_MUL)
+DO_EVEN_U_S(vmulwev_d_wu_w, 64, D, UD, W, UW, DO_MUL)
+
+DO_ODD_U_S(vmulwod_h_bu_b, 16, H, UH, B, UB, DO_MUL)
+DO_ODD_U_S(vmulwod_w_hu_h, 32, W, UW, H, UH, DO_MUL)
+DO_ODD_U_S(vmulwod_d_wu_w, 64, D, UD, W, UW, DO_MUL)
