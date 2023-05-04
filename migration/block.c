@@ -801,13 +801,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
     delta_bytes = qemu_file_total_transferred(f) - last_bytes;
-    if (delta_bytes > 0) {
-        return 1;
-    } else if (delta_bytes < 0) {
-        return -1;
-    } else {
-        return 0;
-    }
+    return (delta_bytes > 0);
 }
 
 /* Called with iothread lock taken.  */
