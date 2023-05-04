@@ -21,9 +21,19 @@ static inline int plus_1(DisasContext *ctx, int x)
     return x + 1;
 }
 
+static inline int shl_1(DisasContext *ctx, int x)
+{
+    return x << 1;
+}
+
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+static inline int shl_3(DisasContext *ctx, int x)
+{
+    return x << 3;
 }
 
 #define CSR_NAME(REG) \
@@ -823,6 +833,11 @@ static void output_vr_i(DisasContext *ctx, arg_vr_i *a, const char *mnemonic)
     output(ctx, mnemonic, "v%d, r%d, 0x%x", a->vd, a->rj, a->imm);
 }
 
+static void output_vr_ii(DisasContext *ctx, arg_vr_ii *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, 0x%x, 0x%x", a->vd, a->rj, a->imm, a->imm2);
+}
+
 static void output_rv_i(DisasContext *ctx, arg_rv_i *a, const char *mnemonic)
 {
     output(ctx, mnemonic, "r%d, v%d, 0x%x", a->rd, a->vj,  a->imm);
@@ -836,6 +851,11 @@ static void output_vr(DisasContext *ctx, arg_vr *a, const char *mnemonic)
 static void output_vvr(DisasContext *ctx, arg_vvr *a, const char *mnemonic)
 {
     output(ctx, mnemonic, "v%d, v%d, r%d", a->vd, a->vj, a->rk);
+}
+
+static void output_vrr(DisasContext *ctx, arg_vrr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, r%d", a->vd, a->rj, a->rk);
 }
 
 INSN_LSX(vadd_b,           vvv)
@@ -1654,3 +1674,17 @@ INSN_LSX(vextrins_d,       vv_i)
 INSN_LSX(vextrins_w,       vv_i)
 INSN_LSX(vextrins_h,       vv_i)
 INSN_LSX(vextrins_b,       vv_i)
+
+INSN_LSX(vld,              vr_i)
+INSN_LSX(vst,              vr_i)
+INSN_LSX(vldx,             vrr)
+INSN_LSX(vstx,             vrr)
+
+INSN_LSX(vldrepl_d,        vr_i)
+INSN_LSX(vldrepl_w,        vr_i)
+INSN_LSX(vldrepl_h,        vr_i)
+INSN_LSX(vldrepl_b,        vr_i)
+INSN_LSX(vstelm_d,         vr_ii)
+INSN_LSX(vstelm_w,         vr_ii)
+INSN_LSX(vstelm_h,         vr_ii)
+INSN_LSX(vstelm_b,         vr_ii)

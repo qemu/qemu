@@ -53,9 +53,19 @@ static inline int plus_1(DisasContext *ctx, int x)
     return x + 1;
 }
 
+static inline int shl_1(DisasContext *ctx, int x)
+{
+    return x << 1;
+}
+
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+static inline int shl_3(DisasContext *ctx, int x)
+{
+    return x << 3;
 }
 
 /*

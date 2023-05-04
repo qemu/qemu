@@ -4102,3 +4102,162 @@ TRANS(vextrins_b, gen_vv_i, gen_helper_vextrins_b)
 TRANS(vextrins_h, gen_vv_i, gen_helper_vextrins_h)
 TRANS(vextrins_w, gen_vv_i, gen_helper_vextrins_w)
 TRANS(vextrins_d, gen_vv_i, gen_helper_vextrins_d)
+
+static bool trans_vld(DisasContext *ctx, arg_vr_i *a)
+{
+    TCGv addr, temp;
+    TCGv_i64 rl, rh;
+    TCGv_i128 val;
+
+    CHECK_SXE;
+
+    addr = gpr_src(ctx, a->rj, EXT_NONE);
+    val = tcg_temp_new_i128();
+    rl = tcg_temp_new_i64();
+    rh = tcg_temp_new_i64();
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_extr_i128_i64(rl, rh, val);
+    set_vreg64(rh, a->vd, 1);
+    set_vreg64(rl, a->vd, 0);
+
+    return true;
+}
+
+static bool trans_vst(DisasContext *ctx, arg_vr_i *a)
+{
+    TCGv addr, temp;
+    TCGv_i128 val;
+    TCGv_i64 ah, al;
+
+    CHECK_SXE;
+
+    addr = gpr_src(ctx, a->rj, EXT_NONE);
+    val = tcg_temp_new_i128();
+    ah = tcg_temp_new_i64();
+    al = tcg_temp_new_i64();
+
+    if (a->imm) {
+        temp = tcg_temp_new();
+        tcg_gen_addi_tl(temp, addr, a->imm);
+        addr = temp;
+    }
+
+    get_vreg64(ah, a->vd, 1);
+    get_vreg64(al, a->vd, 0);
+    tcg_gen_concat_i64_i128(val, al, ah);
+    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+
+    return true;
+}
+
+static bool trans_vldx(DisasContext *ctx, arg_vrr *a)
+{
+    TCGv addr, src1, src2;
+    TCGv_i64 rl, rh;
+    TCGv_i128 val;
+
+    CHECK_SXE;
+
+    addr = tcg_temp_new();
+    src1 = gpr_src(ctx, a->rj, EXT_NONE);
+    src2 = gpr_src(ctx, a->rk, EXT_NONE);
+    val = tcg_temp_new_i128();
+    rl = tcg_temp_new_i64();
+    rh = tcg_temp_new_i64();
+
+    tcg_gen_add_tl(addr, src1, src2);
+    tcg_gen_qemu_ld_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+    tcg_gen_extr_i128_i64(rl, rh, val);
+    set_vreg64(rh, a->vd, 1);
+    set_vreg64(rl, a->vd, 0);
+
+    return true;
+}
+
+static bool trans_vstx(DisasContext *ctx, arg_vrr *a)
+{
+    TCGv addr, src1, src2;
+    TCGv_i64 ah, al;
+    TCGv_i128 val;
+
+    CHECK_SXE;
+
+    addr = tcg_temp_new();
+    src1 = gpr_src(ctx, a->rj, EXT_NONE);
+    src2 = gpr_src(ctx, a->rk, EXT_NONE);
+    val = tcg_temp_new_i128();
+    ah = tcg_temp_new_i64();
+    al = tcg_temp_new_i64();
+
+    tcg_gen_add_tl(addr, src1, src2);
+    get_vreg64(ah, a->vd, 1);
+    get_vreg64(al, a->vd, 0);
+    tcg_gen_concat_i64_i128(val, al, ah);
+    tcg_gen_qemu_st_i128(val, addr, ctx->mem_idx, MO_128 | MO_TE);
+
+    return true;
+}
+
+#define VLDREPL(NAME, MO)                                                 \
+static bool trans_## NAME (DisasContext *ctx, arg_vr_i *a)                \
+{                                                                         \
+    TCGv addr, temp;                                                      \
+    TCGv_i64 val;                                                         \
+                                                                          \
+    CHECK_SXE;                                                            \
+                                                                          \
+    addr = gpr_src(ctx, a->rj, EXT_NONE);                                 \
+    val = tcg_temp_new_i64();                                             \
+                                                                          \
+    if (a->imm) {                                                         \
+        temp = tcg_temp_new();                                            \
+        tcg_gen_addi_tl(temp, addr, a->imm);                              \
+        addr = temp;                                                      \
+    }                                                                     \
+                                                                          \
+    tcg_gen_qemu_ld_i64(val, addr, ctx->mem_idx, MO);                     \
+    tcg_gen_gvec_dup_i64(MO, vec_full_offset(a->vd), 16, ctx->vl/8, val); \
+                                                                          \
+    return true;                                                          \
+}
+
+VLDREPL(vldrepl_b, MO_8)
+VLDREPL(vldrepl_h, MO_16)
+VLDREPL(vldrepl_w, MO_32)
+VLDREPL(vldrepl_d, MO_64)
+
+#define VSTELM(NAME, MO, E)                                                  \
+static bool trans_## NAME (DisasContext *ctx, arg_vr_ii *a)                  \
+{                                                                            \
+    TCGv addr, temp;                                                         \
+    TCGv_i64 val;                                                            \
+                                                                             \
+    CHECK_SXE;                                                               \
+                                                                             \
+    addr = gpr_src(ctx, a->rj, EXT_NONE);                                    \
+    val = tcg_temp_new_i64();                                                \
+                                                                             \
+    if (a->imm) {                                                            \
+        temp = tcg_temp_new();                                               \
+        tcg_gen_addi_tl(temp, addr, a->imm);                                 \
+        addr = temp;                                                         \
+    }                                                                        \
+                                                                             \
+    tcg_gen_ld_i64(val, cpu_env,                                             \
+                   offsetof(CPULoongArchState, fpr[a->vd].vreg.E(a->imm2))); \
+    tcg_gen_qemu_st_i64(val, addr, ctx->mem_idx, MO);                        \
+                                                                             \
+    return true;                                                             \
+}
+
+VSTELM(vstelm_b, MO_8, B)
+VSTELM(vstelm_h, MO_16, H)
+VSTELM(vstelm_w, MO_32, W)
+VSTELM(vstelm_d, MO_64, D)
