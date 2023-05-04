@@ -24,6 +24,7 @@
 #include "hw/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
+#include "exec/gdbstub.h"
 
 static void hexagon_v67_cpu_init(Object *obj) { }
 static void hexagon_v68_cpu_init(Object *obj) { }
@@ -338,6 +339,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
+                             hexagon_hvx_gdb_write_register,
+                             NUM_VREGS + NUM_QREGS,
+                             "hexagon-hvx.xml", 0);
 
     qemu_init_vcpu(cs);
     cpu_reset(cs);

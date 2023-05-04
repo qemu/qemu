@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<!--
+  Copyright(c) 2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
+
+  This work is licensed under the terms of the GNU GPL, version 2 or
+  (at your option) any later version. See the COPYING file in the
+  top-level directory.
+
+  Note: this file is intended to be use with LLDB, so it contains fields
+  that may be unknown to GDB. For more information on such fields, please
+  see:
+  https://github.com/llvm/llvm-project/blob/287aa6c4536408413b860e61fca0318a27214cf3/lldb/docs/lldb-gdb-remote.txt#L738-L860
+  https://github.com/llvm/llvm-project/blob/287aa6c4536408413b860e61fca0318a27214cf3/lldb/source/Plugins/Process/gdb-remote/ProcessGDBRemote.cpp#L4275-L4335
+-->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.hexagon.hvx">
+
+  <vector id="vud" type="uint64" count="16"/>
+  <vector id="vd" type="int64" count="16"/>
+  <vector id="vuw" type="uint32" count="32"/>
+  <vector id="vw" type="int32" count="32"/>
+  <vector id="vuh" type="uint16" count="64"/>
+  <vector id="vh" type="int16" count="64"/>
+  <vector id="vub" type="uint8" count="128"/>
+  <vector id="vb" type="int8" count="128"/>
+  <union id="hex_vec">
+    <field name="ud" type="vud"/>
+    <field name="d" type="vd"/>
+    <field name="uw" type="vuw"/>
+    <field name="w" type="vw"/>
+    <field name="uh" type="vuh"/>
+    <field name="h" type="vh"/>
+    <field name="ub" type="vub"/>
+    <field name="b" type="vb"/>
+  </union>
+
+  <flags id="ui2" size="1">
+    <field name="0" start="0" end="0"/>
+    <field name="1" start="1" end="1"/>
+  </flags>
+  <flags id="ui4" size="1">
+    <field name="0" start="0" end="0"/>
+    <field name="1" start="1" end="1"/>
+    <field name="2" start="2" end="2"/>
+    <field name="3" start="3" end="3"/>
+  </flags>
+  <vector id="vpd" type="uint8" count="16"/>
+  <vector id="vpw" type="ui4" count="32"/>
+  <vector id="vph" type="ui2" count="64"/>
+  <vector id="vpb" type="bool" count="128"/>
+  <union id="hex_vec_pred">
+    <field name="d" type="vpd"/>
+    <field name="w" type="vpw"/>
+    <field name="h" type="vph"/>
+    <field name="b" type="vpb"/>
+  </union>
+
+  <reg name="v0"  bitsize="1024" offset="256"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="88"/>
+  <reg name="v1"  bitsize="1024" offset="384"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="89"/>
+  <reg name="v2"  bitsize="1024" offset="512"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="90"/>
+  <reg name="v3"  bitsize="1024" offset="640"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="91"/>
+  <reg name="v4"  bitsize="1024" offset="768"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="92"/>
+  <reg name="v5"  bitsize="1024" offset="896"  encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="93"/>
+  <reg name="v6"  bitsize="1024" offset="1024" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="94"/>
+  <reg name="v7"  bitsize="1024" offset="1152" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="95"/>
+  <reg name="v8"  bitsize="1024" offset="1280" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="96"/>
+  <reg name="v9"  bitsize="1024" offset="1408" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="97"/>
+  <reg name="v10" bitsize="1024" offset="1536" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="98"/>
+  <reg name="v11" bitsize="1024" offset="1664" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="99"/>
+  <reg name="v12" bitsize="1024" offset="1792" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="100"/>
+  <reg name="v13" bitsize="1024" offset="1920" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="101"/>
+  <reg name="v14" bitsize="1024" offset="2048" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="102"/>
+  <reg name="v15" bitsize="1024" offset="2176" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="103"/>
+  <reg name="v16" bitsize="1024" offset="2304" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="104"/>
+  <reg name="v17" bitsize="1024" offset="2432" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="105"/>
+  <reg name="v18" bitsize="1024" offset="2560" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="106"/>
+  <reg name="v19" bitsize="1024" offset="2688" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="107"/>
+  <reg name="v20" bitsize="1024" offset="2816" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="108"/>
+  <reg name="v21" bitsize="1024" offset="2944" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="109"/>
+  <reg name="v22" bitsize="1024" offset="3072" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="110"/>
+  <reg name="v23" bitsize="1024" offset="3200" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="111"/>
+  <reg name="v24" bitsize="1024" offset="3328" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="112"/>
+  <reg name="v25" bitsize="1024" offset="3456" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="113"/>
+  <reg name="v26" bitsize="1024" offset="3584" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="114"/>
+  <reg name="v27" bitsize="1024" offset="3712" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="115"/>
+  <reg name="v28" bitsize="1024" offset="3840" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="116"/>
+  <reg name="v29" bitsize="1024" offset="3968" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="117"/>
+  <reg name="v30" bitsize="1024" offset="4096" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="118"/>
+  <reg name="v31" bitsize="1024" offset="4224" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="119"/>
+  <reg name="q0"  bitsize="128"  offset="4352" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="120"/>
+  <reg name="q1"  bitsize="128"  offset="4368" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="121"/>
+  <reg name="q2"  bitsize="128"  offset="4384" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="122"/>
+  <reg name="q3"  bitsize="128"  offset="4400" encoding="vector" format="hex" group="HVX Vector Registers" dwarf_regnum="123"/>
+
+</feature>
