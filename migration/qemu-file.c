@@ -345,14 +345,6 @@ void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
-    } else {
-        /*
-         * Hook is a hook specifically requested by the source sending a flag
-         * that expects there to be a hook on the destination.
-         */
-        if (flags == RAM_CONTROL_HOOK) {
-            qemu_file_set_error(f, -EINVAL);
-        }
     }
 }
 
