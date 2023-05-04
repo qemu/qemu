@@ -2912,6 +2912,143 @@ TRANS(vmskltz_d, gen_vv, gen_helper_vmskltz_d)
 TRANS(vmskgez_b, gen_vv, gen_helper_vmskgez_b)
 TRANS(vmsknz_b, gen_vv, gen_helper_vmsknz_b)
 
+#define EXPAND_BYTE(bit)  ((uint64_t)(bit ? 0xff : 0))
+
+static uint64_t vldi_get_value(DisasContext *ctx, uint32_t imm)
+{
+    int mode;
+    uint64_t data, t;
+
+    /*
+     * imm bit [11:8] is mode, mode value is 0-12.
+     * other values are invalid.
+     */
+    mode = (imm >> 8) & 0xf;
+    t =  imm & 0xff;
+    switch (mode) {
+    case 0:
+        /* data: {2{24'0, imm[7:0]}} */
+        data =  (t << 32) | t ;
+        break;
+    case 1:
+        /* data: {2{16'0, imm[7:0], 8'0}} */
+        data = (t << 24) | (t << 8);
+        break;
+    case 2:
+        /* data: {2{8'0, imm[7:0], 16'0}} */
+        data = (t << 48) | (t << 16);
+        break;
+    case 3:
+        /* data: {2{imm[7:0], 24'0}} */
+        data = (t << 56) | (t << 24);
+        break;
+    case 4:
+        /* data: {4{8'0, imm[7:0]}} */
+        data = (t << 48) | (t << 32) | (t << 16) | t;
+        break;
+    case 5:
+        /* data: {4{imm[7:0], 8'0}} */
+        data = (t << 56) |(t << 40) | (t << 24) | (t << 8);
+        break;
+    case 6:
+        /* data: {2{16'0, imm[7:0], 8'1}} */
+        data = (t << 40) | ((uint64_t)0xff << 32) | (t << 8) | 0xff;
+        break;
+    case 7:
+        /* data: {2{8'0, imm[7:0], 16'1}} */
+        data = (t << 48) | ((uint64_t)0xffff << 32) | (t << 16) | 0xffff;
+        break;
+    case 8:
+        /* data: {8{imm[7:0]}} */
+        data =(t << 56) | (t << 48) | (t << 40) | (t << 32) |
+              (t << 24) | (t << 16) | (t << 8) | t;
+        break;
+    case 9:
+        /* data: {{8{imm[7]}, ..., 8{imm[0]}}} */
+        {
+            uint64_t b0,b1,b2,b3,b4,b5,b6,b7;
+            b0 = t& 0x1;
+            b1 = (t & 0x2) >> 1;
+            b2 = (t & 0x4) >> 2;
+            b3 = (t & 0x8) >> 3;
+            b4 = (t & 0x10) >> 4;
+            b5 = (t & 0x20) >> 5;
+            b6 = (t & 0x40) >> 6;
+            b7 = (t & 0x80) >> 7;
+            data = (EXPAND_BYTE(b7) << 56) |
+                   (EXPAND_BYTE(b6) << 48) |
+                   (EXPAND_BYTE(b5) << 40) |
+                   (EXPAND_BYTE(b4) << 32) |
+                   (EXPAND_BYTE(b3) << 24) |
+                   (EXPAND_BYTE(b2) << 16) |
+                   (EXPAND_BYTE(b1) <<  8) |
+                   EXPAND_BYTE(b0);
+        }
+        break;
+    case 10:
+        /* data: {2{imm[7], ~imm[6], {5{imm[6]}}, imm[5:0], 19'0}} */
+        {
+            uint64_t b6, b7;
+            uint64_t t0, t1;
+            b6 = (imm & 0x40) >> 6;
+            b7 = (imm & 0x80) >> 7;
+            t0 = (imm & 0x3f);
+            t1 = (b7 << 6) | ((1-b6) << 5) | (uint64_t)(b6 ? 0x1f : 0);
+            data  = (t1 << 57) | (t0 << 51) | (t1 << 25) | (t0 << 19);
+        }
+        break;
+    case 11:
+        /* data: {32'0, imm[7], ~{imm[6]}, 5{imm[6]}, imm[5:0], 19'0} */
+        {
+            uint64_t b6,b7;
+            uint64_t t0, t1;
+            b6 = (imm & 0x40) >> 6;
+            b7 = (imm & 0x80) >> 7;
+            t0 = (imm & 0x3f);
+            t1 = (b7 << 6) | ((1-b6) << 5) | (b6 ? 0x1f : 0);
+            data = (t1 << 25) | (t0 << 19);
+        }
+        break;
+    case 12:
+        /* data: {imm[7], ~imm[6], 8{imm[6]}, imm[5:0], 48'0} */
+        {
+            uint64_t b6,b7;
+            uint64_t t0, t1;
+            b6 = (imm & 0x40) >> 6;
+            b7 = (imm & 0x80) >> 7;
+            t0 = (imm & 0x3f);
+            t1 = (b7 << 9) | ((1-b6) << 8) | (b6 ? 0xff : 0);
+            data = (t1 << 54) | (t0 << 48);
+        }
+        break;
+    default:
+        generate_exception(ctx, EXCCODE_INE);
+        g_assert_not_reached();
+    }
+    return data;
+}
+
+static bool trans_vldi(DisasContext *ctx, arg_vldi *a)
+{
+    int sel, vece;
+    uint64_t value;
+    CHECK_SXE;
+
+    sel = (a->imm >> 12) & 0x1;
+
+    if (sel) {
+        value = vldi_get_value(ctx, a->imm);
+        vece = MO_64;
+    } else {
+        value = ((int32_t)(a->imm << 22)) >> 22;
+        vece = (a->imm >> 10) & 0x3;
+    }
+
+    tcg_gen_gvec_dup_i64(vece, vec_full_offset(a->vd), 16, ctx->vl/8,
+                         tcg_constant_i64(value));
+    return true;
+}
+
 TRANS(vand_v, gvec_vvv, MO_64, tcg_gen_gvec_and)
 TRANS(vor_v, gvec_vvv, MO_64, tcg_gen_gvec_or)
 TRANS(vxor_v, gvec_vvv, MO_64, tcg_gen_gvec_xor)
