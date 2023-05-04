@@ -834,3 +834,107 @@ VSLLWIL(vsllwil_d_w, 64, D, W)
 VSLLWIL(vsllwil_hu_bu, 16, UH, UB)
 VSLLWIL(vsllwil_wu_hu, 32, UW, UH)
 VSLLWIL(vsllwil_du_wu, 64, UD, UW)
+
+#define do_vsrlr(E, T)                                  \
+static T do_vsrlr_ ##E(T s1, int sh)                    \
+{                                                       \
+    if (sh == 0) {                                      \
+        return s1;                                      \
+    } else {                                            \
+        return  (s1 >> sh)  + ((s1 >> (sh - 1)) & 0x1); \
+    }                                                   \
+}
+
+do_vsrlr(B, uint8_t)
+do_vsrlr(H, uint16_t)
+do_vsrlr(W, uint32_t)
+do_vsrlr(D, uint64_t)
+
+#define VSRLR(NAME, BIT, T, E)                                  \
+void HELPER(NAME)(CPULoongArchState *env,                       \
+                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                            \
+    VReg *Vj = &(env->fpr[vj].vreg);                            \
+    VReg *Vk = &(env->fpr[vk].vreg);                            \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
+    }                                                           \
+}
+
+VSRLR(vsrlr_b, 8,  uint8_t, B)
+VSRLR(vsrlr_h, 16, uint16_t, H)
+VSRLR(vsrlr_w, 32, uint32_t, W)
+VSRLR(vsrlr_d, 64, uint64_t, D)
+
+#define VSRLRI(NAME, BIT, E)                              \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+        Vd->E(i) = do_vsrlr_ ## E(Vj->E(i), imm);         \
+    }                                                     \
+}
+
+VSRLRI(vsrlri_b, 8, B)
+VSRLRI(vsrlri_h, 16, H)
+VSRLRI(vsrlri_w, 32, W)
+VSRLRI(vsrlri_d, 64, D)
+
+#define do_vsrar(E, T)                                  \
+static T do_vsrar_ ##E(T s1, int sh)                    \
+{                                                       \
+    if (sh == 0) {                                      \
+        return s1;                                      \
+    } else {                                            \
+        return  (s1 >> sh)  + ((s1 >> (sh - 1)) & 0x1); \
+    }                                                   \
+}
+
+do_vsrar(B, int8_t)
+do_vsrar(H, int16_t)
+do_vsrar(W, int32_t)
+do_vsrar(D, int64_t)
+
+#define VSRAR(NAME, BIT, T, E)                                  \
+void HELPER(NAME)(CPULoongArchState *env,                       \
+                  uint32_t vd, uint32_t vj, uint32_t vk)        \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = &(env->fpr[vd].vreg);                            \
+    VReg *Vj = &(env->fpr[vj].vreg);                            \
+    VReg *Vk = &(env->fpr[vk].vreg);                            \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = do_vsrar_ ## E(Vj->E(i), ((T)Vk->E(i))%BIT); \
+    }                                                           \
+}
+
+VSRAR(vsrar_b, 8,  uint8_t, B)
+VSRAR(vsrar_h, 16, uint16_t, H)
+VSRAR(vsrar_w, 32, uint32_t, W)
+VSRAR(vsrar_d, 64, uint64_t, D)
+
+#define VSRARI(NAME, BIT, E)                              \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i;                                                \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+        Vd->E(i) = do_vsrar_ ## E(Vj->E(i), imm);         \
+    }                                                     \
+}
+
+VSRARI(vsrari_b, 8, B)
+VSRARI(vsrari_h, 16, H)
+VSRARI(vsrari_w, 32, W)
+VSRARI(vsrari_d, 64, D)
