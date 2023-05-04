@@ -2874,3 +2874,59 @@ TRANS(vmskltz_w, gen_vv, gen_helper_vmskltz_w)
 TRANS(vmskltz_d, gen_vv, gen_helper_vmskltz_d)
 TRANS(vmskgez_b, gen_vv, gen_helper_vmskgez_b)
 TRANS(vmsknz_b, gen_vv, gen_helper_vmsknz_b)
+
+TRANS(vand_v, gvec_vvv, MO_64, tcg_gen_gvec_and)
+TRANS(vor_v, gvec_vvv, MO_64, tcg_gen_gvec_or)
+TRANS(vxor_v, gvec_vvv, MO_64, tcg_gen_gvec_xor)
+TRANS(vnor_v, gvec_vvv, MO_64, tcg_gen_gvec_nor)
+
+static bool trans_vandn_v(DisasContext *ctx, arg_vvv *a)
+{
+    uint32_t vd_ofs, vj_ofs, vk_ofs;
+
+    CHECK_SXE;
+
+    vd_ofs = vec_full_offset(a->vd);
+    vj_ofs = vec_full_offset(a->vj);
+    vk_ofs = vec_full_offset(a->vk);
+
+    tcg_gen_gvec_andc(MO_64, vd_ofs, vk_ofs, vj_ofs, 16, ctx->vl/8);
+    return true;
+}
+TRANS(vorn_v, gvec_vvv, MO_64, tcg_gen_gvec_orc)
+TRANS(vandi_b, gvec_vv_i, MO_8, tcg_gen_gvec_andi)
+TRANS(vori_b, gvec_vv_i, MO_8, tcg_gen_gvec_ori)
+TRANS(vxori_b, gvec_vv_i, MO_8, tcg_gen_gvec_xori)
+
+static void gen_vnori(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    TCGv_vec t1;
+
+    t1 = tcg_constant_vec_matching(t, vece, imm);
+    tcg_gen_nor_vec(vece, t, a, t1);
+}
+
+static void gen_vnori_b(TCGv_i64 t, TCGv_i64 a, int64_t imm)
+{
+    tcg_gen_movi_i64(t, dup_const(MO_8, imm));
+    tcg_gen_nor_i64(t, a, t);
+}
+
+static void do_vnori_b(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_nor_vec, 0
+        };
+    static const GVecGen2i op = {
+       .fni8 = gen_vnori_b,
+       .fniv = gen_vnori,
+       .fnoi = gen_helper_vnori_b,
+       .opt_opc = vecop_list,
+       .vece = MO_8
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op);
+}
+
+TRANS(vnori_b, gvec_vv_i, MO_8, do_vnori_b)
