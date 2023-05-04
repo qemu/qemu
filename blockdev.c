@@ -2961,6 +2961,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     BlockDriverState *unfiltered_bs;
     int job_flags = JOB_DEFAULT;
 
+    GLOBAL_STATE_CODE();
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
+
     if (!has_speed) {
         speed = 0;
     }

@@ -265,8 +265,9 @@ static int coroutine_fn GRAPH_RDLOCK blkverify_co_flush(BlockDriverState *bs)
     return bdrv_co_flush(s->test_file->bs);
 }
 
-static bool blkverify_recurse_can_replace(BlockDriverState *bs,
-                                          BlockDriverState *to_replace)
+static bool GRAPH_RDLOCK
+blkverify_recurse_can_replace(BlockDriverState *bs,
+                              BlockDriverState *to_replace)
 {
     BDRVBlkverifyState *s = bs->opaque;
 

@@ -747,7 +747,10 @@ static int mirror_exit_common(Job *job)
          * Cannot use check_to_replace_node() here, because that would
          * check for an op blocker on @to_replace, and we have our own
          * there.
+         *
+         * TODO Pull out the writer lock from bdrv_replace_node() to here
          */
+        bdrv_graph_rdlock_main_loop();
         if (bdrv_recurse_can_replace(src, to_replace)) {
             bdrv_replace_node(to_replace, target_bs, &local_err);
         } else {
@@ -756,6 +759,7 @@ static int mirror_exit_common(Job *job)
                        "would not lead to an abrupt change of visible data",
                        to_replace->node_name, target_bs->node_name);
         }
+        bdrv_graph_rdunlock_main_loop();
         bdrv_drained_end(target_bs);
         if (local_err) {
             error_report_err(local_err);

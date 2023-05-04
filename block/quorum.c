@@ -825,8 +825,8 @@ static coroutine_fn GRAPH_RDLOCK int quorum_co_flush(BlockDriverState *bs)
     return result;
 }
 
-static bool quorum_recurse_can_replace(BlockDriverState *bs,
-                                       BlockDriverState *to_replace)
+static bool GRAPH_RDLOCK
+quorum_recurse_can_replace(BlockDriverState *bs, BlockDriverState *to_replace)
 {
     BDRVQuorumState *s = bs->opaque;
     int i;

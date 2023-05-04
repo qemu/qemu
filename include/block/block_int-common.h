@@ -217,8 +217,8 @@ struct BlockDriver {
      * same data as @bs without it affecting @bs's behavior (that is,
      * without it being visible to @bs's parents).
      */
-    bool (*bdrv_recurse_can_replace)(BlockDriverState *bs,
-                                     BlockDriverState *to_replace);
+    bool GRAPH_RDLOCK_PTR (*bdrv_recurse_can_replace)(
+        BlockDriverState *bs, BlockDriverState *to_replace);
 
     int (*bdrv_probe_device)(const char *filename);
 

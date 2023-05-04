@@ -163,8 +163,9 @@ int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
                        Error **errp);
 
 /* check if a named node can be replaced when doing drive-mirror */
-BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
-                                        const char *node_name, Error **errp);
+BlockDriverState * GRAPH_RDLOCK
+check_to_replace_node(BlockDriverState *parent_bs, const char *node_name,
+                      Error **errp);
 
 int no_coroutine_fn bdrv_activate(BlockDriverState *bs, Error **errp);
 
