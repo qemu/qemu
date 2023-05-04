@@ -818,6 +818,21 @@ static void output_vvvv(DisasContext *ctx, arg_vvvv *a, const char *mnemonic)
     output(ctx, mnemonic, "v%d, v%d, v%d, v%d", a->vd, a->vj, a->vk, a->va);
 }
 
+static void output_vr_i(DisasContext *ctx, arg_vr_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, 0x%x", a->vd, a->rj, a->imm);
+}
+
+static void output_rv_i(DisasContext *ctx, arg_rv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, v%d, 0x%x", a->rd, a->vj,  a->imm);
+}
+
+static void output_vr(DisasContext *ctx, arg_vr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d", a->vd, a->rj);
+}
+
 INSN_LSX(vadd_b,           vvv)
 INSN_LSX(vadd_h,           vvv)
 INSN_LSX(vadd_w,           vvv)
@@ -1561,3 +1576,21 @@ INSN_LSX(vsetallnez_b,     cv)
 INSN_LSX(vsetallnez_h,     cv)
 INSN_LSX(vsetallnez_w,     cv)
 INSN_LSX(vsetallnez_d,     cv)
+
+INSN_LSX(vinsgr2vr_b,      vr_i)
+INSN_LSX(vinsgr2vr_h,      vr_i)
+INSN_LSX(vinsgr2vr_w,      vr_i)
+INSN_LSX(vinsgr2vr_d,      vr_i)
+INSN_LSX(vpickve2gr_b,     rv_i)
+INSN_LSX(vpickve2gr_h,     rv_i)
+INSN_LSX(vpickve2gr_w,     rv_i)
+INSN_LSX(vpickve2gr_d,     rv_i)
+INSN_LSX(vpickve2gr_bu,    rv_i)
+INSN_LSX(vpickve2gr_hu,    rv_i)
+INSN_LSX(vpickve2gr_wu,    rv_i)
+INSN_LSX(vpickve2gr_du,    rv_i)
+
+INSN_LSX(vreplgr2vr_b,     vr)
+INSN_LSX(vreplgr2vr_h,     vr)
+INSN_LSX(vreplgr2vr_w,     vr)
+INSN_LSX(vreplgr2vr_d,     vr)
