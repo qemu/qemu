@@ -3717,3 +3717,35 @@ TRANS(vslti_bu, do_vslti_u, MO_8)
 TRANS(vslti_hu, do_vslti_u, MO_16)
 TRANS(vslti_wu, do_vslti_u, MO_32)
 TRANS(vslti_du, do_vslti_u, MO_64)
+
+static bool trans_vfcmp_cond_s(DisasContext *ctx, arg_vvv_fcond *a)
+{
+    uint32_t flags;
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 vk = tcg_constant_i32(a->vk);
+
+    CHECK_SXE;
+
+    fn = (a->fcond & 1 ? gen_helper_vfcmp_s_s : gen_helper_vfcmp_c_s);
+    flags = get_fcmp_flags(a->fcond >> 1);
+    fn(cpu_env, vd, vj, vk,  tcg_constant_i32(flags));
+
+    return true;
+}
+
+static bool trans_vfcmp_cond_d(DisasContext *ctx, arg_vvv_fcond *a)
+{
+    uint32_t flags;
+    void (*fn)(TCGv_env, TCGv_i32, TCGv_i32, TCGv_i32, TCGv_i32);
+    TCGv_i32 vd = tcg_constant_i32(a->vd);
+    TCGv_i32 vj = tcg_constant_i32(a->vj);
+    TCGv_i32 vk = tcg_constant_i32(a->vk);
+
+    fn = (a->fcond & 1 ? gen_helper_vfcmp_s_d : gen_helper_vfcmp_c_d);
+    flags = get_fcmp_flags(a->fcond >> 1);
+    fn(cpu_env, vd, vj, vk, tcg_constant_i32(flags));
+
+    return true;
+}

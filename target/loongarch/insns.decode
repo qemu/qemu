@@ -494,6 +494,7 @@ dbcl             0000 00000010 10101 ...............      @i15
 &vvv          vd vj vk
 &vv_i         vd vj imm
 &vvvv         vd vj vk va
+&vvv_fcond    vd vj vk fcond
 
 #
 # LSX Formats
@@ -508,6 +509,7 @@ dbcl             0000 00000010 10101 ...............      @i15
 @vv_ui8              .... ........ .. imm:8 vj:5 vd:5    &vv_i
 @vv_i5           .... ........ ..... imm:s5 vj:5 vd:5    &vv_i
 @vvvv               .... ........ va:5 vk:5 vj:5 vd:5    &vvvv
+@vvv_fcond      .... ........ fcond:5  vk:5 vj:5 vd:5    &vvv_fcond
 
 vadd_b           0111 00000000 10100 ..... ..... .....    @vvv
 vadd_h           0111 00000000 10101 ..... ..... .....    @vvv
@@ -1145,3 +1147,6 @@ vslti_bu         0111 00101000 10000 ..... ..... .....    @vv_ui5
 vslti_hu         0111 00101000 10001 ..... ..... .....    @vv_ui5
 vslti_wu         0111 00101000 10010 ..... ..... .....    @vv_ui5
 vslti_du         0111 00101000 10011 ..... ..... .....    @vv_ui5
+
+vfcmp_cond_s     0000 11000101 ..... ..... ..... .....    @vvv_fcond
+vfcmp_cond_d     0000 11000110 ..... ..... ..... .....    @vvv_fcond
