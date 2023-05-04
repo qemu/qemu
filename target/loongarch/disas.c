@@ -797,6 +797,11 @@ static void output_vvv(DisasContext *ctx, arg_vvv *a, const char *mnemonic)
     output(ctx, mnemonic, "v%d, v%d, v%d", a->vd, a->vj, a->vk);
 }
 
+static void output_vv_i(DisasContext *ctx, arg_vv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, 0x%x", a->vd, a->vj, a->imm);
+}
+
 INSN_LSX(vadd_b,           vvv)
 INSN_LSX(vadd_h,           vvv)
 INSN_LSX(vadd_w,           vvv)
@@ -807,3 +812,12 @@ INSN_LSX(vsub_h,           vvv)
 INSN_LSX(vsub_w,           vvv)
 INSN_LSX(vsub_d,           vvv)
 INSN_LSX(vsub_q,           vvv)
+
+INSN_LSX(vaddi_bu,         vv_i)
+INSN_LSX(vaddi_hu,         vv_i)
+INSN_LSX(vaddi_wu,         vv_i)
+INSN_LSX(vaddi_du,         vv_i)
+INSN_LSX(vsubi_bu,         vv_i)
+INSN_LSX(vsubi_hu,         vv_i)
+INSN_LSX(vsubi_wu,         vv_i)
+INSN_LSX(vsubi_du,         vv_i)

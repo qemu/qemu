@@ -44,6 +44,34 @@ static bool gvec_vvv(DisasContext *ctx, arg_vvv *a, MemOp mop,
     return true;
 }
 
+static bool gvec_vv_i(DisasContext *ctx, arg_vv_i *a, MemOp mop,
+                      void (*func)(unsigned, uint32_t, uint32_t,
+                                   int64_t, uint32_t, uint32_t))
+{
+    uint32_t vd_ofs, vj_ofs;
+
+    CHECK_SXE;
+
+    vd_ofs = vec_full_offset(a->vd);
+    vj_ofs = vec_full_offset(a->vj);
+
+    func(mop, vd_ofs, vj_ofs, a->imm , 16, ctx->vl/8);
+    return true;
+}
+
+static bool gvec_subi(DisasContext *ctx, arg_vv_i *a, MemOp mop)
+{
+    uint32_t vd_ofs, vj_ofs;
+
+    CHECK_SXE;
+
+    vd_ofs = vec_full_offset(a->vd);
+    vj_ofs = vec_full_offset(a->vj);
+
+    tcg_gen_gvec_addi(mop, vd_ofs, vj_ofs, -a->imm, 16, ctx->vl/8);
+    return true;
+}
+
 TRANS(vadd_b, gvec_vvv, MO_8, tcg_gen_gvec_add)
 TRANS(vadd_h, gvec_vvv, MO_16, tcg_gen_gvec_add)
 TRANS(vadd_w, gvec_vvv, MO_32, tcg_gen_gvec_add)
@@ -83,3 +111,12 @@ TRANS(vsub_b, gvec_vvv, MO_8, tcg_gen_gvec_sub)
 TRANS(vsub_h, gvec_vvv, MO_16, tcg_gen_gvec_sub)
 TRANS(vsub_w, gvec_vvv, MO_32, tcg_gen_gvec_sub)
 TRANS(vsub_d, gvec_vvv, MO_64, tcg_gen_gvec_sub)
+
+TRANS(vaddi_bu, gvec_vv_i, MO_8, tcg_gen_gvec_addi)
+TRANS(vaddi_hu, gvec_vv_i, MO_16, tcg_gen_gvec_addi)
+TRANS(vaddi_wu, gvec_vv_i, MO_32, tcg_gen_gvec_addi)
+TRANS(vaddi_du, gvec_vv_i, MO_64, tcg_gen_gvec_addi)
+TRANS(vsubi_bu, gvec_subi, MO_8)
+TRANS(vsubi_hu, gvec_subi, MO_16)
+TRANS(vsubi_wu, gvec_subi, MO_32)
+TRANS(vsubi_du, gvec_subi, MO_64)
