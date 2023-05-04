@@ -270,12 +270,26 @@ static void guest_exec_child_watch(GPid pid, gint status, gpointer data)
     g_spawn_close_pid(pid);
 }
 
-/** Reset ignored signals back to default. */
 static void guest_exec_task_setup(gpointer data)
 {
 #if !defined(G_OS_WIN32)
+    bool has_merge = *(bool *)data;
     struct sigaction sigact;
 
+    if (has_merge) {
+        /*
+         * FIXME: When `GLIB_VERSION_MIN_REQUIRED` is bumped to 2.58+, use
+         * g_spawn_async_with_fds() to be portable on windows. The current
+         * logic does not work on windows b/c `GSpawnChildSetupFunc` is run
+         * inside the parent, not the child.
+         */
+        if (dup2(STDOUT_FILENO, STDERR_FILENO) != 0) {
+            slog("dup2() failed to merge stderr into stdout: %s",
+                 strerror(errno));
+        }
+    }
+
+    /* Reset ignored signals back to default. */
     memset(&sigact, 0, sizeof(struct sigaction));
     sigact.sa_handler = SIG_DFL;
 
@@ -379,11 +393,23 @@ close:
     return false;
 }
 
+static GuestExecCaptureOutputMode ga_parse_capture_output(
+        GuestExecCaptureOutput *capture_output)
+{
+    if (!capture_output)
+        return GUEST_EXEC_CAPTURE_OUTPUT_MODE_NONE;
+    else if (capture_output->type == QTYPE_QBOOL)
+        return capture_output->u.flag ? GUEST_EXEC_CAPTURE_OUTPUT_MODE_SEPARATED
+                                      : GUEST_EXEC_CAPTURE_OUTPUT_MODE_NONE;
+    else
+        return capture_output->u.mode;
+}
+
 GuestExec *qmp_guest_exec(const char *path,
                        bool has_arg, strList *arg,
                        bool has_env, strList *env,
                        const char *input_data,
-                       bool has_capture_output, bool capture_output,
+                       GuestExecCaptureOutput *capture_output,
                        Error **errp)
 {
     GPid pid;
@@ -396,7 +422,9 @@ GuestExec *qmp_guest_exec(const char *path,
     gint in_fd, out_fd, err_fd;
     GIOChannel *in_ch, *out_ch, *err_ch;
     GSpawnFlags flags;
-    bool has_output = (has_capture_output && capture_output);
+    bool has_output = false;
+    bool has_merge = false;
+    GuestExecCaptureOutputMode output_mode;
     g_autofree uint8_t *input = NULL;
     size_t ninput = 0;
 
@@ -415,12 +443,36 @@ GuestExec *qmp_guest_exec(const char *path,
 
     flags = G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD |
         G_SPAWN_SEARCH_PATH_FROM_ENVP;
-    if (!has_output) {
+
+    output_mode = ga_parse_capture_output(capture_output);
+    switch (output_mode) {
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_NONE:
         flags |= G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL;
+        break;
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_STDOUT:
+        has_output = true;
+        flags |= G_SPAWN_STDERR_TO_DEV_NULL;
+        break;
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_STDERR:
+        has_output = true;
+        flags |= G_SPAWN_STDOUT_TO_DEV_NULL;
+        break;
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_SEPARATED:
+        has_output = true;
+        break;
+#if !defined(G_OS_WIN32)
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE_MERGED:
+        has_output = true;
+        has_merge = true;
+        break;
+#endif
+    case GUEST_EXEC_CAPTURE_OUTPUT_MODE__MAX:
+        /* Silence warning; impossible branch */
+        break;
     }
 
     ret = g_spawn_async_with_pipes(NULL, argv, envp, flags,
-            guest_exec_task_setup, NULL, &pid, input_data ? &in_fd : NULL,
+            guest_exec_task_setup, &has_merge, &pid, input_data ? &in_fd : NULL,
             has_output ? &out_fd : NULL, has_output ? &err_fd : NULL, &gerr);
     if (!ret) {
         error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
