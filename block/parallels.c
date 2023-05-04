@@ -613,8 +613,8 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
 
     ret = 0;
 out:
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     return ret;
 
 exit:
@@ -691,7 +691,7 @@ parallels_co_create_opts(BlockDriver *drv, const char *filename,
 
 done:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

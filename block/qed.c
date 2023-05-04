@@ -748,8 +748,8 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
     ret = 0; /* success */
 out:
     g_free(l1_table);
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     return ret;
 }
 
@@ -819,7 +819,7 @@ bdrv_qed_co_create_opts(BlockDriver *drv, const char *filename,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

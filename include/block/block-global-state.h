@@ -218,7 +218,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
                      bool quiet, Error **errp);
 
 void bdrv_ref(BlockDriverState *bs);
-void bdrv_unref(BlockDriverState *bs);
+void no_coroutine_fn bdrv_unref(BlockDriverState *bs);
+void coroutine_fn no_co_wrapper bdrv_co_unref(BlockDriverState *bs);
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,

@@ -2053,8 +2053,8 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
 
     ret = 0;
 delete_and_exit:
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     g_free(creator);
     return ret;
 }
@@ -2144,7 +2144,7 @@ vhdx_co_create_opts(BlockDriver *drv, const char *filename,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

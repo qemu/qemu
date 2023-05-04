@@ -1082,8 +1082,8 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
 out:
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     return ret;
 }
 
@@ -1162,7 +1162,7 @@ vpc_co_create_opts(BlockDriver *drv, const char *filename,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }
