@@ -732,9 +732,6 @@ int64_t qemu_file_total_transferred(QEMUFile *f)
 
 int qemu_file_rate_limit(QEMUFile *f)
 {
-    if (f->shutdown) {
-        return 1;
-    }
     if (qemu_file_get_error(f)) {
         return 1;
     }
