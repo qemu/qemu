@@ -2019,3 +2019,44 @@ DO_BITI(vbitrevi_b, 8, UB, DO_BITREV)
 DO_BITI(vbitrevi_h, 16, UH, DO_BITREV)
 DO_BITI(vbitrevi_w, 32, UW, DO_BITREV)
 DO_BITI(vbitrevi_d, 64, UD, DO_BITREV)
+
+#define VFRSTP(NAME, BIT, MASK, E)                       \
+void HELPER(NAME)(CPULoongArchState *env,                \
+                  uint32_t vd, uint32_t vj, uint32_t vk) \
+{                                                        \
+    int i, m;                                            \
+    VReg *Vd = &(env->fpr[vd].vreg);                     \
+    VReg *Vj = &(env->fpr[vj].vreg);                     \
+    VReg *Vk = &(env->fpr[vk].vreg);                     \
+                                                         \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                  \
+        if (Vj->E(i) < 0) {                              \
+            break;                                       \
+        }                                                \
+    }                                                    \
+    m = Vk->E(0) & MASK;                                 \
+    Vd->E(m) = i;                                        \
+}
+
+VFRSTP(vfrstp_b, 8, 0xf, B)
+VFRSTP(vfrstp_h, 16, 0x7, H)
+
+#define VFRSTPI(NAME, BIT, E)                             \
+void HELPER(NAME)(CPULoongArchState *env,                 \
+                  uint32_t vd, uint32_t vj, uint32_t imm) \
+{                                                         \
+    int i, m;                                             \
+    VReg *Vd = &(env->fpr[vd].vreg);                      \
+    VReg *Vj = &(env->fpr[vj].vreg);                      \
+                                                          \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                   \
+        if (Vj->E(i) < 0) {                               \
+            break;                                        \
+        }                                                 \
+    }                                                     \
+    m = imm % (LSX_LEN/BIT);                              \
+    Vd->E(m) = i;                                         \
+}
+
+VFRSTPI(vfrstpi_b, 8,  B)
+VFRSTPI(vfrstpi_h, 16, H)

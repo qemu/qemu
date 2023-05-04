@@ -3416,3 +3416,8 @@ TRANS(vbitrevi_b, gvec_vv_i, MO_8, do_vbitrevi)
 TRANS(vbitrevi_h, gvec_vv_i, MO_16, do_vbitrevi)
 TRANS(vbitrevi_w, gvec_vv_i, MO_32, do_vbitrevi)
 TRANS(vbitrevi_d, gvec_vv_i, MO_64, do_vbitrevi)
+
+TRANS(vfrstp_b, gen_vvv, gen_helper_vfrstp_b)
+TRANS(vfrstp_h, gen_vvv, gen_helper_vfrstp_h)
+TRANS(vfrstpi_b, gen_vv_i, gen_helper_vfrstpi_b)
+TRANS(vfrstpi_h, gen_vv_i, gen_helper_vfrstpi_h)
