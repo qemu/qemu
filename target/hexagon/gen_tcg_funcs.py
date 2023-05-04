@@ -37,7 +37,7 @@ def genptr_decl_pair_writable(f, tag, regtype, regid, regno):
     elif regtype == "C":
         f.write(f"    const int {regN} = insn->regno[{regno}] + HEX_REG_SA0;\n")
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
     f.write(f"    TCGv_i64 {regtype}{regid}V = " f"get_result_gpr_pair(ctx, {regN});\n")
 
 
@@ -53,7 +53,7 @@ def genptr_decl_writable(f, tag, regtype, regid, regno):
         f.write(f"    const int {regN} = insn->regno[{regno}];\n")
         f.write(f"    TCGv {regtype}{regid}V = tcg_temp_new();\n")
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_decl(f, tag, regtype, regid, regno):
@@ -71,7 +71,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
         elif regid in {"d", "e", "x", "y"}:
             genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid in {"s", "t", "u", "v"}:
             f.write(
@@ -80,7 +80,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
         elif regid in {"d", "e", "x"}:
             genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "C":
         if regid == "ss":
             f.write(f"    TCGv_i64 {regtype}{regid}V = " f"tcg_temp_new_i64();\n")
@@ -96,7 +96,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
         elif regid == "d":
             genptr_decl_writable(f, tag, regtype, regid, regno)
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "M":
         if regid == "u":
             f.write(f"    const int {regtype}{regid}N = " f"insn->regno[{regno}];\n")
@@ -105,7 +105,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
                 "HEX_REG_M0];\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "V":
         if regid in {"dd"}:
             f.write(f"    const int {regtype}{regid}N = " f"insn->regno[{regno}];\n")
@@ -159,7 +159,7 @@ def genptr_decl(f, tag, regtype, regid, regno):
                     f"{regtype}{regid}V_off);\n"
                 )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "Q":
         if regid in {"d", "e", "x"}:
             f.write(f"    const int {regtype}{regid}N = " f"insn->regno[{regno}];\n")
@@ -180,9 +180,9 @@ def genptr_decl(f, tag, regtype, regid, regno):
             if not hex_common.skip_qemu_helper(tag):
                 f.write(f"    TCGv_ptr {regtype}{regid}V = " "tcg_temp_new_ptr();\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_decl_new(f, tag, regtype, regid, regno):
@@ -193,7 +193,7 @@ def genptr_decl_new(f, tag, regtype, regid, regno):
                 f"get_result_gpr(ctx, insn->regno[{regno}]);\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid in {"t", "u", "v"}:
             f.write(
@@ -201,7 +201,7 @@ def genptr_decl_new(f, tag, regtype, regid, regno):
                 f"ctx->new_pred_value[insn->regno[{regno}]];\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "O":
         if regid == "s":
             f.write(
@@ -218,9 +218,9 @@ def genptr_decl_new(f, tag, regtype, regid, regno):
                     f"tcg_constant_tl({regtype}{regid}N_num);\n"
                 )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_decl_opn(f, tag, regtype, regid, toss, numregs, i):
@@ -232,9 +232,9 @@ def genptr_decl_opn(f, tag, regtype, regid, toss, numregs, i):
         elif hex_common.is_new_val(regtype, regid, tag):
             genptr_decl_new(f, tag, regtype, regid, i)
         else:
-            print("Bad register parse: ", regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid, toss, numregs)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 def genptr_decl_imm(f, immlett):
@@ -266,7 +266,7 @@ def genptr_src_read(f, tag, regtype, regid):
                     f"hex_gpr[{regtype}{regid}N]);\n"
                 )
         elif regid not in {"s", "t", "u", "v"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid == "x":
             f.write(
@@ -274,7 +274,7 @@ def genptr_src_read(f, tag, regtype, regid):
                 f"hex_pred[{regtype}{regid}N]);\n"
             )
         elif regid not in {"s", "t", "u", "v"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "C":
         if regid == "ss":
             f.write(
@@ -287,10 +287,10 @@ def genptr_src_read(f, tag, regtype, regid):
                 f"{regtype}{regid}V);\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "M":
         if regid != "u":
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "V":
         if regid in {"uu", "vv", "xx"}:
             f.write(f"    tcg_gen_gvec_mov(MO_64, {regtype}{regid}V_off,\n")
@@ -311,7 +311,7 @@ def genptr_src_read(f, tag, regtype, regid):
             f.write(f"        vreg_src_off(ctx, {regtype}{regid}N),\n")
             f.write("        sizeof(MMVector), sizeof(MMVector));\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "Q":
         if regid in {"s", "t", "u", "v"}:
             if not hex_common.skip_qemu_helper(tag):
@@ -326,23 +326,23 @@ def genptr_src_read(f, tag, regtype, regid):
             )
             f.write("        sizeof(MMQReg), sizeof(MMQReg));\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_src_read_new(f, regtype, regid):
     if regtype == "N":
         if regid not in {"s", "t"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid not in {"t", "u", "v"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "O":
         if regid != "s":
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_src_read_opn(f, regtype, regid, tag):
@@ -354,9 +354,9 @@ def genptr_src_read_opn(f, regtype, regid, tag):
         elif hex_common.is_new_val(regtype, regid, tag):
             genptr_src_read_new(f, regtype, regid)
         else:
-            print("Bad register parse: ", regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid, toss, numregs)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
@@ -370,9 +370,9 @@ def gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i):
         elif hex_common.is_new_val(regtype, regid, tag):
             f.write(f"{regtype}{regid}N")
         else:
-            print("Bad register parse: ", regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid, toss, numregs)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 def gen_helper_decl_imm(f, immlett):
@@ -401,7 +401,7 @@ def genptr_dst_write(f, tag, regtype, regid):
                 f"{regtype}{regid}V);\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid in {"d", "e", "x"}:
             f.write(
@@ -409,7 +409,7 @@ def genptr_dst_write(f, tag, regtype, regid):
                 f"{regtype}{regid}V);\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "C":
         if regid == "dd":
             f.write(
@@ -422,9 +422,9 @@ def genptr_dst_write(f, tag, regtype, regid):
                 f"{regtype}{regid}V);\n"
             )
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_dst_write_ext(f, tag, regtype, regid, newv="EXT_DFL"):
@@ -440,12 +440,12 @@ def genptr_dst_write_ext(f, tag, regtype, regid, newv="EXT_DFL"):
                 f"{regtype}{regid}N, {newv});\n"
             )
         elif regid not in {"dd", "d", "x"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "Q":
         if regid not in {"d", "e", "x"}:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def genptr_dst_write_opn(f, regtype, regid, tag):
@@ -468,7 +468,7 @@ def genptr_dst_write_opn(f, regtype, regid, tag):
         else:
             genptr_dst_write(f, tag, regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 ##
@@ -532,7 +532,7 @@ def gen_tcg_func(f, tag, regs, imms):
             elif hex_common.is_new_val(regtype, regid, tag):
                 declared.append(f"{regtype}{regid}N")
             else:
-                print("Bad register parse: ", regtype, regid, toss, numregs)
+                hex_common.bad_register(regtype, regid, toss, numregs)
 
         ## Handle immediates
         for immlett, bits, immshift in imms:

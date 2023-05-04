@@ -147,7 +147,7 @@ def main():
                 elif is_single_new:
                     arguments.append(f"{prefix}{regtype}{regid}N")
                 else:
-                    print("Bad register parse: ", regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid, toss, numregs)
 
             for immlett, bits, immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))

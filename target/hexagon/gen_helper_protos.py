@@ -52,7 +52,7 @@ def gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i):
     elif hex_common.is_single(regid):
         f.write(f", {def_helper_types[regtype]}")
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 ##

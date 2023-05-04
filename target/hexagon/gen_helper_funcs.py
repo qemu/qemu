@@ -87,9 +87,9 @@ def gen_helper_arg_opn(f, regtype, regid, i, tag):
         elif hex_common.is_new_val(regtype, regid, tag):
             gen_helper_arg_new(f, regtype, regid, i)
         else:
-            print("Bad register parse: ", regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid, toss, numregs)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 def gen_helper_arg_imm(f, immlett):
@@ -135,7 +135,7 @@ def gen_helper_dest_decl_opn(f, regtype, regid, i):
         else:
             gen_helper_dest_decl(f, regtype, regid, i)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 def gen_helper_src_var_ext(f, regtype, regid):
@@ -185,7 +185,7 @@ def gen_helper_return_opn(f, regtype, regid, i):
         else:
             gen_helper_return(f, regtype, regid, i)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 ##
@@ -239,7 +239,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
                     else:
                         gen_helper_return_type(f, regtype, regid, i)
                 else:
-                    print("Bad register parse: ", regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid, toss, numregs)
             i += 1
 
         if numscalarresults == 0:
@@ -262,7 +262,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
                         # This is the return value of the function
                         continue
                 else:
-                    print("Bad register parse: ", regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid, toss, numregs)
                 i += 1
 
         ## For conditional instructions, we pass in the destination register
@@ -329,7 +329,7 @@ def gen_helper_function(f, tag, tagregs, tagimms):
                     if hex_common.is_hvx_reg(regtype):
                         gen_helper_src_var_ext(f, regtype, regid)
                 else:
-                    print("Bad register parse: ", regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid, toss, numregs)
 
         if hex_common.need_slot(tag):
             if "A_LOAD" in hex_common.attribdict[tag]:

@@ -30,6 +30,9 @@ tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
 
+def bad_register(*args):
+    args_str = ", ".join(map(str, args))
+    raise Exception(f"Bad register parse: {args_str}")
 
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
