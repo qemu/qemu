@@ -784,3 +784,26 @@ PCADD_INSN(pcaddi)
 PCADD_INSN(pcalau12i)
 PCADD_INSN(pcaddu12i)
 PCADD_INSN(pcaddu18i)
+
+#define INSN_LSX(insn, type)                                \
+static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
+{                                                           \
+    output_##type(ctx, a, #insn);                           \
+    return true;                                            \
+}
+
+static void output_vvv(DisasContext *ctx, arg_vvv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, v%d", a->vd, a->vj, a->vk);
+}
+
+INSN_LSX(vadd_b,           vvv)
+INSN_LSX(vadd_h,           vvv)
+INSN_LSX(vadd_w,           vvv)
+INSN_LSX(vadd_d,           vvv)
+INSN_LSX(vadd_q,           vvv)
+INSN_LSX(vsub_b,           vvv)
+INSN_LSX(vsub_h,           vvv)
+INSN_LSX(vsub_w,           vvv)
+INSN_LSX(vsub_d,           vvv)
+INSN_LSX(vsub_q,           vvv)

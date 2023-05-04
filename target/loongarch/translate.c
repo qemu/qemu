@@ -8,6 +8,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
+
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -28,6 +30,23 @@ TCGv_i64 cpu_fpr[32];
 #define DISAS_STOP        DISAS_TARGET_0
 #define DISAS_EXIT        DISAS_TARGET_1
 #define DISAS_EXIT_UPDATE DISAS_TARGET_2
+
+static inline int vec_full_offset(int regno)
+{
+    return  offsetof(CPULoongArchState, fpr[regno]);
+}
+
+static inline void get_vreg64(TCGv_i64 dest, int regno, int index)
+{
+    tcg_gen_ld_i64(dest, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
+}
+
+static inline void set_vreg64(TCGv_i64 src, int regno, int index)
+{
+    tcg_gen_st_i64(src, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
+}
 
 static inline int plus_1(DisasContext *ctx, int x)
 {
@@ -71,6 +90,7 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
                                             CPUState *cs)
 {
     int64_t bound;
+    CPULoongArchState *env = cs->env_ptr;
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
@@ -84,6 +104,10 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
+
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LSX)) {
+        ctx->vl = LSX_LEN;
+    }
 
     ctx->zero = tcg_constant_tl(0);
 }
