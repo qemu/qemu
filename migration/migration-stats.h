@@ -49,10 +49,6 @@ typedef struct {
      */
     Stat64 downtime_bytes;
     /*
-     * Number of pages transferred that were full of zeros.
-     */
-    Stat64 zero_pages;
-    /*
      * Number of bytes sent through multifd channels.
      */
     Stat64 multifd_bytes;
@@ -77,6 +73,10 @@ typedef struct {
      * Total number of bytes transferred.
      */
     Stat64 transferred;
+    /*
+     * Number of pages transferred that were full of zeros.
+     */
+    Stat64 zero_pages;
 } MigrationAtomicStats;
 
 extern MigrationAtomicStats mig_stats;
