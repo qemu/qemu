@@ -2845,7 +2845,7 @@ static void vmdk_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static int64_t coroutine_fn
+static int64_t coroutine_fn GRAPH_RDLOCK
 vmdk_co_get_allocated_file_size(BlockDriverState *bs)
 {
     int i;
