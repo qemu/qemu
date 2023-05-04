@@ -11,6 +11,7 @@
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 #include "internals.h"
+#include "tcg/tcg.h"
 
 #define DO_ADD(a, b)  (a + b)
 #define DO_SUB(a, b)  (a - b)
@@ -2714,3 +2715,54 @@ VFCMP(vfcmp_c_s, 32, UW, float32_compare_quiet)
 VFCMP(vfcmp_s_s, 32, UW, float32_compare)
 VFCMP(vfcmp_c_d, 64, UD, float64_compare_quiet)
 VFCMP(vfcmp_s_d, 64, UD, float64_compare)
+
+void HELPER(vbitseli_b)(void *vd, void *vj,  uint64_t imm, uint32_t v)
+{
+    int i;
+    VReg *Vd = (VReg *)vd;
+    VReg *Vj = (VReg *)vj;
+
+    for (i = 0; i < 16; i++) {
+        Vd->B(i) = (~Vd->B(i) & Vj->B(i)) | (Vd->B(i) & imm);
+    }
+}
+
+/* Copy from target/arm/tcg/sve_helper.c */
+static inline bool do_match2(uint64_t n, uint64_t m0, uint64_t m1, int esz)
+{
+    uint64_t bits = 8 << esz;
+    uint64_t ones = dup_const(esz, 1);
+    uint64_t signs = ones << (bits - 1);
+    uint64_t cmp0, cmp1;
+
+    cmp1 = dup_const(esz, n);
+    cmp0 = cmp1 ^ m0;
+    cmp1 = cmp1 ^ m1;
+    cmp0 = (cmp0 - ones) & ~cmp0;
+    cmp1 = (cmp1 - ones) & ~cmp1;
+    return (cmp0 | cmp1) & signs;
+}
+
+#define SETANYEQZ(NAME, MO)                                         \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
+{                                                                   \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    env->cf[cd & 0x7] = do_match2(0, Vj->D(0), Vj->D(1), MO);       \
+}
+SETANYEQZ(vsetanyeqz_b, MO_8)
+SETANYEQZ(vsetanyeqz_h, MO_16)
+SETANYEQZ(vsetanyeqz_w, MO_32)
+SETANYEQZ(vsetanyeqz_d, MO_64)
+
+#define SETALLNEZ(NAME, MO)                                         \
+void HELPER(NAME)(CPULoongArchState *env, uint32_t cd, uint32_t vj) \
+{                                                                   \
+    VReg *Vj = &(env->fpr[vj].vreg);                                \
+                                                                    \
+    env->cf[cd & 0x7]= !do_match2(0, Vj->D(0), Vj->D(1), MO);       \
+}
+SETALLNEZ(vsetallnez_b, MO_8)
+SETALLNEZ(vsetallnez_h, MO_16)
+SETALLNEZ(vsetallnez_w, MO_32)
+SETALLNEZ(vsetallnez_d, MO_64)
