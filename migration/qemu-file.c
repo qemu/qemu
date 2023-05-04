@@ -352,7 +352,7 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
         int ret = f->hooks->save_page(f, block_offset,
                                       offset, size, bytes_sent);
         if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            f->rate_limit_used += size;
+            qemu_file_acct_rate_limit(f, size);
         }
 
         if (ret != RAM_SAVE_CONTROL_DELAYED &&
