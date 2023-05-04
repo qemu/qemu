@@ -1314,3 +1314,203 @@ TRANS(vadda_b, gvec_vvv, MO_8, do_vadda)
 TRANS(vadda_h, gvec_vvv, MO_16, do_vadda)
 TRANS(vadda_w, gvec_vvv, MO_32, do_vadda)
 TRANS(vadda_d, gvec_vvv, MO_64, do_vadda)
+
+TRANS(vmax_b, gvec_vvv, MO_8, tcg_gen_gvec_smax)
+TRANS(vmax_h, gvec_vvv, MO_16, tcg_gen_gvec_smax)
+TRANS(vmax_w, gvec_vvv, MO_32, tcg_gen_gvec_smax)
+TRANS(vmax_d, gvec_vvv, MO_64, tcg_gen_gvec_smax)
+TRANS(vmax_bu, gvec_vvv, MO_8, tcg_gen_gvec_umax)
+TRANS(vmax_hu, gvec_vvv, MO_16, tcg_gen_gvec_umax)
+TRANS(vmax_wu, gvec_vvv, MO_32, tcg_gen_gvec_umax)
+TRANS(vmax_du, gvec_vvv, MO_64, tcg_gen_gvec_umax)
+
+TRANS(vmin_b, gvec_vvv, MO_8, tcg_gen_gvec_smin)
+TRANS(vmin_h, gvec_vvv, MO_16, tcg_gen_gvec_smin)
+TRANS(vmin_w, gvec_vvv, MO_32, tcg_gen_gvec_smin)
+TRANS(vmin_d, gvec_vvv, MO_64, tcg_gen_gvec_smin)
+TRANS(vmin_bu, gvec_vvv, MO_8, tcg_gen_gvec_umin)
+TRANS(vmin_hu, gvec_vvv, MO_16, tcg_gen_gvec_umin)
+TRANS(vmin_wu, gvec_vvv, MO_32, tcg_gen_gvec_umin)
+TRANS(vmin_du, gvec_vvv, MO_64, tcg_gen_gvec_umin)
+
+static void gen_vmini_s(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    tcg_gen_smin_vec(vece, t, a, tcg_constant_vec_matching(t, vece, imm));
+}
+
+static void gen_vmini_u(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    tcg_gen_umin_vec(vece, t, a, tcg_constant_vec_matching(t, vece, imm));
+}
+
+static void gen_vmaxi_s(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    tcg_gen_smax_vec(vece, t, a, tcg_constant_vec_matching(t, vece, imm));
+}
+
+static void gen_vmaxi_u(unsigned vece, TCGv_vec t, TCGv_vec a, int64_t imm)
+{
+    tcg_gen_umax_vec(vece, t, a, tcg_constant_vec_matching(t, vece, imm));
+}
+
+static void do_vmini_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_smin_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vmini_s,
+            .fnoi = gen_helper_vmini_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vmini_s,
+            .fnoi = gen_helper_vmini_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vmini_s,
+            .fnoi = gen_helper_vmini_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vmini_s,
+            .fnoi = gen_helper_vmini_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+static void do_vmini_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_umin_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vmini_u,
+            .fnoi = gen_helper_vmini_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vmini_u,
+            .fnoi = gen_helper_vmini_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vmini_u,
+            .fnoi = gen_helper_vmini_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vmini_u,
+            .fnoi = gen_helper_vmini_du,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(vmini_b, gvec_vv_i, MO_8, do_vmini_s)
+TRANS(vmini_h, gvec_vv_i, MO_16, do_vmini_s)
+TRANS(vmini_w, gvec_vv_i, MO_32, do_vmini_s)
+TRANS(vmini_d, gvec_vv_i, MO_64, do_vmini_s)
+TRANS(vmini_bu, gvec_vv_i, MO_8, do_vmini_u)
+TRANS(vmini_hu, gvec_vv_i, MO_16, do_vmini_u)
+TRANS(vmini_wu, gvec_vv_i, MO_32, do_vmini_u)
+TRANS(vmini_du, gvec_vv_i, MO_64, do_vmini_u)
+
+static void do_vmaxi_s(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_smax_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vmaxi_s,
+            .fnoi = gen_helper_vmaxi_b,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vmaxi_s,
+            .fnoi = gen_helper_vmaxi_h,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vmaxi_s,
+            .fnoi = gen_helper_vmaxi_w,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vmaxi_s,
+            .fnoi = gen_helper_vmaxi_d,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+static void do_vmaxi_u(unsigned vece, uint32_t vd_ofs, uint32_t vj_ofs,
+                       int64_t imm, uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = {
+        INDEX_op_umax_vec, 0
+        };
+    static const GVecGen2i op[4] = {
+        {
+            .fniv = gen_vmaxi_u,
+            .fnoi = gen_helper_vmaxi_bu,
+            .opt_opc = vecop_list,
+            .vece = MO_8
+        },
+        {
+            .fniv = gen_vmaxi_u,
+            .fnoi = gen_helper_vmaxi_hu,
+            .opt_opc = vecop_list,
+            .vece = MO_16
+        },
+        {
+            .fniv = gen_vmaxi_u,
+            .fnoi = gen_helper_vmaxi_wu,
+            .opt_opc = vecop_list,
+            .vece = MO_32
+        },
+        {
+            .fniv = gen_vmaxi_u,
+            .fnoi = gen_helper_vmaxi_du,
+            .opt_opc = vecop_list,
+            .vece = MO_64
+        },
+    };
+
+    tcg_gen_gvec_2i(vd_ofs, vj_ofs, oprsz, maxsz, imm, &op[vece]);
+}
+
+TRANS(vmaxi_b, gvec_vv_i, MO_8, do_vmaxi_s)
+TRANS(vmaxi_h, gvec_vv_i, MO_16, do_vmaxi_s)
+TRANS(vmaxi_w, gvec_vv_i, MO_32, do_vmaxi_s)
+TRANS(vmaxi_d, gvec_vv_i, MO_64, do_vmaxi_s)
+TRANS(vmaxi_bu, gvec_vv_i, MO_8, do_vmaxi_u)
+TRANS(vmaxi_hu, gvec_vv_i, MO_16, do_vmaxi_u)
+TRANS(vmaxi_wu, gvec_vv_i, MO_32, do_vmaxi_u)
+TRANS(vmaxi_du, gvec_vv_i, MO_64, do_vmaxi_u)

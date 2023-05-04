@@ -337,3 +337,36 @@ DO_VADDA(vadda_b, 8, B, DO_VABS)
 DO_VADDA(vadda_h, 16, H, DO_VABS)
 DO_VADDA(vadda_w, 32, W, DO_VABS)
 DO_VADDA(vadda_d, 64, D, DO_VABS)
+
+#define DO_MIN(a, b) (a < b ? a : b)
+#define DO_MAX(a, b) (a > b ? a : b)
+
+#define VMINMAXI(NAME, BIT, E, DO_OP)                           \
+void HELPER(NAME)(void *vd, void *vj, uint64_t imm, uint32_t v) \
+{                                                               \
+    int i;                                                      \
+    VReg *Vd = (VReg *)vd;                                      \
+    VReg *Vj = (VReg *)vj;                                      \
+    typedef __typeof(Vd->E(0)) TD;                              \
+                                                                \
+    for (i = 0; i < LSX_LEN/BIT; i++) {                         \
+        Vd->E(i) = DO_OP(Vj->E(i), (TD)imm);                    \
+    }                                                           \
+}
+
+VMINMAXI(vmini_b, 8, B, DO_MIN)
+VMINMAXI(vmini_h, 16, H, DO_MIN)
+VMINMAXI(vmini_w, 32, W, DO_MIN)
+VMINMAXI(vmini_d, 64, D, DO_MIN)
+VMINMAXI(vmaxi_b, 8, B, DO_MAX)
+VMINMAXI(vmaxi_h, 16, H, DO_MAX)
+VMINMAXI(vmaxi_w, 32, W, DO_MAX)
+VMINMAXI(vmaxi_d, 64, D, DO_MAX)
+VMINMAXI(vmini_bu, 8, UB, DO_MIN)
+VMINMAXI(vmini_hu, 16, UH, DO_MIN)
+VMINMAXI(vmini_wu, 32, UW, DO_MIN)
+VMINMAXI(vmini_du, 64, UD, DO_MIN)
+VMINMAXI(vmaxi_bu, 8, UB, DO_MAX)
+VMINMAXI(vmaxi_hu, 16, UH, DO_MAX)
+VMINMAXI(vmaxi_wu, 32, UW, DO_MAX)
+VMINMAXI(vmaxi_du, 64, UD, DO_MAX)
