@@ -3,7 +3,7 @@ config PSERIES
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VIRTIO_VGA
-    imply NVDIMM
+    select NVDIMM
     select DIMM
     select PCI
     select SPAPR_VSCSI
