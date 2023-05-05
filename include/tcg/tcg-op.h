@@ -841,61 +841,6 @@ void tcg_gen_qemu_st_i64(TCGv_i64, TCGv, TCGArg, MemOp);
 void tcg_gen_qemu_ld_i128(TCGv_i128, TCGv, TCGArg, MemOp);
 void tcg_gen_qemu_st_i128(TCGv_i128, TCGv, TCGArg, MemOp);
 
-static inline void tcg_gen_qemu_ld8u(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_UB);
-}
-
-static inline void tcg_gen_qemu_ld8s(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_SB);
-}
-
-static inline void tcg_gen_qemu_ld16u(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_TEUW);
-}
-
-static inline void tcg_gen_qemu_ld16s(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_TESW);
-}
-
-static inline void tcg_gen_qemu_ld32u(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_TEUL);
-}
-
-static inline void tcg_gen_qemu_ld32s(TCGv ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_tl(ret, addr, mem_index, MO_TESL);
-}
-
-static inline void tcg_gen_qemu_ld64(TCGv_i64 ret, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_ld_i64(ret, addr, mem_index, MO_TEUQ);
-}
-
-static inline void tcg_gen_qemu_st8(TCGv arg, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_st_tl(arg, addr, mem_index, MO_UB);
-}
-
-static inline void tcg_gen_qemu_st16(TCGv arg, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_st_tl(arg, addr, mem_index, MO_TEUW);
-}
-
-static inline void tcg_gen_qemu_st32(TCGv arg, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_st_tl(arg, addr, mem_index, MO_TEUL);
-}
-
-static inline void tcg_gen_qemu_st64(TCGv_i64 arg, TCGv addr, int mem_index)
-{
-    tcg_gen_qemu_st_i64(arg, addr, mem_index, MO_TEUQ);
-}
-
 void tcg_gen_atomic_cmpxchg_i32(TCGv_i32, TCGv, TCGv_i32, TCGv_i32,
                                 TCGArg, MemOp);
 void tcg_gen_atomic_cmpxchg_i64(TCGv_i64, TCGv, TCGv_i64, TCGv_i64,

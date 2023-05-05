@@ -99,37 +99,37 @@
 #define MEM_LOAD1s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 1); \
-        tcg_gen_qemu_ld8s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_SB); \
     } while (0)
 #define MEM_LOAD1u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 1); \
-        tcg_gen_qemu_ld8u(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_UB); \
     } while (0)
 #define MEM_LOAD2s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 2); \
-        tcg_gen_qemu_ld16s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TESW); \
     } while (0)
 #define MEM_LOAD2u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 2); \
-        tcg_gen_qemu_ld16u(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TEUW); \
     } while (0)
 #define MEM_LOAD4s(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 4); \
-        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TESL); \
     } while (0)
 #define MEM_LOAD4u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 4); \
-        tcg_gen_qemu_ld32s(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_tl(DST, VA, ctx->mem_idx, MO_TEUL); \
     } while (0)
 #define MEM_LOAD8u(DST, VA) \
     do { \
         CHECK_NOSHUF(VA, 8); \
-        tcg_gen_qemu_ld64(DST, VA, ctx->mem_idx); \
+        tcg_gen_qemu_ld_i64(DST, VA, ctx->mem_idx, MO_TEUQ); \
     } while (0)
 
 #define MEM_STORE1_FUNC(X) \

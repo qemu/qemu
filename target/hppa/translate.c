@@ -271,7 +271,7 @@ typedef struct DisasContext {
 #ifdef CONFIG_USER_ONLY
 #define UNALIGN(C)  (C)->unalign
 #else
-#define UNALIGN(C)  0
+#define UNALIGN(C)  MO_ALIGN
 #endif
 
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */

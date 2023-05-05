@@ -627,27 +627,27 @@ void process_store(DisasContext *ctx, int slot_num)
         switch (ctx->store_width[slot_num]) {
         case 1:
             gen_check_store_width(ctx, slot_num);
-            tcg_gen_qemu_st8(hex_store_val32[slot_num],
-                             hex_store_addr[slot_num],
-                             ctx->mem_idx);
+            tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
+                               hex_store_addr[slot_num],
+                               ctx->mem_idx, MO_UB);
             break;
         case 2:
             gen_check_store_width(ctx, slot_num);
-            tcg_gen_qemu_st16(hex_store_val32[slot_num],
-                              hex_store_addr[slot_num],
-                              ctx->mem_idx);
+            tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
+                               hex_store_addr[slot_num],
+                               ctx->mem_idx, MO_TEUW);
             break;
         case 4:
             gen_check_store_width(ctx, slot_num);
-            tcg_gen_qemu_st32(hex_store_val32[slot_num],
-                              hex_store_addr[slot_num],
-                              ctx->mem_idx);
+            tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
+                               hex_store_addr[slot_num],
+                               ctx->mem_idx, MO_TEUL);
             break;
         case 8:
             gen_check_store_width(ctx, slot_num);
-            tcg_gen_qemu_st64(hex_store_val64[slot_num],
-                              hex_store_addr[slot_num],
-                              ctx->mem_idx);
+            tcg_gen_qemu_st_i64(hex_store_val64[slot_num],
+                                hex_store_addr[slot_num],
+                                ctx->mem_idx, MO_TEUQ);
             break;
         default:
             {
@@ -693,13 +693,13 @@ static void process_dczeroa(DisasContext *ctx)
         TCGv_i64 zero = tcg_constant_i64(0);
 
         tcg_gen_andi_tl(addr, hex_dczero_addr, ~0x1f);
-        tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+        tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
         tcg_gen_addi_tl(addr, addr, 8);
-        tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+        tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
         tcg_gen_addi_tl(addr, addr, 8);
-        tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+        tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
         tcg_gen_addi_tl(addr, addr, 8);
-        tcg_gen_qemu_st64(zero, addr, ctx->mem_idx);
+        tcg_gen_qemu_st_i64(zero, addr, ctx->mem_idx, MO_UQ);
     }
 }
 

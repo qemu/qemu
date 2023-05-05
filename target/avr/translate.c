@@ -1492,7 +1492,7 @@ static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
     if (ctx->base.tb->flags & TB_FLAGS_FULL_ACCESS) {
         gen_helper_fullwr(cpu_env, data, addr);
     } else {
-        tcg_gen_qemu_st8(data, addr, MMU_DATA_IDX); /* mem[addr] = data */
+        tcg_gen_qemu_st_tl(data, addr, MMU_DATA_IDX, MO_UB);
     }
 }
 
@@ -1501,7 +1501,7 @@ static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
     if (ctx->base.tb->flags & TB_FLAGS_FULL_ACCESS) {
         gen_helper_fullrd(data, cpu_env, addr);
     } else {
-        tcg_gen_qemu_ld8u(data, addr, MMU_DATA_IDX); /* data = mem[addr] */
+        tcg_gen_qemu_ld_tl(data, addr, MMU_DATA_IDX, MO_UB);
     }
 }
 
@@ -1979,7 +1979,7 @@ static bool trans_LPM1(DisasContext *ctx, arg_LPM1 *a)
 
     tcg_gen_shli_tl(addr, H, 8); /* addr = H:L */
     tcg_gen_or_tl(addr, addr, L);
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     return true;
 }
 
@@ -1996,7 +1996,7 @@ static bool trans_LPM2(DisasContext *ctx, arg_LPM2 *a)
 
     tcg_gen_shli_tl(addr, H, 8); /* addr = H:L */
     tcg_gen_or_tl(addr, addr, L);
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     return true;
 }
 
@@ -2013,7 +2013,7 @@ static bool trans_LPMX(DisasContext *ctx, arg_LPMX *a)
 
     tcg_gen_shli_tl(addr, H, 8); /* addr = H:L */
     tcg_gen_or_tl(addr, addr, L);
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     tcg_gen_addi_tl(addr, addr, 1); /* addr = addr + 1 */
     tcg_gen_andi_tl(L, addr, 0xff);
     tcg_gen_shri_tl(addr, addr, 8);
@@ -2045,7 +2045,7 @@ static bool trans_ELPM1(DisasContext *ctx, arg_ELPM1 *a)
     TCGv Rd = cpu_r[0];
     TCGv addr = gen_get_zaddr();
 
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     return true;
 }
 
@@ -2058,7 +2058,7 @@ static bool trans_ELPM2(DisasContext *ctx, arg_ELPM2 *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv addr = gen_get_zaddr();
 
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     return true;
 }
 
@@ -2071,7 +2071,7 @@ static bool trans_ELPMX(DisasContext *ctx, arg_ELPMX *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv addr = gen_get_zaddr();
 
-    tcg_gen_qemu_ld8u(Rd, addr, MMU_CODE_IDX); /* Rd = mem[addr] */
+    tcg_gen_qemu_ld_tl(Rd, addr, MMU_CODE_IDX, MO_UB);
     tcg_gen_addi_tl(addr, addr, 1); /* addr = addr + 1 */
     gen_set_zaddr(addr);
     return true;
