@@ -145,11 +145,7 @@ int ppc_cpu_gdb_read_register(CPUState *cs, GByteArray *buf, int n)
             break;
         case 66:
             {
-                uint32_t cr = 0;
-                int i;
-                for (i = 0; i < 8; i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
-                }
+                uint32_t cr = ppc_get_cr(env);
                 gdb_get_reg32(buf, cr);
                 break;
             }
@@ -203,11 +199,7 @@ int ppc_cpu_gdb_read_register_apple(CPUState *cs, GByteArray *buf, int n)
             break;
         case 66 + 32:
             {
-                uint32_t cr = 0;
-                int i;
-                for (i = 0; i < 8; i++) {
-                    cr |= env->crf[i] << (32 - ((i + 1) * 4));
-                }
+                uint32_t cr = ppc_get_cr(env);
                 gdb_get_reg32(buf, cr);
                 break;
             }
@@ -257,10 +249,7 @@ int ppc_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         case 66:
             {
                 uint32_t cr = ldl_p(mem_buf);
-                int i;
-                for (i = 0; i < 8; i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
-                }
+                ppc_set_cr(env, cr);
                 break;
             }
         case 67:
@@ -307,10 +296,7 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
         case 66 + 32:
             {
                 uint32_t cr = ldl_p(mem_buf);
-                int i;
-                for (i = 0; i < 8; i++) {
-                    env->crf[i] = (cr >> (32 - ((i + 1) * 4))) & 0xF;
-                }
+                ppc_set_cr(env, cr);
                 break;
             }
         case 67 + 32:

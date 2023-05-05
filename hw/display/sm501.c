@@ -901,7 +901,7 @@ static void sm501_2d_operation(SM501State *s)
             /* fallback when pixman failed or we don't want to call it */
             uint8_t *d = s->local_mem + dst_base;
             unsigned int x, y, i;
-            for (y = 0; y < height; y++, i += dst_pitch * bypp) {
+            for (y = 0; y < height; y++) {
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
                 for (x = 0; x < width; x++, i += bypp) {
                     stn_he_p(&d[i], bypp, color);

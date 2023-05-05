@@ -20,7 +20,7 @@ PPC64_TESTS += mtfsf
 PPC64_TESTS += mffsce
 
 ifneq ($(CROSS_CC_HAS_POWER10),)
-PPC64_TESTS += byte_reverse sha512-vector
+PPC64_TESTS += byte_reverse sha512-vector vector
 endif
 byte_reverse: CFLAGS += -mcpu=power10
 run-byte_reverse: QEMU_OPTS+=-cpu POWER10
@@ -30,6 +30,9 @@ sha512-vector: sha512.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 
 run-sha512-vector: QEMU_OPTS+=-cpu POWER10
+
+vector: CFLAGS += -mcpu=power10 -I$(SRC_PATH)/include
+run-vector: QEMU_OPTS += -cpu POWER10
 
 PPC64_TESTS += signal_save_restore_xer
 PPC64_TESTS += xxspltw
