@@ -349,7 +349,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
             void *first_elem = opaque + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
-            int64_t old_offset, written_bytes;
+            uint64_t old_offset, written_bytes;
             JSONWriter *vmdesc_loop = vmdesc;
 
             trace_vmstate_save_state_loop(vmsd->name, field->name, n_elems);

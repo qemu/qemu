@@ -388,8 +388,8 @@ struct RAMState {
     uint64_t xbzrle_pages_prev;
     /* Amount of xbzrle encoded bytes since the beginning of the period */
     uint64_t xbzrle_bytes_prev;
-    /* Start using XBZRLE (e.g., after the first round). */
-    bool xbzrle_enabled;
+    /* Are we really using XBZRLE (e.g., after the first round). */
+    bool xbzrle_started;
     /* Are we on the last stage of migration */
     bool last_stage;
     /* compression statistics since the beginning of the period */
@@ -1420,7 +1420,7 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss)
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
     XBZRLE_cache_lock();
-    if (rs->xbzrle_enabled && !migration_in_postcopy()) {
+    if (rs->xbzrle_started && !migration_in_postcopy()) {
         pages = save_xbzrle_page(rs, pss, &p, current_addr,
                                  block, offset);
         if (!rs->last_stage) {
@@ -1636,7 +1636,7 @@ static int find_dirty_block(RAMState *rs, PageSearchStatus *pss)
             pss->complete_round = true;
             /* After the first round, enable XBZRLE. */
             if (migrate_xbzrle()) {
-                rs->xbzrle_enabled = true;
+                rs->xbzrle_started = true;
             }
         }
         /* Didn't find anything this time, but try again on the new block */
@@ -2288,7 +2288,7 @@ static bool save_page_use_compression(RAMState *rs)
      * using the data compression. In theory, xbzrle can do better than
      * compression.
      */
-    if (rs->xbzrle_enabled) {
+    if (rs->xbzrle_started) {
         return false;
     }
 
@@ -2357,7 +2357,7 @@ static int ram_save_target_page_legacy(RAMState *rs, PageSearchStatus *pss)
         /* Must let xbzrle know, otherwise a previous (now 0'd) cached
          * page would be stale
          */
-        if (rs->xbzrle_enabled) {
+        if (rs->xbzrle_started) {
             XBZRLE_cache_lock();
             xbzrle_cache_zero_page(rs, block->offset + offset);
             XBZRLE_cache_unlock();
@@ -2738,7 +2738,7 @@ static void ram_state_reset(RAMState *rs)
     rs->last_seen_block = NULL;
     rs->last_page = 0;
     rs->last_version = ram_list.version;
-    rs->xbzrle_enabled = false;
+    rs->xbzrle_started = false;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -4445,14 +4445,12 @@ static int ram_load_precopy(QEMUFile *f)
                 multifd_recv_sync_main();
             }
             break;
+        case RAM_SAVE_FLAG_HOOK:
+            ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
+            break;
         default:
-            if (flags & RAM_SAVE_FLAG_HOOK) {
-                ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
-            } else {
-                error_report("Unknown combination of migration flags: 0x%x",
-                             flags);
-                ret = -EINVAL;
-            }
+            error_report("Unknown combination of migration flags: 0x%x", flags);
+            ret = -EINVAL;
         }
         if (!ret) {
             ret = qemu_file_get_error(f);

@@ -83,7 +83,7 @@ int qemu_fclose(QEMUFile *f);
  *
  * Returns: the total bytes transferred
  */
-int64_t qemu_file_total_transferred(QEMUFile *f);
+uint64_t qemu_file_total_transferred(QEMUFile *f);
 
 /*
  * qemu_file_total_transferred_fast:
@@ -95,7 +95,7 @@ int64_t qemu_file_total_transferred(QEMUFile *f);
  *
  * Returns: the total bytes transferred and queued
  */
-int64_t qemu_file_total_transferred_fast(QEMUFile *f);
+uint64_t qemu_file_total_transferred_fast(QEMUFile *f);
 
 /*
  * put_buffer without copying the buffer.

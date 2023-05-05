@@ -71,6 +71,8 @@ bool migrate_cap_set(int cap, bool value, Error **errp);
 /* parameters */
 
 const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void);
+bool migrate_has_block_bitmap_mapping(void);
+
 bool migrate_block_incremental(void);
 uint32_t migrate_checkpoint_delay(void);
 int migrate_compress_level(void);
@@ -83,7 +85,7 @@ int migrate_decompress_threads(void);
 uint64_t migrate_downtime_limit(void);
 uint8_t migrate_max_cpu_throttle(void);
 uint64_t migrate_max_bandwidth(void);
-int64_t migrate_max_postcopy_bandwidth(void);
+uint64_t migrate_max_postcopy_bandwidth(void);
 int migrate_multifd_channels(void);
 MultiFDCompression migrate_multifd_compression(void);
 int migrate_multifd_zlib_level(void);

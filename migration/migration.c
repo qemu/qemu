@@ -2056,7 +2056,7 @@ static int postcopy_start(MigrationState *ms)
     QIOChannelBuffer *bioc;
     QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-    int64_t bandwidth = migrate_max_postcopy_bandwidth();
+    uint64_t bandwidth = migrate_max_postcopy_bandwidth();
     bool restart_block = false;
     int cur_state = MIGRATION_STATUS_ACTIVE;
 
@@ -3176,7 +3176,7 @@ fail:
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
-    int64_t rate_limit;
+    uint64_t rate_limit;
     bool resume = s->state == MIGRATION_STATUS_POSTCOPY_PAUSED;
 
     /*

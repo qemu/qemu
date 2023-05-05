@@ -3234,6 +3234,10 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     RDMAContext *rdma;
     int ret;
 
+    if (migration_in_postcopy()) {
+        return RAM_SAVE_CONTROL_NOT_SUPP;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
 
@@ -3242,10 +3246,6 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return RAM_SAVE_CONTROL_NOT_SUPP;
-    }
 
     qemu_fflush(f);
 
@@ -3527,7 +3527,7 @@ static int dest_ram_sort_func(const void *a, const void *b)
  *
  * Keep doing this until the source tells us to stop.
  */
-static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
+static int qemu_rdma_registration_handle(QEMUFile *f)
 {
     RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
                                .type = RDMA_CONTROL_REGISTER_RESULT,
@@ -3539,7 +3539,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                              };
     RDMAControlHeader blocks = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT,
                                  .repeat = 1 };
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(opaque);
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
     RDMALocalBlocks *local;
     RDMAControlHeader head;
@@ -3811,9 +3811,10 @@ out:
  * the source.
  */
 static int
-rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
+rdma_block_notification_handle(QEMUFile *f, const char *name)
 {
     RDMAContext *rdma;
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     int curr;
     int found = -1;
 
@@ -3846,13 +3847,12 @@ rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
 
 static int rdma_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
-    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     switch (flags) {
     case RAM_CONTROL_BLOCK_REG:
-        return rdma_block_notification_handle(rioc, data);
+        return rdma_block_notification_handle(f, data);
 
     case RAM_CONTROL_HOOK:
-        return qemu_rdma_registration_handle(f, rioc);
+        return qemu_rdma_registration_handle(f);
 
     default:
         /* Shouldn't be called with any other values */
@@ -3866,6 +3866,10 @@ static int qemu_rdma_registration_start(QEMUFile *f,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3873,10 +3877,6 @@ static int qemu_rdma_registration_start(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     trace_qemu_rdma_registration_start(flags);
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
@@ -3897,6 +3897,10 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     RDMAControlHeader head = { .len = 0, .repeat = 1 };
     int ret = 0;
 
+    if (migration_in_postcopy()) {
+        return 0;
+    }
+
     RCU_READ_LOCK_GUARD();
     rdma = qatomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
@@ -3904,10 +3908,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f,
     }
 
     CHECK_ERROR_STATE();
-
-    if (migration_in_postcopy()) {
-        return 0;
-    }
 
     qemu_fflush(f);
     ret = qemu_rdma_drain_cq(f, rdma);

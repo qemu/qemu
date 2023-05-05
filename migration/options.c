@@ -626,6 +626,13 @@ const BitmapMigrationNodeAliasList *migrate_block_bitmap_mapping(void)
     return s->parameters.block_bitmap_mapping;
 }
 
+bool migrate_has_block_bitmap_mapping(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->parameters.has_block_bitmap_mapping;
+}
+
 bool migrate_block_incremental(void)
 {
     MigrationState *s = migrate_get_current();
@@ -710,7 +717,7 @@ uint64_t migrate_max_bandwidth(void)
     return s->parameters.max_bandwidth;
 }
 
-int64_t migrate_max_postcopy_bandwidth(void)
+uint64_t migrate_max_postcopy_bandwidth(void)
 {
     MigrationState *s = migrate_get_current();
 

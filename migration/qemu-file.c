@@ -51,7 +51,7 @@ struct QEMUFile {
     int64_t rate_limit_used;
 
     /* The sum of bytes transferred on the wire */
-    int64_t total_transferred;
+    uint64_t total_transferred;
 
     int buf_index;
     int buf_size; /* 0 when writing */
@@ -63,8 +63,6 @@ struct QEMUFile {
 
     int last_error;
     Error *last_error_obj;
-    /* has the file has been shutdown */
-    bool shutdown;
 };
 
 /*
@@ -77,8 +75,6 @@ struct QEMUFile {
 int qemu_file_shutdown(QEMUFile *f)
 {
     int ret = 0;
-
-    f->shutdown = true;
 
     /*
      * We must set qemufile error before the real shutdown(), otherwise
@@ -294,7 +290,7 @@ void qemu_fflush(QEMUFile *f)
         return;
     }
 
-    if (f->shutdown) {
+    if (qemu_file_get_error(f)) {
         return;
     }
     if (f->iovcnt > 0) {
@@ -340,19 +336,9 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
 
 void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
-    int ret = -EINVAL;
-
     if (f->hooks && f->hooks->hook_ram_load) {
-        ret = f->hooks->hook_ram_load(f, flags, data);
+        int ret = f->hooks->hook_ram_load(f, flags, data);
         if (ret < 0) {
-            qemu_file_set_error(f, ret);
-        }
-    } else {
-        /*
-         * Hook is a hook specifically requested by the source sending a flag
-         * that expects there to be a hook on the destination.
-         */
-        if (flags == RAM_CONTROL_HOOK) {
             qemu_file_set_error(f, ret);
         }
     }
@@ -366,7 +352,7 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
         int ret = f->hooks->save_page(f, block_offset,
                                       offset, size, bytes_sent);
         if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            f->rate_limit_used += size;
+            qemu_file_acct_rate_limit(f, size);
         }
 
         if (ret != RAM_SAVE_CONTROL_DELAYED &&
@@ -407,7 +393,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     f->buf_index = 0;
     f->buf_size = pending;
 
-    if (f->shutdown) {
+    if (qemu_file_get_error(f)) {
         return 0;
     }
 
@@ -496,7 +482,7 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
     } else {
         if (f->iovcnt >= MAX_IOV_SIZE) {
             /* Should only happen if a previous fflush failed */
-            assert(f->shutdown || !qemu_file_is_writable(f));
+            assert(qemu_file_get_error(f) || !qemu_file_is_writable(f));
             return 1;
         }
         if (may_free) {
@@ -722,9 +708,9 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-int64_t qemu_file_total_transferred_fast(QEMUFile *f)
+uint64_t qemu_file_total_transferred_fast(QEMUFile *f)
 {
-    int64_t ret = f->total_transferred;
+    uint64_t ret = f->total_transferred;
     int i;
 
     for (i = 0; i < f->iovcnt; i++) {
@@ -734,7 +720,7 @@ int64_t qemu_file_total_transferred_fast(QEMUFile *f)
     return ret;
 }
 
-int64_t qemu_file_total_transferred(QEMUFile *f)
+uint64_t qemu_file_total_transferred(QEMUFile *f)
 {
     qemu_fflush(f);
     return f->total_transferred;
@@ -742,9 +728,6 @@ int64_t qemu_file_total_transferred(QEMUFile *f)
 
 int qemu_file_rate_limit(QEMUFile *f)
 {
-    if (f->shutdown) {
-        return 1;
-    }
     if (qemu_file_get_error(f)) {
         return 1;
     }
