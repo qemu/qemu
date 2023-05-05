@@ -282,8 +282,8 @@ static target_ulong type2_mcontrol_validate(CPURISCVState *env,
     /* validate size encoding */
     size = type2_breakpoint_size(env, ctrl);
     if (access_size[size] == -1) {
-        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using SIZE_ANY\n",
-                      size);
+        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using "
+                                 "SIZE_ANY\n", size);
     } else {
         val |= (ctrl & TYPE2_SIZELO);
         if (riscv_cpu_mxl(env) == MXL_RV64) {
@@ -411,8 +411,8 @@ static target_ulong type6_mcontrol6_validate(CPURISCVState *env,
     /* validate size encoding */
     size = extract32(ctrl, 16, 4);
     if (access_size[size] == -1) {
-        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using SIZE_ANY\n",
-                      size);
+        qemu_log_mask(LOG_UNIMP, "access size %d is not supported, using "
+                                 "SIZE_ANY\n", size);
     } else {
         val |= (ctrl & TYPE6_SIZE);
     }
@@ -515,7 +515,7 @@ itrigger_set_count(CPURISCVState *env, int index, int value)
 static bool check_itrigger_priv(CPURISCVState *env, int index)
 {
     target_ulong tdata1 = env->tdata1[index];
-    if (riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         /* check VU/VS bit against current privilege level */
         return (get_field(tdata1, ITRIGGER_VS) == env->priv) ||
                (get_field(tdata1, ITRIGGER_VU) == env->priv);
@@ -696,7 +696,8 @@ target_ulong tdata_csr_read(CPURISCVState *env, int tdata_index)
     int trigger_type;
     switch (tdata_index) {
     case TDATA1:
-        trigger_type = extract_trigger_type(env, env->tdata1[env->trigger_cur]);
+        trigger_type = extract_trigger_type(env,
+                                            env->tdata1[env->trigger_cur]);
         if ((trigger_type == TRIGGER_TYPE_INST_CNT) && icount_enabled()) {
             return deposit64(env->tdata1[env->trigger_cur], 10, 14,
                              itrigger_get_adjust_count(env));
@@ -787,7 +788,7 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
             switch (trigger_type) {
             case TRIGGER_TYPE_AD_MATCH:
                 /* type 2 trigger cannot be fired in VU/VS mode */
-                if (riscv_cpu_virt_enabled(env)) {
+                if (env->virt_enabled) {
                     return false;
                 }
 
@@ -806,7 +807,7 @@ bool riscv_cpu_debug_check_breakpoint(CPUState *cs)
                 pc = env->tdata2[i];
 
                 if ((ctrl & TYPE6_EXEC) && (bp->pc == pc)) {
-                    if (riscv_cpu_virt_enabled(env)) {
+                    if (env->virt_enabled) {
                         /* check VU/VS bit against current privilege level */
                         if ((ctrl >> 23) & BIT(env->priv)) {
                             return true;
@@ -845,7 +846,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
         switch (trigger_type) {
         case TRIGGER_TYPE_AD_MATCH:
             /* type 2 trigger cannot be fired in VU/VS mode */
-            if (riscv_cpu_virt_enabled(env)) {
+            if (env->virt_enabled) {
                 return false;
             }
 
@@ -880,7 +881,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
             }
 
             if ((wp->flags & flags) && (wp->vaddr == addr)) {
-                if (riscv_cpu_virt_enabled(env)) {
+                if (env->virt_enabled) {
                     /* check VU/VS bit against current privilege level */
                     if ((ctrl >> 23) & BIT(env->priv)) {
                         return true;

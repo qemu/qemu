@@ -130,7 +130,7 @@ static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
 
 static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
 {
-    uint16_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+    uint16_t vlenb = riscv_cpu_cfg(env)->vlen >> 3;
     if (n < 32) {
         int i;
         int cnt = 0;
@@ -146,7 +146,7 @@ static int riscv_gdb_get_vector(CPURISCVState *env, GByteArray *buf, int n)
 
 static int riscv_gdb_set_vector(CPURISCVState *env, uint8_t *mem_buf, int n)
 {
-    uint16_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
+    uint16_t vlenb = riscv_cpu_cfg(env)->vlen >> 3;
     if (n < 32) {
         int i;
         for (i = 0; i < vlenb; i += 8) {
@@ -203,7 +203,7 @@ static int riscv_gdb_set_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
     if (n == 0) {
 #ifndef CONFIG_USER_ONLY
         cs->priv = ldtul_p(mem_buf) & 0x3;
-        if (cs->priv == PRV_H) {
+        if (cs->priv == PRV_RESERVED) {
             cs->priv = PRV_S;
         }
 #endif
@@ -321,7 +321,8 @@ void riscv_cpu_register_gdb_regs_for_features(CPUState *cs)
     }
     if (env->misa_ext & RVV) {
         int base_reg = cs->gdb_num_regs;
-        gdb_register_coprocessor(cs, riscv_gdb_get_vector, riscv_gdb_set_vector,
+        gdb_register_coprocessor(cs, riscv_gdb_get_vector,
+                                 riscv_gdb_set_vector,
                                  ricsv_gen_dynamic_vector_xml(cs, base_reg),
                                  "riscv-vector.xml", 0);
     }

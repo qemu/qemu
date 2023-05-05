@@ -40,6 +40,9 @@ typedef struct HTIFState {
     uint64_t pending_read;
 } HTIFState;
 
+extern const char *sig_file;
+extern uint8_t line_size;
+
 /* HTIF symbol callback */
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
     uint64_t st_size);

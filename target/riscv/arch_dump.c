@@ -1,4 +1,5 @@
-/* Support for writing ELF notes for RISC-V architectures
+/*
+ * Support for writing ELF notes for RISC-V architectures
  *
  * Copyright (C) 2021 Huawei Technologies Co., Ltd
  *
@@ -180,8 +181,8 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     info->d_class = ELFCLASS32;
 #endif
 
-    info->d_endian = (env->mstatus & MSTATUS_UBE) != 0
-                     ? ELFDATA2MSB : ELFDATA2LSB;
+    info->d_endian = (env->mstatus & MSTATUS_UBE) != 0 ?
+                     ELFDATA2MSB : ELFDATA2LSB;
 
     return 0;
 }

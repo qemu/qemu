@@ -9,6 +9,9 @@
                  (((uint64_t)(val) * ((mask) & ~((mask) << 1))) & \
                  (uint64_t)(mask)))
 
+/* Extension context status mask */
+#define EXT_STATUS_MASK     0x3ULL
+
 /* Floating point round mode */
 #define FSR_RD_SHIFT        5
 #define FSR_RD              (0x7 << FSR_RD_SHIFT)
@@ -319,6 +322,7 @@
 #define SMSTATEEN_MAX_COUNT 4
 #define SMSTATEEN0_CS       (1ULL << 0)
 #define SMSTATEEN0_FCSR     (1ULL << 1)
+#define SMSTATEEN0_JVT      (1ULL << 2)
 #define SMSTATEEN0_HSCONTXT (1ULL << 57)
 #define SMSTATEEN0_IMSIC    (1ULL << 58)
 #define SMSTATEEN0_AIA      (1ULL << 59)
@@ -523,6 +527,9 @@
 /* Crypto Extension */
 #define CSR_SEED            0x015
 
+/* Zcmt Extension */
+#define CSR_JVT             0x017
+
 /* mstatus CSR bits */
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
@@ -604,11 +611,8 @@ typedef enum {
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1
-#define PRV_H 2 /* Reserved */
+#define PRV_RESERVED 2
 #define PRV_M 3
-
-/* Virtulisation Register Fields */
-#define VIRT_ONOFF          1
 
 /* RV32 satp CSR field masks */
 #define SATP32_MODE         0x80000000
@@ -640,6 +644,7 @@ typedef enum {
 #define PTE_SOFT            0x300 /* Reserved for Software */
 #define PTE_PBMT            0x6000000000000000ULL /* Page-based memory types */
 #define PTE_N               0x8000000000000000ULL /* NAPOT translation */
+#define PTE_RESERVED        0x1FC0000000000000ULL /* Reserved bits */
 #define PTE_ATTR            (PTE_N | PTE_PBMT) /* All attributes bits */
 
 /* Page table PPN shift amount */
@@ -730,17 +735,10 @@ typedef enum RISCVException {
 #define MIE_SSIE                           (1 << IRQ_S_SOFT)
 #define MIE_USIE                           (1 << IRQ_U_SOFT)
 
-/* General PointerMasking CSR bits*/
+/* General PointerMasking CSR bits */
 #define PM_ENABLE       0x00000001ULL
 #define PM_CURRENT      0x00000002ULL
 #define PM_INSN         0x00000004ULL
-#define PM_XS_MASK      0x00000003ULL
-
-/* PointerMasking XS bits values */
-#define PM_EXT_DISABLE  0x00000000ULL
-#define PM_EXT_INITIAL  0x00000001ULL
-#define PM_EXT_CLEAN    0x00000002ULL
-#define PM_EXT_DIRTY    0x00000003ULL
 
 /* Execution enviornment configuration bits */
 #define MENVCFG_FIOM                       BIT(0)
@@ -780,7 +778,7 @@ typedef enum RISCVException {
 #define S_OFFSET     5ULL
 #define M_OFFSET     8ULL
 
-#define PM_XS_BITS   (PM_XS_MASK << XS_OFFSET)
+#define PM_XS_BITS   (EXT_STATUS_MASK << XS_OFFSET)
 #define U_PM_ENABLE  (PM_ENABLE  << U_OFFSET)
 #define U_PM_CURRENT (PM_CURRENT << U_OFFSET)
 #define U_PM_INSN    (PM_INSN    << U_OFFSET)
@@ -898,4 +896,7 @@ typedef enum RISCVException {
 #define MHPMEVENT_IDX_MASK                 0xFFFFF
 #define MHPMEVENT_SSCOF_RESVD              16
 
+/* JVT CSR bits */
+#define JVT_MODE                           0x3F
+#define JVT_BASE                           (~0x3F)
 #endif

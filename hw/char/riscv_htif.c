@@ -29,6 +29,8 @@
 #include "chardev/char-fe.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
+#include "exec/address-spaces.h"
+#include "sysemu/dma.h"
 
 #define RISCV_DEBUG_HTIF 0
 #define HTIF_DEBUG(fmt, ...)                                                   \
@@ -51,7 +53,10 @@
 /* PK system call number */
 #define PK_SYS_WRITE            64
 
-static uint64_t fromhost_addr, tohost_addr;
+const char *sig_file;
+uint8_t line_size = 16;
+
+static uint64_t fromhost_addr, tohost_addr, begin_sig_addr, end_sig_addr;
 
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
                           uint64_t st_size)
@@ -68,6 +73,10 @@ void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
             error_report("HTIF tohost must be 8 bytes");
             exit(1);
         }
+    } else if (strcmp("begin_signature", st_name) == 0) {
+        begin_sig_addr = st_value;
+    } else if (strcmp("end_signature", st_name) == 0) {
+        end_sig_addr = st_value;
     }
 }
 
@@ -163,6 +172,39 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
             if (payload & 0x1) {
                 /* exit code */
                 int exit_code = payload >> 1;
+
+                /*
+                 * Dump signature data if sig_file is specified and
+                 * begin/end_signature symbols exist.
+                 */
+                if (sig_file && begin_sig_addr && end_sig_addr) {
+                    uint64_t sig_len = end_sig_addr - begin_sig_addr;
+                    char *sig_data = g_malloc(sig_len);
+                    dma_memory_read(&address_space_memory, begin_sig_addr,
+                                    sig_data, sig_len, MEMTXATTRS_UNSPECIFIED);
+                    FILE *signature = fopen(sig_file, "w");
+                    if (signature == NULL) {
+                        error_report("Unable to open %s with error %s",
+                                     sig_file, strerror(errno));
+                        exit(1);
+                    }
+
+                    for (int i = 0; i < sig_len; i += line_size) {
+                        for (int j = line_size; j > 0; j--) {
+                            if (i + j <= sig_len) {
+                                fprintf(signature, "%02x",
+                                        sig_data[i + j - 1] & 0xff);
+                            } else {
+                                fprintf(signature, "%02x", 0);
+                            }
+                        }
+                        fprintf(signature, "\n");
+                    }
+
+                    fclose(signature);
+                    g_free(sig_data);
+                }
+
                 exit(exit_code);
             } else {
                 uint64_t syscall[8];

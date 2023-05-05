@@ -136,15 +136,15 @@ static const VMStateDescription vmstate_vector = {
     .minimum_version_id = 2,
     .needed = vector_needed,
     .fields = (VMStateField[]) {
-            VMSTATE_UINT64_ARRAY(env.vreg, RISCVCPU, 32 * RV_VLEN_MAX / 64),
-            VMSTATE_UINTTL(env.vxrm, RISCVCPU),
-            VMSTATE_UINTTL(env.vxsat, RISCVCPU),
-            VMSTATE_UINTTL(env.vl, RISCVCPU),
-            VMSTATE_UINTTL(env.vstart, RISCVCPU),
-            VMSTATE_UINTTL(env.vtype, RISCVCPU),
-            VMSTATE_BOOL(env.vill, RISCVCPU),
-            VMSTATE_END_OF_LIST()
-        }
+        VMSTATE_UINT64_ARRAY(env.vreg, RISCVCPU, 32 * RV_VLEN_MAX / 64),
+        VMSTATE_UINTTL(env.vxrm, RISCVCPU),
+        VMSTATE_UINTTL(env.vxsat, RISCVCPU),
+        VMSTATE_UINTTL(env.vl, RISCVCPU),
+        VMSTATE_UINTTL(env.vstart, RISCVCPU),
+        VMSTATE_UINTTL(env.vtype, RISCVCPU),
+        VMSTATE_BOOL(env.vill, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static bool pointermasking_needed(void *opaque)
@@ -329,10 +329,28 @@ static const VMStateDescription vmstate_pmu_ctr_state = {
     }
 };
 
+static bool jvt_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+
+    return cpu->cfg.ext_zcmt;
+}
+
+static const VMStateDescription vmstate_jvt = {
+    .name = "cpu/jvt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = jvt_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL(env.jvt, RISCVCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_riscv_cpu = {
     .name = "cpu",
-    .version_id = 7,
-    .minimum_version_id = 7,
+    .version_id = 8,
+    .minimum_version_id = 8,
     .post_load = riscv_cpu_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINTTL_ARRAY(env.gpr, RISCVCPU, 32),
@@ -352,7 +370,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT32(env.misa_mxl_max, RISCVCPU),
         VMSTATE_UINT32(env.misa_ext_mask, RISCVCPU),
         VMSTATE_UINTTL(env.priv, RISCVCPU),
-        VMSTATE_UINTTL(env.virt, RISCVCPU),
+        VMSTATE_BOOL(env.virt_enabled, RISCVCPU),
         VMSTATE_UINT64(env.resetvec, RISCVCPU),
         VMSTATE_UINTTL(env.mhartid, RISCVCPU),
         VMSTATE_UINT64(env.mstatus, RISCVCPU),
@@ -395,6 +413,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_envcfg,
         &vmstate_debug,
         &vmstate_smstateen,
+        &vmstate_jvt,
         NULL
     }
 };

@@ -19,7 +19,7 @@
  */
 
 #define REQUIRE_FPU do {\
-    if (ctx->mstatus_fs == 0) \
+    if (ctx->mstatus_fs == EXT_STATUS_DISABLED) \
         if (!ctx->cfg_ptr->ext_zfinx) \
             return false; \
 } while (0)
@@ -28,6 +28,12 @@
     if (!ctx->cfg_ptr->ext_zfinx) { \
         REQUIRE_EXT(ctx, RVF); \
     } \
+} while (0)
+
+#define REQUIRE_ZCF(ctx) do {                  \
+    if (!ctx->cfg_ptr->ext_zcf) {              \
+        return false;                          \
+    }                                          \
 } while (0)
 
 static bool trans_flw(DisasContext *ctx, arg_flw *a)
@@ -59,6 +65,18 @@ static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
     addr = get_address(ctx, a->rs1, a->imm);
     tcg_gen_qemu_st_i64(cpu_fpr[a->rs2], addr, ctx->mem_idx, MO_TEUL);
     return true;
+}
+
+static bool trans_c_flw(DisasContext *ctx, arg_flw *a)
+{
+    REQUIRE_ZCF(ctx);
+    return trans_flw(ctx, a);
+}
+
+static bool trans_c_fsw(DisasContext *ctx, arg_fsw *a)
+{
+    REQUIRE_ZCF(ctx);
+    return trans_fsw(ctx, a);
 }
 
 static bool trans_fmadd_s(DisasContext *ctx, arg_fmadd_s *a)

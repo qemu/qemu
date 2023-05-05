@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "internals.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
@@ -140,8 +141,8 @@ static void check_zicbo_envcfg(CPURISCVState *env, target_ulong envbits,
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
     }
 
-    if (riscv_cpu_virt_enabled(env) &&
-        (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
+    if (env->virt_enabled &&
+        (((env->priv <= PRV_S) && !get_field(env->henvcfg, envbits)) ||
          ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
     }
@@ -278,8 +279,7 @@ target_ulong helper_sret(CPURISCVState *env)
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
-    if (riscv_has_ext(env, RVH) && riscv_cpu_virt_enabled(env) &&
-        get_field(env->hstatus, HSTATUS_VTSR)) {
+    if (env->virt_enabled && get_field(env->hstatus, HSTATUS_VTSR)) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
@@ -294,7 +294,7 @@ target_ulong helper_sret(CPURISCVState *env)
     }
     env->mstatus = mstatus;
 
-    if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
+    if (riscv_has_ext(env, RVH) && !env->virt_enabled) {
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
 
@@ -339,7 +339,8 @@ target_ulong helper_mret(CPURISCVState *env)
     mstatus = set_field(mstatus, MSTATUS_MIE,
                         get_field(mstatus, MSTATUS_MPIE));
     mstatus = set_field(mstatus, MSTATUS_MPIE, 1);
-    mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
+    mstatus = set_field(mstatus, MSTATUS_MPP,
+                        riscv_has_ext(env, RVU) ? PRV_U : PRV_M);
     mstatus = set_field(mstatus, MSTATUS_MPV, 0);
     if ((env->priv_ver >= PRIV_VERSION_1_12_0) && (prev_priv != PRV_M)) {
         mstatus = set_field(mstatus, MSTATUS_MPRV, 0);
@@ -366,10 +367,10 @@ void helper_wfi(CPURISCVState *env)
     bool prv_s = env->priv == PRV_S;
 
     if (((prv_s || (!rvs && prv_u)) && get_field(env->mstatus, MSTATUS_TW)) ||
-        (rvs && prv_u && !riscv_cpu_virt_enabled(env))) {
+        (rvs && prv_u && !env->virt_enabled)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    } else if (riscv_cpu_virt_enabled(env) && (prv_u ||
-        (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
+    } else if (env->virt_enabled &&
+               (prv_u || (prv_s && get_field(env->hstatus, HSTATUS_VTW)))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
         cs->halted = 1;
@@ -381,12 +382,12 @@ void helper_wfi(CPURISCVState *env)
 void helper_tlb_flush(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
-    if (!(env->priv >= PRV_S) ||
-        (env->priv == PRV_S &&
-         get_field(env->mstatus, MSTATUS_TVM))) {
+    if (!env->virt_enabled &&
+        (env->priv == PRV_U ||
+         (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)))) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
-    } else if (riscv_has_ext(env, RVH) && riscv_cpu_virt_enabled(env) &&
-               get_field(env->hstatus, HSTATUS_VTVM)) {
+    } else if (env->virt_enabled &&
+               (env->priv == PRV_U || get_field(env->hstatus, HSTATUS_VTVM))) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
         tlb_flush(cs);
@@ -403,12 +404,12 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
 {
     CPUState *cs = env_cpu(env);
 
-    if (env->priv == PRV_S && riscv_cpu_virt_enabled(env)) {
+    if (env->virt_enabled) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     }
 
     if (env->priv == PRV_M ||
-        (env->priv == PRV_S && !riscv_cpu_virt_enabled(env))) {
+        (env->priv == PRV_S && !env->virt_enabled)) {
         tlb_flush(cs);
         return;
     }
@@ -418,7 +419,7 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
 
 void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
 {
-    if (env->priv == PRV_S && !riscv_cpu_virt_enabled(env) &&
+    if (env->priv == PRV_S && !env->virt_enabled &&
         get_field(env->mstatus, MSTATUS_TVM)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
@@ -426,18 +427,118 @@ void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
     helper_hyp_tlb_flush(env);
 }
 
-target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong address)
+static int check_access_hlsv(CPURISCVState *env, bool x, uintptr_t ra)
 {
-    int mmu_idx = cpu_mmu_index(env, true) | TB_FLAGS_PRIV_HYP_ACCESS_MASK;
+    if (env->priv == PRV_M) {
+        /* always allowed */
+    } else if (env->virt_enabled) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
+    } else if (env->priv == PRV_U && !get_field(env->hstatus, HSTATUS_HU)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
 
-    return cpu_lduw_mmuidx_ra(env, address, mmu_idx, GETPC());
+    int mode = get_field(env->hstatus, HSTATUS_SPVP);
+    if (!x && mode == PRV_S && get_field(env->vsstatus, MSTATUS_SUM)) {
+        mode = MMUIdx_S_SUM;
+    }
+    return mode | MMU_2STAGE_BIT;
 }
 
-target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong address)
+target_ulong helper_hyp_hlv_bu(CPURISCVState *env, target_ulong addr)
 {
-    int mmu_idx = cpu_mmu_index(env, true) | TB_FLAGS_PRIV_HYP_ACCESS_MASK;
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
 
-    return cpu_ldl_mmuidx_ra(env, address, mmu_idx, GETPC());
+    return cpu_ldb_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_hu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
+
+    return cpu_ldw_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_wu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
+
+    return cpu_ldl_mmu(env, addr, oi, ra);
+}
+
+target_ulong helper_hyp_hlv_d(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUQ, mmu_idx);
+
+    return cpu_ldq_mmu(env, addr, oi, ra);
+}
+
+void helper_hyp_hsv_b(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+
+    cpu_stb_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_h(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
+
+    cpu_stw_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_w(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
+
+    cpu_stl_mmu(env, addr, val, oi, ra);
+}
+
+void helper_hyp_hsv_d(CPURISCVState *env, target_ulong addr, target_ulong val)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, false, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUQ, mmu_idx);
+
+    cpu_stq_mmu(env, addr, val, oi, ra);
+}
+
+/*
+ * TODO: These implementations are not quite correct.  They perform the
+ * access using execute permission just fine, but the final PMP check
+ * is supposed to have read permission as well.  Without replicating
+ * a fair fraction of cputlb.c, fixing this requires adding new mmu_idx
+ * which would imply that exact check in tlb_fill.
+ */
+target_ulong helper_hyp_hlvx_hu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, true, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUW, mmu_idx);
+
+    return cpu_ldw_code_mmu(env, addr, oi, GETPC());
+}
+
+target_ulong helper_hyp_hlvx_wu(CPURISCVState *env, target_ulong addr)
+{
+    uintptr_t ra = GETPC();
+    int mmu_idx = check_access_hlsv(env, true, ra);
+    MemOpIdx oi = make_memop_idx(MO_TEUL, mmu_idx);
+
+    return cpu_ldl_code_mmu(env, addr, oi, ra);
 }
 
 #endif /* !CONFIG_USER_ONLY */

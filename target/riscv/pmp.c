@@ -27,7 +27,7 @@
 #include "exec/exec-all.h"
 
 static void pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
-    uint8_t val);
+                          uint8_t val);
 static uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
 static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index);
 
@@ -129,18 +129,19 @@ static void pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
     }
 }
 
-static void pmp_decode_napot(target_ulong a, target_ulong *sa, target_ulong *ea)
+static void pmp_decode_napot(target_ulong a, target_ulong *sa,
+                             target_ulong *ea)
 {
     /*
-       aaaa...aaa0   8-byte NAPOT range
-       aaaa...aa01   16-byte NAPOT range
-       aaaa...a011   32-byte NAPOT range
-       ...
-       aa01...1111   2^XLEN-byte NAPOT range
-       a011...1111   2^(XLEN+1)-byte NAPOT range
-       0111...1111   2^(XLEN+2)-byte NAPOT range
-       1111...1111   Reserved
-    */
+     * aaaa...aaa0   8-byte NAPOT range
+     * aaaa...aa01   16-byte NAPOT range
+     * aaaa...a011   32-byte NAPOT range
+     * ...
+     * aa01...1111   2^XLEN-byte NAPOT range
+     * a011...1111   2^(XLEN+1)-byte NAPOT range
+     * 0111...1111   2^(XLEN+2)-byte NAPOT range
+     * 1111...1111   Reserved
+     */
     a = (a << 2) | 0x3;
     *sa = a & (a + 1);
     *ea = a | (a + 1);
@@ -205,7 +206,8 @@ void pmp_update_rule_nums(CPURISCVState *env)
     }
 }
 
-/* Convert cfg/addr reg values here into simple 'sa' --> start address and 'ea'
+/*
+ * Convert cfg/addr reg values here into simple 'sa' --> start address and 'ea'
  *   end address values.
  *   This function is called relatively infrequently whereas the check that
  *   an address is within a pmp rule is called often, so optimise that one
@@ -216,12 +218,13 @@ static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index)
     pmp_update_rule_nums(env);
 }
 
-static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
+static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
+                           target_ulong addr)
 {
     int result = 0;
 
-    if ((addr >= env->pmp_state.addr[pmp_index].sa)
-        && (addr <= env->pmp_state.addr[pmp_index].ea)) {
+    if ((addr >= env->pmp_state.addr[pmp_index].sa) &&
+        (addr <= env->pmp_state.addr[pmp_index].ea)) {
         result = 1;
     } else {
         result = 0;
@@ -234,8 +237,9 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index, target_ulong addr)
  * Check if the address has required RWX privs when no PMP entry is matched.
  */
 static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
-    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
-    target_ulong mode)
+                                       target_ulong size, pmp_priv_t privs,
+                                       pmp_priv_t *allowed_privs,
+                                       target_ulong mode)
 {
     bool ret;
 
@@ -297,8 +301,8 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
  * Return negtive value if no match
  */
 int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
-    target_ulong size, pmp_priv_t privs, pmp_priv_t *allowed_privs,
-    target_ulong mode)
+                       target_ulong size, pmp_priv_t privs,
+                       pmp_priv_t *allowed_privs, target_ulong mode)
 {
     int i = 0;
     int ret = -1;
@@ -328,8 +332,10 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         pmp_size = size;
     }
 
-    /* 1.10 draft priv spec states there is an implicit order
-         from low to high */
+    /*
+     * 1.10 draft priv spec states there is an implicit order
+     * from low to high
+     */
     for (i = 0; i < MAX_RISCV_PMPS; i++) {
         s = pmp_is_in_range(env, i, addr);
         e = pmp_is_in_range(env, i, addr + pmp_size - 1);
@@ -466,7 +472,7 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
  * Handle a write to a pmpcfg CSR
  */
 void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
-    target_ulong val)
+                      target_ulong val)
 {
     int i;
     uint8_t cfg_val;
@@ -508,7 +514,7 @@ target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
  * Handle a write to a pmpaddr CSR
  */
 void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
-    target_ulong val)
+                       target_ulong val)
 {
     trace_pmpaddr_csr_write(env->mhartid, addr_index, val);
 
@@ -608,13 +614,13 @@ target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
         return TARGET_PAGE_SIZE;
     } else {
         /*
-        * At this point we have a tlb_size that is the smallest possible size
-        * That fits within a TARGET_PAGE_SIZE and the PMP region.
-        *
-        * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
-        * This means the result isn't cached in the TLB and is only used for
-        * a single translation.
-        */
+         * At this point we have a tlb_size that is the smallest possible size
+         * That fits within a TARGET_PAGE_SIZE and the PMP region.
+         *
+         * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
+         * This means the result isn't cached in the TLB and is only used for
+         * a single translation.
+         */
         return 1;
     }
 }

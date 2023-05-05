@@ -803,7 +803,7 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
 
     aplic->bitfield_words = (aplic->num_irqs + 31) >> 5;
     aplic->sourcecfg = g_new0(uint32_t, aplic->num_irqs);
-    aplic->state = g_new(uint32_t, aplic->num_irqs);
+    aplic->state = g_new0(uint32_t, aplic->num_irqs);
     aplic->target = g_new0(uint32_t, aplic->num_irqs);
     if (!aplic->msimode) {
         for (i = 0; i < aplic->num_irqs; i++) {

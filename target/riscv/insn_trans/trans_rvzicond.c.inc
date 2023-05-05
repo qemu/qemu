@@ -2,6 +2,7 @@
  * RISC-V translation routines for the Zicond Standard Extension.
  *
  * Copyright (c) 2020-2023 PLCT Lab
+ * Copyright (c) 2022 VRULL GmbH.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,28 +23,33 @@
     }                                     \
 } while (0)
 
-static bool trans_czero_eqz(DisasContext *ctx, arg_czero_eqz *a)
+/* Emits "$rd = ($rs2 <cond> $zero) ? $zero : $rs1" */
+static void gen_czero(TCGv dest, TCGv src1, TCGv src2, TCGCond cond)
 {
-    REQUIRE_ZICOND(ctx);
-
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
-    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
-
-    tcg_gen_movcond_tl(TCG_COND_EQ, dest, src2, ctx->zero, ctx->zero, src1);
-    gen_set_gpr(ctx, a->rd, dest);
-    return true;
+    TCGv zero = tcg_constant_tl(0);
+    tcg_gen_movcond_tl(cond, dest, src2, zero, zero, src1);
 }
 
-static bool trans_czero_nez(DisasContext *ctx, arg_czero_nez *a)
+static void gen_czero_eqz(TCGv dest, TCGv src1, TCGv src2)
+{
+    gen_czero(dest, src1, src2, TCG_COND_EQ);
+}
+
+static void gen_czero_nez(TCGv dest, TCGv src1, TCGv src2)
+{
+    gen_czero(dest, src1, src2, TCG_COND_NE);
+}
+
+static bool trans_czero_eqz(DisasContext *ctx, arg_r *a)
 {
     REQUIRE_ZICOND(ctx);
 
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
-    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+    return gen_logic(ctx, a, gen_czero_eqz);
+}
 
-    tcg_gen_movcond_tl(TCG_COND_NE, dest, src2, ctx->zero, ctx->zero, src1);
-    gen_set_gpr(ctx, a->rd, dest);
-    return true;
+static bool trans_czero_nez(DisasContext *ctx, arg_r *a)
+{
+    REQUIRE_ZICOND(ctx);
+
+    return gen_logic(ctx, a, gen_czero_nez);
 }
