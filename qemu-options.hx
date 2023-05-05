@@ -793,6 +793,12 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "                in|out.name= source/sink device name\n"
     "                in|out.latency= desired latency in microseconds\n"
 #endif
+#ifdef CONFIG_AUDIO_PIPEWIRE
+    "-audiodev pipewire,id=id[,prop[=value][,...]]\n"
+    "                in|out.name= source/sink device name\n"
+    "                in|out.stream-name= name of pipewire stream\n"
+    "                in|out.latency= desired latency in microseconds\n"
+#endif
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
     "                in|out.buffer-count= number of buffers\n"
@@ -955,6 +961,21 @@ SRST
     ``in|out.latency=usecs``
         Desired latency in microseconds. The PulseAudio server will try
         to honor this value but actual latencies may be lower or higher.
+
+``-audiodev pipewire,id=id[,prop[=value][,...]]``
+    Creates a backend using Pipewire. This backend is available on
+    most systems.
+
+    Pipewire specific options are:
+
+    ``in|out.latency=usecs``
+        Desired latency in microseconds.
+
+    ``in|out.name=sink``
+        Use the specified source/sink for recording/playback.
+
+    ``in|out.stream-name``
+        Specify the name of pipewire stream.
 
 ``-audiodev sdl,id=id[,prop[=value][,...]]``
     Creates a backend using SDL. This backend is available on most
