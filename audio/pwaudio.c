@@ -66,6 +66,9 @@ typedef struct PWVoiceIn {
     PWVoice v;
 } PWVoiceIn;
 
+#define PW_VOICE_IN(v) ((PWVoiceIn *)v)
+#define PW_VOICE_OUT(v) ((PWVoiceOut *)v)
+
 static void
 stream_destroy(void *data)
 {
@@ -630,40 +633,34 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 }
 
 static void
+qpw_voice_fini(PWVoice *v)
+{
+    pwaudio *c = v->g;
+
+    if (!v->stream) {
+        return;
+    }
+    pw_thread_loop_lock(c->thread_loop);
+    pw_stream_destroy(v->stream);
+    v->stream = NULL;
+    pw_thread_loop_unlock(c->thread_loop);
+}
+
+static void
 qpw_fini_out(HWVoiceOut *hw)
 {
-    PWVoiceOut *pw = (PWVoiceOut *) hw;
-    PWVoice *v = &pw->v;
-
-    if (v->stream) {
-        pwaudio *c = v->g;
-        pw_thread_loop_lock(c->thread_loop);
-        pw_stream_destroy(v->stream);
-        v->stream = NULL;
-        pw_thread_loop_unlock(c->thread_loop);
-    }
+    qpw_voice_fini(&PW_VOICE_OUT(hw)->v);
 }
 
 static void
 qpw_fini_in(HWVoiceIn *hw)
 {
-    PWVoiceIn *pw = (PWVoiceIn *) hw;
-    PWVoice *v = &pw->v;
-
-    if (v->stream) {
-        pwaudio *c = v->g;
-        pw_thread_loop_lock(c->thread_loop);
-        pw_stream_destroy(v->stream);
-        v->stream = NULL;
-        pw_thread_loop_unlock(c->thread_loop);
-    }
+    qpw_voice_fini(&PW_VOICE_IN(hw)->v);
 }
 
 static void
-qpw_enable_out(HWVoiceOut *hw, bool enable)
+qpw_voice_set_enabled(PWVoice *v, bool enable)
 {
-    PWVoiceOut *po = (PWVoiceOut *) hw;
-    PWVoice *v = &po->v;
     pwaudio *c = v->g;
     pw_thread_loop_lock(c->thread_loop);
     pw_stream_set_active(v->stream, enable);
@@ -671,64 +668,50 @@ qpw_enable_out(HWVoiceOut *hw, bool enable)
 }
 
 static void
+qpw_enable_out(HWVoiceOut *hw, bool enable)
+{
+    qpw_voice_set_enabled(&PW_VOICE_OUT(hw)->v, enable);
+}
+
+static void
 qpw_enable_in(HWVoiceIn *hw, bool enable)
 {
-    PWVoiceIn *pi = (PWVoiceIn *) hw;
-    PWVoice *v = &pi->v;
+    qpw_voice_set_enabled(&PW_VOICE_IN(hw)->v, enable);
+}
+
+static void
+qpw_voice_set_volume(PWVoice *v, Volume *vol)
+{
     pwaudio *c = v->g;
+    int i, ret;
+
     pw_thread_loop_lock(c->thread_loop);
-    pw_stream_set_active(v->stream, enable);
+    v->volume.channels = vol->channels;
+
+    for (i = 0; i < vol->channels; ++i) {
+        v->volume.values[i] = (float)vol->vol[i] / 255;
+    }
+
+    ret = pw_stream_set_control(v->stream,
+        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
+    trace_pw_vol(ret == 0 ? "success" : "failed");
+
+    v->muted = vol->mute;
+    float val = v->muted ? 1.f : 0.f;
+    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
     pw_thread_loop_unlock(c->thread_loop);
 }
 
 static void
 qpw_volume_out(HWVoiceOut *hw, Volume *vol)
 {
-    PWVoiceOut *pw = (PWVoiceOut *) hw;
-    PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
-    int i, ret;
-
-    pw_thread_loop_lock(c->thread_loop);
-    v->volume.channels = vol->channels;
-
-    for (i = 0; i < vol->channels; ++i) {
-        v->volume.values[i] = (float)vol->vol[i] / 255;
-    }
-
-    ret = pw_stream_set_control(v->stream,
-        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
-    trace_pw_vol(ret == 0 ? "success" : "failed");
-
-    v->muted = vol->mute;
-    float val = v->muted ? 1.f : 0.f;
-    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
-    pw_thread_loop_unlock(c->thread_loop);
+    qpw_voice_set_volume(&PW_VOICE_OUT(hw)->v, vol);
 }
 
 static void
 qpw_volume_in(HWVoiceIn *hw, Volume *vol)
 {
-    PWVoiceIn *pw = (PWVoiceIn *) hw;
-    PWVoice *v = &pw->v;
-    pwaudio *c = v->g;
-    int i, ret;
-
-    pw_thread_loop_lock(c->thread_loop);
-    v->volume.channels = vol->channels;
-
-    for (i = 0; i < vol->channels; ++i) {
-        v->volume.values[i] = (float)vol->vol[i] / 255;
-    }
-
-    ret = pw_stream_set_control(v->stream,
-        SPA_PROP_channelVolumes, v->volume.channels, v->volume.values, 0);
-    trace_pw_vol(ret == 0 ? "success" : "failed");
-
-    v->muted = vol->mute;
-    float val = v->muted ? 1.f : 0.f;
-    ret = pw_stream_set_control(v->stream, SPA_PROP_mute, 1, &val, 0);
-    pw_thread_loop_unlock(c->thread_loop);
+    qpw_voice_set_volume(&PW_VOICE_IN(hw)->v, vol);
 }
 
 static int wait_resync(pwaudio *pw)
