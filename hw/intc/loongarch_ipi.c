@@ -215,6 +215,10 @@ static void loongarch_ipi_init(Object *obj)
     for (cpu = 0; cpu < MAX_IPI_CORE_NUM; cpu++) {
         memory_region_init_io(&s->ipi_iocsr_mem[cpu], obj, &loongarch_ipi_ops,
                             &lams->ipi_core[cpu], "loongarch_ipi_iocsr", 0x48);
+
+        /* loongarch_ipi_iocsr performs re-entrant IO through ipi_send */
+        s->ipi_iocsr_mem[cpu].disable_reentrancy_guard = true;
+
         sysbus_init_mmio(sbd, &s->ipi_iocsr_mem[cpu]);
 
         memory_region_init_io(&s->ipi64_iocsr_mem[cpu], obj, &loongarch_ipi64_ops,
