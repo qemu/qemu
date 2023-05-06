@@ -417,8 +417,8 @@ pw_to_audfmt(enum spa_audio_format fmt, int *endianness,
 }
 
 static int
-create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
-              const char *name, enum spa_direction dir)
+qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
+               const char *name, enum spa_direction dir)
 {
     int res;
     uint32_t n_params;
@@ -482,62 +482,37 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
     return 0;
 }
 
-static int
-qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
-               const char *name, enum spa_direction dir)
+static void
+qpw_set_position(uint32_t channels, uint32_t position[SPA_AUDIO_MAX_CHANNELS])
 {
-    switch (v->info.channels) {
+    memcpy(position, (uint32_t[SPA_AUDIO_MAX_CHANNELS]) { SPA_AUDIO_CHANNEL_UNKNOWN, },
+           sizeof(uint32_t) * SPA_AUDIO_MAX_CHANNELS);
+    /*
+     * TODO: This currently expects the only frontend supporting more than 2
+     * channels is the usb-audio.  We will need some means to set channel
+     * order when a new frontend gains multi-channel support.
+     */
+    switch (channels) {
     case 8:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RL;
-        v->info.position[5] = SPA_AUDIO_CHANNEL_RR;
-        v->info.position[6] = SPA_AUDIO_CHANNEL_SL;
-        v->info.position[7] = SPA_AUDIO_CHANNEL_SR;
-        break;
+        position[6] = SPA_AUDIO_CHANNEL_SL;
+        position[7] = SPA_AUDIO_CHANNEL_SR;
+        /* fallthrough */
     case 6:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RL;
-        v->info.position[5] = SPA_AUDIO_CHANNEL_RR;
-        break;
-    case 5:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_LFE;
-        v->info.position[4] = SPA_AUDIO_CHANNEL_RC;
-        break;
-    case 4:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_FC;
-        v->info.position[3] = SPA_AUDIO_CHANNEL_RC;
-        break;
-    case 3:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
-        v->info.position[2] = SPA_AUDIO_CHANNEL_LFE;
-        break;
+        position[2] = SPA_AUDIO_CHANNEL_FC;
+        position[3] = SPA_AUDIO_CHANNEL_LFE;
+        position[4] = SPA_AUDIO_CHANNEL_RL;
+        position[5] = SPA_AUDIO_CHANNEL_RR;
+        /* fallthrough */
     case 2:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
-        v->info.position[1] = SPA_AUDIO_CHANNEL_FR;
+        position[0] = SPA_AUDIO_CHANNEL_FL;
+        position[1] = SPA_AUDIO_CHANNEL_FR;
         break;
     case 1:
-        v->info.position[0] = SPA_AUDIO_CHANNEL_MONO;
+        position[0] = SPA_AUDIO_CHANNEL_MONO;
         break;
     default:
-        for (size_t i = 0; i < v->info.channels; i++) {
-            v->info.position[i] = SPA_AUDIO_CHANNEL_UNKNOWN;
-        }
-        break;
+        dolog("Internal error: unsupported channel count %d\n", channels);
     }
-
-    return create_stream(c, v, stream_name, name, dir);
 }
 
 static int
@@ -555,6 +530,7 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 
     v->info.format = audfmt_to_pw(as->fmt, as->endianness);
     v->info.channels = as->nchannels;
+    qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
@@ -601,6 +577,7 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     v->info.format = audfmt_to_pw(as->fmt, as->endianness);
     v->info.channels = as->nchannels;
+    qpw_set_position(as->nchannels, v->info.position);
     v->info.rate = as->freq;
 
     obt_as.fmt =
