@@ -750,6 +750,7 @@ static int wait_resync(pwaudio *pw)
     }
     return 0;
 }
+
 static void
 on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 {
@@ -793,19 +794,19 @@ qpw_audio_init(Audiodev *dev)
     pw->dev = dev;
     pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
     if (pw->thread_loop == NULL) {
-        error_report("Could not create PipeWire loop");
+        error_report("Could not create PipeWire loop: %s", g_strerror(errno));
         goto fail;
     }
 
     pw->context =
         pw_context_new(pw_thread_loop_get_loop(pw->thread_loop), NULL, 0);
     if (pw->context == NULL) {
-        error_report("Could not create PipeWire context");
+        error_report("Could not create PipeWire context: %s", g_strerror(errno));
         goto fail;
     }
 
     if (pw_thread_loop_start(pw->thread_loop) < 0) {
-        error_report("Could not start PipeWire loop");
+        error_report("Could not start PipeWire loop: %s", g_strerror(errno));
         goto fail;
     }
 
