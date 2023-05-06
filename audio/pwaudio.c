@@ -537,7 +537,6 @@ qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
         break;
     }
 
-    /* create a new unconnected pwstream */
     return create_stream(c, v, stream_name, name, dir);
 }
 
