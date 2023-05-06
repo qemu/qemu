@@ -21,9 +21,19 @@ static inline int plus_1(DisasContext *ctx, int x)
     return x + 1;
 }
 
+static inline int shl_1(DisasContext *ctx, int x)
+{
+    return x << 1;
+}
+
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+static inline int shl_3(DisasContext *ctx, int x)
+{
+    return x << 3;
 }
 
 #define CSR_NAME(REG) \
@@ -784,3 +794,904 @@ PCADD_INSN(pcaddi)
 PCADD_INSN(pcalau12i)
 PCADD_INSN(pcaddu12i)
 PCADD_INSN(pcaddu18i)
+
+#define INSN_LSX(insn, type)                                \
+static bool trans_##insn(DisasContext *ctx, arg_##type * a) \
+{                                                           \
+    output_##type(ctx, a, #insn);                           \
+    return true;                                            \
+}
+
+static void output_cv(DisasContext *ctx, arg_cv *a,
+                        const char *mnemonic)
+{
+    output(ctx, mnemonic, "fcc%d, v%d", a->cd, a->vj);
+}
+
+static void output_vvv(DisasContext *ctx, arg_vvv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, v%d", a->vd, a->vj, a->vk);
+}
+
+static void output_vv_i(DisasContext *ctx, arg_vv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, 0x%x", a->vd, a->vj, a->imm);
+}
+
+static void output_vv(DisasContext *ctx, arg_vv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d", a->vd, a->vj);
+}
+
+static void output_vvvv(DisasContext *ctx, arg_vvvv *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, v%d, v%d", a->vd, a->vj, a->vk, a->va);
+}
+
+static void output_vr_i(DisasContext *ctx, arg_vr_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, 0x%x", a->vd, a->rj, a->imm);
+}
+
+static void output_vr_ii(DisasContext *ctx, arg_vr_ii *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, 0x%x, 0x%x", a->vd, a->rj, a->imm, a->imm2);
+}
+
+static void output_rv_i(DisasContext *ctx, arg_rv_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "r%d, v%d, 0x%x", a->rd, a->vj,  a->imm);
+}
+
+static void output_vr(DisasContext *ctx, arg_vr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d", a->vd, a->rj);
+}
+
+static void output_vvr(DisasContext *ctx, arg_vvr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, v%d, r%d", a->vd, a->vj, a->rk);
+}
+
+static void output_vrr(DisasContext *ctx, arg_vrr *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, r%d, r%d", a->vd, a->rj, a->rk);
+}
+
+static void output_v_i(DisasContext *ctx, arg_v_i *a, const char *mnemonic)
+{
+    output(ctx, mnemonic, "v%d, 0x%x", a->vd, a->imm);
+}
+
+INSN_LSX(vadd_b,           vvv)
+INSN_LSX(vadd_h,           vvv)
+INSN_LSX(vadd_w,           vvv)
+INSN_LSX(vadd_d,           vvv)
+INSN_LSX(vadd_q,           vvv)
+INSN_LSX(vsub_b,           vvv)
+INSN_LSX(vsub_h,           vvv)
+INSN_LSX(vsub_w,           vvv)
+INSN_LSX(vsub_d,           vvv)
+INSN_LSX(vsub_q,           vvv)
+
+INSN_LSX(vaddi_bu,         vv_i)
+INSN_LSX(vaddi_hu,         vv_i)
+INSN_LSX(vaddi_wu,         vv_i)
+INSN_LSX(vaddi_du,         vv_i)
+INSN_LSX(vsubi_bu,         vv_i)
+INSN_LSX(vsubi_hu,         vv_i)
+INSN_LSX(vsubi_wu,         vv_i)
+INSN_LSX(vsubi_du,         vv_i)
+
+INSN_LSX(vneg_b,           vv)
+INSN_LSX(vneg_h,           vv)
+INSN_LSX(vneg_w,           vv)
+INSN_LSX(vneg_d,           vv)
+
+INSN_LSX(vsadd_b,          vvv)
+INSN_LSX(vsadd_h,          vvv)
+INSN_LSX(vsadd_w,          vvv)
+INSN_LSX(vsadd_d,          vvv)
+INSN_LSX(vsadd_bu,         vvv)
+INSN_LSX(vsadd_hu,         vvv)
+INSN_LSX(vsadd_wu,         vvv)
+INSN_LSX(vsadd_du,         vvv)
+INSN_LSX(vssub_b,          vvv)
+INSN_LSX(vssub_h,          vvv)
+INSN_LSX(vssub_w,          vvv)
+INSN_LSX(vssub_d,          vvv)
+INSN_LSX(vssub_bu,         vvv)
+INSN_LSX(vssub_hu,         vvv)
+INSN_LSX(vssub_wu,         vvv)
+INSN_LSX(vssub_du,         vvv)
+
+INSN_LSX(vhaddw_h_b,       vvv)
+INSN_LSX(vhaddw_w_h,       vvv)
+INSN_LSX(vhaddw_d_w,       vvv)
+INSN_LSX(vhaddw_q_d,       vvv)
+INSN_LSX(vhaddw_hu_bu,     vvv)
+INSN_LSX(vhaddw_wu_hu,     vvv)
+INSN_LSX(vhaddw_du_wu,     vvv)
+INSN_LSX(vhaddw_qu_du,     vvv)
+INSN_LSX(vhsubw_h_b,       vvv)
+INSN_LSX(vhsubw_w_h,       vvv)
+INSN_LSX(vhsubw_d_w,       vvv)
+INSN_LSX(vhsubw_q_d,       vvv)
+INSN_LSX(vhsubw_hu_bu,     vvv)
+INSN_LSX(vhsubw_wu_hu,     vvv)
+INSN_LSX(vhsubw_du_wu,     vvv)
+INSN_LSX(vhsubw_qu_du,     vvv)
+
+INSN_LSX(vaddwev_h_b,      vvv)
+INSN_LSX(vaddwev_w_h,      vvv)
+INSN_LSX(vaddwev_d_w,      vvv)
+INSN_LSX(vaddwev_q_d,      vvv)
+INSN_LSX(vaddwod_h_b,      vvv)
+INSN_LSX(vaddwod_w_h,      vvv)
+INSN_LSX(vaddwod_d_w,      vvv)
+INSN_LSX(vaddwod_q_d,      vvv)
+INSN_LSX(vsubwev_h_b,      vvv)
+INSN_LSX(vsubwev_w_h,      vvv)
+INSN_LSX(vsubwev_d_w,      vvv)
+INSN_LSX(vsubwev_q_d,      vvv)
+INSN_LSX(vsubwod_h_b,      vvv)
+INSN_LSX(vsubwod_w_h,      vvv)
+INSN_LSX(vsubwod_d_w,      vvv)
+INSN_LSX(vsubwod_q_d,      vvv)
+
+INSN_LSX(vaddwev_h_bu,     vvv)
+INSN_LSX(vaddwev_w_hu,     vvv)
+INSN_LSX(vaddwev_d_wu,     vvv)
+INSN_LSX(vaddwev_q_du,     vvv)
+INSN_LSX(vaddwod_h_bu,     vvv)
+INSN_LSX(vaddwod_w_hu,     vvv)
+INSN_LSX(vaddwod_d_wu,     vvv)
+INSN_LSX(vaddwod_q_du,     vvv)
+INSN_LSX(vsubwev_h_bu,     vvv)
+INSN_LSX(vsubwev_w_hu,     vvv)
+INSN_LSX(vsubwev_d_wu,     vvv)
+INSN_LSX(vsubwev_q_du,     vvv)
+INSN_LSX(vsubwod_h_bu,     vvv)
+INSN_LSX(vsubwod_w_hu,     vvv)
+INSN_LSX(vsubwod_d_wu,     vvv)
+INSN_LSX(vsubwod_q_du,     vvv)
+
+INSN_LSX(vaddwev_h_bu_b,   vvv)
+INSN_LSX(vaddwev_w_hu_h,   vvv)
+INSN_LSX(vaddwev_d_wu_w,   vvv)
+INSN_LSX(vaddwev_q_du_d,   vvv)
+INSN_LSX(vaddwod_h_bu_b,   vvv)
+INSN_LSX(vaddwod_w_hu_h,   vvv)
+INSN_LSX(vaddwod_d_wu_w,   vvv)
+INSN_LSX(vaddwod_q_du_d,   vvv)
+
+INSN_LSX(vavg_b,           vvv)
+INSN_LSX(vavg_h,           vvv)
+INSN_LSX(vavg_w,           vvv)
+INSN_LSX(vavg_d,           vvv)
+INSN_LSX(vavg_bu,          vvv)
+INSN_LSX(vavg_hu,          vvv)
+INSN_LSX(vavg_wu,          vvv)
+INSN_LSX(vavg_du,          vvv)
+INSN_LSX(vavgr_b,          vvv)
+INSN_LSX(vavgr_h,          vvv)
+INSN_LSX(vavgr_w,          vvv)
+INSN_LSX(vavgr_d,          vvv)
+INSN_LSX(vavgr_bu,         vvv)
+INSN_LSX(vavgr_hu,         vvv)
+INSN_LSX(vavgr_wu,         vvv)
+INSN_LSX(vavgr_du,         vvv)
+
+INSN_LSX(vabsd_b,          vvv)
+INSN_LSX(vabsd_h,          vvv)
+INSN_LSX(vabsd_w,          vvv)
+INSN_LSX(vabsd_d,          vvv)
+INSN_LSX(vabsd_bu,         vvv)
+INSN_LSX(vabsd_hu,         vvv)
+INSN_LSX(vabsd_wu,         vvv)
+INSN_LSX(vabsd_du,         vvv)
+
+INSN_LSX(vadda_b,          vvv)
+INSN_LSX(vadda_h,          vvv)
+INSN_LSX(vadda_w,          vvv)
+INSN_LSX(vadda_d,          vvv)
+
+INSN_LSX(vmax_b,           vvv)
+INSN_LSX(vmax_h,           vvv)
+INSN_LSX(vmax_w,           vvv)
+INSN_LSX(vmax_d,           vvv)
+INSN_LSX(vmin_b,           vvv)
+INSN_LSX(vmin_h,           vvv)
+INSN_LSX(vmin_w,           vvv)
+INSN_LSX(vmin_d,           vvv)
+INSN_LSX(vmax_bu,          vvv)
+INSN_LSX(vmax_hu,          vvv)
+INSN_LSX(vmax_wu,          vvv)
+INSN_LSX(vmax_du,          vvv)
+INSN_LSX(vmin_bu,          vvv)
+INSN_LSX(vmin_hu,          vvv)
+INSN_LSX(vmin_wu,          vvv)
+INSN_LSX(vmin_du,          vvv)
+INSN_LSX(vmaxi_b,          vv_i)
+INSN_LSX(vmaxi_h,          vv_i)
+INSN_LSX(vmaxi_w,          vv_i)
+INSN_LSX(vmaxi_d,          vv_i)
+INSN_LSX(vmini_b,          vv_i)
+INSN_LSX(vmini_h,          vv_i)
+INSN_LSX(vmini_w,          vv_i)
+INSN_LSX(vmini_d,          vv_i)
+INSN_LSX(vmaxi_bu,         vv_i)
+INSN_LSX(vmaxi_hu,         vv_i)
+INSN_LSX(vmaxi_wu,         vv_i)
+INSN_LSX(vmaxi_du,         vv_i)
+INSN_LSX(vmini_bu,         vv_i)
+INSN_LSX(vmini_hu,         vv_i)
+INSN_LSX(vmini_wu,         vv_i)
+INSN_LSX(vmini_du,         vv_i)
+
+INSN_LSX(vmul_b,           vvv)
+INSN_LSX(vmul_h,           vvv)
+INSN_LSX(vmul_w,           vvv)
+INSN_LSX(vmul_d,           vvv)
+INSN_LSX(vmuh_b,           vvv)
+INSN_LSX(vmuh_h,           vvv)
+INSN_LSX(vmuh_w,           vvv)
+INSN_LSX(vmuh_d,           vvv)
+INSN_LSX(vmuh_bu,          vvv)
+INSN_LSX(vmuh_hu,          vvv)
+INSN_LSX(vmuh_wu,          vvv)
+INSN_LSX(vmuh_du,          vvv)
+
+INSN_LSX(vmulwev_h_b,      vvv)
+INSN_LSX(vmulwev_w_h,      vvv)
+INSN_LSX(vmulwev_d_w,      vvv)
+INSN_LSX(vmulwev_q_d,      vvv)
+INSN_LSX(vmulwod_h_b,      vvv)
+INSN_LSX(vmulwod_w_h,      vvv)
+INSN_LSX(vmulwod_d_w,      vvv)
+INSN_LSX(vmulwod_q_d,      vvv)
+INSN_LSX(vmulwev_h_bu,     vvv)
+INSN_LSX(vmulwev_w_hu,     vvv)
+INSN_LSX(vmulwev_d_wu,     vvv)
+INSN_LSX(vmulwev_q_du,     vvv)
+INSN_LSX(vmulwod_h_bu,     vvv)
+INSN_LSX(vmulwod_w_hu,     vvv)
+INSN_LSX(vmulwod_d_wu,     vvv)
+INSN_LSX(vmulwod_q_du,     vvv)
+INSN_LSX(vmulwev_h_bu_b,   vvv)
+INSN_LSX(vmulwev_w_hu_h,   vvv)
+INSN_LSX(vmulwev_d_wu_w,   vvv)
+INSN_LSX(vmulwev_q_du_d,   vvv)
+INSN_LSX(vmulwod_h_bu_b,   vvv)
+INSN_LSX(vmulwod_w_hu_h,   vvv)
+INSN_LSX(vmulwod_d_wu_w,   vvv)
+INSN_LSX(vmulwod_q_du_d,   vvv)
+
+INSN_LSX(vmadd_b,          vvv)
+INSN_LSX(vmadd_h,          vvv)
+INSN_LSX(vmadd_w,          vvv)
+INSN_LSX(vmadd_d,          vvv)
+INSN_LSX(vmsub_b,          vvv)
+INSN_LSX(vmsub_h,          vvv)
+INSN_LSX(vmsub_w,          vvv)
+INSN_LSX(vmsub_d,          vvv)
+
+INSN_LSX(vmaddwev_h_b,     vvv)
+INSN_LSX(vmaddwev_w_h,     vvv)
+INSN_LSX(vmaddwev_d_w,     vvv)
+INSN_LSX(vmaddwev_q_d,     vvv)
+INSN_LSX(vmaddwod_h_b,     vvv)
+INSN_LSX(vmaddwod_w_h,     vvv)
+INSN_LSX(vmaddwod_d_w,     vvv)
+INSN_LSX(vmaddwod_q_d,     vvv)
+INSN_LSX(vmaddwev_h_bu,    vvv)
+INSN_LSX(vmaddwev_w_hu,    vvv)
+INSN_LSX(vmaddwev_d_wu,    vvv)
+INSN_LSX(vmaddwev_q_du,    vvv)
+INSN_LSX(vmaddwod_h_bu,    vvv)
+INSN_LSX(vmaddwod_w_hu,    vvv)
+INSN_LSX(vmaddwod_d_wu,    vvv)
+INSN_LSX(vmaddwod_q_du,    vvv)
+INSN_LSX(vmaddwev_h_bu_b,  vvv)
+INSN_LSX(vmaddwev_w_hu_h,  vvv)
+INSN_LSX(vmaddwev_d_wu_w,  vvv)
+INSN_LSX(vmaddwev_q_du_d,  vvv)
+INSN_LSX(vmaddwod_h_bu_b,  vvv)
+INSN_LSX(vmaddwod_w_hu_h,  vvv)
+INSN_LSX(vmaddwod_d_wu_w,  vvv)
+INSN_LSX(vmaddwod_q_du_d,  vvv)
+
+INSN_LSX(vdiv_b,           vvv)
+INSN_LSX(vdiv_h,           vvv)
+INSN_LSX(vdiv_w,           vvv)
+INSN_LSX(vdiv_d,           vvv)
+INSN_LSX(vdiv_bu,          vvv)
+INSN_LSX(vdiv_hu,          vvv)
+INSN_LSX(vdiv_wu,          vvv)
+INSN_LSX(vdiv_du,          vvv)
+INSN_LSX(vmod_b,           vvv)
+INSN_LSX(vmod_h,           vvv)
+INSN_LSX(vmod_w,           vvv)
+INSN_LSX(vmod_d,           vvv)
+INSN_LSX(vmod_bu,          vvv)
+INSN_LSX(vmod_hu,          vvv)
+INSN_LSX(vmod_wu,          vvv)
+INSN_LSX(vmod_du,          vvv)
+
+INSN_LSX(vsat_b,           vv_i)
+INSN_LSX(vsat_h,           vv_i)
+INSN_LSX(vsat_w,           vv_i)
+INSN_LSX(vsat_d,           vv_i)
+INSN_LSX(vsat_bu,          vv_i)
+INSN_LSX(vsat_hu,          vv_i)
+INSN_LSX(vsat_wu,          vv_i)
+INSN_LSX(vsat_du,          vv_i)
+
+INSN_LSX(vexth_h_b,        vv)
+INSN_LSX(vexth_w_h,        vv)
+INSN_LSX(vexth_d_w,        vv)
+INSN_LSX(vexth_q_d,        vv)
+INSN_LSX(vexth_hu_bu,      vv)
+INSN_LSX(vexth_wu_hu,      vv)
+INSN_LSX(vexth_du_wu,      vv)
+INSN_LSX(vexth_qu_du,      vv)
+
+INSN_LSX(vsigncov_b,       vvv)
+INSN_LSX(vsigncov_h,       vvv)
+INSN_LSX(vsigncov_w,       vvv)
+INSN_LSX(vsigncov_d,       vvv)
+
+INSN_LSX(vmskltz_b,        vv)
+INSN_LSX(vmskltz_h,        vv)
+INSN_LSX(vmskltz_w,        vv)
+INSN_LSX(vmskltz_d,        vv)
+INSN_LSX(vmskgez_b,        vv)
+INSN_LSX(vmsknz_b,         vv)
+
+INSN_LSX(vldi,             v_i)
+
+INSN_LSX(vand_v,           vvv)
+INSN_LSX(vor_v,            vvv)
+INSN_LSX(vxor_v,           vvv)
+INSN_LSX(vnor_v,           vvv)
+INSN_LSX(vandn_v,          vvv)
+INSN_LSX(vorn_v,           vvv)
+
+INSN_LSX(vandi_b,          vv_i)
+INSN_LSX(vori_b,           vv_i)
+INSN_LSX(vxori_b,          vv_i)
+INSN_LSX(vnori_b,          vv_i)
+
+INSN_LSX(vsll_b,           vvv)
+INSN_LSX(vsll_h,           vvv)
+INSN_LSX(vsll_w,           vvv)
+INSN_LSX(vsll_d,           vvv)
+INSN_LSX(vslli_b,          vv_i)
+INSN_LSX(vslli_h,          vv_i)
+INSN_LSX(vslli_w,          vv_i)
+INSN_LSX(vslli_d,          vv_i)
+
+INSN_LSX(vsrl_b,           vvv)
+INSN_LSX(vsrl_h,           vvv)
+INSN_LSX(vsrl_w,           vvv)
+INSN_LSX(vsrl_d,           vvv)
+INSN_LSX(vsrli_b,          vv_i)
+INSN_LSX(vsrli_h,          vv_i)
+INSN_LSX(vsrli_w,          vv_i)
+INSN_LSX(vsrli_d,          vv_i)
+
+INSN_LSX(vsra_b,           vvv)
+INSN_LSX(vsra_h,           vvv)
+INSN_LSX(vsra_w,           vvv)
+INSN_LSX(vsra_d,           vvv)
+INSN_LSX(vsrai_b,          vv_i)
+INSN_LSX(vsrai_h,          vv_i)
+INSN_LSX(vsrai_w,          vv_i)
+INSN_LSX(vsrai_d,          vv_i)
+
+INSN_LSX(vrotr_b,          vvv)
+INSN_LSX(vrotr_h,          vvv)
+INSN_LSX(vrotr_w,          vvv)
+INSN_LSX(vrotr_d,          vvv)
+INSN_LSX(vrotri_b,         vv_i)
+INSN_LSX(vrotri_h,         vv_i)
+INSN_LSX(vrotri_w,         vv_i)
+INSN_LSX(vrotri_d,         vv_i)
+
+INSN_LSX(vsllwil_h_b,      vv_i)
+INSN_LSX(vsllwil_w_h,      vv_i)
+INSN_LSX(vsllwil_d_w,      vv_i)
+INSN_LSX(vextl_q_d,        vv)
+INSN_LSX(vsllwil_hu_bu,    vv_i)
+INSN_LSX(vsllwil_wu_hu,    vv_i)
+INSN_LSX(vsllwil_du_wu,    vv_i)
+INSN_LSX(vextl_qu_du,      vv)
+
+INSN_LSX(vsrlr_b,          vvv)
+INSN_LSX(vsrlr_h,          vvv)
+INSN_LSX(vsrlr_w,          vvv)
+INSN_LSX(vsrlr_d,          vvv)
+INSN_LSX(vsrlri_b,         vv_i)
+INSN_LSX(vsrlri_h,         vv_i)
+INSN_LSX(vsrlri_w,         vv_i)
+INSN_LSX(vsrlri_d,         vv_i)
+
+INSN_LSX(vsrar_b,          vvv)
+INSN_LSX(vsrar_h,          vvv)
+INSN_LSX(vsrar_w,          vvv)
+INSN_LSX(vsrar_d,          vvv)
+INSN_LSX(vsrari_b,         vv_i)
+INSN_LSX(vsrari_h,         vv_i)
+INSN_LSX(vsrari_w,         vv_i)
+INSN_LSX(vsrari_d,         vv_i)
+
+INSN_LSX(vsrln_b_h,       vvv)
+INSN_LSX(vsrln_h_w,       vvv)
+INSN_LSX(vsrln_w_d,       vvv)
+INSN_LSX(vsran_b_h,       vvv)
+INSN_LSX(vsran_h_w,       vvv)
+INSN_LSX(vsran_w_d,       vvv)
+
+INSN_LSX(vsrlni_b_h,       vv_i)
+INSN_LSX(vsrlni_h_w,       vv_i)
+INSN_LSX(vsrlni_w_d,       vv_i)
+INSN_LSX(vsrlni_d_q,       vv_i)
+INSN_LSX(vsrani_b_h,       vv_i)
+INSN_LSX(vsrani_h_w,       vv_i)
+INSN_LSX(vsrani_w_d,       vv_i)
+INSN_LSX(vsrani_d_q,       vv_i)
+
+INSN_LSX(vsrlrn_b_h,       vvv)
+INSN_LSX(vsrlrn_h_w,       vvv)
+INSN_LSX(vsrlrn_w_d,       vvv)
+INSN_LSX(vsrarn_b_h,       vvv)
+INSN_LSX(vsrarn_h_w,       vvv)
+INSN_LSX(vsrarn_w_d,       vvv)
+
+INSN_LSX(vsrlrni_b_h,      vv_i)
+INSN_LSX(vsrlrni_h_w,      vv_i)
+INSN_LSX(vsrlrni_w_d,      vv_i)
+INSN_LSX(vsrlrni_d_q,      vv_i)
+INSN_LSX(vsrarni_b_h,      vv_i)
+INSN_LSX(vsrarni_h_w,      vv_i)
+INSN_LSX(vsrarni_w_d,      vv_i)
+INSN_LSX(vsrarni_d_q,      vv_i)
+
+INSN_LSX(vssrln_b_h,       vvv)
+INSN_LSX(vssrln_h_w,       vvv)
+INSN_LSX(vssrln_w_d,       vvv)
+INSN_LSX(vssran_b_h,       vvv)
+INSN_LSX(vssran_h_w,       vvv)
+INSN_LSX(vssran_w_d,       vvv)
+INSN_LSX(vssrln_bu_h,      vvv)
+INSN_LSX(vssrln_hu_w,      vvv)
+INSN_LSX(vssrln_wu_d,      vvv)
+INSN_LSX(vssran_bu_h,      vvv)
+INSN_LSX(vssran_hu_w,      vvv)
+INSN_LSX(vssran_wu_d,      vvv)
+
+INSN_LSX(vssrlni_b_h,      vv_i)
+INSN_LSX(vssrlni_h_w,      vv_i)
+INSN_LSX(vssrlni_w_d,      vv_i)
+INSN_LSX(vssrlni_d_q,      vv_i)
+INSN_LSX(vssrani_b_h,      vv_i)
+INSN_LSX(vssrani_h_w,      vv_i)
+INSN_LSX(vssrani_w_d,      vv_i)
+INSN_LSX(vssrani_d_q,      vv_i)
+INSN_LSX(vssrlni_bu_h,     vv_i)
+INSN_LSX(vssrlni_hu_w,     vv_i)
+INSN_LSX(vssrlni_wu_d,     vv_i)
+INSN_LSX(vssrlni_du_q,     vv_i)
+INSN_LSX(vssrani_bu_h,     vv_i)
+INSN_LSX(vssrani_hu_w,     vv_i)
+INSN_LSX(vssrani_wu_d,     vv_i)
+INSN_LSX(vssrani_du_q,     vv_i)
+
+INSN_LSX(vssrlrn_b_h,      vvv)
+INSN_LSX(vssrlrn_h_w,      vvv)
+INSN_LSX(vssrlrn_w_d,      vvv)
+INSN_LSX(vssrarn_b_h,      vvv)
+INSN_LSX(vssrarn_h_w,      vvv)
+INSN_LSX(vssrarn_w_d,      vvv)
+INSN_LSX(vssrlrn_bu_h,     vvv)
+INSN_LSX(vssrlrn_hu_w,     vvv)
+INSN_LSX(vssrlrn_wu_d,     vvv)
+INSN_LSX(vssrarn_bu_h,     vvv)
+INSN_LSX(vssrarn_hu_w,     vvv)
+INSN_LSX(vssrarn_wu_d,     vvv)
+
+INSN_LSX(vssrlrni_b_h,     vv_i)
+INSN_LSX(vssrlrni_h_w,     vv_i)
+INSN_LSX(vssrlrni_w_d,     vv_i)
+INSN_LSX(vssrlrni_d_q,     vv_i)
+INSN_LSX(vssrlrni_bu_h,    vv_i)
+INSN_LSX(vssrlrni_hu_w,    vv_i)
+INSN_LSX(vssrlrni_wu_d,    vv_i)
+INSN_LSX(vssrlrni_du_q,    vv_i)
+INSN_LSX(vssrarni_b_h,     vv_i)
+INSN_LSX(vssrarni_h_w,     vv_i)
+INSN_LSX(vssrarni_w_d,     vv_i)
+INSN_LSX(vssrarni_d_q,     vv_i)
+INSN_LSX(vssrarni_bu_h,    vv_i)
+INSN_LSX(vssrarni_hu_w,    vv_i)
+INSN_LSX(vssrarni_wu_d,    vv_i)
+INSN_LSX(vssrarni_du_q,    vv_i)
+
+INSN_LSX(vclo_b,           vv)
+INSN_LSX(vclo_h,           vv)
+INSN_LSX(vclo_w,           vv)
+INSN_LSX(vclo_d,           vv)
+INSN_LSX(vclz_b,           vv)
+INSN_LSX(vclz_h,           vv)
+INSN_LSX(vclz_w,           vv)
+INSN_LSX(vclz_d,           vv)
+
+INSN_LSX(vpcnt_b,          vv)
+INSN_LSX(vpcnt_h,          vv)
+INSN_LSX(vpcnt_w,          vv)
+INSN_LSX(vpcnt_d,          vv)
+
+INSN_LSX(vbitclr_b,        vvv)
+INSN_LSX(vbitclr_h,        vvv)
+INSN_LSX(vbitclr_w,        vvv)
+INSN_LSX(vbitclr_d,        vvv)
+INSN_LSX(vbitclri_b,       vv_i)
+INSN_LSX(vbitclri_h,       vv_i)
+INSN_LSX(vbitclri_w,       vv_i)
+INSN_LSX(vbitclri_d,       vv_i)
+INSN_LSX(vbitset_b,        vvv)
+INSN_LSX(vbitset_h,        vvv)
+INSN_LSX(vbitset_w,        vvv)
+INSN_LSX(vbitset_d,        vvv)
+INSN_LSX(vbitseti_b,       vv_i)
+INSN_LSX(vbitseti_h,       vv_i)
+INSN_LSX(vbitseti_w,       vv_i)
+INSN_LSX(vbitseti_d,       vv_i)
+INSN_LSX(vbitrev_b,        vvv)
+INSN_LSX(vbitrev_h,        vvv)
+INSN_LSX(vbitrev_w,        vvv)
+INSN_LSX(vbitrev_d,        vvv)
+INSN_LSX(vbitrevi_b,       vv_i)
+INSN_LSX(vbitrevi_h,       vv_i)
+INSN_LSX(vbitrevi_w,       vv_i)
+INSN_LSX(vbitrevi_d,       vv_i)
+
+INSN_LSX(vfrstp_b,         vvv)
+INSN_LSX(vfrstp_h,         vvv)
+INSN_LSX(vfrstpi_b,        vv_i)
+INSN_LSX(vfrstpi_h,        vv_i)
+
+INSN_LSX(vfadd_s,          vvv)
+INSN_LSX(vfadd_d,          vvv)
+INSN_LSX(vfsub_s,          vvv)
+INSN_LSX(vfsub_d,          vvv)
+INSN_LSX(vfmul_s,          vvv)
+INSN_LSX(vfmul_d,          vvv)
+INSN_LSX(vfdiv_s,          vvv)
+INSN_LSX(vfdiv_d,          vvv)
+
+INSN_LSX(vfmadd_s,         vvvv)
+INSN_LSX(vfmadd_d,         vvvv)
+INSN_LSX(vfmsub_s,         vvvv)
+INSN_LSX(vfmsub_d,         vvvv)
+INSN_LSX(vfnmadd_s,        vvvv)
+INSN_LSX(vfnmadd_d,        vvvv)
+INSN_LSX(vfnmsub_s,        vvvv)
+INSN_LSX(vfnmsub_d,        vvvv)
+
+INSN_LSX(vfmax_s,          vvv)
+INSN_LSX(vfmax_d,          vvv)
+INSN_LSX(vfmin_s,          vvv)
+INSN_LSX(vfmin_d,          vvv)
+
+INSN_LSX(vfmaxa_s,         vvv)
+INSN_LSX(vfmaxa_d,         vvv)
+INSN_LSX(vfmina_s,         vvv)
+INSN_LSX(vfmina_d,         vvv)
+
+INSN_LSX(vflogb_s,         vv)
+INSN_LSX(vflogb_d,         vv)
+
+INSN_LSX(vfclass_s,        vv)
+INSN_LSX(vfclass_d,        vv)
+
+INSN_LSX(vfsqrt_s,         vv)
+INSN_LSX(vfsqrt_d,         vv)
+INSN_LSX(vfrecip_s,        vv)
+INSN_LSX(vfrecip_d,        vv)
+INSN_LSX(vfrsqrt_s,        vv)
+INSN_LSX(vfrsqrt_d,        vv)
+
+INSN_LSX(vfcvtl_s_h,       vv)
+INSN_LSX(vfcvth_s_h,       vv)
+INSN_LSX(vfcvtl_d_s,       vv)
+INSN_LSX(vfcvth_d_s,       vv)
+INSN_LSX(vfcvt_h_s,        vvv)
+INSN_LSX(vfcvt_s_d,        vvv)
+
+INSN_LSX(vfrint_s,         vv)
+INSN_LSX(vfrint_d,         vv)
+INSN_LSX(vfrintrm_s,       vv)
+INSN_LSX(vfrintrm_d,       vv)
+INSN_LSX(vfrintrp_s,       vv)
+INSN_LSX(vfrintrp_d,       vv)
+INSN_LSX(vfrintrz_s,       vv)
+INSN_LSX(vfrintrz_d,       vv)
+INSN_LSX(vfrintrne_s,      vv)
+INSN_LSX(vfrintrne_d,      vv)
+
+INSN_LSX(vftint_w_s,       vv)
+INSN_LSX(vftint_l_d,       vv)
+INSN_LSX(vftintrm_w_s,     vv)
+INSN_LSX(vftintrm_l_d,     vv)
+INSN_LSX(vftintrp_w_s,     vv)
+INSN_LSX(vftintrp_l_d,     vv)
+INSN_LSX(vftintrz_w_s,     vv)
+INSN_LSX(vftintrz_l_d,     vv)
+INSN_LSX(vftintrne_w_s,    vv)
+INSN_LSX(vftintrne_l_d,    vv)
+INSN_LSX(vftint_wu_s,      vv)
+INSN_LSX(vftint_lu_d,      vv)
+INSN_LSX(vftintrz_wu_s,    vv)
+INSN_LSX(vftintrz_lu_d,    vv)
+INSN_LSX(vftint_w_d,       vvv)
+INSN_LSX(vftintrm_w_d,     vvv)
+INSN_LSX(vftintrp_w_d,     vvv)
+INSN_LSX(vftintrz_w_d,     vvv)
+INSN_LSX(vftintrne_w_d,    vvv)
+INSN_LSX(vftintl_l_s,      vv)
+INSN_LSX(vftinth_l_s,      vv)
+INSN_LSX(vftintrml_l_s,    vv)
+INSN_LSX(vftintrmh_l_s,    vv)
+INSN_LSX(vftintrpl_l_s,    vv)
+INSN_LSX(vftintrph_l_s,    vv)
+INSN_LSX(vftintrzl_l_s,    vv)
+INSN_LSX(vftintrzh_l_s,    vv)
+INSN_LSX(vftintrnel_l_s,   vv)
+INSN_LSX(vftintrneh_l_s,   vv)
+
+INSN_LSX(vffint_s_w,       vv)
+INSN_LSX(vffint_s_wu,      vv)
+INSN_LSX(vffint_d_l,       vv)
+INSN_LSX(vffint_d_lu,      vv)
+INSN_LSX(vffintl_d_w,      vv)
+INSN_LSX(vffinth_d_w,      vv)
+INSN_LSX(vffint_s_l,       vvv)
+
+INSN_LSX(vseq_b,           vvv)
+INSN_LSX(vseq_h,           vvv)
+INSN_LSX(vseq_w,           vvv)
+INSN_LSX(vseq_d,           vvv)
+INSN_LSX(vseqi_b,          vv_i)
+INSN_LSX(vseqi_h,          vv_i)
+INSN_LSX(vseqi_w,          vv_i)
+INSN_LSX(vseqi_d,          vv_i)
+
+INSN_LSX(vsle_b,           vvv)
+INSN_LSX(vsle_h,           vvv)
+INSN_LSX(vsle_w,           vvv)
+INSN_LSX(vsle_d,           vvv)
+INSN_LSX(vslei_b,          vv_i)
+INSN_LSX(vslei_h,          vv_i)
+INSN_LSX(vslei_w,          vv_i)
+INSN_LSX(vslei_d,          vv_i)
+INSN_LSX(vsle_bu,          vvv)
+INSN_LSX(vsle_hu,          vvv)
+INSN_LSX(vsle_wu,          vvv)
+INSN_LSX(vsle_du,          vvv)
+INSN_LSX(vslei_bu,         vv_i)
+INSN_LSX(vslei_hu,         vv_i)
+INSN_LSX(vslei_wu,         vv_i)
+INSN_LSX(vslei_du,         vv_i)
+
+INSN_LSX(vslt_b,           vvv)
+INSN_LSX(vslt_h,           vvv)
+INSN_LSX(vslt_w,           vvv)
+INSN_LSX(vslt_d,           vvv)
+INSN_LSX(vslti_b,          vv_i)
+INSN_LSX(vslti_h,          vv_i)
+INSN_LSX(vslti_w,          vv_i)
+INSN_LSX(vslti_d,          vv_i)
+INSN_LSX(vslt_bu,          vvv)
+INSN_LSX(vslt_hu,          vvv)
+INSN_LSX(vslt_wu,          vvv)
+INSN_LSX(vslt_du,          vvv)
+INSN_LSX(vslti_bu,         vv_i)
+INSN_LSX(vslti_hu,         vv_i)
+INSN_LSX(vslti_wu,         vv_i)
+INSN_LSX(vslti_du,         vv_i)
+
+#define output_vfcmp(C, PREFIX, SUFFIX)                                     \
+{                                                                           \
+    (C)->info->fprintf_func((C)->info->stream, "%08x   %s%s\t%d, f%d, f%d", \
+                            (C)->insn, PREFIX, SUFFIX, a->vd,               \
+                            a->vj, a->vk);                                  \
+}
+
+static bool output_vvv_fcond(DisasContext *ctx, arg_vvv_fcond * a,
+                             const char *suffix)
+{
+    bool ret = true;
+    switch (a->fcond) {
+    case 0x0:
+        output_vfcmp(ctx, "vfcmp_caf_", suffix);
+        break;
+    case 0x1:
+        output_vfcmp(ctx, "vfcmp_saf_", suffix);
+        break;
+    case 0x2:
+        output_vfcmp(ctx, "vfcmp_clt_", suffix);
+        break;
+    case 0x3:
+        output_vfcmp(ctx, "vfcmp_slt_", suffix);
+        break;
+    case 0x4:
+        output_vfcmp(ctx, "vfcmp_ceq_", suffix);
+        break;
+    case 0x5:
+        output_vfcmp(ctx, "vfcmp_seq_", suffix);
+        break;
+    case 0x6:
+        output_vfcmp(ctx, "vfcmp_cle_", suffix);
+        break;
+    case 0x7:
+        output_vfcmp(ctx, "vfcmp_sle_", suffix);
+        break;
+    case 0x8:
+        output_vfcmp(ctx, "vfcmp_cun_", suffix);
+        break;
+    case 0x9:
+        output_vfcmp(ctx, "vfcmp_sun_", suffix);
+        break;
+    case 0xA:
+        output_vfcmp(ctx, "vfcmp_cult_", suffix);
+        break;
+    case 0xB:
+        output_vfcmp(ctx, "vfcmp_sult_", suffix);
+        break;
+    case 0xC:
+        output_vfcmp(ctx, "vfcmp_cueq_", suffix);
+        break;
+    case 0xD:
+        output_vfcmp(ctx, "vfcmp_sueq_", suffix);
+        break;
+    case 0xE:
+        output_vfcmp(ctx, "vfcmp_cule_", suffix);
+        break;
+    case 0xF:
+        output_vfcmp(ctx, "vfcmp_sule_", suffix);
+        break;
+    case 0x10:
+        output_vfcmp(ctx, "vfcmp_cne_", suffix);
+        break;
+    case 0x11:
+        output_vfcmp(ctx, "vfcmp_sne_", suffix);
+        break;
+    case 0x14:
+        output_vfcmp(ctx, "vfcmp_cor_", suffix);
+        break;
+    case 0x15:
+        output_vfcmp(ctx, "vfcmp_sor_", suffix);
+        break;
+    case 0x18:
+        output_vfcmp(ctx, "vfcmp_cune_", suffix);
+        break;
+    case 0x19:
+        output_vfcmp(ctx, "vfcmp_sune_", suffix);
+        break;
+    default:
+        ret = false;
+    }
+    return ret;
+}
+
+#define LSX_FCMP_INSN(suffix)                            \
+static bool trans_vfcmp_cond_##suffix(DisasContext *ctx, \
+                                     arg_vvv_fcond * a)  \
+{                                                        \
+    return output_vvv_fcond(ctx, a, #suffix);            \
+}
+
+LSX_FCMP_INSN(s)
+LSX_FCMP_INSN(d)
+
+INSN_LSX(vbitsel_v,        vvvv)
+INSN_LSX(vbitseli_b,       vv_i)
+
+INSN_LSX(vseteqz_v,        cv)
+INSN_LSX(vsetnez_v,        cv)
+INSN_LSX(vsetanyeqz_b,     cv)
+INSN_LSX(vsetanyeqz_h,     cv)
+INSN_LSX(vsetanyeqz_w,     cv)
+INSN_LSX(vsetanyeqz_d,     cv)
+INSN_LSX(vsetallnez_b,     cv)
+INSN_LSX(vsetallnez_h,     cv)
+INSN_LSX(vsetallnez_w,     cv)
+INSN_LSX(vsetallnez_d,     cv)
+
+INSN_LSX(vinsgr2vr_b,      vr_i)
+INSN_LSX(vinsgr2vr_h,      vr_i)
+INSN_LSX(vinsgr2vr_w,      vr_i)
+INSN_LSX(vinsgr2vr_d,      vr_i)
+INSN_LSX(vpickve2gr_b,     rv_i)
+INSN_LSX(vpickve2gr_h,     rv_i)
+INSN_LSX(vpickve2gr_w,     rv_i)
+INSN_LSX(vpickve2gr_d,     rv_i)
+INSN_LSX(vpickve2gr_bu,    rv_i)
+INSN_LSX(vpickve2gr_hu,    rv_i)
+INSN_LSX(vpickve2gr_wu,    rv_i)
+INSN_LSX(vpickve2gr_du,    rv_i)
+
+INSN_LSX(vreplgr2vr_b,     vr)
+INSN_LSX(vreplgr2vr_h,     vr)
+INSN_LSX(vreplgr2vr_w,     vr)
+INSN_LSX(vreplgr2vr_d,     vr)
+
+INSN_LSX(vreplve_b,        vvr)
+INSN_LSX(vreplve_h,        vvr)
+INSN_LSX(vreplve_w,        vvr)
+INSN_LSX(vreplve_d,        vvr)
+INSN_LSX(vreplvei_b,       vv_i)
+INSN_LSX(vreplvei_h,       vv_i)
+INSN_LSX(vreplvei_w,       vv_i)
+INSN_LSX(vreplvei_d,       vv_i)
+
+INSN_LSX(vbsll_v,          vv_i)
+INSN_LSX(vbsrl_v,          vv_i)
+
+INSN_LSX(vpackev_b,        vvv)
+INSN_LSX(vpackev_h,        vvv)
+INSN_LSX(vpackev_w,        vvv)
+INSN_LSX(vpackev_d,        vvv)
+INSN_LSX(vpackod_b,        vvv)
+INSN_LSX(vpackod_h,        vvv)
+INSN_LSX(vpackod_w,        vvv)
+INSN_LSX(vpackod_d,        vvv)
+
+INSN_LSX(vpickev_b,        vvv)
+INSN_LSX(vpickev_h,        vvv)
+INSN_LSX(vpickev_w,        vvv)
+INSN_LSX(vpickev_d,        vvv)
+INSN_LSX(vpickod_b,        vvv)
+INSN_LSX(vpickod_h,        vvv)
+INSN_LSX(vpickod_w,        vvv)
+INSN_LSX(vpickod_d,        vvv)
+
+INSN_LSX(vilvl_b,          vvv)
+INSN_LSX(vilvl_h,          vvv)
+INSN_LSX(vilvl_w,          vvv)
+INSN_LSX(vilvl_d,          vvv)
+INSN_LSX(vilvh_b,          vvv)
+INSN_LSX(vilvh_h,          vvv)
+INSN_LSX(vilvh_w,          vvv)
+INSN_LSX(vilvh_d,          vvv)
+
+INSN_LSX(vshuf_b,          vvvv)
+INSN_LSX(vshuf_h,          vvv)
+INSN_LSX(vshuf_w,          vvv)
+INSN_LSX(vshuf_d,          vvv)
+INSN_LSX(vshuf4i_b,        vv_i)
+INSN_LSX(vshuf4i_h,        vv_i)
+INSN_LSX(vshuf4i_w,        vv_i)
+INSN_LSX(vshuf4i_d,        vv_i)
+
+INSN_LSX(vpermi_w,         vv_i)
+
+INSN_LSX(vextrins_d,       vv_i)
+INSN_LSX(vextrins_w,       vv_i)
+INSN_LSX(vextrins_h,       vv_i)
+INSN_LSX(vextrins_b,       vv_i)
+
+INSN_LSX(vld,              vr_i)
+INSN_LSX(vst,              vr_i)
+INSN_LSX(vldx,             vrr)
+INSN_LSX(vstx,             vrr)
+
+INSN_LSX(vldrepl_d,        vr_i)
+INSN_LSX(vldrepl_w,        vr_i)
+INSN_LSX(vldrepl_h,        vr_i)
+INSN_LSX(vldrepl_b,        vr_i)
+INSN_LSX(vstelm_d,         vr_ii)
+INSN_LSX(vstelm_w,         vr_ii)
+INSN_LSX(vstelm_h,         vr_ii)
+INSN_LSX(vstelm_b,         vr_ii)

@@ -8,6 +8,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
+
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -21,7 +23,6 @@
 /* Global register indices */
 TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval;
-TCGv_i64 cpu_fpr[32];
 
 #include "exec/gen-icount.h"
 
@@ -29,14 +30,41 @@ TCGv_i64 cpu_fpr[32];
 #define DISAS_EXIT        DISAS_TARGET_1
 #define DISAS_EXIT_UPDATE DISAS_TARGET_2
 
+static inline int vec_full_offset(int regno)
+{
+    return  offsetof(CPULoongArchState, fpr[regno]);
+}
+
+static inline void get_vreg64(TCGv_i64 dest, int regno, int index)
+{
+    tcg_gen_ld_i64(dest, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
+}
+
+static inline void set_vreg64(TCGv_i64 src, int regno, int index)
+{
+    tcg_gen_st_i64(src, cpu_env,
+                   offsetof(CPULoongArchState, fpr[regno].vreg.D(index)));
+}
+
 static inline int plus_1(DisasContext *ctx, int x)
 {
     return x + 1;
 }
 
+static inline int shl_1(DisasContext *ctx, int x)
+{
+    return x << 1;
+}
+
 static inline int shl_2(DisasContext *ctx, int x)
 {
     return x << 2;
+}
+
+static inline int shl_3(DisasContext *ctx, int x)
+{
+    return x << 3;
 }
 
 /*
@@ -71,6 +99,7 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
                                             CPUState *cs)
 {
     int64_t bound;
+    CPULoongArchState *env = cs->env_ptr;
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     ctx->page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
@@ -84,6 +113,10 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
+
+    if (FIELD_EX64(env->cpucfg[2], CPUCFG2, LSX)) {
+        ctx->vl = LSX_LEN;
+    }
 
     ctx->zero = tcg_constant_tl(0);
 }
@@ -157,6 +190,20 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
     }
 }
 
+static TCGv get_fpr(DisasContext *ctx, int reg_num)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_ld_i64(t, cpu_env,
+                   offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
+    return  t;
+}
+
+static void set_fpr(int reg_num, TCGv val)
+{
+    tcg_gen_st_i64(val, cpu_env,
+                   offsetof(CPULoongArchState, fpr[reg_num].vreg.D(0)));
+}
+
 #include "decode-insns.c.inc"
 #include "insn_trans/trans_arith.c.inc"
 #include "insn_trans/trans_shift.c.inc"
@@ -171,6 +218,7 @@ static void gen_set_gpr(int reg_num, TCGv t, DisasExtend dst_ext)
 #include "insn_trans/trans_fmemory.c.inc"
 #include "insn_trans/trans_branch.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
+#include "insn_trans/trans_lsx.c.inc"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
@@ -248,11 +296,6 @@ void loongarch_translate_init(void)
         cpu_gpr[i] = tcg_global_mem_new(cpu_env,
                                         offsetof(CPULoongArchState, gpr[i]),
                                         regnames[i]);
-    }
-
-    for (i = 0; i < 32; i++) {
-        int off = offsetof(CPULoongArchState, fpr[i]);
-        cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env, off, fregnames[i]);
     }
 
     cpu_pc = tcg_global_mem_new(cpu_env, offsetof(CPULoongArchState, pc), "pc");
