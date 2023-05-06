@@ -784,10 +784,11 @@ static void *
 qpw_audio_init(Audiodev *dev)
 {
     g_autofree pwaudio *pw = g_new0(pwaudio, 1);
-    pw_init(NULL, NULL);
 
-    trace_pw_audio_init();
     assert(dev->driver == AUDIODEV_DRIVER_PIPEWIRE);
+    trace_pw_audio_init();
+
+    pw_init(NULL, NULL);
 
     pw->dev = dev;
     pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
