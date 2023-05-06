@@ -486,8 +486,6 @@ static int
 qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
                const char *name, enum spa_direction dir)
 {
-    int r;
-
     switch (v->info.channels) {
     case 8:
         v->info.position[0] = SPA_AUDIO_CHANNEL_FL;
@@ -540,13 +538,7 @@ qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
     }
 
     /* create a new unconnected pwstream */
-    r = create_stream(c, v, stream_name, name, dir);
-    if (r < 0) {
-        AUD_log(AUDIO_CAP, "Failed to create stream.");
-        return -1;
-    }
-
-    return r;
+    return create_stream(c, v, stream_name, name, dir);
 }
 
 static int
@@ -577,7 +569,6 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
     r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
                        ppdo->name, SPA_DIRECTION_OUTPUT);
     if (r < 0) {
-        error_report("qpw_stream_new for playback failed");
         pw_thread_loop_unlock(c->thread_loop);
         return -1;
     }
@@ -621,7 +612,6 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     r = qpw_stream_new(c, v, ppdo->stream_name ? : c->dev->id,
                        ppdo->name, SPA_DIRECTION_INPUT);
     if (r < 0) {
-        error_report("qpw_stream_new for recording failed");
         pw_thread_loop_unlock(c->thread_loop);
         return -1;
     }
