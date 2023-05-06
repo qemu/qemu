@@ -429,6 +429,10 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
     struct pw_properties *props;
 
     props = pw_properties_new(NULL, NULL);
+    if (!props) {
+        error_report("Failed to create PW properties: %s", g_strerror(errno));
+        return -1;
+    }
 
     /* 75% of the timer period for faster updates */
     buf_samples = (uint64_t)v->g->dev->timer_period * v->info.rate
@@ -441,8 +445,8 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
         pw_properties_set(props, PW_KEY_TARGET_OBJECT, name);
     }
     v->stream = pw_stream_new(c->core, stream_name, props);
-
     if (v->stream == NULL) {
+        error_report("Failed to create PW stream: %s", g_strerror(errno));
         return -1;
     }
 
@@ -470,6 +474,7 @@ create_stream(pwaudio *c, PWVoice *v, const char *stream_name,
                             PW_STREAM_FLAG_MAP_BUFFERS |
                             PW_STREAM_FLAG_RT_PROCESS, params, n_params);
     if (res < 0) {
+        error_report("Failed to connect PW stream: %s", g_strerror(errno));
         pw_stream_destroy(v->stream);
         return -1;
     }
