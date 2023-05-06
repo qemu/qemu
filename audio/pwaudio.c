@@ -197,16 +197,6 @@ on_stream_state_changed(void *data, enum pw_stream_state old,
 
     trace_pw_state_changed(pw_stream_get_node_id(v->stream),
                            pw_stream_state_as_string(state));
-
-    switch (state) {
-    case PW_STREAM_STATE_ERROR:
-    case PW_STREAM_STATE_UNCONNECTED:
-        break;
-    case PW_STREAM_STATE_PAUSED:
-    case PW_STREAM_STATE_CONNECTING:
-    case PW_STREAM_STATE_STREAMING:
-        break;
-    }
 }
 
 static const struct pw_stream_events capture_stream_events = {
