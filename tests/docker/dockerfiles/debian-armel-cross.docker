@@ -116,6 +116,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
                       libnfs-dev:armel \
                       libnuma-dev:armel \
                       libpam0g-dev:armel \
+                      libpipewire-0.3-dev:armel \
                       libpixman-1-dev:armel \
                       libpng-dev:armel \
                       libpulse-dev:armel \
