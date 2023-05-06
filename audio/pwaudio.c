@@ -834,12 +834,8 @@ fail:
     if (pw->thread_loop) {
         pw_thread_loop_stop(pw->thread_loop);
     }
-    if (pw->context) {
-        g_clear_pointer(&pw->context, pw_context_destroy);
-    }
-    if (pw->thread_loop) {
-        g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
-    }
+    g_clear_pointer(&pw->context, pw_context_destroy);
+    g_clear_pointer(&pw->thread_loop, pw_thread_loop_destroy);
     return NULL;
 }
 
