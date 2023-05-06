@@ -267,7 +267,7 @@ option('oss', type: 'feature', value: 'auto',
 option('pa', type: 'feature', value: 'auto',
        description: 'PulseAudio sound support')
 option('pipewire', type: 'feature', value: 'auto',
-       description: 'Pipewire sound support')
+       description: 'PipeWire sound support')
 option('sndio', type: 'feature', value: 'auto',
        description: 'sndio sound support')
 

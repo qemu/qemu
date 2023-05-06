@@ -1,5 +1,5 @@
 /*
- * QEMU Pipewire audio driver
+ * QEMU PipeWire audio driver
  *
  * Copyright (c) 2023 Red Hat Inc.
  *
@@ -800,21 +800,21 @@ qpw_audio_init(Audiodev *dev)
     assert(dev->driver == AUDIODEV_DRIVER_PIPEWIRE);
 
     pw->dev = dev;
-    pw->thread_loop = pw_thread_loop_new("Pipewire thread loop", NULL);
+    pw->thread_loop = pw_thread_loop_new("PipeWire thread loop", NULL);
     if (pw->thread_loop == NULL) {
-        error_report("Could not create Pipewire loop");
+        error_report("Could not create PipeWire loop");
         goto fail;
     }
 
     pw->context =
         pw_context_new(pw_thread_loop_get_loop(pw->thread_loop), NULL, 0);
     if (pw->context == NULL) {
-        error_report("Could not create Pipewire context");
+        error_report("Could not create PipeWire context");
         goto fail;
     }
 
     if (pw_thread_loop_start(pw->thread_loop) < 0) {
-        error_report("Could not start Pipewire loop");
+        error_report("Could not start PipeWire loop");
         goto fail;
     }
 
