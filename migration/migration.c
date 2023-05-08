@@ -2648,7 +2648,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 /* How many bytes have we transferred since the beginning of the migration */
 static uint64_t migration_total_bytes(MigrationState *s)
 {
-    return qemu_file_total_transferred(s->to_dst_file) +
+    return qemu_file_transferred(s->to_dst_file) +
         stat64_get(&mig_stats.multifd_bytes);
 }
 

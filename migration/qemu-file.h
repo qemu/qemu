@@ -68,7 +68,7 @@ void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_fclose(QEMUFile *f);
 
 /*
- * qemu_file_total_transferred:
+ * qemu_file_transferred:
  *
  * Report the total number of bytes transferred with
  * this file.
@@ -83,19 +83,19 @@ int qemu_fclose(QEMUFile *f);
  *
  * Returns: the total bytes transferred
  */
-uint64_t qemu_file_total_transferred(QEMUFile *f);
+uint64_t qemu_file_transferred(QEMUFile *f);
 
 /*
- * qemu_file_total_transferred_fast:
+ * qemu_file_transferred_fast:
  *
- * As qemu_file_total_transferred except for writable
+ * As qemu_file_transferred except for writable
  * files, where no flush is performed and the reported
  * amount will include the size of any queued buffers,
  * on top of the amount actually transferred.
  *
  * Returns: the total bytes transferred and queued
  */
-uint64_t qemu_file_total_transferred_fast(QEMUFile *f);
+uint64_t qemu_file_transferred_fast(QEMUFile *f);
 
 /*
  * put_buffer without copying the buffer.
