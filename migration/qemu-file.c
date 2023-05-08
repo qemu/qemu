@@ -871,6 +871,17 @@ int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src)
 }
 
 /*
+ * Check if the writable buffer is empty
+ */
+
+bool qemu_file_buffer_empty(QEMUFile *file)
+{
+    assert(qemu_file_is_writable(file));
+
+    return !file->iovcnt;
+}
+
+/*
  * Get a string whose length is determined by a single preceding byte
  * A preallocated 256 byte buffer must be passed in.
  * Returns: len on success and a 0 terminated string in the buffer
