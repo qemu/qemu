@@ -854,6 +854,10 @@
 # @min_wr_latency_ns: Minimum latency of write operations in the
 #     defined interval, in nanoseconds.
 #
+# @min_zone_append_latency_ns: Minimum latency of zone append operations
+#                              in the defined interval, in nanoseconds
+#                              (since 8.1)
+#
 # @min_flush_latency_ns: Minimum latency of flush operations in the
 #     defined interval, in nanoseconds.
 #
@@ -862,6 +866,10 @@
 #
 # @max_wr_latency_ns: Maximum latency of write operations in the
 #     defined interval, in nanoseconds.
+#
+# @max_zone_append_latency_ns: Maximum latency of zone append operations
+#                              in the defined interval, in nanoseconds
+#                              (since 8.1)
 #
 # @max_flush_latency_ns: Maximum latency of flush operations in the
 #     defined interval, in nanoseconds.
@@ -872,6 +880,10 @@
 # @avg_wr_latency_ns: Average latency of write operations in the
 #     defined interval, in nanoseconds.
 #
+# @avg_zone_append_latency_ns: Average latency of zone append operations
+#                              in the defined interval, in nanoseconds
+#                              (since 8.1)
+#
 # @avg_flush_latency_ns: Average latency of flush operations in the
 #     defined interval, in nanoseconds.
 #
@@ -881,15 +893,23 @@
 # @avg_wr_queue_depth: Average number of pending write operations in
 #     the defined interval.
 #
+# @avg_zone_append_queue_depth: Average number of pending zone append
+#                               operations in the defined interval
+#                               (since 8.1).
+#
 # Since: 2.5
 ##
 { 'struct': 'BlockDeviceTimedStats',
   'data': { 'interval_length': 'int', 'min_rd_latency_ns': 'int',
             'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
             'min_wr_latency_ns': 'int', 'max_wr_latency_ns': 'int',
-            'avg_wr_latency_ns': 'int', 'min_flush_latency_ns': 'int',
-            'max_flush_latency_ns': 'int', 'avg_flush_latency_ns': 'int',
-            'avg_rd_queue_depth': 'number', 'avg_wr_queue_depth': 'number' } }
+            'avg_wr_latency_ns': 'int', 'min_zone_append_latency_ns': 'int',
+            'max_zone_append_latency_ns': 'int',
+            'avg_zone_append_latency_ns': 'int',
+            'min_flush_latency_ns': 'int', 'max_flush_latency_ns': 'int',
+            'avg_flush_latency_ns': 'int', 'avg_rd_queue_depth': 'number',
+            'avg_wr_queue_depth': 'number',
+            'avg_zone_append_queue_depth': 'number'  } }
 
 ##
 # @BlockDeviceStats:
@@ -900,6 +920,9 @@
 #
 # @wr_bytes: The number of bytes written by the device.
 #
+# @zone_append_bytes: The number of bytes appended by the zoned devices
+#                     (since 8.1)
+#
 # @unmap_bytes: The number of bytes unmapped by the device (Since 4.2)
 #
 # @rd_operations: The number of read operations performed by the
@@ -907,6 +930,9 @@
 #
 # @wr_operations: The number of write operations performed by the
 #     device.
+#
+# @zone_append_operations: The number of zone append operations performed
+#                          by the zoned devices (since 8.1)
 #
 # @flush_operations: The number of cache flush operations performed by
 #     the device (since 0.15)
@@ -919,6 +945,9 @@
 #
 # @wr_total_time_ns: Total time spent on writes in nanoseconds (since
 #     0.15).
+#
+# @zone_append_total_time_ns: Total time spent on zone append writes
+#                             in nanoseconds (since 8.1)
 #
 # @flush_total_time_ns: Total time spent on cache flushes in
 #     nanoseconds (since 0.15).
@@ -937,6 +966,9 @@
 # @wr_merged: Number of write requests that have been merged into
 #     another request (Since 2.3).
 #
+# @zone_append_merged: Number of zone append requests that have been merged
+#                      into another request (since 8.1)
+#
 # @unmap_merged: Number of unmap requests that have been merged into
 #     another request (Since 4.2)
 #
@@ -950,6 +982,10 @@
 # @failed_wr_operations: The number of failed write operations
 #     performed by the device (Since 2.5)
 #
+# @failed_zone_append_operations: The number of failed zone append write
+#                                 operations performed by the zoned devices
+#                                 (since 8.1)
+#
 # @failed_flush_operations: The number of failed flush operations
 #     performed by the device (Since 2.5)
 #
@@ -961,6 +997,9 @@
 #
 # @invalid_wr_operations: The number of invalid write operations
 #     performed by the device (Since 2.5)
+#
+# @invalid_zone_append_operations: The number of invalid zone append operations
+#                                  performed by the zoned device (since 8.1)
 #
 # @invalid_flush_operations: The number of invalid flush operations
 #     performed by the device (Since 2.5)
@@ -981,27 +1020,34 @@
 #
 # @wr_latency_histogram: @BlockLatencyHistogramInfo.  (Since 4.0)
 #
+# @zone_append_latency_histogram: @BlockLatencyHistogramInfo.  (since 8.1)
+#
 # @flush_latency_histogram: @BlockLatencyHistogramInfo.  (Since 4.0)
 #
 # Since: 0.14
 ##
 { 'struct': 'BlockDeviceStats',
-  'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'unmap_bytes' : 'int',
-           'rd_operations': 'int', 'wr_operations': 'int',
+  'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'zone_append_bytes': 'int',
+           'unmap_bytes' : 'int', 'rd_operations': 'int',
+           'wr_operations': 'int', 'zone_append_operations': 'int',
            'flush_operations': 'int', 'unmap_operations': 'int',
            'rd_total_time_ns': 'int', 'wr_total_time_ns': 'int',
-           'flush_total_time_ns': 'int', 'unmap_total_time_ns': 'int',
-           'wr_highest_offset': 'int',
-           'rd_merged': 'int', 'wr_merged': 'int', 'unmap_merged': 'int',
-           '*idle_time_ns': 'int',
+           'zone_append_total_time_ns': 'int', 'flush_total_time_ns': 'int',
+           'unmap_total_time_ns': 'int', 'wr_highest_offset': 'int',
+           'rd_merged': 'int', 'wr_merged': 'int', 'zone_append_merged': 'int',
+           'unmap_merged': 'int', '*idle_time_ns': 'int',
            'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
-           'failed_flush_operations': 'int', 'failed_unmap_operations': 'int',
-           'invalid_rd_operations': 'int', 'invalid_wr_operations': 'int',
+           'failed_zone_append_operations': 'int',
+           'failed_flush_operations': 'int',
+           'failed_unmap_operations': 'int', 'invalid_rd_operations': 'int',
+           'invalid_wr_operations': 'int',
+           'invalid_zone_append_operations': 'int',
            'invalid_flush_operations': 'int', 'invalid_unmap_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
            'timed_stats': ['BlockDeviceTimedStats'],
            '*rd_latency_histogram': 'BlockLatencyHistogramInfo',
            '*wr_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*zone_append_latency_histogram': 'BlockLatencyHistogramInfo',
            '*flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
 
 ##
