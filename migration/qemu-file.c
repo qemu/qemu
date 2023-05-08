@@ -29,6 +29,7 @@
 #include "migration.h"
 #include "qemu-file.h"
 #include "trace.h"
+#include "options.h"
 #include "qapi/error.h"
 
 #define IO_BUF_SIZE 32768
@@ -744,7 +745,10 @@ int64_t qemu_file_get_rate_limit(QEMUFile *f)
 
 void qemu_file_set_rate_limit(QEMUFile *f, int64_t limit)
 {
-    f->rate_limit_max = limit;
+    /*
+     * 'limit' is per second.  But we check it each 100 miliseconds.
+     */
+    f->rate_limit_max = limit / XFER_LIMIT_RATIO;
 }
 
 void qemu_file_reset_rate_limit(QEMUFile *f)
