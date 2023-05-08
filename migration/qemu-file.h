@@ -138,7 +138,7 @@ void qemu_file_reset_rate_limit(QEMUFile *f);
  * out of band from the main file object I/O methods, and
  * need to be applied to the rate limiting calcuations
  */
-void qemu_file_acct_rate_limit(QEMUFile *f, int64_t len);
+void qemu_file_acct_rate_limit(QEMUFile *f, uint64_t len);
 void qemu_file_set_rate_limit(QEMUFile *f, uint64_t new_rate);
 uint64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error_obj(QEMUFile *f, Error **errp);
