@@ -50,6 +50,13 @@ HEX_TESTS += vector_add_int
 HEX_TESTS += scatter_gather
 HEX_TESTS += hvx_misc
 HEX_TESTS += hvx_histogram
+HEX_TESTS += invalid-slots
+
+run-and-check-exception = $(call run-test,$2,$3 2>$2.stderr; \
+	test $$? -eq 1 && grep -q "exception $(strip $1)" $2.stderr)
+
+run-invalid-slots: invalid-slots
+	$(call run-and-check-exception, 0x15, $@, $(QEMU) $(QEMU_OPTS) $<)
 
 HEX_TESTS += test_abs
 HEX_TESTS += test_bitcnt
