@@ -12,4 +12,5 @@ common_ss.add(when: 'CONFIG_SPARC_DIS', if_true: files('sparc.c'))
 common_ss.add(when: 'CONFIG_XTENSA_DIS', if_true: files('xtensa.c'))
 common_ss.add(when: capstone, if_true: [files('capstone.c'), capstone])
 
+softmmu_ss.add(files('disas-mon.c'))
 specific_ss.add(files('disas.c'), capstone)
