@@ -746,7 +746,7 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 
     tcg_region_reset_all();
     /* XXX: flush processor icache at this point if cache flush is expensive */
-    qatomic_mb_set(&tb_ctx.tb_flush_count, tb_ctx.tb_flush_count + 1);
+    qatomic_inc(&tb_ctx.tb_flush_count);
 
 done:
     mmap_unlock();
@@ -758,7 +758,7 @@ done:
 void tb_flush(CPUState *cpu)
 {
     if (tcg_enabled()) {
-        unsigned tb_flush_count = qatomic_mb_read(&tb_ctx.tb_flush_count);
+        unsigned tb_flush_count = qatomic_read(&tb_ctx.tb_flush_count);
 
         if (cpu_in_exclusive_context(cpu)) {
             do_tb_flush(cpu, RUN_ON_CPU_HOST_INT(tb_flush_count));
