@@ -4904,7 +4904,7 @@ static TLBIRange tlbi_aa64_get_range(CPUARMState *env, ARMMMUIdx mmuidx,
     unsigned int page_size_granule, page_shift, num, scale, exponent;
     /* Extract one bit to represent the va selector in use. */
     uint64_t select = sextract64(value, 36, 1);
-    ARMVAParameters param = aa64_va_parameters(env, select, mmuidx, true);
+    ARMVAParameters param = aa64_va_parameters(env, select, mmuidx, true, false);
     TLBIRange ret = { };
     ARMGranuleSize gran;
 
@@ -11193,7 +11193,8 @@ static ARMGranuleSize sanitize_gran_size(ARMCPU *cpu, ARMGranuleSize gran,
 }
 
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
-                                   ARMMMUIdx mmu_idx, bool data)
+                                   ARMMMUIdx mmu_idx, bool data,
+                                   bool el1_is_aa32)
 {
     uint64_t tcr = regime_tcr(env, mmu_idx);
     bool epd, hpd, tsz_oob, ds, ha, hd;
@@ -11287,6 +11288,16 @@ ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
         if (ds) {
             min_tsz = 12;
         }
+    }
+
+    if (stage2 && el1_is_aa32) {
+        /*
+         * For AArch32 EL1 the min txsz (and thus max IPA size) requirements
+         * are loosened: a configured IPA of 40 bits is permitted even if
+         * the implemented PA is less than that (and so a 40 bit IPA would
+         * fault for an AArch64 EL1). See R_DTLMN.
+         */
+        min_tsz = MIN(min_tsz, 24);
     }
 
     if (tsz > max_tsz) {

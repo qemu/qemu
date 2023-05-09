@@ -1135,17 +1135,6 @@ static int check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, uint64_t tcr,
     sl0 = extract32(tcr, 6, 2);
     if (is_aa64) {
         /*
-         * AArch64.S2InvalidTxSZ: While we checked tsz_oob near the top of
-         * get_phys_addr_lpae, that used aa64_va_parameters which apply
-         * to aarch64.  If Stage1 is aarch32, the min_txsz is larger.
-         * See AArch64.S2MinTxSZ, where min_tsz is 24, translated to
-         * inputsize is 64 - 24 = 40.
-         */
-        if (iasize < 40 && !arm_el_is_aa64(&cpu->env, 1)) {
-            goto fail;
-        }
-
-        /*
          * AArch64.S2InvalidSL: Interpretation of SL depends on the page size,
          * so interleave AArch64.S2StartLevel.
          */
@@ -1284,7 +1273,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         int ps;
 
         param = aa64_va_parameters(env, address, mmu_idx,
-                                   access_type != MMU_INST_FETCH);
+                                   access_type != MMU_INST_FETCH,
+                                   !arm_el_is_aa64(env, 1));
         level = 0;
 
         /*

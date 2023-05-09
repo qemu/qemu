@@ -1091,8 +1091,18 @@ typedef struct ARMVAParameters {
     ARMGranuleSize gran : 2;
 } ARMVAParameters;
 
+/**
+ * aa64_va_parameters: Return parameters for an AArch64 virtual address
+ * @env: CPU
+ * @va: virtual address to look up
+ * @mmu_idx: determines translation regime to use
+ * @data: true if this is a data access
+ * @el1_is_aa32: true if we are asking about stage 2 when EL1 is AArch32
+ *  (ignored if @mmu_idx is for a stage 1 regime; only affects tsz/tsz_oob)
+ */
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
-                                   ARMMMUIdx mmu_idx, bool data);
+                                   ARMMMUIdx mmu_idx, bool data,
+                                   bool el1_is_aa32);
 
 int aa64_va_parameter_tbi(uint64_t tcr, ARMMMUIdx mmu_idx);
 int aa64_va_parameter_tbid(uint64_t tcr, ARMMMUIdx mmu_idx);
