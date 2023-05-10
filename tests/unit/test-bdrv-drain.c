@@ -1019,7 +1019,7 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     g_assert_cmpint(bs->refcnt, ==, 1);
 
     if (!dbdd->detach_instead_of_delete) {
-        blk_unref(blk);
+        blk_co_unref(blk);
     } else {
         BdrvChild *c, *next_c;
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {
