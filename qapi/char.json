@@ -17,12 +17,12 @@
 #
 # @filename: the filename of the character device
 #
-# @frontend-open: shows whether the frontend device attached to this backend
-#                 (eg. with the chardev=... option) is in open or closed state
-#                 (since 2.1)
+# @frontend-open: shows whether the frontend device attached to this
+#     backend (eg. with the chardev=... option) is in open or closed
+#     state (since 2.1)
 #
-# Notes: @filename is encoded using the QEMU command line character device
-#        encoding.  See the QEMU man page for details.
+# Notes: @filename is encoded using the QEMU command line character
+#     device encoding.  See the QEMU man page for details.
 #
 # Since: 0.14
 ##
@@ -62,7 +62,6 @@
 #          }
 #       ]
 #    }
-#
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'],
   'allow-preconfig': true }
@@ -106,7 +105,6 @@
 #          }
 #       ]
 #    }
-#
 ##
 { 'command': 'query-chardev-backends', 'returns': ['ChardevBackendInfo'] }
 
@@ -135,11 +133,11 @@
 #
 # @format: data encoding (default 'utf8').
 #
-#          - base64: data must be base64 encoded text.  Its binary
-#            decoding gets written.
-#          - utf8: data's UTF-8 encoding is written
-#          - data itself is always Unicode regardless of format, like
-#            any other string.
+#     - base64: data must be base64 encoded text.  Its binary decoding
+#       gets written.
+#     - utf8: data's UTF-8 encoding is written
+#     - data itself is always Unicode regardless of format, like any
+#       other string.
 #
 # Returns: Nothing on success
 #
@@ -152,7 +150,6 @@
 #                     "data": "abcdefgh",
 #                     "format": "utf8" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'ringbuf-write',
   'data': { 'device': 'str',
@@ -170,14 +167,13 @@
 #
 # @format: data encoding (default 'utf8').
 #
-#          - base64: the data read is returned in base64 encoding.
-#          - utf8: the data read is interpreted as UTF-8.
-#            Bug: can screw up when the buffer contains invalid UTF-8
-#            sequences, NUL characters, after the ring buffer lost
-#            data, and when reading stops because the size limit is
-#            reached.
-#          - The return value is always Unicode regardless of format,
-#            like any other string.
+#     - base64: the data read is returned in base64 encoding.
+#     - utf8: the data read is interpreted as UTF-8.
+#       Bug: can screw up when the buffer contains invalid UTF-8
+#       sequences, NUL characters, after the ring buffer lost data,
+#       and when reading stops because the size limit is reached.
+#     - The return value is always Unicode regardless of format, like
+#       any other string.
 #
 # Returns: data read from the device
 #
@@ -190,7 +186,6 @@
 #                     "size": 1000,
 #                     "format": "utf8" } }
 # <- { "return": "abcdefgh" }
-#
 ##
 { 'command': 'ringbuf-read',
   'data': {'device': 'str', 'size': 'int', '*format': 'DataFormat'},
@@ -202,8 +197,9 @@
 # Configuration shared across all chardev backends
 #
 # @logfile: The name of a logfile to save output
-# @logappend: true to append instead of truncate
-#             (default to false to truncate)
+#
+# @logappend: true to append instead of truncate (default to false to
+#     truncate)
 #
 # Since: 2.6
 ##
@@ -217,9 +213,11 @@
 # Configuration info for file chardevs.
 #
 # @in: The name of the input file
+#
 # @out: The name of the output file
-# @append: Open the file in append mode (default false to
-#          truncate) (Since 2.6)
+#
+# @append: Open the file in append mode (default false to truncate)
+#     (Since 2.6)
 #
 # Since: 1.4
 ##
@@ -234,8 +232,8 @@
 #
 # Configuration info for device and pipe chardevs.
 #
-# @device: The name of the special file for the device,
-#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+# @device: The name of the special file for the device, i.e.
+#     /dev/ttyS0 on Unix or COM1: on Windows
 #
 # Since: 1.4
 ##
@@ -248,29 +246,36 @@
 #
 # Configuration info for (stream) socket chardevs.
 #
-# @addr: socket address to listen on (server=true)
-#        or connect to (server=false)
+# @addr: socket address to listen on (server=true) or connect to
+#     (server=false)
+#
 # @tls-creds: the ID of the TLS credentials object (since 2.6)
+#
 # @tls-authz: the ID of the QAuthZ authorization object against which
-#             the client's x509 distinguished name will be validated. This
-#             object is only resolved at time of use, so can be deleted
-#             and recreated on the fly while the chardev server is active.
-#             If missing, it will default to denying access (since 4.0)
+#     the client's x509 distinguished name will be validated.  This
+#     object is only resolved at time of use, so can be deleted and
+#     recreated on the fly while the chardev server is active.  If
+#     missing, it will default to denying access (since 4.0)
+#
 # @server: create server socket (default: true)
-# @wait: wait for incoming connection on server
-#        sockets (default: false).
-#        Silently ignored with server: false.  This use is deprecated.
+#
+# @wait: wait for incoming connection on server sockets (default:
+#     false). Silently ignored with server: false.  This use is
+#     deprecated.
+#
 # @nodelay: set TCP_NODELAY socket option (default: false)
-# @telnet: enable telnet protocol on server
-#          sockets (default: false)
-# @tn3270: enable tn3270 protocol on server
-#          sockets (default: false) (Since: 2.10)
-# @websocket: enable websocket protocol on server
-#             sockets (default: false) (Since: 3.1)
-# @reconnect: For a client socket, if a socket is disconnected,
-#             then attempt a reconnect after the given number of seconds.
-#             Setting this to zero disables this function. (default: 0)
-#             (Since: 2.2)
+#
+# @telnet: enable telnet protocol on server sockets (default: false)
+#
+# @tn3270: enable tn3270 protocol on server sockets (default: false)
+#     (Since: 2.10)
+#
+# @websocket: enable websocket protocol on server sockets
+#     (default: false) (Since: 3.1)
+#
+# @reconnect: For a client socket, if a socket is disconnected, then
+#     attempt a reconnect after the given number of seconds.  Setting
+#     this to zero disables this function.  (default: 0) (Since: 2.2)
 #
 # Since: 1.4
 ##
@@ -293,6 +298,7 @@
 # Configuration info for datagram socket chardevs.
 #
 # @remote: remote address
+#
 # @local: local address
 #
 # Since: 1.5
@@ -320,8 +326,8 @@
 #
 # Configuration info for stdio chardevs.
 #
-# @signal: Allow signals (such as SIGINT triggered by ^C)
-#          be delivered to qemu.  Default: true.
+# @signal: Allow signals (such as SIGINT triggered by ^C) be delivered
+#     to qemu.  Default: true.
 #
 # Since: 1.5
 ##
@@ -377,8 +383,11 @@
 # Configuration info for virtual console chardevs.
 #
 # @width: console width, in pixels
+#
 # @height: console height, in pixels
+#
 # @cols: console width, in chars
+#
 # @rows: console height, in chars
 #
 # Since: 1.5
@@ -409,6 +418,7 @@
 # Configuration info for qemu vdagent implementation.
 #
 # @mouse: enable/disable mouse, default is enabled.
+#
 # @clipboard: enable/disable clipboard, default is disabled.
 #
 # Since: 6.1
@@ -423,20 +433,35 @@
 # @ChardevBackendKind:
 #
 # @pipe: Since 1.5
+#
 # @udp: Since 1.5
+#
 # @mux: Since 1.5
+#
 # @msmouse: Since 1.5
+#
 # @wctablet: Since 2.9
+#
 # @braille: Since 1.5
+#
 # @testdev: Since 2.2
+#
 # @stdio: Since 1.5
+#
 # @console: Since 1.5
+#
 # @spicevmc: Since 1.5
+#
 # @spiceport: Since 1.5
+#
 # @qemu-vdagent: Since 6.1
+#
 # @dbus: Since 7.0
+#
 # @vc: v1.5
+#
 # @ringbuf: Since 1.6
+#
 # @memory: Since 1.5
 #
 # Since: 1.4
@@ -617,8 +642,8 @@
 #
 # Return info about the chardev backend just created.
 #
-# @pty: name of the slave pseudoterminal device, present if
-#       and only if a chardev of type 'pty' was created
+# @pty: name of the slave pseudoterminal device, present if and only
+#     if a chardev of type 'pty' was created
 #
 # Since: 1.4
 ##
@@ -631,6 +656,7 @@
 # Add a character device backend
 #
 # @id: the chardev's ID, must be unique
+#
 # @backend: backend type and parameters
 #
 # Returns: ChardevReturn.
@@ -654,7 +680,6 @@
 #      "arguments" : { "id" : "baz",
 #                      "backend" : { "type" : "pty", "data" : {} } } }
 # <- { "return": { "pty" : "/dev/pty/42" } }
-#
 ##
 { 'command': 'chardev-add',
   'data': { 'id': 'str',
@@ -667,6 +692,7 @@
 # Change a character device backend
 #
 # @id: the chardev's ID, must exist
+#
 # @backend: new backend type and parameters
 #
 # Returns: ChardevReturn.
@@ -695,7 +721,6 @@
 #                  "server" : true,
 #                  "wait" : false }}}}
 # <- {"return": {}}
-#
 ##
 { 'command': 'chardev-change',
   'data': { 'id': 'str',
@@ -717,7 +742,6 @@
 #
 # -> { "execute": "chardev-remove", "arguments": { "id" : "foo" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'chardev-remove',
   'data': { 'id': 'str' } }
@@ -737,7 +761,6 @@
 #
 # -> { "execute": "chardev-send-break", "arguments": { "id" : "foo" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'chardev-send-break',
   'data': { 'id': 'str' } }
@@ -760,7 +783,6 @@
 # <- { "event": "VSERPORT_CHANGE",
 #      "data": { "id": "channel0", "open": true },
 #      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
-#
 ##
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str',

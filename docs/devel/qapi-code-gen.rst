@@ -947,6 +947,11 @@ Example::
  #   <- get that
  ##
 
+For legibility, wrap text paragraphs so every line is at most 70
+characters long.
+
+Separate sentences with two spaces.
+
 
 Definition documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -963,57 +968,46 @@ commands and events), member (for structs and unions), branch (for
 alternates), or value (for enums), a description of each feature (if
 any), and finally optional tagged sections.
 
-The description of an argument or feature 'name' starts with
-'\@name:'.  The description text can start on the line following the
-'\@name:', in which case it must not be indented at all.  It can also
-start on the same line as the '\@name:'.  In this case if it spans
-multiple lines then second and subsequent lines must be indented to
-line up with the first character of the first line of the
-description::
+Descriptions start with '\@name:'.  The description text should be
+indented like this::
 
- # @argone:
- # This is a two line description
- # in the first style.
- #
- # @argtwo: This is a two line description
- #          in the second style.
+ # @name: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
+ #     do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 
-The number of spaces between the ':' and the text is not significant.
+.. FIXME The parser accepts these things in almost any order.
 
-.. admonition:: FIXME
-
-   The parser accepts these things in almost any order.
-
-.. admonition:: FIXME
-
-   union branches should be described, too.
+.. FIXME union branches should be described, too.
 
 Extensions added after the definition was first released carry a
-'(since x.y.z)' comment.
+"(since x.y.z)" comment.
 
 The feature descriptions must be preceded by a line "Features:", like
 this::
 
   # Features:
+  #
   # @feature: Description text
 
 A tagged section starts with one of the following words:
 "Note:"/"Notes:", "Since:", "Example"/"Examples", "Returns:", "TODO:".
 The section ends with the start of a new section.
 
-The text of a section can start on a new line, in
-which case it must not be indented at all.  It can also start
-on the same line as the 'Note:', 'Returns:', etc tag.  In this
-case if it spans multiple lines then second and subsequent
-lines must be indented to match the first, in the same way as
-multiline argument descriptions.
+The second and subsequent lines of sections other than
+"Example"/"Examples" should be indented like this::
 
-A 'Since: x.y.z' tagged section lists the release that introduced the
+ # Note: Ut enim ad minim veniam, quis nostrud exercitation ullamco
+ #     laboris nisi ut aliquip ex ea commodo consequat.
+ #
+ #     Duis aute irure dolor in reprehenderit in voluptate velit esse
+ #     cillum dolore eu fugiat nulla pariatur.
+
+A "Since: x.y.z" tagged section lists the release that introduced the
 definition.
 
-An 'Example' or 'Examples' section is automatically rendered
-entirely as literal fixed-width text.  In other sections,
-the text is formatted, and rST markup can be used.
+An "Example" or "Examples" section is rendered entirely
+as literal fixed-width text.  "TODO" sections are not rendered at all
+(they are for developers, not users of QMP).  In other sections, the
+text is formatted, and rST markup can be used.
 
 For example::
 
@@ -1023,7 +1017,7 @@ For example::
  # Statistics of a virtual block device or a block backing device.
  #
  # @device: If the stats are for a virtual block device, the name
- #          corresponding to the virtual block device.
+ #     corresponding to the virtual block device.
  #
  # @node-name: The node name of the device. (since 2.3)
  #
@@ -1040,8 +1034,8 @@ For example::
  #
  # Query the @BlockStats for all virtual block devices.
  #
- # @query-nodes: If true, the command will query all the
- #               block nodes ... explain, explain ...  (since 2.3)
+ # @query-nodes: If true, the command will query all the block nodes
+ #     ... explain, explain ...  (since 2.3)
  #
  # Returns: A list of @BlockStats for each virtual block devices.
  #
@@ -1078,10 +1072,14 @@ Indentation matters.  Bad example::
 
  # @none: None (no memory side cache in this proximity domain,
  #              or cache associativity unknown)
+ #     (since 5.0)
 
-The description is parsed as a definition list with term "None (no
-memory side cache in this proximity domain," and definition "or cache
-associativity unknown)".
+The last line's de-indent is wrong.  The second and subsequent lines
+need to line up with each other, like this::
+
+ # @none: None (no memory side cache in this proximity domain,
+ #     or cache associativity unknown)
+ #     (since 5.0)
 
 Section tags are case-sensitive and end with a colon.  Good example::
 

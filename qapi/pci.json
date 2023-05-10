@@ -29,8 +29,9 @@
 #
 # @bar: the index of the Base Address Register for this region
 #
-# @type: - 'io' if the region is a PIO region
-#        - 'memory' if the region is a MMIO region
+# @type:
+#     - 'io' if the region is a PIO region
+#     - 'memory' if the region is a MMIO region
 #
 # @size: memory size
 #
@@ -49,21 +50,21 @@
 #
 # Information about a bus of a PCI Bridge device
 #
-# @number: primary bus interface number.  This should be the number of the
-#          bus the device resides on.
+# @number: primary bus interface number.  This should be the number of
+#     the bus the device resides on.
 #
-# @secondary: secondary bus interface number.  This is the number of the
-#             main bus for the bridge
+# @secondary: secondary bus interface number.  This is the number of
+#     the main bus for the bridge
 #
 # @subordinate: This is the highest number bus that resides below the
-#               bridge.
+#     bridge.
 #
 # @io_range: The PIO range for all devices on this bridge
 #
 # @memory_range: The MMIO range for all devices on this bridge
 #
-# @prefetchable_range: The range of prefetchable MMIO for all devices on
-#                      this bridge
+# @prefetchable_range: The range of prefetchable MMIO for all devices
+#     on this bridge
 #
 # Since: 2.4
 ##
@@ -145,8 +146,8 @@
 #
 # @regions: a list of the PCI I/O regions associated with the device
 #
-# Notes: the contents of @class_info.desc are not stable and should only be
-#        treated as informational.
+# Notes: the contents of @class_info.desc are not stable and should
+#     only be treated as informational.
 #
 # Since: 0.14
 ##
@@ -174,10 +175,10 @@
 #
 # Return information about the PCI bus topology of the guest.
 #
-# Returns: a list of @PciInfo for each PCI bus. Each bus is
-#          represented by a json-object, which has a key with a json-array of
-#          all PCI devices attached to it. Each device is represented by a
-#          json-object.
+# Returns: a list of @PciInfo for each PCI bus.  Each bus is
+#     represented by a json-object, which has a key with a json-array
+#     of all PCI devices attached to it.  Each device is represented
+#     by a json-object.
 #
 # Since: 0.14
 #
@@ -310,7 +311,7 @@
 #       ]
 #    }
 #
-# Note: This example has been shortened as the real response is too long.
-#
+# Note: This example has been shortened as the real response is too
+#     long.
 ##
 { 'command': 'query-pci', 'returns': ['PciInfo'] }

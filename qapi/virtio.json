@@ -16,7 +16,6 @@
 # @name: Name of the VirtIODevice
 #
 # Since: 7.2
-#
 ##
 { 'struct': 'VirtioInfo',
   'data': { 'path': 'str',
@@ -28,6 +27,7 @@
 # Returns a list of all realized VirtIODevices
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: List of gathered VirtIODevices
@@ -60,9 +60,7 @@
 #          }
 #      ]
 #    }
-#
 ##
-
 { 'command': 'x-query-virtio',
   'returns': [ 'VirtioInfo' ],
   'features': [ 'unstable' ] }
@@ -70,7 +68,7 @@
 ##
 # @VhostStatus:
 #
-# Information about a vhost device. This information will only be
+# Information about a vhost device.  This information will only be
 # displayed if the vhost device is active.
 #
 # @n-mem-sections: vhost_dev n_mem_sections
@@ -98,9 +96,7 @@
 # @log-size: vhost_dev log_size
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VhostStatus',
   'data': { 'n-mem-sections': 'int',
             'n-tmp-sections': 'int',
@@ -119,8 +115,8 @@
 # @VirtioStatus:
 #
 # Full status of the virtio device with most VirtIODevice members.
-# Also includes the full status of the corresponding vhost device
-# if the vhost device is active.
+# Also includes the full status of the corresponding vhost device if
+# the vhost device is active.
 #
 # @name: VirtIODevice name
 #
@@ -136,8 +132,8 @@
 #
 # @device-endian: VirtIODevice device_endian
 #
-# @num-vqs: VirtIODevice virtqueue count. This is the number of active
-#           virtqueues being used by the VirtIODevice.
+# @num-vqs: VirtIODevice virtqueue count.  This is the number of
+#     active virtqueues being used by the VirtIODevice.
 #
 # @status: VirtIODevice configuration status (VirtioDeviceStatus)
 #
@@ -163,14 +159,12 @@
 #
 # @use-guest-notifier-mask: VirtIODevice use_guest_notifier_mask flag
 #
-# @vhost-dev: Corresponding vhost device info for a given VirtIODevice.
-#             Present if the given VirtIODevice has an active vhost
-#             device.
+# @vhost-dev: Corresponding vhost device info for a given
+#     VirtIODevice.  Present if the given VirtIODevice has an active
+#     vhost device.
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtioStatus',
   'data': { 'name': 'str',
             'device-id': 'uint16',
@@ -202,6 +196,7 @@
 # @path: Canonical QOM path of the VirtIODevice
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: VirtioStatus of the virtio device
@@ -433,9 +428,7 @@
 #          "use-started": true
 #      }
 #    }
-#
 ##
-
 { 'command': 'x-query-virtio-status',
   'data': { 'path': 'str' },
   'returns': 'VirtioStatus',
@@ -448,13 +441,13 @@
 # device
 #
 # @statuses: List of decoded configuration statuses of the virtio
-#            device
+#     device
 #
-# @unknown-statuses: Virtio device statuses bitmap that have not been decoded
+# @unknown-statuses: Virtio device statuses bitmap that have not been
+#     decoded
 #
 # Since: 7.2
 ##
-
 { 'struct': 'VirtioDeviceStatus',
   'data': { 'statuses': [ 'str' ],
             '*unknown-statuses': 'uint8' } }
@@ -466,14 +459,13 @@
 # Vhost User device
 #
 # @protocols: List of decoded vhost user protocol features of a vhost
-#             user device
+#     user device
 #
 # @unknown-protocols: Vhost user device protocol features bitmap that
-#                     have not been decoded
+#     have not been decoded
 #
 # Since: 7.2
 ##
-
 { 'struct': 'VhostDeviceProtocols',
   'data': { 'protocols': [ 'str' ],
             '*unknown-protocols': 'uint64' } }
@@ -481,20 +473,19 @@
 ##
 # @VirtioDeviceFeatures:
 #
-# The common fields that apply to most Virtio devices. Some devices
+# The common fields that apply to most Virtio devices.  Some devices
 # may not have their own device-specific features (e.g. virtio-rng).
 #
 # @transports: List of transport features of the virtio device
 #
 # @dev-features: List of device-specific features (if the device has
-#                unique features)
+#     unique features)
 #
 # @unknown-dev-features: Virtio device features bitmap that have not
-#                        been decoded
+#     been decoded
 #
 # Since: 7.2
 ##
-
 { 'struct': 'VirtioDeviceFeatures',
   'data': { 'transports': [ 'str' ],
             '*dev-features': [ 'str' ],
@@ -525,7 +516,7 @@
 # @vring-used: VirtQueue vring.used (device area)
 #
 # @last-avail-idx: VirtQueue last_avail_idx or return of vhost_dev
-#                  vhost_get_vring_base (if vhost active)
+#     vhost_get_vring_base (if vhost active)
 #
 # @shadow-avail-idx: VirtQueue shadow_avail_idx
 #
@@ -536,9 +527,7 @@
 # @signalled-used-valid: VirtQueue signalled_used_valid flag
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtQueueStatus',
   'data': { 'name': 'str',
             'queue-index': 'uint16',
@@ -565,16 +554,17 @@
 # @queue: VirtQueue index to examine
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: VirtQueueStatus of the VirtQueue
 #
-# Notes: last_avail_idx will not be displayed in the case where
-#        the selected VirtIODevice has a running vhost device and
-#        the VirtIODevice VirtQueue index (queue) does not exist for
-#        the corresponding vhost device vhost_virtqueue. Also,
-#        shadow_avail_idx will not be displayed in the case where
-#        the selected VirtIODevice has a running vhost device.
+# Notes: last_avail_idx will not be displayed in the case where the
+#     selected VirtIODevice has a running vhost device and the
+#     VirtIODevice VirtQueue index (queue) does not exist for the
+#     corresponding vhost device vhost_virtqueue.  Also,
+#     shadow_avail_idx will not be displayed in the case where the
+#     selected VirtIODevice has a running vhost device.
 #
 # Since: 7.2
 #
@@ -626,9 +616,7 @@
 #          "vring-num": 128
 #      }
 #    }
-#
 ##
-
 { 'command': 'x-query-virtio-queue-status',
   'data': { 'path': 'str', 'queue': 'uint16' },
   'returns': 'VirtQueueStatus',
@@ -667,9 +655,7 @@
 # @used-size: vhost_virtqueue used_size
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtVhostQueueStatus',
   'data': { 'name': 'str',
             'kick': 'int',
@@ -695,6 +681,7 @@
 # @queue: vhost_virtqueue index to examine
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: VirtVhostQueueStatus of the vhost_virtqueue
@@ -748,9 +735,7 @@
 #          "kick": 0
 #      }
 #    }
-#
 ##
-
 { 'command': 'x-query-virtio-vhost-queue-status',
   'data': { 'path': 'str', 'queue': 'uint16' },
   'returns': 'VirtVhostQueueStatus',
@@ -768,9 +753,7 @@
 # @flags: List of descriptor flags
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtioRingDesc',
   'data': { 'addr': 'uint64',
             'len': 'uint32',
@@ -788,9 +771,7 @@
 # @ring: VRingAvail ring[] entry at provided index
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtioRingAvail',
   'data': { 'flags': 'uint16',
             'idx': 'uint16',
@@ -806,9 +787,7 @@
 # @idx: VRingUsed index
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtioRingUsed',
   'data': { 'flags': 'uint16',
             'idx': 'uint16' } }
@@ -830,9 +809,7 @@
 # @used: VRingUsed info
 #
 # Since: 7.2
-#
 ##
-
 { 'struct': 'VirtioQueueElement',
   'data': { 'name': 'str',
             'index': 'uint32',
@@ -849,10 +826,11 @@
 #
 # @queue: VirtQueue index to examine
 #
-# @index: Index of the element in the queue
-#         (default: head of the queue)
+# @index: Index of the element in the queue (default: head of the
+#     queue)
 #
 # Features:
+#
 # @unstable: This command is meant for debugging.
 #
 # Returns: VirtioQueueElement information
@@ -945,9 +923,7 @@
 #          }
 #      }
 #    }
-#
 ##
-
 { 'command': 'x-query-virtio-queue-element',
   'data': { 'path': 'str', 'queue': 'uint16', '*index': 'uint16' },
   'returns': 'VirtioQueueElement',

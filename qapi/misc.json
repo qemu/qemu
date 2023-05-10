@@ -11,22 +11,22 @@
 ##
 # @add_client:
 #
-# Allow client connections for VNC, Spice and socket based
-# character devices to be passed in to QEMU via SCM_RIGHTS.
+# Allow client connections for VNC, Spice and socket based character
+# devices to be passed in to QEMU via SCM_RIGHTS.
 #
-# If the FD associated with @fdname is not a socket, the command will fail and
-# the FD will be closed.
+# If the FD associated with @fdname is not a socket, the command will
+# fail and the FD will be closed.
 #
-# @protocol: protocol name. Valid names are "vnc", "spice", "@dbus-display" or
-#            the name of a character device (eg. from -chardev id=XXXX)
+# @protocol: protocol name.  Valid names are "vnc", "spice",
+#     "@dbus-display" or the name of a character device (eg. from
+#     -chardev id=XXXX)
 #
 # @fdname: file descriptor name previously passed via 'getfd' command
 #
-# @skipauth: whether to skip authentication. Only applies
-#            to "vnc" and "spice" protocols
+# @skipauth: whether to skip authentication.  Only applies to "vnc"
+#     and "spice" protocols
 #
-# @tls: whether to perform TLS. Only applies to the "spice"
-#       protocol
+# @tls: whether to perform TLS. Only applies to the "spice" protocol
 #
 # Returns: nothing on success.
 #
@@ -37,7 +37,6 @@
 # -> { "execute": "add_client", "arguments": { "protocol": "vnc",
 #                                              "fdname": "myclient" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'add_client',
   'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
@@ -67,7 +66,6 @@
 #
 # -> { "execute": "query-name" }
 # <- { "return": { "name": "qemu-name" } }
-#
 ##
 { 'command': 'query-name', 'returns': 'NameInfo', 'allow-preconfig': true }
 
@@ -80,17 +78,17 @@
 #
 # @thread-id: ID of the underlying host thread
 #
-# @poll-max-ns: maximum polling time in ns, 0 means polling is disabled
-#               (since 2.9)
+# @poll-max-ns: maximum polling time in ns, 0 means polling is
+#     disabled (since 2.9)
 #
-# @poll-grow: how many ns will be added to polling time, 0 means that it's not
-#             configured (since 2.9)
+# @poll-grow: how many ns will be added to polling time, 0 means that
+#     it's not configured (since 2.9)
 #
-# @poll-shrink: how many ns will be removed from polling time, 0 means that
-#               it's not configured (since 2.9)
+# @poll-shrink: how many ns will be removed from polling time, 0 means
+#     that it's not configured (since 2.9)
 #
-# @aio-max-batch: maximum number of requests in a batch for the AIO engine,
-#                 0 means that the engine will use its default (since 6.1)
+# @aio-max-batch: maximum number of requests in a batch for the AIO
+#     engine, 0 means that the engine will use its default (since 6.1)
 #
 # Since: 2.0
 ##
@@ -107,9 +105,9 @@
 #
 # Returns a list of information about each iothread.
 #
-# Note: this list excludes the QEMU main loop thread, which is not declared
-#       using the -object iothread command-line option.  It is always the main thread
-#       of the process.
+# Note: this list excludes the QEMU main loop thread, which is not
+#     declared using the -object iothread command-line option.  It is
+#     always the main thread of the process.
 #
 # Returns: a list of @IOThreadInfo for each iothread
 #
@@ -129,7 +127,6 @@
 #          }
 #       ]
 #    }
-#
 ##
 { 'command': 'query-iothreads', 'returns': ['IOThreadInfo'],
   'allow-preconfig': true }
@@ -141,16 +138,15 @@
 #
 # Since: 0.14
 #
-# Notes: This function will succeed even if the guest is already in the stopped
-#        state.  In "inmigrate" state, it will ensure that the guest
-#        remains paused once migration finishes, as if the -S option was
-#        passed on the command line.
+# Notes: This function will succeed even if the guest is already in
+#     the stopped state.  In "inmigrate" state, it will ensure that
+#     the guest remains paused once migration finishes, as if the -S
+#     option was passed on the command line.
 #
 # Example:
 #
 # -> { "execute": "stop" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'stop' }
 
@@ -163,17 +159,16 @@
 #
 # Returns: If successful, nothing
 #
-# Notes: This command will succeed if the guest is currently running.  It
-#        will also succeed if the guest is in the "inmigrate" state; in
-#        this case, the effect of the command is to make sure the guest
-#        starts once migration finishes, removing the effect of the -S
-#        command line option if it was passed.
+# Notes: This command will succeed if the guest is currently running.
+#     It will also succeed if the guest is in the "inmigrate" state;
+#     in this case, the effect of the command is to make sure the
+#     guest starts once migration finishes, removing the effect of the
+#     -S command line option if it was passed.
 #
 # Example:
 #
 # -> { "execute": "cont" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'cont' }
 
@@ -182,13 +177,14 @@
 #
 # Exit from "preconfig" state
 #
-# This command makes QEMU exit the preconfig state and proceed with
-# VM initialization using configuration data provided on the command line
-# and via the QMP monitor during the preconfig state. The command is only
-# available during the preconfig state (i.e. when the --preconfig command
-# line option was in use).
+# This command makes QEMU exit the preconfig state and proceed with VM
+# initialization using configuration data provided on the command line
+# and via the QMP monitor during the preconfig state.  The command is
+# only available during the preconfig state (i.e. when the --preconfig
+# command line option was in use).
 #
 # Features:
+#
 # @unstable: This command is experimental.
 #
 # Since: 3.0
@@ -199,7 +195,6 @@
 #
 # -> { "execute": "x-exit-preconfig" }
 # <- { "return": {} }
-#
 ##
 { 'command': 'x-exit-preconfig', 'allow-preconfig': true,
   'features': [ 'unstable' ] }
@@ -214,35 +209,33 @@
 # @cpu-index: The CPU to use for commands that require an implicit CPU
 #
 # Features:
+#
 # @savevm-monitor-nodes: If present, HMP command savevm only snapshots
-#                        monitor-owned nodes if they have no parents.
-#                        This allows the use of 'savevm' with
-#                        -blockdev. (since 4.2)
+#     monitor-owned nodes if they have no parents.  This allows the
+#     use of 'savevm' with -blockdev.  (since 4.2)
 #
 # Returns: the output of the command as a string
 #
 # Since: 0.14
 #
 # Notes: This command only exists as a stop-gap.  Its use is highly
-#        discouraged.  The semantics of this command are not
-#        guaranteed: this means that command names, arguments and
-#        responses can change or be removed at ANY time.  Applications
-#        that rely on long term stability guarantees should NOT
-#        use this command.
+#     discouraged.  The semantics of this command are not guaranteed:
+#     this means that command names, arguments and responses can
+#     change or be removed at ANY time.  Applications that rely on
+#     long term stability guarantees should NOT use this command.
 #
-#        Known limitations:
+#     Known limitations:
 #
-#        * This command is stateless, this means that commands that depend
-#          on state information (such as getfd) might not work
+#     * This command is stateless, this means that commands that
+#       depend on state information (such as getfd) might not work
 #
-#        * Commands that prompt the user for data don't currently work
+#     * Commands that prompt the user for data don't currently work
 #
 # Example:
 #
 # -> { "execute": "human-monitor-command",
 #      "arguments": { "command-line": "info kvm" } }
 # <- { "return": "kvm support: enabled\r\n" }
-#
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
@@ -260,18 +253,16 @@
 #
 # Since: 0.14
 #
-# Notes: If @fdname already exists, the file descriptor assigned to
-#        it will be closed and replaced by the received file
-#        descriptor.
+# Notes: If @fdname already exists, the file descriptor assigned to it
+#     will be closed and replaced by the received file descriptor.
 #
-#        The 'closefd' command can be used to explicitly close the
-#        file descriptor when it is no longer needed.
+#     The 'closefd' command can be used to explicitly close the file
+#     descriptor when it is no longer needed.
 #
 # Example:
 #
 # -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'getfd', 'data': {'fdname': 'str'}, 'if': 'CONFIG_POSIX' }
 
@@ -291,18 +282,16 @@
 #
 # Since: 8.0
 #
-# Notes: If @fdname already exists, the file descriptor assigned to
-#        it will be closed and replaced by the received file
-#        descriptor.
+# Notes: If @fdname already exists, the file descriptor assigned to it
+#     will be closed and replaced by the received file descriptor.
 #
-#        The 'closefd' command can be used to explicitly close the
-#        file descriptor when it is no longer needed.
+#     The 'closefd' command can be used to explicitly close the file
+#     descriptor when it is no longer needed.
 #
 # Example:
 #
 # -> { "execute": "get-win32-socket", "arguments": { "info": "abcd123..", fdname": "skclient" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'get-win32-socket', 'data': {'info': 'str', 'fdname': 'str'}, 'if': 'CONFIG_WIN32' }
 
@@ -321,7 +310,6 @@
 #
 # -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
 
@@ -332,8 +320,8 @@
 #
 # @fdset-id: The ID of the fd set that @fd was added to.
 #
-# @fd: The file descriptor that was received via SCM rights and
-#      added to the fd set.
+# @fd: The file descriptor that was received via SCM rights and added
+#     to the fd set.
 #
 # Since: 1.2
 ##
@@ -348,13 +336,14 @@
 #
 # @opaque: A free-form string that can be used to describe the fd.
 #
-# Returns: - @AddfdInfo on success
-#          - If file descriptor was not received, GenericError
-#          - If @fdset-id is a negative value, GenericError
+# Returns:
+# - @AddfdInfo on success
+# - If file descriptor was not received, GenericError
+# - If @fdset-id is a negative value, GenericError
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
-#        If @fdset-id is not specified, a new fd set will be created.
+# If @fdset-id is not specified, a new fd set will be created.
 #
 # Since: 1.2
 #
@@ -362,7 +351,6 @@
 #
 # -> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
 # <- { "return": { "fdset-id": 1, "fd": 3 } }
-#
 ##
 { 'command': 'add-fd',
   'data': { '*fdset-id': 'int',
@@ -378,21 +366,21 @@
 #
 # @fd: The file descriptor that is to be removed.
 #
-# Returns: - Nothing on success
-#          - If @fdset-id or @fd is not found, GenericError
+# Returns:
+# - Nothing on success
+# - If @fdset-id or @fd is not found, GenericError
 #
 # Since: 1.2
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #
-#        If @fd is not specified, all file descriptors in @fdset-id
-#        will be removed.
+# If @fd is not specified, all file descriptors in @fdset-id will be
+# removed.
 #
 # Example:
 #
 # -> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
 # <- { "return": {} }
-#
 ##
 { 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
 
@@ -465,7 +453,6 @@
 #        }
 #      ]
 #    }
-#
 ##
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
@@ -481,7 +468,7 @@
 # @number: accepts a number
 #
 # @size: accepts a number followed by an optional suffix (K)ilo,
-#        (M)ega, (G)iga, (T)era
+#     (M)ega, (G)iga, (T)era
 #
 # Since: 1.5
 ##
@@ -512,7 +499,8 @@
 ##
 # @CommandLineOptionInfo:
 #
-# Details about a command line option, including its list of parameter details
+# Details about a command line option, including its list of parameter
+# details
 #
 # @option: option name
 #
@@ -530,8 +518,9 @@
 #
 # @option: option name
 #
-# Returns: list of @CommandLineOptionInfo for all options (or for the given
-#          @option).  Returns an error if the given @option doesn't exist.
+# Returns: list of @CommandLineOptionInfo for all options (or for the
+#     given @option).  Returns an error if the given @option doesn't
+#     exist.
 #
 # Since: 1.5
 #
@@ -555,26 +544,25 @@
 #         }
 #      ]
 #    }
-#
 ##
 {'command': 'query-command-line-options',
- 'data': { '*option': 'str' },
+ 'data': {'*option': 'str'},
  'returns': ['CommandLineOptionInfo'],
- 'allow-preconfig': true }
+ 'allow-preconfig': true}
 
 ##
 # @RTC_CHANGE:
 #
 # Emitted when the guest changes the RTC time.
 #
-# @offset: offset in seconds between base RTC clock (as specified
-#          by -rtc base), and new RTC clock value
+# @offset: offset in seconds between base RTC clock (as specified by
+#     -rtc base), and new RTC clock value
 #
 # @qom-path: path to the RTC object in the QOM tree
 #
-# Note: This event is rate-limited.
-#       It is not guaranteed that the RTC in the system implements
-#       this event, or even that the system has an RTC at all.
+# Note: This event is rate-limited.  It is not guaranteed that the RTC
+#     in the system implements this event, or even that the system has
+#     an RTC at all.
 #
 # Since: 0.13
 #
@@ -593,10 +581,11 @@
 # Emitted when the client of a TYPE_VFIO_USER_SERVER closes the
 # communication channel
 #
-# @vfu-id: ID of the TYPE_VFIO_USER_SERVER object. It is the last component
-#          of @vfu-qom-path referenced below
+# @vfu-id: ID of the TYPE_VFIO_USER_SERVER object.  It is the last
+#     component of @vfu-qom-path referenced below
 #
-# @vfu-qom-path: path to the TYPE_VFIO_USER_SERVER object in the QOM tree
+# @vfu-qom-path: path to the TYPE_VFIO_USER_SERVER object in the QOM
+#     tree
 #
 # @dev-id: ID of attached PCI device
 #
@@ -612,7 +601,6 @@
 #                "dev-id": "sas1",
 #                "dev-qom-path": "/machine/peripheral/sas1" },
 #      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
-#
 ##
 { 'event': 'VFU_CLIENT_HANGUP',
   'data': { 'vfu-id': 'str', 'vfu-qom-path': 'str',

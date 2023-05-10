@@ -11,8 +11,7 @@
 #
 # The type of network endpoint that will be using the credentials.
 # Most types of credential require different setup / structures
-# depending on whether they will be used in a server versus a
-# client.
+# depending on whether they will be used in a server versus a client.
 #
 # @client: the network endpoint is acting as the client
 #
@@ -29,7 +28,9 @@
 #
 # The data format that the secret is provided in
 #
-# @raw: raw bytes. When encoded in JSON only valid UTF-8 sequences can be used
+# @raw: raw bytes.  When encoded in JSON only valid UTF-8 sequences
+#     can be used
+#
 # @base64: arbitrary base64 encoded binary data
 #
 # Since: 2.6
@@ -44,11 +45,17 @@
 # The supported algorithms for computing content digests
 #
 # @md5: MD5. Should not be used in any new code, legacy compat only
+#
 # @sha1: SHA-1. Should not be used in any new code, legacy compat only
+#
 # @sha224: SHA-224. (since 2.7)
+#
 # @sha256: SHA-256. Current recommended strong hash.
+#
 # @sha384: SHA-384. (since 2.7)
+#
 # @sha512: SHA-512. (since 2.7)
+#
 # @ripemd160: RIPEMD-160. (since 2.7)
 #
 # Since: 2.6
@@ -63,16 +70,28 @@
 # The supported algorithms for content encryption ciphers
 #
 # @aes-128: AES with 128 bit / 16 byte keys
+#
 # @aes-192: AES with 192 bit / 24 byte keys
+#
 # @aes-256: AES with 256 bit / 32 byte keys
-# @des: DES with 56 bit / 8 byte keys. Do not use except in VNC. (since 6.1)
+#
+# @des: DES with 56 bit / 8 byte keys.  Do not use except in VNC.
+#     (since 6.1)
+#
 # @3des: 3DES(EDE) with 192 bit / 24 byte keys (since 2.9)
+#
 # @cast5-128: Cast5 with 128 bit / 16 byte keys
+#
 # @serpent-128: Serpent with 128 bit / 16 byte keys
+#
 # @serpent-192: Serpent with 192 bit / 24 byte keys
+#
 # @serpent-256: Serpent with 256 bit / 32 byte keys
+#
 # @twofish-128: Twofish with 128 bit / 16 byte keys
+#
 # @twofish-192: Twofish with 192 bit / 24 byte keys
+#
 # @twofish-256: Twofish with 256 bit / 32 byte keys
 #
 # Since: 2.6
@@ -91,8 +110,11 @@
 # The supported modes for content encryption ciphers
 #
 # @ecb: Electronic Code Book
+#
 # @cbc: Cipher Block Chaining
+#
 # @xts: XEX with tweaked code book and ciphertext stealing
+#
 # @ctr: Counter (Since 2.8)
 #
 # Since: 2.6
@@ -104,15 +126,17 @@
 ##
 # @QCryptoIVGenAlgorithm:
 #
-# The supported algorithms for generating initialization
-# vectors for full disk encryption. The 'plain' generator
-# should not be used for disks with sector numbers larger
-# than 2^32, except where compatibility with pre-existing
-# Linux dm-crypt volumes is required.
+# The supported algorithms for generating initialization vectors for
+# full disk encryption.  The 'plain' generator should not be used for
+# disks with sector numbers larger than 2^32, except where
+# compatibility with pre-existing Linux dm-crypt volumes is required.
 #
 # @plain: 64-bit sector number truncated to 32-bits
+#
 # @plain64: 64-bit sector number
-# @essiv: 64-bit sector number encrypted with a hash of the encryption key
+#
+# @essiv: 64-bit sector number encrypted with a hash of the encryption
+#     key
 #
 # Since: 2.6
 ##
@@ -125,9 +149,10 @@
 #
 # The supported full disk encryption formats
 #
-# @qcow: QCow/QCow2 built-in AES-CBC encryption. Use only
-#        for liberating data from old images.
-# @luks: LUKS encryption format. Recommended for new images
+# @qcow: QCow/QCow2 built-in AES-CBC encryption.  Use only for
+#     liberating data from old images.
+#
+# @luks: LUKS encryption format.  Recommended for new images
 #
 # Since: 2.6
 ##
@@ -138,8 +163,7 @@
 ##
 # @QCryptoBlockOptionsBase:
 #
-# The common options that apply to all full disk
-# encryption formats
+# The common options that apply to all full disk encryption formats
 #
 # @format: the encryption format
 #
@@ -154,8 +178,8 @@
 # The options that apply to QCow/QCow2 AES-CBC encryption format
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
-#              decryption key. Mandatory except when probing image for
-#              metadata only.
+#     decryption key.  Mandatory except when probing image for
+#     metadata only.
 #
 # Since: 2.6
 ##
@@ -168,8 +192,8 @@
 # The options that apply to LUKS encryption format
 #
 # @key-secret: the ID of a QCryptoSecret object providing the
-#              decryption key. Mandatory except when probing image for
-#              metadata only.
+#     decryption key.  Mandatory except when probing image for
+#     metadata only.
 #
 # Since: 2.6
 ##
@@ -181,19 +205,23 @@
 #
 # The options that apply to LUKS encryption format initialization
 #
-# @cipher-alg: the cipher algorithm for data encryption
-#              Currently defaults to 'aes-256'.
-# @cipher-mode: the cipher mode for data encryption
-#               Currently defaults to 'xts'
-# @ivgen-alg: the initialization vector generator
-#             Currently defaults to 'plain64'
-# @ivgen-hash-alg: the initialization vector generator hash
-#                  Currently defaults to 'sha256'
-# @hash-alg: the master key hash algorithm
-#            Currently defaults to 'sha256'
-# @iter-time: number of milliseconds to spend in
-#             PBKDF passphrase processing. Currently defaults
-#             to 2000. (since 2.8)
+# @cipher-alg: the cipher algorithm for data encryption Currently
+#     defaults to 'aes-256'.
+#
+# @cipher-mode: the cipher mode for data encryption Currently defaults
+#     to 'xts'
+#
+# @ivgen-alg: the initialization vector generator Currently defaults
+#     to 'plain64'
+#
+# @ivgen-hash-alg: the initialization vector generator hash Currently
+#     defaults to 'sha256'
+#
+# @hash-alg: the master key hash algorithm Currently defaults to
+#     'sha256'
+#
+# @iter-time: number of milliseconds to spend in PBKDF passphrase
+#     processing.  Currently defaults to 2000. (since 2.8)
 #
 # Since: 2.6
 ##
@@ -209,8 +237,8 @@
 ##
 # @QCryptoBlockOpenOptions:
 #
-# The options that are available for all encryption formats
-# when opening an existing volume
+# The options that are available for all encryption formats when
+# opening an existing volume
 #
 # Since: 2.6
 ##
@@ -223,8 +251,8 @@
 ##
 # @QCryptoBlockCreateOptions:
 #
-# The options that are available for all encryption formats
-# when initializing a new volume
+# The options that are available for all encryption formats when
+# initializing a new volume
 #
 # Since: 2.6
 ##
@@ -237,8 +265,8 @@
 ##
 # @QCryptoBlockInfoBase:
 #
-# The common information that applies to all full disk
-# encryption formats
+# The common information that applies to all full disk encryption
+# formats
 #
 # @format: the encryption format
 #
@@ -250,12 +278,14 @@
 ##
 # @QCryptoBlockInfoLUKSSlot:
 #
-# Information about the LUKS block encryption key
-# slot options
+# Information about the LUKS block encryption key slot options
 #
 # @active: whether the key slot is currently in use
+#
 # @key-offset: offset to the key material in bytes
+#
 # @iters: number of PBKDF2 iterations for key material
+#
 # @stripes: number of stripes for splitting key material
 #
 # Since: 2.7
@@ -272,13 +302,21 @@
 # Information about the LUKS block encryption options
 #
 # @cipher-alg: the cipher algorithm for data encryption
+#
 # @cipher-mode: the cipher mode for data encryption
+#
 # @ivgen-alg: the initialization vector generator
+#
 # @ivgen-hash-alg: the initialization vector generator hash
+#
 # @hash-alg: the master key hash algorithm
+#
 # @payload-offset: offset to the payload data in bytes
+#
 # @master-key-iters: number of PBKDF2 iterations for key material
+#
 # @uuid: unique identifier for the volume
+#
 # @slots: information about each key slot
 #
 # Since: 2.7
@@ -312,7 +350,9 @@
 # Defines state of keyslots that are affected by the update
 #
 # @active: The slots contain the given password and marked as active
-# @inactive: The slots are erased (contain garbage) and marked as inactive
+#
+# @inactive: The slots are erased (contain garbage) and marked as
+#     inactive
 #
 # Since: 5.1
 ##
@@ -322,35 +362,34 @@
 ##
 # @QCryptoBlockAmendOptionsLUKS:
 #
-# This struct defines the update parameters that activate/de-activate set
-# of keyslots
+# This struct defines the update parameters that activate/de-activate
+# set of keyslots
 #
 # @state: the desired state of the keyslots
 #
-# @new-secret: The ID of a QCryptoSecret object providing the password to be
-#              written into added active keyslots
+# @new-secret: The ID of a QCryptoSecret object providing the password
+#     to be written into added active keyslots
 #
-# @old-secret: Optional (for deactivation only)
-#              If given will deactivate all keyslots that
-#              match password located in QCryptoSecret with this ID
+# @old-secret: Optional (for deactivation only) If given will
+#     deactivate all keyslots that match password located in
+#     QCryptoSecret with this ID
 #
-# @iter-time: Optional (for activation only)
-#             Number of milliseconds to spend in
-#             PBKDF passphrase processing for the newly activated keyslot.
-#             Currently defaults to 2000.
+# @iter-time: Optional (for activation only) Number of milliseconds to
+#     spend in PBKDF passphrase processing for the newly activated
+#     keyslot.  Currently defaults to 2000.
 #
-# @keyslot: Optional. ID of the keyslot to activate/deactivate.
-#           For keyslot activation, keyslot should not be active already
-#           (this is unsafe to update an active keyslot),
-#           but possible if 'force' parameter is given.
-#           If keyslot is not given, first free keyslot will be written.
+# @keyslot: Optional.  ID of the keyslot to activate/deactivate.  For
+#     keyslot activation, keyslot should not be active already (this
+#     is unsafe to update an active keyslot), but possible if 'force'
+#     parameter is given.  If keyslot is not given, first free keyslot
+#     will be written.
 #
-#           For keyslot deactivation, this parameter specifies the exact
-#           keyslot to deactivate
+#     For keyslot deactivation, this parameter specifies the exact
+#     keyslot to deactivate
 #
-# @secret: Optional. The ID of a QCryptoSecret object providing the
-#          password to use to retrieve current master key.
-#          Defaults to the same secret that was used to open the image
+# @secret: Optional.  The ID of a QCryptoSecret object providing the
+#     password to use to retrieve current master key.  Defaults to the
+#     same secret that was used to open the image
 #
 # Since: 5.1
 ##
@@ -365,8 +404,8 @@
 ##
 # @QCryptoBlockAmendOptions:
 #
-# The options that are available for all encryption formats
-# when amending encryption settings
+# The options that are available for all encryption formats when
+# amending encryption settings
 #
 # Since: 5.1
 ##
@@ -381,22 +420,27 @@
 #
 # Properties for objects of classes derived from secret-common.
 #
-# @loaded: if true, the secret is loaded immediately when applying this option
-#          and will probably fail when processing the next option. Don't use;
-#          only provided for compatibility. (default: false)
+# @loaded: if true, the secret is loaded immediately when applying
+#     this option and will probably fail when processing the next
+#     option.  Don't use; only provided for compatibility.
+#     (default: false)
 #
-# @format: the data format that the secret is provided in (default: raw)
+# @format: the data format that the secret is provided in
+#     (default: raw)
 #
-# @keyid: the name of another secret that should be used to decrypt the
-#         provided data. If not present, the data is assumed to be unencrypted.
+# @keyid: the name of another secret that should be used to decrypt
+#     the provided data.  If not present, the data is assumed to be
+#     unencrypted.
 #
-# @iv: the random initialization vector used for encryption of this particular
-#      secret. Should be a base64 encrypted string of the 16-byte IV. Mandatory
-#      if @keyid is given. Ignored if @keyid is absent.
+# @iv: the random initialization vector used for encryption of this
+#     particular secret.  Should be a base64 encrypted string of the
+#     16-byte IV. Mandatory if @keyid is given.  Ignored if @keyid is
+#     absent.
 #
 # Features:
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
-#              and false is already the default.
+#
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't
+#     make sense, and false is already the default.
 #
 # Since: 2.6
 ##
@@ -443,16 +487,17 @@
 # Properties for objects of classes derived from tls-creds.
 #
 # @verify-peer: if true the peer credentials will be verified once the
-#               handshake is completed.  This is a no-op for anonymous
-#               credentials. (default: true)
+#     handshake is completed.  This is a no-op for anonymous
+#     credentials.  (default: true)
 #
 # @dir: the path of the directory that contains the credential files
 #
-# @endpoint: whether the QEMU network backend that uses the credentials will be
-#            acting as a client or as a server (default: client)
+# @endpoint: whether the QEMU network backend that uses the
+#     credentials will be acting as a client or as a server
+#     (default: client)
 #
 # @priority: a gnutls priority string as described at
-#            https://gnutls.org/manual/html_node/Priority-Strings.html
+#     https://gnutls.org/manual/html_node/Priority-Strings.html
 #
 # Since: 2.5
 ##
@@ -467,13 +512,15 @@
 #
 # Properties for tls-creds-anon objects.
 #
-# @loaded: if true, the credentials are loaded immediately when applying this
-#          option and will ignore options that are processed later. Don't use;
-#          only provided for compatibility. (default: false)
+# @loaded: if true, the credentials are loaded immediately when
+#     applying this option and will ignore options that are processed
+#     later.  Don't use; only provided for compatibility.
+#     (default: false)
 #
 # Features:
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
-#              and false is already the default.
+#
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't
+#     make sense, and false is already the default.
 #
 # Since: 2.5
 ##
@@ -486,17 +533,19 @@
 #
 # Properties for tls-creds-psk objects.
 #
-# @loaded: if true, the credentials are loaded immediately when applying this
-#          option and will ignore options that are processed later. Don't use;
-#          only provided for compatibility. (default: false)
+# @loaded: if true, the credentials are loaded immediately when
+#     applying this option and will ignore options that are processed
+#     later.  Don't use; only provided for compatibility.
+#     (default: false)
 #
-# @username: the username which will be sent to the server.  For clients only.
-#            If absent, "qemu" is sent and the property will read back as an
-#            empty string.
+# @username: the username which will be sent to the server.  For
+#     clients only.  If absent, "qemu" is sent and the property will
+#     read back as an empty string.
 #
 # Features:
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
-#              and false is already the default.
+#
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't
+#     make sense, and false is already the default.
 #
 # Since: 3.0
 ##
@@ -510,22 +559,24 @@
 #
 # Properties for tls-creds-x509 objects.
 #
-# @loaded: if true, the credentials are loaded immediately when applying this
-#          option and will ignore options that are processed later. Don't use;
-#          only provided for compatibility. (default: false)
+# @loaded: if true, the credentials are loaded immediately when
+#     applying this option and will ignore options that are processed
+#     later.  Don't use; only provided for compatibility.
+#     (default: false)
 #
 # @sanity-check: if true, perform some sanity checks before using the
-#                credentials (default: true)
+#     credentials (default: true)
 #
-# @passwordid: For the server-key.pem and client-key.pem files which contain
-#              sensitive private keys, it is possible to use an encrypted
-#              version by providing the @passwordid parameter.  This provides
-#              the ID of a previously created secret object containing the
-#              password for decryption.
+# @passwordid: For the server-key.pem and client-key.pem files which
+#     contain sensitive private keys, it is possible to use an
+#     encrypted version by providing the @passwordid parameter.  This
+#     provides the ID of a previously created secret object containing
+#     the password for decryption.
 #
 # Features:
-# @deprecated: Member @loaded is deprecated.  Setting true doesn't make sense,
-#              and false is already the default.
+#
+# @deprecated: Member @loaded is deprecated.  Setting true doesn't
+#     make sense, and false is already the default.
 #
 # Since: 2.5
 ##
@@ -564,6 +615,7 @@
 # The padding algorithm for RSA.
 #
 # @raw: no padding used
+#
 # @pkcs1: pkcs1#v1.5
 #
 # Since: 7.1
@@ -578,6 +630,7 @@
 # Specific parameters for RSA algorithm.
 #
 # @hash-alg: QCryptoHashAlgorithm
+#
 # @padding-alg: QCryptoRSAPaddingAlgorithm
 #
 # Since: 7.1

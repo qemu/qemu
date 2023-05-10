@@ -41,21 +41,24 @@
 ##
 # @InetSocketAddress:
 #
-# Captures a socket address or address range in the Internet namespace.
+# Captures a socket address or address range in the Internet
+# namespace.
 #
-# @numeric: true if the host/port are guaranteed to be numeric,
-#           false if name resolution should be attempted. Defaults to false.
-#           (Since 2.9)
+# @numeric: true if the host/port are guaranteed to be numeric, false
+#     if name resolution should be attempted.  Defaults to false.
+#     (Since 2.9)
 #
 # @to: If present, this is range of possible addresses, with port
-#      between @port and @to.
+#     between @port and @to.
 #
-# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
+# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and
+#     IPv6
 #
-# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
+# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and
+#     IPv6
 #
-# @keep-alive: enable keep-alive when connecting to this socket. Not supported
-#              for passive sockets. (Since 4.2)
+# @keep-alive: enable keep-alive when connecting to this socket.  Not
+#     supported for passive sockets.  (Since 4.2)
 #
 # @mptcp: enable multi-path TCP. (Since 6.1)
 #
@@ -77,12 +80,14 @@
 # Captures a socket address in the local ("Unix socket") namespace.
 #
 # @path: filesystem path to use
+#
 # @abstract: if true, this is a Linux abstract socket address.  @path
-#            will be prefixed by a null byte, and optionally padded
-#            with null bytes.  Defaults to false.  (Since 5.1)
+#     will be prefixed by a null byte, and optionally padded with null
+#     bytes.  Defaults to false.  (Since 5.1)
+#
 # @tight: if false, pad an abstract socket address with enough null
-#         bytes to make it fill struct sockaddr_un member sun_path.
-#         Defaults to true.  (Since 5.1)
+#     bytes to make it fill struct sockaddr_un member sun_path.
+#     Defaults to true.  (Since 5.1)
 #
 # Since: 1.3
 ##
@@ -98,10 +103,11 @@
 # Captures a socket address in the vsock namespace.
 #
 # @cid: unique host identifier
+#
 # @port: port
 #
 # Note: string types are used to allow for possible future hostname or
-#       service resolution support.
+#     service resolution support.
 #
 # Since: 2.8
 ##
@@ -145,11 +151,12 @@
 ##
 # @SocketAddressLegacy:
 #
-# Captures the address of a socket, which could also be a named file descriptor
+# Captures the address of a socket, which could also be a named file
+# descriptor
 #
 # Note: This type is deprecated in favor of SocketAddress.  The
-#       difference between SocketAddressLegacy and SocketAddress is that the
-#       latter has fewer {} on the wire.
+#     difference between SocketAddressLegacy and SocketAddress is that
+#     the latter has fewer {} on the wire.
 #
 # Since: 1.3
 ##
@@ -173,10 +180,11 @@
 #
 # @vsock: VMCI address
 #
-# @fd: decimal is for file descriptor number, otherwise a file descriptor name.
-#      Named file descriptors are permitted in monitor commands, in combination
-#      with the 'getfd' command. Decimal file descriptors are permitted at
-#      startup or other contexts where no monitor context is active.
+# @fd: decimal is for file descriptor number, otherwise a file
+#     descriptor name.  Named file descriptors are permitted in
+#     monitor commands, in combination with the 'getfd' command.
+#     Decimal file descriptors are permitted at startup or other
+#     contexts where no monitor context is active.
 #
 # Since: 2.9
 ##
