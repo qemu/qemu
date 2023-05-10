@@ -1619,9 +1619,11 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
     if (open_data_file) {
         /* Open external data file */
+        bdrv_graph_co_rdunlock();
         s->data_file = bdrv_co_open_child(NULL, options, "data-file", bs,
                                           &child_of_bds, BDRV_CHILD_DATA,
                                           true, errp);
+        bdrv_graph_co_rdlock();
         if (*errp) {
             ret = -EINVAL;
             goto fail;
@@ -1629,10 +1631,12 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
 
         if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
             if (!s->data_file && s->image_data_file) {
+                bdrv_graph_co_rdunlock();
                 s->data_file = bdrv_co_open_child(s->image_data_file, options,
                                                   "data-file", bs,
                                                   &child_of_bds,
                                                   BDRV_CHILD_DATA, false, errp);
+                bdrv_graph_co_rdlock();
                 if (!s->data_file) {
                     ret = -EINVAL;
                     goto fail;
@@ -1857,7 +1861,9 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
  fail:
     g_free(s->image_data_file);
     if (open_data_file && has_data_file(bs)) {
+        bdrv_graph_co_rdunlock();
         bdrv_unref_child(bs, s->data_file);
+        bdrv_graph_co_rdlock();
         s->data_file = NULL;
     }
     g_free(s->unknown_header_fields);
