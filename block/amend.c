@@ -46,6 +46,7 @@ static int coroutine_fn blockdev_amend_run(Job *job, Error **errp)
 {
     BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
     int ret;
+    GRAPH_RDLOCK_GUARD();
 
     job_progress_set_remaining(&s->common, 1);
     ret = s->bs->drv->bdrv_co_amend(s->bs, s->opts, s->force, errp);
@@ -54,7 +55,8 @@ static int coroutine_fn blockdev_amend_run(Job *job, Error **errp)
     return ret;
 }
 
-static int blockdev_amend_pre_run(BlockdevAmendJob *s, Error **errp)
+static int GRAPH_RDLOCK
+blockdev_amend_pre_run(BlockdevAmendJob *s, Error **errp)
 {
     if (s->bs->drv->bdrv_amend_pre_run) {
         return s->bs->drv->bdrv_amend_pre_run(s->bs, errp);
@@ -67,9 +69,11 @@ static void blockdev_amend_free(Job *job)
 {
     BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
 
+    bdrv_graph_rdlock_main_loop();
     if (s->bs->drv->bdrv_amend_clean) {
         s->bs->drv->bdrv_amend_clean(s->bs);
     }
+    bdrv_graph_rdunlock_main_loop();
 
     bdrv_unref(s->bs);
 }
@@ -92,6 +96,8 @@ void qmp_x_blockdev_amend(const char *job_id,
     const char *fmt = BlockdevDriver_str(options->driver);
     BlockDriver *drv = bdrv_find_format(fmt);
     BlockDriverState *bs;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     bs = bdrv_lookup_bs(NULL, node_name, errp);
     if (!bs) {

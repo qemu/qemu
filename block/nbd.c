@@ -322,6 +322,7 @@ int coroutine_fn nbd_co_do_establish_connection(BlockDriverState *bs,
     int ret;
     IO_CODE();
 
+    assert_bdrv_graph_readable();
     assert(!s->ioc);
 
     s->ioc = nbd_co_establish_connection(s->conn, &s->info, blocking, errp);
@@ -369,7 +370,7 @@ static bool nbd_client_connecting(BDRVNBDState *s)
 }
 
 /* Called with s->requests_lock taken.  */
-static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
+static void coroutine_fn GRAPH_RDLOCK nbd_reconnect_attempt(BDRVNBDState *s)
 {
     int ret;
     bool blocking = s->state == NBD_CLIENT_CONNECTING_WAIT;
@@ -480,9 +481,9 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t handle)
     }
 }
 
-static int coroutine_fn nbd_co_send_request(BlockDriverState *bs,
-                                            NBDRequest *request,
-                                            QEMUIOVector *qiov)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
+                    QEMUIOVector *qiov)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     int rc, i = -1;
@@ -1171,8 +1172,9 @@ static int coroutine_fn nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
     return iter.ret;
 }
 
-static int coroutine_fn nbd_co_request(BlockDriverState *bs, NBDRequest *request,
-                                       QEMUIOVector *write_qiov)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_co_request(BlockDriverState *bs, NBDRequest *request,
+               QEMUIOVector *write_qiov)
 {
     int ret, request_ret;
     Error *local_err = NULL;
@@ -1208,9 +1210,9 @@ static int coroutine_fn nbd_co_request(BlockDriverState *bs, NBDRequest *request
     return ret ? ret : request_ret;
 }
 
-static int coroutine_fn nbd_client_co_preadv(BlockDriverState *bs, int64_t offset,
-                                             int64_t bytes, QEMUIOVector *qiov,
-                                             BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_client_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                     QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     int ret, request_ret;
     Error *local_err = NULL;
@@ -1266,9 +1268,9 @@ static int coroutine_fn nbd_client_co_preadv(BlockDriverState *bs, int64_t offse
     return ret ? ret : request_ret;
 }
 
-static int coroutine_fn nbd_client_co_pwritev(BlockDriverState *bs, int64_t offset,
-                                              int64_t bytes, QEMUIOVector *qiov,
-                                              BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_client_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                      QEMUIOVector *qiov, BdrvRequestFlags flags)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = {
@@ -1291,8 +1293,9 @@ static int coroutine_fn nbd_client_co_pwritev(BlockDriverState *bs, int64_t offs
     return nbd_co_request(bs, &request, qiov);
 }
 
-static int coroutine_fn nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                                    int64_t bytes, BdrvRequestFlags flags)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                            BdrvRequestFlags flags)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = {
@@ -1326,7 +1329,7 @@ static int coroutine_fn nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_
     return nbd_co_request(bs, &request, NULL);
 }
 
-static int coroutine_fn nbd_client_co_flush(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK nbd_client_co_flush(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = { .type = NBD_CMD_FLUSH };
@@ -1341,8 +1344,8 @@ static int coroutine_fn nbd_client_co_flush(BlockDriverState *bs)
     return nbd_co_request(bs, &request, NULL);
 }
 
-static int coroutine_fn nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                               int64_t bytes)
+static int coroutine_fn GRAPH_RDLOCK
+nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = {
@@ -1361,7 +1364,7 @@ static int coroutine_fn nbd_client_co_pdiscard(BlockDriverState *bs, int64_t off
     return nbd_co_request(bs, &request, NULL);
 }
 
-static int coroutine_fn nbd_client_co_block_status(
+static int coroutine_fn GRAPH_RDLOCK nbd_client_co_block_status(
         BlockDriverState *bs, bool want_zero, int64_t offset, int64_t bytes,
         int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
@@ -1920,11 +1923,6 @@ fail:
     return ret;
 }
 
-static int coroutine_fn nbd_co_flush(BlockDriverState *bs)
-{
-    return nbd_client_co_flush(bs);
-}
-
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
@@ -2120,7 +2118,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
     .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
-    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_flush_to_os        = nbd_client_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,
@@ -2148,7 +2146,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
     .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
-    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_flush_to_os        = nbd_client_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,
@@ -2176,7 +2174,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_co_pwritev            = nbd_client_co_pwritev,
     .bdrv_co_pwrite_zeroes      = nbd_client_co_pwrite_zeroes,
     .bdrv_close                 = nbd_close,
-    .bdrv_co_flush_to_os        = nbd_co_flush,
+    .bdrv_co_flush_to_os        = nbd_client_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_co_truncate           = nbd_co_truncate,

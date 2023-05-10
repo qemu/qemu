@@ -2938,6 +2938,8 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
         }
         bs = blk_bs(blk);
 
+        GRAPH_RDLOCK_GUARD_MAINLOOP();
+
         /*
          * Note that the returned BlockGraphInfo object will not have
          * information about this image's backing node, because we have opened

@@ -2309,6 +2309,11 @@ static void migration_completion(MigrationState *s)
                                             MIGRATION_STATUS_DEVICE);
             }
             if (ret >= 0) {
+                /*
+                 * Inactivate disks except in COLO, and track that we
+                 * have done so in order to remember to reactivate
+                 * them if migration fails or is cancelled.
+                 */
                 s->block_inactive = !migrate_colo();
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
@@ -2353,13 +2358,13 @@ static void migration_completion(MigrationState *s)
         rp_error = await_return_path_close_on_source(s);
         trace_migration_return_path_end_after(rp_error);
         if (rp_error) {
-            goto fail_invalidate;
+            goto fail;
         }
     }
 
     if (qemu_file_get_error(s->to_dst_file)) {
         trace_migration_completion_file_err();
-        goto fail_invalidate;
+        goto fail;
     }
 
     if (migrate_colo() && s->state == MIGRATION_STATUS_ACTIVE) {
@@ -2373,26 +2378,25 @@ static void migration_completion(MigrationState *s)
 
     return;
 
-fail_invalidate:
-    /* If not doing postcopy, vm_start() will be called: let's regain
-     * control on images.
-     */
-    if (s->state == MIGRATION_STATUS_ACTIVE ||
-        s->state == MIGRATION_STATUS_DEVICE) {
+fail:
+    if (s->block_inactive && (s->state == MIGRATION_STATUS_ACTIVE ||
+                              s->state == MIGRATION_STATUS_DEVICE)) {
+        /*
+         * If not doing postcopy, vm_start() will be called: let's
+         * regain control on images.
+         */
         Error *local_err = NULL;
 
         qemu_mutex_lock_iothread();
         bdrv_activate_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
-            s->block_inactive = true;
         } else {
             s->block_inactive = false;
         }
         qemu_mutex_unlock_iothread();
     }
 
-fail:
     migrate_set_state(&s->state, current_active_state,
                       MIGRATION_STATUS_FAILED);
 }

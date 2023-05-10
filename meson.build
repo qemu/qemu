@@ -1963,6 +1963,7 @@ if get_option('debug_stack_usage') and have_coroutine_pool
   have_coroutine_pool = false
 endif
 config_host_data.set10('CONFIG_COROUTINE_POOL', have_coroutine_pool)
+config_host_data.set('CONFIG_DEBUG_GRAPH_LOCK', get_option('debug_graph_lock'))
 config_host_data.set('CONFIG_DEBUG_MUTEX', get_option('debug_mutex'))
 config_host_data.set('CONFIG_DEBUG_STACK_USAGE', get_option('debug_stack_usage'))
 config_host_data.set('CONFIG_GPROF', get_option('gprof'))
@@ -3841,6 +3842,7 @@ summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 summary_info += {'malloc trim support': has_malloc_trim}
 summary_info += {'membarrier':        have_membarrier}
+summary_info += {'debug graph lock':  get_option('debug_graph_lock')}
 summary_info += {'debug stack usage': get_option('debug_stack_usage')}
 summary_info += {'mutex debugging':   get_option('debug_mutex')}
 summary_info += {'memory allocator':  get_option('malloc')}
@@ -3929,6 +3931,9 @@ if have_block
   summary_info += {'dmg support':       get_option('dmg').allowed()}
   summary_info += {'qcow v1 support':   get_option('qcow1').allowed()}
   summary_info += {'vdi support':       get_option('vdi').allowed()}
+  summary_info += {'vhdx support':      get_option('vhdx').allowed()}
+  summary_info += {'vmdk support':      get_option('vmdk').allowed()}
+  summary_info += {'vpc support':       get_option('vpc').allowed()}
   summary_info += {'vvfat support':     get_option('vvfat').allowed()}
   summary_info += {'qed support':       get_option('qed').allowed()}
   summary_info += {'parallels support': get_option('parallels').allowed()}

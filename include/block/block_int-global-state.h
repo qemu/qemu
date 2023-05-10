@@ -225,8 +225,8 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
  */
 int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
 
-bool bdrv_recurse_can_replace(BlockDriverState *bs,
-                              BlockDriverState *to_replace);
+bool GRAPH_RDLOCK bdrv_recurse_can_replace(BlockDriverState *bs,
+                                           BlockDriverState *to_replace);
 
 /*
  * Default implementation for BlockDriver.bdrv_child_perm() that can

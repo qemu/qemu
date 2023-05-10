@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# group: rw auto quick
+#
+# Test resizing an image that is attached to a separate iothread
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+cd ..
+. ./common.rc
+. ./common.filter
+
+# Resizing images is only supported by a few block drivers
+_supported_fmt raw qcow2 qed
+_supported_proto file
+_require_devices virtio-scsi-pci
+
+size=64M
+_make_test_img $size
+
+qmp() {
+cat <<EOF
+{"execute":"qmp_capabilities"}
+{'execute': 'block_resize',
+ 'arguments': {'node-name': 'img', 'size': 134217728}}
+{"execute":"quit"}
+EOF
+}
+
+qmp | $QEMU -S -display none \
+    -drive if=none,format=$IMGFMT,file="$TEST_IMG",node-name=img \
+    -object iothread,id=t0 \
+    -device virtio-scsi-pci,iothread=t0 \
+    -device scsi-hd,drive=none0 \
+    -qmp stdio \
+    | _filter_qmp
+
+_img_info | _filter_img_info
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

@@ -604,8 +604,8 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
         = bdrv_latency_histogram_stats(&hgram[BLOCK_ACCT_FLUSH]);
 }
 
-static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
-                                        bool blk_level)
+static BlockStats * GRAPH_RDLOCK
+bdrv_query_bds_stats(BlockDriverState *bs, bool blk_level)
 {
     BdrvChild *parent_child;
     BlockDriverState *filter_or_cow_bs;
@@ -712,6 +712,8 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
     BlockStatsList *head = NULL, **tail = &head;
     BlockBackend *blk;
     BlockDriverState *bs;
+
+    GRAPH_RDLOCK_GUARD_MAINLOOP();
 
     /* Just to be safe if query_nodes is not always initialized */
     if (has_query_nodes && query_nodes) {

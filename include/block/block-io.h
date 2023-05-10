@@ -84,8 +84,11 @@ int64_t coroutine_mixed_fn bdrv_nb_sectors(BlockDriverState *bs);
 int64_t coroutine_fn GRAPH_RDLOCK bdrv_co_getlength(BlockDriverState *bs);
 int64_t co_wrapper_mixed_bdrv_rdlock bdrv_getlength(BlockDriverState *bs);
 
-int64_t coroutine_fn bdrv_co_get_allocated_file_size(BlockDriverState *bs);
-int64_t co_wrapper bdrv_get_allocated_file_size(BlockDriverState *bs);
+int64_t coroutine_fn GRAPH_RDLOCK
+bdrv_co_get_allocated_file_size(BlockDriverState *bs);
+
+int64_t co_wrapper_bdrv_rdlock
+bdrv_get_allocated_file_size(BlockDriverState *bs);
 
 BlockMeasureInfo *bdrv_measure(BlockDriver *drv, QemuOpts *opts,
                                BlockDriverState *in_bs, Error **errp);
@@ -164,8 +167,11 @@ const char *bdrv_get_node_name(const BlockDriverState *bs);
 const char *bdrv_get_device_name(const BlockDriverState *bs);
 const char *bdrv_get_device_or_node_name(const BlockDriverState *bs);
 
-int coroutine_fn bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
-int co_wrapper_mixed bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+int coroutine_fn GRAPH_RDLOCK
+bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
+
+int co_wrapper_mixed_bdrv_rdlock
+bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 
 ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs,
                                           Error **errp);
@@ -199,10 +205,11 @@ void *qemu_try_blockalign0(BlockDriverState *bs, size_t size);
 void bdrv_enable_copy_on_read(BlockDriverState *bs);
 void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
-void coroutine_fn bdrv_co_debug_event(BlockDriverState *bs,
-                                      BlkdebugEvent event);
-void co_wrapper_mixed bdrv_debug_event(BlockDriverState *bs,
-                                       BlkdebugEvent event);
+void coroutine_fn GRAPH_RDLOCK
+bdrv_co_debug_event(BlockDriverState *bs, BlkdebugEvent event);
+
+void co_wrapper_mixed_bdrv_rdlock
+bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event);
 
 #define BLKDBG_EVENT(child, evt) \
     do { \

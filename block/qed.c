@@ -557,10 +557,12 @@ typedef struct QEDOpenCo {
     int ret;
 } QEDOpenCo;
 
-static void coroutine_fn GRAPH_RDLOCK bdrv_qed_open_entry(void *opaque)
+static void coroutine_fn bdrv_qed_open_entry(void *opaque)
 {
     QEDOpenCo *qoc = opaque;
     BDRVQEDState *s = qoc->bs->opaque;
+
+    GRAPH_RDLOCK_GUARD();
 
     qemu_co_mutex_lock(&s->table_lock);
     qoc->ret = bdrv_qed_do_open(qoc->bs, qoc->options, qoc->flags, qoc->errp);
@@ -579,21 +581,17 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
     };
     int ret;
 
-    assume_graph_lock(); /* FIXME */
-
     ret = bdrv_open_file_child(NULL, options, "file", bs, errp);
     if (ret < 0) {
         return ret;
     }
 
     bdrv_qed_init_state(bs);
-    if (qemu_in_coroutine()) {
-        bdrv_qed_open_entry(&qoc);
-    } else {
-        assert(qemu_get_current_aio_context() == qemu_get_aio_context());
-        qemu_coroutine_enter(qemu_coroutine_create(bdrv_qed_open_entry, &qoc));
-        BDRV_POLL_WHILE(bs, qoc.ret == -EINPROGRESS);
-    }
+    assert(!qemu_in_coroutine());
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    qemu_coroutine_enter(qemu_coroutine_create(bdrv_qed_open_entry, &qoc));
+    BDRV_POLL_WHILE(bs, qoc.ret == -EINPROGRESS);
+
     return qoc.ret;
 }
 
@@ -748,8 +746,8 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
     ret = 0; /* success */
 out:
     g_free(l1_table);
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     return ret;
 }
 
@@ -819,7 +817,7 @@ bdrv_qed_co_create_opts(BlockDriver *drv, const char *filename,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

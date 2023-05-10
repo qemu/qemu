@@ -38,11 +38,6 @@ block_ss.add(files(
   'snapshot-access.c',
   'throttle-groups.c',
   'throttle.c',
-  'vhdx-endian.c',
-  'vhdx-log.c',
-  'vhdx.c',
-  'vmdk.c',
-  'vpc.c',
   'write-threshold.c',
 ), zstd, zlib, gnutls)
 
@@ -54,6 +49,19 @@ if get_option('qcow1').allowed()
 endif
 if get_option('vdi').allowed()
   block_ss.add(files('vdi.c'))
+endif
+if get_option('vhdx').allowed()
+  block_ss.add(files(
+    'vhdx-endian.c',
+    'vhdx-log.c',
+    'vhdx.c'
+  ))
+endif
+if get_option('vmdk').allowed()
+  block_ss.add(files('vmdk.c'))
+endif
+if get_option('vpc').allowed()
+  block_ss.add(files('vpc.c'))
 endif
 if get_option('cloop').allowed()
   block_ss.add(files('cloop.c'))

@@ -42,7 +42,10 @@ blk_co_new_open(const char *filename, const char *reference, QDict *options,
 
 int blk_get_refcnt(BlockBackend *blk);
 void blk_ref(BlockBackend *blk);
-void blk_unref(BlockBackend *blk);
+
+void no_coroutine_fn blk_unref(BlockBackend *blk);
+void coroutine_fn no_co_wrapper blk_co_unref(BlockBackend *blk);
+
 void blk_remove_all_bs(void);
 BlockBackend *blk_by_name(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);

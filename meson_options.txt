@@ -301,6 +301,12 @@ option('qcow1', type: 'feature', value: 'auto',
        description: 'qcow1 image format support')
 option('vdi', type: 'feature', value: 'auto',
        description: 'vdi image format support')
+option('vhdx', type: 'feature', value: 'auto',
+       description: 'vhdx image format support')
+option('vmdk', type: 'feature', value: 'auto',
+       description: 'vmdk image format support')
+option('vpc', type: 'feature', value: 'auto',
+       description: 'vpc image format support')
 option('vvfat', type: 'feature', value: 'auto',
        description: 'vvfat image format support')
 option('qed', type: 'feature', value: 'auto',
@@ -313,6 +319,8 @@ option('rng_none', type: 'boolean', value: false,
        description: 'dummy RNG, avoid using /dev/(u)random and getrandom()')
 option('coroutine_pool', type: 'boolean', value: true,
        description: 'coroutine freelist (better performance)')
+option('debug_graph_lock', type: 'boolean', value: false,
+       description: 'graph lock debugging support')
 option('debug_mutex', type: 'boolean', value: false,
        description: 'mutex debugging support')
 option('debug_stack_usage', type: 'boolean', value: false,

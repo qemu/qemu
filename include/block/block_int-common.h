@@ -204,20 +204,21 @@ struct BlockDriver {
      * to allow driver-specific initialization code that requires
      * the BQL, like setting up specific permission flags.
      */
-    int (*bdrv_amend_pre_run)(BlockDriverState *bs, Error **errp);
+    int GRAPH_RDLOCK_PTR (*bdrv_amend_pre_run)(
+        BlockDriverState *bs, Error **errp);
     /*
      * This function is invoked under BQL after .bdrv_co_amend()
      * to allow cleaning up what was done in .bdrv_amend_pre_run().
      */
-    void (*bdrv_amend_clean)(BlockDriverState *bs);
+    void GRAPH_RDLOCK_PTR (*bdrv_amend_clean)(BlockDriverState *bs);
 
     /*
      * Return true if @to_replace can be replaced by a BDS with the
      * same data as @bs without it affecting @bs's behavior (that is,
      * without it being visible to @bs's parents).
      */
-    bool (*bdrv_recurse_can_replace)(BlockDriverState *bs,
-                                     BlockDriverState *to_replace);
+    bool GRAPH_RDLOCK_PTR (*bdrv_recurse_can_replace)(
+        BlockDriverState *bs, BlockDriverState *to_replace);
 
     int (*bdrv_probe_device)(const char *filename);
 
@@ -236,12 +237,12 @@ struct BlockDriver {
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
     void (*bdrv_join_options)(QDict *options, QDict *old_options);
 
-    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags,
-                     Error **errp);
+    int GRAPH_UNLOCKED_PTR (*bdrv_open)(
+        BlockDriverState *bs, QDict *options, int flags, Error **errp);
 
     /* Protocol drivers should implement this instead of bdrv_open */
-    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
-                          Error **errp);
+    int GRAPH_UNLOCKED_PTR (*bdrv_file_open)(
+        BlockDriverState *bs, QDict *options, int flags, Error **errp);
     void (*bdrv_close)(BlockDriverState *bs);
 
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_create)(
@@ -333,7 +334,8 @@ struct BlockDriver {
     int (*bdrv_debug_resume)(BlockDriverState *bs, const char *tag);
     bool (*bdrv_debug_is_suspended)(BlockDriverState *bs, const char *tag);
 
-    void (*bdrv_refresh_limits)(BlockDriverState *bs, Error **errp);
+    void GRAPH_RDLOCK_PTR (*bdrv_refresh_limits)(
+        BlockDriverState *bs, Error **errp);
 
     /*
      * Returns 1 if newly created images are guaranteed to contain only
@@ -463,10 +465,9 @@ struct BlockDriver {
 
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
 
-    int coroutine_fn (*bdrv_co_amend)(BlockDriverState *bs,
-                                      BlockdevAmendOptions *opts,
-                                      bool force,
-                                      Error **errp);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_amend)(
+        BlockDriverState *bs, BlockdevAmendOptions *opts, bool force,
+        Error **errp);
 
     /* aio */
     BlockAIOCB * GRAPH_RDLOCK_PTR (*bdrv_aio_preadv)(BlockDriverState *bs,
@@ -685,7 +686,7 @@ struct BlockDriver {
     int64_t coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_getlength)(
         BlockDriverState *bs);
 
-    int64_t coroutine_fn (*bdrv_co_get_allocated_file_size)(
+    int64_t coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_get_allocated_file_size)(
         BlockDriverState *bs);
 
     BlockMeasureInfo *(*bdrv_measure)(QemuOpts *opts, BlockDriverState *in_bs,
@@ -699,8 +700,8 @@ struct BlockDriver {
         BlockDriverState *bs, int64_t offset, int64_t bytes,
         QEMUIOVector *qiov, size_t qiov_offset);
 
-    int coroutine_fn (*bdrv_co_get_info)(BlockDriverState *bs,
-                                         BlockDriverInfo *bdi);
+    int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_get_info)(
+        BlockDriverState *bs, BlockDriverInfo *bdi);
 
     ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs,
                                                  Error **errp);
@@ -735,8 +736,8 @@ struct BlockDriver {
     int coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_check)(
         BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix);
 
-    void coroutine_fn (*bdrv_co_debug_event)(BlockDriverState *bs,
-                                             BlkdebugEvent event);
+    void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_debug_event)(
+        BlockDriverState *bs, BlkdebugEvent event);
 
     /* io queue for linux-aio */
     void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_io_plug)(BlockDriverState *bs);

@@ -1506,8 +1506,9 @@ exit:
  * There are 2 headers, and the highest sequence number will represent
  * the active header
  */
-static int vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
-                                   uint32_t log_size)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
+                        uint32_t log_size)
 {
     BlockDriverState *bs = blk_bs(blk);
     BdrvChild *child;
@@ -1897,8 +1898,8 @@ exit:
  *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
  *   1MB
  */
-static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
-                                       Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+vhdx_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsVhdx *vhdx_opts;
     BlockBackend *blk = NULL;
@@ -2053,8 +2054,8 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
 
     ret = 0;
 delete_and_exit:
-    blk_unref(blk);
-    bdrv_unref(bs);
+    blk_co_unref(blk);
+    bdrv_co_unref(bs);
     g_free(creator);
     return ret;
 }
@@ -2144,7 +2145,7 @@ vhdx_co_create_opts(BlockDriver *drv, const char *filename,
 
 fail:
     qobject_unref(qdict);
-    bdrv_unref(bs);
+    bdrv_co_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
     return ret;
 }

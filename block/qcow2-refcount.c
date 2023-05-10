@@ -3715,7 +3715,7 @@ int coroutine_fn qcow2_detect_metadata_preallocation(BlockDriverState *bs)
 
     qemu_co_mutex_assert_locked(&s->lock);
 
-    file_length = bdrv_getlength(bs->file->bs);
+    file_length = bdrv_co_getlength(bs->file->bs);
     if (file_length < 0) {
         return file_length;
     }

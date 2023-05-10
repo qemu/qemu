@@ -160,7 +160,6 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
     bool have_limits;
 
     GLOBAL_STATE_CODE();
-    assume_graph_lock(); /* FIXME */
 
     if (tran) {
         BdrvRefreshLimitsState *s = g_new(BdrvRefreshLimitsState, 1);
@@ -727,10 +726,9 @@ BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs)
 /**
  * Round a region to cluster boundaries
  */
-void coroutine_fn bdrv_round_to_clusters(BlockDriverState *bs,
-                            int64_t offset, int64_t bytes,
-                            int64_t *cluster_offset,
-                            int64_t *cluster_bytes)
+void coroutine_fn GRAPH_RDLOCK
+bdrv_round_to_clusters(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                       int64_t *cluster_offset, int64_t *cluster_bytes)
 {
     BlockDriverInfo bdi;
     IO_CODE();
@@ -744,7 +742,7 @@ void coroutine_fn bdrv_round_to_clusters(BlockDriverState *bs,
     }
 }
 
-static coroutine_fn int bdrv_get_cluster_size(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK bdrv_get_cluster_size(BlockDriverState *bs)
 {
     BlockDriverInfo bdi;
     int ret;
@@ -1800,7 +1798,7 @@ fail:
     return ret;
 }
 
-static inline int coroutine_fn
+static inline int coroutine_fn GRAPH_RDLOCK
 bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
                           BdrvTrackedRequest *req, int flags)
 {

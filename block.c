@@ -680,7 +680,7 @@ int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
 
     ret = 0;
 out:
-    blk_unref(blk);
+    blk_co_unref(blk);
     return ret;
 }
 
@@ -1610,9 +1610,9 @@ out:
  * bdrv_refresh_total_sectors() which polls when called from non-coroutine
  * context.
  */
-static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
-                            const char *node_name, QDict *options,
-                            int open_flags, Error **errp)
+static int no_coroutine_fn GRAPH_UNLOCKED
+bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
+                 QDict *options, int open_flags, Error **errp)
 {
     Error *local_err = NULL;
     int i, ret;
@@ -1667,7 +1667,10 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         return ret;
     }
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, &local_err);
+    bdrv_graph_rdunlock_main_loop();
+
     if (local_err) {
         error_propagate(errp, local_err);
         return -EINVAL;
@@ -3419,7 +3422,9 @@ static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
     }
 
 out:
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(parent_bs, tran, NULL);
+    bdrv_graph_rdunlock_main_loop();
 
     return 0;
 }
@@ -4917,7 +4922,9 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     qdict_del(bs->explicit_options, "backing");
     qdict_del(bs->options, "backing");
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs, NULL, NULL);
+    bdrv_graph_rdunlock_main_loop();
     bdrv_refresh_total_sectors(bs, bs->total_sectors);
 }
 
@@ -5316,7 +5323,9 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 out:
     tran_finalize(tran, ret);
 
+    bdrv_graph_rdlock_main_loop();
     bdrv_refresh_limits(bs_top, NULL, NULL);
+    bdrv_graph_rdunlock_main_loop();
 
     if (new_context && old_context != new_context) {
         aio_context_release(new_context);
@@ -5750,7 +5759,8 @@ exit:
  * sums the size of all data-bearing children.  (This excludes backing
  * children.)
  */
-static int64_t coroutine_fn bdrv_sum_allocated_file_size(BlockDriverState *bs)
+static int64_t coroutine_fn GRAPH_RDLOCK
+bdrv_sum_allocated_file_size(BlockDriverState *bs)
 {
     BdrvChild *child;
     int64_t child_size, sum = 0;
@@ -5778,6 +5788,7 @@ int64_t coroutine_fn bdrv_co_get_allocated_file_size(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -6347,6 +6358,8 @@ int coroutine_fn bdrv_co_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     int ret;
     BlockDriver *drv = bs->drv;
     IO_CODE();
+    assert_bdrv_graph_readable();
+
     /* if bs->drv == NULL, bs is closed, so there's nothing to do here */
     if (!drv) {
         return -ENOMEDIUM;
@@ -6395,6 +6408,8 @@ BlockStatsSpecific *bdrv_get_specific_stats(BlockDriverState *bs)
 void coroutine_fn bdrv_co_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     IO_CODE();
+    assert_bdrv_graph_readable();
+
     if (!bs || !bs->drv || !bs->drv->bdrv_co_debug_event) {
         return;
     }

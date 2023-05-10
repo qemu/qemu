@@ -188,6 +188,25 @@ static void do_drain_begin_unlocked(enum drain_type drain_type, BlockDriverState
     }
 }
 
+static BlockBackend * no_coroutine_fn test_setup(void)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs, *backing;
+
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
+    bdrv_set_backing_hd(bs, backing, &error_abort);
+
+    bdrv_unref(backing);
+    bdrv_unref(bs);
+
+    return blk;
+}
+
 static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *bs)
 {
     if (drain_type != BDRV_DRAIN_ALL) {
@@ -199,25 +218,19 @@ static void do_drain_end_unlocked(enum drain_type drain_type, BlockDriverState *
     }
 }
 
-static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
+static void test_drv_cb_common(BlockBackend *blk, enum drain_type drain_type,
+                               bool recursive)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs, *backing;
+    BlockDriverState *bs = blk_bs(blk);
+    BlockDriverState *backing = bs->backing->bs;
     BDRVTestState *s, *backing_s;
     BlockAIOCB *acb;
     int aio_ret;
 
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
     s = bs->opaque;
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
     backing_s = backing->opaque;
-    bdrv_set_backing_hd(bs, backing, &error_abort);
 
     /* Simple bdrv_drain_all_begin/end pair, check that CBs are called */
     g_assert_cmpint(s->drain_count, ==, 0);
@@ -252,44 +265,53 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
     g_assert_cmpint(s->drain_count, ==, 0);
     g_assert_cmpint(backing_s->drain_count, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
 }
 
 static void test_drv_cb_drain_all(void)
 {
-    test_drv_cb_common(BDRV_DRAIN_ALL, true);
+    BlockBackend *blk = test_setup();
+    test_drv_cb_common(blk, BDRV_DRAIN_ALL, true);
+    blk_unref(blk);
 }
 
 static void test_drv_cb_drain(void)
 {
-    test_drv_cb_common(BDRV_DRAIN, false);
+    BlockBackend *blk = test_setup();
+    test_drv_cb_common(blk, BDRV_DRAIN, false);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_drv_cb_co_drain_all_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_drv_cb_common(blk, BDRV_DRAIN_ALL, true);
 }
 
 static void test_drv_cb_co_drain_all(void)
 {
-    call_in_coroutine(test_drv_cb_drain_all);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_drv_cb_co_drain_all_entry);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_drv_cb_co_drain_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_drv_cb_common(blk, BDRV_DRAIN, false);
 }
 
 static void test_drv_cb_co_drain(void)
 {
-    call_in_coroutine(test_drv_cb_drain);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_drv_cb_co_drain_entry);
+    blk_unref(blk);
 }
 
-static void test_quiesce_common(enum drain_type drain_type, bool recursive)
+static void test_quiesce_common(BlockBackend *blk, enum drain_type drain_type,
+                                bool recursive)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs, *backing;
-
-    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
-    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
-                              &error_abort);
-    blk_insert_bs(blk, bs, &error_abort);
-
-    backing = bdrv_new_open_driver(&bdrv_test, "backing", 0, &error_abort);
-    bdrv_set_backing_hd(bs, backing, &error_abort);
+    BlockDriverState *bs = blk_bs(blk);
+    BlockDriverState *backing = bs->backing->bs;
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
@@ -307,30 +329,46 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
 
     g_assert_cmpint(bs->quiesce_counter, ==, 0);
     g_assert_cmpint(backing->quiesce_counter, ==, 0);
-
-    bdrv_unref(backing);
-    bdrv_unref(bs);
-    blk_unref(blk);
 }
 
 static void test_quiesce_drain_all(void)
 {
-    test_quiesce_common(BDRV_DRAIN_ALL, true);
+    BlockBackend *blk = test_setup();
+    test_quiesce_common(blk, BDRV_DRAIN_ALL, true);
+    blk_unref(blk);
 }
 
 static void test_quiesce_drain(void)
 {
-    test_quiesce_common(BDRV_DRAIN, false);
+    BlockBackend *blk = test_setup();
+    test_quiesce_common(blk, BDRV_DRAIN, false);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_quiesce_co_drain_all_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_quiesce_common(blk, BDRV_DRAIN_ALL, true);
 }
 
 static void test_quiesce_co_drain_all(void)
 {
-    call_in_coroutine(test_quiesce_drain_all);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_quiesce_co_drain_all_entry);
+    blk_unref(blk);
+}
+
+static void coroutine_fn test_quiesce_co_drain_entry(void)
+{
+    BlockBackend *blk = blk_all_next(NULL);
+    test_quiesce_common(blk, BDRV_DRAIN, false);
 }
 
 static void test_quiesce_co_drain(void)
 {
-    call_in_coroutine(test_quiesce_drain);
+    BlockBackend *blk = test_setup();
+    call_in_coroutine(test_quiesce_co_drain_entry);
+    blk_unref(blk);
 }
 
 static void test_nested(void)

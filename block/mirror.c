@@ -270,8 +270,8 @@ static inline int64_t mirror_clip_bytes(MirrorBlockJob *s,
 
 /* Round offset and/or bytes to target cluster if COW is needed, and
  * return the offset of the adjusted tail against original. */
-static int mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
-                            uint64_t *bytes)
+static int coroutine_fn mirror_cow_align(MirrorBlockJob *s, int64_t *offset,
+                                         uint64_t *bytes)
 {
     bool need_cow;
     int ret = 0;
@@ -576,8 +576,10 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         } else if (ret >= 0 && !(ret & BDRV_BLOCK_DATA)) {
             int64_t target_offset;
             int64_t target_bytes;
-            bdrv_round_to_clusters(blk_bs(s->target), offset, io_bytes,
-                                   &target_offset, &target_bytes);
+            WITH_GRAPH_RDLOCK_GUARD() {
+                bdrv_round_to_clusters(blk_bs(s->target), offset, io_bytes,
+                                       &target_offset, &target_bytes);
+            }
             if (target_offset == offset &&
                 target_bytes == io_bytes) {
                 mirror_method = ret & BDRV_BLOCK_ZERO ?
@@ -745,7 +747,10 @@ static int mirror_exit_common(Job *job)
          * Cannot use check_to_replace_node() here, because that would
          * check for an op blocker on @to_replace, and we have our own
          * there.
+         *
+         * TODO Pull out the writer lock from bdrv_replace_node() to here
          */
+        bdrv_graph_rdlock_main_loop();
         if (bdrv_recurse_can_replace(src, to_replace)) {
             bdrv_replace_node(to_replace, target_bs, &local_err);
         } else {
@@ -754,6 +759,7 @@ static int mirror_exit_common(Job *job)
                        "would not lead to an abrupt change of visible data",
                        to_replace->node_name, target_bs->node_name);
         }
+        bdrv_graph_rdunlock_main_loop();
         bdrv_drained_end(target_bs);
         if (local_err) {
             error_report_err(local_err);
@@ -966,11 +972,13 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
      */
     bdrv_get_backing_filename(target_bs, backing_filename,
                               sizeof(backing_filename));
+    bdrv_graph_co_rdlock();
     if (!bdrv_co_get_info(target_bs, &bdi) && bdi.cluster_size) {
         s->target_cluster_size = bdi.cluster_size;
     } else {
         s->target_cluster_size = BDRV_SECTOR_SIZE;
     }
+    bdrv_graph_co_rdunlock();
     if (backing_filename[0] && !bdrv_backing_chain_next(target_bs) &&
         s->granularity < s->target_cluster_size) {
         s->buf_size = MAX(s->buf_size, s->target_cluster_size);
@@ -1416,7 +1424,7 @@ static MirrorOp *coroutine_fn active_write_prepare(MirrorBlockJob *s,
     return op;
 }
 
-static void coroutine_fn active_write_settle(MirrorOp *op)
+static void coroutine_fn GRAPH_RDLOCK active_write_settle(MirrorOp *op)
 {
     uint64_t start_chunk = op->offset / op->s->granularity;
     uint64_t end_chunk = DIV_ROUND_UP(op->offset + op->bytes,
