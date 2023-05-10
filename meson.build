@@ -517,6 +517,46 @@ if get_option('fuzzing')
   endif
 endif
 
+if get_option('cfi')
+  cfi_flags=[]
+  # Check for dependency on LTO
+  if not get_option('b_lto')
+    error('Selected Control-Flow Integrity but LTO is disabled')
+  endif
+  if enable_modules
+    error('Selected Control-Flow Integrity is not compatible with modules')
+  endif
+  # Check for cfi flags. CFI requires LTO so we can't use
+  # get_supported_arguments, but need a more complex "compiles" which allows
+  # custom arguments
+  if cc.compiles('int main () { return 0; }', name: '-fsanitize=cfi-icall',
+                 args: ['-flto', '-fsanitize=cfi-icall'] )
+    cfi_flags += '-fsanitize=cfi-icall'
+  else
+    error('-fsanitize=cfi-icall is not supported by the compiler')
+  endif
+  if cc.compiles('int main () { return 0; }',
+                 name: '-fsanitize-cfi-icall-generalize-pointers',
+                 args: ['-flto', '-fsanitize=cfi-icall',
+                        '-fsanitize-cfi-icall-generalize-pointers'] )
+    cfi_flags += '-fsanitize-cfi-icall-generalize-pointers'
+  else
+    error('-fsanitize-cfi-icall-generalize-pointers is not supported by the compiler')
+  endif
+  if get_option('cfi_debug')
+    if cc.compiles('int main () { return 0; }',
+                   name: '-fno-sanitize-trap=cfi-icall',
+                   args: ['-flto', '-fsanitize=cfi-icall',
+                          '-fno-sanitize-trap=cfi-icall'] )
+      cfi_flags += '-fno-sanitize-trap=cfi-icall'
+    else
+      error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
+    endif
+  endif
+  add_global_arguments(cfi_flags, native: false, language: all_languages)
+  add_global_link_arguments(cfi_flags, native: false, language: all_languages)
+endif
+
 add_global_arguments(qemu_common_flags, native: false, language: all_languages)
 add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
 
@@ -2008,46 +2048,6 @@ if have_system
 endif
 config_host_data.set('CONFIG_AUDIO_DRIVERS',
                      '"' + '", "'.join(audio_drivers_selected) + '", ')
-
-if get_option('cfi')
-  cfi_flags=[]
-  # Check for dependency on LTO
-  if not get_option('b_lto')
-    error('Selected Control-Flow Integrity but LTO is disabled')
-  endif
-  if enable_modules
-    error('Selected Control-Flow Integrity is not compatible with modules')
-  endif
-  # Check for cfi flags. CFI requires LTO so we can't use
-  # get_supported_arguments, but need a more complex "compiles" which allows
-  # custom arguments
-  if cc.compiles('int main () { return 0; }', name: '-fsanitize=cfi-icall',
-                 args: ['-flto', '-fsanitize=cfi-icall'] )
-    cfi_flags += '-fsanitize=cfi-icall'
-  else
-    error('-fsanitize=cfi-icall is not supported by the compiler')
-  endif
-  if cc.compiles('int main () { return 0; }',
-                 name: '-fsanitize-cfi-icall-generalize-pointers',
-                 args: ['-flto', '-fsanitize=cfi-icall',
-                        '-fsanitize-cfi-icall-generalize-pointers'] )
-    cfi_flags += '-fsanitize-cfi-icall-generalize-pointers'
-  else
-    error('-fsanitize-cfi-icall-generalize-pointers is not supported by the compiler')
-  endif
-  if get_option('cfi_debug')
-    if cc.compiles('int main () { return 0; }',
-                   name: '-fno-sanitize-trap=cfi-icall',
-                   args: ['-flto', '-fsanitize=cfi-icall',
-                          '-fno-sanitize-trap=cfi-icall'] )
-      cfi_flags += '-fno-sanitize-trap=cfi-icall'
-    else
-      error('-fno-sanitize-trap=cfi-icall is not supported by the compiler')
-    endif
-  endif
-  add_global_arguments(cfi_flags, native: false, language: all_languages)
-  add_global_link_arguments(cfi_flags, native: false, language: all_languages)
-endif
 
 have_host_block_device = (targetos != 'darwin' or
     cc.has_header('IOKit/storage/IOMedia.h'))
