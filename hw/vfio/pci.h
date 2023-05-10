@@ -137,6 +137,7 @@ struct VFIOPCIDevice {
     VFIOVGA *vga; /* 0xa0000, 0x3b0, 0x3c0 */
     void *igd_opregion;
     PCIHostDeviceAddress host;
+    QemuUUID vf_token;
     EventNotifier err_notifier;
     EventNotifier req_notifier;
     int (*resetfn)(struct VFIOPCIDevice *);

@@ -2066,6 +2066,54 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
     return 0;
 }
 
+static int vfio_setup_rebar_ecap(VFIOPCIDevice *vdev, uint16_t pos)
+{
+    uint32_t ctrl;
+    int i, nbar;
+
+    ctrl = pci_get_long(vdev->pdev.config + pos + PCI_REBAR_CTRL);
+    nbar = (ctrl & PCI_REBAR_CTRL_NBAR_MASK) >> PCI_REBAR_CTRL_NBAR_SHIFT;
+
+    for (i = 0; i < nbar; i++) {
+        uint32_t cap;
+        int size;
+
+        ctrl = pci_get_long(vdev->pdev.config + pos + PCI_REBAR_CTRL + (i * 8));
+        size = (ctrl & PCI_REBAR_CTRL_BAR_SIZE) >> PCI_REBAR_CTRL_BAR_SHIFT;
+
+        /* The cap register reports sizes 1MB to 128TB, with 4 reserved bits */
+        cap = size <= 27 ? 1U << (size + 4) : 0;
+
+        /*
+         * The PCIe spec (v6.0.1, 7.8.6) requires HW to support at least one
+         * size in the range 1MB to 512GB.  We intend to mask all sizes except
+         * the one currently enabled in the size field, therefore if it's
+         * outside the range, hide the whole capability as this virtualization
+         * trick won't work.  If >512GB resizable BARs start to appear, we
+         * might need an opt-in or reservation scheme in the kernel.
+         */
+        if (!(cap & PCI_REBAR_CAP_SIZES)) {
+            return -EINVAL;
+        }
+
+        /* Hide all sizes reported in the ctrl reg per above requirement. */
+        ctrl &= (PCI_REBAR_CTRL_BAR_SIZE |
+                 PCI_REBAR_CTRL_NBAR_MASK |
+                 PCI_REBAR_CTRL_BAR_IDX);
+
+        /*
+         * The BAR size field is RW, however we've mangled the capability
+         * register such that we only report a single size, ie. the current
+         * BAR size.  A write of an unsupported value is undefined, therefore
+         * the register field is essentially RO.
+         */
+        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CAP + (i * 8), cap, ~0);
+        vfio_add_emulated_long(vdev, pos + PCI_REBAR_CTRL + (i * 8), ctrl, ~0);
+    }
+
+    return 0;
+}
+
 static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -2139,8 +2187,12 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
         case 0: /* kernel masked capability */
         case PCI_EXT_CAP_ID_SRIOV: /* Read-only VF BARs confuse OVMF */
         case PCI_EXT_CAP_ID_ARI: /* XXX Needs next function virtualization */
-        case PCI_EXT_CAP_ID_REBAR: /* Can't expose read-only */
             trace_vfio_add_ext_cap_dropped(vdev->vbasedev.name, cap_id, next);
+            break;
+        case PCI_EXT_CAP_ID_REBAR:
+            if (!vfio_setup_rebar_ecap(vdev, next)) {
+                pcie_add_capability(pdev, cap_id, cap_ver, next, size);
+            }
             break;
         default:
             pcie_add_capability(pdev, cap_id, cap_ver, next, size);
@@ -2856,6 +2908,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     int groupid;
     int i, ret;
     bool is_mdev;
+    char uuid[UUID_FMT_LEN];
+    char *name;
 
     if (!vbasedev->sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -2936,7 +2990,15 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    ret = vfio_get_device(group, vbasedev->name, vbasedev, errp);
+    if (!qemu_uuid_is_null(&vdev->vf_token)) {
+        qemu_uuid_unparse(&vdev->vf_token, uuid);
+        name = g_strdup_printf("%s vf_token=%s", vbasedev->name, uuid);
+    } else {
+        name = vbasedev->name;
+    }
+
+    ret = vfio_get_device(group, name, vbasedev, errp);
+    g_free(name);
     if (ret) {
         vfio_put_group(group);
         goto error;
@@ -3268,6 +3330,7 @@ static void vfio_instance_init(Object *obj)
 
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIOPCIDevice, host),
+    DEFINE_PROP_UUID_NODEFAULT("vf-token", VFIOPCIDevice, vf_token),
     DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
     DEFINE_PROP_ON_OFF_AUTO("x-pre-copy-dirty-page-tracking", VFIOPCIDevice,
                             vbasedev.pre_copy_dirty_page_tracking,
