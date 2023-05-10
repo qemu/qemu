@@ -192,8 +192,10 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
     return exp;
 
 fail:
-    blk_set_dev_ops(exp->blk, NULL, NULL);
-    blk_unref(blk);
+    if (blk) {
+        blk_set_dev_ops(blk, NULL, NULL);
+        blk_unref(blk);
+    }
     aio_context_release(ctx);
     if (exp) {
         g_free(exp->id);
