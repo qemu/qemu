@@ -49,7 +49,7 @@ imask = {
     'VEXTRACT[FI]128': 0x01,
     'VINSERT[FI]128': 0x01,
     'VPBLENDD': 0xff,
-    'VPERM2[FI]128': 0x33,
+    'VPERM2[FI]128': 0xbb,
     'VPERMPD': 0xff,
     'VPERMQ': 0xff,
     'VPERMILPS': 0xff,
