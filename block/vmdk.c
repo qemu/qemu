@@ -2165,10 +2165,9 @@ vmdk_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static int vmdk_init_extent(BlockBackend *blk,
-                            int64_t filesize, bool flat,
-                            bool compress, bool zeroed_grain,
-                            Error **errp)
+static int GRAPH_UNLOCKED
+vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
+                 bool zeroed_grain, Error **errp)
 {
     int ret, i;
     VMDK4Header header;
@@ -2277,7 +2276,7 @@ exit:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vmdk_create_extent(const char *filename, int64_t filesize, bool flat,
                    bool compress, bool zeroed_grain, BlockBackend **pbb,
                    QemuOpts *opts, Error **errp)
@@ -2358,7 +2357,7 @@ static int filename_decompose(const char *filename, char *path, char *prefix,
  *           non-split format.
  * idx >= 1: get the n-th extent if in a split subformat
  */
-typedef BlockBackend * coroutine_fn /* GRAPH_RDLOCK */
+typedef BlockBackend * coroutine_fn GRAPH_UNLOCKED_PTR
     (*vmdk_create_extent_fn)(int64_t size, int idx, bool flat, bool split,
                              bool compress, bool zeroed_grain, void *opaque,
                              Error **errp);
@@ -2374,7 +2373,7 @@ static void vmdk_desc_add_extent(GString *desc,
     g_free(basename);
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vmdk_co_do_create(int64_t size,
                   BlockdevVmdkSubformat subformat,
                   BlockdevVmdkAdapterType adapter_type,
@@ -2605,7 +2604,7 @@ typedef struct {
     QemuOpts *opts;
 } VMDKCreateOptsData;
 
-static BlockBackend * coroutine_fn GRAPH_RDLOCK
+static BlockBackend * coroutine_fn GRAPH_UNLOCKED
 vmdk_co_create_opts_cb(int64_t size, int idx, bool flat, bool split,
                        bool compress, bool zeroed_grain, void *opaque,
                        Error **errp)
@@ -2647,7 +2646,7 @@ exit:
     return blk;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vmdk_co_create_opts(BlockDriver *drv, const char *filename,
                     QemuOpts *opts, Error **errp)
 {
@@ -2756,11 +2755,9 @@ exit:
     return ret;
 }
 
-static BlockBackend * coroutine_fn vmdk_co_create_cb(int64_t size, int idx,
-                                                     bool flat, bool split,
-                                                     bool compress,
-                                                     bool zeroed_grain,
-                                                     void *opaque, Error **errp)
+static BlockBackend * coroutine_fn GRAPH_UNLOCKED
+vmdk_co_create_cb(int64_t size, int idx, bool flat, bool split, bool compress,
+                  bool zeroed_grain, void *opaque, Error **errp)
 {
     int ret;
     BlockDriverState *bs;
@@ -2809,7 +2806,7 @@ static BlockBackend * coroutine_fn vmdk_co_create_cb(int64_t size, int idx,
     return blk;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vmdk_co_create(BlockdevCreateOptions *create_options, Error **errp)
 {
     BlockdevCreateOptionsVmdk *opts;

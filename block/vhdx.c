@@ -1506,7 +1506,7 @@ exit:
  * There are 2 headers, and the highest sequence number will represent
  * the active header
  */
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
                         uint32_t log_size)
 {
@@ -1514,6 +1514,8 @@ vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
     BdrvChild *child;
     int ret = 0;
     VHDXHeader *hdr = NULL;
+
+    GRAPH_RDLOCK_GUARD();
 
     hdr = g_new0(VHDXHeader, 1);
 
@@ -1898,7 +1900,7 @@ exit:
  *    .---- ~ ----------- ~ ------------ ~ ---------------- ~ -----------.
  *   1MB
  */
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vhdx_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsVhdx *vhdx_opts;
@@ -2060,7 +2062,7 @@ delete_and_exit:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vhdx_co_create_opts(BlockDriver *drv, const char *filename,
                     QemuOpts *opts, Error **errp)
 {

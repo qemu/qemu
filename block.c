@@ -533,7 +533,6 @@ int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
     int ret;
     GLOBAL_STATE_CODE();
     ERRP_GUARD();
-    assert_bdrv_graph_readable();
 
     if (!drv->bdrv_co_create_opts) {
         error_setg(errp, "Driver '%s' does not support image creation",

@@ -118,8 +118,9 @@ static int qcow2_crypto_hdr_read_func(QCryptoBlock *block, size_t offset,
 }
 
 
-static int qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
-                                      void *opaque, Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen, void *opaque,
+                           Error **errp)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
@@ -144,9 +145,7 @@ static int qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
      */
     clusterlen = size_to_clusters(s, headerlen) * s->cluster_size;
     assert(qcow2_pre_write_overlap_check(bs, 0, ret, clusterlen, false) == 0);
-    ret = bdrv_pwrite_zeroes(bs->file,
-                             ret,
-                             clusterlen, 0);
+    ret = bdrv_co_pwrite_zeroes(bs->file, ret, clusterlen, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not zero fill encryption header");
         return -1;
@@ -156,9 +155,11 @@ static int qcow2_crypto_hdr_init_func(QCryptoBlock *block, size_t headerlen,
 }
 
 
-static int qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
-                                       const uint8_t *buf, size_t buflen,
-                                       void *opaque, Error **errp)
+/* The graph lock must be held when called in coroutine context */
+static int coroutine_mixed_fn
+qcow2_crypto_hdr_write_func(QCryptoBlock *block, size_t offset,
+                            const uint8_t *buf, size_t buflen,
+                            void *opaque, Error **errp)
 {
     BlockDriverState *bs = opaque;
     BDRVQcow2State *s = bs->opaque;
@@ -3137,9 +3138,10 @@ static int qcow2_change_backing_file(BlockDriverState *bs,
     return qcow2_update_header(bs);
 }
 
-static int qcow2_set_up_encryption(BlockDriverState *bs,
-                                   QCryptoBlockCreateOptions *cryptoopts,
-                                   Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+qcow2_set_up_encryption(BlockDriverState *bs,
+                        QCryptoBlockCreateOptions *cryptoopts,
+                        Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     QCryptoBlock *crypto = NULL;
@@ -3426,7 +3428,7 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
     return refcount_bits;
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_UNLOCKED
 qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 {
     BlockdevCreateOptionsQcow2 *qcow2_opts;
@@ -3724,8 +3726,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
+    bdrv_graph_co_rdlock();
     ret = qcow2_alloc_clusters(blk_bs(blk), 3 * cluster_size);
     if (ret < 0) {
+        bdrv_graph_co_rdunlock();
         error_setg_errno(errp, -ret, "Could not allocate clusters for qcow2 "
                          "header and refcount table");
         goto out;
@@ -3743,6 +3747,8 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 
     /* Create a full header (including things like feature table) */
     ret = qcow2_update_header(blk_bs(blk));
+    bdrv_graph_co_rdunlock();
+
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not update qcow2 header");
         goto out;
@@ -3776,7 +3782,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 
     /* Want encryption? There you go. */
     if (qcow2_opts->encrypt) {
+        bdrv_graph_co_rdlock();
         ret = qcow2_set_up_encryption(blk_bs(blk), qcow2_opts->encrypt, errp);
+        bdrv_graph_co_rdunlock();
+
         if (ret < 0) {
             goto out;
         }
@@ -3813,7 +3822,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
                      Error **errp)
 {
@@ -3933,8 +3942,10 @@ qcow2_co_create_opts(BlockDriver *drv, const char *filename, QemuOpts *opts,
     ret = qcow2_co_create(create_options, errp);
 finish:
     if (ret < 0) {
+        bdrv_graph_co_rdlock();
         bdrv_co_delete_file_noerr(bs);
         bdrv_co_delete_file_noerr(data_bs);
+        bdrv_graph_co_rdunlock();
     } else {
         ret = 0;
     }

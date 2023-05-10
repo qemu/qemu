@@ -522,8 +522,8 @@ out:
 }
 
 
-static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
-                                            Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+parallels_co_create(BlockdevCreateOptions* opts, Error **errp)
 {
     BlockdevCreateOptionsParallels *parallels_opts;
     BlockDriverState *bs;
@@ -622,7 +622,7 @@ exit:
     goto out;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 parallels_co_create_opts(BlockDriver *drv, const char *filename,
                          QemuOpts *opts, Error **errp)
 {

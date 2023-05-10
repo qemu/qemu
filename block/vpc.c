@@ -967,8 +967,8 @@ static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,
     return 0;
 }
 
-static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
-                                      Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vpc_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsVpc *vpc_opts;
     BlockBackend *blk = NULL;
@@ -1087,7 +1087,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vpc_co_create_opts(BlockDriver *drv, const char *filename,
                    QemuOpts *opts, Error **errp)
 {
