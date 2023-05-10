@@ -4,6 +4,8 @@
 #include "hw/isa/isa.h"
 #include "chardev/char.h"
 
+#define TYPE_ISA_PARALLEL "isa-parallel"
+
 void parallel_hds_isa_init(ISABus *bus, int n);
 
 bool parallel_mm_init(MemoryRegion *address_space,
