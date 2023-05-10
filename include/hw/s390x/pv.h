@@ -14,10 +14,10 @@
 
 #include "qapi/error.h"
 #include "sysemu/kvm.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 #ifdef CONFIG_KVM
 #include "cpu.h"
-#include "hw/s390x/s390-virtio-ccw.h"
 
 static inline bool s390_is_pv(void)
 {
@@ -41,7 +41,7 @@ static inline bool s390_is_pv(void)
 int s390_pv_query_info(void);
 int s390_pv_vm_enable(void);
 void s390_pv_vm_disable(void);
-bool s390_pv_vm_try_disable_async(void);
+bool s390_pv_vm_try_disable_async(S390CcwMachineState *ms);
 int s390_pv_set_sec_parms(uint64_t origin, uint64_t length);
 int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak);
 void s390_pv_prep_reset(void);
@@ -61,7 +61,7 @@ static inline bool s390_is_pv(void) { return false; }
 static inline int s390_pv_query_info(void) { return 0; }
 static inline int s390_pv_vm_enable(void) { return 0; }
 static inline void s390_pv_vm_disable(void) {}
-static inline bool s390_pv_vm_try_disable_async(void) { return false; }
+static inline bool s390_pv_vm_try_disable_async(S390CcwMachineState *ms) { return false; }
 static inline int s390_pv_set_sec_parms(uint64_t origin, uint64_t length) { return 0; }
 static inline int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak) { return 0; }
 static inline void s390_pv_prep_reset(void) {}

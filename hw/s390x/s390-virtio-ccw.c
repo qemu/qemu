@@ -330,7 +330,7 @@ static inline void s390_do_cpu_ipl(CPUState *cs, run_on_cpu_data arg)
 
 static void s390_machine_unprotect(S390CcwMachineState *ms)
 {
-    if (!s390_pv_vm_try_disable_async()) {
+    if (!s390_pv_vm_try_disable_async(ms)) {
         s390_pv_vm_disable();
     }
     ms->pv = false;
