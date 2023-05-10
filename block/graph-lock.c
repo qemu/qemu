@@ -162,11 +162,6 @@ void coroutine_fn bdrv_graph_co_rdlock(void)
     BdrvGraphRWlock *bdrv_graph;
     bdrv_graph = qemu_get_current_aio_context()->bdrv_graph;
 
-    /* Do not lock if in main thread */
-    if (qemu_in_main_thread()) {
-        return;
-    }
-
     for (;;) {
         qatomic_set(&bdrv_graph->reader_count,
                     bdrv_graph->reader_count + 1);
@@ -229,11 +224,6 @@ void coroutine_fn bdrv_graph_co_rdunlock(void)
 {
     BdrvGraphRWlock *bdrv_graph;
     bdrv_graph = qemu_get_current_aio_context()->bdrv_graph;
-
-    /* Do not lock if in main thread */
-    if (qemu_in_main_thread()) {
-        return;
-    }
 
     qatomic_store_release(&bdrv_graph->reader_count,
                           bdrv_graph->reader_count - 1);
