@@ -190,12 +190,16 @@ static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
     if ((s->type == TYPE_DISK || s->type == TYPE_ZBC) &&
         (r->req.cmd.buf[1] & 0x01)) {
         page = r->req.cmd.buf[2];
-        if (page == 0xb0) {
+        if (page == 0xb0 && r->buflen >= 8) {
+            uint8_t buf[16] = {};
+            uint8_t buf_used = MIN(r->buflen, 16);
             uint64_t max_transfer = calculate_max_transfer(s);
-            stl_be_p(&r->buf[8], max_transfer);
-            /* Also take care of the opt xfer len. */
-            stl_be_p(&r->buf[12],
-                    MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
+
+            memcpy(buf, r->buf, buf_used);
+            stl_be_p(&buf[8], max_transfer);
+            stl_be_p(&buf[12], MIN_NON_ZERO(max_transfer, ldl_be_p(&buf[12])));
+            memcpy(r->buf + 8, buf + 8, buf_used - 8);
+
         } else if (s->needs_vpd_bl_emulation && page == 0x00 && r->buflen >= 4) {
             /*
              * Now we're capable of supplying the VPD Block Limits
