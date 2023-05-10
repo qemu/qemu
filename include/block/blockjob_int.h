@@ -126,12 +126,18 @@ void block_job_user_resume(Job *job);
  */
 
 /**
- * block_job_ratelimit_get_delay:
+ * block_job_ratelimit_processed_bytes:
  *
- * Calculate and return delay for the next request in ns. See the documentation
- * of ratelimit_calculate_delay() for details.
+ * To be called after some work has been done. Adjusts the delay for the next
+ * request. See the documentation of ratelimit_calculate_delay() for details.
  */
-int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
+void block_job_ratelimit_processed_bytes(BlockJob *job, uint64_t n);
+
+/**
+ * Put the job to sleep (assuming that it wasn't canceled) to throttle it to the
+ * right speed according to its rate limiting.
+ */
+void block_job_ratelimit_sleep(BlockJob *job);
 
 /**
  * block_job_error_action:
