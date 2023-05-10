@@ -24,7 +24,6 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
         - ansible_facts['architecture'] == 'aarch64'
-        - ansible_facts['distribution_version'] == '20.04'
 
     - name: Update apt cache / upgrade packages via apt
       apt:
@@ -33,87 +32,131 @@
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
 
-    - name: Install basic packages to build QEMU on Ubuntu 20.04
+    # lcitool variables -f json ubuntu-2204 qemu | jq -r '.pkgs[]' | xargs -n 1 echo "-"
+    - name: Install basic packages to build QEMU on Ubuntu 22.04
       package:
         name:
+          - bash
+          - bc
+          - bison
+          - bsdextrautils
+          - bzip2
+          - ca-certificates
           - ccache
+          - clang
+          - dbus
+          - debianutils
+          - diffutils
+          - exuberant-ctags
+          - findutils
+          - flex
+          - g++
           - gcc
+          - gcovr
+          - genisoimage
           - gettext
           - git
-          - glusterfs-common
+          - hostname
           - libaio-dev
+          - libasan5
+          - libasound2-dev
           - libattr1-dev
+          - libbpf-dev
           - libbrlapi-dev
           - libbz2-dev
+          - libc6-dev
           - libcacard-dev
-          - libcapstone-dev
           - libcap-ng-dev
+          - libcapstone-dev
+          - libcmocka-dev
           - libcurl4-gnutls-dev
+          - libdaxctl-dev
           - libdrm-dev
           - libepoxy-dev
           - libfdt-dev
+          - libffi-dev
           - libgbm-dev
+          - libgcrypt20-dev
+          - libglib2.0-dev
+          - libglusterfs-dev
+          - libgnutls28-dev
           - libgtk-3-dev
+          - libibumad-dev
           - libibverbs-dev
           - libiscsi-dev
           - libjemalloc-dev
           - libjpeg-turbo8-dev
+          - libjson-c-dev
+          - liblttng-ust-dev
           - liblzo2-dev
-          - libncurses5-dev
           - libncursesw5-dev
           - libnfs-dev
-          - libnss3-dev
           - libnuma-dev
+          - libpam0g-dev
+          - libpcre2-dev
           - libpixman-1-dev
-          - librados-dev
+          - libpmem-dev
+          - libpng-dev
+          - libpulse-dev
           - librbd-dev
           - librdmacm-dev
           - libsasl2-dev
           - libsdl2-dev
+          - libsdl2-image-dev
           - libseccomp-dev
+          - libslirp-dev
           - libsnappy-dev
           - libspice-protocol-dev
+          - libspice-server-dev
           - libssh-dev
+          - libsystemd-dev
+          - libtasn1-6-dev
+          - libubsan1
+          - libudev-dev
+          - liburing-dev
           - libusb-1.0-0-dev
           - libusbredirhost-dev
           - libvdeplug-dev
+          - libvirglrenderer-dev
           - libvte-2.91-dev
+          - libxen-dev
+          - libxml2-dev
           - libzstd-dev
+          - llvm
+          - locales
           - make
-          - python3-yaml
+          - meson
+          - multipath-tools
+          - ncat
+          - nettle-dev
+          - ninja-build
+          - openssh-client
+          - pkgconf
+          - python3
+          - python3-numpy
+          - python3-opencv
+          - python3-pillow
+          - python3-pip
           - python3-sphinx
           - python3-sphinx-rtd-theme
-          - ninja-build
+          - python3-venv
+          - python3-yaml
+          - rpm2cpio
+          - sed
           - sparse
+          - systemtap-sdt-dev
+          - tar
+          - tesseract-ocr
+          - tesseract-ocr-eng
+          - texinfo
           - xfslibs-dev
+          - zlib1g-dev
         state: present
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
+        - ansible_facts['distribution_version'] == '22.04'
 
-    - name: Install packages to build QEMU on Ubuntu 20.04 on non-s390x
-      package:
-        name:
-          - libspice-server-dev
-          - libxen-dev
-        state: present
-      when:
-        - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['architecture'] == 'aarch64' or ansible_facts['architecture'] == 'x86_64'
-
-    - name: Install basic packages to build QEMU on Ubuntu 20.04
-      package:
-        name:
-        # Originally from tests/docker/dockerfiles/ubuntu2004.docker
-          - clang-10
-          - genisoimage
-          - liblttng-ust-dev
-          - libslirp-dev
-          - netcat-openbsd
-      when:
-        - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '20.04'
-
-    - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 20.04
+    - name: Install armhf cross-compile packages to build QEMU on AArch64 Ubuntu 22.04
       package:
         name:
           - binutils-arm-linux-gnueabihf
@@ -128,7 +171,7 @@
           - zlib1g-dev:armhf
       when:
         - ansible_facts['distribution'] == 'Ubuntu'
-        - ansible_facts['distribution_version'] == '20.04'
+        - ansible_facts['distribution_version'] == '22.04'
         - ansible_facts['architecture'] == 'aarch64'
 
     - name: Enable EPEL repo on EL8
