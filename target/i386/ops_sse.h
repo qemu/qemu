@@ -2497,6 +2497,14 @@ void helper_vpermdq_ymm(Reg *d, Reg *v, Reg *s, uint32_t order)
     d->Q(1) = r1;
     d->Q(2) = r2;
     d->Q(3) = r3;
+    if (order & 0x8) {
+        d->Q(0) = 0;
+        d->Q(1) = 0;
+    }
+    if (order & 0x80) {
+        d->Q(2) = 0;
+        d->Q(3) = 0;
+    }
 }
 
 void helper_vpermq_ymm(Reg *d, Reg *s, uint32_t order)
