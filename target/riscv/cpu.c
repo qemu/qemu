@@ -1571,6 +1571,14 @@ static Property riscv_cpu_extensions[] = {
 
     DEFINE_PROP_BOOL("zmmul", RISCVCPU, cfg.ext_zmmul, false),
 
+    DEFINE_PROP_BOOL("zca", RISCVCPU, cfg.ext_zca, false),
+    DEFINE_PROP_BOOL("zcb", RISCVCPU, cfg.ext_zcb, false),
+    DEFINE_PROP_BOOL("zcd", RISCVCPU, cfg.ext_zcd, false),
+    DEFINE_PROP_BOOL("zce", RISCVCPU, cfg.ext_zce, false),
+    DEFINE_PROP_BOOL("zcf", RISCVCPU, cfg.ext_zcf, false),
+    DEFINE_PROP_BOOL("zcmp", RISCVCPU, cfg.ext_zcmp, false),
+    DEFINE_PROP_BOOL("zcmt", RISCVCPU, cfg.ext_zcmt, false),
+
     /* Vendor-specific custom extensions */
     DEFINE_PROP_BOOL("xtheadba", RISCVCPU, cfg.ext_xtheadba, false),
     DEFINE_PROP_BOOL("xtheadbb", RISCVCPU, cfg.ext_xtheadbb, false),
@@ -1587,14 +1595,6 @@ static Property riscv_cpu_extensions[] = {
 
     /* These are experimental so mark with 'x-' */
     DEFINE_PROP_BOOL("x-zicond", RISCVCPU, cfg.ext_zicond, false),
-
-    DEFINE_PROP_BOOL("x-zca", RISCVCPU, cfg.ext_zca, false),
-    DEFINE_PROP_BOOL("x-zcb", RISCVCPU, cfg.ext_zcb, false),
-    DEFINE_PROP_BOOL("x-zcd", RISCVCPU, cfg.ext_zcd, false),
-    DEFINE_PROP_BOOL("x-zce", RISCVCPU, cfg.ext_zce, false),
-    DEFINE_PROP_BOOL("x-zcf", RISCVCPU, cfg.ext_zcf, false),
-    DEFINE_PROP_BOOL("x-zcmp", RISCVCPU, cfg.ext_zcmp, false),
-    DEFINE_PROP_BOOL("x-zcmt", RISCVCPU, cfg.ext_zcmt, false),
 
     /* ePMP 0.9.3 */
     DEFINE_PROP_BOOL("x-epmp", RISCVCPU, cfg.epmp, false),
