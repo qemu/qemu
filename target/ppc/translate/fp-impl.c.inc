@@ -568,6 +568,22 @@ static void store_fpscr_masked(TCGv_i64 fpscr, uint64_t clear_mask,
     gen_helper_store_fpscr(cpu_env, fpscr_masked, st_mask);
 }
 
+static bool trans_MFFS_ISA207(DisasContext *ctx, arg_X_t_rc *a)
+{
+    if (!(ctx->insns_flags2 & PPC2_ISA300)) {
+        /*
+         * Before Power ISA v3.0, MFFS bits 11~15 were reserved, any instruction
+         * with OPCD=63 and XO=583 should be decoded as MFFS.
+         */
+        return trans_MFFS(ctx, a);
+    }
+    /*
+     * For Power ISA v3.0+, return false and let the pattern group
+     * select the correct instruction.
+     */
+    return false;
+}
+
 static bool trans_MFFS(DisasContext *ctx, arg_X_t_rc *a)
 {
     REQUIRE_FPU(ctx);
@@ -584,7 +600,6 @@ static bool trans_MFFSCE(DisasContext *ctx, arg_X_t *a)
 {
     TCGv_i64 fpscr;
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     gen_reset_fpstatus();
@@ -597,7 +612,6 @@ static bool trans_MFFSCRN(DisasContext *ctx, arg_X_tb *a)
 {
     TCGv_i64 t1, fpscr;
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     t1 = tcg_temp_new_i64();
@@ -614,7 +628,6 @@ static bool trans_MFFSCDRN(DisasContext *ctx, arg_X_tb *a)
 {
     TCGv_i64 t1, fpscr;
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     t1 = tcg_temp_new_i64();
@@ -631,7 +644,6 @@ static bool trans_MFFSCRNI(DisasContext *ctx, arg_X_imm2 *a)
 {
     TCGv_i64 t1, fpscr;
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     t1 = tcg_temp_new_i64();
@@ -647,7 +659,6 @@ static bool trans_MFFSCDRNI(DisasContext *ctx, arg_X_imm3 *a)
 {
     TCGv_i64 t1, fpscr;
 
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     t1 = tcg_temp_new_i64();
@@ -661,7 +672,6 @@ static bool trans_MFFSCDRNI(DisasContext *ctx, arg_X_imm3 *a)
 
 static bool trans_MFFSL(DisasContext *ctx, arg_X_t *a)
 {
-    REQUIRE_INSNS_FLAGS2(ctx, ISA300);
     REQUIRE_FPU(ctx);
 
     gen_reset_fpstatus();
