@@ -623,6 +623,7 @@ check_py_version() {
 }
 
 python=
+pypi="enabled"
 first_python=
 if test -z "${PYTHON}"; then
     # A bare 'python' is traditionally python 2.x, but some distros
@@ -888,6 +889,10 @@ for opt do
   --with-git-submodules=*)
       git_submodules_action="$optarg"
   ;;
+  --disable-pypi) pypi="disabled"
+  ;;
+  --enable-pypi) pypi="enabled"
+  ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
@@ -1101,7 +1106,9 @@ python="$(command -v "$python")"
 # Defaults assumed for now:
 # - venv is cleared if it exists already;
 # - venv is allowed to use system packages;
-# - all setup is performed **offline**;
+# - all setup can be performed offline;
+# - missing packages may be fetched from PyPI,
+#   unless --disable-pypi is passed.
 # - pip is not installed into the venv when possible,
 #   but ensurepip is called as a fallback when necessary.
 
@@ -1117,7 +1124,13 @@ fi
 python="$python -B"
 mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
+mkvenv_flags=""
+if test "$pypi" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
 if ! $mkvenv ensure \
+     $mkvenv_flags \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
      "meson>=0.61.5" ;
@@ -1134,8 +1147,14 @@ meson="$(cd pyvenv/bin; pwd)/meson"
 
 # Conditionally ensure Sphinx is installed.
 
+mkvenv_flags=""
+if test "$pypi" = "enabled" -a "$docs" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
 if test "$docs" != "disabled" ; then
     if ! $mkvenv ensure \
+         $mkvenv_flags \
          --diagnose "sphinx-build" \
          "sphinx>=1.6.0" "sphinx-rtd-theme>=0.5.0";
     then
