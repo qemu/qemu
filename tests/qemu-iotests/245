@@ -611,6 +611,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(hd0_opts, {'file': 'hd0-file'})
 
     # Insert (and remove) a compress filter
+    @iotests.skip_if_unsupported(['compress'])
     def test_insert_compress_filter(self):
         # Add an image to the VM: hd (raw) -> hd0 (qcow2) -> hd0-file (file)
         opts = {'driver': 'raw', 'node-name': 'hd', 'file': hd_opts(0)}
@@ -650,9 +651,9 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
         # Check the first byte of the first three L2 entries and verify that
         # the second one is compressed (0x40) while the others are not (0x80)
-        iotests.qemu_io_log('-f', 'raw', '-c', 'read -P 0x80 0x40000 1',
-                                         '-c', 'read -P 0x40 0x40008 1',
-                                         '-c', 'read -P 0x80 0x40010 1', hd_path[0])
+        iotests.qemu_io('-f', 'raw', '-c', 'read -P 0x80 0x40000 1',
+                                     '-c', 'read -P 0x40 0x40008 1',
+                                     '-c', 'read -P 0x80 0x40010 1', hd_path[0])
 
     # Swap the disk images of two active block devices
     def test_swap_files(self):
