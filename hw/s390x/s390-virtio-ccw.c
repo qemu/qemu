@@ -245,6 +245,7 @@ static void s390_create_sclpconsole(const char *type, Chardev *chardev)
 
 static void ccw_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
@@ -292,7 +293,7 @@ static void ccw_init(MachineState *machine)
     }
 
     /* Create VirtIO network adapters */
-    s390_create_virtio_net(BUS(css_bus), "virtio-net-ccw");
+    s390_create_virtio_net(BUS(css_bus), mc->default_nic);
 
     /* init consoles */
     if (serial_hd(0)) {
@@ -746,6 +747,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug_request = s390_machine_device_unplug_request;
     nc->nmi_monitor_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
+    mc->default_nic = "virtio-net-ccw";
 
     object_class_property_add_bool(oc, "aes-key-wrap",
                                    machine_get_aes_key_wrap,
