@@ -1673,7 +1673,6 @@ LINKS="$LINKS python"
 LINKS="$LINKS contrib/plugins/Makefile "
 for f in $LINKS ; do
     if [ -e "$source_path/$f" ]; then
-        mkdir -p "$(dirname ./"$f")"
         symlink "$source_path/$f" "$f"
     fi
 done
