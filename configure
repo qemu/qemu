@@ -279,6 +279,7 @@ debug_tcg="no"
 sanitizers="no"
 tsan="no"
 fortify_source="yes"
+docs="auto"
 EXESUF=""
 modules="no"
 prefix="/usr/local"
@@ -749,6 +750,10 @@ for opt do
   --enable-debug-info) meson_option_add -Ddebug=true
   ;;
   --disable-debug-info) meson_option_add -Ddebug=false
+  ;;
+  --enable-docs) docs=enabled
+  ;;
+  --disable-docs) docs=disabled
   ;;
   --enable-modules)
       modules="yes"
@@ -2615,6 +2620,7 @@ if test "$skip_meson" = no; then
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
+  test "$docs" != auto && meson_option_add "-Ddocs=$docs"
   test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
