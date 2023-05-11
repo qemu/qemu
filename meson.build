@@ -3930,8 +3930,8 @@ if have_block
   summary_info += {'Block whitelist (rw)': get_option('block_drv_rw_whitelist')}
   summary_info += {'Block whitelist (ro)': get_option('block_drv_ro_whitelist')}
   summary_info += {'Use block whitelist in tools': get_option('block_drv_whitelist_in_tools')}
-  summary_info += {'VirtFS support':    have_virtfs}
-  summary_info += {'VirtFS Proxy Helper support': have_virtfs_proxy_helper}
+  summary_info += {'VirtFS (9P) support':    have_virtfs}
+  summary_info += {'VirtFS (9P) Proxy Helper support': have_virtfs_proxy_helper}
   summary_info += {'Live block migration': config_host_data.get('CONFIG_LIVE_BLOCK_MIGRATION')}
   summary_info += {'replication support': config_host_data.get('CONFIG_REPLICATION')}
   summary_info += {'bochs support':     get_option('bochs').allowed()}
