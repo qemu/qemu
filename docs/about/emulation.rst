@@ -99,7 +99,7 @@ depending on the guest architecture.
     - Yes
     - A configurable 32 bit soft core now owned by Cadence
 
-A number of features are are only available when running under
+A number of features are only available when running under
 emulation including :ref:`Record/Replay<replay>` and :ref:`TCG Plugins`.
 
 .. _Semihosting:
