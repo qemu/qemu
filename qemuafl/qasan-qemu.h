@@ -46,7 +46,7 @@ struct shadow_stack_block {
 
   int index;
   target_ulong buf[SHADOW_BK_SIZE];
-  
+
   struct shadow_stack_block* next;
 
 };
@@ -86,6 +86,17 @@ extern __thread struct shadow_stack qasan_shadow_stack;
 #define PC_GET(env) ((env)->active_tc.PC)
 #define BP_GET(env) ((env)->active_tc.gpr[29])
 #define SP_GET(env) ((env)->active_tc.gpr[30])
+
+#elif defined(TARGET_PPC)
+
+#define PC_GET(env) ((env)->nip)
+/*
+ * PPC doesn't really have a frame pointer since stack frames are built into a
+ * linked list. The BP is used only for display purposes in any case, so we will
+ * just use the SP here.
+ */
+#define BP_GET(env) ((env)->gpr[1])
+#define SP_GET(env) ((env)->gpr[1])
 
 #else
 //#error "Target not supported by asan-giovese"

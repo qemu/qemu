@@ -205,4 +205,11 @@ struct mips_regs {
 };
 #endif
 
+struct ppc_regs {
+  target_ulong gpr[32];  /* general purpose registers */
+  target_ulong lr;
+  target_ulong ctr;
+  uint32_t crf[8];       /* condition register */
+};
+
 #endif

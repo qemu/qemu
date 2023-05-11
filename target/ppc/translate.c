@@ -37,6 +37,47 @@
 #include "exec/log.h"
 #include "qemu/atomic128.h"
 
+#include "qemuafl/cpu-translate.h"
+
+#define AFL_QEMU_TARGET_PPC_SNIPPET                                            \
+  if (is_persistent) {                                                         \
+                                                                               \
+    if (ctx->base.pc_next == afl_persistent_addr) {                            \
+                                                                               \
+      gen_helper_afl_persistent_routine(cpu_env);                              \
+                                                                               \
+      if (afl_persistent_ret_addr == 0 && !persistent_exits) {                 \
+                                                                               \
+        tcg_gen_movi_i32(cpu_lr, afl_persistent_addr);                         \
+                                                                               \
+      }                                                                        \
+                                                                               \
+      if (!persistent_save_gpr) afl_gen_tcg_plain_call(&afl_persistent_loop);  \
+                                                                               \
+    } else if (afl_persistent_ret_addr &&                                      \
+               ctx->base.pc_next == afl_persistent_ret_addr) {                 \
+                                                                               \
+      gen_setlr(ctx, afl_persistent_addr);                                     \
+      gen_bclr(ctx);                                                           \
+                                                                               \
+    }                                                                          \
+                                                                               \
+  }
+
+void afl_save_regs(struct api_regs* r, CPUArchState* env) {
+    memcpy(r->gpr, env->gpr, sizeof(r->gpr));
+    r->lr = env->lr;
+    r->ctr = env->ctr;
+    memcpy(r->crf, env->crf, sizeof(r->crf));
+}
+
+void afl_restore_regs(struct api_regs* r, CPUArchState* env) {
+    memcpy(env->gpr, r->gpr, sizeof(r->gpr));
+    env->lr = r->lr;
+    env->ctr = r->ctr;
+    memcpy(env->crf, r->crf, sizeof(r->crf));
+}
+
 
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
@@ -8001,6 +8042,10 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     LOG_DISAS("----------------\n");
     LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
               ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
+
+#if defined(TARGET_PPC)
+    AFL_QEMU_TARGET_PPC_SNIPPET
+#endif
 
     ctx->opcode = translator_ldl_swap(env, ctx->base.pc_next,
                                       need_byteswap(ctx));
