@@ -25,7 +25,7 @@
 #include "qemu/lockable.h"
 #include "trace/trace-root.h"
 
-static QemuMutex qemu_cpu_list_lock;
+QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
 static QemuCond exclusive_resume;
 static QemuCond qemu_work_cond;

@@ -1,16 +1,12 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "qemu/osdep.h"
-#include "disas/dis-asm.h"
+#include "disas/disas-internal.h"
 #include "elf.h"
 #include "qemu/qemu-print.h"
-
 #include "disas/disas.h"
 #include "disas/capstone.h"
-
-typedef struct CPUDebug {
-    struct disassemble_info info;
-    CPUState *cpu;
-} CPUDebug;
+#include "hw/core/cpu.h"
+#include "exec/memory.h"
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 struct syminfo *syminfos = NULL;
@@ -119,18 +115,18 @@ static void initialize_debug(CPUDebug *s)
     s->info.symbol_at_address_func = symbol_at_address;
 }
 
-static void initialize_debug_target(CPUDebug *s, CPUState *cpu)
+void disas_initialize_debug_target(CPUDebug *s, CPUState *cpu)
 {
     initialize_debug(s);
 
     s->cpu = cpu;
     s->info.read_memory_func = target_read_memory;
     s->info.print_address_func = print_address;
-#if TARGET_BIG_ENDIAN
-    s->info.endian = BFD_ENDIAN_BIG;
-#else
-    s->info.endian = BFD_ENDIAN_LITTLE;
-#endif
+    if (target_words_bigendian()) {
+        s->info.endian = BFD_ENDIAN_BIG;
+    } else {
+        s->info.endian =  BFD_ENDIAN_LITTLE;
+    }
 
     CPUClass *cc = CPU_GET_CLASS(cpu);
     if (cc->disas_set_info) {
@@ -168,7 +164,7 @@ static void initialize_debug_host(CPUDebug *s)
 # ifdef _ARCH_PPC64
     s->info.cap_mode = CS_MODE_64;
 # endif
-#elif defined(__riscv) && defined(CONFIG_RISCV_DIS)
+#elif defined(__riscv)
 #if defined(_ILP32) || (__riscv_xlen == 32)
     s->info.print_insn = print_insn_riscv32;
 #elif defined(_LP64)
@@ -204,14 +200,13 @@ static void initialize_debug_host(CPUDebug *s)
 }
 
 /* Disassemble this for me please... (debugging).  */
-void target_disas(FILE *out, CPUState *cpu, target_ulong code,
-                  target_ulong size)
+void target_disas(FILE *out, CPUState *cpu, uint64_t code, size_t size)
 {
-    target_ulong pc;
+    uint64_t pc;
     int count;
     CPUDebug s;
 
-    initialize_debug_target(&s, cpu);
+    disas_initialize_debug_target(&s, cpu);
     s.info.fprintf_func = fprintf;
     s.info.stream = out;
     s.info.buffer_vma = code;
@@ -226,11 +221,12 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 
     for (pc = code; size > 0; pc += count, size -= count) {
-	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
-	count = s.info.print_insn(pc, &s.info);
-	fprintf(out, "\n");
-	if (count < 0)
-	    break;
+        fprintf(out, "0x%08" PRIx64 ":  ", pc);
+        count = s.info.print_insn(pc, &s.info);
+        fprintf(out, "\n");
+        if (count < 0) {
+            break;
+        }
         if (size < count) {
             fprintf(out,
                     "Disassembler disagrees with translator over instruction "
@@ -241,8 +237,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 }
 
-static int G_GNUC_PRINTF(2, 3)
-gstring_printf(FILE *stream, const char *fmt, ...)
+int disas_gstring_printf(FILE *stream, const char *fmt, ...)
 {
     /* We abuse the FILE parameter to pass a GString. */
     GString *s = (GString *)stream;
@@ -272,8 +267,8 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
     CPUDebug s;
     GString *ds = g_string_new(NULL);
 
-    initialize_debug_target(&s, cpu);
-    s.info.fprintf_func = gstring_printf;
+    disas_initialize_debug_target(&s, cpu);
+    s.info.fprintf_func = disas_gstring_printf;
     s.info.stream = (FILE *)ds;  /* abuse this slot */
     s.info.buffer_vma = addr;
     s.info.buffer_length = size;
@@ -292,7 +287,7 @@ char *plugin_disas(CPUState *cpu, uint64_t addr, size_t size)
 }
 
 /* Disassemble this for me please... (debugging). */
-void disas(FILE *out, const void *code, unsigned long size)
+void disas(FILE *out, const void *code, size_t size)
 {
     uintptr_t pc;
     int count;
@@ -324,7 +319,7 @@ void disas(FILE *out, const void *code, unsigned long size)
 }
 
 /* Look up symbol for debugging purpose.  Returns "" if unknown. */
-const char *lookup_symbol(target_ulong orig_addr)
+const char *lookup_symbol(uint64_t orig_addr)
 {
     const char *symbol = "";
     struct syminfo *s;
@@ -338,61 +333,3 @@ const char *lookup_symbol(target_ulong orig_addr)
 
     return symbol;
 }
-
-#if !defined(CONFIG_USER_ONLY)
-
-#include "monitor/monitor.h"
-
-static int
-physical_read_memory(bfd_vma memaddr, bfd_byte *myaddr, int length,
-                     struct disassemble_info *info)
-{
-    CPUDebug *s = container_of(info, CPUDebug, info);
-    MemTxResult res;
-
-    res = address_space_read(s->cpu->as, memaddr, MEMTXATTRS_UNSPECIFIED,
-                             myaddr, length);
-    return res == MEMTX_OK ? 0 : EIO;
-}
-
-/* Disassembler for the monitor.  */
-void monitor_disas(Monitor *mon, CPUState *cpu,
-                   target_ulong pc, int nb_insn, int is_physical)
-{
-    int count, i;
-    CPUDebug s;
-    g_autoptr(GString) ds = g_string_new("");
-
-    initialize_debug_target(&s, cpu);
-    s.info.fprintf_func = gstring_printf;
-    s.info.stream = (FILE *)ds;  /* abuse this slot */
-
-    if (is_physical) {
-        s.info.read_memory_func = physical_read_memory;
-    }
-    s.info.buffer_vma = pc;
-
-    if (s.info.cap_arch >= 0 && cap_disas_monitor(&s.info, pc, nb_insn)) {
-        monitor_puts(mon, ds->str);
-        return;
-    }
-
-    if (!s.info.print_insn) {
-        monitor_printf(mon, "0x" TARGET_FMT_lx
-                       ": Asm output not supported on this arch\n", pc);
-        return;
-    }
-
-    for (i = 0; i < nb_insn; i++) {
-        g_string_append_printf(ds, "0x" TARGET_FMT_lx ":  ", pc);
-        count = s.info.print_insn(pc, &s.info);
-        g_string_append_c(ds, '\n');
-        if (count < 0) {
-            break;
-        }
-        pc += count;
-    }
-
-    monitor_puts(mon, ds->str);
-}
-#endif

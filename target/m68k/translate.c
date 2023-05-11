@@ -959,6 +959,7 @@ static void gen_load_fp(DisasContext *s, int opsize, TCGv addr, TCGv_ptr fp,
     switch (opsize) {
     case OS_BYTE:
     case OS_WORD:
+    case OS_LONG:
         tcg_gen_qemu_ld_tl(tmp, addr, index, opsize | MO_SIGN | MO_TE);
         gen_helper_exts32(cpu_env, fp, tmp);
         break;

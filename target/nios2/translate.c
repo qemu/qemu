@@ -298,6 +298,11 @@ static void gen_ldx(DisasContext *dc, uint32_t code, uint32_t flags)
     TCGv data = dest_gpr(dc, instr.b);
 
     tcg_gen_addi_tl(addr, load_gpr(dc, instr.a), instr.imm16.s);
+#ifdef CONFIG_USER_ONLY
+    flags |= MO_UNALN;
+#else
+    flags |= MO_ALIGN;
+#endif
     tcg_gen_qemu_ld_tl(data, addr, dc->mem_idx, flags);
 }
 
@@ -309,6 +314,11 @@ static void gen_stx(DisasContext *dc, uint32_t code, uint32_t flags)
 
     TCGv addr = tcg_temp_new();
     tcg_gen_addi_tl(addr, load_gpr(dc, instr.a), instr.imm16.s);
+#ifdef CONFIG_USER_ONLY
+    flags |= MO_UNALN;
+#else
+    flags |= MO_ALIGN;
+#endif
     tcg_gen_qemu_st_tl(val, addr, dc->mem_idx, flags);
 }
 

@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/lockable.h"
 #include "sysemu/tcg.h"
 #include "sysemu/replay.h"
 #include "sysemu/cpu-timers.h"
@@ -140,6 +141,33 @@ static void rr_force_rcu(Notifier *notify, void *data)
 }
 
 /*
+ * Calculate the number of CPUs that we will process in a single iteration of
+ * the main CPU thread loop so that we can fairly distribute the instruction
+ * count across CPUs.
+ *
+ * The CPU count is cached based on the CPU list generation ID to avoid
+ * iterating the list every time.
+ */
+static int rr_cpu_count(void)
+{
+    static unsigned int last_gen_id = ~0;
+    static int cpu_count;
+    CPUState *cpu;
+
+    QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
+
+    if (cpu_list_generation_id_get() != last_gen_id) {
+        cpu_count = 0;
+        CPU_FOREACH(cpu) {
+            ++cpu_count;
+        }
+        last_gen_id = cpu_list_generation_id_get();
+    }
+
+    return cpu_count;
+}
+
+/*
  * In the single-threaded case each vCPU is simulated in turn. If
  * there is more than a single vCPU we create a simple timer to kick
  * the vCPU and ensure we don't get stuck in a tight loop in one vCPU.
@@ -185,11 +213,16 @@ static void *rr_cpu_thread_fn(void *arg)
     cpu->exit_request = 1;
 
     while (1) {
+        /* Only used for icount_enabled() */
+        int64_t cpu_budget = 0;
+
         qemu_mutex_unlock_iothread();
         replay_mutex_lock();
         qemu_mutex_lock_iothread();
 
         if (icount_enabled()) {
+            int cpu_count = rr_cpu_count();
+
             /* Account partial waits to QEMU_CLOCK_VIRTUAL.  */
             icount_account_warp_timer();
             /*
@@ -197,6 +230,8 @@ static void *rr_cpu_thread_fn(void *arg)
              * waking up the I/O thread and waiting for completion.
              */
             icount_handle_deadline();
+
+            cpu_budget = icount_percpu_budget(cpu_count);
         }
 
         replay_mutex_unlock();
@@ -218,7 +253,7 @@ static void *rr_cpu_thread_fn(void *arg)
 
                 qemu_mutex_unlock_iothread();
                 if (icount_enabled()) {
-                    icount_prepare_for_run(cpu);
+                    icount_prepare_for_run(cpu, cpu_budget);
                 }
                 r = tcg_cpus_exec(cpu);
                 if (icount_enabled()) {
