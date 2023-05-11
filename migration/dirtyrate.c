@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "exec/ramblock.h"
+#include "exec/target_page.h"
 #include "exec/ram_addr.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
@@ -75,13 +76,11 @@ static inline void record_dirtypages(DirtyPageRecord *dirty_pages,
 static int64_t do_calculate_dirtyrate(DirtyPageRecord dirty_pages,
                                       int64_t calc_time_ms)
 {
-    uint64_t memory_size_MB;
     uint64_t increased_dirty_pages =
         dirty_pages.end_pages - dirty_pages.start_pages;
+    uint64_t memory_size_MiB = qemu_target_pages_to_MiB(increased_dirty_pages);
 
-    memory_size_MB = (increased_dirty_pages * TARGET_PAGE_SIZE) >> 20;
-
-    return memory_size_MB * 1000 / calc_time_ms;
+    return memory_size_MiB * 1000 / calc_time_ms;
 }
 
 void global_dirty_log_change(unsigned int flag, bool start)
@@ -292,8 +291,8 @@ static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
     DirtyStat.page_sampling.total_dirty_samples += info->sample_dirty_count;
     DirtyStat.page_sampling.total_sample_count += info->sample_pages_count;
     /* size of total pages in MB */
-    DirtyStat.page_sampling.total_block_mem_MB += (info->ramblock_pages *
-                                                   TARGET_PAGE_SIZE) >> 20;
+    DirtyStat.page_sampling.total_block_mem_MB +=
+        qemu_target_pages_to_MiB(info->ramblock_pages);
 }
 
 static void update_dirtyrate(uint64_t msec)
