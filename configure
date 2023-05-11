@@ -1090,20 +1090,6 @@ if test -z "$ninja"; then
     fi
 fi
 
-# Check that the C compiler works. Doing this here before testing
-# the host CPU ensures that we had a valid CC to autodetect the
-# $cpu var (and we should bail right here if that's not the case).
-# It also allows the help message to be printed without a CC.
-write_c_skeleton;
-if compile_object ; then
-  : C compiler works ok
-else
-    error_exit "\"$cc\" either does not exist or does not work"
-fi
-if ! compile_prog ; then
-    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
-fi
-
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
 if test -z "$werror" ; then
