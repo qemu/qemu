@@ -1,4 +1,4 @@
-sphinx_build = find_program(get_option('sphinx_build'),
+sphinx_build = find_program(fs.parent(python.full_path()) / 'sphinx-build',
                             required: get_option('docs'))
 
 # Check if tools are available to build documentation.

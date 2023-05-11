@@ -1115,9 +1115,9 @@ fi
 
 # Suppress writing compiled files
 python="$python -B"
+mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
 
-
-if ! $python "${source_path}/python/scripts/mkvenv.py" ensure \
+if ! $mkvenv ensure \
      --dir "${source_path}/python/wheels" \
      --diagnose "meson" \
      "meson>=0.61.5" ;
@@ -1131,6 +1131,23 @@ fi
 # *exclusively*.
 
 meson="$(cd pyvenv/bin; pwd)/meson"
+
+# Conditionally ensure Sphinx is installed.
+
+if test "$docs" != "disabled" ; then
+    if ! $mkvenv ensure \
+         --diagnose "sphinx-build" \
+         "sphinx>=1.6.0" "sphinx-rtd-theme>=0.5.0";
+    then
+        if test "$docs" = "enabled" ; then
+            exit 1
+        fi
+        echo "Sphinx not found/usable, disabling docs."
+        docs=disabled
+    else
+        docs=enabled
+    fi
+fi
 
 # Probe for ninja
 
