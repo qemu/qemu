@@ -401,7 +401,7 @@ static void get_ramblock_dirty_info(RAMBlock *block,
                                 sample_pages_per_gigabytes) >> 30;
     /* Right shift TARGET_PAGE_BITS to calc page count */
     info->ramblock_pages = qemu_ram_get_used_length(block) >>
-                           TARGET_PAGE_BITS;
+                           qemu_target_page_bits();
     info->ramblock_addr = qemu_ram_get_host_addr(block);
     strcpy(info->idstr, qemu_ram_get_idstr(block));
 }
@@ -512,7 +512,7 @@ find_block_matched(RAMBlock *block, int count,
 
     if (infos[i].ramblock_addr != qemu_ram_get_host_addr(block) ||
         infos[i].ramblock_pages !=
-            (qemu_ram_get_used_length(block) >> TARGET_PAGE_BITS)) {
+            (qemu_ram_get_used_length(block) >> qemu_target_page_bits())) {
         trace_find_page_matched(block->idstr);
         return NULL;
     }
