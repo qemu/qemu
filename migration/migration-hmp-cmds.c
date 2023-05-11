@@ -643,6 +643,7 @@ void hmp_migrate_start_postcopy(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+#ifdef CONFIG_REPLICATION
 void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
@@ -650,6 +651,7 @@ void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict)
     qmp_x_colo_lost_heartbeat(&err);
     hmp_handle_error(mon, err);
 }
+#endif
 
 typedef struct HMPMigrationStatus {
     QEMUTimer *timer;

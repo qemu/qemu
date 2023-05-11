@@ -26,9 +26,7 @@
 #include "qemu/rcu.h"
 #include "migration/failover.h"
 #include "migration/ram.h"
-#ifdef CONFIG_REPLICATION
 #include "block/replication.h"
-#endif
 #include "net/colo-compare.h"
 #include "net/colo.h"
 #include "block/block.h"
@@ -65,10 +63,27 @@ static bool colo_runstate_is_stopped(void)
     return runstate_check(RUN_STATE_COLO) || !runstate_is_running();
 }
 
+static void colo_checkpoint_notify(void *opaque)
+{
+    MigrationState *s = opaque;
+    int64_t next_notify_time;
+
+    qemu_event_set(&s->colo_checkpoint_event);
+    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    next_notify_time = s->colo_checkpoint_time + migrate_checkpoint_delay();
+    timer_mod(s->colo_delay_timer, next_notify_time);
+}
+
+void colo_checkpoint_delay_set(void)
+{
+    if (migration_in_colo_state()) {
+        colo_checkpoint_notify(migrate_get_current());
+    }
+}
+
 static void secondary_vm_do_failover(void)
 {
 /* COLO needs enable block-replication */
-#ifdef CONFIG_REPLICATION
     int old_state;
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
@@ -133,14 +148,10 @@ static void secondary_vm_do_failover(void)
     if (mis->migration_incoming_co) {
         qemu_coroutine_enter(mis->migration_incoming_co);
     }
-#else
-    abort();
-#endif
 }
 
 static void primary_vm_do_failover(void)
 {
-#ifdef CONFIG_REPLICATION
     MigrationState *s = migrate_get_current();
     int old_state;
     Error *local_err = NULL;
@@ -181,9 +192,6 @@ static void primary_vm_do_failover(void)
 
     /* Notify COLO thread that failover work is finished */
     qemu_sem_post(&s->colo_exit_sem);
-#else
-    abort();
-#endif
 }
 
 COLOMode get_colo_mode(void)
@@ -217,7 +225,6 @@ void colo_do_failover(void)
     }
 }
 
-#ifdef CONFIG_REPLICATION
 void qmp_xen_set_replication(bool enable, bool primary,
                              bool has_failover, bool failover,
                              Error **errp)
@@ -271,7 +278,6 @@ void qmp_xen_colo_do_checkpoint(Error **errp)
     /* Notify all filters of all NIC to do checkpoint */
     colo_notify_filters_event(COLO_EVENT_CHECKPOINT, errp);
 }
-#endif
 
 COLOStatus *qmp_query_colo_status(Error **errp)
 {
@@ -435,15 +441,11 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
     }
     qemu_mutex_lock_iothread();
 
-#ifdef CONFIG_REPLICATION
     replication_do_checkpoint_all(&local_err);
     if (local_err) {
         qemu_mutex_unlock_iothread();
         goto out;
     }
-#else
-        abort();
-#endif
 
     colo_send_message(s->to_dst_file, COLO_MESSAGE_VMSTATE_SEND, &local_err);
     if (local_err) {
@@ -561,15 +563,11 @@ static void colo_process_checkpoint(MigrationState *s)
     object_unref(OBJECT(bioc));
 
     qemu_mutex_lock_iothread();
-#ifdef CONFIG_REPLICATION
     replication_start_all(REPLICATION_MODE_PRIMARY, &local_err);
     if (local_err) {
         qemu_mutex_unlock_iothread();
         goto out;
     }
-#else
-        abort();
-#endif
 
     vm_start();
     qemu_mutex_unlock_iothread();
@@ -642,17 +640,6 @@ out:
         qemu_fclose(s->rp_state.from_dst_file);
         s->rp_state.from_dst_file = NULL;
     }
-}
-
-void colo_checkpoint_notify(void *opaque)
-{
-    MigrationState *s = opaque;
-    int64_t next_notify_time;
-
-    qemu_event_set(&s->colo_checkpoint_event);
-    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-    next_notify_time = s->colo_checkpoint_time + migrate_checkpoint_delay();
-    timer_mod(s->colo_delay_timer, next_notify_time);
 }
 
 void migrate_start_colo_process(MigrationState *s)
@@ -748,7 +735,6 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
         return;
     }
 
-#ifdef CONFIG_REPLICATION
     replication_get_error_all(&local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -765,9 +751,6 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
         qemu_mutex_unlock_iothread();
         return;
     }
-#else
-    abort();
-#endif
     /* Notify all filters of all NIC to do checkpoint */
     colo_notify_filters_event(COLO_EVENT_CHECKPOINT, &local_err);
 
@@ -874,15 +857,11 @@ void *colo_process_incoming_thread(void *opaque)
     object_unref(OBJECT(bioc));
 
     qemu_mutex_lock_iothread();
-#ifdef CONFIG_REPLICATION
     replication_start_all(REPLICATION_MODE_SECONDARY, &local_err);
     if (local_err) {
         qemu_mutex_unlock_iothread();
         goto out;
     }
-#else
-        abort();
-#endif
     vm_start();
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("stop", "run");

@@ -392,6 +392,18 @@ void migration_incoming_disable_colo(void)
 
 int migration_incoming_enable_colo(void)
 {
+#ifndef CONFIG_REPLICATION
+    error_report("ENABLE_COLO command come in migration stream, but COLO "
+                 "module is not built in");
+    return -ENOTSUP;
+#endif
+
+    if (!migrate_colo()) {
+        error_report("ENABLE_COLO command come in migration stream, but c-colo "
+                     "capability is not set");
+        return -EINVAL;
+    }
+
     if (ram_block_discard_disable(true)) {
         error_report("COLO: cannot disable RAM discard");
         return -EBUSY;
@@ -536,8 +548,15 @@ process_incoming_migration_co(void *opaque)
         /* Else if something went wrong then just fall out of the normal exit */
     }
 
+    if (ret < 0) {
+        error_report("load of migration failed: %s", strerror(-ret));
+        goto fail;
+    }
+
     /* we get COLO info, and know if we are in COLO mode */
-    if (!ret && migration_incoming_colo_enabled()) {
+    if (migration_incoming_colo_enabled()) {
+        QemuThread colo_incoming_thread;
+
         /* Make sure all file formats throw away their mutable metadata */
         bdrv_activate_all(&local_err);
         if (local_err) {
@@ -545,23 +564,18 @@ process_incoming_migration_co(void *opaque)
             goto fail;
         }
 
-        qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
+        qemu_thread_create(&colo_incoming_thread, "COLO incoming",
              colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
-        mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
         qemu_mutex_unlock_iothread();
         /* Wait checkpoint incoming thread exit before free resource */
-        qemu_thread_join(&mis->colo_incoming_thread);
+        qemu_thread_join(&colo_incoming_thread);
         qemu_mutex_lock_iothread();
         /* We hold the global iothread lock, so it is safe here */
         colo_release_ram_cache();
     }
 
-    if (ret < 0) {
-        error_report("load of migration failed: %s", strerror(-ret));
-        goto fail;
-    }
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
     mis->migration_incoming_co = NULL;
@@ -2777,10 +2791,7 @@ static void migration_iteration_finish(MigrationState *s)
         runstate_set(RUN_STATE_POSTMIGRATE);
         break;
     case MIGRATION_STATUS_COLO:
-        if (!migrate_colo()) {
-            error_report("%s: critical error: calling COLO code without "
-                         "COLO enabled", __func__);
-        }
+        assert(migrate_colo());
         migrate_start_colo_process(s);
         s->vm_was_running = true;
         /* Fallthrough */

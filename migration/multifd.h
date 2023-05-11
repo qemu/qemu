@@ -175,6 +175,8 @@ typedef struct {
     uint32_t next_packet_size;
     /* packets sent through this channel */
     uint64_t num_packets;
+    /* ramblock */
+    RAMBlock *block;
     /* ramblock host address */
     uint8_t *host;
     /* non zero pages recv through this channel */

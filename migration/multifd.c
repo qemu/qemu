@@ -281,7 +281,6 @@ static void multifd_send_fill_packet(MultiFDSendParams *p)
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
     MultiFDPacket_t *packet = p->packet;
-    RAMBlock *block;
     int i;
 
     packet->magic = be32_to_cpu(packet->magic);
@@ -331,21 +330,21 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 
     /* make sure that ramblock is 0 terminated */
     packet->ramblock[255] = 0;
-    block = qemu_ram_block_by_name(packet->ramblock);
-    if (!block) {
+    p->block = qemu_ram_block_by_name(packet->ramblock);
+    if (!p->block) {
         error_setg(errp, "multifd: unknown ram block %s",
                    packet->ramblock);
         return -1;
     }
 
-    p->host = block->host;
+    p->host = p->block->host;
     for (i = 0; i < p->normal_num; i++) {
         uint64_t offset = be64_to_cpu(packet->offset[i]);
 
-        if (offset > (block->used_length - p->page_size)) {
+        if (offset > (p->block->used_length - p->page_size)) {
             error_setg(errp, "multifd: offset too long %" PRIu64
                        " (max " RAM_ADDR_FMT ")",
-                       offset, block->used_length);
+                       offset, p->block->used_length);
             return -1;
         }
         p->normal[i] = offset;

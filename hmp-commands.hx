@@ -1052,6 +1052,7 @@ SRST
   migration (or once already in postcopy).
 ERST
 
+#ifdef CONFIG_REPLICATION
     {
         .name       = "x_colo_lost_heartbeat",
         .args_type  = "",
@@ -1060,6 +1061,7 @@ ERST
                       "a failover or takeover is needed.",
         .cmd = hmp_x_colo_lost_heartbeat,
     },
+#endif
 
 SRST
 ``x_colo_lost_heartbeat``

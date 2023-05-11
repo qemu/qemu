@@ -13,8 +13,6 @@ softmmu_ss.add(files(
   'block-dirty-bitmap.c',
   'channel.c',
   'channel-block.c',
-  'colo-failover.c',
-  'colo.c',
   'exec.c',
   'fd.c',
   'global_state.c',
@@ -32,6 +30,10 @@ softmmu_ss.add(files(
   'tls.c',
   'threadinfo.c',
 ), gnutls)
+
+if get_option('replication').allowed()
+  softmmu_ss.add(files('colo-failover.c', 'colo.c'))
+endif
 
 softmmu_ss.add(when: rdma, if_true: files('rdma.c'))
 if get_option('live_block_migration').allowed()
