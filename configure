@@ -177,29 +177,18 @@ then
   error_exit "main directory cannot contain spaces nor colons"
 fi
 
+# parse CC options first; some compiler tests are used to establish
+# some defaults, based on the host environment
+
 # default parameters
 cpu=""
-static="no"
 cross_compile="no"
 cross_prefix=""
 host_cc="cc"
-use_containers="yes"
-gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
-gdb_arches=""
-
-if test -e "$source_path/.git"
-then
-    git_submodules_action="update"
-else
-    git_submodules_action="ignore"
-fi
-
-git_submodules="ui/keycodemapdb"
-git="git"
-
-# Don't accept a target_list environment variable.
-unset target_list
-unset target_list_exclude
+EXTRA_CFLAGS=""
+EXTRA_CXXFLAGS=""
+EXTRA_OBJCFLAGS=""
+EXTRA_LDFLAGS=""
 
 # Default value for a variable defining feature "foo".
 #  * foo="no"  feature will only be used if --enable-foo arg is given
@@ -212,49 +201,8 @@ unset target_list_exclude
 # Always add --enable-foo and --disable-foo command line args.
 # Distributions want to ensure that several features are compiled in, and it
 # is impossible without a --enable-foo that exits if a feature is not found.
-
 default_feature=""
-# parse CC options second
-for opt do
-  optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
-  case "$opt" in
-      --without-default-features)
-          default_feature="no"
-  ;;
-  esac
-done
 
-EXTRA_CFLAGS=""
-EXTRA_CXXFLAGS=""
-EXTRA_OBJCFLAGS=""
-EXTRA_LDFLAGS=""
-
-debug_tcg="no"
-docs="auto"
-EXESUF=""
-prefix="/usr/local"
-qemu_suffix="qemu"
-softmmu="yes"
-linux_user=""
-bsd_user=""
-pie=""
-plugins="$default_feature"
-ninja=""
-bindir="bin"
-skip_meson=no
-vfio_user_server="disabled"
-
-# The following Meson options are handled manually (still they
-# are included in the automatically generated help message)
-
-# 1. Track which submodules are needed
-fdt="auto"
-
-# 2. Automatically enable/disable other options
-tcg="auto"
-cfi="false"
-
-# parse CC options second
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
   case "$opt" in
@@ -293,8 +241,59 @@ for opt do
   --cross-prefix-*) cc_arch=${opt#--cross-prefix-}; cc_arch=${cc_arch%%=*}
                     eval "cross_prefix_${cc_arch}=\$optarg"
   ;;
+  --without-default-features) default_feature="no"
+  ;;
   esac
 done
+
+
+if test -e "$source_path/.git"
+then
+    git_submodules_action="update"
+else
+    git_submodules_action="ignore"
+fi
+
+git_submodules="ui/keycodemapdb"
+git="git"
+debug_tcg="no"
+docs="auto"
+EXESUF=""
+prefix="/usr/local"
+qemu_suffix="qemu"
+softmmu="yes"
+linux_user=""
+bsd_user=""
+plugins="$default_feature"
+ninja=""
+python=
+pypi="enabled"
+bindir="bin"
+skip_meson=no
+vfio_user_server="disabled"
+use_containers="yes"
+gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
+gdb_arches=""
+werror=""
+
+# Don't accept a target_list environment variable.
+unset target_list
+unset target_list_exclude
+
+# The following Meson options are handled manually (still they
+# are included in the automatically generated help message)
+
+# 1. Track which submodules are needed
+fdt="auto"
+
+# 2. Automatically enable/disable other options
+tcg="auto"
+cfi="false"
+
+# 3. Need to check for -static-pie before Meson runs.  Also,
+# Meson has PIE as a boolean rather than enabled/disabled/auto.
+pie=""
+static="no"
 
 # Preferred compiler:
 #  ${CC} (if set)
@@ -536,8 +535,6 @@ check_py_version() {
     "$1" -c 'import sys; sys.exit(sys.version_info < (3,7))'
 }
 
-python=
-pypi="enabled"
 first_python=
 if test -z "${PYTHON}"; then
     # A bare 'python' is traditionally python 2.x, but some distros
@@ -583,8 +580,6 @@ if test "$mingw32" = "yes" ; then
   bindir=""
   qemu_suffix=""
 fi
-
-werror=""
 
 meson_option_build_array() {
   printf '['
