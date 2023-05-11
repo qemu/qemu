@@ -313,6 +313,7 @@ static void update_dirtyrate(uint64_t msec)
  */
 static uint32_t compute_page_hash(void *ptr)
 {
+    size_t page_size = qemu_target_page_size();
     uint32_t i;
     uint64_t v1, v2, v3, v4;
     uint64_t res;
@@ -322,14 +323,14 @@ static uint32_t compute_page_hash(void *ptr)
     v2 = QEMU_XXHASH_SEED + XXH_PRIME64_2;
     v3 = QEMU_XXHASH_SEED + 0;
     v4 = QEMU_XXHASH_SEED - XXH_PRIME64_1;
-    for (i = 0; i < TARGET_PAGE_SIZE / 8; i += 4) {
+    for (i = 0; i < page_size / 8; i += 4) {
         v1 = XXH64_round(v1, p[i + 0]);
         v2 = XXH64_round(v2, p[i + 1]);
         v3 = XXH64_round(v3, p[i + 2]);
         v4 = XXH64_round(v4, p[i + 3]);
     }
     res = XXH64_mergerounds(v1, v2, v3, v4);
-    res += TARGET_PAGE_SIZE;
+    res += page_size;
     res = XXH64_avalanche(res);
     return (uint32_t)(res & UINT32_MAX);
 }
@@ -344,7 +345,8 @@ static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
 {
     uint32_t hash;
 
-    hash = compute_page_hash(info->ramblock_addr + vfn * TARGET_PAGE_SIZE);
+    hash = compute_page_hash(info->ramblock_addr +
+                             vfn * qemu_target_page_size());
 
     trace_get_ramblock_vfn_hash(info->idstr, vfn, hash);
     return hash;
