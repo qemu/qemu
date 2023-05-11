@@ -232,6 +232,7 @@ static void r2d_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     SuperHCPU *cpu;
     CPUSH4State *env;
     ResetData *reset_info;
@@ -310,7 +311,7 @@ static void r2d_init(MachineState *machine)
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], pci_bus,
-                            "rtl8139", i == 0 ? "2" : NULL);
+                            mc->default_nic, i == 0 ? "2" : NULL);
 
     /* USB keyboard */
     usb_create_simple(usb_bus_find(-1), "usb-kbd");
@@ -375,6 +376,7 @@ static void r2d_machine_init(MachineClass *mc)
     mc->init = r2d_init;
     mc->block_default_type = IF_IDE;
     mc->default_cpu_type = TYPE_SH7751R_CPU;
+    mc->default_nic = "rtl8139";
 }
 
 DEFINE_MACHINE("r2d", r2d_machine_init)
