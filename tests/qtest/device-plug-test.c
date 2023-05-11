@@ -156,7 +156,14 @@ static void test_q35_pci_unplug_json_request(void)
 
 static void test_ccw_unplug(void)
 {
-    QTestState *qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
+    QTestState *qtest;
+
+    if (!qtest_has_device("virtio-balloon-ccw")) {
+        g_test_skip("Device virtio-balloon-ccw not available");
+        return;
+    }
+
+    qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
 
     qtest_qmp_device_del_send(qtest, "dev0");
     wait_device_deleted_event(qtest, "dev0");
