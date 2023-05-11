@@ -38,8 +38,10 @@ from importlib.util import find_spec
 import logging
 import os
 from pathlib import Path
+import site
 import subprocess
 import sys
+import sysconfig
 from types import SimpleNamespace
 from typing import Any, Optional, Union
 import venv
@@ -52,6 +54,11 @@ DirType = Union[str, bytes, "os.PathLike[str]", "os.PathLike[bytes]"]
 logger = logging.getLogger("mkvenv")
 
 
+def inside_a_venv() -> bool:
+    """Returns True if it is executed inside of a virtual environment."""
+    return sys.prefix != sys.base_prefix
+
+
 class Ouch(RuntimeError):
     """An Exception class we can't confuse with a builtin."""
 
@@ -60,10 +67,9 @@ class QemuEnvBuilder(venv.EnvBuilder):
     """
     An extension of venv.EnvBuilder for building QEMU's configure-time venv.
 
-    As of this commit, it does not yet do anything particularly
-    different than the standard venv-creation utility. The next several
-    commits will gradually change that in small commits that highlight
-    each feature individually.
+    The primary difference is that it emulates a "nested" virtual
+    environment when invoked from inside of an existing virtual
+    environment by including packages from the parent.
 
     Parameters for base class init:
       - system_site_packages: bool = False
@@ -78,6 +84,18 @@ class QemuEnvBuilder(venv.EnvBuilder):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         logger.debug("QemuEnvBuilder.__init__(...)")
 
+        # For nested venv emulation:
+        self.use_parent_packages = False
+        if inside_a_venv():
+            # Include parent packages only if we're in a venv and
+            # system_site_packages was True.
+            self.use_parent_packages = kwargs.pop(
+                "system_site_packages", False
+            )
+            # Include system_site_packages only when the parent,
+            # The venv we are currently in, also does so.
+            kwargs["system_site_packages"] = sys.base_prefix in site.PREFIXES
+
         if kwargs.get("with_pip", False):
             check_ensurepip()
 
@@ -86,10 +104,70 @@ class QemuEnvBuilder(venv.EnvBuilder):
         # Make the context available post-creation:
         self._context: Optional[SimpleNamespace] = None
 
+    def get_parent_libpath(self) -> Optional[str]:
+        """Return the libpath of the parent venv, if applicable."""
+        if self.use_parent_packages:
+            return sysconfig.get_path("purelib")
+        return None
+
+    @staticmethod
+    def compute_venv_libpath(context: SimpleNamespace) -> str:
+        """
+        Compatibility wrapper for context.lib_path for Python < 3.12
+        """
+        # Python 3.12+, not strictly necessary because it's documented
+        # to be the same as 3.10 code below:
+        if sys.version_info >= (3, 12):
+            return context.lib_path
+
+        # Python 3.10+
+        if "venv" in sysconfig.get_scheme_names():
+            lib_path = sysconfig.get_path(
+                "purelib", scheme="venv", vars={"base": context.env_dir}
+            )
+            assert lib_path is not None
+            return lib_path
+
+        # For Python <= 3.9 we need to hardcode this. Fortunately the
+        # code below was the same in Python 3.6-3.10, so there is only
+        # one case.
+        if sys.platform == "win32":
+            return os.path.join(context.env_dir, "Lib", "site-packages")
+        return os.path.join(
+            context.env_dir,
+            "lib",
+            "python%d.%d" % sys.version_info[:2],
+            "site-packages",
+        )
+
     def ensure_directories(self, env_dir: DirType) -> SimpleNamespace:
         logger.debug("ensure_directories(env_dir=%s)", env_dir)
         self._context = super().ensure_directories(env_dir)
         return self._context
+
+    def create(self, env_dir: DirType) -> None:
+        logger.debug("create(env_dir=%s)", env_dir)
+        super().create(env_dir)
+        assert self._context is not None
+        self.post_post_setup(self._context)
+
+    def post_post_setup(self, context: SimpleNamespace) -> None:
+        """
+        The final, final hook. Enter the venv and run commands inside of it.
+        """
+        if self.use_parent_packages:
+            # We're inside of a venv and we want to include the parent
+            # venv's packages.
+            parent_libpath = self.get_parent_libpath()
+            assert parent_libpath is not None
+            logger.debug("parent_libpath: %s", parent_libpath)
+
+            our_libpath = self.compute_venv_libpath(context)
+            logger.debug("our_libpath: %s", our_libpath)
+
+            pth_file = os.path.join(our_libpath, "nested.pth")
+            with open(pth_file, "w", encoding="UTF-8") as file:
+                file.write(parent_libpath + os.linesep)
 
     def get_value(self, field: str) -> str:
         """
@@ -183,9 +261,12 @@ def make_venv(  # pylint: disable=too-many-arguments
     )
 
     style = "non-isolated" if builder.system_site_packages else "isolated"
+    nested = ""
+    if builder.use_parent_packages:
+        nested = f"(with packages from '{builder.get_parent_libpath()}') "
     print(
         f"mkvenv: Creating {style} virtual environment"
-        f" at '{str(env_dir)}'",
+        f" {nested}at '{str(env_dir)}'",
         file=sys.stderr,
     )
 
