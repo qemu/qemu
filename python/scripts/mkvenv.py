@@ -854,6 +854,7 @@ def main() -> int:
     subparsers = parser.add_subparsers(
         title="Commands",
         dest="command",
+        required=True,
         metavar="command",
         help="Description",
     )
