@@ -693,10 +693,6 @@ for opt do
   ;;
   --cross-prefix-*)
   ;;
-  --enable-debug-info) meson_option_add -Ddebug=true
-  ;;
-  --disable-debug-info) meson_option_add -Ddebug=false
-  ;;
   --enable-docs) docs=enabled
   ;;
   --disable-docs) docs=disabled
@@ -972,7 +968,6 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
   debug-tcg       TCG debugging (default is disabled)
-  debug-info      debugging information
 
 NOTE: The object files are built at the place where configure is launched
 EOF
