@@ -11,6 +11,7 @@ options:
 Commands:
   command     Description
     create    create a venv
+    ensure    Ensure that the specified package is installed.
 
 --------------------------------------------------
 
@@ -21,6 +22,18 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+
+--------------------------------------------------
+
+usage: mkvenv ensure [-h] [--online] [--dir DIR] dep_spec...
+
+positional arguments:
+  dep_spec    PEP 508 Dependency specification, e.g. 'meson>=0.61.5'
+
+options:
+  -h, --help  show this help message and exit
+  --online    Install packages from PyPI, if necessary.
+  --dir DIR   Path to vendored packages where we may install from.
 
 """
 
@@ -43,8 +56,17 @@ import subprocess
 import sys
 import sysconfig
 from types import SimpleNamespace
-from typing import Any, Optional, Union
+from typing import (
+    Any,
+    Optional,
+    Sequence,
+    Union,
+)
 import venv
+import warnings
+
+import distlib.database
+import distlib.version
 
 
 # Do not add any mandatory dependencies from outside the stdlib:
@@ -309,6 +331,77 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
+def pip_install(
+    args: Sequence[str],
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to install a package or package(s) as specified in @args.
+    """
+    loud = bool(
+        os.environ.get("DEBUG")
+        or os.environ.get("GITLAB_CI")
+        or os.environ.get("V")
+    )
+
+    full_args = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--disable-pip-version-check",
+        "-v" if loud else "-q",
+    ]
+    if not online:
+        full_args += ["--no-index"]
+    if wheels_dir:
+        full_args += ["--find-links", f"file://{str(wheels_dir)}"]
+    full_args += list(args)
+    subprocess.run(
+        full_args,
+        check=True,
+    )
+
+
+def ensure(
+    dep_specs: Sequence[str],
+    online: bool = False,
+    wheels_dir: Optional[Union[str, Path]] = None,
+) -> None:
+    """
+    Use pip to ensure we have the package specified by @dep_specs.
+
+    If the package is already installed, do nothing. If online and
+    wheels_dir are both provided, prefer packages found in wheels_dir
+    first before connecting to PyPI.
+
+    :param dep_specs:
+        PEP 508 dependency specifications. e.g. ['meson>=0.61.5'].
+    :param online: If True, fall back to PyPI.
+    :param wheels_dir: If specified, search this path for packages.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=UserWarning, module="distlib"
+        )
+        dist_path = distlib.database.DistributionPath(include_egg=True)
+        absent = []
+        for spec in dep_specs:
+            matcher = distlib.version.LegacyMatcher(spec)
+            dist = dist_path.get_distribution(matcher.name)
+            if dist is None or not matcher.match(dist.version):
+                absent.append(spec)
+            else:
+                logger.info("found %s", dist)
+
+    if absent:
+        # Some packages are missing or aren't a suitable version,
+        # install a suitable (possibly vendored) package.
+        print(f"mkvenv: installing {', '.join(absent)}", file=sys.stderr)
+        pip_install(args=absent, online=online, wheels_dir=wheels_dir)
+
+
 def _add_create_subcommand(subparsers: Any) -> None:
     subparser = subparsers.add_parser("create", help="create a venv")
     subparser.add_argument(
@@ -319,13 +412,42 @@ def _add_create_subcommand(subparsers: Any) -> None:
     )
 
 
+def _add_ensure_subcommand(subparsers: Any) -> None:
+    subparser = subparsers.add_parser(
+        "ensure", help="Ensure that the specified package is installed."
+    )
+    subparser.add_argument(
+        "--online",
+        action="store_true",
+        help="Install packages from PyPI, if necessary.",
+    )
+    subparser.add_argument(
+        "--dir",
+        type=str,
+        action="store",
+        help="Path to vendored packages where we may install from.",
+    )
+    subparser.add_argument(
+        "dep_specs",
+        type=str,
+        action="store",
+        help="PEP 508 Dependency specification, e.g. 'meson>=0.61.5'",
+        nargs="+",
+    )
+
+
 def main() -> int:
     """CLI interface to make_qemu_venv. See module docstring."""
     if os.environ.get("DEBUG") or os.environ.get("GITLAB_CI"):
         # You're welcome.
         logging.basicConfig(level=logging.DEBUG)
-    elif os.environ.get("V"):
-        logging.basicConfig(level=logging.INFO)
+    else:
+        if os.environ.get("V"):
+            logging.basicConfig(level=logging.INFO)
+
+        # These are incredibly noisy even for V=1
+        logging.getLogger("distlib.metadata").addFilter(lambda record: False)
+        logging.getLogger("distlib.database").addFilter(lambda record: False)
 
     parser = argparse.ArgumentParser(
         prog="mkvenv",
@@ -339,6 +461,7 @@ def main() -> int:
     )
 
     _add_create_subcommand(subparsers)
+    _add_ensure_subcommand(subparsers)
 
     args = parser.parse_args()
     try:
@@ -347,6 +470,12 @@ def main() -> int:
                 args.target,
                 system_site_packages=True,
                 clear=True,
+            )
+        if args.command == "ensure":
+            ensure(
+                dep_specs=args.dep_specs,
+                online=args.online,
+                wheels_dir=args.dir,
             )
         logger.debug("mkvenv.py %s: exiting", args.command)
     except Ouch as exc:

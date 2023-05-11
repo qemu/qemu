@@ -16,6 +16,9 @@ urwid==2.1.2
 urwid-readline==0.13
 Pygments==2.9.0
 
+# Dependencies for mkvenv
+distlib==0.3.6
+
 # Dependencies for FUSE support for qom-fuse
 fusepy==2.0.4
 
