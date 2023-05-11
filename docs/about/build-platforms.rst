@@ -98,7 +98,7 @@ Python runtime
   option of the ``configure`` script to point QEMU to a supported
   version of the Python runtime.
 
-  As of QEMU |version|, the minimum supported version of Python is 3.6.
+  As of QEMU |version|, the minimum supported version of Python is 3.7.
 
 Python build dependencies
   Some of QEMU's build dependencies are written in Python.  Usually these
