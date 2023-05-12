@@ -124,3 +124,5 @@ CBZ             sf:1 011010 nz:1 ................... rt:5 &cbz imm=%imm19
 &tbz       rt imm nz bitpos
 
 TBZ             . 011011 nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=%imm31_19
+
+B_cond          0101010 0 ................... 0 cond:4 imm=%imm19
