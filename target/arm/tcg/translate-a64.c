@@ -4431,82 +4431,103 @@ static bool trans_MOVK(DisasContext *s, arg_movw *a)
     return true;
 }
 
-/* Bitfield
- *   31  30 29 28         23 22  21  16 15  10 9    5 4    0
- * +----+-----+-------------+---+------+------+------+------+
- * | sf | opc | 1 0 0 1 1 0 | N | immr | imms |  Rn  |  Rd  |
- * +----+-----+-------------+---+------+------+------+------+
+/*
+ * Bitfield
  */
-static void disas_bitfield(DisasContext *s, uint32_t insn)
+
+static bool trans_SBFM(DisasContext *s, arg_SBFM *a)
 {
-    unsigned int sf, n, opc, ri, si, rn, rd, bitsize, pos, len;
-    TCGv_i64 tcg_rd, tcg_tmp;
+    TCGv_i64 tcg_rd = cpu_reg(s, a->rd);
+    TCGv_i64 tcg_tmp = read_cpu_reg(s, a->rn, 1);
+    unsigned int bitsize = a->sf ? 64 : 32;
+    unsigned int ri = a->immr;
+    unsigned int si = a->imms;
+    unsigned int pos, len;
 
-    sf = extract32(insn, 31, 1);
-    opc = extract32(insn, 29, 2);
-    n = extract32(insn, 22, 1);
-    ri = extract32(insn, 16, 6);
-    si = extract32(insn, 10, 6);
-    rn = extract32(insn, 5, 5);
-    rd = extract32(insn, 0, 5);
-    bitsize = sf ? 64 : 32;
-
-    if (sf != n || ri >= bitsize || si >= bitsize || opc > 2) {
-        unallocated_encoding(s);
-        return;
-    }
-
-    tcg_rd = cpu_reg(s, rd);
-
-    /* Suppress the zero-extend for !sf.  Since RI and SI are constrained
-       to be smaller than bitsize, we'll never reference data outside the
-       low 32-bits anyway.  */
-    tcg_tmp = read_cpu_reg(s, rn, 1);
-
-    /* Recognize simple(r) extractions.  */
     if (si >= ri) {
         /* Wd<s-r:0> = Wn<s:r> */
         len = (si - ri) + 1;
-        if (opc == 0) { /* SBFM: ASR, SBFX, SXTB, SXTH, SXTW */
-            tcg_gen_sextract_i64(tcg_rd, tcg_tmp, ri, len);
-            goto done;
-        } else if (opc == 2) { /* UBFM: UBFX, LSR, UXTB, UXTH */
-            tcg_gen_extract_i64(tcg_rd, tcg_tmp, ri, len);
-            return;
+        tcg_gen_sextract_i64(tcg_rd, tcg_tmp, ri, len);
+        if (!a->sf) {
+            tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
         }
-        /* opc == 1, BFXIL fall through to deposit */
+    } else {
+        /* Wd<32+s-r,32-r> = Wn<s:0> */
+        len = si + 1;
+        pos = (bitsize - ri) & (bitsize - 1);
+
+        if (len < ri) {
+            /*
+             * Sign extend the destination field from len to fill the
+             * balance of the word.  Let the deposit below insert all
+             * of those sign bits.
+             */
+            tcg_gen_sextract_i64(tcg_tmp, tcg_tmp, 0, len);
+            len = ri;
+        }
+
+        /*
+         * We start with zero, and we haven't modified any bits outside
+         * bitsize, therefore no final zero-extension is unneeded for !sf.
+         */
+        tcg_gen_deposit_z_i64(tcg_rd, tcg_tmp, pos, len);
+    }
+    return true;
+}
+
+static bool trans_UBFM(DisasContext *s, arg_UBFM *a)
+{
+    TCGv_i64 tcg_rd = cpu_reg(s, a->rd);
+    TCGv_i64 tcg_tmp = read_cpu_reg(s, a->rn, 1);
+    unsigned int bitsize = a->sf ? 64 : 32;
+    unsigned int ri = a->immr;
+    unsigned int si = a->imms;
+    unsigned int pos, len;
+
+    tcg_rd = cpu_reg(s, a->rd);
+    tcg_tmp = read_cpu_reg(s, a->rn, 1);
+
+    if (si >= ri) {
+        /* Wd<s-r:0> = Wn<s:r> */
+        len = (si - ri) + 1;
+        tcg_gen_extract_i64(tcg_rd, tcg_tmp, ri, len);
+    } else {
+        /* Wd<32+s-r,32-r> = Wn<s:0> */
+        len = si + 1;
+        pos = (bitsize - ri) & (bitsize - 1);
+        tcg_gen_deposit_z_i64(tcg_rd, tcg_tmp, pos, len);
+    }
+    return true;
+}
+
+static bool trans_BFM(DisasContext *s, arg_BFM *a)
+{
+    TCGv_i64 tcg_rd = cpu_reg(s, a->rd);
+    TCGv_i64 tcg_tmp = read_cpu_reg(s, a->rn, 1);
+    unsigned int bitsize = a->sf ? 64 : 32;
+    unsigned int ri = a->immr;
+    unsigned int si = a->imms;
+    unsigned int pos, len;
+
+    tcg_rd = cpu_reg(s, a->rd);
+    tcg_tmp = read_cpu_reg(s, a->rn, 1);
+
+    if (si >= ri) {
+        /* Wd<s-r:0> = Wn<s:r> */
         tcg_gen_shri_i64(tcg_tmp, tcg_tmp, ri);
+        len = (si - ri) + 1;
         pos = 0;
     } else {
-        /* Handle the ri > si case with a deposit
-         * Wd<32+s-r,32-r> = Wn<s:0>
-         */
+        /* Wd<32+s-r,32-r> = Wn<s:0> */
         len = si + 1;
         pos = (bitsize - ri) & (bitsize - 1);
     }
 
-    if (opc == 0 && len < ri) {
-        /* SBFM: sign extend the destination field from len to fill
-           the balance of the word.  Let the deposit below insert all
-           of those sign bits.  */
-        tcg_gen_sextract_i64(tcg_tmp, tcg_tmp, 0, len);
-        len = ri;
-    }
-
-    if (opc == 1) { /* BFM, BFXIL */
-        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
-    } else {
-        /* SBFM or UBFM: We start with zero, and we haven't modified
-           any bits outside bitsize, therefore the zero-extension
-           below is unneeded.  */
-        tcg_gen_deposit_z_i64(tcg_rd, tcg_tmp, pos, len);
-        return;
-    }
-
- done:
-    if (!sf) { /* zero extend final result */
+    tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_tmp, pos, len);
+    if (!a->sf) {
         tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
     }
+    return true;
 }
 
 /* Extract
@@ -4573,9 +4594,6 @@ static void disas_extract(DisasContext *s, uint32_t insn)
 static void disas_data_proc_imm(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 23, 6)) {
-    case 0x26: /* Bitfield */
-        disas_bitfield(s, insn);
-        break;
     case 0x27: /* Extract */
         disas_extract(s, insn);
         break;

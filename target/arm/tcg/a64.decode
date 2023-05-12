@@ -84,3 +84,16 @@ MOVZ            . 10 100101 .. ................ .....   @movw_64
 MOVZ            . 10 100101 .. ................ .....   @movw_32
 MOVK            . 11 100101 .. ................ .....   @movw_64
 MOVK            . 11 100101 .. ................ .....   @movw_32
+
+# Bitfield
+
+&bitfield       rd rn sf immr imms
+@bitfield_64    1 .. ...... 1 immr:6 imms:6 rn:5 rd:5      &bitfield sf=1
+@bitfield_32    0 .. ...... 0 0 immr:5 0 imms:5 rn:5 rd:5  &bitfield sf=0
+
+SBFM            . 00 100110 . ...... ...... ..... ..... @bitfield_64
+SBFM            . 00 100110 . ...... ...... ..... ..... @bitfield_32
+BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_64
+BFM             . 01 100110 . ...... ...... ..... ..... @bitfield_32
+UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_64
+UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_32
