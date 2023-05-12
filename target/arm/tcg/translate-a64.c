@@ -1388,6 +1388,53 @@ static bool trans_B_cond(DisasContext *s, arg_B_cond *a)
     return true;
 }
 
+static void set_btype_for_br(DisasContext *s, int rn)
+{
+    if (dc_isar_feature(aa64_bti, s)) {
+        /* BR to {x16,x17} or !guard -> 1, else 3.  */
+        set_btype(s, rn == 16 || rn == 17 || !s->guarded_page ? 1 : 3);
+    }
+}
+
+static void set_btype_for_blr(DisasContext *s)
+{
+    if (dc_isar_feature(aa64_bti, s)) {
+        /* BLR sets BTYPE to 2, regardless of source guarded page.  */
+        set_btype(s, 2);
+    }
+}
+
+static bool trans_BR(DisasContext *s, arg_r *a)
+{
+    gen_a64_set_pc(s, cpu_reg(s, a->rn));
+    set_btype_for_br(s, a->rn);
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
+static bool trans_BLR(DisasContext *s, arg_r *a)
+{
+    TCGv_i64 dst = cpu_reg(s, a->rn);
+    TCGv_i64 lr = cpu_reg(s, 30);
+    if (dst == lr) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_mov_i64(tmp, dst);
+        dst = tmp;
+    }
+    gen_pc_plus_diff(s, lr, curr_insn_len(s));
+    gen_a64_set_pc(s, dst);
+    set_btype_for_blr(s);
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
+static bool trans_RET(DisasContext *s, arg_r *a)
+{
+    gen_a64_set_pc(s, cpu_reg(s, a->rn));
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
 /* HINT instruction group, including various allocated HINTs */
 static void handle_hint(DisasContext *s, uint32_t insn,
                         unsigned int op1, unsigned int op2, unsigned int crm)
@@ -2186,12 +2233,8 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         btype_mod = opc;
         switch (op3) {
         case 0:
-            /* BR, BLR, RET */
-            if (op4 != 0) {
-                goto do_unallocated;
-            }
-            dst = cpu_reg(s, rn);
-            break;
+            /* BR, BLR, RET : handled in decodetree */
+            goto do_unallocated;
 
         case 2:
         case 3:

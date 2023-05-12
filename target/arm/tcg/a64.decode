@@ -19,6 +19,7 @@
 # This file is processed by scripts/decodetree.py
 #
 
+&r               rn
 &ri              rd imm
 &rri_sf          rd rn imm sf
 &i               imm
@@ -126,3 +127,7 @@ CBZ             sf:1 011010 nz:1 ................... rt:5 &cbz imm=%imm19
 TBZ             . 011011 nz:1 ..... .............. rt:5 &tbz  imm=%imm14 bitpos=%imm31_19
 
 B_cond          0101010 0 ................... 0 cond:4 imm=%imm19
+
+BR              1101011 0000 11111 000000 rn:5 00000 &r
+BLR             1101011 0001 11111 000000 rn:5 00000 &r
+RET             1101011 0010 11111 000000 rn:5 00000 &r
