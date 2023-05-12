@@ -14205,19 +14205,6 @@ static bool btype_destination_ok(uint32_t insn, bool bt, int btype)
 static void disas_a64_legacy(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 25, 4)) {
-    case 0x0:
-        if (!extract32(insn, 31, 1) || !disas_sme(s, insn)) {
-            unallocated_encoding(s);
-        }
-        break;
-    case 0x1: case 0x3: /* UNALLOCATED */
-        unallocated_encoding(s);
-        break;
-    case 0x2:
-        if (!disas_sve(s, insn)) {
-            unallocated_encoding(s);
-        }
-        break;
     case 0x8: case 0x9: /* Data processing - immediate */
         disas_data_proc_imm(s, insn);
         break;
@@ -14239,7 +14226,7 @@ static void disas_a64_legacy(DisasContext *s, uint32_t insn)
         disas_data_proc_simd_fp(s, insn);
         break;
     default:
-        assert(FALSE); /* all 15 cases should be handled above */
+        unallocated_encoding(s);
         break;
     }
 }
@@ -14445,8 +14432,9 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         disas_sme_fa64(s, insn);
     }
 
-
-    if (!disas_a64(s, insn)) {
+    if (!disas_a64(s, insn) &&
+        !disas_sme(s, insn) &&
+        !disas_sve(s, insn)) {
         disas_a64_legacy(s, insn);
     }
 
