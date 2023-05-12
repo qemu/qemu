@@ -682,83 +682,102 @@ static inline void gen_logic_CC(int sf, TCGv_i64 result)
 }
 
 /* dest = T0 + T1; compute C, N, V and Z flags */
+static void gen_add64_CC(TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
+{
+    TCGv_i64 result, flag, tmp;
+    result = tcg_temp_new_i64();
+    flag = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
+
+    tcg_gen_movi_i64(tmp, 0);
+    tcg_gen_add2_i64(result, flag, t0, tmp, t1, tmp);
+
+    tcg_gen_extrl_i64_i32(cpu_CF, flag);
+
+    gen_set_NZ64(result);
+
+    tcg_gen_xor_i64(flag, result, t0);
+    tcg_gen_xor_i64(tmp, t0, t1);
+    tcg_gen_andc_i64(flag, flag, tmp);
+    tcg_gen_extrh_i64_i32(cpu_VF, flag);
+
+    tcg_gen_mov_i64(dest, result);
+}
+
+static void gen_add32_CC(TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
+{
+    TCGv_i32 t0_32 = tcg_temp_new_i32();
+    TCGv_i32 t1_32 = tcg_temp_new_i32();
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_movi_i32(tmp, 0);
+    tcg_gen_extrl_i64_i32(t0_32, t0);
+    tcg_gen_extrl_i64_i32(t1_32, t1);
+    tcg_gen_add2_i32(cpu_NF, cpu_CF, t0_32, tmp, t1_32, tmp);
+    tcg_gen_mov_i32(cpu_ZF, cpu_NF);
+    tcg_gen_xor_i32(cpu_VF, cpu_NF, t0_32);
+    tcg_gen_xor_i32(tmp, t0_32, t1_32);
+    tcg_gen_andc_i32(cpu_VF, cpu_VF, tmp);
+    tcg_gen_extu_i32_i64(dest, cpu_NF);
+}
+
 static void gen_add_CC(int sf, TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
 {
     if (sf) {
-        TCGv_i64 result, flag, tmp;
-        result = tcg_temp_new_i64();
-        flag = tcg_temp_new_i64();
-        tmp = tcg_temp_new_i64();
-
-        tcg_gen_movi_i64(tmp, 0);
-        tcg_gen_add2_i64(result, flag, t0, tmp, t1, tmp);
-
-        tcg_gen_extrl_i64_i32(cpu_CF, flag);
-
-        gen_set_NZ64(result);
-
-        tcg_gen_xor_i64(flag, result, t0);
-        tcg_gen_xor_i64(tmp, t0, t1);
-        tcg_gen_andc_i64(flag, flag, tmp);
-        tcg_gen_extrh_i64_i32(cpu_VF, flag);
-
-        tcg_gen_mov_i64(dest, result);
+        gen_add64_CC(dest, t0, t1);
     } else {
-        /* 32 bit arithmetic */
-        TCGv_i32 t0_32 = tcg_temp_new_i32();
-        TCGv_i32 t1_32 = tcg_temp_new_i32();
-        TCGv_i32 tmp = tcg_temp_new_i32();
-
-        tcg_gen_movi_i32(tmp, 0);
-        tcg_gen_extrl_i64_i32(t0_32, t0);
-        tcg_gen_extrl_i64_i32(t1_32, t1);
-        tcg_gen_add2_i32(cpu_NF, cpu_CF, t0_32, tmp, t1_32, tmp);
-        tcg_gen_mov_i32(cpu_ZF, cpu_NF);
-        tcg_gen_xor_i32(cpu_VF, cpu_NF, t0_32);
-        tcg_gen_xor_i32(tmp, t0_32, t1_32);
-        tcg_gen_andc_i32(cpu_VF, cpu_VF, tmp);
-        tcg_gen_extu_i32_i64(dest, cpu_NF);
+        gen_add32_CC(dest, t0, t1);
     }
 }
 
 /* dest = T0 - T1; compute C, N, V and Z flags */
+static void gen_sub64_CC(TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
+{
+    /* 64 bit arithmetic */
+    TCGv_i64 result, flag, tmp;
+
+    result = tcg_temp_new_i64();
+    flag = tcg_temp_new_i64();
+    tcg_gen_sub_i64(result, t0, t1);
+
+    gen_set_NZ64(result);
+
+    tcg_gen_setcond_i64(TCG_COND_GEU, flag, t0, t1);
+    tcg_gen_extrl_i64_i32(cpu_CF, flag);
+
+    tcg_gen_xor_i64(flag, result, t0);
+    tmp = tcg_temp_new_i64();
+    tcg_gen_xor_i64(tmp, t0, t1);
+    tcg_gen_and_i64(flag, flag, tmp);
+    tcg_gen_extrh_i64_i32(cpu_VF, flag);
+    tcg_gen_mov_i64(dest, result);
+}
+
+static void gen_sub32_CC(TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
+{
+    /* 32 bit arithmetic */
+    TCGv_i32 t0_32 = tcg_temp_new_i32();
+    TCGv_i32 t1_32 = tcg_temp_new_i32();
+    TCGv_i32 tmp;
+
+    tcg_gen_extrl_i64_i32(t0_32, t0);
+    tcg_gen_extrl_i64_i32(t1_32, t1);
+    tcg_gen_sub_i32(cpu_NF, t0_32, t1_32);
+    tcg_gen_mov_i32(cpu_ZF, cpu_NF);
+    tcg_gen_setcond_i32(TCG_COND_GEU, cpu_CF, t0_32, t1_32);
+    tcg_gen_xor_i32(cpu_VF, cpu_NF, t0_32);
+    tmp = tcg_temp_new_i32();
+    tcg_gen_xor_i32(tmp, t0_32, t1_32);
+    tcg_gen_and_i32(cpu_VF, cpu_VF, tmp);
+    tcg_gen_extu_i32_i64(dest, cpu_NF);
+}
+
 static void gen_sub_CC(int sf, TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
 {
     if (sf) {
-        /* 64 bit arithmetic */
-        TCGv_i64 result, flag, tmp;
-
-        result = tcg_temp_new_i64();
-        flag = tcg_temp_new_i64();
-        tcg_gen_sub_i64(result, t0, t1);
-
-        gen_set_NZ64(result);
-
-        tcg_gen_setcond_i64(TCG_COND_GEU, flag, t0, t1);
-        tcg_gen_extrl_i64_i32(cpu_CF, flag);
-
-        tcg_gen_xor_i64(flag, result, t0);
-        tmp = tcg_temp_new_i64();
-        tcg_gen_xor_i64(tmp, t0, t1);
-        tcg_gen_and_i64(flag, flag, tmp);
-        tcg_gen_extrh_i64_i32(cpu_VF, flag);
-        tcg_gen_mov_i64(dest, result);
+        gen_sub64_CC(dest, t0, t1);
     } else {
-        /* 32 bit arithmetic */
-        TCGv_i32 t0_32 = tcg_temp_new_i32();
-        TCGv_i32 t1_32 = tcg_temp_new_i32();
-        TCGv_i32 tmp;
-
-        tcg_gen_extrl_i64_i32(t0_32, t0);
-        tcg_gen_extrl_i64_i32(t1_32, t1);
-        tcg_gen_sub_i32(cpu_NF, t0_32, t1_32);
-        tcg_gen_mov_i32(cpu_ZF, cpu_NF);
-        tcg_gen_setcond_i32(TCG_COND_GEU, cpu_CF, t0_32, t1_32);
-        tcg_gen_xor_i32(cpu_VF, cpu_NF, t0_32);
-        tmp = tcg_temp_new_i32();
-        tcg_gen_xor_i32(tmp, t0_32, t1_32);
-        tcg_gen_and_i32(cpu_VF, cpu_VF, tmp);
-        tcg_gen_extu_i32_i64(dest, cpu_NF);
+        gen_sub32_CC(dest, t0, t1);
     }
 }
 
