@@ -56,3 +56,18 @@ SUBS_i          . 11 100010 1 ............ ..... .....  @addsub_imm12
 
 ADDG_i          1 00 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
 SUBG_i          1 10 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
+
+# Logical (immediate)
+
+&rri_log        rd rn sf dbm
+@logic_imm_64   1 .. ...... dbm:13 rn:5 rd:5            &rri_log sf=1
+@logic_imm_32   0 .. ...... 0 dbm:12 rn:5 rd:5          &rri_log sf=0
+
+AND_i           . 00 100100 . ...... ...... ..... ..... @logic_imm_64
+AND_i           . 00 100100 . ...... ...... ..... ..... @logic_imm_32
+ORR_i           . 01 100100 . ...... ...... ..... ..... @logic_imm_64
+ORR_i           . 01 100100 . ...... ...... ..... ..... @logic_imm_32
+EOR_i           . 10 100100 . ...... ...... ..... ..... @logic_imm_64
+EOR_i           . 10 100100 . ...... ...... ..... ..... @logic_imm_32
+ANDS_i          . 11 100100 . ...... ...... ..... ..... @logic_imm_64
+ANDS_i          . 11 100100 . ...... ...... ..... ..... @logic_imm_32
