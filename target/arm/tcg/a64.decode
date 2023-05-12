@@ -48,3 +48,11 @@ SUB_i           . 10 100010 0 ............ ..... .....  @addsub_imm
 SUB_i           . 10 100010 1 ............ ..... .....  @addsub_imm12
 SUBS_i          . 11 100010 0 ............ ..... .....  @addsub_imm
 SUBS_i          . 11 100010 1 ............ ..... .....  @addsub_imm12
+
+# Add/subtract (immediate with tags)
+
+&rri_tag        rd rn uimm6 uimm4
+@addsub_imm_tag . .. ...... . uimm6:6 .. uimm4:4 rn:5 rd:5 &rri_tag
+
+ADDG_i          1 00 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
+SUBG_i          1 10 100011 0 ...... 00 .... ..... ..... @addsub_imm_tag
