@@ -898,6 +898,7 @@ void ppce500_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     PPCE500MachineState *pms = PPCE500_MACHINE(machine);
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(machine);
+    MachineClass *mc = MACHINE_CLASS(pmc);
     PCIBus *pci_bus;
     CPUPPCState *env = NULL;
     uint64_t loadaddr;
@@ -1073,7 +1074,7 @@ void ppce500_init(MachineState *machine)
     if (pci_bus) {
         /* Register network interfaces. */
         for (i = 0; i < nb_nics; i++) {
-            pci_nic_init_nofail(&nd_table[i], pci_bus, "virtio-net-pci", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
         }
     }
 
