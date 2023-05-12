@@ -4530,77 +4530,44 @@ static bool trans_BFM(DisasContext *s, arg_BFM *a)
     return true;
 }
 
-/* Extract
- *   31  30  29 28         23 22   21  20  16 15    10 9    5 4    0
- * +----+------+-------------+---+----+------+--------+------+------+
- * | sf | op21 | 1 0 0 1 1 1 | N | o0 |  Rm  |  imms  |  Rn  |  Rd  |
- * +----+------+-------------+---+----+------+--------+------+------+
- */
-static void disas_extract(DisasContext *s, uint32_t insn)
+static bool trans_EXTR(DisasContext *s, arg_extract *a)
 {
-    unsigned int sf, n, rm, imm, rn, rd, bitsize, op21, op0;
+    TCGv_i64 tcg_rd, tcg_rm, tcg_rn;
 
-    sf = extract32(insn, 31, 1);
-    n = extract32(insn, 22, 1);
-    rm = extract32(insn, 16, 5);
-    imm = extract32(insn, 10, 6);
-    rn = extract32(insn, 5, 5);
-    rd = extract32(insn, 0, 5);
-    op21 = extract32(insn, 29, 2);
-    op0 = extract32(insn, 21, 1);
-    bitsize = sf ? 64 : 32;
+    tcg_rd = cpu_reg(s, a->rd);
 
-    if (sf != n || op21 || op0 || imm >= bitsize) {
-        unallocated_encoding(s);
-    } else {
-        TCGv_i64 tcg_rd, tcg_rm, tcg_rn;
-
-        tcg_rd = cpu_reg(s, rd);
-
-        if (unlikely(imm == 0)) {
-            /* tcg shl_i32/shl_i64 is undefined for 32/64 bit shifts,
-             * so an extract from bit 0 is a special case.
-             */
-            if (sf) {
-                tcg_gen_mov_i64(tcg_rd, cpu_reg(s, rm));
-            } else {
-                tcg_gen_ext32u_i64(tcg_rd, cpu_reg(s, rm));
-            }
+    if (unlikely(a->imm == 0)) {
+        /*
+         * tcg shl_i32/shl_i64 is undefined for 32/64 bit shifts,
+         * so an extract from bit 0 is a special case.
+         */
+        if (a->sf) {
+            tcg_gen_mov_i64(tcg_rd, cpu_reg(s, a->rm));
         } else {
-            tcg_rm = cpu_reg(s, rm);
-            tcg_rn = cpu_reg(s, rn);
+            tcg_gen_ext32u_i64(tcg_rd, cpu_reg(s, a->rm));
+        }
+    } else {
+        tcg_rm = cpu_reg(s, a->rm);
+        tcg_rn = cpu_reg(s, a->rn);
 
-            if (sf) {
-                /* Specialization to ROR happens in EXTRACT2.  */
-                tcg_gen_extract2_i64(tcg_rd, tcg_rm, tcg_rn, imm);
+        if (a->sf) {
+            /* Specialization to ROR happens in EXTRACT2.  */
+            tcg_gen_extract2_i64(tcg_rd, tcg_rm, tcg_rn, a->imm);
+        } else {
+            TCGv_i32 t0 = tcg_temp_new_i32();
+
+            tcg_gen_extrl_i64_i32(t0, tcg_rm);
+            if (a->rm == a->rn) {
+                tcg_gen_rotri_i32(t0, t0, a->imm);
             } else {
-                TCGv_i32 t0 = tcg_temp_new_i32();
-
-                tcg_gen_extrl_i64_i32(t0, tcg_rm);
-                if (rm == rn) {
-                    tcg_gen_rotri_i32(t0, t0, imm);
-                } else {
-                    TCGv_i32 t1 = tcg_temp_new_i32();
-                    tcg_gen_extrl_i64_i32(t1, tcg_rn);
-                    tcg_gen_extract2_i32(t0, t0, t1, imm);
-                }
-                tcg_gen_extu_i32_i64(tcg_rd, t0);
+                TCGv_i32 t1 = tcg_temp_new_i32();
+                tcg_gen_extrl_i64_i32(t1, tcg_rn);
+                tcg_gen_extract2_i32(t0, t0, t1, a->imm);
             }
+            tcg_gen_extu_i32_i64(tcg_rd, t0);
         }
     }
-}
-
-/* Data processing - immediate */
-static void disas_data_proc_imm(DisasContext *s, uint32_t insn)
-{
-    switch (extract32(insn, 23, 6)) {
-    case 0x27: /* Extract */
-        disas_extract(s, insn);
-        break;
-    default:
-        unallocated_encoding(s);
-        break;
-    }
+    return true;
 }
 
 /* Shift a TCGv src by TCGv shift_amount, put result in dst.
@@ -14125,9 +14092,6 @@ static bool btype_destination_ok(uint32_t insn, bool bt, int btype)
 static void disas_a64_legacy(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 25, 4)) {
-    case 0x8: case 0x9: /* Data processing - immediate */
-        disas_data_proc_imm(s, insn);
-        break;
     case 0xa: case 0xb: /* Branch, exception generation and system insns */
         disas_b_exc_sys(s, insn);
         break;
