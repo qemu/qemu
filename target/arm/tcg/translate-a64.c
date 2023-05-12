@@ -1539,6 +1539,61 @@ static bool trans_BLRA(DisasContext *s, arg_bra *a)
     return true;
 }
 
+static bool trans_ERET(DisasContext *s, arg_ERET *a)
+{
+    TCGv_i64 dst;
+
+    if (s->current_el == 0) {
+        return false;
+    }
+    if (s->fgt_eret) {
+        gen_exception_insn_el(s, 0, EXCP_UDEF, 0, 2);
+        return true;
+    }
+    dst = tcg_temp_new_i64();
+    tcg_gen_ld_i64(dst, cpu_env,
+                   offsetof(CPUARMState, elr_el[s->current_el]));
+
+    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
+    gen_helper_exception_return(cpu_env, dst);
+    /* Must exit loop to check un-masked IRQs */
+    s->base.is_jmp = DISAS_EXIT;
+    return true;
+}
+
+static bool trans_ERETA(DisasContext *s, arg_reta *a)
+{
+    TCGv_i64 dst;
+
+    if (!dc_isar_feature(aa64_pauth, s)) {
+        return false;
+    }
+    if (s->current_el == 0) {
+        return false;
+    }
+    /* The FGT trap takes precedence over an auth trap. */
+    if (s->fgt_eret) {
+        gen_exception_insn_el(s, 0, EXCP_UDEF, a->m ? 3 : 2, 2);
+        return true;
+    }
+    dst = tcg_temp_new_i64();
+    tcg_gen_ld_i64(dst, cpu_env,
+                   offsetof(CPUARMState, elr_el[s->current_el]));
+
+    dst = auth_branch_target(s, dst, cpu_X[31], !a->m);
+    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
+    gen_helper_exception_return(cpu_env, dst);
+    /* Must exit loop to check un-masked IRQs */
+    s->base.is_jmp = DISAS_EXIT;
+    return true;
+}
+
 /* HINT instruction group, including various allocated HINTs */
 static void handle_hint(DisasContext *s, uint32_t insn,
                         unsigned int op1, unsigned int op2, unsigned int crm)
@@ -2307,111 +2362,6 @@ static void disas_exc(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Unconditional branch (register)
- *  31           25 24   21 20   16 15   10 9    5 4     0
- * +---------------+-------+-------+-------+------+-------+
- * | 1 1 0 1 0 1 1 |  opc  |  op2  |  op3  |  Rn  |  op4  |
- * +---------------+-------+-------+-------+------+-------+
- */
-static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
-{
-    unsigned int opc, op2, op3, rn, op4;
-    TCGv_i64 dst;
-    TCGv_i64 modifier;
-
-    opc = extract32(insn, 21, 4);
-    op2 = extract32(insn, 16, 5);
-    op3 = extract32(insn, 10, 6);
-    rn = extract32(insn, 5, 5);
-    op4 = extract32(insn, 0, 5);
-
-    if (op2 != 0x1f) {
-        goto do_unallocated;
-    }
-
-    switch (opc) {
-    case 0:
-    case 1:
-    case 2:
-    case 8:
-    case 9:
-        /*
-         * BR, BLR, RET, RETAA, RETAB, BRAAZ, BRABZ, BLRAAZ, BLRABZ,
-         * BRAA, BLRAA: handled in decodetree
-         */
-        goto do_unallocated;
-
-    case 4: /* ERET */
-        if (s->current_el == 0) {
-            goto do_unallocated;
-        }
-        switch (op3) {
-        case 0: /* ERET */
-            if (op4 != 0) {
-                goto do_unallocated;
-            }
-            if (s->fgt_eret) {
-                gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(op3), 2);
-                return;
-            }
-            dst = tcg_temp_new_i64();
-            tcg_gen_ld_i64(dst, cpu_env,
-                           offsetof(CPUARMState, elr_el[s->current_el]));
-            break;
-
-        case 2: /* ERETAA */
-        case 3: /* ERETAB */
-            if (!dc_isar_feature(aa64_pauth, s)) {
-                goto do_unallocated;
-            }
-            if (rn != 0x1f || op4 != 0x1f) {
-                goto do_unallocated;
-            }
-            /* The FGT trap takes precedence over an auth trap. */
-            if (s->fgt_eret) {
-                gen_exception_insn_el(s, 0, EXCP_UDEF, syn_erettrap(op3), 2);
-                return;
-            }
-            dst = tcg_temp_new_i64();
-            tcg_gen_ld_i64(dst, cpu_env,
-                           offsetof(CPUARMState, elr_el[s->current_el]));
-            if (s->pauth_active) {
-                modifier = cpu_X[31];
-                if (op3 == 2) {
-                    gen_helper_autia(dst, cpu_env, dst, modifier);
-                } else {
-                    gen_helper_autib(dst, cpu_env, dst, modifier);
-                }
-            }
-            break;
-
-        default:
-            goto do_unallocated;
-        }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
-
-        gen_helper_exception_return(cpu_env, dst);
-        /* Must exit loop to check un-masked IRQs */
-        s->base.is_jmp = DISAS_EXIT;
-        return;
-
-    case 5: /* DRPS */
-        if (op3 != 0 || op4 != 0 || rn != 0x1f) {
-            goto do_unallocated;
-        } else {
-            unallocated_encoding(s);
-        }
-        return;
-
-    default:
-    do_unallocated:
-        unallocated_encoding(s);
-        return;
-    }
-}
-
 /* Branches, exception generating and system instructions */
 static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
 {
@@ -2426,9 +2376,6 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
         } else {
             disas_exc(s, insn);
         }
-        break;
-    case 0x6b: /* Unconditional branch (register) */
-        disas_uncond_b_reg(s, insn);
         break;
     default:
         unallocated_encoding(s);

@@ -142,3 +142,11 @@ RETA            1101011 0010 11111 00001 m:1 11111 11111 &reta  # RETAA, RETAB
 &bra        rn rm m
 BRA             1101011 1000 11111 00001 m:1 rn:5 rm:5 &bra # BRAA, BRAB
 BLRA            1101011 1001 11111 00001 m:1 rn:5 rm:5 &bra # BLRAA, BLRAB
+
+ERET            1101011 0100 11111 000000 11111 00000
+ERETA           1101011 0100 11111 00001 m:1 11111 11111 &reta  # ERETAA, ERETAB
+
+# We don't need to decode DRPS because it always UNDEFs except when
+# the processor is in halting debug state (which we don't implement).
+# The pattern is listed here as documentation.
+# DRPS            1101011 0101 11111 000000 11111 00000
