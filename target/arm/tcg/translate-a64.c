@@ -4395,52 +4395,40 @@ TRANS(ANDS_i, gen_rri_log, a, true, tcg_gen_andi_i64)
 
 /*
  * Move wide (immediate)
- *
- *  31 30 29 28         23 22 21 20             5 4    0
- * +--+-----+-------------+-----+----------------+------+
- * |sf| opc | 1 0 0 1 0 1 |  hw |  imm16         |  Rd  |
- * +--+-----+-------------+-----+----------------+------+
- *
- * sf: 0 -> 32 bit, 1 -> 64 bit
- * opc: 00 -> N, 10 -> Z, 11 -> K
- * hw: shift/16 (0,16, and sf only 32, 48)
  */
-static void disas_movw_imm(DisasContext *s, uint32_t insn)
+
+static bool trans_MOVZ(DisasContext *s, arg_movw *a)
 {
-    int rd = extract32(insn, 0, 5);
-    uint64_t imm = extract32(insn, 5, 16);
-    int sf = extract32(insn, 31, 1);
-    int opc = extract32(insn, 29, 2);
-    int pos = extract32(insn, 21, 2) << 4;
-    TCGv_i64 tcg_rd = cpu_reg(s, rd);
+    int pos = a->hw << 4;
+    tcg_gen_movi_i64(cpu_reg(s, a->rd), (uint64_t)a->imm << pos);
+    return true;
+}
 
-    if (!sf && (pos >= 32)) {
-        unallocated_encoding(s);
-        return;
-    }
+static bool trans_MOVN(DisasContext *s, arg_movw *a)
+{
+    int pos = a->hw << 4;
+    uint64_t imm = a->imm;
 
-    switch (opc) {
-    case 0: /* MOVN */
-    case 2: /* MOVZ */
-        imm <<= pos;
-        if (opc == 0) {
-            imm = ~imm;
-        }
-        if (!sf) {
-            imm &= 0xffffffffu;
-        }
-        tcg_gen_movi_i64(tcg_rd, imm);
-        break;
-    case 3: /* MOVK */
-        tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_constant_i64(imm), pos, 16);
-        if (!sf) {
-            tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
-        }
-        break;
-    default:
-        unallocated_encoding(s);
-        break;
+    imm = ~(imm << pos);
+    if (!a->sf) {
+        imm = (uint32_t)imm;
     }
+    tcg_gen_movi_i64(cpu_reg(s, a->rd), imm);
+    return true;
+}
+
+static bool trans_MOVK(DisasContext *s, arg_movw *a)
+{
+    int pos = a->hw << 4;
+    TCGv_i64 tcg_rd, tcg_im;
+
+    tcg_rd = cpu_reg(s, a->rd);
+    tcg_im = tcg_constant_i64(a->imm);
+    tcg_gen_deposit_i64(tcg_rd, tcg_rd, tcg_im, pos, 16);
+    if (!a->sf) {
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+    return true;
 }
 
 /* Bitfield
@@ -4585,9 +4573,6 @@ static void disas_extract(DisasContext *s, uint32_t insn)
 static void disas_data_proc_imm(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 23, 6)) {
-    case 0x25: /* Move wide (immediate) */
-        disas_movw_imm(s, insn);
-        break;
     case 0x26: /* Bitfield */
         disas_bitfield(s, insn);
         break;
