@@ -27,4 +27,4 @@ virtual serial port and the QEMU monitor to the console with the
                     -append "root=/dev/hda console=ttyS0" -nographic
 
 Use Ctrl-a c to switch between the serial console and the monitor (see
-:ref:`pcsys_005fkeys`).
+:ref:`GUI_keys`).

@@ -3,8 +3,6 @@
 x86 System emulator
 -------------------
 
-.. _pcsys_005fdevices:
-
 Board-specific documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -31,8 +29,6 @@ Architectural features
    i386/kvm-pv
    i386/sgx
    i386/amd-memory-encryption
-
-.. _pcsys_005freq:
 
 OS requirements
 ~~~~~~~~~~~~~~~

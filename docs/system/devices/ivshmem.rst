@@ -1,5 +1,3 @@
-.. _pcsys_005fivshmem:
-
 Inter-VM Shared Memory device
 -----------------------------
 
