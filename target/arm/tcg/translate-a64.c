@@ -1435,6 +1435,75 @@ static bool trans_RET(DisasContext *s, arg_r *a)
     return true;
 }
 
+static TCGv_i64 auth_branch_target(DisasContext *s, TCGv_i64 dst,
+                                   TCGv_i64 modifier, bool use_key_a)
+{
+    TCGv_i64 truedst;
+    /*
+     * Return the branch target for a BRAA/RETA/etc, which is either
+     * just the destination dst, or that value with the pauth check
+     * done and the code removed from the high bits.
+     */
+    if (!s->pauth_active) {
+        return dst;
+    }
+
+    truedst = tcg_temp_new_i64();
+    if (use_key_a) {
+        gen_helper_autia(truedst, cpu_env, dst, modifier);
+    } else {
+        gen_helper_autib(truedst, cpu_env, dst, modifier);
+    }
+    return truedst;
+}
+
+static bool trans_BRAZ(DisasContext *s, arg_braz *a)
+{
+    TCGv_i64 dst;
+
+    if (!dc_isar_feature(aa64_pauth, s)) {
+        return false;
+    }
+
+    dst = auth_branch_target(s, cpu_reg(s, a->rn), tcg_constant_i64(0), !a->m);
+    gen_a64_set_pc(s, dst);
+    set_btype_for_br(s, a->rn);
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
+static bool trans_BLRAZ(DisasContext *s, arg_braz *a)
+{
+    TCGv_i64 dst, lr;
+
+    if (!dc_isar_feature(aa64_pauth, s)) {
+        return false;
+    }
+
+    dst = auth_branch_target(s, cpu_reg(s, a->rn), tcg_constant_i64(0), !a->m);
+    lr = cpu_reg(s, 30);
+    if (dst == lr) {
+        TCGv_i64 tmp = tcg_temp_new_i64();
+        tcg_gen_mov_i64(tmp, dst);
+        dst = tmp;
+    }
+    gen_pc_plus_diff(s, lr, curr_insn_len(s));
+    gen_a64_set_pc(s, dst);
+    set_btype_for_blr(s);
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
+static bool trans_RETA(DisasContext *s, arg_reta *a)
+{
+    TCGv_i64 dst;
+
+    dst = auth_branch_target(s, cpu_reg(s, 30), cpu_X[31], !a->m);
+    gen_a64_set_pc(s, dst);
+    s->base.is_jmp = DISAS_JUMP;
+    return true;
+}
+
 /* HINT instruction group, including various allocated HINTs */
 static void handle_hint(DisasContext *s, uint32_t insn,
                         unsigned int op1, unsigned int op2, unsigned int crm)
@@ -2227,61 +2296,14 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     }
 
     switch (opc) {
-    case 0: /* BR */
-    case 1: /* BLR */
-    case 2: /* RET */
-        btype_mod = opc;
-        switch (op3) {
-        case 0:
-            /* BR, BLR, RET : handled in decodetree */
-            goto do_unallocated;
-
-        case 2:
-        case 3:
-            if (!dc_isar_feature(aa64_pauth, s)) {
-                goto do_unallocated;
-            }
-            if (opc == 2) {
-                /* RETAA, RETAB */
-                if (rn != 0x1f || op4 != 0x1f) {
-                    goto do_unallocated;
-                }
-                rn = 30;
-                modifier = cpu_X[31];
-            } else {
-                /* BRAAZ, BRABZ, BLRAAZ, BLRABZ */
-                if (op4 != 0x1f) {
-                    goto do_unallocated;
-                }
-                modifier = tcg_constant_i64(0);
-            }
-            if (s->pauth_active) {
-                dst = tcg_temp_new_i64();
-                if (op3 == 2) {
-                    gen_helper_autia(dst, cpu_env, cpu_reg(s, rn), modifier);
-                } else {
-                    gen_helper_autib(dst, cpu_env, cpu_reg(s, rn), modifier);
-                }
-            } else {
-                dst = cpu_reg(s, rn);
-            }
-            break;
-
-        default:
-            goto do_unallocated;
-        }
-        /* BLR also needs to load return address */
-        if (opc == 1) {
-            TCGv_i64 lr = cpu_reg(s, 30);
-            if (dst == lr) {
-                TCGv_i64 tmp = tcg_temp_new_i64();
-                tcg_gen_mov_i64(tmp, dst);
-                dst = tmp;
-            }
-            gen_pc_plus_diff(s, lr, curr_insn_len(s));
-        }
-        gen_a64_set_pc(s, dst);
-        break;
+    case 0:
+    case 1:
+    case 2:
+        /*
+         * BR, BLR, RET, RETAA, RETAB, BRAAZ, BRABZ, BLRAAZ, BLRABZ:
+         * handled in decodetree
+         */
+        goto do_unallocated;
 
     case 8: /* BRAA */
     case 9: /* BLRAA */
