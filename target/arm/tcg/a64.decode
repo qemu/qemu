@@ -21,6 +21,7 @@
 
 &ri              rd imm
 &rri_sf          rd rn imm sf
+&i               imm
 
 
 ### Data Processing - Immediate
@@ -104,3 +105,11 @@ UBFM            . 10 100110 . ...... ...... ..... ..... @bitfield_32
 
 EXTR            1 00 100111 1 0 rm:5 imm:6 rn:5 rd:5     &extract sf=1
 EXTR            0 00 100111 0 0 rm:5 0 imm:5 rn:5 rd:5   &extract sf=0
+
+# Branches
+
+%imm26   0:s26 !function=times_4
+@branch         . ..... .......................... &i imm=%imm26
+
+B               0 00101 .......................... @branch
+BL              1 00101 .......................... @branch

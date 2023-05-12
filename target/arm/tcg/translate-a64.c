@@ -1319,24 +1319,19 @@ static inline AArch64DecodeFn *lookup_disas_fn(const AArch64DecodeTable *table,
  * match up with those in the manual.
  */
 
-/* Unconditional branch (immediate)
- *   31  30       26 25                                  0
- * +----+-----------+-------------------------------------+
- * | op | 0 0 1 0 1 |                 imm26               |
- * +----+-----------+-------------------------------------+
- */
-static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
+static bool trans_B(DisasContext *s, arg_i *a)
 {
-    int64_t diff = sextract32(insn, 0, 26) * 4;
-
-    if (insn & (1U << 31)) {
-        /* BL Branch with link */
-        gen_pc_plus_diff(s, cpu_reg(s, 30), curr_insn_len(s));
-    }
-
-    /* B Branch / BL Branch with link */
     reset_btype(s);
-    gen_goto_tb(s, 0, diff);
+    gen_goto_tb(s, 0, a->imm);
+    return true;
+}
+
+static bool trans_BL(DisasContext *s, arg_i *a)
+{
+    gen_pc_plus_diff(s, cpu_reg(s, 30), curr_insn_len(s));
+    reset_btype(s);
+    gen_goto_tb(s, 0, a->imm);
+    return true;
 }
 
 /* Compare and branch (immediate)
@@ -2413,10 +2408,6 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 25, 7)) {
-    case 0x0a: case 0x0b:
-    case 0x4a: case 0x4b: /* Unconditional branch (immediate) */
-        disas_uncond_b_imm(s, insn);
-        break;
     case 0x1a: case 0x5a: /* Compare & branch (immediate) */
         disas_comp_b_imm(s, insn);
         break;
