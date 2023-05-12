@@ -56,6 +56,13 @@ enum a64_shift_type {
     A64_SHIFT_TYPE_ROR = 3
 };
 
+/*
+ * Include the generated decoders.
+ */
+
+#include "decode-sme-fa64.c.inc"
+#include "decode-a64.c.inc"
+
 /* Table based decoder typedefs - used when the relevant bits for decode
  * are too awkwardly scattered across the instruction (eg SIMD).
  */
@@ -14100,12 +14107,6 @@ static void disas_data_proc_simd_fp(DisasContext *s, uint32_t insn)
     }
 }
 
-/*
- * Include the generated SME FA64 decoder.
- */
-
-#include "decode-sme-fa64.c.inc"
-
 static bool trans_OK(DisasContext *s, arg_OK *a)
 {
     return true;
@@ -14444,7 +14445,10 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         disas_sme_fa64(s, insn);
     }
 
-    disas_a64_legacy(s, insn);
+
+    if (!disas_a64(s, insn)) {
+        disas_a64_legacy(s, insn);
+    }
 
     /*
      * After execution of most insns, btype is reset to 0.
