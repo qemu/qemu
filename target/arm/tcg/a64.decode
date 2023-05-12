@@ -20,6 +20,7 @@
 #
 
 &ri              rd imm
+&rri_sf          rd rn imm sf
 
 
 ### Data Processing - Immediate
@@ -31,3 +32,19 @@
 
 ADR             0 .. 10000 ................... .....    @pcrel
 ADRP            1 .. 10000 ................... .....    @pcrel
+
+# Add/subtract (immediate)
+
+%imm12_sh12     10:12 !function=shl_12
+@addsub_imm     sf:1 .. ...... . imm:12 rn:5 rd:5
+@addsub_imm12   sf:1 .. ...... . ............ rn:5 rd:5 imm=%imm12_sh12
+
+ADD_i           . 00 100010 0 ............ ..... .....  @addsub_imm
+ADD_i           . 00 100010 1 ............ ..... .....  @addsub_imm12
+ADDS_i          . 01 100010 0 ............ ..... .....  @addsub_imm
+ADDS_i          . 01 100010 1 ............ ..... .....  @addsub_imm12
+
+SUB_i           . 10 100010 0 ............ ..... .....  @addsub_imm
+SUB_i           . 10 100010 1 ............ ..... .....  @addsub_imm12
+SUBS_i          . 11 100010 0 ............ ..... .....  @addsub_imm
+SUBS_i          . 11 100010 1 ............ ..... .....  @addsub_imm12

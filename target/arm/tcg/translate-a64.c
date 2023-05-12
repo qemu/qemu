@@ -4198,6 +4198,22 @@ static void disas_ldst(DisasContext *s, uint32_t insn)
     }
 }
 
+typedef void ArithTwoOp(TCGv_i64, TCGv_i64, TCGv_i64);
+
+static bool gen_rri(DisasContext *s, arg_rri_sf *a,
+                    bool rd_sp, bool rn_sp, ArithTwoOp *fn)
+{
+    TCGv_i64 tcg_rn = rn_sp ? cpu_reg_sp(s, a->rn) : cpu_reg(s, a->rn);
+    TCGv_i64 tcg_rd = rd_sp ? cpu_reg_sp(s, a->rd) : cpu_reg(s, a->rd);
+    TCGv_i64 tcg_imm = tcg_constant_i64(a->imm);
+
+    fn(tcg_rd, tcg_rn, tcg_imm);
+    if (!a->sf) {
+        tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+    }
+    return true;
+}
+
 /*
  * PC-rel. addressing
  */
@@ -4220,57 +4236,11 @@ static bool trans_ADRP(DisasContext *s, arg_ri *a)
 
 /*
  * Add/subtract (immediate)
- *
- *  31 30 29 28         23 22 21         10 9   5 4   0
- * +--+--+--+-------------+--+-------------+-----+-----+
- * |sf|op| S| 1 0 0 0 1 0 |sh|    imm12    |  Rn | Rd  |
- * +--+--+--+-------------+--+-------------+-----+-----+
- *
- *    sf: 0 -> 32bit, 1 -> 64bit
- *    op: 0 -> add  , 1 -> sub
- *     S: 1 -> set flags
- *    sh: 1 -> LSL imm by 12
  */
-static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
-{
-    int rd = extract32(insn, 0, 5);
-    int rn = extract32(insn, 5, 5);
-    uint64_t imm = extract32(insn, 10, 12);
-    bool shift = extract32(insn, 22, 1);
-    bool setflags = extract32(insn, 29, 1);
-    bool sub_op = extract32(insn, 30, 1);
-    bool is_64bit = extract32(insn, 31, 1);
-
-    TCGv_i64 tcg_rn = cpu_reg_sp(s, rn);
-    TCGv_i64 tcg_rd = setflags ? cpu_reg(s, rd) : cpu_reg_sp(s, rd);
-    TCGv_i64 tcg_result;
-
-    if (shift) {
-        imm <<= 12;
-    }
-
-    tcg_result = tcg_temp_new_i64();
-    if (!setflags) {
-        if (sub_op) {
-            tcg_gen_subi_i64(tcg_result, tcg_rn, imm);
-        } else {
-            tcg_gen_addi_i64(tcg_result, tcg_rn, imm);
-        }
-    } else {
-        TCGv_i64 tcg_imm = tcg_constant_i64(imm);
-        if (sub_op) {
-            gen_sub_CC(is_64bit, tcg_result, tcg_rn, tcg_imm);
-        } else {
-            gen_add_CC(is_64bit, tcg_result, tcg_rn, tcg_imm);
-        }
-    }
-
-    if (is_64bit) {
-        tcg_gen_mov_i64(tcg_rd, tcg_result);
-    } else {
-        tcg_gen_ext32u_i64(tcg_rd, tcg_result);
-    }
-}
+TRANS(ADD_i, gen_rri, a, 1, 1, tcg_gen_add_i64)
+TRANS(SUB_i, gen_rri, a, 1, 1, tcg_gen_sub_i64)
+TRANS(ADDS_i, gen_rri, a, 0, 1, a->sf ? gen_add64_CC : gen_add32_CC)
+TRANS(SUBS_i, gen_rri, a, 0, 1, a->sf ? gen_sub64_CC : gen_sub32_CC)
 
 /*
  * Add/subtract (immediate, with tags)
@@ -4668,9 +4638,6 @@ static void disas_extract(DisasContext *s, uint32_t insn)
 static void disas_data_proc_imm(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 23, 6)) {
-    case 0x22: /* Add/subtract (immediate) */
-        disas_add_sub_imm(s, insn);
-        break;
     case 0x23: /* Add/subtract (immediate, with tags) */
         disas_add_sub_imm_with_tags(s, insn);
         break;
