@@ -4288,13 +4288,6 @@ static uint64_t bitfield_replicate(uint64_t mask, unsigned int e)
     return mask;
 }
 
-/* Return a value with the bottom len bits set (where 0 < len <= 64) */
-static inline uint64_t bitmask64(unsigned int length)
-{
-    assert(length > 0 && length <= 64);
-    return ~0ULL >> (64 - length);
-}
-
 /* Simplified variant of pseudocode DecodeBitMasks() for the case where we
  * only require the wmask. Returns false if the imms/immr/immn are a reserved
  * value (ie should cause a guest UNDEF exception), and true if they are
@@ -4350,10 +4343,10 @@ bool logic_imm_decode_wmask(uint64_t *result, unsigned int immn,
     /* Create the value of one element: s+1 set bits rotated
      * by r within the element (which is e bits wide)...
      */
-    mask = bitmask64(s + 1);
+    mask = MAKE_64BIT_MASK(0, s + 1);
     if (r) {
         mask = (mask >> r) | (mask << (e - r));
-        mask &= bitmask64(e);
+        mask &= MAKE_64BIT_MASK(0, e);
     }
     /* ...then replicate the element over the whole 64 bit value */
     mask = bitfield_replicate(mask, e);
