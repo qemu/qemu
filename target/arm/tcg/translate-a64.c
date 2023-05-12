@@ -1334,33 +1334,22 @@ static bool trans_BL(DisasContext *s, arg_i *a)
     return true;
 }
 
-/* Compare and branch (immediate)
- *   31  30         25  24  23                  5 4      0
- * +----+-------------+----+---------------------+--------+
- * | sf | 0 1 1 0 1 0 | op |         imm19       |   Rt   |
- * +----+-------------+----+---------------------+--------+
- */
-static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
+
+static bool trans_CBZ(DisasContext *s, arg_cbz *a)
 {
-    unsigned int sf, op, rt;
-    int64_t diff;
     DisasLabel match;
     TCGv_i64 tcg_cmp;
 
-    sf = extract32(insn, 31, 1);
-    op = extract32(insn, 24, 1); /* 0: CBZ; 1: CBNZ */
-    rt = extract32(insn, 0, 5);
-    diff = sextract32(insn, 5, 19) * 4;
-
-    tcg_cmp = read_cpu_reg(s, rt, sf);
+    tcg_cmp = read_cpu_reg(s, a->rt, a->sf);
     reset_btype(s);
 
     match = gen_disas_label(s);
-    tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
+    tcg_gen_brcondi_i64(a->nz ? TCG_COND_NE : TCG_COND_EQ,
                         tcg_cmp, 0, match.label);
     gen_goto_tb(s, 0, 4);
     set_disas_label(s, match);
-    gen_goto_tb(s, 1, diff);
+    gen_goto_tb(s, 1, a->imm);
+    return true;
 }
 
 /* Test and branch (immediate)
@@ -2408,9 +2397,6 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
 {
     switch (extract32(insn, 25, 7)) {
-    case 0x1a: case 0x5a: /* Compare & branch (immediate) */
-        disas_comp_b_imm(s, insn);
-        break;
     case 0x1b: case 0x5b: /* Test & branch (immediate) */
         disas_test_b_imm(s, insn);
         break;

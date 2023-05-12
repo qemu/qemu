@@ -113,3 +113,8 @@ EXTR            0 00 100111 0 0 rm:5 0 imm:5 rn:5 rd:5   &extract sf=0
 
 B               0 00101 .......................... @branch
 BL              1 00101 .......................... @branch
+
+%imm19   5:s19 !function=times_4
+&cbz     rt imm sf nz
+
+CBZ             sf:1 011010 nz:1 ................... rt:5 &cbz imm=%imm19
