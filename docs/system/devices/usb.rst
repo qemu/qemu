@@ -1,5 +1,3 @@
-.. _pcsys_005fusb:
-
 USB emulation
 -------------
 

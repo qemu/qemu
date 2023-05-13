@@ -1039,9 +1039,9 @@ DEF_HELPER_FLAGS_5(gvec_uclamp_d, TCG_CALL_NO_RWG,
                    void, ptr, ptr, ptr, ptr, i32)
 
 #ifdef TARGET_AARCH64
-#include "helper-a64.h"
-#include "helper-sve.h"
-#include "helper-sme.h"
+#include "tcg/helper-a64.h"
+#include "tcg/helper-sve.h"
+#include "tcg/helper-sme.h"
 #endif
 
-#include "helper-mve.h"
+#include "tcg/helper-mve.h"

@@ -1,4 +1,4 @@
-.. _pcsys_005fkeys:
+.. _GUI_keys:
 
 Keys in the graphical frontends
 -------------------------------

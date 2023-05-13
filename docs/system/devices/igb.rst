@@ -29,7 +29,7 @@ Using igb
 =========
 
 Using igb should be nothing different from using another network device. See
-:ref:`pcsys_005fnetwork` in general.
+:ref:`Network_emulation` in general.
 
 However, you may also need to perform additional steps to activate SR-IOV
 feature on your guest. For Linux, refer to [4]_.
