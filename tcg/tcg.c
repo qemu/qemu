@@ -532,6 +532,82 @@ static void tcg_out_movext2(TCGContext *s, const TCGMovExtend *i1,
     tcg_out_movext1_new_src(s, i1, src1);
 }
 
+/**
+ * tcg_out_movext3 -- move and extend three pair
+ * @s: tcg context
+ * @i1: first move description
+ * @i2: second move description
+ * @i3: third move description
+ * @scratch: temporary register, or -1 for none
+ *
+ * As tcg_out_movext, for all of @i1, @i2 and @i3, caring for overlap
+ * between the sources and destinations.
+ */
+
+static void tcg_out_movext3(TCGContext *s, const TCGMovExtend *i1,
+                            const TCGMovExtend *i2, const TCGMovExtend *i3,
+                            int scratch)
+{
+    TCGReg src1 = i1->src;
+    TCGReg src2 = i2->src;
+    TCGReg src3 = i3->src;
+
+    if (i1->dst != src2 && i1->dst != src3) {
+        tcg_out_movext1(s, i1);
+        tcg_out_movext2(s, i2, i3, scratch);
+        return;
+    }
+    if (i2->dst != src1 && i2->dst != src3) {
+        tcg_out_movext1(s, i2);
+        tcg_out_movext2(s, i1, i3, scratch);
+        return;
+    }
+    if (i3->dst != src1 && i3->dst != src2) {
+        tcg_out_movext1(s, i3);
+        tcg_out_movext2(s, i1, i2, scratch);
+        return;
+    }
+
+    /*
+     * There is a cycle.  Since there are only 3 nodes, the cycle is
+     * either "clockwise" or "anti-clockwise", and can be solved with
+     * a single scratch or two xchg.
+     */
+    if (i1->dst == src2 && i2->dst == src3 && i3->dst == src1) {
+        /* "Clockwise" */
+        if (tcg_out_xchg(s, MAX(i1->src_type, i2->src_type), src1, src2)) {
+            tcg_out_xchg(s, MAX(i2->src_type, i3->src_type), src2, src3);
+            /* The data is now in the correct registers, now extend. */
+            tcg_out_movext1_new_src(s, i1, i1->dst);
+            tcg_out_movext1_new_src(s, i2, i2->dst);
+            tcg_out_movext1_new_src(s, i3, i3->dst);
+        } else {
+            tcg_debug_assert(scratch >= 0);
+            tcg_out_mov(s, i1->src_type, scratch, src1);
+            tcg_out_movext1(s, i3);
+            tcg_out_movext1(s, i2);
+            tcg_out_movext1_new_src(s, i1, scratch);
+        }
+    } else if (i1->dst == src3 && i2->dst == src1 && i3->dst == src2) {
+        /* "Anti-clockwise" */
+        if (tcg_out_xchg(s, MAX(i2->src_type, i3->src_type), src2, src3)) {
+            tcg_out_xchg(s, MAX(i1->src_type, i2->src_type), src1, src2);
+            /* The data is now in the correct registers, now extend. */
+            tcg_out_movext1_new_src(s, i1, i1->dst);
+            tcg_out_movext1_new_src(s, i2, i2->dst);
+            tcg_out_movext1_new_src(s, i3, i3->dst);
+        } else {
+            tcg_debug_assert(scratch >= 0);
+            tcg_out_mov(s, i1->src_type, scratch, src1);
+            tcg_out_movext1(s, i2);
+            tcg_out_movext1(s, i3);
+            tcg_out_movext1_new_src(s, i1, scratch);
+        }
+    } else {
+        g_assert_not_reached();
+    }
+}
+
 #define C_PFX1(P, A)                    P##A
 #define C_PFX2(P, A, B)                 P##A##_##B
 #define C_PFX3(P, A, B, C)              P##A##_##B##_##C
@@ -5153,46 +5229,48 @@ static int tcg_out_helper_stk_ofs(TCGType type, unsigned slot)
 
 static void tcg_out_helper_load_regs(TCGContext *s,
                                      unsigned nmov, TCGMovExtend *mov,
-                                     unsigned ntmp, const int *tmp)
+                                     const TCGLdstHelperParam *parm)
 {
+    TCGReg dst3;
+
     switch (nmov) {
-    default:
+    case 4:
         /* The backend must have provided enough temps for the worst case. */
-        tcg_debug_assert(ntmp + 1 >= nmov);
+        tcg_debug_assert(parm->ntmp >= 2);
 
-        for (unsigned i = nmov - 1; i >= 2; --i) {
-            TCGReg dst = mov[i].dst;
+        dst3 = mov[3].dst;
+        for (unsigned j = 0; j < 3; ++j) {
+            if (dst3 == mov[j].src) {
+                /*
+                 * Conflict. Copy the source to a temporary, perform the
+                 * remaining moves, then the extension from our scratch
+                 * on the way out.
+                 */
+                TCGReg scratch = parm->tmp[1];
 
-            for (unsigned j = 0; j < i; ++j) {
-                if (dst == mov[j].src) {
-                    /*
-                     * Conflict.
-                     * Copy the source to a temporary, recurse for the
-                     * remaining moves, perform the extension from our
-                     * scratch on the way out.
-                     */
-                    TCGReg scratch = tmp[--ntmp];
-                    tcg_out_mov(s, mov[i].src_type, scratch, mov[i].src);
-                    mov[i].src = scratch;
-
-                    tcg_out_helper_load_regs(s, i, mov, ntmp, tmp);
-                    tcg_out_movext1(s, &mov[i]);
-                    return;
-                }
+                tcg_out_mov(s, mov[3].src_type, scratch, mov[3].src);
+                tcg_out_movext3(s, mov, mov + 1, mov + 2, parm->tmp[0]);
+                tcg_out_movext1_new_src(s, &mov[3], scratch);
+                break;
             }
-
-            /* No conflicts: perform this move and continue. */
-            tcg_out_movext1(s, &mov[i]);
         }
-        /* fall through for the final two moves */
 
+        /* No conflicts: perform this move and continue. */
+        tcg_out_movext1(s, &mov[3]);
+        /* fall through */
+
+    case 3:
+        tcg_out_movext3(s, mov, mov + 1, mov + 2,
+                        parm->ntmp ? parm->tmp[0] : -1);
+        break;
     case 2:
-        tcg_out_movext2(s, mov, mov + 1, ntmp ? tmp[0] : -1);
-        return;
+        tcg_out_movext2(s, mov, mov + 1,
+                        parm->ntmp ? parm->tmp[0] : -1);
+        break;
     case 1:
         tcg_out_movext1(s, mov);
-        return;
-    case 0:
+        break;
+    default:
         g_assert_not_reached();
     }
 }
@@ -5239,7 +5317,7 @@ static void tcg_out_helper_load_slots(TCGContext *s,
     for (i = 0; i < nmov; ++i) {
         mov[i].dst = tcg_target_call_iarg_regs[mov[i].dst];
     }
-    tcg_out_helper_load_regs(s, nmov, mov, parm->ntmp, parm->tmp);
+    tcg_out_helper_load_regs(s, nmov, mov, parm);
 }
 
 static void tcg_out_helper_load_imm(TCGContext *s, unsigned slot,
