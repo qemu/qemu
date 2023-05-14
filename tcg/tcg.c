@@ -5227,11 +5227,49 @@ static int tcg_out_helper_stk_ofs(TCGType type, unsigned slot)
     return ofs;
 }
 
-static void tcg_out_helper_load_regs(TCGContext *s,
-                                     unsigned nmov, TCGMovExtend *mov,
-                                     const TCGLdstHelperParam *parm)
+static void tcg_out_helper_load_slots(TCGContext *s,
+                                      unsigned nmov, TCGMovExtend *mov,
+                                      const TCGLdstHelperParam *parm)
 {
+    unsigned i;
     TCGReg dst3;
+
+    /*
+     * Start from the end, storing to the stack first.
+     * This frees those registers, so we need not consider overlap.
+     */
+    for (i = nmov; i-- > 0; ) {
+        unsigned slot = mov[i].dst;
+
+        if (arg_slot_reg_p(slot)) {
+            goto found_reg;
+        }
+
+        TCGReg src = mov[i].src;
+        TCGType dst_type = mov[i].dst_type;
+        MemOp dst_mo = dst_type == TCG_TYPE_I32 ? MO_32 : MO_64;
+
+        /* The argument is going onto the stack; extend into scratch. */
+        if ((mov[i].src_ext & MO_SIZE) != dst_mo) {
+            tcg_debug_assert(parm->ntmp != 0);
+            mov[i].dst = src = parm->tmp[0];
+            tcg_out_movext1(s, &mov[i]);
+        }
+
+        tcg_out_st(s, dst_type, src, TCG_REG_CALL_STACK,
+                   tcg_out_helper_stk_ofs(dst_type, slot));
+    }
+    return;
+
+ found_reg:
+    /*
+     * The remaining arguments are in registers.
+     * Convert slot numbers to argument registers.
+     */
+    nmov = i + 1;
+    for (i = 0; i < nmov; ++i) {
+        mov[i].dst = tcg_target_call_iarg_regs[mov[i].dst];
+    }
 
     switch (nmov) {
     case 4:
@@ -5273,51 +5311,6 @@ static void tcg_out_helper_load_regs(TCGContext *s,
     default:
         g_assert_not_reached();
     }
-}
-
-static void tcg_out_helper_load_slots(TCGContext *s,
-                                      unsigned nmov, TCGMovExtend *mov,
-                                      const TCGLdstHelperParam *parm)
-{
-    unsigned i;
-
-    /*
-     * Start from the end, storing to the stack first.
-     * This frees those registers, so we need not consider overlap.
-     */
-    for (i = nmov; i-- > 0; ) {
-        unsigned slot = mov[i].dst;
-
-        if (arg_slot_reg_p(slot)) {
-            goto found_reg;
-        }
-
-        TCGReg src = mov[i].src;
-        TCGType dst_type = mov[i].dst_type;
-        MemOp dst_mo = dst_type == TCG_TYPE_I32 ? MO_32 : MO_64;
-
-        /* The argument is going onto the stack; extend into scratch. */
-        if ((mov[i].src_ext & MO_SIZE) != dst_mo) {
-            tcg_debug_assert(parm->ntmp != 0);
-            mov[i].dst = src = parm->tmp[0];
-            tcg_out_movext1(s, &mov[i]);
-        }
-
-        tcg_out_st(s, dst_type, src, TCG_REG_CALL_STACK,
-                   tcg_out_helper_stk_ofs(dst_type, slot));
-    }
-    return;
-
- found_reg:
-    /*
-     * The remaining arguments are in registers.
-     * Convert slot numbers to argument registers.
-     */
-    nmov = i + 1;
-    for (i = 0; i < nmov; ++i) {
-        mov[i].dst = tcg_target_call_iarg_regs[mov[i].dst];
-    }
-    tcg_out_helper_load_regs(s, nmov, mov, parm);
 }
 
 static void tcg_out_helper_load_imm(TCGContext *s, unsigned slot,
