@@ -397,11 +397,6 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     return len;
 }
 
-void qemu_file_credit_transfer(QEMUFile *f, size_t size)
-{
-    f->total_transferred += size;
-}
-
 /** Closes the file
  *
  * Returns negative error value if any error happened on previous operations or

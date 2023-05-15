@@ -119,14 +119,6 @@ bool qemu_file_buffer_empty(QEMUFile *file);
  */
 int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset);
 void qemu_file_skip(QEMUFile *f, int size);
-/*
- * qemu_file_credit_transfer:
- *
- * Report on a number of bytes that have been transferred
- * out of band from the main file object I/O methods. This
- * accounting information tracks the total migration traffic.
- */
-void qemu_file_credit_transfer(QEMUFile *f, size_t size);
 int qemu_file_get_error_obj_any(QEMUFile *f1, QEMUFile *f2, Error **errp);
 void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err);
 void qemu_file_set_error(QEMUFile *f, int ret);
