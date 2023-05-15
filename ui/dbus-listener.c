@@ -102,6 +102,7 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
         return;
     }
 
+    /* FIXME: add missing x/y/w/h support */
     qemu_dbus_display1_listener_call_scanout_dmabuf(
         ddl->proxy,
         g_variant_new_handle(0),
@@ -129,6 +130,10 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
         .width = backing_width,
         .height = backing_height,
         .y0_top = backing_y_0_top,
+        .x = x,
+        .y = y,
+        .scanout_width = w,
+        .scanout_height = h,
     };
 
     assert(tex_id);
