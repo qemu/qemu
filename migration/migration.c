@@ -2140,12 +2140,7 @@ static int postcopy_start(MigrationState *ms)
      * will notice we're in POSTCOPY_ACTIVE and not actually
      * wrap their state up here
      */
-    /* 0 max-postcopy-bandwidth means unlimited */
-    if (!bandwidth) {
-        qemu_file_set_rate_limit(ms->to_dst_file, INT64_MAX);
-    } else {
-        qemu_file_set_rate_limit(ms->to_dst_file, bandwidth / XFER_LIMIT_RATIO);
-    }
+    qemu_file_set_rate_limit(ms->to_dst_file, bandwidth);
     if (migrate_postcopy_ram()) {
         /* Ping just for debugging, helps line traces up */
         qemu_savevm_send_ping(ms->to_dst_file, 2);
@@ -2653,7 +2648,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 /* How many bytes have we transferred since the beginning of the migration */
 static uint64_t migration_total_bytes(MigrationState *s)
 {
-    return qemu_file_total_transferred(s->to_dst_file) +
+    return qemu_file_transferred(s->to_dst_file) +
         stat64_get(&mig_stats.multifd_bytes);
 }
 
@@ -3236,11 +3231,10 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
 
     if (resume) {
         /* This is a resumed migration */
-        rate_limit = migrate_max_postcopy_bandwidth() /
-            XFER_LIMIT_RATIO;
+        rate_limit = migrate_max_postcopy_bandwidth();
     } else {
         /* This is a fresh new migration */
-        rate_limit = migrate_max_bandwidth() / XFER_LIMIT_RATIO;
+        rate_limit = migrate_max_bandwidth();
 
         /* Notify before starting migration thread */
         notifier_list_notify(&migration_state_notifiers, s);

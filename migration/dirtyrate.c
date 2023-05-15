@@ -14,9 +14,8 @@
 #include "qemu/error-report.h"
 #include <zlib.h>
 #include "qapi/error.h"
-#include "cpu.h"
 #include "exec/ramblock.h"
-#include "exec/ram_addr.h"
+#include "exec/target_page.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
 #include "qapi/qapi-commands-migration.h"
@@ -29,6 +28,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "exec/memory.h"
+#include "qemu/xxhash.h"
 
 /*
  * total_dirty_pages is procted by BQL and is used
@@ -74,13 +74,11 @@ static inline void record_dirtypages(DirtyPageRecord *dirty_pages,
 static int64_t do_calculate_dirtyrate(DirtyPageRecord dirty_pages,
                                       int64_t calc_time_ms)
 {
-    uint64_t memory_size_MB;
     uint64_t increased_dirty_pages =
         dirty_pages.end_pages - dirty_pages.start_pages;
+    uint64_t memory_size_MiB = qemu_target_pages_to_MiB(increased_dirty_pages);
 
-    memory_size_MB = (increased_dirty_pages * TARGET_PAGE_SIZE) >> 20;
-
-    return memory_size_MB * 1000 / calc_time_ms;
+    return memory_size_MiB * 1000 / calc_time_ms;
 }
 
 void global_dirty_log_change(unsigned int flag, bool start)
@@ -291,8 +289,8 @@ static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
     DirtyStat.page_sampling.total_dirty_samples += info->sample_dirty_count;
     DirtyStat.page_sampling.total_sample_count += info->sample_pages_count;
     /* size of total pages in MB */
-    DirtyStat.page_sampling.total_block_mem_MB += (info->ramblock_pages *
-                                                   TARGET_PAGE_SIZE) >> 20;
+    DirtyStat.page_sampling.total_block_mem_MB +=
+        qemu_target_pages_to_MiB(info->ramblock_pages);
 }
 
 static void update_dirtyrate(uint64_t msec)
@@ -309,19 +307,47 @@ static void update_dirtyrate(uint64_t msec)
 }
 
 /*
+ * Compute hash of a single page of size TARGET_PAGE_SIZE.
+ */
+static uint32_t compute_page_hash(void *ptr)
+{
+    size_t page_size = qemu_target_page_size();
+    uint32_t i;
+    uint64_t v1, v2, v3, v4;
+    uint64_t res;
+    const uint64_t *p = ptr;
+
+    v1 = QEMU_XXHASH_SEED + XXH_PRIME64_1 + XXH_PRIME64_2;
+    v2 = QEMU_XXHASH_SEED + XXH_PRIME64_2;
+    v3 = QEMU_XXHASH_SEED + 0;
+    v4 = QEMU_XXHASH_SEED - XXH_PRIME64_1;
+    for (i = 0; i < page_size / 8; i += 4) {
+        v1 = XXH64_round(v1, p[i + 0]);
+        v2 = XXH64_round(v2, p[i + 1]);
+        v3 = XXH64_round(v3, p[i + 2]);
+        v4 = XXH64_round(v4, p[i + 3]);
+    }
+    res = XXH64_mergerounds(v1, v2, v3, v4);
+    res += page_size;
+    res = XXH64_avalanche(res);
+    return (uint32_t)(res & UINT32_MAX);
+}
+
+
+/*
  * get hash result for the sampled memory with length of TARGET_PAGE_SIZE
  * in ramblock, which starts from ramblock base address.
  */
 static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
                                       uint64_t vfn)
 {
-    uint32_t crc;
+    uint32_t hash;
 
-    crc = crc32(0, (info->ramblock_addr +
-                vfn * TARGET_PAGE_SIZE), TARGET_PAGE_SIZE);
+    hash = compute_page_hash(info->ramblock_addr +
+                             vfn * qemu_target_page_size());
 
-    trace_get_ramblock_vfn_hash(info->idstr, vfn, crc);
-    return crc;
+    trace_get_ramblock_vfn_hash(info->idstr, vfn, hash);
+    return hash;
 }
 
 static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
@@ -373,7 +399,7 @@ static void get_ramblock_dirty_info(RAMBlock *block,
                                 sample_pages_per_gigabytes) >> 30;
     /* Right shift TARGET_PAGE_BITS to calc page count */
     info->ramblock_pages = qemu_ram_get_used_length(block) >>
-                           TARGET_PAGE_BITS;
+                           qemu_target_page_bits();
     info->ramblock_addr = qemu_ram_get_host_addr(block);
     strcpy(info->idstr, qemu_ram_get_idstr(block));
 }
@@ -454,13 +480,13 @@ out:
 
 static void calc_page_dirty_rate(struct RamblockDirtyInfo *info)
 {
-    uint32_t crc;
+    uint32_t hash;
     int i;
 
     for (i = 0; i < info->sample_pages_count; i++) {
-        crc = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
-        if (crc != info->hash_result[i]) {
-            trace_calc_page_dirty_rate(info->idstr, crc, info->hash_result[i]);
+        hash = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
+        if (hash != info->hash_result[i]) {
+            trace_calc_page_dirty_rate(info->idstr, hash, info->hash_result[i]);
             info->sample_dirty_count++;
         }
     }
@@ -484,7 +510,7 @@ find_block_matched(RAMBlock *block, int count,
 
     if (infos[i].ramblock_addr != qemu_ram_get_host_addr(block) ||
         infos[i].ramblock_pages !=
-            (qemu_ram_get_used_length(block) >> TARGET_PAGE_BITS)) {
+            (qemu_ram_get_used_length(block) >> qemu_target_page_bits())) {
         trace_find_page_matched(block->idstr);
         return NULL;
     }

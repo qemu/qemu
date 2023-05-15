@@ -18,4 +18,5 @@ size_t qemu_target_page_size(void);
 int qemu_target_page_bits(void);
 int qemu_target_page_bits_min(void);
 
+size_t qemu_target_pages_to_MiB(size_t pages);
 #endif

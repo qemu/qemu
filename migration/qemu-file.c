@@ -29,6 +29,7 @@
 #include "migration.h"
 #include "qemu-file.h"
 #include "trace.h"
+#include "options.h"
 #include "qapi/error.h"
 
 #define IO_BUF_SIZE 32768
@@ -43,12 +44,12 @@ struct QEMUFile {
      * Maximum amount of data in bytes to transfer during one
      * rate limiting time window
      */
-    int64_t rate_limit_max;
+    uint64_t rate_limit_max;
     /*
      * Total amount of data in bytes queued for transfer
      * during this rate limiting time window
      */
-    int64_t rate_limit_used;
+    uint64_t rate_limit_used;
 
     /* The sum of bytes transferred on the wire */
     uint64_t total_transferred;
@@ -708,7 +709,7 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-uint64_t qemu_file_total_transferred_fast(QEMUFile *f)
+uint64_t qemu_file_transferred_fast(QEMUFile *f)
 {
     uint64_t ret = f->total_transferred;
     int i;
@@ -720,7 +721,7 @@ uint64_t qemu_file_total_transferred_fast(QEMUFile *f)
     return ret;
 }
 
-uint64_t qemu_file_total_transferred(QEMUFile *f)
+uint64_t qemu_file_transferred(QEMUFile *f)
 {
     qemu_fflush(f);
     return f->total_transferred;
@@ -737,14 +738,17 @@ int qemu_file_rate_limit(QEMUFile *f)
     return 0;
 }
 
-int64_t qemu_file_get_rate_limit(QEMUFile *f)
+uint64_t qemu_file_get_rate_limit(QEMUFile *f)
 {
     return f->rate_limit_max;
 }
 
-void qemu_file_set_rate_limit(QEMUFile *f, int64_t limit)
+void qemu_file_set_rate_limit(QEMUFile *f, uint64_t limit)
 {
-    f->rate_limit_max = limit;
+    /*
+     * 'limit' is per second.  But we check it each 100 miliseconds.
+     */
+    f->rate_limit_max = limit / XFER_LIMIT_RATIO;
 }
 
 void qemu_file_reset_rate_limit(QEMUFile *f)
@@ -752,7 +756,7 @@ void qemu_file_reset_rate_limit(QEMUFile *f)
     f->rate_limit_used = 0;
 }
 
-void qemu_file_acct_rate_limit(QEMUFile *f, int64_t len)
+void qemu_file_acct_rate_limit(QEMUFile *f, uint64_t len)
 {
     f->rate_limit_used += len;
 }
