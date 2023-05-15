@@ -1197,7 +1197,6 @@ static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
     }
 
     if (bytes_xmit) {
-        ram_transferred_add(bytes_xmit);
         *pages = 1;
     }
 
