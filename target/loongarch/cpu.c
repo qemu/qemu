@@ -187,10 +187,10 @@ static void loongarch_cpu_do_interrupt(CPUState *cs)
     case EXCCODE_IPE:
     case EXCCODE_FPD:
     case EXCCODE_FPE:
-    case EXCCODE_BCE:
     case EXCCODE_SXD:
         env->CSR_BADV = env->pc;
         QEMU_FALLTHROUGH;
+    case EXCCODE_BCE:
     case EXCCODE_ADEM:
     case EXCCODE_PIL:
     case EXCCODE_PIS:
