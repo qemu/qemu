@@ -520,12 +520,14 @@ process_incoming_migration_co(void *opaque)
         goto fail;
     }
 
-    mis->migration_incoming_co = qemu_coroutine_self();
     mis->largest_page_size = qemu_ram_pagesize_largest();
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
+
+    mis->loadvm_co = qemu_coroutine_self();
     ret = qemu_loadvm_state(mis->from_src_file);
+    mis->loadvm_co = NULL;
 
     ps = postcopy_state_get();
     trace_process_incoming_migration_co_end(ret, ps);
@@ -566,7 +568,10 @@ process_incoming_migration_co(void *opaque)
 
         qemu_thread_create(&colo_incoming_thread, "COLO incoming",
              colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
+
+        mis->colo_incoming_co = qemu_coroutine_self();
         qemu_coroutine_yield();
+        mis->colo_incoming_co = NULL;
 
         qemu_mutex_unlock_iothread();
         /* Wait checkpoint incoming thread exit before free resource */
@@ -578,7 +583,6 @@ process_incoming_migration_co(void *opaque)
 
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
-    mis->migration_incoming_co = NULL;
     return;
 fail:
     local_err = NULL;
