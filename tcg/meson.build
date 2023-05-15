@@ -6,6 +6,7 @@ tcg_ss.add(files(
   'tcg.c',
   'tcg-common.c',
   'tcg-op.c',
+  'tcg-op-ldst.c',
   'tcg-op-gvec.c',
   'tcg-op-vec.c',
 ))
