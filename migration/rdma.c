@@ -2122,9 +2122,18 @@ retry:
                     return -EIO;
                 }
 
+                /*
+                 * TODO: Here we are sending something, but we are not
+                 * accounting for anything transferred.  The following is wrong:
+                 *
+                 * stat64_add(&mig_stats.rdma_bytes, sge.length);
+                 *
+                 * because we are using some kind of compression.  I
+                 * would think that head.len would be the more similar
+                 * thing to a correct value.
+                 */
                 stat64_add(&mig_stats.zero_pages,
                            sge.length / qemu_target_page_size());
-
                 return 1;
             }
 
@@ -2232,8 +2241,17 @@ retry:
 
     set_bit(chunk, block->transit_bitmap);
     stat64_add(&mig_stats.normal_pages, sge.length / qemu_target_page_size());
+    /*
+     * We are adding to transferred the amount of data written, but no
+     * overhead at all.  I will asume that RDMA is magicaly and don't
+     * need to transfer (at least) the addresses where it wants to
+     * write the pages.  Here it looks like it should be something
+     * like:
+     *     sizeof(send_wr) + sge.length
+     * but this being RDMA, who knows.
+     */
+    stat64_add(&mig_stats.rdma_bytes, sge.length);
     ram_transferred_add(sge.length);
-    qemu_file_credit_transfer(f, sge.length);
     rdma->total_writes++;
 
     return 0;
