@@ -479,6 +479,13 @@ int qemu_bind_wrap(int sockfd, const struct sockaddr *addr,
     return ret;
 }
 
+EXCEPTION_DISPOSITION
+win32_close_exception_handler(struct _EXCEPTION_RECORD*,
+                              void*, struct _CONTEXT*, void*)
+{
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 #undef close
 int qemu_close_socket_osfhandle(int fd)
 {
@@ -504,12 +511,16 @@ int qemu_close_socket_osfhandle(int fd)
         return -1;
     }
 
-    /*
-     * close() returns EBADF since we PROTECT_FROM_CLOSE the underlying handle,
-     * but the FD is actually freed
-     */
-    if (close(fd) < 0 && errno != EBADF) {
-        return -1;
+    __try1(win32_close_exception_handler) {
+        /*
+         * close() returns EBADF since we PROTECT_FROM_CLOSE the underlying
+         * handle, but the FD is actually freed
+         */
+        if (close(fd) < 0 && errno != EBADF) {
+            return -1;
+        }
+    }
+    __except1 {
     }
 
     if (!SetHandleInformation((HANDLE)s, flags, flags)) {
