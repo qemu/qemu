@@ -2312,10 +2312,9 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     char name[32];
     const VMStateDescription *vmsd;
 
-    if (!pdev->romfile)
+    if (!pdev->romfile || !strlen(pdev->romfile)) {
         return;
-    if (strlen(pdev->romfile) == 0)
-        return;
+    }
 
     if (!pdev->rom_bar) {
         /*
@@ -2364,7 +2363,8 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     }
     if (pdev->romsize != -1) {
         if (size > pdev->romsize) {
-            error_setg(errp, "romfile \"%s\" (%u bytes) is too large for ROM size %u",
+            error_setg(errp, "romfile \"%s\" (%u bytes) "
+                       "is too large for ROM size %u",
                        pdev->romfile, (uint32_t)size, pdev->romsize);
             g_free(path);
             return;
@@ -2374,14 +2374,13 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     }
 
     vmsd = qdev_get_vmsd(DEVICE(pdev));
+    snprintf(name, sizeof(name), "%s.rom",
+             vmsd ? vmsd->name : object_get_typename(OBJECT(pdev)));
 
-    if (vmsd) {
-        snprintf(name, sizeof(name), "%s.rom", vmsd->name);
-    } else {
-        snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
-    }
     pdev->has_rom = true;
-    memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize, &error_fatal);
+    memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, pdev->romsize,
+                           &error_fatal);
+
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     if (load_image_size(path, ptr, size) < 0) {
         error_setg(errp, "failed to load romfile \"%s\"", pdev->romfile);
