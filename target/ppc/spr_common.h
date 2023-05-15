@@ -81,6 +81,7 @@ void _spr_register(CPUPPCState *env, int num, const char *name,
 void spr_noaccess(DisasContext *ctx, int gprn, int sprn);
 void spr_read_generic(DisasContext *ctx, int gprn, int sprn);
 void spr_write_generic(DisasContext *ctx, int sprn, int gprn);
+void spr_write_generic32(DisasContext *ctx, int sprn, int gprn);
 void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn);
 void spr_write_MMCR1(DisasContext *ctx, int sprn, int gprn);
 void spr_write_PMC(DisasContext *ctx, int sprn, int gprn);
@@ -109,7 +110,6 @@ void spr_write_PMC14_ureg(DisasContext *ctx, int sprn, int gprn);
 void spr_write_PMC56_ureg(DisasContext *ctx, int sprn, int gprn);
 
 #ifndef CONFIG_USER_ONLY
-void spr_write_generic32(DisasContext *ctx, int sprn, int gprn);
 void spr_write_clear(DisasContext *ctx, int sprn, int gprn);
 void spr_access_nop(DisasContext *ctx, int sprn, int gprn);
 void spr_read_decr(DisasContext *ctx, int gprn, int sprn);
