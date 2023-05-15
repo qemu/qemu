@@ -292,7 +292,6 @@ void qemu_fflush(QEMUFile *f)
             qemu_file_set_error_obj(f, -EIO, local_error);
         } else {
             uint64_t size = iov_size(f->iov, f->iovcnt);
-            migration_rate_account(size);
             f->total_transferred += size;
         }
 
@@ -344,9 +343,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
     if (f->hooks && f->hooks->save_page) {
         int ret = f->hooks->save_page(f, block_offset,
                                       offset, size, bytes_sent);
-        if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            migration_rate_account(size);
-        }
 
         if (ret != RAM_SAVE_CONTROL_DELAYED &&
             ret != RAM_SAVE_CONTROL_NOT_SUPP) {

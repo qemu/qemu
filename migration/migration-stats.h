@@ -90,10 +90,6 @@ typedef struct {
      */
     Stat64 rate_limit_max;
     /*
-     * Amount of data we have sent in the current cycle.
-     */
-    Stat64 rate_limit_used;
-    /*
      * Total number of bytes transferred.
      */
     Stat64 transferred;
@@ -104,16 +100,6 @@ typedef struct {
 } MigrationAtomicStats;
 
 extern MigrationAtomicStats mig_stats;
-
-/**
- * migration_rate_account: Increase the number of bytes transferred.
- *
- * Report on a number of bytes the have been transferred that need to
- * be applied to the rate limiting calcuations.
- *
- * @len: amount of bytes transferred
- */
-void migration_rate_account(uint64_t len);
 
 /**
  * migration_rate_get: Get the maximum amount that can be transferred.

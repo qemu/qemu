@@ -55,13 +55,7 @@ void migration_rate_set(uint64_t limit)
 
 void migration_rate_reset(QEMUFile *f)
 {
-    stat64_set(&mig_stats.rate_limit_used, 0);
     stat64_set(&mig_stats.rate_limit_start, migration_transferred_bytes(f));
-}
-
-void migration_rate_account(uint64_t len)
-{
-    stat64_add(&mig_stats.rate_limit_used, len);
 }
 
 uint64_t migration_transferred_bytes(QEMUFile *f)
