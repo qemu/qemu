@@ -10,11 +10,9 @@ void colo_shutdown(void)
 {
 }
 
-void *colo_process_incoming_thread(void *opaque)
+int coroutine_fn colo_incoming_co(void)
 {
-    error_report("Impossible happend: trying to start COLO thread when COLO "
-                 "module is not built in");
-    abort();
+    return 0;
 }
 
 void colo_checkpoint_delay_set(void)

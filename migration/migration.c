@@ -511,7 +511,6 @@ process_incoming_migration_co(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyState ps;
     int ret;
-    Error *local_err = NULL;
 
     assert(mis->from_src_file);
 
@@ -555,37 +554,14 @@ process_incoming_migration_co(void *opaque)
         goto fail;
     }
 
-    /* we get COLO info, and know if we are in COLO mode */
-    if (migration_incoming_colo_enabled()) {
-        QemuThread colo_incoming_thread;
-
-        /* Make sure all file formats throw away their mutable metadata */
-        bdrv_activate_all(&local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            goto fail;
-        }
-
-        qemu_thread_create(&colo_incoming_thread, "COLO incoming",
-             colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
-
-        mis->colo_incoming_co = qemu_coroutine_self();
-        qemu_coroutine_yield();
-        mis->colo_incoming_co = NULL;
-
-        qemu_mutex_unlock_iothread();
-        /* Wait checkpoint incoming thread exit before free resource */
-        qemu_thread_join(&colo_incoming_thread);
-        qemu_mutex_lock_iothread();
-        /* We hold the global iothread lock, so it is safe here */
-        colo_release_ram_cache();
+    if (colo_incoming_co() < 0) {
+        goto fail;
     }
 
     mis->bh = qemu_bh_new(process_incoming_migration_bh, mis);
     qemu_bh_schedule(mis->bh);
     return;
 fail:
-    local_err = NULL;
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_FAILED);
     qemu_fclose(mis->from_src_file);
