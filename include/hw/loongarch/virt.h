@@ -14,7 +14,7 @@
 #include "hw/intc/loongarch_ipi.h"
 #include "hw/block/flash.h"
 
-#define LOONGARCH_MAX_VCPUS     4
+#define LOONGARCH_MAX_CPUS      256
 
 #define VIRT_ISA_IO_BASE        0x18000000UL
 #define VIRT_ISA_IO_SIZE        0x0004000
@@ -36,7 +36,6 @@ struct LoongArchMachineState {
     /*< private >*/
     MachineState parent_obj;
 
-    IPICore ipi_core[MAX_IPI_CORE_NUM];
     MemoryRegion lowmem;
     MemoryRegion highmem;
     MemoryRegion isa_io;

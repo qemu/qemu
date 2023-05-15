@@ -565,9 +565,6 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
     CPUState *cpu_state;
     int cpu, pin, i, start, num;
 
-    ipi = qdev_new(TYPE_LOONGARCH_IPI);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
-
     extioi = qdev_new(TYPE_LOONGARCH_EXTIOI);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(extioi), &error_fatal);
 
@@ -598,17 +595,25 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
         lacpu = LOONGARCH_CPU(cpu_state);
         env = &(lacpu->env);
 
+        ipi = qdev_new(TYPE_LOONGARCH_IPI);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+
         /* connect ipi irq to cpu irq */
-        qdev_connect_gpio_out(ipi, cpu, qdev_get_gpio_in(cpudev, IRQ_IPI));
+        qdev_connect_gpio_out(ipi, 0, qdev_get_gpio_in(cpudev, IRQ_IPI));
         /* IPI iocsr memory region */
         memory_region_add_subregion(&env->system_iocsr, SMP_IPI_MAILBOX,
                                     sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    cpu * 2));
+                                    0));
         memory_region_add_subregion(&env->system_iocsr, MAIL_SEND_ADDR,
                                     sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi),
-                                    cpu * 2 + 1));
-        /* extioi iocsr memory region */
-        memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
+                                    1));
+        /*
+	 * extioi iocsr memory region
+	 * only one extioi is added on loongarch virt machine
+	 * external device interrupt can only be routed to cpu 0-3
+	 */
+	if (cpu < EXTIOI_CPUS)
+            memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
                                 cpu));
     }
@@ -617,7 +622,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
      * connect ext irq to the cpu irq
      * cpu_pin[9:2] <= intc_pin[7:0]
      */
-    for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
+    for (cpu = 0; cpu < MIN(ms->smp.cpus, EXTIOI_CPUS); cpu++) {
         cpudev = DEVICE(qemu_get_cpu(cpu));
         for (pin = 0; pin < LS3A_INTC_IP; pin++) {
             qdev_connect_gpio_out(extioi, (cpu * 8 + pin),
@@ -1026,7 +1031,7 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 1 * GiB;
     mc->default_cpu_type = LOONGARCH_CPU_TYPE_NAME("la464");
     mc->default_ram_id = "loongarch.ram";
-    mc->max_cpus = LOONGARCH_MAX_VCPUS;
+    mc->max_cpus = LOONGARCH_MAX_CPUS;
     mc->is_default = 1;
     mc->default_kernel_irqchip_split = false;
     mc->block_default_type = IF_VIRTIO;
