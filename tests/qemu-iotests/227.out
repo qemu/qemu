@@ -17,6 +17,7 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
             "stats": {
                 "unmap_operations": 0,
                 "unmap_merged": 0,
+                "failed_zone_append_operations": 0,
                 "flush_total_time_ns": 0,
                 "wr_highest_offset": 0,
                 "wr_total_time_ns": 0,
@@ -27,6 +28,7 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
                 "timed_stats": [
                 ],
                 "failed_unmap_operations": 0,
+                "zone_append_merged": 0,
                 "failed_flush_operations": 0,
                 "account_invalid": true,
                 "rd_total_time_ns": 0,
@@ -39,7 +41,11 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
                 "unmap_total_time_ns": 0,
                 "invalid_flush_operations": 0,
                 "account_failed": true,
+                "zone_append_total_time_ns": 0,
+                "zone_append_operations": 0,
                 "rd_operations": 0,
+                "zone_append_bytes": 0,
+                "invalid_zone_append_operations": 0,
                 "invalid_wr_operations": 0,
                 "invalid_rd_operations": 0
             },
@@ -82,6 +88,7 @@ Testing: -drive driver=null-co,if=none
             "stats": {
                 "unmap_operations": 0,
                 "unmap_merged": 0,
+                "failed_zone_append_operations": 0,
                 "flush_total_time_ns": 0,
                 "wr_highest_offset": 0,
                 "wr_total_time_ns": 0,
@@ -92,6 +99,7 @@ Testing: -drive driver=null-co,if=none
                 "timed_stats": [
                 ],
                 "failed_unmap_operations": 0,
+                "zone_append_merged": 0,
                 "failed_flush_operations": 0,
                 "account_invalid": true,
                 "rd_total_time_ns": 0,
@@ -104,7 +112,11 @@ Testing: -drive driver=null-co,if=none
                 "unmap_total_time_ns": 0,
                 "invalid_flush_operations": 0,
                 "account_failed": true,
+                "zone_append_total_time_ns": 0,
+                "zone_append_operations": 0,
                 "rd_operations": 0,
+                "zone_append_bytes": 0,
+                "invalid_zone_append_operations": 0,
                 "invalid_wr_operations": 0,
                 "invalid_rd_operations": 0
             },
@@ -177,6 +189,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
             "stats": {
                 "unmap_operations": 0,
                 "unmap_merged": 0,
+                "failed_zone_append_operations": 0,
                 "flush_total_time_ns": 0,
                 "wr_highest_offset": 0,
                 "wr_total_time_ns": 0,
@@ -187,6 +200,7 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
                 "timed_stats": [
                 ],
                 "failed_unmap_operations": 0,
+                "zone_append_merged": 0,
                 "failed_flush_operations": 0,
                 "account_invalid": true,
                 "rd_total_time_ns": 0,
@@ -199,7 +213,11 @@ Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-b
                 "unmap_total_time_ns": 0,
                 "invalid_flush_operations": 0,
                 "account_failed": true,
+                "zone_append_total_time_ns": 0,
+                "zone_append_operations": 0,
                 "rd_operations": 0,
+                "zone_append_bytes": 0,
+                "invalid_zone_append_operations": 0,
                 "invalid_wr_operations": 0,
                 "invalid_rd_operations": 0
             },
