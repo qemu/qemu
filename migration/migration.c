@@ -2304,7 +2304,7 @@ static void migration_completion(MigrationState *s)
                  * them if migration fails or is cancelled.
                  */
                 s->block_inactive = !migrate_colo();
-                qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
+                qemu_file_set_rate_limit(s->to_dst_file, RATE_LIMIT_DISABLED);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
                                                          s->block_inactive);
             }
@@ -3048,7 +3048,7 @@ static void *bg_migration_thread(void *opaque)
     rcu_register_thread();
     object_ref(OBJECT(s));
 
-    qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
+    qemu_file_set_rate_limit(s->to_dst_file, RATE_LIMIT_DISABLED);
 
     setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     /*

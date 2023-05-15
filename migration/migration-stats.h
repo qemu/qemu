@@ -16,6 +16,12 @@
 #include "qemu/stats64.h"
 
 /*
+ * If rate_limit_max is 0, there is special code to remove the rate
+ * limit.
+ */
+#define RATE_LIMIT_DISABLED 0
+
+/*
  * These are the ram migration statistic counters.  It is loosely
  * based on MigrationStats.  We change to Stat64 any counter that
  * needs to be updated using atomic ops (can be accessed by more than
