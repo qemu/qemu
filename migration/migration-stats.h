@@ -133,4 +133,15 @@ void migration_rate_reset(void);
  * @new_rate: new maximum amount
  */
 void migration_rate_set(uint64_t new_rate);
+
+/**
+ * migration_transferred_bytes: Return number of bytes transferred
+ *
+ * @f: QEMUFile used for main migration channel
+ *
+ * Returns how many bytes have we transferred since the beginning of
+ * the migration.  It accounts for bytes sent through any migration
+ * channel, multifd, qemu_file, rdma, ....
+ */
+uint64_t migration_transferred_bytes(QEMUFile *f);
 #endif
