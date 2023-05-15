@@ -50,7 +50,7 @@ struct _DBusDisplayListener {
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
 
-#ifdef CONFIG_GBM
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
 static void dbus_update_gl_cb(GObject *source_object,
                            GAsyncResult *res,
                            gpointer user_data)
@@ -239,7 +239,7 @@ static void dbus_refresh(DisplayChangeListener *dcl)
     graphic_hw_update(dcl->con);
 }
 
-#ifdef CONFIG_GBM
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
 static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
                                int x, int y, int w, int h)
 {
@@ -302,7 +302,7 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
         DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
-#ifdef CONFIG_GBM
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
 static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
                                struct DisplaySurface *new_surface)
 {
@@ -369,7 +369,7 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
         NULL);
 }
 
-#ifdef CONFIG_GBM
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
 const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_name                = "dbus-gl",
     .dpy_gfx_update          = dbus_gl_gfx_update,
@@ -417,7 +417,7 @@ dbus_display_listener_constructed(GObject *object)
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(object);
 
     ddl->dcl.ops = &dbus_dcl_ops;
-#ifdef CONFIG_GBM
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
     if (display_opengl) {
         ddl->dcl.ops = &dbus_gl_dcl_ops;
     }
