@@ -1289,6 +1289,7 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
     /* load & apply scanout state */
     vmstate_load_state(f, &vmstate_virtio_gpu_scanouts, g, 1);
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
+        /* FIXME: should take scanout.r.{x,y} into account */
         scanout = &g->parent_obj.scanout[i];
         if (!scanout->resource_id) {
             continue;
