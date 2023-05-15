@@ -82,6 +82,10 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Amount of transferred data at the start of current cycle.
+     */
+    Stat64 rate_limit_start;
+    /*
      * Maximum amount of data we can send in a cycle.
      */
     Stat64 rate_limit_max;
@@ -122,8 +126,10 @@ uint64_t migration_rate_get(void);
  * migration_rate_reset: Reset the rate limit counter.
  *
  * This is called when we know we start a new transfer cycle.
+ *
+ * @f: QEMUFile used for main migration channel
  */
-void migration_rate_reset(void);
+void migration_rate_reset(QEMUFile *f);
 
 /**
  * migration_rate_set: Set the maximum amount that can be transferred.
