@@ -1204,13 +1204,6 @@ static bool control_save_page(PageSearchStatus *pss, RAMBlock *block,
     if (ret == RAM_SAVE_CONTROL_DELAYED) {
         return true;
     }
-
-    if (bytes_xmit > 0) {
-        stat64_add(&mig_stats.normal_pages, 1);
-    } else if (bytes_xmit == 0) {
-        stat64_add(&mig_stats.zero_pages, 1);
-    }
-
     return true;
 }
 
