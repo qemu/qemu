@@ -3240,13 +3240,12 @@ qio_channel_rdma_shutdown(QIOChannel *ioc,
  *
  *    @size : Number of bytes to transfer
  *
- *    @bytes_sent : User-specificed pointer to indicate how many bytes were
+ *    @pages_sent : User-specificed pointer to indicate how many pages were
  *                  sent. Usually, this will not be more than a few bytes of
  *                  the protocol because most transfers are sent asynchronously.
  */
-static size_t qemu_rdma_save_page(QEMUFile *f,
-                                  ram_addr_t block_offset, ram_addr_t offset,
-                                  size_t size, uint64_t *bytes_sent)
+static int qemu_rdma_save_page(QEMUFile *f, ram_addr_t block_offset,
+                               ram_addr_t offset, size_t size)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(qemu_file_get_ioc(f));
     RDMAContext *rdma;
@@ -3276,18 +3275,6 @@ static size_t qemu_rdma_save_page(QEMUFile *f,
     if (ret < 0) {
         error_report("rdma migration: write error! %d", ret);
         goto err;
-    }
-
-    /*
-     * We always return 1 bytes because the RDMA
-     * protocol is completely asynchronous. We do not yet know
-     * whether an  identified chunk is zero or not because we're
-     * waiting for other pages to potentially be merged with
-     * the current chunk. So, we have to call qemu_update_position()
-     * later on when the actual write occurs.
-     */
-    if (bytes_sent) {
-        *bytes_sent = 1;
     }
 
     /*
