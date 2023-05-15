@@ -369,7 +369,7 @@ class QMPClient(AsyncProtocol[Message], Events):
             # This is very likely a server parsing error.
             # It doesn't inherently belong to any pending execution.
             # Instead of performing clever recovery, just terminate.
-            # See "NOTE" in qmp-spec.txt, section 2.4.2
+            # See "NOTE" in qmp-spec.rst, section "Error".
             raise ServerParseError(
                 ("Server sent an error response without an ID, "
                  "but there are no ID-less executions pending. "
@@ -377,7 +377,7 @@ class QMPClient(AsyncProtocol[Message], Events):
                 msg
             )
 
-        # qmp-spec.txt, section 2.4:
+        # qmp-spec.rst, section "Commands Responses":
         # 'Clients should drop all the responses
         # that have an unknown "id" field.'
         self.logger.log(

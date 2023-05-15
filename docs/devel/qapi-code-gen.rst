@@ -545,7 +545,8 @@ Member 'allow-oob' declares whether the command supports out-of-band
  { 'command': 'migrate_recover',
    'data': { 'uri': 'str' }, 'allow-oob': true }
 
-See qmp-spec.txt for out-of-band execution syntax and semantics.
+See the :doc:`/interop/qmp-spec` for out-of-band execution syntax
+and semantics.
 
 Commands supporting out-of-band execution can still be executed
 in-band.
