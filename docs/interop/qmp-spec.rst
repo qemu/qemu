@@ -307,7 +307,7 @@ This section provides some examples of real QMP usage, in all of them
   .. code-block:: QMP
 
     -> { "execute": }
-    <- { "error": { "class": "GenericError", "desc": "Invalid JSON syntax" } }
+    <- { "error": { "class": "GenericError", "desc": "JSON parse error, expecting value" } }
 
 .. admonition:: Example
 
