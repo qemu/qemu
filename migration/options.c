@@ -23,6 +23,7 @@
 #include "migration/colo.h"
 #include "migration/misc.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "qemu-file.h"
 #include "ram.h"
 #include "options.h"
@@ -1242,8 +1243,7 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_max_bandwidth) {
         s->parameters.max_bandwidth = params->max_bandwidth;
         if (s->to_dst_file && !migration_in_postcopy()) {
-            qemu_file_set_rate_limit(s->to_dst_file,
-                                s->parameters.max_bandwidth);
+            migration_rate_set(s->parameters.max_bandwidth);
         }
     }
 
@@ -1272,8 +1272,7 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_max_postcopy_bandwidth) {
         s->parameters.max_postcopy_bandwidth = params->max_postcopy_bandwidth;
         if (s->to_dst_file && migration_in_postcopy()) {
-            qemu_file_set_rate_limit(s->to_dst_file,
-                    s->parameters.max_postcopy_bandwidth);
+            migration_rate_set(s->parameters.max_postcopy_bandwidth);
         }
     }
     if (params->has_max_cpu_throttle) {

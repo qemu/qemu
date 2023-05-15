@@ -16,6 +16,12 @@
 #include "qemu/stats64.h"
 
 /*
+ * Amount of time to allocate to each "chunk" of bandwidth-throttled
+ * data.
+ */
+#define BUFFER_DELAY     100
+
+/*
  * If rate_limit_max is 0, there is special code to remove the rate
  * limit.
  */
@@ -76,6 +82,14 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Maximum amount of data we can send in a cycle.
+     */
+    Stat64 rate_limit_max;
+    /*
+     * Amount of data we have sent in the current cycle.
+     */
+    Stat64 rate_limit_used;
+    /*
      * Total number of bytes transferred.
      */
     Stat64 transferred;
@@ -87,4 +101,36 @@ typedef struct {
 
 extern MigrationAtomicStats mig_stats;
 
+/**
+ * migration_rate_account: Increase the number of bytes transferred.
+ *
+ * Report on a number of bytes the have been transferred that need to
+ * be applied to the rate limiting calcuations.
+ *
+ * @len: amount of bytes transferred
+ */
+void migration_rate_account(uint64_t len);
+
+/**
+ * migration_rate_get: Get the maximum amount that can be transferred.
+ *
+ * Returns the maximum number of bytes that can be transferred in a cycle.
+ */
+uint64_t migration_rate_get(void);
+
+/**
+ * migration_rate_reset: Reset the rate limit counter.
+ *
+ * This is called when we know we start a new transfer cycle.
+ */
+void migration_rate_reset(void);
+
+/**
+ * migration_rate_set: Set the maximum amount that can be transferred.
+ *
+ * Sets the maximum amount of bytes that can be transferred in one cycle.
+ *
+ * @new_rate: new maximum amount
+ */
+void migration_rate_set(uint64_t new_rate);
 #endif

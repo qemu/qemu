@@ -706,7 +706,7 @@ static void bulk_phase(QEMUFile *f, DBMSaveState *s, bool limit)
     QSIMPLEQ_FOREACH(dbms, &s->dbms_list, entry) {
         while (!dbms->bulk_completed) {
             bulk_phase_send_chunk(f, s, dbms);
-            if (limit && qemu_file_rate_limit(f)) {
+            if (limit && migration_rate_exceeded(f)) {
                 return;
             }
         }

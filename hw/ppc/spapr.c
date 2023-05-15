@@ -2166,7 +2166,7 @@ static void htab_save_first_pass(QEMUFile *f, SpaprMachineState *spapr,
                 break;
             }
         }
-    } while ((index < htabslots) && !qemu_file_rate_limit(f));
+    } while ((index < htabslots) && !migration_rate_exceeded(f));
 
     if (index >= htabslots) {
         assert(index == htabslots);
@@ -2237,7 +2237,7 @@ static int htab_save_later_pass(QEMUFile *f, SpaprMachineState *spapr,
             assert(index == htabslots);
             index = 0;
         }
-    } while ((examined < htabslots) && (!qemu_file_rate_limit(f) || final));
+    } while ((examined < htabslots) && (!migration_rate_exceeded(f) || final));
 
     if (index >= htabslots) {
         assert(index == htabslots);

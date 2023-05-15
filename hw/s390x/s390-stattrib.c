@@ -209,7 +209,7 @@ static int cmma_save(QEMUFile *f, void *opaque, int final)
         return -ENOMEM;
     }
 
-    while (final ? 1 : qemu_file_rate_limit(f) == 0) {
+    while (final ? 1 : migration_rate_exceeded(f) == 0) {
         reallen = sac->get_stattr(sas, &start_gfn, buflen, buf);
         if (reallen < 0) {
             g_free(buf);

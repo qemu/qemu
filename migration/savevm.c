@@ -1338,7 +1338,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
             !(se->ops->has_postcopy && se->ops->has_postcopy(se->opaque))) {
             continue;
         }
-        if (qemu_file_rate_limit(f)) {
+        if (migration_rate_exceeded(f)) {
             return 0;
         }
         trace_savevm_section_start(se->idstr, se->section_id);

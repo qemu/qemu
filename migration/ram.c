@@ -3116,7 +3116,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
         t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
         i = 0;
-        while ((ret = qemu_file_rate_limit(f)) == 0 ||
+        while ((ret = migration_rate_exceeded(f)) == 0 ||
                postcopy_has_request(rs)) {
             int pages;
 
