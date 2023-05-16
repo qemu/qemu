@@ -60,6 +60,7 @@ import sysconfig
 from types import SimpleNamespace
 from typing import (
     Any,
+    Iterator,
     Optional,
     Sequence,
     Tuple,
@@ -69,6 +70,7 @@ import venv
 import warnings
 
 import distlib.database
+import distlib.scripts
 import distlib.version
 
 
@@ -334,6 +336,113 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
+def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
+    # pylint: disable=import-outside-toplevel
+    # pylint: disable=no-name-in-module
+    # pylint: disable=import-error
+    try:
+        # First preference: Python 3.8+ stdlib
+        from importlib.metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        # Second preference: Commonly available PyPI backport
+        from importlib_metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+
+    def _generator() -> Iterator[str]:
+        for package in packages:
+            try:
+                entry_points = distribution(package).entry_points
+            except PackageNotFoundError:
+                continue
+
+            # The EntryPoints type is only available in 3.10+,
+            # treat this as a vanilla list and filter it ourselves.
+            entry_points = filter(
+                lambda ep: ep.group == "console_scripts", entry_points
+            )
+
+            for entry_point in entry_points:
+                yield f"{entry_point.name} = {entry_point.value}"
+
+    return _generator()
+
+
+def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[str]:
+    # pylint: disable=import-outside-toplevel
+    # Bundled with setuptools; has a good chance of being available.
+    import pkg_resources
+
+    def _generator() -> Iterator[str]:
+        for package in packages:
+            try:
+                eps = pkg_resources.get_entry_map(package, "console_scripts")
+            except pkg_resources.DistributionNotFound:
+                continue
+
+            for entry_point in eps.values():
+                yield str(entry_point)
+
+    return _generator()
+
+
+def generate_console_scripts(
+    packages: Sequence[str],
+    python_path: Optional[str] = None,
+    bin_path: Optional[str] = None,
+) -> None:
+    """
+    Generate script shims for console_script entry points in @packages.
+    """
+    if python_path is None:
+        python_path = sys.executable
+    if bin_path is None:
+        bin_path = sysconfig.get_path("scripts")
+        assert bin_path is not None
+
+    logger.debug(
+        "generate_console_scripts(packages=%s, python_path=%s, bin_path=%s)",
+        packages,
+        python_path,
+        bin_path,
+    )
+
+    if not packages:
+        return
+
+    def _get_entry_points() -> Iterator[str]:
+        """Python 3.7 compatibility shim for iterating entry points."""
+        # Python 3.8+, or Python 3.7 with importlib_metadata installed.
+        try:
+            return _gen_importlib(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+
+        # Python 3.7 with setuptools installed.
+        try:
+            return _gen_pkg_resources(packages)
+        except ImportError as exc:
+            logger.debug("%s", str(exc))
+            raise Ouch(
+                "Neither importlib.metadata nor pkg_resources found, "
+                "can't generate console script shims.\n"
+                "Use Python 3.8+, or install importlib-metadata or setuptools."
+            ) from exc
+
+    maker = distlib.scripts.ScriptMaker(None, bin_path)
+    maker.variants = {""}
+    maker.clobber = False
+
+    for entry_point in _get_entry_points():
+        for filename in maker.make(entry_point):
+            logger.debug("wrote console_script '%s'", filename)
+
+
 def pkgname_from_depspec(dep_spec: str) -> str:
     """
     Parse package name out of a PEP-508 depspec.
@@ -512,6 +621,7 @@ def _do_ensure(
         )
         dist_path = distlib.database.DistributionPath(include_egg=True)
         absent = []
+        present = []
         for spec in dep_specs:
             matcher = distlib.version.LegacyMatcher(spec)
             dist = dist_path.get_distribution(matcher.name)
@@ -519,6 +629,10 @@ def _do_ensure(
                 absent.append(spec)
             else:
                 logger.info("found %s", dist)
+                present.append(matcher.name)
+
+    if present:
+        generate_console_scripts(present)
 
     if absent:
         # Some packages are missing or aren't a suitable version,
