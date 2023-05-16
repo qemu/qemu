@@ -771,6 +771,9 @@ static void loongarch_init(MachineState *machine)
     LoongArchMachineState *lams = LOONGARCH_MACHINE(machine);
     int i;
     hwaddr fdt_base;
+    const CPUArchIdList *possible_cpus;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+    CPUState *cpu;
 
     if (!cpu_model) {
         cpu_model = LOONGARCH_CPU_TYPE_NAME("la464");
@@ -787,8 +790,12 @@ static void loongarch_init(MachineState *machine)
     }
     create_fdt(lams);
     /* Init CPUs */
-    for (i = 0; i < machine->smp.cpus; i++) {
-        cpu_create(machine->cpu_type);
+
+    possible_cpus = mc->possible_cpu_arch_ids(machine);
+    for (i = 0; i < possible_cpus->len; i++) {
+        cpu = cpu_create(machine->cpu_type);
+        cpu->cpu_index = i;
+        machine->possible_cpus->cpus[i].cpu = OBJECT(cpu);
     }
     fdt_add_cpu_nodes(lams);
     /* Add memory region */
@@ -1022,6 +1029,28 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
+{
+    int n;
+    unsigned int max_cpus = ms->smp.max_cpus;
+
+    if (ms->possible_cpus) {
+        assert(ms->possible_cpus->len == max_cpus);
+        return ms->possible_cpus;
+    }
+
+    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus->len = max_cpus;
+    for (n = 0; n < ms->possible_cpus->len; n++) {
+        ms->possible_cpus->cpus[n].type = ms->cpu_type;
+        ms->possible_cpus->cpus[n].arch_id = n;
+        ms->possible_cpus->cpus[n].props.has_core_id = true;
+        ms->possible_cpus->cpus[n].props.core_id = n % ms->smp.cores;
+    }
+    return ms->possible_cpus;
+}
+
 static void loongarch_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -1038,6 +1067,7 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_VIRTIO;
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
+    mc->possible_cpu_arch_ids = virt_possible_cpu_arch_ids;
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
     mc->default_nic = "virtio-net-pci";
     hc->plug = loongarch_machine_device_plug_cb;
