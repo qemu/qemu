@@ -43,7 +43,6 @@ exec "$@"\n' > /usr/bin/nosync && \
                gcc \
                gcc-c++ \
                gcovr \
-               genisoimage \
                gettext \
                git \
                glib2-devel \
@@ -90,6 +89,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                make \
                mesa-libgbm-devel \
                meson \
+               mtools \
                ncurses-devel \
                nettle-devel \
                ninja-build \
@@ -128,6 +128,7 @@ exec "$@"\n' > /usr/bin/nosync && \
                which \
                xen-devel \
                xfsprogs-devel \
+               xorriso \
                zlib-devel \
                zlib-static \
                zstd && \

@@ -28,5 +28,8 @@ for source, dest in json.loads(out).items():
         os.symlink(source, bundle_dest)
     except BaseException as e:
         if not isinstance(e, OSError) or e.errno != errno.EEXIST:
+            if os.name == 'nt':
+                print('Please enable Developer Mode to support soft link '
+                      'without Administrator permission')
             print(f'error making symbolic link {dest}', file=sys.stderr)
             raise e

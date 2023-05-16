@@ -40,9 +40,6 @@
 #include "linux/kvm.h"
 #endif
 
-/* TODO actually test the results and get rid of this */
-#define qtest_qmp_discard_response(...) qobject_unref(qtest_qmp(__VA_ARGS__))
-
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
@@ -766,7 +763,7 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
             usleep(1000 * 10);
         } while (dest_byte_a == dest_byte_b);
 
-        qtest_qmp_discard_response(to, "{ 'execute' : 'stop'}");
+        qtest_qmp_assert_success(to, "{ 'execute' : 'stop'}");
 
         /* With it stopped, check nothing changes */
         qtest_memread(to, start_address, &dest_byte_c, 1);

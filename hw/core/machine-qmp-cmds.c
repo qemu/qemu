@@ -28,18 +28,6 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
-static void cpustate_to_cpuinfo_s390(CpuInfoS390 *info, const CPUState *cpu)
-{
-#ifdef TARGET_S390X
-    S390CPU *s390_cpu = S390_CPU(cpu);
-    CPUS390XState *env = &s390_cpu->env;
-
-    info->cpu_state = env->cpu_state;
-#else
-    abort();
-#endif
-}
-
 /*
  * fast means: we NEVER interrupt vCPU threads to retrieve
  * information from KVM.
@@ -49,7 +37,7 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
     MachineState *ms = MACHINE(qdev_get_machine());
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     CpuInfoFastList *head = NULL, **tail = &head;
-    SysEmuTarget target = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME,
+    SysEmuTarget target = qapi_enum_parse(&SysEmuTarget_lookup, target_name(),
                                           -1, &error_abort);
     CPUState *cpu;
 
@@ -68,8 +56,8 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
         }
 
         value->target = target;
-        if (target == SYS_EMU_TARGET_S390X) {
-            cpustate_to_cpuinfo_s390(&value->u.s390x, cpu);
+        if (cpu->cc->query_cpu_fast) {
+            cpu->cc->query_cpu_fast(cpu, value);
         }
 
         QAPI_LIST_APPEND(tail, value);
@@ -129,7 +117,7 @@ TargetInfo *qmp_query_target(Error **errp)
 {
     TargetInfo *info = g_malloc0(sizeof(*info));
 
-    info->arch = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME, -1,
+    info->arch = qapi_enum_parse(&SysEmuTarget_lookup, target_name(), -1,
                                  &error_abort);
 
     return info;

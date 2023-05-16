@@ -36,9 +36,6 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
-/* TODO actually test the results and get rid of this */
-#define qmp_discard_response(s, ...) qobject_unref(qtest_qmp(s, __VA_ARGS__))
-
 /* Test images sizes in MB */
 #define TEST_IMAGE_SIZE_MB_LARGE (200 * 1024)
 #define TEST_IMAGE_SIZE_MB_SMALL 64
@@ -1595,9 +1592,9 @@ static void test_atapi_tray(void)
     rsp = qtest_qmp_receive(ahci->parent->qts);
     qobject_unref(rsp);
 
-    qmp_discard_response(ahci->parent->qts,
-                         "{'execute': 'blockdev-remove-medium', "
-                         "'arguments': {'id': 'cd0'}}");
+    qtest_qmp_assert_success(ahci->parent->qts,
+                             "{'execute': 'blockdev-remove-medium', "
+                             "'arguments': {'id': 'cd0'}}");
 
     /* Test the tray without a medium */
     ahci_atapi_load(ahci, port);
@@ -1607,16 +1604,18 @@ static void test_atapi_tray(void)
     atapi_wait_tray(ahci, true);
 
     /* Re-insert media */
-    qmp_discard_response(ahci->parent->qts,
-                         "{'execute': 'blockdev-add', "
-                         "'arguments': {'node-name': 'node0', "
-                                        "'driver': 'raw', "
-                                        "'file': { 'driver': 'file', "
-                                                  "'filename': %s }}}", iso);
-    qmp_discard_response(ahci->parent->qts,
-                         "{'execute': 'blockdev-insert-medium',"
-                         "'arguments': { 'id': 'cd0', "
-                                         "'node-name': 'node0' }}");
+    qtest_qmp_assert_success(
+        ahci->parent->qts,
+        "{'execute': 'blockdev-add', "
+        "'arguments': {'node-name': 'node0', "
+                      "'driver': 'raw', "
+                      "'file': { 'driver': 'file', "
+                                "'filename': %s }}}", iso);
+    qtest_qmp_assert_success(
+        ahci->parent->qts,
+        "{'execute': 'blockdev-insert-medium',"
+        "'arguments': { 'id': 'cd0', "
+                       "'node-name': 'node0' }}");
 
     /* Again, the event shows up first */
     qtest_qmp_send(ahci->parent->qts, "{'execute': 'blockdev-close-tray', "

@@ -427,6 +427,11 @@ bool target_words_bigendian(void)
 #endif
 }
 
+const char *target_name(void)
+{
+    return TARGET_NAME;
+}
+
 void page_size_init(void)
 {
     /* NOTE: we can always suppose that qemu_host_page_size >=

@@ -81,7 +81,7 @@ RUN zypper update -y && \
            lttng-ust-devel \
            lzo-devel \
            make \
-           mkisofs \
+           mtools \
            ncat \
            ncurses-devel \
            ninja \
@@ -111,6 +111,7 @@ RUN zypper update -y && \
            which \
            xen-devel \
            xfsprogs-devel \
+           xorriso \
            zlib-devel \
            zlib-devel-static \
            zstd && \

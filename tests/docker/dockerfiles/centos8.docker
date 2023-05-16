@@ -36,7 +36,6 @@ RUN dnf distro-sync -y && \
         fuse3-devel \
         gcc \
         gcc-c++ \
-        genisoimage \
         gettext \
         git \
         glib2-devel \
@@ -82,6 +81,7 @@ RUN dnf distro-sync -y && \
         lzo-devel \
         make \
         mesa-libgbm-devel \
+        mtools \
         ncurses-devel \
         nettle-devel \
         ninja-build \
@@ -114,6 +114,7 @@ RUN dnf distro-sync -y && \
         vte291-devel \
         which \
         xfsprogs-devel \
+        xorriso \
         zlib-devel \
         zlib-static \
         zstd && \
