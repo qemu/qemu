@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
+#include "hw/virtio/virtio-crypto.h"
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
@@ -163,13 +164,24 @@ typedef struct VhostUserConfig {
 
 #define VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN    512
 #define VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN  64
+#define VHOST_CRYPTO_ASYM_MAX_KEY_LEN  1024
 
 typedef struct VhostUserCryptoSession {
+    uint64_t op_code;
+    union {
+        struct {
+            CryptoDevBackendSymSessionInfo session_setup_data;
+            uint8_t key[VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN];
+            uint8_t auth_key[VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN];
+        } sym;
+        struct {
+            CryptoDevBackendAsymSessionInfo session_setup_data;
+            uint8_t key[VHOST_CRYPTO_ASYM_MAX_KEY_LEN];
+        } asym;
+    } u;
+
     /* session id for success, -1 on errors */
     int64_t session_id;
-    CryptoDevBackendSymSessionInfo session_setup_data;
-    uint8_t key[VHOST_CRYPTO_SYM_CIPHER_MAX_KEY_LEN];
-    uint8_t auth_key[VHOST_CRYPTO_SYM_HMAC_MAX_KEY_LEN];
 } VhostUserCryptoSession;
 
 static VhostUserConfig c __attribute__ ((unused));
@@ -2357,7 +2369,7 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
     int ret;
     bool crypto_session = virtio_has_feature(dev->protocol_features,
                                        VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
-    CryptoDevBackendSymSessionInfo *sess_info = session_info;
+    CryptoDevBackendSessionInfo *backend_info = session_info;
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_CREATE_CRYPTO_SESSION,
         .hdr.flags = VHOST_USER_VERSION,
@@ -2371,16 +2383,53 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
         return -ENOTSUP;
     }
 
-    memcpy(&msg.payload.session.session_setup_data, sess_info,
-              sizeof(CryptoDevBackendSymSessionInfo));
-    if (sess_info->key_len) {
-        memcpy(&msg.payload.session.key, sess_info->cipher_key,
-               sess_info->key_len);
+    if (backend_info->op_code == VIRTIO_CRYPTO_AKCIPHER_CREATE_SESSION) {
+        CryptoDevBackendAsymSessionInfo *sess = &backend_info->u.asym_sess_info;
+        size_t keylen;
+
+        memcpy(&msg.payload.session.u.asym.session_setup_data, sess,
+               sizeof(CryptoDevBackendAsymSessionInfo));
+        if (sess->keylen) {
+            keylen = sizeof(msg.payload.session.u.asym.key);
+            if (sess->keylen > keylen) {
+                error_report("Unsupported asymmetric key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.asym.key, sess->key,
+                   sess->keylen);
+        }
+    } else {
+        CryptoDevBackendSymSessionInfo *sess = &backend_info->u.sym_sess_info;
+        size_t keylen;
+
+        memcpy(&msg.payload.session.u.sym.session_setup_data, sess,
+               sizeof(CryptoDevBackendSymSessionInfo));
+        if (sess->key_len) {
+            keylen = sizeof(msg.payload.session.u.sym.key);
+            if (sess->key_len > keylen) {
+                error_report("Unsupported cipher key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.sym.key, sess->cipher_key,
+                   sess->key_len);
+        }
+
+        if (sess->auth_key_len > 0) {
+            keylen = sizeof(msg.payload.session.u.sym.auth_key);
+            if (sess->auth_key_len > keylen) {
+                error_report("Unsupported auth key size");
+                return -ENOTSUP;
+            }
+
+            memcpy(&msg.payload.session.u.sym.auth_key, sess->auth_key,
+                   sess->auth_key_len);
+        }
     }
-    if (sess_info->auth_key_len > 0) {
-        memcpy(&msg.payload.session.auth_key, sess_info->auth_key,
-               sess_info->auth_key_len);
-    }
+
+    msg.payload.session.op_code = backend_info->op_code;
+    msg.payload.session.session_id = backend_info->session_id;
     ret = vhost_user_write(dev, &msg, NULL, 0);
     if (ret < 0) {
         error_report("vhost_user_write() return %d, create session failed",
