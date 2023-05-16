@@ -2307,6 +2307,7 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
      * re-entrancy guard.
      */
     s->ram_io.disable_reentrancy_guard = true;
+    s->mmio_io.disable_reentrancy_guard = true;
 
     address_space_init(&s->pci_io_as, pci_address_space_io(dev), "lsi-pci-io");
     qdev_init_gpio_out(d, &s->ext_irq, 1);
