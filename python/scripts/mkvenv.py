@@ -61,8 +61,6 @@ options:
 
 """
 
-# pylint: disable=too-many-lines
-
 # Copyright (C) 2022-2023 Red Hat, Inc.
 #
 # Authors:
@@ -195,7 +193,7 @@ class QemuEnvBuilder(venv.EnvBuilder):
             ):
                 kwargs["with_pip"] = False
             else:
-                check_ensurepip(suggest_remedy=True)
+                check_ensurepip()
 
         super().__init__(*args, **kwargs)
 
@@ -300,7 +298,7 @@ def need_ensurepip() -> bool:
     return True
 
 
-def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
+def check_ensurepip() -> None:
     """
     Check that we have ensurepip.
 
@@ -311,15 +309,12 @@ def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
             "Python's ensurepip module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "(Debian puts ensurepip in its python3-venv package.)\n"
+            "Either install ensurepip, or alleviate the need for it in the "
+            "first place by installing pip and setuptools for "
+            f"'{sys.executable}'.\n"
+            "(Hint: Debian puts ensurepip in its python3-venv package.)"
         )
-        if suggest_remedy:
-            msg += (
-                "Either install ensurepip, or alleviate the need for it in the"
-                " first place by installing pip and setuptools for "
-                f"'{sys.executable}'.\n"
-            )
-        raise Ouch(prefix + msg)
+        raise Ouch(msg)
 
     # ensurepip uses pyexpat, which can also go missing on us:
     if not find_spec("pyexpat"):
@@ -327,15 +322,12 @@ def check_ensurepip(prefix: str = "", suggest_remedy: bool = False) -> None:
             "Python's pyexpat module is not found.\n"
             "It's normally part of the Python standard library, "
             "maybe your distribution packages it separately?\n"
-            "(NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)\n"
+            "Either install pyexpat, or alleviate the need for it in the "
+            "first place by installing pip and setuptools for "
+            f"'{sys.executable}'.\n\n"
+            "(Hint: NetBSD's pkgsrc debundles this to e.g. 'py310-expat'.)"
         )
-        if suggest_remedy:
-            msg += (
-                "Either install pyexpat, or alleviate the need for it in the "
-                "first place by installing pip and setuptools for "
-                f"'{sys.executable}'.\n"
-            )
-        raise Ouch(prefix + msg)
+        raise Ouch(msg)
 
 
 def make_venv(  # pylint: disable=too-many-arguments
@@ -487,38 +479,6 @@ def generate_console_scripts(
     for entry_point in _get_entry_points(packages):
         for filename in maker.make(entry_point):
             logger.debug("wrote console_script '%s'", filename)
-
-
-def checkpip() -> bool:
-    """
-    Debian10 has a pip that's broken when used inside of a virtual environment.
-
-    We try to detect and correct that case here.
-    """
-    try:
-        # pylint: disable=import-outside-toplevel,unused-import,import-error
-        # pylint: disable=redefined-outer-name
-        import pip._internal  # type: ignore  # noqa: F401
-
-        logger.debug("pip appears to be working correctly.")
-        return False
-    except ModuleNotFoundError as exc:
-        if exc.name == "pip._internal":
-            # Uh, fair enough. They did say "internal".
-            # Let's just assume it's fine.
-            return False
-        logger.warning("pip appears to be malfunctioning: %s", str(exc))
-
-    check_ensurepip("pip appears to be non-functional, and ")
-
-    logger.debug("Attempting to repair pip ...")
-    subprocess.run(
-        (sys.executable, "-m", "ensurepip"),
-        stdout=subprocess.DEVNULL,
-        check=True,
-    )
-    logger.debug("Pip is now (hopefully) repaired!")
-    return True
 
 
 def pkgname_from_depspec(dep_spec: str) -> str:
@@ -877,12 +837,10 @@ def post_venv_setup() -> None:
     This is intended to be run *inside the venv* after it is created.
     """
     logger.debug("post_venv_setup()")
-    # Test for a broken pip (Debian 10 or derivative?) and fix it if needed
-    if not checkpip():
-        # Finally, generate a 'pip' script so the venv is usable in a normal
-        # way from the CLI. This only happens when we inherited pip from a
-        # parent/system-site and haven't run ensurepip in some way.
-        generate_console_scripts(["pip"])
+    # Generate a 'pip' script so the venv is usable in a normal
+    # way from the CLI. This only happens when we inherited pip from a
+    # parent/system-site and haven't run ensurepip in some way.
+    generate_console_scripts(["pip"])
 
 
 def _add_create_subcommand(subparsers: Any) -> None:
