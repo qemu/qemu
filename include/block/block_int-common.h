@@ -364,6 +364,21 @@ struct BlockDriver {
                                     AioContext *new_context);
 
     /**
+     * bdrv_drain_begin is called if implemented in the beginning of a
+     * drain operation to drain and stop any internal sources of requests in
+     * the driver.
+     * bdrv_drain_end is called if implemented at the end of the drain.
+     *
+     * They should be used by the driver to e.g. manage scheduled I/O
+     * requests, or toggle an internal state. After the end of the drain new
+     * requests will continue normally.
+     *
+     * Implementations of both functions must not call aio_poll().
+     */
+    void (*bdrv_drain_begin)(BlockDriverState *bs);
+    void (*bdrv_drain_end)(BlockDriverState *bs);
+
+    /**
      * Try to get @bs's logical and physical block size.
      * On success, store them in @bsz and return zero.
      * On failure, return negative errno.
@@ -758,21 +773,6 @@ struct BlockDriver {
     void coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_io_unplug)(
         BlockDriverState *bs);
 
-    /**
-     * bdrv_drain_begin is called if implemented in the beginning of a
-     * drain operation to drain and stop any internal sources of requests in
-     * the driver.
-     * bdrv_drain_end is called if implemented at the end of the drain.
-     *
-     * They should be used by the driver to e.g. manage scheduled I/O
-     * requests, or toggle an internal state. After the end of the drain new
-     * requests will continue normally.
-     *
-     * Implementations of both functions must not call aio_poll().
-     */
-    void (*bdrv_drain_begin)(BlockDriverState *bs);
-    void (*bdrv_drain_end)(BlockDriverState *bs);
-
     bool (*bdrv_supports_persistent_dirty_bitmap)(BlockDriverState *bs);
 
     bool coroutine_fn GRAPH_RDLOCK_PTR (*bdrv_co_can_store_new_dirty_bitmap)(
@@ -956,6 +956,27 @@ struct BdrvChildClass {
     void GRAPH_WRLOCK_PTR (*detach)(BdrvChild *child);
 
     /*
+     * If this pair of functions is implemented, the parent doesn't issue new
+     * requests after returning from .drained_begin() until .drained_end() is
+     * called.
+     *
+     * These functions must not change the graph (and therefore also must not
+     * call aio_poll(), which could change the graph indirectly).
+     *
+     * Note that this can be nested. If drained_begin() was called twice, new
+     * I/O is allowed only after drained_end() was called twice, too.
+     */
+    void (*drained_begin)(BdrvChild *child);
+    void (*drained_end)(BdrvChild *child);
+
+    /*
+     * Returns whether the parent has pending requests for the child. This
+     * callback is polled after .drained_begin() has been called until all
+     * activity on the child has stopped.
+     */
+    bool (*drained_poll)(BdrvChild *child);
+
+    /*
      * Notifies the parent that the filename of its child has changed (e.g.
      * because the direct child was removed from the backing chain), so that it
      * can update its reference.
@@ -984,27 +1005,6 @@ struct BdrvChildClass {
     const char *(*get_name)(BdrvChild *child);
 
     AioContext *(*get_parent_aio_context)(BdrvChild *child);
-
-    /*
-     * If this pair of functions is implemented, the parent doesn't issue new
-     * requests after returning from .drained_begin() until .drained_end() is
-     * called.
-     *
-     * These functions must not change the graph (and therefore also must not
-     * call aio_poll(), which could change the graph indirectly).
-     *
-     * Note that this can be nested. If drained_begin() was called twice, new
-     * I/O is allowed only after drained_end() was called twice, too.
-     */
-    void (*drained_begin)(BdrvChild *child);
-    void (*drained_end)(BdrvChild *child);
-
-    /*
-     * Returns whether the parent has pending requests for the child. This
-     * callback is polled after .drained_begin() has been called until all
-     * activity on the child has stopped.
-     */
-    bool (*drained_poll)(BdrvChild *child);
 };
 
 extern const BdrvChildClass child_of_bds;
