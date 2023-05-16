@@ -91,12 +91,12 @@ static void test(void)
 
     /* Make the event notifier active (set) right away */
     event_notifier_init(&td.poll_notifier, 1);
-    aio_set_event_notifier(td.ctx, &td.poll_notifier, false,
+    aio_set_event_notifier(td.ctx, &td.poll_notifier,
                            io_read, io_poll_true, io_poll_ready);
 
     /* This event notifier will be used later */
     event_notifier_init(&td.dummy_notifier, 0);
-    aio_set_event_notifier(td.ctx, &td.dummy_notifier, false,
+    aio_set_event_notifier(td.ctx, &td.dummy_notifier,
                            io_read, io_poll_false, io_poll_never_ready);
 
     /* Consume aio_notify() */
@@ -114,9 +114,8 @@ static void test(void)
     /* Run io_poll()/io_poll_ready() one more time to show it keeps working */
     g_assert(aio_poll(td.ctx, true));
 
-    aio_set_event_notifier(td.ctx, &td.dummy_notifier, false,
-                           NULL, NULL, NULL);
-    aio_set_event_notifier(td.ctx, &td.poll_notifier, false, NULL, NULL, NULL);
+    aio_set_event_notifier(td.ctx, &td.dummy_notifier, NULL, NULL, NULL);
+    aio_set_event_notifier(td.ctx, &td.poll_notifier, NULL, NULL, NULL);
     event_notifier_cleanup(&td.dummy_notifier);
     event_notifier_cleanup(&td.poll_notifier);
     aio_context_unref(td.ctx);

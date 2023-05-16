@@ -362,7 +362,6 @@ static void bdrv_do_drained_begin(BlockDriverState *bs, BdrvChild *parent,
 
     /* Stop things in parent-to-child order */
     if (qatomic_fetch_inc(&bs->quiesce_counter) == 0) {
-        aio_disable_external(bdrv_get_aio_context(bs));
         bdrv_parent_drained_begin(bs, parent);
         if (bs->drv && bs->drv->bdrv_drain_begin) {
             bs->drv->bdrv_drain_begin(bs);
@@ -418,7 +417,6 @@ static void bdrv_do_drained_end(BlockDriverState *bs, BdrvChild *parent)
             bs->drv->bdrv_drain_end(bs);
         }
         bdrv_parent_drained_end(bs, parent);
-        aio_enable_external(bdrv_get_aio_context(bs));
     }
 }
 

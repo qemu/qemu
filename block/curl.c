@@ -132,7 +132,7 @@ static gboolean curl_drop_socket(void *key, void *value, void *opaque)
     CURLSocket *socket = value;
     BDRVCURLState *s = socket->s;
 
-    aio_set_fd_handler(s->aio_context, socket->fd, false,
+    aio_set_fd_handler(s->aio_context, socket->fd,
                        NULL, NULL, NULL, NULL, NULL);
     return true;
 }
@@ -180,20 +180,20 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     trace_curl_sock_cb(action, (int)fd);
     switch (action) {
         case CURL_POLL_IN:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                curl_multi_do, NULL, NULL, NULL, socket);
             break;
         case CURL_POLL_OUT:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                NULL, curl_multi_do, NULL, NULL, socket);
             break;
         case CURL_POLL_INOUT:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                curl_multi_do, curl_multi_do,
                                NULL, NULL, socket);
             break;
         case CURL_POLL_REMOVE:
-            aio_set_fd_handler(s->aio_context, fd, false,
+            aio_set_fd_handler(s->aio_context, fd,
                                NULL, NULL, NULL, NULL, NULL);
             break;
     }

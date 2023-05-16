@@ -137,7 +137,7 @@ static void vduse_blk_enable_queue(VduseDev *dev, VduseVirtq *vq)
     }
 
     aio_set_fd_handler(vblk_exp->export.ctx, vduse_queue_get_fd(vq),
-                       false, on_vduse_vq_kick, NULL, NULL, NULL, vq);
+                       on_vduse_vq_kick, NULL, NULL, NULL, vq);
     /* Make sure we don't miss any kick afer reconnecting */
     eventfd_write(vduse_queue_get_fd(vq), 1);
 }
@@ -151,7 +151,7 @@ static void vduse_blk_disable_queue(VduseDev *dev, VduseVirtq *vq)
         return;
     }
 
-    aio_set_fd_handler(vblk_exp->export.ctx, fd, false,
+    aio_set_fd_handler(vblk_exp->export.ctx, fd,
                        NULL, NULL, NULL, NULL, NULL);
 }
 
@@ -170,7 +170,7 @@ static void on_vduse_dev_kick(void *opaque)
 static void vduse_blk_attach_ctx(VduseBlkExport *vblk_exp, AioContext *ctx)
 {
     aio_set_fd_handler(vblk_exp->export.ctx, vduse_dev_get_fd(vblk_exp->dev),
-                       false, on_vduse_dev_kick, NULL, NULL, NULL,
+                       on_vduse_dev_kick, NULL, NULL, NULL,
                        vblk_exp->dev);
 
     /* Virtqueues are handled by vduse_blk_drained_end() */
@@ -179,7 +179,7 @@ static void vduse_blk_attach_ctx(VduseBlkExport *vblk_exp, AioContext *ctx)
 static void vduse_blk_detach_ctx(VduseBlkExport *vblk_exp)
 {
     aio_set_fd_handler(vblk_exp->export.ctx, vduse_dev_get_fd(vblk_exp->dev),
-                       false, NULL, NULL, NULL, NULL, NULL);
+                       NULL, NULL, NULL, NULL, NULL);
 
     /* Virtqueues are handled by vduse_blk_drained_begin() */
 }
@@ -364,7 +364,7 @@ static int vduse_blk_exp_create(BlockExport *exp, BlockExportOptions *opts,
         vduse_dev_setup_queue(vblk_exp->dev, i, queue_size);
     }
 
-    aio_set_fd_handler(exp->ctx, vduse_dev_get_fd(vblk_exp->dev), false,
+    aio_set_fd_handler(exp->ctx, vduse_dev_get_fd(vblk_exp->dev),
                        on_vduse_dev_kick, NULL, NULL, NULL, vblk_exp->dev);
 
     blk_add_aio_context_notifier(exp->blk, blk_aio_attached, blk_aio_detach,

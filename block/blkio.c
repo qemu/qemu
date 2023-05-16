@@ -306,23 +306,18 @@ static void blkio_attach_aio_context(BlockDriverState *bs,
 {
     BDRVBlkioState *s = bs->opaque;
 
-    aio_set_fd_handler(new_context,
-                       s->completion_fd,
-                       false,
-                       blkio_completion_fd_read,
-                       NULL,
+    aio_set_fd_handler(new_context, s->completion_fd,
+                       blkio_completion_fd_read, NULL,
                        blkio_completion_fd_poll,
-                       blkio_completion_fd_poll_ready,
-                       bs);
+                       blkio_completion_fd_poll_ready, bs);
 }
 
 static void blkio_detach_aio_context(BlockDriverState *bs)
 {
     BDRVBlkioState *s = bs->opaque;
 
-    aio_set_fd_handler(bdrv_get_aio_context(bs),
-                       s->completion_fd,
-                       false, NULL, NULL, NULL, NULL, NULL);
+    aio_set_fd_handler(bdrv_get_aio_context(bs), s->completion_fd, NULL, NULL,
+                       NULL, NULL, NULL);
 }
 
 /* Call with s->blkio_lock held to submit I/O after enqueuing a new request */

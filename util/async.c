@@ -409,7 +409,7 @@ aio_ctx_finalize(GSource     *source)
         g_free(bh);
     }
 
-    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL, NULL, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_rec_mutex_destroy(&ctx->lock);
     qemu_lockcnt_destroy(&ctx->list_lock);
@@ -593,7 +593,6 @@ AioContext *aio_context_new(Error **errp)
     QSLIST_INIT(&ctx->scheduled_coroutines);
 
     aio_set_event_notifier(ctx, &ctx->notifier,
-                           false,
                            aio_context_notifier_cb,
                            aio_context_notifier_poll,
                            aio_context_notifier_poll_ready);

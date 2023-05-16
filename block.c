@@ -7305,9 +7305,6 @@ static void bdrv_detach_aio_context(BlockDriverState *bs)
         bs->drv->bdrv_detach_aio_context(bs);
     }
 
-    if (bs->quiesce_counter) {
-        aio_enable_external(bs->aio_context);
-    }
     bs->aio_context = NULL;
 }
 
@@ -7316,10 +7313,6 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
 {
     BdrvAioNotifier *ban, *ban_tmp;
     GLOBAL_STATE_CODE();
-
-    if (bs->quiesce_counter) {
-        aio_disable_external(new_context);
-    }
 
     bs->aio_context = new_context;
 

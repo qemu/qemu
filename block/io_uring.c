@@ -410,7 +410,7 @@ int coroutine_fn luring_co_submit(BlockDriverState *bs, int fd, uint64_t offset,
 
 void luring_detach_aio_context(LuringState *s, AioContext *old_context)
 {
-    aio_set_fd_handler(old_context, s->ring.ring_fd, false,
+    aio_set_fd_handler(old_context, s->ring.ring_fd,
                        NULL, NULL, NULL, NULL, s);
     qemu_bh_delete(s->completion_bh);
     s->aio_context = NULL;
@@ -420,7 +420,7 @@ void luring_attach_aio_context(LuringState *s, AioContext *new_context)
 {
     s->aio_context = new_context;
     s->completion_bh = aio_bh_new(new_context, qemu_luring_completion_bh, s);
-    aio_set_fd_handler(s->aio_context, s->ring.ring_fd, false,
+    aio_set_fd_handler(s->aio_context, s->ring.ring_fd,
                        qemu_luring_completion_cb, NULL,
                        qemu_luring_poll_cb, qemu_luring_poll_ready, s);
 }
