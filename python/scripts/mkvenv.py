@@ -69,10 +69,25 @@ from typing import (
 import venv
 import warnings
 
-import distlib.database
-import distlib.scripts
-import distlib.version
 
+# Try to load distlib, with a fallback to pip's vendored version.
+# HAVE_DISTLIB is checked below, just-in-time, so that mkvenv does not fail
+# outside the venv or before a potential call to ensurepip in checkpip().
+HAVE_DISTLIB = True
+try:
+    import distlib.database
+    import distlib.scripts
+    import distlib.version
+except ImportError:
+    try:
+        # Reach into pip's cookie jar.  pylint and flake8 don't understand
+        # that these imports will be used via distlib.xxx.
+        from pip._vendor import distlib
+        import pip._vendor.distlib.database  # noqa, pylint: disable=unused-import
+        import pip._vendor.distlib.scripts  # noqa, pylint: disable=unused-import
+        import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
+    except ImportError:
+        HAVE_DISTLIB = False
 
 # Do not add any mandatory dependencies from outside the stdlib:
 # This script *must* be usable standalone!
@@ -664,6 +679,10 @@ def ensure(
         bellwether for the presence of 'sphinx'.
     """
     print(f"mkvenv: checking for {', '.join(dep_specs)}", file=sys.stderr)
+
+    if not HAVE_DISTLIB:
+        raise Ouch("a usable distlib could not be found, please install it")
+
     try:
         _do_ensure(dep_specs, online, wheels_dir)
     except subprocess.CalledProcessError as exc:
