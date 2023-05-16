@@ -11,6 +11,8 @@ options:
 Commands:
   command     Description
     create    create a venv
+    post_init
+              post-venv initialization
     ensure    Ensure that the specified package is installed.
 
 --------------------------------------------------
@@ -22,6 +24,13 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+
+--------------------------------------------------
+
+usage: mkvenv post_init [-h]
+
+options:
+  -h, --help         show this help message and exit
 
 --------------------------------------------------
 
@@ -111,7 +120,9 @@ class QemuEnvBuilder(venv.EnvBuilder):
 
     The primary difference is that it emulates a "nested" virtual
     environment when invoked from inside of an existing virtual
-    environment by including packages from the parent.
+    environment by including packages from the parent.  Also,
+    "ensurepip" is replaced if possible with just recreating pip's
+    console_scripts inside the virtual environment.
 
     Parameters for base class init:
       - system_site_packages: bool = False
@@ -138,8 +149,19 @@ class QemuEnvBuilder(venv.EnvBuilder):
             # The venv we are currently in, also does so.
             kwargs["system_site_packages"] = sys.base_prefix in site.PREFIXES
 
-        if kwargs.get("with_pip", False):
-            check_ensurepip()
+        # ensurepip is slow: venv creation can be very fast for cases where
+        # we allow the use of system_site_packages. Therefore, ensurepip is
+        # replaced with our own script generation once the virtual environment
+        # is setup.
+        self.want_pip = kwargs.get("with_pip", False)
+        if self.want_pip:
+            if (
+                kwargs.get("system_site_packages", False)
+                and not need_ensurepip()
+            ):
+                kwargs["with_pip"] = False
+            else:
+                check_ensurepip()
 
         super().__init__(*args, **kwargs)
 
@@ -211,6 +233,14 @@ class QemuEnvBuilder(venv.EnvBuilder):
             with open(pth_file, "w", encoding="UTF-8") as file:
                 file.write(parent_libpath + os.linesep)
 
+        if self.want_pip:
+            args = [
+                context.env_exe,
+                __file__,
+                "post_init",
+            ]
+            subprocess.run(args, check=True)
+
     def get_value(self, field: str) -> str:
         """
         Get a string value from the context namespace after a call to build.
@@ -221,6 +251,19 @@ class QemuEnvBuilder(venv.EnvBuilder):
         ret = getattr(self._context, field)
         assert isinstance(ret, str)
         return ret
+
+
+def need_ensurepip() -> bool:
+    """
+    Tests for the presence of setuptools and pip.
+
+    :return: `True` if we do not detect both packages.
+    """
+    # Don't try to actually import them, it's fraught with danger:
+    # https://github.com/pypa/setuptools/issues/2993
+    if find_spec("setuptools") and find_spec("pip"):
+        return False
+    return True
 
 
 def check_ensurepip() -> None:
@@ -693,6 +736,17 @@ def ensure(
         raise SystemExit(f"\n{msg}\n\n") from exc
 
 
+def post_venv_setup() -> None:
+    """
+    This is intended to be run *inside the venv* after it is created.
+    """
+    logger.debug("post_venv_setup()")
+    # Generate a 'pip' script so the venv is usable in a normal
+    # way from the CLI. This only happens when we inherited pip from a
+    # parent/system-site and haven't run ensurepip in some way.
+    generate_console_scripts(["pip"])
+
+
 def _add_create_subcommand(subparsers: Any) -> None:
     subparser = subparsers.add_parser("create", help="create a venv")
     subparser.add_argument(
@@ -701,6 +755,10 @@ def _add_create_subcommand(subparsers: Any) -> None:
         action="store",
         help="Target directory to install virtual environment into.",
     )
+
+
+def _add_post_init_subcommand(subparsers: Any) -> None:
+    subparsers.add_parser("post_init", help="post-venv initialization")
 
 
 def _add_ensure_subcommand(subparsers: Any) -> None:
@@ -761,6 +819,7 @@ def main() -> int:
     )
 
     _add_create_subcommand(subparsers)
+    _add_post_init_subcommand(subparsers)
     _add_ensure_subcommand(subparsers)
 
     args = parser.parse_args()
@@ -771,6 +830,8 @@ def main() -> int:
                 system_site_packages=True,
                 clear=True,
             )
+        if args.command == "post_init":
+            post_venv_setup()
         if args.command == "ensure":
             ensure(
                 dep_specs=args.dep_specs,
