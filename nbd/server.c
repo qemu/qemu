@@ -1599,8 +1599,7 @@ static bool nbd_drained_poll(void *opaque)
              * enter it here so we don't depend on the client to wake it up.
              */
             if (client->recv_coroutine != NULL && client->read_yielding) {
-                qemu_aio_coroutine_enter(exp->common.ctx,
-                                         client->recv_coroutine);
+                qio_channel_wake_read(client->ioc);
             }
 
             return true;
