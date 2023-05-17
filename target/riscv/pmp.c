@@ -327,8 +327,8 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         if ((s + e) == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "pmp violation - access is partially inside\n");
-            ret = false;
-            break;
+            *allowed_privs = 0;
+            return false;
         }
 
         /* fully inside */
