@@ -221,6 +221,11 @@ void runstate_set(RunState new_state)
     current_run_state = new_state;
 }
 
+RunState runstate_get(void)
+{
+    return current_run_state;
+}
+
 bool runstate_is_running(void)
 {
     return runstate_check(RUN_STATE_RUNNING);
