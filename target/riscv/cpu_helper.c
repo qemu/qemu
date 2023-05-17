@@ -697,16 +697,16 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot, hwaddr addr,
                                     int mode)
 {
     pmp_priv_t pmp_priv;
-    int pmp_index = -1;
+    bool pmp_has_privs;
 
     if (!riscv_cpu_cfg(env)->pmp) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return TRANSLATE_SUCCESS;
     }
 
-    pmp_index = pmp_hart_has_privs(env, addr, size, 1 << access_type,
-                                   &pmp_priv, mode);
-    if (pmp_index < 0) {
+    pmp_has_privs = pmp_hart_has_privs(env, addr, size, 1 << access_type,
+                                       &pmp_priv, mode);
+    if (!pmp_has_privs) {
         *prot = 0;
         return TRANSLATE_PMP_FAIL;
     }

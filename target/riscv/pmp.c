@@ -296,27 +296,23 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
 
 /*
  * Check if the address has required RWX privs to complete desired operation
- * Return PMP rule index if a pmp rule match
- * Return MAX_RISCV_PMPS if default match
- * Return negtive value if no match
+ * Return true if a pmp rule match or default match
+ * Return false if no match
  */
-int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
-                       target_ulong size, pmp_priv_t privs,
-                       pmp_priv_t *allowed_privs, target_ulong mode)
+bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
+                        target_ulong size, pmp_priv_t privs,
+                        pmp_priv_t *allowed_privs, target_ulong mode)
 {
     int i = 0;
-    int ret = -1;
+    bool ret = false;
     int pmp_size = 0;
     target_ulong s = 0;
     target_ulong e = 0;
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        if (pmp_hart_has_privs_default(env, addr, size, privs,
-                                       allowed_privs, mode)) {
-            ret = MAX_RISCV_PMPS;
-        }
-        return ret;
+        return pmp_hart_has_privs_default(env, addr, size, privs,
+                                          allowed_privs, mode);
     }
 
     if (size == 0) {
@@ -345,7 +341,7 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         if ((s + e) == 1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "pmp violation - access is partially inside\n");
-            ret = -1;
+            ret = false;
             break;
         }
 
@@ -453,17 +449,15 @@ int pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
              * defined with PMP must be used. We shouldn't fallback on
              * finding default privileges.
              */
-            ret = i;
+            ret = true;
             break;
         }
     }
 
     /* No rule matched */
-    if (ret == -1) {
-        if (pmp_hart_has_privs_default(env, addr, size, privs,
-                                       allowed_privs, mode)) {
-            ret = MAX_RISCV_PMPS;
-        }
+    if (!ret) {
+        ret = pmp_hart_has_privs_default(env, addr, size, privs,
+                                         allowed_privs, mode);
     }
 
     return ret;
