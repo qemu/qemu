@@ -578,6 +578,9 @@ void mseccfg_csr_write(CPURISCVState *env, target_ulong val)
     if (riscv_cpu_cfg(env)->epmp) {
         /* Sticky bits */
         val |= (env->mseccfg & (MSECCFG_MMWP | MSECCFG_MML));
+        if ((val ^ env->mseccfg) & (MSECCFG_MMWP | MSECCFG_MML)) {
+            tlb_flush(env_cpu(env));
+        }
     } else {
         val &= ~(MSECCFG_MMWP | MSECCFG_MML | MSECCFG_RLB);
     }
