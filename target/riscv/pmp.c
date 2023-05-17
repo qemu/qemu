@@ -29,7 +29,6 @@
 static bool pmp_write_cfg(CPURISCVState *env, uint32_t addr_index,
                           uint8_t val);
 static uint8_t pmp_read_cfg(CPURISCVState *env, uint32_t addr_index);
-static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index);
 
 /*
  * Accessor method to extract address matching type 'a field' from cfg reg
@@ -121,7 +120,7 @@ static bool pmp_write_cfg(CPURISCVState *env, uint32_t pmp_index, uint8_t val)
             qemu_log_mask(LOG_GUEST_ERROR, "ignoring pmpcfg write - locked\n");
         } else if (env->pmp_state.pmp[pmp_index].cfg_reg != val) {
             env->pmp_state.pmp[pmp_index].cfg_reg = val;
-            pmp_update_rule(env, pmp_index);
+            pmp_update_rule_addr(env, pmp_index);
             return true;
         }
     } else {
@@ -207,18 +206,6 @@ void pmp_update_rule_nums(CPURISCVState *env)
             env->pmp_state.num_rules++;
         }
     }
-}
-
-/*
- * Convert cfg/addr reg values here into simple 'sa' --> start address and 'ea'
- *   end address values.
- *   This function is called relatively infrequently whereas the check that
- *   an address is within a pmp rule is called often, so optimise that one
- */
-static void pmp_update_rule(CPURISCVState *env, uint32_t pmp_index)
-{
-    pmp_update_rule_addr(env, pmp_index);
-    pmp_update_rule_nums(env);
 }
 
 static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
@@ -481,6 +468,7 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
 
     /* If PMP permission of any addr has been changed, flush TLB pages. */
     if (modified) {
+        pmp_update_rule_nums(env);
         tlb_flush(env_cpu(env));
     }
 }
