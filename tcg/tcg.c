@@ -1839,17 +1839,24 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_exit_tb:
     case INDEX_op_goto_tb:
     case INDEX_op_goto_ptr:
-    case INDEX_op_qemu_ld_i32:
-    case INDEX_op_qemu_st_i32:
-    case INDEX_op_qemu_ld_i64:
-    case INDEX_op_qemu_st_i64:
+    case INDEX_op_qemu_ld_a32_i32:
+    case INDEX_op_qemu_ld_a64_i32:
+    case INDEX_op_qemu_st_a32_i32:
+    case INDEX_op_qemu_st_a64_i32:
+    case INDEX_op_qemu_ld_a32_i64:
+    case INDEX_op_qemu_ld_a64_i64:
+    case INDEX_op_qemu_st_a32_i64:
+    case INDEX_op_qemu_st_a64_i64:
         return true;
 
-    case INDEX_op_qemu_st8_i32:
+    case INDEX_op_qemu_st8_a32_i32:
+    case INDEX_op_qemu_st8_a64_i32:
         return TCG_TARGET_HAS_qemu_st8_i32;
 
-    case INDEX_op_qemu_ld_i128:
-    case INDEX_op_qemu_st_i128:
+    case INDEX_op_qemu_ld_a32_i128:
+    case INDEX_op_qemu_ld_a64_i128:
+    case INDEX_op_qemu_st_a32_i128:
+    case INDEX_op_qemu_st_a64_i128:
         return TCG_TARGET_HAS_qemu_ldst_i128;
 
     case INDEX_op_mov_i32:
@@ -2466,13 +2473,20 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
                 }
                 i = 1;
                 break;
-            case INDEX_op_qemu_ld_i32:
-            case INDEX_op_qemu_st_i32:
-            case INDEX_op_qemu_st8_i32:
-            case INDEX_op_qemu_ld_i64:
-            case INDEX_op_qemu_st_i64:
-            case INDEX_op_qemu_ld_i128:
-            case INDEX_op_qemu_st_i128:
+            case INDEX_op_qemu_ld_a32_i32:
+            case INDEX_op_qemu_ld_a64_i32:
+            case INDEX_op_qemu_st_a32_i32:
+            case INDEX_op_qemu_st_a64_i32:
+            case INDEX_op_qemu_st8_a32_i32:
+            case INDEX_op_qemu_st8_a64_i32:
+            case INDEX_op_qemu_ld_a32_i64:
+            case INDEX_op_qemu_ld_a64_i64:
+            case INDEX_op_qemu_st_a32_i64:
+            case INDEX_op_qemu_st_a64_i64:
+            case INDEX_op_qemu_ld_a32_i128:
+            case INDEX_op_qemu_ld_a64_i128:
+            case INDEX_op_qemu_st_a32_i128:
+            case INDEX_op_qemu_st_a64_i128:
                 {
                     const char *s_al, *s_op, *s_at;
                     MemOpIdx oi = op->args[k++];
