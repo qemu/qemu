@@ -531,6 +531,7 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
             if (is_next_cfg_tor) {
                 pmp_update_rule_addr(env, addr_index + 1);
             }
+            tlb_flush(env_cpu(env));
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ignoring pmpaddr write - locked\n");
