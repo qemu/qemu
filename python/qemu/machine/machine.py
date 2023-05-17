@@ -337,16 +337,17 @@ class QEMUMachine:
             self._remove_files.append(self._console_address)
 
         if self._qmp_set:
-            sock = None
             if self._monitor_address is None:
                 self._sock_pair = socket.socketpair()
                 sock = self._sock_pair[1]
             if isinstance(self._monitor_address, str):
                 self._remove_files.append(self._monitor_address)
 
+            sock_or_addr = self._monitor_address or sock
+            assert sock_or_addr is not None
+
             self._qmp_connection = QEMUMonitorProtocol(
-                address=self._monitor_address,
-                sock=sock,
+                sock_or_addr,
                 server=bool(self._monitor_address),
                 nickname=self._name
             )
