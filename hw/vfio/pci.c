@@ -2994,7 +2994,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         qemu_uuid_unparse(&vdev->vf_token, uuid);
         name = g_strdup_printf("%s vf_token=%s", vbasedev->name, uuid);
     } else {
-        name = vbasedev->name;
+        name = g_strdup(vbasedev->name);
     }
 
     ret = vfio_get_device(group, name, vbasedev, errp);
