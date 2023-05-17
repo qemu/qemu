@@ -236,8 +236,7 @@ static int pmp_is_in_range(CPURISCVState *env, int pmp_index,
 /*
  * Check if the address has required RWX privs when no PMP entry is matched.
  */
-static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
-                                       target_ulong size, pmp_priv_t privs,
+static bool pmp_hart_has_privs_default(CPURISCVState *env, pmp_priv_t privs,
                                        pmp_priv_t *allowed_privs,
                                        target_ulong mode)
 {
@@ -309,8 +308,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
 
     /* Short cut if no rules */
     if (0 == pmp_get_num_rules(env)) {
-        return pmp_hart_has_privs_default(env, addr, size, privs,
-                                          allowed_privs, mode);
+        return pmp_hart_has_privs_default(env, privs, allowed_privs, mode);
     }
 
     if (size == 0) {
@@ -454,8 +452,7 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
 
     /* No rule matched */
     if (!ret) {
-        ret = pmp_hart_has_privs_default(env, addr, size, privs,
-                                         allowed_privs, mode);
+        ret = pmp_hart_has_privs_default(env, privs, allowed_privs, mode);
     }
 
     return ret;
