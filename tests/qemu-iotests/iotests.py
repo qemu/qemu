@@ -462,6 +462,10 @@ class QemuStorageDaemon:
         assert self._qmp is not None
         return self._qmp.cmd(cmd, args)
 
+    def get_qmp(self) -> QEMUMonitorProtocol:
+        assert self._qmp is not None
+        return self._qmp
+
     def stop(self, kill_signal=15):
         self._p.send_signal(kill_signal)
         self._p.wait()

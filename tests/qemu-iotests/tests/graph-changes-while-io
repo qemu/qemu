@@ -22,19 +22,19 @@
 import os
 from threading import Thread
 import iotests
-from iotests import imgfmt, qemu_img, qemu_img_create, QMPTestCase, \
-        QemuStorageDaemon
+from iotests import imgfmt, qemu_img, qemu_img_create, qemu_io, \
+        QMPTestCase, QemuStorageDaemon
 
 
 top = os.path.join(iotests.test_dir, 'top.img')
 nbd_sock = os.path.join(iotests.sock_dir, 'nbd.sock')
 
 
-def do_qemu_img_bench() -> None:
+def do_qemu_img_bench(count: int = 2000000) -> None:
     """
     Do some I/O requests on `nbd_sock`.
     """
-    qemu_img('bench', '-f', 'raw', '-c', '2000000',
+    qemu_img('bench', '-f', 'raw', '-c', str(count),
              f'nbd+unix:///node0?socket={nbd_sock}')
 
 
@@ -81,6 +81,54 @@ class TestGraphChangesWhileIO(QMPTestCase):
                 'node-name': 'overlay'
             })
             self.assert_qmp(result, 'return', {})
+
+        bench_thr.join()
+
+    def test_commit_while_io(self) -> None:
+        # Run qemu-img bench in the background
+        bench_thr = Thread(target=do_qemu_img_bench, args=(200000, ))
+        bench_thr.start()
+
+        qemu_io('-c', 'write 0 64k', top)
+        qemu_io('-c', 'write 128k 64k', top)
+
+        result = self.qsd.qmp('blockdev-add', {
+            'driver': imgfmt,
+            'node-name': 'overlay',
+            'backing': None,
+            'file': {
+                'driver': 'file',
+                'filename': top
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.qsd.qmp('blockdev-snapshot', {
+            'node': 'node0',
+            'overlay': 'overlay',
+        })
+        self.assert_qmp(result, 'return', {})
+
+        # While qemu-img bench is running, repeatedly commit overlay to node0
+        while bench_thr.is_alive():
+            result = self.qsd.qmp('block-commit', {
+                'job-id': 'job0',
+                'device': 'overlay',
+            })
+            self.assert_qmp(result, 'return', {})
+
+            result = self.qsd.qmp('block-job-cancel', {
+                'device': 'job0',
+            })
+            self.assert_qmp(result, 'return', {})
+
+            cancelled = False
+            while not cancelled:
+                for event in self.qsd.get_qmp().get_events(wait=10.0):
+                    if event['event'] != 'JOB_STATUS_CHANGE':
+                        continue
+                    if event['data']['status'] == 'null':
+                        cancelled = True
 
         bench_thr.join()
 
