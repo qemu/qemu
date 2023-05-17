@@ -563,11 +563,11 @@ class QAPIDoc:
         self._switch_section(QAPIDoc.NullSection(self._parser))
 
     @staticmethod
-    def _match_at_name_colon(string: str) -> re.Match:
+    def _match_at_name_colon(string: str):
         return re.match(r'@([^:]*): *', string)
 
     @staticmethod
-    def _match_section_tag(string: str) -> re.Match:
+    def _match_section_tag(string: str):
         return re.match(r'(Returns|Since|Notes?|Examples?|TODO): *', string)
 
     def _append_body_line(self, line: str) -> None:
