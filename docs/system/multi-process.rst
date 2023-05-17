@@ -2,7 +2,7 @@ Multi-process QEMU
 ==================
 
 This document describes how to configure and use multi-process qemu.
-For the design document refer to docs/devel/qemu-multiprocess.
+For the design document refer to docs/devel/multi-process.rst.
 
 1) Configuration
 ----------------
