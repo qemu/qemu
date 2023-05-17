@@ -567,6 +567,12 @@ static void monitor_accept_input(void *opaque)
 {
     Monitor *mon = opaque;
 
+    if (!monitor_is_qmp(mon)) {
+        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+        assert(hmp_mon->rs);
+        readline_show_prompt(hmp_mon->rs);
+    }
+
     qemu_chr_fe_accept_input(&mon->chr);
 }
 
@@ -583,12 +589,6 @@ void monitor_resume(Monitor *mon)
             ctx = iothread_get_aio_context(mon_iothread);
         } else {
             ctx = qemu_get_aio_context();
-        }
-
-        if (!monitor_is_qmp(mon)) {
-            MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
-            assert(hmp_mon->rs);
-            readline_show_prompt(hmp_mon->rs);
         }
 
         aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
