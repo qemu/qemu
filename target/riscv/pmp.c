@@ -507,6 +507,7 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
                        target_ulong val)
 {
     trace_pmpaddr_csr_write(env->mhartid, addr_index, val);
+    bool is_next_cfg_tor = false;
 
     if (addr_index < MAX_RISCV_PMPS) {
         /*
@@ -515,9 +516,9 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
          */
         if (addr_index + 1 < MAX_RISCV_PMPS) {
             uint8_t pmp_cfg = env->pmp_state.pmp[addr_index + 1].cfg_reg;
+            is_next_cfg_tor = PMP_AMATCH_TOR == pmp_get_a_field(pmp_cfg);
 
-            if (pmp_cfg & PMP_LOCK &&
-                PMP_AMATCH_TOR == pmp_get_a_field(pmp_cfg)) {
+            if (pmp_cfg & PMP_LOCK && is_next_cfg_tor) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "ignoring pmpaddr write - pmpcfg + 1 locked\n");
                 return;
@@ -526,7 +527,10 @@ void pmpaddr_csr_write(CPURISCVState *env, uint32_t addr_index,
 
         if (!pmp_is_locked(env, addr_index)) {
             env->pmp_state.pmp[addr_index].addr_reg = val;
-            pmp_update_rule(env, addr_index);
+            pmp_update_rule_addr(env, addr_index);
+            if (is_next_cfg_tor) {
+                pmp_update_rule_addr(env, addr_index + 1);
+            }
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "ignoring pmpaddr write - locked\n");
