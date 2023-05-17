@@ -617,6 +617,7 @@ static void loongarch_irq_init(LoongArchMachineState *lams)
             memory_region_add_subregion(&env->system_iocsr, APIC_BASE,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(extioi),
                                 cpu));
+        env->ipistate = ipi;
     }
 
     /*
