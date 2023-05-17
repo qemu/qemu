@@ -154,8 +154,6 @@ static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
     return !monitor_uses_readline(container_of(mon, MonitorHMP, common));
 }
 
-static void monitor_flush_locked(Monitor *mon);
-
 static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
                                   void *opaque)
 {
@@ -168,7 +166,7 @@ static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
 }
 
 /* Caller must hold mon->mon_lock */
-static void monitor_flush_locked(Monitor *mon)
+void monitor_flush_locked(Monitor *mon)
 {
     int rc;
     size_t len;
@@ -207,12 +205,11 @@ void monitor_flush(Monitor *mon)
 }
 
 /* flush at every end of line */
-int monitor_puts(Monitor *mon, const char *str)
+int monitor_puts_locked(Monitor *mon, const char *str)
 {
     int i;
     char c;
 
-    qemu_mutex_lock(&mon->mon_lock);
     for (i = 0; str[i]; i++) {
         c = str[i];
         if (c == '\n') {
@@ -223,9 +220,14 @@ int monitor_puts(Monitor *mon, const char *str)
             monitor_flush_locked(mon);
         }
     }
-    qemu_mutex_unlock(&mon->mon_lock);
 
     return i;
+}
+
+int monitor_puts(Monitor *mon, const char *str)
+{
+    QEMU_LOCK_GUARD(&mon->mon_lock);
+    return monitor_puts_locked(mon, str);
 }
 
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
