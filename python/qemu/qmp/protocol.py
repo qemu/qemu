@@ -299,19 +299,6 @@ class AsyncProtocol(Generic[T]):
 
     @upper_half
     @require(Runstate.IDLE)
-    async def open_with_socket(self, sock: socket.socket) -> None:
-        """
-        Start connection with given socket.
-
-        :param sock: A socket.
-
-        :raise StateError: When the `Runstate` is not `IDLE`.
-        """
-        self._reader, self._writer = await asyncio.open_connection(sock=sock)
-        self._set_state(Runstate.CONNECTING)
-
-    @upper_half
-    @require(Runstate.IDLE)
     async def start_server(self, address: SocketAddrT,
                            ssl: Optional[SSLContext] = None) -> None:
         """
@@ -357,12 +344,11 @@ class AsyncProtocol(Generic[T]):
             protocol-level failure occurs while establishing a new
             session, the wrapped error may also be an `QMPError`.
         """
-        if not self._reader:
-            if self._accepted is None:
-                raise QMPError("Cannot call accept() before start_server().")
-            await self._session_guard(
-                self._do_accept(),
-                'Failed to establish connection')
+        if self._accepted is None:
+            raise QMPError("Cannot call accept() before start_server().")
+        await self._session_guard(
+            self._do_accept(),
+            'Failed to establish connection')
         await self._session_guard(
             self._establish_session(),
             'Failed to establish session')
