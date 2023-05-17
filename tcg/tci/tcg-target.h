@@ -127,6 +127,8 @@
 #define TCG_TARGET_HAS_mulu2_i32        1
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
+#define TCG_TARGET_HAS_qemu_ldst_i128   0
+
 /* Number of registers available. */
 #define TCG_TARGET_NB_REGS 16
 
@@ -175,7 +177,5 @@ typedef enum {
    on the host.  But if you want performance, you use the normal backend.
    We prefer consistency across hosts on this.  */
 #define TCG_TARGET_DEFAULT_MO  (0)
-
-#define TCG_TARGET_HAS_MEMORY_BSWAP     1
 
 #endif /* TCG_TARGET_H */

@@ -168,11 +168,10 @@ typedef enum {
 #define TCG_TARGET_HAS_muls2_i64        0
 #define TCG_TARGET_HAS_muluh_i64        1
 #define TCG_TARGET_HAS_mulsh_i64        1
+#define TCG_TARGET_HAS_qemu_ldst_i128   0
 
 #define TCG_TARGET_DEFAULT_MO (0)
 
 #define TCG_TARGET_NEED_LDST_LABELS
-
-#define TCG_TARGET_HAS_MEMORY_BSWAP 0
 
 #endif /* LOONGARCH_TCG_TARGET_H */

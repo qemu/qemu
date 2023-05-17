@@ -204,9 +204,9 @@ extern bool use_mips32r2_instructions;
 #define TCG_TARGET_HAS_ext16u_i64       0 /* andi rt, rs, 0xffff */
 #endif
 
-#define TCG_TARGET_DEFAULT_MO           0
-#define TCG_TARGET_HAS_MEMORY_BSWAP     0
+#define TCG_TARGET_HAS_qemu_ldst_i128   0
 
+#define TCG_TARGET_DEFAULT_MO           0
 #define TCG_TARGET_NEED_LDST_LABELS
 
 #endif

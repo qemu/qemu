@@ -9,7 +9,6 @@
  * REGS(letter, register_mask)
  */
 REGS('r', ALL_GENERAL_REGS)
-REGS('s', ALL_QLDST_REGS)
 
 /*
  * Define constraint letters for constants:

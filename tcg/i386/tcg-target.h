@@ -120,6 +120,7 @@ extern bool have_avx512dq;
 extern bool have_avx512vbmi2;
 extern bool have_avx512vl;
 extern bool have_movbe;
+extern bool have_atomic16;
 
 /* optional instructions */
 #define TCG_TARGET_HAS_div2_i32         1
@@ -153,9 +154,9 @@ extern bool have_movbe;
 #define TCG_TARGET_HAS_mulsh_i32        0
 
 #if TCG_TARGET_REG_BITS == 64
-/* Keep target addresses zero-extended in a register.  */
-#define TCG_TARGET_HAS_extrl_i64_i32    (TARGET_LONG_BITS == 32)
-#define TCG_TARGET_HAS_extrh_i64_i32    (TARGET_LONG_BITS == 32)
+/* Keep 32-bit values zero-extended in a register.  */
+#define TCG_TARGET_HAS_extrl_i64_i32    1
+#define TCG_TARGET_HAS_extrh_i64_i32    1
 #define TCG_TARGET_HAS_div2_i64         1
 #define TCG_TARGET_HAS_rot_i64          1
 #define TCG_TARGET_HAS_ext8s_i64        1
@@ -192,6 +193,8 @@ extern bool have_movbe;
 #else
 #define TCG_TARGET_HAS_qemu_st8_i32     1
 #endif
+
+#define TCG_TARGET_HAS_qemu_ldst_i128   0
 
 /* We do not support older SSE systems, only beginning with AVX1.  */
 #define TCG_TARGET_HAS_v64              have_avx1
@@ -239,9 +242,6 @@ extern bool have_movbe;
 #include "tcg/tcg-mo.h"
 
 #define TCG_TARGET_DEFAULT_MO (TCG_MO_ALL & ~TCG_MO_ST_LD)
-
-#define TCG_TARGET_HAS_MEMORY_BSWAP  have_movbe
-
 #define TCG_TARGET_NEED_LDST_LABELS
 #define TCG_TARGET_NEED_POOL_LABELS
 
