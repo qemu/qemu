@@ -601,28 +601,67 @@ target_ulong mseccfg_csr_read(CPURISCVState *env)
 }
 
 /*
- * Calculate the TLB size if the start address or the end address of
- * PMP entry is presented in the TLB page.
+ * Calculate the TLB size.
+ * It's possible that PMP regions only cover partial of the TLB page, and
+ * this may split the page into regions with different permissions.
+ * For example if PMP0 is (0x80000008~0x8000000F, R) and PMP1 is (0x80000000
+ * ~0x80000FFF, RWX), then region 0x80000008~0x8000000F has R permission, and
+ * the other regions in this page have RWX permissions.
+ * A write access to 0x80000000 will match PMP1. However we cannot cache the
+ * translation result in the TLB since this will make the write access to
+ * 0x80000008 bypass the check of PMP0.
+ * To avoid this we return a size of 1 (which means no caching) if the PMP
+ * region only covers partial of the TLB page.
  */
-target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
-                              target_ulong tlb_sa, target_ulong tlb_ea)
+target_ulong pmp_get_tlb_size(CPURISCVState *env, target_ulong addr)
 {
-    target_ulong pmp_sa = env->pmp_state.addr[pmp_index].sa;
-    target_ulong pmp_ea = env->pmp_state.addr[pmp_index].ea;
+    target_ulong pmp_sa;
+    target_ulong pmp_ea;
+    target_ulong tlb_sa = addr & ~(TARGET_PAGE_SIZE - 1);
+    target_ulong tlb_ea = tlb_sa + TARGET_PAGE_SIZE - 1;
+    int i;
 
-    if (pmp_sa <= tlb_sa && pmp_ea >= tlb_ea) {
+    /*
+     * If PMP is not supported or there are no PMP rules, the TLB page will not
+     * be split into regions with different permissions by PMP so we set the
+     * size to TARGET_PAGE_SIZE.
+     */
+    if (!riscv_cpu_cfg(env)->pmp || !pmp_get_num_rules(env)) {
         return TARGET_PAGE_SIZE;
-    } else {
-        /*
-         * At this point we have a tlb_size that is the smallest possible size
-         * That fits within a TARGET_PAGE_SIZE and the PMP region.
-         *
-         * If the size is less then TARGET_PAGE_SIZE we drop the size to 1.
-         * This means the result isn't cached in the TLB and is only used for
-         * a single translation.
-         */
-        return 1;
     }
+
+    for (i = 0; i < MAX_RISCV_PMPS; i++) {
+        if (pmp_get_a_field(env->pmp_state.pmp[i].cfg_reg) == PMP_AMATCH_OFF) {
+            continue;
+        }
+
+        pmp_sa = env->pmp_state.addr[i].sa;
+        pmp_ea = env->pmp_state.addr[i].ea;
+
+        /*
+         * Only the first PMP entry that covers (whole or partial of) the TLB
+         * page really matters:
+         * If it covers the whole TLB page, set the size to TARGET_PAGE_SIZE,
+         * since the following PMP entries have lower priority and will not
+         * affect the permissions of the page.
+         * If it only covers partial of the TLB page, set the size to 1 since
+         * the allowed permissions of the region may be different from other
+         * region of the page.
+         */
+        if (pmp_sa <= tlb_sa && pmp_ea >= tlb_ea) {
+            return TARGET_PAGE_SIZE;
+        } else if ((pmp_sa >= tlb_sa && pmp_sa <= tlb_ea) ||
+                   (pmp_ea >= tlb_sa && pmp_ea <= tlb_ea)) {
+            return 1;
+        }
+    }
+
+    /*
+     * If no PMP entry matches the TLB page, the TLB page will also not be
+     * split into regions with different permissions by PMP so we set the size
+     * to TARGET_PAGE_SIZE.
+     */
+    return TARGET_PAGE_SIZE;
 }
 
 /*
