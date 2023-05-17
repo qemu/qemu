@@ -27,14 +27,8 @@
 #include "../tcg-ldst.c.inc"
 #include "../tcg-pool.c.inc"
 
-#if HOST_BIG_ENDIAN
-# define MIPS_BE  1
-#else
-# define MIPS_BE  0
-#endif
-
 #if TCG_TARGET_REG_BITS == 32
-# define LO_OFF  (MIPS_BE * 4)
+# define LO_OFF  (HOST_BIG_ENDIAN * 4)
 # define HI_OFF  (4 - LO_OFF)
 #else
 /* Assert at compile-time that these values are never used for 64-bit. */
@@ -1439,7 +1433,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg lo, TCGReg hi,
         /* Prefer to load from offset 0 first, but allow for overlap.  */
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_opc_imm(s, OPC_LD, lo, base, 0);
-        } else if (MIPS_BE ? hi != base : lo == base) {
+        } else if (HOST_BIG_ENDIAN ? hi != base : lo == base) {
             tcg_out_opc_imm(s, OPC_LW, hi, base, HI_OFF);
             tcg_out_opc_imm(s, OPC_LW, lo, base, LO_OFF);
         } else {
@@ -1455,10 +1449,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg lo, TCGReg hi,
 static void tcg_out_qemu_ld_unalign(TCGContext *s, TCGReg lo, TCGReg hi,
                                     TCGReg base, MemOp opc, TCGType type)
 {
-    const MIPSInsn lw1 = MIPS_BE ? OPC_LWL : OPC_LWR;
-    const MIPSInsn lw2 = MIPS_BE ? OPC_LWR : OPC_LWL;
-    const MIPSInsn ld1 = MIPS_BE ? OPC_LDL : OPC_LDR;
-    const MIPSInsn ld2 = MIPS_BE ? OPC_LDR : OPC_LDL;
+    const MIPSInsn lw1 = HOST_BIG_ENDIAN ? OPC_LWL : OPC_LWR;
+    const MIPSInsn lw2 = HOST_BIG_ENDIAN ? OPC_LWR : OPC_LWL;
+    const MIPSInsn ld1 = HOST_BIG_ENDIAN ? OPC_LDL : OPC_LDR;
+    const MIPSInsn ld2 = HOST_BIG_ENDIAN ? OPC_LDR : OPC_LDL;
     bool sgn = opc & MO_SIGN;
 
     switch (opc & MO_SIZE) {
@@ -1497,10 +1491,10 @@ static void tcg_out_qemu_ld_unalign(TCGContext *s, TCGReg lo, TCGReg hi,
             tcg_out_opc_imm(s, ld1, lo, base, 0);
             tcg_out_opc_imm(s, ld2, lo, base, 7);
         } else {
-            tcg_out_opc_imm(s, lw1, MIPS_BE ? hi : lo, base, 0 + 0);
-            tcg_out_opc_imm(s, lw2, MIPS_BE ? hi : lo, base, 0 + 3);
-            tcg_out_opc_imm(s, lw1, MIPS_BE ? lo : hi, base, 4 + 0);
-            tcg_out_opc_imm(s, lw2, MIPS_BE ? lo : hi, base, 4 + 3);
+            tcg_out_opc_imm(s, lw1, HOST_BIG_ENDIAN ? hi : lo, base, 0 + 0);
+            tcg_out_opc_imm(s, lw2, HOST_BIG_ENDIAN ? hi : lo, base, 0 + 3);
+            tcg_out_opc_imm(s, lw1, HOST_BIG_ENDIAN ? lo : hi, base, 4 + 0);
+            tcg_out_opc_imm(s, lw2, HOST_BIG_ENDIAN ? lo : hi, base, 4 + 3);
         }
         break;
 
@@ -1550,8 +1544,8 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg lo, TCGReg hi,
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_opc_imm(s, OPC_SD, lo, base, 0);
         } else {
-            tcg_out_opc_imm(s, OPC_SW, MIPS_BE ? hi : lo, base, 0);
-            tcg_out_opc_imm(s, OPC_SW, MIPS_BE ? lo : hi, base, 4);
+            tcg_out_opc_imm(s, OPC_SW, HOST_BIG_ENDIAN ? hi : lo, base, 0);
+            tcg_out_opc_imm(s, OPC_SW, HOST_BIG_ENDIAN ? lo : hi, base, 4);
         }
         break;
     default:
@@ -1562,10 +1556,10 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg lo, TCGReg hi,
 static void tcg_out_qemu_st_unalign(TCGContext *s, TCGReg lo, TCGReg hi,
                                     TCGReg base, MemOp opc)
 {
-    const MIPSInsn sw1 = MIPS_BE ? OPC_SWL : OPC_SWR;
-    const MIPSInsn sw2 = MIPS_BE ? OPC_SWR : OPC_SWL;
-    const MIPSInsn sd1 = MIPS_BE ? OPC_SDL : OPC_SDR;
-    const MIPSInsn sd2 = MIPS_BE ? OPC_SDR : OPC_SDL;
+    const MIPSInsn sw1 = HOST_BIG_ENDIAN ? OPC_SWL : OPC_SWR;
+    const MIPSInsn sw2 = HOST_BIG_ENDIAN ? OPC_SWR : OPC_SWL;
+    const MIPSInsn sd1 = HOST_BIG_ENDIAN ? OPC_SDL : OPC_SDR;
+    const MIPSInsn sd2 = HOST_BIG_ENDIAN ? OPC_SDR : OPC_SDL;
 
     switch (opc & MO_SIZE) {
     case MO_16:
@@ -1584,10 +1578,10 @@ static void tcg_out_qemu_st_unalign(TCGContext *s, TCGReg lo, TCGReg hi,
             tcg_out_opc_imm(s, sd1, lo, base, 0);
             tcg_out_opc_imm(s, sd2, lo, base, 7);
         } else {
-            tcg_out_opc_imm(s, sw1, MIPS_BE ? hi : lo, base, 0 + 0);
-            tcg_out_opc_imm(s, sw2, MIPS_BE ? hi : lo, base, 0 + 3);
-            tcg_out_opc_imm(s, sw1, MIPS_BE ? lo : hi, base, 4 + 0);
-            tcg_out_opc_imm(s, sw2, MIPS_BE ? lo : hi, base, 4 + 3);
+            tcg_out_opc_imm(s, sw1, HOST_BIG_ENDIAN ? hi : lo, base, 0 + 0);
+            tcg_out_opc_imm(s, sw2, HOST_BIG_ENDIAN ? hi : lo, base, 0 + 3);
+            tcg_out_opc_imm(s, sw1, HOST_BIG_ENDIAN ? lo : hi, base, 4 + 0);
+            tcg_out_opc_imm(s, sw2, HOST_BIG_ENDIAN ? lo : hi, base, 4 + 3);
         }
         break;
 
