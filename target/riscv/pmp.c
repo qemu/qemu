@@ -243,30 +243,28 @@ static bool pmp_hart_has_privs_default(CPURISCVState *env, target_ulong addr,
 {
     bool ret;
 
-    if (riscv_cpu_cfg(env)->epmp) {
-        if (MSECCFG_MMWP_ISSET(env)) {
-            /*
-             * The Machine Mode Whitelist Policy (mseccfg.MMWP) is set
-             * so we default to deny all, even for M-mode.
-             */
+    if (MSECCFG_MMWP_ISSET(env)) {
+        /*
+         * The Machine Mode Whitelist Policy (mseccfg.MMWP) is set
+         * so we default to deny all, even for M-mode.
+         */
+        *allowed_privs = 0;
+        return false;
+    } else if (MSECCFG_MML_ISSET(env)) {
+        /*
+         * The Machine Mode Lockdown (mseccfg.MML) bit is set
+         * so we can only execute code in M-mode with an applicable
+         * rule. Other modes are disabled.
+         */
+        if (mode == PRV_M && !(privs & PMP_EXEC)) {
+            ret = true;
+            *allowed_privs = PMP_READ | PMP_WRITE;
+        } else {
+            ret = false;
             *allowed_privs = 0;
-            return false;
-        } else if (MSECCFG_MML_ISSET(env)) {
-            /*
-             * The Machine Mode Lockdown (mseccfg.MML) bit is set
-             * so we can only execute code in M-mode with an applicable
-             * rule. Other modes are disabled.
-             */
-            if (mode == PRV_M && !(privs & PMP_EXEC)) {
-                ret = true;
-                *allowed_privs = PMP_READ | PMP_WRITE;
-            } else {
-                ret = false;
-                *allowed_privs = 0;
-            }
-
-            return ret;
         }
+
+        return ret;
     }
 
     if (!riscv_cpu_cfg(env)->pmp || (mode == PRV_M)) {
@@ -580,8 +578,12 @@ void mseccfg_csr_write(CPURISCVState *env, target_ulong val)
         }
     }
 
-    /* Sticky bits */
-    val |= (env->mseccfg & (MSECCFG_MMWP | MSECCFG_MML));
+    if (riscv_cpu_cfg(env)->epmp) {
+        /* Sticky bits */
+        val |= (env->mseccfg & (MSECCFG_MMWP | MSECCFG_MML));
+    } else {
+        val &= ~(MSECCFG_MMWP | MSECCFG_MML | MSECCFG_RLB);
+    }
 
     env->mseccfg = val;
 }
