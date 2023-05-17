@@ -150,12 +150,13 @@ class QEMUMonitorProtocol:
         :return: QMP greeting dict, or None if negotiate is false
         :raise ConnectError: on connection errors
         """
-        assert self._address is not None
+        addr_or_sock = self._address or self._sock
+        assert addr_or_sock is not None
         self._qmp.await_greeting = negotiate
         self._qmp.negotiate = negotiate
 
         self._sync(
-            self._qmp.connect(self._address)
+            self._qmp.connect(addr_or_sock)
         )
         return self._get_greeting()
 
