@@ -158,42 +158,14 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
 # define SOFTMMU_RESERVE_REGS  0
 #endif
 
-/* The host compiler should supply <cpuid.h> to enable runtime features
-   detection, as we're not going to go so far as our own inline assembly.
-   If not available, default values will be assumed.  */
-#if defined(CONFIG_CPUID_H)
-#include "qemu/cpuid.h"
-#endif
-
 /* For 64-bit, we always know that CMOV is available.  */
 #if TCG_TARGET_REG_BITS == 64
-# define have_cmov 1
-#elif defined(CONFIG_CPUID_H)
-static bool have_cmov;
+# define have_cmov      true
 #else
-# define have_cmov 0
+# define have_cmov      (cpuinfo & CPUINFO_CMOV)
 #endif
-
-/* We need these symbols in tcg-target.h, and we can't properly conditionalize
-   it there.  Therefore we always define the variable.  */
-bool have_bmi1;
-bool have_popcnt;
-bool have_avx1;
-bool have_avx2;
-bool have_avx512bw;
-bool have_avx512dq;
-bool have_avx512vbmi2;
-bool have_avx512vl;
-bool have_movbe;
-bool have_atomic16;
-
-#ifdef CONFIG_CPUID_H
-static bool have_bmi2;
-static bool have_lzcnt;
-#else
-# define have_bmi2 0
-# define have_lzcnt 0
-#endif
+#define have_bmi2       (cpuinfo & CPUINFO_BMI2)
+#define have_lzcnt      (cpuinfo & CPUINFO_LZCNT)
 
 static const tcg_insn_unit *tb_ret_addr;
 
@@ -3961,93 +3933,6 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 
 static void tcg_target_init(TCGContext *s)
 {
-#ifdef CONFIG_CPUID_H
-    unsigned a, b, c, d, b7 = 0, c7 = 0;
-    unsigned max = __get_cpuid_max(0, 0);
-
-    if (max >= 7) {
-        /* BMI1 is available on AMD Piledriver and Intel Haswell CPUs.  */
-        __cpuid_count(7, 0, a, b7, c7, d);
-        have_bmi1 = (b7 & bit_BMI) != 0;
-        have_bmi2 = (b7 & bit_BMI2) != 0;
-    }
-
-    if (max >= 1) {
-        __cpuid(1, a, b, c, d);
-#ifndef have_cmov
-        /* For 32-bit, 99% certainty that we're running on hardware that
-           supports cmov, but we still need to check.  In case cmov is not
-           available, we'll use a small forward branch.  */
-        have_cmov = (d & bit_CMOV) != 0;
-#endif
-
-        /* MOVBE is only available on Intel Atom and Haswell CPUs, so we
-           need to probe for it.  */
-        have_movbe = (c & bit_MOVBE) != 0;
-        have_popcnt = (c & bit_POPCNT) != 0;
-
-        /* There are a number of things we must check before we can be
-           sure of not hitting invalid opcode.  */
-        if (c & bit_OSXSAVE) {
-            unsigned bv = xgetbv_low(0);
-
-            if ((bv & 6) == 6) {
-                have_avx1 = (c & bit_AVX) != 0;
-                have_avx2 = (b7 & bit_AVX2) != 0;
-
-                /*
-                 * There are interesting instructions in AVX512, so long
-                 * as we have AVX512VL, which indicates support for EVEX
-                 * on sizes smaller than 512 bits.  We are required to
-                 * check that OPMASK and all extended ZMM state are enabled
-                 * even if we're not using them -- the insns will fault.
-                 */
-                if ((bv & 0xe0) == 0xe0
-                    && (b7 & bit_AVX512F)
-                    && (b7 & bit_AVX512VL)) {
-                    have_avx512vl = true;
-                    have_avx512bw = (b7 & bit_AVX512BW) != 0;
-                    have_avx512dq = (b7 & bit_AVX512DQ) != 0;
-                    have_avx512vbmi2 = (c7 & bit_AVX512VBMI2) != 0;
-                }
-
-                /*
-                 * The Intel SDM has added:
-                 *   Processors that enumerate support for Intel® AVX
-                 *   (by setting the feature flag CPUID.01H:ECX.AVX[bit 28])
-                 *   guarantee that the 16-byte memory operations performed
-                 *   by the following instructions will always be carried
-                 *   out atomically:
-                 *   - MOVAPD, MOVAPS, and MOVDQA.
-                 *   - VMOVAPD, VMOVAPS, and VMOVDQA when encoded with VEX.128.
-                 *   - VMOVAPD, VMOVAPS, VMOVDQA32, and VMOVDQA64 when encoded
-                 *     with EVEX.128 and k0 (masking disabled).
-                 * Note that these instructions require the linear addresses
-                 * of their memory operands to be 16-byte aligned.
-                 *
-                 * AMD has provided an even stronger guarantee that processors
-                 * with AVX provide 16-byte atomicity for all cachable,
-                 * naturally aligned single loads and stores, e.g. MOVDQU.
-                 *
-                 * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104688
-                 */
-                if (have_avx1) {
-                    __cpuid(0, a, b, c, d);
-                    have_atomic16 = (c == signature_INTEL_ecx ||
-                                     c == signature_AMD_ecx);
-                }
-            }
-        }
-    }
-
-    max = __get_cpuid_max(0x8000000, 0);
-    if (max >= 1) {
-        __cpuid(0x80000001, a, b, c, d);
-        /* LZCNT was introduced with AMD Barcelona and Intel Haswell CPUs.  */
-        have_lzcnt = (c & bit_LZCNT) != 0;
-    }
-#endif /* CONFIG_CPUID_H */
-
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_target_available_regs[TCG_TYPE_I64] = ALL_GENERAL_REGS;
