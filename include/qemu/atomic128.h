@@ -41,60 +41,7 @@
  * Therefore, special case each platform.
  */
 
-#if defined(CONFIG_ATOMIC128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    Int128Alias r, c, n;
-
-    c.s = cmp;
-    n.s = new;
-    r.i = qatomic_cmpxchg__nocheck((__int128_t *)ptr, c.i, n.i);
-    return r.s;
-}
-# define HAVE_CMPXCHG128 1
-#elif defined(CONFIG_CMPXCHG128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    Int128Alias r, c, n;
-
-    c.s = cmp;
-    n.s = new;
-    r.i = __sync_val_compare_and_swap_16((__int128_t *)ptr, c.i, n.i);
-    return r.s;
-}
-# define HAVE_CMPXCHG128 1
-#elif defined(__aarch64__)
-/* Through gcc 8, aarch64 has no support for 128-bit at all.  */
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    uint64_t cmpl = int128_getlo(cmp), cmph = int128_gethi(cmp);
-    uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
-    uint64_t oldl, oldh;
-    uint32_t tmp;
-
-    asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
-        "cmp %[oldl], %[cmpl]\n\t"
-        "ccmp %[oldh], %[cmph], #0, eq\n\t"
-        "b.ne 1f\n\t"
-        "stlxp %w[tmp], %[newl], %[newh], %[mem]\n\t"
-        "cbnz %w[tmp], 0b\n"
-        "1:"
-        : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
-          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
-        : [cmpl] "r"(cmpl), [cmph] "r"(cmph),
-          [newl] "r"(newl), [newh] "r"(newh)
-        : "memory", "cc");
-
-    return int128_make128(oldl, oldh);
-}
-# define HAVE_CMPXCHG128 1
-#else
-/* Fallback definition that must be optimized away, or error.  */
-Int128 QEMU_ERROR("unsupported atomic")
-    atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new);
-# define HAVE_CMPXCHG128 0
-#endif /* Some definition for HAVE_CMPXCHG128 */
-
+#include "host/atomic128-cas.h"
 
 #if defined(CONFIG_ATOMIC128)
 static inline Int128 atomic16_read(Int128 *ptr)
