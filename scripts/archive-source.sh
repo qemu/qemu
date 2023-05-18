@@ -26,8 +26,8 @@ sub_file="${sub_tdir}/submodule.tar"
 # independent of what the developer currently has initialized
 # in their checkout, because the build environment is completely
 # different to the host OS.
-submodules="subprojects/dtc subprojects/keycodemapdb"
-submodules="$submodules tests/fp/berkeley-softfloat-3 tests/fp/berkeley-testfloat-3"
+subprojects="dtc keycodemapdb libvfio-user"
+submodules="tests/fp/berkeley-softfloat-3 tests/fp/berkeley-testfloat-3"
 sub_deinit=""
 
 function cleanup() {
@@ -69,5 +69,12 @@ for sm in $submodules; do
     test $? -ne 0 && error "failed to archive submodule $sm ($smhash)"
     tar --concatenate --file "$tar_file" "$sub_file"
     test $? -ne 0 && error "failed append submodule $sm to $tar_file"
+done
+
+for sp in $subprojects; do
+    meson subprojects download $sp
+    test $? -ne 0 && error "failed to download subproject $sp"
+    tar --append --file "$tar_file" --exclude=.git subprojects/$sp
+    test $? -ne 0 && error "failed to append subproject $sp to $tar_file"
 done
 exit 0

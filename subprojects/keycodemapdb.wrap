@@ -1,0 +1,4 @@
+[wrap-git]
+url = https://gitlab.com/qemu-project/keycodemapdb.git
+revision = f5772a62ec52591ff6870b7e8ef32482371f22c6
+depth = 1

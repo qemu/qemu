@@ -253,7 +253,7 @@ else
     git_submodules_action="ignore"
 fi
 
-git_submodules="subprojects/keycodemapdb"
+git_submodules=""
 git="git"
 debug_tcg="no"
 docs="auto"
@@ -269,7 +269,6 @@ python=
 download="enabled"
 bindir="bin"
 skip_meson=no
-vfio_user_server="disabled"
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 gdb_arches=""
@@ -281,16 +280,13 @@ unset target_list_exclude
 
 # The following Meson options are handled manually (still they
 # are included in the automatically generated help message)
-
-# 1. Track which submodules are needed
-fdt="auto"
-
-# 2. Automatically enable/disable other options
+# because they automatically enable/disable other options
 tcg="auto"
 cfi="false"
 
-# 3. Need to check for -static-pie before Meson runs.  Also,
-# Meson has PIE as a boolean rather than enabled/disabled/auto.
+# Meson has PIE as a boolean rather than enabled/disabled/auto,
+# and we also need to check for -static-pie before Meson runs
+# which requires knowing whether --static is enabled.
 pie=""
 static="no"
 
@@ -743,14 +739,6 @@ for opt do
   ;;
   --disable-cfi) cfi="false"
   ;;
-  --disable-fdt) fdt="disabled"
-  ;;
-  --enable-fdt) fdt="enabled"
-  ;;
-  --enable-fdt=git) fdt="internal"
-  ;;
-  --enable-fdt=*) fdt="$optarg"
-  ;;
   --with-git-submodules=*)
       git_submodules_action="$optarg"
   ;;
@@ -772,10 +760,6 @@ for opt do
   ;;
   --gdb=*) gdb_bin="$optarg"
   ;;
-  --enable-vfio-user-server) vfio_user_server="enabled"
-  ;;
-  --disable-vfio-user-server) vfio_user_server="disabled"
-  ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
   ;;
@@ -787,6 +771,32 @@ if test "$plugins" = "yes" -a "$tcg" = "disabled"; then
     error_exit "Can't enable plugins on non-TCG builds"
 fi
 
+if ! test -f "$source_path/subprojects/keycodemapdb/README" \
+    && test -f "$download" = disabled
+then
+    echo
+    echo "ERROR: missing subprojects"
+    echo
+    if test -e "$source_path/.git"; then
+        echo "--disable-download specified but subprojects were not"
+        echo 'checked out.  Please invoke "meson subprojects download"'
+        echo "before configuring QEMU, or remove --disable-download"
+        echo "from the command line."
+    else
+        echo "This is not a GIT checkout but subproject content appears to"
+        echo "be missing. Do not use 'git archive' or GitHub download links"
+        echo "to acquire QEMU source archives. Non-GIT builds are only"
+        echo "supported with source archives linked from:"
+        echo
+        echo "  https://www.qemu.org/download/#source"
+        echo
+        echo "Developers working with GIT can use scripts/archive-source.sh"
+        echo "if they need to create valid source archives."
+    fi
+    echo
+    exit 1
+fi
+
 case $git_submodules_action in
     update|validate)
         if test ! -e "$source_path/.git" || ! has git; then
@@ -795,7 +805,7 @@ case $git_submodules_action in
         fi
     ;;
     ignore)
-        if ! test -f "$source_path/subprojects/keycodemapdb/README"
+        if ! test -f "$source_path/tests/fp/berkeley-testfloat-3/README.md"
         then
             echo
             echo "ERROR: missing GIT submodules"
@@ -1163,16 +1173,6 @@ EOF
     exit 1
   fi
 fi
-
-##########################################
-# fdt probe
-
-case "$fdt" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} subprojects/dtc"
-    ;;
-esac
 
 ########################################
 # check if ccache is interfering with
@@ -1609,17 +1609,6 @@ write_target_makefile() {
   fi
 }
 
-##########################################
-# check for vfio_user_server
-
-case "$vfio_user_server" in
-  enabled )
-    if test "$git_submodules_action" != "ignore"; then
-      git_submodules="${git_submodules} subprojects/libvfio-user"
-    fi
-    ;;
-esac
-
 #######################################
 # cross-compiled firmware targets
 
@@ -1951,12 +1940,10 @@ if test "$skip_meson" = no; then
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
   test "$docs" != auto && meson_option_add "-Ddocs=$docs"
-  test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"
   test "$smbd" != '' && meson_option_add "-Dsmbd=$smbd"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
-  test "$vfio_user_server" != auto && meson_option_add "-Dvfio_user_server=$vfio_user_server"
   run_meson() {
     NINJA=$ninja $meson setup --prefix "$prefix" "$@" $cross_arg "$PWD" "$source_path"
   }
