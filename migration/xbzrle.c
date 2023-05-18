@@ -17,8 +17,9 @@
 
 #if defined(CONFIG_AVX512BW_OPT)
 #include <immintrin.h>
+#include "host/cpuinfo.h"
 
-int __attribute__((target("avx512bw")))
+static int __attribute__((target("avx512bw")))
 xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                             uint8_t *dst, int dlen)
 {
@@ -135,6 +136,29 @@ xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
     }
     return d;
 }
+
+static int xbzrle_encode_buffer_int(uint8_t *old_buf, uint8_t *new_buf,
+                                    int slen, uint8_t *dst, int dlen);
+
+static int (*accel_func)(uint8_t *, uint8_t *, int, uint8_t *, int);
+
+static void __attribute__((constructor)) init_accel(void)
+{
+    unsigned info = cpuinfo_init();
+    if (info & CPUINFO_AVX512BW) {
+        accel_func = xbzrle_encode_buffer_avx512;
+    } else {
+        accel_func = xbzrle_encode_buffer_int;
+    }
+}
+
+int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
+                         uint8_t *dst, int dlen)
+{
+    return accel_func(old_buf, new_buf, slen, dst, dlen);
+}
+
+#define xbzrle_encode_buffer xbzrle_encode_buffer_int
 #endif
 
 /*
