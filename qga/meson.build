@@ -22,7 +22,7 @@ have_qga_vss = get_option('qga_vss') \
     Then run configure with: --extra-cxxflags="-isystem /path/to/vss/inc/win2003"''') \
   .require(midl.found() or widl.found(),
            error_message: 'VSS support requires midl or widl') \
-  .require(not enable_static,
+  .require(not get_option('prefer_static'),
            error_message: 'VSS support requires dynamic linking with GLib') \
   .allowed()
 

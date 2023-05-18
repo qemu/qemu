@@ -12,8 +12,6 @@ option('pkgversion', type : 'string', value : '',
        description: 'use specified string as sub-version of the package')
 option('smbd', type : 'string', value : '',
        description: 'Path to smbd for slirp networking')
-option('sphinx_build', type : 'string', value : 'sphinx-build',
-       description: 'Use specified sphinx-build for building document')
 option('iasl', type : 'string', value : '',
        description: 'Path to ACPI disassembler')
 option('tls_priority', type : 'string', value : 'NORMAL',
@@ -33,6 +31,9 @@ option('fuzzing_engine', type : 'string', value : '',
        description: 'fuzzing engine library for OSS-Fuzz')
 option('trace_file', type: 'string', value: 'trace',
        description: 'Trace file prefix for simple backend')
+option('coroutine_backend', type: 'combo',
+       choices: ['ucontext', 'sigaltstack', 'windows', 'auto'],
+       value: 'auto', description: 'coroutine backend to use')
 
 # Everything else can be set via --enable/--disable-* option
 # on the configure script command line.  After adding an option
@@ -44,6 +45,8 @@ option('fuzzing', type : 'boolean', value: false,
        description: 'build fuzzing targets')
 option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
+option('modules', type : 'feature', value : 'disabled',
+       description: 'modules support (non Windows)')
 option('module_upgrades', type : 'boolean', value : false,
        description: 'try to load modules from alternate paths for upgrades')
 option('install_blobs', type : 'boolean', value : true,
@@ -82,6 +85,14 @@ option('tcg', type: 'feature', value: 'enabled',
        description: 'TCG support')
 option('tcg_interpreter', type: 'boolean', value: false,
        description: 'TCG with bytecode interpreter (slow)')
+option('safe_stack', type: 'boolean', value: false,
+       description: 'SafeStack Stack Smash Protection (requires clang/llvm and coroutine backend ucontext)')
+option('sanitizers', type: 'boolean', value: false,
+       description: 'enable default sanitizers')
+option('tsan', type: 'boolean', value: false,
+       description: 'enable thread sanitizer')
+option('stack_protector', type: 'feature', value: 'auto',
+       description: 'compiler-provided stack protection')
 option('cfi', type: 'boolean', value: false,
        description: 'Control-Flow Integrity (CFI)')
 option('cfi_debug', type: 'boolean', value: false,

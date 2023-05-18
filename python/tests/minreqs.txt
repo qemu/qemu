@@ -1,5 +1,5 @@
 # This file lists the ***oldest possible dependencies*** needed to run
-# "make check" successfully under ***Python 3.6***. It is used primarily
+# "make check" successfully under ***Python 3.7***. It is used primarily
 # by GitLab CI to ensure that our stated minimum versions in setup.cfg
 # are truthful and regularly validated.
 #
@@ -16,6 +16,9 @@ urwid==2.1.2
 urwid-readline==0.13
 Pygments==2.9.0
 
+# Dependencies for mkvenv
+distlib==0.3.6
+
 # Dependencies for FUSE support for qom-fuse
 fusepy==2.0.4
 
@@ -23,23 +26,23 @@ fusepy==2.0.4
 avocado-framework==90.0
 
 # Linters
-flake8==3.6.0
+flake8==5.0.4
 isort==5.1.2
 mypy==0.780
-pylint==2.8.0
+pylint==2.17.3
 
 # Transitive flake8 dependencies
-mccabe==0.6.0
-pycodestyle==2.4.0
-pyflakes==2.0.0
+mccabe==0.7.0
+pycodestyle==2.9.1
+pyflakes==2.5.0
 
 # Transitive mypy dependencies
 mypy-extensions==0.4.3
 typed-ast==1.4.0
-typing-extensions==3.7.4
+typing-extensions==4.5.0
 
 # Transitive pylint dependencies
-astroid==2.5.4
+astroid==2.15.4
 lazy-object-proxy==1.4.0
 toml==0.10.0
 wrapt==1.12.1

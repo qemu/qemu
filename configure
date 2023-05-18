@@ -79,7 +79,6 @@ fi
 TMPB="qemu-conf"
 TMPC="${TMPDIR1}/${TMPB}.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
-TMPM="${TMPDIR1}/${TMPB}.m"
 TMPE="${TMPDIR1}/${TMPB}.exe"
 
 rm -f config.log
@@ -125,62 +124,20 @@ lines: ${BASH_LINENO[*]}"
   $compiler "$@" >> config.log 2>&1 || return $?
 }
 
-do_compiler_werror() {
-    # Run the compiler, capturing its output to the log. First argument
-    # is compiler binary to execute.
-    compiler="$1"
-    shift
-    if test -n "$BASH_VERSION"; then eval '
-        echo >>config.log "
-funcs: ${FUNCNAME[*]}
-lines: ${BASH_LINENO[*]}"
-    '; fi
-    echo $compiler "$@" >> config.log
-    $compiler "$@" >> config.log 2>&1 || return $?
-    # Test passed. If this is an --enable-werror build, rerun
-    # the test with -Werror and bail out if it fails. This
-    # makes warning-generating-errors in configure test code
-    # obvious to developers.
-    if test "$werror" != "yes"; then
-        return 0
-    fi
-    # Don't bother rerunning the compile if we were already using -Werror
-    case "$*" in
-        *-Werror*)
-           return 0
-        ;;
-    esac
-    echo $compiler -Werror "$@" >> config.log
-    $compiler -Werror "$@" >> config.log 2>&1 && return $?
-    error_exit "configure test passed without -Werror but failed with -Werror." \
-        "This is probably a bug in the configure script. The failing command" \
-        "will be at the bottom of config.log." \
-        "You can run configure with --disable-werror to bypass this check."
-}
-
 do_cc() {
-    do_compiler_werror "$cc" $CPU_CFLAGS "$@"
-}
-
-do_objc() {
-    do_compiler_werror "$objcc" $CPU_CFLAGS "$@"
-}
-
-# Append $2 to the variable named $1, with space separation
-add_to() {
-    eval $1=\${$1:+\"\$$1 \"}\$2
+    do_compiler "$cc" $CPU_CFLAGS "$@"
 }
 
 compile_object() {
   local_cflags="$1"
-  do_cc $CFLAGS $EXTRA_CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -c -o $TMPO $TMPC
+  do_cc $CFLAGS $EXTRA_CFLAGS $local_cflags -c -o $TMPO $TMPC
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  do_cc $CFLAGS $EXTRA_CFLAGS $CONFIGURE_CFLAGS $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC \
-      $LDFLAGS $EXTRA_LDFLAGS $CONFIGURE_LDFLAGS $QEMU_LDFLAGS $local_ldflags
+  do_cc $CFLAGS $EXTRA_CFLAGS $local_cflags -o $TMPE $TMPC \
+      $LDFLAGS $EXTRA_LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -220,32 +177,18 @@ then
   error_exit "main directory cannot contain spaces nor colons"
 fi
 
+# parse CC options first; some compiler tests are used to establish
+# some defaults, based on the host environment
+
 # default parameters
 cpu=""
-static="no"
 cross_compile="no"
 cross_prefix=""
 host_cc="cc"
-stack_protector=""
-safe_stack=""
-use_containers="yes"
-gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
-gdb_arches=""
-glib_has_gslice="no"
-
-if test -e "$source_path/.git"
-then
-    git_submodules_action="update"
-else
-    git_submodules_action="ignore"
-fi
-
-git_submodules="ui/keycodemapdb"
-git="git"
-
-# Don't accept a target_list environment variable.
-unset target_list
-unset target_list_exclude
+EXTRA_CFLAGS=""
+EXTRA_CXXFLAGS=""
+EXTRA_OBJCFLAGS=""
+EXTRA_LDFLAGS=""
 
 # Default value for a variable defining feature "foo".
 #  * foo="no"  feature will only be used if --enable-foo arg is given
@@ -258,54 +201,8 @@ unset target_list_exclude
 # Always add --enable-foo and --disable-foo command line args.
 # Distributions want to ensure that several features are compiled in, and it
 # is impossible without a --enable-foo that exits if a feature is not found.
-
 default_feature=""
-# parse CC options second
-for opt do
-  optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
-  case "$opt" in
-      --without-default-features)
-          default_feature="no"
-  ;;
-  esac
-done
 
-EXTRA_CFLAGS=""
-EXTRA_CXXFLAGS=""
-EXTRA_OBJCFLAGS=""
-EXTRA_LDFLAGS=""
-
-debug_tcg="no"
-sanitizers="no"
-tsan="no"
-fortify_source="yes"
-EXESUF=""
-modules="no"
-prefix="/usr/local"
-qemu_suffix="qemu"
-softmmu="yes"
-linux_user=""
-bsd_user=""
-pie=""
-coroutine=""
-plugins="$default_feature"
-meson=""
-ninja=""
-bindir="bin"
-skip_meson=no
-vfio_user_server="disabled"
-
-# The following Meson options are handled manually (still they
-# are included in the automatically generated help message)
-
-# 1. Track which submodules are needed
-fdt="auto"
-
-# 2. Automatically enable/disable other options
-tcg="auto"
-cfi="false"
-
-# parse CC options second
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
   case "$opt" in
@@ -344,8 +241,59 @@ for opt do
   --cross-prefix-*) cc_arch=${opt#--cross-prefix-}; cc_arch=${cc_arch%%=*}
                     eval "cross_prefix_${cc_arch}=\$optarg"
   ;;
+  --without-default-features) default_feature="no"
+  ;;
   esac
 done
+
+
+if test -e "$source_path/.git"
+then
+    git_submodules_action="update"
+else
+    git_submodules_action="ignore"
+fi
+
+git_submodules="ui/keycodemapdb"
+git="git"
+debug_tcg="no"
+docs="auto"
+EXESUF=""
+prefix="/usr/local"
+qemu_suffix="qemu"
+softmmu="yes"
+linux_user=""
+bsd_user=""
+plugins="$default_feature"
+ninja=""
+python=
+pypi="enabled"
+bindir="bin"
+skip_meson=no
+vfio_user_server="disabled"
+use_containers="yes"
+gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
+gdb_arches=""
+werror=""
+
+# Don't accept a target_list environment variable.
+unset target_list
+unset target_list_exclude
+
+# The following Meson options are handled manually (still they
+# are included in the automatically generated help message)
+
+# 1. Track which submodules are needed
+fdt="auto"
+
+# 2. Automatically enable/disable other options
+tcg="auto"
+cfi="false"
+
+# 3. Need to check for -static-pie before Meson runs.  Also,
+# Meson has PIE as a boolean rather than enabled/disabled/auto.
+pie=""
+static="no"
 
 # Preferred compiler:
 #  ${CC} (if set)
@@ -390,41 +338,14 @@ strip="${STRIP-${cross_prefix}strip}"
 widl="${WIDL-${cross_prefix}widl}"
 windres="${WINDRES-${cross_prefix}windres}"
 windmc="${WINDMC-${cross_prefix}windmc}"
-pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
-query_pkg_config() {
-    "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
-}
-pkg_config=query_pkg_config
+pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
-
-# default flags for all hosts
-# We use -fwrapv to tell the compiler that we require a C dialect where
-# left shift of signed integers is well defined and has the expected
-# 2s-complement style results. (Both clang and gcc agree that it
-# provides these semantics.)
-QEMU_CFLAGS="-fno-strict-aliasing -fno-common -fwrapv"
-QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
-
-QEMU_LDFLAGS=
-
-# Flags that are needed during configure but later taken care of by Meson
-CONFIGURE_CFLAGS="-std=gnu11 -Wall"
-CONFIGURE_LDFLAGS=
-
 
 check_define() {
 cat > $TMPC <<EOF
 #if !defined($1)
 #error $1 not defined
 #endif
-int main(void) { return 0; }
-EOF
-  compile_object
-}
-
-check_include() {
-cat > $TMPC <<EOF
-#include <$1>
 int main(void) { return 0; }
 EOF
   compile_object
@@ -498,21 +419,13 @@ openbsd)
 darwin)
   bsd="yes"
   darwin="yes"
-  # Disable attempts to use ObjectiveC features in os/object.h since they
-  # won't work when we're compiling with gcc as a C compiler.
-  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
 ;;
 sunos)
   solaris="yes"
   make="${MAKE-gmake}"
-# needed for CMSG_ macros in sys/socket.h
-  QEMU_CFLAGS="-D_XOPEN_SOURCE=600 $QEMU_CFLAGS"
-# needed for TIOCWIN* defines in termios.h
-  QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
 ;;
 haiku)
   pie="no"
-  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE -fPIC $QEMU_CFLAGS"
 ;;
 linux)
   linux="yes"
@@ -617,18 +530,16 @@ esac
 
 
 check_py_version() {
-    # We require python >= 3.6.
+    # We require python >= 3.7.
     # NB: a True python conditional creates a non-zero return code (Failure)
-    "$1" -c 'import sys; sys.exit(sys.version_info < (3,6))'
+    "$1" -c 'import sys; sys.exit(sys.version_info < (3,7))'
 }
 
-python=
 first_python=
 if test -z "${PYTHON}"; then
-    explicit_python=no
     # A bare 'python' is traditionally python 2.x, but some distros
     # have it as python 3.x, so check in both places.
-    for binary in python3 python python3.11 python3.10 python3.9 python3.8 python3.7 python3.6; do
+    for binary in python3 python python3.11 python3.10 python3.9 python3.8 python3.7; do
         if has "$binary"; then
             python=$(command -v "$binary")
             if check_py_version "$python"; then
@@ -644,7 +555,6 @@ else
     # Same as above, but only check the environment variable.
     has "${PYTHON}" || error_exit "The PYTHON environment variable does not point to an executable"
     python=$(command -v "$PYTHON")
-    explicit_python=yes
     if check_py_version "$python"; then
         # This one is good.
         first_python=
@@ -666,14 +576,10 @@ done
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
-  # MinGW needs -mthreads for TLS and macro _MT.
-  CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   prefix="/qemu"
   bindir=""
   qemu_suffix=""
 fi
-
-werror=""
 
 meson_option_build_array() {
   printf '['
@@ -729,11 +635,9 @@ for opt do
   ;;
   --install=*)
   ;;
-  --python=*) python="$optarg" ; explicit_python=yes
+  --python=*) python="$optarg"
   ;;
   --skip-meson) skip_meson=yes
-  ;;
-  --meson=*) meson="$optarg"
   ;;
   --ninja=*) ninja="$optarg"
   ;;
@@ -751,15 +655,9 @@ for opt do
   ;;
   --cross-prefix-*)
   ;;
-  --enable-debug-info) meson_option_add -Ddebug=true
+  --enable-docs) docs=enabled
   ;;
-  --disable-debug-info) meson_option_add -Ddebug=false
-  ;;
-  --enable-modules)
-      modules="yes"
-  ;;
-  --disable-modules)
-      modules="no"
+  --disable-docs) docs=disabled
   ;;
   --cpu=*)
   ;;
@@ -791,9 +689,7 @@ for opt do
   ;;
   --without-default-features) # processed above
   ;;
-  --static)
-    static="yes"
-    QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
+  --static) static="yes"
   ;;
   --bindir=*) bindir="$optarg"
   ;;
@@ -819,15 +715,6 @@ for opt do
       meson_option_parse --enable-debug-graph-lock ""
       meson_option_parse --enable-debug-mutex ""
       meson_option_add -Doptimization=0
-      fortify_source="no"
-  ;;
-  --enable-sanitizers) sanitizers="yes"
-  ;;
-  --disable-sanitizers) sanitizers="no"
-  ;;
-  --enable-tsan) tsan="yes"
-  ;;
-  --disable-tsan) tsan="no"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
@@ -859,14 +746,6 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
-  --enable-stack-protector) stack_protector="yes"
-  ;;
-  --disable-stack-protector) stack_protector="no"
-  ;;
-  --enable-safe-stack) safe_stack="yes"
-  ;;
-  --disable-safe-stack) safe_stack="no"
-  ;;
   --enable-cfi)
       cfi="true";
       meson_option_add -Db_lto=true
@@ -881,12 +760,14 @@ for opt do
   ;;
   --enable-fdt=*) fdt="$optarg"
   ;;
-  --with-coroutine=*) coroutine="$optarg"
-  ;;
   --with-git=*) git="$optarg"
   ;;
   --with-git-submodules=*)
       git_submodules_action="$optarg"
+  ;;
+  --disable-pypi) pypi="disabled"
+  ;;
+  --enable-pypi) pypi="enabled"
   ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
@@ -1019,7 +900,6 @@ Advanced options (experts only):
   --cross-prefix-ARCH=PREFIX cross compiler prefix when building ARCH guest test cases
   --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
-  --meson=MESON            use specified meson [$meson]
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
   --with-git=GIT           use specified git [$git]
@@ -1035,13 +915,8 @@ Advanced options (experts only):
                            desired devices in configs/devices/)
   --with-devices-ARCH=NAME override default configs/devices
   --enable-debug           enable common debug build options
-  --enable-sanitizers      enable default sanitizers
-  --enable-tsan            enable thread sanitizer
   --disable-werror         disable compilation abort on warning
-  --disable-stack-protector disable compiler-provided stack protection
   --cpu=CPU                Build for host CPU [$cpu]
-  --with-coroutine=BACKEND coroutine backend. Supported options:
-                           ucontext, sigaltstack, windows
   --enable-plugins
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
@@ -1054,11 +929,7 @@ cat << EOF
   linux-user      all linux usermode emulation targets
   bsd-user        all BSD usermode emulation targets
   pie             Position Independent Executables
-  modules         modules support (non-Windows)
   debug-tcg       TCG debugging (default is disabled)
-  debug-info      debugging information
-  safe-stack      SafeStack Stack Smash Protection. Depends on
-                  clang/llvm and requires coroutine backend ucontext.
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -1073,7 +944,7 @@ then
     # If first_python is set, there was a binary somewhere even though
     # it was not suitable.  Use it for the error message.
     if test -n "$first_python"; then
-        error_exit "Cannot use '$first_python', Python >= 3.6 is required." \
+        error_exit "Cannot use '$first_python', Python >= 3.7 is required." \
             "Use --python=/path/to/python to specify a supported Python."
     else
         error_exit "Python not found. Use --python=/path/to/python"
@@ -1086,65 +957,86 @@ then
 fi
 
 if ! check_py_version "$python"; then
-  error_exit "Cannot use '$python', Python >= 3.6 is required." \
-      "Use --python=/path/to/python to specify a supported Python."
+  error_exit "Cannot use '$python', Python >= 3.7 is required." \
+             "Use --python=/path/to/python to specify a supported Python." \
+             "Maybe try:" \
+             "  openSUSE Leap 15.3+: zypper install python39" \
+             "  CentOS 8: dnf install python38"
 fi
 
-# Resolve PATH + suppress writing compiled files
-python="$(command -v "$python") -B"
+# Resolve PATH
+python="$(command -v "$python")"
 
-has_meson() {
-  local python_dir=$(dirname "$python")
-  # PEP405: pyvenv.cfg is either adjacent to the Python executable
-  # or one directory above
-  if test -f $python_dir/pyvenv.cfg || test -f $python_dir/../pyvenv.cfg; then
-    # Ensure that Meson and Python come from the same virtual environment
-    test -x "$python_dir/meson" &&
-      test "$(command -v meson)" -ef "$python_dir/meson"
-  else
-    has meson
-  fi
-}
+# Create a Python virtual environment using our configured python.
+# The stdout of this script will be the location of a symlink that
+# points to the configured Python.
+# Entry point scripts for pip, meson, and sphinx are generated if those
+# packages are present.
 
-if test -z "$meson"; then
-    if test "$explicit_python" = no && has_meson && version_ge "$(meson --version)" 0.61.5; then
-        meson=meson
-    elif test "$git_submodules_action" != 'ignore' ; then
-        meson=git
-    elif test -e "${source_path}/meson/meson.py" ; then
-        meson=internal
-    else
-        if test "$explicit_python" = yes; then
-            error_exit "--python requires using QEMU's embedded Meson distribution, but it was not found."
-        else
-            error_exit "Meson not found.  Use --meson=/path/to/meson"
+# Defaults assumed for now:
+# - venv is cleared if it exists already;
+# - venv is allowed to use system packages;
+# - all setup can be performed offline;
+# - missing packages may be fetched from PyPI,
+#   unless --disable-pypi is passed.
+# - pip is not installed into the venv when possible,
+#   but ensurepip is called as a fallback when necessary.
+
+echo "python determined to be '$python'"
+echo "python version: $($python --version)"
+
+python="$($python -B "${source_path}/python/scripts/mkvenv.py" create pyvenv)"
+if test "$?" -ne 0 ; then
+    error_exit "python venv creation failed"
+fi
+
+# Suppress writing compiled files
+python="$python -B"
+mkvenv="$python ${source_path}/python/scripts/mkvenv.py"
+
+mkvenv_flags=""
+if test "$pypi" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
+if ! $mkvenv ensure \
+     $mkvenv_flags \
+     --dir "${source_path}/python/wheels" \
+     --diagnose "meson" \
+     "meson>=0.63.0" ;
+then
+    exit 1
+fi
+
+# At this point, we expect Meson to be installed and available.
+# We expect mkvenv or pip to have created pyvenv/bin/meson for us.
+# We ignore PATH completely here: we want to use the venv's Meson
+# *exclusively*.
+
+meson="$(cd pyvenv/bin; pwd)/meson"
+
+# Conditionally ensure Sphinx is installed.
+
+mkvenv_flags=""
+if test "$pypi" = "enabled" -a "$docs" = "enabled" ; then
+    mkvenv_flags="--online"
+fi
+
+if test "$docs" != "disabled" ; then
+    if ! $mkvenv ensure \
+         $mkvenv_flags \
+         --diagnose "sphinx-build" \
+         "sphinx>=1.6.0" "sphinx-rtd-theme>=0.5.0";
+    then
+        if test "$docs" = "enabled" ; then
+            exit 1
         fi
-    fi
-else
-    # Meson uses its own Python interpreter to invoke other Python scripts,
-    # but the user wants to use the one they specified with --python.
-    #
-    # We do not want to override the distro Python interpreter (and sometimes
-    # cannot: for example in Homebrew /usr/bin/meson is a bash script), so
-    # just require --meson=git|internal together with --python.
-    if test "$explicit_python" = yes; then
-        case "$meson" in
-            git | internal) ;;
-            *) error_exit "--python requires using QEMU's embedded Meson distribution." ;;
-        esac
+        echo "Sphinx not found/usable, disabling docs."
+        docs=disabled
+    else
+        docs=enabled
     fi
 fi
-
-if test "$meson" = git; then
-    git_submodules="${git_submodules} meson"
-fi
-
-case "$meson" in
-    git | internal)
-        meson="$python ${source_path}/meson/meson.py"
-        ;;
-    *) meson=$(command -v "$meson") ;;
-esac
 
 # Probe for ninja
 
@@ -1158,20 +1050,6 @@ if test -z "$ninja"; then
     if test -z "$ninja"; then
       error_exit "Cannot find Ninja"
     fi
-fi
-
-# Check that the C compiler works. Doing this here before testing
-# the host CPU ensures that we had a valid CC to autodetect the
-# $cpu var (and we should bail right here if that's not the case).
-# It also allows the help message to be printed without a CC.
-write_c_skeleton;
-if compile_object ; then
-  : C compiler works ok
-else
-    error_exit "\"$cc\" either does not exist or does not work"
-fi
-if ! compile_prog ; then
-    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
 fi
 
 # Consult white-list to determine whether to enable werror
@@ -1193,147 +1071,7 @@ if test "$targetos" = "bogus"; then
     error_exit "Unrecognized host OS (uname -s reports '$(uname -s)')"
 fi
 
-# Check whether the compiler matches our minimum requirements:
-cat > $TMPC << EOF
-#if defined(__clang_major__) && defined(__clang_minor__)
-# ifdef __apple_build_version__
-#  if __clang_major__ < 12 || (__clang_major__ == 12 && __clang_minor__ < 0)
-#   error You need at least XCode Clang v12.0 to compile QEMU
-#  endif
-# else
-#  if __clang_major__ < 10 || (__clang_major__ == 10 && __clang_minor__ < 0)
-#   error You need at least Clang v10.0 to compile QEMU
-#  endif
-# endif
-#elif defined(__GNUC__) && defined(__GNUC_MINOR__)
-# if __GNUC__ < 7 || (__GNUC__ == 7 && __GNUC_MINOR__ < 4)
-#  error You need at least GCC v7.4.0 to compile QEMU
-# endif
-#else
-# error You either need GCC or Clang to compiler QEMU
-#endif
-int main (void) { return 0; }
-EOF
-if ! compile_prog "" "" ; then
-    error_exit "You need at least GCC v7.4 or Clang v10.0 (or XCode Clang v12.0)"
-fi
-
-# Accumulate -Wfoo and -Wno-bar separately.
-# We will list all of the enable flags first, and the disable flags second.
-# Note that we do not add -Werror, because that would enable it for all
-# configure tests. If a configure test failed due to -Werror this would
-# just silently disable some features, so it's too error prone.
-
-warn_flags=
-add_to warn_flags -Wundef
-add_to warn_flags -Wwrite-strings
-add_to warn_flags -Wmissing-prototypes
-add_to warn_flags -Wstrict-prototypes
-add_to warn_flags -Wredundant-decls
-add_to warn_flags -Wold-style-declaration
-add_to warn_flags -Wold-style-definition
-add_to warn_flags -Wtype-limits
-add_to warn_flags -Wformat-security
-add_to warn_flags -Wformat-y2k
-add_to warn_flags -Winit-self
-add_to warn_flags -Wignored-qualifiers
-add_to warn_flags -Wempty-body
-add_to warn_flags -Wnested-externs
-add_to warn_flags -Wendif-labels
-add_to warn_flags -Wexpansion-to-defined
-add_to warn_flags -Wimplicit-fallthrough=2
-add_to warn_flags -Wmissing-format-attribute
-
-if test "$targetos" != "darwin"; then
-    add_to warn_flags -Wthread-safety
-fi
-
-nowarn_flags=
-add_to nowarn_flags -Wno-initializer-overrides
-add_to nowarn_flags -Wno-missing-include-dirs
-add_to nowarn_flags -Wno-shift-negative-value
-add_to nowarn_flags -Wno-string-plus-int
-add_to nowarn_flags -Wno-typedef-redefinition
-add_to nowarn_flags -Wno-tautological-type-limit-compare
-add_to nowarn_flags -Wno-psabi
-add_to nowarn_flags -Wno-gnu-variable-sized-type-not-at-end
-
-gcc_flags="$warn_flags $nowarn_flags"
-
-cc_has_warning_flag() {
-    write_c_skeleton;
-
-    # Use the positive sense of the flag when testing for -Wno-wombat
-    # support (gcc will happily accept the -Wno- form of unknown
-    # warning options).
-    optflag="$(echo $1 | sed -e 's/^-Wno-/-W/')"
-    compile_prog "-Werror $optflag" ""
-}
-
-objcc_has_warning_flag() {
-    cat > $TMPM <<EOF
-int main(void) { return 0; }
-EOF
-
-    # Use the positive sense of the flag when testing for -Wno-wombat
-    # support (gcc will happily accept the -Wno- form of unknown
-    # warning options).
-    optflag="$(echo $1 | sed -e 's/^-Wno-/-W/')"
-    do_objc -Werror $optflag \
-      $OBJCFLAGS $EXTRA_OBJCFLAGS $CONFIGURE_OBJCFLAGS $QEMU_OBJCFLAGS \
-      -o $TMPE $TMPM $QEMU_LDFLAGS
-}
-
-for flag in $gcc_flags; do
-    if cc_has_warning_flag $flag ; then
-        QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    fi
-    if objcc_has_warning_flag $flag ; then
-        QEMU_OBJCFLAGS="$QEMU_OBJCFLAGS $flag"
-    fi
-done
-
-if test "$stack_protector" != "no"; then
-  cat > $TMPC << EOF
-int main(int argc, char *argv[])
-{
-    char arr[64], *p = arr, *c = argv[argc - 1];
-    while (*c) {
-        *p++ = *c++;
-    }
-    return 0;
-}
-EOF
-  gcc_flags="-fstack-protector-strong -fstack-protector-all"
-  sp_on=0
-  for flag in $gcc_flags; do
-    # We need to check both a compile and a link, since some compiler
-    # setups fail only on a .c->.o compile and some only at link time
-    if compile_object "-Werror $flag" &&
-       compile_prog "-Werror $flag" ""; then
-      QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-      QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-      sp_on=1
-      break
-    fi
-  done
-  if test "$stack_protector" = yes; then
-    if test $sp_on = 0; then
-      error_exit "Stack protector not supported"
-    fi
-  fi
-fi
-
-# Our module code doesn't support Windows
-if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
-  error_exit "Modules are not available for Windows"
-fi
-
-# Static linking is not possible with plugins, modules or PIE
 if test "$static" = "yes" ; then
-  if test "$modules" = "yes" ; then
-    error_exit "static and modules are mutually incompatible"
-  fi
   if test "$plugins" = "yes"; then
     error_exit "static and plugins are mutually incompatible"
   else
@@ -1353,59 +1091,26 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 EOF
 
-# Meson currently only handles pie as a boolean for now so if we have
-# explicitly disabled PIE we need to extend our cflags because it wont.
 if test "$static" = "yes"; then
   if test "$pie" != "no" && compile_prog "-Werror -fPIE -DPIE" "-static-pie"; then
-    CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
     pie="yes"
   elif test "$pie" = "yes"; then
     error_exit "-static-pie not available due to missing toolchain support"
   else
     pie="no"
-    QEMU_CFLAGS="-fno-pie $QEMU_CFLAGS"
   fi
-elif test "$pie" = "no"; then
-  if compile_prog "-Werror -fno-pie" "-no-pie"; then
-    CONFIGURE_CFLAGS="-fno-pie $CONFIGURE_CFLAGS"
-    CONFIGURE_LDFLAGS="-no-pie $CONFIGURE_LDFLAGS"
-    QEMU_CFLAGS="-fno-pie -no-pie $QEMU_CFLAGS"
+elif test "$pie" != "no"; then
+  if compile_prog "-Werror -fPIE -DPIE" "-pie"; then
+    pie="yes"
+  elif test "$pie" = "yes"; then
+    error_exit "PIE not available due to missing toolchain support"
+  else
+    echo "Disabling PIE due to missing toolchain support"
+    pie="no"
   fi
-elif compile_prog "-Werror -fPIE -DPIE" "-pie"; then
-  CONFIGURE_CFLAGS="-fPIE -DPIE $CONFIGURE_CFLAGS"
-  CONFIGURE_LDFLAGS="-pie $CONFIGURE_LDFLAGS"
-  pie="yes"
-elif test "$pie" = "yes"; then
-  error_exit "PIE not available due to missing toolchain support"
-else
-  echo "Disabling PIE due to missing toolchain support"
-  pie="no"
 fi
 
 ##########################################
-# __sync_fetch_and_and requires at least -march=i486. Many toolchains
-# use i686 as default anyway, but for those that don't, an explicit
-# specification is necessary
-
-if test "$cpu" = "i386"; then
-  cat > $TMPC << EOF
-static int sfaa(int *ptr)
-{
-  return __sync_fetch_and_and(ptr, 0);
-}
-
-int main(void)
-{
-  int val = 42;
-  val = __sync_val_compare_and_swap(&val, 0, 1);
-  sfaa(&val);
-  return val;
-}
-EOF
-  if ! compile_prog "" "" ; then
-    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
-  fi
-fi
 
 if test -z "${target_list+xxx}" ; then
     default_targets=yes
@@ -1478,102 +1183,6 @@ EOF
 fi
 
 ##########################################
-# pkg-config probe
-
-if ! has "$pkg_config_exe"; then
-  error_exit "pkg-config binary '$pkg_config_exe' not found"
-fi
-
-##########################################
-# glib support probe
-
-# When bumping glib_req_ver, please check also whether we should increase
-# the _WIN32_WINNT setting in osdep.h according to the value from glib
-glib_req_ver=2.56
-glib_modules=gthread-2.0
-if test "$modules" = yes; then
-    glib_modules="$glib_modules gmodule-export-2.0"
-elif test "$plugins" = "yes"; then
-    glib_modules="$glib_modules gmodule-no-export-2.0"
-fi
-
-for i in $glib_modules; do
-    if $pkg_config --atleast-version=$glib_req_ver $i; then
-        glib_cflags=$($pkg_config --cflags $i)
-        glib_libs=$($pkg_config --libs $i)
-    else
-        error_exit "glib-$glib_req_ver $i is required to compile QEMU"
-    fi
-done
-
-# Check whether glib has gslice, which we have to avoid for correctness.
-# TODO: remove this check and the corresponding workaround (qtree) when
-# the minimum supported glib is >= $glib_dropped_gslice_version.
-glib_dropped_gslice_version=2.75.3
-for i in $glib_modules; do
-    if ! $pkg_config --atleast-version=$glib_dropped_gslice_version $i; then
-        glib_has_gslice="yes"
-	break
-    fi
-done
-
-glib_bindir="$($pkg_config --variable=bindir glib-2.0)"
-if test -z "$glib_bindir" ; then
-	glib_bindir="$($pkg_config --variable=prefix glib-2.0)"/bin
-fi
-
-# This workaround is required due to a bug in pkg-config file for glib as it
-# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
-
-if test "$static" = yes && test "$mingw32" = yes; then
-    glib_cflags="-DGLIB_STATIC_COMPILATION $glib_cflags"
-fi
-
-# Sanity check that the current size_t matches the
-# size that glib thinks it should be. This catches
-# problems on multi-arch where people try to build
-# 32-bit QEMU while pointing at 64-bit glib headers
-cat > $TMPC <<EOF
-#include <glib.h>
-#include <unistd.h>
-
-#define QEMU_BUILD_BUG_ON(x) \
-  typedef char qemu_build_bug_on[(x)?-1:1] __attribute__((unused));
-
-int main(void) {
-   QEMU_BUILD_BUG_ON(sizeof(size_t) != GLIB_SIZEOF_SIZE_T);
-   return 0;
-}
-EOF
-
-if ! compile_prog "$glib_cflags" "$glib_libs" ; then
-    error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
-               "You probably need to set PKG_CONFIG_LIBDIR"\
-	       "to point to the right pkg-config files for your"\
-	       "build target"
-fi
-
-# Silence clang warnings triggered by glib < 2.57.2
-cat > $TMPC << EOF
-#include <glib.h>
-typedef struct Foo {
-    int i;
-} Foo;
-static void foo_free(Foo *f)
-{
-    g_free(f);
-}
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
-int main(void) { return 0; }
-EOF
-if ! compile_prog "$glib_cflags -Werror" "$glib_libs" ; then
-    if cc_has_warning_flag "-Wno-unused-function"; then
-        glib_cflags="$glib_cflags -Wno-unused-function"
-        CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-unused-function"
-    fi
-fi
-
-##########################################
 # fdt probe
 
 case "$fdt" in
@@ -1582,123 +1191,6 @@ case "$fdt" in
     git_submodules="${git_submodules} dtc"
     ;;
 esac
-
-##########################################
-# check and set a backend for coroutine
-
-# We prefer ucontext, but it's not always possible. The fallback
-# is sigcontext. On Windows the only valid backend is the Windows
-# specific one.
-
-ucontext_works=no
-if test "$darwin" != "yes"; then
-  cat > $TMPC << EOF
-#include <ucontext.h>
-#ifdef __stub_makecontext
-#error Ignoring glibc stub makecontext which will always fail
-#endif
-int main(void) { makecontext(0, 0, 0); return 0; }
-EOF
-  if compile_prog "" "" ; then
-    ucontext_works=yes
-  fi
-fi
-
-if test "$coroutine" = ""; then
-  if test "$mingw32" = "yes"; then
-    coroutine=win32
-  elif test "$ucontext_works" = "yes"; then
-    coroutine=ucontext
-  else
-    coroutine=sigaltstack
-  fi
-else
-  case $coroutine in
-  windows)
-    if test "$mingw32" != "yes"; then
-      error_exit "'windows' coroutine backend only valid for Windows"
-    fi
-    # Unfortunately the user visible backend name doesn't match the
-    # coroutine-*.c filename for this case, so we have to adjust it here.
-    coroutine=win32
-    ;;
-  ucontext)
-    if test "$ucontext_works" != "yes"; then
-      error_exit "'ucontext' backend requested but makecontext not available"
-    fi
-    ;;
-  sigaltstack)
-    if test "$mingw32" = "yes"; then
-      error_exit "only the 'windows' coroutine backend is valid for Windows"
-    fi
-    ;;
-  *)
-    error_exit "unknown coroutine backend $coroutine"
-    ;;
-  esac
-fi
-
-##################################################
-# SafeStack
-
-
-if test "$safe_stack" = "yes"; then
-cat > $TMPC << EOF
-int main(void)
-{
-#if ! __has_feature(safe_stack)
-#error SafeStack Disabled
-#endif
-    return 0;
-}
-EOF
-  flag="-fsanitize=safe-stack"
-  # Check that safe-stack is supported and enabled.
-  if compile_prog "-Werror $flag" "$flag"; then
-    # Flag needed both at compilation and at linking
-    QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-  else
-    error_exit "SafeStack not supported by your compiler"
-  fi
-  if test "$coroutine" != "ucontext"; then
-    error_exit "SafeStack is only supported by the coroutine backend ucontext"
-  fi
-else
-cat > $TMPC << EOF
-int main(void)
-{
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-#error SafeStack Enabled
-#endif
-#endif
-    return 0;
-}
-EOF
-if test "$safe_stack" = "no"; then
-  # Make sure that safe-stack is disabled
-  if ! compile_prog "-Werror" ""; then
-    # SafeStack was already enabled, try to explicitly remove the feature
-    flag="-fno-sanitize=safe-stack"
-    if ! compile_prog "-Werror $flag" "$flag"; then
-      error_exit "Configure cannot disable SafeStack"
-    fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $flag"
-    QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
-  fi
-else # "$safe_stack" = ""
-  # Set safe_stack to yes or no based on pre-existing flags
-  if compile_prog "-Werror" ""; then
-    safe_stack="no"
-  else
-    safe_stack="yes"
-    if test "$coroutine" != "ucontext"; then
-      error_exit "SafeStack is only supported by the coroutine backend ucontext"
-    fi
-  fi
-fi
-fi
 
 ########################################
 # check if ccache is interfering with
@@ -1726,87 +1218,6 @@ EOF
 
 if ! compile_object "-Werror"; then
     ccache_cpp2=yes
-fi
-
-#################################################
-# clang does not support glibc + FORTIFY_SOURCE.
-
-if test "$fortify_source" != "no"; then
-  if echo | $cc -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
-    fortify_source="no";
-  elif test -n "$cxx" && has $cxx &&
-       echo | $cxx -dM -E - | grep __clang__ >/dev/null 2>&1 ; then
-    fortify_source="no";
-  else
-    fortify_source="yes"
-  fi
-fi
-
-##########################################
-# checks for sanitizers
-
-have_asan=no
-have_ubsan=no
-have_asan_iface_h=no
-have_asan_iface_fiber=no
-
-if test "$sanitizers" = "yes" ; then
-  write_c_skeleton
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" ""; then
-      have_asan=yes
-  fi
-
-  # we could use a simple skeleton for flags checks, but this also
-  # detect the static linking issue of ubsan, see also:
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
-  cat > $TMPC << EOF
-int main(int argc, char **argv)
-{
-    return argc + 1;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=undefined" ""; then
-      have_ubsan=yes
-  fi
-
-  if check_include "sanitizer/asan_interface.h" ; then
-      have_asan_iface_h=yes
-  fi
-
-  cat > $TMPC << EOF
-#include <sanitizer/asan_interface.h>
-int main(void) {
-  __sanitizer_start_switch_fiber(0, 0, 0);
-  return 0;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address" "" ; then
-      have_asan_iface_fiber=yes
-  fi
-fi
-
-# Thread sanitizer is, for now, much noisier than the other sanitizers;
-# keep it separate until that is not the case.
-if test "$tsan" = "yes" && test "$sanitizers" = "yes"; then
-  error_exit "TSAN is not supported with other sanitiziers."
-fi
-have_tsan=no
-have_tsan_iface_fiber=no
-if test "$tsan" = "yes" ; then
-  write_c_skeleton
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=thread" "" ; then
-      have_tsan=yes
-  fi
-  cat > $TMPC << EOF
-#include <sanitizer/tsan_interface.h>
-int main(void) {
-  __tsan_create_fiber(0);
-  return 0;
-}
-EOF
-  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=thread" "" ; then
-      have_tsan_iface_fiber=yes
-  fi
 fi
 
 ##########################################
@@ -1912,13 +1323,6 @@ probe_target_compiler() {
   container_cross_objcopy=
   container_cross_ranlib=
   container_cross_strip=
-
-  # We shall skip configuring the target compiler if the user didn't
-  # bother enabling an appropriate guest. This avoids building
-  # extraneous firmware images and tests.
-  if test "${target_list#*$1}" = "$1"; then
-      return 1
-  fi
 
   target_arch=${1%%-*}
   case $target_arch in
@@ -2234,42 +1638,6 @@ case "$vfio_user_server" in
     ;;
 esac
 
-##########################################
-# End of CC checks
-# After here, no more $cc or $ld runs
-
-write_c_skeleton
-
-if test "$fortify_source" = "yes" ; then
-  QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-fi
-
-if test "$have_asan" = "yes"; then
-  QEMU_CFLAGS="-fsanitize=address $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-fsanitize=address $QEMU_LDFLAGS"
-  if test "$have_asan_iface_h" = "no" ; then
-      echo "ASAN build enabled, but ASAN header missing." \
-           "Without code annotation, the report may be inferior."
-  elif test "$have_asan_iface_fiber" = "no" ; then
-      echo "ASAN build enabled, but ASAN header is too old." \
-           "Without code annotation, the report may be inferior."
-  fi
-fi
-if test "$have_tsan" = "yes" ; then
-  if test "$have_tsan_iface_fiber" = "yes" ; then
-    QEMU_CFLAGS="-fsanitize=thread $QEMU_CFLAGS"
-    QEMU_LDFLAGS="-fsanitize=thread $QEMU_LDFLAGS"
-  else
-    error_exit "Cannot enable TSAN due to missing fiber annotation interface."
-  fi
-elif test "$tsan" = "yes" ; then
-  error_exit "Cannot enable TSAN due to missing sanitize thread interface."
-fi
-if test "$have_ubsan" = "yes"; then
-  QEMU_CFLAGS="-fsanitize=undefined $QEMU_CFLAGS"
-  QEMU_LDFLAGS="-fsanitize=undefined $QEMU_LDFLAGS"
-fi
-
 #######################################
 # cross-compiled firmware targets
 
@@ -2293,7 +1661,6 @@ LINKS="$LINKS python"
 LINKS="$LINKS contrib/plugins/Makefile "
 for f in $LINKS ; do
     if [ -e "$source_path/$f" ]; then
-        mkdir -p "$(dirname ./"$f")"
         symlink "$source_path/$f" "$f"
     fi
 done
@@ -2384,28 +1751,12 @@ fi
 if test "$solaris" = "yes" ; then
   echo "CONFIG_SOLARIS=y" >> $config_host_mak
 fi
-if test "$static" = "yes" ; then
-  echo "CONFIG_STATIC=y" >> $config_host_mak
-fi
 echo "SRC_PATH=$source_path" >> $config_host_mak
 echo "TARGET_DIRS=$target_list" >> $config_host_mak
-if test "$modules" = "yes"; then
-  echo "CONFIG_MODULES=y" >> $config_host_mak
-fi
 
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
-fi
-
-echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak
-
-if test "$have_asan_iface_fiber" = "yes" ; then
-    echo "CONFIG_ASAN_IFACE_FIBER=y" >> $config_host_mak
-fi
-
-if test "$have_tsan" = "yes" && test "$have_tsan_iface_fiber" = "yes" ; then
-    echo "CONFIG_TSAN=y" >> $config_host_mak
 fi
 
 if test "$plugins" = "yes" ; then
@@ -2432,17 +1783,8 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
 echo "NINJA=$ninja" >> $config_host_mak
+echo "PKG_CONFIG=${pkg_config}" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
-echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
-echo "QEMU_OBJCFLAGS=$QEMU_OBJCFLAGS" >> $config_host_mak
-echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
-echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
-echo "GLIB_BINDIR=$glib_bindir" >> $config_host_mak
-echo "GLIB_VERSION=$($pkg_config --modversion glib-2.0)" >> $config_host_mak
-if test "$glib_has_gslice" = "yes" ; then
-    echo "HAVE_GLIB_WITH_SLICE_ALLOCATOR=y" >> $config_host_mak
-fi
-echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 
 # use included Linux headers
@@ -2494,10 +1836,6 @@ fi
 
 if test "$ccache_cpp2" = "yes"; then
   echo "export CCACHE_CPP2=y" >> $config_host_mak
-fi
-
-if test "$safe_stack" = "yes"; then
-  echo "CONFIG_SAFESTACK=y" >> $config_host_mak
 fi
 
 # tests/tcg configuration
@@ -2588,7 +1926,7 @@ if test "$skip_meson" = no; then
   test -n "$objcc" && echo "objc = [$(meson_quote $objcc $CPU_CFLAGS)]" >> $cross
   echo "ar = [$(meson_quote $ar)]" >> $cross
   echo "nm = [$(meson_quote $nm)]" >> $cross
-  echo "pkgconfig = [$(meson_quote $pkg_config_exe)]" >> $cross
+  echo "pkgconfig = [$(meson_quote $pkg_config)]" >> $cross
   echo "ranlib = [$(meson_quote $ranlib)]" >> $cross
   if has $sdl2_config; then
     echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
@@ -2629,11 +1967,13 @@ if test "$skip_meson" = no; then
   # Built-in options
   test "$bindir" != "bin" && meson_option_add "-Dbindir=$bindir"
   test "$default_feature" = no && meson_option_add -Dauto_features=disabled
+  test "$static" = yes && meson_option_add -Dprefer_static=true
   test "$pie" = no && meson_option_add -Db_pie=false
   test "$werror" = yes && meson_option_add -Dwerror=true
 
   # QEMU options
   test "$cfi" != false && meson_option_add "-Dcfi=$cfi"
+  test "$docs" != auto && meson_option_add "-Ddocs=$docs"
   test "$fdt" != auto && meson_option_add "-Dfdt=$fdt"
   test -n "${LIB_FUZZING_ENGINE+xxx}" && meson_option_add "-Dfuzzing_engine=$LIB_FUZZING_ENGINE"
   test "$qemu_suffix" != qemu && meson_option_add "-Dqemu_suffix=$qemu_suffix"

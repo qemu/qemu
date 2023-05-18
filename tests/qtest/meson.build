@@ -23,7 +23,7 @@ qtests_generic = [
   'readconfig-test',
   'netdev-socket',
 ]
-if config_host.has_key('CONFIG_MODULES')
+if enable_modules
   qtests_generic += [ 'modules-test' ]
 endif
 

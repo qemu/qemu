@@ -13,7 +13,7 @@ tcg_ss.add(files(
 
 if get_option('tcg_interpreter')
   libffi = dependency('libffi', version: '>=3.0', required: true,
-                      method: 'pkg-config', kwargs: static_kwargs)
+                      method: 'pkg-config')
   specific_ss.add(libffi)
   specific_ss.add(files('tci.c'))
 endif

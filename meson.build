@@ -1,4 +1,4 @@
-project('qemu', ['c'], meson_version: '>=0.61.3',
+project('qemu', ['c'], meson_version: '>=0.63.0',
         default_options: ['warning_level=1', 'c_std=gnu11', 'cpp_std=gnu++11', 'b_colorout=auto',
                           'b_staticpic=false', 'stdsplit=false', 'optimization=2', 'b_pie=true'],
         version: files('VERSION'))
@@ -17,11 +17,6 @@ fs = import('fs')
 targetos = host_machine.system()
 sh = find_program('sh')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
-enable_modules = 'CONFIG_MODULES' in config_host
-enable_static = 'CONFIG_STATIC' in config_host
-
-# Allow both shared and static libraries unless --enable-static
-static_kwargs = enable_static ? {'static': true} : {}
 
 cc = meson.get_compiler('c')
 all_languages = ['c']
@@ -87,6 +82,12 @@ have_ga = get_option('guest_agent') \
   .disable_auto_if(not have_system and not have_tools) \
   .require(targetos in ['sunos', 'linux', 'windows', 'freebsd', 'netbsd', 'openbsd'],
            error_message: 'unsupported OS for QEMU guest agent') \
+  .allowed()
+enable_modules = get_option('modules') \
+  .require(targetos != 'windows',
+           error_message: 'Modules are not available for Windows') \
+  .require(not get_option('prefer_static'),
+           error_message: 'Modules are incompatible with static linking') \
   .allowed()
 have_block = have_system or have_tools
 
@@ -189,12 +190,195 @@ endif
 # Compiler flags #
 ##################
 
-qemu_cflags = config_host['QEMU_CFLAGS'].split()
-qemu_objcflags = config_host['QEMU_OBJCFLAGS'].split()
-qemu_ldflags = config_host['QEMU_LDFLAGS'].split()
+foreach lang : all_languages
+  compiler = meson.get_compiler(lang)
+  if compiler.get_id() == 'gcc' and compiler.version().version_compare('>=7.4')
+    # ok
+  elif compiler.get_id() == 'clang' and compiler.compiles('''
+      #ifdef __apple_build_version__
+      # if __clang_major__ < 12 || (__clang_major__ == 12 && __clang_minor__ < 0)
+      #  error You need at least XCode Clang v12.0 to compile QEMU
+      # endif
+      #else
+      # if __clang_major__ < 10 || (__clang_major__ == 10 && __clang_minor__ < 0)
+      #  error You need at least Clang v10.0 to compile QEMU
+      # endif
+      #endif''')
+    # ok
+  else
+    error('You either need GCC v7.4 or Clang v10.0 (or XCode Clang v12.0) to compile QEMU')
+  endif
+endforeach
 
-if enable_static
+# default flags for all hosts
+# We use -fwrapv to tell the compiler that we require a C dialect where
+# left shift of signed integers is well defined and has the expected
+# 2s-complement style results. (Both clang and gcc agree that it
+# provides these semantics.)
+
+qemu_common_flags = [
+  '-D_GNU_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE_SOURCE',
+  '-fno-strict-aliasing', '-fno-common', '-fwrapv' ]
+qemu_cflags = []
+qemu_ldflags = []
+
+if targetos == 'darwin'
+  # Disable attempts to use ObjectiveC features in os/object.h since they
+  # won't work when we're compiling with gcc as a C compiler.
+  qemu_common_flags += '-DOS_OBJECT_USE_OBJC=0'
+elif targetos == 'solaris'
+  # needed for CMSG_ macros in sys/socket.h
+  qemu_common_flags += '-D_XOPEN_SOURCE=600'
+  # needed for TIOCWIN* defines in termios.h
+  qemu_common_flags += '-D__EXTENSIONS__'
+elif targetos == 'haiku'
+  qemu_common_flags += ['-DB_USE_POSITIVE_POSIX_ERRORS', '-D_BSD_SOURCE', '-fPIC']
+endif
+
+# __sync_fetch_and_and requires at least -march=i486. Many toolchains
+# use i686 as default anyway, but for those that don't, an explicit
+# specification is necessary
+if host_arch == 'i386' and not cc.links('''
+  static int sfaa(int *ptr)
+  {
+    return __sync_fetch_and_and(ptr, 0);
+  }
+
+  int main(void)
+  {
+    int val = 42;
+    val = __sync_val_compare_and_swap(&val, 0, 1);
+    sfaa(&val);
+    return val;
+  }''')
+  qemu_common_flags = ['-march=i486'] + qemu_common_flags
+endif
+
+if get_option('gprof')
+  qemu_common_flags += ['-p']
+  qemu_ldflags += ['-p']
+endif
+
+if get_option('prefer_static')
   qemu_ldflags += get_option('b_pie') ? '-static-pie' : '-static'
+endif
+
+# Meson currently only handles pie as a boolean for now, so if the user
+# has explicitly disabled PIE we need to extend our cflags.
+if not get_option('b_pie')
+  qemu_common_flags += cc.get_supported_arguments('-fno-pie')
+  if not get_option('prefer_static')
+    # No PIE is implied by -static which we added above.
+    qemu_ldflags += cc.get_supported_link_arguments('-no-pie')
+  endif
+endif
+
+if not get_option('stack_protector').disabled()
+  stack_protector_probe = '''
+    int main(int argc, char *argv[])
+    {
+      char arr[64], *p = arr, *c = argv[argc - 1];
+      while (*c) {
+          *p++ = *c++;
+      }
+      return 0;
+    }'''
+  have_stack_protector = false
+  foreach arg : ['-fstack-protector-strong', '-fstack-protector-all']
+    # We need to check both a compile and a link, since some compiler
+    # setups fail only on a .c->.o compile and some only at link time
+    if cc.compiles(stack_protector_probe, args: ['-Werror', arg]) and \
+       cc.links(stack_protector_probe, args: ['-Werror', arg])
+      have_stack_protector = true
+      qemu_cflags += arg
+      qemu_ldflags += arg
+      break
+    endif
+  endforeach
+  get_option('stack_protector') \
+    .require(have_stack_protector, error_message: 'Stack protector not supported')
+endif
+
+coroutine_backend = get_option('coroutine_backend')
+ucontext_probe = '''
+  #include <ucontext.h>
+  #ifdef __stub_makecontext
+  #error Ignoring glibc stub makecontext which will always fail
+  #endif
+  int main(void) { makecontext(0, 0, 0); return 0; }'''
+
+# On Windows the only valid backend is the Windows specific one.
+# For POSIX prefer ucontext, but it's not always possible. The fallback
+# is sigcontext.
+supported_backends = []
+if targetos == 'windows'
+  supported_backends += ['windows']
+else
+  if targetos != 'darwin' and cc.links(ucontext_probe)
+    supported_backends += ['ucontext']
+  endif
+  supported_backends += ['sigaltstack']
+endif
+
+if coroutine_backend == 'auto'
+  coroutine_backend = supported_backends[0]
+elif coroutine_backend not in supported_backends
+  error('"@0@" backend requested but not available.  Available backends: @1@' \
+        .format(coroutine_backend, ', '.join(supported_backends)))
+endif
+
+# Compiles if SafeStack *not* enabled
+safe_stack_probe = '''
+  int main(void)
+  {
+  #if defined(__has_feature)
+  #if __has_feature(safe_stack)
+  #error SafeStack Enabled
+  #endif
+  #endif
+      return 0;
+  }'''
+if get_option('safe_stack') != not cc.compiles(safe_stack_probe)
+  safe_stack_arg = get_option('safe_stack') ? '-fsanitize=safe-stack' : '-fno-sanitize=safe-stack'
+  if get_option('safe_stack') != not cc.compiles(safe_stack_probe, args: safe_stack_arg)
+    error(get_option('safe_stack') \
+          ? 'SafeStack not supported by your compiler' \
+          : 'Cannot disable SafeStack')
+  endif
+  qemu_cflags += safe_stack_arg
+  qemu_ldflags += safe_stack_arg
+endif
+if get_option('safe_stack') and coroutine_backend != 'ucontext'
+  error('SafeStack is only supported with the ucontext coroutine backend')
+endif
+
+if get_option('sanitizers')
+  if cc.has_argument('-fsanitize=address')
+    qemu_cflags = ['-fsanitize=address'] + qemu_cflags
+    qemu_ldflags = ['-fsanitize=address'] + qemu_ldflags
+  endif
+
+  # Detect static linking issue with ubsan - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84285
+  if cc.links('int main(int argc, char **argv) { return argc + 1; }',
+              args: [qemu_ldflags, '-fsanitize=undefined'])
+    qemu_cflags = ['-fsanitize=undefined'] + qemu_cflags
+    qemu_ldflags = ['-fsanitize=undefined'] + qemu_ldflags
+  endif
+endif
+
+# Thread sanitizer is, for now, much noisier than the other sanitizers;
+# keep it separate until that is not the case.
+if get_option('tsan')
+  if get_option('sanitizers')
+    error('TSAN is not supported with other sanitizers')
+  endif
+  if not cc.has_function('__tsan_create_fiber',
+                         args: '-fsanitize=thread',
+                         prefix: '#include <sanitizer/tsan_interface.h>')
+    error('Cannot enable TSAN due to missing fiber annotation interface')
+  endif
+  qemu_cflags = ['-fsanitize=thread'] + qemu_cflags
+  qemu_ldflags = ['-fsanitize=thread'] + qemu_ldflags
 endif
 
 # Detect support for PT_GNU_RELRO + DT_BIND_NOW.
@@ -206,10 +390,9 @@ if targetos == 'windows'
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--dynamicbase', '-Wl,--high-entropy-va')
 endif
 
-if get_option('gprof')
-  qemu_cflags += ['-p']
-  qemu_objcflags += ['-p']
-  qemu_ldflags += ['-p']
+# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
+if targetos != 'sunos' and not get_option('tsan')
+  qemu_ldflags += cc.get_supported_link_arguments('-Wl,--warn-common')
 endif
 
 # Specify linker-script with add_project_link_arguments so that it is not placed
@@ -225,8 +408,7 @@ if get_option('fuzzing')
                   name: '-fsanitize-coverage-allowlist=/dev/null',
                  args: ['-fsanitize-coverage-allowlist=/dev/null',
                         '-fsanitize-coverage=trace-pc'] )
-    add_global_arguments('-fsanitize-coverage-allowlist=instrumentation-filter',
-                         native: false, language: all_languages)
+    qemu_common_flags += ['-fsanitize-coverage-allowlist=instrumentation-filter']
   endif
 
   if get_option('fuzzing_engine') == ''
@@ -234,10 +416,8 @@ if get_option('fuzzing')
     # compiled code.  To build non-fuzzer binaries with --enable-fuzzing, link
     # everything with fsanitize=fuzzer-no-link. Otherwise, the linker will be
     # unable to bind the fuzzer-related callbacks added by instrumentation.
-    add_global_arguments('-fsanitize=fuzzer-no-link',
-                         native: false, language: all_languages)
-    add_global_link_arguments('-fsanitize=fuzzer-no-link',
-                              native: false, language: all_languages)
+    qemu_common_flags += ['-fsanitize=fuzzer-no-link']
+    qemu_ldflags += ['-fsanitize=fuzzer-no-link']
     # For the actual fuzzer binaries, we need to link against the libfuzzer
     # library. They need to be configurable, to support OSS-Fuzz
     fuzz_exe_ldflags = ['-fsanitize=fuzzer']
@@ -248,20 +428,50 @@ if get_option('fuzzing')
   endif
 endif
 
+add_global_arguments(qemu_common_flags, native: false, language: all_languages)
+add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
+
+# Collect warnings that we want to enable
+
+warn_flags = [
+  '-Wundef',
+  '-Wwrite-strings',
+  '-Wmissing-prototypes',
+  '-Wstrict-prototypes',
+  '-Wredundant-decls',
+  '-Wold-style-declaration',
+  '-Wold-style-definition',
+  '-Wtype-limits',
+  '-Wformat-security',
+  '-Wformat-y2k',
+  '-Winit-self',
+  '-Wignored-qualifiers',
+  '-Wempty-body',
+  '-Wnested-externs',
+  '-Wendif-labels',
+  '-Wexpansion-to-defined',
+  '-Wimplicit-fallthrough=2',
+  '-Wmissing-format-attribute',
+  '-Wno-initializer-overrides',
+  '-Wno-missing-include-dirs',
+  '-Wno-shift-negative-value',
+  '-Wno-string-plus-int',
+  '-Wno-typedef-redefinition',
+  '-Wno-tautological-type-limit-compare',
+  '-Wno-psabi',
+  '-Wno-gnu-variable-sized-type-not-at-end',
+]
+
+if targetos != 'darwin'
+  warn_flags += ['-Wthread-safety']
+endif
+
 # Check that the C++ compiler exists and works with the C compiler.
 link_language = 'c'
 linker = cc
 qemu_cxxflags = []
 if 'cpp' in all_languages
-  add_global_arguments(['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'],
-                       native: false, language: 'cpp')
-  foreach k: qemu_cflags
-    if k not in ['-Wstrict-prototypes', '-Wmissing-prototypes', '-Wnested-externs',
-                 '-Wold-style-declaration', '-Wold-style-definition', '-Wredundant-decls']
-      qemu_cxxflags += [k]
-    endif
-  endforeach
-
+  qemu_cxxflags = ['-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS'] + qemu_cflags
   if cxx.links(files('scripts/main.c'), args: qemu_cflags)
     link_language = 'cpp'
     linker = cxx
@@ -271,16 +481,26 @@ if 'cpp' in all_languages
   endif
 endif
 
-# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if targetos != 'sunos' and not config_host.has_key('CONFIG_TSAN')
-  qemu_ldflags += linker.get_supported_link_arguments('-Wl,--warn-common')
+# clang does not support glibc + FORTIFY_SOURCE (is it still true?)
+if get_option('optimization') != '0' and targetos == 'linux'
+  if cc.get_id() == 'gcc'
+    qemu_cflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
+  endif
+  if 'cpp' in all_languages and cxx.get_id() == 'gcc'
+    qemu_cxxflags += ['-U_FORTIFY_SOURCE', '-D_FORTIFY_SOURCE=2']
+  endif
 endif
 
-add_global_link_arguments(qemu_ldflags, native: false, language: all_languages)
-
-add_global_arguments(qemu_cflags, native: false, language: 'c')
-add_global_arguments(qemu_cxxflags, native: false, language: 'cpp')
-add_global_arguments(qemu_objcflags, native: false, language: 'objc')
+add_project_arguments(qemu_cflags, native: false, language: 'c')
+add_project_arguments(cc.get_supported_arguments(warn_flags), native: false, language: 'c')
+if 'cpp' in all_languages
+  add_project_arguments(qemu_cxxflags, native: false, language: 'cpp')
+  add_project_arguments(cxx.get_supported_arguments(warn_flags), native: false, language: 'cpp')
+endif
+if 'objc' in all_languages
+  # Note sanitizer flags are not applied to Objective-C sources!
+  add_project_arguments(objc.get_supported_arguments(warn_flags), native: false, language: 'objc')
+endif
 if targetos == 'linux'
   add_project_arguments('-isystem', meson.current_source_dir() / 'linux-headers',
                         '-isystem', 'linux-headers',
@@ -496,29 +716,85 @@ endif
 # Dependencies #
 ################
 
-# The path to glib.h is added to all compilation commands.  This was
-# grandfathered in from the QEMU Makefiles.
-add_project_arguments(config_host['GLIB_CFLAGS'].split(),
-                      native: false, language: all_languages)
-glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
-                          link_args: config_host['GLIB_LIBS'].split(),
-                          version: config_host['GLIB_VERSION'],
-                          variables: {
-                            'bindir': config_host['GLIB_BINDIR'],
-                          })
-# override glib dep with the configure results (for subprojects)
-meson.override_dependency('glib-2.0', glib)
-# pass down whether Glib has the slice allocator
-if config_host.has_key('HAVE_GLIB_WITH_SLICE_ALLOCATOR')
-  config_host_data.set('HAVE_GLIB_WITH_SLICE_ALLOCATOR', true)
+# When bumping glib minimum version, please check also whether to increase
+# the _WIN32_WINNT setting in osdep.h according to the value from glib
+glib_req_ver = '>=2.56.0'
+glib_pc = dependency('glib-2.0', version: glib_req_ver, required: true,
+                    method: 'pkg-config')
+glib_cflags = []
+if enable_modules
+  gmodule = dependency('gmodule-export-2.0', version: glib_req_ver, required: true,
+                       method: 'pkg-config')
+elif config_host.has_key('CONFIG_PLUGIN')
+  gmodule = dependency('gmodule-no-export-2.0', version: glib_req_ver, required: true,
+                       method: 'pkg-config')
+else
+  gmodule = not_found
 endif
+
+# This workaround is required due to a bug in pkg-config file for glib as it
+# doesn't define GLIB_STATIC_COMPILATION for pkg-config --static
+if targetos == 'windows' and get_option('prefer_static')
+  glib_cflags += ['-DGLIB_STATIC_COMPILATION']
+endif
+
+# Sanity check that the current size_t matches the
+# size that glib thinks it should be. This catches
+# problems on multi-arch where people try to build
+# 32-bit QEMU while pointing at 64-bit glib headers
+
+if not cc.compiles('''
+  #include <glib.h>
+  #include <unistd.h>
+
+  #define QEMU_BUILD_BUG_ON(x) \
+  typedef char qemu_build_bug_on[(x)?-1:1] __attribute__((unused));
+
+  int main(void) {
+     QEMU_BUILD_BUG_ON(sizeof(size_t) != GLIB_SIZEOF_SIZE_T);
+     return 0;
+  }''', dependencies: glib_pc, args: glib_cflags)
+  error('''sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T.
+        You probably need to set PKG_CONFIG_LIBDIR" to point
+        to the right pkg-config files for your build target.''')
+endif
+
+# Silence clang warnings triggered by glib < 2.57.2
+if not cc.compiles('''
+  #include <glib.h>
+  typedef struct Foo {
+    int i;
+  } Foo;
+  static void foo_free(Foo *f)
+  {
+    g_free(f);
+  }
+  G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
+  int main(void) { return 0; }''', dependencies: glib_pc, args: ['-Werror'])
+  glib_cflags += cc.get_supported_arguments('-Wno-unused-function')
+endif
+glib = declare_dependency(dependencies: [glib_pc, gmodule],
+                          compile_args: glib_cflags,
+                          version: glib_pc.version())
+
+# Check whether glib has gslice, which we have to avoid for correctness.
+# TODO: remove this check and the corresponding workaround (qtree) when
+# the minimum supported glib is >= 2.75.3
+glib_has_gslice = glib.version().version_compare('<2.75.3')
+
+# override glib dep to include the above refinements
+meson.override_dependency('glib-2.0', glib)
+
+# The path to glib.h is added to all compilation commands.
+add_project_dependencies(glib.partial_dependency(compile_args: true, includes: true),
+                         native: false, language: all_languages)
 
 gio = not_found
 gdbus_codegen = not_found
 gdbus_codegen_error = '@0@ requires gdbus-codegen, please install libgio'
 if not get_option('gio').auto() or have_system
   gio = dependency('gio-2.0', required: get_option('gio'),
-                   method: 'pkg-config', kwargs: static_kwargs)
+                   method: 'pkg-config')
   if gio.found() and not cc.links('''
     #include <gio/gio.h>
     int main(void)
@@ -535,7 +811,7 @@ if not get_option('gio').auto() or have_system
     gdbus_codegen = find_program(gio.get_variable('gdbus_codegen'),
                                  required: get_option('gio'))
     gio_unix = dependency('gio-unix-2.0', required: get_option('gio'),
-                          method: 'pkg-config', kwargs: static_kwargs)
+                          method: 'pkg-config')
     gio = declare_dependency(dependencies: [gio, gio_unix],
                              version: gio.version())
   endif
@@ -548,20 +824,19 @@ endif
 lttng = not_found
 if 'ust' in get_option('trace_backends')
   lttng = dependency('lttng-ust', required: true, version: '>= 2.1',
-                     method: 'pkg-config', kwargs: static_kwargs)
+                     method: 'pkg-config')
 endif
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
-                      method: 'pkg-config', kwargs: static_kwargs)
+                      method: 'pkg-config')
 endif
-zlib = dependency('zlib', required: true, kwargs: static_kwargs)
+zlib = dependency('zlib', required: true)
 
 libaio = not_found
 if not get_option('linux_aio').auto() or have_block
   libaio = cc.find_library('aio', has_headers: ['libaio.h'],
-                           required: get_option('linux_aio'),
-                           kwargs: static_kwargs)
+                           required: get_option('linux_aio'))
 endif
 
 linux_io_uring_test = '''
@@ -574,7 +849,7 @@ linux_io_uring = not_found
 if not get_option('linux_io_uring').auto() or have_block
   linux_io_uring = dependency('liburing', version: '>=0.3',
                               required: get_option('linux_io_uring'),
-                              method: 'pkg-config', kwargs: static_kwargs)
+                              method: 'pkg-config')
   if not cc.links(linux_io_uring_test)
     linux_io_uring = not_found
   endif
@@ -584,7 +859,7 @@ libnfs = not_found
 if not get_option('libnfs').auto() or have_block
   libnfs = dependency('libnfs', version: '>=1.9.3',
                       required: get_option('libnfs'),
-                      method: 'pkg-config', kwargs: static_kwargs)
+                      method: 'pkg-config')
 endif
 
 libattr_test = '''
@@ -604,8 +879,7 @@ if get_option('attr').allowed()
     libattr = declare_dependency()
   else
     libattr = cc.find_library('attr', has_headers: ['attr/xattr.h'],
-                              required: get_option('attr'),
-                              kwargs: static_kwargs)
+                              required: get_option('attr'))
     if libattr.found() and not \
       cc.links(libattr_test, dependencies: libattr, args: '-DCONFIG_LIBATTR')
       libattr = not_found
@@ -640,7 +914,7 @@ seccomp_has_sysrawrc = false
 if not get_option('seccomp').auto() or have_system or have_tools
   seccomp = dependency('libseccomp', version: '>=2.3.0',
                        required: get_option('seccomp'),
-                       method: 'pkg-config', kwargs: static_kwargs)
+                       method: 'pkg-config')
   if seccomp.found()
     seccomp_has_sysrawrc = cc.has_header_symbol('seccomp.h',
                                                 'SCMP_FLTATR_API_SYSRAWRC',
@@ -651,8 +925,7 @@ endif
 libcap_ng = not_found
 if not get_option('cap_ng').auto() or have_system or have_tools
   libcap_ng = cc.find_library('cap-ng', has_headers: ['cap-ng.h'],
-                              required: get_option('cap_ng'),
-                              kwargs: static_kwargs)
+                              required: get_option('cap_ng'))
 endif
 if libcap_ng.found() and not cc.links('''
    #include <cap-ng.h>
@@ -673,13 +946,13 @@ if get_option('xkbcommon').auto() and not have_system and not have_tools
   xkbcommon = not_found
 else
   xkbcommon = dependency('xkbcommon', required: get_option('xkbcommon'),
-                         method: 'pkg-config', kwargs: static_kwargs)
+                         method: 'pkg-config')
 endif
 
 slirp = not_found
 if not get_option('slirp').auto() or have_system
   slirp = dependency('slirp', required: get_option('slirp'),
-                     method: 'pkg-config', kwargs: static_kwargs)
+                     method: 'pkg-config')
   # slirp < 4.7 is incompatible with CFI support in QEMU.  This is because
   # it passes function pointers within libslirp as callbacks for timers.
   # When using a system-wide shared libslirp, the type information for the
@@ -699,8 +972,7 @@ endif
 vde = not_found
 if not get_option('vde').auto() or have_system or have_tools
   vde = cc.find_library('vdeplug', has_headers: ['libvdeplug.h'],
-                           required: get_option('vde'),
-                           kwargs: static_kwargs)
+                           required: get_option('vde'))
 endif
 if vde.found() and not cc.links('''
    #include <libvdeplug.h>
@@ -722,41 +994,41 @@ endif
 pulse = not_found
 if not get_option('pa').auto() or (targetos == 'linux' and have_system)
   pulse = dependency('libpulse', required: get_option('pa'),
-                     method: 'pkg-config', kwargs: static_kwargs)
+                     method: 'pkg-config')
 endif
 alsa = not_found
 if not get_option('alsa').auto() or (targetos == 'linux' and have_system)
   alsa = dependency('alsa', required: get_option('alsa'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 jack = not_found
 if not get_option('jack').auto() or have_system
   jack = dependency('jack', required: get_option('jack'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 pipewire = not_found
 if not get_option('pipewire').auto() or (targetos == 'linux' and have_system)
   pipewire = dependency('libpipewire-0.3', version: '>=0.3.60',
                     required: get_option('pipewire'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 sndio = not_found
 if not get_option('sndio').auto() or have_system
   sndio = dependency('sndio', required: get_option('sndio'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 
 spice_protocol = not_found
 if not get_option('spice_protocol').auto() or have_system
   spice_protocol = dependency('spice-protocol', version: '>=0.14.0',
                               required: get_option('spice_protocol'),
-                              method: 'pkg-config', kwargs: static_kwargs)
+                              method: 'pkg-config')
 endif
 spice = not_found
 if not get_option('spice').auto() or have_system
   spice = dependency('spice-server', version: '>=0.14.0',
                      required: get_option('spice'),
-                     method: 'pkg-config', kwargs: static_kwargs)
+                     method: 'pkg-config')
 endif
 spice_headers = spice.partial_dependency(compile_args: true, includes: true)
 
@@ -766,13 +1038,13 @@ libiscsi = not_found
 if not get_option('libiscsi').auto() or have_block
   libiscsi = dependency('libiscsi', version: '>=1.9.0',
                          required: get_option('libiscsi'),
-                         method: 'pkg-config', kwargs: static_kwargs)
+                         method: 'pkg-config')
 endif
 zstd = not_found
 if not get_option('zstd').auto() or have_block
   zstd = dependency('libzstd', version: '>=1.4.0',
                     required: get_option('zstd'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 virgl = not_found
 
@@ -780,29 +1052,25 @@ have_vhost_user_gpu = have_tools and targetos == 'linux' and pixman.found()
 if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
   virgl = dependency('virglrenderer',
                      method: 'pkg-config',
-                     required: get_option('virglrenderer'),
-                     kwargs: static_kwargs)
+                     required: get_option('virglrenderer'))
 endif
 blkio = not_found
 if not get_option('blkio').auto() or have_block
   blkio = dependency('blkio',
                      method: 'pkg-config',
-                     required: get_option('blkio'),
-                     kwargs: static_kwargs)
+                     required: get_option('blkio'))
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
   curl = dependency('libcurl', version: '>=7.29.0',
                     method: 'pkg-config',
-                    required: get_option('curl'),
-                    kwargs: static_kwargs)
+                    required: get_option('curl'))
 endif
 libudev = not_found
 if targetos == 'linux' and (have_system or have_tools)
   libudev = dependency('libudev',
                        method: 'pkg-config',
-                       required: get_option('libudev'),
-                       kwargs: static_kwargs)
+                       required: get_option('libudev'))
 endif
 
 mpathlibs = [libudev]
@@ -837,18 +1105,15 @@ if targetos == 'linux' and have_tools and get_option('mpath').allowed()
           return 0;
       }'''
   libmpathpersist = cc.find_library('mpathpersist',
-                                    required: get_option('mpath'),
-                                    kwargs: static_kwargs)
+                                    required: get_option('mpath'))
   if libmpathpersist.found()
     mpathlibs += libmpathpersist
-    if enable_static
+    if get_option('prefer_static')
       mpathlibs += cc.find_library('devmapper',
-                                     required: get_option('mpath'),
-                                     kwargs: static_kwargs)
+                                     required: get_option('mpath'))
     endif
     mpathlibs += cc.find_library('multipath',
-                                 required: get_option('mpath'),
-                                 kwargs: static_kwargs)
+                                 required: get_option('mpath'))
     foreach lib: mpathlibs
       if not lib.found()
         mpathlibs = []
@@ -898,13 +1163,13 @@ if have_system and get_option('curses').allowed()
   curses_dep_list = targetos == 'windows' ? ['ncurses', 'ncursesw'] : ['ncursesw']
   curses = dependency(curses_dep_list,
                       required: false,
-                      method: 'pkg-config',
-                      kwargs: static_kwargs)
+                      method: 'pkg-config')
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
   curses_compile_args = ['-DNCURSES_WIDECHAR=1']
   if curses.found()
     if cc.links(curses_test, args: curses_compile_args, dependencies: [curses])
-      curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses])
+      curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses],
+                                  version: curses.version())
     else
       msg = 'curses package not usable'
       curses = not_found
@@ -921,8 +1186,7 @@ if have_system and get_option('curses').allowed()
       curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
       foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
-                                    required: false,
-                                    kwargs: static_kwargs)
+                                    required: false)
         if libcurses.found()
           if cc.links(curses_test, args: curses_compile_args, dependencies: libcurses)
             curses = declare_dependency(compile_args: curses_compile_args,
@@ -947,7 +1211,7 @@ if have_system and get_option('curses').allowed()
         int main(void) {
           iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
           return conv != (iconv_t) -1;
-        }''', args: config_host['GLIB_CFLAGS'].split() + config_host['GLIB_LIBS'].split() + link_args)
+        }''', args: link_args, dependencies: glib)
         iconv = declare_dependency(link_args: link_args, dependencies: glib)
         break
       endif
@@ -972,8 +1236,7 @@ endif
 brlapi = not_found
 if not get_option('brlapi').auto() or have_system
   brlapi = cc.find_library('brlapi', has_headers: ['brlapi.h'],
-                         required: get_option('brlapi'),
-                         kwargs: static_kwargs)
+                         required: get_option('brlapi'))
   if brlapi.found() and not cc.links('''
      #include <brlapi.h>
      #include <stddef.h>
@@ -989,15 +1252,16 @@ endif
 
 sdl = not_found
 if not get_option('sdl').auto() or have_system
-  sdl = dependency('sdl2', required: get_option('sdl'), kwargs: static_kwargs)
+  sdl = dependency('sdl2', required: get_option('sdl'))
   sdl_image = not_found
 endif
 if sdl.found()
   # work around 2.0.8 bug
   sdl = declare_dependency(compile_args: '-Wno-undef',
-                           dependencies: sdl)
+                           dependencies: sdl,
+                           version: sdl.version())
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
-                         method: 'pkg-config', kwargs: static_kwargs)
+                         method: 'pkg-config')
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@'.format(
@@ -1008,11 +1272,9 @@ endif
 
 rbd = not_found
 if not get_option('rbd').auto() or have_block
-  librados = cc.find_library('rados', required: get_option('rbd'),
-                             kwargs: static_kwargs)
+  librados = cc.find_library('rados', required: get_option('rbd'))
   librbd = cc.find_library('rbd', has_headers: ['rbd/librbd.h'],
-                           required: get_option('rbd'),
-                           kwargs: static_kwargs)
+                           required: get_option('rbd'))
   if librados.found() and librbd.found()
     if cc.links('''
       #include <stdio.h>
@@ -1040,7 +1302,7 @@ glusterfs_iocb_has_stat = false
 if not get_option('glusterfs').auto() or have_block
   glusterfs = dependency('glusterfs-api', version: '>=3',
                          required: get_option('glusterfs'),
-                         method: 'pkg-config', kwargs: static_kwargs)
+                         method: 'pkg-config')
   if glusterfs.found()
     glusterfs_ftruncate_has_stat = cc.links('''
       #include <glusterfs/api/glfs.h>
@@ -1075,15 +1337,13 @@ libssh = not_found
 if not get_option('libssh').auto() or have_block
   libssh = dependency('libssh', version: '>=0.8.7',
                     method: 'pkg-config',
-                    required: get_option('libssh'),
-                    kwargs: static_kwargs)
+                    required: get_option('libssh'))
 endif
 
 libbzip2 = not_found
 if not get_option('bzip2').auto() or have_block
   libbzip2 = cc.find_library('bz2', has_headers: ['bzlib.h'],
-                             required: get_option('bzip2'),
-                             kwargs: static_kwargs)
+                             required: get_option('bzip2'))
   if libbzip2.found() and not cc.links('''
      #include <bzlib.h>
      int main(void) { BZ2_bzlibVersion(); return 0; }''', dependencies: libbzip2)
@@ -1099,8 +1359,7 @@ endif
 liblzfse = not_found
 if not get_option('lzfse').auto() or have_block
   liblzfse = cc.find_library('lzfse', has_headers: ['lzfse.h'],
-                             required: get_option('lzfse'),
-                             kwargs: static_kwargs)
+                             required: get_option('lzfse'))
 endif
 if liblzfse.found() and not cc.links('''
    #include <lzfse.h>
@@ -1118,8 +1377,7 @@ if get_option('oss').allowed() and have_system
   if not cc.has_header('sys/soundcard.h')
     # not found
   elif targetos == 'netbsd'
-    oss = cc.find_library('ossaudio', required: get_option('oss'),
-                          kwargs: static_kwargs)
+    oss = cc.find_library('ossaudio', required: get_option('oss'))
   else
     oss = declare_dependency()
   endif
@@ -1152,7 +1410,7 @@ endif
 opengl = not_found
 if not get_option('opengl').auto() or have_system or have_vhost_user_gpu
   epoxy = dependency('epoxy', method: 'pkg-config',
-                      required: get_option('opengl'), kwargs: static_kwargs)
+                      required: get_option('opengl'))
   if cc.has_header('epoxy/egl.h', dependencies: epoxy)
     opengl = epoxy
   elif get_option('opengl').enabled()
@@ -1161,8 +1419,7 @@ if not get_option('opengl').auto() or have_system or have_vhost_user_gpu
 endif
 gbm = not_found
 if (have_system or have_tools) and (virgl.found() or opengl.found())
-  gbm = dependency('gbm', method: 'pkg-config', required: false,
-                   kwargs: static_kwargs)
+  gbm = dependency('gbm', method: 'pkg-config', required: false)
 endif
 have_vhost_user_gpu = have_vhost_user_gpu and virgl.found() and opengl.found() and gbm.found()
 
@@ -1184,16 +1441,14 @@ if get_option('gnutls').enabled() or (get_option('gnutls').auto() and have_syste
   # the platform support requirements
   gnutls_crypto = dependency('gnutls', version: '>=3.6.14',
                              method: 'pkg-config',
-                             required: false,
-                             kwargs: static_kwargs)
+                             required: false)
   if gnutls_crypto.found()
     gnutls = gnutls_crypto
   else
     # Our min version if all we need is TLS
     gnutls = dependency('gnutls', version: '>=3.5.18',
                         method: 'pkg-config',
-                        required: get_option('gnutls'),
-                        kwargs: static_kwargs)
+                        required: get_option('gnutls'))
   endif
 endif
 
@@ -1220,34 +1475,32 @@ if not gnutls_crypto.found()
   if (not get_option('gcrypt').auto() or have_system) and not get_option('nettle').enabled()
     gcrypt = dependency('libgcrypt', version: '>=1.8',
                         method: 'config-tool',
-                        required: get_option('gcrypt'),
-                        kwargs: static_kwargs)
+                        required: get_option('gcrypt'))
     # Debian has removed -lgpg-error from libgcrypt-config
     # as it "spreads unnecessary dependencies" which in
     # turn breaks static builds...
-    if gcrypt.found() and enable_static
-      gcrypt = declare_dependency(dependencies: [
-        gcrypt,
-        cc.find_library('gpg-error', required: true, kwargs: static_kwargs)])
+    if gcrypt.found() and get_option('prefer_static')
+      gcrypt = declare_dependency(dependencies:
+        [gcrypt,
+         cc.find_library('gpg-error', required: true)],
+        version: gcrypt.version())
     endif
   endif
   if (not get_option('nettle').auto() or have_system) and not gcrypt.found()
     nettle = dependency('nettle', version: '>=3.4',
                         method: 'pkg-config',
-                        required: get_option('nettle'),
-                        kwargs: static_kwargs)
+                        required: get_option('nettle'))
     if nettle.found() and not cc.has_header('nettle/xts.h', dependencies: nettle)
       xts = 'private'
     endif
   endif
 endif
 
-gmp = dependency('gmp', required: false, method: 'pkg-config', kwargs: static_kwargs)
+gmp = dependency('gmp', required: false, method: 'pkg-config')
 if nettle.found() and gmp.found()
   hogweed = dependency('hogweed', version: '>=3.4',
                        method: 'pkg-config',
-                       required: get_option('nettle'),
-                       kwargs: static_kwargs)
+                       required: get_option('nettle'))
 endif
 
 
@@ -1259,20 +1512,18 @@ have_gtk_clipboard = get_option('gtk_clipboard').enabled()
 if not get_option('gtk').auto() or have_system
   gtk = dependency('gtk+-3.0', version: '>=3.22.0',
                    method: 'pkg-config',
-                   required: get_option('gtk'),
-                   kwargs: static_kwargs)
+                   required: get_option('gtk'))
   if gtk.found()
     gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
                         method: 'pkg-config',
-                        required: false,
-                        kwargs: static_kwargs)
-    gtk = declare_dependency(dependencies: [gtk, gtkx11])
+                        required: false)
+    gtk = declare_dependency(dependencies: [gtk, gtkx11],
+                             version: gtk.version())
 
     if not get_option('vte').auto() or have_system
       vte = dependency('vte-2.91',
                        method: 'pkg-config',
-                       required: get_option('vte'),
-                       kwargs: static_kwargs)
+                       required: get_option('vte'))
     endif
   elif have_gtk_clipboard
     error('GTK clipboard requested, but GTK not found')
@@ -1281,13 +1532,12 @@ endif
 
 x11 = not_found
 if gtkx11.found()
-  x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
-                   kwargs: static_kwargs)
+  x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found())
 endif
 png = not_found
 if get_option('png').allowed() and have_system
    png = dependency('libpng', version: '>=1.6.34', required: get_option('png'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
 endif
 vnc = not_found
 jpeg = not_found
@@ -1295,10 +1545,9 @@ sasl = not_found
 if get_option('vnc').allowed() and have_system
   vnc = declare_dependency() # dummy dependency
   jpeg = dependency('libjpeg', required: get_option('vnc_jpeg'),
-                    method: 'pkg-config', kwargs: static_kwargs)
+                    method: 'pkg-config')
   sasl = cc.find_library('sasl2', has_headers: ['sasl/sasl.h'],
-                         required: get_option('vnc_sasl'),
-                         kwargs: static_kwargs)
+                         required: get_option('vnc_sasl'))
   if sasl.found()
     sasl = declare_dependency(dependencies: sasl,
                               compile_args: '-DSTRUCT_IOVEC_DEFINED')
@@ -1308,8 +1557,7 @@ endif
 pam = not_found
 if not get_option('auth_pam').auto() or have_system
   pam = cc.find_library('pam', has_headers: ['security/pam_appl.h'],
-                        required: get_option('auth_pam'),
-                        kwargs: static_kwargs)
+                        required: get_option('auth_pam'))
 endif
 if pam.found() and not cc.links('''
    #include <stddef.h>
@@ -1333,8 +1581,7 @@ endif
 snappy = not_found
 if not get_option('snappy').auto() or have_system
   snappy = cc.find_library('snappy', has_headers: ['snappy-c.h'],
-                           required: get_option('snappy'),
-                           kwargs: static_kwargs)
+                           required: get_option('snappy'))
 endif
 if snappy.found() and not linker.links('''
    #include <snappy-c.h>
@@ -1350,8 +1597,7 @@ endif
 lzo = not_found
 if not get_option('lzo').auto() or have_system
   lzo = cc.find_library('lzo2', has_headers: ['lzo/lzo1x.h'],
-                        required: get_option('lzo'),
-                        kwargs: static_kwargs)
+                        required: get_option('lzo'))
 endif
 if lzo.found() and not cc.links('''
    #include <lzo/lzo1x.h>
@@ -1367,8 +1613,7 @@ endif
 numa = not_found
 if not get_option('numa').auto() or have_system or have_tools
   numa = cc.find_library('numa', has_headers: ['numa.h'],
-                              required: get_option('numa'),
-                              kwargs: static_kwargs)
+                              required: get_option('numa'))
 endif
 if numa.found() and not cc.links('''
    #include <numa.h>
@@ -1386,10 +1631,8 @@ rdma = not_found
 if not get_option('rdma').auto() or have_system
   libumad = cc.find_library('ibumad', required: get_option('rdma'))
   rdma_libs = [cc.find_library('rdmacm', has_headers: ['rdma/rdma_cma.h'],
-                               required: get_option('rdma'),
-                               kwargs: static_kwargs),
-               cc.find_library('ibverbs', required: get_option('rdma'),
-                               kwargs: static_kwargs),
+                               required: get_option('rdma')),
+               cc.find_library('ibverbs', required: get_option('rdma')),
                libumad]
   rdma = declare_dependency(dependencies: rdma_libs)
   foreach lib: rdma_libs
@@ -1402,30 +1645,30 @@ endif
 xen = not_found
 if get_option('xen').enabled() or (get_option('xen').auto() and have_system)
   xencontrol = dependency('xencontrol', required: false,
-                          method: 'pkg-config', kwargs: static_kwargs)
+                          method: 'pkg-config')
   if xencontrol.found()
     xen_pc = declare_dependency(version: xencontrol.version(),
       dependencies: [
         xencontrol,
         # disabler: true makes xen_pc.found() return false if any is not found
         dependency('xenstore', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs,
+                   method: 'pkg-config',
                    disabler: true),
         dependency('xenforeignmemory', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs,
+                   method: 'pkg-config',
                    disabler: true),
         dependency('xengnttab', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs,
+                   method: 'pkg-config',
                    disabler: true),
         dependency('xenevtchn', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs,
+                   method: 'pkg-config',
                    disabler: true),
         dependency('xendevicemodel', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs,
+                   method: 'pkg-config',
                    disabler: true),
         # optional, no "disabler: true"
         dependency('xentoolcore', required: false,
-                   method: 'pkg-config', kwargs: static_kwargs)])
+                   method: 'pkg-config')])
     if xen_pc.found()
       xen = xen_pc
     endif
@@ -1483,60 +1726,53 @@ have_xen_pci_passthrough = get_option('xen_pci_passthrough') \
 cacard = not_found
 if not get_option('smartcard').auto() or have_system
   cacard = dependency('libcacard', required: get_option('smartcard'),
-                      version: '>=2.5.1', method: 'pkg-config',
-                      kwargs: static_kwargs)
+                      version: '>=2.5.1', method: 'pkg-config')
 endif
 u2f = not_found
 if have_system
   u2f = dependency('u2f-emu', required: get_option('u2f'),
-                   method: 'pkg-config',
-                   kwargs: static_kwargs)
+                   method: 'pkg-config')
 endif
 canokey = not_found
 if have_system
   canokey = dependency('canokey-qemu', required: get_option('canokey'),
-                   method: 'pkg-config',
-                   kwargs: static_kwargs)
+                   method: 'pkg-config')
 endif
 usbredir = not_found
 if not get_option('usb_redir').auto() or have_system
   usbredir = dependency('libusbredirparser-0.5', required: get_option('usb_redir'),
-                        version: '>=0.6', method: 'pkg-config',
-                        kwargs: static_kwargs)
+                        version: '>=0.6', method: 'pkg-config')
 endif
 libusb = not_found
 if not get_option('libusb').auto() or have_system
   libusb = dependency('libusb-1.0', required: get_option('libusb'),
-                      version: '>=1.0.13', method: 'pkg-config',
-                      kwargs: static_kwargs)
+                      version: '>=1.0.13', method: 'pkg-config')
 endif
 
 libpmem = not_found
 if not get_option('libpmem').auto() or have_system
   libpmem = dependency('libpmem', required: get_option('libpmem'),
-                       method: 'pkg-config', kwargs: static_kwargs)
+                       method: 'pkg-config')
 endif
 libdaxctl = not_found
 if not get_option('libdaxctl').auto() or have_system
   libdaxctl = dependency('libdaxctl', required: get_option('libdaxctl'),
-                         version: '>=57', method: 'pkg-config',
-                         kwargs: static_kwargs)
+                         version: '>=57', method: 'pkg-config')
 endif
 tasn1 = not_found
 if gnutls.found()
   tasn1 = dependency('libtasn1',
-                     method: 'pkg-config',
-                     kwargs: static_kwargs)
+                     method: 'pkg-config')
 endif
 keyutils = dependency('libkeyutils', required: false,
-                      method: 'pkg-config', kwargs: static_kwargs)
+                      method: 'pkg-config')
 
 has_gettid = cc.has_function('gettid')
 
 # libselinux
 selinux = dependency('libselinux',
                      required: get_option('selinux'),
-                     method: 'pkg-config', kwargs: static_kwargs)
+                     method: 'pkg-config')
 
 # Malloc tests
 
@@ -1600,8 +1836,7 @@ if get_option('fuse').disabled() and get_option('fuse_lseek').enabled()
 endif
 
 fuse = dependency('fuse3', required: get_option('fuse'),
-                  version: '>=3.1', method: 'pkg-config',
-                  kwargs: static_kwargs)
+                  version: '>=3.1', method: 'pkg-config')
 
 fuse_lseek = not_found
 if get_option('fuse_lseek').allowed()
@@ -1657,10 +1892,9 @@ endif
 # libdw
 libdw = not_found
 if not get_option('libdw').auto() or \
-        (not enable_static and (have_system or have_user))
+        (not get_option('prefer_static') and (have_system or have_user))
     libdw = dependency('libdw',
                        method: 'pkg-config',
-                       kwargs: static_kwargs,
                        required: get_option('libdw'))
 endif
 
@@ -1715,7 +1949,7 @@ if get_option('cfi')
   if not get_option('b_lto')
     error('Selected Control-Flow Integrity but LTO is disabled')
   endif
-  if config_host.has_key('CONFIG_MODULES')
+  if enable_modules
     error('Selected Control-Flow Integrity is not compatible with modules')
   endif
   # Check for cfi flags. CFI requires LTO so we can't use
@@ -1818,7 +2052,7 @@ config_host_data.set_quoted('CONFIG_QEMU_LOCALSTATEDIR', get_option('prefix') / 
 config_host_data.set_quoted('CONFIG_QEMU_MODDIR', get_option('prefix') / qemu_moddir)
 config_host_data.set_quoted('CONFIG_SYSCONFDIR', get_option('prefix') / get_option('sysconfdir'))
 
-if config_host.has_key('CONFIG_MODULES')
+if enable_modules
   config_host_data.set('CONFIG_STAMP', run_command(
       meson.current_source_dir() / 'scripts/qemu-stamp.py',
       meson.project_version(), get_option('pkgversion'), '--',
@@ -1881,6 +2115,7 @@ config_host_data.set('CONFIG_LIBSSH', libssh.found())
 config_host_data.set('CONFIG_LINUX_AIO', libaio.found())
 config_host_data.set('CONFIG_LINUX_IO_URING', linux_io_uring.found())
 config_host_data.set('CONFIG_LIBPMEM', libpmem.found())
+config_host_data.set('CONFIG_MODULES', enable_modules)
 config_host_data.set('CONFIG_NUMA', numa.found())
 if numa.found()
   config_host_data.set('HAVE_NUMA_HAS_PREFERRED_MANY',
@@ -1891,6 +2126,7 @@ config_host_data.set('CONFIG_OPENGL', opengl.found())
 config_host_data.set('CONFIG_PROFILER', get_option('profiler'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
+config_host_data.set('CONFIG_SAFESTACK', get_option('safe_stack'))
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
@@ -1899,6 +2135,7 @@ if seccomp.found()
 endif
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_TPM', have_tpm)
+config_host_data.set('CONFIG_TSAN', get_option('tsan'))
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
 config_host_data.set('CONFIG_VDE', vde.found())
 config_host_data.set('CONFIG_VHOST_NET', have_vhost_net)
@@ -2013,6 +2250,7 @@ config_host_data.set('CONFIG_SYNC_FILE_RANGE', cc.has_function('sync_file_range'
 config_host_data.set('CONFIG_TIMERFD', cc.has_function('timerfd_create'))
 config_host_data.set('HAVE_COPY_FILE_RANGE', cc.has_function('copy_file_range'))
 config_host_data.set('HAVE_GETIFADDRS', cc.has_function('getifaddrs'))
+config_host_data.set('HAVE_GLIB_WITH_SLICE_ALLOCATOR', glib_has_gslice)
 config_host_data.set('HAVE_OPENPTY', cc.has_function('openpty', dependencies: util))
 config_host_data.set('HAVE_STRCHRNUL', cc.has_function('strchrnul'))
 config_host_data.set('HAVE_SYSTEM_FUNCTION', cc.has_function('system', prefix: '#include <stdlib.h>'))
@@ -2028,6 +2266,18 @@ if rdma.found()
                                        dependencies: rdma,
                                        prefix: '#include <infiniband/verbs.h>'))
 endif
+
+have_asan_fiber = false
+if get_option('sanitizers') and \
+   not cc.has_function('__sanitizer_start_switch_fiber',
+                         args: '-fsanitize=address',
+                         prefix: '#include <sanitizer/asan_interface.h>')
+  warning('Missing ASAN due to missing fiber annotation interface')
+  warning('Without code annotation, the report may be inferior.')
+else
+  have_asan_fiber = true
+endif
+config_host_data.set('CONFIG_ASAN_IFACE_FIBER', have_asan_fiber)
 
 # has_header_symbol
 config_host_data.set('CONFIG_BLKZONED',
@@ -2761,7 +3011,7 @@ genh += custom_target('config-poison.h',
 capstone = not_found
 if not get_option('capstone').auto() or have_system or have_user
   capstone = dependency('capstone', version: '>=3.0.5',
-                        kwargs: static_kwargs, method: 'pkg-config',
+                        method: 'pkg-config',
                         required: get_option('capstone'))
 
   # Some versions of capstone have broken pkg-config file
@@ -2787,9 +3037,7 @@ if have_system and vfio_user_server_allowed
 
   libvfio_user_proj = subproject('libvfio-user')
 
-  libvfio_user_lib = libvfio_user_proj.get_variable('libvfio_user_dep')
-
-  libvfio_user_dep = declare_dependency(dependencies: [libvfio_user_lib])
+  libvfio_user_dep = libvfio_user_proj.get_variable('libvfio_user_dep')
 endif
 
 fdt = not_found
@@ -2797,7 +3045,7 @@ if have_system
   fdt_opt = get_option('fdt')
   if fdt_opt in ['enabled', 'auto', 'system']
     have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
-    fdt = cc.find_library('fdt', kwargs: static_kwargs,
+    fdt = cc.find_library('fdt',
                           required: fdt_opt == 'system' or
                                     fdt_opt == 'enabled' and not have_internal)
     if fdt.found() and cc.links('''
@@ -3103,7 +3351,6 @@ subdir('ui')
 subdir('hw')
 subdir('gdbstub')
 
-
 if enable_modules
   libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
   modulecommon = declare_dependency(link_whole: libmodulecommon, compile_args: '-DBUILD_DSO')
@@ -3246,7 +3493,7 @@ foreach d, list : modules
   endif
 
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       module_ss = module_ss.apply(config_all, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
@@ -3279,7 +3526,7 @@ endforeach
 
 foreach d, list : target_modules
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
@@ -3725,7 +3972,7 @@ if host_machine.system() == 'windows'
     '@OUTPUT@',
     get_option('prefix'),
     meson.current_source_dir(),
-    config_host['GLIB_BINDIR'],
+    glib_pc.get_variable('bindir'),
     host_machine.cpu(),
     '--',
     '-DDISPLAYVERSION=' + meson.project_version(),
@@ -3799,8 +4046,8 @@ summary_info += {'system-mode emulation': have_system}
 summary_info += {'user-mode emulation': have_user}
 summary_info += {'block layer':       have_block}
 summary_info += {'Install blobs':     get_option('install_blobs')}
-summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
-if config_host.has_key('CONFIG_MODULES')
+summary_info += {'module support':    enable_modules}
+if enable_modules
   summary_info += {'alternative module path': get_option('module_upgrades')}
 endif
 summary_info += {'fuzzing support':   get_option('fuzzing')}
@@ -3851,12 +4098,12 @@ link_args = get_option(link_language + '_link_args')
 if link_args.length() > 0
   summary_info += {'LDFLAGS':         ' '.join(link_args)}
 endif
-summary_info += {'QEMU_CFLAGS':       ' '.join(qemu_cflags)}
+summary_info += {'QEMU_CFLAGS':       ' '.join(qemu_common_flags + qemu_cflags)}
 if 'cpp' in all_languages
-  summary_info += {'QEMU_CXXFLAGS':     ' '.join(qemu_cxxflags)}
+  summary_info += {'QEMU_CXXFLAGS':     ' '.join(qemu_common_flags + qemu_cxxflags)}
 endif
 if 'objc' in all_languages
-  summary_info += {'QEMU_OBJCFLAGS':    ' '.join(qemu_objcflags)}
+  summary_info += {'QEMU_OBJCFLAGS':    ' '.join(qemu_common_flags)}
 endif
 summary_info += {'QEMU_LDFLAGS':      ' '.join(qemu_ldflags)}
 summary_info += {'profiler':          get_option('profiler')}
@@ -3879,7 +4126,7 @@ else
 endif
 summary_info += {'gprof':             gprof_info}
 summary_info += {'gcov':              get_option('b_coverage')}
-summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
+summary_info += {'thread sanitizer':  get_option('tsan')}
 summary_info += {'CFI support':       get_option('cfi')}
 if get_option('cfi')
   summary_info += {'CFI debug support': get_option('cfi_debug')}
@@ -3940,7 +4187,7 @@ summary(summary_info, bool_yn: true, section: 'Targets and accelerators')
 
 # Block layer
 summary_info = {}
-summary_info += {'coroutine backend': config_host['CONFIG_COROUTINE_BACKEND']}
+summary_info += {'coroutine backend': coroutine_backend}
 summary_info += {'coroutine pool':    have_coroutine_pool}
 if have_block
   summary_info += {'Block whitelist (rw)': get_option('block_drv_rw_whitelist')}

@@ -400,6 +400,10 @@ class DBusDomain(Domain):
         for refname, obj in self.objects.items():
             yield (refname, refname, obj.objtype, obj.docname, obj.node_id, 1)
 
+    def merge_domaindata(self, docnames, otherdata):
+        for name, obj in otherdata['objects'].items():
+            if obj.docname in docnames:
+                self.data['objects'][name] = obj
 
 def setup(app):
     app.add_domain(DBusDomain)
