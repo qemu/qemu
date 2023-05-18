@@ -173,6 +173,11 @@ struct VexpressMachineClass {
 
 struct VexpressMachineState {
     MachineState parent;
+    MemoryRegion vram;
+    MemoryRegion sram;
+    MemoryRegion flashalias;
+    MemoryRegion lowram;
+    MemoryRegion a15sram;
     bool secure;
     bool virt;
 };
@@ -182,7 +187,7 @@ struct VexpressMachineState {
 #define TYPE_VEXPRESS_A15_MACHINE   MACHINE_TYPE_NAME("vexpress-a15")
 OBJECT_DECLARE_TYPE(VexpressMachineState, VexpressMachineClass, VEXPRESS_MACHINE)
 
-typedef void DBoardInitFn(const VexpressMachineState *machine,
+typedef void DBoardInitFn(VexpressMachineState *machine,
                           ram_addr_t ram_size,
                           const char *cpu_type,
                           qemu_irq *pic);
@@ -263,14 +268,13 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
     }
 }
 
-static void a9_daughterboard_init(const VexpressMachineState *vms,
+static void a9_daughterboard_init(VexpressMachineState *vms,
                                   ram_addr_t ram_size,
                                   const char *cpu_type,
                                   qemu_irq *pic)
 {
     MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *lowram = g_new(MemoryRegion, 1);
     ram_addr_t low_ram_size;
 
     if (ram_size > 0x40000000) {
@@ -287,9 +291,9 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
      * address space should in theory be remappable to various
      * things including ROM or RAM; we always map the RAM there.
      */
-    memory_region_init_alias(lowram, NULL, "vexpress.lowmem", machine->ram,
-                             0, low_ram_size);
-    memory_region_add_subregion(sysmem, 0x0, lowram);
+    memory_region_init_alias(&vms->lowram, NULL, "vexpress.lowmem",
+                             machine->ram, 0, low_ram_size);
+    memory_region_add_subregion(sysmem, 0x0, &vms->lowram);
     memory_region_add_subregion(sysmem, 0x60000000, machine->ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
@@ -348,14 +352,13 @@ static VEDBoardInfo a9_daughterboard = {
     .init = a9_daughterboard_init,
 };
 
-static void a15_daughterboard_init(const VexpressMachineState *vms,
+static void a15_daughterboard_init(VexpressMachineState *vms,
                                    ram_addr_t ram_size,
                                    const char *cpu_type,
                                    qemu_irq *pic)
 {
     MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     {
         /* We have to use a separate 64 bit variable here to avoid the gcc
@@ -386,9 +389,9 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     /* 0x2b060000: SP805 watchdog: not modelled */
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
-    memory_region_init_ram(sram, NULL, "vexpress.a15sram", 0x10000,
+    memory_region_init_ram(&vms->a15sram, NULL, "vexpress.a15sram", 0x10000,
                            &error_fatal);
-    memory_region_add_subregion(sysmem, 0x2e000000, sram);
+    memory_region_add_subregion(sysmem, 0x2e000000, &vms->a15sram);
 
     /* 0x7ffb0000: DMA330 DMA controller: not modelled */
     /* 0x7ffd0000: PL354 static memory controller: not modelled */
@@ -547,10 +550,6 @@ static void vexpress_common_init(MachineState *machine)
     I2CBus *i2c;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *vram = g_new(MemoryRegion, 1);
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *flashalias = g_new(MemoryRegion, 1);
-    MemoryRegion *flash0mem;
     const hwaddr *map = daughterboard->motherboard_map;
     int i;
 
@@ -662,24 +661,25 @@ static void vexpress_common_init(MachineState *machine)
 
     if (map[VE_NORFLASHALIAS] != -1) {
         /* Map flash 0 as an alias into low memory */
+        MemoryRegion *flash0mem;
         flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
-        memory_region_init_alias(flashalias, NULL, "vexpress.flashalias",
+        memory_region_init_alias(&vms->flashalias, NULL, "vexpress.flashalias",
                                  flash0mem, 0, VEXPRESS_FLASH_SIZE);
-        memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], flashalias);
+        memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], &vms->flashalias);
     }
 
     dinfo = drive_get(IF_PFLASH, 0, 1);
     ve_pflash_cfi01_register(map[VE_NORFLASH1], "vexpress.flash1", dinfo);
 
     sram_size = 0x2000000;
-    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size,
+    memory_region_init_ram(&vms->sram, NULL, "vexpress.sram", sram_size,
                            &error_fatal);
-    memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
+    memory_region_add_subregion(sysmem, map[VE_SRAM], &vms->sram);
 
     vram_size = 0x800000;
-    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size,
+    memory_region_init_ram(&vms->vram, NULL, "vexpress.vram", vram_size,
                            &error_fatal);
-    memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
+    memory_region_add_subregion(sysmem, map[VE_VIDEORAM], &vms->vram);
 
     /* 0x4e000000 LAN9118 Ethernet */
     if (nd_table[0].used) {

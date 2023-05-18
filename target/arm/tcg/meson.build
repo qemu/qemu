@@ -13,6 +13,7 @@ gen = [
   decodetree.process('a32-uncond.decode', extra_args: '--static-decode=disas_a32_uncond'),
   decodetree.process('t32.decode', extra_args: '--static-decode=disas_t32'),
   decodetree.process('t16.decode', extra_args: ['-w', '16', '--static-decode=disas_t16']),
+  decodetree.process('a64.decode', extra_args: ['--static-decode=disas_a64']),
 ]
 
 arm_ss.add(gen)
