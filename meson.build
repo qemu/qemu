@@ -3059,13 +3059,14 @@ if have_system and vfio_user_server_allowed
 endif
 
 fdt = not_found
-if have_system
-  fdt_opt = get_option('fdt')
+fdt_opt = get_option('fdt')
+if fdt_required.length() > 0 or fdt_opt == 'enabled'
+  if fdt_opt == 'disabled'
+    error('fdt disabled but required by targets ' + ', '.join(fdt_required))
+  endif
+
   if fdt_opt in ['enabled', 'auto', 'system']
-    have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
-    fdt = cc.find_library('fdt',
-                          required: fdt_opt == 'system' or
-                                    fdt_opt == 'enabled' and not have_internal)
+    fdt = cc.find_library('fdt', required: fdt_opt == 'system')
     if fdt.found() and cc.links('''
        #include <libfdt.h>
        #include <libfdt_env.h>
@@ -3074,14 +3075,19 @@ if have_system
       fdt_opt = 'system'
     elif fdt_opt == 'system'
        error('system libfdt requested, but it is too old (1.5.1 or newer required)')
-    elif have_internal
-      fdt_opt = 'internal'
     else
-      fdt_opt = 'disabled'
+      fdt_opt = 'internal'
       fdt = not_found
     endif
   endif
-  if fdt_opt == 'internal'
+  if not fdt.found()
+    assert(fdt_opt == 'internal')
+    have_internal = fs.exists(meson.current_source_dir() / 'subprojects/dtc/meson.build')
+
+    if not have_internal
+      error('libfdt source not found - please pull git submodule')
+    endif
+
     fdt_files = files(
       'dtc/libfdt/fdt.c',
       'dtc/libfdt/fdt_ro.c',
@@ -3105,9 +3111,6 @@ if have_system
   endif
 else
   fdt_opt = 'disabled'
-endif
-if not fdt.found() and fdt_required.length() > 0
-  error('fdt not available but required by targets ' + ', '.join(fdt_required))
 endif
 
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
