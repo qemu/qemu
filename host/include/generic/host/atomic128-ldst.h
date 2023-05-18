@@ -12,32 +12,38 @@
 #define HOST_ATOMIC128_LDST_H
 
 #if defined(CONFIG_ATOMIC128)
-static inline Int128 atomic16_read(Int128 *ptr)
+static inline Int128 ATTRIBUTE_ATOMIC128_OPT
+atomic16_read(Int128 *ptr)
 {
+    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
     Int128Alias r;
 
-    r.i = qatomic_read__nocheck((__int128_t *)ptr);
+    r.i = qatomic_read__nocheck(ptr_align);
     return r.s;
 }
 
-static inline void atomic16_set(Int128 *ptr, Int128 val)
+static inline void ATTRIBUTE_ATOMIC128_OPT
+atomic16_set(Int128 *ptr, Int128 val)
 {
+    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
     Int128Alias v;
 
     v.s = val;
-    qatomic_set__nocheck((__int128_t *)ptr, v.i);
+    qatomic_set__nocheck(ptr_align, v.i);
 }
 
 # define HAVE_ATOMIC128 1
 #elif !defined(CONFIG_USER_ONLY) && HAVE_CMPXCHG128
-static inline Int128 atomic16_read(Int128 *ptr)
+static inline Int128 ATTRIBUTE_ATOMIC128_OPT
+atomic16_read(Int128 *ptr)
 {
     /* Maybe replace 0 with 0, returning the old value.  */
     Int128 z = int128_make64(0);
     return atomic16_cmpxchg(ptr, z, z);
 }
 
-static inline void atomic16_set(Int128 *ptr, Int128 val)
+static inline void ATTRIBUTE_ATOMIC128_OPT
+atomic16_set(Int128 *ptr, Int128 val)
 {
     Int128 old = *ptr, cmp;
     do {

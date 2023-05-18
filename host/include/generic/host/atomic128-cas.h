@@ -12,24 +12,28 @@
 #define HOST_ATOMIC128_CAS_H
 
 #if defined(CONFIG_ATOMIC128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
+static inline Int128 ATTRIBUTE_ATOMIC128_OPT
+atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
 {
+    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
     Int128Alias r, c, n;
 
     c.s = cmp;
     n.s = new;
-    r.i = qatomic_cmpxchg__nocheck((__int128_t *)ptr, c.i, n.i);
+    r.i = qatomic_cmpxchg__nocheck(ptr_align, c.i, n.i);
     return r.s;
 }
 # define HAVE_CMPXCHG128 1
 #elif defined(CONFIG_CMPXCHG128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
+static inline Int128 ATTRIBUTE_ATOMIC128_OPT
+atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
 {
+    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
     Int128Alias r, c, n;
 
     c.s = cmp;
     n.s = new;
-    r.i = __sync_val_compare_and_swap_16((__int128_t *)ptr, c.i, n.i);
+    r.i = __sync_val_compare_and_swap_16(ptr_align, c.i, n.i);
     return r.s;
 }
 # define HAVE_CMPXCHG128 1
