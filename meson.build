@@ -3985,8 +3985,15 @@ endif
 # Configuration summary #
 #########################
 
-# Directories
+# Build environment
 summary_info = {}
+summary_info += {'Build directory':   meson.current_build_dir()}
+summary_info += {'Source path':       meson.current_source_dir()}
+summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
+summary_info += {'Download dependencies': get_option('wrap_mode') != 'nodownload'}
+summary(summary_info, bool_yn: true, section: 'Build environment')
+
+# Directories
 summary_info += {'Install prefix':    get_option('prefix')}
 summary_info += {'BIOS directory':    qemu_datadir}
 pathsep = targetos == 'windows' ? ';' : ':'
@@ -4004,9 +4011,6 @@ else
   summary_info += {'local state directory': 'queried at runtime'}
 endif
 summary_info += {'Doc directory':     get_option('prefix') / get_option('docdir')}
-summary_info += {'Build directory':   meson.current_build_dir()}
-summary_info += {'Source path':       meson.current_source_dir()}
-summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
 summary(summary_info, bool_yn: true, section: 'Directories')
 
 # Host binaries
