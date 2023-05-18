@@ -109,6 +109,8 @@ if have_block
   util_ss.add(when: 'CONFIG_LINUX', if_true: files('vfio-helpers.c'))
 endif
 
-if cpu in ['x86', 'x86_64']
+if cpu == 'aarch64'
+  util_ss.add(files('cpuinfo-aarch64.c'))
+elif cpu in ['x86', 'x86_64']
   util_ss.add(files('cpuinfo-i386.c'))
 endif
