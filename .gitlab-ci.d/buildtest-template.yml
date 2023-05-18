@@ -5,10 +5,6 @@
   before_script:
     - JOBS=$(expr $(nproc) + 1)
   script:
-    - if test -n "$LD_JOBS";
-      then
-        scripts/git-submodule.sh update meson ;
-      fi
     - mkdir build
     - cd build
     - ../configure --enable-werror --disable-docs --enable-fdt=system
