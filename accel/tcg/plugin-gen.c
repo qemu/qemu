@@ -254,33 +254,6 @@ static TCGOp *copy_op(TCGOp **begin_op, TCGOp *op, TCGOpcode opc)
     return op;
 }
 
-static TCGOp *copy_extu_i32_i64(TCGOp **begin_op, TCGOp *op)
-{
-    if (TCG_TARGET_REG_BITS == 32) {
-        /* mov_i32 */
-        op = copy_op(begin_op, op, INDEX_op_mov_i32);
-        /* mov_i32 w/ $0 */
-        op = copy_op(begin_op, op, INDEX_op_mov_i32);
-    } else {
-        /* extu_i32_i64 */
-        op = copy_op(begin_op, op, INDEX_op_extu_i32_i64);
-    }
-    return op;
-}
-
-static TCGOp *copy_mov_i64(TCGOp **begin_op, TCGOp *op)
-{
-    if (TCG_TARGET_REG_BITS == 32) {
-        /* 2x mov_i32 */
-        op = copy_op(begin_op, op, INDEX_op_mov_i32);
-        op = copy_op(begin_op, op, INDEX_op_mov_i32);
-    } else {
-        /* mov_i64 */
-        op = copy_op(begin_op, op, INDEX_op_mov_i64);
-    }
-    return op;
-}
-
 static TCGOp *copy_const_ptr(TCGOp **begin_op, TCGOp *op, void *ptr)
 {
     if (UINTPTR_MAX == UINT32_MAX) {
@@ -291,18 +264,6 @@ static TCGOp *copy_const_ptr(TCGOp **begin_op, TCGOp *op, void *ptr)
         /* mov_i64 */
         op = copy_op(begin_op, op, INDEX_op_mov_i64);
         op->args[1] = tcgv_i64_arg(tcg_constant_i64((uintptr_t)ptr));
-    }
-    return op;
-}
-
-static TCGOp *copy_extu_tl_i64(TCGOp **begin_op, TCGOp *op)
-{
-    if (TARGET_LONG_BITS == 32) {
-        /* extu_i32_i64 */
-        op = copy_extu_i32_i64(begin_op, op);
-    } else {
-        /* mov_i64 */
-        op = copy_mov_i64(begin_op, op);
     }
     return op;
 }
@@ -450,9 +411,6 @@ static TCGOp *append_mem_cb(const struct qemu_plugin_dyn_cb *cb,
         begin_op = QTAILQ_NEXT(begin_op, link);
         tcg_debug_assert(begin_op && begin_op->opc == INDEX_op_ld_i32);
     }
-
-    /* extu_tl_i64 */
-    op = copy_extu_tl_i64(&begin_op, op);
 
     if (type == PLUGIN_GEN_CB_MEM) {
         /* call */
