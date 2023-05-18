@@ -3088,26 +3088,10 @@ if fdt_required.length() > 0 or fdt_opt == 'enabled'
       error('libfdt source not found - please pull git submodule')
     endif
 
-    fdt_files = files(
-      'dtc/libfdt/fdt.c',
-      'dtc/libfdt/fdt_ro.c',
-      'dtc/libfdt/fdt_wip.c',
-      'dtc/libfdt/fdt_sw.c',
-      'dtc/libfdt/fdt_rw.c',
-      'dtc/libfdt/fdt_strerror.c',
-      'dtc/libfdt/fdt_empty_tree.c',
-      'dtc/libfdt/fdt_addresses.c',
-      'dtc/libfdt/fdt_overlay.c',
-      'dtc/libfdt/fdt_check.c',
-    )
-
-    fdt_inc = include_directories('dtc/libfdt')
-    libfdt = static_library('fdt',
-                            build_by_default: false,
-                            sources: fdt_files,
-                            include_directories: fdt_inc)
-    fdt = declare_dependency(link_with: libfdt,
-                             include_directories: fdt_inc)
+    libfdt_proj = subproject('dtc', required: true,
+                             default_options: ['tools=false',  'yaml=disabled',
+                                               'python=disabled', 'default_library=static'])
+    fdt = libfdt_proj.get_variable('libfdt_dep')
   endif
 else
   fdt_opt = 'disabled'
