@@ -253,7 +253,7 @@ else
     git_submodules_action="ignore"
 fi
 
-git_submodules="ui/keycodemapdb"
+git_submodules="subprojects/keycodemapdb"
 git="git"
 debug_tcg="no"
 docs="auto"
@@ -805,7 +805,7 @@ case $git_submodules_action in
         fi
     ;;
     ignore)
-        if ! test -f "$source_path/ui/keycodemapdb/README"
+        if ! test -f "$source_path/subprojects/keycodemapdb/README"
         then
             echo
             echo "ERROR: missing GIT submodules"
