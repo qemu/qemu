@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "qemu-file.h"
 #include "trace.h"
 #include "options.h"
@@ -39,17 +40,6 @@ struct QEMUFile {
     const QEMUFileHooks *hooks;
     QIOChannel *ioc;
     bool is_writable;
-
-    /*
-     * Maximum amount of data in bytes to transfer during one
-     * rate limiting time window
-     */
-    uint64_t rate_limit_max;
-    /*
-     * Total amount of data in bytes queued for transfer
-     * during this rate limiting time window
-     */
-    uint64_t rate_limit_used;
 
     /* The sum of bytes transferred on the wire */
     uint64_t total_transferred;
@@ -301,7 +291,8 @@ void qemu_fflush(QEMUFile *f)
                                    &local_error) < 0) {
             qemu_file_set_error_obj(f, -EIO, local_error);
         } else {
-            f->total_transferred += iov_size(f->iov, f->iovcnt);
+            uint64_t size = iov_size(f->iov, f->iovcnt);
+            f->total_transferred += size;
         }
 
         qemu_iovec_release_ram(f);
@@ -352,9 +343,6 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
     if (f->hooks && f->hooks->save_page) {
         int ret = f->hooks->save_page(f, block_offset,
                                       offset, size, bytes_sent);
-        if (ret != RAM_SAVE_CONTROL_NOT_SUPP) {
-            qemu_file_acct_rate_limit(f, size);
-        }
 
         if (ret != RAM_SAVE_CONTROL_DELAYED &&
             ret != RAM_SAVE_CONTROL_NOT_SUPP) {
@@ -518,7 +506,6 @@ void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
         return;
     }
 
-    f->rate_limit_used += size;
     add_to_iovec(f, buf, size, may_free);
 }
 
@@ -536,7 +523,6 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
             l = size;
         }
         memcpy(f->buf + f->buf_index, buf, l);
-        f->rate_limit_used += l;
         add_buf_to_iovec(f, l);
         if (qemu_file_get_error(f)) {
             break;
@@ -553,7 +539,6 @@ void qemu_put_byte(QEMUFile *f, int v)
     }
 
     f->buf[f->buf_index] = v;
-    f->rate_limit_used++;
     add_buf_to_iovec(f, 1);
 }
 
@@ -725,40 +710,6 @@ uint64_t qemu_file_transferred(QEMUFile *f)
 {
     qemu_fflush(f);
     return f->total_transferred;
-}
-
-int qemu_file_rate_limit(QEMUFile *f)
-{
-    if (qemu_file_get_error(f)) {
-        return 1;
-    }
-    if (f->rate_limit_max > 0 && f->rate_limit_used > f->rate_limit_max) {
-        return 1;
-    }
-    return 0;
-}
-
-uint64_t qemu_file_get_rate_limit(QEMUFile *f)
-{
-    return f->rate_limit_max;
-}
-
-void qemu_file_set_rate_limit(QEMUFile *f, uint64_t limit)
-{
-    /*
-     * 'limit' is per second.  But we check it each 100 miliseconds.
-     */
-    f->rate_limit_max = limit / XFER_LIMIT_RATIO;
-}
-
-void qemu_file_reset_rate_limit(QEMUFile *f)
-{
-    f->rate_limit_used = 0;
-}
-
-void qemu_file_acct_rate_limit(QEMUFile *f, uint64_t len)
-{
-    f->rate_limit_used += len;
 }
 
 void qemu_put_be16(QEMUFile *f, unsigned int v)

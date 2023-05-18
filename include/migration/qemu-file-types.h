@@ -165,6 +165,16 @@ size_t coroutine_mixed_fn qemu_get_counted_string(QEMUFile *f, char buf[256]);
 
 void qemu_put_counted_string(QEMUFile *f, const char *name);
 
-int qemu_file_rate_limit(QEMUFile *f);
+/**
+ * migration_rate_exceeded: Check if we have exceeded rate for this interval
+ *
+ * Checks if we have already transferred more data that we are allowed
+ * in the current interval.
+ *
+ * @f: QEMUFile used for main migration channel
+ *
+ * Returns if we should stop sending data for this interval.
+ */
+bool migration_rate_exceeded(QEMUFile *f);
 
 #endif

@@ -23,6 +23,7 @@
 #include "block/dirty-bitmap.h"
 #include "migration/misc.h"
 #include "migration.h"
+#include "migration-stats.h"
 #include "migration/register.h"
 #include "qemu-file.h"
 #include "migration/vmstate.h"
@@ -625,7 +626,7 @@ static int flush_blks(QEMUFile *f)
 
     blk_mig_lock();
     while ((blk = QSIMPLEQ_FIRST(&block_mig_state.blk_list)) != NULL) {
-        if (qemu_file_rate_limit(f)) {
+        if (migration_rate_exceeded(f)) {
             break;
         }
         if (blk->ret < 0) {
@@ -762,7 +763,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     /* control the rate of transfer */
     blk_mig_lock();
     while (block_mig_state.read_done * BLK_MIG_BLOCK_SIZE <
-           qemu_file_get_rate_limit(f) &&
+           migration_rate_get() &&
            block_mig_state.submitted < MAX_PARALLEL_IO &&
            (block_mig_state.submitted + block_mig_state.read_done) <
            MAX_IO_BUFFERS) {

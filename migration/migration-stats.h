@@ -16,6 +16,18 @@
 #include "qemu/stats64.h"
 
 /*
+ * Amount of time to allocate to each "chunk" of bandwidth-throttled
+ * data.
+ */
+#define BUFFER_DELAY     100
+
+/*
+ * If rate_limit_max is 0, there is special code to remove the rate
+ * limit.
+ */
+#define RATE_LIMIT_DISABLED 0
+
+/*
  * These are the ram migration statistic counters.  It is loosely
  * based on MigrationStats.  We change to Stat64 any counter that
  * needs to be updated using atomic ops (can be accessed by more than
@@ -70,6 +82,14 @@ typedef struct {
      */
     Stat64 precopy_bytes;
     /*
+     * Amount of transferred data at the start of current cycle.
+     */
+    Stat64 rate_limit_start;
+    /*
+     * Maximum amount of data we can send in a cycle.
+     */
+    Stat64 rate_limit_max;
+    /*
      * Total number of bytes transferred.
      */
     Stat64 transferred;
@@ -81,4 +101,39 @@ typedef struct {
 
 extern MigrationAtomicStats mig_stats;
 
+/**
+ * migration_rate_get: Get the maximum amount that can be transferred.
+ *
+ * Returns the maximum number of bytes that can be transferred in a cycle.
+ */
+uint64_t migration_rate_get(void);
+
+/**
+ * migration_rate_reset: Reset the rate limit counter.
+ *
+ * This is called when we know we start a new transfer cycle.
+ *
+ * @f: QEMUFile used for main migration channel
+ */
+void migration_rate_reset(QEMUFile *f);
+
+/**
+ * migration_rate_set: Set the maximum amount that can be transferred.
+ *
+ * Sets the maximum amount of bytes that can be transferred in one cycle.
+ *
+ * @new_rate: new maximum amount
+ */
+void migration_rate_set(uint64_t new_rate);
+
+/**
+ * migration_transferred_bytes: Return number of bytes transferred
+ *
+ * @f: QEMUFile used for main migration channel
+ *
+ * Returns how many bytes have we transferred since the beginning of
+ * the migration.  It accounts for bytes sent through any migration
+ * channel, multifd, qemu_file, rdma, ....
+ */
+uint64_t migration_transferred_bytes(QEMUFile *f);
 #endif

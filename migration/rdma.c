@@ -3342,9 +3342,8 @@ static void rdma_cm_poll_handler(void *opaque)
             }
         }
         rdma_ack_cm_event(cm_event);
-
-        if (mis->migration_incoming_co) {
-            qemu_coroutine_enter(mis->migration_incoming_co);
+        if (mis->loadvm_co) {
+            qemu_coroutine_enter(mis->loadvm_co);
         }
         return;
     }

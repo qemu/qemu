@@ -175,6 +175,7 @@ void multifd_register_ops(int method, MultiFDMethods *ops)
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
     MultiFDInit_t msg = {};
+    size_t size = sizeof(msg);
     int ret;
 
     msg.magic = cpu_to_be32(MULTIFD_MAGIC);
@@ -182,10 +183,12 @@ static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
     msg.id = p->id;
     memcpy(msg.uuid, &qemu_uuid.data, sizeof(msg.uuid));
 
-    ret = qio_channel_write_all(p->c, (char *)&msg, sizeof(msg), errp);
+    ret = qio_channel_write_all(p->c, (char *)&msg, size, errp);
     if (ret != 0) {
         return -1;
     }
+    stat64_add(&mig_stats.multifd_bytes, size);
+    stat64_add(&mig_stats.transferred, size);
     return 0;
 }
 
@@ -395,7 +398,6 @@ static int multifd_send_pages(QEMUFile *f)
     static int next_channel;
     MultiFDSendParams *p = NULL; /* make happy gcc */
     MultiFDPages_t *pages = multifd_send_state->pages;
-    uint64_t transferred;
 
     if (qatomic_read(&multifd_send_state->exiting)) {
         return -1;
@@ -430,11 +432,7 @@ static int multifd_send_pages(QEMUFile *f)
     p->packet_num = multifd_send_state->packet_num++;
     multifd_send_state->pages = p->pages;
     p->pages = pages;
-    transferred = ((uint64_t) pages->num) * p->page_size + p->packet_len;
-    qemu_file_acct_rate_limit(f, transferred);
     qemu_mutex_unlock(&p->mutex);
-    stat64_add(&mig_stats.transferred, transferred);
-    stat64_add(&mig_stats.multifd_bytes, transferred);
     qemu_sem_post(&p->sem);
 
     return 1;
@@ -716,6 +714,8 @@ static void *multifd_send_thread(void *opaque)
                 if (ret != 0) {
                     break;
                 }
+                stat64_add(&mig_stats.multifd_bytes, p->packet_len);
+                stat64_add(&mig_stats.transferred, p->packet_len);
             } else {
                 /* Send header using the same writev call */
                 p->iov[0].iov_len = p->packet_len;
@@ -728,6 +728,8 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
+            stat64_add(&mig_stats.multifd_bytes, p->next_packet_size);
+            stat64_add(&mig_stats.transferred, p->next_packet_size);
             qemu_mutex_lock(&p->mutex);
             p->pending_job--;
             qemu_mutex_unlock(&p->mutex);
