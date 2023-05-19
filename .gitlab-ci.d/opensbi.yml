@@ -42,15 +42,17 @@
 docker-opensbi:
   extends: .opensbi_job_rules
   stage: containers
-  image: docker:20.10.16
+  image: docker:stable
   services:
-    - docker:20.10.16-dind
+    - docker:stable-dind
   variables:
     GIT_DEPTH: 3
     IMAGE_TAG: $CI_REGISTRY_IMAGE:opensbi-cross-build
+    # We don't use TLS
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - until docker info; do sleep 1; done
   script:
     - docker pull $IMAGE_TAG || true
     - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA

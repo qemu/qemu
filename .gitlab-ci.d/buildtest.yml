@@ -98,7 +98,6 @@ crash-test-debian:
   needs:
     - job: build-system-debian
       artifacts: true
-  timeout: 90m
   variables:
     IMAGE: debian-amd64
   script:

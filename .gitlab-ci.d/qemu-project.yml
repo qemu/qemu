@@ -1,24 +1,7 @@
 # This file contains the set of jobs run by the QEMU project:
 # https://gitlab.com/qemu-project/qemu/-/pipelines
 
-variables:
-  RUNNER_TAG: ""
-
-workflow:
-  rules:
-    # Set additional variables when running on Kubernetes.
-    # https://wiki.qemu.org/Testing/CI/KubernetesRunners
-    - if: $RUNNER_TAG == "k8s"
-      variables:
-        DOCKER_HOST: tcp://docker:2376
-        DOCKER_TLS_CERTDIR: "/certs"
-        DOCKER_TLS_VERIFY: 1
-        DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
-    # Run the pipeline in other cases.
-    - when: always
-
 include:
-  - local: '/.gitlab-ci.d/default.yml'
   - local: '/.gitlab-ci.d/base.yml'
   - local: '/.gitlab-ci.d/stages.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'
