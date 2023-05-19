@@ -805,28 +805,6 @@ case $git_submodules_action in
         fi
     ;;
     ignore)
-        if ! test -f "$source_path/tests/fp/berkeley-testfloat-3/README.md"
-        then
-            echo
-            echo "ERROR: missing GIT submodules"
-            echo
-            if test -e "$source_path/.git"; then
-                echo "--with-git-submodules=ignore specified but submodules were not"
-                echo "checked out.  Please initialize and update submodules."
-            else
-                echo "This is not a GIT checkout but module content appears to"
-                echo "be missing. Do not use 'git archive' or GitHub download links"
-                echo "to acquire QEMU source archives. Non-GIT builds are only"
-                echo "supported with source archives linked from:"
-                echo
-                echo "  https://www.qemu.org/download/#source"
-                echo
-                echo "Developers working with GIT can use scripts/archive-source.sh"
-                echo "if they need to create valid source archives."
-            fi
-            echo
-            exit 1
-        fi
     ;;
     *)
         echo "ERROR: invalid --with-git-submodules= value '$git_submodules_action'"
@@ -1140,11 +1118,6 @@ if test "$tcg" = "auto"; then
   else
     tcg="enabled"
   fi
-fi
-
-if test "$tcg" = "enabled"; then
-    git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
-    git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 fi
 
 ##########################################
