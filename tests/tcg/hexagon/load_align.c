@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,40 +29,21 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 int err;
 
-char buf[16] __attribute__((aligned(1 << 16)));
+#include "hex_test.h"
+
+int8_t buf[16] __attribute__((aligned(1 << 16)));
 
 void init_buf(void)
 {
-    int i;
-    for (i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         buf[i] = i + 1;
     }
 }
-
-void __check(int line, long long result, long long expect)
-{
-    if (result != expect) {
-        printf("ERROR at line %d: 0x%016llx != 0x%016llx\n",
-               line, result, expect);
-        err++;
-    }
-}
-
-#define check(RES, EXP) __check(__LINE__, RES, EXP)
-
-void __checkp(int line, void *p, void *expect)
-{
-    if (p != expect) {
-        printf("ERROR at line %d: 0x%p != 0x%p\n", line, p, expect);
-        err++;
-    }
-}
-
-#define checkp(RES, EXP) __checkp(__LINE__, RES, EXP)
 
 /*
  ****************************************************************************
@@ -81,15 +62,15 @@ void __checkp(int line, void *p, void *expect)
 #define TEST_io(NAME, SZ, SIZE, EXP1, EXP2, EXP3, EXP4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     LOAD_io_##SZ(result, buf, 0 * (SIZE)); \
-    check(result, (EXP1)); \
+    check64(result, (EXP1)); \
     LOAD_io_##SZ(result, buf, 1 * (SIZE)); \
-    check(result, (EXP2)); \
+    check64(result, (EXP2)); \
     LOAD_io_##SZ(result, buf, 2 * (SIZE)); \
-    check(result, (EXP3)); \
+    check64(result, (EXP3)); \
     LOAD_io_##SZ(result, buf, 3 * (SIZE)); \
-    check(result, (EXP4)); \
+    check64(result, (EXP4)); \
 }
 
 TEST_io(loadalignb_io, b, 1,
@@ -116,15 +97,15 @@ TEST_io(loadalignh_io, h, 2,
 #define TEST_ur(NAME, SZ, SHIFT, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    uint64_t result = ~0LL; \
     LOAD_ur_##SZ(result, (SHIFT), 0); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     LOAD_ur_##SZ(result, (SHIFT), 1); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     LOAD_ur_##SZ(result, (SHIFT), 2); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     LOAD_ur_##SZ(result, (SHIFT), 3); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
 }
 
 TEST_ur(loadalignb_ur, b, 1,
@@ -150,19 +131,19 @@ TEST_ur(loadalignh_ur, h, 1,
 #define TEST_ap(NAME, SZ, SIZE, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr; \
     LOAD_ap_##SZ(result, ptr, (buf + 0 * (SIZE))); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     checkp(ptr, &buf[0 * (SIZE)]); \
     LOAD_ap_##SZ(result, ptr, (buf + 1 * (SIZE))); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     checkp(ptr, &buf[1 * (SIZE)]); \
     LOAD_ap_##SZ(result, ptr, (buf + 2 * (SIZE))); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     checkp(ptr, &buf[2 * (SIZE)]); \
     LOAD_ap_##SZ(result, ptr, (buf + 3 * (SIZE))); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
     checkp(ptr, &buf[3 * (SIZE)]); \
 }
 
@@ -192,19 +173,19 @@ TEST_ap(loadalignh_ap, h, 2,
 #define TEST_pr(NAME, SZ, SIZE, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr = buf; \
     LOAD_pr_##SZ(result, ptr, (SIZE)); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     checkp(ptr, &buf[1 * (SIZE)]); \
     LOAD_pr_##SZ(result, ptr, (SIZE)); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     checkp(ptr, &buf[2 * (SIZE)]); \
     LOAD_pr_##SZ(result, ptr, (SIZE)); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     checkp(ptr, &buf[3 * (SIZE)]); \
     LOAD_pr_##SZ(result, ptr, (SIZE)); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
     checkp(ptr, &buf[4 * (SIZE)]); \
 }
 
@@ -235,16 +216,16 @@ TEST_pr(loadalignh_pr, h, 2,
 #define TEST_pbr(NAME, SZ, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr = buf; \
     LOAD_pbr_##SZ(result, ptr); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     LOAD_pbr_##SZ(result, ptr); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     LOAD_pbr_##SZ(result, ptr); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     LOAD_pbr_##SZ(result, ptr); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
 }
 
 TEST_pbr(loadalignb_pbr, b,
@@ -270,19 +251,19 @@ TEST_pbr(loadalignh_pbr, h,
 #define TEST_pi(NAME, SZ, INC, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr = buf; \
     LOAD_pi_##SZ(result, ptr, (INC)); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     checkp(ptr, &buf[1 * (INC)]); \
     LOAD_pi_##SZ(result, ptr, (INC)); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     checkp(ptr, &buf[2 * (INC)]); \
     LOAD_pi_##SZ(result, ptr, (INC)); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     checkp(ptr, &buf[3 * (INC)]); \
     LOAD_pi_##SZ(result, ptr, (INC)); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
     checkp(ptr, &buf[4 * (INC)]); \
 }
 
@@ -314,19 +295,19 @@ TEST_pi(loadalignh_pi, h, 2,
 #define TEST_pci(NAME, SZ, LEN, INC, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr = buf; \
     LOAD_pci_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     checkp(ptr, &buf[(1 * (INC)) % (LEN)]); \
     LOAD_pci_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     checkp(ptr, &buf[(2 * (INC)) % (LEN)]); \
     LOAD_pci_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     checkp(ptr, &buf[(3 * (INC)) % (LEN)]); \
     LOAD_pci_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
     checkp(ptr, &buf[(4 * (INC)) % (LEN)]); \
 }
 
@@ -359,19 +340,19 @@ TEST_pci(loadalignh_pci, h, 4, 2,
 #define TEST_pcr(NAME, SZ, SIZE, LEN, INC, RES1, RES2, RES3, RES4) \
 void test_##NAME(void) \
 { \
-    long long result = ~0LL; \
+    int64_t result = ~0LL; \
     void *ptr = buf; \
     LOAD_pcr_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES1)); \
+    check64(result, (RES1)); \
     checkp(ptr, &buf[(1 * (INC) * (SIZE)) % (LEN)]); \
     LOAD_pcr_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES2)); \
+    check64(result, (RES2)); \
     checkp(ptr, &buf[(2 * (INC) * (SIZE)) % (LEN)]); \
     LOAD_pcr_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES3)); \
+    check64(result, (RES3)); \
     checkp(ptr, &buf[(3 * (INC) * (SIZE)) % (LEN)]); \
     LOAD_pcr_##SZ(result, ptr, buf, (LEN), (INC)); \
-    check(result, (RES4)); \
+    check64(result, (RES4)); \
     checkp(ptr, &buf[(4 * (INC) * (SIZE)) % (LEN)]); \
 }
 

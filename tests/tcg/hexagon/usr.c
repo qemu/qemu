@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2022-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,35 +24,7 @@
 
 int err;
 
-static void __check(int line, uint32_t val, uint32_t expect)
-{
-    if (val != expect) {
-        printf("ERROR at line %d: %d != %d\n", line, val, expect);
-        err++;
-    }
-}
-
-#define check(RES, EXP) __check(__LINE__, RES, EXP)
-
-static void __check32(int line, uint32_t val, uint32_t expect)
-{
-    if (val != expect) {
-        printf("ERROR at line %d: 0x%08x != 0x%08x\n", line, val, expect);
-        err++;
-    }
-}
-
-#define check32(RES, EXP) __check32(__LINE__, RES, EXP)
-
-static void __check64(int line, uint64_t val, uint64_t expect)
-{
-    if (val != expect) {
-        printf("ERROR at line %d: 0x%016llx != 0x%016llx\n", line, val, expect);
-        err++;
-    }
-}
-
-#define check64(RES, EXP) __check64(__LINE__, RES, EXP)
+#include "hex_test.h"
 
 /*
  * Some of the instructions tested are only available on certain versions
@@ -60,53 +32,6 @@ static void __check64(int line, uint64_t val, uint64_t expect)
  */
 #define CORE_HAS_AUDIO    (__HEXAGON_ARCH__ >= 67 && defined(__HEXAGON_AUDIO__))
 #define CORE_IS_V67       (__HEXAGON_ARCH__ >= 67)
-
-/* Define the bits in Hexagon USR register */
-#define USR_OVF_BIT          0        /* Sticky saturation overflow */
-#define USR_FPINVF_BIT       1        /* IEEE FP invalid sticky flag */
-#define USR_FPDBZF_BIT       2        /* IEEE FP divide-by-zero sticky flag */
-#define USR_FPOVFF_BIT       3        /* IEEE FP overflow sticky flag */
-#define USR_FPUNFF_BIT       4        /* IEEE FP underflow sticky flag */
-#define USR_FPINPF_BIT       5        /* IEEE FP inexact sticky flag */
-
-/* Corresponding values in USR */
-#define USR_CLEAR            0
-#define USR_OVF              (1 << USR_OVF_BIT)
-#define USR_FPINVF           (1 << USR_FPINVF_BIT)
-#define USR_FPDBZF           (1 << USR_FPDBZF_BIT)
-#define USR_FPOVFF           (1 << USR_FPOVFF_BIT)
-#define USR_FPUNFF           (1 << USR_FPUNFF_BIT)
-#define USR_FPINPF           (1 << USR_FPINPF_BIT)
-
-/* Some useful floating point values */
-const uint32_t SF_INF =              0x7f800000;
-const uint32_t SF_QNaN =             0x7fc00000;
-const uint32_t SF_SNaN =             0x7fb00000;
-const uint32_t SF_QNaN_neg =         0xffc00000;
-const uint32_t SF_SNaN_neg =         0xffb00000;
-const uint32_t SF_HEX_NaN =          0xffffffff;
-const uint32_t SF_zero =             0x00000000;
-const uint32_t SF_zero_neg =         0x80000000;
-const uint32_t SF_one =              0x3f800000;
-const uint32_t SF_one_recip =        0x3f7f0001;         /* 0.9960...  */
-const uint32_t SF_one_invsqrta =     0x3f7f0000;         /* 0.99609375 */
-const uint32_t SF_two =              0x40000000;
-const uint32_t SF_four =             0x40800000;
-const uint32_t SF_small_neg =        0xab98fba8;
-const uint32_t SF_large_pos =        0x5afa572e;
-
-const uint64_t DF_QNaN =             0x7ff8000000000000ULL;
-const uint64_t DF_SNaN =             0x7ff7000000000000ULL;
-const uint64_t DF_QNaN_neg =         0xfff8000000000000ULL;
-const uint64_t DF_SNaN_neg =         0xfff7000000000000ULL;
-const uint64_t DF_HEX_NaN =          0xffffffffffffffffULL;
-const uint64_t DF_zero =             0x0000000000000000ULL;
-const uint64_t DF_zero_neg =         0x8000000000000000ULL;
-const uint64_t DF_any =              0x3f80000000000000ULL;
-const uint64_t DF_one =              0x3ff0000000000000ULL;
-const uint64_t DF_one_hh =           0x3ff001ff80000000ULL;     /* 1.00048... */
-const uint64_t DF_small_neg =        0xbd731f7500000000ULL;
-const uint64_t DF_large_pos =        0x7f80000000000001ULL;
 
 /*
  * Templates for functions to execute an instruction
@@ -121,12 +46,6 @@ const uint64_t DF_large_pos =        0x7f80000000000001ULL;
  *     I             immediate
  *     Xx            read/write
  */
-
-/* Clear bits 0-5 in USR */
-#define CLEAR_USRBITS \
-    "r2 = usr\n\t" \
-    "r2 = and(r2, #0xffffffc0)\n\t" \
-    "usr = r2\n\t"
 
 /* Template for instructions with one register operand */
 #define FUNC_x_OP_x(RESTYPE, SRCTYPE, NAME, INSN) \
@@ -508,7 +427,7 @@ FUNC_Rp_OP_R(sfinvsqrta,        "%0, p2 = sfinvsqrta(%3)")
         uint32_t usr_result; \
         result = FUNC(src, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_R_OP_R(FUNC, SRC, RES, USR_RES) \
@@ -532,8 +451,8 @@ TEST_x_OP_x(uint64_t, check64, uint32_t, FUNC, SRC, RES, USR_RES)
         uint32_t usr_result; \
         result = FUNC(src, &pred_result, &usr_result); \
         CHECKFN(result, RES); \
-        check(pred_result, PRED_RES); \
-        check(usr_result, USR_RES); \
+        check32(pred_result, PRED_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_Rp_OP_R(FUNC, SRC, RES, PRED_RES, USR_RES) \
@@ -548,7 +467,7 @@ TEST_xp_OP_x(uint32_t, check32, uint32_t, FUNC, SRC, RES, PRED_RES, USR_RES)
         uint32_t usr_result; \
         result = FUNC(src1, src2, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_P_OP_PP(FUNC, SRC1, SRC2, RES, USR_RES) \
@@ -585,8 +504,8 @@ TEST_x_OP_xx(uint64_t, check64, uint64_t, uint32_t, \
         uint32_t usr_result; \
         result = FUNC(src1, src2, &pred_result, &usr_result); \
         CHECKFN(result, RES); \
-        check(pred_result, PRED_RES); \
-        check(usr_result, USR_RES); \
+        check32(pred_result, PRED_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_Rp_OP_RR(FUNC, SRC1, SRC2, RES, PRED_RES, USR_RES) \
@@ -602,7 +521,7 @@ TEST_xp_OP_xx(uint32_t, check32, uint32_t, uint32_t, FUNC, SRC1, SRC2, \
         uint32_t usr_result; \
         result = FUNC(src1, src2, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_R_OP_RI(FUNC, SRC1, SRC2, RES, USR_RES) \
@@ -622,7 +541,7 @@ TEST_x_OP_xI(uint32_t, check64, uint64_t, \
         uint32_t usr_result; \
         result = FUNC(result, src1, src2, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_XR_OP_RR(FUNC, RESIN, SRC1, SRC2, RES, USR_RES) \
@@ -647,7 +566,7 @@ TEST_Xx_OP_xx(uint64_t, check64, uint32_t, uint32_t, \
         uint32_t usr_result; \
         result = FUNC(result, src1, src2, &pred_res, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_XPp_OP_PP(FUNC, RESIN, SRC1, SRC2, RES, PRED_RES, USR_RES) \
@@ -664,7 +583,7 @@ TEST_Xxp_OP_xx(uint64_t, check64, uint64_t, uint64_t, FUNC, RESIN, SRC1, SRC2, \
         uint32_t usr_result; \
         result = FUNC(result, src1, src2, pred, &usr_result); \
         CHECKFN(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_XR_OP_RRp(FUNC, RESIN, SRC1, SRC2, PRED, RES, USR_RES) \
@@ -679,8 +598,8 @@ TEST_Xx_OP_xxp(uint32_t, check32, uint32_t, uint32_t, \
         SRC2TYPE src2 = SRC2; \
         uint32_t usr_result; \
         result = FUNC(src1, src2, &usr_result); \
-        check(result, RES); \
-        check(usr_result, USR_RES); \
+        check32(result, RES); \
+        check32(usr_result, USR_RES); \
     } while (0)
 
 #define TEST_CMP_RR(FUNC, SRC1, SRC2, RES, USR_RES) \

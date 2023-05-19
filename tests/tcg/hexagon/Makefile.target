@@ -91,8 +91,25 @@ HEX_TESTS += v73_scalar
 
 TESTS += $(HEX_TESTS)
 
+atomics: atomics.c hex_test.h
+brev: brev.c hex_test.h
+circ: circ.c hex_test.h
+dual_stores: dual_stores.c hex_test.h
+fpstuff: fpstuff.c hex_test.h
+hex_sigsegv: hex_sigsegv.c hex_test.h
+load_align: load_align.c hex_test.h
+load_unpack: load_unpack.c hex_test.h
+mem_noshuf_exception: mem_noshuf_exception.c hex_test.h
+mem_noshuf: mem_noshuf.c hex_test.h
+misc: misc.c hex_test.h
+multi_result: multi_result.c hex_test.h
+overflow: overflow.c hex_test.h
+preg_alias: preg_alias.c hex_test.h
+read_write_overlap: read_write_overlap.c hex_test.h
+reg_mut: reg_mut.c hex_test.h
+
 # This test has to be compiled for the -mv67t target
-usr: usr.c
+usr: usr.c hex_test.h
 	$(CC) $(CFLAGS) -mv67t -O2 -Wno-inline-asm -Wno-expansion-to-defined $< -o $@ $(LDFLAGS)
 
 # Build this test with -mv71 to exercise the CABAC instruction
