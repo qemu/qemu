@@ -1987,6 +1987,14 @@ if test "$skip_meson" = no; then
   if test "$?" -ne 0 ; then
       error_exit "meson setup failed"
   fi
+else
+  if test -f meson-private/cmd_line.txt; then
+    # Adjust old command line options that were removed
+    # sed -i is not portable
+    perl -i -ne '
+      /^sphinx_build/ && next;
+      print;' meson-private/cmd_line.txt
+  fi
 fi
 
 # Save the configure command line for later reuse.
