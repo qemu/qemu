@@ -6,6 +6,8 @@ include config-host.mak
 CFLAGS = -O2 -g
 MAKEFLAGS += -rR
 
+GIT_SUBMODULES = roms/SLOF
+
 NULL :=
 SPACE := $(NULL) #
 TARGET_PREFIX := $(patsubst %/,%:$(SPACE),$(TARGET_DIR))
@@ -80,3 +82,12 @@ clean:
 
 distclean:
 	rm -f config-cc.mak
+
+.PHONY: git-submodule-update
+$(SRC_PATH)/../../.git-submodule-status: git-submodule-update config-host.mak
+Makefile: $(SRC_PATH)/../../.git-submodule-status
+
+git-submodule-update:
+ifneq ($(GIT_SUBMODULES_ACTION),ignore)
+	$(quiet-@)GIT=git "$(SRC_PATH)/../../scripts/git-submodule.sh" $(GIT_SUBMODULES_ACTION) $(GIT_SUBMODULES)
+endif
