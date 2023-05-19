@@ -76,7 +76,6 @@ from typing import (
     Union,
 )
 import venv
-import warnings
 
 
 # Try to load distlib, with a fallback to pip's vendored version.
@@ -84,7 +83,6 @@ import warnings
 # outside the venv or before a potential call to ensurepip in checkpip().
 HAVE_DISTLIB = True
 try:
-    import distlib.database
     import distlib.scripts
     import distlib.version
 except ImportError:
@@ -92,7 +90,6 @@ except ImportError:
         # Reach into pip's cookie jar.  pylint and flake8 don't understand
         # that these imports will be used via distlib.xxx.
         from pip._vendor import distlib
-        import pip._vendor.distlib.database  # noqa, pylint: disable=unused-import
         import pip._vendor.distlib.scripts  # noqa, pylint: disable=unused-import
         import pip._vendor.distlib.version  # noqa, pylint: disable=unused-import
     except ImportError:
@@ -556,6 +553,57 @@ def pkgname_from_depspec(dep_spec: str) -> str:
     return match.group(0)
 
 
+def _get_version_importlib(package: str) -> Optional[str]:
+    # pylint: disable=import-outside-toplevel
+    # pylint: disable=no-name-in-module
+    # pylint: disable=import-error
+    try:
+        # First preference: Python 3.8+ stdlib
+        from importlib.metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        # Second preference: Commonly available PyPI backport
+        from importlib_metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+
+    try:
+        return str(distribution(package).version)
+    except PackageNotFoundError:
+        return None
+
+
+def _get_version_pkg_resources(package: str) -> Optional[str]:
+    # pylint: disable=import-outside-toplevel
+    # Bundled with setuptools; has a good chance of being available.
+    import pkg_resources
+
+    try:
+        return str(pkg_resources.get_distribution(package).version)
+    except pkg_resources.DistributionNotFound:
+        return None
+
+
+def _get_version(package: str) -> Optional[str]:
+    try:
+        return _get_version_importlib(package)
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+
+    try:
+        return _get_version_pkg_resources(package)
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        raise Ouch(
+            "Neither importlib.metadata nor pkg_resources found. "
+            "Use Python 3.8+, or install importlib-metadata or setuptools."
+        ) from exc
+
+
 def diagnose(
     dep_spec: str,
     online: bool,
@@ -581,26 +629,7 @@ def diagnose(
     bad = False
 
     pkg_name = pkgname_from_depspec(dep_spec)
-    pkg_version = None
-
-    has_importlib = False
-    try:
-        # Python 3.8+ stdlib
-        # pylint: disable=import-outside-toplevel
-        # pylint: disable=no-name-in-module
-        # pylint: disable=import-error
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            version,
-        )
-
-        has_importlib = True
-        try:
-            pkg_version = version(pkg_name)
-        except PackageNotFoundError:
-            pass
-    except ModuleNotFoundError:
-        pass
+    pkg_version = _get_version(pkg_name)
 
     lines = []
 
@@ -609,14 +638,9 @@ def diagnose(
             f"Python package '{pkg_name}' version '{pkg_version}' was found,"
             " but isn't suitable."
         )
-    elif has_importlib:
-        lines.append(
-            f"Python package '{pkg_name}' was not found nor installed."
-        )
     else:
         lines.append(
-            f"Python package '{pkg_name}' is either not found or"
-            " not a suitable version."
+            f"Python package '{pkg_name}' was not found nor installed."
         )
 
     if wheels_dir:
@@ -711,21 +735,18 @@ def _do_ensure(
     :param online: If True, fall back to PyPI.
     :param wheels_dir: If specified, search this path for packages.
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=UserWarning, module="distlib"
-        )
-        dist_path = distlib.database.DistributionPath(include_egg=True)
-        absent = []
-        present = []
-        for spec in dep_specs:
-            matcher = distlib.version.LegacyMatcher(spec)
-            dist = dist_path.get_distribution(matcher.name)
-            if dist is None or not matcher.match(dist.version):
-                absent.append(spec)
-            else:
-                logger.info("found %s", dist)
-                present.append(matcher.name)
+    absent = []
+    present = []
+    for spec in dep_specs:
+        matcher = distlib.version.LegacyMatcher(spec)
+        ver = _get_version(matcher.name)
+        if ver is None or not matcher.match(
+            distlib.version.LegacyVersion(ver)
+        ):
+            absent.append(spec)
+        else:
+            logger.info("found %s %s", matcher.name, ver)
+            present.append(matcher.name)
 
     if present:
         generate_console_scripts(present)
@@ -842,10 +863,6 @@ def main() -> int:
     else:
         if os.environ.get("V"):
             logging.basicConfig(level=logging.INFO)
-
-        # These are incredibly noisy even for V=1
-        logging.getLogger("distlib.metadata").addFilter(lambda record: False)
-        logging.getLogger("distlib.database").addFilter(lambda record: False)
 
     parser = argparse.ArgumentParser(
         prog="mkvenv",
