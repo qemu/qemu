@@ -31,7 +31,6 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
-#include "migration/blocker.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -1064,38 +1063,4 @@ bool kvm_arch_cpu_check_are_resettable(void)
 
 void kvm_arch_accel_class_init(ObjectClass *oc)
 {
-}
-
-void kvm_arm_enable_mte(Object *cpuobj, Error **errp)
-{
-    static bool tried_to_enable;
-    static bool succeeded_to_enable;
-    Error *mte_migration_blocker = NULL;
-    int ret;
-
-    if (!tried_to_enable) {
-        /*
-         * MTE on KVM is enabled on a per-VM basis (and retrying doesn't make
-         * sense), and we only want a single migration blocker as well.
-         */
-        tried_to_enable = true;
-
-        ret = kvm_vm_enable_cap(kvm_state, KVM_CAP_ARM_MTE, 0);
-        if (ret) {
-            error_setg_errno(errp, -ret, "Failed to enable KVM_CAP_ARM_MTE");
-            return;
-        }
-
-        /* TODO: add proper migration support with MTE enabled */
-        error_setg(&mte_migration_blocker,
-                   "Live migration disabled due to MTE enabled");
-        if (migrate_add_blocker(mte_migration_blocker, errp)) {
-            error_free(mte_migration_blocker);
-            return;
-        }
-        succeeded_to_enable = true;
-    }
-    if (succeeded_to_enable) {
-        object_property_set_bool(cpuobj, "has_mte", true, NULL);
-    }
 }
