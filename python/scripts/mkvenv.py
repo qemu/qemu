@@ -722,7 +722,8 @@ def _do_ensure(
     dep_specs: Sequence[str],
     online: bool = False,
     wheels_dir: Optional[Union[str, Path]] = None,
-) -> None:
+    prog: Optional[str] = None,
+) -> Optional[Tuple[str, bool]]:
     """
     Use pip to ensure we have the package specified by @dep_specs.
 
@@ -752,10 +753,24 @@ def _do_ensure(
         generate_console_scripts(present)
 
     if absent:
-        # Some packages are missing or aren't a suitable version,
-        # install a suitable (possibly vendored) package.
-        print(f"mkvenv: installing {', '.join(absent)}", file=sys.stderr)
-        pip_install(args=absent, online=online, wheels_dir=wheels_dir)
+        if online or wheels_dir:
+            # Some packages are missing or aren't a suitable version,
+            # install a suitable (possibly vendored) package.
+            print(f"mkvenv: installing {', '.join(absent)}", file=sys.stderr)
+            try:
+                pip_install(args=absent, online=online, wheels_dir=wheels_dir)
+                return None
+            except subprocess.CalledProcessError:
+                pass
+
+        return diagnose(
+            absent[0],
+            online,
+            wheels_dir,
+            prog if absent[0] == dep_specs[0] else None,
+        )
+
+    return None
 
 
 def ensure(
@@ -785,14 +800,12 @@ def ensure(
     if not HAVE_DISTLIB:
         raise Ouch("a usable distlib could not be found, please install it")
 
-    try:
-        _do_ensure(dep_specs, online, wheels_dir)
-    except subprocess.CalledProcessError as exc:
+    result = _do_ensure(dep_specs, online, wheels_dir, prog)
+    if result:
         # Well, that's not good.
-        msg, bad = diagnose(dep_specs[0], online, wheels_dir, prog)
-        if bad:
-            raise Ouch(msg) from exc
-        raise SystemExit(f"\n{msg}\n\n") from exc
+        if result[1]:
+            raise Ouch(result[0])
+        raise SystemExit(f"\n{result[0]}\n\n")
 
 
 def post_venv_setup() -> None:
