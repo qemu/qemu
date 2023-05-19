@@ -3976,7 +3976,6 @@ endif
 summary_info = {}
 summary_info += {'Build directory':   meson.current_build_dir()}
 summary_info += {'Source path':       meson.current_source_dir()}
-summary_info += {'GIT submodules':    config_host['GIT_SUBMODULES']}
 summary_info += {'Download dependencies': get_option('wrap_mode') != 'nodownload'}
 summary(summary_info, bool_yn: true, section: 'Build environment')
 
