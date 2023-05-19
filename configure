@@ -1269,7 +1269,7 @@ fi
 : ${cross_cc_armeb="$cross_cc_arm"}
 : ${cross_cc_cflags_armeb="-mbig-endian"}
 : ${cross_cc_hexagon="hexagon-unknown-linux-musl-clang"}
-: ${cross_cc_cflags_hexagon="-mv67 -O2 -static"}
+: ${cross_cc_cflags_hexagon="-mv73 -O2 -static"}
 : ${cross_cc_cflags_i386="-m32"}
 : ${cross_cc_cflags_ppc="-m32 -mbig-endian"}
 : ${cross_cc_cflags_ppc64="-m64 -mbig-endian"}

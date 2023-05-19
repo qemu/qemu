@@ -52,38 +52,6 @@ G_NORETURN void HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
-void log_reg_write(CPUHexagonState *env, int rnum,
-                   target_ulong val)
-{
-    HEX_DEBUG_LOG("log_reg_write[%d] = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")",
-                  rnum, val, val);
-    if (val == env->gpr[rnum]) {
-        HEX_DEBUG_LOG(" NO CHANGE");
-    }
-    HEX_DEBUG_LOG("\n");
-
-    env->new_value[rnum] = val;
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        env->reg_written[rnum] = 1;
-    }
-}
-
-static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
-{
-    HEX_DEBUG_LOG("log_pred_write[%d] = " TARGET_FMT_ld
-                  " (0x" TARGET_FMT_lx ")\n",
-                  pnum, val, val);
-
-    /* Multiple writes to the same preg are and'ed together */
-    if (env->pred_written & (1 << pnum)) {
-        env->new_pred_value[pnum] &= val & 0xff;
-    } else {
-        env->new_pred_value[pnum] = val & 0xff;
-        env->pred_written |= 1 << pnum;
-    }
-}
-
 void log_store32(CPUHexagonState *env, target_ulong addr,
                  target_ulong val, int width, int slot)
 {
@@ -235,14 +203,14 @@ static void print_store(CPUHexagonState *env, int slot)
 }
 
 /* This function is a handy place to set a breakpoint */
-void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
+void HELPER(debug_commit_end)(CPUHexagonState *env, uint32_t this_PC,
+                              int pred_written, int has_st0, int has_st1)
 {
     bool reg_printed = false;
     bool pred_printed = false;
     int i;
 
-    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n",
-                  env->this_PC);
+    HEX_DEBUG_LOG("Packet committed: pc = 0x" TARGET_FMT_lx "\n", this_PC);
     HEX_DEBUG_LOG("slot_cancelled = %d\n", env->slot_cancelled);
 
     for (i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
@@ -252,18 +220,18 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
                 reg_printed = true;
             }
             HEX_DEBUG_LOG("\tr%d = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")\n",
-                          i, env->new_value[i], env->new_value[i]);
+                          i, env->gpr[i], env->gpr[i]);
         }
     }
 
     for (i = 0; i < NUM_PREGS; i++) {
-        if (env->pred_written & (1 << i)) {
+        if (pred_written & (1 << i)) {
             if (!pred_printed) {
                 HEX_DEBUG_LOG("Predicates written\n");
                 pred_printed = true;
             }
             HEX_DEBUG_LOG("\tp%d = 0x" TARGET_FMT_lx "\n",
-                          i, env->new_pred_value[i]);
+                          i, env->pred[i]);
         }
     }
 
@@ -384,7 +352,8 @@ uint64_t HELPER(sfinvsqrta)(CPUHexagonState *env, float32 RsV)
 }
 
 int64_t HELPER(vacsh_val)(CPUHexagonState *env,
-                           int64_t RxxV, int64_t RssV, int64_t RttV)
+                           int64_t RxxV, int64_t RssV, int64_t RttV,
+                           uint32_t pkt_need_commit)
 {
     for (int i = 0; i < 4; i++) {
         int xv = sextract64(RxxV, i * 16, 16);
@@ -414,6 +383,87 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
         PeV = deposit32(PeV, i * 2 + 1, 1, (xv > sv));
     }
     return PeV;
+}
+
+int64_t HELPER(cabacdecbin_val)(int64_t RssV, int64_t RttV)
+{
+    int64_t RddV = 0;
+    size4u_t state;
+    size4u_t valMPS;
+    size4u_t bitpos;
+    size4u_t range;
+    size4u_t offset;
+    size4u_t rLPS;
+    size4u_t rMPS;
+
+    state =  fEXTRACTU_RANGE(fGETWORD(1, RttV), 5, 0);
+    valMPS = fEXTRACTU_RANGE(fGETWORD(1, RttV), 8, 8);
+    bitpos = fEXTRACTU_RANGE(fGETWORD(0, RttV), 4, 0);
+    range =  fGETWORD(0, RssV);
+    offset = fGETWORD(1, RssV);
+
+    /* calculate rLPS */
+    range <<= bitpos;
+    offset <<= bitpos;
+    rLPS = rLPS_table_64x4[state][(range >> 29) & 3];
+    rLPS  = rLPS << 23;   /* left aligned */
+
+    /* calculate rMPS */
+    rMPS = (range & 0xff800000) - rLPS;
+
+    /* most probable region */
+    if (offset < rMPS) {
+        RddV = AC_next_state_MPS_64[state];
+        fINSERT_RANGE(RddV, 8, 8, valMPS);
+        fINSERT_RANGE(RddV, 31, 23, (rMPS >> 23));
+        fSETWORD(1, RddV, offset);
+    }
+    /* least probable region */
+    else {
+        RddV = AC_next_state_LPS_64[state];
+        fINSERT_RANGE(RddV, 8, 8, ((!state) ? (1 - valMPS) : (valMPS)));
+        fINSERT_RANGE(RddV, 31, 23, (rLPS >> 23));
+        fSETWORD(1, RddV, (offset - rMPS));
+    }
+    return RddV;
+}
+
+int32_t HELPER(cabacdecbin_pred)(int64_t RssV, int64_t RttV)
+{
+    int32_t p0 = 0;
+    size4u_t state;
+    size4u_t valMPS;
+    size4u_t bitpos;
+    size4u_t range;
+    size4u_t offset;
+    size4u_t rLPS;
+    size4u_t rMPS;
+
+    state =  fEXTRACTU_RANGE(fGETWORD(1, RttV), 5, 0);
+    valMPS = fEXTRACTU_RANGE(fGETWORD(1, RttV), 8, 8);
+    bitpos = fEXTRACTU_RANGE(fGETWORD(0, RttV), 4, 0);
+    range =  fGETWORD(0, RssV);
+    offset = fGETWORD(1, RssV);
+
+    /* calculate rLPS */
+    range <<= bitpos;
+    offset <<= bitpos;
+    rLPS = rLPS_table_64x4[state][(range >> 29) & 3];
+    rLPS  = rLPS << 23;   /* left aligned */
+
+    /* calculate rMPS */
+    rMPS = (range & 0xff800000) - rLPS;
+
+    /* most probable region */
+    if (offset < rMPS) {
+        p0 = valMPS;
+
+    }
+    /* least probable region */
+    else {
+        p0 = valMPS ^ 1;
+    }
+    return p0;
 }
 
 static void probe_store(CPUHexagonState *env, int slot, int mmu_idx,
@@ -516,41 +566,45 @@ void HELPER(probe_pkt_scalar_hvx_stores)(CPUHexagonState *env, int mask)
  * If the load is in slot 0 and there is a store in slot1 (that
  * wasn't cancelled), we have to do the store first.
  */
-static void check_noshuf(CPUHexagonState *env, uint32_t slot,
-                         target_ulong vaddr, int size)
+static void check_noshuf(CPUHexagonState *env, bool pkt_has_store_s1,
+                         uint32_t slot, target_ulong vaddr, int size)
 {
-    if (slot == 0 && env->pkt_has_store_s1 &&
+    if (slot == 0 && pkt_has_store_s1 &&
         ((env->slot_cancelled & (1 << 1)) == 0)) {
         HELPER(probe_noshuf_load)(env, vaddr, size, MMU_USER_IDX);
         HELPER(commit_store)(env, 1);
     }
 }
 
-uint8_t mem_load1(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
+uint8_t mem_load1(CPUHexagonState *env, bool pkt_has_store_s1,
+                  uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 1);
+    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 1);
     return cpu_ldub_data_ra(env, vaddr, ra);
 }
 
-uint16_t mem_load2(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
+uint16_t mem_load2(CPUHexagonState *env, bool pkt_has_store_s1,
+                   uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 2);
+    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 2);
     return cpu_lduw_data_ra(env, vaddr, ra);
 }
 
-uint32_t mem_load4(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
+uint32_t mem_load4(CPUHexagonState *env, bool pkt_has_store_s1,
+                   uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 4);
+    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 4);
     return cpu_ldl_data_ra(env, vaddr, ra);
 }
 
-uint64_t mem_load8(CPUHexagonState *env, uint32_t slot, target_ulong vaddr)
+uint64_t mem_load8(CPUHexagonState *env, bool pkt_has_store_s1,
+                   uint32_t slot, target_ulong vaddr)
 {
     uintptr_t ra = GETPC();
-    check_noshuf(env, slot, vaddr, 8);
+    check_noshuf(env, pkt_has_store_s1, slot, vaddr, 8);
     return cpu_ldq_data_ra(env, vaddr, ra);
 }
 

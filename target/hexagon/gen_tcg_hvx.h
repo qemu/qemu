@@ -128,6 +128,41 @@ static inline void assert_vhist_tmp(DisasContext *ctx)
     tcg_gen_gvec_mov(MO_64, VdV_off, VuV_off, \
                      sizeof(MMVector), sizeof(MMVector))
 
+#define fGEN_TCG_V6_vassign_tmp(SHORTCODE) \
+    tcg_gen_gvec_mov(MO_64, VdV_off, VuV_off, \
+                     sizeof(MMVector), sizeof(MMVector))
+
+#define fGEN_TCG_V6_vcombine_tmp(SHORTCODE) \
+    do { \
+        tcg_gen_gvec_mov(MO_64, VddV_off, VvV_off, \
+                         sizeof(MMVector), sizeof(MMVector)); \
+        tcg_gen_gvec_mov(MO_64, VddV_off + sizeof(MMVector), VuV_off, \
+                         sizeof(MMVector), sizeof(MMVector)); \
+    } while (0)
+
+/*
+ * Vector combine
+ *
+ * Be careful that the source and dest don't overlap
+ */
+#define fGEN_TCG_V6_vcombine(SHORTCODE) \
+    do { \
+        if (VddV_off != VuV_off) { \
+            tcg_gen_gvec_mov(MO_64, VddV_off, VvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+            tcg_gen_gvec_mov(MO_64, VddV_off + sizeof(MMVector), VuV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            intptr_t tmpoff = offsetof(CPUHexagonState, vtmp); \
+            tcg_gen_gvec_mov(MO_64, tmpoff, VuV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+            tcg_gen_gvec_mov(MO_64, VddV_off, VvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+            tcg_gen_gvec_mov(MO_64, VddV_off + sizeof(MMVector), tmpoff, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } \
+    } while (0)
+
 /* Vector conditional move */
 #define fGEN_TCG_VEC_CMOV(PRED) \
     do { \

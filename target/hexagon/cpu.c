@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,9 +24,32 @@
 #include "hw/qdev-properties.h"
 #include "fpu/softfloat-helpers.h"
 #include "tcg/tcg.h"
+#include "exec/gdbstub.h"
 
-static void hexagon_v67_cpu_init(Object *obj)
+static void hexagon_v67_cpu_init(Object *obj) { }
+static void hexagon_v68_cpu_init(Object *obj) { }
+static void hexagon_v69_cpu_init(Object *obj) { }
+static void hexagon_v71_cpu_init(Object *obj) { }
+static void hexagon_v73_cpu_init(Object *obj) { }
+
+static void hexagon_cpu_list_entry(gpointer data, gpointer user_data)
 {
+    ObjectClass *oc = data;
+    char *name = g_strdup(object_class_get_name(oc));
+    if (g_str_has_suffix(name, HEXAGON_CPU_TYPE_SUFFIX)) {
+        name[strlen(name) - strlen(HEXAGON_CPU_TYPE_SUFFIX)] = '\0';
+    }
+    qemu_printf("  %s\n", name);
+    g_free(name);
+}
+
+void hexagon_cpu_list(void)
+{
+    GSList *list;
+    list = object_class_get_list_sorted(TYPE_HEXAGON_CPU, false);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, hexagon_cpu_list_entry, NULL);
+    g_slist_free(list);
 }
 
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
@@ -52,6 +75,8 @@ static Property hexagon_lldb_compat_property =
 static Property hexagon_lldb_stack_adjust_property =
     DEFINE_PROP_UNSIGNED("lldb-stack-adjust", HexagonCPU, lldb_stack_adjust,
                          0, qdev_prop_uint32, target_ulong);
+static Property hexagon_short_circuit_property =
+    DEFINE_PROP_BOOL("short-circuit", HexagonCPU, short_circuit, true);
 
 const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS] = {
    "r0", "r1",  "r2",  "r3",  "r4",   "r5",  "r6",  "r7",
@@ -315,6 +340,11 @@ static void hexagon_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    gdb_register_coprocessor(cs, hexagon_hvx_gdb_read_register,
+                             hexagon_hvx_gdb_write_register,
+                             NUM_VREGS + NUM_QREGS,
+                             "hexagon-hvx.xml", 0);
+
     qemu_init_vcpu(cs);
     cpu_reset(cs);
 
@@ -328,6 +358,7 @@ static void hexagon_cpu_init(Object *obj)
     cpu_set_cpustate_pointers(cpu);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_compat_property);
     qdev_property_add_static(DEVICE(obj), &hexagon_lldb_stack_adjust_property);
+    qdev_property_add_static(DEVICE(obj), &hexagon_short_circuit_property);
 }
 
 #include "hw/core/tcg-cpu-ops.h"
@@ -358,8 +389,9 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->get_pc = hexagon_cpu_get_pc;
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
-    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS + NUM_VREGS + NUM_QREGS;
+    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS;
     cc->gdb_stop_before_watchpoint = true;
+    cc->gdb_core_xml_file = "hexagon-core.xml";
     cc->disas_set_info = hexagon_cpu_disas_set_info;
     cc->tcg_ops = &hexagon_tcg_ops;
 }
@@ -382,6 +414,10 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .class_init = hexagon_cpu_class_init,
     },
     DEFINE_CPU(TYPE_HEXAGON_CPU_V67,              hexagon_v67_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V68,              hexagon_v68_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V69,              hexagon_v69_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V71,              hexagon_v71_cpu_init),
+    DEFINE_CPU(TYPE_HEXAGON_CPU_V73,              hexagon_v73_cpu_init),
 };
 
 DEFINE_TYPES(hexagon_cpu_type_infos)

@@ -30,6 +30,9 @@ tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
 
+def bad_register(*args):
+    args_str = ", ".join(map(str, args))
+    raise Exception(f"Bad register parse: {args_str}")
 
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
@@ -97,6 +100,12 @@ def calculate_attribs():
     add_qemu_macro_attrib("fSET_LPCFG", "A_IMPLICIT_WRITES_USR")
     add_qemu_macro_attrib("fLOAD", "A_SCALAR_LOAD")
     add_qemu_macro_attrib("fSTORE", "A_SCALAR_STORE")
+    add_qemu_macro_attrib('fLSBNEW0', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fLSBNEW0NOT', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fREAD_P0', 'A_IMPLICIT_READS_P0')
+    add_qemu_macro_attrib('fLSBNEW1', 'A_IMPLICIT_READS_P1')
+    add_qemu_macro_attrib('fLSBNEW1NOT', 'A_IMPLICIT_READS_P1')
+    add_qemu_macro_attrib('fREAD_P3', 'A_IMPLICIT_READS_P3')
 
     # Recurse down macros, find attributes from sub-macros
     macroValues = list(macros.values())
@@ -241,9 +250,10 @@ def is_new_val(regtype, regid, tag):
 
 def need_slot(tag):
     if (
-        ("A_CONDEXEC" in attribdict[tag] and "A_JUMP" not in attribdict[tag])
-        or "A_STORE" in attribdict[tag]
-        or "A_LOAD" in attribdict[tag]
+        "A_CVI_SCATTER" not in attribdict[tag]
+        and "A_CVI_GATHER" not in attribdict[tag]
+        and ("A_STORE" in attribdict[tag]
+             or "A_LOAD" in attribdict[tag])
     ):
         return 1
     else:
@@ -269,6 +279,9 @@ def helper_needs_next_PC(tag):
 def need_pkt_has_multi_cof(tag):
     return "A_COF" in attribdict[tag]
 
+
+def need_pkt_need_commit(tag):
+    return 'A_IMPLICIT_WRITES_USR' in attribdict[tag]
 
 def need_condexec_reg(tag, regs):
     if "A_CONDEXEC" in attribdict[tag]:

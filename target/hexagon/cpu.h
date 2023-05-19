@@ -43,6 +43,13 @@
 #define CPU_RESOLVING_TYPE TYPE_HEXAGON_CPU
 
 #define TYPE_HEXAGON_CPU_V67 HEXAGON_CPU_TYPE_NAME("v67")
+#define TYPE_HEXAGON_CPU_V68 HEXAGON_CPU_TYPE_NAME("v68")
+#define TYPE_HEXAGON_CPU_V69 HEXAGON_CPU_TYPE_NAME("v69")
+#define TYPE_HEXAGON_CPU_V71 HEXAGON_CPU_TYPE_NAME("v71")
+#define TYPE_HEXAGON_CPU_V73 HEXAGON_CPU_TYPE_NAME("v73")
+
+void hexagon_cpu_list(void);
+#define cpu_list hexagon_cpu_list
 
 #define MMU_USER_IDX 0
 
@@ -78,28 +85,21 @@ typedef struct {
 typedef struct CPUArchState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
     target_ulong pred[NUM_PREGS];
-    target_ulong branch_taken;
 
     /* For comparing with LLDB on target - see adjust_stack_ptrs function */
     target_ulong last_pc_dumped;
     target_ulong stack_start;
 
     uint8_t slot_cancelled;
-    target_ulong new_value[TOTAL_PER_THREAD_REGS];
+    target_ulong new_value_usr;
 
     /*
      * Only used when HEX_DEBUG is on, but unconditionally included
      * to reduce recompile time when turning HEX_DEBUG on/off.
      */
-    target_ulong this_PC;
     target_ulong reg_written[TOTAL_PER_THREAD_REGS];
 
-    target_ulong new_pred_value[NUM_PREGS];
-    target_ulong pred_written;
-
     MemLog mem_log_stores[STORES_MAX];
-    target_ulong pkt_has_store_s1;
-    target_ulong dczero_addr;
 
     float_status fp_status;
 
@@ -146,6 +146,7 @@ struct ArchCPU {
 
     bool lldb_compat;
     target_ulong lldb_stack_adjust;
+    bool short_circuit;
 };
 
 #include "cpu_bits.h"

@@ -594,8 +594,6 @@ rvalue : FAIL
        | CAST rvalue
          {
              @1.last_column = @2.last_column;
-             /* Assign target signedness */
-             $2.signedness = $1.signedness;
              $$ = gen_cast_op(c, &@1, &$2, $1.bit_width, $1.signedness);
          }
        | rvalue EQ rvalue
@@ -685,7 +683,7 @@ rvalue : FAIL
              yyassert(c, &@1, $5.type == IMMEDIATE &&
                       $5.imm.type == VALUE,
                       "SXT expects immediate values\n");
-             $$ = gen_extend_op(c, &@1, &$3, $5.imm.value, &$7, SIGNED);
+             $$ = gen_extend_op(c, &@1, &$3, 64, &$7, SIGNED);
          }
        | ZXT '(' rvalue ',' IMM ',' rvalue ')'
          {
@@ -693,7 +691,7 @@ rvalue : FAIL
              yyassert(c, &@1, $5.type == IMMEDIATE &&
                       $5.imm.type == VALUE,
                       "ZXT expects immediate values\n");
-             $$ = gen_extend_op(c, &@1, &$3, $5.imm.value, &$7, UNSIGNED);
+             $$ = gen_extend_op(c, &@1, &$3, 64, &$7, UNSIGNED);
          }
        | '(' rvalue ')'
          {

@@ -401,12 +401,39 @@ STRING_LIT               \"(\\.|[^"\\])*\"
                            }
                            return SIGN;
                          }
-"0x"{HEX_DIGIT}+         |
-{DIGIT}+                 { yylval->rvalue.type = IMMEDIATE;
-                           yylval->rvalue.bit_width = 32;
-                           yylval->rvalue.signedness = SIGNED;
+"0x"{HEX_DIGIT}+         { uint64_t value = strtoull(yytext, NULL, 0);
+                           yylval->rvalue.type = IMMEDIATE;
                            yylval->rvalue.imm.type = VALUE;
-                           yylval->rvalue.imm.value = strtoull(yytext, NULL, 0);
+                           yylval->rvalue.imm.value = value;
+                           if (value <= INT_MAX) {
+                               yylval->rvalue.bit_width = sizeof(int) * 8;
+                               yylval->rvalue.signedness = SIGNED;
+                           } else if (value <= UINT_MAX) {
+                               yylval->rvalue.bit_width = sizeof(unsigned int) * 8;
+                               yylval->rvalue.signedness = UNSIGNED;
+                           } else if (value <= LONG_MAX) {
+                               yylval->rvalue.bit_width = sizeof(long) * 8;
+                               yylval->rvalue.signedness = SIGNED;
+                           } else if (value <= ULONG_MAX) {
+                               yylval->rvalue.bit_width = sizeof(unsigned long) * 8;
+                               yylval->rvalue.signedness = UNSIGNED;
+                           } else {
+                               g_assert_not_reached();
+                           }
+                           return IMM; }
+{DIGIT}+                 { int64_t value = strtoll(yytext, NULL, 0);
+                           yylval->rvalue.type = IMMEDIATE;
+                           yylval->rvalue.imm.type = VALUE;
+                           yylval->rvalue.imm.value = value;
+                           if (value >= INT_MIN && value <= INT_MAX) {
+                               yylval->rvalue.bit_width = sizeof(int) * 8;
+                               yylval->rvalue.signedness = SIGNED;
+                           } else if (value >= LONG_MIN && value <= LONG_MAX) {
+                               yylval->rvalue.bit_width = sizeof(long) * 8;
+                               yylval->rvalue.signedness = SIGNED;
+                           } else {
+                              g_assert_not_reached();
+                           }
                            return IMM; }
 "0x"{HEX_DIGIT}+"ULL"    |
 {DIGIT}+"ULL"            { yylval->rvalue.type = IMMEDIATE;

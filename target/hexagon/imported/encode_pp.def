@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -382,14 +382,23 @@ DEF_ENC32(L4_return_fnew_pt,  ICLASS_LD" 011 0 000 sssss PP1110vv ---ddddd")
 DEF_ENC32(L4_return_tnew_pnt, ICLASS_LD" 011 0 000 sssss PP0010vv ---ddddd")
 DEF_ENC32(L4_return_fnew_pnt, ICLASS_LD" 011 0 000 sssss PP1010vv ---ddddd")
 
-DEF_ENC32(L2_loadw_locked,ICLASS_LD" 001 0 000 sssss PP00---- -00ddddd")
+DEF_ENC32(L2_loadw_locked,ICLASS_LD" 001 0 000 sssss PP000--- 000ddddd")
 
 
 
+DEF_ENC32(L2_loadw_aq,        ICLASS_LD" 001 0 000 sssss PP001--- 000ddddd")
+DEF_ENC32(L4_loadd_aq,        ICLASS_LD" 001 0 000 sssss PP011--- 000ddddd")
 
+DEF_ENC32(R6_release_at_vi,    ICLASS_ST" 000 01 11sssss PP0ttttt --0011dd")
+DEF_ENC32(R6_release_st_vi,   ICLASS_ST" 000 01 11sssss PP0ttttt --1011dd")
 
+DEF_ENC32(S2_storew_rl_at_vi,  ICLASS_ST" 000 01 01sssss PP-ttttt --0010dd")
+DEF_ENC32(S2_storew_rl_st_vi, ICLASS_ST" 000 01 01sssss PP-ttttt --1010dd")
 
-DEF_ENC32(L4_loadd_locked,ICLASS_LD" 001 0 000 sssss PP01---- -00ddddd")
+DEF_ENC32(S4_stored_rl_at_vi,  ICLASS_ST" 000 01 11sssss PP0ttttt --0010dd")
+DEF_ENC32(S4_stored_rl_st_vi, ICLASS_ST" 000 01 11sssss PP0ttttt --1010dd")
+
+DEF_ENC32(L4_loadd_locked,ICLASS_LD" 001 0 000 sssss PP010--- 000ddddd")
 DEF_EXT_SPACE(EXTRACTW,   ICLASS_LD" 001 0 000 iiiii PP0iiiii -01iiiii")
 DEF_ENC32(Y2_dcfetchbo,   ICLASS_LD" 010 0 000 sssss PP0--iii iiiiiiii")
 
@@ -479,8 +488,8 @@ STD_PST_ENC(rinew, "1 101","10ttt")
 /*                               x bus/cache     */
 /*                                    x store/cache     */
 DEF_ENC32(S2_allocframe,   ICLASS_ST" 000 01 00xxxxx PP000iii iiiiiiii")
-DEF_ENC32(S2_storew_locked,ICLASS_ST" 000 01 01sssss PP-ttttt ------dd")
-DEF_ENC32(S4_stored_locked,ICLASS_ST" 000 01 11sssss PP0ttttt ------dd")
+DEF_ENC32(S2_storew_locked,ICLASS_ST" 000 01 01sssss PP-ttttt ----00dd")
+DEF_ENC32(S4_stored_locked,ICLASS_ST" 000 01 11sssss PP0ttttt ----00dd")
 DEF_ENC32(Y2_dczeroa,      ICLASS_ST" 000 01 10sssss PP0----- --------")
 
 
@@ -515,6 +524,7 @@ DEF_FIELD32(ICLASS_J" 110- -------- PP-!---- --------",J_PT,"Predict-taken")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0000 -------- PP------ --------","[#0] PC=(Rs), R31=return")
 DEF_ENC32(J2_callr,     ICLASS_J" 0000  101sssss  PP------  --------")
+DEF_ENC32(J2_callrh,    ICLASS_J" 0000  110sssss  PP------  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0001 -------- PP------ --------","[#1] if (Pu) PC=(Rs), R31=return")
 DEF_ENC32(J2_callrt,    ICLASS_J" 0001  000sssss  PP----uu  --------")
@@ -522,6 +532,7 @@ DEF_ENC32(J2_callrf,    ICLASS_J" 0001  001sssss  PP----uu  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0010 -------- PP------ --------","[#2] PC=(Rs); ")
 DEF_ENC32(J2_jumpr,      ICLASS_J" 0010  100sssss  PP------  --------")
+DEF_ENC32(J2_jumprh,     ICLASS_J" 0010  110sssss  PP------  --------")
 DEF_ENC32(J4_hintjumpr,  ICLASS_J" 0010  101sssss  PP------  --------")
 
 DEF_FIELDROW_DESC32(ICLASS_J" 0011 -------- PP------ --------","[#3] if (Pu) PC=(Rs) ")

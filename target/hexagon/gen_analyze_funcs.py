@@ -35,47 +35,55 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
     predicated = "true" if is_predicated(tag) else "false"
     if regtype == "R":
         if regid in {"ss", "tt"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_reg_read_pair(ctx, {regN});\n")
         elif regid in {"dd", "ee", "xx", "yy"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
             f.write(f"    ctx_log_reg_write_pair(ctx, {regN}, {predicated});\n")
         elif regid in {"s", "t", "u", "v"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_reg_read(ctx, {regN});\n")
         elif regid in {"d", "e", "x", "y"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
             f.write(f"    ctx_log_reg_write(ctx, {regN}, {predicated});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid in {"s", "t", "u", "v"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_pred_read(ctx, {regN});\n")
         elif regid in {"d", "e", "x"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
             f.write(f"    ctx_log_pred_write(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "C":
         if regid == "ss":
             f.write(
-                f"//    const int {regN} = insn->regno[{regno}] " "+ HEX_REG_SA0;\n"
+                f"    const int {regN} = insn->regno[{regno}] "
+                "+ HEX_REG_SA0;\n"
             )
+            f.write(f"    ctx_log_reg_read_pair(ctx, {regN});\n")
         elif regid == "dd":
             f.write(f"    const int {regN} = insn->regno[{regno}] " "+ HEX_REG_SA0;\n")
             f.write(f"    ctx_log_reg_write_pair(ctx, {regN}, {predicated});\n")
         elif regid == "s":
             f.write(
-                f"//    const int {regN} = insn->regno[{regno}] " "+ HEX_REG_SA0;\n"
+                f"    const int {regN} = insn->regno[{regno}] "
+                "+ HEX_REG_SA0;\n"
             )
+            f.write(f"    ctx_log_reg_read(ctx, {regN});\n")
         elif regid == "d":
             f.write(f"    const int {regN} = insn->regno[{regno}] " "+ HEX_REG_SA0;\n")
             f.write(f"    ctx_log_reg_write(ctx, {regN}, {predicated});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "M":
         if regid == "u":
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_reg_read(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "V":
         newv = "EXT_DFL"
         if hex_common.is_new_result(tag):
@@ -88,22 +96,25 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
                 f"    ctx_log_vreg_write_pair(ctx, {regN}, {newv}, " f"{predicated});\n"
             )
         elif regid in {"uu", "vv"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_vreg_read_pair(ctx, {regN});\n")
         elif regid in {"s", "u", "v", "w"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_vreg_read(ctx, {regN});\n")
         elif regid in {"d", "x", "y"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
             f.write(f"    ctx_log_vreg_write(ctx, {regN}, {newv}, " f"{predicated});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "Q":
         if regid in {"d", "e", "x"}:
             f.write(f"    const int {regN} = insn->regno[{regno}];\n")
             f.write(f"    ctx_log_qreg_write(ctx, {regN});\n")
         elif regid in {"s", "t", "u", "v"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_qreg_read(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "G":
         if regid in {"dd"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
@@ -114,7 +125,7 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
         elif regid in {"s"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "S":
         if regid in {"dd"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
@@ -125,30 +136,33 @@ def analyze_opn_old(f, tag, regtype, regid, regno):
         elif regid in {"s"}:
             f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def analyze_opn_new(f, tag, regtype, regid, regno):
     regN = f"{regtype}{regid}N"
     if regtype == "N":
         if regid in {"s", "t"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_reg_read(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "P":
         if regid in {"t", "u", "v"}:
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_pred_read(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     elif regtype == "O":
         if regid == "s":
-            f.write(f"//    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    const int {regN} = insn->regno[{regno}];\n")
+            f.write(f"    ctx_log_vreg_read(ctx, {regN});\n")
         else:
-            print("Bad register parse: ", regtype, regid)
+            hex_common.bad_register(regtype, regid)
     else:
-        print("Bad register parse: ", regtype, regid)
+        hex_common.bad_register(regtype, regid)
 
 
 def analyze_opn(f, tag, regtype, regid, toss, numregs, i):
@@ -160,9 +174,9 @@ def analyze_opn(f, tag, regtype, regid, toss, numregs, i):
         elif hex_common.is_new_val(regtype, regid, tag):
             analyze_opn_new(f, tag, regtype, regid, i)
         else:
-            print("Bad register parse: ", regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid, toss, numregs)
     else:
-        print("Bad register parse: ", regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid, toss, numregs)
 
 
 ##
@@ -174,8 +188,10 @@ def analyze_opn(f, tag, regtype, regid, toss, numregs, i):
 ##         Insn *insn G_GNUC_UNUSED = ctx->insn;
 ##         const int RdN = insn->regno[0];
 ##         ctx_log_reg_write(ctx, RdN, false);
-##     //    const int RsN = insn->regno[1];
-##     //    const int RtN = insn->regno[2];
+##         const int RsN = insn->regno[1];
+##         ctx_log_reg_read(ctx, RsN);
+##         const int RtN = insn->regno[2];
+##         ctx_log_reg_read(ctx, RtN);
 ##     }
 ##
 def gen_analyze_func(f, tag, regs, imms):
@@ -193,8 +209,11 @@ def gen_analyze_func(f, tag, regs, imms):
     has_generated_helper = not hex_common.skip_qemu_helper(
         tag
     ) and not hex_common.is_idef_parser_enabled(tag)
-    if has_generated_helper and "A_SCALAR_LOAD" in hex_common.attribdict[tag]:
-        f.write("    ctx->need_pkt_has_store_s1 = true;\n")
+
+    ## Mark HVX instructions with generated helpers
+    if (has_generated_helper and
+        "A_CVI" in hex_common.attribdict[tag]):
+        f.write("    ctx->has_hvx_helper = true;\n")
 
     f.write("}\n\n")
 

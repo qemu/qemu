@@ -4,10 +4,10 @@ is a wide vector coprocessor designed for high performance computer vision,
 image processing, machine learning, and other workloads.
 
 The following versions of the Hexagon core are supported
-    Scalar core: v67
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v67-programmer-s-reference-manual
-    HVX extension: v66
-    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v66-hvx-programmer-s-reference-manual
+    Scalar core: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-programmers-reference-manual-rev-aa
+    HVX extension: v73
+    https://developer.qualcomm.com/downloads/qualcomm-hexagon-v73-hvx-programmers-reference-manual-rev-aa
 
 We presented an overview of the project at the 2019 KVM Forum.
     https://kvmforum2019.sched.com/event/Tmwc/qemu-hexagon-automatic-translation-of-the-isa-manual-pseudcode-to-tiny-code-instructions-of-a-vliw-architecture-niccolo-izzo-revng-taylor-simpson-qualcomm-innovation-center
@@ -87,7 +87,7 @@ tcg_funcs_generated.c.inc
         TCGv RsV = hex_gpr[insn->regno[1]];
         TCGv RtV = hex_gpr[insn->regno[2]];
         gen_helper_A2_add(RdV, cpu_env, RsV, RtV);
-        gen_log_reg_write(RdN, RdV);
+        gen_log_reg_write(ctx, RdN, RdV);
     }
 
 helper_funcs_generated.c.inc
@@ -186,7 +186,7 @@ We also generate an analyze_<tag> function for each instruction.  Currently,
 these functions record the writes to registers by calling ctx_log_*.  During
 gen_start_packet, we invoke the analyze_<tag> function for each instruction in
 the packet, and we mark the implicit writes.  After the analysis is performed,
-we initialize hex_new_value for each of the predicated assignments.
+we initialize the result register for each of the predicated assignments.
 
 In addition to instruction semantics, we use a generator to create the decode
 tree.  This generation is also a two step process.  The first step is to run
@@ -304,4 +304,4 @@ Here are some handy places to set breakpoints
         At the start of execution of a packet for a given PC
             br helper_debug_start_packet if env->gpr[41] == 0xdeadbeef
         At the end of execution of a packet for a given PC
-            br helper_debug_commit_end if env->this_PC == 0xdeadbeef
+            br helper_debug_commit_end if this_PC == 0xdeadbeef

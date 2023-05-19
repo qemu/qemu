@@ -27,6 +27,20 @@ run-gdbstub-memory: memory
 		"-monitor none -display none -chardev file$(COMMA)path=$<.out$(COMMA)id=output $(QEMU_OPTS)" \
 		--bin $< --test $(MULTIARCH_SRC)/gdbstub/memory.py, \
 	softmmu gdbstub support)
+
+run-gdbstub-untimely-packet: hello
+	$(call run-test, $@, $(GDB_SCRIPT) \
+		--gdb $(HAVE_GDB_BIN) \
+		--gdb-args "-ex 'set debug remote 1'" \
+		--output untimely-packet.gdb.out \
+		--stderr untimely-packet.gdb.err \
+		--qemu $(QEMU) \
+		--bin $< --qargs \
+		"-monitor none -display none -chardev file$(COMMA)path=untimely-packet.out$(COMMA)id=output $(QEMU_OPTS)", \
+	"softmmu gdbstub untimely packets")
+	$(call quiet-command, \
+		(! grep -Fq 'Packet instead of Ack, ignoring it' untimely-packet.gdb.err), \
+		"GREP", "file  untimely-packet.gdb.err")
 else
 run-gdbstub-%:
 	$(call skip-test, "gdbstub test $*", "no guest arch support")
@@ -36,4 +50,4 @@ run-gdbstub-%:
 	$(call skip-test, "gdbstub test $*", "need working gdb")
 endif
 
-MULTIARCH_RUNS += run-gdbstub-memory
+MULTIARCH_RUNS += run-gdbstub-memory run-gdbstub-untimely-packet

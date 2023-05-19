@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define CORE_HAS_CABAC            (__HEXAGON_ARCH__ <= 71)
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -245,6 +247,7 @@ static void check(int val, int expect)
     }
 }
 
+#if CORE_HAS_CABAC
 static void check64(long long val, long long expect)
 {
     if (val != expect) {
@@ -252,6 +255,7 @@ static void check64(long long val, long long expect)
         err++;
     }
 }
+#endif
 
 uint32_t init[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 uint32_t array[10];
@@ -286,6 +290,7 @@ static long long creg_pair(int x, int y)
     return retval;
 }
 
+#if CORE_HAS_CABAC
 static long long decbin(long long x, long long y, int *pred)
 {
     long long retval;
@@ -295,6 +300,7 @@ static long long decbin(long long x, long long y, int *pred)
          : "r"(x), "r"(y));
     return retval;
 }
+#endif
 
 /* Check that predicates are auto-and'ed in a packet */
 static int auto_and(void)
@@ -385,11 +391,46 @@ void test_count_trailing_zeros_ones(void)
     check(ct1p(0xffffff0fffffffffULL), 36);
 }
 
+static inline int dpmpyss_rnd_s0(int x, int y)
+{
+    int res;
+    asm("%0 = mpy(%1, %2):rnd\n\t" : "=r"(res) : "r"(x), "r"(y));
+    return res;
+}
+
+void test_dpmpyss_rnd_s0(void)
+{
+    check(dpmpyss_rnd_s0(-1, 0x80000000), 1);
+    check(dpmpyss_rnd_s0(0, 0x80000000), 0);
+    check(dpmpyss_rnd_s0(1, 0x80000000), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 0x80000000), 0xc0000001);
+    check(dpmpyss_rnd_s0(0x80000000, -1), 1);
+    check(dpmpyss_rnd_s0(-1, -1), 0);
+    check(dpmpyss_rnd_s0(0, -1), 0);
+    check(dpmpyss_rnd_s0(1, -1), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, -1), 0);
+    check(dpmpyss_rnd_s0(0x80000000, 0), 0);
+    check(dpmpyss_rnd_s0(-1, 0), 0);
+    check(dpmpyss_rnd_s0(0, 0), 0);
+    check(dpmpyss_rnd_s0(1, 0), 0);
+    check(dpmpyss_rnd_s0(-1, -1), 0);
+    check(dpmpyss_rnd_s0(0, -1), 0);
+    check(dpmpyss_rnd_s0(1, -1), 0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 1), 0);
+    check(dpmpyss_rnd_s0(0x80000000, 0x7fffffff), 0xc0000001);
+    check(dpmpyss_rnd_s0(-1, 0x7fffffff), 0);
+    check(dpmpyss_rnd_s0(0, 0x7fffffff),  0);
+    check(dpmpyss_rnd_s0(1, 0x7fffffff),  0);
+    check(dpmpyss_rnd_s0(0x7fffffff, 0x7fffffff), 0x3fffffff);
+}
+
 int main()
 {
     int res;
+#if CORE_HAS_CABAC
     long long res64;
     int pred;
+#endif
 
     memcpy(array, init, sizeof(array));
     S4_storerhnew_rr(array, 4, 0xffff);
@@ -505,6 +546,7 @@ int main()
     res = test_clrtnew(2, 7);
     check(res, 7);
 
+#if CORE_HAS_CABAC
     res64 = decbin(0xf0f1f2f3f4f5f6f7LL, 0x7f6f5f4f3f2f1f0fLL, &pred);
     check64(res64, 0x357980003700010cLL);
     check(pred, 0);
@@ -512,6 +554,9 @@ int main()
     res64 = decbin(0xfLL, 0x1bLL, &pred);
     check64(res64, 0x78000100LL);
     check(pred, 1);
+#else
+    puts("Skipping cabac tests");
+#endif
 
     res = auto_and();
     check(res, 0);
@@ -521,6 +566,8 @@ int main()
     test_l2fetch();
 
     test_count_trailing_zeros_ones();
+
+    test_dpmpyss_rnd_s0();
 
     puts(err ? "FAIL" : "PASS");
     return err;

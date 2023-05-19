@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -62,6 +62,9 @@ EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS),  \
 DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
 
+#define ITERATOR_INSN_SHIFT3_SLOT(WIDTH,TAG,SYNTAX,DESCR,CODE) \
+EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS,A_CVI_VS_3SRC,A_NOTE_SHIFT_RESOURCE,A_NOTE_NOVP,A_NOTE_VA_UNARY),  \
+DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
 #define ITERATOR_INSN_SHIFT_SLOT_VV_LATE(WIDTH,TAG,SYNTAX,DESCR,CODE) \
 EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VS),  \
@@ -113,6 +116,10 @@ ITERATOR_INSN_MPY_SLOT_LATE(WIDTH,TAG, SYNTAX2,DESCR,CODE)
 
 
 #define ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(WIDTH,TAG,SYNTAX,DESCR,CODE) \
+EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV),  \
+DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
+
+#define ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC_VX_FWD(WIDTH,TAG,SYNTAX,DESCR,CODE) \
 EXTINSN(V6_##TAG, SYNTAX, ATTRIBS(A_EXTENSION,A_CVI,A_CVI_VX_DV),  \
 DESCR, DO_FOR_EACH_CODE(WIDTH, CODE))
 
@@ -976,6 +983,22 @@ NARROWING_SHIFT(16,vasrhubrndsat,fSETBYTE,ub,h,:rnd:sat,fVSATUB,fVROUND,0x7)
 NARROWING_SHIFT(16,vasrhbsat,fSETBYTE,b,h,:sat,fVSATB,fVNOROUND,0x7)
 NARROWING_SHIFT(16,vasrhbrndsat,fSETBYTE,b,h,:rnd:sat,fVSATB,fVROUND,0x7)
 
+#define NARROWING_VECTOR_SHIFT(ITERSIZE,TAG,DSTM,DSTTYPE,SRCTYPE,SRCTYPE2,SYNOPTS,SATFUNC,RNDFUNC,SHAMTMASK) \
+ITERATOR_INSN_SHIFT3_SLOT(ITERSIZE,TAG, \
+"Vd32." #DSTTYPE "=vasr(Vuu32." #SRCTYPE ",Vv32." #SRCTYPE2 ")" #SYNOPTS, \
+"Vector shift by vector right and shuffle", \
+    fHIDE(int )shamt = VvV.SRCTYPE2[2*i+0] & SHAMTMASK; \
+    DSTM(0,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuuV.v[0].SRCTYPE[i],shamt) >> shamt)); \
+    shamt = VvV.SRCTYPE2[2*i+1] & SHAMTMASK; \
+    DSTM(1,VdV.SRCTYPE[i],SATFUNC(RNDFUNC(VuuV.v[1].SRCTYPE[i],shamt) >> shamt)))
+
+/* WORD TO HALF*/
+NARROWING_VECTOR_SHIFT(32,vasrvwuhsat,fSETHALF,uh,w,uh,:sat,fVSATUH,fVNOROUND,0xF)
+NARROWING_VECTOR_SHIFT(32,vasrvwuhrndsat,fSETHALF,uh,w,uh,:rnd:sat,fVSATUH,fVROUND,0xF)
+/* HALF TO BYTE*/
+NARROWING_VECTOR_SHIFT(16,vasrvuhubsat,fSETBYTE,ub,uh,ub,:sat,fVSATUB,fVNOROUND,0x7)
+NARROWING_VECTOR_SHIFT(16,vasrvuhubrndsat,fSETBYTE,ub,uh,ub,:rnd:sat,fVSATUB,fVROUND,0x7)
+
 NARROWING_SHIFT_NOV1(16,vasruhubsat,fSETBYTE,ub,uh,:sat,fVSATUB,fVNOROUND,0x7)
 NARROWING_SHIFT_NOV1(16,vasruhubrndsat,fSETBYTE,ub,uh,:rnd:sat,fVSATUB,fVROUND,0x7)
 
@@ -1360,6 +1383,9 @@ ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(16,vmpyhvsrs,"Vd32=vmpyh(Vu32,Vv32):<<1:rnd:s
 
 
 
+ITERATOR_INSN_MPY_SLOT(16,vmpyuhvs, "Vd32.uh=vmpy(Vu32.uh,Vv32.uh):>>16",
+"Vector by Vector Unsigned Halfword Multiply with 16 bit rightshift",
+    VdV.uh[i] = fGETUHALF(1,fMPY16UU(VuV.uh[i],VvV.uh[i])))
 
 
 ITERATOR_INSN2_MPY_SLOT_DOUBLE_VEC(32,vmpyhus, "Vdd32=vmpyhus(Vu32,Vv32)","Vdd32.w=vmpy(Vu32.h,Vv32.uh)",
@@ -2038,6 +2064,24 @@ ITERATOR_INSN_ANY_SLOT_DOUBLE_VEC(8,vcombine,"Vdd32=vcombine(Vu32,Vv32)",
 
 ///////////////////////////////////////////////////////////////////////////
 
+EXTINSN(V6_vcombine_tmp, "Vdd32.tmp=vcombine(Vu32,Vv32)",    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_REMAP,A_CVI_TMP,A_NO_INTRINSIC),
+"Vector assign tmp, Any two to Vector Pair ",
+{
+   fHIDE(int i;)
+    fVFOREACH(8, i) {
+           VddV.v[0].ub[i] = VvV.ub[i];
+           VddV.v[1].ub[i] = VuV.ub[i];
+    }
+})
+
+EXTINSN(V6_vassign_tmp, "Vd32.tmp=Vu32",    ATTRIBS(A_EXTENSION,A_CVI,A_CVI_REMAP,A_CVI_TMP,A_NO_INTRINSIC),
+"Vector assign tmp, Any two to Vector Pair ",
+{
+   fHIDE(int i;)
+    fVFOREACH(32, i) {
+           VdV.w[i]=VuV.w[i];
+    }
+})
 
 /*********************************************************
 * GENERAL PERMUTE NETWORKS
@@ -2506,6 +2550,281 @@ EXTINSN(V6_vscattermhw , "vscatter(Rt32,Mu2,Vvv32.w).h=Vw32", ATTRIBS(A_EXTENSIO
     fSCATTER_FINISH(0)
 })
 
+
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC_VX_FWD(32, v6mpyvubs10_vxx, "Vxx32.w+=v6mpy(Vuu32.ub,Vvv32.b,#u2):v", "",
+    fHIDE(size2s_t c00;)
+    fGET10BIT(c00, VvvV.v[0].uw[i], 0)
+    fHIDE(size2s_t c01;)
+    fGET10BIT(c01, VvvV.v[0].uw[i], 1)
+    fHIDE(size2s_t c02;)
+    fGET10BIT(c02, VvvV.v[0].uw[i], 2)
+
+	fHIDE(size2s_t c10;)
+    fGET10BIT(c10, VvvV.v[1].uw[i], 0)
+    fHIDE(size2s_t c11;)
+    fGET10BIT(c11, VvvV.v[1].uw[i], 1)
+    fHIDE(size2s_t c12;)
+    fGET10BIT(c12, VvvV.v[1].uw[i], 2)
+
+    if (uiV == 0) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c10);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c11);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c12);
+
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c12);
+
+    } else if (uiV == 1) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c12);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c00);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c02);
+
+    } else if (uiV == 2) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c10);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c12);
+
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c12);
+
+    } else if (uiV == 3) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c12);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c00);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c01);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c02);
+    }
+)
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC_VX_FWD(32, v6mpyhubs10_vxx, "Vxx32.w+=v6mpy(Vuu32.ub,Vvv32.b,#u2):h", "",
+    fHIDE(size2s_t c00;)
+    fGET10BIT(c00, VvvV.v[0].uw[i], 0)
+    fHIDE(size2s_t c01;)
+    fGET10BIT(c01, VvvV.v[0].uw[i], 1)
+    fHIDE(size2s_t c02;)
+    fGET10BIT(c02, VvvV.v[0].uw[i], 2)
+    fHIDE(size2s_t c10;)
+    fGET10BIT(c10, VvvV.v[1].uw[i], 0)
+    fHIDE(size2s_t c11;)
+    fGET10BIT(c11, VvvV.v[1].uw[i], 1)
+    fHIDE(size2s_t c12;)
+    fGET10BIT(c12, VvvV.v[1].uw[i], 2)
+
+    if (uiV == 0) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c10);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c11);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c12);
+
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c12);
+
+    } else if (uiV == 1) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c12);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c00);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c02);
+
+    }  else if (uiV == 2) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c10);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c12);
+
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c12);
+
+    } else if (uiV == 3) {
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c00);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c01);
+        VxxV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c02);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c10);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c12);
+
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c00);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c01);
+        VxxV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c02);
+    }
+)
+
+
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32, v6mpyvubs10, "Vdd32.w=v6mpy(Vuu32.ub,Vvv32.b,#u2):v", "",
+    fHIDE(short c00;)
+    fGET10BIT(c00, VvvV.v[0].uw[i], 0)
+    fHIDE(short c01;)
+    fGET10BIT(c01, VvvV.v[0].uw[i], 1)
+    fHIDE(short c02;)
+    fGET10BIT(c02, VvvV.v[0].uw[i], 2)
+    fHIDE(short c10;)
+    fGET10BIT(c10, VvvV.v[1].uw[i], 0)
+    fHIDE(short c11;)
+    fGET10BIT(c11, VvvV.v[1].uw[i], 1)
+    fHIDE(short c12;)
+    fGET10BIT(c12, VvvV.v[1].uw[i], 2)
+
+
+
+    if (uiV == 0) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c10);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c11);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c12);
+
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c12);
+
+    }  else if (uiV == 1) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c12);
+
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c00);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c02);
+
+    }  else if (uiV == 2) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c10);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c12);
+
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c12);
+
+    } else if (uiV == 3) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c12);
+
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c00);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c01);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c02);
+    }
+)
+
+ITERATOR_INSN_MPY_SLOT_DOUBLE_VEC(32, v6mpyhubs10, "Vdd32.w=v6mpy(Vuu32.ub,Vvv32.b,#u2):h", "",
+    fHIDE(short c00;)
+    fGET10BIT(c00, VvvV.v[0].uw[i], 0)
+    fHIDE(short c01;)
+    fGET10BIT(c01, VvvV.v[0].uw[i], 1)
+    fHIDE(short c02;)
+    fGET10BIT(c02, VvvV.v[0].uw[i], 2)
+    fHIDE(short c10;)
+    fGET10BIT(c10, VvvV.v[1].uw[i], 0)
+    fHIDE(short c11;)
+    fGET10BIT(c11, VvvV.v[1].uw[i], 1)
+    fHIDE(short c12;)
+    fGET10BIT(c12, VvvV.v[1].uw[i], 2)
+
+    if (uiV == 0) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c10);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c11);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c12);
+
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c12);
+
+    }  else if (uiV == 1) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(3,VuuV.v[1].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c12);
+
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[1].uw[i]), c00);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c01);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c02);
+
+    }  else if (uiV == 2) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c10);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c12);
+
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c12);
+
+    } else if (uiV == 3) {
+        VddV.v[1].w[i]  = fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c00);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c01);
+        VddV.v[1].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c02);
+
+        VddV.v[0].w[i]  = fMPY16US(fGETUBYTE(1,VuuV.v[1].uw[i]), c10);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(3,VuuV.v[0].uw[i]), c11);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(1,VuuV.v[0].uw[i]), c12);
+
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[1].uw[i]), c00);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(2,VuuV.v[0].uw[i]), c01);
+        VddV.v[0].w[i] += fMPY16US(fGETUBYTE(0,VuuV.v[0].uw[i]), c02);
+    }
+)
 
 
 EXTINSN(V6_vscattermhwq,  "if (Qs4) vscatter(Rt32,Mu2,Vvv32.w).h=Vw32", ATTRIBS(A_EXTENSION,A_CVI,A_CVI_SCATTER,A_CVI_VA_DV,A_CVI_VM,A_MEMLIKE), "Scatter halfwords conditional",

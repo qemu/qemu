@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -127,6 +127,24 @@ Q6INSN(S2_allocframe,"allocframe(Rx32,#u11:3):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEM
 { fEA_RI(RxV,-8); fSTORE(1,8,EA,fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | fCAST4_4u(fREAD_FP()))); fWRITE_FP(EA); fFRAMECHECK(EA-uiV,EA); RxV = EA-uiV; })
 
 #define A_RETURN A_RESTRICT_COF_MAX1,A_RESTRICT_SLOT0ONLY,A_RESTRICT_NOSLOT1_STORE,A_RET_TYPE,A_DEALLOCRET
+
+/**** Load Acquire Store Release Instructions****/
+
+
+
+Q6INSN(L2_loadw_aq,"Rd32=memw_aq(Rs32)",ATTRIBS(A_REGWRSIZE_4B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_4B,A_LOAD),"Load Acquire Word",
+{ fEA_REG(RsV); fLOAD(1,4,u,EA,RdV); })
+Q6INSN(L4_loadd_aq,"Rdd32=memd_aq(Rs32)",ATTRIBS(A_REGWRSIZE_8B,A_ACQUIRE,A_RESTRICT_SLOT0ONLY,A_MEMSIZE_8B,A_LOAD),"Load Acquire Double integer",
+{ fEA_REG(RsV); fLOAD(1,8,u,EA,RddV); })
+
+Q6INSN(R6_release_at_vi,"release(Rs32):at",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV); })
+Q6INSN(R6_release_st_vi,"release(Rs32):st",ATTRIBS(A_MEMSIZE_0B,A_RELEASE,A_STORE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_RESTRICT_SLOT0ONLY), "Release lock", {fEA_REG(RsV); fSTORE(1,0,EA,RsV); })
+
+Q6INSN(S2_storew_rl_at_vi,"memw_rl(Rs32):at=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
+Q6INSN(S4_stored_rl_at_vi,"memd_rl(Rs32):at=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_ALL_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
+
+Q6INSN(S2_storew_rl_st_vi,"memw_rl(Rs32):st=Rt32",ATTRIBS(A_REGWRSIZE_4B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_4B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Word", { fEA_REG(RsV); fSTORE(1,4,EA,RtV); })
+Q6INSN(S4_stored_rl_st_vi,"memd_rl(Rs32):st=Rtt32",ATTRIBS(A_REGWRSIZE_8B,A_RELEASE,A_VTCM_ALLBANK_ACCESS,A_RLS_INNER,A_RLS_SAME_THREAD,A_RESTRICT_NOPACKET,A_MEMSIZE_8B,A_STORE,A_RESTRICT_SLOT0ONLY),"Store Release Double integer", { fEA_REG(RsV); fSTORE(1,8,EA,RttV); })
 
 Q6INSN(L2_deallocframe,"Rdd32=deallocframe(Rs32):raw", ATTRIBS(A_REGWRSIZE_8B,A_MEMSIZE_8B,A_LOAD,A_DEALLOCFRAME), "Deallocate stack frame",
 { fHIDE(size8u_t tmp;) fEA_REG(RsV);

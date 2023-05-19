@@ -103,11 +103,28 @@ def main():
                 continue
             if tag.startswith("V6_"):
                 continue
-            if tag.startswith("F"):
+            if ( tag.startswith("F") and
+                 tag not in {
+                     "F2_sfimm_p",
+                     "F2_sfimm_n",
+                     "F2_dfimm_p",
+                     "F2_dfimm_n",
+                     "F2_dfmpyll",
+                     "F2_dfmpylh"
+                 }):
                 continue
             if tag.endswith("_locked"):
                 continue
             if "A_COF" in hex_common.attribdict[tag]:
+                continue
+            if ( tag.startswith('R6_release_') ):
+                continue
+            ## Skip instructions that are incompatible with short-circuit
+            ## packet register writes
+            if ( tag == 'S2_insert' or
+                 tag == 'S2_insert_rp' or
+                 tag == 'S2_asr_r_svw_trun' or
+                 tag == 'A2_swiz' ):
                 continue
 
             regs = tagregs[tag]
@@ -130,7 +147,7 @@ def main():
                 elif is_single_new:
                     arguments.append(f"{prefix}{regtype}{regid}N")
                 else:
-                    print("Bad register parse: ", regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid, toss, numregs)
 
             for immlett, bits, immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))
