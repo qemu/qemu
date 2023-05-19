@@ -335,11 +335,6 @@ static void store_freg32_i64(int reg, TCGv_i64 v)
     tcg_gen_st32_i64(v, cpu_env, freg32_offset(reg));
 }
 
-static void return_low128(TCGv_i64 dest)
-{
-    tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUS390XState, retxl));
-}
-
 static void update_psw_addr(DisasContext *s)
 {
     /* psw.addr */
@@ -3130,15 +3125,9 @@ static DisasJumpType op_lpd(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_lpq(DisasContext *s, DisasOps *o)
 {
-    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-        gen_helper_lpq(o->out, cpu_env, o->in2);
-    } else if (HAVE_ATOMIC128) {
-        gen_helper_lpq_parallel(o->out, cpu_env, o->in2);
-    } else {
-        gen_helper_exit_atomic(cpu_env);
-        return DISAS_NORETURN;
-    }
-    return_low128(o->out2);
+    o->out_128 = tcg_temp_new_i128();
+    tcg_gen_qemu_ld_i128(o->out_128, o->in2, get_mem_index(s),
+                         MO_TE | MO_128 | MO_ALIGN);
     return DISAS_NEXT;
 }
 
@@ -4533,14 +4522,11 @@ static DisasJumpType op_stmh(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stpq(DisasContext *s, DisasOps *o)
 {
-    if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-        gen_helper_stpq(cpu_env, o->in2, o->out2, o->out);
-    } else if (HAVE_ATOMIC128) {
-        gen_helper_stpq_parallel(cpu_env, o->in2, o->out2, o->out);
-    } else {
-        gen_helper_exit_atomic(cpu_env);
-        return DISAS_NORETURN;
-    }
+    TCGv_i128 t16 = tcg_temp_new_i128();
+
+    tcg_gen_concat_i64_i128(t16, o->out2, o->out);
+    tcg_gen_qemu_st_i128(t16, o->in2, get_mem_index(s),
+                         MO_TE | MO_128 | MO_ALIGN);
     return DISAS_NEXT;
 }
 

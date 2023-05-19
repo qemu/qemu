@@ -2398,67 +2398,6 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 }
 #endif
 
-/* load pair from quadword */
-uint64_t HELPER(lpq)(CPUS390XState *env, uint64_t addr)
-{
-    uintptr_t ra = GETPC();
-    uint64_t hi, lo;
-
-    check_alignment(env, addr, 16, ra);
-    hi = cpu_ldq_data_ra(env, addr + 0, ra);
-    lo = cpu_ldq_data_ra(env, addr + 8, ra);
-
-    env->retxl = lo;
-    return hi;
-}
-
-uint64_t HELPER(lpq_parallel)(CPUS390XState *env, uint64_t addr)
-{
-    uintptr_t ra = GETPC();
-    uint64_t hi, lo;
-    int mem_idx;
-    MemOpIdx oi;
-    Int128 v;
-
-    assert(HAVE_ATOMIC128);
-
-    mem_idx = cpu_mmu_index(env, false);
-    oi = make_memop_idx(MO_TEUQ | MO_ALIGN_16, mem_idx);
-    v = cpu_atomic_ldo_be_mmu(env, addr, oi, ra);
-    hi = int128_gethi(v);
-    lo = int128_getlo(v);
-
-    env->retxl = lo;
-    return hi;
-}
-
-/* store pair to quadword */
-void HELPER(stpq)(CPUS390XState *env, uint64_t addr,
-                  uint64_t low, uint64_t high)
-{
-    uintptr_t ra = GETPC();
-
-    check_alignment(env, addr, 16, ra);
-    cpu_stq_data_ra(env, addr + 0, high, ra);
-    cpu_stq_data_ra(env, addr + 8, low, ra);
-}
-
-void HELPER(stpq_parallel)(CPUS390XState *env, uint64_t addr,
-                           uint64_t low, uint64_t high)
-{
-    uintptr_t ra = GETPC();
-    int mem_idx;
-    MemOpIdx oi;
-    Int128 v;
-
-    assert(HAVE_ATOMIC128);
-
-    mem_idx = cpu_mmu_index(env, false);
-    oi = make_memop_idx(MO_TEUQ | MO_ALIGN_16, mem_idx);
-    v = int128_make128(low, high);
-    cpu_atomic_sto_be_mmu(env, addr, v, oi, ra);
-}
-
 /* Execute instruction.  This instruction executes an insn modified with
    the contents of r1.  It does not change the executed instruction in memory;
    it does not change the program counter.
