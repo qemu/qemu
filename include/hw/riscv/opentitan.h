@@ -55,10 +55,11 @@ struct LowRISCIbexSoCState {
 };
 
 #define TYPE_OPENTITAN_MACHINE MACHINE_TYPE_NAME("opentitan")
+OBJECT_DECLARE_SIMPLE_TYPE(OpenTitanState, OPENTITAN_MACHINE)
 
 typedef struct OpenTitanState {
     /*< private >*/
-    SysBusDevice parent_obj;
+    MachineState parent_obj;
 
     /*< public >*/
     LowRISCIbexSoCState soc;
