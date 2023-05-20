@@ -16,18 +16,6 @@
 #endif
 #define HAVE_al8_fast      (ATOMIC_REG_SIZE >= 8)
 
-#if defined(CONFIG_ATOMIC128)
-# define HAVE_al16_fast    true
-#else
-# define HAVE_al16_fast    false
-#endif
-#if defined(CONFIG_ATOMIC128) || defined(CONFIG_CMPXCHG128)
-# define HAVE_al16         true
-#else
-# define HAVE_al16         false
-#endif
-
-
 /**
  * required_atomicity:
  *
@@ -147,26 +135,6 @@ static inline uint64_t load_atomic8(void *pv)
 }
 
 /**
- * load_atomic16:
- * @pv: host address
- *
- * Atomically load 16 aligned bytes from @pv.
- */
-static inline Int128 ATTRIBUTE_ATOMIC128_OPT
-load_atomic16(void *pv)
-{
-#ifdef CONFIG_ATOMIC128
-    __uint128_t *p = __builtin_assume_aligned(pv, 16);
-    Int128Alias r;
-
-    r.u = qatomic_read__nocheck(p);
-    return r.s;
-#else
-    qemu_build_not_reached();
-#endif
-}
-
-/**
  * load_atomic8_or_exit:
  * @env: cpu context
  * @ra: host unwind address
@@ -211,8 +179,8 @@ static Int128 load_atomic16_or_exit(CPUArchState *env, uintptr_t ra, void *pv)
 {
     Int128 *p = __builtin_assume_aligned(pv, 16);
 
-    if (HAVE_al16_fast) {
-        return load_atomic16(p);
+    if (HAVE_ATOMIC128_RO) {
+        return atomic16_read_ro(p);
     }
 
 #ifdef CONFIG_USER_ONLY
@@ -232,14 +200,9 @@ static Int128 load_atomic16_or_exit(CPUArchState *env, uintptr_t ra, void *pv)
      * In system mode all guest pages are writable, and for user-only
      * we have just checked writability.  Try cmpxchg.
      */
-#if defined(CONFIG_CMPXCHG128)
-    /* Swap 0 with 0, with the side-effect of returning the old value. */
-    {
-        Int128Alias r;
-        r.u = __sync_val_compare_and_swap_16((__uint128_t *)p, 0, 0);
-        return r.s;
+    if (HAVE_ATOMIC128_RW) {
+        return atomic16_read_rw(p);
     }
-#endif
 
     /* Ultimate fallback: re-execute in serial context. */
     cpu_loop_exit_atomic(env_cpu(env), ra);
@@ -360,11 +323,10 @@ static uint64_t load_atom_extract_al16_or_exit(CPUArchState *env, uintptr_t ra,
 static inline uint64_t ATTRIBUTE_ATOMIC128_OPT
 load_atom_extract_al16_or_al8(void *pv, int s)
 {
-#if defined(CONFIG_ATOMIC128)
     uintptr_t pi = (uintptr_t)pv;
     int o = pi & 7;
     int shr = (HOST_BIG_ENDIAN ? 16 - s - o : o) * 8;
-    __uint128_t r;
+    Int128 r;
 
     pv = (void *)(pi & ~7);
     if (pi & 8) {
@@ -373,18 +335,14 @@ load_atom_extract_al16_or_al8(void *pv, int s)
         uint64_t b = qatomic_read__nocheck(p8 + 1);
 
         if (HOST_BIG_ENDIAN) {
-            r = ((__uint128_t)a << 64) | b;
+            r = int128_make128(b, a);
         } else {
-            r = ((__uint128_t)b << 64) | a;
+            r = int128_make128(a, b);
         }
     } else {
-        __uint128_t *p16 = __builtin_assume_aligned(pv, 16, 0);
-        r = qatomic_read__nocheck(p16);
+        r = atomic16_read_ro(pv);
     }
-    return r >> shr;
-#else
-    qemu_build_not_reached();
-#endif
+    return int128_getlo(int128_urshift(r, shr));
 }
 
 /**
@@ -472,7 +430,7 @@ static uint16_t load_atom_2(CPUArchState *env, uintptr_t ra,
     if (likely((pi & 1) == 0)) {
         return load_atomic2(pv);
     }
-    if (HAVE_al16_fast) {
+    if (HAVE_ATOMIC128_RO) {
         return load_atom_extract_al16_or_al8(pv, 2);
     }
 
@@ -511,7 +469,7 @@ static uint32_t load_atom_4(CPUArchState *env, uintptr_t ra,
     if (likely((pi & 3) == 0)) {
         return load_atomic4(pv);
     }
-    if (HAVE_al16_fast) {
+    if (HAVE_ATOMIC128_RO) {
         return load_atom_extract_al16_or_al8(pv, 4);
     }
 
@@ -557,7 +515,7 @@ static uint64_t load_atom_8(CPUArchState *env, uintptr_t ra,
     if (HAVE_al8 && likely((pi & 7) == 0)) {
         return load_atomic8(pv);
     }
-    if (HAVE_al16_fast) {
+    if (HAVE_ATOMIC128_RO) {
         return load_atom_extract_al16_or_al8(pv, 8);
     }
 
@@ -607,8 +565,8 @@ static Int128 load_atom_16(CPUArchState *env, uintptr_t ra,
      * If the host does not support 16-byte atomics, wait until we have
      * examined the atomicity parameters below.
      */
-    if (HAVE_al16_fast && likely((pi & 15) == 0)) {
-        return load_atomic16(pv);
+    if (HAVE_ATOMIC128_RO && likely((pi & 15) == 0)) {
+        return atomic16_read_ro(pv);
     }
 
     atmax = required_atomicity(env, pi, memop);
@@ -685,36 +643,6 @@ static inline void store_atomic8(void *pv, uint64_t val)
 
     qemu_build_assert(HAVE_al8);
     qatomic_set__nocheck(p, val);
-}
-
-/**
- * store_atomic16:
- * @pv: host address
- * @val: value to store
- *
- * Atomically store 16 aligned bytes to @pv.
- */
-static inline void ATTRIBUTE_ATOMIC128_OPT
-store_atomic16(void *pv, Int128Alias val)
-{
-#if defined(CONFIG_ATOMIC128)
-    __uint128_t *pu = __builtin_assume_aligned(pv, 16);
-    qatomic_set__nocheck(pu, val.u);
-#elif defined(CONFIG_CMPXCHG128)
-    __uint128_t *pu = __builtin_assume_aligned(pv, 16);
-    __uint128_t o;
-
-    /*
-     * Without CONFIG_ATOMIC128, __atomic_compare_exchange_n will always
-     * defer to libatomic, so we must use __sync_*_compare_and_swap_16
-     * and accept the sequential consistency that comes with it.
-     */
-    do {
-        o = *pu;
-    } while (!__sync_bool_compare_and_swap_16(pu, o, val.u));
-#else
-    qemu_build_not_reached();
-#endif
 }
 
 /**
@@ -957,7 +885,7 @@ static uint64_t store_whole_le16(void *pv, int size, Int128 val_le)
     int sh = o * 8;
     Int128 m, v;
 
-    qemu_build_assert(HAVE_al16);
+    qemu_build_assert(HAVE_ATOMIC128_RW);
 
     /* Like MAKE_64BIT_MASK(0, sz), but larger. */
     if (sz <= 64) {
@@ -1017,7 +945,7 @@ static void store_atom_2(CPUArchState *env, uintptr_t ra,
             return;
         }
     } else if ((pi & 15) == 7) {
-        if (HAVE_al16) {
+        if (HAVE_ATOMIC128_RW) {
             Int128 v = int128_lshift(int128_make64(val), 56);
             Int128 m = int128_lshift(int128_make64(0xffff), 56);
             store_atom_insert_al16(pv - 7, v, m);
@@ -1086,7 +1014,7 @@ static void store_atom_4(CPUArchState *env, uintptr_t ra,
                 return;
             }
         } else {
-            if (HAVE_al16) {
+            if (HAVE_ATOMIC128_RW) {
                 store_whole_le16(pv, 4, int128_make64(cpu_to_le32(val)));
                 return;
             }
@@ -1151,7 +1079,7 @@ static void store_atom_8(CPUArchState *env, uintptr_t ra,
         }
         break;
     case MO_64:
-        if (HAVE_al16) {
+        if (HAVE_ATOMIC128_RW) {
             store_whole_le16(pv, 8, int128_make64(cpu_to_le64(val)));
             return;
         }
@@ -1177,8 +1105,8 @@ static void store_atom_16(CPUArchState *env, uintptr_t ra,
     uint64_t a, b;
     int atmax;
 
-    if (HAVE_al16_fast && likely((pi & 15) == 0)) {
-        store_atomic16(pv, val);
+    if (HAVE_ATOMIC128_RW && likely((pi & 15) == 0)) {
+        atomic16_set(pv, val);
         return;
     }
 
@@ -1206,7 +1134,7 @@ static void store_atom_16(CPUArchState *env, uintptr_t ra,
         }
         break;
     case -MO_64:
-        if (HAVE_al16) {
+        if (HAVE_ATOMIC128_RW) {
             uint64_t val_le;
             int s2 = pi & 15;
             int s1 = 16 - s2;
@@ -1233,8 +1161,8 @@ static void store_atom_16(CPUArchState *env, uintptr_t ra,
         }
         break;
     case MO_128:
-        if (HAVE_al16) {
-            store_atomic16(pv, val);
+        if (HAVE_ATOMIC128_RW) {
+            atomic16_set(pv, val);
             return;
         }
         break;
