@@ -75,7 +75,7 @@ static const MemMapEntry ibex_memmap[] = {
     [IBEX_DEV_FLASH_VIRTUAL] =  {  0x80000000,  0x80000     },
 };
 
-static void opentitan_board_init(MachineState *machine)
+static void opentitan_machine_init(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const MemMapEntry *memmap = ibex_memmap;
@@ -108,17 +108,17 @@ static void opentitan_board_init(MachineState *machine)
     }
 }
 
-static void opentitan_machine_init(MachineClass *mc)
+static void opentitan_machine_class_init(MachineClass *mc)
 {
     mc->desc = "RISC-V Board compatible with OpenTitan";
-    mc->init = opentitan_board_init;
+    mc->init = opentitan_machine_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = TYPE_RISCV_CPU_IBEX;
     mc->default_ram_id = "riscv.lowrisc.ibex.ram";
     mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
 
-DEFINE_MACHINE("opentitan", opentitan_machine_init)
+DEFINE_MACHINE("opentitan", opentitan_machine_class_init)
 
 static void lowrisc_ibex_soc_init(Object *obj)
 {
