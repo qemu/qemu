@@ -207,43 +207,21 @@ void cpu_stq_le_mmuidx_ra(CPUArchState *env, abi_ptr ptr, uint64_t val,
                           int mmu_idx, uintptr_t ra);
 
 uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr ptr, MemOpIdx oi, uintptr_t ra);
-uint16_t cpu_ldw_be_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-uint32_t cpu_ldl_be_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-uint64_t cpu_ldq_be_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-uint16_t cpu_ldw_le_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-uint32_t cpu_ldl_le_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-uint64_t cpu_ldq_le_mmu(CPUArchState *env, abi_ptr ptr,
-                        MemOpIdx oi, uintptr_t ra);
-
-Int128 cpu_ld16_be_mmu(CPUArchState *env, abi_ptr addr,
-                       MemOpIdx oi, uintptr_t ra);
-Int128 cpu_ld16_le_mmu(CPUArchState *env, abi_ptr addr,
-                       MemOpIdx oi, uintptr_t ra);
+uint16_t cpu_ldw_mmu(CPUArchState *env, abi_ptr ptr, MemOpIdx oi, uintptr_t ra);
+uint32_t cpu_ldl_mmu(CPUArchState *env, abi_ptr ptr, MemOpIdx oi, uintptr_t ra);
+uint64_t cpu_ldq_mmu(CPUArchState *env, abi_ptr ptr, MemOpIdx oi, uintptr_t ra);
+Int128 cpu_ld16_mmu(CPUArchState *env, abi_ptr addr, MemOpIdx oi, uintptr_t ra);
 
 void cpu_stb_mmu(CPUArchState *env, abi_ptr ptr, uint8_t val,
                  MemOpIdx oi, uintptr_t ra);
-void cpu_stw_be_mmu(CPUArchState *env, abi_ptr ptr, uint16_t val,
-                    MemOpIdx oi, uintptr_t ra);
-void cpu_stl_be_mmu(CPUArchState *env, abi_ptr ptr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra);
-void cpu_stq_be_mmu(CPUArchState *env, abi_ptr ptr, uint64_t val,
-                    MemOpIdx oi, uintptr_t ra);
-void cpu_stw_le_mmu(CPUArchState *env, abi_ptr ptr, uint16_t val,
-                    MemOpIdx oi, uintptr_t ra);
-void cpu_stl_le_mmu(CPUArchState *env, abi_ptr ptr, uint32_t val,
-                    MemOpIdx oi, uintptr_t ra);
-void cpu_stq_le_mmu(CPUArchState *env, abi_ptr ptr, uint64_t val,
-                    MemOpIdx oi, uintptr_t ra);
-
-void cpu_st16_be_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
-                     MemOpIdx oi, uintptr_t ra);
-void cpu_st16_le_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
-                     MemOpIdx oi, uintptr_t ra);
+void cpu_stw_mmu(CPUArchState *env, abi_ptr ptr, uint16_t val,
+                 MemOpIdx oi, uintptr_t ra);
+void cpu_stl_mmu(CPUArchState *env, abi_ptr ptr, uint32_t val,
+                 MemOpIdx oi, uintptr_t ra);
+void cpu_stq_mmu(CPUArchState *env, abi_ptr ptr, uint64_t val,
+                 MemOpIdx oi, uintptr_t ra);
+void cpu_st16_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
+                  MemOpIdx oi, uintptr_t ra);
 
 uint32_t cpu_atomic_cmpxchgb_mmu(CPUArchState *env, target_ulong addr,
                                  uint32_t cmpv, uint32_t newv,
@@ -416,9 +394,6 @@ static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
 # define cpu_ldsw_mmuidx_ra   cpu_ldsw_be_mmuidx_ra
 # define cpu_ldl_mmuidx_ra    cpu_ldl_be_mmuidx_ra
 # define cpu_ldq_mmuidx_ra    cpu_ldq_be_mmuidx_ra
-# define cpu_ldw_mmu          cpu_ldw_be_mmu
-# define cpu_ldl_mmu          cpu_ldl_be_mmu
-# define cpu_ldq_mmu          cpu_ldq_be_mmu
 # define cpu_stw_data         cpu_stw_be_data
 # define cpu_stl_data         cpu_stl_be_data
 # define cpu_stq_data         cpu_stq_be_data
@@ -428,9 +403,6 @@ static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
 # define cpu_stw_mmuidx_ra    cpu_stw_be_mmuidx_ra
 # define cpu_stl_mmuidx_ra    cpu_stl_be_mmuidx_ra
 # define cpu_stq_mmuidx_ra    cpu_stq_be_mmuidx_ra
-# define cpu_stw_mmu          cpu_stw_be_mmu
-# define cpu_stl_mmu          cpu_stl_be_mmu
-# define cpu_stq_mmu          cpu_stq_be_mmu
 #else
 # define cpu_lduw_data        cpu_lduw_le_data
 # define cpu_ldsw_data        cpu_ldsw_le_data
@@ -444,9 +416,6 @@ static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
 # define cpu_ldsw_mmuidx_ra   cpu_ldsw_le_mmuidx_ra
 # define cpu_ldl_mmuidx_ra    cpu_ldl_le_mmuidx_ra
 # define cpu_ldq_mmuidx_ra    cpu_ldq_le_mmuidx_ra
-# define cpu_ldw_mmu          cpu_ldw_le_mmu
-# define cpu_ldl_mmu          cpu_ldl_le_mmu
-# define cpu_ldq_mmu          cpu_ldq_le_mmu
 # define cpu_stw_data         cpu_stw_le_data
 # define cpu_stl_data         cpu_stl_le_data
 # define cpu_stq_data         cpu_stq_le_data
@@ -456,9 +425,6 @@ static inline CPUTLBEntry *tlb_entry(CPUArchState *env, uintptr_t mmu_idx,
 # define cpu_stw_mmuidx_ra    cpu_stw_le_mmuidx_ra
 # define cpu_stl_mmuidx_ra    cpu_stl_le_mmuidx_ra
 # define cpu_stq_mmuidx_ra    cpu_stq_le_mmuidx_ra
-# define cpu_stw_mmu          cpu_stw_le_mmu
-# define cpu_stl_mmu          cpu_stl_le_mmu
-# define cpu_stq_mmu          cpu_stq_le_mmu
 #endif
 
 uint8_t cpu_ldb_code_mmu(CPUArchState *env, abi_ptr addr,

@@ -1334,25 +1334,13 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
                 ret = cpu_ldb_mmu(env, addr, oi, GETPC());
                 break;
             case 2:
-                if (asi & 8) {
-                    ret = cpu_ldw_le_mmu(env, addr, oi, GETPC());
-                } else {
-                    ret = cpu_ldw_be_mmu(env, addr, oi, GETPC());
-                }
+                ret = cpu_ldw_mmu(env, addr, oi, GETPC());
                 break;
             case 4:
-                if (asi & 8) {
-                    ret = cpu_ldl_le_mmu(env, addr, oi, GETPC());
-                } else {
-                    ret = cpu_ldl_be_mmu(env, addr, oi, GETPC());
-                }
+                ret = cpu_ldl_mmu(env, addr, oi, GETPC());
                 break;
             case 8:
-                if (asi & 8) {
-                    ret = cpu_ldq_le_mmu(env, addr, oi, GETPC());
-                } else {
-                    ret = cpu_ldq_be_mmu(env, addr, oi, GETPC());
-                }
+                ret = cpu_ldq_mmu(env, addr, oi, GETPC());
                 break;
             default:
                 g_assert_not_reached();
