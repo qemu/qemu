@@ -1896,12 +1896,9 @@ static bool mmu_lookup(CPUArchState *env, target_ulong addr, MemOpIdx oi,
 /*
  * Probe for an atomic operation.  Do not allow unaligned operations,
  * or io operations to proceed.  Return the host address.
- *
- * @prot may be PAGE_READ, PAGE_WRITE, or PAGE_READ|PAGE_WRITE.
  */
 static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
-                               MemOpIdx oi, int size, int prot,
-                               uintptr_t retaddr)
+                               MemOpIdx oi, int size, uintptr_t retaddr)
 {
     uintptr_t mmu_idx = get_mmuidx(oi);
     MemOp mop = get_memop(oi);
@@ -1937,53 +1934,36 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     tlbe = tlb_entry(env, mmu_idx, addr);
 
     /* Check TLB entry and enforce page permissions.  */
-    if (prot & PAGE_WRITE) {
-        tlb_addr = tlb_addr_write(tlbe);
-        if (!tlb_hit(tlb_addr, addr)) {
-            if (!victim_tlb_hit(env, mmu_idx, index, MMU_DATA_STORE,
-                                addr & TARGET_PAGE_MASK)) {
-                tlb_fill(env_cpu(env), addr, size,
-                         MMU_DATA_STORE, mmu_idx, retaddr);
-                index = tlb_index(env, mmu_idx, addr);
-                tlbe = tlb_entry(env, mmu_idx, addr);
-            }
-            tlb_addr = tlb_addr_write(tlbe) & ~TLB_INVALID_MASK;
+    tlb_addr = tlb_addr_write(tlbe);
+    if (!tlb_hit(tlb_addr, addr)) {
+        if (!victim_tlb_hit(env, mmu_idx, index, MMU_DATA_STORE,
+                            addr & TARGET_PAGE_MASK)) {
+            tlb_fill(env_cpu(env), addr, size,
+                     MMU_DATA_STORE, mmu_idx, retaddr);
+            index = tlb_index(env, mmu_idx, addr);
+            tlbe = tlb_entry(env, mmu_idx, addr);
         }
-
-        if (prot & PAGE_READ) {
-            /*
-             * Let the guest notice RMW on a write-only page.
-             * We have just verified that the page is writable.
-             * Subpage lookups may have left TLB_INVALID_MASK set,
-             * but addr_read will only be -1 if PAGE_READ was unset.
-             */
-            if (unlikely(tlbe->addr_read == -1)) {
-                tlb_fill(env_cpu(env), addr, size,
-                         MMU_DATA_LOAD, mmu_idx, retaddr);
-                /*
-                 * Since we don't support reads and writes to different
-                 * addresses, and we do have the proper page loaded for
-                 * write, this shouldn't ever return.  But just in case,
-                 * handle via stop-the-world.
-                 */
-                goto stop_the_world;
-            }
-            /* Collect TLB_WATCHPOINT for read. */
-            tlb_addr |= tlbe->addr_read;
-        }
-    } else /* if (prot & PAGE_READ) */ {
-        tlb_addr = tlbe->addr_read;
-        if (!tlb_hit(tlb_addr, addr)) {
-            if (!victim_tlb_hit(env, mmu_idx, index, MMU_DATA_LOAD,
-                                addr & TARGET_PAGE_MASK)) {
-                tlb_fill(env_cpu(env), addr, size,
-                         MMU_DATA_LOAD, mmu_idx, retaddr);
-                index = tlb_index(env, mmu_idx, addr);
-                tlbe = tlb_entry(env, mmu_idx, addr);
-            }
-            tlb_addr = tlbe->addr_read & ~TLB_INVALID_MASK;
-        }
+        tlb_addr = tlb_addr_write(tlbe) & ~TLB_INVALID_MASK;
     }
+
+    /*
+     * Let the guest notice RMW on a write-only page.
+     * We have just verified that the page is writable.
+     * Subpage lookups may have left TLB_INVALID_MASK set,
+     * but addr_read will only be -1 if PAGE_READ was unset.
+     */
+    if (unlikely(tlbe->addr_read == -1)) {
+        tlb_fill(env_cpu(env), addr, size, MMU_DATA_LOAD, mmu_idx, retaddr);
+        /*
+         * Since we don't support reads and writes to different
+         * addresses, and we do have the proper page loaded for
+         * write, this shouldn't ever return.  But just in case,
+         * handle via stop-the-world.
+         */
+        goto stop_the_world;
+    }
+    /* Collect TLB_WATCHPOINT for read. */
+    tlb_addr |= tlbe->addr_read;
 
     /* Notice an IO access or a needs-MMU-lookup access */
     if (unlikely(tlb_addr & (TLB_MMIO | TLB_DISCARD_WRITE))) {
@@ -2000,11 +1980,8 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     }
 
     if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
-        QEMU_BUILD_BUG_ON(PAGE_READ != BP_MEM_READ);
-        QEMU_BUILD_BUG_ON(PAGE_WRITE != BP_MEM_WRITE);
-        /* therefore prot == watchpoint bits */
-        cpu_check_watchpoint(env_cpu(env), addr, size,
-                             full->attrs, prot, retaddr);
+        cpu_check_watchpoint(env_cpu(env), addr, size, full->attrs,
+                             BP_MEM_READ | BP_MEM_WRITE, retaddr);
     }
 
     return hostaddr;
