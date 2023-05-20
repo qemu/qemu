@@ -320,17 +320,14 @@ static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo lowrisc_ibex_soc_type_info = {
-    .name = TYPE_RISCV_IBEX_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(LowRISCIbexSoCState),
-    .instance_init = lowrisc_ibex_soc_init,
-    .class_init = lowrisc_ibex_soc_class_init,
+static const TypeInfo open_titan_types[] = {
+    {
+        .name           = TYPE_RISCV_IBEX_SOC,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(LowRISCIbexSoCState),
+        .instance_init  = lowrisc_ibex_soc_init,
+        .class_init     = lowrisc_ibex_soc_class_init,
+    }
 };
 
-static void lowrisc_ibex_soc_register_types(void)
-{
-    type_register_static(&lowrisc_ibex_soc_type_info);
-}
-
-type_init(lowrisc_ibex_soc_register_types)
+DEFINE_TYPES(open_titan_types)
