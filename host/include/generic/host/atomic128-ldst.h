@@ -58,11 +58,14 @@ atomic16_read_rw(Int128 *ptr)
 static inline void ATTRIBUTE_ATOMIC128_OPT
 atomic16_set(Int128 *ptr, Int128 val)
 {
-    Int128 old = *ptr, cmp;
+    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
+    __int128_t old;
+    Int128Alias new;
+
+    new.s = val;
     do {
-        cmp = old;
-        old = atomic16_cmpxchg(ptr, cmp, val);
-    } while (int128_ne(old, cmp));
+        old = *ptr_align;
+    } while (!__sync_bool_compare_and_swap_16(ptr_align, old, new.i));
 }
 
 #else
