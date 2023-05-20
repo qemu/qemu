@@ -19,20 +19,6 @@ static void atomic_trace_rmw_post(CPUArchState *env, uint64_t addr,
     qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_RW);
 }
 
-#if HAVE_ATOMIC128
-static void atomic_trace_ld_post(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi)
-{
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
-}
-
-static void atomic_trace_st_post(CPUArchState *env, uint64_t addr,
-                                 MemOpIdx oi)
-{
-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
-}
-#endif
-
 /*
  * Atomic helpers callable from TCG.
  * These have a common interface and all defer to cpu_atomic_*

@@ -87,33 +87,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
     return ret;
 }
 
-#if DATA_SIZE >= 16
-#if HAVE_ATOMIC128
-ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr,
-                         MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env, addr, oi, DATA_SIZE,
-                                         PAGE_READ, retaddr);
-    DATA_TYPE val;
-
-    val = atomic16_read(haddr);
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_ld_post(env, addr, oi);
-    return val;
-}
-
-void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr, ABI_TYPE val,
-                     MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env, addr, oi, DATA_SIZE,
-                                         PAGE_WRITE, retaddr);
-
-    atomic16_set(haddr, val);
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_st_post(env, addr, oi);
-}
-#endif
-#else
+#if DATA_SIZE < 16
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr, ABI_TYPE val,
                            MemOpIdx oi, uintptr_t retaddr)
 {
@@ -188,7 +162,7 @@ GEN_ATOMIC_HELPER_FN(smax_fetch, MAX, SDATA_TYPE, new)
 GEN_ATOMIC_HELPER_FN(umax_fetch, MAX,  DATA_TYPE, new)
 
 #undef GEN_ATOMIC_HELPER_FN
-#endif /* DATA SIZE >= 16 */
+#endif /* DATA SIZE < 16 */
 
 #undef END
 
@@ -220,34 +194,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, target_ulong addr,
     return BSWAP(ret);
 }
 
-#if DATA_SIZE >= 16
-#if HAVE_ATOMIC128
-ABI_TYPE ATOMIC_NAME(ld)(CPUArchState *env, target_ulong addr,
-                         MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env, addr, oi, DATA_SIZE,
-                                         PAGE_READ, retaddr);
-    DATA_TYPE val;
-
-    val = atomic16_read(haddr);
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_ld_post(env, addr, oi);
-    return BSWAP(val);
-}
-
-void ATOMIC_NAME(st)(CPUArchState *env, target_ulong addr, ABI_TYPE val,
-                     MemOpIdx oi, uintptr_t retaddr)
-{
-    DATA_TYPE *haddr = atomic_mmu_lookup(env, addr, oi, DATA_SIZE,
-                                         PAGE_WRITE, retaddr);
-
-    val = BSWAP(val);
-    atomic16_set(haddr, val);
-    ATOMIC_MMU_CLEANUP;
-    atomic_trace_st_post(env, addr, oi);
-}
-#endif
-#else
+#if DATA_SIZE < 16
 ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, target_ulong addr, ABI_TYPE val,
                            MemOpIdx oi, uintptr_t retaddr)
 {
@@ -326,7 +273,7 @@ GEN_ATOMIC_HELPER_FN(add_fetch, ADD, DATA_TYPE, new)
 #undef ADD
 
 #undef GEN_ATOMIC_HELPER_FN
-#endif /* DATA_SIZE >= 16 */
+#endif /* DATA_SIZE < 16 */
 
 #undef END
 #endif /* DATA_SIZE > 1 */
