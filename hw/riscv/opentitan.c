@@ -108,8 +108,10 @@ static void opentitan_machine_init(MachineState *machine)
     }
 }
 
-static void opentitan_machine_class_init(MachineClass *mc)
+static void opentitan_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "RISC-V Board compatible with OpenTitan";
     mc->init = opentitan_machine_init;
     mc->max_cpus = 1;
@@ -117,8 +119,6 @@ static void opentitan_machine_class_init(MachineClass *mc)
     mc->default_ram_id = "riscv.lowrisc.ibex.ram";
     mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
-
-DEFINE_MACHINE(TYPE_OPENTITAN_MACHINE, opentitan_machine_class_init)
 
 static void lowrisc_ibex_soc_init(Object *obj)
 {
@@ -327,6 +327,10 @@ static const TypeInfo open_titan_types[] = {
         .instance_size  = sizeof(LowRISCIbexSoCState),
         .instance_init  = lowrisc_ibex_soc_init,
         .class_init     = lowrisc_ibex_soc_class_init,
+    }, {
+        .name           = TYPE_OPENTITAN_MACHINE,
+        .parent         = TYPE_MACHINE,
+        .class_init     = opentitan_machine_class_init,
     }
 };
 
