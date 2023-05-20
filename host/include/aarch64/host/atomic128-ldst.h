@@ -11,10 +11,18 @@
 #ifndef AARCH64_ATOMIC128_LDST_H
 #define AARCH64_ATOMIC128_LDST_H
 
-/* Through gcc 10, aarch64 has no support for 128-bit atomics.  */
-#if !defined(CONFIG_ATOMIC128) && !defined(CONFIG_USER_ONLY)
-/* We can do better than cmpxchg for AArch64.  */
-static inline Int128 atomic16_read(Int128 *ptr)
+/*
+ * Through gcc 10, aarch64 has no support for 128-bit atomics.
+ * Through clang 16, without -march=armv8.4-a, __atomic_load_16
+ * is incorrectly expanded to a read-write operation.
+ */
+
+#define HAVE_ATOMIC128_RO 0
+#define HAVE_ATOMIC128_RW 1
+
+Int128 QEMU_ERROR("unsupported atomic") atomic16_read_ro(const Int128 *ptr);
+
+static inline Int128 atomic16_read_rw(Int128 *ptr)
 {
     uint64_t l, h;
     uint32_t tmp;
@@ -40,10 +48,5 @@ static inline void atomic16_set(Int128 *ptr, Int128 val)
         : [mem] "+m"(*ptr), [t1] "=&r"(t1), [t2] "=&r"(t2)
         : [l] "r"(l), [h] "r"(h));
 }
-
-# define HAVE_ATOMIC128 1
-#else
-#include "host/include/generic/host/atomic128-ldst.h"
-#endif
 
 #endif /* AARCH64_ATOMIC128_LDST_H */

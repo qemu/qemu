@@ -12,14 +12,23 @@
 #define HOST_ATOMIC128_LDST_H
 
 #if defined(CONFIG_ATOMIC128)
+# define HAVE_ATOMIC128_RO 1
+# define HAVE_ATOMIC128_RW 1
+
 static inline Int128 ATTRIBUTE_ATOMIC128_OPT
-atomic16_read(Int128 *ptr)
+atomic16_read_ro(const Int128 *ptr)
 {
-    __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
+    const __int128_t *ptr_align = __builtin_assume_aligned(ptr, 16);
     Int128Alias r;
 
     r.i = qatomic_read__nocheck(ptr_align);
     return r.s;
+}
+
+static inline Int128 ATTRIBUTE_ATOMIC128_OPT
+atomic16_read_rw(Int128 *ptr)
+{
+    return atomic16_read_ro(ptr);
 }
 
 static inline void ATTRIBUTE_ATOMIC128_OPT
@@ -32,10 +41,14 @@ atomic16_set(Int128 *ptr, Int128 val)
     qatomic_set__nocheck(ptr_align, v.i);
 }
 
-# define HAVE_ATOMIC128 1
-#elif defined(CONFIG_CMPXCHG128) && !defined(CONFIG_USER_ONLY)
+#elif defined(CONFIG_CMPXCHG128)
+# define HAVE_ATOMIC128_RO 0
+# define HAVE_ATOMIC128_RW 1
+
+Int128 QEMU_ERROR("unsupported atomic") atomic16_read_ro(const Int128 *ptr);
+
 static inline Int128 ATTRIBUTE_ATOMIC128_OPT
-atomic16_read(Int128 *ptr)
+atomic16_read_rw(Int128 *ptr)
 {
     /* Maybe replace 0 with 0, returning the old value.  */
     Int128 z = int128_make64(0);
@@ -52,12 +65,14 @@ atomic16_set(Int128 *ptr, Int128 val)
     } while (int128_ne(old, cmp));
 }
 
-# define HAVE_ATOMIC128 1
 #else
+# define HAVE_ATOMIC128_RO 0
+# define HAVE_ATOMIC128_RW 0
+
 /* Fallback definitions that must be optimized away, or error.  */
-Int128 QEMU_ERROR("unsupported atomic") atomic16_read(Int128 *ptr);
+Int128 QEMU_ERROR("unsupported atomic") atomic16_read_ro(const Int128 *ptr);
+Int128 QEMU_ERROR("unsupported atomic") atomic16_read_rw(Int128 *ptr);
 void QEMU_ERROR("unsupported atomic") atomic16_set(Int128 *ptr, Int128 val);
-# define HAVE_ATOMIC128 0
 #endif
 
 #endif /* HOST_ATOMIC128_LDST_H */
