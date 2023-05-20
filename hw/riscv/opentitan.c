@@ -118,7 +118,7 @@ static void opentitan_machine_class_init(MachineClass *mc)
     mc->default_ram_size = ibex_memmap[IBEX_DEV_RAM].size;
 }
 
-DEFINE_MACHINE("opentitan", opentitan_machine_class_init)
+DEFINE_MACHINE(TYPE_OPENTITAN_MACHINE, opentitan_machine_class_init)
 
 static void lowrisc_ibex_soc_init(Object *obj)
 {

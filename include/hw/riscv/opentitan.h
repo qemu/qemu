@@ -53,6 +53,8 @@ struct LowRISCIbexSoCState {
     MemoryRegion flash_alias;
 };
 
+#define TYPE_OPENTITAN_MACHINE "opentitan"
+
 typedef struct OpenTitanState {
     /*< private >*/
     SysBusDevice parent_obj;
