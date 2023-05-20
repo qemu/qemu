@@ -33,7 +33,7 @@ atomic16_set(Int128 *ptr, Int128 val)
 }
 
 # define HAVE_ATOMIC128 1
-#elif !defined(CONFIG_USER_ONLY) && HAVE_CMPXCHG128
+#elif defined(CONFIG_CMPXCHG128) && !defined(CONFIG_USER_ONLY)
 static inline Int128 ATTRIBUTE_ATOMIC128_OPT
 atomic16_read(Int128 *ptr)
 {

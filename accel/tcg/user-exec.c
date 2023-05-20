@@ -1371,7 +1371,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #include "atomic_template.h"
 #endif
 
-#if HAVE_ATOMIC128 || HAVE_CMPXCHG128
+#if defined(CONFIG_ATOMIC128) || defined(CONFIG_CMPXCHG128)
 #define DATA_SIZE 16
 #include "atomic_template.h"
 #endif

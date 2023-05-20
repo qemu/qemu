@@ -37,6 +37,8 @@ static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
 
     return int128_make128(oldl, oldh);
 }
+
+# define CONFIG_CMPXCHG128 1
 # define HAVE_CMPXCHG128 1
 #endif
 
