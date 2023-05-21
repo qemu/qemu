@@ -20,8 +20,10 @@ variables:
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     expire_in: 7 days
+    when: always
     paths:
-      - build/meson-logs/testlog.txt
+      - build/build.ninja
+      - build/meson-logs
     reports:
       junit: build/meson-logs/testlog.junit.xml
 

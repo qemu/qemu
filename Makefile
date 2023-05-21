@@ -115,15 +115,15 @@ Makefile.ninja: build.ninja
 	  $(NINJA) -t query build.ninja | sed -n '1,/^  input:/d; /^  outputs:/q; s/$$/ \\/p'; \
 	} > $@.tmp && mv $@.tmp $@
 -include Makefile.ninja
+endif
 
+ifneq ($(MESON),)
 # A separate rule is needed for Makefile dependencies to avoid -n
 build.ninja: build.ninja.stamp
 $(build-files):
 build.ninja.stamp: meson.stamp $(build-files)
-	$(NINJA) $(if $V,-v,) build.ninja && touch $@
-endif
+	$(MESON) setup --reconfigure $(SRC_PATH) && touch $@
 
-ifneq ($(MESON),)
 Makefile.mtest: build.ninja scripts/mtest2make.py
 	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
 -include Makefile.mtest
