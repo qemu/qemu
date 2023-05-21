@@ -244,6 +244,8 @@ static void mips_cpu_reset_hold(Object *obj)
     env->CP0_PageGrain_rw_bitmask = env->cpu_model->CP0_PageGrain_rw_bitmask;
     env->CP0_PageGrain = env->cpu_model->CP0_PageGrain;
     env->CP0_EBaseWG_rw_bitmask = env->cpu_model->CP0_EBaseWG_rw_bitmask;
+    env->lcsr_cpucfg1 = env->cpu_model->lcsr_cpucfg1;
+    env->lcsr_cpucfg2 = env->cpu_model->lcsr_cpucfg2;
     env->active_fpu.fcr0 = env->cpu_model->CP1_fcr0;
     env->active_fpu.fcr31_rw_bitmask = env->cpu_model->CP1_fcr31_rw_bitmask;
     env->active_fpu.fcr31 = env->cpu_model->CP1_fcr31;
@@ -507,6 +509,14 @@ static void mips_cpu_initfn(Object *obj)
     cpu->count_div = clock_new(OBJECT(obj), "clk-div-count");
     env->count_clock = clock_new(OBJECT(obj), "clk-count");
     env->cpu_model = mcc->cpu_def;
+#ifndef CONFIG_USER_ONLY
+    if (mcc->cpu_def->lcsr_cpucfg2 & (1 << CPUCFG2_LCSRP)) {
+        memory_region_init_io(&env->iocsr.mr, OBJECT(cpu), NULL,
+                                env, "iocsr", UINT64_MAX);
+        address_space_init(&env->iocsr.as,
+                            &env->iocsr.mr, "IOCSR");
+    }
+#endif
 }
 
 static char *mips_cpu_type_name(const char *cpu_model)

@@ -257,6 +257,22 @@ void helper_pmon(CPUMIPSState *env, int function)
     }
 }
 
+#ifdef TARGET_MIPS64
+target_ulong helper_lcsr_cpucfg(CPUMIPSState *env, target_ulong rs)
+{
+    switch (rs) {
+    case 0:
+        return env->CP0_PRid;
+    case 1:
+        return env->lcsr_cpucfg1;
+    case 2:
+        return env->lcsr_cpucfg2;
+    default:
+        return 0;
+    }
+}
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 
 void mips_cpu_do_unaligned_access(CPUState *cs, vaddr addr,

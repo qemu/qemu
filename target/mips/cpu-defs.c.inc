@@ -895,6 +895,15 @@ const mips_def_t mips_defs[] =
         .CP1_fcr31 = 0,
         .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
         .MSAIR = (0x01 << MSAIR_ProcID) | (0x40 << MSAIR_Rev),
+        .lcsr_cpucfg1 = (1 << CPUCFG1_FP) | (2 << CPUCFG1_FPREV) |
+                    (1 << CPUCFG1_MSA1) | (1 << CPUCFG1_LSLDR0) |
+                    (1 << CPUCFG1_LSPERF) | (1 << CPUCFG1_LSPERFX) |
+                    (1 << CPUCFG1_LSSYNCI) | (1 << CPUCFG1_LLEXC) |
+                    (1 << CPUCFG1_SCRAND) | (1 << CPUCFG1_MUALP) |
+                    (1 << CPUCFG1_KMUALEN) | (1 << CPUCFG1_ITLBT) |
+                    (1 << CPUCFG1_SFBP) | (1 << CPUCFG1_CDMAP),
+        .lcsr_cpucfg2 = (1 << CPUCFG2_LEXT1) | (1 << CPUCFG2_LCSRP) |
+                    (1 << CPUCFG2_LDISBLIKELY),
         .SEGBITS = 48,
         .PABITS = 48,
         .insn_flags = CPU_MIPS64R2 | INSN_LOONGSON3A |

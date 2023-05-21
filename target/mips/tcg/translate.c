@@ -15352,6 +15352,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         return;
     }
 #if defined(TARGET_MIPS64)
+    if (ase_lcsr_available(env) && decode_ase_lcsr(ctx, ctx->opcode)) {
+        return;
+    }
     if (cpu_supports_isa(env, INSN_OCTEON) && decode_ext_octeon(ctx, ctx->opcode)) {
         return;
     }
