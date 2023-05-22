@@ -722,8 +722,7 @@ const char *qemu_strchrnul(const char *s, int c)
  * parse_uint:
  *
  * @s: String to parse
- * @endptr: Destination for pointer to first character not consumed, must
- * not be %NULL
+ * @endptr: Destination for pointer to first character not consumed
  * @base: integer base, between 2 and 36 inclusive, or 0
  * @value: Destination for parsed integer value
  *
@@ -737,7 +736,8 @@ const char *qemu_strchrnul(const char *s, int c)
  *
  * Set *@endptr to point right beyond the parsed integer (even if the integer
  * overflows or is negative, all digits will be parsed and *@endptr will
- * point right beyond them).
+ * point right beyond them).  If @endptr is %NULL, any trailing character
+ * instead causes a result of -EINVAL with *@value of 0.
  *
  * If the integer is negative, set *@value to 0, and return -ERANGE.
  * (If you want to allow negative numbers that wrap around within
@@ -784,7 +784,12 @@ int parse_uint(const char *s, const char **endptr, int base, uint64_t *value)
 
 out:
     *value = val;
-    *endptr = endp;
+    if (endptr) {
+        *endptr = endp;
+    } else if (s && *endp) {
+        r = -EINVAL;
+        *value = 0;
+    }
     return r;
 }
 
@@ -795,28 +800,13 @@ out:
  * @base: integer base, between 2 and 36 inclusive, or 0
  * @value: Destination for parsed integer value
  *
- * Parse unsigned integer from entire string
+ * Parse unsigned integer from entire string, rejecting any trailing slop.
  *
- * Have the same behavior of parse_uint(), but with an additional
- * check for additional data after the parsed number. If extra
- * characters are present after a non-overflowing parsed number, the
- * function will return -EINVAL, and *@v will be set to 0.
+ * Shorthand for parse_uint(s, NULL, base, value).
  */
 int parse_uint_full(const char *s, int base, uint64_t *value)
 {
-    const char *endp;
-    int r;
-
-    r = parse_uint(s, &endp, base, value);
-    if (r < 0) {
-        return r;
-    }
-    if (*endp) {
-        *value = 0;
-        return -EINVAL;
-    }
-
-    return 0;
+    return parse_uint(s, NULL, base, value);
 }
 
 int qemu_parse_fd(const char *param)

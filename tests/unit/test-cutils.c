@@ -270,14 +270,26 @@ static void test_parse_uint_full_correct(void)
 
 static void test_parse_uint_full_erange_junk(void)
 {
-    /* FIXME - inconsistent with qemu_strto* which favors EINVAL */
+    /* EINVAL has priority over ERANGE */
     uint64_t i = 999;
     const char *str = "-2junk";
     int r;
 
     r = parse_uint_full(str, 0, &i);
 
-    g_assert_cmpint(r, ==, -ERANGE /* FIXME -EINVAL */);
+    g_assert_cmpint(r, ==, -EINVAL);
+    g_assert_cmpuint(i, ==, 0);
+}
+
+static void test_parse_uint_full_null(void)
+{
+    uint64_t i = 999;
+    const char *str = NULL;
+    int r;
+
+    r = parse_uint_full(str, 0, &i);
+
+    g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
 }
 
@@ -3328,6 +3340,8 @@ int main(int argc, char **argv)
                     test_parse_uint_full_correct);
     g_test_add_func("/cutils/parse_uint_full/erange_junk",
                     test_parse_uint_full_erange_junk);
+    g_test_add_func("/cutils/parse_uint_full/null",
+                    test_parse_uint_full_null);
 
     /* qemu_strtoi() tests */
     g_test_add_func("/cutils/qemu_strtoi/correct",
