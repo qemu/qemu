@@ -3408,19 +3408,18 @@ static void test_qemu_strtosz_float(void)
     /* An empty fraction tail is tolerated */
     do_strtosz("1.k", 0, 1024, 3);
 
-    /* FIXME An empty fraction head should be tolerated */
-    do_strtosz(" .5k", -EINVAL /* FIXME 0 */, 0 /* FIXME 512 */,
-               0 /* FIXME 4 */);
+    /* An empty fraction head is tolerated */
+    do_strtosz(" .5k", 0, 512, 4);
 
     /* For convenience, we permit values that are not byte-exact */
     do_strtosz("12.345M", 0, (uint64_t) (12.345 * MiB + 0.5), 7);
 
-    /* FIXME Fraction tail should round correctly */
+    /* Fraction tail can round up */
     do_strtosz("1.9999k", 0, 2048, 7);
     do_strtosz("1.9999999999999999999999999999999999999999999999999999k", 0,
-               1024 /* FIXME 2048 */, 55);
+               2048, 55);
 
-    /* FIXME ERANGE underflow in the fraction tail should not matter for 'k' */
+    /* ERANGE underflow in the fraction tail does not matter for 'k' */
     do_strtosz("1."
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
@@ -3429,7 +3428,7 @@ static void test_qemu_strtosz_float(void)
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
-               "1k", 0, 1 /* FIXME 1024 */, 354);
+               "1k", 0, 1024, 354);
 }
 
 static void test_qemu_strtosz_invalid(void)
@@ -3453,10 +3452,9 @@ static void test_qemu_strtosz_invalid(void)
     do_strtosz("1.1B", -EINVAL, 0, 0);
     do_strtosz("1.1", -EINVAL, 0, 0);
 
-    /* FIXME underflow in the fraction tail should matter for 'B' */
+    /* 'B' cannot have any nonzero fraction, even with rounding or underflow */
     do_strtosz("1.00001B", -EINVAL, 0, 0);
-    do_strtosz("1.00000000000000000001B", 0 /* FIXME -EINVAL */,
-               1 /* FIXME 0 */, 23 /* FIXME 0 */);
+    do_strtosz("1.00000000000000000001B", -EINVAL, 0, 0);
     do_strtosz("1."
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
@@ -3465,8 +3463,7 @@ static void test_qemu_strtosz_invalid(void)
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
-               "1B", 0 /* FIXME -EINVAL */, 1 /* FIXME 0 */,
-               354 /* FIXME 0 */);
+               "1B", -EINVAL, 0, 0);
 
     /* No hex fractions */
     do_strtosz("0x1.8k", -EINVAL, 0, 0);
@@ -3512,28 +3509,20 @@ static void test_qemu_strtosz_trailing(void)
     do_strtosz_full("123-45", qemu_strtosz, 0, 123, 3, -EINVAL, 0);
     do_strtosz_full(" 123 - 45", qemu_strtosz, 0, 123, 4, -EINVAL, 0);
 
-    /* FIXME should stop parse after 'e'. No floating point exponents */
-    do_strtosz_full("1.5e1k", qemu_strtosz, -EINVAL /* FIXME 0 */,
-                    0 /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
-                    -EINVAL, 0);
-    do_strtosz_full("1.5E+0k", qemu_strtosz, -EINVAL /* FIXME 0 */,
-                    0 /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
-                    -EINVAL, 0);
-
-    /* FIXME overflow in fraction is still buggy */
-    do_strtosz_full("1.5E999", qemu_strtosz, 0, 1 /* FIXME EiB * 1.5 */,
-                    2 /* FIXME 4 */, -EINVAL, 0);
+    /* Parse stops at 'e', which is not a floating point exponent */
+    do_strtosz_full("1.5e1k", qemu_strtosz, 0, EiB * 1.5, 4, -EINVAL, 0);
+    do_strtosz_full("1.5E+0k", qemu_strtosz, 0, EiB * 1.5, 4, -EINVAL, 0);
+    do_strtosz_full("1.5E999", qemu_strtosz, 0, EiB * 1.5, 4, -EINVAL, 0);
 }
 
 static void test_qemu_strtosz_erange(void)
 {
-    /* FIXME negative values fit better as ERANGE */
+    /* no negative values */
     do_strtosz(" -0", -ERANGE, 0, 3);
     do_strtosz("-1", -ERANGE, 0, 2);
     do_strtosz_full("-2M", qemu_strtosz, -ERANGE, 0, 2, -EINVAL, 0);
-    do_strtosz(" -.0", -EINVAL /* FIXME -ERANGE */, 0, 0 /* FIXME 4 */);
-    do_strtosz_full("-.1k", qemu_strtosz, -EINVAL /* FIXME -ERANGE */, 0,
-                    0 /* FIXME 3 */, -EINVAL, 0);
+    do_strtosz(" -.0", -ERANGE, 0, 4);
+    do_strtosz_full("-.1k", qemu_strtosz, -ERANGE, 0, 3, -EINVAL, 0);
     do_strtosz_full(" -."
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
@@ -3542,17 +3531,16 @@ static void test_qemu_strtosz_erange(void)
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
-                    "1M", qemu_strtosz, -EINVAL /* FIXME -ERANGE */, 0,
-                    0 /* FIXME 354 */, -EINVAL, 0);
+                    "1M", qemu_strtosz, -ERANGE, 0, 354, -EINVAL, 0);
 
     /* 2^64; see strtosz_simple for 2^64-1 */
     do_strtosz("18446744073709551616", -ERANGE, 0, 20);
 
     do_strtosz("20E", -ERANGE, 0, 3);
 
-    /* FIXME Fraction tail can cause ERANGE overflow */
+    /* Fraction tail can cause ERANGE overflow */
     do_strtosz("15.9999999999999999999999999999999999999999999999999999E",
-               0 /* FIXME -ERANGE */, 15ULL * EiB /* FIXME 0 */, 56);
+               -ERANGE, 0, 56);
 
     /* EINVAL has priority over ERANGE */
     do_strtosz_full("100000Pjunk", qemu_strtosz, -ERANGE, 0, 7, -EINVAL, 0);

@@ -194,15 +194,19 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  * - 12345 - decimal, scale determined by @default_suffix and @unit
  * - 12345{bBkKmMgGtTpPeE} - decimal, scale determined by suffix and @unit
  * - 12345.678{kKmMgGtTpPeE} - decimal, scale determined by suffix, and
- *   fractional portion is truncated to byte
+ *   fractional portion is truncated to byte, either side of . may be empty
  * - 0x7fEE - hexadecimal, unit determined by @default_suffix
  *
  * The following are intentionally not supported
- * - hex with scaling suffix, such as 0x20M
- * - octal, such as 08
- * - fractional hex, such as 0x1.8
- * - negative values, including -0
- * - floating point exponents, such as 1e3
+ * - hex with scaling suffix, such as 0x20M or 0x1p3 (both fail with
+ *   -EINVAL), while 0x1b is 27 (not 1 with byte scale)
+ * - octal, such as 08 (parsed as decimal instead)
+ * - binary, such as 0b1000 (parsed as 0b with trailing garbage "1000")
+ * - fractional hex, such as 0x1.8 (parsed as 0 with trailing garbage "x1.8")
+ * - negative values, including -0 (fail with -ERANGE)
+ * - floating point exponents, such as 1e3 (parsed as 1e with trailing
+ *   garbage "3") or 0x1p3 (rejected as hex with scaling suffix)
+ * - non-finite values, such as inf or NaN (fail with -EINVAL)
  *
  * The end pointer will be returned in *end, if not NULL.  If there is
  * no fraction, the input can be decimal or hexadecimal; if there is a
@@ -221,17 +225,17 @@ static int do_strtosz(const char *nptr, const char **end,
                       uint64_t *result)
 {
     int retval;
-    const char *endptr, *f;
+    const char *endptr;
     unsigned char c;
-    uint64_t val, valf = 0;
+    uint64_t val = 0, valf = 0;
     int64_t mul;
 
     /* Parse integral portion as decimal. */
     retval = parse_uint(nptr, &endptr, 10, &val);
-    if (retval) {
+    if (retval == -ERANGE || !nptr) {
         goto out;
     }
-    if (val == 0 && (*endptr == 'x' || *endptr == 'X')) {
+    if (retval == 0 && val == 0 && (*endptr == 'x' || *endptr == 'X')) {
         /* Input looks like hex; reparse, and insist on no fraction or suffix. */
         retval = qemu_strtou64(nptr, &endptr, 16, &val);
         if (retval) {
@@ -242,26 +246,68 @@ static int do_strtosz(const char *nptr, const char **end,
             retval = -EINVAL;
             goto out;
         }
-    } else if (*endptr == '.') {
+    } else if (*endptr == '.' || (endptr == nptr && strchr(nptr, '.'))) {
         /*
          * Input looks like a fraction.  Make sure even 1.k works
-         * without fractional digits.  If we see an exponent, treat
-         * the entire input as invalid instead.
+         * without fractional digits.  strtod tries to treat 'e' as an
+         * exponent, but we want to treat it as a scaling suffix;
+         * doing this requires modifying a copy of the fraction.
          */
-        double fraction;
+        double fraction = 0.0;
 
-        f = endptr;
-        retval = qemu_strtod_finite(f, &endptr, &fraction);
-        if (retval) {
+        if (retval == 0 && *endptr == '.' && !isdigit(endptr[1])) {
+            /* If we got here, we parsed at least one digit already. */
             endptr++;
-        } else if (memchr(f, 'e', endptr - f) || memchr(f, 'E', endptr - f)) {
-            endptr = nptr;
-            retval = -EINVAL;
-            goto out;
         } else {
-            /* Extract into a 64-bit fixed-point fraction. */
-            valf = (uint64_t)(fraction * 0x1p64);
+            char *e;
+            const char *tail;
+            g_autofree char *copy = g_strdup(endptr);
+
+            e = strchr(copy, 'e');
+            if (e) {
+                *e = '\0';
+            }
+            e = strchr(copy, 'E');
+            if (e) {
+                *e = '\0';
+            }
+            /*
+             * If this is a floating point, we are guaranteed that '.'
+             * appears before any possible digits in copy.  If it is
+             * not a floating point, strtod will fail.  Either way,
+             * there is now no exponent in copy, so if it parses, we
+             * know 0.0 <= abs(result) <= 1.0 (after rounding), and
+             * ERANGE is only possible on underflow which is okay.
+             */
+            retval = qemu_strtod_finite(copy, &tail, &fraction);
+            endptr += tail - copy;
+            if (signbit(fraction)) {
+                retval = -ERANGE;
+                goto out;
+            }
         }
+
+        /* Extract into a 64-bit fixed-point fraction. */
+        if (fraction == 1.0) {
+            if (val == UINT64_MAX) {
+                retval = -ERANGE;
+                goto out;
+            }
+            val++;
+        } else if (retval == -ERANGE) {
+            /* See comments above about underflow */
+            valf = 1;
+            retval = 0;
+        } else {
+            /* We want non-zero valf for any non-zero fraction */
+            valf = (uint64_t)(fraction * 0x1p64);
+            if (valf == 0 && fraction > 0.0) {
+                valf = 1;
+            }
+        }
+    }
+    if (retval) {
+        goto out;
     }
     c = *endptr;
     mul = suffix_mul(c, unit);
