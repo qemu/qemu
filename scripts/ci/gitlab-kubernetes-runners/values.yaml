@@ -1,0 +1,30 @@
+gitlabUrl: "https://gitlab.com/"
+runnerRegistrationToken: ""
+rbac:
+  create: true
+concurrent: 200
+runners:
+  privileged: true
+  config: |
+    [[runners]]
+      limit = 100
+      environment = [
+        "DOCKER_HOST=tcp://docker:2376",
+        "DOCKER_TLS_CERTDIR=/certs",
+        "DOCKER_TLS_VERIFY=1",
+        "DOCKER_CERT_PATH=/certs/client"
+      ]
+      [runners.kubernetes]
+        poll_timeout = 1200
+        image = "ubuntu:20.04"
+        cpu_request = "0.5"
+        service_cpu_request = "0.5"
+        helper_cpu_request = "0.25"
+        cpu_request_overwrite_max_allowed = "7"
+        memory_request_overwrite_max_allowed = "30Gi"
+      [[runners.kubernetes.volumes.empty_dir]]
+        name = "docker-certs"
+        mount_path = "/certs/client"
+        medium = "Memory"
+      [runners.kubernetes.node_selector]
+        agentpool = "jobs"
