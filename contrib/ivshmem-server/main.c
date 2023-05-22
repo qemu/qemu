@@ -69,7 +69,7 @@ static void
 ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
 {
     int c;
-    unsigned long long v;
+    uint64_t v;
     Error *err = NULL;
 
     while ((c = getopt(argc, argv, "hvFp:S:m:M:l:n:")) != -1) {
@@ -112,7 +112,7 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             break;
 
         case 'n': /* number of vectors */
-            if (parse_uint_full(optarg, &v, 0) < 0) {
+            if (parse_uint_full(optarg, 0, &v) < 0) {
                 fprintf(stderr, "cannot parse n_vectors\n");
                 ivshmem_server_help(argv[0]);
                 exit(1);

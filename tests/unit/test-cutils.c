@@ -31,12 +31,11 @@
 
 static void test_parse_uint_null(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     int r;
 
-    r = parse_uint(NULL, &i, &endptr, 0);
+    r = parse_uint(NULL, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
@@ -45,13 +44,12 @@ static void test_parse_uint_null(void)
 
 static void test_parse_uint_empty(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
@@ -60,13 +58,12 @@ static void test_parse_uint_empty(void)
 
 static void test_parse_uint_whitespace(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "   \t   ";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
@@ -76,13 +73,12 @@ static void test_parse_uint_whitespace(void)
 
 static void test_parse_uint_invalid(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = " \t xxx";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
@@ -92,13 +88,12 @@ static void test_parse_uint_invalid(void)
 
 static void test_parse_uint_trailing(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "123xxx";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, 123);
@@ -107,13 +102,12 @@ static void test_parse_uint_trailing(void)
 
 static void test_parse_uint_correct(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "123";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, 123);
@@ -122,13 +116,12 @@ static void test_parse_uint_correct(void)
 
 static void test_parse_uint_octal(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "0123";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, 0123);
@@ -137,13 +130,12 @@ static void test_parse_uint_octal(void)
 
 static void test_parse_uint_decimal(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = "0123";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 10);
+    r = parse_uint(str, &endptr, 10, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, 123);
@@ -152,13 +144,12 @@ static void test_parse_uint_decimal(void)
 
 static void test_parse_uint_llong_max(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     char *str = g_strdup_printf("%llu", (unsigned long long)LLONG_MAX + 1);
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, (unsigned long long)LLONG_MAX + 1);
@@ -169,13 +160,12 @@ static void test_parse_uint_llong_max(void)
 
 static void test_parse_uint_max(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     char *str = g_strdup_printf("%llu", ULLONG_MAX);
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, ULLONG_MAX);
@@ -186,32 +176,31 @@ static void test_parse_uint_max(void)
 
 static void test_parse_uint_overflow(void)
 {
-    unsigned long long i;
-    char f = 'X';
-    char *endptr;
+    uint64_t i;
+    const char *endptr;
     const char *str;
     int r;
 
     i = 999;
-    endptr = &f;
+    endptr = "somewhere";
     str = "99999999999999999999999999999999999999";
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, ULLONG_MAX);
     g_assert_true(endptr == str + strlen(str));
 
     i = 999;
-    endptr = &f;
+    endptr = "somewhere";
     str = "0x10000000000000000"; /* 65 bits, 64-bit sign bit clear */
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, ULLONG_MAX);
     g_assert_true(endptr == str + strlen(str));
 
     i = 999;
-    endptr = &f;
+    endptr = "somewhere";
     str = "0x18000000080000000"; /* 65 bits, 64-bit sign bit set */
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, ULLONG_MAX);
     g_assert_true(endptr == str + strlen(str));
@@ -219,24 +208,23 @@ static void test_parse_uint_overflow(void)
 
 static void test_parse_uint_negative(void)
 {
-    unsigned long long i;
-    char f = 'X';
-    char *endptr;
+    uint64_t i;
+    const char *endptr;
     const char *str;
     int r;
 
     i = 999;
-    endptr = &f;
+    endptr = "somewhere";
     str = " \t -321";
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, 0);
     g_assert_true(endptr == str + strlen(str));
 
     i = 999;
-    endptr = &f;
+    endptr = "somewhere";
     str = "-0xffffffff00000001";
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, 0);
     g_assert_true(endptr == str + strlen(str));
@@ -244,13 +232,12 @@ static void test_parse_uint_negative(void)
 
 static void test_parse_uint_negzero(void)
 {
-    unsigned long long i = 999;
-    char f = 'X';
-    char *endptr = &f;
+    uint64_t i = 999;
+    const char *endptr = "somewhere";
     const char *str = " -0";
     int r;
 
-    r = parse_uint(str, &i, &endptr, 0);
+    r = parse_uint(str, &endptr, 0, &i);
 
     g_assert_cmpint(r, ==, -ERANGE);
     g_assert_cmpuint(i, ==, 0);
@@ -259,11 +246,11 @@ static void test_parse_uint_negzero(void)
 
 static void test_parse_uint_full_trailing(void)
 {
-    unsigned long long i = 999;
+    uint64_t i = 999;
     const char *str = "123xxx";
     int r;
 
-    r = parse_uint_full(str, &i, 0);
+    r = parse_uint_full(str, 0, &i);
 
     g_assert_cmpint(r, ==, -EINVAL);
     g_assert_cmpuint(i, ==, 0);
@@ -271,11 +258,11 @@ static void test_parse_uint_full_trailing(void)
 
 static void test_parse_uint_full_correct(void)
 {
-    unsigned long long i = 999;
+    uint64_t i = 999;
     const char *str = "123";
     int r;
 
-    r = parse_uint_full(str, &i, 0);
+    r = parse_uint_full(str, 0, &i);
 
     g_assert_cmpint(r, ==, 0);
     g_assert_cmpuint(i, ==, 123);
@@ -284,11 +271,11 @@ static void test_parse_uint_full_correct(void)
 static void test_parse_uint_full_erange_junk(void)
 {
     /* FIXME - inconsistent with qemu_strto* which favors EINVAL */
-    unsigned long long i = 999;
+    uint64_t i = 999;
     const char *str = "-2junk";
     int r;
 
-    r = parse_uint_full(str, &i, 0);
+    r = parse_uint_full(str, 0, &i);
 
     g_assert_cmpint(r, ==, -ERANGE /* FIXME -EINVAL */);
     g_assert_cmpuint(i, ==, 0);

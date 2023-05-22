@@ -722,10 +722,10 @@ const char *qemu_strchrnul(const char *s, int c)
  * parse_uint:
  *
  * @s: String to parse
- * @value: Destination for parsed integer value
  * @endptr: Destination for pointer to first character not consumed, must
  * not be %NULL
  * @base: integer base, between 2 and 36 inclusive, or 0
+ * @value: Destination for parsed integer value
  *
  * Parse unsigned integer
  *
@@ -748,8 +748,7 @@ const char *qemu_strchrnul(const char *s, int c)
  *
  * Else, set *@value to the parsed integer, and return 0.
  */
-int parse_uint(const char *s, unsigned long long *value, char **endptr,
-               int base)
+int parse_uint(const char *s, const char **endptr, int base, uint64_t *value)
 {
     int r = 0;
     char *endp = (char *)s;
@@ -793,8 +792,8 @@ out:
  * parse_uint_full:
  *
  * @s: String to parse
- * @value: Destination for parsed integer value
  * @base: integer base, between 2 and 36 inclusive, or 0
+ * @value: Destination for parsed integer value
  *
  * Parse unsigned integer from entire string
  *
@@ -803,12 +802,12 @@ out:
  * characters are present after a non-overflowing parsed number, the
  * function will return -EINVAL, and *@v will be set to 0.
  */
-int parse_uint_full(const char *s, unsigned long long *value, int base)
+int parse_uint_full(const char *s, int base, uint64_t *value)
 {
-    char *endp;
+    const char *endp;
     int r;
 
-    r = parse_uint(s, value, &endp, base);
+    r = parse_uint(s, &endp, base, value);
     if (r < 0) {
         return r;
     }

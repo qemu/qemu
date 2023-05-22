@@ -163,9 +163,8 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 int qemu_strtod(const char *nptr, const char **endptr, double *result);
 int qemu_strtod_finite(const char *nptr, const char **endptr, double *result);
 
-int parse_uint(const char *s, unsigned long long *value, char **endptr,
-               int base);
-int parse_uint_full(const char *s, unsigned long long *value, int base);
+int parse_uint(const char *s, const char **endptr, int base, uint64_t *value);
+int parse_uint_full(const char *s, int base, uint64_t *value);
 
 int qemu_strtosz(const char *nptr, const char **end, uint64_t *result);
 int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result);

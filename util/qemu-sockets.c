@@ -249,12 +249,12 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 
     /* lookup */
     if (port_offset) {
-        unsigned long long baseport;
+        uint64_t baseport;
         if (strlen(port) == 0) {
             error_setg(errp, "port not specified");
             return -1;
         }
-        if (parse_uint_full(port, &baseport, 10) < 0) {
+        if (parse_uint_full(port, 10, &baseport) < 0) {
             error_setg(errp, "can't convert to a number: %s", port);
             return -1;
         }
@@ -732,19 +732,19 @@ static bool vsock_parse_vaddr_to_sockaddr(const VsockSocketAddress *vaddr,
                                           struct sockaddr_vm *svm,
                                           Error **errp)
 {
-    unsigned long long val;
+    uint64_t val;
 
     memset(svm, 0, sizeof(*svm));
     svm->svm_family = AF_VSOCK;
 
-    if (parse_uint_full(vaddr->cid, &val, 10) < 0 ||
+    if (parse_uint_full(vaddr->cid, 10, &val) < 0 ||
         val > UINT32_MAX) {
         error_setg(errp, "Failed to parse cid '%s'", vaddr->cid);
         return false;
     }
     svm->svm_cid = val;
 
-    if (parse_uint_full(vaddr->port, &val, 10) < 0 ||
+    if (parse_uint_full(vaddr->port, 10, &val) < 0 ||
         val > UINT32_MAX) {
         error_setg(errp, "Failed to parse port '%s'", vaddr->port);
         return false;
