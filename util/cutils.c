@@ -611,6 +611,8 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
  * Convert string @nptr to an uint64_t.
  *
  * Works like qemu_strtoul(), except it stores UINT64_MAX on overflow.
+ * (If you want to prohibit negative numbers that wrap around to
+ * positive, use parse_uint()).
  */
 int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result)
@@ -721,7 +723,8 @@ const char *qemu_strchrnul(const char *s, int c)
  *
  * @s: String to parse
  * @value: Destination for parsed integer value
- * @endptr: Destination for pointer to first character not consumed
+ * @endptr: Destination for pointer to first character not consumed, must
+ * not be %NULL
  * @base: integer base, between 2 and 36 inclusive, or 0
  *
  * Parse unsigned integer
@@ -729,15 +732,16 @@ const char *qemu_strchrnul(const char *s, int c)
  * Parsed syntax is like strtoull()'s: arbitrary whitespace, a single optional
  * '+' or '-', an optional "0x" if @base is 0 or 16, one or more digits.
  *
- * If @s is null, or @base is invalid, or @s doesn't start with an
- * integer in the syntax above, set *@value to 0, *@endptr to @s, and
- * return -EINVAL.
+ * If @s is null, or @s doesn't start with an integer in the syntax
+ * above, set *@value to 0, *@endptr to @s, and return -EINVAL.
  *
  * Set *@endptr to point right beyond the parsed integer (even if the integer
  * overflows or is negative, all digits will be parsed and *@endptr will
  * point right beyond them).
  *
  * If the integer is negative, set *@value to 0, and return -ERANGE.
+ * (If you want to allow negative numbers that wrap around within
+ * bounds, use qemu_strtou64()).
  *
  * If the integer overflows unsigned long long, set *@value to
  * ULLONG_MAX, and return -ERANGE.
@@ -794,10 +798,10 @@ out:
  *
  * Parse unsigned integer from entire string
  *
- * Have the same behavior of parse_uint(), but with an additional check
- * for additional data after the parsed number. If extra characters are present
- * after the parsed number, the function will return -EINVAL, and *@v will
- * be set to 0.
+ * Have the same behavior of parse_uint(), but with an additional
+ * check for additional data after the parsed number. If extra
+ * characters are present after a non-overflowing parsed number, the
+ * function will return -EINVAL, and *@v will be set to 0.
  */
 int parse_uint_full(const char *s, unsigned long long *value, int base)
 {
