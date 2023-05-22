@@ -9,6 +9,36 @@
 #include "libqtest.h"
 
 /*
+ * This used to trigger a DMA reentrancy issue
+ * leading to memory corruption bugs like stack
+ * overflow or use-after-free
+ * https://gitlab.com/qemu-project/qemu/-/issues/1563
+ */
+static void test_lsi_dma_reentrancy(void)
+{
+    QTestState *s;
+
+    s = qtest_init("-M q35 -m 512M -nodefaults "
+                   "-blockdev driver=null-co,node-name=null0 "
+                   "-device lsi53c810 -device scsi-cd,drive=null0");
+
+    qtest_outl(s, 0xcf8, 0x80000804); /* PCI Command Register */
+    qtest_outw(s, 0xcfc, 0x7);        /* Enables accesses */
+    qtest_outl(s, 0xcf8, 0x80000814); /* Memory Bar 1 */
+    qtest_outl(s, 0xcfc, 0xff100000); /* Set MMIO Address*/
+    qtest_outl(s, 0xcf8, 0x80000818); /* Memory Bar 2 */
+    qtest_outl(s, 0xcfc, 0xff000000); /* Set RAM Address*/
+    qtest_writel(s, 0xff000000, 0xc0000024);
+    qtest_writel(s, 0xff000114, 0x00000080);
+    qtest_writel(s, 0xff00012c, 0xff000000);
+    qtest_writel(s, 0xff000004, 0xff000114);
+    qtest_writel(s, 0xff000008, 0xff100014);
+    qtest_writel(s, 0xff10002f, 0x000000ff);
+
+    qtest_quit(s);
+}
+
+/*
  * This used to trigger a UAF in lsi_do_msgout()
  * https://gitlab.com/qemu-project/qemu/-/issues/972
  */
@@ -119,6 +149,9 @@ int main(int argc, char **argv)
 
     qtest_add_func("fuzz/lsi53c895a/lsi_do_msgout_cancel_req",
                    test_lsi_do_msgout_cancel_req);
+
+    qtest_add_func("fuzz/lsi53c895a/lsi_dma_reentrancy",
+                   test_lsi_dma_reentrancy);
 
     return g_test_run();
 }

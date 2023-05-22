@@ -1134,15 +1134,24 @@ static void lsi_execute_script(LSIState *s)
     uint32_t addr, addr_high;
     int opcode;
     int insn_processed = 0;
+    static int reentrancy_level;
+
+    reentrancy_level++;
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
-    if (++insn_processed > LSI_MAX_INSN) {
-        /* Some windows drivers make the device spin waiting for a memory
-           location to change.  If we have been executed a lot of code then
-           assume this is the case and force an unexpected device disconnect.
-           This is apparently sufficient to beat the drivers into submission.
-         */
+    /*
+     * Some windows drivers make the device spin waiting for a memory location
+     * to change. If we have executed more than LSI_MAX_INSN instructions then
+     * assume this is the case and force an unexpected device disconnect. This
+     * is apparently sufficient to beat the drivers into submission.
+     *
+     * Another issue (CVE-2023-0330) can occur if the script is programmed to
+     * trigger itself again and again. Avoid this problem by stopping after
+     * being called multiple times in a reentrant way (8 is an arbitrary value
+     * which should be enough for all valid use cases).
+     */
+    if (++insn_processed > LSI_MAX_INSN || reentrancy_level > 8) {
         if (!(s->sien0 & LSI_SIST0_UDC)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "lsi_scsi: inf. loop with UDC masked");
@@ -1596,6 +1605,8 @@ again:
         }
     }
     trace_lsi_execute_script_stop();
+
+    reentrancy_level--;
 }
 
 static uint8_t lsi_reg_readb(LSIState *s, int offset)
