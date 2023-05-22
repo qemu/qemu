@@ -226,6 +226,7 @@ version 2.
                     <https://www.zlib.net/> in QEMU. However, clusters with the
                     deflate compression type do not have zlib headers.
 
+        105 - 111:  Padding, contents defined below.
 
 === Header padding ===
 
