@@ -800,8 +800,8 @@ static void qcow_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
-                                       Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+qcow_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsQcow *qcow_opts;
     int header_size, backing_filename_len, l1_size, shift, i;
@@ -921,7 +921,7 @@ exit:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 qcow_co_create_opts(BlockDriver *drv, const char *filename,
                     QemuOpts *opts, Error **errp)
 {

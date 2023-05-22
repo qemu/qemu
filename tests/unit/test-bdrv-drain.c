@@ -1004,8 +1004,6 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
     void *buffer = g_malloc(65536);
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buffer, 65536);
 
-    GRAPH_RDLOCK_GUARD();
-
     /* Pretend some internal write operation from parent to child.
      * Important: We have to read from the child, not from the parent!
      * Draining works by first propagating it all up the tree to the
@@ -1014,12 +1012,14 @@ static void coroutine_fn test_co_delete_by_drain(void *opaque)
      * everything will be drained before we go back down the tree, but
      * we do not want that.  We want to be in the middle of draining
      * when this following requests returns. */
+    bdrv_graph_co_rdlock();
     bdrv_co_preadv(tts->wait_child, 0, 65536, &qiov, 0);
+    bdrv_graph_co_rdunlock();
 
     g_assert_cmpint(bs->refcnt, ==, 1);
 
     if (!dbdd->detach_instead_of_delete) {
-        blk_unref(blk);
+        blk_co_unref(blk);
     } else {
         BdrvChild *c, *next_c;
         QLIST_FOREACH_SAFE(c, &bs->children, next, next_c) {

@@ -630,8 +630,8 @@ static void bdrv_qed_close(BlockDriverState *bs)
     qemu_vfree(s->l1_table);
 }
 
-static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
-                                           Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+bdrv_qed_co_create(BlockdevCreateOptions *opts, Error **errp)
 {
     BlockdevCreateOptionsQed *qed_opts;
     BlockBackend *blk = NULL;
@@ -751,7 +751,7 @@ out:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 bdrv_qed_co_create_opts(BlockDriver *drv, const char *filename,
                         QemuOpts *opts, Error **errp)
 {

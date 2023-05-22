@@ -734,8 +734,9 @@ nonallocating_write:
     return ret;
 }
 
-static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
-                                         size_t block_size, Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vdi_co_do_create(BlockdevCreateOptions *create_options, size_t block_size,
+                 Error **errp)
 {
     BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
@@ -892,13 +893,13 @@ exit:
     return ret;
 }
 
-static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
-                                      Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+vdi_co_create(BlockdevCreateOptions *create_options, Error **errp)
 {
     return vdi_co_do_create(create_options, DEFAULT_CLUSTER_SIZE, errp);
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 vdi_co_create_opts(BlockDriver *drv, const char *filename,
                    QemuOpts *opts, Error **errp)
 {

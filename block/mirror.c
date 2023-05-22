@@ -471,12 +471,11 @@ static unsigned mirror_perform(MirrorBlockJob *s, int64_t offset,
     return bytes_handled;
 }
 
-static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
+static void coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
     BlockDriverState *source = s->mirror_top_bs->backing->bs;
     MirrorOp *pseudo_op;
     int64_t offset;
-    uint64_t delay_ns = 0, ret = 0;
     /* At least the first dirty chunk is mirrored in one iteration. */
     int nb_chunks = 1;
     bool write_zeroes_ok = bdrv_can_write_zeroes_with_unmap(blk_bs(s->target));
@@ -608,16 +607,13 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
         assert(io_bytes);
         offset += io_bytes;
         nb_chunks -= DIV_ROUND_UP(io_bytes, s->granularity);
-        delay_ns = block_job_ratelimit_get_delay(&s->common, io_bytes_acct);
+        block_job_ratelimit_processed_bytes(&s->common, io_bytes_acct);
     }
 
-    ret = delay_ns;
 fail:
     QTAILQ_REMOVE(&s->ops_in_flight, pseudo_op, next);
     qemu_co_queue_restart_all(&pseudo_op->waiting_requests);
     g_free(pseudo_op);
-
-    return ret;
 }
 
 static void mirror_free_init(MirrorBlockJob *s)
@@ -1011,7 +1007,6 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     assert(!s->dbi);
     s->dbi = bdrv_dirty_iter_new(s->dirty_bitmap);
     for (;;) {
-        uint64_t delay_ns = 0;
         int64_t cnt, delta;
         bool should_complete;
 
@@ -1051,7 +1046,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                 mirror_wait_for_free_in_flight_slot(s);
                 continue;
             } else if (cnt != 0) {
-                delay_ns = mirror_iteration(s);
+                mirror_iteration(s);
             }
         }
 
@@ -1114,12 +1109,14 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         }
 
         if (job_is_ready(&s->common.job) && !should_complete) {
-            delay_ns = (s->in_flight == 0 &&
-                        cnt == 0 ? BLOCK_JOB_SLICE_TIME : 0);
+            if (s->in_flight == 0 && cnt == 0) {
+                trace_mirror_before_sleep(s, cnt, job_is_ready(&s->common.job),
+                                          BLOCK_JOB_SLICE_TIME);
+                job_sleep_ns(&s->common.job, BLOCK_JOB_SLICE_TIME);
+            }
+        } else {
+            block_job_ratelimit_sleep(&s->common);
         }
-        trace_mirror_before_sleep(s, cnt, job_is_ready(&s->common.job),
-                                  delay_ns);
-        job_sleep_ns(&s->common.job, delay_ns);
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 

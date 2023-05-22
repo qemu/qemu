@@ -2938,8 +2938,6 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
         }
         bs = blk_bs(blk);
 
-        GRAPH_RDLOCK_GUARD_MAINLOOP();
-
         /*
          * Note that the returned BlockGraphInfo object will not have
          * information about this image's backing node, because we have opened
@@ -2947,7 +2945,10 @@ static BlockGraphInfoList *collect_image_info_list(bool image_opts,
          * duplicate the backing chain information that we obtain by walking
          * the chain manually here.
          */
+        bdrv_graph_rdlock_main_loop();
         bdrv_query_block_graph_info(bs, &info, &err);
+        bdrv_graph_rdunlock_main_loop();
+
         if (err) {
             error_report_err(err);
             blk_unref(blk);

@@ -353,7 +353,18 @@ static bool aio_dispatch_handler(AioContext *ctx, AioHandler *node)
         poll_ready && revents == 0 &&
         aio_node_check(ctx, node->is_external) &&
         node->io_poll_ready) {
+        /*
+         * Remove temporarily to avoid infinite loops when ->io_poll_ready()
+         * calls aio_poll() before clearing the condition that made the poll
+         * handler become ready.
+         */
+        QLIST_SAFE_REMOVE(node, node_poll);
+
         node->io_poll_ready(node->opaque);
+
+        if (!QLIST_IS_INSERTED(node, node_poll)) {
+            QLIST_INSERT_HEAD(&ctx->poll_aio_handlers, node, node_poll);
+        }
 
         /*
          * Return early since revents was zero. aio_notify() does not count as

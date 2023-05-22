@@ -116,7 +116,6 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     int64_t offset;
-    uint64_t delay_ns = 0;
     int ret = 0;
     int64_t n = 0; /* bytes */
     QEMU_AUTO_VFREE void *buf = NULL;
@@ -149,7 +148,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        job_sleep_ns(&s->common.job, delay_ns);
+        block_job_ratelimit_sleep(&s->common);
         if (job_is_cancelled(&s->common.job)) {
             break;
         }
@@ -184,9 +183,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
         job_progress_update(&s->common.job, n);
 
         if (copy) {
-            delay_ns = block_job_ratelimit_get_delay(&s->common, n);
-        } else {
-            delay_ns = 0;
+            block_job_ratelimit_processed_bytes(&s->common, n);
         }
     }
 

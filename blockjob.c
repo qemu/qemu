@@ -319,10 +319,28 @@ static bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     return block_job_set_speed_locked(job, speed, errp);
 }
 
-int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
+void block_job_ratelimit_processed_bytes(BlockJob *job, uint64_t n)
 {
     IO_CODE();
-    return ratelimit_calculate_delay(&job->limit, n);
+    ratelimit_calculate_delay(&job->limit, n);
+}
+
+void block_job_ratelimit_sleep(BlockJob *job)
+{
+    uint64_t delay_ns;
+
+    /*
+     * Sleep at least once. If the job is reentered early, keep waiting until
+     * we've waited for the full time that is necessary to keep the job at the
+     * right speed.
+     *
+     * Make sure to recalculate the delay after each (possibly interrupted)
+     * sleep because the speed can change while the job has yielded.
+     */
+    do {
+        delay_ns = ratelimit_calculate_delay(&job->limit, 0);
+        job_sleep_ns(&job->job, delay_ns);
+    } while (delay_ns && !job_is_cancelled(&job->job));
 }
 
 BlockJobInfo *block_job_query_locked(BlockJob *job, Error **errp)

@@ -99,12 +99,10 @@ struct BlockCryptoCreateData {
 };
 
 
-static int block_crypto_create_write_func(QCryptoBlock *block,
-                                          size_t offset,
-                                          const uint8_t *buf,
-                                          size_t buflen,
-                                          void *opaque,
-                                          Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+block_crypto_create_write_func(QCryptoBlock *block, size_t offset,
+                               const uint8_t *buf, size_t buflen, void *opaque,
+                               Error **errp)
 {
     struct BlockCryptoCreateData *data = opaque;
     ssize_t ret;
@@ -117,10 +115,9 @@ static int block_crypto_create_write_func(QCryptoBlock *block,
     return 0;
 }
 
-static int block_crypto_create_init_func(QCryptoBlock *block,
-                                         size_t headerlen,
-                                         void *opaque,
-                                         Error **errp)
+static int coroutine_fn GRAPH_UNLOCKED
+block_crypto_create_init_func(QCryptoBlock *block, size_t headerlen,
+                              void *opaque, Error **errp)
 {
     struct BlockCryptoCreateData *data = opaque;
     Error *local_error = NULL;
@@ -314,7 +311,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 }
 
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_UNLOCKED
 block_crypto_co_create_generic(BlockDriverState *bs, int64_t size,
                                QCryptoBlockCreateOptions *opts,
                                PreallocMode prealloc, Error **errp)
@@ -627,7 +624,7 @@ static int block_crypto_open_luks(BlockDriverState *bs,
                                      bs, options, flags, errp);
 }
 
-static int coroutine_fn
+static int coroutine_fn GRAPH_UNLOCKED
 block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
 {
     BlockdevCreateOptionsLUKS *luks_opts;
@@ -665,7 +662,7 @@ fail:
     return ret;
 }
 
-static int coroutine_fn GRAPH_RDLOCK
+static int coroutine_fn GRAPH_UNLOCKED
 block_crypto_co_create_opts_luks(BlockDriver *drv, const char *filename,
                                  QemuOpts *opts, Error **errp)
 {
@@ -727,7 +724,9 @@ fail:
      * beforehand, it has been truncated and corrupted in the process.
      */
     if (ret) {
+        bdrv_graph_co_rdlock();
         bdrv_co_delete_file_noerr(bs);
+        bdrv_graph_co_rdunlock();
     }
 
     bdrv_co_unref(bs);
