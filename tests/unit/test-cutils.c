@@ -3563,21 +3563,6 @@ static void test_qemu_strtosz_invalid(void)
     g_assert_cmphex(res, ==, 0xbaadf00d);
     g_assert_true(endptr == str);
 
-    /* No floating point exponents */
-    str = "1.5e1k";
-    endptr = NULL;
-    err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
-    g_assert_true(endptr == str);
-
-    str = "1.5E+0k";
-    endptr = NULL;
-    err = qemu_strtosz(str, &endptr, &res);
-    g_assert_cmpint(err, ==, -EINVAL);
-    g_assert_cmphex(res, ==, 0xbaadf00d);
-    g_assert_true(endptr == str);
-
     /* No hex fractions */
     str = "0x1.8k";
     endptr = NULL;
@@ -3676,6 +3661,33 @@ static void test_qemu_strtosz_trailing(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpuint(res, ==, 123);
     g_assert_true(endptr == str + 3);
+
+    res = 0xbaadf00d;
+    err = qemu_strtosz(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmphex(res, ==, 0xbaadf00d);
+
+    /* FIXME should stop parse after 'e'. No floating point exponents */
+    str = "1.5e1k";
+    endptr = NULL;
+    res = 0xbaadf00d;
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
+    g_assert_cmphex(res, ==, 0xbaadf00d /* FIXME EiB * 1.5 */);
+    g_assert_true(endptr == str /* FIXME + 4 */);
+
+    res = 0xbaadf00d;
+    err = qemu_strtosz(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpint(res, ==, 0xbaadf00d);
+
+    str = "1.5E+0k";
+    endptr = NULL;
+    res = 0xbaadf00d;
+    err = qemu_strtosz(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL /* FIXME 0 */);
+    g_assert_cmphex(res, ==, 0xbaadf00d /* FIXME EiB * 1.5 */);
+    g_assert_true(endptr == str /* FIXME + 4 */);
 
     res = 0xbaadf00d;
     err = qemu_strtosz(str, NULL, &res);
