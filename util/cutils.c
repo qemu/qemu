@@ -306,7 +306,7 @@ static int do_strtosz(const char *nptr, const char **end,
 out:
     if (end) {
         *end = endptr;
-    } else if (*endptr) {
+    } else if (nptr && *endptr) {
         retval = -EINVAL;
     }
     if (retval == 0) {

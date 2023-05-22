@@ -3285,7 +3285,12 @@ static void do_strtosz_full(const char *str, qemu_strtosz_fn fn,
     ret = fn(str, &endptr, &val);
     g_assert_cmpint(ret, ==, exp_ptr_ret);
     g_assert_cmpuint(val, ==, exp_ptr_val);
-    g_assert_true(endptr == str + exp_ptr_offset);
+    if (str) {
+        g_assert_true(endptr == str + exp_ptr_offset);
+    } else {
+        g_assert_cmpint(exp_ptr_offset, ==, 0);
+        g_assert_null(endptr);
+    }
 
     val = 0xbaadf00d;
     ret = fn(str, NULL, &val);
@@ -3383,6 +3388,9 @@ static void test_qemu_strtosz_float(void)
 
 static void test_qemu_strtosz_invalid(void)
 {
+    do_strtosz(NULL, -EINVAL, 0xbaadf00d, 0);
+
+    /* Must parse at least one digit */
     do_strtosz("", -EINVAL, 0xbaadf00d, 0);
     do_strtosz(" \t ", -EINVAL, 0xbaadf00d, 0);
     do_strtosz("crap", -EINVAL, 0xbaadf00d, 0);
