@@ -205,13 +205,15 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  *
  * The end pointer will be returned in *end, if not NULL.  If there is
  * no fraction, the input can be decimal or hexadecimal; if there is a
- * fraction, then the input must be decimal and there must be a suffix
- * (possibly by @default_suffix) larger than Byte, and the fractional
- * portion may suffer from precision loss or rounding.  The input must
- * be positive.
+ * non-zero fraction, then the input must be decimal and there must be
+ * a suffix (possibly by @default_suffix) larger than Byte, and the
+ * fractional portion may suffer from precision loss or rounding.  The
+ * input must be positive.
  *
  * Return -ERANGE on overflow (with *@end advanced), and -EINVAL on
- * other error (with *@end left unchanged).
+ * other error (with *@end at @nptr).  Unlike strtoull, *@result is
+ * set to 0 on all errors, as returning UINT64_MAX on overflow is less
+ * likely to be usable as a size.
  */
 static int do_strtosz(const char *nptr, const char **end,
                       const char default_suffix, int64_t unit,
@@ -311,6 +313,11 @@ out:
     }
     if (retval == 0) {
         *result = val;
+    } else {
+        *result = 0;
+        if (end && retval == -EINVAL) {
+            *end = nptr;
+        }
     }
 
     return retval;

@@ -3396,7 +3396,7 @@ static void test_qemu_strtosz_float(void)
     do_strtosz("1.k", 0, 1024, 3);
 
     /* FIXME An empty fraction head should be tolerated */
-    do_strtosz(" .5k", -EINVAL /* FIXME 0 */, 0xbaadf00d /* FIXME 512 */,
+    do_strtosz(" .5k", -EINVAL /* FIXME 0 */, 0 /* FIXME 512 */,
                0 /* FIXME 4 */);
 
     /* For convenience, we permit values that are not byte-exact */
@@ -3421,29 +3421,29 @@ static void test_qemu_strtosz_float(void)
 
 static void test_qemu_strtosz_invalid(void)
 {
-    do_strtosz(NULL, -EINVAL, 0xbaadf00d, 0);
+    do_strtosz(NULL, -EINVAL, 0, 0);
 
     /* Must parse at least one digit */
-    do_strtosz("", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz(" \t ", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz(".", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz(" .", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz(" .k", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("inf", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("NaN", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("", -EINVAL, 0, 0);
+    do_strtosz(" \t ", -EINVAL, 0, 0);
+    do_strtosz(".", -EINVAL, 0, 0);
+    do_strtosz(" .", -EINVAL, 0, 0);
+    do_strtosz(" .k", -EINVAL, 0, 0);
+    do_strtosz("inf", -EINVAL, 0, 0);
+    do_strtosz("NaN", -EINVAL, 0, 0);
 
     /* Lone suffix is not okay */
-    do_strtosz("k", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz(" M", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("k", -EINVAL, 0, 0);
+    do_strtosz(" M", -EINVAL, 0, 0);
 
     /* Fractional values require scale larger than bytes */
-    do_strtosz("1.1B", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("1.1", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("1.1B", -EINVAL, 0, 0);
+    do_strtosz("1.1", -EINVAL, 0, 0);
 
     /* FIXME underflow in the fraction tail should matter for 'B' */
-    do_strtosz("1.00001B", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("1.00001B", -EINVAL, 0, 0);
     do_strtosz("1.00000000000000000001B", 0 /* FIXME -EINVAL */,
-               1 /* FIXME 0xbaadf00d */, 23 /* FIXME 0 */);
+               1 /* FIXME 0 */, 23 /* FIXME 0 */);
     do_strtosz("1."
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
@@ -3452,62 +3452,60 @@ static void test_qemu_strtosz_invalid(void)
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
                "00000000000000000000000000000000000000000000000000"
-               "1B", 0 /* FIXME -EINVAL */, 1 /* FIXME 0xbaadf00d */,
+               "1B", 0 /* FIXME -EINVAL */, 1 /* FIXME 0 */,
                354 /* FIXME 0 */);
 
     /* No hex fractions */
-    do_strtosz("0x1.8k", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("0x1.k", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("0x1.8k", -EINVAL, 0, 0);
+    do_strtosz("0x1.k", -EINVAL, 0, 0);
 
     /* No hex suffixes */
-    do_strtosz("0x18M", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("0x1p1", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("0x18M", -EINVAL, 0, 0);
+    do_strtosz("0x1p1", -EINVAL, 0, 0);
 
     /* decimal in place of scaling suffix */
-    do_strtosz("1.1.k", -EINVAL, 0xbaadf00d, 0);
-    do_strtosz("1.1.", -EINVAL, 0xbaadf00d, 0);
+    do_strtosz("1.1.k", -EINVAL, 0, 0);
+    do_strtosz("1.1.", -EINVAL, 0, 0);
 }
 
 static void test_qemu_strtosz_trailing(void)
 {
     /* Trailing whitespace */
-    do_strtosz_full("1k ", qemu_strtosz, 0, 1024, 2, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("1k ", qemu_strtosz, 0, 1024, 2, -EINVAL, 0);
 
     /* Unknown suffix overrides even implied scale*/
-    do_strtosz_full("123xxx", qemu_strtosz, 0, 123, 3, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("123xxx", qemu_strtosz, 0, 123, 3, -EINVAL, 0);
 
     /* Implied scale allows partial parse */
-    do_strtosz_full("123xxx", qemu_strtosz_MiB, 0, 123 * MiB, 3,
-                    -EINVAL, 0xbaadf00d);
-    do_strtosz_full("1.5.k", qemu_strtosz_MiB, 0, 1.5 * MiB, 3,
-                    -EINVAL, 0xbaadf00d);
+    do_strtosz_full("123xxx", qemu_strtosz_MiB, 0, 123 * MiB, 3, -EINVAL, 0);
+    do_strtosz_full("1.5.k", qemu_strtosz_MiB, 0, 1.5 * MiB, 3, -EINVAL, 0);
 
     /* Junk after one-byte suffix */
-    do_strtosz_full("1kiB", qemu_strtosz, 0, 1024, 2, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("1kiB", qemu_strtosz, 0, 1024, 2, -EINVAL, 0);
 
     /* Incomplete hex is an unknown suffix */
-    do_strtosz_full("0x", qemu_strtosz, 0, 0, 1, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("0x", qemu_strtosz, 0, 0, 1, -EINVAL, 0);
 
     /* Hex literals use only one leading zero */
-    do_strtosz_full("00x1", qemu_strtosz, 0, 0, 2, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("00x1", qemu_strtosz, 0, 0, 2, -EINVAL, 0);
 
     /* No support for binary literals; 'b' is valid suffix */
-    do_strtosz_full("0b1000", qemu_strtosz, 0, 0, 2, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("0b1000", qemu_strtosz, 0, 0, 2, -EINVAL, 0);
 
     /* Junk after decimal */
-    do_strtosz_full("0.NaN", qemu_strtosz, 0, 0, 2, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("0.NaN", qemu_strtosz, 0, 0, 2, -EINVAL, 0);
 
     /* Although negatives are invalid, '-' may be in trailing junk */
-    do_strtosz_full("123-45", qemu_strtosz, 0, 123, 3, -EINVAL, 0xbaadf00d);
-    do_strtosz_full(" 123 - 45", qemu_strtosz, 0, 123, 4, -EINVAL, 0xbaadf00d);
+    do_strtosz_full("123-45", qemu_strtosz, 0, 123, 3, -EINVAL, 0);
+    do_strtosz_full(" 123 - 45", qemu_strtosz, 0, 123, 4, -EINVAL, 0);
 
     /* FIXME should stop parse after 'e'. No floating point exponents */
     do_strtosz_full("1.5e1k", qemu_strtosz, -EINVAL /* FIXME 0 */,
-                    0xbaadf00d /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
-                    -EINVAL, 0xbaadf00d);
+                    0 /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
+                    -EINVAL, 0);
     do_strtosz_full("1.5E+0k", qemu_strtosz, -EINVAL /* FIXME 0 */,
-                    0xbaadf00d /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
-                    -EINVAL, 0xbaadf00d);
+                    0 /* FIXME EiB * 1.5 */, 0 /* FIXME 4 */,
+                    -EINVAL, 0);
 
     /*
      * FIXME overflow in fraction is so buggy it can read beyond bounds
@@ -3515,20 +3513,19 @@ static void test_qemu_strtosz_trailing(void)
      */
     do_strtosz_full("1.5E999\0\0" /* FIXME 1.5E999" */, qemu_strtosz,
                     0, 1 /* FIXME EiB * 1.5 */, 8 /* FIXME 4 */,
-                    0 /* FIXME -EINVAL */, 1 /* FIXME 0xbaadf00d */);
+                    0 /* FIXME -EINVAL */, 1 /* FIXME 0 */);
 }
 
 static void test_qemu_strtosz_erange(void)
 {
     /* FIXME negative values fit better as ERANGE */
-    do_strtosz(" -0", -EINVAL /* FIXME -ERANGE */, 0xbaadf00d, 0 /* FIXME 3 */);
-    do_strtosz("-1", -EINVAL /* FIXME -ERANGE */, 0xbaadf00d, 0 /* FIXME 2 */);
-    do_strtosz_full("-2M", qemu_strtosz, -EINVAL /* FIXME -ERANGE */,
-                    0xbaadf00d, 0 /* FIXME 2 */, -EINVAL, 0xbaadf00d);
-    do_strtosz(" -.0", -EINVAL /* FIXME -ERANGE */, 0xbaadf00d,
-               0 /* FIXME 4 */);
-    do_strtosz_full("-.1k", qemu_strtosz, -EINVAL /* FIXME -ERANGE */,
-                    0xbaadf00d, 0 /* FIXME 3 */, -EINVAL, 0xbaadf00d);
+    do_strtosz(" -0", -EINVAL /* FIXME -ERANGE */, 0, 0 /* FIXME 3 */);
+    do_strtosz("-1", -EINVAL /* FIXME -ERANGE */, 0, 0 /* FIXME 2 */);
+    do_strtosz_full("-2M", qemu_strtosz, -EINVAL /* FIXME -ERANGE */, 0,
+                    0 /* FIXME 2 */, -EINVAL, 0);
+    do_strtosz(" -.0", -EINVAL /* FIXME -ERANGE */, 0, 0 /* FIXME 4 */);
+    do_strtosz_full("-.1k", qemu_strtosz, -EINVAL /* FIXME -ERANGE */, 0,
+                    0 /* FIXME 3 */, -EINVAL, 0);
     do_strtosz_full(" -."
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
@@ -3537,21 +3534,20 @@ static void test_qemu_strtosz_erange(void)
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
                     "00000000000000000000000000000000000000000000000000"
-                    "1M", qemu_strtosz, -EINVAL /* FIXME -ERANGE */,
-                    0xbaadf00d, 0 /* FIXME 354 */, -EINVAL, 0xbaadf00d);
+                    "1M", qemu_strtosz, -EINVAL /* FIXME -ERANGE */, 0,
+                    0 /* FIXME 354 */, -EINVAL, 0);
 
     /* 2^64; see strtosz_simple for 2^64-1 */
-    do_strtosz("18446744073709551616", -ERANGE, 0xbaadf00d, 20);
+    do_strtosz("18446744073709551616", -ERANGE, 0, 20);
 
-    do_strtosz("20E", -ERANGE, 0xbaadf00d, 3);
+    do_strtosz("20E", -ERANGE, 0, 3);
 
     /* FIXME Fraction tail can cause ERANGE overflow */
     do_strtosz("15.9999999999999999999999999999999999999999999999999999E",
-               0 /* FIXME -ERANGE */, 15ULL * EiB /* FIXME 0xbaadf00d */, 56);
+               0 /* FIXME -ERANGE */, 15ULL * EiB /* FIXME 0 */, 56);
 
     /* EINVAL has priority over ERANGE */
-    do_strtosz_full("100000Pjunk", qemu_strtosz, -ERANGE, 0xbaadf00d, 7,
-                    -EINVAL, 0xbaadf00d);
+    do_strtosz_full("100000Pjunk", qemu_strtosz, -ERANGE, 0, 7, -EINVAL, 0);
 }
 
 static void test_qemu_strtosz_metric(void)
