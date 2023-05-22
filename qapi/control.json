@@ -27,7 +27,7 @@
 # Notes: This command is valid exactly when first connecting: it must
 #     be issued before any other command will be accepted, and will
 #     fail once the monitor is accepting other commands.  (see qemu
-#     docs/interop/qmp-spec.txt)
+#     docs/interop/qmp-spec.rst)
 #
 #     The QMP client needs to explicitly enable QMP capabilities,
 #     otherwise all the QMP capabilities will be turned off by
@@ -46,7 +46,7 @@
 # connection, used for agreeing on particular QMP extension behaviors.
 #
 # @oob: QMP ability to support out-of-band requests.  (Please refer to
-#     qmp-spec.txt for more information on OOB)
+#     qmp-spec.rst for more information on OOB)
 #
 # Since: 2.12
 ##

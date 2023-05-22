@@ -675,8 +675,8 @@ class QAPIDoc:
         match = self._match_at_name_colon(line)
         if match:
             raise QAPIParseError(self._parser,
-                                 "'@%s:' can't follow '%s' section"
-                                 % (match.group(1), self.sections[0].name))
+                                 "description of '@%s:' follows a section"
+                                 % match.group(1))
         match = self._match_section_tag(line)
         if match:
             line = line[match.end():]

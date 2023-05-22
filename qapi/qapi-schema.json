@@ -29,7 +29,8 @@
 #   -> data issued by the Client
 #   <- Server data response
 #
-# Please, refer to the QMP specification (docs/interop/qmp-spec.txt)
+# Please refer to the
+# :doc:`QEMU Machine Protocol Specification </interop/qmp-spec>`
 # for detailed information on the Server command and response formats.
 ##
 
