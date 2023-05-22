@@ -87,6 +87,7 @@ static void ppc_heathrow_reset(void *opaque)
 static void ppc_heathrow_init(MachineState *machine)
 {
     const char *bios_name = machine->firmware ?: PROM_FILENAME;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
@@ -276,7 +277,7 @@ static void ppc_heathrow_init(MachineState *machine)
     pci_vga_init(pci_bus);
 
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "ne2k_pci", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
     }
 
     /* MacIO IDE */
@@ -424,6 +425,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
     mc->kvm_type = heathrow_kvm_type;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750_v3.1");
     mc->default_display = "std";
+    mc->default_nic = "ne2k_pci";
     mc->ignore_boot_device_suffixes = true;
     mc->default_ram_id = "ppc_heathrow.ram";
     fwc->get_dev_path = heathrow_fw_dev_path;

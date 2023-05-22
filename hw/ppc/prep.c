@@ -229,6 +229,7 @@ static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
 static void ibm_40p_init(MachineState *machine)
 {
     const char *bios_name = machine->firmware ?: "openbios-ppc";
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     CPUPPCState *env = NULL;
     uint16_t cmos_checksum;
     PowerPCCPU *cpu;
@@ -323,7 +324,7 @@ static void ibm_40p_init(MachineState *machine)
         pci_vga_init(pci_bus);
 
         for (i = 0; i < nb_nics; i++) {
-            pci_nic_init_nofail(&nd_table[i], pci_bus, "pcnet",
+            pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic,
                                 i == 0 ? "3" : NULL);
         }
     }
@@ -427,6 +428,7 @@ static void ibm_40p_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("604");
     mc->default_display = "std";
+    mc->default_nic = "pcnet";
 }
 
 DEFINE_MACHINE("40p", ibm_40p_machine_init)

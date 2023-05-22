@@ -527,7 +527,7 @@ build-without-defaults:
       --disable-strip
     TARGETS: avr-softmmu mips64-softmmu s390x-softmmu sh4-softmmu
       sparc64-softmmu hexagon-linux-user i386-linux-user s390x-linux-user
-    MAKE_CHECK_ARGS: check-unit check-qtest-avr check-qtest-mips64
+    MAKE_CHECK_ARGS: check
 
 build-libvhost-user:
   extends: .base_job_template

@@ -534,6 +534,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     unsigned access_size;
     unsigned i;
     MemTxResult r = MEMTX_OK;
+    bool reentrancy_guard_applied = false;
 
     if (!access_size_min) {
         access_size_min = 1;
@@ -552,6 +553,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
             return MEMTX_ACCESS_ERROR;
         }
         mr->dev->mem_reentrancy_guard.engaged_in_io = true;
+        reentrancy_guard_applied = true;
     }
 
     /* FIXME: support unaligned access? */
@@ -568,7 +570,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
                         access_mask, attrs);
         }
     }
-    if (mr->dev) {
+    if (mr->dev && reentrancy_guard_applied) {
         mr->dev->mem_reentrancy_guard.engaged_in_io = false;
     }
     return r;

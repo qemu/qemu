@@ -161,6 +161,7 @@ static void bamboo_init(MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *isa = g_new(MemoryRegion, 1);
@@ -246,7 +247,7 @@ static void bamboo_init(MachineState *machine)
              * There are no PCI NICs on the Bamboo board, but there are
              * PCI slots, so we can pick whatever default model we want.
              */
-            pci_nic_init_nofail(&nd_table[i], pcibus, "e1000", NULL);
+            pci_nic_init_nofail(&nd_table[i], pcibus, mc->default_nic, NULL);
         }
     }
 
@@ -296,6 +297,7 @@ static void bamboo_machine_init(MachineClass *mc)
     mc->init = bamboo_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("440epb");
     mc->default_ram_id = "ppc4xx.sdram";
+    mc->default_nic = "e1000";
 }
 
 DEFINE_MACHINE("bamboo", bamboo_machine_init)

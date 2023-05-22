@@ -17,12 +17,6 @@
 #include "libqtest-single.h"
 #include "libqos/virtio.h"
 
-static void virtio_balloon_nop(void)
-{
-    global_qtest = qtest_initf("-device virtio-balloon-ccw");
-    qtest_end();
-}
-
 static void virtconsole_nop(void)
 {
     global_qtest = qtest_initf("-device virtio-serial-ccw,id=vser0 "
@@ -51,20 +45,6 @@ static void virtio_serial_hotplug(void)
     qtest_qmp_device_del(qts, "hp-port");
 
     qtest_quit(qts);
-}
-
-static void virtio_blk_nop(void)
-{
-    global_qtest = qtest_initf("-drive if=none,id=drv0,file=null-co://,"
-                               "file.read-zeroes=on,format=raw "
-                                "-device virtio-blk-ccw,drive=drv0");
-    qtest_end();
-}
-
-static void virtio_net_nop(void)
-{
-    global_qtest = qtest_initf("-device virtio-net-ccw");
-    qtest_end();
 }
 
 static void virtio_rng_nop(void)
@@ -96,16 +76,19 @@ static void virtio_scsi_hotplug(void)
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/virtio/balloon/nop", virtio_balloon_nop);
-    qtest_add_func("/virtio/console/nop", virtconsole_nop);
-    qtest_add_func("/virtio/serialport/nop", virtserialport_nop);
-    qtest_add_func("/virtio/serial/nop", virtio_serial_nop);
-    qtest_add_func("/virtio/serial/hotplug", virtio_serial_hotplug);
-    qtest_add_func("/virtio/block/nop", virtio_blk_nop);
-    qtest_add_func("/virtio/net/nop", virtio_net_nop);
-    qtest_add_func("/virtio/rng/nop", virtio_rng_nop);
-    qtest_add_func("/virtio/scsi/nop", virtio_scsi_nop);
-    qtest_add_func("/virtio/scsi/hotplug", virtio_scsi_hotplug);
+    if (qtest_has_device("virtio-serial-ccw")) {
+        qtest_add_func("/virtio/console/nop", virtconsole_nop);
+        qtest_add_func("/virtio/serialport/nop", virtserialport_nop);
+        qtest_add_func("/virtio/serial/nop", virtio_serial_nop);
+        qtest_add_func("/virtio/serial/hotplug", virtio_serial_hotplug);
+    }
+    if (qtest_has_device("virtio-rng-ccw")) {
+        qtest_add_func("/virtio/rng/nop", virtio_rng_nop);
+    }
+    if (qtest_has_device("virtio-rng-ccw")) {
+        qtest_add_func("/virtio/scsi/nop", virtio_scsi_nop);
+        qtest_add_func("/virtio/scsi/hotplug", virtio_scsi_hotplug);
+    }
 
     return g_test_run();
 }

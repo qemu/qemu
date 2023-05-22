@@ -123,9 +123,9 @@ class QEMUBitsMachine(QEMUMachine): # pylint: disable=too-few-public-methods
         """return the base argument to QEMU binary"""
         return self._base_args
 
-@skipIf(not supported_platform() or missing_deps() or os.getenv('GITLAB_CI'),
-        'incorrect platform or dependencies (%s) not installed ' \
-        'or running on GitLab' % ','.join(deps))
+@skipIf(not supported_platform() or missing_deps(),
+        'unsupported platform or dependencies (%s) not installed' \
+        % ','.join(deps))
 class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
     """
     ACPI and SMBIOS tests using biosbits.
@@ -356,7 +356,7 @@ class AcpiBitsTest(QemuBaseTest): #pylint: disable=too-many-instance-attributes
         """
         if self._vm:
             self.assertFalse(not self._vm.is_running)
-        if not os.getenv('BITS_DEBUG'):
+        if not os.getenv('BITS_DEBUG') and self._workDir:
             self.logger.info('removing the work directory %s', self._workDir)
             shutil.rmtree(self._workDir)
         else:

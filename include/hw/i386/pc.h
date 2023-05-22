@@ -93,7 +93,6 @@ struct PCMachineClass {
     /* Device configuration: */
     bool pci_enabled;
     bool kvmclock_enabled;
-    const char *default_nic_model;
 
     /* Compat options: */
 

@@ -1364,12 +1364,13 @@ void pc_basic_device_init(struct PCMachineState *pcms,
 
 void pc_nic_init(PCMachineClass *pcmc, ISABus *isa_bus, PCIBus *pci_bus)
 {
+    MachineClass *mc = MACHINE_CLASS(pcmc);
     int i;
 
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_NIC);
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
-        const char *model = nd->model ? nd->model : pcmc->default_nic_model;
+        const char *model = nd->model ? nd->model : mc->default_nic;
 
         if (g_str_equal(model, "ne2k_isa")) {
             pc_init_ne2k_isa(isa_bus, nd);
