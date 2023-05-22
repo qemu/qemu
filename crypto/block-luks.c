@@ -706,13 +706,13 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
 
     assert(slot_idx < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS);
     slot = &luks->header.key_slots[slot_idx];
+    splitkeylen = luks->header.master_key_len * slot->stripes;
+
     if (qcrypto_random_bytes(slot->salt,
                              QCRYPTO_BLOCK_LUKS_SALT_LEN,
                              errp) < 0) {
         goto cleanup;
     }
-
-    splitkeylen = luks->header.master_key_len * slot->stripes;
 
     /*
      * Determine how many iterations are required to
