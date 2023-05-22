@@ -25,6 +25,8 @@
  * THE SOFTWARE.
  */
 
+#include <math.h>
+
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
@@ -2789,6 +2791,487 @@ static void test_qemu_strtou64_full_erange_junk(void)
     g_assert_cmpuint(res, ==, UINT64_MAX);
 }
 
+static void test_qemu_strtod_simple(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* no radix or exponent */
+    str = "1";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 1.0);
+    g_assert_true(endptr == str + 1);
+
+    /* leading space and sign */
+    str = " -0.0";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, -0.0);
+    g_assert_true(signbit(res));
+    g_assert_true(endptr == str + 5);
+
+    /* fraction only */
+    str = "+.5";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 0.5);
+    g_assert_true(endptr == str + 3);
+
+    /* exponent */
+    str = "1.e+1";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 10.0);
+    g_assert_true(endptr == str + 5);
+
+    /* hex without radix */
+    str = "0x10";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 16.0);
+    g_assert_true(endptr == str + 4);
+}
+
+static void test_qemu_strtod_einval(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* empty */
+    str = "";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str);
+
+    /* NULL */
+    str = NULL;
+    endptr = "random";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_null(endptr);
+
+    /* not recognizable */
+    str = " junk";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str);
+}
+
+static void test_qemu_strtod_erange(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* overflow */
+    str = "9e999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, ==, HUGE_VAL);
+    g_assert_true(endptr == str + 5);
+
+    str = "-9e+999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, ==, -HUGE_VAL);
+    g_assert_true(endptr == str + 7);
+
+    /* underflow */
+    str = "-9e-999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, >=, -DBL_MIN);
+    g_assert_cmpfloat(res, <=, -0.0);
+    g_assert_true(signbit(res));
+    g_assert_true(endptr == str + 7);
+}
+
+static void test_qemu_strtod_nonfinite(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* infinity */
+    str = "inf";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_true(isinf(res));
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str + 3);
+
+    str = "-infinity";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_true(isinf(res));
+    g_assert_true(signbit(res));
+    g_assert_true(endptr == str + 9);
+
+    /* not a number */
+    str = " NaN";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_true(isnan(res));
+    g_assert_true(endptr == str + 4);
+}
+
+static void test_qemu_strtod_trailing(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* trailing whitespace */
+    str = "1. ";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 1.0);
+    g_assert_true(endptr == str + 2);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 1.0);
+
+    /* trailing e is not an exponent */
+    str = ".5e";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 0.5);
+    g_assert_true(endptr == str + 2);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.5);
+
+    /* trailing ( not part of long NaN */
+    str = "nan(";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_true(isnan(res));
+    g_assert_true(endptr == str + 3);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_true(isnan(res));
+}
+
+static void test_qemu_strtod_erange_junk(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* ERANGE with trailing junk... */
+    str = "1e-999junk";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, <=, DBL_MIN);
+    g_assert_cmpfloat(res, >=, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str + 6);
+
+    /* ...has less priority than EINVAL when full parse not possible */
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 0.0);
+    g_assert_false(signbit(res));
+}
+
+static void test_qemu_strtod_finite_simple(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* no radix or exponent */
+    str = "1";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 1.0);
+    g_assert_true(endptr == str + 1);
+
+    /* leading space and sign */
+    str = " -0.0";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, -0.0);
+    g_assert_true(signbit(res));
+    g_assert_true(endptr == str + 5);
+
+    /* fraction only */
+    str = "+.5";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 0.5);
+    g_assert_true(endptr == str + 3);
+
+    /* exponent */
+    str = "1.e+1";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 10.0);
+    g_assert_true(endptr == str + 5);
+
+    /* hex without radix */
+    str = "0x10";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 16.0);
+    g_assert_true(endptr == str + 4);
+}
+
+static void test_qemu_strtod_finite_einval(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* empty */
+    str = "";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+
+    /* NULL */
+    str = NULL;
+    endptr = "random";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_null(endptr);
+
+    /* not recognizable */
+    str = " junk";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+}
+
+static void test_qemu_strtod_finite_erange(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* overflow */
+    str = "9e999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, ==, HUGE_VAL);
+    g_assert_true(endptr == str + 5);
+
+    str = "-9e+999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, ==, -HUGE_VAL);
+    g_assert_true(endptr == str + 7);
+
+    /* underflow */
+    str = "-9e-999";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, >=, -DBL_MIN);
+    g_assert_cmpfloat(res, <=, -0.0);
+    g_assert_true(signbit(res));
+    g_assert_true(endptr == str + 7);
+}
+
+static void test_qemu_strtod_finite_nonfinite(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* infinity */
+    str = "inf";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+
+    str = "-infinity";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+
+    /* not a number */
+    str = " NaN";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+}
+
+static void test_qemu_strtod_finite_trailing(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* trailing whitespace */
+    str = "1. ";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 1.0);
+    g_assert_true(endptr == str + 2);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+
+    /* trailing e is not an exponent */
+    str = ".5e";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpfloat(res, ==, 0.5);
+    g_assert_true(endptr == str + 2);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+
+    /* trailing ( not part of long NaN */
+    str = "nan(";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+    g_assert_true(endptr == str);
+
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+}
+
+static void test_qemu_strtod_finite_erange_junk(void)
+{
+    const char *str;
+    const char *endptr;
+    int err;
+    double res;
+
+    /* ERANGE with trailing junk... */
+    str = "1e-999junk";
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, &endptr, &res);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpfloat(res, <=, DBL_MIN);
+    g_assert_cmpfloat(res, >=, 0.0);
+    g_assert_false(signbit(res));
+    g_assert_true(endptr == str + 6);
+
+    /* ...has less priority than EINVAL when full parse not possible */
+    endptr = "somewhere";
+    res = 999;
+    err = qemu_strtod_finite(str, NULL, &res);
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert_cmpfloat(res, ==, 999.0);
+}
+
 static void test_qemu_strtosz_simple(void)
 {
     const char *str;
@@ -3631,6 +4114,35 @@ int main(int argc, char **argv)
     g_test_add_func("/cutils/qemu_strtou64_full/erange_junk",
                     test_qemu_strtou64_full_erange_junk);
 
+    /* qemu_strtod() tests */
+    g_test_add_func("/cutils/qemu_strtod/simple",
+                    test_qemu_strtod_simple);
+    g_test_add_func("/cutils/qemu_strtod/einval",
+                    test_qemu_strtod_einval);
+    g_test_add_func("/cutils/qemu_strtod/erange",
+                    test_qemu_strtod_erange);
+    g_test_add_func("/cutils/qemu_strtod/nonfinite",
+                    test_qemu_strtod_nonfinite);
+    g_test_add_func("/cutils/qemu_strtod/trailing",
+                    test_qemu_strtod_trailing);
+    g_test_add_func("/cutils/qemu_strtod/erange_junk",
+                    test_qemu_strtod_erange_junk);
+
+    /* qemu_strtod_finite() tests */
+    g_test_add_func("/cutils/qemu_strtod_finite/simple",
+                    test_qemu_strtod_finite_simple);
+    g_test_add_func("/cutils/qemu_strtod_finite/einval",
+                    test_qemu_strtod_finite_einval);
+    g_test_add_func("/cutils/qemu_strtod_finite/erange",
+                    test_qemu_strtod_finite_erange);
+    g_test_add_func("/cutils/qemu_strtod_finite/nonfinite",
+                    test_qemu_strtod_finite_nonfinite);
+    g_test_add_func("/cutils/qemu_strtod_finite/trailing",
+                    test_qemu_strtod_finite_trailing);
+    g_test_add_func("/cutils/qemu_strtod_finite/erange_junk",
+                    test_qemu_strtod_finite_erange_junk);
+
+    /* qemu_strtosz() tests */
     g_test_add_func("/cutils/strtosz/simple",
                     test_qemu_strtosz_simple);
     g_test_add_func("/cutils/strtosz/hex",
