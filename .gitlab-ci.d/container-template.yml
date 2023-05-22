@@ -3,7 +3,7 @@
   image: docker:stable
   stage: containers
   services:
-    - docker:dind
+    - docker:stable-dind
   before_script:
     - export TAG="$CI_REGISTRY_IMAGE/qemu/$NAME:latest"
     - export COMMON_TAG="$CI_REGISTRY/qemu-project/qemu/qemu/$NAME:latest"
