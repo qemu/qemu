@@ -201,6 +201,7 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  * - hex with scaling suffix, such as 0x20M
  * - octal, such as 08
  * - fractional hex, such as 0x1.8
+ * - negative values, including -0
  * - floating point exponents, such as 1e3
  *
  * The end pointer will be returned in *end, if not NULL.  If there is
@@ -226,13 +227,8 @@ static int do_strtosz(const char *nptr, const char **end,
     int64_t mul;
 
     /* Parse integral portion as decimal. */
-    retval = qemu_strtou64(nptr, &endptr, 10, &val);
+    retval = parse_uint(nptr, &endptr, 10, &val);
     if (retval) {
-        goto out;
-    }
-    if (memchr(nptr, '-', endptr - nptr) != NULL) {
-        endptr = nptr;
-        retval = -EINVAL;
         goto out;
     }
     if (val == 0 && (*endptr == 'x' || *endptr == 'X')) {
