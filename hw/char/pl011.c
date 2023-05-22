@@ -221,6 +221,20 @@ static void pl011_loopback_tx(PL011State *s, uint32_t value)
     pl011_put_fifo(s, value);
 }
 
+static void pl011_write_txdata(PL011State *s, uint8_t data)
+{
+    /* ??? Check if transmitter is enabled.  */
+
+    /*
+     * XXX this blocks entire thread. Rewrite to use
+     * qemu_chr_fe_write and background I/O callbacks
+     */
+    qemu_chr_fe_write_all(&s->chr, &data, 1);
+    pl011_loopback_tx(s, data);
+    s->int_level |= INT_TX;
+    pl011_update(s);
+}
+
 static uint64_t pl011_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
@@ -388,14 +402,8 @@ static void pl011_write(void *opaque, hwaddr offset,
 
     switch (offset >> 2) {
     case 0: /* UARTDR */
-        /* ??? Check if transmitter is enabled.  */
         ch = value;
-        /* XXX this blocks entire thread. Rewrite to use
-         * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(&s->chr, &ch, 1);
-        pl011_loopback_tx(s, ch);
-        s->int_level |= INT_TX;
-        pl011_update(s);
+        pl011_write_txdata(s, ch);
         break;
     case 1: /* UARTRSR/UARTECR */
         s->rsr = 0;
