@@ -1,6 +1,13 @@
 # This file contains the set of jobs run by the QEMU project:
 # https://gitlab.com/qemu-project/qemu/-/pipelines
 
+variables:
+  RUNNER_TAG: ""
+
+default:
+  tags:
+    - $RUNNER_TAG
+
 include:
   - local: '/.gitlab-ci.d/base.yml'
   - local: '/.gitlab-ci.d/stages.yml'
