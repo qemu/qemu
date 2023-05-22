@@ -391,6 +391,9 @@ static int check_strtox_error(const char *nptr, char *ep,
  * and return -ERANGE.
  *
  * Else store the converted value in @result, and return zero.
+ *
+ * This matches the behavior of strtol() on 32-bit platforms, even on
+ * platforms where long is 64-bits.
  */
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result)
@@ -443,13 +446,15 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
  *
  * Note that a number with a leading minus sign gets converted without
  * the minus sign, checked for overflow (see above), then negated (in
- * @result's type).  This is exactly how strtoul() works.
+ * @result's type).  This matches the behavior of strtoul() on 32-bit
+ * platforms, even on platforms where long is 64-bits.
  */
 int qemu_strtoui(const char *nptr, const char **endptr, int base,
                  unsigned int *result)
 {
     char *ep;
-    long long lresult;
+    unsigned long long lresult;
+    bool neg;
 
     assert((unsigned) base <= 36 && base != 1);
     if (!nptr) {
@@ -466,14 +471,22 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
     if (errno == ERANGE) {
         *result = -1;
     } else {
+        /*
+         * Note that platforms with 32-bit strtoul only accept input
+         * in the range [-4294967295, 4294967295]; but we used 64-bit
+         * strtoull which wraps -18446744073709551615 to 1 instead of
+         * declaring overflow.  So we must check if '-' was parsed,
+         * and if so, undo the negation before doing our bounds check.
+         */
+        neg = memchr(nptr, '-', ep - nptr) != NULL;
+        if (neg) {
+            lresult = -lresult;
+        }
         if (lresult > UINT_MAX) {
             *result = UINT_MAX;
             errno = ERANGE;
-        } else if (lresult < INT_MIN) {
-            *result = UINT_MAX;
-            errno = ERANGE;
         } else {
-            *result = lresult;
+            *result = neg ? -lresult : lresult;
         }
     }
     return check_strtox_error(nptr, ep, endptr, lresult == 0, errno);

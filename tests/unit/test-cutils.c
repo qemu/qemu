@@ -909,7 +909,7 @@ static void test_qemu_strtoui_hex(void)
 
 static void test_qemu_strtoui_wrap(void)
 {
-    /* FIXME - wraparound should be consistent with 32-bit strtoul */
+    /* wraparound is consistent with 32-bit strtoul */
     const char *str = "-4294967295"; /* 1 mod 2^32 */
     char f = 'X';
     const char *endptr = &f;
@@ -918,8 +918,8 @@ static void test_qemu_strtoui_wrap(void)
 
     err = qemu_strtoui(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, -ERANGE /* FIXME 0 */);
-    g_assert_cmphex(res, ==, UINT_MAX /* FIXME 1 */);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmphex(res, ==, 1);
     g_assert_true(endptr == str + strlen(str));
 }
 
@@ -978,13 +978,12 @@ static void test_qemu_strtoui_overflow(void)
     g_assert_cmpuint(res, ==, UINT_MAX);
     g_assert_true(endptr == str + strlen(str));
 
-    /* FIXME - overflow should be consistent with 32-bit strtoul */
     str = "0xfffffffffffffffe"; /* ULLONG_MAX - 1 (not UINT_MAX - 1) */
     endptr = "somewhere";
     res = 999;
     err = qemu_strtoui(str, &endptr, 0, &res);
-    g_assert_cmpint(err, ==, 0 /* FIXME -ERANGE */);
-    g_assert_cmpuint(res, ==, UINT_MAX - 1 /* FIXME UINT_MAX */);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpuint(res, ==, UINT_MAX);
     g_assert_true(endptr == str + strlen(str));
 
     str = "0x10000000000000000"; /* 65 bits, 32-bit sign bit clear */
@@ -1019,21 +1018,20 @@ static void test_qemu_strtoui_underflow(void)
     g_assert_cmpuint(res, ==, UINT_MAX);
     g_assert_true(endptr == str + strlen(str));
 
-    /* FIXME - overflow should be consistent with 32-bit strtoul */
     str = "-18446744073709551615"; /* -UINT64_MAX (not -(-1)) */
     endptr = "somewhere";
     res = 999;
     err = qemu_strtoui(str, &endptr, 0, &res);
-    g_assert_cmpint(err, ==, 0 /* FIXME -ERANGE */);
-    g_assert_cmpuint(res, ==, 1 /* FIXME UINT_MAX */);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpuint(res, ==, UINT_MAX);
     g_assert_true(endptr == str + strlen(str));
 
     str = "-0xffffffff00000002";
     endptr = "somewhere";
     res = 999;
     err = qemu_strtoui(str, &endptr, 0, &res);
-    g_assert_cmpint(err, ==, 0 /* FIXME -ERANGE */);
-    g_assert_cmpuint(res, ==, UINT_MAX - 1 /* FIXME UINT_MAX */);
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpuint(res, ==, UINT_MAX);
     g_assert_true(endptr == str + strlen(str));
 
     str = "-0x10000000000000000"; /* 65 bits, 32-bit sign bit clear */
