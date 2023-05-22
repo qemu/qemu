@@ -60,6 +60,36 @@ static void test_load_tmp(void)
     check_output_w(__LINE__, BUFSIZE);
 }
 
+static void test_load_tmp2(void)
+{
+    void *pout0 = &output[0];
+    void *pout1 = &output[1];
+
+    asm volatile(
+        "r0 = #0x03030303\n\t"
+        "v16 = vsplat(r0)\n\t"
+        "r0 = #0x04040404\n\t"
+        "v18 = vsplat(r0)\n\t"
+        "r0 = #0x05050505\n\t"
+        "v21 = vsplat(r0)\n\t"
+        "{\n\t"
+        "   v25:24 += vmpyo(v18.w, v14.h)\n\t"
+        "   v15:14.tmp = vcombine(v21, v16)\n\t"
+        "}\n\t"
+        "vmem(%0 + #0) = v24\n\t"
+        "vmem(%1 + #0) = v25\n\t"
+        : : "r"(pout0), "r"(pout1)
+        : "r0", "v16", "v18", "v21", "v24", "v25", "memory"
+    );
+
+    for (int i = 0; i < MAX_VEC_SIZE_BYTES / 4; ++i) {
+        expect[0].w[i] = 0x180c0000;
+        expect[1].w[i] = 0x000c1818;
+    }
+
+    check_output_w(__LINE__, 2);
+}
+
 static void test_load_cur(void)
 {
     void *p0 = buffer0;
@@ -435,6 +465,7 @@ int main()
     init_buffers();
 
     test_load_tmp();
+    test_load_tmp2();
     test_load_cur();
     test_load_aligned();
     test_load_unaligned();
