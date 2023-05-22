@@ -660,12 +660,13 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
  *
  * @nptr may be null, and no conversion is performed then.
  *
- * If no conversion is performed, store @nptr in *@endptr and return
- * -EINVAL.
+ * If no conversion is performed, store @nptr in *@endptr, +0.0 in
+ * @result, and return -EINVAL.
  *
  * If @endptr is null, and the string isn't fully converted, return
- * -EINVAL. This is the case when the pointer that would be stored in
- * a non-null @endptr points to a character other than '\0'.
+ * -EINVAL with @result set to the parsed value.  This is the case
+ * when the pointer that would be stored in a non-null @endptr points
+ * to a character other than '\0'.
  *
  * If the conversion overflows, store +/-HUGE_VAL in @result, depending
  * on the sign, and return -ERANGE.
@@ -680,6 +681,7 @@ int qemu_strtod(const char *nptr, const char **endptr, double *result)
     char *ep;
 
     if (!nptr) {
+        *result = 0.0;
         if (endptr) {
             *endptr = nptr;
         }
@@ -694,24 +696,28 @@ int qemu_strtod(const char *nptr, const char **endptr, double *result)
 /**
  * Convert string @nptr to a finite double.
  *
- * Works like qemu_strtod(), except that "NaN" and "inf" are rejected
- * with -EINVAL and no conversion is performed.
+ * Works like qemu_strtod(), except that "NaN", "inf", and strings
+ * that cause ERANGE overflow errors are rejected with -EINVAL as if
+ * no conversion is performed, storing 0.0 into @result regardless of
+ * any sign.  -ERANGE failures for underflow still preserve the parsed
+ * sign.
  */
 int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
 {
-    double tmp;
+    const char *tmp;
     int ret;
 
-    ret = qemu_strtod(nptr, endptr, &tmp);
-    if (!ret && !isfinite(tmp)) {
+    ret = qemu_strtod(nptr, &tmp, result);
+    if (!isfinite(*result)) {
         if (endptr) {
             *endptr = nptr;
         }
+        *result = 0.0;
         ret = -EINVAL;
-    }
-
-    if (ret != -EINVAL) {
-        *result = tmp;
+    } else if (endptr) {
+        *endptr = tmp;
+    } else if (*tmp) {
+        ret = -EINVAL;
     }
     return ret;
 }
