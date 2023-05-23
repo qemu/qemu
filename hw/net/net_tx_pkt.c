@@ -16,12 +16,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "net_tx_pkt.h"
 #include "net/eth.h"
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "net/net.h"
 #include "hw/pci/pci_device.h"
+#include "net_tx_pkt.h"
 
 enum {
     NET_TX_PKT_VHDR_FRAG = 0,
@@ -32,8 +32,6 @@ enum {
 
 /* TX packet private context */
 struct NetTxPkt {
-    PCIDevice *pci_dev;
-
     struct virtio_net_hdr virt_hdr;
 
     struct iovec *raw;
@@ -59,12 +57,9 @@ struct NetTxPkt {
     uint8_t l4proto;
 };
 
-void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
-    uint32_t max_frags)
+void net_tx_pkt_init(struct NetTxPkt **pkt, uint32_t max_frags)
 {
     struct NetTxPkt *p = g_malloc0(sizeof *p);
-
-    p->pci_dev = pci_dev;
 
     p->vec = g_new(struct iovec, max_frags + NET_TX_PKT_PL_START_FRAG);
 
@@ -384,8 +379,7 @@ void net_tx_pkt_setup_vlan_header_ex(struct NetTxPkt *pkt,
     }
 }
 
-static bool net_tx_pkt_add_raw_fragment_common(struct NetTxPkt *pkt,
-                                               void *base, size_t len)
+bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, void *base, size_t len)
 {
     struct iovec *ventry;
     assert(pkt);
@@ -433,7 +427,8 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt)
 #endif
 }
 
-void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *pci_dev)
+void net_tx_pkt_reset(struct NetTxPkt *pkt,
+                      NetTxPktFreeFrag callback, void *context)
 {
     int i;
 
@@ -453,12 +448,9 @@ void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *pci_dev)
         assert(pkt->raw);
         for (i = 0; i < pkt->raw_frags; i++) {
             assert(pkt->raw[i].iov_base);
-            net_tx_pkt_unmap_frag_pci(pkt->pci_dev,
-                                      pkt->raw[i].iov_base,
-                                      pkt->raw[i].iov_len);
+            callback(context, pkt->raw[i].iov_base, pkt->raw[i].iov_len);
         }
     }
-    pkt->pci_dev = pci_dev;
     pkt->raw_frags = 0;
 
     pkt->hdr_len = 0;
@@ -470,19 +462,17 @@ void net_tx_pkt_unmap_frag_pci(void *context, void *base, size_t len)
     pci_dma_unmap(context, base, len, DMA_DIRECTION_TO_DEVICE, 0);
 }
 
-bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
-    size_t len)
+bool net_tx_pkt_add_raw_fragment_pci(struct NetTxPkt *pkt, PCIDevice *pci_dev,
+                                     dma_addr_t pa, size_t len)
 {
     dma_addr_t mapped_len = len;
-    void *base = pci_dma_map(pkt->pci_dev, pa, &mapped_len,
-                             DMA_DIRECTION_TO_DEVICE);
+    void *base = pci_dma_map(pci_dev, pa, &mapped_len, DMA_DIRECTION_TO_DEVICE);
     if (!base) {
         return false;
     }
 
-    if (mapped_len != len ||
-        !net_tx_pkt_add_raw_fragment_common(pkt, base, len)) {
-        net_tx_pkt_unmap_frag_pci(pkt->pci_dev, base, mapped_len);
+    if (mapped_len != len || !net_tx_pkt_add_raw_fragment(pkt, base, len)) {
+        net_tx_pkt_unmap_frag_pci(pci_dev, base, mapped_len);
         return false;
     }
 
@@ -710,7 +700,7 @@ static void net_tx_pkt_udp_fragment_fix(struct NetTxPkt *pkt,
 }
 
 static bool net_tx_pkt_do_sw_fragmentation(struct NetTxPkt *pkt,
-                                           NetTxPktCallback callback,
+                                           NetTxPktSend callback,
                                            void *context)
 {
     uint8_t gso_type = pkt->virt_hdr.gso_type & ~VIRTIO_NET_HDR_GSO_ECN;
@@ -807,7 +797,7 @@ bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc)
 }
 
 bool net_tx_pkt_send_custom(struct NetTxPkt *pkt, bool offload,
-                            NetTxPktCallback callback, void *context)
+                            NetTxPktSend callback, void *context)
 {
     assert(pkt);
 
