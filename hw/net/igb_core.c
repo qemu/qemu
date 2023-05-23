@@ -2598,6 +2598,8 @@ igb_mac_icr_read(IGBCore *core, int index)
     } else if (core->mac[IMS] == 0) {
         trace_e1000e_irq_icr_clear_zero_ims();
         igb_lower_interrupts(core, ICR, 0xffffffff);
+    } else if (core->mac[ICR] & E1000_ICR_INT_ASSERTED) {
+        igb_lower_interrupts(core, ICR, 0xffffffff);
     } else if (!msix_enabled(core->owner)) {
         trace_e1000e_irq_icr_clear_nonmsix_icr_read();
         igb_lower_interrupts(core, ICR, 0xffffffff);
