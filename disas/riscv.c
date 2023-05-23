@@ -4598,16 +4598,24 @@ static void format_inst(char *buf, size_t buflen, size_t tab, rv_decode *dec)
             append(buf, rv_ireg_name_sym[dec->rs2], buflen);
             break;
         case '3':
-            append(buf, rv_freg_name_sym[dec->rd], buflen);
+            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rd] :
+                                              rv_freg_name_sym[dec->rd],
+                   buflen);
             break;
         case '4':
-            append(buf, rv_freg_name_sym[dec->rs1], buflen);
+            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs1] :
+                                              rv_freg_name_sym[dec->rs1],
+                   buflen);
             break;
         case '5':
-            append(buf, rv_freg_name_sym[dec->rs2], buflen);
+            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs2] :
+                                              rv_freg_name_sym[dec->rs2],
+                   buflen);
             break;
         case '6':
-            append(buf, rv_freg_name_sym[dec->rs3], buflen);
+            append(buf, dec->cfg->ext_zfinx ? rv_ireg_name_sym[dec->rs3] :
+                                              rv_freg_name_sym[dec->rs3],
+                   buflen);
             break;
         case '7':
             snprintf(tmp, sizeof(tmp), "%d", dec->rs1);
