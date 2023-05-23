@@ -397,7 +397,7 @@ typedef struct disassemble_info {
   char * disassembler_options;
 
   /* Field intended to be used by targets in any way they deem suitable.  */
-  int64_t target_info;
+  void *target_info;
 
   /* Options for Capstone disassembly.  */
   int cap_arch;
