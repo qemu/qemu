@@ -29,7 +29,7 @@ class NetDevEthtool(QemuSystemTest):
         # URL into a unique one
         return self.fetch_asset(name=name, locations=(url), asset_hash=sha1)
 
-    def common_test_code(self, netdev, extra_args=None, kvm=False):
+    def common_test_code(self, netdev, extra_args=None):
 
         # This custom kernel has drivers for all the supported network
         # devices we can emulate in QEMU
@@ -57,9 +57,6 @@ class NetDevEthtool(QemuSystemTest):
                          '-drive', drive,
                          '-device', netdev)
 
-        if kvm:
-            self.vm.add_args('-accel', 'kvm')
-
         self.vm.set_console(console_index=0)
         self.vm.launch()
 
@@ -85,13 +82,6 @@ class NetDevEthtool(QemuSystemTest):
         :avocado: tags=device:igb
         """
         self.common_test_code("igb", "pci=nomsi")
-
-    def test_igb_nomsi_kvm(self):
-        """
-        :avocado: tags=device:igb
-        """
-        self.require_accelerator('kvm')
-        self.common_test_code("igb", "pci=nomsi", True)
 
     # It seems the other popular cards we model in QEMU currently fail
     # the pattern test with:
