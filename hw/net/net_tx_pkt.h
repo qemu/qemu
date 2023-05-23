@@ -117,6 +117,14 @@ void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt);
 void net_tx_pkt_update_ip_hdr_checksum(struct NetTxPkt *pkt);
 
 /**
+ * Calculate the SCTP checksum.
+ *
+ * @pkt:            packet
+ *
+ */
+bool net_tx_pkt_update_sctp_checksum(struct NetTxPkt *pkt);
+
+/**
  * get length of all populated data.
  *
  * @pkt:            packet
