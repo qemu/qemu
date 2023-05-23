@@ -7,7 +7,6 @@
 
 from avocado import skip
 from avocado_qemu import QemuSystemTest
-from avocado_qemu import exec_command, exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 
 class NetDevEthtool(QemuSystemTest):
@@ -30,7 +29,7 @@ class NetDevEthtool(QemuSystemTest):
         # URL into a unique one
         return self.fetch_asset(name=name, locations=(url), asset_hash=sha1)
 
-    def common_test_code(self, netdev, extra_args=None, kvm=False):
+    def common_test_code(self, netdev, extra_args=None):
 
         # This custom kernel has drivers for all the supported network
         # devices we can emulate in QEMU
@@ -58,9 +57,6 @@ class NetDevEthtool(QemuSystemTest):
                          '-drive', drive,
                          '-device', netdev)
 
-        if kvm:
-            self.vm.add_args('-accel', 'kvm')
-
         self.vm.set_console(console_index=0)
         self.vm.launch()
 
@@ -71,10 +67,6 @@ class NetDevEthtool(QemuSystemTest):
         # no need to gracefully shutdown, just finish
         self.vm.kill()
 
-    # Skip testing for MSI for now. Allegedly it was fixed by:
-    #   28e96556ba (igb: Allocate MSI-X vector when testing)
-    # but I'm seeing oops in the kernel
-    @skip("Kernel bug with MSI enabled")
     def test_igb(self):
         """
         :avocado: tags=device:igb
@@ -86,13 +78,6 @@ class NetDevEthtool(QemuSystemTest):
         :avocado: tags=device:igb
         """
         self.common_test_code("igb", "pci=nomsi")
-
-    def test_igb_nomsi_kvm(self):
-        """
-        :avocado: tags=device:igb
-        """
-        self.require_accelerator('kvm')
-        self.common_test_code("igb", "pci=nomsi", True)
 
     # It seems the other popular cards we model in QEMU currently fail
     # the pattern test with:

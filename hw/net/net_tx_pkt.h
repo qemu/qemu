@@ -26,17 +26,16 @@
 
 struct NetTxPkt;
 
-typedef void (* NetTxPktCallback)(void *, const struct iovec *, int, const struct iovec *, int);
+typedef void (*NetTxPktFreeFrag)(void *, void *, size_t);
+typedef void (*NetTxPktSend)(void *, const struct iovec *, int, const struct iovec *, int);
 
 /**
  * Init function for tx packet functionality
  *
  * @pkt:            packet pointer
- * @pci_dev:        PCI device processing this packet
  * @max_frags:      max tx ip fragments
  */
-void net_tx_pkt_init(struct NetTxPkt **pkt, PCIDevice *pci_dev,
-    uint32_t max_frags);
+void net_tx_pkt_init(struct NetTxPkt **pkt, uint32_t max_frags);
 
 /**
  * Clean all tx packet resources.
@@ -95,12 +94,11 @@ net_tx_pkt_setup_vlan_header(struct NetTxPkt *pkt, uint16_t vlan)
  * populate data fragment into pkt context.
  *
  * @pkt:            packet
- * @pa:             physical address of fragment
+ * @base:           pointer to fragment
  * @len:            length of fragment
  *
  */
-bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
-    size_t len);
+bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, void *base, size_t len);
 
 /**
  * Fix ip header fields and calculate IP header and pseudo header checksums.
@@ -117,6 +115,14 @@ void net_tx_pkt_update_ip_checksums(struct NetTxPkt *pkt);
  *
  */
 void net_tx_pkt_update_ip_hdr_checksum(struct NetTxPkt *pkt);
+
+/**
+ * Calculate the SCTP checksum.
+ *
+ * @pkt:            packet
+ *
+ */
+bool net_tx_pkt_update_sctp_checksum(struct NetTxPkt *pkt);
 
 /**
  * get length of all populated data.
@@ -148,10 +154,30 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt);
  * reset tx packet private context (needed to be called between packets)
  *
  * @pkt:            packet
- * @dev:            PCI device processing the next packet
- *
+ * @callback:       function to free the fragments
+ * @context:        pointer to be passed to the callback
  */
-void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *dev);
+void net_tx_pkt_reset(struct NetTxPkt *pkt,
+                      NetTxPktFreeFrag callback, void *context);
+
+/**
+ * Unmap a fragment mapped from a PCI device.
+ *
+ * @context:        PCI device owning fragment
+ * @base:           pointer to fragment
+ * @len:            length of fragment
+ */
+void net_tx_pkt_unmap_frag_pci(void *context, void *base, size_t len);
+
+/**
+ * map data fragment from PCI device and populate it into pkt context.
+ *
+ * @pci_dev:        PCI device owning fragment
+ * @pa:             physical address of fragment
+ * @len:            length of fragment
+ */
+bool net_tx_pkt_add_raw_fragment_pci(struct NetTxPkt *pkt, PCIDevice *pci_dev,
+                                     dma_addr_t pa, size_t len);
 
 /**
  * Send packet to qemu. handles sw offloads if vhdr is not supported.
@@ -173,7 +199,7 @@ bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc);
  * @ret:            operation result
  */
 bool net_tx_pkt_send_custom(struct NetTxPkt *pkt, bool offload,
-                            NetTxPktCallback callback, void *context);
+                            NetTxPktSend callback, void *context);
 
 /**
  * parse raw packet data and analyze offload requirements.

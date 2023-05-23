@@ -91,8 +91,9 @@ e1000x_update_regs_on_link_up(uint32_t *mac, uint16_t *phy)
 }
 
 void e1000x_update_rx_total_stats(uint32_t *mac,
-                                  size_t data_size,
-                                  size_t data_fcs_size);
+                                  eth_pkt_types_e pkt_type,
+                                  size_t pkt_size,
+                                  size_t pkt_fcs_size);
 
 void e1000x_core_prepare_eeprom(uint16_t       *eeprom,
                                 const uint16_t *templ,
@@ -106,7 +107,9 @@ bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac);
 
 bool e1000x_is_vlan_packet(const void *buf, uint16_t vet);
 
-bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf);
+bool e1000x_rx_vlan_filter(uint32_t *mac, const struct vlan_header *vhdr);
+
+bool e1000x_rx_group_filter(uint32_t *mac, const struct eth_header *ehdr);
 
 bool e1000x_hw_rx_enabled(uint32_t *mac);
 
