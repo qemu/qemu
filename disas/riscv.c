@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "disas/dis-asm.h"
-
+#include "target/riscv/cpu_cfg.h"
 
 /* types */
 
@@ -969,6 +969,7 @@ typedef enum {
 /* structures */
 
 typedef struct {
+    RISCVCPUConfig *cfg;
     uint64_t  pc;
     uint64_t  inst;
     int32_t   imm;
@@ -4861,11 +4862,13 @@ static void decode_inst_decompress(rv_decode *dec, rv_isa isa)
 /* disassemble instruction */
 
 static void
-disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst)
+disasm_inst(char *buf, size_t buflen, rv_isa isa, uint64_t pc, rv_inst inst,
+            RISCVCPUConfig *cfg)
 {
     rv_decode dec = { 0 };
     dec.pc = pc;
     dec.inst = inst;
+    dec.cfg = cfg;
     decode_inst_opcode(&dec, isa);
     decode_inst_operands(&dec, isa);
     decode_inst_decompress(&dec, isa);
@@ -4920,7 +4923,8 @@ print_insn_riscv(bfd_vma memaddr, struct disassemble_info *info, rv_isa isa)
         break;
     }
 
-    disasm_inst(buf, sizeof(buf), isa, memaddr, inst);
+    disasm_inst(buf, sizeof(buf), isa, memaddr, inst,
+                (RISCVCPUConfig *)info->target_info);
     (*info->fprintf_func)(info->stream, "%s", buf);
 
     return len;
