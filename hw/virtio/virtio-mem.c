@@ -398,33 +398,46 @@ static void virtio_mem_notify_unplug_all(VirtIOMEM *vmem)
     }
 }
 
-static bool virtio_mem_test_bitmap(const VirtIOMEM *vmem, uint64_t start_gpa,
-                                   uint64_t size, bool plugged)
+static bool virtio_mem_is_range_plugged(const VirtIOMEM *vmem,
+                                        uint64_t start_gpa, uint64_t size)
 {
     const unsigned long first_bit = (start_gpa - vmem->addr) / vmem->block_size;
     const unsigned long last_bit = first_bit + (size / vmem->block_size) - 1;
     unsigned long found_bit;
 
     /* We fake a shorter bitmap to avoid searching too far. */
-    if (plugged) {
-        found_bit = find_next_zero_bit(vmem->bitmap, last_bit + 1, first_bit);
-    } else {
-        found_bit = find_next_bit(vmem->bitmap, last_bit + 1, first_bit);
-    }
+    found_bit = find_next_zero_bit(vmem->bitmap, last_bit + 1, first_bit);
     return found_bit > last_bit;
 }
 
-static void virtio_mem_set_bitmap(VirtIOMEM *vmem, uint64_t start_gpa,
-                                  uint64_t size, bool plugged)
+static bool virtio_mem_is_range_unplugged(const VirtIOMEM *vmem,
+                                          uint64_t start_gpa, uint64_t size)
+{
+    const unsigned long first_bit = (start_gpa - vmem->addr) / vmem->block_size;
+    const unsigned long last_bit = first_bit + (size / vmem->block_size) - 1;
+    unsigned long found_bit;
+
+    /* We fake a shorter bitmap to avoid searching too far. */
+    found_bit = find_next_bit(vmem->bitmap, last_bit + 1, first_bit);
+    return found_bit > last_bit;
+}
+
+static void virtio_mem_set_range_plugged(VirtIOMEM *vmem, uint64_t start_gpa,
+                                         uint64_t size)
 {
     const unsigned long bit = (start_gpa - vmem->addr) / vmem->block_size;
     const unsigned long nbits = size / vmem->block_size;
 
-    if (plugged) {
-        bitmap_set(vmem->bitmap, bit, nbits);
-    } else {
-        bitmap_clear(vmem->bitmap, bit, nbits);
-    }
+    bitmap_set(vmem->bitmap, bit, nbits);
+}
+
+static void virtio_mem_set_range_unplugged(VirtIOMEM *vmem, uint64_t start_gpa,
+                                           uint64_t size)
+{
+    const unsigned long bit = (start_gpa - vmem->addr) / vmem->block_size;
+    const unsigned long nbits = size / vmem->block_size;
+
+    bitmap_clear(vmem->bitmap, bit, nbits);
 }
 
 static void virtio_mem_send_response(VirtIOMEM *vmem, VirtQueueElement *elem,
@@ -474,6 +487,7 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
 {
     const uint64_t offset = start_gpa - vmem->addr;
     RAMBlock *rb = vmem->memdev->mr.ram_block;
+    int ret = 0;
 
     if (virtio_mem_is_busy()) {
         return -EBUSY;
@@ -484,42 +498,43 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
             return -EBUSY;
         }
         virtio_mem_notify_unplug(vmem, offset, size);
-    } else {
-        int ret = 0;
+        virtio_mem_set_range_unplugged(vmem, start_gpa, size);
+        return 0;
+    }
 
-        if (vmem->prealloc) {
-            void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
-            int fd = memory_region_get_fd(&vmem->memdev->mr);
-            Error *local_err = NULL;
+    if (vmem->prealloc) {
+        void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
+        int fd = memory_region_get_fd(&vmem->memdev->mr);
+        Error *local_err = NULL;
 
-            qemu_prealloc_mem(fd, area, size, 1, NULL, &local_err);
-            if (local_err) {
-                static bool warned;
+        qemu_prealloc_mem(fd, area, size, 1, NULL, &local_err);
+        if (local_err) {
+            static bool warned;
 
-                /*
-                 * Warn only once, we don't want to fill the log with these
-                 * warnings.
-                 */
-                if (!warned) {
-                    warn_report_err(local_err);
-                    warned = true;
-                } else {
-                    error_free(local_err);
-                }
-                ret = -EBUSY;
+            /*
+             * Warn only once, we don't want to fill the log with these
+             * warnings.
+             */
+            if (!warned) {
+                warn_report_err(local_err);
+                warned = true;
+            } else {
+                error_free(local_err);
             }
-        }
-        if (!ret) {
-            ret = virtio_mem_notify_plug(vmem, offset, size);
-        }
-
-        if (ret) {
-            /* Could be preallocation or a notifier populated memory. */
-            ram_block_discard_range(vmem->memdev->mr.ram_block, offset, size);
-            return -EBUSY;
+            ret = -EBUSY;
         }
     }
-    virtio_mem_set_bitmap(vmem, start_gpa, size, plug);
+
+    if (!ret) {
+        ret = virtio_mem_notify_plug(vmem, offset, size);
+    }
+    if (ret) {
+        /* Could be preallocation or a notifier populated memory. */
+        ram_block_discard_range(vmem->memdev->mr.ram_block, offset, size);
+        return -EBUSY;
+    }
+
+    virtio_mem_set_range_plugged(vmem, start_gpa, size);
     return 0;
 }
 
@@ -538,7 +553,8 @@ static int virtio_mem_state_change_request(VirtIOMEM *vmem, uint64_t gpa,
     }
 
     /* test if really all blocks are in the opposite state */
-    if (!virtio_mem_test_bitmap(vmem, gpa, size, !plug)) {
+    if ((plug && !virtio_mem_is_range_unplugged(vmem, gpa, size)) ||
+        (!plug && !virtio_mem_is_range_plugged(vmem, gpa, size))) {
         return VIRTIO_MEM_RESP_ERROR;
     }
 
@@ -651,9 +667,9 @@ static void virtio_mem_state_request(VirtIOMEM *vmem, VirtQueueElement *elem,
         return;
     }
 
-    if (virtio_mem_test_bitmap(vmem, gpa, size, true)) {
+    if (virtio_mem_is_range_plugged(vmem, gpa, size)) {
         resp.u.state.state = cpu_to_le16(VIRTIO_MEM_STATE_PLUGGED);
-    } else if (virtio_mem_test_bitmap(vmem, gpa, size, false)) {
+    } else if (virtio_mem_is_range_unplugged(vmem, gpa, size)) {
         resp.u.state.state = cpu_to_le16(VIRTIO_MEM_STATE_UNPLUGGED);
     } else {
         resp.u.state.state = cpu_to_le16(VIRTIO_MEM_STATE_MIXED);
@@ -1372,7 +1388,7 @@ static bool virtio_mem_rdm_is_populated(const RamDiscardManager *rdm,
         return false;
     }
 
-    return virtio_mem_test_bitmap(vmem, start_gpa, end_gpa - start_gpa, true);
+    return virtio_mem_is_range_plugged(vmem, start_gpa, end_gpa - start_gpa);
 }
 
 struct VirtIOMEMReplayData {
