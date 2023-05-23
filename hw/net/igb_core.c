@@ -976,7 +976,6 @@ static uint16_t igb_receive_assign(IGBCore *core, const L2Header *l2_header,
     uint16_t queues = 0;
     uint16_t oversized = 0;
     uint16_t vid = be16_to_cpu(l2_header->vlan.h_tci) & VLAN_VID_MASK;
-    bool accepted = false;
     int i;
 
     memset(rss_info, 0, sizeof(E1000E_RSSInfo));
@@ -986,16 +985,8 @@ static uint16_t igb_receive_assign(IGBCore *core, const L2Header *l2_header,
     }
 
     if (e1000x_is_vlan_packet(ehdr, core->mac[VET] & 0xffff) &&
-        e1000x_vlan_rx_filter_enabled(core->mac)) {
-        uint32_t vfta =
-            ldl_le_p((uint32_t *)(core->mac + VFTA) +
-                     ((vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK));
-        if ((vfta & (1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK))) == 0) {
-            trace_e1000e_rx_flt_vlan_mismatch(vid);
-            return queues;
-        } else {
-            trace_e1000e_rx_flt_vlan_match(vid);
-        }
+        !e1000x_rx_vlan_filter(core->mac, PKT_GET_VLAN_HDR(ehdr))) {
+        return queues;
     }
 
     if (core->mac[MRQC] & 1) {
@@ -1103,33 +1094,7 @@ static uint16_t igb_receive_assign(IGBCore *core, const L2Header *l2_header,
             }
         }
     } else {
-        switch (net_rx_pkt_get_packet_type(core->rx_pkt)) {
-        case ETH_PKT_UCAST:
-            if (rctl & E1000_RCTL_UPE) {
-                accepted = true; /* promiscuous ucast */
-            }
-            break;
-
-        case ETH_PKT_BCAST:
-            if (rctl & E1000_RCTL_BAM) {
-                accepted = true; /* broadcast enabled */
-            }
-            break;
-
-        case ETH_PKT_MCAST:
-            if (rctl & E1000_RCTL_MPE) {
-                accepted = true; /* promiscuous mcast */
-            }
-            break;
-
-        default:
-            g_assert_not_reached();
-        }
-
-        if (!accepted) {
-            accepted = e1000x_rx_group_filter(core->mac, ehdr->h_dest);
-        }
-
+        bool accepted = e1000x_rx_group_filter(core->mac, ehdr);
         if (!accepted) {
             for (macp = core->mac + RA2; macp < core->mac + RA2 + 16; macp += 2) {
                 if (!(macp[1] & E1000_RAH_AV)) {

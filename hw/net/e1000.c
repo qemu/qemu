@@ -804,36 +804,11 @@ start_xmit(E1000State *s)
 }
 
 static int
-receive_filter(E1000State *s, const uint8_t *buf, int size)
+receive_filter(E1000State *s, const void *buf)
 {
-    uint32_t rctl = s->mac_reg[RCTL];
-    int isbcast = is_broadcast_ether_addr(buf);
-    int ismcast = is_multicast_ether_addr(buf);
-
-    if (e1000x_is_vlan_packet(buf, le16_to_cpu(s->mac_reg[VET])) &&
-        e1000x_vlan_rx_filter_enabled(s->mac_reg)) {
-        uint16_t vid = lduw_be_p(&PKT_GET_VLAN_HDR(buf)->h_tci);
-        uint32_t vfta =
-            ldl_le_p((uint32_t *)(s->mac_reg + VFTA) +
-                     ((vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK));
-        if ((vfta & (1 << (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK))) == 0) {
-            return 0;
-        }
-    }
-
-    if (!isbcast && !ismcast && (rctl & E1000_RCTL_UPE)) { /* promiscuous ucast */
-        return 1;
-    }
-
-    if (ismcast && (rctl & E1000_RCTL_MPE)) {          /* promiscuous mcast */
-        return 1;
-    }
-
-    if (isbcast && (rctl & E1000_RCTL_BAM)) {          /* broadcast enabled */
-        return 1;
-    }
-
-    return e1000x_rx_group_filter(s->mac_reg, buf);
+    return (!e1000x_is_vlan_packet(buf, s->mac_reg[VET]) ||
+            e1000x_rx_vlan_filter(s->mac_reg, PKT_GET_VLAN_HDR(buf))) &&
+           e1000x_rx_group_filter(s->mac_reg, buf);
 }
 
 static void
@@ -949,7 +924,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         return size;
     }
 
-    if (!receive_filter(s, filter_buf, size)) {
+    if (!receive_filter(s, filter_buf)) {
         return size;
     }
 

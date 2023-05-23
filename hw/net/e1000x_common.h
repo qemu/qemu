@@ -107,7 +107,9 @@ bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac);
 
 bool e1000x_is_vlan_packet(const void *buf, uint16_t vet);
 
-bool e1000x_rx_group_filter(uint32_t *mac, const uint8_t *buf);
+bool e1000x_rx_vlan_filter(uint32_t *mac, const struct vlan_header *vhdr);
+
+bool e1000x_rx_group_filter(uint32_t *mac, const struct eth_header *ehdr);
 
 bool e1000x_hw_rx_enabled(uint32_t *mac);
 
