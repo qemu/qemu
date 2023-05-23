@@ -593,27 +593,27 @@ static void unpack_raw64(FloatParts64 *r, const FloatFmt *fmt, uint64_t raw)
     };
 }
 
-static inline void float16_unpack_raw(FloatParts64 *p, float16 f)
+static void QEMU_FLATTEN float16_unpack_raw(FloatParts64 *p, float16 f)
 {
     unpack_raw64(p, &float16_params, f);
 }
 
-static inline void bfloat16_unpack_raw(FloatParts64 *p, bfloat16 f)
+static void QEMU_FLATTEN bfloat16_unpack_raw(FloatParts64 *p, bfloat16 f)
 {
     unpack_raw64(p, &bfloat16_params, f);
 }
 
-static inline void float32_unpack_raw(FloatParts64 *p, float32 f)
+static void QEMU_FLATTEN float32_unpack_raw(FloatParts64 *p, float32 f)
 {
     unpack_raw64(p, &float32_params, f);
 }
 
-static inline void float64_unpack_raw(FloatParts64 *p, float64 f)
+static void QEMU_FLATTEN float64_unpack_raw(FloatParts64 *p, float64 f)
 {
     unpack_raw64(p, &float64_params, f);
 }
 
-static void floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
+static void QEMU_FLATTEN floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
 {
     *p = (FloatParts128) {
         .cls = float_class_unclassified,
@@ -623,7 +623,7 @@ static void floatx80_unpack_raw(FloatParts128 *p, floatx80 f)
     };
 }
 
-static void float128_unpack_raw(FloatParts128 *p, float128 f)
+static void QEMU_FLATTEN float128_unpack_raw(FloatParts128 *p, float128 f)
 {
     const int f_size = float128_params.frac_size - 64;
     const int e_size = float128_params.exp_size;
@@ -650,27 +650,27 @@ static uint64_t pack_raw64(const FloatParts64 *p, const FloatFmt *fmt)
     return ret;
 }
 
-static inline float16 float16_pack_raw(const FloatParts64 *p)
+static float16 QEMU_FLATTEN float16_pack_raw(const FloatParts64 *p)
 {
     return make_float16(pack_raw64(p, &float16_params));
 }
 
-static inline bfloat16 bfloat16_pack_raw(const FloatParts64 *p)
+static bfloat16 QEMU_FLATTEN bfloat16_pack_raw(const FloatParts64 *p)
 {
     return pack_raw64(p, &bfloat16_params);
 }
 
-static inline float32 float32_pack_raw(const FloatParts64 *p)
+static float32 QEMU_FLATTEN float32_pack_raw(const FloatParts64 *p)
 {
     return make_float32(pack_raw64(p, &float32_params));
 }
 
-static inline float64 float64_pack_raw(const FloatParts64 *p)
+static float64 QEMU_FLATTEN float64_pack_raw(const FloatParts64 *p)
 {
     return make_float64(pack_raw64(p, &float64_params));
 }
 
-static float128 float128_pack_raw(const FloatParts128 *p)
+static float128 QEMU_FLATTEN float128_pack_raw(const FloatParts128 *p)
 {
     const int f_size = float128_params.frac_size - 64;
     const int e_size = float128_params.exp_size;
