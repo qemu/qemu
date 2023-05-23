@@ -4,7 +4,7 @@
 #include "qemu/units.h"
 #include "cpu.h"
 
-#define BIOS_SIZE (4 * MiB)
+#define BIOS_SIZE (8 * MiB)
 #if TARGET_BIG_ENDIAN
 #define BIOS_FILENAME "mips_bios.bin"
 #else
