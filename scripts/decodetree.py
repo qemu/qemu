@@ -211,7 +211,7 @@ class Field:
             s = ''
         return str(self.pos) + ':' + s + str(self.len)
 
-    def str_extract(self):
+    def str_extract(self, lvalue_formatter):
         global bitop_width
         s = 's' if self.sign else ''
         return f'{s}extract{bitop_width}(insn, {self.pos}, {self.len})'
@@ -234,12 +234,12 @@ class MultiField:
     def __str__(self):
         return str(self.subs)
 
-    def str_extract(self):
+    def str_extract(self, lvalue_formatter):
         global bitop_width
         ret = '0'
         pos = 0
         for f in reversed(self.subs):
-            ext = f.str_extract()
+            ext = f.str_extract(lvalue_formatter)
             if pos == 0:
                 ret = ext
             else:
@@ -270,7 +270,7 @@ class ConstField:
     def __str__(self):
         return str(self.value)
 
-    def str_extract(self):
+    def str_extract(self, lvalue_formatter):
         return str(self.value)
 
     def __cmp__(self, other):
@@ -289,8 +289,9 @@ class FunctionField:
     def __str__(self):
         return self.func + '(' + str(self.base) + ')'
 
-    def str_extract(self):
-        return self.func + '(ctx, ' + self.base.str_extract() + ')'
+    def str_extract(self, lvalue_formatter):
+        return (self.func + '(ctx, '
+                + self.base.str_extract(lvalue_formatter) + ')')
 
     def __eq__(self, other):
         return self.func == other.func and self.base == other.base
@@ -310,7 +311,7 @@ class ParameterField:
     def __str__(self):
         return self.func
 
-    def str_extract(self):
+    def str_extract(self, lvalue_formatter):
         return self.func + '(ctx)'
 
     def __eq__(self, other):
@@ -363,6 +364,11 @@ class General:
 
     def str1(self, i):
         return str_indent(i) + self.__str__()
+
+    def output_fields(self, indent, lvalue_formatter):
+        for n, f in self.fields.items():
+            output(indent, lvalue_formatter(n), ' = ',
+                   f.str_extract(lvalue_formatter), ';\n')
 # end General
 
 
@@ -376,8 +382,7 @@ class Format(General):
     def output_extract(self):
         output('static void ', self.extract_name(), '(DisasContext *ctx, ',
                self.base.struct_name(), ' *a, ', insntype, ' insn)\n{\n')
-        for n, f in self.fields.items():
-            output('    a->', n, ' = ', f.str_extract(), ';\n')
+        self.output_fields(str_indent(4), lambda n: 'a->' + n)
         output('}\n\n')
 # end Format
 
@@ -401,8 +406,7 @@ class Pattern(General):
         if not extracted:
             output(ind, self.base.extract_name(),
                    '(ctx, &u.f_', arg, ', insn);\n')
-        for n, f in self.fields.items():
-            output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
+        self.output_fields(ind, lambda n: 'u.f_' + arg + '.' + n)
         output(ind, 'if (', translate_prefix, '_', self.name,
                '(ctx, &u.f_', arg, ')) return true;\n')
 
