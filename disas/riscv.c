@@ -2505,7 +2505,7 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 op = rv_op_c_sqsp;
             } else {
                 op = rv_op_c_fsdsp;
-                if (((inst >> 12) & 0b01)) {
+                if (dec->cfg->ext_zcmp && ((inst >> 12) & 0b01)) {
                     switch ((inst >> 8) & 0b01111) {
                     case 8:
                         if (((inst >> 4) & 0b01111) >= 4) {
@@ -2531,6 +2531,9 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                 } else {
                     switch ((inst >> 10) & 0b011) {
                     case 0:
+                        if (!dec->cfg->ext_zcmt) {
+                            break;
+                        }
                         if (((inst >> 2) & 0xFF) >= 32) {
                             op = rv_op_cm_jalt;
                         } else {
@@ -2538,6 +2541,9 @@ static void decode_inst_opcode(rv_decode *dec, rv_isa isa)
                         }
                         break;
                     case 3:
+                        if (!dec->cfg->ext_zcmp) {
+                            break;
+                        }
                         switch ((inst >> 5) & 0b011) {
                         case 1: op = rv_op_cm_mvsa01; break;
                         case 3: op = rv_op_cm_mva01s; break;
