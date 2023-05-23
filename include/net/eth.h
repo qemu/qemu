@@ -32,6 +32,8 @@
 #define ETH_ALEN 6
 #define ETH_HLEN 14
 #define ETH_ZLEN 60     /* Min. octets in frame without FCS */
+#define ETH_FCS_LEN 4
+#define ETH_MTU 1500
 
 struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */

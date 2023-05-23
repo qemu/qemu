@@ -140,16 +140,16 @@ bool e1000x_hw_rx_enabled(uint32_t *mac)
 
 bool e1000x_is_oversized(uint32_t *mac, size_t size)
 {
+    size_t header_size = sizeof(struct eth_header) + sizeof(struct vlan_header);
     /* this is the size past which hardware will
        drop packets when setting LPE=0 */
-    static const int maximum_ethernet_vlan_size = 1522;
+    size_t maximum_short_size = header_size + ETH_MTU;
     /* this is the size past which hardware will
        drop packets when setting LPE=1 */
-    static const int maximum_ethernet_lpe_size = 16 * KiB;
+    size_t maximum_large_size = 16 * KiB - ETH_FCS_LEN;
 
-    if ((size > maximum_ethernet_lpe_size ||
-        (size > maximum_ethernet_vlan_size
-            && !(mac[RCTL] & E1000_RCTL_LPE)))
+    if ((size > maximum_large_size ||
+        (size > maximum_short_size && !(mac[RCTL] & E1000_RCTL_LPE)))
         && !(mac[RCTL] & E1000_RCTL_SBP)) {
         e1000x_inc_reg_if_not_full(mac, ROC);
         trace_e1000x_rx_oversized(size);
