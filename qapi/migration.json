@@ -1745,14 +1745,13 @@
 ##
 # @DirtyRateStatus:
 #
-# An enumeration of dirtyrate status.
+# Dirty page rate measurement status.
 #
-# @unstarted: the dirtyrate thread has not been started.
+# @unstarted: measuring thread has not been started yet
 #
-# @measuring: the dirtyrate thread is measuring.
+# @measuring: measuring thread is running
 #
-# @measured: the dirtyrate thread has measured and results are
-#     available.
+# @measured: dirty page rate is measured and the results are available
 #
 # Since: 5.2
 ##
@@ -1762,13 +1761,14 @@
 ##
 # @DirtyRateMeasureMode:
 #
-# An enumeration of mode of measuring dirtyrate.
+# Method used to measure dirty page rate.  Differences between
+# available methods are explained in @calc-dirty-rate.
 #
-# @page-sampling: calculate dirtyrate by sampling pages.
+# @page-sampling: use page sampling
 #
-# @dirty-ring: calculate dirtyrate by dirty ring.
+# @dirty-ring: use dirty ring
 #
-# @dirty-bitmap: calculate dirtyrate by dirty bitmap.
+# @dirty-bitmap: use dirty bitmap
 #
 # Since: 6.2
 ##
@@ -1778,25 +1778,24 @@
 ##
 # @DirtyRateInfo:
 #
-# Information about current dirty page rate of vm.
+# Information about measured dirty page rate.
 #
 # @dirty-rate: an estimate of the dirty page rate of the VM in units
-#     of MB/s, present only when estimating the rate has completed.
+#     of MiB/s.  Value is present only when @status is 'measured'.
 #
-# @status: status containing dirtyrate query status includes
-#     'unstarted' or 'measuring' or 'measured'
+# @status: current status of dirty page rate measurements
 #
 # @start-time: start time in units of second for calculation
 #
-# @calc-time: time in units of second for sample dirty pages
+# @calc-time: time period for which dirty page rate was measured
+#     (in seconds)
 #
-# @sample-pages: page count per GB for sample dirty pages the default
-#     value is 512 (since 6.1)
+# @sample-pages: number of sampled pages per GiB of guest memory.
+#     Valid only in page-sampling mode (Since 6.1)
 #
-# @mode: mode containing method of calculate dirtyrate includes
-#     'page-sampling' and 'dirty-ring' (Since 6.2)
+# @mode: mode that was used to measure dirty page rate (Since 6.2)
 #
-# @vcpu-dirty-rate: dirtyrate for each vcpu if dirty-ring mode
+# @vcpu-dirty-rate: dirty rate for each vCPU if dirty-ring mode was
 #     specified (Since 6.2)
 #
 # Since: 5.2
@@ -1813,15 +1812,49 @@
 ##
 # @calc-dirty-rate:
 #
-# start calculating dirty page rate for vm
+# Start measuring dirty page rate of the VM.  Results can be retrieved
+# with @query-dirty-rate after measurements are completed.
 #
-# @calc-time: time in units of second for sample dirty pages
+# Dirty page rate is the number of pages changed in a given time
+# period expressed in MiB/s.  The following methods of calculation are
+# available:
 #
-# @sample-pages: page count per GB for sample dirty pages the default
-#     value is 512 (since 6.1)
+# 1. In page sampling mode, a random subset of pages are selected and
+#    hashed twice: once at the beginning of measurement time period,
+#    and once again at the end.  If two hashes for some page are
+#    different, the page is counted as changed.  Since this method
+#    relies on sampling and hashing, calculated dirty page rate is
+#    only an estimate of its true value.  Increasing @sample-pages
+#    improves estimation quality at the cost of higher computational
+#    overhead.
 #
-# @mode: mechanism of calculating dirtyrate includes 'page-sampling'
-#     and 'dirty-ring' (Since 6.1)
+# 2. Dirty bitmap mode captures writes to memory (for example by
+#    temporarily revoking write access to all pages) and counting page
+#    faults.  Information about modified pages is collected into a
+#    bitmap, where each bit corresponds to one guest page.  This mode
+#    requires that KVM accelerator property "dirty-ring-size" is *not*
+#    set.
+#
+# 3. Dirty ring mode is similar to dirty bitmap mode, but the
+#    information about modified pages is collected into ring buffer.
+#    This mode tracks page modification per each vCPU separately.  It
+#    requires that KVM accelerator property "dirty-ring-size" is set.
+#
+# @calc-time: time period in units of second for which dirty page rate
+#     is calculated.  Note that larger @calc-time values will
+#     typically result in smaller dirty page rates because page
+#     dirtying is a one-time event.  Once some page is counted as
+#     dirty during @calc-time period, further writes to this page will
+#     not increase dirty page rate anymore.
+#
+# @sample-pages: number of sampled pages per each GiB of guest memory.
+#     Default value is 512.  For 4KiB guest pages this corresponds to
+#     sampling ratio of 0.2%.  This argument is used only in page
+#     sampling mode.  (Since 6.1)
+#
+# @mode: mechanism for tracking dirty pages.  Default value is
+#     'page-sampling'.  Others are 'dirty-bitmap' and 'dirty-ring'.
+#     (Since 6.1)
 #
 # Since: 5.2
 #
@@ -1838,9 +1871,21 @@
 ##
 # @query-dirty-rate:
 #
-# query dirty page rate in units of MB/s for vm
+# Query results of the most recent invocation of @calc-dirty-rate.
 #
 # Since: 5.2
+#
+# Examples:
+#
+# 1. Measurement is in progress:
+#
+# <- {"status": "measuring", "sample-pages": 512,
+#     "mode": "page-sampling", "start-time": 3665220, "calc-time": 10}
+#
+# 2. Measurement has been completed:
+#
+# <- {"status": "measured", "sample-pages": 512, "dirty-rate": 108,
+#     "mode": "page-sampling", "start-time": 3665220, "calc-time": 10}
 ##
 { 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }
 
