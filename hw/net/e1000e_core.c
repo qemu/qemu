@@ -165,14 +165,14 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
 
     timer->running = false;
 
-    if (msi_enabled(timer->core->owner)) {
-        trace_e1000e_irq_msi_notify_postponed();
-        /* Clear msi_causes_pending to fire MSI eventually */
-        timer->core->msi_causes_pending = 0;
-        e1000e_set_interrupt_cause(timer->core, 0);
-    } else {
-        trace_e1000e_irq_legacy_notify_postponed();
-        e1000e_set_interrupt_cause(timer->core, 0);
+    if (timer->core->mac[IMS] & timer->core->mac[ICR]) {
+        if (msi_enabled(timer->core->owner)) {
+            trace_e1000e_irq_msi_notify_postponed();
+            msi_notify(timer->core->owner, 0);
+        } else {
+            trace_e1000e_irq_legacy_notify_postponed();
+            e1000e_raise_legacy_irq(timer->core);
+        }
     }
 }
 
@@ -366,10 +366,6 @@ static void
 e1000e_intrmgr_fire_all_timers(E1000ECore *core)
 {
     int i;
-    uint32_t val = e1000e_intmgr_collect_delayed_causes(core);
-
-    trace_e1000e_irq_adding_delayed_causes(val, core->mac[ICR]);
-    core->mac[ICR] |= val;
 
     if (core->itr.running) {
         timer_del(core->itr.timer);
@@ -1974,13 +1970,6 @@ void(*e1000e_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
     }
 };
 
-static inline void
-e1000e_clear_ims_bits(E1000ECore *core, uint32_t bits)
-{
-    trace_e1000e_irq_clear_ims(bits, core->mac[IMS], core->mac[IMS] & ~bits);
-    core->mac[IMS] &= ~bits;
-}
-
 static inline bool
 e1000e_postpone_interrupt(E1000IntrDelayTimer *timer)
 {
@@ -2038,7 +2027,6 @@ e1000e_msix_notify_one(E1000ECore *core, uint32_t cause, uint32_t int_cfg)
     effective_eiac = core->mac[EIAC] & cause;
 
     core->mac[ICR] &= ~effective_eiac;
-    core->msi_causes_pending &= ~effective_eiac;
 
     if (!(core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
         core->mac[IMS] &= ~effective_eiac;
@@ -2130,33 +2118,17 @@ e1000e_fix_icr_asserted(E1000ECore *core)
     trace_e1000e_irq_fix_icr_asserted(core->mac[ICR]);
 }
 
-static void
-e1000e_send_msi(E1000ECore *core, bool msix)
+static void e1000e_raise_interrupts(E1000ECore *core,
+                                    size_t index, uint32_t causes)
 {
-    uint32_t causes = core->mac[ICR] & core->mac[IMS] & ~E1000_ICR_ASSERTED;
-
-    core->msi_causes_pending &= causes;
-    causes ^= core->msi_causes_pending;
-    if (causes == 0) {
-        return;
-    }
-    core->msi_causes_pending |= causes;
-
-    if (msix) {
-        e1000e_msix_notify(core, causes);
-    } else {
-        if (!e1000e_itr_should_postpone(core)) {
-            trace_e1000e_irq_msi_notify(causes);
-            msi_notify(core->owner, 0);
-        }
-    }
-}
-
-static void
-e1000e_update_interrupt_state(E1000ECore *core)
-{
-    bool interrupts_pending;
     bool is_msix = msix_enabled(core->owner);
+    uint32_t old_causes = core->mac[IMS] & core->mac[ICR];
+    uint32_t raised_causes;
+
+    trace_e1000e_irq_set(index << 2,
+                         core->mac[index], core->mac[index] | causes);
+
+    core->mac[index] |= causes;
 
     /* Set ICR[OTHER] for MSI-X */
     if (is_msix) {
@@ -2178,40 +2150,58 @@ e1000e_update_interrupt_state(E1000ECore *core)
      */
     core->mac[ICS] = core->mac[ICR];
 
-    interrupts_pending = (core->mac[IMS] & core->mac[ICR]) ? true : false;
-    if (!interrupts_pending) {
-        core->msi_causes_pending = 0;
+    trace_e1000e_irq_pending_interrupts(core->mac[ICR] & core->mac[IMS],
+                                        core->mac[ICR], core->mac[IMS]);
+
+    raised_causes = core->mac[IMS] & core->mac[ICR] & ~old_causes;
+    if (!raised_causes) {
+        return;
     }
+
+    if (is_msix) {
+        e1000e_msix_notify(core, raised_causes & ~E1000_ICR_ASSERTED);
+    } else if (!e1000e_itr_should_postpone(core)) {
+        if (msi_enabled(core->owner)) {
+            trace_e1000e_irq_msi_notify(raised_causes);
+            msi_notify(core->owner, 0);
+        } else {
+            e1000e_raise_legacy_irq(core);
+        }
+    }
+}
+
+static void e1000e_lower_interrupts(E1000ECore *core,
+                                    size_t index, uint32_t causes)
+{
+    trace_e1000e_irq_clear(index << 2,
+                           core->mac[index], core->mac[index] & ~causes);
+
+    core->mac[index] &= ~causes;
+
+    /*
+     * Make sure ICR and ICS registers have the same value.
+     * The spec says that the ICS register is write-only.  However in practice,
+     * on real hardware ICS is readable, and for reads it has the same value as
+     * ICR (except that ICS does not have the clear on read behaviour of ICR).
+     *
+     * The VxWorks PRO/1000 driver uses this behaviour.
+     */
+    core->mac[ICS] = core->mac[ICR];
 
     trace_e1000e_irq_pending_interrupts(core->mac[ICR] & core->mac[IMS],
                                         core->mac[ICR], core->mac[IMS]);
 
-    if (is_msix || msi_enabled(core->owner)) {
-        if (interrupts_pending) {
-            e1000e_send_msi(core, is_msix);
-        }
-    } else {
-        if (interrupts_pending) {
-            if (!e1000e_itr_should_postpone(core)) {
-                e1000e_raise_legacy_irq(core);
-            }
-        } else {
-            e1000e_lower_legacy_irq(core);
-        }
+    if (!(core->mac[IMS] & core->mac[ICR]) &&
+        !msix_enabled(core->owner) && !msi_enabled(core->owner)) {
+        e1000e_lower_legacy_irq(core);
     }
 }
 
 static void
 e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val)
 {
-    trace_e1000e_irq_set_cause_entry(val, core->mac[ICR]);
-
     val |= e1000e_intmgr_collect_delayed_causes(core);
-    core->mac[ICR] |= val;
-
-    trace_e1000e_irq_set_cause_exit(val, core->mac[ICR]);
-
-    e1000e_update_interrupt_state(core);
+    e1000e_raise_interrupts(core, ICR, val);
 }
 
 static inline void
@@ -2477,30 +2467,27 @@ e1000e_set_ics(E1000ECore *core, int index, uint32_t val)
 static void
 e1000e_set_icr(E1000ECore *core, int index, uint32_t val)
 {
-    uint32_t icr = 0;
     if ((core->mac[ICR] & E1000_ICR_ASSERTED) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
         trace_e1000e_irq_icr_process_iame();
-        e1000e_clear_ims_bits(core, core->mac[IAM]);
+        e1000e_lower_interrupts(core, IMS, core->mac[IAM]);
     }
 
-    icr = core->mac[ICR] & ~val;
     /*
      * Windows driver expects that the "receive overrun" bit and other
      * ones to be cleared when the "Other" bit (#24) is cleared.
      */
-    icr = (val & E1000_ICR_OTHER) ? (icr & ~E1000_ICR_OTHER_CAUSES) : icr;
-    trace_e1000e_irq_icr_write(val, core->mac[ICR], icr);
-    core->mac[ICR] = icr;
-    e1000e_update_interrupt_state(core);
+    if (val & E1000_ICR_OTHER) {
+        val |= E1000_ICR_OTHER_CAUSES;
+    }
+    e1000e_lower_interrupts(core, ICR, val);
 }
 
 static void
 e1000e_set_imc(E1000ECore *core, int index, uint32_t val)
 {
     trace_e1000e_irq_ims_clear_set_imc(val);
-    e1000e_clear_ims_bits(core, val);
-    e1000e_update_interrupt_state(core);
+    e1000e_lower_interrupts(core, IMS, val);
 }
 
 static void
@@ -2521,9 +2508,6 @@ e1000e_set_ims(E1000ECore *core, int index, uint32_t val)
 
     uint32_t valid_val = val & ims_valid_mask;
 
-    trace_e1000e_irq_set_ims(val, core->mac[IMS], core->mac[IMS] | valid_val);
-    core->mac[IMS] |= valid_val;
-
     if ((valid_val & ims_ext_mask) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_PBA_CLR) &&
         msix_enabled(core->owner)) {
@@ -2536,7 +2520,7 @@ e1000e_set_ims(E1000ECore *core, int index, uint32_t val)
         e1000e_intrmgr_fire_all_timers(core);
     }
 
-    e1000e_update_interrupt_state(core);
+    e1000e_raise_interrupts(core, IMS, valid_val);
 }
 
 static void
@@ -2609,28 +2593,25 @@ static uint32_t
 e1000e_mac_icr_read(E1000ECore *core, int index)
 {
     uint32_t ret = core->mac[ICR];
-    trace_e1000e_irq_icr_read_entry(ret);
 
     if (core->mac[IMS] == 0) {
         trace_e1000e_irq_icr_clear_zero_ims();
-        core->mac[ICR] = 0;
+        e1000e_lower_interrupts(core, ICR, 0xffffffff);
     }
 
     if (!msix_enabled(core->owner)) {
         trace_e1000e_irq_icr_clear_nonmsix_icr_read();
-        core->mac[ICR] = 0;
+        e1000e_lower_interrupts(core, ICR, 0xffffffff);
     }
 
     if ((core->mac[ICR] & E1000_ICR_ASSERTED) &&
         (core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
         trace_e1000e_irq_icr_clear_iame();
-        core->mac[ICR] = 0;
+        e1000e_lower_interrupts(core, ICR, 0xffffffff);
         trace_e1000e_irq_icr_process_iame();
-        e1000e_clear_ims_bits(core, core->mac[IAM]);
+        e1000e_lower_interrupts(core, IMS, core->mac[IAM]);
     }
 
-    trace_e1000e_irq_icr_read_exit(core->mac[ICR]);
-    e1000e_update_interrupt_state(core);
     return ret;
 }
 
