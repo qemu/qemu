@@ -73,8 +73,6 @@ static TCGv_i64 cpu_acc;
 
 #define cpu_sp cpu_regs[0]
 
-#include "exec/gen-icount.h"
-
 /* decoder helper */
 static uint32_t decode_load_bytes(DisasContext *ctx, uint32_t insn,
                            int i, int n)

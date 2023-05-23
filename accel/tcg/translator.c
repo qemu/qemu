@@ -12,18 +12,41 @@
 #include "tcg/tcg.h"
 #include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
-#include "exec/gen-icount.h"
 #include "exec/log.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 #include "exec/replay-core.h"
 
 
-void gen_io_start(void)
+static void gen_io_start(void)
 {
     tcg_gen_st_i32(tcg_constant_i32(1), cpu_env,
                    offsetof(ArchCPU, parent_obj.can_do_io) -
                    offsetof(ArchCPU, env));
+}
+
+bool translator_io_start(DisasContextBase *db)
+{
+    uint32_t cflags = tb_cflags(db->tb);
+
+    if (!(cflags & CF_USE_ICOUNT)) {
+        return false;
+    }
+    if (db->num_insns == db->max_insns && (cflags & CF_LAST_IO)) {
+        /* Already started in translator_loop. */
+        return true;
+    }
+
+    gen_io_start();
+
+    /*
+     * Ensure that this instruction will be the last in the TB.
+     * The target may override this to something more forceful.
+     */
+    if (db->is_jmp == DISAS_NEXT) {
+        db->is_jmp = DISAS_TOO_MANY;
+    }
+    return true;
 }
 
 static TCGOp *gen_tb_start(uint32_t cflags)

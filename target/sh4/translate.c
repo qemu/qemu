@@ -75,8 +75,6 @@ static TCGv cpu_fregs[32];
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
 
-#include "exec/gen-icount.h"
-
 void sh4_translate_init(void)
 {
     int i;

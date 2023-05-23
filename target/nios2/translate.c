@@ -32,7 +32,6 @@
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 #include "qemu/qemu-print.h"
-#include "exec/gen-icount.h"
 #include "semihosting/semihost.h"
 
 #define HELPER_H "helper.h"

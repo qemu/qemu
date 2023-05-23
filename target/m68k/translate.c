@@ -65,8 +65,6 @@ static TCGv NULL_QREG;
 /* Used to distinguish stores from bad addressing modes.  */
 static TCGv store_dummy;
 
-#include "exec/gen-icount.h"
-
 void m68k_tcg_init(void)
 {
     char *p;

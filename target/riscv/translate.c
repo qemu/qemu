@@ -46,8 +46,6 @@ static TCGv load_val;
 static TCGv pm_mask;
 static TCGv pm_base;
 
-#include "exec/gen-icount.h"
-
 /*
  * If an operation is being performed on less than TARGET_LONG_BITS,
  * it may require the inputs to be sign- or zero-extended; which will

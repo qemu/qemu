@@ -55,8 +55,6 @@ static TCGv cpu_PSW_SV;
 static TCGv cpu_PSW_AV;
 static TCGv cpu_PSW_SAV;
 
-#include "exec/gen-icount.h"
-
 static const char *regnames_a[] = {
       "a0"  , "a1"  , "a2"  , "a3" , "a4"  , "a5" ,
       "a6"  , "a7"  , "a8"  , "a9" , "sp" , "a11" ,

@@ -66,8 +66,6 @@ static TCGv cpu_wim;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
-#include "exec/gen-icount.h"
-
 typedef struct DisasContext {
     DisasContextBase base;
     target_ulong pc;    /* current Program Counter: integer or DYNAMIC_PC */
@@ -3217,16 +3215,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         r_const = tcg_constant_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, tick));
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_start();
+                        if (translator_io_start(&dc->base)) {
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                         gen_helper_tick_get_count(cpu_dst, cpu_env, r_tickptr,
                                                   r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            /* I/O operations in icount mode must end the TB */
-                            dc->base.is_jmp = DISAS_EXIT;
-                        }
                     }
                     break;
                 case 0x5: /* V9 rdpc */
@@ -3269,16 +3263,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         r_const = tcg_constant_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, stick));
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_start();
+                        if (translator_io_start(&dc->base)) {
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                         gen_helper_tick_get_count(cpu_dst, cpu_env, r_tickptr,
                                                   r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            /* I/O operations in icount mode must end the TB */
-                            dc->base.is_jmp = DISAS_EXIT;
-                        }
                     }
                     break;
                 case 0x19: /* System tick compare */
@@ -3399,15 +3389,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         r_const = tcg_constant_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, tick));
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            gen_io_start();
+                        if (translator_io_start(&dc->base)) {
+                            dc->base.is_jmp = DISAS_EXIT;
                         }
                         gen_helper_tick_get_count(cpu_tmp0, cpu_env,
                                                   r_tickptr, r_const);
-                        if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                            /* I/O operations in icount mode must end the TB */
-                            dc->base.is_jmp = DISAS_EXIT;
-                        }
                     }
                     break;
                 case 5: // tba
@@ -4212,10 +4198,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                                    offsetof(CPUSPARCState, tick));
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_start();
-                                    }
+                                    translator_io_start(&dc->base);
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_tick_cmpr);
                                     /* End TB to handle timer interrupt */
@@ -4235,10 +4218,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                                    offsetof(CPUSPARCState, stick));
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_start();
-                                    }
+                                    translator_io_start(&dc->base);
                                     gen_helper_tick_set_count(r_tickptr,
                                                               cpu_tmp0);
                                     /* End TB to handle timer interrupt */
@@ -4258,10 +4238,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                                    offsetof(CPUSPARCState, stick));
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_start();
-                                    }
+                                    translator_io_start(&dc->base);
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_stick_cmpr);
                                     /* End TB to handle timer interrupt */
@@ -4369,10 +4346,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                                    offsetof(CPUSPARCState, tick));
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_start();
-                                    }
+                                    translator_io_start(&dc->base);
                                     gen_helper_tick_set_count(r_tickptr,
                                                               cpu_tmp0);
                                     /* End TB to handle timer interrupt */
@@ -4384,14 +4358,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 break;
                             case 6: // pstate
                                 save_state(dc);
-                                if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    gen_io_start();
-                                }
-                                gen_helper_wrpstate(cpu_env, cpu_tmp0);
-                                if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    /* I/O ops in icount mode must end the TB */
+                                if (translator_io_start(&dc->base)) {
                                     dc->base.is_jmp = DISAS_EXIT;
                                 }
+                                gen_helper_wrpstate(cpu_env, cpu_tmp0);
                                 dc->npc = DYNAMIC_PC;
                                 break;
                             case 7: // tl
@@ -4401,14 +4371,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 dc->npc = DYNAMIC_PC;
                                 break;
                             case 8: // pil
-                                if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    gen_io_start();
-                                }
-                                gen_helper_wrpil(cpu_env, cpu_tmp0);
-                                if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                    /* I/O ops in icount mode must end the TB */
+                                if (translator_io_start(&dc->base)) {
                                     dc->base.is_jmp = DISAS_EXIT;
                                 }
+                                gen_helper_wrpil(cpu_env, cpu_tmp0);
                                 break;
                             case 9: // cwp
                                 gen_helper_wrcwp(cpu_env, cpu_tmp0);
@@ -4499,10 +4465,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                                    offsetof(CPUSPARCState, hstick));
-                                    if (tb_cflags(dc->base.tb) &
-                                           CF_USE_ICOUNT) {
-                                        gen_io_start();
-                                    }
+                                    translator_io_start(&dc->base);
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_hstick_cmpr);
                                     /* End TB to handle timer interrupt */
@@ -5125,9 +5088,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 goto priv_insn;
                             dc->npc = DYNAMIC_PC;
                             dc->pc = DYNAMIC_PC;
-                            if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                gen_io_start();
-                            }
+                            translator_io_start(&dc->base);
                             gen_helper_done(cpu_env);
                             goto jmp_insn;
                         case 1:
@@ -5135,9 +5096,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 goto priv_insn;
                             dc->npc = DYNAMIC_PC;
                             dc->pc = DYNAMIC_PC;
-                            if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-                                gen_io_start();
-                            }
+                            translator_io_start(&dc->base);
                             gen_helper_retry(cpu_env);
                             goto jmp_insn;
                         default:

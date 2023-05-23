@@ -21,7 +21,6 @@
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
 #include "exec/exec-all.h"
-#include "exec/gen-icount.h"
 #include "translate.h"
 #include "translate-a32.h"
 

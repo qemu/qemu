@@ -185,9 +185,7 @@ static bool check_csr_flags(DisasContext *ctx, const CSRInfo *csr, bool write)
     if ((csr->flags & CSRFL_READONLY) && write) {
         return false;
     }
-    if ((csr->flags & CSRFL_IO) &&
-        (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT)) {
-        gen_io_start();
+    if ((csr->flags & CSRFL_IO) && translator_io_start(&ctx->base)) {
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;
     } else if ((csr->flags & CSRFL_EXITTB) && write) {
         ctx->base.is_jmp = DISAS_EXIT_UPDATE;

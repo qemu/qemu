@@ -80,8 +80,6 @@ static TCGv cpu_reserve_val2;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
-#include "exec/gen-icount.h"
-
 void ppc_translate_init(void)
 {
     int i;
@@ -300,16 +298,7 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
 
 static void gen_icount_io_start(DisasContext *ctx)
 {
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-        /*
-         * An I/O instruction must be last in the TB.
-         * Chain to the next TB, and let the code from gen_tb_start
-         * decide if we need to return to the main loop.
-         * Doing this first also allows this value to be overridden.
-         */
-        ctx->base.is_jmp = DISAS_TOO_MANY;
-    }
+    translator_io_start(&ctx->base);
 }
 
 #if !defined(CONFIG_USER_ONLY)

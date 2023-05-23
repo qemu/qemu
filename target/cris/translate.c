@@ -88,8 +88,6 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_pc;
 
-#include "exec/gen-icount.h"
-
 /* This is the state at translation time.  */
 typedef struct DisasContext {
     DisasContextBase base;
