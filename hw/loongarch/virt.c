@@ -474,6 +474,7 @@ static DeviceState *create_platform_bus(DeviceState *pch_pic)
 
 static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *lams)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(lams);
     DeviceState *gpex_dev;
     SysBusDevice *d;
     PCIBus *pci_bus;
@@ -528,7 +529,7 @@ static void loongarch_devices_init(DeviceState *pch_pic, LoongArchMachineState *
         NICInfo *nd = &nd_table[i];
 
         if (!nd->model) {
-            nd->model = g_strdup("virtio");
+            nd->model = g_strdup(mc->default_nic);
         }
 
         pci_nic_init_nofail(nd, pci_bus, nd->model, NULL);
@@ -1038,6 +1039,7 @@ static void loongarch_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->no_cdrom = 1;
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
+    mc->default_nic = "virtio-net-pci";
     hc->plug = loongarch_machine_device_plug_cb;
     hc->pre_plug = virt_machine_device_pre_plug;
     hc->unplug_request = virt_machine_device_unplug_request;
