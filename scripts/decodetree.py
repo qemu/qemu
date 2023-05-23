@@ -54,6 +54,80 @@ re_fld_ident = '%[a-zA-Z0-9_]*'
 re_fmt_ident = '@[a-zA-Z0-9_]*'
 re_pat_ident = '[a-zA-Z0-9_]*'
 
+# Local implementation of a topological sort. We use the same API that
+# the Python graphlib does, so that when QEMU moves forward to a
+# baseline of Python 3.9 or newer this code can all be dropped and
+# replaced with:
+#    from graphlib import TopologicalSorter, CycleError
+#
+# https://docs.python.org/3.9/library/graphlib.html#graphlib.TopologicalSorter
+#
+# We only implement the parts of TopologicalSorter we care about:
+#  ts = TopologicalSorter(graph=None)
+#    create the sorter. graph is a dictionary whose keys are
+#    nodes and whose values are lists of the predecessors of that node.
+#    (That is, if graph contains "A" -> ["B", "C"] then we must output
+#    B and C before A.)
+#  ts.static_order()
+#    returns a list of all the nodes in sorted order, or raises CycleError
+#  CycleError
+#    exception raised if there are cycles in the graph. The second
+#    element in the args attribute is a list of nodes which form a
+#    cycle; the first and last element are the same, eg [a, b, c, a]
+#    (Our implementation doesn't give the order correctly.)
+#
+# For our purposes we can assume that the data set is always small
+# (typically 10 nodes or less, actual links in the graph very rare),
+# so we don't need to worry about efficiency of implementation.
+#
+# The core of this implementation is from
+# https://code.activestate.com/recipes/578272-topological-sort/
+# (but updated to Python 3), and is under the MIT license.
+
+class CycleError(ValueError):
+    """Subclass of ValueError raised if cycles exist in the graph"""
+    pass
+
+class TopologicalSorter:
+    """Topologically sort a graph"""
+    def __init__(self, graph=None):
+        self.graph = graph
+
+    def static_order(self):
+        # We do the sort right here, unlike the stdlib version
+        from functools import reduce
+        data = {}
+        r = []
+
+        if not self.graph:
+            return []
+
+        # This code wants the values in the dict to be specifically sets
+        for k, v in self.graph.items():
+            data[k] = set(v)
+
+        # Find all items that don't depend on anything.
+        extra_items_in_deps = (reduce(set.union, data.values())
+                               - set(data.keys()))
+        # Add empty dependencies where needed
+        data.update({item:{} for item in extra_items_in_deps})
+        while True:
+            ordered = set(item for item, dep in data.items() if not dep)
+            if not ordered:
+                break
+            r.extend(ordered)
+            data = {item: (dep - ordered)
+                    for item, dep in data.items()
+                        if item not in ordered}
+        if data:
+            # This doesn't give as nice results as the stdlib, which
+            # gives you the cycle by listing the nodes in order. Here
+            # we only know the nodes in the cycle but not their order.
+            raise CycleError(f'nodes are in a cycle', list(data.keys()))
+
+        return r
+# end TopologicalSorter
+
 def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
     global output_file
