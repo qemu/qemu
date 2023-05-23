@@ -83,16 +83,17 @@ config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/scripts/meson-buildoptions.sh
 	@if test -f meson-private/coredata.dat; then \
 	  ./config.status --skip-meson; \
 	else \
-	  ./config.status && touch build.ninja.stamp; \
+	  ./config.status; \
 	fi
 
 # 2. meson.stamp exists if meson has run at least once (so ninja reconfigure
 # works), but otherwise never needs to be updated
+
 meson-private/coredata.dat: meson.stamp
 meson.stamp: config-host.mak
 	@touch meson.stamp
 
-# 3. ensure generated build files are up-to-date
+# 3. ensure meson-generated build files are up-to-date
 
 ifneq ($(NINJA),)
 Makefile.ninja: build.ninja
@@ -106,11 +107,19 @@ Makefile.ninja: build.ninja
 endif
 
 ifneq ($(MESON),)
-# A separate rule is needed for Makefile dependencies to avoid -n
+# The path to meson always points to pyvenv/bin/meson, but the absolute
+# paths could change.  In that case, force a regeneration of build.ninja.
+# Note that this invocation of $(NINJA), just like when Make rebuilds
+# Makefiles, does not include -n.
 build.ninja: build.ninja.stamp
 $(build-files):
 build.ninja.stamp: meson.stamp $(build-files)
-	$(MESON) setup --reconfigure $(SRC_PATH) && touch $@
+	@if test "$$(cat build.ninja.stamp)" = "$(MESON)" && test -n "$(NINJA)"; then \
+	  $(NINJA) build.ninja; \
+	else \
+	  echo "$(MESON) setup --reconfigure $(SRC_PATH)"; \
+	  $(MESON) setup --reconfigure $(SRC_PATH); \
+	fi && echo "$(MESON)" > $@
 
 Makefile.mtest: build.ninja scripts/mtest2make.py
 	$(MESON) introspect --targets --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
