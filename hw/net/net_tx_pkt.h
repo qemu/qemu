@@ -154,6 +154,15 @@ void net_tx_pkt_dump(struct NetTxPkt *pkt);
 void net_tx_pkt_reset(struct NetTxPkt *pkt, PCIDevice *dev);
 
 /**
+ * Unmap a fragment mapped from a PCI device.
+ *
+ * @context:        PCI device owning fragment
+ * @base:           pointer to fragment
+ * @len:            length of fragment
+ */
+void net_tx_pkt_unmap_frag_pci(void *context, void *base, size_t len);
+
+/**
  * Send packet to qemu. handles sw offloads if vhdr is not supported.
  *
  * @pkt:            packet
