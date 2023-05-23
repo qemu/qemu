@@ -94,10 +94,7 @@ static ssize_t
 igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
                      bool has_vnet, bool *external_tx);
 
-static inline void
-igb_set_interrupt_cause(IGBCore *core, uint32_t val);
-
-static void igb_update_interrupt_state(IGBCore *core);
+static void igb_raise_interrupts(IGBCore *core, size_t index, uint32_t causes);
 static void igb_reset(IGBCore *core, bool sw);
 
 static inline void
@@ -913,8 +910,8 @@ igb_start_xmit(IGBCore *core, const IGB_TxRing *txr)
     }
 
     if (eic) {
-        core->mac[EICR] |= eic;
-        igb_set_interrupt_cause(core, E1000_ICR_TXDW);
+        igb_raise_interrupts(core, EICR, eic);
+        igb_raise_interrupts(core, ICR, E1000_ICR_TXDW);
     }
 
     net_tx_pkt_reset(txr->tx->tx_pkt, net_tx_pkt_unmap_frag_pci, d);
@@ -1686,6 +1683,7 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
 {
     uint16_t queues = 0;
     uint32_t causes = 0;
+    uint32_t ecauses = 0;
     union {
         L2Header l2_header;
         uint8_t octets[ETH_ZLEN];
@@ -1788,13 +1786,14 @@ igb_receive_internal(IGBCore *core, const struct iovec *iov, int iovcnt,
             causes |= E1000_ICS_RXDMT0;
         }
 
-        core->mac[EICR] |= igb_rx_wb_eic(core, rxr.i->idx);
+        ecauses |= igb_rx_wb_eic(core, rxr.i->idx);
 
         trace_e1000e_rx_written_to_guest(rxr.i->idx);
     }
 
     trace_e1000e_rx_interrupt_set(causes);
-    igb_set_interrupt_cause(core, causes);
+    igb_raise_interrupts(core, EICR, ecauses);
+    igb_raise_interrupts(core, ICR, causes);
 
     return orig_size;
 }
@@ -1854,7 +1853,7 @@ void igb_core_set_link_status(IGBCore *core)
     }
 
     if (core->mac[STATUS] != old_status) {
-        igb_set_interrupt_cause(core, E1000_ICR_LSC);
+        igb_raise_interrupts(core, ICR, E1000_ICR_LSC);
     }
 }
 
@@ -1934,13 +1933,6 @@ igb_set_rx_control(IGBCore *core, int index, uint32_t val)
     }
 }
 
-static inline void
-igb_clear_ims_bits(IGBCore *core, uint32_t bits)
-{
-    trace_e1000e_irq_clear_ims(bits, core->mac[IMS], core->mac[IMS] & ~bits);
-    core->mac[IMS] &= ~bits;
-}
-
 static inline bool
 igb_postpone_interrupt(IGBIntrDelayTimer *timer)
 {
@@ -1963,9 +1955,8 @@ igb_eitr_should_postpone(IGBCore *core, int idx)
     return igb_postpone_interrupt(&core->eitr[idx]);
 }
 
-static void igb_send_msix(IGBCore *core)
+static void igb_send_msix(IGBCore *core, uint32_t causes)
 {
-    uint32_t causes = core->mac[EICR] & core->mac[EIMS];
     int vector;
 
     for (vector = 0; vector < IGB_INTR_NUM; ++vector) {
@@ -1988,124 +1979,116 @@ igb_fix_icr_asserted(IGBCore *core)
     trace_e1000e_irq_fix_icr_asserted(core->mac[ICR]);
 }
 
-static void
-igb_update_interrupt_state(IGBCore *core)
+static void igb_raise_interrupts(IGBCore *core, size_t index, uint32_t causes)
 {
-    uint32_t icr;
-    uint32_t causes;
+    uint32_t old_causes = core->mac[ICR] & core->mac[IMS];
+    uint32_t old_ecauses = core->mac[EICR] & core->mac[EIMS];
+    uint32_t raised_causes;
+    uint32_t raised_ecauses;
     uint32_t int_alloc;
 
-    icr = core->mac[ICR] & core->mac[IMS];
+    trace_e1000e_irq_set(index << 2,
+                         core->mac[index], core->mac[index] | causes);
+
+    core->mac[index] |= causes;
 
     if (core->mac[GPIE] & E1000_GPIE_MSIX_MODE) {
-        if (icr) {
-            causes = 0;
-            if (icr & E1000_ICR_DRSTA) {
-                int_alloc = core->mac[IVAR_MISC] & 0xff;
-                if (int_alloc & E1000_IVAR_VALID) {
-                    causes |= BIT(int_alloc & 0x1f);
-                }
+        raised_causes = core->mac[ICR] & core->mac[IMS] & ~old_causes;
+
+        if (raised_causes & E1000_ICR_DRSTA) {
+            int_alloc = core->mac[IVAR_MISC] & 0xff;
+            if (int_alloc & E1000_IVAR_VALID) {
+                core->mac[EICR] |= BIT(int_alloc & 0x1f);
             }
-            /* Check if other bits (excluding the TCP Timer) are enabled. */
-            if (icr & ~E1000_ICR_DRSTA) {
-                int_alloc = (core->mac[IVAR_MISC] >> 8) & 0xff;
-                if (int_alloc & E1000_IVAR_VALID) {
-                    causes |= BIT(int_alloc & 0x1f);
-                }
-                trace_e1000e_irq_add_msi_other(core->mac[EICR]);
+        }
+        /* Check if other bits (excluding the TCP Timer) are enabled. */
+        if (raised_causes & ~E1000_ICR_DRSTA) {
+            int_alloc = (core->mac[IVAR_MISC] >> 8) & 0xff;
+            if (int_alloc & E1000_IVAR_VALID) {
+                core->mac[EICR] |= BIT(int_alloc & 0x1f);
             }
-            core->mac[EICR] |= causes;
         }
 
-        if ((core->mac[EICR] & core->mac[EIMS])) {
-            igb_send_msix(core);
+        raised_ecauses = core->mac[EICR] & core->mac[EIMS] & ~old_ecauses;
+        if (!raised_ecauses) {
+            return;
         }
+
+        igb_send_msix(core, raised_ecauses);
     } else {
         igb_fix_icr_asserted(core);
 
-        if (icr) {
-            core->mac[EICR] |= (icr & E1000_ICR_DRSTA) | E1000_EICR_OTHER;
-        } else {
-            core->mac[EICR] &= ~E1000_EICR_OTHER;
+        raised_causes = core->mac[ICR] & core->mac[IMS] & ~old_causes;
+        if (!raised_causes) {
+            return;
         }
 
-        trace_e1000e_irq_pending_interrupts(core->mac[ICR] & core->mac[IMS],
-                                            core->mac[ICR], core->mac[IMS]);
+        core->mac[EICR] |= (raised_causes & E1000_ICR_DRSTA) | E1000_EICR_OTHER;
 
         if (msix_enabled(core->owner)) {
-            if (icr) {
-                trace_e1000e_irq_msix_notify_vec(0);
-                msix_notify(core->owner, 0);
-            }
+            trace_e1000e_irq_msix_notify_vec(0);
+            msix_notify(core->owner, 0);
         } else if (msi_enabled(core->owner)) {
-            if (icr) {
-                msi_notify(core->owner, 0);
-            }
+            trace_e1000e_irq_msi_notify(raised_causes);
+            msi_notify(core->owner, 0);
         } else {
-            if (icr) {
-                igb_raise_legacy_irq(core);
-            } else {
-                igb_lower_legacy_irq(core);
-            }
+            igb_raise_legacy_irq(core);
         }
     }
 }
 
-static void
-igb_set_interrupt_cause(IGBCore *core, uint32_t val)
+static void igb_lower_interrupts(IGBCore *core, size_t index, uint32_t causes)
 {
-    trace_e1000e_irq_set_cause_entry(val, core->mac[ICR]);
+    trace_e1000e_irq_clear(index << 2,
+                           core->mac[index], core->mac[index] & ~causes);
 
-    core->mac[ICR] |= val;
+    core->mac[index] &= ~causes;
 
-    trace_e1000e_irq_set_cause_exit(val, core->mac[ICR]);
+    trace_e1000e_irq_pending_interrupts(core->mac[ICR] & core->mac[IMS],
+                                        core->mac[ICR], core->mac[IMS]);
 
-    igb_update_interrupt_state(core);
+    if (!(core->mac[ICR] & core->mac[IMS]) &&
+        !(core->mac[GPIE] & E1000_GPIE_MSIX_MODE)) {
+        core->mac[EICR] &= ~E1000_EICR_OTHER;
+
+        if (!msix_enabled(core->owner) && !msi_enabled(core->owner)) {
+            igb_lower_legacy_irq(core);
+        }
+    }
 }
 
 static void igb_set_eics(IGBCore *core, int index, uint32_t val)
 {
     bool msix = !!(core->mac[GPIE] & E1000_GPIE_MSIX_MODE);
+    uint32_t mask = msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK;
 
     trace_igb_irq_write_eics(val, msix);
-
-    core->mac[EICS] |=
-        val & (msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK);
-
-    /*
-     * TODO: Move to igb_update_interrupt_state if EICS is modified in other
-     * places.
-     */
-    core->mac[EICR] = core->mac[EICS];
-
-    igb_update_interrupt_state(core);
+    igb_raise_interrupts(core, EICR, val & mask);
 }
 
 static void igb_set_eims(IGBCore *core, int index, uint32_t val)
 {
     bool msix = !!(core->mac[GPIE] & E1000_GPIE_MSIX_MODE);
+    uint32_t mask = msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK;
 
     trace_igb_irq_write_eims(val, msix);
-
-    core->mac[EIMS] |=
-        val & (msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK);
-
-    igb_update_interrupt_state(core);
+    igb_raise_interrupts(core, EIMS, val & mask);
 }
 
 static void mailbox_interrupt_to_vf(IGBCore *core, uint16_t vfn)
 {
     uint32_t ent = core->mac[VTIVAR_MISC + vfn];
+    uint32_t causes;
 
     if ((ent & E1000_IVAR_VALID)) {
-        core->mac[EICR] |= (ent & 0x3) << (22 - vfn * IGBVF_MSIX_VEC_NUM);
-        igb_update_interrupt_state(core);
+        causes = (ent & 0x3) << (22 - vfn * IGBVF_MSIX_VEC_NUM);
+        igb_raise_interrupts(core, EICR, causes);
     }
 }
 
 static void mailbox_interrupt_to_pf(IGBCore *core)
 {
-    igb_set_interrupt_cause(core, E1000_ICR_VMMB);
+    igb_raise_interrupts(core, ICR, E1000_ICR_VMMB);
 }
 
 static void igb_set_pfmailbox(IGBCore *core, int index, uint32_t val)
@@ -2196,13 +2179,12 @@ static void igb_w1c(IGBCore *core, int index, uint32_t val)
 static void igb_set_eimc(IGBCore *core, int index, uint32_t val)
 {
     bool msix = !!(core->mac[GPIE] & E1000_GPIE_MSIX_MODE);
+    uint32_t mask = msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK;
+
+    trace_igb_irq_write_eimc(val, msix);
 
     /* Interrupts are disabled via a write to EIMC and reflected in EIMS. */
-    core->mac[EIMS] &=
-        ~(val & (msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK));
-
-    trace_igb_irq_write_eimc(val, core->mac[EIMS], msix);
-    igb_update_interrupt_state(core);
+    igb_lower_interrupts(core, EIMS, val & mask);
 }
 
 static void igb_set_eiac(IGBCore *core, int index, uint32_t val)
@@ -2242,11 +2224,10 @@ static void igb_set_eicr(IGBCore *core, int index, uint32_t val)
      * TODO: In IOV mode, only bit zero of this vector is available for the PF
      * function.
      */
-    core->mac[EICR] &=
-        ~(val & (msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK));
+    uint32_t mask = msix ? E1000_EICR_MSIX_MASK : E1000_EICR_LEGACY_MASK;
 
     trace_igb_irq_write_eicr(val, msix);
-    igb_update_interrupt_state(core);
+    igb_lower_interrupts(core, EICR, val & mask);
 }
 
 static void igb_set_vtctrl(IGBCore *core, int index, uint32_t val)
@@ -2346,7 +2327,7 @@ igb_autoneg_timer(void *opaque)
 
         igb_update_flowctl_status(core);
         /* signal link status change to the guest */
-        igb_set_interrupt_cause(core, E1000_ICR_LSC);
+        igb_raise_interrupts(core, ICR, E1000_ICR_LSC);
     }
 }
 
@@ -2419,7 +2400,7 @@ igb_set_mdic(IGBCore *core, int index, uint32_t val)
     core->mac[MDIC] = val | E1000_MDIC_READY;
 
     if (val & E1000_MDIC_INT_EN) {
-        igb_set_interrupt_cause(core, E1000_ICR_MDAC);
+        igb_raise_interrupts(core, ICR, E1000_ICR_MDAC);
     }
 }
 
@@ -2527,28 +2508,23 @@ static void
 igb_set_ics(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_irq_write_ics(val);
-    igb_set_interrupt_cause(core, val);
+    igb_raise_interrupts(core, ICR, val);
 }
 
 static void
 igb_set_imc(IGBCore *core, int index, uint32_t val)
 {
     trace_e1000e_irq_ims_clear_set_imc(val);
-    igb_clear_ims_bits(core, val);
-    igb_update_interrupt_state(core);
+    igb_lower_interrupts(core, IMS, val);
 }
 
 static void
 igb_set_ims(IGBCore *core, int index, uint32_t val)
 {
-    uint32_t valid_val = val & 0x77D4FBFD;
-
-    trace_e1000e_irq_set_ims(val, core->mac[IMS], core->mac[IMS] | valid_val);
-    core->mac[IMS] |= valid_val;
-    igb_update_interrupt_state(core);
+    igb_raise_interrupts(core, IMS, val & 0x77D4FBFD);
 }
 
-static void igb_commit_icr(IGBCore *core)
+static void igb_nsicr(IGBCore *core)
 {
     /*
      * If GPIE.NSICR = 0, then the clear of IMS will occur only if at
@@ -2557,19 +2533,14 @@ static void igb_commit_icr(IGBCore *core)
      */
     if ((core->mac[GPIE] & E1000_GPIE_NSICR) ||
         (core->mac[IMS] && (core->mac[ICR] & E1000_ICR_INT_ASSERTED))) {
-        igb_clear_ims_bits(core, core->mac[IAM]);
+        igb_lower_interrupts(core, IMS, core->mac[IAM]);
     }
-
-    igb_update_interrupt_state(core);
 }
 
 static void igb_set_icr(IGBCore *core, int index, uint32_t val)
 {
-    uint32_t icr = core->mac[ICR] & ~val;
-
-    trace_igb_irq_icr_write(val, core->mac[ICR], icr);
-    core->mac[ICR] = icr;
-    igb_commit_icr(core);
+    igb_nsicr(core);
+    igb_lower_interrupts(core, ICR, val);
 }
 
 static uint32_t
@@ -2620,21 +2591,19 @@ static uint32_t
 igb_mac_icr_read(IGBCore *core, int index)
 {
     uint32_t ret = core->mac[ICR];
-    trace_e1000e_irq_icr_read_entry(ret);
 
     if (core->mac[GPIE] & E1000_GPIE_NSICR) {
         trace_igb_irq_icr_clear_gpie_nsicr();
-        core->mac[ICR] = 0;
+        igb_lower_interrupts(core, ICR, 0xffffffff);
     } else if (core->mac[IMS] == 0) {
         trace_e1000e_irq_icr_clear_zero_ims();
-        core->mac[ICR] = 0;
+        igb_lower_interrupts(core, ICR, 0xffffffff);
     } else if (!msix_enabled(core->owner)) {
         trace_e1000e_irq_icr_clear_nonmsix_icr_read();
-        core->mac[ICR] = 0;
+        igb_lower_interrupts(core, ICR, 0xffffffff);
     }
 
-    trace_e1000e_irq_icr_read_exit(core->mac[ICR]);
-    igb_commit_icr(core);
+    igb_nsicr(core);
     return ret;
 }
 

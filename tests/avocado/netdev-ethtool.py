@@ -67,10 +67,6 @@ class NetDevEthtool(QemuSystemTest):
         # no need to gracefully shutdown, just finish
         self.vm.kill()
 
-    # Skip testing for MSI for now. Allegedly it was fixed by:
-    #   28e96556ba (igb: Allocate MSI-X vector when testing)
-    # but I'm seeing oops in the kernel
-    @skip("Kernel bug with MSI enabled")
     def test_igb(self):
         """
         :avocado: tags=device:igb
