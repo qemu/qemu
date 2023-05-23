@@ -196,8 +196,7 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
      * no need to check the ignore_memory_transaction_failures board flag.
      */
     if (object_dynamic_cast(machine, TYPE_MACHINE)) {
-        ObjectClass *oc = object_get_class(machine);
-        MachineClass *mc = MACHINE_CLASS(oc);
+        MachineClass *mc = MACHINE_GET_CLASS(machine);
 
         if (mc) {
             cpu->ignore_memory_transaction_failures =
