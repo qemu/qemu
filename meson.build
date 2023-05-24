@@ -770,7 +770,7 @@ if not cc.compiles('''
     g_free(f);
   }
   G_DEFINE_AUTOPTR_CLEANUP_FUNC(Foo, foo_free)
-  int main(void) { return 0; }''', dependencies: glib_pc, args: ['-Werror'])
+  int main(void) { return 0; }''', dependencies: glib_pc, args: ['-Wunused-function', '-Werror'])
   glib_cflags += cc.get_supported_arguments('-Wno-unused-function')
 endif
 glib = declare_dependency(dependencies: [glib_pc, gmodule],
