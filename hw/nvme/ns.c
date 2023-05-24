@@ -453,6 +453,17 @@ static bool nvme_ns_init_fdp(NvmeNamespace *ns, Error **errp)
 
     free(r);
 
+    /* verify that the ruhids are unique */
+    for (unsigned int i = 0; i < ns->fdp.nphs; i++) {
+        for (unsigned int j = i + 1; j < ns->fdp.nphs; j++) {
+            if (ruhids[i] == ruhids[j]) {
+                error_setg(errp, "duplicate reclaim unit handle identifier: %u",
+                           ruhids[i]);
+                return false;
+            }
+        }
+    }
+
     ph = ns->fdp.phs = g_new(uint16_t, ns->fdp.nphs);
 
     ruhid = ruhids;
