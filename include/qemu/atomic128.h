@@ -16,6 +16,23 @@
 #include "qemu/int128.h"
 
 /*
+ * If __alignof(unsigned __int128) < 16, GCC may refuse to inline atomics
+ * that are supported by the host, e.g. s390x.  We can force the pointer to
+ * have our known alignment with __builtin_assume_aligned, however prior to
+ * GCC 13 that was only reliable with optimization enabled.  See
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107389
+ */
+#if defined(CONFIG_ATOMIC128_OPT)
+# if !defined(__OPTIMIZE__)
+#  define ATTRIBUTE_ATOMIC128_OPT  __attribute__((optimize("O1")))
+# endif
+# define CONFIG_ATOMIC128
+#endif
+#ifndef ATTRIBUTE_ATOMIC128_OPT
+# define ATTRIBUTE_ATOMIC128_OPT
+#endif
+
+/*
  * GCC is a house divided about supporting large atomic operations.
  *
  * For hosts that only have large compare-and-swap, a legalistic reading
@@ -41,132 +58,7 @@
  * Therefore, special case each platform.
  */
 
-#if defined(CONFIG_ATOMIC128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    Int128Alias r, c, n;
-
-    c.s = cmp;
-    n.s = new;
-    r.i = qatomic_cmpxchg__nocheck((__int128_t *)ptr, c.i, n.i);
-    return r.s;
-}
-# define HAVE_CMPXCHG128 1
-#elif defined(CONFIG_CMPXCHG128)
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    Int128Alias r, c, n;
-
-    c.s = cmp;
-    n.s = new;
-    r.i = __sync_val_compare_and_swap_16((__int128_t *)ptr, c.i, n.i);
-    return r.s;
-}
-# define HAVE_CMPXCHG128 1
-#elif defined(__aarch64__)
-/* Through gcc 8, aarch64 has no support for 128-bit at all.  */
-static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
-{
-    uint64_t cmpl = int128_getlo(cmp), cmph = int128_gethi(cmp);
-    uint64_t newl = int128_getlo(new), newh = int128_gethi(new);
-    uint64_t oldl, oldh;
-    uint32_t tmp;
-
-    asm("0: ldaxp %[oldl], %[oldh], %[mem]\n\t"
-        "cmp %[oldl], %[cmpl]\n\t"
-        "ccmp %[oldh], %[cmph], #0, eq\n\t"
-        "b.ne 1f\n\t"
-        "stlxp %w[tmp], %[newl], %[newh], %[mem]\n\t"
-        "cbnz %w[tmp], 0b\n"
-        "1:"
-        : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
-          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
-        : [cmpl] "r"(cmpl), [cmph] "r"(cmph),
-          [newl] "r"(newl), [newh] "r"(newh)
-        : "memory", "cc");
-
-    return int128_make128(oldl, oldh);
-}
-# define HAVE_CMPXCHG128 1
-#else
-/* Fallback definition that must be optimized away, or error.  */
-Int128 QEMU_ERROR("unsupported atomic")
-    atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new);
-# define HAVE_CMPXCHG128 0
-#endif /* Some definition for HAVE_CMPXCHG128 */
-
-
-#if defined(CONFIG_ATOMIC128)
-static inline Int128 atomic16_read(Int128 *ptr)
-{
-    Int128Alias r;
-
-    r.i = qatomic_read__nocheck((__int128_t *)ptr);
-    return r.s;
-}
-
-static inline void atomic16_set(Int128 *ptr, Int128 val)
-{
-    Int128Alias v;
-
-    v.s = val;
-    qatomic_set__nocheck((__int128_t *)ptr, v.i);
-}
-
-# define HAVE_ATOMIC128 1
-#elif !defined(CONFIG_USER_ONLY) && defined(__aarch64__)
-/* We can do better than cmpxchg for AArch64.  */
-static inline Int128 atomic16_read(Int128 *ptr)
-{
-    uint64_t l, h;
-    uint32_t tmp;
-
-    /* The load must be paired with the store to guarantee not tearing.  */
-    asm("0: ldxp %[l], %[h], %[mem]\n\t"
-        "stxp %w[tmp], %[l], %[h], %[mem]\n\t"
-        "cbnz %w[tmp], 0b"
-        : [mem] "+m"(*ptr), [tmp] "=r"(tmp), [l] "=r"(l), [h] "=r"(h));
-
-    return int128_make128(l, h);
-}
-
-static inline void atomic16_set(Int128 *ptr, Int128 val)
-{
-    uint64_t l = int128_getlo(val), h = int128_gethi(val);
-    uint64_t t1, t2;
-
-    /* Load into temporaries to acquire the exclusive access lock.  */
-    asm("0: ldxp %[t1], %[t2], %[mem]\n\t"
-        "stxp %w[t1], %[l], %[h], %[mem]\n\t"
-        "cbnz %w[t1], 0b"
-        : [mem] "+m"(*ptr), [t1] "=&r"(t1), [t2] "=&r"(t2)
-        : [l] "r"(l), [h] "r"(h));
-}
-
-# define HAVE_ATOMIC128 1
-#elif !defined(CONFIG_USER_ONLY) && HAVE_CMPXCHG128
-static inline Int128 atomic16_read(Int128 *ptr)
-{
-    /* Maybe replace 0 with 0, returning the old value.  */
-    Int128 z = int128_make64(0);
-    return atomic16_cmpxchg(ptr, z, z);
-}
-
-static inline void atomic16_set(Int128 *ptr, Int128 val)
-{
-    Int128 old = *ptr, cmp;
-    do {
-        cmp = old;
-        old = atomic16_cmpxchg(ptr, cmp, val);
-    } while (int128_ne(old, cmp));
-}
-
-# define HAVE_ATOMIC128 1
-#else
-/* Fallback definitions that must be optimized away, or error.  */
-Int128 QEMU_ERROR("unsupported atomic") atomic16_read(Int128 *ptr);
-void QEMU_ERROR("unsupported atomic") atomic16_set(Int128 *ptr, Int128 val);
-# define HAVE_ATOMIC128 0
-#endif /* Some definition for HAVE_ATOMIC128 */
+#include "host/atomic128-cas.h"
+#include "host/atomic128-ldst.h"
 
 #endif /* QEMU_ATOMIC128_H */

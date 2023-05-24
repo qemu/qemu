@@ -34,8 +34,6 @@
 #include "asi.h"
 
 
-#define DEBUG_DISAS
-
 #define DYNAMIC_PC  1 /* dynamic pc value */
 #define JUMP_PC     2 /* dynamic pc value which takes only two values
                          according to jump_pc[T2] */
