@@ -1324,8 +1324,15 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         mstatus = set_field(mstatus, MSTATUS64_SXL, xl);
     }
     env->mstatus = mstatus;
-    env->xl = cpu_recompute_xl(env);
 
+    /*
+     * Except in debug mode, UXL/SXL can only be modified by higher
+     * privilege mode. So xl will not be changed in normal mode.
+     */
+    if (env->debugger) {
+        env->xl = cpu_recompute_xl(env);
+        riscv_cpu_update_mask(env);
+    }
     return RISCV_EXCP_NONE;
 }
 
