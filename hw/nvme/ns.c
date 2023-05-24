@@ -438,9 +438,7 @@ static bool nvme_ns_init_fdp(NvmeNamespace *ns, Error **errp)
 
     /* parse the placement handle identifiers */
     while ((token = qemu_strsep(&p, ";")) != NULL) {
-        ns->fdp.nphs += 1;
-        if (ns->fdp.nphs > NVME_FDP_MAXPIDS ||
-            ns->fdp.nphs == endgrp->fdp.nruh) {
+        if (ns->fdp.nphs++ == endgrp->fdp.nruh) {
             error_setg(errp, "too many placement handles");
             free(r);
             return false;

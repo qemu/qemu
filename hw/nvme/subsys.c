@@ -158,8 +158,10 @@ static bool nvme_subsys_setup_fdp(NvmeSubsystem *subsys, Error **errp)
 
     endgrp->fdp.nrg = subsys->params.fdp.nrg;
 
-    if (!subsys->params.fdp.nruh) {
-        error_setg(errp, "fdp.nruh must be non-zero");
+    if (!subsys->params.fdp.nruh ||
+        subsys->params.fdp.nruh > NVME_FDP_MAXPIDS) {
+        error_setg(errp, "fdp.nruh must be non-zero and less than %u",
+                   NVME_FDP_MAXPIDS);
         return false;
     }
 
