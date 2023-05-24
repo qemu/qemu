@@ -30,9 +30,8 @@ tags = []  # list of all tags
 overrides = {}  # tags with helper overrides
 idef_parser_enabled = {}  # tags enabled for idef-parser
 
-def bad_register(*args):
-    args_str = ", ".join(map(str, args))
-    raise Exception(f"Bad register parse: {args_str}")
+def bad_register(regtype, regid):
+    raise Exception(f"Bad register parse: regtype '{regtype}' regid '{regid}'")
 
 # We should do this as a hash for performance,
 # but to keep order let's keep it as a list.
@@ -124,7 +123,7 @@ def calculate_attribs():
     tagregs = get_tagregs()
     for tag in tags:
         regs = tagregs[tag]
-        for regtype, regid, toss, numregs in regs:
+        for regtype, regid in regs:
             if regtype == "P" and is_written(regid):
                 attribdict[tag].add("A_WRITES_PRED_REG")
     # Mark conditional jumps and calls
@@ -170,10 +169,11 @@ def MACROATTRIB(macname, beh, attribstring):
         attribs = []
     macros[macname] = Macro(macname, beh, attribs)
 
-
-def compute_tag_regs(tag):
-    return uniquify(regre.findall(behdict[tag]))
-
+def compute_tag_regs(tag, full):
+    tagregs = regre.findall(behdict[tag])
+    if not full:
+        tagregs = map(lambda reg: reg[:2], tagregs)
+    return uniquify(tagregs)
 
 def compute_tag_immediates(tag):
     return uniquify(immre.findall(behdict[tag]))
@@ -200,9 +200,9 @@ def compute_tag_immediates(tag):
 ##          x, y             read-write register
 ##          xx, yy           read-write register pair
 ##
-def get_tagregs():
-    return dict(zip(tags, list(map(compute_tag_regs, tags))))
-
+def get_tagregs(full=False):
+    compute_func = lambda tag: compute_tag_regs(tag, full)
+    return dict(zip(tags, list(map(compute_func, tags))))
 
 def get_tagimms():
     return dict(zip(tags, list(map(compute_tag_immediates, tags))))
@@ -285,7 +285,7 @@ def need_pkt_need_commit(tag):
 
 def need_condexec_reg(tag, regs):
     if "A_CONDEXEC" in attribdict[tag]:
-        for regtype, regid, toss, numregs in regs:
+        for regtype, regid in regs:
             if is_writeonly(regid) and not is_hvx_reg(regtype):
                 return True
     return False
