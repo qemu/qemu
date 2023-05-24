@@ -26,7 +26,6 @@
 #include "cpu.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "hw/virtio/virtio-access.h"
 
 /*
  * Return one past the end of the end of section. Be careful with uint64_t
