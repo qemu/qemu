@@ -169,7 +169,7 @@ static inline uint32_t vext_get_total_elems(CPURISCVState *env, uint32_t desc,
 
 static inline target_ulong adjust_addr(CPURISCVState *env, target_ulong addr)
 {
-    return (addr & env->cur_pmmask) | env->cur_pmbase;
+    return (addr & ~env->cur_pmmask) | env->cur_pmbase;
 }
 
 /*
