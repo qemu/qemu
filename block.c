@@ -3646,6 +3646,9 @@ done:
  * BlockdevRef.
  *
  * The BlockdevRef will be removed from the options QDict.
+ *
+ * @parent can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
  */
 BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
@@ -3670,6 +3673,9 @@ BdrvChild *bdrv_open_child(const char *filename,
 
 /*
  * Wrapper on bdrv_open_child() for most popular case: open primary child of bs.
+ *
+ * @parent can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
  */
 int bdrv_open_file_child(const char *filename,
                          QDict *options, const char *bdref_key,
