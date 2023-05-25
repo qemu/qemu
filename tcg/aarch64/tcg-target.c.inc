@@ -132,14 +132,6 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define ALL_GENERAL_REGS  0xffffffffu
 #define ALL_VECTOR_REGS   0xffffffff00000000ull
 
-#ifdef CONFIG_SOFTMMU
-#define ALL_QLDST_REGS \
-    (ALL_GENERAL_REGS & ~((1 << TCG_REG_X0) | (1 << TCG_REG_X1) | \
-                          (1 << TCG_REG_X2) | (1 << TCG_REG_X3)))
-#else
-#define ALL_QLDST_REGS   ALL_GENERAL_REGS
-#endif
-
 /* Match a constant valid for addition (12-bit, optionally shifted).  */
 static inline bool is_aimm(uint64_t val)
 {
@@ -1648,7 +1640,7 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     unsigned s_bits = opc & MO_SIZE;
     unsigned s_mask = (1u << s_bits) - 1;
     unsigned mem_index = get_mmuidx(oi);
-    TCGReg x3;
+    TCGReg addr_adj;
     TCGType mask_type;
     uint64_t compare_mask;
 
@@ -1660,27 +1652,27 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
     mask_type = (s->page_bits + s->tlb_dyn_max_bits > 32
                  ? TCG_TYPE_I64 : TCG_TYPE_I32);
 
-    /* Load env_tlb(env)->f[mmu_idx].{mask,table} into {x0,x1}.  */
+    /* Load env_tlb(env)->f[mmu_idx].{mask,table} into {tmp0,tmp1}. */
     QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
     QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -512);
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, mask) != 0);
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);
-    tcg_out_insn(s, 3314, LDP, TCG_REG_X0, TCG_REG_X1, TCG_AREG0,
+    tcg_out_insn(s, 3314, LDP, TCG_REG_TMP0, TCG_REG_TMP1, TCG_AREG0,
                  TLB_MASK_TABLE_OFS(mem_index), 1, 0);
 
     /* Extract the TLB index from the address into X0.  */
     tcg_out_insn(s, 3502S, AND_LSR, mask_type == TCG_TYPE_I64,
-                 TCG_REG_X0, TCG_REG_X0, addr_reg,
+                 TCG_REG_TMP0, TCG_REG_TMP0, addr_reg,
                  s->page_bits - CPU_TLB_ENTRY_BITS);
 
-    /* Add the tlb_table pointer, creating the CPUTLBEntry address into X1.  */
-    tcg_out_insn(s, 3502, ADD, 1, TCG_REG_X1, TCG_REG_X1, TCG_REG_X0);
+    /* Add the tlb_table pointer, forming the CPUTLBEntry address in TMP1. */
+    tcg_out_insn(s, 3502, ADD, 1, TCG_REG_TMP1, TCG_REG_TMP1, TCG_REG_TMP0);
 
-    /* Load the tlb comparator into X0, and the fast path addend into X1.  */
-    tcg_out_ld(s, addr_type, TCG_REG_X0, TCG_REG_X1,
+    /* Load the tlb comparator into TMP0, and the fast path addend into TMP1. */
+    tcg_out_ld(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP1,
                is_ld ? offsetof(CPUTLBEntry, addr_read)
                      : offsetof(CPUTLBEntry, addr_write));
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_X1, TCG_REG_X1,
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, TCG_REG_TMP1,
                offsetof(CPUTLBEntry, addend));
 
     /*
@@ -1689,25 +1681,26 @@ static TCGLabelQemuLdst *prepare_host_addr(TCGContext *s, HostAddress *h,
      * cross pages using the address of the last byte of the access.
      */
     if (a_mask >= s_mask) {
-        x3 = addr_reg;
+        addr_adj = addr_reg;
     } else {
+        addr_adj = TCG_REG_TMP2;
         tcg_out_insn(s, 3401, ADDI, addr_type,
-                     TCG_REG_X3, addr_reg, s_mask - a_mask);
-        x3 = TCG_REG_X3;
+                     addr_adj, addr_reg, s_mask - a_mask);
     }
     compare_mask = (uint64_t)s->page_mask | a_mask;
 
-    /* Store the page mask part of the address into X3.  */
-    tcg_out_logicali(s, I3404_ANDI, addr_type, TCG_REG_X3, x3, compare_mask);
+    /* Store the page mask part of the address into TMP2.  */
+    tcg_out_logicali(s, I3404_ANDI, addr_type, TCG_REG_TMP2,
+                     addr_adj, compare_mask);
 
     /* Perform the address comparison. */
-    tcg_out_cmp(s, addr_type, TCG_REG_X0, TCG_REG_X3, 0);
+    tcg_out_cmp(s, addr_type, TCG_REG_TMP0, TCG_REG_TMP2, 0);
 
     /* If not equal, we jump to the slow path. */
     ldst->label_ptr[0] = s->code_ptr;
     tcg_out_insn(s, 3202, B_C, TCG_COND_NE, 0);
 
-    h->base = TCG_REG_X1,
+    h->base = TCG_REG_TMP1;
     h->index = addr_reg;
     h->index_ext = addr_type;
 #else
@@ -2802,12 +2795,12 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_qemu_ld_a64_i32:
     case INDEX_op_qemu_ld_a32_i64:
     case INDEX_op_qemu_ld_a64_i64:
-        return C_O1_I1(r, l);
+        return C_O1_I1(r, r);
     case INDEX_op_qemu_st_a32_i32:
     case INDEX_op_qemu_st_a64_i32:
     case INDEX_op_qemu_st_a32_i64:
     case INDEX_op_qemu_st_a64_i64:
-        return C_O0_I2(lZ, l);
+        return C_O0_I2(rZ, r);
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:
