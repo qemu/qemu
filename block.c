@@ -3810,9 +3810,7 @@ out:
  * should be opened. If specified, neither options nor a filename may be given,
  * nor can an existing BDS be reused (that is, *pbs has to be NULL).
  *
- * The caller must always hold @filename AioContext lock, because this
- * function eventually calls bdrv_refresh_total_sectors() which polls
- * when called from non-coroutine context.
+ * The caller must always hold the main AioContext lock.
  */
 static BlockDriverState * no_coroutine_fn
 bdrv_open_inherit(const char *filename, const char *reference, QDict *options,
@@ -4100,11 +4098,7 @@ close_and_fail:
     return NULL;
 }
 
-/*
- * The caller must always hold @filename AioContext lock, because this
- * function eventually calls bdrv_refresh_total_sectors() which polls
- * when called from non-coroutine context.
- */
+/* The caller must always hold the main AioContext lock. */
 BlockDriverState *bdrv_open(const char *filename, const char *reference,
                             QDict *options, int flags, Error **errp)
 {
