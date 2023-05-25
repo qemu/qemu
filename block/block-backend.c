@@ -389,6 +389,8 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
  * Both sets of permissions can be changed later using blk_set_perm().
  *
  * Return the new BlockBackend on success, null on failure.
+ *
+ * Callers must hold the AioContext lock of @bs.
  */
 BlockBackend *blk_new_with_bs(BlockDriverState *bs, uint64_t perm,
                               uint64_t shared_perm, Error **errp)
@@ -406,10 +408,14 @@ BlockBackend *blk_new_with_bs(BlockDriverState *bs, uint64_t perm,
 
 /*
  * Creates a new BlockBackend, opens a new BlockDriverState, and connects both.
- * The new BlockBackend is in the main AioContext.
+ * By default, the new BlockBackend is in the main AioContext, but if the
+ * parameters connect it with any existing node in a different AioContext, it
+ * may end up there instead.
  *
  * Just as with bdrv_open(), after having called this function the reference to
  * @options belongs to the block layer (even on failure).
+ *
+ * Called without holding an AioContext lock.
  *
  * TODO: Remove @filename and @flags; it should be possible to specify a whole
  * BDS tree just by specifying the @options QDict (or @reference,
@@ -422,6 +428,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
 {
     BlockBackend *blk;
     BlockDriverState *bs;
+    AioContext *ctx;
     uint64_t perm = 0;
     uint64_t shared = BLK_PERM_ALL;
 
@@ -451,18 +458,24 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         shared = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
     }
 
-    blk = blk_new(qemu_get_aio_context(), perm, shared);
     aio_context_acquire(qemu_get_aio_context());
     bs = bdrv_open(filename, reference, options, flags, errp);
     aio_context_release(qemu_get_aio_context());
     if (!bs) {
-        blk_unref(blk);
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
-                                       BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
-                                       perm, shared, blk, errp);
+    /* bdrv_open() could have moved bs to a different AioContext */
+    ctx = bdrv_get_aio_context(bs);
+    blk = blk_new(bdrv_get_aio_context(bs), perm, shared);
+    blk->perm = perm;
+    blk->shared_perm = shared;
+
+    aio_context_acquire(ctx);
+    blk_insert_bs(blk, bs, errp);
+    bdrv_unref(bs);
+    aio_context_release(ctx);
+
     if (!blk->root) {
         blk_unref(blk);
         return NULL;
@@ -903,6 +916,8 @@ void blk_remove_bs(BlockBackend *blk)
 
 /*
  * Associates a new BlockDriverState with @blk.
+ *
+ * Callers must hold the AioContext lock of @bs.
  */
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
