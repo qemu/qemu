@@ -56,29 +56,11 @@ IOThread *mon_iothread;
 /* Coroutine to dispatch the requests received from I/O thread */
 Coroutine *qmp_dispatcher_co;
 
-/* Set to true when the dispatcher coroutine should terminate */
-bool qmp_dispatcher_co_shutdown;
-
 /*
- * qmp_dispatcher_co_busy is used for synchronisation between the
- * monitor thread and the main thread to ensure that the dispatcher
- * coroutine never gets scheduled a second time when it's already
- * scheduled (scheduling the same coroutine twice is forbidden).
- *
- * It is true if the coroutine is active and processing requests.
- * Additional requests may then be pushed onto mon->qmp_requests,
- * and @qmp_dispatcher_co_shutdown may be set without further ado.
- * @qmp_dispatcher_co_busy must not be woken up in this case.
- *
- * If false, you also have to set @qmp_dispatcher_co_busy to true and
- * wake up @qmp_dispatcher_co after pushing the new requests.
- *
- * The coroutine will automatically change this variable back to false
- * before it yields.  Nobody else may set the variable to false.
- *
- * Access must be atomic for thread safety.
+ * Set to true when the dispatcher coroutine should terminate.  Protected
+ * by monitor_lock.
  */
-bool qmp_dispatcher_co_busy;
+bool qmp_dispatcher_co_shutdown;
 
 /*
  * Protects mon_list, monitor_qapi_event_state, coroutine_mon,
@@ -154,22 +136,19 @@ static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
     return !monitor_uses_readline(container_of(mon, MonitorHMP, common));
 }
 
-static void monitor_flush_locked(Monitor *mon);
-
 static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
                                   void *opaque)
 {
     Monitor *mon = opaque;
 
-    qemu_mutex_lock(&mon->mon_lock);
+    QEMU_LOCK_GUARD(&mon->mon_lock);
     mon->out_watch = 0;
     monitor_flush_locked(mon);
-    qemu_mutex_unlock(&mon->mon_lock);
     return FALSE;
 }
 
 /* Caller must hold mon->mon_lock */
-static void monitor_flush_locked(Monitor *mon)
+void monitor_flush_locked(Monitor *mon)
 {
     int rc;
     size_t len;
@@ -203,18 +182,16 @@ static void monitor_flush_locked(Monitor *mon)
 
 void monitor_flush(Monitor *mon)
 {
-    qemu_mutex_lock(&mon->mon_lock);
+    QEMU_LOCK_GUARD(&mon->mon_lock);
     monitor_flush_locked(mon);
-    qemu_mutex_unlock(&mon->mon_lock);
 }
 
 /* flush at every end of line */
-int monitor_puts(Monitor *mon, const char *str)
+int monitor_puts_locked(Monitor *mon, const char *str)
 {
     int i;
     char c;
 
-    qemu_mutex_lock(&mon->mon_lock);
     for (i = 0; str[i]; i++) {
         c = str[i];
         if (c == '\n') {
@@ -225,9 +202,14 @@ int monitor_puts(Monitor *mon, const char *str)
             monitor_flush_locked(mon);
         }
     }
-    qemu_mutex_unlock(&mon->mon_lock);
 
     return i;
+}
+
+int monitor_puts(Monitor *mon, const char *str)
+{
+    QEMU_LOCK_GUARD(&mon->mon_lock);
+    return monitor_puts_locked(mon, str);
 }
 
 int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
@@ -569,6 +551,17 @@ static void monitor_accept_input(void *opaque)
 {
     Monitor *mon = opaque;
 
+    qemu_mutex_lock(&mon->mon_lock);
+    if (!monitor_is_qmp(mon) && mon->reset_seen) {
+        MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+        assert(hmp_mon->rs);
+        readline_restart(hmp_mon->rs);
+        qemu_mutex_unlock(&mon->mon_lock);
+        readline_show_prompt(hmp_mon->rs);
+    } else {
+        qemu_mutex_unlock(&mon->mon_lock);
+    }
+
     qemu_chr_fe_accept_input(&mon->chr);
 }
 
@@ -587,12 +580,6 @@ void monitor_resume(Monitor *mon)
             ctx = qemu_get_aio_context();
         }
 
-        if (!monitor_is_qmp(mon)) {
-            MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
-            assert(hmp_mon->rs);
-            readline_show_prompt(hmp_mon->rs);
-        }
-
         aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
     }
 
@@ -603,7 +590,7 @@ int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !qatomic_mb_read(&mon->suspend_cnt);
+    return !qatomic_read(&mon->suspend_cnt);
 }
 
 void monitor_list_append(Monitor *mon)
@@ -674,14 +661,14 @@ void monitor_cleanup(void)
      * we'll just leave them in the queue without sending a response
      * and monitor_data_destroy() will free them.
      */
-    qmp_dispatcher_co_shutdown = true;
-    if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
-        aio_co_wake(qmp_dispatcher_co);
+    WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+        qmp_dispatcher_co_shutdown = true;
     }
+    qmp_dispatcher_co_wake();
 
     AIO_WAIT_WHILE_UNLOCKED(NULL,
                    (aio_poll(iohandler_get_aio_context(), false),
-                    qatomic_mb_read(&qmp_dispatcher_co_busy)));
+                    qatomic_read(&qmp_dispatcher_co)));
 
     /*
      * We need to explicitly stop the I/O thread (but not destroy it),
@@ -732,7 +719,6 @@ void monitor_init_globals(void)
      * rid of those assumptions.
      */
     qmp_dispatcher_co = qemu_coroutine_create(monitor_qmp_dispatcher_co, NULL);
-    qatomic_mb_set(&qmp_dispatcher_co_busy, true);
     aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
 }
 

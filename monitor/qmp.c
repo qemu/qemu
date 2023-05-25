@@ -33,6 +33,30 @@
 #include "qapi/qmp/qlist.h"
 #include "trace.h"
 
+/*
+ * qmp_dispatcher_co_busy is used for synchronisation between the
+ * monitor thread and the main thread to ensure that the dispatcher
+ * coroutine never gets scheduled a second time when it's already
+ * scheduled (scheduling the same coroutine twice is forbidden).
+ *
+ * It is true if the coroutine will process at least one more request
+ * before going to sleep.  Either it has been kicked already, or it
+ * is active and processing requests.  Additional requests may therefore
+ * be pushed onto mon->qmp_requests, and @qmp_dispatcher_co_shutdown may
+ * be set without further ado.  @qmp_dispatcher_co must not be woken up
+ * in this case.
+ *
+ * If false, you have to wake up @qmp_dispatcher_co after pushing new
+ * requests. You also have to set @qmp_dispatcher_co_busy to true
+ * before waking up the coroutine.
+ *
+ * The coroutine will automatically change this variable back to false
+ * before it yields.  Nobody else may set the variable to false.
+ *
+ * Access must be atomic for thread safety.
+ */
+static bool qmp_dispatcher_co_busy = true;
+
 struct QMPRequest {
     /* Owner of the request */
     MonitorQMP *mon;
@@ -178,8 +202,6 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
     Monitor *mon;
     MonitorQMP *qmp_mon;
 
-    QEMU_LOCK_GUARD(&monitor_lock);
-
     QTAILQ_FOREACH(mon, &mon_list, entry) {
         if (!monitor_is_qmp(mon)) {
             continue;
@@ -207,53 +229,56 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
     return req_obj;
 }
 
-void coroutine_fn monitor_qmp_dispatcher_co(void *data)
+static QMPRequest *monitor_qmp_dispatcher_pop_any(void)
 {
-    QMPRequest *req_obj = NULL;
-    QDict *rsp;
-    bool oob_enabled;
-    MonitorQMP *mon;
-
     while (true) {
-        assert(qatomic_mb_read(&qmp_dispatcher_co_busy) == true);
+        /*
+         * To avoid double scheduling, busy is true on entry to
+         * monitor_qmp_dispatcher_co(), and must be set again before
+         * aio_co_wake()-ing it.
+         */
+        assert(qatomic_read(&qmp_dispatcher_co_busy) == true);
 
         /*
          * Mark the dispatcher as not busy already here so that we
          * don't miss any new requests coming in the middle of our
          * processing.
+         *
+         * Clear qmp_dispatcher_co_busy before reading request.
          */
         qatomic_mb_set(&qmp_dispatcher_co_busy, false);
 
-        /* On shutdown, don't take any more requests from the queue */
-        if (qmp_dispatcher_co_shutdown) {
-            return;
-        }
+        WITH_QEMU_LOCK_GUARD(&monitor_lock) {
+            QMPRequest *req_obj;
 
-        while (!(req_obj = monitor_qmp_requests_pop_any_with_lock())) {
-            /*
-             * No more requests to process.  Wait to be reentered from
-             * handle_qmp_command() when it pushes more requests, or
-             * from monitor_cleanup() when it requests shutdown.
-             */
-            if (!qmp_dispatcher_co_shutdown) {
-                qemu_coroutine_yield();
-
-                /*
-                 * busy must be set to true again by whoever
-                 * rescheduled us to avoid double scheduling
-                 */
-                assert(qatomic_xchg(&qmp_dispatcher_co_busy, false) == true);
-            }
-
-            /*
-             * qmp_dispatcher_co_shutdown may have changed if we
-             * yielded and were reentered from monitor_cleanup()
-             */
+            /* On shutdown, don't take any more requests from the queue */
             if (qmp_dispatcher_co_shutdown) {
-                return;
+                return NULL;
+            }
+
+            req_obj = monitor_qmp_requests_pop_any_with_lock();
+            if (req_obj) {
+                return req_obj;
             }
         }
 
+        /*
+         * No more requests to process.  Wait to be reentered from
+         * handle_qmp_command() when it pushes more requests, or
+         * from monitor_cleanup() when it requests shutdown.
+         */
+        qemu_coroutine_yield();
+    }
+}
+
+void coroutine_fn monitor_qmp_dispatcher_co(void *data)
+{
+    QMPRequest *req_obj;
+    QDict *rsp;
+    bool oob_enabled;
+    MonitorQMP *mon;
+
+    while ((req_obj = monitor_qmp_dispatcher_pop_any()) != NULL) {
         trace_monitor_qmp_in_band_dequeue(req_obj,
                                           req_obj->mon->qmp_requests->length);
 
@@ -340,6 +365,17 @@ void coroutine_fn monitor_qmp_dispatcher_co(void *data)
         aio_co_schedule(iohandler_get_aio_context(), qmp_dispatcher_co);
         qemu_coroutine_yield();
     }
+    qatomic_set(&qmp_dispatcher_co, NULL);
+}
+
+void qmp_dispatcher_co_wake(void)
+{
+    /* Write request before reading qmp_dispatcher_co_busy.  */
+    smp_mb__before_rmw();
+
+    if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
+        aio_co_wake(qmp_dispatcher_co);
+    }
 }
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
@@ -403,9 +439,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     }
 
     /* Kick the dispatcher routine */
-    if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
-        aio_co_wake(qmp_dispatcher_co);
-    }
+    qmp_dispatcher_co_wake();
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
