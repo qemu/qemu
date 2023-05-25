@@ -264,9 +264,13 @@ int main(int argc, char **argv)
         const char *armmachines[] = {
             "realview-eb", "realview-eb-mpcore", "realview-pb-a8",
             "realview-pbx-a9", "versatileab", "versatilepb", "vexpress-a15",
-            "vexpress-a9", "virt", NULL
+            "vexpress-a9", NULL
         };
         add_cdrom_param_tests(armmachines);
+        if (qtest_has_device("virtio-blk-pci")) {
+            const char *virtmachine[] = { "virt", NULL };
+            add_cdrom_param_tests(virtmachine);
+        }
     } else {
         const char *nonemachine[] = { "none", NULL };
         add_cdrom_param_tests(nonemachine);
