@@ -58,25 +58,41 @@ typedef struct SMMUTLBEntry {
     uint8_t granule;
 } SMMUTLBEntry;
 
+/* Stage-2 configuration. */
+typedef struct SMMUS2Cfg {
+    uint8_t tsz;            /* Size of IPA input region (S2T0SZ) */
+    uint8_t sl0;            /* Start level of translation (S2SL0) */
+    bool affd;              /* AF Fault Disable (S2AFFD) */
+    bool record_faults;     /* Record fault events (S2R) */
+    uint8_t granule_sz;     /* Granule page shift (based on S2TG) */
+    uint8_t eff_ps;         /* Effective PA output range (based on S2PS) */
+    uint16_t vmid;          /* Virtual Machine ID (S2VMID) */
+    uint64_t vttb;          /* Address of translation table base (S2TTB) */
+} SMMUS2Cfg;
+
 /*
  * Generic structure populated by derived SMMU devices
  * after decoding the configuration information and used as
  * input to the page table walk
  */
 typedef struct SMMUTransCfg {
+    /* Shared fields between stage-1 and stage-2. */
     int stage;                 /* translation stage */
-    bool aa64;                 /* arch64 or aarch32 translation table */
     bool disabled;             /* smmu is disabled */
     bool bypassed;             /* translation is bypassed */
     bool aborted;              /* translation is aborted */
+    uint32_t iotlb_hits;       /* counts IOTLB hits */
+    uint32_t iotlb_misses;     /* counts IOTLB misses*/
+    /* Used by stage-1 only. */
+    bool aa64;                 /* arch64 or aarch32 translation table */
     bool record_faults;        /* record fault events */
     uint64_t ttb;              /* TT base address */
     uint8_t oas;               /* output address width */
     uint8_t tbi;               /* Top Byte Ignore */
     uint16_t asid;
     SMMUTransTableInfo tt[2];
-    uint32_t iotlb_hits;       /* counts IOTLB hits for this asid */
-    uint32_t iotlb_misses;     /* counts IOTLB misses for this asid */
+    /* Used by stage-2 only. */
+    struct SMMUS2Cfg s2cfg;
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {
