@@ -29,6 +29,7 @@
 
 /* VMSAv8-64 Translation constants and functions */
 #define VMSA_LEVELS                         4
+#define VMSA_MAX_S2_CONCAT                  16
 
 #define VMSA_STRIDE(gran)                   ((gran) - VMSA_LEVELS + 1)
 #define VMSA_BIT_LVL(isz, strd, lvl)        ((isz) - (strd) * \
