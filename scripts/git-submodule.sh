@@ -12,7 +12,7 @@ maybe_modules="$@"
 # if --with-git-submodules=ignore, do nothing
 test "$command" = "ignore" && exit 0
 
-test -z "$GIT" && GIT=git
+test -z "$GIT" && GIT=$(command -v git)
 
 cd "$(dirname "$0")/.."
 
@@ -21,19 +21,14 @@ update_error() {
     echo
     echo "Unable to automatically checkout GIT submodules '$modules'."
     echo "If you require use of an alternative GIT binary (for example to"
-    echo "enable use of a transparent proxy), then please specify it by"
-    echo "running configure by with the '--with-git' argument. e.g."
-    echo
-    echo " $ ./configure --with-git='tsocks git'"
-    echo
-    echo "Alternatively you may disable automatic GIT submodule checkout"
-    echo "with:"
+    echo "enable use of a transparent proxy), please disable automatic"
+    echo "GIT submodule checkout with:"
     echo
     echo " $ ./configure --with-git-submodules=validate"
     echo
     echo "and then manually update submodules prior to running make, with:"
     echo
-    echo " $ scripts/git-submodule.sh update $modules"
+    echo " $ GIT='tsocks git' scripts/git-submodule.sh update $modules"
     echo
     exit 1
 }
@@ -54,6 +49,12 @@ validate_error() {
 if test -n "$maybe_modules" && ! test -e ".git"
 then
     echo "$0: unexpectedly called with submodules but no git checkout exists"
+    exit 1
+fi
+
+if test -n "$maybe_modules" && test -z "$GIT"
+then
+    echo "$0: unexpectedly called with submodules but git binary not found"
     exit 1
 fi
 

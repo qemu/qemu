@@ -53,7 +53,7 @@ Makefile: .git-submodule-status
 git-submodule-update:
 ifneq ($(GIT_SUBMODULES_ACTION),ignore)
 	$(call quiet-command, \
-		(GIT="$(GIT)" "$(SRC_PATH)/scripts/git-submodule.sh" $(GIT_SUBMODULES_ACTION) $(GIT_SUBMODULES)), \
+		(GIT=git "$(SRC_PATH)/scripts/git-submodule.sh" $(GIT_SUBMODULES_ACTION) $(GIT_SUBMODULES)), \
 		"GIT","$(GIT_SUBMODULES)")
 endif
 
