@@ -74,7 +74,9 @@ int main(int argc, char **argv)
     qtest_add_func("/uhci/pci/init", test_uhci_init);
     qtest_add_func("/uhci/pci/port1", test_port_1);
     qtest_add_func("/uhci/pci/hotplug", test_uhci_hotplug);
-    qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
+    if (qtest_has_device("usb-storage")) {
+        qtest_add_func("/uhci/pci/hotplug/usb-storage", test_usb_storage_hotplug);
+    }
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qs = qtest_pc_boot("%s", cmd);
