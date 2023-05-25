@@ -4,9 +4,8 @@
 #
 
 # Unset some variables known to interfere with behavior of common tools,
-# just as autoconf does.
-CLICOLOR_FORCE= GREP_OPTIONS=
-unset CLICOLOR_FORCE GREP_OPTIONS
+# just as autoconf does.  Unlike autoconf, we assume that unset exists.
+unset CLICOLOR_FORCE GREP_OPTIONS BASH_ENV ENV MAIL MAILPATH CDPATH
 
 # Don't allow CCACHE, if present, to use cached results of compile tests!
 export CCACHE_RECACHE=yes
