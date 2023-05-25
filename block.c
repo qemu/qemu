@@ -5399,12 +5399,17 @@ static void bdrv_delete(BlockDriverState *bs)
  * empty set of options. The reference to the QDict belongs to the block layer
  * after the call (even on failure), so if the caller intends to reuse the
  * dictionary, it needs to use qobject_ref() before calling bdrv_open.
+ *
+ * The caller holds the AioContext lock for @bs. It must make sure that @bs
+ * stays in the same AioContext, i.e. @options must not refer to nodes in a
+ * different AioContext.
  */
 BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
                                    int flags, Error **errp)
 {
     ERRP_GUARD();
     int ret;
+    AioContext *ctx = bdrv_get_aio_context(bs);
     BlockDriverState *new_node_bs = NULL;
     const char *drvname, *node_name;
     BlockDriver *drv;
@@ -5425,8 +5430,14 @@ BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *options,
 
     GLOBAL_STATE_CODE();
 
+    aio_context_release(ctx);
+    aio_context_acquire(qemu_get_aio_context());
     new_node_bs = bdrv_new_open_driver_opts(drv, node_name, options, flags,
                                             errp);
+    aio_context_release(qemu_get_aio_context());
+    aio_context_acquire(ctx);
+    assert(bdrv_get_aio_context(bs) == ctx);
+
     options = NULL; /* bdrv_new_open_driver() eats options */
     if (!new_node_bs) {
         error_prepend(errp, "Could not create node: ");
