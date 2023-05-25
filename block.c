@@ -7037,6 +7037,8 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
+    aio_context_acquire(qemu_get_aio_context());
+
     /* Create parameter list */
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
     create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
@@ -7186,6 +7188,7 @@ out:
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
     error_propagate(errp, local_err);
+    aio_context_release(qemu_get_aio_context());
 }
 
 AioContext *bdrv_get_aio_context(BlockDriverState *bs)

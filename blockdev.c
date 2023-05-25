@@ -662,6 +662,7 @@ err_no_opts:
 /* Takes the ownership of bs_opts */
 BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
 {
+    BlockDriverState *bs;
     int bdrv_flags = 0;
 
     GLOBAL_STATE_CODE();
@@ -676,7 +677,11 @@ BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
         bdrv_flags |= BDRV_O_INACTIVE;
     }
 
-    return bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
+    aio_context_acquire(qemu_get_aio_context());
+    bs = bdrv_open(NULL, NULL, bs_opts, bdrv_flags, errp);
+    aio_context_release(qemu_get_aio_context());
+
+    return bs;
 }
 
 void blockdev_close_all_bdrv_states(void)
@@ -1480,13 +1485,19 @@ static void external_snapshot_action(TransactionAction *action,
         }
         qdict_put_str(options, "driver", format);
     }
+    aio_context_release(aio_context);
 
+    aio_context_acquire(qemu_get_aio_context());
     state->new_bs = bdrv_open(new_image_file, snapshot_ref, options, flags,
                               errp);
+    aio_context_release(qemu_get_aio_context());
+
     /* We will manually add the backing_hd field to the bs later */
     if (!state->new_bs) {
-        goto out;
+        return;
     }
+
+    aio_context_acquire(aio_context);
 
     /*
      * Allow attaching a backing file to an overlay that's already in use only
@@ -1732,15 +1743,18 @@ static void drive_backup_action(DriveBackup *backup,
     if (format) {
         qdict_put_str(options, "driver", format);
     }
+    aio_context_release(aio_context);
 
+    aio_context_acquire(qemu_get_aio_context());
     target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
+    aio_context_release(qemu_get_aio_context());
+
     if (!target_bs) {
-        goto out;
+        return;
     }
 
     /* Honor bdrv_try_change_aio_context() context acquisition requirements. */
     old_context = bdrv_get_aio_context(target_bs);
-    aio_context_release(aio_context);
     aio_context_acquire(old_context);
 
     ret = bdrv_try_change_aio_context(target_bs, aio_context, NULL, errp);
@@ -3066,13 +3080,17 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     if (format) {
         qdict_put_str(options, "driver", format);
     }
+    aio_context_release(aio_context);
 
     /* Mirroring takes care of copy-on-write using the source's backing
      * file.
      */
+    aio_context_acquire(qemu_get_aio_context());
     target_bs = bdrv_open(arg->target, NULL, options, flags, errp);
+    aio_context_release(qemu_get_aio_context());
+
     if (!target_bs) {
-        goto out;
+        return;
     }
 
     zero_target = (arg->sync == MIRROR_SYNC_MODE_FULL &&
@@ -3082,7 +3100,6 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     /* Honor bdrv_try_change_aio_context() context acquisition requirements. */
     old_context = bdrv_get_aio_context(target_bs);
-    aio_context_release(aio_context);
     aio_context_acquire(old_context);
 
     ret = bdrv_try_change_aio_context(target_bs, aio_context, NULL, errp);

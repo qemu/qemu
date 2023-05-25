@@ -452,7 +452,9 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     }
 
     blk = blk_new(qemu_get_aio_context(), perm, shared);
+    aio_context_acquire(qemu_get_aio_context());
     bs = bdrv_open(filename, reference, options, flags, errp);
+    aio_context_release(qemu_get_aio_context());
     if (!bs) {
         blk_unref(blk);
         return NULL;
