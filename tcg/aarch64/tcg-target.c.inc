@@ -40,11 +40,12 @@ static const int tcg_target_reg_alloc_order[] = {
 
     TCG_REG_X8, TCG_REG_X9, TCG_REG_X10, TCG_REG_X11,
     TCG_REG_X12, TCG_REG_X13, TCG_REG_X14, TCG_REG_X15,
-    TCG_REG_X16, TCG_REG_X17,
 
     TCG_REG_X0, TCG_REG_X1, TCG_REG_X2, TCG_REG_X3,
     TCG_REG_X4, TCG_REG_X5, TCG_REG_X6, TCG_REG_X7,
 
+    /* X16 reserved as temporary */
+    /* X17 reserved as temporary */
     /* X18 reserved by system */
     /* X19 reserved for AREG0 */
     /* X29 reserved as fp */
@@ -71,7 +72,9 @@ static TCGReg tcg_target_call_oarg_reg(TCGCallReturnKind kind, int slot)
     return TCG_REG_X0 + slot;
 }
 
-#define TCG_REG_TMP0 TCG_REG_X30
+#define TCG_REG_TMP0 TCG_REG_X16
+#define TCG_REG_TMP1 TCG_REG_X17
+#define TCG_REG_TMP2 TCG_REG_X30
 #define TCG_VEC_TMP0 TCG_REG_V31
 
 #ifndef CONFIG_SOFTMMU
@@ -2902,6 +2905,8 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_FP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_X18); /* platform register */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP0);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP1);
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP2);
     tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP0);
 }
 
