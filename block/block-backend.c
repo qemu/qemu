@@ -2394,9 +2394,14 @@ void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    BlockDriverState *bs = blk_bs(blk);
+    BlockDriverState *bs;
     IO_CODE();
 
+    if (!blk) {
+        return qemu_get_aio_context();
+    }
+
+    bs = blk_bs(blk);
     if (bs) {
         AioContext *ctx = bdrv_get_aio_context(blk_bs(blk));
         assert(ctx == blk->ctx);
