@@ -662,10 +662,14 @@ static int mirror_exit_common(Job *job)
     bool abort = job->ret < 0;
     int ret = 0;
 
+    GLOBAL_STATE_CODE();
+
     if (s->prepared) {
         return 0;
     }
     s->prepared = true;
+
+    aio_context_acquire(qemu_get_aio_context());
 
     mirror_top_bs = s->mirror_top_bs;
     bs_opaque = mirror_top_bs->opaque;
@@ -788,6 +792,8 @@ static int mirror_exit_common(Job *job)
     s->in_drain = false;
     bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
+
+    aio_context_release(qemu_get_aio_context());
 
     return ret;
 }

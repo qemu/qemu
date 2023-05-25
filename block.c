@@ -3478,6 +3478,8 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
  * itself, all options starting with "${bdref_key}." are considered part of the
  * BlockdevRef.
  *
+ * The caller must hold the main AioContext lock.
+ *
  * TODO Can this be unified with bdrv_open_image()?
  */
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
