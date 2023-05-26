@@ -297,7 +297,7 @@ static bool trans_cm_jalt(DisasContext *ctx, arg_cm_jalt *a)
      * Update pc to current for the non-unwinding exception
      * that might come from cpu_ld*_code() in the helper.
      */
-    tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
+    gen_update_pc(ctx, 0);
     gen_helper_cm_jalt(cpu_pc, cpu_env, tcg_constant_i32(a->index));
 
     /* c.jt vs c.jalt depends on the index. */
