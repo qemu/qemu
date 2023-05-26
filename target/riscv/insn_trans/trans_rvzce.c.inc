@@ -202,8 +202,8 @@ static bool gen_pop(DisasContext *ctx, arg_cmpp *a, bool ret, bool ret_val)
     }
 
     if (ret) {
-        TCGv ret_addr = get_gpr(ctx, xRA, EXT_NONE);
-        gen_set_pc(ctx, ret_addr);
+        TCGv ret_addr = get_gpr(ctx, xRA, EXT_SIGN);
+        tcg_gen_mov_tl(cpu_pc, ret_addr);
         tcg_gen_lookup_and_goto_ptr();
         ctx->base.is_jmp = DISAS_NORETURN;
     }
