@@ -2400,13 +2400,6 @@ static void bg_migration_completion(MigrationState *s)
 {
     int current_active_state = s->state;
 
-    /*
-     * Stop tracking RAM writes - un-protect memory, un-register UFFD
-     * memory ranges, flush kernel wait queues and wake up threads
-     * waiting for write fault to be resolved.
-     */
-    ram_write_tracking_stop();
-
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         /*
          * By this moment we have RAM content saved into the migration stream.
@@ -2788,6 +2781,13 @@ static void migration_iteration_finish(MigrationState *s)
 
 static void bg_migration_iteration_finish(MigrationState *s)
 {
+    /*
+     * Stop tracking RAM writes - un-protect memory, un-register UFFD
+     * memory ranges, flush kernel wait queues and wake up threads
+     * waiting for write fault to be resolved.
+     */
+    ram_write_tracking_stop();
+
     qemu_mutex_lock_iothread();
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
