@@ -226,6 +226,13 @@ QEMU Machine Protocol (QMP) events
 
 Use the more generic event ``DEVICE_UNPLUG_GUEST_ERROR`` instead.
 
+``vcpu`` trace events (since 8.1)
+'''''''''''''''''''''''''''''''''
+
+The ability to instrument QEMU helper functions with vCPU-aware trace
+points was removed in 7.0. However QMP still exposed the vcpu
+parameter. This argument has now been deprecated and the remaining
+remaining trace points that used it are selected just by name.
 
 Human Monitor Protocol (HMP) commands
 -------------------------------------
