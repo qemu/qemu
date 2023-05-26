@@ -21,6 +21,7 @@
 #define TRICORE_CPU_H
 
 #include "cpu-qom.h"
+#include "hw/registerfields.h"
 #include "exec/cpu-defs.h"
 #include "qemu/cpu-float.h"
 #include "tricore-defs.h"
@@ -199,13 +200,33 @@ struct ArchCPU {
 hwaddr tricore_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void tricore_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
+FIELD(PCXI, PCPN_13, 24, 8)
+FIELD(PCXI, PCPN_161, 22, 8)
+FIELD(PCXI, PIE_13, 23, 1)
+FIELD(PCXI, PIE_161, 21, 1)
+FIELD(PCXI, UL_13, 22, 1)
+FIELD(PCXI, UL_161, 20, 1)
+FIELD(PCXI, PCXS, 16, 4)
+FIELD(PCXI, PCXO, 0, 16)
+uint32_t pcxi_get_ul(CPUTriCoreState *env);
+uint32_t pcxi_get_pie(CPUTriCoreState *env);
+uint32_t pcxi_get_pcpn(CPUTriCoreState *env);
+uint32_t pcxi_get_pcxs(CPUTriCoreState *env);
+uint32_t pcxi_get_pcxo(CPUTriCoreState *env);
+void pcxi_set_ul(CPUTriCoreState *env, uint32_t val);
+void pcxi_set_pie(CPUTriCoreState *env, uint32_t val);
+void pcxi_set_pcpn(CPUTriCoreState *env, uint32_t val);
 
-#define MASK_PCXI_PCPN 0xff000000
-#define MASK_PCXI_PIE_1_3  0x00800000
-#define MASK_PCXI_PIE_1_6  0x00200000
-#define MASK_PCXI_UL   0x00400000
-#define MASK_PCXI_PCXS 0x000f0000
-#define MASK_PCXI_PCXO 0x0000ffff
+FIELD(ICR, IE_161, 15, 1)
+FIELD(ICR, IE_13, 8, 1)
+FIELD(ICR, PIPN, 16, 8)
+FIELD(ICR, CCPN, 0, 8)
+
+uint32_t icr_get_ie(CPUTriCoreState *env);
+uint32_t icr_get_ccpn(CPUTriCoreState *env);
+
+void icr_set_ccpn(CPUTriCoreState *env, uint32_t val);
+void icr_set_ie(CPUTriCoreState *env, uint32_t val);
 
 #define MASK_PSW_USB 0xff000000
 #define MASK_USB_C   0x80000000
@@ -228,10 +249,6 @@ void tricore_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 #define MASK_CPUID_MOD_32B 0x0000ff00
 #define MASK_CPUID_REV     0x000000ff
 
-#define MASK_ICR_PIPN 0x00ff0000
-#define MASK_ICR_IE_1_3   0x00000100
-#define MASK_ICR_IE_1_6   0x00008000
-#define MASK_ICR_CCPN 0x000000ff
 
 #define MASK_FCX_FCXS 0x000f0000
 #define MASK_FCX_FCXO 0x0000ffff
