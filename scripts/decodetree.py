@@ -35,6 +35,7 @@ arguments = {}
 formats = {}
 allpatterns = []
 anyextern = False
+testforerror = False
 
 translate_prefix = 'trans'
 translate_scope = 'static '
@@ -71,7 +72,7 @@ def error_with_file(file, lineno, *args):
     if output_file and output_fd:
         output_fd.close()
         os.remove(output_file)
-    exit(1)
+    exit(0 if testforerror else 1)
 # end error_with_file
 
 
@@ -1286,11 +1287,12 @@ def main():
     global bitop_width
     global variablewidth
     global anyextern
+    global testforerror
 
     decode_scope = 'static '
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=',
-                 'static-decode=', 'varinsnwidth=']
+                 'static-decode=', 'varinsnwidth=', 'test-for-error']
     try:
         (opts, args) = getopt.gnu_getopt(sys.argv[1:], 'o:vw:', long_opts)
     except getopt.GetoptError as err:
@@ -1319,6 +1321,8 @@ def main():
                 bitop_width = 64
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
+        elif o == '--test-for-error':
+            testforerror = True
         else:
             assert False, 'unhandled option'
 
@@ -1417,6 +1421,7 @@ def main():
 
     if output_file:
         output_fd.close()
+    exit(1 if testforerror else 0)
 # end main
 
 
