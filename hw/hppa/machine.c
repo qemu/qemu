@@ -177,6 +177,7 @@ static void machine_hppa_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     DeviceState *dev, *dino_dev, *lasi_dev;
     PCIBus *pci_bus;
     ISABus *isa_bus;
@@ -272,7 +273,7 @@ static void machine_hppa_init(MachineState *machine)
 
     for (i = 0; i < nb_nics; i++) {
         if (!enable_lasi_lan()) {
-            pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
+            pci_nic_init_nofail(&nd_table[i], pci_bus, mc->default_nic, NULL);
         }
     }
 
@@ -462,6 +463,7 @@ static void hppa_machine_init_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
     mc->default_ram_id = "ram";
+    mc->default_nic = "tulip";
 
     nc->nmi_monitor_handler = hppa_nmi;
 }

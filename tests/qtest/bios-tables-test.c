@@ -2164,7 +2164,7 @@ int main(int argc, char *argv[])
             }
         }
     } else if (strcmp(arch, "aarch64") == 0) {
-        if (has_tcg) {
+        if (has_tcg && qtest_has_device("virtio-blk-pci")) {
             qtest_add_func("acpi/virt", test_acpi_virt_tcg);
             qtest_add_func("acpi/virt/acpihmatvirt",
                             test_acpi_virt_tcg_acpi_hmat);

@@ -209,6 +209,10 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
+    if (!qtest_has_device("rtl8139")) {
+        return 0;
+    }
+
     qtest_start("-device rtl8139");
 
     qtest_add_func("/rtl8139/nop", nop);

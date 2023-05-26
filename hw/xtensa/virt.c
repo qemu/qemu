@@ -38,7 +38,8 @@
 #include "xtensa_memory.h"
 #include "xtensa_sim.h"
 
-static void create_pcie(CPUXtensaState *env, int irq_base, hwaddr addr_base)
+static void create_pcie(MachineState *ms, CPUXtensaState *env, int irq_base,
+                        hwaddr addr_base)
 {
     hwaddr base_ecam = addr_base + 0x00100000;
     hwaddr size_ecam =             0x03f00000;
@@ -54,6 +55,7 @@ static void create_pcie(CPUXtensaState *env, int irq_base, hwaddr addr_base)
     MemoryRegion *mmio_alias;
     MemoryRegion *mmio_reg;
 
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     DeviceState *dev;
     PCIHostState *pci;
     qemu_irq *extints;
@@ -104,7 +106,7 @@ static void create_pcie(CPUXtensaState *env, int irq_base, hwaddr addr_base)
             NICInfo *nd = &nd_table[i];
 
             if (!nd->model) {
-                nd->model = g_strdup("virtio");
+                nd->model = g_strdup(mc->default_nic);
             }
 
             pci_nic_init_nofail(nd, pci->bus, nd->model, NULL);
@@ -117,7 +119,7 @@ static void xtensa_virt_init(MachineState *machine)
     XtensaCPU *cpu = xtensa_sim_common_init(machine);
     CPUXtensaState *env = &cpu->env;
 
-    create_pcie(env, 0, 0xf0000000);
+    create_pcie(machine, env, 0, 0xf0000000);
     xtensa_sim_load_kernel(cpu, machine);
 }
 
@@ -127,6 +129,7 @@ static void xtensa_virt_machine_init(MachineClass *mc)
     mc->init = xtensa_virt_init;
     mc->max_cpus = 32;
     mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+    mc->default_nic = "virtio-net-pci";
 }
 
 DEFINE_MACHINE("virt", xtensa_virt_machine_init)
