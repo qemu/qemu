@@ -174,6 +174,7 @@ struct VFIOPCIDevice {
     bool no_vfio_ioeventfd;
     bool enable_ramfb;
     bool defer_kvm_irq_routing;
+    bool clear_parent_atomics_on_exit;
     VFIODisplay *dpy;
     Notifier irqchip_change_notifier;
 };
