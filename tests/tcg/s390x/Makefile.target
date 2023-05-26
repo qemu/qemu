@@ -26,6 +26,7 @@ TESTS+=branch-relative-long
 TESTS+=noexec
 
 Z13_TESTS=vistr
+Z13_TESTS+=lcbb
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
 
