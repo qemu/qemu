@@ -2888,14 +2888,6 @@ minikconf = find_program('scripts/minikconf.py')
 config_targetos = {
   (targetos == 'windows' ? 'CONFIG_WIN32' : 'CONFIG_POSIX'): 'y'
 }
-if targetos == 'darwin'
-  config_targetos += {'CONFIG_DARWIN': 'y'}
-elif targetos == 'linux'
-  config_targetos += {'CONFIG_LINUX': 'y'}
-endif
-if targetos in bsd_oses
-  config_targetos += {'CONFIG_BSD': 'y'}
-endif
 
 config_all = {}
 config_all_devices = {}

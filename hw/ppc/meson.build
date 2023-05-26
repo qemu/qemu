@@ -34,9 +34,11 @@ ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_TCG'], if_true: files(
   'spapr_softmmu.c',
 ))
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
-ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_LINUX'], if_true: files(
-  'spapr_pci_vfio.c',
-))
+if targetos == 'linux'
+  ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
+    'spapr_pci_vfio.c',
+  ))
+endif
 
 # IBM PowerNV
 ppc_ss.add(when: 'CONFIG_POWERNV', if_true: files(

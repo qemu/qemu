@@ -25,10 +25,9 @@ endif
 system_ss.add([spice_headers, files('spice-module.c')])
 system_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 
-system_ss.add(when: 'CONFIG_LINUX', if_true: files(
-  'input-linux.c',
-  'udmabuf.c',
-))
+if targetos == 'linux'
+  system_ss.add(files('input-linux.c', 'udmabuf.c'))
+endif
 system_ss.add(when: cocoa, if_true: files('cocoa.m'))
 
 vnc_ss = ss.source_set()

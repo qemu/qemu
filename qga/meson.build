@@ -72,12 +72,11 @@ qga_ss.add(when: 'CONFIG_POSIX', if_true: files(
   'commands-posix.c',
   'commands-posix-ssh.c',
 ))
-qga_ss.add(when: 'CONFIG_LINUX', if_true: files(
-  'commands-linux.c',
-))
-qga_ss.add(when: 'CONFIG_BSD', if_true: files(
-  'commands-bsd.c',
-))
+if targetos == 'linux'
+  qga_ss.add(files('commands-linux.c'))
+elif targetos in bsd_oses
+  qga_ss.add(files('commands-bsd.c'))
+endif
 qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
   'channel-win32.c',
   'commands-win32.c',

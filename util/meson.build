@@ -71,7 +71,9 @@ endif
 if have_system
   util_ss.add(files('crc-ccitt.c'))
   util_ss.add(when: gio, if_true: files('dbus.c'))
-  util_ss.add(when: 'CONFIG_LINUX', if_true: files('userfaultfd.c'))
+  if targetos == 'linux'
+    util_ss.add(files('userfaultfd.c'))
+  endif
 endif
 
 if have_block or have_ga
@@ -92,9 +94,6 @@ if have_block
   util_ss.add(files('iova-tree.c'))
   util_ss.add(files('iov.c', 'uri.c'))
   util_ss.add(files('nvdimm-utils.c'))
-  util_ss.add(when: 'CONFIG_LINUX', if_true: [
-    files('vhost-user-server.c'), vhost_user
-  ])
   util_ss.add(files('block-helpers.c'))
   util_ss.add(files('qemu-coroutine-sleep.c'))
   util_ss.add(files('qemu-co-shared-resource.c'))
@@ -107,8 +106,11 @@ if have_block
   else
     util_ss.add(files('filemonitor-stub.c'))
   endif
-  util_ss.add(when: 'CONFIG_LINUX', if_true: files('vfio-helpers.c'))
-  util_ss.add(when: 'CONFIG_LINUX', if_true: files('chardev_open.c'))
+  if targetos == 'linux'
+    util_ss.add(files('vhost-user-server.c'), vhost_user)
+    util_ss.add(files('vfio-helpers.c'))
+    util_ss.add(files('chardev_open.c'))
+  endif
 endif
 
 if cpu == 'aarch64'
