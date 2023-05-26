@@ -6,6 +6,27 @@
 ##
 
 ##
+# @cxl-inject-poison:
+#
+# Poison records indicate that a CXL memory device knows that a
+# particular memory region may be corrupted.  This may be because of
+# locally detected errors (e.g. ECC failure) or poisoned writes
+# received from other components in the system.  This injection
+# mechanism enables testing of the OS handling of poison records which
+# may be queried via the CXL mailbox.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @start: Start address; must be 64 byte aligned.
+#
+# @length: Length of poison to inject; must be a multiple of 64 bytes.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-poison',
+  'data': { 'path': 'str', 'start': 'uint64', 'length': 'size' }}
+
+##
 # @CxlUncorErrorType:
 #
 # Type of uncorrectable CXL error to inject.  These errors are

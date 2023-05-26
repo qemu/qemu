@@ -947,6 +947,62 @@ static void set_lsa(CXLType3Dev *ct3d, const void *buf, uint64_t size,
      */
 }
 
+void cxl_set_poison_list_overflowed(CXLType3Dev *ct3d)
+{
+        ct3d->poison_list_overflowed = true;
+        ct3d->poison_list_overflow_ts =
+            cxl_device_get_timestamp(&ct3d->cxl_dstate);
+}
+
+void qmp_cxl_inject_poison(const char *path, uint64_t start, uint64_t length,
+                           Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    CXLType3Dev *ct3d;
+    CXLPoison *p;
+
+    if (length % 64) {
+        error_setg(errp, "Poison injection must be in multiples of 64 bytes");
+        return;
+    }
+    if (start % 64) {
+        error_setg(errp, "Poison start address must be 64 byte aligned");
+        return;
+    }
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path does not point to a CXL type 3 device");
+        return;
+    }
+
+    ct3d = CXL_TYPE3(obj);
+
+    QLIST_FOREACH(p, &ct3d->poison_list, node) {
+        if (((start >= p->start) && (start < p->start + p->length)) ||
+            ((start + length > p->start) &&
+             (start + length <= p->start + p->length))) {
+            error_setg(errp, "Overlap with existing poisoned region not supported");
+            return;
+        }
+    }
+
+    if (ct3d->poison_list_cnt == CXL_POISON_LIST_LIMIT) {
+        cxl_set_poison_list_overflowed(ct3d);
+        return;
+    }
+
+    p = g_new0(CXLPoison, 1);
+    p->length = length;
+    p->start = start;
+    p->type = CXL_POISON_TYPE_INTERNAL; /* Different from injected via the mbox */
+
+    QLIST_INSERT_HEAD(&ct3d->poison_list, p, node);
+    ct3d->poison_list_cnt++;
+}
+
 /* For uncorrectable errors include support for multiple header recording */
 void qmp_cxl_inject_uncorrectable_errors(const char *path,
                                          CXLUncorErrorRecordList *errors,
