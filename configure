@@ -4,9 +4,8 @@
 #
 
 # Unset some variables known to interfere with behavior of common tools,
-# just as autoconf does.
-CLICOLOR_FORCE= GREP_OPTIONS=
-unset CLICOLOR_FORCE GREP_OPTIONS
+# just as autoconf does.  Unlike autoconf, we assume that unset exists.
+unset CLICOLOR_FORCE GREP_OPTIONS BASH_ENV ENV MAIL MAILPATH CDPATH
 
 # Don't allow CCACHE, if present, to use cached results of compile tests!
 export CCACHE_RECACHE=yes
@@ -254,7 +253,7 @@ else
     git_submodules_action="ignore"
 fi
 
-git_submodules="ui/keycodemapdb"
+git_submodules="subprojects/keycodemapdb"
 git="git"
 debug_tcg="no"
 docs="auto"
@@ -401,20 +400,16 @@ gnu/kfreebsd)
 ;;
 freebsd)
   bsd="yes"
-  make="${MAKE-gmake}"
   # needed for kinfo_getvmmap(3) in libutil.h
 ;;
 dragonfly)
   bsd="yes"
-  make="${MAKE-gmake}"
 ;;
 netbsd)
   bsd="yes"
-  make="${MAKE-gmake}"
 ;;
 openbsd)
   bsd="yes"
-  make="${MAKE-gmake}"
 ;;
 darwin)
   bsd="yes"
@@ -422,7 +417,6 @@ darwin)
 ;;
 sunos)
   solaris="yes"
-  make="${MAKE-gmake}"
 ;;
 haiku)
   pie="no"
@@ -526,9 +520,6 @@ case "$cpu" in
     CPU_CFLAGS="-m64 -mcpu=ultrasparc" ;;
 esac
 
-: ${make=${MAKE-make}}
-
-
 check_py_version() {
     # We require python >= 3.7.
     # NB: a True python conditional creates a non-zero return code (Failure)
@@ -631,7 +622,7 @@ for opt do
   ;;
   --objcc=*)
   ;;
-  --make=*) make="$optarg"
+  --make=*)
   ;;
   --install=*)
   ;;
@@ -806,7 +797,7 @@ case $git_submodules_action in
         fi
     ;;
     ignore)
-        if ! test -f "$source_path/ui/keycodemapdb/README"
+        if ! test -f "$source_path/subprojects/keycodemapdb/README"
         then
             echo
             echo "ERROR: missing GIT submodules"
@@ -898,7 +889,6 @@ Advanced options (experts only):
   --cross-cc-ARCH=CC       use compiler when building ARCH guest test cases
   --cross-cc-cflags-ARCH=  use compiler flags when building ARCH guest tests
   --cross-prefix-ARCH=PREFIX cross compiler prefix when building ARCH guest test cases
-  --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
@@ -949,11 +939,6 @@ then
     else
         error_exit "Python not found. Use --python=/path/to/python"
     fi
-fi
-
-if ! has "$make"
-then
-    error_exit "GNU make ($make) not found"
 fi
 
 if ! check_py_version "$python"; then
@@ -1188,7 +1173,7 @@ fi
 case "$fdt" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} dtc"
+    git_submodules="${git_submodules} subprojects/dtc"
     ;;
 esac
 
@@ -1778,7 +1763,6 @@ if test "$container" != no; then
     echo "RUNC=$runc" >> $config_host_mak
 fi
 echo "ROMS=$roms" >> $config_host_mak
-echo "MAKE=$make" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
 echo "MESON=$meson" >> $config_host_mak
@@ -2031,7 +2015,6 @@ preserve_env CXXFLAGS
 preserve_env LD
 preserve_env LDFLAGS
 preserve_env LD_LIBRARY_PATH
-preserve_env MAKE
 preserve_env NM
 preserve_env OBJCFLAGS
 preserve_env OBJCOPY

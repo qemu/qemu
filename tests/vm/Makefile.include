@@ -1,14 +1,12 @@
 # Makefile for VM tests
 
 # Hack to allow running in an unconfigured build tree
-ifeq ($(wildcard $(SRC_PATH)/config-host.mak),)
+ifeq ($(realpath $(SRC_PATH)),$(realpath .))
 VM_PYTHON = PYTHONPATH=$(SRC_PATH)/python /usr/bin/env python3
 VM_VENV =
-HOST_ARCH := $(shell uname -m)
 else
-VM_PYTHON = $(TESTS_PYTHON)
+VM_PYTHON = $(PYTHON)
 VM_VENV = check-venv
-HOST_ARCH = $(ARCH)
 endif
 
 .PHONY: vm-build-all vm-clean-all
@@ -23,6 +21,7 @@ ARM64_IMAGES += ubuntu.aarch64 centos.aarch64
 endif
 endif
 
+HOST_ARCH = $(shell uname -m)
 ifeq ($(HOST_ARCH),x86_64)
 IMAGES=$(X86_IMAGES) $(if $(USE_TCG),$(ARM64_IMAGES))
 else ifeq ($(HOST_ARCH),aarch64)

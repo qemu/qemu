@@ -162,15 +162,15 @@ keymaps = [
 ]
 
 if have_system or xkbcommon.found()
+  keycodemapdb_proj = subproject('keycodemapdb', required: true)
   foreach e : keymaps
     output = 'input-keymap-@0@-to-@1@.c.inc'.format(e[0], e[1])
     genh += custom_target(output,
                   output: output,
                   capture: true,
-                  input: files('keycodemapdb/data/keymaps.csv'),
-                  command: [python, files('keycodemapdb/tools/keymap-gen'),
-                            'code-map',
-                            '--lang', 'glib2',
+                  input: keycodemapdb_proj.get_variable('keymaps_csv'),
+                  command: [python, keycodemapdb_proj.get_variable('keymap_gen').full_path(),
+                            'code-map', '--lang', 'glib2',
                             '--varname', 'qemu_input_map_@0@_to_@1@'.format(e[0], e[1]),
                             '@INPUT0@', e[0], e[1]])
   endforeach

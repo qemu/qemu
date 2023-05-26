@@ -6,7 +6,7 @@ NULL :=
 SPACE := $(NULL) #
 COMMA := ,
 
-HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
+HOST_ARCH = $(shell uname -m)
 USER = $(if $(NOUSER),,$(shell id -un))
 UID = $(if $(NOUSER),,$(shell id -u))
 

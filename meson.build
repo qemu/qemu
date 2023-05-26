@@ -404,8 +404,6 @@ if targetos != 'sunos' and not get_option('tsan')
   qemu_ldflags += cc.get_supported_link_arguments('-Wl,--warn-common')
 endif
 
-# Specify linker-script with add_project_link_arguments so that it is not placed
-# within a linker --start-group/--end-group pair
 if get_option('fuzzing')
   # Specify a filter to only instrument code that is directly related to
   # virtual-devices.
@@ -3061,13 +3059,14 @@ if have_system and vfio_user_server_allowed
 endif
 
 fdt = not_found
-if have_system
-  fdt_opt = get_option('fdt')
+fdt_opt = get_option('fdt')
+if fdt_required.length() > 0 or fdt_opt == 'enabled'
+  if fdt_opt == 'disabled'
+    error('fdt disabled but required by targets ' + ', '.join(fdt_required))
+  endif
+
   if fdt_opt in ['enabled', 'auto', 'system']
-    have_internal = fs.exists(meson.current_source_dir() / 'dtc/libfdt/Makefile.libfdt')
-    fdt = cc.find_library('fdt',
-                          required: fdt_opt == 'system' or
-                                    fdt_opt == 'enabled' and not have_internal)
+    fdt = cc.find_library('fdt', required: fdt_opt == 'system')
     if fdt.found() and cc.links('''
        #include <libfdt.h>
        #include <libfdt_env.h>
@@ -3076,40 +3075,26 @@ if have_system
       fdt_opt = 'system'
     elif fdt_opt == 'system'
        error('system libfdt requested, but it is too old (1.5.1 or newer required)')
-    elif have_internal
-      fdt_opt = 'internal'
     else
-      fdt_opt = 'disabled'
+      fdt_opt = 'internal'
       fdt = not_found
     endif
   endif
-  if fdt_opt == 'internal'
-    fdt_files = files(
-      'dtc/libfdt/fdt.c',
-      'dtc/libfdt/fdt_ro.c',
-      'dtc/libfdt/fdt_wip.c',
-      'dtc/libfdt/fdt_sw.c',
-      'dtc/libfdt/fdt_rw.c',
-      'dtc/libfdt/fdt_strerror.c',
-      'dtc/libfdt/fdt_empty_tree.c',
-      'dtc/libfdt/fdt_addresses.c',
-      'dtc/libfdt/fdt_overlay.c',
-      'dtc/libfdt/fdt_check.c',
-    )
+  if not fdt.found()
+    assert(fdt_opt == 'internal')
+    have_internal = fs.exists(meson.current_source_dir() / 'subprojects/dtc/meson.build')
 
-    fdt_inc = include_directories('dtc/libfdt')
-    libfdt = static_library('fdt',
-                            build_by_default: false,
-                            sources: fdt_files,
-                            include_directories: fdt_inc)
-    fdt = declare_dependency(link_with: libfdt,
-                             include_directories: fdt_inc)
+    if not have_internal
+      error('libfdt source not found - please pull git submodule')
+    endif
+
+    libfdt_proj = subproject('dtc', required: true,
+                             default_options: ['tools=false',  'yaml=disabled',
+                                               'python=disabled', 'default_library=static'])
+    fdt = libfdt_proj.get_variable('libfdt_dep')
   endif
 else
   fdt_opt = 'disabled'
-endif
-if not fdt.found() and fdt_required.length() > 0
-  error('fdt not available but required by targets ' + ', '.join(fdt_required))
 endif
 
 config_host_data.set('CONFIG_CAPSTONE', capstone.found())
@@ -4043,7 +4028,6 @@ summary(summary_info, bool_yn: true, section: 'Directories')
 # Host binaries
 summary_info = {}
 summary_info += {'git':               config_host['GIT']}
-summary_info += {'make':              config_host['MAKE']}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
 summary_info += {'sphinx-build':      sphinx_build}
 if config_host.has_key('HAVE_GDB_BIN')

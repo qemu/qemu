@@ -13,8 +13,8 @@
 [submodule "roms/qemu-palcode"]
 	path = roms/qemu-palcode
 	url = https://gitlab.com/qemu-project/qemu-palcode.git
-[submodule "dtc"]
-	path = dtc
+[submodule "subprojects/dtc"]
+	path = subprojects/dtc
 	url = https://gitlab.com/qemu-project/dtc.git
 [submodule "roms/u-boot"]
 	path = roms/u-boot
@@ -25,8 +25,8 @@
 [submodule "roms/QemuMacDrivers"]
 	path = roms/QemuMacDrivers
 	url = https://gitlab.com/qemu-project/QemuMacDrivers.git
-[submodule "ui/keycodemapdb"]
-	path = ui/keycodemapdb
+[submodule "subprojects/keycodemapdb"]
+	path = subprojects/keycodemapdb
 	url = https://gitlab.com/qemu-project/keycodemapdb.git
 [submodule "roms/seabios-hppa"]
 	path = roms/seabios-hppa
