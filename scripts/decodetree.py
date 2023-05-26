@@ -474,7 +474,7 @@ class MultiPattern(General):
 
     def prop_format(self):
         for p in self.pats:
-            p.build_tree()
+            p.prop_format()
 
     def prop_width(self):
         width = None
@@ -624,7 +624,7 @@ class ExcMultiPattern(MultiPattern):
         return t
 
     def build_tree(self):
-        super().prop_format()
+        super().build_tree()
         self.tree = self.__build_tree(self.pats, self.fixedbits,
                                       self.fixedmask)
 
