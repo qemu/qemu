@@ -1055,11 +1055,13 @@
 #
 # @extra: rear side button of a 5-button mouse (since 2.9)
 #
+# @touch: screen contact on a multi-touch device (since 8.1)
+#
 # Since: 2.0
 ##
 { 'enum'  : 'InputButton',
   'data'  : [ 'left', 'middle', 'right', 'wheel-up', 'wheel-down', 'side',
-  'extra', 'wheel-left', 'wheel-right' ] }
+  'extra', 'wheel-left', 'wheel-right', 'touch' ] }
 
 ##
 # @InputAxis:
@@ -1070,6 +1072,17 @@
 ##
 { 'enum'  : 'InputAxis',
   'data'  : [ 'x', 'y' ] }
+
+##
+# @InputMultiTouchType:
+#
+# Type of a multi-touch event.
+#
+# Since: 8.1
+##
+{ 'enum'  : 'InputMultiTouchType',
+  'data'  : [ 'begin', 'update', 'end', 'cancel', 'data' ] }
+
 
 ##
 # @InputKeyEvent:
@@ -1118,12 +1131,45 @@
               'value'   : 'int' } }
 
 ##
+# @InputMultiTouchEvent:
+#
+# MultiTouch input event.
+#
+# @slot: Which slot has generated the event.
+#
+# @tracking-id: ID to correlate this event with previously generated
+#     events.
+#
+# @axis: Which axis is referenced by @value.
+#
+# @value: Contact position.
+#
+# Since: 8.1
+##
+{ 'struct'  : 'InputMultiTouchEvent',
+  'data'  : { 'type'       : 'InputMultiTouchType',
+              'slot'       : 'int',
+              'tracking-id': 'int',
+              'axis'       : 'InputAxis',
+              'value'      : 'int' } }
+
+##
 # @InputEventKind:
+#
+# @key: a keyboard input event
+#
+# @btn: a pointer button input event
+#
+# @rel: a relative pointer motion input event
+#
+# @abs: an absolute pointer motion input event
+#
+# @mtt: a multi-touch input event
 #
 # Since: 2.0
 ##
 { 'enum': 'InputEventKind',
-  'data': [ 'key', 'btn', 'rel', 'abs' ] }
+  'data': [ 'key', 'btn', 'rel', 'abs', 'mtt' ] }
 
 ##
 # @InputKeyEventWrapper:
@@ -1150,16 +1196,19 @@
   'data': { 'data': 'InputMoveEvent' } }
 
 ##
+# @InputMultiTouchEventWrapper:
+#
+# Since: 8.1
+##
+{ 'struct': 'InputMultiTouchEventWrapper',
+  'data': { 'data': 'InputMultiTouchEvent' } }
+
+##
 # @InputEvent:
 #
 # Input event union.
 #
-# @type: the input type, one of:
-#
-#     - 'key': Input event of Keyboard
-#     - 'btn': Input event of pointer buttons
-#     - 'rel': Input event of relative pointer motion
-#     - 'abs': Input event of absolute pointer motion
+# @type: the type of input event
 #
 # Since: 2.0
 ##
@@ -1169,7 +1218,8 @@
   'data'  : { 'key'     : 'InputKeyEventWrapper',
               'btn'     : 'InputBtnEventWrapper',
               'rel'     : 'InputMoveEventWrapper',
-              'abs'     : 'InputMoveEventWrapper' } }
+              'abs'     : 'InputMoveEventWrapper',
+              'mtt'     : 'InputMultiTouchEventWrapper' } }
 
 ##
 # @input-send-event:

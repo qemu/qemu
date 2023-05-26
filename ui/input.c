@@ -212,6 +212,7 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     InputKeyEvent *key;
     InputBtnEvent *btn;
     InputMoveEvent *move;
+    InputMultiTouchEvent *mtt;
 
     if (src) {
         idx = qemu_console_get_index(src);
@@ -249,6 +250,11 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         move = evt->u.abs.data;
         name = InputAxis_str(move->axis);
         trace_input_event_abs(idx, name, move->value);
+        break;
+    case INPUT_EVENT_KIND_MTT:
+        mtt = evt->u.mtt.data;
+        name = InputAxis_str(mtt->axis);
+        trace_input_event_mtt(idx, name, mtt->value);
         break;
     case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
