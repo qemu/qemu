@@ -2447,6 +2447,8 @@ void helper_call(CPUTriCoreState *env, uint32_t next_pc)
     }
     /* PSW.CDE = 1;*/
     psw |= MASK_PSW_CDE;
+    psw_write(env, psw);
+
     /* tmp_FCX = FCX; */
     tmp_FCX = env->FCX;
     /* EA = {FCX.FCXS, 6'b0, FCX.FCXO, 6'b0}; */
