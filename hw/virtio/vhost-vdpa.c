@@ -859,7 +859,7 @@ static int vhost_vdpa_reset_device(struct vhost_dev *dev)
     uint8_t status = 0;
 
     ret = vhost_vdpa_call(dev, VHOST_VDPA_SET_STATUS, &status);
-    trace_vhost_vdpa_reset_device(dev, status);
+    trace_vhost_vdpa_reset_device(dev);
     v->suspended = false;
     return ret;
 }
