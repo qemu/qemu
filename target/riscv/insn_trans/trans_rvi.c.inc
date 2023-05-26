@@ -777,7 +777,7 @@ static bool trans_pause(DisasContext *ctx, arg_pause *a)
      * PAUSE is a no-op in QEMU,
      * end the TB and return to main loop
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
 
@@ -801,7 +801,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * FENCE_I is a no-op in QEMU,
      * however we need to end the translation block
      */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
@@ -812,7 +812,7 @@ static bool do_csr_post(DisasContext *ctx)
     /* The helper may raise ILLEGAL_INSN -- record binv for unwind. */
     decode_save_opc(ctx);
     /* We may have changed important cpu state -- exit to main loop. */
-    gen_set_pc_imm(ctx, ctx->pc_succ_insn);
+    gen_update_pc(ctx, ctx->cur_insn_len);
     exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;

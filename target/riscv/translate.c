@@ -234,14 +234,14 @@ static void gen_pc_plus_diff(TCGv target, DisasContext *ctx,
     tcg_gen_movi_tl(target, dest);
 }
 
-static void gen_set_pc_imm(DisasContext *ctx, target_ulong dest)
+static void gen_update_pc(DisasContext *ctx, target_long diff)
 {
-    gen_pc_plus_diff(cpu_pc, ctx, dest);
+    gen_pc_plus_diff(cpu_pc, ctx, ctx->base.pc_next + diff);
 }
 
 static void generate_exception(DisasContext *ctx, int excp)
 {
-    gen_set_pc_imm(ctx, ctx->base.pc_next);
+    gen_update_pc(ctx, 0);
     gen_helper_raise_exception(cpu_env, tcg_constant_i32(excp));
     ctx->base.is_jmp = DISAS_NORETURN;
 }
@@ -293,10 +293,10 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_long diff)
       */
     if (translator_use_goto_tb(&ctx->base, dest) && !ctx->itrigger) {
         tcg_gen_goto_tb(n);
-        gen_set_pc_imm(ctx, dest);
+        gen_update_pc(ctx, diff);
         tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
-        gen_set_pc_imm(ctx, dest);
+        gen_update_pc(ctx, diff);
         lookup_and_goto_ptr(ctx);
     }
 }
