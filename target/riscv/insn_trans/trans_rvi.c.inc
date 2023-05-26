@@ -171,7 +171,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
     } else {
         tcg_gen_brcond_tl(cond, src1, src2, l);
     }
-    gen_goto_tb(ctx, 1, ctx->pc_succ_insn);
+    gen_goto_tb(ctx, 1, ctx->cur_insn_len);
 
     gen_set_label(l); /* branch taken */
 
@@ -183,7 +183,7 @@ static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
         gen_pc_plus_diff(target_pc, ctx, next_pc);
         gen_exception_inst_addr_mis(ctx, target_pc);
     } else {
-        gen_goto_tb(ctx, 0, ctx->base.pc_next + a->imm);
+        gen_goto_tb(ctx, 0, a->imm);
     }
     ctx->base.is_jmp = DISAS_NORETURN;
 
