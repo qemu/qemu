@@ -47,6 +47,7 @@ $(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-user.o
 TESTS += $(PGM_SPECIFICATION_TESTS)
 
 Z13_TESTS=vistr
+Z13_TESTS+=lcbb
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
 
