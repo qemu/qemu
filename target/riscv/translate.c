@@ -61,6 +61,7 @@ typedef struct DisasContext {
     DisasContextBase base;
     /* pc_succ_insn points to the instruction following base.pc_next */
     target_ulong pc_succ_insn;
+    target_ulong cur_insn_len;
     target_ulong priv_ver;
     RISCVMXL misa_mxl_max;
     RISCVMXL xl;
@@ -1116,8 +1117,9 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
     };
 
     ctx->virt_inst_excp = false;
+    ctx->cur_insn_len = insn_len(opcode);
     /* Check for compressed insn */
-    if (insn_len(opcode) == 2) {
+    if (ctx->cur_insn_len == 2) {
         ctx->opcode = opcode;
         ctx->pc_succ_insn = ctx->base.pc_next + 2;
         /*
