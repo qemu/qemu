@@ -506,6 +506,12 @@ class IncMultiPattern(MultiPattern):
                 output(ind, '}\n')
             else:
                 p.output_code(i, extracted, p.fixedbits, p.fixedmask)
+
+    def build_tree(self):
+        if not self.pats:
+            error_with_file(self.file, self.lineno, 'empty pattern group')
+        super().build_tree()
+
 #end IncMultiPattern
 
 
