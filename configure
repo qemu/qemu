@@ -1383,6 +1383,7 @@ probe_target_compiler() {
         container_cross_prefix=tricore-
         container_cross_as=tricore-as
         container_cross_ld=tricore-ld
+        container_cross_cc=tricore-gcc
         break
         ;;
       x86_64)
