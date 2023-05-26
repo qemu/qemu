@@ -36,16 +36,3 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
         }
     }
 }
-
-void trace_event_set_vcpu_state_dynamic(CPUState *vcpu,
-                                        TraceEvent *ev, bool state)
-{
-    /* should never be called on non-target binaries */
-    abort();
-}
-
-void trace_init_vcpu(CPUState *vcpu)
-{
-    /* should never be called on non-target binaries */
-    abort();
-}

@@ -30,13 +30,6 @@
      trace_event_get_vcpu_state_dynamic_by_vcpu_id(                     \
          vcpu, _ ## id ## _EVENT.vcpu_id))
 
-/**
- * trace_event_get_vcpu_state_dynamic:
- *
- * Get the dynamic tracing state of an event for the given vCPU.
- */
-static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
-
 #include "control-internal.h"
 
 static inline bool
@@ -49,15 +42,6 @@ trace_event_get_vcpu_state_dynamic_by_vcpu_id(CPUState *vcpu,
     } else {
         return false;
     }
-}
-
-static inline bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu,
-                                                      TraceEvent *ev)
-{
-    uint32_t vcpu_id;
-    assert(trace_event_is_vcpu(ev));
-    vcpu_id = trace_event_get_vcpu_id(ev);
-    return trace_event_get_vcpu_state_dynamic_by_vcpu_id(vcpu, vcpu_id);
 }
 
 #endif

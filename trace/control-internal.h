@@ -25,16 +25,6 @@ static inline uint32_t trace_event_get_id(TraceEvent *ev)
     return ev->id;
 }
 
-static inline uint32_t trace_event_get_vcpu_id(TraceEvent *ev)
-{
-    return 0;
-}
-
-static inline bool trace_event_is_vcpu(TraceEvent *ev)
-{
-    return false;
-}
-
 static inline const char * trace_event_get_name(TraceEvent *ev)
 {
     assert(ev != NULL);

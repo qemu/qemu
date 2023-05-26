@@ -262,22 +262,6 @@ void trace_init_file(void)
 #endif
 }
 
-void trace_fini_vcpu(CPUState *vcpu)
-{
-    TraceEventIter iter;
-    TraceEvent *ev;
-
-    trace_event_iter_init_all(&iter);
-    while ((ev = trace_event_iter_next(&iter)) != NULL) {
-        if (trace_event_is_vcpu(ev) &&
-            trace_event_get_state_static(ev) &&
-            trace_event_get_vcpu_state_dynamic(vcpu, ev)) {
-            /* must disable to affect the global counter */
-            trace_event_set_vcpu_state_dynamic(vcpu, ev, false);
-        }
-    }
-}
-
 bool trace_init_backends(void)
 {
 #ifdef CONFIG_TRACE_SIMPLE
