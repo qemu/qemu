@@ -131,7 +131,7 @@ def main():
             imms = tagimms[tag]
 
             arguments = []
-            for regtype, regid, toss, numregs in regs:
+            for regtype, regid in regs:
                 prefix = "in " if hex_common.is_read(regid) else ""
 
                 is_pair = hex_common.is_pair(regid)
@@ -147,7 +147,7 @@ def main():
                 elif is_single_new:
                     arguments.append(f"{prefix}{regtype}{regid}N")
                 else:
-                    hex_common.bad_register(regtype, regid, toss, numregs)
+                    hex_common.bad_register(regtype, regid)
 
             for immlett, bits, immshift in imms:
                 arguments.append(hex_common.imm_name(immlett))

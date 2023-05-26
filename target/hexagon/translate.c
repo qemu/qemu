@@ -556,7 +556,7 @@ static void gen_start_packet(DisasContext *ctx)
     }
 
     /*
-     * Preload the predicated pred registers into hex_new_pred_value[pred_num]
+     * Preload the predicated pred registers into ctx->new_pred_value[pred_num]
      * Only endloop instructions conditionally write to pred registers
      */
     if (ctx->need_commit && pkt->pkt_has_endloop) {

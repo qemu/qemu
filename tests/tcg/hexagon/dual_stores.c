@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,13 +16,18 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+
+int err;
+
+#include "hex_test.h"
 
 /*
  *  Make sure that two stores in the same packet honor proper
  *  semantics: slot 1 executes first, then slot 0.
  *  This is important when the addresses overlap.
  */
-static inline void dual_stores(int *p, char *q, int x, char y)
+static inline void dual_stores(int32_t *p, int8_t *q, int32_t x, int8_t y)
 {
   asm volatile("{\n\t"
                "    memw(%0) = %2\n\t"
@@ -33,19 +38,9 @@ static inline void dual_stores(int *p, char *q, int x, char y)
 }
 
 typedef union {
-    int word;
-    char byte;
+    int32_t word;
+    int8_t byte;
 } Dual;
-
-int err;
-
-static void check(Dual d, int expect)
-{
-    if (d.word != expect) {
-        printf("ERROR: 0x%08x != 0x%08x\n", d.word, expect);
-        err++;
-    }
-}
 
 int main()
 {
@@ -53,7 +48,7 @@ int main()
 
     d.word = ~0;
     dual_stores(&d.word, &d.byte, 0x12345678, 0xff);
-    check(d, 0x123456ff);
+    check32(d.word, 0x123456ff);
 
     puts(err ? "FAIL" : "PASS");
     return err;

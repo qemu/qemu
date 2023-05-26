@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2021 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,17 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-static int sfrecipa(int Rs, int Rt, int *pred_result)
+int err;
+
+#include "hex_test.h"
+
+static int32_t sfrecipa(int32_t Rs, int32_t Rt, bool *pred_result)
 {
-  int result;
-  int predval;
+  int32_t result;
+  bool predval;
 
   asm volatile("%0,p0 = sfrecipa(%2, %3)\n\t"
                "%1 = p0\n\t"
@@ -31,10 +37,10 @@ static int sfrecipa(int Rs, int Rt, int *pred_result)
   return result;
 }
 
-static int sfinvsqrta(int Rs, int *pred_result)
+static int32_t sfinvsqrta(int32_t Rs, int32_t *pred_result)
 {
-  int result;
-  int predval;
+  int32_t result;
+  int32_t predval;
 
   asm volatile("%0,p0 = sfinvsqrta(%2)\n\t"
                "%1 = p0\n\t"
@@ -45,12 +51,12 @@ static int sfinvsqrta(int Rs, int *pred_result)
   return result;
 }
 
-static long long vacsh(long long Rxx, long long Rss, long long Rtt,
-                       int *pred_result, int *ovf_result)
+static int64_t vacsh(int64_t Rxx, int64_t Rss, int64_t Rtt,
+                     int *pred_result, bool *ovf_result)
 {
-  long long result = Rxx;
+  int64_t result = Rxx;
   int predval;
-  int usr;
+  uint32_t usr;
 
   /*
    * This instruction can set bit 0 (OVF/overflow) in usr
@@ -70,11 +76,10 @@ static long long vacsh(long long Rxx, long long Rss, long long Rtt,
   return result;
 }
 
-static long long vminub(long long Rtt, long long Rss,
-                        int *pred_result)
+static int64_t vminub(int64_t Rtt, int64_t Rss, int32_t *pred_result)
 {
-  long long result;
-  int predval;
+  int64_t result;
+  int32_t predval;
 
   asm volatile("%0,p0 = vminub(%2, %3)\n\t"
                "%1 = p0\n\t"
@@ -85,11 +90,11 @@ static long long vminub(long long Rtt, long long Rss,
   return result;
 }
 
-static long long add_carry(long long Rss, long long Rtt,
-                           int pred_in, int *pred_result)
+static int64_t add_carry(int64_t Rss, int64_t Rtt,
+                         int32_t pred_in, int32_t *pred_result)
 {
-  long long result;
-  int predval = pred_in;
+  int64_t result;
+  int32_t predval = pred_in;
 
   asm volatile("p0 = %1\n\t"
                "%0 = add(%2, %3, p0):carry\n\t"
@@ -101,11 +106,11 @@ static long long add_carry(long long Rss, long long Rtt,
   return result;
 }
 
-static long long sub_carry(long long Rss, long long Rtt,
-                           int pred_in, int *pred_result)
+static int64_t sub_carry(int64_t Rss, int64_t Rtt,
+                         int32_t pred_in, int32_t *pred_result)
 {
-  long long result;
-  int predval = pred_in;
+  int64_t result;
+  int32_t predval = pred_in;
 
   asm volatile("p0 = !cmp.eq(%1, #0)\n\t"
                "%0 = sub(%2, %3, p0):carry\n\t"
@@ -117,155 +122,129 @@ static long long sub_carry(long long Rss, long long Rtt,
   return result;
 }
 
-int err;
-
-static void check_ll(long long val, long long expect)
-{
-    if (val != expect) {
-        printf("ERROR: 0x%016llx != 0x%016llx\n", val, expect);
-        err++;
-    }
-}
-
-static void check(int val, int expect)
-{
-    if (val != expect) {
-        printf("ERROR: 0x%08x != 0x%08x\n", val, expect);
-        err++;
-    }
-}
-
-static void check_p(int val, int expect)
-{
-    if (val != expect) {
-        printf("ERROR: 0x%02x != 0x%02x\n", val, expect);
-        err++;
-    }
-}
-
 static void test_sfrecipa()
 {
-    int res;
-    int pred_result;
+    int32_t res;
+    bool pred_result;
 
     res = sfrecipa(0x04030201, 0x05060708, &pred_result);
-    check(res, 0x59f38001);
-    check_p(pred_result, 0x00);
+    check32(res, 0x59f38001);
+    check32(pred_result, false);
 }
 
 static void test_sfinvsqrta()
 {
-    int res;
-    int pred_result;
+    int32_t res;
+    int32_t pred_result;
 
     res = sfinvsqrta(0x04030201, &pred_result);
-    check(res, 0x4d330000);
-    check_p(pred_result, 0xe0);
+    check32(res, 0x4d330000);
+    check32(pred_result, 0xe0);
 
     res = sfinvsqrta(0x0, &pred_result);
-    check(res, 0x3f800000);
-    check_p(pred_result, 0x0);
+    check32(res, 0x3f800000);
+    check32(pred_result, 0x0);
 }
 
 static void test_vacsh()
 {
-    long long res64;
-    int pred_result;
-    int ovf_result;
+    int64_t res64;
+    int32_t pred_result;
+    bool ovf_result;
 
     res64 = vacsh(0x0004000300020001LL,
                   0x0001000200030004LL,
                   0x0000000000000000LL, &pred_result, &ovf_result);
-    check_ll(res64, 0x0004000300030004LL);
-    check_p(pred_result, 0xf0);
-    check(ovf_result, 0);
+    check64(res64, 0x0004000300030004LL);
+    check32(pred_result, 0xf0);
+    check32(ovf_result, false);
 
     res64 = vacsh(0x0004000300020001LL,
                   0x0001000200030004LL,
                   0x000affff000d0000LL, &pred_result, &ovf_result);
-    check_ll(res64, 0x000e0003000f0004LL);
-    check_p(pred_result, 0xcc);
-    check(ovf_result, 0);
+    check64(res64, 0x000e0003000f0004LL);
+    check32(pred_result, 0xcc);
+    check32(ovf_result, false);
 
     res64 = vacsh(0x00047fff00020001LL,
                   0x00017fff00030004LL,
                   0x000a0fff000d0000LL, &pred_result, &ovf_result);
-    check_ll(res64, 0x000e7fff000f0004LL);
-    check_p(pred_result, 0xfc);
-    check(ovf_result, 1);
+    check64(res64, 0x000e7fff000f0004LL);
+    check32(pred_result, 0xfc);
+    check32(ovf_result, true);
 
     res64 = vacsh(0x0004000300020001LL,
                   0x0001000200030009LL,
                   0x000affff000d0001LL, &pred_result, &ovf_result);
-    check_ll(res64, 0x000e0003000f0008LL);
-    check_p(pred_result, 0xcc);
-    check(ovf_result, 0);
+    check64(res64, 0x000e0003000f0008LL);
+    check32(pred_result, 0xcc);
+    check32(ovf_result, false);
 }
 
 static void test_vminub()
 {
-    long long res64;
-    int pred_result;
+    int64_t res64;
+    int32_t pred_result;
 
     res64 = vminub(0x0807060504030201LL,
                    0x0102030405060708LL,
                    &pred_result);
-    check_ll(res64, 0x0102030404030201LL);
-    check_p(pred_result, 0xf0);
+    check64(res64, 0x0102030404030201LL);
+    check32(pred_result, 0xf0);
 
     res64 = vminub(0x0802060405030701LL,
                    0x0107030504060208LL,
                    &pred_result);
-    check_ll(res64, 0x0102030404030201LL);
-    check_p(pred_result, 0xaa);
+    check64(res64, 0x0102030404030201LL);
+    check32(pred_result, 0xaa);
 }
 
 static void test_add_carry()
 {
-    long long res64;
-    int pred_result;
+    int64_t res64;
+    int32_t pred_result;
 
     res64 = add_carry(0x0000000000000000LL,
                       0xffffffffffffffffLL,
                       1, &pred_result);
-    check_ll(res64, 0x0000000000000000LL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x0000000000000000LL);
+    check32(pred_result, 0xff);
 
     res64 = add_carry(0x0000000100000000LL,
                       0xffffffffffffffffLL,
                       0, &pred_result);
-    check_ll(res64, 0x00000000ffffffffLL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x00000000ffffffffLL);
+    check32(pred_result, 0xff);
 
     res64 = add_carry(0x0000000100000000LL,
                       0xffffffffffffffffLL,
                       0, &pred_result);
-    check_ll(res64, 0x00000000ffffffffLL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x00000000ffffffffLL);
+    check32(pred_result, 0xff);
 }
 
 static void test_sub_carry()
 {
-    long long res64;
-    int pred_result;
+    int64_t res64;
+    int32_t pred_result;
 
     res64 = sub_carry(0x0000000000000000LL,
                       0x0000000000000000LL,
                       1, &pred_result);
-    check_ll(res64, 0x0000000000000000LL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x0000000000000000LL);
+    check32(pred_result, 0xff);
 
     res64 = sub_carry(0x0000000100000000LL,
                       0x0000000000000000LL,
                       0, &pred_result);
-    check_ll(res64, 0x00000000ffffffffLL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x00000000ffffffffLL);
+    check32(pred_result, 0xff);
 
     res64 = sub_carry(0x0000000100000000LL,
                       0x0000000000000000LL,
                       0, &pred_result);
-    check_ll(res64, 0x00000000ffffffffLL);
-    check_p(pred_result, 0xff);
+    check64(res64, 0x00000000ffffffffLL);
+    check32(pred_result, 0xff);
 }
 
 int main()

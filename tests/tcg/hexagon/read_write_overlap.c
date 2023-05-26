@@ -32,16 +32,7 @@
 
 int err;
 
-static void __check(const char *filename, int line, int x, int expect)
-{
-    if (x != expect) {
-        printf("ERROR %s:%d - 0x%08x != 0x%08x\n",
-               filename, line, x, expect);
-        err++;
-    }
-}
-
-#define check(x, expect) __check(__FILE__, __LINE__, (x), (expect))
+#include "hex_test.h"
 
 #define insert(RES, X, WIDTH, OFFSET) \
     asm("r7 = %1\n\t" \
@@ -54,11 +45,11 @@ static void test_insert(void)
     uint32_t res;
 
     insert(res, 0x12345678, 8, 1);
-    check(res, 0x123456f0);
+    check32(res, 0x123456f0);
     insert(res, 0x12345678, 0, 1);
-    check(res, 0x12345678);
+    check32(res, 0x12345678);
     insert(res, 0x12345678, 20, 16);
-    check(res, 0x56785678);
+    check32(res, 0x56785678);
 }
 
 static inline uint32_t insert_rp(uint32_t x, uint32_t width, uint32_t offset)
@@ -75,12 +66,12 @@ static inline uint32_t insert_rp(uint32_t x, uint32_t width, uint32_t offset)
 
 static void test_insert_rp(void)
 {
-    check(insert_rp(0x12345678,   8,  1), 0x123456f0);
-    check(insert_rp(0x12345678,  63,  8), 0x34567878);
-    check(insert_rp(0x12345678, 127,  8), 0x34567878);
-    check(insert_rp(0x12345678,   8, 24), 0x78345678);
-    check(insert_rp(0x12345678,   8, 63), 0x12345678);
-    check(insert_rp(0x12345678,   8, 64), 0x00000000);
+    check32(insert_rp(0x12345678,   8,  1), 0x123456f0);
+    check32(insert_rp(0x12345678,  63,  8), 0x34567878);
+    check32(insert_rp(0x12345678, 127,  8), 0x34567878);
+    check32(insert_rp(0x12345678,   8, 24), 0x78345678);
+    check32(insert_rp(0x12345678,   8, 63), 0x12345678);
+    check32(insert_rp(0x12345678,   8, 64), 0x00000000);
 }
 
 static inline uint32_t asr_r_svw_trun(uint64_t x, uint32_t y)
@@ -95,18 +86,18 @@ static inline uint32_t asr_r_svw_trun(uint64_t x, uint32_t y)
 
 static void test_asr_r_svw_trun(void)
 {
-    check(asr_r_svw_trun(0x1111111122222222ULL, 5),
-          0x88881111);
-    check(asr_r_svw_trun(0x1111111122222222ULL, 63),
-          0x00000000);
-    check(asr_r_svw_trun(0x1111111122222222ULL, 64),
-          0x00000000);
-    check(asr_r_svw_trun(0x1111111122222222ULL, 127),
-          0x22224444);
-    check(asr_r_svw_trun(0x1111111122222222ULL, 128),
-          0x11112222);
-    check(asr_r_svw_trun(0xffffffff22222222ULL, 128),
-          0xffff2222);
+    check32(asr_r_svw_trun(0x1111111122222222ULL, 5),
+            0x88881111);
+    check32(asr_r_svw_trun(0x1111111122222222ULL, 63),
+            0x00000000);
+    check32(asr_r_svw_trun(0x1111111122222222ULL, 64),
+            0x00000000);
+    check32(asr_r_svw_trun(0x1111111122222222ULL, 127),
+            0x22224444);
+    check32(asr_r_svw_trun(0x1111111122222222ULL, 128),
+            0x11112222);
+    check32(asr_r_svw_trun(0xffffffff22222222ULL, 128),
+            0xffff2222);
 }
 
 static inline uint32_t swiz(uint32_t x)
@@ -121,7 +112,7 @@ static inline uint32_t swiz(uint32_t x)
 
 static void test_swiz(void)
 {
-    check(swiz(0x11223344), 0x44332211);
+    check32(swiz(0x11223344), 0x44332211);
 }
 
 int main()

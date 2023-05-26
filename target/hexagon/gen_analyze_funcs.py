@@ -165,7 +165,7 @@ def analyze_opn_new(f, tag, regtype, regid, regno):
         hex_common.bad_register(regtype, regid)
 
 
-def analyze_opn(f, tag, regtype, regid, toss, numregs, i):
+def analyze_opn(f, tag, regtype, regid, i):
     if hex_common.is_pair(regid):
         analyze_opn_old(f, tag, regtype, regid, i)
     elif hex_common.is_single(regid):
@@ -174,9 +174,9 @@ def analyze_opn(f, tag, regtype, regid, toss, numregs, i):
         elif hex_common.is_new_val(regtype, regid, tag):
             analyze_opn_new(f, tag, regtype, regid, i)
         else:
-            hex_common.bad_register(regtype, regid, toss, numregs)
+            hex_common.bad_register(regtype, regid)
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 ##
@@ -202,8 +202,8 @@ def gen_analyze_func(f, tag, regs, imms):
 
     i = 0
     ## Analyze all the registers
-    for regtype, regid, toss, numregs in regs:
-        analyze_opn(f, tag, regtype, regid, toss, numregs, i)
+    for regtype, regid in regs:
+        analyze_opn(f, tag, regtype, regid, i)
         i += 1
 
     has_generated_helper = not hex_common.skip_qemu_helper(

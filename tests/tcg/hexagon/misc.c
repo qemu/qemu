@@ -16,15 +16,15 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
+int err;
+
+#include "hex_test.h"
+
 #define CORE_HAS_CABAC            (__HEXAGON_ARCH__ <= 71)
-
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-
 
 static inline void S4_storerhnew_rr(void *p, int index, uint16_t v)
 {
@@ -76,7 +76,7 @@ static inline void *S4_storerinew_ap(uint32_t v)
   return ret;
 }
 
-static inline void S4_storeirbt_io(void *p, int pred)
+static inline void S4_storeirbt_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (p0) memb(%1+#4)=#27\n\t"
@@ -84,7 +84,7 @@ static inline void S4_storeirbt_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirbf_io(void *p, int pred)
+static inline void S4_storeirbf_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (!p0) memb(%1+#4)=#27\n\t"
@@ -92,7 +92,7 @@ static inline void S4_storeirbf_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirbtnew_io(void *p, int pred)
+static inline void S4_storeirbtnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -102,7 +102,7 @@ static inline void S4_storeirbtnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirbfnew_io(void *p, int pred)
+static inline void S4_storeirbfnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -112,7 +112,7 @@ static inline void S4_storeirbfnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirht_io(void *p, int pred)
+static inline void S4_storeirht_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (p0) memh(%1+#4)=#27\n\t"
@@ -120,7 +120,7 @@ static inline void S4_storeirht_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirhf_io(void *p, int pred)
+static inline void S4_storeirhf_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (!p0) memh(%1+#4)=#27\n\t"
@@ -128,7 +128,7 @@ static inline void S4_storeirhf_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirhtnew_io(void *p, int pred)
+static inline void S4_storeirhtnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -138,7 +138,7 @@ static inline void S4_storeirhtnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirhfnew_io(void *p, int pred)
+static inline void S4_storeirhfnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -148,7 +148,7 @@ static inline void S4_storeirhfnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirit_io(void *p, int pred)
+static inline void S4_storeirit_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (p0) memw(%1+#4)=#27\n\t"
@@ -156,7 +156,7 @@ static inline void S4_storeirit_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirif_io(void *p, int pred)
+static inline void S4_storeirif_io(void *p, bool pred)
 {
   asm volatile("p0 = cmp.eq(%0, #1)\n\t"
                "if (!p0) memw(%1+#4)=#27\n\t"
@@ -164,7 +164,7 @@ static inline void S4_storeirif_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeiritnew_io(void *p, int pred)
+static inline void S4_storeiritnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -174,7 +174,7 @@ static inline void S4_storeiritnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static inline void S4_storeirifnew_io(void *p, int pred)
+static inline void S4_storeirifnew_io(void *p, bool pred)
 {
   asm volatile("{\n\t"
                "    p0 = cmp.eq(%0, #1)\n\t"
@@ -184,9 +184,9 @@ static inline void S4_storeirifnew_io(void *p, int pred)
                : "p0", "memory");
 }
 
-static int L2_ploadrifnew_pi(void *p, int pred)
+static int32_t L2_ploadrifnew_pi(void *p, bool pred)
 {
-  int result;
+  int32_t result;
   asm volatile("%0 = #31\n\t"
                "{\n\t"
                "    p0 = cmp.eq(%2, #1)\n\t"
@@ -203,9 +203,9 @@ static int L2_ploadrifnew_pi(void *p, int pred)
  * account for auto-anding.  Then, we can do the predicated
  * jump.
  */
-static inline int cmpnd_cmp_jump(void)
+static inline int32_t cmpnd_cmp_jump(void)
 {
-    int retval;
+    int32_t retval;
     asm ("r5 = #7\n\t"
          "r6 = #9\n\t"
          "{\n\t"
@@ -222,9 +222,9 @@ static inline int cmpnd_cmp_jump(void)
     return retval;
 }
 
-static inline int test_clrtnew(int arg1, int old_val)
+static inline int32_t test_clrtnew(int32_t arg1, int32_t old_val)
 {
-  int ret;
+  int32_t ret;
   asm volatile("r5 = %2\n\t"
                "{\n\t"
                    "p0 = cmp.eq(%1, #1)\n\t"
@@ -237,36 +237,16 @@ static inline int test_clrtnew(int arg1, int old_val)
   return ret;
 }
 
-int err;
-
-static void check(int val, int expect)
-{
-    if (val != expect) {
-        printf("ERROR: 0x%04x != 0x%04x\n", val, expect);
-        err++;
-    }
-}
-
-#if CORE_HAS_CABAC
-static void check64(long long val, long long expect)
-{
-    if (val != expect) {
-        printf("ERROR: 0x%016llx != 0x%016llx\n", val, expect);
-        err++;
-    }
-}
-#endif
-
 uint32_t init[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 uint32_t array[10];
 
-uint32_t early_exit;
+bool early_exit;
 
 /*
  * Write this as a function because we can't guarantee the compiler will
  * allocate a frame with just the SL2_return_tnew packet.
  */
-static void SL2_return_tnew(int x);
+static void SL2_return_tnew(bool pred);
 asm ("SL2_return_tnew:\n\t"
      "   allocframe(#0)\n\t"
      "   r1 = #1\n\t"
@@ -280,9 +260,9 @@ asm ("SL2_return_tnew:\n\t"
      "   dealloc_return\n\t"
     );
 
-static long long creg_pair(int x, int y)
+static int64_t creg_pair(int32_t x, int32_t y)
 {
-    long long retval;
+    int64_t retval;
     asm ("m0 = %1\n\t"
          "m1 = %2\n\t"
          "%0 = c7:6\n\t"
@@ -291,9 +271,9 @@ static long long creg_pair(int x, int y)
 }
 
 #if CORE_HAS_CABAC
-static long long decbin(long long x, long long y, int *pred)
+static int64_t decbin(int64_t x, int64_t y, bool *pred)
 {
-    long long retval;
+    int64_t retval;
     asm ("%0 = decbin(%2, %3)\n\t"
          "%1 = p0\n\t"
          : "=r"(retval), "=r"(*pred)
@@ -303,9 +283,9 @@ static long long decbin(long long x, long long y, int *pred)
 #endif
 
 /* Check that predicates are auto-and'ed in a packet */
-static int auto_and(void)
+static bool auto_and(void)
 {
-    int retval;
+    bool retval;
     asm ("r5 = #1\n\t"
          "{\n\t"
          "    p0 = cmp.eq(r1, #1)\n\t"
@@ -320,7 +300,7 @@ static int auto_and(void)
 
 void test_lsbnew(void)
 {
-    int result;
+    int32_t result;
 
     asm("r0 = #2\n\t"
         "r1 = #5\n\t"
@@ -330,7 +310,7 @@ void test_lsbnew(void)
         "}\n\t"
         "%0 = r1\n\t"
         : "=r"(result) :: "r0", "r1", "p0");
-    check(result, 5);
+    check32(result, 5);
 }
 
 void test_l2fetch(void)
@@ -340,226 +320,224 @@ void test_l2fetch(void)
                   "l2fetch(r0, r3:2)\n\t");
 }
 
-static inline int ct0(uint32_t x)
+static inline int32_t ct0(uint32_t x)
 {
-    int res;
+    int32_t res;
     asm("%0 = ct0(%1)\n\t" : "=r"(res) : "r"(x));
     return res;
 }
 
-static inline int ct1(uint32_t x)
+static inline int32_t ct1(uint32_t x)
 {
-    int res;
+    int32_t res;
     asm("%0 = ct1(%1)\n\t" : "=r"(res) : "r"(x));
     return res;
 }
 
-static inline int ct0p(uint64_t x)
+static inline int32_t ct0p(uint64_t x)
 {
-    int res;
+    int32_t res;
     asm("%0 = ct0(%1)\n\t" : "=r"(res) : "r"(x));
     return res;
 }
 
-static inline int ct1p(uint64_t x)
+static inline int32_t ct1p(uint64_t x)
 {
-    int res;
+    int32_t res;
     asm("%0 = ct1(%1)\n\t" : "=r"(res) : "r"(x));
     return res;
 }
 
 void test_count_trailing_zeros_ones(void)
 {
-    check(ct0(0x0000000f), 0);
-    check(ct0(0x00000000), 32);
-    check(ct0(0x000000f0), 4);
+    check32(ct0(0x0000000f), 0);
+    check32(ct0(0x00000000), 32);
+    check32(ct0(0x000000f0), 4);
 
-    check(ct1(0x000000f0), 0);
-    check(ct1(0x0000000f), 4);
-    check(ct1(0x00000000), 0);
-    check(ct1(0xffffffff), 32);
+    check32(ct1(0x000000f0), 0);
+    check32(ct1(0x0000000f), 4);
+    check32(ct1(0x00000000), 0);
+    check32(ct1(0xffffffff), 32);
 
-    check(ct0p(0x000000000000000fULL), 0);
-    check(ct0p(0x0000000000000000ULL), 64);
-    check(ct0p(0x00000000000000f0ULL), 4);
+    check32(ct0p(0x000000000000000fULL), 0);
+    check32(ct0p(0x0000000000000000ULL), 64);
+    check32(ct0p(0x00000000000000f0ULL), 4);
 
-    check(ct1p(0x00000000000000f0ULL), 0);
-    check(ct1p(0x000000000000000fULL), 4);
-    check(ct1p(0x0000000000000000ULL), 0);
-    check(ct1p(0xffffffffffffffffULL), 64);
-    check(ct1p(0xffffffffff0fffffULL), 20);
-    check(ct1p(0xffffff0fffffffffULL), 36);
+    check32(ct1p(0x00000000000000f0ULL), 0);
+    check32(ct1p(0x000000000000000fULL), 4);
+    check32(ct1p(0x0000000000000000ULL), 0);
+    check32(ct1p(0xffffffffffffffffULL), 64);
+    check32(ct1p(0xffffffffff0fffffULL), 20);
+    check32(ct1p(0xffffff0fffffffffULL), 36);
 }
 
-static inline int dpmpyss_rnd_s0(int x, int y)
+static inline int32_t dpmpyss_rnd_s0(int32_t x, int32_t y)
 {
-    int res;
+    int32_t res;
     asm("%0 = mpy(%1, %2):rnd\n\t" : "=r"(res) : "r"(x), "r"(y));
     return res;
 }
 
 void test_dpmpyss_rnd_s0(void)
 {
-    check(dpmpyss_rnd_s0(-1, 0x80000000), 1);
-    check(dpmpyss_rnd_s0(0, 0x80000000), 0);
-    check(dpmpyss_rnd_s0(1, 0x80000000), 0);
-    check(dpmpyss_rnd_s0(0x7fffffff, 0x80000000), 0xc0000001);
-    check(dpmpyss_rnd_s0(0x80000000, -1), 1);
-    check(dpmpyss_rnd_s0(-1, -1), 0);
-    check(dpmpyss_rnd_s0(0, -1), 0);
-    check(dpmpyss_rnd_s0(1, -1), 0);
-    check(dpmpyss_rnd_s0(0x7fffffff, -1), 0);
-    check(dpmpyss_rnd_s0(0x80000000, 0), 0);
-    check(dpmpyss_rnd_s0(-1, 0), 0);
-    check(dpmpyss_rnd_s0(0, 0), 0);
-    check(dpmpyss_rnd_s0(1, 0), 0);
-    check(dpmpyss_rnd_s0(-1, -1), 0);
-    check(dpmpyss_rnd_s0(0, -1), 0);
-    check(dpmpyss_rnd_s0(1, -1), 0);
-    check(dpmpyss_rnd_s0(0x7fffffff, 1), 0);
-    check(dpmpyss_rnd_s0(0x80000000, 0x7fffffff), 0xc0000001);
-    check(dpmpyss_rnd_s0(-1, 0x7fffffff), 0);
-    check(dpmpyss_rnd_s0(0, 0x7fffffff),  0);
-    check(dpmpyss_rnd_s0(1, 0x7fffffff),  0);
-    check(dpmpyss_rnd_s0(0x7fffffff, 0x7fffffff), 0x3fffffff);
+    check32(dpmpyss_rnd_s0(-1, 0x80000000), 1);
+    check32(dpmpyss_rnd_s0(0, 0x80000000), 0);
+    check32(dpmpyss_rnd_s0(1, 0x80000000), 0);
+    check32(dpmpyss_rnd_s0(0x7fffffff, 0x80000000), 0xc0000001);
+    check32(dpmpyss_rnd_s0(0x80000000, -1), 1);
+    check32(dpmpyss_rnd_s0(-1, -1), 0);
+    check32(dpmpyss_rnd_s0(0, -1), 0);
+    check32(dpmpyss_rnd_s0(1, -1), 0);
+    check32(dpmpyss_rnd_s0(0x7fffffff, -1), 0);
+    check32(dpmpyss_rnd_s0(0x80000000, 0), 0);
+    check32(dpmpyss_rnd_s0(-1, 0), 0);
+    check32(dpmpyss_rnd_s0(0, 0), 0);
+    check32(dpmpyss_rnd_s0(1, 0), 0);
+    check32(dpmpyss_rnd_s0(-1, -1), 0);
+    check32(dpmpyss_rnd_s0(0, -1), 0);
+    check32(dpmpyss_rnd_s0(1, -1), 0);
+    check32(dpmpyss_rnd_s0(0x7fffffff, 1), 0);
+    check32(dpmpyss_rnd_s0(0x80000000, 0x7fffffff), 0xc0000001);
+    check32(dpmpyss_rnd_s0(-1, 0x7fffffff), 0);
+    check32(dpmpyss_rnd_s0(0, 0x7fffffff),  0);
+    check32(dpmpyss_rnd_s0(1, 0x7fffffff),  0);
+    check32(dpmpyss_rnd_s0(0x7fffffff, 0x7fffffff), 0x3fffffff);
 }
 
 int main()
 {
-    int res;
-#if CORE_HAS_CABAC
-    long long res64;
-    int pred;
-#endif
+    int32_t res;
+    int64_t res64;
+    bool pred;
 
     memcpy(array, init, sizeof(array));
     S4_storerhnew_rr(array, 4, 0xffff);
-    check(array[4], 0xffff);
+    check32(array[4], 0xffff);
 
     data = ~0;
-    check((uint32_t)S4_storerbnew_ap(0x12), (uint32_t)&data);
-    check(data, 0xffffff12);
+    checkp(S4_storerbnew_ap(0x12), &data);
+    check32(data, 0xffffff12);
 
     data = ~0;
-    check((uint32_t)S4_storerhnew_ap(0x1234), (uint32_t)&data);
-    check(data, 0xffff1234);
+    checkp(S4_storerhnew_ap(0x1234), &data);
+    check32(data, 0xffff1234);
 
     data = ~0;
-    check((uint32_t)S4_storerinew_ap(0x12345678), (uint32_t)&data);
-    check(data, 0x12345678);
+    checkp(S4_storerinew_ap(0x12345678), &data);
+    check32(data, 0x12345678);
 
     /* Byte */
     memcpy(array, init, sizeof(array));
-    S4_storeirbt_io(&array[1], 1);
-    check(array[2], 27);
-    S4_storeirbt_io(&array[2], 0);
-    check(array[3], 3);
+    S4_storeirbt_io(&array[1], true);
+    check32(array[2], 27);
+    S4_storeirbt_io(&array[2], false);
+    check32(array[3], 3);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirbf_io(&array[3], 0);
-    check(array[4], 27);
-    S4_storeirbf_io(&array[4], 1);
-    check(array[5], 5);
+    S4_storeirbf_io(&array[3], false);
+    check32(array[4], 27);
+    S4_storeirbf_io(&array[4], true);
+    check32(array[5], 5);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirbtnew_io(&array[5], 1);
-    check(array[6], 27);
-    S4_storeirbtnew_io(&array[6], 0);
-    check(array[7], 7);
+    S4_storeirbtnew_io(&array[5], true);
+    check32(array[6], 27);
+    S4_storeirbtnew_io(&array[6], false);
+    check32(array[7], 7);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirbfnew_io(&array[7], 0);
-    check(array[8], 27);
-    S4_storeirbfnew_io(&array[8], 1);
-    check(array[9], 9);
+    S4_storeirbfnew_io(&array[7], false);
+    check32(array[8], 27);
+    S4_storeirbfnew_io(&array[8], true);
+    check32(array[9], 9);
 
     /* Half word */
     memcpy(array, init, sizeof(array));
-    S4_storeirht_io(&array[1], 1);
-    check(array[2], 27);
-    S4_storeirht_io(&array[2], 0);
-    check(array[3], 3);
+    S4_storeirht_io(&array[1], true);
+    check32(array[2], 27);
+    S4_storeirht_io(&array[2], false);
+    check32(array[3], 3);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirhf_io(&array[3], 0);
-    check(array[4], 27);
-    S4_storeirhf_io(&array[4], 1);
-    check(array[5], 5);
+    S4_storeirhf_io(&array[3], false);
+    check32(array[4], 27);
+    S4_storeirhf_io(&array[4], true);
+    check32(array[5], 5);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirhtnew_io(&array[5], 1);
-    check(array[6], 27);
-    S4_storeirhtnew_io(&array[6], 0);
-    check(array[7], 7);
+    S4_storeirhtnew_io(&array[5], true);
+    check32(array[6], 27);
+    S4_storeirhtnew_io(&array[6], false);
+    check32(array[7], 7);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirhfnew_io(&array[7], 0);
-    check(array[8], 27);
-    S4_storeirhfnew_io(&array[8], 1);
-    check(array[9], 9);
+    S4_storeirhfnew_io(&array[7], false);
+    check32(array[8], 27);
+    S4_storeirhfnew_io(&array[8], true);
+    check32(array[9], 9);
 
     /* Word */
     memcpy(array, init, sizeof(array));
-    S4_storeirit_io(&array[1], 1);
-    check(array[2], 27);
-    S4_storeirit_io(&array[2], 0);
-    check(array[3], 3);
+    S4_storeirit_io(&array[1], true);
+    check32(array[2], 27);
+    S4_storeirit_io(&array[2], false);
+    check32(array[3], 3);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirif_io(&array[3], 0);
-    check(array[4], 27);
-    S4_storeirif_io(&array[4], 1);
-    check(array[5], 5);
+    S4_storeirif_io(&array[3], false);
+    check32(array[4], 27);
+    S4_storeirif_io(&array[4], true);
+    check32(array[5], 5);
 
     memcpy(array, init, sizeof(array));
-    S4_storeiritnew_io(&array[5], 1);
-    check(array[6], 27);
-    S4_storeiritnew_io(&array[6], 0);
-    check(array[7], 7);
+    S4_storeiritnew_io(&array[5], true);
+    check32(array[6], 27);
+    S4_storeiritnew_io(&array[6], false);
+    check32(array[7], 7);
 
     memcpy(array, init, sizeof(array));
-    S4_storeirifnew_io(&array[7], 0);
-    check(array[8], 27);
-    S4_storeirifnew_io(&array[8], 1);
-    check(array[9], 9);
+    S4_storeirifnew_io(&array[7], false);
+    check32(array[8], 27);
+    S4_storeirifnew_io(&array[8], true);
+    check32(array[9], 9);
 
     memcpy(array, init, sizeof(array));
-    res = L2_ploadrifnew_pi(&array[6], 0);
-    check(res, 6);
-    res = L2_ploadrifnew_pi(&array[7], 1);
-    check(res, 31);
+    res = L2_ploadrifnew_pi(&array[6], false);
+    check32(res, 6);
+    res = L2_ploadrifnew_pi(&array[7], true);
+    check32(res, 31);
 
-    int x = cmpnd_cmp_jump();
-    check(x, 12);
+    res = cmpnd_cmp_jump();
+    check32(res, 12);
 
-    SL2_return_tnew(0);
-    check(early_exit, 0);
-    SL2_return_tnew(1);
-    check(early_exit, 1);
+    SL2_return_tnew(false);
+    check32(early_exit, false);
+    SL2_return_tnew(true);
+    check32(early_exit, true);
 
-    long long pair = creg_pair(5, 7);
-    check((int)pair, 5);
-    check((int)(pair >> 32), 7);
+    res64 = creg_pair(5, 7);
+    check32((int32_t)res64, 5);
+    check32((int32_t)(res64 >> 32), 7);
 
     res = test_clrtnew(1, 7);
-    check(res, 0);
+    check32(res, 0);
     res = test_clrtnew(2, 7);
-    check(res, 7);
+    check32(res, 7);
 
 #if CORE_HAS_CABAC
     res64 = decbin(0xf0f1f2f3f4f5f6f7LL, 0x7f6f5f4f3f2f1f0fLL, &pred);
     check64(res64, 0x357980003700010cLL);
-    check(pred, 0);
+    check32(pred, false);
 
     res64 = decbin(0xfLL, 0x1bLL, &pred);
     check64(res64, 0x78000100LL);
-    check(pred, 1);
+    check32(pred, true);
 #else
     puts("Skipping cabac tests");
 #endif
 
-    res = auto_and();
-    check(res, 0);
+    pred = auto_and();
+    check32(pred, false);
 
     test_lsbnew();
 

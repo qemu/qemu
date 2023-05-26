@@ -1,5 +1,5 @@
 /*
- *  Copyright(c) 2019-2022 Qualcomm Innovation Center, Inc. All Rights Reserved.
+ *  Copyright(c) 2019-2023 Qualcomm Innovation Center, Inc. All Rights Reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,6 +16,12 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+int err;
+
+#include "hex_test.h"
 
 /*
  *  Make sure that the :mem_noshuf packet attribute is honored.
@@ -25,9 +31,9 @@
  */
 
 #define MEM_NOSHUF32(NAME, ST_TYPE, LD_TYPE, ST_OP, LD_OP) \
-static inline unsigned int NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
+static inline uint32_t NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
 { \
-    unsigned int ret; \
+    uint32_t ret; \
     asm volatile("{\n\t" \
                  "    " #ST_OP "(%1) = %3\n\t" \
                  "    %0 = " #LD_OP "(%2)\n\t" \
@@ -39,9 +45,9 @@ static inline unsigned int NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
 }
 
 #define MEM_NOSHUF64(NAME, ST_TYPE, LD_TYPE, ST_OP, LD_OP) \
-static inline unsigned long long NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
+static inline uint64_t NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
 { \
-    unsigned long long ret; \
+    uint64_t ret; \
     asm volatile("{\n\t" \
                  "    " #ST_OP "(%1) = %3\n\t" \
                  "    %0 = " #LD_OP "(%2)\n\t" \
@@ -53,38 +59,39 @@ static inline unsigned long long NAME(ST_TYPE * p, LD_TYPE * q, ST_TYPE x) \
 }
 
 /* Store byte combinations */
-MEM_NOSHUF32(mem_noshuf_sb_lb,  signed char,  signed char,      memb, memb)
-MEM_NOSHUF32(mem_noshuf_sb_lub, signed char,  unsigned char,    memb, memub)
-MEM_NOSHUF32(mem_noshuf_sb_lh,  signed char,  signed short,     memb, memh)
-MEM_NOSHUF32(mem_noshuf_sb_luh, signed char,  unsigned short,   memb, memuh)
-MEM_NOSHUF32(mem_noshuf_sb_lw,  signed char,  signed int,       memb, memw)
-MEM_NOSHUF64(mem_noshuf_sb_ld,  signed char,  signed long long, memb, memd)
+MEM_NOSHUF32(mem_noshuf_sb_lb,  int8_t,       int8_t,           memb, memb)
+MEM_NOSHUF32(mem_noshuf_sb_lub, int8_t,       uint8_t,          memb, memub)
+MEM_NOSHUF32(mem_noshuf_sb_lh,  int8_t,       int16_t,          memb, memh)
+MEM_NOSHUF32(mem_noshuf_sb_luh, int8_t,       uint16_t,         memb, memuh)
+MEM_NOSHUF32(mem_noshuf_sb_lw,  int8_t,       int32_t,          memb, memw)
+MEM_NOSHUF64(mem_noshuf_sb_ld,  int8_t,       int64_t,          memb, memd)
 
 /* Store half combinations */
-MEM_NOSHUF32(mem_noshuf_sh_lb,  signed short, signed char,      memh, memb)
-MEM_NOSHUF32(mem_noshuf_sh_lub, signed short, unsigned char,    memh, memub)
-MEM_NOSHUF32(mem_noshuf_sh_lh,  signed short, signed short,     memh, memh)
-MEM_NOSHUF32(mem_noshuf_sh_luh, signed short, unsigned short,   memh, memuh)
-MEM_NOSHUF32(mem_noshuf_sh_lw,  signed short, signed int,       memh, memw)
-MEM_NOSHUF64(mem_noshuf_sh_ld,  signed short, signed long long, memh, memd)
+MEM_NOSHUF32(mem_noshuf_sh_lb,  int16_t,      int8_t,           memh, memb)
+MEM_NOSHUF32(mem_noshuf_sh_lub, int16_t,      uint8_t,          memh, memub)
+MEM_NOSHUF32(mem_noshuf_sh_lh,  int16_t,      int16_t,          memh, memh)
+MEM_NOSHUF32(mem_noshuf_sh_luh, int16_t,      uint16_t,         memh, memuh)
+MEM_NOSHUF32(mem_noshuf_sh_lw,  int16_t,      int32_t,          memh, memw)
+MEM_NOSHUF64(mem_noshuf_sh_ld,  int16_t,      int64_t,          memh, memd)
 
 /* Store word combinations */
-MEM_NOSHUF32(mem_noshuf_sw_lb,  signed int,   signed char,      memw, memb)
-MEM_NOSHUF32(mem_noshuf_sw_lub, signed int,   unsigned char,    memw, memub)
-MEM_NOSHUF32(mem_noshuf_sw_lh,  signed int,   signed short,     memw, memh)
-MEM_NOSHUF32(mem_noshuf_sw_luh, signed int,   unsigned short,   memw, memuh)
-MEM_NOSHUF32(mem_noshuf_sw_lw,  signed int,   signed int,       memw, memw)
-MEM_NOSHUF64(mem_noshuf_sw_ld,  signed int,   signed long long, memw, memd)
+MEM_NOSHUF32(mem_noshuf_sw_lb,  int32_t,      int8_t,           memw, memb)
+MEM_NOSHUF32(mem_noshuf_sw_lub, int32_t,      uint8_t,          memw, memub)
+MEM_NOSHUF32(mem_noshuf_sw_lh,  int32_t,      int16_t,          memw, memh)
+MEM_NOSHUF32(mem_noshuf_sw_luh, int32_t,      uint16_t,         memw, memuh)
+MEM_NOSHUF32(mem_noshuf_sw_lw,  int32_t,      int32_t,          memw, memw)
+MEM_NOSHUF64(mem_noshuf_sw_ld,  int32_t,      int64_t,          memw, memd)
 
 /* Store double combinations */
-MEM_NOSHUF32(mem_noshuf_sd_lb,  long long,    signed char,      memd, memb)
-MEM_NOSHUF32(mem_noshuf_sd_lub, long long,    unsigned char,    memd, memub)
-MEM_NOSHUF32(mem_noshuf_sd_lh,  long long,    signed short,     memd, memh)
-MEM_NOSHUF32(mem_noshuf_sd_luh, long long,    unsigned short,   memd, memuh)
-MEM_NOSHUF32(mem_noshuf_sd_lw,  long long,    signed int,       memd, memw)
-MEM_NOSHUF64(mem_noshuf_sd_ld,  long long,    signed long long, memd, memd)
+MEM_NOSHUF32(mem_noshuf_sd_lb,  int64_t,      int8_t,           memd, memb)
+MEM_NOSHUF32(mem_noshuf_sd_lub, int64_t,      uint8_t,          memd, memub)
+MEM_NOSHUF32(mem_noshuf_sd_lh,  int64_t,      int16_t,          memd, memh)
+MEM_NOSHUF32(mem_noshuf_sd_luh, int64_t,      uint16_t,         memd, memuh)
+MEM_NOSHUF32(mem_noshuf_sd_lw,  int64_t,      int32_t,          memd, memw)
+MEM_NOSHUF64(mem_noshuf_sd_ld,  int64_t,      int64_t,          memd, memd)
 
-static inline int pred_lw_sw(int pred, int *p, int *q, int x, int y)
+static inline int pred_lw_sw(bool pred, int32_t *p, int32_t *q,
+                             int32_t x, int32_t y)
 {
     int ret;
     asm volatile("p0 = cmp.eq(%5, #0)\n\t"
@@ -99,7 +106,8 @@ static inline int pred_lw_sw(int pred, int *p, int *q, int x, int y)
     return ret;
 }
 
-static inline int pred_lw_sw_pi(int pred, int *p, int *q, int x, int y)
+static inline int pred_lw_sw_pi(bool pred, int32_t *p, int32_t *q,
+                                int32_t x, int32_t y)
 {
     int ret;
     asm volatile("p0 = cmp.eq(%5, #0)\n\t"
@@ -115,10 +123,10 @@ static inline int pred_lw_sw_pi(int pred, int *p, int *q, int x, int y)
     return ret;
 }
 
-static inline long long pred_ld_sd(int pred, long long *p, long long *q,
-                                   long long x, long long y)
+static inline int64_t pred_ld_sd(bool pred, int64_t *p, int64_t *q,
+                                 int64_t x, int64_t y)
 {
-    unsigned long long ret;
+    int64_t ret;
     asm volatile("p0 = cmp.eq(%5, #0)\n\t"
                  "%0 = %3\n\t"
                  "{\n\t"
@@ -131,10 +139,10 @@ static inline long long pred_ld_sd(int pred, long long *p, long long *q,
     return ret;
 }
 
-static inline long long pred_ld_sd_pi(int pred, long long *p, long long *q,
-                                      long long x, long long y)
+static inline int64_t pred_ld_sd_pi(bool pred, int64_t *p, int64_t *q,
+                                    int64_t x, int64_t y)
 {
-    long long ret;
+    int64_t ret;
     asm volatile("p0 = cmp.eq(%5, #0)\n\t"
                  "%0 = %3\n\t"
                  "r7 = %2\n\t"
@@ -148,9 +156,9 @@ static inline long long pred_ld_sd_pi(int pred, long long *p, long long *q,
     return ret;
 }
 
-static inline unsigned int cancel_sw_lb(int pred, int *p, signed char *q, int x)
+static inline int32_t cancel_sw_lb(bool pred, int32_t *p, int8_t *q, int32_t x)
 {
-    unsigned int ret;
+    int32_t ret;
     asm volatile("p0 = cmp.eq(%4, #0)\n\t"
                  "{\n\t"
                  "    if (!p0) memw(%1) = %3\n\t"
@@ -162,10 +170,9 @@ static inline unsigned int cancel_sw_lb(int pred, int *p, signed char *q, int x)
     return ret;
 }
 
-static inline
-unsigned long long cancel_sw_ld(int pred, int *p, long long *q, int x)
+static inline int64_t cancel_sw_ld(bool pred, int32_t *p, int64_t *q, int32_t x)
 {
-    long long ret;
+    int64_t ret;
     asm volatile("p0 = cmp.eq(%4, #0)\n\t"
                  "{\n\t"
                  "    if (!p0) memw(%1) = %3\n\t"
@@ -178,43 +185,21 @@ unsigned long long cancel_sw_ld(int pred, int *p, long long *q, int x)
 }
 
 typedef union {
-    signed long long d[2];
-    unsigned long long ud[2];
-    signed int w[4];
-    unsigned int uw[4];
-    signed short h[8];
-    unsigned short uh[8];
-    signed char b[16];
-    unsigned char ub[16];
+    int64_t d[2];
+    uint64_t ud[2];
+    int32_t w[4];
+    uint32_t uw[4];
+    int16_t h[8];
+    uint16_t uh[8];
+    int8_t b[16];
+    uint8_t ub[16];
 } Memory;
-
-int err;
-
-#define check32(n, expect) check32_(n, expect, __LINE__)
-
-static void check32_(int n, int expect, int line)
-{
-    if (n != expect) {
-        printf("ERROR: 0x%08x != 0x%08x, line %d\n", n, expect, line);
-        err++;
-    }
-}
-
-#define check64(n, expect) check64_(n, expect, __LINE__)
-
-static void check64_(long long n, long long expect, int line)
-{
-    if (n != expect) {
-        printf("ERROR: 0x%08llx != 0x%08llx, line %d\n", n, expect, line);
-        err++;
-    }
-}
 
 int main()
 {
     Memory n;
-    unsigned int res32;
-    unsigned long long res64;
+    uint32_t res32;
+    uint64_t res64;
 
     /*
      * Store byte combinations
@@ -328,30 +313,30 @@ int main()
      * Predicated word stores
      */
     n.w[0] = ~0;
-    res32 = cancel_sw_lb(0, &n.w[0], &n.b[0], 0x12345678);
+    res32 = cancel_sw_lb(false, &n.w[0], &n.b[0], 0x12345678);
     check32(res32, 0xffffffff);
 
     n.w[0] = ~0;
-    res32 = cancel_sw_lb(1, &n.w[0], &n.b[0], 0x12345687);
+    res32 = cancel_sw_lb(true, &n.w[0], &n.b[0], 0x12345687);
     check32(res32, 0xffffff87);
 
     /*
      * Predicated double stores
      */
     n.d[0] = ~0LL;
-    res64 = cancel_sw_ld(0, &n.w[0], &n.d[0], 0x12345678);
+    res64 = cancel_sw_ld(false, &n.w[0], &n.d[0], 0x12345678);
     check64(res64, 0xffffffffffffffffLL);
 
     n.d[0] = ~0LL;
-    res64 = cancel_sw_ld(1, &n.w[0], &n.d[0], 0x12345678);
+    res64 = cancel_sw_ld(true, &n.w[0], &n.d[0], 0x12345678);
     check64(res64, 0xffffffff12345678LL);
 
     n.d[0] = ~0LL;
-    res64 = cancel_sw_ld(0, &n.w[1], &n.d[0], 0x12345678);
+    res64 = cancel_sw_ld(false, &n.w[1], &n.d[0], 0x12345678);
     check64(res64, 0xffffffffffffffffLL);
 
     n.d[0] = ~0LL;
-    res64 = cancel_sw_ld(1, &n.w[1], &n.d[0], 0x12345678);
+    res64 = cancel_sw_ld(true, &n.w[1], &n.d[0], 0x12345678);
     check64(res64, 0x12345678ffffffffLL);
 
     /*
@@ -392,45 +377,45 @@ int main()
     check64(res64, 0xffffffffffffffffLL);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw(0, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw(false, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
     check32(res32, 0x12345678);
     check32(n.w[0], 0xc0ffeeda);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw(1, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw(true, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
     check32(res32, 0xc0ffeeda);
     check32(n.w[0], 0xc0ffeeda);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw_pi(0, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw_pi(false, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
     check32(res32, 0x12345678);
     check32(n.w[0], 0xc0ffeeda);
 
     n.w[0] = ~0;
-    res32 = pred_lw_sw_pi(1, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
+    res32 = pred_lw_sw_pi(true, &n.w[0], &n.w[0], 0x12345678, 0xc0ffeeda);
     check32(res32, 0xc0ffeeda);
     check32(n.w[0], 0xc0ffeeda);
 
     n.d[0] = ~0LL;
-    res64 = pred_ld_sd(0, &n.d[0], &n.d[0],
+    res64 = pred_ld_sd(false, &n.d[0], &n.d[0],
                        0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
     check64(res64, 0x1234567812345678LL);
     check64(n.d[0], 0xc0ffeedac0ffeedaLL);
 
     n.d[0] = ~0LL;
-    res64 = pred_ld_sd(1, &n.d[0], &n.d[0],
+    res64 = pred_ld_sd(true, &n.d[0], &n.d[0],
                        0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
     check64(res64, 0xc0ffeedac0ffeedaLL);
     check64(n.d[0], 0xc0ffeedac0ffeedaLL);
 
     n.d[0] = ~0LL;
-    res64 = pred_ld_sd_pi(0, &n.d[0], &n.d[0],
+    res64 = pred_ld_sd_pi(false, &n.d[0], &n.d[0],
                           0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
     check64(res64, 0x1234567812345678LL);
     check64(n.d[0], 0xc0ffeedac0ffeedaLL);
 
     n.d[0] = ~0LL;
-    res64 = pred_ld_sd_pi(1, &n.d[0], &n.d[0],
+    res64 = pred_ld_sd_pi(true, &n.d[0], &n.d[0],
                           0x1234567812345678LL, 0xc0ffeedac0ffeedaLL);
     check64(res64, 0xc0ffeedac0ffeedaLL);
     check64(n.d[0], 0xc0ffeedac0ffeedaLL);

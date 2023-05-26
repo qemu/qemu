@@ -878,9 +878,9 @@ static void gen_endloop0(DisasContext *ctx)
      */
     if (!ctx->is_tight_loop) {
         /*
-         *    if (hex_gpr[HEX_REG_LC0] > 1) {
-         *        PC = hex_gpr[HEX_REG_SA0];
-         *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+         *    if (LC0 > 1) {
+         *        PC = SA0;
+         *        LC0--;
          *    }
          */
         TCGLabel *label3 = gen_new_label();
@@ -897,9 +897,9 @@ static void gen_endloop0(DisasContext *ctx)
 static void gen_endloop1(DisasContext *ctx)
 {
     /*
-     *    if (hex_gpr[HEX_REG_LC1] > 1) {
-     *        PC = hex_gpr[HEX_REG_SA1];
-     *        hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *    if (LC1 > 1) {
+     *        PC = SA1;
+     *        LC1--;
      *    }
      */
     TCGLabel *label = gen_new_label();
@@ -946,14 +946,12 @@ static void gen_endloop01(DisasContext *ctx)
     gen_set_label(label2);
 
     /*
-     *    if (hex_gpr[HEX_REG_LC0] > 1) {
-     *        PC = hex_gpr[HEX_REG_SA0];
-     *        hex_new_value[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
-     *    } else {
-     *        if (hex_gpr[HEX_REG_LC1] > 1) {
-     *            hex_next_pc = hex_gpr[HEX_REG_SA1];
-     *            hex_new_value[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
-     *        }
+     *    if (LC0 > 1) {
+     *        PC = SA0;
+     *        LC0--;
+     *    } else if (LC1 > 1) {
+     *        PC = SA1;
+     *        LC1--;
      *    }
      */
     tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);

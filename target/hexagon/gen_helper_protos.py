@@ -46,13 +46,13 @@ def_helper_types_pair = {
 }
 
 
-def gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i):
+def gen_def_helper_opn(f, tag, regtype, regid, i):
     if hex_common.is_pair(regid):
         f.write(f", {def_helper_types_pair[regtype]}")
     elif hex_common.is_single(regid):
         f.write(f", {def_helper_types[regtype]}")
     else:
-        hex_common.bad_register(regtype, regid, toss, numregs)
+        hex_common.bad_register(regtype, regid)
 
 
 ##
@@ -68,7 +68,7 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
     numresults = 0
     numscalarresults = 0
     numscalarreadwrite = 0
-    for regtype, regid, toss, numregs in regs:
+    for regtype, regid in regs:
         if hex_common.is_written(regid):
             numresults += 1
             if hex_common.is_scalar_reg(regtype):
@@ -124,10 +124,10 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         ## - Emit the scalar result
         ## - Emit the vector result
         i = 0
-        for regtype, regid, toss, numregs in regs:
+        for regtype, regid in regs:
             if hex_common.is_written(regid):
                 if not hex_common.is_hvx_reg(regtype):
-                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    gen_def_helper_opn(f, tag, regtype, regid, i)
                 i += 1
 
         ## Put the env between the outputs and inputs
@@ -135,27 +135,27 @@ def gen_helper_prototype(f, tag, tagregs, tagimms):
         i += 1
 
         # Second pass
-        for regtype, regid, toss, numregs in regs:
+        for regtype, regid in regs:
             if hex_common.is_written(regid):
                 if hex_common.is_hvx_reg(regtype):
-                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    gen_def_helper_opn(f, tag, regtype, regid, i)
                     i += 1
 
         ## For conditional instructions, we pass in the destination register
         if "A_CONDEXEC" in hex_common.attribdict[tag]:
-            for regtype, regid, toss, numregs in regs:
+            for regtype, regid in regs:
                 if hex_common.is_writeonly(regid) and not hex_common.is_hvx_reg(
                     regtype
                 ):
-                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    gen_def_helper_opn(f, tag, regtype, regid, i)
                     i += 1
 
         ## Generate the qemu type for each input operand (regs and immediates)
-        for regtype, regid, toss, numregs in regs:
+        for regtype, regid in regs:
             if hex_common.is_read(regid):
                 if hex_common.is_hvx_reg(regtype) and hex_common.is_readwrite(regid):
                     continue
-                gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                gen_def_helper_opn(f, tag, regtype, regid, i)
                 i += 1
         for immlett, bits, immshift in imms:
             f.write(", s32")
