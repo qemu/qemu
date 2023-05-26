@@ -71,7 +71,12 @@ def error_with_file(file, lineno, *args):
 
     if output_file and output_fd:
         output_fd.close()
-        os.remove(output_file)
+        # Do not try to remove e.g. -o /dev/null
+        if not output_file.startswith("/dev"):
+            try:
+                os.remove(output_file)
+            except PermissionError:
+                pass
     exit(0 if testforerror else 1)
 # end error_with_file
 
