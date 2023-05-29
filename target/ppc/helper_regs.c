@@ -448,7 +448,7 @@ void register_non_embedded_sprs(CPUPPCState *env)
     /* Exception processing */
     spr_register_kvm(env, SPR_DSISR, "DSISR",
                      SPR_NOACCESS, SPR_NOACCESS,
-                     &spr_read_generic, &spr_write_generic,
+                     &spr_read_generic, &spr_write_generic32,
                      KVM_REG_PPC_DSISR, 0x00000000);
     spr_register_kvm(env, SPR_DAR, "DAR",
                      SPR_NOACCESS, SPR_NOACCESS,

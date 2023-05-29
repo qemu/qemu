@@ -175,8 +175,8 @@ static void test_spapr_cpu_unplug_request(void)
 {
     QTestState *qtest;
 
-    qtest = qtest_initf("-cpu power9_v2.0 -smp 1,maxcpus=2 "
-                        "-device power9_v2.0-spapr-cpu-core,core-id=1,id=dev0");
+    qtest = qtest_initf("-cpu power9_v2.2 -smp 1,maxcpus=2 "
+                        "-device power9_v2.2-spapr-cpu-core,core-id=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
     process_device_remove(qtest, "dev0");

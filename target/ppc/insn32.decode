@@ -390,13 +390,19 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 
 ### Move To/From FPSCR
 
-MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
-MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
-MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
-MFFSCDRN        111111 ..... 10100 ..... 1001000111 -   @X_tb
-MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
-MFFSCDRNI       111111 ..... 10101 --... 1001000111 -   @X_imm3
-MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
+{
+  # Before Power ISA v3.0, MFFS bits 11~15 were reserved and should be ignored
+  MFFS_ISA207     111111 ..... ----- ----- 1001000111 .   @X_t_rc
+  [
+    MFFS            111111 ..... 00000 ----- 1001000111 .   @X_t_rc
+    MFFSCE          111111 ..... 00001 ----- 1001000111 -   @X_t
+    MFFSCRN         111111 ..... 10110 ..... 1001000111 -   @X_tb
+    MFFSCDRN        111111 ..... 10100 ..... 1001000111 -   @X_tb
+    MFFSCRNI        111111 ..... 10111 ---.. 1001000111 -   @X_imm2
+    MFFSCDRNI       111111 ..... 10101 --... 1001000111 -   @X_imm3
+    MFFSL           111111 ..... 11000 ----- 1001000111 -   @X_t
+  ]
+}
 
 ### Decimal Floating-Point Arithmetic Instructions
 

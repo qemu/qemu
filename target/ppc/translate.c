@@ -411,19 +411,6 @@ void spr_write_generic(DisasContext *ctx, int sprn, int gprn)
     spr_store_dump_spr(sprn);
 }
 
-void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
-{
-    spr_write_generic(ctx, sprn, gprn);
-
-    /*
-     * SPR_CTRL writes must force a new translation block,
-     * allowing the PMU to calculate the run latch events with
-     * more accuracy.
-     */
-    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
-}
-
-#if !defined(CONFIG_USER_ONLY)
 void spr_write_generic32(DisasContext *ctx, int sprn, int gprn)
 {
 #ifdef TARGET_PPC64
@@ -436,6 +423,19 @@ void spr_write_generic32(DisasContext *ctx, int sprn, int gprn)
 #endif
 }
 
+void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_write_generic32(ctx, sprn, gprn);
+
+    /*
+     * SPR_CTRL writes must force a new translation block,
+     * allowing the PMU to calculate the run latch events with
+     * more accuracy.
+     */
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+}
+
+#if !defined(CONFIG_USER_ONLY)
 void spr_write_clear(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();

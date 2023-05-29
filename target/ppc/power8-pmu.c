@@ -272,7 +272,7 @@ void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
 {
     pmu_update_cycles(env);
 
-    env->spr[sprn] = value;
+    env->spr[sprn] = (uint32_t)value;
 
     pmc_update_overflow_timer(env, sprn);
 }
