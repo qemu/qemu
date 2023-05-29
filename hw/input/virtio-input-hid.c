@@ -16,9 +16,10 @@
 
 #include "standard-headers/linux/input.h"
 
-#define VIRTIO_ID_NAME_KEYBOARD "QEMU Virtio Keyboard"
-#define VIRTIO_ID_NAME_MOUSE    "QEMU Virtio Mouse"
-#define VIRTIO_ID_NAME_TABLET   "QEMU Virtio Tablet"
+#define VIRTIO_ID_NAME_KEYBOARD     "QEMU Virtio Keyboard"
+#define VIRTIO_ID_NAME_MOUSE        "QEMU Virtio Mouse"
+#define VIRTIO_ID_NAME_TABLET       "QEMU Virtio Tablet"
+#define VIRTIO_ID_NAME_MULTITOUCH   "QEMU Virtio MultiTouch"
 
 /* ----------------------------------------------------------------- */
 
@@ -30,6 +31,7 @@ static const unsigned short keymap_button[INPUT_BUTTON__MAX] = {
     [INPUT_BUTTON_WHEEL_DOWN]        = BTN_GEAR_DOWN,
     [INPUT_BUTTON_SIDE]              = BTN_SIDE,
     [INPUT_BUTTON_EXTRA]             = BTN_EXTRA,
+    [INPUT_BUTTON_TOUCH]             = BTN_TOUCH,
 };
 
 static const unsigned short axismap_rel[INPUT_AXIS__MAX] = {
@@ -42,32 +44,38 @@ static const unsigned short axismap_abs[INPUT_AXIS__MAX] = {
     [INPUT_AXIS_Y]                   = ABS_Y,
 };
 
+static const unsigned short axismap_tch[INPUT_AXIS__MAX] = {
+    [INPUT_AXIS_X]                   = ABS_MT_POSITION_X,
+    [INPUT_AXIS_Y]                   = ABS_MT_POSITION_Y,
+};
+
 /* ----------------------------------------------------------------- */
 
-static void virtio_input_key_config(VirtIOInput *vinput,
-                                    const unsigned short *keymap,
-                                    size_t mapsize)
+static void virtio_input_extend_config(VirtIOInput *vinput,
+                                       const unsigned short *map,
+                                       size_t mapsize,
+                                       uint8_t select, uint8_t subsel)
 {
-    virtio_input_config keys;
+    virtio_input_config ext;
     int i, bit, byte, bmax = 0;
 
-    memset(&keys, 0, sizeof(keys));
+    memset(&ext, 0, sizeof(ext));
     for (i = 0; i < mapsize; i++) {
-        bit = keymap[i];
+        bit = map[i];
         if (!bit) {
             continue;
         }
         byte = bit / 8;
         bit  = bit % 8;
-        keys.u.bitmap[byte] |= (1 << bit);
+        ext.u.bitmap[byte] |= (1 << bit);
         if (bmax < byte+1) {
             bmax = byte+1;
         }
     }
-    keys.select = VIRTIO_INPUT_CFG_EV_BITS;
-    keys.subsel = EV_KEY;
-    keys.size   = bmax;
-    virtio_input_add_config(vinput, &keys);
+    ext.select = select;
+    ext.subsel = subsel;
+    ext.size   = bmax;
+    virtio_input_add_config(vinput, &ext);
 }
 
 static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
@@ -80,6 +88,7 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
     InputKeyEvent *key;
     InputMoveEvent *move;
     InputBtnEvent *btn;
+    InputMultiTouchEvent *mtt;
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
@@ -135,6 +144,24 @@ static void virtio_input_handle_event(DeviceState *dev, QemuConsole *src,
         event.code  = cpu_to_le16(axismap_abs[move->axis]);
         event.value = cpu_to_le32(move->value);
         virtio_input_send(vinput, &event);
+        break;
+    case INPUT_EVENT_KIND_MTT:
+        mtt = evt->u.mtt.data;
+        if (mtt->type == INPUT_MULTI_TOUCH_TYPE_DATA) {
+            event.type  = cpu_to_le16(EV_ABS);
+            event.code  = cpu_to_le16(axismap_tch[mtt->axis]);
+            event.value = cpu_to_le32(mtt->value);
+            virtio_input_send(vinput, &event);
+        } else {
+            event.type  = cpu_to_le16(EV_ABS);
+            event.code  = cpu_to_le16(ABS_MT_SLOT);
+            event.value = cpu_to_le32(mtt->slot);
+            virtio_input_send(vinput, &event);
+            event.type  = cpu_to_le16(EV_ABS);
+            event.code  = cpu_to_le16(ABS_MT_TRACKING_ID);
+            event.value = cpu_to_le32(mtt->tracking_id);
+            virtio_input_send(vinput, &event);
+        }
         break;
     default:
         /* keep gcc happy */
@@ -281,8 +308,9 @@ static void virtio_keyboard_init(Object *obj)
 
     vhid->handler = &virtio_keyboard_handler;
     virtio_input_init_config(vinput, virtio_keyboard_config);
-    virtio_input_key_config(vinput, qemu_input_map_qcode_to_linux,
-                            qemu_input_map_qcode_to_linux_len);
+    virtio_input_extend_config(vinput, qemu_input_map_qcode_to_linux,
+                               qemu_input_map_qcode_to_linux_len,
+                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
 static const TypeInfo virtio_keyboard_info = {
@@ -373,8 +401,9 @@ static void virtio_mouse_init(Object *obj)
     virtio_input_init_config(vinput, vhid->wheel_axis
                              ? virtio_mouse_config_v2
                              : virtio_mouse_config_v1);
-    virtio_input_key_config(vinput, keymap_button,
-                            ARRAY_SIZE(keymap_button));
+    virtio_input_extend_config(vinput, keymap_button,
+                               ARRAY_SIZE(keymap_button),
+                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
 static const TypeInfo virtio_mouse_info = {
@@ -497,8 +526,9 @@ static void virtio_tablet_init(Object *obj)
     virtio_input_init_config(vinput, vhid->wheel_axis
                              ? virtio_tablet_config_v2
                              : virtio_tablet_config_v1);
-    virtio_input_key_config(vinput, keymap_button,
-                            ARRAY_SIZE(keymap_button));
+    virtio_input_extend_config(vinput, keymap_button,
+                               ARRAY_SIZE(keymap_button),
+                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
 }
 
 static const TypeInfo virtio_tablet_info = {
@@ -511,12 +541,98 @@ static const TypeInfo virtio_tablet_info = {
 
 /* ----------------------------------------------------------------- */
 
+static QemuInputHandler virtio_multitouch_handler = {
+    .name  = VIRTIO_ID_NAME_MULTITOUCH,
+    .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_MTT,
+    .event = virtio_input_handle_event,
+    .sync  = virtio_input_handle_sync,
+};
+
+static struct virtio_input_config virtio_multitouch_config[] = {
+    {
+        .select    = VIRTIO_INPUT_CFG_ID_NAME,
+        .size      = sizeof(VIRTIO_ID_NAME_MULTITOUCH),
+        .u.string  = VIRTIO_ID_NAME_MULTITOUCH,
+    },{
+        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
+        .size      = sizeof(struct virtio_input_devids),
+        .u.ids     = {
+            .bustype = const_le16(BUS_VIRTUAL),
+            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
+            .product = const_le16(0x0003),
+            .version = const_le16(0x0001),
+        },
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_MT_SLOT,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_SLOTS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_SLOTS_MAX),
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_MT_TRACKING_ID,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_SLOTS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_SLOTS_MAX),
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_MT_POSITION_X,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
+    },{
+        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
+        .subsel    = ABS_MT_POSITION_Y,
+        .size      = sizeof(virtio_input_absinfo),
+        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
+        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
+    },
+    { /* end of list */ },
+};
+
+static void virtio_multitouch_init(Object *obj)
+{
+    VirtIOInputHID *vhid = VIRTIO_INPUT_HID(obj);
+    VirtIOInput *vinput = VIRTIO_INPUT(obj);
+    unsigned short abs_props[] = {
+        INPUT_PROP_DIRECT,
+    };
+    unsigned short abs_bits[] = {
+        ABS_MT_SLOT,
+        ABS_MT_TRACKING_ID,
+        ABS_MT_POSITION_X,
+        ABS_MT_POSITION_Y,
+    };
+
+    vhid->handler = &virtio_multitouch_handler;
+    virtio_input_init_config(vinput, virtio_multitouch_config);
+    virtio_input_extend_config(vinput, keymap_button,
+                               ARRAY_SIZE(keymap_button),
+                               VIRTIO_INPUT_CFG_EV_BITS, EV_KEY);
+    virtio_input_extend_config(vinput, abs_props,
+                               ARRAY_SIZE(abs_props),
+                               VIRTIO_INPUT_CFG_PROP_BITS, 0);
+    virtio_input_extend_config(vinput, abs_bits,
+                               ARRAY_SIZE(abs_bits),
+                               VIRTIO_INPUT_CFG_EV_BITS, EV_ABS);
+}
+
+static const TypeInfo virtio_multitouch_info = {
+    .name          = TYPE_VIRTIO_MULTITOUCH,
+    .parent        = TYPE_VIRTIO_INPUT_HID,
+    .instance_size = sizeof(VirtIOInputHID),
+    .instance_init = virtio_multitouch_init,
+};
+
+/* ----------------------------------------------------------------- */
+
 static void virtio_register_types(void)
 {
     type_register_static(&virtio_input_hid_info);
     type_register_static(&virtio_keyboard_info);
     type_register_static(&virtio_mouse_info);
     type_register_static(&virtio_tablet_info);
+    type_register_static(&virtio_multitouch_info);
 }
 
 type_init(virtio_register_types)

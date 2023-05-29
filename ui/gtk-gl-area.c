@@ -298,7 +298,7 @@ void gd_gl_area_scanout_dmabuf(DisplayChangeListener *dcl,
     }
 
     gd_gl_area_scanout_texture(dcl, dmabuf->texture,
-                               false, dmabuf->width, dmabuf->height,
+                               dmabuf->y0_top, dmabuf->width, dmabuf->height,
                                0, 0, dmabuf->width, dmabuf->height);
 
     if (dmabuf->allow_fences) {
