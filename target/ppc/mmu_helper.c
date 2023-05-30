@@ -124,7 +124,7 @@ static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
     ret = -1;
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
-        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, 0, i) == 0) {
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, i) == 0) {
             ret = i;
             break;
         }

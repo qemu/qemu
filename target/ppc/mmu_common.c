@@ -491,8 +491,7 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 /* Generic TLB check function for embedded PowerPC implementations */
 int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
                             hwaddr *raddrp,
-                            target_ulong address, uint32_t pid, int ext,
-                            int i)
+                            target_ulong address, uint32_t pid, int i)
 {
     target_ulong mask;
 
@@ -514,11 +513,6 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
         return -1;
     }
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
-    if (ext) {
-        /* Extend the physical address to 36 bits */
-        *raddrp |= (uint64_t)(tlb->RPN & 0xF) << 32;
-    }
-
     return 0;
 }
 
@@ -536,7 +530,7 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     for (i = 0; i < env->nb_tlb; i++) {
         tlb = &env->tlb.tlbe[i];
         if (ppcemb_tlb_check(env, tlb, &raddr, address,
-                             env->spr[SPR_40x_PID], 0, i) < 0) {
+                             env->spr[SPR_40x_PID], i) < 0) {
             continue;
         }
         zsel = (tlb->attr >> 4) & 0xF;
@@ -598,20 +592,23 @@ static int mmubooke_check_tlb(CPUPPCState *env, ppcemb_tlb_t *tlb,
     int prot2;
 
     if (ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID],
-                         !env->nb_pids, i) >= 0) {
+                         env->spr[SPR_BOOKE_PID], i) >= 0) {
+        if (!env->nb_pids) {
+            /* Extend the physical address to 36 bits */
+            *raddr |= (uint64_t)(tlb->RPN & 0xF) << 32;
+        }
         goto found_tlb;
     }
 
     if (env->spr[SPR_BOOKE_PID1] &&
         ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID1], 0, i) >= 0) {
+                         env->spr[SPR_BOOKE_PID1], i) >= 0) {
         goto found_tlb;
     }
 
     if (env->spr[SPR_BOOKE_PID2] &&
         ppcemb_tlb_check(env, tlb, raddr, address,
-                         env->spr[SPR_BOOKE_PID2], 0, i) >= 0) {
+                         env->spr[SPR_BOOKE_PID2], i) >= 0) {
         goto found_tlb;
     }
 
