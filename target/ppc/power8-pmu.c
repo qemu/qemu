@@ -84,8 +84,17 @@ static void pmu_update_summaries(CPUPPCState *env)
 
 void pmu_mmcr01_updated(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = env_archcpu(env);
+
     pmu_update_summaries(env);
     hreg_update_pmu_hflags(env);
+
+    if (env->spr[SPR_POWER_MMCR0] & MMCR0_PMAO) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_PERFM, 1);
+    } else {
+        ppc_set_irq(cpu, PPC_INTERRUPT_PERFM, 0);
+    }
+
     /*
      * Should this update overflow timers (if mmcr0 is updated) so they
      * get set in cpu_post_load?
@@ -282,7 +291,7 @@ void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
     pmc_update_overflow_timer(env, sprn);
 }
 
-static void fire_PMC_interrupt(PowerPCCPU *cpu)
+static void perfm_alert(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
 
@@ -306,6 +315,7 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
         /* These MMCR0 bits do not require summaries or hflags update. */
         env->spr[SPR_POWER_MMCR0] &= ~MMCR0_PMAE;
         env->spr[SPR_POWER_MMCR0] |= MMCR0_PMAO;
+        ppc_set_irq(cpu, PPC_INTERRUPT_PERFM, 1);
     }
 
     raise_ebb_perfm_exception(env);
@@ -314,20 +324,17 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
 void helper_handle_pmc5_overflow(CPUPPCState *env)
 {
     env->spr[SPR_POWER_PMC5] = PMC_COUNTER_NEGATIVE_VAL;
-    fire_PMC_interrupt(env_archcpu(env));
+    perfm_alert(env_archcpu(env));
 }
 
 /* This helper assumes that the PMC is running. */
 void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
 {
     bool overflow_triggered;
-    PowerPCCPU *cpu;
 
     overflow_triggered = pmu_increment_insns(env, num_insns);
-
     if (overflow_triggered) {
-        cpu = env_archcpu(env);
-        fire_PMC_interrupt(cpu);
+        perfm_alert(env_archcpu(env));
     }
 }
 
@@ -335,7 +342,7 @@ static void cpu_ppc_pmu_timer_cb(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
-    fire_PMC_interrupt(cpu);
+    perfm_alert(cpu);
 }
 
 void cpu_ppc_pmu_init(CPUPPCState *env)
