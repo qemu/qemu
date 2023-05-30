@@ -65,8 +65,6 @@ struct QEMUFile {
  */
 int qemu_file_shutdown(QEMUFile *f)
 {
-    int ret = 0;
-
     /*
      * We must set qemufile error before the real shutdown(), otherwise
      * there can be a race window where we thought IO all went though
@@ -96,10 +94,10 @@ int qemu_file_shutdown(QEMUFile *f)
     }
 
     if (qio_channel_shutdown(f->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL) < 0) {
-        ret = -EIO;
+        return -EIO;
     }
 
-    return ret;
+    return 0;
 }
 
 bool qemu_file_mode_is_not_valid(const char *mode)
