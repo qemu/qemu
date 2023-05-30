@@ -103,7 +103,6 @@ uint64_t qemu_file_transferred_noflush(QEMUFile *f);
 void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size,
                            bool may_free);
 bool qemu_file_mode_is_not_valid(const char *mode);
-bool qemu_file_is_writable(QEMUFile *f);
 
 #include "migration/qemu-file-types.h"
 

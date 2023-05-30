@@ -228,7 +228,7 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     qemu_file_set_error_obj(f, ret, NULL);
 }
 
-bool qemu_file_is_writable(QEMUFile *f)
+static bool qemu_file_is_writable(QEMUFile *f)
 {
     return f->is_writable;
 }
