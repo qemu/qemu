@@ -489,7 +489,7 @@ static int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 /* Generic TLB check function for embedded PowerPC implementations */
-int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+static int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
                             hwaddr *raddrp,
                             target_ulong address, uint32_t pid, int i)
 {
@@ -514,6 +514,26 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
     }
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
     return 0;
+}
+
+/* Generic TLB search function for PowerPC embedded implementations */
+int ppcemb_tlb_search(CPUPPCState *env, target_ulong address, uint32_t pid)
+{
+    ppcemb_tlb_t *tlb;
+    hwaddr raddr;
+    int i, ret;
+
+    /* Default return value is no match */
+    ret = -1;
+    for (i = 0; i < env->nb_tlb; i++) {
+        tlb = &env->tlb.tlbe[i];
+        if (ppcemb_tlb_check(env, tlb, &raddr, address, pid, i) == 0) {
+            ret = i;
+            break;
+        }
+    }
+
+    return ret;
 }
 
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
