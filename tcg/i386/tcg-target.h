@@ -28,7 +28,6 @@
 #include "host/cpuinfo.h"
 
 #define TCG_TARGET_INSN_UNIT_SIZE  1
-#define TCG_TARGET_TLB_DISPLACEMENT_BITS 31
 
 #ifdef __x86_64__
 # define TCG_TARGET_REG_BITS  64
@@ -118,7 +117,6 @@ typedef enum {
 #define have_avx1         (cpuinfo & CPUINFO_AVX1)
 #define have_avx2         (cpuinfo & CPUINFO_AVX2)
 #define have_movbe        (cpuinfo & CPUINFO_MOVBE)
-#define have_atomic16     (cpuinfo & CPUINFO_ATOMIC_VMOVDQA)
 
 /*
  * There are interesting instructions in AVX512, so long as we have AVX512VL,
@@ -202,7 +200,8 @@ typedef enum {
 #define TCG_TARGET_HAS_qemu_st8_i32     1
 #endif
 
-#define TCG_TARGET_HAS_qemu_ldst_i128   0
+#define TCG_TARGET_HAS_qemu_ldst_i128 \
+    (TCG_TARGET_REG_BITS == 64 && (cpuinfo & CPUINFO_ATOMIC_VMOVDQA))
 
 /* We do not support older SSE systems, only beginning with AVX1.  */
 #define TCG_TARGET_HAS_v64              have_avx1
