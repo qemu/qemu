@@ -46,6 +46,13 @@ validate_error() {
     exit 1
 }
 
+check_updated() {
+    local CURSTATUS OLDSTATUS
+    CURSTATUS=$($GIT submodule status $module)
+    OLDSTATUS=$(grep $module $substat)
+    test "$CURSTATUS" = "$OLDSTATUS"
+}
+
 if test -n "$maybe_modules" && ! test -e ".git"
 then
     echo "$0: unexpectedly called with submodules but no git checkout exists"
@@ -75,11 +82,7 @@ status|validate)
     test -f "$substat" || validate_error "$command"
     test -z "$maybe_modules" && exit 0
     for module in $modules; do
-        CURSTATUS=$($GIT submodule status $module)
-        OLDSTATUS=$(cat $substat | grep $module)
-        if test "$CURSTATUS" != "$OLDSTATUS"; then
-            validate_error "$command"
-        fi
+        check_updated $module || validate_error "$command"
     done
     exit 0
     ;;
@@ -89,6 +92,9 @@ update)
 
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
+    for module in $modules; do
+        check_updated $module || echo Updated "$module"
+    done
 
     (while read -r; do
         for module in $modules; do
