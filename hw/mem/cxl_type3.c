@@ -659,7 +659,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     ComponentRegisters *regs = &cxl_cstate->crb;
     MemoryRegion *mr = &regs->component_registers;
     uint8_t *pci_conf = pci_dev->config;
-    unsigned short msix_num = 1;
+    unsigned short msix_num = 6;
     int i, rc;
 
     QTAILQ_INIT(&ct3d->error_list);
@@ -723,8 +723,8 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
     if (rc) {
         goto err_release_cdat;
     }
+    cxl_event_init(&ct3d->cxl_dstate, 2);
 
-    cxl_event_init(&ct3d->cxl_dstate);
     return;
 
 err_release_cdat:
