@@ -724,6 +724,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
         goto err_release_cdat;
     }
 
+    cxl_event_init(&ct3d->cxl_dstate);
     return;
 
 err_release_cdat:

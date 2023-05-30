@@ -111,6 +111,20 @@ typedef enum {
     CXL_MBOX_MAX = 0x17
 } CXLRetCode;
 
+typedef struct CXLEvent {
+    CXLEventRecordRaw data;
+    QSIMPLEQ_ENTRY(CXLEvent) node;
+} CXLEvent;
+
+typedef struct CXLEventLog {
+    uint16_t next_handle;
+    uint16_t overflow_err_count;
+    uint64_t first_overflow_timestamp;
+    uint64_t last_overflow_timestamp;
+    QemuMutex lock;
+    QSIMPLEQ_HEAD(, CXLEvent) events;
+} CXLEventLog;
+
 typedef struct cxl_device_state {
     MemoryRegion device_registers;
 
@@ -161,6 +175,8 @@ typedef struct cxl_device_state {
     uint64_t mem_size;
     uint64_t pmem_size;
     uint64_t vmem_size;
+
+    CXLEventLog event_logs[CXL_EVENT_TYPE_MAX];
 } CXLDeviceState;
 
 /* Initialize the register block for a device */
@@ -352,6 +368,15 @@ MemTxResult cxl_type3_write(PCIDevice *d, hwaddr host_addr, uint64_t data,
                             unsigned size, MemTxAttrs attrs);
 
 uint64_t cxl_device_get_timestamp(CXLDeviceState *cxlds);
+
+void cxl_event_init(CXLDeviceState *cxlds);
+bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
+                      CXLEventRecordRaw *event);
+CXLRetCode cxl_event_get_records(CXLDeviceState *cxlds, CXLGetEventPayload *pl,
+                                 uint8_t log_type, int max_recs,
+                                 uint16_t *len);
+CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds,
+                                   CXLClearEventPayload *pl);
 
 void cxl_set_poison_list_overflowed(CXLType3Dev *ct3d);
 
