@@ -289,7 +289,6 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
     pmu_update_cycles(env);
 
     if (env->spr[SPR_POWER_MMCR0] & MMCR0_FCECE) {
-        env->spr[SPR_POWER_MMCR0] &= ~MMCR0_FCECE;
         env->spr[SPR_POWER_MMCR0] |= MMCR0_FC;
 
         /* Changing MMCR0_FC requires summaries and hflags update */
