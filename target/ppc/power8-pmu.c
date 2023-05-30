@@ -31,7 +31,11 @@ static bool pmc_has_overflow_enabled(CPUPPCState *env, int sprn)
     return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE;
 }
 
-void pmu_update_summaries(CPUPPCState *env)
+/*
+ * Called after MMCR0 or MMCR1 changes to update pmc_ins_cnt and pmc_cyc_cnt.
+ * hflags must subsequently be updated.
+ */
+static void pmu_update_summaries(CPUPPCState *env)
 {
     target_ulong mmcr0 = env->spr[SPR_POWER_MMCR0];
     target_ulong mmcr1 = env->spr[SPR_POWER_MMCR1];
@@ -39,7 +43,7 @@ void pmu_update_summaries(CPUPPCState *env)
     int cyc_cnt = 0;
 
     if (mmcr0 & MMCR0_FC) {
-        goto hflags_calc;
+        goto out;
     }
 
     if (!(mmcr0 & MMCR0_FC14) && mmcr1 != 0) {
@@ -73,10 +77,19 @@ void pmu_update_summaries(CPUPPCState *env)
     ins_cnt |= !(mmcr0 & MMCR0_FC56) << 5;
     cyc_cnt |= !(mmcr0 & MMCR0_FC56) << 6;
 
- hflags_calc:
+ out:
     env->pmc_ins_cnt = ins_cnt;
     env->pmc_cyc_cnt = cyc_cnt;
-    env->hflags = deposit32(env->hflags, HFLAGS_INSN_CNT, 1, ins_cnt != 0);
+}
+
+void pmu_mmcr01_updated(CPUPPCState *env)
+{
+    pmu_update_summaries(env);
+    hreg_update_pmu_hflags(env);
+    /*
+     * Should this update overflow timers (if mmcr0 is updated) so they
+     * get set in cpu_post_load?
+     */
 }
 
 static bool pmu_increment_insns(CPUPPCState *env, uint32_t num_insns)
@@ -234,18 +247,11 @@ static void pmu_delete_timers(CPUPPCState *env)
 
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 {
-    bool hflags_pmcc0 = (value & MMCR0_PMCC0) != 0;
-    bool hflags_pmcc1 = (value & MMCR0_PMCC1) != 0;
-
     pmu_update_cycles(env);
 
     env->spr[SPR_POWER_MMCR0] = value;
 
-    /* MMCR0 writes can change HFLAGS_PMCC[01] and HFLAGS_INSN_CNT */
-    env->hflags = deposit32(env->hflags, HFLAGS_PMCC0, 1, hflags_pmcc0);
-    env->hflags = deposit32(env->hflags, HFLAGS_PMCC1, 1, hflags_pmcc1);
-
-    pmu_update_summaries(env);
+    pmu_mmcr01_updated(env);
 
     /* Update cycle overflow timers with the current MMCR0 state */
     pmu_update_overflow_timers(env);
@@ -257,8 +263,7 @@ void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
 
     env->spr[SPR_POWER_MMCR1] = value;
 
-    /* MMCR1 writes can change HFLAGS_INSN_CNT */
-    pmu_update_summaries(env);
+    pmu_mmcr01_updated(env);
 }
 
 target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)
@@ -287,8 +292,8 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
         env->spr[SPR_POWER_MMCR0] &= ~MMCR0_FCECE;
         env->spr[SPR_POWER_MMCR0] |= MMCR0_FC;
 
-        /* Changing MMCR0_FC requires a new HFLAGS_INSN_CNT calc */
-        pmu_update_summaries(env);
+        /* Changing MMCR0_FC requires summaries and hflags update */
+        pmu_mmcr01_updated(env);
 
         /*
          * Delete all pending timers if we need to freeze
@@ -299,6 +304,7 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
     }
 
     if (env->spr[SPR_POWER_MMCR0] & MMCR0_PMAE) {
+        /* These MMCR0 bits do not require summaries or hflags update. */
         env->spr[SPR_POWER_MMCR0] &= ~MMCR0_PMAE;
         env->spr[SPR_POWER_MMCR0] |= MMCR0_PMAO;
     }
