@@ -9,7 +9,7 @@ command=$1
 shift
 maybe_modules="$@"
 
-# if --with-git-submodules=ignore, do nothing
+# if not running in a git checkout, do nothing
 test "$command" = "ignore" && exit 0
 
 test -z "$GIT" && GIT=$(command -v git)
@@ -24,7 +24,7 @@ update_error() {
     echo "enable use of a transparent proxy), please disable automatic"
     echo "GIT submodule checkout with:"
     echo
-    echo " $ ./configure --with-git-submodules=validate"
+    echo " $ ./configure --disable-download"
     echo
     echo "and then manually update submodules prior to running make, with:"
     echo
@@ -39,9 +39,7 @@ validate_error() {
         echo "configured for validate only. Please run"
         echo "  scripts/git-submodule.sh update $maybe_modules"
         echo "from the source directory or call configure with"
-        echo "  --with-git-submodules=update"
-        echo "To disable GIT submodules validation, use"
-        echo "  --with-git-submodules=ignore"
+        echo "  --enable-download"
     fi
     exit 1
 }

@@ -246,13 +246,7 @@ for opt do
 done
 
 
-if test -e "$source_path/.git"
-then
-    git_submodules_action="update"
-else
-    git_submodules_action="ignore"
-fi
-
+git_submodules_action="update"
 git="git"
 debug_tcg="no"
 docs="auto"
@@ -738,12 +732,9 @@ for opt do
   ;;
   --disable-cfi) cfi="false"
   ;;
-  --with-git-submodules=*)
-      git_submodules_action="$optarg"
+  --disable-download) download="disabled"; git_submodules_action=validate;
   ;;
-  --disable-download) download="disabled"
-  ;;
-  --enable-download) download="enabled"
+  --enable-download) download="enabled"; git_submodules_action=update;
   ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
@@ -764,6 +755,11 @@ for opt do
   ;;
   esac
 done
+
+if ! test -e "$source_path/.git"
+then
+    git_submodules_action="ignore"
+fi
 
 # test for any invalid configuration combinations
 if test "$plugins" = "yes" -a "$tcg" = "disabled"; then
@@ -795,21 +791,6 @@ then
     echo
     exit 1
 fi
-
-case $git_submodules_action in
-    update|validate)
-        if test ! -e "$source_path/.git" || ! has git; then
-            echo "ERROR: cannot $git_submodules_action git submodules without .git"
-            exit 1
-        fi
-    ;;
-    ignore)
-    ;;
-    *)
-        echo "ERROR: invalid --with-git-submodules= value '$git_submodules_action'"
-        exit 1
-    ;;
-esac
 
 default_target_list=""
 mak_wilds=""
@@ -877,9 +858,6 @@ Advanced options (experts only):
   --python=PYTHON          use specified python [$python]
   --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
-  --with-git-submodules=update   update git submodules (default if .git dir exists)
-  --with-git-submodules=validate fail if git submodules are not up to date
-  --with-git-submodules=ignore   do not update or check git submodules (default if no .git dir)
   --static                 enable static build [$static]
   --bindir=PATH            install binaries in PATH
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
@@ -1024,7 +1002,7 @@ fi
 # Consult white-list to determine whether to enable werror
 # by default.  Only enable by default for git builds
 if test -z "$werror" ; then
-    if test "$git_submodules_action" != "ignore" && \
+    if test -e "$source_path/.git" && \
         { test "$linux" = "yes" || test "$mingw32" = "yes"; }; then
         werror="yes"
     else
