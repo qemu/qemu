@@ -53,6 +53,8 @@ static void fsl_imx6_init(Object *obj)
 
     object_initialize_child(obj, "src", &s->src, TYPE_IMX6_SRC);
 
+    object_initialize_child(obj, "snvs", &s->snvs, TYPE_IMX7_SNVS);
+
     for (i = 0; i < FSL_IMX6_NUM_UARTS; i++) {
         snprintf(name, NAME_SIZE, "uart%d", i + 1);
         object_initialize_child(obj, name, &s->uart[i], TYPE_IMX_SERIAL);
@@ -389,6 +391,12 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->eth), 1,
                        qdev_get_gpio_in(DEVICE(&s->a9mpcore),
                                         FSL_IMX6_ENET_MAC_1588_IRQ));
+
+    /*
+     * SNVS
+     */
+    sysbus_realize(SYS_BUS_DEVICE(&s->snvs), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->snvs), 0, FSL_IMX6_SNVSHP_ADDR);
 
     /*
      * Watchdog

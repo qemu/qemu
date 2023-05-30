@@ -23,9 +23,19 @@
 #include "hw/pci/pci.h"
 #include "qom/object.h"
 
-#define SMMU_PCI_BUS_MAX      256
-#define SMMU_PCI_DEVFN_MAX    256
-#define SMMU_PCI_DEVFN(sid)   (sid & 0xFF)
+#define SMMU_PCI_BUS_MAX                    256
+#define SMMU_PCI_DEVFN_MAX                  256
+#define SMMU_PCI_DEVFN(sid)                 (sid & 0xFF)
+
+/* VMSAv8-64 Translation constants and functions */
+#define VMSA_LEVELS                         4
+#define VMSA_MAX_S2_CONCAT                  16
+
+#define VMSA_STRIDE(gran)                   ((gran) - VMSA_LEVELS + 1)
+#define VMSA_BIT_LVL(isz, strd, lvl)        ((isz) - (strd) * \
+                                             (VMSA_LEVELS - (lvl)))
+#define VMSA_IDXMSK(isz, strd, lvl)         ((1ULL << \
+                                             VMSA_BIT_LVL(isz, strd, lvl)) - 1)
 
 /*
  * Page table walk error types
@@ -40,6 +50,7 @@ typedef enum {
 } SMMUPTWEventType;
 
 typedef struct SMMUPTWEventInfo {
+    int stage;
     SMMUPTWEventType type;
     dma_addr_t addr; /* fetched address that induced an abort, if any */
 } SMMUPTWEventInfo;
@@ -58,25 +69,41 @@ typedef struct SMMUTLBEntry {
     uint8_t granule;
 } SMMUTLBEntry;
 
+/* Stage-2 configuration. */
+typedef struct SMMUS2Cfg {
+    uint8_t tsz;            /* Size of IPA input region (S2T0SZ) */
+    uint8_t sl0;            /* Start level of translation (S2SL0) */
+    bool affd;              /* AF Fault Disable (S2AFFD) */
+    bool record_faults;     /* Record fault events (S2R) */
+    uint8_t granule_sz;     /* Granule page shift (based on S2TG) */
+    uint8_t eff_ps;         /* Effective PA output range (based on S2PS) */
+    uint16_t vmid;          /* Virtual Machine ID (S2VMID) */
+    uint64_t vttb;          /* Address of translation table base (S2TTB) */
+} SMMUS2Cfg;
+
 /*
  * Generic structure populated by derived SMMU devices
  * after decoding the configuration information and used as
  * input to the page table walk
  */
 typedef struct SMMUTransCfg {
+    /* Shared fields between stage-1 and stage-2. */
     int stage;                 /* translation stage */
-    bool aa64;                 /* arch64 or aarch32 translation table */
     bool disabled;             /* smmu is disabled */
     bool bypassed;             /* translation is bypassed */
     bool aborted;              /* translation is aborted */
+    uint32_t iotlb_hits;       /* counts IOTLB hits */
+    uint32_t iotlb_misses;     /* counts IOTLB misses*/
+    /* Used by stage-1 only. */
+    bool aa64;                 /* arch64 or aarch32 translation table */
     bool record_faults;        /* record fault events */
     uint64_t ttb;              /* TT base address */
     uint8_t oas;               /* output address width */
     uint8_t tbi;               /* Top Byte Ignore */
     uint16_t asid;
     SMMUTransTableInfo tt[2];
-    uint32_t iotlb_hits;       /* counts IOTLB hits for this asid */
-    uint32_t iotlb_misses;     /* counts IOTLB misses for this asid */
+    /* Used by stage-2 only. */
+    struct SMMUS2Cfg s2cfg;
 } SMMUTransCfg;
 
 typedef struct SMMUDevice {
@@ -98,6 +125,7 @@ typedef struct SMMUPciBus {
 typedef struct SMMUIOTLBKey {
     uint64_t iova;
     uint16_t asid;
+    uint16_t vmid;
     uint8_t tg;
     uint8_t level;
 } SMMUIOTLBKey;
@@ -161,11 +189,12 @@ IOMMUMemoryRegion *smmu_iommu_mr(SMMUState *s, uint32_t sid);
 SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
                                 SMMUTransTableInfo *tt, hwaddr iova);
 void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *entry);
-SMMUIOTLBKey smmu_get_iotlb_key(uint16_t asid, uint64_t iova,
+SMMUIOTLBKey smmu_get_iotlb_key(uint16_t asid, uint16_t vmid, uint64_t iova,
                                 uint8_t tg, uint8_t level);
 void smmu_iotlb_inv_all(SMMUState *s);
 void smmu_iotlb_inv_asid(SMMUState *s, uint16_t asid);
-void smmu_iotlb_inv_iova(SMMUState *s, int asid, dma_addr_t iova,
+void smmu_iotlb_inv_vmid(SMMUState *s, uint16_t vmid);
+void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
                          uint8_t tg, uint64_t num_pages, uint8_t ttl);
 
 /* Unmap the range of all the notifiers registered to any IOMMU mr */
