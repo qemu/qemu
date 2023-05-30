@@ -532,7 +532,7 @@ build-without-defaults:
 build-libvhost-user:
   extends: .base_job_template
   stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
+  image: $CI_REGISTRY_IMAGE/qemu/fedora:$QEMU_CI_CONTAINER_TAG
   needs:
     job: amd64-fedora-container
   script:
@@ -572,7 +572,7 @@ build-tools-and-docs-debian:
 # of what topic branch they're currently using
 pages:
   extends: .base_job_template
-  image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:latest
+  image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:$QEMU_CI_CONTAINER_TAG
   stage: test
   needs:
     - job: build-tools-and-docs-debian
