@@ -3007,7 +3007,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
         goto the_end;
     }
     ret = qemu_savevm_state(f, errp);
-    vm_state_size = qemu_file_transferred(f);
+    vm_state_size = qemu_file_transferred_noflush(f);
     ret2 = qemu_fclose(f);
     if (ret < 0) {
         goto the_end;
