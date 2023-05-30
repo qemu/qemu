@@ -141,6 +141,59 @@
            }}
 
 ##
+# @cxl-inject-memory-module-event:
+#
+# Inject an event record for a Memory Module Event (CXL r3.0
+# 8.2.9.2.1.3).  This event includes a copy of the Device Health
+# info at the time of the event.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: Event Log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @type: Device Event Type.  See CXL r3.0 Table 8-45 Memory Module
+#     Event Record for bit definitions for bit definiions.
+#
+# @health-status: Overall health summary bitmap.  See CXL r3.0 Table
+#     8-100 Get Health Info Output Payload, Health Status for bit
+#     definitions.
+#
+# @media-status: Overall media health summary.  See CXL r3.0 Table
+#     8-100 Get Health Info Output Payload, Media Status for bit
+#     definitions.
+#
+# @additional-status: See CXL r3.0 Table 8-100 Get Health Info Output
+#     Payload, Additional Status for subfield definitions.
+#
+# @life-used: Percentage (0-100) of factory expected life span.
+#
+# @temperature: Device temperature in degrees Celsius.
+#
+# @dirty-shutdown-count: Number of times the device has been unable
+#     to determine whether data loss may have occurred.
+#
+# @corrected-volatile-error-count: Total number of correctable errors
+#     in volatile memory.
+#
+# @corrected-persistent-error-count: Total number of correctable
+#     errors in persistent memory
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-memory-module-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags' : 'uint8',
+            'type': 'uint8', 'health-status': 'uint8',
+            'media-status': 'uint8', 'additional-status': 'uint8',
+            'life-used': 'uint8', 'temperature' : 'int16',
+            'dirty-shutdown-count': 'uint32',
+            'corrected-volatile-error-count': 'uint32',
+            'corrected-persistent-error-count': 'uint32'
+            }}
+
+##
 # @cxl-inject-poison:
 #
 # Poison records indicate that a CXL memory device knows that a
