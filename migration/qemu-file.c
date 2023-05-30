@@ -694,7 +694,7 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-uint64_t qemu_file_transferred_fast(QEMUFile *f)
+uint64_t qemu_file_transferred_noflush(QEMUFile *f)
 {
     uint64_t ret = f->total_transferred;
     int i;
