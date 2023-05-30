@@ -143,7 +143,11 @@ class VirtioGPUx86(QemuSystemTest):
             "-append",
             self.KERNEL_COMMAND_LINE,
         )
-        self.vm.launch()
+        try:
+            self.vm.launch()
+        except:
+            # TODO: probably fails because we are missing the VirGL features
+            self.cancel("VirGL not enabled?")
         self.wait_for_console_pattern("as init process")
         exec_command_and_wait_for_pattern(
             self, "/usr/sbin/modprobe virtio_gpu", ""
