@@ -2650,6 +2650,7 @@ F: util/aio-*.c
 F: util/aio-*.h
 F: util/fdmon-*.c
 F: block/io.c
+F: block/plug.c
 F: migration/block*
 F: include/block/aio.h
 F: include/block/aio-wait.h
