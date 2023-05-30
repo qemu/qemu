@@ -6,6 +6,80 @@
 ##
 
 ##
+# @CxlEventLog:
+#
+# CXL has a number of separate event logs for different types of
+# events.  Each such event log is handled and signaled independently.
+#
+# @informational: Information Event Log
+#
+# @warning: Warning Event Log
+#
+# @failure: Failure Event Log
+#
+# @fatal: Fatal Event Log
+#
+# Since: 8.1
+##
+{ 'enum': 'CxlEventLog',
+  'data': ['informational',
+           'warning',
+           'failure',
+           'fatal']
+ }
+
+##
+# @cxl-inject-general-media-event:
+#
+# Inject an event record for a General Media Event (CXL r3.0
+# 8.2.9.2.1.1).  This event type is reported via one of the event logs
+# specified via the log parameter.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: event log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @dpa: Device Physical Address (relative to @path device).  Note
+#     lower bits include some flags.  See CXL r3.0 Table 8-43 General
+#     Media Event Record, Physical Address.
+#
+# @descriptor: Memory Event Descriptor with additional memory event
+#     information.  See CXL r3.0 Table 8-43 General Media Event
+#     Record, Memory Event Descriptor for bit definitions.
+#
+# @type: Type of memory event that occurred.  See CXL r3.0 Table 8-43
+#     General Media Event Record, Memory Event Type for possible
+#     values.
+#
+# @transaction-type: Type of first transaction that caused the event
+#     to occur.  See CXL r3.0 Table 8-43 General Media Event Record,
+#     Transaction Type for possible values.
+#
+# @channel: The channel of the memory event location.  A channel is an
+#     interface that can be independently accessed for a transaction.
+#
+# @rank: The rank of the memory event location.  A rank is a set of
+#     memory devices on a channel that together execute a transaction.
+#
+# @device: Bitmask that represents all devices in the rank associated
+#     with the memory event location.
+#
+# @component-id: Device specific component identifier for the event.
+#     May describe a field replaceable sub-component of the device.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-general-media-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint8',
+            'dpa': 'uint64', 'descriptor': 'uint8',
+            'type': 'uint8', 'transaction-type': 'uint8',
+            '*channel': 'uint8', '*rank': 'uint8',
+            '*device': 'uint32', '*component-id': 'str' } }
+
+##
 # @cxl-inject-poison:
 #
 # Poison records indicate that a CXL memory device knows that a
