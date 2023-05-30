@@ -18,10 +18,10 @@
 #define PMC_COUNTER_NEGATIVE_VAL 0x80000000UL
 
 void cpu_ppc_pmu_init(CPUPPCState *env);
-void pmu_update_summaries(CPUPPCState *env);
+void pmu_mmcr01_updated(CPUPPCState *env);
 #else
 static inline void cpu_ppc_pmu_init(CPUPPCState *env) { }
-static inline void pmu_update_summaries(CPUPPCState *env) { }
+static inline void pmu_mmcr01_updated(CPUPPCState *env) { }
 #endif
 
 #endif
