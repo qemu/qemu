@@ -3071,7 +3071,7 @@ void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
         return;
     }
 
-    ppc_set_irq(env_archcpu(env), PPC_INTERRUPT_HDOORBELL, 0);
+    ppc_set_irq(env_archcpu(env), PPC_INTERRUPT_DOORBELL, 0);
 }
 
 /*
