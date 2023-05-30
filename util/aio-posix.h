@@ -38,7 +38,6 @@ struct AioHandler {
 #endif
     int64_t poll_idle_timeout; /* when to stop userspace polling */
     bool poll_ready; /* has polling detected an event? */
-    bool is_external;
 };
 
 /* Add a handler to a ready list */

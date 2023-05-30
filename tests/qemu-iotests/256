@@ -24,7 +24,7 @@ import os
 import iotests
 from iotests import log
 
-iotests._verify_virtio_scsi_pci_or_ccw()
+iotests.verify_virtio_scsi_pci_or_ccw()
 
 iotests.script_initialize(supported_fmts=['qcow2'])
 size = 64 * 1024 * 1024

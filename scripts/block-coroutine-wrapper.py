@@ -88,16 +88,7 @@ class FuncDecl:
                 raise ValueError(f"no_co function can't be rdlock: {self.name}")
             self.target_name = f'{subsystem}_{subname}'
 
-        t = self.args[0].type
-        if t == 'BlockDriverState *':
-            ctx = 'bdrv_get_aio_context(bs)'
-        elif t == 'BdrvChild *':
-            ctx = 'bdrv_get_aio_context(child->bs)'
-        elif t == 'BlockBackend *':
-            ctx = 'blk_get_aio_context(blk)'
-        else:
-            ctx = 'qemu_get_aio_context()'
-        self.ctx = ctx
+        self.ctx = self.gen_ctx()
 
         self.get_result = 's->ret = '
         self.ret = 'return s.ret;'
@@ -108,6 +99,17 @@ class FuncDecl:
             self.ret = ''
             self.co_ret = ''
             self.return_field = ''
+
+    def gen_ctx(self, prefix: str = '') -> str:
+        t = self.args[0].type
+        if t == 'BlockDriverState *':
+            return f'bdrv_get_aio_context({prefix}bs)'
+        elif t == 'BdrvChild *':
+            return f'bdrv_get_aio_context({prefix}child->bs)'
+        elif t == 'BlockBackend *':
+            return f'blk_get_aio_context({prefix}blk)'
+        else:
+            return 'qemu_get_aio_context()'
 
     def gen_list(self, format: str) -> str:
         return ', '.join(format.format_map(arg.__dict__) for arg in self.args)
@@ -262,8 +264,11 @@ typedef struct {struct_name} {{
 static void {name}_bh(void *opaque)
 {{
     {struct_name} *s = opaque;
+    AioContext *ctx = {func.gen_ctx('s->')};
 
+    aio_context_acquire(ctx);
     {func.get_result}{name}({ func.gen_list('s->{name}') });
+    aio_context_release(ctx);
 
     aio_co_wake(s->co);
 }}

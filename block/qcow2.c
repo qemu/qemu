@@ -1904,6 +1904,8 @@ static void coroutine_fn qcow2_open_entry(void *opaque)
     qoc->ret = qcow2_do_open(qoc->bs, qoc->options, qoc->flags, true,
                              qoc->errp);
     qemu_co_mutex_unlock(&s->lock);
+
+    aio_wait_kick();
 }
 
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1929,8 +1931,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     assert(!qemu_in_coroutine());
     assert(qemu_get_current_aio_context() == qemu_get_aio_context());
-    qemu_coroutine_enter(qemu_coroutine_create(qcow2_open_entry, &qoc));
-    BDRV_POLL_WHILE(bs, qoc.ret == -EINPROGRESS);
+
+    aio_co_enter(bdrv_get_aio_context(bs),
+                 qemu_coroutine_create(qcow2_open_entry, &qoc));
+    AIO_WAIT_WHILE_UNLOCKED(NULL, qoc.ret == -EINPROGRESS);
 
     return qoc.ret;
 }

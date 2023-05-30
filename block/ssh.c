@@ -1019,7 +1019,7 @@ static void restart_coroutine(void *opaque)
     AioContext *ctx = bdrv_get_aio_context(bs);
 
     trace_ssh_restart_coroutine(restart->co);
-    aio_set_fd_handler(ctx, s->sock, false, NULL, NULL, NULL, NULL, NULL);
+    aio_set_fd_handler(ctx, s->sock, NULL, NULL, NULL, NULL, NULL);
 
     aio_co_wake(restart->co);
 }
@@ -1049,7 +1049,7 @@ static coroutine_fn void co_yield(BDRVSSHState *s, BlockDriverState *bs)
     trace_ssh_co_yield(s->sock, rd_handler, wr_handler);
 
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
-                       false, rd_handler, wr_handler, NULL, NULL, &restart);
+                       rd_handler, wr_handler, NULL, NULL, &restart);
     qemu_coroutine_yield();
     trace_ssh_co_yield_back(s->sock);
 }

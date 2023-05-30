@@ -276,11 +276,6 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
     unsigned wait_nr = 1; /* block until at least one cqe is ready */
     int ret;
 
-    /* Fall back while external clients are disabled */
-    if (qatomic_read(&ctx->external_disable_cnt)) {
-        return fdmon_poll_ops.wait(ctx, ready_list, timeout);
-    }
-
     if (timeout == 0) {
         wait_nr = 0; /* non-blocking */
     } else if (timeout > 0) {
@@ -315,8 +310,7 @@ static bool fdmon_io_uring_need_wait(AioContext *ctx)
         return true;
     }
 
-    /* Are we falling back to fdmon-poll? */
-    return qatomic_read(&ctx->external_disable_cnt);
+    return false;
 }
 
 static const FDMonOps fdmon_io_uring_ops = {

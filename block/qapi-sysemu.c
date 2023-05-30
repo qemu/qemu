@@ -362,7 +362,10 @@ void qmp_blockdev_change_medium(const char *device,
         qdict_put_str(options, "driver", format);
     }
 
+    aio_context_acquire(qemu_get_aio_context());
     medium_bs = bdrv_open(filename, NULL, options, bdrv_flags, errp);
+    aio_context_release(qemu_get_aio_context());
+
     if (!medium_bs) {
         goto fail;
     }

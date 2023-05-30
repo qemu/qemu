@@ -198,8 +198,7 @@ static void qio_channel_file_set_aio_fd_handler(QIOChannel *ioc,
                                                 void *opaque)
 {
     QIOChannelFile *fioc = QIO_CHANNEL_FILE(ioc);
-    aio_set_fd_handler(ctx, fioc->fd, false, io_read, io_write,
-                       NULL, NULL, opaque);
+    aio_set_fd_handler(ctx, fioc->fd, io_read, io_write, NULL, NULL, opaque);
 }
 
 static GSource *qio_channel_file_create_watch(QIOChannel *ioc,

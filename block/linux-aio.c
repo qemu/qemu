@@ -446,7 +446,7 @@ int coroutine_fn laio_co_submit(int fd, uint64_t offset, QEMUIOVector *qiov,
 
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)
 {
-    aio_set_event_notifier(old_context, &s->e, false, NULL, NULL, NULL);
+    aio_set_event_notifier(old_context, &s->e, NULL, NULL, NULL);
     qemu_bh_delete(s->completion_bh);
     s->aio_context = NULL;
 }
@@ -455,7 +455,7 @@ void laio_attach_aio_context(LinuxAioState *s, AioContext *new_context)
 {
     s->aio_context = new_context;
     s->completion_bh = aio_bh_new(new_context, qemu_laio_completion_bh, s);
-    aio_set_event_notifier(new_context, &s->e, false,
+    aio_set_event_notifier(new_context, &s->e,
                            qemu_laio_completion_cb,
                            qemu_laio_poll_cb,
                            qemu_laio_poll_ready);
