@@ -72,12 +72,8 @@ done
 
 case "$command" in
 status|validate)
-    if test -z "$maybe_modules"
-    then
-         test -s ${substat} && validate_error "$command" || exit 0
-    fi
-
     test -f "$substat" || validate_error "$command"
+    test -z "$maybe_modules" && exit 0
     for module in $modules; do
         CURSTATUS=$($GIT submodule status $module)
         OLDSTATUS=$(cat $substat | grep $module)
@@ -88,17 +84,23 @@ status|validate)
     exit 0
     ;;
 update)
-    if test -z "$maybe_modules"
-    then
-        test -e $substat || touch $substat
-        exit 0
-    fi
+    test -e $substat || touch $substat
+    test -z "$maybe_modules" && exit 0
 
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
 
-    $GIT submodule status $modules > "${substat}"
-    test $? -ne 0 && update_error "failed to save git submodule status" >&2
+    (while read -r; do
+        for module in $modules; do
+            case $REPLY in
+                *" $module "*) continue 2 ;;
+            esac
+        done
+        printf '%s\n' "$REPLY"
+    done
+    $GIT submodule status $modules
+    test $? -ne 0 && update_error "failed to save git submodule status" >&2) < $substat > $substat.new
+    mv -f $substat.new $substat
     ;;
 esac
 
