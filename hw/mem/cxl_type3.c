@@ -1196,6 +1196,11 @@ static const QemuUUID gen_media_uuid = {
                  0x85, 0xa9, 0x08, 0x8b, 0x16, 0x21, 0xeb, 0xa6),
 };
 
+static const QemuUUID dram_uuid = {
+    .data = UUID(0x601dcbb3, 0x9c06, 0x4eab, 0xb8, 0xaf,
+                 0x4e, 0x9b, 0xfb, 0x5c, 0x96, 0x24),
+};
+
 #define CXL_GMER_VALID_CHANNEL                          BIT(0)
 #define CXL_GMER_VALID_RANK                             BIT(1)
 #define CXL_GMER_VALID_DEVICE                           BIT(2)
@@ -1290,6 +1295,117 @@ void qmp_cxl_inject_general_media_event(const char *path, CxlEventLog log,
     if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&gem)) {
         cxl_event_irq_assert(ct3d);
     }
+}
+
+#define CXL_DRAM_VALID_CHANNEL                          BIT(0)
+#define CXL_DRAM_VALID_RANK                             BIT(1)
+#define CXL_DRAM_VALID_NIBBLE_MASK                      BIT(2)
+#define CXL_DRAM_VALID_BANK_GROUP                       BIT(3)
+#define CXL_DRAM_VALID_BANK                             BIT(4)
+#define CXL_DRAM_VALID_ROW                              BIT(5)
+#define CXL_DRAM_VALID_COLUMN                           BIT(6)
+#define CXL_DRAM_VALID_CORRECTION_MASK                  BIT(7)
+
+void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log, uint8_t flags,
+                               uint64_t dpa, uint8_t descriptor,
+                               uint8_t type, uint8_t transaction_type,
+                               bool has_channel, uint8_t channel,
+                               bool has_rank, uint8_t rank,
+                               bool has_nibble_mask, uint32_t nibble_mask,
+                               bool has_bank_group, uint8_t bank_group,
+                               bool has_bank, uint8_t bank,
+                               bool has_row, uint32_t row,
+                               bool has_column, uint16_t column,
+                               bool has_correction_mask, uint64List *correction_mask,
+                               Error **errp)
+{
+    Object *obj = object_resolve_path(path, NULL);
+    CXLEventDram dram;
+    CXLEventRecordHdr *hdr = &dram.hdr;
+    CXLDeviceState *cxlds;
+    CXLType3Dev *ct3d;
+    uint16_t valid_flags = 0;
+    uint8_t enc_log;
+    int rc;
+
+    if (!obj) {
+        error_setg(errp, "Unable to resolve path");
+        return;
+    }
+    if (!object_dynamic_cast(obj, TYPE_CXL_TYPE3)) {
+        error_setg(errp, "Path does not point to a CXL type 3 device");
+        return;
+    }
+    ct3d = CXL_TYPE3(obj);
+    cxlds = &ct3d->cxl_dstate;
+
+    rc = ct3d_qmp_cxl_event_log_enc(log);
+    if (rc < 0) {
+        error_setg(errp, "Unhandled error log type");
+        return;
+    }
+    enc_log = rc;
+
+    memset(&dram, 0, sizeof(dram));
+    cxl_assign_event_header(hdr, &dram_uuid, flags, sizeof(dram),
+                            cxl_device_get_timestamp(&ct3d->cxl_dstate));
+    stq_le_p(&dram.phys_addr, dpa);
+    dram.descriptor = descriptor;
+    dram.type = type;
+    dram.transaction_type = transaction_type;
+
+    if (has_channel) {
+        dram.channel = channel;
+        valid_flags |= CXL_DRAM_VALID_CHANNEL;
+    }
+
+    if (has_rank) {
+        dram.rank = rank;
+        valid_flags |= CXL_DRAM_VALID_RANK;
+    }
+
+    if (has_nibble_mask) {
+        st24_le_p(dram.nibble_mask, nibble_mask);
+        valid_flags |= CXL_DRAM_VALID_NIBBLE_MASK;
+    }
+
+    if (has_bank_group) {
+        dram.bank_group = bank_group;
+        valid_flags |= CXL_DRAM_VALID_BANK_GROUP;
+    }
+
+    if (has_bank) {
+        dram.bank = bank;
+        valid_flags |= CXL_DRAM_VALID_BANK;
+    }
+
+    if (has_row) {
+        st24_le_p(dram.row, row);
+        valid_flags |= CXL_DRAM_VALID_ROW;
+    }
+
+    if (has_column) {
+        stw_le_p(&dram.column, column);
+        valid_flags |= CXL_DRAM_VALID_COLUMN;
+    }
+
+    if (has_correction_mask) {
+        int count = 0;
+        while (correction_mask && count < 4) {
+            stq_le_p(&dram.correction_mask[count],
+                     correction_mask->value);
+            count++;
+            correction_mask = correction_mask->next;
+        }
+        valid_flags |= CXL_DRAM_VALID_CORRECTION_MASK;
+    }
+
+    stw_le_p(&dram.validity_flags, valid_flags);
+
+    if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&dram)) {
+        cxl_event_irq_assert(ct3d);
+    }
+    return;
 }
 
 static void ct3_class_init(ObjectClass *oc, void *data)

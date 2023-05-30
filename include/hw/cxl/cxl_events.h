@@ -123,4 +123,27 @@ typedef struct CXLEventGenMedia {
     uint8_t reserved[CXL_EVENT_GEN_MED_RES_SIZE];
 } QEMU_PACKED CXLEventGenMedia;
 
+/*
+ * DRAM Event Record
+ * CXL Rev 3.0 Section 8.2.9.2.1.2: Table 8-44
+ * All fields little endian.
+ */
+typedef struct CXLEventDram {
+    CXLEventRecordHdr hdr;
+    uint64_t phys_addr;
+    uint8_t descriptor;
+    uint8_t type;
+    uint8_t transaction_type;
+    uint16_t validity_flags;
+    uint8_t channel;
+    uint8_t rank;
+    uint8_t nibble_mask[3];
+    uint8_t bank_group;
+    uint8_t bank;
+    uint8_t row[3];
+    uint16_t column;
+    uint64_t correction_mask[4];
+    uint8_t reserved[0x17];
+} QEMU_PACKED CXLEventDram;
+
 #endif /* CXL_EVENTS_H */

@@ -80,6 +80,67 @@
             '*device': 'uint32', '*component-id': 'str' } }
 
 ##
+# @cxl-inject-dram-event:
+#
+# Inject an event record for a DRAM Event (CXL r3.0 8.2.9.2.1.2).
+# This event type is reported via one of the event logs specified via
+# the log parameter.
+#
+# @path: CXL type 3 device canonical QOM path
+#
+# @log: Event log to add the event to
+#
+# @flags: Event Record Flags.  See CXL r3.0 Table 8-42 Common Event
+#     Record Format, Event Record Flags for subfield definitions.
+#
+# @dpa: Device Physical Address (relative to @path device).  Note
+#     lower bits include some flags.  See CXL r3.0 Table 8-44 DRAM
+#     Event Record, Physical Address.
+#
+# @descriptor: Memory Event Descriptor with additional memory event
+#     information.  See CXL r3.0 Table 8-44 DRAM Event Record, Memory
+#     Event Descriptor for bit definitions.
+#
+# @type: Type of memory event that occurred.  See CXL r3.0 Table 8-44
+#     DRAM Event Record, Memory Event Type for possible values.
+#
+# @transaction-type: Type of first transaction that caused the event
+#     to occur.  See CXL r3.0 Table 8-44 DRAM Event Record,
+#     Transaction Type for possible values.
+#
+# @channel: The channel of the memory event location.  A channel is an
+#     interface that can be independently accessed for a transaction.
+#
+# @rank: The rank of the memory event location.  A rank is a set of
+#     memory devices on a channel that together execute a transaction.
+#
+# @nibble-mask: Identifies one or more nibbles that the error affects
+#
+# @bank-group: Bank group of the memory event location, incorporating
+#     a number of Banks.
+#
+# @bank: Bank of the memory event location.  A single bank is accessed
+#     per read or write of the memory.
+#
+# @row: Row address within the DRAM.
+#
+# @column: Column address within the DRAM.
+#
+# @correction-mask: Bits within each nibble.  Used in order of bits
+#     set in the nibble-mask.  Up to 4 nibbles may be covered.
+#
+# Since: 8.1
+##
+{ 'command': 'cxl-inject-dram-event',
+  'data': { 'path': 'str', 'log': 'CxlEventLog', 'flags': 'uint8',
+            'dpa': 'uint64', 'descriptor': 'uint8',
+            'type': 'uint8', 'transaction-type': 'uint8',
+            '*channel': 'uint8', '*rank': 'uint8', '*nibble-mask': 'uint32',
+            '*bank-group': 'uint8', '*bank': 'uint8', '*row': 'uint32',
+            '*column': 'uint16', '*correction-mask': [ 'uint64' ]
+           }}
+
+##
 # @cxl-inject-poison:
 #
 # Poison records indicate that a CXL memory device knows that a
