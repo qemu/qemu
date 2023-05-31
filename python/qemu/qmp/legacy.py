@@ -68,34 +68,31 @@ class QEMUMonitorProtocol:
     Provide an API to connect to QEMU via QEMU Monitor Protocol (QMP)
     and then allow to handle commands and events.
 
-    :param address:  QEMU address, can be either a unix socket path (string)
-                     or a tuple in the form ( address, port ) for a TCP
-                     connection or None
-    :param sock:     a socket or None
+    :param address:  QEMU address, can be a unix socket path (string), a tuple
+                     in the form ( address, port ) for a TCP connection, or an
+                     existing `socket.socket` object.
     :param server:   Act as the socket server. (See 'accept')
+                     Not applicable when passing a socket directly.
     :param nickname: Optional nickname used for logging.
     """
 
     def __init__(self,
-                 address: Optional[SocketAddrT] = None,
-                 sock: Optional[socket.socket] = None,
+                 address: Union[SocketAddrT, socket.socket],
                  server: bool = False,
                  nickname: Optional[str] = None):
 
-        assert address or sock
+        if server and isinstance(address, socket.socket):
+            raise ValueError(
+                "server argument should be False when passing a socket")
+
         self._qmp = QMPClient(nickname)
         self._aloop = asyncio.get_event_loop()
         self._address = address
-        self._sock = sock
         self._timeout: Optional[float] = None
 
         if server:
-            if sock:
-                assert self._sock is not None
-                self._sync(self._qmp.open_with_socket(self._sock))
-            else:
-                assert self._address is not None
-                self._sync(self._qmp.start_server(self._address))
+            assert not isinstance(self._address, socket.socket)
+            self._sync(self._qmp.start_server(self._address))
 
     _T = TypeVar('_T')
 
@@ -150,7 +147,6 @@ class QEMUMonitorProtocol:
         :return: QMP greeting dict, or None if negotiate is false
         :raise ConnectError: on connection errors
         """
-        assert self._address is not None
         self._qmp.await_greeting = negotiate
         self._qmp.negotiate = negotiate
 

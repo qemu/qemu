@@ -299,19 +299,6 @@ class AsyncProtocol(Generic[T]):
 
     @upper_half
     @require(Runstate.IDLE)
-    async def open_with_socket(self, sock: socket.socket) -> None:
-        """
-        Start connection with given socket.
-
-        :param sock: A socket.
-
-        :raise StateError: When the `Runstate` is not `IDLE`.
-        """
-        self._reader, self._writer = await asyncio.open_connection(sock=sock)
-        self._set_state(Runstate.CONNECTING)
-
-    @upper_half
-    @require(Runstate.IDLE)
     async def start_server(self, address: SocketAddrT,
                            ssl: Optional[SSLContext] = None) -> None:
         """
@@ -357,12 +344,11 @@ class AsyncProtocol(Generic[T]):
             protocol-level failure occurs while establishing a new
             session, the wrapped error may also be an `QMPError`.
         """
-        if not self._reader:
-            if self._accepted is None:
-                raise QMPError("Cannot call accept() before start_server().")
-            await self._session_guard(
-                self._do_accept(),
-                'Failed to establish connection')
+        if self._accepted is None:
+            raise QMPError("Cannot call accept() before start_server().")
+        await self._session_guard(
+            self._do_accept(),
+            'Failed to establish connection')
         await self._session_guard(
             self._establish_session(),
             'Failed to establish session')
@@ -370,7 +356,7 @@ class AsyncProtocol(Generic[T]):
 
     @upper_half
     @require(Runstate.IDLE)
-    async def connect(self, address: SocketAddrT,
+    async def connect(self, address: Union[SocketAddrT, socket.socket],
                       ssl: Optional[SSLContext] = None) -> None:
         """
         Connect to the server and begin processing message queues.
@@ -615,7 +601,7 @@ class AsyncProtocol(Generic[T]):
         self.logger.debug("Connection accepted.")
 
     @upper_half
-    async def _do_connect(self, address: SocketAddrT,
+    async def _do_connect(self, address: Union[SocketAddrT, socket.socket],
                           ssl: Optional[SSLContext] = None) -> None:
         """
         Acting as the transport client, initiate a connection to a server.
@@ -634,9 +620,17 @@ class AsyncProtocol(Generic[T]):
         # otherwise yield.
         await asyncio.sleep(0)
 
-        self.logger.debug("Connecting to %s ...", address)
-
-        if isinstance(address, tuple):
+        if isinstance(address, socket.socket):
+            self.logger.debug("Connecting with existing socket: "
+                              "fd=%d, family=%r, type=%r",
+                              address.fileno(), address.family, address.type)
+            connect = asyncio.open_connection(
+                limit=self._limit,
+                ssl=ssl,
+                sock=address,
+            )
+        elif isinstance(address, tuple):
+            self.logger.debug("Connecting to %s ...", address)
             connect = asyncio.open_connection(
                 address[0],
                 address[1],
@@ -644,13 +638,14 @@ class AsyncProtocol(Generic[T]):
                 limit=self._limit,
             )
         else:
+            self.logger.debug("Connecting to file://%s ...", address)
             connect = asyncio.open_unix_connection(
                 path=address,
                 ssl=ssl,
                 limit=self._limit,
             )
-        self._reader, self._writer = await connect
 
+        self._reader, self._writer = await connect
         self.logger.debug("Connected.")
 
     @upper_half
