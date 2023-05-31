@@ -163,7 +163,9 @@ static uint64_t pnv_xive2_vst_addr_indirect(PnvXive2 *xive, uint32_t type,
     ldq_be_dma(&address_space_memory, vsd_addr, &vsd, MEMTXATTRS_UNSPECIFIED);
 
     if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE2_DEBUG
         xive2_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
         return 0;
     }
 
@@ -185,7 +187,9 @@ static uint64_t pnv_xive2_vst_addr_indirect(PnvXive2 *xive, uint32_t type,
                    MEMTXATTRS_UNSPECIFIED);
 
         if (!(vsd & VSD_ADDRESS_MASK)) {
+#ifdef XIVE2_DEBUG
             xive2_error(xive, "VST: invalid %s entry %x !?", info->name, idx);
+#endif
             return 0;
         }
 
