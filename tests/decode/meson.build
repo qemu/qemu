@@ -53,12 +53,12 @@ decodetree = find_program(meson.project_source_root() / 'scripts/decodetree.py')
 
 foreach t: err_tests
     test(fs.replace_suffix(t, ''),
-         decodetree, args: ['-o', '/dev/null', '--test-for-error', files(t)],
+         decodetree, args: ['--output-null', '--test-for-error', files(t)],
          suite: suite)
 endforeach
 
 foreach t: succ_tests
     test(fs.replace_suffix(t, ''),
-         decodetree, args: ['-o', '/dev/null', files(t)],
+         decodetree, args: ['--output-null', files(t)],
          suite: suite)
 endforeach

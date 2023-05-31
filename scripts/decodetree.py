@@ -42,6 +42,7 @@ translate_scope = 'static '
 input_file = ''
 output_file = None
 output_fd = None
+output_null = False
 insntype = 'uint32_t'
 decode_function = 'decode'
 
@@ -145,12 +146,7 @@ def error_with_file(file, lineno, *args):
 
     if output_file and output_fd:
         output_fd.close()
-        # Do not try to remove e.g. -o /dev/null
-        if not output_file.startswith("/dev"):
-            try:
-                os.remove(output_file)
-            except PermissionError:
-                pass
+        os.remove(output_file)
     exit(0 if testforerror else 1)
 # end error_with_file
 
@@ -1501,6 +1497,7 @@ def main():
     global translate_prefix
     global output_fd
     global output_file
+    global output_null
     global input_file
     global insnwidth
     global insntype
@@ -1514,7 +1511,8 @@ def main():
     decode_scope = 'static '
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=',
-                 'static-decode=', 'varinsnwidth=', 'test-for-error']
+                 'static-decode=', 'varinsnwidth=', 'test-for-error',
+                 'output-null']
     try:
         (opts, args) = getopt.gnu_getopt(sys.argv[1:], 'o:vw:', long_opts)
     except getopt.GetoptError as err:
@@ -1545,6 +1543,8 @@ def main():
                 error(0, 'cannot handle insns of width', insnwidth)
         elif o == '--test-for-error':
             testforerror = True
+        elif o == '--output-null':
+            output_null = True
         else:
             assert False, 'unhandled option'
 
@@ -1574,7 +1574,9 @@ def main():
         stree = build_size_tree(toppat.pats, 8, 0, 0)
         prop_size(stree)
 
-    if output_file:
+    if output_null:
+        output_fd = open(os.devnull, 'wt', encoding='utf-8', errors="ignore")
+    elif output_file:
         output_fd = open(output_file, 'wt', encoding='utf-8')
     else:
         output_fd = io.TextIOWrapper(sys.stdout.buffer,
