@@ -320,7 +320,8 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
 
 void bmdma_status_writeb(BMDMAState *bm, uint32_t val)
 {
-    bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
+    bm->status = (val & 0x60) | (bm->status & BM_STATUS_DMAING)
+                 | (bm->status & ~val & (BM_STATUS_ERROR | BM_STATUS_INT));
 }
 
 static uint64_t bmdma_addr_read(void *opaque, hwaddr addr,
