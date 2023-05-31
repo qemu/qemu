@@ -1,9 +1,9 @@
 .container_job_template:
   extends: .base_job_template
-  image: docker:stable
+  image: docker:latest
   stage: containers
   services:
-    - docker:stable-dind
+    - docker:dind
   before_script:
     - export TAG="$CI_REGISTRY_IMAGE/qemu/$NAME:latest"
     - export COMMON_TAG="$CI_REGISTRY/qemu-project/qemu/qemu/$NAME:latest"
