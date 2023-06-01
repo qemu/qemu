@@ -2132,7 +2132,7 @@ vmdk_co_pwritev_compressed(BlockDriverState *bs, int64_t offset, int64_t bytes,
         int64_t length;
 
         for (i = 0; i < s->num_extents; i++) {
-            length = bdrv_getlength(s->extents[i].file->bs);
+            length = bdrv_co_getlength(s->extents[i].file->bs);
             if (length < 0) {
                 return length;
             }
@@ -2939,7 +2939,7 @@ vmdk_co_check(BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix)
             break;
         }
         if (ret == VMDK_OK) {
-            int64_t extent_len = bdrv_getlength(extent->file->bs);
+            int64_t extent_len = bdrv_co_getlength(extent->file->bs);
             if (extent_len < 0) {
                 fprintf(stderr,
                         "ERROR: could not get extent file length for sector %"
