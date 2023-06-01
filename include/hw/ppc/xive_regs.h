@@ -48,6 +48,22 @@
 
 #define TM_SHIFT                16
 
+/*
+ * TIMA addresses are 12-bits (4k page).
+ * The MSB indicates a special op with side effect, which can be
+ * refined with bit 10 (see below).
+ * The registers, logically grouped in 4 rings (a quad-word each), are
+ * defined on the 6 LSBs (offset below 0x40)
+ * In between, we can add a cache line index from 0...3 (ie, 0, 0x80,
+ * 0x100, 0x180) to select a specific snooper. Those 'snoop port
+ * address' bits should be dropped when processing the operations as
+ * they are all equivalent.
+ */
+#define TM_ADDRESS_MASK         0xC3F
+#define TM_SPECIAL_OP           0x800
+#define TM_RING_OFFSET          0x30
+#define TM_REG_OFFSET           0x3F
+
 /* TM register offsets */
 #define TM_QW0_USER             0x000 /* All rings */
 #define TM_QW1_OS               0x010 /* Ring 0..2 */
