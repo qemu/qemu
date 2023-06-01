@@ -2846,11 +2846,35 @@ void vfio_put_group(VFIOGroup *group)
     }
 }
 
+struct vfio_device_info *vfio_get_device_info(int fd)
+{
+    struct vfio_device_info *info;
+    uint32_t argsz = sizeof(*info);
+
+    info = g_malloc0(argsz);
+
+retry:
+    info->argsz = argsz;
+
+    if (ioctl(fd, VFIO_DEVICE_GET_INFO, info)) {
+        g_free(info);
+        return NULL;
+    }
+
+    if (info->argsz > argsz) {
+        argsz = info->argsz;
+        info = g_realloc(info, argsz);
+        goto retry;
+    }
+
+    return info;
+}
+
 int vfio_get_device(VFIOGroup *group, const char *name,
                     VFIODevice *vbasedev, Error **errp)
 {
-    struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
-    int ret, fd;
+    g_autofree struct vfio_device_info *info = NULL;
+    int fd;
 
     fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
     if (fd < 0) {
@@ -2862,11 +2886,11 @@ int vfio_get_device(VFIOGroup *group, const char *name,
         return fd;
     }
 
-    ret = ioctl(fd, VFIO_DEVICE_GET_INFO, &dev_info);
-    if (ret) {
+    info = vfio_get_device_info(fd);
+    if (!info) {
         error_setg_errno(errp, errno, "error getting device info");
         close(fd);
-        return ret;
+        return -1;
     }
 
     /*
@@ -2894,14 +2918,14 @@ int vfio_get_device(VFIOGroup *group, const char *name,
     vbasedev->group = group;
     QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
 
-    vbasedev->num_irqs = dev_info.num_irqs;
-    vbasedev->num_regions = dev_info.num_regions;
-    vbasedev->flags = dev_info.flags;
+    vbasedev->num_irqs = info->num_irqs;
+    vbasedev->num_regions = info->num_regions;
+    vbasedev->flags = info->flags;
 
-    trace_vfio_get_device(name, dev_info.flags, dev_info.num_regions,
-                          dev_info.num_irqs);
+    trace_vfio_get_device(name, info->flags, info->num_regions, info->num_irqs);
 
-    vbasedev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
+    vbasedev->reset_works = !!(info->flags & VFIO_DEVICE_FLAGS_RESET);
+
     return 0;
 }
 
