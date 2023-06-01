@@ -44,6 +44,7 @@ unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
 static bool got_stop;
+static bool got_resume;
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -607,6 +608,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     }
 
     got_stop = false;
+    got_resume = false;
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
@@ -712,6 +714,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
     *to = qtest_init(cmd_target);
+    qtest_qmp_set_event_callback(*to,
+                                 migrate_watch_for_resume,
+                                 &got_resume);
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.

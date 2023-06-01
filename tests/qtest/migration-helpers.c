@@ -36,6 +36,19 @@ bool migrate_watch_for_stop(QTestState *who, const char *name,
     return false;
 }
 
+bool migrate_watch_for_resume(QTestState *who, const char *name,
+                              QDict *event, void *opaque)
+{
+    bool *seen = opaque;
+
+    if (g_str_equal(name, "RESUME")) {
+        *seen = true;
+        return true;
+    }
+
+    return false;
+}
+
 /*
  * Send QMP command "migrate".
  * Arguments are built from @fmt... (formatted like

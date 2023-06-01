@@ -17,6 +17,8 @@
 
 bool migrate_watch_for_stop(QTestState *who, const char *name,
                             QDict *event, void *opaque);
+bool migrate_watch_for_resume(QTestState *who, const char *name,
+                              QDict *event, void *opaque);
 
 G_GNUC_PRINTF(3, 4)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...);
