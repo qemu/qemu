@@ -580,7 +580,14 @@ typedef struct {
     /* Optional: set number of migration passes to wait for, if live==true */
     unsigned int iterations;
 
-    /* Optional: whether the guest CPUs should be running during migration */
+    /*
+     * Optional: whether the guest CPUs should be running during a precopy
+     * migration test.  We used to always run with live but it took much
+     * longer so we reduced live tests to only the ones that have solid
+     * reason to be tested live-only.  For each of the new test cases for
+     * precopy please provide justifications to use live explicitly (please
+     * refer to existing ones with live=true), or use live=off by default.
+     */
     bool live;
 
     /* Postcopy specific fields */
@@ -1491,7 +1498,10 @@ static void test_precopy_unix_plain(void)
     MigrateCommon args = {
         .listen_uri = uri,
         .connect_uri = uri,
-
+        /*
+         * The simplest use case of precopy, covering smoke tests of
+         * get-dirty-log dirty tracking.
+         */
         .live = true,
     };
 
@@ -1508,7 +1518,10 @@ static void test_precopy_unix_dirty_ring(void)
         },
         .listen_uri = uri,
         .connect_uri = uri,
-
+        /*
+         * Besides the precopy/unix basic test, cover dirty ring interface
+         * rather than get-dirty-log.
+         */
         .live = true,
     };
 
@@ -1617,10 +1630,12 @@ static void test_precopy_unix_xbzrle(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
-
         .start_hook = test_migrate_xbzrle_start,
-
         .iterations = 2,
+        /*
+         * XBZRLE needs pages to be modified when doing the 2nd+ round
+         * iteration to have real data pushed to the stream.
+         */
         .live = true,
     };
 
@@ -1639,6 +1654,11 @@ static void test_precopy_unix_compress(void)
          * the previous iteration.
          */
         .iterations = 2,
+        /*
+         * We make sure the compressor can always work well even if guest
+         * memory is changing.  See commit 34ab9e9743 where we used to fix
+         * a bug when only trigger-able with guest memory changing.
+         */
         .live = true,
     };
 
@@ -1657,6 +1677,7 @@ static void test_precopy_unix_compress_nowait(void)
          * the previous iteration.
          */
         .iterations = 2,
+        /* Same reason for the wait version of precopy compress test */
         .live = true,
     };
 
@@ -2066,7 +2087,11 @@ static void test_multifd_tcp_none(void)
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
-
+        /*
+         * Multifd is more complicated than most of the features, it
+         * directly takes guest page buffers when sending, make sure
+         * everything will work alright even if guest page is changing.
+         */
         .live = true,
     };
     test_precopy_common(&args);
