@@ -32,7 +32,7 @@
 #include "sysemu/tcg.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "trace/trace-root.h"
+#include "trace.h"
 #include "qemu/plugin.h"
 
 CPUState *cpu_by_arch_id(int64_t id)
@@ -113,7 +113,7 @@ void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));
 
-    trace_guest_cpu_reset(cpu);
+    trace_cpu_reset(cpu->cpu_index);
 }
 
 static void cpu_common_reset_hold(Object *obj)
@@ -211,7 +211,6 @@ static void cpu_common_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* NOTE: latest generic point where the cpu is fully realized */
-    trace_init_vcpu(cpu);
 }
 
 static void cpu_common_unrealizefn(DeviceState *dev)
@@ -219,7 +218,6 @@ static void cpu_common_unrealizefn(DeviceState *dev)
     CPUState *cpu = CPU(dev);
 
     /* NOTE: latest generic point before the cpu is fully unrealized */
-    trace_fini_vcpu(cpu);
     cpu_exec_unrealizefn(cpu);
 }
 

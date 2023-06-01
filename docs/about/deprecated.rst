@@ -218,6 +218,22 @@ instruction per translated block" mode (which can be set on the
 command line or via the HMP, but not via QMP). The information remains
 available via the HMP 'info jit' command.
 
+QEMU Machine Protocol (QMP) events
+----------------------------------
+
+``MEM_UNPLUG_ERROR`` (since 6.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Use the more generic event ``DEVICE_UNPLUG_GUEST_ERROR`` instead.
+
+``vcpu`` trace events (since 8.1)
+'''''''''''''''''''''''''''''''''
+
+The ability to instrument QEMU helper functions with vCPU-aware trace
+points was removed in 7.0. However QMP still exposed the vcpu
+parameter. This argument has now been deprecated and the remaining
+remaining trace points that used it are selected just by name.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
@@ -249,15 +265,6 @@ The QEMU project no longer considers 32-bit x86 support for system emulation to
 be an effective use of its limited resources, and thus intends to discontinue
 it. Since all recent x86 hardware from the past >10 years is capable of the
 64-bit x86 extensions, a corresponding 64-bit OS should be used instead.
-
-
-QEMU API (QAPI) events
-----------------------
-
-``MEM_UNPLUG_ERROR`` (since 6.2)
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Use the more generic event ``DEVICE_UNPLUG_GUEST_ERROR`` instead.
 
 
 System emulator machines
