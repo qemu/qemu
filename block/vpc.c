@@ -486,8 +486,8 @@ static int vpc_reopen_prepare(BDRVReopenState *state,
  * operation (the block bitmaps is updated then), 0 otherwise.
  * If write is true then err must not be NULL.
  */
-static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
-                                       bool write, int *err)
+static int64_t coroutine_fn GRAPH_RDLOCK
+get_image_offset(BlockDriverState *bs, uint64_t offset, bool write, int *err)
 {
     BDRVVPCState *s = bs->opaque;
     uint64_t bitmap_offset, block_offset;
@@ -515,8 +515,7 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
 
         s->last_bitmap_offset = bitmap_offset;
         memset(bitmap, 0xff, s->bitmap_size);
-        r = bdrv_pwrite_sync(bs->file, bitmap_offset, s->bitmap_size, bitmap,
-                             0);
+        r = bdrv_co_pwrite_sync(bs->file, bitmap_offset, s->bitmap_size, bitmap, 0);
         if (r < 0) {
             *err = r;
             return -2;
@@ -532,13 +531,13 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
  *
  * Returns 0 on success and < 0 on error
  */
-static int rewrite_footer(BlockDriverState *bs)
+static int coroutine_fn GRAPH_RDLOCK rewrite_footer(BlockDriverState *bs)
 {
     int ret;
     BDRVVPCState *s = bs->opaque;
     int64_t offset = s->free_data_block_offset;
 
-    ret = bdrv_pwrite_sync(bs->file, offset, sizeof(s->footer), &s->footer, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, offset, sizeof(s->footer), &s->footer, 0);
     if (ret < 0)
         return ret;
 
@@ -552,7 +551,8 @@ static int rewrite_footer(BlockDriverState *bs)
  *
  * Returns the sectors' offset in the image file on success and < 0 on error
  */
-static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
+static int64_t coroutine_fn GRAPH_RDLOCK
+alloc_block(BlockDriverState *bs, int64_t offset)
 {
     BDRVVPCState *s = bs->opaque;
     int64_t bat_offset;
@@ -572,8 +572,8 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
 
     /* Initialize the block's bitmap */
     memset(bitmap, 0xff, s->bitmap_size);
-    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset,
-                           s->bitmap_size, bitmap, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, s->free_data_block_offset,
+                              s->bitmap_size, bitmap, 0);
     if (ret < 0) {
         return ret;
     }
@@ -587,7 +587,7 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
     /* Write BAT entry to disk */
     bat_offset = s->bat_offset + (4 * index);
     bat_value = cpu_to_be32(s->pagetable[index]);
-    ret = bdrv_pwrite_sync(bs->file, bat_offset, 4, &bat_value, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, bat_offset, 4, &bat_value, 0);
     if (ret < 0)
         goto fail;
 
@@ -718,11 +718,11 @@ fail:
     return ret;
 }
 
-static int coroutine_fn vpc_co_block_status(BlockDriverState *bs,
-                                            bool want_zero,
-                                            int64_t offset, int64_t bytes,
-                                            int64_t *pnum, int64_t *map,
-                                            BlockDriverState **file)
+static int coroutine_fn GRAPH_RDLOCK
+vpc_co_block_status(BlockDriverState *bs, bool want_zero,
+                    int64_t offset, int64_t bytes,
+                    int64_t *pnum, int64_t *map,
+                    BlockDriverState **file)
 {
     BDRVVPCState *s = bs->opaque;
     int64_t image_offset;
@@ -820,8 +820,8 @@ static int calculate_geometry(int64_t total_sectors, uint16_t *cyls,
     return 0;
 }
 
-static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
-                               int64_t total_sectors)
+static int coroutine_fn create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
+                                            int64_t total_sectors)
 {
     VHDDynDiskHeader dyndisk_header;
     uint8_t bat_sector[512];
@@ -834,13 +834,13 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     block_size = 0x200000;
     num_bat_entries = DIV_ROUND_UP(total_sectors, block_size / 512);
 
-    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
-    ret = blk_pwrite(blk, offset, sizeof(*footer), footer, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(*footer), footer, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -850,7 +850,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
 
     memset(bat_sector, 0xFF, 512);
     for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
-        ret = blk_pwrite(blk, offset, 512, bat_sector, 0);
+        ret = blk_co_pwrite(blk, offset, 512, bat_sector, 0);
         if (ret < 0) {
             goto fail;
         }
@@ -878,7 +878,7 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     /* Write the header */
     offset = 512;
 
-    ret = blk_pwrite(blk, offset, sizeof(dyndisk_header), &dyndisk_header, 0);
+    ret = blk_co_pwrite(blk, offset, sizeof(dyndisk_header), &dyndisk_header, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -888,21 +888,21 @@ static int create_dynamic_disk(BlockBackend *blk, VHDFooter *footer,
     return ret;
 }
 
-static int create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
-                             int64_t total_size, Error **errp)
+static int coroutine_fn create_fixed_disk(BlockBackend *blk, VHDFooter *footer,
+                                          int64_t total_size, Error **errp)
 {
     int ret;
 
     /* Add footer to total size */
     total_size += sizeof(*footer);
 
-    ret = blk_truncate(blk, total_size, false, PREALLOC_MODE_OFF, 0, errp);
+    ret = blk_co_truncate(blk, total_size, false, PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_pwrite(blk, total_size - sizeof(*footer), sizeof(*footer),
-                     footer, 0);
+    ret = blk_co_pwrite(blk, total_size - sizeof(*footer), sizeof(*footer),
+                        footer, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Unable to write VHD header");
         return ret;
