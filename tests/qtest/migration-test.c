@@ -359,14 +359,10 @@ static void migrate_check_parameter_int(QTestState *who, const char *parameter,
 static void migrate_set_parameter_int(QTestState *who, const char *parameter,
                                       long long value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %lld } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %lld } }",
+                             parameter, value);
     migrate_check_parameter_int(who, parameter, value);
 }
 
@@ -392,14 +388,10 @@ static void migrate_check_parameter_str(QTestState *who, const char *parameter,
 static void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                       const char *value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %s } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %s } }",
+                             parameter, value);
     migrate_check_parameter_str(who, parameter, value);
 }
 
@@ -427,14 +419,10 @@ static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
 static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
                                       int value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %i } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %i } }",
+                             parameter, value);
     migrate_check_parameter_bool(who, parameter, value);
 }
 
@@ -494,16 +482,12 @@ static void migrate_cancel(QTestState *who)
 static void migrate_set_capability(QTestState *who, const char *capability,
                                    bool value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-capabilities',"
-                    "'arguments': { "
-                    "'capabilities': [ { "
-                    "'capability': %s, 'state': %i } ] } }",
-                    capability, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-capabilities',"
+                             "'arguments': { "
+                             "'capabilities': [ { "
+                             "'capability': %s, 'state': %i } ] } }",
+                             capability, value);
 }
 
 static void migrate_postcopy_start(QTestState *from, QTestState *to)

@@ -93,7 +93,7 @@ QDict *wait_command(QTestState *who, const char *command, ...)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *args, *rsp;
+    QDict *args;
 
     va_start(ap, fmt);
     args = qdict_from_vjsonf_nofail(fmt, ap);
@@ -102,10 +102,8 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
     g_assert(!qdict_haskey(args, "uri"));
     qdict_put_str(args, "uri", uri);
 
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate', 'arguments': %p}", args);
-
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate', 'arguments': %p}", args);
 }
 
 /*
