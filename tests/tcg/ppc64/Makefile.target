@@ -36,5 +36,6 @@ run-vector: QEMU_OPTS += -cpu POWER10
 
 PPC64_TESTS += signal_save_restore_xer
 PPC64_TESTS += xxspltw
+PPC64_TESTS += test-aes
 
 TESTS += $(PPC64_TESTS)

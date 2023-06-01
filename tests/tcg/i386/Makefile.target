@@ -28,6 +28,10 @@ run-test-i386-bmi2: QEMU_OPTS += -cpu max
 test-i386-adcox: CFLAGS=-O2
 run-test-i386-adcox: QEMU_OPTS += -cpu max
 
+test-aes: CFLAGS += -O -msse2 -maes
+test-aes: test-aes-main.c.inc
+run-test-aes: QEMU_OPTS += -cpu max
+
 #
 # hello-i386 is a barebones app
 #
