@@ -339,7 +339,8 @@ out:
     return ret;
 }
 
-static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
+static int coroutine_fn GRAPH_RDLOCK
+vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 {
     char *desc, *tmp_desc;
     char *p_name, *tmp_str;
@@ -348,7 +349,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
 
     desc = g_malloc0(DESC_SIZE);
     tmp_desc = g_malloc0(DESC_SIZE);
-    ret = bdrv_pread(bs->file, s->desc_offset, DESC_SIZE, desc, 0);
+    ret = bdrv_co_pread(bs->file, s->desc_offset, DESC_SIZE, desc, 0);
     if (ret < 0) {
         goto out;
     }
@@ -368,7 +369,7 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, DESC_SIZE, tmp_desc);
     }
 
-    ret = bdrv_pwrite_sync(bs->file, s->desc_offset, DESC_SIZE, desc, 0);
+    ret = bdrv_co_pwrite_sync(bs->file, s->desc_offset, DESC_SIZE, desc, 0);
 
 out:
     g_free(desc);
@@ -2165,7 +2166,7 @@ vmdk_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
     return ret;
 }
 
-static int GRAPH_UNLOCKED
+static int coroutine_fn GRAPH_UNLOCKED
 vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
                  bool zeroed_grain, Error **errp)
 {
@@ -2176,7 +2177,7 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
     int gd_buf_size;
 
     if (flat) {
-        ret = blk_truncate(blk, filesize, false, PREALLOC_MODE_OFF, 0, errp);
+        ret = blk_co_truncate(blk, filesize, false, PREALLOC_MODE_OFF, 0, errp);
         goto exit;
     }
     magic = cpu_to_be32(VMDK4_MAGIC);
@@ -2228,19 +2229,19 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
     header.check_bytes[3] = 0xa;
 
     /* write all the data */
-    ret = blk_pwrite(blk, 0, sizeof(magic), &magic, 0);
+    ret = blk_co_pwrite(blk, 0, sizeof(magic), &magic, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
-    ret = blk_pwrite(blk, sizeof(magic), sizeof(header), &header, 0);
+    ret = blk_co_pwrite(blk, sizeof(magic), sizeof(header), &header, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
     }
 
-    ret = blk_truncate(blk, le64_to_cpu(header.grain_offset) << 9, false,
-                       PREALLOC_MODE_OFF, 0, errp);
+    ret = blk_co_truncate(blk, le64_to_cpu(header.grain_offset) << 9, false,
+                          PREALLOC_MODE_OFF, 0, errp);
     if (ret < 0) {
         goto exit;
     }
@@ -2252,8 +2253,8 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
          i < gt_count; i++, tmp += gt_size) {
         gd_buf[i] = cpu_to_le32(tmp);
     }
-    ret = blk_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf_size, gd_buf, 0);
+    ret = blk_co_pwrite(blk, le64_to_cpu(header.rgd_offset) * BDRV_SECTOR_SIZE,
+                        gd_buf_size, gd_buf, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
         goto exit;
@@ -2264,8 +2265,8 @@ vmdk_init_extent(BlockBackend *blk, int64_t filesize, bool flat, bool compress,
          i < gt_count; i++, tmp += gt_size) {
         gd_buf[i] = cpu_to_le32(tmp);
     }
-    ret = blk_pwrite(blk, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
-                     gd_buf_size, gd_buf, 0);
+    ret = blk_co_pwrite(blk, le64_to_cpu(header.gd_offset) * BDRV_SECTOR_SIZE,
+                        gd_buf_size, gd_buf, 0);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
     }
