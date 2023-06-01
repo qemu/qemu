@@ -86,28 +86,6 @@ QDict *wait_command(QTestState *who, const char *command, ...)
 }
 
 /*
- * Execute the qmp command only
- */
-QDict *qmp_command(QTestState *who, const char *command, ...)
-{
-    va_list ap;
-    QDict *resp, *ret;
-
-    va_start(ap, command);
-    resp = qtest_vqmp(who, command, ap);
-    va_end(ap);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
-}
-
-/*
  * Send QMP command "migrate".
  * Arguments are built from @fmt... (formatted like
  * qobject_from_jsonf_nofail()) with "uri": @uri spliced in.

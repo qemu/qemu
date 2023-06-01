@@ -2322,32 +2322,33 @@ static void test_multifd_tcp_cancel(void)
 
 static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'calc-dirty-rate',"
-                  "'arguments': { "
-                  "'calc-time': %" PRIu64 ","
-                  "'mode': 'dirty-ring' }}",
-                  calc_time));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'calc-dirty-rate',"
+                             "'arguments': { "
+                             "'calc-time': %" PRIu64 ","
+                             "'mode': 'dirty-ring' }}",
+                             calc_time);
 }
 
 static QDict *query_dirty_rate(QTestState *who)
 {
-    return qmp_command(who, "{ 'execute': 'query-dirty-rate' }");
+    return qtest_qmp_assert_success_ref(who,
+                                        "{ 'execute': 'query-dirty-rate' }");
 }
 
 static void dirtylimit_set_all(QTestState *who, uint64_t dirtyrate)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'set-vcpu-dirty-limit',"
-                  "'arguments': { "
-                  "'dirty-rate': %" PRIu64 " } }",
-                  dirtyrate));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'set-vcpu-dirty-limit',"
+                             "'arguments': { "
+                             "'dirty-rate': %" PRIu64 " } }",
+                             dirtyrate);
 }
 
 static void cancel_vcpu_dirty_limit(QTestState *who)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'cancel-vcpu-dirty-limit' }"));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'cancel-vcpu-dirty-limit' }");
 }
 
 static QDict *query_vcpu_dirty_limit(QTestState *who)
