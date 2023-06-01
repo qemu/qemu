@@ -955,6 +955,10 @@ static uint64_t pnv_xive2_ic_vc_read(void *opaque, hwaddr offset,
         val = xive->vc_regs[reg];
         break;
 
+    case VC_ESBC_CFG:
+        val = xive->vc_regs[reg];
+        break;
+
     /*
      * EAS cache updates (not modeled)
      */
@@ -1044,6 +1048,9 @@ static void pnv_xive2_ic_vc_write(void *opaque, hwaddr offset,
     case VC_ESBC_FLUSH_POLL:
         xive->vc_regs[VC_ESBC_FLUSH_CTRL >> 3] |= VC_ESBC_FLUSH_CTRL_POLL_VALID;
         /* ESB update */
+        break;
+
+    case VC_ESBC_CFG:
         break;
 
     /*
