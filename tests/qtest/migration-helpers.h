@@ -18,14 +18,6 @@
 bool migrate_watch_for_stop(QTestState *who, const char *name,
                             QDict *event, void *opaque);
 
-#ifndef _WIN32
-G_GNUC_PRINTF(3, 4)
-QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...);
-#endif
-
-G_GNUC_PRINTF(2, 3)
-QDict *wait_command(QTestState *who, const char *command, ...);
-
 G_GNUC_PRINTF(3, 4)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...);
 
