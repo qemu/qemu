@@ -694,6 +694,86 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data);
 void qtest_remove_abrt_handler(void *data);
 
 /**
+ * qtest_vqmp_assert_success_ref:
+ * @qts: QTestState instance to operate on
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ * @args: variable arguments for @fmt
+ *
+ * Sends a QMP message to QEMU, asserts that a 'return' key is present in
+ * the response, and returns the response.
+ */
+QDict *qtest_vqmp_assert_success_ref(QTestState *qts,
+                                     const char *fmt, va_list args)
+    G_GNUC_PRINTF(2, 0);
+
+/**
+ * qtest_vqmp_assert_success:
+ * @qts: QTestState instance to operate on
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ * @args: variable arguments for @fmt
+ *
+ * Sends a QMP message to QEMU and asserts that a 'return' key is present in
+ * the response.
+ */
+void qtest_vqmp_assert_success(QTestState *qts,
+                               const char *fmt, va_list args)
+    G_GNUC_PRINTF(2, 0);
+
+#ifndef _WIN32
+/**
+ * qtest_vqmp_fds_assert_success_ref:
+ * @qts: QTestState instance to operate on
+ * @fds: the file descriptors to send
+ * @nfds: number of @fds to send
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ * @args: variable arguments for @fmt
+ *
+ * Sends a QMP message with file descriptors to QEMU,
+ * asserts that a 'return' key is present in the response,
+ * and returns the response.
+ */
+QDict *qtest_vqmp_fds_assert_success_ref(QTestState *qts, int *fds, size_t nfds,
+                                         const char *fmt, va_list args)
+    G_GNUC_PRINTF(4, 0);
+
+/**
+ * qtest_vqmp_fds_assert_success:
+ * @qts: QTestState instance to operate on
+ * @fds: the file descriptors to send
+ * @nfds: number of @fds to send
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ * @args: variable arguments for @fmt
+ *
+ * Sends a QMP message with file descriptors to QEMU and
+ * asserts that a 'return' key is present in the response.
+ */
+void qtest_vqmp_fds_assert_success(QTestState *qts, int *fds, size_t nfds,
+                                   const char *fmt, va_list args)
+    G_GNUC_PRINTF(4, 0);
+#endif /* !_WIN32 */
+
+/**
+ * qtest_qmp_assert_success_ref:
+ * @qts: QTestState instance to operate on
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ *
+ * Sends a QMP message to QEMU, asserts that a 'return' key is present in
+ * the response, and returns the response.
+ */
+QDict *qtest_qmp_assert_success_ref(QTestState *qts, const char *fmt, ...)
+    G_GNUC_PRINTF(2, 3);
+
+/**
  * qtest_qmp_assert_success:
  * @qts: QTestState instance to operate on
  * @fmt: QMP message to send to qemu, formatted like
@@ -705,6 +785,41 @@ void qtest_remove_abrt_handler(void *data);
  */
 void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
     G_GNUC_PRINTF(2, 3);
+
+#ifndef _WIN32
+/**
+ * qtest_qmp_fd_assert_success_ref:
+ * @qts: QTestState instance to operate on
+ * @fds: the file descriptors to send
+ * @nfds: number of @fds to send
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ *
+ * Sends a QMP message with file descriptors to QEMU,
+ * asserts that a 'return' key is present in the response,
+ * and returns the response.
+ */
+QDict *qtest_qmp_fds_assert_success_ref(QTestState *qts, int *fds, size_t nfds,
+                                        const char *fmt, ...)
+    G_GNUC_PRINTF(4, 5);
+
+/**
+ * qtest_qmp_fd_assert_success:
+ * @qts: QTestState instance to operate on
+ * @fds: the file descriptors to send
+ * @nfds: number of @fds to send
+ * @fmt: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_interpolation() for what's
+ * supported after '%'.
+ *
+ * Sends a QMP message with file descriptors to QEMU and
+ * asserts that a 'return' key is present in the response.
+ */
+void qtest_qmp_fds_assert_success(QTestState *qts, int *fds, size_t nfds,
+                                  const char *fmt, ...)
+    G_GNUC_PRINTF(4, 5);
+#endif /* !_WIN32 */
 
 /**
  * qtest_cb_for_every_machine:
