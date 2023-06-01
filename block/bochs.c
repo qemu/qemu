@@ -203,7 +203,8 @@ static void bochs_refresh_limits(BlockDriverState *bs, Error **errp)
     bs->bl.request_alignment = BDRV_SECTOR_SIZE; /* No sub-sector I/O */
 }
 
-static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
+static int64_t coroutine_fn GRAPH_RDLOCK
+seek_to_sector(BlockDriverState *bs, int64_t sector_num)
 {
     BDRVBochsState *s = bs->opaque;
     uint64_t offset = sector_num * 512;
@@ -224,8 +225,8 @@ static int64_t seek_to_sector(BlockDriverState *bs, int64_t sector_num)
         (s->extent_blocks + s->bitmap_blocks));
 
     /* read in bitmap for current extent */
-    ret = bdrv_pread(bs->file, bitmap_offset + (extent_offset / 8), 1,
-                     &bitmap_entry, 0);
+    ret = bdrv_co_pread(bs->file, bitmap_offset + (extent_offset / 8), 1,
+                        &bitmap_entry, 0);
     if (ret < 0) {
         return ret;
     }
