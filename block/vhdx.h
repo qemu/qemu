@@ -413,8 +413,9 @@ bool vhdx_checksum_is_valid(uint8_t *buf, size_t size, int crc_offset);
 int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
                    Error **errp);
 
-int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
-                             void *data, uint32_t length, uint64_t offset);
+int coroutine_fn GRAPH_RDLOCK
+vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
+                         void *data, uint32_t length, uint64_t offset);
 
 static inline void leguid_to_cpus(MSGUID *guid)
 {
