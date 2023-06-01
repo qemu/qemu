@@ -193,7 +193,7 @@ static int fd_open(BlockDriverState *bs)
     return -EIO;
 }
 
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs);
+static int64_t raw_getlength(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -1974,7 +1974,7 @@ static int handle_aiocb_write_zeroes(void *opaque)
 #ifdef CONFIG_FALLOCATE
     /* Last resort: we are trying to extend the file with zeroed data. This
      * can be done via fallocate(fd, 0) */
-    len = raw_co_getlength(aiocb->bs);
+    len = raw_getlength(aiocb->bs);
     if (s->has_fallocate && len >= 0 && aiocb->aio_offset >= len) {
         int ret = do_fallocate(s->fd, 0, aiocb->aio_offset, aiocb->aio_nbytes);
         if (ret == 0 || ret != -ENOTSUP) {
@@ -2666,7 +2666,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-        int64_t cur_length = raw_co_getlength(bs);
+        int64_t cur_length = raw_getlength(bs);
 
         if (offset != cur_length && exact) {
             error_setg(errp, "Cannot resize device files");
@@ -2684,7 +2684,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
 }
 
 #ifdef __OpenBSD__
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2703,7 +2703,7 @@ static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__NetBSD__)
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2728,7 +2728,7 @@ static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__sun__)
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     struct dk_minfo minfo;
@@ -2759,7 +2759,7 @@ static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
     return size;
 }
 #elif defined(CONFIG_BSD)
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int fd = s->fd;
@@ -2831,7 +2831,7 @@ again:
     return size;
 }
 #else
-static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+static int64_t raw_getlength(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -2849,6 +2849,11 @@ static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
     return size;
 }
 #endif
+
+static int64_t coroutine_fn raw_co_getlength(BlockDriverState *bs)
+{
+    return raw_getlength(bs);
+}
 
 static int64_t coroutine_fn raw_co_get_allocated_file_size(BlockDriverState *bs)
 {
@@ -3215,7 +3220,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
          * round up if necessary.
          */
         if (!QEMU_IS_ALIGNED(*pnum, bs->bl.request_alignment)) {
-            int64_t file_length = raw_co_getlength(bs);
+            int64_t file_length = raw_getlength(bs);
             if (file_length > 0) {
                 /* Ignore errors, this is just a safeguard */
                 assert(hole == file_length);
@@ -3237,7 +3242,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
 
 #if defined(__linux__)
 /* Verify that the file is not in the page cache */
-static void coroutine_fn check_cache_dropped(BlockDriverState *bs, Error **errp)
+static void check_cache_dropped(BlockDriverState *bs, Error **errp)
 {
     const size_t window_size = 128 * 1024 * 1024;
     BDRVRawState *s = bs->opaque;
@@ -3252,7 +3257,7 @@ static void coroutine_fn check_cache_dropped(BlockDriverState *bs, Error **errp)
     page_size = sysconf(_SC_PAGESIZE);
     vec = g_malloc(DIV_ROUND_UP(window_size, page_size));
 
-    end = raw_co_getlength(bs);
+    end = raw_getlength(bs);
 
     for (offset = 0; offset < end; offset += window_size) {
         void *new_window;
@@ -4468,7 +4473,7 @@ static int cdrom_reopen(BlockDriverState *bs)
 
 static bool coroutine_fn cdrom_co_is_inserted(BlockDriverState *bs)
 {
-    return raw_co_getlength(bs) > 0;
+    return raw_getlength(bs) > 0;
 }
 
 static void coroutine_fn cdrom_co_eject(BlockDriverState *bs, bool eject_flag)
