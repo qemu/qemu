@@ -48,7 +48,7 @@ int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
     fprintf(stderr, "shrink l1_table from %d to %d\n", s->l1_size, new_l1_size);
 #endif
 
-    BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_WRITE_TABLE);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_L1_SHRINK_WRITE_TABLE);
     ret = bdrv_co_pwrite_zeroes(bs->file,
                                 s->l1_table_offset + new_l1_size * L1E_SIZE,
                                 (s->l1_size - new_l1_size) * L1E_SIZE, 0);
@@ -61,7 +61,7 @@ int coroutine_fn qcow2_shrink_l1_table(BlockDriverState *bs,
         goto fail;
     }
 
-    BLKDBG_EVENT(bs->file, BLKDBG_L1_SHRINK_FREE_L2_CLUSTERS);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_L1_SHRINK_FREE_L2_CLUSTERS);
     for (i = s->l1_size - 1; i > new_l1_size - 1; i--) {
         if ((s->l1_table[i] & L1E_OFFSET_MASK) == 0) {
             continue;
@@ -501,7 +501,7 @@ do_perform_cow_read(BlockDriverState *bs, uint64_t src_cluster_offset,
         return 0;
     }
 
-    BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_COW_READ);
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -551,7 +551,7 @@ do_perform_cow_write(BlockDriverState *bs, uint64_t cluster_offset,
         return ret;
     }
 
-    BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_COW_WRITE);
     ret = bdrv_co_pwritev(s->data_file, cluster_offset + offset_in_cluster,
                           qiov->size, qiov, 0);
     if (ret < 0) {
@@ -871,7 +871,7 @@ qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     /* compressed clusters never have the copied flag */
 
-    BLKDBG_EVENT(bs->file, BLKDBG_L2_UPDATE_COMPRESSED);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_L2_UPDATE_COMPRESSED);
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
     set_l2_entry(s, l2_slice, l2_index, cluster_offset);
     if (has_subclusters(s)) {
@@ -991,7 +991,7 @@ perform_cow(BlockDriverState *bs, QCowL2Meta *m)
         /* NOTE: we have a write_aio blkdebug event here followed by
          * a cow_write one in do_perform_cow_write(), but there's only
          * one single I/O operation */
-        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
+        BLKDBG_CO_EVENT(bs->file, BLKDBG_WRITE_AIO);
         ret = do_perform_cow_write(bs, m->alloc_offset, start->offset, &qiov);
     } else {
         /* If there's no guest data then write both COW regions separately */

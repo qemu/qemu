@@ -118,7 +118,7 @@ int coroutine_fn qcow2_refcount_init(BlockDriverState *bs)
             ret = -ENOMEM;
             goto fail;
         }
-        BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
+        BLKDBG_CO_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_co_pread(bs->file, s->refcount_table_offset,
                             refcount_table_size2, s->refcount_table, 0);
         if (ret < 0) {
@@ -1076,7 +1076,7 @@ int64_t coroutine_fn GRAPH_RDLOCK qcow2_alloc_bytes(BlockDriverState *bs, int si
     size_t free_in_cluster;
     int ret;
 
-    BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC_BYTES);
+    BLKDBG_CO_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC_BYTES);
     assert(size > 0 && size <= s->cluster_size);
     assert(!s->free_byte_offset || offset_into_cluster(s, s->free_byte_offset));
 

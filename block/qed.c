@@ -883,7 +883,7 @@ static int coroutine_fn GRAPH_RDLOCK
 qed_read_backing_file(BDRVQEDState *s, uint64_t pos, QEMUIOVector *qiov)
 {
     if (s->bs->backing) {
-        BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
+        BLKDBG_CO_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
         return bdrv_co_preadv(s->bs->backing, pos, qiov->size, qiov, 0);
     }
     qemu_iovec_memset(qiov, 0, 0, qiov->size);
@@ -918,7 +918,7 @@ qed_copy_from_backing_file(BDRVQEDState *s, uint64_t pos, uint64_t len,
         goto out;
     }
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_COW_WRITE);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_COW_WRITE);
     ret = bdrv_co_pwritev(s->bs->file, offset, qiov.size, &qiov, 0);
     if (ret < 0) {
         goto out;
@@ -1070,7 +1070,7 @@ static int coroutine_fn GRAPH_RDLOCK qed_aio_write_main(QEDAIOCB *acb)
 
     trace_qed_aio_write_main(s, acb, 0, offset, acb->cur_qiov.size);
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
+    BLKDBG_CO_EVENT(s->bs->file, BLKDBG_WRITE_AIO);
     return bdrv_co_pwritev(s->bs->file, offset, acb->cur_qiov.size,
                            &acb->cur_qiov, 0);
 }
@@ -1324,7 +1324,7 @@ qed_aio_read_data(void *opaque, int ret, uint64_t offset, size_t len)
     } else if (ret != QED_CLUSTER_FOUND) {
         r = qed_read_backing_file(s, acb->cur_pos, &acb->cur_qiov);
     } else {
-        BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+        BLKDBG_CO_EVENT(bs->file, BLKDBG_READ_AIO);
         r = bdrv_co_preadv(bs->file, offset, acb->cur_qiov.size,
                            &acb->cur_qiov, 0);
     }

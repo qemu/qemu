@@ -1438,7 +1438,7 @@ get_whole_cluster(BlockDriverState *bs, VmdkExtent *extent,
     if (skip_start_bytes > 0) {
         if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
-            BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
+            BLKDBG_CO_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_co_pread(bs->backing, offset, skip_start_bytes,
                                 whole_grain, 0);
             if (ret < 0) {
@@ -1446,7 +1446,7 @@ get_whole_cluster(BlockDriverState *bs, VmdkExtent *extent,
                 goto exit;
             }
         }
-        BLKDBG_EVENT(extent->file, BLKDBG_COW_WRITE);
+        BLKDBG_CO_EVENT(extent->file, BLKDBG_COW_WRITE);
         ret = bdrv_co_pwrite(extent->file, cluster_offset, skip_start_bytes,
                              whole_grain, 0);
         if (ret < 0) {
@@ -1458,7 +1458,7 @@ get_whole_cluster(BlockDriverState *bs, VmdkExtent *extent,
     if (skip_end_bytes < cluster_bytes) {
         if (copy_from_backing) {
             /* qcow2 emits this on bs->file instead of bs->backing */
-            BLKDBG_EVENT(extent->file, BLKDBG_COW_READ);
+            BLKDBG_CO_EVENT(extent->file, BLKDBG_COW_READ);
             ret = bdrv_co_pread(bs->backing, offset + skip_end_bytes,
                                 cluster_bytes - skip_end_bytes,
                                 whole_grain + skip_end_bytes, 0);
@@ -1467,7 +1467,7 @@ get_whole_cluster(BlockDriverState *bs, VmdkExtent *extent,
                 goto exit;
             }
         }
-        BLKDBG_EVENT(extent->file, BLKDBG_COW_WRITE);
+        BLKDBG_CO_EVENT(extent->file, BLKDBG_COW_WRITE);
         ret = bdrv_co_pwrite(extent->file, cluster_offset + skip_end_bytes,
                              cluster_bytes - skip_end_bytes,
                              whole_grain + skip_end_bytes, 0);
@@ -1488,7 +1488,7 @@ vmdk_L2update(VmdkExtent *extent, VmdkMetaData *m_data, uint32_t offset)
 {
     offset = cpu_to_le32(offset);
     /* update L2 table */
-    BLKDBG_EVENT(extent->file, BLKDBG_L2_UPDATE);
+    BLKDBG_CO_EVENT(extent->file, BLKDBG_L2_UPDATE);
     if (bdrv_co_pwrite(extent->file,
                        ((int64_t)m_data->l2_offset * 512)
                            + (m_data->l2_index * sizeof(offset)),
@@ -1618,7 +1618,7 @@ get_cluster_offset(BlockDriverState *bs, VmdkExtent *extent,
         }
     }
     l2_table = (char *)extent->l2_cache + (min_index * l2_size_bytes);
-    BLKDBG_EVENT(extent->file, BLKDBG_L2_LOAD);
+    BLKDBG_CO_EVENT(extent->file, BLKDBG_L2_LOAD);
     if (bdrv_co_pread(extent->file,
                 (int64_t)l2_offset * 512,
                 l2_size_bytes,
@@ -1829,12 +1829,12 @@ vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
         n_bytes = buf_len + sizeof(VmdkGrainMarker);
         qemu_iovec_init_buf(&local_qiov, data, n_bytes);
 
-        BLKDBG_EVENT(extent->file, BLKDBG_WRITE_COMPRESSED);
+        BLKDBG_CO_EVENT(extent->file, BLKDBG_WRITE_COMPRESSED);
     } else {
         qemu_iovec_init(&local_qiov, qiov->niov);
         qemu_iovec_concat(&local_qiov, qiov, qiov_offset, n_bytes);
 
-        BLKDBG_EVENT(extent->file, BLKDBG_WRITE_AIO);
+        BLKDBG_CO_EVENT(extent->file, BLKDBG_WRITE_AIO);
     }
 
     write_offset = cluster_offset + offset_in_cluster;
@@ -1876,7 +1876,7 @@ vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
 
 
     if (!extent->compressed) {
-        BLKDBG_EVENT(extent->file, BLKDBG_READ_AIO);
+        BLKDBG_CO_EVENT(extent->file, BLKDBG_READ_AIO);
         ret = bdrv_co_preadv(extent->file,
                              cluster_offset + offset_in_cluster, bytes,
                              qiov, 0);
@@ -1890,7 +1890,7 @@ vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
     buf_bytes = cluster_bytes * 2;
     cluster_buf = g_malloc(buf_bytes);
     uncomp_buf = g_malloc(cluster_bytes);
-    BLKDBG_EVENT(extent->file, BLKDBG_READ_COMPRESSED);
+    BLKDBG_CO_EVENT(extent->file, BLKDBG_READ_COMPRESSED);
     ret = bdrv_co_pread(extent->file, cluster_offset, buf_bytes, cluster_buf,
                         0);
     if (ret < 0) {
@@ -1968,7 +1968,7 @@ vmdk_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
                 qemu_iovec_concat(&local_qiov, qiov, bytes_done, n_bytes);
 
                 /* qcow2 emits this on bs->file instead of bs->backing */
-                BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
+                BLKDBG_CO_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
                 ret = bdrv_co_preadv(bs->backing, offset, n_bytes,
                                      &local_qiov, 0);
                 if (ret < 0) {
@@ -2909,7 +2909,7 @@ vmdk_co_check(BlockDriverState *bs, BdrvCheckResult *result, BdrvCheckMode fix)
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent = NULL;
     int64_t sector_num = 0;
-    int64_t total_sectors = bdrv_nb_sectors(bs);
+    int64_t total_sectors = bdrv_co_nb_sectors(bs);
     int ret;
     uint64_t cluster_offset;
 
