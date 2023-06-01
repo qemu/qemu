@@ -34,6 +34,12 @@ extern const uint8_t AES_isbox[256];
 extern const uint8_t AES_shifts[16];
 extern const uint8_t AES_ishifts[16];
 
+/* AES MixColumns, for use with rot32. */
+extern const uint32_t AES_mc_rot[256];
+
+/* AES InvMixColumns, for use with rot32. */
+extern const uint32_t AES_imc_rot[256];
+
 /* AES InvMixColumns */
 /* AES_imc[x][0] = [x].[0e, 09, 0d, 0b]; */
 /* AES_imc[x][1] = [x].[0b, 0e, 09, 0d]; */
