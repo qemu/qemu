@@ -108,12 +108,24 @@ const uint8_t AES_isbox[256] = {
     0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
 };
 
+/* AES ShiftRows, for complete unrolling. */
+#define AES_SH(X)   (((X) * 5) & 15)
+
 const uint8_t AES_shifts[16] = {
-    0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11
+    AES_SH(0x0), AES_SH(0x1), AES_SH(0x2), AES_SH(0x3),
+    AES_SH(0x4), AES_SH(0x5), AES_SH(0x6), AES_SH(0x7),
+    AES_SH(0x8), AES_SH(0x9), AES_SH(0xA), AES_SH(0xB),
+    AES_SH(0xC), AES_SH(0xD), AES_SH(0xE), AES_SH(0xF),
 };
 
+/* AES InvShiftRows, for complete unrolling. */
+#define AES_ISH(X)  (((X) * 13) & 15)
+
 const uint8_t AES_ishifts[16] = {
-    0, 13, 10, 7, 4, 1, 14, 11, 8, 5, 2, 15, 12, 9, 6, 3
+    AES_ISH(0x0), AES_ISH(0x1), AES_ISH(0x2), AES_ISH(0x3),
+    AES_ISH(0x4), AES_ISH(0x5), AES_ISH(0x6), AES_ISH(0x7),
+    AES_ISH(0x8), AES_ISH(0x9), AES_ISH(0xA), AES_ISH(0xB),
+    AES_ISH(0xC), AES_ISH(0xD), AES_ISH(0xE), AES_ISH(0xF),
 };
 
 /*
