@@ -23,15 +23,17 @@
  */
 #define MIGRATION_STATUS_WAIT_TIMEOUT 120
 
-bool got_stop;
-
-static void check_stop_event(QTestState *who)
+bool migrate_watch_for_stop(QTestState *who, const char *name,
+                            QDict *event, void *opaque)
 {
-    QDict *event = qtest_qmp_event_ref(who, "STOP");
-    if (event) {
-        got_stop = true;
-        qobject_unref(event);
+    bool *seen = opaque;
+
+    if (g_str_equal(name, "STOP")) {
+        *seen = true;
+        return true;
     }
+
+    return false;
 }
 
 #ifndef _WIN32
@@ -48,7 +50,6 @@ QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
     va_end(ap);
 
     resp = qtest_qmp_receive(who);
-    check_stop_event(who);
 
     g_assert(!qdict_haskey(resp, "error"));
     g_assert(qdict_haskey(resp, "return"));
@@ -72,8 +73,6 @@ QDict *wait_command(QTestState *who, const char *command, ...)
     va_start(ap, command);
     resp = qtest_vqmp(who, command, ap);
     va_end(ap);
-
-    check_stop_event(who);
 
     g_assert(!qdict_haskey(resp, "error"));
     g_assert(qdict_haskey(resp, "return"));

@@ -43,6 +43,7 @@
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
+static bool got_stop;
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -703,6 +704,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  ignore_stderr);
     if (!args->only_target) {
         *from = qtest_init(cmd_source);
+        qtest_qmp_set_event_callback(*from,
+                                     migrate_watch_for_stop,
+                                     &got_stop);
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg%s%s "

@@ -15,7 +15,8 @@
 
 #include "libqtest.h"
 
-extern bool got_stop;
+bool migrate_watch_for_stop(QTestState *who, const char *name,
+                            QDict *event, void *opaque);
 
 #ifndef _WIN32
 G_GNUC_PRINTF(3, 4)
