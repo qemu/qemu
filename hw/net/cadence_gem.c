@@ -1743,7 +1743,8 @@ static void gem_realize(DeviceState *dev, Error **errp)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_gem_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id, s);
+                          object_get_typename(OBJECT(dev)), dev->id,
+                          &dev->mem_reentrancy_guard, s);
 
     if (s->jumbo_max_len > MAX_FRAME_SIZE) {
         error_setg(errp, "jumbo-max-len is greater than %d",

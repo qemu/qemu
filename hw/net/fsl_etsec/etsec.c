@@ -391,7 +391,8 @@ static void etsec_realize(DeviceState *dev, Error **errp)
     eTSEC        *etsec = ETSEC_COMMON(dev);
 
     etsec->nic = qemu_new_nic(&net_etsec_info, &etsec->conf,
-                              object_get_typename(OBJECT(dev)), dev->id, etsec);
+                              object_get_typename(OBJECT(dev)), dev->id,
+                              &dev->mem_reentrancy_guard, etsec);
     qemu_format_nic_info_str(qemu_get_queue(etsec->nic), etsec->conf.macaddr.a);
 
     etsec->ptimer = ptimer_init(etsec_timer_hit, etsec, PTIMER_POLICY_LEGACY);
