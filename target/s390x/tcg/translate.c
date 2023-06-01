@@ -3421,7 +3421,7 @@ static DisasJumpType op_mxb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_mxdb(DisasContext *s, DisasOps *o)
 {
-    gen_helper_mxdb(o->out_128, cpu_env, o->in1_128, o->in2);
+    gen_helper_mxdb(o->out_128, cpu_env, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
@@ -5182,12 +5182,6 @@ static void prep_r1_P(DisasContext *s, DisasOps *o)
     o->out2 = regs[r1 + 1];
 }
 #define SPEC_prep_r1_P SPEC_r1_even
-
-static void prep_x1(DisasContext *s, DisasOps *o)
-{
-    o->out_128 = load_freg_128(get_field(s, r1));
-}
-#define SPEC_prep_x1 SPEC_r1_f128
 
 /* ====================================================================== */
 /* The "Write OUTput" generators.  These generally perform some non-trivial
