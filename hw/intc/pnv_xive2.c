@@ -1662,6 +1662,8 @@ static void pnv_xive2_tm_write(void *opaque, hwaddr offset,
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
 
+    offset &= TM_ADDRESS_MASK;
+
     /* TODO: should we switch the TM ops table instead ? */
     if (!gen1_tima_os && offset == HV_PUSH_OS_CTX_OFFSET) {
         xive2_tm_push_os_ctx(xptr, tctx, offset, value, size);
@@ -1680,6 +1682,8 @@ static uint64_t pnv_xive2_tm_read(void *opaque, hwaddr offset, unsigned size)
     XivePresenter *xptr = XIVE_PRESENTER(xive);
     bool gen1_tima_os =
         xive->cq_regs[CQ_XIVE_CFG >> 3] & CQ_XIVE_CFG_GEN1_TIMA_OS;
+
+    offset &= TM_ADDRESS_MASK;
 
     /* TODO: should we switch the TM ops table instead ? */
     if (!gen1_tima_os && offset == HV_PULL_OS_CTX_OFFSET) {

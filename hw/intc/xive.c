@@ -500,7 +500,7 @@ static const XiveTmOp xive_tm_operations[] = {
 static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 {
     uint8_t page_offset = (offset >> TM_SHIFT) & 0x3;
-    uint32_t op_offset = offset & 0xFFF;
+    uint32_t op_offset = offset & TM_ADDRESS_MASK;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(xive_tm_operations); i++) {
