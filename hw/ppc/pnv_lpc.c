@@ -744,7 +744,7 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&lpc->opb_mr, LPC_HC_REGS_OPB_ADDR,
                                 &lpc->lpc_hc_regs);
 
-    qdev_init_gpio_out(DEVICE(dev), &lpc->psi_irq, 1);
+    qdev_init_gpio_out(dev, &lpc->psi_irq, 1);
 }
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)

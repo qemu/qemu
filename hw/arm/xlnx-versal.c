@@ -327,7 +327,7 @@ static void versal_create_rtc(Versal *s, qemu_irq *pic)
     object_initialize_child(OBJECT(s), "rtc", &s->pmc.rtc,
                             TYPE_XLNX_ZYNQMP_RTC);
     sbd = SYS_BUS_DEVICE(&s->pmc.rtc);
-    sysbus_realize(SYS_BUS_DEVICE(sbd), &error_fatal);
+    sysbus_realize(sbd, &error_fatal);
 
     mr = sysbus_mmio_get_region(sbd, 0);
     memory_region_add_subregion(&s->mr_ps, MM_PMC_RTC, mr);

@@ -982,7 +982,7 @@ static void sun4m_hw_init(MachineState *machine)
     qdev_realize_and_unref(ms_kb_orgate, NULL, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(ms_kb_orgate, 0));
     sysbus_connect_irq(s, 1, qdev_get_gpio_in(ms_kb_orgate, 1));
-    qdev_connect_gpio_out(DEVICE(ms_kb_orgate), 0, slavio_irq[14]);
+    qdev_connect_gpio_out(ms_kb_orgate, 0, slavio_irq[14]);
 
     dev = qdev_new(TYPE_ESCC);
     qdev_prop_set_uint32(dev, "disabled", 0);
@@ -1004,7 +1004,7 @@ static void sun4m_hw_init(MachineState *machine)
     qdev_realize_and_unref(serial_orgate, NULL, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(serial_orgate, 0));
     sysbus_connect_irq(s, 1, qdev_get_gpio_in(serial_orgate, 1));
-    qdev_connect_gpio_out(DEVICE(serial_orgate), 0, slavio_irq[15]);
+    qdev_connect_gpio_out(serial_orgate, 0, slavio_irq[15]);
 
     if (hwdef->apc_base) {
         apc_init(hwdef->apc_base, qemu_allocate_irq(cpu_halt_signal, NULL, 0));

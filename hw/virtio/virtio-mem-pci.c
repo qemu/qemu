@@ -42,7 +42,7 @@ static MemoryRegion *virtio_mem_pci_get_memory_region(MemoryDeviceState *md,
                                                       Error **errp)
 {
     VirtIOMEMPCI *pci_mem = VIRTIO_MEM_PCI(md);
-    VirtIOMEM *vmem = VIRTIO_MEM(&pci_mem->vdev);
+    VirtIOMEM *vmem = &pci_mem->vdev;
     VirtIOMEMClass *vmc = VIRTIO_MEM_GET_CLASS(vmem);
 
     return vmc->get_memory_region(vmem, errp);
@@ -60,7 +60,7 @@ static void virtio_mem_pci_fill_device_info(const MemoryDeviceState *md,
 {
     VirtioMEMDeviceInfo *vi = g_new0(VirtioMEMDeviceInfo, 1);
     VirtIOMEMPCI *pci_mem = VIRTIO_MEM_PCI(md);
-    VirtIOMEM *vmem = VIRTIO_MEM(&pci_mem->vdev);
+    VirtIOMEM *vmem = &pci_mem->vdev;
     VirtIOMEMClass *vpc = VIRTIO_MEM_GET_CLASS(vmem);
     DeviceState *dev = DEVICE(md);
 
@@ -123,7 +123,7 @@ static void virtio_mem_pci_instance_init(Object *obj)
                                 TYPE_VIRTIO_MEM);
 
     dev->size_change_notifier.notify = virtio_mem_pci_size_change_notify;
-    vmem = VIRTIO_MEM(&dev->vdev);
+    vmem = &dev->vdev;
     vmc = VIRTIO_MEM_GET_CLASS(vmem);
     /*
      * We never remove the notifier again, as we expect both devices to

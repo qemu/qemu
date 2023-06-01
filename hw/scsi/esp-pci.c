@@ -79,7 +79,7 @@ struct PCIESPState {
 
 static void esp_pci_handle_idle(PCIESPState *pci, uint32_t val)
 {
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     trace_esp_pci_dma_idle(val);
     esp_dma_enable(s, 0, 0);
@@ -93,7 +93,7 @@ static void esp_pci_handle_blast(PCIESPState *pci, uint32_t val)
 
 static void esp_pci_handle_abort(PCIESPState *pci, uint32_t val)
 {
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     trace_esp_pci_dma_abort(val);
     if (s->current_req) {
@@ -103,7 +103,7 @@ static void esp_pci_handle_abort(PCIESPState *pci, uint32_t val)
 
 static void esp_pci_handle_start(PCIESPState *pci, uint32_t val)
 {
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     trace_esp_pci_dma_start(val);
 
@@ -161,7 +161,7 @@ static void esp_pci_dma_write(PCIESPState *pci, uint32_t saddr, uint32_t val)
 
 static uint32_t esp_pci_dma_read(PCIESPState *pci, uint32_t saddr)
 {
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
     uint32_t val;
 
     val = pci->dma_regs[saddr];
@@ -183,7 +183,7 @@ static void esp_pci_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned int size)
 {
     PCIESPState *pci = opaque;
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     if (size < 4 || addr & 3) {
         /* need to upgrade request: we only support 4-bytes accesses */
@@ -228,7 +228,7 @@ static uint64_t esp_pci_io_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     PCIESPState *pci = opaque;
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
     uint32_t ret;
 
     if (addr < 0x40) {
@@ -315,7 +315,7 @@ static const MemoryRegionOps esp_pci_io_ops = {
 static void esp_pci_hard_reset(DeviceState *dev)
 {
     PCIESPState *pci = PCI_ESP(dev);
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     esp_hard_reset(s);
     pci->dma_regs[DMA_CMD] &= ~(DMA_CMD_DIR | DMA_CMD_INTE_D | DMA_CMD_INTE_P
@@ -366,7 +366,7 @@ static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
 {
     PCIESPState *pci = PCI_ESP(dev);
     DeviceState *d = DEVICE(dev);
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
     uint8_t *pci_conf;
 
     if (!qdev_realize(DEVICE(s), NULL, errp)) {
@@ -394,7 +394,7 @@ static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
 static void esp_pci_scsi_exit(PCIDevice *d)
 {
     PCIESPState *pci = PCI_ESP(d);
-    ESPState *s = ESP(&pci->esp);
+    ESPState *s = &pci->esp;
 
     qemu_free_irq(s->irq);
 }

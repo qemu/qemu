@@ -42,7 +42,7 @@ static MemoryRegion *virtio_pmem_pci_get_memory_region(MemoryDeviceState *md,
                                                        Error **errp)
 {
     VirtIOPMEMPCI *pci_pmem = VIRTIO_PMEM_PCI(md);
-    VirtIOPMEM *pmem = VIRTIO_PMEM(&pci_pmem->vdev);
+    VirtIOPMEM *pmem = &pci_pmem->vdev;
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_GET_CLASS(pmem);
 
     return vpc->get_memory_region(pmem, errp);
@@ -52,7 +52,7 @@ static uint64_t virtio_pmem_pci_get_plugged_size(const MemoryDeviceState *md,
                                                  Error **errp)
 {
     VirtIOPMEMPCI *pci_pmem = VIRTIO_PMEM_PCI(md);
-    VirtIOPMEM *pmem = VIRTIO_PMEM(&pci_pmem->vdev);
+    VirtIOPMEM *pmem = &pci_pmem->vdev;
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_GET_CLASS(pmem);
     MemoryRegion *mr = vpc->get_memory_region(pmem, errp);
 
@@ -65,7 +65,7 @@ static void virtio_pmem_pci_fill_device_info(const MemoryDeviceState *md,
 {
     VirtioPMEMDeviceInfo *vi = g_new0(VirtioPMEMDeviceInfo, 1);
     VirtIOPMEMPCI *pci_pmem = VIRTIO_PMEM_PCI(md);
-    VirtIOPMEM *pmem = VIRTIO_PMEM(&pci_pmem->vdev);
+    VirtIOPMEM *pmem = &pci_pmem->vdev;
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_GET_CLASS(pmem);
     DeviceState *dev = DEVICE(md);
 

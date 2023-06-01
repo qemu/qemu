@@ -156,7 +156,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
          * channel.
          */
         if (outioc && *outioc) {
-            qio_channel_close(QIO_CHANNEL(*outioc), NULL);
+            qio_channel_close(*outioc, NULL);
             object_unref(OBJECT(*outioc));
             *outioc = NULL;
         } else {
