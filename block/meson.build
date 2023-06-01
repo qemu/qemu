@@ -23,6 +23,7 @@ block_ss.add(files(
   'mirror.c',
   'nbd.c',
   'null.c',
+  'plug.c',
   'qapi.c',
   'qcow2-bitmap.c',
   'qcow2-cache.c',
