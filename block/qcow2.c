@@ -570,7 +570,7 @@ int qcow2_mark_corrupt(BlockDriverState *bs)
  * Marks the image as consistent, i.e., unsets the corrupt bit, and flushes
  * before if necessary.
  */
-int qcow2_mark_consistent(BlockDriverState *bs)
+static int coroutine_fn qcow2_mark_consistent(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
 

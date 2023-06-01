@@ -1069,7 +1069,7 @@ int64_t coroutine_fn qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offs
 
 /* only used to allocate compressed sectors. We try to allocate
    contiguous sectors. size must be <= cluster_size */
-int64_t coroutine_fn qcow2_alloc_bytes(BlockDriverState *bs, int size)
+int64_t coroutine_fn GRAPH_RDLOCK qcow2_alloc_bytes(BlockDriverState *bs, int size)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t offset;
@@ -1524,10 +1524,11 @@ static int realloc_refcount_array(BDRVQcow2State *s, void **array,
  *
  * Modifies the number of errors in res.
  */
-int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
-                             void **refcount_table,
-                             int64_t *refcount_table_size,
-                             int64_t offset, int64_t size)
+int coroutine_fn GRAPH_RDLOCK
+qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
+                         void **refcount_table,
+                         int64_t *refcount_table_size,
+                         int64_t offset, int64_t size)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start, last, cluster_offset, k, refcount;
@@ -1538,7 +1539,7 @@ int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
         return 0;
     }
 
-    file_len = bdrv_getlength(bs->file->bs);
+    file_len = bdrv_co_getlength(bs->file->bs);
     if (file_len < 0) {
         return file_len;
     }
@@ -1600,10 +1601,11 @@ enum {
  *
  * On failure in-memory @l2_table may be modified.
  */
-static int fix_l2_entry_by_zero(BlockDriverState *bs, BdrvCheckResult *res,
-                                uint64_t l2_offset,
-                                uint64_t *l2_table, int l2_index, bool active,
-                                bool *metadata_overlap)
+static int coroutine_fn GRAPH_RDLOCK
+fix_l2_entry_by_zero(BlockDriverState *bs, BdrvCheckResult *res,
+                     uint64_t l2_offset, uint64_t *l2_table,
+                     int l2_index, bool active,
+                     bool *metadata_overlap)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
@@ -1634,8 +1636,8 @@ static int fix_l2_entry_by_zero(BlockDriverState *bs, BdrvCheckResult *res,
         goto fail;
     }
 
-    ret = bdrv_pwrite_sync(bs->file, l2e_offset, l2_entry_size(s),
-                           &l2_table[idx], 0);
+    ret = bdrv_co_pwrite_sync(bs->file, l2e_offset, l2_entry_size(s),
+                              &l2_table[idx], 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: Failed to overwrite L2 "
                 "table entry: %s\n", strerror(-ret));
@@ -1659,10 +1661,11 @@ fail:
  * Returns the number of errors found by the checks or -errno if an internal
  * error occurred.
  */
-static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
-                              void **refcount_table,
-                              int64_t *refcount_table_size, int64_t l2_offset,
-                              int flags, BdrvCheckMode fix, bool active)
+static int coroutine_fn GRAPH_RDLOCK
+check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
+                   void **refcount_table,
+                   int64_t *refcount_table_size, int64_t l2_offset,
+                   int flags, BdrvCheckMode fix, bool active)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t l2_entry, l2_bitmap;
@@ -1673,7 +1676,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     bool metadata_overlap;
 
     /* Read L2 table from disk */
-    ret = bdrv_pread(bs->file, l2_offset, l2_size_bytes, l2_table, 0);
+    ret = bdrv_co_pread(bs->file, l2_offset, l2_size_bytes, l2_table, 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: I/O error in check_refcounts_l2\n");
         res->check_errors++;
@@ -1858,12 +1861,11 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
  * Returns the number of errors found by the checks or -errno if an internal
  * error occurred.
  */
-static int check_refcounts_l1(BlockDriverState *bs,
-                              BdrvCheckResult *res,
-                              void **refcount_table,
-                              int64_t *refcount_table_size,
-                              int64_t l1_table_offset, int l1_size,
-                              int flags, BdrvCheckMode fix, bool active)
+static int coroutine_fn GRAPH_RDLOCK
+check_refcounts_l1(BlockDriverState *bs, BdrvCheckResult *res,
+                   void **refcount_table, int64_t *refcount_table_size,
+                   int64_t l1_table_offset, int l1_size,
+                   int flags, BdrvCheckMode fix, bool active)
 {
     BDRVQcow2State *s = bs->opaque;
     size_t l1_size_bytes = l1_size * L1E_SIZE;
@@ -1889,7 +1891,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
     }
 
     /* Read L1 table entries from disk */
-    ret = bdrv_pread(bs->file, l1_table_offset, l1_size_bytes, l1_table, 0);
+    ret = bdrv_co_pread(bs->file, l1_table_offset, l1_size_bytes, l1_table, 0);
     if (ret < 0) {
         fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
         res->check_errors++;
@@ -1949,8 +1951,8 @@ static int check_refcounts_l1(BlockDriverState *bs,
  * have been already detected and sufficiently signaled by the calling function
  * (qcow2_check_refcounts) by the time this function is called).
  */
-static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
-                              BdrvCheckMode fix)
+static int coroutine_fn GRAPH_RDLOCK
+check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_table = qemu_blockalign(bs, s->cluster_size);
@@ -2005,8 +2007,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
             }
         }
 
-        ret = bdrv_pread(bs->file, l2_offset, s->l2_size * l2_entry_size(s),
-                         l2_table, 0);
+        ret = bdrv_co_pread(bs->file, l2_offset, s->l2_size * l2_entry_size(s),
+                            l2_table, 0);
         if (ret < 0) {
             fprintf(stderr, "ERROR: Could not read L2 table: %s\n",
                     strerror(-ret));
@@ -2059,8 +2061,7 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
                 goto fail;
             }
 
-            ret = bdrv_pwrite(bs->file, l2_offset, s->cluster_size, l2_table,
-                              0);
+            ret = bdrv_co_pwrite(bs->file, l2_offset, s->cluster_size, l2_table, 0);
             if (ret < 0) {
                 fprintf(stderr, "ERROR: Could not write L2 table: %s\n",
                         strerror(-ret));
@@ -2083,9 +2084,10 @@ fail:
  * Checks consistency of refblocks and accounts for each refblock in
  * *refcount_table.
  */
-static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
-                           BdrvCheckMode fix, bool *rebuild,
-                           void **refcount_table, int64_t *nb_clusters)
+static int coroutine_fn GRAPH_RDLOCK
+check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
+                BdrvCheckMode fix, bool *rebuild,
+                void **refcount_table, int64_t *nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t i, size;
@@ -2127,13 +2129,13 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
                     goto resize_fail;
                 }
 
-                ret = bdrv_truncate(bs->file, offset + s->cluster_size, false,
-                                    PREALLOC_MODE_OFF, 0, &local_err);
+                ret = bdrv_co_truncate(bs->file, offset + s->cluster_size, false,
+                                       PREALLOC_MODE_OFF, 0, &local_err);
                 if (ret < 0) {
                     error_report_err(local_err);
                     goto resize_fail;
                 }
-                size = bdrv_getlength(bs->file->bs);
+                size = bdrv_co_getlength(bs->file->bs);
                 if (size < 0) {
                     ret = size;
                     goto resize_fail;
@@ -2197,9 +2199,10 @@ resize_fail:
 /*
  * Calculates an in-memory refcount table.
  */
-static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                               BdrvCheckMode fix, bool *rebuild,
-                               void **refcount_table, int64_t *nb_clusters)
+static int coroutine_fn GRAPH_RDLOCK
+calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
+                    BdrvCheckMode fix, bool *rebuild,
+                    void **refcount_table, int64_t *nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t i;
@@ -2299,10 +2302,11 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
  * Compares the actual reference count for each cluster in the image against the
  * refcount as reported by the refcount structures on-disk.
  */
-static void compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                              BdrvCheckMode fix, bool *rebuild,
-                              int64_t *highest_cluster,
-                              void *refcount_table, int64_t nb_clusters)
+static void coroutine_fn
+compare_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
+                  BdrvCheckMode fix, bool *rebuild,
+                  int64_t *highest_cluster,
+                  void *refcount_table, int64_t nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t i;
@@ -2463,7 +2467,8 @@ static int64_t alloc_clusters_imrt(BlockDriverState *bs,
  * Return whether the on-disk reftable array was resized (true/false),
  * or -errno on error.
  */
-static int rebuild_refcounts_write_refblocks(
+static int coroutine_fn GRAPH_RDLOCK
+rebuild_refcounts_write_refblocks(
         BlockDriverState *bs, void **refcount_table, int64_t *nb_clusters,
         int64_t first_cluster, int64_t end_cluster,
         uint64_t **on_disk_reftable_ptr, uint32_t *on_disk_reftable_entries_ptr,
@@ -2578,8 +2583,8 @@ static int rebuild_refcounts_write_refblocks(
         on_disk_refblock = (void *)((char *) *refcount_table +
                                     refblock_index * s->cluster_size);
 
-        ret = bdrv_pwrite(bs->file, refblock_offset, s->cluster_size,
-                          on_disk_refblock, 0);
+        ret = bdrv_co_pwrite(bs->file, refblock_offset, s->cluster_size,
+                             on_disk_refblock, 0);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "ERROR writing refblock");
             return ret;
@@ -2601,11 +2606,10 @@ static int rebuild_refcounts_write_refblocks(
  * On success, the old refcount structure is leaked (it will be covered by the
  * new refcount structure).
  */
-static int rebuild_refcount_structure(BlockDriverState *bs,
-                                      BdrvCheckResult *res,
-                                      void **refcount_table,
-                                      int64_t *nb_clusters,
-                                      Error **errp)
+static int coroutine_fn GRAPH_RDLOCK
+rebuild_refcount_structure(BlockDriverState *bs, BdrvCheckResult *res,
+                           void **refcount_table, int64_t *nb_clusters,
+                           Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t reftable_offset = -1;
@@ -2734,8 +2738,8 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
     }
 
     assert(reftable_length < INT_MAX);
-    ret = bdrv_pwrite(bs->file, reftable_offset, reftable_length,
-                      on_disk_reftable, 0);
+    ret = bdrv_co_pwrite(bs->file, reftable_offset, reftable_length,
+                         on_disk_reftable, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "ERROR writing reftable");
         goto fail;
@@ -2745,10 +2749,10 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
     reftable_offset_and_clusters.reftable_offset = cpu_to_be64(reftable_offset);
     reftable_offset_and_clusters.reftable_clusters =
         cpu_to_be32(reftable_clusters);
-    ret = bdrv_pwrite_sync(bs->file,
-                           offsetof(QCowHeader, refcount_table_offset),
-                           sizeof(reftable_offset_and_clusters),
-                           &reftable_offset_and_clusters, 0);
+    ret = bdrv_co_pwrite_sync(bs->file,
+                              offsetof(QCowHeader, refcount_table_offset),
+                              sizeof(reftable_offset_and_clusters),
+                              &reftable_offset_and_clusters, 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "ERROR setting reftable");
         goto fail;
@@ -2777,8 +2781,8 @@ fail:
  * Returns 0 if no errors are found, the number of errors in case the image is
  * detected as corrupted, and -errno when an internal error occurred.
  */
-int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
-                          BdrvCheckMode fix)
+int coroutine_fn GRAPH_RDLOCK
+qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 {
     BDRVQcow2State *s = bs->opaque;
     BdrvCheckResult pre_compare_res;
@@ -2787,7 +2791,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     bool rebuild = false;
     int ret;
 
-    size = bdrv_getlength(bs->file->bs);
+    size = bdrv_co_getlength(bs->file->bs);
     if (size < 0) {
         res->check_errors++;
         return size;
@@ -3541,7 +3545,8 @@ done:
     return ret;
 }
 
-static int64_t get_refblock_offset(BlockDriverState *bs, uint64_t offset)
+static int64_t coroutine_fn get_refblock_offset(BlockDriverState *bs,
+                                                uint64_t offset)
 {
     BDRVQcow2State *s = bs->opaque;
     uint32_t index = offset_to_reftable_index(s, offset);
@@ -3707,7 +3712,8 @@ int64_t coroutine_fn qcow2_get_last_cluster(BlockDriverState *bs, int64_t size)
     return -EIO;
 }
 
-int coroutine_fn qcow2_detect_metadata_preallocation(BlockDriverState *bs)
+int coroutine_fn GRAPH_RDLOCK
+qcow2_detect_metadata_preallocation(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int64_t i, end_cluster, cluster_count = 0, threshold;

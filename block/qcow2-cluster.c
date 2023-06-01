@@ -823,10 +823,9 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
  *
  * Return 0 on success and -errno in error cases
  */
-int coroutine_fn qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
-                                                       uint64_t offset,
-                                                       int compressed_size,
-                                                       uint64_t *host_offset)
+int coroutine_fn GRAPH_RDLOCK
+qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs, uint64_t offset,
+                                      int compressed_size, uint64_t *host_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index, ret;
@@ -2038,8 +2037,9 @@ fail:
  * all clusters in the same L2 slice) and returns the number of zeroed
  * clusters.
  */
-static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
-                            uint64_t nb_clusters, int flags)
+static int coroutine_fn
+zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
+                 uint64_t nb_clusters, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l2_slice;
