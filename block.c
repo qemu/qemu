@@ -555,8 +555,9 @@ int coroutine_fn bdrv_co_create(BlockDriver *drv, const char *filename,
  * On success, return @blk's actual length.
  * Otherwise, return -errno.
  */
-static int64_t create_file_fallback_truncate(BlockBackend *blk,
-                                             int64_t minimum_size, Error **errp)
+static int64_t coroutine_fn GRAPH_UNLOCKED
+create_file_fallback_truncate(BlockBackend *blk, int64_t minimum_size,
+                              Error **errp)
 {
     Error *local_err = NULL;
     int64_t size;
@@ -564,14 +565,14 @@ static int64_t create_file_fallback_truncate(BlockBackend *blk,
 
     GLOBAL_STATE_CODE();
 
-    ret = blk_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, 0,
-                       &local_err);
+    ret = blk_co_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, 0,
+                          &local_err);
     if (ret < 0 && ret != -ENOTSUP) {
         error_propagate(errp, local_err);
         return ret;
     }
 
-    size = blk_getlength(blk);
+    size = blk_co_getlength(blk);
     if (size < 0) {
         error_free(local_err);
         error_setg_errno(errp, -size,
