@@ -43,8 +43,8 @@
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
-static bool got_stop;
-static bool got_resume;
+static bool got_src_stop;
+static bool got_dst_resume;
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -227,7 +227,7 @@ static void wait_for_migration_pass(QTestState *who)
     uint64_t pass;
 
     /* Wait for the 1st sync */
-    while (!got_stop && !initial_pass) {
+    while (!got_src_stop && !initial_pass) {
         usleep(1000);
         initial_pass = get_migration_pass(who);
     }
@@ -235,7 +235,7 @@ static void wait_for_migration_pass(QTestState *who)
     do {
         usleep(1000);
         pass = get_migration_pass(who);
-    } while (pass == initial_pass && !got_stop);
+    } while (pass == initial_pass && !got_src_stop);
 }
 
 static void check_guests_ram(QTestState *who)
@@ -487,7 +487,7 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
     qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
 
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
 
@@ -607,8 +607,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         }
     }
 
-    got_stop = false;
-    got_resume = false;
+    got_src_stop = false;
+    got_dst_resume = false;
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
@@ -696,7 +696,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         *from = qtest_init(cmd_source);
         qtest_qmp_set_event_callback(*from,
                                      migrate_watch_for_stop,
-                                     &got_stop);
+                                     &got_src_stop);
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg%s%s "
@@ -716,7 +716,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     *to = qtest_init(cmd_target);
     qtest_qmp_set_event_callback(*to,
                                  migrate_watch_for_resume,
-                                 &got_resume);
+                                 &got_dst_resume);
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
@@ -1427,7 +1427,7 @@ static void test_precopy_common(MigrateCommon *args)
          * hanging forever if migration didn't converge */
         wait_for_migration_complete(from);
 
-        if (!got_stop) {
+        if (!got_src_stop) {
             qtest_qmp_eventwait(from, "STOP");
         }
 
@@ -1537,7 +1537,7 @@ static void test_ignore_shared(void)
 
     wait_for_migration_pass(from);
 
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
 
@@ -1942,7 +1942,7 @@ static void test_migrate_auto_converge(void)
             break;
         }
         usleep(20);
-        g_assert_false(got_stop);
+        g_assert_false(got_src_stop);
     } while (true);
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
@@ -2275,7 +2275,7 @@ static void test_multifd_tcp_cancel(void)
 
     wait_for_migration_pass(from);
 
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
     qtest_qmp_eventwait(to2, "RESUME");
