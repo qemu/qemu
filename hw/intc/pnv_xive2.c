@@ -1265,6 +1265,9 @@ static uint64_t pnv_xive2_ic_tctxt_read(void *opaque, hwaddr offset,
     case TCTXT_EN1_RESET:
         val = xive->tctxt_regs[TCTXT_EN1 >> 3];
         break;
+    case TCTXT_CFG:
+        val = xive->tctxt_regs[reg];
+        break;
     default:
         xive2_error(xive, "TCTXT: invalid read @%"HWADDR_PRIx, offset);
     }
@@ -1276,6 +1279,7 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
                                      uint64_t val, unsigned size)
 {
     PnvXive2 *xive = PNV_XIVE2(opaque);
+    uint32_t reg = offset >> 3;
 
     switch (offset) {
     /*
@@ -1297,7 +1301,9 @@ static void pnv_xive2_ic_tctxt_write(void *opaque, hwaddr offset,
     case TCTXT_EN1_RESET:
         xive->tctxt_regs[TCTXT_EN1 >> 3] &= ~val;
         break;
-
+    case TCTXT_CFG:
+        xive->tctxt_regs[reg] = val;
+        break;
     default:
         xive2_error(xive, "TCTXT: invalid write @%"HWADDR_PRIx, offset);
         return;
