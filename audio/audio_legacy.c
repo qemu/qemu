@@ -35,8 +35,8 @@
 
 static uint32_t toui32(const char *str)
 {
-    unsigned long long ret;
-    if (parse_uint_full(str, &ret, 10) || ret > UINT32_MAX) {
+    uint64_t ret;
+    if (parse_uint_full(str, 10, &ret) || ret > UINT32_MAX) {
         dolog("Invalid integer value `%s'\n", str);
         exit(1);
     }

@@ -454,8 +454,8 @@ opts_type_uint64(Visitor *v, const char *name, uint64_t *obj, Error **errp)
     OptsVisitor *ov = to_ov(v);
     const QemuOpt *opt;
     const char *str;
-    unsigned long long val;
-    char *endptr;
+    uint64_t val;
+    const char *endptr;
 
     if (ov->list_mode == LM_UNSIGNED_INTERVAL) {
         *obj = ov->range_next.u;
@@ -471,18 +471,18 @@ opts_type_uint64(Visitor *v, const char *name, uint64_t *obj, Error **errp)
     /* we've gotten past lookup_scalar() */
     assert(ov->list_mode == LM_NONE || ov->list_mode == LM_IN_PROGRESS);
 
-    if (parse_uint(str, &val, &endptr, 0) == 0 && val <= UINT64_MAX) {
+    if (parse_uint(str, &endptr, 0, &val) == 0) {
         if (*endptr == '\0') {
             *obj = val;
             processed(ov, name);
             return true;
         }
         if (*endptr == '-' && ov->list_mode == LM_IN_PROGRESS) {
-            unsigned long long val2;
+            uint64_t val2;
 
             str = endptr + 1;
-            if (parse_uint_full(str, &val2, 0) == 0 &&
-                val2 <= UINT64_MAX && val <= val2 &&
+            if (parse_uint_full(str, 0, &val2) == 0 &&
+                val <= val2 &&
                 val2 - val < OPTS_VISITOR_RANGE_MAX) {
                 ov->range_next.u = val;
                 ov->range_limit.u = val2;

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright Red Hat
 # Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -717,6 +717,7 @@ _img_info()
             -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$SOCK_DIR/fuse-#TEST_DIR/#g" \
+            -e "s#$SOCK_DIR/#SOCK_DIR/#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e 's/\(compression type: \)\(zlib\|zstd\)/\1COMPRESSION_TYPE/' \
             -e "/^disk size:/ D" \

@@ -114,13 +114,13 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
     qdict_put_str(options, "path", uri->path);
 
     for (i = 0; i < qp->n; i++) {
-        unsigned long long val;
+        uint64_t val;
         if (!qp->p[i].value) {
             error_setg(errp, "Value for NFS parameter expected: %s",
                        qp->p[i].name);
             goto out;
         }
-        if (parse_uint_full(qp->p[i].value, &val, 0)) {
+        if (parse_uint_full(qp->p[i].value, 0, &val)) {
             error_setg(errp, "Illegal value for NFS parameter: %s",
                        qp->p[i].name);
             goto out;

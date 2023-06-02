@@ -3728,7 +3728,7 @@ static int vnc_display_get_address(const char *addrstr,
     } else {
         const char *port;
         size_t hostlen;
-        unsigned long long baseport = 0;
+        uint64_t baseport = 0;
         InetSocketAddress *inet;
 
         port = strrchr(addrstr, ':');
@@ -3776,7 +3776,7 @@ static int vnc_display_get_address(const char *addrstr,
             }
         } else {
             int offset = reverse ? 0 : 5900;
-            if (parse_uint_full(port, &baseport, 10) < 0) {
+            if (parse_uint_full(port, 10, &baseport) < 0) {
                 error_setg(errp, "can't convert to a number: %s", port);
                 goto cleanup;
             }

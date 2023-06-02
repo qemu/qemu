@@ -424,7 +424,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
     int ret;
     int old_errno;
     SocketAddressList *server;
-    unsigned long long port;
+    uint64_t port;
 
     glfs = glfs_find_preopened(gconf->volume);
     if (glfs) {
@@ -445,7 +445,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                    server->value->u.q_unix.path, 0);
             break;
         case SOCKET_ADDRESS_TYPE_INET:
-            if (parse_uint_full(server->value->u.inet.port, &port, 10) < 0 ||
+            if (parse_uint_full(server->value->u.inet.port, 10, &port) < 0 ||
                 port > 65535) {
                 error_setg(errp, "'%s' is not a valid port number",
                            server->value->u.inet.port);

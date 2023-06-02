@@ -341,10 +341,10 @@ static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
         switch (qobject_type(entry->value)) {
 
         case QTYPE_QSTRING: {
-            unsigned long long length;
+            uint64_t length;
             const char *str = qstring_get_str(qobject_to(QString,
                                                          entry->value));
-            if (parse_uint_full(str, &length, 10) == 0 &&
+            if (parse_uint_full(str, 10, &length) == 0 &&
                 length > 0 && length <= UINT_MAX) {
                 block_acct_add_interval(stats, (unsigned) length);
             } else {
