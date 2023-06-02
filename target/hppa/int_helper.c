@@ -25,7 +25,6 @@
 #include "hw/core/cpu.h"
 #include "hw/hppa/hppa_hardware.h"
 
-#ifndef CONFIG_USER_ONLY
 static void eval_interrupt(HPPACPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -273,5 +272,3 @@ bool hppa_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     }
     return false;
 }
-
-#endif /* !CONFIG_USER_ONLY */
