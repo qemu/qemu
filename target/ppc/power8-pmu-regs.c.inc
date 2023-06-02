@@ -103,9 +103,9 @@ static void write_MMCR0_common(DisasContext *ctx, TCGv val)
     /*
      * helper_store_mmcr0 will make clock based operations that
      * will cause 'bad icount read' errors if we do not execute
-     * gen_icount_io_start() beforehand.
+     * translator_io_start() beforehand.
      */
-    gen_icount_io_start(ctx);
+    translator_io_start(&ctx->base);
     gen_helper_store_mmcr0(cpu_env, val);
 
     /*
@@ -179,7 +179,7 @@ void spr_read_PMC(DisasContext *ctx, int gprn, int sprn)
 {
     TCGv_i32 t_sprn = tcg_constant_i32(sprn);
 
-    gen_icount_io_start(ctx);
+    translator_io_start(&ctx->base);
     gen_helper_read_pmc(cpu_gpr[gprn], cpu_env, t_sprn);
 }
 
@@ -212,7 +212,7 @@ void spr_write_PMC(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv_i32 t_sprn = tcg_constant_i32(sprn);
 
-    gen_icount_io_start(ctx);
+    translator_io_start(&ctx->base);
     gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
 }
 
@@ -248,7 +248,7 @@ void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_MMCR1(DisasContext *ctx, int sprn, int gprn)
 {
-    gen_icount_io_start(ctx);
+    translator_io_start(&ctx->base);
     gen_helper_store_mmcr1(cpu_env, cpu_gpr[gprn]);
 }
 #else
