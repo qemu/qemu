@@ -4227,32 +4227,43 @@ summary_info += {'rng-none':          get_option('rng_none')}
 summary_info += {'Linux keyring':     have_keyring}
 summary(summary_info, bool_yn: true, section: 'Crypto')
 
-# Libraries
+# UI
 summary_info = {}
 if targetos == 'darwin'
   summary_info += {'Cocoa support':           cocoa}
-  summary_info += {'vmnet.framework support': vmnet}
 endif
 summary_info += {'SDL support':       sdl}
 summary_info += {'SDL image support': sdl_image}
 summary_info += {'GTK support':       gtk}
 summary_info += {'pixman':            pixman}
 summary_info += {'VTE support':       vte}
-summary_info += {'slirp support':     slirp}
-summary_info += {'libtasn1':          tasn1}
-summary_info += {'PAM':               pam}
-summary_info += {'iconv support':     iconv}
-summary_info += {'curses support':    curses}
-summary_info += {'virgl support':     virgl}
-summary_info += {'blkio support':     blkio}
-summary_info += {'curl support':      curl}
-summary_info += {'Multipath support': mpathpersist}
 summary_info += {'PNG support':       png}
 summary_info += {'VNC support':       vnc}
 if vnc.found()
   summary_info += {'VNC SASL support':  sasl}
   summary_info += {'VNC JPEG support':  jpeg}
 endif
+summary_info += {'spice protocol support': spice_protocol}
+if spice_protocol.found()
+  summary_info += {'  spice server support': spice}
+endif
+summary_info += {'curses support':    curses}
+summary_info += {'brlapi support':    brlapi}
+summary(summary_info, bool_yn: true, section: 'User interface')
+
+# Libraries
+summary_info = {}
+if targetos == 'darwin'
+  summary_info += {'vmnet.framework support': vmnet}
+endif
+summary_info += {'slirp support':     slirp}
+summary_info += {'libtasn1':          tasn1}
+summary_info += {'PAM':               pam}
+summary_info += {'iconv support':     iconv}
+summary_info += {'virgl support':     virgl}
+summary_info += {'blkio support':     blkio}
+summary_info += {'curl support':      curl}
+summary_info += {'Multipath support': mpathpersist}
 if targetos not in ['darwin', 'haiku', 'windows']
   summary_info += {'OSS support':     oss}
   summary_info += {'sndio support':   sndio}
@@ -4267,7 +4278,6 @@ if targetos == 'linux'
 endif
 summary_info += {'Pipewire support':   pipewire}
 summary_info += {'JACK support':      jack}
-summary_info += {'brlapi support':    brlapi}
 summary_info += {'vde support':       vde}
 summary_info += {'netmap support':    have_netmap}
 summary_info += {'l2tpv3 support':    have_l2tpv3}
@@ -4279,10 +4289,6 @@ summary_info += {'PVRDMA support':    have_pvrdma}
 summary_info += {'fdt support':       fdt_opt == 'disabled' ? false : fdt_opt}
 summary_info += {'libcap-ng support': libcap_ng}
 summary_info += {'bpf support':       libbpf}
-summary_info += {'spice protocol support': spice_protocol}
-if spice_protocol.found()
-  summary_info += {'  spice server support': spice}
-endif
 summary_info += {'rbd support':       rbd}
 summary_info += {'smartcard support': cacard}
 summary_info += {'U2F support':       u2f}
