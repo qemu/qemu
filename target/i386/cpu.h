@@ -2285,7 +2285,6 @@ static inline void cpu_get_tb_cpu_state(CPUX86State *env, target_ulong *pc,
 }
 
 void do_cpu_init(X86CPU *cpu);
-void do_cpu_sipi(X86CPU *cpu);
 
 #define MCE_INJECT_BROADCAST    1
 #define MCE_INJECT_UNCOND_AO    2
@@ -2418,6 +2417,8 @@ typedef int X86CPUVersion;
 void x86_cpu_set_default_version(X86CPUVersion version);
 
 #ifndef CONFIG_USER_ONLY
+
+void do_cpu_sipi(X86CPU *cpu);
 
 #define APIC_DEFAULT_ADDRESS 0xfee00000
 #define APIC_SPACE_SIZE      0x100000
