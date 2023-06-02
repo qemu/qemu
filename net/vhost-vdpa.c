@@ -120,6 +120,22 @@ VHostNetState *vhost_vdpa_get_vhost_net(NetClientState *nc)
     return s->vhost_net;
 }
 
+static size_t vhost_vdpa_net_cvq_cmd_len(void)
+{
+    /*
+     * MAC_TABLE_SET is the ctrl command that produces the longer out buffer.
+     * In buffer is always 1 byte, so it should fit here
+     */
+    return sizeof(struct virtio_net_ctrl_hdr) +
+           2 * sizeof(struct virtio_net_ctrl_mac) +
+           MAC_TABLE_ENTRIES * ETH_ALEN;
+}
+
+static size_t vhost_vdpa_net_cvq_cmd_page_len(void)
+{
+    return ROUND_UP(vhost_vdpa_net_cvq_cmd_len(), qemu_real_host_page_size());
+}
+
 static bool vhost_vdpa_net_valid_svq_features(uint64_t features, Error **errp)
 {
     uint64_t invalid_dev_features =
@@ -425,22 +441,6 @@ static void vhost_vdpa_cvq_unmap_buf(struct vhost_vdpa *v, void *addr)
     }
 
     vhost_iova_tree_remove(tree, *map);
-}
-
-static size_t vhost_vdpa_net_cvq_cmd_len(void)
-{
-    /*
-     * MAC_TABLE_SET is the ctrl command that produces the longer out buffer.
-     * In buffer is always 1 byte, so it should fit here
-     */
-    return sizeof(struct virtio_net_ctrl_hdr) +
-           2 * sizeof(struct virtio_net_ctrl_mac) +
-           MAC_TABLE_ENTRIES * ETH_ALEN;
-}
-
-static size_t vhost_vdpa_net_cvq_cmd_page_len(void)
-{
-    return ROUND_UP(vhost_vdpa_net_cvq_cmd_len(), qemu_real_host_page_size());
 }
 
 /** Map CVQ buffer. */
