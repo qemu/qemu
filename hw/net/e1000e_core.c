@@ -2604,12 +2604,38 @@ e1000e_mac_icr_read(E1000ECore *core, int index)
         e1000e_lower_interrupts(core, ICR, 0xffffffff);
     }
 
-    if ((core->mac[ICR] & E1000_ICR_ASSERTED) &&
-        (core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME)) {
-        trace_e1000e_irq_icr_clear_iame();
-        e1000e_lower_interrupts(core, ICR, 0xffffffff);
-        trace_e1000e_irq_icr_process_iame();
-        e1000e_lower_interrupts(core, IMS, core->mac[IAM]);
+    if (core->mac[ICR] & E1000_ICR_ASSERTED) {
+        if (core->mac[CTRL_EXT] & E1000_CTRL_EXT_IAME) {
+            trace_e1000e_irq_icr_clear_iame();
+            e1000e_lower_interrupts(core, ICR, 0xffffffff);
+            trace_e1000e_irq_icr_process_iame();
+            e1000e_lower_interrupts(core, IMS, core->mac[IAM]);
+        }
+
+        /*
+         * The datasheet does not say what happens when interrupt was asserted
+         * (ICR.INT_ASSERT=1) and auto mask is *not* active.
+         * However, section of 13.3.27 the PCIe* GbE Controllers Open Source
+         * Software Developer’s Manual, which were written for older devices,
+         * namely 631xESB/632xESB, 82563EB/82564EB, 82571EB/82572EI &
+         * 82573E/82573V/82573L, does say:
+         * > If IMS = 0b, then the ICR register is always clear-on-read. If IMS
+         * > is not 0b, but some ICR bit is set where the corresponding IMS bit
+         * > is not set, then a read does not clear the ICR register. For
+         * > example, if IMS = 10101010b and ICR = 01010101b, then a read to the
+         * > ICR register does not clear it. If IMS = 10101010b and
+         * > ICR = 0101011b, then a read to the ICR register clears it entirely
+         * > (ICR.INT_ASSERTED = 1b).
+         *
+         * Linux does no longer activate auto mask since commit
+         * 0a8047ac68e50e4ccbadcfc6b6b070805b976885 and the real hardware
+         * clears ICR even in such a case so we also should do so.
+         */
+        if (core->mac[ICR] & core->mac[IMS]) {
+            trace_e1000e_irq_icr_clear_icr_bit_ims(core->mac[ICR],
+                                                   core->mac[IMS]);
+            e1000e_lower_interrupts(core, ICR, 0xffffffff);
+        }
     }
 
     return ret;
