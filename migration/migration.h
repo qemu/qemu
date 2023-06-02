@@ -25,6 +25,7 @@
 #include "net/announce.h"
 #include "qom/object.h"
 #include "postcopy-ram.h"
+#include "sysemu/runstate.h"
 
 struct PostcopyBlocktimeContext;
 
@@ -317,12 +318,14 @@ struct MigrationState {
     int64_t expected_downtime;
     bool capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t setup_time;
+
     /*
-     * Whether guest was running when we enter the completion stage.
+     * State before stopping the vm by vm_stop_force_state().
      * If migration is interrupted by any reason, we need to continue
-     * running the guest on source.
+     * running the guest on source if it was running or restore its stopped
+     * state.
      */
-    bool vm_was_running;
+    RunState vm_old_state;
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;

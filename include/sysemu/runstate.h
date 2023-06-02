@@ -6,9 +6,9 @@
 
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
+RunState runstate_get(void);
 bool runstate_is_running(void);
 bool runstate_needs_reset(void);
-bool runstate_store(char *str, size_t size);
 
 typedef void VMChangeStateHandler(void *opaque, bool running, RunState state);
 

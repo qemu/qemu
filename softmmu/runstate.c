@@ -121,7 +121,13 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PAUSED },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_POSTMIGRATE },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PRELAUNCH },
-    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_COLO},
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_COLO },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_INTERNAL_ERROR },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_IO_ERROR },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_SHUTDOWN },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_SUSPENDED },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_WATCHDOG },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_GUEST_PANICKED },
 
     { RUN_STATE_RESTORE_VM, RUN_STATE_RUNNING },
     { RUN_STATE_RESTORE_VM, RUN_STATE_PRELAUNCH },
@@ -175,18 +181,6 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
-bool runstate_store(char *str, size_t size)
-{
-    const char *state = RunState_str(current_run_state);
-    size_t len = strlen(state) + 1;
-
-    if (len > size) {
-        return false;
-    }
-    memcpy(str, state, len);
-    return true;
-}
-
 static void runstate_init(void)
 {
     const RunStateTransition *p;
@@ -219,6 +213,11 @@ void runstate_set(RunState new_state)
     }
 
     current_run_state = new_state;
+}
+
+RunState runstate_get(void)
+{
+    return current_run_state;
 }
 
 bool runstate_is_running(void)

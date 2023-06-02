@@ -1402,7 +1402,7 @@ void migrate_init(MigrationState *s)
 
     s->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     s->total_time = 0;
-    s->vm_was_running = false;
+    s->vm_old_state = -1;
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
 }
@@ -2287,28 +2287,28 @@ static void migration_completion(MigrationState *s)
         qemu_mutex_lock_iothread();
         s->downtime_start = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
-        s->vm_was_running = runstate_is_running();
-        ret = global_state_store();
 
-        if (!ret) {
-            ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-            trace_migration_completion_vm_stop(ret);
-            if (ret >= 0) {
-                ret = migration_maybe_pause(s, &current_active_state,
-                                            MIGRATION_STATUS_DEVICE);
-            }
-            if (ret >= 0) {
-                /*
-                 * Inactivate disks except in COLO, and track that we
-                 * have done so in order to remember to reactivate
-                 * them if migration fails or is cancelled.
-                 */
-                s->block_inactive = !migrate_colo();
-                migration_rate_set(RATE_LIMIT_DISABLED);
-                ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
-                                                         s->block_inactive);
-            }
+        s->vm_old_state = runstate_get();
+        global_state_store();
+
+        ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        trace_migration_completion_vm_stop(ret);
+        if (ret >= 0) {
+            ret = migration_maybe_pause(s, &current_active_state,
+                                        MIGRATION_STATUS_DEVICE);
         }
+        if (ret >= 0) {
+            /*
+             * Inactivate disks except in COLO, and track that we
+             * have done so in order to remember to reactivate
+             * them if migration fails or is cancelled.
+             */
+            s->block_inactive = !migrate_colo();
+            migration_rate_set(RATE_LIMIT_DISABLED);
+            ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
+                                                     s->block_inactive);
+        }
+
         qemu_mutex_unlock_iothread();
 
         if (ret < 0) {
@@ -2399,13 +2399,6 @@ fail:
 static void bg_migration_completion(MigrationState *s)
 {
     int current_active_state = s->state;
-
-    /*
-     * Stop tracking RAM writes - un-protect memory, un-register UFFD
-     * memory ranges, flush kernel wait queues and wake up threads
-     * waiting for write fault to be resolved.
-     */
-    ram_write_tracking_stop();
 
     if (s->state == MIGRATION_STATUS_ACTIVE) {
         /*
@@ -2761,18 +2754,18 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_COLO:
         assert(migrate_colo());
         migrate_start_colo_process(s);
-        s->vm_was_running = true;
+        s->vm_old_state = RUN_STATE_RUNNING;
         /* Fallthrough */
     case MIGRATION_STATUS_FAILED:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
-        if (s->vm_was_running) {
+        if (s->vm_old_state == RUN_STATE_RUNNING) {
             if (!runstate_check(RUN_STATE_SHUTDOWN)) {
                 vm_start();
             }
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
-                runstate_set(RUN_STATE_POSTMIGRATE);
+                runstate_set(s->vm_old_state);
             }
         }
         break;
@@ -2788,6 +2781,13 @@ static void migration_iteration_finish(MigrationState *s)
 
 static void bg_migration_iteration_finish(MigrationState *s)
 {
+    /*
+     * Stop tracking RAM writes - un-protect memory, un-register UFFD
+     * memory ranges, flush kernel wait queues and wake up threads
+     * waiting for write fault to be resolved.
+     */
+    ram_write_tracking_stop();
+
     qemu_mutex_lock_iothread();
     switch (s->state) {
     case MIGRATION_STATUS_COMPLETED:
@@ -3086,11 +3086,9 @@ static void *bg_migration_thread(void *opaque)
      * transition in vm_stop_force_state() we need to wakeup it up.
      */
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
-    s->vm_was_running = runstate_is_running();
+    s->vm_old_state = runstate_get();
 
-    if (global_state_store()) {
-        goto fail;
-    }
+    global_state_store();
     /* Forcibly stop VM before saving state of vCPUs and devices */
     if (vm_stop_force_state(RUN_STATE_PAUSED)) {
         goto fail;

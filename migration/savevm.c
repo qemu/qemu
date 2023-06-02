@@ -2919,11 +2919,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
 
     saved_vm_running = runstate_is_running();
 
-    ret = global_state_store();
-    if (ret) {
-        error_setg(errp, "Error saving global state");
-        return false;
-    }
+    global_state_store();
     vm_stop(RUN_STATE_SAVE_VM);
 
     bdrv_drain_all_begin();
