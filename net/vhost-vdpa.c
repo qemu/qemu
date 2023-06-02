@@ -629,8 +629,7 @@ static ssize_t vhost_vdpa_net_load_cmd(VhostVDPAState *s, uint8_t class,
 
 static int vhost_vdpa_net_load_mac(VhostVDPAState *s, const VirtIONet *n)
 {
-    uint64_t features = n->parent_obj.guest_features;
-    if (features & BIT_ULL(VIRTIO_NET_F_CTRL_MAC_ADDR)) {
+    if (virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_CTRL_MAC_ADDR)) {
         ssize_t dev_written = vhost_vdpa_net_load_cmd(s, VIRTIO_NET_CTRL_MAC,
                                                   VIRTIO_NET_CTRL_MAC_ADDR_SET,
                                                   n->mac, sizeof(n->mac));
@@ -648,10 +647,9 @@ static int vhost_vdpa_net_load_mq(VhostVDPAState *s,
                                   const VirtIONet *n)
 {
     struct virtio_net_ctrl_mq mq;
-    uint64_t features = n->parent_obj.guest_features;
     ssize_t dev_written;
 
-    if (!(features & BIT_ULL(VIRTIO_NET_F_MQ))) {
+    if (!virtio_vdev_has_feature(&n->parent_obj, VIRTIO_NET_F_MQ)) {
         return 0;
     }
 
