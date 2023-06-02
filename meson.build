@@ -4251,6 +4251,24 @@ summary_info += {'curses support':    curses}
 summary_info += {'brlapi support':    brlapi}
 summary(summary_info, bool_yn: true, section: 'User interface')
 
+# Audio backends
+summary_info = {}
+if targetos not in ['darwin', 'haiku', 'windows']
+  summary_info += {'OSS support':     oss}
+  summary_info += {'sndio support':   sndio}
+elif targetos == 'darwin'
+  summary_info += {'CoreAudio support': coreaudio}
+elif targetos == 'windows'
+  summary_info += {'DirectSound support': dsound}
+endif
+if targetos == 'linux'
+  summary_info += {'ALSA support':    alsa}
+  summary_info += {'PulseAudio support': pulse}
+endif
+summary_info += {'Pipewire support':  pipewire}
+summary_info += {'JACK support':      jack}
+summary(summary_info, bool_yn: true, section: 'Audio backends')
+
 # Network backends
 summary_info = {}
 if targetos == 'darwin'
@@ -4271,20 +4289,6 @@ summary_info += {'virgl support':     virgl}
 summary_info += {'blkio support':     blkio}
 summary_info += {'curl support':      curl}
 summary_info += {'Multipath support': mpathpersist}
-if targetos not in ['darwin', 'haiku', 'windows']
-  summary_info += {'OSS support':     oss}
-  summary_info += {'sndio support':   sndio}
-elif targetos == 'darwin'
-  summary_info += {'CoreAudio support': coreaudio}
-elif targetos == 'windows'
-  summary_info += {'DirectSound support': dsound}
-endif
-if targetos == 'linux'
-  summary_info += {'ALSA support':    alsa}
-  summary_info += {'PulseAudio support': pulse}
-endif
-summary_info += {'Pipewire support':   pipewire}
-summary_info += {'JACK support':      jack}
 summary_info += {'Linux AIO support': libaio}
 summary_info += {'Linux io_uring support': linux_io_uring}
 summary_info += {'ATTR/XATTR support': libattr}
