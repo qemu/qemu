@@ -67,7 +67,7 @@
 #define USE_UID16
 #define target_id uint16_t
 #else
-#define target_id uint32_t
+#define target_id abi_uint
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4)  \
@@ -215,9 +215,9 @@ struct target_ip_mreqn {
 
 struct target_ip_mreq_source {
     /* big endian */
-    uint32_t imr_multiaddr;
-    uint32_t imr_interface;
-    uint32_t imr_sourceaddr;
+    abi_uint imr_multiaddr;
+    abi_uint imr_interface;
+    abi_uint imr_sourceaddr;
 };
 
 struct target_linger {
@@ -508,9 +508,9 @@ typedef abi_ulong target_old_sa_flags;
 
 #if defined(TARGET_MIPS)
 struct target_sigaction {
-    uint32_t        sa_flags;
+    abi_uint        sa_flags;
 #if defined(TARGET_ABI_MIPSN32)
-    uint32_t        _sa_handler;
+    abi_uint        _sa_handler;
 #else
     abi_ulong       _sa_handler;
 #endif
@@ -1620,19 +1620,19 @@ struct target_stat {
 struct QEMU_PACKED target_stat64 {
     uint64_t st_dev;
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
-    uint32_t pad0;
-    uint32_t __st_ino;
+    abi_uint pad0;
+    abi_uint __st_ino;
 
-    uint32_t st_mode;
-    uint32_t st_nlink;
-    uint32_t st_uid;
-    uint32_t st_gid;
+    abi_uint st_mode;
+    abi_uint st_nlink;
+    abi_uint st_uid;
+    abi_uint st_gid;
     uint64_t st_rdev;
     uint64_t __pad1;
 
     int64_t  st_size;
     int32_t  st_blksize;
-    uint32_t __pad2;
+    abi_uint __pad2;
     int64_t st_blocks;      /* Number 512-byte blocks allocated. */
 
     int            target_st_atime;
@@ -2227,19 +2227,19 @@ struct target_statfs {
 #endif
 
 struct target_statfs64 {
-    uint32_t        f_type;
-    uint32_t        f_bsize;
-    uint32_t        f_frsize;       /* Fragment size - unsupported */
-    uint32_t        __pad;
+    abi_uint        f_type;
+    abi_uint        f_bsize;
+    abi_uint        f_frsize;       /* Fragment size - unsupported */
+    abi_uint        __pad;
     uint64_t        f_blocks;
     uint64_t        f_bfree;
     uint64_t        f_files;
     uint64_t        f_ffree;
     uint64_t        f_bavail;
     target_fsid_t   f_fsid;
-    uint32_t        f_namelen;
-    uint32_t        f_flags;
-    uint32_t        f_spare[5];
+    abi_uint        f_namelen;
+    abi_uint        f_flags;
+    abi_uint        f_spare[5];
 };
 #elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) ||       \
        defined(TARGET_SPARC64) || defined(TARGET_AARCH64) ||    \
@@ -2307,33 +2307,33 @@ struct target_statfs64 {
 };
 #else
 struct target_statfs {
-    uint32_t f_type;
-    uint32_t f_bsize;
-    uint32_t f_blocks;
-    uint32_t f_bfree;
-    uint32_t f_bavail;
-    uint32_t f_files;
-    uint32_t f_ffree;
+    abi_uint f_type;
+    abi_uint f_bsize;
+    abi_uint f_blocks;
+    abi_uint f_bfree;
+    abi_uint f_bavail;
+    abi_uint f_files;
+    abi_uint f_ffree;
     target_fsid_t f_fsid;
-    uint32_t f_namelen;
-    uint32_t f_frsize;
-    uint32_t f_flags;
-    uint32_t f_spare[4];
+    abi_uint f_namelen;
+    abi_uint f_frsize;
+    abi_uint f_flags;
+    abi_uint f_spare[4];
 };
 
 struct target_statfs64 {
-    uint32_t f_type;
-    uint32_t f_bsize;
+    abi_uint f_type;
+    abi_uint f_bsize;
     uint64_t f_blocks;
     uint64_t f_bfree;
     uint64_t f_bavail;
     uint64_t f_files;
     uint64_t f_ffree;
     target_fsid_t f_fsid;
-    uint32_t f_namelen;
-    uint32_t f_frsize;
-    uint32_t f_flags;
-    uint32_t f_spare[4];
+    abi_uint f_namelen;
+    abi_uint f_frsize;
+    abi_uint f_flags;
+    abi_uint f_spare[4];
 };
 #endif
 
@@ -2713,9 +2713,9 @@ struct target_epoll_event {
 #endif
 
 struct target_ucred {
-    uint32_t pid;
-    uint32_t uid;
-    uint32_t gid;
+    abi_uint pid;
+    abi_uint uid;
+    abi_uint gid;
 };
 
 typedef int32_t target_timer_t;
@@ -2754,14 +2754,14 @@ struct target_sigevent {
 };
 
 struct target_user_cap_header {
-    uint32_t version;
+    abi_uint version;
     int pid;
 };
 
 struct target_user_cap_data {
-    uint32_t effective;
-    uint32_t permitted;
-    uint32_t inheritable;
+    abi_uint effective;
+    abi_uint permitted;
+    abi_uint inheritable;
 };
 
 /* from kernel's include/linux/syslog.h */
@@ -2791,19 +2791,19 @@ struct target_user_cap_data {
 
 struct target_statx_timestamp {
     int64_t tv_sec;
-    uint32_t tv_nsec;
+    abi_uint tv_nsec;
     int32_t __reserved;
 };
 
 struct target_statx {
     /* 0x00 */
-    uint32_t stx_mask;       /* What results were written [uncond] */
-    uint32_t stx_blksize;    /* Preferred general I/O size [uncond] */
+    abi_uint stx_mask;       /* What results were written [uncond] */
+    abi_uint stx_blksize;    /* Preferred general I/O size [uncond] */
     uint64_t stx_attributes; /* Flags conveying information about the file */
     /* 0x10 */
-    uint32_t stx_nlink;      /* Number of hard links */
-    uint32_t stx_uid;        /* User ID of owner */
-    uint32_t stx_gid;        /* Group ID of owner */
+    abi_uint stx_nlink;      /* Number of hard links */
+    abi_uint stx_uid;        /* User ID of owner */
+    abi_uint stx_gid;        /* Group ID of owner */
     uint16_t stx_mode;       /* File mode */
     uint16_t __spare0[1];
     /* 0x20 */
@@ -2817,10 +2817,10 @@ struct target_statx {
     struct target_statx_timestamp  stx_ctime;  /* Last attribute change time */
     struct target_statx_timestamp  stx_mtime;  /* Last data modification time */
     /* 0x80 */
-    uint32_t stx_rdev_major;   /* Device ID of special file [if bdev/cdev] */
-    uint32_t stx_rdev_minor;
-    uint32_t stx_dev_major; /* ID of device containing file [uncond] */
-    uint32_t stx_dev_minor;
+    abi_uint stx_rdev_major;   /* Device ID of special file [if bdev/cdev] */
+    abi_uint stx_rdev_minor;
+    abi_uint stx_dev_major; /* ID of device containing file [uncond] */
+    abi_uint stx_dev_minor;
     /* 0x90 */
     uint64_t __spare2[14];  /* Spare space for future expansion */
     /* 0x100 */
