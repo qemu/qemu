@@ -1385,13 +1385,13 @@ struct target_stat64 {
     abi_ulong       target_st_ctime;
     abi_ulong       target_st_ctime_nsec;
 
-    unsigned long long      st_ino;
+    abi_ullong      st_ino;
 } QEMU_PACKED;
 
 #ifdef TARGET_ARM
 #define TARGET_HAS_STRUCT_STAT64
 struct target_eabi_stat64 {
-    unsigned long long st_dev;
+    abi_ullong   st_dev;
     abi_uint     __pad1;
     abi_ulong    __st_ino;
     abi_uint     st_mode;
@@ -1400,13 +1400,13 @@ struct target_eabi_stat64 {
     abi_ulong    st_uid;
     abi_ulong    st_gid;
 
-    unsigned long long st_rdev;
+    abi_ullong   st_rdev;
     abi_uint     __pad2[2];
 
     long long       st_size;
     abi_ulong    st_blksize;
     abi_uint     __pad3;
-    unsigned long long st_blocks;
+    abi_ullong   st_blocks;
 
     abi_ulong    target_st_atime;
     abi_ulong    target_st_atime_nsec;
@@ -1417,7 +1417,7 @@ struct target_eabi_stat64 {
     abi_ulong    target_st_ctime;
     abi_ulong    target_st_ctime_nsec;
 
-    unsigned long long st_ino;
+    abi_ullong   st_ino;
 } QEMU_PACKED;
 #endif
 
@@ -1568,14 +1568,14 @@ struct target_stat {
 #if !defined(TARGET_PPC64)
 #define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
-    unsigned long long st_dev;
-    unsigned long long st_ino;
+    abi_ullong st_dev;
+    abi_ullong st_ino;
     abi_uint st_mode;
     abi_uint st_nlink;
     abi_uint st_uid;
     abi_uint st_gid;
-    unsigned long long st_rdev;
-    unsigned long long __pad0;
+    abi_ullong st_rdev;
+    abi_ullong __pad0;
     long long      st_size;
     int            st_blksize;
     abi_uint       __pad1;
@@ -1674,7 +1674,7 @@ struct target_stat {
  */
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
-    unsigned long long      st_dev;
+    abi_ullong      st_dev;
     unsigned char   __pad1[2];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
@@ -1686,7 +1686,7 @@ struct target_stat64 {
     abi_ulong       st_uid;
     abi_ulong       st_gid;
 
-    unsigned long long      st_rdev;
+    abi_ullong      st_rdev;
     unsigned char   __pad3[2];
 
     long long       st_size;
@@ -1704,7 +1704,7 @@ struct target_stat64 {
     abi_ulong       target_st_ctime;
     abi_ulong       target_st_ctime_nsec;
 
-    unsigned long long      st_ino;
+    abi_ullong      st_ino;
 } QEMU_PACKED;
 
 #elif defined(TARGET_ABI_MIPSN64)
@@ -1918,7 +1918,7 @@ struct target_stat {
  */
 #define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
-    unsigned long long      st_dev;
+    abi_ullong      st_dev;
     unsigned char   __pad0[4];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
@@ -1930,13 +1930,13 @@ struct QEMU_PACKED target_stat64 {
     abi_ulong       st_uid;
     abi_ulong       st_gid;
 
-    unsigned long long      st_rdev;
+    abi_ullong      st_rdev;
     unsigned char   __pad3[4];
 
     long long       st_size;
     abi_ulong       st_blksize;
 
-    unsigned long long      st_blocks;      /* Number 512-byte blocks allocated. */
+    abi_ullong      st_blocks;      /* Number 512-byte blocks allocated. */
 
     abi_ulong       target_st_atime;
     abi_ulong       target_st_atime_nsec;
@@ -1947,7 +1947,7 @@ struct QEMU_PACKED target_stat64 {
     abi_ulong       target_st_ctime;
     abi_ulong       target_st_ctime_nsec;
 
-    unsigned long long      st_ino;
+    abi_ullong      st_ino;
 };
 
 #elif defined(TARGET_I386) && !defined(TARGET_ABI32)
