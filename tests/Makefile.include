@@ -136,18 +136,14 @@ get-vm-image-fedora-31-%: check-venv
 # download all vm images, according to defined targets
 get-vm-images: check-venv $(patsubst %,get-vm-image-fedora-31-%, $(FEDORA_31_DOWNLOAD))
 
-JOBS_OPTION=$(lastword -j1 $(filter-out -j, $(filter -j%,$(MAKEFLAGS))))
-
 check-avocado: check-venv $(TESTS_RESULTS_DIR) get-vm-images
-	$(call quiet-command, 							\
-            $(PYTHON) -m avocado 						\
-            --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) 	\
-            $(if $(AVOCADO_TAGS),, 						\
-			--filter-by-tags-include-empty 				\
-			--filter-by-tags-include-empty-key) 			\
-		--max-parallel-tasks $(JOBS_OPTION:-j%=%) 			\
-            $(AVOCADO_CMDLINE_TAGS) 						\
-            $(if $(GITLAB_CI),,--failfast) $(AVOCADO_TESTS), 			\
+	$(call quiet-command, \
+            $(PYTHON) -m avocado \
+            --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
+            $(if $(AVOCADO_TAGS),, --filter-by-tags-include-empty \
+			--filter-by-tags-include-empty-key) \
+            $(AVOCADO_CMDLINE_TAGS) \
+            $(if $(GITLAB_CI),,--failfast) $(AVOCADO_TESTS), \
             "AVOCADO", "tests/avocado")
 
 check-acceptance-deprecated-warning:

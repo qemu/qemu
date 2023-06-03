@@ -5,5 +5,5 @@
 # Note that qemu.git/python/ is implicitly installed to this venv when
 # 'make check-venv' is run, and will persist until configure is run
 # again.
-avocado-framework==101.0
+avocado-framework==88.1
 pycdlib==1.11.0
