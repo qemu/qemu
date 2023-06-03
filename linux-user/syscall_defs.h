@@ -501,7 +501,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #endif
 
 #if defined(TARGET_ALPHA)
-typedef int32_t target_old_sa_flags;
+typedef abi_int target_old_sa_flags;
 #else
 typedef abi_ulong target_old_sa_flags;
 #endif
@@ -1631,7 +1631,7 @@ struct QEMU_PACKED target_stat64 {
     uint64_t __pad1;
 
     int64_t  st_size;
-    int32_t  st_blksize;
+    abi_int  st_blksize;
     abi_uint __pad2;
     int64_t st_blocks;      /* Number 512-byte blocks allocated. */
 
@@ -2192,20 +2192,20 @@ typedef struct {
 #ifdef TARGET_MIPS
 #ifdef TARGET_ABI_MIPSN32
 struct target_statfs {
-    int32_t                 f_type;
-    int32_t                 f_bsize;
-    int32_t                 f_frsize;       /* Fragment size - unsupported */
-    int32_t                 f_blocks;
-    int32_t                 f_bfree;
-    int32_t                 f_files;
-    int32_t                 f_ffree;
-    int32_t                 f_bavail;
+    abi_int                 f_type;
+    abi_int                 f_bsize;
+    abi_int                 f_frsize;       /* Fragment size - unsupported */
+    abi_int                 f_blocks;
+    abi_int                 f_bfree;
+    abi_int                 f_files;
+    abi_int                 f_ffree;
+    abi_int                 f_bavail;
 
     /* Linux specials */
     target_fsid_t           f_fsid;
-    int32_t                 f_namelen;
-    int32_t                 f_flags;
-    int32_t                 f_spare[5];
+    abi_int                 f_namelen;
+    abi_int                 f_flags;
+    abi_int                 f_spare[5];
 };
 #else
 struct target_statfs {
@@ -2276,34 +2276,34 @@ struct target_statfs64 {
 };
 #elif defined(TARGET_S390X)
 struct target_statfs {
-    int32_t  f_type;
-    int32_t  f_bsize;
+    abi_int  f_type;
+    abi_int  f_bsize;
     abi_long f_blocks;
     abi_long f_bfree;
     abi_long f_bavail;
     abi_long f_files;
     abi_long f_ffree;
     kernel_fsid_t f_fsid;
-    int32_t  f_namelen;
-    int32_t  f_frsize;
-    int32_t  f_flags;
-    int32_t  f_spare[4];
+    abi_int  f_namelen;
+    abi_int  f_frsize;
+    abi_int  f_flags;
+    abi_int  f_spare[4];
 
 };
 
 struct target_statfs64 {
-    int32_t  f_type;
-    int32_t  f_bsize;
+    abi_int  f_type;
+    abi_int  f_bsize;
     abi_long f_blocks;
     abi_long f_bfree;
     abi_long f_bavail;
     abi_long f_files;
     abi_long f_ffree;
     kernel_fsid_t f_fsid;
-    int32_t  f_namelen;
-    int32_t  f_frsize;
-    int32_t  f_flags;
-    int32_t  f_spare[4];
+    abi_int  f_namelen;
+    abi_int  f_frsize;
+    abi_int  f_flags;
+    abi_int  f_spare[4];
 };
 #else
 struct target_statfs {
@@ -2718,21 +2718,21 @@ struct target_ucred {
     abi_uint gid;
 };
 
-typedef int32_t target_timer_t;
+typedef abi_int target_timer_t;
 
 #define TARGET_SIGEV_MAX_SIZE 64
 
 /* This is architecture-specific but most architectures use the default */
 #ifdef TARGET_MIPS
-#define TARGET_SIGEV_PREAMBLE_SIZE (sizeof(int32_t) * 2 + sizeof(abi_long))
+#define TARGET_SIGEV_PREAMBLE_SIZE (sizeof(abi_int) * 2 + sizeof(abi_long))
 #else
-#define TARGET_SIGEV_PREAMBLE_SIZE (sizeof(int32_t) * 2         \
+#define TARGET_SIGEV_PREAMBLE_SIZE (sizeof(abi_int) * 2         \
                                     + sizeof(target_sigval_t))
 #endif
 
 #define TARGET_SIGEV_PAD_SIZE ((TARGET_SIGEV_MAX_SIZE           \
                                 - TARGET_SIGEV_PREAMBLE_SIZE)   \
-                               / sizeof(int32_t))
+                               / sizeof(abi_int))
 
 struct target_sigevent {
     target_sigval_t sigev_value;
@@ -2792,7 +2792,7 @@ struct target_user_cap_data {
 struct target_statx_timestamp {
     int64_t tv_sec;
     abi_uint tv_nsec;
-    int32_t __reserved;
+    abi_int __reserved;
 };
 
 struct target_statx {
