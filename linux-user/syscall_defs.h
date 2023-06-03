@@ -1370,7 +1370,7 @@ struct target_stat64 {
     unsigned short  st_rdev;
     unsigned char   __pad3[10];
 
-    long long       st_size;
+    abi_llong       st_size;
     abi_ulong       st_blksize;
 
     abi_ulong       st_blocks;      /* Number 512-byte blocks allocated. */
@@ -1403,7 +1403,7 @@ struct target_eabi_stat64 {
     abi_ullong   st_rdev;
     abi_uint     __pad2[2];
 
-    long long       st_size;
+    abi_llong       st_size;
     abi_ulong    st_blksize;
     abi_uint     __pad3;
     abi_ullong   st_blocks;
@@ -1576,10 +1576,10 @@ struct QEMU_PACKED target_stat64 {
     abi_uint st_gid;
     abi_ullong st_rdev;
     abi_ullong __pad0;
-    long long      st_size;
+    abi_llong      st_size;
     int            st_blksize;
     abi_uint       __pad1;
-    long long      st_blocks;       /* Number 512-byte blocks allocated. */
+    abi_llong      st_blocks;       /* Number 512-byte blocks allocated. */
     int            target_st_atime;
     abi_uint       target_st_atime_nsec;
     int            target_st_mtime;
@@ -1689,7 +1689,7 @@ struct target_stat64 {
     abi_ullong      st_rdev;
     unsigned char   __pad3[2];
 
-    long long       st_size;
+    abi_llong       st_size;
     abi_ulong       st_blksize;
 
     abi_ulong       __pad4;         /* future possible st_blocks high bits */
@@ -1933,7 +1933,7 @@ struct QEMU_PACKED target_stat64 {
     abi_ullong      st_rdev;
     unsigned char   __pad3[4];
 
-    long long       st_size;
+    abi_llong       st_size;
     abi_ulong       st_blksize;
 
     abi_ullong      st_blocks;      /* Number 512-byte blocks allocated. */
