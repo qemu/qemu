@@ -702,8 +702,8 @@ typedef struct target_siginfo {
 
 struct target_pollfd {
     abi_int fd;       /* file descriptor */
-    short events;     /* requested events */
-    short revents;    /* returned events */
+    abi_short events;     /* requested events */
+    abi_short revents;    /* returned events */
 };
 
 /* virtual terminal ioctls */
@@ -1480,7 +1480,7 @@ struct target_stat {
     abi_ushort      st_dev;
     abi_ulong       st_ino;
     abi_ushort      st_mode;
-    short           st_nlink;
+    abi_short       st_nlink;
     abi_ushort      st_uid;
     abi_ushort      st_gid;
     abi_ushort      st_rdev;
