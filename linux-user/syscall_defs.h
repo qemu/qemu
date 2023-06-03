@@ -1444,8 +1444,8 @@ struct target_stat64 {
     unsigned char   __pad0[6];
     unsigned short  st_dev;
 
-    uint64_t        st_ino;
-    uint64_t        st_nlink;
+    abi_ullong      st_ino;
+    abi_ullong      st_nlink;
 
     unsigned int    st_mode;
 
@@ -1501,7 +1501,7 @@ struct target_stat64 {
     unsigned char   __pad0[6];
     unsigned short  st_dev;
 
-    uint64_t st_ino;
+    abi_ullong      st_ino;
 
     unsigned int    st_mode;
     unsigned int    st_nlink;
@@ -1618,7 +1618,7 @@ struct target_stat {
 /* FIXME: Microblaze no-mmu user-space has a difference stat64 layout...  */
 #define TARGET_HAS_STRUCT_STAT64
 struct QEMU_PACKED target_stat64 {
-    uint64_t st_dev;
+    abi_ullong st_dev;
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
     abi_uint pad0;
     abi_uint __st_ino;
@@ -1627,8 +1627,8 @@ struct QEMU_PACKED target_stat64 {
     abi_uint st_nlink;
     abi_uint st_uid;
     abi_uint st_gid;
-    uint64_t st_rdev;
-    uint64_t __pad1;
+    abi_ullong st_rdev;
+    abi_ullong __pad1;
 
     int64_t  st_size;
     abi_int  st_blksize;
@@ -1641,7 +1641,7 @@ struct QEMU_PACKED target_stat64 {
     unsigned int   target_st_mtime_nsec;
     int            target_st_ctime;
     unsigned int   target_st_ctime_nsec;
-    uint64_t st_ino;
+    abi_ullong st_ino;
 };
 
 #elif defined(TARGET_M68K)
@@ -1753,7 +1753,7 @@ struct target_stat {
 struct target_stat {
     abi_ulong    st_dev;
     abi_ulong    st_pad0[3]; /* Reserved for st_dev expansion */
-    uint64_t     st_ino;
+    abi_ullong   st_ino;
     unsigned int st_mode;
     unsigned int st_nlink;
     int          st_uid;
@@ -1813,7 +1813,7 @@ struct target_stat64 {
     abi_ulong       st_dev;
     abi_ulong       st_pad0[3];     /* Reserved for st_dev expansion  */
 
-    uint64_t        st_ino;
+    abi_ullong      st_ino;
 
     unsigned int    st_mode;
     unsigned int    st_nlink;
@@ -2044,17 +2044,17 @@ struct target_stat {
 
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64  {
-    uint64_t st_dev;            /* Device */
-    uint64_t st_ino;            /* File serial number */
+    abi_ullong st_dev;          /* Device */
+    abi_ullong st_ino;          /* File serial number */
     unsigned int  st_mode;      /* File mode. */
     unsigned int  st_nlink;     /* Link count. */
     unsigned int  st_uid;       /* User ID of the file's owner. */
     unsigned int  st_gid;       /* Group ID of the file's group. */
-    uint64_t st_rdev;           /* Device number, if device. */
+    abi_ullong st_rdev;         /* Device number, if device. */
     int64_t st_size;            /* Size of file, in bytes. */
     abi_ulong st_blksize;       /* Optimal block size for I/O. */
     abi_ulong __unused2;
-    uint64_t st_blocks;         /* Number 512-byte blocks allocated. */
+    abi_ullong st_blocks;       /* Number 512-byte blocks allocated. */
     abi_ulong target_st_atime;  /* Time of last access. */
     abi_ulong target_st_atime_nsec;
     abi_ulong target_st_mtime;  /* Time of last modification. */
@@ -2097,14 +2097,14 @@ struct target_stat {
 #if !defined(TARGET_RISCV64)
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
-    uint64_t st_dev;
-    uint64_t st_ino;
+    abi_ullong st_dev;
+    abi_ullong st_ino;
     unsigned int st_mode;
     unsigned int st_nlink;
     unsigned int st_uid;
     unsigned int st_gid;
-    uint64_t st_rdev;
-    uint64_t __pad1;
+    abi_ullong st_rdev;
+    abi_ullong __pad1;
     int64_t st_size;
     int st_blksize;
     int __pad2;
@@ -2156,14 +2156,14 @@ struct target_stat {
 
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
-    uint64_t   st_dev;
+    abi_ullong st_dev;
     abi_uint   _pad1;
     abi_uint   _res1;
     abi_uint   st_mode;
     abi_uint   st_nlink;
     abi_uint   st_uid;
     abi_uint   st_gid;
-    uint64_t   st_rdev;
+    abi_ullong st_rdev;
     abi_uint   _pad2;
     int64_t    st_size;
     abi_int    st_blksize;
@@ -2174,7 +2174,7 @@ struct target_stat64 {
     abi_uint   target_st_mtime_nsec;
     abi_int    target_st_ctime;
     abi_uint   target_st_ctime_nsec;
-    uint64_t   st_ino;
+    abi_ullong st_ino;
 };
 
 #elif defined(TARGET_LOONGARCH64)
@@ -2231,11 +2231,11 @@ struct target_statfs64 {
     abi_uint        f_bsize;
     abi_uint        f_frsize;       /* Fragment size - unsupported */
     abi_uint        __pad;
-    uint64_t        f_blocks;
-    uint64_t        f_bfree;
-    uint64_t        f_files;
-    uint64_t        f_ffree;
-    uint64_t        f_bavail;
+    abi_ullong      f_blocks;
+    abi_ullong      f_bfree;
+    abi_ullong      f_files;
+    abi_ullong      f_ffree;
+    abi_ullong      f_bavail;
     target_fsid_t   f_fsid;
     abi_uint        f_namelen;
     abi_uint        f_flags;
@@ -2324,11 +2324,11 @@ struct target_statfs {
 struct target_statfs64 {
     abi_uint f_type;
     abi_uint f_bsize;
-    uint64_t f_blocks;
-    uint64_t f_bfree;
-    uint64_t f_bavail;
-    uint64_t f_files;
-    uint64_t f_ffree;
+    abi_ullong f_blocks;
+    abi_ullong f_bfree;
+    abi_ullong f_bavail;
+    abi_ullong f_files;
+    abi_ullong f_ffree;
     target_fsid_t f_fsid;
     abi_uint f_namelen;
     abi_uint f_frsize;
@@ -2799,7 +2799,7 @@ struct target_statx {
     /* 0x00 */
     abi_uint stx_mask;       /* What results were written [uncond] */
     abi_uint stx_blksize;    /* Preferred general I/O size [uncond] */
-    uint64_t stx_attributes; /* Flags conveying information about the file */
+    abi_ullong stx_attributes; /* Flags conveying information about the file */
     /* 0x10 */
     abi_uint stx_nlink;      /* Number of hard links */
     abi_uint stx_uid;        /* User ID of owner */
@@ -2807,10 +2807,10 @@ struct target_statx {
     uint16_t stx_mode;       /* File mode */
     uint16_t __spare0[1];
     /* 0x20 */
-    uint64_t stx_ino;        /* Inode number */
-    uint64_t stx_size;       /* File size */
-    uint64_t stx_blocks;     /* Number of 512-byte blocks allocated */
-    uint64_t stx_attributes_mask; /* Mask to show what is supported */
+    abi_ullong stx_ino;      /* Inode number */
+    abi_ullong stx_size;     /* File size */
+    abi_ullong stx_blocks;   /* Number of 512-byte blocks allocated */
+    abi_ullong stx_attributes_mask; /* Mask to show what is supported */
     /* 0x40 */
     struct target_statx_timestamp  stx_atime;  /* Last access time */
     struct target_statx_timestamp  stx_btime;  /* File creation time */
@@ -2822,7 +2822,7 @@ struct target_statx {
     abi_uint stx_dev_major; /* ID of device containing file [uncond] */
     abi_uint stx_dev_minor;
     /* 0x90 */
-    uint64_t __spare2[14];  /* Spare space for future expansion */
+    abi_ullong __spare2[14]; /* Spare space for future expansion */
     /* 0x100 */
 };
 
