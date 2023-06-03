@@ -432,7 +432,7 @@ typedef struct {
 struct target_dirent {
     abi_long        d_ino;
     abi_long        d_off;
-    unsigned short  d_reclen;
+    abi_ushort      d_reclen;
     char            d_name[];
 };
 
@@ -1210,19 +1210,19 @@ struct target_rtc_pll_info {
 
 #define TARGET_NCC 8
 struct target_termio {
-    unsigned short c_iflag;         /* input mode flags */
-    unsigned short c_oflag;         /* output mode flags */
-    unsigned short c_cflag;         /* control mode flags */
-    unsigned short c_lflag;         /* local mode flags */
+    abi_ushort c_iflag;             /* input mode flags */
+    abi_ushort c_oflag;             /* output mode flags */
+    abi_ushort c_cflag;             /* control mode flags */
+    abi_ushort c_lflag;             /* local mode flags */
     unsigned char c_line;           /* line discipline */
     unsigned char c_cc[TARGET_NCC]; /* control characters */
 };
 
 struct target_winsize {
-    unsigned short ws_row;
-    unsigned short ws_col;
-    unsigned short ws_xpixel;
-    unsigned short ws_ypixel;
+    abi_ushort ws_row;
+    abi_ushort ws_col;
+    abi_ushort ws_xpixel;
+    abi_ushort ws_ypixel;
 };
 
 #include "termbits.h"
@@ -1328,15 +1328,15 @@ struct target_winsize {
     || defined(TARGET_CRIS)
 #define TARGET_STAT_HAVE_NSEC
 struct target_stat {
-    unsigned short st_dev;
-    unsigned short __pad1;
+    abi_ushort st_dev;
+    abi_ushort __pad1;
     abi_ulong st_ino;
-    unsigned short st_mode;
-    unsigned short st_nlink;
-    unsigned short st_uid;
-    unsigned short st_gid;
-    unsigned short st_rdev;
-    unsigned short __pad2;
+    abi_ushort st_mode;
+    abi_ushort st_nlink;
+    abi_ushort st_uid;
+    abi_ushort st_gid;
+    abi_ushort st_rdev;
+    abi_ushort __pad2;
     abi_ulong  st_size;
     abi_ulong  st_blksize;
     abi_ulong  st_blocks;
@@ -1355,7 +1355,7 @@ struct target_stat {
  */
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
-    unsigned short  st_dev;
+    abi_ushort      st_dev;
     unsigned char   __pad0[10];
 
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
@@ -1367,7 +1367,7 @@ struct target_stat64 {
     abi_ulong       st_uid;
     abi_ulong       st_gid;
 
-    unsigned short  st_rdev;
+    abi_ushort      st_rdev;
     unsigned char   __pad3[10];
 
     abi_llong       st_size;
@@ -1442,7 +1442,7 @@ struct target_stat {
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
     unsigned char   __pad0[6];
-    unsigned short  st_dev;
+    abi_ushort      st_dev;
 
     abi_ullong      st_ino;
     abi_ullong      st_nlink;
@@ -1453,7 +1453,7 @@ struct target_stat64 {
     abi_uint        st_gid;
 
     unsigned char   __pad2[6];
-    unsigned short  st_rdev;
+    abi_ushort      st_rdev;
 
     abi_llong       st_size;
     abi_llong       st_blksize;
@@ -1477,13 +1477,13 @@ struct target_stat64 {
 
 #define TARGET_STAT_HAVE_NSEC
 struct target_stat {
-    unsigned short  st_dev;
+    abi_ushort      st_dev;
     abi_ulong       st_ino;
-    unsigned short  st_mode;
+    abi_ushort      st_mode;
     short           st_nlink;
-    unsigned short  st_uid;
-    unsigned short  st_gid;
-    unsigned short  st_rdev;
+    abi_ushort      st_uid;
+    abi_ushort      st_gid;
+    abi_ushort      st_rdev;
     abi_long        st_size;
     abi_long        target_st_atime;
     abi_ulong       target_st_atime_nsec;
@@ -1499,7 +1499,7 @@ struct target_stat {
 #define TARGET_HAS_STRUCT_STAT64
 struct target_stat64 {
     unsigned char   __pad0[6];
-    unsigned short  st_dev;
+    abi_ushort      st_dev;
 
     abi_ullong      st_ino;
 
@@ -1510,7 +1510,7 @@ struct target_stat64 {
     abi_uint        st_gid;
 
     unsigned char   __pad2[6];
-    unsigned short  st_rdev;
+    abi_ushort      st_rdev;
 
     unsigned char   __pad3[8];
 
@@ -1544,7 +1544,7 @@ struct target_stat {
     abi_uint  st_mode;
 #else
     abi_uint  st_mode;
-    unsigned short st_nlink;
+    abi_ushort st_nlink;
 #endif
     abi_uint   st_uid;
     abi_uint   st_gid;
@@ -1598,7 +1598,7 @@ struct target_stat {
     abi_ulong st_dev;
     abi_ulong st_ino;
     abi_uint st_mode;
-    unsigned short st_nlink;
+    abi_ushort st_nlink;
     abi_uint st_uid;
     abi_uint st_gid;
     abi_ulong  st_rdev;
@@ -1647,15 +1647,15 @@ struct QEMU_PACKED target_stat64 {
 #elif defined(TARGET_M68K)
 
 struct target_stat {
-    unsigned short st_dev;
-    unsigned short __pad1;
-    abi_ulong st_ino;
-    unsigned short st_mode;
-    unsigned short st_nlink;
-    unsigned short st_uid;
-    unsigned short st_gid;
-    unsigned short st_rdev;
-    unsigned short __pad2;
+    abi_ushort st_dev;
+    abi_ushort __pad1;
+    abi_ulong  st_ino;
+    abi_ushort st_mode;
+    abi_ushort st_nlink;
+    abi_ushort st_uid;
+    abi_ushort st_gid;
+    abi_ushort st_rdev;
+    abi_ushort __pad2;
     abi_ulong  st_size;
     abi_ulong  st_blksize;
     abi_ulong  st_blocks;
@@ -1895,10 +1895,10 @@ struct target_stat64 {
 struct target_stat {
     abi_ulong  st_dev;
     abi_ulong  st_ino;
-    unsigned short st_mode;
-    unsigned short st_nlink;
-    unsigned short st_uid;
-    unsigned short st_gid;
+    abi_ushort st_mode;
+    abi_ushort st_nlink;
+    abi_ushort st_uid;
+    abi_ushort st_gid;
     abi_ulong  st_rdev;
     abi_ulong  st_size;
     abi_ulong  st_blksize;
@@ -2619,8 +2619,8 @@ struct target_sysinfo {
     abi_ulong bufferram;            /* Memory used by buffers */
     abi_ulong totalswap;            /* Total swap space size */
     abi_ulong freeswap;             /* swap space still available */
-    unsigned short procs;           /* Number of current processes */
-    unsigned short pad;             /* explicit padding for m68k */
+    abi_ushort procs;               /* Number of current processes */
+    abi_ushort pad;                 /* explicit padding for m68k */
     abi_ulong totalhigh;            /* Total high memory size */
     abi_ulong freehigh;             /* Available high memory size */
     abi_uint mem_unit;              /* Memory unit size in bytes */
