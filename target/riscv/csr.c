@@ -1311,11 +1311,9 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
     }
 
     if (xl != MXL_RV32 || env->debugger) {
-        /*
-         * RV32: MPV and GVA are not in mstatus. The current plan is to
-         * add them to mstatush. For now, we just don't support it.
-         */
-        mask |= MSTATUS_MPV | MSTATUS_GVA;
+        if (riscv_has_ext(env, RVH)) {
+            mask |= MSTATUS_MPV | MSTATUS_GVA;
+        }
         if ((val & MSTATUS64_UXL) != 0) {
             mask |= MSTATUS64_UXL;
         }
@@ -1351,7 +1349,7 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
     uint64_t valh = (uint64_t)val << 32;
-    uint64_t mask = MSTATUS_MPV | MSTATUS_GVA;
+    uint64_t mask = riscv_has_ext(env, RVH) ? MSTATUS_MPV | MSTATUS_GVA : 0;
 
     env->mstatus = (env->mstatus & ~mask) | (valh & mask);
 
