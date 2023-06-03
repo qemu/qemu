@@ -23,88 +23,30 @@
  */
 #define MIGRATION_STATUS_WAIT_TIMEOUT 120
 
-bool got_stop;
-
-static void check_stop_event(QTestState *who)
+bool migrate_watch_for_stop(QTestState *who, const char *name,
+                            QDict *event, void *opaque)
 {
-    QDict *event = qtest_qmp_event_ref(who, "STOP");
-    if (event) {
-        got_stop = true;
-        qobject_unref(event);
+    bool *seen = opaque;
+
+    if (g_str_equal(name, "STOP")) {
+        *seen = true;
+        return true;
     }
+
+    return false;
 }
 
-#ifndef _WIN32
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-QDict *wait_command_fd(QTestState *who, int fd, const char *command, ...)
+bool migrate_watch_for_resume(QTestState *who, const char *name,
+                              QDict *event, void *opaque)
 {
-    va_list ap;
-    QDict *resp, *ret;
+    bool *seen = opaque;
 
-    va_start(ap, command);
-    qtest_qmp_vsend_fds(who, &fd, 1, command, ap);
-    va_end(ap);
+    if (g_str_equal(name, "RESUME")) {
+        *seen = true;
+        return true;
+    }
 
-    resp = qtest_qmp_receive(who);
-    check_stop_event(who);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
-}
-#endif
-
-/*
- * Events can get in the way of responses we are actually waiting for.
- */
-QDict *wait_command(QTestState *who, const char *command, ...)
-{
-    va_list ap;
-    QDict *resp, *ret;
-
-    va_start(ap, command);
-    resp = qtest_vqmp(who, command, ap);
-    va_end(ap);
-
-    check_stop_event(who);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
-}
-
-/*
- * Execute the qmp command only
- */
-QDict *qmp_command(QTestState *who, const char *command, ...)
-{
-    va_list ap;
-    QDict *resp, *ret;
-
-    va_start(ap, command);
-    resp = qtest_vqmp(who, command, ap);
-    va_end(ap);
-
-    g_assert(!qdict_haskey(resp, "error"));
-    g_assert(qdict_haskey(resp, "return"));
-
-    ret = qdict_get_qdict(resp, "return");
-    qobject_ref(ret);
-    qobject_unref(resp);
-
-    return ret;
+    return false;
 }
 
 /*
@@ -115,7 +57,7 @@ QDict *qmp_command(QTestState *who, const char *command, ...)
 void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
 {
     va_list ap;
-    QDict *args, *rsp;
+    QDict *args;
 
     va_start(ap, fmt);
     args = qdict_from_vjsonf_nofail(fmt, ap);
@@ -124,10 +66,8 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
     g_assert(!qdict_haskey(args, "uri"));
     qdict_put_str(args, "uri", uri);
 
-    rsp = qtest_qmp(who, "{ 'execute': 'migrate', 'arguments': %p}", args);
-
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate', 'arguments': %p}", args);
 }
 
 /*
@@ -136,7 +76,7 @@ void migrate_qmp(QTestState *who, const char *uri, const char *fmt, ...)
  */
 QDict *migrate_query(QTestState *who)
 {
-    return wait_command(who, "{ 'execute': 'query-migrate' }");
+    return qtest_qmp_assert_success_ref(who, "{ 'execute': 'query-migrate' }");
 }
 
 QDict *migrate_query_not_failed(QTestState *who)
@@ -234,7 +174,8 @@ void wait_for_migration_fail(QTestState *from, bool allow_active)
     } while (!failed);
 
     /* Is the machine currently running? */
-    rsp_return = wait_command(from, "{ 'execute': 'query-status' }");
+    rsp_return = qtest_qmp_assert_success_ref(from,
+                                              "{ 'execute': 'query-status' }");
     g_assert(qdict_haskey(rsp_return, "running"));
     g_assert(qdict_get_bool(rsp_return, "running"));
     qobject_unref(rsp_return);

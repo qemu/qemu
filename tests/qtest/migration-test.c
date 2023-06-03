@@ -43,6 +43,8 @@
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
+static bool got_src_stop;
+static bool got_dst_resume;
 
 /*
  * Dirtylimit stop working if dirty page rate error
@@ -225,7 +227,7 @@ static void wait_for_migration_pass(QTestState *who)
     uint64_t pass;
 
     /* Wait for the 1st sync */
-    while (!got_stop && !initial_pass) {
+    while (!got_src_stop && !initial_pass) {
         usleep(1000);
         initial_pass = get_migration_pass(who);
     }
@@ -233,7 +235,7 @@ static void wait_for_migration_pass(QTestState *who)
     do {
         usleep(1000);
         pass = get_migration_pass(who);
-    } while (pass == initial_pass && !got_stop);
+    } while (pass == initial_pass && !got_src_stop);
 }
 
 static void check_guests_ram(QTestState *who)
@@ -341,7 +343,8 @@ static long long migrate_get_parameter_int(QTestState *who,
     QDict *rsp;
     long long result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
+    rsp = qtest_qmp_assert_success_ref(
+        who, "{ 'execute': 'query-migrate-parameters' }");
     result = qdict_get_int(rsp, parameter);
     qobject_unref(rsp);
     return result;
@@ -359,14 +362,10 @@ static void migrate_check_parameter_int(QTestState *who, const char *parameter,
 static void migrate_set_parameter_int(QTestState *who, const char *parameter,
                                       long long value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %lld } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %lld } }",
+                             parameter, value);
     migrate_check_parameter_int(who, parameter, value);
 }
 
@@ -376,7 +375,8 @@ static char *migrate_get_parameter_str(QTestState *who,
     QDict *rsp;
     char *result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
+    rsp = qtest_qmp_assert_success_ref(
+        who, "{ 'execute': 'query-migrate-parameters' }");
     result = g_strdup(qdict_get_str(rsp, parameter));
     qobject_unref(rsp);
     return result;
@@ -392,14 +392,10 @@ static void migrate_check_parameter_str(QTestState *who, const char *parameter,
 static void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                       const char *value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %s } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %s } }",
+                             parameter, value);
     migrate_check_parameter_str(who, parameter, value);
 }
 
@@ -409,7 +405,8 @@ static long long migrate_get_parameter_bool(QTestState *who,
     QDict *rsp;
     int result;
 
-    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
+    rsp = qtest_qmp_assert_success_ref(
+        who, "{ 'execute': 'query-migrate-parameters' }");
     result = qdict_get_bool(rsp, parameter);
     qobject_unref(rsp);
     return !!result;
@@ -427,14 +424,10 @@ static void migrate_check_parameter_bool(QTestState *who, const char *parameter,
 static void migrate_set_parameter_bool(QTestState *who, const char *parameter,
                                       int value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-parameters',"
-                    "'arguments': { %s: %i } }",
-                    parameter, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-parameters',"
+                             "'arguments': { %s: %i } }",
+                             parameter, value);
     migrate_check_parameter_bool(who, parameter, value);
 }
 
@@ -454,66 +447,47 @@ static void migrate_ensure_converge(QTestState *who)
 
 static void migrate_pause(QTestState *who)
 {
-    QDict *rsp;
-
-    rsp = wait_command(who, "{ 'execute': 'migrate-pause' }");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who, "{ 'execute': 'migrate-pause' }");
 }
 
 static void migrate_continue(QTestState *who, const char *state)
 {
-    QDict *rsp;
-
-    rsp = wait_command(who,
-                       "{ 'execute': 'migrate-continue',"
-                       "  'arguments': { 'state': %s } }",
-                       state);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-continue',"
+                             "  'arguments': { 'state': %s } }",
+                             state);
 }
 
 static void migrate_recover(QTestState *who, const char *uri)
 {
-    QDict *rsp;
-
-    rsp = wait_command(who,
-                       "{ 'execute': 'migrate-recover', "
-                       "  'id': 'recover-cmd', "
-                       "  'arguments': { 'uri': %s } }",
-                       uri);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-recover', "
+                             "  'id': 'recover-cmd', "
+                             "  'arguments': { 'uri': %s } }",
+                             uri);
 }
 
 static void migrate_cancel(QTestState *who)
 {
-    QDict *rsp;
-
-    rsp = wait_command(who, "{ 'execute': 'migrate_cancel' }");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who, "{ 'execute': 'migrate_cancel' }");
 }
 
 static void migrate_set_capability(QTestState *who, const char *capability,
                                    bool value)
 {
-    QDict *rsp;
-
-    rsp = qtest_qmp(who,
-                    "{ 'execute': 'migrate-set-capabilities',"
-                    "'arguments': { "
-                    "'capabilities': [ { "
-                    "'capability': %s, 'state': %i } ] } }",
-                    capability, value);
-    g_assert(qdict_haskey(rsp, "return"));
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'migrate-set-capabilities',"
+                             "'arguments': { "
+                             "'capabilities': [ { "
+                             "'capability': %s, 'state': %i } ] } }",
+                             capability, value);
 }
 
 static void migrate_postcopy_start(QTestState *from, QTestState *to)
 {
-    QDict *rsp;
+    qtest_qmp_assert_success(from, "{ 'execute': 'migrate-start-postcopy' }");
 
-    rsp = wait_command(from, "{ 'execute': 'migrate-start-postcopy' }");
-    qobject_unref(rsp);
-
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
 
@@ -603,8 +577,18 @@ typedef struct {
         MIG_TEST_FAIL_DEST_QUIT_ERR,
     } result;
 
-    /* Optional: set number of migration passes to wait for */
+    /* Optional: set number of migration passes to wait for, if live==true */
     unsigned int iterations;
+
+    /*
+     * Optional: whether the guest CPUs should be running during a precopy
+     * migration test.  We used to always run with live but it took much
+     * longer so we reduced live tests to only the ones that have solid
+     * reason to be tested live-only.  For each of the new test cases for
+     * precopy please provide justifications to use live explicitly (please
+     * refer to existing ones with live=true), or use live=off by default.
+     */
+    bool live;
 
     /* Postcopy specific fields */
     void *postcopy_data;
@@ -633,7 +617,8 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         }
     }
 
-    got_stop = false;
+    got_src_stop = false;
+    got_dst_resume = false;
     bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
@@ -719,6 +704,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  ignore_stderr);
     if (!args->only_target) {
         *from = qtest_init(cmd_source);
+        qtest_qmp_set_event_callback(*from,
+                                     migrate_watch_for_stop,
+                                     &got_src_stop);
     }
 
     cmd_target = g_strdup_printf("-accel kvm%s -accel tcg%s%s "
@@ -736,6 +724,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                  args->opts_target ? args->opts_target : "",
                                  ignore_stderr);
     *to = qtest_init(cmd_target);
+    qtest_qmp_set_event_callback(*to,
+                                 migrate_watch_for_resume,
+                                 &got_dst_resume);
 
     /*
      * Remove shmem file immediately to avoid memory leak in test failed case.
@@ -797,7 +788,6 @@ test_migrate_tls_psk_start_common(QTestState *from,
 {
     struct TestMigrateTLSPSKData *data =
         g_new0(struct TestMigrateTLSPSKData, 1);
-    QDict *rsp;
 
     data->workdir = g_strdup_printf("%s/tlscredspsk0", tmpfs);
     data->pskfile = g_strdup_printf("%s/%s", data->workdir,
@@ -813,24 +803,22 @@ test_migrate_tls_psk_start_common(QTestState *from,
         test_tls_psk_init_alt(data->pskfilealt);
     }
 
-    rsp = wait_command(from,
-                       "{ 'execute': 'object-add',"
-                       "  'arguments': { 'qom-type': 'tls-creds-psk',"
-                       "                 'id': 'tlscredspsk0',"
-                       "                 'endpoint': 'client',"
-                       "                 'dir': %s,"
-                       "                 'username': 'qemu'} }",
-                       data->workdir);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(from,
+                             "{ 'execute': 'object-add',"
+                             "  'arguments': { 'qom-type': 'tls-creds-psk',"
+                             "                 'id': 'tlscredspsk0',"
+                             "                 'endpoint': 'client',"
+                             "                 'dir': %s,"
+                             "                 'username': 'qemu'} }",
+                             data->workdir);
 
-    rsp = wait_command(to,
-                       "{ 'execute': 'object-add',"
-                       "  'arguments': { 'qom-type': 'tls-creds-psk',"
-                       "                 'id': 'tlscredspsk0',"
-                       "                 'endpoint': 'server',"
-                       "                 'dir': %s } }",
-                       mismatch ? data->workdiralt : data->workdir);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to,
+                             "{ 'execute': 'object-add',"
+                             "  'arguments': { 'qom-type': 'tls-creds-psk',"
+                             "                 'id': 'tlscredspsk0',"
+                             "                 'endpoint': 'server',"
+                             "                 'dir': %s } }",
+                             mismatch ? data->workdiralt : data->workdir);
 
     migrate_set_parameter_str(from, "tls-creds", "tlscredspsk0");
     migrate_set_parameter_str(to, "tls-creds", "tlscredspsk0");
@@ -901,7 +889,6 @@ test_migrate_tls_x509_start_common(QTestState *from,
                                    TestMigrateTLSX509 *args)
 {
     TestMigrateTLSX509Data *data = g_new0(TestMigrateTLSX509Data, 1);
-    QDict *rsp;
 
     data->workdir = g_strdup_printf("%s/tlscredsx5090", tmpfs);
     data->keyfile = g_strdup_printf("%s/key.pem", data->workdir);
@@ -944,40 +931,38 @@ test_migrate_tls_x509_start_common(QTestState *from,
                                args->certhostname,
                                args->certipaddr);
 
-    rsp = wait_command(from,
-                       "{ 'execute': 'object-add',"
-                       "  'arguments': { 'qom-type': 'tls-creds-x509',"
-                       "                 'id': 'tlscredsx509client0',"
-                       "                 'endpoint': 'client',"
-                       "                 'dir': %s,"
-                       "                 'sanity-check': true,"
-                       "                 'verify-peer': true} }",
-                       data->workdir);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(from,
+                             "{ 'execute': 'object-add',"
+                             "  'arguments': { 'qom-type': 'tls-creds-x509',"
+                             "                 'id': 'tlscredsx509client0',"
+                             "                 'endpoint': 'client',"
+                             "                 'dir': %s,"
+                             "                 'sanity-check': true,"
+                             "                 'verify-peer': true} }",
+                             data->workdir);
     migrate_set_parameter_str(from, "tls-creds", "tlscredsx509client0");
     if (args->certhostname) {
         migrate_set_parameter_str(from, "tls-hostname", args->certhostname);
     }
 
-    rsp = wait_command(to,
-                       "{ 'execute': 'object-add',"
-                       "  'arguments': { 'qom-type': 'tls-creds-x509',"
-                       "                 'id': 'tlscredsx509server0',"
-                       "                 'endpoint': 'server',"
-                       "                 'dir': %s,"
-                       "                 'sanity-check': true,"
-                       "                 'verify-peer': %i} }",
-                       data->workdir, args->verifyclient);
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to,
+                             "{ 'execute': 'object-add',"
+                             "  'arguments': { 'qom-type': 'tls-creds-x509',"
+                             "                 'id': 'tlscredsx509server0',"
+                             "                 'endpoint': 'server',"
+                             "                 'dir': %s,"
+                             "                 'sanity-check': true,"
+                             "                 'verify-peer': %i} }",
+                             data->workdir, args->verifyclient);
     migrate_set_parameter_str(to, "tls-creds", "tlscredsx509server0");
 
     if (args->authzclient) {
-        rsp = wait_command(to,
-                           "{ 'execute': 'object-add',"
-                           "  'arguments': { 'qom-type': 'authz-simple',"
-                           "                 'id': 'tlsauthz0',"
-                           "                 'identity': %s} }",
-                           "CN=" QCRYPTO_TLS_TEST_CLIENT_NAME);
+        qtest_qmp_assert_success(to,
+                                 "{ 'execute': 'object-add',"
+                                 "  'arguments': { 'qom-type': 'authz-simple',"
+                                 "                 'id': 'tlsauthz0',"
+                                 "                 'identity': %s} }",
+                                 "CN=" QCRYPTO_TLS_TEST_CLIENT_NAME);
         migrate_set_parameter_str(to, "tls-authz", "tlsauthz0");
     }
 
@@ -1410,8 +1395,6 @@ static void test_precopy_common(MigrateCommon *args)
         return;
     }
 
-    migrate_ensure_non_converge(from);
-
     if (args->start_hook) {
         data_hook = args->start_hook(from, to);
     }
@@ -1419,6 +1402,31 @@ static void test_precopy_common(MigrateCommon *args)
     /* Wait for the first serial output from the source */
     if (args->result == MIG_TEST_SUCCEED) {
         wait_for_serial("src_serial");
+    }
+
+    if (args->live) {
+        /*
+         * Testing live migration, we want to ensure that some
+         * memory is re-dirtied after being transferred, so that
+         * we exercise logic for dirty page handling. We achieve
+         * this with a ridiculosly low bandwidth that guarantees
+         * non-convergance.
+         */
+        migrate_ensure_non_converge(from);
+    } else {
+        /*
+         * Testing non-live migration, we allow it to run at
+         * full speed to ensure short test case duration.
+         * For tests expected to fail, we don't need to
+         * change anything.
+         */
+        if (args->result == MIG_TEST_SUCCEED) {
+            qtest_qmp_assert_success(from, "{ 'execute' : 'stop'}");
+            if (!got_src_stop) {
+                qtest_qmp_eventwait(from, "STOP");
+            }
+            migrate_ensure_converge(from);
+        }
     }
 
     if (!args->connect_uri) {
@@ -1438,25 +1446,41 @@ static void test_precopy_common(MigrateCommon *args)
             qtest_set_expected_status(to, EXIT_FAILURE);
         }
     } else {
-        if (args->iterations) {
-            while (args->iterations--) {
+        if (args->live) {
+            if (args->iterations) {
+                while (args->iterations--) {
+                    wait_for_migration_pass(from);
+                }
+            } else {
                 wait_for_migration_pass(from);
             }
+
+            migrate_ensure_converge(from);
+
+            /*
+             * We do this first, as it has a timeout to stop us
+             * hanging forever if migration didn't converge
+             */
+            wait_for_migration_complete(from);
+
+            if (!got_src_stop) {
+                qtest_qmp_eventwait(from, "STOP");
+            }
         } else {
-            wait_for_migration_pass(from);
+            wait_for_migration_complete(from);
+            /*
+             * Must wait for dst to finish reading all incoming
+             * data on the socket before issuing 'cont' otherwise
+             * it'll be ignored
+             */
+            wait_for_migration_complete(to);
+
+            qtest_qmp_assert_success(to, "{ 'execute' : 'cont'}");
         }
 
-        migrate_ensure_converge(from);
-
-        /* We do this first, as it has a timeout to stop us
-         * hanging forever if migration didn't converge */
-        wait_for_migration_complete(from);
-
-        if (!got_stop) {
-            qtest_qmp_eventwait(from, "STOP");
+        if (!got_dst_resume) {
+            qtest_qmp_eventwait(to, "RESUME");
         }
-
-        qtest_qmp_eventwait(to, "RESUME");
 
         wait_for_serial("dest_serial");
     }
@@ -1474,6 +1498,11 @@ static void test_precopy_unix_plain(void)
     MigrateCommon args = {
         .listen_uri = uri,
         .connect_uri = uri,
+        /*
+         * The simplest use case of precopy, covering smoke tests of
+         * get-dirty-log dirty tracking.
+         */
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1489,6 +1518,11 @@ static void test_precopy_unix_dirty_ring(void)
         },
         .listen_uri = uri,
         .connect_uri = uri,
+        /*
+         * Besides the precopy/unix basic test, cover dirty ring interface
+         * rather than get-dirty-log.
+         */
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1562,7 +1596,7 @@ static void test_ignore_shared(void)
 
     wait_for_migration_pass(from);
 
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
 
@@ -1596,10 +1630,13 @@ static void test_precopy_unix_xbzrle(void)
     MigrateCommon args = {
         .connect_uri = uri,
         .listen_uri = uri,
-
         .start_hook = test_migrate_xbzrle_start,
-
         .iterations = 2,
+        /*
+         * XBZRLE needs pages to be modified when doing the 2nd+ round
+         * iteration to have real data pushed to the stream.
+         */
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1617,6 +1654,12 @@ static void test_precopy_unix_compress(void)
          * the previous iteration.
          */
         .iterations = 2,
+        /*
+         * We make sure the compressor can always work well even if guest
+         * memory is changing.  See commit 34ab9e9743 where we used to fix
+         * a bug when only trigger-able with guest memory changing.
+         */
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1634,6 +1677,8 @@ static void test_precopy_unix_compress_nowait(void)
          * the previous iteration.
          */
         .iterations = 2,
+        /* Same reason for the wait version of precopy compress test */
+        .live = true,
     };
 
     test_precopy_common(&args);
@@ -1771,7 +1816,6 @@ static void test_precopy_tcp_tls_x509_reject_anon_client(void)
 static void *test_migrate_fd_start_hook(QTestState *from,
                                         QTestState *to)
 {
-    QDict *rsp;
     int ret;
     int pair[2];
 
@@ -1780,22 +1824,19 @@ static void *test_migrate_fd_start_hook(QTestState *from,
     g_assert_cmpint(ret, ==, 0);
 
     /* Send the 1st socket to the target */
-    rsp = wait_command_fd(to, pair[0],
-                          "{ 'execute': 'getfd',"
-                          "  'arguments': { 'fdname': 'fd-mig' }}");
-    qobject_unref(rsp);
+    qtest_qmp_fds_assert_success(to, &pair[0], 1,
+                                 "{ 'execute': 'getfd',"
+                                 "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[0]);
 
     /* Start incoming migration from the 1st socket */
-    rsp = wait_command(to, "{ 'execute': 'migrate-incoming',"
-                           "  'arguments': { 'uri': 'fd:fd-mig' }}");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { 'uri': 'fd:fd-mig' }}");
 
     /* Send the 2nd socket to the target */
-    rsp = wait_command_fd(from, pair[1],
-                          "{ 'execute': 'getfd',"
-                          "  'arguments': { 'fdname': 'fd-mig' }}");
-    qobject_unref(rsp);
+    qtest_qmp_fds_assert_success(from, &pair[1], 1,
+                                 "{ 'execute': 'getfd',"
+                                 "  'arguments': { 'fdname': 'fd-mig' }}");
     close(pair[1]);
 
     return NULL;
@@ -1971,7 +2012,7 @@ static void test_migrate_auto_converge(void)
             break;
         }
         usleep(20);
-        g_assert_false(got_stop);
+        g_assert_false(got_src_stop);
     } while (true);
     /* The first percentage of throttling should be at least init_pct */
     g_assert_cmpint(percentage, >=, init_pct);
@@ -2002,8 +2043,6 @@ test_migrate_precopy_tcp_multifd_start_common(QTestState *from,
                                               QTestState *to,
                                               const char *method)
 {
-    QDict *rsp;
-
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
 
@@ -2014,9 +2053,8 @@ test_migrate_precopy_tcp_multifd_start_common(QTestState *from,
     migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    rsp = wait_command(to, "{ 'execute': 'migrate-incoming',"
-                           "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
     return NULL;
 }
@@ -2049,6 +2087,12 @@ static void test_multifd_tcp_none(void)
     MigrateCommon args = {
         .listen_uri = "defer",
         .start_hook = test_migrate_precopy_tcp_multifd_start,
+        /*
+         * Multifd is more complicated than most of the features, it
+         * directly takes guest page buffers when sending, make sure
+         * everything will work alright even if guest page is changing.
+         */
+        .live = true,
     };
     test_precopy_common(&args);
 }
@@ -2247,7 +2291,6 @@ static void test_multifd_tcp_cancel(void)
         .hide_stderr = true,
     };
     QTestState *from, *to, *to2;
-    QDict *rsp;
     g_autofree char *uri = NULL;
 
     if (test_migrate_start(&from, &to, "defer", &args)) {
@@ -2263,9 +2306,8 @@ static void test_multifd_tcp_cancel(void)
     migrate_set_capability(to, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    rsp = wait_command(to, "{ 'execute': 'migrate-incoming',"
-                           "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
     /* Wait for the first serial output from the source */
     wait_for_serial("src_serial");
@@ -2295,9 +2337,8 @@ static void test_multifd_tcp_cancel(void)
     migrate_set_capability(to2, "multifd", true);
 
     /* Start incoming migration from the 1st socket */
-    rsp = wait_command(to2, "{ 'execute': 'migrate-incoming',"
-                            "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
-    qobject_unref(rsp);
+    qtest_qmp_assert_success(to2, "{ 'execute': 'migrate-incoming',"
+                             "  'arguments': { 'uri': 'tcp:127.0.0.1:0' }}");
 
     g_free(uri);
     uri = migrate_get_socket_address(to2, "socket-address");
@@ -2310,7 +2351,7 @@ static void test_multifd_tcp_cancel(void)
 
     wait_for_migration_pass(from);
 
-    if (!got_stop) {
+    if (!got_src_stop) {
         qtest_qmp_eventwait(from, "STOP");
     }
     qtest_qmp_eventwait(to2, "RESUME");
@@ -2322,32 +2363,33 @@ static void test_multifd_tcp_cancel(void)
 
 static void calc_dirty_rate(QTestState *who, uint64_t calc_time)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'calc-dirty-rate',"
-                  "'arguments': { "
-                  "'calc-time': %" PRIu64 ","
-                  "'mode': 'dirty-ring' }}",
-                  calc_time));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'calc-dirty-rate',"
+                             "'arguments': { "
+                             "'calc-time': %" PRIu64 ","
+                             "'mode': 'dirty-ring' }}",
+                             calc_time);
 }
 
 static QDict *query_dirty_rate(QTestState *who)
 {
-    return qmp_command(who, "{ 'execute': 'query-dirty-rate' }");
+    return qtest_qmp_assert_success_ref(who,
+                                        "{ 'execute': 'query-dirty-rate' }");
 }
 
 static void dirtylimit_set_all(QTestState *who, uint64_t dirtyrate)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'set-vcpu-dirty-limit',"
-                  "'arguments': { "
-                  "'dirty-rate': %" PRIu64 " } }",
-                  dirtyrate));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'set-vcpu-dirty-limit',"
+                             "'arguments': { "
+                             "'dirty-rate': %" PRIu64 " } }",
+                             dirtyrate);
 }
 
 static void cancel_vcpu_dirty_limit(QTestState *who)
 {
-    qobject_unref(qmp_command(who,
-                  "{ 'execute': 'cancel-vcpu-dirty-limit' }"));
+    qtest_qmp_assert_success(who,
+                             "{ 'execute': 'cancel-vcpu-dirty-limit' }");
 }
 
 static QDict *query_vcpu_dirty_limit(QTestState *who)
