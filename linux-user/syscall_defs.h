@@ -1776,14 +1776,14 @@ struct target_stat {
 
 #define TARGET_STAT_HAVE_NSEC
 struct target_stat {
-    unsigned        st_dev;
+    abi_uint        st_dev;
     abi_long        st_pad1[3];             /* Reserved for network id */
     abi_ulong       st_ino;
     abi_uint        st_mode;
     abi_uint        st_nlink;
     abi_int         st_uid;
     abi_int         st_gid;
-    unsigned        st_rdev;
+    abi_uint        st_rdev;
     abi_long        st_pad2[2];
     abi_long        st_size;
     abi_long        st_pad3;
