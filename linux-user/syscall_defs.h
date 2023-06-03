@@ -1455,8 +1455,8 @@ struct target_stat64 {
     unsigned char   __pad2[6];
     unsigned short  st_rdev;
 
-    int64_t         st_size;
-    int64_t         st_blksize;
+    abi_llong       st_size;
+    abi_llong       st_blksize;
 
     unsigned char   __pad4[4];
     unsigned int    st_blocks;
@@ -1514,7 +1514,7 @@ struct target_stat64 {
 
     unsigned char   __pad3[8];
 
-    int64_t st_size;
+    abi_llong       st_size;
     unsigned int    st_blksize;
 
     unsigned char   __pad4[8];
@@ -1630,10 +1630,10 @@ struct QEMU_PACKED target_stat64 {
     abi_ullong st_rdev;
     abi_ullong __pad1;
 
-    int64_t  st_size;
+    abi_llong st_size;
     abi_int  st_blksize;
     abi_uint __pad2;
-    int64_t st_blocks;      /* Number 512-byte blocks allocated. */
+    abi_llong st_blocks;
 
     int            target_st_atime;
     unsigned int   target_st_atime_nsec;
@@ -1760,7 +1760,7 @@ struct target_stat {
     int          st_gid;
     abi_ulong    st_rdev;
     abi_ulong    st_pad1[3]; /* Reserved for st_rdev expansion */
-    int64_t      st_size;
+    abi_llong    st_size;
     abi_long     target_st_atime;
     abi_ulong    target_st_atime_nsec; /* Reserved for st_atime expansion */
     abi_long     target_st_mtime;
@@ -1769,7 +1769,7 @@ struct target_stat {
     abi_ulong    target_st_ctime_nsec; /* Reserved for st_ctime expansion */
     abi_ulong    st_blksize;
     abi_ulong    st_pad2;
-    int64_t      st_blocks;
+    abi_llong    st_blocks;
 };
 
 #elif defined(TARGET_ABI_MIPSO32)
@@ -1824,7 +1824,7 @@ struct target_stat64 {
     abi_ulong       st_rdev;
     abi_ulong       st_pad1[3];     /* Reserved for st_rdev expansion  */
 
-    int64_t         st_size;
+    abi_llong       st_size;
 
     /*
      * Actually this should be timestruc_t st_atime, st_mtime and st_ctime
@@ -1842,7 +1842,7 @@ struct target_stat64 {
     abi_ulong       st_blksize;
     abi_ulong       st_pad2;
 
-    int64_t         st_blocks;
+    abi_llong       st_blocks;
 };
 
 #elif defined(TARGET_ALPHA)
@@ -2051,7 +2051,7 @@ struct target_stat64  {
     unsigned int  st_uid;       /* User ID of the file's owner. */
     unsigned int  st_gid;       /* Group ID of the file's group. */
     abi_ullong st_rdev;         /* Device number, if device. */
-    int64_t st_size;            /* Size of file, in bytes. */
+    abi_llong st_size;          /* Size of file, in bytes. */
     abi_ulong st_blksize;       /* Optimal block size for I/O. */
     abi_ulong __unused2;
     abi_ullong st_blocks;       /* Number 512-byte blocks allocated. */
@@ -2105,10 +2105,10 @@ struct target_stat64 {
     unsigned int st_gid;
     abi_ullong st_rdev;
     abi_ullong __pad1;
-    int64_t st_size;
+    abi_llong st_size;
     int st_blksize;
     int __pad2;
-    int64_t st_blocks;
+    abi_llong st_blocks;
     int target_st_atime;
     unsigned int target_st_atime_nsec;
     int target_st_mtime;
@@ -2165,9 +2165,9 @@ struct target_stat64 {
     abi_uint   st_gid;
     abi_ullong st_rdev;
     abi_uint   _pad2;
-    int64_t    st_size;
+    abi_llong  st_size;
     abi_int    st_blksize;
-    int64_t    st_blocks;
+    abi_llong  st_blocks;
     abi_int    target_st_atime;
     abi_uint   target_st_atime_nsec;
     abi_int    target_st_mtime;
@@ -2790,7 +2790,7 @@ struct target_user_cap_data {
 #define TARGET_SYSLOG_ACTION_SIZE_BUFFER   10
 
 struct target_statx_timestamp {
-    int64_t tv_sec;
+    abi_llong tv_sec;
     abi_uint tv_nsec;
     abi_int __reserved;
 };
