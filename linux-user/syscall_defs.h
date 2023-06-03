@@ -547,30 +547,6 @@ typedef union target_sigval {
     int sival_int;
     abi_ulong sival_ptr;
 } target_sigval_t;
-#if 0
-#if defined (TARGET_SPARC)
-typedef struct {
-    struct {
-        abi_ulong psr;
-        abi_ulong pc;
-        abi_ulong npc;
-        abi_ulong y;
-        abi_ulong u_regs[16]; /* globals and ins */
-    }               si_regs;
-    int             si_mask;
-} __siginfo_t;
-
-typedef struct {
-    unsigned   long si_float_regs [32];
-    unsigned   long si_fsr;
-    unsigned   long si_fpqdepth;
-    struct {
-        unsigned long *insn_addr;
-        unsigned long insn;
-    } si_fpqueue [16];
-} __siginfo_fpu_t;
-#endif
-#endif
 
 #define TARGET_SI_MAX_SIZE      128
 
