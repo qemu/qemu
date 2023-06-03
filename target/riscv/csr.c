@@ -1321,10 +1321,6 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
 
     mstatus = (mstatus & ~mask) | (val & mask);
 
-    if (xl > MXL_RV32) {
-        /* SXL field is for now read only */
-        mstatus = set_field(mstatus, MSTATUS64_SXL, xl);
-    }
     env->mstatus = mstatus;
 
     /*
