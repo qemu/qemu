@@ -3366,6 +3366,10 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
  * callers which don't need their own reference any more must call bdrv_unref().
  *
  * Function doesn't update permissions, caller is responsible for this.
+ *
+ * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
+ * @child_bs can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
  */
 static int bdrv_set_file_or_backing_noperm(BlockDriverState *parent_bs,
                                            BlockDriverState *child_bs,
@@ -3454,6 +3458,11 @@ out:
     return 0;
 }
 
+/*
+ * The caller must hold the AioContext lock for @backing_hd. Both @bs and
+ * @backing_hd can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
+ */
 static int bdrv_set_backing_noperm(BlockDriverState *bs,
                                    BlockDriverState *backing_hd,
                                    Transaction *tran, Error **errp)
@@ -4606,6 +4615,11 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
  * backing BlockDriverState (or NULL).
  *
  * Return 0 on success, otherwise return < 0 and set @errp.
+ *
+ * The caller must hold the AioContext lock of @reopen_state->bs.
+ * @reopen_state->bs can move to a different AioContext in this function.
+ * Callers must make sure that their AioContext locking is still correct after
+ * this.
  */
 static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
                                              bool is_backing, Transaction *tran,
@@ -4618,6 +4632,8 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
     const char *child_name = is_backing ? "backing" : "file";
     QObject *value;
     const char *str;
+    AioContext *ctx, *old_ctx;
+    int ret;
 
     GLOBAL_STATE_CODE();
 
@@ -4682,8 +4698,22 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
         reopen_state->old_file_bs = old_child_bs;
     }
 
-    return bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
-                                           tran, errp);
+    old_ctx = bdrv_get_aio_context(bs);
+    ctx = bdrv_get_aio_context(new_child_bs);
+    if (old_ctx != ctx) {
+        aio_context_release(old_ctx);
+        aio_context_acquire(ctx);
+    }
+
+    ret = bdrv_set_file_or_backing_noperm(bs, new_child_bs, is_backing,
+                                          tran, errp);
+
+    if (old_ctx != ctx) {
+        aio_context_release(ctx);
+        aio_context_acquire(old_ctx);
+    }
+
+    return ret;
 }
 
 /*
@@ -4702,6 +4732,7 @@ static int bdrv_reopen_parse_file_or_backing(BDRVReopenState *reopen_state,
  * It is the responsibility of the caller to then call the abort() or
  * commit() for any other BDS that have been left in a prepare() state
  *
+ * The caller must hold the AioContext lock of @reopen_state->bs.
  */
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue,
