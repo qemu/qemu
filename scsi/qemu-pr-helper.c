@@ -280,11 +280,7 @@ void put_multipath_config(struct config *conf)
 static void multipath_pr_init(void)
 {
     udev = udev_new();
-#ifdef CONFIG_MPATH_NEW_API
     multipath_conf = mpath_lib_init();
-#else
-    mpath_lib_init(udev);
-#endif
 }
 
 static int is_mpath(int fd)
