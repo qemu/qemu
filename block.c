@@ -2989,6 +2989,10 @@ static TransactionActionDrv bdrv_attach_child_common_drv = {
  * Function doesn't update permissions, caller is responsible for this.
  *
  * Returns new created child.
+ *
+ * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
+ * @child_bs can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
  */
 static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
                                            const char *child_name,
@@ -2999,7 +3003,7 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
                                            Transaction *tran, Error **errp)
 {
     BdrvChild *new_child;
-    AioContext *parent_ctx;
+    AioContext *parent_ctx, *new_child_ctx;
     AioContext *child_ctx = bdrv_get_aio_context(child_bs);
 
     assert(child_class->get_parent_desc);
@@ -3050,6 +3054,12 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
         }
     }
 
+    new_child_ctx = bdrv_get_aio_context(child_bs);
+    if (new_child_ctx != child_ctx) {
+        aio_context_release(child_ctx);
+        aio_context_acquire(new_child_ctx);
+    }
+
     bdrv_ref(child_bs);
     /*
      * Let every new BdrvChild start with a drained parent. Inserting the child
@@ -3079,11 +3089,20 @@ static BdrvChild *bdrv_attach_child_common(BlockDriverState *child_bs,
     };
     tran_add(tran, &bdrv_attach_child_common_drv, s);
 
+    if (new_child_ctx != child_ctx) {
+        aio_context_release(new_child_ctx);
+        aio_context_acquire(child_ctx);
+    }
+
     return new_child;
 }
 
 /*
  * Function doesn't update permissions, caller is responsible for this.
+ *
+ * The caller must hold the AioContext lock for @child_bs. Both @parent_bs and
+ * @child_bs can move to a different AioContext in this function. Callers must
+ * make sure that their AioContext locking is still correct after this.
  */
 static BdrvChild *bdrv_attach_child_noperm(BlockDriverState *parent_bs,
                                            BlockDriverState *child_bs,
