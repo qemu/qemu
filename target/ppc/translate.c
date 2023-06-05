@@ -3972,6 +3972,7 @@ static void gen_lqarx(DisasContext *ctx)
     }
     tcg_temp_free(EA);
 
+    tcg_gen_mov_tl(cpu_reserve, EA);
     tcg_gen_st_tl(hi, cpu_env, offsetof(CPUPPCState, reserve_val));
     tcg_gen_st_tl(lo, cpu_env, offsetof(CPUPPCState, reserve_val2));
 }
