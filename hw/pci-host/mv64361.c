@@ -541,6 +541,12 @@ static uint64_t mv64361_read(void *opaque, hwaddr addr, unsigned int size)
             }
         }
         break;
+    case MV64340_ETH_PHY_ADDR:
+        ret = 0x98;
+        break;
+    case MV64340_ETH_SMI:
+        ret = BIT(27);
+        break;
     case MV64340_CUNIT_ARBITER_CONTROL_REG:
         ret = 0x11ff0000 | (s->gpp_int_level << 10);
         break;
