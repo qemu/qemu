@@ -2849,7 +2849,7 @@ static void gen_load_locked(DisasContext *ctx, MemOp memop)
 
     gen_set_access_type(ctx, ACCESS_RES);
     gen_addr_reg_index(ctx, t0);
-    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, memop | MO_ALIGN);
+    tcg_gen_qemu_ld_tl(gpr, t0, ctx->mem_idx, DEF_MEMOP(memop) | MO_ALIGN);
     tcg_gen_mov_tl(cpu_reserve, t0);
     tcg_gen_movi_tl(cpu_reserve_length, memop_size(memop));
     tcg_gen_mov_tl(cpu_reserve_val, gpr);
@@ -2862,9 +2862,9 @@ static void gen_##name(DisasContext *ctx)  \
 }
 
 /* lwarx */
-LARX(lbarx, DEF_MEMOP(MO_UB))
-LARX(lharx, DEF_MEMOP(MO_UW))
-LARX(lwarx, DEF_MEMOP(MO_UL))
+LARX(lbarx, MO_UB)
+LARX(lharx, MO_UW)
+LARX(lwarx, MO_UL)
 
 static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
                                       TCGv EA, TCGCond cond, int addend)
@@ -3109,15 +3109,15 @@ static void gen_##name(DisasContext *ctx)  \
     gen_conditional_store(ctx, memop);     \
 }
 
-STCX(stbcx_, DEF_MEMOP(MO_UB))
-STCX(sthcx_, DEF_MEMOP(MO_UW))
-STCX(stwcx_, DEF_MEMOP(MO_UL))
+STCX(stbcx_, MO_UB)
+STCX(sthcx_, MO_UW)
+STCX(stwcx_, MO_UL)
 
 #if defined(TARGET_PPC64)
 /* ldarx */
-LARX(ldarx, DEF_MEMOP(MO_UQ))
+LARX(ldarx, MO_UQ)
 /* stdcx. */
-STCX(stdcx_, DEF_MEMOP(MO_UQ))
+STCX(stdcx_, MO_UQ)
 
 /* lqarx */
 static void gen_lqarx(DisasContext *ctx)
