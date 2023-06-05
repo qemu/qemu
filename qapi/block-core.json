@@ -3478,6 +3478,17 @@
 # @pass-discard-other: whether discard requests for the data source
 #     should be issued on other occasions where a cluster gets freed
 #
+# @discard-no-unref: when enabled, discards from the guest will not cause
+#     cluster allocations to be relinquished. This prevents qcow2 fragmentation
+#     that would be caused by such discards. Besides potential
+#     performance degradation, such fragmentation can lead to increased
+#     allocation of clusters past the end of the image file,
+#     resulting in image files whose file length can grow much larger
+#     than their guest disk size would suggest.
+#     If image file length is of concern (e.g. when storing qcow2
+#     images directly on block devices), you should consider enabling
+#     this option. (since 8.1)
+#
 # @overlap-check: which overlap checks to perform for writes to the
 #     image, defaults to 'cached' (since 2.2)
 #
@@ -3516,6 +3527,7 @@
             '*pass-discard-request': 'bool',
             '*pass-discard-snapshot': 'bool',
             '*pass-discard-other': 'bool',
+            '*discard-no-unref': 'bool',
             '*overlap-check': 'Qcow2OverlapChecks',
             '*cache-size': 'int',
             '*l2-cache-size': 'int',
