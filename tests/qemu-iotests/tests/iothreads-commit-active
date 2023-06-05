@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# group: rw quick auto
+#
+# Copyright (C) 2023 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+
+import asyncio
+import iotests
+
+iotests.script_initialize(supported_fmts=['qcow2'],
+                          supported_platforms=['linux'])
+iotests.verify_virtio_scsi_pci_or_ccw()
+
+with iotests.FilePath('disk0.img') as img_path, \
+     iotests.FilePath('disk0-snap.img') as snap_path, \
+     iotests.FilePath('mirror-src.img') as src_path, \
+     iotests.FilePath('mirror-dst.img') as dst_path, \
+     iotests.VM() as vm:
+
+    img_size = '10M'
+    iotests.qemu_img_create('-f', iotests.imgfmt, img_path, img_size)
+    iotests.qemu_img_create('-f', iotests.imgfmt, '-b', img_path,
+                            '-F', iotests.imgfmt, snap_path)
+    iotests.qemu_img_create('-f', iotests.imgfmt, src_path, img_size)
+    iotests.qemu_img_create('-f', iotests.imgfmt, dst_path, img_size)
+
+    iotests.qemu_io_log('-c', 'write 0 64k', img_path)
+    iotests.qemu_io_log('-c', 'write 1M 64k', snap_path)
+    iotests.qemu_io_log('-c', 'write 3M 64k', snap_path)
+
+    iotests.qemu_io_log('-c', f'write 0 {img_size}', src_path)
+
+    iotests.log('Launching VM...')
+    vm.add_object('iothread,id=iothread0')
+    vm.add_object('throttle-group,x-bps-write=1048576,id=tg0')
+    vm.add_blockdev(f'file,node-name=disk0-file,filename={img_path}')
+    vm.add_blockdev('qcow2,node-name=disk0-fmt,file=disk0-file')
+    vm.add_drive(snap_path, 'backing=disk0-fmt,node-name=disk0',
+                 interface='none')
+    vm.add_device('virtio-scsi,iothread=iothread0')
+    vm.add_device('scsi-hd,drive=drive0')
+
+    vm.add_blockdev(f'file,filename={src_path},node-name=mirror-src-file')
+    vm.add_blockdev('qcow2,file=mirror-src-file,node-name=mirror-src')
+    vm.add_blockdev(f'file,filename={dst_path},node-name=mirror-dst-file')
+    vm.add_blockdev('qcow2,file=mirror-dst-file,node-name=mirror-dst-fmt')
+    vm.add_blockdev('throttle,throttle-group=tg0,file=mirror-dst-fmt,'
+                    'node-name=mirror-dst')
+    vm.add_device('scsi-hd,drive=mirror-src')
+
+    vm.launch()
+
+    # The background I/O is created on unrelated nodes (so that they won't be
+    # drained together with the other ones), but on the same iothread
+    iotests.log('Creating some background I/O...')
+    iotests.log(vm.qmp('blockdev-mirror', job_id='job0', sync='full',
+                       device='mirror-src', target='mirror-dst',
+                       auto_dismiss=False))
+
+    iotests.log('Starting active commit...')
+    iotests.log(vm.qmp('block-commit', device='disk0', job_id='job1',
+                       auto_dismiss=False))
+
+    # Should succeed and not time out
+    try:
+        vm.run_job('job1', wait=5.0)
+        vm.shutdown()
+    except asyncio.TimeoutError:
+        # VM may be stuck, kill it
+        vm.kill()
+        raise
