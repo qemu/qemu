@@ -110,8 +110,10 @@ static uint32_t reader_count(void)
 }
 #endif
 
-void bdrv_graph_wrlock(void)
+void bdrv_graph_wrlock(BlockDriverState *bs)
 {
+    AioContext *ctx = NULL;
+
     GLOBAL_STATE_CODE();
     /*
      * TODO Some callers hold an AioContext lock when this is called, which
@@ -120,7 +122,22 @@ void bdrv_graph_wrlock(void)
      */
 #if 0
     assert(!qatomic_read(&has_writer));
+#endif
 
+    /*
+     * Release only non-mainloop AioContext. The mainloop often relies on the
+     * BQL and doesn't lock the main AioContext before doing things.
+     */
+    if (bs) {
+        ctx = bdrv_get_aio_context(bs);
+        if (ctx != qemu_get_aio_context()) {
+            aio_context_release(ctx);
+        } else {
+            ctx = NULL;
+        }
+    }
+
+#if 0
     /* Make sure that constantly arriving new I/O doesn't cause starvation */
     bdrv_drain_all_begin_nopoll();
 
@@ -150,6 +167,10 @@ void bdrv_graph_wrlock(void)
 
     bdrv_drain_all_end();
 #endif
+
+    if (ctx) {
+        aio_context_acquire(bdrv_get_aio_context(bs));
+    }
 }
 
 void bdrv_graph_wrunlock(void)

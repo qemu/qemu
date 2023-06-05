@@ -2854,7 +2854,7 @@ uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm)
  * Replaces the node that a BdrvChild points to without updating permissions.
  *
  * If @new_bs is non-NULL, the parent of @child must already be drained through
- * @child.
+ * @child and the caller must hold the AioContext lock for @new_bs.
  */
 static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs)
@@ -2893,7 +2893,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     }
 
     /* TODO Pull this up into the callers to avoid polling here */
-    bdrv_graph_wrlock();
+    bdrv_graph_wrlock(new_bs);
     if (old_bs) {
         if (child->klass->detach) {
             child->klass->detach(child);
