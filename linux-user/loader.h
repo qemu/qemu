@@ -56,4 +56,8 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
 
 extern unsigned long guest_stack_size;
 
+#ifdef TARGET_S390X
+uint32_t get_elf_hwcap(void);
+#endif
+
 #endif /* LINUX_USER_LOADER_H */
