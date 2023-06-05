@@ -2840,8 +2840,6 @@ static void gen_isync(DisasContext *ctx)
     ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 }
 
-#define MEMOP_GET_SIZE(x)  (1 << ((x) & MO_SIZE))
-
 static void gen_load_locked(DisasContext *ctx, MemOp memop)
 {
     TCGv gpr = cpu_gpr[rD(ctx->opcode)];
@@ -2874,7 +2872,7 @@ static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
     TCGv u = tcg_temp_new();
 
     tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
-    tcg_gen_addi_tl(t2, EA, MEMOP_GET_SIZE(memop));
+    tcg_gen_addi_tl(t2, EA, memop_size(memop));
     tcg_gen_qemu_ld_tl(t2, t2, ctx->mem_idx, memop);
     tcg_gen_addi_tl(u, t, addend);
 
@@ -2884,7 +2882,7 @@ static void gen_fetch_inc_conditional(DisasContext *ctx, MemOp memop,
     tcg_gen_qemu_st_tl(u, EA, ctx->mem_idx, memop);
 
     /* RT = (t != t2 ? t : u = 1<<(s*8-1)) */
-    tcg_gen_movi_tl(u, 1 << (MEMOP_GET_SIZE(memop) * 8 - 1));
+    tcg_gen_movi_tl(u, 1 << (memop_size(memop) * 8 - 1));
     tcg_gen_movcond_tl(cond, cpu_gpr[rD(ctx->opcode)], t, t2, t, u);
 }
 
@@ -3046,7 +3044,7 @@ static void gen_st_atomic(DisasContext *ctx, MemOp memop)
             TCGv ea_plus_s = tcg_temp_new();
 
             tcg_gen_qemu_ld_tl(t, EA, ctx->mem_idx, memop);
-            tcg_gen_addi_tl(ea_plus_s, EA, MEMOP_GET_SIZE(memop));
+            tcg_gen_addi_tl(ea_plus_s, EA, memop_size(memop));
             tcg_gen_qemu_ld_tl(t2, ea_plus_s, ctx->mem_idx, memop);
             tcg_gen_movcond_tl(TCG_COND_EQ, s, t, t2, src, t);
             tcg_gen_movcond_tl(TCG_COND_EQ, s2, t, t2, src, t2);
