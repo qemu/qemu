@@ -3654,6 +3654,7 @@ done:
  *
  * The BlockdevRef will be removed from the options QDict.
  *
+ * The caller must hold the lock of the main AioContext and no other AioContext.
  * @parent can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
  */
@@ -3665,6 +3666,8 @@ BdrvChild *bdrv_open_child(const char *filename,
                            bool allow_none, Error **errp)
 {
     BlockDriverState *bs;
+    BdrvChild *child;
+    AioContext *ctx;
 
     GLOBAL_STATE_CODE();
 
@@ -3674,13 +3677,19 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
-    return bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
-                             errp);
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
+    child = bdrv_attach_child(parent, bs, bdref_key, child_class, child_role,
+                              errp);
+    aio_context_release(ctx);
+
+    return child;
 }
 
 /*
  * Wrapper on bdrv_open_child() for most popular case: open primary child of bs.
  *
+ * The caller must hold the lock of the main AioContext and no other AioContext.
  * @parent can move to a different AioContext in this function. Callers must
  * make sure that their AioContext locking is still correct after this.
  */
