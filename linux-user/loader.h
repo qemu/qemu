@@ -58,6 +58,7 @@ extern unsigned long guest_stack_size;
 
 #ifdef TARGET_S390X
 uint32_t get_elf_hwcap(void);
+const char *elf_hwcap_str(uint32_t bit);
 #endif
 
 #endif /* LINUX_USER_LOADER_H */
