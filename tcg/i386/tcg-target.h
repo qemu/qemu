@@ -30,11 +30,9 @@
 #define TCG_TARGET_INSN_UNIT_SIZE  1
 
 #ifdef __x86_64__
-# define TCG_TARGET_REG_BITS  64
 # define TCG_TARGET_NB_REGS   32
 # define MAX_CODE_GEN_BUFFER_SIZE  (2 * GiB)
 #else
-# define TCG_TARGET_REG_BITS  32
 # define TCG_TARGET_NB_REGS   24
 # define MAX_CODE_GEN_BUFFER_SIZE  UINT32_MAX
 #endif

@@ -31,6 +31,10 @@
 
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 #define EXTRACT_FIELD(src, start, end) \
             (((src) >> start) & ((1 << (end - start + 1)) - 1))
 
@@ -53,8 +57,6 @@ static TCGv_i32 cpu_btarget;
 static TCGv_i32 cpu_iflags;
 static TCGv cpu_res_addr;
 static TCGv_i32 cpu_res_val;
-
-#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {

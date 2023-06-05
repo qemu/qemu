@@ -34,6 +34,9 @@
 #include "exec/log.h"
 #include "fpu/softfloat.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 //#define DEBUG_DISPATCH 1
 
@@ -61,8 +64,6 @@ static TCGv NULL_QREG;
 #define IS_NULL_QREG(t) (t == NULL_QREG)
 /* Used to distinguish stores from bad addressing modes.  */
 static TCGv store_dummy;
-
-#include "exec/gen-icount.h"
 
 void m68k_tcg_init(void)
 {

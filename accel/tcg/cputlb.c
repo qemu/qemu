@@ -29,7 +29,7 @@
 #include "tcg/tcg.h"
 #include "qemu/error-report.h"
 #include "exec/log.h"
-#include "exec/helper-proto.h"
+#include "exec/helper-proto-common.h"
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
 #include "exec/translate-all.h"
@@ -40,7 +40,7 @@
 #include "qemu/plugin-memory.h"
 #endif
 #include "tcg/tcg-ldst.h"
-#include "exec/helper-proto.h"
+#include "tcg/oversized-guest.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -1000,11 +1000,15 @@ static void tlb_reset_dirty_range_locked(CPUTLBEntry *tlb_entry,
         addr &= TARGET_PAGE_MASK;
         addr += tlb_entry->addend;
         if ((addr - start) < length) {
-#if TCG_OVERSIZED_GUEST
+#if TARGET_LONG_BITS == 32
+            uint32_t *ptr_write = (uint32_t *)&tlb_entry->addr_write;
+            ptr_write += HOST_BIG_ENDIAN;
+            qatomic_set(ptr_write, *ptr_write | TLB_NOTDIRTY);
+#elif TCG_OVERSIZED_GUEST
             tlb_entry->addr_write |= TLB_NOTDIRTY;
 #else
             qatomic_set(&tlb_entry->addr_write,
-                       tlb_entry->addr_write | TLB_NOTDIRTY);
+                        tlb_entry->addr_write | TLB_NOTDIRTY);
 #endif
         }
     }

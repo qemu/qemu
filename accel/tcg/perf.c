@@ -111,6 +111,8 @@ static void write_perfmap_entry(const void *start, size_t insn,
 }
 
 static FILE *jitdump;
+static size_t perf_marker_size;
+static void *perf_marker = MAP_FAILED;
 
 #define JITHEADER_MAGIC 0x4A695444
 #define JITHEADER_VERSION 1
@@ -190,7 +192,6 @@ void perf_enable_jitdump(void)
 {
     struct jitheader header;
     char jitdump_file[32];
-    void *perf_marker;
 
     if (!use_rt_clock) {
         warn_report("CLOCK_MONOTONIC is not available, proceeding without jitdump");
@@ -210,7 +211,8 @@ void perf_enable_jitdump(void)
      * PERF_RECORD_MMAP or PERF_RECORD_MMAP2 event is of the form jit-%d.dump
      * and will process it as a jitdump file.
      */
-    perf_marker = mmap(NULL, qemu_real_host_page_size(), PROT_READ | PROT_EXEC,
+    perf_marker_size = qemu_real_host_page_size();
+    perf_marker = mmap(NULL, perf_marker_size, PROT_READ | PROT_EXEC,
                        MAP_PRIVATE, fileno(jitdump), 0);
     if (perf_marker == MAP_FAILED) {
         warn_report("Could not map %s: %s, proceeding without jitdump",
@@ -311,7 +313,8 @@ void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
                       const void *start)
 {
     struct debuginfo_query *q;
-    size_t insn;
+    size_t insn, start_words;
+    uint64_t *gen_insn_data;
 
     if (!perfmap && !jitdump) {
         return;
@@ -325,9 +328,12 @@ void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
     debuginfo_lock();
 
     /* Query debuginfo for each guest instruction. */
+    gen_insn_data = tcg_ctx->gen_insn_data;
+    start_words = tcg_ctx->insn_start_words;
+
     for (insn = 0; insn < tb->icount; insn++) {
         /* FIXME: This replicates the restore_state_to_opc() logic. */
-        q[insn].address = tcg_ctx->gen_insn_data[insn][0];
+        q[insn].address = gen_insn_data[insn * start_words + 0];
         if (tb_cflags(tb) & CF_PCREL) {
             q[insn].address |= (guest_pc & TARGET_PAGE_MASK);
         } else {
@@ -366,6 +372,11 @@ void perf_exit(void)
     if (perfmap) {
         fclose(perfmap);
         perfmap = NULL;
+    }
+
+    if (perf_marker != MAP_FAILED) {
+        munmap(perf_marker, perf_marker_size);
+        perf_marker = MAP_FAILED;
     }
 
     if (jitdump) {

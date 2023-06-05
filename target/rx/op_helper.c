@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
+#include "tcg/debug-assert.h"
 
 static inline G_NORETURN
 void raise_exception(CPURXState *env, int index,

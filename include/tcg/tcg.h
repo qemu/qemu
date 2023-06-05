@@ -25,13 +25,13 @@
 #ifndef TCG_H
 #define TCG_H
 
-#include "cpu.h"
 #include "exec/memop.h"
 #include "exec/memopidx.h"
 #include "qemu/bitops.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
 #include "tcg/tcg-mo.h"
+#include "tcg-target-reg-bits.h"
 #include "tcg-target.h"
 #include "tcg/tcg-cond.h"
 #include "tcg/debug-assert.h"
@@ -43,17 +43,6 @@
 
 #define CPU_TEMP_BUF_NLONGS 128
 #define TCG_STATIC_FRAME_SIZE  (CPU_TEMP_BUF_NLONGS * sizeof(long))
-
-/* Default target word size to pointer size.  */
-#ifndef TCG_TARGET_REG_BITS
-# if UINTPTR_MAX == UINT32_MAX
-#  define TCG_TARGET_REG_BITS 32
-# elif UINTPTR_MAX == UINT64_MAX
-#  define TCG_TARGET_REG_BITS 64
-# else
-#  error Unknown pointer size for tcg target
-# endif
-#endif
 
 #if TCG_TARGET_REG_BITS == 32
 typedef int32_t tcg_target_long;
@@ -67,15 +56,6 @@ typedef uint64_t tcg_target_ulong;
 #define TCG_PRIld PRId64
 #else
 #error unsupported
-#endif
-
-/* Oversized TCG guests make things like MTTCG hard
- * as we can't use atomics for cputlb updates.
- */
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-#define TCG_OVERSIZED_GUEST 1
-#else
-#define TCG_OVERSIZED_GUEST 0
 #endif
 
 #if TCG_TARGET_NB_REGS <= 32
@@ -192,12 +172,6 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_v256             0
 #endif
 
-#ifndef TARGET_INSN_START_EXTRA_WORDS
-# define TARGET_INSN_START_WORDS 1
-#else
-# define TARGET_INSN_START_WORDS (1 + TARGET_INSN_START_EXTRA_WORDS)
-#endif
-
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg/tcg-opc.h"
@@ -292,13 +266,6 @@ typedef enum TCGType {
 #else
     TCG_TYPE_PTR = TCG_TYPE_I64,
 #endif
-
-    /* An alias for the size of the target "long", aka register.  */
-#if TARGET_LONG_BITS == 64
-    TCG_TYPE_TL = TCG_TYPE_I64,
-#else
-    TCG_TYPE_TL = TCG_TYPE_I32,
-#endif
 } TCGType;
 
 /**
@@ -337,10 +304,6 @@ static inline unsigned get_alignment_bits(MemOp memop)
         /* A specific alignment requirement.  */
         a = a >> MO_ASHIFT;
     }
-#if defined(CONFIG_SOFTMMU)
-    /* The requested alignment cannot overlap the TLB flags.  */
-    tcg_debug_assert((TLB_FLAGS_MASK & ((1 << a) - 1)) == 0);
-#endif
     return a;
 }
 
@@ -383,13 +346,6 @@ typedef struct TCGv_i128_d *TCGv_i128;
 typedef struct TCGv_ptr_d *TCGv_ptr;
 typedef struct TCGv_vec_d *TCGv_vec;
 typedef TCGv_ptr TCGv_env;
-#if TARGET_LONG_BITS == 32
-#define TCGv TCGv_i32
-#elif TARGET_LONG_BITS == 64
-#define TCGv TCGv_i64
-#else
-#error Unhandled TARGET_LONG_BITS value
-#endif
 
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
@@ -554,10 +510,13 @@ struct TCGContext {
     TCGType addr_type;            /* TCG_TYPE_I32 or TCG_TYPE_I64 */
 
 #ifdef CONFIG_SOFTMMU
+    int tlb_fast_offset;
     int page_mask;
     uint8_t page_bits;
     uint8_t tlb_dyn_max_bits;
 #endif
+    uint8_t insn_start_words;
+    TCGBar guest_mo;
 
     TCGRegSet reserved_regs;
     intptr_t current_frame_offset;
@@ -629,7 +588,7 @@ struct TCGContext {
     TCGTemp *reg_to_temp[TCG_TARGET_NB_REGS];
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
-    uint64_t gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
+    uint64_t *gen_insn_data;
 
     /* Exit to translator on overflow. */
     sigjmp_buf jmp_trans;
@@ -662,13 +621,6 @@ static inline void *tcg_splitwx_to_rw(const void *rx)
 }
 #endif
 
-static inline size_t temp_idx(TCGTemp *ts)
-{
-    ptrdiff_t n = ts - tcg_ctx->temps;
-    tcg_debug_assert(n >= 0 && n < tcg_ctx->nb_temps);
-    return n;
-}
-
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
     return (uintptr_t)ts;
@@ -679,16 +631,25 @@ static inline TCGTemp *arg_temp(TCGArg a)
     return (TCGTemp *)(uintptr_t)a;
 }
 
-/* Using the offset of a temporary, relative to TCGContext, rather than
-   its index means that we don't use 0.  That leaves offset 0 free for
-   a NULL representation without having to leave index 0 unused.  */
+#ifdef CONFIG_DEBUG_TCG
+size_t temp_idx(TCGTemp *ts);
+TCGTemp *tcgv_i32_temp(TCGv_i32 v);
+#else
+static inline size_t temp_idx(TCGTemp *ts)
+{
+    return ts - tcg_ctx->temps;
+}
+
+/*
+ * Using the offset of a temporary, relative to TCGContext, rather than
+ * its index means that we don't use 0.  That leaves offset 0 free for
+ * a NULL representation without having to leave index 0 unused.
+ */
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
-    uintptr_t o = (uintptr_t)v;
-    TCGTemp *t = (void *)tcg_ctx + o;
-    tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
-    return t;
+    return (void *)tcg_ctx + (uintptr_t)v;
 }
+#endif
 
 static inline TCGTemp *tcgv_i64_temp(TCGv_i64 v)
 {
@@ -969,7 +930,19 @@ typedef struct TCGTargetOpDef {
 
 bool tcg_op_supported(TCGOpcode op);
 
-void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args);
+void tcg_gen_call0(TCGHelperInfo *, TCGTemp *ret);
+void tcg_gen_call1(TCGHelperInfo *, TCGTemp *ret, TCGTemp *);
+void tcg_gen_call2(TCGHelperInfo *, TCGTemp *ret, TCGTemp *, TCGTemp *);
+void tcg_gen_call3(TCGHelperInfo *, TCGTemp *ret, TCGTemp *,
+                   TCGTemp *, TCGTemp *);
+void tcg_gen_call4(TCGHelperInfo *, TCGTemp *ret, TCGTemp *, TCGTemp *,
+                   TCGTemp *, TCGTemp *);
+void tcg_gen_call5(TCGHelperInfo *, TCGTemp *ret, TCGTemp *, TCGTemp *,
+                   TCGTemp *, TCGTemp *, TCGTemp *);
+void tcg_gen_call6(TCGHelperInfo *, TCGTemp *ret, TCGTemp *, TCGTemp *,
+                   TCGTemp *, TCGTemp *, TCGTemp *, TCGTemp *);
+void tcg_gen_call7(TCGHelperInfo *, TCGTemp *ret, TCGTemp *, TCGTemp *,
+                   TCGTemp *, TCGTemp *, TCGTemp *, TCGTemp *, TCGTemp *);
 
 TCGOp *tcg_emit_op(TCGOpcode opc, unsigned nargs);
 void tcg_op_remove(TCGContext *s, TCGOp *op);
@@ -1187,18 +1160,6 @@ uint64_t dup_const(unsigned vece, uint64_t c);
         : (VECE) == MO_64 ? (uint64_t)(C)                          \
         : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
-
-#if TARGET_LONG_BITS == 64
-# define dup_const_tl  dup_const
-#else
-# define dup_const_tl(VECE, C)                                     \
-    (__builtin_constant_p(VECE)                                    \
-     ? (  (VECE) == MO_8  ? 0x01010101ul * (uint8_t)(C)            \
-        : (VECE) == MO_16 ? 0x00010001ul * (uint16_t)(C)           \
-        : (VECE) == MO_32 ? 0x00000001ul * (uint32_t)(C)           \
-        : (qemu_build_not_reached_always(), 0))                    \
-     :  (target_long)dup_const(VECE, C))
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
 void tcg_assert_listed_vecop(TCGOpcode);

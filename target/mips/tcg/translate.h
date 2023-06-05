@@ -8,8 +8,11 @@
 #ifndef TARGET_MIPS_TRANSLATE_H
 #define TARGET_MIPS_TRANSLATE_H
 
-#include "qemu/log.h"
+#include "cpu.h"
+#include "tcg/tcg-op.h"
 #include "exec/translator.h"
+#include "exec/helper-gen.h"
+#include "qemu/log.h"
 
 #define MIPS_DEBUG_DISAS 0
 

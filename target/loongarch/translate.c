@@ -9,11 +9,10 @@
 #include "cpu.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
-
+#include "exec/translation-block.h"
 #include "exec/translator.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 #include "fpu/softfloat.h"
@@ -24,7 +23,9 @@
 TCGv cpu_gpr[32], cpu_pc;
 static TCGv cpu_lladdr, cpu_llval;
 
-#include "exec/gen-icount.h"
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #define DISAS_STOP        DISAS_TARGET_0
 #define DISAS_EXIT        DISAS_TARGET_1

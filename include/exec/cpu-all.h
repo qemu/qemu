@@ -314,6 +314,9 @@ CPUArchState *cpu_copy(CPUArchState *env);
  *
  * Use TARGET_PAGE_BITS_MIN so that these bits are constant
  * when TARGET_PAGE_BITS_VARY is in effect.
+ *
+ * The count, if not the placement of these bits is known
+ * to tcg/tcg-op-ldst.c, check_max_alignment().
  */
 /* Zero if TLB entry is valid.  */
 #define TLB_INVALID_MASK    (1 << (TARGET_PAGE_BITS_MIN - 1))

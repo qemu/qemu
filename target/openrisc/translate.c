@@ -31,9 +31,13 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "exec/gen-icount.h"
 
 #include "exec/log.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 /* is_jmp field values */
 #define DISAS_EXIT    DISAS_TARGET_0  /* force exit to main loop */
@@ -823,8 +827,7 @@ static bool trans_l_mfspr(DisasContext *dc, arg_l_mfspr *a)
 
     check_r0_write(dc, a->d);
 
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
+    if (translator_io_start(&dc->base)) {
         if (dc->delayed_branch) {
             tcg_gen_mov_tl(cpu_pc, jmp_pc);
             tcg_gen_discard_tl(jmp_pc);
@@ -843,9 +846,8 @@ static bool trans_l_mtspr(DisasContext *dc, arg_l_mtspr *a)
 {
     TCGv spr = tcg_temp_new();
 
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&dc->base);
+
     /*
      * For SR, we will need to exit the TB to recognize the new
      * exception state.  For NPC, in theory this counts as a branch

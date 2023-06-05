@@ -29,6 +29,10 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 typedef struct DisasContext {
     DisasContextBase base;
@@ -70,8 +74,6 @@ static TCGv cpu_fregs[32];
 
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc, cpu_delayed_cond;
-
-#include "exec/gen-icount.h"
 
 void sh4_translate_init(void)
 {
@@ -2142,9 +2144,7 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
 
     /* The entire region has been translated.  */
     ctx->envflags &= ~TB_FLAG_GUSA_MASK;
-    ctx->base.pc_next = pc_end;
-    ctx->base.num_insns += max_insns - 1;
-    return;
+    goto done;
 
  fail:
     qemu_log_mask(LOG_UNIMP, "Unrecognized gUSA sequence %08x-%08x\n",
@@ -2161,8 +2161,19 @@ static void decode_gusa(DisasContext *ctx, CPUSH4State *env)
        purposes of accounting within the TB.  We might as well report the
        entire region consumed via ctx->base.pc_next so that it's immediately
        available in the disassembly dump.  */
+
+ done:
     ctx->base.pc_next = pc_end;
     ctx->base.num_insns += max_insns - 1;
+
+    /*
+     * Emit insn_start to cover each of the insns in the region.
+     * This matches an assert in tcg.c making sure that we have
+     * tb->icount * insn_start.
+     */
+    for (i = 1; i < max_insns; ++i) {
+        tcg_gen_insn_start(pc + i * 2, ctx->envflags);
+    }
 }
 #endif
 

@@ -21,10 +21,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "tcg/tcg-op.h"
-#include "tcg/tcg-op-gvec.h"
-#include "exec/exec-all.h"
-#include "exec/gen-icount.h"
 #include "translate.h"
 #include "translate-a32.h"
 
@@ -117,9 +113,8 @@ static void gen_preserve_fp_state(DisasContext *s, bool skip_context_update)
          * so we must mark it as an IO operation for icount (and cause
          * this to be the last insn in the TB).
          */
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
+        if (translator_io_start(&s->base)) {
             s->base.is_jmp = DISAS_UPDATE_EXIT;
-            gen_io_start();
         }
         gen_helper_v7m_preserve_fp_state(cpu_env);
         /*

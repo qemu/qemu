@@ -33,6 +33,11 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 /*
  * TCG registers
  */
@@ -49,8 +54,6 @@ static TCGv cpu_PSW_V;
 static TCGv cpu_PSW_SV;
 static TCGv cpu_PSW_AV;
 static TCGv cpu_PSW_SAV;
-
-#include "exec/gen-icount.h"
 
 static const char *regnames_a[] = {
       "a0"  , "a1"  , "a2"  , "a3" , "a4"  , "a5" ,

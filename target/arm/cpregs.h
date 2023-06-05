@@ -67,8 +67,8 @@ enum {
     ARM_CP_ALIAS                 = 1 << 8,
     /*
      * Flag: Register does I/O and therefore its accesses need to be marked
-     * with gen_io_start() and also end the TB. In particular, registers which
-     * implement clocks or timers require this.
+     * with translator_io_start() and also end the TB. In particular,
+     * registers which implement clocks or timers require this.
      */
     ARM_CP_IO                    = 1 << 9,
     /*

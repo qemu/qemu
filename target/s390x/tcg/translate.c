@@ -38,13 +38,16 @@
 #include "qemu/log.h"
 #include "qemu/host-utils.h"
 #include "exec/cpu_ldst.h"
-#include "exec/gen-icount.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/atomic128.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 
 /* Information that (most) every instruction needs to manipulate.  */
@@ -6350,10 +6353,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
 
         /* input/output is the special case for icount mode */
         if (unlikely(insn->flags & IF_IO)) {
-            icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
-            if (icount) {
-                gen_io_start();
-            }
+            icount = translator_io_start(&s->base);
         }
     }
 

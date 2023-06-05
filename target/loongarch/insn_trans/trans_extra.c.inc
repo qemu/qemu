@@ -39,9 +39,7 @@ static bool gen_rdtime(DisasContext *ctx, arg_rr *a,
     TCGv dst1 = gpr_dst(ctx, a->rd, EXT_NONE);
     TCGv dst2 = gpr_dst(ctx, a->rj, EXT_NONE);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_rdtime_d(dst1, cpu_env);
     if (word) {
         tcg_gen_sextract_tl(dst1, dst1, high ? 32 : 0, 32);

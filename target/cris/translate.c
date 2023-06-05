@@ -34,10 +34,12 @@
 #include "exec/translator.h"
 #include "crisv32-decode.h"
 #include "qemu/qemu-print.h"
-
 #include "exec/helper-gen.h"
-
 #include "exec/log.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 
 #define DISAS_CRIS 0
@@ -85,8 +87,6 @@ static TCGv cc_mask;
 static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_pc;
-
-#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {

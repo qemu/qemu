@@ -43,12 +43,18 @@
  * CPU's index into a TCG temp, since the first callback did it already.
  */
 #include "qemu/osdep.h"
+#include "cpu.h"
 #include "tcg/tcg.h"
 #include "tcg/tcg-temp-internal.h"
 #include "tcg/tcg-op.h"
 #include "exec/exec-all.h"
 #include "exec/plugin-gen.h"
 #include "exec/translator.h"
+#include "exec/helper-proto-common.h"
+
+#define HELPER_H  "accel/tcg/plugin-helpers.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #ifdef CONFIG_SOFTMMU
 # define CONFIG_SOFTMMU_GATE 1

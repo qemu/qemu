@@ -34,6 +34,11 @@
 
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 #define PREFIX_REPZ   0x01
 #define PREFIX_REPNZ  0x02
 #define PREFIX_LOCK   0x04
@@ -72,8 +77,6 @@ static TCGv cpu_regs[CPU_NB_REGS];
 static TCGv cpu_seg_base[6];
 static TCGv_i64 cpu_bndl[4];
 static TCGv_i64 cpu_bndu[4];
-
-#include "exec/gen-icount.h"
 
 typedef struct DisasContext {
     DisasContextBase base;
@@ -3928,10 +3931,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                 !(s->cpuid_ext_features & CPUID_EXT_RDRAND)) {
                 goto illegal_op;
             }
-            if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-                s->base.is_jmp = DISAS_TOO_MANY;
-            }
+            translator_io_start(&s->base);
             gen_helper_rdrand(s->T0, cpu_env);
             rm = (modrm & 7) | REX_B(s);
             gen_op_mov_reg_v(s, dflag, rm, s->T0);
@@ -4969,10 +4969,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
                           SVM_IOIO_TYPE_MASK | SVM_IOIO_STR_MASK)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_ins(s, ot);
         } else {
@@ -4987,10 +4984,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!gen_check_io(s, ot, s->tmp2_i32, SVM_IOIO_STR_MASK)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         if (prefixes & (PREFIX_REPZ | PREFIX_REPNZ)) {
             gen_repz_outs(s, ot);
         } else {
@@ -5009,10 +5003,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!gen_check_io(s, ot, s->tmp2_i32, SVM_IOIO_TYPE_MASK)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         gen_helper_in_func(ot, s->T1, s->tmp2_i32);
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
         gen_bpt_io(s, s->tmp2_i32, ot);
@@ -5025,10 +5016,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!gen_check_io(s, ot, s->tmp2_i32, 0)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         gen_op_mov_v_reg(s, ot, s->T1, R_EAX);
         tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
@@ -5042,10 +5030,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!gen_check_io(s, ot, s->tmp2_i32, SVM_IOIO_TYPE_MASK)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         gen_helper_in_func(ot, s->T1, s->tmp2_i32);
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
         gen_bpt_io(s, s->tmp2_i32, ot);
@@ -5058,10 +5043,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         if (!gen_check_io(s, ot, s->tmp2_i32, 0)) {
             break;
         }
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         gen_op_mov_v_reg(s, ot, s->T1, R_EAX);
         tcg_gen_trunc_tl_i32(s->tmp3_i32, s->T1);
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
@@ -5669,10 +5651,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
     case 0x131: /* rdtsc */
         gen_update_cc_op(s);
         gen_update_eip_cur(s);
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         gen_helper_rdtsc(cpu_env);
         break;
     case 0x133: /* rdpmc */
@@ -6128,10 +6107,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
             }
             gen_update_cc_op(s);
             gen_update_eip_cur(s);
-            if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-                s->base.is_jmp = DISAS_TOO_MANY;
-            }
+            translator_io_start(&s->base);
             gen_helper_rdtscp(cpu_env);
             break;
 
@@ -6485,10 +6461,7 @@ static bool disas_insn(DisasContext *s, CPUState *cpu)
         }
         ot  = (CODE64(s) ? MO_64 : MO_32);
 
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-            s->base.is_jmp = DISAS_TOO_MANY;
-        }
+        translator_io_start(&s->base);
         if (b & 2) {
             gen_svm_check_intercept(s, SVM_EXIT_WRITE_CR0 + reg);
             gen_op_mov_v_reg(s, ot, s->T0, rm);

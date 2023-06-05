@@ -30,6 +30,9 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #undef ALPHA_DEBUG_DISAS
 #define CONFIG_SOFTFLOAT_INLINE
@@ -92,8 +95,6 @@ static TCGv cpu_lock_value;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_pal_ir[31];
 #endif
-
-#include "exec/gen-icount.h"
 
 void alpha_translate_init(void)
 {
@@ -1233,8 +1234,7 @@ static DisasJumpType gen_mfpr(DisasContext *ctx, TCGv va, int regno)
     case 249: /* VMTIME */
         helper = gen_helper_get_vmtime;
     do_helper:
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
+        if (translator_io_start(&ctx->base)) {
             helper(va);
             return DISAS_PC_STALE;
         } else {
@@ -1295,8 +1295,7 @@ static DisasJumpType gen_mtpr(DisasContext *ctx, TCGv vb, int regno)
 
     case 251:
         /* ALARM */
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
+        if (translator_io_start(&ctx->base)) {
             ret = DISAS_PC_STALE;
         }
         gen_helper_set_alarm(cpu_env, vb);
@@ -2332,13 +2331,10 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
         case 0xC000:
             /* RPCC */
             va = dest_gpr(ctx, ra);
-            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-                gen_helper_load_pcc(va, cpu_env);
+            if (translator_io_start(&ctx->base)) {
                 ret = DISAS_PC_STALE;
-            } else {
-                gen_helper_load_pcc(va, cpu_env);
             }
+            gen_helper_load_pcc(va, cpu_env);
             break;
         case 0xE000:
             /* RC */

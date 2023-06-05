@@ -813,9 +813,7 @@ static bool do_csrr(DisasContext *ctx, int rd, int rc)
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrr(dest, cpu_env, csr);
     gen_set_gpr(ctx, rd, dest);
     return do_csr_post(ctx);
@@ -825,9 +823,7 @@ static bool do_csrw(DisasContext *ctx, int rc, TCGv src)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrw(cpu_env, csr, src);
     return do_csr_post(ctx);
 }
@@ -837,9 +833,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
     TCGv dest = dest_gpr(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrrw(dest, cpu_env, csr, src, mask);
     gen_set_gpr(ctx, rd, dest);
     return do_csr_post(ctx);
@@ -851,9 +845,7 @@ static bool do_csrr_i128(DisasContext *ctx, int rd, int rc)
     TCGv desth = dest_gprh(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrr_i128(destl, cpu_env, csr);
     tcg_gen_ld_tl(desth, cpu_env, offsetof(CPURISCVState, retxh));
     gen_set_gpr128(ctx, rd, destl, desth);
@@ -864,9 +856,7 @@ static bool do_csrw_i128(DisasContext *ctx, int rc, TCGv srcl, TCGv srch)
 {
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrw_i128(cpu_env, csr, srcl, srch);
     return do_csr_post(ctx);
 }
@@ -878,9 +868,7 @@ static bool do_csrrw_i128(DisasContext *ctx, int rd, int rc,
     TCGv desth = dest_gprh(ctx, rd);
     TCGv_i32 csr = tcg_constant_i32(rc);
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&ctx->base);
     gen_helper_csrrw_i128(destl, cpu_env, csr, srcl, srch, maskl, maskh);
     tcg_gen_ld_tl(desth, cpu_env, offsetof(CPURISCVState, retxh));
     gen_set_gpr128(ctx, rd, destl, desth);

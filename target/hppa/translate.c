@@ -29,6 +29,11 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
+
 /* Since we have a distinction between register size and address size,
    we need to redefine all of these.  */
 
@@ -358,8 +363,6 @@ static TCGv_reg cpu_psw_n;
 static TCGv_reg cpu_psw_v;
 static TCGv_reg cpu_psw_cb;
 static TCGv_reg cpu_psw_cb_msb;
-
-#include "exec/gen-icount.h"
 
 void hppa_translate_init(void)
 {
@@ -2085,8 +2088,7 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
         /* FIXME: Respect PSW_S bit.  */
         nullify_over(ctx);
         tmp = dest_gpr(ctx, rt);
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
+        if (translator_io_start(&ctx->base)) {
             gen_helper_read_interval_timer(tmp);
             ctx->base.is_jmp = DISAS_IAQ_N_STALE;
         } else {

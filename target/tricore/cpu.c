@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/error-report.h"
+#include "tcg/debug-assert.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {

@@ -581,7 +581,6 @@ G_NORETURN void sparc_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                               uintptr_t retaddr);
 G_NORETURN void cpu_raise_exception_ra(CPUSPARCState *, int, uintptr_t);
 
-#ifndef NO_CPU_IO_DEFS
 /* cpu_init.c */
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list(void);
@@ -637,7 +636,6 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
     return compare_masked(context, tlb->tag, MMU_CONTEXT_MASK);
 }
 
-#endif
 #endif
 
 /* cpu-exec.c */

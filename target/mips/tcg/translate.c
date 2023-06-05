@@ -23,19 +23,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
-#include "internal.h"
-#include "tcg/tcg-op.h"
-#include "exec/translator.h"
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
-#include "semihosting/semihost.h"
-
-#include "trace.h"
-#include "exec/log.h"
-#include "qemu/qemu-print.h"
-#include "fpu_helper.h"
 #include "translate.h"
+#include "internal.h"
+#include "exec/helper-proto.h"
+#include "exec/translation-block.h"
+#include "semihosting/semihost.h"
+#include "trace.h"
+#include "disas/disas.h"
+#include "fpu_helper.h"
+
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
+
 
 /*
  * Many sysemu-only helpers are not reachable for user-only.
@@ -1209,8 +1209,6 @@ static TCGv cpu_lladdr, cpu_llval;
 static TCGv_i32 hflags;
 TCGv_i32 fpu_fcr0, fpu_fcr31;
 TCGv_i64 fpu_f64[32];
-
-#include "exec/gen-icount.h"
 
 static const char regnames_HI[][4] = {
     "HI0", "HI1", "HI2", "HI3",
@@ -5665,9 +5663,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case CP0_REG09__COUNT:
             /* Mark as an IO operation because we read the time.  */
-            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-            }
+            translator_io_start(&ctx->base);
+
             gen_helper_mfc0_count(arg, cpu_env);
             /*
              * Break the TB to be able to take timer interrupts immediately
@@ -6106,14 +6103,13 @@ cp0_unimplemented:
 static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 {
     const char *register_name = "invalid";
+    bool icount;
 
     if (sel != 0) {
         check_insn(ctx, ISA_MIPS_R1);
     }
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    icount = translator_io_start(&ctx->base);
 
     switch (reg) {
     case CP0_REGISTER_00:
@@ -6851,7 +6847,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     trace_mips_translate_c0("mtc0", register_name, reg, sel);
 
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+    if (icount) {
         /*
          * DISAS_STOP isn't sufficient, we need to ensure we break out of
          * translated code to check for pending interrupts.
@@ -7168,9 +7164,7 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case CP0_REG09__COUNT:
             /* Mark as an IO operation because we read the time.  */
-            if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-                gen_io_start();
-            }
+            translator_io_start(&ctx->base);
             gen_helper_mfc0_count(arg, cpu_env);
             /*
              * Break the TB to be able to take timer interrupts immediately
@@ -7596,14 +7590,13 @@ cp0_unimplemented:
 static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
 {
     const char *register_name = "invalid";
+    bool icount;
 
     if (sel != 0) {
         check_insn(ctx, ISA_MIPS_R1);
     }
 
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    icount = translator_io_start(&ctx->base);
 
     switch (reg) {
     case CP0_REGISTER_00:
@@ -8331,7 +8324,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     trace_mips_translate_c0("dmtc0", register_name, reg, sel);
 
     /* For simplicity assume that all writes can cause interrupts.  */
-    if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
+    if (icount) {
         /*
          * DISAS_STOP isn't sufficient, we need to ensure we break out of
          * translated code to check for pending interrupts.
@@ -11142,9 +11135,7 @@ void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel)
         gen_store_gpr(t0, rt);
         break;
     case 2:
-        if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
+        translator_io_start(&ctx->base);
         gen_helper_rdhwr_cc(t0, cpu_env);
         gen_store_gpr(t0, rt);
         /*

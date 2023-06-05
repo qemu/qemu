@@ -34,14 +34,9 @@
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/timer.h"
-
-/* Note: the long term plan is to reduce the dependencies on the QEMU
-   CPU definitions. Currently they are used for qemu_ld/st
-   instructions */
-#define NO_CPU_IO_DEFS
-
-#include "exec/exec-all.h"
-#include "tcg/tcg-op.h"
+#include "exec/translation-block.h"
+#include "exec/tlb-common.h"
+#include "tcg/tcg-op-common.h"
 
 #if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32
@@ -406,6 +401,13 @@ static uintptr_t G_GNUC_UNUSED get_jmp_target_addr(TCGContext *s, int which)
      */
     return (uintptr_t)tcg_splitwx_to_rx(&s->gen_tb->jmp_target_addr[which]);
 }
+
+#if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
+static int tlb_mask_table_ofs(TCGContext *s, int which)
+{
+    return s->tlb_fast_offset + which * sizeof(CPUTLBDescFast);
+}
+#endif
 
 /* Signal overflow, starting over with fewer guest insns. */
 static G_NORETURN
@@ -840,13 +842,6 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
-#include "exec/helper-proto.h"
-
-static TCGHelperInfo all_helpers[] = {
-#include "exec/helper-tcg.h"
-};
-static GHashTable *helper_table;
-
 /*
  * Create TCGHelperInfo structures for "tcg/tcg-ldst.h" functions,
  * akin to what "exec/helper-tcg.h" does with DEF_HELPER_FLAGS_N.
@@ -956,57 +951,45 @@ static ffi_type *typecode_to_ffi(int argmask)
     g_assert_not_reached();
 }
 
-static void init_ffi_layouts(void)
+static ffi_cif *init_ffi_layout(TCGHelperInfo *info)
 {
-    /* g_direct_hash/equal for direct comparisons on uint32_t.  */
-    GHashTable *ffi_table = g_hash_table_new(NULL, NULL);
+    unsigned typemask = info->typemask;
+    struct {
+        ffi_cif cif;
+        ffi_type *args[];
+    } *ca;
+    ffi_status status;
+    int nargs;
 
-    for (int i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
-        TCGHelperInfo *info = &all_helpers[i];
-        unsigned typemask = info->typemask;
-        gpointer hash = (gpointer)(uintptr_t)typemask;
-        struct {
-            ffi_cif cif;
-            ffi_type *args[];
-        } *ca;
-        ffi_status status;
-        int nargs;
-        ffi_cif *cif;
+    /* Ignoring the return type, find the last non-zero field. */
+    nargs = 32 - clz32(typemask >> 3);
+    nargs = DIV_ROUND_UP(nargs, 3);
+    assert(nargs <= MAX_CALL_IARGS);
 
-        cif = g_hash_table_lookup(ffi_table, hash);
-        if (cif) {
-            info->cif = cif;
-            continue;
+    ca = g_malloc0(sizeof(*ca) + nargs * sizeof(ffi_type *));
+    ca->cif.rtype = typecode_to_ffi(typemask & 7);
+    ca->cif.nargs = nargs;
+
+    if (nargs != 0) {
+        ca->cif.arg_types = ca->args;
+        for (int j = 0; j < nargs; ++j) {
+            int typecode = extract32(typemask, (j + 1) * 3, 3);
+            ca->args[j] = typecode_to_ffi(typecode);
         }
-
-        /* Ignoring the return type, find the last non-zero field. */
-        nargs = 32 - clz32(typemask >> 3);
-        nargs = DIV_ROUND_UP(nargs, 3);
-        assert(nargs <= MAX_CALL_IARGS);
-
-        ca = g_malloc0(sizeof(*ca) + nargs * sizeof(ffi_type *));
-        ca->cif.rtype = typecode_to_ffi(typemask & 7);
-        ca->cif.nargs = nargs;
-
-        if (nargs != 0) {
-            ca->cif.arg_types = ca->args;
-            for (int j = 0; j < nargs; ++j) {
-                int typecode = extract32(typemask, (j + 1) * 3, 3);
-                ca->args[j] = typecode_to_ffi(typecode);
-            }
-        }
-
-        status = ffi_prep_cif(&ca->cif, FFI_DEFAULT_ABI, nargs,
-                              ca->cif.rtype, ca->cif.arg_types);
-        assert(status == FFI_OK);
-
-        cif = &ca->cif;
-        info->cif = cif;
-        g_hash_table_insert(ffi_table, hash, (gpointer)cif);
     }
 
-    g_hash_table_destroy(ffi_table);
+    status = ffi_prep_cif(&ca->cif, FFI_DEFAULT_ABI, nargs,
+                          ca->cif.rtype, ca->cif.arg_types);
+    assert(status == FFI_OK);
+
+    return &ca->cif;
 }
+
+#define HELPER_INFO_INIT(I)      (&(I)->cif)
+#define HELPER_INFO_INIT_VAL(I)  init_ffi_layout(I)
+#else
+#define HELPER_INFO_INIT(I)      (&(I)->init)
+#define HELPER_INFO_INIT_VAL(I)  1
 #endif /* CONFIG_TCG_INTERPRETER */
 
 static inline bool arg_slot_reg_p(unsigned arg_slot)
@@ -1319,26 +1302,12 @@ static void tcg_context_init(unsigned max_cpus)
         args_ct += n;
     }
 
-    /* Register helpers.  */
-    /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
-    helper_table = g_hash_table_new(NULL, NULL);
-
-    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
-        init_call_layout(&all_helpers[i]);
-        g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
-                            (gpointer)&all_helpers[i]);
-    }
-
     init_call_layout(&info_helper_ld32_mmu);
     init_call_layout(&info_helper_ld64_mmu);
     init_call_layout(&info_helper_ld128_mmu);
     init_call_layout(&info_helper_st32_mmu);
     init_call_layout(&info_helper_st64_mmu);
     init_call_layout(&info_helper_st128_mmu);
-
-#ifdef CONFIG_TCG_INTERPRETER
-    init_ffi_layouts();
-#endif
 
     tcg_target_init(s);
     process_op_defs(s);
@@ -1521,6 +1490,13 @@ void tcg_func_start(TCGContext *s)
 
     tcg_debug_assert(s->addr_type == TCG_TYPE_I32 ||
                      s->addr_type == TCG_TYPE_I64);
+
+#if defined(CONFIG_SOFTMMU) && !defined(CONFIG_TCG_INTERPRETER)
+    tcg_debug_assert(s->tlb_fast_offset < 0);
+    tcg_debug_assert(s->tlb_fast_offset >= MIN_TLB_MASK_TABLE_OFS);
+#endif
+
+    tcg_debug_assert(s->insn_start_words > 0);
 }
 
 static TCGTemp *tcg_temp_alloc(TCGContext *s)
@@ -1819,6 +1795,25 @@ TCGv_vec tcg_constant_vec_matching(TCGv_vec match, unsigned vece, int64_t val)
     tcg_debug_assert(t->temp_allocated != 0);
     return tcg_constant_vec(t->base_type, vece, val);
 }
+
+#ifdef CONFIG_DEBUG_TCG
+size_t temp_idx(TCGTemp *ts)
+{
+    ptrdiff_t n = ts - tcg_ctx->temps;
+    assert(n >= 0 && n < tcg_ctx->nb_temps);
+    return n;
+}
+
+TCGTemp *tcgv_i32_temp(TCGv_i32 v)
+{
+    uintptr_t o = (uintptr_t)v - offsetof(TCGContext, temps);
+
+    assert(o < sizeof(TCGTemp) * tcg_ctx->nb_temps);
+    assert(o % sizeof(TCGTemp) == 0);
+
+    return (void *)tcg_ctx + (uintptr_t)v;
+}
+#endif /* CONFIG_DEBUG_TCG */
 
 /* Return true if OP may appear in the opcode stream.
    Test the runtime variable that controls each opcode.  */
@@ -2128,15 +2123,18 @@ bool tcg_op_supported(TCGOpcode op)
 
 static TCGOp *tcg_op_alloc(TCGOpcode opc, unsigned nargs);
 
-void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
+static void tcg_gen_callN(TCGHelperInfo *info, TCGTemp *ret, TCGTemp **args)
 {
-    const TCGHelperInfo *info;
     TCGv_i64 extend_free[MAX_CALL_IARGS];
     int n_extend = 0;
     TCGOp *op;
     int i, n, pi = 0, total_args;
 
-    info = g_hash_table_lookup(helper_table, (gpointer)func);
+    if (unlikely(g_once_init_enter(HELPER_INFO_INIT(info)))) {
+        init_call_layout(info);
+        g_once_init_leave(HELPER_INFO_INIT(info), HELPER_INFO_INIT_VAL(info));
+    }
+
     total_args = info->nr_out + info->nr_in + 2;
     op = tcg_op_alloc(INDEX_op_call, total_args);
 
@@ -2203,7 +2201,7 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
             g_assert_not_reached();
         }
     }
-    op->args[pi++] = (uintptr_t)func;
+    op->args[pi++] = (uintptr_t)info->func;
     op->args[pi++] = (uintptr_t)info;
     tcg_debug_assert(pi == total_args);
 
@@ -2213,6 +2211,58 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     for (i = 0; i < n_extend; ++i) {
         tcg_temp_free_i64(extend_free[i]);
     }
+}
+
+void tcg_gen_call0(TCGHelperInfo *info, TCGTemp *ret)
+{
+    tcg_gen_callN(info, ret, NULL);
+}
+
+void tcg_gen_call1(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1)
+{
+    tcg_gen_callN(info, ret, &t1);
+}
+
+void tcg_gen_call2(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1, TCGTemp *t2)
+{
+    TCGTemp *args[2] = { t1, t2 };
+    tcg_gen_callN(info, ret, args);
+}
+
+void tcg_gen_call3(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1,
+                   TCGTemp *t2, TCGTemp *t3)
+{
+    TCGTemp *args[3] = { t1, t2, t3 };
+    tcg_gen_callN(info, ret, args);
+}
+
+void tcg_gen_call4(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1,
+                   TCGTemp *t2, TCGTemp *t3, TCGTemp *t4)
+{
+    TCGTemp *args[4] = { t1, t2, t3, t4 };
+    tcg_gen_callN(info, ret, args);
+}
+
+void tcg_gen_call5(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1,
+                   TCGTemp *t2, TCGTemp *t3, TCGTemp *t4, TCGTemp *t5)
+{
+    TCGTemp *args[5] = { t1, t2, t3, t4, t5 };
+    tcg_gen_callN(info, ret, args);
+}
+
+void tcg_gen_call6(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1, TCGTemp *t2,
+                   TCGTemp *t3, TCGTemp *t4, TCGTemp *t5, TCGTemp *t6)
+{
+    TCGTemp *args[6] = { t1, t2, t3, t4, t5, t6 };
+    tcg_gen_callN(info, ret, args);
+}
+
+void tcg_gen_call7(TCGHelperInfo *info, TCGTemp *ret, TCGTemp *t1,
+                   TCGTemp *t2, TCGTemp *t3, TCGTemp *t4,
+                   TCGTemp *t5, TCGTemp *t6, TCGTemp *t7)
+{
+    TCGTemp *args[7] = { t1, t2, t3, t4, t5, t6, t7 };
+    tcg_gen_callN(info, ret, args);
 }
 
 static void tcg_reg_alloc_start(TCGContext *s)
@@ -2391,7 +2441,7 @@ static void tcg_dump_ops(TCGContext *s, FILE *f, bool have_prefs)
             nb_oargs = 0;
             col += ne_fprintf(f, "\n ----");
 
-            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
+            for (i = 0, k = s->insn_start_words; i < k; ++i) {
                 col += ne_fprintf(f, " %016" PRIx64,
                                   tcg_get_insn_start_param(op, i));
             }
@@ -5970,7 +6020,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
 #ifdef CONFIG_PROFILER
     TCGProfile *prof = &s->prof;
 #endif
-    int i, num_insns;
+    int i, start_words, num_insns;
     TCGOp *op;
 
 #ifdef CONFIG_PROFILER
@@ -6093,6 +6143,10 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
     s->pool_labels = NULL;
 #endif
 
+    start_words = s->insn_start_words;
+    s->gen_insn_data =
+        tcg_malloc(sizeof(uint64_t) * s->gen_tb->icount * start_words);
+
     num_insns = -1;
     QTAILQ_FOREACH(op, &s->ops, link) {
         TCGOpcode opc = op->opc;
@@ -6118,8 +6172,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
                 assert(s->gen_insn_end_off[num_insns] == off);
             }
             num_insns++;
-            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
-                s->gen_insn_data[num_insns][i] =
+            for (i = 0; i < start_words; ++i) {
+                s->gen_insn_data[num_insns * start_words + i] =
                     tcg_get_insn_start_param(op, i);
             }
             break;
@@ -6165,7 +6219,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb, uint64_t pc_start)
             return -2;
         }
     }
-    tcg_debug_assert(num_insns >= 0);
+    tcg_debug_assert(num_insns + 1 == s->gen_tb->icount);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */

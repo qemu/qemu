@@ -20,6 +20,7 @@
 #include "internal.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#include "exec/helper-gen.h"
 #include "insn.h"
 #include "opcodes.h"
 #include "translate.h"

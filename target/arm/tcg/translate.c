@@ -20,21 +20,18 @@
  */
 #include "qemu/osdep.h"
 
-#include "cpu.h"
-#include "internals.h"
-#include "disas/disas.h"
-#include "exec/exec-all.h"
-#include "tcg/tcg-op.h"
-#include "tcg/tcg-op-gvec.h"
+#include "translate.h"
+#include "translate-a32.h"
 #include "qemu/log.h"
-#include "qemu/bitops.h"
+#include "disas/disas.h"
 #include "arm_ldst.h"
 #include "semihosting/semihost.h"
-#include "exec/helper-proto.h"
-#include "exec/helper-gen.h"
-#include "exec/log.h"
 #include "cpregs.h"
+#include "exec/helper-proto.h"
 
+#define HELPER_H "helper.h"
+#include "exec/helper-info.c.inc"
+#undef  HELPER_H
 
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
@@ -47,9 +44,6 @@
 #define ENABLE_ARCH_7     arm_dc_feature(s, ARM_FEATURE_V7)
 #define ENABLE_ARCH_8     arm_dc_feature(s, ARM_FEATURE_V8)
 
-#include "translate.h"
-#include "translate-a32.h"
-
 /* These are TCG temporaries used only by the legacy iwMMXt decoder */
 static TCGv_i64 cpu_V0, cpu_V1, cpu_M0;
 /* These are TCG globals which alias CPUARMState fields */
@@ -57,8 +51,6 @@ static TCGv_i32 cpu_R[16];
 TCGv_i32 cpu_CF, cpu_NF, cpu_VF, cpu_ZF;
 TCGv_i64 cpu_exclusive_addr;
 TCGv_i64 cpu_exclusive_val;
-
-#include "exec/gen-icount.h"
 
 static const char * const regnames[] =
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
@@ -2908,9 +2900,7 @@ static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
      * appropriately depending on the new Thumb bit, so it must
      * be called after storing the new PC.
      */
-    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-        gen_io_start();
-    }
+    translator_io_start(&s->base);
     gen_helper_cpsr_write_eret(cpu_env, cpsr);
     /* Must exit loop to check un-masked IRQs */
     s->base.is_jmp = DISAS_EXIT;
@@ -4559,7 +4549,7 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
     uint32_t key = ENCODE_CP_REG(cpnum, is64, s->ns, crn, crm, opc1, opc2);
     const ARMCPRegInfo *ri = get_arm_cp_reginfo(s->cp_regs, key);
     TCGv_ptr tcg_ri = NULL;
-    bool need_exit_tb;
+    bool need_exit_tb = false;
     uint32_t syndrome;
 
     /*
@@ -4704,8 +4694,9 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         g_assert_not_reached();
     }
 
-    if ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) && (ri->type & ARM_CP_IO)) {
-        gen_io_start();
+    if (ri->type & ARM_CP_IO) {
+        /* I/O operations must end the TB here (whether read or write) */
+        need_exit_tb = translator_io_start(&s->base);
     }
 
     if (isread) {
@@ -4786,10 +4777,6 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
             }
         }
     }
-
-    /* I/O operations must end the TB here (whether read or write) */
-    need_exit_tb = ((tb_cflags(s->base.tb) & CF_USE_ICOUNT) &&
-                    (ri->type & ARM_CP_IO));
 
     if (!isread && !(ri->type & ARM_CP_SUPPRESS_TB_END)) {
         /*
@@ -8047,9 +8034,7 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
     if (exc_return) {
         /* Restore CPSR from SPSR.  */
         tmp = load_cpu_field(spsr);
-        if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_start();
-        }
+        translator_io_start(&s->base);
         gen_helper_cpsr_write_eret(cpu_env, tmp);
         /* Must exit loop to check un-masked IRQs */
         s->base.is_jmp = DISAS_EXIT;

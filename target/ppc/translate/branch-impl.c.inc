@@ -16,7 +16,7 @@ static bool trans_RFEBB(DisasContext *ctx, arg_XL_s *arg)
 {
     REQUIRE_INSNS_FLAGS2(ctx, ISA207S);
 
-    gen_icount_io_start(ctx);
+    translator_io_start(&ctx->base);
     gen_update_cfar(ctx, ctx->cia);
     gen_helper_rfebb(cpu_env, cpu_gpr[arg->s]);
 

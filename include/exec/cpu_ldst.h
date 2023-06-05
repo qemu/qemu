@@ -326,26 +326,32 @@ static inline void clear_helper_retaddr(void)
 
 #else
 
-/* Needed for TCG_OVERSIZED_GUEST */
-#include "tcg/tcg.h"
+#include "tcg/oversized-guest.h"
 
 static inline target_ulong tlb_read_idx(const CPUTLBEntry *entry,
                                         MMUAccessType access_type)
 {
     /* Do not rearrange the CPUTLBEntry structure members. */
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBEntry, addr_read) !=
-                      MMU_DATA_LOAD * TARGET_LONG_SIZE);
+                      MMU_DATA_LOAD * sizeof(uint64_t));
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBEntry, addr_write) !=
-                      MMU_DATA_STORE * TARGET_LONG_SIZE);
+                      MMU_DATA_STORE * sizeof(uint64_t));
     QEMU_BUILD_BUG_ON(offsetof(CPUTLBEntry, addr_code) !=
-                      MMU_INST_FETCH * TARGET_LONG_SIZE);
+                      MMU_INST_FETCH * sizeof(uint64_t));
 
-    const target_ulong *ptr = &entry->addr_idx[access_type];
-#if TCG_OVERSIZED_GUEST
-    return *ptr;
+#if TARGET_LONG_BITS == 32
+    /* Use qatomic_read, in case of addr_write; only care about low bits. */
+    const uint32_t *ptr = (uint32_t *)&entry->addr_idx[access_type];
+    ptr += HOST_BIG_ENDIAN;
+    return qatomic_read(ptr);
 #else
+    const uint64_t *ptr = &entry->addr_idx[access_type];
+# if TCG_OVERSIZED_GUEST
+    return *ptr;
+# else
     /* ofs might correspond to .addr_write, so use qatomic_read */
     return qatomic_read(ptr);
+# endif
 #endif
 }
 

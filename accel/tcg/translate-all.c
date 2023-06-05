@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 
-#define NO_CPU_IO_DEFS
 #include "trace.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
@@ -64,6 +63,7 @@
 #include "tb-context.h"
 #include "internal.h"
 #include "perf.h"
+#include "tcg/insn-start-words.h"
 
 TBContext tb_ctx;
 
@@ -127,22 +127,26 @@ static int64_t decode_sleb128(const uint8_t **pp)
 static int encode_search(TranslationBlock *tb, uint8_t *block)
 {
     uint8_t *highwater = tcg_ctx->code_gen_highwater;
+    uint64_t *insn_data = tcg_ctx->gen_insn_data;
+    uint16_t *insn_end_off = tcg_ctx->gen_insn_end_off;
     uint8_t *p = block;
     int i, j, n;
 
     for (i = 0, n = tb->icount; i < n; ++i) {
-        uint64_t prev;
+        uint64_t prev, curr;
 
         for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
             if (i == 0) {
                 prev = (!(tb_cflags(tb) & CF_PCREL) && j == 0 ? tb->pc : 0);
             } else {
-                prev = tcg_ctx->gen_insn_data[i - 1][j];
+                prev = insn_data[(i - 1) * TARGET_INSN_START_WORDS + j];
             }
-            p = encode_sleb128(p, tcg_ctx->gen_insn_data[i][j] - prev);
+            curr = insn_data[i * TARGET_INSN_START_WORDS + j];
+            p = encode_sleb128(p, curr - prev);
         }
-        prev = (i == 0 ? 0 : tcg_ctx->gen_insn_end_off[i - 1]);
-        p = encode_sleb128(p, tcg_ctx->gen_insn_end_off[i] - prev);
+        prev = (i == 0 ? 0 : insn_end_off[i - 1]);
+        curr = insn_end_off[i];
+        p = encode_sleb128(p, curr - prev);
 
         /* Test for (pending) buffer overflow.  The assumption is that any
            one row beginning below the high water mark cannot overrun
@@ -350,11 +354,19 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb_set_page_addr0(tb, phys_pc);
     tb_set_page_addr1(tb, -1);
     tcg_ctx->gen_tb = tb;
-    tcg_ctx->addr_type = TCG_TYPE_TL;
+    tcg_ctx->addr_type = TARGET_LONG_BITS == 32 ? TCG_TYPE_I32 : TCG_TYPE_I64;
 #ifdef CONFIG_SOFTMMU
     tcg_ctx->page_bits = TARGET_PAGE_BITS;
     tcg_ctx->page_mask = TARGET_PAGE_MASK;
     tcg_ctx->tlb_dyn_max_bits = CPU_TLB_DYN_MAX_BITS;
+    tcg_ctx->tlb_fast_offset =
+        (int)offsetof(ArchCPU, neg.tlb.f) - (int)offsetof(ArchCPU, env);
+#endif
+    tcg_ctx->insn_start_words = TARGET_INSN_START_WORDS;
+#ifdef TCG_GUEST_DEFAULT_MO
+    tcg_ctx->guest_mo = TCG_GUEST_DEFAULT_MO;
+#else
+    tcg_ctx->guest_mo = TCG_MO_ALL;
 #endif
 
  tb_overflow:
@@ -449,7 +461,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
             fprintf(logfile, "OUT: [size=%d]\n", gen_code_size);
             fprintf(logfile,
                     "  -- guest addr 0x%016" PRIx64 " + tb prologue\n",
-                    tcg_ctx->gen_insn_data[insn][0]);
+                    tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
             chunk_start = tcg_ctx->gen_insn_end_off[insn];
             disas(logfile, tb->tc.ptr, chunk_start);
 
@@ -462,7 +474,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 size_t chunk_end = tcg_ctx->gen_insn_end_off[insn];
                 if (chunk_end > chunk_start) {
                     fprintf(logfile, "  -- guest addr 0x%016" PRIx64 "\n",
-                            tcg_ctx->gen_insn_data[insn][0]);
+                            tcg_ctx->gen_insn_data[insn * TARGET_INSN_START_WORDS]);
                     disas(logfile, tb->tc.ptr + chunk_start,
                           chunk_end - chunk_start);
                     chunk_start = chunk_end;

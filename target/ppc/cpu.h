@@ -1394,7 +1394,6 @@ void ppc_store_msr(CPUPPCState *env, target_ulong value);
 void ppc_cpu_list(void);
 
 /* Time-base and decrementer management */
-#ifndef NO_CPU_IO_DEFS
 uint64_t cpu_ppc_load_tbl(CPUPPCState *env);
 uint32_t cpu_ppc_load_tbu(CPUPPCState *env);
 void cpu_ppc_store_tbu(CPUPPCState *env, uint32_t value);
@@ -1434,7 +1433,6 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
                             int i);
 hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
                                         ppcmas_tlb_t *tlb);
-#endif
 #endif
 
 void ppc_store_fpscr(CPUPPCState *env, target_ulong val);
