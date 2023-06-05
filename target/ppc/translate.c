@@ -3476,7 +3476,6 @@ static void gen_load_locked(DisasContext *ctx, MemOp memop)
     tcg_gen_mov_tl(cpu_reserve, t0);
     tcg_gen_movi_tl(cpu_reserve_length, memop_size(memop));
     tcg_gen_mov_tl(cpu_reserve_val, gpr);
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_LDAQ);
 }
 
 #define LARX(name, memop)                  \
@@ -3720,11 +3719,6 @@ static void gen_conditional_store(DisasContext *ctx, MemOp memop)
 
     gen_set_label(l1);
 
-    /*
-     * Address mismatch implies failure.  But we still need to provide
-     * the memory barrier semantics of the instruction.
-     */
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
 
     gen_set_label(l2);
@@ -3828,11 +3822,6 @@ static void gen_stqcx_(DisasContext *ctx)
     tcg_gen_br(lab_over);
     gen_set_label(lab_fail);
 
-    /*
-     * Address mismatch implies failure.  But we still need to provide
-     * the memory barrier semantics of the instruction.
-     */
-    tcg_gen_mb(TCG_MO_ALL | TCG_BAR_STRL);
     tcg_gen_trunc_tl_i32(cpu_crf[0], cpu_so);
 
     gen_set_label(lab_over);
