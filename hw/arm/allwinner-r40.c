@@ -39,6 +39,7 @@ const hwaddr allwinner_r40_memmap[] = {
     [AW_R40_DEV_SRAM_A2]    = 0x00004000,
     [AW_R40_DEV_SRAM_A3]    = 0x00008000,
     [AW_R40_DEV_SRAM_A4]    = 0x0000b400,
+    [AW_R40_DEV_SRAMC]      = 0x01c00000,
     [AW_R40_DEV_EMAC]       = 0x01c0b000,
     [AW_R40_DEV_MMC0]       = 0x01c0f000,
     [AW_R40_DEV_MMC1]       = 0x01c10000,
@@ -76,7 +77,6 @@ struct AwR40Unimplemented {
 static struct AwR40Unimplemented r40_unimplemented[] = {
     { "d-engine",   0x01000000, 4 * MiB },
     { "d-inter",    0x01400000, 128 * KiB },
-    { "sram-c",     0x01c00000, 4 * KiB },
     { "dma",        0x01c02000, 4 * KiB },
     { "nfdc",       0x01c03000, 4 * KiB },
     { "ts",         0x01c04000, 4 * KiB },
@@ -288,6 +288,8 @@ static void allwinner_r40_init(Object *obj)
                              "ram-addr");
     object_property_add_alias(obj, "ram-size", OBJECT(&s->dramc),
                               "ram-size");
+
+    object_initialize_child(obj, "sramc", &s->sramc, TYPE_AW_SRAMC_SUN8I_R40);
 }
 
 static void allwinner_r40_realize(DeviceState *dev, Error **errp)
@@ -382,6 +384,9 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
                        AW_R40_GIC_SPI_TIMER1));
 
     /* SRAM */
+    sysbus_realize(SYS_BUS_DEVICE(&s->sramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sramc), 0, s->memmap[AW_R40_DEV_SRAMC]);
+
     memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram A1",
                             16 * KiB, &error_abort);
     memory_region_init_ram(&s->sram_a2, OBJECT(dev), "sram A2",
