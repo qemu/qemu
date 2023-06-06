@@ -289,6 +289,8 @@ static void arm_cpu_reset_hold(Object *obj)
          * This is not yet exposed from the Linux kernel in any way.
          */
         env->cp15.sctlr_el[1] |= SCTLR_TSCXT;
+        /* Disable access to Debug Communication Channel (DCC). */
+        env->cp15.mdscr_el1 |= 1 << 12;
 #else
         /* Reset into the highest available EL */
         if (arm_feature(env, ARM_FEATURE_EL3)) {

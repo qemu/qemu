@@ -842,12 +842,14 @@ static CPAccessResult access_tda(CPUARMState *env, const ARMCPRegInfo *ri,
  * is implemented then these are controlled by MDCR_EL2.TDCC for
  * EL2 and MDCR_EL3.TDCC for EL3. They are also controlled by
  * the general debug access trap bits MDCR_EL2.TDA and MDCR_EL3.TDA.
+ * For EL0, they are also controlled by MDSCR_EL1.TDCC.
  */
 static CPAccessResult access_tdcc(CPUARMState *env, const ARMCPRegInfo *ri,
                                   bool isread)
 {
     int el = arm_current_el(env);
     uint64_t mdcr_el2 = arm_mdcr_el2_eff(env);
+    bool mdscr_el1_tdcc = extract32(env->cp15.mdscr_el1, 12, 1);
     bool mdcr_el2_tda = (mdcr_el2 & MDCR_TDA) || (mdcr_el2 & MDCR_TDE) ||
         (arm_hcr_el2_eff(env) & HCR_TGE);
     bool mdcr_el2_tdcc = cpu_isar_feature(aa64_fgt, env_archcpu(env)) &&
@@ -855,6 +857,9 @@ static CPAccessResult access_tdcc(CPUARMState *env, const ARMCPRegInfo *ri,
     bool mdcr_el3_tdcc = cpu_isar_feature(aa64_fgt, env_archcpu(env)) &&
                                           (env->cp15.mdcr_el3 & MDCR_TDCC);
 
+    if (el < 1 && mdscr_el1_tdcc) {
+        return CP_ACCESS_TRAP;
+    }
     if (el < 2 && (mdcr_el2_tda || mdcr_el2_tdcc)) {
         return CP_ACCESS_TRAP_EL2;
     }

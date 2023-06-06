@@ -15,18 +15,36 @@ allwinner_h3_dramctl_write(uint64_t offset, uint64_t data, unsigned size) "Write
 allwinner_h3_dramphy_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 allwinner_h3_dramphy_write(uint64_t offset, uint64_t data, unsigned size) "write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 
+# allwinner-r40-dramc.c
+allwinner_r40_dramc_detect_cells_disable(void) "Disable detect cells"
+allwinner_r40_dramc_detect_cells_enable(void) "Enable detect cells"
+allwinner_r40_dramc_map_rows(uint8_t row_bits, uint8_t bank_bits, uint8_t col_bits) "DRAM layout: row_bits %d, bank_bits %d, col_bits %d"
+allwinner_r40_dramc_offset_to_cell(uint64_t offset, int row, int bank, int col) "offset 0x%" PRIx64 " row %d bank %d col %d"
+allwinner_r40_dramc_detect_cell_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64 ""
+allwinner_r40_dramc_detect_cell_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64 ""
+allwinner_r40_dramcom_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramcom_write(uint64_t offset, uint64_t data, unsigned size) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramctl_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramctl_write(uint64_t offset, uint64_t data, unsigned size) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramphy_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramphy_write(uint64_t offset, uint64_t data, unsigned size) "write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+
 # allwinner-sid.c
 allwinner_sid_read(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 allwinner_sid_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+
+# allwinner-sramc.c
+allwinner_sramc_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
+allwinner_sramc_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64
 
 # avr_power.c
 avr_power_read(uint8_t value) "power_reduc read value:%u"
 avr_power_write(uint8_t value) "power_reduc write value:%u"
 
-# axp209.c
-axp209_rx(uint8_t reg, uint8_t data) "Read reg 0x%" PRIx8 " : 0x%" PRIx8
-axp209_select(uint8_t reg) "Accessing reg 0x%" PRIx8
-axp209_tx(uint8_t reg, uint8_t data) "Write reg 0x%" PRIx8 " : 0x%" PRIx8
+# axp2xx
+axp2xx_rx(uint8_t reg, uint8_t data) "Read reg 0x%" PRIx8 " : 0x%" PRIx8
+axp2xx_select(uint8_t reg) "Accessing reg 0x%" PRIx8
+axp2xx_tx(uint8_t reg, uint8_t data) "Write reg 0x%" PRIx8 " : 0x%" PRIx8
 
 # eccmemctl.c
 ecc_mem_writel_mer(uint32_t val) "Write memory enable 0x%08x"

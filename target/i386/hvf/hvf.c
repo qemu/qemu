@@ -679,3 +679,36 @@ int hvf_vcpu_exec(CPUState *cpu)
 
     return ret;
 }
+
+int hvf_arch_insert_sw_breakpoint(CPUState *cpu, struct hvf_sw_breakpoint *bp)
+{
+    return -ENOSYS;
+}
+
+int hvf_arch_remove_sw_breakpoint(CPUState *cpu, struct hvf_sw_breakpoint *bp)
+{
+    return -ENOSYS;
+}
+
+int hvf_arch_insert_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -ENOSYS;
+}
+
+int hvf_arch_remove_hw_breakpoint(target_ulong addr, target_ulong len, int type)
+{
+    return -ENOSYS;
+}
+
+void hvf_arch_remove_all_hw_breakpoints(void)
+{
+}
+
+void hvf_arch_update_guest_debug(CPUState *cpu)
+{
+}
+
+inline bool hvf_arch_supports_guest_debug(void)
+{
+    return false;
+}

@@ -170,13 +170,16 @@ config VIRT_CTRL
 config LASI
     bool
 
+config ALLWINNER_SRAMC
+    bool
+
 config ALLWINNER_A10_CCM
     bool
 
 config ALLWINNER_A10_DRAMC
     bool
 
-config AXP209_PMU
+config AXP2XX_PMU
     bool
     depends on I2C
 
