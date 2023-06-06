@@ -553,6 +553,74 @@ def pkgname_from_depspec(dep_spec: str) -> str:
     return match.group(0)
 
 
+def _get_path_importlib(package: str) -> Optional[str]:
+    # pylint: disable=import-outside-toplevel
+    # pylint: disable=no-name-in-module
+    # pylint: disable=import-error
+    try:
+        # First preference: Python 3.8+ stdlib
+        from importlib.metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        # Second preference: Commonly available PyPI backport
+        from importlib_metadata import (  # type: ignore
+            PackageNotFoundError,
+            distribution,
+        )
+
+    try:
+        return str(distribution(package).locate_file("."))
+    except PackageNotFoundError:
+        return None
+
+
+def _get_path_pkg_resources(package: str) -> Optional[str]:
+    # pylint: disable=import-outside-toplevel
+    # Bundled with setuptools; has a good chance of being available.
+    import pkg_resources
+
+    try:
+        return str(pkg_resources.get_distribution(package).location)
+    except pkg_resources.DistributionNotFound:
+        return None
+
+
+def _get_path(package: str) -> Optional[str]:
+    try:
+        return _get_path_importlib(package)
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+
+    try:
+        return _get_path_pkg_resources(package)
+    except ImportError as exc:
+        logger.debug("%s", str(exc))
+        raise Ouch(
+            "Neither importlib.metadata nor pkg_resources found. "
+            "Use Python 3.8+, or install importlib-metadata or setuptools."
+        ) from exc
+
+
+def _path_is_prefix(prefix: Optional[str], path: str) -> bool:
+    try:
+        return (
+            prefix is not None and os.path.commonpath([prefix, path]) == prefix
+        )
+    except ValueError:
+        return False
+
+
+def _is_system_package(package: str) -> bool:
+    path = _get_path(package)
+    return path is not None and not (
+        _path_is_prefix(sysconfig.get_path("purelib"), path)
+        or _path_is_prefix(sysconfig.get_path("platlib"), path)
+    )
+
+
 def _get_version_importlib(package: str) -> Optional[str]:
     # pylint: disable=import-outside-toplevel
     # pylint: disable=no-name-in-module
@@ -741,8 +809,12 @@ def _do_ensure(
     for spec in dep_specs:
         matcher = distlib.version.LegacyMatcher(spec)
         ver = _get_version(matcher.name)
-        if ver is None or not matcher.match(
-            distlib.version.LegacyVersion(ver)
+        if (
+            ver is None
+            # Always pass installed package to pip, so that they can be
+            # updated if the requested version changes
+            or not _is_system_package(matcher.name)
+            or not matcher.match(distlib.version.LegacyVersion(ver))
         ):
             absent.append(spec)
         else:
