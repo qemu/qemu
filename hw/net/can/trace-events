@@ -7,3 +7,10 @@ xlnx_can_filter_mask_pre_write(uint8_t filter_num, uint32_t value) "Filter%d MAS
 xlnx_can_tx_data(uint32_t id, uint8_t dlc, uint8_t db0, uint8_t db1, uint8_t db2, uint8_t db3, uint8_t db4, uint8_t db5, uint8_t db6, uint8_t db7) "Frame: ID: 0x%08x DLC: 0x%02x DATA: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x"
 xlnx_can_rx_data(uint32_t id, uint32_t dlc, uint8_t db0, uint8_t db1, uint8_t db2, uint8_t db3, uint8_t db4, uint8_t db5, uint8_t db6, uint8_t db7) "Frame: ID: 0x%08x DLC: 0x%02x DATA: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x"
 xlnx_can_rx_discard(uint32_t status) "Controller is not enabled for bus communication. Status Register: 0x%08x"
+
+# xlnx-versal-canfd.c
+xlnx_canfd_update_irq(char *path, uint32_t isr, uint32_t ier, uint32_t irq) "%s: ISR: 0x%08x IER: 0x%08x IRQ: 0x%08x"
+xlnx_canfd_rx_fifo_filter_reject(char *path, uint32_t id, uint8_t dlc) "%s: Frame: ID: 0x%08x DLC: 0x%02x"
+xlnx_canfd_rx_data(char *path, uint32_t id, uint8_t dlc, uint8_t flags) "%s: Frame: ID: 0x%08x DLC: 0x%02x CANFD Flag: 0x%02x"
+xlnx_canfd_tx_data(char *path, uint32_t id, uint8_t dlc, uint8_t flgas) "%s: Frame: ID: 0x%08x DLC: 0x%02x CANFD Flag: 0x%02x"
+xlnx_canfd_reset(char *path, uint32_t val) "%s: Resetting controller with value = 0x%08x"
