@@ -176,7 +176,7 @@ config ALLWINNER_A10_CCM
 config ALLWINNER_A10_DRAMC
     bool
 
-config AXP209_PMU
+config AXP2XX_PMU
     bool
     depends on I2C
 

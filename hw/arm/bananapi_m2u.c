@@ -23,6 +23,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"
+#include "hw/i2c/i2c.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-r40.h"
 
@@ -61,6 +62,7 @@ static void bpim2u_init(MachineState *machine)
 {
     bool bootroom_loaded = false;
     AwR40State *r40;
+    I2CBus *i2c;
 
     /* BIOS is not supported by this board */
     if (machine->firmware) {
@@ -103,6 +105,10 @@ static void bpim2u_init(MachineState *machine)
             break;
         }
     }
+
+    /* Connect AXP221 */
+    i2c = I2C_BUS(qdev_get_child_bus(DEVICE(&r40->i2c0), "i2c"));
+    i2c_slave_create_simple(i2c, "axp221_pmu", 0x34);
 
     /* SDRAM */
     memory_region_add_subregion(get_system_memory(),
