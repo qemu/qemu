@@ -25,7 +25,9 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
+#ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
 
 #ifdef CONFIG_OPENGL
 #include "ui/shader.h"

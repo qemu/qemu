@@ -28,7 +28,9 @@
 #include "ui/kbd-state.h"
 #include "trace.h"
 
+#ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
 
 #include "dbus.h"
 
@@ -163,6 +165,7 @@ dbus_display_console_class_init(DBusDisplayConsoleClass *klass)
     gobject_class->dispose = dbus_display_console_dispose;
 }
 
+#ifdef G_OS_UNIX
 static void
 listener_vanished_cb(DBusDisplayListener *listener)
 {
@@ -174,6 +177,7 @@ listener_vanished_cb(DBusDisplayListener *listener)
     g_hash_table_remove(ddc->listeners, name);
     qkbd_state_lift_all_keys(ddc->kbd);
 }
+#endif
 
 static gboolean
 dbus_console_set_ui_info(DBusDisplayConsole *ddc,
@@ -207,6 +211,7 @@ dbus_console_set_ui_info(DBusDisplayConsole *ddc,
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
 
+#ifdef G_OS_UNIX
 static gboolean
 dbus_console_register_listener(DBusDisplayConsole *ddc,
                                GDBusMethodInvocation *invocation,
@@ -282,6 +287,7 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
     trace_dbus_registered_listener(sender);
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
+#endif
 
 static gboolean
 dbus_kbd_press(DBusDisplayConsole *ddc,
@@ -510,8 +516,10 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "device-address", device_addr,
         NULL);
     g_object_connect(ddc->iface,
+#ifdef G_OS_UNIX
         "swapped-signal::handle-register-listener",
         dbus_console_register_listener, ddc,
+#endif
         "swapped-signal::handle-set-uiinfo",
         dbus_console_set_ui_info, ddc,
         NULL);

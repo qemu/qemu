@@ -29,7 +29,10 @@
 #include "qemu/timer.h"
 #include "qemu/dbus.h"
 
+#ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
+
 #include "ui/dbus-display1.h"
 
 #define AUDIO_CAP "dbus"
@@ -419,6 +422,7 @@ dbus_audio_fini(void *opaque)
     g_free(da);
 }
 
+#ifdef G_OS_UNIX
 static void
 listener_out_vanished_cb(GDBusConnection *connection,
                          gboolean remote_peer_vanished,
@@ -591,6 +595,7 @@ dbus_audio_register_in_listener(AudioState *s,
     return dbus_audio_register_listener(s, invocation,
                                         fd_list, arg_listener, false);
 }
+#endif
 
 static void
 dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
@@ -605,12 +610,14 @@ dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
 
     da->audio = g_dbus_object_skeleton_new(DBUS_DISPLAY1_AUDIO_PATH);
     da->iface = qemu_dbus_display1_audio_skeleton_new();
+#ifdef G_OS_UNIX
     g_object_connect(da->iface,
                      "swapped-signal::handle-register-in-listener",
                      dbus_audio_register_in_listener, s,
                      "swapped-signal::handle-register-out-listener",
                      dbus_audio_register_out_listener, s,
                      NULL);
+#endif
 
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(da->audio),
                                          G_DBUS_INTERFACE_SKELETON(da->iface));

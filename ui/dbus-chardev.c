@@ -27,7 +27,9 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 
+#ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
 
 #include "dbus.h"
 
@@ -108,6 +110,7 @@ dbus_chardev_init(DBusDisplay *dpy)
                          dbus_display_chardev_foreach, dpy);
 }
 
+#ifdef G_OS_UNIX
 static gboolean
 dbus_chr_register(
     DBusChardev *dc,
@@ -145,6 +148,7 @@ dbus_chr_register(
     qemu_dbus_display1_chardev_complete_register(object, invocation, NULL);
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
+#endif
 
 static gboolean
 dbus_chr_send_break(
@@ -175,8 +179,10 @@ dbus_chr_open(Chardev *chr, ChardevBackend *backend,
     dc->iface = qemu_dbus_display1_chardev_skeleton_new();
     g_object_set(dc->iface, "name", backend->u.dbus.data->name, NULL);
     g_object_connect(dc->iface,
+#ifdef G_OS_UNIX
                      "swapped-signal::handle-register",
                      dbus_chr_register, dc,
+#endif
                      "swapped-signal::handle-send-break",
                      dbus_chr_send_break, dc,
                      NULL);
