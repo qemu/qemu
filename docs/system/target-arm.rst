@@ -83,6 +83,7 @@ undocumented; you can get a complete list by running
    arm/versatile
    arm/vexpress
    arm/aspeed
+   arm/bananapi_m2u.rst
    arm/sabrelite
    arm/digic
    arm/cubieboard
