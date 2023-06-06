@@ -61,3 +61,9 @@ int hvf_sw_breakpoints_active(CPUState *cpu)
 {
     return !QTAILQ_EMPTY(&hvf_state->hvf_sw_breakpoints);
 }
+
+int hvf_update_guest_debug(CPUState *cpu)
+{
+    hvf_arch_update_guest_debug(cpu);
+    return 0;
+}
