@@ -12,6 +12,7 @@
 extern EGLDisplay *qemu_egl_display;
 extern EGLConfig qemu_egl_config;
 extern DisplayGLMode qemu_egl_mode;
+extern bool qemu_egl_angle_d3d;
 
 typedef struct egl_fb {
     int width;

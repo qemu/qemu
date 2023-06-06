@@ -15,16 +15,19 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+
 #include "qemu/drm.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
+#include "trace.h"
 
 EGLDisplay *qemu_egl_display;
 EGLConfig qemu_egl_config;
 DisplayGLMode qemu_egl_mode;
+bool qemu_egl_angle_d3d;
 
 /* ------------------------------------------------------------------ */
 
@@ -553,7 +556,34 @@ int qemu_egl_init_dpy_win32(EGLNativeDisplayType dpy, DisplayGLMode mode)
     if (mode == DISPLAYGL_MODE_ON) {
         mode = DISPLAYGL_MODE_ES;
     }
-    return qemu_egl_init_dpy(dpy, 0, mode);
+
+    if (qemu_egl_init_dpy(dpy, 0, mode) < 0) {
+        return -1;
+    }
+
+#ifdef EGL_D3D11_DEVICE_ANGLE
+    if (epoxy_has_egl_extension(qemu_egl_display, "EGL_EXT_device_query")) {
+        EGLDeviceEXT device;
+        void *d3d11_device;
+
+        if (!eglQueryDisplayAttribEXT(qemu_egl_display,
+                                      EGL_DEVICE_EXT,
+                                      (EGLAttrib *)&device)) {
+            return 0;
+        }
+
+        if (!eglQueryDeviceAttribEXT(device,
+                                     EGL_D3D11_DEVICE_ANGLE,
+                                     (EGLAttrib *)&d3d11_device)) {
+            return 0;
+        }
+
+        trace_egl_init_d3d11_device(device);
+        qemu_egl_angle_d3d = device != NULL;
+    }
+#endif
+
+    return 0;
 }
 #endif
 
