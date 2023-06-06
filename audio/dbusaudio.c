@@ -33,6 +33,7 @@
 #include <gio/gunixfdlist.h>
 #endif
 
+#include "ui/dbus.h"
 #include "ui/dbus-display1.h"
 
 #define AUDIO_CAP "dbus"
@@ -422,7 +423,6 @@ dbus_audio_fini(void *opaque)
     g_free(da);
 }
 
-#ifdef G_OS_UNIX
 static void
 listener_out_vanished_cb(GDBusConnection *connection,
                          gboolean remote_peer_vanished,
@@ -448,7 +448,9 @@ listener_in_vanished_cb(GDBusConnection *connection,
 static gboolean
 dbus_audio_register_listener(AudioState *s,
                              GDBusMethodInvocation *invocation,
+#ifdef G_OS_UNIX
                              GUnixFDList *fd_list,
+#endif
                              GVariant *arg_listener,
                              bool out)
 {
@@ -475,6 +477,11 @@ dbus_audio_register_listener(AudioState *s,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
+#ifdef G_OS_WIN32
+    if (!dbus_win32_import_socket(invocation, arg_listener, &fd)) {
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+#else
     fd = g_unix_fd_list_get(fd_list, g_variant_get_handle(arg_listener), &err);
     if (err) {
         g_dbus_method_invocation_return_error(invocation,
@@ -484,6 +491,7 @@ dbus_audio_register_listener(AudioState *s,
                                               err->message);
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
+#endif
 
     socket = g_socket_new_from_fd(fd, &err);
     if (err) {
@@ -492,15 +500,28 @@ dbus_audio_register_listener(AudioState *s,
                                               DBUS_DISPLAY_ERROR_FAILED,
                                               "Couldn't make a socket: %s",
                                               err->message);
+#ifdef G_OS_WIN32
+        closesocket(fd);
+#else
+        close(fd);
+#endif
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
     socket_conn = g_socket_connection_factory_create_connection(socket);
     if (out) {
         qemu_dbus_display1_audio_complete_register_out_listener(
-            da->iface, invocation, NULL);
+            da->iface, invocation
+#ifdef G_OS_UNIX
+            , NULL
+#endif
+            );
     } else {
         qemu_dbus_display1_audio_complete_register_in_listener(
-            da->iface, invocation, NULL);
+            da->iface, invocation
+#ifdef G_OS_UNIX
+            , NULL
+#endif
+            );
     }
 
     listener_conn =
@@ -578,24 +599,33 @@ dbus_audio_register_listener(AudioState *s,
 static gboolean
 dbus_audio_register_out_listener(AudioState *s,
                                  GDBusMethodInvocation *invocation,
+#ifdef G_OS_UNIX
                                  GUnixFDList *fd_list,
+#endif
                                  GVariant *arg_listener)
 {
     return dbus_audio_register_listener(s, invocation,
-                                        fd_list, arg_listener, true);
+#ifdef G_OS_UNIX
+                                        fd_list,
+#endif
+                                        arg_listener, true);
 
 }
 
 static gboolean
 dbus_audio_register_in_listener(AudioState *s,
                                 GDBusMethodInvocation *invocation,
+#ifdef G_OS_UNIX
                                 GUnixFDList *fd_list,
+#endif
                                 GVariant *arg_listener)
 {
     return dbus_audio_register_listener(s, invocation,
-                                        fd_list, arg_listener, false);
-}
+#ifdef G_OS_UNIX
+                                        fd_list,
 #endif
+                                        arg_listener, false);
+}
 
 static void
 dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
@@ -610,14 +640,12 @@ dbus_audio_set_server(AudioState *s, GDBusObjectManagerServer *server, bool p2p)
 
     da->audio = g_dbus_object_skeleton_new(DBUS_DISPLAY1_AUDIO_PATH);
     da->iface = qemu_dbus_display1_audio_skeleton_new();
-#ifdef G_OS_UNIX
     g_object_connect(da->iface,
                      "swapped-signal::handle-register-in-listener",
                      dbus_audio_register_in_listener, s,
                      "swapped-signal::handle-register-out-listener",
                      dbus_audio_register_out_listener, s,
                      NULL);
-#endif
 
     g_dbus_object_skeleton_add_interface(G_DBUS_OBJECT_SKELETON(da->audio),
                                          G_DBUS_INTERFACE_SKELETON(da->iface));

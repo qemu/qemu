@@ -165,7 +165,6 @@ dbus_display_console_class_init(DBusDisplayConsoleClass *klass)
     gobject_class->dispose = dbus_display_console_dispose;
 }
 
-#ifdef G_OS_UNIX
 static void
 listener_vanished_cb(DBusDisplayListener *listener)
 {
@@ -177,7 +176,6 @@ listener_vanished_cb(DBusDisplayListener *listener)
     g_hash_table_remove(ddc->listeners, name);
     qkbd_state_lift_all_keys(ddc->kbd);
 }
-#endif
 
 static gboolean
 dbus_console_set_ui_info(DBusDisplayConsole *ddc,
@@ -211,11 +209,47 @@ dbus_console_set_ui_info(DBusDisplayConsole *ddc,
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
 
-#ifdef G_OS_UNIX
+#ifdef G_OS_WIN32
+bool
+dbus_win32_import_socket(GDBusMethodInvocation *invocation,
+                         GVariant *arg_listener, int *socket)
+{
+    gsize n;
+    WSAPROTOCOL_INFOW *info = (void *)g_variant_get_fixed_array(arg_listener, &n, 1);
+
+    if (!info || n != sizeof(*info)) {
+        g_dbus_method_invocation_return_error(
+            invocation,
+            DBUS_DISPLAY_ERROR,
+            DBUS_DISPLAY_ERROR_FAILED,
+            "Failed to get socket infos");
+        return false;
+    }
+
+    *socket = WSASocketW(FROM_PROTOCOL_INFO,
+                         FROM_PROTOCOL_INFO,
+                         FROM_PROTOCOL_INFO,
+                         info, 0, 0);
+    if (*socket == INVALID_SOCKET) {
+        g_autofree gchar *emsg = g_win32_error_message(WSAGetLastError());
+        g_dbus_method_invocation_return_error(
+            invocation,
+            DBUS_DISPLAY_ERROR,
+            DBUS_DISPLAY_ERROR_FAILED,
+            "Couldn't create socket: %s", emsg);
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 static gboolean
 dbus_console_register_listener(DBusDisplayConsole *ddc,
                                GDBusMethodInvocation *invocation,
+#ifdef G_OS_UNIX
                                GUnixFDList *fd_list,
+#endif
                                GVariant *arg_listener)
 {
     const char *sender = g_dbus_method_invocation_get_sender(invocation);
@@ -237,6 +271,11 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
 
+#ifdef G_OS_WIN32
+    if (!dbus_win32_import_socket(invocation, arg_listener, &fd)) {
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+#else
     fd = g_unix_fd_list_get(fd_list, g_variant_get_handle(arg_listener), &err);
     if (err) {
         g_dbus_method_invocation_return_error(
@@ -246,6 +285,7 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
             "Couldn't get peer fd: %s", err->message);
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
+#endif
 
     socket = g_socket_new_from_fd(fd, &err);
     if (err) {
@@ -254,13 +294,21 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
             DBUS_DISPLAY_ERROR,
             DBUS_DISPLAY_ERROR_FAILED,
             "Couldn't make a socket: %s", err->message);
+#ifdef G_OS_WIN32
+        closesocket(fd);
+#else
         close(fd);
+#endif
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
     socket_conn = g_socket_connection_factory_create_connection(socket);
 
     qemu_dbus_display1_console_complete_register_listener(
-        ddc->iface, invocation, NULL);
+        ddc->iface, invocation
+#ifdef G_OS_UNIX
+        , NULL
+#endif
+    );
 
     listener_conn = g_dbus_connection_new_sync(
         G_IO_STREAM(socket_conn),
@@ -287,7 +335,6 @@ dbus_console_register_listener(DBusDisplayConsole *ddc,
     trace_dbus_registered_listener(sender);
     return DBUS_METHOD_INVOCATION_HANDLED;
 }
-#endif
 
 static gboolean
 dbus_kbd_press(DBusDisplayConsole *ddc,
@@ -516,10 +563,8 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "device-address", device_addr,
         NULL);
     g_object_connect(ddc->iface,
-#ifdef G_OS_UNIX
         "swapped-signal::handle-register-listener",
         dbus_console_register_listener, ddc,
-#endif
         "swapped-signal::handle-set-uiinfo",
         dbus_console_set_ui_info, ddc,
         NULL);

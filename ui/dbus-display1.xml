@@ -57,7 +57,13 @@
         :dbus:iface:`org.qemu.Display1.Listener` interface.
     -->
     <method name="RegisterListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
@@ -334,6 +340,9 @@
       </arg>
     </method>
 
+    <?if $(env.TARGETOS) == windows?>
+    <!-- Add shared memory/texture support -->
+    <?else?>
     <!--
         ScanoutDMABUF:
         @dmabuf: the DMABUF file descriptor.
@@ -372,6 +381,7 @@
       <arg type="i" name="width" direction="in"/>
       <arg type="i" name="height" direction="in"/>
     </method>
+    <?endif?>
 
     <!--
         Disable:
@@ -532,7 +542,13 @@
         :dbus:iface:`org.qemu.Display1.AudioOutListener` interface.
     -->
     <method name="RegisterOutListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
@@ -547,7 +563,13 @@
         :dbus:iface:`org.qemu.Display1.AudioInListener` interface.
     -->
     <method name="RegisterInListener">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="listener" direction="in"/>
+      <?endif?>
     </method>
   </interface>
 
@@ -760,7 +782,13 @@
         The current handler, if any, will be replaced.
     -->
     <method name="Register">
+      <?if $(env.TARGETOS) == windows?>
+      <arg type="ay" name="listener" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+      <?else?>
       <arg type="h" name="stream" direction="in"/>
+      <?endif?>
     </method>
 
     <!--
