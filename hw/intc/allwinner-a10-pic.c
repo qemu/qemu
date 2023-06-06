@@ -51,7 +51,7 @@ static void aw_a10_pic_set_irq(void *opaque, int irq, int level)
     AwA10PICState *s = opaque;
     uint32_t *pending_reg = &s->irq_pending[irq / 32];
 
-    *pending_reg = deposit32(*pending_reg, irq % 32, 1, level);
+    *pending_reg = deposit32(*pending_reg, irq % 32, 1, !!level);
     aw_a10_pic_update(s);
 }
 
