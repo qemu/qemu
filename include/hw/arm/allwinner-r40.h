@@ -25,6 +25,7 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/sd/allwinner-sdhost.h"
+#include "hw/misc/allwinner-r40-ccu.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -79,6 +80,7 @@ struct AwR40State {
     const hwaddr *memmap;
     AwA10PITState timer;
     AwSdHostState mmc[AW_R40_NUM_MMCS];
+    AwR40ClockCtlState ccu;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
