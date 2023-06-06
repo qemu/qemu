@@ -833,7 +833,9 @@ static uint64_t store_whole_le16(void *pv, int size, Int128 val_le)
     }
     store_atom_insert_al16(pv - o, v, m);
 
-    /* Unused if sz <= 64. */
+    if (sz <= 64) {
+        return 0;
+    }
     return int128_gethi(val_le) >> (sz - 64);
 }
 
