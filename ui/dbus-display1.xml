@@ -472,8 +472,9 @@
   <!--
       org.qemu.Display1.Listener.Win32.Map:
 
-      This client-side interface can complement org.qemu.Display1.Listener on
-      ``/org/qemu/Display1/Listener`` for Windows specific methods.
+      This optional client-side interface can complement
+      org.qemu.Display1.Listener on ``/org/qemu/Display1/Listener`` for Windows
+      specific shared memory scanouts.
   -->
   <interface name="org.qemu.Display1.Listener.Win32.Map">
     <!--
@@ -506,6 +507,57 @@
         Update the display content with the current shared map and the given region.
     -->
     <method name="UpdateMap">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener.Win32.D3d11:
+
+      This optional client-side interface can complement
+      org.qemu.Display1.Listener on ``/org/qemu/Display1/Listener`` for Windows
+      specific Direct3D texture sharing of the scanouts.
+  -->
+  <interface name="org.qemu.Display1.Listener.Win32.D3d11">
+    <!--
+        ScanoutTexture2d:
+        @handle: the NT handle for the shared texture (to be opened back with ID3D11Device1::OpenSharedResource1).
+        @texture_width: texture width, in pixels.
+        @texture_height: texture height, in pixels.
+        @y0_top: whether Y position 0 is the top or not.
+        @x: the X scanout position, in pixels.
+        @y: the Y scanout position, in pixels.
+        @width: the scanout width, in pixels.
+        @height: the scanout height, in pixels.
+
+        Resize and update the display content with a Direct3D 11 2D texture.
+        You must acquire and release the associated KeyedMutex 0 during rendering.
+    -->
+    <method name="ScanoutTexture2d">
+      <arg type="t" name="handle" direction="in"/>
+      <arg type="u" name="texture_width" direction="in"/>
+      <arg type="u" name="texture_height" direction="in"/>
+      <arg type="b" name="y0_top" direction="in"/>
+      <arg type="u" name="x" direction="in"/>
+      <arg type="u" name="y" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+    </method>
+
+    <!--
+        UpdateTexture2d:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current Direct3D 2D texture and the given region.
+        You must acquire and release the associated KeyedMutex 0 during rendering.
+    -->
+    <method name="UpdateTexture2d">
       <arg type="i" name="x" direction="in"/>
       <arg type="i" name="y" direction="in"/>
       <arg type="i" name="width" direction="in"/>

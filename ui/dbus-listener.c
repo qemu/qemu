@@ -23,10 +23,15 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "dbus.h"
 #ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
+#endif
+#ifdef WIN32
+#include <d3d11.h>
+#include <dxgi1_2.h>
 #endif
 
 #ifdef CONFIG_OPENGL
@@ -39,6 +44,12 @@
 static void dbus_gfx_switch(DisplayChangeListener *dcl,
                             struct DisplaySurface *new_surface);
 
+enum share_kind {
+    SHARE_KIND_NONE,
+    SHARE_KIND_MAPPED,
+    SHARE_KIND_D3DTEX,
+};
+
 struct _DBusDisplayListener {
     GObject parent;
 
@@ -50,6 +61,8 @@ struct _DBusDisplayListener {
 
     DisplayChangeListener dcl;
     DisplaySurface *ds;
+    enum share_kind ds_share;
+
     int gl_updates;
 
     bool ds_mapped;
@@ -57,7 +70,9 @@ struct _DBusDisplayListener {
 
 #ifdef WIN32
     QemuDBusDisplay1ListenerWin32Map *map_proxy;
+    QemuDBusDisplay1ListenerWin32D3d11 *d3d11_proxy;
     HANDLE peer_process;
+    ID3D11Texture2D *d3d_texture;
 #ifdef CONFIG_OPENGL
     egl_fb fb;
 #endif
@@ -74,28 +89,120 @@ static void dbus_scanout_disable(DisplayChangeListener *dcl)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
-    ddl->ds = NULL;
     qemu_dbus_display1_listener_call_disable(
         ddl->proxy, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
-#ifdef CONFIG_GBM
+#ifdef WIN32
+static bool d3d_texture2d_share(ID3D11Texture2D *d3d_texture,
+                                HANDLE *handle, Error **errp)
+{
+    IDXGIResource1 *dxgiResource = NULL;
+    HRESULT hr;
+
+    hr = d3d_texture->lpVtbl->QueryInterface(d3d_texture,
+                                             &IID_IDXGIResource1,
+                                             (void **)&dxgiResource);
+    if (FAILED(hr)) {
+        goto fail;
+    }
+
+    hr = dxgiResource->lpVtbl->CreateSharedHandle(
+        dxgiResource,
+        NULL,
+        DXGI_SHARED_RESOURCE_READ | DXGI_SHARED_RESOURCE_WRITE,
+        NULL,
+        handle
+        );
+
+    dxgiResource->lpVtbl->Release(dxgiResource);
+
+    if (SUCCEEDED(hr)) {
+        return true;
+    }
+
+fail:
+    error_setg_win32(errp, GetLastError(), "failed to create shared handle");
+    return false;
+}
+
+static bool d3d_texture2d_acquire0(ID3D11Texture2D *d3d_texture, Error **errp)
+{
+    IDXGIKeyedMutex *dxgiMutex = NULL;
+    HRESULT hr;
+
+    hr = d3d_texture->lpVtbl->QueryInterface(d3d_texture,
+                                             &IID_IDXGIKeyedMutex,
+                                             (void **)&dxgiMutex);
+    if (FAILED(hr)) {
+        goto fail;
+    }
+
+    hr = dxgiMutex->lpVtbl->AcquireSync(dxgiMutex, 0, INFINITE);
+
+    dxgiMutex->lpVtbl->Release(dxgiMutex);
+
+    if (SUCCEEDED(hr)) {
+        return true;
+    }
+
+fail:
+    error_setg_win32(errp, GetLastError(), "failed to acquire texture mutex");
+    return false;
+}
+
+static bool d3d_texture2d_release0(ID3D11Texture2D *d3d_texture, Error **errp)
+{
+    IDXGIKeyedMutex *dxgiMutex = NULL;
+    HRESULT hr;
+
+    hr = d3d_texture->lpVtbl->QueryInterface(d3d_texture,
+                                             &IID_IDXGIKeyedMutex,
+                                             (void **)&dxgiMutex);
+    if (FAILED(hr)) {
+        goto fail;
+    }
+
+    hr = dxgiMutex->lpVtbl->ReleaseSync(dxgiMutex, 0);
+
+    dxgiMutex->lpVtbl->Release(dxgiMutex);
+
+    if (SUCCEEDED(hr)) {
+        return true;
+    }
+
+fail:
+    error_setg_win32(errp, GetLastError(), "failed to release texture mutex");
+    return false;
+}
+#endif /* WIN32 */
+
 static void dbus_update_gl_cb(GObject *source_object,
-                           GAsyncResult *res,
-                           gpointer user_data)
+                              GAsyncResult *res,
+                              gpointer user_data)
 {
     g_autoptr(GError) err = NULL;
     DBusDisplayListener *ddl = user_data;
+    bool success;
 
-    if (!qemu_dbus_display1_listener_call_update_dmabuf_finish(ddl->proxy,
-                                                               res, &err)) {
+#ifdef CONFIG_GBM
+    success = qemu_dbus_display1_listener_call_update_dmabuf_finish(
+        ddl->proxy, res, &err);
+#endif
+
+#ifdef WIN32
+    success = qemu_dbus_display1_listener_win32_d3d11_call_update_texture2d_finish(
+        ddl->d3d11_proxy, res, &err);
+    d3d_texture2d_acquire0(ddl->d3d_texture, &error_warn);
+#endif
+
+    if (!success) {
         error_report("Failed to call update: %s", err->message);
     }
 
     graphic_hw_gl_block(ddl->dcl.con, false);
     g_object_unref(ddl);
 }
-#endif
 
 static void dbus_call_update_gl(DisplayChangeListener *dcl,
                                 int x, int y, int w, int h)
@@ -116,8 +223,31 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
 #endif
 
 #ifdef WIN32
-    egl_fb_read_rect(ddl->ds, &ddl->fb, x, y, w, h);
-    dbus_gfx_update(dcl, x, y, w, h);
+    switch (ddl->ds_share) {
+    case SHARE_KIND_MAPPED:
+        egl_fb_read_rect(ddl->ds, &ddl->fb, x, y, w, h);
+        dbus_gfx_update(dcl, x, y, w, h);
+        break;
+    case SHARE_KIND_D3DTEX:
+        Error *err = NULL;
+        assert(ddl->d3d_texture);
+
+        graphic_hw_gl_block(ddl->dcl.con, true);
+        if (!d3d_texture2d_release0(ddl->d3d_texture, &err)) {
+            error_report_err(err);
+            return;
+        }
+        qemu_dbus_display1_listener_win32_d3d11_call_update_texture2d(
+            ddl->d3d11_proxy,
+            x, y, w, h,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL,
+            dbus_update_gl_cb,
+            g_object_ref(ddl));
+        break;
+    default:
+        g_warn_if_reached();
+    }
 #endif
 }
 
@@ -160,7 +290,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
     BOOL success;
     HANDLE target_handle;
 
-    if (ddl->ds_mapped) {
+    if (ddl->ds_share == SHARE_KIND_MAPPED) {
         return true;
     }
 
@@ -199,7 +329,69 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
         return false;
     }
 
-    ddl->ds_mapped = true;
+    ddl->ds_share = SHARE_KIND_MAPPED;
+
+    return true;
+}
+
+static bool
+dbus_scanout_share_d3d_texture(
+    DBusDisplayListener *ddl,
+    ID3D11Texture2D *tex,
+    bool backing_y_0_top,
+    uint32_t backing_width,
+    uint32_t backing_height,
+    uint32_t x, uint32_t y,
+    uint32_t w, uint32_t h)
+{
+    Error *err = NULL;
+    BOOL success;
+    HANDLE share_handle, target_handle;
+
+    if (!d3d_texture2d_release0(tex, &err)) {
+        error_report_err(err);
+        return false;
+    }
+
+    if (!d3d_texture2d_share(tex, &share_handle, &err)) {
+        error_report_err(err);
+        return false;
+    }
+
+    success = DuplicateHandle(
+        GetCurrentProcess(),
+        share_handle,
+        ddl->peer_process,
+        &target_handle,
+        0,
+        FALSE, DUPLICATE_SAME_ACCESS);
+    if (!success) {
+        g_autofree char *msg = g_win32_error_message(GetLastError());
+        g_debug("Failed to DuplicateHandle: %s", msg);
+        CloseHandle(share_handle);
+        return false;
+    }
+
+    qemu_dbus_display1_listener_win32_d3d11_call_scanout_texture2d(
+        ddl->d3d11_proxy,
+        GPOINTER_TO_INT(target_handle),
+        backing_width,
+        backing_height,
+        backing_y_0_top,
+        x, y, w, h,
+        G_DBUS_CALL_FLAGS_NONE,
+        -1,
+        NULL, NULL, NULL);
+
+    CloseHandle(share_handle);
+
+    if (!d3d_texture2d_acquire0(tex, &err)) {
+        error_report_err(err);
+        return false;
+    }
+
+    ddl->d3d_texture = tex;
+    ddl->ds_share = SHARE_KIND_D3DTEX;
 
     return true;
 }
@@ -248,7 +440,14 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
     /* there must be a matching gfx_switch before */
     assert(surface_width(ddl->ds) == w);
     assert(surface_height(ddl->ds) == h);
-    egl_fb_setup_for_tex(&ddl->fb, backing_width, backing_height, tex_id, false);
+
+    if (d3d_tex2d) {
+        dbus_scanout_share_d3d_texture(ddl, d3d_tex2d, backing_y_0_top,
+                                       backing_width, backing_height, x, y, w, h);
+    } else {
+        dbus_scanout_map(ddl);
+        egl_fb_setup_for_tex(&ddl->fb, backing_width, backing_height, tex_id, false);
+    }
 #endif
 }
 
@@ -429,6 +628,7 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
     trace_dbus_gl_gfx_switch(new_surface);
 
     ddl->ds = new_surface;
+    ddl->ds_share = SHARE_KIND_NONE;
     if (ddl->ds) {
         int width = surface_width(ddl->ds);
         int height = surface_height(ddl->ds);
@@ -446,13 +646,7 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
     ddl->ds = new_surface;
-#ifdef WIN32
-    ddl->ds_mapped = false;
-#endif
-    if (!ddl->ds) {
-        /* why not call disable instead? */
-        return;
-    }
+    ddl->ds_share = SHARE_KIND_NONE;
 }
 
 static void dbus_mouse_set(DisplayChangeListener *dcl,
@@ -534,6 +728,7 @@ dbus_display_listener_dispose(GObject *object)
     g_clear_object(&ddl->proxy);
 #ifdef WIN32
     g_clear_object(&ddl->map_proxy);
+    g_clear_object(&ddl->d3d11_proxy);
     g_clear_pointer(&ddl->peer_process, CloseHandle);
 #ifdef CONFIG_OPENGL
     egl_fb_destroy(&ddl->fb);
@@ -598,12 +793,10 @@ dbus_display_listener_implements(DBusDisplayListener *ddl, const char *iface)
 
     return implements;
 }
-#endif
 
-static void
-dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
+static bool
+dbus_display_listener_setup_peer_process(DBusDisplayListener *ddl)
 {
-#ifdef WIN32
     g_autoptr(GError) err = NULL;
     GDBusConnection *conn;
     GIOStream *stream;
@@ -611,15 +804,15 @@ dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
     g_autoptr(GCredentials) creds = NULL;
     DWORD *pid;
 
-    if (!dbus_display_listener_implements(ddl, "org.qemu.Display1.Listener.Win32.Map")) {
-        return;
+    if (ddl->peer_process) {
+        return true;
     }
 
     conn = g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy));
     stream = g_dbus_connection_get_stream(conn);
 
     if (!G_IS_UNIX_CONNECTION(stream)) {
-        return;
+        return false;
     }
 
     sock = g_socket_connection_get_socket(G_SOCKET_CONNECTION(stream));
@@ -627,14 +820,14 @@ dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
 
     if (!creds) {
         g_debug("Failed to get peer credentials: %s", err->message);
-        return;
+        return false;
     }
 
     pid = g_credentials_get_native(creds, G_CREDENTIALS_TYPE_WIN32_PID);
 
     if (pid == NULL) {
         g_debug("Failed to get peer PID");
-        return;
+        return false;
     }
 
     ddl->peer_process = OpenProcess(
@@ -644,11 +837,58 @@ dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
     if (!ddl->peer_process) {
         g_autofree char *msg = g_win32_error_message(GetLastError());
         g_debug("Failed to OpenProcess: %s", msg);
+        return false;
+    }
+
+    return true;
+}
+#endif
+
+static void
+dbus_display_listener_setup_d3d11(DBusDisplayListener *ddl)
+{
+#ifdef WIN32
+    g_autoptr(GError) err = NULL;
+
+    if (!dbus_display_listener_implements(ddl,
+            "org.qemu.Display1.Listener.Win32.D3d11")) {
+        return;
+    }
+
+    if (!dbus_display_listener_setup_peer_process(ddl)) {
+        return;
+    }
+
+    ddl->d3d11_proxy =
+        qemu_dbus_display1_listener_win32_d3d11_proxy_new_sync(ddl->conn,
+            G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
+            NULL,
+            "/org/qemu/Display1/Listener",
+            NULL,
+            &err);
+    if (!ddl->d3d11_proxy) {
+        g_debug("Failed to setup win32 d3d11 proxy: %s", err->message);
+        return;
+    }
+#endif
+}
+
+static void
+dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
+{
+#ifdef WIN32
+    g_autoptr(GError) err = NULL;
+
+    if (!dbus_display_listener_implements(ddl, "org.qemu.Display1.Listener.Win32.Map")) {
+        return;
+    }
+
+    if (!dbus_display_listener_setup_peer_process(ddl)) {
         return;
     }
 
     ddl->map_proxy =
-        qemu_dbus_display1_listener_win32_map_proxy_new_sync(conn,
+        qemu_dbus_display1_listener_win32_map_proxy_new_sync(ddl->conn,
             G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
             NULL,
             "/org/qemu/Display1/Listener",
@@ -692,6 +932,7 @@ dbus_display_listener_new(const char *bus_name,
     ddl->console = console;
 
     dbus_display_listener_setup_shared_map(ddl);
+    dbus_display_listener_setup_d3d11(ddl);
 
     con = qemu_console_lookup_by_index(dbus_display_console_get_index(console));
     assert(con);
