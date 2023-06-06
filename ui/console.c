@@ -1513,18 +1513,59 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     return s;
 }
 
+#ifdef WIN32
+void qemu_displaysurface_win32_set_handle(DisplaySurface *surface,
+                                          HANDLE h, uint32_t offset)
+{
+    assert(!surface->handle);
+
+    surface->handle = h;
+    surface->handle_offset = offset;
+}
+
+static void
+win32_pixman_image_destroy(pixman_image_t *image, void *data)
+{
+    DisplaySurface *surface = data;
+
+    if (!surface->handle) {
+        return;
+    }
+
+    assert(surface->handle_offset == 0);
+
+    qemu_win32_map_free(
+        pixman_image_get_data(surface->image),
+        surface->handle,
+        &error_warn
+    );
+}
+#endif
+
 DisplaySurface *qemu_create_displaysurface(int width, int height)
 {
-    DisplaySurface *surface = g_new0(DisplaySurface, 1);
+    DisplaySurface *surface;
+    void *bits = NULL;
+#ifdef WIN32
+    HANDLE handle = NULL;
+#endif
 
-    trace_displaysurface_create(surface, width, height);
-    surface->format = PIXMAN_x8r8g8b8;
-    surface->image = pixman_image_create_bits(surface->format,
-                                              width, height,
-                                              NULL, width * 4);
-    assert(surface->image != NULL);
+    trace_displaysurface_create(width, height);
+
+#ifdef WIN32
+    bits = qemu_win32_map_alloc(width * height * 4, &handle, &error_abort);
+#endif
+
+    surface = qemu_create_displaysurface_from(
+        width, height,
+        PIXMAN_x8r8g8b8,
+        width * 4, bits
+    );
     surface->flags = QEMU_ALLOCATED_FLAG;
 
+#ifdef WIN32
+    qemu_displaysurface_win32_set_handle(surface, handle, 0);
+#endif
     return surface;
 }
 
@@ -1540,6 +1581,10 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height,
                                               width, height,
                                               (void *)data, linesize);
     assert(surface->image != NULL);
+#ifdef WIN32
+    pixman_image_set_destroy_function(surface->image,
+                                      win32_pixman_image_destroy, surface);
+#endif
 
     return surface;
 }

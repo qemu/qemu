@@ -835,3 +835,36 @@ int qemu_msync(void *addr, size_t length, int fd)
      */
     return qemu_fdatasync(fd);
 }
+
+void *qemu_win32_map_alloc(size_t size, HANDLE *h, Error **errp)
+{
+    void *bits;
+
+    trace_win32_map_alloc(size);
+
+    *h = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0,
+                          size, NULL);
+    if (*h == NULL) {
+        error_setg_win32(errp, GetLastError(), "Failed to CreateFileMapping");
+        return NULL;
+    }
+
+    bits = MapViewOfFile(*h, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    if (bits == NULL) {
+        error_setg_win32(errp, GetLastError(), "Failed to MapViewOfFile");
+        CloseHandle(*h);
+        return NULL;
+    }
+
+    return bits;
+}
+
+void qemu_win32_map_free(void *ptr, HANDLE h, Error **errp)
+{
+    trace_win32_map_free(ptr, h);
+
+    if (UnmapViewOfFile(ptr) == 0) {
+        error_setg_win32(errp, GetLastError(), "Failed to UnmapViewOfFile");
+    }
+    CloseHandle(h);
+}
