@@ -3202,6 +3202,7 @@ F: docs/interop/dbus*
 F: docs/sphinx/dbus*
 F: docs/sphinx/fakedbusdoc.py
 F: tests/qtest/dbus*
+F: scripts/xml-preprocess*
 
 Seccomp
 M: Daniel P. Berrange <berrange@redhat.com>
