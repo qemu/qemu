@@ -45,18 +45,6 @@ include config-host.mak
 include Makefile.prereqs
 Makefile.prereqs: config-host.mak
 
-git-submodule-update:
-.git-submodule-status: git-submodule-update config-host.mak
-Makefile: .git-submodule-status
-
-.PHONY: git-submodule-update
-git-submodule-update:
-ifneq ($(GIT_SUBMODULES_ACTION),ignore)
-	$(call quiet-command, \
-		(GIT="$(GIT)" "$(SRC_PATH)/scripts/git-submodule.sh" $(GIT_SUBMODULES_ACTION) $(GIT_SUBMODULES)), \
-		"GIT","$(GIT_SUBMODULES)")
-endif
-
 # 0. ensure the build tree is okay
 
 # Check that we're not trying to do an out-of-tree build from

@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://gitlab.com/qemu-project/berkeley-testfloat-3
+revision = 40619cbb3bf32872df8c53cc457039229428a263
+patch_directory = berkeley-testfloat-3
+depth = 1

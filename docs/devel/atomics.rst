@@ -102,28 +102,10 @@ Similar operations return the new value of ``*ptr``::
     typeof(*ptr) qatomic_or_fetch(ptr, val)
     typeof(*ptr) qatomic_xor_fetch(ptr, val)
 
-``qemu/atomic.h`` also provides loads and stores that cannot be reordered
-with each other::
+``qemu/atomic.h`` also provides an optimized shortcut for
+``qatomic_set`` followed by ``smp_mb``::
 
-    typeof(*ptr) qatomic_mb_read(ptr)
-    void         qatomic_mb_set(ptr, val)
-
-However these do not provide sequential consistency and, in particular,
-they do not participate in the total ordering enforced by
-sequentially-consistent operations.  For this reason they are deprecated.
-They should instead be replaced with any of the following (ordered from
-easiest to hardest):
-
-- accesses inside a mutex or spinlock
-
-- lightweight synchronization primitives such as ``QemuEvent``
-
-- RCU operations (``qatomic_rcu_read``, ``qatomic_rcu_set``) when publishing
-  or accessing a new version of a data structure
-
-- other atomic accesses: ``qatomic_read`` and ``qatomic_load_acquire`` for
-  loads, ``qatomic_set`` and ``qatomic_store_release`` for stores, ``smp_mb``
-  to forbid reordering subsequent loads before a store.
+    void         qatomic_set_mb(ptr, val)
 
 
 Weak atomic access and manual memory barriers
@@ -523,8 +505,7 @@ and memory barriers, and the equivalents in QEMU:
       | ::                             |
       |                                |
       |   a = qatomic_read(&x);        |
-      |   qatomic_set(&x, a + 2);      |
-      |   smp_mb();                    |
+      |   qatomic_set_mb(&x, a + 2);   |
       |   b = qatomic_read(&y);        |
       +--------------------------------+
 

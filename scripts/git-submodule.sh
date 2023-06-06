@@ -9,10 +9,10 @@ command=$1
 shift
 maybe_modules="$@"
 
-# if --with-git-submodules=ignore, do nothing
+# if not running in a git checkout, do nothing
 test "$command" = "ignore" && exit 0
 
-test -z "$GIT" && GIT=git
+test -z "$GIT" && GIT=$(command -v git)
 
 cd "$(dirname "$0")/.."
 
@@ -21,19 +21,14 @@ update_error() {
     echo
     echo "Unable to automatically checkout GIT submodules '$modules'."
     echo "If you require use of an alternative GIT binary (for example to"
-    echo "enable use of a transparent proxy), then please specify it by"
-    echo "running configure by with the '--with-git' argument. e.g."
+    echo "enable use of a transparent proxy), please disable automatic"
+    echo "GIT submodule checkout with:"
     echo
-    echo " $ ./configure --with-git='tsocks git'"
-    echo
-    echo "Alternatively you may disable automatic GIT submodule checkout"
-    echo "with:"
-    echo
-    echo " $ ./configure --with-git-submodules=validate"
+    echo " $ ./configure --disable-download"
     echo
     echo "and then manually update submodules prior to running make, with:"
     echo
-    echo " $ scripts/git-submodule.sh update $modules"
+    echo " $ GIT='tsocks git' scripts/git-submodule.sh update $modules"
     echo
     exit 1
 }
@@ -44,16 +39,27 @@ validate_error() {
         echo "configured for validate only. Please run"
         echo "  scripts/git-submodule.sh update $maybe_modules"
         echo "from the source directory or call configure with"
-        echo "  --with-git-submodules=update"
-        echo "To disable GIT submodules validation, use"
-        echo "  --with-git-submodules=ignore"
+        echo "  --enable-download"
     fi
     exit 1
+}
+
+check_updated() {
+    local CURSTATUS OLDSTATUS
+    CURSTATUS=$($GIT submodule status $module)
+    OLDSTATUS=$(grep $module $substat)
+    test "$CURSTATUS" = "$OLDSTATUS"
 }
 
 if test -n "$maybe_modules" && ! test -e ".git"
 then
     echo "$0: unexpectedly called with submodules but no git checkout exists"
+    exit 1
+fi
+
+if test -n "$maybe_modules" && test -z "$GIT"
+then
+    echo "$0: unexpectedly called with submodules but git binary not found"
     exit 1
 fi
 
@@ -71,33 +77,34 @@ done
 
 case "$command" in
 status|validate)
-    if test -z "$maybe_modules"
-    then
-         test -s ${substat} && validate_error "$command" || exit 0
-    fi
-
     test -f "$substat" || validate_error "$command"
+    test -z "$maybe_modules" && exit 0
     for module in $modules; do
-        CURSTATUS=$($GIT submodule status $module)
-        OLDSTATUS=$(cat $substat | grep $module)
-        if test "$CURSTATUS" != "$OLDSTATUS"; then
-            validate_error "$command"
-        fi
+        check_updated $module || validate_error "$command"
     done
     exit 0
     ;;
 update)
-    if test -z "$maybe_modules"
-    then
-        test -e $substat || touch $substat
-        exit 0
-    fi
+    test -e $substat || touch $substat
+    test -z "$maybe_modules" && exit 0
 
     $GIT submodule update --init $modules 1>/dev/null
     test $? -ne 0 && update_error "failed to update modules"
+    for module in $modules; do
+        check_updated $module || echo Updated "$module"
+    done
 
-    $GIT submodule status $modules > "${substat}"
-    test $? -ne 0 && update_error "failed to save git submodule status" >&2
+    (while read -r; do
+        for module in $modules; do
+            case $REPLY in
+                *" $module "*) continue 2 ;;
+            esac
+        done
+        printf '%s\n' "$REPLY"
+    done
+    $GIT submodule status $modules
+    test $? -ne 0 && update_error "failed to save git submodule status" >&2) < $substat > $substat.new
+    mv -f $substat.new $substat
     ;;
 esac
 

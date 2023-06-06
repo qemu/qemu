@@ -3132,7 +3132,7 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
     bounce.buffer = NULL;
     memory_region_unref(bounce.mr);
     /* Clear in_use before reading map_client_list.  */
-    qatomic_mb_set(&bounce.in_use, false);
+    qatomic_set_mb(&bounce.in_use, false);
     cpu_notify_map_clients();
 }
 

@@ -16,6 +16,9 @@ if [ $# -ne 2 ]; then
     exit 0
 fi
 
+# Only include wraps that are invoked with subproject()
+SUBPROJECTS="dtc libvfio-user keycodemapdb berkeley-softfloat-3 berkeley-testfloat-3"
+
 src="$1"
 version="$2"
 destination=qemu-${version}
@@ -26,6 +29,8 @@ git clone --single-branch -b "v${version}" -c advice.detachedHead=false \
 pushd ${destination}
 
 git submodule update --init --single-branch
+meson subprojects download $SUBPROJECTS
+
 (cd roms/seabios && git describe --tags --long --dirty > .version)
 (cd roms/skiboot && ./make_version.sh > .version)
 # Fetch edk2 submodule's submodules, since it won't have access to them via

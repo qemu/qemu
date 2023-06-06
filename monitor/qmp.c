@@ -246,7 +246,7 @@ static QMPRequest *monitor_qmp_dispatcher_pop_any(void)
          *
          * Clear qmp_dispatcher_co_busy before reading request.
          */
-        qatomic_mb_set(&qmp_dispatcher_co_busy, false);
+        qatomic_set_mb(&qmp_dispatcher_co_busy, false);
 
         WITH_QEMU_LOCK_GUARD(&monitor_lock) {
             QMPRequest *req_obj;
