@@ -14,8 +14,9 @@
 #include "cpu.h"
 #include "internals.h"
 #include "idau.h"
-#include "tcg/oversized-guest.h"
-
+#ifdef CONFIG_TCG
+# include "tcg/oversized-guest.h"
+#endif
 
 typedef struct S1Translate {
     ARMMMUIdx in_mmu_idx;
