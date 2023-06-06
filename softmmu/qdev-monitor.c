@@ -711,7 +711,7 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
         goto err_del_dev;
     }
 
-    if (!qdev_realize(DEVICE(dev), bus, errp)) {
+    if (!qdev_realize(dev, bus, errp)) {
         goto err_del_dev;
     }
     return dev;

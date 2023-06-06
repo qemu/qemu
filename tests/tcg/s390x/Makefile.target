@@ -35,6 +35,7 @@ TESTS+=chrl
 TESTS+=rxsbg
 TESTS+=ex-relative-long
 TESTS+=ex-branch
+TESTS+=mxdb
 
 cdsg: CFLAGS+=-pthread
 cdsg: LDFLAGS+=-pthread
@@ -47,6 +48,8 @@ $(PGM_SPECIFICATION_TESTS): LDFLAGS+=pgm-specification-user.o
 TESTS += $(PGM_SPECIFICATION_TESTS)
 
 Z13_TESTS=vistr
+Z13_TESTS+=lcbb
+Z13_TESTS+=locfhr
 $(Z13_TESTS): CFLAGS+=-march=z13 -O2
 TESTS+=$(Z13_TESTS)
 
@@ -75,7 +78,16 @@ run-gdbstub-signals-s390x: signals-s390x
 		--bin $< --test $(S390X_SRC)/gdbstub/test-signals-s390x.py, \
 	mixing signals and debugging)
 
-EXTRA_RUNS += run-gdbstub-signals-s390x
+hello-s390x-asm: CFLAGS+=-nostdlib
+
+run-gdbstub-svc: hello-s390x-asm
+	$(call run-test, $@, $(GDB_SCRIPT) \
+		--gdb $(HAVE_GDB_BIN) \
+		--qemu $(QEMU) --qargs "$(QEMU_OPTS)" \
+		--bin $< --test $(S390X_SRC)/gdbstub/test-svc.py, \
+	single-stepping svc)
+
+EXTRA_RUNS += run-gdbstub-signals-s390x run-gdbstub-svc
 endif
 
 # MVX versions of sha512

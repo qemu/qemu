@@ -381,7 +381,7 @@ static void pnv_sbe_realize(DeviceState *dev, Error **errp)
                           psc->xscom_mbox_ops, sbe, "xscom-sbe-mbox",
                           psc->xscom_mbox_size);
 
-    qdev_init_gpio_out(DEVICE(dev), &sbe->psi_irq, 1);
+    qdev_init_gpio_out(dev, &sbe->psi_irq, 1);
 
     sbe->timer = timer_new_us(QEMU_CLOCK_VIRTUAL, sbe_timer, sbe);
 }

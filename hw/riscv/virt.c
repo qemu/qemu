@@ -1488,7 +1488,7 @@ static void virt_machine_init(MachineState *machine)
     for (i = 0; i < VIRTIO_COUNT; i++) {
         sysbus_create_simple("virtio-mmio",
             memmap[VIRT_VIRTIO].base + i * memmap[VIRT_VIRTIO].size,
-            qdev_get_gpio_in(DEVICE(virtio_irqchip), VIRTIO_IRQ + i));
+            qdev_get_gpio_in(virtio_irqchip, VIRTIO_IRQ + i));
     }
 
     gpex_pcie_init(system_memory,
@@ -1499,16 +1499,16 @@ static void virt_machine_init(MachineState *machine)
                    virt_high_pcie_memmap.base,
                    virt_high_pcie_memmap.size,
                    memmap[VIRT_PCIE_PIO].base,
-                   DEVICE(pcie_irqchip));
+                   pcie_irqchip);
 
-    create_platform_bus(s, DEVICE(mmio_irqchip));
+    create_platform_bus(s, mmio_irqchip);
 
     serial_mm_init(system_memory, memmap[VIRT_UART0].base,
-        0, qdev_get_gpio_in(DEVICE(mmio_irqchip), UART0_IRQ), 399193,
+        0, qdev_get_gpio_in(mmio_irqchip, UART0_IRQ), 399193,
         serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     sysbus_create_simple("goldfish_rtc", memmap[VIRT_RTC].base,
-        qdev_get_gpio_in(DEVICE(mmio_irqchip), RTC_IRQ));
+        qdev_get_gpio_in(mmio_irqchip, RTC_IRQ));
 
     virt_flash_create(s);
 

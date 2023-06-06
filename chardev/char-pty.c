@@ -334,7 +334,7 @@ static void char_pty_open(Chardev *chr,
     s = PTY_CHARDEV(chr);
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
     name = g_strdup_printf("chardev-pty-%s", chr->label);
-    qio_channel_set_name(QIO_CHANNEL(s->ioc), name);
+    qio_channel_set_name(s->ioc, name);
     g_free(name);
     s->timer_src = NULL;
     *be_opened = false;

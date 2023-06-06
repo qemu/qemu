@@ -1189,7 +1189,7 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                 }
                 ret = 0;
                 object_unref(OBJECT(client->ioc));
-                client->ioc = QIO_CHANNEL(tioc);
+                client->ioc = tioc;
                 break;
 
             case NBD_OPT_EXPORT_NAME:

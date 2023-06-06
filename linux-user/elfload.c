@@ -1583,7 +1583,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define GET_FEATURE(_feat, _hwcap) \
     do { if (s390_has_feat(_feat)) { hwcap |= _hwcap; } } while (0)
 
-static uint32_t get_elf_hwcap(void)
+uint32_t get_elf_hwcap(void)
 {
     /*
      * Let's assume we always have esan3 and zarch.
@@ -1603,6 +1603,33 @@ static uint32_t get_elf_hwcap(void)
     GET_FEATURE(S390_FEAT_VECTOR_ENH, HWCAP_S390_VXRS_EXT);
 
     return hwcap;
+}
+
+const char *elf_hwcap_str(uint32_t bit)
+{
+    static const char *hwcap_str[] = {
+        [HWCAP_S390_ESAN3]     = "esan3",
+        [HWCAP_S390_ZARCH]     = "zarch",
+        [HWCAP_S390_STFLE]     = "stfle",
+        [HWCAP_S390_MSA]       = "msa",
+        [HWCAP_S390_LDISP]     = "ldisp",
+        [HWCAP_S390_EIMM]      = "eimm",
+        [HWCAP_S390_DFP]       = "dfp",
+        [HWCAP_S390_HPAGE]     = "edat",
+        [HWCAP_S390_ETF3EH]    = "etf3eh",
+        [HWCAP_S390_HIGH_GPRS] = "highgprs",
+        [HWCAP_S390_TE]        = "te",
+        [HWCAP_S390_VXRS]      = "vx",
+        [HWCAP_S390_VXRS_BCD]  = "vxd",
+        [HWCAP_S390_VXRS_EXT]  = "vxe",
+        [HWCAP_S390_GS]        = "gs",
+        [HWCAP_S390_VXRS_EXT2] = "vxe2",
+        [HWCAP_S390_VXRS_PDE]  = "vxp",
+        [HWCAP_S390_SORT]      = "sort",
+        [HWCAP_S390_DFLT]      = "dflt",
+    };
+
+    return bit < ARRAY_SIZE(hwcap_str) ? hwcap_str[bit] : NULL;
 }
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)

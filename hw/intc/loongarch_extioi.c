@@ -276,7 +276,7 @@ static void loongarch_extioi_instance_init(Object *obj)
     int i, cpu, pin;
 
     for (i = 0; i < EXTIOI_IRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+        sysbus_init_irq(dev, &s->irq[i]);
     }
 
     qdev_init_gpio_in(DEVICE(obj), extioi_setirq, EXTIOI_IRQS);
@@ -284,14 +284,14 @@ static void loongarch_extioi_instance_init(Object *obj)
     for (cpu = 0; cpu < EXTIOI_CPUS; cpu++) {
         memory_region_init_io(&s->extioi_iocsr_mem[cpu], OBJECT(s), &extioi_ops,
                               s, "extioi_iocsr", 0x900);
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->extioi_iocsr_mem[cpu]);
+        sysbus_init_mmio(dev, &s->extioi_iocsr_mem[cpu]);
         for (pin = 0; pin < LS3A_INTC_IP; pin++) {
             qdev_init_gpio_out(DEVICE(obj), &s->parent_irq[cpu][pin], 1);
         }
     }
     memory_region_init_io(&s->extioi_system_mem, OBJECT(s), &extioi_ops,
                           s, "extioi_system_mem", 0x900);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->extioi_system_mem);
+    sysbus_init_mmio(dev, &s->extioi_system_mem);
 }
 
 static void loongarch_extioi_class_init(ObjectClass *klass, void *data)

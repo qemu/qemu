@@ -3046,6 +3046,7 @@ F: include/qom/
 F: qapi/qom.json
 F: qapi/qdev.json
 F: scripts/coccinelle/qom-parent-type.cocci
+F: scripts/qom-cast-macro-clean-cocci-gen.py
 F: softmmu/qdev-monitor.c
 F: stubs/qdev.c
 F: qom/
