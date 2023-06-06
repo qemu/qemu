@@ -535,6 +535,10 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode)
 #ifdef WIN32
 int qemu_egl_init_dpy_win32(EGLNativeDisplayType dpy, DisplayGLMode mode)
 {
+    /* prefer GL ES, as that's what ANGLE supports */
+    if (mode == DISPLAYGL_MODE_ON) {
+        mode = DISPLAYGL_MODE_ES;
+    }
     return qemu_egl_init_dpy(dpy, 0, mode);
 }
 #endif
