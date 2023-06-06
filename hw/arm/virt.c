@@ -2332,7 +2332,7 @@ static void machvirt_init(MachineState *machine)
                                vms->fw_cfg, OBJECT(vms));
     }
 
-    br_create(sysmem, vms->memmap[VIRT_POPCOUNT].base);
+    popcount_create(sysmem, vms->memmap[VIRT_POPCOUNT].base);
 
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.board_id = -1;
