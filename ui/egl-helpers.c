@@ -169,6 +169,20 @@ void egl_fb_read(DisplaySurface *dst, egl_fb *src)
                  GL_BGRA, GL_UNSIGNED_BYTE, surface_data(dst));
 }
 
+void egl_fb_read_rect(DisplaySurface *dst, egl_fb *src, int x, int y, int w, int h)
+{
+    assert(surface_width(dst) == src->width);
+    assert(surface_height(dst) == src->height);
+    assert(surface_format(dst) == PIXMAN_x8r8g8b8);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, src->framebuffer);
+    glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+    glPixelStorei(GL_PACK_ROW_LENGTH, surface_stride(dst) / 4);
+    glReadPixels(x, y, w, h,
+                 GL_BGRA, GL_UNSIGNED_BYTE, surface_data(dst) + x * 4);
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+}
+
 void egl_texture_blit(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip)
 {
     glBindFramebuffer(GL_FRAMEBUFFER_EXT, dst->framebuffer);
