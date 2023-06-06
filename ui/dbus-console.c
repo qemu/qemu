@@ -537,6 +537,12 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
     char device_addr[256] = "";
     DBusDisplayConsole *ddc;
     int idx, i;
+    const char *interfaces[] = {
+        "org.qemu.Display1.Keyboard",
+        "org.qemu.Display1.Mouse",
+        "org.qemu.Display1.MultiTouch",
+        NULL
+    };
 
     assert(display);
     assert(con);
@@ -561,6 +567,7 @@ dbus_display_console_new(DBusDisplay *display, QemuConsole *con)
         "width", qemu_console_get_width(con, 0),
         "height", qemu_console_get_height(con, 0),
         "device-address", device_addr,
+        "interfaces", interfaces,
         NULL);
     g_object_connect(ddc->iface,
         "swapped-signal::handle-register-listener",
