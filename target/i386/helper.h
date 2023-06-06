@@ -203,11 +203,11 @@ DEF_HELPER_1(enter_mmx, void, env)
 DEF_HELPER_1(emms, void, env)
 
 #define SHIFT 0
-#include "ops_sse_header.h"
+#include "tcg/ops_sse_header.h.inc"
 #define SHIFT 1
-#include "ops_sse_header.h"
+#include "tcg/ops_sse_header.h.inc"
 #define SHIFT 2
-#include "ops_sse_header.h"
+#include "tcg/ops_sse_header.h.inc"
 
 DEF_HELPER_3(rclb, tl, env, tl, tl)
 DEF_HELPER_3(rclw, tl, env, tl, tl)
