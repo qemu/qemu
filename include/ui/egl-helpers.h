@@ -67,4 +67,6 @@ bool qemu_egl_has_dmabuf(void);
 
 bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp);
 
+const char *qemu_egl_get_error_string(void);
+
 #endif /* EGL_HELPERS_H */

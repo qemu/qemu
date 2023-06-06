@@ -28,8 +28,7 @@ DisplayGLMode qemu_egl_mode;
 
 /* ------------------------------------------------------------------ */
 
-#if defined(CONFIG_X11) || defined(CONFIG_GBM)
-static const char *egl_get_error_string(void)
+const char *qemu_egl_get_error_string(void)
 {
     EGLint error = eglGetError();
 
@@ -68,7 +67,6 @@ static const char *egl_get_error_string(void)
         return "Unknown EGL error";
     }
 }
-#endif
 
 static void egl_fb_delete_texture(egl_fb *fb)
 {
@@ -480,20 +478,20 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
 
     qemu_egl_display = qemu_egl_get_display(dpy, platform);
     if (qemu_egl_display == EGL_NO_DISPLAY) {
-        error_report("egl: eglGetDisplay failed: %s", egl_get_error_string());
+        error_report("egl: eglGetDisplay failed: %s", qemu_egl_get_error_string());
         return -1;
     }
 
     b = eglInitialize(qemu_egl_display, &major, &minor);
     if (b == EGL_FALSE) {
-        error_report("egl: eglInitialize failed: %s", egl_get_error_string());
+        error_report("egl: eglInitialize failed: %s", qemu_egl_get_error_string());
         return -1;
     }
 
     b = eglBindAPI(gles ?  EGL_OPENGL_ES_API : EGL_OPENGL_API);
     if (b == EGL_FALSE) {
         error_report("egl: eglBindAPI failed (%s mode): %s",
-                     gles ? "gles" : "core", egl_get_error_string());
+                     gles ? "gles" : "core", qemu_egl_get_error_string());
         return -1;
     }
 
@@ -502,7 +500,7 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
                         &qemu_egl_config, 1, &n);
     if (b == EGL_FALSE || n != 1) {
         error_report("egl: eglChooseConfig failed (%s mode): %s",
-                     gles ? "gles" : "core", egl_get_error_string());
+                     gles ? "gles" : "core", qemu_egl_get_error_string());
         return -1;
     }
 
