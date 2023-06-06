@@ -79,6 +79,8 @@ static void egl_scanout_texture(DisplayChangeListener *dcl,
     }
 }
 
+#ifdef CONFIG_GBM
+
 static void egl_scanout_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf)
 {
@@ -110,6 +112,14 @@ static void egl_cursor_dmabuf(DisplayChangeListener *dcl,
     }
 }
 
+static void egl_release_dmabuf(DisplayChangeListener *dcl,
+                               QemuDmaBuf *dmabuf)
+{
+    egl_dmabuf_release_texture(dmabuf);
+}
+
+#endif
+
 static void egl_cursor_position(DisplayChangeListener *dcl,
                                 uint32_t pos_x, uint32_t pos_y)
 {
@@ -117,12 +127,6 @@ static void egl_cursor_position(DisplayChangeListener *dcl,
 
     edpy->pos_x = pos_x;
     edpy->pos_y = pos_y;
-}
-
-static void egl_release_dmabuf(DisplayChangeListener *dcl,
-                               QemuDmaBuf *dmabuf)
-{
-    egl_dmabuf_release_texture(dmabuf);
 }
 
 static void egl_scanout_flush(DisplayChangeListener *dcl,
@@ -160,10 +164,12 @@ static const DisplayChangeListenerOps egl_ops = {
 
     .dpy_gl_scanout_disable  = egl_scanout_disable,
     .dpy_gl_scanout_texture  = egl_scanout_texture,
+#ifdef CONFIG_GBM
     .dpy_gl_scanout_dmabuf   = egl_scanout_dmabuf,
     .dpy_gl_cursor_dmabuf    = egl_cursor_dmabuf,
-    .dpy_gl_cursor_position  = egl_cursor_position,
     .dpy_gl_release_dmabuf   = egl_release_dmabuf,
+#endif
+    .dpy_gl_cursor_position  = egl_cursor_position,
     .dpy_gl_update           = egl_scanout_flush,
 };
 

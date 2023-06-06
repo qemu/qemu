@@ -199,11 +199,12 @@ void egl_texture_blend(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip,
 
 /* ---------------------------------------------------------------------- */
 
+EGLContext qemu_egl_rn_ctx;
+
 #ifdef CONFIG_GBM
 
 int qemu_egl_rn_fd;
 struct gbm_device *qemu_egl_rn_gbm_dev;
-EGLContext qemu_egl_rn_ctx;
 
 int egl_rendernode_init(const char *rendernode, DisplayGLMode mode)
 {
@@ -400,7 +401,7 @@ EGLSurface qemu_egl_init_surface_x11(EGLContext ectx, EGLNativeWindowType win)
 
 /* ---------------------------------------------------------------------- */
 
-#if defined(CONFIG_X11) || defined(CONFIG_GBM)
+#if defined(CONFIG_X11) || defined(CONFIG_GBM) || defined(WIN32)
 
 /*
  * Taken from glamor_egl.h from the Xorg xserver, which is MIT licensed
@@ -508,6 +509,9 @@ static int qemu_egl_init_dpy(EGLNativeDisplayType dpy,
     return 0;
 }
 
+#endif
+
+#if defined(CONFIG_X11) || defined(CONFIG_GBM)
 int qemu_egl_init_dpy_x11(EGLNativeDisplayType dpy, DisplayGLMode mode)
 {
 #ifdef EGL_KHR_platform_x11
@@ -525,7 +529,14 @@ int qemu_egl_init_dpy_mesa(EGLNativeDisplayType dpy, DisplayGLMode mode)
     return qemu_egl_init_dpy(dpy, 0, mode);
 #endif
 }
+#endif
 
+
+#ifdef WIN32
+int qemu_egl_init_dpy_win32(EGLNativeDisplayType dpy, DisplayGLMode mode)
+{
+    return qemu_egl_init_dpy(dpy, 0, mode);
+}
 #endif
 
 bool qemu_egl_has_dmabuf(void)
@@ -577,15 +588,28 @@ bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp)
         return false;
     }
 
-#ifdef CONFIG_GBM
+#ifdef WIN32
+    if (qemu_egl_init_dpy_win32(EGL_DEFAULT_DISPLAY, mode) < 0) {
+        error_setg(errp, "egl: init failed");
+        return false;
+    }
+    qemu_egl_rn_ctx = qemu_egl_init_ctx();
+    if (!qemu_egl_rn_ctx) {
+        error_setg(errp, "egl: egl_init_ctx failed");
+        return false;
+    }
+#elif defined(CONFIG_GBM)
     if (egl_rendernode_init(rendernode, mode) < 0) {
         error_setg(errp, "egl: render node init failed");
         return false;
     }
+#endif
+
+    if (!qemu_egl_rn_ctx) {
+        error_setg(errp, "egl: not available on this platform");
+        return false;
+    }
+
     display_opengl = 1;
     return true;
-#else
-    error_setg(errp, "egl: not available on this platform");
-    return false;
-#endif
 }
