@@ -1195,6 +1195,7 @@ struct CPUArchState {
     int error_code;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
+    uint64_t excp_stats[POWERPC_EXCP_NB];
     /*
      * This is the IRQ controller, which is implementation dependent and only
      * relevant when emulating a complete machine. Note that this isn't used

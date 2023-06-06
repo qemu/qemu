@@ -1655,6 +1655,7 @@ static void powerpc_excp(PowerPCCPU *cpu, int excp)
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
                   " => %s (%d) error=%02x\n", env->nip, powerpc_excp_name(excp),
                   excp, env->error_code);
+    env->excp_stats[excp]++;
 
     switch (env->excp_model) {
     case POWERPC_EXCP_40x:
