@@ -153,8 +153,6 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
                                   struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_set_scanout ss;
-    struct virgl_renderer_resource_info info;
-    void *d3d_tex2d = NULL;
     int ret;
 
     VIRTIO_GPU_FILL_CMD(ss);
@@ -169,10 +167,20 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
     }
     g->parent_obj.enable = 1;
 
-    memset(&info, 0, sizeof(info));
-
     if (ss.resource_id && ss.r.width && ss.r.height) {
+        struct virgl_renderer_resource_info info;
+        void *d3d_tex2d = NULL;
+
+#ifdef HAVE_VIRGL_D3D_INFO_EXT
+        struct virgl_renderer_resource_info_ext ext;
+        memset(&ext, 0, sizeof(ext));
+        ret = virgl_renderer_resource_get_info_ext(ss.resource_id, &ext);
+        info = ext.base;
+        d3d_tex2d = ext.d3d_tex2d;
+#else
+        memset(&info, 0, sizeof(info));
         ret = virgl_renderer_resource_get_info(ss.resource_id, &info);
+#endif
         if (ret == -1) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: illegal resource specified %d\n",
@@ -617,6 +625,7 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
 int virtio_gpu_virgl_init(VirtIOGPU *g)
 {
     int ret;
+    uint32_t flags = 0;
 
 #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
     if (qemu_egl_display) {
@@ -624,8 +633,13 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
         virtio_gpu_3d_cbs.get_egl_display = virgl_get_egl_display;
     }
 #endif
+#ifdef VIRGL_RENDERER_D3D11_SHARE_TEXTURE
+    if (qemu_egl_angle_d3d) {
+        flags |= VIRGL_RENDERER_D3D11_SHARE_TEXTURE;
+    }
+#endif
 
-    ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
+    ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
     if (ret != 0) {
         error_report("virgl could not be initialized: %d", ret);
         return ret;
