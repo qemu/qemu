@@ -36,6 +36,9 @@
 #endif
 #include "trace.h"
 
+static void dbus_gfx_switch(DisplayChangeListener *dcl,
+                            struct DisplaySurface *new_surface);
+
 struct _DBusDisplayListener {
     GObject parent;
 
@@ -55,12 +58,28 @@ struct _DBusDisplayListener {
 #ifdef WIN32
     QemuDBusDisplay1ListenerWin32Map *map_proxy;
     HANDLE peer_process;
+#ifdef CONFIG_OPENGL
+    egl_fb fb;
+#endif
 #endif
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
 
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+static void dbus_gfx_update(DisplayChangeListener *dcl,
+                            int x, int y, int w, int h);
+
+#ifdef CONFIG_OPENGL
+static void dbus_scanout_disable(DisplayChangeListener *dcl)
+{
+    DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+
+    ddl->ds = NULL;
+    qemu_dbus_display1_listener_call_disable(
+        ddl->proxy, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+}
+
+#ifdef CONFIG_GBM
 static void dbus_update_gl_cb(GObject *source_object,
                            GAsyncResult *res,
                            gpointer user_data)
@@ -76,29 +95,31 @@ static void dbus_update_gl_cb(GObject *source_object,
     graphic_hw_gl_block(ddl->dcl.con, false);
     g_object_unref(ddl);
 }
+#endif
 
-static void dbus_call_update_gl(DBusDisplayListener *ddl,
+static void dbus_call_update_gl(DisplayChangeListener *dcl,
                                 int x, int y, int w, int h)
 {
-    graphic_hw_gl_block(ddl->dcl.con, true);
+    DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+
     glFlush();
+#ifdef CONFIG_GBM
+    graphic_hw_gl_block(ddl->dcl.con, true);
     qemu_dbus_display1_listener_call_update_dmabuf(ddl->proxy,
         x, y, w, h,
         G_DBUS_CALL_FLAGS_NONE,
         DBUS_DEFAULT_TIMEOUT, NULL,
         dbus_update_gl_cb,
         g_object_ref(ddl));
+#endif
+
+#ifdef WIN32
+    egl_fb_read_rect(ddl->ds, &ddl->fb, x, y, w, h);
+    dbus_gfx_update(dcl, x, y, w, h);
+#endif
 }
 
-static void dbus_scanout_disable(DisplayChangeListener *dcl)
-{
-    DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
-
-    ddl->ds = NULL;
-    qemu_dbus_display1_listener_call_disable(
-        ddl->proxy, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
-}
-
+#ifdef CONFIG_GBM
 static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
                                 QemuDmaBuf *dmabuf)
 {
@@ -127,7 +148,8 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
         fd_list,
         NULL, NULL, NULL);
 }
-#endif /* OPENGL & GBM */
+#endif /* GBM */
+#endif /* OPENGL */
 
 #ifdef WIN32
 static bool dbus_scanout_map(DBusDisplayListener *ddl)
@@ -181,7 +203,7 @@ static bool dbus_scanout_map(DBusDisplayListener *ddl)
 }
 #endif
 
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+#ifdef CONFIG_OPENGL
 static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                  uint32_t tex_id,
                                  bool backing_y_0_top,
@@ -190,6 +212,7 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                  uint32_t x, uint32_t y,
                                  uint32_t w, uint32_t h)
 {
+#ifdef CONFIG_GBM
     QemuDmaBuf dmabuf = {
         .width = backing_width,
         .height = backing_height,
@@ -212,8 +235,19 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
 
     dbus_scanout_dmabuf(dcl, &dmabuf);
     close(dmabuf.fd);
+#endif
+
+#ifdef WIN32
+    DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+
+    /* there must be a matching gfx_switch before */
+    assert(surface_width(ddl->ds) == w);
+    assert(surface_height(ddl->ds) == h);
+    egl_fb_setup_for_tex(&ddl->fb, backing_width, backing_height, tex_id, false);
+#endif
 }
 
+#ifdef CONFIG_GBM
 static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
                                QemuDmaBuf *dmabuf, bool have_hot,
                                uint32_t hot_x, uint32_t hot_y)
@@ -260,7 +294,14 @@ static void dbus_cursor_dmabuf(DisplayChangeListener *dcl,
         NULL);
 }
 
-static void dbus_cursor_position(DisplayChangeListener *dcl,
+static void dbus_release_dmabuf(DisplayChangeListener *dcl,
+                                QemuDmaBuf *dmabuf)
+{
+    dbus_scanout_disable(dcl);
+}
+#endif /* GBM */
+
+static void dbus_gl_cursor_position(DisplayChangeListener *dcl,
                                  uint32_t pos_x, uint32_t pos_y)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
@@ -270,19 +311,11 @@ static void dbus_cursor_position(DisplayChangeListener *dcl,
         G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
-static void dbus_release_dmabuf(DisplayChangeListener *dcl,
-                                QemuDmaBuf *dmabuf)
-{
-    dbus_scanout_disable(dcl);
-}
-
 static void dbus_scanout_update(DisplayChangeListener *dcl,
                                 uint32_t x, uint32_t y,
                                 uint32_t w, uint32_t h)
 {
-    DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
-
-    dbus_call_update_gl(ddl, x, y, w, h);
+    dbus_call_update_gl(dcl, x, y, w, h);
 }
 
 static void dbus_gl_refresh(DisplayChangeListener *dcl)
@@ -296,19 +329,19 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
     }
 
     if (ddl->gl_updates) {
-        dbus_call_update_gl(ddl, 0, 0,
+        dbus_call_update_gl(dcl, 0, 0,
                             surface_width(ddl->ds), surface_height(ddl->ds));
         ddl->gl_updates = 0;
     }
 }
-#endif /* OPENGL & GBM */
+#endif /* OPENGL */
 
 static void dbus_refresh(DisplayChangeListener *dcl)
 {
     graphic_hw_update(dcl->con);
 }
 
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+#ifdef CONFIG_OPENGL
 static void dbus_gl_gfx_update(DisplayChangeListener *dcl,
                                int x, int y, int w, int h)
 {
@@ -382,7 +415,7 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
         DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
 }
 
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+#ifdef CONFIG_OPENGL
 static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
                                struct DisplaySurface *new_surface)
 {
@@ -452,7 +485,7 @@ static void dbus_cursor_define(DisplayChangeListener *dcl,
         NULL);
 }
 
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+#ifdef CONFIG_OPENGL
 const DisplayChangeListenerOps dbus_gl_dcl_ops = {
     .dpy_name                = "dbus-gl",
     .dpy_gfx_update          = dbus_gl_gfx_update,
@@ -464,10 +497,12 @@ const DisplayChangeListenerOps dbus_gl_dcl_ops = {
 
     .dpy_gl_scanout_disable  = dbus_scanout_disable,
     .dpy_gl_scanout_texture  = dbus_scanout_texture,
+#ifdef CONFIG_GBM
     .dpy_gl_scanout_dmabuf   = dbus_scanout_dmabuf,
     .dpy_gl_cursor_dmabuf    = dbus_cursor_dmabuf,
-    .dpy_gl_cursor_position  = dbus_cursor_position,
     .dpy_gl_release_dmabuf   = dbus_release_dmabuf,
+#endif
+    .dpy_gl_cursor_position  = dbus_gl_cursor_position,
     .dpy_gl_update           = dbus_scanout_update,
 };
 #endif
@@ -493,6 +528,9 @@ dbus_display_listener_dispose(GObject *object)
 #ifdef WIN32
     g_clear_object(&ddl->map_proxy);
     g_clear_pointer(&ddl->peer_process, CloseHandle);
+#ifdef CONFIG_OPENGL
+    egl_fb_destroy(&ddl->fb);
+#endif
 #endif
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->dispose(object);
@@ -504,7 +542,7 @@ dbus_display_listener_constructed(GObject *object)
     DBusDisplayListener *ddl = DBUS_DISPLAY_LISTENER(object);
 
     ddl->dcl.ops = &dbus_dcl_ops;
-#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
+#ifdef CONFIG_OPENGL
     if (display_opengl) {
         ddl->dcl.ops = &dbus_gl_dcl_ops;
     }
