@@ -142,6 +142,11 @@ static int socket_accept(int sock)
     return ret;
 }
 
+pid_t qtest_pid(QTestState *s)
+{
+    return s->qemu_pid;
+}
+
 bool qtest_probe_child(QTestState *s)
 {
     pid_t pid = s->qemu_pid;
