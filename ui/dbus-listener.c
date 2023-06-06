@@ -48,6 +48,14 @@ struct _DBusDisplayListener {
     DisplayChangeListener dcl;
     DisplaySurface *ds;
     int gl_updates;
+
+    bool ds_mapped;
+    bool can_share_map;
+
+#ifdef WIN32
+    QemuDBusDisplay1ListenerWin32Map *map_proxy;
+    HANDLE peer_process;
+#endif
 };
 
 G_DEFINE_TYPE(DBusDisplayListener, dbus_display_listener, G_TYPE_OBJECT)
@@ -119,7 +127,61 @@ static void dbus_scanout_dmabuf(DisplayChangeListener *dcl,
         fd_list,
         NULL, NULL, NULL);
 }
+#endif /* OPENGL & GBM */
 
+#ifdef WIN32
+static bool dbus_scanout_map(DBusDisplayListener *ddl)
+{
+    g_autoptr(GError) err = NULL;
+    BOOL success;
+    HANDLE target_handle;
+
+    if (ddl->ds_mapped) {
+        return true;
+    }
+
+    if (!ddl->can_share_map || !ddl->ds->handle) {
+        return false;
+    }
+
+    success = DuplicateHandle(
+        GetCurrentProcess(),
+        ddl->ds->handle,
+        ddl->peer_process,
+        &target_handle,
+        FILE_MAP_READ | SECTION_QUERY,
+        FALSE, 0);
+    if (!success) {
+        g_autofree char *msg = g_win32_error_message(GetLastError());
+        g_debug("Failed to DuplicateHandle: %s", msg);
+        ddl->can_share_map = false;
+        return false;
+    }
+
+    if (!qemu_dbus_display1_listener_win32_map_call_scanout_map_sync(
+            ddl->map_proxy,
+            GPOINTER_TO_UINT(target_handle),
+            ddl->ds->handle_offset,
+            surface_width(ddl->ds),
+            surface_height(ddl->ds),
+            surface_stride(ddl->ds),
+            surface_format(ddl->ds),
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT,
+            NULL,
+            &err)) {
+        g_debug("Failed to call ScanoutMap: %s", err->message);
+        ddl->can_share_map = false;
+        return false;
+    }
+
+    ddl->ds_mapped = true;
+
+    return true;
+}
+#endif
+
+#if defined(CONFIG_OPENGL) && defined(CONFIG_GBM)
 static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                  uint32_t tex_id,
                                  bool backing_y_0_top,
@@ -239,7 +301,7 @@ static void dbus_gl_refresh(DisplayChangeListener *dcl)
         ddl->gl_updates = 0;
     }
 }
-#endif
+#endif /* OPENGL & GBM */
 
 static void dbus_refresh(DisplayChangeListener *dcl)
 {
@@ -265,9 +327,19 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
     size_t stride;
 
     assert(ddl->ds);
-    stride = w * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(surface_format(ddl->ds)), 8);
 
     trace_dbus_update(x, y, w, h);
+
+#ifdef WIN32
+    if (dbus_scanout_map(ddl)) {
+        qemu_dbus_display1_listener_win32_map_call_update_map(
+            ddl->map_proxy,
+            x, y, w, h,
+            G_DBUS_CALL_FLAGS_NONE,
+            DBUS_DEFAULT_TIMEOUT, NULL, NULL, NULL);
+        return;
+    }
+#endif
 
     if (x == 0 && y == 0 && w == surface_width(ddl->ds) && h == surface_height(ddl->ds)) {
         v_data = g_variant_new_from_data(
@@ -290,6 +362,7 @@ static void dbus_gfx_update(DisplayChangeListener *dcl,
     }
 
     /* make a copy, since gvariant only handles linear data */
+    stride = w * DIV_ROUND_UP(PIXMAN_FORMAT_BPP(surface_format(ddl->ds)), 8);
     img = pixman_image_create_bits(surface_format(ddl->ds),
                                    w, h, NULL, stride);
     pixman_image_composite(PIXMAN_OP_SRC, ddl->ds->image, NULL, img,
@@ -333,6 +406,9 @@ static void dbus_gfx_switch(DisplayChangeListener *dcl,
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
     ddl->ds = new_surface;
+#ifdef WIN32
+    ddl->ds_mapped = false;
+#endif
     if (!ddl->ds) {
         /* why not call disable instead? */
         return;
@@ -414,6 +490,10 @@ dbus_display_listener_dispose(GObject *object)
     g_clear_object(&ddl->conn);
     g_clear_pointer(&ddl->bus_name, g_free);
     g_clear_object(&ddl->proxy);
+#ifdef WIN32
+    g_clear_object(&ddl->map_proxy);
+    g_clear_pointer(&ddl->peer_process, CloseHandle);
+#endif
 
     G_OBJECT_CLASS(dbus_display_listener_parent_class)->dispose(object);
 }
@@ -459,6 +539,85 @@ dbus_display_listener_get_console(DBusDisplayListener *ddl)
     return ddl->console;
 }
 
+#ifdef WIN32
+static bool
+dbus_display_listener_implements(DBusDisplayListener *ddl, const char *iface)
+{
+    QemuDBusDisplay1Listener *l = QEMU_DBUS_DISPLAY1_LISTENER(ddl->proxy);
+    bool implements;
+
+    implements = g_strv_contains(qemu_dbus_display1_listener_get_interfaces(l), iface);
+    if (!implements) {
+        g_debug("Display listener does not implement: `%s`", iface);
+    }
+
+    return implements;
+}
+#endif
+
+static void
+dbus_display_listener_setup_shared_map(DBusDisplayListener *ddl)
+{
+#ifdef WIN32
+    g_autoptr(GError) err = NULL;
+    GDBusConnection *conn;
+    GIOStream *stream;
+    GSocket *sock;
+    g_autoptr(GCredentials) creds = NULL;
+    DWORD *pid;
+
+    if (!dbus_display_listener_implements(ddl, "org.qemu.Display1.Listener.Win32.Map")) {
+        return;
+    }
+
+    conn = g_dbus_proxy_get_connection(G_DBUS_PROXY(ddl->proxy));
+    stream = g_dbus_connection_get_stream(conn);
+
+    if (!G_IS_UNIX_CONNECTION(stream)) {
+        return;
+    }
+
+    sock = g_socket_connection_get_socket(G_SOCKET_CONNECTION(stream));
+    creds = g_socket_get_credentials(sock, &err);
+
+    if (!creds) {
+        g_debug("Failed to get peer credentials: %s", err->message);
+        return;
+    }
+
+    pid = g_credentials_get_native(creds, G_CREDENTIALS_TYPE_WIN32_PID);
+
+    if (pid == NULL) {
+        g_debug("Failed to get peer PID");
+        return;
+    }
+
+    ddl->peer_process = OpenProcess(
+        PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION,
+        false, *pid);
+
+    if (!ddl->peer_process) {
+        g_autofree char *msg = g_win32_error_message(GetLastError());
+        g_debug("Failed to OpenProcess: %s", msg);
+        return;
+    }
+
+    ddl->map_proxy =
+        qemu_dbus_display1_listener_win32_map_proxy_new_sync(conn,
+            G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
+            NULL,
+            "/org/qemu/Display1/Listener",
+            NULL,
+            &err);
+    if (!ddl->map_proxy) {
+        g_debug("Failed to setup win32 map proxy: %s", err->message);
+        return;
+    }
+
+    ddl->can_share_map = true;
+#endif
+}
+
 DBusDisplayListener *
 dbus_display_listener_new(const char *bus_name,
                           GDBusConnection *conn,
@@ -486,6 +645,8 @@ dbus_display_listener_new(const char *bus_name,
     ddl->bus_name = g_strdup(bus_name);
     ddl->conn = conn;
     ddl->console = console;
+
+    dbus_display_listener_setup_shared_map(ddl);
 
     con = qemu_console_lookup_by_index(dbus_display_console_get_index(console));
     assert(con);

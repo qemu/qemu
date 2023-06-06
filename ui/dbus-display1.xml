@@ -370,9 +370,7 @@
       </arg>
     </method>
 
-    <?if $(env.TARGETOS) == windows?>
-    <!-- Add shared memory/texture support -->
-    <?else?>
+    <?if $(env.TARGETOS) != windows?>
     <!--
         ScanoutDMABUF:
         @dmabuf: the DMABUF file descriptor.
@@ -469,6 +467,50 @@
         (earlier version of the display interface do not provide this property)
     -->
     <property name="Interfaces" type="as" access="read"/>
+  </interface>
+
+  <!--
+      org.qemu.Display1.Listener.Win32.Map:
+
+      This client-side interface can complement org.qemu.Display1.Listener on
+      ``/org/qemu/Display1/Listener`` for Windows specific methods.
+  -->
+  <interface name="org.qemu.Display1.Listener.Win32.Map">
+    <!--
+        ScanoutMap:
+        @handle: the shared map handle value.
+        @offset: mapping offset.
+        @width: display width, in pixels.
+        @height: display height, in pixels.
+        @stride: stride, in bytes.
+        @pixman_format: image format (ex: ``PIXMAN_X8R8G8B8``).
+
+        Resize and update the display content with a shared map.
+    -->
+    <method name="ScanoutMap">
+      <arg type="t" name="handle" direction="in"/>
+      <arg type="u" name="offset" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+    </method>
+
+    <!--
+        UpdateMap:
+        @x: the X update position, in pixels.
+        @y: the Y update position, in pixels.
+        @width: the update width, in pixels.
+        @height: the update height, in pixels.
+
+        Update the display content with the current shared map and the given region.
+    -->
+    <method name="UpdateMap">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
   </interface>
 
   <!--
