@@ -212,7 +212,8 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                  uint32_t backing_width,
                                  uint32_t backing_height,
                                  uint32_t x, uint32_t y,
-                                 uint32_t w, uint32_t h)
+                                 uint32_t w, uint32_t h,
+                                 void *d3d_tex2d)
 {
     trace_dbus_scanout_texture(tex_id, backing_y_0_top,
                                backing_width, backing_height, x, y, w, h);
@@ -434,7 +435,7 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
 
         /* TODO: lazy send dmabuf (there are unnecessary sent otherwise) */
         dbus_scanout_texture(&ddl->dcl, ddl->ds->texture, false,
-                             width, height, 0, 0, width, height);
+                             width, height, 0, 0, width, height, NULL);
     }
 }
 #endif

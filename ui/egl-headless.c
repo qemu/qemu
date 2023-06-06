@@ -61,7 +61,8 @@ static void egl_scanout_texture(DisplayChangeListener *dcl,
                                 uint32_t backing_width,
                                 uint32_t backing_height,
                                 uint32_t x, uint32_t y,
-                                uint32_t w, uint32_t h)
+                                uint32_t w, uint32_t h,
+                                void *d3d_tex2d)
 {
     egl_dpy *edpy = container_of(dcl, egl_dpy, dcl);
 
@@ -91,7 +92,7 @@ static void egl_scanout_dmabuf(DisplayChangeListener *dcl,
 
     egl_scanout_texture(dcl, dmabuf->texture,
                         false, dmabuf->width, dmabuf->height,
-                        0, 0, dmabuf->width, dmabuf->height);
+                        0, 0, dmabuf->width, dmabuf->height, NULL);
 }
 
 static void egl_cursor_dmabuf(DisplayChangeListener *dcl,

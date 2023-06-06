@@ -154,6 +154,7 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
 {
     struct virtio_gpu_set_scanout ss;
     struct virgl_renderer_resource_info info;
+    void *d3d_tex2d = NULL;
     int ret;
 
     VIRTIO_GPU_FILL_CMD(ss);
@@ -186,7 +187,8 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
             g->parent_obj.scanout[ss.scanout_id].con, info.tex_id,
             info.flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP,
             info.width, info.height,
-            ss.r.x, ss.r.y, ss.r.width, ss.r.height);
+            ss.r.x, ss.r.y, ss.r.width, ss.r.height,
+            d3d_tex2d);
     } else {
         dpy_gfx_replace_surface(
             g->parent_obj.scanout[ss.scanout_id].con, NULL);

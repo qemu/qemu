@@ -98,7 +98,8 @@ dbus_gl_scanout_texture(DisplayChangeListener *dcl,
                         uint32_t backing_width,
                         uint32_t backing_height,
                         uint32_t x, uint32_t y,
-                        uint32_t w, uint32_t h)
+                        uint32_t w, uint32_t h,
+                        void *d3d_tex2d)
 {
     DBusDisplayConsole *ddc = container_of(dcl, DBusDisplayConsole, dcl);
 
