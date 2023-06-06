@@ -952,3 +952,10 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
 
     memset(mem, 0, blocklen);
 }
+
+void HELPER(unaligned_access)(CPUARMState *env, uint64_t addr,
+                              uint32_t access_type, uint32_t mmu_idx)
+{
+    arm_cpu_do_unaligned_access(env_cpu(env), addr, access_type,
+                                mmu_idx, GETPC());
+}
