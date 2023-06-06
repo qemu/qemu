@@ -92,6 +92,9 @@ static void bpim2u_init(MachineState *machine)
     object_property_set_int(OBJECT(r40), "ram-size",
                             r40->ram_size, &error_abort);
 
+    /* GMAC PHY */
+    object_property_set_uint(OBJECT(r40), "gmac-phy-addr", 1, &error_abort);
+
     /* Mark R40 object realized */
     qdev_realize(DEVICE(r40), NULL, &error_abort);
 

@@ -28,6 +28,8 @@
 #include "hw/misc/allwinner-r40-ccu.h"
 #include "hw/misc/allwinner-r40-dramc.h"
 #include "hw/i2c/allwinner-i2c.h"
+#include "hw/net/allwinner_emac.h"
+#include "hw/net/allwinner-sun8i-emac.h"
 #include "target/arm/cpu.h"
 #include "sysemu/block-backend.h"
 
@@ -36,6 +38,7 @@ enum {
     AW_R40_DEV_SRAM_A2,
     AW_R40_DEV_SRAM_A3,
     AW_R40_DEV_SRAM_A4,
+    AW_R40_DEV_EMAC,
     AW_R40_DEV_MMC0,
     AW_R40_DEV_MMC1,
     AW_R40_DEV_MMC2,
@@ -51,6 +54,7 @@ enum {
     AW_R40_DEV_UART6,
     AW_R40_DEV_UART7,
     AW_R40_DEV_TWI0,
+    AW_R40_DEV_GMAC,
     AW_R40_DEV_GIC_DIST,
     AW_R40_DEV_GIC_CPU,
     AW_R40_DEV_GIC_HYP,
@@ -103,6 +107,8 @@ struct AwR40State {
     AwR40ClockCtlState ccu;
     AwR40DramCtlState dramc;
     AWI2CState i2c0;
+    AwEmacState emac;
+    AwSun8iEmacState gmac;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
