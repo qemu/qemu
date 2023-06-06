@@ -31,6 +31,7 @@
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "hw/arm/allwinner-r40.h"
+#include "hw/misc/allwinner-r40-dramc.h"
 
 /* Memory map */
 const hwaddr allwinner_r40_memmap[] = {
@@ -53,6 +54,9 @@ const hwaddr allwinner_r40_memmap[] = {
     [AW_R40_DEV_UART6]      = 0x01c29800,
     [AW_R40_DEV_UART7]      = 0x01c29c00,
     [AW_R40_DEV_TWI0]       = 0x01c2ac00,
+    [AW_R40_DEV_DRAMCOM]    = 0x01c62000,
+    [AW_R40_DEV_DRAMCTL]    = 0x01c63000,
+    [AW_R40_DEV_DRAMPHY]    = 0x01c65000,
     [AW_R40_DEV_GIC_DIST]   = 0x01c81000,
     [AW_R40_DEV_GIC_CPU]    = 0x01c82000,
     [AW_R40_DEV_GIC_HYP]    = 0x01c84000,
@@ -129,8 +133,6 @@ static struct AwR40Unimplemented r40_unimplemented[] = {
     { "gpu",        0x01c40000, 64 * KiB },
     { "gmac",       0x01c50000, 64 * KiB },
     { "hstmr",      0x01c60000, 4 * KiB },
-    { "dram-com",   0x01c62000, 4 * KiB },
-    { "dram-ctl",   0x01c63000, 4 * KiB },
     { "tcon-top",   0x01c70000, 4 * KiB },
     { "lcd0",       0x01c71000, 4 * KiB },
     { "lcd1",       0x01c72000, 4 * KiB },
@@ -273,6 +275,12 @@ static void allwinner_r40_init(Object *obj)
     }
 
     object_initialize_child(obj, "twi0", &s->i2c0, TYPE_AW_I2C_SUN6I);
+
+    object_initialize_child(obj, "dramc", &s->dramc, TYPE_AW_R40_DRAMC);
+    object_property_add_alias(obj, "ram-addr", OBJECT(&s->dramc),
+                             "ram-addr");
+    object_property_add_alias(obj, "ram-size", OBJECT(&s->dramc),
+                              "ram-size");
 }
 
 static void allwinner_r40_realize(DeviceState *dev, Error **errp)
@@ -424,6 +432,15 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c0), 0, s->memmap[AW_R40_DEV_TWI0]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c0), 0,
                        qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_TWI0));
+
+    /* DRAMC */
+    sysbus_realize(SYS_BUS_DEVICE(&s->dramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 0,
+                    s->memmap[AW_R40_DEV_DRAMCOM]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 1,
+                    s->memmap[AW_R40_DEV_DRAMCTL]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 2,
+                    s->memmap[AW_R40_DEV_DRAMPHY]);
 
     /* Unimplemented devices */
     for (i = 0; i < ARRAY_SIZE(r40_unimplemented); i++) {

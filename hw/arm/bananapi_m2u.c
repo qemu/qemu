@@ -85,6 +85,13 @@ static void bpim2u_init(MachineState *machine)
     object_property_set_int(OBJECT(r40), "clk1-freq", 24 * 1000 * 1000,
                             &error_abort);
 
+    /* DRAMC */
+    r40->ram_size = machine->ram_size / MiB;
+    object_property_set_uint(OBJECT(r40), "ram-addr",
+                             r40->memmap[AW_R40_DEV_SDRAM], &error_abort);
+    object_property_set_int(OBJECT(r40), "ram-size",
+                            r40->ram_size, &error_abort);
+
     /* Mark R40 object realized */
     qdev_realize(DEVICE(r40), NULL, &error_abort);
 

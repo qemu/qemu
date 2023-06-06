@@ -15,6 +15,20 @@ allwinner_h3_dramctl_write(uint64_t offset, uint64_t data, unsigned size) "Write
 allwinner_h3_dramphy_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 allwinner_h3_dramphy_write(uint64_t offset, uint64_t data, unsigned size) "write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 
+# allwinner-r40-dramc.c
+allwinner_r40_dramc_detect_cells_disable(void) "Disable detect cells"
+allwinner_r40_dramc_detect_cells_enable(void) "Enable detect cells"
+allwinner_r40_dramc_map_rows(uint8_t row_bits, uint8_t bank_bits, uint8_t col_bits) "DRAM layout: row_bits %d, bank_bits %d, col_bits %d"
+allwinner_r40_dramc_offset_to_cell(uint64_t offset, int row, int bank, int col) "offset 0x%" PRIx64 " row %d bank %d col %d"
+allwinner_r40_dramc_detect_cell_write(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64 ""
+allwinner_r40_dramc_detect_cell_read(uint64_t offset, uint64_t data) "offset 0x%" PRIx64 " data 0x%" PRIx64 ""
+allwinner_r40_dramcom_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramcom_write(uint64_t offset, uint64_t data, unsigned size) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramctl_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramctl_write(uint64_t offset, uint64_t data, unsigned size) "Write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramphy_read(uint64_t offset, uint64_t data, unsigned size) "Read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+allwinner_r40_dramphy_write(uint64_t offset, uint64_t data, unsigned size) "write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
+
 # allwinner-sid.c
 allwinner_sid_read(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 allwinner_sid_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
