@@ -61,7 +61,6 @@ options:
 
 """
 
-# The duplication between importlib and pkg_resources does not help
 # pylint: disable=too-many-lines
 
 # Copyright (C) 2022-2023 Red Hat, Inc.
@@ -74,6 +73,13 @@ options:
 # later. See the COPYING file in the top-level directory.
 
 import argparse
+from importlib.metadata import (
+    Distribution,
+    EntryPoint,
+    PackageNotFoundError,
+    distribution,
+    version,
+)
 from importlib.util import find_spec
 import logging
 import os
@@ -428,25 +434,7 @@ def make_venv(  # pylint: disable=too-many-arguments
     print(builder.get_value("env_exe"))
 
 
-def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            EntryPoint,
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            EntryPoint,
-            PackageNotFoundError,
-            distribution,
-        )
+def _get_entry_points(packages: Sequence[str]) -> Iterator[str]:
 
     def _generator() -> Iterator[str]:
         for package in packages:
@@ -464,24 +452,6 @@ def _gen_importlib(packages: Sequence[str]) -> Iterator[str]:
 
             for entry_point in entry_points:
                 yield f"{entry_point.name} = {entry_point.value}"
-
-    return _generator()
-
-
-def _gen_pkg_resources(packages: Sequence[str]) -> Iterator[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    def _generator() -> Iterator[str]:
-        for package in packages:
-            try:
-                eps = pkg_resources.get_entry_map(package, "console_scripts")
-            except pkg_resources.DistributionNotFound:
-                continue
-
-            for entry_point in eps.values():
-                yield str(entry_point)
 
     return _generator()
 
@@ -510,30 +480,11 @@ def generate_console_scripts(
     if not packages:
         return
 
-    def _get_entry_points() -> Iterator[str]:
-        """Python 3.7 compatibility shim for iterating entry points."""
-        # Python 3.8+, or Python 3.7 with importlib_metadata installed.
-        try:
-            return _gen_importlib(packages)
-        except ImportError as exc:
-            logger.debug("%s", str(exc))
-
-        # Python 3.7 with setuptools installed.
-        try:
-            return _gen_pkg_resources(packages)
-        except ImportError as exc:
-            logger.debug("%s", str(exc))
-            raise Ouch(
-                "Neither importlib.metadata nor pkg_resources found, "
-                "can't generate console script shims.\n"
-                "Use Python 3.8+, or install importlib-metadata or setuptools."
-            ) from exc
-
     maker = distlib.scripts.ScriptMaker(None, bin_path)
     maker.variants = {""}
     maker.clobber = False
 
-    for entry_point in _get_entry_points():
+    for entry_point in _get_entry_points(packages):
         for filename in maker.make(entry_point):
             logger.debug("wrote console_script '%s'", filename)
 
@@ -587,57 +538,6 @@ def pkgname_from_depspec(dep_spec: str) -> str:
     return match.group(0)
 
 
-def _get_path_importlib(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-
-    try:
-        return str(distribution(package).locate_file("."))
-    except PackageNotFoundError:
-        return None
-
-
-def _get_path_pkg_resources(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    try:
-        return str(pkg_resources.get_distribution(package).location)
-    except pkg_resources.DistributionNotFound:
-        return None
-
-
-def _get_path(package: str) -> Optional[str]:
-    try:
-        return _get_path_importlib(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-
-    try:
-        return _get_path_pkg_resources(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        raise Ouch(
-            "Neither importlib.metadata nor pkg_resources found. "
-            "Use Python 3.8+, or install importlib-metadata or setuptools."
-        ) from exc
-
-
 def _path_is_prefix(prefix: Optional[str], path: str) -> bool:
     try:
         return (
@@ -647,63 +547,12 @@ def _path_is_prefix(prefix: Optional[str], path: str) -> bool:
         return False
 
 
-def _is_system_package(package: str) -> bool:
-    path = _get_path(package)
-    return path is not None and not (
+def _is_system_package(dist: Distribution) -> bool:
+    path = str(dist.locate_file("."))
+    return not (
         _path_is_prefix(sysconfig.get_path("purelib"), path)
         or _path_is_prefix(sysconfig.get_path("platlib"), path)
     )
-
-
-def _get_version_importlib(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # pylint: disable=no-name-in-module
-    # pylint: disable=import-error
-    try:
-        # First preference: Python 3.8+ stdlib
-        from importlib.metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        # Second preference: Commonly available PyPI backport
-        from importlib_metadata import (  # type: ignore
-            PackageNotFoundError,
-            distribution,
-        )
-
-    try:
-        return str(distribution(package).version)
-    except PackageNotFoundError:
-        return None
-
-
-def _get_version_pkg_resources(package: str) -> Optional[str]:
-    # pylint: disable=import-outside-toplevel
-    # Bundled with setuptools; has a good chance of being available.
-    import pkg_resources
-
-    try:
-        return str(pkg_resources.get_distribution(package).version)
-    except pkg_resources.DistributionNotFound:
-        return None
-
-
-def _get_version(package: str) -> Optional[str]:
-    try:
-        return _get_version_importlib(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-
-    try:
-        return _get_version_pkg_resources(package)
-    except ImportError as exc:
-        logger.debug("%s", str(exc))
-        raise Ouch(
-            "Neither importlib.metadata nor pkg_resources found. "
-            "Use Python 3.8+, or install importlib-metadata or setuptools."
-        ) from exc
 
 
 def diagnose(
@@ -731,7 +580,11 @@ def diagnose(
     bad = False
 
     pkg_name = pkgname_from_depspec(dep_spec)
-    pkg_version = _get_version(pkg_name)
+    pkg_version: Optional[str] = None
+    try:
+        pkg_version = version(pkg_name)
+    except PackageNotFoundError:
+        pass
 
     lines = []
 
@@ -868,19 +721,25 @@ def _do_ensure(
         constraint = _make_version_constraint(info, False)
         matcher = distlib.version.LegacyMatcher(name + constraint)
         print(f"mkvenv: checking for {matcher}", file=sys.stderr)
-        ver = _get_version(name)
+
+        dist: Optional[Distribution] = None
+        try:
+            dist = distribution(matcher.name)
+        except PackageNotFoundError:
+            pass
+
         if (
-            ver is None
+            dist is None
             # Always pass installed package to pip, so that they can be
             # updated if the requested version changes
-            or not _is_system_package(name)
-            or not matcher.match(distlib.version.LegacyVersion(ver))
+            or not _is_system_package(dist)
+            or not matcher.match(distlib.version.LegacyVersion(dist.version))
         ):
             absent.append(name + _make_version_constraint(info, True))
             if len(absent) == 1:
                 canary = info.get("canary", None)
         else:
-            logger.info("found %s %s", name, ver)
+            logger.info("found %s %s", name, dist.version)
             present.append(name)
 
     if present:
