@@ -102,6 +102,8 @@ static void dbus_call_update_gl(DisplayChangeListener *dcl,
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
 
+    trace_dbus_update_gl(x, y, w, h);
+
     glFlush();
 #ifdef CONFIG_GBM
     graphic_hw_gl_block(ddl->dcl.con, true);
@@ -212,6 +214,8 @@ static void dbus_scanout_texture(DisplayChangeListener *dcl,
                                  uint32_t x, uint32_t y,
                                  uint32_t w, uint32_t h)
 {
+    trace_dbus_scanout_texture(tex_id, backing_y_0_top,
+                               backing_width, backing_height, x, y, w, h);
 #ifdef CONFIG_GBM
     QemuDmaBuf dmabuf = {
         .width = backing_width,
@@ -420,6 +424,8 @@ static void dbus_gl_gfx_switch(DisplayChangeListener *dcl,
                                struct DisplaySurface *new_surface)
 {
     DBusDisplayListener *ddl = container_of(dcl, DBusDisplayListener, dcl);
+
+    trace_dbus_gl_gfx_switch(new_surface);
 
     ddl->ds = new_surface;
     if (ddl->ds) {
