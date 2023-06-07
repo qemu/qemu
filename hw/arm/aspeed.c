@@ -42,6 +42,7 @@ struct AspeedMachineState {
     AspeedSoCState soc;
     MemoryRegion boot_rom;
     bool mmio_exec;
+    uint32_t uart_chosen;
     char *fmc_model;
     char *spi_model;
 };
@@ -333,10 +334,11 @@ static void connect_serial_hds_to_uarts(AspeedMachineState *bmc)
     AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(bmc);
     AspeedSoCState *s = &bmc->soc;
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
+    int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
 
-    aspeed_soc_uart_set_chr(s, amc->uart_default, serial_hd(0));
+    aspeed_soc_uart_set_chr(s, uart_chosen, serial_hd(0));
     for (int i = 1, uart = ASPEED_DEV_UART1; i < sc->uarts_num; i++, uart++) {
-        if (uart == amc->uart_default) {
+        if (uart == uart_chosen) {
             continue;
         }
         aspeed_soc_uart_set_chr(s, uart, serial_hd(i));
@@ -1078,6 +1080,35 @@ static void aspeed_set_spi_model(Object *obj, const char *value, Error **errp)
     bmc->spi_model = g_strdup(value);
 }
 
+static char *aspeed_get_bmc_console(Object *obj, Error **errp)
+{
+    AspeedMachineState *bmc = ASPEED_MACHINE(obj);
+    AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(bmc);
+    int uart_chosen = bmc->uart_chosen ? bmc->uart_chosen : amc->uart_default;
+
+    return g_strdup_printf("uart%d", uart_chosen - ASPEED_DEV_UART1 + 1);
+}
+
+static void aspeed_set_bmc_console(Object *obj, const char *value, Error **errp)
+{
+    AspeedMachineState *bmc = ASPEED_MACHINE(obj);
+    AspeedMachineClass *amc = ASPEED_MACHINE_GET_CLASS(bmc);
+    AspeedSoCClass *sc = ASPEED_SOC_CLASS(object_class_by_name(amc->soc_name));
+    int val;
+
+    if (sscanf(value, "uart%u", &val) != 1) {
+        error_setg(errp, "Bad value for \"uart\" property");
+        return;
+    }
+
+    /* The number of UART depends on the SoC */
+    if (val < 1 || val > sc->uarts_num) {
+        error_setg(errp, "\"uart\" should be in range [1 - %d]", sc->uarts_num);
+        return;
+    }
+    bmc->uart_chosen = ASPEED_DEV_UART1 + val - 1;
+}
+
 static void aspeed_machine_class_props_init(ObjectClass *oc)
 {
     object_class_property_add_bool(oc, "execute-in-place",
@@ -1085,6 +1116,11 @@ static void aspeed_machine_class_props_init(ObjectClass *oc)
                                    aspeed_set_mmio_exec);
     object_class_property_set_description(oc, "execute-in-place",
                            "boot directly from CE0 flash device");
+
+    object_class_property_add_str(oc, "bmc-console", aspeed_get_bmc_console,
+                                  aspeed_set_bmc_console);
+    object_class_property_set_description(oc, "bmc-console",
+                           "Change the default UART to \"uartX\"");
 
     object_class_property_add_str(oc, "fmc-model", aspeed_get_fmc_model,
                                    aspeed_set_fmc_model);
