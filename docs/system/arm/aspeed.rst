@@ -104,7 +104,7 @@ To boot a kernel directly from a Linux build tree:
         -dtb arch/arm/boot/dts/aspeed-ast2600-evb.dtb \
         -initrd rootfs.cpio
 
-The image should be attached as an MTD drive. Run :
+To boot the machine from the flash image, use an MTD drive :
 
 .. code-block:: bash
 
@@ -117,22 +117,45 @@ Options specific to Aspeed machines are :
    device by using the FMC controller to load the instructions, and
    not simply from RAM. This takes a little longer.
 
- * ``fmc-model`` to change the FMC Flash model. FW needs support for
-   the chip model to boot.
+ * ``fmc-model`` to change the default FMC Flash model. FW needs
+   support for the chip model to boot.
 
- * ``spi-model`` to change the SPI Flash model.
+ * ``spi-model`` to change the default SPI Flash model.
 
  * ``bmc-console`` to change the default console device. Most of the
    machines use the ``UART5`` device for a boot console, which is
    mapped on ``/dev/ttyS4`` under Linux, but it is not always the
    case.
 
-For instance, to start the ``ast2500-evb`` machine with a different
-FMC chip and a bigger (64M) SPI chip, use :
+To use other flash models, for instance a different FMC chip and a
+bigger (64M) SPI for the ``ast2500-evb`` machine, run :
 
 .. code-block:: bash
 
   -M ast2500-evb,fmc-model=mx25l25635e,spi-model=mx66u51235f
+
+When more flexibility is needed to define the flash devices, to use
+different flash models or define all flash devices (up to 8), the
+``-nodefaults`` QEMU option can be used to avoid creating the default
+flash devices.
+
+Flash devices should then be created from the command line and attached
+to a block device :
+
+.. code-block:: bash
+
+  $ qemu-system-arm -M ast2600-evb \
+        -blockdev node-name=fmc0,driver=file,filename=/path/to/fmc0.img \
+	-device mx66u51235f,bus=ssi.0,cs=0x0,drive=fmc0 \
+	-blockdev node-name=fmc1,driver=file,filename=/path/to/fmc1.img \
+	-device mx66u51235f,bus=ssi.0,cs=0x1,drive=fmc1 \
+	-blockdev node-name=spi1,driver=file,filename=/path/to/spi1.img \
+	-device mx66u51235f,cs=0x0,bus=ssi.1,drive=spi1 \
+	-nographic -nodefaults
+
+In that case, the machine boots fetching instructions from the FMC0
+device. It is slower to start but closer to what HW does. Using the
+machine option ``execute-in-place`` has a similar effect.
 
 To change the boot console and use device ``UART3`` (``/dev/ttyS2``
 under Linux), use :
