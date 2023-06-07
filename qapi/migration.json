@@ -497,6 +497,16 @@
 #     are present.  'return-path' capability must be enabled to use
 #     it.  (since 8.1)
 #
+# @dirty-limit: If enabled, migration will use the dirty-limit algo to
+#               throttle down guest instead of auto-converge algo.
+#               Throttle algo only works when vCPU's dirtyrate greater
+#               than 'vcpu-dirty-limit', read processes in guest os
+#               aren't penalized any more, so this algo can improve
+#               performance of vCPU during live migration. This is an
+#               optional performance feature and should not affect the
+#               correctness of the existing auto-converge algo.
+#               (since 8.1)
+#
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
@@ -512,7 +522,8 @@
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
            'validate-uuid', 'background-snapshot',
-           'zero-copy-send', 'postcopy-preempt', 'switchover-ack'] }
+           'zero-copy-send', 'postcopy-preempt', 'switchover-ack',
+           'dirty-limit'] }
 
 ##
 # @MigrationCapabilityStatus:

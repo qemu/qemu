@@ -27,6 +27,7 @@
 #include "qemu-file.h"
 #include "ram.h"
 #include "options.h"
+#include "sysemu/kvm.h"
 
 /* Maximum migrate downtime set to 2000 seconds */
 #define MAX_MIGRATE_DOWNTIME_SECONDS 2000
@@ -196,7 +197,7 @@ Property migration_properties[] = {
 #endif
     DEFINE_PROP_MIG_CAP("x-switchover-ack",
                         MIGRATION_CAPABILITY_SWITCHOVER_ACK),
-
+    DEFINE_PROP_MIG_CAP("x-dirty-limit", MIGRATION_CAPABILITY_DIRTY_LIMIT),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -240,6 +241,13 @@ bool migrate_dirty_bitmaps(void)
     MigrationState *s = migrate_get_current();
 
     return s->capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
+}
+
+bool migrate_dirty_limit(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s->capabilities[MIGRATION_CAPABILITY_DIRTY_LIMIT];
 }
 
 bool migrate_events(void)
@@ -569,6 +577,19 @@ bool migrate_caps_check(bool *old_caps, bool *new_caps, Error **errp)
         if (!new_caps[MIGRATION_CAPABILITY_RETURN_PATH]) {
             error_setg(errp, "Capability 'switchover-ack' requires capability "
                              "'return-path'");
+            return false;
+        }
+    }
+    if (new_caps[MIGRATION_CAPABILITY_DIRTY_LIMIT]) {
+        if (new_caps[MIGRATION_CAPABILITY_AUTO_CONVERGE]) {
+            error_setg(errp, "dirty-limit conflicts with auto-converge"
+                       " either of then available currently");
+            return false;
+        }
+
+        if (!kvm_enabled() || !kvm_dirty_ring_enabled()) {
+            error_setg(errp, "dirty-limit requires KVM with accelerator"
+                   " property 'dirty-ring-size' set");
             return false;
         }
     }
