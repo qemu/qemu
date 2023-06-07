@@ -368,12 +368,12 @@ static void pc_q35_machine_options(MachineClass *m)
     m->default_nic = "e1000e";
     m->default_kernel_irqchip_split = false;
     m->no_floppy = 1;
+    m->max_cpus = 1024;
     m->no_parallel = !module_object_class_by_name(TYPE_ISA_PARALLEL);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);
-    m->max_cpus = 288;
 }
 
 static void pc_q35_8_1_machine_options(MachineClass *m)
@@ -396,6 +396,7 @@ static void pc_q35_8_0_machine_options(MachineClass *m)
 
     /* For pc-q35-8.0 and older, use SMBIOS 2.8 by default */
     pcmc->default_smbios_ep_type = SMBIOS_ENTRY_POINT_TYPE_32;
+    m->max_cpus = 288;
 }
 
 DEFINE_Q35_MACHINE(v8_0, "pc-q35-8.0", NULL,
