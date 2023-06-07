@@ -1576,24 +1576,6 @@
   'features': [ 'unstable' ] }
 
 ##
-# @x-query-profile:
-#
-# Query TCG profiling information
-#
-# Features:
-#
-# @unstable: This command is meant for debugging.
-#
-# Returns: profile information
-#
-# Since: 6.2
-##
-{ 'command': 'x-query-profile',
-  'returns': 'HumanReadableText',
-  'if': 'CONFIG_TCG',
-  'features': [ 'unstable' ] }
-
-##
 # @x-query-ramblock:
 #
 # Query system ramblock information

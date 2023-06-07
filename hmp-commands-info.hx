@@ -360,21 +360,6 @@ SRST
     Show host USB devices.
 ERST
 
-#if defined(CONFIG_TCG)
-    {
-        .name       = "profile",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show profiling information",
-        .cmd_info_hrt = qmp_x_query_profile,
-    },
-#endif
-
-SRST
-  ``info profile``
-    Show profiling information.
-ERST
-
     {
         .name       = "capture",
         .args_type  = "",
