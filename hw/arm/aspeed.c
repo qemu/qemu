@@ -15,6 +15,7 @@
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/arm/aspeed_eeprom.h"
+#include "hw/block/flash.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/misc/pca9552.h"
@@ -436,11 +437,12 @@ static void aspeed_machine_init(MachineState *machine)
     }
 
     if (!bmc->mmio_exec) {
-        DriveInfo *mtd0 = drive_get(IF_MTD, 0, 0);
+        DeviceState *dev = ssi_get_cs(bmc->soc.fmc.spi, 0);
+        BlockBackend *fmc0 = dev ? m25p80_get_blk(dev) : NULL;
 
-        if (mtd0) {
+        if (fmc0) {
             uint64_t rom_size = memory_region_size(&bmc->soc.spi_boot);
-            aspeed_install_boot_rom(bmc, blk_by_legacy_dinfo(mtd0), rom_size);
+            aspeed_install_boot_rom(bmc, fmc0, rom_size);
         }
     }
 
