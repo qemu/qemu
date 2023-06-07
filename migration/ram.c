@@ -995,7 +995,11 @@ static void migration_trigger_throttle(RAMState *rs)
     /* During block migration the auto-converge logic incorrectly detects
      * that ram migration makes no progress. Avoid this by disabling the
      * throttling logic during the bulk phase of block migration. */
-    if (migrate_auto_converge() && !blk_mig_bulk_active()) {
+    if (blk_mig_bulk_active()) {
+        return;
+    }
+
+    if (migrate_auto_converge()) {
         /* The following detection logic can be refined later. For now:
            Check to see if the ratio between dirtied bytes and the approx.
            amount of bytes that just got transferred since the last time
