@@ -331,11 +331,11 @@ static void tcg_out_op_rrm(TCGContext *s, TCGOpcode op,
 {
     tcg_insn_unit insn = 0;
 
-    tcg_debug_assert(m2 == extract32(m2, 0, 12));
+    tcg_debug_assert(m2 == extract32(m2, 0, 16));
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
     insn = deposit32(insn, 12, 4, r1);
-    insn = deposit32(insn, 20, 12, m2);
+    insn = deposit32(insn, 16, 16, m2);
     tcg_out32(s, insn);
 }
 
@@ -389,20 +389,6 @@ static void tcg_out_op_rrrc(TCGContext *s, TCGOpcode op,
     insn = deposit32(insn, 12, 4, r1);
     insn = deposit32(insn, 16, 4, r2);
     insn = deposit32(insn, 20, 4, c3);
-    tcg_out32(s, insn);
-}
-
-static void tcg_out_op_rrrm(TCGContext *s, TCGOpcode op,
-                            TCGReg r0, TCGReg r1, TCGReg r2, TCGArg m3)
-{
-    tcg_insn_unit insn = 0;
-
-    tcg_debug_assert(m3 == extract32(m3, 0, 12));
-    insn = deposit32(insn, 0, 8, op);
-    insn = deposit32(insn, 8, 4, r0);
-    insn = deposit32(insn, 12, 4, r1);
-    insn = deposit32(insn, 16, 4, r2);
-    insn = deposit32(insn, 20, 12, m3);
     tcg_out32(s, insn);
 }
 
@@ -860,7 +846,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
         } else {
-            tcg_out_op_rrrm(s, opc, args[0], args[1], args[2], args[3]);
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[4]);
+            tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], TCG_REG_TMP);
         }
         break;
     case INDEX_op_qemu_ld_a64_i64:
