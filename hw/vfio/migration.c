@@ -872,8 +872,8 @@ static int vfio_migration_init(VFIODevice *vbasedev)
                      NULL;
     migration->vm_state = qdev_add_vm_change_state_handler_full(
         vbasedev->dev, vfio_vmstate_change, prepare_cb, vbasedev);
-    migration->migration_state.notify = vfio_migration_state_notifier;
-    add_migration_state_change_notifier(&migration->migration_state);
+    migration_add_notifier(&migration->migration_state,
+                           vfio_migration_state_notifier);
 
     return 0;
 }
@@ -882,7 +882,7 @@ static void vfio_migration_deinit(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
 
-    remove_migration_state_change_notifier(&migration->migration_state);
+    migration_remove_notifier(&migration->migration_state);
     qemu_del_vm_change_state_handler(migration->vm_state);
     unregister_savevm(VMSTATE_IF(vbasedev->dev), "vfio", vbasedev);
     vfio_migration_free(vbasedev);
