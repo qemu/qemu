@@ -767,7 +767,7 @@ if test "$plugins" = "yes" -a "$tcg" = "disabled"; then
 fi
 
 if ! test -f "$source_path/subprojects/keycodemapdb/README" \
-    && test -f "$download" = disabled
+    && test "$download" = disabled
 then
     echo
     echo "ERROR: missing subprojects"
