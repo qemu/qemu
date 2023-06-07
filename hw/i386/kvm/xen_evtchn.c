@@ -147,7 +147,10 @@ struct XenEvtchnState {
     QemuMutex port_lock;
     uint32_t nr_ports;
     XenEvtchnPort port_table[EVTCHN_2L_NR_CHANNELS];
-    qemu_irq gsis[IOAPIC_NUM_PINS];
+
+    /* Connected to the system GSIs for raising callback as GSI / INTx */
+    unsigned int nr_callback_gsis;
+    qemu_irq *callback_gsis;
 
     struct xenevtchn_handle *be_handles[EVTCHN_2L_NR_CHANNELS];
 
@@ -299,7 +302,7 @@ static void gsi_assert_bh(void *opaque)
     }
 }
 
-void xen_evtchn_create(void)
+void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis)
 {
     XenEvtchnState *s = XEN_EVTCHN(sysbus_create_simple(TYPE_XEN_EVTCHN,
                                                         -1, NULL));
@@ -310,8 +313,19 @@ void xen_evtchn_create(void)
     qemu_mutex_init(&s->port_lock);
     s->gsi_bh = aio_bh_new(qemu_get_aio_context(), gsi_assert_bh, s);
 
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->gsis[i]);
+    /*
+     * These are the *output* GSI from event channel support, for
+     * signalling CPU0's events via GSI or PCI INTx instead of the
+     * per-CPU vector. We create a *set* of irqs and connect one to
+     * each of the system GSIs which were passed in from the platform
+     * code, and then just trigger the right one as appropriate from
+     * xen_evtchn_set_callback_level().
+     */
+    s->nr_callback_gsis = nr_gsis;
+    s->callback_gsis = g_new0(qemu_irq, nr_gsis);
+    for (i = 0; i < nr_gsis; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->callback_gsis[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(s), i, system_gsis[i]);
     }
 
     /*
@@ -334,20 +348,6 @@ void xen_evtchn_create(void)
 
     /* Set event channel functions for backend drivers to use */
     xen_evtchn_ops = &emu_evtchn_backend_ops;
-}
-
-void xen_evtchn_connect_gsis(qemu_irq *system_gsis)
-{
-    XenEvtchnState *s = xen_evtchn_singleton;
-    int i;
-
-    if (!s) {
-        return;
-    }
-
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(s), i, system_gsis[i]);
-    }
 }
 
 static void xen_evtchn_register_types(void)
@@ -430,8 +430,8 @@ void xen_evtchn_set_callback_level(int level)
         return;
     }
 
-    if (s->callback_gsi && s->callback_gsi < IOAPIC_NUM_PINS) {
-        qemu_set_irq(s->gsis[s->callback_gsi], level);
+    if (s->callback_gsi && s->callback_gsi < s->nr_callback_gsis) {
+        qemu_set_irq(s->callback_gsis[s->callback_gsi], level);
         if (level) {
             /* Ensure the vCPU polls for deassertion */
             kvm_xen_set_callback_asserted();

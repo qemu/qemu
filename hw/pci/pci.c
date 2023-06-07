@@ -560,6 +560,7 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
     bus->set_irq = set_irq;
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
+    g_free(bus->irq_count);
     bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
 }
 
@@ -575,6 +576,7 @@ void pci_bus_irqs_cleanup(PCIBus *bus)
     bus->irq_opaque = NULL;
     bus->nirq = 0;
     g_free(bus->irq_count);
+    bus->irq_count = NULL;
 }
 
 PCIBus *pci_register_root_bus(DeviceState *parent, const char *name,

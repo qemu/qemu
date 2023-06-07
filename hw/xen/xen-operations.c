@@ -28,45 +28,12 @@
 #include <xenctrl.h>
 
 /*
- * We don't support Xen prior to 4.2.0.
+ * We don't support Xen prior to 4.7.1.
  */
-
-/* Xen 4.2 through 4.6 */
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40701
-
-typedef xc_evtchn xenevtchn_handle;
-typedef evtchn_port_or_error_t xenevtchn_port_or_error_t;
-
-#define xenevtchn_open(l, f) xc_evtchn_open(l, f);
-#define xenevtchn_close(h) xc_evtchn_close(h)
-#define xenevtchn_fd(h) xc_evtchn_fd(h)
-#define xenevtchn_pending(h) xc_evtchn_pending(h)
-#define xenevtchn_notify(h, p) xc_evtchn_notify(h, p)
-#define xenevtchn_bind_interdomain(h, d, p) xc_evtchn_bind_interdomain(h, d, p)
-#define xenevtchn_unmask(h, p) xc_evtchn_unmask(h, p)
-#define xenevtchn_unbind(h, p) xc_evtchn_unbind(h, p)
-
-typedef xc_gnttab xengnttab_handle;
-
-#define xengnttab_open(l, f) xc_gnttab_open(l, f)
-#define xengnttab_close(h) xc_gnttab_close(h)
-#define xengnttab_set_max_grants(h, n) xc_gnttab_set_max_grants(h, n)
-#define xengnttab_map_grant_ref(h, d, r, p) xc_gnttab_map_grant_ref(h, d, r, p)
-#define xengnttab_unmap(h, a, n) xc_gnttab_munmap(h, a, n)
-#define xengnttab_map_grant_refs(h, c, d, r, p) \
-    xc_gnttab_map_grant_refs(h, c, d, r, p)
-#define xengnttab_map_domain_grant_refs(h, c, d, r, p) \
-    xc_gnttab_map_domain_grant_refs(h, c, d, r, p)
-
-typedef xc_interface xenforeignmemory_handle;
-
-#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40701 */
 
 #include <xenevtchn.h>
 #include <xengnttab.h>
 #include <xenforeignmemory.h>
-
-#endif
 
 /* Xen before 4.8 */
 
@@ -223,26 +190,6 @@ static struct gnttab_backend_ops libxengnttab_backend_ops = {
     .unmap = libxengnttab_backend_unmap,
 };
 
-#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 40701
-
-static void *libxenforeignmem_backend_map(uint32_t dom, void *addr, int prot,
-                                          size_t pages, xfn_pfn_t *pfns,
-                                          int *errs)
-{
-    if (errs) {
-        return xc_map_foreign_bulk(xen_xc, dom, prot, pfns, errs, pages);
-    } else {
-        return xc_map_foreign_pages(xen_xc, dom, prot, pfns, pages);
-    }
-}
-
-static int libxenforeignmem_backend_unmap(void *addr, size_t pages)
-{
-    return munmap(addr, pages * XC_PAGE_SIZE);
-}
-
-#else /* CONFIG_XEN_CTRL_INTERFACE_VERSION >= 40701 */
-
 static void *libxenforeignmem_backend_map(uint32_t dom, void *addr, int prot,
                                           size_t pages, xen_pfn_t *pfns,
                                           int *errs)
@@ -255,8 +202,6 @@ static int libxenforeignmem_backend_unmap(void *addr, size_t pages)
 {
     return xenforeignmemory_unmap(xen_fmem, addr, pages);
 }
-
-#endif
 
 struct foreignmem_backend_ops libxenforeignmem_backend_ops = {
     .map = libxenforeignmem_backend_map,
@@ -287,7 +232,7 @@ static void watch_event(void *opaque)
 static struct qemu_xs_handle *libxenstore_open(void)
 {
     struct xs_handle *xsh = xs_open(0);
-    struct qemu_xs_handle *h = g_new0(struct qemu_xs_handle, 1);
+    struct qemu_xs_handle *h;
 
     if (!xsh) {
         return NULL;

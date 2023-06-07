@@ -1688,7 +1688,7 @@ static struct qemu_xs_handle *xs_be_open(void)
     XenXenstoreState *s = xen_xenstore_singleton;
     struct qemu_xs_handle *h;
 
-    if (!s && !s->impl) {
+    if (!s || !s->impl) {
         errno = -ENOSYS;
         return NULL;
     }

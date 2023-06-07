@@ -138,66 +138,6 @@
     return 0;
   }
 
-#elif CONFIG_XEN_CTRL_INTERFACE_VERSION == 40600
-  #include <xenctrl.h>
-  #include <xenstore.h>
-  #include <stdint.h>
-  #include <xen/hvm/hvm_info_table.h>
-  #if !defined(HVM_MAX_VCPUS)
-  # error HVM_MAX_VCPUS not defined
-  #endif
-  int main(void) {
-    xc_interface *xc;
-    xs_daemon_open();
-    xc = xc_interface_open(0, 0, 0);
-    xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-    xc_gnttab_open(NULL, 0);
-    xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-    xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-    xc_hvm_create_ioreq_server(xc, 0, HVM_IOREQSRV_BUFIOREQ_ATOMIC, NULL);
-    xc_reserved_device_memory_map(xc, 0, 0, 0, 0, NULL, 0);
-    return 0;
-  }
-
-#elif CONFIG_XEN_CTRL_INTERFACE_VERSION == 40500
-  #include <xenctrl.h>
-  #include <xenstore.h>
-  #include <stdint.h>
-  #include <xen/hvm/hvm_info_table.h>
-  #if !defined(HVM_MAX_VCPUS)
-  # error HVM_MAX_VCPUS not defined
-  #endif
-  int main(void) {
-    xc_interface *xc;
-    xs_daemon_open();
-    xc = xc_interface_open(0, 0, 0);
-    xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-    xc_gnttab_open(NULL, 0);
-    xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-    xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-    xc_hvm_create_ioreq_server(xc, 0, 0, NULL);
-    return 0;
-  }
-
-#elif CONFIG_XEN_CTRL_INTERFACE_VERSION == 40200
-  #include <xenctrl.h>
-  #include <xenstore.h>
-  #include <stdint.h>
-  #include <xen/hvm/hvm_info_table.h>
-  #if !defined(HVM_MAX_VCPUS)
-  # error HVM_MAX_VCPUS not defined
-  #endif
-  int main(void) {
-    xc_interface *xc;
-    xs_daemon_open();
-    xc = xc_interface_open(0, 0, 0);
-    xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
-    xc_gnttab_open(NULL, 0);
-    xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
-    xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
-    return 0;
-  }
-
 #else
 #error invalid CONFIG_XEN_CTRL_INTERFACE_VERSION
 #endif
