@@ -179,8 +179,6 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
 }
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_R2,
-    TCG_REG_R3,
     TCG_REG_R4,
     TCG_REG_R5,
     TCG_REG_R6,
@@ -193,6 +191,9 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_R15,
+    /* Either 2 or 4 of these are call clobbered, so use them last. */
+    TCG_REG_R3,
+    TCG_REG_R2,
     TCG_REG_R1,
     TCG_REG_R0,
 };
@@ -331,11 +332,11 @@ static void tcg_out_op_rrm(TCGContext *s, TCGOpcode op,
 {
     tcg_insn_unit insn = 0;
 
-    tcg_debug_assert(m2 == extract32(m2, 0, 12));
+    tcg_debug_assert(m2 == extract32(m2, 0, 16));
     insn = deposit32(insn, 0, 8, op);
     insn = deposit32(insn, 8, 4, r0);
     insn = deposit32(insn, 12, 4, r1);
-    insn = deposit32(insn, 20, 12, m2);
+    insn = deposit32(insn, 16, 16, m2);
     tcg_out32(s, insn);
 }
 
@@ -389,20 +390,6 @@ static void tcg_out_op_rrrc(TCGContext *s, TCGOpcode op,
     insn = deposit32(insn, 12, 4, r1);
     insn = deposit32(insn, 16, 4, r2);
     insn = deposit32(insn, 20, 4, c3);
-    tcg_out32(s, insn);
-}
-
-static void tcg_out_op_rrrm(TCGContext *s, TCGOpcode op,
-                            TCGReg r0, TCGReg r1, TCGReg r2, TCGArg m3)
-{
-    tcg_insn_unit insn = 0;
-
-    tcg_debug_assert(m3 == extract32(m3, 0, 12));
-    insn = deposit32(insn, 0, 8, op);
-    insn = deposit32(insn, 8, 4, r0);
-    insn = deposit32(insn, 12, 4, r1);
-    insn = deposit32(insn, 16, 4, r2);
-    insn = deposit32(insn, 20, 12, m3);
     tcg_out32(s, insn);
 }
 
@@ -860,7 +847,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
         } else {
-            tcg_out_op_rrrm(s, opc, args[0], args[1], args[2], args[3]);
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[4]);
+            tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], TCG_REG_TMP);
         }
         break;
     case INDEX_op_qemu_ld_a64_i64:
@@ -947,11 +935,11 @@ static void tcg_target_init(TCGContext *s)
     /*
      * The interpreter "registers" are in the local stack frame and
      * cannot be clobbered by the called helper functions.  However,
-     * the interpreter assumes a 64-bit return value and assigns to
+     * the interpreter assumes a 128-bit return value and assigns to
      * the return value registers.
      */
     tcg_target_call_clobber_regs =
-        MAKE_64BIT_MASK(TCG_REG_R0, 64 / TCG_TARGET_REG_BITS);
+        MAKE_64BIT_MASK(TCG_REG_R0, 128 / TCG_TARGET_REG_BITS);
 
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);

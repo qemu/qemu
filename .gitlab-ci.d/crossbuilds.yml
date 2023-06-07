@@ -29,6 +29,14 @@ cross-arm64-user:
   variables:
     IMAGE: debian-arm64-cross
 
+cross-arm64-kvm-only:
+  extends: .cross_accel_build_job
+  needs:
+    job: arm64-debian-cross-container
+  variables:
+    IMAGE: debian-arm64-cross
+    EXTRA_CONFIGURE_OPTS: --disable-tcg --without-default-features
+
 cross-i386-user:
   extends:
     - .cross_user_build_job
