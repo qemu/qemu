@@ -25,7 +25,6 @@
 
 #define AREG_ADDR %a0
 #define AREG_CORRECT_RESULT %a3
-#define MEM_BASE_ADDR 0xd0000000
 
 #define DREG_DEV_ADDR %a15
 

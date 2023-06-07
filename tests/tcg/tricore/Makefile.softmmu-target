@@ -1,34 +1,49 @@
 TESTS_PATH = $(SRC_PATH)/tests/tcg/tricore
+ASM_TESTS_PATH = $(TESTS_PATH)/asm
+C_TESTS_PATH = $(TESTS_PATH)/c
 
 LDFLAGS = -T$(TESTS_PATH)/link.ld --mcpu=tc162
 ASFLAGS = -mtc162
+CFLAGS = -mtc162 -c -I$(TESTS_PATH)
 
-TESTS += test_abs.tst
-TESTS += test_bmerge.tst
-TESTS += test_clz.tst
-TESTS += test_dextr.tst
-TESTS += test_dvstep.tst
-TESTS += test_fadd.tst
-TESTS += test_fmul.tst
-TESTS += test_ftoi.tst
-TESTS += test_imask.tst
-TESTS += test_insert.tst
-TESTS += test_ld_bu.tst
-TESTS += test_ld_h.tst
-TESTS += test_madd.tst
-TESTS += test_msub.tst
-TESTS += test_muls.tst
+TESTS += test_abs.asm.tst
+TESTS += test_bmerge.asm.tst
+TESTS += test_clz.asm.tst
+TESTS += test_dextr.asm.tst
+TESTS += test_dvstep.asm.tst
+TESTS += test_fadd.asm.tst
+TESTS += test_fmul.asm.tst
+TESTS += test_ftoi.asm.tst
+TESTS += test_imask.asm.tst
+TESTS += test_insert.asm.tst
+TESTS += test_ld_bu.asm.tst
+TESTS += test_ld_h.asm.tst
+TESTS += test_madd.asm.tst
+TESTS += test_msub.asm.tst
+TESTS += test_muls.asm.tst
+
+TESTS += test_boot_to_main.c.tst
+TESTS += test_context_save_areas.c.tst
 
 QEMU_OPTS += -M tricore_testboard -cpu tc27x -nographic -kernel
 
-%.pS: $(TESTS_PATH)/%.S
+%.pS: $(ASM_TESTS_PATH)/%.S
 	$(HOST_CC) -E -o $@ $<
 
 %.o: %.pS
 	$(AS) $(ASFLAGS) -o $@ $<
 
-%.tst: %.o
+%.asm.tst: %.o
 	$(LD) $(LDFLAGS) $< -o $@
+
+crt0-tc2x.o: $(C_TESTS_PATH)/crt0-tc2x.S
+	$(AS) $(ASFLAGS) -o $@ $<
+
+%.o: $(C_TESTS_PATH)/%.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+%.c.tst: %.o crt0-tc2x.o
+	$(LD) $(LDFLAGS) -o $@ $^
 
 # We don't currently support the multiarch system tests
 undefine MULTIARCH_TESTS

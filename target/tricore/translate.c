@@ -75,6 +75,7 @@ typedef struct DisasContext {
     int mem_idx;
     uint32_t hflags, saved_hflags;
     uint64_t features;
+    uint32_t icr_ie_mask;
 } DisasContext;
 
 static int has_feature(DisasContext *ctx, int feature)
@@ -7850,12 +7851,12 @@ static void decode_sys_interrupts(DisasContext *ctx)
         /* raise EXCP_DEBUG */
         break;
     case OPC2_32_SYS_DISABLE:
-        tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~MASK_ICR_IE_1_3);
+        tcg_gen_andi_tl(cpu_ICR, cpu_ICR, ~ctx->icr_ie_mask);
         break;
     case OPC2_32_SYS_DSYNC:
         break;
     case OPC2_32_SYS_ENABLE:
-        tcg_gen_ori_tl(cpu_ICR, cpu_ICR, MASK_ICR_IE_1_3);
+        tcg_gen_ori_tl(cpu_ICR, cpu_ICR, ctx->icr_ie_mask);
         break;
     case OPC2_32_SYS_ISYNC:
         break;
@@ -8259,6 +8260,11 @@ static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->mem_idx = cpu_mmu_index(env, false);
     ctx->hflags = (uint32_t)ctx->base.tb->flags;
     ctx->features = env->features;
+    if (has_feature(ctx, TRICORE_FEATURE_161)) {
+        ctx->icr_ie_mask = R_ICR_IE_161_MASK;
+    } else {
+        ctx->icr_ie_mask = R_ICR_IE_13_MASK;
+    }
 }
 
 static void tricore_tr_tb_start(DisasContextBase *db, CPUState *cpu)
