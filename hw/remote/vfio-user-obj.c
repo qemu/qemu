@@ -30,6 +30,11 @@
  *
  * notes - x-vfio-user-server could block IO and monitor during the
  *         initialization phase.
+ *
+ *         When x-remote machine has the auto-shutdown property
+ *         enabled (default), x-vfio-user-server terminates after the last
+ *         client disconnects. Otherwise, it will continue running until
+ *         explicitly killed.
  */
 
 #include "qemu/osdep.h"
@@ -61,9 +66,12 @@
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
 
 /**
- * VFU_OBJECT_ERROR - reports an error message. If auto_shutdown
- * is set, it aborts the machine on error. Otherwise, it logs an
- * error message without aborting.
+ * VFU_OBJECT_ERROR - reports an error message.
+ *
+ * If auto_shutdown is set, it aborts the machine on error. Otherwise,
+ * it logs an error message without aborting. auto_shutdown is disabled
+ * when the server serves clients from multiple VMs; as such, an error
+ * from one VM shouldn't be able to disrupt other VM's services.
  */
 #define VFU_OBJECT_ERROR(o, fmt, ...)                                     \
     {                                                                     \
