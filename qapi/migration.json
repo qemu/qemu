@@ -465,8 +465,8 @@
 #     block devices (and thus take locks) immediately at the end of
 #     migration.  (since 3.0)
 #
-# @x-ignore-shared: If enabled, QEMU will not migrate shared memory
-#     (since 4.0)
+# @x-ignore-shared: If enabled, QEMU will not migrate shared memory that is
+#     accessible on the destination machine. (since 4.0)
 #
 # @validate-uuid: Send the UUID of the source to allow the destination
 #     to ensure it is the same.  (since 4.2)
