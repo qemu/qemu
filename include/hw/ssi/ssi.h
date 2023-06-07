@@ -64,6 +64,9 @@ struct SSIPeripheral {
 
     /* Chip select state */
     bool cs;
+
+    /* Chip select index */
+    uint8_t cs_index;
 };
 
 extern const VMStateDescription vmstate_ssi_peripheral;
