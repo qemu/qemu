@@ -14,7 +14,7 @@
 
 static QLIST_HEAD(, MigrationThread) migration_threads;
 
-MigrationThread *MigrationThreadAdd(const char *name, int thread_id)
+MigrationThread *migration_threads_add(const char *name, int thread_id)
 {
     MigrationThread *thread =  g_new0(MigrationThread, 1);
     thread->name = name;
@@ -25,7 +25,7 @@ MigrationThread *MigrationThreadAdd(const char *name, int thread_id)
     return thread;
 }
 
-void MigrationThreadDel(MigrationThread *thread)
+void migration_threads_remove(MigrationThread *thread)
 {
     if (thread) {
         QLIST_REMOVE(thread, node);

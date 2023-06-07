@@ -2953,7 +2953,7 @@ static void *migration_thread(void *opaque)
     MigThrError thr_error;
     bool urgent = false;
 
-    thread = MigrationThreadAdd("live_migration", qemu_get_thread_id());
+    thread = migration_threads_add("live_migration", qemu_get_thread_id());
 
     rcu_register_thread();
 
@@ -3031,7 +3031,7 @@ static void *migration_thread(void *opaque)
     migration_iteration_finish(s);
     object_unref(OBJECT(s));
     rcu_unregister_thread();
-    MigrationThreadDel(thread);
+    migration_threads_remove(thread);
     return NULL;
 }
 
