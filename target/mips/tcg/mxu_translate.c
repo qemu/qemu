@@ -237,11 +237,11 @@
  *          ├─ 001100 ─ OPC_MXU_D16MADL
  *          ├─ 001101 ─ OPC_MXU_S16MAD
  *          ├─ 001110 ─ OPC_MXU_Q16ADD
- *          ├─ 001111 ─ OPC_MXU_D16MACE     23
+ *          ├─ 001111 ─ OPC_MXU_D16MACE     20 (13..10 don't care)
  *          │                            ┌─ 0 ─ OPC_MXU_S32LDD
  *          ├─ 010000 ─ OPC_MXU__POOL04 ─┴─ 1 ─ OPC_MXU_S32LDDR
  *          │
- *          │                               23
+ *          │                               20 (13..10 don't care)
  *          ├─ 010001 ─ OPC_MXU__POOL05 ─┬─ 0 ─ OPC_MXU_S32STD
  *          │                            └─ 1 ─ OPC_MXU_S32STDR
  *          │
@@ -253,11 +253,11 @@
  *          ├─ 010011 ─ OPC_MXU__POOL07 ─┬─ 0000 ─ OPC_MXU_S32STDV
  *          │                            └─ 0001 ─ OPC_MXU_S32STDVR
  *          │
- *          │                               23
+ *          │                               20 (13..10 don't care)
  *          ├─ 010100 ─ OPC_MXU__POOL08 ─┬─ 0 ─ OPC_MXU_S32LDI
  *          │                            └─ 1 ─ OPC_MXU_S32LDIR
  *          │
- *          │                               23
+ *          │                               20 (13..10 don't care)
  *          ├─ 010101 ─ OPC_MXU__POOL09 ─┬─ 0 ─ OPC_MXU_S32SDI
  *          │                            └─ 1 ─ OPC_MXU_S32SDIR
  *          │
@@ -357,6 +357,13 @@ enum {
     OPC_MXU_D16MUL   = 0x08,
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU__POOL04  = 0x10,
+    OPC_MXU__POOL05  = 0x11,
+    OPC_MXU__POOL06  = 0x12,
+    OPC_MXU__POOL07  = 0x13,
+    OPC_MXU__POOL08  = 0x14,
+    OPC_MXU__POOL09  = 0x15,
+    OPC_MXU__POOL10  = 0x16,
+    OPC_MXU__POOL11  = 0x17,
     OPC_MXU_S8LDD    = 0x22,
     OPC_MXU__POOL16  = 0x27,
     OPC_MXU_S32M2I   = 0x2E,
@@ -378,11 +385,11 @@ enum {
 };
 
 /*
- * MXU pool 04
+ * MXU pool 04 05 06 07 08 09 10 11
  */
 enum {
-    OPC_MXU_S32LDD   = 0x00,
-    OPC_MXU_S32LDDR  = 0x01,
+    OPC_MXU_S32LDST  = 0x00,
+    OPC_MXU_S32LDSTR = 0x01,
 };
 
 /*
@@ -806,35 +813,147 @@ static void gen_mxu_q8mul_q8mulsu(DisasContext *ctx)
 
 /*
  * S32LDD  XRa, Rb, S12 - Load a word from memory to XRF
- * S32LDDR XRa, Rb, S12 - Load a word from memory to XRF, reversed byte seq.
+ * S32LDDR XRa, Rb, S12 - Load a word from memory to XRF
+ *   in reversed byte seq.
+ * S32LDI  XRa, Rb, S12 - Load a word from memory to XRF,
+ *   post modify base address GPR.
+ * S32LDIR XRa, Rb, S12 - Load a word from memory to XRF,
+ *   post modify base address GPR and load in reversed byte seq.
  */
-static void gen_mxu_s32ldd_s32lddr(DisasContext *ctx)
+static void gen_mxu_s32ldxx(DisasContext *ctx, bool reversed, bool postinc)
 {
     TCGv t0, t1;
-    uint32_t XRa, Rb, s12, sel;
+    uint32_t XRa, Rb, s12;
 
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
 
     XRa = extract32(ctx->opcode, 6, 4);
-    s12 = extract32(ctx->opcode, 10, 10);
-    sel = extract32(ctx->opcode, 20, 1);
+    s12 = sextract32(ctx->opcode, 10, 10);
     Rb = extract32(ctx->opcode, 21, 5);
 
     gen_load_gpr(t0, Rb);
+    tcg_gen_movi_tl(t1, s12 * 4);
+    tcg_gen_add_tl(t0, t0, t1);
 
-    tcg_gen_movi_tl(t1, s12);
-    tcg_gen_shli_tl(t1, t1, 2);
-    if (s12 & 0x200) {
-        tcg_gen_ori_tl(t1, t1, 0xFFFFF000);
-    }
-    tcg_gen_add_tl(t1, t0, t1);
-    tcg_gen_qemu_ld_tl(t1, t1, ctx->mem_idx, (MO_TESL ^ (sel * MO_BSWAP)) |
-                       ctx->default_tcg_memop_mask);
-
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx,
+                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                        ctx->default_tcg_memop_mask);
     gen_store_mxu_gpr(t1, XRa);
+
+    if (postinc) {
+        gen_store_gpr(t0, Rb);
+    }
 }
 
+/*
+ * S32STD  XRa, Rb, S12 - Store a word from XRF to memory
+ * S32STDR XRa, Rb, S12 - Store a word from XRF to memory
+ *   in reversed byte seq.
+ * S32SDI  XRa, Rb, S12 - Store a word from XRF to memory,
+ *   post modify base address GPR.
+ * S32SDIR XRa, Rb, S12 - Store a word from XRF to memory,
+ *   post modify base address GPR and store in reversed byte seq.
+ */
+static void gen_mxu_s32stxx(DisasContext *ctx, bool reversed, bool postinc)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, s12;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    s12 = sextract32(ctx->opcode, 10, 10);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+    tcg_gen_movi_tl(t1, s12 * 4);
+    tcg_gen_add_tl(t0, t0, t1);
+
+    gen_load_mxu_gpr(t1, XRa);
+    tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
+                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                        ctx->default_tcg_memop_mask);
+
+    if (postinc) {
+        gen_store_gpr(t0, Rb);
+    }
+}
+
+/*
+ * S32LDDV  XRa, Rb, Rc, STRD2 - Load a word from memory to XRF
+ * S32LDDVR XRa, Rb, Rc, STRD2 - Load a word from memory to XRF
+ *   in reversed byte seq.
+ * S32LDIV  XRa, Rb, Rc, STRD2 - Load a word from memory to XRF,
+ *   post modify base address GPR.
+ * S32LDIVR XRa, Rb, Rc, STRD2 - Load a word from memory to XRF,
+ *   post modify base address GPR and load in reversed byte seq.
+ */
+static void gen_mxu_s32ldxvx(DisasContext *ctx, bool reversed,
+                             bool postinc, uint32_t strd2)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, Rc;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    Rc = extract32(ctx->opcode, 16, 5);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+    gen_load_gpr(t1, Rc);
+    tcg_gen_shli_tl(t1, t1, strd2);
+    tcg_gen_add_tl(t0, t0, t1);
+
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx,
+                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                        ctx->default_tcg_memop_mask);
+    gen_store_mxu_gpr(t1, XRa);
+
+    if (postinc) {
+        gen_store_gpr(t0, Rb);
+    }
+}
+
+/*
+ * S32STDV  XRa, Rb, Rc, STRD2 - Load a word from memory to XRF
+ * S32STDVR XRa, Rb, Rc, STRD2 - Load a word from memory to XRF
+ *   in reversed byte seq.
+ * S32SDIV  XRa, Rb, Rc, STRD2 - Load a word from memory to XRF,
+ *   post modify base address GPR.
+ * S32SDIVR XRa, Rb, Rc, STRD2 - Load a word from memory to XRF,
+ *   post modify base address GPR and store in reversed byte seq.
+ */
+static void gen_mxu_s32stxvx(DisasContext *ctx, bool reversed,
+                             bool postinc, uint32_t strd2)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, Rc;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    Rc = extract32(ctx->opcode, 16, 5);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+    gen_load_gpr(t1, Rc);
+    tcg_gen_shli_tl(t1, t1, strd2);
+    tcg_gen_add_tl(t0, t0, t1);
+
+    gen_load_mxu_gpr(t1, XRa);
+    tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx,
+                       (MO_TESL ^ (reversed ? MO_BSWAP : 0)) |
+                        ctx->default_tcg_memop_mask);
+
+    if (postinc) {
+        gen_store_gpr(t0, Rb);
+    }
+}
 
 /*
  *                 MXU instruction category: logic
@@ -1440,13 +1559,129 @@ static void decode_opc_mxu__pool00(DisasContext *ctx)
 
 static void decode_opc_mxu__pool04(DisasContext *ctx)
 {
-    uint32_t opcode = extract32(ctx->opcode, 20, 1);
+    uint32_t reversed = extract32(ctx->opcode, 20, 1);
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    /* Don't care about opcode bits as their meaning is unknown yet */
+    switch (opcode) {
+    default:
+        gen_mxu_s32ldxx(ctx, reversed, false);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool05(DisasContext *ctx)
+{
+    uint32_t reversed = extract32(ctx->opcode, 20, 1);
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    /* Don't care about opcode bits as their meaning is unknown yet */
+    switch (opcode) {
+    default:
+        gen_mxu_s32stxx(ctx, reversed, false);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool06(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+    uint32_t strd2  = extract32(ctx->opcode, 14, 2);
 
     switch (opcode) {
-    case OPC_MXU_S32LDD:
-    case OPC_MXU_S32LDDR:
-        gen_mxu_s32ldd_s32lddr(ctx);
+    case OPC_MXU_S32LDST:
+    case OPC_MXU_S32LDSTR:
+        if (strd2 <= 2) {
+            gen_mxu_s32ldxvx(ctx, opcode, false, strd2);
+            break;
+        }
+        /* fallthrough */
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
         break;
+    }
+}
+
+static void decode_opc_mxu__pool07(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+    uint32_t strd2  = extract32(ctx->opcode, 14, 2);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDST:
+    case OPC_MXU_S32LDSTR:
+        if (strd2 <= 2) {
+            gen_mxu_s32stxvx(ctx, opcode, false, strd2);
+            break;
+        }
+        /* fallthrough */
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool08(DisasContext *ctx)
+{
+    uint32_t reversed = extract32(ctx->opcode, 20, 1);
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    /* Don't care about opcode bits as their meaning is unknown yet */
+    switch (opcode) {
+    default:
+        gen_mxu_s32ldxx(ctx, reversed, true);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool09(DisasContext *ctx)
+{
+    uint32_t reversed = extract32(ctx->opcode, 20, 1);
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+
+    /* Don't care about opcode bits as their meaning is unknown yet */
+    switch (opcode) {
+    default:
+        gen_mxu_s32stxx(ctx, reversed, true);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool10(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+    uint32_t strd2  = extract32(ctx->opcode, 14, 2);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDST:
+    case OPC_MXU_S32LDSTR:
+        if (strd2 <= 2) {
+            gen_mxu_s32ldxvx(ctx, opcode, true, strd2);
+            break;
+        }
+        /* fallthrough */
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
+static void decode_opc_mxu__pool11(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 10, 4);
+    uint32_t strd2  = extract32(ctx->opcode, 14, 2);
+
+    switch (opcode) {
+    case OPC_MXU_S32LDST:
+    case OPC_MXU_S32LDSTR:
+        if (strd2 <= 2) {
+            gen_mxu_s32stxvx(ctx, opcode, true, strd2);
+            break;
+        }
+        /* fallthrough */
     default:
         MIPS_INVAL("decode_opc_mxu");
         gen_reserved_instruction(ctx);
@@ -1531,6 +1766,27 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL04:
             decode_opc_mxu__pool04(ctx);
+            break;
+        case OPC_MXU__POOL05:
+            decode_opc_mxu__pool05(ctx);
+            break;
+        case OPC_MXU__POOL06:
+            decode_opc_mxu__pool06(ctx);
+            break;
+        case OPC_MXU__POOL07:
+            decode_opc_mxu__pool07(ctx);
+            break;
+        case OPC_MXU__POOL08:
+            decode_opc_mxu__pool08(ctx);
+            break;
+        case OPC_MXU__POOL09:
+            decode_opc_mxu__pool09(ctx);
+            break;
+        case OPC_MXU__POOL10:
+            decode_opc_mxu__pool10(ctx);
+            break;
+        case OPC_MXU__POOL11:
+            decode_opc_mxu__pool11(ctx);
             break;
         case OPC_MXU_S8LDD:
             gen_mxu_s8ldd(ctx);
