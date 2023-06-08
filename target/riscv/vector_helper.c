@@ -388,7 +388,7 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
 
 /*
  * masked unit-stride load and store operation will be a special case of
- * stride, stride = NF * sizeof (MTYPE)
+ * stride, stride = NF * sizeof (ETYPE)
  */
 
 #define GEN_VEXT_LD_US(NAME, ETYPE, LOAD_FN)                            \
@@ -659,10 +659,6 @@ GEN_VEXT_LDFF(vle64ff_v, int64_t, lde_d)
 /* Signed min/max */
 #define DO_MAX(N, M)  ((N) >= (M) ? (N) : (M))
 #define DO_MIN(N, M)  ((N) >= (M) ? (M) : (N))
-
-/* Unsigned min/max */
-#define DO_MAXU(N, M) DO_MAX((UMTYPE)N, (UMTYPE)M)
-#define DO_MINU(N, M) DO_MIN((UMTYPE)N, (UMTYPE)M)
 
 /*
  * load and store whole register instructions
