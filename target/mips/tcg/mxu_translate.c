@@ -403,6 +403,7 @@ enum {
     OPC_MXU__POOL18  = 0x36,
     OPC_MXU_Q16SAR   = 0x37,
     OPC_MXU__POOL19  = 0x38,
+    OPC_MXU__POOL20  = 0x39,
 };
 
 
@@ -539,6 +540,18 @@ enum {
 enum {
     OPC_MXU_Q8MUL    = 0x00,
     OPC_MXU_Q8MULSU  = 0x01,
+};
+
+/*
+ * MXU pool 20
+ */
+enum {
+    OPC_MXU_Q8MOVZ   = 0x00,
+    OPC_MXU_Q8MOVN   = 0x01,
+    OPC_MXU_D16MOVZ  = 0x02,
+    OPC_MXU_D16MOVN  = 0x03,
+    OPC_MXU_S32MOVZ  = 0x04,
+    OPC_MXU_S32MOVN  = 0x05,
 };
 
 /* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
@@ -1993,6 +2006,8 @@ static void gen_mxu_q16sxxv(DisasContext *ctx, bool right, bool arithmetic)
  *                                           Q8SLTU
  *                                D16AVG     Q8AVG
  *                                D16AVGR    Q8AVGR
+ *                     S32MOVZ    D16MOVZ    Q8MOVZ
+ *                     S32MOVN    D16MOVN    Q8MOVN
  */
 
 /*
@@ -2491,6 +2506,146 @@ static void gen_mxu_q8avg(DisasContext *ctx, bool round45)
     }
 }
 
+/*
+ *  Q8MOVZ
+ *    Quadruple 8-bit packed conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb[0..3] == 0) { XRa[0..3] = XRc[0..3] }
+ *
+ *  Q8MOVN
+ *    Quadruple 8-bit packed conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb[0..3] != 0) { XRa[0..3] = XRc[0..3] }
+ */
+static void gen_mxu_q8movzn(DisasContext *ctx, TCGCond cond)
+{
+    uint32_t XRc, XRb, XRa;
+
+    XRa = extract32(ctx->opcode,  6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGLabel *l_quarterdone = gen_new_label();
+    TCGLabel *l_halfdone = gen_new_label();
+    TCGLabel *l_quarterrest = gen_new_label();
+    TCGLabel *l_done = gen_new_label();
+
+    gen_load_mxu_gpr(t0, XRc);
+    gen_load_mxu_gpr(t1, XRb);
+    gen_load_mxu_gpr(t2, XRa);
+
+    tcg_gen_extract_tl(t3, t1, 24, 8);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_quarterdone);
+    tcg_gen_extract_tl(t3, t0, 24, 8);
+    tcg_gen_deposit_tl(t2, t2, t3, 24, 8);
+
+    gen_set_label(l_quarterdone);
+    tcg_gen_extract_tl(t3, t1, 16, 8);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_halfdone);
+    tcg_gen_extract_tl(t3, t0, 16, 8);
+    tcg_gen_deposit_tl(t2, t2, t3, 16, 8);
+
+    gen_set_label(l_halfdone);
+    tcg_gen_extract_tl(t3, t1, 8, 8);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_quarterrest);
+    tcg_gen_extract_tl(t3, t0, 8, 8);
+    tcg_gen_deposit_tl(t2, t2, t3, 8, 8);
+
+    gen_set_label(l_quarterrest);
+    tcg_gen_extract_tl(t3, t1, 0, 8);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_done);
+    tcg_gen_extract_tl(t3, t0, 0, 8);
+    tcg_gen_deposit_tl(t2, t2, t3, 0, 8);
+
+    gen_set_label(l_done);
+    gen_store_mxu_gpr(t2, XRa);
+}
+
+/*
+ *  D16MOVZ
+ *    Double 16-bit packed conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb[0..1] == 0) { XRa[0..1] = XRc[0..1] }
+ *
+ *  D16MOVN
+ *    Double 16-bit packed conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb[0..3] != 0) { XRa[0..1] = XRc[0..1] }
+ */
+static void gen_mxu_d16movzn(DisasContext *ctx, TCGCond cond)
+{
+    uint32_t XRc, XRb, XRa;
+
+    XRa = extract32(ctx->opcode,  6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGLabel *l_halfdone = gen_new_label();
+    TCGLabel *l_done = gen_new_label();
+
+    gen_load_mxu_gpr(t0, XRc);
+    gen_load_mxu_gpr(t1, XRb);
+    gen_load_mxu_gpr(t2, XRa);
+
+    tcg_gen_extract_tl(t3, t1, 16, 16);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_halfdone);
+    tcg_gen_extract_tl(t3, t0, 16, 16);
+    tcg_gen_deposit_tl(t2, t2, t3, 16, 16);
+
+    gen_set_label(l_halfdone);
+    tcg_gen_extract_tl(t3, t1, 0, 16);
+    tcg_gen_brcondi_tl(cond, t3, 0, l_done);
+    tcg_gen_extract_tl(t3, t0, 0, 16);
+    tcg_gen_deposit_tl(t2, t2, t3, 0, 16);
+
+    gen_set_label(l_done);
+    gen_store_mxu_gpr(t2, XRa);
+}
+
+/*
+ *  S32MOVZ
+ *    Quadruple 32-bit conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb == 0) { XRa = XRc }
+ *
+ *  S32MOVN
+ *    Single 32-bit conditional move where
+ *    XRb contains conditions, XRc what to move and
+ *    XRa is the destination.
+ *    a.k.a. if (XRb != 0) { XRa = XRc }
+ */
+static void gen_mxu_s32movzn(DisasContext *ctx, TCGCond cond)
+{
+    uint32_t XRc, XRb, XRa;
+
+    XRa = extract32(ctx->opcode,  6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGLabel *l_done = gen_new_label();
+
+    gen_load_mxu_gpr(t0, XRc);
+    gen_load_mxu_gpr(t1, XRb);
+
+    tcg_gen_brcondi_tl(cond, t1, 0, l_done);
+    gen_store_mxu_gpr(t0, XRa);
+    gen_set_label(l_done);
+}
 
 /*
  *      MXU instruction category: Addition and subtraction
@@ -4407,6 +4562,36 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
     }
 }
 
+static void decode_opc_mxu__pool20(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_Q8MOVZ:
+        gen_mxu_q8movzn(ctx, TCG_COND_NE);
+        break;
+    case OPC_MXU_Q8MOVN:
+        gen_mxu_q8movzn(ctx, TCG_COND_EQ);
+        break;
+    case OPC_MXU_D16MOVZ:
+        gen_mxu_d16movzn(ctx, TCG_COND_NE);
+        break;
+    case OPC_MXU_D16MOVN:
+        gen_mxu_d16movzn(ctx, TCG_COND_EQ);
+        break;
+    case OPC_MXU_S32MOVZ:
+        gen_mxu_s32movzn(ctx, TCG_COND_NE);
+        break;
+    case OPC_MXU_S32MOVN:
+        gen_mxu_s32movzn(ctx, TCG_COND_EQ);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
@@ -4566,6 +4751,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
+            break;
+        case OPC_MXU__POOL20:
+            decode_opc_mxu__pool20(ctx);
             break;
         default:
             return false;
