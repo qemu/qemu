@@ -394,7 +394,10 @@ enum {
     OPC_MXU_S16SDI   = 0x2D,
     OPC_MXU_S32M2I   = 0x2E,
     OPC_MXU_S32I2M   = 0x2F,
+    OPC_MXU_D32SLL   = 0x30,
+    OPC_MXU_D32SLR   = 0x31,
     OPC_MXU_D32SARL  = 0x32,
+    OPC_MXU_D32SAR   = 0x33,
     OPC_MXU__POOL19  = 0x38,
 };
 
@@ -1700,6 +1703,49 @@ static void gen_mxu_S32XOR(DisasContext *ctx)
  *               Q16SLL    Q16SLR    Q16SAR
  *               Q16SLLV   Q16SLRV   Q16SARV
  */
+
+/*
+ *  D32SLL XRa, XRd, XRb, XRc, SFT4
+ *    Dual 32-bit shift left from XRb and XRc to SFT4
+ *    bits (0..15). Store to XRa and XRd respectively.
+ *  D32SLR XRa, XRd, XRb, XRc, SFT4
+ *    Dual 32-bit shift logic right from XRb and XRc
+ *    to SFT4 bits (0..15). Store to XRa and XRd respectively.
+ *  D32SAR XRa, XRd, XRb, XRc, SFT4
+ *    Dual 32-bit shift arithmetic right from XRb and XRc
+ *    to SFT4 bits (0..15). Store to XRa and XRd respectively.
+ */
+static void gen_mxu_d32sxx(DisasContext *ctx, bool right, bool arithmetic)
+{
+    uint32_t XRa, XRb, XRc, XRd, sft4;
+
+    XRa  = extract32(ctx->opcode,  6, 4);
+    XRb  = extract32(ctx->opcode, 10, 4);
+    XRc  = extract32(ctx->opcode, 14, 4);
+    XRd  = extract32(ctx->opcode, 18, 4);
+    sft4 = extract32(ctx->opcode, 22, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t1, XRc);
+
+    if (right) {
+        if (arithmetic) {
+            tcg_gen_sari_tl(t0, t0, sft4);
+            tcg_gen_sari_tl(t1, t1, sft4);
+        } else {
+            tcg_gen_shri_tl(t0, t0, sft4);
+            tcg_gen_shri_tl(t1, t1, sft4);
+        }
+    } else {
+        tcg_gen_shli_tl(t0, t0, sft4);
+        tcg_gen_shli_tl(t1, t1, sft4);
+    }
+    gen_store_mxu_gpr(t0, XRa);
+    gen_store_mxu_gpr(t1, XRd);
+}
 
 /*
  *  D32SARL XRa, XRb, XRc, SFT4
@@ -4270,8 +4316,17 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
         case OPC_MXU_S16SDI:
             gen_mxu_s16std(ctx, true);
             break;
+        case OPC_MXU_D32SLL:
+            gen_mxu_d32sxx(ctx, false, false);
+            break;
+        case OPC_MXU_D32SLR:
+            gen_mxu_d32sxx(ctx, true, false);
+            break;
         case OPC_MXU_D32SARL:
             gen_mxu_d32sarl(ctx, false);
+            break;
+        case OPC_MXU_D32SAR:
+            gen_mxu_d32sxx(ctx, true, true);
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
