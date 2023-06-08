@@ -248,3 +248,20 @@ int nbd_errno_to_system_errno(int err)
     }
     return ret;
 }
+
+
+const char *nbd_mode_lookup(NBDMode mode)
+{
+    switch (mode) {
+    case NBD_MODE_OLDSTYLE:
+        return "oldstyle";
+    case NBD_MODE_EXPORT_NAME:
+        return "export name only";
+    case NBD_MODE_SIMPLE:
+        return "simple headers";
+    case NBD_MODE_STRUCTURED:
+        return "structured replies";
+    default:
+        return "<unknown>";
+    }
+}

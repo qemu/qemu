@@ -53,6 +53,16 @@ typedef struct NBDOptionReplyMetaContext {
     /* metadata context name follows */
 } QEMU_PACKED NBDOptionReplyMetaContext;
 
+/* Track results of negotiation */
+typedef enum NBDMode {
+    /* Keep this list in a continuum of increasing features. */
+    NBD_MODE_OLDSTYLE,     /* server lacks newstyle negotiation */
+    NBD_MODE_EXPORT_NAME,  /* newstyle but only OPT_EXPORT_NAME safe */
+    NBD_MODE_SIMPLE,       /* newstyle but only simple replies */
+    NBD_MODE_STRUCTURED,   /* newstyle, structured replies enabled */
+    /* TODO add NBD_MODE_EXTENDED */
+} NBDMode;
+
 /* Transmission phase structs
  *
  * Note: these are _NOT_ the same as the network representation of an NBD
@@ -405,6 +415,7 @@ const char *nbd_rep_lookup(uint32_t rep);
 const char *nbd_info_lookup(uint16_t info);
 const char *nbd_cmd_lookup(uint16_t info);
 const char *nbd_err_lookup(int err);
+const char *nbd_mode_lookup(NBDMode mode);
 
 /* nbd/client-connection.c */
 void nbd_client_connection_enable_retry(NBDClientConnection *conn);
