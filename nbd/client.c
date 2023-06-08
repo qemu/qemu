@@ -650,19 +650,20 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
                                Error **errp)
 {
     int ret;
-    uint32_t export_len = strlen(export);
+    uint32_t export_len;
     uint32_t queries = !!query;
     uint32_t query_len = 0;
     uint32_t data_len;
     char *data;
     char *p;
 
+    assert(strnlen(export, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
+    export_len = strlen(export);
     data_len = sizeof(export_len) + export_len + sizeof(queries);
-    assert(export_len <= NBD_MAX_STRING_SIZE);
     if (query) {
+        assert(strnlen(query, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
         query_len = strlen(query);
         data_len += sizeof(query_len) + query_len;
-        assert(query_len <= NBD_MAX_STRING_SIZE);
     } else {
         assert(opt == NBD_OPT_LIST_META_CONTEXT);
     }
