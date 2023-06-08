@@ -1,3 +1,11 @@
+/* AUTHOR:       Matteo Vidali
+ * AUTHOR EMAIL: mvidali@iu.edu - mmvidali@gmail.com
+ *
+ * DESC:
+ * The header file for the corresponding hardware description file present
+ * in qemu315/hw/popcount/popcount.c
+*/
+
 #ifndef HW_POPCOUNT_H
 #define HW_POPCOUNT_H
 
@@ -14,7 +22,7 @@ struct popState
 {
     MemoryRegion reset;
     MemoryRegion mmio;
-    uint32_t write_reg;
+    uint32_t write_reg; // This is uncecessary, its unaccessable in userspace
     uint32_t bitcount;
 };
 
