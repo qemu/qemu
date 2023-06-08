@@ -1241,13 +1241,14 @@ static void gen_mxu_D16MAX_D16MIN(DisasContext *ctx)
         /* ...and do half-word-wise max/min with one operand 0 */
         TCGv_i32 t0 = tcg_temp_new();
         TCGv_i32 t1 = tcg_constant_i32(0);
+        TCGv_i32 t2 = tcg_temp_new();
 
         /* the left half-word first */
         tcg_gen_andi_i32(t0, mxu_gpr[XRx - 1], 0xFFFF0000);
         if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smax_i32(t2, t0, t1);
         } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smin_i32(t2, t0, t1);
         }
 
         /* the right half-word */
@@ -1263,7 +1264,7 @@ static void gen_mxu_D16MAX_D16MIN(DisasContext *ctx)
         /* return resulting half-words to its original position */
         tcg_gen_shri_i32(t0, t0, 16);
         /* finally update the destination */
-        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
+        tcg_gen_or_i32(mxu_gpr[XRa - 1], t2, t0);
     } else if (unlikely(XRb == XRc)) {
         /* both operands same -> just set destination to one of them */
         tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
@@ -1271,14 +1272,15 @@ static void gen_mxu_D16MAX_D16MIN(DisasContext *ctx)
         /* the most general case */
         TCGv_i32 t0 = tcg_temp_new();
         TCGv_i32 t1 = tcg_temp_new();
+        TCGv_i32 t2 = tcg_temp_new();
 
         /* the left half-word first */
         tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0xFFFF0000);
         tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFFFF0000);
         if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smax_i32(t2, t0, t1);
         } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smin_i32(t2, t0, t1);
         }
 
         /* the right half-word */
@@ -1296,7 +1298,7 @@ static void gen_mxu_D16MAX_D16MIN(DisasContext *ctx)
         /* return resulting half-words to its original position */
         tcg_gen_shri_i32(t0, t0, 16);
         /* finally update the destination */
-        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
+        tcg_gen_or_i32(mxu_gpr[XRa - 1], t2, t0);
     }
 }
 
@@ -1332,14 +1334,15 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
         /* ...and do byte-wise max/min with one operand 0 */
         TCGv_i32 t0 = tcg_temp_new();
         TCGv_i32 t1 = tcg_constant_i32(0);
+        TCGv_i32 t2 = tcg_temp_new();
         int32_t i;
 
         /* the leftmost byte (byte 3) first */
         tcg_gen_andi_i32(t0, mxu_gpr[XRx - 1], 0xFF000000);
         if (opc == OPC_MXU_Q8MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smax_i32(t2, t0, t1);
         } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smin_i32(t2, t0, t1);
         }
 
         /* bytes 2, 1, 0 */
@@ -1357,8 +1360,9 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
             /* return resulting byte to its original position */
             tcg_gen_shri_i32(t0, t0, 8 * (3 - i));
             /* finally update the destination */
-            tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
+            tcg_gen_or_i32(t2, t2, t0);
         }
+        gen_store_mxu_gpr(t2, XRa);
     } else if (unlikely(XRb == XRc)) {
         /* both operands same -> just set destination to one of them */
         tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
@@ -1366,15 +1370,16 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
         /* the most general case */
         TCGv_i32 t0 = tcg_temp_new();
         TCGv_i32 t1 = tcg_temp_new();
+        TCGv_i32 t2 = tcg_temp_new();
         int32_t i;
 
         /* the leftmost bytes (bytes 3) first */
         tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0xFF000000);
         tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFF000000);
         if (opc == OPC_MXU_Q8MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smax_i32(t2, t0, t1);
         } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
+            tcg_gen_smin_i32(t2, t0, t1);
         }
 
         /* bytes 2, 1, 0 */
@@ -1394,8 +1399,9 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
             /* return resulting byte to its original position */
             tcg_gen_shri_i32(t0, t0, 8 * (3 - i));
             /* finally update the destination */
-            tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
+            tcg_gen_or_i32(t2, t2, t0);
         }
+        gen_store_mxu_gpr(t2, XRa);
     }
 }
 
