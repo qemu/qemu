@@ -70,6 +70,11 @@ in a handful of namespaces
    repository CI settings, or as git push variables, to influence
    which jobs get run in a pipeline
 
+ * QEMU_CI_CONTAINER_TAG - the tag used to publish containers
+   in stage 1, for use by build jobs in stage 2. Defaults to
+   'latest', but if running pipelines for different branches
+   concurrently, it should be overridden per pipeline.
+
  * nnn - other misc variables not falling into the above
    categories, or using different names for historical reasons
    and not yet converted.

@@ -26,7 +26,7 @@ check-dco:
 check-python-minreqs:
   extends: .base_job_template
   stage: test
-  image: $CI_REGISTRY_IMAGE/qemu/python:latest
+  image: $CI_REGISTRY_IMAGE/qemu/python:$QEMU_CI_CONTAINER_TAG
   script:
     - make -C python check-minreqs
   variables:
@@ -37,7 +37,7 @@ check-python-minreqs:
 check-python-tox:
   extends: .base_job_template
   stage: test
-  image: $CI_REGISTRY_IMAGE/qemu/python:latest
+  image: $CI_REGISTRY_IMAGE/qemu/python:$QEMU_CI_CONTAINER_TAG
   script:
     - make -C python check-tox
   variables:

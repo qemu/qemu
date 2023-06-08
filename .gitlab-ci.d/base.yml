@@ -1,4 +1,10 @@
 
+variables:
+  # On stable branches this needs changing. Should also be
+  # overridden per pipeline if running pipelines concurrently
+  # for different branches in contributor forks.
+  QEMU_CI_CONTAINER_TAG: latest
+
 # The order of rules defined here is critically important.
 # They are evaluated in order and first match wins.
 #
