@@ -398,6 +398,9 @@ enum {
     OPC_MXU_D32SLR   = 0x31,
     OPC_MXU_D32SARL  = 0x32,
     OPC_MXU_D32SAR   = 0x33,
+    OPC_MXU_Q16SLL   = 0x34,
+    OPC_MXU_Q16SLR   = 0x35,
+    OPC_MXU_Q16SAR   = 0x37,
     OPC_MXU__POOL19  = 0x38,
 };
 
@@ -1787,6 +1790,72 @@ static void gen_mxu_d32sarl(DisasContext *ctx, bool sarw)
         tcg_gen_deposit_tl(t2, t2, t0, 16, 16);
         gen_store_mxu_gpr(t2, XRa);
     }
+}
+
+/*
+ *  Q16SLL XRa, XRd, XRb, XRc, SFT4
+ *    Quad 16-bit shift left from XRb and XRc to SFT4
+ *    bits (0..15). Store to XRa and XRd respectively.
+ *  Q16SLR XRa, XRd, XRb, XRc, SFT4
+ *    Quad 16-bit shift logic right from XRb and XRc
+ *    to SFT4 bits (0..15). Store to XRa and XRd respectively.
+ *  Q16SAR XRa, XRd, XRb, XRc, SFT4
+ *    Quad 16-bit shift arithmetic right from XRb and XRc
+ *    to SFT4 bits (0..15). Store to XRa and XRd respectively.
+ */
+static void gen_mxu_q16sxx(DisasContext *ctx, bool right, bool arithmetic)
+{
+    uint32_t XRa, XRb, XRc, XRd, sft4;
+
+    XRa  = extract32(ctx->opcode,  6, 4);
+    XRb  = extract32(ctx->opcode, 10, 4);
+    XRc  = extract32(ctx->opcode, 14, 4);
+    XRd  = extract32(ctx->opcode, 18, 4);
+    sft4 = extract32(ctx->opcode, 22, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t2, XRc);
+
+    if (arithmetic) {
+        tcg_gen_sextract_tl(t1, t0, 16, 16);
+        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_sextract_tl(t3, t2, 16, 16);
+        tcg_gen_sextract_tl(t2, t2,  0, 16);
+    } else {
+        tcg_gen_extract_tl(t1, t0, 16, 16);
+        tcg_gen_extract_tl(t0, t0,  0, 16);
+        tcg_gen_extract_tl(t3, t2, 16, 16);
+        tcg_gen_extract_tl(t2, t2,  0, 16);
+    }
+
+    if (right) {
+        if (arithmetic) {
+            tcg_gen_sari_tl(t0, t0, sft4);
+            tcg_gen_sari_tl(t1, t1, sft4);
+            tcg_gen_sari_tl(t2, t2, sft4);
+            tcg_gen_sari_tl(t3, t3, sft4);
+        } else {
+            tcg_gen_shri_tl(t0, t0, sft4);
+            tcg_gen_shri_tl(t1, t1, sft4);
+            tcg_gen_shri_tl(t2, t2, sft4);
+            tcg_gen_shri_tl(t3, t3, sft4);
+        }
+    } else {
+        tcg_gen_shli_tl(t0, t0, sft4);
+        tcg_gen_shli_tl(t1, t1, sft4);
+        tcg_gen_shli_tl(t2, t2, sft4);
+        tcg_gen_shli_tl(t3, t3, sft4);
+    }
+    tcg_gen_deposit_tl(t0, t0, t1, 16, 16);
+    tcg_gen_deposit_tl(t2, t2, t3, 16, 16);
+
+    gen_store_mxu_gpr(t0, XRa);
+    gen_store_mxu_gpr(t2, XRd);
 }
 
 /*
@@ -4327,6 +4396,15 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_D32SAR:
             gen_mxu_d32sxx(ctx, true, true);
+            break;
+        case OPC_MXU_Q16SLL:
+            gen_mxu_q16sxx(ctx, false, false);
+            break;
+        case OPC_MXU_Q16SLR:
+            gen_mxu_q16sxx(ctx, true, false);
+            break;
+        case OPC_MXU_Q16SAR:
+            gen_mxu_q16sxx(ctx, true, true);
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
