@@ -353,7 +353,11 @@
  */
 
 enum {
+    OPC_MXU_S32MADD  = 0x00,
+    OPC_MXU_S32MADDU = 0x01,
     OPC_MXU__POOL00  = 0x03,
+    OPC_MXU_S32MSUB  = 0x04,
+    OPC_MXU_S32MSUBU = 0x05,
     OPC_MXU_D16MUL   = 0x08,
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU__POOL04  = 0x10,
@@ -1571,6 +1575,70 @@ static void gen_mxu_S32ALNI(DisasContext *ctx)
     }
 }
 
+/*
+ *  S32MADD XRa, XRd, rb, rc
+ *    32 to 64 bit signed multiply with subsequent add
+ *    result stored in {XRa, XRd} pair, stain HI/LO.
+ *  S32MADDU XRa, XRd, rb, rc
+ *    32 to 64 bit unsigned multiply with subsequent add
+ *    result stored in {XRa, XRd} pair, stain HI/LO.
+ *  S32MSUB XRa, XRd, rb, rc
+ *    32 to 64 bit signed multiply with subsequent subtract
+ *    result stored in {XRa, XRd} pair, stain HI/LO.
+ *  S32MSUBU XRa, XRd, rb, rc
+ *    32 to 64 bit unsigned multiply with subsequent subtract
+ *    result stored in {XRa, XRd} pair, stain HI/LO.
+ */
+static void gen_mxu_s32madd_sub(DisasContext *ctx, bool sub, bool uns)
+{
+    uint32_t XRa, XRd, Rb, Rc;
+
+    XRa  = extract32(ctx->opcode,  6, 4);
+    XRd  = extract32(ctx->opcode, 10, 4);
+    Rb   = extract32(ctx->opcode, 16, 5);
+    Rc   = extract32(ctx->opcode, 21, 5);
+
+    if (unlikely(Rb == 0 || Rc == 0)) {
+        /* do nothing because x + 0 * y => x */
+    } else if (unlikely(XRa == 0 && XRd == 0)) {
+        /* do nothing because result just dropped */
+    } else {
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+        TCGv_i64 t2 = tcg_temp_new_i64();
+        TCGv_i64 t3 = tcg_temp_new_i64();
+
+        gen_load_gpr(t0, Rb);
+        gen_load_gpr(t1, Rc);
+
+        if (uns) {
+            tcg_gen_extu_tl_i64(t2, t0);
+            tcg_gen_extu_tl_i64(t3, t1);
+        } else {
+            tcg_gen_ext_tl_i64(t2, t0);
+            tcg_gen_ext_tl_i64(t3, t1);
+        }
+        tcg_gen_mul_i64(t2, t2, t3);
+
+        gen_load_mxu_gpr(t0, XRa);
+        gen_load_mxu_gpr(t1, XRd);
+
+        tcg_gen_concat_tl_i64(t3, t1, t0);
+        if (sub) {
+            tcg_gen_sub_i64(t3, t3, t2);
+        } else {
+            tcg_gen_add_i64(t3, t3, t2);
+        }
+        gen_move_low32(t1, t3);
+        gen_move_high32(t0, t3);
+
+        tcg_gen_mov_tl(cpu_HI[0], t0);
+        tcg_gen_mov_tl(cpu_LO[0], t1);
+
+        gen_store_mxu_gpr(t1, XRd);
+        gen_store_mxu_gpr(t0, XRa);
+    }
+}
 
 /*
  * Decoding engine for MXU
@@ -1599,6 +1667,35 @@ static void decode_opc_mxu__pool00(DisasContext *ctx)
         gen_reserved_instruction(ctx);
         break;
     }
+}
+
+static bool decode_opc_mxu_s32madd_sub(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 0, 6);
+    uint32_t pad  = extract32(ctx->opcode, 14, 2);
+
+    if (pad != 2) {
+        /* MIPS32R1 MADD/MADDU/MSUB/MSUBU are on pad == 0 */
+        return false;
+    }
+
+    switch (opcode) {
+    case OPC_MXU_S32MADD:
+        gen_mxu_s32madd_sub(ctx, false, false);
+        break;
+    case OPC_MXU_S32MADDU:
+        gen_mxu_s32madd_sub(ctx, false, true);
+        break;
+    case OPC_MXU_S32MSUB:
+        gen_mxu_s32madd_sub(ctx, true, false);
+        break;
+    case OPC_MXU_S32MSUBU:
+        gen_mxu_s32madd_sub(ctx, true, true);
+        break;
+    default:
+        return false;
+    }
+    return true;
 }
 
 static void decode_opc_mxu__pool04(DisasContext *ctx)
@@ -1833,6 +1930,11 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
         tcg_gen_brcondi_tl(TCG_COND_NE, t_mxu_cr, MXU_CR_MXU_EN, l_exit);
 
         switch (opcode) {
+        case OPC_MXU_S32MADD:
+        case OPC_MXU_S32MADDU:
+        case OPC_MXU_S32MSUB:
+        case OPC_MXU_S32MSUBU:
+            return decode_opc_mxu_s32madd_sub(ctx);
         case OPC_MXU__POOL00:
             decode_opc_mxu__pool00(ctx);
             break;
@@ -1879,8 +1981,7 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             decode_opc_mxu__pool19(ctx);
             break;
         default:
-            MIPS_INVAL("decode_opc_mxu");
-            gen_reserved_instruction(ctx);
+            return false;
         }
 
         gen_set_label(l_exit);

@@ -14644,12 +14644,9 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
 #endif
         if (TARGET_LONG_BITS == 32 && (ctx->insn_flags & ASE_MXU)) {
-            if (MASK_SPECIAL2(ctx->opcode) == OPC_MUL) {
-                gen_arith(ctx, OPC_MUL, rd, rs, rt);
-            } else {
-                decode_ase_mxu(ctx, ctx->opcode);
+            if (decode_ase_mxu(ctx, ctx->opcode)) {
+                break;
             }
-            break;
         }
         decode_opc_special2_legacy(env, ctx);
         break;
