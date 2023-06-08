@@ -408,6 +408,7 @@ enum {
     OPC_MXU_Q16SCOP  = 0x3B,
     OPC_MXU_Q8MADL   = 0x3C,
     OPC_MXU_S32SFL   = 0x3D,
+    OPC_MXU_Q8SAD    = 0x3E,
 };
 
 
@@ -4040,6 +4041,47 @@ static void gen_mxu_s32sfl(DisasContext *ctx)
 }
 
 /*
+ *  Q8SAD XRa, XRd, XRb, XRc
+ *    Typical SAD opration for motion estimation.
+ */
+static void gen_mxu_q8sad(DisasContext *ctx)
+{
+    uint32_t XRd, XRc, XRb, XRa;
+
+    XRd = extract32(ctx->opcode, 18, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGv t4 = tcg_temp_new();
+    TCGv t5 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t2, XRb);
+    gen_load_mxu_gpr(t3, XRc);
+    gen_load_mxu_gpr(t5, XRd);
+    tcg_gen_movi_tl(t4, 0);
+
+    for (int i = 0; i < 4; i++) {
+        tcg_gen_andi_tl(t0, t2, 0xff);
+        tcg_gen_andi_tl(t1, t3, 0xff);
+        tcg_gen_sub_tl(t0, t0, t1);
+        tcg_gen_abs_tl(t0, t0);
+        tcg_gen_add_tl(t4, t4, t0);
+        if (i < 3) {
+            tcg_gen_shri_tl(t2, t2, 8);
+            tcg_gen_shri_tl(t3, t3, 8);
+        }
+    }
+    tcg_gen_add_tl(t5, t5, t4);
+    gen_store_mxu_gpr(t4, XRa);
+    gen_store_mxu_gpr(t5, XRd);
+}
+
+/*
  *                 MXU instruction category: align
  *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -5039,6 +5081,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_S32SFL:
             gen_mxu_s32sfl(ctx);
+            break;
+        case OPC_MXU_Q8SAD:
+            gen_mxu_q8sad(ctx);
             break;
         default:
             return false;
