@@ -75,6 +75,12 @@ in a handful of namespaces
    'latest', but if running pipelines for different branches
    concurrently, it should be overridden per pipeline.
 
+ * QEMU_CI_UPSTREAM - gitlab namespace that is considered to be
+   the 'upstream'. This defaults to 'qemu-project'. Contributors
+   may choose to override this if they are modifying rules in
+   base.yml and need to validate how they will operate when in
+   an upstream context, as opposed to their fork context.
+
  * nnn - other misc variables not falling into the above
    categories, or using different names for historical reasons
    and not yet converted.
