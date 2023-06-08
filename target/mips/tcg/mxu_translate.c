@@ -387,6 +387,8 @@ enum {
     OPC_MXU_D16MIN   = 0x03,
     OPC_MXU_Q8MAX    = 0x04,
     OPC_MXU_Q8MIN    = 0x05,
+    OPC_MXU_Q8SLT    = 0x06,
+    OPC_MXU_Q8SLTU   = 0x07,
 };
 
 /*
@@ -1397,6 +1399,63 @@ static void gen_mxu_Q8MAX_Q8MIN(DisasContext *ctx)
     }
 }
 
+/*
+ *  Q8SLT
+ *    Update XRa with the signed "set less than" comparison of XRb and XRc
+ *    on per-byte basis.
+ *    a.k.a. XRa[0..3] = XRb[0..3] < XRc[0..3] ? 1 : 0;
+ *
+ *  Q8SLTU
+ *    Update XRa with the unsigned "set less than" comparison of XRb and XRc
+ *    on per-byte basis.
+ *    a.k.a. XRa[0..3] = XRb[0..3] < XRc[0..3] ? 1 : 0;
+ */
+static void gen_mxu_q8slt(DisasContext *ctx, bool sltu)
+{
+    uint32_t pad, XRc, XRb, XRa;
+
+    pad = extract32(ctx->opcode, 21, 5);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRa = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to zero */
+        tcg_gen_movi_tl(mxu_gpr[XRa - 1], 0);
+    } else if (unlikely(XRb == XRc)) {
+        /* both operands same registers -> just set destination to zero */
+        tcg_gen_movi_tl(mxu_gpr[XRa - 1], 0);
+    } else {
+        /* the most general case */
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+        TCGv t2 = tcg_temp_new();
+        TCGv t3 = tcg_temp_new();
+        TCGv t4 = tcg_temp_new();
+
+        gen_load_mxu_gpr(t3, XRb);
+        gen_load_mxu_gpr(t4, XRc);
+        tcg_gen_movi_tl(t2, 0);
+
+        for (int i = 0; i < 4; i++) {
+            if (sltu) {
+                tcg_gen_extract_tl(t0, t3, 8 * i, 8);
+                tcg_gen_extract_tl(t1, t4, 8 * i, 8);
+            } else {
+                tcg_gen_sextract_tl(t0, t3, 8 * i, 8);
+                tcg_gen_sextract_tl(t1, t4, 8 * i, 8);
+            }
+            tcg_gen_setcond_tl(TCG_COND_LT, t0, t0, t1);
+            tcg_gen_deposit_tl(t2, t2, t0, 8 * i, 8);
+        }
+        gen_store_mxu_gpr(t2, XRa);
+    }
+}
+
 
 /*
  *                 MXU instruction category: align
@@ -1661,6 +1720,12 @@ static void decode_opc_mxu__pool00(DisasContext *ctx)
     case OPC_MXU_Q8MAX:
     case OPC_MXU_Q8MIN:
         gen_mxu_Q8MAX_Q8MIN(ctx);
+        break;
+    case OPC_MXU_Q8SLT:
+        gen_mxu_q8slt(ctx, false);
+        break;
+    case OPC_MXU_Q8SLTU:
+        gen_mxu_q8slt(ctx, true);
         break;
     default:
         MIPS_INVAL("decode_opc_mxu");
