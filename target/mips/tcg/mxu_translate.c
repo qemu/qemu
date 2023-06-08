@@ -405,6 +405,7 @@ enum {
     OPC_MXU__POOL19  = 0x38,
     OPC_MXU__POOL20  = 0x39,
     OPC_MXU__POOL21  = 0x3A,
+    OPC_MXU_Q16SCOP  = 0x3B,
 };
 
 
@@ -3539,6 +3540,7 @@ static void gen_mxu_d32asum(DisasContext *ctx)
  *               S32EXTR      S32LUI
  *               S32EXTRV
  *                            Q16SAT
+ *                            Q16SCOP
  */
 
 /*
@@ -3806,6 +3808,86 @@ static void gen_mxu_Q16SAT(DisasContext *ctx)
     }
 }
 
+/*
+ *  Q16SCOP XRa, XRd, XRb, XRc
+ *    Determine sign of quad packed 16-bit signed values
+ *    in XRb and XRc put result in XRa and XRd respectively.
+ */
+static void gen_mxu_q16scop(DisasContext *ctx)
+{
+    uint32_t XRd, XRc, XRb, XRa;
+
+    XRd  = extract32(ctx->opcode, 18, 4);
+    XRc  = extract32(ctx->opcode, 14, 4);
+    XRb  = extract32(ctx->opcode, 10, 4);
+    XRa  = extract32(ctx->opcode,  6, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGv t4 = tcg_temp_new();
+
+    TCGLabel *l_b_hi_lt = gen_new_label();
+    TCGLabel *l_b_hi_gt = gen_new_label();
+    TCGLabel *l_b_lo = gen_new_label();
+    TCGLabel *l_b_lo_lt = gen_new_label();
+    TCGLabel *l_c_hi = gen_new_label();
+    TCGLabel *l_c_hi_lt = gen_new_label();
+    TCGLabel *l_c_hi_gt = gen_new_label();
+    TCGLabel *l_c_lo = gen_new_label();
+    TCGLabel *l_c_lo_lt = gen_new_label();
+    TCGLabel *l_done = gen_new_label();
+
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t1, XRc);
+
+    tcg_gen_sextract_tl(t2, t0, 16, 16);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_b_hi_lt);
+    tcg_gen_brcondi_tl(TCG_COND_GT, t2, 0, l_b_hi_gt);
+    tcg_gen_movi_tl(t3, 0);
+    tcg_gen_br(l_b_lo);
+    gen_set_label(l_b_hi_lt);
+    tcg_gen_movi_tl(t3, 0xffff0000);
+    tcg_gen_br(l_b_lo);
+    gen_set_label(l_b_hi_gt);
+    tcg_gen_movi_tl(t3, 0x00010000);
+
+    gen_set_label(l_b_lo);
+    tcg_gen_sextract_tl(t2, t0, 0, 16);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l_c_hi);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_b_lo_lt);
+    tcg_gen_ori_tl(t3, t3, 0x00000001);
+    tcg_gen_br(l_c_hi);
+    gen_set_label(l_b_lo_lt);
+    tcg_gen_ori_tl(t3, t3, 0x0000ffff);
+    tcg_gen_br(l_c_hi);
+
+    gen_set_label(l_c_hi);
+    tcg_gen_sextract_tl(t2, t1, 16, 16);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_c_hi_lt);
+    tcg_gen_brcondi_tl(TCG_COND_GT, t2, 0, l_c_hi_gt);
+    tcg_gen_movi_tl(t4, 0);
+    tcg_gen_br(l_c_lo);
+    gen_set_label(l_c_hi_lt);
+    tcg_gen_movi_tl(t4, 0xffff0000);
+    tcg_gen_br(l_c_lo);
+    gen_set_label(l_c_hi_gt);
+    tcg_gen_movi_tl(t4, 0x00010000);
+
+    gen_set_label(l_c_lo);
+    tcg_gen_sextract_tl(t2, t1, 0, 16);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, l_done);
+    tcg_gen_brcondi_tl(TCG_COND_LT, t2, 0, l_c_lo_lt);
+    tcg_gen_ori_tl(t4, t4, 0x00000001);
+    tcg_gen_br(l_done);
+    gen_set_label(l_c_lo_lt);
+    tcg_gen_ori_tl(t4, t4, 0x0000ffff);
+
+    gen_set_label(l_done);
+    gen_store_mxu_gpr(t3, XRa);
+    gen_store_mxu_gpr(t4, XRd);
+}
 
 /*
  *                 MXU instruction category: align
@@ -4798,6 +4880,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL21:
             decode_opc_mxu__pool21(ctx);
+            break;
+        case OPC_MXU_Q16SCOP:
+            gen_mxu_q16scop(ctx);
             break;
         default:
             return false;
