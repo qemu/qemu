@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2022 Red Hat, Inc.
+ *  Copyright Red Hat
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -1906,16 +1906,36 @@ static int coroutine_fn nbd_co_send_simple_reply(NBDClient *client,
         {.iov_base = data, .iov_len = len}
     };
 
+    assert(!len || !nbd_err);
     trace_nbd_co_send_simple_reply(handle, nbd_err, nbd_err_lookup(nbd_err),
                                    len);
     set_be_simple_reply(&reply, nbd_err, handle);
 
-    return nbd_co_send_iov(client, iov, len ? 2 : 1, errp);
+    return nbd_co_send_iov(client, iov, 2, errp);
 }
 
-static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
-                                uint16_t type, uint64_t handle, uint32_t length)
+/*
+ * Prepare the header of a reply chunk for network transmission.
+ *
+ * On input, @iov is partially initialized: iov[0].iov_base must point
+ * to an uninitialized NBDReply, while the remaining @niov elements
+ * (if any) must be ready for transmission.  This function then
+ * populates iov[0] for transmission.
+ */
+static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
+                                size_t niov, uint16_t flags, uint16_t type,
+                                uint64_t handle)
 {
+    /* TODO - handle structured vs. extended replies */
+    NBDStructuredReplyChunk *chunk = iov->iov_base;
+    size_t i, length = 0;
+
+    for (i = 1; i < niov; i++) {
+        length += iov[i].iov_len;
+    }
+    assert(length <= NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData));
+
+    iov[0].iov_len = sizeof(*chunk);
     stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
     stw_be_p(&chunk->flags, flags);
     stw_be_p(&chunk->type, type);
@@ -1923,67 +1943,71 @@ static inline void set_be_chunk(NBDStructuredReplyChunk *chunk, uint16_t flags,
     stl_be_p(&chunk->length, length);
 }
 
-static int coroutine_fn nbd_co_send_structured_done(NBDClient *client,
-                                                    uint64_t handle,
-                                                    Error **errp)
+static int coroutine_fn nbd_co_send_chunk_done(NBDClient *client,
+                                               uint64_t handle,
+                                               Error **errp)
 {
-    NBDStructuredReplyChunk chunk;
+    NBDReply hdr;
     struct iovec iov[] = {
-        {.iov_base = &chunk, .iov_len = sizeof(chunk)},
+        {.iov_base = &hdr},
     };
 
-    trace_nbd_co_send_structured_done(handle);
-    set_be_chunk(&chunk, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_NONE, handle, 0);
+    trace_nbd_co_send_chunk_done(handle);
+    set_be_chunk(client, iov, 1, NBD_REPLY_FLAG_DONE,
+                 NBD_REPLY_TYPE_NONE, handle);
 
     return nbd_co_send_iov(client, iov, 1, errp);
 }
 
-static int coroutine_fn nbd_co_send_structured_read(NBDClient *client,
-                                                    uint64_t handle,
-                                                    uint64_t offset,
-                                                    void *data,
-                                                    size_t size,
-                                                    bool final,
-                                                    Error **errp)
+static int coroutine_fn nbd_co_send_chunk_read(NBDClient *client,
+                                               uint64_t handle,
+                                               uint64_t offset,
+                                               void *data,
+                                               size_t size,
+                                               bool final,
+                                               Error **errp)
 {
+    NBDReply hdr;
     NBDStructuredReadData chunk;
     struct iovec iov[] = {
+        {.iov_base = &hdr},
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
         {.iov_base = data, .iov_len = size}
     };
 
     assert(size);
-    trace_nbd_co_send_structured_read(handle, offset, data, size);
-    set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
-                 NBD_REPLY_TYPE_OFFSET_DATA, handle,
-                 sizeof(chunk) - sizeof(chunk.h) + size);
+    trace_nbd_co_send_chunk_read(handle, offset, data, size);
+    set_be_chunk(client, iov, 3, final ? NBD_REPLY_FLAG_DONE : 0,
+                 NBD_REPLY_TYPE_OFFSET_DATA, handle);
     stq_be_p(&chunk.offset, offset);
 
-    return nbd_co_send_iov(client, iov, 2, errp);
+    return nbd_co_send_iov(client, iov, 3, errp);
 }
 
-static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
-                                                     uint64_t handle,
-                                                     uint32_t error,
-                                                     const char *msg,
-                                                     Error **errp)
+static int coroutine_fn nbd_co_send_chunk_error(NBDClient *client,
+                                                uint64_t handle,
+                                                uint32_t error,
+                                                const char *msg,
+                                                Error **errp)
 {
+    NBDReply hdr;
     NBDStructuredError chunk;
     int nbd_err = system_errno_to_nbd_errno(error);
     struct iovec iov[] = {
+        {.iov_base = &hdr},
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
         {.iov_base = (char *)msg, .iov_len = msg ? strlen(msg) : 0},
     };
 
     assert(nbd_err);
-    trace_nbd_co_send_structured_error(handle, nbd_err,
-                                       nbd_err_lookup(nbd_err), msg ? msg : "");
-    set_be_chunk(&chunk.h, NBD_REPLY_FLAG_DONE, NBD_REPLY_TYPE_ERROR, handle,
-                 sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    trace_nbd_co_send_chunk_error(handle, nbd_err,
+                                  nbd_err_lookup(nbd_err), msg ? msg : "");
+    set_be_chunk(client, iov, 3, NBD_REPLY_FLAG_DONE,
+                 NBD_REPLY_TYPE_ERROR, handle);
     stl_be_p(&chunk.error, nbd_err);
-    stw_be_p(&chunk.message_length, iov[1].iov_len);
+    stw_be_p(&chunk.message_length, iov[2].iov_len);
 
-    return nbd_co_send_iov(client, iov, 1 + !!iov[1].iov_len, errp);
+    return nbd_co_send_iov(client, iov, 3, errp);
 }
 
 /* Do a sparse read and send the structured reply to the client.
@@ -2013,27 +2037,27 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             char *msg = g_strdup_printf("unable to check for holes: %s",
                                         strerror(-status));
 
-            ret = nbd_co_send_structured_error(client, handle, -status, msg,
-                                               errp);
+            ret = nbd_co_send_chunk_error(client, handle, -status, msg, errp);
             g_free(msg);
             return ret;
         }
         assert(pnum && pnum <= size - progress);
         final = progress + pnum == size;
         if (status & BDRV_BLOCK_ZERO) {
+            NBDReply hdr;
             NBDStructuredReadHole chunk;
             struct iovec iov[] = {
+                {.iov_base = &hdr},
                 {.iov_base = &chunk, .iov_len = sizeof(chunk)},
             };
 
-            trace_nbd_co_send_structured_read_hole(handle, offset + progress,
-                                                   pnum);
-            set_be_chunk(&chunk.h, final ? NBD_REPLY_FLAG_DONE : 0,
-                         NBD_REPLY_TYPE_OFFSET_HOLE,
-                         handle, sizeof(chunk) - sizeof(chunk.h));
+            trace_nbd_co_send_chunk_read_hole(handle, offset + progress, pnum);
+            set_be_chunk(client, iov, 2,
+                         final ? NBD_REPLY_FLAG_DONE : 0,
+                         NBD_REPLY_TYPE_OFFSET_HOLE, handle);
             stq_be_p(&chunk.offset, offset + progress);
             stl_be_p(&chunk.length, pnum);
-            ret = nbd_co_send_iov(client, iov, 1, errp);
+            ret = nbd_co_send_iov(client, iov, 2, errp);
         } else {
             ret = blk_co_pread(exp->common.blk, offset + progress, pnum,
                                data + progress, 0);
@@ -2041,9 +2065,8 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
                 error_setg_errno(errp, -ret, "reading from file failed");
                 break;
             }
-            ret = nbd_co_send_structured_read(client, handle, offset + progress,
-                                              data + progress, pnum, final,
-                                              errp);
+            ret = nbd_co_send_chunk_read(client, handle, offset + progress,
+                                         data + progress, pnum, final, errp);
         }
 
         if (ret < 0) {
@@ -2199,8 +2222,10 @@ static int coroutine_fn
 nbd_co_send_extents(NBDClient *client, uint64_t handle, NBDExtentArray *ea,
                     bool last, uint32_t context_id, Error **errp)
 {
+    NBDReply hdr;
     NBDStructuredMeta chunk;
     struct iovec iov[] = {
+        {.iov_base = &hdr},
         {.iov_base = &chunk, .iov_len = sizeof(chunk)},
         {.iov_base = ea->extents, .iov_len = ea->count * sizeof(ea->extents[0])}
     };
@@ -2209,12 +2234,11 @@ nbd_co_send_extents(NBDClient *client, uint64_t handle, NBDExtentArray *ea,
 
     trace_nbd_co_send_extents(handle, ea->count, context_id, ea->total_length,
                               last);
-    set_be_chunk(&chunk.h, last ? NBD_REPLY_FLAG_DONE : 0,
-                 NBD_REPLY_TYPE_BLOCK_STATUS,
-                 handle, sizeof(chunk) - sizeof(chunk.h) + iov[1].iov_len);
+    set_be_chunk(client, iov, 3, last ? NBD_REPLY_FLAG_DONE : 0,
+                 NBD_REPLY_TYPE_BLOCK_STATUS, handle);
     stl_be_p(&chunk.context_id, context_id);
 
-    return nbd_co_send_iov(client, iov, 2, errp);
+    return nbd_co_send_iov(client, iov, 3, errp);
 }
 
 /* Get block status from the exported device and send it to the client */
@@ -2235,8 +2259,8 @@ coroutine_fn nbd_co_send_block_status(NBDClient *client, uint64_t handle,
         ret = blockalloc_to_extents(blk, offset, length, ea);
     }
     if (ret < 0) {
-        return nbd_co_send_structured_error(
-                client, handle, -ret, "can't get block status", errp);
+        return nbd_co_send_chunk_error(client, handle, -ret,
+                                       "can't get block status", errp);
     }
 
     return nbd_co_send_extents(client, handle, ea, last, context_id, errp);
@@ -2408,8 +2432,7 @@ static coroutine_fn int nbd_send_generic_reply(NBDClient *client,
                                                Error **errp)
 {
     if (client->structured_reply && ret < 0) {
-        return nbd_co_send_structured_error(client, handle, -ret, error_msg,
-                                            errp);
+        return nbd_co_send_chunk_error(client, handle, -ret, error_msg, errp);
     } else {
         return nbd_co_send_simple_reply(client, handle, ret < 0 ? -ret : 0,
                                         NULL, 0, errp);
@@ -2451,11 +2474,11 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
 
     if (client->structured_reply) {
         if (request->len) {
-            return nbd_co_send_structured_read(client, request->handle,
-                                               request->from, data,
-                                               request->len, true, errp);
+            return nbd_co_send_chunk_read(client, request->handle,
+                                          request->from, data,
+                                          request->len, true, errp);
         } else {
-            return nbd_co_send_structured_done(client, request->handle, errp);
+            return nbd_co_send_chunk_done(client, request->handle, errp);
         }
     } else {
         return nbd_co_send_simple_reply(client, request->handle, 0,
