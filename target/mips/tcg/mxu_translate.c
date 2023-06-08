@@ -402,6 +402,7 @@ enum {
     OPC_MXU_D16AVGR  = 0x03,
     OPC_MXU_Q8AVG    = 0x04,
     OPC_MXU_Q8AVGR   = 0x05,
+    OPC_MXU_Q8ADD    = 0x07,
 };
 
 /*
@@ -1674,6 +1675,79 @@ static void gen_mxu_q8avg(DisasContext *ctx, bool round45)
 
 
 /*
+ *                 MXU instruction category: Arithmetic
+ *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *                       Q8ADD
+ */
+
+/*
+ *  Q8ADD XRa, XRb, XRc, ptn2
+ *  Add/subtract quadruple of 8-bit packed in XRb
+ *  to another one in XRc, put the result in XRa.
+ */
+static void gen_mxu_Q8ADD(DisasContext *ctx)
+{
+    uint32_t aptn2, pad, XRc, XRb, XRa;
+
+    aptn2 = extract32(ctx->opcode, 24, 2);
+    pad   = extract32(ctx->opcode, 21, 3);
+    XRc   = extract32(ctx->opcode, 14, 4);
+    XRb   = extract32(ctx->opcode, 10, 4);
+    XRa   = extract32(ctx->opcode,  6, 4);
+
+    if (unlikely(pad != 0)) {
+        /* opcode padding incorrect -> do nothing */
+    } else if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else if (unlikely((XRb == 0) && (XRc == 0))) {
+        /* both operands zero registers -> just set destination to zero */
+        tcg_gen_movi_i32(mxu_gpr[XRa - 1], 0);
+    } else {
+        /* the most general case */
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+        TCGv t2 = tcg_temp_new();
+        TCGv t3 = tcg_temp_new();
+        TCGv t4 = tcg_temp_new();
+
+        gen_load_mxu_gpr(t3, XRb);
+        gen_load_mxu_gpr(t4, XRc);
+
+        for (int i = 0; i < 4; i++) {
+            tcg_gen_andi_tl(t0, t3, 0xff);
+            tcg_gen_andi_tl(t1, t4, 0xff);
+
+            if (i < 2) {
+                if (aptn2 & 0x01) {
+                    tcg_gen_sub_tl(t0, t0, t1);
+                } else {
+                    tcg_gen_add_tl(t0, t0, t1);
+                }
+            } else {
+                if (aptn2 & 0x02) {
+                    tcg_gen_sub_tl(t0, t0, t1);
+                } else {
+                    tcg_gen_add_tl(t0, t0, t1);
+                }
+            }
+            if (i < 3) {
+                tcg_gen_shri_tl(t3, t3, 8);
+                tcg_gen_shri_tl(t4, t4, 8);
+            }
+            if (i > 0) {
+                tcg_gen_deposit_tl(t2, t2, t0, 8 * i, 8);
+            } else {
+                tcg_gen_andi_tl(t0, t0, 0xff);
+                tcg_gen_mov_tl(t2, t0);
+            }
+        }
+        gen_store_mxu_gpr(t2, XRa);
+    }
+}
+
+
+/*
  *                 MXU instruction category: align
  *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -2001,6 +2075,9 @@ static void decode_opc_mxu__pool01(DisasContext *ctx)
         break;
     case OPC_MXU_Q8AVGR:
         gen_mxu_q8avg(ctx, true);
+        break;
+    case OPC_MXU_Q8ADD:
+        gen_mxu_Q8ADD(ctx);
         break;
     default:
         MIPS_INVAL("decode_opc_mxu");
