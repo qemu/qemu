@@ -406,6 +406,7 @@ enum {
     OPC_MXU__POOL20  = 0x39,
     OPC_MXU__POOL21  = 0x3A,
     OPC_MXU_Q16SCOP  = 0x3B,
+    OPC_MXU_Q8MADL   = 0x3C,
 };
 
 
@@ -1421,6 +1422,77 @@ static void gen_mxu_q8mul_mac(DisasContext *ctx, bool su, bool mac)
 
     gen_store_mxu_gpr(t0, XRd);
     gen_store_mxu_gpr(t1, XRa);
+}
+
+/*
+ * Q8MADL  XRd, XRa, XRb, XRc
+ *   Parallel quad unsigned 8 bit multiply and accumulate.
+ *   e.g. XRd[0..3] = XRa[0..3] + XRb[0..3] * XRc[0..3]
+ */
+static void gen_mxu_q8madl(DisasContext *ctx)
+{
+    TCGv t0, t1, t2, t3, t4, t5, t6, t7;
+    uint32_t XRa, XRb, XRc, XRd, aptn2;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    t3 = tcg_temp_new();
+    t4 = tcg_temp_new();
+    t5 = tcg_temp_new();
+    t6 = tcg_temp_new();
+    t7 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRd = extract32(ctx->opcode, 18, 4);
+    aptn2 = extract32(ctx->opcode, 24, 2);
+
+    gen_load_mxu_gpr(t3, XRb);
+    gen_load_mxu_gpr(t7, XRc);
+
+    tcg_gen_extract_tl(t0, t3,  0, 8);
+    tcg_gen_extract_tl(t1, t3,  8, 8);
+    tcg_gen_extract_tl(t2, t3, 16, 8);
+    tcg_gen_extract_tl(t3, t3, 24, 8);
+
+    tcg_gen_extract_tl(t4, t7,  0, 8);
+    tcg_gen_extract_tl(t5, t7,  8, 8);
+    tcg_gen_extract_tl(t6, t7, 16, 8);
+    tcg_gen_extract_tl(t7, t7, 24, 8);
+
+    tcg_gen_mul_tl(t0, t0, t4);
+    tcg_gen_mul_tl(t1, t1, t5);
+    tcg_gen_mul_tl(t2, t2, t6);
+    tcg_gen_mul_tl(t3, t3, t7);
+
+    gen_load_mxu_gpr(t4, XRa);
+    tcg_gen_extract_tl(t6, t4, 0, 8);
+    tcg_gen_extract_tl(t7, t4, 8, 8);
+    if (aptn2 & 1) {
+        tcg_gen_sub_tl(t0, t6, t0);
+        tcg_gen_sub_tl(t1, t7, t1);
+    } else {
+        tcg_gen_add_tl(t0, t6, t0);
+        tcg_gen_add_tl(t1, t7, t1);
+    }
+    tcg_gen_extract_tl(t6, t4, 16, 8);
+    tcg_gen_extract_tl(t7, t4, 24, 8);
+    if (aptn2 & 2) {
+        tcg_gen_sub_tl(t2, t6, t2);
+        tcg_gen_sub_tl(t3, t7, t3);
+    } else {
+        tcg_gen_add_tl(t2, t6, t2);
+        tcg_gen_add_tl(t3, t7, t3);
+    }
+
+    tcg_gen_andi_tl(t5, t0, 0xff);
+    tcg_gen_deposit_tl(t5, t5, t1,  8, 8);
+    tcg_gen_deposit_tl(t5, t5, t2, 16, 8);
+    tcg_gen_deposit_tl(t5, t5, t3, 24, 8);
+
+    gen_store_mxu_gpr(t5, XRd);
 }
 
 /*
@@ -4883,6 +4955,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_Q16SCOP:
             gen_mxu_q16scop(ctx);
+            break;
+        case OPC_MXU_Q8MADL:
+            gen_mxu_q8madl(ctx);
             break;
         default:
             return false;
