@@ -365,6 +365,7 @@ enum {
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU_D16MACF  = 0x0B,
     OPC_MXU_D16MADL  = 0x0C,
+    OPC_MXU_S16MAD   = 0x0D,
     OPC_MXU_D16MACE  = 0x0F,
     OPC_MXU__POOL04  = 0x10,
     OPC_MXU__POOL05  = 0x11,
@@ -976,6 +977,67 @@ static void gen_mxu_d16madl(DisasContext *ctx)
     tcg_gen_andi_tl(t2, t2, 0xffff);
     tcg_gen_shli_tl(t3, t3, 16);
     tcg_gen_or_tl(mxu_gpr[XRd - 1], t3, t2);
+}
+
+/*
+ * S16MAD XRa, XRb, XRc, XRd, aptn2, optn2 - Single packed
+ * signed 16 bit pattern multiply and 32-bit add/subtract.
+ */
+static void gen_mxu_s16mad(DisasContext *ctx)
+{
+    TCGv t0, t1;
+    uint32_t XRa, XRb, XRc, XRd, optn2, aptn1, pad;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    XRd = extract32(ctx->opcode, 18, 4);
+    optn2 = extract32(ctx->opcode, 22, 2);
+    aptn1 = extract32(ctx->opcode, 24, 1);
+    pad = extract32(ctx->opcode, 25, 1);
+
+    if (pad) {
+        /* FIXME check if it influence the result */
+    }
+
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t1, XRc);
+
+    switch (optn2) {
+    case MXU_OPTN2_WW: /* XRB.H*XRC.H */
+        tcg_gen_sextract_tl(t0, t0, 16, 16);
+        tcg_gen_sextract_tl(t1, t1, 16, 16);
+        break;
+    case MXU_OPTN2_LW: /* XRB.L*XRC.L */
+        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_sextract_tl(t1, t1,  0, 16);
+        break;
+    case MXU_OPTN2_HW: /* XRB.H*XRC.L */
+        tcg_gen_sextract_tl(t0, t0, 16, 16);
+        tcg_gen_sextract_tl(t1, t1,  0, 16);
+        break;
+    case MXU_OPTN2_XW: /* XRB.L*XRC.H */
+        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_sextract_tl(t1, t1, 16, 16);
+        break;
+    }
+    tcg_gen_mul_tl(t0, t0, t1);
+
+    gen_load_mxu_gpr(t1, XRa);
+
+    switch (aptn1) {
+    case MXU_APTN1_A:
+        tcg_gen_add_tl(t1, t1, t0);
+        break;
+    case MXU_APTN1_S:
+        tcg_gen_sub_tl(t1, t1, t0);
+        break;
+    }
+
+    gen_store_mxu_gpr(t1, XRd);
 }
 
 /*
@@ -2840,6 +2902,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_D16MADL:
             gen_mxu_d16madl(ctx);
+            break;
+        case OPC_MXU_S16MAD:
+            gen_mxu_s16mad(ctx);
             break;
         case OPC_MXU_D16MACE:
             gen_mxu_d16mac(ctx, true, false);
