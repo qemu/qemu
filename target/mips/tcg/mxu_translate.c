@@ -407,6 +407,7 @@ enum {
     OPC_MXU__POOL21  = 0x3A,
     OPC_MXU_Q16SCOP  = 0x3B,
     OPC_MXU_Q8MADL   = 0x3C,
+    OPC_MXU_S32SFL   = 0x3D,
 };
 
 
@@ -3962,6 +3963,83 @@ static void gen_mxu_q16scop(DisasContext *ctx)
 }
 
 /*
+ *  S32SFL XRa, XRd, XRb, XRc
+ *    Shuffle bytes according to one of four patterns.
+ */
+static void gen_mxu_s32sfl(DisasContext *ctx)
+{
+    uint32_t XRd, XRc, XRb, XRa, ptn2;
+
+    XRd  = extract32(ctx->opcode, 18, 4);
+    XRc  = extract32(ctx->opcode, 14, 4);
+    XRb  = extract32(ctx->opcode, 10, 4);
+    XRa  = extract32(ctx->opcode,  6, 4);
+    ptn2 = extract32(ctx->opcode, 24, 2);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t0, XRb);
+    gen_load_mxu_gpr(t1, XRc);
+
+    switch (ptn2) {
+    case 0:
+        tcg_gen_andi_tl(t2, t0, 0xff000000);
+        tcg_gen_andi_tl(t3, t1, 0x000000ff);
+        tcg_gen_deposit_tl(t3, t3, t0,  8, 8);
+        tcg_gen_shri_tl(t0, t0,  8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t3, t3, t0, 24, 8);
+        tcg_gen_deposit_tl(t3, t3, t1, 16, 8);
+        tcg_gen_shri_tl(t0, t0,  8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t2, t2, t0,  8, 8);
+        tcg_gen_deposit_tl(t2, t2, t1,  0, 8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t2, t2, t1, 16, 8);
+        break;
+    case 1:
+        tcg_gen_andi_tl(t2, t0, 0xff000000);
+        tcg_gen_andi_tl(t3, t1, 0x000000ff);
+        tcg_gen_deposit_tl(t3, t3, t0, 16, 8);
+        tcg_gen_shri_tl(t0, t0,  8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t2, t2, t0, 16, 8);
+        tcg_gen_deposit_tl(t2, t2, t1,  0, 8);
+        tcg_gen_shri_tl(t0, t0,  8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t3, t3, t0, 24, 8);
+        tcg_gen_deposit_tl(t3, t3, t1,  8, 8);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t2, t2, t1,  8, 8);
+        break;
+    case 2:
+        tcg_gen_andi_tl(t2, t0, 0xff00ff00);
+        tcg_gen_andi_tl(t3, t1, 0x00ff00ff);
+        tcg_gen_deposit_tl(t3, t3, t0,  8, 8);
+        tcg_gen_shri_tl(t0, t0, 16);
+        tcg_gen_shri_tl(t1, t1,  8);
+        tcg_gen_deposit_tl(t2, t2, t1,  0, 8);
+        tcg_gen_deposit_tl(t3, t3, t0, 24, 8);
+        tcg_gen_shri_tl(t1, t1, 16);
+        tcg_gen_deposit_tl(t2, t2, t1, 16, 8);
+        break;
+    case 3:
+        tcg_gen_andi_tl(t2, t0, 0xffff0000);
+        tcg_gen_andi_tl(t3, t1, 0x0000ffff);
+        tcg_gen_shri_tl(t1, t1, 16);
+        tcg_gen_deposit_tl(t2, t2, t1,  0, 16);
+        tcg_gen_deposit_tl(t3, t3, t0, 16, 16);
+        break;
+    }
+
+    gen_store_mxu_gpr(t2, XRa);
+    gen_store_mxu_gpr(t3, XRd);
+}
+
+/*
  *                 MXU instruction category: align
  *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -4958,6 +5036,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_Q8MADL:
             gen_mxu_q8madl(ctx);
+            break;
+        case OPC_MXU_S32SFL:
+            gen_mxu_s32sfl(ctx);
             break;
         default:
             return false;
