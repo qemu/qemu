@@ -394,6 +394,7 @@ enum {
     OPC_MXU_S16SDI   = 0x2D,
     OPC_MXU_S32M2I   = 0x2E,
     OPC_MXU_S32I2M   = 0x2F,
+    OPC_MXU_D32SARL  = 0x32,
     OPC_MXU__POOL19  = 0x38,
 };
 
@@ -492,6 +493,7 @@ enum {
  * MXU pool 16
  */
 enum {
+    OPC_MXU_D32SARW  = 0x00,
     OPC_MXU_S32ALN   = 0x01,
     OPC_MXU_S32ALNI  = 0x02,
     OPC_MXU_S32LUI   = 0x03,
@@ -1689,6 +1691,57 @@ static void gen_mxu_S32XOR(DisasContext *ctx)
     }
 }
 
+/*
+ *                 MXU instruction category: shift
+ *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *               D32SLL    D32SLR    D32SAR    D32SARL
+ *               D32SLLV   D32SLRV   D32SARV   D32SARW
+ *               Q16SLL    Q16SLR    Q16SAR
+ *               Q16SLLV   Q16SLRV   Q16SARV
+ */
+
+/*
+ *  D32SARL XRa, XRb, XRc, SFT4
+ *    Dual shift arithmetic right 32-bit integers in XRb and XRc
+ *    to SFT4 bits (0..15). Pack 16 LSBs of each into XRa.
+ *
+ *  D32SARW XRa, XRb, XRc, rb
+ *    Dual shift arithmetic right 32-bit integers in XRb and XRc
+ *    to rb[3:0] bits. Pack 16 LSBs of each into XRa.
+ */
+static void gen_mxu_d32sarl(DisasContext *ctx, bool sarw)
+{
+    uint32_t XRa, XRb, XRc, rb;
+
+    XRa = extract32(ctx->opcode,  6, 4);
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    rb  = extract32(ctx->opcode, 21, 5);
+
+    if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+    } else {
+        TCGv t0 = tcg_temp_new();
+        TCGv t1 = tcg_temp_new();
+        TCGv t2 = tcg_temp_new();
+
+        if (!sarw) {
+            /* Make SFT4 from rb field */
+            tcg_gen_movi_tl(t2, rb >> 1);
+        } else {
+            gen_load_gpr(t2, rb);
+            tcg_gen_andi_tl(t2, t2, 0x0f);
+        }
+        gen_load_mxu_gpr(t0, XRb);
+        gen_load_mxu_gpr(t1, XRc);
+        tcg_gen_sar_tl(t0, t0, t2);
+        tcg_gen_sar_tl(t1, t1, t2);
+        tcg_gen_extract_tl(t2, t1, 0, 16);
+        tcg_gen_deposit_tl(t2, t2, t0, 16, 16);
+        gen_store_mxu_gpr(t2, XRa);
+    }
+}
 
 /*
  *                   MXU instruction category max/min/avg
@@ -4003,6 +4056,9 @@ static void decode_opc_mxu__pool16(DisasContext *ctx)
     uint32_t opcode = extract32(ctx->opcode, 18, 3);
 
     switch (opcode) {
+    case OPC_MXU_D32SARW:
+        gen_mxu_d32sarl(ctx, true);
+        break;
     case OPC_MXU_S32ALN:
         gen_mxu_S32ALN(ctx);
         break;
@@ -4213,6 +4269,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_S16SDI:
             gen_mxu_s16std(ctx, true);
+            break;
+        case OPC_MXU_D32SARL:
+            gen_mxu_d32sarl(ctx, false);
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
