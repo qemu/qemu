@@ -361,6 +361,7 @@ enum {
     OPC_MXU__POOL01  = 0x06,
     OPC_MXU__POOL02  = 0x07,
     OPC_MXU_D16MUL   = 0x08,
+    OPC_MXU__POOL03  = 0x09,
     OPC_MXU_D16MAC   = 0x0A,
     OPC_MXU__POOL04  = 0x10,
     OPC_MXU__POOL05  = 0x11,
@@ -414,6 +415,14 @@ enum {
     OPC_MXU_D16CPS   = 0x02,
     OPC_MXU_Q8ABD    = 0x04,
     OPC_MXU_Q16SAT   = 0x06,
+};
+
+/*
+ * MXU pool 03
+ */
+enum {
+    OPC_MXU_D16MULF  = 0x00,
+    OPC_MXU_D16MULE  = 0x01,
 };
 
 /*
@@ -660,9 +669,14 @@ static void gen_mxu_s8ldd(DisasContext *ctx)
 }
 
 /*
- * D16MUL XRa, XRb, XRc, XRd, optn2 - Signed 16 bit pattern multiplication
+ * D16MUL  XRa, XRb, XRc, XRd, optn2 - Signed 16 bit pattern multiplication
+ * D16MULF XRa, XRb, XRc, optn2 - Signed Q15 fraction pattern multiplication
+ *   with rounding and packing result
+ * D16MULE XRa, XRb, XRc, XRd, optn2 - Signed Q15 fraction pattern
+ *   multiplication with rounding
  */
-static void gen_mxu_d16mul(DisasContext *ctx)
+static void gen_mxu_d16mul(DisasContext *ctx, bool fractional,
+                           bool packed_result)
 {
     TCGv t0, t1, t2, t3;
     uint32_t XRa, XRb, XRc, XRd, optn2;
@@ -677,6 +691,12 @@ static void gen_mxu_d16mul(DisasContext *ctx)
     XRc = extract32(ctx->opcode, 14, 4);
     XRd = extract32(ctx->opcode, 18, 4);
     optn2 = extract32(ctx->opcode, 22, 2);
+
+    /*
+     * TODO: XRd field isn't used for D16MULF
+     * There's no knowledge how this field affect
+     * instruction decoding/behavior
+     */
 
     gen_load_mxu_gpr(t1, XRb);
     tcg_gen_sextract_tl(t0, t1, 0, 16);
@@ -703,8 +723,52 @@ static void gen_mxu_d16mul(DisasContext *ctx)
         tcg_gen_mul_tl(t2, t1, t2);
         break;
     }
-    gen_store_mxu_gpr(t3, XRa);
-    gen_store_mxu_gpr(t2, XRd);
+    if (fractional) {
+        TCGLabel *l_done = gen_new_label();
+        TCGv rounding = tcg_temp_new();
+
+        tcg_gen_shli_tl(t3, t3, 1);
+        tcg_gen_shli_tl(t2, t2, 1);
+        tcg_gen_andi_tl(rounding, mxu_CR, 0x2);
+        tcg_gen_brcondi_tl(TCG_COND_EQ, rounding, 0, l_done);
+        if (packed_result) {
+            TCGLabel *l_apply_bias_l = gen_new_label();
+            TCGLabel *l_apply_bias_r = gen_new_label();
+            TCGLabel *l_half_done = gen_new_label();
+            TCGv bias = tcg_temp_new();
+
+            /*
+             * D16MULF supports unbiased rounding aka "bankers rounding",
+             * "round to even", "convergent rounding"
+             */
+            tcg_gen_andi_tl(bias, mxu_CR, 0x4);
+            tcg_gen_brcondi_tl(TCG_COND_NE, bias, 0, l_apply_bias_l);
+            tcg_gen_andi_tl(t0, t3, 0x1ffff);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0x8000, l_half_done);
+            gen_set_label(l_apply_bias_l);
+            tcg_gen_addi_tl(t3, t3, 0x8000);
+            gen_set_label(l_half_done);
+            tcg_gen_brcondi_tl(TCG_COND_NE, bias, 0, l_apply_bias_r);
+            tcg_gen_andi_tl(t0, t2, 0x1ffff);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0x8000, l_done);
+            gen_set_label(l_apply_bias_r);
+            tcg_gen_addi_tl(t2, t2, 0x8000);
+        } else {
+            /* D16MULE doesn't support unbiased rounding */
+            tcg_gen_addi_tl(t3, t3, 0x8000);
+            tcg_gen_addi_tl(t2, t2, 0x8000);
+        }
+        gen_set_label(l_done);
+    }
+    if (!packed_result) {
+        gen_store_mxu_gpr(t3, XRa);
+        gen_store_mxu_gpr(t2, XRd);
+    } else {
+        tcg_gen_andi_tl(t3, t3, 0xffff0000);
+        tcg_gen_shri_tl(t2, t2, 16);
+        tcg_gen_or_tl(t3, t3, t2);
+        gen_store_mxu_gpr(t3, XRa);
+    }
 }
 
 /*
@@ -2372,6 +2436,24 @@ static void decode_opc_mxu__pool02(DisasContext *ctx)
     }
 }
 
+static void decode_opc_mxu__pool03(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 24, 2);
+
+    switch (opcode) {
+    case OPC_MXU_D16MULF:
+        gen_mxu_d16mul(ctx, true, true);
+        break;
+    case OPC_MXU_D16MULE:
+        gen_mxu_d16mul(ctx, true, false);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
 static void decode_opc_mxu__pool04(DisasContext *ctx)
 {
     uint32_t reversed = extract32(ctx->opcode, 20, 1);
@@ -2613,7 +2695,7 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             decode_opc_mxu__pool00(ctx);
             break;
         case OPC_MXU_D16MUL:
-            gen_mxu_d16mul(ctx);
+            gen_mxu_d16mul(ctx, false, false);
             break;
         case OPC_MXU_D16MAC:
             gen_mxu_d16mac(ctx);
@@ -2623,6 +2705,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL02:
             decode_opc_mxu__pool02(ctx);
+            break;
+        case OPC_MXU__POOL03:
+            decode_opc_mxu__pool03(ctx);
             break;
         case OPC_MXU__POOL04:
             decode_opc_mxu__pool04(ctx);
