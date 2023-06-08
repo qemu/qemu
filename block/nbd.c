@@ -50,8 +50,8 @@
 #define EN_OPTSTR ":exportname="
 #define MAX_NBD_REQUESTS    16
 
-#define COOKIE_TO_INDEX(bs, cookie) ((cookie) ^ (uint64_t)(intptr_t)(bs))
-#define INDEX_TO_COOKIE(bs, index)  ((index)  ^ (uint64_t)(intptr_t)(bs))
+#define COOKIE_TO_INDEX(cookie) ((cookie) - 1)
+#define INDEX_TO_COOKIE(index)  ((index) + 1)
 
 typedef struct {
     Coroutine *coroutine;
@@ -420,7 +420,7 @@ static void coroutine_fn GRAPH_RDLOCK nbd_reconnect_attempt(BDRVNBDState *s)
 static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
 {
     int ret;
-    uint64_t ind = COOKIE_TO_INDEX(s, cookie), ind2;
+    uint64_t ind = COOKIE_TO_INDEX(cookie), ind2;
     QEMU_LOCK_GUARD(&s->receive_mutex);
 
     while (true) {
@@ -435,7 +435,7 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
              * woken by whoever set s->reply.cookie (or never wait in this
              * yield). So, we should not wake it here.
              */
-            ind2 = COOKIE_TO_INDEX(s, s->reply.cookie);
+            ind2 = COOKIE_TO_INDEX(s->reply.cookie);
             assert(!s->requests[ind2].receiving);
 
             s->requests[ind].receiving = true;
@@ -468,7 +468,7 @@ static coroutine_fn int nbd_receive_replies(BDRVNBDState *s, uint64_t cookie)
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
         }
-        ind2 = COOKIE_TO_INDEX(s, s->reply.cookie);
+        ind2 = COOKIE_TO_INDEX(s->reply.cookie);
         if (ind2 >= MAX_NBD_REQUESTS || !s->requests[ind2].coroutine) {
             nbd_channel_error(s, -EINVAL);
             return -EINVAL;
@@ -519,7 +519,7 @@ nbd_co_send_request(BlockDriverState *bs, NBDRequest *request,
     qemu_mutex_unlock(&s->requests_lock);
 
     qemu_co_mutex_lock(&s->send_mutex);
-    request->cookie = INDEX_TO_COOKIE(s, i);
+    request->cookie = INDEX_TO_COOKIE(i);
 
     assert(s->ioc);
 
@@ -832,7 +832,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
         int *request_ret, QEMUIOVector *qiov, void **payload, Error **errp)
 {
     int ret;
-    int i = COOKIE_TO_INDEX(s, cookie);
+    int i = COOKIE_TO_INDEX(cookie);
     void *local_payload = NULL;
     NBDStructuredReplyChunk *chunk;
 
@@ -1038,7 +1038,7 @@ static bool coroutine_fn nbd_reply_chunk_iter_receive(BDRVNBDState *s,
 
 break_loop:
     qemu_mutex_lock(&s->requests_lock);
-    s->requests[COOKIE_TO_INDEX(s, cookie)].coroutine = NULL;
+    s->requests[COOKIE_TO_INDEX(cookie)].coroutine = NULL;
     s->in_flight--;
     qemu_co_queue_next(&s->free_sema);
     qemu_mutex_unlock(&s->requests_lock);
