@@ -318,10 +318,10 @@
  *          ├─ 110001 ─ OPC_MXU_D32SLR      20..18
  *          ├─ 110010 ─ OPC_MXU_D32SARL  ┌─ 000 ─ OPC_MXU_D32SLLV
  *          ├─ 110011 ─ OPC_MXU_D32SAR   ├─ 001 ─ OPC_MXU_D32SLRV
- *          ├─ 110100 ─ OPC_MXU_Q16SLL   ├─ 010 ─ OPC_MXU_D32SARV
- *          ├─ 110101 ─ OPC_MXU_Q16SLR   ├─ 011 ─ OPC_MXU_Q16SLLV
- *          │                            ├─ 100 ─ OPC_MXU_Q16SLRV
- *          ├─ 110110 ─ OPC_MXU__POOL18 ─┴─ 101 ─ OPC_MXU_Q16SARV
+ *          ├─ 110100 ─ OPC_MXU_Q16SLL   ├─ 011 ─ OPC_MXU_D32SARV
+ *          ├─ 110101 ─ OPC_MXU_Q16SLR   ├─ 100 ─ OPC_MXU_Q16SLLV
+ *          │                            ├─ 101 ─ OPC_MXU_Q16SLRV
+ *          ├─ 110110 ─ OPC_MXU__POOL18 ─┴─ 111 ─ OPC_MXU_Q16SARV
  *          │
  *          ├─ 110111 ─ OPC_MXU_Q16SAR
  *          │                               23..22
@@ -400,6 +400,7 @@ enum {
     OPC_MXU_D32SAR   = 0x33,
     OPC_MXU_Q16SLL   = 0x34,
     OPC_MXU_Q16SLR   = 0x35,
+    OPC_MXU__POOL18  = 0x36,
     OPC_MXU_Q16SAR   = 0x37,
     OPC_MXU__POOL19  = 0x38,
 };
@@ -518,6 +519,18 @@ enum {
     OPC_MXU_LXW      = 0x03,
     OPC_MXU_LXBU     = 0x04,
     OPC_MXU_LXHU     = 0x05,
+};
+
+/*
+ * MXU pool 18
+ */
+enum {
+    OPC_MXU_D32SLLV  = 0x00,
+    OPC_MXU_D32SLRV  = 0x01,
+    OPC_MXU_D32SARV  = 0x03,
+    OPC_MXU_Q16SLLV  = 0x04,
+    OPC_MXU_Q16SLRV  = 0x05,
+    OPC_MXU_Q16SARV  = 0x07,
 };
 
 /*
@@ -1751,6 +1764,50 @@ static void gen_mxu_d32sxx(DisasContext *ctx, bool right, bool arithmetic)
 }
 
 /*
+ *  D32SLLV XRa, XRd, rs
+ *    Dual 32-bit shift left from XRa and XRd to rs[3:0]
+ *    bits. Store back to XRa and XRd respectively.
+ *  D32SLRV XRa, XRd, rs
+ *    Dual 32-bit shift logic right from XRa and XRd to rs[3:0]
+ *    bits. Store back to XRa and XRd respectively.
+ *  D32SARV XRa, XRd, rs
+ *    Dual 32-bit shift arithmetic right from XRa and XRd to rs[3:0]
+ *    bits. Store back to XRa and XRd respectively.
+ */
+static void gen_mxu_d32sxxv(DisasContext *ctx, bool right, bool arithmetic)
+{
+    uint32_t XRa, XRd, rs;
+
+    XRa = extract32(ctx->opcode, 10, 4);
+    XRd = extract32(ctx->opcode, 14, 4);
+    rs  = extract32(ctx->opcode, 21, 5);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t0, XRa);
+    gen_load_mxu_gpr(t1, XRd);
+    gen_load_gpr(t2, rs);
+    tcg_gen_andi_tl(t2, t2, 0x0f);
+
+    if (right) {
+        if (arithmetic) {
+            tcg_gen_sar_tl(t0, t0, t2);
+            tcg_gen_sar_tl(t1, t1, t2);
+        } else {
+            tcg_gen_shr_tl(t0, t0, t2);
+            tcg_gen_shr_tl(t1, t1, t2);
+        }
+    } else {
+        tcg_gen_shl_tl(t0, t0, t2);
+        tcg_gen_shl_tl(t1, t1, t2);
+    }
+    gen_store_mxu_gpr(t0, XRa);
+    gen_store_mxu_gpr(t1, XRd);
+}
+
+/*
  *  D32SARL XRa, XRb, XRc, SFT4
  *    Dual shift arithmetic right 32-bit integers in XRb and XRc
  *    to SFT4 bits (0..15). Pack 16 LSBs of each into XRa.
@@ -1850,6 +1907,74 @@ static void gen_mxu_q16sxx(DisasContext *ctx, bool right, bool arithmetic)
         tcg_gen_shli_tl(t1, t1, sft4);
         tcg_gen_shli_tl(t2, t2, sft4);
         tcg_gen_shli_tl(t3, t3, sft4);
+    }
+    tcg_gen_deposit_tl(t0, t0, t1, 16, 16);
+    tcg_gen_deposit_tl(t2, t2, t3, 16, 16);
+
+    gen_store_mxu_gpr(t0, XRa);
+    gen_store_mxu_gpr(t2, XRd);
+}
+
+/*
+ *  Q16SLLV XRa, XRd, rs
+ *    Quad 16-bit shift left from XRa and XRd to rs[3:0]
+ *    bits. Store to XRa and XRd respectively.
+ *  Q16SLRV XRa, XRd, rs
+ *    Quad 16-bit shift logic right from XRa and XRd to rs[3:0]
+ *    bits. Store to XRa and XRd respectively.
+ *  Q16SARV XRa, XRd, rs
+ *    Quad 16-bit shift arithmetic right from XRa and XRd to rs[3:0]
+ *    bits. Store to XRa and XRd respectively.
+ */
+static void gen_mxu_q16sxxv(DisasContext *ctx, bool right, bool arithmetic)
+{
+    uint32_t XRa, XRd, rs;
+
+    XRa = extract32(ctx->opcode, 10, 4);
+    XRd = extract32(ctx->opcode, 14, 4);
+    rs  = extract32(ctx->opcode, 21, 5);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGv t5 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t0, XRa);
+    gen_load_mxu_gpr(t2, XRd);
+    gen_load_gpr(t5, rs);
+    tcg_gen_andi_tl(t5, t5, 0x0f);
+
+
+    if (arithmetic) {
+        tcg_gen_sextract_tl(t1, t0, 16, 16);
+        tcg_gen_sextract_tl(t0, t0,  0, 16);
+        tcg_gen_sextract_tl(t3, t2, 16, 16);
+        tcg_gen_sextract_tl(t2, t2,  0, 16);
+    } else {
+        tcg_gen_extract_tl(t1, t0, 16, 16);
+        tcg_gen_extract_tl(t0, t0,  0, 16);
+        tcg_gen_extract_tl(t3, t2, 16, 16);
+        tcg_gen_extract_tl(t2, t2,  0, 16);
+    }
+
+    if (right) {
+        if (arithmetic) {
+            tcg_gen_sar_tl(t0, t0, t5);
+            tcg_gen_sar_tl(t1, t1, t5);
+            tcg_gen_sar_tl(t2, t2, t5);
+            tcg_gen_sar_tl(t3, t3, t5);
+        } else {
+            tcg_gen_shr_tl(t0, t0, t5);
+            tcg_gen_shr_tl(t1, t1, t5);
+            tcg_gen_shr_tl(t2, t2, t5);
+            tcg_gen_shr_tl(t3, t3, t5);
+        }
+    } else {
+        tcg_gen_shl_tl(t0, t0, t5);
+        tcg_gen_shl_tl(t1, t1, t5);
+        tcg_gen_shl_tl(t2, t2, t5);
+        tcg_gen_shl_tl(t3, t3, t5);
     }
     tcg_gen_deposit_tl(t0, t0, t1, 16, 16);
     tcg_gen_deposit_tl(t2, t2, t3, 16, 16);
@@ -4236,6 +4361,36 @@ static void decode_opc_mxu__pool17(DisasContext *ctx)
     }
 }
 
+static void decode_opc_mxu__pool18(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 18, 3);
+
+    switch (opcode) {
+    case OPC_MXU_D32SLLV:
+        gen_mxu_d32sxxv(ctx, false, false);
+        break;
+    case OPC_MXU_D32SLRV:
+        gen_mxu_d32sxxv(ctx, true, false);
+        break;
+    case OPC_MXU_D32SARV:
+        gen_mxu_d32sxxv(ctx, true, true);
+        break;
+    case OPC_MXU_Q16SLLV:
+        gen_mxu_q16sxxv(ctx, false, false);
+        break;
+    case OPC_MXU_Q16SLRV:
+        gen_mxu_q16sxxv(ctx, true, false);
+        break;
+    case OPC_MXU_Q16SARV:
+        gen_mxu_q16sxxv(ctx, true, true);
+        break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
 static void decode_opc_mxu__pool19(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 22, 2);
@@ -4399,6 +4554,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_Q16SLL:
             gen_mxu_q16sxx(ctx, false, false);
+            break;
+        case OPC_MXU__POOL18:
+            decode_opc_mxu__pool18(ctx);
             break;
         case OPC_MXU_Q16SLR:
             gen_mxu_q16sxx(ctx, true, false);
