@@ -2651,10 +2651,7 @@ static int64_t get_limit_rate(QTestState *who)
 static QTestState *dirtylimit_start_vm(void)
 {
     QTestState *vm = NULL;
-    g_autofree gchar *cmd = NULL;
-    const char *arch = qtest_get_arch();
-
-    assert((strcmp(arch, "x86_64") == 0));
+    g_autofree gchar *
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
                           "-m 150M -smp 1 "
