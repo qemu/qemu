@@ -366,6 +366,7 @@ enum {
     OPC_MXU_D16MACF  = 0x0B,
     OPC_MXU_D16MADL  = 0x0C,
     OPC_MXU_S16MAD   = 0x0D,
+    OPC_MXU_Q16ADD   = 0x0E,
     OPC_MXU_D16MACE  = 0x0F,
     OPC_MXU__POOL04  = 0x10,
     OPC_MXU__POOL05  = 0x11,
@@ -2162,6 +2163,91 @@ static void gen_mxu_Q8ADD(DisasContext *ctx)
 }
 
 /*
+ * Q16ADD XRa, XRb, XRc, XRd, aptn2, optn2 - Quad packed
+ * 16-bit pattern addition.
+ */
+static void gen_mxu_q16add(DisasContext *ctx)
+{
+    uint32_t aptn2, optn2, XRc, XRb, XRa, XRd;
+
+    aptn2 = extract32(ctx->opcode, 24, 2);
+    optn2 = extract32(ctx->opcode, 22, 2);
+    XRd   = extract32(ctx->opcode, 18, 4);
+    XRc   = extract32(ctx->opcode, 14, 4);
+    XRb   = extract32(ctx->opcode, 10, 4);
+    XRa   = extract32(ctx->opcode,  6, 4);
+
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+    TCGv t4 = tcg_temp_new();
+    TCGv t5 = tcg_temp_new();
+
+    gen_load_mxu_gpr(t1, XRb);
+    tcg_gen_extract_tl(t0, t1,  0, 16);
+    tcg_gen_extract_tl(t1, t1, 16, 16);
+
+    gen_load_mxu_gpr(t3, XRc);
+    tcg_gen_extract_tl(t2, t3,  0, 16);
+    tcg_gen_extract_tl(t3, t3, 16, 16);
+
+    switch (optn2) {
+    case MXU_OPTN2_WW: /* XRB.H+XRC.H == lop, XRB.L+XRC.L == rop */
+        tcg_gen_mov_tl(t4, t1);
+        tcg_gen_mov_tl(t5, t0);
+        break;
+    case MXU_OPTN2_LW: /* XRB.L+XRC.H == lop, XRB.L+XRC.L == rop */
+        tcg_gen_mov_tl(t4, t0);
+        tcg_gen_mov_tl(t5, t0);
+        break;
+    case MXU_OPTN2_HW: /* XRB.H+XRC.H == lop, XRB.H+XRC.L == rop */
+        tcg_gen_mov_tl(t4, t1);
+        tcg_gen_mov_tl(t5, t1);
+        break;
+    case MXU_OPTN2_XW: /* XRB.L+XRC.H == lop, XRB.H+XRC.L == rop */
+        tcg_gen_mov_tl(t4, t0);
+        tcg_gen_mov_tl(t5, t1);
+        break;
+    }
+
+    switch (aptn2) {
+    case MXU_APTN2_AA: /* lop +, rop + */
+        tcg_gen_add_tl(t0, t4, t3);
+        tcg_gen_add_tl(t1, t5, t2);
+        tcg_gen_add_tl(t4, t4, t3);
+        tcg_gen_add_tl(t5, t5, t2);
+        break;
+    case MXU_APTN2_AS: /* lop +, rop + */
+        tcg_gen_sub_tl(t0, t4, t3);
+        tcg_gen_sub_tl(t1, t5, t2);
+        tcg_gen_add_tl(t4, t4, t3);
+        tcg_gen_add_tl(t5, t5, t2);
+        break;
+    case MXU_APTN2_SA: /* lop +, rop + */
+        tcg_gen_add_tl(t0, t4, t3);
+        tcg_gen_add_tl(t1, t5, t2);
+        tcg_gen_sub_tl(t4, t4, t3);
+        tcg_gen_sub_tl(t5, t5, t2);
+        break;
+    case MXU_APTN2_SS: /* lop +, rop + */
+        tcg_gen_sub_tl(t0, t4, t3);
+        tcg_gen_sub_tl(t1, t5, t2);
+        tcg_gen_sub_tl(t4, t4, t3);
+        tcg_gen_sub_tl(t5, t5, t2);
+        break;
+    }
+
+    tcg_gen_shli_tl(t0, t0, 16);
+    tcg_gen_extract_tl(t1, t1, 0, 16);
+    tcg_gen_shli_tl(t4, t4, 16);
+    tcg_gen_extract_tl(t5, t5, 0, 16);
+
+    tcg_gen_or_tl(mxu_gpr[XRa - 1], t4, t5);
+    tcg_gen_or_tl(mxu_gpr[XRd - 1], t0, t1);
+}
+
+/*
  *                 MXU instruction category: Miscellaneous
  *                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -2905,6 +2991,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU_S16MAD:
             gen_mxu_s16mad(ctx);
+            break;
+        case OPC_MXU_Q16ADD:
+            gen_mxu_q16add(ctx);
             break;
         case OPC_MXU_D16MACE:
             gen_mxu_d16mac(ctx, true, false);
