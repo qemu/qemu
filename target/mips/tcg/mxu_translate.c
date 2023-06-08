@@ -304,7 +304,7 @@
  *          │                            ├─ 110 ─ OPC_MXU_S32OR
  *          │                            └─ 111 ─ OPC_MXU_S32XOR
  *          │
- *          │                               7..5
+ *          │                               8..6
  *          ├─ 101000 ─ OPC_MXU__POOL17 ─┬─ 000 ─ OPC_MXU_LXB
  *          │                            ├─ 001 ─ OPC_MXU_LXH
  *          ├─ 101001 ─ <not assigned>   ├─ 011 ─ OPC_MXU_LXW
@@ -366,6 +366,7 @@ enum {
     OPC_MXU__POOL11  = 0x17,
     OPC_MXU_S8LDD    = 0x22,
     OPC_MXU__POOL16  = 0x27,
+    OPC_MXU__POOL17  = 0x28,
     OPC_MXU_S32M2I   = 0x2E,
     OPC_MXU_S32I2M   = 0x2F,
     OPC_MXU__POOL19  = 0x38,
@@ -401,6 +402,17 @@ enum {
     OPC_MXU_S32AND   = 0x05,
     OPC_MXU_S32OR    = 0x06,
     OPC_MXU_S32XOR   = 0x07,
+};
+
+/*
+ * MXU pool 17
+ */
+enum {
+    OPC_MXU_LXB      = 0x00,
+    OPC_MXU_LXH      = 0x01,
+    OPC_MXU_LXW      = 0x03,
+    OPC_MXU_LXBU     = 0x04,
+    OPC_MXU_LXHU     = 0x05,
 };
 
 /*
@@ -916,6 +928,38 @@ static void gen_mxu_s32ldxvx(DisasContext *ctx, bool reversed,
     if (postinc) {
         gen_store_gpr(t0, Rb);
     }
+}
+
+/*
+ * LXW  Ra, Rb, Rc, STRD2 - Load a word from memory to GPR
+ * LXB  Ra, Rb, Rc, STRD2 - Load a byte from memory to GPR,
+ *   sign extending to GPR size.
+ * LXH  Ra, Rb, Rc, STRD2 - Load a byte from memory to GPR,
+ *   sign extending to GPR size.
+ * LXBU Ra, Rb, Rc, STRD2 - Load a halfword from memory to GPR,
+ *   zero extending to GPR size.
+ * LXHU Ra, Rb, Rc, STRD2 - Load a halfword from memory to GPR,
+ *   zero extending to GPR size.
+ */
+static void gen_mxu_lxx(DisasContext *ctx, uint32_t strd2, MemOp mop)
+{
+    TCGv t0, t1;
+    uint32_t Ra, Rb, Rc;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    Ra = extract32(ctx->opcode, 11, 5);
+    Rc = extract32(ctx->opcode, 16, 5);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    gen_load_gpr(t0, Rb);
+    gen_load_gpr(t1, Rc);
+    tcg_gen_shli_tl(t1, t1, strd2);
+    tcg_gen_add_tl(t0, t0, t1);
+
+    tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, mop | ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, Ra);
 }
 
 /*
@@ -1716,6 +1760,40 @@ static void decode_opc_mxu__pool16(DisasContext *ctx)
     }
 }
 
+static void decode_opc_mxu__pool17(DisasContext *ctx)
+{
+    uint32_t opcode = extract32(ctx->opcode, 6, 3);
+    uint32_t strd2  = extract32(ctx->opcode, 9, 2);
+
+    if (strd2 > 2) {
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        return;
+    }
+
+    switch (opcode) {
+    case OPC_MXU_LXW:
+          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UL);
+          break;
+    case OPC_MXU_LXB:
+          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SB);
+          break;
+    case OPC_MXU_LXH:
+          gen_mxu_lxx(ctx, strd2, MO_TE | MO_SW);
+          break;
+    case OPC_MXU_LXBU:
+          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UB);
+          break;
+    case OPC_MXU_LXHU:
+          gen_mxu_lxx(ctx, strd2, MO_TE | MO_UW);
+          break;
+    default:
+        MIPS_INVAL("decode_opc_mxu");
+        gen_reserved_instruction(ctx);
+        break;
+    }
+}
+
 static void decode_opc_mxu__pool19(DisasContext *ctx)
 {
     uint32_t opcode = extract32(ctx->opcode, 22, 2);
@@ -1793,6 +1871,9 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL16:
             decode_opc_mxu__pool16(ctx);
+            break;
+        case OPC_MXU__POOL17:
+            decode_opc_mxu__pool17(ctx);
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
