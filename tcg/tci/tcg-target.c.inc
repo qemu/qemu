@@ -847,7 +847,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_out_op_rrm(s, opc, args[0], args[1], args[2]);
         } else {
-            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[4]);
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_TMP, args[3]);
             tcg_out_op_rrrr(s, opc, args[0], args[1], args[2], TCG_REG_TMP);
         }
         break;
