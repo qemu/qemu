@@ -116,6 +116,7 @@ static bool ufd_version_check(void)
 #endif
 
 static char *tmpfs;
+static char *bootpath;
 
 /* The boot file modifies memory area in [start_address, end_address)
  * repeatedly. It outputs a 'B' at a fixed rate while it's still running.
@@ -124,7 +125,7 @@ static char *tmpfs;
 #include "tests/migration/aarch64/a-b-kernel.h"
 #include "tests/migration/s390x/a-b-bios.h"
 
-static void init_bootfile(const char *bootpath, void *content, size_t len)
+static void init_bootfile(void *content, size_t len)
 {
     FILE *bootfile = fopen(bootpath, "wb");
 
@@ -707,7 +708,6 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     g_autofree gchar *cmd_source = NULL;
     g_autofree gchar *cmd_target = NULL;
     const gchar *ignore_stderr;
-    g_autofree char *bootpath = NULL;
     g_autofree char *shmem_opts = NULL;
     g_autofree char *shmem_path = NULL;
     const char *kvm_opts = NULL;
@@ -723,17 +723,16 @@ static int test_migrate_start(QTestState **from, QTestState **to,
 
     got_src_stop = false;
     got_dst_resume = false;
-    bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         /* the assembled x86 boot sector should be exactly one sector large */
         assert(sizeof(x86_bootsect) == 512);
-        init_bootfile(bootpath, x86_bootsect, sizeof(x86_bootsect));
+        init_bootfile(x86_bootsect, sizeof(x86_bootsect));
         memory_size = "150M";
         arch_opts = g_strdup_printf("-drive file=%s,format=raw", bootpath);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
-        init_bootfile(bootpath, s390x_elf, sizeof(s390x_elf));
+        init_bootfile(s390x_elf, sizeof(s390x_elf));
         memory_size = "128M";
         arch_opts = g_strdup_printf("-bios %s", bootpath);
         start_address = S390_TEST_MEM_START;
@@ -748,7 +747,7 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                       "until'", end_address, start_address);
         arch_opts = g_strdup("-nodefaults -machine vsmt=8");
     } else if (strcmp(arch, "aarch64") == 0) {
-        init_bootfile(bootpath, aarch64_kernel, sizeof(aarch64_kernel));
+        init_bootfile(aarch64_kernel, sizeof(aarch64_kernel));
         memory_size = "150M";
         arch_opts = g_strdup_printf("-machine virt,gic-version=max -cpu max "
                                     "-kernel %s", bootpath);
@@ -866,7 +865,6 @@ static void test_migrate_end(QTestState *from, QTestState *to, bool test_dest)
 
     qtest_quit(to);
 
-    cleanup("bootsect");
     cleanup("migsocket");
     cleanup("src_serial");
     cleanup("dest_serial");
@@ -2629,12 +2627,10 @@ static QTestState *dirtylimit_start_vm(void)
     QTestState *vm = NULL;
     g_autofree gchar *cmd = NULL;
     const char *arch = qtest_get_arch();
-    g_autofree char *bootpath = NULL;
 
     assert((strcmp(arch, "x86_64") == 0));
-    bootpath = g_strdup_printf("%s/bootsect", tmpfs);
     assert(sizeof(x86_bootsect) == 512);
-    init_bootfile(bootpath, x86_bootsect, sizeof(x86_bootsect));
+    init_bootfile(x86_bootsect, sizeof(x86_bootsect));
 
     cmd = g_strdup_printf("-accel kvm,dirty-ring-size=4096 "
                           "-name dirtylimit-test,debug-threads=on "
@@ -2650,7 +2646,6 @@ static QTestState *dirtylimit_start_vm(void)
 static void dirtylimit_stop_vm(QTestState *vm)
 {
     qtest_quit(vm);
-    cleanup("bootsect");
     cleanup("vm_serial");
 }
 
@@ -2812,6 +2807,7 @@ int main(int argc, char **argv)
                        g_get_tmp_dir(), err->message);
     }
     g_assert(tmpfs);
+    bootpath = g_strdup_printf("%s/bootsect", tmpfs);
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -2959,6 +2955,8 @@ int main(int argc, char **argv)
 
     g_assert_cmpint(ret, ==, 0);
 
+    cleanup("bootsect");
+    g_free(bootpath);
     ret = rmdir(tmpfs);
     if (ret != 0) {
         g_test_message("unable to rmdir: path (%s): %s",
