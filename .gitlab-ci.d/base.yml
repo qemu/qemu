@@ -33,6 +33,14 @@ variables:
     # want jobs to run
     #############################################################
 
+    # Never run jobs upstream on stable branch, staging branch jobs already ran
+    - if: '$CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_BRANCH =~ /^stable-/'
+      when: never
+
+    # Never run jobs upstream on tags, staging branch jobs already ran
+    - if: '$CI_PROJECT_NAMESPACE == $QEMU_CI_UPSTREAM && $CI_COMMIT_TAG'
+      when: never
+
     # Cirrus jobs can't run unless the creds / target repo are set
     - if: '$QEMU_JOB_CIRRUS && ($CIRRUS_GITHUB_REPO == null || $CIRRUS_API_TOKEN == null)'
       when: never
