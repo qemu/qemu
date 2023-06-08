@@ -387,6 +387,10 @@ enum {
     OPC_MXU_S8SDI    = 0x25,
     OPC_MXU__POOL16  = 0x27,
     OPC_MXU__POOL17  = 0x28,
+    OPC_MXU_S16LDD   = 0x2A,
+    OPC_MXU_S16STD   = 0x2B,
+    OPC_MXU_S16LDI   = 0x2C,
+    OPC_MXU_S16SDI   = 0x2D,
     OPC_MXU_S32M2I   = 0x2E,
     OPC_MXU_S32I2M   = 0x2F,
     OPC_MXU__POOL19  = 0x38,
@@ -766,6 +770,107 @@ static void gen_mxu_s8std(DisasContext *ctx, bool postmodify)
 
     tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_UB);
 }
+
+/*
+ * S16LDD XRa, Rb, s10, optn2 - Load a halfword from memory to XRF
+ *
+ * S16LDI XRa, Rb, s10, optn2 - Load a halfword from memory to XRF,
+ * post modify address register
+ */
+static void gen_mxu_s16ldd(DisasContext *ctx, bool postmodify)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, optn2;
+    int32_t s10;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa   = extract32(ctx->opcode,   6, 4);
+    s10   = sextract32(ctx->opcode, 10, 9) * 2;
+    optn2 = extract32(ctx->opcode,  19, 2);
+    Rb    = extract32(ctx->opcode,  21, 5);
+
+    gen_load_gpr(t0, Rb);
+    tcg_gen_addi_tl(t0, t0, s10);
+    if (postmodify) {
+        gen_store_gpr(t0, Rb);
+    }
+
+    switch (optn2) {
+    /* XRa[15:0] = tmp16 */
+    case MXU_OPTN2_PTN0:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UW);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 0, 16);
+        break;
+    /* XRa[31:16] = tmp16 */
+    case MXU_OPTN2_PTN1:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UW);
+        gen_load_mxu_gpr(t0, XRa);
+        tcg_gen_deposit_tl(t0, t0, t1, 16, 16);
+        break;
+    /* XRa = sign_extend(tmp16) */
+    case MXU_OPTN2_PTN2:
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_SW);
+        break;
+    /* XRa = {tmp16, tmp16} */
+    case MXU_OPTN2_PTN3:
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UW);
+        tcg_gen_deposit_tl(t0, t1, t1,  0, 16);
+        tcg_gen_deposit_tl(t0, t1, t1, 16, 16);
+        break;
+    }
+
+    gen_store_mxu_gpr(t0, XRa);
+}
+
+/*
+ * S16STD XRa, Rb, s8, optn2 - Store a byte from XRF to memory
+ *
+ * S16SDI XRa, Rb, s8, optn2 - Store a byte from XRF to memory,
+ * post modify address register
+ */
+static void gen_mxu_s16std(DisasContext *ctx, bool postmodify)
+{
+    TCGv t0, t1;
+    uint32_t XRa, Rb, optn2;
+    int32_t s10;
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    XRa = extract32(ctx->opcode, 6, 4);
+    s10 = sextract32(ctx->opcode, 10, 9) * 2;
+    optn2 = extract32(ctx->opcode, 19, 2);
+    Rb = extract32(ctx->opcode, 21, 5);
+
+    if (optn2 > 1) {
+        /* reserved, do nothing */
+        return;
+    }
+
+    gen_load_gpr(t0, Rb);
+    tcg_gen_addi_tl(t0, t0, s10);
+    if (postmodify) {
+        gen_store_gpr(t0, Rb);
+    }
+    gen_load_mxu_gpr(t1, XRa);
+
+    switch (optn2) {
+    /* XRa[15:0] => tmp16 */
+    case MXU_OPTN2_PTN0:
+        tcg_gen_extract_tl(t1, t1, 0, 16);
+        break;
+    /* XRa[31:16] => tmp16 */
+    case MXU_OPTN2_PTN1:
+        tcg_gen_extract_tl(t1, t1, 16, 16);
+        break;
+    }
+
+    tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_UW);
+}
+
 /*
  * D16MUL  XRa, XRb, XRc, XRd, optn2 - Signed 16 bit pattern multiplication
  * D16MULF XRa, XRb, XRc, optn2 - Signed Q15 fraction pattern multiplication
@@ -3784,6 +3889,18 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
             break;
         case OPC_MXU__POOL17:
             decode_opc_mxu__pool17(ctx);
+            break;
+        case OPC_MXU_S16LDD:
+            gen_mxu_s16ldd(ctx, false);
+            break;
+        case OPC_MXU_S16STD:
+            gen_mxu_s16std(ctx, false);
+            break;
+        case OPC_MXU_S16LDI:
+            gen_mxu_s16ldd(ctx, true);
+            break;
+        case OPC_MXU_S16SDI:
+            gen_mxu_s16std(ctx, true);
             break;
         case OPC_MXU__POOL19:
             decode_opc_mxu__pool19(ctx);
